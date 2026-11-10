@@ -421,12 +421,44 @@ type Call =
   | { timedOut: true }
   | { networkError: string };
 
+/** JSON.parse checks the grammar but discards earlier copies of a repeated member.
+ * Walk the original tokens, keeping a separate name set for each open object. */
+function hasUniqueJsonMembers(text: string): boolean {
+  const scopes: Set<string>[] = [];
+  let stringStart = 0;
+  let stringEnd = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    switch (text[index]) {
+      case '{': scopes.push(new Set()); break;
+      case '}': scopes.pop(); break;
+      case '"':
+        stringStart = index;
+        while (text[++index] !== '"') {
+          if (text[index] === '\\') index += 1;
+        }
+        stringEnd = index;
+        break;
+      case ':': {
+        // Outside a string, a colon can only follow an object member name.
+        const quoted = text.slice(stringStart, stringEnd + 1);
+        const name = quoted.includes('\\') ? JSON.parse(quoted) as string : quoted.slice(1, -1);
+        const scope = scopes[scopes.length - 1];
+        if (scope.has(name)) return false;
+        scope.add(name);
+        break;
+      }
+    }
+  }
+  return true;
+}
+
 async function callBridge(
   bridgeUrl: string,
   path: string,
   body: Record<string, unknown> | null,
   timeoutMs: number,
   token?: string,
+  replyMode?: 'vmix',
 ): Promise<Call> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -456,10 +488,12 @@ async function callBridge(
       try {
         text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
       } catch {
-        // Keep the old permissive decode for CasparCG. Invalid bytes carry no vMix authority.
+        if (replyMode === 'vmix') return { http, body: {}, bodyKind: 'invalid' };
+        // Keep the old permissive decode for CasparCG.
         return { http, body: JSON.parse(new TextDecoder().decode(bytes)) as BridgeReply, bodyKind: 'invalid' };
       }
       const parsed: unknown = JSON.parse(text);
+      if (replyMode === 'vmix' && !hasUniqueJsonMembers(text)) return { http, body: {}, bodyKind: 'invalid' };
       const bodyKind = parsed === null ? 'null' : typeof parsed === 'object' && !Array.isArray(parsed) ? 'object' : 'invalid';
       return { http, body: parsed as BridgeReply, bodyKind };
     } catch {
@@ -991,7 +1025,7 @@ type VmixHealth =
   | { kind: 'legacy' | 'failed'; result: PlayoutResult };
 
 async function probeVmix(bridgeUrl: string): Promise<VmixHealth> {
-  const call = await callBridge(bridgeUrl, '/health', null, BRIDGE_TIMEOUT_MS);
+  const call = await callBridge(bridgeUrl, '/health', null, BRIDGE_TIMEOUT_MS, undefined, 'vmix');
   if (!('http' in call)) return { kind: 'failed', result: await unreachableBridge(bridgeUrl, call) };
   if (call.http === 200 && call.bodyKind === 'object') {
     const { body } = call;
@@ -1155,7 +1189,7 @@ export async function testVmix(settings: PlayoutSettings, reconnect = false): Pr
   const { adapters, features } = health;
   if (!adapters.includes('vmix')) return { supported: false, keyed: false };
   const route = reconnect ? '/connect' : '/status';
-  const call = await callBridge(settings.agentUrl, route, { target: vmixTarget }, ACT_TIMEOUT_MS, settings.agentToken);
+  const call = await callBridge(settings.agentUrl, route, { target: vmixTarget }, ACT_TIMEOUT_MS, settings.agentToken, 'vmix');
   const { result, body } = readVmixReply(settings, call, route);
   return { supported: true, keyed: features.includes('vmix-output-key'), result, info: result.state === 'ok' ? body?.vmix : undefined };
 }
@@ -1164,7 +1198,7 @@ export async function readVmixOverlays(settings: PlayoutSettings, outputUrl: str
   result: PlayoutResult; info?: VmixInfo; overlays?: VmixOverlayState[]; loadProblem?: string;
 }> {
   const call = await callBridge(
-    settings.agentUrl, '/state', { target: vmixTarget, outputUrl }, ACT_TIMEOUT_MS, settings.agentToken,
+    settings.agentUrl, '/state', { target: vmixTarget, outputUrl }, ACT_TIMEOUT_MS, settings.agentToken, 'vmix',
   );
   const { result, body } = readVmixReply(settings, call, '/state');
   if (result.state !== 'ok') return { result };
@@ -1182,7 +1216,7 @@ export async function actVmix(
     return { state: 'outdated', detail: 'Update NoaCG Bridge to load or unload an output in vMix.' };
   }
   const call = await callBridge(
-    settings.agentUrl, '/act', { target: vmixTarget, action }, ACT_TIMEOUT_MS, VMIX_OUTPUT_TOKEN_PREFIX + settings.agentToken,
+    settings.agentUrl, '/act', { target: vmixTarget, action }, ACT_TIMEOUT_MS, VMIX_OUTPUT_TOKEN_PREFIX + settings.agentToken, 'vmix',
   );
   return readVmixReply(settings, call, '/act').result;
 }

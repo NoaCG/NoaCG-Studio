@@ -352,6 +352,75 @@ test('vMix accepts known payload fields only on the route that sends them', asyn
   }
 });
 
+test('only unique decoded object names can grant authority to a vMix Bridge reply', async (t) => {
+  const addMembers = (body, members) => JSON.stringify(body).slice(0, -1) + ',\n' + members + '}';
+  let paths;
+  let healthText = JSON.stringify(health);
+  let reply;
+  let http;
+  t.mock.method(globalThis, 'fetch', async url => {
+    const path = new URL(url).pathname;
+    paths.push(path);
+    return path === '/health' ? new Response(healthText) : new Response(reply, { status: http });
+  });
+
+  for (healthText of [
+    JSON.stringify(health).replace('"adapters"', String.raw`"adapters":[],"ad\u0061pters"`),
+    String.raw`{"agent":"noacg-bridge","ag\u0065nt":"noacg-caspar","ok":true,"v":1}`,
+  ]) {
+    paths = [];
+    assert.equal((await testVmix(settings)).supported, undefined);
+    assert.match((await actVmix(settings, () => unload)).detail, /valid playout capability response/);
+    assert.deepEqual(paths, ['/health', '/health']);
+  }
+
+  healthText = JSON.stringify(health);
+  http = 200;
+  for (const [route, body, call] of [
+    ['/status', status, () => testVmix(settings)],
+    ['/connect', connected, () => testVmix(settings, true)],
+    ['/state', scoped(), () => readVmixOverlays(settings, choice.url)],
+  ]) {
+    reply = addMembers(body, String.raw`"future":[{"\uD83C\uDFAC":1,"🎬":2}]`);
+    paths = [];
+    const result = await call();
+    assert.equal(result.info, undefined, route);
+    assert.match(result.result.detail, /valid vMix reading/, route);
+    assert.deepEqual(paths, route === '/state' ? ['/state'] : ['/health', route]);
+  }
+
+  const success = JSON.stringify(acted);
+  for ([http, reply] of [
+    [200, success.replace('"ok"', '"ok":false,"ok"')],
+    [200, addMembers(acted, String.raw`"future":{"constructor":1,"\u0063onstructor":2}`)],
+    [200, addMembers(acted, String.raw`"future":{"__proto__":1,"__prot\u006f__":2}`)],
+    [401, String.raw`{"ok":false,"v":2,"error":{"hop":"target","h\u006fp":"agent","code":"refused","detail":"Rejected."}}`],
+  ]) {
+    paths = [];
+    const result = await actVmix(settings, () => unload);
+    assert.equal(result.state, 'bridge');
+    assert.equal(result.unknownAction, true);
+    assert.match(result.detail, /result is unknown/);
+    assert.deepEqual(paths, ['/health', '/act']);
+  }
+
+  // String values are opaque to the name check. Siblings, array entries and outer
+  // objects can reuse a name, and deep unknown metadata is valid without recursion.
+  const depth = 12_000;
+  healthText = addMembers(health, String.raw`"future":{"description":"look like \"key\" : { } \\"}`);
+  reply = addMembers(acted, String.raw`"\u0066uture":[{"same":1,"__proto__":true},{"same":{"same":3},"constructor":4}],"deep":`
+    + '{"same":['.repeat(depth) + 'null' + ']}'.repeat(depth));
+  http = 200;
+  paths = [];
+  assert.equal((await actVmix(settings, () => unload)).state, 'ok');
+  assert.deepEqual(paths, ['/health', '/act']);
+
+  // The shared generic reader retains its existing projection for other adapters.
+  reply = success.replace('"ok"', '"ok":false,"ok"');
+  const casparOut = { verb: 'out', slot: { adapter: 'casparcg', channel: 1, layer: 20 } };
+  assert.equal((await act(settings, casparOut)).state, 'ok');
+});
+
 test('only genuine legacy health establishes that the Bridge is outdated for vMix', async (t) => {
   const legacy = { ok: true, agent: 'noacg-caspar', v: 1 };
   let body;

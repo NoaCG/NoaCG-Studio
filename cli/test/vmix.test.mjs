@@ -757,6 +757,8 @@ test('AC-4: overlay readback must still show the keyed Browser after In', async 
     await withBridge(createVmixAdapter({ port: fake.port }), async post => {
       const result = await act(post, { verb: 'take', item, slot: slot() });
       assert.equal(result.error?.code, 'uncertain', JSON.stringify(result));
+      assert.match(result.error.detail, /added the Browser input.*could not confirm it/);
+      assert.doesNotMatch(result.error.detail, /did not put it on overlay 8/);
       assert.deepEqual(fake.functions.map(fn => fn.name), ['AddInput', 'SetInputName', 'OverlayInput8In']);
     });
   } finally {
@@ -966,19 +968,27 @@ test('AC-4: a kept input that reappears during a replacement stops Load', async 
       const mark = fake.functions.length;
       fake.inputs.pop();
       reappear = 'read';
-      assert.equal((await act(post, { verb: 'take', item, slot: slot() })).error?.code, 'refused');
+      const beforeAdd = await act(post, { verb: 'take', item, slot: slot() });
+      assert.equal(beforeAdd.error?.code, 'refused');
+      assert.doesNotMatch(beforeAdd.error.detail, /added the Browser input/);
       assert.deepEqual(fake.functions.slice(mark), []);
       fake.inputs.pop();
       reappear = 'add';
-      assert.equal((await act(post, { verb: 'take', item, slot: slot() })).error?.code, 'uncertain');
+      const beforeSave = await act(post, { verb: 'take', item, slot: slot() });
+      assert.equal(beforeSave.error?.code, 'uncertain');
+      assert.match(beforeSave.error.detail, /added the Browser input.*did not put it on overlay 8.*old input returned/);
       assert.deepEqual(fake.functions.slice(mark).map(fn => fn.name), ['AddInput']);
       assert.equal(fake.onChannel(8), undefined);
       assert.equal((await store.read(fake.port)).keys[vmixOutputId(OUTPUT)], restored.key);
       fake.inputs.length = 0;
       reappear = 'name';
-      assert.equal((await act(post, { verb: 'take', item, slot: slot() })).error?.code, 'uncertain');
+      const afterSave = await act(post, { verb: 'take', item, slot: slot() });
+      assert.equal(afterSave.error?.code, 'uncertain');
+      assert.match(afterSave.error.detail, /added the Browser input.*did not put it on overlay 8.*old input returned/);
       assert.deepEqual(fake.functions.slice(mark).map(fn => fn.name), ['AddInput', 'AddInput', 'SetInputName']);
       assert.equal(fake.onChannel(8), undefined);
+      const current = fake.inputs.find(input => input.key !== restored.key);
+      assert.equal((await store.read(fake.port)).keys[vmixOutputId(OUTPUT)], current.key);
     });
   } finally {
     await fake.stop();
@@ -1095,20 +1105,27 @@ test('AC-4: a take without time for complete input attribution sends no AddInput
   }
 });
 
-for (const lostAt of ['naming', 'before Overlay In', 'after Overlay In']) {
-  test('AC-4: a failed Load reports the Browser already added ' + lostAt, async t => {
+for (const failedAt of ['naming', 'naming refusal', 'before Overlay In', 'In refusal', 'after Overlay In']) {
+  test('AC-4: a failed Load reports the Browser already added ' + failedAt, async t => {
     const realNow = Date.now.bind(Date);
     let advance = 0;
     t.mock.method(Date, 'now', () => realNow() + advance);
     const fake = await startFakeVmix({
       transformXml(xml) {
-        if (lostAt === 'before Overlay In' && fake.functions.some(f => f.name === 'SetInputName')) advance = 8000;
+        if (failedAt === 'before Overlay In' && fake.functions.some(f => f.name === 'SetInputName')) advance = 8000;
         return xml;
       },
       hook(line, socket) {
-        if (lostAt !== 'after Overlay In' || !line.startsWith('FUNCTION OverlayInput8In ')) return false;
-        socket.destroy();
-        return true;
+        if ((failedAt === 'naming refusal' && line.startsWith('FUNCTION SetInputName ')) ||
+          (failedAt === 'In refusal' && line.startsWith('FUNCTION OverlayInput8In '))) {
+          socket.write('FUNCTION ER Refused\r\n');
+          return true;
+        }
+        if (failedAt === 'after Overlay In' && line.startsWith('FUNCTION OverlayInput8In ')) {
+          socket.destroy();
+          return true;
+        }
+        return false;
       },
     });
     const stored = vmixOutputStore();
@@ -1116,14 +1133,16 @@ for (const lostAt of ['naming', 'before Overlay In', 'after Overlay In']) {
       ...stored,
       async save(...args) {
         await stored.save(...args);
-        if (lostAt === 'naming') advance = 8000;
+        if (failedAt === 'naming') advance = 8000;
       },
     };
     try {
       await withBridge(createVmixAdapter({ port: fake.port, outputs }), async post => {
         const reply = await act(post, { verb: 'take', item, slot: slot() });
         assert.equal(reply.ok, false);
-        assert.equal(reply.error.code, lostAt === 'after Overlay In' ? 'uncertain' : 'unreachable');
+        const refusal = failedAt.endsWith('refusal');
+        assert.equal(reply.error.code, failedAt === 'after Overlay In' ? 'uncertain' : refusal ? 'refused' : 'unreachable');
+        if (refusal) assert.equal(reply.error.raw, 'FUNCTION ER Refused');
         assert.match(reply.error.detail, /added the Browser input/);
         assert.doesNotMatch(reply.error.detail, /Nothing changed/);
         assert.equal(fake.inputs.length, 1);
@@ -1131,14 +1150,14 @@ for (const lostAt of ['naming', 'before Overlay In', 'after Overlay In']) {
         assert.equal(fake.onChannel(8), undefined);
         const sent = fake.lines.filter(line => line.startsWith('FUNCTION ')).map(line => line.split(' ')[1]);
         assert.deepEqual(sent, [
-          'AddInput', ...(lostAt === 'naming' ? [] : ['SetInputName']),
-          ...(lostAt === 'after Overlay In' ? ['OverlayInput8In'] : []),
+          'AddInput', ...(failedAt === 'naming' ? [] : ['SetInputName']),
+          ...(['In refusal', 'after Overlay In'].includes(failedAt) ? ['OverlayInput8In'] : []),
         ]);
-        if (lostAt === 'after Overlay In') {
+        if (failedAt === 'after Overlay In') {
           assert.match(reply.error.detail, /may have acted/);
-          assert.doesNotMatch(reply.error.detail, /did not put it on the overlay/);
+          assert.doesNotMatch(reply.error.detail, /did not put it on overlay 8/);
         } else {
-          assert.match(reply.error.detail, /did not put it on the overlay/);
+          assert.match(reply.error.detail, /did not put it on overlay 8/);
         }
       });
     } finally {
@@ -1268,25 +1287,53 @@ for (const verb of ['out', 'take']) {
   });
 }
 
-test('AC-4: an overlay change during a prepared Load is left alone', async () => {
-  const fake = await startFakeVmix({
-    hook(line) {
-      if (line.startsWith('FUNCTION SetInputName ')) fake.overlays.set(8, operator.key);
-      return false;
-    },
-  });
-  const operator = fake.add('Image', 'Live bug');
-  try {
-    await withBridge(createVmixAdapter({ port: fake.port }), async post => {
-      const result = await act(post, { verb: 'take', item, slot: slot(), expectedOverlayInput: null });
-      assert.match(result.error.detail, /overlay 8 changed/);
-      assert.equal(fake.onChannel(8), operator);
-      assert.deepEqual(fake.functions.map(f => f.name), ['AddInput', 'SetInputName']);
+for (const [problem, cause, code] of [
+  ['malformed XML', /XML with something that is not its state/, 'refused'],
+  ['selected overlay changed', /overlay 8 changed/, 'refused'],
+  ['Browser renamed', /did not confirm the name/, 'uncertain'],
+  ['Browser removed', /did not confirm the name/, 'uncertain'],
+  ['Browser on another overlay', /Unload the Browser from vMix overlay 7/, 'refused'],
+]) {
+  test('AC-4: a prepared Load reports the Browser and preserves recovery after ' + problem, async () => {
+    let browser;
+    const fake = await startFakeVmix({
+      hook(line) {
+        if (line.startsWith('FUNCTION SetInputName ')) browser = fake.inputs.find(input => input.type === 'Browser');
+        if (line !== 'XML' || !browser) return false;
+        if (problem === 'selected overlay changed') fake.overlays.set(8, operator.key);
+        if (problem === 'Browser renamed') browser.title = 'Operator title';
+        if (problem === 'Browser removed') fake.inputs.pop();
+        if (problem === 'Browser on another overlay') fake.overlays.set(7, browser.key);
+        return false;
+      },
+      transformXml: xml => browser && problem === 'malformed XML'
+        ? xml.replace('</vmix>', '<audio>&unknown;</audio></vmix>')
+        : xml,
     });
-  } finally {
-    await fake.stop();
-  }
-});
+    const operator = fake.add('Image', 'Live bug');
+    const dir = await mkdtemp(join(tmpdir(), 'noacg-vmix-partial-'));
+    const file = join(dir, 'vmix-outputs.json');
+    const outputs = vmixOutputStore(file);
+    try {
+      await withBridge(createVmixAdapter({ port: fake.port, outputs }), async (post, base) => {
+        const result = await act(post, { verb: 'take', item, slot: slot(), expectedOverlayInput: null });
+        assert.equal(result.error.hop, 'target');
+        assert.equal(result.error.code, code);
+        assert.match(result.error.detail, /vMix added the Browser input.*did not put it on overlay 8/);
+        assert.match(result.error.detail, cause);
+        if (problem === 'malformed XML') assert.match(result.error.raw, /^XML \d+$/);
+        assert.equal(fake.onChannel(8), problem === 'selected overlay changed' ? operator : undefined);
+        assert.deepEqual(fake.functions.map(f => f.name), ['AddInput', 'SetInputName']);
+        assert.equal((await vmixOutputStore(file).read(fake.port)).keys[vmixOutputId(OUTPUT)], browser.key);
+        assert.equal((await aliasRequest(base, new URL(browser.url))).headers.location, OUTPUT);
+      });
+    } finally {
+      await fake.stop();
+      await rm(file, { force: true });
+      await rmdir(dir);
+    }
+  });
+}
 
 test('a version-marked token only authorizes vMix /act and still needs the paired secret', async () => {
   const fake = await startFakeVmix();
@@ -1326,6 +1373,7 @@ test('AC-4: failed storage cannot acquire or rename an output', async () => {
     } }), async (post, base) => {
       const result = await act(post, { verb: 'take', item, slot: slot() });
       assert.equal(result.error.code, 'uncertain');
+      assert.match(result.error.detail, /added the Browser input.*did not put it on overlay 8.*could not keep the new input key/);
       assert.deepEqual(fake.functions.map(f => f.name), ['AddInput']);
       assert.equal(fake.onChannel(8), undefined);
       assert.equal((await aliasRequest(base, new URL(fake.inputs[0].url))).status, 403);
