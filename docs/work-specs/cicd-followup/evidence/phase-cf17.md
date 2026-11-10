@@ -25,7 +25,7 @@ written in (a)."
 ## 1. The cohort the owner chose, and whether it can run
 
 Owner decision, 2026-11-10T17:31Z (#1967, comment 6774413052): "vMix + interaction + editor
-(Recommended)", one bounded window of about 3 days. Read again at 2026-11-10T18:00Z:
+(Recommended)", one bounded window of about 3 days. Read again at 2026-11-10T17:35Z:
 
 | Plan | Runnable plans entry | Run issue and state | Work left for the window | Coordinator |
 | --- | --- | --- | --- | --- |
@@ -64,8 +64,8 @@ run segment with one plan phase in flight, from its first launch to its last lan
 | Plan | Segment | Phases landed (n) | Rate |
 | --- | --- | ---: | --- |
 | interaction | 2026-11-09T11:16Z to 2026-11-10T14:41Z (27.4 h; cicd-followup ran beside it) | 6 | 5.3 per day |
-| vMix | 2026-11-08 to 2026-11-10T18:00Z | 1 (V1, #2291) | 0.4 per day, blocked since V2 |
-| editor-r1-5 | 2026-11-08 to 2026-11-10T18:00Z | 0 | 0, blocked on E1 |
+| vMix | 2026-11-08 to 2026-11-10T17:35Z | 1 (V1, #2291) | 0.4 per day, blocked since V2 |
+| editor-r1-5 | 2026-11-08 to 2026-11-10T17:35Z | 0 | 0, blocked on E1 |
 
 A plan whose reference n is below 3 phases has no usable solo rate: its W is reported, not
 judged, and the trial cannot meet S1 for it. That alone means the chosen cohort could not meet
