@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "head": "a628eda0882c9fc3c37203d1a79b10a2320468c7",
-      "phase": "v2",
-      "session": "/root/v2_source_repair",
+      "step": "build",
       "pr": 2293,
-      "note": "Independent V2 review B on c0ce9c0f. Browser refusal passed. Fresh repeated-family reassessment before the last scoped HTTP reply boundary attempt.",
-      "step": "build"
+      "phase": "v2",
+      "session": "/root/v2_envelope_repair",
+      "note": "The Browser source rule passed independent review. A final bounded repair applies the reassessed HTTP reply rules; draft remains outside the queue.",
+      "head": "a628eda0882c9fc3c37203d1a79b10a2320468c7"
     }
   ],
   "owner": [],
