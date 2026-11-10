@@ -166,8 +166,8 @@ surface's button hints - the production page and the exported panels - say the s
 - **▶ Play / ■ Stop** (single-graphic surfaces) - take the values and run the entrance /
   animate the graphic off.
 
-Editing is always a DRAFT: the production page's cue editor stages locally and the hosted
-page stages into the shared buffer - in both, nothing reaches air because it was typed.
+Editing is always a DRAFT: the production page's cue editor keeps the edit on the page, and
+nothing reaches air because it was typed.
 
 ## Prepared vs published, and the event log
 
@@ -238,7 +238,7 @@ Deleting it is one action (`deleteShowProfile`) and restores the generated panel
   slug holder reads the log through `control_tail` and follows it on the private
   `log-<show id>` topic (0064).
 - **Recovery is self-service:** the hosted receiver reboots by reading its own last report
-  (data, then snap), then follows the log. The production page re-reads the row on load. Staging
+  (data, then snap), then follows the log. The production page rebuilds what is on air from the resolve and the log when it opens. Staging
   and live reports ride the log as meta rows (`t:'staged'|'live'`) so every open page follows
   without polling; those are never applied as graphic commands.
 - **On the hosted half an RPC either ANSWERED — possibly with nothing — or FAILED, and the two
@@ -291,17 +291,19 @@ Deleting it is one action (`deleteShowProfile`) and restores the generated panel
 
 The routed Home (`components/home/HomePage.tsx`, `#/home` — docs/SAVED_CONTENT_MODEL.md §3;
 it replaced the old Homebase modal) is the profile: the flat graphics library, video
-projects, productions with their hosted-page links, community submissions. (Packages are
+projects, productions with their output links, community submissions. (Packages are
 retired — docs/GOALS_ARCHIVE.md "Student release" step 3.) Sync kinds
 include `'show'` and `'video'` (video tombstones strip the heavy payload to a readable
 stub). All local-first; cloud mirrors for signed-in users.
 
 ## Live-verify checklist (maintainer, real Supabase — a green build never counts)
 
-**Steps 8 and 9 are now driven on every run of the configured suite** (`e2e/configured/hosted-control-profile.spec.ts`, from 2026-09-16): it publishes a
-production carrying an ARRANGE (plus a legacy `combine` list it must ignore) and three
-bound fields, then drives the capability URL signed out and reads every claim back off the durable
-log. That does not retire them from this list - a spec asserts structure and cannot judge how the
+**Steps 8 and 9 were driven on every run of the configured suite** from 2026-09-16 to 2026-11
+by `e2e/configured/hosted-control-profile.spec.ts`, which published a production carrying an
+ARRANGE (plus a legacy `combine` list it had to ignore) and three bound fields, drove the hosted
+control page signed out and read every claim back off the durable log. That spec was deleted with
+the page (docs/work-specs/retire-hosted-control/spec.md); the published panel spec and profile
+stay pinned offline by `e2e/hosted-control.spec.ts`. That does not retire them from this list - a spec asserts structure and cannot judge how the
 surface LOOKS on a phone - but it does mean a hand-walk is now confirming an eye's judgement rather
 than discovering whether the mechanism works at all.
 
@@ -315,7 +317,7 @@ than discovering whether the mechanism works at all.
    machine ideally): the production page drives it; kill + reload the graphic → it snaps back to
    the pre-kill state with the aired data; reload the production page mid-show → chip + fields
    resume.
-5. Two operators, each signed in on their own device with the production open: A takes, B's
+5. Two operators, each signed in on their own device with the production page open: A takes, B's
    chip updates; refresh B mid-show → recovers.
 6. Burst the send cap (hold a stepper with Live on) → the page surfaces the slow-down error,
    nothing crashes, the graphic stays consistent.
@@ -335,6 +337,6 @@ than discovering whether the mechanism works at all.
    `control_show_by_slug`, which reads as "no profile" and renders the generated panel — correct,
    but indistinguishable from a production that has none, so confirm the migration before
    concluding the arrangement did not travel.
-10. (Retired 2026-10-02.) COMBINE on the hosted page was removed with the feature; a published
-   profile that still carries a `combine` list must show no Combined section, which the
-   configured suite now asserts.
+10. (Retired 2026-10-02.) COMBINE was removed with the feature; a published profile that still
+   carries a `combine` list shows no Combined section. The configured check of that went with
+   the hosted control page in 2026-11.

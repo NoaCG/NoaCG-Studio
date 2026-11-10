@@ -64,6 +64,10 @@ change that touched all three.
 
 ## How the hosted frames exist at all
 
+The hosted control page was retired in 2026-11 (docs/work-specs/retire-hosted-control/spec.md),
+and the pack's `hosted` section went with it; its two frames stay as the record of that read.
+This is how they were made:
+
 The hosted control page needs Supabase env plus a published production, and this checkout has
 neither. So the pack's `hosted` section builds the **ordinary production bundle** with
 `VITE_SUPABASE_URL` pointed at a stub origin, serves it to the browser out of memory, and answers
@@ -111,7 +115,7 @@ node scripts/l3-sweep.mjs ./l3-shots/infographic infographic
 ```
 
 `node scripts/acceptance-pack.mjs docs/acceptance/owner-pack <section>` re-runs one section
-(`catalog`, `scroll`, `hosted`, `controller`, `interactive`) and re-renders the page around every
+(`catalog`, `scroll`, `controller`, `interactive`) and re-renders the page around every
 frame the manifest already holds; `index` alone re-renders the page and opens no production at
 all. Deleting `manifest.json` first forces a full rebuild in page order.
 
@@ -126,7 +130,6 @@ pack was rebuilt on the merged tree before anyone read it. Which files map to wh
 | Section | Goes stale when these move |
 |---|---|
 | `scroll` | `src/components/home/ProductionPage.tsx`, `src/styles/playout-dashboard.css` |
-| `hosted` | `src/components/HostedControlPage.tsx`, the same `.pd-*` rules |
 | `controller` | `src/control/productionControllerHtml.ts` |
 | `interactive` | `ProductionPage.tsx`, `ProductionDataWorkspace.tsx`, `ProductionAudienceWorkspace.tsx`, `src/audience/joinSurface.ts` |
 | `catalog` | `src/templates/infographics/`, and re-run the l3 sweep first |
