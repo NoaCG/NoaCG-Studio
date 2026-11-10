@@ -627,10 +627,73 @@ simulation. The affected build gates passed, with 12 cheap checks and
 356 tests in 26 Node files. The exact changed paths end no comparison
 side in the existing CI observation model.
 
+#### Final review corrections
+
+The first independent final review of `f0be79f358e295fb37dfabee47a51fd4b427f011`
+returned AGREE WITH CORRECTIONS below the required grade. The three cases
+below are confirmed product defects. The review applies to that head.
+
+- Ungroup could discard a transform or reserved channel manually changed
+  in canonical group CSS. A marked group now needs the intact generated
+  transform and motion defaults before Ungroup can discard or carry its
+  wrapper. An unrecognized marker refuses source edits. Older unmarked
+  groups still use their existing path.
+- Copy, paste, move and ease of a saved pivot key now check its editable
+  artwork and current pivot owner. A changed owner refuses the whole
+  selection. Ordinary keyed pivots also refuse competing declarations for
+  their animated CSS variables and pivot style. Unrelated key edits remain
+  available, and historical static pivot controls retain their own rules.
+- Saved coincident Step and Out flags share their stored horizontal
+  position and have separate vertical hit targets. Ordinary nearby flags
+  keep their existing room rule. Clicking a flag inspects its own cue
+  without writing source or changing its stored time.
+
+Windows `j-5105` exited 1 with all three regressions reproduced, including
+a zero-pixel Step hit target. On the corrected source `j-5106` exited 0
+with all six selected owner and flag tests. `j-5107` exited 0 with two
+all-target package cases, `j-5108` with four SVG geometry and refusal
+cases, and `j-5109` with seven clipboard and key-ease cases. `j-5110`
+exited 0 with two flag cases. The rendered ruler captures showed readable
+coincident names and separate hit areas at the same marker. The nearby
+capture SHA256 is `c6bfa108a518d57c81dfd55d1894a5cb522ce19d80ef827a606b6540dec1ea3c`
+and the coincident capture SHA256 is `fab059b23f788eaacb48f3e346ed169e3d0fc6a19b4150bf45b971b296c4f8a3`.
+The product correction is `46c4667a2b118bbe6e95b067fc8ce0f9d9331f20`.
+Changed-file lint, TypeScript build and affected local gates passed again,
+including 12 cheap checks and 356 Node tests across 26 files.
+
+The maintained everyday Windows checks also completed on `46c4667a2`.
+`j-5111` exited 0 with five Illustrator, static and ordinary anchor
+cases. `j-5112` exited 0 with nine image and Pen cases, including image
+placement, replacement, fit, undo and saved playout. `j-5113` exited 0
+with five arrangement, transformed Illustrator group/ungroup, asset bin
+and catalog save/reopen/export cases. The earlier `j-5057` scheduler
+failure and the separate owner file interaction receipts still stand.
+
+Final inline checking found that the exact `1e-9px` base pivot written by
+the editor could be refused when keyed again. Windows `j-5114` reproduced
+the refusal. The canonical owner now accepts its own finite scientific
+notation while still refusing conflicting source. `j-5115` exited 0 with
+all three selected ownership, precision and all-target playback cases.
+
+#### Catalog and affected CI scope
+
+Windows factory `j-5098` exited 0 with 328 checks across 12 kits. The
+rendered catalog sweeps each exited 0: `j-5101` type floor, `j-5102`
+overflow, `j-5103` fields and `j-5104` live numerals. The raw Windows
+catalog gate `j-5099` exited 1 on `jc01` JavaScript. The unchanged-main
+control `j-5100` rebuilt 539 fingerprints from `78ce3f350` and found no
+candidate difference. Both raw `jc01` hashes were `ec5dc4ccf279231f`.
+Normalizing eight CRLFs in the unchanged QR encoder produced
+`8d17b8a35536b6dd`, the committed fingerprint. The local raw result stays
+red, the baseline stays exact and the PR catalog check still applies.
+The local CI plan selected 179 offline specs in 15 shards and all 65
+configured specs. The exact PR run supplies the authoritative selection.
+
 ## Earlier checkpoints
 
-The E1 inventory and verified alias repair are published on the owned branch.
-E1 has no pull request, queue entry or phase verdict. There is no migration.
+At this earlier checkpoint the E1 inventory and verified alias repair were
+published on the owned branch, with no pull request, queue entry or phase
+verdict. There is no migration.
 The November 8 native and defect-probe jobs ended at their recorded states.
 The November 10 owner walkthrough covers the previously blocked Illustrator
 file interactions. The next verification needs an admitted Windows browser.

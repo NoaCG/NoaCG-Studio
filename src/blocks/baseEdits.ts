@@ -247,7 +247,10 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
       && critical.every(key => ownRule.style.getPropertyValue(key) && !ownRule.style.getPropertyPriority(key)
         && (own.match(new RegExp('(?:^|[;{]|\\*/)\\s*' + esc(key) + '\\s*:', 'g'))?.length ?? 0) === 1)
       && ['x', 'y', 'width', 'height'].every(key => node.getAttribute('data-group-' + key)?.trim())
-      && ['x', 'y'].every(axis => /^-?(?:\d+(?:\.\d+)?|\.\d+)px$/.test(ownValue('--base-anchor-' + axis) ?? ''))
+      && ['x', 'y'].every(axis => {
+        const value = ownValue('--base-anchor-' + axis) ?? '';
+        return /^-?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?px$/i.test(value) && Number.isFinite(parseFloat(value));
+      })
       && Object.entries(SVG_GROUP_TRACK_DEFAULTS).every(([key, value]) => ownValue(key) === value)
       && ownValue('transform-box') === 'view-box' && ownValue('transform') === SVG_GROUP_TRANSFORM
       && ownValue('transform-origin') === svgGroupOrigin(groupFrame.x, groupFrame.y);

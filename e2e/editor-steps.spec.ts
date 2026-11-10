@@ -451,6 +451,12 @@ test('SVG group pivot ownership is checked again before ungrouping or editing sa
   }
   const unrelated = { ...key, selector: '#box', property: 'opacity', time: .5 };
   expect((await operate(page, conflict, [{ kind: 'key.move', keys: [unrelated], delta: .1 }])).js).not.toBe(conflict.js);
+
+  const precise = await operate(page, grouped, [{ kind: 'base.set', selector, values: { anchorX: 1e-9, anchorY: 20 } }]);
+  expect(precise.css).toContain('--base-anchor-x: 1e-9px;');
+  const rekeyed = await operate(page, precise, [{ ...set, value: 1e-9 }]);
+  expect(rekeyed.css).toBe(precise.css);
+  expect((await dataOf(page, rekeyed)).steps[0].layers[selector][property]).toEqual([{ time: .4, value: .001 }]);
 });
 
 test('ordinary anchor keys refuse competing CSS variables and source style rules', async ({ page }) => {
