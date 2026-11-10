@@ -807,9 +807,13 @@ fresh read-only review challenged them before the final assessment:
   first page marked "earlier", a backlog read after a pause, a reconnect's replay). The server also
   refuses a time more than a minute ahead of its own clock. A replay is stopped first by the page's
   dedupe, and after a reload, when the page has forgotten the ids, by the window. A vote that
-  reaches the page after the question closed is not counted, as a phone's would not be.
+  reaches the page after the question closed is not counted, as a phone's would not be; chat
+  arrives a few seconds late (YouTube is read every five seconds), so the panel says to wait a
+  moment before Stop.
 - C7. Chat votes go in through `audience_operator_votes(slug, round, items)` with the control slug,
-  at most 500 a call.
+  at most 500 a call. An item whose option or time cannot be read is skipped, never the whole call.
+  A source's "votes" figure is what the server counted; a vote that changed nothing (older than one
+  it holds) shows as dropped.
 - C8. Each source has its own limits. A chat vote never passes the message throttle (the intake's
   10 in 10 seconds, the server's 20 per 10 seconds on messages). Phones keep 0035's 300 votes per
   10 seconds a round, now counted over phone votes only, so a chat burst cannot crowd phones out;

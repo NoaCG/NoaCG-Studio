@@ -68,3 +68,11 @@ marks, and how results look on air is phase 5.
   duplicated operator-door push (one helper); the local provider's comment claimed the chat
   ceiling; the evidence placeholders. Not changed: votes that reach the page after Stop are not
   counted (C6 says so; a phone's would not be either).
+- Read-only `/so` on `b07adf0` (fresh cloud session): AGREE WITH CORRECTIONS, grade A-. Four
+  findings, all fixed: the source's vote figure counted sends, not what the server counted (now the
+  server's count, the rest dropped); one unreadable time in a call made the whole call fail (each
+  item's option and time are now checked before their cast, and 0113's self-check sends a 30
+  February and a non-number); a vote said just before Stop that arrives after it is lost (C6 as
+  written; the panel now says to wait a moment before Stop); every backend change cleared the
+  reading of what is live (now only this page's Go live and Stop do). A fresh `/so` assesses the
+  final head.

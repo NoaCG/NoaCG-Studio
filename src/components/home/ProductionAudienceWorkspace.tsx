@@ -405,8 +405,6 @@ export function useMessageSources(show: Pick<Show, 'id' | 'sources'> | null, bac
     // Chat votes (interaction spec, "Chat votes"): counted while this production page is open.
     const chatVotes = backend.chatVotes?.bind(backend);
     intake.setVotes(chatVotes ? { live: async () => openRoundOf(await backend.rounds()), send: chatVotes } : null);
-    // This page's Go live or Stop is read at once, not up to CHAT_LIVE_READ_MS later.
-    return backend.onChange(() => intake.liveChanged());
   }, [intake, backend]);
   const plan = JSON.stringify(
     (show?.sources ?? []).flatMap((s) => (s.kind === 'youtube' && s.config.mode === 'chat' ? [[s.id, s.config.videoId, Boolean(s.paused)]] : [])),
@@ -846,7 +844,7 @@ function MessageSources({
           while a production page is open: said once, where the sources are. */}
       {(others.length > 0 || running.some((r) => r.platform === 'youtube')) && (
         <p className="hint pd-aud-source-hint" data-testid="chat-votes-hint">
-          While a vote is live, a chat line that is only an option's number or letter counts as a vote. Chat is read only while this production is open.
+          While a vote is live, a chat line that is only an option's number or letter counts as a vote. Chat is read only while this production is open, and arrives a few seconds late, so wait a moment before Stop.
         </p>
       )}
     </div>
@@ -1214,6 +1212,7 @@ export default function ProductionAudienceWorkspace({
     try {
       const before = await backend.rounds().catch(() => null);
       const opened = await backend.goLive(toLive({ ...q, type: q.type }));
+      chatIntakeFor(show.id).liveChanged(); // chat sorts its next line against this question
       setSelectedId(q.id);
       const swept = await finaliseClosed(before, await backend.rounds().catch(() => null), opened.id);
       setNote(`✓ Phones now show “${q.text}”.${sweepWords(swept)} Nothing is on air.`);
@@ -1239,6 +1238,7 @@ export default function ProductionAudienceWorkspace({
     if (!closing || !takeTurn()) return false;
     try {
       const after = await backend.stop(closing.id);
+      chatIntakeFor(show.id).liveChanged();
       // Stop names its round (R4): if another operator put a question live meanwhile, nothing
       // stopped, and the page says so rather than claiming phones are waiting.
       if (after.round && after.round.id !== closing.id) {

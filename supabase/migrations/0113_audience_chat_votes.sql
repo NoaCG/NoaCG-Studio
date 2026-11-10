@@ -117,21 +117,28 @@ begin
   -- whole-second times (measured in the recorded fixtures), and nothing from the future.
   v_from := v_round.opened_at - interval '1 second';
 
-  -- C3, C4: per voter, the latest by platform time; in a call, the last of equal times.
+  -- C3, C4: per voter, the latest by platform time; in a call, the last of equal times. An item
+  -- whose option or time cannot be read is skipped, never the whole call: each cast sits behind a
+  -- CASE that checks the text first (a calendar day past the month's end included), since the
+  -- planner may evaluate a WHERE condition before another.
   for v_item in
     select distinct on (x.voter) x.voter, x.opt, x.at
     from (
       select e.value->>'voter' as voter,
-             (e.value->>'option')::int as opt,
-             (e.value->>'at')::timestamptz as at,
+             case when e.value->>'option' ~ '^[0-9]{1,2}$' then (e.value->>'option')::int end as opt,
+             case when e.value->>'at' ~ '^[1-9][0-9]{3}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\.[0-9]{1,6})?(Z|[+-][01][0-9]:[0-5][0-9])$'
+                  then case when substr(e.value->>'at', 9, 2)::int <= extract(day from
+                         make_date(substr(e.value->>'at', 1, 4)::int, substr(e.value->>'at', 6, 2)::int, 1)
+                         + interval '1 month' - interval '1 day')
+                       then (e.value->>'at')::timestamptz end
+             end as at,
              e.ord
       from jsonb_array_elements(p_items) with ordinality as e(value, ord)
       where jsonb_typeof(e.value) = 'object'
         and coalesce(e.value->>'voter', '') ~ '^(yt|tw):[A-Za-z0-9_-]{1,120}$'
-        and coalesce(e.value->>'option', '') ~ '^[0-9]{1,2}$'
-        and coalesce(e.value->>'at', '') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T'
     ) as x
-    where x.at >= v_from and x.at <= now() + interval '1 minute'
+    where x.opt is not null and x.at is not null
+      and x.at >= v_from and x.at <= now() + interval '1 minute'
       and x.opt < jsonb_array_length(v_round.options)
     order by x.voter, x.at desc, x.ord desc
   loop
@@ -216,7 +223,9 @@ begin
     jsonb_build_object('voter', 'yt:UCone', 'option', 1, 'at', v_now + interval '2 seconds'),
     jsonb_build_object('voter', 'yt:UCone', 'option', 2, 'at', v_now + interval '1 second'),
     jsonb_build_object('voter', 'tw:500001', 'option', 2, 'at', v_now + interval '1 second'),
-    jsonb_build_object('voter', 'tw:500002', 'option', 0, 'at', v_now - interval '1 hour')
+    jsonb_build_object('voter', 'tw:500002', 'option', 0, 'at', v_now - interval '1 hour'),
+    jsonb_build_object('voter', 'tw:500004', 'option', 0, 'at', '2026-02-30T00:00:00Z'),
+    jsonb_build_object('voter', 'tw:500005', 'option', 'x', 'at', v_now)
   ));
   if v_n <> 2 then
     raise exception '0113 self-check failed: counted % chat votes, expected 2', v_n;

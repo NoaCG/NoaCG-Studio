@@ -215,7 +215,7 @@ test('YouTube: once per author, a repeated id once, the latest by platform time,
   assert.deepEqual(tally.chat, [2, 3, 1]);
   assert.deepEqual(tally.counts, [3, 3, 1]);
   assert.equal(tally.total, 7);
-  assert.ok(intake.sources()[0].votes >= 6);
+  assert.equal(intake.sources()[0].votes, 6, 'the older vote that changed nothing is not counted as one');
 
   // Paused, the room moves to the next question; on resume, the backlog read after the pause votes
   // on the new question only with what was said after it went live (`1` at 40 s does not, `2` at

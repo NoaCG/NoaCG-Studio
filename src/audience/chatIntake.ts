@@ -496,7 +496,15 @@ export function createChatIntake(options: { youtubeIo?: YouTubeIo } = {}): ChatI
         .send(round.id, chunk.map((v) => v.vote))
         .then(async (outcome) => {
           if (!outcome.closed) {
-            for (const v of chunk) v.runtime.state.votes += 1;
+            // What the server counted: a vote older than one it already holds changes nothing, and
+            // shows as dropped rather than as a vote (the call does not say which, only how many).
+            let counted = outcome.counted;
+            for (const v of chunk) {
+              if (counted > 0) {
+                v.runtime.state.votes += 1;
+                counted -= 1;
+              } else v.runtime.state.dropped += 1;
+            }
             changed();
             return;
           }
