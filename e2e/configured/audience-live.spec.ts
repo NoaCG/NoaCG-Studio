@@ -531,7 +531,8 @@ test.describe(() => {
     // Open question and a vote, the answer and the result go to the rundown and air only through
     // Take, and the room moves through three questions. The phone's screens are attached for the
     // walk's record (docs/work-specs/interaction/evidence/phase-3.md). Since phase 5 the vote airs
-    // on one of the result boards (a donut as a lower third) rather than the House Vote board.
+    // on one of the result boards (a donut as a lower third) rather than the House Vote board, and
+    // since phase 6 the third question is a Word question whose word cloud airs through Take.
     test.setTimeout(150_000);
     await signIn(page);
     await settleSync(page);
@@ -650,14 +651,41 @@ test.describe(() => {
     await expect(program('Result Donut Lower').locator('.poll-row')).toHaveCount(2);
     await testInfo.attach('program-result-donut', { body: await page.getByTestId('program-stage').screenshot(), contentType: 'image/png' });
 
-    // Question 3: the room moves on, and Stop leaves phones the waiting text.
-    await addQuestion(messages, 'open', 'One word for tonight?');
+    // Question 3, a Word question (AC-14, walked from phase 6): the phone sends one word, the
+    // operator hides one, the word cloud goes to the rundown and airs through Take with the shown
+    // words only. Then Stop leaves phones the waiting text.
+    await addQuestion(messages, 'word', 'One word for tonight?');
     await goLive(messages, 'One word for tonight?');
     await expect(phone.locator('#join .nj-prompt')).toHaveText('One word for tonight?', { timeout: 20_000 });
     await shot('5-third-question');
+    await phone.locator('#nj-word').fill('Electric');
+    await phone.locator('#join .nj-send').tap();
+    await expect(phone.locator('#join .nj-word')).toHaveText('Electric', { timeout: 20_000 });
+    await expect(phone.locator('#nj-word')).toHaveCount(0);
+    await shot('6-word-sent');
+    // A second phone sends a word the operator will hide.
+    const second = await phoneContext.newPage();
+    await second.goto(joinUrl);
+    await second.locator('#nj-word').fill('Boring');
+    await second.locator('#join .nj-send').tap();
+    await expect(second.locator('#join .nj-word')).toHaveText('Boring', { timeout: 20_000 });
+    await expect(messages.getByTestId('word-text')).toHaveText(['Boring', 'Electric'], { timeout: 20_000 });
+    await messages.getByTestId('word-row').filter({ hasText: 'Boring' }).getByTestId('word-hide').click();
+    await expect(messages.getByTestId('word-row').filter({ hasText: 'Boring' })).toHaveClass(/hidden/);
+    await messages.getByTestId('word-stage').click();
+    await messages.getByTestId('word-choose-board').filter({ hasText: 'House Word Cloud' }).click();
+    await expect(messages.getByTestId('audience-note')).toContainText('✓ Added a word cloud cue on “House Word Cloud” with 1 word', { timeout: 20_000 });
+    await settleDurableWrites(messages);
+    await expect(program('House Word Cloud').locator('.audience-word')).toHaveCount(0);
+    const wordCue = page.locator('.pd-cue', { hasText: 'Words —' });
+    await expect(wordCue).toHaveCount(1, { timeout: 20_000 });
+    await wordCue.click();
+    await page.getByTestId('verb-take').click();
+    await expect(program('House Word Cloud').locator('.audience-word')).toHaveText(['Electric'], { timeout: 20_000 });
+    await testInfo.attach('program-word-cloud', { body: await page.getByTestId('program-stage').screenshot(), contentType: 'image/png' });
     await stopLive(messages, 'One word for tonight?');
     await expect(phone.locator('#join .nj-waiting')).toBeVisible({ timeout: 20_000 });
-    await shot('6-waiting');
+    await shot('7-waiting');
 
     await phoneContext.close();
     await presenter.close();
