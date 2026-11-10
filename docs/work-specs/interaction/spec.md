@@ -1002,7 +1002,8 @@ challenged them before the final assessment:
   undo or redo (`replaceRundown`; the history checks a restore against what it lands as), a team
   merge, and a teammate's record applied from the server (`scrubHiddenWords`,
   `model/wordCues.ts`). A word typed by hand into a cue's Words
-  while it is hidden goes too. It takes them off every cue carrying the question's
+  while it is hidden goes too, with or without a `| count`: the scrub reads a line as the renderer
+  does (`audienceWordsRead`). It takes them off every cue carrying the question's
   words: its result cue (a mapped cue belongs to that one question only), and a word cloud cue no
   question maps whose Question is this question's text, when no other Word question has that text
   (the cue left behind by Change, a duplicate). A tab's own earlier reading never decides. Found by

@@ -86,6 +86,8 @@ test('a word hidden after the press leaves the cue: its line goes, by key, and n
   assert.equal(wordsWithout(words, wordKey('TENSE')), 'Brilliant | 4\nLoud | 1');
   assert.equal(wordsWithout(words, wordKey('nowhere')), words);
   assert.equal(wordsWithout('typed by hand\nLoud | 1', 'loud'), 'typed by hand');
+  // A line with no count is a word to the renderer (count 1), so it is a word to the scrub too.
+  assert.equal(wordsWithout('Rude\n  RUDE  \nLoud | 1', 'rude'), 'Loud | 1');
   assert.deepEqual(wordCloudFields([{ field: 'f0', title: 'Label' }, { field: 'f1', title: 'Question' }, { field: 'f2', title: 'Words' }]), { question: 'f1', words: 'f2' });
   assert.equal(wordCloudFields([{ field: 'f0', title: 'Question' }, { field: 'f1', title: 'Options' }]), null);
 });

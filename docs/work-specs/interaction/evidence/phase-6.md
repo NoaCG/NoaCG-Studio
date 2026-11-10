@@ -197,6 +197,16 @@ the cues, so a word hidden after publishing stays there until the next publish, 
 does. Answered in W6 and in the product: on a published production Hide says to publish again. The
 configured walk (published) hides the staged word after Take and checks that note.
 
+## Review of `cad0d54` (final `/so` and PR review bot)
+
+`/so` (full diff `446ae23..cad0d54`): AGREE, A. Two low findings, not blocking, filed as #2354
+(staging before the first word read; the publish note for an unmapped scrubbed cue). One
+pre-existing note on the blocklist mask length (unchanged since 0095).
+
+PR review bot, family W11 (the scrub must read a line as the renderer does): a word typed into
+Words without `| count` was kept by `wordsWithout` but drawn by `audienceWordsRead` with count 1.
+Fixed: `wordsWithout` reads a count-free line as a word. Node test (mutation: the old rule fails it).
+
 ## Not run, or partly run
 
 - The rendered catalog baseline (`e2e/catalog-render-baseline.json`) is Windows-only; this machine

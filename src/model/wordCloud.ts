@@ -104,13 +104,14 @@ export function wordCloudFields(fields: readonly Field[]): { question: string; w
 }
 
 /** A cue's Words value without the word whose key is `key` (W6: a word hidden after the press leaves
- *  the cue it was staged onto). Lines that are not `word | count` stay as they are. */
+ *  the cue it was staged onto). A line is read as the renderer reads it (audienceWordsRead): the
+ *  text before the last `|`, or the whole line when it has no count. */
 export function wordsWithout(value: string, key: string): string {
   return value
     .split('\n')
     .filter((line) => {
       const at = line.lastIndexOf('|');
-      return at < 0 || wordKey(line.slice(0, at)) !== key;
+      return wordKey(at < 0 ? line : line.slice(0, at)) !== key;
     })
     .join('\n');
 }
