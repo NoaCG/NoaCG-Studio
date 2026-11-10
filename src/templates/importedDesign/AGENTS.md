@@ -222,6 +222,9 @@ adds no emitted JS**: a behaviour that needs a line is a missing FIELD KIND in t
   pending/active motion on Out. Bindings with neither retain the legacy editable
   `creditsRoll.ts` engine: one pasted field, the shared `CREDITS_PARSER_JS`, title/name sample
   styles and an optional Credits box. The recipe's entrance calls `noacgCreditsRoll` in all three.
+  **A styled ROLL is one text** (owner walk 2026-11-10): at the take, everything else drawn in the
+  list's column inside the window moves into the rolled group (`creditsRiders`), so a title never
+  sits still while rows pass over it; backgrounds and what stands beside the column stay put.
 
 E2E: import-svg-behaviour (vote: fixtures/svg-corpus/illustrator-live-vote-band.svg; score:
 illustrator-four-team-scoreboard.svg; countdown: illustrator-question-timer-board.svg) +

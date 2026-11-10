@@ -37,6 +37,7 @@ The complete set:
 |---|---|
 | `Director:` | a role; every line under it is one of its names |
 | `Director: Alex Rivera` | the same, written inline for a role with one person |
+| `Camera: Kim Park, Jo Berg` | a role and several people on one line: a comma separates a role's names |
 | `Director` `<TAB>` `Alex Rivera` | the same - this is what a paste from a Google Doc table or a spreadsheet column looks like |
 | `Director \| Alex Rivera` | the same, using the original separator; older lists keep working |
 | `Alex Rivera` | a name: it joins the role above it, or stands on its own if there is none |
@@ -128,7 +129,10 @@ Imported credits are the same one list. How they are drawn decides whether it st
   role. The operator gets this page's list format in one field, so a paste from a spreadsheet,
   a linked Google Sheet or a last-minute edit on the production page all work, and every row
   copies the drawn role or name look. **Plays as** is a roll, one still page, or cards. A roll or
-  cards on air keep the list they took until the next Take.
+  cards on air keep the list they took until the next Take. **A roll moves everything drawn in the
+  list's column as one text**: a show title above the first role, the rule under it and a closing
+  line travel with the rows (`creditsRiders`). Only what fills most of the window, such as a
+  background, and what sits beside the column, such as a corner logo, stay put.
 - **Fixed artwork.** The text stays part of the artwork: it scrolls as drawn and cannot be
   edited on the production page. It is a deliberate choice (**Show as: Fixed artwork**), and
   then every role and name layer of the block scrolls as one piece. It is also the fallback

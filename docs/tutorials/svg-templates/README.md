@@ -23,7 +23,7 @@ Ten ready-made broadcast graphics in one clean style. They are starting points: 
 | Template | What it does in NoaCG |
 |---|---|
 | **Lower third** | Type Name and Role. Take, then Update for the next person. |
-| **Game timer** | A corner countdown. Clock is minutes: the drawn `1:00` is one minute. Take starts it; Pause, Start and Reset control it. Warning shows near the end and Time up at zero. |
+| **Game timer** | A corner countdown. Clock is minutes: the drawn `1:00` is one minute. Take starts it; Pause, Start and Reset control it. The timer bar shortens with the time left, Warning shows near the end and Time up at zero. |
 | **Show countdown** | A full-screen countdown before the show. At import, choose how Clock counts: from its time, or to a set time such as 18:00. |
 | **Quiz** | Type the question and answers, choose the correct answer, then Take. Select answer, Lock it in and Reveal correct run the round. |
 | **Game rules** | A full-screen card with a Title and Rule 1 to Rule 5. |
@@ -31,7 +31,7 @@ Ten ready-made broadcast graphics in one clean style. They are starting points: 
 | **Scoreboard, 2 players** | Change team names. +1 and -1 change each score; +1 shows that team's flash. New game resets the scores. |
 | **Scoreboard, 4 players** | The same controls for four players along the top of the screen. |
 | **Winner** | A centred card with Title, Name and Subtitle. Choose an entrance such as Pop when you import. |
-| **End credits** | Paste the full list of roles and names in playout, one per line. `Director: Alex Rivera` gives a role and its name. |
+| **End credits** | Paste the list in playout, one role per line: `Camera: Kim Park, Jo Berg`. The title and the list scroll up together. |
 
 
 ---
