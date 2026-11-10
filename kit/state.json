@@ -44,13 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "pr": 2293,
-      "session": "/root/v2_json_repair",
-      "repairComment": 6723338187,
-      "phase": "v2",
-      "note": "Fresh local worker binds manual commands to the displayed Bridge pairing. Exact Rules in draft and v2-pairing-rules.md.",
       "step": "build",
-      "head": "a628eda0882c9fc3c37203d1a79b10a2320468c7"
+      "phase": "v2",
+      "head": "a628eda0882c9fc3c37203d1a79b10a2320468c7",
+      "note": "Live-publishing released the shared file. Fresh local worker is implementing the reviewed pairing guard on the same V2 branch.",
+      "pr": 2293,
+      "session": "/root/v2_pairing_repair"
     }
   ],
   "owner": [],
