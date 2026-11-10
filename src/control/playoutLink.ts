@@ -41,6 +41,7 @@ import {
   type AdapterId,
   type AgentError,
   type BridgeFeature,
+  type BridgePayloadField,
   type ItemKind,
   type CasparSlot,
   type CasparTarget,
@@ -401,18 +402,24 @@ interface BridgeReply {
   loadProblem?: string;
 }
 
-// Known payload fields are route-specific. Unknown additive fields can travel on any route.
-const bridgePayloadFields = [
-  'agent', 'adapters', 'features', 'version', 'raw', 'capabilities', 'vmix', 'servers', 'session',
-  'observedAt', 'overlays', 'loadProblem', 'linked', 'generation', 'warning', 'instance', 'items',
-  'png', 'token', 'code', 'channel', 'link', 'slots', 'channels',
-] as const satisfies readonly (keyof BridgeReply)[];
+// A field added to a Bridge route must be classified here. Unknown additions stay compatible.
+const bridgePayloadFields = {
+  adapters: true, agent: true, capabilities: true, channel: true, channels: true, code: true,
+  command: true, expiresIn: true, features: true, generation: true, instance: true, items: true,
+  lines: true, link: true, linked: true, loadProblem: true, observedAt: true, overlays: true,
+  png: true, raw: true, renderers: true, servers: true, session: true, slots: true, status: true,
+  token: true, version: true, vmix: true, warning: true,
+} satisfies Record<BridgePayloadField, true>;
+const knownPayloadFields = Object.keys(bridgePayloadFields) as BridgePayloadField[];
 
-function hasOnlyPayloadFields(body: BridgeReply, allowed: readonly (keyof BridgeReply)[] = []): boolean {
-  return bridgePayloadFields.every(field => body?.[field] === undefined || allowed.includes(field));
+function hasOnlyPayloadFields(body: BridgeReply, allowed: readonly BridgePayloadField[] = []): boolean {
+  return knownPayloadFields.every(field => !Object.prototype.hasOwnProperty.call(body, field) || allowed.includes(field));
 }
 
-type Call = { http: number; body: BridgeReply } | { timedOut: true } | { networkError: string };
+type Call =
+  | { http: number; body: BridgeReply; bodyKind: 'empty' | 'null' | 'object' | 'invalid' }
+  | { timedOut: true }
+  | { networkError: string };
 
 async function callBridge(
   bridgeUrl: string,
@@ -441,13 +448,23 @@ async function callBridge(
       credentials: 'omit',
       cache: 'no-store',
     });
-    let parsed: BridgeReply = {};
+    const http = response.status;
     try {
-      parsed = (await response.json()) as BridgeReply;
+      const bytes = await response.arrayBuffer();
+      if (!bytes.byteLength) return { http, body: {}, bodyKind: 'empty' };
+      let text: string;
+      try {
+        text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      } catch {
+        // Keep the old permissive decode for CasparCG. Invalid bytes carry no vMix authority.
+        return { http, body: JSON.parse(new TextDecoder().decode(bytes)) as BridgeReply, bodyKind: 'invalid' };
+      }
+      const parsed: unknown = JSON.parse(text);
+      const bodyKind = parsed === null ? 'null' : typeof parsed === 'object' && !Array.isArray(parsed) ? 'object' : 'invalid';
+      return { http, body: parsed as BridgeReply, bodyKind };
     } catch {
-      parsed = {};
+      return { http, body: {}, bodyKind: 'invalid' };
     }
-    return { http: response.status, body: parsed };
   } catch (e) {
     if (controller.signal.aborted) return { timedOut: true };
     return { networkError: e instanceof Error ? e.message : String(e) };
@@ -469,42 +486,29 @@ export async function reachBridge(bridgeUrl: string): Promise<PlayoutResult | nu
   return (await probeBridge(bridgeUrl)).unreachable;
 }
 
-/** `reachBridge`, and what a current Bridge said it understands. */
+/** `reachBridge`, and what a current Bridge said it understands for CasparCG. */
 async function probeBridge(bridgeUrl: string): Promise<{
-  unreachable: PlayoutResult | null; features: BridgeFeature[]; adapters?: AdapterId[]; vmixHealthValid?: boolean;
+  unreachable: PlayoutResult | null; features: BridgeFeature[];
 }> {
   const health = await callBridge(bridgeUrl, '/health', null, BRIDGE_TIMEOUT_MS);
   if ('http' in health) {
-    const { ok, agent, v, adapters, features, version, error } = health.body ?? {};
-    const succeeded = health.http === 200 && ok === true;
+    const { agent, v, features, version } = health.body ?? {};
     if (agent === 'noacg-bridge' && typeof v === 'number' && v >= MIN_PLAYOUT_V) {
-      const supported = succeeded && v === PLAYOUT_V && Array.isArray(adapters) && adapters.every(name => typeof name === 'string')
-        ? adapters : undefined;
-      const advertised = Array.isArray(features) ? features : [];
-      const vmix = supported?.includes('vmix') === true;
-      return {
-        unreachable: null,
-        features: advertised,
-        vmixHealthValid: nonblank(version) && error === undefined &&
-          hasOnlyPayloadFields(health.body, ['agent', 'version', 'adapters', 'features']) &&
-          (features === undefined || (Array.isArray(features) && features.every(feature => typeof feature === 'string'))) &&
-          (vmix || !advertised.includes('vmix-output-key')),
-        adapters: supported,
-      };
+      return { unreachable: null, features: Array.isArray(features) ? features : [] };
     }
     if (agent === 'noacg-bridge' || agent === 'noacg-caspar') {
-      return {
-        unreachable: {
-          state: 'outdated',
-          detail: `The NoaCG Bridge on ${bridgeUrl} is too old for this page${health.body.version ? ` (version ${health.body.version})` : ''}. Download the current NoaCG Bridge from the Downloads page, start it, then try again.`,
-        },
-        features: [],
-        adapters: succeeded && error === undefined && agent === 'noacg-caspar' && v === 1 ? [] : undefined,
-      };
+      return { unreachable: outdatedBridge(bridgeUrl, version), features: [] };
     }
     return { unreachable: { state: 'bridge', detail: `Something is listening on ${bridgeUrl}, but it is not NoaCG Bridge.` }, features: [] };
   }
   return { unreachable: await unreachableBridge(bridgeUrl, health), features: [] };
+}
+
+function outdatedBridge(bridgeUrl: string, version?: string): PlayoutResult {
+  return {
+    state: 'outdated',
+    detail: `The NoaCG Bridge on ${bridgeUrl} is too old for this page${version ? ` (version ${version})` : ''}. Download the current NoaCG Bridge from the Downloads page, start it, then try again.`,
+  };
 }
 
 /** Why no Bridge answered: the permission prompt, a browser that forbids it, or nothing there. */
@@ -980,9 +984,35 @@ export interface VmixConnection {
 }
 
 const vmixCapabilityProblem: PlayoutResult = { state: 'bridge', detail: 'NoaCG Bridge did not return a valid playout capability response. Try again.' };
-
-const vmixErrorCodes: readonly AgentError['code'][] = ['no-media-scanner', 'refused', 'unreachable', 'not-found', 'unsupported', 'usage', 'uncertain'];
 const nonblank = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
+
+type VmixHealth =
+  | { kind: 'current'; adapters: AdapterId[]; features: BridgeFeature[] }
+  | { kind: 'legacy' | 'failed'; result: PlayoutResult };
+
+async function probeVmix(bridgeUrl: string): Promise<VmixHealth> {
+  const call = await callBridge(bridgeUrl, '/health', null, BRIDGE_TIMEOUT_MS);
+  if (!('http' in call)) return { kind: 'failed', result: await unreachableBridge(bridgeUrl, call) };
+  if (call.http === 200 && call.bodyKind === 'object') {
+    const { body } = call;
+    const { ok, v, agent, error, version, adapters, features } = body;
+    if (ok === true && error === undefined) {
+      // The v1 Caspar agent sent only the discriminator. Other known fields cannot belong to it.
+      if (v === 1 && agent === 'noacg-caspar' && hasOnlyPayloadFields(body, ['agent'])) {
+        return { kind: 'legacy', result: outdatedBridge(bridgeUrl) };
+      }
+      if (v === PLAYOUT_V && agent === 'noacg-bridge' && nonblank(version) &&
+        hasOnlyPayloadFields(body, ['agent', 'version', 'adapters', 'features']) &&
+        Array.isArray(adapters) && adapters.every(adapter => typeof adapter === 'string') &&
+        (features === undefined || (Array.isArray(features) && features.every(feature => typeof feature === 'string'))) &&
+        (adapters.includes('vmix') || !features?.includes('vmix-output-key'))) {
+        return { kind: 'current', adapters, features: features ?? [] };
+      }
+    }
+  }
+  return { kind: 'failed', result: vmixCapabilityProblem };
+}
+
 const whole = (value: unknown, min: number): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value) && value >= min;
 
@@ -1003,15 +1033,23 @@ function validVmixLinks(linked: VmixStateReply['linked'] | undefined, count: num
     Array.isArray(row.live) && row.live.every(nonblank));
 }
 
-function validVmixError(http: number, error: AgentError | undefined): boolean {
-  if (!error || (error.hop !== 'agent' && error.hop !== 'target') ||
-    !vmixErrorCodes.includes(error.code) || !nonblank(error.detail) ||
-    (error.raw !== undefined && typeof error.raw !== 'string') ||
+function validVmixError(route: VmixRoute, http: number, error: AgentError | undefined): error is AgentError {
+  if (!error || typeof error !== 'object' || Array.isArray(error) || !nonblank(error.detail) ||
+    (error.raw !== undefined && (error.hop !== 'target' || typeof error.raw !== 'string')) ||
     (error.setup !== undefined && (error.hop !== 'target' || error.code !== 'unreachable' ||
       (error.setup !== 'not-running' && error.setup !== 'not-vmix')))) return false;
-  return http === 200 ||
-    (http === 400 && error.hop === 'agent' && error.code === 'usage') ||
-    (http === 502 && error.hop === 'target' && error.code === 'unreachable');
+
+  if (http === 401 || http === 403) return error.hop === 'agent' && error.code === 'refused';
+  if (http === 400) return error.hop === 'agent' && error.code === 'usage';
+  if (http === 502) return error.hop === 'target' && error.code === 'unreachable';
+  if (http !== 200) return false;
+
+  if (error.hop === 'target') {
+    return error.code === 'refused' || error.code === 'unreachable' || (route === '/act' && error.code === 'uncertain');
+  }
+  return error.hop === 'agent' &&
+    ((error.code === 'usage' && (route === '/state' || route === '/act')) ||
+      (error.code === 'unsupported' && route === '/act'));
 }
 
 function vmixOverlayRows(overlays: VmixOverlayState[] | undefined, info: VmixInfo, loadProblem?: string) {
@@ -1059,7 +1097,7 @@ const vmixReplyFields = {
   '/connect': ['version', 'raw', 'capabilities', 'vmix', 'servers'],
   '/state': ['vmix', 'session', 'observedAt', 'linked', 'overlays', 'loadProblem'],
   '/act': ['raw', 'generation', 'session', 'warning', 'instance'],
-} as const satisfies Record<string, readonly (keyof BridgeReply)[]>;
+} as const satisfies Record<string, readonly BridgePayloadField[]>;
 
 type VmixRoute = keyof typeof vmixReplyFields;
 type VmixActionResult = PlayoutResult & { unknownAction?: true };
@@ -1071,17 +1109,19 @@ function readVmixReply(settings: PlayoutSettings, call: Call, route: VmixRoute):
     const { result } = readReply(settings, call, 'vMix');
     return { result: route === '/act' ? { ...result, detail: `${result.detail} ${unknownAction}`, unknownAction: true } : result };
   }
-  const { http, body } = call;
-  const failureShape = hasOnlyPayloadFields(body) && (body?.ok === undefined || body.ok === false);
-  if ((http === 401 || http === 403) && failureShape) return readReply(settings, call, 'vMix');
-  if (failureShape && body?.v === PLAYOUT_V && body.ok === false && validVmixError(http, body.error)) {
+  const { http, body, bodyKind } = call;
+  if ((http === 401 || http === 403) && (bodyKind === 'empty' || bodyKind === 'null')) {
+    return readReply(settings, call, 'vMix');
+  }
+  const current = bodyKind === 'object' && body.v === PLAYOUT_V;
+  if (current && body.ok === false && hasOnlyPayloadFields(body) && validVmixError(route, http, body.error)) {
     const reply = readReply(settings, call, 'vMix');
-    if (route === '/act' && (http === 502 || body.error?.code === 'uncertain')) {
+    if (route === '/act' && (http === 502 || body.error.code === 'uncertain')) {
       return { ...reply, result: { ...reply.result, unknownAction: true } };
     }
     return reply;
   }
-  if (http === 200 && body?.v === PLAYOUT_V && body.ok === true && body.error === undefined &&
+  if (current && http === 200 && body.ok === true && body.error === undefined &&
     hasOnlyPayloadFields(body, vmixReplyFields[route])) {
     if (route === '/act') {
       if (nonblank(body.raw) && whole(body.generation, 0) && nonblank(body.session) &&
@@ -1091,7 +1131,7 @@ function readVmixReply(settings: PlayoutSettings, call: Call, route: VmixRoute):
       if (validVmixInfo(body.vmix) && nonblank(body.session) && whole(body.observedAt, 0) &&
         validVmixLinks(body.linked, body.vmix.overlays) && (body.loadProblem === undefined || nonblank(body.loadProblem))) {
         const rows = vmixOverlayRows(body.overlays, body.vmix, body.loadProblem);
-        if (rows) return readReply(settings, { http, body: { ...body, ...rows } }, 'vMix');
+        if (rows) return readReply(settings, { ...call, body: { ...body, ...rows } }, 'vMix');
       }
     } else if (validVmixInfo(body.vmix) && body.version === body.vmix.version && nonblank(body.raw) &&
       Array.isArray(body.capabilities) && body.capabilities.every(capability => typeof capability === 'string') &&
@@ -1108,12 +1148,11 @@ function readVmixReply(settings: PlayoutSettings, call: Call, route: VmixRoute):
 
 export async function testVmix(settings: PlayoutSettings, reconnect = false): Promise<VmixConnection> {
   if (!bridgePaired(settings)) return { supported: false, keyed: false };
-  const { unreachable, features, adapters, vmixHealthValid } = await probeBridge(settings.agentUrl);
-  if (unreachable) {
-    if (adapters) return { supported: false, keyed: false, result: unreachable };
-    if (unreachable.state !== 'outdated') return { keyed: false, result: unreachable };
+  const health = await probeVmix(settings.agentUrl);
+  if (health.kind !== 'current') {
+    return { ...(health.kind === 'legacy' ? { supported: false } : {}), keyed: false, result: health.result };
   }
-  if (!adapters || !vmixHealthValid) return { keyed: false, result: vmixCapabilityProblem };
+  const { adapters, features } = health;
   if (!adapters.includes('vmix')) return { supported: false, keyed: false };
   const route = reconnect ? '/connect' : '/status';
   const call = await callBridge(settings.agentUrl, route, { target: vmixTarget }, ACT_TIMEOUT_MS, settings.agentToken);
@@ -1135,13 +1174,11 @@ export async function readVmixOverlays(settings: PlayoutSettings, outputUrl: str
 export async function actVmix(
   settings: PlayoutSettings, currentAction: () => PlayoutAction | null,
 ): Promise<VmixActionResult | null> {
-  const { unreachable, features, adapters, vmixHealthValid } = await probeBridge(settings.agentUrl);
+  const health = await probeVmix(settings.agentUrl);
   const action = currentAction();
   if (!action) return null;
-  if (!adapters && (!unreachable || unreachable.state === 'outdated')) return vmixCapabilityProblem;
-  if (unreachable) return unreachable;
-  if (!vmixHealthValid) return vmixCapabilityProblem;
-  if (!adapters?.includes('vmix') || !features.includes('vmix-output-key')) {
+  if (health.kind !== 'current') return health.result;
+  if (!health.adapters.includes('vmix') || !health.features.includes('vmix-output-key')) {
     return { state: 'outdated', detail: 'Update NoaCG Bridge to load or unload an output in vMix.' };
   }
   const call = await callBridge(

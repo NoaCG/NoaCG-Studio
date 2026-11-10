@@ -228,6 +228,23 @@ test('vMix accepts only route-shaped replies and preserves typed failures', asyn
     }
     reply = [200, { ...successes[path], futureNote: { value: 'additive' } }];
     assert.equal((await call()).state, 'ok', path);
+    for (const [hop, code, valid] of [
+      ['target', 'refused', true],
+      ['agent', 'usage', path === '/state' || path === '/act'],
+      ['agent', 'unsupported', path === '/act'],
+      ['target', 'uncertain', path === '/act'],
+      ['target', 'not-found', false],
+      ['target', 'no-media-scanner', false],
+      ['agent', 'uncertain', false],
+      ['agent', 'refused', false],
+    ]) {
+      const label = `${path} 200 ${hop}/${code}`;
+      reply = [200, { ok: false, v: 2, error: { hop, code, detail: 'Domain reply.' }, futureField: 1 }];
+      const result = await call();
+      assert.equal(result.state, valid && hop === 'target' ? 'server' : 'bridge', label);
+      assert.match(result.detail, valid ? /Domain reply/ : /valid vMix reading|result is unknown/, label);
+      if (path === '/act') assert.equal(result.unknownAction, !valid || code === 'uncertain' ? true : undefined, label);
+    }
     reply = [200, { ok: false, v: 2, error: { hop: 'target', code: 'unreachable', setup: 'not-running', detail: 'Start vMix.' } }];
     assert.equal((await call()).detail, 'Start vMix.', path);
     reply = [400, { ok: false, v: 2, error: { hop: 'agent', code: 'usage', detail: 'Invalid request.' } }];
@@ -241,6 +258,160 @@ test('vMix accepts only route-shaped replies and preserves typed failures', asyn
   }
   reply = 'lost';
   assert.match((await calls['/act']()).detail, /lost reply.*result is unknown/);
+});
+
+test('vMix accepts known payload fields only on the route that sends them', async (t) => {
+  // Inventory from the HTTP senders, including OGraf, pairing and the terminal's AMCP response.
+  const payload = {
+    agent: 'noacg-bridge', version: '0.11.0', adapters: ['vmix'], features: ['vmix-output-key'],
+    vmix, raw: 'VERSION OK', capabilities: ['state'], servers: [], channels: [],
+    channel: 1, session: 'fixture', link: 'fixture', observedAt: 1, slots: [],
+    linked: [], overlays: [], loadProblem: 'Check the Browser.', generation: 1, warning: 'Warning.',
+    instance: 'take-1', token: 'fixture', code: 202, expiresIn: 120, items: [], renderers: [],
+    png: 'fixture', command: 'VERSION', status: '202 OK', lines: [],
+  };
+  const routes = [
+    ['/health', health, () => testVmix(settings)],
+    ['/status', status, () => testVmix(settings)],
+    ['/connect', connected, () => testVmix(settings, true)],
+    ['/state', scoped({}, vmix, payload.loadProblem), () => readVmixOverlays(settings, choice.url)],
+    ['/act', { ...acted, warning: payload.warning, instance: payload.instance }, async () => ({ result: await actVmix(settings, () => unload) })],
+  ];
+  let paths;
+  let active;
+  t.mock.method(globalThis, 'fetch', async url => {
+    const path = new URL(url).pathname;
+    paths.push(path);
+    if (path === active.path) return Response.json(active.body, { status: active.http });
+    if (active.path === '/health' && path === '/status') return Response.json(status);
+    assert.equal(path, '/health');
+    return Response.json(health);
+  });
+  for (const [path, good, call] of routes) {
+    const check = async (body, http, expected, label) => {
+      active = { path, body, http };
+      paths = [];
+      const { result, supported } = await call();
+      assert.equal(result.state, expected, label);
+      if (path === '/health') assert.equal(supported, expected === 'ok' ? true : undefined, label);
+      if (expected === 'bridge') {
+        assert.match(result.detail, path === '/health' ? /capability response/ : path === '/act' ? /result is unknown/ : /valid vMix reading/, label);
+        if (path === '/act') assert.equal(result.unknownAction, true, label);
+      }
+      const expectedPaths = path === '/health' || path === '/state' ? [path] : ['/health', path];
+      if (path === '/health' && expected === 'ok') expectedPaths.push('/status');
+      assert.deepEqual(paths, expectedPaths, label);
+    };
+    await check({ ...good, futureField: { anything: 'additive' } }, 200, 'ok', path);
+    for (const [field, value] of Object.entries(payload)) {
+      if (Object.hasOwn(good, field)) continue;
+      for (const injected of [value, null]) {
+        await check({ ...good, [field]: injected }, 200, 'bridge', `${path} success with ${field}=${JSON.stringify(injected)}`);
+      }
+    }
+    await check({ ...good, error: null }, 200, 'bridge', `${path} success with an error`);
+    if (path === '/health') continue;
+    for (const [http, hop, code] of [
+      [200, 'target', 'refused'], [400, 'agent', 'usage'], [401, 'agent', 'refused'],
+      [403, 'agent', 'refused'], [502, 'target', 'unreachable'],
+    ]) {
+      const failure = { ok: false, v: 2, error: { hop, code, detail: 'Rejected.' } };
+      for (const field of Object.keys(payload)) {
+        await check({ ...failure, [field]: null }, http, 'bridge', `${path} ${http} failure with ${field}`);
+      }
+    }
+  }
+});
+
+test('only genuine legacy health establishes that the Bridge is outdated for vMix', async (t) => {
+  const legacy = { ok: true, agent: 'noacg-caspar', v: 1 };
+  let body;
+  let http = 200;
+  t.mock.method(globalThis, 'fetch', async url => {
+    assert.equal(new URL(url).pathname, '/health');
+    return Response.json(body, { status: http });
+  });
+  for (body of [legacy, { ...legacy, futureField: 'additive' }]) {
+    const connection = await testVmix(settings);
+    assert.equal(connection.supported, false);
+    assert.equal(connection.result.state, 'outdated');
+    assert.equal((await actVmix(settings, () => unload)).state, 'outdated');
+  }
+  for (body of [
+    { ...legacy, adapters: ['vmix'], features: ['vmix-output-key'], raw: 'route leakage' },
+    { ...legacy, version: '0.1.0' }, { ...legacy, features: [] }, { ...legacy, expiresIn: null },
+    { ...legacy, error: null }, { ...legacy, ok: false }, { ...legacy, v: '1' },
+    { ...legacy, v: 2 }, { ...legacy, agent: 'noacg-bridge' },
+  ]) {
+    assert.equal((await testVmix(settings)).supported, undefined);
+    assert.match((await actVmix(settings, () => unload)).detail, /valid playout capability response/);
+  }
+  body = legacy;
+  http = 401;
+  assert.equal((await testVmix(settings)).supported, undefined);
+});
+
+test('only a genuine token or origin refusal settles a dispatched vMix action', async (t) => {
+  const savedWindow = globalThis.window;
+  globalThis.window = { location: { origin: 'https://noacg.studio' } };
+  t.after(() => { globalThis.window = savedWindow; });
+  const refusal = { ok: false, v: 2, error: { hop: 'agent', code: 'refused', detail: 'Refused.' } };
+  const invalidUtf8 = body => {
+    const bytes = new TextEncoder().encode(JSON.stringify(body));
+    bytes[bytes.indexOf(0x7e)] = 0xff;
+    return bytes;
+  };
+  let raw;
+  let http;
+  let requests = 0;
+  t.mock.method(globalThis, 'fetch', async url => {
+    const path = new URL(url).pathname;
+    if (path === '/health') return Response.json(health);
+    assert.equal(path, '/act');
+    requests++;
+    const response = new Response(raw, { status: http });
+    if (raw === 'body read failed') await response.text();
+    return response;
+  });
+  for (http of [401, 403]) {
+    for (raw of [null, 'null', JSON.stringify(refusal), JSON.stringify({ ...refusal, futureField: 1 })]) {
+      const before = requests;
+      const result = await actVmix(settings, () => unload);
+      assert.equal(result.unknownAction, undefined);
+      assert.match(result.detail, http === 401 ? /rejected this token/ : /refused this site/);
+      assert.equal(requests, before + 1);
+    }
+    for (raw of [
+      '{', ' ', new Uint8Array([0xef, 0xbb, 0xbf]), 'body read failed', '{}', '[]', 'false', '0', '""',
+      JSON.stringify({ ...refusal, ok: true }), JSON.stringify({ ...refusal, v: 1 }),
+      JSON.stringify({ ...refusal, v: 999, error: null }), JSON.stringify({ ...refusal, error: null }),
+      JSON.stringify({ ...refusal, error: { ...refusal.error, hop: 'target', code: 'uncertain' } }),
+      JSON.stringify({ ...refusal, error: { ...refusal.error, code: 'usage' } }),
+      JSON.stringify({ ...refusal, error: { ...refusal.error, detail: '  ' } }),
+      JSON.stringify({ ...refusal, error: { ...refusal.error, raw: 'Target answered' } }),
+      JSON.stringify({ ...refusal, error: { ...refusal.error, setup: 'not-running' } }),
+      invalidUtf8({ ...refusal, error: { ...refusal.error, detail: 'Refused ~' } }),
+    ]) {
+      const before = requests;
+      const result = await actVmix(settings, () => unload);
+      assert.equal(result.unknownAction, true, `${http} ${raw}`);
+      assert.match(result.detail, /result is unknown/);
+      assert.equal(requests, before + 1);
+    }
+  }
+
+  http = 200;
+  raw = invalidUtf8({ ...acted, raw: 'FUNCTION ~' });
+  const before = requests;
+  assert.equal((await actVmix(settings, () => unload)).unknownAction, true);
+  assert.equal(requests, before + 1);
+
+  // The CasparCG path keeps its permissive decode and HTTP refusal handling.
+  const casparOut = { verb: 'out', slot: { adapter: 'casparcg', channel: 1, layer: 20 } };
+  assert.equal((await act(settings, casparOut)).raw, 'FUNCTION \uFFFD');
+  raw = '{';
+  http = 401;
+  assert.equal((await act(settings, casparOut)).state, 'token');
 });
 
 test('connect validates every remembered server and preserves a complete optional Studio setup', async (t) => {

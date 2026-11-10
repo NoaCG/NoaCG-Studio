@@ -511,3 +511,45 @@ export interface ErrorReply {
   ok: false;
   error: AgentError;
 }
+
+/** What `POST /pair` answers after exchanging a valid one-time pairing code. */
+interface PairReply {
+  ok: true;
+  token: string;
+}
+
+/** The status and data lines from an AMCP command. */
+export interface AmcpReply {
+  code: number;
+  status: string;
+  lines: string[];
+}
+
+/** The terminal's `POST /amcp` route carries the command and AMCP response on any AMCP status. */
+interface TerminalAmcpReply extends AmcpReply {
+  ok: boolean;
+  command: string;
+}
+
+interface BridgeRepliesByRoute {
+  '/health': HealthReply;
+  '/status': StatusReply;
+  '/connect': ConnectReply;
+  '/state': StateReply | VmixStateReply;
+  '/act': ActReply;
+  '/channels': ChannelsReply;
+  '/servers': ServersReply;
+  '/studio': StudioReply;
+  '/pair': PairReply;
+  '/pair-link': PairLinkReply;
+  '/list': ListReply;
+  '/thumbnail': ThumbnailReply;
+  '/amcp': TerminalAmcpReply;
+}
+
+/** Every JSON envelope the current Bridge sends, before the browser validates it. */
+export type BridgeWireReply<Route extends keyof BridgeRepliesByRoute = keyof BridgeRepliesByRoute> =
+  { v: number } & (BridgeRepliesByRoute[Route] | ErrorReply);
+
+type ReplyFields<Reply> = Reply extends unknown ? keyof Reply : never;
+export type BridgePayloadField = Exclude<ReplyFields<BridgeWireReply>, 'ok' | 'v' | 'error'>;

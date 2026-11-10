@@ -35,6 +35,7 @@ import {
   playedSeconds,
   type AgentError,
   type BridgeFeature,
+  type BridgeWireReply,
   VMIX_INPUT_KEY,
   VMIX_OUTPUT_TOKEN_PREFIX,
   type ItemRef,
@@ -463,7 +464,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
   const server = createServer((req, res) => {
     const receivedAt = Date.now();
     const origin = req.headers.origin;
-    const send = (status: number, body: unknown, cors: boolean) => {
+    const send = (status: number, body: BridgeWireReply | null, cors: boolean) => {
       const headers: Record<string, string> = { 'Content-Type': 'application/json; charset=utf-8' };
       if (cors && origin) {
         // Echo the one origin rather than `*`: a token-bearing call from a page we did not allow
@@ -509,7 +510,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
     if (url === '/health' && req.method === 'GET') {
       send(
         200,
-        { ok: true, agent: 'noacg-bridge', v: PLAYOUT_V, version: options.version, adapters: [...byId.keys()], features: [...BRIDGE_FEATURES, ...(byId.has('vmix') ? ['vmix-output-key'] : [])] },
+        { ok: true, agent: 'noacg-bridge', v: PLAYOUT_V, version: options.version, adapters: [...byId.keys()], features: [...BRIDGE_FEATURES, ...(byId.has('vmix') ? ['vmix-output-key' as const] : [])] } satisfies BridgeWireReply<'/health'>,
         true,
       );
       return;

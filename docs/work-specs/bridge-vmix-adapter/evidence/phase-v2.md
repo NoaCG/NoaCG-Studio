@@ -846,3 +846,27 @@ The exact changed gates and bounded shared browser jobs are recorded
 separately once complete. The Windows E2E protection baseline checkout
 hit the host's directory symlink permission error. The affected CI gate
 and exact-merge release and download checks remain open.
+
+### Rules clarification for the reply boundary
+
+The final malformed reply review on `c0ce9c0f` found that Studio could
+accept wrong-route data, read an invalid authorization reply as a definite
+refusal, or declare malformed legacy health unsupported. The earlier
+attempts and their independent findings remain in the phase record. The
+reassessment checked the Bridge producers and the historical v1 health
+route before this repair.
+
+- Every known success field belongs to its actual route. That includes
+  list renderers, pairing expiry, and the terminal's AMCP command, code,
+  status and lines. Presence counts even when the field value is null.
+  Unknown additive fields remain compatible.
+- HTTP 401 and 403 mean definite authorization refusal only for an empty
+  body, JSON null, or a current v2 failure naming an agent/refused error
+  with nonblank detail and no known success fields. Invalid UTF-8,
+  invalid JSON or a contradictory body after a dispatched vMix action leaves the outcome
+  unknown. Studio does not resend.
+- Historical v1 Bridge health is HTTP 200 with `ok: true`, `v: 1` and
+  `agent: 'noacg-caspar'`. Only a valid legacy envelope can establish an
+  outdated Bridge. Current health must satisfy the current route's
+  fields before Studio decides vMix support. The CasparCG interpretation
+  of shared Bridge responses is unchanged.
