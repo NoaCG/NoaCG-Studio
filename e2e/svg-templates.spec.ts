@@ -108,7 +108,10 @@ async function airProblems(air: FrameLocator): Promise<string[]> {
 /** The frame on air is clean once its entrance settles; with NOACG_SHOTS, a picture of it. */
 async function checkAir(page: Page, air: FrameLocator, label: string): Promise<void> {
   await expect.poll(() => airProblems(air), { message: `${label}: the frame on air`, timeout: 6_000 }).toEqual([]);
-  if (SHOTS) await page.getByTestId('program-stage').screenshot({ path: `${SHOTS}/${label}.png` });
+  if (SHOTS) {
+    await page.waitForTimeout(1_200);           // the entrance finishes before the picture
+    await page.getByTestId('program-stage').screenshot({ path: `${SHOTS}/${label}.png` });
+  }
 }
 
 const role = (air: FrameLocator, name: string) => air.locator(`[data-noacg-role~="${name}"]`);
