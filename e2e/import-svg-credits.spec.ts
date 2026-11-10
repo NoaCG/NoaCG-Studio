@@ -798,11 +798,12 @@ function buildRolls(page: Page, source: string, roleWord: string, as: 'styled' |
 }
 
 /** Where the moving credits stand on screen at the start and at the end of the take, against the
- *  artwork's frame: the styled rows as one group, or every layer of the fixed block. */
+ *  artwork's frame: the styled roll as one group - its rows and the title drawn above them, which
+ *  travels with them (creditsRiders) - or every layer of the fixed block. */
 function rollPoses(page: Page) {
   return page.evaluate(() => {
     const w = window as unknown as { noacgCreditsTween: { pause(): void; progress(value?: number): number }; noacgCreditsLast: { distance: number } };
-    const rows = document.querySelector('.imported-design-credits-rows');
+    const rows = document.querySelector('.imported-design-credits-roll');
     const moving = rows ? [rows] : [...document.querySelectorAll('.imported-design-credits')];
     const extent = () => {
       const boxes = moving.map((el) => el.getBoundingClientRect());
