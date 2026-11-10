@@ -70,7 +70,9 @@ A template's playout behaviour travels INSIDE the template, and nowhere else:
   1. the in-app **Control tab** (`components/ControlPanel.tsx`, React),
   2. the standalone **`controlpanel.html`** (`control/controlPanelHtml.ts`, vanilla JS —
      the one deliberate second renderer, show-shaped: one card per graphic),
-  3. the **hosted page** (`components/HostedControlPage.tsx`, `?control=<slug>`).
+  3. the **production page** (`components/home/ProductionPage.tsx`), the one operator surface
+     since the hosted control page was retired (docs/work-specs/retire-hosted-control/spec.md);
+     an old `?control=<slug>` link only forwards to it (`components/OldControlLink.tsx`).
 - The simulator's event strip is the FOURTH renderer of the same vocabulary: the same
   `machineControls` merge for its labels and the same `isEventLegal` for its greying. It owns
   the preview iframe, so it runs the one poll of `noacgMachineState()` and publishes the
@@ -126,7 +128,7 @@ A template's playout behaviour travels INSIDE the template, and nowhere else:
   state it disables buttons the machine would drop; before it knows, everything is enabled
   and the runtime guard decides. `eventLegality(js)` precomputes the table and
   `isEventLegal(table, event, state)` asks it — every React surface calls THAT one, so a
-  press refused in the editor is refused identically on the hosted page. The editor's strip
+  press refused in the editor is refused identically on the production page. The editor's strip
   was the last surface that only pretended: it took every press and dropped the illegal ones
   silently, which reads as a broken button rather than an impossible one. Never invent a
   third "legal events" implementation — editor-side is `operatorEvents`/`eventLegality`,
@@ -147,8 +149,7 @@ applied only if the machine accepts the event — that is the atomic multi-part 
 ## The operator verbs (the one glossary)
 
 The canonical meanings, worded here ONCE (docs/GOALS_ARCHIVE.md "Student release" step 6); every
-surface's button hints - the production page, the hosted control page, the exported panels -
-say the same thing, and rehearsal applies the identical command lists locally:
+surface's button hints - the production page and the exported panels - say the same thing, and rehearsal applies the identical command lists locally:
 
 - **⟳ Take** - air the selected cue on its layer: its values + play, sent as ONE atomic
   batch. Other layers stay up (every pool graphic holds its own on-air cue).
@@ -160,8 +161,8 @@ say the same thing, and rehearsal applies the identical command lists locally:
   on-air cue's values.
 - **■ Out** - play the selected cue's layer off air; the other layers stay up.
 - **■■ All out** - play every live layer off; clear the frame.
-- **Load** (hosted page) - stage the cue's values into its graphic's fields for EVERY open
-  operator page; nothing airs until a take.
+- **Load** (the retired hosted control page, 2026-11) - staged the cue's values into its
+  graphic's fields for every open operator page; nothing aired until a take.
 - **▶ Play / ■ Stop** (single-graphic surfaces) - take the values and run the entrance /
   animate the graphic off.
 
@@ -217,7 +218,7 @@ Deleting it is one action (`deleteShowProfile`) and restores the generated panel
 - `control_shows` (id = the local Show.id) carries the capability `slug`, the `panel` spec
   (name/fields/js/image paths/entries per graphic — never full templates), the shared `staged`
   buffer, and `live` — each graphic's own report of applied data + machine state.
-- **Entries are published, not authored, on the hosted page.** The panel spec carries each
+- **Entries are published, not authored.** The panel spec carries each
   graphic's saved `ControlEntry` rows (docs/SAVED_CONTENT_MODEL.md §4), read out of the
   library at publish time; the page renders a READ-ONLY switcher, and picking one loads its
   values into the SHARED staging buffer — the same path typing takes — so an entry airs on an
@@ -227,13 +228,9 @@ Deleting it is one action (`deleteShowProfile`) and restores the generated panel
   added before that link existed; an ambiguous name publishes no entries rather than guessing.
   `panel` is jsonb with no version of its own, so a row published by an older build simply
   carries no entries and is normalized to `[]` on read.
-- **A page's own edits count on that page at once.** The shared buffer only moves when its
-  `staged` row comes back round the log, about a second after a keystroke. The hosted page lays
-  its own unconfirmed edits over the buffer until the buffer shows them and no write of theirs
-  is still on the way
-  (`src/components/control/ownStaged.ts`), so a Take pressed straight after picking a value airs
-  that value. Without it, a quiz key picked just before Take aired the stored key (configured
-  run 35633742370).
+- **A page's own edits counted on that page at once** on the hosted control page (retired
+  2026-11), which staged field edits in the shared buffer and laid its own unconfirmed ones over
+  it. The production page airs its own draft on Take, so the shared buffer is not on its path.
 - **Capability model:** owning/publishing requires sign-in (RLS); OPERATING needs only the
   slug, through SECURITY DEFINER RPCs (`control_show_by_slug`, `control_send`,
   `control_stage`, `control_report`, `control_tail`). Revoke = unpublish or rotate.
@@ -241,7 +238,7 @@ Deleting it is one action (`deleteShowProfile`) and restores the generated panel
   slug holder reads the log through `control_tail` and follows it on the private
   `log-<show id>` topic (0064).
 - **Recovery is self-service:** the hosted receiver reboots by reading its own last report
-  (data, then snap), then follows the log. The hosted page re-reads the row on load. Staging
+  (data, then snap), then follows the log. The production page re-reads the row on load. Staging
   and live reports ride the log as meta rows (`t:'staged'|'live'`) so every open page follows
   without polling; those are never applied as graphic commands.
 - **On the hosted half an RPC either ANSWERED — possibly with nothing — or FAILED, and the two
@@ -311,18 +308,15 @@ than discovering whether the mechanism works at all.
 1. `supabase db push` applies 0008 cleanly on the project.
 2. Signed in: Shows section → publish a 2-graphic show → URL appears; `control_shows` row
    has slug/panel; Unpublish deletes it and the link 404s honestly.
-3. Signed OUT (incognito): open `?control=<slug>` → cards render; edits stage (second
-   incognito window follows them live); ⟳ Take airs; event buttons grey/enable with state.
-3b. Entries: a graphic with saved entries shows the switcher; picking one fills the fields and
-   stages them (the second window follows), ⟳ Take airs them, ▶ Play entry takes and plays;
-   a hand edit afterwards drops the selection back to "Choose an entry…"; editing an entry in
-   the app changes the hosted page only after a re-publish.
+3. An old link: open `?control=<slug>` → it forwards to `#/production/<id>` (signed out, that
+   page asks for a sign-in); an unknown slug says "This link no longer works".
+3b. Retired with the hosted control page (2026-11): its entry switcher and staged edits.
 4. Export the published show; run a graphic's `index.html` as a browser source (another
-   machine ideally): hosted page drives it; kill + reload the graphic → it snaps back to the
-   pre-kill state with the aired data; reload the hosted page mid-show → chip + fields
+   machine ideally): the production page drives it; kill + reload the graphic → it snaps back to
+   the pre-kill state with the aired data; reload the production page mid-show → chip + fields
    resume.
-5. Two operators: A stages a result (B sees it staged), A takes, B's chip updates; refresh
-   B mid-show → recovers.
+5. Two operators, each signed in on their own device with the production open: A takes, B's
+   chip updates; refresh B mid-show → recovers.
 6. Burst the send cap (hold a stepper with Live on) → the page surfaces the slow-down error,
    nothing crashes, the graphic stays consistent.
 7. Sync: save a show + a video signed-in on device A; device B pulls both; delete on B;
@@ -332,13 +326,11 @@ than discovering whether the mechanism works at all.
    The offline suite pins the READ side of that column and the record round trip
    (`e2e/hosted-control.spec.ts`); only a real backend can show the write, because
    `publishControlShow` returns before its upsert when there is no Supabase.
-9. ARRANGE on the hosted page (migration 0059): with the production page's ⚡ Arrange toggle pin one
-   control, hide and rename another, publish, then open `?control=<slug>` signed out. The pinned
-   one is above the fold, the renamed one is under "More" wearing the production's word, and it
-   still greys and un-greys with the machine exactly as the visible ones do. Clear it with "Back to the graphic's own",
-   publish again → the generated panel is back. This is the ONE part of AC-5 no offline spec can
-   see: mounting the hosted page needs a configured backend, so the in-app and exported
-   deployments are pinned in the suite and this one is pinned here.
+9. ARRANGE in the published profile (migration 0059): with the production page's ⚡ Arrange
+   toggle pin one control, hide and rename another, publish, and check the `control_shows` row's
+   `profile` carries it; the hosted control page that rendered it from there is retired
+   (2026-11), and the production page and exported deployments are pinned in the suite.
+   Clear it with "Back to the graphic's own", publish again → the generated panel is back.
    Also check 0059 itself applied: an instance still on 0058 returns no `profile` key from
    `control_show_by_slug`, which reads as "no profile" and renders the generated panel — correct,
    but indistinguishable from a production that has none, so confirm the migration before
