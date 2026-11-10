@@ -89,12 +89,18 @@ calls. Status **`blocked`**: 4 misses, 0 unknown, 19 failing items on 13 red ful
 | 41134775210 | ci.yml | `import-svg-corpus` | `0df77f74` (#1827) | miss, unmarked | **Explained**: the culprit changed plan-run docs, skills and plan-run tooling scripts only (`scripts/plan-*`, `run-*`, `project-*`, `wave-plan-store.mjs` and tests). The fail-then-pass is quarantine PR #1834, open since 2026-10-30 and not landed, so the store does not mark it |
 | 41244292482 | ci.yml | `import-svg` | `af39c249` (#1877) | miss, flake | **Explained**: the culprit changed `e2e/quarantine.json` only. Its quarantine entry names this very run (same-run receipt) |
 | 41336665950 | ci.yml | `production-chat-intake` | `8e84002d` | selected, flake | Selected. Fail-then-pass, now quarantined (#1923), tracked in #1924 |
-| 41359365006 | ci.yml | `production-data` | `5ca8b87a` (#1936) | miss, unmarked | **Explained**: the culprit is ci14's evidence file only. Fail-then-pass on that commit, quarantined by #1940 (landed 2026-11-01T23:32:28Z, after this row's base); the spec has a known open failure, #1603 |
+| 41359365006 | ci.yml | `production-data` | `5ca8b87a` (#1936) | miss, unmarked (at the base; `miss, flake` on `main` after #1940, see note below) | **Explained**: the culprit is ci14's evidence file only. Fail-then-pass on that commit, quarantined by #1940 (landed 2026-11-01T23:32:28Z, after this row's base); the spec has a known open failure, #1603 |
 | 40289330116, 40724937287, 41134775201, 41205531471, 41247602152, 41339116445 | configured-suite.yml | shard and verdict jobs | various | not-a-spec | No spec really failed in the verdict; lost shards or stack starts (#1865, #1829) |
 
 All four misses the audit names are explained by their culprits' file lists: none changed product
 code. Two of the four (`import-svg-corpus`, `production-data`) are fail-then-pass flakes the store
 did not yet mark at the base: #1834 is still open, and #1940 landed during this build.
+
+**Note (cicd-followup cf15, #1945 item 2).** The `production-data` row is the audit as read at the
+base. On `main` after #1940 (`9c2980d0`, 2026-11-01T23:22:49Z) the same audit marks it `miss,
+flake`: `flakyIn` in `scripts/e2e-selection-misses.mjs` marks a spec whose `e2e/quarantine.json`
+entry starts inside the window, and #1940 added `e2e/production-data.spec.ts` with `since`
+2026-11-01. The explanation in the last column does not change.
 
 **Open quarantine incidents** (`e2e/quarantine.json` on `main` at `9c2980d0`, re-read just before
 queueing), each blocking narrowing and expansion under ci07 Rule Q5 and the runbook:
@@ -132,6 +138,13 @@ the traced map and the header index):
 | `wizard-shell` | `74b2ed37` (#615) | subset, 140 specs | yes |
 | `layout` | `696f122e` | subset, 76 specs | yes |
 
+Plan sizes are as of this row's base `5ca8b87a` (cicd-followup cf15, #1945 item 3). #1940 then
+quarantined `production-data.spec.ts`, a `// focus` spec, and the planner removes quarantined specs
+from every plan (`scripts/e2e-affected.mjs`, the quarantine block at line 52), so each plan above
+is one spec smaller on `main` after `9c2980d0`, as the ci15 review reported; which specs the
+culprits select, the column that matters, is unchanged. Not re-run here: the culprits predate this
+clone's history. #1942 and #1944 carry the same base-time counts.
+
 **Where I disagree with the ci07 checker.** Its comment says "`planFor` on `4abaa4a5` and
 `b0331ecb` plans `full` today (claim holds)". Called bare, `planFor` defaults to
 `sprintFocus: false` and does return `full` for both; I reproduced that. CI does not call it that
@@ -163,7 +176,8 @@ own, so each is replayed alone. Net: three misses stay open, not one.
 - `node scripts/e2e-affected.mjs --json --files ...` per culprit, and bare `planFor` with
   `sprintFocus` false and true, for section 4.
 - GitHub REST: the five checker comments, the CI runs on `5ca8b87a`, issues #1834, #1900,
-  #1924, #1926, #1940, #1603, #1865 and #1829. About 30 calls, below the 100-call bound. No log URL
+  #1924, #1926, #1940, #1603, #1865 and #1829, and also #1942, #1944 and #1622, which this file
+  cites (added to this list by cicd-followup cf15, #1945 item 4). About 30 calls, below the 100-call bound. No log URL
   or credential is recorded here.
 
 Out of scope: the production-page studio acceptance stays pending under its own plan; nothing here

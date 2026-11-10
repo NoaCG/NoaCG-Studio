@@ -272,8 +272,12 @@ diffs: five configured-suite stack starts (#1865, #1829), `production-chat-intak
   open (#1904).
 - **Outstanding exceptions.** `ci04-catalog-gate` (graphics, 17.7 per landing, expires
   2026-11-30, repayment #1862; on 2026-12-01 graphics counts at about 255% of its ceiling). The
-  offline work-spec exception lines for `save-transaction`, `save-transaction-holds` and
-  `save-transaction-wizard` expire 2026-11-16; a new offline line then needs a dated receipt.
+  six offline work-spec exception lines for `save-transaction`, `save-transaction-holds`,
+  `save-transaction-wizard`, `save-transaction-leave`, `save-transaction-leave-shortcut` and
+  `save-transaction-leave-modal` (`docs/work-specs/e2e-suite-budget/spec.md:204-209`) expire
+  2026-11-16; a new offline line then needs a dated receipt. (Corrected by cicd-followup cf15,
+  #1953 item 1: the report first named three. cicd-followup cf09 has since settled all six without
+  an extension; see its phase-cf09.md.)
 - **Why pending, not met.** The controls work, but AC-9 also asks for an actual weekly report
   after activation with tier measurements, ages, owners and dated actions. Fixture success alone
   cannot establish lasting gains, and the live record has not reached one complete week.
@@ -339,7 +343,7 @@ enough.
 | open PR | #1834 | Pending quarantine entry (`import-svg-corpus`) and the live age alarm in #1892 |
 
 What would move the open criteria: AC-1 needs setup/test/report time and the dependency
-and concurrency wait split measured from existing job records for the ci01 cohort; AC-4 needs the three misses fixed (each a reset), the
+and concurrency wait split measured from existing job records for the ci01 cohort; AC-4 needs the three misses fixed (each a reset) or evidence that clears each (phase-ci15.md, section 5; added by cicd-followup cf15, #1953 item 2), the
 incidents cleared and 14 clean days after the last reset; AC-5 needs the exact-commit
 replay drill, the imported-design bench (#1926) and ci10's full-shard figure (#1920), and any
 later narrowing still needs a second complete carrier and a qualified ci15-style verdict; AC-2 needs seven more eligible risky rows; AC-6 needs an owner-authorized cohort; AC-8
