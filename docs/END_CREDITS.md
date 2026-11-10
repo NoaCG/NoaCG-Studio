@@ -132,7 +132,11 @@ Imported credits are the same one list. How they are drawn decides whether it st
   cards on air keep the list they took until the next Take. **A roll moves everything drawn in the
   list's column as one text**: a show title above the first role, the rule under it and a closing
   line travel with the rows (`creditsRiders`). Only what fills most of the window, such as a
-  background, and what sits beside the column, such as a corner logo, stay put.
+  background, and what sits beside the column, such as a corner logo, stay put. **The list's
+  first line is the show title** where a title is drawn above the roles in a look of its own
+  (`DesignSvgCredits.title`): a first line that is not a role is painted in that look, where the
+  title was drawn, and the drawn title is never a field. A list that starts with a role has no
+  title. Cards show the title on the first card.
 - **Fixed artwork.** The text stays part of the artwork: it scrolls as drawn and cannot be
   edited on the production page. It is a deliberate choice (**Show as: Fixed artwork**), and
   then every role and name layer of the block scrolls as one piece. It is also the fallback

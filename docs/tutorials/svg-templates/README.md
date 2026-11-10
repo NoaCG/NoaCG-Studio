@@ -31,8 +31,7 @@ Eleven ready-made broadcast graphics in one clean style. They are starting point
 | **Scoreboard, 2 players** | Change team names. +1 and -1 change each score; +1 shows that team's flash. New game resets the scores. |
 | **Scoreboard, 4 players** | The same controls for four players along the top of the screen. |
 | **Winner** | A centred card with Title, Name and Subtitle. Choose an entrance such as Pop when you import. |
-| **End credits** | Paste the list in playout. The first line is the show title, then one role per line: `Camera: Kim Park, Jo Berg`. It all scrolls up as one. |
-| **End credits, two columns** | The same list, with the roles in a column on the left and the names on the right. |
+| **End credits** | Paste the list in playout: the show title first, then one role per line, such as `Camera: Kim Park, Jo Berg`. The two-column design puts roles on the left. |
 
 
 ---
@@ -51,7 +50,7 @@ From the top of the Layers panel. A number or letter after a space says which ro
 | **Be back soon** | `Title`, `Subtitle` | none | `Panel`, `Accent` |
 | **Scoreboards** | `Team 1`, `Score 1`, and so on | `Flash 1`, and so on | `Team box 1`, `Score box 1` |
 | **Winner** | `Title`, `Name`, `Subtitle` | none | `Panel`, `Title box`, `Confetti` |
-| **End credits** (both) | `Show title`, `Credits`, `Credits 2`, and so on | none | `Panel`, `Accent` |
+| **End credits** | `Show title`, `Credits`, `Credits 2`… | none | `Panel`, `Accent` |
 
 Moments items except the timer bar are hidden groups: show one with its eye icon, edit it, hide it again before saving. Fixed words on the Board start with `static:`.
 
@@ -67,4 +66,4 @@ Scores and clocks are one live text each: `Score 1` shows `0`, `Clock` shows `1:
 
 ## Animation
 
-Imported SVGs do not carry their own animation. NoaCG adds the entrance and exit you choose at import, such as Fade, Slide or Pop. The winner's confetti is drawn, not animated. Names in these templates are made up.
+Imported SVGs carry no animation of their own: NoaCG adds the entrance and exit you pick at import, such as Fade or Pop. The winner's confetti is drawn. Names here are made up.

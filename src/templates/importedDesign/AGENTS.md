@@ -225,6 +225,9 @@ adds no emitted JS**: a behaviour that needs a line is a missing FIELD KIND in t
   **A styled ROLL is one text** (owner walk 2026-11-10): at the take, everything else drawn in the
   list's column inside the window moves into the rolled group (`creditsRiders`), so a title never
   sits still while rows pass over it; backgrounds and what stands beside the column stay put.
+  **The list's first line is the show title** (owner, same walk): a text drawn above the roles in
+  a third look is the binding's `title`, never a field, and a first line that is not a role is
+  painted as its copy where it was drawn (`creditsTitleOf`, `creditsTitle`).
 
 E2E: import-svg-behaviour (vote: fixtures/svg-corpus/illustrator-live-vote-band.svg; score:
 illustrator-four-team-scoreboard.svg; countdown: illustrator-question-timer-board.svg) +
