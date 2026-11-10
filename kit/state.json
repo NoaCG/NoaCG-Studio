@@ -45,11 +45,11 @@
   "inFlight": [
     {
       "pr": 2293,
-      "note": "Browser source verification rule and remaining reply repair authorized. Fresh local builder and Rules reassessment. Draft stays outside the queue.",
-      "step": "build",
       "phase": "v2",
       "session": "/root/v2_source_repair",
-      "head": "6efb650efd1b5b244798a306c62981c1a3bd3641"
+      "step": "build",
+      "head": "a628eda0882c9fc3c37203d1a79b10a2320468c7",
+      "note": "Fresh read-only review of the Browser source and reply authority Rules, then the authorized repair in the existing draft."
     }
   ],
   "owner": [],
