@@ -7,7 +7,7 @@
   "coordinator": {
     "session": "01a1bb0e-ec06-7111-ae29-89b778de221e",
     "environment": "codex-desktop-windows",
-    "return": "Native subagent receipt to the active coordinator in this chat."
+    "return": "Native Codex receipt to the active coordinator in this chat."
   },
   "authorization": {
     "line": "Start the approved V1–V8 plan locally on my Windows/vMix computer, using latest main and active mode. Preserve the configured Codex model and effort.\n\nContinue until the approved scope is complete. I explicitly authorize untilComplete and automatic blockRenewal. Do not ask for an artificial completion deadline. Choose any required finite planning reference internally; it is not a stop condition or promised finish date. Keep normal bounded work blocks, pause/failure rules, repair limits and permission safeguards.",
@@ -41,26 +41,19 @@
     "source": "df5767458230558e9fdee158e663e9367e58f8e3",
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
-  "waitingOn": {
-    "what": "Explicit owner resume; CI/CD #1967 also remains a separate prerequisite for V2 queue admission."
-  },
+  "waitingOn": [],
   "inFlight": [
     {
-      "step": "paused",
+      "step": "reconcile current main",
       "phase": "v2",
       "pr": 2293,
       "session": "/root/v2_builder",
       "repairComment": 6723338187,
-      "note": "Exact V2 build and review checkpoint; no running native worker, queued merge, or release.",
+      "note": "Explicit owner resume. Release hold lifted. Resolve current-main conflict and repeat exact-head review and gates.",
       "head": "b3bf2f2262142e71e30b8870a12238c4fa442aee"
     }
   ],
-  "owner": [
-    {
-      "where": "This Codex chat",
-      "what": "Owner will say when to continue"
-    }
-  ],
+  "owner": [],
   "fixes": [],
   "triggers": []
 }
