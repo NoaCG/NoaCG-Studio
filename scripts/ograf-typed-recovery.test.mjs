@@ -3,7 +3,7 @@
 // TYPED OGRAF DATA THROUGH A RELOAD (docs/work-specs/playout-ograf-contract/spec.md, E1.2b), in
 // Node. The browser halves are e2e/output-typed-recovery.spec.ts (the real /output renderer: the
 // typed baseline, the log below the reports, the renderer's round trip and the refusals) and
-// e2e/hosted-control.spec.ts (the exported receiver refusing a typed row, #1761).
+// e2e/published-control.spec.ts (the exported receiver refusing a typed row, #1761).
 //   - AC-2, output replay and baseline: a report of typed data carries its envelope and steps; a
 //     graphic no report banks is replayed from below the reports when its data on air is typed
 //     (#1762), on as many tail pages as that takes; PROGRAM is rebuilt from the same baseline;

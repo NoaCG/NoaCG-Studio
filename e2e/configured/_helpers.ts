@@ -72,14 +72,36 @@ export async function dismissWizard(page: Page): Promise<void> {
   await expect(modal).toBeHidden();
 }
 
-/** A second signed-in production page on the same production: a new tab in the same signed-in
- *  browser, opened on `#/production/<id>` and waiting until it shows the published production. The
- *  "other screen" of a multi-operator walk (docs/work-specs/retire-hosted-control/spec.md C5). */
-export async function openSecondProductionPage(page: Page, showId: string): Promise<Page> {
-  const second = await page.context().newPage();
-  await second.goto(`/app#/production/${encodeURIComponent(showId)}`);
-  await expect(second.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
-  await expect(second.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 60_000 });
+export interface ProductionPageOptions {
+  /** Runs on the new page before it opens the production: routes, init scripts, request counters. */
+  prepare?: (page: Page) => Promise<void>;
+  /** Wait until the page shows the production published (`data-started`); default true. */
+  started?: boolean;
+}
+
+/** A production page in the given page's own browser: a new tab on `#/production/<id>`. */
+export async function openProductionTab(page: Page, showId: string, { prepare, started = true }: ProductionPageOptions = {}): Promise<Page> {
+  const tab = await page.context().newPage();
+  await prepare?.(tab);
+  await tab.goto(`/app#/production/${encodeURIComponent(showId)}`);
+  await expect(tab.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
+  if (started) await expect(tab.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 60_000 });
+  return tab;
+}
+
+/** A second operator on the same production, as a second device: a browser of its own with no
+ *  local copy of anything, signed in to the same account, opening `#/production/<id>`. The "other
+ *  screen" of a multi-operator walk (docs/work-specs/retire-hosted-control/spec.md C5). Closing
+ *  the page closes its browser. */
+export async function openSecondProductionPage(page: Page, showId: string, options: ProductionPageOptions = {}): Promise<Page> {
+  const browser = page.context().browser();
+  if (!browser) throw new Error('openSecondProductionPage needs a page from a launched browser');
+  const device = await browser.newContext();
+  const home = await device.newPage();
+  await signIn(home);
+  const second = await openProductionTab(home, showId, options);
+  await home.close();
+  second.on('close', () => void device.close().catch(() => undefined));
   return second;
 }
 

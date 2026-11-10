@@ -35,7 +35,7 @@ export function cueStageData(cueId: string, data: Record<string, string>): Recor
  *
  * One function because the page's ⟳ TAKE, ✎ Update, the snap's trailing write and the cue editor
  * all have to send the same values; two readings of "the cue as it stands" is how one
- * production's Take comes to mean two things. `e2e/hosted-control.spec.ts` measures it too, since
+ * production's Take comes to mean two things. `e2e/published-control.spec.ts` measures it too, since
  * the page itself needs a configured backend.
  *
  * A key with no cue in it was staged by a build before cue scoping, and the buffer keeps it for the

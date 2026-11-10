@@ -30,9 +30,8 @@ import {
   type OutputLine,
   type ReadyStamp,
 } from '../../control/readiness';
-import { stampWords, type PrepRequest } from '../../control/prepareLive';
+import { type PrepRequest } from '../../control/prepareLive';
 import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
-import LibMenu from '../home/LibMenu';
 
 export interface LivePresenceView {
   /** The production this view is of: the production page is reused when the route moves to
@@ -249,8 +248,8 @@ export interface ReadyInputs {
 
 /**
  * READY as one page sees it: the summary, a line per output, the newest version and stamp. The
- * hosted page draws it as its header line (`ReadyLine`); the production page rolls the summary into
- * its one playout status and lists the outputs in its Playout panel (`ReadyOutputList`).
+ * production page rolls the summary into its one playout status and lists the outputs in its
+ * Playout panel (`ReadyOutputList`).
  */
 export function useReadinessView({ presence, seenAt, heartbeatLive, seenReadAt, known, now: pageNow, published, expected, stamp, onForget }: ReadyInputs) {
   const operators = presence.operators;
@@ -318,42 +317,3 @@ export function ReadyOutputList({ outputs, why, onForget }: { outputs: OutputLin
   );
 }
 
-/** The hosted page's READY line: the header words and a panel of the outputs. */
-export function ReadyLine({ testId = 'output-health', ...inputs }: ReadyInputs & { testId?: string }) {
-  const [open, setOpen] = useState(false);
-  const { summary, outputs, knownVersion, newestStamp } = useReadinessView(inputs);
-  if (!summary.show) return null;
-  return (
-    <span className="pd-ready-host">
-      <button
-        type="button"
-        className={`pd-health pd-health--${summary.tone} pd-ready`}
-        data-testid={testId}
-        data-tone={summary.tone}
-        data-source={summary.source}
-        data-outputs={summary.outputs}
-        data-ready={summary.ready}
-        aria-expanded={open}
-        title={summary.why}
-        onClick={() => setOpen((o) => !o)}
-      >
-        <span className="pd-health-full">{summary.label}</span>
-        <span className="pd-health-short" aria-hidden="true">
-          {summary.short}
-        </span>
-      </button>
-      <LibMenu open={open} onClose={() => setOpen(false)} surface="pd-ready-panel" role="none" testid={`${testId}-panel`}>
-        <div className="pd-ready-title">
-          <span>Outputs</span>
-          {knownVersion && <span className="pd-ready-version">published v{knownVersion.n}</span>}
-        </div>
-        <ReadyOutputList outputs={outputs} why={summary.why} onForget={inputs.onForget} />
-        {newestStamp && (
-          <p className={`pd-prepare-stamp${newestStamp.problems ? ' is-bad' : newestStamp.warnings ? ' is-warn' : ' is-ok'}`} data-testid="ready-stamp">
-            {stampWords(newestStamp, knownVersion, false)}
-          </p>
-        )}
-      </LibMenu>
-    </span>
-  );
-}

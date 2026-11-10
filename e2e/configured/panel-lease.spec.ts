@@ -17,7 +17,7 @@
 // covers: src/components/home/ProductionShell.tsx
 
 import { test, expect, type WebSocketRoute } from '@playwright/test';
-import { haveCreds, openSecondProductionPage, signIn, SUPABASE_URL } from './_helpers';
+import { haveCreds, openProductionTab, signIn, SUPABASE_URL } from './_helpers';
 import { answerPanel, ANON_KEY, pairPanel, productionIdOf, publishTwoCues, shutStatusPanel } from './_panel';
 
 test.skip(!haveCreds || !SUPABASE_URL || !ANON_KEY, 'E2E_EMAIL / E2E_PASSWORD and the Supabase pair unset - configured-mode spec');
@@ -151,7 +151,7 @@ test('a hidden page keeps the panel; a page cut off lets go and, back online, ne
   const phoneContext = await browser.newContext();
   const phoneHome = await phoneContext.newPage();
   await signIn(phoneHome);
-  let phone = await openSecondProductionPage(phoneHome, showId);
+  let phone = await openProductionTab(phoneHome, showId);
   await expect(phone.getByTestId('panel-header-use-here')).toHaveAttribute('title', /^Production page answers the Stream Deck panel/, { timeout: 15_000 });
   await phone.waitForTimeout(6_000);
   expect((await deck.state()).page, 'the production page still answers').toBe(before.page);
@@ -169,7 +169,7 @@ test('a hidden page keeps the panel; a page cut off lets go and, back online, ne
   await expect(op.locator('.pd-cue.selected')).toContainText('Anna');
 
   // The phone, opened again, takes the free panel by itself, under a newer claim.
-  phone = await openSecondProductionPage(phoneHome, showId);
+  phone = await openProductionTab(phoneHome, showId);
   await answerPanel(phone);
   await deck.hello();
   const onPhone = await deck.state((s) => s.where === 'production' && s.page !== before.page, 'the phone answering');

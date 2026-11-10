@@ -1532,11 +1532,11 @@ export default function ProductionAudienceWorkspace({
     if (failure) setNote(`${hide ? 'The word was not hidden' : 'The word was not shown again'}: ${failure}`);
     // A cue already on air keeps what it showed until the operator's Update (W8): say so.
     else if (hide && shows.find((x) => x.id === show.id)?.resultCues?.[q.id]) {
-      // The hosted control page and Companion run the published copy of the cues, which changes only
-      // with a publish, as for any cue edit.
+      // Companion runs the published copy of the cues, which changes only with a publish, as for
+      // any cue edit.
       setNote(
         `Hidden, and taken off the word cloud cue. If the cloud is on air, press Update to take the word off air too.${
-          show.hostedSlug ? ' Publish again so the hosted control page and Companion drop it as well.' : ''
+          show.hostedSlug ? ' Publish again so Companion drops it as well.' : ''
         }`,
       );
     }

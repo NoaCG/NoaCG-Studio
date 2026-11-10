@@ -145,7 +145,7 @@ export function airedAfter(prev: AiredMap, graphic: string, msg: ControlEventRow
 // An exported graphic carrying the hosted-control receiver follows the same log, for ONE graphic,
 // through a block of generated ES5 that can import nothing. So the decision lives here — beside
 // the renderer's — rather than being hand-written into the emitted text, and the two forms below
-// are pinned equal by `e2e/hosted-control.spec.ts` rather than trusted to stay that way.
+// are pinned equal by `e2e/published-control.spec.ts` rather than trusted to stay that way.
 //
 // IT DIVERGES IN ONE CASE, deliberately, and the divergence is the whole reason this is a second
 // function rather than a call to `planOutputRecovery`:

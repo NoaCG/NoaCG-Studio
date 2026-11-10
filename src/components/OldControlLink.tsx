@@ -68,6 +68,9 @@ export default function OldControlLink({ slug }: { slug: string }) {
         <div className="sendin-card" data-testid="old-control-link" data-state="waiting">
           <div className="sendin-title">Waiting for the server</div>
           <p className="muted">The server is not answering right now. This page keeps trying.</p>
+          <p>
+            <a href={`${window.location.pathname}#/home`}>Go to NoaCG Studio</a>
+          </p>
         </div>
       ) : (
         <div className="sendin-card" data-testid="old-control-link" data-state="asking">

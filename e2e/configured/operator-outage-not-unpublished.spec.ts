@@ -10,7 +10,7 @@
 import { publishProduction } from '../_publish';
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { clearPublishedShows, haveCreds, openSecondProductionPage, signIn, wipeMyGraphics } from './_helpers';
 
 // AN OUTAGE IS NOT "UNPUBLISHED" (docs/PLAYOUT_ISOLATION_RESEARCH.md §16 item 2).
 //
@@ -74,18 +74,21 @@ test('an operator page waits out a database outage instead of calling the produc
   // The follow resolves the production by this slug, so without one there is nothing to wait out.
   expect(slug, 'publishing must mint the production slug the follow resolves by').toBeTruthy();
 
-  // ── A SECOND PRODUCTION PAGE, opened during the outage. Opened by hand, not with
-  // openSecondProductionPage: the route and the request count go in before the first resolve. ──
-  const desk = await page.context().newPage();
-  const deskOutage = await resolveOutage(desk);
+  // ── A SECOND OPERATOR, a browser of its own, opening the production during the outage. The
+  // route and the request count go in before its first resolve. ──
+  let deskOutage = { down: true, refused: 0, answered: 0 };
   // The follow's first move after an answered resolve is the history read; counting it proves
   // the follow really started after the outage, not merely that the notice went away.
   let tailsAfterRecovery = 0;
-  desk.on('request', (req) => {
-    if (!deskOutage.down && /\/rest\/v1\/rpc\/control_tail(\?|$)/.test(req.url())) tailsAfterRecovery += 1;
+  const desk = await openSecondProductionPage(page, showId, {
+    started: false,
+    prepare: async (tab) => {
+      deskOutage = await resolveOutage(tab);
+      tab.on('request', (req) => {
+        if (!deskOutage.down && /\/rest\/v1\/rpc\/control_tail(\?|$)/.test(req.url())) tailsAfterRecovery += 1;
+      });
+    },
   });
-  await desk.goto(`/app#/production/${encodeURIComponent(showId)}`);
-  await expect(desk.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
   const line = desk.getByTestId('production-follow');
   await expect(line).toBeVisible({ timeout: 30_000 });
   await expect(line).toContainText('server not answering, retrying');

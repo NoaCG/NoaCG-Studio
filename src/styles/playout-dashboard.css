@@ -219,39 +219,10 @@
 .pd-mode-idle { color: var(--text-dim); border: 1px solid var(--border); }
 .pd-status { font-family: var(--mono, monospace); font-size: 12px; color: var(--text-dim); white-space: nowrap; }
 .pd-status.ok { color: #4ade80; }
-/* THE OUTPUT HEALTH LINE (components/control/OutputHealth.tsx); the production page carries
-   the outputs in its Playout panel. The status face of .pd-status: green only for an output that is connected
-   and hearing commands live, amber when one says commands may arrive late, dim otherwise. The
-   short form is the phone's (see the 900px block): the header there has room for a few words
-   beside ● SHOW and All out, and this is the one status an operator on a phone must still see. */
-.pd-health {
-  font-family: var(--mono, monospace); font-size: 12px; color: var(--text-dim); white-space: nowrap; cursor: default;
-  /* A long warning must never push ■ All out off the header: it gives way, and the tooltip
-     carries the whole sentence. */
-  min-width: 0; overflow: hidden; text-overflow: ellipsis;
-}
-.pd-health--ok { color: #4ade80; }
-.pd-health--warn { color: #f59e0b; }
-/* Red is kept for an output that should be there and is not ("CasparCG 1-20 not answering"):
-   the one READY state that means a screen may not be hearing you at all. */
-.pd-health--bad { color: #ef4444; }
-.pd-health-short { display: none; }
-
-/* THE READY LINE IS A BUTTON (components/control/OutputHealth.tsx ReadyLine, docs/work-specs/
-   playout-ready R10): the header keeps the health line's face - mono, coloured by state, no
-   chrome - and a press opens the panel of outputs. It gives way before ■ All out does. */
+/* A header status host (the playout status, the data chip) anchors its panel and gives way
+   before ■ All out does. */
 .pd-ready-host { position: relative; display: inline-flex; min-width: 0; }
 .pd-header > .pd-ready-host { flex-shrink: 1; }
-button.pd-ready {
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  padding: 3px 7px;
-  cursor: pointer;
-  max-width: 100%;
-}
-button.pd-ready:hover,
-button.pd-ready[aria-expanded='true'] { border-color: var(--border); background: rgba(255, 255, 255, 0.03); }
 /* The panel hangs under the line, anchored at its RIGHT edge on the production page, where the
    line sits right of the spacer. */
 .pd-ready-panel {
@@ -270,19 +241,6 @@ button.pd-ready[aria-expanded='true'] { border-color: var(--border); background:
   white-space: normal;
 }
 .pd-ready-panel--up { top: auto; bottom: calc(100% + 6px); }
-.pd-ready-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
-  margin-bottom: 10px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-}
-.pd-ready-version { font-family: var(--mono, monospace); letter-spacing: 0; text-transform: none; font-weight: 500; }
 .pd-ready-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .pd-ready-row { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; }
 .pd-ready-row--bad { border-color: rgba(239, 68, 68, 0.5); }
@@ -299,13 +257,7 @@ button.pd-ready[aria-expanded='true'] { border-color: var(--border); background:
 .pd-ready-row--bad .pd-ready-state { color: #ef4444; }
 .pd-ready-forget { margin-left: auto; flex: none; padding: 2px 9px; font-size: 11.5px; }
 .pd-ready-empty { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-dim); white-space: pre-line; }
-/* The readiness stamp (components/control/OutputHealth.tsx). */
-.pd-prepare-stamp { margin: 0 0 10px; font-size: 13px; font-weight: 600; }
-/* In the panel the stamp stands alone under the outputs, with the list's own gap above it. */
-.pd-ready-panel > .pd-prepare-stamp { margin: 12px 0 0; }
-.pd-prepare-stamp.is-ok { color: #4ade80; }
-.pd-prepare-stamp.is-warn { color: #f59e0b; }
-.pd-prepare-stamp.is-bad { color: #ef4444; }
+
 /* ALL OUT sits apart from the verbs on purpose: it is the panic control, and a hand reaching
    for Take must never land on it. */
 .pd-allout {
@@ -2504,7 +2456,6 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   .pd-back,
   /* Setup (Share, the Panel door, Playout settings, Export) stands down with the other authoring
      actions, and so does the panel's status; Home stays. */
-  .playout-dashboard .pd-header .pd-target,
   .pd-header .pd-setup-host,
   .pd-header .pd-panel-status,
   /* A phone keeps the data chip only while it asks for attention. */
@@ -2538,12 +2489,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
      beside it already says, and the production's NAME was paying for it (0px wide at 390). The
      monitor still reads PROGRAM · NOT PUBLISHED. */
   .pd-status-host--offline { display: none; }
-  /* The READY line keeps its SHORT form here ("● Ready 2/2"). */
-  .pd-health { flex: none; font-size: 11px; }
   .pd-header > .pd-ready-host { flex: none; }
-  button.pd-ready { padding: 4px 6px; }
-  .pd-health-full { display: none; }
-  .pd-health-short { display: inline; }
   /* Its panel, and the Playout panel, span the phone's width under the header. */
   .pd-ready-panel,
   .pd-status-host .pd-ready-panel { position: fixed; left: 8px; right: 8px; top: 52px; width: auto; }

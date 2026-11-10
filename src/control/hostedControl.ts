@@ -1,7 +1,8 @@
 import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownColors } from '../model/outputSetup';
 // Hosted control (Phase 5): the client side of migration 0008. A local SHOW publishes as a
-// control_shows row (id = the local Show.id); operating it is capability-addressed — the
-// unguessable slug opens the hosted page at ?control=<slug>, no account needed. Commands
+// control_shows row (id = the local Show.id); operating it is capability-addressed by its
+// unguessable slug, which the production page sends with (an old ?control=<slug> link now only
+// opens that page: components/OldControlLink.tsx). Commands
 // are INSERTS into the control_events log (DB-ordered, recoverable); staging and the
 // graphics' applied-state reports ride the same log as meta rows.
 //

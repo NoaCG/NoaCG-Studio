@@ -22,7 +22,7 @@
 import { publishProduction } from '../_publish';
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { clearPublishedShows, haveCreds, signIn, watchLogReads, wipeMyGraphics } from './_helpers';
+import { clearPublishedShows, haveCreds, signIn, watchLogReads, wipeMyGraphics, openSecondProductionPage } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -97,12 +97,13 @@ async function openAir(page: Page, output: string): Promise<Page> {
  *  with the log: a press made while it still reads the tail would leave its monitor alone, and Out
  *  would stay disabled behind a held Take (`watchLogReads`). */
 async function openOperator(page: Page, showId: string, prepare?: (op: Page) => Promise<void>): Promise<Page> {
-  const op = await page.context().newPage();
-  await prepare?.(op);
-  const level = await watchLogReads(op);
-  await op.goto(`/app#/production/${encodeURIComponent(showId)}`);
-  await expect(op.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
-  await expect(op.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 60_000 });
+  let level: () => Promise<void> = async () => {};
+  const op = await openSecondProductionPage(page, showId, {
+    prepare: async (tab) => {
+      await prepare?.(tab);
+      level = await watchLogReads(tab);
+    },
+  });
   await op.getByTestId('cue-list').locator('.pd-cue').first().getByTestId('select-cue').click();
   await level();
   return op;

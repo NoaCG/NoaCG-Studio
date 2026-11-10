@@ -16,7 +16,7 @@
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { clearPublishedShows, haveCreds, lastAppliedRow, signIn, watchLogReads, wipeMyGraphics } from './_helpers';
+import { clearPublishedShows, haveCreds, openSecondProductionPage, lastAppliedRow, signIn, watchLogReads, wipeMyGraphics } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -57,12 +57,13 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   expect(await airPlays()).toBe('0');
 
   // A second operator's production page on the same production.
-  const op = await context.newPage();
   // Each held press waits for the page to be level with the log, or its monitor would not move.
-  const followerLevel = await watchLogReads(op);
-  await op.goto(`/app#/production/${encodeURIComponent(showId)}`);
-  await expect(op.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
-  await expect(op.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 60_000 });
+  let followerLevel: () => Promise<void> = async () => {};
+  const op = await openSecondProductionPage(page, showId, {
+    prepare: async (tab) => {
+      followerLevel = await watchLogReads(tab);
+    },
+  });
   const chip = op.getByTestId('live-cue-chip');
   await expect(chip).toContainText('nothing on air');
 

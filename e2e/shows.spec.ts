@@ -1,5 +1,5 @@
 // covers: src/export/**, src/control/**
-// covers: src/components/fields/**
+// covers: src/components/fields/**, src/components/OldControlLink.tsx
 // covers: src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
 // covers: src/components/home/ProductionShell.tsx
 // focus

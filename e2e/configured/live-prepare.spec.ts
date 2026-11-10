@@ -22,7 +22,7 @@
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { clearPublishedShows, haveCreds, openSecondProductionPage, readyOf, signIn, wipeMyGraphics, unpublishForCleanup, type ReadyWindow } from './_helpers';
+import { clearPublishedShows, haveCreds, readyOf, signIn, wipeMyGraphics, unpublishForCleanup, type ReadyWindow } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -100,12 +100,6 @@ test('the readiness run publishes what changed, checks every output and ends in 
   test.info().annotations.push({ type: 'stamp', description: JSON.stringify(first) });
   await page.screenshot({ path: shot('desk-1920-checked') });
 
-  // ── AC-11: a second production page shows the same check. ──
-  const other = await openSecondProductionPage(page, showId);
-  await openPanel(other, 'production-status');
-  await expect(other.getByTestId('ready-stamp')).toContainText(/checked \d\d:\d\d/i, { timeout: 30_000 });
-  await other.screenshot({ path: shot('second-page-stamp') });
-  await other.close();
 
   // Cue fields change metadata, not prepared assets: no header action, the panel offers Publish
   // changes, and the output adopts the new version without navigating.
