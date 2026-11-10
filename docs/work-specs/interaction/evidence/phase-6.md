@@ -58,7 +58,24 @@ grows by the word cloud's one layer, as it did for the Join card.
 
 ## Rehearsal walk (AC-15, phase 6)
 
-WALK
+`e2e/configured/audience-live.spec.ts` "the rehearsal walk" now makes its third question a Word
+question. On a local Supabase stack (CLI 2.111.0, all 114 migrations applied from scratch): the
+phone joins by the link decoded from the studio's QR, answers the Open question, votes, chat adds
+votes, the vote airs on Result Donut Lower through Take; then the Word question goes live, the
+phone sends "Sparkling" and shows it in place of the box, a second phone (its own device) sends
+"Boring", Interaction lists both, Boring is hidden, Add word cloud to rundown adds House Word Cloud
+with one word, Program still shows only the cloud's off-air sample, Take airs exactly
+["Sparkling"], and Stop leaves phones the waiting text. Passed (queue job j-0015, 47 s).
+
+Two earlier runs failed on the walk's own steps, not the product: the second phone shared the first
+phone's browser and so was the same device (it rightly showed the word already sent), and the
+first word was one the cloud's sample also holds. Both fixed in the spec.
+
+Phone screens read on a blank page (390 x 844, the local provider): "two words" shows "One word
+only" with Send disabled; after sending, the card reads "Your word / Brilliant" and "Thanks, your
+word is in."
+
+Findings: none blocking. None filed.
 
 ## Not run, or partly run
 
