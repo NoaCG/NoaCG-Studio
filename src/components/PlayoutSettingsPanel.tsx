@@ -580,24 +580,26 @@ export default function PlayoutSettingsPanel({ outputUrl, canPutOutputOnAir, onO
 
 /** App-wide vMix setup is local to this browser. The Bridge supplies the available channels. */
 export function VmixSettings({ agentUrl, agentToken }: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'>) {
-  const [observed, setObserved] = useState<{ at: string; connection: VmixConnection }>();
+  if (!bridgePaired({ agentUrl, agentToken })) return null;
+  return <VmixSettingsForPairing key={JSON.stringify([agentUrl, agentToken])} agentUrl={agentUrl} agentToken={agentToken} />;
+}
+
+function VmixSettingsForPairing({ agentUrl, agentToken }: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'>) {
+  const [connection, setConnection] = useState<VmixConnection>();
   const [retry, setRetry] = useState(0);
   const [checking, setChecking] = useState(false);
   const [settings, setSettings] = useState(loadPlayoutSettings);
   const request = useRef(0);
-  const at = JSON.stringify([agentUrl, agentToken]);
   useEffect(() => {
     const current = ++request.current;
     const now = { ...loadPlayoutSettings(), agentUrl, agentToken };
-    if (!bridgePaired(now)) return;
     void testVmix(now, retry > 0).then(result => {
       if (request.current !== current) return;
-      setObserved({ at, connection: result });
+      setConnection(previous => result.supported === undefined && previous?.supported ? { ...result, supported: true } : result);
       setChecking(false);
     });
     return () => { request.current += 1; };
-  }, [agentUrl, agentToken, at, retry]);
-  const connection = observed?.at === at ? observed.connection : undefined;
+  }, [agentUrl, agentToken, retry]);
   if (!connection?.supported) return null;
   const info = connection.info;
   const overlay = info && vmixOverlay(settings, info.overlays);

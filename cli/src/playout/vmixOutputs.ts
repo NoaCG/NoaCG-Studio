@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
+import { createServer, type Server } from 'node:net';
 import path from 'node:path';
 import { configDir } from '../config.js';
 
@@ -154,6 +155,47 @@ export function vmixOutputStore(file?: string): VmixOutputStore {
   };
 }
 
-export function fileVmixOutputStore(): VmixOutputStore {
-  return vmixOutputStore(path.join(configDir(), 'vmix-outputs.json'));
+export async function fileVmixOutputStore(): Promise<{
+  outputs?: VmixOutputStore;
+  ownershipProblem: () => string | undefined;
+  claim?: () => Promise<void>;
+}> {
+  if (process.platform !== 'win32') {
+    return { ownershipProblem: () => 'Use NoaCG Bridge on the same Windows computer as vMix to control its output.' };
+  }
+  const unavailable = 'NoaCG Bridge could not claim its vMix output storage. Check its data folder and start Bridge again.';
+  let folder: string;
+  try {
+    await fs.mkdir(configDir(), { recursive: true });
+    folder = await fs.realpath(configDir());
+  } catch {
+    return { ownershipProblem: () => unavailable };
+  }
+  const name = '\\\\.\\pipe\\noacg-vmix-' + sha256(folder.toLowerCase());
+  let pipe: Server | undefined;
+  let problem = 'NoaCG Bridge is preparing vMix output storage. Try again.';
+  return {
+    outputs: vmixOutputStore(path.join(folder, 'vmix-outputs.json')),
+    ownershipProblem: () => pipe?.listening ? undefined : problem,
+    async claim() {
+      const lease = createServer(socket => socket.destroy());
+      try {
+        await new Promise<void>((resolve, reject) => {
+          lease.once('error', reject);
+          lease.listen(name, resolve);
+        });
+      } catch (error) {
+        problem = (error as NodeJS.ErrnoException).code === 'EADDRINUSE'
+          ? 'Another NoaCG Bridge is using vMix output storage. Pair that Bridge, or close it and start this Bridge again.'
+          : unavailable;
+        return;
+      }
+      // Hold the kernel claim through process exit, including actions whose HTTP clients left.
+      // The pipe has no protocol and cannot keep Bridge alive after its HTTP listener closes.
+      lease.unref();
+      process.once('exit', () => lease.close());
+      problem = unavailable;
+      pipe = lease;
+    },
+  };
 }

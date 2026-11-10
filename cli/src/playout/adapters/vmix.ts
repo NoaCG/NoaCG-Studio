@@ -114,7 +114,10 @@ function otherOverlay(xml: VmixXml, input: VmixInput, overlay: number): number |
   }
 }
 
-export function createVmixAdapter(options: { port?: number; timeoutMs?: number; greetingMs?: number; replyMs?: number; outputs?: VmixOutputStore } = {}): VmixAdapter {
+export function createVmixAdapter(options: {
+  port?: number; timeoutMs?: number; greetingMs?: number; replyMs?: number; outputs?: VmixOutputStore;
+  ownershipProblem?: () => string | undefined;
+} = {}): VmixAdapter {
   const defaultPort = options.port ?? DEFAULT_VMIX_PORT;
   const timeoutMs = options.timeoutMs ?? VMIX_TIMEOUT_MS;
   const outputs = options.outputs ?? vmixOutputStore();
@@ -218,9 +221,10 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
         const count = vmixOverlayCount(s.xml.version, s.xml.edition);
         const id = outputUrl === undefined ? undefined : vmixOutputId(outputUrl);
         if (outputUrl !== undefined && !id) return usage('The vMix state reading needs an http or https output address.');
+        const ownershipProblem = id ? options.ownershipProblem?.() : undefined;
         let owned: VmixInput | undefined;
-        let loadProblem: string | undefined;
-        if (id) {
+        let loadProblem = ownershipProblem;
+        if (id && !ownershipProblem) {
           try {
             const kept = await outputs.read(portOf(target));
             owned = ownBrowser(s.xml, kept.keys[id]);
@@ -233,7 +237,7 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
         for (let overlay = 1; overlay <= count; overlay += 1) {
           const input = onChannel(s.xml, overlay);
           if (channelKey(s.xml, overlay) === undefined) return refused('vMix did not identify the input on overlay ' + overlay + '.');
-          value.push({ overlay, ...(input ? { input } : {}), ...(id ? { ownsOutput: !!owned && input?.key === owned.key } : {}) });
+          value.push({ overlay, ...(input ? { input } : {}), ...(id && !ownershipProblem ? { ownsOutput: !!owned && input?.key === owned.key } : {}) });
         }
         return { ok: true, value: { overlays: value, ...(loadProblem ? { loadProblem } : {}) }, raw: s.raw };
       });
@@ -248,6 +252,7 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
     },
 
     async outputRedirect(host, path, port) {
+      if (options.ownershipProblem?.()) return;
       const request = vmixRedirectRequest(host, path, port);
       if (!request) return;
       const digest = adding.get(request.alias) ?? await outputs.redirect(request.alias);
@@ -258,6 +263,8 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
       // Everything vMix cannot do from here is refused before anything is sent: the cues play inside
       // the output, so the only things the Bridge puts on a channel are that page and nothing else.
       if (action.verb !== 'take' && action.verb !== 'out' && action.verb !== 'clear') return unsupported(`a ${action.verb}`);
+      const ownershipProblem = options.ownershipProblem?.();
+      if (ownershipProblem) return refused(ownershipProblem);
       if (action.slot.adapter !== 'vmix') return usage('A vMix command needs a vmix slot.');
       const slot: VmixSlot = action.slot;
       const { item } = action;

@@ -29,6 +29,8 @@ controls Program and Preview. If you save the Browser input in a vMix preset, st
 on the same port before opening it. If you start Bridge late, reload that Browser input in vMix.
 If Bridge is on a different port, the Playout panel tells you which port the Browser needs.
 You can still unload that input.
+If two copies of Bridge are open, use the one already controlling vMix. A second copy can still
+run CasparCG or OGraf.
 
 Download and start this Bridge between broadcasts. The vMix connection first shipped in
 [Bridge 0.10.0](https://github.com/NoaCG/NoaCG-Studio/releases/tag/bridge-v0.10.0).

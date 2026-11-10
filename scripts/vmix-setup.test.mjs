@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import './lib/tsResolve.mjs';
 
-const { act, finishCasparAllOut, PLAYOUT_DEFAULTS } = await import('../src/control/playoutLink.ts');
+const { act, finishCasparAllOut, PLAYOUT_DEFAULTS, testVmix } = await import('../src/control/playoutLink.ts');
 const { changeVmixOutput, vmixOverlay } = await import('../src/control/vmixSetup.ts');
 
 const settings = { ...PLAYOUT_DEFAULTS, agentToken: 'fixture-token', vmix: { overlay: 3 } };
@@ -16,6 +16,21 @@ test('the output uses the highest overlay only when no valid choice fits this vM
   assert.equal(vmixOverlay(PLAYOUT_DEFAULTS, 8), 8);
   assert.equal(vmixOverlay(settings, 4), 3);
   assert.equal(vmixOverlay(settings, 1), 1);
+});
+
+test('an invalid Bridge health reply does not disprove vMix support', async (t) => {
+  let body = null;
+  t.mock.method(globalThis, 'fetch', async url => {
+    assert.equal(new URL(url).pathname, '/health');
+    return Response.json(body);
+  });
+  for (body of [null, { ...health, adapters: null }, { ...health, adapters: [1] }]) {
+    const connection = await testVmix(settings);
+    assert.equal(connection.supported, undefined);
+    assert.equal(connection.result.state, 'bridge');
+  }
+  body = { ...health, adapters: ['casparcg'] };
+  assert.equal((await testVmix(settings)).supported, false);
 });
 
 test('vMix replacement requires the exact confirmed overlay and input before dispatch', async (t) => {

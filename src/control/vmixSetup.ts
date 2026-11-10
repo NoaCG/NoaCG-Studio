@@ -87,7 +87,7 @@ export async function changeVmixOutput(
   if (!sameChoice(choice, current())) return {};
   if (connection.result?.state !== undefined && connection.result.state !== 'ok') return { message: connection.result.detail };
   if (!connection.keyed) return { message: 'Update NoaCG Bridge to load or unload an output in vMix.' };
-  if (!overlay) return { message: detail ?? 'The vMix overlay could not be read. Check vMix and try again.' };
+  if (!overlay) return { message: loadProblem ?? detail ?? 'The vMix overlay could not be read. Check vMix and try again.' };
   if (verb === 'take' && loadProblem) return { message: loadProblem };
   if (verb === 'take' && overlay.overlay !== configuredOverlay) {
     return { message: `Unload from Overlay ${overlay.overlay} before loading on Overlay ${configuredOverlay}.` };

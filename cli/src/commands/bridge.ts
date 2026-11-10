@@ -43,7 +43,8 @@ export async function runBridge(args: ParsedArgs, out: Out): Promise<number> {
   // vMix on this computer, at its TCP API's own port unless the studio moved it.
   const vmixPort = flagNumber(args, 'vmix-port');
   if (vmixPort !== undefined && (!Number.isInteger(vmixPort) || vmixPort < 1 || vmixPort > 65535)) throw new UsageError('--vmix-port is a port number from 1 to 65535.');
-  const vmix = createVmixAdapter({ port: vmixPort, outputs: fileVmixOutputStore() });
+  const vmixStorage = await fileVmixOutputStore();
+  const vmix = createVmixAdapter({ port: vmixPort, outputs: vmixStorage.outputs, ownershipProblem: vmixStorage.ownershipProblem });
   const token = await resolveToken(flagString(args, 'token'), args.flags['new-token'] === true);
   const origins = allowedOrigins(flagList(args, 'origin'));
   const quiet = args.flags.quiet === true;
@@ -63,6 +64,7 @@ export async function runBridge(args: ParsedArgs, out: Out): Promise<number> {
     server.once('error', reject);
     server.listen(port, '127.0.0.1', resolve);
   });
+  await vmixStorage.claim?.();
 
   const address = `http://127.0.0.1:${port}`;
   const pairUrl = pairingUrl(port, first.code);

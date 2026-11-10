@@ -279,7 +279,7 @@ export interface VmixStateReply {
   session: string;
   observedAt: number;
   overlays: VmixOverlayState[];
-  /** The scoped output's kept Browser cannot use this Bridge listener. Unload can still use its key. */
+  /** The scoped output cannot be loaded. A reported owned input can still be unloaded. */
   loadProblem?: string;
   linked: { id: string; output: { onOverlay?: number }; live: string[] }[];
 }

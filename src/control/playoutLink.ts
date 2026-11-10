@@ -454,12 +454,12 @@ export async function reachBridge(bridgeUrl: string): Promise<PlayoutResult | nu
 async function probeBridge(bridgeUrl: string): Promise<{ unreachable: PlayoutResult | null; features: BridgeFeature[]; adapters?: AdapterId[] }> {
   const health = await callBridge(bridgeUrl, '/health', null, BRIDGE_TIMEOUT_MS);
   if ('http' in health) {
-    const { agent, v } = health.body;
+    const { agent, v, adapters, features } = health.body ?? {};
     if (agent === 'noacg-bridge' && typeof v === 'number' && v >= MIN_PLAYOUT_V) {
       return {
         unreachable: null,
-        features: Array.isArray(health.body.features) ? health.body.features : [],
-        adapters: Array.isArray(health.body.adapters) ? health.body.adapters : [],
+        features: Array.isArray(features) ? features : [],
+        adapters: health.http === 200 && Array.isArray(adapters) && adapters.every(name => typeof name === 'string') ? adapters : undefined,
       };
     }
     if (agent === 'noacg-bridge' || agent === 'noacg-caspar') {
@@ -936,12 +936,13 @@ export function currentProductionPlayout(
   return show && productionPlayoutSystem(show, legacyCasparActivity, accountCaspar) === adapter ? show : null;
 }
 
-export function bridgePaired(settings: PlayoutSettings): boolean {
+export function bridgePaired(settings: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'>): boolean {
   return Boolean(settings.agentUrl.trim() && settings.agentToken.trim());
 }
 
 export interface VmixConnection {
-  supported: boolean;
+  /** Undefined when this request could not establish the pairing's advertised capabilities. */
+  supported?: boolean;
   keyed: boolean;
   result?: PlayoutResult;
   info?: VmixInfo;
@@ -950,8 +951,9 @@ export interface VmixConnection {
 export async function testVmix(settings: PlayoutSettings, reconnect = false): Promise<VmixConnection> {
   if (!bridgePaired(settings)) return { supported: false, keyed: false };
   const { unreachable, features, adapters } = await probeBridge(settings.agentUrl);
-  if (unreachable) return { supported: false, keyed: false, result: unreachable };
-  if (!adapters?.includes('vmix')) return { supported: false, keyed: false };
+  if (unreachable) return { supported: unreachable.state === 'outdated' ? false : undefined, keyed: false, result: unreachable };
+  if (!adapters) return { keyed: false, result: { state: 'bridge', detail: 'NoaCG Bridge did not report its playout adapters. Try again.' } };
+  if (!adapters.includes('vmix')) return { supported: false, keyed: false };
   const call = await callBridge(
     settings.agentUrl, reconnect ? '/connect' : '/status', { target: vmixTarget }, ACT_TIMEOUT_MS, settings.agentToken,
   );

@@ -216,11 +216,12 @@ test('AC-1: the port the Bridge was started with (--vmix-port) is used unless a 
 
 test('AC-1: the CLI passes --vmix-port to a real Bridge process', async () => {
   const fake = await startFakeVmix({ version: '28.0.0.42' });
+  const config = await mkdtemp(join(tmpdir(), 'noacg-vmix-detect-'));
   const port = await freePort();
   const child = spawn(process.execPath, [
     fileURLToPath(new URL('../dist/index.js', import.meta.url)), 'bridge', '--no-open', '--quiet',
     '--port', String(port), '--vmix-port', String(fake.port), '--token', 'fixture-vmix-port',
-  ], { stdio: 'ignore' });
+  ], { stdio: 'ignore', windowsHide: true, env: { ...process.env, APPDATA: config, XDG_CONFIG_HOME: config } });
   const exited = once(child, 'exit');
   const base = `http://127.0.0.1:${port}`;
   try {
@@ -241,6 +242,79 @@ test('AC-1: the CLI passes --vmix-port to a real Bridge process', async () => {
     child.kill();
     await exited;
     await fake.stop();
+    if (process.platform === 'win32') await rmdir(join(config, 'noacg'));
+    await rmdir(config);
+  }
+});
+
+test('AC-4: only one Windows Bridge per data folder can control vMix, even on other ports', {
+  skip: process.platform !== 'win32', timeout: 20_000,
+}, async () => {
+  const config = await mkdtemp(join(tmpdir(), 'noacg-vmix-claim-'));
+  const store = join(config, 'noacg', 'vmix-outputs.json');
+  const fake = await startFakeVmix();
+  const other = await startFakeVmix({ version: '28.0.0.42' });
+  const children = new Map();
+  const start = async (port) => {
+    const child = spawn(process.execPath, [
+      fileURLToPath(new URL('../dist/index.js', import.meta.url)), 'bridge', '--no-open', '--quiet', '--json',
+      '--port', String(port), '--vmix-port', String(fake.port), '--token', 'fixture-vmix-claim',
+    ], { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true, env: { ...process.env, APPDATA: config } });
+    const exited = once(child, 'exit');
+    children.set(child, exited);
+    await once(child.stdout, 'data', { signal: AbortSignal.timeout(4000) });
+    const base = 'http://127.0.0.1:' + port;
+    const post = async (route, body) => (await fetch(base + route, {
+      method: 'POST', headers: { Connection: 'close', Authorization: 'Bearer fixture-vmix-claim', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body), signal: AbortSignal.timeout(9000),
+    })).json();
+    return { base, post, child, exited };
+  };
+  const target = { adapter: 'vmix' };
+  const take = { verb: 'take', item, slot: slot() };
+  try {
+    const port = await freePort();
+    const owner = await start(port);
+    const contender = await start(await freePort());
+    const health = await fetch(contender.base + '/health').then(res => res.json());
+    assert.deepEqual(health.adapters, ['casparcg', 'ograf', 'vmix']);
+    assert.equal((await contender.post('/status', { target })).vmix.version, '29.0.0.49');
+    assert.equal((await contender.post('/status', { target: { ...target, port: other.port } })).vmix.version, '28.0.0.42');
+    assert.equal((await act(owner.post, take)).ok, true);
+    const saved = await readFile(store, 'utf8');
+    const input = fake.onChannel(8);
+    const alias = new URL(input.url);
+    const state = await contender.post('/state', { target, outputUrl: OUTPUT });
+    assert.equal(state.overlays[7].input.key, input.key);
+    assert.equal(state.overlays[7].ownsOutput, undefined);
+    assert.match(state.loadProblem, /Another NoaCG Bridge/);
+    const mark = fake.functions.length;
+    for (const contenderPort of [undefined, other.port]) {
+      for (const verb of ['take', 'out']) {
+        assert.equal((await act(contender.post, { ...take, verb }, contenderPort)).error.detail, state.loadProblem);
+      }
+    }
+    assert.equal(fake.functions.length, mark);
+    assert.deepEqual(other.functions, []);
+    assert.equal(await readFile(store, 'utf8'), saved);
+    assert.equal((await aliasRequest(owner.base, alias)).headers.location, OUTPUT);
+
+    owner.child.kill();
+    await owner.exited;
+    assert.equal((await act(contender.post, take)).error.detail, state.loadProblem, 'no automatic handover');
+    const recovered = await start(port);
+    assert.equal((await aliasRequest(recovered.base, alias)).headers.location, OUTPUT);
+    assert.equal((await act(recovered.post, { ...take, verb: 'out' })).ok, true);
+    assert.deepEqual(fake.functions.slice(mark).map(fn => fn.name), ['OverlayInput8Out']);
+  } finally {
+    for (const [child, exited] of children) {
+      if (child.exitCode === null) child.kill();
+      await exited;
+    }
+    await Promise.all([fake.stop(), other.stop()]);
+    await rm(store, { force: true });
+    await rmdir(join(config, 'noacg'));
+    await rmdir(config);
   }
 });
 

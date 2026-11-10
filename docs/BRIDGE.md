@@ -532,7 +532,7 @@ the usual paired token with the `vmix-output-key:` prefix on vMix `/act` request
 Bridge that predates keyed actions rejects the request even if it replaced the current one
 between `/health` and `/act`.
 
-One Bridge instance per Windows user keeps its vMix Browser keys in
+One Bridge instance per Windows data folder keeps its vMix Browser keys in
 `%APPDATA%\noacg\vmix-outputs.json`, beside the token and the CasparCG setup. Each key is
 kept by vMix port and a digest of the output URL without its display name. A new input
 uses a unique local Bridge address. The Bridge confirms its exact marker in vMix before it
@@ -542,6 +542,10 @@ address's destination and the Bridge HTTP port associated with the kept input. K
 Bridge's data folder and use the same port when reopening presets. On another port,
 the Bridge reports the original port and refuses Load. The original key can still Unload
 that input while vMix reports it on the overlay.
+
+If another Bridge already owns the vMix data folder, the second can still detect vMix and
+run CasparCG or OGraf. To control vMix, pair with the first Bridge or close it and start
+the second again. vMix output control runs on the same Windows computer as vMix.
 
 If vMix did not confirm the addition, the Bridge leaves the overlay alone. Check vMix for an
 unused Browser input before pressing Load again. A new Load uses a fresh local address.
