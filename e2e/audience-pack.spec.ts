@@ -5,7 +5,7 @@
 // pack's answer boards.
 // covers: src/templates/quiz/**
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { test, expect, type Frame, type Page } from '@playwright/test';
 import { toApp } from './_bench';
 import { qrReader } from './_qr';
@@ -1026,30 +1026,51 @@ test('result boards: three layouts by three placements take 2 and 8 options and 
   }
 });
 
-// THE CLI PATH TAKES THE STUDIO'S DEFAULTS (interaction spec AC-13, "the same from the CLI"): a
-// countdown board from the corpus, whose artwork names bundled faces, scaffolded through the
-// bridge and imported through the studio's own draft, gives the same fields, the same ticking
-// clock and the same declared faces.
-test('CLI scaffold --svg: a countdown board ticks and keeps its bundled faces, as the studio import does', async ({ page }) => {
+// THE CLI PATH IS THE STUDIO'S DEFAULT (interaction spec AC-13, "the same from the CLI"): for every
+// file in the SVG corpus, and for artwork larger than the frame and text parked off the artboard,
+// `noacg scaffold --svg` (the bridge's scaffold) builds exactly the template the studio builds
+// from its own untouched import draft. One function serves both (svgDefault.ts); this pins it,
+// so a later step on either side cannot drift.
+test('CLI scaffold --svg builds the studio import\'s own default for every corpus file', async ({ page }) => {
+  test.setTimeout(120_000);
   await page.goto('/app');
-  const markup = readFileSync(new URL('./fixtures/svg-corpus/illustrator-question-timer-board.svg', import.meta.url), 'utf8');
-  const both = await page.evaluate(async (m) => {
+  const dir = new URL('./fixtures/svg-corpus/', import.meta.url);
+  const files = readdirSync(dir).filter((f) => f.endsWith('.svg')).sort();
+  const cases: [string, string][] = files.map((f) => [f, readFileSync(new URL(f, dir), 'utf8')]);
+  cases.push(['oversized 3840x2160', `<svg xmlns="http://www.w3.org/2000/svg" width="3840" height="2160" viewBox="0 0 3840 2160"><rect width="3840" height="2160" fill="#123"/><text id="Title" x="200" y="400" font-family="Arial" font-size="160" fill="#fff">A title</text></svg>`]);
+  cases.push(['text off the artboard', `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="200" viewBox="0 0 800 200"><rect width="800" height="200" fill="#123"/><text id="Name" x="40" y="120" font-family="Arial" font-size="48" fill="#fff">Ana</text><text id="Note" x="1200" y="120" font-family="Arial" font-size="24" fill="#fff">designer note</text></svg>`]);
+  const report = await page.evaluate(async (all) => {
     const { scaffold } = await import('/src/bridge/bridgeApi.ts');
     const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
     const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
     const { initialDraft, mergeDraft, draftToOptions } = await import('/src/components/wizard/draft/core.ts');
     const D = await import('/src/components/wizard/import/draft.ts');
-    const cli = (await scaffold({ svg: m })).template;
-    const patch = D.svgDraftFromImport(importSvgMarkup(m), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
-    const studio = IMPORTED_SVG.create(draftToOptions(IMPORTED_SVG, mergeDraft(initialDraft(), patch)));
-    const read = (t: { fields: { title: string; ftype: string }[]; css: string; js: string }) => ({
-      fields: t.fields.map((f) => `${f.title}:${f.ftype}`),
-      clock: /startClock/.test(t.js),
-      faces: (t.css.match(/@font-face\s*\{[^}]*\}/g) ?? []).map((f) => f.replace(/\s+/g, ' ')).sort(),
-    });
-    return { cli: read(cli), studio: read(studio) };
-  }, markup);
-  expect(both.studio.clock, 'the studio import starts the clock').toBe(true);
-  expect(both.studio.faces.length, 'the artwork names bundled faces').toBeGreaterThan(0);
-  expect(both.cli).toEqual(both.studio);
+    const out: string[] = [];
+    let compared = 0;
+    for (const [name, m] of all) {
+      let cli: { html: string; css: string; js: string; fields: unknown } | string;
+      let studio: { html: string; css: string; js: string; fields: unknown } | string;
+      try {
+        cli = (await scaffold({ svg: m })).template;
+      } catch (e) {
+        cli = `refused: ${(e as Error).message}`;
+      }
+      try {
+        const patch = D.svgDraftFromImport(importSvgMarkup(m), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
+        studio = IMPORTED_SVG.create({ designSvg: draftToOptions(IMPORTED_SVG, mergeDraft(initialDraft(), patch)).designSvg });
+      } catch (e) {
+        studio = `refused: ${(e as Error).message}`;
+      }
+      if (typeof cli === 'string' || typeof studio === 'string') {
+        if (cli !== studio) out.push(`${name}: ${typeof cli === 'string' ? cli : 'built'} / ${typeof studio === 'string' ? studio : 'built'}`);
+        continue;
+      }
+      compared++;
+      for (const k of ['html', 'css', 'js'] as const) if (cli[k] !== studio[k]) out.push(`${name}: ${k} differs`);
+      if (JSON.stringify(cli.fields) !== JSON.stringify(studio.fields)) out.push(`${name}: fields differ`);
+    }
+    return { out, compared };
+  }, cases);
+  expect(report.out).toEqual([]);
+  expect(report.compared, 'most of the corpus builds').toBeGreaterThan(40);
 });

@@ -13,6 +13,7 @@
 
 export * from './draft';
 export * from './drop';
+export { svgDefaultDesign } from './svgDefault';
 
 export { default as ImportStep } from './ImportStep';
 export { default as ImportDesignStep } from './ImportDesignStep';
