@@ -21,7 +21,7 @@
 // Pure and Node-importable (production-page spec §5.2): the stores it writes through are handed
 // in by the caller, so scripts/message-staging.test.mjs runs it against fakes.
 import type { MessageReceipt, Show, ShowCue } from '../model/shows';
-import { wordCloudFields } from '../model/wordCloud';
+import { wordCloudFields } from '../model/wordCloud.ts';
 
 export { wordCloudFields };
 
