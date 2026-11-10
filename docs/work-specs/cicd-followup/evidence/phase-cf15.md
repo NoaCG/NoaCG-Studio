@@ -60,9 +60,10 @@ left; **done** already done by a later phase or by the evidence itself.
 
 `docs/work-specs/cicd-improvement/work.json`: the `sha256` of the eight edited evidence files is
 refreshed. `node scripts/work-spec.mjs converge docs/work-specs/cicd-improvement/work.json`: 0
-problems, status `open`, the same eight open criteria as on `main`. Gaps rise from 742 to 749: seven
+problems, status `open`, the same eight open criteria as on `main`. Gaps rise from 742 to 750: eight
 `review stale` lines, for the edited ci01, ci09, ci10, ci13, ci14, ci15 and ci16 files, whose
-review records predate this change (phase-ci17.md raises none). That is the expected record of an edit, not a new problem.
+review records predate this change, and for this new file (phase-ci17.md raises none). That is the
+expected record of an edit, not a new problem.
 
 ## Verification
 
