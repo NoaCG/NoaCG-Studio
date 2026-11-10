@@ -18,7 +18,7 @@ import test from 'node:test';
 import './lib/tsResolve.mjs';
 
 const { planResultCue, readResultCues } = await import('../src/model/resultCues.ts');
-const { pollFieldMap, rememberedResultTarget, resultDestinationOf, roundsClosedBy, resultDestinations, stageResults, tallyValues, RESULT_BOARDS } = await import('../src/control/resultStaging.ts');
+const { pollFieldMap, rememberedResultTarget, resultDestinationOf, resultCueSaysOpen, roundsToFinalise, resultDestinations, stageResults, tallyValues, RESULT_BOARDS } = await import('../src/control/resultStaging.ts');
 const { mergeTeamShow } = await import('../src/model/teamShowMerge.ts');
 
 const f = (field, title) => ({ field, title, ftype: 'textfield' });
@@ -287,18 +287,50 @@ test('the button names where this question\u2019s press would write: its cue fir
   assert.equal(resultDestinationOf({ ...show, cues: [{ id: 'c1', sourceId: 'g-strap', label: 'x', values: {} }] }, 'q1').name, 'Volt Vote');
 });
 
-test('Go live finalises the round the press closed, read at the press, not the page’s stale live round (S14, S25)', () => {
+test('the closing sweep finds every closed poll round whose cue still says open, whatever closed it (S26)', () => {
   const r = (id, questionId, closedAt = null, kind = 'poll') => ({ id, questionId, closedAt, kind });
-  // The page last saw Q1 live; another operator put Q2 live since; this tab puts Q3 live.
-  const seen = r('r1', 'q1', null);
-  const atPress = [r('r1', 'q1', 'earlier'), r('r2', 'q2', null)];
-  const after = [r('r1', 'q1', 'earlier'), r('r2', 'q2', 'now'), r('r3', 'q3', null)];
-  assert.deepEqual(roundsClosedBy(atPress, seen, 'q3', 'r3', after).map((x) => x.id), ['r2']);
-  // The provider could not be read after the press: R3 closed every other open round.
-  assert.deepEqual(roundsClosedBy(atPress, null, 'q3', 'r3', null).map((x) => x.id), ['r2']);
-  // Going live again on the open question closes nothing; an Open round has no result cue.
-  assert.deepEqual(roundsClosedBy([r('r2', 'q2')], null, 'q2', 'r2', [r('r2', 'q2')]), []);
-  assert.deepEqual(roundsClosedBy([r('r4', 'q4', null, 'open')], null, 'q3', 'r3', [r('r4', 'q4', 'now', 'open')]), []);
-  // A round still open after the press (another operator reopened it) was not closed by it.
-  assert.deepEqual(roundsClosedBy([r('r2', 'q2')], null, 'q3', 'r3', [r('r2', 'q2', null)]), []);
+  const show = {
+    id: 's',
+    graphics: [board('g-a'), graphic('g-st', 'Imported', [f('f0', 'Question'), f('f1', 'Options'), f('f2', 'Vote status')])],
+    cues: [
+      { id: 'c1', sourceId: 'g-a', label: 'V', values: { f2: '3 votes · voting open' } },
+      { id: 'c2', sourceId: 'g-a', label: 'V', values: { f2: '3 votes · voting closed' } },
+      { id: 'c3', sourceId: 'g-st', label: 'V', values: { f2: 'open' } },
+    ],
+    resultCues: { q1: 'c1', q2: 'c2', q3: 'c3', q5: 'gone' },
+  };
+  assert.equal(resultCueSaysOpen(show, 'q1'), true);
+  assert.equal(resultCueSaysOpen(show, 'q2'), false);
+  assert.equal(resultCueSaysOpen(show, 'q3'), true);
+  assert.equal(resultCueSaysOpen(show, 'q4'), false);
+  assert.equal(resultCueSaysOpen(show, 'q5'), false);
+  // The page saw Q1 live; another operator opened Q2 then this tab opened Q3 (r3 just opened):
+  // the sweep takes what the provider says now, not what the page saw.
+  const after = [r('r1', 'q1', 'then'), r('r2', 'q2', 'now'), r('r3', 'q3', null), r('r4', 'q4', 'now', 'open')];
+  assert.deepEqual(roundsToFinalise(show, after, 'r3').map((x) => x.id), ['r1']);
+  // Q3's cue says open but its round is the one just opened, or still open: left alone.
+  assert.deepEqual(roundsToFinalise(show, [r('r3', 'q3', 'x')], 'r3'), []);
+  assert.deepEqual(roundsToFinalise(show, [r('r3', 'q3', null)], null), []);
+});
+
+test('a staging write that read "open" closes the cue itself when the round closed before it landed (S29)', async () => {
+  // A Stop elsewhere found no cue yet (close-only, nothing to do); this press wrote "open" after.
+  const s = store({ id: 's', graphics: [board('g-a')], cues: [], resultTarget: 'g-a' });
+  s.deps.recheck = async () => ({ closed: true, tally: tally(4, 2) });
+  const out = await press(s);
+  assert.equal(out.ok, true);
+  assert.match(out.message, /Voting closed meanwhile/);
+  assert.equal(s.record.cues.length, 1);
+  assert.equal(s.record.cues[0].values.f2, '6 votes · voting closed');
+  assert.equal(s.record.cues[0].values.f1, 'Home | 4\nAway | 2');
+  // Still open on the re-read: the open values stand.
+  const t = store({ id: 's', graphics: [board('g-a')], cues: [], resultTarget: 'g-a' });
+  t.deps.recheck = async () => ({ closed: false, tally: tally(9, 9) });
+  await press(t);
+  assert.equal(t.record.cues[0].values.f2, '3 votes · voting open');
+  // The re-read fails: nothing more is written, and the open write is reported as it landed.
+  const u = store({ id: 's', graphics: [board('g-a')], cues: [], resultTarget: 'g-a' });
+  u.deps.recheck = async () => null;
+  const quiet = await press(u);
+  assert.equal(quiet.kind, 'added');
 });

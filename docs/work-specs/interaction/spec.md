@@ -709,6 +709,28 @@ Found in the Codex review of `b854d6b`:
   reads the round and its counts afresh, so a round stopped in another tab stages as closed. What
   remains is the moment between the press-time reading and the server's Go live, two calls apart.
 
+Reassessed after the Codex review of `b4d62b5` (a stale snapshot written after a slow catalog-board
+add, while Stop or Go live closed the round: the second successive round of one family, so a
+fresh read-only review reassessed the rule model before any patch; AGREE WITH CORRECTIONS). The
+missing rule was about the end state, not about when to read. S26 to S30 replace S25's read rule;
+`roundsClosedBy` is gone.
+
+- S26. Once a round is closed, its question's result cue ends up saying "voting closed" with
+  counts read after the close, whatever order Add results, Stop and Go live ran in, in one tab,
+  across tabs, or across operators on a production that is not a team's.
+- S27. In one page, Add results, Stop and Go live take turns: one runs to its note before the
+  next starts (one lock, held in a ref).
+- S28. Values are read after every other wait of the press, immediately before the write. A
+  reading that fails writes nothing; the page's earlier reading (its rounds, its counts) is never
+  written.
+- S29. A staging write that wrote "open" reads the round again once it landed; closed meanwhile,
+  the same press makes the closing write with fresh counts. Stop and Go live make the closing
+  sweep: every poll round the provider reports closed whose result cue still says open
+  (`roundsToFinalise`, `resultCueSaysOpen`).
+- S30 (residual, stated): on a team production, a Stop in a copy that has not yet synced the link,
+  landing after the stager's re-check, leaves the cue open until the next Stop, Go live or Add
+  results on that production.
+
 **Decisions** (made in the build, revertible in review):
 
 - The planner (`model/resultCues.ts`) and the record write (`model/shows.ts` `stageShowResult`)

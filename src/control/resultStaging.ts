@@ -117,7 +117,7 @@ export function resultDestinationOf(show: Pick<Show, 'graphics' | 'cues' | 'resu
   return g ? { graphicId: g.id, name: g.name } : null;
 }
 
-/** A round as Go live's closing write needs it. */
+/** A round as the closing sweep needs it. */
 export interface ClosableRound {
   id: string;
   kind: string;
@@ -125,28 +125,29 @@ export interface ClosableRound {
   closedAt: string | null;
 }
 
+/** Whether a question's result cue still says voting is open: its status token where the graphic
+ *  has one, else its count line. False with no cue, or a graphic with neither field. */
+export function resultCueSaysOpen(show: Pick<Show, 'graphics' | 'cues' | 'resultCues'>, questionId: string): boolean {
+  const cueId = show.resultCues?.[questionId];
+  const cue = cueId ? (show.cues ?? []).find((c) => c.id === cueId) : undefined;
+  const g = cue ? show.graphics.find((x) => x.id === cue.sourceId) : undefined;
+  const map = g ? pollFieldMap(g.template.fields ?? []) : null;
+  if (!cue || !map) return false;
+  if (map.status) return cue.values[map.status] === POLL_STATUS_OPEN;
+  return map.count ? /voting open$/.test(cue.values[map.count] ?? '') : false;
+}
+
 /**
- * The poll rounds a Go live press closed (S14, S25): open in the provider's reading taken at the
- * press (or in the page's last reading, `seen`), not the question going live, and closed in the
- * reading taken after (`after`; null when it could not be read, and then R3 says it closed).
+ * The closing sweep (S26, S29): every poll round closed in the provider's reading `after` whose
+ * question's result cue still says open, except the round just opened. Whatever closed it, and
+ * whatever order the presses ran in, the cue then ends up saying closed with the final counts.
  */
-export function roundsClosedBy<R extends ClosableRound>(
-  atPress: readonly R[],
-  seen: R | null,
-  questionId: string,
-  openedId: string,
-  after: readonly ClosableRound[] | null,
+export function roundsToFinalise<R extends ClosableRound>(
+  show: Pick<Show, 'graphics' | 'cues' | 'resultCues'>,
+  after: readonly R[],
+  openedId: string | null,
 ): R[] {
-  const out: R[] = [];
-  // The reading at the press decides; the page's own reading counts only for a round it lacks.
-  const known = seen && !atPress.some((x) => x.id === seen.id) ? [seen] : [];
-  for (const r of [...atPress, ...known]) {
-    if (r.closedAt || r.kind !== 'poll' || !r.questionId || r.questionId === questionId || r.id === openedId) continue;
-    if (out.some((x) => x.id === r.id)) continue;
-    if (after && !after.find((x) => x.id === r.id)?.closedAt) continue;
-    out.push(r);
-  }
-  return out;
+  return after.filter((r) => r.closedAt && r.kind === 'poll' && r.questionId && r.id !== openedId && resultCueSaysOpen(show, r.questionId));
 }
 
 /** What staging writes through: the record writer and the durable commit. Nothing that sends. */
@@ -166,6 +167,8 @@ export interface ResultStagingDeps {
   setShows: (shows: Show[]) => void;
   /** The productions as stored, read after the write landed. */
   reread: () => Show[];
+  /** The round as the provider has it now, with its counts; null when it cannot be read (S29). */
+  recheck?: () => Promise<{ closed: boolean; tally: ResultTally } | null>;
 }
 
 export type ResultOutcome =
@@ -228,6 +231,19 @@ export async function stageResults(
       choose: false,
       message: plan.kind === 'update' ? `The result cue on “${graphic}” was not updated: ${failure}` : `No result cue was added for “${graphic}”: ${failure}`,
     };
+  }
+  // S29: an open write re-reads the round once it landed. If it closed meanwhile (a Stop or a Go
+  // live in another tab or by another operator found no cue yet), this press makes the closing
+  // write itself, so the cue never stays "voting open" on a closed vote (S26).
+  if (!input.closed && !input.closeOnly && deps.recheck) {
+    const now = await deps.recheck();
+    if (now?.closed) {
+      const closing = await stageResults(show, { ...input, tally: now.tally, closed: true, closeOnly: true, chosen: null, adopt: null }, { ...deps, recheck: undefined });
+      if (!closing.ok) return closing;
+      if (closing.kind === 'updated') {
+        return { ...closing, message: `✓ Voting closed meanwhile, so the result cue on “${closing.graphic}” carries the final counts. Take it when you want them on air.` };
+      }
+    }
   }
   const votes = `${input.tally.total} ${input.tally.total === 1 ? 'vote' : 'votes'}`;
   if (plan.kind === 'update') {

@@ -87,7 +87,7 @@ import {
   pollFieldMap,
   rememberedResultTarget,
   resultDestinationOf,
-  roundsClosedBy,
+  roundsToFinalise,
   resultDestinations,
   stageResults,
   type ResultOutcome,
@@ -908,8 +908,6 @@ export default function ProductionAudienceWorkspace({
   const [busy, setBusy] = useState(false);
   /** The question whose "Add results to rundown" is asking where results go (S5). */
   const [choosingResult, setChoosingResult] = useState<string | null>(null);
-  /** A result write in flight: a second press waits for it rather than racing it. */
-  const [staging, setStaging] = useState(false);
   /** Does this production run the percentage figures live while a vote is open? Read straight
    *  off the record rather than mirrored into state: the checkbox writes through `setShows`,
    *  so the record is the only copy and a second tab cannot disagree with this one. */
@@ -1145,34 +1143,62 @@ export default function ProductionAudienceWorkspace({
     });
   };
 
-  /** Put a question in front of every phone (R3). Nothing airs: a vote reaches Program only as a
-   *  cue the operator stages and takes. */
-  const goLive = async (q: ShowQuestion) => {
-    if (busy || !isKnownType(q.type)) return;
+  /**
+   * ONE TURN AT A TIME (S27): Go live, Stop and Add results run to their note before another of the
+   * three starts, so none reads a round another is about to close. A ref, not state: two presses
+   * in one frame would both see the same state.
+   */
+  const turn = useRef(false);
+  const takeTurn = (): boolean => {
+    if (turn.current) return false;
+    turn.current = true;
     setBusy(true);
+    return true;
+  };
+  const endTurn = () => {
+    turn.current = false;
+    setBusy(false);
+  };
+
+  /**
+   * THE CLOSING SWEEP (S26, S29): every poll round the provider now reports closed whose result cue
+   * still says "voting open" gets the closing write, with counts read now. Whatever closed it (this
+   * press, another tab, another operator) and in whatever order, the cue ends up saying closed.
+   * A count that cannot be read is said, never replaced by this page's last reading (S28).
+   */
+  const finaliseClosed = async (after: AudienceRound[] | null, openedId: string | null): Promise<{ done: ResultOutcome[]; unread: number }> => {
+    const done: ResultOutcome[] = [];
+    let unread = after ? 0 : 1;
+    for (const round of after ? roundsToFinalise(loadShows().find((x) => x.id === show.id) ?? show, after, openedId) : []) {
+      const final = await backend.tally(round.id).catch(() => null);
+      if (!final) {
+        unread += 1;
+        continue;
+      }
+      done.push(await writeResult(round, final, { closed: true, closeOnly: true }));
+    }
+    return { done, unread };
+  };
+
+  /** What the closing sweep did, in words for the note after `lead`. */
+  const sweepWords = ({ done, unread }: { done: ResultOutcome[]; unread: number }): string => {
+    const failed = done.find((d) => !d.ok);
+    if (failed) return ` A result cue was not updated with its final counts: ${failed.message}`;
+    const updated = done.filter((d): d is Extract<ResultOutcome, { ok: true }> => d.ok && d.kind === 'updated');
+    const words = updated.length ? ` The result cue on “${updated[0].graphic}” now carries the final counts.` : '';
+    return unread ? `${words} The final counts could not be read; press Add results to rundown to write them.` : words;
+  };
+
+  /** Put a question in front of every phone (R3). Nothing airs: a vote reaches Program only as a
+   *  cue the operator stages and takes. Any round the press closed is finalised by the sweep (S14). */
+  const goLive = async (q: ShowQuestion) => {
+    if (!isKnownType(q.type) || !takeTurn()) return;
     setArmedClear(null);
-    // The rounds this press can close (R3), read from the provider AT THE PRESS, not from this
-    // page's last reading: another operator may have put a question live since (S25). Each one
-    // the press did close gets Stop's closing write, into its result cue only (S14).
-    const atPress = await backend.rounds().catch(() => rounds);
     try {
       const opened = await backend.goLive(toLive({ ...q, type: q.type }));
       setSelectedId(q.id);
-      const after = await backend.rounds().catch(() => null);
-      let closed: ResultOutcome | null = null;
-      for (const round of roundsClosedBy(atPress, liveRound, q.id, opened.id, after)) {
-        const final = await backend.tally(round.id).catch(() => tallies[round.id] ?? null);
-        if (!final) continue;
-        const outcome = await writeResult(round, final, { closed: true, closeOnly: true });
-        if (!closed || !outcome.ok || (outcome.kind === 'updated' && closed.ok && closed.kind !== 'updated')) closed = outcome;
-      }
-      setNote(
-        closed && !closed.ok
-          ? `✓ Phones now show “${q.text}”, but the earlier question’s result cue was not updated: ${closed.message}`
-          : closed?.ok && closed.kind === 'updated'
-            ? `✓ Phones now show “${q.text}”. The earlier question’s result cue on “${closed.graphic}” now carries its final counts. Nothing is on air.`
-            : `✓ Phones now show “${q.text}”. Nothing is on air.`,
-      );
+      const swept = await finaliseClosed(await backend.rounds().catch(() => null), opened.id);
+      setNote(`✓ Phones now show “${q.text}”.${sweepWords(swept)} Nothing is on air.`);
     } catch (err) {
       const message = (err as Error).message;
       // R8: another tab changed the words of a question that already has answers.
@@ -1182,18 +1208,17 @@ export default function ProductionAudienceWorkspace({
           : `The question did not go live: ${message}`,
       );
     } finally {
-      setBusy(false);
+      endTurn();
     }
   };
 
   /**
    * Stop the live question (R4) - and FINALISE the cue its vote was staged onto, because stopping
-   * is usually the moment before the reveal. Without this the staged board still read "voting
-   * open" beside its final numbers. The words reach air only through Take or Update.
+   * is usually the moment before the reveal (S7). Never a new cue, never an event: the board stays
+   * where it is and the reveal stays a press. The words reach air only through Take or Update.
    */
   const stop = async (closing: AudienceRound | null = liveRound): Promise<boolean> => {
-    if (!closing || busy) return false;
-    setBusy(true);
+    if (!closing || !takeTurn()) return false;
     try {
       const after = await backend.stop(closing.id);
       // Stop names its round (R4): if another operator put a question live meanwhile, nothing
@@ -1202,23 +1227,14 @@ export default function ProductionAudienceWorkspace({
         setNote('Another question went live meanwhile, so nothing was stopped.');
         return false;
       }
-      // S7: the question's result cue, if it has one, gets the final counts and "voting closed".
-      // Never a new cue, never an event: the board stays where it is and the reveal stays a press.
-      const final = closing.kind === 'poll' && closing.questionId ? await backend.tally(closing.id).catch(() => tallies[closing.id] ?? null) : null;
-      const closed = final && closing.questionId ? await writeResult(closing, final, { closed: true, closeOnly: true }) : null;
-      setNote(
-        closed && !closed.ok
-          ? `Stopped, but the result cue was not updated with the final counts: ${closed.message}`
-          : closed?.ok && closed.kind === 'updated'
-            ? `✓ Stopped. The result cue on “${closed.graphic}” now carries the final counts. Take it when you want them on air.`
-            : '✓ Stopped. Phones show the waiting text.',
-      );
+      const swept = await finaliseClosed(await backend.rounds().catch(() => null), null);
+      setNote(`✓ Stopped. Phones show the waiting text.${sweepWords(swept)}${swept.done.length ? ' Take it when you want them on air.' : ''}`);
       return true;
     } catch (err) {
       setNote(`The question did not stop: ${(err as Error).message}`);
       return false;
     } finally {
-      setBusy(false);
+      endTurn();
     }
   };
 
@@ -1336,17 +1352,8 @@ export default function ProductionAudienceWorkspace({
    * the production's result graphics, or a catalog vote board, added with its one cue. Nothing airs.
    */
   const addResults = async (round: AudienceRound, on: { graphicId?: string; board?: string } = {}) => {
-    if (staging || !round.questionId) return;
-    setStaging(true);
+    if (!round.questionId || !takeTurn()) return;
     try {
-      // The round and its counts as the provider has them NOW (S25): another tab may have stopped
-      // it since this page last read, and the closed state decides the count line.
-      const fresh = (await backend.rounds().catch(() => null))?.find((r) => r.id === round.id) ?? round;
-      const tally = (await backend.tally(round.id).catch(() => null)) ?? tallies[round.id] ?? null;
-      if (!tally) {
-        setNote('The counts could not be read. Try again.');
-        return;
-      }
       let chosen = on.graphicId ?? null;
       let adopt: string | null = null;
       if (on.board) {
@@ -1359,7 +1366,42 @@ export default function ProductionAudienceWorkspace({
         chosen = made.graphicId;
         adopt = made.cueId;
       }
-      const result = await writeResult(fresh, tally, { closed: fresh.closedAt !== null, chosen, adopt });
+      // The round and its counts as the provider has them NOW, after every other wait of this
+      // press (S28). A reading that fails writes nothing: this page's last reading is never written.
+      const read = async () => {
+        const now = (await backend.rounds().catch(() => null))?.find((r) => r.id === round.id) ?? null;
+        const tally = now ? await backend.tally(round.id).catch(() => null) : null;
+        return now && tally ? { round: now, tally } : null;
+      };
+      const fresh = await read();
+      if (!fresh) {
+        setNote('The counts could not be read, so nothing was written. Try again.');
+        return;
+      }
+      const result = await stageResults(
+        show,
+        {
+          questionId: round.questionId,
+          round: fresh.round,
+          tally: fresh.tally,
+          closed: fresh.round.closedAt !== null,
+          liveFigures,
+          label: `Vote — ${fresh.round.question.slice(0, 32)}`,
+          chosen,
+          adopt,
+        },
+        {
+          stage: stageShowResult,
+          commit: commitDurableWrites,
+          setShows,
+          reread: loadShows,
+          // S29: once the write landed, the round is read again; closed meanwhile, it is finalised.
+          recheck: async () => {
+            const again = await read();
+            return again ? { closed: again.round.closedAt !== null, tally: again.tally } : null;
+          },
+        },
+      );
       if (!result.ok && result.choose) {
         setChoosingResult(round.questionId);
         setNote(result.message === 'Choose where results go.' ? null : result.message);
@@ -1368,7 +1410,7 @@ export default function ProductionAudienceWorkspace({
       setChoosingResult(null);
       setNote(result.message);
     } finally {
-      setStaging(false);
+      endTurn();
     }
   };
 
@@ -1638,14 +1680,14 @@ export default function ProductionAudienceWorkspace({
                   <div className="pd-aud-round-actions">
                     <button
                       className="primary"
-                      disabled={!selectedRound || staging}
+                      disabled={!selectedRound || busy}
                       onClick={() => selectedRound && void addResults(selectedRound)}
                       data-testid="audience-round-stage"
                     >
                       {resultDestinationOf(show, selected.id) ? `Add results to rundown on ${resultDestinationOf(show, selected.id)!.name}` : 'Add results to rundown'}
                     </button>
                     {(resultTarget || resultDestinationOf(show, selected.id)) && (
-                      <button disabled={staging} onClick={() => changeResultTarget(selected.id)} data-testid="result-target-change">
+                      <button disabled={busy} onClick={() => changeResultTarget(selected.id)} data-testid="result-target-change">
                         Change
                       </button>
                     )}
@@ -1668,7 +1710,7 @@ export default function ProductionAudienceWorkspace({
                         <>
                           <span className="hint">Results on:</span>
                           {resultGraphics.map((d) => (
-                            <button key={d.graphicId} disabled={staging} onClick={() => void addResults(selectedRound, { graphicId: d.graphicId })} data-testid="result-choose-graphic">
+                            <button key={d.graphicId} disabled={busy} onClick={() => void addResults(selectedRound, { graphicId: d.graphicId })} data-testid="result-choose-graphic">
                               {d.name}
                             </button>
                           ))}
@@ -1679,7 +1721,7 @@ export default function ProductionAudienceWorkspace({
                             No graphic here can show results. Add a vote board:
                           </span>
                           {RESULT_BOARDS.map((b) => (
-                            <button key={b.id} disabled={staging} onClick={() => void addResults(selectedRound, { board: b.id })} data-testid="result-choose-board">
+                            <button key={b.id} disabled={busy} onClick={() => void addResults(selectedRound, { board: b.id })} data-testid="result-choose-board">
                               {b.name}
                             </button>
                           ))}
