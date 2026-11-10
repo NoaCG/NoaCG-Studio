@@ -65,7 +65,7 @@ votes, the vote airs on Result Donut Lower through Take; then the Word question 
 phone sends "Sparkling" and shows it in place of the box, a second phone (its own device) sends
 "Boring", Interaction lists both, Boring is hidden, Add word cloud to rundown adds House Word Cloud
 with one word, Program still shows only the cloud's off-air sample, Take airs exactly
-["Sparkling"], and Stop leaves phones the waiting text. Passed (queue job j-0015, 47 s; again after each review fix below: j-0018, j-0021, j-0023, about 50 s each).
+["Sparkling"], and Stop leaves phones the waiting text. Passed (queue job j-0015, 47 s; again after each review fix below: j-0018, j-0021, j-0023, j-0025, about 50 s each).
 
 Two earlier runs failed on the walk's own steps, not the product: the second phone shared the first
 phone's browser and so was the same device (it rightly showed the word already sent), and the
