@@ -1,0 +1,7 @@
+## Rules for the displayed vMix destination
+
+A manual Load or Unload belongs to the same production output, Bridge pairing and observed overlay that supplied the enabled button. The poll retains the actual settings used for that reading. A result for a prior observation cannot be shown under a different pairing or configured overlay.
+
+Carry the observed Bridge URL and pairing token privately with the displayed output and overlay through the existing production callback. Compare the pairing and output with fresh settings before any Bridge request. On a mismatch ask the operator to check the current row and press again. The mismatch message does not display a Bridge address or token. The existing original-destination feedback after a dispatched action still applies. A manual Load also checks that its freshly resolved overlay is the one displayed. Unload checks the displayed overlay and exact Browser key with a fresh read, even when the configured overlay differs. Retain the existing post-read, pre-dispatch and Bridge checks. A Replace prompt and its action belong to the same observed pairing and occupant. First Publish uses current settings as before.
+
+Acceptance. A stale button rendered from Bridge A sends nothing when current settings select Bridge B on the same overlay, or when the token changes at A. Poll and render changes cannot relabel an older result. Current manual Load, keyed Unload and Replace still target the observed Bridge and overlay, and First Publish still uses the fresh choice. No Program, Preview or transition changes.

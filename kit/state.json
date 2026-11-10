@@ -41,16 +41,14 @@
     "source": "df5767458230558e9fdee158e663e9367e58f8e3",
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
-  "waitingOn": {
-    "what": "The authorized duplicate JSON and partial Load repair passed fresh independent review with grade A. Full V2 is B because a stale manual Load can target a different Bridge after pairing changes. Its fix touches ProductionPage.tsx, currently allocated to open live-publishing PR #2362. V2 waits for shared-file release or a priority decision. Keep V3-V8 stopped."
-  },
+  "waitingOn": {},
   "inFlight": [
     {
       "pr": 2293,
       "session": "/root/v2_json_repair",
       "repairComment": 6723338187,
       "phase": "v2",
-      "note": "Worker finished. Exact local f7a7842ab5e7143253e87d8009a7ee38d4d7b4c9, authorized repair A and full V2 B. Existing draft stays outside queue.",
+      "note": "Fresh local worker binds manual commands to the displayed Bridge pairing. Exact Rules in draft and v2-pairing-rules.md.",
       "step": "build",
       "head": "a628eda0882c9fc3c37203d1a79b10a2320468c7"
     }
