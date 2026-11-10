@@ -157,6 +157,18 @@ unmapped cue is matched by text only when one Word question has that text. Node 
 original's cue loses its hidden word, the copy's cue keeps it, an unmapped cue two questions share
 is left as it is.
 
+## Review of `cafc165` (`/so`, full)
+
+AGREE WITH CORRECTIONS, A-. Three findings: a cue pasted from a copy made before a Hide brought the
+hidden word back (W11 covered only the writers named, not every one); Hide gave no word that a
+cloud already on air changes only with Update; and the text match over-reached to a Duplicate's
+own cue (already fixed in `a13bb1b`). Fixed: the scrub now runs in every production write
+(`saveAll` and the rebased pass), closing the class rather than one writer; Hide says that an
+on-air cloud needs Update, and the word list's hint no longer says nothing is on air. Proof: the
+Word journey copies the cue, hides Tense, pastes the copy and finds no Tense on it, and sees the
+note (j-0027, with the Fill from, second-operator and question-list journeys); mutation: removing
+the write-path scrub fails it ("Expected - 1, Received + 2").
+
 ## Not run, or partly run
 
 - The rendered catalog baseline (`e2e/catalog-render-baseline.json`) is Windows-only; this machine

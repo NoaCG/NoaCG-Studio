@@ -994,8 +994,10 @@ challenged them before the final assessment:
   was listing at the press. A word that arrived since the panel last read waits for the next press,
   and the note says how many are listed now and not on the cue. Added after the `/so` of `428ff47`.
 - W11. Every write that can put a word on a cue or hide one applies the hidden words of the record
-  it lands on, inside that write: a press (its rebased pass included), Hide and a team merge
-  (`scrubHiddenWords`, `model/wordCues.ts`). It takes them off every cue carrying the question's
+  it lands on, inside that write: every production write (`saveAll` and the rebased pass of
+  `patchShowChecked`, so a press, Hide, a paste of an earlier copy, a duplicate or an edit) and a
+  team merge (`scrubHiddenWords`, `model/wordCues.ts`). A word typed by hand into a cue's Words
+  while it is hidden goes too. It takes them off every cue carrying the question's
   words: its result cue (a mapped cue belongs to that one question only), and a word cloud cue no
   question maps whose Question is this question's text, when no other Word question has that text
   (the cue left behind by Change, a duplicate). A tab's own earlier reading never decides. Found by
