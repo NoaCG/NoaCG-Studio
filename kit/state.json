@@ -26,7 +26,7 @@
  },
  "brief": {
   "read": "docs/work-specs/interaction/spec.md (the whole spec: decisions, lifecycle, chat votes, results, graphics, joining, and your phase's acceptance); docs/work-specs/audience-flow/spec.md for the message staging and destination hygiene that stay; src/audience/AGENTS.md if present; docs/ARCHITECTURE.md;",
-  "rules": "Provider is Claude Code Cloud; never substitute a same-VM subagent for a cloud worker. Build only your phase; later phases' features stay out. Never rename persisted identifiers (view key, storage keys, tables, CSS prefixes); only displayed words change. Nothing airs by itself: no Take, Update or graphic event from Interaction except the existing live-figures switch. Migrations go in supabase/migrations with the next free number, are tested on the local stack and in the configured suite, and are applied to production by post-land on landing (owner permission). Never weaken, skip or loosen a test, check, limit or budget, and never write a test-maintenance entry or budget exception to pass a gate. Public text: plain, no em dashes. Evidence for each phase goes in docs/work-specs/interaction/evidence/phase-<id>.md."
+  "rules": "Provider is Claude Code Cloud; never substitute a same-VM subagent for a cloud worker. Build only your phase; later phases' features stay out. Never rename persisted identifiers (view key, storage keys, tables, CSS prefixes); only displayed words change. Nothing airs by itself: no Take, Update or graphic event from Interaction except the existing live-figures switch. Migrations go in supabase/migrations with the next free number, are tested on the local stack and in the configured suite, and are applied to production by post-land on landing (owner permission). Never weaken, skip or loosen a test, check, limit or budget, and never write a test-maintenance entry or budget exception to pass a gate. Public text: plain, no em dashes. Evidence for each phase goes in docs/work-specs/interaction/evidence/phase-<id>.md. Owner 2026-11-10: full speed, nothing unnecessary; keep receipts and messages short."
  },
  "branchPrefix": "claude",
  "qualification": {
@@ -52,6 +52,10 @@
   {
    "what": "Look at the result templates for taste (AC-12, phase 5)",
    "where": "a look, not a gate"
+  },
+  {
+   "what": "End-of-run retro on token use: where to save without losing quality (owner, 2026-11-10: \"keep going at full speed but don't do anything unnecessary, let's do a retro in the end of this run to see if there are places to save tokens and not lose quality\")",
+   "where": "final report"
   }
  ],
  "fixes": [],
