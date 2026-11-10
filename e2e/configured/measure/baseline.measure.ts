@@ -126,9 +126,10 @@ async function secondOfTwo(op: Page, button: Locator, testId: string, match: Reg
   return attribute(got.lpm, press, got.sent);
 }
 
-async function opPage(page: Page, net: typeof NET) {
+/** Instrument the production page. Its network is throttled only once the fixture is built
+ *  (`throttle` after `buildFixture`): signing in and building are set-up, not timings. */
+async function opPage(page: Page, _net: typeof NET) {
   await instrument(page.context());
-  await throttle(page, net);
 }
 
 async function openOutput(browser: Browser, slug: string, size = { width: 1280, height: 720 }) {
@@ -184,6 +185,7 @@ test('takes-a', async ({ page, browser }) => {
   log('build');
   const fx = await buildFixture(page, FIXTURE);
   log('built', fx.graphics, fx.storedOutputBytes);
+  await throttle(page, NET);
   const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
   await outputReady(out, fx.graphics);
   const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');
@@ -245,6 +247,7 @@ test('takes-b', async ({ page, browser }) => {
   log('build');
   const fx = await buildFixture(page, FIXTURE);
   log('built', fx.graphics, fx.storedOutputBytes);
+  await throttle(page, NET);
   const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
   await outputReady(out, fx.graphics);
   const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');
@@ -291,6 +294,7 @@ test('takes-c', async ({ page, browser }) => {
   log('build');
   const fx = await buildFixture(page, FIXTURE);
   log('built', fx.graphics, fx.storedOutputBytes);
+  await throttle(page, NET);
   const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
   await outputReady(out, fx.graphics);
   const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');
@@ -348,6 +352,7 @@ test('render', async ({ page, browser }) => {
   log('build');
   const fx = await buildFixture(page, FIXTURE);
   log('built', fx.graphics, fx.storedOutputBytes);
+  await throttle(page, NET);
   const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
   await outputReady(out, fx.graphics);
   const cast = await screencast(out);
@@ -416,6 +421,7 @@ test('publish', async ({ page, browser }) => {
   log('build');
   const fx = await buildFixture(page, FIXTURE);
   log('built', fx.graphics, fx.storedOutputBytes);
+  await throttle(page, NET);
   const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
   await outputReady(out, fx.graphics);
   const labels = await page.evaluate(async ({ id, cues }) => {
@@ -471,6 +477,7 @@ test('bytes', async ({ page, browser }) => {
   log('build');
   const fx = await buildFixture(page, FIXTURE);
   log('built', fx.graphics, fx.storedOutputBytes);
+  await throttle(page, NET);
   const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
   await outputReady(out, fx.graphics);
   const opMeter = await meterBytes(page);
@@ -604,6 +611,7 @@ test('boot', async ({ page, browser }) => {
   log('build');
   const fx = await buildFixture(page, FIXTURE);
   log('built', fx.graphics, fx.storedOutputBytes);
+  await throttle(page, NET);
   const slug = await outputSlugOf(page, fx.showId);
   const rows: { ready: number; firstLoaded: number; frameLoad: number[]; bytes: number; dataBytes: number }[] = [];
   const failures: string[] = [];
