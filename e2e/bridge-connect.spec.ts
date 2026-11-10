@@ -34,7 +34,7 @@
 // sprint is that those two surfaces keep working, not that CasparCG does.
 // focus
 
-import { test, expect, type Page, type Route } from '@playwright/test';
+import { test, expect, type Locator, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { fakeBridge as slotBridge, fakeVmix, type FakeVmixRequest } from './_fakeBridge';
@@ -1704,56 +1704,104 @@ test('vMix Load, Unload, and Replace use the selected overlay and leave CasparCG
 });
 
 test('vMix polls and manual actions keep the pairing that supplied the displayed row', async ({ page }) => {
-  const vmix = fakeVmix();
-  await fakeBridge(page, { vmix });
+  const first = fakeVmix();
+  const second = fakeVmix();
+  const secondToken = 'changed-pairing-fixture';
+  const otherInput = { key: '1a111111-aaaa-41aa-8aaa-aaaaaaaaaaaa', type: 'Image', number: 1, title: 'Bridge B plate' };
+  second.held[3] = { input: otherInput };
+  await fakeBridge(page, { vmix: first });
+  const entered = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  let holdFirst = false;
+  await page.route(BRIDGE + '/**', async route => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    const body = request.postDataJSON() as FakeVmixRequest | null;
+    const token = request.headers().authorization;
+    if (body?.target?.adapter === 'vmix' && token === 'Bearer ' + (path === '/act' ? VMIX_OUTPUT_TOKEN_PREFIX : '') + secondToken) {
+      await route.fulfill({
+        headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, content-type' },
+        json: second.reply(path, body),
+      });
+      return;
+    }
+    if (holdFirst && path === '/state' && body?.target?.adapter === 'vmix' && token === 'Bearer ' + TOKEN) {
+      entered.resolve();
+      await release.promise;
+    }
+    await route.fallback();
+  });
   await seedOnce(page, { vmix: { overlay: 3 } });
   await seededPublishedProduction(page);
   await page.getByTestId('production-status').click();
   await page.getByTestId('vmix-switch').click();
   const row = page.getByTestId('vmix-output');
+  const load = row.getByTestId('vmix-load');
+  const unload = row.getByTestId('vmix-unload');
   const note = page.getByTestId('production-note');
-  const restorePairing = async () => {
-    await page.evaluate(token => {
-      const key = 'spx-gfx-caspar';
-      const saved = JSON.parse(localStorage.getItem(key) ?? '{}');
-      localStorage.setItem(key, JSON.stringify({ ...saved, agentToken: token }));
-    }, TOKEN);
-    await page.reload();
-    await page.getByTestId('production-status').click();
-  };
-  await expect(row.getByTestId('vmix-load')).toBeEnabled();
-
-  // An unannounced write must not retag the next poll with this row's old pairing.
-  const nextPoll = page.waitForRequest(request => request.url() === BRIDGE + '/status' &&
-    request.postDataJSON()?.target?.adapter === 'vmix');
-  await page.evaluate(() => {
+  const savePairingAndRender = (token: string) => page.evaluate(async token => {
     const key = 'spx-gfx-caspar';
     const saved = JSON.parse(localStorage.getItem(key) ?? '{}');
-    localStorage.setItem(key, JSON.stringify({ ...saved, agentToken: 'changed-pairing-fixture' }));
-  });
-  expect((await nextPoll).headers().authorization).toBe('Bearer ' + TOKEN);
-  await row.getByTestId('vmix-load').click();
-  await expect(note).toContainText('Check the current row and press Load again.');
-  expect(vmix.actions).toEqual([]);
-
-  await restorePairing();
-  await row.getByTestId('vmix-load').click();
-  await expect(row).toContainText('Source unverified');
-  expect(vmix.actions).toHaveLength(1);
-
-  await row.getByTestId('vmix-unload').evaluate(async button => {
-    const key = 'spx-gfx-caspar';
-    const saved = JSON.parse(localStorage.getItem(key) ?? '{}');
-    localStorage.setItem(key, JSON.stringify({ ...saved, agentToken: 'changed-pairing-fixture' }));
-    (button as HTMLButtonElement).click();
+    localStorage.setItem(key, JSON.stringify({ ...saved, agentToken: token }));
+    window.dispatchEvent(new Event('spx-data-changed'));
     await new Promise(resolve => setTimeout(resolve));
-  });
-  await expect(note).toContainText('Check the current row and press Unload again.');
-  expect(vmix.actions).toHaveLength(1);
-  await restorePairing();
-  await row.getByTestId('vmix-unload').click();
+  }, token);
+  const staleClick = (button: Locator) => button.evaluate(async (element, { token, bridge }) => {
+    const key = 'spx-gfx-caspar';
+    const saved = JSON.parse(localStorage.getItem(key) ?? '{}');
+    localStorage.setItem(key, JSON.stringify({ ...saved, agentToken: token }));
+    // This turn owns the stale click. A poll started by a later render is independent.
+    const calls: string[] = [];
+    const fetch = window.fetch;
+    window.fetch = (...args) => {
+      const url = String(args[0]);
+      if (url.startsWith(bridge + '/')) calls.push(new URL(url).pathname);
+      return fetch.apply(window, args);
+    };
+    try {
+      (element as HTMLButtonElement).click();
+    } finally {
+      window.fetch = fetch;
+    }
+    await new Promise(resolve => setTimeout(resolve));
+    return calls;
+  }, { token: secondToken, bridge: BRIDGE });
+
+  await expect(load).toBeEnabled();
+  expect(await staleClick(load)).toEqual([]);
+  await expect(note).toContainText('Check the current row and press Load again.');
+  expect(first.actions).toHaveLength(0);
+  await savePairingAndRender(TOKEN);
   await expect(row).toContainText('Off');
-  expect(vmix.actions).toHaveLength(2);
+  await load.click();
+  await expect(row).toContainText('Source unverified');
+  expect(first.actions).toHaveLength(1);
+
+  expect(await staleClick(unload)).toEqual([]);
+  await expect(note).toContainText('Check the current row and press Unload again.');
+  expect(first.actions).toHaveLength(1);
+  await savePairingAndRender(TOKEN);
+  await unload.click();
+  await expect(row).toContainText('Off');
+  expect(first.actions).toHaveLength(2);
+
+  // Keep a real A observation pending while the same panel observes B.
+  holdFirst = true;
+  await entered.promise;
+  try {
+    await savePairingAndRender(secondToken);
+    await expect(row).toContainText('Bridge B plate');
+    const returned = page.waitForResponse(response => response.url() === BRIDGE + '/state' &&
+      response.request().headers().authorization === 'Bearer ' + TOKEN);
+    release.resolve();
+    const late = await returned;
+    expect(await late.finished()).toBeNull();
+    await page.evaluate(() => new Promise(resolve => setTimeout(resolve)));
+    await expect(row).toContainText('Bridge B plate');
+    expect(second.actions).toHaveLength(0);
+  } finally {
+    release.resolve();
+  }
 });
 
 test('a vMix Load still waiting for state is abandoned when its production closes', async ({ page }) => {
