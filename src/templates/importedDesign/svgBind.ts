@@ -102,10 +102,18 @@ function setIdKeepingRefs(root: Element, el: Element, id: string): void {
 }
 
 /** The QR layer as a group the code can be drawn into: the layer itself when it is one, else a new
- *  group put in its place around it. */
+ *  group put in its place around it, which takes over the layer's name and id, so whatever the
+ *  timeline animates by that name moves the group, the code with it. */
 function qrGroup(layer: Element): Element {
   if (layer.localName === 'g') return layer;
   const g = layer.ownerDocument.createElementNS(layer.namespaceURI, 'g');
+  for (const attr of ['id', 'data-name']) {
+    const v = layer.getAttribute(attr);
+    if (v !== null) {
+      g.setAttribute(attr, v);
+      layer.removeAttribute(attr);
+    }
+  }
   layer.parentNode!.insertBefore(g, layer);
   g.appendChild(layer);
   return g;

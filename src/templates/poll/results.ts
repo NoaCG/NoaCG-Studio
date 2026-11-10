@@ -20,6 +20,7 @@ import { paletteById, type TemplateVariant } from '../../model/wizard';
 import { fontById, labelFontFaceCss } from '../../model/fonts';
 import { NUMERIC_FIGURES } from '../shared/numerals';
 import { definePollVariant } from './shared';
+import { BAR_GROW, BAR_STAGGER } from './pollMotion';
 
 export type ResultLayout = 'across' | 'up' | 'donut';
 export type ResultPlacement = 'full' | 'lower' | 'side';
@@ -53,15 +54,16 @@ const SAMPLE = {
 
 // ── Rows: one markup per layout, the figures shared ─────────────────────────────────────────
 
-const FIGURES_JS = `// pollFiguresHtml(row): the row's figure as the Figures field asks. The FIRST .poll-row-value
-// in a row is the one the growth builder counts up from 0% to its share, so a count-only row
-// keeps a hidden one first and shows its count beside it; both show the share, then the count.
+const FIGURES_JS = `// pollFiguresHtml(row): the row's figure as the Figures field asks. Each row keeps exactly one
+// .poll-row-value, the share the growth builder counts up and fades in with its bar; a count-only
+// row hides it and shows its count instead, and both show the share, then the count. The count
+// is not a .poll-row-value, so it is faded in with its own row (pollBarsGrow, below).
 function pollFiguresHtml(row) {
   var mode = pollFiguresMode();
   var p = escapeHtml(row.percentText);
   var c = escapeHtml(pollCountText(row.count));
   var share = '<span class="poll-row-value' + (mode === 'count' ? ' poll-row-tally' : '') + '" data-target="' + p + '">' + p + '</span>';
-  var count = mode === 'percent' ? '' : '<span class="poll-row-value poll-row-count">' + c + '</span>';
+  var count = mode === 'percent' ? '' : '<span class="poll-row-count' + (mode === 'both' ? ' poll-row-second' : '') + '">' + c + '</span>';
   return '<span class="poll-row-figures">' + share + count + '</span>';
 }`;
 
@@ -118,23 +120,60 @@ function pollDonutPaint() {
   ring.style.backgroundImage = stops.length ? 'conic-gradient(' + stops.join(', ') + ', transparent ' + at + '% 100%)' : 'none';
 }
 
-// pollLayoutWatch(): keep the row count (on the rows and on the board) and the ring in step with
-// the rows, from load on.
+// pollLayout(): the row count, on the rows and on the board, for the stylesheet (two columns,
+// one-line names, a smaller ring), and the ring. Called inside every rebuild, before update()
+// fits the text, so the fit measures the layout the rows will have.
+function pollLayout() {
+  var host = document.getElementById('poll-rows');
+  if (!host) return;
+  var n = String(host.querySelectorAll('.poll-row').length);
+  if (host.getAttribute('data-rows') !== n) host.setAttribute('data-rows', n);
+  var box = host.closest ? host.closest('.poll-box') : null;
+  if (box && box.getAttribute('data-rows') !== n) box.setAttribute('data-rows', n);
+  pollDonutPaint();
+}
+
+// The board's three moments that touch the figures, extended for this layout: a rebuild lays the
+// rows out at once, the result fades each row's count in with its own bar, and a repaint or a
+// reset puts the counts where the shares are. The originals are the category's (pollMotion.ts).
+var pollRebuildBase = pollRebuild;
+pollRebuild = function () { pollRebuildBase(); pollLayout(); };
+var pollBarsGrowBase = pollBarsGrow;
+pollBarsGrow = function (target, opts) {
+  var tl = pollBarsGrowBase(target, opts);
+  if (!tl) return tl;
+  var speed = motionSpeed();
+  var rows = document.querySelectorAll('#poll-rows .poll-row');
+  for (var i = 0; i < rows.length; i++) {
+    var count = rows[i].querySelector('.poll-row-count');
+    if (count) tl.fromTo(count, { opacity: 0 }, { opacity: 1, duration: ${BAR_GROW} * 0.55 / speed, ease: 'power2.out' }, i * ${BAR_STAGGER} / speed);
+  }
+  return tl;
+};
+var pollPaintStateBase = pollPaintState;
+pollPaintState = function () {
+  pollPaintStateBase();
+  var counts = document.querySelectorAll('.poll-row-count');
+  for (var i = 0; i < counts.length; i++) counts[i].style.opacity = pollRevealed ? 1 : '';
+  pollDonutPaint();
+};
+var pollResetBoardBase = pollResetBoard;
+pollResetBoard = function () {
+  pollResetBoardBase();
+  var counts = document.querySelectorAll('.poll-row-count');
+  for (var i = 0; i < counts.length; i++) counts[i].style.opacity = '';
+  pollDonutPaint();
+};
+
+// pollLayoutWatch(): lay out once at load; a donut also repaints its ring whenever a track moves.
 function pollLayoutWatch() {
   var host = document.getElementById('poll-rows');
   if (!host || host.pollWatched) return;
   host.pollWatched = true;
-  var paint = function () {
-    var n = String(host.querySelectorAll('.poll-row').length);
-    if (host.getAttribute('data-rows') !== n) host.setAttribute('data-rows', n);
-    var box = host.closest ? host.closest('.poll-box') : null;
-    if (box && box.getAttribute('data-rows') !== n) box.setAttribute('data-rows', n);
-    pollDonutPaint();
-  };
-  if (typeof MutationObserver === 'function') {
-    new MutationObserver(paint).observe(host, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+  if (document.querySelector('.poll-donut') && typeof MutationObserver === 'function') {
+    new MutationObserver(pollDonutPaint).observe(host, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
   }
-  paint();
+  pollLayout();
 }
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', pollLayoutWatch);
@@ -272,8 +311,16 @@ ${wide ? `  /* The category's wrap cap is drawn for a card; this board is wider.
 }
 /* The share the builder counts up, kept out of sight when only the count shows. */
 .poll-row-tally { display: none; }
+/* The count: the share's figure style, hidden until the result like the share. */
+.poll-row-count {
+  ${NUMERIC_FIGURES}
+  font-size: calc(${t.fig}px * var(--scale) * var(--type-scale));
+  font-weight: 700;
+  color: var(--accent);
+  opacity: 0;
+}
 /* The count beside a share: the quieter of the two. */
-.poll-row-value.poll-row-count:not(:first-child) {
+.poll-row-second {
   font-weight: 500;
   color: var(--text-dim);
 }

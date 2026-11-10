@@ -80,6 +80,7 @@ ${QR_ENCODER_JS.trim()}
 // svgQrPaint(): draw the Join link (the hidden #f${at}) as a QR code over the box of the layer
 // named QR, error correction M with a four-module quiet zone on a white square plate, centred in
 // that box. An empty or unencodable link draws nothing.
+var svgQrTries = 0;
 function svgQrPaint() {
   var source = document.getElementById('f${at}');
   var layer = document.querySelector('.${QR_LAYER_CLASS}');
@@ -98,9 +99,15 @@ function svgQrPaint() {
   }
   // The layer's box in its own frame (the stand-in's geometry), measured before the code joins it.
   var box;
-  try { box = layer.getBBox(); } catch (e) { return; }
-  var side = Math.min(box.width, box.height);
-  if (!(side > 0)) return;
+  try { box = layer.getBBox(); } catch (e) { box = null; }
+  var side = box ? Math.min(box.width, box.height) : 0;
+  if (!(side > 0)) {
+    // Not laid out yet (a graphic loaded hidden): try again on the next frames, for a while.
+    svgQrTries = (svgQrTries || 0) + 1;
+    if (svgQrTries < 120 && typeof requestAnimationFrame === 'function') requestAnimationFrame(svgQrPaint);
+    return;
+  }
+  svgQrTries = 0;
   var quiet = 4, n = qr.getModuleCount(), size = n + quiet * 2, d = '';
   for (var r = 0; r < n; r++) {
     for (var c = 0; c < n; c++) {

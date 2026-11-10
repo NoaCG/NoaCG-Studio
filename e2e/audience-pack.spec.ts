@@ -914,6 +914,14 @@ test('result boards: three layouts by three placements take 2 and 8 options and 
     document.body.style.cssText = 'margin:0;background:radial-gradient(circle at 25% 30%, #fff6d8 0 8%, transparent 30%), radial-gradient(circle at 75% 25%, #d8ecff 0 6%, transparent 28%), linear-gradient(180deg, #3a3f4a, #0d0f14 70%, #2a2016)';
   });
   const ids = ['pl06', 'pl07', 'pl08', 'pl09', 'pl10', 'pl11', 'pl12', 'pl13', 'pl14'];
+  // Interaction's result picker offers every vote board by the name the catalog gives it.
+  const offered = await page.evaluate(async () => {
+    const { RESULT_BOARDS } = await import('/src/control/resultStaging.ts');
+    const { variantById } = await import('/src/templates/catalog.ts');
+    return RESULT_BOARDS.map((b) => ({ ...b, catalog: variantById(b.id)?.name ?? null }));
+  });
+  for (const id of ids) expect(offered.map((b) => b.id), `${id} is offered for results`).toContain(id);
+  for (const b of offered) expect(b.name, `${b.id} is offered under its catalog name`).toBe(b.catalog);
   const two = 'Yes | 640\nNo | 410';
   const eight = Array.from({ length: 8 }, (_, i) => `Option ${i + 1}: the longest answer anyone could possibly type into this box tonight | ${(8 - i) * 137}`).join('\n');
   for (const id of ids) {
@@ -982,7 +990,9 @@ test('result boards: three layouts by three placements take 2 and 8 options and 
               }
               const label = row.querySelector('.poll-row-label') as HTMLElement;
               if (label.scrollWidth > label.clientWidth + 1) out.push('a label runs past its column');
-              const shown = Array.from(row.querySelectorAll('.poll-row-value')).filter((v) => getComputedStyle(v).display !== 'none').map((v) => v.textContent!.trim());
+              const figures = Array.from(row.querySelectorAll('.poll-row-value, .poll-row-count')).filter((v) => getComputedStyle(v).display !== 'none');
+              if (figures.some((v) => getComputedStyle(v).opacity !== '1')) out.push('a figure is still hidden after the result');
+              const shown = figures.map((v) => v.textContent!.trim());
               const want = mode === 'percent' ? /^\d+(\.\d)?%$/ : mode === 'count' ? /^[\d\u202f]+$/ : /^\d+(\.\d)?%\|[\d\u202f]+$/;
               if (!want.test(shown.join('|'))) out.push(`figures "${shown.join('|')}" for ${mode}`);
             }

@@ -1809,6 +1809,7 @@ test('scaffold --svg reads the artwork file into the request, and refuses a seco
     style: { zone: 'bottom-left' },
   });
   assert.throws(() => scaffoldRequestFrom(parseArgs(['--svg', file, '--type', 'scoreboard'])), UsageError);
+  assert.throws(() => scaffoldRequestFrom(parseArgs(['--svg', file, '--set', 'question=Hi'])), UsageError);
   assert.throws(() => scaffoldRequestFrom(parseArgs(['--svg', path.join(dir, 'missing.svg')])), /cannot read/);
   await fs.rm(dir, { recursive: true, force: true });
 });

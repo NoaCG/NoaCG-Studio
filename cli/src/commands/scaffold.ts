@@ -77,7 +77,12 @@ export function scaffoldRequestFrom(args: ParsedArgs): ScaffoldRequest {
   if ([fields, type, svg].filter(Boolean).length > 1) {
     throw new UsageError('Use one of --type (a registered graphic type), --fields (a typeless graphic) or --svg (your own artwork).');
   }
-  if (svg) return { svg: readSvg(svg), ...(name ? { name } : {}), ...(style ? { style } : {}) };
+  if (svg) {
+    if (flagString(args, 'design') || flagList(args, 'set').length) {
+      throw new UsageError('--svg takes your artwork as it is: --design and --set belong to --type.');
+    }
+    return { svg: readSvg(svg), ...(name ? { name } : {}), ...(style ? { style } : {}) };
+  }
   if (fields) return { fields: parseFieldList(fields), ...(name ? { name } : {}), ...(style ? { style } : {}) };
   if (!type) throw new UsageError('scaffold needs --type <id> (see `noacg types`), --fields "Label:kind[=value],..." or --svg <file.svg>.');
   const values: Record<string, string> = {};
