@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useRouter, type ProductionSub } from '../../app/router';
+import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
 import { useTemplateStore } from '../../store/templateStore';
 import {
@@ -128,7 +128,8 @@ import { groupCueFields } from '../../control/cueFieldGroups';
 import { PROFILE_VERSION, pinnedGraphicsOf, profileIsEmpty, readPublishedProfile, readShowProfile, serializeShowProfile, withGraphicArrange, withPinnedGraphic, type ArrangeEntry, type ShowProfile } from '../../model/profile';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
 import { DataIndicator, DataWaitingNote, ownSheetReader, ownSheetReaders } from './SourcesLine';
-import ProductionAudienceWorkspace, { pollFieldMap, useMessageSources } from './ProductionAudienceWorkspace';
+import ProductionAudienceWorkspace, { useMessageSources } from './ProductionAudienceWorkspace';
+import { pollFieldMap } from '../../control/resultStaging';
 import { useAudienceInbox, useMessagesBackend } from './useAudienceInbox';
 import { createSheetInbox } from '../../audience/sheetMessages';
 import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
@@ -3893,7 +3894,22 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         />
         </AccountAuthoringGate>
       )}
-      {sub === 'audience' && <AccountAuthoringGate><ProductionAudienceWorkspace show={show} setShows={setShows} /></AccountAuthoringGate>}
+      {sub === 'audience' && (
+        <AccountAuthoringGate>
+          <ProductionAudienceWorkspace
+            show={show}
+            setShows={setShows}
+            publish={started ? null : { run: () => void publish(), unavailable: backendConfigured ? null : 'Publishing needs the cloud backend, and this build runs offline' }}
+            joinName={{
+              draft: nameDraft,
+              note: nameNote,
+              busy,
+              onDraft: (v) => { setNameDraft(v); setNameNote(null); },
+              onClaim: () => void claimName(),
+            }}
+          />
+        </AccountAuthoringGate>
+      )}
       {/* THE PLAYOUT SURFACE STAYS MOUNTED behind a sub-page, hidden rather than unmounted.
           Unmounting it destroyed the PROGRAM monitor's iframes, so a trip to Data or Audience
           RELOADED every live graphic: a running match clock came back at its seed, and anything
@@ -4522,14 +4538,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       {exportOpen && <ProductionExportDialog show={show} onClose={() => setExportOpen(false)} />}
       {linksOpen && (
         <ProductionLinksDialog
-          busy={busy}
           controlUrl={controlUrl}
           joinUrl={joinUrl}
+          interactionHref={routeHash({ view: 'production', id: show.id, sub: 'audience' })}
           presenterUrl={presenterUrl}
-          nameDraft={nameDraft}
-          nameNote={nameNote}
-          onNameDraft={(v) => { setNameDraft(v); setNameNote(null); }}
-          onClaimName={() => void claimName()}
           copied={copied}
           onCopy={copy}
           onClose={() => setLinksOpen(false)}

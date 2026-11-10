@@ -95,13 +95,13 @@ test('the recorded session: three opening commands, live only on the join, PING 
 
   assert.deepEqual(ws.sent.slice(3), ['PONG :tmi.twitch.tv']);
   assert.deepEqual(r.messages, [
-    { id: 'a1000000-0000-4000-8000-000000000001', authorId: 'quiz_fan_01', authorName: 'Quiz_Fan_01', text: 'Is the final round worth double points?' },
-    { id: 'a1000000-0000-4000-8000-000000000002', authorId: 'river_otter', authorName: 'River_Otter', text: 'Greetings from the north stand' },
-    { id: 'a1000000-0000-4000-8000-000000000003', authorId: 'nina_k', authorName: 'Nina K', text: 'Score check; who leads?' },
-    { id: 'a1000000-0000-4000-8000-000000000004', authorId: 'river_otter', authorName: 'River_Otter', text: 'waves a scarf' },
-    { id: 'a1000000-0000-4000-8000-000000000005', authorId: 'lumi_9', authorName: 'lumi_9', text: 'Hyvää iltaa studio 👋' },
-    { id: 'a1000000-0000-4000-8000-000000000006', authorId: 'quiz_fan_01', authorName: 'Quiz_Fan_01', text: 'We counted 366 votes in round two' },
-    { id: 'a1000000-0000-4000-8000-000000000008', authorId: 'lumi_9', authorName: 'Lumi_9', text: '   ' },
+    { id: 'a1000000-0000-4000-8000-000000000001', authorId: 'quiz_fan_01', authorName: 'Quiz_Fan_01', text: 'Is the final round worth double points?', at: 1761130000001, voter: 'tw:500001' },
+    { id: 'a1000000-0000-4000-8000-000000000002', authorId: 'river_otter', authorName: 'River_Otter', text: 'Greetings from the north stand', at: 1761130000002, voter: 'tw:500002' },
+    { id: 'a1000000-0000-4000-8000-000000000003', authorId: 'nina_k', authorName: 'Nina K', text: 'Score check; who leads?', at: 1761130000003, voter: 'tw:500003' },
+    { id: 'a1000000-0000-4000-8000-000000000004', authorId: 'river_otter', authorName: 'River_Otter', text: 'waves a scarf', at: 1761130000004, voter: 'tw:500002' },
+    { id: 'a1000000-0000-4000-8000-000000000005', authorId: 'lumi_9', authorName: 'lumi_9', text: 'Hyvää iltaa studio 👋', at: 1761130000005, voter: 'tw:500005' },
+    { id: 'a1000000-0000-4000-8000-000000000006', authorId: 'quiz_fan_01', authorName: 'Quiz_Fan_01', text: 'We counted 366 votes in round two', at: 1761130000006, voter: 'tw:500001' },
+    { id: 'a1000000-0000-4000-8000-000000000008', authorId: 'lumi_9', authorName: 'Lumi_9', text: '   ', at: 1761130000009, voter: 'tw:500005' },
   ]);
   assert.deepEqual(r.statuses, ['connecting', 'live'], 'a chat line about 366 votes is chat, not a second join');
   driver.stop();

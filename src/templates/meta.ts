@@ -254,6 +254,10 @@ export const TYPE_META: Record<string, DeclaredTemplateMeta> = {
     category: 'cta', subtype: 'qr', structures: ['image-text', 'multi-line'],
     semantics: { headline: 'headline', address: 'url', detail: 'description', code: 'qr-content' },
   },
+  'join-card': {
+    category: 'cta', subtype: 'qr', structures: ['image-text', 'multi-line'],
+    semantics: { label: 'headline', callToAction: 'headline', joinLink: 'qr-content' },
+  },
   'call-to-action': {
     category: 'cta', subtype: 'follow', structures: ['single-line', 'multi-line'],
     semantics: { action: 'headline', target: 'url', detail: 'description' },

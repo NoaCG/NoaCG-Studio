@@ -90,6 +90,14 @@ export interface PollDesign {
   /** Whether the design includes a .poll-accent element. */
   hasAccent: boolean;
   /**
+   * The FIGURES choice (interaction spec AC-12): a fifth field, `Figures`, whose value
+   * (`percent`, `count` or `both`) the design's own `renderPollRow` reads from its hidden holder
+   * (`pollFiguresMode()`). Absent, the board emits exactly the four fields it always did.
+   */
+  figures?: boolean;
+  /** Design-owned runtime appended after the row builder (a layout's own painter). */
+  extraJs?: string;
+  /**
    * Where this design disagrees with its style family's shape tokens
    * (model/themeTokens.ts). Every entry is conformance debt - DESIGN_LANGUAGE §8's rule is
    * "reuse the exact token values, don't improvise new ones per category".
@@ -113,8 +121,43 @@ export const POLL_CONTENT = {
   cue: 'VOTE NOW',
 };
 
-/** The complete field set — four fields, and every board emits exactly these. */
-function pollFields(o: ResolvedOptions): SpxField[] {
+/** The Figures field's choices, in the order the operator reads them. */
+export const POLL_FIGURES_CHOICES = [
+  { label: 'Percent', value: 'percent' },
+  { label: 'Count', value: 'count' },
+  { label: 'Both', value: 'both' },
+] as const;
+
+/** The Figures field, appended as `f4` by a design that opts in (`PollDesign.figures`). */
+function figuresField(): SpxField {
+  return {
+    field: 'f4',
+    ftype: 'dropdown',
+    title: 'Figures',
+    value: 'percent',
+    items: POLL_FIGURES_CHOICES.map((c) => ({ text: c.label, value: c.value })),
+  };
+}
+
+/** The runtime half of the Figures field: which figures a row shows. */
+const POLL_FIGURES_JS = `// pollFiguresMode(): what each row's figure shows - 'percent', 'count' or 'both' - from the
+// hidden Figures holder (#f4). Anything else reads as percent.
+function pollFiguresMode() {
+  var el = document.getElementById('f4');
+  var mode = el ? (el.textContent || '').trim().toLowerCase() : '';
+  return mode === 'count' || mode === 'both' ? mode : 'percent';
+}
+
+// pollCountText(n): a count as people read it, thousands grouped with a narrow space, which
+// reads the same in every language a show is made in.
+function pollCountText(n) {
+  var s = String(Math.round(n));
+  return s.replace(/\\B(?=(\\d{3})+(?!\\d))/g, '\\u202f');
+}`;
+
+/** The complete field set — four fields, and every board emits exactly these; a design with
+ *  the Figures choice adds a fifth. */
+function pollFields(o: ResolvedOptions, figures = false): SpxField[] {
   return [
     { field: 'f0', ftype: 'textfield', title: o.lines[0]?.title || 'Question', value: o.lines[0]?.sample || POLL_CONTENT.question },
     { field: 'f1', ftype: 'textarea', title: o.lines[1]?.title || 'Options', value: o.lines[1]?.sample || POLL_CONTENT.options },
@@ -123,6 +166,7 @@ function pollFields(o: ResolvedOptions): SpxField[] {
     // Finnish vote, an SMS poll ("TEXT TO VOTE") and a floor count ("HANDS UP"). Only its
     // LEAVING is choreography — that stays a keyframe on .poll-cue.
     { field: 'f3', ftype: 'textfield', title: o.lines[3]?.title || 'Vote badge', value: o.lines[3]?.sample || POLL_CONTENT.cue },
+    ...(figures ? [figuresField()] : []),
   ];
 }
 
@@ -261,7 +305,7 @@ export function assemblePoll(
   const scale = computeScale(o);
   // A question over labelled bars needs measure: wider than a strap, narrower than a full card.
   const maxTextWidth = Math.round(o.resolution.width * 0.46);
-  const fields = pollFields(o);
+  const fields = pollFields(o, !!design.figures);
   const optionsText = fields[1].value;
 
   // steps '2': phase 1 = the board with voting open, phase 2 (Continue) = the result.
@@ -275,7 +319,13 @@ export function assemblePoll(
 ${design.html}
     <!-- Hidden options source — SPX writes field f1 here; pollRebuild() renders it as rows.
          One option per line, written "Label | count". -->
-    <div id="f1" class="${DATA_SOURCE_CLASS}">${optionsText}</div>
+    <div id="f1" class="${DATA_SOURCE_CLASS}">${optionsText}</div>${
+      design.figures
+        ? `
+    <!-- Hidden Figures source - SPX writes field f4 here: percent, count or both. -->
+    <div id="f4" class="${DATA_SOURCE_CLASS}">${fields[4].value}</div>`
+        : ''
+    }
   </div>`,
   });
 
@@ -334,8 +384,8 @@ ${design.css}
     easeOut: ease.easeOut,
   };
 
-  const js = pollRuntimeJs(meta.name, `${design.rowBuilderJs}
-
+  const js = pollRuntimeJs(meta.name, `${design.figures ? `${POLL_FIGURES_JS}\n\n` : ''}${design.rowBuilderJs}
+${design.extraJs ? `\n${design.extraJs}\n` : ''}
 ${POLL_MOTION_JS}
 
 ${preset.emit(cfg)}`);

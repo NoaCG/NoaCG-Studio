@@ -78,6 +78,7 @@
         <div class="doc-nav-topic">
           <a href="#dashboard">Run the show</a>
           <div class="doc-nav-sub" id="nav-show">
+            <a href="#companion">Stream Deck with Companion</a>
             <a href="#teams">Working with other people</a>
             <a href="#audience">Audience join pages</a>
             <a href="#behaviour">Graphics with behaviour</a>
@@ -445,7 +446,7 @@
 <tr><td>Bar (one per row)</td><td><code>Bar 1</code></td><td><code>Palkki 1</code>, <code>Stapel 1</code></td><td>draw it at its FULL length - that length is 100%</td></tr>
 <tr><td>Percent (one per row)</td><td><code>Percent 1</code></td><td><code>Share 1</code>, <code>Osuus 1</code>, <code>Procent 1</code></td><td>appears with the result</td></tr>
 <tr><td>Winner (one per row)</td><td><code>Winner 1</code></td><td><code>Voittaja 1</code>, <code>Vinnare 1</code></td><td>only on the row that won, and never on a tie</td></tr>
-<tr><td>Total votes</td><td><code>Total votes</code></td><td><code>Ääntä</code>, <code>Röster</code></td><td>written from the round</td></tr>
+<tr><td>Total votes</td><td><code>Total votes</code></td><td><code>Vote count</code>, <code>Ääntä</code>, <code>Röster</code></td><td>written from the round</td></tr>
 <tr><td>Vote badge</td><td><code>Vote badge</code></td><td><code>Äänestä</code>, <code>Rösta</code></td><td>while voting is open</td></tr>
 <tr><td colspan="4" class="doc-words-rows">Two to eight options.</td></tr>
 <tr class="doc-words-type"><th colspan="4"><a href="#countdowns">Countdown</a></th></tr>
@@ -1556,6 +1557,29 @@ CG 1-20 STOP</code></pre>
               sponsor card. There is one picture layer per production, so a new still replaces
               the last one.</li>
           </ul>
+        </section>
+
+        <section id="companion">
+          <h2>Set up a Stream Deck with Companion</h2>
+          <p>Use Bitfocus Companion 4.3 or later to run cues and graphics from a Stream Deck.</p>
+          <ol>
+            <li>If <strong>NoaCG: NoaCG Studio</strong> is missing from your Companion connections,
+              <a href="/downloads#companion">download the Companion module</a>. In Companion, open
+              <strong>Modules</strong>, press <strong>Import module package</strong> and choose the
+              <code>.tgz</code> file.</li>
+            <li>Publish the production once. Open <strong>Setup</strong> and choose
+              <strong>Stream Deck panel&hellip;</strong> on the production page, or press
+              <strong>Panel</strong> in the hosted control page header. Press
+              <strong>Pair a panel</strong>. The code works once, for five minutes.</li>
+            <li>In Companion, open <strong>Connections</strong> and search for <code>NoaCG</code>.
+              Press <strong>Add</strong> beside <strong>NoaCG: NoaCG Studio</strong>, then
+              <strong>Add</strong> again. Enter the <strong>Pairing code</strong> and
+              <strong>Panel name</strong>, then press <strong>Save</strong>.</li>
+            <li>Keep the production page open to answer the panel. In Companion's
+              <strong>Buttons</strong>, open <strong>Presets</strong>, choose <strong>NoaCG</strong>
+              and drag a preset onto a button. Start with <strong>Take</strong> in
+              <strong>Show control</strong>.</li>
+          </ol>
         </section>
 
         <!-- ═══════════════════════ TEAMS ═══════════════════════ -->

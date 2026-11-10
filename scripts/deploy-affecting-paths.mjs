@@ -85,6 +85,8 @@ export const DEPLOY_AFFECTING_SCRIPTS = new Set([
  */
 export const VITE_SERVE_ONLY_SCRIPTS = new Set([
   'scripts/aiDevPlugin.mjs',
+  // Dev and preview routing only; Vercel serves the same URLs from vercel.json.
+  'scripts/app-clean-url.mjs',
   'scripts/dataDevPlugin.mjs',
   'scripts/dev-port.mjs',
   'scripts/eventsDevPlugin.mjs',

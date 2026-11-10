@@ -1,0 +1,585 @@
+{
+ "$comment": "Chat-vote pages in the recorded shape of chat-later-page.json (docs/work-specs/data-sources/evidence/youtube.md, 2026-10-20): whole-second publishedAt, pollingIntervalMillis near 3 s, one nextPageToken a page. Every id, name, text and time is invented for the interaction spec's chat votes (AC-10). goLiveAt is when the first question goes live; secondLiveAt the second.",
+ "goLiveAt": "2026-10-20T21:30:00Z",
+ "secondLiveAt": "2026-10-20T21:31:00Z",
+ "pages": {
+  "first": {
+   "kind": "youtube#liveChatMessageListResponse",
+   "etag": "GVOTE1",
+   "pollingIntervalMillis": 3001,
+   "pageInfo": {
+    "totalResults": 4,
+    "resultsPerPage": 4
+   },
+   "nextPageToken": "GVOTE1",
+   "items": [
+    {
+     "kind": "youtube#liveChatMessage",
+     "etag": "v2",
+     "id": "LCC.vote0002",
+     "snippet": {
+      "type": "textMessageEvent",
+      "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+      "authorChannelId": "UCvote1",
+      "publishedAt": "2026-10-20T21:28:30Z",
+      "hasDisplayContent": true,
+      "displayMessage": "2",
+      "textMessageDetails": {
+       "messageText": "2"
+      }
+     },
+     "authorDetails": {
+      "channelId": "UCvote1",
+      "channelUrl": "http://www.youtube.com/channel/UCvote1",
+      "displayName": "Viewer vote1",
+      "profileImageUrl": "https://yt4.ggpht.com/x",
+      "isVerified": false,
+      "isChatOwner": false,
+      "isChatSponsor": false,
+      "isChatModerator": false
+     }
+    },
+    {
+     "kind": "youtube#liveChatMessage",
+     "etag": "v3",
+     "id": "LCC.vote0003",
+     "snippet": {
+      "type": "textMessageEvent",
+      "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+      "authorChannelId": "UCvote2",
+      "publishedAt": "2026-10-20T21:29:00Z",
+      "hasDisplayContent": true,
+      "displayMessage": "Hello from the stands",
+      "textMessageDetails": {
+       "messageText": "Hello from the stands"
+      }
+     },
+     "authorDetails": {
+      "channelId": "UCvote2",
+      "channelUrl": "http://www.youtube.com/channel/UCvote2",
+      "displayName": "Viewer vote2",
+      "profileImageUrl": "https://yt4.ggpht.com/x",
+      "isVerified": false,
+      "isChatOwner": false,
+      "isChatSponsor": false,
+      "isChatModerator": false
+     }
+    },
+    {
+     "kind": "youtube#liveChatMessage",
+     "etag": "v4",
+     "id": "LCC.vote0004",
+     "snippet": {
+      "type": "textMessageEvent",
+      "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+      "authorChannelId": "UCvote3",
+      "publishedAt": "2026-10-20T21:29:30Z",
+      "hasDisplayContent": true,
+      "displayMessage": "B",
+      "textMessageDetails": {
+       "messageText": "B"
+      }
+     },
+     "authorDetails": {
+      "channelId": "UCvote3",
+      "channelUrl": "http://www.youtube.com/channel/UCvote3",
+      "displayName": "Viewer vote3",
+      "profileImageUrl": "https://yt4.ggpht.com/x",
+      "isVerified": false,
+      "isChatOwner": false,
+      "isChatSponsor": false,
+      "isChatModerator": false
+     }
+    },
+    {
+     "kind": "youtube#liveChatMessage",
+     "etag": "v5",
+     "id": "LCC.vote0005",
+     "snippet": {
+      "type": "textMessageEvent",
+      "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+      "authorChannelId": "UCvote4",
+      "publishedAt": "2026-10-20T21:30:02Z",
+      "hasDisplayContent": true,
+      "displayMessage": "1",
+      "textMessageDetails": {
+       "messageText": "1"
+      }
+     },
+     "authorDetails": {
+      "channelId": "UCvote4",
+      "channelUrl": "http://www.youtube.com/channel/UCvote4",
+      "displayName": "Viewer vote4",
+      "profileImageUrl": "https://yt4.ggpht.com/x",
+      "isVerified": false,
+      "isChatOwner": false,
+      "isChatSponsor": false,
+      "isChatModerator": false
+     }
+    }
+   ]
+  },
+  "votes": {
+   "kind": "youtube#liveChatMessageListResponse",
+   "etag": "GVOTE2",
+   "pollingIntervalMillis": 3001,
+   "pageInfo": {
+    "totalResults": 6,
+    "resultsPerPage": 6
+   },
+   "nextPageToken": "GVOTE2",
+   "items": [
+    {
+     "kind": "youtube#liveChatMessage",
+     "etag": "v6",
+     "id": "LCC.vote0006",
+     "snippet": {
+      "type": "textMessageEvent",
+      "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+      "authorChannelId": "UCvoteA",
+      "publishedAt": "2026-10-20T21:30:05Z",
+      "hasDisplayContent": true,
+      "displayMessage": "1",
+      "textMessageDetails": {
+       "messageText": "1"
+      }
+     },
+     "authorDetails": {
+      "channelId": "UCvoteA",
+      "channelUrl": "http://www.youtube.com/channel/UCvoteA",
+      "displayName": "Viewer voteA",
+      "profileImageUrl": "https://yt4.ggpht.com/x",
+      "isVerified": false,
+      "isChatOwner": false,
+      "isChatSponsor": false,
+      "isChatModerator": false
+     }
+    },
+    {
+     "kind": "youtube#liveChatMessage",
+     "etag": "v1",
+     "id": "LCC.vote0001",
+     "snippet": {
+      "type": "textMessageEvent",
+      "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+      "authorChannelId": "UCvoteB",
+      "publishedAt": "2026-10-20T21:30:06Z",
+      "hasDisplayContent": true,
+      "displayMessage": "b",
+      "textMessageDetails": {
+       "messageText": "b"
+      }
+     },
+     "authorDetails": {
+      "channelId": "UCvoteB",
+      "channelUrl": "http://www.youtube.com/channel/UCvoteB",
+      "displayName": "Viewer voteB",
+      "profileImageUrl": "https://yt4.ggpht.com/x",
+      "isVerified": false,
+      "isChatOwner": false,
+      "isChatSponsor": false,
+      "isChatModerator": false
+     }
+    },
+    {
+     "kind": "youtube#liveChatMessage",
+     "etag": "v7",
+     "id": "LCC.vote0007",
+     "snippet": {
+      "type": "textMessageEvent",
+      "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+      "authorChannelId": "UCvoteC",
+      "publishedAt": "2026-10-20T21:30:07Z",
+      "hasDisplayContent": true,
+      "displayMessage": " 2 ",
+      "textMessageDetails": {
+       "messageText": " 2 "
+      }
+     },
+     "authorDetails": {
+      "channelId": "UCvoteC",
+      "channelUrl": "http://www.youtube.com/channel/UCvoteC",
+      "displayName": "Viewer voteC",
+      "profileImageUrl": "https://yt4.ggpht.com/x",
+      "isVerified": false,
+      "isChatOwner": false,
+      "isChatSponsor": false,
+      "isChatModerator": false
+     }
+    },
+    {
+     "kind": "youtube#liveChatMessage",
+     "etag": "v8",
+     "id": "LCC.vote0008",
+     "snippet": {
+      "type": "textMessageEvent",
+      "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+      "authorChannelId": "UCvoteM",
+      "publishedAt": "2026-10-20T21:30:08Z",
+      "hasDisplayContent": true,
+      "displayMessage": "Great show tonight",
+      "textMessageDetails": {
+       "messageText": "Great show tonight"
+      }
+     },
+     "authorDetails": {
+      "channelId": "UCvoteM",
+      "channelUrl": "http://www.youtube.com/channel/UCvoteM",
+      "displayName": "Viewer voteM",
+      "profileImageUrl": "https://yt4.ggpht.com/x",
+      "isVerified": false,
+      "isChatOwner": false,
+      "isChatSponsor": false,
+      "isChatModerator": false
+     }
+    },
+    {
+     "kind": "youtube#liveChatMessage",
+     "etag": "v9",
+     "id": "LCC.vote0009",
+     "snippet": {
+      "type": "textMessageEvent",
+      "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+      "authorChannelId": "UCvoteA",
+      "publishedAt": "2026-10-20T21:30:09Z",
+      "hasDisplayContent": true,
+      "displayMessage": "B",
+      "textMessageDetails": {
+       "messageText": "B"
+      }
+     },
+     "authorDetails": {
+      "channelId": "UCvoteA",
+      "channelUrl": "http://www.youtube.com/channel/UCvoteA",
+      "displayName": "Viewer voteA",
+      "profileImageUrl": "https://yt4.ggpht.com/x",
+      "isVerified": false,
+      "isChatOwner": false,
+      "isChatSponsor": false,
+      "isChatModerator": false
+     }
+    },
+    {
+     "kind": "youtube#liveChatMessage",
+     "etag": "v10",
+     "id": "LCC.vote0010",
+     "snippet": {
+      "type": "textMessageEvent",
+      "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+      "authorChannelId": "UCvoteX",
+      "publishedAt": "2026-10-20T21:30:10Z",
+      "hasDisplayContent": true,
+      "displayMessage": "D",
+      "textMessageDetails": {
+       "messageText": "D"
+      }
+     },
+     "authorDetails": {
+      "channelId": "UCvoteX",
+      "channelUrl": "http://www.youtube.com/channel/UCvoteX",
+      "displayName": "Viewer voteX",
+      "profileImageUrl": "https://yt4.ggpht.com/x",
+      "isVerified": false,
+      "isChatOwner": false,
+      "isChatSponsor": false,
+      "isChatModerator": false
+     }
+    }
+   ]
+  },
+  "repeat": {
+   "kind": "youtube#liveChatMessageListResponse",
+   "etag": "GVOTE3",
+   "pollingIntervalMillis": 3001,
+   "pageInfo": {
+    "totalResults": 3,
+    "resultsPerPage": 3
+   },
+   "nextPageToken": "GVOTE3",
+   "items": [
+    {
+     "kind": "youtube#liveChatMessage",
+     "etag": "v1",
+     "id": "LCC.vote0001",
+     "snippet": {
+      "type": "textMessageEvent",
+      "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+      "authorChannelId": "UCvoteB",
+      "publishedAt": "2026-10-20T21:30:06Z",
+      "hasDisplayContent": true,
+      "displayMessage": "b",
+      "textMessageDetails": {
+       "messageText": "b"
+      }
+     },
+     "authorDetails": {
+      "channelId": "UCvoteB",
+      "channelUrl": "http://www.youtube.com/channel/UCvoteB",
+      "displayName": "Viewer voteB",
+      "profileImageUrl": "https://yt4.ggpht.com/x",
+      "isVerified": false,
+      "isChatOwner": false,
+      "isChatSponsor": false,
+      "isChatModerator": false
+     }
+    },
+    {
+     "kind": "youtube#liveChatMessage",
+     "etag": "v11",
+     "id": "LCC.vote0011",
+     "snippet": {
+      "type": "textMessageEvent",
+      "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+      "authorChannelId": "UCvoteD",
+      "publishedAt": "2026-10-20T21:30:20Z",
+      "hasDisplayContent": true,
+      "displayMessage": "3",
+      "textMessageDetails": {
+       "messageText": "3"
+      }
+     },
+     "authorDetails": {
+      "channelId": "UCvoteD",
+      "channelUrl": "http://www.youtube.com/channel/UCvoteD",
+      "displayName": "Viewer voteD",
+      "profileImageUrl": "https://yt4.ggpht.com/x",
+      "isVerified": false,
+      "isChatOwner": false,
+      "isChatSponsor": false,
+      "isChatModerator": false
+     }
+    },
+    {
+     "kind": "youtube#liveChatMessage",
+     "etag": "v12",
+     "id": "LCC.vote0012",
+     "snippet": {
+      "type": "textMessageEvent",
+      "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+      "authorChannelId": "UCvoteD",
+      "publishedAt": "2026-10-20T21:30:12Z",
+      "hasDisplayContent": true,
+      "displayMessage": "1",
+      "textMessageDetails": {
+       "messageText": "1"
+      }
+     },
+     "authorDetails": {
+      "channelId": "UCvoteD",
+      "channelUrl": "http://www.youtube.com/channel/UCvoteD",
+      "displayName": "Viewer voteD",
+      "profileImageUrl": "https://yt4.ggpht.com/x",
+      "isVerified": false,
+      "isChatOwner": false,
+      "isChatSponsor": false,
+      "isChatModerator": false
+     }
+    }
+   ]
+  },
+  "newer": {
+   "kind": "youtube#liveChatMessageListResponse",
+   "etag": "GVOTE4",
+   "pollingIntervalMillis": 3001,
+   "pageInfo": {
+    "totalResults": 1,
+    "resultsPerPage": 1
+   },
+   "nextPageToken": "GVOTE4",
+   "items": [
+    {
+     "kind": "youtube#liveChatMessage",
+     "etag": "v13",
+     "id": "LCC.vote0013",
+     "snippet": {
+      "type": "textMessageEvent",
+      "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+      "authorChannelId": "UCvoteE",
+      "publishedAt": "2026-10-20T21:30:30Z",
+      "hasDisplayContent": true,
+      "displayMessage": "1",
+      "textMessageDetails": {
+       "messageText": "1"
+      }
+     },
+     "authorDetails": {
+      "channelId": "UCvoteE",
+      "channelUrl": "http://www.youtube.com/channel/UCvoteE",
+      "displayName": "Viewer voteE",
+      "profileImageUrl": "https://yt4.ggpht.com/x",
+      "isVerified": false,
+      "isChatOwner": false,
+      "isChatSponsor": false,
+      "isChatModerator": false
+     }
+    }
+   ]
+  },
+  "older": {
+   "kind": "youtube#liveChatMessageListResponse",
+   "etag": "GVOTE5",
+   "pollingIntervalMillis": 3001,
+   "pageInfo": {
+    "totalResults": 1,
+    "resultsPerPage": 1
+   },
+   "nextPageToken": "GVOTE5",
+   "items": [
+    {
+     "kind": "youtube#liveChatMessage",
+     "etag": "v14",
+     "id": "LCC.vote0014",
+     "snippet": {
+      "type": "textMessageEvent",
+      "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+      "authorChannelId": "UCvoteE",
+      "publishedAt": "2026-10-20T21:30:25Z",
+      "hasDisplayContent": true,
+      "displayMessage": "2",
+      "textMessageDetails": {
+       "messageText": "2"
+      }
+     },
+     "authorDetails": {
+      "channelId": "UCvoteE",
+      "channelUrl": "http://www.youtube.com/channel/UCvoteE",
+      "displayName": "Viewer voteE",
+      "profileImageUrl": "https://yt4.ggpht.com/x",
+      "isVerified": false,
+      "isChatOwner": false,
+      "isChatSponsor": false,
+      "isChatModerator": false
+     }
+    }
+   ]
+  },
+  "backlog": {
+   "kind": "youtube#liveChatMessageListResponse",
+   "etag": "GVOTE6",
+   "pollingIntervalMillis": 3001,
+   "pageInfo": {
+    "totalResults": 3,
+    "resultsPerPage": 3
+   },
+   "nextPageToken": "GVOTE6",
+   "items": [
+    {
+     "kind": "youtube#liveChatMessage",
+     "etag": "v15",
+     "id": "LCC.vote0015",
+     "snippet": {
+      "type": "textMessageEvent",
+      "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+      "authorChannelId": "UCvoteF",
+      "publishedAt": "2026-10-20T21:30:40Z",
+      "hasDisplayContent": true,
+      "displayMessage": "1",
+      "textMessageDetails": {
+       "messageText": "1"
+      }
+     },
+     "authorDetails": {
+      "channelId": "UCvoteF",
+      "channelUrl": "http://www.youtube.com/channel/UCvoteF",
+      "displayName": "Viewer voteF",
+      "profileImageUrl": "https://yt4.ggpht.com/x",
+      "isVerified": false,
+      "isChatOwner": false,
+      "isChatSponsor": false,
+      "isChatModerator": false
+     }
+    },
+    {
+     "kind": "youtube#liveChatMessage",
+     "etag": "v16",
+     "id": "LCC.vote0016",
+     "snippet": {
+      "type": "textMessageEvent",
+      "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+      "authorChannelId": "UCvoteG",
+      "publishedAt": "2026-10-20T21:31:10Z",
+      "hasDisplayContent": true,
+      "displayMessage": "2",
+      "textMessageDetails": {
+       "messageText": "2"
+      }
+     },
+     "authorDetails": {
+      "channelId": "UCvoteG",
+      "channelUrl": "http://www.youtube.com/channel/UCvoteG",
+      "displayName": "Viewer voteG",
+      "profileImageUrl": "https://yt4.ggpht.com/x",
+      "isVerified": false,
+      "isChatOwner": false,
+      "isChatSponsor": false,
+      "isChatModerator": false
+     }
+    },
+    {
+     "kind": "youtube#liveChatMessage",
+     "etag": "v17",
+     "id": "LCC.vote0017",
+     "snippet": {
+      "type": "textMessageEvent",
+      "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+      "authorChannelId": "UCvoteH",
+      "publishedAt": "2026-10-20T21:31:11Z",
+      "hasDisplayContent": true,
+      "displayMessage": "Still here",
+      "textMessageDetails": {
+       "messageText": "Still here"
+      }
+     },
+     "authorDetails": {
+      "channelId": "UCvoteH",
+      "channelUrl": "http://www.youtube.com/channel/UCvoteH",
+      "displayName": "Viewer voteH",
+      "profileImageUrl": "https://yt4.ggpht.com/x",
+      "isVerified": false,
+      "isChatOwner": false,
+      "isChatSponsor": false,
+      "isChatModerator": false
+     }
+    }
+   ]
+  },
+  "afterResume": {
+   "kind": "youtube#liveChatMessageListResponse",
+   "etag": "GVOTE7",
+   "pollingIntervalMillis": 3001,
+   "pageInfo": {
+    "totalResults": 1,
+    "resultsPerPage": 1
+   },
+   "nextPageToken": "GVOTE7",
+   "items": [
+    {
+     "kind": "youtube#liveChatMessage",
+     "etag": "v18",
+     "id": "LCC.vote0018",
+     "snippet": {
+      "type": "textMessageEvent",
+      "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+      "authorChannelId": "UCvoteJ",
+      "publishedAt": "2026-10-20T21:31:15Z",
+      "hasDisplayContent": true,
+      "displayMessage": "2",
+      "textMessageDetails": {
+       "messageText": "2"
+      }
+     },
+     "authorDetails": {
+      "channelId": "UCvoteJ",
+      "channelUrl": "http://www.youtube.com/channel/UCvoteJ",
+      "displayName": "Viewer voteJ",
+      "profileImageUrl": "https://yt4.ggpht.com/x",
+      "isVerified": false,
+      "isChatOwner": false,
+      "isChatSponsor": false,
+      "isChatModerator": false
+     }
+    }
+   ]
+  }
+ }
+}

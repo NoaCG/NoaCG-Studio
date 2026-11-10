@@ -18,6 +18,7 @@
 
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
+import { simulateArrivals } from './_interaction';
 import { openDataPanel, expectPlayoutStillOpen, openWorkspace } from './_workspace';
 import { settleDurableWrites } from './_durable';
 
@@ -45,7 +46,7 @@ test('a plain production shows Playout alone, and Setup holds every other door o
     /Playout settings…/,
     /Export…/,
     'Data…',
-    'Messages…',
+    'Interaction…',
   ]);
 
   // Each door works from there, and choosing one closes the menu.
@@ -90,15 +91,15 @@ test('Data… opens Data in its own tab, and once the production has a table Dat
   await expect(page.getByTestId('tab-playout')).toHaveClass(/\bon\b/);
   await page.getByTestId('production-setup').click();
   await expect(page.getByTestId('setup-data')).toHaveText('Data…');
-  await expect(page.getByTestId('setup-audience')).toHaveText('Messages…');
+  await expect(page.getByTestId('setup-audience')).toHaveText('Interaction…');
 });
 
-test('a production with an audience graphic lists Messages, which counts the messages waiting', async ({ page }) => {
+test('a production with an audience graphic lists Interaction, which counts the messages waiting', async ({ page }) => {
   await bootstrapGraphic(page, { name: 'House Q&A' });
   await openProductionWithCurrent(page, 'Phone In');
 
-  // An audience card in the pool: Messages is in the switcher from the start, Data is not.
-  await expect(page.getByTestId('tab-audience')).toHaveText('Messages');
+  // An audience card in the pool: Interaction is in the switcher from the start, Data is not.
+  await expect(page.getByTestId('tab-audience')).toHaveText('Interaction');
   await expect(page.getByTestId('tab-data')).toHaveCount(0);
   await expect(page.getByTestId('tab-audience-count')).toHaveCount(0);
 
@@ -106,9 +107,9 @@ test('a production with an audience graphic lists Messages, which counts the mes
   await expect(audience.getByTestId('production-audience')).toBeVisible();
   await expect(audience.getByTestId('tab-audience-count')).toHaveCount(0);
 
-  // Three arrive: "Messages 3". Approving one leaves two waiting.
-  await audience.getByTestId('audience-simulate').click();
-  await expect(audience.getByTestId('tab-audience')).toHaveText('Messages3');
+  // Three arrive: "Interaction 3". Approving one leaves two waiting.
+  await simulateArrivals(audience);
+  await expect(audience.getByTestId('tab-audience')).toHaveText('Interaction3');
   await expect(audience.getByTestId('tab-audience-count')).toHaveText('3');
   await audience.locator('.pd-aud-row').first().getByTestId('audience-more').click();
   await audience.getByTestId('audience-approve').click();

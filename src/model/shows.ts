@@ -32,6 +32,9 @@ import type { JsonValue } from './productionData';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
+import { JOIN_PAGE_LIMITS } from './joinPage';
+import { readQuestions, type ShowQuestion } from './questions';
+import { planResultCue, readResultCues, type ResultPlan } from './resultCues';
 import { hasLiveData } from './liveDataMark';
 import { ownReaderHolds } from './ownReaderHolds';
 import { loadGraphics, resolveSavedGraphicDoc, type GraphicDoc } from './library';
@@ -502,6 +505,25 @@ export interface Show {
    *  next "Prepare cue on <graphic>" names it. Never guessed (control/messageStaging.ts).
    *  ADDITIVE OPTIONAL; absent = not chosen yet. */
   messageTarget?: string;
+  /** Where results go: the pool graphic id the operator chose for "Add results to rundown",
+   *  remembered like `messageTarget` (model/resultCues.ts, interaction phase 3 S5). ADDITIVE
+   *  OPTIONAL; absent = not chosen yet. */
+  resultTarget?: string;
+  /** Each question's one RESULT CUE: question id to cue id (model/resultCues.ts, S1). Saved with
+   *  the production so a reload, another tab and another operator update the same cue. ADDITIVE
+   *  OPTIONAL; absent = no result staged. */
+  resultCues?: Record<string, string>;
+  /** The production's QUESTION LIST (model/questions.ts; docs/work-specs/interaction/spec.md): the
+   *  questions the operator prepares and puts live on phones, in the operator's order. ADDITIVE
+   *  OPTIONAL; absent = none written. Read through `showQuestions`, which drops damaged entries and
+   *  keeps a newer build's question types whole. Answers and results are not here: they live with
+   *  the audience provider, keyed by each question's id. */
+  questions?: ShowQuestion[];
+  /** The phone page's own words (interaction spec, Join ▸ Page settings): a title (empty = the
+   *  production's name) and the waiting text (empty = the default). They reach phones through the
+   *  join state like the look (audience/joinBrand.ts), not through a publish. ADDITIVE OPTIONAL;
+   *  absent = both defaults. */
+  joinPage?: { title?: string; waiting?: string };
   /** The hosted control page's capability slug, once published (control/hostedControl.ts).
    *  Kept on the record so the URL survives reloads and the show export can bake the hosted
    *  receiver into its graphics. Rotating/unpublishing clears it. */
@@ -2463,6 +2485,112 @@ export function setShowPollLiveFigures(showId: string, on: boolean): Show[] {
     else delete show.pollLiveFigures;
     return true;
   });
+}
+
+/** The production's questions, as this build reads them (model/questions.ts `readQuestions`). */
+export function showQuestions(show: Pick<Show, 'questions'>): ShowQuestion[] {
+  return readQuestions(show.questions);
+}
+
+/**
+ * Change the production's question list through one of model/questions.ts's list edits, applied to
+ * the list as it is stored NOW (rebased like a prepare): two tabs each adding a question both keep
+ * theirs. `edit` returns the new list, or a sentence when the edit cannot be made.
+ */
+export function setShowQuestions(
+  showId: string,
+  edit: (list: ShowQuestion[]) => ShowQuestion[] | string,
+): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const next = edit(readQuestions(show.questions));
+    if (typeof next === 'string') return next;
+    if (JSON.stringify(next) === JSON.stringify(readQuestions(show.questions))) return false;
+    if (next.length > 0) show.questions = next;
+    else delete show.questions;
+    return true;
+  }, true);
+}
+
+/** Change the phone page's title or waiting text (Show.joinPage). An empty value means the default
+ *  and is not stored. */
+export function setShowJoinPage(showId: string, patch: { title?: string; waiting?: string }): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const next = { ...(show.joinPage ?? {}) };
+    for (const key of ['title', 'waiting'] as const) {
+      if (!(key in patch)) continue;
+      const value = (patch[key] ?? '').slice(0, JOIN_PAGE_LIMITS[key]);
+      if (value.trim()) next[key] = value;
+      else delete next[key];
+    }
+    if (JSON.stringify(next) === JSON.stringify(show.joinPage ?? {})) return false;
+    if (Object.keys(next).length > 0) show.joinPage = next;
+    else delete show.joinPage;
+    return true;
+  }, true);
+}
+
+/**
+ * "Add results to rundown" and Stop's final counts (interaction phase 3, S1 to S9): write a
+ * question's result into its one result cue, deciding update or add on the production as stored
+ * NOW (a rebased write, S4), so a second press, another tab or a synced second operator updates the
+ * cue the first press made. `valuesFor` gives the result values for a graphic's fields, or null when
+ * it cannot take them. `chosen` is a graphic the operator just picked, remembered in the same
+ * write; `adopt` is a cue already on that graphic (a catalog board's seeded cue) to use as the
+ * result cue instead of adding one. `closeOnly` (Stop, S7) writes only into an existing result cue
+ * and never adds. Only result values are written (S9). Nothing airs: this writes the record.
+ */
+export function stageShowResult(
+  showId: string,
+  questionId: string,
+  opts: {
+    valuesFor: (fields: readonly { field: string; title?: string }[]) => Record<string, string> | null;
+    label: string;
+    chosen?: string | null;
+    adopt?: string | null;
+    closeOnly?: boolean;
+  },
+): { shows: Show[]; error: string | null; outcome: () => { plan: ResultPlan | null; cueId: string | null } } {
+  // The write is REBASED: the mutator runs on this tab's copy, then again on the stored record when
+  // the write lands, so it must give the same answer for the same record. The new cue's id is made
+  // once, here, and `outcome` reads what the LAST run decided, which after commitDurableWrites is
+  // the stored write's (S15).
+  let plan: ResultPlan | null = null;
+  let cueId: string | null = null;
+  const newId = uuid();
+  const takes = (fields: readonly { field: string; title?: string }[]) => opts.valuesFor(fields) !== null;
+  // Stop's close-only write must reach the stored record even when this tab's copy has no link
+  // yet (S13): its first pass then changes nothing but still returns true, so the rebased pass
+  // runs and decides. A team production is not rebased (its merge carries the link), so it skips.
+  let firstPass = true;
+  const rebasedHere = (show: Show) => !show.teamId && !teamShowIds().has(showId);
+  const { shows, error } = patchShowChecked(showId, (show) => {
+    const local = firstPass;
+    firstPass = false;
+    const p = planResultCue(show, questionId, takes, opts.chosen);
+    plan = p;
+    cueId = null;
+    if (opts.closeOnly && p.kind !== 'update') return local && rebasedHere(show);
+    if (p.kind === 'choose') return false;
+    const graphic = show.graphics.find((g) => g.id === p.graphicId)!;
+    const values = opts.valuesFor(graphic.template.fields ?? [])!;
+    let cue = p.kind === 'update' ? show.cues?.find((c) => c.id === p.cueId) : undefined;
+    if (!cue && opts.adopt) cue = show.cues?.find((c) => c.id === opts.adopt && c.sourceId === graphic.id);
+    // A catalog board's seeded cue that this write does not use goes with it: one press, one cue.
+    if (opts.adopt && cue?.id !== opts.adopt) show.cues = (show.cues ?? []).filter((c) => c.id !== opts.adopt);
+    if (cue) {
+      cue.values = { ...cue.values, ...values };
+      if (p.kind === 'add') cue.label = opts.label;
+    } else {
+      cue = { id: newId, sourceId: graphic.id, label: opts.label, values: { ...seedValues(graphic.template.fields), ...values } };
+      show.cues = appendCue(show.cues ?? [], cue);
+    }
+    cueId = cue.id;
+    show.resultCues = { ...readResultCues(show.resultCues), [questionId]: cue.id };
+    // An explicit pick is remembered, whether it added a cue or landed on the one already there (S5).
+    if (opts.chosen && takes(show.graphics.find((g) => g.id === opts.chosen)?.template.fields ?? [])) show.resultTarget = opts.chosen;
+    return true;
+  }, true);
+  return { shows, error, outcome: () => (error ? { plan: null, cueId: null } : { plan, cueId }) };
 }
 
 /** Remember where messages go (Show.messageTarget), or forget it with `null`. Part of a prepare,

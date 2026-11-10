@@ -23,9 +23,11 @@ import { listingCardType, offerCardType, productCardType, qrCardType } from './c
 import { callToActionType, goalMeterType, milestoneTrackType } from './goals';
 import { agendaType, pollType } from './dataBoards';
 import { livePollType } from './livePoll';
+import { resultBoardType } from './resultBoard';
 import {
   chatHighlightType,
   communityRequestType,
+  joinCardType,
   qaCardType,
   questionQueueType,
   viewerQuestionType,
@@ -130,6 +132,7 @@ export const TYPES: GraphicType[] = [
   threeAnswerBoardType, // the same arc at three rows…
   twoAnswerBoardType,   // …and at two: the pick is data, so the machine never changed
   livePollType,       // the vote WHILE it happens — the type that closes itself on a timer
+  resultBoardType,    // the vote's RESULT: three layouts by three placements, with a Figures choice
   // The AUDIENCE family (types/audience.ts): what the people watching sent in. Two of the five
   // carry no machine at all, which is the "persist a machine only when the derived one is
   // wrong" rule showing its work.
@@ -138,6 +141,7 @@ export const TYPES: GraphicType[] = [
   chatHighlightType,
   questionQueueType,
   communityRequestType,
+  joinCardType,       // how viewers join: a QR code drawn inside the graphic from its Join link
   // The PUBLIC-SERVICE pair (docs/PUBLIC_SERVICE_PACK.md). Neither is in the 60-format
   // reference sheet's frequency ranking — that sheet counts show FORMATS, and an emergency
   // broadcast is a moment inside one rather than a format of its own. They earn their place

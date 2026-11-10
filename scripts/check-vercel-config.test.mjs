@@ -88,3 +88,16 @@ test('/join and every name under it still carry the noindex header', () => {
     'the /join rule no longer sets X-Robots-Tag',
   );
 });
+
+test('/j/<name> opens the join page and carries the noindex header', () => {
+  // The short join link (interaction spec D2, AC-5) is served by the same entry as /join/<name>.
+  const rewrite = config.rewrites.find((rule) => rule.source === '/j/:name');
+  assert.equal(rewrite?.destination, '/join');
+  const shortRule = config.headers.find((rule) => rule.source.startsWith('/j/'));
+  assert.ok(shortRule, 'vercel.json has no /j header rule');
+  const { routes } = getTransformedRoutes({ headers: [shortRule] });
+  const matches = (url) => routes.some((route) => new RegExp(route.src).test(url));
+  assert.equal(matches('/j/friday-night-live'), true);
+  assert.equal(matches('/joinx'), false);
+  assert.ok(shortRule.headers.some((header) => header.key === 'X-Robots-Tag'));
+});

@@ -57,6 +57,10 @@ fonts, and I will use them." A user who already gave a brief gets no examples.
      machine, controls and runtime on a plain spine (design it); `--design <id>` gives a proven
      catalog composition to restyle; `noacg scaffold --fields "Artist:text,Score:number,..."`
      gives a typeless graphic with exactly the fields you declare (the implicit lifecycle machine).
+     `noacg scaffold --svg board.svg` imports SVG artwork the way the studio does: layer names
+     decide the fields and behaviour. A vote board named `Question`, `Option 1`.., `Bar 1`..
+     (drawn at FULL length) and `Vote count` gets the Question, Options and Vote count fields and
+     scales each bar to its share; a layer named `QR` draws the `Join link` field as a QR code.
    A package is a folder: SOURCES you edit (`<slug>.html`, `css/template.css`, `js/template.js`,
    `images/`, `fonts/`) and GENERATED files you never edit (`<slug>.ograf.json`, `graphic.mjs`,
    `FIELDS.md`, `README.md`, `controlpanel.html`) - `noacg validate` regenerates them.

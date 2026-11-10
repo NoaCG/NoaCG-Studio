@@ -1,4 +1,4 @@
-// covers: src/components/home/ProductionAudienceWorkspace.tsx
+// covers: src/components/home/{ProductionAudienceWorkspace,InteractionQuestions}.tsx
 // covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
 // focus
 //
@@ -14,6 +14,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { openWorkspace } from './_workspace';
 import { settleDurableWrites } from './_durable';
+import { addQuestion, goLive, moreWaysIn } from './_interaction';
 
 // CHAT INTAKE (src/audience/chatIntake.ts): Twitch / YouTube live chat as a PRODUCER of
 // submissions into the production's audience inbox.
@@ -21,7 +22,8 @@ import { settleDurableWrites } from './_durable';
 // THE RULE THESE SPECS PIN: an ingested chat line goes on air the same way a phone's question
 // does - it lands status 'new', the operator edits a broadcast version, approves, sends it to
 // the rundown as an ordinary cue, and Takes it. The connector has no other exit; pause,
-// throttle, dedupe and the door refusal are all visible, counted behaviour.
+// throttle, dedupe and the door refusal are all visible, counted behaviour. The door is the live
+// Open question (docs/work-specs/interaction/spec.md R20): Twitch answers it, as a phone does.
 //
 // The platform drivers themselves (a Twitch websocket, the YouTube poller) need a network, so
 // the offline suite drives the TEST source instead - the same pipeline (identity, throttle,
@@ -37,6 +39,8 @@ async function productionFor(page: Page, name: string): Promise<void> {
 /** Attach a test chat source to the named production's OWN intake (the one the workspace
  *  holds), parking the push handle on the window for later evaluates. */
 async function attachTestSource(page: Page, showName: string): Promise<void> {
+  // The sources sit under Interaction's folded "More ways in".
+  await moreWaysIn(page);
   await page.evaluate(async (name) => {
     const { loadShows } = await import('/src/model/shows.ts');
     const show = loadShows().find((s) => s.name === name);
@@ -47,6 +51,12 @@ async function attachTestSource(page: Page, showName: string): Promise<void> {
     if (!seam) throw new Error('the chat intake test seam is missing');
     (window as unknown as Record<string, unknown>).__chatTest = seam.for(show.id).addTest();
   }, showName);
+}
+
+/** Open the door chat comes in by: an Open question, live on phones. */
+async function openDoor(page: Page): Promise<void> {
+  await addQuestion(page, 'open', 'What do you think so far?');
+  await goLive(page, 'What do you think so far?');
 }
 
 type PushHandle = { push(author: string, text: string, id?: string | null): void };
@@ -64,7 +74,7 @@ test('a chat line reaches air the way a phone question does: inbox, edit, approv
   await productionFor(page, 'Chat In');
 
   const audience = await openWorkspace(page, 'audience');
-  await audience.getByTestId('audience-open').check();
+  await openDoor(audience);
 
   await attachTestSource(audience, 'Chat In');
   // The source is on the board: platform + label as TEXT, with a live indicator.
@@ -113,7 +123,7 @@ test('the throttle and the dedupe refuse visibly, and what passes is what the in
   await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Firehose');
   const audience = await openWorkspace(page, 'audience');
-  await audience.getByTestId('audience-open').check();
+  await openDoor(audience);
   await attachTestSource(audience, 'Firehose');
 
   // One synchronous burst, so the 10-per-10-s intake window cannot slide mid-test: three
@@ -135,32 +145,31 @@ test('the throttle and the dedupe refuse visibly, and what passes is what the in
   await expect(audience.getByTestId('audience-filter-inbox')).toContainText('(10)');
 });
 
-test('a closed door refuses chat the same as phones, and the surface says so', async ({ page }) => {
+test('with no Open question live a chat line reaches the inbox under no question; with one live it answers it (interaction C10)', async ({ page }) => {
   await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Doors Shut');
   const audience = await openWorkspace(page, 'audience');
   await attachTestSource(audience, 'Doors Shut');
 
-  // The door is closed. The submit refusal is COUNTED, and the strip explains it - without
-  // the hint, every dropped line reads as a connector fault.
-  await expect(audience.getByTestId('chat-sources-closed-hint')).toBeVisible();
+  // No Open question is live: the line is a message, through the operator door (the test source
+  // stands in for Twitch). The strip says chat can also vote, and only while the production is open.
+  await expect(audience.getByTestId('chat-votes-hint')).toBeVisible();
   await pushChat(audience, 'early-bird', 'Am I first?', 'e1');
-  await expect(audience.getByTestId('chat-source-stats')).toHaveText('0 in · 1 dropped');
-  await expect(audience.locator('.pd-aud-row')).toHaveCount(0);
-
-  // Opening the door clears the hint and lets the next line through.
-  await audience.getByTestId('audience-open').check();
-  await expect(audience.getByTestId('chat-sources-closed-hint')).toBeHidden();
-  await pushChat(audience, 'early-bird', 'Am I first now?', 'e2');
-  await expect(audience.getByTestId('chat-source-stats')).toHaveText('1 in · 1 dropped');
+  await expect(audience.getByTestId('chat-source-stats')).toHaveText('1 in · 0 dropped');
   await expect(audience.locator('.pd-aud-row')).toHaveCount(1);
+
+  // With an Open question live, the next line answers it through the viewer door.
+  await openDoor(audience);
+  await pushChat(audience, 'early-bird', 'Am I first now?', 'e2');
+  await expect(audience.getByTestId('chat-source-stats')).toHaveText('2 in · 0 dropped');
+  await expect(audience.locator('.pd-aud-row').filter({ hasText: 'Am I first now?' })).toHaveCount(1);
 });
 
 test('pause stops collecting without counting a backlog, resume collects again, remove disconnects', async ({ page }) => {
   await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Half Time');
   const audience = await openWorkspace(page, 'audience');
-  await audience.getByTestId('audience-open').check();
+  await openDoor(audience);
   await attachTestSource(audience, 'Half Time');
 
   await pushChat(audience, 'viewer-one', 'Before the pause', 'p1');
@@ -187,6 +196,7 @@ test('the add form refuses what no driver could use, before any source row exist
   await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Form Check');
   const audience = await openWorkspace(page, 'audience');
+  await moreWaysIn(audience);
 
   // A Twitch name that is not one.
   await audience.getByTestId('chat-add-channel').fill('not a channel!!');
@@ -237,6 +247,7 @@ test('YouTube comments: one press brings the newest 100; the source is remembere
   const showId = await openProductionWithCurrent(page, 'Comments In');
   const calls = await stubYouTube(page, { commentThreads: () => youtubeFixture('comment-threads-page.json') });
   const audience = await openWorkspace(page, 'audience');
+  await moreWaysIn(audience);
 
   await audience.getByTestId('chat-add-platform').selectOption('youtube-comments');
   await expect(audience.getByTestId('chat-add-platform').locator('option')).toContainText(['Comments on a video', 'Live chat of a stream']);
@@ -303,6 +314,7 @@ test('YouTube comments: a refusal says what to do next', async ({ page }) => {
   await productionFor(page, 'Comments Refused');
   await stubYouTube(page, {});
   const audience = await openWorkspace(page, 'audience');
+  await moreWaysIn(audience);
   await audience.getByTestId('chat-add-platform').selectOption('youtube-comments');
   await audience.getByTestId('chat-add-video').fill('jNQXAC9IVRw');
   await audience.getByTestId('chat-add-key').fill(KEY);
@@ -332,6 +344,7 @@ test('YouTube live chat: the first page arrives as earlier, the quota line count
     },
   });
   const audience = await openWorkspace(page, 'audience');
+  await moreWaysIn(audience);
   await audience.getByTestId('chat-add-platform').selectOption('youtube-chat');
   await expect(audience.getByTestId('youtube-quota-cost')).toHaveText(
     "Live chat costs about 3,600 units an hour, so your key's 10,000 a day last about 2 h 46 min.",
@@ -388,6 +401,7 @@ test('YouTube comments: a source removed while its fetch is out adds nothing whe
     await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: youtubeFixture('comment-threads-page.json') });
   });
   const audience = await openWorkspace(page, 'audience');
+  await moreWaysIn(audience);
   await audience.getByTestId('chat-add-platform').selectOption('youtube-comments');
   await audience.getByTestId('chat-add-video').fill('jNQXAC9IVRw');
   await audience.getByTestId('chat-add-key').fill(KEY);

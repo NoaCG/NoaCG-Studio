@@ -394,6 +394,15 @@ source's snapshot, E4.2), added by hand for the same reason: `production_source_
 on and no policy, and `anon` and `authenticated` hold no privilege on it (0101 revokes them and its
 self-check asserts the absence), so it is deny-all like `control_source_reads`. Its three functions
 are security definer and the service role's alone, so they add no anon or authenticated entry.
+It holds **218** as of 2026-11-09, re-recorded with `--update-baseline` from the report of
+post-land run 42627967625 (the landing of #2314, which applied migration 0111, the Interaction
+tab's questions). The 10 new entries are `audience_go_live`, `audience_stop` and
+`audience_clear_results`, control-slug doors like `audience_list`, and the new `audience_submit` and
+`audience_vote` signatures, the phone doors that now name the round and revision they read; each for
+`anon` and `authenticated`. The two old phone signatures had gone, as had one unused index, and 25
+indexes read as unused, a class that never fails. Since then `scripts/advisor-baseline-grants.test.mjs`
+replays the migrations' grants offline and fails a pull request whose client-callable definer
+functions differ from the baseline, so a migration records them before it lands.
 The last full breakdown was taken at 70 on
 2026-08-03 — 49 security (19 authenticated and 13 anon `SECURITY DEFINER` functions, 16 deny-all
 tables, leaked-password protection) and 21 performance (11 unindexed foreign keys, 8 unused

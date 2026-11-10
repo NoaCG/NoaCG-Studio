@@ -201,7 +201,7 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
       const claimed = nameDraft.trim();
       setShows(setShowAudienceSlugs(show.id, { joinSlug: claimed, presenterSlug: show.presenterSlug }));
       setNameDraft('');
-      setNameNote(`✓ The audience link is now /join/${claimed}`);
+      setNameNote(`✓ The audience link is now /j/${claimed}`);
     } catch (e) {
       setNameNote((e as Error).message);
     } finally {

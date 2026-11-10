@@ -11,7 +11,7 @@ import test from 'node:test';
 import { openWave } from './wave-plan-store.mjs';
 import { nextStep, recordStep, readSteps } from './plan-run.mjs';
 import { observePlanLaunch, openStore, phaseNumber, readyPlanLaunch, recordRun, registerRun, renewBlock, tickRun, updateRun } from './run-supervisor.mjs';
-import { digest, readProject, validateAuthorization, writeProject } from './project-authorization.mjs';
+import { WHEN_COMPLETE, digest, readProject, validateAuthorization, writeProject } from './project-authorization.mjs';
 import { preflight } from './plan-run-preflight.mjs';
 import { holdable, wakeVerdict, writeWake } from './run-wake.mjs';
 
@@ -29,7 +29,7 @@ const project = () => ({ version: 1, id: 'fixture-project', ownership: 'local-si
 function fixture(t, edit = (p) => p) {
   const dir = mkdtempSync(path.join(tmpdir(), 'continuing-project-'));
   const p = edit(project());
-  const opened = openWave({ date: '2026-10-19', kind: 'plan-fixture', until: p.authorization.deadline, project: p, dir, now: NOW });
+  const opened = openWave({ date: '2026-10-19', kind: 'plan-fixture', until: p.authorization.deadline ?? WHEN_COMPLETE, project: p, dir, now: NOW });
   assert.equal(opened.refusal, undefined);
   const dbPath = path.join(dir, 'control.sqlite'), db = openStore(dbPath);
   const packet = { objective: 'Generic fixture', acceptance: ['both phases PASS'], nextAction: 'Reconcile', phase: 1,
@@ -101,6 +101,30 @@ test('completion authority crosses the target with bounded blocks and unchanged 
   updateRun(f.db, f.p.id, 'finish', '', later);
   assert.equal(nextStep(f.text(), later).action, 'finished');
   assert.throws(() => renewBlock(f.db, f.p.id, later + 25 * HOUR), /finished/);
+});
+
+test('a plan with no date runs until complete under 24-hour blocks; a wave still needs its date', (t) => {
+  const undated = (p) => { delete p.authorization.deadline; p.authorization.standing = { blockRenewal: 'Renew daily blocks automatically.' }; return p; };
+  const f = fixture(t, undated), later = NOW + 400 * 24 * HOUR;
+  assert.match(f.text(), /^Window ends: when-complete$/m);
+  assert.match(preflight({ context: 'coordinator', wave: f.file, now: NOW, run: networkPass }).checks.at(-1).detail, /start-block/);
+  f.start();
+  assert.equal(preflight({ context: 'coordinator', wave: f.file, now: NOW, run: networkPass }).ok, true);
+  finishPhase(f, 1);
+  assert.equal(nextStep(f.text(), later).action, 'paused');
+  assert.equal(openWave({ date: '2026-10-19', kind: 'plan-fixture', until: WHEN_COMPLETE, dir: f.dir, now: later }).window, 'resumed');
+  assert.match(openWave({ date: '2026-10-19', kind: 'plan-fixture', until: iso(later + HOUR), dir: f.dir, now: later }).refusal, /deadline/);
+  assert.throws(() => updateRun(f.db, f.p.id, 'start-block', { owner: 'coordinator-1', deadline: iso(later + 25 * HOUR), evidence: 'reconciled' }, later), /bounded/);
+  const renewed = renewBlock(f.db, f.p.id, later);
+  assert.equal(Date.parse(renewed.block.deadline), later + 24 * HOUR);
+  assert.equal(nextStep(f.text(), later).action, 'launch');
+  finishPhase(f, 2, later);
+  updateRun(f.db, f.p.id, 'finish', '', later);
+  assert.equal(nextStep(f.text(), later).action, 'finished');
+  const noDate = authorization(); delete noDate.deadline;
+  assert.throws(() => validateAuthorization(noDate, { now: NOW, kind: 'wave' }), /end date/);
+  assert.match(openWave({ date: '2026-10-19', kind: 'day', until: WHEN_COMPLETE, dir: f.dir, now: NOW }).refusal, /only a plan run/);
+  assert.match(openWave({ date: '2026-10-20', kind: 'plan-other', until: WHEN_COMPLETE, dir: f.dir, now: NOW }).refusal, /--project/);
 });
 
 test('completion authority is explicit and cannot renew a pause, wait, uncertainty or wave', (t) => {

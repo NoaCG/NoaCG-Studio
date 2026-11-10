@@ -361,8 +361,10 @@ wrong* — so only the transition declares one.
   NoaCG bundles no encoder and generated templates take no runtime dependency, so the code is
   an SPX image field the operator points at their own PNG, and the address beside it is real
   text (which is also what makes the card work for a viewer who cannot scan). The white tile
-  and its padding are a scannability requirement, not styling. A bundled encoder remains a real
-  option and is recorded as open below.
+  and its padding are a scannability requirement, not styling. The **join-card** type (`jc01`,
+  docs/work-specs/interaction/spec.md) is the first graphic that draws its own code: it carries
+  qrcode-generator (MIT, 21 KB minified) in its script and draws the code from its Join link
+  field, so the export stays self-contained and works offline.
 - **CTAs** (follow / donate / register / buy) → the **call-to-action** type (`lt55`–`lt57`).
   The verb is a FIELD, which is what stops this being four near-identical designs.
 - **Commerce cards** → the **product-card** (`card38`, `card39`), **offer-card** (`card40`,
@@ -409,10 +411,10 @@ wrong* — so only the transition declares one.
   and `map-round` for the series itself.
 - **Lyrics / captions / surtitles** — timed-text playout is a different runtime problem; out
   of scope until external feeds exist.
-- **A bundled QR encoder** — the qr-card type covers the FORMAT with an image field. Generating
-  the code from a URL field would need an encoder inlined into every export (non-negotiable 3
-  forbids a CDN call at playout), which is a real, self-contained piece of work and a real size
-  cost. Worth doing when the field model proves the demand.
+- **A QR drawn from a URL field in any graphic**: the qr-card type covers the FORMAT with an
+  image field, and the join-card type now carries a bundled encoder (21 KB, inlined into that
+  card's own script, never a CDN). A `QR` layer any imported or CLI-made graphic can carry is
+  phase 5 of docs/work-specs/interaction/spec.md.
 
 None of these block a pack: every format's CORE need is covered by the shipped types, which is
 what the mapping above records.

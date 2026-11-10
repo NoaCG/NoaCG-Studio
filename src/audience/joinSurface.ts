@@ -16,12 +16,15 @@
 // key, never anybody else's words.
 
 import { bundledFaceRules, FONTS } from '../model/fonts';
-import { AUDIENCE_LIMITS, type AudienceBrand, type JoinView, type SubmitResult } from './audienceTypes';
+import { css, joinColours, type Rgb } from './joinColours';
+import { pageWords } from '../model/joinPage.ts';
+import { AUDIENCE_LIMITS, JOIN_PAGE_LIMITS, JOIN_WAITING_DEFAULT, type AudienceBrand, type JoinView, type RoundTarget, type SubmitResult } from './audienceTypes';
 
 export interface JoinSurfaceClient {
   load(): Promise<JoinView>;
-  submit(author: string, body: string): Promise<SubmitResult>;
-  vote(roundId: string, option: number): Promise<SubmitResult>;
+  /** An answer to the live Open question this page READ (interaction spec R6). */
+  submit(author: string, body: string, target: RoundTarget): Promise<SubmitResult>;
+  vote(roundId: string, option: number, revision: number): Promise<SubmitResult>;
 }
 
 export interface JoinSurfaceOptions {
@@ -44,54 +47,61 @@ const STYLE_ID = 'noacg-join-style';
  *  overrides the three colours and the face; everything structural stays put, because a viewer
  *  on a 5-inch screen needs the layout to be the same one every time. */
 const CSS = `
-.nj { --nj-accent:#ffb84d; --nj-text:#f4f4f5; --nj-panel:#141417; --nj-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+.nj { --nj-accent:#ffb84d; --nj-text:#f4f4f5; --nj-muted:#a3a3a6; --nj-panel:#141417; --nj-card-text:#f4f4f5;
+  --nj-card-muted:#a6a6a8; --nj-edge:#77777b; --nj-on-accent:#151006; --nj-accent-line:#ffb84d; --nj-accent-text:#ffb84d;
+  --nj-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   min-height:100%; box-sizing:border-box; margin:0 auto; max-width:560px;
   /* viewport-fit=cover means the page runs under the notch and the home indicator, so the
      padding has to know about both — a Send button behind the indicator is unpressable. */
   padding:calc(20px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
           calc(40px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
-  color:var(--nj-text); font-family:var(--nj-font); }
+  color:var(--nj-text); font-family:var(--nj-font); overflow-wrap:anywhere; }
 .nj * { box-sizing:border-box; }
-.nj-title { margin:0 0 4px; font-size:15px; letter-spacing:.14em; text-transform:uppercase; opacity:.6; }
+/* Every colour below is a variable that joinColours.ts has made readable for the production's
+   look (WCAG AA): muted text is a blended colour, never opacity, so it cannot dim below the line. */
+.nj-logo { display:block; height:56px; width:auto; max-width:60%; object-fit:contain; margin:0 0 12px; }
+.nj-title { margin:0 0 4px; font-size:15px; letter-spacing:.14em; text-transform:uppercase; color:var(--nj-muted); }
 .nj-prompt { margin:0 0 20px; font-size:23px; line-height:1.3; font-weight:600; }
 /* The border does the work, not the fill: a production's published panel colour is often within
    a few percent of the page behind it (the studio's own is rgba(10,12,16,.86) on #0b0b0d), and a
    card that reads as a card only for SOME brands is not a card. */
-.nj-card { background:var(--nj-panel); border:1px solid rgba(255,255,255,.16); border-radius:14px;
-  padding:16px; margin-bottom:14px; box-shadow:0 1px 0 rgba(255,255,255,.05) inset; }
+.nj-card { background:var(--nj-panel); color:var(--nj-card-text); border:1px solid var(--nj-edge); border-radius:14px;
+  padding:16px; margin-bottom:14px; }
 /* margin, not margin-bottom: the presenter view uses this class on a <p>, which would otherwise
    keep the browser's 1em top margin and sit lower in its card than the same label does here. */
-.nj-label { display:block; font-size:12px; letter-spacing:.08em; text-transform:uppercase; opacity:.6; margin:0 0 6px; }
+.nj-label { display:block; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--nj-card-muted); margin:0 0 6px; }
 /* 44px minimum on everything a thumb aims at, inputs included — the iOS/Android floor, and the
    reason the padding is not simply "looks about right". */
-.nj input[type=text], .nj textarea { width:100%; min-height:44px; background:rgba(255,255,255,.05); color:inherit; font:inherit;
-  font-size:16px; border:1px solid rgba(255,255,255,.14); border-radius:10px; padding:11px 12px; }
+.nj input[type=text], .nj textarea { width:100%; min-height:44px; background:transparent; color:inherit; font:inherit;
+  font-size:16px; border:1px solid var(--nj-edge); border-radius:10px; padding:11px 12px; }
+.nj input::placeholder, .nj textarea::placeholder { color:var(--nj-card-muted); opacity:1; }
 /* No resize grabber: it is a desktop affordance that lands as a stray mark over the corner of a
    phone-sized box, and a phone scrolls the field instead. */
 .nj textarea { min-height:112px; resize:none; }
-.nj input[type=text]:focus, .nj textarea:focus { outline:2px solid var(--nj-accent); outline-offset:1px; border-color:transparent; }
+.nj input[type=text]:focus, .nj textarea:focus { outline:2px solid var(--nj-accent-line); outline-offset:1px; border-color:transparent; }
 .nj-field + .nj-field { margin-top:14px; }
-.nj-count { text-align:right; font-size:12px; opacity:.55; margin:6px 0 0; }
+.nj-count { text-align:right; font-size:12px; color:var(--nj-card-muted); margin:6px 0 0; }
 .nj-count:empty { display:none; }
-.nj-count.over { color:var(--nj-accent); opacity:1; }
+.nj-count.over { color:var(--nj-card-text); font-weight:700; }
 .nj-send { width:100%; min-height:52px; margin-top:14px; padding:14px; font:inherit; font-weight:700; font-size:16px;
-  color:#151006; background:var(--nj-accent); border:0; border-radius:10px; cursor:pointer; }
-/* A disabled send is its own colour, not the accent at 45%: a washed-out amber slab reads as a
-   broken button rather than as one waiting for something to be typed. */
-.nj-send[disabled] { background:rgba(255,255,255,.08); color:rgba(244,244,245,.5); cursor:default; }
+  color:var(--nj-on-accent); background:var(--nj-accent); border:2px solid var(--nj-accent-line); border-radius:10px; cursor:pointer; }
+/* A disabled send is its own look, not the accent at 45%: a washed-out slab reads as a broken
+   button rather than as one waiting for something to be typed. */
+.nj-send[disabled] { background:transparent; color:var(--nj-card-muted); border-color:var(--nj-edge); cursor:default; }
 .nj-opts { display:grid; gap:10px; }
 .nj-opt { display:flex; align-items:center; gap:12px; width:100%; min-height:52px; text-align:left; font:inherit; font-size:16px;
-  color:inherit; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.14);
+  color:inherit; background:transparent; border:1px solid var(--nj-edge);
   border-radius:10px; padding:14px; cursor:pointer; }
-.nj-opt[aria-pressed=true] { border-color:var(--nj-accent); box-shadow:inset 0 0 0 1px var(--nj-accent); }
+.nj-opt[aria-pressed=true] { border-color:var(--nj-accent-line); box-shadow:inset 0 0 0 1px var(--nj-accent-line); }
 .nj-opt .nj-key { flex:0 0 26px; height:26px; display:grid; place-items:center; border-radius:7px;
-  background:rgba(255,255,255,.1); font-size:13px; font-weight:700; }
-.nj-opt[aria-pressed=true] .nj-key { background:var(--nj-accent); color:#151006; }
-.nj-note { margin:10px 0 0; font-size:14px; line-height:1.45; opacity:.8; }
-.nj-note.bad { color:var(--nj-accent); opacity:1; }
+  border:1px solid var(--nj-edge); font-size:13px; font-weight:700; }
+.nj-opt[aria-pressed=true] .nj-key { background:var(--nj-accent); color:var(--nj-on-accent); border-color:var(--nj-accent-line); }
+.nj-note { margin:10px 0 0; font-size:14px; line-height:1.45; }
+.nj-card .nj-note { color:var(--nj-card-muted); }
+.nj-note.bad { color:var(--nj-accent-text); }
 .nj-mine { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
-.nj-mine li { font-size:14px; line-height:1.45; opacity:.75; border-left:2px solid var(--nj-accent); padding-left:10px; }
-.nj-waiting { text-align:center; padding:26px 10px; opacity:.7; font-size:16px; line-height:1.5; }
+.nj-mine li { font-size:14px; line-height:1.45; color:var(--nj-card-muted); border-left:2px solid var(--nj-accent-line); padding-left:10px; }
+.nj-waiting { text-align:center; padding:26px 10px; color:var(--nj-muted); font-size:16px; line-height:1.5; }
 `;
 
 /**
@@ -129,16 +139,44 @@ export function ensureJoinStyle(doc: Document): void {
   doc.head.appendChild(style);
 }
 
+/** A logo address the page may load: the published https one, or (rehearsal) the look's own
+ *  image as a data URL. Nothing else becomes an <img> source. */
+function logoUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const v = value.trim();
+  if (/^https?:\/\/[^\s"'<>]+$/i.test(v)) return v;
+  if (/^data:image\/(png|jpeg|webp|gif|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(v)) return v;
+  return null;
+}
+
+/** The brand each root last had applied: a poll re-renders every few seconds, the brand rarely changes. */
+const applied = new WeakMap<HTMLElement, string>();
+
 function applyBrand(root: HTMLElement, brand: AudienceBrand | null | undefined): void {
-  // Only the four published values, and only when they are strings — a brand arrives as jsonb
-  // written at publish, so it is data, and data gets checked before it becomes a style.
-  const set = (name: string, value: unknown) => {
-    if (typeof value === 'string' && value.trim()) root.style.setProperty(name, value);
+  const key = JSON.stringify([brand?.accent, brand?.text, brand?.panel, brand?.font]);
+  if (applied.get(root) === key) return;
+  applied.set(root, key);
+  // A brand arrives as jsonb written at publish, so it is data: joinColours reads only colours it
+  // can parse, and makes each one readable where it is used (interaction spec, Contrast).
+  const c = joinColours(brand);
+  const vars: Record<string, Rgb> = {
+    '--nj-text': c.text,
+    '--nj-muted': c.textMuted,
+    '--nj-panel': c.panel,
+    '--nj-card-text': c.cardText,
+    '--nj-card-muted': c.cardMuted,
+    '--nj-edge': c.cardEdge,
+    '--nj-accent': c.accent,
+    '--nj-on-accent': c.onAccent,
+    '--nj-accent-line': c.accentLine,
+    '--nj-accent-text': c.accentText,
   };
-  set('--nj-accent', brand?.accent);
-  set('--nj-text', brand?.text);
-  set('--nj-panel', brand?.panel);
-  set('--nj-font', brand?.font);
+  for (const [name, value] of Object.entries(vars)) root.style.setProperty(name, css(value));
+  // The face, with the page's own stack behind it: a custom face that fails to load falls back to
+  // the system font and the layout holds, because nothing here is sized to one face's metrics.
+  const font = typeof brand?.font === 'string' && brand.font.trim() ? brand.font : null;
+  if (font) root.style.setProperty('--nj-font', `${font}, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif`);
+  else root.style.removeProperty('--nj-font');
 }
 
 const el = <K extends keyof HTMLElementTagNameMap>(
@@ -166,7 +204,10 @@ export function mountJoinSurface(
   root.classList.add('nj');
 
   let view: JoinView | null = null;
-  let note: { text: string; bad: boolean } | null = null;
+  // A note says what happened to the viewer's last send. A thanks belongs to the round it was for
+  // (`round`): once the room moves on it goes, so a phone never says "Counted" under the next
+  // question or the waiting text. A refusal stays: it explains why the question changed (R14).
+  let note: { text: string; bad: boolean; round?: string } | null = null;
   let busy = false;
   let destroyed = false;
   let timer = 0;
@@ -175,6 +216,31 @@ export function mountJoinSurface(
 
   const pollMs = options.pollMs ?? 5_000;
   const polling = options.poll !== false;
+
+  // ONE logo element, kept across renders: a poll rebuilds the page every few seconds, and a fresh
+  // <img> each time would blink. It shows only once it has loaded, and a URL that failed is never
+  // tried again in this page's life, so a broken logo shows nothing rather than a broken image.
+  let logo: { url: string; img: HTMLImageElement } | null = null;
+  const failedLogos = new Set<string>();
+  const logoNode = (url: string | null): HTMLImageElement | null => {
+    if (!url || failedLogos.has(url)) return null;
+    if (logo?.url !== url) {
+      const img = el('img', 'nj-logo');
+      img.alt = '';
+      img.decoding = 'async';
+      img.style.visibility = 'hidden';
+      img.addEventListener('load', () => {
+        img.style.visibility = '';
+      });
+      img.addEventListener('error', () => {
+        failedLogos.add(url);
+        img.remove();
+      });
+      img.src = url;
+      logo = { url, img };
+    }
+    return logo.img;
+  };
 
   const render = () => {
     if (destroyed) return;
@@ -187,22 +253,28 @@ export function mountJoinSurface(
     }
     // An unknown or withdrawn join link says the same thing as a closed one. The URL is a
     // capability: "no such production" and "not right now" must be indistinguishable.
-    const name = view.productionName || 'This production';
+    const brand = view.brand;
+    const logo = logoNode(logoUrl(brand?.logo));
+    if (logo) root.appendChild(logo);
+    // The page's title: the operator's, else the production's name (interaction spec, Join).
+    const name = pageWords(brand?.title, JOIN_PAGE_LIMITS.title) || view.productionName || 'This production';
     root.appendChild(el('p', 'nj-title', name));
 
     const { state } = view;
     if (!state.open) {
-      root.appendChild(
-        el('p', 'nj-waiting', 'Not taking part right now. Keep this page open — it updates by itself.'),
-      );
+      root.appendChild(el('p', 'nj-waiting', pageWords(brand?.waiting, JOIN_PAGE_LIMITS.waiting) || JOIN_WAITING_DEFAULT));
+      // A send refused because the question closed says so here too (R14).
+      renderNote();
       renderMine();
       return;
     }
 
     root.appendChild(el('p', 'nj-prompt', state.prompt || defaultPrompt(state.mode)));
 
-    if (state.round && (state.mode === 'poll' || state.mode === 'quiz')) renderRound();
-    else if (state.mode === 'question' || state.mode === 'comment') renderCompose();
+    // What is live decides the input: an Open question takes a sentence, a Multiple choice one
+    // takes a tap. Nothing else can be sent, because every send names the live round.
+    if (state.round?.kind === 'open') renderCompose();
+    else if (state.round) renderRound();
     else root.appendChild(el('p', 'nj-waiting', 'Standing by.'));
 
     renderNote();
@@ -218,7 +290,7 @@ export function mountJoinSurface(
 
   const renderCompose = () => {
     const card = el('div', 'nj-card');
-    const isComment = view?.state.mode === 'comment';
+    const round = view?.state.round;
 
     // Labels are wired to their fields with for/id rather than merely sitting above them: on a
     // phone the label is the biggest thing near a small box, and tapping it has to focus.
@@ -237,13 +309,13 @@ export function mountJoinSurface(
     nameField.append(nameLabel, nameInput);
 
     const bodyField = el('div', 'nj-field');
-    const bodyLabel = el('label', 'nj-label', isComment ? 'Your message' : 'Your question');
+    const bodyLabel = el('label', 'nj-label', 'Your answer');
     bodyLabel.htmlFor = 'nj-body';
     const bodyInput = el('textarea');
     bodyInput.id = 'nj-body';
     bodyInput.maxLength = AUDIENCE_LIMITS.body;
     bodyInput.value = draft.body;
-    bodyInput.placeholder = isComment ? 'Type your message…' : 'Type your question…';
+    bodyInput.placeholder = 'Type your answer';
     const count = el('p', 'nj-count');
     bodyField.append(bodyLabel, bodyInput, count);
 
@@ -261,7 +333,7 @@ export function mountJoinSurface(
     };
     bodyInput.addEventListener('input', sync);
     send.addEventListener('click', () => {
-      void sendNow(nameInput.value, bodyInput.value);
+      if (round) void sendNow(nameInput.value, bodyInput.value, { roundId: round.id, revision: round.revision });
     });
 
     card.append(nameField, bodyField, send);
@@ -291,7 +363,7 @@ export function mountJoinSurface(
       const label = el('span', undefined, option);
       button.append(key, label);
       button.addEventListener('click', () => {
-        void voteNow(round.id, index);
+        void voteNow(round.id, index, round.revision);
       });
       list.appendChild(button);
     });
@@ -317,6 +389,7 @@ export function mountJoinSurface(
       const next = await client.load();
       if (destroyed) return;
       view = next;
+      if (note && !note.bad && note.round !== (view.state.round?.id ?? undefined)) note = null;
       render();
     } catch {
       // A failed poll is not an event a viewer needs told about: the next one is five seconds
@@ -324,32 +397,35 @@ export function mountJoinSurface(
     }
   };
 
-  const sendNow = async (author: string, body: string) => {
+  const sendNow = async (author: string, body: string, target: { roundId: string; revision: number }) => {
     if (busy) return;
     busy = true;
     note = null;
     render();
-    const result = await client.submit(author, body);
+    const result = await client.submit(author, body, target);
     busy = false;
     if (result.ok) {
       draft.body = '';
-      note = { text: 'Sent — thanks. It goes to the team, who choose what to show.', bad: false };
+      note = { text: 'Sent — thanks. It goes to the team, who choose what to show.', bad: false, round: target.roundId };
     } else {
+      // A refusal keeps what was typed. When the question moved on under this phone (R14) the
+      // error says so and the re-read below shows the new question; nothing is resent unless the
+      // viewer sends again.
       note = { text: result.error ?? 'That could not be sent right now.', bad: true };
     }
     await load();
     render();
   };
 
-  const voteNow = async (roundId: string, option: number) => {
+  const voteNow = async (roundId: string, option: number, revision: number) => {
     if (busy) return;
     busy = true;
     note = null;
     render();
-    const result = await client.vote(roundId, option);
+    const result = await client.vote(roundId, option, revision);
     busy = false;
     note = result.ok
-      ? { text: 'Counted. You can change your mind while the vote is open.', bad: false }
+      ? { text: 'Counted. You can change your mind while the vote is open.', bad: false, round: roundId }
       : { text: result.error ?? 'That vote could not be counted.', bad: true };
     await load();
     render();
@@ -381,6 +457,7 @@ export function mountJoinSurface(
     },
     destroy() {
       destroyed = true;
+      applied.delete(root);
       window.clearTimeout(timer);
       document.removeEventListener('visibilitychange', onVisible);
       root.textContent = '';
