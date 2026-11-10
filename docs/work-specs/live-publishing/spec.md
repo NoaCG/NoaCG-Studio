@@ -301,8 +301,9 @@ Filled in by each phase's pull request.
   2 s doubling to 15 s while unanswered, and offline (no backend) answers "This link no longer
   works" at once. The redirect's backend test lives in
   `e2e/configured/operator-outage-not-unpublished.spec.ts` (the configured suite is the layer that
-  can resolve a slug; the offline half is `e2e/shows.spec.ts`). `e2e/hosted-control.spec.ts` was
-  renamed to `e2e/published-control.spec.ts` because almost all of it guards shared code.
+  can resolve a slug; the offline half is `e2e/shows.spec.ts`). `e2e/hosted-control.spec.ts` keeps
+  its name and its shared-code tests (receiver, panel spec, payload): almost all of it guards shared
+  code, and the capacity gate prices a renamed offline spec as a new one.
   Retargeted specs open the other operator as a second device: a fresh browser signed in to
   the same account (`openSecondProductionPage`), so it holds no local copy, as the hosted seat did not.
   `PanelGraphicSpec` stays exported: it is the return type of the shared `buildPanelSpec`.

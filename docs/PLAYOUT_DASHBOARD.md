@@ -549,7 +549,7 @@ the three faces' words (`SPACE_FACES`), the checkbox's tooltip and the empty-PRE
 generation time, the decision as the table of its eight outcomes (`spaceActionTable`) - nothing
 about the mode is written twice. Both modes are pinned
 on the in-app page and the exported controller in `e2e/production-controls.spec.ts`, the storage
-contract in `e2e/published-control.spec.ts`.
+contract in `e2e/hosted-control.spec.ts`.
 
 ### 2g. The clip clock and the server's word (built 2026-09-28)
 

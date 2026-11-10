@@ -3,7 +3,7 @@
 // TYPED OGRAF DATA THROUGH A RELOAD (docs/work-specs/playout-ograf-contract/spec.md, E1.2b), in
 // Node. The browser halves are e2e/output-typed-recovery.spec.ts (the real /output renderer: the
 // typed baseline, the log below the reports, the renderer's round trip and the refusals) and
-// e2e/published-control.spec.ts (the exported receiver refusing a typed row, #1761).
+// e2e/hosted-control.spec.ts (the exported receiver refusing a typed row, #1761).
 //   - AC-2, output replay and baseline: a report of typed data carries its envelope and steps; a
 //     graphic no report banks is replayed from below the reports when its data on air is typed
 //     (#1762), on as many tail pages as that takes; PROGRAM is rebuilt from the same baseline;
@@ -216,7 +216,7 @@ test('PROGRAM is rebuilt from a typed report: its envelope and look, its pose or
 
 test('the exported receiver refuses a typed row whole and holds, in ES5', () => {
   // The block is generated text an export embeds; its typed rule is read from the source here (the
-  // module imports the app's backend config) and walked in a browser by e2e/published-control.spec.ts.
+  // module imports the app's backend config) and walked in a browser by e2e/hosted-control.spec.ts.
   const text = source('src/control/hostedReceiver.ts');
   const rule = text.slice(text.indexOf("  var refused = '';"), text.indexOf('  // Apply one command through'));
   assert.match(rule, /function held\(m\)/);

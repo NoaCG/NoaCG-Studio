@@ -19,6 +19,10 @@ import { frameCss, type AppliedAppearance } from '../src/control/cueAdjust';
 // Publishing and operating need a real backend, which this suite deliberately does not have
 // (offline-pinned). What is pinned here is the half that runs locally: which library record a show
 // graphic's entries come from, what the payload and panel spec say, and how the receiver behaves.
+//
+// The file keeps its name after the hosted control page's retirement
+// (docs/work-specs/retire-hosted-control/spec.md): "hosted" here is the hosted-control log and the
+// published payload, which every production still has.
 
 test('a saved graphic carries its entries into the show it is added to', async ({ page }) => {
   await bootstrapGraphic(page, 'Hairline');

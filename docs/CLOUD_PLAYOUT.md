@@ -334,7 +334,7 @@ The page:
   `last_event_id`, a graphic loaded after the cue was taken dropped that cue for good. It now
   calls `receiverFollowFrom` — `control/outputRecovery.ts`, beside the renderer's rule, emitted
   into the block as ES5 because that plane can import nothing, and the two forms are asserted
-  equal by `e2e/published-control.spec.ts` rather than trusted. The boot also READS the log itself
+  equal by `e2e/hosted-control.spec.ts` rather than trusted. The boot also READS the log itself
   now, before the socket, instead of relying on `ws.onopen` to do it.
   **Where it differs, and why:** a report with no `event` baseline is trusted here (start at the
   head) where the renderer would replay from the log start. `control_report` (migration 0008)
@@ -369,7 +369,7 @@ The page:
   A renderer running on the floor instead of the stream is a production on a 30 s delay, and it
   looks identical to a quiet show from every seat unless it says so.
   `e2e/configured/output-realtime-floor.spec.ts` intercepts the socket and takes a cue through
-  it; `e2e/published-control.spec.ts` does the same offline for the relay block.
+  it; `e2e/hosted-control.spec.ts` does the same offline for the relay block.
 - **Recovery is never watchable.** The doctrine is data, then SNAP — instant, timers arm — and
   catch-up rows break it by their nature: they are ordinary commands, so replaying them animates.
   A reopened output would air the outage's history (a graphic entering, a cue leaving, another
