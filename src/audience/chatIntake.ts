@@ -33,9 +33,10 @@
 // change is the DB trigger's, and that is an owner decision, not a connector default.
 
 import { uuid } from '../model/id';
-import { AUDIENCE_LIMITS, OPERATOR_ADD_MAX, type AudienceSubmission, type CandidateInput, type SubmitResult } from './audienceTypes';
+import { AUDIENCE_LIMITS, OPERATOR_ADD_MAX, type AudienceRound, type AudienceSubmission, type CandidateInput, type RoundTarget, type SubmitResult } from './audienceTypes';
+import { CHAT_VOTES_MAX, chatVoter, inVoteWindow, latestPerVoter, voteOption, type ChatVote, type ChatVoteOutcome } from './chatVotes.ts';
 import { twitchChatDriver } from './twitchChat';
-import { recordSpend, rememberKey, rememberedKey, youtubeChatDriver } from './youtubeChat';
+import { recordSpend, rememberKey, rememberedKey, youtubeChatDriver, type YouTubeIo } from './youtubeChat';
 
 /** One normalized chat line, whatever platform it came from. */
 export interface ChatDriverMessage {
@@ -48,6 +49,10 @@ export interface ChatDriverMessage {
   text: string;
   /** Said before the source connected: the live chat's first page (YouTube). */
   earlier?: boolean;
+  /** The platform's own time of the message, in ms (YouTube `publishedAt`, Twitch `tmi-sent-ts`). */
+  at?: number;
+  /** The voter identity (`yt:<channel id>`, `tw:<user id>`), when the platform gives a user id. */
+  voter?: string | null;
 }
 
 export interface ChatDriverHandlers {
@@ -96,15 +101,34 @@ export interface ChatSourceState {
   /** Messages refused: dedupe, the local throttle, or the provider's own caps. Visible in the
    *  UI, because a limiter that drops silently is indistinguishable from a broken connector. */
   dropped: number;
+  /** Votes sent to the live Multiple choice question (interaction spec, "Chat votes"). */
+  votes: number;
 }
 
 /** The submit half of the audience plane, as the workspace wires it: the LOCAL provider's own
  *  submit in rehearsal, the join-slug Supabase provider's on a published production - the
  *  viewer's door in both cases, which is the whole point. */
-export type ChatSubmit = (deviceToken: string, author: string, body: string) => Promise<SubmitResult>;
+export type ChatSubmit = (deviceToken: string, author: string, body: string, target?: RoundTarget) => Promise<SubmitResult>;
 
 /** The operator door, as the production's audience backend offers it (`addCandidates`). */
 export type ChatAdd = (items: CandidateInput[]) => Promise<AudienceSubmission[]>;
+
+/**
+ * The door chat votes go through (interaction spec, "Chat votes"; C1 to C10): what is live now, and
+ * the production's `audience_operator_votes` (the local room in rehearsal). Wired by the production
+ * page, so chat counts as votes only while a production page is open.
+ */
+export interface ChatVoteDoor {
+  /** The round open now, of any kind, or null. Throws when it cannot be read. */
+  live(): Promise<AudienceRound | null>;
+  send(roundId: string, votes: ChatVote[]): Promise<ChatVoteOutcome>;
+}
+
+/** How long a reading of the live round is used before it is read again. */
+export const CHAT_LIVE_READ_MS = 3_000;
+
+/** The provenance a Twitch line carries when it goes in through the operator door. */
+export const TWITCH_SOURCE = 'Twitch chat';
 
 /** A refused YouTube add is tried again this often, this many times, before it counts as dropped. */
 export const CHAT_ADD_RETRY_MS = 5_000;
@@ -195,7 +219,9 @@ export function spendYouTube(units: number): void {
 /** A handle the test driver returns: push a line as if the platform delivered it. */
 export interface TestChatSource {
   source: ChatSourceState;
-  push(authorName: string, text: string, id?: string): void;
+  /** `extra.at` is the platform time in ms (now by default); `extra.voter` the voter identity
+   *  (`tw:<author>` by default). */
+  push(authorName: string, text: string, id?: string, extra?: { at?: number; voter?: string }): void;
 }
 
 /** The intake throttle, sized against the DB's per-show burst (20 per 10 s): chat may take at
@@ -257,6 +283,10 @@ export interface ChatIntake {
   setSubmit(submit: ChatSubmit | null): void;
   /** The operator door YouTube lines go through (the production's current backend). */
   setAdd(add: ChatAdd | null): void;
+  /** The door chat votes go through; null leaves every line a message, as before chat votes. */
+  setVotes(door: ChatVoteDoor | null): void;
+  /** What is live may have changed (this page's Go live or Stop): read it again for the next line. */
+  liveChanged(): void;
   /** The running source for a production source record, if any. */
   forSource(sourceId: string): ChatSourceState | null;
   onChange(cb: () => void): () => void;
@@ -285,7 +315,8 @@ export function chatIntakeFor(showId: string): ChatIntake {
   return made;
 }
 
-export function createChatIntake(): ChatIntake {
+/** `youtubeIo` lets a Node test run the YouTube reader on recorded pages and a fake clock. */
+export function createChatIntake(options: { youtubeIo?: YouTubeIo } = {}): ChatIntake {
   const runtimes: SourceRuntime[] = [];
   const listeners: Array<() => void> = [];
   /** Accept timestamps across ALL of this production's sources - the throttle is per
@@ -293,6 +324,12 @@ export function createChatIntake(): ChatIntake {
   const accepts: number[] = [];
   let submit: ChatSubmit | null = null;
   let add: ChatAdd | null = null;
+  let voteDoor: ChatVoteDoor | null = null;
+  /** The last reading of the live round, and when it was read (CHAT_LIVE_READ_MS). */
+  let liveRead: { at: number; round: AudienceRound | null } | null = null;
+  /** Lines waiting for a reading of the live round, in arrival order. */
+  const unsorted: Array<{ runtime: SourceRuntime; message: ChatDriverMessage; text: string }> = [];
+  let sorting = false;
   const changed = () => listeners.forEach((cb) => cb());
   /** YouTube lines waiting for the operator door, per source: a page goes in as one call. */
   const outbox = new Map<SourceRuntime, CandidateInput[]>();
@@ -370,17 +407,134 @@ export function createChatIntake(): ChatIntake {
       }
     }
 
+    // With a vote door, every line waits for a reading of what is live: a vote needs its round, and
+    // a Twitch line goes to the inbox unless an Open question is live (C10).
+    if (voteDoor) {
+      unsorted.push({ runtime, message, text });
+      if (!sorting) void sortWaiting();
+      return;
+    }
+    route(runtime, message, text, undefined);
+  };
+
+  const readLive = async (fresh = false): Promise<AudienceRound | null> => {
+    const door = voteDoor;
+    if (!door) return null;
+    if (!fresh && liveRead && Date.now() - liveRead.at < CHAT_LIVE_READ_MS) return liveRead.round;
+    const round = await door.live();
+    liveRead = { at: Date.now(), round };
+    return round;
+  };
+
+  /** The live round for a batch. A failed reading is tried again, never taken as "nothing live";
+   *  after CHAT_ADD_TRIES the lines go on as before chat votes (`undefined`). */
+  const readForBatch = async (): Promise<AudienceRound | null | undefined> => {
+    for (let tries = 0; ; tries += 1) {
+      try {
+        return await readLive();
+      } catch {
+        if (tries >= CHAT_ADD_TRIES || !voteDoor) return undefined;
+        await new Promise((r) => setTimeout(r, CHAT_ADD_RETRY_MS));
+      }
+    }
+  };
+
+  /** Sort waiting lines into votes and messages against one reading of the live round. */
+  async function sortWaiting() {
+    sorting = true;
+    try {
+      while (unsorted.length) {
+        const round = await readForBatch();
+        const batch = unsorted.splice(0, unsorted.length);
+        const votes: Array<{ runtime: SourceRuntime; vote: ChatVote }> = [];
+        for (const { runtime, message, text } of batch) {
+          if (runtime.state.status === 'stopped') continue;
+          const option = round?.kind === 'poll' ? voteOption(text, round.options.length) : null;
+          if (round && option !== null) {
+            // C1, C6: a vote counts once, from a known voter, said inside the window. The window
+            // alone judges the earlier page, a paused backlog and a replay. A vote-shaped line that
+            // does not count is not a message either (C11).
+            const voter = message.voter ?? (runtime.state.platform === 'test' ? chatVoter('twitch', message.authorId) : null);
+            const at = message.at ?? (runtime.state.platform === 'test' ? Date.now() : NaN);
+            if (!voter || !inVoteWindow(at, round)) {
+              runtime.state.dropped += 1;
+              continue;
+            }
+            votes.push({ runtime, vote: { voter, option, at: new Date(at).toISOString() } });
+            continue;
+          }
+          route(runtime, message, text, round);
+        }
+        if (round && votes.length) sendVotes(round, votes, 0, false);
+        changed();
+      }
+    } finally {
+      sorting = false;
+    }
+  }
+
+  /** Send votes for `round`, CHAT_VOTES_MAX a call, each voter's latest only (C3, C4, C7). */
+  function sendVotes(round: AudienceRound, votes: Array<{ runtime: SourceRuntime; vote: ChatVote }>, tries: number, rerouted: boolean) {
+    const door = voteDoor;
+    const latest = new Set(latestPerVoter(votes.map((v) => v.vote)));
+    const kept = votes.filter((v) => latest.has(v.vote));
+    for (let at = 0; at < kept.length; at += CHAT_VOTES_MAX) {
+      const chunk = kept.slice(at, at + CHAT_VOTES_MAX);
+      const fail = () => {
+        if (tries + 1 > CHAT_ADD_TRIES) {
+          for (const v of chunk) v.runtime.state.dropped += 1;
+          changed();
+          return;
+        }
+        setTimeout(() => sendVotes(round, chunk, tries + 1, rerouted), CHAT_ADD_RETRY_MS);
+      };
+      if (!door) {
+        fail();
+        continue;
+      }
+      door
+        .send(round.id, chunk.map((v) => v.vote))
+        .then(async (outcome) => {
+          if (!outcome.closed) {
+            for (const v of chunk) v.runtime.state.votes += 1;
+            changed();
+            return;
+          }
+          // C5: the round closed under these votes. Once, read what is live now: a vote said after
+          // the next Multiple choice question went live counts there; anything else is dropped.
+          const now = rerouted ? null : await readLive(true).catch(() => null);
+          if (now && now.kind === 'poll' && now.id !== round.id) {
+            const moved = chunk.filter((v) => inVoteWindow(Date.parse(v.vote.at), now) && v.vote.option < now.options.length);
+            for (const v of chunk) if (!moved.includes(v)) v.runtime.state.dropped += 1;
+            if (moved.length) sendVotes(now, moved, 0, true);
+          } else {
+            for (const v of chunk) v.runtime.state.dropped += 1;
+          }
+          changed();
+        })
+        .catch(fail);
+    }
+  }
+
+  /** Queue a line for the operator door: one call per source and moment (`flush`). */
+  const queueAdd = (runtime: SourceRuntime, item: CandidateInput) => {
+    const queued = outbox.get(runtime) ?? [];
+    if (queued.length === 0) queueMicrotask(() => flush(runtime));
+    queued.push(item);
+    outbox.set(runtime, queued);
+  };
+
+  /** A line that is not a vote: into the inbox, as before chat votes. */
+  const route = (runtime: SourceRuntime, message: ChatDriverMessage, text: string, round: AudienceRound | null | undefined) => {
+    const { state } = runtime;
     if (state.platform === 'youtube') {
       // The operator door: no viewer caps to protect, and the page cadence bounds the rate.
-      const waiting = outbox.get(runtime) ?? [];
-      if (waiting.length === 0) queueMicrotask(() => flush(runtime));
-      waiting.push({
+      queueAdd(runtime, {
         author: message.authorName.trim() || message.authorId,
         body: text,
         externalId: message.id ? `yt:${message.id}` : null,
         source: message.earlier ? CHAT_SOURCE_EARLIER : CHAT_SOURCE,
       });
-      outbox.set(runtime, waiting);
       return;
     }
 
@@ -395,13 +549,31 @@ export function createChatIntake(): ChatIntake {
     }
     accepts.push(now);
 
+    // C10: a Twitch line answers the live Open question through the viewer door (R20); with a vote
+    // door wired and no Open question live, it reaches the inbox through the operator door.
+    // The test source stands in for Twitch here, so the offline suite drives this rule too.
+    if ((state.platform === 'twitch' || state.platform === 'test') && round !== undefined && round?.kind !== 'open' && add) {
+      queueAdd(runtime, {
+        author: message.authorName.trim() || message.authorId,
+        body: text,
+        externalId: message.id ? `tw:${message.id}` : null,
+        source: state.platform === 'twitch' ? TWITCH_SOURCE : 'Test chat',
+      });
+      changed();
+      return;
+    }
+
     const send = submit;
     if (!send) {
       state.dropped += 1;
       changed();
       return;
     }
-    send(chatDeviceToken(state.platform, message.authorId), chatAuthorLine(state.platform, message.authorName || message.authorId), text)
+
+    // The round this batch was sorted against is the one the line answers, so the viewer door does
+    // not read what is live a second time.
+    const target = round?.kind === 'open' ? { roundId: round.id, revision: round.revision } : undefined;
+    send(chatDeviceToken(state.platform, message.authorId), chatAuthorLine(state.platform, message.authorName || message.authorId), text, target)
       .then((result) => {
         // A provider refusal (the door is closed, the author hit their own cap) is a DROP the
         // operator can see, never an exception: the caps are working as designed.
@@ -442,6 +614,7 @@ export function createChatIntake(): ChatIntake {
       received: 0,
       submitted: 0,
       dropped: 0,
+      votes: 0,
     };
     const runtime: SourceRuntime = { state, driver: null, seen: new Set() };
     runtimes.push(runtime);
@@ -458,7 +631,7 @@ export function createChatIntake(): ChatIntake {
       if (dup) return { ...dup.state };
       const runtime = makeRuntime(spec.platform, label, spec.platform === 'youtube' ? (spec.sourceId ?? null) : null);
       if (spec.platform === 'twitch') runtime.driver = twitchChatDriver(spec.channel, handlersFor(runtime));
-      else if (spec.platform === 'youtube') runtime.driver = youtubeChatDriver(spec.videoId, spec.apiKey, handlersFor(runtime));
+      else if (spec.platform === 'youtube') runtime.driver = youtubeChatDriver(spec.videoId, spec.apiKey, handlersFor(runtime), options.youtubeIo);
       changed();
       return { ...runtime.state };
     },
@@ -469,8 +642,8 @@ export function createChatIntake(): ChatIntake {
       changed();
       return {
         source: { ...runtime.state },
-        push: (authorName, text, id) =>
-          accept(runtime, { id: id ?? null, authorId: authorName.toLowerCase(), authorName, text }),
+        push: (authorName, text, id, extra) =>
+          accept(runtime, { id: id ?? null, authorId: authorName.toLowerCase(), authorName, text, ...(extra?.at !== undefined ? { at: extra.at } : {}), ...(extra?.voter ? { voter: extra.voter } : {}) }),
       };
     },
 
@@ -497,6 +670,15 @@ export function createChatIntake(): ChatIntake {
 
     setAdd(fn) {
       add = fn;
+    },
+
+    setVotes(door) {
+      voteDoor = door;
+      liveRead = null;
+    },
+
+    liveChanged() {
+      liveRead = null;
     },
 
     forSource(sourceId) {

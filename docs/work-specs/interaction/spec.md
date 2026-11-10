@@ -775,3 +775,93 @@ says the counts are read after the close):
 
 **Walk** (AC-15, first run): `evidence/phase-3.md`. One blocking finding fixed here (the phone's
 thanks outlived its question); #2333 and #2334 filed.
+
+### Phase 4: Chat votes
+
+Previous verified main: `034cbc057621083581361db310d848d7b2530844`. Revert of this merge:
+`git revert -m 1 <merge sha>` (the merge sha is in `evidence/phase-4.md` once it lands). Migration
+0113 is additive for the app: `audience_votes.source` defaults to `phone` and `cast_at` is nullable,
+the phone functions keep their signatures, and `audience_tally` keeps its first three columns, so
+the reverted app runs on it unchanged. Its function and columns can stay; nothing older reads them.
+
+**Rules** (state rules; each is observable). They were written with the code, not before it, and a
+fresh read-only review challenged them before the final assessment:
+
+- C1. A chat line is a vote only while a Multiple choice question is live and the line is only one
+  option's number (`1` to the number of options) or letter (`A` onwards), ignoring case and the
+  spaces around it. Any other line, and every line while no Multiple choice question is live, is
+  a message as before.
+- C2. A chat voter is `yt:<channel id>` or `tw:<user id>`, never a display name. A line with no
+  user id never votes. A phone's token cannot hold a colon, so a chat vote and a phone vote are
+  never the same row.
+- C3. One vote per voter per question; voting again changes it. A repeated message id counts
+  once: the intake drops an id it has seen, and a re-sent vote changes nothing on the server.
+- C4. Per voter, the vote said latest by the platform's own time wins, whatever order the messages
+  arrive in, within one call and across calls; of equal times, the last to arrive.
+- C5. The server counts chat votes only into this production's open Multiple choice round, and
+  refuses any other as "that question has closed". The page then reads what is live once: if
+  another Multiple choice question is live, the votes said inside its window go there; the rest are
+  dropped and counted.
+- C6. The window alone decides: only a line said at or after the question last went live, less one
+  second (the measured allowance), and before it closed, counts, wherever it was read (the YouTube
+  first page marked "earlier", a backlog read after a pause, a reconnect's replay). The server also
+  refuses a time more than a minute ahead of its own clock. A replay is stopped first by the page's
+  dedupe, and after a reload, when the page has forgotten the ids, by the window. A vote that
+  reaches the page after the question closed is not counted, as a phone's would not be.
+- C7. Chat votes go in through `audience_operator_votes(slug, round, items)` with the control slug,
+  at most 500 a call.
+- C8. Each source has its own limits. A chat vote never passes the message throttle (the intake's
+  10 in 10 seconds, the server's 20 per 10 seconds on messages). Phones keep 0035's 300 votes per
+  10 seconds a round, now counted over phone votes only, so a chat burst cannot crowd phones out;
+  chat has its own ceiling of 5,000 per round in 10 seconds.
+- C9. The tally gives phone and chat apart and their sum; a result cue carries the sum. Clear
+  results removes chat votes too, and a question with chat votes counts as answered, so its words
+  are locked (R8).
+- C10. A Twitch line that is not a vote answers the live Open question through the viewer door
+  (R20). With no Open question live, it reaches the inbox under no question through the operator
+  door, deduped by `tw:<message id>`. YouTube lines that are not votes go in as before.
+- C11. Chat is read in the operator's browser, so it counts only while a production page is open;
+  the panel says so. While a vote is live, a vote-shaped line that does not count (outside the
+  window) is not a message either; it is counted as dropped on its source. A line is sorted against
+  one reading of what is live: this page's own Go live or Stop is read at once, another operator's
+  within three seconds, and a failed reading is tried again, never taken as "nothing live". A
+  Twitch answer goes to the Open question that same reading named.
+- C12. Nothing here sends a Take, Update or graphic event (R16).
+- C13. An unpublished production runs C1 to C11 on the local provider, with chat votes kept in the
+  local room store beside the phone votes (an additive field, store version unchanged). The
+  server's chat ceiling (C8) has no local counterpart.
+
+**Decisions** (made in the build, revertible in review):
+
+- The allowance is one second: the recorded YouTube later page gives `publishedAt` in whole
+  seconds, so a line said in Go live's own second can read up to 999 ms earlier; Twitch's
+  `tmi-sent-ts` carries milliseconds. `scripts/chat-votes.test.mjs` re-reads that step from the
+  fixtures. The difference between the platforms' clocks and the database's is not in any fixture
+  and is not covered beyond this second.
+- The window is the one rule for the earlier page, a paused backlog and a replay, as the spec's
+  Chat votes section words it. The first build also refused every line on the earlier page and the
+  first page after a resume; the code review found that a long pause fills more than one page, so
+  the flags were removed rather than extended.
+- Twitch lines that are not votes now reach the inbox when no Open question is live (C10), as the
+  phase 1 decision foresaw ("one line to change"); AC-10 asks that non-vote messages reach the
+  inbox while a vote is live. The intake's test source stands in for Twitch here too, so the
+  offline journey "with no Open question live a chat line reaches the inbox" pins the rule.
+- The panel shows "N phone · M chat" under each option once chat has voted, the count beside the
+  bar stays the sum, and a source's line reads "in · votes · dropped" once it has votes.
+- The tally, `audience_tally`, gained `phone_counts` and `chat_counts`; a table function's columns
+  cannot change in place, so 0113 drops and recreates it with the same arguments and grant.
+- The new operator function is recorded in `supabase/advisor-baseline.json` in this pull request
+  (anon and authenticated, the same intended door as `audience_operator_add`), checked by
+  `scripts/advisor-baseline-grants.test.mjs`. The recorder reads production, which has no 0113
+  yet, so the two entries were written in its format and the replay test confirms them.
+
+**Traps found** (for later phases):
+
+- On a cloud worker the Docker daemon is not running at start; `dockerd` started by hand works,
+  and `npx -y supabase@2.111.0 start -x studio,edge-runtime` brings a local stack up in about five
+  minutes. `scripts/configured-stack.mjs` refuses there, because `ss` is not installed.
+- A migration's self-check skips on a fresh local stack (no account yet). Insert a throwaway
+  `auth.users` row and run the file's DO block with `psql` to see it run.
+- A YouTube page is a burst of lines in one moment, so a vote and the reading of what is live are
+  decided together: the intake reads the live round once per batch (cached three seconds), never
+  per line.

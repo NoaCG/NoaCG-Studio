@@ -402,6 +402,11 @@ export function useMessageSources(show: Pick<Show, 'id' | 'sources'> | null, bac
   useEffect(() => {
     if (!intake || !backend) return;
     intake.setAdd((items) => backend.addCandidates(items));
+    // Chat votes (interaction spec, "Chat votes"): counted while this production page is open.
+    const chatVotes = backend.chatVotes?.bind(backend);
+    intake.setVotes(chatVotes ? { live: async () => openRoundOf(await backend.rounds()), send: chatVotes } : null);
+    // This page's Go live or Stop is read at once, not up to CHAT_LIVE_READ_MS later.
+    return backend.onChange(() => intake.liveChanged());
   }, [intake, backend]);
   const plan = JSON.stringify(
     (show?.sources ?? []).flatMap((s) => (s.kind === 'youtube' && s.config.mode === 'chat' ? [[s.id, s.config.videoId, Boolean(s.paused)]] : [])),
@@ -467,13 +472,11 @@ function MessageSources({
   setShows,
   backend,
   live,
-  accepting,
 }: {
   show: Show;
   setShows: (shows: Show[]) => void;
   backend: ObservableAudience;
   live: boolean;
-  accepting: boolean;
 }) {
   // The intake lives in a per-production registry (the localAudienceFor pattern): a Twitch socket
   // or a YouTube poll must survive the operator's trip to Playout.
@@ -494,8 +497,8 @@ function MessageSources({
 
   // Twitch writes through the VIEWER door that is current: a published production's join slug,
   // otherwise the local rehearsal provider. Deliberately not cleared on unmount. The door is the
-  // live Open question now (interaction spec R20): a line is filed under it, and with none live it
-  // is refused and counted as dropped. Which round is live is read through the viewer half, as a
+  // live Open question now (interaction spec R20): a line is filed under it. With none live, the
+  // intake sends it to the inbox through the operator door instead (C10). Which round is live is read through the viewer half, as a
   // phone reads it; a published production asks at most every few seconds, so a busy chat does
   // not double its own request rate.
   useEffect(() => {
@@ -507,9 +510,12 @@ function MessageSources({
       cached = { at: Date.now(), target: round?.kind === 'open' ? { roundId: round.id, revision: round.revision } : null };
       return cached.target;
     };
-    const submit: ChatSubmit = async (token, author, body) => {
+    const submit: ChatSubmit = async (token, author, body, sorted) => {
+      let given = sorted;
       const send = async (): Promise<SubmitResult> => {
-        const to = await target().catch(() => null);
+        // The round the intake sorted this line against, when it did (C10); else read it here.
+        const to = given ?? (await target().catch(() => null));
+        given = undefined;
         return to ? viewer.submit(token, author, body, to) : { ok: false, error: 'No Open question is live.' };
       };
       const result = await send();
@@ -705,7 +711,7 @@ function MessageSources({
                 </span>
                 {chat && runtime && (
                   <span className="pd-aud-source-stats" data-testid="chat-source-stats">
-                    {runtime.submitted} in · {runtime.dropped} dropped
+                    {runtime.submitted} in{runtime.votes > 0 && ` · ${runtime.votes} votes`} · {runtime.dropped} dropped
                   </span>
                 )}
                 {chat && runtime?.detail && !source.paused && (
@@ -762,7 +768,7 @@ function MessageSources({
                   per-author caps refuse things by design, and a limiter that drops silently
                   is indistinguishable from a broken connector. */}
               <span className="pd-aud-source-stats" data-testid="chat-source-stats">
-                {s.submitted} in · {s.dropped} dropped
+                {s.submitted} in{s.votes > 0 && ` · ${s.votes} votes`} · {s.dropped} dropped
               </span>
               {s.detail && !s.paused && (
                 <span className="pd-aud-source-detail" data-testid="chat-source-detail">
@@ -836,11 +842,11 @@ function MessageSources({
           </button>
         </p>
       )}
-      {/* The door refusal made visible: Twitch answers the live Open question (R20), so with none
-          live a connected channel would count every line as dropped. */}
-      {!accepting && others.some((s) => s.platform !== 'youtube') && (
-        <p className="hint pd-aud-source-hint" data-testid="chat-sources-closed-hint">
-          Twitch chat answers the live Open question. With none live, its lines are refused.
+      {/* Chat votes are read in this browser (interaction spec, "Chat votes"), so they count only
+          while a production page is open: said once, where the sources are. */}
+      {(others.length > 0 || running.some((r) => r.platform === 'youtube')) && (
+        <p className="hint pd-aud-source-hint" data-testid="chat-votes-hint">
+          While a vote is live, a chat line that is only an option's number or letter counts as a vote. Chat is read only while this production is open.
         </p>
       )}
     </div>
@@ -1583,6 +1589,8 @@ export default function ProductionAudienceWorkspace({
   const joinQrSvg = useMemo(() => (joinUrl ? qrSvg(joinUrl) : null), [joinUrl]);
   const [copied, setCopied] = useState(false);
   const selectedTally = selectedRound ? tallies[selectedRound.id] : undefined;
+  const sum = (counts: number[] | undefined) => (counts ?? []).reduce((a, b) => a + b, 0);
+  const chatVoted = sum(selectedTally?.chat) > 0;
 
   return (
     <section className="pd-audience" data-testid="production-audience">
@@ -1686,6 +1694,12 @@ export default function ProductionAudienceWorkspace({
                           <span className="pd-aud-tally-count" data-testid={`audience-tally-${i}`}>
                             {count}
                           </span>
+                          {/* Phone and chat apart, once chat has voted; the count above is their sum. */}
+                          {chatVoted && (
+                            <span className="pd-aud-tally-split hint" data-testid={`audience-tally-split-${i}`}>
+                              {selectedTally?.phone?.[i] ?? 0} phone · {selectedTally?.chat?.[i] ?? 0} chat
+                            </span>
+                          )}
                         </li>
                       );
                     })}
@@ -1714,7 +1728,8 @@ export default function ProductionAudienceWorkspace({
                       </button>
                     )}
                     <span className="hint">
-                      {selectedTally?.total ?? 0} {(selectedTally?.total ?? 0) === 1 ? 'vote' : 'votes'}. Nothing is on air until you Take the cue.
+                      {selectedTally?.total ?? 0} {(selectedTally?.total ?? 0) === 1 ? 'vote' : 'votes'}
+                      {chatVoted && ` (${sum(selectedTally?.phone)} phone, ${sum(selectedTally?.chat)} chat)`}. Nothing is on air until you Take the cue.
                     </span>
                   </div>
                   {choosingResult === selected.id && selectedRound && (
@@ -2000,7 +2015,7 @@ export default function ProductionAudienceWorkspace({
             data-testid="interaction-more"
           >
             <summary>More ways in</summary>
-            <MessageSources show={show} setShows={setShows} backend={backend} live={live} accepting={liveRound?.kind === 'open'} />
+            <MessageSources show={show} setShows={setShows} backend={backend} live={live} />
             {/* REHEARSAL, and only where it means something: the simulated rows say "(rehearsal)" in
                 their own text, and a published production has a real audience instead. */}
             {backend.simulate && (

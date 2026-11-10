@@ -21,6 +21,7 @@
 
 import { uuid } from '../model/id.ts';
 import { QUESTION_LIMITS, isQuestionId } from '../model/questions.ts';
+import { CHAT_VOTES_MAX, CHAT_VOTE_ALLOWANCE_MS, latestPerVoter, type ChatVote, type ChatVoteOutcome } from './chatVotes.ts';
 import {
   AUDIENCE_LIMITS,
   QUESTION_CLOSED,
@@ -221,6 +222,9 @@ export interface Room {
   rounds: AudienceRound[];
   /** roundId -> device -> option. The key IS the dedupe; an overwrite is "change your vote". */
   votes: Record<string, Record<string, number>>;
+  /** roundId -> chat voter (`yt:...`, `tw:...`) -> the option and the platform time it was said
+   *  (interaction spec, "Chat votes"). Additive optional in the store: an older build ignores it. */
+  chatVotes: Record<string, Record<string, ChatVote>>;
   answers: PhoneAnswer[];
 }
 
@@ -229,6 +233,7 @@ const emptyRoom = (name: string): Room => ({
   presenter: { current: null, next: null },
   rounds: [],
   votes: {},
+  chatVotes: {},
   answers: [],
 });
 
@@ -267,6 +272,17 @@ function readRoomOf(raw: unknown, name: string): Room {
         if (typeof option === 'number') kept[device] = option;
       }
       room.votes[roundId] = kept;
+    }
+  }
+  if (r.chatVotes && typeof r.chatVotes === 'object') {
+    for (const [roundId, byVoter] of Object.entries(r.chatVotes as Record<string, unknown>)) {
+      if (!byVoter || typeof byVoter !== 'object') continue;
+      const kept: Record<string, ChatVote> = {};
+      for (const [voter, raw] of Object.entries(byVoter as Record<string, unknown>)) {
+        const v = raw as Partial<ChatVote> | null;
+        if (v && typeof v.option === 'number' && text(v.at)) kept[voter] = { voter, option: v.option, at: v.at };
+      }
+      room.chatVotes[roundId] = kept;
     }
   }
   room.answers = Array.isArray(r.answers)
@@ -634,6 +650,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
             if (!round.closedAt) throw new Error('a live question cannot change');
             const answered =
               Object.keys(r.votes[round.id] ?? {}).length > 0 ||
+              Object.keys(r.chatVotes[round.id] ?? {}).length > 0 ||
               [...kept(), ...r.answers, ...submissions].some((s) => s.roundId === round!.id);
             if (answered) throw new Error('this question has answers, so it cannot change');
             round.question = snap.text;
@@ -675,6 +692,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
         if (!round) return null;
         if (!round.closedAt) throw new Error('stop the question before clearing its results');
         delete r.votes[round.id];
+        delete r.chatVotes[round.id];
         r.answers = r.answers.filter((s) => s.roundId !== round.id);
         round.revision += 1;
         const rows = kept();
@@ -690,11 +708,45 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
     async tally(roundId: string): Promise<AudienceTally> {
       const r = room();
       const round = r.rounds.find((x) => x.id === roundId);
-      const counts = new Array(round?.options.length ?? 0).fill(0) as number[];
+      const zero = () => new Array(round?.options.length ?? 0).fill(0) as number[];
+      const phone = zero();
+      const chat = zero();
       for (const option of Object.values(r.votes[roundId] ?? {})) {
-        if (option >= 0 && option < counts.length) counts[option] += 1;
+        if (option >= 0 && option < phone.length) phone[option] += 1;
       }
-      return { roundId, counts, total: counts.reduce((a, b) => a + b, 0) };
+      for (const { option } of Object.values(r.chatVotes[roundId] ?? {})) {
+        if (option >= 0 && option < chat.length) chat[option] += 1;
+      }
+      const counts = phone.map((n, i) => n + chat[i]);
+      return { roundId, counts, total: counts.reduce((a, b) => a + b, 0), phone, chat };
+    },
+
+    // The same rules as 0113's `audience_operator_votes` (C3 to C7), over the local room. The server's
+    // chat ceiling (C8) has no counterpart: a rehearsal has no chat burst to bound.
+    async chatVotes(roundId, votes): Promise<ChatVoteOutcome> {
+      if (votes.length > CHAT_VOTES_MAX) throw new Error(`At most ${CHAT_VOTES_MAX} votes at a time.`);
+      return exclusive(() => {
+        const r = room();
+        const round = r.rounds.find((x) => x.id === roundId && !x.closedAt && x.kind === 'poll');
+        if (!round) return { counted: 0, closed: true };
+        const from = Date.parse(round.openedAt) - CHAT_VOTE_ALLOWANCE_MS;
+        const until = Date.now() + 60_000;
+        const byVoter = { ...(r.chatVotes[roundId] ?? {}) };
+        let counted = 0;
+        for (const vote of latestPerVoter(votes)) {
+          const at = Date.parse(vote.at);
+          if (!/^(yt|tw):[A-Za-z0-9_-]{1,120}$/.test(vote.voter) || !(at >= from && at <= until)) continue;
+          if (!Number.isInteger(vote.option) || vote.option < 0 || vote.option >= round.options.length) continue;
+          const held = byVoter[vote.voter];
+          if (held && Date.parse(held.at) > at) continue;
+          byVoter[vote.voter] = { voter: vote.voter, option: vote.option, at: vote.at };
+          counted += 1;
+        }
+        r.chatVotes[roundId] = byVoter;
+        mustSave(r);
+        changed();
+        return { counted };
+      });
     },
 
     async rounds(): Promise<AudienceRound[]> {

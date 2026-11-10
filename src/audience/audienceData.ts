@@ -20,6 +20,7 @@
 // SELECT policy at all — slug authorization cannot be expressed to it. So each surface polls at
 // the cadence its job needs.
 
+import type { ChatVoteOutcome } from './chatVotes.ts';
 import { getSupabase } from '../backend/supabase';
 import { isBackendConfigured, loadBackendConfig } from '../backend/config';
 import {
@@ -480,16 +481,29 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
 
     async tally(roundId: string): Promise<AudienceTally> {
       const sb = await client();
-      const rows = await operator<{ round_id: string; counts: number[]; total: number }[] | null>(() =>
-        sb.rpc('audience_tally', { p_slug: control(), p_round: roundId }),
-      );
-      const row = one<{ round_id: string; counts: number[]; total: number }>(rows);
+      type TallyRow = { round_id: string; counts: number[]; total: number; phone_counts?: number[]; chat_counts?: number[] };
+      const rows = await operator<TallyRow[] | null>(() => sb.rpc('audience_tally', { p_slug: control(), p_round: roundId }));
+      const row = one<TallyRow>(rows);
       if (!row) return { roundId, counts: [], total: 0 };
       return {
         roundId: row.round_id,
         counts: Array.isArray(row.counts) ? row.counts : [],
         total: Number(row.total ?? 0),
+        // 0113: the same counts by source.
+        ...(Array.isArray(row.phone_counts) && Array.isArray(row.chat_counts) ? { phone: row.phone_counts, chat: row.chat_counts } : {}),
       };
+    },
+
+    async chatVotes(roundId, votes): Promise<ChatVoteOutcome> {
+      const sb = await client();
+      const { data, error } = await sb.rpc('audience_operator_votes', {
+        p_slug: control(),
+        p_round: roundId,
+        p_items: votes.map((v) => ({ voter: v.voter, option: v.option, at: v.at })),
+      });
+      if (error && /question has closed/.test(error.message)) return { counted: 0, closed: true };
+      if (error) throw new Error(error.message);
+      return { counted: Number(data ?? 0) };
     },
 
     async rounds(): Promise<AudienceRound[]> {

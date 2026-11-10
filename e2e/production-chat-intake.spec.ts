@@ -145,25 +145,24 @@ test('the throttle and the dedupe refuse visibly, and what passes is what the in
   await expect(audience.getByTestId('audience-filter-inbox')).toContainText('(10)');
 });
 
-test('with no Open question live chat is refused the same as phones, and the surface says so', async ({ page }) => {
+test('with no Open question live a chat line reaches the inbox under no question; with one live it answers it (interaction C10)', async ({ page }) => {
   await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Doors Shut');
   const audience = await openWorkspace(page, 'audience');
   await attachTestSource(audience, 'Doors Shut');
 
-  // No Open question is live, so the door is closed. The submit refusal is COUNTED, and the strip
-  // explains it - without the hint, every dropped line reads as a connector fault.
-  await expect(audience.getByTestId('chat-sources-closed-hint')).toBeVisible();
+  // No Open question is live: the line is a message, through the operator door (the test source
+  // stands in for Twitch). The strip says chat can also vote, and only while the production is open.
+  await expect(audience.getByTestId('chat-votes-hint')).toBeVisible();
   await pushChat(audience, 'early-bird', 'Am I first?', 'e1');
-  await expect(audience.getByTestId('chat-source-stats')).toHaveText('0 in · 1 dropped');
-  await expect(audience.locator('.pd-aud-row')).toHaveCount(0);
-
-  // Putting an Open question live clears the hint and lets the next line through.
-  await openDoor(audience);
-  await expect(audience.getByTestId('chat-sources-closed-hint')).toBeHidden();
-  await pushChat(audience, 'early-bird', 'Am I first now?', 'e2');
-  await expect(audience.getByTestId('chat-source-stats')).toHaveText('1 in · 1 dropped');
+  await expect(audience.getByTestId('chat-source-stats')).toHaveText('1 in · 0 dropped');
   await expect(audience.locator('.pd-aud-row')).toHaveCount(1);
+
+  // With an Open question live, the next line answers it through the viewer door.
+  await openDoor(audience);
+  await pushChat(audience, 'early-bird', 'Am I first now?', 'e2');
+  await expect(audience.getByTestId('chat-source-stats')).toHaveText('2 in · 0 dropped');
+  await expect(audience.locator('.pd-aud-row').filter({ hasText: 'Am I first now?' })).toHaveCount(1);
 });
 
 test('pause stops collecting without counting a backlog, resume collects again, remove disconnects', async ({ page }) => {

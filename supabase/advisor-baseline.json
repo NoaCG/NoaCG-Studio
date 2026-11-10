@@ -1,7 +1,7 @@
 {
   "note": "Advisor findings seen and accepted. Regenerate with `node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording accepts everything currently reported, so read the diff before committing one.",
-  "recordedAt": "2026-11-09",
-  "count": 218,
+  "recordedAt": "2026-11-10",
+  "count": 220,
   "entries": {
     "anon_security_definer_function_executable_public_audience_clear_results_p_slug text, p_question text": {
       "name": "anon_security_definer_function_executable",
@@ -42,6 +42,11 @@
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.audience_operator_settle(p_slug text, p_prefix text, p_present text[])` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_operator_settle`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_audience_operator_votes_p_slug text, p_round uuid, p_items jsonb": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_operator_votes(p_slug text, p_round uuid, p_items jsonb)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_operator_votes`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_audience_presenter_by_slug_p_presenter_slug text": {
       "name": "anon_security_definer_function_executable",
@@ -322,6 +327,11 @@
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.audience_operator_settle(p_slug text, p_prefix text, p_present text[])` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_operator_settle`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_audience_operator_votes_p_slug text, p_round uuid, p_items jsonb": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_operator_votes(p_slug text, p_round uuid, p_items jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_operator_votes`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_audience_presenter_by_slug_p_presenter_slug text": {
       "name": "authenticated_security_definer_function_executable",
