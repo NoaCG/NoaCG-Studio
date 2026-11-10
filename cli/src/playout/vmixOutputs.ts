@@ -58,6 +58,8 @@ export function vmixRedirectRequest(host: string | undefined, path: string | und
 
 interface VmixOutputs {
   keys: Record<string, string>;
+  /** Listener that owns each Browser address, indexed by the same output digest as its key. */
+  bridgePorts?: Record<string, number>;
 }
 
 interface Document {
@@ -85,8 +87,13 @@ function parse(text: string): Document {
       DIGEST.test(id) && typeof key === 'string' && VMIX_INPUT_KEY.test(key))) {
       throw new Error('Invalid vMix output keys.');
     }
-    const keys = Object.values(outputs.keys).map(key => String(key).toLowerCase());
-    if (new Set(keys).size !== keys.length) throw new Error('A vMix Browser key has more than one owner.');
+    const keys = outputs.keys;
+    const inputKeys = Object.values(keys).map(key => String(key).toLowerCase());
+    if (new Set(inputKeys).size !== inputKeys.length) throw new Error('A vMix Browser key has more than one owner.');
+    if (outputs.bridgePorts !== undefined && (!record(outputs.bridgePorts) || !Object.entries(outputs.bridgePorts).every(([id, port]) =>
+      Object.hasOwn(keys, id) && typeof port === 'number' && Number.isInteger(port) && port >= 1 && port <= 65535))) {
+      throw new Error('Invalid vMix Browser listener ports.');
+    }
   }
   if (!Object.entries(data.redirects).every(([alias, digest]) => VMIX_ALIAS.test(alias) && typeof digest === 'string' && DIGEST.test(digest))) {
     throw new Error('Invalid vMix Browser addresses.');

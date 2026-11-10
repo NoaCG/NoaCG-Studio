@@ -641,10 +641,10 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
         if (url === '/state' && adapter.overlays) {
           // What each overlay channel holds, read off vMix's XML over the one connection. Productions
           // linked to this Bridge come with the overlay presses (docs/work-specs/bridge-vmix-adapter).
-          const r = await adapter.overlays(target, typeof body.outputUrl === 'string' ? body.outputUrl : undefined, receivedAt);
+          const r = await adapter.overlays(target, typeof body.outputUrl === 'string' ? body.outputUrl : undefined, { receivedAt, vmixBridgePort: req.socket.localPort });
           send(
             200,
-            r.ok ? { ok: true, v: PLAYOUT_V, session: memory.session, observedAt: Math.round(performance.now()), overlays: r.value, linked: [] } : { ok: false, v: PLAYOUT_V, error: r.error },
+            r.ok ? { ok: true, v: PLAYOUT_V, session: memory.session, observedAt: Math.round(performance.now()), ...r.value, linked: [] } : { ok: false, v: PLAYOUT_V, error: r.error },
             true,
           );
           return;

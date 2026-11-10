@@ -39,6 +39,7 @@ import { readDefaultOutput } from '../../backend/auth';
 import { CueAccentControl } from './RundownColors';
 import {
   act,
+  finishCasparAllOut,
   folderSlot,
   itemSlot,
   listLibrary,
@@ -2629,12 +2630,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const clashes = duplicateLayers(show.graphics);
 
   // CasparCG Out and Clear name a slot without checking what currently plays there.
-  const canSendCaspar = () => pageCanDispatch() && !currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'vmix');
+  const casparAllowed = () => !currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'vmix');
+  const canSendCaspar = () => pageCanDispatch() && casparAllowed();
   const { claimName, downloadEmbed, copy, loadOnSlot, reloadOnSlot, unloadFromSlot, clearThroughBridge, vmixVerb, publishNow, publish } = publishActions(
     publishState,
     {
       show, setShows, setNote, backendConfigured, authStatus, needsSignIn, openSignIn, user, outputUrl, browserOutputUrl,
-      hostedSlug, slotReadable, outputSlot, pageCanDispatch, canSendCaspar, onAirChanged, flushDraft, history, legacyCasparActivity, accountCaspar, publishedReaders,
+      hostedSlug, slotReadable, outputSlot, pageCanDispatch, canSendCaspar, casparAllowed, onAirChanged, flushDraft, history, legacyCasparActivity, accountCaspar, publishedReaders,
       setPublishedReaders, setPublishedStamp, fastEventGraphicsRef, liveCueRef, prepareFlow,
       // Each adjusted cue measured for the copy being published, from the designs Publish just
       // refreshed rather than this page's snapshot of the library, then resolved (capped: a cue the
@@ -2882,17 +2884,25 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     verb: ServerVerb,
     label: string,
     options: { cut?: boolean; takenAt?: number; direct?: boolean } = {},
+    acceptedAllOut = false,
   ): Promise<ServerVerbOutcome | null> => {
     const item = playoutItemFor(cue);
-    if (!item || !canSendCaspar()) return null;
+    if (!item || !(acceptedAllOut ? casparAllowed() : canSendCaspar())) return null;
+    const live = acceptedAllOut ? serverPlayout.ownership.get().onAir[item.id] : undefined;
     return runAndRecord(
       serverPlayout,
       {
-        act: async (settings, action) => (await act(settings, action, canSendCaspar)) ?? { state: 'config', detail: 'The CasparCG action was cancelled.' },
-        loadSettings: loadPlayoutSettings,
+        act: async (settings, action) => {
+          const result = acceptedAllOut
+            ? await finishCasparAllOut(settings, action, casparAllowed, pageCanDispatch, current =>
+                current.cueId === cue.id && (!live?.instance || live.instance === current.instance))
+            : await act(settings, action, canSendCaspar);
+          return result ?? { state: 'config', detail: 'The CasparCG action was cancelled.' };
+        },
+        loadSettings: acceptedAllOut ? () => relevanceSettings : loadPlayoutSettings,
         now: () => performance.now(),
-        wake: () => bridgeWatch.current?.wake(),
-        flush: async () => { await flushDraft(); await history.closeGroup(); },
+        wake: () => { if (pageCanDispatch()) bridgeWatch.current?.wake(); },
+        flush: async () => { if (pageCanDispatch()) { await flushDraft(); await history.closeGroup(); } },
         cueView,
       },
       {
@@ -2909,9 +2919,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
   /** One verb on the playout server, and the note line says how it went, whichever way that was. */
   const playoutVerb = async (cue: ShowCue, verb: ServerVerb, label: string, options: { cut?: boolean } = {}): Promise<boolean> => {
-    const outcome = await serverVerb(cue, verb, label, options);
+    // The graphic verb accepts All out before it gives its native cues the panic cut.
+    const outcome = await serverVerb(cue, verb, label, options, verb === 'out' && options.cut === true);
     if (!outcome) return false;
-    setNote(outcome.note);
+    if (pageCanDispatch()) setNote(outcome.note);
     return outcome.ok;
   };
 
@@ -3028,16 +3039,21 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * must stop it. Each is cut, as All out cuts, and the server is read again at once.
    */
   const outUnnamed = async () => {
-    if (!canSendCaspar()) return;
-    const slots = unnamedSlots(serverPlayout.ownership.get());
+    if (!casparAllowed()) return;
+    const ownership = serverPlayout.ownership.get();
+    const slots = unnamedSlots(ownership);
     if (!slots.size) return;
-    const settings = loadPlayoutSettings();
+    const occupants = [...ownership.unidentified, ...Object.values(ownership.replaced)];
     const failed: string[] = [];
     for (const [address, slot] of slots) {
-      const r = await act(settings, { verb: 'out', slot }, canSendCaspar);
-      if (!r) return;
+      if (!casparAllowed()) break;
+      const expected = occupants.find(occupant => slotAddress(occupant.slot) === address);
+      const r = await finishCasparAllOut(relevanceSettings, { verb: 'out', slot }, casparAllowed, pageCanDispatch, current =>
+        !!expected?.file && current.file === expected.file && ('producer' in expected ? current.producer === expected.producer : true));
+      if (!r) continue;
       if (r.state !== 'ok') failed.push(`${address} did not clear: ${r.detail}`);
     }
+    if (!pageCanDispatch()) return;
     bridgeWatch.current?.wake();
     if (failed.length) setNote(`All out: ${failed.join(' ')}`);
   };
@@ -3711,6 +3727,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // the slot and the outputs say their state in their rows.
     ...(prepareFlow.phase === 'done' ? (prepareFlow.shown ?? []).filter((l) => l.tone === 'bad' && l.key === 'publish').map((l) => ({ key: l.key, tone: 'bad' as const, label: l.label, advice: l.advice })) : []),
   ];
+  const productionNote = note && <p className={note.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="production-note">{note}</p>;
   /** The CasparCG switch (AC-4): display metadata only, nothing airs or stops. */
   const setCaspar = async (on: boolean) => {
     const result = setShowOutputSetup(show.id, withCasparSwitch(show.outputSetup, on));
@@ -3765,6 +3782,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             diagnostics={vmixOn ? 0 : serverOwnership.unidentified.length}
           >
             <PanelProblems checks={problemChecks} />
+            {sub && productionNote}
             {started && (
               <RendererRows
                 outputs={readiness.outputs}
@@ -4175,7 +4193,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             actions, the controls panel and the activity log - and only this box scrolls, so
             the stage head above it and the rundown beside it never move. */}
         <div className="pd-control-area" data-testid="control-area">
-        {note && <p className={note.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="production-note">{note}</p>}
+        {!sub && productionNote}
         <div ref={rundownFeedback} className="pd-rundown-feedback" />
         {lookOpen && (
           <ProductionLook

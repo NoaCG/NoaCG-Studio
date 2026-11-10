@@ -19,6 +19,7 @@ export interface VmixOutputReading {
   configuredOverlay?: number;
   overlay?: VmixOverlayState;
   detail?: string;
+  loadProblem?: string;
 }
 
 /** Scope the XML to this production's address. A missing or failed reading stays unknown. */
@@ -26,13 +27,14 @@ export async function readVmixOutput(settings: PlayoutSettings, outputUrl: strin
   const connection = await testVmix(settings);
   if (!connection.keyed || !connection.info || !outputUrl) return { connection };
   const channel = vmixOverlay(settings, connection.info.overlays);
-  const { result, overlays } = await readVmixOverlays(settings, outputUrl);
+  const { result, overlays, loadProblem } = await readVmixOverlays(settings, outputUrl);
   const configured = overlays?.find(row => row.overlay === channel);
   const owned = configured?.ownsOutput ? configured : overlays?.find(row => row.ownsOutput);
   return {
     connection,
     configuredOverlay: channel,
     overlay: owned ?? configured,
+    loadProblem,
     ...(result.state !== 'ok' ? { detail: result.detail } : {}),
   };
 }
@@ -81,11 +83,12 @@ export async function changeVmixOutput(
   if (!choice) return {};
   if (confirmed && !sameChoice(confirmed.choice, choice)) return { message: 'The vMix output setup changed. Check it and press Load again.' };
   if (!bridgePaired(choice.settings)) return { message: 'Pair NoaCG Bridge to use vMix.' };
-  const { connection, configuredOverlay, overlay, detail } = await readVmixOutput(choice.settings, choice.url);
+  const { connection, configuredOverlay, overlay, detail, loadProblem } = await readVmixOutput(choice.settings, choice.url);
   if (!sameChoice(choice, current())) return {};
   if (connection.result?.state !== undefined && connection.result.state !== 'ok') return { message: connection.result.detail };
   if (!connection.keyed) return { message: 'Update NoaCG Bridge to load or unload an output in vMix.' };
   if (!overlay) return { message: detail ?? 'The vMix overlay could not be read. Check vMix and try again.' };
+  if (verb === 'take' && loadProblem) return { message: loadProblem };
   if (verb === 'take' && overlay.overlay !== configuredOverlay) {
     return { message: `Unload from Overlay ${overlay.overlay} before loading on Overlay ${configuredOverlay}.` };
   }

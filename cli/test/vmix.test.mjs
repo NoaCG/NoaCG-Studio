@@ -579,6 +579,58 @@ test('AC-4: scoped state and renamed Unload use the persisted key, and a missing
   }
 });
 
+
+test('AC-4: a kept Browser on the old HTTP port refuses Load, but can still be unloaded', async () => {
+  const fake = await startFakeVmix();
+  const dir = await mkdtemp(join(tmpdir(), 'noacg-vmix-port-'));
+  const file = join(dir, 'vmix-outputs.json');
+  const makeAdapter = () => createVmixAdapter({ port: fake.port, outputs: vmixOutputStore(file) });
+  const state = (post) => post('/state', { target: { adapter: 'vmix' }, outputUrl: OUTPUT });
+  let oldPort;
+  let newPort;
+  let alias;
+  try {
+    await withBridge(makeAdapter(), async (post, base) => {
+      assert.equal((await act(post, { verb: 'take', item, slot: slot() })).ok, true);
+      oldPort = Number(new URL(base).port);
+      newPort = await freePort();
+      alias = new URL(fake.onChannel(8).url);
+    });
+    await withBridge(makeAdapter(), async (post, base) => {
+      const alreadyOn = await state(post);
+      const mark = fake.functions.length;
+      const stillOn = await act(post, { verb: 'take', item, slot: slot() });
+      assert.equal(stillOn.ok, false, JSON.stringify({ oldPort, newPort, stillOn }));
+      assert.match(stillOn.error.detail, new RegExp('port ' + oldPort));
+      assert.deepEqual(fake.functions.slice(mark), []);
+      assert.equal(alreadyOn.overlays[7].ownsOutput, true);
+      assert.equal(alreadyOn.loadProblem, stillOn.error.detail);
+      assert.equal((await aliasRequest(base, alias, { host: alias.hostname + ':' + newPort })).status, 403);
+
+      assert.equal((await act(post, { verb: 'out', item, slot: slot() })).ok, true);
+      assert.deepEqual(fake.functions.slice(mark).map(f => f.name), ['OverlayInput8Out']);
+      const foreign = fake.add('Browser', 'Another operator');
+      fake.overlays.set(8, foreign.key);
+      const take = await act(post, {
+        verb: 'take', item: { ...item, label: 'Changed name' }, slot: slot(), expectedOverlayInput: foreign.key,
+      });
+      assert.equal(take.ok, false);
+      assert.equal((await state(post)).loadProblem, take.error.detail);
+      assert.equal(fake.onChannel(8).key, foreign.key);
+      assert.deepEqual(fake.functions.slice(mark).map(f => f.name), ['OverlayInput8Out']);
+    }, { port: newPort });
+    await withBridge(makeAdapter(), async (post, base) => {
+      assert.equal((await state(post)).loadProblem, undefined);
+      assert.equal((await aliasRequest(base, alias)).headers.location, OUTPUT);
+    }, { port: oldPort });
+  } finally {
+    await fake.stop();
+    await rm(file, { force: true });
+    await rmdir(dir);
+  }
+});
+
+
 test('AC-4: a dropped AddInput cannot grant ownership and retry uses a fresh address', async () => {
   let oldAlias;
   const fake = await startFakeVmix({

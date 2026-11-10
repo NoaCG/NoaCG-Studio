@@ -42,7 +42,7 @@ export interface VmixAdapter extends PlayoutAdapter<VmixTarget> {
   /** The port a target that names none reaches: 8099, or `--vmix-port`. */
   readonly port: number;
   status(target: VmixTarget, receivedAt?: number): Promise<AdapterResult<{ version: string; vmix: VmixInfo }>>;
-  overlays(target: VmixTarget, outputUrl?: string, receivedAt?: number): Promise<AdapterResult<VmixOverlayState[]>>;
+  overlays: NonNullable<PlayoutAdapter<VmixTarget>['overlays']>;
   outputRedirect(host: string | undefined, path: string | undefined, port: number): Promise<string | undefined>;
   /** Close every connection, for a Bridge that stops. */
   close(): void;
@@ -94,6 +94,11 @@ function ownBrowser(xml: VmixXml, key: string | undefined): VmixInput | undefine
   return key && VMIX_INPUT_KEY.test(key)
     ? xml.inputs.find(input => input.key === key.toLowerCase() && input.type === VMIX_BROWSER_TYPE)
     : undefined;
+}
+
+function browserPortProblem(keptPort: number | undefined, bridgePort: number | undefined): string | undefined {
+  if (keptPort === undefined) return 'NoaCG Bridge cannot verify this vMix Browser address. Unload and remove the Browser input in vMix before loading again.';
+  if (keptPort !== bridgePort) return `This vMix Browser uses NoaCG Bridge port ${keptPort}. Start Bridge on that port and pair it again before loading.`;
 }
 
 function availableName(xml: VmixXml, base: string, key: string): string {
@@ -206,7 +211,7 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
       });
     },
 
-    async overlays(target, outputUrl, receivedAt = Date.now()) {
+    async overlays(target, outputUrl, { receivedAt = Date.now(), vmixBridgePort } = {}) {
       return exclusive(portOf(target), async () => {
         const s = await begin(target, receivedAt + timeoutMs);
         if (!('conn' in s)) return s;
@@ -214,9 +219,12 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
         const id = outputUrl === undefined ? undefined : vmixOutputId(outputUrl);
         if (outputUrl !== undefined && !id) return usage('The vMix state reading needs an http or https output address.');
         let owned: VmixInput | undefined;
+        let loadProblem: string | undefined;
         if (id) {
           try {
-            owned = ownBrowser(s.xml, (await outputs.read(portOf(target))).keys[id]);
+            const kept = await outputs.read(portOf(target));
+            owned = ownBrowser(s.xml, kept.keys[id]);
+            if (owned && vmixBridgePort !== undefined) loadProblem = browserPortProblem(kept.bridgePorts?.[id], vmixBridgePort);
           } catch {
             return storageFailed();
           }
@@ -227,7 +235,7 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
           if (channelKey(s.xml, overlay) === undefined) return refused('vMix did not identify the input on overlay ' + overlay + '.');
           value.push({ overlay, ...(input ? { input } : {}), ...(id ? { ownsOutput: !!owned && input?.key === owned.key } : {}) });
         }
-        return { ok: true, value, raw: s.raw };
+        return { ok: true, value: { overlays: value, ...(loadProblem ? { loadProblem } : {}) }, raw: s.raw };
       });
     },
 
@@ -332,8 +340,10 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
       kept = await outputs.read(port);
       if (kept.keys[id] && !ownBrowser(before, kept.keys[id])) {
         const keys = { ...kept.keys };
+        const bridgePorts = { ...kept.bridgePorts };
         delete keys[id];
-        kept = { ...kept, keys };
+        delete bridgePorts[id];
+        kept = { keys, bridgePorts };
         await outputs.save(port, kept);
       }
     } catch {
@@ -374,6 +384,10 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
       return { ok: true, value: {}, raw: sent.raw };
     }
 
+    if (output) {
+      const problem = browserPortProblem(kept.bridgePorts?.[id], bridgePort);
+      if (problem) return refused(problem);
+    }
     const alreadyOn = (channel: number) => refused(`Unload the output from vMix overlay ${channel} before loading it on overlay ${overlay}.`);
     const existingOverlay = output && otherOverlay(before, output, overlay);
     if (existingOverlay !== undefined) return alreadyOn(existingOverlay);
@@ -397,7 +411,10 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
         output = found.input;
         namingState = found.xml;
         try {
-          await outputs.save(port, { keys: { ...kept.keys, [id]: output.key } }, browser.binding);
+          await outputs.save(port, {
+            keys: { ...kept.keys, [id]: output.key },
+            bridgePorts: { ...kept.bridgePorts, [id]: bridgePort },
+          }, browser.binding);
         } catch {
           return uncertain('vMix added a Browser input, but the Bridge could not keep its key. Nothing was put on air. Look at vMix.');
         }

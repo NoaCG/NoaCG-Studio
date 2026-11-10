@@ -390,6 +390,7 @@ interface BridgeReply {
   channels?: ServerChannel[];
   vmix?: VmixInfo;
   overlays?: VmixOverlayState[];
+  loadProblem?: string;
 }
 
 type Call = { http: number; body: BridgeReply } | { timedOut: true } | { networkError: string };
@@ -565,21 +566,27 @@ function readReply(settings: PlayoutSettings, call: Call, at = `${settings.host}
 
 type PlayoutRoute = '/status' | '/connect' | '/list' | '/thumbnail' | '/act';
 type RequestFields = Record<string, unknown>;
+type VerifyBeforeAct = () => boolean | Promise<boolean>;
 
 /** One request through the Bridge with every hop told apart. A deferred action can
  *  return null if it is superseded before the first mutating request. */
 function through(settings: PlayoutSettings, path: PlayoutRoute, extra: RequestFields, hop?: 'act' | 'list'): Promise<PlayoutReply>;
-function through(settings: PlayoutSettings, path: '/act', extra: () => RequestFields | null): Promise<PlayoutReply | null>;
+function through(settings: PlayoutSettings, path: '/act', extra: () => RequestFields | null, hop?: 'act', verify?: VerifyBeforeAct): Promise<PlayoutReply | null>;
 async function through(
   settings: PlayoutSettings,
   path: PlayoutRoute,
   extra: RequestFields | (() => RequestFields | null),
   hop: 'act' | 'list' = 'act',
+  verify?: VerifyBeforeAct,
 ): Promise<PlayoutReply | null> {
   if (!playoutConfigured(settings)) {
     return { result: { state: 'config', detail: 'Pair NoaCG Bridge and fill in the playout server first (Playout settings).' } };
   }
   const { unreachable, features } = await probeBridge(settings.agentUrl);
+  if (verify && !unreachable) {
+    const allowed = verify();
+    if (!(typeof allowed === 'boolean' ? allowed : await allowed)) return null;
+  }
   const fields = typeof extra === 'function' ? extra() : extra;
   if (fields === null) return null;
   if (unreachable) return { result: unreachable };
@@ -841,10 +848,29 @@ export async function libraryThumbnail(settings: PlayoutSettings, name: string):
 /** One verb on the server. The action carries no page state, so it is exactly what a log row
  *  would carry later. An accepted one carries the slot's generation, and a take its instance. */
 export function act(settings: PlayoutSettings, action: PlayoutAction): Promise<PlayoutResult>;
-export function act(settings: PlayoutSettings, action: PlayoutAction, canSend: () => boolean): Promise<PlayoutResult | null>;
-export async function act(settings: PlayoutSettings, action: PlayoutAction, canSend?: () => boolean): Promise<PlayoutResult | null> {
+export function act(settings: PlayoutSettings, action: PlayoutAction, canSend: () => boolean, verify?: VerifyBeforeAct): Promise<PlayoutResult | null>;
+export async function act(settings: PlayoutSettings, action: PlayoutAction, canSend?: () => boolean, verify?: VerifyBeforeAct): Promise<PlayoutResult | null> {
   if (!canSend) return (await through(settings, '/act', { action })).result;
-  return (await through(settings, '/act', () => canSend() ? { action } : null))?.result ?? null;
+  return (await through(settings, '/act', () => canSend() ? { action } : null, 'act', verify))?.result ?? null;
+}
+
+/** Only an accepted All out can finish a native cut after the production closes. In that case
+ *  check the original slot against live Bridge state before it can be stopped. */
+export function finishCasparAllOut(
+  settings: PlayoutSettings, action: PlayoutAction, casparAllowed: () => boolean, mounted: () => boolean,
+  matches: (slot: SlotState) => boolean,
+): Promise<PlayoutResult | null> {
+  const { slot } = action;
+  if (action.verb !== 'out' || slot.adapter !== 'casparcg') return Promise.resolve(null);
+  let verified = false;
+  return act(settings, action, () => casparAllowed() && (mounted() || verified), () => {
+    if (!casparAllowed()) return false;
+    if (mounted()) return true;
+    return readState(settings, slot.channel).then(({ reply }) => {
+      verified = reply?.slots.some(current => current.layer === slot.layer && !current.arriving && matches(current)) ?? false;
+      return verified;
+    });
+  });
 }
 
 /**
@@ -890,10 +916,10 @@ export function namedOutputUrl(outputUrl: string, name: string): string {
 /** Out on the output layer is a video-layer STOP, so no item is named: the Bridge refuses an
  *  item without a name, and a real 2.5.0 walk on 2026-09-22 caught exactly that being sent. */
 export function takeOutputOff(settings: PlayoutSettings): Promise<PlayoutResult>;
-export function takeOutputOff(settings: PlayoutSettings, canSend: () => boolean): Promise<PlayoutResult | null>;
-export function takeOutputOff(settings: PlayoutSettings, canSend?: () => boolean): Promise<PlayoutResult | null> {
+export function takeOutputOff(settings: PlayoutSettings, canSend: () => boolean, verify?: VerifyBeforeAct): Promise<PlayoutResult | null>;
+export function takeOutputOff(settings: PlayoutSettings, canSend?: () => boolean, verify?: VerifyBeforeAct): Promise<PlayoutResult | null> {
   const action: PlayoutAction = { verb: 'out', slot: slotOf(settings) };
-  return canSend ? act(settings, action, canSend) : act(settings, action);
+  return canSend ? act(settings, action, canSend, verify) : act(settings, action);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -944,7 +970,7 @@ export async function testVmix(settings: PlayoutSettings, reconnect = false): Pr
 }
 
 export async function readVmixOverlays(settings: PlayoutSettings, outputUrl: string): Promise<{
-  result: PlayoutResult; overlays?: VmixOverlayState[];
+  result: PlayoutResult; overlays?: VmixOverlayState[]; loadProblem?: string;
 }> {
   const call = await callBridge(
     settings.agentUrl, '/state', { target: vmixTarget, outputUrl }, ACT_TIMEOUT_MS, settings.agentToken,
@@ -952,7 +978,11 @@ export async function readVmixOverlays(settings: PlayoutSettings, outputUrl: str
   const { result, body } = readReply(settings, call, 'vMix');
   // A vMix Bridge from before output keys can read overlays but cannot identify this production.
   const overlays = body?.overlays;
-  return { result, overlays: Array.isArray(overlays) && overlays.every(row => typeof row?.ownsOutput === 'boolean') ? overlays : undefined };
+  return {
+    result,
+    overlays: Array.isArray(overlays) && overlays.every(row => typeof row?.ownsOutput === 'boolean') ? overlays : undefined,
+    loadProblem: typeof body?.loadProblem === 'string' ? body.loadProblem : undefined,
+  };
 }
 
 export async function actVmix(

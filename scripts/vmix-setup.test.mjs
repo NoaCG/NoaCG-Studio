@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import './lib/tsResolve.mjs';
 
-const { act, PLAYOUT_DEFAULTS } = await import('../src/control/playoutLink.ts');
+const { act, finishCasparAllOut, PLAYOUT_DEFAULTS } = await import('../src/control/playoutLink.ts');
 const { changeVmixOutput, vmixOverlay } = await import('../src/control/vmixSetup.ts');
 
 const settings = { ...PLAYOUT_DEFAULTS, agentToken: 'fixture-token', vmix: { overlay: 3 } };
@@ -67,6 +67,28 @@ test('a fresh reading of the owned live output makes Load a no-op', async (t) =>
   assert.deepEqual(paths, ['/health', '/status', '/state']);
 });
 
+test('a stale vMix Browser listener prevents Load but leaves the owned overlay available to Unload', async (t) => {
+  const loadProblem = 'This vMix Browser uses NoaCG Bridge port 8899.';
+  const actions = [];
+  let ownsOutput = true;
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    const path = new URL(url).pathname;
+    if (path === '/health') return Response.json(health);
+    if (path === '/status') return Response.json(status);
+    if (path === '/state') return Response.json({ ok: true, loadProblem, overlays: [{ overlay: 3, input: occupied, ownsOutput }] });
+    assert.equal(path, '/act');
+    actions.push(JSON.parse(options.body).action);
+    return Response.json({ ok: true });
+  });
+  assert.deepEqual(await changeVmixOutput('take', () => choice), { message: loadProblem });
+  ownsOutput = false;
+  assert.deepEqual(await changeVmixOutput('take', () => choice), { message: loadProblem });
+  assert.deepEqual(actions, []);
+  ownsOutput = true;
+  await changeVmixOutput('out', () => choice);
+  assert.deepEqual(actions.map(action => [action.verb, action.slot]), [['out', { adapter: 'vmix', overlay: 3 }]]);
+});
+
 test('switching adapters during the final health probe sends no vMix action', { timeout: 3000 }, async (t) => {
   const dispatchProbe = Promise.withResolvers();
   const releaseProbe = Promise.withResolvers();
@@ -118,4 +140,42 @@ test('a native Clear cancelled during the health probe does not reach the Bridge
   canClear = false;
   release.resolve();
   assert.equal(await clear, null);
+});
+
+test('accepted All out after navigation reads the original CasparCG slot before cutting', { timeout: 3000 }, async (t) => {
+  for (const change of ['navigation', 'occupant', 'adapter']) {
+    await t.test(change, async (t) => {
+      const entered = Promise.withResolvers();
+      const release = Promise.withResolvers();
+      const paths = [];
+      let mounted = true;
+      let casparAllowed = true;
+      const slot = { adapter: 'casparcg', channel: 2, layer: 10 };
+      const action = { verb: 'out', slot };
+      t.mock.method(globalThis, 'fetch', async (url, options) => {
+        const path = new URL(url).pathname;
+        paths.push(path);
+        if (path === '/health') {
+          entered.resolve();
+          await release.promise;
+          return Response.json(health);
+        }
+        const body = JSON.parse(options.body);
+        if (path === '/state') {
+          assert.equal(body.channel, slot.channel);
+          if (change === 'adapter') casparAllowed = false;
+          return Response.json({ ok: true, session: 'original', slots: [{ layer: slot.layer, instance: change === 'occupant' ? 'replacement' : 'original.1' }] });
+        }
+        assert.equal(path, '/act');
+        assert.deepEqual(body.action, action);
+        return Response.json({ ok: true });
+      });
+      const clearing = finishCasparAllOut(settings, action, () => casparAllowed, () => mounted, current => current.instance === 'original.1');
+      await entered.promise;
+      mounted = false;
+      release.resolve();
+      assert.equal((await clearing)?.state ?? null, change === 'navigation' ? 'ok' : null);
+      assert.deepEqual(paths, ['/health', '/state', ...(change === 'navigation' ? ['/act'] : [])]);
+    });
+  }
 });

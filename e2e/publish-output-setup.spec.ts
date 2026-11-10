@@ -115,6 +115,42 @@ for (const chosen of [true, false]) {
   });
 }
 
+for (const refused of [false, true]) {
+  test(`first Publish from Interaction ${refused ? 'shows the vMix setup error' : 'loads the chosen vMix output'}`, async ({ page }) => {
+    const b = backend();
+    await account(page, b);
+    await seedSettings(page);
+    const vmix = fakeVmix(4);
+    const bridge = await fakeBridge(page, { vmix });
+    const id = await seed(page);
+    await page.getByTestId('production-status').click();
+    await page.getByTestId('vmix-switch').click();
+    await expect(page.getByTestId('vmix-switch')).toBeChecked();
+    await page.keyboard.press('Escape');
+    await page.goto('/app#/production/' + id + '/audience');
+    const setup = 'vMix is not running on this computer. Start vMix.';
+    if (refused) vmix.state.refuseAction = { hop: 'target', code: 'unreachable', setup: 'not-running', detail: setup };
+    await page.getByTestId('join-publish').click();
+    await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true');
+    const panel = page.getByTestId('production-status-panel');
+    await expect(panel).toBeVisible();
+    if (refused) {
+      const note = panel.getByTestId('production-note');
+      await expect(note).toBeVisible();
+      await expect(note).toHaveText(setup);
+    } else await expect(panel.getByTestId('vmix-output')).toContainText('On air');
+    expect(vmix.actions).toEqual([{
+      target: { adapter: 'vmix' },
+      action: {
+        verb: 'take', slot: { adapter: 'vmix', overlay: 4 }, expectedOverlayInput: null,
+        item: { kind: 'url', name: expect.stringContaining('/output?production=output-' + id + '&name=vMix%20Overlay%204'), label: 'Output proof' },
+      },
+    }]);
+    expect(bridge.actions).toEqual([]);
+    await page.screenshot({ path: test.info().outputPath(refused ? 'interaction-vmix-setup.png' : 'interaction-vmix-on-air.png') });
+  });
+}
+
 test('Publish asks nothing, the account default starts the CasparCG switch, and Publish changes keeps every URL',async({page})=>{
   const b=backend();b.defaults[A]=choice('browser',true);await account(page,b);const id=await seed(page);
   // One control and one action in the header; no timer, no output label.

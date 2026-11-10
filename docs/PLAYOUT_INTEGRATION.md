@@ -279,7 +279,8 @@ OBS-specific notes (the dock, local-file and refresh behaviour below was measure
 
 Bridge gives its Browser input a local address that points to the production. If you save it
 in a vMix preset, start Bridge on the same port before opening the preset. If Bridge starts late,
-reload the Browser input from vMix.
+reload the Browser input from vMix. If the Playout panel says the Browser uses a different port,
+start Bridge on the port it names and pair it again. You can still unload the input.
 
 ### Add a Browser input by hand
 

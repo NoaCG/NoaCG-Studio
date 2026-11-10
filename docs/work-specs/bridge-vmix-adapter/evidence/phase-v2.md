@@ -12,8 +12,8 @@ frame. Reopening with the listener down showed the underlying plate and
 stayed there after Bridge startup. Explicit Browser Reload recovered the
 same composite. Each run verified restoration of last.vmix and user.config.
 The isolated prototype lives in C:/claude/Temp/vmix-state-1108.
-V2 reconciled with main at 361cb6f628df0a44d410954aae527cde976d1750 before
-this change.
+V2 first reconciled with main at `361cb6f628df0a44d410954aae527cde976d1750`.
+The latest reconciliation used `7c16e66a89942d7020d19004603d091a56e4f635`.
 
 V2 lets an operator pair, choose vMix and load or unload a published production's
 Browser input on an overlay. Media controls and the media library belong to later
@@ -232,7 +232,7 @@ its display name. Broader routing stays with V4.
 | AC-3 | Browser queue `j-4992` verified pairing, both setup diagnoses, Try again, all eight options, default 8, a choice of 3 surviving reload and Update with an older Bridge. The Settings screenshot was inspected. |
 | AC-4 | The fake TCP and HTTP suite checks exact-marker ownership, the original no-op and sole foreign Browser, a concurrent unrelated addition, malformed or incomplete XML, unknown and modified alias requests, failed or dropped replies, explicit retry, store restart, stale keys, same-title names, transition readback, and replacement during preparation. Two queued delayed additions finished in 5.76 s under the unchanged seven-second action budget. The final packaged executable also passed the owned vMix preset round trip below. |
 | AC-5 | Browser queue `j-4992` passed all 75 tests in the maintained Bridge connection, Publish setup and production persistence specs. It verified one Load of the named output URL with title and Overlay 3, On air from state, Unload from the live overlay after choosing another, Cancel sending nothing, a keyed Replace, the Bridge's setup error, disabling Take and Stop/Clear for a CasparCG cue, switching back to CasparCG, abandoning a Load after navigation, and first Publish with vMix selected and unselected. The production panel was inspected in screenshots. The real run also operated Load and Unload from the studio page. |
-| AC-6 | Local build of NoaCG-Bridge-0.11.0.exe, SHA-256 `0c4104f58d6fe957e552dfa29029598cfc4af590eef119c563f1a709eee0016d`. The final build uses the owner-approved local address. Its smoke test reported 0.11.0, `vmix` and `vmix-output-key`. The published baseline is 0.10.2. The release changes only the independent Bridge version and operator notes. Exact-merge release and download checks remain for the independent checker after the #1967 hold and landing. |
+| AC-6 | The rebuilt NoaCG-Bridge-0.11.0.exe from the current code has SHA-256 `d4c7d358e8f4e2eeb2aea34acd8dc4d6d03c57bbc5933b3c2d6f813ea0f5d94c`. Its smoke test reported 0.11.0, `vmix` and `vmix-output-key`. The published baseline is 0.10.2. The release changes only the independent Bridge version and operator notes. The CI/CD coordinator lifted the hold. Exact-merge release and download checks remain for the independent checker after landing. [Hold release](https://github.com/NoaCG/NoaCG-Studio/issues/1967#issuecomment-6749875855). |
 
 The final packaged preset check used three owned blank vMix 29.0.0.49 Trial
 sessions, with a synthetic renderer and isolated Bridge storage. It saved the
@@ -301,10 +301,53 @@ owned vMix process, and restored `last.vmix` and `user.config` with matching SHA
 The vMix service stayed Running. Other editions were covered by fakes. V4 still owns
 the adapter guard for native rundown and folder actions before it adds vMix media cues.
 
+### Interaction reconciliation and review repairs
+
+The main merge kept the Interaction Publish and name controls, Links pointer and Results mapping,
+along with V2's mounted session and adapter guards. Browser job `j-5030` sent one correct vMix
+Take from Interaction and read On air. When the Bridge refused the Take, the same job found the
+setup sentence hidden with Playout. The note now appears in the Playout panel on another workspace,
+and stays in the control area on Playout. The production uses one note at a time. The final focused
+browser job `j-5034` passed 11 cases, including both Interaction Publish outcomes, the compact panel,
+the `/j/` name change and the offline CasparCG fallback. The error and On air screenshots were
+inspected. The full three-spec pass `j-5031` covered 75 cases. `j-5032` passed the Interaction
+rehearsal, Results staging and QR SVG/PNG journeys.
+
+The exact-base review reproduced two additional faults. Closing the production during the final
+Bridge health read cancelled a CasparCG clear already in progress. An accepted All out can now
+finish a native cut on the original route after navigation if the Bridge still reports the same
+occupant and the saved adapter permits it. An offline renderer fallback admitted before navigation
+also verifies the original slot and production address. A failed cloud clear that returns after
+teardown cannot start a new fallback. Ordinary delayed verbs still need the mounted session. The
+review also found an inherited folder teardown path that can discard a late Take's cleanup after
+All out. This merge does not change that folder engine.
+
+The other reproduction restarted Bridge with the same mixer on a different HTTP port. The old
+build reported a successful Load even though the Browser could only reach the closed listener.
+On a real vMix with Bridge at 48826, the rebuild reported the input still on Overlay 8 and named
+its original port, 48825. Load refused before renaming or changing the overlay. Unload cleared
+the owned input. A kept key with an unknown HTTP port also cannot authorize Load. The redirect,
+Browser source and ownership remain usable on the original port, and startup sends no mixer action.
+
+The rebuilt executable's four owned vMix 29.0.0.49 Trial stages covered create, same-port preset
+reopen, late listener with explicit Browser Reload, and wrong-port refusal with Unload. The correct
+port and manual reload restored the same RGB composite hash shown above. Every session kept Program
+and Preview selections at 1 and 2, restored and verified both vMix configuration files, and left
+vMixService running. An initial OpenPreset probe did not complete while the browser queue was active.
+The isolated rerun with a shorter copy of the same scratch preset passed. Logs and captures are in
+`C:/claude/Temp/vmix-v2-runtime-1108/packaged-preset-main-reconciled`.
+
+The Studio and renderer browser job `j-5033` used that same rebuilt executable and an isolated
+production. Load put its Browser on Overlay 8 and produced the fixture lower third in vMix.
+Unload returned Program to decoded RGB SHA-256 `78b62dcc8f27e1303f44b598e398bffeccde2d2aa65f1d51faa5266c28ac0eb1`,
+equal to the original plate. Program and Preview input numbers remained fixed. The launcher restored
+both configuration files. The probe and captures are in
+`C:/claude/Temp/vmix-v2-runtime-1108/visuals-v2-main-reconciled`.
+
 ### Changed files
 
 - Studio request and control code in `src/control/playoutLink.ts`, `vmixSetup.ts`,
-  `playoutProtocol.ts` and `takeBlockers.ts`. The focused logic tests live in
+  `playoutProtocol.ts`, `graphicVerbs.ts` and `takeBlockers.ts`. The focused logic tests live in
   `scripts/vmix-setup.test.mjs`.
 - UI wiring in `src/components/BridgePairPage.tsx`, `PlayoutSettingsPanel.tsx`,
   `PlayoutSettingsDialog.tsx` and, under `src/components/home`, `PlayoutPanel.tsx`,

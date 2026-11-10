@@ -538,8 +538,10 @@ kept by vMix port and a digest of the output URL without its display name. A new
 uses a unique local Bridge address. The Bridge confirms its exact marker in vMix before it
 keeps the input key, names the input, or puts it on air. The local address redirects to the
 original output page and is saved with the vMix preset. The store keeps a digest of that
-address's destination. Keep the Bridge's data folder and use the same port when reopening
-presets.
+address's destination and the Bridge HTTP port associated with the kept input. Keep the
+Bridge's data folder and use the same port when reopening presets. On another port,
+the Bridge reports the original port and refuses Load. The original key can still Unload
+that input while vMix reports it on the overlay.
 
 If vMix did not confirm the addition, the Bridge leaves the overlay alone. Check vMix for an
 unused Browser input before pressing Load again. A new Load uses a fresh local address.

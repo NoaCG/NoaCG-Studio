@@ -134,6 +134,7 @@ interface PublishActionsIo {
   outputSlot: SlotReading | undefined;
   pageCanDispatch: () => boolean;
   canSendCaspar: () => boolean;
+  casparAllowed: () => boolean;
   onAirChanged: (what: 'air' | 'stop', result: PlayoutResult, target: string) => void;
   flushDraft: () => Promise<unknown>;
   history: Pick<ReturnType<typeof useRundownHistory>, 'closeGroup'>;
@@ -318,13 +319,14 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
   };
   /** Take this production's renderer off its CasparCG slot through the Bridge: where, and the note
    *  a failure leaves. */
-  const takeOffSlot = async (): Promise<{ where: string; failed: string | null } | null> => {
-    if (!io.canSendCaspar()) return null;
-    const settings = loadPlayoutSettings();
+  const takeOffSlot = async (
+    settings = loadPlayoutSettings(), canSend = io.canSendCaspar, verify?: () => Promise<boolean>,
+  ): Promise<{ where: string; failed: string | null } | null> => {
+    if (!canSend()) return null;
     const where = slotAddress(slotOf(settings));
-    const result = await takeOutputOff(settings, io.canSendCaspar);
+    const result = await takeOutputOff(settings, canSend, verify);
     if (!result) return null;
-    onAirChanged('stop', result, casparOutputTarget(settings));
+    if (io.pageCanDispatch()) onAirChanged('stop', result, casparOutputTarget(settings));
     return { where, failed: result.state === 'ok' ? null : `Unload from ${where} failed: ${result.detail}` };
   };
   const unloadFromSlot = (): Promise<void> => slotAction(async () => {
@@ -337,10 +339,19 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
    *  is on air, which is why the note asks for All out before Load. Answers `base` with that said,
    *  or `base` alone when the slot does not hold this production's renderer. */
   const clearThroughBridge = async (base: string): Promise<string> => {
-    if (outputSlot?.holds !== 'ours') return base;
+    const slug = show.outputSlug;
+    if (!slug || outputSlot?.holds !== 'ours' || !io.canSendCaspar()) return base;
+    const settings = loadPlayoutSettings();
     let said = '';
     await slotAction(async () => {
-      const result = await takeOffSlot();
+      // The fallback was accepted on the open page. It can finish after navigation, only on
+      // the original slot and after the Bridge confirms this production still holds it.
+      const result = await takeOffSlot(settings, io.casparAllowed, async () => {
+        if (!io.casparAllowed()) return false;
+        const { reply } = await readState(settings, settings.channel);
+        const current = reply?.slots.find(slot => slot.layer === settings.layer);
+        return !!current && !current.arriving && slotHolds(current, slug) === 'ours';
+      });
       if (!result) return;
       said = result.failed ?? `Unloaded NoaCG graphics from ${result.where}. When the connection is back, press All out before Load on ${result.where}.`;
     });
