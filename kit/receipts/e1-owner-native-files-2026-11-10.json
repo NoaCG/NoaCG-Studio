@@ -1,0 +1,29 @@
+{
+  "job": "j-5042",
+  "phase": "E1",
+  "fixture": {
+    "name": "e2e/fixtures/illustrator-lower-third.svg",
+    "windowsFileSHA256": "03ff39f0a1b237e69e54fbb783d2e0d2edce5a266d5f0815e76ec6edeea56ada"
+  },
+  "file": {
+    "sha256": "87cff7d631fa6a665f4c511e753232011e85ade8f9fde3bb2ead112315300325",
+    "bytes": 422113,
+    "name": "illustrator_lower_third_spx.zip",
+    "verified": "ZIP opened read-only. Its named template HTML contains SPXGCTemplateDefinition, Alexandra Riva, Chief Correspondent and Helsinki. ZIP contains css/template.css, js/template.js, Archivo fonts, and js/gsap.min.js."
+  },
+  "owner": {
+    "picker": "Owner followed the isolated native picker workflow. Reported the Windows Save dialog opened with the SPX ZIP and then confirmed it was saved in Downloads.",
+    "drop": "Owner reported: Yes, the preview appeared after the drop. This was File Explorer drag of the same Illustrator fixture into Import graphics."
+  },
+  "earlierJob": "j-5041 opened on the same pinned candidate and then ended, with no completed file receipt. The native controller stopped when it could not verify Chrome URL. Retain both histories.",
+  "gsap": {
+    "reason": "Archive entry hash equals the Windows checkout source. Git worktree CRLF accounts for 11 extra bytes. LF-normalized source has the inventoried 72927 bytes and SHA256 92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb.",
+    "archiveSHA256": "dd7dc87e023b3480f9707296342565ca2e361c8393cabb30f9557e06eb1bed4d",
+    "archiveBytes": 72938
+  },
+  "candidate": "be049c7ea10ee2b8a1bae6d86711ce507a9468a7",
+  "limits": "Owner-operated native file evidence on the pinned candidate. This checks Illustrator SVG picker/drop, preview and SPX ZIP save. It does not close separate raster/logo replacement, saved-document reopening, account simulation, remaining authoring defects, a receiving host, or E1 phase acceptance.",
+  "cleanup": "After owner finished, scheduler job j-5042 cancelled to close its test browser. Confirmed localhost:5212 no longer serves. Cancellation is job cleanup, not an automated test pass.",
+  "environment": "Physical Windows desktop, installed Chrome, isolated offline profile and worktree port 5212. No account used. Prior j-5004 has the separately observed actual 125 percent zoom receipt.",
+  "at": "2026-11-10T17:53:40Z"
+}

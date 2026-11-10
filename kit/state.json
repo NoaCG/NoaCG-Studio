@@ -76,7 +76,7 @@
       "phase": "E1",
       "actionId": "plan-editor-r1-5-2026-11-08:1",
       "nativeId": "/root/editor_r15_e1_builder",
-      "note": "Actual Chrome zoom at 125% was observed in j-5004. Native picker/download and remaining E1 authoring checks are pending. Original worker stopped; no PR.",
+      "note": "Native Chrome zoom, Illustrator picker/drop and SPX download observed on the pinned candidate. Remaining E1 authoring checks and PR are pending. Original worker stopped.",
       "checkpointed": true,
       "head": "be049c7ea10ee2b8a1bae6d86711ce507a9468a7"
     }
@@ -100,7 +100,7 @@
     }
   },
   "e1Checkpoint": {
-    "resume": "Resume this existing project only after observing a supported Windows controller open, operate and return from an isolated Chrome file picker and download dialog, or arrange the native file check with a present operator. Keep the original E1 attempt and pinned candidate. Then complete the outstanding E1 authoring checks and independent review before any queue action.",
+    "resume": "Continue the same admitted E1 build from the pinned candidate under existing scheduler rules, carrying the November 10 native file receipt. Reproduce remaining product gaps, finish assigned authoring checks, and obtain required independent review before queueing.",
     "pendingProbesSHA256": "8131576d9a90b3c9419a3a08758cc86117e48661b186a88921adc646cf39c9b0",
     "stopped": "Native worker completed and acknowledged clean owned checkout, closed port 5212 and no live E1 browser/scheduler job. Remote branch and absence of a live PR verified.",
     "jobs": "j-4996 reproduced #1749; j-4997 8 pass; j-4998 62 pass; zero retries/skips; j-4999 offline setup only; j-5000 and j-5001 incomplete, j-5001 app approval timeout; j-5002 and j-5003 cancelled before launch at the unchanged RAM floor.",
@@ -135,6 +135,11 @@
         "2026-11-08T20:13:18.433Z",
         "2026-11-08T20:13:36.215Z"
       ]
+    },
+    "nativeFiles": {
+      "job": "j-5042",
+      "receipt": "receipts/e1-owner-native-files-2026-11-10.json",
+      "outcome": "Owner-operated Illustrator SVG picker/drop and native SPX save verified; exact archive checked by coordinator."
     }
   }
 }
