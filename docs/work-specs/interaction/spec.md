@@ -961,7 +961,8 @@ challenged them before the final assessment:
   message throttle no longer counts words. A Word round has its own cap, 300 words in 10 seconds,
   as phone votes have.
 - W5. A phone that sent its word shows the word instead of the box, also after a reload: the join
-  view gives each of this phone's messages its round.
+  view gives each of this phone's messages its round and whether it was a word, and the phone never
+  lists a word among "What you sent".
 - W6. The operator hides a word (Hide beside it); a hidden word stays listed, struck through, and
   can be shown again. A hidden word is never in a cue's Words. Hiding is kept on the question
   (`Show.questions[].hidden`, by the word's key), allowed while live and with answers, and Duplicate
@@ -995,8 +996,10 @@ challenged them before the final assessment:
   and the note says how many are listed now and not on the cue. Added after the `/so` of `428ff47`.
 - W11. Every write that can put a word on a cue or hide one applies the hidden words of the record
   it lands on, inside that write: every production write (`saveAll` and the rebased pass of
-  `patchShowChecked`, so a press, Hide, a paste of an earlier copy, a duplicate or an edit) and a
-  team merge (`scrubHiddenWords`, `model/wordCues.ts`). A word typed by hand into a cue's Words
+  `patchShowChecked`, so a press, Hide, a paste of an earlier copy, a duplicate or an edit), an
+  undo or redo (`replaceRundown`; the history checks a restore against what it lands as), a team
+  merge, and a teammate's record applied from the server (`scrubHiddenWords`,
+  `model/wordCues.ts`). A word typed by hand into a cue's Words
   while it is hidden goes too. It takes them off every cue carrying the question's
   words: its result cue (a mapped cue belongs to that one question only), and a word cloud cue no
   question maps whose Question is this question's text, when no other Word question has that text

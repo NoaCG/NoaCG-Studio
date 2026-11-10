@@ -65,7 +65,7 @@ votes, the vote airs on Result Donut Lower through Take; then the Word question 
 phone sends "Sparkling" and shows it in place of the box, a second phone (its own device) sends
 "Boring", Interaction lists both, Boring is hidden, Add word cloud to rundown adds House Word Cloud
 with one word, Program still shows only the cloud's off-air sample, Take airs exactly
-["Sparkling"], and Stop leaves phones the waiting text. Passed (queue job j-0015, 47 s; again after each review fix below: j-0018, j-0021, j-0023, j-0025, j-0029, about 50 s each).
+["Sparkling"], and Stop leaves phones the waiting text. Passed (queue job j-0015, 47 s; again after each review fix below: j-0018, j-0021, j-0023, j-0025, j-0029, j-0031, about 50 s each).
 
 Two earlier runs failed on the walk's own steps, not the product: the second phone shared the first
 phone's browser and so was the same device (it rightly showed the word already sent), and the
@@ -168,6 +168,20 @@ on-air cloud needs Update, and the word list's hint no longer says nothing is on
 Word journey copies the cue, hides Tense, pastes the copy and finds no Tense on it, and sees the
 note (j-0027, with the Fill from, second-operator and question-list journeys); mutation: removing
 the write-path scrub fails it ("Expected - 1, Received + 2").
+
+## Review of `2e297cd` (`/so`, full)
+
+AGREE WITH CORRECTIONS, A-. Two more writers of the W11 class that bypass the shared write path:
+undo and redo (`replaceRundown`) could bring a deleted word cloud cue back with a word hidden since,
+and a teammate's record applied from the server could carry one; and a phone listed an earlier
+word among its messages once another question was live. Fixed: `replaceRundown` and both team
+server-apply paths run the scrub, and the rundown history accepts a restore that lands scrubbed;
+the join view marks a phone's words and the phone leaves them out of "What you sent" (0114's
+`audience_join_by_slug`, self-check extended, run on the local stack and passed). Proof: Node tests
+for delete, Hide, Undo and for a teammate's record (mutations: removing either scrub fails its
+test); `production-audience`, `rundown-history` and `rundown-history-storage` whole, 54 passed
+(j-0030); the walk below. The production self-check needed a fresh id on this stack: earlier runs
+under different throwaway owners left the fixed id refused there; the migration is unchanged.
 
 ## Not run, or partly run
 
