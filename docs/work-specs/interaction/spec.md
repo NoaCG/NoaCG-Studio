@@ -896,9 +896,9 @@ for a later builder (`evidence/phase-5.md`).
 
 **Traps found** (for later phases):
 
-- A vote's rows are found only when each `Bar N` is its own shape under a plain group; wrapping
-  each row (option, bar) in its own named group hides the bars from the proposal, so the docs'
-  flat layer tree is the one to teach.
+- Artwork with each row (`Option N`, `Bar N`) wrapped in its own group named `Options N` was
+  proposed as nothing; the same layers in two plain groups were proposed as a vote. The cause is
+  not traced here; test home-made artwork with the layer tree the docs teach.
 - `e2e/` blank-page specs cannot import `src/components/wizard/import/draft.ts` (React preamble
   error); build an imported graphic with `importSvgMarkup` and `IMPORTED_SVG.create` instead.
 - `scripts/svg-import-passes.test.mjs` fails 4 of 22 on a cloud worker on `main` itself (same
