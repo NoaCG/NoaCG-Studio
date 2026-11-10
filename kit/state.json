@@ -40,11 +40,11 @@
  "inFlight": [
   {
    "phase": "6",
-   "step": "build",
-   "session": "session_017SdbwMFpboGRqfg687yz7s",
-   "nonce": "6-b-06df",
-   "launchedAt": "2026-11-10T12:28:59Z",
-   "branch": "claude/plan-interaction-6-build"
+   "step": "check",
+   "session": "session_017SdbwM9pCrQKtcKBXsyGwC",
+   "nonce": "6-c-de53",
+   "launchedAt": "2026-11-10T14:59:17Z",
+   "mergeSha": "11373c6604aaf8653be96830ed917958103a488b"
   }
  ],
  "owner": [
