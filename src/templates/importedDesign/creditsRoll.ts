@@ -516,9 +516,9 @@ function creditsWindow(sample) {
 }`;
 }
 
-/** THE TITLE ROLLS WITH THE LIST (owner walk 2026-11-10: "It should be just one text that
- *  scrolls"). Emitted into the styled ROLL only: a still page and cards keep the title where it
- *  was drawn, because nothing moves there. */
+/** WHAT IS DRAWN IN THE COLUMN ROLLS WITH THE LIST (owner walk 2026-11-10: "It should be just one
+ *  text that scrolls"). Emitted into the styled ROLL only: a still page and cards keep everything
+ *  where it was drawn, because nothing moves there. */
 const CREDITS_RIDERS_JS = `
 // creditsRiders(roll, win, rows): everything else drawn in the list's column inside the window -
 // a show title above the first role, the rule under it, a closing line below the last name - is
@@ -1251,32 +1251,9 @@ function creditsTitle(sections, rows, ref, container, shown) {
   if (!sections[0].length) sections.shift();
   var at = shown === false ? null : creditsFrom(source.parentNode, ref);
   if (!at) return;
-  var row = source.cloneNode(true);
-  var all = [row].concat(Array.prototype.slice.call(row.getElementsByTagName('*')));
-  for (var i = 0; i < all.length; i++) {
-    var names = [];
-    for (var a = 0; a < all[i].attributes.length; a++) {
-      var n = all[i].attributes[a].name;
-      if (n === 'id' || n.indexOf('data-noacg') === 0) names.push(n);
-    }
-    for (var r = 0; r < names.length; r++) all[i].removeAttribute(names[r]);
-  }
-  var own = (row.getAttribute('class') || '').split(' ').filter(function (c) { return c && c !== '${cls}'; });
-  own.push('${cls}-row');
-  row.setAttribute('class', own.join(' '));
+  // A copy that keeps where the title was drawn: its own x, y and transform, in its parent's frame.
+  var row = creditsCopy(source, words, true).row;
   row.setAttribute('data-noacg-credits', 'title');
-  var first = creditsFirstText(row);
-  var texts = [];
-  var walk = function (node) {
-    for (var k = 0; k < node.childNodes.length; k++) {
-      var c = node.childNodes[k];
-      if (c.nodeType === 3) texts.push(c);
-      else if (c.nodeType === 1) walk(c);
-    }
-  };
-  walk(row);
-  for (var t = 0; t < texts.length; t++) texts[t].nodeValue = texts[t] === first ? words : '';
-  if (!first) row.textContent = words;
   // What the drawn title inherits from its own groups, which the copy no longer sits in.
   var look = creditsLookOf(source, container);
   var wrap = document.createElementNS(source.namespaceURI, 'g');
@@ -1329,17 +1306,18 @@ function creditsFirstText(el) {
   return null;
 }
 
-// creditsCopy(source, words): a row - a copy of the drawn layer with its words replaced. Its id,
-// its marks, the hiding class and every position attribute come off; the run that painted the
-// first character keeps the new words and every other run is emptied, so the look is that run's.
-function creditsCopy(source, words) {
+// creditsCopy(source, words, keepPlace): a row - a copy of the drawn layer with its words replaced.
+// Its id, its marks, the hiding class and (unless KEEPPLACE, for the show title) every position
+// attribute come off; the run that painted the first character keeps the new words and every other
+// run is emptied, so the look is that run's.
+function creditsCopy(source, words, keepPlace) {
   var row = source.cloneNode(true);
   var all = [row].concat(Array.prototype.slice.call(row.getElementsByTagName('*')));
   for (var i = 0; i < all.length; i++) {
     var names = [];
     for (var a = 0; a < all[i].attributes.length; a++) {
       var n = all[i].attributes[a].name;
-      if (n === 'id' || n.indexOf('data-noacg') === 0 || /^(x|y|dx|dy|rotate|textLength|lengthAdjust|transform)$/.test(n)) names.push(n);
+      if (n === 'id' || n.indexOf('data-noacg') === 0 || (!keepPlace && /^(x|y|dx|dy|rotate|textLength|lengthAdjust|transform)$/.test(n))) names.push(n);
     }
     for (var r = 0; r < names.length; r++) all[i].removeAttribute(names[r]);
   }
@@ -2275,8 +2253,6 @@ export function creditsPreview(root: Element, candidateIds: readonly string[], c
   };
 }
 
-/** A text layer's drawn lines, one per baseline with section gaps as blank lines (the editable
- *  roll's sample reading), or its plain text where it draws no runs. */
 /** THE SHOW TITLE a styled block may have drawn above it: the nearest single-line text layer above
  *  the block's first line, in a look neither the roles nor the names use, standing over the block's
  *  own column. The list's first line, when it is not a role, takes its look (`DesignSvgCredits.title`). */
@@ -2299,6 +2275,8 @@ function creditsTitleOf(
     .sort((p, q) => down(q) - down(p))[0] ?? null;
 }
 
+/** A text layer's drawn lines, one per baseline with section gaps as blank lines (the editable
+ *  roll's sample reading), or its plain text where it draws no runs. */
 function creditsLayerText(root: Element, candidateId: string): string {
   const el = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${candidateId}"]`);
   const text = el?.closest('text') ?? el;
