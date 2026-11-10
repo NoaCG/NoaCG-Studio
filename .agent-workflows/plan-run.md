@@ -13,7 +13,7 @@
 
 - `jev-svg-import`: `docs/work-specs/jev-svg-import/spec.md`, with exact phase metadata and preparation/start contract in its `runbook.md`. **Preparation-only registration:** do not open a project, start a block, create the run issue or arm triggers until the owner says start and the runbook's pre-start prerequisites pass. The approved $5 ceiling, 14-day window and standing block renewal do not start the run.
 
-- `live-publishing`: `docs/work-specs/live-publishing/spec.md`, `phases.json` and `runbook.md`; phase 1 is `docs/work-specs/retire-hosted-control/spec.md`. **Preparation-only registration:** do not open a project, start a block, create the run issue or arm triggers until the owner says start; it follows the interaction run.
+- `live-publishing`: `docs/work-specs/live-publishing/spec.md`, `phases.json` and `runbook.md`; phase 1 is `docs/work-specs/retire-hosted-control/spec.md`. Started by the owner 2026-11-10 in Claude Code Cloud (run issue #2361, project `plan-live-publishing-2026-11-10`): all nine phases of `phases.json`, no end date, standing block renewal, and the migrations of phases 4, 6 and 7 in a quiet window when live-path. A new session continues it with `continue`; it never opens a second project.
 
 ## Boundaries
 
