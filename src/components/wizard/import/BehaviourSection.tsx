@@ -263,7 +263,7 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
         <div dir={rtl ? 'rtl' : undefined} data-testid="map-svg-credits-list">
           {shown.list.map((section, at) => (
             <div key={at} style={{ display: 'grid', gridTemplateColumns: beside ? 'auto 1fr' : '1fr', columnGap: '1em', marginBottom: '0.5em' }}>
-              {section.map((item, i) => <CreditsPreviewItem key={i} item={item} beside={beside} first={i === 0} />)}
+              {section.map((item, i) => <CreditsPreviewItem key={i} item={item} beside={beside} first={i === 0} title={at === 0 && i === 0 && shown.styled && !!shown.title} />)}
             </div>
           ))}
         </div>
@@ -293,10 +293,12 @@ function creditsButtons(b: SvgRecipeDraft): string {
 }
 
 /** One heading, role group or loose name. Beside, a role and its first name share a line and
- *  later names stay in the name column; above, the names follow under their role. */
-function CreditsPreviewItem({ item, beside, first }: { item: CreditsListItem; beside: boolean; first: boolean }) {
+ *  later names stay in the name column; above, the names follow under their role. A drawing with
+ *  a show title reads the list's first loose line as that title. */
+function CreditsPreviewItem({ item, beside, first, title }: { item: CreditsListItem; beside: boolean; first: boolean; title: boolean }) {
   const whole = { gridColumn: '1 / -1' };
   if (item.type === 'heading') return <strong style={whole} data-credit="heading">{item.text}</strong>;
+  if (item.type === 'entry' && title) return <strong style={whole} data-credit="title">{item.text}</strong>;
   if (item.type === 'entry') return <span style={beside ? { gridColumn: 2 } : undefined} data-credit="name">{item.text}</span>;
   return (
     <>

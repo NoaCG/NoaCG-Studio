@@ -344,7 +344,8 @@ for (const example of examples.filter((entry) => entry.recipe)) {
     await intoProduction(page, example.name, `${example.name} qualification`);
     await settleDurableWrites(page);
     if (example.slug === 'editable-credits') {
-      await page.getByTestId('cue-field-f1').fill('Director: Casey Hill\nCamera:\nRobin Vale\nAri Moss');
+      // The drawn heading is the list's first line, so the list is the one field, f0.
+      await page.getByTestId('cue-field-f0').fill('Director: Casey Hill\nCamera:\nRobin Vale\nAri Moss');
     }
     await page.getByTestId('verb-take').click();
     const air = page.frameLocator('[data-testid="program-stage"] iframe');

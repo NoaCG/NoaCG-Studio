@@ -1238,17 +1238,18 @@ function creditsSample() {
 
 ${creditsFieldJs()}
 ${held('', creditsHeldJs())}
-${cards(`// creditsTitle(sections, rows, ref, container): THE SHOW TITLE. A list whose first line is not
+// creditsTitle(sections, rows, ref, container, shown): THE SHOW TITLE. A list whose first line is not
 // a role starts with the show's name (owner walk 2026-11-10). Where a title is drawn above the roles
 // (DesignSvgCredits.title), that line is taken out of the list and painted as a copy of the drawn
 // title - its look, and where it was drawn - inside the rows, so it travels with them. Without a
-// drawn title, or when the list starts with a role, every line reads as before.
-function creditsTitle(sections, rows, ref, container) {
+// drawn title, or when the list starts with a role, every line reads as before. Cards show it on
+// the first card only (SHOWN false on the others).
+function creditsTitle(sections, rows, ref, container, shown) {
   var source = document.querySelector('[${CREDITS_TITLE_ATTR}]');
   if (!source || !sections.length || !sections[0].length || sections[0][0].type !== 'entry') return;
   var words = sections[0].shift().text;
   if (!sections[0].length) sections.shift();
-  var at = creditsFrom(source.parentNode, ref);
+  var at = shown === false ? null : creditsFrom(source.parentNode, ref);
   if (!at) return;
   var row = source.cloneNode(true);
   var all = [row].concat(Array.prototype.slice.call(row.getElementsByTagName('*')));
@@ -1285,7 +1286,7 @@ function creditsTitle(sections, rows, ref, container) {
   rows.appendChild(wrap);
 }
 
-`, '')}// creditsFrom(a, b): the matrix taking a's own units into b's, through the screen, so any two
+// creditsFrom(a, b): the matrix taking a's own units into b's, through the screen, so any two
 // elements of the drawing answer in one frame.
 function creditsFrom(a, b) {
   var ma = a.getScreenCTM ? a.getScreenCTM() : null;
@@ -1481,8 +1482,8 @@ ${beside(`  // THE SHARED EDGE, the mean over every drawn layer in the first rol
   if (noacgCreditsHeld === null) noacgCreditsWritten = text;`)}
   // Written as textContent, so nothing here is escaped: the identity is the escape.
   var sections = parseCredits(text, function (s) { return s; });
-  while (rows.firstChild) rows.removeChild(rows.firstChild);${cards(`
-  creditsTitle(sections, rows, ref, container);`, '')}
+  while (rows.firstChild) rows.removeChild(rows.firstChild);
+  creditsTitle(sections, rows, ref, container${cards('', ', !card || card.from === 0')});
   var S = NOACG_CREDITS_STYLE;
   // One look rule per kind, and the shared edge every row is anchored on.
   var sel = '.${cls}-rows > .${cls}-row';
