@@ -726,3 +726,72 @@ test.describe('the Join card draws its QR from its Join link (AC-11)', () => {
     }
   });
 });
+
+// A LAYER NAMED `QR` in imported artwork (interaction spec, AC-13): the graphic gains a Join link
+// field and draws that link as a code over the layer's box, from its own encoder.
+test('an imported SVG with a layer named QR draws its Join link as a code that decodes', async ({ page, browser }) => {
+  const reader = await qrReader(browser);
+  try {
+    await phonePage(page);
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    // Artwork outside every sample set: a plate, a title and a placeholder square named QR, the
+    // way Illustrator writes a layer name into `id`, moved by a transform of its own.
+    const markup = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="400" viewBox="0 0 900 400">
+  <rect id="Plate" width="900" height="400" fill="#14213d"/>
+  <text id="Title" x="380" y="120" font-family="Arial" font-size="48" fill="#ffffff">Scan to join</text>
+  <g id="QR" transform="translate(40 40)"><rect width="320" height="320" fill="#888888"/></g>
+</svg>`;
+    const tpl = await page.evaluate(async (m) => {
+      const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+      const { variantsFor } = await import('/src/templates/catalog.ts');
+      const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
+      const D = await import('/src/components/wizard/import/draft.ts');
+      const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
+      const patch = D.svgDraftFromImport(importSvgMarkup(m), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
+      return buildDraftTemplate(variant, mergeDraft(initialDraft(), patch));
+    }, markup);
+    const join = tpl.fields.find((f) => f.title === 'Join link');
+    expect(join, 'the QR layer adds a Join link field').toBeTruthy();
+    expect(tpl.fields.at(-1)!.field, 'the Join link field comes last').toBe(join!.field);
+    await page.evaluate(async (t) => {
+      const { composeDocument } = await import('/src/preview/composeDocument.ts');
+      const f = document.createElement('iframe');
+      f.id = 'art';
+      f.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0';
+      document.body.appendChild(f);
+      await new Promise((res) => {
+        f.onload = res;
+        f.srcdoc = composeDocument(t as never);
+      });
+    }, tpl);
+    const art = page.frames().find((f) => f.parentFrame() === page.mainFrame())!;
+    await art.waitForFunction(() => typeof (window as unknown as { update?: unknown }).update === 'function');
+    const frame = page.frameLocator('#art');
+    // Empty, it draws nothing, and the stand-in square stays hidden.
+    await expect(frame.locator('.imported-design-qr-code')).toHaveCount(0);
+    await expect(frame.locator('.imported-design-qr')).toBeHidden();
+    await art.evaluate(({ f, l }) => (window as unknown as { update(d: unknown): void }).update({ [f]: l }), { f: join!.field, l: LINK });
+    await art.evaluate(() => (window as unknown as { play(): void }).play());
+    await art.waitForFunction(() => {
+      const root = document.querySelector('.imported-design');
+      return !!root && getComputedStyle(root).opacity === '1';
+    });
+    const code = frame.locator('.imported-design-qr-code');
+    await expect(code).toHaveCount(1);
+    // Over the layer's own box: 320 drawn units at the 900-unit artwork's on-screen scale.
+    const [codeBox, artBox] = [await code.boundingBox(), await frame.locator('svg.imported-design-art').boundingBox()];
+    const unit = artBox!.width / 900;
+    expect(Math.abs(codeBox!.x - (artBox!.x + 40 * unit)), 'the code starts where the layer was drawn').toBeLessThanOrEqual(1);
+    expect(Math.abs(codeBox!.width - 320 * unit), 'the code fills the layer').toBeLessThanOrEqual(1);
+    expect(await reader.read(await code.screenshot())).toBe(LINK);
+    // A new link is data: the code is redrawn once, not stacked.
+    const other = 'https://noacg.studio/j/quiz-2026';
+    await art.evaluate(({ f, l }) => (window as unknown as { update(d: unknown): void }).update({ [f]: l }), { f: join!.field, l: other });
+    await expect(code).toHaveCount(1);
+    expect(await reader.read(await code.screenshot())).toBe(other);
+    await art.evaluate(({ f }) => (window as unknown as { update(d: unknown): void }).update({ [f]: '' }), { f: join!.field });
+    await expect(code).toHaveCount(0);
+  } finally {
+    await reader.close();
+  }
+});
