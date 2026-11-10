@@ -94,7 +94,8 @@ and the artwork's bundled faces were dropped. Fixed at `bb021b2` in the then han
 ## Review of `bb021b2`
 
 `/so`: A, with one minor finding (text off the artboard offered as fields by the CLI only;
-filed as #2347). Codex: oversized artwork not fitted to the frame by the CLI path. That made two
+filed as #2347, then fixed by construction below and closed by this pull request: the sweep's
+"text off the artboard" case pins it). Codex: oversized artwork not fitted to the frame by the CLI path. That made two
 successive rounds of one missing rule (the CLI path must equal the studio import's default), so
 patching stopped and a fresh read-only reassessment of the model came first. It found six more
 defaults the copy missed (`static:` and `f:` layers, picture slots, `show:`/`choice:` extras,
@@ -104,6 +105,16 @@ parity test is now a sweep: every file in the SVG corpus (51) plus a 3840x2160 a
 off the artboard, asserting the CLI-made template equals the one built from the studio chain's
 own `DesignSvg` (html, css, js, fields). Mutation: stripping the fonts on the bridge side fails
 it on 53 points.
+
+## Review of `593822e`
+
+`/so`: A, two doc corrections, made: the architecture's bridge bullet now names `svgDefault.ts`
+as its one component, and #2347 is recorded as fixed. Codex: the capability's compiled contract
+named `import/index.ts` its only door, contradicting the new one. Taking the index instead would
+load the step components into the bridge page, which has no React on the dev server, so the rule
+was amended at its source (`contracts/rules/wizard/hold-whole-import-graphic-capability-inside.md`,
+recompiled; the evidence is in its record) to name `svgDefault.ts` as the bridge's React-free
+door.
 
 ## Rehearsal walk (AC-15, phase 5)
 

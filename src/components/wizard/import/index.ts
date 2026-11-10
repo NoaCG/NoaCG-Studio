@@ -13,6 +13,8 @@
 
 export * from './draft';
 export * from './drop';
+// The bridge's own door is svgDefault.ts itself, not this index: the index loads the step
+// components, which the bridge page must not (the capability's contract names both doors).
 export { svgDefaultDesign } from './svgDefault';
 
 export { default as ImportStep } from './ImportStep';

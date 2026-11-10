@@ -121,7 +121,8 @@ here and not in §6 are wrong - fix the code, not the table.
   scaffold, the authored-region converter, `publishGate` + the runtime bench + readiness + the
   engine scan, `composeDocument`, the dual graphic package + the OGraf package reader, the pack
   wire entry, the control generator + the OGraf contract adapter - for a headless driver; it
-  reads no store, no components, no backend, and holds no account or key)
+  reads no store, no backend and no components except `svgDefault.ts` (below), and holds no
+  account or key)
 - `bridge` -> components/wizard/import (`svgDefault.ts` only: `noacg scaffold --svg` builds the
   studio SVG drop's own default by calling it, so the CLI and the studio cannot drift; that file
   loads no React and no step. Moving the import draft's pure core down to templates would retire
