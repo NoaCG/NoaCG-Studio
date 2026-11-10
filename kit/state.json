@@ -49,13 +49,12 @@
  "waitingOn": [],
  "inFlight": [
   {
-   "phase": "cf16",
-   "step": "check",
-   "session": "session_017SdbwQyZftibvy7xbLz9Qz",
-   "nonce": "cf16-c-a7f1",
-   "launchedAt": "2026-11-10T17:02:47Z",
-   "mergeSha": "9afdd04df93279429089666e2fb399ddf10854ad",
-   "pr": 2358
+   "phase": "cf17",
+   "step": "build",
+   "session": "session_017SdbwR5CFaeV77jgyULQ9U",
+   "nonce": "cf17-b-dba6",
+   "launchedAt": "2026-11-10T17:31:44Z",
+   "note": "two PRs: stage 1 criteria (nonce cf17-b-dba6-s1), then result after ~3-day window"
   }
  ],
  "owner": [],
@@ -224,6 +223,11 @@
   {
    "at": "2026-11-10T16:54Z",
    "note": "cf16 receipt accepted: PR #2358 head 74939053, /so B fixed then delta A, Codex clean, CI gate green 42857817536. Recommendation: keep full pre-merge coverage and optimize; post-merge model costs >=64.5 runner-min more per landing net. Stamp run 42859230487, auto-merge on."
+  },
+  {
+   "phase": "cf16",
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2358#issuecomment-6774356679"
   }
  ],
  "decisions": [
@@ -269,6 +273,11 @@
    "at": "2026-11-10T13:52Z",
    "by": "owner miwco",
    "what": "Codex review rule (cf21 change 5): 'Raise cap ~400 bytes (Recommended)': raise root AGENTS.md cap 3072 to about 3480 and move the rule to root. Follow-up builder session_017SdbwPMaBaH6SDUhN2Z9qX (nonce cf21-f-codexroot)."
+  },
+  {
+   "at": "2026-11-10T17:31Z",
+   "by": "owner miwco",
+   "what": "cf17 cohort: 'vMix + interaction + editor (Recommended)'; about 3-day window; coordinator may pause them on a stop threshold. Recorded on #1967 comment 6774413052."
   }
  ],
  "ownerAlarmSession": "session_017SdbwQfGaKDTYKsFgzGxY6",
