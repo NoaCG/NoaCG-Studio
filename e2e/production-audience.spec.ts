@@ -642,7 +642,7 @@ test('a Word question takes one word per phone, lists words by frequency, and ai
     ws.evaluate(async () => {
       const { loadShows } = await import('/src/model/shows.ts');
       const show = loadShows()[0];
-      const cues = (show.cues ?? []).filter((c) => c.label.startsWith('Words —'));
+      const cues = (show.cues ?? []).filter((c) => c.label.startsWith('Words:'));
       return { count: cues.length, id: cues[0]?.id, values: cues[0]?.values ?? {} };
     });
   await expect.poll(async () => (await staged()).values.f2).toBe('Exciting | 2\nBrilliant | 1\nTense | 1');
@@ -651,11 +651,11 @@ test('a Word question takes one word per phone, lists words by frequency, and ai
   await expect(log).toHaveCount(sent);
 
   // Only Take puts it on air, and air carries the shown words only.
-  await page.locator('.pd-cue', { hasText: 'Words —' }).click();
+  await page.locator('.pd-cue', { hasText: 'Words:' }).click();
   await page.getByTestId('verb-take').click();
   const program = page.frameLocator('[data-testid="program-stage"] iframe');
   await expect(program.locator('.audience-word')).toHaveText(['Brilliant', 'Exciting', 'Tense']);
-  await expect(log.first()).toContainText('Took “Words — Sum up tonight in one word”');
+  await expect(log.first()).toContainText('Took “Words: Sum up tonight in one word”');
   const taken = await log.count();
 
   // A second press is a new snapshot on the same cue; Program changes only by Update (W7, W8).

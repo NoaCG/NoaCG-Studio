@@ -190,7 +190,7 @@ function store(initial) {
   return s;
 }
 
-const input = (counts, extra = {}) => ({ questionId: 'q-word', question: 'One word?', counts, label: 'Words — One word?', ...extra });
+const input = (counts, extra = {}) => ({ questionId: 'q-word', question: 'One word?', counts, label: 'Words: One word?', ...extra });
 
 test('a word cloud takes Question and Words; it is neither a vote board nor a message destination', () => {
   const fields = cloud('g').template.fields;

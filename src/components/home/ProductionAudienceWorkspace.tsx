@@ -210,7 +210,7 @@ async function addResultBoard(show: Show, id: string): Promise<{ shows: Show[] |
 /** A result cue's name in the rundown (tests and older cues know it by its prefix). */
 const resultLabel = (question: string) => `Vote — ${question.slice(0, 32)}`;
 /** A word cloud cue's name in the rundown. */
-const wordCloudLabel = (question: string) => `Words — ${question.slice(0, 32)}`;
+const wordCloudLabel = (question: string) => `Words: ${question.slice(0, 32)}`;
 
 /** The Join card in the catalog (templates/audience/joinCard.ts). */
 const JOIN_CARD_ID = 'jc01';

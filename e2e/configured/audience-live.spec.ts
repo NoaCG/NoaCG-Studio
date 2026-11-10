@@ -677,7 +677,7 @@ test.describe(() => {
     await expect(messages.getByTestId('audience-note')).toContainText('✓ Added a word cloud cue on “House Word Cloud” with 1 word', { timeout: 20_000 });
     await settleDurableWrites(messages);
     await expect(program('House Word Cloud').locator('.audience-word')).toHaveCount(0);
-    const wordCue = page.locator('.pd-cue', { hasText: 'Words —' });
+    const wordCue = page.locator('.pd-cue', { hasText: 'Words:' });
     await expect(wordCue).toHaveCount(1, { timeout: 20_000 });
     await wordCue.click();
     await page.getByTestId('verb-take').click();
