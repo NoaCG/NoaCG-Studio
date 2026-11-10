@@ -202,6 +202,9 @@ async function addResultBoard(show: Show, id: string): Promise<{ shows: Show[] |
   return { shows, graphicId: graphic?.id ?? null, cueId: cue?.id ?? null, error: graphic ? null : 'The vote board was not added.' };
 }
 
+/** A result cue's name in the rundown (tests and older cues know it by its prefix). */
+const resultLabel = (question: string) => `Vote — ${question.slice(0, 32)}`;
+
 /** The Join card in the catalog (templates/audience/joinCard.ts). */
 const JOIN_CARD_ID = 'jc01';
 
@@ -1336,7 +1339,7 @@ export default function ProductionAudienceWorkspace({
         tally,
         closed: opts.closed,
         liveFigures,
-        label: `Vote — ${round.question.slice(0, 32)}`,
+        label: resultLabel(round.question),
         chosen: opts.chosen,
         adopt: opts.adopt,
         closeOnly: opts.closeOnly,
@@ -1386,7 +1389,7 @@ export default function ProductionAudienceWorkspace({
           tally: fresh.tally,
           closed: fresh.round.closedAt !== null,
           liveFigures,
-          label: `Vote — ${fresh.round.question.slice(0, 32)}`,
+          label: resultLabel(fresh.round.question),
           chosen,
           adopt,
         },
