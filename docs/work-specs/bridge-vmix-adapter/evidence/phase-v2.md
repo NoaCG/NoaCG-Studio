@@ -13,7 +13,9 @@ stayed there after Bridge startup. Explicit Browser Reload recovered the
 same composite. Each run verified restoration of last.vmix and user.config.
 The isolated prototype lives in C:/claude/Temp/vmix-state-1108.
 V2 first reconciled with main at `361cb6f628df0a44d410954aae527cde976d1750`.
-The latest reconciliation used `7c16e66a89942d7020d19004603d091a56e4f635`.
+The Interaction reconciliation used `7c16e66a89942d7020d19004603d091a56e4f635`.
+The final review base, `bb527e5f73006834ae4fdddd4942a94f2b274436`, adds the review rules
+from PR #2348. It does not change the Bridge, Studio or browser test inputs.
 
 V2 lets an operator pair, choose vMix and load or unload a published production's
 Browser input on an overlay. Media controls and the media library belong to later
@@ -343,6 +345,10 @@ Unload returned Program to decoded RGB SHA-256 `78b62dcc8f27e1303f44b598e398bffe
 equal to the original plate. Program and Preview input numbers remained fixed. The launcher restored
 both configuration files. The probe and captures are in
 `C:/claude/Temp/vmix-v2-runtime-1108/visuals-v2-main-reconciled`.
+
+The repaired product tree passed 574 changed-gate tests and 39 fake vMix tests. TypeScript
+and lint on the 15 changed Studio and browser TypeScript files passed. The changed-gate run
+used the exact Git LF bytes for three unchanged fixtures and restored their checkout bytes.
 
 ### Changed files
 
