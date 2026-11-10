@@ -18,7 +18,7 @@ import test from 'node:test';
 import './lib/tsResolve.mjs';
 
 const { planResultCue, readResultCues } = await import('../src/model/resultCues.ts');
-const { pollFieldMap, rememberedResultTarget, resultDestinations, stageResults, tallyValues, RESULT_BOARDS } = await import('../src/control/resultStaging.ts');
+const { pollFieldMap, rememberedResultTarget, resultDestinationOf, resultDestinations, stageResults, tallyValues, RESULT_BOARDS } = await import('../src/control/resultStaging.ts');
 const { mergeTeamShow } = await import('../src/model/teamShowMerge.ts');
 
 const f = (field, title) => ({ field, title, ftype: 'textfield' });
@@ -276,4 +276,13 @@ test('a stored pass with nowhere to write is reported as such, never as the tabâ
   const t = twoPass({ kind: 'update', cueId: 'c1', graphicId: 'g-a' }, { kind: 'choose', replaced: 'deleted' }, null);
   const stop = await stageResults(t.record, { questionId: 'q1', round, tally: tally(1, 1), closed: true, liveFigures: false, label: 'Vote', closeOnly: true }, t.deps);
   assert.equal(stop.kind, 'none');
+});
+
+test('the button names where this question\u2019s press would write: its cue first, then the remembered graphic', () => {
+  const show = { id: 's', graphics: [board('g-a'), board('g-b', 'Volt Vote'), strap], cues: [{ id: 'c1', sourceId: 'g-a', label: 'Vote', values: {} }], resultTarget: 'g-b', resultCues: { q1: 'c1' } };
+  assert.equal(resultDestinationOf(show, 'q1').name, 'House Vote');
+  assert.equal(resultDestinationOf(show, 'q2').name, 'Volt Vote');
+  assert.equal(resultDestinationOf({ ...show, resultTarget: undefined }, 'q2'), null);
+  // A cue whose graphic lost its fields: the next press adds on the remembered graphic, so that is named.
+  assert.equal(resultDestinationOf({ ...show, cues: [{ id: 'c1', sourceId: 'g-strap', label: 'x', values: {} }] }, 'q1').name, 'Volt Vote');
 });

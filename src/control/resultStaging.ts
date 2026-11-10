@@ -18,7 +18,7 @@
 // Pure and Node-importable: the stores it writes through are handed in by the caller.
 
 import type { Show } from '../model/shows';
-import type { ResultPlan } from '../model/resultCues';
+import { planResultCue, type ResultPlan } from '../model/resultCues';
 import { lastTitled, voteBoardFields } from './messageStaging';
 import { POLL_LIVE_ON, POLL_LIVE_TITLE, POLL_STATUS_CLOSED, POLL_STATUS_OPEN, POLL_STATUS_TITLE } from '../model/voteFields';
 
@@ -104,6 +104,17 @@ export function resultDestinations(show: Pick<Show, 'graphics'>): ResultDestinat
 export function rememberedResultTarget(show: Pick<Show, 'graphics' | 'resultTarget'>): ResultDestination | null {
   if (!show.resultTarget) return null;
   return resultDestinations(show).find((d) => d.graphicId === show.resultTarget) ?? null;
+}
+
+/** Where a press of "Add results to rundown" would write for this question, as the button names it:
+ *  its result cue's graphic while that cue can take results, else the remembered graphic, else
+ *  null (the press asks). The same planner the write uses, so the button never names one graphic
+ *  and write another. */
+export function resultDestinationOf(show: Pick<Show, 'graphics' | 'cues' | 'resultCues' | 'resultTarget'>, questionId: string): ResultDestination | null {
+  const plan = planResultCue(show, questionId, (fields) => pollFieldMap(fields) !== null);
+  if (plan.kind === 'choose') return null;
+  const g = show.graphics.find((x) => x.id === plan.graphicId);
+  return g ? { graphicId: g.id, name: g.name } : null;
 }
 
 /** What staging writes through: the record writer and the durable commit. Nothing that sends. */

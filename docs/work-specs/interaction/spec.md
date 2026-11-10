@@ -691,6 +691,15 @@ stored write deciding):
 - S23. A catalog board picked under S5 takes a free pool name ("House Vote 2"), so it never
   replaces a same-named graphic already in the production.
 
+Found in the Codex review of `fb8a835`:
+
+- S24. The button names where this question's press would write: its result cue's graphic while
+  that cue can take results, else the remembered graphic (`resultDestinationOf`, the planner the
+  write uses), so it never names one graphic and writes another.
+- S12 kept as written: two team operators staging the same question before either save reaches
+  the other keep two cues, one linked. The merge does not delete either, because one may already
+  be on air; the unlinked one stays an ordinary cue in the rundown.
+
 **Decisions** (made in the build, revertible in review):
 
 - The planner (`model/resultCues.ts`) and the record write (`model/shows.ts` `stageShowResult`)

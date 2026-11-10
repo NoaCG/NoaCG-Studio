@@ -86,6 +86,7 @@ import {
   RESULT_BOARDS,
   pollFieldMap,
   rememberedResultTarget,
+  resultDestinationOf,
   resultDestinations,
   stageResults,
   type ResultOutcome,
@@ -1633,9 +1634,9 @@ export default function ProductionAudienceWorkspace({
                       onClick={() => selectedRound && void addResults(selectedRound)}
                       data-testid="audience-round-stage"
                     >
-                      {resultTarget ? `Add results to rundown on ${resultTarget.name}` : 'Add results to rundown'}
+                      {resultDestinationOf(show, selected.id) ? `Add results to rundown on ${resultDestinationOf(show, selected.id)!.name}` : 'Add results to rundown'}
                     </button>
-                    {resultTarget && (
+                    {(resultTarget || resultDestinationOf(show, selected.id)) && (
                       <button disabled={staging} onClick={() => changeResultTarget(selected.id)} data-testid="result-target-change">
                         Change
                       </button>
