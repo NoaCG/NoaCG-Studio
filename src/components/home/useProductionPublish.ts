@@ -58,7 +58,7 @@ import type { useRundownHistory } from './useRundownHistory';
 
 /**
  * What the account gate says, in the dialog's first line. Plain words about what the press does
- * and why it needs an account: publishing creates hosted rows (the output, control and audience
+ * and why it needs an account: publishing creates hosted rows (the output, presenter and audience
  * links) that must belong to someone who can take them down again. Everything else on this page
  * works without one, and the dialog's own second line says so.
  */
