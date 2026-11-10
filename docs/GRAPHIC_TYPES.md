@@ -298,11 +298,12 @@ family a cell is in.
 | Question queue | — | qq01 House Queue | branches `forward` / `back` |
 | Community request | — | rq01 House Request | – |
 | Join card | - | jc01 House Join Card | none: the QR is drawn from the Join link field by the card's own encoder |
+| Word cloud | - | wc01 House Word Cloud | none: the words are drawn from the Words field, sized by count |
 
 Scoreboard, ticker and quiz board earn their place by what they prove rather than by frequency:
 parallel groups, timer-driven motion, and the far end of the model.
 
-The AUDIENCE PACK's eight types (the eight rows before the Join card) are the audience-interaction set: the
+The AUDIENCE PACK's eight types (the eight rows before the Join card and the word cloud) are the audience-interaction set: the
 graphics a talk show, livestream, podcast, webinar, church, conference, quiz show or election
 programme uses to put what the audience sent on screen. Three things in that block are worth
 reading as claims rather than as entries:

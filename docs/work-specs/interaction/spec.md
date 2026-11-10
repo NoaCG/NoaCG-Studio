@@ -931,3 +931,77 @@ their values.
   `supabase start` retries by itself.
 
 **Walk** (AC-15, phase 5): `evidence/phase-5.md`. No blocking finding; #2344 filed.
+
+### Phase 6: Word questions
+
+Previous verified main: `7c16e66a89942d7020d19004603d091a56e4f635`. Revert of this merge:
+`git revert -m 1 <merge sha>` (the merge sha is in `evidence/phase-6.md` once it lands). Migration
+0114 keeps every function's signature and grant, so the reverted app runs on it unchanged: an older
+page never makes a Word round, and `mine` gains a key it ignores. Removing it is a new migration
+that restores 0111's `audience_go_live`, `audience_submit`, `audience_round_guard` and
+`audience_join_by_slug` and 0095's `audience_guard`; the kind `word` in the check can stay.
+
+**Rules** (state rules; each is observable). Written with the code; a fresh read-only review
+challenged them before the final assessment:
+
+- W1. Interaction lists a Word question's words by frequency, most first, then alphabetically.
+  Case does not split a word (`Brilliant` and `brilliant` are one word), and the spelling most
+  phones used is shown.
+- W2. A word is one word: trimmed, no space and no `|` inside, 1 to 25 characters (code points).
+  The phone, the local provider and the server apply the same rule; the server refuses anything
+  else.
+- W3. One word per phone per question. A second send from the same phone is refused with "You have
+  already sent your word."; a word cannot be changed once sent.
+- W4. Words never count against the message throttle (20 per 10 seconds per production), and the
+  message throttle no longer counts words. A Word round has its own cap, 300 words in 10 seconds,
+  as phone votes have.
+- W5. A phone that sent its word shows the word instead of the box, also after a reload: the join
+  view gives each of this phone's messages its round.
+- W6. The operator hides a word (Hide beside it); a hidden word stays listed, struck through, and
+  can be shown again. A hidden word is never in a cue's Words. Hiding is kept on the question
+  (`Show.questions[].hidden`, by the word's key), allowed while live and with answers, and Duplicate
+  starts with none. A cue carries the 30 most-sent shown words at most.
+- W7. "Add word cloud to rundown" writes a snapshot of the shown words (Question, and Words as
+  `word | count` lines, most first) onto the question's one cue, through the phase 3 mapping
+  (`Show.resultCues`, S1 to S6, S15): a second press, a reload or another tab updates that cue; a
+  deleted cue or a graphic without the fields gets a new cue and the note says why. The remembered
+  graphic is `Show.wordTarget`; with none the press asks: the production's word clouds, or the
+  catalog's House Word Cloud, added with its one cue. Words that arrive later reach the cue only on
+  the next press.
+- W8. Nothing in this sends a Take, Update or graphic event (R16, S8). Stop writes nothing into a
+  word cloud cue.
+- W9. Words are not messages: they are not in the inbox, the Messages filter or the cue editor's
+  Pick a message, and paste never files under a Word question.
+
+**Decisions** (made in the build, revertible in review):
+
+- Each word is an `audience_submissions` row under the question's round (kind `word`), so Go live,
+  Stop, Clear results, the revision and the stale-phone refusal are the Open question's, unchanged.
+- One word per phone and no change after sending (W3): a word is a message's original, which is
+  never edited (the moderation model); a vote can change because it is a pointer, a word is text.
+- Staging is a snapshot, not live: the spec says "staging puts a snapshot on a word cloud cue", and
+  a word reaching air between presses would bypass Hide.
+- Hidden words live on the question rather than on the rows, so a word hidden before more phones
+  send it stays hidden for every later send of it.
+- The word cloud is one catalog design, `wc01` House Word Cloud, on a new type, Word cloud
+  (`types/audience.ts`): a fixed 1280 px board, the question over a cloud whose words the runtime
+  sizes by count (34 to 92 px at 1080p), the most-sent in the accent and in the middle. A word too
+  wide for the board is drawn smaller, never below 34 px; when the words do not all fit, the
+  least-sent go first.
+- A word cloud's Question is not a message destination (`messageFields`), as a vote board's is not.
+- Chat stays as phase 4 left it: with a Word question live a Twitch or YouTube line is a message
+  under no question (C10). Chat words are not in AC-14.
+- The cue is labelled "Words: <question>" (a dash label would add a copy tell).
+
+**Traps found** (for later phases):
+
+- The stage fit (`templates/shared/stageFit.ts`) resets every leaf's inline `font-size` on
+  `update()`. A runtime that sizes its own text must opt its elements out the way the fit
+  documents: a `line-clamp` on them ("a design that already bounds its own line is left alone").
+- Program holds one frame per layer: a journey reads `iframe[title="<graphic>"]`, never the first.
+- `scripts/interaction-questions.test.mjs` used `word` as its "type no build knows yet"; it now
+  uses `rating`.
+- A dev server left on this worktree's port makes the offline suite refuse to start; stop it
+  before queueing a browser job.
+
+**Walk** (AC-15, phase 6): `evidence/phase-6.md`.
