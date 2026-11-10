@@ -23,7 +23,8 @@ Reused verbatim (the audit that chose this is summarized in §9):
 - **The durable command log** — `control_events` + `control_send`/`control_tail` (0008): the
   INSERT is the send, DB order is the truth, gap-fill + hole detection recover a reconnect.
 - **The capability model** — an unguessable slug in the URL is the authorization; SECURITY
-  DEFINER RPCs are the gate; owning/publishing needs sign-in (RLS), operating does not.
+  DEFINER RPCs are the gate; owning/publishing needs sign-in (RLS), operating does not at the
+  server function level. The one operator surface, the production page, needs sign-in.
 - **Staged-vs-take** - nothing airs because it was typed; airing is an explicit Take. The
   production page keeps an edit as a draft on the page (the retired hosted page staged through
   `control_stage` and the shared `staged` buffer).

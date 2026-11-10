@@ -234,6 +234,7 @@ Deleting it is one action (`deleteShowProfile`) and restores the generated panel
 - **Capability model:** owning/publishing requires sign-in (RLS); OPERATING needs only the
   slug, through SECURITY DEFINER RPCs (`control_show_by_slug`, `control_send`,
   `control_stage`, `control_report`, `control_tail`). Revoke = unpublish or rotate.
+  That is the server's posture; the one operator surface, the production page, needs sign-in.
   `control_events` is readable only by the production's owner and team (migration 0066); a
   slug holder reads the log through `control_tail` and follows it on the private
   `log-<show id>` topic (0064).
