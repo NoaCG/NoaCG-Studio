@@ -101,6 +101,16 @@ function setIdKeepingRefs(root: Element, el: Element, id: string): void {
   }
 }
 
+/** The QR layer as a group the code can be drawn into: the layer itself when it is one, else a new
+ *  group put in its place around it. */
+function qrGroup(layer: Element): Element {
+  if (layer.localName === 'g') return layer;
+  const g = layer.ownerDocument.createElementNS(layer.namespaceURI, 'g');
+  layer.parentNode!.insertBefore(g, layer);
+  g.appendChild(layer);
+  return g;
+}
+
 /**
  * Bind the chosen candidates: each gets id="fN" (in field order), every remaining candidate
  * marker is stripped, and the root <svg> gains the artwork class so the part registry names
@@ -227,7 +237,8 @@ export function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
   // MOMENTS. Before the markers are stripped - that is what they are for.
   behaviour?.markLayers(root);
   // The layer named QR: the runtime draws the Join link's code over its box (svgQr.ts).
-  if (qrLayer) addClass(qrLayer, QR_LAYER_CLASS);
+  // A shape (not a group) is wrapped in a group of its own, so the code can be drawn inside it.
+  if (qrLayer) addClass(qrGroup(qrLayer), QR_LAYER_CLASS);
   const replaced = new Set(svg.outlines.map((o) => o.candidateId));
   for (const el of Array.from(root.querySelectorAll(`[${SVG_CANDIDATE_ATTR}]`))) {
     if (keepMarkers && !replaced.has(el.getAttribute(SVG_CANDIDATE_ATTR) ?? '')) continue;

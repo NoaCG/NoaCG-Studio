@@ -736,7 +736,8 @@ test('an imported SVG with a layer named QR draws its Join link as a code that d
     await page.setViewportSize({ width: 1920, height: 1080 });
     // Artwork outside every sample set: a plate, a title and a placeholder square named QR, the
     // way Illustrator writes a layer name into `id`, moved by a transform of its own.
-    const markup = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="400" viewBox="0 0 900 400">
+    // The root declares a white stroke every shape inherits: the code must not take it.
+    const markup = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="400" viewBox="0 0 900 400" stroke="#ffffff" stroke-width="2">
   <rect id="Plate" width="900" height="400" fill="#14213d"/>
   <text id="Title" x="380" y="120" font-family="Arial" font-size="48" fill="#ffffff">Scan to join</text>
   <text id="QR " x="380" y="200" font-family="Arial" font-size="32" fill="#ffffff">QR</text>
@@ -781,7 +782,8 @@ test('an imported SVG with a layer named QR draws its Join link as a code that d
       const root = document.querySelector('.imported-design');
       return !!root && getComputedStyle(root).opacity === '1';
     });
-    const code = frame.locator('.imported-design-qr-code');
+    // Inside the QR layer, so whatever animates that layer moves the code with it.
+    const code = frame.locator('.imported-design-qr > .imported-design-qr-code');
     await expect(code).toHaveCount(1);
     // Over the layer's own box: 320 drawn units at the 900-unit artwork's on-screen scale.
     const [codeBox, artBox] = [await code.boundingBox(), await frame.locator('svg.imported-design-art').boundingBox()];

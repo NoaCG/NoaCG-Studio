@@ -51,7 +51,7 @@ export function qrHolderHtml(at: number): string {
     <div id="f${at}" class="${DATA_SOURCE_CLASS}"></div>`;
 }
 
-export const QR_CSS = `/* The layer named QR is a stand-in: the runtime draws the code over its box. */
+export const QR_CSS = `/* The layer named QR is a stand-in: hidden, while the code the runtime draws inside it shows. */
 .${QR_LAYER_CLASS} {
   visibility: hidden;
 }`;
@@ -72,9 +72,9 @@ ${QR_ENCODER_JS.trim()}
 function svgQrPaint() {
   var source = document.getElementById('f${at}');
   var layer = document.querySelector('.${QR_LAYER_CLASS}');
-  if (!source || !layer || !layer.parentNode) return;
-  var old = layer.parentNode.querySelector('.${QR_LAYER_CLASS}-code');
-  if (old) old.parentNode.removeChild(old);
+  if (!source || !layer) return;
+  var old = layer.querySelector('.${QR_LAYER_CLASS}-code');
+  if (old) layer.removeChild(old);
   var link = (source.textContent || '').trim();
   if (!link || typeof qrcode !== 'function') return;
   var qr;
@@ -85,6 +85,7 @@ function svgQrPaint() {
   } catch (e) {
     return;
   }
+  // The layer's box in its own frame (the stand-in's geometry), measured before the code joins it.
   var box;
   try { box = layer.getBBox(); } catch (e) { return; }
   var side = Math.min(box.width, box.height);
@@ -95,15 +96,20 @@ function svgQrPaint() {
       if (qr.isDark(r, c)) d += 'M' + (c + quiet) + ' ' + (r + quiet) + 'h1v1h-1z';
     }
   }
+  // The code is drawn INSIDE the QR layer, so it moves with whatever animates that layer, and
+  // shows through the hidden stand-in by its own visibility. It sets every inherited paint it
+  // depends on, so a stroke or opacity the artwork declares above it cannot spoil the scan.
   var ns = layer.namespaceURI;
   var g = document.createElementNS(ns, 'g');
   g.setAttribute('class', '${QR_LAYER_CLASS}-code');
-  // The layer's own transform, so the code lands where the layer was drawn.
-  var t = layer.getAttribute('transform');
   var unit = side / size;
   var x = box.x + (box.width - side) / 2, y = box.y + (box.height - side) / 2;
-  g.setAttribute('transform', (t ? t + ' ' : '') + 'translate(' + x + ' ' + y + ') scale(' + unit + ')');
+  g.setAttribute('transform', 'translate(' + x + ' ' + y + ') scale(' + unit + ')');
+  g.setAttribute('visibility', 'visible');
   g.setAttribute('shape-rendering', 'crispEdges');
+  g.setAttribute('stroke', 'none');
+  g.setAttribute('fill-opacity', '1');
+  g.setAttribute('fill-rule', 'nonzero');
   var plate = document.createElementNS(ns, 'rect');
   plate.setAttribute('width', size);
   plate.setAttribute('height', size);
@@ -113,7 +119,7 @@ function svgQrPaint() {
   modules.setAttribute('d', d);
   g.appendChild(plate);
   g.appendChild(modules);
-  layer.parentNode.insertBefore(g, layer.nextSibling);
+  layer.appendChild(g);
 }
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', svgQrPaint);
