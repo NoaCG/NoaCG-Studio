@@ -512,7 +512,8 @@ test.describe(() => {
     expect(presenterUrl).toContain('/join?pv=');
     await page.getByTestId('production-links-close').click();
     const nothingOnAir = () => expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
-    const program = page.frameLocator('[data-testid="program-stage"] iframe');
+    // Program holds one frame per layer: each check reads its own graphic's frame.
+    const program = (title: string) => page.frameLocator(`[data-testid="program-stage"] iframe[title="${title}"]`);
 
     const messages = await openWorkspace(page, 'audience');
     // The link a phone camera reads, from the QR code's pixels.
@@ -566,7 +567,7 @@ test.describe(() => {
     await answerCue.click();
     await nothingOnAir();
     await page.getByTestId('verb-take').click();
-    await expect(program.locator('body')).toContainText('Sent from a phone on the walk', { timeout: 20_000 });
+    await expect(program('House Q&A').locator('body')).toContainText('Sent from a phone on the walk', { timeout: 20_000 });
 
     // Question 2, a vote: going live closes question 1; the phone votes; the result airs via Take.
     await addQuestion(messages, 'choice', 'Who wins the walk?', ['Home', 'Away']);
@@ -580,14 +581,14 @@ test.describe(() => {
     await addResults(messages, 'House Vote');
     await settleDurableWrites(messages);
     // Staging sent nothing: Program still holds the answer and not the vote.
-    await expect(program.locator('body')).toContainText('Sent from a phone on the walk');
-    await expect(program.locator('body')).not.toContainText('Who wins the walk?');
+    await expect(program('House Q&A').locator('body')).toContainText('Sent from a phone on the walk');
+    await expect(program('House Vote').locator('body')).not.toContainText('Who wins the walk?');
     const voteCue = page.locator('.pd-cue', { hasText: 'Vote —' });
     await expect(voteCue).toHaveCount(1, { timeout: 20_000 });
     await voteCue.click();
     await page.getByTestId('verb-take').click();
-    await expect(program.locator('body')).toContainText('Who wins the walk?', { timeout: 20_000 });
-    await expect(program.locator('body')).toContainText('Away');
+    await expect(program('House Vote').locator('body')).toContainText('Who wins the walk?', { timeout: 20_000 });
+    await expect(program('House Vote').locator('body')).toContainText('Away');
 
     // Question 3: the room moves on, and Stop leaves phones the waiting text.
     await addQuestion(messages, 'open', 'One word for tonight?');
