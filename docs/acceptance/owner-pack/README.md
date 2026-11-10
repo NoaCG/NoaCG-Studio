@@ -21,14 +21,14 @@ the pack is an honest gap rather than an answer. See "What this pack cannot show
 | 2 | The playout dashboard's scroll model | Are the capped monitors too small to judge a graphic by? Does the space beside PROGRAM read as SIZED or as UNFINISHED? | `docs/PLAYOUT_DASHBOARD.md` §2 |
 | 3 | The interactive playout plane | One question per screen — contextual ⚡ controls, the Data workspace, vote-to-air, the presenter pointers, the audience join page | `docs/INTERACTIVE_PLAYOUT_PLAN.md`, "Acceptance pass 2026-08-08"; `docs/GOALS.md` |
 
-Section 2's two questions are quoted verbatim from the contract, not paraphrased, and are asked
-over **all three surfaces** that render the dashboard — the in-app production page, the hosted
-control page, and the exported controller. Nothing in the pack answers them; nothing in it hints
+Section 2's two questions are quoted verbatim from the contract, not paraphrased. At the read
+they were asked over the three surfaces that then rendered the dashboard: the in-app production
+page, the hosted control page (retired 2026-11) and the exported controller. Nothing in the pack answers them; nothing in it hints
 at an answer.
 
 Two frames raise the same **observation, deliberately not judged**: with the cue being edited on
-a layer that is not on air, the hosted page and the exported controller both offer the ⚡ graphic
-actions, where the in-app page with nothing on air greys all five and says "not on air".
+a layer that is not on air, the hosted page (retired 2026-11) and the exported controller both
+offered the ⚡ graphic actions, where the in-app page with nothing on air greys all five and says "not on air".
 `docs/PLAYOUT_DASHBOARD.md` §7b and §7c are the two places that rule would live; nobody has
 decided which frame the contract wants.
 
@@ -55,39 +55,38 @@ actually judges a graphic by, and it is a third bigger at 1080p — the size the
 1536×814, the size that was accepted, moves 13px either way. 1536×560 is below the supported
 minimum (1366×768) and takes a bigger share by design, because the bar is inside the head now.
 
-No pane on any of the three surfaces has a scrollbar of its own. The page is the only scroller.
+At the read, no pane on any of the three surfaces had a scrollbar of its own. The page was the only scroller.
 
-**The hosted page measures identically to the in-app one** — 225px / 267px / 33% at 1536×814,
-170px / 224px / 40% at 1536×560. The contract says the three surfaces must not diverge; on the
-scroll model that is measured rather than argued from shared CSS, and it stayed true across a
+**The hosted page measured identically to the in-app one** at the read: 225px / 267px / 33% at 1536×814,
+170px / 224px / 40% at 1536×560. The contract then said the three surfaces must not diverge; on
+the scroll model that was measured rather than argued from shared CSS, and it stayed true across a
 change that touched all three.
 
-## How the hosted frames exist at all
+## How the hosted frames were made
 
 The hosted control page was retired in 2026-11 (docs/work-specs/retire-hosted-control/spec.md),
 and the pack's `hosted` section went with it; its two frames stay as the record of that read.
 This is how they were made:
 
-The hosted control page needs Supabase env plus a published production, and this checkout has
-neither. So the pack's `hosted` section builds the **ordinary production bundle** with
-`VITE_SUPABASE_URL` pointed at a stub origin, serves it to the browser out of memory, and answers
+The hosted control page needed Supabase env plus a published production, and this checkout has
+neither. So the pack's `hosted` section built the **ordinary production bundle** with
+`VITE_SUPABASE_URL` pointed at a stub origin, served it to the browser out of memory, and answered
 migration 0008's RPCs from memory — with the production's own `buildPanelSpec` and
-`buildOutputPayload`, computed by the app itself on the dev server. Nothing about the page is a
-mockup; what is fake is the transport.
+`buildOutputPayload`, computed by the app itself on the dev server. Nothing about the page was a
+mockup; what was fake was the transport.
 
-It is captured **opening onto a production already on air**, which is the hosted page's own real
-case: an operator joining from a phone mid-show. The resolve reports which layer is up and what it
-last applied, and the page's boot recovery plays that onto PROGRAM from those two fields alone.
-Nothing AFTER the open moves in this rig — the log follower tail-fills only when Supabase Realtime
-reports `SUBSCRIBED`, and there is no socket here. The frame says that rather than implying
-otherwise. What it proves is the LAYOUT; the server side (RLS, the slug capability, the log's
-ordering) stays the live checklist's job.
+It was captured **opening onto a production already on air**, which was the hosted page's own real
+case: an operator joining from a phone mid-show. The resolve reported which layer was up and what it
+last applied, and the page's boot recovery played that onto PROGRAM from those two fields alone.
+Nothing after the open moved in that rig: the log follower tail-fills only when Supabase Realtime
+reports `SUBSCRIBED`, and there was no socket. The frames say so rather than implying otherwise.
+What they prove is the layout.
 
 ## What this pack still cannot show
 
 One frame is labelled as answering nothing, and it is in the pack so the gap stays visible rather
 than remembered: **the public `/join` page, the presenter's own tablet page, and the Links panel's
-four capability URLs.** All three need a real publish against a real backend. Offline `/join` says
+capability URLs.** All three need a real publish against a real backend. Offline `/join` says
 so in words; the presenter view is server work (`presenterBySlug`) an offline build never reaches;
 and the production header carries "▶ Start production" where the Links button lives, because each
 URL appears only once a publish has minted its slug — so there is no panel to photograph.

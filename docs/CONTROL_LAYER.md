@@ -238,9 +238,10 @@ Deleting it is one action (`deleteShowProfile`) and restores the generated panel
   slug holder reads the log through `control_tail` and follows it on the private
   `log-<show id>` topic (0064).
 - **Recovery is self-service:** the hosted receiver reboots by reading its own last report
-  (data, then snap), then follows the log. The production page rebuilds what is on air from the resolve and the log when it opens. Staging
-  and live reports ride the log as meta rows (`t:'staged'|'live'`) so every open page follows
-  without polling; those are never applied as graphic commands.
+  (data, then snap), then follows the log. The production page rebuilds what is on air from the resolve and the log when it opens. Live
+  reports ride the log as meta rows (`t:'live'`) so every open page follows without polling; they
+  are never applied as graphic commands. `t:'staged'` rows were the retired hosted control page's
+  shared edits; nothing writes them now.
 - **On the hosted half an RPC either ANSWERED — possibly with nothing — or FAILED, and the two
   never collapse into one value** (`hostedReceiver.ts`; `untilAnswered` in `hostedControl.ts`,
   which `output/main.ts` boots through). "No such production" and "the request never arrived"

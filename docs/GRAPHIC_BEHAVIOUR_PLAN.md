@@ -446,8 +446,8 @@ The owner's question, answered explicitly because the model makes it easy to get
   that option's true share of the WHOLE vote (which is why the bars visibly fail to fill the
   board). Two things stop it lying: the winner is never called on a row that was not drawn, and the
   `Options` field is reported through `noacgTextOverflow()`, so every surface that already warns
-  about a value the design cannot hold - the cue editor, the hosted control page, the exported
-  controller - says so before the Take. **Reported, not refused**: dropping a round mid-broadcast
+  about a value the design cannot hold - the cue editor and the exported controller - says so
+  before the Take. **Reported, not refused**: dropping a round mid-broadcast
   is a worse answer than airing what fits and naming what did not.
 - **No hosted walk yet.** The offline walk is pinned end to end; the hosted road (the real
   `/output` renderer following a command log) is the quiz pilot's §10 walk repeated, and nobody
