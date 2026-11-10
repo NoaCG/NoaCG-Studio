@@ -587,6 +587,93 @@ test('questions are written, browsed and changed safely, and the list survives a
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
 });
 
+test('a Word question takes one word per phone, lists words by frequency, and airs only the shown words through Take (AC-14)', async ({ page, context }) => {
+  // docs/work-specs/interaction/spec.md AC-14 and the Rules W1 to W9 in its phase 6 notes.
+  await bootstrapGraphic(page, { name: 'House Q&A' });
+  const showId = await productionFor(page, 'Word Night');
+  await page.getByTestId('action-log').locator('summary').click();
+  const log = page.getByTestId('action-log-row');
+  const sent = await log.count();
+  const ws = await openWorkspace(page, 'audience');
+  const note = ws.getByTestId('audience-note');
+
+  await addQuestion(ws, 'word', 'Sum up tonight in one word');
+  await expect(questionRow(ws, 'Sum up tonight in one word').getByTestId('question-type')).toHaveText('Word');
+  await goLive(ws, 'Sum up tonight in one word');
+
+  // A phone: one word of at most 25 characters, once (W2, W3).
+  const phone = await context.newPage();
+  await phone.setViewportSize({ width: 390, height: 844 });
+  await phone.goto(`/join?rehearse=${showId}`);
+  await expect(phone.locator('#join .nj-prompt')).toHaveText('Sum up tonight in one word');
+  const word = phone.locator('#nj-word');
+  const send = phone.locator('#join .nj-send');
+  await word.fill('two words');
+  await expect(phone.locator('#join .nj-count')).toHaveText('One word only');
+  await expect(send).toBeDisabled();
+  await word.fill('x'.repeat(26));
+  await expect(phone.locator('#join .nj-count')).toHaveText('1 characters too many');
+  await expect(send).toBeDisabled();
+  await word.fill(' Brilliant ');
+  await send.click();
+  await expect(phone.locator('#join .nj-word')).toHaveText('Brilliant');
+  await expect(word).toHaveCount(0);
+  await phone.reload();
+  await expect(phone.locator('#join .nj-word')).toHaveText('Brilliant');
+  await expect(phone.locator('#nj-word')).toHaveCount(0);
+
+  // Listed by frequency (W1); words are not messages (W9).
+  await ws.getByTestId('word-simulate').click(); // Exciting, Tense, Exciting, Loud
+  await expect(ws.getByTestId('word-text')).toHaveText(['Exciting', 'Brilliant', 'Loud', 'Tense']);
+  await expect(ws.getByTestId('word-count')).toHaveText(['2', '1', '1', '1']);
+  await expect(questionRow(ws, 'Sum up tonight in one word').getByTestId('question-count')).toHaveText('5');
+  await expect(ws.locator('.pd-aud-row')).toHaveCount(0);
+
+  // A hidden word stays listed, struck through, and never reaches the cue (W6).
+  await ws.getByTestId('word-row').filter({ hasText: 'Loud' }).getByTestId('word-hide').click();
+  await expect(ws.getByTestId('word-row').filter({ hasText: 'Loud' })).toHaveClass(/hidden/);
+
+  // Staging asks where, adds one word cloud cue with the shown words, and sends nothing (W7, W8).
+  await ws.getByTestId('word-stage').click();
+  await ws.getByTestId('word-choose-board').filter({ hasText: 'House Word Cloud' }).click();
+  await expect(note).toContainText('✓ Added a word cloud cue on “House Word Cloud” with 3 words');
+  await expect(ws.getByTestId('word-stage')).toHaveText('Add word cloud to rundown on House Word Cloud');
+  const staged = async () =>
+    ws.evaluate(async () => {
+      const { loadShows } = await import('/src/model/shows.ts');
+      const show = loadShows()[0];
+      const cues = (show.cues ?? []).filter((c) => c.label.startsWith('Words —'));
+      return { count: cues.length, id: cues[0]?.id, values: cues[0]?.values ?? {} };
+    });
+  await expect.poll(async () => (await staged()).values.f2).toBe('Exciting | 2\nBrilliant | 1\nTense | 1');
+  expect((await staged()).values.f1).toBe('Sum up tonight in one word');
+  await settleDurableWrites(ws);
+  await expect(log).toHaveCount(sent);
+
+  // Only Take puts it on air, and air carries the shown words only.
+  await page.locator('.pd-cue', { hasText: 'Words —' }).click();
+  await page.getByTestId('verb-take').click();
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+  await expect(program.locator('.audience-word')).toHaveText(['Brilliant', 'Exciting', 'Tense']);
+  await expect(log.first()).toContainText('Took “Words — Sum up tonight in one word”');
+  const taken = await log.count();
+
+  // A second press is a new snapshot on the same cue; Program changes only by Update (W7, W8).
+  await ws.getByTestId('word-simulate').click(); // Fun, Exciting, Tense, Proud
+  await expect(ws.getByTestId('word-text').first()).toHaveText('Exciting');
+  await expect(ws.getByTestId('word-count').first()).toHaveText('3');
+  await ws.getByTestId('word-stage').click();
+  await expect(note).toContainText('✓ Updated the word cloud cue on “House Word Cloud”');
+  await expect.poll(async () => (await staged()).values.f2).toBe('Exciting | 3\nTense | 2\nBrilliant | 1\nFun | 1\nProud | 1');
+  expect((await staged()).count).toBe(1);
+  await stopLive(ws, 'Sum up tonight in one word');
+  await settleDurableWrites(ws);
+  await expect(log).toHaveCount(taken);
+  await expect(program.locator('.audience-word')).toHaveText(['Brilliant', 'Exciting', 'Tense']);
+  await page.getByTestId('verb-update').click();
+  await expect(program.locator('.audience-word')).toHaveCount(5);
+});
+
 test('a stale phone keeps its words, sees the new question, and files nothing until it sends again (AC-4, AC-7)', async ({ page, context }) => {
   await bootstrapGraphic(page, { name: 'House Q&A' });
   const showId = await productionFor(page, 'Phone Night');

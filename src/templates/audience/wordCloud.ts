@@ -53,6 +53,10 @@ const CLOUD_CSS = `/* The question is a heading over the cloud; the cloud is a f
   text-align: center;
 }
 .audience-word {
+  /* One line, bounded by the cloud's own runtime, which sizes each word: the stage fit leaves a
+     line that says so alone (stageFit.ts, "bounds its own line") instead of resetting its size. */
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
   font-family: var(--font-heading);
   font-weight: var(--display-weight);
   line-height: 1.1;
