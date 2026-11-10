@@ -6,7 +6,7 @@
 // THE PICTURE IS CHECKED TOO, in every state the walk reaches (owner walk 2026-11-10: the credits
 // rolled over their own title and through the rule under it, and nothing failed). `airProblems`
 // reads the program output and names every visible text that overlaps another text, is cut by a
-// shape it is not inside, or leaves the frame; a roll is checked at ten points of its travel.
+// shape it is not inside, or is cut off by the frame edge; a roll is checked at ten points.
 // `NOACG_SHOTS=<dir>` also writes each checked frame, for a person to review the whole set at once.
 // covers: docs/tutorials/svg-templates/**
 // covers: src/templates/importedDesign/creditsRoll.ts
@@ -49,15 +49,28 @@ async function airProblems(air: FrameLocator): Promise<string[]> {
       }
       return true;
     };
-    // The nearest clipping window above an element (an inner svg the credits roll runs in).
-    const clip = (el: Element, r: Box): Box | null => {
+    // A clipping window above an element (the inner svg a credits roll runs in), as the rectangle
+    // its own x, y, width and height give it on screen; a text past its edge is hidden there, not
+    // broken, so it is compared as clipped and never reported for leaving the frame.
+    const windowOf = (el: Element): Box | null => {
       for (let e = el.parentElement; e && e !== art; e = e.parentElement) {
-        if (e.tagName.toLowerCase() === 'svg') {
-          const w = e.getBoundingClientRect();
-          r = { l: Math.max(r.l, w.left), t: Math.max(r.t, w.top), r: Math.min(r.r, w.right), b: Math.min(r.b, w.bottom) };
+        if (e instanceof SVGSVGElement && e.parentElement instanceof SVGGraphicsElement) {
+          const m = (e.parentElement as SVGGraphicsElement).getScreenCTM();
+          if (!m) return null;
+          const x = e.x.baseVal.value, y = e.y.baseVal.value, w = e.width.baseVal.value, h = e.height.baseVal.value;
+          const p = [new DOMPoint(x, y).matrixTransform(m), new DOMPoint(x + w, y + h).matrixTransform(m)];
+          return { l: Math.min(p[0].x, p[1].x), t: Math.min(p[0].y, p[1].y), r: Math.max(p[0].x, p[1].x), b: Math.max(p[0].y, p[1].y) };
         }
       }
-      return r.r - r.l > 1 && r.b - r.t > 1 ? r : null;
+      return null;
+    };
+    const cut = (r: Box, w: Box): Box | null => {
+      const c = { l: Math.max(r.l, w.l), t: Math.max(r.t, w.t), r: Math.min(r.r, w.r), b: Math.min(r.b, w.b) };
+      return c.r - c.l > 1 && c.b - c.t > 1 ? c : null;
+    };
+    const clip = (el: Element, r: Box): Box | null => {
+      const w = windowOf(el);
+      return w ? cut(r, w) : r;
     };
     const boxOf = (el: Element, inset = 0): Box | null => {
       const g = el.getBoundingClientRect();
@@ -70,16 +83,21 @@ async function airProblems(air: FrameLocator): Promise<string[]> {
     const name = (el: Element) => `"${(el.textContent ?? '').trim().slice(0, 30)}"`;
     const texts = [...art.querySelectorAll('text')]
       .filter((t) => (t.textContent ?? '').trim() && !t.closest('[class$="-credits"]'))
-      .map((el) => ({ el, box: boxOf(el, 1 / 6) }))
-      .filter((t): t is { el: SVGTextElement; box: Box } => !!t.box);
+      .map((el) => ({ el, box: boxOf(el, 1 / 6), rolled: !!windowOf(el) }))
+      .filter((t): t is { el: SVGTextElement; box: Box; rolled: boolean } => !!t.box);
     const shapes = [...art.querySelectorAll('rect, path, polygon, polyline, line, ellipse, circle')]
       .map((el) => ({ el, box: boxOf(el) }))
       .filter((s): s is { el: Element; box: Box } => !!s.box);
     const out: string[] = [];
     texts.forEach((a, i) => {
-      if (a.box.l < frame.left - 1 || a.box.r > frame.right + 1 || a.box.t < frame.top - 1 || a.box.b > frame.bottom + 1) out.push(`${name(a.el)} leaves the frame`);
+      // Wholly outside the frame is off screen; partly outside is cut off on air.
+      const seen = cut(a.box, { l: frame.left, t: frame.top, r: frame.right, b: frame.bottom });
+      if (seen && !a.rolled && !holds({ l: frame.left, t: frame.top, r: frame.right, b: frame.bottom }, a.box)) out.push(`${name(a.el)} is cut off by the frame edge`);
       for (const b of texts.slice(i + 1)) if (cross(a.box, b.box)) out.push(`${name(a.el)} overlaps ${name(b.el)}`);
-      for (const s of shapes) if (cross(a.box, s.box) && !holds(s.box, a.box)) out.push(`${name(a.el)} is cut by a <${s.el.tagName}>${s.el.id ? ' #' + s.el.id : ''}`);
+      // A shape's edge through a text is fine where a plate painted above that shape holds the
+      // text: a badge drawn across a card's edge covers the edge it sits on.
+      const covered = (s: Element) => shapes.some((h) => h.el !== s && holds(h.box, a.box) && !!(s.compareDocumentPosition(h.el) & Node.DOCUMENT_POSITION_FOLLOWING));
+      for (const s of shapes) if (cross(a.box, s.box) && !holds(s.box, a.box) && !covered(s.el)) out.push(`${name(a.el)} is cut by a <${s.el.tagName}>${s.el.id ? ' #' + s.el.id : ''}`);
     });
     return out;
   });
