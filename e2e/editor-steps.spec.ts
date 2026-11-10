@@ -403,6 +403,48 @@ test('Add Step, rename, delete and drags are one undo each and survive save and 
   expect(errors).toEqual([]);
 });
 
+test('nearby flags keep separate readable hit targets at their stored times', async ({ page }) => {
+  await page.setViewportSize({ width: 1093, height: 720 });
+  const data = fixture();
+  data.steps.splice(1, 0, { name: 'Headline reveal', duration: .05, ease: 'none', layers: {} });
+  await editorWith(page, data);
+  const first = flag(page, 'Headline reveal');
+  const second = flag(page, data.steps[2].name);
+  const ruler = page.getByRole('slider', { name: 'Playhead' });
+  const bounds = (await ruler.boundingBox())!, extent = Number(await ruler.getAttribute('data-extent'));
+  const [firstTime, secondTime] = flagsOf(data);
+  const a = (await first.boundingBox())!, b = (await second.boundingBox())!;
+  expect(a.x).toBeLessThan(b.x);
+  expect(a.x + a.width).toBeLessThanOrEqual(b.x + .5);
+  expect(a.x).toBeCloseTo(bounds.x + firstTime / extent * bounds.width, 0);
+  expect(b.x).toBeCloseTo(bounds.x + secondTime / extent * bounds.width, 0);
+  await expect(first).toHaveAttribute('title', /^Headline reveal/);
+  await ruler.screenshot({ path: test.info().outputPath('nearby-flags.png') });
+  await second.click();
+  await expect(second).toHaveAttribute('aria-pressed', 'true');
+  await first.focus();
+  await expect(first).toBeFocused();
+  await page.keyboard.press('F2');
+  await expect(page.getByRole('textbox', { name: 'Step name', exact: true })).toHaveValue('Headline reveal');
+  await page.keyboard.press('Escape');
+  await expect(first).toBeFocused();
+});
+
+test('an immediate Out keeps its hit area at the start of the ruler', async ({ page }) => {
+  const data = fixture();
+  data.steps = [{ ...data.steps[0], duration: 0, layers: {}, spans: undefined }, data.steps.at(-1)!];
+  await editorWith(page, data);
+  const ruler = page.getByRole('slider', { name: 'Playhead' });
+  const start = (await ruler.boundingBox())!.x;
+  const out = flag(page, 'Out'), box = (await out.boundingBox())!;
+  expect(box.x).toBeCloseTo(start, 0);
+  expect(box.width).toBeGreaterThan(0);
+  await out.click();
+  await expect(out).toBeFocused();
+  await expect(out).toHaveAttribute('aria-pressed', 'true');
+  await expect(ruler).toHaveAttribute('aria-valuenow', '0');
+});
+
 test('flags stay ordered: a drag or nudge onto or past a neighbour refuses and changes nothing', async ({ page }) => {
   // Step 2 ends in settled air (its keys stop at 0.6 of 0.8), so Out can move into it (R1.2a.2).
   const settled = fixture(); settled.steps[1].duration = 0.8;

@@ -53,6 +53,11 @@ export function readTimeline(template: SpxTemplate): TimelineView {
 }
 /** The data selector a layer's motion lives under (R1.2a.6). */
 export const ownerOf = (view: TimelineView, selector: string) => view.owners[selector] ?? selector;
+/** Room for a flag's label before the next marker, without moving either marker. */
+export function flagLabelWidth(view: TimelineView, index: number, extent: number) {
+  const start = view.segments[index]?.start ?? 0, end = view.segments[index + 1]?.start ?? extent;
+  return (end - start) / extent * 100 + '%';
+}
 /** A flag is a sum of cue lengths, a float step off the time it was set on: read it within this. */
 export const FLOAT_STEP = 1e-6;
 /** A cue boundary belongs to its arriving segment; the finite clock contains no fake hold. */

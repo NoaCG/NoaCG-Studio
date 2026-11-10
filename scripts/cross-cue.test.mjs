@@ -27,7 +27,7 @@ const [edit, { moveOutBoundary, applyOut }, animation, { resolveValue }, animDat
   'src/blocks/animEdit.ts', 'src/blocks/editorOut.ts', 'src/blocks/editorAnimation.ts', 'src/blocks/animEval.ts', 'src/blocks/animData.ts',
   'src/templates/shared/animRuntime.ts', 'src/templates/shared/animRuntimeLegacy.ts', 'src/blocks/animMigration.ts', 'src/model/contentHash.ts',
   'src/templates/shared/easeRuntime.ts', 'src/components/editorFoundation/keySelection.ts', 'src/blocks/presetApply.ts'].map(load));
-const { moveKeys, moveLayerSpan, splitCue } = edit;
+const { captureKeys, moveKeys, moveLayerSpan, pasteKeys, splitCue } = edit;
 const { emitAnimRegion, ANIM_INTERPRETER_JS, writeOutData } = runtime;
 const GSAP = readFileSync(path.join(root, 'src/assets/gsap.min.js'), 'utf8');
 
@@ -40,6 +40,63 @@ const round = n => Math.round(n * 1000) / 1000;
 const starts = data => data.steps.reduce((acc, s, i) => [...acc, round(acc[i] + s.duration)], [0]);
 const tracks = (...all) => [...new Set(all.flatMap(d => d.steps.flatMap(s => Object.entries(s.layers).flatMap(([sel, t]) => Object.keys(t).map(p => sel + '\n' + p)))))].map(k => k.split('\n'));
 const near = (a, b, tolerance = 1e-3) => a === b || Math.abs(a - b) <= tolerance + 1e-9;
+
+test('clipboard keeps the ruler offsets and incoming eases in an existing Out cue', () => {
+  const data = fixture();
+  data.steps[0].ease = 'power1.out';
+  const before = structuredClone(data);
+  const copied = captureKeys(data, [
+    { step: 0, selector: '#title', property: 'x', time: .8 },
+    { step: 0, selector: '#box', property: 'opacity', time: .4 },
+  ]);
+  assert.deepEqual(copied, [
+    { selector: '#title', property: 'x', offset: .4, value: 0, ease: 'back.out(1.6)' },
+    { selector: '#box', property: 'opacity', offset: 0, value: 1, ease: 'power1.out' },
+  ]);
+  const expected = structuredClone(before);
+  expected.steps[2].layers['#box'].opacity.splice(1, 0, { time: .3, value: 1, ease: 'power1.out' });
+  expected.steps[2].layers['#title'].x.push({ time: .7, value: 0, ease: 'back.out(1.6)' });
+  assert.deepEqual(pasteKeys(data, copied, 2, .3), expected);
+  assert.deepEqual(data, before);
+  assert.throws(() => pasteKeys(data, copied, 2, .6), /cross a cue boundary/);
+  assert.throws(() => pasteKeys(data, copied, 2, .1996), /already has a key/);
+  assert.throws(() => pasteKeys(data, copied, 1, .3), /no keys/);
+  assert.throws(() => pasteKeys(data, copied, 3, .3), /authored cue/);
+  assert.deepEqual(data, before);
+  data.steps[2].carried = .2;
+  assert.throws(() => pasteKeys(data, copied, 2, .3), /carried Out/);
+});
+
+test('clipboard refuses ambiguous source keys and an occupied opposite flag side', () => {
+  const data = fixture(), copied = captureKeys(data, [{ step: 0, selector: '#box', property: 'x', time: .6 }]);
+  data.steps[0].layers['#box'].x.push({ time: 1.2, value: 0 });
+  data.steps[1].layers['#box'].x = [{ time: .4, value: 30 }];
+  assert.throws(() => pasteKeys(data, copied, 1, 0), /already has a key/);
+  data.steps[1].layers['#box'].x.unshift({ time: 0, value: 20 });
+  assert.throws(() => captureKeys(data, [{ step: 0, selector: '#box', property: 'x', time: 1.2 }]), /more than one key/);
+  data.steps[1].layers['#box'].x.shift();
+  data.steps[0].layers['#box'].x.pop();
+  const arriving = pasteKeys(data, copied, 0, 1.2);
+  const departing = pasteKeys(data, copied, 1, 0);
+  assert.deepEqual(arriving.steps[0].layers['#box'].x.at(-1), { time: 1.2, value: 0, ease: 'power2.out' });
+  assert.deepEqual(arriving.steps[1], data.steps[1]);
+  assert.deepEqual(departing.steps[0], data.steps[0]);
+  assert.deepEqual(departing.steps[1].layers['#box'].x[0], { time: 0, value: 0, ease: 'power2.out' });
+});
+
+test('clipboard never normalizes filters and refuses an incompatible key atomically', () => {
+  const data = fixture();
+  const track = [{ time: 0, value: 'blur(0px)' }, { time: .6, value: 'blur(4px)' }];
+  data.steps[0].layers['#box'].filter = track;
+  const copied = captureKeys(data, [{ step: 0, selector: '#box', property: 'filter', time: .6 }]);
+  assert.deepEqual(pasteKeys(data, copied, 0, .4).steps[0].layers['#box'].filter,
+    [track[0], { time: .4, value: 'blur(4px)', ease: 'none' }, track[1]]);
+  data.steps[0].layers['#box'].filter = [track[0], { time: .6, value: 'blur(4px) brightness(1)' }];
+  const before = structuredClone(data);
+  const numeric = captureKeys(data, [{ step: 0, selector: '#box', property: 'x', time: .6 }]);
+  assert.throws(() => pasteKeys(data, [...numeric, ...copied], 0, .4), /copied filter/);
+  assert.deepEqual(data, before);
+});
 
 /** The value a layer shows at stored ruler time u when every cue plays straight after the one
  *  before: the cue holding u (the arriving one at a flag), sampled as the editor samples it. */

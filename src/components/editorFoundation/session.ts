@@ -1,5 +1,7 @@
-import { onFlag, readTimeline } from './timelineView';
+import { FLOAT_STEP, onFlag, readTimeline, segmentAt, type TimelineView } from './timelineView';
 import type { SpxTemplate } from '../../model/types';
+import { round, type KeyRef } from '../../blocks/animEdit';
+import { captureKeyClipboard, type ClipboardKey } from '../../blocks/editorAnimation';
 import { applyOperations, type EditorOperation } from './operations';
 
 export interface Revision { source: number; assets: number }
@@ -38,6 +40,7 @@ export class EditorSession {
   private future: Receipt[] = [];
   private transactions = new Map<string, string>();
   private gesture: Gesture | null = null;
+  private clipboard: { revision: Revision; keys: ClipboardKey[] } | null = null;
   private disconnect: () => void;
   private historyHead = 0;
   private contextSequence = 0;
@@ -46,7 +49,7 @@ export class EditorSession {
     this.current = port.read();
     this.disconnect = port.subscribe(() => this.sync());
   }
-  dispose() { this.disposed = true; this.gesture = null; this.disconnect(); }
+  dispose() { this.disposed = true; this.gesture = null; this.clipboard = null; this.disconnect(); }
   version(): Revision { this.sync(); return { ...this.revision }; }
   private sync() {
     if (this.disposed) throw new Error('This document session is closed.');
@@ -79,6 +82,32 @@ export class EditorSession {
     if (documentId !== this.documentId || !sameRevision(expected, this.version())) {
       throw new Error('The document changed. Inspect it again before applying this edit.');
     }
+  }
+  copyTimelineKeys(keys: readonly KeyRef[], rendered: TimelineView) {
+    if (!keys.length) return;
+    const revision = this.version();
+    if (this.gesture) throw new Error('Finish or cancel the active gesture first.');
+    this.clipboard = null;
+    if (readTimeline(this.current) !== rendered) throw new Error('The timeline changed. Select the keys again.');
+    this.clipboard = { revision, keys: captureKeyClipboard(this.current, keys) };
+  }
+  pasteTimelineKeys() {
+    const current = this.version(), clipboard = this.clipboard;
+    if (this.gesture) throw new Error('Finish or cancel the active gesture first.');
+    if (!clipboard) throw new Error('Copy timeline keys before pasting.');
+    if (!sameRevision(clipboard.revision, current)) {
+      this.clipboard = null;
+      throw new Error('The graphic changed. Copy its keys again.');
+    }
+    const view = readTimeline(this.current), { time, cue } = this.port.view();
+    if (!view.data || !Number.isFinite(time) || time < 0 || time > view.duration + FLOAT_STEP ||
+        cue !== undefined && !view.segments[cue]) throw new Error('Move the playhead inside an authored cue.');
+    const { step } = segmentAt(view.segments, time, cue), segment = view.segments[step];
+    const local = time - segment.start;
+    if (local < -FLOAT_STEP || local > segment.duration + FLOAT_STEP) throw new Error('Move the playhead inside the destination cue.');
+    const result = this.execute({ documentId: this.documentId, expected: clipboard.revision, transactionId: crypto.randomUUID(),
+      operations: [{ kind: 'key.paste', keys: clipboard.keys, step, time: round(local * view.data.speed) }] });
+    this.clipboard = { ...clipboard, revision: result.revision };
   }
   begin(expected = this.version()) {
     this.check(this.documentId, expected);

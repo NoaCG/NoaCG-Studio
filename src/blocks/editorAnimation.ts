@@ -1,6 +1,7 @@
 import type { SpxTemplate } from '../model/types';
-import { losslessAnimData, type AnimData } from './animData';
-import { deleteKeyframe, easeKeys, EPS, setKeyframe, moveKeys, moveLayerSpan, trimLayerSpan, type KeyEasePreset, type KeyRef } from './animEdit';
+import { getTemplateParts } from '../model/structure';
+import { losslessAnimData, spliceAnimData, type AnimData } from './animData';
+import { captureKeys, deleteKeyframe, easeKeys, EPS, setKeyframe, moveKeys, moveLayerSpan, pasteKeys, trimLayerSpan, type CopiedKey, type KeyEasePreset, type KeyRef } from './animEdit';
 import { resolveValue } from './animEval';
 import { artworkNode, editArtworkStyle } from './artworkEdits';
 import { baseValues, editBase, settleSvgOffset, TRANSFORM_CHANNELS, type BasePatch } from './baseEdits';
@@ -17,6 +18,8 @@ export type Channel = NumericProperty | 'xPercent' | 'yPercent' | 'scale' | 'aut
 export type KeyEaseOperation = { kind: 'key.ease'; keys: KeyRef[]; preset: KeyEasePreset };
 /** Keys moved by one stored delta on the ruler, across flags too (R1.2a.5, docs/research/editor-r1-2a-5). */
 export type KeyMoveOperation = { kind: 'key.move'; keys: KeyRef[]; delta: number };
+export type ClipboardKey = CopiedKey & { artwork: string };
+export type KeyPasteOperation = { kind: 'key.paste'; keys: readonly ClipboardKey[]; step: number; time: number };
 export interface NumericPose { x: number; y: number; scaleX: number; scaleY: number; rotation: number; opacity: number; xPercent?: number; yPercent?: number }
 /** `animation.key`: `set` writes `value` to the channel `property` (the one `writeChannel` names for
  *  its control); `remove` and `disable` name a control and act on all its channels, keeping the
@@ -327,6 +330,38 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
 function requireUserKeys(template: SpxTemplate, data: AnimData, keys: KeyRef[]) {
   const reason = keySequenceReason(template, data) ?? (Array.isArray(keys) ? keys : []).map(key => keyAuthoringReason(template, data, key.selector, key.property)).find(Boolean);
   if (reason) throw new Error(reason);
+}
+
+/** Capture the animation owner and the uniquely editable artwork it names. */
+export function captureKeyClipboard(template: SpxTemplate, refs: readonly KeyRef[]): ClipboardKey[] {
+  const data = animationSource(template), keys = captureKeys(data, refs);
+  const parts = getTemplateParts(template.html, template.fields, true).filter(part => part.kind !== 'root').map(part => part.selector);
+  const owners = trackOwners(template, data, parts);
+  return keys.map(key => {
+    const matches = parts.filter(part => owners[part] === key.selector);
+    if (matches.length !== 1 || animationTarget(template, data, matches[0], [key.property]) !== key.selector) {
+      throw new Error('A copied track has no unique editable artwork. Its source is preserved.');
+    }
+    return { ...key, artwork: matches[0] };
+  });
+}
+
+/** Paste one batch without changing ownership, field data or interpreter bytes. */
+export function applyKeyPaste(template: SpxTemplate, operation: KeyPasteOperation): SpxTemplate {
+  const data = animationSource(template);
+  for (const key of operation.keys) {
+    if (animationTarget(template, data, key.artwork, [key.property]) !== key.selector) {
+      throw new Error('A copied track has changed owner. No keys changed.');
+    }
+  }
+  const next = pasteKeys(data, operation.keys, operation.step, operation.time);
+  requireUserEdit(template, data, next);
+  const exit = data.steps.length > 1 && operation.step === data.steps.length - 1;
+  const patched = writeKeys(template, next, exit, 'the pasted keys');
+  if (patched.js !== spliceAnimData(template.js, next)) {
+    throw new Error('Paste would upgrade this animation’s interpreter. Its source is preserved.');
+  }
+  return patched;
 }
 
 /** Move the selected keys, across flags too. An older known interpreter is re-emitted where Out

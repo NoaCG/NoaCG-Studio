@@ -180,6 +180,35 @@ instance changes, distinct cue sides and occupied slots, mixed-track refusal,
 preserved offsets and easing, and exact undo. The browser probe also checks
 focus and the document source through the normal timeline shortcuts.
 
+### Timeline verification
+
+The independent rules review of `71f580e48` against `b4466bfb5` found four
+corrections before coding. The [rules correction commit](https://github.com/NoaCG/NoaCG-Studio/commit/8696e384bcc3626b9867e0437a26c33f1521da6d)
+records them.
+The clarified rules above bind the clipboard to the actual instance and
+revision, preserve interpreter bytes, and make focus, cue sides and owner
+validation observable. During implementation the existing runtime limit on
+Hold and jump segments was applied to intervals changed by paste. A
+shortened discontinuity under 10 ms refuses the whole batch.
+
+Windows Chromium `j-5050` passed 21 cases across `editor-key-ease.spec.ts`
+and `editor-steps.spec.ts`. Copy leaves source and history intact, paste
+keeps values and eases in one undo, an occupied slot refuses, and the same
+snapshot can be used at another time until an intervening source edit.
+Marquee focuses the timeline and Out at zero stays operable. The captured
+1093 px ruler shows separate labels at their authored coordinates. Job
+`j-5051` verified that paste on inspected Out retains interpreter bytes and
+refuses without source or history changes when the existing writer would
+need to replace an older interpreter. The Node clipboard cases cover both
+flag sides, offset arithmetic, carried Out and filter compatibility.
+
+Job `j-5048` passed 24 cases across SVG fidelity and typography on
+`b4466bfb52d0b804e95462f8c8c8dbad85449fbf`. Its measured nested Illustrator
+fixture still reports the rotated headline 3.25 local units higher after
+import/export. The original and exported bounding boxes have y=24 and
+y=20.75 respectively, with equal x, width and height. That is an observed
+shift even though the existing fidelity spec passes.
+
 
 ## Checkpoint
 
