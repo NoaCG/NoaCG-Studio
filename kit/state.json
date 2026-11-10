@@ -41,14 +41,12 @@
     "source": "df5767458230558e9fdee158e663e9367e58f8e3",
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
-  "waitingOn": {
-    "what": "The one additional owner-authorized V2 repair is spent. The original misplaced-slash case now fails closed, but fresh independent full review graded local b515256d B. Other malformed Browser records still authorize durable ownership and overlay actions. V2 remains draft, outside the queue, with AC-4 and release acceptance open."
-  },
+  "waitingOn": [],
   "inFlight": [
     {
-      "note": "Local b515256d independently rated B and retained unpushed. No additional repair authorized.",
-      "step": "blocked after authorized repair",
-      "session": "/root/v2_builder",
+      "note": "Owner-authorized strict parser design, original four repairs retained.",
+      "step": "strict XML replacement",
+      "session": "/root/v2_xml_replacement",
       "phase": "v2",
       "head": "b3bf2f2262142e71e30b8870a12238c4fa442aee",
       "pr": 2293,
