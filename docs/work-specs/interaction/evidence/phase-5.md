@@ -81,6 +81,19 @@ two-option case is now a short name beside a long one at 999 and 1000 votes, and
 every track across has one length and every column one baseline, within one pixel. Mutation:
 undoing either fix fails the test (tracks 22.6 px apart; columns 26.4 px apart).
 
+## Review of `7be5fc7`
+
+`/so` (fresh read-only session): AGREE WITH CORRECTIONS, grade A. Its two findings need no code:
+the scoped catalog specs and calibration gate on the head are posted on the pull request, and the
+two open items are filed (#2345 grouped rows not proposed, #2346 Windows render rows).
+
+Codex: two findings, one family (the CLI path must apply the studio import's defaults), product
+defects, fixed in `svgFromMarkup.ts`: a proposed countdown's clock layer was not bound, so the
+CLI-made timer never ticked; and the artwork's bundled faces were dropped. New test "CLI scaffold
+--svg: a countdown board ticks and keeps its bundled faces, as the studio import does" compares
+the CLI path with the studio's own draft on the corpus timer board (fields, the clock's start,
+the declared faces). Mutation: undoing either fix fails it.
+
 ## Rehearsal walk (AC-15, phase 5)
 
 `e2e/configured/audience-live.spec.ts` "the rehearsal walk" now creates Result Donut Lower
