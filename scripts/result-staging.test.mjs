@@ -238,3 +238,42 @@ test('a pick is remembered even when it lands on the cue already there; an unuse
   assert.equal(s.record.cues.some((c) => c.id === 'seed'), false);
   assert.equal(s.record.cues.length, 1);
 });
+
+/** Deps whose first (tab) pass says one thing and whose stored pass, after commit, another. */
+function twoPass(tabPlan, storedPlan, storedCue) {
+  let last = { plan: tabPlan, cueId: null };
+  const record = { id: 's', graphics: [board('g-a')], cues: [] };
+  return {
+    record,
+    deps: {
+      stage: () => ({ shows: [record], error: null, outcome: () => last }),
+      commit: async () => {
+        last = { plan: storedPlan, cueId: storedCue };
+        return null;
+      },
+      setShows: () => {},
+      reread: () => [record],
+    },
+  };
+}
+
+test('Stop from a tab that has not heard of the link still finalises the stored cue (S13)', async () => {
+  const { record, deps } = twoPass({ kind: 'choose', replaced: null }, { kind: 'update', cueId: 'theirs', graphicId: 'g-a' }, 'theirs');
+  const out = await stageResults(record, { questionId: 'q1', round, tally: tally(3, 1), closed: true, liveFigures: false, label: 'Vote', closeOnly: true }, deps);
+  assert.equal(out.kind, 'updated');
+  assert.equal(out.cueId, 'theirs');
+  assert.match(out.message, /now carries the final 4 votes/);
+});
+
+test('a stored pass with nowhere to write is reported as such, never as the tab’s success (S15)', async () => {
+  const { record, deps } = twoPass({ kind: 'update', cueId: 'c1', graphicId: 'g-a' }, { kind: 'choose', replaced: 'no-fields' }, null);
+  const out = await stageResults(record, { questionId: 'q1', round, tally: tally(1, 1), closed: false, liveFigures: false, label: 'Vote' }, deps);
+  assert.equal(out.ok, false);
+  assert.equal(out.choose, true);
+  assert.match(out.message, /no longer has the result fields/);
+  assert.doesNotMatch(out.message, /✓/);
+  // Stop's version of the same: nothing to finalise, said as nothing.
+  const t = twoPass({ kind: 'update', cueId: 'c1', graphicId: 'g-a' }, { kind: 'choose', replaced: 'deleted' }, null);
+  const stop = await stageResults(t.record, { questionId: 'q1', round, tally: tally(1, 1), closed: true, liveFigures: false, label: 'Vote', closeOnly: true }, t.deps);
+  assert.equal(stop.kind, 'none');
+});

@@ -183,7 +183,13 @@ async function addResultBoard(show: Show, id: string): Promise<{ shows: Show[] |
   ]);
   const variant = variantById(id);
   if (!variant) return { shows: null, graphicId: null, cueId: null, error: 'That vote board is not in this build.' };
-  const template = buildDraftTemplate(variant, mergeDraft(initialDraft(), { variantId: variant.id, lines: variant.suggestedLines.map((l) => ({ ...l })) }));
+  const built = buildDraftTemplate(variant, mergeDraft(initialDraft(), { variantId: variant.id, lines: variant.suggestedLines.map((l) => ({ ...l })) }));
+  // A free name: a same-named graphic already in the pool (one that lost its result fields, say)
+  // would otherwise be REPLACED by this board, artwork and all.
+  const taken = new Set(show.graphics.map((g) => g.name));
+  let name = built.name;
+  for (let n = 2; taken.has(name); n += 1) name = `${built.name} ${n}`;
+  const template = name === built.name ? built : { ...built, name };
   const { shows, error } = addGraphicToShow(show.id, template, {});
   const failure = error ?? (await commitDurableWrites());
   if (failure) return { shows, graphicId: null, cueId: null, error: failure };

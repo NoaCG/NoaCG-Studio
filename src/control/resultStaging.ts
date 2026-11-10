@@ -158,19 +158,26 @@ export async function stageResults(
   deps.setShows(made.shows);
   if (made.error) return { ok: false, choose: false, message: `No result was written: ${made.error}` };
   // This tab's run: when it found nowhere to write, nothing was written and the operator chooses.
+  // Stop's close-only write always reaches the stored record, whose link this tab may not have
+  // heard of yet (S13), so it is judged only after it landed.
   const asked = made.outcome().plan;
-  if (!asked || asked.kind === 'choose') {
-    if (input.closeOnly) return { ok: true, kind: 'none', cueId: null, graphic: '', message: '' };
+  if (!input.closeOnly && (!asked || asked.kind === 'choose')) {
     return { ok: false, choose: true, message: asked?.replaced ? replacedWords(asked.replaced) : 'Choose where results go.' };
   }
-  if (input.closeOnly && asked.kind !== 'update') return { ok: true, kind: 'none', cueId: null, graphic: '', message: '' };
   const failure = await deps.commit();
   // What the STORED write decided, which can differ from this tab's guess (S4, S15).
   const stored = deps.reread();
   deps.setShows(stored);
   const after = stored.find((s) => s.id === show.id) ?? show;
   const { plan: landed, cueId } = made.outcome();
-  const plan = landed && landed.kind !== 'choose' ? landed : asked;
+  if (!failure && input.closeOnly && (!landed || landed.kind !== 'update' || !cueId)) return { ok: true, kind: 'none', cueId: null, graphic: '', message: '' };
+  // The stored record had nowhere to write (another tab removed the graphic or its fields): no
+  // result was written, and the operator chooses again.
+  if (!failure && (!landed || landed.kind === 'choose' || !cueId)) {
+    return { ok: false, choose: true, message: landed?.kind === 'choose' && landed.replaced ? replacedWords(landed.replaced) : 'Choose where results go.' };
+  }
+  const plan = landed && landed.kind !== 'choose' ? landed : asked && asked.kind !== 'choose' ? asked : null;
+  if (!plan) return { ok: false, choose: false, message: `No result was written: ${failure}` };
   const graphic = after.graphics.find((g) => g.id === plan.graphicId)?.name ?? 'the graphic';
   if (failure) {
     return {

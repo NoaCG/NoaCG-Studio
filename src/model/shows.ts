@@ -2558,12 +2558,19 @@ export function stageShowResult(
   let cueId: string | null = null;
   const newId = uuid();
   const takes = (fields: readonly { field: string; title?: string }[]) => opts.valuesFor(fields) !== null;
+  // Stop's close-only write must reach the stored record even when this tab's copy has no link
+  // yet (S13): its first pass then changes nothing but still returns true, so the rebased pass
+  // runs and decides. A team production is not rebased (its merge carries the link), so it skips.
+  let firstPass = true;
+  const rebasedHere = (show: Show) => !show.teamId && !teamShowIds().has(showId);
   const { shows, error } = patchShowChecked(showId, (show) => {
+    const local = firstPass;
+    firstPass = false;
     const p = planResultCue(show, questionId, takes, opts.chosen);
     plan = p;
     cueId = null;
+    if (opts.closeOnly && p.kind !== 'update') return local && rebasedHere(show);
     if (p.kind === 'choose') return false;
-    if (opts.closeOnly && p.kind !== 'update') return false;
     const graphic = show.graphics.find((g) => g.id === p.graphicId)!;
     const values = opts.valuesFor(graphic.template.fields ?? [])!;
     let cue = p.kind === 'update' ? show.cues?.find((c) => c.id === p.cueId) : undefined;
