@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "pr": 2293,
-      "phase": "v2",
-      "session": "/root/v2_source_repair",
-      "step": "build",
       "head": "a628eda0882c9fc3c37203d1a79b10a2320468c7",
-      "note": "Fresh read-only review of the Browser source and reply authority Rules, then the authorized repair in the existing draft."
+      "phase": "v2",
+      "step": "build",
+      "pr": 2293,
+      "note": "The exact local Browser source and reply candidate c0ce9c0f is under fresh independent full review. Owned device checks passed and existing shared browser job j-5045 is running.",
+      "session": "/root/v2_source_repair"
     }
   ],
   "owner": [],
