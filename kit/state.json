@@ -56,13 +56,11 @@
    "launchedAt": "2026-11-10T13:52:32Z"
   },
   {
-   "phase": "cf02",
-   "step": "check",
-   "session": "session_017SdbwQ9GYMPbgArcPbLoMG",
-   "nonce": "cf02-c-dbe1",
-   "launchedAt": "2026-11-10T14:16:47Z",
-   "mergeSha": "446ae235e7760273734f7d6ef10862ca85338f29",
-   "pr": 2352
+   "phase": "cf15",
+   "step": "build",
+   "session": "session_017SdbwPtDfnuTyJsFqrkuDq",
+   "nonce": "cf15-b-5456",
+   "launchedAt": "2026-11-10T14:43:02Z"
   }
  ],
  "owner": [],
@@ -209,6 +207,11 @@
   {
    "at": "2026-11-10T14:07Z",
    "note": "cf02 receipt accepted: PR #2352 head e1faf428, Ordinary row (evidence only), /check, Codex clean, CI gate green 42829507700. 75 of 75 finished-phase sessions archived. Stamp run 42830724606, auto-merge on."
+  },
+  {
+   "phase": "cf02",
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2352#issuecomment-6770273377"
   }
  ],
  "decisions": [
