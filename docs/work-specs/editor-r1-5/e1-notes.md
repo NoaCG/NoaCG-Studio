@@ -357,6 +357,91 @@ member's first painted bounds from x=12.593, y=250.237 to x=−8.698, y=268.718.
 These are primitive measurements in isolated Chromium. They establish the
 regression target and the requirement to prove SVG mapping separately.
 
+#### Ordinary layer anchor verification
+
+The created HTML rectangle keys its two CSS anchor variables through the
+existing numeric timeline, without a second animation model. In `j-5065`
+enabling X at a nonzero time kept the painted box, the second X key left
+Y in CSS, and disable kept the inspected X without writing Position.
+Undo restored the exact prior source. The existing catalog and placed
+text static pivot checks passed.
+
+`j-5067` reproduced a replay defect before the reset correction. A pivot
+keyed only in Out moved from 100 to 180 and the next Take still read 180.
+The existing entrance now clears only the authored anchor properties in
+source carrying the guarded generated anchor extension. The shared
+interpreter remains byte-identical in emitted unkeyed graphics. An
+independent writer test requires the exact generated body before adding
+the extension and preserves the rest of the source. The maintained Out
+case verifies 100 → 180 → 100 in every browser export and the simulator.
+
+On the ordinary nested Illustrator headline, the CSS-only rotation
+preview had retained glyph bounds from before the rotation. The first
+key caused a reload and its fitted bounds moved from y=20.75 to y=24,
+which moved the pivot's SVG matrix by 2.0745 px horizontally and 1.9009 px
+vertically in `j-5071`. The editor now refits with its existing SVG fitter
+when base transforms change on artwork eligible for a CSS pivot. The
+first keyed edit starts from the same fitted glyph box as a fresh render.
+`j-5072` matched all six matrix components within 0.0005, and editing and
+reverse seek retained source, history, bindings and unrelated transforms.
+An existing independently owned SVG transform still refuses key authoring.
+
+In `j-5074` the saved and reopened graphic matched its original HTML, CSS
+and JS. HTML, SPX, CasparCG and OGraf used the same saved operator data and
+public playback path and matched visible text and forward/reverse matrices.
+`j-5073` omitted that data/lifecycle in the comparison and failed on its
+output text, while its other checks passed. The comparison was corrected
+without loosening its assertions. The static SVG group passed its existing
+check. Keyed group pivots still need the separate rules and checks below.
+
+The first reset placed new code into every catalog template. The raw
+catalog gate exposed that drift, so the reset moved to the guarded
+extension emitted only with authored anchor keys. The raw Windows gate
+still exits 1 for `jc01` alone. A control over all 539 designs, using
+the exact `27d50cc14fffffdabaa4df70adf0ed65bb3105c2` source in the same
+Windows environment, found no raw fingerprint differences between main
+and the candidate. The `jc01` JS on both has hash `ec5dc4ccf279231f`.
+Normalizing eight CRLF sequences from the unchanged QR encoder gives the
+committed hash `8d17b8a35536b6dd`. The baseline stays as committed.
+`j-5075` completed all six Windows cases with exit 0 on the resulting guarded
+emit, including ordinary HTML, saved Illustrator and the unchanged static
+SVG group. The final ordinary test set includes the all-target Out retake.
+
+#### Editor-owned SVG group rules for review
+
+- Only a uniquely addressable editor-owned SVG group with a valid stored
+  frame and its existing zero-time `transformOrigin` initializer can take
+  pivot keys. The initializer belongs to the base. It remains unchanged
+  when enabling, typing or retiming a key, stays hidden from the authored
+  key rows, and continues to initialize groups with no authored anchor keys
+  exactly as before. A separate source owner or invalid frame refuses
+  before changing source or history.
+- The keyed value is in the stored group frame, independent of the current
+  member bounds. A group can turn and scale about its own animated pivot
+  while a member moves. Only the group anchor channels change on a pivot
+  edit. A first enable captures the current displayed pivot and preserves
+  both members' first painted matrices. The other axis and all group and
+  member Position, Rotation, Scale, identity, masks and fields stay exact.
+- Before an axis has an authored pose, playback uses its existing base.
+  Once an authored pivot is visible, Next, arriving hold and departing
+  zero keep or change it under the same rules as other numeric keys. The
+  static initializer must not erase a held axis. Out begins at the observed
+  pivot when interrupted from an earlier cue, keeps carried motion only
+  on the applicable path, and handles one-key and zero-time cases. A new
+  take clears both animated axes back to their authored base before In.
+- Repartitioning a cue keeps static initializers at their original base
+  value and moves authored anchor keys through the ordinary numeric path.
+  Ungrouping must preserve pivot motion through its transform carrier or
+  explicitly refuse with source, history and selection intact. Existing
+  non-anchor group edits and ungroups keep their verified behavior.
+- The maintained imported SVG group fixture must compare actual group and
+  member geometry in the editor, after durable reopen, and through HTML,
+  SPX, CasparCG and OGraf browser execution. Sample forward and backward,
+  including the Next hold, departing pose, carried/early/normal Out and
+  replay. An independently written expected transition checks a moving
+  child and two unequal group pivot values; a static-only group pass is
+  regression coverage and cannot stand in for authored group motion.
+
 ## Checkpoint
 
 The E1 inventory and verified alias repair are published on the owned branch.
