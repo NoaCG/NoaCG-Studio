@@ -19,7 +19,7 @@ import { casparcgAdapter } from '../dist/playout/adapters/casparcg.js';
 import { createBridgeServer, readAction, readTarget } from '../dist/playout/server.js';
 import { VMIX_OUTPUT_TOKEN_PREFIX, vmixOverlayCount } from '../dist/playout/protocol.js';
 import { SlotMemoryBank } from '../dist/playout/slots.js';
-import { parseVmixXml } from '../dist/playout/vmixTcp.js';
+import { parseVmixXml, VmixConnection } from '../dist/playout/vmixTcp.js';
 import { vmixOutputId, vmixOutputStore } from '../dist/playout/vmixOutputs.js';
 import { startFakeVmix } from './_fakeVmix.mjs';
 
@@ -1547,6 +1547,82 @@ test('a connection dropped mid-function answers uncertain, nothing is resent, an
     await fake.stop();
   }
 });
+
+test('FUNCTION replies accept bare status and fragmented UTF-8 text among event lines', async () => {
+  const refusal = 'FUNCTION ER Entrée introuvable';
+  const reply = Buffer.from(refusal + '\r\n');
+  const split = reply.indexOf(0xc3) + 1;
+  const fake = await startFakeVmix({
+    hook(line, socket) {
+      if (line === 'FUNCTION BareStatus') {
+        socket.write('ACTS OK Overlay8 1 1\r\nFUNCTION OK\r\n');
+      } else {
+        socket.write(reply.subarray(0, split));
+        setTimeout(() => socket.write(reply.subarray(split, -1)), 10);
+        setTimeout(() => socket.write(reply.subarray(-1)), 20);
+      }
+      return true;
+    },
+  });
+  const conn = new VmixConnection(fake.port);
+  try {
+    assert.deepEqual(await conn.open(), { ok: true });
+    assert.deepEqual(await conn.command('FUNCTION BareStatus', Infinity), { ok: true, status: 'OK', line: 'FUNCTION OK' });
+    assert.deepEqual(await conn.command('FUNCTION WithText', Infinity), { ok: true, status: 'ER', line: refusal });
+    assert.equal(fake.connections, 1);
+  } finally {
+    conn.close();
+    await fake.stop();
+  }
+});
+
+const invalidFunctionReplies = [
+  ['unknown status', Buffer.from('FUNCTION UNKNOWN Completed\r\n')],
+  ['bare LF', Buffer.from('FUNCTION OK\n')],
+  ['embedded CR', Buffer.from('FUNCTION OK Completed\r\r\n')],
+  ['invalid UTF-8', Buffer.concat([Buffer.from('FUNCTION OK '), Buffer.from([0xff]), Buffer.from('\r\n')])],
+  ['tab before status', Buffer.from('FUNCTION\tOK\r\n')],
+  ['double space before status', Buffer.from('FUNCTION  OK\r\n')],
+];
+
+for (const [fault, invalidReply] of invalidFunctionReplies) {
+  test('AC-4: Load leaves placement uncertain after a FUNCTION reply with ' + fault, async () => {
+    const fake = await startFakeVmix({
+      hook(line, socket) {
+        if (!line.startsWith('FUNCTION OverlayInput8In ')) return false;
+        const key = new URLSearchParams(line.slice('FUNCTION OverlayInput8In '.length)).get('Input');
+        fake.overlays.set(8, key);
+        socket.write(Buffer.concat([invalidReply, Buffer.from('FUNCTION OK Completed\r\n')]));
+        return true;
+      },
+    });
+    try {
+      await withBridge(createVmixAdapter({ port: fake.port }), async post => {
+        const reply = await act(post, { verb: 'take', item, slot: slot() });
+        assert.equal(reply.ok, false);
+        assert.equal(reply.error.code, 'uncertain');
+        assert.equal(reply.error.browserAdded, true);
+        assert.match(reply.error.detail, /added the Browser input/);
+        assert.match(reply.error.detail, /may have acted on it: look at vMix before trying again/);
+        assert.doesNotMatch(reply.error.detail, /did not put it on overlay/);
+        const key = fake.inputs[0].key;
+        assert.equal(fake.onChannel(8)?.key, key);
+        const dispatch = 'FUNCTION OverlayInput8In Input=' + key;
+        assert.equal(fake.lines.at(-1), dispatch);
+        assert.equal(fake.connections, 1);
+
+        const state = await post('/state', { target: { adapter: 'vmix' }, outputUrl: item.name });
+        assert.equal(state.ok, true);
+        assert.equal(state.overlays[7].input.key, key);
+        assert.equal(state.overlays[7].ownsOutput, true);
+        assert.equal(fake.connections, 2);
+        assert.equal(fake.lines.filter(line => line === dispatch).length, 1);
+      });
+    } finally {
+      await fake.stop();
+    }
+  });
+}
 
 test('a function vMix never answers is uncertain after the reply wait, and a refusal is refused', async () => {
   const fake = await startFakeVmix({

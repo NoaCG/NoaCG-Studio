@@ -38,8 +38,9 @@ export type VmixOpen = { ok: true } | { ok: false; setup?: 'not-running' | 'not-
 
 /** One command's answer: its status line (and an XML body), or why there is none. `not-sent` (no
  *  connection) and `late` (its turn came with the verb's time spent) never left, so nothing can have
- *  happened; `timeout` and `closed` left and were not answered, so they may have. */
-export type VmixReply = { ok: true; status: string; line: string; body?: string } | { ok: false; lost: 'not-sent' | 'late' | 'timeout' | 'closed' };
+ *  happened. `timeout`, `closed` and `invalid-reply` left without a usable answer, so they may have.
+ */
+export type VmixReply = { ok: true; status: string; line: string; body?: string } | { ok: false; lost: 'not-sent' | 'late' | 'timeout' | 'closed' | 'invalid-reply' };
 
 interface Pending {
   word: string;
@@ -151,7 +152,8 @@ export class VmixConnection {
         if (this.buf.length > MAX_LINE_BYTES) s.destroy();
         return;
       }
-      const line = this.buf.subarray(0, nl).toString('utf8').replace(/\r$/, '');
+      const lineBytes = this.buf.subarray(0, nl);
+      const line = lineBytes.toString('utf8').replace(/\r$/, '');
       this.buf = this.buf.subarray(nl + 1);
       if (!this.version) {
         const m = /^VERSION OK (\S.*)$/.exec(line);
@@ -161,6 +163,18 @@ export class VmixConnection {
         }
         this.version = m[1].trim();
         greeted({ ok: true });
+        continue;
+      }
+      if (this.pending?.word === 'FUNCTION' && /^FUNCTION\b/.test(line)) {
+        const reply = /^FUNCTION (OK|ER)(?: [^\r\n]+)?$/.exec(line);
+        if (!reply || nl > MAX_LINE_BYTES || lineBytes.at(-1) !== 0x0d || !isUtf8(lineBytes)) {
+          // Discard this connection's remaining bytes, including any lines already buffered.
+          s.destroy();
+          this.finish({ ok: false, lost: 'invalid-reply' });
+          this.closed(s);
+          return;
+        }
+        this.finish({ ok: true, status: reply[1], line });
         continue;
       }
       const [word, status = ''] = line.split(' ');

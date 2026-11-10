@@ -7,7 +7,7 @@
 //
 //// Honest results. vMix answers `FUNCTION OK Completed` to every function, even one it does not have
 // or an input key it does not know, so an OK proves nothing: what matters is read back from the XML.
-// A function that was sent and got no answer is `uncertain` and never sent again.
+// A function sent without a usable answer is `uncertain` and never sent again.
 
 import { VMIX_BROWSER_LOAD_PROBLEM, VMIX_INPUT_KEY, vmixOverlayCount, type AgentError, type ItemRef, type PlayoutAction, type VmixInfo, type VmixInput, type VmixOverlayState, type VmixSlot, type VmixTarget } from '../protocol.js';
 import { DEFAULT_VMIX_PORT, VmixConnection, parseVmixXml, type VmixXml } from '../vmixTcp.js';
@@ -211,6 +211,9 @@ export function createVmixAdapter(options: {
   ): Promise<AdapterResult<null>> {
     const r = await conn.command(functionLine(name, params), until);
     if (!r.ok) {
+      if (r.lost === 'invalid-reply') {
+        return uncertain(`vMix was sent ${name} and gave an unreadable answer. It may have acted on it: look at vMix before trying again.`);
+      }
       if (r.lost === 'not-sent' || r.lost === 'late') {
         const effect = priorChange ? '' : ' Nothing changed.';
         return { ok: false, error: { hop: 'target', code: 'unreachable', detail: `vMix was not sent ${name}: the connection was gone or the time was up.${effect}` } };

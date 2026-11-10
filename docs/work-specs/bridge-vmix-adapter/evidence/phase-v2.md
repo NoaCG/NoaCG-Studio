@@ -926,3 +926,35 @@ The CasparCG fallback observation reproduces on the actual merge base
 and candidate. The browser verification names both Bridge Connect and
 the first-Publish journeys because the isolated selector does not
 include the latter for a change limited to `vmixSetup.ts`.
+
+### Rules for vMix FUNCTION replies
+
+A pending FUNCTION accepts a complete UTF-8 line ending in CRLF. The
+command and status tokens are space-delimited, the status is OK or ER,
+and response text is optional. Fragmentation and unrelated event lines
+do not affect the reply. OK still needs the existing XML readback before
+Bridge can report the observed effect. A complete ER preserves the
+refusal and its detail.
+
+An invalid FUNCTION reply after dispatch leaves the result unknown.
+Bridge closes the socket and discards its buffer, including later lines
+in the same chunk. It never retries that command. A later separate read
+can open a new connection. A Load that has already identified and saved
+a Browser reports the confirmed creation without claiming where Overlay
+In left it, and asks the operator to inspect vMix before trying again.
+
+Acceptance. In the focused fake, apply In and send an invalid reply.
+Check uncertain placement, confirmed Browser creation and one dispatch,
+then read the overlay through a fresh connection. Preserve the valid ER
+detail and OK readback cases. Verify the exact Windows Bridge against an
+owned blank vMix session. Program, Preview and transitions remain under
+the mixer operator's control.
+
+The reply repair started at `3d8337b59bc8713fd47f5fd292a1de289f0258fa`
+with main `78ce3f35063386fdc7217d0542e3df871fc32b8d` already merged.
+On the compiled baseline, the fake applied Overlay In before returning
+an unknown status or an extra space before the status. Bridge reported
+both as refusals. Bare LF, embedded CR, invalid UTF-8 and a tab before
+the status could each report success. The focused cases now expect all
+six to leave placement uncertain while preserving the Browser and
+allowing a separate read over a new connection.
