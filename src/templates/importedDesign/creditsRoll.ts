@@ -631,17 +631,19 @@ function creditsTake() {
   var bb = null;
   try { bb = roll.getBBox(); } catch (e) { bb = null; }
   if (!win || !bb || !(bb.height > 0)) return null;${riders ? `
-  // The title and what rides with it join the travel (creditsRiders); the column they are picked
-  // by is the rows' own extent, and the pace's scale the rows' own transform, so a second take,
-  // with the riders already in the group, measures exactly what the first did.
-  var rowsBox = rows.getBBox();
-  // Read, never consolidated: consolidate() rewrites the list in place, and the rows were just built.
-  var rowsList = rows.transform.baseVal;
-  var rowsM = rowsList.numberOfItems === 1 ? rowsList.getItem(0).matrix : { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
-  var rowsScale = Math.sqrt(rowsM.c * rowsM.c + rowsM.d * rowsM.d);
-  var colA = rowsM.a * rowsBox.x + rowsM.e, colB = rowsM.a * (rowsBox.x + rowsBox.width) + rowsM.e;
-  // Measured again only when something joined: a take with nothing new to carry keeps its measure.
-  if (creditsRiders(roll, win, { x: Math.min(colA, colB), width: Math.abs(colB - colA) }) > 0) {
+  // The rows alone, as the take has always measured them: what rides with them (creditsRiders,
+  // already in the group from an earlier take) is set aside for this one read, so the pace and the
+  // column are the rows' own, and a second take measures exactly what the first did.
+  var riding = roll.querySelectorAll('[data-noacg-rider]');
+  if (riding.length) {
+    for (var h = 0; h < riding.length; h++) riding[h].style.display = 'none';
+    try { bb = roll.getBBox(); } catch (e) { bb = null; }
+    for (var g = 0; g < riding.length; g++) riding[g].style.display = '';
+    if (!bb || !(bb.height > 0)) return null;
+  }
+  var rowsBox = bb;
+  // Measured again with them only when something rides: the travel then carries it too.
+  if (creditsRiders(roll, win, rowsBox) > 0 || riding.length) {
     try { bb = roll.getBBox(); } catch (e) { bb = null; }
     if (!bb || !(bb.height > 0)) return null;
   }` : ''}
@@ -658,8 +660,8 @@ function creditsTake() {
   var distance = startY - endY;
   // The pace rides the sample's name-to-name step, scaled the way the text's own transform
   // scales it: the step is read in the text's units and the travel in the window's.
-  ${riders ? `var step = built.looks.afterName * rowsScale;` : `var textHeight = rows.getBBox().height;
-  var step = built.looks.afterName * (textHeight > 0 ? bb.height / textHeight : 1);`}
+  var textHeight = rows.getBBox().height;
+  var step = built.looks.afterName * (textHeight > 0 ? ${riders ? 'rowsBox' : 'bb'}.height / textHeight : 1);
   var speed = creditsLiveSpeed();
   var perSecond = step * NOACG_CREDITS_LINES_PER_SECOND * speed;
   var duration = distance / perSecond;

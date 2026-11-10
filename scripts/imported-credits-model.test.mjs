@@ -1058,7 +1058,7 @@ test('#1955: the editable roll\'s list holder keeps its line breaks through the 
  *  when the title began rolling with the list: the roll's js gains creditsRiders, creditsTitle
  *  (the list's first line in the drawn title's look) and the parser its comma rule, html and css
  *  unchanged; e2e/svg-templates.spec.ts walks the roll. */
-const ROLE_ABOVE_PINS = { one: '70fe937b328eaa32', bold: '2e14907c8e6ab375', grouped: '2fb9439d3aa60d6b', roleGroup: '0755800922d95691', idGroup: '83d08423be72ad3a' };
+const ROLE_ABOVE_PINS = { one: '34b8cc68f3576744', bold: '0eed6ced3d449700', grouped: '0a5e9b6abede99a5', roleGroup: '6503f0db3795bdd5', idGroup: '99282645b4a1f50c' };
 const BESIDE = ['beside', 'besideEnd', 'hebrewBeside', 'namesLeft', 'pickBesideName'];
 
 test('row 20: role-above styled credits build exactly as row 19 built them', () => {
@@ -1072,7 +1072,7 @@ test('row 20: role-above styled credits build exactly as row 19 built them', () 
  *  Both re-taken for #2098 and the styled one for #2108 and #2104, as the pins above, and both
  *  for #1795 (the shared interpreter only), and both for the comma rule and the styled one for
  *  creditsRiders and creditsTitle, as the pins above. */
-const FACED_PINS = { styled: '7b2d8da550ba258d', editable: '39484133277ea4bb' };
+const FACED_PINS = { styled: '4849a59b746cb690', editable: '39484133277ea4bb' };
 
 test('#1969, #1965: a styled or editable roll whose design ships a face builds as pinned, with its second measure', () => {
   for (const k of ['styled', 'editable']) {
