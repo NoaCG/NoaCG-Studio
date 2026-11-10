@@ -21,6 +21,9 @@
 // Pure and Node-importable (production-page spec §5.2): the stores it writes through are handed
 // in by the caller, so scripts/message-staging.test.mjs runs it against fakes.
 import type { MessageReceipt, Show, ShowCue } from '../model/shows';
+import { wordCloudFields } from '../model/wordCloud';
+
+export { wordCloudFields };
 
 /** The field titles a message body may land in, and the ones its name may. */
 export const BODY_TITLES = ['message', 'question', 'comment', 'body', 'text', 'request'] as const;
@@ -60,14 +63,6 @@ export function voteBoardFields(fields: readonly Field[]): { question: string; o
 
 /** Where a message would land on this graphic: its body field and, if it has one, its name field.
  *  Null for a graphic with no body field and for a vote board (its Question is not a message). */
-/** A word cloud's question and words fields (interaction spec, AC-14), or null when the graphic is
- *  not one: Question and Words, matched by title like a vote board's. */
-export function wordCloudFields(fields: readonly Field[]): { question: string; words: string } | null {
-  const question = lastTitled(fields, ['question']);
-  const words = lastTitled(fields, ['words']);
-  return question && words ? { question, words } : null;
-}
-
 export function messageFields(fields: readonly Field[]): { body: string; name: string | null } | null {
   // A vote board's or a word cloud's Question is the question asked, not a message.
   if (voteBoardFields(fields) || wordCloudFields(fields)) return null;

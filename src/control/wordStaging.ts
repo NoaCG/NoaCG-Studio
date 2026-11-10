@@ -17,8 +17,7 @@
 
 import type { Show } from '../model/shows';
 import { planResultCue, type ResultPlan } from '../model/resultCues';
-import { WORD_CLOUD_MAX, wordLines, type WordCount } from '../model/wordCloud';
-import { wordCloudFields } from './messageStaging';
+import { WORD_CLOUD_MAX, wordCloudFields, wordLines, type WordCount } from '../model/wordCloud';
 
 type Field = { field: string; title?: string };
 

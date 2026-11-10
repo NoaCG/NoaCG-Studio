@@ -85,3 +85,32 @@ export function wordLines(counts: readonly WordCount[]): string {
     .map((w) => `${w.word} | ${w.count}`)
     .join('\n');
 }
+
+type Field = { field: string; title?: string };
+
+/** The LAST field titled one of `wanted` (imported artwork puts its own fields after the designer's
+ *  layers; control/messageStaging.ts `lastTitled` is the same rule). */
+function lastTitled(fields: readonly Field[], wanted: readonly string[]): string | null {
+  let found: string | null = null;
+  for (const f of fields) if (wanted.includes((f.title ?? '').trim().toLowerCase())) found = f.field;
+  return found;
+}
+
+/** A word cloud's question and words fields, by title, or null when the graphic is not one. */
+export function wordCloudFields(fields: readonly Field[]): { question: string; words: string } | null {
+  const question = lastTitled(fields, ['question']);
+  const words = lastTitled(fields, ['words']);
+  return question && words ? { question, words } : null;
+}
+
+/** A cue's Words value without the word whose key is `key` (W6: a word hidden after the press leaves
+ *  the cue it was staged onto). Lines that are not `word | count` stay as they are. */
+export function wordsWithout(value: string, key: string): string {
+  return value
+    .split('\n')
+    .filter((line) => {
+      const at = line.lastIndexOf('|');
+      return at < 0 || wordKey(line.slice(0, at)) !== key;
+    })
+    .join('\n');
+}

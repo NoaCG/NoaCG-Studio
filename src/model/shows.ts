@@ -33,7 +33,8 @@ import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, 
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
 import { JOIN_PAGE_LIMITS } from './joinPage';
-import { readQuestions, type ShowQuestion } from './questions';
+import { readQuestions, setWordHidden, type ShowQuestion } from './questions';
+import { wordCloudFields, wordsWithout } from './wordCloud';
 import { planResultCue, readResultCues, type ResultPlan, type ResultTargetKey } from './resultCues';
 import { hasLiveData } from './liveDataMark';
 import { ownReaderHolds } from './ownReaderHolds';
@@ -2512,6 +2513,33 @@ export function setShowQuestions(
     if (next.length > 0) show.questions = next;
     else delete show.questions;
     return true;
+  }, true);
+}
+
+/**
+ * Hide a Word question's word, or show it again (interaction phase 6, W6), in ONE rebased write.
+ * Hiding also takes the word out of the question's word cloud cue when it has one, so a word hidden
+ * after "Add word cloud to rundown" never airs with the next Take. Showing it again changes only the
+ * list: the next press puts it back with its count. A record write; nothing airs.
+ */
+export function setShowWordHidden(showId: string, questionId: string, key: string, hide: boolean): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const before = readQuestions(show.questions);
+    const next = setWordHidden(before, questionId, key, hide);
+    let changed = JSON.stringify(next) !== JSON.stringify(before);
+    if (changed) show.questions = next;
+    const cueId = hide ? readResultCues(show.resultCues)[questionId] : undefined;
+    const cue = cueId ? show.cues?.find((c) => c.id === cueId) : undefined;
+    const graphic = cue ? show.graphics.find((g) => g.id === cue.sourceId) : undefined;
+    const map = graphic ? wordCloudFields(graphic.template.fields ?? []) : null;
+    if (cue && map && typeof cue.values[map.words] === 'string') {
+      const without = wordsWithout(cue.values[map.words], key);
+      if (without !== cue.values[map.words]) {
+        cue.values = { ...cue.values, [map.words]: without };
+        changed = true;
+      }
+    }
+    return changed;
   }, true);
 }
 

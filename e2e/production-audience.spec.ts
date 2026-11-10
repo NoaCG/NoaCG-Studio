@@ -659,20 +659,25 @@ test('a Word question takes one word per phone, lists words by frequency, and ai
   await expect(log.first()).toContainText('Took “Words: Sum up tonight in one word”');
   const taken = await log.count();
 
+  // A word hidden after the press leaves the cue too, so it never airs with the next Take or
+  // Update; the write sends nothing (W6, W8).
+  await ws.getByTestId('word-row').filter({ hasText: 'Tense' }).getByTestId('word-hide').click();
+  await expect.poll(async () => (await staged()).values.f2).toBe('Exciting | 2\nBrilliant | 1');
+
   // A second press is a new snapshot on the same cue; Program changes only by Update (W7, W8).
   await ws.getByTestId('word-simulate').click(); // Fun, Exciting, Tense, Proud
   await expect(ws.getByTestId('word-text').first()).toHaveText('Exciting');
   await expect(ws.getByTestId('word-count').first()).toHaveText('3');
   await ws.getByTestId('word-stage').click();
   await expect(note).toContainText('✓ Updated the word cloud cue on “House Word Cloud”');
-  await expect.poll(async () => (await staged()).values.f2).toBe('Exciting | 3\nTense | 2\nBrilliant | 1\nFun | 1\nProud | 1');
+  await expect.poll(async () => (await staged()).values.f2).toBe('Exciting | 3\nBrilliant | 1\nFun | 1\nProud | 1');
   expect((await staged()).count).toBe(1);
   await stopLive(ws, 'Sum up tonight in one word');
   await settleDurableWrites(ws);
   await expect(log).toHaveCount(taken);
   expect(await onAir()).toEqual(['Brilliant', 'Exciting', 'Tense']);
   await page.getByTestId('verb-update').click();
-  await expect.poll(onAir).toEqual(['Brilliant', 'Exciting', 'Fun', 'Proud', 'Tense']);
+  await expect.poll(onAir).toEqual(['Brilliant', 'Exciting', 'Fun', 'Proud']);
 });
 
 test('a stale phone keeps its words, sees the new question, and files nothing until it sends again (AC-4, AC-7)', async ({ page, context }) => {

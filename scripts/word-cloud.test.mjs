@@ -14,7 +14,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import './lib/tsResolve.mjs';
 
-const { cleanWord, countWords, countWordTallies, wordKey, wordLines, WORD_MAX, WORD_CLOUD_MAX } = await import('../src/model/wordCloud.ts');
+const { cleanWord, countWords, countWordTallies, wordCloudFields, wordKey, wordLines, wordsWithout, WORD_MAX, WORD_CLOUD_MAX } = await import('../src/model/wordCloud.ts');
 const { readQuestions, makeQuestion, setWordHidden, duplicateQuestion, toLive, isKnownType } = await import('../src/model/questions.ts');
 const { createLocalAudience } = await import('../src/audience/localAudience.ts');
 const { QUESTION_CLOSED, WORD_ALREADY_SENT, WORD_REFUSED } = await import('../src/audience/audienceTypes.ts');
@@ -76,6 +76,15 @@ test('counts per spelling, as a provider gives them, read the same as the words 
   const tallies = [{ word: 'Loud', count: 1200 }, { word: 'loud', count: 3 }, { word: 'Fun', count: 2 }, { word: 'two words', count: 9 }, { word: 'Zero', count: 0 }];
   assert.deepEqual(countWordTallies(tallies).map((w) => [w.word, w.count]), [['Loud', 1203], ['Fun', 2]]);
   assert.deepEqual(countWordTallies([{ word: 'a', count: 2 }, { word: 'b', count: 1 }]), countWords(['a', 'b', 'a']));
+});
+
+test('a word hidden after the press leaves the cue: its line goes, by key, and nothing else changes (W6)', () => {
+  const words = 'Brilliant | 4\ntense | 2\nLoud | 1';
+  assert.equal(wordsWithout(words, wordKey('TENSE')), 'Brilliant | 4\nLoud | 1');
+  assert.equal(wordsWithout(words, wordKey('nowhere')), words);
+  assert.equal(wordsWithout('typed by hand\nLoud | 1', 'loud'), 'typed by hand');
+  assert.deepEqual(wordCloudFields([{ field: 'f0', title: 'Label' }, { field: 'f1', title: 'Question' }, { field: 'f2', title: 'Words' }]), { question: 'f1', words: 'f2' });
+  assert.equal(wordCloudFields([{ field: 'f0', title: 'Question' }, { field: 'f1', title: 'Options' }]), null);
 });
 
 // ── The question list (W1, W6) ──────────────────────────────────────────────────────────────

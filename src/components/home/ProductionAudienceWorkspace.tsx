@@ -12,6 +12,7 @@ import {
   setShowQuestions,
   showQuestions,
   stageShowResult,
+  setShowWordHidden,
   updateShowCueChecked,
   type SheetShowSource,
   type Show,
@@ -60,7 +61,6 @@ import {
   moveQuestion,
   questionLocked,
   removeQuestion,
-  setWordHidden,
   toLive,
   type QuestionType,
   type ShowQuestion,
@@ -1494,7 +1494,13 @@ export default function ProductionAudienceWorkspace({
       const stored = loadShows().find((x) => x.id === show.id) ?? show;
       const now = showQuestions(stored).find((x) => x.id === q.id);
       const hidden = now ? now.hidden ?? [] : q.hidden ?? [];
-      const counts = countWordTallies(list, hidden);
+      // Only the words the operator has seen (W10): fresh counts for the words the panel shows. A
+      // word that arrived since the panel last read waits for the next press, after it is listed.
+      const seen = new Set(countWordTallies(wordTallies[round.id] ?? []).map((w) => w.key));
+      const fresh = countWordTallies(list, hidden);
+      const counts = fresh.filter((w) => seen.has(w.key));
+      const unseen = fresh.filter((w) => !seen.has(w.key) && !w.hidden).length;
+      setWordTallies((prev) => ({ ...prev, [round.id]: list }));
       const result = await stageWords(
         show,
         { questionId: q.id, question: round.question, counts, label: wordCloudLabel(round.question), chosen, adopt },
@@ -1506,15 +1512,24 @@ export default function ProductionAudienceWorkspace({
         return;
       }
       setChoosingResult(null);
-      setNote(result.message);
+      setNote(
+        result.ok && unseen
+          ? `${result.message} ${unseen} newer ${unseen === 1 ? 'word is' : 'words are'} listed now and not on the cue; press again to add ${unseen === 1 ? 'it' : 'them'}.`
+          : result.message,
+      );
     } finally {
       endTurn();
     }
   };
 
-  /** Hide a word from the word cloud, or show it again (W6). Saved with the question list. */
-  const hideWord = (q: ShowQuestion, key: string, hide: boolean) =>
-    void editList((list) => setWordHidden(list, q.id, key, hide), hide ? 'The word was not hidden' : 'The word was not shown again');
+  /** Hide a word from the word cloud, or show it again (W6). Hiding also takes it off the question's
+   *  word cloud cue, in the same write, so a word hidden after the press never airs. */
+  const hideWord = async (q: ShowQuestion, key: string, hide: boolean) => {
+    const { shows, error } = setShowWordHidden(show.id, q.id, key, hide);
+    setShows(shows);
+    const failure = error ?? (await commitDurableWrites());
+    if (failure) setNote(`${hide ? 'The word was not hidden' : 'The word was not shown again'}: ${failure}`);
+  };
 
   /** Change: ask again where results go (S5, S16). Nothing is forgotten until a graphic is
    *  picked, so Cancel keeps the remembered one. */
@@ -1874,7 +1889,7 @@ export default function ProductionAudienceWorkspace({
                   live={!!rowStates[selected.id]?.live}
                   onStage={(on) => selectedRound && void addWordCloud(selected, selectedRound, on)}
                   onChoose={(open) => setChoosingResult(open ? selected.id : null)}
-                  onHide={(key, hide) => hideWord(selected, key, hide)}
+                  onHide={(key, hide) => void hideWord(selected, key, hide)}
                   onSimulate={backend.simulate ? () => backend.simulate?.(4) : null}
                 />
               )}
