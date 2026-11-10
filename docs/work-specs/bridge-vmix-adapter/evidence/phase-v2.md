@@ -814,3 +814,35 @@ locks the input table between the last read and a function.
   vMix XML parser during `--version`. The default CLI no longer loads
   that parser until Bridge starts. The packaged Bridge bundles the parser
   and runs its own startup health check.
+
+### Source and reply repair verification
+
+The product commit is `dc3cb2f9981dfb2f10e6bf0c347148f4d68ff463`, based on
+`e6be4cf3dcbcb103a7ea0372d30d0505845a8ba8`. The Studio boundary tests
+passed 18 cases, Studio TypeScript and changed-file ESLint passed, and
+the compiled focused check passed delayed XML, malformed XML and keyed
+Unload. Before the repair, the six recorded bad replies produced
+false authority or certainty. The same probe now refuses each one.
+The root-only CLI layout reproduced the configured failure at
+`noacg --version`; after the deferred import it exited 0 and printed
+`0.12.4`. The normal CLI build with installed dependencies passed.
+
+The Windows Bridge 0.11.0 built from that commit answered `/health`
+with vMix and keyed actions. SHA-256
+`fb74e0c6299a2649161e6a0d75c9987e2fd373bfa92b8be54545447a2714abc8`.
+On owned vMix 29.0.0.49 Trial the first Load sent AddInput, SetInputName
+and keyed In. BrowserNavigate changed the visible frame while keeping
+the GUID, type and title. Repeat Load on and off Overlay 8, after preset
+reopen, and at the wrong port all refused with zero mixer functions and
+the same store hash. Requested Unload sent only Out. The original and
+reopened decoded RGB images had SHA-256
+`8e6102059b5c4212c1a82f0df2e8f5b954b11184d890530fb0d46ea598e66d9a`.
+The alternate page was visibly different. The local trace captured the
+Bridge's mixer commands and verified the owned listeners, unchanged
+Program and Preview selections, SHA-256 restoration of both vMix
+files and a running vMixService.
+
+The exact changed gates and bounded shared browser jobs are recorded
+separately once complete. The Windows E2E protection baseline checkout
+hit the host's directory symlink permission error. The affected CI gate
+and exact-merge release and download checks remain open.
