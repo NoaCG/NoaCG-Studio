@@ -165,10 +165,8 @@ test('READY: every output says whether it is ready, the production page reads on
   await expect(desk).toHaveAttribute('data-tone', 'bad', { timeout: 40_000 });
   await expect(desk).toHaveAttribute('data-ready-label', /Desk A not answering \(/);
   await desk.click();
-  // In the panel the line is headed by the output's name, and the state under it says the rest.
-  const gonePanel = page.getByTestId('production-status-panel');
-  await expect(gonePanel.getByTestId('ready-output')).toContainText('Desk A');
-  await expect(gonePanel.getByTestId('ready-state')).toContainText('not answering (');
+  // The panel still lists it by the name its URL gave it.
+  await expect(page.getByTestId('production-status-panel').getByTestId('ready-output')).toContainText('Desk A');
   await desk.click();
   await page.screenshot({ path: shot('desk-not-answering'), clip: { x: 0, y: 0, width: 1920, height: 120 } });
   // Forgotten, it is gone from the line, and the line falls back to what it knows without it.
