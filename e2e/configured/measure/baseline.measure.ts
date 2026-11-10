@@ -4,7 +4,7 @@ import { readyOf } from '../_helpers';
 import { answerPanel, pairPanel } from '../_panel';
 import { buildFixture, outputSlugOf } from './_fixture';
 import {
-  FIXTURE, NET, SAMPLES, clearLpm, framePlays, instrument, meterBytes, nowOn, readLpm, screencast, summary, throttle, writeResult,
+  FIXTURE, FRAME_LOADS, NET, SAMPLES, clearLpm, framePlays, instrument, meterBytes, nowOn, readLpm, screencast, summary, throttle, writeResult,
   type Lpm, type Sent,
 } from './_measure';
 
@@ -127,6 +127,7 @@ async function opPage(page: Page, net: typeof NET) {
 async function openOutput(browser: Browser, slug: string, size = { width: 1280, height: 720 }) {
   const ctx = await browser.newContext({ viewport: size });
   await instrument(ctx);
+  await ctx.addInitScript(FRAME_LOADS);
   const out = await ctx.newPage();
   await throttle(out, NET);
   await out.goto(`/output?production=${encodeURIComponent(slug)}`);
@@ -232,7 +233,7 @@ test('takes-b', async ({ page, browser }) => {
   const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
   await outputReady(out, fx.graphics);
   const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');
-  const samples: Record<string, Sample[]> = { quick: [], quickSecondOfTwo: [], plusOne: [], plusOneSecondOfTwo: [], next: [], panel: [] };
+  const samples: Record<string, Sample[]> = { quick: [], quickSecondOfTwo: [], plusOne: [], plusOneSecondOfTwo: [] };
 
   // QUICK BUTTON and +1, on the House Score board on air.
   await select(page, 'LP2 Score');
@@ -267,6 +268,18 @@ test('takes-b', async ({ page, browser }) => {
   }
   await outBtn.click();
   await settle(page);
+  report('takes-b', samples, { fixtureFacts: fx });
+});
+
+test('takes-c', async ({ page, browser }) => {
+  await opPage(page, NET);
+  log('build');
+  const fx = await buildFixture(page, FIXTURE);
+  log('built', fx.graphics, fx.storedOutputBytes);
+  const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
+  await outputReady(out, fx.graphics);
+  const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');
+  const samples: Record<string, Sample[]> = { next: [], panel: [] };
 
   // NEXT on the stepped lower third: Take it, measure one Next, Out.
   const next = page.getByTestId('verb-next');
@@ -311,7 +324,7 @@ test('takes-b', async ({ page, browser }) => {
     await settle(page);
   }
   await deck.close();
-  report('takes-b', samples, { fixtureFacts: fx, panelNote: 'panel own = page receives the relayed press frame -> sent' });
+  report('takes-c', samples, { fixtureFacts: fx, panelNote: 'panel own = page receives the relayed press frame -> sent' });
 });
 
 test('render', async ({ page, browser }) => {
@@ -444,12 +457,17 @@ test('bytes', async ({ page, browser }) => {
   await outputReady(out, fx.graphics);
   const opMeter = await meterBytes(page);
   const outMeter = await meterBytes(out);
-  const kinds = ['cue-edit', 'graphic-add', 'design-update'] as const;
-  const cycles = Number(process.env.MEASURE_CYCLES ?? 9);
+  // Each round: a cue edit, a graphic added, that graphic removed again, a design updated. The
+  // production keeps its size from round to round.
+  const kinds = ['cue-edit', 'graphic-add', 'graphic-remove', 'design-update'] as const;
+  const rounds = Number(process.env.MEASURE_ROUNDS ?? 6);
+  const part = process.env.MEASURE_PART ?? '1';
   const rows: Record<string, unknown>[] = [];
   let lastPrepare = 0;
-  for (let i = 0; i < cycles; i++) {
+  for (let i = 0; i < rounds * kinds.length; i++) {
     const kind = kinds[i % kinds.length];
+    const round = Math.floor(i / kinds.length);
+    log(kind, round);
     // Stay clear of the output's 15 s preparation spacing (src/output/prepare.ts PREPARE_EVERY_MS),
     // so a sample measures the load, not the wait; the spacing is reported beside the numbers.
     const wait = lastPrepare + 15_500 - Date.now();
@@ -487,10 +505,19 @@ test('bytes', async ({ page, browser }) => {
         }
         ctx.putImageData(img, 0, 0);
         const path = `assets/lp2-add-${i}.png`;
-        const { error } = addGraphicToShow(id, { ...t, name: `LP2 Added ${i}`, assets: [...t.assets, { path, data: canvas.toDataURL('image/png') }], html: `${t.html}\n<img class="lp2-gen" src="${path}" alt="" style="position:absolute;left:0;top:0;width:8px;height:8px;opacity:0.02">` }, {});
+        const { error } = addGraphicToShow(id, { ...t, name: `LP2 Added`, assets: [...t.assets, { path, data: canvas.toDataURL('image/png') }], html: `${t.html}\n<img class="lp2-gen" src="${path}" alt="" style="position:absolute;left:0;top:0;width:8px;height:8px;opacity:0.02">` }, {});
         const failure = error ?? (await commitDurableWrites());
         if (failure) throw new Error(failure);
       }, { id: fx.showId, i, share: Math.floor(fx.imageFileBytes / fx.graphics) });
+    } else if (kind === 'graphic-remove') {
+      await page.evaluate(async (id) => {
+        const { loadShows, removeShowGraphicChecked } = await import('/src/model/shows.ts');
+        const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+        const g = loadShows().find((s) => s.id === id)!.graphics.find((x) => x.name === 'LP2 Added')!;
+        const { error } = removeShowGraphicChecked(id, g.id);
+        const failure = error ?? (await commitDurableWrites());
+        if (failure) throw new Error(failure);
+      }, fx.showId);
     } else {
       await page.evaluate(async ({ id, i }) => {
         const { loadShows, addGraphicToShow } = await import('/src/model/shows.ts');
@@ -520,8 +547,13 @@ test('bytes', async ({ page, browser }) => {
     // nothing has started for 4 s.
     await settle(page, 4_000, 60_000);
     const frames = await out.evaluate(() => document.querySelectorAll('iframe').length);
+    // The graphic's own load on the output: its frame inserted to its document loaded.
+    const loads = await out.evaluate((after) => ((window as unknown as { __lpFrames?: { add: number; load?: number }[] }).__lpFrames ?? [])
+      .filter((f) => f.add >= after && f.load).map((f) => f.load! - f.add), tPress || 0);
     rows.push({
       kind,
+      round,
+      newFrameLoads: kind === 'cue-edit' ? [] : loads,
       editToPress: tPress - t0,
       pressToOutputPrepared: tReady - tPress,
       failed: kind !== 'cue-edit' && Number.isNaN(tReady),
@@ -536,7 +568,7 @@ test('bytes', async ({ page, browser }) => {
     const op = r.op as { up: number; down: number }, o = r.output as { up: number; down: number };
     return op.up + op.down + o.up + o.down;
   };
-  writeResult(`bytes-${tag}`, {
+  writeResult(`bytes-${tag}-part${part}`, {
     fixture: FIXTURE, net: NET, at: new Date().toISOString(), fixtureFacts: fx,
     perKind: Object.fromEntries(kinds.map((k) => [k, {
       bytesTotal: summary(by(k).map(sum)),
@@ -544,6 +576,7 @@ test('bytes', async ({ page, browser }) => {
       opDown: summary(by(k).map((r) => (r.op as { down: number }).down)),
       outputDown: summary(by(k).map((r) => (r.output as { down: number }).down)),
       pressToOutputPrepared: summary(by(k).map((r) => r.pressToOutputPrepared as number), by(k).filter((r) => r.failed).length),
+      newFrameLoad: summary(by(k).flatMap((r) => r.newFrameLoads as number[])),
     }])),
     rows,
   });
@@ -560,20 +593,7 @@ test('boot', async ({ page, browser }) => {
   for (let i = 0; i < SAMPLES; i++) {
     // A fresh browser context each time: a cold cache, as a playout box's first start.
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
-    await ctx.addInitScript(() => {
-      if (window.top !== window) return;
-      const w = window as unknown as { __lpFrames: { add: number; load?: number }[] };
-      w.__lpFrames = [];
-      new MutationObserver((list) => {
-        for (const m of list) for (const n of m.addedNodes) {
-          if (n instanceof HTMLIFrameElement) {
-            const rec: { add: number; load?: number } = { add: performance.timeOrigin + performance.now() };
-            w.__lpFrames.push(rec);
-            n.addEventListener('load', () => { rec.load ??= performance.timeOrigin + performance.now(); }, { once: true });
-          }
-        }
-      }).observe(document, { childList: true, subtree: true });
-    });
+    await ctx.addInitScript(FRAME_LOADS);
     const out = await ctx.newPage();
     const cdp = await throttle(out, NET);
     const meter = await meterBytes(out, cdp);

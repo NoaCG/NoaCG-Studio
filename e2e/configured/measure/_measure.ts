@@ -102,6 +102,23 @@ export const FRAME_STAMPS = () => {
   }, true);
 };
 
+/** On an output page: each graphic frame's insertion and its document's load, for per-graphic
+ *  load times (`__lpFrames`). */
+export const FRAME_LOADS = () => {
+  if (window.top !== window) return;
+  const w = window as unknown as { __lpFrames: { add: number; load?: number }[] };
+  w.__lpFrames = [];
+  new MutationObserver((list) => {
+    for (const m of list) for (const n of m.addedNodes) {
+      if (n instanceof HTMLIFrameElement) {
+        const rec: { add: number; load?: number } = { add: performance.timeOrigin + performance.now() };
+        w.__lpFrames.push(rec);
+        n.addEventListener('load', () => { rec.load ??= performance.timeOrigin + performance.now(); }, { once: true });
+      }
+    }
+  }).observe(document, { childList: true, subtree: true });
+};
+
 export async function instrument(context: BrowserContext): Promise<void> {
   await context.addInitScript(OPERATOR_STAMPS);
   await context.addInitScript(FRAME_STAMPS);
