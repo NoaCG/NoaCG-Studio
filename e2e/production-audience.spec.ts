@@ -612,7 +612,7 @@ test('a Word question takes one word per phone, lists words by frequency, and ai
   await expect(phone.locator('#join .nj-count')).toHaveText('One word only');
   await expect(send).toBeDisabled();
   await word.fill('x'.repeat(26));
-  await expect(phone.locator('#join .nj-count')).toHaveText('1 characters too many');
+  await expect(phone.locator('#join .nj-count')).toHaveText('1 character too many');
   await expect(send).toBeDisabled();
   await word.fill(' Brilliant ');
   await send.click();

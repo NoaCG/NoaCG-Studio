@@ -378,7 +378,8 @@ export function mountJoinSurface(
       const typed = input.value.trim();
       const length = Array.from(typed).length;
       // Said only once it is news: a space inside, or past the limit.
-      count.textContent = /\s/u.test(typed) ? 'One word only' : length > WORD_MAX ? `${length - WORD_MAX} characters too many` : length >= WORD_MAX - 5 ? `${WORD_MAX - length} characters left` : '';
+      const n = (k: number, word: string) => `${k} ${k === 1 ? 'character' : 'characters'} ${word}`;
+      count.textContent = /\s/u.test(typed) ? 'One word only' : length > WORD_MAX ? n(length - WORD_MAX, 'too many') : length >= WORD_MAX - 5 ? n(WORD_MAX - length, 'left') : '';
       count.classList.toggle('over', typed.length > 0 && cleanWord(typed) === null);
       send.disabled = busy || cleanWord(typed) === null;
     };

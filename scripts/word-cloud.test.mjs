@@ -121,7 +121,7 @@ test('a phone sends one word to a live Word question; a second word, two words o
 
   // Filed under the round, trimmed and with no name; the phone reads its own word under it (W5).
   const words = (await b.list()).filter((r) => r.roundId === round.id);
-  assert.deepEqual(words.map((w) => [w.body, w.author]), [['Brilliant', 'Ana'], ['y'.repeat(25), '']]);
+  assert.deepEqual(words.map((w) => [w.body, w.author]), [['Brilliant', ''], ['y'.repeat(25), '']]);
   const view = await b.joinView('phone-a-0001');
   assert.equal(view.state.round.kind, 'word');
   assert.deepEqual(view.mine.map((m) => [m.body, m.roundId]), [['Brilliant', round.id]]);

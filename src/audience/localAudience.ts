@@ -527,6 +527,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
           if (!word) return { ok: false, error: WORD_REFUSED };
           if (r.answers.some((s) => s.roundId === round.id && s.device === deviceToken)) return { ok: false, error: WORD_ALREADY_SENT };
           body = word;
+          author = ''; // a word carries no name, as the server files it
         }
         const now = Date.now();
         const recent = (sends.get(deviceToken) ?? []).filter((t) => now - t < PER_DEVICE_WINDOW_MS);
