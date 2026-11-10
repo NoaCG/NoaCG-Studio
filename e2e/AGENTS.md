@@ -68,8 +68,8 @@ sweeps) are in its "Running the suite: traps".
   passing value is not 0.
 - **A DUPLICATE renderer command has to be asserted as ARITHMETIC, never as a picture.** A replayed
   `play` settles on the same picture, so count entrances with `data-plays`
-  (`src/components/home/PayloadStage.tsx`). `e2e/configured/hosted-control-recovery.spec.ts` is the
-  live half of the hosted control page. Mutation-test both halves when touching either.
+  (`src/components/home/PayloadStage.tsx`). `e2e/configured/panel-page.spec.ts` counts
+  them on a production page's PROGRAM monitor. Mutation-test it when touching PayloadStage.
 - **An assertion on rendered TEXT geometry needs a BOUND, and usually only one side of it is a
   guarantee.** Where text lands depends on the platform's font metrics, and the fit stops once the
   block fits, so the remainder varies. A local pass is no evidence: this machine rasterises one

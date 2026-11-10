@@ -37,8 +37,9 @@ Follow docs/CLOUD_PLAYOUT.md §8 steps 1-8 in order; the open items from earlier
       an already-live graphic REPLACES its layer rather than stacking.
 - [ ] §8.5 Renderer reboot mid-show: kill the output tab/machine, reload — it snaps back to
       the pre-kill on-air state; commands sent while it was dead apply on reconnect, in order.
-- [ ] §8.6 The `?control=` page from a phone (signed out) drives the same production; the
-      live chip agrees on both surfaces.
+- [ ] §8.6 The production page from a phone (signed in, `#/production/<id>`) drives the same
+      production; the live chip agrees on both screens. (Was the signed-out `?control=` page,
+      retired 2026-11: the production page is the one operator surface.)
 - [ ] §8.7a OBS Browser Source with the output URL: 1920×1080 at the channel's FPS,
       transparent over a background source, and it repaints after "Refresh cache of current
       page". This is the OBS half of §8 step 7. It had no line here until 2026-09-10, so the
@@ -46,7 +47,8 @@ Follow docs/CLOUD_PLAYOUT.md §8 steps 1-8 in order; the open items from earlier
       and nothing recorded it.
 - [ ] §8.7 CasparCG channel restart with the URL loaded (`CG 1-20 ADD 1 "<url>" 1`):
       transparent, correct scale at 1920×1080, recovers after `RESTART`.
-- [ ] §8.8 Unpublish → both URLs go dead honestly; republish → the output URL is unchanged.
+- [ ] §8.8 Unpublish → the output URL goes dead and an old control link says "This link no
+      longer works"; republish → the output URL is unchanged.
 - [ ] Verbs under load: run the rundown at real operating tempo (stepper hammering included)
       and confirm the 50-commands-per-5-s cap is not hit by one operator + one renderer.
 
@@ -99,19 +101,17 @@ two things around it did not, both fixed the same day:**
 - [ ] FIELDS.md against a real client: open a production package's `FIELDS.md` beside the
       CasparCG client, type into the ids it lists, and confirm each one lands in the field the
       table names.
-- [ ] **The hosted control page's own UI** (docs/PLAYOUT_DASHBOARD.md). It was rebuilt from a
-      per-graphic form into the dashboard - two monitors, verb bar, cue rundown - and the
-      offline suite cannot reach it (the route needs a configured backend, so this page has
-      always lived on this checklist). Publish a production, open the control link on a phone
-      AND a laptop at once, and confirm: both monitors render, PROGRAM recovers what is
-      already on air when the page opens cold, a take on one device moves the other's PROGRAM
-      monitor and tally, and a field typed on one appears staged on the other.
+- [ ] **Two signed-in production pages on one production** (docs/PLAYOUT_DASHBOARD.md). This
+      replaces the hosted control page's own UI check (that page was retired 2026-11). Publish
+      a production, sign in and open it on a phone AND a laptop at once, and confirm: both
+      monitors render, PROGRAM recovers what is already on air when the page opens cold, and a
+      take on one device moves the other's PROGRAM monitor and tally.
 - [ ] SPX export: import into a real SPX rundown; templates listed by their own names;
       play/continue/stop from SPX; two templates from one production on air together
       (distinct layers).
 - [ ] The HTML overlay in OBS as a LOCAL browser source (`file://` path): transparent, fonts
-      correct, autoplays. Driving it live requires the same-origin http setup (or the hosted
-      page) — confirm the bundled panel's no-listener banner appears over `file://` instead
+      correct, autoplays. Driving it live requires the same-origin http setup, so
+      confirm the bundled panel's no-listener banner appears over `file://` instead
       of a false "connected".
 - [ ] **The launcher path** (the shipped answer to round 1's dead panel): double-click
       "Start controller.cmd" in an overlay/production package — the relay starts, the

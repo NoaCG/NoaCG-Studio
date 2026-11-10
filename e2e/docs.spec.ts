@@ -487,11 +487,12 @@ test('the teams guide sends people down the route that exists, and says which on
   // useless would be telling a teacher that reading one out is safe.
   await expect(teams).toContainText('one paste away');
 
-  // (c) THE HONEST BOUNDARY. `move-to-team` is present and disabled until stage 4 ships
-  // (docs/TEAMS_PLAN.md §7), so a guide that described a shared production as working would be a
-  // false claim on the one page a teacher reads before a class. Delete this assertion in the same
-  // commit that enables the button, never before it.
-  await expect(teams).toContainText('Moving a production into a team does not');
+  // (c) THE ROAD TO RUNNING A SHOW TOGETHER. `move-to-team` is enabled once a team is picked
+  // (ShareWithTeamDialog `canMove`), and since the hosted control page was retired
+  // (docs/work-specs/retire-hosted-control/spec.md) no shared link runs a show, so the guide sends
+  // operators to a team rather than to a link, and no longer says moving does not work.
+  await expect(teams).toContainText('move the production into a');
+  await expect(teams).not.toContainText('Moving a production into a team does not');
 
   // (d) The two rules a reader cannot guess from the screen and cannot recover from. An owner has
   // no Leave button at all (backend/teams.ts leaveTeam refuses it, and the dialog draws Delete
@@ -499,9 +500,8 @@ test('the teams guide sends people down the route that exists, and says which on
   await expect(teams).toContainText('An owner gets out by deleting the team');
   await expect(teams).toContainText('takes the productions the team holds with it');
 
-  // (e) The handoffs. The section's first answer is that operating together needs no accounts at
-  // all, which is only useful if the link to that road works - an in-page anchor is silent when it
-  // breaks.
+  // (e) The handoffs. The links section points at what each link does, which is only useful if
+  // the anchors work - an in-page anchor is silent when it breaks.
   for (const href of ['#dashboard', '#audience']) {
     await expect(teams.locator(`a[href="${href}"]`).first()).toBeAttached();
     await expect(page.locator(`[id="${href.slice(1)}"]`)).toHaveCount(1);

@@ -1,6 +1,6 @@
 // THE COMPANION MODULE'S SIDE of a hardware panel, for the configured specs that walk an answering
-// page (panel-page.spec.ts on the hosted control page, panel-production-page.spec.ts on the
-// production page): an anonymous Supabase client holding only the panel key, as the module is
+// production page (panel-page.spec.ts, panel-production-page.spec.ts, panel-lease.spec.ts): an
+// anonymous Supabase client holding only the panel key, as the module is
 // (docs/work-specs/hardware-panel-control/protocol.md §4, §7), and the published production both
 // walk.
 
@@ -107,15 +107,15 @@ export async function shutStatusPanel(op: Page) {
   await expect(status).toBeHidden();
 }
 
-/** The Panel door on an operator page: the hosted page's header button, or the production page's
- *  item in the header's Setup menu (docs/PLAYOUT_DASHBOARD.md §2), which this opens first. */
+/** The Panel door on a production page: the item in the header's Setup menu
+ *  (docs/PLAYOUT_DASHBOARD.md §2), which this opens first. */
 export async function panelDoor(op: Page) {
   const setup = op.getByTestId('production-setup');
-  if ((await setup.isVisible()) && !(await op.getByTestId('production-setup-menu').isVisible())) await setup.click();
+  if (!(await op.getByTestId('production-setup-menu').isVisible())) await setup.click();
   return op.getByTestId('panel-open');
 }
 
-/** Pair a panel from an operator page's Panel dialog (opened if it is not), as the module does
+/** Pair a panel from a production page's Panel dialog (opened if it is not), as the module does
  *  with the code it shows; the dialog is left open on the listed panel. */
 export async function pairPanel(op: Page) {
   if (!(await op.getByTestId('panel-dialog').isVisible())) await (await panelDoor(op)).click();
@@ -130,29 +130,30 @@ export async function pairPanel(op: Page) {
   return deck;
 }
 
-/** Make the page with the open Panel dialog answer the panel (docs/work-specs/panel-ownership-lease):
- *  the production page takes a free one by itself; the hosted page takes it with "Use here". */
-export async function answerPanel(op: Page) {
-  if (!(await op.getByTestId('production-page').count())) await op.getByTestId('panel-use-here').click();
-  await expect(op.getByTestId('panel-status')).toHaveText('This page answers the panel.', { timeout: 15_000 });
-  // The header says so without opening anything: the hosted page's door turns green, and the
-  // production page shows "Panel ✓" beside Setup.
-  if (await op.getByTestId('production-page').count()) {
-    await expect(op.getByTestId('panel-header-status')).toHaveText('Panel ✓');
-  } else {
-    await expect(op.getByTestId('panel-open')).toHaveAttribute('data-state', 'ok');
+/** Make a production page answer the panel (docs/work-specs/panel-ownership-lease). `by-itself`:
+ *  it takes a free panel on its own, as it does once one is paired. `use-here`: another page has
+ *  it, and this page takes it with Use here, the Panel dialog's when that is open, else the
+ *  header's. Either way the header says so without opening anything: "Panel ✓" beside Setup. */
+export async function answerPanel(op: Page, take: 'by-itself' | 'use-here' = 'by-itself') {
+  const dialog = op.getByTestId('panel-dialog');
+  if (take === 'use-here') {
+    if (await dialog.isVisible()) await op.getByTestId('panel-use-here').click();
+    else await op.getByTestId('panel-header-use-here').click();
   }
+  if (await dialog.isVisible()) await expect(op.getByTestId('panel-status')).toHaveText('This page answers the panel.', { timeout: 15_000 });
+  await expect(op.getByTestId('panel-header-status')).toHaveText('Panel ✓', { timeout: 15_000 });
 }
 
-/** The published production's hosted control page, open with its two cues. */
-export async function openHosted(page: Page, slug: string) {
-  await page.goto(`/app?control=${encodeURIComponent(slug)}`);
-  await expect(page.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
-  await expect(page.locator('.pd-cue')).toHaveCount(2);
+/** The id of the production a production page shows, read from its `#/production/<id>` link. */
+export async function productionIdOf(op: Page): Promise<string> {
+  const id = await op.evaluate(() => /#\/production\/([^/?#]+)/.exec(location.hash)?.[1] ?? null);
+  expect(id, 'a production page names its production in the link').toBeTruthy();
+  return decodeURIComponent(id as string);
 }
 
 /** A published production of two cues, Anna and Ben, of one graphic (the Hairline lower third
- *  unless named), left open on its production page; its hosted control slug. */
+ *  unless named), left open on its production page; its hosted slug, which is still the
+ *  production's persisted identity (a second production page needs its id: productionIdOf). */
 export async function publishTwoCues(page: Page, showName: string, graphic?: string): Promise<string> {
   await signIn(page);
   await page.keyboard.press('Escape');

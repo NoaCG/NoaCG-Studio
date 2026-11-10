@@ -5,8 +5,9 @@
 // AC-3, AC-4, AC-7; protocol.md §6; the lease of docs/work-specs/panel-ownership-lease AC-1, AC-4,
 // AC-5): the production page pairs a panel and answers it by itself, runs its presses through its
 // own onVerb, refuses a repeated or stale press, publishes what the keys draw from, hands the panel
-// to the hosted control page by that page's Use here, and takes it back once that page is gone.
-// The same walk as panel-page.spec.ts, on the other operator page. The "module" is an anonymous
+// to a second production page by the Use here in that page's header, and takes it back once that
+// page is gone. panel-page.spec.ts walks the same presses and hands over by the Panel dialog's Use
+// here instead. The "module" is an anonymous
 // Supabase client holding only the panel key, as the Companion module is (./_panel.ts). The second
 // test follows the clip clock a panel counts down while a server clip plays, with NoaCG Bridge and
 // CasparCG faked at the network layer (e2e/_fakeBridge.ts) and only the relay real.
@@ -25,14 +26,14 @@ import { test, expect } from '@playwright/test';
 import { settleDurableWrites } from '../_durable';
 import { evaluateInPage } from '../_evaluate';
 import { fakeBridge, seedSettings } from '../_fakeBridge';
-import { haveCreds, SUPABASE_URL } from './_helpers';
-import { answerPanel, ANON_KEY, openHosted, pairPanel, panelDoor, publishTwoCues, shutStatusPanel, type Json } from './_panel';
+import { haveCreds, openSecondProductionPage, SUPABASE_URL } from './_helpers';
+import { answerPanel, ANON_KEY, pairPanel, panelDoor, productionIdOf, publishTwoCues, shutStatusPanel, type Json } from './_panel';
 
 test.skip(!haveCreds || !SUPABASE_URL || !ANON_KEY, 'E2E_EMAIL / E2E_PASSWORD and the Supabase pair unset - configured-mode spec');
 
-test('the production page pairs a panel, answers it, runs its presses and refuses repeated and stale ones', async ({ page, context }) => {
+test('the production page pairs a panel, answers it, runs its presses and refuses repeated and stale ones', async ({ page }) => {
   test.setTimeout(300_000);
-  const slug = await publishTwoCues(page, `Panel Production ${Date.now()}`);
+  await publishTwoCues(page, `Panel Production ${Date.now()}`);
   const op = page;
   await shutStatusPanel(op);
 
@@ -131,32 +132,33 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   await deck.state((s) => (s.live as string[]).length === 0, 'nothing on air after All out');
   await expect(op.getByTestId('live-cue-chip')).toContainText('nothing on air');
 
-  // USE HERE on the hosted control page moves the panel; the production page stops answering and
+  // USE HERE in a second production page's header moves the panel; the first stops answering and
   // says who has it, with its own Use here beside it (panel lease AC-5, L8).
-  const hosted = await context.newPage();
-  await openHosted(hosted, slug);
-  await hosted.getByTestId('panel-open').click();
-  await expect(hosted.getByTestId('panel-status')).toHaveText('Production page answers the panel.', { timeout: 15_000 });
-  await answerPanel(hosted);
+  const other = await openSecondProductionPage(op, await productionIdOf(op));
+  await expect(other.getByTestId('panel-header-use-here')).toHaveAttribute('title', /^Production page answers the Stream Deck panel/, { timeout: 15_000 });
+  await answerPanel(other, 'use-here');
   await expect(op.getByTestId('panel-header-use-here')).toHaveText('Use panel here', { timeout: 5_000 });
-  await expect(op.getByTestId('panel-header-use-here')).toHaveAttribute('title', /^Hosted control page answers the Stream Deck panel/);
+  await expect(op.getByTestId('panel-header-use-here')).toHaveAttribute('title', /^Production page answers the Stream Deck panel/);
   await expect(op.getByTestId('panel-header-status')).toHaveCount(0);
   await op.setViewportSize({ width: 1366, height: 768 });
   await op.screenshot({ path: test.info().outputPath('production-panel-held.png'), clip: { x: 0, y: 0, width: 1366, height: 120 } });
   const doorAfter = await panelDoor(op);
   await expect(doorAfter).toHaveAttribute('data-state', 'held');
   await doorAfter.click();
-  await expect(op.getByTestId('panel-status')).toHaveText('Hosted control page answers the panel.');
-  const second = await deck.state((s) => s.where === 'control', 'the hosted page answering');
-  expect((await deck.press('select-next', '', second.ver as number)).outcome).toBe('ran');
-  await deck.state((s) => s.where === 'control' && s.selected === ben, 'Ben selected on the hosted page');
+  await expect(op.getByTestId('panel-status')).toHaveText('Production page answers the panel.');
+  const second = await deck.state((s) => s.page !== first.page, 'the second page answering');
+  expect(second.where).toBe('production');
+  // A cue key pressed now moves the second page's own cursor.
+  const pick = second.selected === ben ? anna : ben;
+  expect((await deck.press('select-cue', pick, second.ver as number)).outcome).toBe('ran');
+  await deck.state((s) => s.page === second.page && s.selected === pick, 'the cursor moved on the second page');
 
-  // CLOSING the answering page lets go once its lease lapses, and the production page, still open,
-  // takes the panel back by itself (panel lease AC-4).
-  await hosted.close();
+  // CLOSING the answering page lets go once its lease lapses, and the first production page, still
+  // open, takes the panel back by itself (panel lease AC-4).
+  await other.close();
   await expect(op.getByTestId('panel-header-status')).toHaveText('Panel ✓', { timeout: 30_000 });
   await deck.hello();
-  await deck.state((s) => s.where === 'production', 'the production page answering again');
+  await deck.state((s) => s.page === first.page, 'the first page answering again');
   await deck.close();
 });
 

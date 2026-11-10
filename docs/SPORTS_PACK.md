@@ -338,7 +338,7 @@ Not attempted, and why:
 
 - **A live data feed.** Nothing here polls an API. Every value is typed or pushed through
   `update()`, which is what makes the graphics work identically in the editor, under SPX, in an
-  OBS overlay and in the hosted control page. A feed adapter is a separate concern that belongs
+  OBS overlay and on the production page. A feed adapter is a separate concern that belongs
   outside the template.
 - **Sport-specific scoring logic.** No template computes a tennis tie-break, a handball
   suspension countdown or a cricket run rate. The operator types what is true. A graphic that

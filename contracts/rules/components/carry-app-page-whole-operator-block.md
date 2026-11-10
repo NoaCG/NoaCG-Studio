@@ -3,7 +3,7 @@ v: 1
 scope: src/components/HostedControlPage.tsx
 kind: rule
 fires: contract
-status: active
+status: retired
 since: 2026-11-05
 supersedes: components/hosted-page-carries-app-page-whole
 record: contracts/records/components/2026-11-05-carry-app-page-whole-operator-block.md

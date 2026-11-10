@@ -36,7 +36,7 @@ export function ProductionSetupMenu({
   team?: { name: string; detail?: string; open: () => void };
   panel: PanelAnswerState;
   onPanel: () => void;
-  /** The control page, presenter and audience links (home/ProductionLinks.tsx). Absent in a build
+  /** The presenter and audience links (home/ProductionLinks.tsx). Absent in a build
    *  that cannot publish, where there are no links to show. */
   onLinks?: () => void;
   /** The production look (home/ProductionLook.tsx), a panel beside the rundown. */

@@ -59,7 +59,7 @@ something does not exist yet it says so rather than describing an intention.
 **The short version: NoaCG is the authoring and packaging side, and the renderer is the playout
 and control side.** You download a folder per graphic and hand it to the renderer. From that point
 the renderer owns loading, cueing and data - the export dialog says exactly that, "Controlled by
-your OGraf renderer". NoaCG's own hosted control page and its `/output?production=<slug>` URL are
+your OGraf renderer". NoaCG's own production page and its `/output?production=<slug>` URL are
 the OTHER playout route (a browser source in OBS, vMix or CasparCG); they do not drive an OGraf
 renderer, and there is no NoaCG-to-renderer control link today.
 

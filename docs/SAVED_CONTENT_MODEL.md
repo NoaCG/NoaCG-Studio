@@ -95,7 +95,8 @@ Back/Forward are real history):
 | `#/new[/<designId>]/step/<name>` | ONE step of the wizard's walk: every step reached gets its own entry, so Back walks the walk and only the front page's Back leaves. NAMED, never numbered — import mode carries an extra step, so an index means a different step depending on which mode wrote the URL. |
 | `#/package/*` | RETIRED — old links land on Home. |
 
-`?control=<slug>` and `?chat=<slug>` query routes are untouched (hosted capability URLs).
+`?chat=<slug>` is a query route (a hosted capability URL); `?control=<slug>` only forwards an
+old link to `#/production/<id>` (`components/OldControlLink.tsx`).
 Home and the control panel are ROUTED SURFACES, not modals, so Graphic → Control panel →
 Back returns to the graphic, and Video ↔ Graphics is plain history.
 
@@ -159,12 +160,10 @@ preview (sample data), the in-app control panel's Play, and the exported standal
 `controlpanel.html` (entries are baked into the panel spec as a switcher). Entries live
 ON the GraphicDoc, so they save, reopen, and sync with the graphic.
 
-The HOSTED control page (`?control=<slug>`) publishes them the same way: `publishControlShow`
-reads each show graphic's entries out of the library into the `panel` spec, and the page
-renders a READ-ONLY switcher. Picking an entry loads its values into the SHARED staging
-buffer — the same path typing takes — so it airs on an explicit take, and the hosted
-`staged`/`live` model stays per-graphic, not per-entry. Authoring stays in the app; a change
-reaches operators on the next publish. A show's copy of a graphic records `graphicId` (the
+Publishing carries them the same way: `publishControlShow` reads each show graphic's entries out
+of the library into the `panel` spec. The hosted control page (retired 2026-11) rendered them as
+a read-only switcher that loaded an entry's values into the shared staging buffer, airing only on
+an explicit take. Authoring stays in the app; a change reaches operators on the next publish. A show's copy of a graphic records `graphicId` (the
 library record it came from) so the lookup is by stable id, not by name — see
 docs/CONTROL_LAYER.md.
 

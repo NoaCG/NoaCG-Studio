@@ -1,7 +1,7 @@
 # How NoaCG operates a graphic (the control contract)
 
 NoaCG derives every operator surface - the studio's control panel, the production page's cue
-controls, the hosted control page, the exported `controlpanel.html` - from the graphic itself. No
+controls, the exported `controlpanel.html` - from the graphic itself. No
 category or template kind is ever consulted; a graphic NoaCG has never seen gets the panel its own
 contract describes. `noacg inspect <dir>` prints exactly that panel.
 

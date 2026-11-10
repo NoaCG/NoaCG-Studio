@@ -1,5 +1,5 @@
 // covers: src/ai/video/**, src/video/**, src/components/video/**, api/{ai/**,_lib/ai*{,/**}}
-// covers: src/components/{fields/**,HostedControlPage.tsx}
+// covers: src/components/fields/**
 //
 // The video project's editable inputs (its Template Definition) across an AI refinement.
 // The Anthropic API is mocked at the network level, so the whole real provider path runs -

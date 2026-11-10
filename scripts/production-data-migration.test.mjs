@@ -184,7 +184,8 @@ test('0060 writes update rows and nothing else, on either door', () => {
 test('0060 keeps the internal body shut and the operator doors open', () => {
   // `control_data_apply` takes a SHOW ID, so being handed one IS the authorization: a client able
   // to call it could patch any production whose id it guessed. The two slug doors are the
-  // opposite case - operating a production needs no account (the ?control= posture, 0008).
+  // opposite case - the slug is the capability (the posture of 0008, kept by
+  // docs/work-specs/retire-hosted-control/spec.md C3).
   assert.match(sql60, /revoke execute on function public\.control_data_apply\([^)]*\) from public, anon, authenticated;/i);
   for (const fn of ['control_data_patch_by_slug', 'control_data_by_slug']) {
     assert.match(

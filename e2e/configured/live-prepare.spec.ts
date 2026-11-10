@@ -61,11 +61,11 @@ test('the readiness run publishes what changed, checks every output and ends in 
   await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   await page.getByTestId('production-status').click();
-  const { outputSlug, hostedSlug } = (await page.evaluate(async (id) => {
+  const { outputSlug } = (await page.evaluate(async (id) => {
     const { loadShows } = await import('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === id);
-    return { outputSlug: s?.outputSlug ?? '', hostedSlug: s?.hostedSlug ?? '' };
-  }, showId)) as { outputSlug: string; hostedSlug: string };
+    return { outputSlug: s?.outputSlug ?? '' };
+  }, showId)) as { outputSlug: string };
 
   const anon = await browser.newContext();
   const air = await anon.newPage();
@@ -100,13 +100,6 @@ test('the readiness run publishes what changed, checks every output and ends in 
   test.info().annotations.push({ type: 'stamp', description: JSON.stringify(first) });
   await page.screenshot({ path: shot('desk-1920-checked') });
 
-  // ── AC-11: the phone shows the same check, from the production page's Presence entry. ──
-  const hosted = await anon.newPage();
-  await hosted.setViewportSize({ width: 390, height: 844 });
-  await hosted.goto(`/app?control=${encodeURIComponent(hostedSlug)}`);
-  await openPanel(hosted, 'hosted-output-health');
-  await expect(hosted.getByTestId('ready-stamp')).toContainText(/checked \d\d:\d\d/i, { timeout: 30_000 });
-  await hosted.screenshot({ path: shot('phone-390-stamp') });
 
   // Cue fields change metadata, not prepared assets: no header action, the panel offers Publish
   // changes, and the output adopts the new version without navigating.
