@@ -555,7 +555,12 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
     },
 
     async list(): Promise<AudienceSubmission[]> {
-      return [...kept(), ...room().answers.map(strip), ...submissions].map((s) => ({ ...s }));
+      // Messages only: a Word question's words are counted by `wordCounts`, never listed (W9).
+      const r = room();
+      const words = new Set(r.rounds.filter((x) => x.kind === 'word').map((x) => x.id));
+      return [...kept(), ...r.answers.map(strip), ...submissions]
+        .filter((s) => !s.roundId || !words.has(s.roundId))
+        .map((s) => ({ ...s }));
     },
 
     async addCandidates(items): Promise<AudienceSubmission[]> {

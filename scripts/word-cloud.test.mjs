@@ -125,9 +125,10 @@ test('a phone sends one word to a live Word question; a second word, two words o
   }
   assert.deepEqual(await b.submit('phone-b-0001', '', 'y'.repeat(25), target(round)), { ok: true, error: null });
 
-  // Filed under the round, trimmed and with no name; the phone reads its own word under it (W5).
-  const words = (await b.list()).filter((r) => r.roundId === round.id);
-  assert.deepEqual(words.map((w) => [w.body, w.author]), [['Brilliant', ''], ['y'.repeat(25), '']]);
+  // Filed under the round, trimmed; the phone reads its own word under it (W5). Words are not
+  // messages: the message list never holds them (W9).
+  assert.deepEqual(await b.wordCounts(round.id), [{ word: 'Brilliant', count: 1 }, { word: 'y'.repeat(25), count: 1 }]);
+  assert.deepEqual(await b.list(), []);
   const view = await b.joinView('phone-a-0001');
   assert.equal(view.state.round.kind, 'word');
   assert.deepEqual(view.mine.map((m) => [m.body, m.roundId]), [['Brilliant', round.id]]);
@@ -138,14 +139,15 @@ test('a word sent to a stopped Word question is refused as closed and filed nowh
   const round = await b.goLive(WORD);
   await b.stop(round.id);
   assert.deepEqual(await b.submit('phone-a-0001', '', 'Late', target(round)), { ok: false, error: QUESTION_CLOSED, closed: true });
-  assert.equal((await b.list()).length, 0);
+  assert.deepEqual(await b.wordCounts(round.id), []);
   // Going live again continues the same result; Clear results removes the words (R2, R9).
   const again = await b.goLive(WORD);
   assert.equal(again.id, round.id);
   await b.submit('phone-a-0001', '', 'Fun', target(again));
   await b.stop(again.id);
+  assert.deepEqual(await b.wordCounts(round.id), [{ word: 'Fun', count: 1 }]);
   await b.clearResults('q-word');
-  assert.equal((await b.list()).length, 0);
+  assert.deepEqual(await b.wordCounts(round.id), []);
   // An Open question still takes a sentence, and a Word question keeps its type (R8).
   await assert.rejects(b.goLive({ ...WORD, type: 'open' }), /keeps its type/);
 });
@@ -157,15 +159,18 @@ test('the provider counts every word of a round per spelling, not a page of the 
   const open = await b.goLive({ id: 'q-open', type: 'open', text: 'Ask' });
   await b.submit('phone-a-0001', '', 'Not a word of the cloud', target(open));
   assert.deepEqual(await b.wordCounts(round.id), [{ word: 'Loud', count: 2 }, { word: 'Fun', count: 1 }]);
+  // The message list holds the Open answer and none of the words, whatever the page has read (W9).
+  assert.deepEqual((await b.list()).map((r) => r.body), ['Not a word of the cloud']);
 });
 
 test('Simulate files one word per simulated phone under the live Word question', async () => {
   const b = createLocalAudience({ productionName: 'Show', seed: 0 });
   const round = await b.goLive(WORD);
   b.simulate(4);
-  const words = (await b.list()).filter((r) => r.roundId === round.id).map((r) => r.body);
-  assert.equal(words.length, 4);
-  for (const w of words) assert.equal(cleanWord(w), w);
+  const words = await b.wordCounts(round.id);
+  assert.equal(words.reduce((n, w) => n + w.count, 0), 4);
+  for (const w of words) assert.equal(cleanWord(w.word), w.word);
+  assert.deepEqual(await b.list(), []);
 });
 
 // ── Staging a snapshot onto one word cloud cue (W6, W7, W8) ─────────────────────────────────

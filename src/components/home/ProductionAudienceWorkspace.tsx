@@ -132,18 +132,17 @@ import {
  *  menu reads nothing, so a published production is not polled for a list nobody sees). */
 function useCandidates(backend: ObservableAudience, enabled: boolean): AudienceSubmission[] {
   const [rows, setRows] = useState<AudienceSubmission[]>([]);
-  /** The Word rounds last read: a failed rounds read keeps them, so the list still refreshes. */
-  const wordRounds = useRef(new Set<string>());
   useEffect(() => {
     if (!enabled) return;
     let alive = true;
-    // A Word question's words are not messages (W9): they reach a cue only as a word cloud.
+    // `list()` holds messages only: a Word question's words never come back from it (W9).
     const refresh = () =>
-      void Promise.allSettled([backend.list(), backend.rounds()]).then(([list, rounds]) => {
-        if (rounds.status === 'fulfilled') wordRounds.current = new Set(rounds.value.filter((r) => r.kind === 'word').map((r) => r.id));
-        const words = wordRounds.current;
-        if (alive && list.status === 'fulfilled') setRows(list.value.filter((r) => !r.roundId || !words.has(r.roundId)));
-      });
+      void backend.list().then(
+        (list) => {
+          if (alive) setRows(list);
+        },
+        () => {},
+      );
     refresh();
     const off = backend.onChange(refresh);
     return () => {
@@ -1490,8 +1489,11 @@ export default function ProductionAudienceWorkspace({
         return;
       }
       // The hidden words as stored now, so a word hidden in another tab stays off the cue.
+      // A question still in the stored list decides, an empty list included: another tab may have
+      // shown its last hidden word. Only a question gone from it keeps this page's reading.
       const stored = loadShows().find((x) => x.id === show.id) ?? show;
-      const hidden = showQuestions(stored).find((x) => x.id === q.id)?.hidden ?? q.hidden ?? [];
+      const now = showQuestions(stored).find((x) => x.id === q.id);
+      const hidden = now ? now.hidden ?? [] : q.hidden ?? [];
       const counts = countWordTallies(list, hidden);
       const result = await stageWords(
         show,
@@ -1524,20 +1526,13 @@ export default function ProductionAudienceWorkspace({
     return new Set(rounds.filter((r) => !r.questionId || !listed.has(r.questionId)).map((r) => r.id));
   }, [questions, rounds]);
 
-  /** The messages: every row but a Word question's words, which are listed with their question
-   *  and reach a cue only as a word cloud (W9). */
-  const messages = useMemo(() => {
-    const words = new Set(rounds.filter((r) => r.kind === 'word').map((r) => r.id));
-    return words.size ? rows.filter((r) => !r.roundId || !words.has(r.roundId)) : rows;
-  }, [rows, rounds]);
-
   const byQuestion = useMemo(() => {
-    if (questionFilter === 'all') return messages;
-    if (questionFilter === 'none') return messages.filter((r) => !r.roundId);
-    if (questionFilter === 'earlier') return messages.filter((r) => r.roundId && earlierRounds.has(r.roundId));
+    if (questionFilter === 'all') return rows;
+    if (questionFilter === 'none') return rows.filter((r) => !r.roundId);
+    if (questionFilter === 'earlier') return rows.filter((r) => r.roundId && earlierRounds.has(r.roundId));
     const round = roundOf.get(questionFilter.slice(2));
-    return round ? messages.filter((r) => r.roundId === round.id) : [];
-  }, [messages, questionFilter, earlierRounds, roundOf]);
+    return round ? rows.filter((r) => r.roundId === round.id) : [];
+  }, [rows, questionFilter, earlierRounds, roundOf]);
 
   const shown = useMemo(() => {
     const ordered = [...byQuestion].sort((a, b) => a.createdAt.localeCompare(b.createdAt));

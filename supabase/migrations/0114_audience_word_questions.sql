@@ -17,6 +17,7 @@
 --     message throttle no longer counts words (W4): a hall answering at once is not refused;
 --   * the join resolve gives each of this phone's own messages its round, so a phone knows its word
 --     is in (W5);
+--   * `audience_list` (same columns) leaves the words of Word rounds out: words are not messages (W9);
 --   * `audience_word_counts(slug, round)`: a Word round's words counted per spelling, as one value,
 --     so the operator's cloud counts every word (W1). A new operator function, granted like
 --     `audience_tally`.
@@ -333,7 +334,33 @@ begin
   return next;
 end $$;
 
--- ══ 6. The operator's word count (W1) ═══════════════════════════════════════════════════════
+-- ══ 6. The operator's list holds messages only (W9) ══════════════════════════════════════════
+-- 0111's `audience_list`, leaving out the words of Word rounds: words are not messages, so they
+-- never reach the inbox, the Messages filter or the cue editor's Pick a message, whatever the page
+-- has read of the rounds. Same columns, so a replace.
+create or replace function public.audience_list(p_slug text)
+returns table (
+  id uuid, created_at timestamptz, author text, body text,
+  broadcast_author text, broadcast_body text, anonymize boolean,
+  status text, shortlisted boolean, used_at timestamptz, skipped_at timestamptz,
+  external_id text, source text, reference text, withdrawn_at timestamptz, round_id uuid
+) language plpgsql security definer set search_path = '' stable as $$
+declare
+  v_show uuid;
+begin
+  select o.show_id into v_show from public.audience_owner_for_control(p_slug) o;
+  -- device_token is deliberately NOT selected (0035): the operator moderates words, not devices.
+  return query
+    select x.id, x.created_at, x.author, x.body, x.broadcast_author, x.broadcast_body,
+           x.anonymize, x.status, x.shortlisted, x.used_at, x.skipped_at,
+           x.external_id, x.source, x.reference, x.withdrawn_at, x.round_id
+    from public.audience_submissions x
+    where x.show_id = v_show
+      and not exists (select 1 from public.audience_rounds r where r.id = x.round_id and r.kind = 'word')
+    order by x.created_at;
+end $$;
+
+-- ══ 7. The operator's word count (W1) ═══════════════════════════════════════════════════════
 -- A Word round's words, counted per exact spelling over every word filed under it, first arrival
 -- first: [{ word, count }]. One jsonb value rather than a set of rows, because PostgREST caps a
 -- set at a page (`max_rows`) and the operator's message list is such a set: a big room's later
@@ -360,7 +387,7 @@ end $$;
 revoke execute on function public.audience_word_counts(text, uuid) from public;
 grant execute on function public.audience_word_counts(text, uuid) to anon, authenticated;
 
--- ══ 7. Prove it by calling it ═══════════════════════════════════════════════════════════════
+-- ══ 8. Prove it by calling it ═══════════════════════════════════════════════════════════════
 -- A throwaway production against a real owner, walked through a Word question, then removed.
 do $$
 declare
@@ -439,6 +466,11 @@ begin
             @> '[{"word": "Brilliant", "count": 1}, {"word": "yyyyyyyyyyyyyyyyyyyyyyyyy", "count": 1}, {"word": "Loud", "count": 30}]'::jsonb
           and jsonb_array_length(public.audience_word_counts(v_slug, (v_word->>'id')::uuid)) = 3) then
     raise exception '0114 self-check failed: word counts %', public.audience_word_counts(v_slug, (v_word->>'id')::uuid);
+  end if;
+
+  -- The operator's list holds no word (W9).
+  if exists (select 1 from public.audience_list(v_slug) l where l.round_id = (v_word->>'id')::uuid) then
+    raise exception '0114 self-check failed: the operator list holds words';
   end if;
 
   -- An Open question going live takes a message at once: the words do not count against it.

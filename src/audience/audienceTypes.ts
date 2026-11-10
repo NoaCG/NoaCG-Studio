@@ -266,6 +266,8 @@ export interface AudienceBackend {
   vote(deviceToken: string, roundId: string, option: number, revision: number): Promise<SubmitResult>;
 
   // ── The operator's half (the control slug) ────────────────────────────────────────────────
+  /** The messages. A Word question's words are not messages and never come back here (W9): they
+   *  are counted by `wordCounts` and reach a cue only as a word cloud. */
   list(): Promise<AudienceSubmission[]>;
   /** Add operator-supplied candidates (paste, an import). They arrive `new`, like any message,
    *  and air only as a cue the operator prepares and Takes. At most OPERATOR_ADD_MAX per call;
