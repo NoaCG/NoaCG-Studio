@@ -36,18 +36,18 @@
  },
  "waitingOn": [
   {
-   "what": "phase 1 checker verdict on merge 78ce3f35",
-   "eta": "2026-11-10T22:45:00Z"
+   "what": "phase 2 builder receipt",
+   "eta": "2026-11-11T01:00:00Z"
   }
  ],
  "inFlight": [
   {
-   "phase": "1",
-   "step": "check",
-   "actor": "checker-1-1-c-17a8",
-   "session": "session_017SdbwLzLvpZovnRNNe9cw6",
-   "mergeSha": "78ce3f35063386fdc7217d0542e3df871fc32b8d",
-   "launchedAt": "2026-11-10T21:47:55Z"
+   "phase": "2",
+   "step": "build",
+   "actor": "builder-2-2-b-3da5",
+   "session": "session_017SdbwRAwGnmr1povTTBwU9",
+   "branch": "claude/plan-live-publishing-2-build",
+   "launchedAt": "2026-11-10T22:13:03Z"
   }
  ],
  "owner": [
@@ -76,5 +76,10 @@
  "heartbeat": {
   "issue": 2361,
   "comment": 6776190825
+ },
+ "phase1": {
+  "pass": "2026-11-10T22:12Z",
+  "builderCostUSD": 69.5,
+  "checkerCostUSD": 1.9
  }
 }

@@ -20,3 +20,5 @@ Checkpoint on pause, block end or deadline; never broaden scope.
 
 RECEIPT Start by replying nothing; end with one receipt block and send it with mcp__claude-code-remote__send_message to session_017SdbwQ3odeX4g6yc2nYsLZ, and also print it as your final answer: nonce 2-b-3da5, phase 2, PR URL, reviewed head SHA, the CI run on that head with its configured selection (mode and spec count, or the untriggered notice) and the CI gate's result, the row's review class (Ordinary, Risky or other, from the traps file), the head the final /so assessed and its grade (none for an Ordinary row), any migration file, `git status --porcelain` of your worktree, UTC time, and the verification you ran with results (failed or skipped stated as such).
 Source: https://github.com/NoaCG/NoaCG-Studio at 78ce3f35063386fdc7217d0542e3df871fc32b8d (fetch origin/main again before you start). Environment env_017nuiDZBW9smUNLdWVQK8cf (Claude Code Cloud, NoaCG). Authorized window ends 2026-11-11T20:47:00+02:00.
+
+--- sent with two extra NOTES sentences: report a spec target the numbers prove wrong, with the number; put the final /so grade and head in the PR body.
