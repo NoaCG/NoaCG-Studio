@@ -410,7 +410,7 @@ still needs its required CI result on the reviewed head.
 emit, including ordinary HTML, saved Illustrator and the unchanged static
 SVG group. The final ordinary test set includes the all-target Out retake.
 
-#### Editor-owned SVG group rules for review
+#### Initial SVG group rules and review
 
 - A uniquely addressed SVG `g` must carry the editor group marker, four
   explicitly present finite frame attributes with positive size, its owned
@@ -503,6 +503,75 @@ kept separately in the run kit as `briefs/e1-svg-group-geometry-review.patch`
 at base `a5ca09e240afb9d5be5fb0fb6d14e048dc8fc223`. Its SHA256 is
 `4292acb84fac14db4af31fe0784dde32aeebd73b2f59588d42f084da0761edbd`.
 Neither geometry failure changed the oracle or tolerance.
+
+#### Revised SVG group rules after the owner decision
+
+The owner said, “Protect older SVG groups and continue the editor run.”
+These rules replace the initial group qualification above. The measured
+legacy discrepancy and the failed checks stay in the receipt.
+
+- A newly created SVG group in a graphic with a compatible generated
+  interpreter has an explicit fixed-frame source marker, one unique SVG
+  identity, four finite frame values with positive width and height, and
+  one owned CSS transform rule. Create that source as a group transaction.
+  An older group keeps its existing source, initializer, paint and editing
+  behavior, even beside a new group. Its legacy marker or an accidentally
+  matching pose is insufficient ownership. It refuses keying with an
+  explanation and no source, history, selection or painted-pose change.
+  A custom or unknown interpreter keeps its existing authoring boundaries.
+  Opening, saving and exporting older source do not convert it.
+- New groups use one transform composition from creation through the last
+  anchor removal. For local pivot `p = (frame.x + X, frame.y + Y)`, authored
+  Position `t` and linear Rotation/Scale `A`, the painted translation is
+  `t + p − A·p`, in local SVG coordinates before parent and member
+  transforms. Account for the SVG viewport origin exactly once. A moving
+  child bbox does not change the reference point. No Position compensation
+  or early coefficient rounding is allowed. The Inspector, canvas marker
+  and painted artwork agree on that pivot. Refuse an unsupported or
+  conflicting transform owner before writing, including an overlapping
+  selector, CSS override, direct source transform or unknown runtime.
+- First enable writes only the chosen axis's key at the rendered value
+  and preserves both members' painted matrices at that revision and cue.
+  The other base and all existing tracks stay exact. Disabling an axis or
+  deleting its last key bakes its observed value into that axis's base
+  without switching the group back to legacy composition. Changing an
+  unarmed axis edits only its base. Each accepted change is one undo and
+  undo restores source and paint. A stale edit, unsupported channel or
+  other refusal leaves the document unchanged.
+- The new group's pivot base belongs to its owned CSS and is independent
+  of authored cue motion. The legacy zero-time `transformOrigin` copies
+  stay with older groups. A new group has no repeated origin keys to
+  expose, split, retime, count as Out motion or apply over a held axis.
+  Use the existing cue clock for Step add/delete/move, Set Out carry and
+  rejoin, and group move/trim. A keyed group still refuses ungrouping
+  atomically. Static and non-anchor ungroup keeps exact painted motion
+  and uses a transparent carrier when required.
+- Preview and export use the same generated playback route for the new
+  group's owned channels. On Take, use the base pose and then In's
+  opening values. A future reveal can prearm visibility but cannot write
+  future group transforms or anchor values before the owning cue starts.
+  A first key holds backward within its cue and a trackless axis holds
+  the previous cue's value. Normal Out honors its own clock and carried
+  motion. Interrupted Out uses the existing live-pose rule, including
+  earlier-cue carry skip and terminal handling. Retake clears previous
+  runtime group values before applying In. A later reveal, reverse seek,
+  repeated Stop or retake never uses a second timing rule for this group.
+- Match only the exact compatible generated region when adding the new
+  group capability. Keep exterior source, operator fields, assets and
+  unrelated authored tracks exact. Templates without the new group
+  capability retain their emitted bytes. A saved new group keeps its
+  capability after removing its last key, and after save and reopen.
+  Exercise both generations in one document to check that older groups
+  remain on the existing path when the new capability is present.
+- Keep the independent matrix and transition oracle and its 0.0005
+  tolerance. Verify a nonzero frame and SVG viewport origin, a translated,
+  rotated and nonuniformly scaled parent, moving child bounds, group
+  Rotation/Scale and both members' matrices and marker. Compare first
+  enable at a nonidentity pose, one then both keyed axes, last-key bake,
+  refusal, forward and reverse seek, arriving and departing cues, reveals,
+  normal and interrupted Out, carried/rejoined motion and retake. Check
+  the same saved source after reopen and on the public simulator, HTML,
+  SPX, CasparCG and OGraf playback paths.
 
 ## Earlier checkpoints
 
