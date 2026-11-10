@@ -203,6 +203,10 @@
    "phase": "cf21",
    "verdict": "PASS",
    "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2348#issuecomment-6769063421"
+  },
+  {
+   "at": "2026-11-10T14:07Z",
+   "note": "cf02 receipt accepted: PR #2352 head e1faf428, Ordinary row (evidence only), /check, Codex clean, CI gate green 42829507700. 75 of 75 finished-phase sessions archived. Stamp run 42830724606, auto-merge on."
   }
  ],
  "decisions": [
