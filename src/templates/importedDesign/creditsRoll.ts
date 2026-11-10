@@ -532,7 +532,7 @@ var CREDITS_RIDER_KEEP = ['font-family', 'font-size', 'font-weight', 'font-style
   'word-spacing', 'text-anchor', 'fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'opacity'];
 function creditsRiders(roll, win, rows) {
   var art = typeof noacgArt === 'function' ? noacgArt() : null;
-  if (!art || !roll.getScreenCTM) return;
+  if (!art || !roll.getScreenCTM) return 0;
   var area = (win.right - win.left) * (win.bottom - win.top);
   var box = typeof noacgRoleEls === 'function' ? noacgRoleEls('${CREDITS_BOX_ROLE}', null)[0] : null;
   var found = art.querySelectorAll('text, rect, path, polygon, polyline, line, ellipse, circle, image, use');
@@ -569,6 +569,7 @@ function creditsRiders(roll, win, rows) {
     roll.insertBefore(wrap, roll.lastChild);         // in drawing order, under the rows (the last child)
     wrap.appendChild(rider);
   }
+  return riders.length;
 }`;
 
 /** THE TAKE, shared by the editable roll and the styled one: the window, the travel, the pace and
@@ -639,9 +640,11 @@ function creditsTake() {
   var rowsM = rowsList.numberOfItems === 1 ? rowsList.getItem(0).matrix : { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
   var rowsScale = Math.sqrt(rowsM.c * rowsM.c + rowsM.d * rowsM.d);
   var colA = rowsM.a * rowsBox.x + rowsM.e, colB = rowsM.a * (rowsBox.x + rowsBox.width) + rowsM.e;
-  creditsRiders(roll, win, { x: Math.min(colA, colB), width: Math.abs(colB - colA) });
-  try { bb = roll.getBBox(); } catch (e) { bb = null; }
-  if (!bb || !(bb.height > 0)) return null;` : ''}
+  // Measured again only when something joined: a take with nothing new to carry keeps its measure.
+  if (creditsRiders(roll, win, { x: Math.min(colA, colB), width: Math.abs(colB - colA) }) > 0) {
+    try { bb = roll.getBBox(); } catch (e) { bb = null; }
+    if (!bb || !(bb.height > 0)) return null;
+  }` : ''}
   frame.setAttribute('x', String(win.left));
   frame.setAttribute('y', String(win.top));
   frame.setAttribute('width', String(win.right - win.left));
