@@ -117,6 +117,38 @@ export function resultDestinationOf(show: Pick<Show, 'graphics' | 'cues' | 'resu
   return g ? { graphicId: g.id, name: g.name } : null;
 }
 
+/** A round as Go live's closing write needs it. */
+export interface ClosableRound {
+  id: string;
+  kind: string;
+  questionId: string | null;
+  closedAt: string | null;
+}
+
+/**
+ * The poll rounds a Go live press closed (S14, S25): open in the provider's reading taken at the
+ * press (or in the page's last reading, `seen`), not the question going live, and closed in the
+ * reading taken after (`after`; null when it could not be read, and then R3 says it closed).
+ */
+export function roundsClosedBy<R extends ClosableRound>(
+  atPress: readonly R[],
+  seen: R | null,
+  questionId: string,
+  openedId: string,
+  after: readonly ClosableRound[] | null,
+): R[] {
+  const out: R[] = [];
+  // The reading at the press decides; the page's own reading counts only for a round it lacks.
+  const known = seen && !atPress.some((x) => x.id === seen.id) ? [seen] : [];
+  for (const r of [...atPress, ...known]) {
+    if (r.closedAt || r.kind !== 'poll' || !r.questionId || r.questionId === questionId || r.id === openedId) continue;
+    if (out.some((x) => x.id === r.id)) continue;
+    if (after && !after.find((x) => x.id === r.id)?.closedAt) continue;
+    out.push(r);
+  }
+  return out;
+}
+
 /** What staging writes through: the record writer and the durable commit. Nothing that sends. */
 export interface ResultStagingDeps {
   stage: (

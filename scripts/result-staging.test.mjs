@@ -18,7 +18,7 @@ import test from 'node:test';
 import './lib/tsResolve.mjs';
 
 const { planResultCue, readResultCues } = await import('../src/model/resultCues.ts');
-const { pollFieldMap, rememberedResultTarget, resultDestinationOf, resultDestinations, stageResults, tallyValues, RESULT_BOARDS } = await import('../src/control/resultStaging.ts');
+const { pollFieldMap, rememberedResultTarget, resultDestinationOf, roundsClosedBy, resultDestinations, stageResults, tallyValues, RESULT_BOARDS } = await import('../src/control/resultStaging.ts');
 const { mergeTeamShow } = await import('../src/model/teamShowMerge.ts');
 
 const f = (field, title) => ({ field, title, ftype: 'textfield' });
@@ -285,4 +285,20 @@ test('the button names where this question\u2019s press would write: its cue fir
   assert.equal(resultDestinationOf({ ...show, resultTarget: undefined }, 'q2'), null);
   // A cue whose graphic lost its fields: the next press adds on the remembered graphic, so that is named.
   assert.equal(resultDestinationOf({ ...show, cues: [{ id: 'c1', sourceId: 'g-strap', label: 'x', values: {} }] }, 'q1').name, 'Volt Vote');
+});
+
+test('Go live finalises the round the press closed, read at the press, not the page’s stale live round (S14, S25)', () => {
+  const r = (id, questionId, closedAt = null, kind = 'poll') => ({ id, questionId, closedAt, kind });
+  // The page last saw Q1 live; another operator put Q2 live since; this tab puts Q3 live.
+  const seen = r('r1', 'q1', null);
+  const atPress = [r('r1', 'q1', 'earlier'), r('r2', 'q2', null)];
+  const after = [r('r1', 'q1', 'earlier'), r('r2', 'q2', 'now'), r('r3', 'q3', null)];
+  assert.deepEqual(roundsClosedBy(atPress, seen, 'q3', 'r3', after).map((x) => x.id), ['r2']);
+  // The provider could not be read after the press: R3 closed every other open round.
+  assert.deepEqual(roundsClosedBy(atPress, null, 'q3', 'r3', null).map((x) => x.id), ['r2']);
+  // Going live again on the open question closes nothing; an Open round has no result cue.
+  assert.deepEqual(roundsClosedBy([r('r2', 'q2')], null, 'q2', 'r2', [r('r2', 'q2')]), []);
+  assert.deepEqual(roundsClosedBy([r('r4', 'q4', null, 'open')], null, 'q3', 'r3', [r('r4', 'q4', 'now', 'open')]), []);
+  // A round still open after the press (another operator reopened it) was not closed by it.
+  assert.deepEqual(roundsClosedBy([r('r2', 'q2')], null, 'q3', 'r3', [r('r2', 'q2', null)]), []);
 });

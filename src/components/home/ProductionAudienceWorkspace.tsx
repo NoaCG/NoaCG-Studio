@@ -87,6 +87,7 @@ import {
   pollFieldMap,
   rememberedResultTarget,
   resultDestinationOf,
+  roundsClosedBy,
   resultDestinations,
   stageResults,
   type ResultOutcome,
@@ -1150,17 +1151,21 @@ export default function ProductionAudienceWorkspace({
     if (busy || !isKnownType(q.type)) return;
     setBusy(true);
     setArmedClear(null);
-    // The round this press will close, if another question's is open (R3). S14: it gets the same
-    // closing write as Stop, into its result cue only.
-    const closing = liveRound && liveRound.questionId !== q.id ? liveRound : null;
+    // The rounds this press can close (R3), read from the provider AT THE PRESS, not from this
+    // page's last reading: another operator may have put a question live since (S25). Each one
+    // the press did close gets Stop's closing write, into its result cue only (S14).
+    const atPress = await backend.rounds().catch(() => rounds);
     try {
       const opened = await backend.goLive(toLive({ ...q, type: q.type }));
       setSelectedId(q.id);
-      const final =
-        closing && closing.kind === 'poll' && closing.questionId && closing.id !== opened.id
-          ? await backend.tally(closing.id).catch(() => tallies[closing.id] ?? null)
-          : null;
-      const closed = final ? await writeResult(closing!, final, { closed: true, closeOnly: true }) : null;
+      const after = await backend.rounds().catch(() => null);
+      let closed: ResultOutcome | null = null;
+      for (const round of roundsClosedBy(atPress, liveRound, q.id, opened.id, after)) {
+        const final = await backend.tally(round.id).catch(() => tallies[round.id] ?? null);
+        if (!final) continue;
+        const outcome = await writeResult(round, final, { closed: true, closeOnly: true });
+        if (!closed || !outcome.ok || (outcome.kind === 'updated' && closed.ok && closed.kind !== 'updated')) closed = outcome;
+      }
       setNote(
         closed && !closed.ok
           ? `✓ Phones now show “${q.text}”, but the earlier question’s result cue was not updated: ${closed.message}`
@@ -1334,7 +1339,10 @@ export default function ProductionAudienceWorkspace({
     if (staging || !round.questionId) return;
     setStaging(true);
     try {
-      const tally = tallies[round.id] ?? (await backend.tally(round.id).catch(() => null));
+      // The round and its counts as the provider has them NOW (S25): another tab may have stopped
+      // it since this page last read, and the closed state decides the count line.
+      const fresh = (await backend.rounds().catch(() => null))?.find((r) => r.id === round.id) ?? round;
+      const tally = (await backend.tally(round.id).catch(() => null)) ?? tallies[round.id] ?? null;
       if (!tally) {
         setNote('The counts could not be read. Try again.');
         return;
@@ -1351,7 +1359,7 @@ export default function ProductionAudienceWorkspace({
         chosen = made.graphicId;
         adopt = made.cueId;
       }
-      const result = await writeResult(round, tally, { closed: round.closedAt !== null, chosen, adopt });
+      const result = await writeResult(fresh, tally, { closed: fresh.closedAt !== null, chosen, adopt });
       if (!result.ok && result.choose) {
         setChoosingResult(round.questionId);
         setNote(result.message === 'Choose where results go.' ? null : result.message);

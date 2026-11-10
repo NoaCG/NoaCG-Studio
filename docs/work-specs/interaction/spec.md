@@ -700,6 +700,15 @@ Found in the Codex review of `fb8a835`:
   the other keep two cues, one linked. The merge does not delete either, because one may already
   be on air; the unlinked one stays an ordinary cue in the rundown.
 
+Found in the Codex review of `b854d6b`:
+
+- S25. A press decides from state read at the press, never from the page's last reading. Go live
+  reads the provider's rounds before and after its call and finalises each poll round the press
+  closed (`roundsClosedBy`), so a question another operator put live meanwhile gets its closing
+  write; the page's own reading counts only for a round the press-time reading lacks. Add results
+  reads the round and its counts afresh, so a round stopped in another tab stages as closed. What
+  remains is the moment between the press-time reading and the server's Go live, two calls apart.
+
 **Decisions** (made in the build, revertible in review):
 
 - The planner (`model/resultCues.ts`) and the record write (`model/shows.ts` `stageShowResult`)
