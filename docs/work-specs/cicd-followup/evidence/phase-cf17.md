@@ -37,11 +37,11 @@ to run some planned runs here at the same time. If it doesn't work out tonight, 
 it as not run. I will start a new run now called live-publishing and continue VMix and editor runs
 if I have enough RAM."
 
-| Plan            | Runnable plans entry                                                                                                                                                      | Run issue                           | Work in the window                                                                   | Coordinator                                        |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------- |
-| live-publishing | `live-publishing` (`docs/work-specs/live-publishing/`, phase 1 is `retire-hosted-control`); preparation-only until the owner says start, and the owner started it himself | the run issue its coordinator opens | its phases in `phases.json` order, from phase 1                                      | the owner's machine, started by the owner          |
-| vMix            | `vmix` (`docs/work-specs/bridge-vmix-adapter/spec.md`)                                                                                                                    | #2289                               | V2 (draft #2293), then V3 onward, after the owner authorizes V2's remaining findings | a Codex coordinator on the owner's Windows machine |
-| editor-r1-5     | `editor` names `docs/EDITOR_REBUILD_PLAN.md`, whose R1.5 this run carries out; the run's own spec (`docs/work-specs/editor-r1-5/`) is **not on `main`**                   | #2295                               | E1 (blocked on the Windows file picker), then E2 onward                              | a Codex coordinator on the owner's Windows machine |
+| Plan            | Runnable plans entry                                                                                                                                              | Run issue                           | Work in the window                                                                   | Coordinator                                        |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| live-publishing | `live-publishing` (`docs/work-specs/live-publishing/`, phase 1 is `retire-hosted-control`); preparation-only until the owner says start, and the owner started it | the run issue its coordinator opens | its phases in `phases.json` order, from phase 1                                      | the owner's machine, started by the owner          |
+| vMix            | `vmix` (`docs/work-specs/bridge-vmix-adapter/spec.md`)                                                                                                            | #2289                               | V2 (draft #2293), then V3 onward, after the owner authorizes V2's remaining findings | a Codex coordinator on the owner's Windows machine |
+| editor-r1-5     | `editor` names `docs/EDITOR_REBUILD_PLAN.md`, whose R1.5 this run carries out; the run's own spec (`docs/work-specs/editor-r1-5/`) is **not on `main`**           | #2295                               | E1 (blocked on the Windows file picker), then E2 onward                              | a Codex coordinator on the owner's Windows machine |
 
 None of the three coordinators is a Claude Code Cloud session the cf17 builder can message. So
 the builder watches from GitHub only (the run issues, the runs' PRs and Actions history), and a
@@ -132,6 +132,7 @@ repair owner). The builder records the reason and the figures in stage 2.
 - **Failure rate.** Any of: M4 share of trial landings at or above 2x cf03 side A (29%) with at
   least 5 landings; two post-landing failures on `main` attributed to trial landings; any
   quarantine added because of a trial landing.
+- **Spend.** The per-phase spend line in section 5.
 
 ## 5. Resource and spend ceiling
 
