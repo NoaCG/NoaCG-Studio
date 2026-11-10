@@ -477,6 +477,47 @@ test('anchor point: numeric X/Y, Center anchor and the Anchor tool on a rotated,
   expect(errors).toEqual([]);
 });
 
+test('armed anchor X captures a nonzero pose, keys only its axis, and bakes the inspected value on disable', async ({ page }) => {
+  const t = await withRectangle(page);
+  await editorWith(page, t);
+  await select(page, t.rect);
+  await type(page, transform, 'Rotation', 30);
+  await seekFrames(page, 4, t.fps);
+  const original = await source(page), initial = await base(page, t.rect), before = await bounds(page, t.rect);
+  const entries = await history(page), clock = (frame: number) => Math.round(frame / t.fps * 1e6) / 1e6;
+  const keys = async () => (await data(page)).steps[0].layers[t.rect]?.['--base-anchor-x'];
+  await page.getByRole('button', { name: 'Enable Anchor X animation', exact: true }).click();
+  await ready(page);
+  expect(await keys()).toEqual([{ time: clock(4), value: 150 }]);
+  expectSame(await bounds(page, t.rect), before, .05, 'first enabled pose');
+  expect(await history(page)).toBe(entries + 1);
+  const enabled = await source(page);
+  await seekFrames(page, 8, t.fps);
+  await type(page, anchorSection, 'Anchor X', 210);
+  expect(await keys()).toEqual([{ time: clock(4), value: 150 }, { time: clock(8), value: 210 }]);
+  expect((await source(page)).css).toBe(enabled.css);
+  expect((await source(page)).html).toBe(original.html);
+  const track = await source(page);
+  await type(page, anchorSection, 'Anchor Y', 40);
+  expect((await source(page)).js).toBe(track.js);
+  expect((await base(page, t.rect)).anchor).toEqual({ x: 150, y: 40 });
+  await seekFrames(page, 4, t.fps);
+  await expect(await field(page, anchorSection, 'Anchor X')).toHaveValue('150');
+  await seekFrames(page, 8, t.fps);
+  await expect(await field(page, anchorSection, 'Anchor X')).toHaveValue('210');
+  const beforeDisable = await source(page), pose = await bounds(page, t.rect);
+  await page.getByRole('button', { name: 'Disable Anchor X animation', exact: true }).click();
+  await ready(page);
+  expect(await keys()).toBeUndefined();
+  const after = await base(page, t.rect);
+  expect(after.anchor).toEqual({ x: 210, y: 40 });
+  expect([after.x, after.y, after.rotation, after.scaleX, after.scaleY]).toEqual([initial.x, initial.y, initial.rotation, initial.scaleX, initial.scaleY]);
+  expectSame(await bounds(page, t.rect), pose, .05, 'disabled pivot pose');
+  expect(await history(page)).toBe(entries + 4);
+  await undo(page);
+  expect(await source(page)).toEqual(beforeDisable);
+});
+
 test('anchor on animated and placed layers: Frosted Panel moves only its pivot at the playhead; created text anchors its box; refusals', async ({ page }) => {
   // Frosted Panel at 0.28 s: scale and y keyed, x not. The Anchor tool writes the anchor alone: no key,
   // every track and Position value byte-identical, and the marker under the pointer.

@@ -3,7 +3,7 @@ import type { SpxTemplate } from '../model/types';
 import { getTemplateParts, detectPrefix } from '../model/structure';
 import { parseTransform } from '../assets/svgGeometry';
 import { locateAnimData, losslessAnimData, parseAnimData, type AnimData, type AnimLayerTracks, type AnimStep } from './animData';
-import { writeAnimData } from '../templates/shared/animRuntime';
+import { canWriteAnchorData, writeAnimData } from '../templates/shared/animRuntime';
 import { allTimelines } from './animMachine';
 import { addCatalogLine, appendCss, findRuleBody, setCssDeclaration } from './edit';
 import { addPlacedLine, placedLines, placeLine, placementCss, setLineFit } from './designLayout';
@@ -28,6 +28,8 @@ export interface BaseValues {
   anchor: { x: number; y: number } | null;
   /** Why no anchor can be written exactly here, or null. */
   anchorReason: string | null;
+  /** The imported SVG member's origin belongs to CSS rather than GSAP. */
+  cssSvgAnchor?: boolean;
 }
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 export const precise = (n: number) => Math.round(n * 1000) / 1000;
@@ -68,10 +70,11 @@ function matchingRules(css: string, node: Element): { rule: CSSStyleRule; nested
 /** The rule, other than the target's own (the first top-level rule with exactly its selector, which
  *  `setCssDeclaration` writes), that sets `transform-origin`; or any rule whose `transform-box` measures
  *  an HTML element's origin from a box other than its border box. */
-function originOwner(rules: { rule: CSSStyleRule; nested: boolean }[], target: string): string | null {
+function originOwner(rules: { rule: CSSStyleRule; nested: boolean }[], target: string, ownFillBox = false): string | null {
   const own = rules.find(({ rule, nested }) => !nested && rule.selectorText === target)?.rule;
   return rules.find(({ rule }) => {
     const box = rule.style.getPropertyValue('transform-box');
+    if (ownFillBox && rule === own && box === 'fill-box') return false;
     return box && !['border-box', 'view-box', 'stroke-box'].includes(box) || rule !== own && rule.style.getPropertyValue('transform-origin');
   })?.rule.selectorText ?? null;
 }
@@ -83,14 +86,15 @@ function tracksOn(steps: AnimStep[], node: Element): AnimLayerTracks[] {
 }
 /** Whether the graphic's script or animation data sets this element's transformOrigin itself: a
  *  transformOrigin track under a data selector naming it, or a script (outside the generated
- *  interpreter, which only names the property) that sets transformOrigin and names it by its id or a
- *  class. A script naming neither (the imported designs' text fit, which squeezes a placed line's
+ *  interpreter, which only names the property) that sets the origin or an anchor variable and names
+ *  it by id or class. A script naming neither (the imported designs' text fit, which squeezes a placed line's
  *  text, never its box) leaves the anchor alone. */
 function originSetFor(js: string, data: AnimData | null, node: Element): boolean {
   if (tracksOn(data ? allTimelines(data) : [], node).some(tracks => tracks.transformOrigin?.length)) return true;
   const start = js.indexOf(ANIMATION_MARK_OPEN), end = js.indexOf(ANIMATION_MARK_CLOSE), at = locateAnimData(js);
-  const script = start >= 0 && end > start && at && at.start > start && at.end < end ? js.slice(0, start) + js.slice(end) : js;
-  if (!/transformOrigin|transform-origin/.test(script)) return false;
+  const exterior = start >= 0 && end > start && at && at.start > start && at.end < end ? js.slice(0, start) + js.slice(end) : js;
+  const script = exterior.replace(/^\s*\/\/[^\n]*/gm, '');
+  if (!/transformOrigin|transform-origin|--base-anchor-[xy]/.test(script)) return false;
   return [node.id, ...Array.from(node.classList)].filter(Boolean).some(name => new RegExp('(?:^|[^\\w-])' + esc(name) + '(?![\\w-])').test(script));
 }
 
@@ -192,20 +196,27 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
   const repeated = (own.match(/(?:^|[;{\s]|\*\/)(?:-webkit-)?transform-origin\s*:/g) ?? []).length > 1;
   // A placed text animates inside its box (keys name the text, base edits its wrapper), about its own centre.
   const textMotion = mode === 'placed' && tracksOn(motion?.steps ?? [], node).some(tracks => ['rotation', 'scale', 'scaleX', 'scaleY', 'transform'].some(channel => tracks[channel]?.length));
-  const rival = svg ? null : originOwner(rules, target);
+  const cssSvgAnchor = svg && !groupFrame && node.localName === 'text' && !!node.closest('svg.imported-design-art')
+    && !node.hasAttribute('transform') && !rawTransforms.length && !Array.from(owned).some(channel => TRANSFORM_CHANNELS.includes(channel))
+    && styles.every(style => {
+      const box = style.getPropertyValue('transform-box');
+      return !box || box === 'view-box' || !!rawAnchor && box === 'fill-box';
+    })
+    && (!ownValue('transform-origin') || !!rawAnchor) && canWriteAnchorData(template.js);
+  const rival = svg && groupFrame ? null : originOwner(rules, target, cssSvgAnchor && !!rawAnchor);
   const ownedSvgPivot = svg && !!groupFrame && !!rawAnchor && !!motion && allTimelines(motion).every(step => {
     const keys = step.layers[selector]?.transformOrigin;
     return keys?.length === 1 && keys[0].time === 0 && keys[0].value === rawAnchor.x+'px '+rawAnchor.y+'px';
   });
-  const anchorReason = svg && !groupFrame ? 'An SVG element turns about an origin GSAP places from its own box, so an anchor written in CSS would not hold once it moves. Its source is preserved.'
+  const anchorReason = svg && !groupFrame && !cssSvgAnchor ? 'This SVG member has a transform or source GSAP places independently. Its pivot is preserved.'
     : originSetFor(template.js, motion, targetNode) && !ownedSvgPivot ? 'This graphic\'s script or animation data sets this layer\'s transformOrigin itself, which would replace an anchor written in CSS. Its source is preserved.'
     : rival ? `This layer's transform-origin is set by another rule, or measured from another box by transform-box (${rival}), so an anchor written here would not hold. Its source is preserved.`
     : repeated ? 'This layer\'s own rule declares transform-origin more than once, so an anchor written there would lose to the later one. Its source is preserved.'
-    : /(?:^|;)\s*transform-(?:origin|box)\s*:/.test(targetNode.getAttribute('style') ?? '') ? 'This layer\'s inline style sets its transform-origin, which another rule cannot override. Its source is preserved.'
+    : /(?:^|;)\s*(?:transform-(?:origin|box)|--base-anchor-[xy])\s*:/.test(targetNode.getAttribute('style') ?? '') ? 'This layer\'s inline style sets its transform-origin, which another rule cannot override. Its source is preserved.'
     : textMotion ? `${selector} animates Rotation or Scale on its text inside its placed box, which turns about the text's own centre, so no anchor on the box can be its pivot. Its source is preserved.`
     : null;
   return { selector, target, mode, groupFrame, offsetPosition, scaleReason, axisResizeReason, rotationReason, scaled: placed?.scaled ?? left?.scaled ?? false,
-    originX, originY, anchor, anchorReason,
+    originX, originY, anchor, anchorReason, cssSvgAnchor: cssSvgAnchor && !anchorReason,
     x: offsetPosition ? originX + number(template.css, target, '--base-x') : placed?.x ?? left?.value ?? originX + number(template.css, target, svg ? '--base-x' : '--layout-x'),
     y: offsetPosition ? originY + number(template.css, target, '--base-y') : placed?.y ?? top?.value ?? originY + number(template.css, target, svg ? '--base-y' : '--layout-y'),
     scaleX: Number(declaration(template.css, target, '--base-scale-x') ?? 1),
@@ -335,6 +346,7 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
     css = setCssDeclaration(css, base.target, '--base-anchor-x', transformPrecision(patch.anchorX! + (base.mode === 'svg' ? 0 : base.groupFrame?.x ?? 0)) + 'px');
     css = setCssDeclaration(css, base.target, '--base-anchor-y', transformPrecision(patch.anchorY! + (base.mode === 'svg' ? 0 : base.groupFrame?.y ?? 0)) + 'px');
     css = setCssDeclaration(css, base.target, 'transform-origin', unit('x') + ' ' + unit('y'));
+    if (base.cssSvgAnchor) css = setCssDeclaration(css, base.target, 'transform-box', 'fill-box');
   }
   let js = template.js;
   if (anchored && base.groupFrame && base.mode === 'svg') {

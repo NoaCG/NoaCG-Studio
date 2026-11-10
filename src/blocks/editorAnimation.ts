@@ -6,14 +6,18 @@ import { resolveValue } from './animEval';
 import { artworkNode, editArtworkStyle } from './artworkEdits';
 import { baseValues, editBase, settleSvgOffset, TRANSFORM_CHANNELS, type BasePatch } from './baseEdits';
 import { allTimelines } from './animMachine';
-import { writeAnimData, writeOutData } from '../templates/shared/animRuntime';
+import { canWriteAnchorData, writeAnimData, writeOutData } from '../templates/shared/animRuntime';
 import { locateBehaviourData, parseBehaviourData } from './behaviourData';
 import { behaviourSequenceReason, claimReason, claimRelations, recipeClaims, requireUserTracksOnly, sequenceOwned, stamped, SEQUENCE_REFUSAL, type RecipeClaim } from './behaviourKeys';
 
 /** A transform or opacity control of the inspector and canvas. */
 export type NumericProperty = 'x' | 'y' | 'scaleX' | 'scaleY' | 'rotation' | 'opacity';
+export const ANCHOR_CHANNELS = { x: '--base-anchor-x', y: '--base-anchor-y' } as const;
+export type AnchorChannel = typeof ANCHOR_CHANNELS[keyof typeof ANCHOR_CHANNELS];
+type ControlProperty = NumericProperty | AnchorChannel;
+export const isAnchorChannel = (property: string): property is AnchorChannel => property === ANCHOR_CHANNELS.x || property === ANCHOR_CHANNELS.y;
 /** A runtime track a control reads and writes (R1.2a.6, docs/research/editor-r1-2a-6). */
-export type Channel = NumericProperty | 'xPercent' | 'yPercent' | 'scale' | 'autoAlpha';
+export type Channel = ControlProperty | 'xPercent' | 'yPercent' | 'scale' | 'autoAlpha';
 /** One preset over a key selection, as one transaction (R1.2a.2, docs/research/editor-r1-2a-2). */
 export type KeyEaseOperation = { kind: 'key.ease'; keys: KeyRef[]; preset: KeyEasePreset };
 /** Keys moved by one stored delta on the ruler, across flags too (R1.2a.5, docs/research/editor-r1-2a-5). */
@@ -31,16 +35,18 @@ export type AnimationOperation =
 
 /** The runtime channels each control reads (D03): pixels and a percent of the layer's own box for
  *  Position, the per-axis and the shared scale for Scale, opacity or autoAlpha for Opacity. */
-export const CONTROL_CHANNELS: Readonly<Record<NumericProperty, readonly Channel[]>> = {
+export const CONTROL_CHANNELS: Readonly<Record<ControlProperty, readonly Channel[]>> = {
   x: ['x', 'xPercent'], y: ['y', 'yPercent'], scaleX: ['scaleX', 'scale'], scaleY: ['scaleY', 'scale'], rotation: ['rotation'], opacity: ['opacity', 'autoAlpha'],
+  [ANCHOR_CHANNELS.x]: [ANCHOR_CHANNELS.x], [ANCHOR_CHANNELS.y]: [ANCHOR_CHANNELS.y],
 };
-const CONTROLS = Object.keys(CONTROL_CHANNELS) as NumericProperty[];
+const CONTROLS = Object.keys(CONTROL_CHANNELS) as ControlProperty[];
 /** The controls a channel belongs to: `scale` is both Scale axes. */
 export const controlsOf = (channel: string) => CONTROLS.filter(control => CONTROL_CHANNELS[control].includes(channel as Channel));
 /** The pose field a control's channel shows in: the runtime reports `scale` as each Scale axis and
  *  `autoAlpha` as opacity. */
 export const poseKey = (channel: Channel, control: NumericProperty): keyof NumericPose => channel === 'scale' || channel === 'autoAlpha' ? control : channel as keyof NumericPose;
-const NAMES: Record<NumericProperty, string> = { x: 'Position X', y: 'Position Y', scaleX: 'Scale X', scaleY: 'Scale Y', rotation: 'Rotation', opacity: 'Opacity' };
+const NAMES: Record<ControlProperty, string> = { x: 'Position X', y: 'Position Y', scaleX: 'Scale X', scaleY: 'Scale Y', rotation: 'Rotation', opacity: 'Opacity',
+  [ANCHOR_CHANNELS.x]: 'Anchor X', [ANCHOR_CHANNELS.y]: 'Anchor Y' };
 const animates = (data: AnimData | null, owner: string, channel: string) => !!data?.steps.some(step => step.layers[owner]?.[channel]?.length);
 
 export function animationSource(template: SpxTemplate): AnimData {
@@ -49,14 +55,14 @@ export function animationSource(template: SpxTemplate): AnimData {
   return data;
 }
 /** The channels of a control a layer animates (under its owner), the pixel or per-axis one first. */
-export function armedChannels(data: AnimData | null, owner: string, property: NumericProperty): Channel[] {
+export function armedChannels(data: AnimData | null, owner: string, property: ControlProperty): Channel[] {
   return CONTROL_CHANNELS[property].filter(channel => animates(data, owner, channel));
 }
-export function isArmed(data: AnimData | null, owner: string, property: NumericProperty) {
+export function isArmed(data: AnimData | null, owner: string, property: ControlProperty) {
   return armedChannels(data, owner, property).length > 0;
 }
 /** Whether any channel of a control has a key at a time on a cue's clock. */
-export function keyedAt(data: AnimData | null, owner: string, property: NumericProperty, step: number, time: number) {
+export function keyedAt(data: AnimData | null, owner: string, property: ControlProperty, step: number, time: number) {
   return CONTROL_CHANNELS[property].some(channel => data?.steps[step]?.layers[owner]?.[channel]?.some(k => Math.abs(k.time - time) < EPS));
 }
 /** A pose value at a cue time as the runtime reports it: a `scale` track reports as both Scale axes
@@ -72,7 +78,7 @@ export function channelValue(data: AnimData, owner: string, property: keyof Nume
  * where no channel can take the key exactly: a raw transform string (a matrix is not keyed one
  * property at a time), and two tracks owning one control.
  */
-export function writeChannel(data: AnimData | null, owner: string, property: NumericProperty): Channel {
+export function writeChannel(data: AnimData | null, owner: string, property: ControlProperty): Channel {
   if (property !== 'opacity' && animates(data, owner, 'transform')) {
     throw new Error(`${owner} animates a raw transform string, which cannot be keyed one property at a time. Its source is preserved.`);
   }
@@ -210,6 +216,25 @@ export function animationTarget(template: SpxTemplate, data: AnimData, selector:
   if (reason) throw new Error(reason);
   return trackOwner(template, data, selector);
 }
+
+/** The CSS pivot and its keyed variables must be on the same layer as its other motion. */
+export function anchorKeyReason(template: SpxTemplate, selector: string): string | null {
+  try {
+    const data = animationSource(template), owner = animationTarget(template, data, selector);
+    const base = baseValues(template, selector);
+    if (base.anchorReason) return base.anchorReason;
+    if (base.groupFrame) return 'This group uses a shared pivot. Set its pivot in the base.';
+    if (base.mode === 'svg' && !base.cssSvgAnchor || base.target !== selector) return 'This layer uses a separate transform origin. Its pivot can only be set in the base.';
+    if (base.scaleX === 0 || base.scaleY === 0) return 'Restore a nonzero scale before animating this pivot.';
+    for (const channel of Object.values(ANCHOR_CHANNELS)) {
+      if (data.steps.some(step => step.layers[owner]?.[channel]?.some(key => typeof key.value !== 'number'))) return 'This pivot has nonnumeric keys in its source.';
+      if (!base.anchor && animates(data, owner, channel)) return 'This pivot has keys but no editable base value.';
+    }
+    writeChannel(data, owner, ANCHOR_CHANNELS.x);
+    if (!canWriteAnchorData(template.js)) return 'This interpreter cannot animate the pivot without changing unknown source.';
+    return null;
+  } catch (cause) { return cause instanceof Error ? cause.message : String(cause); }
+}
 /** Throws unless a layer's Scale handles can key it: both axes have a channel to write. */
 export function requireScaleWritable(template: SpxTemplate, selector: string) {
   const data = animationSource(template), owner = animationTarget(template, data, selector, [...CONTROL_CHANNELS.scaleX, ...CONTROL_CHANNELS.scaleY]);
@@ -217,7 +242,7 @@ export function requireScaleWritable(template: SpxTemplate, selector: string) {
 }
 /** Where removing a Position axis's motion keeps its displayed pose as a pixel base, its percent
  *  channel must be 0 there: any other share of the layer's box is a different distance for other text. */
-function requireZeroPercent(data: AnimData, owner: string, property: NumericProperty, step: number, time: number) {
+function requireZeroPercent(data: AnimData, owner: string, property: ControlProperty, step: number, time: number) {
   const channel = property === 'x' ? 'xPercent' : property === 'y' ? 'yPercent' : null;
   if (!channel || !animates(data, owner, channel)) return;
   const value = resolveValue(data, owner, channel, step, time) ?? 0;
@@ -232,7 +257,7 @@ function requireZeroPercent(data: AnimData, owner: string, property: NumericProp
  * whose motion it ended, which keep their displayed pose as the base. `minimum` is a frame in stored
  * seconds. Pure: a refusal throws before anything is written.
  */
-export function animateLayer(source: AnimData, owner: string, operation: AnimationOperation, minimum: number, contains?: (ancestor: string, selector: string) => boolean): { data: AnimData; ended: NumericProperty[] } {
+export function animateLayer(source: AnimData, owner: string, operation: AnimationOperation, minimum: number, contains?: (ancestor: string, selector: string) => boolean): { data: AnimData; ended: ControlProperty[] } {
   let data = source;
   const { selector, step } = operation;
   if (step === 1 && data.steps.length === 1) data = { ...data, steps: [...data.steps, { name: 'Out', duration: 0, ease: 'none', layers: {} }] };
@@ -295,8 +320,25 @@ function requireTextPivot(template: SpxTemplate, selector: string, channel: Chan
 export function applyAnimation(template: SpxTemplate, operation: AnimationOperation): SpxTemplate {
   const original = template;
   const source = animationSource(template), { selector, step } = operation;
-  if (operation.kind === 'animation.key' && operation.action === 'set') requireTextPivot(template, selector, operation.property);
-  const channels = operation.kind !== 'animation.key' ? undefined : operation.action === 'set' ? [operation.property] : CONTROL_CHANNELS[operation.property as NumericProperty] ?? [operation.property];
+  if (operation.kind === 'animation.key' && operation.action === 'set') {
+    requireTextPivot(template, selector, operation.property);
+    if (TRANSFORM_CHANNELS.includes(operation.property) && template.css.includes('--base-anchor-')) {
+      let base;
+      try { base = baseValues(template, selector); } catch { /* A track can be editable without base placement. */ }
+      if (base?.cssSvgAnchor && base.anchor) throw new Error('This SVG member has a CSS pivot. A GSAP transform key would replace it, so its source is preserved.');
+    }
+  }
+  if (operation.kind === 'animation.key' && isAnchorChannel(operation.property)) {
+    const reason = anchorKeyReason(template, selector);
+    if (reason) throw new Error(reason);
+    if (Math.abs(operation.value) > 100000) throw new Error('Enter a finite anchor coordinate.');
+    if (operation.action === 'set' && !baseValues(template, selector).anchor) {
+      const { anchorX, anchorY } = operation.baseValues ?? {};
+      if (anchorX === undefined || anchorY === undefined) throw new Error('A current rendered pivot is required to create the first anchor key.');
+      template = editBase(template, selector, { anchorX, anchorY });
+    }
+  }
+  const channels = operation.kind !== 'animation.key' ? undefined : operation.action === 'set' ? [operation.property] : CONTROL_CHANNELS[operation.property as ControlProperty] ?? [operation.property];
   const owner = animationTarget(template, source, selector, channels);
   // The first key on an SVG layer's transform keeps its base offset (#2062). The key's value is
   // GSAP's reading before the offset moved into the transform it reads, so it moves with it.
@@ -315,9 +357,16 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
     if (ended.includes('opacity')) template = editArtworkStyle(template, selector, { opacity: operation.value });
     const patch: BasePatch = {};
     for (const c of ended) if (c !== 'opacity') {
-      const shown = operation.baseValues?.[c];
+      const axis = c === ANCHOR_CHANNELS.x ? 'anchorX' : c === ANCHOR_CHANNELS.y ? 'anchorY' : c;
+      const shown = operation.baseValues?.[axis];
       if (!Number.isFinite(shown)) throw new Error('A current rendered base pose is required to remove the last key.');
-      patch[c] = shown;
+      patch[axis] = shown;
+    }
+    if (patch.anchorX !== undefined || patch.anchorY !== undefined) {
+      const base = baseValues(template, selector).anchor;
+      if (!base) throw new Error('The anchor base no longer exists.');
+      patch.anchorX ??= base.x;
+      patch.anchorY ??= base.y;
     }
     if (Object.keys(patch).length) { baseValues(template, selector); template = editBase(template, selector, patch); }
   }

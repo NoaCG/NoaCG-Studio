@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import type { groupHierarchy } from '../../blocks/editorGroups';
 import type { KeyRef } from '../../blocks/animEdit';
+import { ANCHOR_CHANNELS } from '../../blocks/editorAnimation';
 import { flagLabelWidth, ownerOf, readTimeline, type TimelineView } from './timelineView';
 import type { EditorSession, Revision } from './session';
 import { applyOperations } from './operations';
@@ -15,7 +16,7 @@ import { useLayerOrganization } from './OrganizationControls';
 import { editorShortcutsLive } from '../spaceKey';
 
 const PROPERTY_LABELS: Record<string, string> = { x: 'X', y: 'Y', scaleX: 'Scale X', scaleY: 'Scale Y', rotation: 'Rotation', opacity: 'Opacity',
-  xPercent: 'X %', yPercent: 'Y %', scale: 'Scale', autoAlpha: 'Opacity (autoAlpha)' };
+  xPercent: 'X %', yPercent: 'Y %', scale: 'Scale', autoAlpha: 'Opacity (autoAlpha)', [ANCHOR_CHANNELS.x]: 'Anchor X', [ANCHOR_CHANNELS.y]: 'Anchor Y' };
 type Marquee = { x0: number; y0: number; x1: number; y1: number; base: KeyRef[] | null };
 /** A key drag: the keys it moves, the pressed key's row and ruler time, and the move so far in ruler
  *  seconds with the registry's verdict on it. */

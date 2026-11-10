@@ -41,6 +41,23 @@ const starts = data => data.steps.reduce((acc, s, i) => [...acc, round(acc[i] + 
 const tracks = (...all) => [...new Set(all.flatMap(d => d.steps.flatMap(s => Object.entries(s.layers).flatMap(([sel, t]) => Object.keys(t).map(p => sel + '\n' + p)))))].map(k => k.split('\n'));
 const near = (a, b, tolerance = 1e-3) => a === b || Math.abs(a - b) <= tolerance + 1e-9;
 
+test('only a recognized generated interpreter upgrades when its first anchor track is written', () => {
+  const original = fixture();
+  assert.equal(contentHash(ANIM_INTERPRETER_JS.trim()), 'f3e2ab963d995', 'unkeyed emission keeps the shared interpreter bytes');
+  const generated = `var outside = 'keep';\n${emitAnimRegion(original)}\nvar tail = 'keep';`;
+  assert.equal(runtime.canWriteAnchorData(generated), true);
+  assert.equal(writeOutData(generated, original), generated, 'unrelated source retains the original body');
+  const next = structuredClone(original);
+  next.steps.at(-1).layers['#box']['--base-anchor-x'] = [{ time: .25, value: 170 }];
+  const written = runtime.writeAnimData(generated, next);
+  assert.equal(written, generated.replace(emitAnimRegion(original), () => emitAnimRegion(next)));
+  assert.equal(runtime.canWriteAnchorData(written), true);
+  assert.equal(runtime.writeAnimData(written, next), written, 'later writes keep the exact extension');
+  const foreign = generated.replace('function noacgPaintFirstFrame(tl)', 'function noacgPaintFirstFrame(tl /* edited */)');
+  assert.equal(runtime.canWriteAnchorData(foreign), false);
+  assert.equal(runtime.writeAnimData(foreign, next), null);
+});
+
 test('clipboard keeps the ruler offsets and incoming eases in an existing Out cue', () => {
   const data = fixture();
   data.steps[0].ease = 'power1.out';

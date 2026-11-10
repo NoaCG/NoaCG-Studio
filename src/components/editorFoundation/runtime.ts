@@ -69,7 +69,19 @@ export const foundationRuntime = String.raw`
   function editorStep(index) {
     return NOACG_ANIM.steps[index] || (index === 1 && NOACG_ANIM.steps.length === 1 ? { duration: 0, ease: 'none', layers: {} } : null);
   }
-  function numericPose(element) {
+  function cssSvgPivotFor(adapter) {
+    return !!adapter && adapter.cssSvgAnchor && !NOACG_ANIM.steps.some(function (step) {
+      return Object.keys(step.layers[adapter.motionOwner] || {}).some(function (channel) {
+        return /^(?:[xy]|[xy]Percent|scale(?:X|Y)?|rotation|skewX|skewY|transform)$/.test(channel);
+      });
+    });
+  }
+  function numericPose(element, cssSvgPivot, style) {
+    // Reading GSAP transform properties on a CSS-owned SVG pivot sets an inline origin and
+    // takes over its reference box. This member has no GSAP transform channels to read.
+    if (cssSvgPivot) {
+      return { x: 0, y: 0, xPercent: 0, yPercent: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: Number(style.opacity) };
+    }
     var pose = {};
     ['x', 'y', 'xPercent', 'yPercent', 'scaleX', 'scaleY', 'rotation', 'opacity'].forEach(function (property) { pose[property] = Number(gsap.getProperty(element, property)); });
     return pose;
@@ -94,7 +106,7 @@ export const foundationRuntime = String.raw`
       resetPose();
       config.selectors.forEach(function (selector) {
         var element = document.querySelector(selector);
-        if (element) initialMotion[selector] = numericPose(element);
+        if (element) initialMotion[selector] = numericPose(element, cssSvgPivotFor(config.adapters[selector]), getComputedStyle(element));
       });
       gsap.set(NOACG_ANIM.root, { opacity: 1 });
       for (var i = 0; i < step; i++) {
@@ -165,7 +177,8 @@ export const foundationRuntime = String.raw`
       var targetStyle = target === element ? style : getComputedStyle(target);
       var unit = adapter && adapter.scaled || adapter && adapter.mode === 'flow'
         ? parseFloat(targetStyle.getPropertyValue('--scale')) || 1 : 1;
-      var motion = window.gsap ? numericPose(element) : undefined;
+      var cssSvgPivot = cssSvgPivotFor(adapter);
+      var motion = window.gsap ? numericPose(element, cssSvgPivot, style) : undefined;
       // Reuse this pose's HTML geometry for both handles and pivot. Each ancestor
       // walk was repeated three times per layer; no value survives this measure.
       var targetMatrix = target instanceof SVGGraphicsElement ? null : basis(target);
@@ -187,6 +200,17 @@ export const foundationRuntime = String.raw`
       var groupOrigin = frame && [parseFloat(targetStyle.getPropertyValue('--base-anchor-x')),parseFloat(targetStyle.getPropertyValue('--base-anchor-y'))];
       if (frame) { if (svg) { var svgOrigin = (target.getAttribute('data-svg-origin') || '').split(' ').map(Number); if (svgOrigin.length === 2 && svgOrigin.every(Number.isFinite)) groupOrigin = svgOrigin; else { var groupBounds = target.getBBox(); groupOrigin[0] += groupBounds.x; groupOrigin[1] += groupBounds.y; } } origin = [(svg ? groupOrigin[0] : origin[0])-frame.x,(svg ? groupOrigin[1] : origin[1])-frame.y]; }
       var groupPivot = frame && svg ? {x:frameMatrix.a*groupOrigin[0]+frameMatrix.c*groupOrigin[1]+frameMatrix.e,y:frameMatrix.b*groupOrigin[0]+frameMatrix.d*groupOrigin[1]+frameMatrix.f} : null;
+      if (cssSvgPivot && targetStyle.transformBox !== 'fill-box') {
+        var viewBox = target.ownerSVGElement.viewBox.baseVal;
+        origin = [origin[0] + viewBox.x - bbox.x, origin[1] + viewBox.y - bbox.y];
+      }
+      if (cssSvgPivot) {
+        var memberMatrix = target.getScreenCTM();
+        if (memberMatrix) {
+          var localPivot = new DOMPoint(bbox.x + origin[0], bbox.y + origin[1]).matrixTransform(memberMatrix);
+          groupPivot = { x: localPivot.x, y: localPivot.y };
+        }
+      }
       var path = element.tagName.toLowerCase() === 'path' ? element : element.hasAttribute('data-pen-path') ? element.querySelector(':scope > svg > path') : null;
       var pathMatrix = path && path.getScreenCTM();
       // Point edits can extend past the initial transform frame. Hit testing follows the artwork;
@@ -198,7 +222,7 @@ export const foundationRuntime = String.raw`
       }
       return [{ selector: selector, x: hit.x, y: hit.y, width: hit.width,
         height: hit.height, opacity: Number(style.opacity), transform: style.transform,
-        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, size: frame ? percentBox(element, style) : target !== element ? percentBox(element, style) : svg ? undefined : box, box: box, origin: svg && !frame ? undefined : origin, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), fontWeight: Number(style.fontWeight), lineHeight: style.lineHeight === 'normal' ? undefined : parseFloat(style.lineHeight) / parseFloat(style.fontSize), letterSpacing: style.letterSpacing === 'normal' ? 0 : parseFloat(style.letterSpacing) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
+        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, size: frame ? percentBox(element, style) : target !== element ? percentBox(element, style) : svg ? undefined : box, box: box, origin: svg && !frame && !cssSvgPivot ? undefined : origin, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), fontWeight: Number(style.fontWeight), lineHeight: style.lineHeight === 'normal' ? undefined : parseFloat(style.lineHeight) / parseFloat(style.fontSize), letterSpacing: style.letterSpacing === 'normal' ? 0 : parseFloat(style.letterSpacing) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
         parent: [matrix.a * unit, matrix.b * unit, matrix.c * unit, matrix.d * unit],
         parentSpace: adapter && adapter.groupParent ? coordinateSpace(document.querySelector(adapter.groupParent)) : undefined,
         corners: points, anchor: groupPivot || anchor(target, targetMatrix, points, origin),
@@ -291,6 +315,8 @@ export const foundationRuntime = String.raw`
     // A design that fits placed text to a slot measures from the stylesheet, so a new slot width or
     // spacing refits it, as the design's own update() does after every value (R1.2b.2).
     if (typeof fitPlacedText === 'function') fitPlacedText();
+    // Measure a drawn SVG pivot from the same fitted box that a fresh export would load.
+    if (changed && typeof refitSvgText === 'function' && Object.values(config.adapters).some(cssSvgPivotFor)) refitSvgText();
     if (changed && step >= 0) seek(step, time);
   }
   function presented(request, kind, interactive) {

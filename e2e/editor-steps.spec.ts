@@ -72,15 +72,15 @@ async function build(page: Page, t: unknown, target: string) {
 }
 type Built = Awaited<ReturnType<typeof build>>;
 
-type Run = { poses: Record<string, Pose>; held: Pose; visible: string[]; released: Pose; leaving: Pose[] };
+type Run = { poses: Record<string, Pose>; held: Pose; visible: string[]; released: Pose; leaving: Pose[]; retaken?: Pose };
 /**
  * Load the built graphic in a fresh page and walk it. With `cues`, each pre-Out cue is sampled at its
  * local times (a `left` sample reads visibility a microsecond earlier, the left limit) and settled,
  * and Next is pressed at every flag; otherwise `nexts` Next cues are played and settled. Then Out,
  * sampled at `exit` seconds on its own clock.
  */
-async function run(page: Page, built: Built, target: string, seconds: number[], { cues, nexts = seconds.length - 2, exit, layers = LAYERS, props = PROPS, root = '.fixture' }:
-  { cues?: Sample[][]; nexts?: number; exit: number[]; layers?: string[]; props?: string[]; root?: string }): Promise<Run> {
+async function run(page: Page, built: Built, target: string, seconds: number[], { cues, nexts = seconds.length - 2, exit, layers = LAYERS, props = PROPS, root = '.fixture', retake = false }:
+  { cues?: Sample[][]; nexts?: number; exit: number[]; layers?: string[]; props?: string[]; root?: string; retake?: boolean }): Promise<Run> {
   const output = await page.context().newPage();
   await output.setViewportSize({ width: 1920, height: 1080 });
   if (built.html) await output.setContent(built.html);
@@ -100,7 +100,7 @@ async function run(page: Page, built: Built, target: string, seconds: number[], 
       });
     } else await output.goto('http://step-package.local/' + Object.keys(files).find(n => n.endsWith('.html') && !n.includes('controlpanel')));
   }
-  const result = await output.evaluate(async ({ target, seconds, cues, nexts, exit, layers, props, root }) => {
+  const result = await output.evaluate(async ({ target, seconds, cues, nexts, exit, layers, props, root, retake }) => {
     type Tl = { pause(): void; time(t: number, s?: boolean): void; progress(p: number, s?: boolean): void; duration(): number };
     const w = window as unknown as Record<string, () => unknown> & { gsap: { getProperty(e: Element, p: string): number; globalTimeline: { getChildren(n: boolean, tw: boolean, tl: boolean): Tl[] } } };
     const element = document.querySelector('step-graphic') as HTMLElement & { playAction(p: unknown): Promise<unknown>; stopAction(p: unknown): Promise<unknown> };
@@ -150,8 +150,12 @@ async function run(page: Page, built: Built, target: string, seconds: number[], 
     const released = pose();
     const out = timeline(seconds[seconds.length - 1]); out.pause();
     const leaving = exit.map(t => { out.time(t, true); return pose(); });
-    return { poses, held, visible, released, leaving };
-  }, { target, seconds, cues, nexts, exit, layers, props, root });
+    const result = { poses, held, visible, released, leaving };
+    if (!retake) return result;
+    await command('play');
+    timeline(seconds[0]).pause();
+    return { ...result, retaken: pose() };
+  }, { target, seconds, cues, nexts, exit, layers, props, root, retake });
   await output.close();
   return result;
 }
@@ -367,6 +371,20 @@ test('Add Step and Set Out refuse a crossed clip-path track without changing the
   await expect(page.locator('.ef-out-controls').getByRole('alert')).toContainText(refuses);
   expect(await source(page)).toEqual(original);
   expect(await history(page)).toBe(entries);
+});
+
+test('an Out-only pivot starts at the CSS base again on the next take in every package', async ({ page }) => {
+  await open(page);
+  const data = fixture(), out = data.steps.at(-1)!;
+  out.layers['#box']['--base-anchor-x'] = [{ time: 0, value: 100 }, { time: out.duration, value: 180 }];
+  const t = await template(page, data);
+  t.css += '\n#box { --base-anchor-x: 100px; transform-origin: var(--base-anchor-x) 50px; }';
+  const seconds = secondsOf(data);
+  for (const target of TARGETS) {
+    const result = await run(page, await build(page, t, target), target, seconds,
+      { nexts: 0, exit: [seconds.at(-1)!], layers: ['#box'], props: ['--base-anchor-x'], retake: true });
+    expect([result.held[0], result.leaving[0][0], result.retaken?.[0]], target).toEqual([100, 180, 100]);
+  }
 });
 
 test('Add Step, rename, delete and drags are one undo each and survive save and reopen', async ({ page }) => {

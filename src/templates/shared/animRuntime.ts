@@ -1055,13 +1055,43 @@ const DATA_HEADER = `// The graphic's animation as DATA. Steps play in order —
  */
 export const STOP_AGAIN_GUARD_JS = "if (typeof noacgOutActive === 'function' && noacgOutActive()) return (activeTl = buildOutTimeline());";
 
+// The unchanged interpreter handles motion. A keyed graphic adds its owned pivot reset.
+const ANCHOR_REPLAY_JS = `// The CSS anchor is the base pose at a new take, including when its first key is on Next or Out.
+noacgEntranceTimeline = (function (enter) {
+  var source, tracks;
+  return function () {
+    if (source !== NOACG_ANIM) {
+      source = NOACG_ANIM;
+      tracks = Object.create(null);
+      source.steps.forEach(function (step) {
+        Object.keys(step.layers).forEach(function (selector) {
+          var layer = step.layers[selector];
+          ['--base-anchor-x', '--base-anchor-y'].forEach(function (property) {
+            if (layer[property] && layer[property].length) {
+              if (!tracks[selector]) tracks[selector] = {};
+              tracks[selector][property] = true;
+            }
+          });
+        });
+      });
+    }
+    Object.keys(tracks).forEach(function (selector) {
+      var axes = Object.keys(tracks[selector]);
+      document.querySelectorAll(selector).forEach(function (el) {
+        axes.forEach(function (property) { el.style.removeProperty(property); });
+      });
+    });
+    return enter();
+  };
+})(noacgEntranceTimeline);`;
+
 /** Emit the full marked ANIMATION region for a data-driven template. */
 export function emitAnimRegion(data: AnimData): string {
   return `${ANIMATION_MARK_OPEN}
 ${DATA_HEADER}
 ${ANIM_DECLARATION} = ${serializeAnimData(data)};
 
-${ANIM_INTERPRETER_JS}
+${ANIM_INTERPRETER_JS}${dataUsesAnchor(data) ? '\n' + ANCHOR_REPLAY_JS : ''}
 ${ANIMATION_MARK_CLOSE}`;
 }
 
@@ -1145,6 +1175,7 @@ export const dataUsesHoldEase = (data: AnimData) => dataUses(data, needsHoldRunt
  * identically when the data grows a transition STYLE the frozen interpreter cannot play.
  */
 export function writeAnimData(js: string, data: AnimData): string | null {
+  if (dataUsesAnchor(data)) return writeOutData(js, data);
   if (animSounds(data).length && !/\/\/ Capability: graphic-sound-v[12]/.test(js)) return writeOutData(js, data);
   if ((data.steps.some(step => step.spans || step.carried) || dataUsesExactEase(data)) &&!js.replace(/\r\n/g, '\n').includes(ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n'))) {
     return writeOutData(js, data);
@@ -1156,22 +1187,41 @@ export function writeAnimData(js: string, data: AnimData): string | null {
   return spliceAnimData(js, data);
 }
 
-/** Exact known bodies only: a capability comment alone cannot authorize replacement. */
-export function writeOutData(js: string, data: AnimData): string | null {
+const dataUsesAnchor = (data: AnimData) => data.steps.some(step => Object.values(step.layers).some(layer => layer['--base-anchor-x']?.length || layer['--base-anchor-y']?.length));
+
+function interpreterBody(js: string): string | null {
   const text = js.replace(/\r\n/g, '\n');
   const location = locateAnimData(text), start = text.indexOf(ANIMATION_MARK_OPEN), end = text.indexOf(ANIMATION_MARK_CLOSE);
   if (!location || start < 0 || end < location.end) return null;
   const prefix = text.slice(start, location.start).trim();
   if (prefix !== `${ANIMATION_MARK_OPEN}\n${DATA_HEADER}\n${ANIM_DECLARATION} =`.replace(/\r\n/g, '\n')) return null;
-  const body = text.slice(location.end, end).replace(/^;\s*/, '').trim();
-  if (body === ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n').trim()) return spliceAnimData(js, data);
+  return text.slice(location.end, end).replace(/^;\s*/, '').trim();
+}
+
+const currentInterpreter = ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n').trim();
+const anchorInterpreter = currentInterpreter + '\n\n' + ANCHOR_REPLAY_JS;
+
+/** Only the exact shared interpreter and its generated anchor extension can take a new anchor track. */
+export function canWriteAnchorData(js: string): boolean {
+  const body = interpreterBody(js);
+  return body === currentInterpreter || body === anchorInterpreter;
+}
+
+/** Exact known bodies only: a capability comment alone cannot authorize replacement. */
+export function writeOutData(js: string, data: AnimData): string | null {
+  const body = interpreterBody(js);
+  if (body === null) return null;
+  if (body === anchorInterpreter) return spliceAnimData(js, data);
+  if (body === currentInterpreter) return dataUsesAnchor(data) ? replaceRegionWithAnimData(js, data) : spliceAnimData(js, data);
+  const hash = contentHash(body);
+  if (dataUsesAnchor(data)) return null;
   if (body === ANIM_INTERPRETER_JS.replace(SOUND_RUNTIME_JS, SOUND_RUNTIME_V1_JS).replace(/\r\n/g, '\n').trim()) return replaceRegionWithAnimData(js, data);
   const beforeSpans = ANIM_INTERPRETER_PRE_OUT_JS
     .replace(/\/\/ Visibility is independent of opacity\.[\s\S]*?\n}\n\n/, '')
     .replace(/ {2}Object\.keys\(step\.spans \|\| \{\}\)\.forEach[\s\S]*?\n {2}}\);\n/, '')
     .replace(/^ +if \(step(?:s\[0\])?\.spans[^\n]+\n/gm, '');
   if (![ANIM_INTERPRETER_PRE_OUT_JS, beforeSpans].some(known => body === known.replace(/\r\n/g, '\n').trim()) &&
-      !['f4463f758f4e2', ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_CARRIED_HASH, ANIM_INTERPRETER_BEFORE_EXIT_REST_HASH].includes(contentHash(body))) return null;
+      !['f4463f758f4e2', ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_CARRIED_HASH, ANIM_INTERPRETER_BEFORE_EXIT_REST_HASH].includes(hash)) return null;
   return replaceRegionWithAnimData(js, data);
 }
 

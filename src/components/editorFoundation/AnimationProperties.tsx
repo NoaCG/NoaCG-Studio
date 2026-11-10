@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { baseValues } from '../../blocks/baseEdits';
-import { CONTROL_CHANNELS, controlKeyReason, isArmed, keyedAt, poseKey, writeChannel, type NumericProperty } from '../../blocks/editorAnimation';
+import { ANCHOR_CHANNELS, CONTROL_CHANNELS, controlKeyReason, isAnchorChannel, isArmed, keyedAt, poseKey, writeChannel, type AnchorChannel, type NumericProperty } from '../../blocks/editorAnimation';
 import type { SpxTemplate } from '../../model/types';
 import type { EditorSession, Revision } from './session';
 import type { RenderedPart } from './protocol';
 import { ownerOf, readTimeline } from './timelineView';
-import { authoredTransform, authoringPosition, displayedBase, editingPose, editTarget, requireCurrentPose } from './animationAuthoring';
+import { anchorAtPlayhead, authoredTransform, authoringPosition, displayedBase, editingPose, editTarget, requireCurrentPose } from './animationAuthoring';
 import type { EditorOperation } from './operations';
 import { layerKeys } from './keySelection';
 import AnimationNumber from './AnimationNumber';
@@ -13,7 +13,7 @@ export { default as AnimationNumber } from './AnimationNumber';
 
 export function AnimationButtons({ template, selector, property, label, session, appearance, seek }: {
   seek: (time: number, cue?: number) => void;
-  template: SpxTemplate; selector: string; property: NumericProperty; label: string; session: EditorSession; appearance?: RenderedPart['appearance'];
+  template: SpxTemplate; selector: string; property: NumericProperty | AnchorChannel; label: string; session: EditorSession; appearance?: RenderedPart['appearance'];
 }) {
   const [error, setError] = useState('');
   const { time, cue } = session.port.view();
@@ -27,16 +27,22 @@ export function AnimationButtons({ template, selector, property, label, session,
   const previous = earlier[earlier.length - 1], next = keys.find(key => key.time > time + view.near);
   const act = (action: 'set' | 'remove' | 'disable') => {
     try {
-      requireCurrentPose(appearance, session.port.view().time, session.version(), session.port.view().cue);
-      const pose = editingPose(template, selector, appearance, session.port.view().time, session.port.view().cue);
+      const current = session.port.view(), expected = session.version();
+      if (isAnchorChannel(property) && (current.selectedParts.length !== 1 || current.selectedParts[0] !== selector)) {
+        throw new Error('The selection changed. Inspect the pivot again before editing.');
+      }
+      requireCurrentPose(appearance, current.time, expected, current.cue);
+      const pose = editingPose(template, selector, appearance, current.time, current.cue);
       // A new key captures the channel it writes at its current value; a removal names the control.
       const channel = action === 'set' ? writeChannel(view.data, owner, property) : property;
-      const value = pose?.motion?.[poseKey(channel, property)];
-      if (value === undefined) throw new Error('Wait for the rendered pose before editing animation.');
       const base = property === 'opacity' ? null : baseValues(template, selector);
-      const shown = base ? Object.fromEntries((['x', 'y', 'scaleX', 'scaleY', 'rotation'] as const).map(p => [p, displayedBase(base, pose, p)])) : undefined;
-      session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(),
-        operations: [{ kind: 'animation.key', selector, property: channel, ...position, value, baseValues: shown, action }] });
+      const anchor = isAnchorChannel(property) && base ? anchorAtPlayhead(template, base, appearance, current.time, current.cue) : null;
+      const value = isAnchorChannel(property) ? anchor?.[property === ANCHOR_CHANNELS.x ? 'x' : 'y'] : pose?.motion?.[poseKey(channel, property)];
+      if (value === undefined) throw new Error('Wait for the rendered pose before editing animation.');
+      const shown = anchor ? { anchorX: anchor.x, anchorY: anchor.y } : base
+        ? Object.fromEntries((['x', 'y', 'scaleX', 'scaleY', 'rotation'] as const).map(p => [p, displayedBase(base, pose, p)])) : undefined;
+      session.execute({ documentId: session.documentId, expected, transactionId: crypto.randomUUID(),
+        operations: [{ kind: 'animation.key', selector, property: channel, ...authoringPosition(template, selector, current.time, current.cue), value, baseValues: shown, action }] });
       setError('');
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
   };
