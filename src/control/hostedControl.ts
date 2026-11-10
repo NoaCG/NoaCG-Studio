@@ -1,7 +1,8 @@
 import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownColors } from '../model/outputSetup';
 // Hosted control (Phase 5): the client side of migration 0008. A local SHOW publishes as a
-// control_shows row (id = the local Show.id); operating it is capability-addressed — the
-// unguessable slug opens the hosted page at ?control=<slug>, no account needed. Commands
+// control_shows row (id = the local Show.id); operating it is capability-addressed by its
+// unguessable slug, which the production page sends with (an old ?control=<slug> link now only
+// opens that page: components/OldControlLink.tsx). Commands
 // are INSERTS into the control_events log (DB-ordered, recoverable); staging and the
 // graphics' applied-state reports ride the same log as meta rows.
 //
@@ -65,11 +66,6 @@ import { readLiveCue, type LiveCueMap, type VerbSent } from './liveCue';
 
 // The live map's folds live in ./liveCue.ts, which Node can import; re-exported for every caller.
 export { leftAlone, readLiveCue, withLiveCue, type LiveCueMap, type VerbSent } from './liveCue';
-
-/** The operator page's URL for a control slug — the one shape every surface mints. */
-export function controlPageUrl(slug: string): string {
-  return `${window.location.origin}/app?control=${encodeURIComponent(slug)}`;
-}
 
 /** The browser-output URL for an output slug (docs/CLOUD_PLAYOUT.md §3). */
 export function outputPageUrl(outputSlug: string): string {
@@ -2321,16 +2317,6 @@ async function openSeqTopic(showId: string, state: SeqTopicState): Promise<void>
   });
 }
 
-/** Stage PREPARED data — shared with every operator page on this slug. A refusal THROWS: the
- *  RPC answers an error rather than rejecting, and the page keeps an edit on screen until the
- *  write either comes back round the log or is refused (components/control/ownStaged.ts). */
-export async function stageHostedData(slug: string, graphic: string, data: Record<string, string>): Promise<void> {
-  const sb = await getSupabase();
-  if (!sb) return;
-  const { error, status } = await sb.rpc('control_stage', { p_slug: slug, p_graphic: graphic, p_data: data });
-  if (error) throw rpcFailure('control_stage', error, status);
-}
-
 /** The command tail after a known id — a reconnecting side fills its gap from here. */
 export async function hostedControlTail(slug: string, afterId: number, graphic?: string): Promise<ControlEventRow[]> {
   const sb = await getSupabase();
@@ -2343,8 +2329,8 @@ export async function hostedControlTail(slug: string, afterId: number, graphic?:
 /**
  * The rows a PROGRAM monitor replays over the reports when its page opens (control/outputRecovery.ts
  * `monitorReplay`): the log after the oldest on-air report baseline, read once. A read that does
- * not reach the head replays nothing, and the reports stand. The hosted control page and the
- * in-app production page both boot through this.
+ * not reach the head replays nothing, and the reports stand. The production page boots through
+ * this.
  */
 export async function bootMonitorReplay(slug: string, resolved: Pick<ResolvedControlShow, 'liveCue' | 'live' | 'lastEventId'>): Promise<ReplayItem[]> {
   const onAir = Object.keys(resolved.liveCue).filter((graphic) => resolved.liveCue[graphic]);

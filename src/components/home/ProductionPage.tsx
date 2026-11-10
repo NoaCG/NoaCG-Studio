@@ -181,7 +181,6 @@ import {
   headsSay,
   headsStillOn,
   controlOutputSeenAt,
-  controlPageUrl,
   controlShowBySlug,
   followControlLog,
   bootClockReplay,
@@ -2626,7 +2625,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** The PRESENTER's own page — a third capability, minted at publish beside the join slug and
    *  absent for the same reason when the server predates 0035. */
   const presenterUrl = show.presenterSlug ? presenterPageUrl(show.presenterSlug) : null;
-  const controlUrl = show.hostedSlug ? controlPageUrl(show.hostedSlug) : null;
   const clashes = duplicateLayers(show.graphics);
 
   // CasparCG Out and Clear name a slot without checking what currently plays there.
@@ -4556,7 +4554,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       {exportOpen && <ProductionExportDialog show={show} onClose={() => setExportOpen(false)} />}
       {linksOpen && (
         <ProductionLinksDialog
-          controlUrl={controlUrl}
           joinUrl={joinUrl}
           interactionHref={routeHash({ view: 'production', id: show.id, sub: 'audience' })}
           presenterUrl={presenterUrl}

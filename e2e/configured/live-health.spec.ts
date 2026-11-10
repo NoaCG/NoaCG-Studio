@@ -2,9 +2,9 @@
 // (scripts/e2e-lists.mjs). The offline suite cannot walk what these paths change.
 //
 // THE LIVE PATH, SEEN (Phase 6 Step 1: docs/work-specs/playout-runtime-reliability/spec.md AC-8,
-// AC-9). An output says who it is and how commands reach it; both operator surfaces show one health
-// line built from the outputs' Presence entries on `live-<show id>` (migration 0068), and fall back
-// to the renderer heartbeat when the server refuses that topic. None of it exists offline: there is
+// AC-9). An output says who it is and how commands reach it; the production page shows one health
+// line built from the outputs' Presence entries on `live-<show id>` (migration 0068), and the renderer
+// heartbeat stays readable when the server refuses that topic. None of it exists offline: there is
 // no production to resolve and no socket to join.
 // covers: src/control/livePath.ts, src/components/control/OutputHealth.tsx, src/output/main.ts
 
@@ -89,9 +89,9 @@ test('an output says who it is and how commands reach it, and both operator page
     return s ? { id: s.id, outputSlug: s.outputSlug ?? null, hostedSlug: s.hostedSlug ?? null } : null;
   }, showName);
   expect(published?.outputSlug && published.hostedSlug, 'publishing mints both capabilities').toBeTruthy();
-  const { id: showId, outputSlug, hostedSlug } = published as { id: string; outputSlug: string; hostedSlug: string };
+  const { id: showId, outputSlug } = published as { id: string; outputSlug: string; hostedSlug: string };
 
-  // Renderers and the hosted page are SIGNED OUT, as they are in a studio.
+  // Renderers are SIGNED OUT, as they are in a studio.
   const anon = await browser.newContext();
   const output = await anon.newPage();
   output.on('pageerror', (e) => console.log('[output pageerror]', e.message));
@@ -134,7 +134,7 @@ test('an output says who it is and how commands reach it, and both operator page
   await expect(debug).toContainText('press→rx');
   await output.screenshot({ path: shot('output-debug') });
 
-  // ── THE HEARTBEAT the fallback reads, before the hosted page resolves. ──
+  // ── THE HEARTBEAT the fallback reads. ──
   await expect
     .poll(
       async () =>
@@ -155,23 +155,6 @@ test('an output says who it is and how commands reach it, and both operator page
   await expect(refusedDebug).toContainText('realtime: following', { timeout: 60_000 });
   await expect(refusedDebug).toContainText('presence: NOT JOINED', { timeout: 30_000 });
 
-  const hosted = await anon.newPage();
-  await hosted.setViewportSize({ width: 1440, height: 900 });
-  await hosted.goto(`/app?control=${encodeURIComponent(hostedSlug)}`);
-  await expect(hosted.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
-  const hostedLine = hosted.getByTestId('hosted-output-health');
-  await expect(hostedLine).toBeVisible({ timeout: 30_000 });
-
-  // A hosted page whose own live join is refused: the heartbeat as it was when the page opened,
-  // and it says so rather than claiming a live connection.
-  const hostedRefused = await anon.newPage();
-  await refuseLiveTopic(hostedRefused);
-  await hostedRefused.goto(`/app?control=${encodeURIComponent(hostedSlug)}`);
-  const refusedLine = hostedRefused.getByTestId('hosted-output-health');
-  await expect(refusedLine).toHaveAttribute('data-source', 'heartbeat', { timeout: 30_000 });
-  await expect(refusedLine).toContainText('output seen when this page opened');
-  await hostedRefused.screenshot({ path: shot('hosted-fallback'), clip: { x: 0, y: 0, width: 1280, height: 90 } });
-
   // Does this server have the live topic? The first output answers that for the rest.
   await expect
     .poll(async () => output.evaluate(() => (window as LiveWindow).__noacgLive!.presence()), { timeout: 30_000 })
@@ -184,26 +167,14 @@ test('an output says who it is and how commands reach it, and both operator page
     // Since READY (docs/work-specs/playout-ready) the line is the output's own READY answer, read
     // from the same entry; its tooltip names the engine. Amber only if this host could not fetch a
     // typeface, which READY reports rather than hides.
-    await expect(hostedLine).toHaveAttribute('data-source', 'ready', { timeout: 30_000 });
-    await expect(hostedLine).toHaveAttribute('data-outputs', '1');
-    await expect(hostedLine).not.toHaveAttribute('data-tone', 'bad');
-    await expect(hostedLine).toContainText('1 output');
-    await expect(hostedLine).toHaveAttribute('title', /Chrome/);
-    // The production dashboard reads the same READY line from the same entries, through its one
-    // playout status (studio-day-playout AC-7), which carries READY's words.
+    // The production page reads the READY line from the same entries, through its one playout
+    // status (studio-day-playout AC-7), which carries READY's words.
     const deskLine = page.getByTestId('production-status');
     await expect(deskLine).toHaveAttribute('data-source', 'ready', { timeout: 30_000 });
     await expect(deskLine).toHaveAttribute('data-ready-label', /1 output/);
-  } else {
-    await expect(hostedLine).toHaveAttribute('data-source', 'heartbeat');
-    await expect(hostedLine).toContainText('when this page opened');
+    await expect(deskLine).not.toHaveAttribute('data-tone', 'bad');
   }
   await page.screenshot({ path: shot('desk'), clip: { x: 0, y: 0, width: 1280, height: 90 } });
-  await hosted.screenshot({ path: shot('hosted-desktop'), clip: { x: 0, y: 0, width: 1440, height: 120 } });
-  await hosted.setViewportSize({ width: 390, height: 844 });
-  await expect(hosted.locator('.pd-health-short')).toBeVisible();
-  await expect(hosted.getByTestId('hosted-out-all')).toBeInViewport();
-  await hosted.screenshot({ path: shot('hosted-phone'), clip: { x: 0, y: 0, width: 390, height: 160 } });
 
   // Every renderer still airs the Take: the refused join cost nothing but the announcement.
   //
@@ -234,10 +205,9 @@ test('an output says who it is and how commands reach it, and both operator page
   if (serverHasLiveTopic) {
     // Closing the output drops it: Presence is held by the socket, not written anywhere. Since READY
     // an output that was there and is gone is not an absence but a line of its own ("not
-    // answering", red after 15 s: live-ready.spec.ts), on both surfaces.
+    // answering", red after 15 s: live-ready.spec.ts).
     await output.close();
-    await expect(hostedLine).toContainText('not answering', { timeout: 30_000 });
-    // …on the dashboard too, which had heard that output since before its reload.
+    // The production page had heard that output since before its reload.
     await expect(page.getByTestId('production-status')).toHaveAttribute('data-ready-label', /not answering/, { timeout: 30_000 });
   }
 

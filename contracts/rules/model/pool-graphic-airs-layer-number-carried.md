@@ -3,7 +3,7 @@ v: 1
 scope: src/model/shows.ts
 kind: invariant
 fires: contract
-status: active
+status: retired
 since: 2026-09-08
 record: contracts/records/model/2026-09-08-pool-graphic-airs-layer-number-carried.md
 ---

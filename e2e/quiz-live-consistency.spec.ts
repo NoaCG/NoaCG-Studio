@@ -1,4 +1,4 @@
-// covers: src/components/{home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer},HostedControlPage}.tsx
+// covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
 // covers: src/components/home/CueEditor.tsx
 // covers: src/templates/**
 //

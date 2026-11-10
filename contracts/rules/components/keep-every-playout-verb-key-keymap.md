@@ -3,7 +3,7 @@ v: 1
 scope: src/components/playoutKeys.ts, src/components/HostedControlPage.tsx
 kind: invariant
 fires: contract
-status: active
+status: retired
 since: 2026-09-07
 record: contracts/records/components/2026-09-07-keep-every-playout-verb-key-keymap.md
 ---

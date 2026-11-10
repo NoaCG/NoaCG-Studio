@@ -261,7 +261,7 @@ OBS-specific notes (the dock, local-file and refresh behaviour below was measure
   shared storage, so a dock showing the panel from the same local address as the browser source
   pairs with it and drives it, no relay needed. A source added with **Local file** does not
   have that address (OBS serves it as `http://absolute/<path>`), so serve the folder and use its
-  http address for both. For remote operation use the hosted control page instead.
+  http address for both. For remote operation, sign in on the other device and open the production page.
 
 ## 5. vMix
 
@@ -294,8 +294,8 @@ unload it if needed, and remove it when safe.
 3. Set the width and height to the graphic's resolution.
 4. Put it on an overlay channel and leave it there for the whole show. Higher-numbered channels
    draw on top of lower ones, so use one above any overlay that should sit under the graphics.
-5. Take, update and take out from NoaCG: the production page, its control link or a phone. The
-   graphics animate in and out inside the input, several layers at once.
+5. Take, update and take out from NoaCG: the production page, signed in on any device, including a phone.
+   The graphics animate in and out inside the input, several layers at once.
 
 - **Taking the input off its overlay in vMix removes every graphic at once**, with no exit
   animation: Out runs the channel's transition, Off cuts. Use it as the emergency
@@ -321,7 +321,7 @@ URL. So a production hands you the URL *as a file*:
 1. Open the production, **Links → SPX template → ⬇ Download**. You get one `.html`.
 2. Drop it into SPX's `ASSETS/templates/` (a folder of your own inside it is fine).
 3. Add it to a rundown like any template. **Play** puts the output frame up, **Stop** takes it down.
-4. Cue the graphics from the NoaCG production page, its control link, or a phone - that is what
+4. Cue the graphics from the NoaCG production page, signed in on any device, including a phone - that is what
    drives which graphic is on air, on which layer. The SPX item is the frame, not the rundown.
 
 The file wraps the production's output URL, so it stays correct across re-publishes and needs no
@@ -378,7 +378,7 @@ than one that admits the gaps.
 
 - **Verified on real hardware** (2026-08-03): the cloud output URL playing in **OBS** and in
   **CasparCG 2.3.2**, at 1920×1080, transparent, surviving a refresh and a kill-and-reopen with
-  commands issued while the renderer was down; the hosted control page driving it from a phone;
+  commands issued while the renderer was down; the hosted control page (retired 2026-11) driving it from a phone;
   two operators agreeing on which cue is live.
 - **Verified by the test suite, not on hardware**: the exported packages open and play from
   `file://` with no network, fonts and images inlined; the bundled control panel pairs with
@@ -405,7 +405,7 @@ than one that admits the gaps.
 - **Verified on vMix 29.0.0.49 (trial) on this machine** (2026-10-12,
   `docs/VMIX_ON_A_REAL_HOST.md`): the cloud output URL in a Web Browser input on an overlay
   channel, with a lower third, a clock bug and a ticker taken, updated, replaced and taken out
-  from the control link, each seen in vMix's Program; and the engine, Chromium 115.
+  from the control link (retired 2026-11), each seen in vMix's Program; and the engine, Chromium 115.
 - **Not yet verified on hardware**: a Decklink card, a LAN hop between the Bridge and CasparCG,
   vMix with an exported file, a Linux CasparCG and whether its media scanner is running, and the hosted studio's
   local-network permission prompt with a person at the keyboard.

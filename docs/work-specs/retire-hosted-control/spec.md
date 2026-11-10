@@ -129,5 +129,16 @@ Stop and ask the owner if any step would change what the production page does.
 
 ## Test maintenance
 
-Filled in by the implementing pull request, one line per deleted or narrowed spec, owner miwco,
-expiry at most 30 days out.
+One line per deleted or narrowed spec, owner miwco, expiry at most 30 days out. A planned feature
+removal agreed on issue #2301 (C5), not a repair to pass a gate. Receipt for every line:
+docs/work-specs/live-publishing/evidence/phase-1.md.
+
+- e2e/configured/hosted-control-profile.spec.ts: its subject was the hosted page's own controls from a published profile; the read side of the profile stays pinned offline by e2e/hosted-control.spec.ts (published panel spec, arrange from the published bytes) and the production page's controls by e2e/production-controls.spec.ts; the publish WRITING the profile to the database is no longer checked in the configured suite, a gap filed as #2365 and covered meanwhile by the live-verify steps 8 and 9 in docs/CONTROL_LAYER.md, owner miwco, expires 2026-12-08
+- e2e/configured/hosted-space-modes.spec.ts: its subject was the hosted page's SPACE keys; the one device preference stays pinned by e2e/hosted-control.spec.ts and the production page's keys by its offline playout specs, owner miwco, expires 2026-12-08
+- e2e/configured/hosted-reveal-after-reload.spec.ts: its subject was the hosted page's own staged edits (components/control/ownStaged.ts, removed with it); multi-operator air on the production page stays guarded by command-sequence, playout-both-roads and panel-page, now driven from two production pages, owner miwco, expires 2026-12-08
+- e2e/configured/hosted-control-recovery.spec.ts: its subject was the hosted page's PROGRAM recovery and cue adjust (HostedCueAdjust, removed with it); the production page's recovery stays guarded by playout-resolve-race.spec.ts and its PROGRAM entrance count by panel-page.spec.ts, owner miwco, expires 2026-12-08
+- e2e/configured/dashboard-hosted-walk.spec.ts: its subject was the hosted page's walk of the dashboard; the production page's walk stays e2e/dashboard-operator-walk.spec.ts and its published half playout-resolve-race.spec.ts, owner miwco, expires 2026-12-08
+- e2e/hosted-control.spec.ts: narrowed, not deleted: every test that guards shared code stays in it (receiver, panel spec, payload serialisation through buildOutputPayload and readOutputPayload, canAdvance and movedStateNames, the SPACE preference); only the two tests that read HostedControlPage.tsx's own source left with that file, and what they pinned through shared code stays in its canAdvance and movedStateNames test, owner miwco, expires 2026-12-08
+
+Also removed with the page: scripts/hosted-own-staged.test.mjs, the Node test of
+components/control/ownStaged.ts, which only the hosted page used.

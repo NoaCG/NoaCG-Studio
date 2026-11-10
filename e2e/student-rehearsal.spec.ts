@@ -276,8 +276,8 @@ test('the rehearsal: a student draws a scoreboard and a quiz, both run from one 
 
   // **LIVENESS IS NOT DATA, and offline it does not survive the reload** — the steppers are
   // disabled and SAY WHY, rather than acting on a graphic that is not on air. There is no
-  // shared command log in an offline build to restore it from; the hosted road is the one that
-  // repaints a live layer on boot, and `e2e/configured/hosted-control-recovery.spec.ts` is
+  // shared command log in an offline build to restore it from; the published road is the one that
+  // repaints a live layer on boot, and `e2e/configured/playout-resolve-race.spec.ts` is
   // where that is pinned. What matters here is that the recovery is honest and the operator's
   // work is intact.
   const upAgain = page.getByTestId('live-numbers').getByTestId('live-number-f1-up');

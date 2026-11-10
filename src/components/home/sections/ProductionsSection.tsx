@@ -470,7 +470,7 @@ export default function ProductionsSection({
               }
               // A DELETED PRODUCTION STOPS BEING PUBLISHED (docs/CLOUD_PLAYOUT.md,
               // "Publication lifecycle"). Deleting used to tombstone the local record only,
-              // and its output URL and control page stayed live on the server forever -
+              // and its output URL and links stayed live on the server forever -
               // five of nineteen publications were that, measured 2026-09-23. The request
               // is fire-and-forget: offline, signed out or on another account's row it
               // does nothing, and the nightly sweep (migration 0061) unpublishes whatever
@@ -484,7 +484,7 @@ export default function ProductionsSection({
               team
                 ? 'Delete this production for everyone in the team. Its links stop working if it is published.'
                 : r.hostedSlug
-                ? 'Delete this production. It is published, so its output and control links stop working. Its graphics stay saved wherever else they live.'
+                ? 'Delete this production. It is published, so its output and people links stop working. Its graphics stay saved wherever else they live.'
                 : 'Delete this production (its graphics stay saved wherever else they live)'
             }
             data-testid="production-delete-confirm"

@@ -291,3 +291,31 @@ not decided stops and asks.
 ## Phase notes
 
 Filled in by each phase's pull request.
+
+### Phase 1: Retire the hosted control page
+
+- Previous verified `main`: e6be4cf3dcbcb103a7ea0372d30d0505845a8ba8.
+- Revert: `git revert -m 1 <this pull request's merge commit>` restores the page, its CSS, its
+  tests and the retired rules; nothing persisted changed, so no data step goes with it.
+- Decisions: the old link resolves with `control_show_by_slug` selecting only `id`, retries every
+  2 s doubling to 15 s while unanswered, and offline (no backend) answers "This link no longer
+  works" at once. The redirect's backend test lives in
+  `e2e/configured/operator-outage-not-unpublished.spec.ts` (the configured suite is the layer that
+  can resolve a slug; the offline half is `e2e/shows.spec.ts`). `e2e/hosted-control.spec.ts` keeps
+  its name and its shared-code tests (receiver, panel spec, payload): almost all of it guards shared
+  code, and the capacity gate prices a renamed offline spec as a new one.
+  Retargeted specs open the other operator as a second device: a fresh browser signed in to
+  the same account (`openSecondProductionPage`), so it holds no local copy, as the hosted seat did not.
+  `PanelGraphicSpec` stays exported: it is the return type of the shared `buildPanelSpec`.
+- Traps: `npm run learn` refuses while any active rule scopes a deleted file, so the page was put
+  back, untracked from the deletion, for the three `--supersedes` calls and removed again. The
+  local configured stack could not start in the cloud worker (its image host is blocked by the
+  proxy), so the configured evidence is the CI selection on the PR head.
+- Rules (the old link's; written after coding, so the Rules-first review came after the code):
+  R1 a server answer naming a production replaces the address with `/app#/production/<id>`, the
+  query gone and no history entry added; R2 an answer with no production shows "This link no longer
+  works" with a link home and never the waiting card; R3 no answer (an error, no client, a thrown
+  request) shows "Waiting for the server" and asks again after 2, 4, 8 then every 15 s, and never
+  says the link is dead; R4 an offline build says the link no longer works at once and asks
+  nothing; R5 the production page's own behaviour and every persisted value are unchanged.
+- Evidence: `docs/work-specs/live-publishing/evidence/phase-1.md`.

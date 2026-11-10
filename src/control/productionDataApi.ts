@@ -122,18 +122,6 @@ export async function patchProductionDataBySlug(
   return ((data as { data?: Record<string, unknown> } | null)?.data ?? {});
 }
 
-/** The tree and the bindings a hosted operator's surface needs, read on the control slug. Null
- *  when the slug is unknown or there is no backend - the caller then simply has no bindings, and
- *  every field behaves the way an unbound one always has. */
-export async function fetchProductionDataBySlug(slug: string): Promise<ProductionDataState | null> {
-  const sb = await getSupabase();
-  if (!sb) return null;
-  const { data, error } = await sb.rpc('control_data_by_slug', { p_slug: slug });
-  if (error || !data) return null;
-  const body = data as { data?: Record<string, unknown>; bindings?: Record<string, Record<string, string>> };
-  return { data: body.data ?? {}, bindings: body.bindings ?? {} };
-}
-
 // ── Another system's Pause and receipt (data-sources C5, migration 0100) ─────
 
 /** What the "Another system" card shows: whether the API is paused and when it last wrote. */

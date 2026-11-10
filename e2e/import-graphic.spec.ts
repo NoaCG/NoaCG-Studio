@@ -1,7 +1,7 @@
 // covers: src/ai/**, src/templates/importedDesign/designTypes.ts, src/blocks/**
 // covers: src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx, src/components/ExportWindow.tsx
 // covers: src/components/wizard/import/**
-// covers: src/components/{fields/**,HostedControlPage.tsx}
+// covers: src/components/fields/**
 // covers: src/components/home/GraphicControlPage.tsx, src/templates/shared/textFit.ts
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 //

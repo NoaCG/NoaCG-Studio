@@ -5,19 +5,20 @@
 // AC-3, AC-4): the page that answers keeps the panel through a reload of its tab, under the same
 // page id and claim; a second production page opened beside it takes nothing and says who has it;
 // once the first is closed, its lease lapses and the second takes the panel by itself. The server
-// rules are panel-relay.spec.ts; Use here and the hosted page are panel-page.spec.ts and
-// panel-production-page.spec.ts. A hidden or covered tab (AC-6) cannot be made here: Playwright
+// rules are panel-relay.spec.ts; Use here is panel-page.spec.ts and panel-production-page.spec.ts. A hidden or covered tab (AC-6) cannot be made here: Playwright
 // pages are never hidden. The second test injects the fault that matters instead: while the page
 // says it is hidden, every interval tick of its own is skipped and every timeout held until it
 // shows again, harsher than Chromium's once a minute, and the lease must hold on the worker's timer
-// (removing the worker, so the beat falls back to a page interval, fails it). It then cuts the answering page's network (H0 AC-3 in
-// docs/work-specs/playout-companion-qualification/spec.md): only the current owner ever acts.
+// (removing the worker, so the beat falls back to a page interval, fails it). It then cuts the
+// answering page's network (H0 AC-3 in docs/work-specs/playout-companion-qualification/spec.md):
+// only the current owner ever acts, the other owner being a production page in a browser of its
+// own (a phone).
 // covers: src/components/control/PanelControl.tsx, src/control/panelRelay.ts, src/control/workerTicker.ts
 // covers: src/components/home/ProductionShell.tsx
 
 import { test, expect, type WebSocketRoute } from '@playwright/test';
-import { haveCreds, SUPABASE_URL } from './_helpers';
-import { answerPanel, ANON_KEY, openHosted, pairPanel, publishTwoCues, shutStatusPanel } from './_panel';
+import { haveCreds, openProductionTab, signIn, SUPABASE_URL } from './_helpers';
+import { answerPanel, ANON_KEY, pairPanel, productionIdOf, publishTwoCues, shutStatusPanel } from './_panel';
 
 test.skip(!haveCreds || !SUPABASE_URL || !ANON_KEY, 'E2E_EMAIL / E2E_PASSWORD and the Supabase pair unset - configured-mode spec');
 
@@ -108,7 +109,7 @@ test('a hidden page keeps the panel; a page cut off lets go and, back online, ne
     sockets.push(ws);
     ws.connectToServer();
   });
-  const slug = await publishTwoCues(page, `Panel Offline ${Date.now()}`);
+  await publishTwoCues(page, `Panel Offline ${Date.now()}`);
   const op = page;
   await shutStatusPanel(op);
   const deck = await pairPanel(op);
@@ -145,12 +146,18 @@ test('a hidden page keeps the panel; a page cut off lets go and, back online, ne
   const shown = await deck.state((s) => s.selected === anna, 'Anna selected again');
   expect(shown.claim).toBe(before.claim);
 
-  // The phone, in a browser of its own, sees who has the panel and takes nothing.
+  // The phone, a production page in a browser of its own, sees who has the panel and takes nothing.
+  const showId = await productionIdOf(op);
   const phoneContext = await browser.newContext();
-  const phone = await phoneContext.newPage();
-  await openHosted(phone, slug);
-  await phone.getByTestId('panel-open').click();
-  await expect(phone.getByTestId('panel-status')).toHaveText('Production page answers the panel.', { timeout: 15_000 });
+  const phoneHome = await phoneContext.newPage();
+  await signIn(phoneHome);
+  let phone = await openProductionTab(phoneHome, showId);
+  await expect(phone.getByTestId('panel-header-use-here')).toHaveAttribute('title', /^Production page answers the Stream Deck panel/, { timeout: 15_000 });
+  await phone.waitForTimeout(6_000);
+  expect((await deck.state()).page, 'the production page still answers').toBe(before.page);
+  // The phone's production page would take a free panel by itself, so it is closed while the cut
+  // shows a press refused with no page answering.
+  await phone.close();
 
   // CUT OFF: the production page's renewals stop, and its lease lapses within 15 s. A press then is
   // refused at the server, and nothing keeps it for later.
@@ -161,25 +168,28 @@ test('a hidden page keeps the panel; a page cut off lets go and, back online, ne
   expect((await deck.press('select-next', '', shown.ver as number)).outcome).toBe('refused no-page');
   await expect(op.locator('.pd-cue.selected')).toContainText('Anna');
 
-  // The phone takes it with Use here, under a newer claim.
+  // The phone, opened again, takes the free panel by itself, under a newer claim.
+  phone = await openProductionTab(phoneHome, showId);
   await answerPanel(phone);
   await deck.hello();
-  const onPhone = await deck.state((s) => s.where === 'control', 'the phone answering');
+  const onPhone = await deck.state((s) => s.where === 'production' && s.page !== before.page, 'the phone answering');
   expect(Number(onPhone.claim)).toBeGreaterThan(Number(before.claim));
 
   // BACK ONLINE, the production page says who has the panel and takes nothing back; only the phone
   // runs presses, and the refused press never ran on the production page.
   cut = false;
   await op.context().setOffline(false);
-  await expect(op.getByTestId('panel-header-use-here')).toHaveAttribute('title', /^Hosted control page answers the Stream Deck panel/, { timeout: 30_000 });
+  await expect(op.getByTestId('panel-header-use-here')).toHaveAttribute('title', /^Production page answers the Stream Deck panel/, { timeout: 30_000 });
   // Two lease times later it still holds: the phone answers and the production page still defers.
   await op.waitForTimeout(32_000);
-  await expect(phone.getByTestId('panel-status')).toHaveText('This page answers the panel.');
-  await expect(op.getByTestId('panel-header-use-here')).toHaveAttribute('title', /^Hosted control page answers the Stream Deck panel/);
+  await expect(phone.getByTestId('panel-header-status')).toHaveText('Panel ✓');
+  await expect(op.getByTestId('panel-header-use-here')).toHaveAttribute('title', /^Production page answers the Stream Deck panel/);
   await expect(op.getByTestId('panel-header-status')).toHaveCount(0);
   expect((await deck.hello()).answering).toBe(true);
-  expect((await deck.press('select-next', '', onPhone.ver as number)).outcome).toBe('ran');
-  const moved = await deck.state((s) => s.where === 'control' && s.selected !== onPhone.selected, 'the phone moving its selection');
+  // A cue key moves the phone's own cursor.
+  const pick = onPhone.selected === ben ? anna : ben;
+  expect((await deck.press('select-cue', pick, onPhone.ver as number)).outcome).toBe('ran');
+  const moved = await deck.state((s) => s.page === onPhone.page && s.selected === pick, 'the phone moving its selection');
   expect(moved.page).toBe(onPhone.page);
   await expect(op.locator('.pd-cue.selected')).toContainText('Anna');
   await phoneContext.close();
