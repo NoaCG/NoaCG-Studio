@@ -42,16 +42,7 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {},
-  "inFlight": [
-    {
-      "head": "f97a9c06f1a73a2698dcb4b96e0869586de8835f",
-      "step": "build",
-      "pr": 2293,
-      "session": "/root/v2_pairing_repair",
-      "phase": "v2",
-      "note": "Stale manual gestures are guarded. Real Windows vMix passed (j-5089). Independent review requires correction of deterministic browser fixture timing (j-5090) and original destination feedback after deselecting vMix. Repair and fresh exact candidate review remain in progress. Draft unqueued."
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [],
   "triggers": []
