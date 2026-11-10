@@ -84,7 +84,7 @@ interface JoinRow {
   };
   brand: AudienceBrand | null;
   /** `roundId` from 0114: the round each was filed under, so a phone knows its word is in. */
-  mine: { id: string; body: string; createdAt: string; roundId?: string | null }[];
+  mine: { id: string; body: string; createdAt: string; roundId?: string | null; word?: boolean }[];
   my_vote: number | null;
 }
 

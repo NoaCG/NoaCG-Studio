@@ -501,6 +501,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
     async joinView(deviceToken: string): Promise<JoinView> {
       const r = room();
       const open = liveOf(r);
+      const wordRounds = new Set(r.rounds.filter((x) => x.kind === 'word').map((x) => x.id));
       return {
         productionName: r.name,
         // The round is handed over WITHOUT its answer key, here as on the wire: the join page
@@ -510,7 +511,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
         // would turn a public URL into a moderation feed.
         mine: r.answers
           .filter((s) => s.device === deviceToken)
-          .map((s) => ({ id: s.id, body: s.body, createdAt: s.createdAt, roundId: s.roundId ?? null })),
+          .map((s) => ({ id: s.id, body: s.body, createdAt: s.createdAt, roundId: s.roundId ?? null, word: !!s.roundId && wordRounds.has(s.roundId) })),
         myVote: open ? r.votes[open.id]?.[deviceToken] ?? null : null,
       };
     },

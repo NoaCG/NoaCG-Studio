@@ -15,8 +15,8 @@
 --   * the submission guard counts a Word round's words against that round's own burst cap, 300 in
 --     ten seconds (as phone votes), never against the 20-per-10-seconds message throttle, and the
 --     message throttle no longer counts words (W4): a hall answering at once is not refused;
---   * the join resolve gives each of this phone's own messages its round, so a phone knows its word
---     is in (W5);
+--   * the join resolve gives each of this phone's own messages its round and whether it was a word,
+--     so a phone knows its word is in and never lists a word among its messages (W5);
 --   * `audience_list` (same columns) leaves the words of Word rounds out: words are not messages (W9);
 --   * `audience_word_counts(slug, round)`: a Word round's words counted per spelling, as one value,
 --     so the operator's cloud counts every word (W1). A new operator function, granted like
@@ -322,9 +322,11 @@ begin
   );
   brand := v_state->'brand';
   mine := coalesce((
-    select jsonb_agg(jsonb_build_object('id', x.id, 'body', x.body, 'createdAt', x.created_at, 'roundId', x.round_id)
+    select jsonb_agg(jsonb_build_object('id', x.id, 'body', x.body, 'createdAt', x.created_at, 'roundId', x.round_id,
+                                        'word', coalesce(r.kind = 'word', false))
                      order by x.created_at)
     from public.audience_submissions x
+    left join public.audience_rounds r on r.id = x.round_id
     where x.show_id = v_show and x.device_token = p_device
   ), '[]'::jsonb);
   my_vote := (
@@ -451,7 +453,8 @@ begin
 
   -- The phone reads its own word under its round (W5).
   select * into v_row from public.audience_join_by_slug(v_join, 'device-word-0114a');
-  if v_row.mine->0->>'roundId' <> v_word->>'id' or v_row.state->'round'->>'kind' <> 'word' then
+  if v_row.mine->0->>'roundId' <> v_word->>'id' or (v_row.mine->0->>'word')::boolean is not true
+     or v_row.state->'round'->>'kind' <> 'word' then
     raise exception '0114 self-check failed: the join resolve gave %', row_to_json(v_row);
   end if;
 

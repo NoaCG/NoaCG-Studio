@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { beginTeamRundownEdit, commitTeamRundownEdit, restoreTeamRundown, subscribeTeamState, getTeamState, type TeamRundownReceipt } from '../../backend/teamProductions';
 import { canAuthorAccount, commitDurableReceipt, captureDurableWrites, libraryInUse, isDurableStoreActive } from '../../model/durableStore';
 import { loadShows, restorePersonalRundown, type Show } from '../../model/shows';
-import { RundownHistory, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../../model/rundownHistory';
+import { RundownHistory, landedReplacement, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../../model/rundownHistory';
 
 type WriteResult = { shows: Show[]; error: string | null; refused?: string | null };
 type Group = { key: string; before: RundownSlice; after: RundownSlice; valid: boolean };
@@ -183,7 +183,8 @@ export function useRundownHistory(
         else callbacks.current.note(result.error);
         return false;
       }
-      if (!accepted || !sameRundown(rundownSlice(accepted), replacement)) { invalidate(); return false; }
+      // What the restore lands as: the replacement less any hidden word (W11, `replaceRundown`).
+      if (!accepted || !sameRundown(rundownSlice(accepted), landedReplacement(current, replacement))) { invalidate(); return false; }
       history.current.accepted(direction, entry); callbacks.current.note(`✓ ${direction === 'undo' ? 'Undid' : 'Redid'}: ${entry.label}`); changed(); return true;
     }, false);
   };

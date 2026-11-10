@@ -429,9 +429,8 @@ export function mountJoinSurface(
   };
 
   const renderMine = () => {
-    // A Word question's words are shown in their own card, not in the list of messages.
-    const words = new Set(view?.state.round?.kind === 'word' ? [view.state.round.id] : []);
-    const items = (view?.mine ?? []).filter((m) => !m.roundId || !words.has(m.roundId));
+    // A Word question's words are not messages: the live one has its own card, earlier ones go.
+    const items = (view?.mine ?? []).filter((m) => !m.word);
     if (!items.length) return;
     const card = el('div', 'nj-card');
     card.appendChild(el('p', 'nj-label', 'What you sent'));

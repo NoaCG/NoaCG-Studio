@@ -211,7 +211,7 @@ export interface JoinView {
   brand?: AudienceBrand | null;
   /** What THIS device has already sent, so the page can say "thanks" rather than inviting a
    *  double post. Never anyone else's. */
-  mine: { id: string; body: string; createdAt: string; roundId?: string | null }[];
+  mine: { id: string; body: string; createdAt: string; roundId?: string | null; word?: boolean }[];
   /** This device's current vote in the open round, so it can be shown as picked (and changed —
    *  the round's primary key is (round, device), so an upsert IS "change your mind"). */
   myVote: number | null;

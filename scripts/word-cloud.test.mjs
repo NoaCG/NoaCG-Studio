@@ -24,6 +24,7 @@ const { pollFieldMap } = await import('../src/control/resultStaging.ts');
 const { planResultCue, readResultCues } = await import('../src/model/resultCues.ts');
 const { scrubHiddenWords } = await import('../src/model/wordCues.ts');
 const { mergeTeamShow } = await import('../src/model/teamShowMerge.ts');
+const { replaceRundown, rundownSlice, landedReplacement, sameRundown } = await import('../src/model/rundownHistory.ts');
 
 const target = (round) => ({ roundId: round.id, revision: round.revision });
 
@@ -142,7 +143,7 @@ test('a phone sends one word to a live Word question; a second word, two words o
   assert.deepEqual(await b.list(), []);
   const view = await b.joinView('phone-a-0001');
   assert.equal(view.state.round.kind, 'word');
-  assert.deepEqual(view.mine.map((m) => [m.body, m.roundId]), [['Brilliant', round.id]]);
+  assert.deepEqual(view.mine.map((m) => [m.body, m.roundId, m.word]), [['Brilliant', round.id, true]]);
 });
 
 test('a word sent to a stopped Word question is refused as closed and filed nowhere (R6, R14)', async () => {
@@ -332,4 +333,30 @@ test('a team merge never keeps a hidden word on a cue, whichever side hid it (W1
   const { doc } = mergeTeamShow(base, ours, theirs, '2026-11-10T00:00:00.000Z');
   assert.deepEqual(readQuestions(doc.questions)[0].hidden, ['rude']);
   for (const id of ['c-mapped', 'c-moved']) assert.doesNotMatch(doc.cues.find((c) => c.id === id).values.f2, /Rude/, id);
+});
+
+test('an undo that brings a deleted word cloud cue back brings no hidden word with it (W11)', () => {
+  // Staged (s0), the cue deleted (s1), then Rude hidden; Undo restores s0 onto the hidden record.
+  const staged = wordShow([], 'Fun | 4\nRude | 3');
+  const s0 = rundownSlice(staged);
+  const deleted = structuredClone(staged);
+  deleted.cues = deleted.cues.filter((c) => c.id !== 'c-mapped');
+  const s1 = rundownSlice(deleted);
+  const hidden = { ...structuredClone(deleted), questions: [{ id: 'q-word', type: 'word', text: 'One word?', hidden: ['rude'] }] };
+  const { show, refused } = replaceRundown(hidden, s1, s0);
+  assert.equal(refused, null);
+  assert.equal(show.cues.find((c) => c.id === 'c-mapped').values.f2, 'Fun | 4');
+  // The history checks the restore against what it lands as, so it is accepted, not invalidated.
+  assert.equal(sameRundown(rundownSlice(show), landedReplacement(hidden, s0)), true);
+  assert.equal(sameRundown(rundownSlice(show), s0), false);
+});
+
+test('a teammate\'s record from the server never brings a hidden word onto a cue here (W11)', async () => {
+  const { applyServerTeamShow, applyServerTeamShows, loadTeamShows, clearTeamShows } = await import('../src/model/teamShows.ts');
+  const theirs = { ...wordShow(['rude'], 'Fun | 4\nRude | 3'), teamId: 't1' };
+  applyServerTeamShows([structuredClone(theirs)]);
+  assert.equal(loadTeamShows().find((s) => s.id === 's').cues.find((c) => c.id === 'c-mapped').values.f2, 'Fun | 4');
+  applyServerTeamShow({ ...structuredClone(theirs), name: 'Renamed' });
+  assert.equal(loadTeamShows().find((s) => s.id === 's').cues.find((c) => c.id === 'c-moved').values.f2, 'Fun | 4');
+  clearTeamShows();
 });
