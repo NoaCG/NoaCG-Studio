@@ -5,6 +5,7 @@
 // pack's answer boards.
 // covers: src/templates/quiz/**
 
+import { readdirSync, readFileSync } from 'node:fs';
 import { test, expect, type Frame, type Page } from '@playwright/test';
 import { toApp } from './_bench';
 import { qrReader } from './_qr';
@@ -725,4 +726,351 @@ test.describe('the Join card draws its QR from its Join link (AC-11)', () => {
       await reader.close();
     }
   });
+});
+
+// A LAYER NAMED `QR` in imported artwork (interaction spec, AC-13): the graphic gains a Join link
+// field and draws that link as a code over the layer's box, from its own encoder.
+test('an imported SVG with a layer named QR draws its Join link as a code that decodes', async ({ page, browser }) => {
+  const reader = await qrReader(browser);
+  try {
+    await phonePage(page);
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    // Artwork outside every sample set: a plate, a title and a placeholder square named QR, the
+    // way Illustrator writes a layer name into `id`, moved by a transform of its own.
+    // The root declares a white stroke every shape inherits: the code must not take it.
+    const markup = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="400" viewBox="0 0 900 400" stroke="#ffffff" stroke-width="2">
+  <rect id="Plate" width="900" height="400" fill="#14213d"/>
+  <text id="Title" x="380" y="120" font-family="Arial" font-size="48" fill="#ffffff">Scan to join</text>
+  <text id="QR " x="380" y="200" font-family="Arial" font-size="32" fill="#ffffff">QR</text>
+  <g id="Draft" display="none"><rect id="QR  " x="500" y="300" width="60" height="60"/></g>
+  <g id="QR" transform="translate(40 40)"><rect width="320" height="320" fill="#888888"/></g>
+</svg>`;
+    const built = await page.evaluate(async (m) => {
+      const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+      const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
+      const imported = importSvgMarkup(m);
+      const fields = imported.candidates.map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: c.numeric }));
+      const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+      const template = IMPORTED_SVG.create({
+        designSvg: { markup: imported.markup, width: imported.width, height: imported.height, fields, images: [], outlines: [], fonts: [] },
+      });
+      return { template, errors: validateTemplate(template).errors.map((e) => e.message) };
+    }, markup);
+    expect(built.errors, 'the export gate passes the graphic').toEqual([]);
+    const tpl = built.template;
+    const join = tpl.fields.find((f) => f.title === 'Join link');
+    expect(join, 'the QR layer adds a Join link field').toBeTruthy();
+    expect(tpl.fields.at(-1)!.field, 'the Join link field comes last').toBe(join!.field);
+    await page.evaluate(async (t) => {
+      const { composeDocument } = await import('/src/preview/composeDocument.ts');
+      const f = document.createElement('iframe');
+      f.id = 'art';
+      f.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0';
+      document.body.appendChild(f);
+      await new Promise((res) => {
+        f.onload = res;
+        f.srcdoc = composeDocument(t as never);
+      });
+    }, tpl);
+    const art = page.frames().find((f) => f.parentFrame() === page.mainFrame())!;
+    await art.waitForFunction(() => typeof (window as unknown as { update?: unknown }).update === 'function');
+    const frame = page.frameLocator('#art');
+    // Empty, it draws nothing, and the stand-in square stays hidden.
+    await expect(frame.locator('.imported-design-qr-code')).toHaveCount(0);
+    await expect(frame.locator('.imported-design-qr')).toBeHidden();
+    await art.evaluate(({ f, l }) => (window as unknown as { update(d: unknown): void }).update({ [f]: l }), { f: join!.field, l: LINK });
+    await art.evaluate(() => (window as unknown as { play(): void }).play());
+    await art.waitForFunction(() => {
+      const root = document.querySelector('.imported-design');
+      return !!root && getComputedStyle(root).opacity === '1';
+    });
+    // Inside the QR layer, so whatever animates that layer moves the code with it.
+    const code = frame.locator('.imported-design-qr > .imported-design-qr-code');
+    await expect(code).toHaveCount(1);
+    // Over the layer's own box: 320 drawn units at the 900-unit artwork's on-screen scale.
+    const [codeBox, artBox] = [await code.boundingBox(), await frame.locator('svg.imported-design-art').boundingBox()];
+    const unit = artBox!.width / 900;
+    expect(Math.abs(codeBox!.x - (artBox!.x + 40 * unit)), 'the code starts where the layer was drawn').toBeLessThanOrEqual(1);
+    expect(Math.abs(codeBox!.width - 320 * unit), 'the code fills the layer').toBeLessThanOrEqual(1);
+    expect(await reader.read(await code.screenshot())).toBe(LINK);
+    // A new link is data: the code is redrawn once, not stacked.
+    const other = 'https://noacg.studio/j/quiz-2026';
+    await art.evaluate(({ f, l }) => (window as unknown as { update(d: unknown): void }).update({ [f]: l }), { f: join!.field, l: other });
+    await expect(code).toHaveCount(1);
+    expect(await reader.read(await code.screenshot())).toBe(other);
+    await art.evaluate(({ f }) => (window as unknown as { update(d: unknown): void }).update({ [f]: '' }), { f: join!.field });
+    await expect(code).toHaveCount(0);
+  } finally {
+    await reader.close();
+  }
+});
+
+// HOME-MADE RESULT ARTWORK (interaction spec, AC-13): bars drawn at full length, named the way
+// docs/SVG_AUTHORING.md teaches, become a live vote whose Question, Options and Vote count fields
+// carry the round, and each bar is drawn at its share of the drawn length - made in the studio's
+// import (the mapping step's own draft) and from the CLI (`noacg scaffold --svg`, the bridge's
+// scaffold), each rendered on a blank page. The CLI-made one also carries a layer named QR.
+for (const maker of ['studio import', 'CLI scaffold --svg'] as const) {
+  test(`${maker}: a home-made vote board draws each bar at its share within one pixel`, async ({ page, browser }) => {
+    const reader = await qrReader(browser);
+    try {
+      // The studio's import modules load with the app's own React preamble, so that maker runs on
+      // the app page; the bridge is plain modules and runs on a blank one.
+      if (maker === 'studio import') await page.goto('/app');
+      else await phonePage(page);
+      await page.setViewportSize({ width: 1920, height: 1080 });
+      // Outside every sample set: four rows of bars across, 600 units at full length.
+      const options = [1, 2, 3, 4].map((n) => `
+    <text id="Option ${n}" x="60" y="${170 + n * 90}" font-family="Arial" font-size="32" fill="#ffffff">Option ${n}</text>`).join('');
+      const bars = [1, 2, 3, 4].map((n) => `
+    <rect id="Bar ${n}" x="360" y="${140 + n * 90}" width="600" height="40" fill="#f2a900"/>`).join('');
+      const markup = `<svg xmlns="http://www.w3.org/2000/svg" width="1300" height="700" viewBox="0 0 1300 700">
+  <rect id="Plate" width="1300" height="700" fill="#101820"/>
+  <g id="Bars">${bars}
+  </g>
+  <g id="Words">
+    <text id="Question" x="60" y="120" font-family="Arial" font-size="48" fill="#ffffff">Which way tonight?</text>${options}
+    <text id="Vote count" x="60" y="660" font-family="Arial" font-size="28" fill="#cccccc">0 votes</text>
+  </g>
+  <rect id="QR" x="1020" y="400" width="240" height="240" fill="#888888"/>
+</svg>`;
+      const built = await page.evaluate(async ({ m, how }) => {
+        const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+        let template;
+        if (how === 'CLI scaffold --svg') {
+          const { scaffold } = await import('/src/bridge/bridgeApi.ts');
+          template = (await scaffold({ svg: m, name: 'Home-made vote' })).template;
+        } else {
+          const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+          const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
+          const { initialDraft, mergeDraft, draftToOptions } = await import('/src/components/wizard/draft/core.ts');
+          const D = await import('/src/components/wizard/import/draft.ts');
+          const patch = D.svgDraftFromImport(importSvgMarkup(m), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
+          template = IMPORTED_SVG.create(draftToOptions(IMPORTED_SVG, mergeDraft(initialDraft(), patch)));
+        }
+        return { template, errors: validateTemplate(template).errors.map((e) => e.message) };
+      }, { m: markup, how: maker });
+      expect(built.errors, 'the export gate passes the graphic').toEqual([]);
+      const field = (title: string) => built.template.fields.find((f) => f.title === title)?.field;
+      for (const title of ['Question', 'Options', 'Vote count', 'Join link']) expect(field(title), `a ${title} field`).toBeTruthy();
+      // The layers the vote writes are not also operator fields: one Question, one Vote count.
+      for (const title of ['Question', 'Vote count']) expect(built.template.fields.filter((f) => f.title === title)).toHaveLength(1);
+
+      await page.evaluate(async (t) => {
+        const { composeDocument } = await import('/src/preview/composeDocument.ts');
+        const f = document.createElement('iframe');
+        f.id = 'board';
+        f.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;z-index:2147483647';
+        document.body.appendChild(f);
+        await new Promise((res) => {
+          f.onload = res;
+          f.srcdoc = composeDocument(t as never);
+        });
+      }, built.template);
+      const board = page.frames().find((f) => f.parentFrame() === page.mainFrame())!;
+      await board.waitForFunction(() => typeof (window as unknown as { update?: unknown }).update === 'function');
+      await board.evaluate(() => (window as unknown as { play(): void }).play());
+      // Known counts, as the result staging writes them: 10, 20, 30 and 40 of 100.
+      const counts = [10, 20, 30, 40];
+      await board.evaluate((v) => (window as unknown as { update(d: unknown): void }).update(v), {
+        [field('Question')!]: 'Which way tonight?',
+        [field('Options')!]: counts.map((c, i) => `Option ${i + 1} | ${c}`).join('\n'),
+        [field('Vote count')!]: '100 votes',
+        [field('Join link')!]: LINK,
+      });
+      const frame = page.frameLocator('#board');
+      const art = await frame.locator('svg.imported-design-art').boundingBox();
+      const unit = art!.width / 1300;
+      for (const [i, c] of counts.entries()) {
+        const want = 600 * unit * (c / 100);
+        const bar = frame.locator(`[data-noacg-role~="bar/${i + 1}"]`);
+        const width = async () => (await bar.boundingBox())!.width;
+        // The bar tweens to its share; wait until it has stopped, then hold it to one pixel.
+        await expect.poll(async () => Math.abs((await width()) - want), { message: `bar ${i + 1} settles near ${want.toFixed(2)} px`, timeout: 10_000 }).toBeLessThanOrEqual(1);
+        const w = await width();
+        expect(Math.abs(w - want), `bar ${i + 1}: ${w.toFixed(2)} px, want ${c}% of the drawn length = ${want.toFixed(2)} px`).toBeLessThanOrEqual(1);
+      }
+      await expect(frame.locator('[data-noacg-role~="total"]')).toHaveText('100 votes');
+      expect(await reader.read(await frame.locator('.imported-design-qr-code').screenshot())).toBe(LINK);
+    } finally {
+      await reader.close();
+    }
+  });
+}
+
+// THE RESULT BOARDS (interaction spec, AC-12): every layout in every placement, rendered over a
+// studio picture, with two short options and eight long ones, in each Figures mode. Nothing on a
+// board leaves the board, the board stays inside the frame, a long name ends rather than
+// overflows, the figures say what the Figures field asks, the graphic's own background is
+// transparent, and the look's accent paints the chart.
+test('result boards: three layouts by three placements take 2 and 8 options and long names without overflow', async ({ page }) => {
+  test.setTimeout(120_000);
+  await phonePage(page);
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  // A stand-in for a studio picture: bright key lights over a dark set, behind the graphic.
+  await page.evaluate(() => {
+    // The preview document declares a dark color scheme; an embedder that disagrees makes
+    // Chromium paint the iframe opaque, which would hide the picture.
+    document.documentElement.style.colorScheme = 'dark';
+    document.body.style.cssText = 'margin:0;background:radial-gradient(circle at 25% 30%, #fff6d8 0 8%, transparent 30%), radial-gradient(circle at 75% 25%, #d8ecff 0 6%, transparent 28%), linear-gradient(180deg, #3a3f4a, #0d0f14 70%, #2a2016)';
+  });
+  const ids = ['pl06', 'pl07', 'pl08', 'pl09', 'pl10', 'pl11', 'pl12', 'pl13', 'pl14'];
+  // Interaction's result picker offers every vote board by the name the catalog gives it.
+  const offered = await page.evaluate(async () => {
+    const { RESULT_BOARDS } = await import('/src/control/resultStaging.ts');
+    const { variantById } = await import('/src/templates/catalog.ts');
+    return RESULT_BOARDS.map((b) => ({ ...b, catalog: variantById(b.id)?.name ?? null }));
+  });
+  for (const id of ids) expect(offered.map((b) => b.id), `${id} is offered for results`).toContain(id);
+  for (const b of offered) expect(b.name, `${b.id} is offered under its catalog name`).toBe(b.catalog);
+  // Two options that differ in the ways a chart must survive: a short name beside one that wraps,
+  // and a count one digit wider than the other.
+  const two = 'Yes | 999\nNo, and here is a much longer answer that wraps | 1000';
+  const eight = Array.from({ length: 8 }, (_, i) => `Option ${i + 1}: the longest answer anyone could possibly type into this box tonight | ${(8 - i) * 137}`).join('\n');
+  for (const id of ids) {
+    for (const palette of ['noacg', 'volt'] as const) {
+      const tpl = await page.evaluate(async ({ id, palette }) => {
+        const { variantById } = await import('/src/templates/catalog.ts');
+        const { paletteById } = await import('/src/model/wizard.ts');
+        return variantById(id)!.create({ palette: paletteById(palette) });
+      }, { id, palette });
+      const fields = Object.fromEntries(tpl.fields.map((f) => [f.title, f.field]));
+      expect(Object.keys(fields), `${id}: the result fields`).toEqual(['Question', 'Options', 'Vote count', 'Vote badge', 'Figures']);
+      await page.evaluate(async (t) => {
+        document.getElementById('board')?.remove();
+        const { composeDocument } = await import('/src/preview/composeDocument.ts');
+        const f = document.createElement('iframe');
+        f.id = 'board';
+        f.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;background:transparent';
+        f.style.colorScheme = 'dark';
+        document.body.appendChild(f);
+        await new Promise((res) => {
+          f.onload = res;
+          f.srcdoc = composeDocument(t as never);
+        });
+      }, tpl);
+      const board = page.frames().find((f) => f.parentFrame() === page.mainFrame())!;
+      await board.waitForFunction(() => typeof (window as unknown as { play?: unknown }).play === 'function');
+      await board.evaluate(() => (window as unknown as { play(): void }).play());
+      // The entrance has landed: the board is in and no tween is still moving anything.
+      await board.waitForFunction(() => {
+        const g = (window as unknown as { gsap: { globalTimeline: { getChildren(a: boolean, b: boolean, c: boolean): { isActive(): boolean }[] } } }).gsap;
+        return getComputedStyle(document.querySelector('.poll')!).opacity === '1' && g.globalTimeline.getChildren(true, true, false).every((t) => !t.isActive());
+      }, null, { timeout: 10_000 });
+      const look = await board.evaluate(() => ({
+        bg: [getComputedStyle(document.documentElement).backgroundColor, getComputedStyle(document.body).backgroundColor],
+        accent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(),
+      }));
+      for (const bg of look.bg) expect(bg, `${id}: the graphic's own background is transparent`).toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+      for (const [options, n] of [[two, 2], [eight, 8]] as const) {
+        for (const mode of ['percent', 'count', 'both'] as const) {
+          const where = `${id} ${palette} ${n} options ${mode}`;
+          const report = await board.evaluate(async ({ data, n, mode }) => {
+            (window as unknown as { update(d: unknown): void }).update(data);
+            // Show the result as the Result step leaves it: every bar at its share, every figure in.
+            (window as unknown as { pollRevealed: boolean }).pollRevealed = true;
+            (window as unknown as { pollPaintState(): void }).pollPaintState();
+            // The layout watcher answers the new rows one microtask later; measure after a frame.
+            await new Promise((r) => requestAnimationFrame(() => r(null)));
+            const box = document.querySelector('.poll-box')!.getBoundingClientRect();
+            const inside = (r: DOMRect, o: DOMRect) => r.left >= o.left - 1 && r.right <= o.right + 1 && r.top >= o.top - 1 && r.bottom <= o.bottom + 1;
+            const out: string[] = [];
+            if (!inside(box, new DOMRect(0, 0, 1920, 1080))) out.push(`board leaves the frame: ${JSON.stringify(box)}`);
+            // The action-safe area (93% of the frame) is where a board has to stay.
+            if (!inside(box, new DOMRect(1920 * 0.035, 1080 * 0.035, 1920 * 0.93, 1080 * 0.93))) out.push(`board leaves the action-safe area: ${Math.round(box.top)}..${Math.round(box.bottom)}`);
+            for (const el of Array.from(document.querySelectorAll('.poll-box *'))) {
+              const r = el.getBoundingClientRect();
+              if (r.width === 0 && r.height === 0) continue;
+              if (getComputedStyle(el).display === 'none') continue;
+              if (!inside(r, box)) out.push(`${el.className || el.tagName} leaves the board`);
+            }
+            const rows = Array.from(document.querySelectorAll('.poll-row'));
+            if (rows.length !== n) out.push(`${rows.length} rows for ${n} options`);
+            for (const row of rows) {
+              const rr = row.getBoundingClientRect();
+              for (const el of Array.from(row.querySelectorAll('.poll-row-label, .poll-row-figures'))) {
+                if (!inside(el.getBoundingClientRect(), rr)) out.push(`${el.className} leaves its row`);
+              }
+              const label = row.querySelector('.poll-row-label') as HTMLElement;
+              if (label.scrollWidth > label.clientWidth + 1) out.push('a label runs past its column');
+              const figures = Array.from(row.querySelectorAll('.poll-row-value, .poll-row-count')).filter((v) => getComputedStyle(v).display !== 'none');
+              if (figures.some((v) => getComputedStyle(v).opacity !== '1')) out.push('a figure is still hidden after the result');
+              const shown = figures.map((v) => v.textContent!.trim());
+              const want = mode === 'percent' ? /^\d+(\.\d)?%$/ : mode === 'count' ? /^[\d\u202f]+$/ : /^\d+(\.\d)?%\|[\d\u202f]+$/;
+              if (!want.test(shown.join('|'))) out.push(`figures "${shown.join('|')}" for ${mode}`);
+            }
+            // The bars compare: every track across is one length, every column stands on one line.
+            const spread = (xs: number[]) => Math.max(...xs) - Math.min(...xs);
+            const tracks = Array.from(document.querySelectorAll('.poll-lay-across .poll-bar')).map((b) => b.getBoundingClientRect().width);
+            if (tracks.length && spread(tracks) > 1) out.push(`tracks differ in length by ${spread(tracks).toFixed(1)} px`);
+            const columns = Array.from(document.querySelectorAll('.poll-col')).map((c) => c.getBoundingClientRect().bottom);
+            if (columns.length && spread(columns) > 1) out.push(`columns stand ${spread(columns).toFixed(1)} px apart`);
+            const fill = document.querySelector('.poll-swatch, .poll-bar-fill') as HTMLElement;
+            return { out, fill: getComputedStyle(fill).backgroundColor };
+          }, { data: { [fields.Options]: options, [fields.Figures]: mode, [fields.Question]: n === 8 ? 'Of all the songs played tonight, which one should close the show for everyone at home?' : 'Encore?' }, n, mode });
+          expect(report.out, where).toEqual([]);
+          // The look: the first option wears the palette's accent.
+          const accent = await page.evaluate((c) => {
+            const probe = document.createElement('div');
+            probe.style.color = c;
+            document.body.appendChild(probe);
+            const v = getComputedStyle(probe).color;
+            probe.remove();
+            return v;
+          }, look.accent);
+          expect(report.fill, `${where}: the chart follows the look's accent`).toBe(accent);
+        }
+      }
+      if (palette === 'noacg') await page.screenshot({ path: test.info().outputPath(`${id}-8.png`) });
+    }
+  }
+});
+
+// THE CLI PATH IS THE STUDIO'S DEFAULT (interaction spec AC-13, "the same from the CLI"): for every
+// file in the SVG corpus, and for artwork larger than the frame and text parked off the artboard,
+// `noacg scaffold --svg` (the bridge's scaffold) builds exactly the template the studio builds
+// from its own untouched import draft. One function serves both (svgDefault.ts); this pins it,
+// so a later step on either side cannot drift.
+test('CLI scaffold --svg builds the studio import\'s own default for every corpus file', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/app');
+  const dir = new URL('./fixtures/svg-corpus/', import.meta.url);
+  const files = readdirSync(dir).filter((f) => f.endsWith('.svg')).sort();
+  const cases: [string, string][] = files.map((f) => [f, readFileSync(new URL(f, dir), 'utf8')]);
+  cases.push(['oversized 3840x2160', `<svg xmlns="http://www.w3.org/2000/svg" width="3840" height="2160" viewBox="0 0 3840 2160"><rect width="3840" height="2160" fill="#123"/><text id="Title" x="200" y="400" font-family="Arial" font-size="160" fill="#fff">A title</text></svg>`]);
+  cases.push(['text off the artboard', `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="200" viewBox="0 0 800 200"><rect width="800" height="200" fill="#123"/><text id="Name" x="40" y="120" font-family="Arial" font-size="48" fill="#fff">Ana</text><text id="Note" x="1200" y="120" font-family="Arial" font-size="24" fill="#fff">designer note</text></svg>`]);
+  const report = await page.evaluate(async (all) => {
+    const { scaffold } = await import('/src/bridge/bridgeApi.ts');
+    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+    const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
+    const { initialDraft, mergeDraft, draftToOptions } = await import('/src/components/wizard/draft/core.ts');
+    const D = await import('/src/components/wizard/import/draft.ts');
+    const out: string[] = [];
+    let compared = 0;
+    for (const [name, m] of all) {
+      let cli: { html: string; css: string; js: string; fields: unknown } | string;
+      let studio: { html: string; css: string; js: string; fields: unknown } | string;
+      try {
+        cli = (await scaffold({ svg: m })).template;
+      } catch (e) {
+        cli = `refused: ${(e as Error).message}`;
+      }
+      try {
+        const patch = D.svgDraftFromImport(importSvgMarkup(m), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
+        studio = IMPORTED_SVG.create({ designSvg: draftToOptions(IMPORTED_SVG, mergeDraft(initialDraft(), patch)).designSvg });
+      } catch (e) {
+        studio = `refused: ${(e as Error).message}`;
+      }
+      if (typeof cli === 'string' || typeof studio === 'string') {
+        if (cli !== studio) out.push(`${name}: ${typeof cli === 'string' ? cli : 'built'} / ${typeof studio === 'string' ? studio : 'built'}`);
+        continue;
+      }
+      compared++;
+      for (const k of ['html', 'css', 'js'] as const) if (cli[k] !== studio[k]) out.push(`${name}: ${k} differs`);
+      if (JSON.stringify(cli.fields) !== JSON.stringify(studio.fields)) out.push(`${name}: fields differ`);
+    }
+    return { out, compared };
+  }, cases);
+  expect(report.out).toEqual([]);
+  expect(report.compared, 'most of the corpus builds').toBeGreaterThan(40);
 });

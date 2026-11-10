@@ -53,6 +53,7 @@ import { DESIGN_PRESETS } from './designPresets';
 import { escapeHtml, PREFIX } from './shared';
 import { bindSvgMarkup, candidateLabel } from './svgBind';
 import { svgFontCss } from './svgFonts';
+import { hasQrLayer, QR_CSS, QR_HOOK, qrField, qrHolderHtml, qrRuntimeJs } from './svgQr';
 import { LAYOUT_EL_ATTR, layoutDataJs, layoutRules, saidLines } from './svgLayout';
 import svgFitSource from './runtime/svgFit.js?raw';
 import svgFitBootSource from './runtime/svgFitBoot.js?raw';
@@ -294,9 +295,13 @@ export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
   // The behaviour's own fields sit AFTER the artwork's, and that order is load-bearing: the
   // behaviour's type shim mirrors it so a control's payload resolves to the right `fN`.
   const behaviour = boundBehaviour(svg, artworkFields);
-  const fields = behaviour
+  const ownFields = behaviour
     ? [...artworkFields, ...behaviour.fields(artworkFields.length)]
     : artworkFields;
+  // A layer named QR draws its Join link as a code (svgQr.ts); its field comes LAST, so it moves
+  // no field the artwork or the behaviour already numbered.
+  const qrAt = hasQrLayer(svg) ? ownFields.length : -1;
+  const fields = qrAt === -1 ? ownFields : [...ownFields, qrField(qrAt)];
   // Steps are off: the whole design is one unit - a layer can still be given its own press
   // later, from the timeline.
   const settings = baseSettings({ name, uicolor: '7' }, o, { steps: '1' });
@@ -363,7 +368,7 @@ export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
        them; everything else is untouched. -->
   <div class="${PREFIX}">
     <div class="${PREFIX}-box">
-${artworkRoll ? '    <!-- prettier-ignore -->\n' : ''}${inlineSvg}${clockHolder}${creditsHolder}${behaviour ? behaviour.html(artworkFields.length) : ''}
+${artworkRoll ? '    <!-- prettier-ignore -->\n' : ''}${inlineSvg}${clockHolder}${creditsHolder}${behaviour ? behaviour.html(artworkFields.length) : ''}${qrAt === -1 ? '' : qrHolderHtml(qrAt)}
     </div>
   </div>`,
   });
@@ -405,10 +410,12 @@ ${svg.outlines.length > 0 ? `
 .${PREFIX}-removed {
   display: none;
 }
-` : ''}${clockField || behaviour ? `
+` : ''}${clockField || behaviour || qrAt !== -1 ? `
 ${dataSourceCss}
 ` : ''}${behaviour?.css ? `
 ${behaviour.css}
+` : ''}${qrAt !== -1 ? `
+${QR_CSS}
 ` : ''}${creditsField ? `
 ${artworkRoll ? creditsArtworkCss(PREFIX) : styledCredits ? creditsStyledCss(PREFIX) : creditsRollCss(PREFIX)}
 ` : ''}`;
@@ -448,7 +455,7 @@ ${artworkRoll ? creditsArtworkCss(PREFIX) : styledCredits ? creditsStyledCss(PRE
   const js =
     runtimeJs(name, preset.emit(cfg)).replace(
       PLACED_TEXT_HOOK,
-      `${matchClock ? `${IMPORTED_CLOCK_HOOK}\n` : ''}${SVG_FIT_HOOK}${behaviour ? `\n${behaviour.updateHook}` : ''}${clockField ? `\n${clockHook}` : ''}${creditsField ? `\n${creditsHook}` : ''}`,
+      `${matchClock ? `${IMPORTED_CLOCK_HOOK}\n` : ''}${SVG_FIT_HOOK}${behaviour ? `\n${behaviour.updateHook}` : ''}${clockField ? `\n${clockHook}` : ''}${creditsField ? `\n${creditsHook}` : ''}${qrAt !== -1 ? `\n${QR_HOOK}` : ''}`,
     ) +
     SVG_FIT_JS +
     // The relationship TABLE rides only for a design that declares something in it - a growth
@@ -474,6 +481,7 @@ ${artworkRoll ? creditsArtworkCss(PREFIX) : styledCredits ? creditsStyledCss(PRE
     // AFTER the behaviour's table: the roll engine reads its field ids out of NOACG_BEHAVIOUR the
     // moment it first renders, and in a document whose markup is already parsed that is now.
     (creditsField ? `\n${artworkRoll ? creditsArtworkRuntimeJs(PREFIX, o.resolution.height, creditsArtworkLayers(svg).length > 0) : styledCredits ? creditsStyledRuntimeJs(PREFIX, styledCredits) : creditsRollRuntimeJs(PREFIX, creditsShipsFaces(svg))}` : '') +
+    (qrAt !== -1 ? qrRuntimeJs(qrAt) : '') +
     SVG_FIT_BOOT;
 
   // The design presets know nothing of clocks, so the lifecycle hooks are added to the DATA

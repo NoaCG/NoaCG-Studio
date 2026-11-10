@@ -10,6 +10,7 @@ import { boundBehaviour } from './behaviour';
 import { boundClock, countdownIndex, svgFields } from './artworkFields';
 import { creditsArtworkFields, creditsClass, creditsIndex, creditsMarkAnchors } from './creditsRoll';
 import { PREFIX } from './shared';
+import { findQrLayer, QR_LAYER_CLASS } from './svgQr';
 import { followToken, growToken, LAYOUT_EL_ATTR, layoutRules } from './svgLayout';
 
 /**
@@ -100,6 +101,24 @@ function setIdKeepingRefs(root: Element, el: Element, id: string): void {
   }
 }
 
+/** The QR layer as a group the code can be drawn into: the layer itself when it is one, else a new
+ *  group put in its place around it, which takes over the layer's name and id, so whatever the
+ *  timeline animates by that name moves the group, the code with it. */
+function qrGroup(layer: Element): Element {
+  if (layer.localName === 'g') return layer;
+  const g = layer.ownerDocument.createElementNS(layer.namespaceURI, 'g');
+  for (const attr of ['id', 'data-name']) {
+    const v = layer.getAttribute(attr);
+    if (v !== null) {
+      g.setAttribute(attr, v);
+      layer.removeAttribute(attr);
+    }
+  }
+  layer.parentNode!.insertBefore(g, layer);
+  g.appendChild(layer);
+  return g;
+}
+
 /**
  * Bind the chosen candidates: each gets id="fN" (in field order), every remaining candidate
  * marker is stripped, and the root <svg> gains the artwork class so the part registry names
@@ -128,8 +147,10 @@ export function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
   // behaviour's own fields count here too - its holders carry `fN` ids like any other field,
   // and the stamped layer ids (`q-sel-1`, `p-bar-1`, …) are ours for the same reason.
   const behaviour = boundBehaviour(svg, svgFields(svg));
+  const qrLayer = findQrLayer(root);
   const taken = new Set([
-    ...[...svg.fields, ...svg.images, ...Array(behaviour?.fieldCount ?? 0)].map((_, i) => `f${i}`),
+    // One more for a QR layer's Join link (svgQr.ts), which comes after them all.
+    ...[...svg.fields, ...svg.images, ...Array((behaviour?.fieldCount ?? 0) + (qrLayer ? 1 : 0))].map((_, i) => `f${i}`),
     ...(behaviour?.layerIds ?? []),
   ]);
   for (const el of Array.from(root.querySelectorAll('[id]'))) {
@@ -223,6 +244,9 @@ export function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
   // The layers a bound behaviour claims: our id, plus the state class on the ones that are drawn
   // MOMENTS. Before the markers are stripped - that is what they are for.
   behaviour?.markLayers(root);
+  // The layer named QR: the runtime draws the Join link's code over its box (svgQr.ts).
+  // A shape (not a group) is wrapped in a group of its own, so the code can be drawn inside it.
+  if (qrLayer) addClass(qrGroup(qrLayer), QR_LAYER_CLASS);
   const replaced = new Set(svg.outlines.map((o) => o.candidateId));
   for (const el of Array.from(root.querySelectorAll(`[${SVG_CANDIDATE_ATTR}]`))) {
     if (keepMarkers && !replaced.has(el.getAttribute(SVG_CANDIDATE_ATTR) ?? '')) continue;

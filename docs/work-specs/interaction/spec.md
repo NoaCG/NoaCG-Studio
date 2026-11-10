@@ -871,3 +871,63 @@ fresh read-only review challenged them before the final assessment:
 - A YouTube page is a burst of lines in one moment, so a vote and the reading of what is live are
   decided together: the intake reads the live round once per batch (cached three seconds), never
   per line.
+
+### Phase 5: More results and home-made graphics
+
+Previous verified main: `1740d4f128ec6f74bc9b95ca3b90d12f0c101ab5`. Revert of this merge:
+`git revert -m 1 <merge sha>` (the merge sha is in `evidence/phase-5.md` once it lands). No
+migration. The Vote result type and its nine designs are new ids, so a reverted app opens a
+production that uses one as an unknown catalog id, like any design it never had; its cues keep
+their values.
+
+**Decisions** (made in the build, revertible in review):
+
+- The result templates are nine designs (`poll/results.ts`, `pl06` to `pl14`), every layout in
+  every placement, in the house family, on a new type, Vote result (`types/resultBoard.ts`): the
+  live vote's arc, buttons and four fields, plus Figures (percent, count, both). A type of its own
+  because a type declares one field list. Placement is a design, not a zone: a lower third, a side
+  card and a full-screen board need different arrangements, not the same card moved.
+- Their drawing lives in each design's own script (`PollDesign.extraJs`, `figures`), so the five
+  existing vote boards emit byte-identical code. Bars up turn the track a quarter, so the growth
+  builder's width reads as height; the donut paints its ring from hidden tracks' widths through a
+  MutationObserver, so it sweeps with the bars and a renderer that never ticks a frame still shows
+  the finished ring.
+- Long names wrap to two lines and end in an ellipsis; at six or more options full screen and on
+  a side donut, one line. Five or more options in a lower third run in two columns.
+- The result picker offers all fourteen catalog vote boards (`RESULT_BOARDS`).
+- `Vote count`, the field contract's word, also names the vote's total layer in artwork.
+- A layer named `QR` (any case; never text, nothing in `<defs>` or a hidden layer) gains a last
+  field, Join link; the code is drawn inside that layer (a bare shape is wrapped in a group at
+  bind), with the encoder the Join card carries, on a white plate with its own paint.
+- The CLI path is `noacg scaffold --svg <file>`, through the bridge's `scaffold`, which calls the
+  studio SVG drop's own default (`components/wizard/import/svgDefault.ts`: `svgDraftFromImport`
+  then `svgDesignOptions`), so the CLI and the studio cannot drift. That is one new named edge,
+  bridge to that file, in `docs/ARCHITECTURE.md` §3 and `.dependency-cruiser.cjs`; the file loads
+  no React. The first build re-created the defaults by hand and two review rounds each found one
+  more it missed; a fresh reassessment chose the shared function instead. Studio-only: a lower
+  third's measured growth and every answer an author gives in the mapping step. Moving the import
+  draft's pure core down to templates would retire the edge. The MCP server's scaffold is
+  unchanged.
+- Imported upright bars and pies are filed (#2344), not built: AC-13 asks for bars at their
+  share, and the change re-records every pinned behaviour runtime.
+
+**Traps found** (for later phases):
+
+- Artwork with each row (`Option N`, `Bar N`) wrapped in its own group named `Options N` was
+  proposed as nothing; the same layers in two plain groups were proposed as a vote. The cause is
+  not traced here; test home-made artwork with the layer tree the docs teach.
+- `e2e/` blank-page specs cannot import `src/components/wizard/import/draft.ts` on a bare page
+  (React preamble error); load `/app` first, or use `importSvgMarkup` and `IMPORTED_SVG.create`.
+- A page embedding the preview document must declare `color-scheme: dark`, or Chromium paints
+  the iframe opaque.
+- A layout read by a MutationObserver is one microtask behind `update()`; a test measures after a
+  frame.
+- `scripts/svg-import-passes.test.mjs` fails 4 of 22 on a cloud worker on `main` itself; compare
+  against a `main` control there.
+- The rendered catalog baseline is Windows-only; a Linux worker adds no rows to it.
+- `node scripts/catalog-specs.mjs` is refused by the queue without a check stamp on the head;
+  admit it with `node scripts/jobs.mjs add "<command>" --cap 12` after `/check`.
+- The local stack's image pulls can be refused for one layer by the proxy and succeed on retry;
+  `supabase start` retries by itself.
+
+**Walk** (AC-15, phase 5): `evidence/phase-5.md`. No blocking finding; #2344 filed.
