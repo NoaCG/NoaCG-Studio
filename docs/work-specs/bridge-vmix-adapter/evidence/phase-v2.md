@@ -958,3 +958,27 @@ both as refusals. Bare LF, embedded CR, invalid UTF-8 and a tab before
 the status could each report success. The focused cases now expect all
 six to leave placement uncertain while preserving the Browser and
 allowing a separate read over a new connection.
+
+#### Classify each frame while a FUNCTION is pending
+
+The independent review graded `fcb4f151` B. A line with whitespace
+before FUNCTION or an unexpected length header could be skipped, so
+a later line in the same buffer could answer the pending command.
+
+Validate each pending FUNCTION frame's size, UTF-8 and CRLF before
+reading its syntax. A complete FUNCTION OK or ER settles the command.
+Only valid ACTS OK and TALLY OK event envelopes can be skipped. Their
+optional UTF-8 detail stays opaque. Any other frame retires the
+connection before later bytes can be read and leaves the sent command
+uncertain. Keep the existing behavior for other pending commands.
+
+Exercise leading space and tab, an unexpected XML length header and
+malformed event framing in the fake after it applies Overlay In.
+Confirm the reported Browser creation, uncertain placement, single
+send and separate reconnect. Interleave ACTS and TALLY with a
+fragmented valid reply to confirm that normal events still work.
+
+The compiled first candidate reported success for both forms of leading
+whitespace, the XML length header, an ACTS line with bare LF and a TALLY
+line with ER. In each case the fake applied In and sent a complete OK
+after the invalid frame in the same write.

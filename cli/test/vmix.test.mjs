@@ -1550,16 +1550,18 @@ test('a connection dropped mid-function answers uncertain, nothing is resent, an
 
 test('FUNCTION replies accept bare status and fragmented UTF-8 text among event lines', async () => {
   const refusal = 'FUNCTION ER Entrée introuvable';
-  const reply = Buffer.from(refusal + '\r\n');
+  const reply = Buffer.from('ACTS OK Overlay8 1 1\r\nTALLY OK 0120\r\n' + refusal + '\r\n');
+  const eventSplit = reply.indexOf(0x0a);
   const split = reply.indexOf(0xc3) + 1;
   const fake = await startFakeVmix({
     hook(line, socket) {
       if (line === 'FUNCTION BareStatus') {
-        socket.write('ACTS OK Overlay8 1 1\r\nFUNCTION OK\r\n');
+        socket.write('ACTS OK\r\nFUNCTION OK\r\n');
       } else {
-        socket.write(reply.subarray(0, split));
-        setTimeout(() => socket.write(reply.subarray(split, -1)), 10);
-        setTimeout(() => socket.write(reply.subarray(-1)), 20);
+        socket.write(reply.subarray(0, eventSplit));
+        setTimeout(() => socket.write(reply.subarray(eventSplit, split)), 10);
+        setTimeout(() => socket.write(reply.subarray(split, -1)), 20);
+        setTimeout(() => socket.write(reply.subarray(-1)), 30);
       }
       return true;
     },
@@ -1583,6 +1585,12 @@ const invalidFunctionReplies = [
   ['invalid UTF-8', Buffer.concat([Buffer.from('FUNCTION OK '), Buffer.from([0xff]), Buffer.from('\r\n')])],
   ['tab before status', Buffer.from('FUNCTION\tOK\r\n')],
   ['double space before status', Buffer.from('FUNCTION  OK\r\n')],
+  ['leading space', Buffer.from(' FUNCTION OK Completed\r\n')],
+  ['leading tab', Buffer.from('\tFUNCTION ER Refused\r\n')],
+  ['unexpected length header', Buffer.from('XML 64\r\n')],
+  ['malformed ACTS framing', Buffer.from('ACTS OK Overlay8 1 1\n')],
+  ['malformed TALLY status', Buffer.from('TALLY ER No tally\r\n')],
+  ['oversized event detail', Buffer.from('ACTS OK ' + 'x'.repeat(64 * 1024) + '\r\n')],
 ];
 
 for (const [fault, invalidReply] of invalidFunctionReplies) {

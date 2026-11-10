@@ -147,14 +147,25 @@ export class VmixConnection {
         this.finish({ ok: true, status: body.status, line: body.line, body: isUtf8(body.data) ? body.data.toString('utf8') : undefined });
         continue;
       }
+      const awaitingFunction = this.pending?.word === 'FUNCTION';
       const nl = this.buf.indexOf(0x0a);
       if (nl < 0) {
-        if (this.buf.length > MAX_LINE_BYTES) s.destroy();
+        if (this.buf.length > MAX_LINE_BYTES) {
+          if (awaitingFunction) this.rejectFunctionReply(s);
+          else s.destroy();
+        }
         return;
       }
       const lineBytes = this.buf.subarray(0, nl);
-      const line = lineBytes.toString('utf8').replace(/\r$/, '');
       this.buf = this.buf.subarray(nl + 1);
+      if (awaitingFunction) {
+        if (!this.readFunctionLine(lineBytes)) {
+          this.rejectFunctionReply(s);
+          return;
+        }
+        continue;
+      }
+      const line = lineBytes.toString('utf8').replace(/\r$/, '');
       if (!this.version) {
         const m = /^VERSION OK (\S.*)$/.exec(line);
         if (!m) {
@@ -163,18 +174,6 @@ export class VmixConnection {
         }
         this.version = m[1].trim();
         greeted({ ok: true });
-        continue;
-      }
-      if (this.pending?.word === 'FUNCTION' && /^FUNCTION\b/.test(line)) {
-        const reply = /^FUNCTION (OK|ER)(?: [^\r\n]+)?$/.exec(line);
-        if (!reply || nl > MAX_LINE_BYTES || lineBytes.at(-1) !== 0x0d || !isUtf8(lineBytes)) {
-          // Discard this connection's remaining bytes, including any lines already buffered.
-          s.destroy();
-          this.finish({ ok: false, lost: 'invalid-reply' });
-          this.closed(s);
-          return;
-        }
-        this.finish({ ok: true, status: reply[1], line });
         continue;
       }
       const [word, status = ''] = line.split(' ');
@@ -201,6 +200,25 @@ export class VmixConnection {
       }
       this.finish({ ok: true, status, line });
     }
+  }
+
+  /** Only a FUNCTION answer or an asynchronous event can arrive during a FUNCTION turn. */
+  private readFunctionLine(bytes: Buffer): boolean {
+    if (bytes.length > MAX_LINE_BYTES || bytes.at(-1) !== 0x0d || !isUtf8(bytes)) return false;
+    const line = bytes.subarray(0, -1).toString('utf8');
+    const envelope = /^(FUNCTION|ACTS|TALLY) (OK|ER)(?: [^\r\n]+)?$/.exec(line);
+    if (!envelope) return false;
+    const [, word, status] = envelope;
+    if (word !== 'FUNCTION') return status === 'OK';
+    this.finish({ ok: true, status, line });
+    return true;
+  }
+
+  private rejectFunctionReply(s: Socket): void {
+    // Discard the remaining bytes so a later line cannot answer the command.
+    s.destroy();
+    this.finish({ ok: false, lost: 'invalid-reply' });
+    this.closed(s);
   }
 
   private finish(r: VmixReply): void {
