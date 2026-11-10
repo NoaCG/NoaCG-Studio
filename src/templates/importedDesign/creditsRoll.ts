@@ -1100,7 +1100,15 @@ export function creditsMarkAnchors(svg: DesignSvg, root: Element, prefix: string
     text.setAttribute(CREDITS_ANCHOR_ATTR, `${i} ${a.kind}`);
     addCreditsClass(text, prefix);
   });
+  const title = style.title ? root.querySelector(`[${SVG_CANDIDATE_ATTR}="${style.title}"]`)?.closest('text') : null;
+  if (title) {
+    title.setAttribute(CREDITS_TITLE_ATTR, '');
+    addCreditsClass(title, prefix);
+  }
 }
+
+/** The attribute that marks the drawn show title of a styled binding: a source, hidden on air. */
+export const CREDITS_TITLE_ATTR = 'data-noacg-credit-title';
 
 function addCreditsClass(text: Element, prefix: string): void {
   const own = (text.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
@@ -1230,7 +1238,54 @@ function creditsSample() {
 
 ${creditsFieldJs()}
 ${held('', creditsHeldJs())}
-// creditsFrom(a, b): the matrix taking a's own units into b's, through the screen, so any two
+${cards(`// creditsTitle(sections, rows, ref, container): THE SHOW TITLE. A list whose first line is not
+// a role starts with the show's name (owner walk 2026-11-10). Where a title is drawn above the roles
+// (DesignSvgCredits.title), that line is taken out of the list and painted as a copy of the drawn
+// title - its look, and where it was drawn - inside the rows, so it travels with them. Without a
+// drawn title, or when the list starts with a role, every line reads as before.
+function creditsTitle(sections, rows, ref, container) {
+  var source = document.querySelector('[${CREDITS_TITLE_ATTR}]');
+  if (!source || !sections.length || !sections[0].length || sections[0][0].type !== 'entry') return;
+  var words = sections[0].shift().text;
+  if (!sections[0].length) sections.shift();
+  var at = creditsFrom(source.parentNode, ref);
+  if (!at) return;
+  var row = source.cloneNode(true);
+  var all = [row].concat(Array.prototype.slice.call(row.getElementsByTagName('*')));
+  for (var i = 0; i < all.length; i++) {
+    var names = [];
+    for (var a = 0; a < all[i].attributes.length; a++) {
+      var n = all[i].attributes[a].name;
+      if (n === 'id' || n.indexOf('data-noacg') === 0) names.push(n);
+    }
+    for (var r = 0; r < names.length; r++) all[i].removeAttribute(names[r]);
+  }
+  var own = (row.getAttribute('class') || '').split(' ').filter(function (c) { return c && c !== '${cls}'; });
+  own.push('${cls}-row');
+  row.setAttribute('class', own.join(' '));
+  row.setAttribute('data-noacg-credits', 'title');
+  var first = creditsFirstText(row);
+  var texts = [];
+  var walk = function (node) {
+    for (var k = 0; k < node.childNodes.length; k++) {
+      var c = node.childNodes[k];
+      if (c.nodeType === 3) texts.push(c);
+      else if (c.nodeType === 1) walk(c);
+    }
+  };
+  walk(row);
+  for (var t = 0; t < texts.length; t++) texts[t].nodeValue = texts[t] === first ? words : '';
+  if (!first) row.textContent = words;
+  // What the drawn title inherits from its own groups, which the copy no longer sits in.
+  var look = creditsLookOf(source, container);
+  var wrap = document.createElementNS(source.namespaceURI, 'g');
+  wrap.setAttribute('transform', 'matrix(' + [at.a, at.b, at.c, at.d, at.e, at.f].join(' ') + ')');
+  wrap.setAttribute('style', look.paint + ';' + look.whole + ';text-anchor:' + getComputedStyle(source).textAnchor);
+  wrap.appendChild(row);
+  rows.appendChild(wrap);
+}
+
+`, '')}// creditsFrom(a, b): the matrix taking a's own units into b's, through the screen, so any two
 // elements of the drawing answer in one frame.
 function creditsFrom(a, b) {
   var ma = a.getScreenCTM ? a.getScreenCTM() : null;
@@ -1426,7 +1481,8 @@ ${beside(`  // THE SHARED EDGE, the mean over every drawn layer in the first rol
   if (noacgCreditsHeld === null) noacgCreditsWritten = text;`)}
   // Written as textContent, so nothing here is escaped: the identity is the escape.
   var sections = parseCredits(text, function (s) { return s; });
-  while (rows.firstChild) rows.removeChild(rows.firstChild);
+  while (rows.firstChild) rows.removeChild(rows.firstChild);${cards(`
+  creditsTitle(sections, rows, ref, container);`, '')}
   var S = NOACG_CREDITS_STYLE;
   // One look rule per kind, and the shared edge every row is anchored on.
   var sel = '.${cls}-rows > .${cls}-row';
@@ -1749,6 +1805,8 @@ export interface CreditsStyle {
   list: string;
   /** What the drawn roles end with (`:` or nothing), so a rendered role reads as drawn. */
   roleSuffix: string;
+  /** The drawn show-title layer (`DesignSvgCredits.title`), where the binding names one. */
+  title?: string;
 }
 
 export type CreditsAnalysis =
@@ -2121,7 +2179,7 @@ export function readCreditsList(text: string): CreditsListItem[][] {
 
 /** What the wizard previews for the layer picked as Credits. */
 export type CreditsPreview =
-  | { styled: true; layout: CreditsLayout; rtl: boolean; ambiguous: boolean; anchors: DesignSvgCreditsAnchor[]; list: CreditsListItem[][] }
+  | { styled: true; layout: CreditsLayout; rtl: boolean; ambiguous: boolean; anchors: DesignSvgCreditsAnchor[]; title?: string; list: CreditsListItem[][] }
   | { styled: false; list: CreditsListItem[][]; reason: string; ambiguous: boolean; rtl: boolean };
 
 /**
@@ -2204,18 +2262,42 @@ export function creditsPreview(root: Element, candidateIds: readonly string[], c
   }
   if (!analysis.ok) return own(analysis.message);
   if (!analysis.style.anchors.some((x) => x.candidateId === creditsId)) return own('This layer is not part of the roles and names drawn below it.');
+  const title = creditsTitleOf(all, analysis.style.anchors, down, across);
   return {
     styled: true,
     layout: analysis.style.layout,
     rtl,
     ambiguous,
     anchors: analysis.style.anchors,
-    list: readCreditsList(analysis.style.list),
+    ...(title ? { title: title.candidateId } : {}),
+    list: readCreditsList(title ? `${title.text}\n${analysis.style.list}` : analysis.style.list),
   };
 }
 
 /** A text layer's drawn lines, one per baseline with section gaps as blank lines (the editable
  *  roll's sample reading), or its plain text where it draws no runs. */
+/** THE SHOW TITLE a styled block may have drawn above it: the nearest single-line text layer above
+ *  the block's first line, in a look neither the roles nor the names use, standing over the block's
+ *  own column. The list's first line, when it is not a role, takes its look (`DesignSvgCredits.title`). */
+function creditsTitleOf(
+  all: readonly (CreditsReading | null)[],
+  anchors: readonly DesignSvgCreditsAnchor[],
+  down: (r: CreditsReading) => number,
+  across: (r: CreditsReading) => number,
+): CreditsReading | null {
+  const ids = new Set(anchors.map((a) => a.candidateId));
+  const block = all.filter((r): r is CreditsReading => !!r && ids.has(r.candidateId));
+  if (block.length === 0) return null;
+  const looks = new Set(block.map((r) => r.look));
+  const first = block.reduce((p, q) => (down(q) < down(p) ? q : p));
+  const lo = Math.min(...block.map((r) => across(r) - (r.width ?? r.size)));
+  const hi = Math.max(...block.map((r) => across(r) + (r.width ?? r.size)));
+  return all
+    .filter((r): r is CreditsReading => !!r && !ids.has(r.candidateId) && r.lines === 1 && !looks.has(r.look))
+    .filter((r) => down(r) < down(first) - 0.25 * Math.min(r.size, first.size) && across(r) >= lo && across(r) <= hi)
+    .sort((p, q) => down(q) - down(p))[0] ?? null;
+}
+
 function creditsLayerText(root: Element, candidateId: string): string {
   const el = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${candidateId}"]`);
   const text = el?.closest('text') ?? el;
@@ -2349,6 +2431,17 @@ function readBinding(svg: DesignSvg, root?: Element): CreditsBindingRead {
     const chosen = swapped?.ok && sameAnchors(swapped.style.anchors, model.anchors) ? swapped : read;
     analyseInto(errors, model, chosen);
     if (chosen.ok) style = chosen.style;
+    // The show title: a text layer of its own, never a field, never one of the roles and names.
+    if (model.title !== undefined) {
+      const title = textOf(model.title);
+      if (!title) errors.push('unknown-title: the show title is not a text layer of this artwork.');
+      else if (texts.includes(title)) errors.push('duplicate-anchor: the show title is also a role or a name.');
+      else if (svg.fields.some((f) => textOf(f.candidateId) === title)) errors.push(`field-per-name: ${model.title} would be a field.`);
+      else if (style) {
+        const words = readCreditsAnchors(scope, [model.title])[0]?.text ?? '';
+        style = { ...style, title: model.title, list: words ? `${words}\n${style.list}` : style.list };
+      }
+    }
   } finally {
     laid?.done();
   }

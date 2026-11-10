@@ -174,7 +174,7 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   const playback = cards && decks ? 'cards' : still && stills ? 'static' : 'roll';
   const timed = playback === 'cards' && advance !== undefined;
   const styled: DesignSvgCredits | undefined = reading
-    ? { v: 1, layout: reading.layout, playback, ...(timed ? { advance } : {}), anchors: reading.anchors }
+    ? { v: 1, layout: reading.layout, playback, ...(timed ? { advance } : {}), anchors: reading.anchors, ...(reading.title ? { title: reading.title } : {}) }
     : undefined;
   // A binding belongs to the pick it was read for, so the same anchors for another pick are new.
   const wantKey = styled ? `${creditsId} ${JSON.stringify(styled)}` : '';

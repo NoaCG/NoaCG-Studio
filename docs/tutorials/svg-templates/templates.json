@@ -8,5 +8,6 @@
   { "slug": "scoreboard-2-players", "name": "Scoreboard, 2 players", "recipe": "score", "preview": "scoreboard-2-players-1-scores" },
   { "slug": "scoreboard-4-players", "name": "Scoreboard, 4 players", "recipe": "score", "preview": "scoreboard-4-players-1-scores" },
   { "slug": "winner", "name": "Winner", "recipe": null, "preview": "winner" },
-  { "slug": "end-credits", "name": "End credits", "recipe": "credits", "preview": "end-credits" }
+  { "slug": "end-credits", "name": "End credits", "recipe": "credits", "preview": "end-credits" },
+  { "slug": "end-credits-columns", "name": "End credits, two columns", "recipe": "credits", "preview": "end-credits-columns" }
 ]

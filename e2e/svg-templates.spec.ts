@@ -139,7 +139,7 @@ async function importTemplate(page: Page, t: Template) {
   await expect(page.getByTestId('map-svg-fields')).toBeVisible();
   if (t.recipe === 'credits') {
     await expect(page.getByTestId('map-svg-credits-engine')).toHaveValue('editable');
-    await expect(page.getByTestId('map-svg-credits-preview')).toHaveAttribute('data-layout', 'role-above');
+    await expect(page.getByTestId('map-svg-credits-preview')).toHaveAttribute('data-layout', t.slug.endsWith('columns') ? 'role-beside' : 'role-above');
     await expect(page.getByTestId('map-svg-credits-list')).toContainText('Alex Rivera');
   } else {
     await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue(t.recipe ? kind[t.recipe] ?? t.recipe : 'none');
@@ -159,8 +159,9 @@ for (const t of templates) {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await importTemplate(page, t);
-    // The list in the README's own format: a role and its names inline, commas between names.
-    if (t.recipe === 'credits') await page.getByTestId('cue-field-f1').fill('Director: Casey Hill\nCamera: Robin Vale, Ari Moss\nSound: Jo Berg');
+    // The list in the README's own format: the show title first, then a role and its names on
+    // one line, commas between names.
+    if (t.recipe === 'credits') await page.locator('textarea[data-testid^="cue-field-"]').first().fill('Night Quiz\nDirector: Casey Hill\nCamera: Robin Vale, Ari Moss\nSound: Jo Berg');
     await page.getByTestId('verb-take').click();
     const air = page.frameLocator('[data-testid="program-stage"] iframe');
     await expect(air.locator('svg').first()).toBeVisible();
@@ -247,10 +248,13 @@ for (const t of templates) {
         break;
       }
       case 'credits': {
-        await expect(air.locator('.imported-design-credits-row')).toHaveText(['Director', 'Casey Hill', 'Camera', 'Robin Vale', 'Ari Moss', 'Sound', 'Jo Berg']);
+        // The first line is the show title, in the drawn title's look; the title is no field of its own.
+        await expect(air.locator('.imported-design-credits-row')).toHaveText(['Night Quiz', 'Director', 'Casey Hill', 'Camera', 'Robin Vale', 'Ari Moss', 'Sound', 'Jo Berg']);
+        expect(await air.locator('svg').first().evaluate(() => (window as unknown as { SPXGCTemplateDefinition: { DataFields: { title: string }[] } }).SPXGCTemplateDefinition.DataFields.map((f) => f.title))).not.toContain('Show title');
         // ONE TEXT SCROLLS: the title travels with the list, and at no point of the roll does a
         // line cross another line or the rule drawn under the title.
-        const heading = air.locator(`#${await fieldFor(air, 'Heading')}`);
+        const heading = air.locator('.imported-design-credits-row[data-noacg-credits="title"]');
+        expect(await heading.evaluate((el) => getComputedStyle(el).fontSize), 'the title keeps the drawn title size').toBe(await air.locator('[data-noacg-credit-title]').evaluate((el) => getComputedStyle(el).fontSize));
         const at = (share: number) => air.locator('svg').first().evaluate((_, p) => {
           const tween = (window as unknown as { noacgCreditsTween: { pause(): void; progress(v: number): void } }).noacgCreditsTween;
           tween.pause();
