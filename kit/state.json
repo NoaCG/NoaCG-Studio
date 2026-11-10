@@ -56,7 +56,15 @@
    "where": "phase 9 hand-over on the run issue"
   }
  ],
- "fixes": [],
+ "fixes": [
+  {
+   "what": "docs: plan-run.md live-publishing line says started (owner asked 2026-11-10)",
+   "pr": 2363,
+   "branch": "claude/plan-run-live-publishing-started",
+   "head": "35b1914f97a824d7db58d3896e43db5492c2cd1e",
+   "state": "queued, auto-merge on; check-ins read its queue state until merge and post-land are recorded"
+  }
+ ],
  "triggers": {
   "checkin": "trig_016XrrtLph81wXbWrX6R4JL2"
  },
