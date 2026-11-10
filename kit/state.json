@@ -49,13 +49,18 @@
  "waitingOn": [],
  "inFlight": [
   {
-   "phase": "cf21",
-   "step": "check",
-   "session": "session_017SdbwQAFa2h7S86mAm1MTs",
-   "nonce": "cf21-c-e91c",
-   "launchedAt": "2026-11-10T13:31:01Z",
-   "mergeSha": "bb527e5f73006834ae4fdddd4942a94f2b274436",
-   "pr": 2348
+   "phase": "cf02",
+   "step": "build",
+   "session": "session_017SdbwN7jhzhEi2sh6D8NcS",
+   "nonce": "cf02-b-f9c7",
+   "launchedAt": "2026-11-10T13:53:57Z"
+  },
+  {
+   "phase": "cf21-followup",
+   "step": "build",
+   "session": "session_017SdbwPMaBaH6SDUhN2Z9qX",
+   "nonce": "cf21-f-codexroot",
+   "launchedAt": "2026-11-10T13:52:32Z"
   }
  ],
  "owner": [],
@@ -193,6 +198,11 @@
   {
    "at": "2026-11-10T13:22Z",
    "note": "cf21 receipt accepted: PR #2348 head f2d76f09, /so A, Codex clean, CI gate green 42822538186. Stamp run 42823759648, auto-merge on. Before side 88 rows: rounds median 0 p95 6, 54/88 pass after one round, M1 from ready median 27.8 min, spread 20.7, min 25/side, post-landing failures 11/88, reverts 0/58. Departures: Codex rule scoped to product folders (src/AGENTS.md); delta re-review also for Risky rows. Follow-up #2350."
+  },
+  {
+   "phase": "cf21",
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2348#issuecomment-6769063421"
   }
  ],
  "decisions": [
@@ -233,6 +243,11 @@
     "trig_018Vs4et9y2CPZUthAzJVScZ",
     "trig_01AKVe78Lfoo6ZUHfrUVhTLu"
    ]
+  },
+  {
+   "at": "2026-11-10T13:52Z",
+   "by": "owner miwco",
+   "what": "Codex review rule (cf21 change 5): 'Raise cap ~400 bytes (Recommended)': raise root AGENTS.md cap 3072 to about 3480 and move the rule to root. Follow-up builder session_017SdbwPMaBaH6SDUhN2Z9qX (nonce cf21-f-codexroot)."
   }
  ],
  "ownerAlarmSession": "session_017SdbwQfGaKDTYKsFgzGxY6",
