@@ -65,14 +65,15 @@ and the exact base and head SHAs. It picks its own probes.
   `check.md`'s small, clear and contained test holds; otherwise file an issue and link it.
 - **Round cap.** After three confirmed review rounds on one PR (any reviewer), stop patching and
   run the Repeated-family reassessment of the approach first. A warning, not an extra attempt.
-- **Every row that is not Ordinary** keeps a fresh `/so` on the final diff, A or A+; a Risky row
-  also has its Rules-first `/so`. The receipt names the row's class, and before stamping a row
+- **Every row that is not Ordinary** keeps one fresh full `/so` on the final head, A or A+; a Risky
+  row also has its Rules-first `/so`. A small change after that `/so` met the grade needs only a
+  Delta re-review of that change, not a new full `/so`. The receipt names the row's class, and before stamping a row
   with no `/so` the coordinator checks its diff touches no Risky path.
 
 | Scenario | When | What to do |
 | --- | --- | --- |
 | Ordinary | copy, docs, contained logic or tooling that sets or changes no state rule, outside every Risky path | `/check` and the Codex review only; no `/so`. |
-| Delta re-review | a finished full `/so` met the grade on an earlier head of this PR, that head is an ancestor of the new one, and every commit since answers confirmed findings (any reviewer) on this PR, or touches only the phase's notes or evidence, or adds a reviewed exception entry to `scripts/growth-ceilings.json` | A fresh read-only `/so` on `git diff <assessed head>..<new head>` alone, given the earlier verdict, its head and the findings the delta answers. It confirms each answer, the entry matches its recorded review and the notes match the evidence. A full `/so` instead when the delta touches files outside the findings' area, includes a merge from main or a rebase, or the reviewer sees effects beyond the delta. `/check`, CI and the Codex request for the new head stay as they are. |
+| Delta re-review | a finished full `/so` met the grade on an earlier head of this PR, that head is an ancestor of the new one, and every commit since is a small change: it answers confirmed findings (any reviewer) on this PR, touches only the phase's notes or evidence, adds a reviewed exception entry to `scripts/growth-ceilings.json`, or is another small fix inside the files the full `/so` assessed | A fresh read-only `/so` on `git diff <assessed head>..<new head>` alone, given the earlier verdict, its head and the findings or reason the delta answers. It confirms each answer, the entry matches its recorded review, the notes match the evidence and any other fix does what its commit says, with the same A or A+ bar. A full `/so` instead when the delta touches files outside the assessed diff or the findings' area, touches a Risky path the assessed diff did not, includes a merge from main or a rebase, or the reviewer sees effects beyond the delta. `/check`, CI and the Codex request for the new head stay as they are. |
 | Risky | the change sets or changes state rules: ownership; attempted, accepted and observed operations; unknown outcomes; other tabs or writers; revision-to-content identity; retries; reload and recovery. Always Risky, never Ordinary: `.github/workflows` and CI or landing scripts, migrations and `supabase/`, auth and account code, and any path an owner rule marks sensitive | Before coding, write those rules as observable lines in the phase notes and push them; the PR description repeats them under **Rules**. A fresh read-only `/so` challenges the Rules before any code. When the transitions are the feature, test them against a small reference model or oracle derived from the Rules, never one that repeats the production algorithm. A finding that exposes a product decision the spec never made goes to the coordinator before any patch. Later, list rules found after coding apart from those stated before. A fresh `/so` on the final diff, A or A+, as before. |
 | Repeated family | two successive confirmed rounds (any reviewer) find variants of one missing rule, or a PR reaches the round cap | Stop patching. A fresh reassessment of the rule model or approach, given the Rules (if any) and the findings, comes first: a read-only `/so`, or plan-run's diagnose agent when the rounds are failed checks. Correct the model, then repair if an attempt remains. A warning, not an extra attempt: later findings still count. |
 | Stalled | a request still outstanding 30 minutes after it was made (plan-run's idle threshold), or a reviewer session idle that long | Never clean, and no second request on that head. Report the gate pending in your receipt with its request time and head, and stop as for any pending gate. The coordinator treats it as a review-service wait that spends no attempt: it says on the PR that the request is stalled, which ends it as the outstanding one, then makes one new request or starts a fresh reviewer. No stamp until a real result. |
@@ -140,6 +141,12 @@ and the exact base and head SHAs. It picks its own probes.
   instead, and never rewrite a pushed branch.
 - The coordinator's work block is not your deadline: it renews. Build the whole phase in one PR,
   and send your receipt as soon as CI is green on the final head.
+- **Long command output goes to a file.** Run a test suite, build or log fetch with its output
+  redirected to a file (`<command> > <file> 2>&1`), then read its tail (`tail -n 60 <file>`) and
+  search the file for what you need. Output read whole into the session fills its context.
+- **End your session once your PR is open and your receipt is sent.** The coordinator owns the PR
+  from there: do not idle, poll or wait for the merge. If it needs a repair it messages you or
+  launches one. Waiting in a background job is for a gate you still owe before the receipt.
 
 ## Docs and reconciliation phases
 
