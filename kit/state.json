@@ -73,9 +73,9 @@
       "branch": "codex/plan-editor-r1-5-e1-build",
       "phase": "E1",
       "actionId": "plan-editor-r1-5-2026-11-08:1",
-      "nativeId": "/root/editor_r15_e1_builder",
-      "note": "Native Chrome zoom, Illustrator picker/drop and SPX download observed on the pinned candidate. Remaining E1 authoring checks and PR are pending. Original worker stopped.",
-      "checkpointed": true,
+      "nativeId": "/root/editor_r15_e1_resume",
+      "note": "Fresh native replacement acknowledged on pinned E1 branch. November 10 SVG picker/drop and SPX download verified. Current-main reconciliation and remaining authoring checks are in progress, subject to scheduler headroom.",
+      "checkpointed": false,
       "head": "be049c7ea10ee2b8a1bae6d86711ce507a9468a7"
     }
   ],
@@ -138,6 +138,14 @@
       "job": "j-5042",
       "receipt": "receipts/e1-owner-native-files-2026-11-10.json",
       "outcome": "Owner-operated Illustrator SVG picker/drop and native SPX save verified; exact archive checked by coordinator."
+    },
+    "replacement": {
+      "oldNativeId": "/root/editor_r15_e1_builder",
+      "briefSHA256": "3a05a92933a1413c87fc579988310b02e24ddcb4821106dfbb9bdb925c74ce4f",
+      "observedAt": "2026-11-10T17:57:23Z",
+      "preflight": "passed on clean exact candidate",
+      "nativeId": "/root/editor_r15_e1_resume",
+      "ram": "2.0 GB free, 3.5 GB browser admission floor"
     }
   }
 }
