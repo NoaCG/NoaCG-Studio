@@ -53,8 +53,9 @@ Searched for conflicting wording after the change: `Narrow delta` appears nowher
 ## 3. (b) and (c): the method cf20 uses
 
 `phase-cf21-review.mjs` collects, derives and reports. Each `collect` pass makes at most 100
-GitHub REST calls and caches every immutable read; no log, signed URL or credential is read or
-stored.
+GitHub REST calls and caches every immutable read. A commit's run list is read again on every pass
+until it is non-empty, finished and read at least two days after the merge, so late runs and re-runs
+are seen. No log, signed URL or credential is read or stored.
 
 - **Rows.** Merged PRs whose branch is a build, repair or re-run of a phase, or an owner-requested
   fix, of the cicd-followup or jev-svg-import run (`ROW` in the script). Spec branches are not rows.
@@ -86,8 +87,9 @@ stored.
   minimum n and the after median is lower by more than the spread. Rounds per PR have a spread of 0
   (most rows have none), so cf03's test cannot size them: the share passing after one round is
   compared with cf03's share test (one-sided Fisher exact, p below 0.05, at least 8 rows a side).
-  Reverts and post-landing failures: any higher share on the after side is reported as counting
-  against the change, with its Fisher p, never as a saving.
+  Reverts and post-landing failures: any higher rate on the after side (compared on the exact
+  counts, not the rounded shares) is reported as counting against the change, with its Fisher p,
+  never as a saving.
 
 ## 4. The before side
 
@@ -95,7 +97,9 @@ Window: merges from 2026-10-31T11:40:05Z (ci02, #1852, which made Review checkpo
 set for plan-run reviews) to the read at 2026-11-10T12:44:21Z. Rows merged after the read and
 before cf21 lands are before rows too: cf20 collects up to cf21's `merged_at`. Records:
 [phase-cf21-records.json](phase-cf21-records.json); eight collection passes of at most 100 calls
-(the first four stopped early on a `gh` error and were run again; cached reads are not repeated).
+(the first four stopped early on a `gh` error and were run again; cached reads are not repeated),
+then four passes (122 calls) that read every run list again under the settle rule above, with the
+same result.
 
 | Measure | Before (n = 59: 41 jev-svg-import, 18 cicd-followup) |
 | --- | --- |

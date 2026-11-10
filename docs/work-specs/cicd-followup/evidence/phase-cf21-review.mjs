@@ -54,7 +54,13 @@ function pages(path, key) {
     if (list.length < 100) return out;
   }
 }
-const settled = (runs) => runs.every((r) => r.status === 'completed');
+// A commit's run list is not immutable: runs appear late and failed ones are run again. It is read
+// again on every pass until it is non-empty, every run has completed and it was read at least
+// two days after the merge, the time in which a landing's runs are re-run.
+const SETTLE_MS = 2 * 86400000;
+const runsOf = (c, sha) => load(c, `runs-${sha}.json`)?.runs;
+const settled = (have, mergedAt) => Array.isArray(have?.runs) && have.runs.length > 0 && have.runs.every((r) => r.status === 'completed')
+  && Date.parse(have.fetched_at) - Date.parse(mergedAt) >= SETTLE_MS;
 
 function rowsFrom(c, from, until) {
   // Merged PRs into main, newest created first, until PRs created two weeks before the window.
@@ -91,9 +97,12 @@ function collect() {
       for (const sha of [p.head_sha, p.merge_sha]) {
         const file = `runs-${sha}.json`;
         const have = load(c, file);
-        if (!have || !settled(have)) save(c, file, pages(`repos/${REPO}/actions/runs?head_sha=${sha}`, 'workflow_runs').map((r) => ({ id: r.id, path: r.path, event: r.event, status: r.status, conclusion: r.conclusion, run_attempt: r.run_attempt, created_at: r.created_at })));
+        if (!settled(have, p.merged_at)) {
+          const fetchedAt = new Date().toISOString();
+          save(c, file, { fetched_at: fetchedAt, runs: pages(`repos/${REPO}/actions/runs?head_sha=${sha}`, 'workflow_runs').map((r) => ({ id: r.id, path: r.path, event: r.event, status: r.status, conclusion: r.conclusion, run_attempt: r.run_attempt, created_at: r.created_at })) });
+        }
       }
-      for (const r of load(c, `runs-${p.head_sha}.json`).filter((x) => x.path === CI && x.status === 'completed' && (x.event === 'pull_request' || x.event === 'workflow_dispatch'))) {
+      for (const r of runsOf(c, p.head_sha).filter((x) => x.path === CI && x.status === 'completed' && (x.event === 'pull_request' || x.event === 'workflow_dispatch'))) {
         const file = `jobs-${r.id}-${r.run_attempt}.json`;
         if (!load(c, file)) save(c, file, pages(`repos/${REPO}/actions/runs/${r.id}/jobs?filter=all`, 'jobs').map((j) => ({ name: j.name, conclusion: j.conclusion, run_attempt: j.run_attempt, started_at: j.started_at, completed_at: j.completed_at })));
       }
@@ -161,7 +170,7 @@ function derive() {
     // M1 from ready, cf03's definition (phase-cf03.md section 2, phase-cf03-baseline.mjs derive):
     // from the PR's last ready_for_review event (or its creation) to the first successful CI gate
     // job of the final head's ci.yml PR or dispatch runs, every attempt.
-    const headRuns = load(c, `runs-${p.head_sha}.json`).filter((r) => r.path === CI && (r.event === 'pull_request' || r.event === 'workflow_dispatch'));
+    const headRuns = runsOf(c, p.head_sha).filter((r) => r.path === CI && (r.event === 'pull_request' || r.event === 'workflow_dispatch'));
     const gate = headRuns.flatMap((r) => load(c, `jobs-${r.id}-${r.run_attempt}.json`) ?? [])
       .filter((j) => j.name === 'CI gate' && j.conclusion === 'success').map((j) => j.completed_at).sort()[0] ?? null;
     const ready = events.filter((e) => e.event === 'ready_for_review' && e.created_at <= p.merged_at).map((e) => e.created_at).sort().pop() ?? p.created_at;
@@ -182,7 +191,7 @@ function derive() {
 
     // Post-landing failures: a run on the merge commit from the push to main (or its deployment)
     // whose latest attempt failed, or that was run again.
-    const landRuns = (load(c, `runs-${p.merge_sha}.json`) ?? []).filter((r) => r.event === 'push' || r.event === 'deployment_status');
+    const landRuns = (runsOf(c, p.merge_sha) ?? []).filter((r) => r.event === 'push' || r.event === 'deployment_status');
     const landFailures = landRuns.filter((r) => ['failure', 'timed_out', 'startup_failure'].includes(r.conclusion) || r.run_attempt > 1)
       .map((r) => `${r.path.replace('.github/workflows/', '')} ${r.id} ${r.conclusion}${r.run_attempt > 1 ? ` attempt ${r.run_attempt}` : ''}`);
     const landPending = landRuns.filter((r) => r.status !== 'completed').length;
@@ -273,6 +282,8 @@ function spreadOf(rows, metric, landings) {
   return { whole: round1(whole), clean: round1(clean), clean_n: best.length, spread: round1(Math.max(whole, clean ?? 0)) };
 }
 function share(rows, test) { const hits = rows.filter(test).length; return { hits, n: rows.length, share: rows.length ? +(hits / rows.length).toFixed(2) : null }; }
+// Compares the exact rates; `share` is rounded for display only.
+const higher = (a, b) => a.n > 0 && b.n > 0 && a.hits * b.n > b.hits * a.n;
 function sideReport(rows) {
   return {
     n: rows.length,
@@ -317,7 +328,7 @@ function report() {
     // The guardrail: a rise in reverts or post-landing failures counts against the change.
     for (const k of ['reverted', 'post_landing_failure']) {
       const a = out.after[k]; const b = out.before[k];
-      claim[k] = { rise: a.share > b.share, p_higher_after: fisherGreater(a.hits, a.n, b.hits, b.n), counts_against_change: a.share > b.share };
+      claim[k] = { rise: higher(a, b), p_higher_after: fisherGreater(a.hits, a.n, b.hits, b.n), counts_against_change: higher(a, b) };
     }
     out.claims = claim;
   }
