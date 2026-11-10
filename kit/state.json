@@ -41,15 +41,18 @@
     "source": "df5767458230558e9fdee158e663e9367e58f8e3",
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
-  "waitingOn": {},
+  "waitingOn": {
+    "what": "The one focused V2 repair is complete. Fresh independent review rated the exact candidate B for both the repair and full V2. A changed Browser source can still go on air, and malformed Bridge replies can still authorize Load. V2 remains blocked pending a decision on safe source verification and authorization for further repair."
+  },
   "inFlight": [
     {
+      "session": "/root/v2_reply_repair",
       "step": "build",
+      "note": "Worker finished. Exact local 8397db754f9068719de38a6ab0f2449e2c0b8cde reviewed B, local check FAIL; draft outside queue.",
       "pr": 2293,
       "head": "6efb650efd1b5b244798a306c62981c1a3bd3641",
-      "session": "/root/v2_reply_repair",
       "phase": "v2",
-      "note": "Fresh read-only review of the exact V2 reply and scoped state Rules, then one focused repair in the existing draft."
+      "repairComment": 6723338187
     }
   ],
   "owner": [],
