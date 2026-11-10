@@ -90,6 +90,90 @@ test("vMix 29's own state XML reads as its version, edition, inputs by key and t
   assert.ok(parseVmixXml('<vmix><version>29.0.0.49</version><edition>Trial</edition><inputs /><overlays /></vmix>'));
 });
 
+const XML_INPUT_KEY = '913caefe-1c82-4548-85c5-fecde6369290';
+const XML_INPUT = `<input key="${XML_INPUT_KEY}" number="1" type="Browser" title="Browser marker">Input body</input>`;
+const XML_STATE = '<vmix><version>29.0.0.49</version><edition>Trial</edition>' +
+  `<inputs>${XML_INPUT}</inputs><overlays><overlay number="7" /><overlay number="8">1</overlay></overlays></vmix>`;
+
+test('vMix state requires well-formed XML throughout the entire frame', () => {
+  const invalid = {
+    'bare ampersand in input text': XML_STATE.replace('Input body', 'Input & body'),
+    'undefined entity in input text': XML_STATE.replace('Input body', 'Input &unknown;'),
+    'invalid input comment': XML_STATE.replace('Input body', '<!-- body -- comment -->'),
+    'invalid character in input text': XML_STATE.replace('Input body', 'Input\u0001body'),
+    'invalid text delimiter': XML_STATE.replace('Input body', 'Input ]]> body'),
+    'invalid reference in a nested layer': XML_STATE.replace('Input body', '<layer>&#xD800;</layer>'),
+    'undefined entity in an ignored section': XML_STATE.replace('</vmix>', '<audio>&unknown;</audio></vmix>'),
+    'invalid comment after the root': XML_STATE + '<!-- bad -- comment -->',
+    'unfinished tail after the root': XML_STATE + '<tail',
+    'second root': XML_STATE + '<vmix />',
+    'missing root close': XML_STATE.replace('</vmix>', ''),
+    'DTD': '<!DOCTYPE vmix [<!ELEMENT vmix ANY>]>' + XML_STATE,
+    'external DTD': '<!DOCTYPE vmix SYSTEM "urn:vmix-test:doctype">' + XML_STATE,
+    'other declared encoding': '<?xml version="1.0" encoding="UTF-16"?>' + XML_STATE,
+    'other XML version': '<?xml version="1.1"?>' + XML_STATE,
+    'unbound attribute prefix': XML_STATE.replace(' type=', ' type-prefix:label="extra" type='),
+    'malformed attribute prefix': XML_STATE.replace(' type=', ' :label="extra" type='),
+    'unbound element prefix in ignored data': XML_STATE.replace('Input body', '<extra:layer />'),
+    'invalid bound attribute local name': XML_STATE.replace('Input body', '<layer xmlns:m="urn:meta" m:1label="extra" />'),
+    'invalid bound element local name': XML_STATE.replace('Input body', '<m:1layer xmlns:m="urn:meta" />'),
+    'duplicate expanded attributes': XML_STATE.replace('Input body', '<layer xmlns:a="urn:meta" xmlns:b="urn:meta" a:n="1" b:n="2" />'),
+    'namespaced root': XML_STATE.replace('<vmix>', '<vmix xmlns="urn:meta">'),
+    'namespaced state table': XML_STATE.replace('<inputs>', '<inputs xmlns="urn:meta">'),
+    'namespaced input row': XML_STATE.replace('<input ', '<input xmlns="urn:meta" '),
+    'namespaced overlay row': XML_STATE.replace('<overlay number="7"', '<overlay xmlns="urn:meta" number="7"'),
+    'namespaced input key': XML_STATE.replace('<input key=', '<input xmlns:m="urn:meta" m:key='),
+    'namespaced overlay number': XML_STATE.replace('<overlay number="7"', '<overlay xmlns:m="urn:meta" m:number="7"'),
+    'duplicate input number': XML_STATE.replace(XML_INPUT, XML_INPUT + XML_INPUT.replace(XML_INPUT_KEY, 'a13caefe-1c82-4548-85c5-fecde6369290')),
+    'CDATA overlay occupant': XML_STATE.replace('>1</overlay>', '><![CDATA[1]]></overlay>'),
+    'comment in empty overlay': XML_STATE.replace('number="7" />', 'number="7"><!-- empty --></overlay>'),
+    'processing instruction in overlay occupant': XML_STATE.replace('>1</overlay>', '><?mixer field?>1</overlay>'),
+    'markup in version': XML_STATE.replace('29.0.0.49', '29.<!-- version -->0.0.49'),
+    'child in edition': XML_STATE.replace('Trial', '<name>Trial</name>'),
+    'excessive nesting': XML_STATE.replace('Input body', '<layer>'.repeat(128) + '</layer>'.repeat(128)),
+  };
+  for (const [description, xml] of Object.entries(invalid)) assert.equal(parseVmixXml(xml), undefined, description);
+});
+
+test('vMix state accepts real text and nested records without projecting lookalikes', () => {
+  const xml = parseVmixXml('\uFEFF<?xml version="1.0" encoding="UTF-8"?><!-- vMix -->' + XML_STATE
+    .replace('Browser marker', 'Mélange 🎬 &amp; &quot;screen&quot; &amp;lt;')
+    .replace('Input body', 'Input &amp; body<overlay index="1" /><m:entrée xmlns:m="urn:meta" m:title="Nested"><inputs><input /></inputs></m:entrée>')
+    .replace('</vmix>', '<metadata><overlays><overlay number="8" /></overlays><![CDATA[metadata]]></metadata></vmix>') + '<!-- done -->');
+  assert.deepEqual(xml?.inputs, [{ key: XML_INPUT_KEY, number: 1, type: 'Browser', title: 'Mélange 🎬 & "screen" &lt;' }]);
+  assert.deepEqual([...xml.reportedOverlays], [7, 8]);
+  assert.deepEqual([...xml.overlays], [[8, 1]]);
+});
+
+test('the compiled Bridge rejects malformed XML frame headers and invalid UTF-8', async () => {
+  const valid = Buffer.from(XML_STATE);
+  const invalid = Buffer.concat([Buffer.from(XML_STATE.replace('</vmix>', '<audio>')), Buffer.from([0xc3]), Buffer.from('</audio></vmix>')]);
+  let body = invalid;
+  let headerSuffix = '';
+  const fake = await startFakeVmix({
+    hook(line, socket) {
+      if (line !== 'XML') return false;
+      socket.write(`XML ${body.length}${headerSuffix}\r\n`);
+      socket.write(body);
+      return true;
+    },
+  });
+  try {
+    await withBridge(createVmixAdapter({ port: fake.port }), async post => {
+      const status = () => post('/status', { target: { adapter: 'vmix' } });
+      assert.equal((await status()).ok, false, 'invalid UTF-8 in ignored XML');
+      body = valid;
+      headerSuffix = ' extra';
+      assert.equal((await status()).ok, false, 'extra word in the XML success header');
+      headerSuffix = '';
+      assert.equal((await status()).vmix.version, '29.0.0.49');
+      assert.deepEqual(fake.functions, []);
+    });
+  } finally {
+    await fake.stop();
+  }
+});
+
 test('the overlay channels a vMix offers come from its version and edition, not the XML', () => {
   assert.equal(vmixOverlayCount('29.0.0.49', 'Trial'), 8);
   assert.equal(vmixOverlayCount('29.0.0.49', '4K'), 8);
@@ -600,6 +684,34 @@ for (const [fault, corrupt] of [
     }
   });
 }
+
+test('AC-4: malformed XML after a valid marked observation leaves no durable ownership', async () => {
+  const folder = await mkdtemp(join(tmpdir(), 'noacg-vmix-xml-'));
+  const file = join(folder, 'vmix-outputs.json');
+  let observations = 0;
+  const fake = await startFakeVmix({
+    transformXml(xml) {
+      if (!fake.functions.some(fn => fn.name === 'AddInput')) return xml;
+      observations += 1;
+      return observations === 1 ? xml : xml + '<!-- bad -- trailing comment -->';
+    },
+  });
+  try {
+    await withBridge(createVmixAdapter({ port: fake.port, outputs: vmixOutputStore(file) }), async (post, base) => {
+      const result = await act(post, { verb: 'take', item, slot: slot() });
+      assert.equal(result.error?.code, 'uncertain', JSON.stringify(result));
+      assert.equal(observations, 2);
+      assert.deepEqual(fake.functions.map(fn => fn.name), ['AddInput']);
+      assert.equal(fake.onChannel(8), undefined);
+      await assert.rejects(readFile(file), { code: 'ENOENT' });
+      const alias = addedUrl(fake.lines.find(line => line.startsWith('FUNCTION AddInput ')));
+      assert.equal((await aliasRequest(base, alias)).status, 403);
+    });
+  } finally {
+    await fake.stop();
+    await rm(folder, { recursive: true, force: true });
+  }
+});
 
 test('AC-4: incomplete Out readback cannot authorize a rename', async () => {
   let afterOut = false;

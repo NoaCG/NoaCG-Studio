@@ -57,6 +57,8 @@
     "@modelcontextprotocol/sdk": "1.32.0",
     "jszip": "3.10.1",
     "playwright-core": "1.61.1",
+    "saxes": "6.0.0",
+    "xmlchars": "2.2.0",
     "zod": "4.6.6"
   },
   "devDependencies": {

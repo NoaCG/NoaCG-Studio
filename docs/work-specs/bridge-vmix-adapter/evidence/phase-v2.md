@@ -480,6 +480,55 @@ still has the known failures.
   Bridge must pass the applicable preset cases on an owned blank vMix process.
   The Bridge version, deadlines, CasparCG and CI policy are outside this repair.
 
+The fresh Rules review agreed with corrections. A successful frame starts with
+the exact `XML <bytes>` header and keeps the 16 MiB limit. Decode UTF-8 without
+replacement. Accept one optional leading UTF-8 BOM and an optional XML 1.0
+declaration with a compatible encoding. Require plain character text in version,
+edition and overlay occupancy. Children, comments, CDATA and processing
+instructions cannot stand for scalar values. Reject unexpected direct input
+and overlay rows. Nested metadata can use namespaces and is checked through
+the end of the reply. Bound nesting at 128 elements to keep namespace lookup
+bounded inside the existing byte and action limits. The compiled fake must
+exercise a valid marked observation followed by a malformed reply and observe
+only AddInput, no key or redirect, and an empty overlay.
+
+### Strict parsing verification
+
+The parser comparison tested Saxes 6.0.0, sax 1.6.1, xmldom 0.9.12,
+parse-xml 5.1.0 and saxen 11.2.0 with the same malformed documents. Saxes
+with namespace checks and DTDs refused was the only one to reject every
+earlier failure in that comparison. Its source repository is archived. The
+package is small, uses no native modules, and does not resolve external
+entities. The active libxml2-wasm wrapper uses an ES module with top-level
+await, which does not fit the Bridge's current CommonJS executable build.
+The [Saxes source](https://github.com/lddubeau/saxes) and [npm package](https://www.npmjs.com/package/saxes/v/6.0.0)
+document the behavior and the pin.
+
+A probe also found that Saxes accepts a qualified name whose local part starts
+with a digit. The Bridge uses the parser's `xmlchars` dependency to check the
+initial character of parsed names and rejects whitespace that Saxes would trim
+from a namespace declaration. An isolated comparison against the XML conformance
+test data refused all 1,017 selected cases marked not well-formed. The compiled
+tests exercise these checks in ignored content as well as in vMix state.
+
+The new fake reproduced the failure on the prior compiled Bridge. After a valid
+observation, a malformed comment after the root still led to Overlay In. With
+strict parsing the same fake returned uncertain, sent only AddInput, left the
+overlay empty and wrote no ownership file. The raw TCP test also refused invalid
+UTF-8 and an extra word on the XML success header. The genuine vMix 29 fixture,
+a nested input layer with Unicode metadata, and the existing vMix and CasparCG
+cases passed. The focused compiled Bridge run passed 94 tests.
+
+Windows Bridge 0.11.0, SHA-256
+`56c5beed4707bf8cafd0193b11e2cc3c0ed126d0d772d7f21ca9c04aad6163eb`,
+passed `/health` and four owned vMix 29.0.0.49 Trial preset checks. The listener
+on 48833 restored the original composite. Late startup stayed on the plate
+until an explicit Browser Reload restored the same composite. The listener on
+48834 refused Load and unloaded the owned input. Program and Preview selections
+stayed fixed. Both vMix configuration files were restored and hash-verified
+after every stage. The vMix service stayed running. The local logs and captures
+are under `C:/claude/Temp/vmix-xml-parser-probes-1110/packaged-preset`.
+
 ### Changed files
 
 - Studio request and control code in `src/control/playoutLink.ts`, `vmixSetup.ts`,

@@ -18,8 +18,10 @@
 // closes the connection - the next reply could no longer be told from this one's - and the next
 // request opens a new one. Nothing is ever sent twice.
 
+import { isUtf8 } from 'node:buffer';
 import { connect, type Socket } from 'node:net';
-import { decode } from './info.js';
+import { SaxesParser } from 'saxes';
+import { isNCNameStartChar } from 'xmlchars/xmlns/1.0/ed3.js';
 import { MAX_VMIX_OVERLAYS, VMIX_INPUT_KEY, type VmixInput } from './protocol.js';
 
 /** vMix's TCP API port, documented and fixed unless somebody changed vMix's own setting. */
@@ -141,7 +143,7 @@ export class VmixConnection {
         this.buf = this.buf.subarray(n);
         if (body.got < body.data.length) return;
         this.body = undefined;
-        this.finish({ ok: true, status: body.status, line: body.line, body: body.data.toString('utf8') });
+        this.finish({ ok: true, status: body.status, line: body.line, body: isUtf8(body.data) ? body.data.toString('utf8') : undefined });
         continue;
       }
       const nl = this.buf.indexOf(0x0a);
@@ -165,14 +167,23 @@ export class VmixConnection {
       // Only the waiting command's own word answers it: a subscription's `ACTS OK …` lines are no
       // reply to anything (the overlay-press reader takes them).
       if (!this.pending || word !== this.pending.word) continue;
-      if (word === 'XML' && /^\d+$/.test(status)) {
-        const length = Number(status);
-        if (length > MAX_XML_BYTES) {
+      if (word === 'XML') {
+        const size = /^XML (\d+)$/.exec(line)?.[1];
+        if (size !== undefined) {
+          const length = Number(size);
+          if (length > MAX_XML_BYTES) {
+            s.destroy();
+            return;
+          }
+          this.body = { line, status, data: Buffer.allocUnsafe(length), got: 0 };
+          continue;
+        }
+        if (status !== 'ER') {
+          // A malformed header may be followed by a body we can no longer frame.
+          this.finish({ ok: true, status, line });
           s.destroy();
           return;
         }
-        this.body = { line, status, data: Buffer.allocUnsafe(length), got: 0 };
-        continue;
       }
       this.finish({ ok: true, status, line });
     }
@@ -231,128 +242,122 @@ export interface VmixXml {
   reportedOverlays: Set<number>;
 }
 
+const MAX_XML_DEPTH = 128;
+const STATE_SECTIONS = new Set(['version', 'edition', 'inputs', 'overlays']);
 const XML_SPACE = /^[ \t\r\n]*$/;
 const trimXml = (text: string) => text.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, '');
+const unqualified = ({ prefix, uri }: { prefix: string; uri: string }) => prefix === '' && uri === '';
 
-/** Keep only state sections directly under <vmix>. A nested lookalike is not mixer state. */
-function rootSections(xml: string) {
-  const names = new Set(['version', 'edition', 'inputs', 'overlays']);
-  const sections = new Map<string, string>();
-  const inputRows: Record<string, string>[] = [];
-  const overlayRows: { attributes: Record<string, string>; content: string }[] = [];
-  const stack: { name: string; attributes: Record<string, string>; start: number }[] = [];
-  let root = false;
-  let previous = 0;
-  const tags = /<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<(\/?)([A-Za-z_:][\w.:-]*)((?:[^<>"']|"[^"]*"|'[^']*')*)>/g;
-  for (const tag of xml.matchAll(tags)) {
-    const index = tag.index;
-    const inInputs = stack.length === 2 && stack[1].name === 'inputs';
-    const inOverlays = stack.length === 2 && stack[1].name === 'overlays';
-    const inOverlay = stack.length === 3 && stack[1].name === 'overlays';
-    const onlySpace = stack.length <= 1 || inInputs || inOverlays;
-    const gap = xml.slice(previous, index);
-    if (gap.includes('<') || (onlySpace && !XML_SPACE.test(gap))) return;
-    previous = index + tag[0].length;
-    const [, close, name, rest] = tag;
-    if (!name) {
-      if (!root || inOverlays || inOverlay || (onlySpace && tag[0].startsWith('<![CDATA['))) return;
-      continue;
-    }
-    if (close) {
-      const opening = stack.pop();
-      if (opening?.name !== name || !XML_SPACE.test(rest)) return;
-      if (inOverlay) overlayRows.push({ attributes: opening.attributes, content: xml.slice(opening.start, index) });
-      if (stack.length === 1 && names.has(name)) sections.set(name, xml.slice(opening.start, index));
-      continue;
-    }
-    if (inOverlay) return;
-    // The scanner stops at > outside quotes. Only a slash immediately before it closes the tag.
-    const empty = rest.endsWith('/');
-    const attributes = readAttributes(empty ? rest.slice(0, -1) : rest);
-    if (!attributes) return;
-    if (!stack.length) {
-      if (root || name !== 'vmix' || empty || Object.keys(attributes).length) return;
-      root = true;
-    }
-    if (inInputs) {
-      if (name !== 'input') return;
-      inputRows.push(attributes);
-    }
-    if (inOverlays) {
-      if (name !== 'overlay') return;
-      if (empty) overlayRows.push({ attributes, content: '' });
-    }
-    if (stack.length === 1 && names.has(name)) {
-      if (sections.has(name) || Object.keys(attributes).length) return;
-      if (empty) sections.set(name, '');
-    }
-    if (!empty) stack.push({ name, attributes, start: previous });
-  }
-  if (root && !stack.length && XML_SPACE.test(xml.slice(previous))) return { sections, inputRows, overlayRows };
+function positiveInteger(value: string | undefined): number | undefined {
+  if (value === undefined || !/^[1-9]\d*$/.test(value)) return;
+  const number = Number(value);
+  if (Number.isSafeInteger(number)) return number;
 }
 
-/** Decode only valid XML text. The generic decoder also serves CasparCG. */
-function vmixText(text: string): string | undefined {
-  if (text.includes('<') || /&(?!amp;|lt;|gt;|quot;|apos;|#(?:\d+|x[0-9a-fA-F]+);)/.test(text)) return;
-  for (const [, entity] of text.matchAll(/&#(x[0-9a-fA-F]+|\d+);/g)) {
-    if (Number(entity.startsWith('x') ? '0' + entity : entity) > 0x10ffff) return;
-  }
-  const decoded = decode(text);
-  if (!/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uD800-\uDFFF\uFFFE\uFFFF]/u.test(decoded)) return decoded;
-}
-
-function readAttributes(tail: string): Record<string, string> | undefined {
-  const attribute = /[ \t\r\n]+([A-Za-z_:][\w.:-]*)[ \t\r\n]*=[ \t\r\n]*(?:"([^"]*)"|'([^']*)')/y;
-  const out: Record<string, string> = Object.create(null);
-  let end = 0;
-  for (let match = attribute.exec(tail); match; match = attribute.exec(tail)) {
-    const [, name, doubleQuoted, singleQuoted] = match;
-    const value = vmixText(doubleQuoted ?? singleQuoted);
-    if (value === undefined || Object.hasOwn(out, name)) return;
-    out[name] = value;
-    end = attribute.lastIndex;
-  }
-  if (XML_SPACE.test(tail.slice(end))) return out;
-}
-
-/** vMix's state XML, or nothing when it is not one. Only `<input>` elements directly in `<inputs>`
- *  and `<overlay number>` elements in `<overlays>` count: an input's own layers are `<overlay
- *  index>` elements inside it. */
+/** Validate the whole document, including content the Bridge does not use. Only direct vMix
+ *  state elements count: an input's own layers are nested <overlay index> elements. */
 export function parseVmixXml(xml: string): VmixXml | undefined {
-  const parsed = rootSections(xml);
-  if (!parsed) return;
-  const { sections, inputRows, overlayRows } = parsed;
-  const version = trimXml(sections.get('version') ?? '');
-  if (!/^\d+\.\d+\.\d+\.\d+$/.test(version) || !sections.has('inputs') || !sections.has('overlays')) return;
-  const edition = vmixText(sections.get('edition') ?? '')?.trim();
-  if (!edition) return;
-  const inputs: VmixInput[] = [];
+  const parser = new SaxesParser({ xmlns: true });
+  const seen = new Set<string>();
   const keys = new Set<string>();
   const numbers = new Set<number>();
-  for (const a of inputRows) {
-    const key = a.key?.toLowerCase();
-    const number = Number(a.number);
-    if (!key || !VMIX_INPUT_KEY.test(key) || !/^[1-9]\d*$/.test(a.number ?? '') || !Number.isSafeInteger(number) ||
-      !a.type?.trim() || a.title === undefined || keys.has(key) || numbers.has(number)) return;
-    keys.add(key);
-    numbers.add(number);
-    inputs.push({ key, number, title: a.title, type: a.type });
-  }
+  const inputs: VmixInput[] = [];
   const overlays = new Map<number, number>();
   const reportedOverlays = new Set<number>();
-  for (const { attributes, content } of overlayRows) {
-    const { number } = attributes;
-    const occupant = trimXml(content);
-    if (Object.keys(attributes).length !== 1 || !/^[1-9]\d*$/.test(number ?? '') ||
-      (occupant && !/^[1-9]\d*$/.test(occupant))) return;
-    const channel = Number(number);
-    const input = occupant ? Number(occupant) : undefined;
-    if (!Number.isSafeInteger(channel) || reportedOverlays.has(channel)) return;
-    if (input !== undefined && !Number.isSafeInteger(input)) return;
-    // An explicit empty channel is distinct from one vMix omitted.
-    reportedOverlays.add(channel);
-    if (input !== undefined) overlays.set(channel, input);
+  let depth = 0;
+  let section: string | undefined;
+  let scalar: string | undefined;
+  let channel: number | undefined;
+  let version = '';
+  let edition = '';
+
+  const invalid = (): never => { throw new Error('Invalid vMix state XML.'); };
+  parser.on('doctype', invalid);
+  parser.on('xmldecl', ({ version, encoding }) => {
+    if (version !== '1.0' || (encoding !== undefined && encoding.toLowerCase() !== 'utf-8')) invalid();
+  });
+  parser.on('opentagstart', () => {
+    // Namespace lookup in Saxes walks the ancestors. Bound it even in ignored data.
+    if (scalar !== undefined || depth >= MAX_XML_DEPTH) invalid();
+  });
+  parser.on('attribute', ({ name, prefix, local, value }) => {
+    // Saxes 6 checks for misplaced colons, but accepts a QName local part starting with a digit.
+    if (!isNCNameStartChar(local.codePointAt(0) ?? -1)) invalid();
+    // Saxes trims declarations when resolving names. Don't let whitespace change a namespace.
+    if ((prefix === 'xmlns' || name === 'xmlns') && (/[ \t\r\n]/.test(value) || value !== value.trim())) invalid();
+  });
+  parser.on('opentag', tag => {
+    if (!isNCNameStartChar(tag.local.codePointAt(0) ?? -1)) invalid();
+    depth += 1;
+    if (depth === 1) {
+      if (tag.local !== 'vmix' || !unqualified(tag) || Object.keys(tag.attributes).length) invalid();
+    } else if (depth === 2 && STATE_SECTIONS.has(tag.local)) {
+      section = tag.local;
+      if (!unqualified(tag) || Object.keys(tag.attributes).length || seen.has(section)) invalid();
+      seen.add(section);
+      if (section === 'version' || section === 'edition') scalar = '';
+    } else if (depth === 3 && section === 'inputs') {
+      if (tag.local !== 'input' || !unqualified(tag)) invalid();
+      const attribute = (name: string) => {
+        const a = tag.attributes[name];
+        return a && unqualified(a) ? a.value : undefined;
+      };
+      const key = attribute('key')?.toLowerCase();
+      const number = positiveInteger(attribute('number'));
+      const title = attribute('title');
+      const type = attribute('type');
+      if (!key || !VMIX_INPUT_KEY.test(key) || number === undefined || title === undefined || !type?.trim() ||
+        keys.has(key) || numbers.has(number)) return invalid();
+      keys.add(key);
+      numbers.add(number);
+      inputs.push({ key, number, title, type });
+    } else if (depth === 3 && section === 'overlays') {
+      const number = tag.attributes.number;
+      channel = number && unqualified(number) ? positiveInteger(number.value) : undefined;
+      if (tag.local !== 'overlay' || !unqualified(tag) || Object.keys(tag.attributes).length !== 1 ||
+        channel === undefined || reportedOverlays.has(channel)) invalid();
+      scalar = '';
+    }
+  });
+  parser.on('text', text => {
+    if (scalar !== undefined) scalar += text;
+    else if ((depth === 1 || (depth === 2 && section !== undefined)) && !XML_SPACE.test(text)) invalid();
+  });
+  const noMarkup = () => {
+    if (scalar !== undefined || (depth === 2 && section === 'overlays')) invalid();
+  };
+  parser.on('comment', noMarkup);
+  parser.on('processinginstruction', noMarkup);
+  parser.on('cdata', () => {
+    noMarkup();
+    if (depth <= 1 || (depth === 2 && section === 'inputs')) invalid();
+  });
+  parser.on('closetag', () => {
+    if (scalar !== undefined) {
+      if (channel !== undefined) {
+        const occupant = trimXml(scalar);
+        if (occupant) {
+          const input = positiveInteger(occupant);
+          if (input === undefined) return invalid();
+          overlays.set(channel, input);
+        }
+        // An explicit empty channel is distinct from one vMix omitted.
+        reportedOverlays.add(channel);
+        channel = undefined;
+      } else if (section === 'version') version = trimXml(scalar);
+      else edition = scalar.trim();
+      scalar = undefined;
+    }
+    if (depth === 2) section = undefined;
+    depth -= 1;
+  });
+
+  try {
+    parser.write(xml).close();
+  } catch {
+    return;
   }
+  if (!/^\d+\.\d+\.\d+\.\d+$/.test(version) || !edition || !seen.has('inputs') || !seen.has('overlays')) return;
   return { version, edition, inputs, overlays, reportedOverlays };
 }
 
