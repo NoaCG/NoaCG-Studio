@@ -34,8 +34,22 @@
   "open": "wake delivery during a usage-limit stop (interaction run 2026-11-09: check-ins did not run during an ~8h weekly-limit stop)",
   "waveResume": "plan-run-preflight coordinator --wave passed 2026-11-10T18:48:26Z after block 1 opened"
  },
- "waitingOn": [],
- "inFlight": [],
+ "waitingOn": [
+  {
+   "what": "phase 1 builder receipt (PR with gates green)",
+   "eta": "2026-11-10T21:30:00Z"
+  }
+ ],
+ "inFlight": [
+  {
+   "phase": "1",
+   "step": "build",
+   "actor": "builder-1-1-b-fadf",
+   "session": "session_017SdbwNnPuYSroBErFxfAH2",
+   "branch": "claude/plan-live-publishing-1-build",
+   "launchedAt": "2026-11-10T18:49:22Z"
+  }
+ ],
  "owner": [
   {
    "what": "Phase 9: the final check in the studio, CasparCG 2.5 and 2.3 with a browser output, with the checklist phase 8 prepares",
