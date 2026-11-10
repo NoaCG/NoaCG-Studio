@@ -265,7 +265,7 @@ test('the audience and presenter links are offered separately, and only once the
 
 test('the panel holds the browser source in one row, and Links… holds one row per capability, with no explanations', async ({ page }) => {
   // Owner report 2026-08-18: the panel had grown into a page. Five always-open paragraphs sat
-  // between five rows, so the CONTROL PAGE - the link a class actually operates from - was
+  // between five rows, so the people links sat
   // below an explanation of an SPX file most of them never download. The redesign
   // (playout-workflow-simplification AC-3, AC-8, AC-10, D6, D7) goes further: the explanations
   // and their ▸ toggles are gone, the output is one row of the Playout panel with the template
@@ -305,7 +305,7 @@ test('the panel holds the browser source in one row, and Links… holds one row 
   await page.getByTestId('production-setup').click();
   await page.getByTestId('setup-links').click();
   const links = page.getByTestId('production-links');
-  await expect(links.locator('.dlg-row')).toHaveCount(3);
+  await expect(links.locator('.dlg-row')).toHaveCount(2);
   await expect(links.getByTestId('output-url')).toHaveCount(0);
   await expect(links.locator('p')).toHaveCount(0);
   // The audience link's row points to Interaction, where everything audience lives
