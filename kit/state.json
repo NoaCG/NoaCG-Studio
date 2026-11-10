@@ -45,11 +45,12 @@
   "inFlight": [
     {
       "session": "/root/v2_xml_replacement",
-      "step": "strict XML replacement",
-      "head": "b3bf2f2262142e71e30b8870a12238c4fa442aee",
+      "head": "3bda7063405c8862586cab12c5578e2f2f38cf91",
+      "pr": 2293,
+      "note": "Draft pre-code XML rules checkpoint. Earlier failures retained. Fresh rules review before implementation.",
+      "repairComment": 6723338187,
       "phase": "v2",
-      "note": "Fresh replacement worker acknowledged. Original four XML attempts retained; strict parser replacement is explicitly authorized.",
-      "pr": 2293
+      "step": "build"
     }
   ],
   "owner": [],
