@@ -34,7 +34,7 @@ authoring tab on one device per account remains the acceptance boundary.
 | j-5002 native retry | Cancelled before start | The coordinator qualified an alternate native controller. The fresh queued browser did not reach the existing 3.5 GB scheduler floor. No zoom, picker, drop, native save/reopen or native download was observed. |
 | j-5003 close flags and key clipboard probes | Cancelled before start | Two focused browser probes were ready. The same scheduler floor held them. No current rendered failure or fix is claimed. |
 | Targeted lint, TypeScript and affected gates | PASS | ESLint on the font alias fix/regression, TypeScript app check, 7 cheap gates and 128 Node tests across 8 affected files. No production build or full suite run locally. |
-| Isolated Windows backend/account | Unavailable at worker intake | No Docker/Podman executable or running local stack identified; October's disposable branch was cleaned up. The Windows browser fixtures use offline local storage. A fresh admitted isolated backend and account receipt is still required for W. |
+| Isolated Windows backend/account | Unavailable at worker intake | No Docker/Podman executable or running local stack identified; October's disposable branch was cleaned up. `j-5047` later exercised the authorized sign-in simulation. It used isolated fixtures rather than an account or a live backend. |
 
 ### November 10 Windows file checks
 
@@ -75,9 +75,9 @@ entrance cue of `e2e/fixtures/steps-authoring.json`, from `inset(100%)` to
 `inset(0%)`. The emitted source parsed the string keys. Add Step at 0.40 s
 and Set Out at 1.20 s each refused to split the crossed track and left the
 serialized template identical. This preserves the existing exactness policy
-for unsupported interpolation. Browser controls and history still need their
-own observation. The targeted Node suites for step authoring, easing and full
-transforms passed 41 tests.
+for unsupported interpolation. Windows `j-5059` verified the same refusal from
+both editor controls with the full document and history unchanged. The
+targeted Node suites for step authoring, easing and full transforms passed 41 tests.
 
 Commit `f589ae0f6` resolves a computed CSS family's template-local alias only when
 the matching font-face declarations consistently point to one bundled face.
@@ -209,6 +209,119 @@ import/export. The original and exported bounding boxes have y=24 and
 y=20.75 respectively, with equal x, width and height. That is an observed
 shift even though the existing fidelity spec passes.
 
+### Rotated text plate measurement
+
+The imported headline belongs to the plate drawn around it. On the nested
+Illustrator fixture the wizard should offer its existing alignment controls
+while preserving the fit and centering defaults. The full-frame backplate
+threshold remains 70% of the SVG frame. Use the area of the rectangle after
+its transform so a rotation does not turn a foreground plate into a
+full-frame backplate. Unrelated grouping, fitting and exported defaults stay
+as before. A true full-frame background still offers no field alignment.
+
+Windows `j-5058` measured the existing fixture through the live Fields step.
+It first associated text `t0` with plate `s1`, then dropped the association
+because its screen-aligned box covers 75.3299% of the frame. The transformed
+rectangle covers 34.5679%. The plate's local measurement agreed with the
+runtime. The text starts 3.25 units below the center of its band and moves
+3.25 units up under the [owner's center-snap rule](../../TEXT_BOX_BINDING.md#1-a-centred-block-snaps-on-both-axes).
+At 22 px its drawn offset is below the existing 5.5 px offer threshold, so
+the existing Keep position control stays absent for this fixture.
+
+`j-5059` reproduced the missing alignment grid with the maintained fixture
+regression before the correction. The same run's separate clip-path UI case
+passed. Its overall exit was 1 because the alignment regression reproduced.
+
+### Comparable Windows timeline task
+
+Windows `j-5056` ran Studio v0.17 standalone at release source
+`a1e9776120fa19d9f3f9d40ab4b10ae1be034347`. Its published Windows executable
+SHA256 was `88836062eab024aac85e5f71400bcf2e198ca09f12447fe4c52ebc1e7473cebd`.
+The relevant `apps/editor/src/panels/TimelinePanel.tsx` blob
+`c6057bc432e33234ad94709f0dc28e8ea0f76bcc` matches the reference pin
+`3142fc7d02934494931eb14e7dc255393e4110d0`. The local reference process served
+an isolated disposable workspace and was closed at the end of the check.
+
+Studio starts a rectangle with keys at frames 0, 12 and 24. The first attempt
+`j-5055` incorrectly expected one key and stopped before the interaction.
+The corrected run added one at frame 1, selected it, advanced to frame 2 and
+pressed Ctrl+C and Ctrl+V across those two positions. The key list stayed
+at 0, 1, 12 and 24. Alt+Right moved the selected key from frame 1 to 2.
+The corresponding NoaCG timeline case adds a new key at the paste time
+and leaves the source key at its own time. Studio's result is scoped to
+this layer-key workflow and shortcut path. The screenshots were captured
+in headless Windows Chromium at CSS viewport sizes. Studio shows the key at
+frame 2 on its ruler and in the key inspector, with the other three keys
+intact. The capture SHA256 is
+`402e5359281247a707734c8a523e27b8577af84f4bc3bd1efcddad8e6525290c`.
+
+### Maintained authoring observations
+
+Windows `j-5057` logged 20 passing browser cases on `24439f46f`, including
+catalog entry, exact Illustrator group/ungroup, the existing static anchor
+rules, image creation/replacement, Pen point and tangent editing, asset bin
+transactions, and reopening and executing the catalog and artwork exports.
+The scheduler reaped the job as dead without capturing an exit code, so it
+has a failed scheduler verdict even though Playwright recorded all cases
+as passed. The image files entered through browser automation, while native
+Windows SVG picker, Explorer drop and SPX download have their own earlier receipt.
+In `j-5060` the owner dragged `public/noacg-mark-512.png` from Windows File
+Explorer onto the isolated editor canvas on exact `24439f46f8a585c79ad9bc9458d8e01aca5d89de`.
+The owner observed both the rendered logo and the new image layer. The fixture
+SHA256 is `f690e10b37a7b7499dd0b8eda9562b3664cac39e8e90c89c48e4916e9c34a304`.
+The coordinator cancelled the native session after observing the result at
+20:15:17Z and confirmed the local server closed. The native result is raster
+placement. The asset replacement and persistence checks above are separate.
+The affected local gates passed 341 tests across 24 files on the timeline
+changes. The wider browser plan selects 152 offline and 70 configured specs
+for GitHub Actions. The standalone protection gate could not create its
+base-worktree `node_modules` symlink on Windows (`EPERM`).
+
+### Animated anchor rules for review
+
+The existing static anchor is the base pivot for Rotation and Scale. Typing
+X or Y, Center anchor and the canvas tool move the pivot in layer pixels
+without writing Position. On a rotated or scaled layer the artwork moves
+according to the new pivot. This is the October 1 owner rule and applies
+with or without keyed anchors.
+
+- A supported layer has one definite editable transform owner and a rendered
+  pivot that matches its source. On such a layer each anchor axis can be
+  armed. Enabling at the playhead writes one key with the current displayed
+  value and leaves the first rendered pose unchanged. Typing keys only its
+  armed axis at the inspected cue/time. Center and canvas edits follow the
+  same axis rules and commit the pair as one undoable change. An unarmed
+  axis remains a base edit. Disabling or removing its last key retains the
+  inspected value, with one undo restoring the previous source.
+- The pivot uses the layer's box units. Numeric fields and the canvas
+  marker agree in scaled or rotated parents. Key interpolation uses the
+  existing cue and key-side rules. Forward, backward, held, departing and
+  Out poses agree between preview, reopen and the emitted HTML, SPX,
+  CasparCG and OGraf outputs. Motion on the other axis, Position, Rotation,
+  Scale, assets and fields stays authored as before. Legacy unkeyed
+  documents retain their existing behavior and source.
+- First qualify a rotated and scaled HTML box and an imported SVG group
+  whose pivot is already owned by the editor. Qualify an ordinary nested
+  SVG member separately before enabling editing there. The first keyed
+  write must preserve its existing SVG transform, parent mapping and pose
+  at the same pivot. Ambiguous targets, another source owner, raw or
+  design-driven transforms, singular frames, or any SVG fold that cannot
+  preserve that pose show a reason beside the control. A refusal, cancelled
+  drag or stale revision changes neither source, history nor selected layer.
+- The controls operate on the active authoring cue, including explicitly
+  inspected Out. Preview and rehearsal do not write. Source changes are
+  confined to the owned anchor tracks and the required base pivot values.
+  Existing opaque or unsupported runtime/source refuses before a write.
+
+In `j-5057`, the rotated/scaled rectangle and animated Frosted Panel had
+working static controls. The nested SVG member displayed the existing pivot
+refusal. In `j-5058`, direct GSAP `transformOrigin` jumped to the final HTML
+pivot at the first sample. A CSS-variable pivot interpolated 100/50 to
+140/70 to 180/90 and returned exactly to the midpoint when seeking backward.
+Applying the direct SVG route to its original pivot changed the rotated SVG
+member's first painted bounds from x=12.593, y=250.237 to x=−8.698, y=268.718.
+These are primitive measurements in isolated Chromium. They establish the
+regression target and the requirement to prove SVG mapping separately.
 
 ## Checkpoint
 
