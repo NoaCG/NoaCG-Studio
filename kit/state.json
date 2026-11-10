@@ -44,13 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "pr": 2293,
-      "repairComment": 6723338187,
-      "head": "3bda7063405c8862586cab12c5578e2f2f38cf91",
       "phase": "v2",
+      "pr": 2293,
+      "note": "One focused V2 repair resumed with a fresh local builder. Prior exact review and repair history retained. Draft remains outside queue.",
       "step": "build",
-      "note": "Fresh read-only reassessment of the remaining V2 reply validation and input identity findings before a single focused repair on the same PR.",
-      "session": "/root/v2_xml_replacement"
+      "session": "/root/v2_reply_repair",
+      "head": "3bda7063405c8862586cab12c5578e2f2f38cf91"
     }
   ],
   "owner": [],
