@@ -114,7 +114,8 @@ export interface NeutralFieldSpec {
 }
 export type ScaffoldRequest =
   | { type: string; design?: string; name?: string; values?: Record<string, string>; style?: ScaffoldStyle }
-  | { fields: NeutralFieldSpec[]; name?: string; style?: ScaffoldStyle };
+  | { fields: NeutralFieldSpec[]; name?: string; style?: ScaffoldStyle }
+  | { svg: string; name?: string; style?: ScaffoldStyle };
 export interface ScaffoldResult {
   template: SpxTemplate;
   notes: string[];

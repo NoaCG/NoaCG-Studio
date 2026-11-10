@@ -3,6 +3,7 @@
 // typeless graphic with exactly the fields you declare. One option among three, never the rule -
 // an agent may author from scratch against the contract instead.
 
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { BridgeClient, type NeutralFieldSpec, type ScaffoldRequest, type ScaffoldStyle } from '../bridgeClient.js';
 import { EXIT_OK, flagList, flagNumber, flagString, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
@@ -30,6 +31,15 @@ export function parseFieldList(spec: string): NeutralFieldSpec[] {
       }
       return { label, kind, ...(raw !== undefined ? { value: raw } : {}) };
     });
+}
+
+/** The artwork file's text; a file that cannot be read is a usage error, not a crash. */
+function readSvg(file: string): string {
+  try {
+    return readFileSync(file, 'utf8');
+  } catch {
+    throw new UsageError(`--svg: cannot read ${file}.`);
+  }
 }
 
 function styleFrom(args: ParsedArgs): ScaffoldStyle | undefined {
@@ -63,9 +73,13 @@ export function scaffoldRequestFrom(args: ParsedArgs): ScaffoldRequest {
   const style = styleFrom(args);
   const fields = flagString(args, 'fields');
   const type = flagString(args, 'type');
-  if (fields && type) throw new UsageError('Use either --type (a registered graphic type) or --fields (a typeless graphic), not both.');
+  const svg = flagString(args, 'svg');
+  if ([fields, type, svg].filter(Boolean).length > 1) {
+    throw new UsageError('Use one of --type (a registered graphic type), --fields (a typeless graphic) or --svg (your own artwork).');
+  }
+  if (svg) return { svg: readSvg(svg), ...(name ? { name } : {}), ...(style ? { style } : {}) };
   if (fields) return { fields: parseFieldList(fields), ...(name ? { name } : {}), ...(style ? { style } : {}) };
-  if (!type) throw new UsageError('scaffold needs --type <id> (see `noacg types`) or --fields "Label:kind[=value],...".');
+  if (!type) throw new UsageError('scaffold needs --type <id> (see `noacg types`), --fields "Label:kind[=value],..." or --svg <file.svg>.');
   const values: Record<string, string> = {};
   for (const kv of flagList(args, 'set')) {
     const eq = kv.indexOf('=');

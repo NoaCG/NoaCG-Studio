@@ -805,85 +805,94 @@ test('an imported SVG with a layer named QR draws its Join link as a code that d
 });
 
 // HOME-MADE RESULT ARTWORK (interaction spec, AC-13): bars drawn at full length, named the way
-// docs/SVG_AUTHORING.md teaches, import as a live vote whose Question, Options and Vote count
-// fields carry the round, and each bar is drawn at its share of the drawn length.
-test('an imported SVG vote board draws each bar at its share within one pixel', async ({ page }) => {
-  await phonePage(page);
-  await page.setViewportSize({ width: 1920, height: 1080 });
-  // Outside every sample set: four rows of bars across, 600 units at full length.
-  const options = [1, 2, 3, 4].map((n) => `
+// docs/SVG_AUTHORING.md teaches, become a live vote whose Question, Options and Vote count fields
+// carry the round, and each bar is drawn at its share of the drawn length - made in the studio's
+// import (the mapping step's own draft) and from the CLI (`noacg scaffold --svg`, the bridge's
+// scaffold), each rendered on a blank page. The CLI-made one also carries a layer named QR.
+for (const maker of ['studio import', 'CLI scaffold --svg'] as const) {
+  test(`${maker}: a home-made vote board draws each bar at its share within one pixel`, async ({ page, browser }) => {
+    const reader = await qrReader(browser);
+    try {
+      // The studio's import modules load with the app's own React preamble, so that maker runs on
+      // the app page; the bridge is plain modules and runs on a blank one.
+      if (maker === 'studio import') await page.goto('/app');
+      else await phonePage(page);
+      await page.setViewportSize({ width: 1920, height: 1080 });
+      // Outside every sample set: four rows of bars across, 600 units at full length.
+      const options = [1, 2, 3, 4].map((n) => `
     <text id="Option ${n}" x="60" y="${170 + n * 90}" font-family="Arial" font-size="32" fill="#ffffff">Option ${n}</text>`).join('');
-  const bars = [1, 2, 3, 4].map((n) => `
+      const bars = [1, 2, 3, 4].map((n) => `
     <rect id="Bar ${n}" x="360" y="${140 + n * 90}" width="600" height="40" fill="#f2a900"/>`).join('');
-  const markup = `<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="700" viewBox="0 0 1100 700">
-  <rect id="Plate" width="1100" height="700" fill="#101820"/>
+      const markup = `<svg xmlns="http://www.w3.org/2000/svg" width="1300" height="700" viewBox="0 0 1300 700">
+  <rect id="Plate" width="1300" height="700" fill="#101820"/>
   <g id="Bars">${bars}
   </g>
   <g id="Words">
     <text id="Question" x="60" y="120" font-family="Arial" font-size="48" fill="#ffffff">Which way tonight?</text>${options}
     <text id="Vote count" x="60" y="660" font-family="Arial" font-size="28" fill="#cccccc">0 votes</text>
   </g>
+  <rect id="QR" x="1020" y="400" width="240" height="240" fill="#888888"/>
 </svg>`;
-  const built = await page.evaluate(async (m) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
-    const { bestProposal } = await import('/src/templates/behaviours/naming.ts');
-    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
-    const imported = importSvgMarkup(m);
-    const proposal = bestProposal(imported);
-    if (!proposal) return { labels: [...imported.candidates, ...imported.groups, ...imported.shapes].map((c) => c.label) };
-    // The mapping step's default: the layers the vote writes are not operator fields.
-    const fields = imported.candidates.map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: c.numeric }));
-    const template = IMPORTED_SVG.create({
-      designSvg: {
-        markup: imported.markup, width: imported.width, height: imported.height, fields, images: [], outlines: [], fonts: [],
-        behaviour: { kind: 'recipe', recipe: proposal.recipe, layers: { ...proposal.fields, ...proposal.layers }, rows: proposal.rows },
-      },
-    });
-    return { recipe: proposal.recipe, rows: proposal.rows, total: proposal.fields.total ?? proposal.layers.total, template, errors: validateTemplate(template).errors.map((e) => e.message) };
-  }, markup);
-  expect(built.recipe, `the names propose a live vote; layers read: ${JSON.stringify(built.labels)}`).toBe('vote');
-  if (!built.template) return;
-  expect(built.rows).toEqual(['1', '2', '3', '4']);
-  expect(built.total, 'a layer named Vote count is the total').toBeTruthy();
-  expect(built.errors).toEqual([]);
-  const field = (title: string) => built.template.fields.find((f) => f.title === title)?.field;
-  for (const title of ['Question', 'Options', 'Vote count']) expect(field(title), `a ${title} field`).toBeTruthy();
+      const built = await page.evaluate(async ({ m, how }) => {
+        const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+        let template;
+        if (how === 'CLI scaffold --svg') {
+          const { scaffold } = await import('/src/bridge/bridgeApi.ts');
+          template = (await scaffold({ svg: m, name: 'Home-made vote' })).template;
+        } else {
+          const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+          const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
+          const { initialDraft, mergeDraft, draftToOptions } = await import('/src/components/wizard/draft/core.ts');
+          const D = await import('/src/components/wizard/import/draft.ts');
+          const patch = D.svgDraftFromImport(importSvgMarkup(m), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
+          template = IMPORTED_SVG.create(draftToOptions(IMPORTED_SVG, mergeDraft(initialDraft(), patch)));
+        }
+        return { template, errors: validateTemplate(template).errors.map((e) => e.message) };
+      }, { m: markup, how: maker });
+      expect(built.errors, 'the export gate passes the graphic').toEqual([]);
+      const field = (title: string) => built.template.fields.find((f) => f.title === title)?.field;
+      for (const title of ['Question', 'Options', 'Vote count', 'Join link']) expect(field(title), `a ${title} field`).toBeTruthy();
+      // The layers the vote writes are not also operator fields: one Question, one Vote count.
+      for (const title of ['Question', 'Vote count']) expect(built.template.fields.filter((f) => f.title === title)).toHaveLength(1);
 
-  await page.evaluate(async (t) => {
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
-    const f = document.createElement('iframe');
-    f.id = 'board';
-    f.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0';
-    document.body.appendChild(f);
-    await new Promise((res) => {
-      f.onload = res;
-      f.srcdoc = composeDocument(t as never);
-    });
-  }, built.template);
-  const board = page.frames().find((f) => f.parentFrame() === page.mainFrame())!;
-  await board.waitForFunction(() => typeof (window as unknown as { update?: unknown }).update === 'function');
-  await board.evaluate(() => (window as unknown as { play(): void }).play());
-  // Known counts, as the result staging writes them: 10, 20, 30 and 40 of 100.
-  const counts = [10, 20, 30, 40];
-  await board.evaluate((v) => (window as unknown as { update(d: unknown): void }).update(v), {
-    [field('Question')!]: 'Which way tonight?',
-    [field('Options')!]: counts.map((c, i) => `Option ${i + 1} | ${c}`).join('\n'),
-    [field('Vote count')!]: '100 votes',
+      await page.evaluate(async (t) => {
+        const { composeDocument } = await import('/src/preview/composeDocument.ts');
+        const f = document.createElement('iframe');
+        f.id = 'board';
+        f.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;z-index:2147483647';
+        document.body.appendChild(f);
+        await new Promise((res) => {
+          f.onload = res;
+          f.srcdoc = composeDocument(t as never);
+        });
+      }, built.template);
+      const board = page.frames().find((f) => f.parentFrame() === page.mainFrame())!;
+      await board.waitForFunction(() => typeof (window as unknown as { update?: unknown }).update === 'function');
+      await board.evaluate(() => (window as unknown as { play(): void }).play());
+      // Known counts, as the result staging writes them: 10, 20, 30 and 40 of 100.
+      const counts = [10, 20, 30, 40];
+      await board.evaluate((v) => (window as unknown as { update(d: unknown): void }).update(v), {
+        [field('Question')!]: 'Which way tonight?',
+        [field('Options')!]: counts.map((c, i) => `Option ${i + 1} | ${c}`).join('\n'),
+        [field('Vote count')!]: '100 votes',
+        [field('Join link')!]: LINK,
+      });
+      const frame = page.frameLocator('#board');
+      const art = await frame.locator('svg.imported-design-art').boundingBox();
+      const unit = art!.width / 1300;
+      for (const [i, c] of counts.entries()) {
+        const want = 600 * unit * (c / 100);
+        const bar = frame.locator(`[data-noacg-role~="bar/${i + 1}"]`);
+        const width = async () => (await bar.boundingBox())!.width;
+        // The bar tweens to its share; wait until it has stopped, then hold it to one pixel.
+        await expect.poll(async () => Math.abs((await width()) - want), { message: `bar ${i + 1} settles near ${want.toFixed(2)} px`, timeout: 10_000 }).toBeLessThanOrEqual(1);
+        const w = await width();
+        expect(Math.abs(w - want), `bar ${i + 1}: ${w.toFixed(2)} px, want ${c}% of the drawn length = ${want.toFixed(2)} px`).toBeLessThanOrEqual(1);
+      }
+      await expect(frame.locator('[data-noacg-role~="total"]')).toHaveText('100 votes');
+      expect(await reader.read(await frame.locator('.imported-design-qr-code').screenshot())).toBe(LINK);
+    } finally {
+      await reader.close();
+    }
   });
-  const frame = page.frameLocator('#board');
-  const art = await frame.locator('svg.imported-design-art').boundingBox();
-  const unit = art!.width / 1100;
-  for (const [i, c] of counts.entries()) {
-    const want = 600 * unit * (c / 100);
-    await expect
-      .poll(async () => (await frame.locator(`[data-noacg-role~="bar/${i + 1}"]`).boundingBox())!.width, {
-        message: `bar ${i + 1} at ${c}% of the drawn length (${want.toFixed(2)} px)`,
-        timeout: 10_000,
-      })
-      .toBeGreaterThan(want - 1);
-    const width = (await frame.locator(`[data-noacg-role~="bar/${i + 1}"]`).boundingBox())!.width;
-    expect(Math.abs(width - want), `bar ${i + 1}: ${width.toFixed(2)} px, want ${want.toFixed(2)} px`).toBeLessThanOrEqual(1);
-  }
-  await expect(frame.locator('[data-noacg-role~="total"]')).toHaveText('100 votes');
-});
+}

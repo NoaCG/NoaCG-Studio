@@ -108,6 +108,7 @@ npx @noacg/cli save ./football-scoreboard
 | `types` | The graphic types the deployment knows: fields, operator events, designs, neutral scaffold. |
 | `scaffold --type <id> [--design <id>\|neutral] [--name N] [--set key=value]... --out <dir>` | A complete, valid package from a type: a catalog chassis or the NEUTRAL scaffold (fields, machine, controls and runtime on a plain spine). |
 | `scaffold --fields "Label:kind[=value],..." [--name N] --out <dir>` | A typeless graphic with exactly the fields you declare. |
+| `scaffold --svg <file.svg> [--name N] --out <dir>` | Your own SVG artwork, imported as the studio imports it: the layer names decide the fields and any behaviour. A live vote board (layers `Question`, `Option 1`, `Bar 1` drawn at full length, `Vote count`) gets the Question, Options and Vote count fields and draws each bar at its share; a layer named `QR` draws the `Join link` field as a QR code. The naming rules are in the studio's SVG guide. |
 | `validate <dir\|zip> [--no-bench] [--no-house-contract] [--screenshots <dir>]` | The static gate + the live runtime bench, every finding as a teaching line, readiness rows, optional off/on-air/stress frames - and the package's generated half regenerated from the sources. Third-party OGraf packages: manifest conformance + a host-driven lifecycle check. |
 | `inspect <dir\|zip>` | The operator surface NoaCG derives from the graphic's own contract (inputs, buttons, steps). |
 | `screenshot <dir\|zip> --state off\|onair\|stress --out <png>` | One transparent frame. |

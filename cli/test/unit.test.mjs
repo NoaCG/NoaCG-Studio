@@ -35,7 +35,7 @@ import { flagBool, flagList, flagNumber, flagString, parseArgs, table, UsageErro
 import { FRAMES_MARKER, isGeneratedFile, markFramesDir, packageEntries, readPackageInput, removeStaleGenerated, unzipTo, zipDirectory } from '../dist/workspace.js';
 import { AGENT_KEY_PREFIX, credentialsPath, displayPrefix, forgetKey, isAgentKey, resolveKey, storeKey } from '../dist/auth.js';
 import { bridgeVersion, cliVersion, configDir, credentialsDir, noacgUrl } from '../dist/config.js';
-import { parseFieldList } from '../dist/commands/scaffold.js';
+import { parseFieldList, scaffoldRequestFrom } from '../dist/commands/scaffold.js';
 import { openUrl, openUrlCommand } from '../dist/openUrl.js';
 
 const exec = promisify(execFile);
@@ -1797,3 +1797,19 @@ test('validate never flags a prep field for having no control: Answers shown, a 
   // A score with no +1 control: its number already has the derived stepper.
   assert.deepEqual(live(machine([]), ['f0', 'f4']), []);
 });
+
+test('scaffold --svg reads the artwork file into the request, and refuses a second source or a missing file', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'noacg-svg-'));
+  const file = path.join(dir, 'board.svg');
+  const markup = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><text id="Question">Q</text></svg>';
+  await fs.writeFile(file, markup);
+  assert.deepEqual(scaffoldRequestFrom(parseArgs(['--svg', file, '--name', 'Board', '--zone', 'bottom-left'])), {
+    svg: markup,
+    name: 'Board',
+    style: { zone: 'bottom-left' },
+  });
+  assert.throws(() => scaffoldRequestFrom(parseArgs(['--svg', file, '--type', 'scoreboard'])), UsageError);
+  assert.throws(() => scaffoldRequestFrom(parseArgs(['--svg', path.join(dir, 'missing.svg')])), /cannot read/);
+  await fs.rm(dir, { recursive: true, force: true });
+});
+

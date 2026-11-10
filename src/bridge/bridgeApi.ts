@@ -197,6 +197,13 @@ export type ScaffoldRequest =
       fields: NeutralFieldSpec[];
       name?: string;
       style?: ScaffoldStyle;
+    }
+  | {
+      /** SVG artwork: imported as the studio imports it, its layer names deciding the fields
+       *  and any behaviour (docs/SVG_AUTHORING.md). */
+      svg: string;
+      name?: string;
+      style?: ScaffoldStyle;
     };
 
 export interface ScaffoldResult {
@@ -219,6 +226,18 @@ function styleOptions(style: ScaffoldStyle | undefined): WizardOptions {
 }
 
 export async function scaffold(req: ScaffoldRequest): Promise<ScaffoldResult> {
+  if ('svg' in req) {
+    const { graphicFromSvgMarkup } = await import('../templates/importedDesign/svgFromMarkup');
+    const made = graphicFromSvgMarkup(req.svg, styleOptions(req.style));
+    const notes = [
+      made.behaviour
+        ? `Your layer names made this a "${made.behaviour}" graphic: the layers it writes are not operator fields (docs/SVG_AUTHORING.md section 5b).`
+        : 'Plain artwork: every text layer is an operator field.',
+      `Operator fields: ${made.fields.join(', ') || 'none'}.`,
+      'The artwork rides inline in the markup, as drawn. To change the drawing, change the SVG and scaffold again.',
+    ];
+    return { template: req.name ? nameTemplate(made.template, req.name) : made.template, notes };
+  }
   if ('fields' in req) {
     const template = neutralSpineFor(req.fields, { ...styleOptions(req.style), name: req.name });
     return {
