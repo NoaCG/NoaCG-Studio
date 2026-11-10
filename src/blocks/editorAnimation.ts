@@ -1,11 +1,11 @@
 import type { SpxTemplate } from '../model/types';
 import { getTemplateParts } from '../model/structure';
-import { SVG_GROUP_PIVOT_UNITS } from '../model/svgGroupTransform';
+import { SVG_GROUP_PIVOT_ATTRIBUTE, SVG_GROUP_PIVOT_UNITS } from '../model/svgGroupTransform';
 import { losslessAnimData, spliceAnimData, type AnimData } from './animData';
 import { captureKeys, deleteKeyframe, easeKeys, EPS, setKeyframe, moveKeys, moveLayerSpan, pasteKeys, trimLayerSpan, type CopiedKey, type KeyEasePreset, type KeyRef } from './animEdit';
 import { resolveValue } from './animEval';
 import { artworkNode, editArtworkStyle } from './artworkEdits';
-import { baseValues, editBase, settleSvgOffset, TRANSFORM_CHANNELS, type BasePatch } from './baseEdits';
+import { anchorCssReason, baseValues, editBase, settleSvgOffset, TRANSFORM_CHANNELS, type BasePatch } from './baseEdits';
 import { allTimelines } from './animMachine';
 import { canWriteAnchorData, writeAnimData, writeOutData } from '../templates/shared/animRuntime';
 import { locateBehaviourData, parseBehaviourData } from './behaviourData';
@@ -236,7 +236,7 @@ export function anchorKeyReason(template: SpxTemplate, selector: string): string
     }
     writeChannel(data, owner, ANCHOR_CHANNELS.x);
     if (!canWriteAnchorData(template.js)) return 'This interpreter cannot animate the pivot without changing unknown source.';
-    return null;
+    return base.svgGroupPivot ? null : anchorCssReason(template, selector);
   } catch (cause) { return cause instanceof Error ? cause.message : String(cause); }
 }
 /** Throws unless a layer's Scale handles can key it: both axes have a channel to write. */
@@ -326,9 +326,14 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
   const source = animationSource(template), { selector, step } = operation;
   if (operation.kind === 'animation.key' && operation.action === 'set') {
     requireTextPivot(template, selector, operation.property);
-    if (TRANSFORM_CHANNELS.includes(operation.property) && template.css.includes('--base-anchor-')) {
+    if (TRANSFORM_CHANNELS.includes(operation.property)) {
+      const artwork = template.html.includes(SVG_GROUP_PIVOT_ATTRIBUTE) ? artworkNode(template, selector) : null;
+      const marked = artwork?.hasAttribute('data-noacg-group') && artwork.hasAttribute(SVG_GROUP_PIVOT_ATTRIBUTE);
       let base;
-      try { base = baseValues(template, selector); } catch { /* A track can be editable without base placement. */ }
+      if (marked) base = baseValues(template, selector);
+      else if (template.css.includes('--base-anchor-')) {
+        try { base = baseValues(template, selector); } catch { /* A track can be editable without base placement. */ }
+      }
       if (base?.svgGroupPivot === false) throw new Error(base.anchorReason!);
       if (base?.cssSvgAnchor && base.anchor) throw new Error('This SVG member has a CSS pivot. A GSAP transform key would replace it, so its source is preserved.');
     }
@@ -382,24 +387,42 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
   return keepRecipe(original, { ...template, js });
 }
 
+/** Resolve a data track to the one artwork layer the editor can safely change. */
+function keyArtworkResolver(template: SpxTemplate, data: AnimData) {
+  const parts = getTemplateParts(template.html, template.fields, true).filter(part => part.kind !== 'root').map(part => part.selector);
+  const owners = trackOwners(template, data, parts);
+  return (key: { selector: string; property: string }) => {
+    const matches = parts.filter(part => owners[part] === key.selector);
+    if (matches.length !== 1 || animationTarget(template, data, matches[0], [key.property]) !== key.selector) {
+      throw new Error('A selected track has no unique editable artwork. Its source is preserved.');
+    }
+    return matches[0];
+  };
+}
+
+function requireAnchorArtwork(template: SpxTemplate, selectors: string[]) {
+  for (const selector of new Set(selectors)) {
+    const reason = anchorKeyReason(template, selector);
+    if (reason) throw new Error(reason);
+  }
+}
+
 /** Refuse a key selection unless every key is on a track that is the user's (#1982). */
 function requireUserKeys(template: SpxTemplate, data: AnimData, keys: KeyRef[]) {
-  const reason = keySequenceReason(template, data) ?? (Array.isArray(keys) ? keys : []).map(key => keyAuthoringReason(template, data, key.selector, key.property)).find(Boolean);
+  const selected = Array.isArray(keys) ? keys : [];
+  const reason = keySequenceReason(template, data) ?? selected.map(key => keyAuthoringReason(template, data, key.selector, key.property)).find(Boolean);
   if (reason) throw new Error(reason);
+  const pivots = selected.filter(key => isAnchorChannel(key.property));
+  if (pivots.length) requireAnchorArtwork(template, pivots.map(keyArtworkResolver(template, data)));
 }
 
 /** Capture the animation owner and the uniquely editable artwork it names. */
 export function captureKeyClipboard(template: SpxTemplate, refs: readonly KeyRef[]): ClipboardKey[] {
   const data = animationSource(template), keys = captureKeys(data, refs);
-  const parts = getTemplateParts(template.html, template.fields, true).filter(part => part.kind !== 'root').map(part => part.selector);
-  const owners = trackOwners(template, data, parts);
-  return keys.map(key => {
-    const matches = parts.filter(part => owners[part] === key.selector);
-    if (matches.length !== 1 || animationTarget(template, data, matches[0], [key.property]) !== key.selector) {
-      throw new Error('A copied track has no unique editable artwork. Its source is preserved.');
-    }
-    return { ...key, artwork: matches[0] };
-  });
+  const artwork = keyArtworkResolver(template, data);
+  const copied = keys.map(key => ({ ...key, artwork: artwork(key) }));
+  requireAnchorArtwork(template, copied.filter(key => isAnchorChannel(key.property)).map(key => key.artwork));
+  return copied;
 }
 
 /** Paste one batch without changing ownership, field data or interpreter bytes. */
@@ -410,6 +433,7 @@ export function applyKeyPaste(template: SpxTemplate, operation: KeyPasteOperatio
       throw new Error('A copied track has changed owner. No keys changed.');
     }
   }
+  requireAnchorArtwork(template, operation.keys.filter(key => isAnchorChannel(key.property)).map(key => key.artwork));
   const next = pasteKeys(data, operation.keys, operation.step, operation.time);
   requireUserEdit(template, data, next);
   const exit = data.steps.length > 1 && operation.step === data.steps.length - 1;

@@ -412,6 +412,60 @@ test('an Out-only pivot starts at the CSS base again on the next take in every p
   }
 });
 
+test('SVG group pivot ownership is checked again before ungrouping or editing saved keys', async ({ page }) => {
+  await open(page);
+  const original = await template(page, fixture());
+  original.html = original.html.replace('</div></body>', '<svg width="960" height="270"><rect id="pivot-a" data-gfx width="90" height="60"/><rect id="pivot-b" data-gfx x="200" width="50" height="40"/></svg></div></body>');
+  const selector = '#group-1', property = '--base-anchor-x';
+  const grouped = await operate(page, original, [{ kind: 'group.create', selectors: ['#pivot-a', '#pivot-b'], box: { x: 0, y: 0, width: 250, height: 60 } }]);
+  const ungroup = [{ kind: 'group.ungroup', selector }];
+  const editCss = (t: Template, key: string, value: string) => page.evaluate(async ({ t, selector, key, value }) => ({
+    ...t, css: (await import('/src/blocks/edit.ts')).setCssDeclaration(t.css, selector, key, value),
+  }), { t, selector, key, value });
+  for (const [key, value] of [['transform', 'matrix(1,0,0,1,20,0)'], ['--noacg-group-x', '20']]) {
+    const conflict = await editCss(grouped, key, value);
+    await expect.soft(operate(page, conflict, ungroup), key).rejects.toThrow('conflicting pivot owner');
+  }
+  expect((await operate(page, grouped, ungroup)).html).not.toContain('id="group-1"');
+  const unknown = { ...grouped, html: grouped.html.replace('data-noacg-group-pivot="frame-v1"', 'data-noacg-group-pivot="frame-v2"') };
+  await expect.soft(operate(page, unknown, ungroup)).rejects.toThrow('unrecognized pivot format');
+  await expect.soft(operate(page, unknown, [{ kind: 'base.set', selector, values: { anchorX: 10, anchorY: 20 } }])).rejects.toThrow('unrecognized pivot format');
+  await expect.soft(operate(page, unknown, [{ kind: 'animation.key', selector, property: 'rotation', step: 0, time: .4, value: 25, action: 'set' }])).rejects.toThrow('unrecognized pivot format');
+
+  const key = { selector, property, step: 0, time: .4 };
+  const set = { kind: 'animation.key', ...key, value: 80, action: 'set' };
+  const keyed = await operate(page, grouped, [set, { ...set, time: .1, value: 125 }]);
+  const capture = (t: Template) => page.evaluate(async ({ t, key }) =>
+    (await import('/src/blocks/editorAnimation.ts')).captureKeyClipboard(t as never, [key]), { t, key });
+  const keys = await capture(keyed);
+  const operations = [
+    { kind: 'key.paste', keys, step: 0, time: .8 },
+    { kind: 'key.move', keys: [key], delta: .1 },
+    { kind: 'key.ease', keys: [key], preset: 'bounce' },
+  ];
+  const conflict = await editCss(keyed, 'transform', 'matrix(1,0,0,1,20,0)');
+  await expect.soft(capture(conflict)).rejects.toThrow('conflicting pivot owner');
+  for (const operation of operations) {
+    expect((await operate(page, keyed, [operation])).js).not.toBe(keyed.js);
+    await expect.soft(operate(page, conflict, [operation]), operation.kind).rejects.toThrow('conflicting pivot owner');
+  }
+  const unrelated = { ...key, selector: '#box', property: 'opacity', time: .5 };
+  expect((await operate(page, conflict, [{ kind: 'key.move', keys: [unrelated], delta: .1 }])).js).not.toBe(conflict.js);
+});
+
+test('ordinary anchor keys refuse competing CSS variables and source style rules', async ({ page }) => {
+  await open(page);
+  const original = await template(page, fixture());
+  const key = { kind: 'animation.key', selector: '#box', property: '--base-anchor-x', step: 0, time: .4, value: 80, action: 'set', baseValues: { anchorX: 160, anchorY: 50 } };
+  expect((await operate(page, original, [key])).js).not.toBe(original.js);
+  const conflicts = [
+    { ...original, css: original.css + '\nbody #box { --base-anchor-x:25px !important; }' },
+    { ...original, css: original.css.replace('#box{', '#box{--base-anchor-x:25px !important;') },
+    { ...original, html: original.html.replace('</head>', '<style>#box { transform-origin: 25px 25px !important; }</style></head>') },
+  ];
+  for (const conflict of conflicts) await expect.soft(operate(page, conflict, [key])).rejects.toThrow('competing pivot CSS');
+});
+
 test('canonical SVG groups keep their cue pivots in every saved package', async ({ page }) => {
   await open(page);
   const init = { time: 0, value: '40px 25px' };
@@ -667,6 +721,24 @@ test('an immediate Out keeps its hit area at the start of the ruler', async ({ p
   await expect(out).toBeFocused();
   await expect(out).toHaveAttribute('aria-pressed', 'true');
   await expect(ruler).toHaveAttribute('aria-valuenow', '0');
+});
+
+test('a saved zero-duration Step and Out have separate hit targets at the same time', async ({ page }) => {
+  const data = fixture();
+  data.steps[1] = { name: 'Instant cue', duration: 0, ease: 'none', layers: {} };
+  await editorWith(page, data);
+  const before = await source(page);
+  const step = flag(page, 'Instant cue'), out = flag(page, 'Out');
+  const a = (await step.boundingBox())!, b = (await out.boundingBox())!;
+  expect(a.x).toBeCloseTo(b.x, 4);
+  expect(a.width).toBeGreaterThan(0);
+  expect(a.y).not.toBe(b.y);
+  await page.getByRole('slider', { name: 'Playhead' }).screenshot({ path: test.info().outputPath('coincident-flags.png') });
+  await step.click();
+  await expect(step).toHaveAttribute('aria-pressed', 'true');
+  await out.click();
+  await expect(out).toHaveAttribute('aria-pressed', 'true');
+  expect(await source(page)).toEqual(before);
 });
 
 test('flags stay ordered: a drag or nudge onto or past a neighbour refuses and changes nothing', async ({ page }) => {

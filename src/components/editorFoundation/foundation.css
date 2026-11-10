@@ -94,7 +94,7 @@
 .ef-notice { margin: 0; padding: 6px 12px; color: var(--warn); }
 .ef-track-scroll { overflow: auto; min-height: 0; }
 .ef-ruler-row, .ef-track { display: grid; grid-template-columns: 230px minmax(0, 1fr); }
-.ef-ruler-row { position: sticky; top: 0; z-index: 2; background: var(--bg-app); height: 48px; border-bottom: 1px solid var(--border-strong); }
+.ef-ruler-row { position: sticky; top: 0; z-index: 2; background: var(--bg-app); height: calc(48px + var(--ef-flag-extra-height, 0px)); border-bottom: 1px solid var(--border-strong); }
 .ef-layer-heading { padding: 13px 12px; color: var(--ef-muted); border-right: 1px solid var(--border-strong); }
 .ef-ruler { position: relative; cursor: ew-resize; touch-action: none; margin-right: 28px; }
 .ef-tick { position: absolute; top: 4px; font: 10px monospace; color: var(--text-dim); white-space: nowrap; }

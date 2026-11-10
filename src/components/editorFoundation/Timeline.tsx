@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import type { groupHierarchy } from '../../blocks/editorGroups';
 import type { KeyRef } from '../../blocks/animEdit';
 import { ANCHOR_CHANNELS } from '../../blocks/editorAnimation';
-import { flagLabelWidth, ownerOf, readTimeline, type TimelineView } from './timelineView';
+import { flagLayouts, ownerOf, readTimeline, type TimelineView } from './timelineView';
 import type { EditorSession, Revision } from './session';
 import { applyOperations } from './operations';
 import LayerBar from './LayerBar';
@@ -94,6 +94,7 @@ export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, vi
   }, [reveal, animatedOnly, expanded, selection]);
   const startTime = useRef<number | null>(null);
   const extent = Math.max(2, view.duration * 1.15, session.port.view().cue === view.segments.length - 1 ? view.duration + 2 : 0);
+  const flags = useMemo(() => flagLayouts(view.segments, extent), [view.segments, extent]);
   const limit = session.port.view().cue === view.segments.length - 1 ? extent : view.duration;
   const interval = extent <= 5 ? 0.5 : extent <= 12 ? 1 : Math.ceil(extent / 10);
   const ticks = Array.from({ length: Math.floor(extent / interval) + 1 }, (_, i) => i * interval);
@@ -315,7 +316,8 @@ export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, vi
     {view.reason || clipboardReason ? <p className="ef-notice" role={clipboardReason ? 'alert' : undefined}>{view.reason || clipboardReason}</p> : null}
     <div className="ef-track-scroll" tabIndex={-1} ref={tracks} onPointerDown={startMarquee} onPointerMove={moveMarquee} onPointerUp={endMarquee}
       onPointerCancel={cancelMarquee} onLostPointerCapture={cancelMarquee}>
-      <div className="ef-ruler-row" data-testid={groupScope ? "foundation-local-ruler" : undefined}><span className="ef-layer-heading">{groupScope ? "Group local time · " + display(time) : "Layers"}</span>
+      <div className="ef-ruler-row" style={flags.extraHeight ? { '--ef-flag-extra-height': `${flags.extraHeight}px` } as CSSProperties : undefined}
+        data-testid={groupScope ? "foundation-local-ruler" : undefined}><span className="ef-layer-heading">{groupScope ? "Group local time · " + display(time) : "Layers"}</span>
         <div ref={ruler} className="ef-ruler" role="slider" aria-label={groupScope ? "Group local playhead" : "Playhead"} tabIndex={0} data-extent={extent}
           aria-valuemin={-localStart} aria-valuemax={limit - localStart} aria-valuenow={time - localStart} aria-valuetext={display(time)}
           aria-disabled={!!view.reason} data-testid="foundation-ruler"
@@ -336,11 +338,11 @@ export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, vi
             if (next !== null) { event.preventDefault(); seek(Math.max(0, Math.min(limit, next))); }
           }}>
           {ticks.map(tick => <span className="ef-tick" key={tick} style={{ left: tick / extent * 100 + '%' }}>{display(tick)}</span>)}
-          <span className="ef-flag" style={{ left: 0, maxWidth: flagLabelWidth(view, 0, extent) }}>In</span>
+          <span className="ef-flag" style={{ left: 0, ...flags.labels[0] }}>In</span>
           {groupScope && view.segments.filter(segment => segment.index > 0).map(segment => <span className="ef-flag" key={segment.index} title={segment.name}
-            style={{ left: segment.start / extent * 100 + '%', maxWidth: flagLabelWidth(view, segment.index, extent) }}>{segment.name}</span>)}
+            style={{ left: segment.start / extent * 100 + '%', ...flags.labels[segment.index] }}>{segment.name}</span>)}
           {!groupScope && !view.reason && view.segments.filter(s => s.index > 0).map(s => <StepFlag key={s.index} segment={s} view={view} extent={extent} fps={fps}
-            snaps={snaps} playhead={time} selected={cue === s.index} session={session} pause={pause} display={display}
+            layout={flags.labels[s.index]} snaps={snaps} playhead={time} selected={cue === s.index} session={session} pause={pause} display={display}
             inspect={() => inspectStep(s.index)} setOut={to => out.current?.setOutAt(to)} />)}
           <span className="ef-playhead-head" style={{ left: time / extent * 100 + '%' }} />
         </div>

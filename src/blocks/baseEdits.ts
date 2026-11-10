@@ -1,7 +1,7 @@
 // Base artwork edits share the existing source writers. Motion retains transform ownership.
 import type { SpxTemplate } from '../model/types';
 import { getTemplateParts, detectPrefix } from '../model/structure';
-import { SVG_GROUP_PIVOT_SELECTOR, SVG_GROUP_TRACK_CSS, SVG_GROUP_TRANSFORM, svgGroupOrigin } from '../model/svgGroupTransform';
+import { SVG_GROUP_PIVOT_ATTRIBUTE, SVG_GROUP_PIVOT_SELECTOR, SVG_GROUP_TRACK_CSS, SVG_GROUP_TRACK_DEFAULTS, SVG_GROUP_TRANSFORM, svgGroupOrigin } from '../model/svgGroupTransform';
 import { parseTransform } from '../assets/svgGeometry';
 import { locateAnimData, losslessAnimData, parseAnimData, type AnimLayerTracks, type AnimStep } from './animData';
 import { canWriteAnchorData, hasSvgGroupRuntime, writeAnimData } from '../templates/shared/animRuntime';
@@ -81,6 +81,21 @@ function originOwner(rules: { rule: CSSStyleRule; nested: boolean }[], target: s
     return box && !['border-box', 'view-box', 'stroke-box'].includes(box) || rule !== own && rule.style.getPropertyValue('transform-origin');
   })?.rule.selectorText ?? null;
 }
+
+/** Anchor keys write inline variables, so other declared owners can hide the keyed pose. */
+export function anchorCssReason(template: SpxTemplate, selector: string): string | null {
+  const node = artworkNode(template, selector);
+  const variables = ['--base-anchor-x', '--base-anchor-y'];
+  const pivot = [...variables, 'transform-origin', 'transform-box'];
+  const rules = matchingRules(template.css, node);
+  const own = rules.find(({ rule, nested }) => !nested && rule.selectorText === selector)?.rule;
+  const competing = rules.some(({ rule }) => variables.some(property => rule === own
+    ? rule.style.getPropertyPriority(property) : rule.style.getPropertyValue(property)));
+  const sourceStyles = [...node.ownerDocument.querySelectorAll('style')].flatMap(style => matchingRules(style.textContent ?? '', node));
+  return competing || sourceStyles.some(({ rule }) => pivot.some(property => rule.style.getPropertyValue(property)))
+    || pivot.some(property => (node as HTMLElement).style.getPropertyValue(property))
+    ? 'This layer has competing pivot CSS. Its source is preserved.' : null;
+}
 /** The tracks the animation data gives an element: under every data selector that names it. */
 function tracksOn(steps: AnimStep[], node: Element): AnimLayerTracks[] {
   return steps.flatMap(step => Object.entries(step.layers).flatMap(([key, tracks]) => {
@@ -136,7 +151,8 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
   const own = findRuleBody(template.css, target)?.body ?? '';
   const ownValue = (property: string) => own.match(new RegExp('(?:^|[;{]|\\*/)\\s*' + esc(property) + '\\s*:\\s*([^;]+)'))?.[1].trim() ?? null;
   const ownRule = rules.find(({ rule, nested }) => !nested && rule.selectorText === target)?.rule;
-  const fixedMarker = svg && !!groupFrame && node.localName === 'g' && node.matches(SVG_GROUP_PIVOT_SELECTOR);
+  const marked = svg && !!groupFrame && node.localName === 'g' && node.hasAttribute(SVG_GROUP_PIVOT_ATTRIBUTE);
+  const fixedMarker = marked && node.matches(SVG_GROUP_PIVOT_SELECTOR);
   // The channels animated on the base target: a placed text's box, which its text's tracks never touch.
   const owned = new Set(tracksOn(motion?.steps ?? [], targetNode).flatMap(tracks => Object.keys(tracks)));
   const scaleReason = ['scale', 'scaleX', 'scaleY', 'transform'].some(key => owned.has(key))
@@ -209,7 +225,7 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
     const keys = step.layers[selector]?.transformOrigin;
     return keys?.length === 1 && keys[0].time === 0 && keys[0].value === rawAnchor.x+'px '+rawAnchor.y+'px';
   });
-  let svgGroupPivot: boolean | undefined;
+  let svgGroupPivot: boolean | undefined = marked ? false : undefined;
   if (fixedMarker && groupFrame) {
     const critical = ['transform', 'transform-box', 'transform-origin', '--base-anchor-x', '--base-anchor-y', '--base-x', '--base-y',
       '--base-rotation', '--base-scale-x', '--base-scale-y', ...Object.values(SVG_GROUP_TRACK_CSS)];
@@ -232,12 +248,14 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
         && (own.match(new RegExp('(?:^|[;{]|\\*/)\\s*' + esc(key) + '\\s*:', 'g'))?.length ?? 0) === 1)
       && ['x', 'y', 'width', 'height'].every(key => node.getAttribute('data-group-' + key)?.trim())
       && ['x', 'y'].every(axis => /^-?(?:\d+(?:\.\d+)?|\.\d+)px$/.test(ownValue('--base-anchor-' + axis) ?? ''))
+      && Object.entries(SVG_GROUP_TRACK_DEFAULTS).every(([key, value]) => ownValue(key) === value)
       && ownValue('transform-box') === 'view-box' && ownValue('transform') === SVG_GROUP_TRANSFORM
       && ownValue('transform-origin') === svgGroupOrigin(groupFrame.x, groupFrame.y);
   }
   const originSet = tracksOn(motion ? allTimelines(motion) : [], targetNode).some(tracks => tracks.transformOrigin?.length)
     || externalWrite(template.js, targetNode, /transformOrigin|transform-origin|--base-anchor-[xy]/);
-  const anchorReason = svgGroupPivot === false ? 'This SVG group has a conflicting pivot owner. Its source is preserved.'
+  const anchorReason = marked && !fixedMarker ? 'This SVG group has an unrecognized pivot format. Its source is preserved.'
+    : svgGroupPivot === false ? 'This SVG group has a conflicting pivot owner. Its source is preserved.'
     : svg && !groupFrame && !cssSvgAnchor ? 'This SVG member has a transform or source GSAP places independently. Its pivot is preserved.'
     : originSet && !ownedSvgPivot ? 'This graphic\'s script or animation data sets this layer\'s transformOrigin itself, which would replace an anchor written in CSS. Its source is preserved.'
     : rival ? `This layer's transform-origin is set by another rule, or measured from another box by transform-box (${rival}), so an anchor written here would not hold. Its source is preserved.`

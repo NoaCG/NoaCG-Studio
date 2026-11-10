@@ -1,6 +1,6 @@
 import type { SpxTemplate } from '../model/types';
 import { getTemplateParts, svgInspectionSelector } from '../model/structure';
-import { SVG_GROUP_PIVOT_ATTRIBUTE, SVG_GROUP_PIVOT_SELECTOR, SVG_GROUP_PIVOT_VERSION, SVG_GROUP_TRACK_CSS, svgGroupOrigin, svgGroupTransformCss } from '../model/svgGroupTransform';
+import { SVG_GROUP_PIVOT_ATTRIBUTE, SVG_GROUP_PIVOT_VERSION, SVG_GROUP_TRACK_CSS, svgGroupOrigin, svgGroupTransformCss } from '../model/svgGroupTransform';
 import { artworkNode, artworkRange } from './artworkEdits';
 import { artworkLayerNode } from './artworkLayers';
 import { baseValues } from './baseEdits';
@@ -167,7 +167,11 @@ function groupNode(template: SpxTemplate, selector: string) {
 }
 function ungroup(template: SpxTemplate, selector: string) {
   const node = groupNode(template, selector), range = artworkRange(template.html, node);
-  const fixed = node.namespaceURI === SVG && node.matches(SVG_GROUP_PIVOT_SELECTOR);
+  const fixed = node.namespaceURI === SVG && node.hasAttribute(SVG_GROUP_PIVOT_ATTRIBUTE);
+  if (fixed) {
+    const base = baseValues(template, selector);
+    if (!base.svgGroupPivot) throw new Error(base.anchorReason!);
+  }
   const data = losslessAnimData(template.js);
   if (locateAnimData(template.js) && !data) throw new Error('This animation contains data the current writer cannot preserve exactly. Its source is preserved.');
   const timelines = data ? allTimelines(data) : [];

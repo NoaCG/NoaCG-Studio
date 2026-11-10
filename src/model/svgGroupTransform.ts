@@ -12,6 +12,10 @@ export const SVG_GROUP_TRACK_CSS = {
 } as const;
 
 const motion = SVG_GROUP_TRACK_CSS;
+export const SVG_GROUP_TRACK_DEFAULTS = {
+  [motion.x]: '0', [motion.y]: '0', [motion.rotation]: '0', [motion.scale]: '1',
+  [motion.scaleX]: `var(${motion.scale})`, [motion.scaleY]: `var(${motion.scale})`,
+} as const;
 export const SVG_GROUP_TRANSFORM = `translate(calc(var(--base-x) + var(${motion.x}) * 1px), calc(var(--base-y) + var(${motion.y}) * 1px)) rotate(calc((var(--base-rotation) + var(${motion.rotation})) * 1deg)) scale(calc(var(--base-scale-x) * var(${motion.scaleX})), calc(var(--base-scale-y) * var(${motion.scaleY})))`;
 
 export function svgGroupOrigin(x: number, y: number): string {
@@ -19,9 +23,9 @@ export function svgGroupOrigin(x: number, y: number): string {
 }
 
 export function svgGroupTransformCss(origin: string): string {
+  const tracks = Object.entries(SVG_GROUP_TRACK_DEFAULTS).map(([property, value]) => `${property}: ${value};`);
   return 'transform-box: view-box; transform-origin: ' + origin + ';\n' +
     '  --base-x: 0px; --base-y: 0px; --base-rotation: 0; --base-scale-x: 1; --base-scale-y: 1;\n' +
-    `  ${motion.x}: 0; ${motion.y}: 0; ${motion.rotation}: 0; ${motion.scale}: 1;\n` +
-    `  ${motion.scaleX}: var(${motion.scale}); ${motion.scaleY}: var(${motion.scale});\n` +
+    '  ' + tracks.slice(0, 4).join(' ') + '\n  ' + tracks.slice(4).join(' ') + '\n' +
     '  transform: ' + SVG_GROUP_TRANSFORM + ';';
 }
