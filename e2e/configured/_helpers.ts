@@ -72,6 +72,17 @@ export async function dismissWizard(page: Page): Promise<void> {
   await expect(modal).toBeHidden();
 }
 
+/** A second signed-in production page on the same production: a new tab in the same signed-in
+ *  browser, opened on `#/production/<id>` and waiting until it shows the published production. The
+ *  "other screen" of a multi-operator walk (docs/work-specs/retire-hosted-control/spec.md C5). */
+export async function openSecondProductionPage(page: Page, showId: string): Promise<Page> {
+  const second = await page.context().newPage();
+  await second.goto(`/app#/production/${encodeURIComponent(showId)}`);
+  await expect(second.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
+  await expect(second.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 60_000 });
+  return second;
+}
+
 /** Sign in with email + password via Home's topbar dialog (Era 5.6, no wall; fresh Playwright
  *  contexts have no persisted session). Leaves the wizard OPEN afterwards, the same state a
  *  fresh load presents, so createGraphicInEditor can run directly. There is no Advanced mode to switch on
@@ -177,9 +188,8 @@ export async function wipeMyGraphics(page: Page): Promise<void> {
  * (migration 0040), so a walk that publishes has to unpublish before it exits and before it
  * starts.
  *
- * It lives here because three configured specs need it and each had grown its own copy. The two
- * older copies (`playout-both-roads`, `hosted-control-recovery`) are identical and should collapse
- * onto this one the next time either file is touched for a reason of its own.
+ * It lives here because several configured specs need it and each had grown its own copy. The
+ * older copy in `playout-both-roads` is identical and should collapse onto this one the next time either file is touched for a reason of its own.
  */
 export async function clearPublishedShows(page: Page): Promise<void> {
   await page.evaluate(async () => {

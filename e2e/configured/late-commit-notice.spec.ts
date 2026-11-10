@@ -16,6 +16,7 @@
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
+// covers: src/components/home/ProductionPage.tsx
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page, type Route } from '@playwright/test';
@@ -76,7 +77,7 @@ test('a Take that commits after its page gave up takes the "on this monitor only
   // A scorebug: a plain entrance, so only a `play` reaching a stage moves `data-plays`.
   await bootstrapGraphic(page, { name: 'House Scorebug' });
   const showName = `Late commit ${Date.now()}`;
-  await openProductionWithCurrent(page, showName);
+  const showId = await openProductionWithCurrent(page, showName);
   await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   const links = page.getByTestId('production-status-panel');
@@ -86,9 +87,8 @@ test('a Take that commits after its page gave up takes the "on this monitor only
   const slugs = await page.evaluate(async (name) => {
     const { loadShows } = await import('/src/model/shows.ts');
     const s = loadShows().find((x) => x.name === name);
-    return { hosted: s?.hostedSlug ?? null, output: s?.outputSlug ?? null };
+    return { output: s?.outputSlug ?? null };
   }, showName);
-  expect(slugs.hosted, 'publishing must mint a hosted control slug').toBeTruthy();
   expect(slugs.output, 'publishing must mint an output slug').toBeTruthy();
 
   // AIR, its follow proved up before anything is pressed.
@@ -98,43 +98,45 @@ test('a Take that commits after its page gave up takes the "on this monitor only
   const airPlays = () => air.evaluate(() => Number(document.body.getAttribute('data-plays')));
   expect(await airPlays()).toBe(0);
 
+  // A second operator's production page on the same production.
   const op = await context.newPage();
   const followerLevel = await watchLogReads(op);
-  await op.goto(`/app?control=${encodeURIComponent(slugs.hosted as string)}`);
-  await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
-  const chip = op.getByTestId('hosted-live-chip');
-  const notice = op.getByTestId('hosted-error');
+  await op.goto(`/app#/production/${encodeURIComponent(showId)}`);
+  await expect(op.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
+  await expect(op.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 60_000 });
+  const chip = op.getByTestId('live-cue-chip');
+  const notice = op.getByTestId('production-note').filter({ hasText: 'on this monitor only' });
   await expect(chip).toContainText('nothing on air');
-  await op.getByTestId('hosted-cues').locator('.pd-cue').first().getByTestId('hosted-select-cue').click();
+  await op.getByTestId('cue-list').locator('.pd-cue').first().getByTestId('select-cue').click();
 
   // ── Its row came back before the page gave up: the send landed. ──────────────────────────────
   await answerLate(op);
   await followerLevel();
   const takenAt = Date.now();
-  await op.getByTestId('hosted-take-cue').click();
+  await op.getByTestId('verb-take').click();
   await expect.poll(airPlays, { timeout: 30_000 }).toBe(1);
   // Every attempt abandoned unanswered by now: the send is over.
   await op.waitForTimeout(Math.max(0, takenAt + SETTLED_MS - Date.now()));
   await expect(chip).toContainText('on air:');
   await expect(notice, 'a Take on air is not "on this monitor only"').toHaveCount(0);
   await op.unrouteAll({ behavior: 'ignoreErrors' });
-  await op.getByTestId('hosted-out-cue').click();
+  await op.getByTestId('verb-out').click();
   await expect(chip).toContainText('nothing on air');
 
   // ── Its row came back after the page had said it failed: the notice comes down. ──────────────
   const commitLate = await holdThenDrop(op);
   await followerLevel();
-  await op.getByTestId('hosted-take-cue').click();
-  await expect(notice).toContainText('on this monitor only', { timeout: 10_000 });
+  await op.getByTestId('verb-take').click();
+  await expect(notice).toHaveCount(1, { timeout: 10_000 });
   expect(await airPlays()).toBe(1);
   await commitLate();
   await expect.poll(airPlays, { timeout: 30_000 }).toBe(2);
   await expect(notice, 'the late Take is on air, so the notice is withdrawn').toHaveCount(0, { timeout: 10_000 });
   await op.unrouteAll({ behavior: 'ignoreErrors' });
-  await op.getByTestId('hosted-out-cue').click();
+  await op.getByTestId('verb-out').click();
   await expect(chip).toContainText('nothing on air');
 
-  // ── The same on the production page. ─────────────────────────────────────────────────────────
+  // ── The same on the page that published it. ──────────────────────────────────────────────────
   const note = page.getByTestId('production-note').filter({ hasText: 'on this monitor only' });
   const pageChip = page.getByTestId('live-cue-chip');
   await expect(pageChip).toContainText('nothing on air');

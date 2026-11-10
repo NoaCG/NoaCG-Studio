@@ -291,3 +291,23 @@ not decided stops and asks.
 ## Phase notes
 
 Filled in by each phase's pull request.
+
+### Phase 1: Retire the hosted control page
+
+- Previous verified `main`: e6be4cf3dcbcb103a7ea0372d30d0505845a8ba8.
+- Revert: `git revert -m 1 <this pull request's merge commit>` restores the page, its CSS, its
+  tests and the retired rules; nothing persisted changed, so no data step goes with it.
+- Decisions: the old link resolves with `control_show_by_slug` selecting only `id`, retries every
+  2 s doubling to 15 s while unanswered, and offline (no backend) answers "This link no longer
+  works" at once. The redirect's backend test lives in
+  `e2e/configured/operator-outage-not-unpublished.spec.ts` (the configured suite is the layer that
+  can resolve a slug; the offline half is `e2e/shows.spec.ts`). `e2e/hosted-control.spec.ts` was
+  renamed to `e2e/published-control.spec.ts` because almost all of it guards shared code.
+  Retargeted specs use a second production page in the same signed-in browser
+  (`openSecondProductionPage`), except panel-lease's phone, which signs in in its own browser.
+  `PanelGraphicSpec` stays exported: it is the return type of the shared `buildPanelSpec`.
+- Traps: `npm run learn` refuses while any active rule scopes a deleted file, so the page was put
+  back, untracked from the deletion, for the three `--supersedes` calls and removed again. The
+  local configured stack could not start in the cloud worker (its image host is blocked by the
+  proxy), so the configured evidence is the CI selection on the PR head.
+- Evidence: `docs/work-specs/live-publishing/evidence/phase-1.md`.

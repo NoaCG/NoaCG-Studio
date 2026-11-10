@@ -7,7 +7,7 @@
 // can only be judged against a real server, and both are about AIR: a refused press must write
 // nothing to the log, so no renderer can ever apply it.
 // covers: src/control/seqSend.ts, src/control/seqFollow.ts, src/control/hostedControl.ts
-// covers: src/output/main.ts, src/components/HostedControlPage.tsx, src/control/commandRoads.ts
+// covers: src/output/main.ts, src/components/home/ProductionPage.tsx, src/control/commandRoads.ts
 // covers: supabase/migrations/0069_control_heads.sql, supabase/migrations/0070_seq_topic.sql
 // covers: supabase/migrations/0071_command_sequence.sql, supabase/migrations/0109_seq_head_announce.sql
 // covers: src/control/liveCue.ts, src/control/cueItems.ts
@@ -39,7 +39,7 @@ async function hasSequenceRoad(page: Page): Promise<boolean> {
   });
 }
 
-/** The server's own log after `afterSeq`, read as a signed-out page reads it. */
+/** The server's own log after `afterSeq`, read by its control slug. */
 async function rowsAfter(page: Page, slug: string, afterSeq: number): Promise<{ seq: number; graphic: string; t: string }[]> {
   return page.evaluate(
     async ({ slug, afterSeq }) => {
@@ -65,9 +65,9 @@ async function head(page: Page, slug: string): Promise<{ seq: number; on: boolea
   );
 }
 
-async function publishScorebug(page: Page, showName: string): Promise<{ hosted: string; output: string }> {
+async function publishScorebug(page: Page, showName: string): Promise<{ showId: string; hosted: string; output: string }> {
   await bootstrapGraphic(page, { name: GRAPHIC });
-  await openProductionWithCurrent(page, showName);
+  const showId = await openProductionWithCurrent(page, showName);
   await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   const links = page.getByTestId('production-status-panel');
@@ -81,7 +81,7 @@ async function publishScorebug(page: Page, showName: string): Promise<{ hosted: 
   }, showName);
   expect(slugs.hosted, 'publishing must mint a hosted control slug').toBeTruthy();
   expect(slugs.output, 'publishing must mint an output slug').toBeTruthy();
-  return slugs;
+  return { showId, ...slugs };
 }
 
 async function openAir(page: Page, output: string): Promise<Page> {
@@ -93,15 +93,17 @@ async function openAir(page: Page, output: string): Promise<Page> {
   return air;
 }
 
-/** An operator page, level with the log: a press made while it still reads the tail would leave its
- *  monitor alone, and Out would stay disabled behind a held Take (`watchLogReads`). */
-async function openOperator(page: Page, hosted: string, prepare?: (op: Page) => Promise<void>): Promise<Page> {
+/** A second operator's production page on the same production, its first cue selected and level
+ *  with the log: a press made while it still reads the tail would leave its monitor alone, and Out
+ *  would stay disabled behind a held Take (`watchLogReads`). */
+async function openOperator(page: Page, showId: string, prepare?: (op: Page) => Promise<void>): Promise<Page> {
   const op = await page.context().newPage();
   await prepare?.(op);
   const level = await watchLogReads(op);
-  await op.goto(`/app?control=${encodeURIComponent(hosted)}`);
-  await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
-  await op.getByTestId('hosted-cues').locator('.pd-cue').first().getByTestId('hosted-select-cue').click();
+  await op.goto(`/app#/production/${encodeURIComponent(showId)}`);
+  await expect(op.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
+  await expect(op.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 60_000 });
+  await op.getByTestId('cue-list').locator('.pd-cue').first().getByTestId('select-cue').click();
   await level();
   return op;
 }
@@ -144,22 +146,22 @@ test('a press another screen overtook is refused, writes nothing, and the operat
   await page.keyboard.press('Escape');
   test.skip(!(await hasSequenceRoad(page)), 'this server has not applied 0071 (the sequence road); see expected-run.json');
   await clearPublishedShows(page);
-  const { hosted, output } = await publishScorebug(page, `Stale Press ${Date.now()}`);
+  const { showId, hosted, output } = await publishScorebug(page, `Stale Press ${Date.now()}`);
   const air = await openAir(page, output);
-  const a = await openOperator(page, hosted);
-  const b = await openOperator(page, hosted);
+  const a = await openOperator(page, showId);
+  const b = await openOperator(page, showId);
 
   // A takes the cue; both operators see it on air, and so does air.
-  await a.getByTestId('hosted-take-cue').click();
+  await a.getByTestId('verb-take').click();
   await expect.poll(() => airPlays(air), { timeout: 30_000 }).toBe('1');
-  await expect(b.getByTestId('hosted-live-chip')).toContainText('on air:', { timeout: 30_000 });
+  await expect(b.getByTestId('live-cue-chip')).toContainText('on air:', { timeout: 30_000 });
 
   // A presses Out, and its request is held on the way. While it is held, B re-takes the cue.
   let release!: () => void;
   const released = new Promise<void>((r) => (release = r));
   const answered = holdNextPress(a, released);
-  await a.getByTestId('hosted-out-cue').click();
-  await b.getByTestId('hosted-retake-cue').click();
+  await a.getByTestId('verb-out').click();
+  await b.getByTestId('verb-retake').click();
   await expect.poll(() => airPlays(air), { timeout: 30_000 }).toBe('2');
   const before = await head(page, hosted);
   expect(before.on, 'B re-took it: on air per the server').toBe(true);
@@ -178,11 +180,11 @@ test('a press another screen overtook is refused, writes nothing, and the operat
   await expect.poll(() => airPlays(air), { timeout: 5_000 }).toBe('2');
 
   // And A is told, in plain words, what happened and what air did.
-  await expect(a.getByTestId('hosted-error')).toContainText(`${GRAPHIC} was changed from another screen, so air did not change.`, {
+  await expect(a.getByTestId('production-note')).toContainText(`${GRAPHIC} was changed from another screen, so air did not change.`, {
     timeout: 15_000,
   });
   // A's own page follows the log, so it ends agreeing with air.
-  await expect(a.getByTestId('hosted-live-chip')).toContainText('on air:', { timeout: 30_000 });
+  await expect(a.getByTestId('live-cue-chip')).toContainText('on air:', { timeout: 30_000 });
 
   await Promise.all([a.close(), b.close(), air.close()]);
   await clearPublishedShows(page);
@@ -195,18 +197,18 @@ test('a Take held on its way arrives after the Out, is left out, and never airs'
   await page.keyboard.press('Escape');
   test.skip(!(await hasSequenceRoad(page)), 'this server has not applied 0071 (the sequence road); see expected-run.json');
   await clearPublishedShows(page);
-  const { hosted, output } = await publishScorebug(page, `Late Take ${Date.now()}`);
+  const { showId, hosted, output } = await publishScorebug(page, `Late Take ${Date.now()}`);
   const air = await openAir(page, output);
-  const op = await openOperator(page, hosted);
+  const op = await openOperator(page, showId);
   await expect.poll(() => airPlays(air), { timeout: 30_000 }).toBe('0');
 
   // The Take is held 6 s on its way, every attempt of it (a slow uplink, a queue in front of the
   // database); the operator presses Out 1.5 s after the Take, as in the measured case.
   const answered = holdNextPress(op, new Promise((r) => setTimeout(r, 6_000)));
-  await op.getByTestId('hosted-take-cue').click();
+  await op.getByTestId('verb-take').click();
   await op.waitForTimeout(1_500);
-  await op.getByTestId('hosted-out-cue').click();
-  await expect(op.getByTestId('hosted-live-chip')).toContainText('nothing on air', { timeout: 30_000 });
+  await op.getByTestId('verb-out').click();
+  await expect(op.getByTestId('live-cue-chip')).toContainText('nothing on air', { timeout: 30_000 });
   const afterOut = await head(page, hosted);
 
   // The held Take reaches the server after the Out: it is the page's own EARLIER press on the
@@ -221,8 +223,8 @@ test('a Take held on its way arrives after the Out, is left out, and never airs'
   // press is what stands, so the refusal itself needs no sentence.
   await op.waitForTimeout(3_000);
   expect(await airPlays(air)).toBe('0');
-  await expect(op.getByTestId('hosted-live-chip')).toContainText('nothing on air');
-  expect((await op.getByTestId('hosted-error').allInnerTexts()).join(' ')).not.toContain('changed from another screen');
+  await expect(op.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  expect((await op.getByTestId('production-note').allInnerTexts()).join(' ')).not.toContain('changed from another screen');
 
   await Promise.all([op.close(), air.close()]);
   await clearPublishedShows(page);
@@ -240,10 +242,10 @@ test('an operator page whose first resolves are refused stays on the numbered ro
   await page.keyboard.press('Escape');
   test.skip(!(await hasSequenceRoad(page)), 'this server has not applied 0071 (the sequence road); see expected-run.json');
   await clearPublishedShows(page);
-  const { hosted, output } = await publishScorebug(page, `Refused Resolve ${Date.now()}`);
+  const { showId, hosted, output } = await publishScorebug(page, `Refused Resolve ${Date.now()}`);
   const air = await openAir(page, output);
   const resolves = { refused: 0, through: 0 };
-  const op = await openOperator(page, hosted, (op) =>
+  const op = await openOperator(page, showId, (op) =>
     op.route('**/rest/v1/rpc/control_show_resolve', (route) => {
       // The first TWO: a dev build mounts the page twice, so two resolves can leave at once, and an
       // unrefused second one would rescue a page that gave up on the first.
@@ -262,15 +264,15 @@ test('an operator page whose first resolves are refused stays on the numbered ro
   expect(resolves.refused, 'the first resolves were refused').toBe(2);
   expect(resolves.through, 'and the page asked again').toBeGreaterThan(0);
   expect(await op.evaluate(async (slug) => (await import('/src/control/hostedControl.ts')).sendsInOrder(slug), hosted), 'on the numbered road').toBe(true);
-  await expect(op.getByTestId('hosted-unordered')).toHaveCount(0);
+  await expect(op.getByTestId('unordered-sends')).toHaveCount(0);
   await expect.poll(() => airPlays(air), { timeout: 30_000 }).toBe('0');
 
   // The Take is held 6 s on its way, every attempt of it; the operator presses Out 1.5 s later.
   const answered = holdNextPress(op, new Promise((r) => setTimeout(r, 6_000)));
-  await op.getByTestId('hosted-take-cue').click();
+  await op.getByTestId('verb-take').click();
   await op.waitForTimeout(1_500);
-  await op.getByTestId('hosted-out-cue').click();
-  await expect(op.getByTestId('hosted-live-chip')).toContainText('nothing on air', { timeout: 30_000 });
+  await op.getByTestId('verb-out').click();
+  await expect(op.getByTestId('live-cue-chip')).toContainText('nothing on air', { timeout: 30_000 });
   const afterOut = await head(page, hosted);
 
   // The held Take arrives after the Out: the graphic is left as the Out left it, and nothing airs.
@@ -279,7 +281,7 @@ test('an operator page whose first resolves are refused stays on the numbered ro
   expect(await rowsAfter(page, hosted, afterOut.seq)).toEqual(expect.not.arrayContaining([expect.objectContaining({ t: 'play' })]));
   await op.waitForTimeout(3_000);
   expect(await airPlays(air)).toBe('0');
-  await expect(op.getByTestId('hosted-live-chip')).toContainText('nothing on air');
+  await expect(op.getByTestId('live-cue-chip')).toContainText('nothing on air');
 
   await op.unrouteAll({ behavior: 'ignoreErrors' });
   await Promise.all([op.close(), air.close()]);
@@ -301,8 +303,8 @@ test('a press of several batches never undoes a later press, and nothing pressed
   await page.keyboard.press('Escape');
   test.skip(!(await hasSequenceRoad(page)), 'this server has not applied 0071 (the sequence road); see expected-run.json');
   await clearPublishedShows(page);
-  const { hosted } = await publishScorebug(page, `Two Batches ${Date.now()}`);
-  const op = await openOperator(page, hosted);
+  const { showId, hosted } = await publishScorebug(page, `Two Batches ${Date.now()}`);
+  const op = await openOperator(page, showId);
 
   /** Hold every attempt of the first send `matches` picks (by its press number) until the page
    *  calls `__releaseHeld()`, then deliver each to the server from here. */
@@ -541,8 +543,8 @@ test('a renderer whose first numbered join fails joins again within seconds, and
   await page.keyboard.press('Escape');
   test.skip(!(await hasSequenceRoad(page)), 'this server has not applied 0071 (the sequence road); see expected-run.json');
   await clearPublishedShows(page);
-  const { hosted, output } = await publishScorebug(page, `Join Retry ${Date.now()}`);
-  const op = await openOperator(page, hosted);
+  const { showId, output } = await publishScorebug(page, `Join Retry ${Date.now()}`);
+  const op = await openOperator(page, showId);
 
   const air = await page.context().newPage();
   const realtime = await realtimeFaults(air);
@@ -553,7 +555,7 @@ test('a renderer whose first numbered join fails joins again within seconds, and
   await expect(air.locator('pre')).toContainText('realtime: NOT JOINED', { timeout: 30_000 });
   // ...and the Take pressed now reaches air within the quick retry and its refill, not the poll.
   const pressedAt = Date.now();
-  await op.getByTestId('hosted-take-cue').click();
+  await op.getByTestId('verb-take').click();
   await expect.poll(() => airPlays(air), { timeout: 20_000 }).toBe('1');
   const tookMs = Date.now() - pressedAt;
   expect(tookMs, 'the Take reached air within the quick retry, not the 15 s backoff or the 30 s poll').toBeLessThan(8_000);
@@ -579,8 +581,8 @@ test('a Take whose frame the renderer lost, with nothing after it, airs within t
   await page.keyboard.press('Escape');
   test.skip(!(await hasSequenceRoad(page)), 'this server has not applied 0071 (the sequence road); see expected-run.json');
   await clearPublishedShows(page);
-  const { hosted, output } = await publishScorebug(page, `Lost Frame ${Date.now()}`);
-  const op = await openOperator(page, hosted);
+  const { showId, output } = await publishScorebug(page, `Lost Frame ${Date.now()}`);
+  const op = await openOperator(page, showId);
 
   const air = await page.context().newPage();
   const realtime = await realtimeFaults(air);
@@ -593,7 +595,7 @@ test('a Take whose frame the renderer lost, with nothing after it, airs within t
 
   realtime.dropBroadcasts('seq-', 'batch');
   const pressedAt = Date.now();
-  await op.getByTestId('hosted-take-cue').click();
+  await op.getByTestId('verb-take').click();
   await expect.poll(() => airPlays(air), { timeout: 45_000 }).toBe('1');
   const tookMs = Date.now() - pressedAt;
   realtime.dropBroadcasts('', '');
@@ -617,8 +619,8 @@ test('a Presence channel closed by the server mid-burst costs the renderer no Ta
   await page.keyboard.press('Escape');
   test.skip(!(await hasSequenceRoad(page)), 'this server has not applied 0071 (the sequence road); see expected-run.json');
   await clearPublishedShows(page);
-  const { hosted, output } = await publishScorebug(page, `Presence Close ${Date.now()}`);
-  const op = await openOperator(page, hosted);
+  const { showId, output } = await publishScorebug(page, `Presence Close ${Date.now()}`);
+  const op = await openOperator(page, showId);
 
   const air = await page.context().newPage();
   const realtime = await realtimeFaults(air);
@@ -649,7 +651,7 @@ test('a Presence channel closed by the server mid-burst costs the renderer no Ta
   for (let take = 1; take <= 5; take += 1) {
     const pressedAt = (markedAt = Date.now());
     sends.push(`Take ${take}:`);
-    await op.getByTestId('hosted-take-cue').click();
+    await op.getByTestId('verb-take').click();
     await expect.poll(() => airPlays(air), { timeout: 30_000 }).toBe(String(take));
     late.push(Date.now() - pressedAt);
     if (take === 1) {
@@ -659,7 +661,7 @@ test('a Presence channel closed by the server mid-burst costs the renderer no Ta
     await op.waitForTimeout(800);
     markedAt = Date.now();
     sends.push('Out:');
-    await op.getByTestId('hosted-out-cue').click();
+    await op.getByTestId('verb-out').click();
     await op.waitForTimeout(800);
   }
   expect(realtime.faults.closed, 'the Presence channel was closed').toBe(1);
@@ -683,9 +685,9 @@ test('a renderer whose new resolve keeps timing out boots on today\'s road and a
   await page.keyboard.press('Escape');
   test.skip(!(await hasSequenceRoad(page)), 'this server has not applied 0071 (the sequence road); see expected-run.json');
   await clearPublishedShows(page);
-  const { hosted, output } = await publishScorebug(page, `Resolve Timeout ${Date.now()}`);
-  const op = await openOperator(page, hosted);
-  await op.getByTestId('hosted-take-cue').click();
+  const { showId, output } = await publishScorebug(page, `Resolve Timeout ${Date.now()}`);
+  const op = await openOperator(page, showId);
+  await op.getByTestId('verb-take').click();
 
   const air = await page.context().newPage();
   let timedOut = 0;

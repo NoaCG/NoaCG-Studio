@@ -14,10 +14,9 @@
 // applies it once. Offline there is only ever one road, so the reconciliation is ABSENT rather
 // than untested - and its failure is invisible on screen, which is why the only thing that can
 // judge it is e2e/configured/playout-both-roads.spec.ts counting entrances on a real backend.
-// The hosted control page is named for the same reason it has never been named before: it is a
-// signed-out capability URL with no offline existence at all, and it is now a SENDER on both
-// roads as well as a follower of them.
-// covers: src/control/commandRoads.ts, src/components/HostedControlPage.tsx
+// A second production page on the same production is named because, published, it is a SENDER
+// on both roads as well as a follower of them, and offline it has neither.
+// covers: src/control/commandRoads.ts, src/components/home/ProductionPage.tsx
 // covers: src/components/home/PayloadStage.tsx
 //
 // THE SCHEMA ITSELF. An RPC's body and an RLS policy are invisible to every offline spec by
@@ -35,7 +34,7 @@
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { haveCreds, openSecondProductionPage, signIn, wipeMyGraphics } from './_helpers';
 
 // ONE PRESS, ONE ENTRANCE - on every surface, with the verb travelling TWO roads.
 //
@@ -48,9 +47,8 @@ import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
 //
 // WHY THIS FILE EXISTS AT ALL. A doubled entrance is invisible. Replaying `play` on a graphic
 // that is already up re-runs an animation and settles on exactly the picture that was already
-// there, so a surface with the bug is pixel-identical to a surface without it - the same reason
-// `e2e/configured/hosted-control-recovery.spec.ts` had to stop asserting on the picture and start
-// asserting on a COUNT. `PayloadStage` publishes `data-plays` for the app's monitors and
+// there, so a surface with the bug is pixel-identical to a surface without it. So this file
+// asserts on a COUNT, never on the picture. `PayloadStage` publishes `data-plays` for the app's monitors and
 // `src/output/main.ts` publishes the same attribute on the renderer's own body, and this file is
 // arithmetic over those three numbers.
 //
@@ -124,7 +122,7 @@ test('one press is one entrance on the sender, on another operator, and on air',
   await bootstrapGraphic(page, { name: 'House Scorebug' });
 
   const showName = `Both Roads ${Date.now()}`;
-  await openProductionWithCurrent(page, showName);
+  const showId = await openProductionWithCurrent(page, showName);
 
   await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
@@ -138,9 +136,8 @@ test('one press is one entrance on the sender, on another operator, and on air',
   const slugs = await page.evaluate(async (name) => {
     const { loadShows } = await import('/src/model/shows.ts');
     const s = loadShows().find((x) => x.name === name);
-    return { hosted: s?.hostedSlug ?? null, output: s?.outputSlug ?? null };
+    return { output: s?.outputSlug ?? null };
   }, showName);
-  expect(slugs.hosted, 'publishing must mint a hosted control slug').toBeTruthy();
   expect(slugs.output, 'publishing must mint an output slug').toBeTruthy();
 
   // ── The other two seats. ───────────────────────────────────────────────────────────────────
@@ -153,15 +150,12 @@ test('one press is one entrance on the sender, on another operator, and on air',
   await air.goto(`/output?production=${encodeURIComponent(slugs.output as string)}&debug=1`);
   await expect(air.locator('pre')).toContainText('realtime:', { timeout: 60_000 });
 
-  // …and the capability URL an operator opens on their phone, signed out, with no memory of the
-  // production. It sends nothing yet: for the first half of this walk it is the pure two-roads
-  // seat, receiving a verb it did not press.
-  const op = await context.newPage();
-  await op.goto(`/app?control=${encodeURIComponent(slugs.hosted as string)}`);
-  await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
+  // …and a second operator's production page on the same production. It sends nothing yet: for
+  // the first half of this walk it is the pure two-roads seat, receiving a verb it did not press.
+  const op = await openSecondProductionPage(page, showId);
 
   const deskProgram = page.getByTestId('program-stage');
-  const opProgram = op.getByTestId('hosted-program-stage');
+  const opProgram = op.getByTestId('program-stage');
   const airPlays = () => air.evaluate(() => document.body.getAttribute('data-plays'));
 
   // NOTHING HAS EVER AIRED on this production, so every count below is measured against a zero
@@ -179,14 +173,14 @@ test('one press is one entrance on the sender, on another operator, and on air',
   // before that row exists is a count taken before the defect could have happened. A take is
   // three rows (`takeCueItems`: update, play, cue).
   await awaitDurable(air, rowsAt, 3);
-  await expect(op.getByTestId('hosted-action-log-row')).toHaveCount(3, { timeout: 60_000 });
+  await expect(op.getByTestId('action-log-row')).toHaveCount(3, { timeout: 60_000 });
 
   // THE CLAIM, in three seats. Under a reconciler that misses, the operator page and the
   // renderer read '2' and the sender's own monitor reads '2' as well.
   await expect(deskProgram).toHaveAttribute('data-plays', '1');
   await expect(opProgram).toHaveAttribute('data-plays', '1');
   await expect.poll(airPlays, { timeout: 30_000 }).toBe('1');
-  await expect(op.getByTestId('hosted-live-chip')).toContainText('on air:');
+  await expect(op.getByTestId('live-cue-chip')).toContainText('on air:');
 
   // ── TWO presses are two entrances. Re-take is the operator deliberately replaying the
   //    entrance of a cue that is already up: same cue, same values, same three commands, and the
@@ -195,7 +189,7 @@ test('one press is one entrance on the sender, on another operator, and on air',
   rowsAt = await lastRow(air);
   await page.getByTestId('verb-retake').click();
   await awaitDurable(air, rowsAt, 3);
-  await expect(op.getByTestId('hosted-action-log-row')).toHaveCount(6, { timeout: 60_000 });
+  await expect(op.getByTestId('action-log-row')).toHaveCount(6, { timeout: 60_000 });
   await expect(deskProgram).toHaveAttribute('data-plays', '2');
   await expect(opProgram).toHaveAttribute('data-plays', '2');
   await expect.poll(airPlays, { timeout: 30_000 }).toBe('2');
@@ -206,27 +200,27 @@ test('one press is one entrance on the sender, on another operator, and on air',
   rowsAt = await lastRow(air);
   await page.getByTestId('verb-out').click();
   await awaitDurable(air, rowsAt, 2); // `clearCueItems`: stop, cue
-  await expect(op.getByTestId('hosted-live-chip')).toContainText('nothing on air', { timeout: 30_000 });
+  await expect(op.getByTestId('live-cue-chip')).toContainText('nothing on air', { timeout: 30_000 });
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
   await expect(deskProgram).toHaveAttribute('data-plays', '2');
   await expect(opProgram).toHaveAttribute('data-plays', '2');
   await expect.poll(airPlays, { timeout: 30_000 }).toBe('2');
 
-  // ── AND THE OTHER DIRECTION. The phone takes; the desk is now the seat that receives a verb it
+  // ── AND THE OTHER DIRECTION. The second page takes; the desk is now the seat that receives a verb it
   //    did not press, and the renderer is on the two roads either way. Both senders reconcile, or
   //    only the one that happened to be walked first does. ───────────────────────────────────────
   rowsAt = await lastRow(air);
-  await op.getByTestId('hosted-cues').locator('.pd-cue').first().getByTestId('hosted-select-cue').click();
-  await op.getByTestId('hosted-take-cue').click();
+  await op.getByTestId('cue-list').locator('.pd-cue').first().getByTestId('select-cue').click();
+  await op.getByTestId('verb-take').click();
   await awaitDurable(air, rowsAt, 3);
-  await expect(op.getByTestId('hosted-action-log-row')).toHaveCount(11, { timeout: 60_000 });
+  await expect(op.getByTestId('action-log-row')).toHaveCount(11, { timeout: 60_000 });
   await expect(deskProgram).toHaveAttribute('data-plays', '3');
   await expect(opProgram).toHaveAttribute('data-plays', '3');
   await expect.poll(airPlays, { timeout: 30_000 }).toBe('3');
 
-  // The picture is still up on every seat - the ending the recovery spec next door guards, where
-  // a mis-reconciled replay snapped to a stale "off" and took the layer off air.
-  await expect(op.locator('.prod-monitor-empty')).toHaveCount(0);
+  // The picture is still up on every seat: a mis-reconciled replay could snap to a stale "off"
+  // and take the layer off air.
+  await expect(opProgram.locator('.prod-monitor-empty')).toHaveCount(0);
   await expect(page.getByTestId('live-cue-chip')).toContainText('on air');
 
   await op.close();

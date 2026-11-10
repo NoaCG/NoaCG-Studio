@@ -66,7 +66,7 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   'render.cloud': 'Cloud video rendering',
   'sync.cloud': 'Cloud sync of saved work',
   'community.publish': 'Submit community packs',
-  'control.hosted': 'Hosted control pages',
+  'control.hosted': 'Published productions',
   showchat: 'Audience send-in and show chat',
   audience: 'Audience participation in a production',
   'templates.beta': 'Templates marked beta',
@@ -135,7 +135,7 @@ export const FEATURE_ENFORCEMENT_NOTES: Partial<Record<FeatureKey, string>> = {
   'community.publish':
     'stops new community packs and pack updates in the database; packs already on the shelf stay up, and moderators can still act',
   'control.hosted':
-    'stops creating pages and stops every operator command on existing ones; the pages stay readable',
+    'stops new publishing and stops every operator command on published productions; what is published stays readable',
   showchat: 'stops new send-ins and moderation; messages already on air stay on air',
   audience:
     'stops the join page taking anything and stops moderation; the join link keeps working and says it is closed, and anything already on air stays on air',

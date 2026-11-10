@@ -5,7 +5,7 @@
 //   node scripts/acceptance-pack.mjs                             # everything, into the pack's home
 //   node scripts/acceptance-pack.mjs docs/acceptance/owner-pack scroll   # one section
 //
-// Sections: catalog | scroll | hosted | controller | interactive | index (index alone re-renders the
+// Sections: catalog | scroll | controller | interactive | index (index alone re-renders the
 // page around whatever the manifest already holds, without opening a single production).
 //
 // THE PACK IS COMMITTED, unlike a sweep's output. It is ~2 MB, three docs point at it as the
@@ -24,7 +24,7 @@
 //
 // Needs the dev server up on this checkout's port (node scripts/dev-port.mjs).
 import { chromium } from '@playwright/test';
-import { mkdirSync, writeFileSync, readFileSync, readdirSync, copyFileSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
 import JSZip from 'jszip';
@@ -33,7 +33,7 @@ import { outDir } from './out-dir.mjs';
 const OUT = outDir(
   process.argv[2],
   './docs/acceptance/owner-pack',
-  'Usage: node scripts/acceptance-pack.mjs [out-dir] [catalog|scroll|hosted|controller|interactive|index ...]',
+  'Usage: node scripts/acceptance-pack.mjs [out-dir] [catalog|scroll|controller|interactive|index ...]',
 );
 const ASKED = process.argv.slice(3).filter((a) => !a.startsWith('-'));
 const WANT = (name) => ASKED.length === 0 || ASKED.includes(name);
@@ -417,202 +417,6 @@ async function sectionScroll(browser) {
     record({ ...shot, section: 'scroll', measured });
   }
 
-  // The HOSTED control page renders the same dashboard from the same stylesheet. Offline it
-  await context.close();
-}
-
-// ═════════════════════════════════════════════════════════════════════════════════════════
-// SECTION 2b — the HOSTED control page: the surface a phone across the building drives
-//
-// It needs a Supabase backend, and this checkout is offline by design, so a picture of it takes
-// a build with the env set and a server answering the RPCs. Both are FAKE and neither is a
-// mockup: the page is the real built bundle, and what it renders is a real production's own
-// `buildPanelSpec` / `buildOutputPayload`, computed by the app itself on the dev server. What is
-// stubbed is the TRANSPORT - migration 0008's RPCs answered from memory, with `control_send`
-// appending to an ordered log that `control_tail` serves back, exactly as e2e/_relay.ts does for
-// the exported package. A Take therefore really airs, and the PROGRAM monitor really follows it.
-//
-// The one thing this cannot prove is the server: RLS, the slug capability, the real log's
-// ordering. That is what the live checklist is for. This proves the LAYOUT, which is the only
-// thing the two questions in §2 are about.
-// ═════════════════════════════════════════════════════════════════════════════════════════
-const STUB_SUPABASE = 'https://stub-backend.invalid';
-const STUB_ORIGIN = 'http://hosted-read.local';
-const HOSTED_BUILD = '.tmp-hosted-build';
-const MIME = {
-  '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css',
-  '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.woff2': 'font/woff2',
-  '.woff': 'font/woff', '.ttf': 'font/ttf', '.txt': 'text/plain', '.xml': 'application/xml',
-  '.webmanifest': 'application/manifest+json', '.map': 'application/json',
-};
-
-/** Every file under a directory, keyed by its path relative to it, with forward slashes. */
-function readTree(root, prefix = '', into = new Map()) {
-  for (const entry of readdirSync(join(root, prefix), { withFileTypes: true })) {
-    const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
-    if (entry.isDirectory()) readTree(root, rel, into);
-    else into.set(rel, readFileSync(join(root, rel.split('/').join('/'))));
-  }
-  return into;
-}
-
-async function sectionHosted(browser) {
-  console.log('\n[hosted] the hosted control page, over a stubbed backend');
-
-  // ── 1. The production, and the two payloads a publish would write, computed by the app ──
-  const offline = await browser.newContext({ viewport: REPORTED, deviceScaleFactor: 1 });
-  const seed = await offline.newPage();
-  await createProject(seed, { name: 'Arena Quiz' });
-  const published = await seed.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const shows = await import('/src/model/shows.ts');
-    const { buildPanelSpec, buildOutputPayload } = await import('/src/control/hostedControl.ts');
-    const quiz = variantById('qz01').create({});
-    const { doc } = createGraphic(quiz, { name: 'Arena Quiz' });
-    const show = shows.createShowNamed('Owner Read');
-    shows.addGraphicToShow(show.id, quiz, { graphicId: doc.id });
-    let fresh = shows.loadShows().find((s) => s.id === show.id);
-    shows.updateShowCue(show.id, fresh.cues[0].id, { label: 'Question one' });
-    const board = variantById('sb01').create({});
-    const made = createGraphic(board, { name: 'Match Strip' });
-    shows.addGraphicToShow(show.id, board, { graphicId: made.doc.id });
-    fresh = shows.loadShows().find((s) => s.id === show.id);
-    shows.updateShowCue(show.id, fresh.cues[fresh.cues.length - 1].id, { label: 'Match board' });
-    fresh = shows.loadShows().find((s) => s.id === show.id);
-    const output = await buildOutputPayload(fresh);
-    return {
-      id: fresh.id,
-      title: fresh.name,
-      panel: buildPanelSpec(fresh),
-      output,
-      // The cue the stubbed resolve will report as already on air.
-      onAir: output.cues[0],
-    };
-  });
-  await offline.close();
-
-  // ── 2. A build with the backend env SET. Nothing else about it differs from a real one. ──
-  console.log('  building a bundle with the backend env set…');
-  execSync(`npx vite build --outDir ${HOSTED_BUILD} --emptyOutDir --logLevel error`, {
-    stdio: 'inherit',
-    env: {
-      ...process.env,
-      VITE_SUPABASE_URL: STUB_SUPABASE,
-      VITE_SUPABASE_ANON_KEY: 'stub-anon-key-not-a-secret',
-    },
-    windowsHide: true,
-  });
-  const files = readTree(HOSTED_BUILD);
-  console.log(`  serving ${files.size} built files over ${STUB_ORIGIN}`);
-
-  // ── 3. The transport, from memory: 0008's RPCs, with a real ordered log behind them ──
-  const log = [];
-  const stubbed = new Set();
-  const rpc = (name, body) => {
-    stubbed.add(name);
-    switch (name) {
-      case 'control_show_by_slug':
-        // OPENING ONTO A PRODUCTION THAT IS ALREADY ON AIR - the hosted page's own real case
-        // (an operator joins from a phone mid-show), and the one this rig can show honestly.
-        // The resolve reports which layer is up and what it last applied; the page's boot
-        // recovery plays that onto PROGRAM from those two fields alone, with no log row and no
-        // socket involved. Driving it live from here would need Supabase REALTIME - the log
-        // follower tail-fills only when a phoenix channel reports SUBSCRIBED - and a faked
-        // socket is where this rig would stop being a picture of the product.
-        return {
-          id: published.id, title: published.title, panel: published.panel,
-          staged: {}, last_event_id: log.length,
-          live: { [published.onAir.graphic]: { data: published.onAir.values, state: null } },
-          output: published.output, output_seen_at: new Date(0).toISOString(),
-          live_cue: { v: 2, layers: { [published.onAir.graphic]: { cue: published.onAir.id } } },
-        };
-      case 'control_tail':
-        return log.filter((r) => r.id > Number(body.p_after ?? 0));
-      case 'control_send':
-        log.push({ id: log.length + 1, graphic: body.p_graphic, msg: body.p_msg });
-        return null;
-      case 'control_send_many':
-        for (const item of body.p_items ?? []) log.push({ id: log.length + 1, graphic: item.graphic, msg: item.msg });
-        return null;
-      case 'control_stage':
-        log.push({ id: log.length + 1, graphic: body.p_graphic, msg: { t: 'staged', data: body.p_data } });
-        return null;
-      default:
-        // Everything the OUTPUT plane asks for. Named rather than blanket-answered, so a call
-        // this pack has not thought about shows up in the console instead of looking handled.
-        return null;
-    }
-  };
-  const unexpected = [];
-  const serve = (route) => {
-    const url = new URL(route.request().url());
-    if (url.origin === STUB_SUPABASE) {
-      const m = /^\/rest\/v1\/rpc\/([a-z_]+)$/.exec(url.pathname);
-      if (!m) { unexpected.push(url.pathname); return route.fulfill({ status: 404, body: '{}' }); }
-      const body = route.request().postDataJSON() ?? {};
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(rpc(m[1], body)) });
-    }
-    // `cleanUrls` in production serves app.html for /app; the built tree has the .html file.
-    // THE CONTENT TYPE COMES OFF THE KEY THAT MATCHED, never off the request path: `/app` has
-    // no extension, so typing it by the URL hands the browser an octet-stream and Chromium
-    // DOWNLOADS the page instead of rendering it.
-    const path = decodeURIComponent(url.pathname.replace(/^\//, '')) || 'index.html';
-    const key = [path, `${path}.html`, `${path.replace(/\/$/, '')}/index.html`].find((k) => files.has(k));
-    if (!key) return route.fulfill({ status: 404, body: 'nf' });
-    const ext = key.slice(key.lastIndexOf('.'));
-    return route.fulfill({ status: 200, contentType: MIME[ext] ?? 'application/octet-stream', body: files.get(key) });
-  };
-
-  const context = await browser.newContext({ viewport: REPORTED, deviceScaleFactor: 1 });
-  const page = await context.newPage();
-  await page.route(`${STUB_ORIGIN}/**`, serve);
-  await page.route(`${STUB_SUPABASE}/**`, serve);
-  await page.goto(`${STUB_ORIGIN}/app?control=owner-read-pack`, { waitUntil: 'load' });
-  await page.waitForSelector('[data-testid="hosted-control-page"]', { timeout: 45_000 });
-  await wait(page, 3_000);
-  // The quiz is up (the resolve said so and the boot recovery played it); select the OTHER cue,
-  // so PREVIEW carries the graphic being checked and PROGRAM carries the one on air - the same
-  // two-populated-monitors picture the in-app frames above are read from.
-  await page.getByTestId('hosted-select-cue').nth(1).click();
-  await wait(page, 3_000);
-
-  for (const shot of [
-    {
-      viewport: REPORTED,
-      file: 'scroll-hosted-1536x814.png',
-      title: 'The HOSTED control page at 1536×814 — the third surface, opened onto a live show',
-      question:
-        'The re-lay reached this surface too. It measures IDENTICALLY to the in-app page — 225px of picture in a 267px head, 33% of the window — so the three still have not diverged. Does it read the same to you?',
-      note:
-        'The real built bundle — nothing about it differs from a deployed one except which URL its Supabase env points at. What it renders is this production’s own `buildPanelSpec` and `buildOutputPayload`, computed by the app itself, and migration 0008’s RPCs answered from memory. It is captured OPENING onto a production already on air, which is the hosted page’s own case (an operator joining mid-show): the resolve reports which layer is up and what it last applied, and the boot recovery plays that onto PROGRAM from those two fields alone. WHAT THIS FRAME CANNOT SHOW: anything that happens AFTER the open. The log follower tail-fills only when Supabase Realtime reports SUBSCRIBED, and this rig has no socket — so the buttons here would not move the picture. It proves the LAYOUT, which is all the two questions are about; the server side (RLS, the slug capability, the log’s ordering) belongs to the live checklist.',
-    },
-    {
-      viewport: SHORT,
-      file: 'scroll-hosted-1536x560.png',
-      scrollToBottom: true,
-      title: 'The hosted page in a short window — 1536×560, scrolled down',
-      question:
-        'Third surface, below the supported minimum. Same question as the in-app frame: does it degrade acceptably rather than break?',
-      note:
-        'The header, the monitors and the cue rail stay put; the page is what moves. One thing to look at while you are here, recorded as an observation and not a verdict: the ⚡ block is offered for the cue being EDITED, whose layer (L21) is not the one on air — the same undecided question the exported-controller frame below raises, which §7b and §7c of docs/PLAYOUT_DASHBOARD.md are the two places the rule would live.',
-    },
-  ]) {
-    await page.setViewportSize(shot.viewport);
-    await wait(page, 900);
-    await page.evaluate((bottom) => {
-      window.scrollTo(0, bottom ? document.documentElement.scrollHeight : 0);
-      document.querySelector('.pd-control-area')?.scrollTo(0, bottom ? 1e6 : 0);
-    }, !!shot.scrollToBottom);
-    await wait(page, 500);
-    const measured = await measureDashboard(page);
-    await page.screenshot({ path: join(OUT, shot.file) });
-    record({ ...shot, section: 'scroll', measured });
-  }
-
-  console.log(`  RPCs answered: ${[...stubbed].sort().join(', ')}`);
-  if (unexpected.length) console.warn(`  ! unexpected backend calls: ${[...new Set(unexpected)].join(', ')}`);
   await context.close();
 }
 
@@ -1085,7 +889,6 @@ const browser = await chromium.launch();
 try {
   if (WANT('catalog')) await sectionCatalog(browser);
   if (WANT('scroll')) await sectionScroll(browser);
-  if (WANT('hosted')) await sectionHosted(browser);
   if (WANT('controller')) await sectionController(browser);
   if (WANT('interactive')) await sectionInteractive(browser);
 } finally {

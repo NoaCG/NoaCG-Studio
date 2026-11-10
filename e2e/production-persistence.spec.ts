@@ -165,7 +165,7 @@ test('the record survives republish-shaped edits: slugs stay, the unpublished-ch
   await expect(page.getByTestId('playout-action-slot').getByTestId('production-publish-changes')).toHaveCount(0);
   await page.getByTestId('production-setup').click();
   await page.getByTestId('setup-links').click();
-  await expect(page.getByTestId('production-links').getByTestId('control-url')).toContainText('?control=test-hosted-slug');
+  await expect(page.getByTestId('production-links').getByTestId('control-url')).toHaveCount(0);
   await page.getByTestId('production-links-close').click();
 
   // An edit AFTER publish: the outputs run an older snapshot, so Publish changes appears. It is an
@@ -259,7 +259,7 @@ test('the audience and presenter links are offered separately, and only once the
   // explanation paragraphs and their ▸ toggles (playout-workflow-simplification AC-8, AC-10).
   await expect(links.getByTestId('join-url')).toContainText('Public');
   await expect(links.getByTestId('presenter-url')).toContainText('Private');
-  await expect(links.getByTestId('control-url')).toContainText('Private');
+  await expect(links.getByTestId('control-url')).toHaveCount(0);
   await expect(page.getByTestId('presenter-url-help-toggle')).toHaveCount(0);
 });
 

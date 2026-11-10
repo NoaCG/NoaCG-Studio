@@ -1,4 +1,4 @@
-// guards: src/control/outputRecovery.ts, src/control/airState.ts, src/output/main.ts, src/control/hostedReceiver.ts, src/components/HostedControlPage.tsx
+// guards: src/control/outputRecovery.ts, src/control/airState.ts, src/output/main.ts, src/control/hostedReceiver.ts
 //
 // TYPED OGRAF DATA THROUGH A RELOAD (docs/work-specs/playout-ograf-contract/spec.md, E1.2b), in
 // Node. The browser halves are e2e/output-typed-recovery.spec.ts (the real /output renderer: the
@@ -196,7 +196,6 @@ test('PROGRAM is rebuilt from a typed report: its envelope and look, its pose or
   const airedAfterReport = seedFromResolve(next, { liveCue: { Board: 'c1' }, live: heldLook }, nativeTake, airAtRequest(atHeld), [{ id: 'c1', values: { f0: 'x' } }], specs);
   assert.equal(airedAfterReport.reports.Board, undefined);
   assert.deepEqual(restoreItems(airedAfterReport, {}, specs, airedAfterReport.bootLive).items.map((item) => item.msg.t), ['update', 'play', 'update']);
-  assert.match(source('src/components/HostedControlPage.tsx'), /const held = reportedLook\(reportsRef\.current\[graphic\]\);/);
   // A report whose envelope does not read rebuilds nothing typed from it.
   const later = { Board: { data: {}, state: { typed: envelope({}, 9), steps: 1 }, event: 10 } };
   const unread = seedFromResolve({ ...NO_AIR, reports: later }, { liveCue: { Board: 'c1' }, live: later }, [], airAtRequest(NO_AIR), [], specs);
@@ -211,16 +210,13 @@ test('PROGRAM is rebuilt from a typed report: its envelope and look, its pose or
     { graphic: 'Board', msg: { t: 'update', data: { f0: 'A' } } },
     { graphic: 'Board', msg: { t: 'next' } },
   ]);
-  // The hosted page's PROGRAM reads the same baseline.
-  // The hosted page holds the same rows through the same helper.
-  assert.match(source('src/components/HostedControlPage.tsx'), /\.\.\.rowsPastHold\(rows\)\];/);
+  // A PROGRAM monitor holds the rows past a typed hold through the shared helper.
   assert.deepEqual(rowsPastHold([{ msg: { t: 'update', data: {}, typed: envelope({}, 9) } }, { msg: { t: 'play' } }]), [], 'an unreadable envelope keeps the hold');
-  assert.match(source('src/components/HostedControlPage.tsx'), /const typedBase = replay \? reportedTypedAir\(reportsRef\.current\[graphic\]\) : null;/);
 });
 
 test('the exported receiver refuses a typed row whole and holds, in ES5', () => {
   // The block is generated text an export embeds; its typed rule is read from the source here (the
-  // module imports the app's backend config) and walked in a browser by e2e/hosted-control.spec.ts.
+  // module imports the app's backend config) and walked in a browser by e2e/published-control.spec.ts.
   const text = source('src/control/hostedReceiver.ts');
   const rule = text.slice(text.indexOf("  var refused = '';"), text.indexOf('  // Apply one command through'));
   assert.match(rule, /function held\(m\)/);

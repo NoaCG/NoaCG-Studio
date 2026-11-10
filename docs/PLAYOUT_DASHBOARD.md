@@ -1,22 +1,22 @@
-# The playout dashboard — one operator surface, three deployments
+# The playout dashboard: one operator surface, two deployments
 
 Binding design contract for the surface an operator drives a production from. Owner-specified
 2026-08-05 against desktop and phone reference designs (those mockup PNGs were planning
-artefacts and are no longer in the repository), and the four INTERACTIVE blueprints in §8a. Three surfaces render it and **must not diverge**:
+artefacts and are no longer in the repository), and the four INTERACTIVE blueprints in §8a. Two surfaces render it and **must not diverge**:
 
 | Deployment | Code | Wire |
 |---|---|---|
 | In-app production page | `src/components/home/ProductionPage.tsx` | local (preview) + hosted log (air) |
-| Hosted control page | `src/components/HostedControlPage.tsx` | hosted log |
 | Exported controller | `src/control/productionControllerHtml.ts` | the bundled local relay |
 
 **One deliberate difference, ruled 2026-09-15** (`docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6f): the
-production control profile's ARRANGE renders on all three. Shared production data stays on the
-hosted pages; the exported controller carries no tree. (The profile's COMBINE half, which rendered
-on the two hosted pages only, was removed on 2026-10-02; see §7d.)
+production control profile's ARRANGE renders on both. Shared production data stays on the
+production page; the exported controller carries no tree. (The profile's COMBINE half, which
+rendered on the production page and the hosted control page (retired 2026-11) only, was removed on 2026-10-02; see
+§7d.)
 
 Before this contract they were three different products: the exported one had PREVIEW/PROGRAM
-monitors and a blue accent, the hosted one had no monitors at all and stacked one tall card per
+monitors and a blue accent, the hosted one (the hosted control page, retired 2026-11) had no monitors at all and stacked one tall card per
 graphic, the in-app one had a single preview and reordered layers with arrows. A student who
 learned one could not operate another.
 
@@ -127,7 +127,7 @@ between the two columns is a handle: the rundown is as wide as the operator drag
   says which check set the colour, then lists the outputs, the actions (publish, unpublish, Put
   on air, Prepare for Live, Check again), the playout setup (folded once the Bridge answers) and
   the links. Offline, ▶ Start production sits beside it. On a phone it narrows and the panel spans
-  the screen. The hosted page keeps the READY line by its clock. Neither blocks a verb.
+  the screen. It never blocks a verb.
 - **ON A LAPTOP THE NAME OUTRANKS THE EXTRAS** (classroom walk, 2026-09-25). At 1366×768 and
   1280×720 a two-word name ("Quiz Night") shows whole: at 1440px and under the clock stands
   down and the tabs tighten, and under 1366px the
@@ -231,7 +231,7 @@ between the two columns is a handle: the rundown is as wide as the operator drag
     resized browser, and what it owes is degrading without breaking, not fitting. The verb bar
     sits beside PROGRAM down to 1366 and returns underneath below it.
 
-  **BUILT 2026-08-21, all three surfaces, and measured.** Three changes, each answering one of
+  **BUILT 2026-08-21, on the three surfaces of the time, and measured.** Three changes, each answering one of
   the findings above:
 
   1. **THE STAGE HEAD.** `.pd-stagehead` wraps the monitors AND the verb bar, and IT is what
@@ -279,7 +279,7 @@ between the two columns is a handle: the rundown is as wide as the operator drag
 
   **The cue's aspect ratio no longer sizes the monitors.** `--pd-ar` is the PRODUCTION's stage,
   derived exactly as `buildOutputPayload` derives it and as the exported controller already baked
-  it, so all three surfaces agree on one canvas. Both frames wear that ratio and a differently
+  it, so both surfaces agree on one canvas. Both frames wear that ratio and a differently
   shaped cue is LETTERBOXED into it — `Math.min` contain-fit, the arithmetic `src/output/stage.ts`
   has always used, so PREVIEW now behaves like the renderer it is previewing. PROGRAM's frame was
   hard-coded `16 / 9` and follows the same stage now, which is what a 9:16 production always
@@ -287,21 +287,15 @@ between the two columns is a handle: the rundown is as wide as the operator drag
 
   **Where that read was done: `docs/acceptance/owner-pack/index.html` §2** (rebuilt 2026-08-21 by
   `node scripts/acceptance-pack.mjs`). It carries both questions verbatim over frames of the real
-  app at 1536×814, 1536×560 and 1920×1080, on **all three surfaces**. Each frame carries the
+  app at 1536×814, 1536×560 and 1920×1080, on **all three surfaces of the time**. Each frame carries the
   geometry read off the live document at capture time, which reproduces the table above and adds
   the number the second question is actually about: the empty width beside the PROGRAM frame is
   **378px at 1536×814, 612px at 1536×560, 516px at 1920×1080**.
 
-  **The three surfaces are now MEASURED not to diverge, not argued not to.** The hosted control
-  page reports the identical geometry to the in-app page at both sizes — 254px / 31% / 378px at
-  1536×814, 188px / 33% / 612px at 1536×560, no pane with a scrollbar of its own on either. It
-  needs Supabase env plus a publish, which an offline checkout has by design, so the pack's
-  `hosted` section builds the ordinary bundle with the env pointed at a stub origin and answers
-  0008's RPCs from memory with the production's own `buildPanelSpec`/`buildOutputPayload`. It is
-  captured OPENING onto a show already on air — the hosted page's own case — because the log
-  follower tail-fills only when Realtime reports SUBSCRIBED, so nothing after the open moves in
-  that rig, and the frame says so rather than implying otherwise. What it proves is the LAYOUT;
-  the server side stays the live checklist's job.
+  **On 2026-08-21 the surfaces were MEASURED not to diverge, not argued not to.** The hosted
+  control page (retired 2026-11) reported the identical geometry to the in-app page at both sizes:
+  254px / 31% / 378px at 1536×814, 188px / 33% / 612px at 1536×560, no pane with a scrollbar of
+  its own on either.
 - **Monitors are 16:9, side by side, equal, and CAPPED near 30vh** — owner, same report: *"we
   should rather make the preview and program screens a bit smaller… you see what's out all the
   time"*. Uncapped they took 41% of the height (442px of 1080). The cap is expressed as a grid
@@ -316,12 +310,12 @@ between the two columns is a handle: the rundown is as wide as the operator drag
   the cue's, so selecting a non-16:9 cue narrowed both monitors — the "monitors don't jump between
   scales depending on what graphic we are looking at" rule, broken by the mechanism enforcing the
   cap). It is derived the way `buildOutputPayload` derives it, which is also what the exported
-  controller has always baked in, so the three surfaces agree on one canvas. A cue of another
+  controller has always baked in, so both surfaces agree on one canvas. A cue of another
   shape is letterboxed into that stage rather than resizing it. PVW wears the amber frame, PGM the red one. PGM's header carries the layer
   badge of what is up.
 - **A monitor is a monitor: `pointer-events: none` on its iframe.** A click that lands inside
   moves focus into a document that does not listen for the verb keys, so SPACE, N and 0 go dead
-  with nothing on screen saying why. The exported controller always did this; the React surfaces
+  with nothing on screen saying why. The exported controller always did this; the React pages
   did not, and the capped monitors are what put a monitor under the pointer where a gap used to
   be.
 - **The verb bar shows its keyboard shortcuts** as chips: TAKE `SPACE`, Re-take `R`,
@@ -329,8 +323,7 @@ between the two columns is a handle: the rundown is as wide as the operator drag
   (§2h), which toggles it. `■ All out` lives in the header,
   away from the others, because it is the panic control.
 - **A cue can have its own shortcut** (the row's ⋯ › Shortcut; playout-workflow-simplification
-  D13). The key pressed in the dialog is the assignment, saved and working at once, here and on
-  the hosted page. It binds by the key's position with Ctrl, Alt and Shift, so Å, Ä, Ö, Shift+1,
+  D13). The key pressed in the dialog is the assignment, saved and working at once. It binds by the key's position with Ctrl, Alt and Shift, so Å, Ä, Ö, Shift+1,
   Ctrl+K or F2 work, and the rundown shows the layout's own label. Refused, each in one line: the
   verb keys with or without Shift, Ctrl+Alt (AltGr), F5, F11, F12, Ctrl or Ctrl+Shift with N, T, W
   or Tab, and the rundown's Ctrl+C, X, V, Z, Y. A key another cue holds offers "Move it here".
@@ -343,13 +336,13 @@ between the two columns is a handle: the rundown is as wide as the operator drag
   soonest and resumes it, whatever is selected; the chip over PROGRAM carries Hold and Manual, and
   Manual has no key because it is final. An end action more than 5 s late is marked missed on its
   row and never runs. Nothing automatic moves the selection or PREVIEW.
-- **There is no PREVIEW verb on the two React surfaces** (owner, 2026-08-22 — "you can drop
+- **There is no PREVIEW verb on the production page** (owner, 2026-08-22 — "you can drop
   preview"). Selection already IS the preview gesture, and their PVW monitor is a local stage
   that follows it, so the button re-selected the cue that was already on it and its key `P` did
   the same. It was reading as the second-loudest control on a bar where everything else changes
   air. The EXPORTED controller keeps its `→ Preview`, where the word means something else
   entirely: it puts the cue on a real second output stream. Its key is `V` since 2026-10-02:
-  `P` is pause on the other two surfaces, and one key means one verb everywhere.
+  `P` is pause on the production page, and one key means one verb everywhere.
 - **THE VERB BLOCK IS TWO COLUMNS WIDE AT EVERY SIZE, with TAKE spanning the pair.** It sits
   between the cue list and the monitors, and that space is not decoration — "this is a very
   important space on the screen, so it can't just be one small column that you can miss" (owner,
@@ -376,9 +369,9 @@ between the two columns is a handle: the rundown is as wide as the operator drag
   Companion connection with live button state is filed, not started
   ([issue #809](https://github.com/NoaCG/NoaCG-Studio/issues/809)): every action it needs is already a named verb in
   the keymap below, and every state it would light is plain data in one store (§2g).
-- **The keymap is ONE module, `src/components/playoutKeys.ts`**, read by both React surfaces
+- **The keymap is ONE module, `src/components/playoutKeys.ts`**, read by the production page
   (the exported controller carries its own copy because it ships without React). Written twice,
-  it diverged: until 2026-08-18 the **hosted control page had no verb keys at all** — the page a
+  it diverged: until 2026-08-18 the **hosted control page (retired 2026-11) had no verb keys at all** — the page a
   class operates from was the one where `↑`/`↓` did nothing — and its TAKE re-took a live cue
   instead of taking it off, the exact behaviour §2 says one surface must never wear twice. A new
   key or a changed meaning goes in that module and in the controller's `keydown` block, never in
@@ -391,18 +384,13 @@ between the two columns is a handle: the rundown is as wide as the operator drag
   the staged-vs-take rule and it does not change — so the surface has to say when what is on
   screen is ahead of what is on air: the fate line names how many changes are waiting and ✎
   Update wears an amber dot. It compares against what was last SENT, never against the stored
-  cue, since those legitimately differ. **On the hosted page "last sent" is read off the WIRE**,
-  so an update somebody else aired clears the warning here too - the same fact, from the only
-  source a shared surface can trust.
-- **Activity is one collapsed line** at the bottom; it expands. Both React surfaces carry it, and
-  it earns its place most on the HOSTED one: that is the multi-operator surface, where "did that
-  take go, or was that somebody else?" is a real question. Those rows were already arriving there
-  to drive PROGRAM and were being thrown away.
+  cue, since those legitimately differ.
+- **Activity is one collapsed line** at the bottom; it expands. It earns its place most when
+  several operators share a production, where "did that take go, or was that somebody else?" is a
+  real question.
 - **A production DATA row loads into the edited cue** where the Data workspace has a table whose
   column names match this graphic's field titles (`control/cueData.ts` - one matcher, including
-  the A/B side gesture). The in-app page matches LIVE against the show; the hosted page renders
-  rows the same matcher resolved AT PUBLISH TIME, which is the freshness contract its cues and
-  entries already have: edit a dataset, publish changes.
+  the A/B side gesture). The production page matches LIVE against the show.
 
 ### 2d. The cue editor's field grid — the one rule, and the open question
 
@@ -478,10 +466,9 @@ field nobody finished. **The playout layer (the graphic's) sits under Advanced**
 2026-09-27 (`docs/CLIP_PLAYBACK_PLAN.md` §6.5): closed, with the number in its one-line summary
 (`Layer 21`), because most productions never change it. When the layer CLASHES with another
 graphic's, Advanced is open and cannot be closed, and the rundown's clash badge opens it too, so
-the repair is never behind a closed disclosure (§5). The hosted page's editor has no layer box.
+the repair is never behind a closed disclosure (§5).
 
-Both React surfaces render this: the in-app editor and the hosted control page, one module,
-docs/CONTROL_PANEL_PARITY.md §4.
+The production page's editor renders this from one module, docs/CONTROL_PANEL_PARITY.md §4.
 
 **Still open**: a shared title PREFIX ("Team …", "Score …") as a weaker grouping for what the side
 rule refuses. Nothing in the catalog needs it today, which is why it is not written.
@@ -497,13 +484,13 @@ press space again, it disappears from the program and is just in the preview. It
 button on a mixer."* The other mode is today's toggle, unchanged.
 
 **The setting.** A checkbox, **`SPACE` previews first**, in the verb bar under the on-air chip on
-all three surfaces (`components/SpaceModeToggle.tsx`, and the controller's own copy). It sits
+both surfaces (`components/SpaceModeToggle.tsx`, and the controller's own copy). It sits
 beside the key it changes, not on a settings screen, for the reason the playout layer sits in the
 cue editor: the operator decides this with a hand on the key. Unchecked is the default. It is a
 person's habit, so it is a device-level preference, `spaceMode` on `model/prefs.ts` beside the
 other workflow defaults - per browser, never synced, unversioned: one word with a safe default,
-and an unknown value reads as the default (`control/spaceMode.ts asSpaceMode`). The in-app and
-hosted pages share it on one machine, read when a page opens and deliberately not followed live
+and an unknown value reads as the default (`control/spaceMode.ts asSpaceMode`). Production pages
+on one machine share it, read when a page opens and deliberately not followed live
 across tabs (a mode arriving from another tab would move PREVIEW under an operator mid-show);
 the exported controller keeps its own store on the relay's origin. The phone hides the checkbox
 with the on-air chip: the mode names a key a phone does not have, and the TAKE button still
@@ -518,7 +505,7 @@ follows whatever a wider window set.
 | neither | cannot happen: selection is preview | **goes to PREVIEW**; nothing airs |
 
 - **"On PREVIEW" is ONE cue on every surface, the last one put there, held synchronously** -
-  page state on the React surfaces, a `stagedId` on the exported controller set the moment the
+  page state on the production page, a `stagedId` on the exported controller set the moment the
   preview rows are sent, never read back off its 400 ms log poll (a decision that waited for the
   poll previewed twice under the owner's two-press gesture and aired nothing). It is never
   stored: a check of what is about to air does not survive a reload, so a reloaded page starts
@@ -535,11 +522,10 @@ follows whatever a wider window set.
   `0` still means Out from either state and never touches PREVIEW. **One exception** (owner,
   2026-09-29, §2i): on a held One-by-one folder header SPACE steps to the next cue while cues remain,
   and the button says so; `0` still clears that folder in one press.
-- **The editor follows the SELECTION on all three surfaces** - what the exported controller has
+- **The editor follows the SELECTION on both surfaces** - what the exported controller has
   always done - and the PREVIEW monitor follows only the staged cue. The kicker reads **EDITING
   SELECTED CUE** while the cursor is ahead of the monitor, PREVIEW CUE once SPACE has caught it
-  up; the too-long warning is shown only when the edited cue is the one PREVIEW measured; the
-  hosted page's live-edit refreshes PREVIEW only while the edited cue is on it.
+  up; the too-long warning is shown only when the edited cue is the one PREVIEW measured.
 - **The button IS the key, so it has three faces**, all from one decision (`spaceAction`):
   **→ PREVIEW** (amber, the preview colour - never red, because the press airs nothing),
   **⟳ TAKE** and **■ TAKE OFF**. Ticking the box stages what was on PREVIEW so the picture stands
@@ -558,13 +544,12 @@ second press took it off, was rejected for the off-air reason above.
 
 **Where it is decided, and pinned.** `control/spaceMode.ts` holds the decision (`spaceAction`),
 the three faces' words (`SPACE_FACES`), the checkbox's tooltip and the empty-PREVIEW label;
-`components/playoutKeys.ts` hands them to the React surfaces (`takeFace`, `useSpaceMode`), and
+`components/playoutKeys.ts` hands them to the production page (`takeFace`, `useSpaceMode`), and
 `control/productionControllerHtml.ts` interpolates them into the exported controller at
 generation time, the decision as the table of its eight outcomes (`spaceActionTable`) - nothing
 about the mode is written twice. Both modes are pinned
 on the in-app page and the exported controller in `e2e/production-controls.spec.ts`, the storage
-contract in `e2e/hosted-control.spec.ts`, and the hosted page's own walk in
-`e2e/configured/hosted-space-modes.spec.ts`.
+contract in `e2e/published-control.spec.ts`.
 
 ### 2g. The clip clock and the server's word (built 2026-09-28)
 
@@ -660,8 +645,7 @@ would be. None of it appears for a graphic or a server template.
 ### 2i. Folders (built 2026-09-28)
 
 `docs/CLIP_PLAYBACK_PLAN.md` §6.2, §6.5 to §6.7 and §7, phase 4. A folder groups cues in the
-rundown and decides what one Take of it does. Only the production page has folders: the hosted page,
-the exported controller, the output and a pack see the flat rundown they always did.
+rundown and decides what one Take of it does. Only the production page has folders: the exported controller, the output and a pack see the flat rundown they always did.
 
 - **Making one**: click a cue, shift-click another, and the bar under the list says how many are
   selected and offers `▤ New folder` (as Home's library selects, with no checkboxes; a press on the
@@ -764,7 +748,7 @@ slot - and `e2e/playout-rail-width.spec.ts` holds that table. The summary gives 
 name too long for the row ends in an ellipsis before its marks. Reorder, duplicate and delete
 live behind the row's `⋯`, never as four permanent buttons that crush the name. A folder's header
 is a row of its own on the same line, with its cues in under it (§2i). The one-line row
-is the production page's (`.pd-rundown`); the hosted control page keeps its two-line row. On a
+is the production page's (`.pd-rundown`). On a
 phone a row keeps one line at a thumb's height (44px).
 
 **A server clip's row says what the server says** (§2g, 2026-09-28). While it is on air its length
@@ -831,7 +815,7 @@ A duplicate can still be typed deliberately, so **the surface says when one exis
 letting it be discovered live: the editor flags it inline with a one-click move to the next free
 number, and **every rundown row on the shared number wears the warning colour**, naming its
 partner on hover. Both rows, not just the one being edited — the point is which two graphics are
-about to replace each other. All three surfaces mark it the same way. On the production page the
+about to replace each other. Both surfaces mark it the same way. On the production page the
 row's badge is also the door to the repair (an amber `⚠` outline, since 2026-09-27): pressing it
 selects that cue, whose editor has Advanced open because the layer clashes, and puts the
 one-click move in front with the focus on it.
@@ -864,7 +848,7 @@ the browser source (the output URL, Copy, and the Template file for hosts that c
 link), then CasparCG: its switch, the Bridge (Download and Pair when it is missing) and the slot
 with Load and Unload. Turning CasparCG on never removes the browser source.
 
-**The other links are in Setup › Links…**: the control page and presenter (private) and the
+**The other links are in Setup › Links…**: the presenter link (private) and the
 audience link with its readable name (public), each marked as such. There is no Unpublish on
 the page: links persist (`control_show_identity`, migration 0040), and a publication costs one
 row.
@@ -893,18 +877,16 @@ is a control that will not be used.
   reset the visual state and reset the data are never conflated, and a lone snap replays
   intermediate states with suppressed callbacks, so call-painted looks need the trailing data
   write). They are also what to press when air and the dashboard have got out of step.
-- **Both React surfaces carry the whole block** — header (its help in the heading's hover), Reset, section grouping.
-  The hosted page used to render the ⚡ buttons as one flat row with no snap at all, which put
-  the recovery control on every surface EXCEPT the one being operated from a phone, away from
-  the machine running the renderer. Sections come from `controlModel.ts arrangeControls`, the
-  author's own `machine.controls` metadata, grouped identically by all three deployments.
+- **The production page carries the whole block**: header (its help in the heading's hover),
+  Reset, section grouping. Sections come from `controlModel.ts arrangeControls`, the author's own
+  `machine.controls` metadata, grouped identically by both deployments.
 
 **A PRODUCTION MAY ARRANGE THE BLOCK, and only the block.** The control profile's ARRANGE half
 (`docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6b) orders, renames, pins and hides the ⚡ controls per
 pool graphic: a pinned control sits above a hairline at the top, the rest keep their author's
 sections under it, and a hidden one goes behind one collapsed **More** — behind, not gone, because
 the machine still accepts it and an operator who needs it mid-show must not have to go back to the
-authoring panel. One function decides it for all three deployments (`arrangeControls`), and the
+authoring panel. One function decides it for both deployments (`arrangeControls`), and the
 exported controller reads the answer BAKED AT EXPORT rather than re-deriving it, because an
 arrangement is authored state that cannot change while a package is offline. Nothing about a press
 changes: the declaration still carries the payload, and the same table still greys the button, so a
@@ -943,9 +925,8 @@ Three derivation rules, all template-driven (no category is ever consulted):
 - The buttons enable only while the edited cue is the one on air — the same legality wording as
   the ⚡ buttons ("Take the cue first").
 
-**All three deployments carry it** — `ProductionPage`, `HostedControlPage` (the cloud-first
-surface a class drives from a phone) and the EXPORTED production controller, the fallback a show
-drops to when the network dies. The exported page has no separate block: it is a third renderer
+**Both deployments carry it**: `ProductionPage` and the EXPORTED production controller, the
+fallback a show drops to when the network dies. The exported page has no separate block: it is a second renderer
 under the one-control doctrine, so its number field's own −/+ pair IS the block — same partial,
 same exclusion, and the same "only while the edited cue is the one on air", greying off air with
 "This cue is not on air. Take it first." and carrying the *act on air* mark beside the field's
@@ -962,7 +943,7 @@ PGM keeps what is aired.
 
 **A BOUND FIELD TAKES THE OTHER ROAD** (2026-09-16, `docs/PRODUCTION_DATA_PLAN.md` §2.9). When the
 production has bound a field to its data tree, the figure is not that graphic's to own: it is one
-shared value several graphics follow. So on the two REACT surfaces a ± press - and an ⚡ event's
+shared value several graphics follow. So on the production page a ± press - and an ⚡ event's
 `adjust` on the same field - patches the tree instead of writing the field, and every graphic bound
 to that path follows through the diff production data already had. Three things follow:
 
@@ -976,21 +957,21 @@ to that path follows through the diff production data already had. Three things 
 **The EXPORTED controller is untouched by that**, and deliberately: it carries no tree and no
 bindings, so its field stepper is the field stepper described above
 (`docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6f, the owner's 2026-09-15 boundary ruling). An unbound field
-is unchanged on all three.
+is unchanged on both.
 
 Pinned by `e2e/production-controls.spec.ts`: "± LIVE NUMBERS bumps a figure on air" for the
-React surfaces, and "± LIVE NUMBERS on the EXPORTED controller" for the package — that one reads
+production page, and "± LIVE NUMBERS on the EXPORTED controller" for the package — that one reads
 the rows off the relay and asserts the PAYLOAD SHAPE, because what an exported surface puts on
 the wire is the contract, and a screen that looks right can still ship the wrong payload.
 
 ## 7d. COMBINED controls — removed 2026-10-02
 
 A combined control was a production-made button of ordered steps, with an optional wait and a
-per-press tick on each, drawn on the in-app and hosted pages. The owner ruled on 2026-10-02 to
+per-press tick on each, drawn on the in-app page and the hosted control page (retired 2026-11). The owner ruled on 2026-10-02 to
 keep playout extremely simple and remove it if that was safe: a read-only count found no stored
 production using one, and no shipped pack, example or walk did either
 (`docs/research/control-surfaces-review-2026-10-02/README.md` §5). The composer, the button, the
-send path and the hosted page's half are gone. A stored profile that still carries a `combine`
+send path and the hosted control page's half are gone. A stored profile that still carries a `combine`
 list opens normally and ignores it; ARRANGE (pin, rename, hide) is unchanged. One press airing
 several cues is a folder's **All together** (§2i).
 

@@ -11,7 +11,7 @@
 //
 // Mutation-tested: with the attempt deadline taken out, the held Take commits at 6 s and the
 // output's entrance count reads 1.
-// covers: src/control/failedSends.ts, src/control/markerSender.ts, src/components/HostedControlPage.tsx
+// covers: src/control/failedSends.ts, src/control/markerSender.ts, src/components/home/ProductionPage.tsx
 
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
@@ -34,7 +34,7 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   // A scorebug: a plain entrance, so only a `play` reaching a stage moves `data-plays`.
   await bootstrapGraphic(page, { name: 'House Scorebug' });
   const showName = `Late Take ${Date.now()}`;
-  await openProductionWithCurrent(page, showName);
+  const showId = await openProductionWithCurrent(page, showName);
   await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   const links = page.getByTestId('production-status-panel');
@@ -45,9 +45,8 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   const slugs = await page.evaluate(async (name) => {
     const { loadShows } = await import('/src/model/shows.ts');
     const s = loadShows().find((x) => x.name === name);
-    return { hosted: s?.hostedSlug ?? null, output: s?.outputSlug ?? null };
+    return { output: s?.outputSlug ?? null };
   }, showName);
-  expect(slugs.hosted, 'publishing must mint a hosted control slug').toBeTruthy();
   expect(slugs.output, 'publishing must mint an output slug').toBeTruthy();
 
   // AIR, its follow proved up before anything is pressed.
@@ -57,12 +56,14 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   const airPlays = () => air.evaluate(() => document.body.getAttribute('data-plays'));
   expect(await airPlays()).toBe('0');
 
+  // A second operator's production page on the same production.
   const op = await context.newPage();
   // Each held press waits for the page to be level with the log, or its monitor would not move.
   const followerLevel = await watchLogReads(op);
-  await op.goto(`/app?control=${encodeURIComponent(slugs.hosted as string)}`);
-  await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
-  const chip = op.getByTestId('hosted-live-chip');
+  await op.goto(`/app#/production/${encodeURIComponent(showId)}`);
+  await expect(op.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
+  await expect(op.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 60_000 });
+  const chip = op.getByTestId('live-cue-chip');
   await expect(chip).toContainText('nothing on air');
 
   // THE HOLD: every send carrying a `play` waits HOLD_MS in the browser before it may leave. The
@@ -85,8 +86,8 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
     if (/\/rpc\/control_send_(many|seq)\b/.test(r.url())) abandoned.push(r.failure()?.errorText ?? '');
   });
 
-  const notice = op.getByTestId('hosted-error');
-  await op.getByTestId('hosted-cues').locator('.pd-cue').first().getByTestId('hosted-select-cue').click();
+  const notice = op.getByTestId('production-note').filter({ hasText: 'on this monitor only' });
+  await op.getByTestId('cue-list').locator('.pd-cue').first().getByTestId('select-cue').click();
 
   // ── An abandoned attempt ends in the notice, like any send nobody answered. ────────────────
   //
@@ -95,15 +96,15 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   // graphic on its monitor is on no other screen.
   await followerLevel();
   const takenAt = Date.now();
-  await op.getByTestId('hosted-take-cue').click();
+  await op.getByTestId('verb-take').click();
   await expect(chip).toContainText('on air:');
-  await expect(notice).toContainText('on this monitor only', { timeout: 10_000 });
+  await expect(notice).toHaveCount(1, { timeout: 10_000 });
   // Due at about 3.4 s; the bound is the hold, since before this change the notice never came.
   expect(Date.now() - takenAt, 'the notice comes before the held request would have been let go').toBeLessThan(HOLD_MS);
   // The live marker the fast road moved at the press goes back with the failure (#1713): a second
   // operator reads it to know what is on air, and nothing is. So there is nothing to play out.
   await expect(chip).toContainText('nothing on air');
-  await expect(op.getByTestId('hosted-out-cue')).toBeDisabled();
+  await expect(op.getByTestId('verb-out')).toBeDisabled();
   await Promise.all(held);
   await op.waitForTimeout(3000);
   expect(await airPlays(), 'an abandoned Take must never reach air').toBe('0');
@@ -113,12 +114,12 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   held.length = 0;
   abandoned.length = 0;
   await followerLevel();
-  await op.getByTestId('hosted-take-cue').click();
+  await op.getByTestId('verb-take').click();
   await expect(chip).toContainText('on air:');
   // The scenario's interval, not a wait for a state: the Out is pressed while the Take is held.
   await op.waitForTimeout(OUT_AFTER_MS);
   const rowsBeforeOut = await lastAppliedRow(air);
-  await op.getByTestId('hosted-out-cue').click();
+  await op.getByTestId('verb-out').click();
   await expect(chip).toContainText('nothing on air');
 
   // The Out reaches air (a stop and a cue row)...
@@ -143,7 +144,7 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   // ── With the link healthy, the same Take airs, so the zeros above were not an output that
   // could not play at all. ─────────────────────────────────────────────────────────────────────
   await op.unrouteAll({ behavior: 'ignoreErrors' });
-  await op.getByTestId('hosted-take-cue').click();
+  await op.getByTestId('verb-take').click();
   await expect.poll(airPlays, { timeout: 30_000 }).toBe('1');
   await expect(chip).toContainText('on air:');
   await expect(notice).toHaveCount(0, { timeout: 30_000 });

@@ -8,7 +8,7 @@ proof case, and separates what the first showing needs from what waits.**
 that is safe). A read-only count of the production database found no stored production carrying a
 combined control, and the review in `docs/research/control-surfaces-review-2026-10-02/` found no
 shipped pack, example or walk using one. The composer, the Combined button, the send path, the
-hosted page's half and their tests are gone; ARRANGE (§6b) stays exactly as it was, and a stored
+hosted control page's half and their tests are gone; ARRANGE (§6b) stays exactly as it was, and a stored
 profile that still carries a `combine` list opens and ignores it. Everything below about COMBINE,
 `after` and `ask` is the history of that decision, not a description of the product. One press
 airing several cues is a folder's All together (`docs/PLAYOUT_DASHBOARD.md` §2i).
@@ -70,9 +70,8 @@ contract today, and each fills the same three slots:
 | Agent or hand-written | the author, directly in the template's code | the template IS the contract | complete for whatever is declared - the 2026-08-22 round's five novel briefs each authored a working machine from scratch, and the control layer rendered them |
 | Foreign OGraf package | the package's manifest | `control/ografContract.ts` reads `schema` + `customActions` + `stepCount` | complete minus what OGraf cannot say: every button live, no sections, no adjusts |
 
-Five renderers draw the result and are measured not to diverge: the in-app Control tab, the
-exported `controlpanel.html`, the hosted control page, the editor's Rehearse strip, and the
-exported production controller. The production dashboard adds what a show needs above one
+Four renderers draw the result and are measured not to diverge: the in-app Control tab, the
+exported `controlpanel.html`, the editor's Rehearse strip, and the exported production controller. The production dashboard adds what a show needs above one
 graphic: cues, layers, ⟳ Take, ± live numbers, the ⚡ actions block with sections, the snap
 recovery picker. A graphic that declares nothing still gets the honest panel - fields plus
 Take/Update/Next/Out - because the derived machine is a machine.
@@ -293,8 +292,8 @@ below are what we BUILD; §5a is what the DAY needs**, and the two are not the s
 | 4 | **LANDED 2026-09-15, pull request 274** - 24 arrows, and a `bench-events-skipped` finding for what it cannot reach. **The bench's event cap** (§3d.1): raise `MAX_BENCH_EVENTS` for a machine that declares more, or have `validate` say which buttons it did not press. | Gate 3 has to mean what §2c says it means on the first real graphic that needs it | an hour, plus one bench run | one row, with row 3 |
 | 5 | **LANDED 2026-09-15, pull request 275** - migration 0058. **The profile's model and storage** (§6e): `Show.profile` v1 with ARRANGE and COMBINE, its parse/serialize/validate beside `shows.ts`, pinned at publish, baked at export, deletable in one action. Unit-tested offline. | Everything after it reads this shape; a wrong shape here is a migration later | a day | one row, week of the 28th |
 | 6 | **LANDED 2026-09-15, pull requests 276 and 277** - migration 0059; the field half was refused in §7b and the acceptance text amended to match. **ARRANGE on all three dashboard deployments** (§6e): order, section, rename, hide, pin applied to the generated ⚡ block and the cue editor's fields; the "Controls" panel on the production page. Pinned by a spec on each deployment. | The football principle, on the surface the operator holds | two days | one row, after row 5 |
-| 7 | **LANDED 2026-09-15, pull requests 278 and 279** - in-app, then the hosted page and the exported line; the hosted page's own buttons are gated from 2026-09-16 by `e2e/configured/hosted-control-profile.spec.ts`. **COMBINE, with `after` and `ask`** (§6b, §6d): the composer, the batch send through `control_send_many` one row per step, the visible countdown and its cancel, the per-step drop reported in the activity feed, on the in-app and hosted pages; the exported controller shows the line §6f gives it. Pinned by a spec that reads the rows off the wire, the way ± live numbers is. | The proof case's "one press", and the general capability the owner named | three days | one row, after row 6 |
-| 8 | **WALKED 2026-09-16, twice.** Composed, driven and timed in-app (pull request 283); then published and driven on the HOSTED page in the configured suite, which is the rig with both a real backend and a throwaway account. AC-6, AC-7 and AC-9 all pass on that run and the walk re-runs on every landing. **The proof walk, again, with the profile** - row 3 repeated once rows 6 and 7 land: the Reveal-then-+1s combined control composed in the room's minute, driven from the hosted page, timed. Owner-queue item. | The demo is the profile in use, not the profile built | half a day | one row, second week of October |
+| 7 | **LANDED 2026-09-15, pull requests 278 and 279** - in-app, then the hosted page and the exported line; the hosted page's own buttons were gated from 2026-09-16 by `e2e/configured/hosted-control-profile.spec.ts` (the hosted control page and that spec were retired 2026-11). **COMBINE, with `after` and `ask`** (§6b, §6d): the composer, the batch send through `control_send_many` one row per step, the visible countdown and its cancel, the per-step drop reported in the activity feed, on the in-app and hosted pages; the exported controller shows the line §6f gives it. Pinned by a spec that reads the rows off the wire, the way ± live numbers is. | The proof case's "one press", and the general capability the owner named | three days | one row, after row 6 |
+| 8 | **WALKED 2026-09-16, twice.** Composed, driven and timed in-app (pull request 283); then published and driven on the HOSTED page in the configured suite, which is the rig with both a real backend and a throwaway account. AC-6, AC-7 and AC-9 all pass on that run, and the walk re-ran on every landing until the hosted control page was retired (2026-11). **The proof walk, again, with the profile** - row 3 repeated once rows 6 and 7 land: the Reveal-then-+1s combined control composed in the room's minute, driven from the hosted page, timed. Owner-queue item. | The demo is the profile in use, not the profile built | half a day | one row, second week of October |
 | 9 | **LANDED 2026-09-16, pull request 280**; its migration 0060 refused itself on two post-land pushes, was corrected in pull request 283, and **applied to production and staging on 2026-09-16** (post-land run `35055657854`, one migration each, eight function grants). **A stepper on a bound field patches the shared value** - `docs/PRODUCTION_DATA_PLAN.md` §2.9's Phase 3: a `+1` (`adjust`) or a ± press on a field bound to production data writes the tree, on the in-app and hosted pages, and the graphic follows its binding like every other bound graphic; an unbound field keeps the field stepper unchanged, and so does the exported controller, which carries no tree (§6f). Pinned by a spec that reads the patch and the resulting `update` rows off the wire. | Without it a `+1` on one graphic is overwritten by the next shared write; with it, a score entered once shows everywhere (owner, 2026-09-15) | a day | one row, week of the 28th |
 | 10 | **LANDED 2026-09-16, pull request 281.** **Bind all by title** - one button on the Data tab's bindings table that accepts every unambiguous title-to-leaf suggestion the table already computes, per graphic and for the whole production. | Graphics made with matching field titles, by hand or by an agent, bind in one press instead of one per field | half a day | one row, with row 9 |
 
@@ -326,8 +325,8 @@ and the evidence for each line. It is short because most of it is already standi
    graphics of §3a and §3b prompted through the agent road, the combined control composed by hand,
    §3c driven - but nothing published, because a linked worktree carries no backend configuration.
    Walk 2, the same day, in the configured suite: a production carrying the profile published and
-   driven on the HOSTED control page, where it now re-runs on every landing
-   (`e2e/configured/hosted-control-profile.spec.ts`) - but the profile was written through
+   driven on the HOSTED control page (retired 2026-11), where it re-ran on every landing until
+   then (`e2e/configured/hosted-control-profile.spec.ts`, deleted with that page) - but the profile was written through
    `setShowProfile` rather than composed. So prompt-to-hosted has never run as one walk
    (`docs/work-specs/control-panel-any-graphic/evidence/ac-9-the-proof-case-timed.md`), and the
    follow-along itself is not in doubt: it is the totals board sitting on its own layer while +1
@@ -479,10 +478,11 @@ happen, and the operator presses it by hand. Nothing is retried behind anyone's 
   publish exactly as `bindings` is (`hostedControl.ts` `publishControlShow`), baked into the
   exported production controller at export. Deleting the profile is one action and restores the
   generated panel everywhere.
-- **ARRANGE renders on all three dashboard deployments** - the in-app production page, the hosted
-  control page and the exported controller - because it is presentation, `docs/PLAYOUT_DASHBOARD.md`
+- **ARRANGE renders on both dashboard deployments**, the production page and the exported
+  controller, because it is presentation, `docs/PLAYOUT_DASHBOARD.md`
   says they must not diverge, and the exported one is built from the same `emitGraphic`. (Until
-  its removal on 2026-10-02:) **COMBINE renders on the two NoaCG-hosted pages**; the exported controller is the offline fallback and
+  its removal on 2026-10-02:) **COMBINE rendered on the production page and the hosted control
+  page (retired 2026-11)**; the exported controller is the offline fallback and
   carries the one line §6f gives it rather than a sequencer of its own. The combined controls sit
   in the ⚡ actions block under a section of their own, pinned controls above the fold; ARRANGE is
   applied to the existing block, not a new one.
@@ -522,7 +522,7 @@ exist inside a renderer for it to work there.
 
 **The one place the line needed drawing: the exported production controller.** It is NoaCG's own
 control layer packaged for a show with no network, built from the same generator, and
-`docs/PLAYOUT_DASHBOARD.md` holds it to parity with the two hosted pages. Parity on the generated
+`docs/PLAYOUT_DASHBOARD.md` holds it to parity with the production page. Parity on the generated
 panel and on ARRANGE stands, because both are presentation of the contract. COMBINE does not cross
 into it: a sequencer with delays and ticks, inlined a second time in vanilla JS, is exactly the
 second production runtime the owner named. The exported controller therefore showed, where a
@@ -556,7 +556,7 @@ moves.
 **How it was walked.** The proof-case pack (`e2e/fixtures/agent-made/vote-show.noacgpack.json`;
 there is no separate score-only fixture in that folder, so this pack is the whole sample) was
 imported through the app's own pack import (`e2e/_proofCase.ts`) and given the profile, bindings and
-tree the hosted walk uses (`e2e/configured/hosted-control-profile.spec.ts:181-216`): the combined
+tree the hosted walk used (`e2e/configured/hosted-control-profile.spec.ts:181-216`, deleted in 2026-11 with the hosted control page): the combined
 control "Reveal, then the points" (Reveal, then two ticked `+1`s, the first after 5 s), Panelist 1's
 name bound to `panel.katri.name` on both boards, Points 1 bound to `panel.katri.points`, and a tree
 seeded with Katri on 3 points. Both doors were then built by the app's own builders at `19518e21`
@@ -569,8 +569,8 @@ and the two templates of the SPX package were run in Chromium through SPX's clas
 | Rundown items | One, on layer 20 (`outputEmbed.ts:47`), carrying both graphics inside one frame | Two: `votes_board.html` on layer 7 and `totals_board.html` on layer 8, the pool's own numbers written into each definition (`showExport.ts:76-93`) |
 | Fields in SPX | Output URL, Debug overlay, Stay dark until Play, and one instruction line (`outputEmbed.ts:78-108`). None of the graphics' fields: those are edited in NoaCG | Votes board: 16 fields (Song, Performer A-D, Panelist 1-5, Pick 1-5, Correct) plus the hidden Shown. Totals board: Name 1-5 and Points 1-5 as number fields |
 | Buttons in SPX | Play and Stop show and hide the frame; Continue is off (`steps: '1'`, `outputEmbed.ts:75, 224-226`); one **Reload output** button (`:101-107`) | Play, Update, Stop on both items. Continue once on the votes board, and it IS the reveal: measured, Continue moved the board to `revealed` and marked 2 right, 2 wrong and the correct performer. The totals board has no Continue and no `+1`: its eleven controls (`+1`/`−1` per panelist, New game) are not SPX fields, so SPX never shows them |
-| Where the show's own buttons are | The hosted control page on a phone or laptop, and the in-app production page: every control, arranged (§6e) | `show_controlpanel.html` has Reveal and the ten ± buttons, but it pairs with a graphic only over a same-origin BroadcastChannel in the same browser (`showExport.ts:1-6`), so it cannot reach the copy SPX renders; the package's README says an SPX rundown does not need it (`showExport.ts:161-163`). No ARRANGE either: the panel is built without it (`showExport.ts:127-133`) |
-| The combined control | One press on the hosted page, with its countdown, cancel and ticks (`hosted-control-profile.spec.ts:284-407`) | **Gone, silently.** Measured: the whole package was searched for the control's name, its id, the arranged name "Reset the board" and §6f's line "combined controls run from", and none is there. The operator's equivalent is three actions on two items: Continue on the votes board, wait, then type Points 2 and Points 3 one higher and press Update on the totals board |
+| Where the show's own buttons are | The production page on a phone or laptop (at the walk, also the hosted control page, retired 2026-11): every control, arranged (§6e) | `show_controlpanel.html` has Reveal and the ten ± buttons, but it pairs with a graphic only over a same-origin BroadcastChannel in the same browser (`showExport.ts:1-6`), so it cannot reach the copy SPX renders; the package's README says an SPX rundown does not need it (`showExport.ts:161-163`). No ARRANGE either: the panel is built without it (`showExport.ts:127-133`) |
+| The combined control | One press on the hosted control page (retired 2026-11), with its countdown, cancel and ticks (`hosted-control-profile.spec.ts:284-407`) | **Gone, silently.** Measured: the whole package was searched for the control's name, its id, the arranged name "Reset the board" and §6f's line "combined controls run from", and none is there. The operator's equivalent is three actions on two items: Continue on the votes board, wait, then type Points 2 and Points 3 one higher and press Update on the totals board |
 | A `+1` on a bound field (Points 1) | Patches the tree, and every field bound to `panel.katri.points` follows (§5 row 9; `hosted-control-profile.spec.ts:427-456`) | Points 1 is a plain number field: the operator types the next number and presses Update. Measured: 3 became 4 on air. Nothing is bound to anything |
 | Shared production data | Katri's name is entered once in the tree and shows on both boards | No tree and no bindings: `panel.katri` and the seeded name are absent from the package (measured). The name is typed twice, in Panelist 1 and in Name 1, and the two can drift |
 | Update after the reveal | The hosted Reveal writes Shown = `revealed` with the arrow (the control's `set`), so later edits keep the marks | **A trap.** The SPX item keeps its hidden Shown at `votes` (SPX stores a hidden field and sends it with the item's data, `docs/SPX_TEMPLATE_FORMAT.md:119`), and the votes board repaints the marks from Shown on every update (its own `update()`, under "THE READ-BACK"). Measured: an Update after Continue left the board in `revealed` with every mark cleared. Recovery is Stop, Play, Continue, so the SPX rule is: finish the picks before Continue |
@@ -644,7 +644,7 @@ Made here, recorded so they can be reverted rather than adjudicated:
    the renderer holds back (§6d). Removed with COMBINE.
 9. A downloaded graphic carries its contract and nothing of the production; combined controls and
    shared data live above the command log and reach any renderer as rows (§6f). The exported
-   controller renders the panel and ARRANGE, and says in one line what runs from the hosted page.
+   controller renders the panel and ARRANGE.
 10. A stepper on a bound field patches the shared value, and matching titles bind in one press
     (§5 rows 9 and 10). Both are the shared-data capability, one case of the control model.
 
