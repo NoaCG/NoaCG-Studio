@@ -57,13 +57,13 @@ three-plan concurrency stays off and cf20(b) reports decision E as open.
 ## 2. What is measured, and the solo reference
 
 Each figure comes from GitHub Actions history and `main`'s merge commits, with n stated, using
-cf03's definitions (phase-cf03.md section 2) and its comparability rule and spread (section 5).
+cf03's definitions (phase-cf03.md section 1) and its comparability rule and spread (section 5).
 
 - **Completed work per unit time (W).** Phases landed per plan per window day: a phase counts when
   its build or repair PR merges and its independent check records PASS. A repair PR of the same
   phase is not a second phase.
-- **Queue delay (Q).** M2 waiting time of each trial landing (merge group created to its run's
-  first job start), and M1 of each landing, by cf03 group.
+- **Queue delay (Q).** M2 of each trial landing, queue entry to merge (cf03 section 1), with its
+  waiting and execution parts reported apart, and M1 of each landing, by cf03 group.
 - **Contention (C).** For trial PRs: merge-queue removals that were not the PR's own failure (a
   conflict, or a combined-tree failure caused by another PR in the group); merges of `origin/main`
   into a trial branch forced by a conflict with another trial plan's landing; jobs of a trial run
@@ -101,8 +101,8 @@ timing limits in `scripts/growth-ceilings.json`; none is new or looser.
   mean of the three plans' solo rates), and each plan's W at least 0.8x its own solo rate (no
   starvation). Each plan has a solo reference with n of at least 3 and lands at least 3 phases in
   the window (AC-6 asked for four rows per plan; three is the minimum that makes a rate).
-- **S2, queue delay.** Trial landings' M2 waiting p50 at most 10 and p90 at most 20 minutes
-  (`timing.queue`); M1 median per cf03 group no more than 25% above cf03's reference median for
+- **S2, queue delay.** Trial landings' M2 (queue entry to merge) p50 at most 10 and p90 at
+  most 20 minutes (`timing.queue`, AC-6's queue-to-landing limit); M1 median per cf03 group no more than 25% above cf03's reference median for
   that group (section 5.1), judged only for a group with at least cf03's minimum n.
 - **S3, contention.** No starvation (S1); no duplicate repair owner and no admission before a
   prerequisite PASS in any of the three ledgers; at most one contention event per 10 trial
@@ -126,7 +126,7 @@ tells the owner on #1967, and the owner pauses launches in all three runs (in-fl
 repair owner). The builder records the reason and the figures in stage 2.
 
 - **Contention.** Any of: two contention events (section 2, C) within 24 hours; trial landings'
-  M2 waiting p90 above 20 minutes over a rolling 24 hours with at least 5 landings; any required
+  M2 p90 above 20 minutes over a rolling 24 hours with at least 5 landings; any required
   check of a trial PR queued more than 30 minutes for a runner; the repository-wide peak reaches
   57 concurrent jobs.
 - **Failure rate.** Any of: M4 share of trial landings at or above 2x cf03 side A (29%) with at
