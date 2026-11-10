@@ -36,6 +36,49 @@ authoring tab on one device per account remains the acceptance boundary.
 | Targeted lint, TypeScript and affected gates | PASS | ESLint on the font alias fix/regression, TypeScript app check, 7 cheap gates and 128 Node tests across 8 affected files. No production build or full suite run locally. |
 | Isolated Windows backend/account | Unavailable at worker intake | No Docker/Podman executable or running local stack identified; October's disposable branch was cleaned up. The Windows browser fixtures use offline local storage. A fresh admitted isolated backend and account receipt is still required for W. |
 
+### November 10 Windows file checks
+
+The owner imported the Illustrator lower third through the Windows picker,
+opened the preview again by dropping the fixture from File Explorer, and saved
+the SPX ZIP through the native Save dialog in job `j-5042`. The isolated Chrome
+profile served candidate `be049c7ea10ee2b8a1bae6d86711ce507a9468a7`. The coordinator
+read the 422,113-byte ZIP and confirmed the SPX definition, fixture text, Archivo
+fonts and bundled GSAP. The archive SHA256 is
+`87cff7d631fa6a665f4c511e753232011e85ade8f9fde3bb2ead112315300325`.
+Job `j-5041` opened the same candidate and ended without a completed file receipt.
+The separate `j-5004` receipt supplies actual Chrome 125% zoom on the pinned candidate.
+
+The packaged GSAP entry matches the Windows checkout byte for byte. Git
+checkout line endings account for its 11 additional bytes compared with the
+inventoried upstream runtime. After line-ending normalization the SHA256 is
+`92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb`.
+These checks cover the SVG fixture and SPX download. Raster/logo replacement,
+saved-document reopening and account UI still need their own evidence.
+
+Current main `9afdd04df93279429089666e2fb399ddf10854ad` merged cleanly into
+the E1 branch at `8f4ced46d0916fe6bde911d856bd8635353a3efb`. Main changed
+the import fit runtime and its fidelity baseline in #2355, and the CLI now uses
+the wizard's SVG default through #2343. The November 10
+native receipt remains pinned to the source actually operated. Retest affected
+import and export behavior on the reconciled candidate before claiming parity.
+
+### Agent easing and clip-path splits
+
+The agent guide covered plain GSAP ease names but omitted the data form's key
+sides, cubic curves, Hold and jump. The source and generated plugin guide now
+explain the destination key's ease, the cue default and how the next key
+controls departure. `npm run check:skill` passed for all 32 generated files.
+
+A Node probe bundled the real `applyStep` and `applyOut` authoring operations.
+On the reconciled candidate it added a `clipPath` track to `#box` in each
+entrance cue of `e2e/fixtures/steps-authoring.json`, from `inset(100%)` to
+`inset(0%)`. The emitted source parsed the string keys. Add Step at 0.40 s
+and Set Out at 1.20 s each refused to split the crossed track and left the
+serialized template identical. This preserves the existing exactness policy
+for unsupported interpolation. Browser controls and history still need their
+own observation. The targeted Node suites for step authoring, easing and full
+transforms passed 41 tests.
+
 Commit `f589ae0f6` resolves a computed CSS family's template-local alias only when
 the matching font-face declarations consistently point to one bundled face.
 It reads the supported weights from the existing font registry and retains the
@@ -96,14 +139,28 @@ of the loop phase.
 
 The E1 inventory and verified alias repair are published on the owned branch.
 E1 has no pull request, queue entry or phase verdict. There is no migration.
-The native and defect-probe jobs are stopped. The next verification needs
-an admitted Windows browser, an isolated test backend/account, and supported
-native controller access. Reproduce the two close-flag/key clipboard probes
-before touching those product paths. Remeasure the [reported rotated text
-offset](../../research/editor-r1-1d/README.md#reproduction-and-fidelity-boundary)
-on the maintained Illustrator fixture. Check the reported agent easing and
-clip-path split portions separately, preserving the current exact-refusal
-contract. Animated anchors and broader authoring checks remain open.
+The November 8 native and defect-probe jobs ended at their recorded states.
+The November 10 owner walkthrough covers the previously blocked Illustrator
+file interactions. The next verification needs an admitted Windows browser.
+The authorized sign-in UI check uses the isolated simulation in
+`e2e/sync-dot.spec.ts` and will be reported as simulated. Reproduce the two
+close-flag/key clipboard probes before touching those product paths. Remeasure
+the [reported rotated text offset](../../research/editor-r1-1d/README.md#reproduction-and-fidelity-boundary)
+on the maintained Illustrator fixture. Verify the clip-path refusal at the
+browser controls. Animated anchors and broader authoring checks remain open.
+
+On November 10 the restored flag and clipboard probes were queued together
+with one browser worker as `j-5043`. The scheduler held the job for its 3.5 GB
+memory requirement. It was cancelled without a start at 2,099 MB free. The
+original diagnostic patch remains in the run kit at
+`receipts/e1-pending-probes.patch`, SHA256
+`8131576d9a90b3c9419a3a08758cc86117e48661b186a88921adc646cf39c9b0`.
+It was removed from the working tree after cancellation and still passes
+`git apply --check`. When memory allows, apply it after verifying the digest
+and run only the two added probe cases in `editor-key-ease.spec.ts` and
+`editor-steps.spec.ts` through the scheduler. Then run the isolated
+`sync-dot.spec.ts` simulation and the remaining authoring checks on the
+reconciled candidate.
 
 The independent pre-code clipboard rules review on
 `155be8ca8deb4356073bfc0f5eeb5f5021ed21af` returned AGREE WITH CORRECTIONS.
