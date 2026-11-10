@@ -39,10 +39,14 @@ export interface BuiltFixture {
  *  the production page with the Playout panel closed. */
 export async function buildFixture(page: Page, which: FixtureName): Promise<BuiltFixture> {
   const startedAt = Date.now();
+  const step = (what: string) => console.log(`[fixture ${((Date.now() - startedAt) / 1000).toFixed(1)}s] ${what}`);
   await signIn(page);
+  step('signed in');
   await page.keyboard.press('Escape');
   await clearPublishedShows(page);
+  step('cleared productions');
   await wipeMyGraphics(page);
+  step('cleared graphics');
   await page.goto('/app#/home');
   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
   const name = `LP2 ${which} ${Date.now()}`;
@@ -165,6 +169,7 @@ export async function buildFixture(page: Page, which: FixtureName): Promise<Buil
     { name, graphics: spec.graphics, imageBytes: spec.imageBytes },
   );
   const builtMs = Date.now() - startedAt;
+  step('built');
   await page.evaluate(async (id) => {
     const { useRouter } = await import('/src/app/router.ts');
     useRouter.getState().navigate({ view: 'production', id });
@@ -174,6 +179,7 @@ export async function buildFixture(page: Page, which: FixtureName): Promise<Buil
   const publishAt = Date.now();
   await publishProduction(page);
   const publishMs = Date.now() - publishAt;
+  step('published');
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   const panel = page.getByTestId('production-status-panel');
   if (await panel.isVisible()) {
@@ -198,6 +204,11 @@ export async function buildFixture(page: Page, which: FixtureName): Promise<Buil
     cues: { plain: made.plain, stepped: made.stepped, score: made.score, picture: made.picture, server: made.server, folder: made.folder },
     build: { ms: builtMs, publishMs },
   };
+}
+
+/** Leave the account as it was found: unpublish and delete every production, through the sync. */
+export async function cleanUp(page: Page): Promise<void> {
+  await clearPublishedShows(page).catch((e) => console.log(`[fixture] clean-up failed: ${String(e).slice(0, 200)}`));
 }
 
 /** The open production's output slug. */

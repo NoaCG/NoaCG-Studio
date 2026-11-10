@@ -2,7 +2,7 @@ import { test, expect, type Browser, type Locator, type Page } from '@playwright
 import { fakeBridge, seedSettings } from '../../_fakeBridge';
 import { readyOf } from '../_helpers';
 import { answerPanel, pairPanel } from '../_panel';
-import { buildFixture, outputSlugOf } from './_fixture';
+import { buildFixture, cleanUp, outputSlugOf } from './_fixture';
 import {
   FIXTURE, FRAME_LOADS, NET, SAMPLES, clearLpm, framePlays, instrument, meterBytes, nowOn, readLpm, screencast, summary, throttle, writeResult,
   type Lpm, type Sent,
@@ -28,6 +28,12 @@ import {
 test.skip(!process.env.E2E_EMAIL, 'configured measurement: needs the local stack and its account');
 
 const tag = `${FIXTURE}-${NET}`;
+
+// A run that leaves its production behind makes the next sign-in pull it down again.
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+  await cleanUp(page);
+});
 const t0 = Date.now();
 const log = (...a: unknown[]) => console.log(`[measure ${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
 

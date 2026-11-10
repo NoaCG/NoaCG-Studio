@@ -249,9 +249,12 @@ export function summary(values: number[], failures = 0) {
   return { n: ok.length, failures, p50: pct(ok, 50), p95: pct(ok, 95), min: ok.length ? Math.min(...ok) : null, max: ok.length ? Math.max(...ok) : null };
 }
 
-/** Write one result file under test-results/measure/. */
+/** Where results go: outside test-results/, which Playwright empties at the start of every run. */
+export const MEASURE_OUT = process.env.MEASURE_OUT ?? '/tmp/noacg-measure';
+
+/** Write one result file under MEASURE_OUT. */
 export function writeResult(name: string, data: unknown): string {
-  const path = `test-results/measure/${name}.json`;
+  const path = `${MEASURE_OUT}/${name}.json`;
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, JSON.stringify(data, null, 2));
   return path;

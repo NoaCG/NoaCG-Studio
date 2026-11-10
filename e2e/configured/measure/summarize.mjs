@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// Turn test-results/measure/*.json (written by baseline.measure.ts) into the receipt's tables.
+// Turn the measurement results (MEASURE_OUT, default /tmp/noacg-measure) (written by baseline.measure.ts) into the receipt's tables.
 //   node e2e/configured/measure/summarize.mjs [dir] > tables.md
 // Numbers are milliseconds unless a column says bytes; p50/p95 over the samples that completed,
 // with the failures counted beside them.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const dir = process.argv[2] ?? 'test-results/measure';
+const dir = process.argv[2] ?? process.env.MEASURE_OUT ?? '/tmp/noacg-measure';
 const files = readdirSync(dir).filter((f) => f.endsWith('.json') && !f.startsWith('probe'));
 const load = (f) => JSON.parse(readFileSync(join(dir, f), 'utf8'));
 const CASES = ['typical-fast', 'typical-slow', 'large-fast', 'large-slow'];

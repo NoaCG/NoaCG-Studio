@@ -10,7 +10,7 @@ const root = fileURLToPath(new URL('../../../', import.meta.url));
 // at a time:
 //   MEASURE_FIXTURE=typical|large MEASURE_NET=fast|slow \
 //     npx playwright test --config=e2e/configured/measure/measure.config.ts --grep <group>
-// Results land in test-results/measure/*.json; `summarize.mjs` turns them into the receipt's tables.
+// Results land in $MEASURE_OUT (default /tmp/noacg-measure); `summarize.mjs` turns them into the receipt's tables.
 export default defineConfig({
   ...base,
   testDir: '.',
