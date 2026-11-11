@@ -173,12 +173,12 @@ const prepRows = CASES.flatMap((c) => bytesRows(c).filter((r) => r.kind !== 'cue
 if (prepRows.length) {
   p('When the output started preparing (its fetch of the whole published copy), per change:');
   p();
-  p('| Change | Case | n | Press to preparation start | Preparation start to prepared | Samples within 15 s of the previous preparation start |');
+  p('| Change | Case | n | Press to preparation start | Preparation start to prepared | Presses within 15 s of the previous preparation start |');
   p('|---|---|---|---|---|---|');
   for (const [kind, label] of KINDS.slice(1)) for (const c of CASES) {
     const rows = prepRows.filter((r) => r.kind === kind && r.c === c && !r.failed);
     if (!rows.length) continue;
-    p(`| ${label} | ${caseName[c]} | ${rows.length} | ${s(stat(rows.map((r) => r.pressToPrepareStart)))} | ${s(stat(rows.map((r) => r.prepareStartToPrepared)))} | ${rows.filter((r) => r.sincePreviousPrepareStart < 15_000).length} |`);
+    p(`| ${label} | ${caseName[c]} | ${rows.length} | ${s(stat(rows.map((r) => r.pressToPrepareStart)))} | ${s(stat(rows.map((r) => r.prepareStartToPrepared)))} | ${rows.filter((r) => r.sincePreviousPrepareStart - r.pressToPrepareStart < 15_000).length} |`);
   }
   p();
 }
