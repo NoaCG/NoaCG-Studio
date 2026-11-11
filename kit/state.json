@@ -64,14 +64,7 @@
     "read": "Future phases use the reviewed Cloud-first spec/phases and owner-decision-2026-11-11-cloud-first.md at 3a56a966c4c03fa47f53b4d1ecb09ed882d12ef0 with git show. Product work starts on current main in its own worktree. Completed E1-E3 retain original plan source f0f2e3fe0c2cc14e23b171957b6f8d18905fd434 and their exact tested-source/environment receipts. Read docs/EDITOR_PLAN.md, the acceptance register, October single-device closure and latest relevant issues; historical evidence is reused only with current source/environment applicability.",
     "rules": "LATEST OWNER HOLD: no further plan phase launch until both E1/E2 quarantine causes are settled with paired repeated tests. E3 already landed historically; do not erase it. Run the current worker resource/network preflights and folder rules in an owned absolute feature worktree. E4/E5C/E6C execute in qualified Cloud. Qualify real isolated authentication/persistence on the worker or existing Actions stack; no production data/secrets. Full suites stay in GitHub Actions. Finish Cloud engineering before final E5 real participants/named devices/native 125% and E6 named receiving hosts/operator; Cloud diagnostics/fixtures cannot pass those gates. Respect the October single-device boundaries and the serial phase order. Before product edits reproduce and write the short observable rule or gap. Report every subcriterion and retain original failures and any missing evidence. Inventory the exact GSAP browser, CLI and export artifacts early and send the finished draft back to the coordinator for the owner. State that NoaCG is open source, entirely free, earns no revenue and serves broadcast graphics. The owner superseded the six-month deferral and sends the request. Preserve licence, provenance, notices and redistribution checks. A delayed reply is not an engineering wait before OW1. Stage actual receiving hosts/operator, first-time users/moderator and existing model-access leads in E1 without claiming availability. Do not launch other phases. Do not change provider, funding, licence, engine or release posture. Do not use or modify production data. Respect #1967 and check sideEnds on exact candidate paths, including package versions. The active coordinator acknowledges PR repair duty and owns queue stamping and terminal monitoring. Follow the latest check and queue guidance and obtain fresh independent review under the shared traps. No new paid model round or reset of E3 limits follows from E5C/E6C. OW1 written GSAP disposition and candidate-specific owner approval still gate E7 adoption."
   },
-  "inFlight": [
-    {
-      "step": "mandatory CI quarantine",
-      "pr": 2391,
-      "session": "active Cloud coordinator",
-      "note": "Mechanical follow-up to original main failure; current coordinator retains repair ownership through terminal results."
-    }
-  ],
+  "inFlight": [],
   "owner": [
     "Arrange E5 real first-time users/moderator and named desktop/laptop for the final local stage; prepare now without blocking Cloud engineering.",
     "Arrange E6 named receiving hosts/operator and off-air access for the final local stage.",
@@ -81,7 +74,10 @@
     {
       "pr": 2391,
       "what": "Mandatory mechanical fail-then-pass quarantine; original main red retained; active coordinator owns",
-      "ownerComment": 6802774510
+      "ownerComment": 6802774510,
+      "status": "COMPLETE",
+      "merge": "30f81e5fded1b5a7faa4ac9687de8270c347eb57",
+      "results": "Source/merge-group/main CI, configured,postlanding,quarantine,CodeQL SUCCESS; metadata deployment events inapplicable. Owner closeout6802774510."
     }
   ],
   "triggers": [],
@@ -963,7 +959,7 @@
     "recoveryRef": "claude/noacg-recovery/plan-editor-r1-5-2026-11-08",
     "firstAction": "Resolve both specs with prewritten paired repeat protocol, actual rates/root causes and queued fix/release or policy incident ownership; only then clear this hold.",
     "nativeReconciliation": "All known phase/review workers terminal and archived; no wake. Current Cloud coordinator reaches ready checkpoint at turn completion. A replacement must verify that completion before taking over.",
-    "ownedPRs": "2374/2382/2386 complete;2387 amendment terminal with original unrelated CI red retained and CI gate/retry success;2391 mandatory follow-up ACTIVE coordinator-owned",
+    "ownedPRs": "All earlier phase/amendment PRs and mandatory mechanical2391 terminal/complete. No E4 intent or native worker. Current authorized work is retrospective E1/E2 causal investigation only.",
     "retainedWorktree": "/workspace/noacg-editor-r1-5-cloud",
     "overall": "NOT complete: E4/E5C/E6C/E5/E6/OW1/E7 acceptance remains. No unattended monitoring or periodic check-in claimed.",
     "at": "2026-11-11T17:34:45.273Z"
@@ -1073,7 +1069,17 @@
     "ownerInstruction": "Before starting E3, settle whether E1/E2 caused output-debate-clock and operator-outage-not-unpublished quarantines. Do not continue past E2 until settled. Record repeat counts and rationale before running; compare each landing to first parent at CI worker count. Fix causal product defects in own queued PR; otherwise prove cause and retain incident owner miwco and policy repair date. Never add waits/retries/skips or weaken tests/checks/limits.",
     "historicalReality": "E3 had already landed and independently passed before this instruction. Preserve that history; no E4 intent or launch occurred. Pending E4 worktree creation was rejected by automatic review and is not retried.",
     "status": "ACTIVE retrospective E1/E2 causality gate; all further plan phase launches blocked",
-    "repeatProtocol": "Not chosen/run yet; first inspect original failure/quarantine evidence and actual CI worker configuration."
+    "repeatProtocol": {
+      "commit": "4c8491878",
+      "path": "docs/work-specs/editor-r1-5/quarantine-causality-2026-11-11.md",
+      "initialWholeSpecInvocationsPerCommit": 60,
+      "workers": 1,
+      "diagnosticRetries": 0,
+      "orderSeed": 2295,
+      "methodReview": "Fresh independent read-only AGREE/A; not a causal verdict.",
+      "currentEvidence": "Clock pair1 complete: landing24/24,parent24/24;0failed of1whole-spec invocation each. Operator backend qualifying; no operator experimental run yet.",
+      "causality": "UNSETTLED for both; earlier flake receipts/source comparisons are not paired-rate proof."
+    }
   },
   "waitingOn": {
     "what": "Owner-required E1/E2 quarantine causality investigation, before any further phase work",
