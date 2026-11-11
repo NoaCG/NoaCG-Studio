@@ -66,3 +66,24 @@ Native child launch/wake-after-host-loss are unqualified; this is an active work
 After landing, use a fresh owned feature worktree and `git revert -m 1 <E3_MERGE_SHA>`;
 verify and land the revert only through `/queue-merge`. Replace the placeholder with
 this PR's actual merge SHA in the independent landing receipt. No migration planned.
+
+## Additional rule stated before the protocol correction
+
+Native metadata on 2026-11-11 identifies `claude-sonnet-5-5` as **Claude Sonnet
+5.5**, active, created 2026-09-28. The configured dotted `claude-sonnet-5.5` is a
+Gateway slug, not a valid native Anthropic ID. Only the isolated verification
+process uses the verified native ID for that same intended model, by coordinator
+instruction. Global settings, defaults, keys, provider, funding and fallbacks stay
+unchanged; arbitrary IDs are never silently normalized.
+
+The native-ID request then failed. One explicitly authorized diagnostic retained
+only HTTP 400 / `invalid_request_error` / `tool_choice: type "tool" and "any"
+are not supported for this model.` The existing adapter always forces `tool`.
+Before correcting that reproduced compatibility defect, the additional observable
+rule is: **only the exact verified adaptive-only native Sonnet 5.5 route uses
+`tool_choice: {type: 'auto'}` for structured requests. All other routes keep their
+existing request. The command schema, response parsing/validation, accepted output,
+route/model identity, key, cost accounting, attempt budget and timeout remain the
+same. A response without the requested valid tool output refuses; it cannot become
+an editor write or an unvalidated answer.** No additional model call or automatic
+fallback is added. Fresh Rules-first review precedes the adapter edit.
