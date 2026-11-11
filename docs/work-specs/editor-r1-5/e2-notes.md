@@ -58,9 +58,12 @@ belong to later phases.
 - Before activation the first key holds. Activation samples the chosen phase, which
   may fall in a repeat delay. For a finite loop the phase consumes elapsed time from
   its repeat budget and must precede its terminal hold. For an indefinite loop it
-  is within one repeating waveform. Its local ruler shows one pass plus its delay,
-  or both alternating passes with their delays for yoyo. The finite ruler ends
-  at the terminal sample. Ruler seconds and frame nudges use the existing effective
+  is within one repeating waveform. Local zero always samples the activation
+  phase. The finite ruler ends at the last pass's terminal sample after subtracting
+  phase from the finite repeat budget. The indefinite ruler spans one pass plus
+  delay, or both alternating passes with their delays for yoyo. Its far-right
+  sample matches the activation phase except at an exact repeat restart, where it
+  shows the arriving endpoint. Ruler seconds and frame nudges use the existing effective
   clock at speeds 0.5, 1 and 2.
 - The authored cue duration stays a floor. When finite repeats extend it, the
   composition ruler and browser cue metadata show the derived finite end, including
@@ -87,7 +90,7 @@ belong to later phases.
   with its keys. Refuse atomically any key write that makes a stored range invalid
   or removes its last moving segment while its loop remains. Unrelated tracks
   retain the same key edits they had before adding an editor loop.
- 
+
 ## Baseline observations
 
 The exact E1 baseline was clean and the worker preflight passed. On that revision the
@@ -99,3 +102,33 @@ of a 20 → 100 one-second yoyo. After Next, advancing the old In to 0.75 s wrot
 The authored finite endpoint at 1.30 s sampled x = 76, while seeking to progress 1
 sampled x = 20 at the 10-billion-second sentinel.
 [#774](https://github.com/NoaCG/NoaCG-Studio/issues/774)
+
+## Verification
+
+| Coverage | Evidence |
+| --- | --- |
+| Property and layer authoring, source and history | Windows Chromium j-5182 exercised the keyboard-accessible Edit loop action. Applying a property loop left opacity keys independent. Whole layer applied one range and phase to two tracks with different key times. Undo and redo restored exact animation source. Save/reopen retained the original HTML, CSS, operator field, keys and user source sentinel. |
+| Independent local and cue rulers | j-5182 sampled the property and SVG layer in both directions, with the composition playhead and unrelated score motion parked. At document speed 2, Arrow Right advanced 0.04 effective seconds at 25 fps. A finite repeat extended the cue to 2.10 s without changing subsequent cue-local keys. The rendered controls and visible canvas were inspected. |
+| Hold, boundaries, interruption, replay and settling | The hand-written oracle in `scripts/editor-loops.test.mjs` checked samples at speeds 0.5, 1 and 2, both directions and the repeat seam. It checked finite end and settled pose, direct and styled state exits, a parallel group's continuing loop, timer arming, live-pose Out, repeated Out, hidden unreached reveals and replay. Nine cases passed with bundled GSAP. |
+| Browser outputs and live speed | j-5182 executed the simulator, SPX, CasparCG, OGraf and single-file outputs in Chromium. The same fixture sampled Hold, backward seek, no jump on timeScale change, new-rate motion, Next, Out, replay and two identical snaps. The timed browser overlay continued looping during Hold and then completed Out. |
+| Legacy playback and exact source | The generated legacy interpreter SHA-256 equals the E1 reference `141e1f264ab80a20acec26cc64e9563cf234d1dbc21ea278d9089a1b2a39035c`. The oracle checked exact recognition with E1 SVG group and anchor capabilities, repeated preparation, removal, a later group capability and refusal of a custom body. The maintained prior Out, ticker speed and credits speed tests passed in the 59-case targeted Node run. |
+
+The first Node oracle run found a backward seek before a delayed activation could keep
+the chosen phase painted. Giving the lead-in its own interval fixed the failure.
+The first browser job j-5180 passed the export and timed overlay tests. It found that
+a local seek just after applying settings could be lost while the preview reloaded.
+The controller now retains that seek until the matching preview is ready. The SVG
+fixture also needed the standard imported artwork wrapper to expose its named layer
+in the editor. j-5182 passed all four cases after those corrections.
+
+### Same-task reference
+
+Executed the public Studio `getLoopFrameAtElapsed` function from
+`3142fc7d02934494931eb14e7dc255393e4110d0` and the NoaCG clock with a one-second
+period, 250 ms phase and two total passes. At elapsed 0, 500, 749, 751 and
+1750 ms they returned 250, 750, 999, 1 and 1000 ms in the pass. Seeking back
+from 1750 to 751 and 250 ms returned 1 and 500 ms again. At the exact 750 ms
+repeat boundary, Studio samples the next pass at zero and NoaCG shows the
+arriving endpoint before restarting. This comparison ran the pinned clock
+function. E5 owns the comparable full-editor tasks.
+[Pinned Studio sampler](https://github.com/zerodensity/ograf-studio/blob/3142fc7d02934494931eb14e7dc255393e4110d0/packages/scene-model/src/loopAnimation.ts)

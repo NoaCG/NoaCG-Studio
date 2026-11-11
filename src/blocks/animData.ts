@@ -6,6 +6,8 @@
 // fixed key order, fixed indentation, one keyframe per line — so a visual edit produces a
 // minimal, stable diff and a hand edit round-trips losslessly.
 
+import { hasAuthoredLoop, validAuthoredLoop } from './animLoopTiming';
+
 /** One keyframe on a step's local clock. `value` is a number (transforms, opacity) or a
  *  string (filter, clipPath — GSAP interpolates those natively). `ease` is the ease INTO
  *  this keyframe; omitted = the step's default ease. */
@@ -64,6 +66,10 @@ export interface AnimLoop {
   yoyo?: boolean;
   /** Speed-relative pause between passes (seconds; playback divides by `speed`). */
   repeatDelay?: number;
+  /** Optional editor loop range in stored cue seconds. The keys stay on the cue. */
+  range?: [number, number];
+  /** Elapsed offset into the waveform at activation, in stored seconds. */
+  phase?: number;
 }
 
 /** One step — the timeline's "clip". steps[0] plays on ▶ Play, the middle steps each on
@@ -438,6 +444,7 @@ export function isAnimData(raw: unknown): raw is AnimData {
   for (const step of d.steps) {
     if (!isAnimStepShape(step, true)) return false;
   }
+  if (d.steps.length > 1 && hasAuthoredLoop(d.steps[d.steps.length - 1])) return false;
   if (d.machine !== undefined && !isMachineShape(d.machine, d.steps.length)) return false;
   return true;
 }
@@ -499,20 +506,25 @@ function isAnimStepShape(step: AnimStep, revealsAllowed: boolean): boolean {
       if (d.target !== undefined && (typeof d.target !== 'string' || !d.target)) return false;
     }
   }
+  if (!step.layers || typeof step.layers !== 'object') return false;
   if (step.loops !== undefined) {
     if (typeof step.loops !== 'object' || step.loops === null || Array.isArray(step.loops)) return false;
-    for (const perProp of Object.values(step.loops)) {
+    for (const [selector, perProp] of Object.entries(step.loops)) {
       if (!perProp || typeof perProp !== 'object' || Array.isArray(perProp)) return false;
-      for (const loop of Object.values(perProp) as AnimLoop[]) {
+      for (const [property, loop] of Object.entries(perProp)) {
         if (!loop || typeof loop !== 'object') return false;
         // repeat is an integer ≥ -1 (GSAP: -1 = forever, N = N extra passes).
         if (typeof loop.repeat !== 'number' || !Number.isInteger(loop.repeat) || loop.repeat < -1) return false;
         if (loop.yoyo !== undefined && typeof loop.yoyo !== 'boolean') return false;
         if (loop.repeatDelay !== undefined && (typeof loop.repeatDelay !== 'number' || loop.repeatDelay < 0)) return false;
+        if (loop.range !== undefined) {
+          const keys = step.layers[selector]?.[property];
+          if (!Array.isArray(keys) || keys.some(key => !key) ||
+              !validAuthoredLoop({ ...loop, range: loop.range }, step.duration, keys)) return false;
+        } else if (loop.phase !== undefined) return false;
       }
     }
   }
-  if (!step.layers || typeof step.layers !== 'object') return false;
   for (const tracks of Object.values(step.layers)) {
     if (!tracks || typeof tracks !== 'object') return false;
     for (const kfs of Object.values(tracks)) {
@@ -750,6 +762,8 @@ function serializeStep(step: AnimStep, indent: string, label = ''): string[] {
         const parts = [`"repeat": ${round(l.repeat)}`];
         if (l.yoyo) parts.push(`"yoyo": true`);
         if (l.repeatDelay) parts.push(`"repeatDelay": ${round(l.repeatDelay)}`);
+        if (l.range) parts.push(`"range": [${round(l.range[0])}, ${round(l.range[1])}]`);
+        if (l.phase) parts.push(`"phase": ${round(l.phase)}`);
         lines.push(`${i3}${JSON.stringify(prop)}: { ${parts.join(', ')} }${pi < props.length - 1 ? ',' : ''}`);
       });
       lines.push(`${i2}}${si < sels.length - 1 ? ',' : ''}`);

@@ -111,6 +111,7 @@ const BEHAVIOUR_RUNTIME = /function noacgRepaint\(/;
 export function keySequenceReason(template: SpxTemplate, data: AnimData | null): string | null {
   const reason = sequenceAuthoringReason(data);
   if (!reason || !data) return reason;
+  if (!sequenceOwned(data, false)) return null;
   return behaviourSequenceReason(data, parseBehaviourData(template.js), BEHAVIOUR_RUNTIME.test(template.js));
 }
 /** The recipe's claims on one template, read once per source (#1982): a drag asks per frame. */
@@ -128,7 +129,7 @@ function claimsOf(template: SpxTemplate, doc: Document): RecipeClaim[] {
  */
 export function keyAuthoringReason(template: SpxTemplate, data: AnimData | null, selector: string, channel: string): string | null {
   const reason = keySequenceReason(template, data);
-  if (reason || !data || !sequenceOwned(data)) return reason;
+  if (reason || !data || !sequenceOwned(data, false)) return reason;
   const doc = parsed(template.html);
   let layers: Element[];
   try { layers = Array.from(doc.querySelectorAll(selector)); } catch { return SEQUENCE_REFUSAL; }
@@ -144,7 +145,7 @@ export function controlKeyReason(template: SpxTemplate, data: AnimData | null, s
 /** K7: on an owned sequence, an edit may change only tracks that are the user's, checked on every
  *  element each changed track's selector matches. */
 function requireUserEdit(template: SpxTemplate, before: AnimData, after: AnimData) {
-  if (!sequenceOwned(before)) return;
+  if (!sequenceOwned(before, false)) return;
   requireUserTracksOnly(before, after, (owner, channel) => !keyAuthoringReason(template, before, owner, channel));
 }
 /** K7: the paint table a key edit leaves exactly as it was. */

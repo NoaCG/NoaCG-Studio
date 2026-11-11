@@ -18,6 +18,20 @@
   outline: 2px solid var(--accent); outline-offset: -2px;
 }
 .ef-shell h2 { font-size: 12px; margin: 0 0 16px; }
+.ef-loop-controls { margin-block: 8px; }
+.ef-loop-controls summary { cursor: pointer; }
+.ef-loop-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.ef-loop-fields label:not(.ef-link), .ef-loop-ruler label { display: grid; gap: 3px; }
+.ef-loop-fields input[type="number"] {
+  min-width: 0; width: 100%; padding: 4px 6px; color: inherit; font: inherit;
+  border: 1px solid var(--ef-border); border-radius: 3px; background: var(--ef-panel);
+}
+.ef-loop-controls form, .ef-loop-ruler { display: grid; gap: 6px; margin-block: 8px; }
+.ef-loop-ruler { grid-template-columns: 1fr auto; align-items: center; }
+.ef-loop-ruler label { grid-column: 1 / -1; }
+.ef-loop-ruler input[type="range"] { width: 100%; margin: 0; accent-color: var(--accent); }
+.ef-loop-ruler output { color: var(--ef-muted); font-variant-numeric: tabular-nums; }
+.ef-loop-ruler button { justify-self: end; }
 .ef-header, .ef-document-strip, .ef-toolbar, .ef-transport, .ef-caption, .ef-status {
   display: flex; align-items: center; gap: 8px; min-width: 0;
 }

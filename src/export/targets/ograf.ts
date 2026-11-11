@@ -2,6 +2,7 @@ import { scriptKind } from '../../model/scriptKind';
 import { APPEARANCE_RUNTIME_JS } from '../../control/appearanceRuntime';
 import { isIdentity, type AppliedAppearance } from '../../control/cueAdjust';
 import { prepareOutRuntime } from '../../blocks/animMigration';
+import { authoredCueEnd } from '../../blocks/animLoopTiming';
 import { upgradeFontCss } from '../../model/fonts';
 // OGraf export: packages the template as an EBU OGraf v1 Graphic — a manifest
 // (<slug>.ograf.json) plus a JS entry point (graphic.mjs) exporting a Web Component that
@@ -197,7 +198,7 @@ function wallMs(data: AnimData, seconds: number): number {
  */
 function entranceMs(template: SpxTemplate): number | null {
   const data = parseAnimData(template.js);
-  return data && data.steps.length >= 2 ? wallMs(data, data.steps[0].duration) : null;
+  return data && data.steps.length >= 2 ? wallMs(data, authoredCueEnd(data.steps[0])) : null;
 }
 
 /**
@@ -291,7 +292,7 @@ function actionDurations(template: SpxTemplate, stepCount: number, actionIds: st
   const ms = (seconds: number) => wallMs(data, seconds);
   const steps = data.steps;
   const perStep: Array<{ step: number; duration: number }> = [];
-  for (let i = 0; i < stepCount && i < steps.length - 1; i++) perStep.push({ step: i, duration: ms(steps[i].duration) });
+  for (let i = 0; i < stepCount && i < steps.length - 1; i++) perStep.push({ step: i, duration: ms(authoredCueEnd(steps[i])) });
   const exit = ms(steps[steps.length - 1].duration);
   const hold = timedOutMs(template);
   return [
@@ -299,7 +300,7 @@ function actionDurations(template: SpxTemplate, stepCount: number, actionIds: st
       type: 'playAction',
       // The action-level value is the fallback for any step the list below does not name. A
       // graphic with no steps plays its entrance, its hold and its exit in this one action.
-      duration: hold !== null ? ms(steps[0].duration) + hold + exit : perStep[0]?.duration ?? 0,
+      duration: hold !== null ? ms(authoredCueEnd(steps[0])) + hold + exit : perStep[0]?.duration ?? 0,
       ...(perStep.length ? { steps: perStep } : {}),
     },
     { type: 'stopAction', duration: exit },

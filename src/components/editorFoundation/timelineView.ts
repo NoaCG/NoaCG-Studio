@@ -1,5 +1,7 @@
 import { parseAnimData, type AnimData } from '../../blocks/animData';
 import { shownWithoutBars } from '../../blocks/animEdit';
+import { stepSeconds } from '../../blocks/animEval';
+import { hasLoopRuntime } from '../../templates/shared/animRuntime';
 import { trackOwners } from '../../blocks/editorAnimation';
 import { getTemplateParts, type TemplatePart } from '../../model/structure';
 import type { SpxTemplate } from '../../model/types';
@@ -25,7 +27,7 @@ export function readTimeline(template: SpxTemplate): TimelineView {
   let cursor = 0;
   const segments = (data?.steps ?? []).map((step, index) => {
     const segment = { index, name: index === 0 ? 'In' : index === data!.steps.length - 1 ? 'Out' : step.name,
-      start: cursor, duration: step.duration / data!.speed, out: index > 0 && index === data!.steps.length - 1 };
+      start: cursor, duration: stepSeconds(data!, index), out: index > 0 && index === data!.steps.length - 1 };
     cursor += segment.duration;
     return segment;
   });
@@ -44,8 +46,9 @@ export function readTimeline(template: SpxTemplate): TimelineView {
     });
   });
   const reason = !data ? 'This source has no supported timeline. Its artwork and code are preserved.'
-    : data.steps.some(s => s.dynamics?.length || Object.keys(s.loops ?? {}).length)
-      ? 'Measured motion and local loops remain in the existing editor. Scrubbing is unavailable here.'
+    : data.steps.some(s => s.dynamics?.length) ? 'Measured motion is source controlled. Scrubbing is unavailable.'
+    : data.steps.some(s => Object.keys(s.loops ?? {}).length) && !hasLoopRuntime(template.js)
+      ? 'This source uses the earlier loop runtime. Apply an Edit Loop change to enable scrubbing.'
       : null;
   const view = { data, parts, segments, bars, owners, duration: cursor, out, reason, near: 0.0005 / (data?.speed ?? 1) + 1e-9 };
   views.set(template, view);

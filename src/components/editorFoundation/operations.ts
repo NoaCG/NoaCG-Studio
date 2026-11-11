@@ -1,7 +1,7 @@
 import type { SpxTemplate } from '../../model/types';
 import { getTemplateParts } from '../../model/structure';
 import { readOrganization, writeOrganization } from '../../model/editorOrganization';
-import { locateAnimData, losslessAnimData, parseAnimData, serializeAnimData, spliceAnimData } from '../../blocks/animData';
+import { locateAnimData, losslessAnimData, parseAnimData, serializeAnimData } from '../../blocks/animData';
 import { applySound, type SoundOperation } from '../../blocks/soundEdit';
 import { addStep, layerPress, setKeyframe, setLayerActivation } from '../../blocks/animEdit';
 import { createArtwork, editBase, type BasePatch, type Creation } from '../../blocks/baseEdits';
@@ -9,6 +9,7 @@ import { editArtworkText, editArtworkStyle, editArtworkMetadata, type ArtworkSty
 import { changeArtworkLayer, reorderArtwork } from '../../blocks/artworkLayers';
 import { applyAnimation, applyKeyEase, applyKeyMove, applyKeyPaste, type AnimationOperation, type KeyEaseOperation, type KeyMoveOperation, type KeyPasteOperation } from '../../blocks/editorAnimation';
 import { applyOut, type OutOperation } from '../../blocks/editorOut';
+import { applyEditorLoop, type LoopOperation } from '../../blocks/editorLoops';
 import { applyStep, type StepOperation } from '../../blocks/editorSteps';
 import { commitSvgIdentity } from '../../blocks/svgIdentity';
 import { importAssets, placeGraphicImage, removeUnusedAsset, renameGraphicAsset, replaceGraphicImage } from '../../blocks/editorImages';
@@ -40,6 +41,7 @@ export type EditorOperation =
   | KeyMoveOperation
   | KeyPasteOperation
   | OutOperation
+  | LoopOperation
   | StepOperation
   | { kind: 'path.create'; geometry: PathGeometry; time: number }
   | { kind: 'path.edit'; selector: string; geometry: PathGeometry }
@@ -105,6 +107,8 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
     }
     if (operation.kind === 'look.entrance') {
       next = setLookEntrance(next, operation.selector, operation.entrance); targets.add(operation.selector);
+    } else if (operation.kind === 'loop.set') {
+      next = applyEditorLoop(next, operation); targets.add(operation.selector);
     } else if (operation.kind === 'graphic.insert') {
       if (!losslessAnimData(next.js)) throw new Error('This animation has unsupported data. Its source is preserved.');
       const result = insertTemplateGraphic(next, operation.variant, operation);
@@ -253,7 +257,7 @@ function applyKeyOperations(template: SpxTemplate, operations: Extract<EditorOpe
     data = setKeyframe(data, step, selector, property, time, value);
     changedTargets.add(selector);
   }
-  const js = spliceAnimData(template.js, data);
+  const js = writeAnimData(template.js, data);
   if (js === null) throw new Error('The animation region changed. Inspect the source again.');
   return { template: { ...template, js }, changedTargets: [...changedTargets],
     diff: js === template.js ? [] : [{ file: 'js', before: template.js, after: js }] };

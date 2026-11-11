@@ -1199,6 +1199,9 @@ function lastEventTime(step: AnimStep): number {
     }
   }
   for (const c of step.calls ?? []) last = Math.max(last, c.time);
+  for (const tracks of Object.values(step.loops ?? {})) {
+    for (const loop of Object.values(tracks)) if (loop.range) last = Math.max(last, loop.range[1]);
+  }
   return last;
 }
 
@@ -1236,6 +1239,8 @@ export function resizeStep(
     for (const perProp of Object.values(step.loops ?? {})) {
       for (const loop of Object.values(perProp)) {
         if (loop.repeatDelay) loop.repeatDelay = round(loop.repeatDelay * f);
+        if (loop.range) loop.range = [round(loop.range[0] * f), round(loop.range[1] * f)];
+        if (loop.phase) loop.phase = round(loop.phase * f);
       }
     }
   }

@@ -8,6 +8,7 @@
 
 import type { AnimData, AnimKeyframe, AnimLoop } from './animData';
 import { easeCurve } from '../templates/shared/easeRuntime';
+import { authoredCueEnd, authoredLoopTime } from './animLoopTiming';
 
 /** Properties the renderer cannot take outside a range, whatever the curve does on the way. */
 export const BOUNDED_RANGES: Readonly<Record<string, readonly [number, number]>> = { opacity: [0, 1], autoAlpha: [0, 1] };
@@ -43,7 +44,7 @@ function loopedTime(kfs: AnimKeyframe[], loop: AnimLoop, localT: number): number
 
 /** Effective (real-second) duration of one step — stored values are speed-relative. */
 export function stepSeconds(data: AnimData, index: number): number {
-  return data.steps[index].duration / (data.speed || 1);
+  return authoredCueEnd(data.steps[index]) / (data.speed || 1);
 }
 
 /** Each step's start offset on the concatenated editing ruler, in real seconds. */
@@ -119,7 +120,8 @@ export function resolveValue(
     // should start at the step's beginning, so before its first keyframe the plain
     // hold-backward default below still applies.
     const loop = data.steps[stepIndex]?.loops?.[selector]?.[prop];
-    const t = loop && kfs.length > 1 ? loopedTime(kfs, loop, localT) : localT;
+    const t = loop?.range ? authoredLoopTime({ ...loop, range: loop.range }, localT)
+      : loop && kfs.length > 1 ? loopedTime(kfs, loop, localT) : localT;
     if (t <= kfs[0].time) return settled(prop, kfs[0].value);
     for (let i = 1; i < kfs.length; i++) {
       if (t < kfs[i].time) {
@@ -141,7 +143,11 @@ export function resolveValue(
   // Inherit from earlier steps: the last keyframe value before this step.
   for (let s = stepIndex - 1; s >= 0; s--) {
     const prev = trackAt(data, s, selector, prop);
-    if (prev.length > 0) return settled(prop, prev[prev.length - 1].value);
+    if (prev.length > 0) {
+      const previous = data.steps[s];
+      if (previous.loops?.[selector]?.[prop]?.range) return resolveValue(data, selector, prop, s, authoredCueEnd(previous));
+      return settled(prop, prev[prev.length - 1].value);
+    }
   }
   return null; // design state — the stylesheet's value
 }

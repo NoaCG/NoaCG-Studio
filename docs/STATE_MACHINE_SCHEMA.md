@@ -160,7 +160,16 @@ callbacks, so they do not start clocks or state timers. Step `dynamics: [{ time,
 target? }]` invoke a named builder outside the region that measures the DOM and returns a
 GSAP object. An authored duration remains a floor when measured motion lasts longer. The
 legacy reader accepts `tl.add(builderName(target))`, never guesses arbitrary measured JS.
-`loops[selector][property]` repeats only that property track, with repeat, yoyo and repeatDelay.
+`loops[selector][property]` repeats a property track. The repeat count is the number of
+extra passes, or `-1` for indefinite motion. `yoyo` reverses alternate passes and
+`repeatDelay` holds each arriving endpoint. Editor loops carry a `range: [start, end]` in
+stored cue seconds and an optional `phase` offset into their playback. Their original
+keys stay in the range. A layer loop writes the same settings to each selected track.
+Finite repeats can extend the cue's derived end. An indefinite loop keeps moving in Hold
+until its cue or state is left. The Out cue itself stays finite.
+
+Saving a range or phase installs the matching exact owned runtime. Existing saved loop
+tables without a range keep their legacy interpreter until an explicit loop edit.
 
 `parseAnimData` validates the literal and `serializeAnimData` writes its canonical shape.
 Use the writer's data/interpreter pairing checks: splicing a literal alone cannot upgrade an
@@ -202,16 +211,18 @@ they fire in declaration order. Pointers move SYNCHRONOUSLY at dispatch; animati
 asynchronously, so an event arriving mid-transition evaluates against the NEW state and
 interrupts by finishing the previous group timeline instantly with suppressed callbacks.
 
-**Timers** are `gsap.delayedCall`, armed by a `tl.call` at the end of the entry timeline - never
-`setTimeout`. That one choice buys three things at once: the bench's `timeScale` accelerates
+**Timers** are `gsap.delayedCall`, armed by a `tl.call` at the finite end of an authored
+loop cue or at the end of a legacy finite entry timeline. A measured timeline with no
+known end retains its existing timer guard. That one choice buys three things at once: the bench's `timeScale` accelerates
 timer states for free, the render pipeline's virtual clock drives them deterministically, and
 GSAP's own callback suppression means a settled or scrubbed graphic **never arms a timer** and
 so can never auto-advance under the user.
 
 **Snap** (`noacgSnap(assignments, opts)`) enters states INSTANTLY: kill timelines/timers/tweens,
 flush the queue, `clearProps` the root subtree, re-arm the reveal pre-hides, then replay each
-group's canonical path with `progress(1, true)` (suppressed callbacks - clocks and loops stay
-silent). `null` assignments means every group to its initial: that is **reset visual state**, the
+group's canonical path with callbacks suppressed. A cue with an indefinite authored loop
+is sampled at its finite endpoint and left paused. Other finite timelines play their final
+sample. `null` assignments means every group to its initial: that is **reset visual state**, the
 counterpart of resetting DATA (`resetSampleData` / `update`). The two are never conflated.
 Timers arm afterwards by default (recovery semantics: a snapped-into ticker resumes cycling);
 the editor's preview passes `{ timers: false }` so a parked design view stays parked.

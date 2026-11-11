@@ -10,8 +10,9 @@ import AnimationProperties from './AnimationProperties';
 import AnchorPoint from './AnchorPoint';
 import ImageControls from './ImageControls';
 import PathControls from './PathControls';
-import type { RenderedPart } from './protocol';
-import { editTarget } from './animationAuthoring';
+import LoopControls from './LoopControls';
+import type { LoopProbe, RenderedPart } from './protocol';
+import { authoringPosition, editTarget } from './animationAuthoring';
 import { layerPress } from '../../blocks/animEdit';
 import { behaviourLooks, type LookEntrance } from '../../blocks/behaviourLook';
 interface Props {
@@ -25,6 +26,7 @@ interface Props {
   appearance?: RenderedPart['appearance'];
   previewCss: (css: string) => void;
   previewTemplate: (template: SpxTemplate) => void;
+  previewLoop: (probe?: LoopProbe) => void;
   openAssets: () => void;
   editPoints: (selector: string) => void;
 }
@@ -41,7 +43,7 @@ function Numeric({ label, value, commit }: { label: string; value: number; commi
       if (event.key === 'Escape') { event.stopPropagation(); setDraft(null); }
     }} /></label>;
 }
-function Inspector({ reveal, seek, view, template, selection, select, session, linked, setLinked, appearance, previewCss, previewTemplate, pause, time, openAssets, editPoints }: Props) {
+function Inspector({ reveal, seek, view, template, selection, select, session, linked, setLinked, appearance, previewCss, previewTemplate, previewLoop, pause, time, openAssets, editPoints }: Props) {
   const [tab, setTab] = useState('properties');
   const [error, setError] = useState('');
   const looks = useMemo(() => behaviourLooks(template), [template]);
@@ -54,6 +56,8 @@ function Inspector({ reveal, seek, view, template, selection, select, session, l
     revealed.current = reveal.id;
   }, [reveal, tab]);
   const part = view.parts.find(p => p.selector === selection[0]), cue = session.port.view().cue;
+  const loopStep = part ? authoringPosition(template, part.selector, time, cue).step : -1;
+  const loopCue = view.segments[loopStep]?.out ? undefined : view.data?.steps[loopStep];
   const node = useMemo(() => part ? new DOMParser().parseFromString(template.html, 'text/html').querySelector(part.selector) : null, [template.html, part]);
   const tracks = part && view.data ? animatedProps(view.data, ownerOf(view, part.selector)) : [];
   const capability = useMemo(() => {
@@ -103,6 +107,9 @@ function Inspector({ reveal, seek, view, template, selection, select, session, l
           <PathControls key={'path:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} editPoints={editPoints} />
           <AnchorPoint key={'anchor:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} seek={seek} />
           <AnimationProperties seek={seek} key={'animation:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} linked={linked} previewTemplate={previewTemplate} />
+          {loopCue && <LoopControls key={JSON.stringify([part.selector, loopStep, time, cue])}
+            cue={loopCue} step={loopStep} selector={part.selector} owner={ownerOf(view, part.selector)}
+            speed={view.data!.speed} fps={template.fps} execute={execute} preview={previewLoop} />}
           <label className="ef-link"><input type="checkbox" checked={linked} onChange={event => setLinked(event.target.checked)} /> Link proportions</label></>}
         <div className="ef-edit-actions">
           <button title="Duplicate artwork (Ctrl/Cmd+D)" onClick={() => execute({ kind: 'layer.duplicate', selector: part.selector })} disabled={selection.length !== 1}>Duplicate</button>

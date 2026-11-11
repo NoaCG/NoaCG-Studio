@@ -15,6 +15,7 @@ export const foundationRuntime = String.raw`
   var inspected = false;
   var localTime = 0;
   var exiting = false;
+  var looping = false;
   var initial = [];
   var initialMotion = {};
   var intervals = [];
@@ -50,6 +51,7 @@ export const foundationRuntime = String.raw`
     timeline = null;
     activeStep = -1;
     exiting = false;
+    looping = false;
     if (window.gsap) {
       gsap.globalTimeline.clear();
       initial.forEach(function (entry) {
@@ -67,10 +69,13 @@ export const foundationRuntime = String.raw`
     var step = editorStep(index);
     // Cloning only this transient interpreter input leaves canonical source untouched.
     // Remove calls before building, not just during seek: no callback can fire at t=0.
-    return buildStepTimeline(Object.assign({}, step, { calls: [], dynamics: [], loops: undefined }));
+    return buildStepTimeline(Object.assign({}, step, { calls: [], dynamics: [] }));
   }
   function editorStep(index) {
     return NOACG_ANIM.steps[index] || (index === 1 && NOACG_ANIM.steps.length === 1 ? { duration: 0, ease: 'none', layers: {} } : null);
+  }
+  function cueSeconds(step) {
+    return (typeof noacgAuthoredCueEnd === 'function' ? noacgAuthoredCueEnd(step) : step.duration) / NOACG_ANIM.speed;
   }
   function cssSvgPivotFor(adapter) {
     return !!adapter && adapter.cssSvgAnchor && !NOACG_ANIM.steps.some(function (step) {
@@ -112,7 +117,7 @@ export const foundationRuntime = String.raw`
       throw new Error('This source does not expose the supported animation interpreter.');
     }
     if (!editorStep(step)) throw new Error('The requested segment no longer exists.');
-    var rebuilt = activeStep !== step || exiting;
+    var rebuilt = activeStep !== step || exiting || looping;
     if (rebuilt) {
       resetPose();
       config.selectors.forEach(function (selector) {
@@ -123,7 +128,7 @@ export const foundationRuntime = String.raw`
       for (var i = 0; i < step; i++) {
         var previous = build(i);
         previous.pause();
-        previous.time(NOACG_ANIM.steps[i].duration / NOACG_ANIM.speed, true);
+        previous.time(cueSeconds(NOACG_ANIM.steps[i]), true);
         previous.kill();
       }
       timeline = build(step);
@@ -132,7 +137,8 @@ export const foundationRuntime = String.raw`
     }
     inspected = !!inspect;
     localTime = time;
-    var target = Math.max(0, Math.min(time, editorStep(step).duration / NOACG_ANIM.speed));
+    var end = cueSeconds(editorStep(step));
+    var target = Math.max(0, Math.min(time, end));
     timeline.time(target, true);
     // Same first-frame rule as noacgPaintFirstFrame in the emitted interpreter.
     // A new paused timeline needs its opening .set. After a seek back to zero,
@@ -149,21 +155,40 @@ export const foundationRuntime = String.raw`
     });
     Object.keys(editorStep(step).spans || {}).forEach(function (selector) {
       var segment = editorStep(step);
-      gsap.set(selector, { visibility: noacgSpanVisible(segment.spans[selector], target * NOACG_ANIM.speed, segment.duration) ? 'visible' : 'hidden' });
+      gsap.set(selector, { visibility: noacgSpanVisible(segment.spans[selector], Math.min(segment.duration, target * NOACG_ANIM.speed), segment.duration) ? 'visible' : 'hidden' });
     });
     var finalExit = !inspect && step > 0 && step === Math.max(1, NOACG_ANIM.steps.length - 1) &&
-      time >= editorStep(step).duration / NOACG_ANIM.speed;
+      time >= end;
     gsap.set(NOACG_ANIM.root, { opacity: finalExit ? 0 : 1 });
+  }
+  function previewLoop(probe) {
+    var source = editorStep(probe.step);
+    var tracks = source.layers[probe.owner], loops = source.loops && source.loops[probe.owner];
+    var step = { duration: 0, ease: source.ease, layers: {}, loops: {} };
+    step.layers[probe.owner] = {};
+    step.loops[probe.owner] = {};
+    probe.properties.forEach(function (prop) {
+      step.layers[probe.owner][prop] = tracks[prop];
+      step.loops[probe.owner][prop] = loops[prop];
+    });
+    var overlay = buildStepTimeline(step);
+    overlay.pause();
+    overlay.time(probe.time, true);
+    if (!probe.time) overlay.render(0, true, true);
+    overlay.kill();
+    looping = true;
   }
   function exit(time, start) {
     if (start) {
+      if (looping) seek(activeStep, localTime, inspected);
       if (typeof noacgBuildExit !== 'function') throw new Error('Set Out first to upgrade this saved interpreter.');
       // A parked flag is read from summed cue lengths, so it can sit a float step short of its cue's
       // end: within a microsecond counts as the end. Out's first frame (Edit Out) is where the
       // authored exit starts, so Out plays from there as at the last step.
       var outCue = Math.max(1, NOACG_ANIM.steps.length - 1), near = 1e-6;
       var outStart = activeStep === outCue && localTime < near;
-      var interrupted = activeStep >= 0 && !outStart && localTime < editorStep(activeStep).duration / NOACG_ANIM.speed - near;
+      var interrupted = activeStep >= 0 && !outStart && localTime < cueSeconds(editorStep(activeStep)) - near;
+      if (!outStart && typeof noacgRunningLoop === 'function') interrupted = interrupted || noacgRunningLoop(timeline);
       if (timeline) timeline.kill();
       noacgStepsPlayed = Math.min(activeStep + 1, outCue);
       timeline = noacgExitTimeline(interrupted, true);
@@ -178,7 +203,7 @@ export const foundationRuntime = String.raw`
   }
   function measure() {
     var poseTime = config.scrubbable ? localTime : config.time;
-    for (var i = 0; i < activeStep; i++) poseTime += NOACG_ANIM.steps[i].duration / NOACG_ANIM.speed;
+    for (var i = 0; i < activeStep; i++) poseTime += cueSeconds(NOACG_ANIM.steps[i]);
     return config.selectors.flatMap(function (selector) {
       var element = document.querySelector(selector);
       if (!element) return [];
@@ -244,7 +269,7 @@ export const foundationRuntime = String.raw`
       }
       return [{ selector: selector, x: hit.x, y: hit.y, width: hit.width,
         height: hit.height, opacity: Number(style.opacity), transform: style.transform,
-        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, size: frame ? percentBox(element, style) : target !== element ? percentBox(element, style) : svg ? undefined : box, box: box, origin: svg && !frame && !cssSvgPivot ? undefined : origin, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), fontWeight: Number(style.fontWeight), lineHeight: style.lineHeight === 'normal' ? undefined : parseFloat(style.lineHeight) / parseFloat(style.fontSize), letterSpacing: style.letterSpacing === 'normal' ? 0 : parseFloat(style.letterSpacing) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
+        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, looping: looping || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, size: frame ? percentBox(element, style) : target !== element ? percentBox(element, style) : svg ? undefined : box, box: box, origin: svg && !frame && !cssSvgPivot ? undefined : origin, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), fontWeight: Number(style.fontWeight), lineHeight: style.lineHeight === 'normal' ? undefined : parseFloat(style.lineHeight) / parseFloat(style.fontSize), letterSpacing: style.letterSpacing === 'normal' ? 0 : parseFloat(style.letterSpacing) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
         parent: [matrix.a * unit, matrix.b * unit, matrix.c * unit, matrix.d * unit],
         parentSpace: adapter && adapter.groupParent ? coordinateSpace(document.querySelector(adapter.groupParent)) : undefined,
         corners: points, anchor: groupPivot || anchor(target, targetMatrix, points, origin),
@@ -385,7 +410,10 @@ export const foundationRuntime = String.raw`
     if (m.revision.source !== current.source || m.revision.assets !== current.assets) return;
     lastRequest = m.requestId;
     try {
-      if (m.kind === 'seek') seek(m.step, m.time, m.inspect);
+      if (m.kind === 'seek') {
+        seek(m.step, m.time, m.inspect);
+        if (m.loop) previewLoop(m.loop);
+      }
       else if (m.kind === 'exit-start' || m.kind === 'exit-time') exit(m.time, m.kind === 'exit-start');
       else if (m.kind === 'preview-css') setCss(m.css);
       else if (m.kind === 'preview-template') {

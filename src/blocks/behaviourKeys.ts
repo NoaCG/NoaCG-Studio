@@ -40,8 +40,11 @@ function timelines(data: AnimData): AnimStep[] {
 
 /** Whether the sequence is owned by something beyond plain keys: a machine, calls, measured
  *  motion or loops. A plain sequence needs none of this module. */
-export function sequenceOwned(data: AnimData): boolean {
-  return !!data.machine || timelines(data).some(step => step.calls?.length || step.dynamics?.length || Object.keys(step.loops ?? {}).length);
+const hasUnmanagedLoops = (step: AnimStep, includeAuthoredLoops: boolean) =>
+  Object.values(step.loops ?? {}).some(tracks => Object.values(tracks).some(loop => includeAuthoredLoops || !loop.range));
+
+export function sequenceOwned(data: AnimData, includeAuthoredLoops = true): boolean {
+  return !!data.machine || timelines(data).some(step => step.calls?.length || step.dynamics?.length || hasUnmanagedLoops(step, includeAuthoredLoops));
 }
 
 /**
@@ -51,7 +54,7 @@ export function sequenceOwned(data: AnimData): boolean {
  */
 export function behaviourSequenceReason(data: AnimData, table: BehaviourData | null, runtime: boolean): string | null {
   const all = timelines(data);
-  if (all.some(step => step.dynamics?.length || Object.keys(step.loops ?? {}).length)) return SEQUENCE_REFUSAL;
+  if (all.some(step => step.dynamics?.length || hasUnmanagedLoops(step, false))) return SEQUENCE_REFUSAL;
   const calls = all.flatMap(step => (step.calls ?? []).map(c => c.call));
   if (calls.some(call => CREDITS_CALLS.includes(call))) return CREDITS_REFUSAL;
   if (!runtime || !table) return SEQUENCE_REFUSAL;
