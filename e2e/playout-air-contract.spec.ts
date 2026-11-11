@@ -265,6 +265,20 @@ test.describe('on a touch screen', () => {
     await holdWrites(page, false);
     await expect(page.getByTestId('cue-unsent')).toBeEmpty();
   });
+  test('typed, Take tapped, then the page reloads at once: the edit is kept', async ({ page }) => {
+    // Phase 3 check on 92e581a7: the Take's own save is still committing when the page goes, and a
+    // reload aborts it, so only the record the page keeps as it goes carries the edit.
+    await production(page, 'Tap then reload');
+    await cue(page, 'Hairline').getByTestId('select-cue').click();
+    await page.getByTestId('cue-field-f0').fill('Kept over a tap and a reload');
+    const box = (await page.getByTestId('verb-take').boundingBox())!;
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: box.x + 5, y: box.y + 5 }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.reload();
+    await cue(page, 'Hairline').getByTestId('select-cue').click();
+    await expect(page.getByTestId('cue-field-f0')).toHaveValue('Kept over a tap and a reload');
+  });
 });
 
 test('typed then taken, then the page reloads at once: the edit is kept', async ({ page }) => {

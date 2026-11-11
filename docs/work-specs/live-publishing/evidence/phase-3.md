@@ -363,23 +363,41 @@ page going saves what is owed at once" was not true, for two reasons.
 ### Rules
 
 Written before the code; a Rules-first `/so` challenges them. A first version (commit the
-page-hide write at once) was graded B and withdrawn after the touch measurement above.
+page-hide write at once) was graded B and withdrawn after the touch measurement above. A second
+(a record compared by time) was graded B; its findings are answered below.
 
 - P1. When the page may be going (`onPageHide`: hidden, closing or reloading, or the account
-  pausing), an owed edit is saved to the store as before and, synchronously, recorded in
-  localStorage for its production: the cue, its fields and the time. Owed means typed and not yet
-  saved, or saved through the history and not yet confirmed by the store.
-- P2. When the production page shows that production again on the same account, the record is
-  taken once. If the stored production was not saved after the record's time (its `updatedAt`
-  is earlier) and the cue still exists, the fields are written to the cue at once, as the
-  page-hide save writes them (no undo step); otherwise the record is dropped. While the account may
-  not write, the record stays for a later visit. A record for another production waits for that
-  production.
-- P3. A save of the draft that the store confirms removes the record, so it is never applied over
-  later work; a later save of the production from anywhere (a later `updatedAt`) wins over it.
+  pausing), an owed edit is saved to the store as before and, first and synchronously, recorded
+  in localStorage for its production: the cue, the text the cue held when the typing started, and
+  the typed text. Owed means typed and not yet saved, or saved through the history and not yet
+  confirmed by the store. One record per production, in one key per account
+  (`spx-gfx-owed-cue-edits`, moved with the account's other small records when an account adopts
+  the signed-out workspace). A refused localStorage write changes nothing else.
+- P2. When the production page first has that production's cues on a visit, before anything on
+  it is typed or sent, the record is taken once. If the cue still holds exactly the text the
+  typing started from, the typed text is written to it at once, as the page-hide save writes it
+  (no undo step). Otherwise (the cue holds the typed text already, was changed since by another
+  tab, a teammate or an undo, or is gone) nothing is written. The record is removed either way,
+  and a write the store refuses (a live candidate's field, editing paused at the store) is not
+  retried. While the account may not write, the record stays for a later visit. Nothing is
+  shown to the operator.
+- P3. A save of the draft that the store confirms removes the record. A record whose page stayed
+  (the tab was only hidden) is removed on the next visit, since the cue then holds the typed text.
+  A record of a production deleted before its next visit stays, a few hundred bytes.
 - P4. Therefore R4 holds: an edit typed and not yet saved is in the stored production after a
   reload at any moment after the press (pointer still down, mouse or touch; the send unanswered or
-  answered) and with no press at all. A crash or a killed tab fires no event and is not covered.
+  answered) and with no press at all. Not covered: a crash or a killed tab (no event fires); a
+  second cue's owed save when the editor followed the cue on air to another cue and the operator
+  typed there before the first save was confirmed (R4a, the history rule left to #2394); a cue
+  changed by someone else since the typing started (their text stands, P2).
 - P5. The session's end and the listening's stop save at once as before, with no record: the page
   stays, so the store's write lands. When the Take sends, when the blur's save runs and what it
   writes do not change (R1 to R7 above), and AC-1 is measured again on the production build.
+
+Revised after the second Rules-first `/so` (grade B, 2026-11-11): the comparison is the cue's
+own text, not the production's `updatedAt`, which answers its findings 1 (timestamp order),
+4 (other writes on the next visit), 5 (teammates' clocks; a teammate's later edit to the cue
+stands) and 6 (a later save to another cue no longer drops the edit). Finding 2: P3 says when a
+record goes, and that a deleted production's record stays. Finding 3: listed in P4. Smaller
+points: the key moves with the account (P1), a refused write and the silence (P2).
+

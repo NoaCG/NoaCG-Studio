@@ -36,6 +36,8 @@ function harness() {
     listeners,
     canWrite: true,
     retainOk: true,
+    /** The owed-edit record (model/owedCueEdit.ts). */
+    owed: null,
     /** Run every live timer, as the clock passing them would. */
     tick() {
       for (const [id, t] of [...timers]) {
@@ -54,6 +56,15 @@ function harness() {
       return h.retainOk;
     },
     record: (cueId) => records.get(cueId),
+    owed: {
+      keep: (edit) => {
+        h.owed = structuredClone(edit);
+      },
+      read: () => h.owed,
+      forget: () => {
+        h.owed = null;
+      },
+    },
     setTimeout: (run, ms) => {
       const id = nextTimer++;
       timers.set(id, { run, ms });
@@ -252,6 +263,155 @@ test('the page hiding saves at once, synchronously, without the history, and kee
   assert.equal(await h.draft.flush(), true);
   assert.equal(h.writes.length, 0);
   stop();
+});
+
+test('the page hiding while a save is out through the history saves it at once, once', async () => {
+  // Phase 3 check on 92e581a7: the history writes a flushed draft from its queue, a moment later,
+  // so a reload in between lost it. The page going saves it synchronously, and only once.
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: 'Out when hidden' } });
+  const out = h.draft.flush();
+  assert.equal(h.writes.length, 1, 'the save is out');
+  for (const run of h.listeners.hide) run();
+  assert.deepEqual(h.retained.map((r) => r.fields.values.f0), ['Out when hidden']);
+  for (const run of h.listeners.hide) run();
+  assert.equal(h.retained.length, 1, 'saved once');
+  h.writes[0].answer(true);
+  assert.equal(await out, true);
+  for (const run of h.listeners.hide) run();
+  assert.equal(h.retained.length, 1, 'nothing owed once confirmed');
+  stop();
+});
+
+test('a save already confirmed is not saved again when the page hides', async () => {
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: 'Confirmed' } });
+  const out = h.draft.flush();
+  h.writes[0].answer(true);
+  await out;
+  for (const run of h.listeners.hide) run();
+  assert.equal(h.retained.length, 0);
+  stop();
+});
+
+test('P1: the page going records the owed edit, with the text its cue held when the typing started', () => {
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  type(h, OPENER, 'f0', 'Rec');
+  for (const run of h.listeners.hide) run();
+  assert.deepEqual(h.owed, {
+    cueId: 'c1',
+    base: { label: 'Opener', note: null, values: { f0: 'Anna Riva', f1: 'Host' } },
+    fields: { label: 'Opener', note: null, values: { f0: 'Rec', f1: 'Host' } },
+  });
+  assert.equal(h.retained.length, 1, 'and saved to the store as before');
+  stop();
+});
+
+test('P1: a save out through the history is recorded too when the page goes', () => {
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: 'Out' } });
+  void h.draft.flush();
+  for (const run of h.listeners.hide) run();
+  assert.equal(h.owed?.fields.values.f0, 'Out');
+  assert.equal(h.owed?.base.values.f0, 'Anna Riva');
+  stop();
+});
+
+test('P1: a draft of another cue records that cue and the text it started from', () => {
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: 'First' } });
+  h.draft.cancel();
+  h.draft.edit(CLOSER, { label: 'Ending' });
+  for (const run of h.listeners.hide) run();
+  assert.equal(h.owed?.cueId, 'c2');
+  assert.deepEqual(h.owed?.base, { label: 'Closer', note: 'last', values: { f0: 'Ben Lund', f1: 'Guest' } });
+  assert.equal(h.owed?.fields.label, 'Ending');
+  stop();
+});
+
+test('P5: the session end and the listening stop save without a record', () => {
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: 'Leaving' } });
+  stop();
+  assert.equal(h.retained.length, 1);
+  assert.equal(h.owed, null);
+  const g = harness();
+  g.draft.edit(OPENER, { values: { f0: 'Ended' } });
+  g.session.dispose();
+  assert.equal(g.retained.length, 1);
+  assert.equal(g.owed, null);
+});
+
+test('P3: a save the store confirms removes the record; a refused one keeps it', async () => {
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: 'Hidden then back' } });
+  for (const run of h.listeners.hide) run();
+  h.draft.edit(OPENER, { values: { f0: 'Typed on' } });
+  const refused = h.draft.flush();
+  h.writes[0].answer(false);
+  await refused;
+  assert.notEqual(h.owed, null, 'refused: kept');
+  const saved = h.draft.flush();
+  h.writes[1].answer(true);
+  await saved;
+  assert.equal(h.owed, null, 'confirmed: removed');
+  stop();
+});
+
+const owedOver = (base) => ({ cueId: 'c1', base, fields: { label: 'Opener', note: null, values: { f0: 'From the record', f1: 'Host' } } });
+const ASTYPED = { label: 'Opener', note: null, values: { f0: 'Anna Riva', f1: 'Host' } };
+
+test('P2: a record over the text the cue still holds is written to it once, then removed', () => {
+  const h = harness();
+  h.owed = owedOver(ASTYPED);
+  h.draft.recover();
+  assert.deepEqual(h.retained, [{ cueId: 'c1', fields: owedOver(ASTYPED).fields }]);
+  assert.equal(h.owed, null);
+  h.draft.recover();
+  assert.equal(h.retained.length, 1, 'once');
+  assert.equal(h.writes.length, 0, 'not through the history');
+});
+
+test('P2: a cue changed since the typing started keeps what it holds, and the record goes', () => {
+  const h = harness();
+  h.owed = owedOver({ ...ASTYPED, values: { f0: 'Someone else', f1: 'Host' } });
+  h.draft.recover();
+  assert.equal(h.retained.length, 0);
+  assert.equal(h.owed, null);
+  h.owed = owedOver({ ...ASTYPED, label: 'Renamed since' });
+  h.draft.recover();
+  assert.equal(h.retained.length, 0);
+});
+
+test('P2: a record for a cue that is gone, or that the cue already holds, writes nothing and goes', () => {
+  const h = harness();
+  h.owed = { ...owedOver(ASTYPED), cueId: 'gone' };
+  h.draft.recover();
+  assert.equal(h.retained.length, 0);
+  assert.equal(h.owed, null);
+  h.owed = { cueId: 'c1', base: { ...ASTYPED, values: { f0: 'Older' } }, fields: ASTYPED };
+  h.draft.recover();
+  assert.equal(h.retained.length, 0);
+  assert.equal(h.owed, null);
+});
+
+test('P2: while the account may not write, the record stays for a later visit', () => {
+  const h = harness();
+  h.owed = owedOver(ASTYPED);
+  h.canWrite = false;
+  h.draft.recover();
+  assert.equal(h.retained.length, 0);
+  assert.notEqual(h.owed, null);
+  h.canWrite = true;
+  h.draft.recover();
+  assert.equal(h.retained.length, 1);
 });
 
 test('the page hiding saves nothing while the account may not write, and the edit stays owed', () => {

@@ -152,6 +152,7 @@ import { formerReaders as storedFormerReaders, setFormerReaders as setStoredForm
 import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/liveData';
 import { canonical } from '../../model/publishedRecord';
 import { setCueSelection, setCueTyped, setCueTypedArgs, setCueTypedValues, setGraphicSounds } from '../../model/shows';
+import { forgetOwedCueEdit, keepOwedCueEdit, readOwedCueEdit } from '../../model/owedCueEdit';
 import ProductionSounds from './ProductionSounds';
 import { soundTopology } from '../../assets/productionSounds';
 import {
@@ -1437,6 +1438,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           draftOwner.current === session.key ? historyRef.current!.writeDraft(() => updateShowCueChecked(session.key, cueId, fields)) : Promise.resolve(false),
         retainCue: (cueId, fields) => !updateShowCueChecked(session.key, cueId, fields).error,
         record: (cueId) => cuesRef.current.find((c) => c.id === cueId),
+        owed: {
+          keep: (edit) => keepOwedCueEdit(session.key, edit),
+          read: () => readOwedCueEdit(session.key),
+          forget: () => forgetOwedCueEdit(session.key),
+        },
         setTimeout: (run, ms) => setTimeout(run, ms),
         clearTimeout: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
       }),
@@ -1465,6 +1471,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const history = useRundownHistory(show ?? null, setShows, setRundownNote, (a, b) => historySafety.current(a, b), cancelDraft);
   historyRef.current = history;
   useEffect(() => cueDraft.listen(DRAFT_ADAPTERS), [cueDraft]);
+  // An edit recorded when a page of this production last went (control/cueDraft.ts `recover`),
+  // once its cues are here (a team production arrives a moment after the page), against the
+  // production as first loaded: the effect runs after the render that has them.
+  const showHere = !!show;
+  useEffect(() => {
+    if (showHere) cueDraft.recover();
+  }, [cueDraft, showHere]);
   useEffect(() => { void flushDraft(); void historyRef.current?.closeGroup(); }, [sub, flushDraft]);
 
   // ── PRODUCTION DATA: the tree, and what it resolves to (docs/PRODUCTION_DATA_PLAN.md) ────
