@@ -196,7 +196,7 @@
       "version": 3,
       "rationale": "Ceilings that match measured reality, with a dated plan to bring them down (owner request 2026-11-11, run issue #1967). The complete report of 2026-11-11 (weekly-audit run 43014542120) measured offline 654.3 per landing, backend 219.9 per landing and 79.7 per day, graphics 36.3 per landing (18.6 net of ci04-catalog-gate). Raised: offline per landing 535 to 720, backend per landing 117 to 235 and per day 78 to 88, graphics per landing 10 to 20. Nothing else moves; no exception is added or renewed. The steps in reductionPlan bring each back to its version 2 line. Proposal: docs/work-specs/cicd-followup/evidence/growth-ceilings-proposal-2026-11.md; decision: docs/work-specs/cicd-followup/evidence/owner-decision-2026-11-11-growth-ceilings-v3.md.",
       "authority": "repository owner (miwco)",
-      "reviewed": "PENDING-ISSUE-COMMENT"
+      "reviewed": "https://github.com/NoaCG/NoaCG-Studio/issues/1967#issuecomment-6795775617"
     }
   ],
   "exceptions": [

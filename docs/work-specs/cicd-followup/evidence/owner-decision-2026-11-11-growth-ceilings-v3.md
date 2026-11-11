@@ -1,7 +1,11 @@
 # Owner decision 2026-11-11: growth ceilings version 3
 
 Decided by miwco on 2026-11-11 in the cicd-followup coordinator session (run issue #1967), and
-relayed by the coordinator to the builder of the growth-gate work.
+relayed by the coordinator to the builder of the growth-gate work. The question, the answer and the
+option text are posted verbatim on #1967:
+https://github.com/NoaCG/NoaCG-Studio/issues/1967#issuecomment-6795775617 (posted by the
+coordinator with the owner's account token, so it shows as miwco). That comment is the version 3
+revision's `reviewed` link.
 
 ## The question put to the owner
 
