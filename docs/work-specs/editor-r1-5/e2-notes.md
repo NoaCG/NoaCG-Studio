@@ -206,4 +206,33 @@ uses the hide tween's current position on the parent clock, so slowing a
 loop child does not shift that cue-level hide in wall time. The 18-case
 bundled GSAP oracle covers all three families, including both linear and
 machine finite Out, old and fresh timer callbacks, and GSAP root updates
-through the hide boundary.
+through the hide boundary. The editor's committed composition seek uses the
+same ownership record for preceding and current cues, including Out from
+a parked flag after a nonwriting cue. The independent local ruler remains
+a probe and cannot install an Out pose.
+
+The third final review graded
+`58a2927a7043e38eb765c652206c3886a5b597ca` B. It confirmed the
+editor composition gap and showed both possible write orders on one
+channel in valid parallel groups. It also measured a mixed legacy and
+ranged cue whose preview settled too early. The independent reassessment
+verified that bundled GSAP's identity modifiers see real element/channel
+writes even during silent seeks. The Chromium probe j-5196 confirmed
+which alias keys reach those writes and verified custom properties and
+pivot accessors.
+
+Committed timelines now publish only the paints they actually make.
+Temporary local probes keep their writes private. Legacy delayed
+children restore the previous writer when seeking back before their
+first paint. Explicit hides are ordinary writers and follow their own
+tween clock. The upgraded editor ruler and OGraf metadata include the
+finite range-less children, even if the last ranged loop is removed.
+Untouched legacy documents keep their earlier durations and source.
+
+The expanded 21-case GSAP oracle advances the root clock through both
+parallel write orders and checks the previous owner after a suppressed
+backward seek. It also checks the common 1.8-second endpoint and x = 20
+for an upgraded cue with a range-less yoyo and ranged opacity loop.
+Browser job j-5195 verified the bridge handoff for inherited and terminal
+loop samples at Out. The maintained browser parity case also checks the
+1.8-second editor flag, the rendered terminal pose and OGraf metadata.

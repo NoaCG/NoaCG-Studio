@@ -76,7 +76,7 @@ export const foundationRuntime = String.raw`
     return NOACG_ANIM.steps[index] || (index === 1 && NOACG_ANIM.steps.length === 1 ? { duration: 0, ease: 'none', layers: {} } : null);
   }
   function cueSeconds(step) {
-    return (typeof noacgAuthoredCueEnd === 'function' ? noacgAuthoredCueEnd(step) : step.duration) / NOACG_ANIM.speed;
+    return (typeof noacgAuthoredCueEnd === 'function' ? noacgAuthoredCueEnd(step, true, NOACG_ANIM.speed) : step.duration) / NOACG_ANIM.speed;
   }
   function cssSvgPivotFor(adapter) {
     return !!adapter && adapter.cssSvgAnchor && !NOACG_ANIM.steps.some(function (step) {
@@ -130,7 +130,11 @@ export const foundationRuntime = String.raw`
         var previous = build(i);
         previous.pause();
         previous.time(cueSeconds(NOACG_ANIM.steps[i]), true);
-        if (typeof noacgRetireLoops === 'function') noacgRetireLoops(previous, true);
+        if (typeof noacgAdoptCueTracks === 'function') {
+          noacgAdoptCueTracks(previous);
+          noacgRetireLoops(previous);
+          noacgReleaseCueTracks(previous);
+        }
         previous.kill();
       }
       timeline = build(step);
@@ -146,6 +150,7 @@ export const foundationRuntime = String.raw`
     // A new paused timeline needs its opening .set. After a seek back to zero,
     // a second forced render can instead paint the start of a later tween.
     if (rebuilt && target === 0) timeline.render(0, true, true);
+    if (rebuilt && typeof noacgAdoptCueTracks === 'function') noacgAdoptCueTracks(timeline);
     // Existence is explicit, independent of whether a layer owns any keys.
     NOACG_ANIM.steps.forEach(function (segment, i) {
       (segment.reveals || []).forEach(function (selector) {
@@ -197,7 +202,13 @@ export const foundationRuntime = String.raw`
       var outStart = activeStep === outCue && localTime < near;
       var interrupted = activeStep >= 0 && !outStart && localTime < cueSeconds(editorStep(activeStep)) - near;
       if (!outStart && typeof noacgRunningLoop === 'function') interrupted = interrupted || noacgRunningLoop(timeline);
-      if (timeline) timeline.kill();
+      if (timeline) {
+        if (typeof noacgRetireLoops === 'function') {
+          noacgRetireLoops(timeline);
+          noacgReleaseCueTracks(timeline);
+        }
+        timeline.kill();
+      }
       noacgStepsPlayed = Math.min(activeStep + 1, outCue);
       timeline = noacgExitTimeline(interrupted, true);
       timeline.pause();

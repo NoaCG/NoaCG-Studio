@@ -73,10 +73,10 @@ export function keyedAt(data: AnimData | null, owner: string, property: ControlP
 }
 /** A pose value at a cue time as the runtime reports it: a `scale` track reports as both Scale axes
  *  and `autoAlpha` as opacity. */
-export function channelValue(data: AnimData, owner: string, property: keyof NumericPose, step: number, time: number) {
-  const value = resolveValue(data, owner, property, step, time);
+export function channelValue(data: AnimData, owner: string, property: keyof NumericPose, step: number, time: number, includeLegacy = false) {
+  const value = resolveValue(data, owner, property, step, time, includeLegacy);
   const shared = property === 'scaleX' || property === 'scaleY' ? 'scale' : property === 'opacity' ? 'autoAlpha' : null;
-  return value === null && shared ? resolveValue(data, owner, shared, step, time) : value;
+  return value === null && shared ? resolveValue(data, owner, shared, step, time, includeLegacy) : value;
 }
 /**
  * The channel a key on this control writes: the pixel or per-axis channel when the layer animates

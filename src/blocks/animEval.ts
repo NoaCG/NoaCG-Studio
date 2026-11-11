@@ -43,8 +43,9 @@ function loopedTime(kfs: AnimKeyframe[], loop: AnimLoop, localT: number): number
 }
 
 /** Effective (real-second) duration of one step — stored values are speed-relative. */
-export function stepSeconds(data: AnimData, index: number): number {
-  return authoredCueEnd(data.steps[index]) / (data.speed || 1);
+export function stepSeconds(data: AnimData, index: number, includeLegacy = false): number {
+  const speed = data.speed || 1;
+  return authoredCueEnd(data.steps[index], includeLegacy, speed) / speed;
 }
 
 /** Each step's start offset on the concatenated editing ruler, in real seconds. */
@@ -112,6 +113,7 @@ export function resolveValue(
   prop: string,
   stepIndex: number,
   localT: number,
+  includeLegacy = false,
 ): number | string | null {
   const kfs = trackAt(data, stepIndex, selector, prop);
   if (kfs.length > 0) {
@@ -145,7 +147,10 @@ export function resolveValue(
     const prev = trackAt(data, s, selector, prop);
     if (prev.length > 0) {
       const previous = data.steps[s];
-      if (previous.loops?.[selector]?.[prop]?.range) return resolveValue(data, selector, prop, s, authoredCueEnd(previous));
+      const loop = previous.loops?.[selector]?.[prop];
+      if (loop && (loop.range || includeLegacy)) {
+        return resolveValue(data, selector, prop, s, authoredCueEnd(previous, includeLegacy, data.speed || 1), includeLegacy);
+      }
       return settled(prop, prev[prev.length - 1].value);
     }
   }

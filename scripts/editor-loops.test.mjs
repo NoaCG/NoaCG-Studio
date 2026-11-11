@@ -200,6 +200,44 @@ test('completed finite loops keep their terminal Out pose and unstarted legacy l
   near(g.box.x, 100, 'unstarted legacy loop does not substitute its channel in Out');
 });
 
+test('backward seek before a delayed legacy loop restores the preceding writer', () => {
+  for (const precedingLoop of [false, true]) {
+    const data = addLoop(baseline(), { repeat: 0, range: [.2, 1] }, false);
+    if (!precedingLoop) {
+      data.steps[0].loops = { '#box': { opacity: { repeat: 0, range: [.4, .8] } } };
+    }
+    const step = data.steps[1];
+    step.layers['#box'] = { x: [{ time: .2, value: 200 }, { time: .4, value: 300 }] };
+    step.loops = { '#box': { x: { repeat: 1, yoyo: true } } };
+    const g = graphic(data);
+    sample(g.w.buildInTimeline(), 1.3);
+    const next = g.w.revealNextStep();
+    sample(next, .3);
+    near(g.box.x, 250, 'the legacy loop has painted');
+    assert.ok(g.w.noacgStillHoldsLoop(g.box, 'x'));
+    sample(next, .05);
+    near(g.box.x, 100, 'reverse seek restores the visible input before activation');
+    assert.equal(g.w.noacgStillHoldsLoop(g.box, 'x'), precedingLoop);
+  }
+});
+
+test('mixed upgraded cues include finite legacy repeats in their derived endpoint', () => {
+  const data = authored({ repeat: 0, range: [.4, .8] });
+  data.steps[0].loops['#box'].x = { repeat: 1, yoyo: true };
+  near(evaluator.stepSeconds(data, 0), 1.3, 'untouched legacy metadata keeps its authored floor');
+  near(evaluator.stepSeconds(data, 0, true), 1.8, 'upgraded cue includes the full legacy yoyo');
+  near(evaluator.resolveValue(data, '#box', 'x', 1, 0, true), 20, 'later cue inherits the reverse endpoint');
+  const g = graphic(data);
+  const inCue = g.w.buildInTimeline();
+  g.w.noacgSettleCue(inCue);
+  near(inCue.time(), 1.8, 'runtime and editing ruler settle at the same time');
+  near(g.box.x, 20, 'runtime and inherited pose settle at the same key');
+
+  const upgraded = runtime.emitAnimRegion(data);
+  delete data.steps[0].loops['#box'].opacity;
+  assert.ok(runtime.hasLoopRuntime(runtime.writeOutData(upgraded, data)), 'removal leaves the exact capability');
+});
+
 test('explicit hides and visibility spans keep ownership during loop Hold and backward seek', () => {
   const data = authored();
   data.steps[0].hides = ['#box'];
@@ -310,6 +348,51 @@ test('styled entry keeps the other group running and an authored edge into Out r
   near(g.score.x, 65, 'Out retires the unrelated group');
   sample(out, .5);
   near(g.stage.opacity, 0, 'Next-to-Out finishes');
+});
+
+test('Out follows the last painted channel across overlapping parallel groups', () => {
+  const first = authoredMachine(addLoop(baseline(), { repeat: 1, yoyo: true, range: [.2, 1] }));
+  const mark = first.machine.groups[1].states[1].timeline;
+  mark.layers = { '#box': { x: [{ time: 0, value: 55 }] } };
+  delete mark.loops;
+  assert.equal(machine.validateMachine(first).errors.length, 0);
+  const loopLast = graphic(first);
+  loopLast.w.gsap.updateRoot(0);
+  const start = loopLast.w.buildInTimeline().startTime();
+  const tick = at => loopLast.w.gsap.updateRoot(start + at);
+  tick(.6);
+  near(loopLast.box.x, 60, 'the main loop is already running');
+  loopLast.w.noacgDispatch('pulse');
+  near(loopLast.box.x, 55, 'the accent paints its ordinary key on entry');
+  tick(.7);
+  tick(1.81);
+  near(loopLast.box.x, 20, 'the main loop paints last and completes');
+  loopLast.w.buildOutTimeline();
+  near(loopLast.box.x, 20, 'Out follows the loop that actually painted last');
+
+  const second = authoredMachine(authored({ repeat: 0, range: [.1, 1.1] }));
+  const reveal = second.steps[1], accent = second.machine.groups[1].states[1].timeline;
+  reveal.duration = 1;
+  reveal.layers['#box'] = { x: [{ time: 0, value: 20 }, { time: .5, value: 100 }] };
+  reveal.loops = { '#box': { x: { repeat: 1, yoyo: true, range: [0, .5] } } };
+  accent.duration = 2;
+  accent.layers = { '#box': { x: [{ time: 0, value: 0 }, { time: 2, value: 55 }] } };
+  delete accent.loops;
+  assert.equal(machine.validateMachine(second).errors.length, 0);
+  const ordinaryLast = graphic(second);
+  ordinaryLast.w.gsap.updateRoot(0);
+  const origin = ordinaryLast.w.buildInTimeline().startTime();
+  const advance = at => ordinaryLast.w.gsap.updateRoot(origin + at);
+  advance(.05);
+  ordinaryLast.w.noacgDispatch('pulse');
+  advance(.15);
+  ordinaryLast.w.revealNextStep();
+  advance(1.16);
+  near(ordinaryLast.box.x, 20, 'the newer yoyo completes at its starting key');
+  advance(2.1);
+  near(ordinaryLast.box.x, 55, 'the older accent then paints its final ordinary key');
+  ordinaryLast.w.buildOutTimeline();
+  near(ordinaryLast.box.x, 100, 'the authored Out starts when the ordinary writer painted last');
 });
 
 test('a styled swap tolerates an unrelated group whose loop has already stopped', () => {

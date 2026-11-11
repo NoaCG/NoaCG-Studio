@@ -22,14 +22,21 @@ function noacgLoopTime(loop, window, elapsed) {
   var offset = Math.min(window.period, within);
   return loop.range[0] + (loop.yoyo && pass % 2 ? window.period - offset : offset);
 }
-function noacgAuthoredCueEnd(step) {
+function noacgAuthoredCueEnd(step, includeLegacy, speed) {
   var end = step.duration;
   Object.keys(step.loops || {}).forEach(function (selector) {
     var tracks = step.loops[selector];
     Object.keys(tracks).forEach(function (prop) {
       var loop = tracks[prop];
-      if (loop.range && loop.repeat >= 0) {
+      if (loop.repeat < 0) return;
+      if (loop.range) {
         end = Math.max(end, loop.range[0] + noacgLoopWindow(loop).total - (loop.phase || 0));
+      } else if (includeLegacy) {
+        var keys = step.layers[selector] && step.layers[selector][prop];
+        if (!keys || !keys.length) return;
+        var first = keys[0].time, period = keys[keys.length - 1].time - first;
+        var length = (loop.repeat + 1) * period + loop.repeat * (loop.repeatDelay || 0);
+        if (length / speed < 1e9) end = Math.max(end, first + length);
       }
     });
   });
@@ -39,7 +46,7 @@ function noacgAuthoredCueEnd(step) {
 export type RangedLoop = AnimLoop & { range: [number, number] };
 interface LoopWindow { period: number; cycle: number; lap: number; total: number }
 interface LoopTiming {
-  end(step: AnimStep): number;
+  end(step: AnimStep, includeLegacy: boolean, speed: number): number;
   window(loop: RangedLoop): LoopWindow;
   time(loop: RangedLoop, window: LoopWindow, elapsed: number): number;
 }
@@ -58,8 +65,8 @@ export function authoredLoopTime(loop: RangedLoop, cueTime: number): number {
 }
 
 /** The cue keeps its stored duration as a floor, even if an authored finite loop runs longer. */
-export function authoredCueEnd(step: AnimStep): number {
-  return step.loops ? shared().end(step) : step.duration;
+export function authoredCueEnd(step: AnimStep, includeLegacy = false, speed = 1): number {
+  return step.loops ? shared().end(step, includeLegacy, speed) : step.duration;
 }
 
 export const hasAuthoredLoop = (step: AnimStep) =>

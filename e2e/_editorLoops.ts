@@ -209,6 +209,10 @@ export async function playLoopOutputs(page: Page) {
   const data = fixture();
   data.steps[0].layers['#box'].scaleX = [{ time: .2, value: 1 }, { time: 1, value: 3 }];
   data.steps[0].loops = { '#box': { x: loop, opacity: loop, scaleX: loop } };
+  data.steps[1].duration = .42;
+  data.steps[1].layers['#score'] = { x: [{ time: 0, value: 20 }, { time: .2, value: 100 }] };
+  data.steps[1].loops = { '#score': { x: { repeat: 1, yoyo: true, range: [0, .2] } } };
+  data.steps[2].layers['#score'] = { x: [{ time: 0, value: 100 }, { time: .5, value: -100 }] };
   data.steps[2].layers['#box'].scale = [{ time: 0, value: 4 }, { time: .5, value: 1 }];
   data.machine = { groups: [{
     id: 'main', initial: 'off', defaultPath: ['in', 'reveal', 'out'],
@@ -260,7 +264,7 @@ export async function playLoopOutputs(page: Page) {
         const score = body.querySelector('#f0')!.textContent;
         await command('next');
         take(first, 2.1);
-        const afterNext = snapshot()[0];
+        const afterNext = take(current(), .42)[0];
         await command('stop');
         const releasedAfterNext = snapshot();
         const outShape = body.querySelector('#box')!;
@@ -296,6 +300,47 @@ export async function playLoopOutputs(page: Page) {
       });
     } finally { await output.close(); }
   }
+
+  // The foundation editor composes preceding cues to reconstruct a parked pose.
+  await page.clock.install();
+  await apply(page, input);
+  await seek(page, 1.72);
+  await pose(page, 90, 1, 130);
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  await page.getByRole('button', { name: 'Out', exact: true }).click();
+  await page.clock.runFor(120);
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await page.clock.runFor(100);
+  await ready(page);
+  const elapsed = await page.evaluate(async () => {
+    const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
+    const session = activeEditorSession();
+    return session.port.view().time - 1.72;
+  });
+  expect(elapsed).toBeGreaterThan(0);
+  expect(elapsed).toBeLessThan(.5);
+  expect((await editorPose(page))[0]).toBeCloseTo(90 + (-100 - 90) * elapsed / .5, 3);
+  const scoreX = await (await frame(page)).evaluate(() => {
+    const w = window as unknown as { gsap: { getProperty(e: Element, p: string): number } };
+    return Number(w.gsap.getProperty(document.querySelector('#score')!, 'x'));
+  });
+  expect(scoreX).toBeCloseTo(20 + (-100 - 20) * elapsed / .5, 3);
+
+  // An explicit upgrade gives earlier range-less finite loops the same cue clock.
+  await page.clock.resume();
+  const mixed = fixture();
+  mixed.steps[0].loops = { '#box': {
+    x: { repeat: 1, yoyo: true },
+    opacity: { repeat: 0, range: [.4, .8] },
+  } };
+  const mixedInput = await template(page, mixed);
+  await apply(page, mixedInput);
+  await seek(page, 1.8);
+  await pose(page, 20, 1, 130);
+  const ograf = await built(page, mixedInput, 'ograf');
+  const manifestFile = Object.entries(ograf.files!).find(([file]) => file.endsWith('.ograf.json'))!;
+  const manifest = JSON.parse(Buffer.from(manifestFile[1], 'base64').toString('utf8'));
+  expect(manifest.actionDurations.find((action: { type: string }) => action.type === 'playAction').steps[0]).toEqual({ step: 0, duration: 1800 });
 }
 
 export async function playTimedLoopOverlay(page: Page) {

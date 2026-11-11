@@ -222,26 +222,27 @@ function buildStepTimeline(index) {
           yoyo: !!loop.yoyo,
           repeatDelay: (loop.repeatDelay || 0) / speed
         });
-        var s0 = {};
+        ${loopCode(`var loopWrites = noacgTrackModifiers(tl, prop, true, sub);
+        `)}var s0 = {${loopCode(` modifiers: loopWrites `)}};
         s0[prop] = kfs[0].value;
         sub.set(selector, s0, 0);
         for (var j = 1; j < kfs.length; j++) {
-          var lv = {};
+          var lv = {${loopCode(` modifiers: loopWrites `)}};
           lv[prop] = kfs[j].value;
           lv.duration = (kfs[j].time - kfs[j - 1].time) / speed;
           lv.ease = noacgEaseOf(kfs[j].ease || step.ease);
           sub.to(selector, lv, (kfs[j - 1].time - kfs[0].time) / speed);
         }
         tl.add(sub, kfs[0].time / speed);${loopCode(`
-        noacgOwnLoop(tl, sub, selector, prop, function () { sub.render(sub.totalTime(), true, true); });`)}
+        noacgOwnLoop(tl, sub, function () { sub.render(sub.totalTime(), true, true); });`)}
         return;
       }
-${loopCode(`      noacgTrackWriter(tl, selector, prop);
-`)}      var start = {};
+${loopCode(`      var trackWrites = noacgTrackModifiers(tl, prop, false);
+`)}      var start = {${loopCode(` modifiers: trackWrites `)}};
       start[prop] = kfs[0].value;
       tl.set(selector, start, 0);
       for (var i = 1; i < kfs.length; i++) {
-        var vars = {};
+        var vars = {${loopCode(` modifiers: trackWrites `)}};
         vars[prop] = kfs[i].value;
         vars.duration = (kfs[i].time - kfs[i - 1].time) / speed;
         vars.ease = noacgEaseOf(kfs[i].ease || step.ease);
@@ -255,7 +256,7 @@ ${loopCode(`      noacgTrackWriter(tl, selector, prop);
   // inline props, then step 0 shows it again).
   (step.hides || []).forEach(function (selector) {
     if (step.spans && step.spans[selector] !== undefined) return;
-    tl.set(selector, { opacity: 0 }, step.duration / speed);${loopCode(`
+    tl.set(selector, { opacity: 0${loopCode(`, modifiers: noacgTrackModifiers(tl, 'opacity', false)`)} }, step.duration / speed);${loopCode(`
     noacgRecordHide(tl, selector);`)}
   });
   // Step calls: named template functions fire at their moment on the step's clock (the
@@ -377,6 +378,7 @@ function noacgExitTimeline(interrupted, silent) {
   if (interrupted === undefined) interrupted = !!noacgLiveTimeline && noacgLiveTimeline.time() < noacgLiveTimeline.duration();${loopCode(`
   interrupted = interrupted || noacgRunningLoop(noacgLiveTimeline) || noacgRunningGroupLoop();
   noacgRetireLoops(noacgLiveTimeline);
+  noacgReleaseCueTracks(noacgLiveTimeline);
   noacgRetireGroupLoops();`)}
   // Out from an earlier step, with a Next cue not yet played, leaves from what is on screen as an
   // interrupted Out does: never through the last step's pose or motion the viewer has not seen.
@@ -772,7 +774,8 @@ ${loopCode(`  // Out captures the live pose before completing or retiring any de
 `)}  if (prev) {
     ${loopCode(`noacgRetireLoops(prev);
     `)}if (prev.progress() < 1) ${loopCode('noacgSettleCue(prev)') || 'prev.progress(1, true)'};
-    if (prev.__noacgSwap) prev.__noacgSwap(); // a suppressed finish skipped the pose swap
+    if (prev.__noacgSwap) prev.__noacgSwap(); // a suppressed finish skipped the pose swap${loopCode(`
+    noacgReleaseCueTracks(prev);`)}
     prev.kill();
     noacgGroupTl[group.id] = null;
   }

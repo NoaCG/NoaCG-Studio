@@ -11,51 +11,76 @@ function noacgClearStyledOut() {
   noacgStyledOut = null;
 }
 function noacgClearLoopHolds() { noacgLoopHolds = new WeakMap(); }
-// These are the actual CSSPlugin destinations after the anchor/SVG adapters have run.
+// CSSPlugin resolves aliases to actual output channels, including each scale axis.
 function noacgLoopChannels(property) {
   var css = gsap.plugins.css;
   return (css && css.aliases[property] || property).split(',').filter(function (channel) {
     return property !== 'autoAlpha' || channel !== 'visibility';
   });
 }
-function noacgTrackWriter(tl, selector, property, loop) {
-  var writer = { selector: selector, channels: noacgLoopChannels(property), loop: loop };
-  (tl.__noacgTracks || (tl.__noacgTracks = [])).push(writer);
-  return writer;
+function noacgTrackMap(map, element) {
+  var tracks = map.get(element);
+  if (!tracks) { tracks = Object.create(null); map.set(element, tracks); }
+  return tracks;
 }
-function noacgOwnLoop(tl, animation, selector, property, paint) {
-  var loop = { parent: tl, animation: animation, paint: paint };
-  loop.writer = noacgTrackWriter(tl, selector, property, loop);
-  (tl.__noacgLoops || (tl.__noacgLoops = [])).push(loop);
-}
-function noacgLoopPainted(loop) {
-  return loop.parent ? loop.parent.time() >= loop.animation.startTime() : loop.painted;
-}
-function noacgHeldLoop(claim) {
-  return claim && (noacgLoopPainted(claim.loop) ? claim.loop : claim.previous);
-}
-function noacgAdoptWriter(writer) {
-  Array.prototype.forEach.call(document.querySelectorAll(writer.selector), function (element) {
-    var held = noacgLoopHolds.get(element) || Object.create(null);
-    writer.channels.forEach(function (channel) {
-      if (writer.loop) {
-        held[channel] = { loop: writer.loop, previous: noacgHeldLoop(held[channel]) };
-      } else {
-        delete held[channel];
-      }
-    });
-    noacgLoopHolds.set(element, held);
+// Identity modifiers observe GSAP's actual writes, even during suppressed seeks.
+// Until a timeline becomes the real pose, its writes stay private to that timeline.
+function noacgTrackModifiers(tl, property, looping, delayed) {
+  var writes = tl.__noacgWrites || (tl.__noacgWrites = { pending: new Map(), claims: null });
+  var marker = delayed ? {} : looping;
+  var earlier = delayed ? new WeakMap() : null;
+  var channels = noacgLoopChannels(property), modifiers = {};
+  function write(element, channel) {
+    var map = writes.claims === noacgLoopHolds ? writes.claims : writes.pending;
+    if (!map) return;
+    var tracks = noacgTrackMap(map, element);
+    if (!delayed) { tracks[channel] = marker; return; }
+    var previous = noacgTrackMap(earlier, element);
+    if (tl.time() < delayed.startTime()) {
+      // Backward seek before a delayed legacy child restores its input pose.
+      if (tracks[channel] === marker) tracks[channel] = previous[channel];
+      return;
+    }
+    var latest = tracks[channel];
+    if (latest !== marker) {
+      var inherited = map !== noacgLoopHolds && noacgLoopHolds.get(element);
+      previous[channel] = latest === undefined && inherited ? inherited[channel] : latest;
+    }
+    tracks[channel] = marker;
+  }
+  channels.forEach(function (channel) {
+    modifiers[channel] = function (value, element) { write(element, channel); return value; };
   });
+  if (channels.indexOf(property) < 0) {
+    modifiers[property] = function (value, element) {
+      channels.forEach(function (channel) { write(element, channel); });
+      return value;
+    };
+  }
+  return modifiers;
 }
 function noacgAdoptCueTracks(tl) {
-  if (tl && tl.__noacgTracks) tl.__noacgTracks.forEach(noacgAdoptWriter);
+  var writes = tl && tl.__noacgWrites;
+  if (!writes) return;
+  if (writes.pending) writes.pending.forEach(function (tracks, element) {
+    Object.assign(noacgTrackMap(noacgLoopHolds, element), tracks);
+  });
+  writes.pending = null;
+  writes.claims = noacgLoopHolds;
+}
+function noacgReleaseCueTracks(tl) {
+  if (tl && tl.__noacgWrites) tl.__noacgWrites.claims = null;
 }
 function noacgStillHoldsLoop(element, property) {
   var held = noacgLoopHolds.get(element);
-  return !!held && noacgLoopChannels(property).some(function (channel) { return noacgHeldLoop(held[channel]); });
+  return !!held && noacgLoopChannels(property).some(function (channel) { return held[channel]; });
+}
+function noacgOwnLoop(tl, animation, paint) {
+  (tl.__noacgLoops || (tl.__noacgLoops = [])).push({ animation: animation, paint: paint });
 }
 function noacgRecordHide(tl, selector) {
-  (tl.__noacgHides || (tl.__noacgHides = Object.create(null)))[selector] = tl.recent();
+  var hides = tl.__noacgHides || (tl.__noacgHides = new WeakMap()), tween = tl.recent();
+  Array.prototype.forEach.call(document.querySelectorAll(selector), function (element) { hides.set(element, tween); });
 }
 
 // GSAP owns the elapsed clock and the timeScale contract. Rendering from absolute time
@@ -66,6 +91,8 @@ function noacgAddAuthoredLoop(tl, selector, prop, keys, loop, step, speed) {
   // An explicit span owns visibility. autoAlpha still controls opacity inside it.
   var channel = prop === 'autoAlpha' && spans ? 'opacity' : prop;
   var opacityTrack = channel === 'opacity' || channel === 'autoAlpha';
+  var loopWrites = noacgTrackModifiers(tl, channel, true);
+  var hideWrites = opacityTrack && noacgTrackModifiers(tl, channel, false);
   var length = loop.repeat < 0 ? bounds.lap : bounds.total - (loop.phase || 0);
   var curves = keys.map(function (key) { return gsap.parseEase(noacgEaseOf(key.ease || step.ease)) || gsap.parseEase('power1.out'); });
   var clock = gsap.timeline({ smoothChildTiming: true });
@@ -78,10 +105,16 @@ function noacgAddAuthoredLoop(tl, selector, prop, keys, loop, step, speed) {
       value = time >= right.time ? right.value :
         left.value + (right.value - left.value) * curves[i]((time - left.time) / (right.time - left.time));
     }
-    var vars = {};
-    var hide = opacityTrack && tl.__noacgHides && tl.__noacgHides[selector];
-    vars[channel] = hide && tl.time() >= hide.startTime() ? 0 : value;
-    gsap.set(selector, vars);
+    var vars = { modifiers: loopWrites };
+    vars[channel] = value;
+    if (!opacityTrack || !tl.__noacgHides) { gsap.set(selector, vars); return; }
+    Array.prototype.forEach.call(document.querySelectorAll(selector), function (element) {
+      var hide = tl.__noacgHides.get(element);
+      var hidden = hide && tl.time() >= hide.startTime();
+      vars[channel] = hidden ? 0 : value;
+      vars.modifiers = hidden ? hideWrites : loopWrites;
+      gsap.set(element, vars);
+    });
   }
   var driver = {};
   Object.defineProperty(driver, 'elapsed', {
@@ -96,20 +129,20 @@ function noacgAddAuthoredLoop(tl, selector, prop, keys, loop, step, speed) {
     ease: 'none'
   }, loop.range[0] / speed);
   tl.add(clock, 0);
-  noacgOwnLoop(tl, clock, selector, channel, paint);
+  noacgOwnLoop(tl, clock, paint);
 }
 
 function noacgRetireLoops(tl) {
   if (!tl || !tl.__noacgLoops) return;
-  tl.__noacgLoops.forEach(function (loop) {
-    loop.painted = noacgLoopPainted(loop);
-    loop.animation.kill();
-    loop.parent = loop.animation = loop.paint = loop.writer = null;
-  });
+  tl.__noacgLoops.forEach(function (loop) { loop.animation.kill(); });
   tl.__noacgLoops = [];
 }
 function noacgRetireGroupLoops() {
-  Object.keys(noacgGroupTl).forEach(function (group) { noacgRetireLoops(noacgGroupTl[group]); });
+  Object.keys(noacgGroupTl).forEach(function (group) {
+    var tl = noacgGroupTl[group];
+    noacgRetireLoops(tl);
+    noacgReleaseCueTracks(tl);
+  });
 }
 function noacgRunningLoop(tl) {
   return !!tl && (tl.__noacgLoops || []).some(function (loop) {
@@ -123,10 +156,10 @@ function noacgRepaintOtherLoops(groupId) {
   Object.keys(noacgGroupTl).forEach(function (group) {
     var tl = noacgGroupTl[group];
     if (group === groupId || !tl) return;
+    noacgAdoptCueTracks(tl);
     (tl.__noacgLoops || []).forEach(function (loop) {
-      if (!noacgLoopPainted(loop)) return;
-      loop.paint();
-      noacgAdoptWriter(loop.writer);
+      var at = tl.time();
+      if (at >= loop.animation.startTime() && at < loop.animation.endTime(true)) loop.paint();
     });
   });
 }

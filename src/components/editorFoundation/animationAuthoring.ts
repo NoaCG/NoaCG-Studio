@@ -42,7 +42,7 @@ function poseOf({ view, segment, departing }: Edit, selector: string, appearance
   if (!departing || !appearance?.motion || !view.data) return appearance;
   const motion = { ...appearance.motion }, owner = ownerOf(view, selector);
   for (const property of Object.keys(motion) as (keyof typeof motion)[]) {
-    const value = channelValue(view.data, owner, property, segment.index, 0);
+    const value = channelValue(view.data, owner, property, segment.index, 0, view.loopRuntime);
     if (typeof value === 'number') motion[property] = value;
   }
   return { ...appearance, motion, opacity: motion.opacity ?? appearance.opacity };
@@ -155,7 +155,7 @@ export function anchorAtPlayhead(template: SpxTemplate, base: BaseValues, appear
   for (const [index, axis] of (['x', 'y'] as const).entries()) {
     const channel = channels[axis];
     if (!isArmed(view.data, owner, channel)) continue;
-    const sampled = departing ? resolveValue(view.data, owner, channel, segment.index, 0) : appearance?.origin?.[index];
+    const sampled = departing ? resolveValue(view.data, owner, channel, segment.index, 0, view.loopRuntime) : appearance?.origin?.[index];
     if (typeof sampled === 'number') result[axis] = departing ? sampled / (base.svgGroupPivot ? SVG_GROUP_PIVOT_UNITS : 1) : sampled / (appearance?.unit ?? 1);
   }
   return result;

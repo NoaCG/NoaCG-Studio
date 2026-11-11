@@ -14,6 +14,7 @@ export interface TimelineView {
   /** The data selector each layer's motion lives under (R1.2a.6): its own, or another naming only
    *  it. A layer whose owner is ambiguous shows its own selector's tracks; its edits refuse. */
   owners: Record<string, string>;
+  loopRuntime: boolean;
   /** Half a stored unit on the ruler. A flag is stored at 3 decimals, so at 30 or 60 fps it sits
    *  a fraction of a millisecond off the frame it was set on, and a frame this near is the flag's. */
   near: number;
@@ -23,11 +24,12 @@ export function readTimeline(template: SpxTemplate): TimelineView {
   const cached = views.get(template);
   if (cached) return cached;
   const data = parseAnimData(template.js);
+  const loopRuntime = hasLoopRuntime(template.js);
   const parts = getTemplateParts(template.html, template.fields, true);
   let cursor = 0;
   const segments = (data?.steps ?? []).map((step, index) => {
     const segment = { index, name: index === 0 ? 'In' : index === data!.steps.length - 1 ? 'Out' : step.name,
-      start: cursor, duration: stepSeconds(data!, index), out: index > 0 && index === data!.steps.length - 1 };
+      start: cursor, duration: stepSeconds(data!, index, loopRuntime), out: index > 0 && index === data!.steps.length - 1 };
     cursor += segment.duration;
     return segment;
   });
@@ -47,10 +49,10 @@ export function readTimeline(template: SpxTemplate): TimelineView {
   });
   const reason = !data ? 'This source has no supported timeline. Its artwork and code are preserved.'
     : data.steps.some(s => s.dynamics?.length) ? 'Measured motion is source controlled. Scrubbing is unavailable.'
-    : data.steps.some(s => Object.keys(s.loops ?? {}).length) && !hasLoopRuntime(template.js)
+    : data.steps.some(s => Object.keys(s.loops ?? {}).length) && !loopRuntime
       ? 'This source uses the earlier loop runtime. Apply an Edit Loop change to enable scrubbing.'
       : null;
-  const view = { data, parts, segments, bars, owners, duration: cursor, out, reason, near: 0.0005 / (data?.speed ?? 1) + 1e-9 };
+  const view = { data, parts, segments, bars, owners, duration: cursor, out, reason, loopRuntime, near: 0.0005 / (data?.speed ?? 1) + 1e-9 };
   views.set(template, view);
   return view;
 }
