@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "session": "/root/v4_final_observation_review",
-      "pr": 2378,
-      "note": "Held status/reconnect reply correction passed 450 focused Windows Node tests, TypeScript and lint. Exact review, local Chromium j-5242 and normal CI 43081534761 pending.",
+      "note": "Exact independent Risky A and GitHub Codex clean. Normal CI 43081534761 and required local Chromium j-5242 remain. Local Windows RAM is below the shared queue floor.",
       "step": "build",
+      "session": "windows:j-5242",
       "head": "eee31a8d068b6e60070a74c714a3df24b6043dea",
-      "phase": "v4"
+      "phase": "v4",
+      "pr": 2378
     }
   ],
   "owner": [],
