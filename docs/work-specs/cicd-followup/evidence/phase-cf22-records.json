@@ -1,0 +1,3526 @@
+{
+ "window": {
+  "from": "2026-10-28T18:30:00Z",
+  "until": "2026-11-11T18:30:00Z"
+ },
+ "denominators": {
+  "prs_with_a_pr_run": 309,
+  "pr_heads_with_a_pr_run": 983,
+  "pr_runs": 991,
+  "pr_runs_cancelled": 453,
+  "merge_group_runs": 323,
+  "prs_merged": 315,
+  "prs_with_a_red_run_read": 111,
+  "review_wait_attempts_of_those_prs": 246,
+  "green_first_attempt_pr_run_minutes": {
+   "n": 253,
+   "median": 13.5,
+   "p90": 20.2,
+   "sum": 3425.5
+  }
+ },
+ "bounces": [
+  {
+   "pr": 1801,
+   "title": "Hand an output the frame it lost while the production page reloaded (#1797)",
+   "head_ref": "claude/pp-fix-1797",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-10-28T21:04:24Z",
+   "run": 40765654275,
+   "attempt": 1,
+   "head": "f41d0cf584b80b33590ffb7b766544b8be44202f",
+   "green_run": 40765654275,
+   "green_attempt": 2,
+   "green_head": "f41d0cf584b80b33590ffb7b766544b8be44202f",
+   "green_at": "2026-10-28T21:14:44Z",
+   "lost_min": 10.3,
+   "wait_min": 5.4,
+   "ci_min": 5,
+   "green_by": "rerun of the same run",
+   "rerun_failed_only": true,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "E2E 3/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "cancelled",
+     "specs": [],
+     "minutes": 20.3,
+     "kind": "hang",
+     "why": "cancelled in E2E shard",
+     "quarantined": [],
+     "passed_later_same_commit": true
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "same": true
+   },
+   "cause": "flake",
+   "cause_why": "green again on the same commit (rerun of the same run); E2E 3/15 (subset): cancelled in E2E shard",
+   "with_gate": false
+  },
+  {
+   "pr": 1840,
+   "title": "Refresh the traced e2e spec map from the nightly",
+   "head_ref": "bot/e2e-traced",
+   "merged": true,
+   "type": "queue",
+   "at": "2026-10-31T06:11:24Z",
+   "run": 41175546812,
+   "attempt": 1,
+   "head": null,
+   "green_run": 41281500679,
+   "green_attempt": 1,
+   "green_head": null,
+   "green_at": "2026-11-01T06:42:16Z",
+   "lost_min": 1470.9,
+   "wait_min": 1464.9,
+   "ci_min": 6,
+   "green_by": "head unknown",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Build",
+     "step": "Build (typecheck + lint + bundle)",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 2.3,
+     "kind": "code",
+     "why": "[gates] tests failed (exit 1)",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": null,
+   "cause": "defect",
+   "ambiguous": true,
+   "cause_why": "unplaced; Build: [gates] tests failed (exit 1)"
+  },
+  {
+   "pr": 1870,
+   "title": "jev-svg row 6: inspectable prepared fields, corrections kept on re-drop",
+   "head_ref": "claude/plan-jev-svg-import-6-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-10-31T19:35:41Z",
+   "run": 41234237254,
+   "attempt": 1,
+   "head": "44783ae6e4b2dd9ba069b0113cc4dd9b1ac8441b",
+   "green_run": 41235420613,
+   "green_attempt": 1,
+   "green_head": "59ab289eaf05dffdd7057dd6ceb0759f85c6a28b",
+   "green_at": "2026-10-31T19:51:04Z",
+   "lost_min": 15.4,
+   "wait_min": 6.1,
+   "ci_min": 9.3,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Build",
+     "step": "Build (typecheck + lint + bundle)",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 3.4,
+     "kind": "code",
+     "why": "[gates] tests failed (exit 1)",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    },
+    {
+     "name": "E2E 9/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/production-controls.spec.ts"
+     ],
+     "minutes": 7.1,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 4,
+    "code": 3,
+    "test": 2,
+    "codeFiles": [
+     "e2e/jev-svg-preparation.spec.ts",
+     "scripts/e2e-affected.test.mjs",
+     "src/components/wizard/import/MapSvgFieldsStep.tsx"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "defect",
+   "cause_why": "repair changed 3 code or test file(s); Build: [gates] tests failed (exit 1); E2E 9/15 (subset): 1 spec file(s) failed",
+   "with_gate": false
+  },
+  {
+   "pr": 1872,
+   "title": "[ci06] Require complete selected configured PR checks",
+   "head_ref": "claude/plan-cicd-improvement-ci06-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-10-31T20:37:04Z",
+   "run": 41238514372,
+   "attempt": 1,
+   "head": "6131c17964917de0db1400de42c45b37053c5bfa",
+   "green_run": 41240775735,
+   "green_attempt": 2,
+   "green_head": "b83dc98e82f08f342b405121cd2227bc3d197e3e",
+   "green_at": "2026-10-31T21:11:51Z",
+   "lost_min": 34.8,
+   "wait_min": 30.3,
+   "ci_min": 4.5,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Build",
+     "step": "Build (typecheck + lint + bundle)",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 3.4,
+     "kind": "code",
+     "why": "[gates] tests failed (exit 1)",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    },
+    {
+     "name": "Configured E2E verdict (selected)",
+     "step": "Fail unless the selection is a clean verdict",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 0.6,
+     "kind": "code",
+     "why": "step: Fail unless the selection is a clean verdict",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 5,
+    "code": 2,
+    "test": 1,
+    "codeFiles": [
+     "scripts/configured-selection.test.mjs",
+     "scripts/e2e-affected.mjs"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "defect",
+   "cause_why": "repair changed 2 code or test file(s); Build: [gates] tests failed (exit 1); Configured E2E verdict (selected): step: Fail unless the selection is a clean verdict",
+   "with_gate": false
+  },
+  {
+   "pr": 1872,
+   "title": "[ci06] Require complete selected configured PR checks",
+   "head_ref": "claude/plan-cicd-improvement-ci06-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-10-31T21:05:20Z",
+   "run": 41240775735,
+   "attempt": 1,
+   "head": "b83dc98e82f08f342b405121cd2227bc3d197e3e",
+   "green_run": 41240775735,
+   "green_attempt": 2,
+   "green_head": "b83dc98e82f08f342b405121cd2227bc3d197e3e",
+   "green_at": "2026-10-31T21:11:51Z",
+   "lost_min": 6.5,
+   "wait_min": 2,
+   "ci_min": 4.5,
+   "green_by": "rerun of the same run",
+   "rerun_failed_only": true,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Build",
+     "step": "Build (typecheck + lint + bundle)",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 2.7,
+     "kind": "code",
+     "why": "[gates] tests failed (exit 1)",
+     "quarantined": [],
+     "passed_later_same_commit": true
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "same": true
+   },
+   "cause": "flake",
+   "cause_why": "green again on the same commit (rerun of the same run); Build: [gates] tests failed (exit 1)",
+   "with_gate": false
+  },
+  {
+   "pr": 1877,
+   "title": "Quarantine e2e/configured/production-data-key-tick.spec.ts after a fail-then-pass on one commit",
+   "head_ref": "claude/quarantine-production-data-key-tick",
+   "merged": true,
+   "type": "queue",
+   "at": "2026-10-31T21:25:00Z",
+   "run": 41243467985,
+   "attempt": 1,
+   "head": "06cabd05be192db57400fda020c2234c962815e8",
+   "green_run": 41243904384,
+   "green_attempt": 1,
+   "green_head": "06cabd05be192db57400fda020c2234c962815e8",
+   "green_at": "2026-10-31T21:34:51Z",
+   "lost_min": 9.9,
+   "wait_min": 5.5,
+   "ci_min": 4.3,
+   "green_by": "new run, same commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Build",
+     "step": "Build (typecheck + lint + bundle)",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 2.4,
+     "kind": "code",
+     "why": "[gates] tests failed (exit 1)",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "same": true
+   },
+   "cause": "flake",
+   "cause_why": "green again on the same commit (new run, same commit); Build: [gates] tests failed (exit 1)",
+   "with_gate": false
+  },
+  {
+   "pr": 1878,
+   "title": "jev-svg row 7: the imported clock as an instanced part beside a score tracker",
+   "head_ref": "claude/plan-jev-svg-import-7-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-10-31T21:33:42Z",
+   "run": 41243232652,
+   "attempt": 1,
+   "head": "c90594e961c77410f8af6aee97efe390e4beecd0",
+   "green_run": 41245389327,
+   "green_attempt": 1,
+   "green_head": "e0b5f9ce0a1ff0351895a0ca89bb26b542f00c6c",
+   "green_at": "2026-10-31T22:03:39Z",
+   "lost_min": 30,
+   "wait_min": 16,
+   "ci_min": 13.9,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "E2E 9/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/production-controls.spec.ts"
+     ],
+     "minutes": 8.3,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 6,
+    "code": 5,
+    "test": 2,
+    "codeFiles": [
+     "scripts/jev-svg-contract.test.mjs",
+     "src/components/wizard/import/draft.ts",
+     "src/components/wizard/import/BehaviourSection.tsx",
+     "src/templates/behaviours/clock.ts",
+     "e2e/import-svg-behaviour.spec.ts"
+    ],
+    "limits": [],
+    "merges": 1
+   },
+   "cause": "defect",
+   "cause_why": "repair changed 5 code or test file(s); E2E 9/15 (subset): 1 spec file(s) failed",
+   "with_gate": false
+  },
+  {
+   "pr": 1896,
+   "title": "ci07: critical and shared sets, quarantine incidents, miss audit against original culprit plans",
+   "head_ref": "claude/plan-cicd-improvement-ci07-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-01T07:21:49Z",
+   "run": 41283438391,
+   "attempt": 1,
+   "head": "d4ef2d4fa667b086e90966de493495fe14846d74",
+   "green_run": 41283438391,
+   "green_attempt": 2,
+   "green_head": "d4ef2d4fa667b086e90966de493495fe14846d74",
+   "green_at": "2026-11-01T07:34:12Z",
+   "lost_min": 12.4,
+   "wait_min": 0.7,
+   "ci_min": 11.7,
+   "green_by": "rerun of the same run",
+   "rerun_failed_only": true,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Configured E2E 4/4 (selected, local Supabase)",
+     "step": "Run ./.github/actions/configured-stack",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 1.3,
+     "kind": "infra",
+     "why": "setup step: Run ./.github/actions/configured-stack",
+     "quarantined": [],
+     "passed_later_same_commit": true
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "same": true
+   },
+   "cause": "infra",
+   "cause_why": "Configured E2E 4/4 (selected, local Supabase): setup step: Run ./.github/actions/configured-stack"
+  },
+  {
+   "pr": 1899,
+   "title": "Imported clock: per-mode controls, hours on a target time, and three clock fixes",
+   "head_ref": "claude/plan-jev-svg-import-11-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-01T07:41:52Z",
+   "run": 41284873718,
+   "attempt": 1,
+   "head": "fbd0ae53b42a806c52682c33a1c1d660eb027631",
+   "green_run": 41284873718,
+   "green_attempt": 2,
+   "green_head": "fbd0ae53b42a806c52682c33a1c1d660eb027631",
+   "green_at": "2026-11-01T07:56:38Z",
+   "lost_min": 14.8,
+   "wait_min": 0.6,
+   "ci_min": 14.1,
+   "green_by": "rerun of the same run",
+   "rerun_failed_only": true,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Configured E2E 1/4 (selected, local Supabase)",
+     "step": "Run ./.github/actions/configured-stack",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 1.4,
+     "kind": "infra",
+     "why": "setup step: Run ./.github/actions/configured-stack",
+     "quarantined": [],
+     "passed_later_same_commit": true
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "same": true
+   },
+   "cause": "infra",
+   "cause_why": "Configured E2E 1/4 (selected, local Supabase): setup step: Run ./.github/actions/configured-stack"
+  },
+  {
+   "pr": 1919,
+   "title": "jev-svg row 14: the true no-Lock quiz variant",
+   "head_ref": "claude/plan-jev-svg-import-14-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-01T15:30:49Z",
+   "run": 41320269865,
+   "attempt": 1,
+   "head": "70d5c1ffe18d7033256674aa1a676cfda9ecd29e",
+   "green_run": 41320269865,
+   "green_attempt": 2,
+   "green_head": "70d5c1ffe18d7033256674aa1a676cfda9ecd29e",
+   "green_at": "2026-11-01T15:39:20Z",
+   "lost_min": 8.5,
+   "wait_min": 0.9,
+   "ci_min": 7.7,
+   "green_by": "rerun of the same run",
+   "rerun_failed_only": true,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "E2E 3/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/production-controls.spec.ts"
+     ],
+     "minutes": 8.7,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [],
+     "passed_later_same_commit": true
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "same": true
+   },
+   "cause": "flake",
+   "cause_why": "green again on the same commit (rerun of the same run); E2E 3/15 (subset): 1 spec file(s) failed",
+   "with_gate": false
+  },
+  {
+   "pr": 1943,
+   "title": "ci15: record the audit qualification as not qualified, with its blockers",
+   "head_ref": "claude/plan-cicd-improvement-ci15-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-02T00:02:03Z",
+   "run": 41364022731,
+   "attempt": 1,
+   "head": "35364b885338dedb8ba48bc1929e81630afdb224",
+   "green_run": 41364022731,
+   "green_attempt": 2,
+   "green_head": "35364b885338dedb8ba48bc1929e81630afdb224",
+   "green_at": "2026-11-02T00:10:44Z",
+   "lost_min": 8.7,
+   "wait_min": 1.7,
+   "ci_min": 7,
+   "green_by": "rerun of the same run",
+   "rerun_failed_only": true,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "E2E 6/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/production-controls.spec.ts"
+     ],
+     "minutes": 5.1,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [],
+     "passed_later_same_commit": true
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "same": true
+   },
+   "cause": "flake",
+   "cause_why": "green again on the same commit (rerun of the same run); E2E 6/15 (subset): 1 spec file(s) failed",
+   "with_gate": false
+  },
+  {
+   "pr": 1974,
+   "title": "Styled credits play as cards, on Next card or a card time",
+   "head_ref": "claude/plan-jev-svg-import-23-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-02T14:01:00Z",
+   "run": 41455869801,
+   "attempt": 1,
+   "head": "2e43da6039199d82488bee71c14fbba3dd82b319",
+   "green_run": 41460036550,
+   "green_attempt": 1,
+   "green_head": "7e4109115fac3a059aed79908bb64139eb68a92a",
+   "green_at": "2026-11-02T14:29:32Z",
+   "lost_min": 28.5,
+   "wait_min": 13.4,
+   "ci_min": 15.1,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Configured E2E 1/4 (selected, local Supabase)",
+     "step": "Run ./.github/actions/configured-stack",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 1.7,
+     "kind": "infra",
+     "why": "setup step: Run ./.github/actions/configured-stack",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 3,
+    "code": 2,
+    "test": 1,
+    "codeFiles": [
+     "e2e/import-svg-credits.spec.ts",
+     "src/templates/importedDesign/creditsRoll.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "infra",
+   "cause_why": "Configured E2E 1/4 (selected, local Supabase): setup step: Run ./.github/actions/configured-stack"
+  },
+  {
+   "pr": 1985,
+   "title": "Reimport keeps a saved SVG graphic's ids, keys and bindings, and never writes over what it cannot match",
+   "head_ref": "claude/plan-jev-svg-import-27-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-02T21:25:19Z",
+   "run": 41525636815,
+   "attempt": 1,
+   "head": "9ab30dbc50094bbde84d0b9335d6c9175ba41e69",
+   "green_run": 41542753257,
+   "green_attempt": 2,
+   "green_head": "811624b84f1c41bc8dfb8410b3d1e979894b693e",
+   "green_at": "2026-11-02T23:40:26Z",
+   "lost_min": 135.1,
+   "wait_min": 120.8,
+   "ci_min": 14.3,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "E2E 12/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/editor-transform-qualification.spec.ts",
+      "e2e/import-svg-behaviour.spec.ts"
+     ],
+     "minutes": 8.3,
+     "kind": "code",
+     "why": "2 spec file(s) failed",
+     "quarantined": [
+      "e2e/editor-transform-qualification.spec.ts",
+      "e2e/import-svg-behaviour.spec.ts"
+     ],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 6,
+    "code": 5,
+    "test": 1,
+    "codeFiles": [
+     "e2e/import-svg-reimport.spec.ts",
+     "src/components/wizard/import/draft.ts",
+     "src/templates/importedDesign/reimport.ts",
+     "src/components/wizard/steps/FinishStep.tsx",
+     "src/components/wizard/shell/walkState.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "flake",
+   "ambiguous": true,
+   "cause_why": "known quarantined spec(s) e2e/editor-transform-qualification.spec.ts, e2e/import-svg-behaviour.spec.ts, not changed by the repair"
+  },
+  {
+   "pr": 1985,
+   "title": "Reimport keeps a saved SVG graphic's ids, keys and bindings, and never writes over what it cannot match",
+   "head_ref": "claude/plan-jev-svg-import-27-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-02T21:58:36Z",
+   "run": 41530678874,
+   "attempt": 1,
+   "head": "3bf9b4f5b8c29d37b4ac5be35a9c54e4d3efc05d",
+   "green_run": 41542753257,
+   "green_attempt": 2,
+   "green_head": "811624b84f1c41bc8dfb8410b3d1e979894b693e",
+   "green_at": "2026-11-02T23:40:26Z",
+   "lost_min": 101.8,
+   "wait_min": 87.5,
+   "ci_min": 14.3,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "E2E 12/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/import-svg-behaviour.spec.ts"
+     ],
+     "minutes": 11,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [
+      "e2e/import-svg-behaviour.spec.ts"
+     ],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 6,
+    "code": 5,
+    "test": 1,
+    "codeFiles": [
+     "e2e/import-svg-reimport.spec.ts",
+     "src/components/wizard/import/draft.ts",
+     "src/templates/importedDesign/reimport.ts",
+     "src/components/wizard/steps/FinishStep.tsx",
+     "src/components/wizard/shell/walkState.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "flake",
+   "ambiguous": true,
+   "cause_why": "known quarantined spec(s) e2e/import-svg-behaviour.spec.ts, not changed by the repair"
+  },
+  {
+   "pr": 1985,
+   "title": "Reimport keeps a saved SVG graphic's ids, keys and bindings, and never writes over what it cannot match",
+   "head_ref": "claude/plan-jev-svg-import-27-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-02T22:17:20Z",
+   "run": 41533750147,
+   "attempt": 1,
+   "head": "be7be458fdb4b299ef3306cdb48d706a3e63570c",
+   "green_run": 41542753257,
+   "green_attempt": 2,
+   "green_head": "811624b84f1c41bc8dfb8410b3d1e979894b693e",
+   "green_at": "2026-11-02T23:40:26Z",
+   "lost_min": 83.1,
+   "wait_min": 68.8,
+   "ci_min": 14.3,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "E2E 12/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/import-svg-behaviour.spec.ts"
+     ],
+     "minutes": 10.7,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [
+      "e2e/import-svg-behaviour.spec.ts"
+     ],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 5,
+    "code": 4,
+    "test": 1,
+    "codeFiles": [
+     "e2e/import-svg-reimport.spec.ts",
+     "src/components/wizard/import/draft.ts",
+     "src/templates/importedDesign/reimport.ts",
+     "src/components/wizard/steps/FinishStep.tsx"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "flake",
+   "ambiguous": true,
+   "cause_why": "known quarantined spec(s) e2e/import-svg-behaviour.spec.ts, not changed by the repair"
+  },
+  {
+   "pr": 1985,
+   "title": "Reimport keeps a saved SVG graphic's ids, keys and bindings, and never writes over what it cannot match",
+   "head_ref": "claude/plan-jev-svg-import-27-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-02T23:20:48Z",
+   "run": 41542753257,
+   "attempt": 1,
+   "head": "811624b84f1c41bc8dfb8410b3d1e979894b693e",
+   "green_run": 41542753257,
+   "green_attempt": 2,
+   "green_head": "811624b84f1c41bc8dfb8410b3d1e979894b693e",
+   "green_at": "2026-11-02T23:40:26Z",
+   "lost_min": 19.6,
+   "wait_min": 5.3,
+   "ci_min": 14.3,
+   "green_by": "rerun of the same run",
+   "rerun_failed_only": true,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Configured E2E 1/4 (selected, local Supabase)",
+     "step": "Run ./.github/actions/configured-stack",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 1.5,
+     "kind": "infra",
+     "why": "setup step: Run ./.github/actions/configured-stack",
+     "quarantined": [],
+     "passed_later_same_commit": true
+    },
+    {
+     "name": "E2E 11/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/import-svg-credits.spec.ts"
+     ],
+     "minutes": 10.3,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [
+      "e2e/import-svg-credits.spec.ts"
+     ],
+     "passed_later_same_commit": true
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "same": true
+   },
+   "cause": "flake",
+   "cause_why": "green again on the same commit (rerun of the same run); Configured E2E 1/4 (selected, local Supabase): setup step: Run ./.github/actions/configured-stack; E2E 11/15 (subset): 1 spec file(s) failed",
+   "with_gate": false
+  },
+  {
+   "pr": 1993,
+   "title": "Keep control arrangements through reimport and one panel dispatch (jev-svg-import row 28)",
+   "head_ref": "claude/plan-jev-svg-import-28-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-03T01:25:31Z",
+   "run": 41559081670,
+   "attempt": 1,
+   "head": "bddf4d230ecab4657399c3f397e97de032b7410e",
+   "green_run": 41559772725,
+   "green_attempt": 1,
+   "green_head": "d3b53ef9a52c4ac5f97f994dc34a8b42236e7198",
+   "green_at": "2026-11-03T01:33:03Z",
+   "lost_min": 7.5,
+   "wait_min": 1.1,
+   "ci_min": 6.4,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Configured E2E verdict (selected)",
+     "step": "Merge the shard reports and list the selected tests",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 0.3,
+     "kind": "code",
+     "why": "step: Merge the shard reports and list the selected tests",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 1,
+    "code": 1,
+    "test": 1,
+    "codeFiles": [
+     "e2e/configured/panel-graphic-actions.spec.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "defect",
+   "cause_why": "repair changed 1 code or test file(s); Configured E2E verdict (selected): step: Merge the shard reports and list the selected tests",
+   "with_gate": false
+  },
+  {
+   "pr": 2005,
+   "title": "Jev SVG import, row 32: the comparison and metering harness",
+   "head_ref": "claude/plan-jev-svg-import-32-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-03T07:26:56Z",
+   "run": 41595861313,
+   "attempt": 1,
+   "head": "d9964554fcb55c8100ba3c9a8dbc174eeda8c2a2",
+   "green_run": 41610708642,
+   "green_attempt": 1,
+   "green_head": "f2036fcab2d47f3666b9d255b4d35ca900e95308",
+   "green_at": "2026-11-03T09:30:27Z",
+   "lost_min": 123.5,
+   "wait_min": 117.1,
+   "ci_min": 6.4,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "CI gate",
+     "step": "Require every gate",
+     "kind": "gate",
+     "gate": "capacity (growth)",
+     "why": "E2E capacity line - 159.7 of 210.3 table-minutes (76%) on 13 runners; overhead tier refuse: 122.4/105 per landing, 4.5/10 per day (117%); this change adds 6/landing 0/day, reaching 122%, at or over the 95% line; duration",
+     "specs": [],
+     "quarantined": []
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": "E2E capacity line - 159.7 of 210.3 table-minutes (76%) on 13 runners; overhead tier refuse: 122.4/105 per landing, 4.5/10 per day (117%); this change adds 6/landing 0/day, reaching 122%, at or over the 95% line; duration",
+    "noFlag": false
+   },
+   "change": {
+    "files": 4,
+    "code": 3,
+    "test": 1,
+    "codeFiles": [
+     ".github/workflows/jev-svg-eval.yml",
+     "scripts/jev-svg-eval.mjs",
+     "scripts/jev-svg-eval.test.mjs"
+    ],
+    "limits": [],
+    "merges": 1
+   },
+   "cause": "gate",
+   "gate": "capacity (growth)",
+   "cause_why": "CI gate: E2E capacity line - 159.7 of 210.3 table-minutes (76%) on 13 runners; overhead tier refuse: 122.4/105 per landing, 4.5/10 per day (117%); this change adds 6/landing 0/day, reaching 122%, at or over the 95% line; duration"
+  },
+  {
+   "pr": 2005,
+   "title": "Jev SVG import, row 32: the comparison and metering harness",
+   "head_ref": "claude/plan-jev-svg-import-32-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-03T07:44:22Z",
+   "run": 41597448535,
+   "attempt": 1,
+   "head": "e936ce150193f85bbb11024779c9a5e9b2143c2f",
+   "green_run": 41610708642,
+   "green_attempt": 1,
+   "green_head": "f2036fcab2d47f3666b9d255b4d35ca900e95308",
+   "green_at": "2026-11-03T09:30:27Z",
+   "lost_min": 106.1,
+   "wait_min": 99.7,
+   "ci_min": 6.4,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "CI gate",
+     "step": "Require every gate",
+     "kind": "gate",
+     "gate": "capacity (growth)",
+     "why": "E2E capacity line - 159.7 of 210.3 table-minutes (76%) on 13 runners; overhead tier refuse: 122.4/105 per landing, 4.5/10 per day (117%); this change adds 6/landing 0/day, reaching 122%, at or over the 95% line; duration",
+     "specs": [],
+     "quarantined": []
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": "E2E capacity line - 159.7 of 210.3 table-minutes (76%) on 13 runners; overhead tier refuse: 122.4/105 per landing, 4.5/10 per day (117%); this change adds 6/landing 0/day, reaching 122%, at or over the 95% line; duration",
+    "noFlag": false
+   },
+   "change": {
+    "files": 4,
+    "code": 3,
+    "test": 1,
+    "codeFiles": [
+     ".github/workflows/jev-svg-eval.yml",
+     "scripts/jev-svg-eval.mjs",
+     "scripts/jev-svg-eval.test.mjs"
+    ],
+    "limits": [],
+    "merges": 1
+   },
+   "cause": "gate",
+   "gate": "capacity (growth)",
+   "cause_why": "CI gate: E2E capacity line - 159.7 of 210.3 table-minutes (76%) on 13 runners; overhead tier refuse: 122.4/105 per landing, 4.5/10 per day (117%); this change adds 6/landing 0/day, reaching 122%, at or over the 95% line; duration"
+  },
+  {
+   "pr": 2005,
+   "title": "Jev SVG import, row 32: the comparison and metering harness",
+   "head_ref": "claude/plan-jev-svg-import-32-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-03T08:32:10Z",
+   "run": 41602018224,
+   "attempt": 1,
+   "head": "6094f4df2086e3b3e727bbf5a0095bb9e0cea286",
+   "green_run": 41610708642,
+   "green_attempt": 1,
+   "green_head": "f2036fcab2d47f3666b9d255b4d35ca900e95308",
+   "green_at": "2026-11-03T09:30:27Z",
+   "lost_min": 58.3,
+   "wait_min": 51.9,
+   "ci_min": 6.4,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Configured E2E 4/4 (selected, local Supabase)",
+     "step": "Run ./.github/actions/configured-stack",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 1.6,
+     "kind": "infra",
+     "why": "setup step: Run ./.github/actions/configured-stack",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    },
+    {
+     "name": "CI gate",
+     "step": "Require every gate",
+     "kind": "gate",
+     "gate": "capacity (growth)",
+     "why": "E2E capacity line - 159.7 of 210.3 table-minutes (76%) on 13 runners; overhead tier refuse: 122.4/105 per landing, 4.5/10 per day (117%); this change adds 6/landing 0/day, reaching 122%, at or over the 95% line; duration",
+     "specs": [],
+     "quarantined": []
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": "E2E capacity line - 159.7 of 210.3 table-minutes (76%) on 13 runners; overhead tier refuse: 122.4/105 per landing, 4.5/10 per day (117%); this change adds 6/landing 0/day, reaching 122%, at or over the 95% line; duration",
+    "noFlag": false
+   },
+   "change": {
+    "files": 0,
+    "code": 0,
+    "test": 0,
+    "codeFiles": [],
+    "limits": [],
+    "merges": 1
+   },
+   "cause": "gate",
+   "gate": "capacity (growth)",
+   "cause_why": "Configured E2E 4/4 (selected, local Supabase): setup step: Run ./.github/actions/configured-stack; CI gate: E2E capacity line - 159.7 of 210.3 table-minutes (76%) on 13 runners; overhead tier refuse: 122.4/105 per landing, 4.5/10 per day (117%); this change adds 6/landing 0/day, reaching 122%, at or over the 95% line; duration"
+  },
+  {
+   "pr": 2005,
+   "title": "Jev SVG import, row 32: the comparison and metering harness",
+   "head_ref": "claude/plan-jev-svg-import-32-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-03T08:45:11Z",
+   "run": 41602018224,
+   "attempt": 2,
+   "head": "6094f4df2086e3b3e727bbf5a0095bb9e0cea286",
+   "green_run": 41610708642,
+   "green_attempt": 1,
+   "green_head": "f2036fcab2d47f3666b9d255b4d35ca900e95308",
+   "green_at": "2026-11-03T09:30:27Z",
+   "lost_min": 45.3,
+   "wait_min": 38.9,
+   "ci_min": 6.4,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "CI gate",
+     "step": "Require every gate",
+     "kind": "gate",
+     "gate": "capacity (growth)",
+     "why": "E2E capacity line - 159.7 of 210.3 table-minutes (76%) on 13 runners; overhead tier refuse: 122.4/105 per landing, 4.5/10 per day (117%); this change adds 6/landing 0/day, reaching 122%, at or over the 95% line; duration",
+     "specs": [],
+     "quarantined": []
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": "E2E capacity line - 159.7 of 210.3 table-minutes (76%) on 13 runners; overhead tier refuse: 122.4/105 per landing, 4.5/10 per day (117%); this change adds 6/landing 0/day, reaching 122%, at or over the 95% line; duration",
+    "noFlag": false
+   },
+   "change": {
+    "files": 0,
+    "code": 0,
+    "test": 0,
+    "codeFiles": [],
+    "limits": [],
+    "merges": 1
+   },
+   "cause": "gate",
+   "gate": "capacity (growth)",
+   "cause_why": "CI gate: E2E capacity line - 159.7 of 210.3 table-minutes (76%) on 13 runners; overhead tier refuse: 122.4/105 per landing, 4.5/10 per day (117%); this change adds 6/landing 0/day, reaching 122%, at or over the 95% line; duration"
+  },
+  {
+   "pr": 2020,
+   "title": "Watch the production database's load and alarm before it stalls",
+   "head_ref": "claude/production-load-watch",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-03T12:05:22Z",
+   "run": 41630757872,
+   "attempt": 1,
+   "head": "8600447c30b4f73560c0ea8c7d921636e47e1612",
+   "green_run": 41633029076,
+   "green_attempt": 1,
+   "green_head": "772c5b15589f4f0aae64aca202ea32c4ee6b3769",
+   "green_at": "2026-11-03T12:21:49Z",
+   "lost_min": 16.5,
+   "wait_min": 1.8,
+   "ci_min": 14.7,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Build",
+     "step": "Build (typecheck + lint + bundle)",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 0.9,
+     "kind": "code",
+     "why": "[gates] check:workflows FAILED (exit 1, 2.8s)",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 1,
+    "code": 1,
+    "test": 0,
+    "codeFiles": [
+     ".github/workflows/production-load.yml"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "defect",
+   "cause_why": "repair changed 1 code or test file(s); Build: [gates] check:workflows FAILED (exit 1, 2.8s)",
+   "with_gate": false
+  },
+  {
+   "pr": 2038,
+   "title": "Row 38: rehearse the complete unfamiliar-artwork journey (AC-26)",
+   "head_ref": "claude/plan-jev-svg-import-38-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-03T19:00:20Z",
+   "run": 41698137745,
+   "attempt": 1,
+   "head": "f1781999ba8f4463dbeaf9c0660984a0c533f5f4",
+   "green_run": 41706413917,
+   "green_attempt": 1,
+   "green_head": "4d5d389e2f7be9016bd984a9af26a7160bcafcae",
+   "green_at": "2026-11-03T20:03:37Z",
+   "lost_min": 63.3,
+   "wait_min": 46.4,
+   "ci_min": 16.9,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Configured E2E verdict (selected)",
+     "step": "Fail unless the selection is a clean verdict",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 0.4,
+     "kind": "code",
+     "why": "step: Fail unless the selection is a clean verdict",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    },
+    {
+     "name": "CI gate",
+     "step": "Require every gate",
+     "kind": "gate",
+     "gate": "capacity (growth)",
+     "why": "E2E capacity line - 159.7 of 210.3 table-minutes (76%) on 13 runners; backend tier refuse: 138.9/117 per landing, 72.8/78 per day (119%); this change adds 6.8/landing 4.1/day, reaching 125%, at or over the 95% line; dura",
+     "specs": [],
+     "quarantined": []
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": "E2E capacity line - 159.7 of 210.3 table-minutes (76%) on 13 runners; backend tier refuse: 138.9/117 per landing, 72.8/78 per day (119%); this change adds 6.8/landing 4.1/day, reaching 125%, at or over the 95% line; dura",
+    "noFlag": false
+   },
+   "change": {
+    "files": 4,
+    "code": 3,
+    "test": 2,
+    "codeFiles": [
+     "scripts/growth-ceilings.json",
+     "e2e/configured/svg-import-journey.spec.ts",
+     "e2e/jev-svg-preparation.spec.ts"
+    ],
+    "limits": [
+     "scripts/growth-ceilings.json"
+    ],
+    "merges": 0
+   },
+   "cause": "defect",
+   "cause_why": "repair changed 3 code or test file(s); Configured E2E verdict (selected): step: Fail unless the selection is a clean verdict; CI gate: E2E capacity line - 159.7 of 210.3 table-minutes (76%) on 13 runners; backend tier refuse: 138.9/117 per landing, 72.8/78 per day (119%); this change adds 6.8/landing 4.1/day, reaching 125%, at or over the 95% line; dura",
+   "with_gate": true,
+   "limit_change": [
+    "scripts/growth-ceilings.json"
+   ]
+  },
+  {
+   "pr": 2038,
+   "title": "Row 38: rehearse the complete unfamiliar-artwork journey (AC-26)",
+   "head_ref": "claude/plan-jev-svg-import-38-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-03T19:13:48Z",
+   "run": 41699782672,
+   "attempt": 1,
+   "head": "9eaa67d0744743ee316fa19e05c42f224dec4b09",
+   "green_run": 41706413917,
+   "green_attempt": 1,
+   "green_head": "4d5d389e2f7be9016bd984a9af26a7160bcafcae",
+   "green_at": "2026-11-03T20:03:37Z",
+   "lost_min": 49.8,
+   "wait_min": 32.9,
+   "ci_min": 16.9,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "CI gate",
+     "step": "Require every gate",
+     "kind": "gate",
+     "gate": "capacity (growth)",
+     "why": "E2E capacity line - 159.7 of 210.3 table-minutes (76%) on 13 runners; backend tier refuse: 138.9/117 per landing, 72.8/78 per day (119%); this change adds 6.8/landing 4.1/day, reaching 125%, at or over the 95% line; dura",
+     "specs": [],
+     "quarantined": []
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": "E2E capacity line - 159.7 of 210.3 table-minutes (76%) on 13 runners; backend tier refuse: 138.9/117 per landing, 72.8/78 per day (119%); this change adds 6.8/landing 4.1/day, reaching 125%, at or over the 95% line; dura",
+    "noFlag": false
+   },
+   "change": {
+    "files": 2,
+    "code": 1,
+    "test": 0,
+    "codeFiles": [
+     "scripts/growth-ceilings.json"
+    ],
+    "limits": [
+     "scripts/growth-ceilings.json"
+    ],
+    "merges": 0
+   },
+   "cause": "gate",
+   "gate": "capacity (growth)",
+   "cause_why": "CI gate: E2E capacity line - 159.7 of 210.3 table-minutes (76%) on 13 runners; backend tier refuse: 138.9/117 per landing, 72.8/78 per day (119%); this change adds 6.8/landing 4.1/day, reaching 125%, at or over the 95% line; dura"
+  },
+  {
+   "pr": 2122,
+   "title": "Saved editable credits rolls measure again when their face lands",
+   "head_ref": "claude/credits-runtime-1965-1969",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-04T16:42:28Z",
+   "run": 41866854833,
+   "attempt": 1,
+   "head": "9393221e118da771b0e3ac30b875f2651018792c",
+   "green_run": 41871084794,
+   "green_attempt": 1,
+   "green_head": "276574ec2224f49d5164080a7d90344eb429a2c7",
+   "green_at": "2026-11-04T17:02:57Z",
+   "lost_min": 20.5,
+   "wait_min": 5.4,
+   "ci_min": 15.1,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "E2E 14/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/import-svg-credits.spec.ts"
+     ],
+     "minutes": 7.8,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [
+      "e2e/import-svg-credits.spec.ts"
+     ],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 1,
+    "code": 1,
+    "test": 1,
+    "codeFiles": [
+     "e2e/import-svg-credits.spec.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "defect",
+   "cause_why": "repair changed 1 code or test file(s); E2E 14/15 (subset): 1 spec file(s) failed",
+   "with_gate": false
+  },
+  {
+   "pr": 2124,
+   "title": "Add editable clock, timer and credits SVG examples",
+   "head_ref": "codex/agent-authored-svg-examples",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-04T19:36:47Z",
+   "run": 41896608999,
+   "attempt": 1,
+   "head": "7d7ba9354df58126b19b75918bea6ddef0c39888",
+   "green_run": 41899019183,
+   "green_attempt": 1,
+   "green_head": "39fdfa34fb30c24b22c044a27eafb64843be6e75",
+   "green_at": "2026-11-04T19:55:54Z",
+   "lost_min": 19.1,
+   "wait_min": 2.5,
+   "ci_min": 16.6,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Build",
+     "step": "Build (typecheck + lint + bundle)",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 4.8,
+     "kind": "code",
+     "why": "[gates] tests failed (exit 1)",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    },
+    {
+     "name": "E2E 4/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/docs.spec.ts"
+     ],
+     "minutes": 5,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [
+      "e2e/docs.spec.ts"
+     ],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 2,
+    "code": 2,
+    "test": 0,
+    "codeFiles": [
+     "docs.html",
+     "scripts/e2e-affected.mjs"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "flake",
+   "ambiguous": true,
+   "cause_why": "known quarantined spec(s) e2e/docs.spec.ts, not changed by the repair"
+  },
+  {
+   "pr": 2134,
+   "title": "Publish the Companion module as a release and offer it from Downloads",
+   "head_ref": "claude/a-companion-download",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-04T20:50:11Z",
+   "run": 41907705562,
+   "attempt": 1,
+   "head": "0fcaa57aa37fe8bb4e8cde8d534aa2187c8c4192",
+   "green_run": 41919396174,
+   "green_attempt": 1,
+   "green_head": "58dc2af91433077c041ad1f7be0a3ac92f337baf",
+   "green_at": "2026-11-04T22:03:25Z",
+   "lost_min": 73.2,
+   "wait_min": 57.6,
+   "ci_min": 15.6,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "E2E 7/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/imported-credits-live-data.spec.ts"
+     ],
+     "minutes": 10.2,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [
+      "e2e/imported-credits-live-data.spec.ts"
+     ],
+     "passed_later_same_commit": false
+    },
+    {
+     "name": "E2E 12/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/public-chrome-baseline.spec.ts"
+     ],
+     "minutes": 10.2,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    },
+    {
+     "name": "CI gate",
+     "step": "Require every gate",
+     "kind": "gate",
+     "gate": "capacity (growth)",
+     "why": "E2E capacity line - 173.2 of 210.7 table-minutes (82%) on 13 runners; overhead tier refuse: 132.1/105 per landing, 6.1/10 per day (126%), production-load-watch excepts 0/landing to 2026-12-03; this change adds 69.1/landi",
+     "specs": [],
+     "quarantined": []
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": "E2E capacity line - 173.2 of 210.7 table-minutes (82%) on 13 runners; overhead tier refuse: 132.1/105 per landing, 6.1/10 per day (126%), production-load-watch excepts 0/landing to 2026-12-03; this change adds 69.1/landi",
+    "noFlag": false
+   },
+   "change": {
+    "files": 6,
+    "code": 4,
+    "test": 2,
+    "codeFiles": [
+     ".github/workflows/release-companion.yml",
+     "scripts/companion-release.mjs",
+     "scripts/companion-release.test.mjs",
+     "e2e/public-chrome-baseline.spec.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "defect",
+   "cause_why": "repair changed 4 code or test file(s); E2E 7/15 (subset): 1 spec file(s) failed; E2E 12/15 (subset): 1 spec file(s) failed; CI gate: E2E capacity line - 173.2 of 210.7 table-minutes (82%) on 13 runners; overhead tier refuse: 132.1/105 per landing, 6.1/10 per day (126%), production-load-watch excepts 0/landing to 2026-12-03; this change adds 69.1/landi",
+   "with_gate": true
+  },
+  {
+   "pr": 2134,
+   "title": "Publish the Companion module as a release and offer it from Downloads",
+   "head_ref": "claude/a-companion-download",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-04T21:03:54Z",
+   "run": 41907705562,
+   "attempt": 2,
+   "head": "0fcaa57aa37fe8bb4e8cde8d534aa2187c8c4192",
+   "green_run": 41919396174,
+   "green_attempt": 1,
+   "green_head": "58dc2af91433077c041ad1f7be0a3ac92f337baf",
+   "green_at": "2026-11-04T22:03:25Z",
+   "lost_min": 59.5,
+   "wait_min": 43.9,
+   "ci_min": 15.6,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "CI gate",
+     "step": "Require every gate",
+     "kind": "gate",
+     "gate": "capacity (growth)",
+     "why": "E2E capacity line - 173.2 of 210.7 table-minutes (82%) on 13 runners; overhead tier refuse: 132.1/105 per landing, 6.1/10 per day (126%), production-load-watch excepts 0/landing to 2026-12-03; this change adds 69.1/landi",
+     "specs": [],
+     "quarantined": []
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": "E2E capacity line - 173.2 of 210.7 table-minutes (82%) on 13 runners; overhead tier refuse: 132.1/105 per landing, 6.1/10 per day (126%), production-load-watch excepts 0/landing to 2026-12-03; this change adds 69.1/landi",
+    "noFlag": false
+   },
+   "change": {
+    "files": 6,
+    "code": 4,
+    "test": 2,
+    "codeFiles": [
+     ".github/workflows/release-companion.yml",
+     "scripts/companion-release.mjs",
+     "scripts/companion-release.test.mjs",
+     "e2e/public-chrome-baseline.spec.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "gate",
+   "gate": "capacity (growth)",
+   "cause_why": "CI gate: E2E capacity line - 173.2 of 210.7 table-minutes (82%) on 13 runners; overhead tier refuse: 132.1/105 per landing, 6.1/10 per day (126%), production-load-watch excepts 0/landing to 2026-12-03; this change adds 69.1/landi"
+  },
+  {
+   "pr": 2134,
+   "title": "Publish the Companion module as a release and offer it from Downloads",
+   "head_ref": "claude/a-companion-download",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-04T21:20:54Z",
+   "run": 41912868796,
+   "attempt": 1,
+   "head": "573a9a677af8acbbdb98179c3c69231b68e1e512",
+   "green_run": 41919396174,
+   "green_attempt": 1,
+   "green_head": "58dc2af91433077c041ad1f7be0a3ac92f337baf",
+   "green_at": "2026-11-04T22:03:25Z",
+   "lost_min": 42.5,
+   "wait_min": 26.9,
+   "ci_min": 15.6,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "CI gate",
+     "step": "Require every gate",
+     "kind": "gate",
+     "gate": "capacity (growth)",
+     "why": "E2E capacity line - 173.2 of 210.7 table-minutes (82%) on 13 runners; overhead tier refuse: 132.1/105 per landing, 6.1/10 per day (126%), production-load-watch excepts 0/landing to 2026-12-03; this change adds 69.1/landi",
+     "specs": [],
+     "quarantined": []
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": "E2E capacity line - 173.2 of 210.7 table-minutes (82%) on 13 runners; overhead tier refuse: 132.1/105 per landing, 6.1/10 per day (126%), production-load-watch excepts 0/landing to 2026-12-03; this change adds 69.1/landi",
+    "noFlag": false
+   },
+   "change": {
+    "files": 5,
+    "code": 3,
+    "test": 1,
+    "codeFiles": [
+     ".github/workflows/release-companion.yml",
+     "scripts/companion-release.mjs",
+     "scripts/companion-release.test.mjs"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "gate",
+   "gate": "capacity (growth)",
+   "cause_why": "CI gate: E2E capacity line - 173.2 of 210.7 table-minutes (82%) on 13 runners; overhead tier refuse: 132.1/105 per landing, 6.1/10 per day (126%), production-load-watch excepts 0/landing to 2026-12-03; this change adds 69.1/landi"
+  },
+  {
+   "pr": 2164,
+   "title": "Keep the PROGRAM monitor's clock through a resolve overtaken by a command",
+   "head_ref": "claude/f-clock-replay",
+   "merged": false,
+   "type": "pr",
+   "at": "2026-11-05T00:47:50Z",
+   "run": 41942503840,
+   "attempt": 1,
+   "head": "2259af5ad804c850c6ee893fa898c6f6574bf4e2",
+   "green_run": 41944452957,
+   "green_attempt": 1,
+   "green_head": "1913765da0b034d96f0b17dd0bda23a2ed8e2daa",
+   "green_at": "2026-11-05T01:04:40Z",
+   "lost_min": 16.8,
+   "wait_min": 3.9,
+   "ci_min": 12.9,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "CI gate",
+     "step": "Require every gate",
+     "kind": "gate",
+     "gate": "capacity (growth)",
+     "why": "E2E capacity line - 173.6 of 210.7 table-minutes (82%) on 13 runners; backend tier refuse: 164.7/117 per landing, 65/78 per day (141%), jev-svg-import-journey excepts 0/landing (claims 6.85, capped at what it covers) to ",
+     "specs": [],
+     "quarantined": []
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": "E2E capacity line - 173.6 of 210.7 table-minutes (82%) on 13 runners; backend tier refuse: 164.7/117 per landing, 65/78 per day (141%), jev-svg-import-journey excepts 0/landing (claims 6.85, capped at what it covers) to ",
+    "noFlag": false
+   },
+   "change": {
+    "files": 2,
+    "code": 2,
+    "test": 2,
+    "codeFiles": [
+     "e2e/configured/clock-verb-during-resolve.spec.ts",
+     "e2e/configured/playout-resolve-race.spec.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "gate",
+   "gate": "capacity (growth)",
+   "cause_why": "CI gate: E2E capacity line - 173.6 of 210.7 table-minutes (82%) on 13 runners; backend tier refuse: 164.7/117 per landing, 65/78 per day (141%), jev-svg-import-journey excepts 0/landing (claims 6.85, capped at what it covers) to "
+  },
+  {
+   "pr": 2173,
+   "title": "Keep a debate clock through an Update",
+   "head_ref": "claude/g-speaking-clock-update",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-05T07:38:21Z",
+   "run": 41986830364,
+   "attempt": 1,
+   "head": "ee61a6cf9248085917f703275a37da9bb573d7d9",
+   "green_run": 41993937664,
+   "green_attempt": 1,
+   "green_head": "75ac272181b277f4a78f326f4f7a476e577112cd",
+   "green_at": "2026-11-05T08:37:56Z",
+   "lost_min": 59.6,
+   "wait_min": 44,
+   "ci_min": 15.6,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "E2E 6/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/output-debate-clock.spec.ts"
+     ],
+     "minutes": 11.7,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [
+      "e2e/output-debate-clock.spec.ts"
+     ],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 7,
+    "code": 5,
+    "test": 3,
+    "codeFiles": [
+     "e2e/output-debate-clock.spec.ts",
+     "scripts/air-state.test.mjs",
+     "src/control/matchClockWire.ts",
+     "e2e/catalog-baseline.json",
+     "src/templates/scoreboards/debateFloor.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "defect",
+   "cause_why": "repair changed 5 code or test file(s); E2E 6/15 (subset): 1 spec file(s) failed",
+   "with_gate": false
+  },
+  {
+   "pr": 2194,
+   "title": "Held credits: a rebuilt stage airs the list held, not the newest",
+   "head_ref": "claude/c2-credits-held-reload",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-05T11:27:11Z",
+   "run": 42015338950,
+   "attempt": 1,
+   "head": "061bc5856b0950ad61ba654971afefc7b1a58b8d",
+   "green_run": 42026454632,
+   "green_attempt": 1,
+   "green_head": "193cd0831020dc53c20b0dfa83c350257b2a2ee7",
+   "green_at": "2026-11-05T13:10:46Z",
+   "lost_min": 103.6,
+   "wait_min": 54.4,
+   "ci_min": 49.2,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "CI gate",
+     "step": "Require every gate",
+     "kind": "gate",
+     "gate": "capacity (growth)",
+     "why": "E2E capacity line - 173.6 of 210.7 table-minutes (82%) on 13 runners; backend tier refuse: 164.7/117 per landing, 65/78 per day (141%), jev-svg-import-journey excepts 0/landing (claims 6.85, capped at what it covers) to ",
+     "specs": [],
+     "quarantined": []
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": "E2E capacity line - 173.6 of 210.7 table-minutes (82%) on 13 runners; backend tier refuse: 164.7/117 per landing, 65/78 per day (141%), jev-svg-import-journey excepts 0/landing (claims 6.85, capped at what it covers) to ",
+    "noFlag": false
+   },
+   "change": {
+    "files": 0,
+    "code": 0,
+    "test": 0,
+    "codeFiles": [],
+    "limits": [],
+    "merges": 1
+   },
+   "cause": "gate",
+   "gate": "capacity (growth)",
+   "cause_why": "CI gate: E2E capacity line - 173.6 of 210.7 table-minutes (82%) on 13 runners; backend tier refuse: 164.7/117 per landing, 65/78 per day (141%), jev-svg-import-journey excepts 0/landing (claims 6.85, capped at what it covers) to "
+  },
+  {
+   "pr": 2194,
+   "title": "Held credits: a rebuilt stage airs the list held, not the newest",
+   "head_ref": "claude/c2-credits-held-reload",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-05T13:16:29Z",
+   "run": 42026758524,
+   "attempt": 1,
+   "head": "a07a427c348cc7972ef6e8db2310a2f34a02cf49",
+   "green_run": 42034457270,
+   "green_attempt": 1,
+   "green_head": "ba920abf0b4a51475b3f1e3006e7febc01f86572",
+   "green_at": "2026-11-05T14:05:37Z",
+   "lost_min": 49.1,
+   "wait_min": 0.9,
+   "ci_min": 48.2,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "CI gate",
+     "step": "Require every gate",
+     "kind": "gate",
+     "gate": "capacity (growth)",
+     "why": "E2E capacity line - 174.0 of 210.7 table-minutes (83%) on 13 runners; backend tier refuse: 164.7/117 per landing, 65/78 per day (141%), jev-svg-import-journey excepts 0/landing (claims 6.85, capped at what it covers) to ",
+     "specs": [],
+     "quarantined": []
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": "E2E capacity line - 174.0 of 210.7 table-minutes (83%) on 13 runners; backend tier refuse: 164.7/117 per landing, 65/78 per day (141%), jev-svg-import-journey excepts 0/landing (claims 6.85, capped at what it covers) to ",
+    "noFlag": false
+   },
+   "change": {
+    "files": 2,
+    "code": 2,
+    "test": 2,
+    "codeFiles": [
+     "e2e/configured/expected-run.json",
+     "e2e/configured/imported-credits-held-reload.spec.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "gate",
+   "gate": "capacity (growth)",
+   "cause_why": "CI gate: E2E capacity line - 174.0 of 210.7 table-minutes (83%) on 13 runners; backend tier refuse: 164.7/117 per landing, 65/78 per day (141%), jev-svg-import-journey excepts 0/landing (claims 6.85, capped at what it covers) to "
+  },
+  {
+   "pr": 2218,
+   "title": "An off-air clock is rebuilt at boot unless a command moved that clock, not any graphic",
+   "head_ref": "claude/offair-clock-boot-read",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-05T13:50:15Z",
+   "run": 42032378756,
+   "attempt": 1,
+   "head": "c2bf443a063602f9eea56f8ff128af881135ec53",
+   "green_run": 42201376318,
+   "green_attempt": 1,
+   "green_head": "4c99e4375595091b10fd43f5dc6028b4b6d079fa",
+   "green_at": "2026-11-06T10:30:35Z",
+   "lost_min": 1240.3,
+   "wait_min": 1226,
+   "ci_min": 14.3,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Factory gates",
+     "step": "Run actions/checkout@v5",
+     "conclusion": "cancelled",
+     "specs": [],
+     "minutes": 25,
+     "kind": "hang",
+     "why": "cancelled in Run actions/checkout@v5",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 0,
+    "code": 0,
+    "test": 0,
+    "codeFiles": [],
+    "limits": [],
+    "merges": 1
+   },
+   "cause": "infra",
+   "ambiguous": true,
+   "cause_why": "a job stopped without a verdict and no same-commit pass followed; Factory gates: cancelled in Run actions/checkout@v5"
+  },
+  {
+   "pr": 2227,
+   "title": "Live marker and PROGRAM monitor show only what is on air (#1713, #1719, #1721)",
+   "head_ref": "claude/l-live-marker-truth",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-05T15:30:09Z",
+   "run": 42052718464,
+   "attempt": 1,
+   "head": "20660ea49dd6d1338613591e0913013313445872",
+   "green_run": 42105927105,
+   "green_attempt": 1,
+   "green_head": "c40d6be4f6a279601d7d7f93def357950c4a651d",
+   "green_at": "2026-11-05T20:59:39Z",
+   "lost_min": 329.5,
+   "wait_min": 312.7,
+   "ci_min": 16.8,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "E2E 11/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/new-graphic-guard.spec.ts"
+     ],
+     "minutes": 9.8,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 0,
+    "code": 0,
+    "test": 0,
+    "codeFiles": [],
+    "limits": [],
+    "merges": 1
+   },
+   "cause": "flake",
+   "ambiguous": true,
+   "cause_why": "green after a push with no own code change (main merged in), counted as flake; E2E 11/15 (subset): 1 spec file(s) failed"
+  },
+  {
+   "pr": 2229,
+   "title": "Revert the 2 landings up to e76e101 - main went red",
+   "head_ref": "revert/e76e101",
+   "merged": false,
+   "type": "pr",
+   "at": "2026-11-05T15:54:32Z",
+   "run": 42056968628,
+   "attempt": 1,
+   "head": "af139965fab418a9e2e08cf174be6754555351d3",
+   "green_run": null,
+   "green_attempt": null,
+   "green_head": null,
+   "green_at": null,
+   "lost_min": null,
+   "wait_min": null,
+   "ci_min": null,
+   "green_by": null,
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Build",
+     "step": "E2E protection check",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 0.7,
+     "kind": "gate",
+     "gate": "e2e protection",
+     "why": "policy step: E2E protection check",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": null,
+   "cause": "gate",
+   "gate": "e2e protection",
+   "cause_why": "Build: policy step: E2E protection check"
+  },
+  {
+   "pr": 2220,
+   "title": "Retry a library sync by itself after the cloud stopped answering",
+   "head_ref": "claude/sync-retry-no-answer",
+   "merged": true,
+   "type": "dequeue",
+   "at": "2026-11-06T10:18:50Z",
+   "run": null,
+   "attempt": null,
+   "head": "8243471b0155771d53f0b08cbb0c7081510a0dfc",
+   "green_run": 42205015880,
+   "green_attempt": 1,
+   "green_head": "456cf93c5817f5d42ce3c62f1421fcdb58b39df9",
+   "green_at": "2026-11-06T10:55:02Z",
+   "lost_min": 36.2,
+   "wait_min": 26.1,
+   "ci_min": 10.1,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": "github-merge-queue[bot]",
+   "jobs": [],
+   "gate_log": null,
+   "change": {
+    "files": 0,
+    "code": 0,
+    "test": 0,
+    "codeFiles": [],
+    "limits": [],
+    "merges": 1
+   },
+   "cause": "gate",
+   "cause_why": "removed from the queue by github-merge-queue[bot] with no red merge group run",
+   "ambiguous": true
+  },
+  {
+   "pr": 2210,
+   "title": "Keep a debate clock on the hosted PROGRAM where air holds it after a reload",
+   "head_ref": "claude/hosted-debate-program",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-06T10:39:02Z",
+   "run": 42201897413,
+   "attempt": 1,
+   "head": "ada5f5da91b5eeb78006c9bacd5b739516e1972f",
+   "green_run": 42201897413,
+   "green_attempt": 2,
+   "green_head": "ada5f5da91b5eeb78006c9bacd5b739516e1972f",
+   "green_at": "2026-11-06T10:51:00Z",
+   "lost_min": 12,
+   "wait_min": 0.5,
+   "ci_min": 11.4,
+   "green_by": "rerun of the same run",
+   "rerun_failed_only": true,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "E2E 5/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/output-debate-clock.spec.ts"
+     ],
+     "minutes": 9.9,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [
+      "e2e/output-debate-clock.spec.ts"
+     ],
+     "passed_later_same_commit": true
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "same": true
+   },
+   "cause": "flake",
+   "cause_why": "green again on the same commit (rerun of the same run); E2E 5/15 (subset): 1 spec file(s) failed",
+   "with_gate": false
+  },
+  {
+   "pr": 2314,
+   "title": "Interaction phase 1: questions and their lifecycle",
+   "head_ref": "claude/plan-interaction-1-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-09T13:09:38Z",
+   "run": 42620447962,
+   "attempt": 1,
+   "head": "30bcf3323a48a43c2187a477da4153d934161763",
+   "green_run": 42623264162,
+   "green_attempt": 1,
+   "green_head": "c91dd17deac22bd365920bad31b3cd713482ade8",
+   "green_at": "2026-11-09T13:26:40Z",
+   "lost_min": 17,
+   "wait_min": 1.7,
+   "ci_min": 15.4,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Configured E2E verdict (selected)",
+     "step": "Fail unless the selection is a clean verdict",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 0.4,
+     "kind": "code",
+     "why": "step: Fail unless the selection is a clean verdict",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 2,
+    "code": 1,
+    "test": 1,
+    "codeFiles": [
+     "e2e/configured/audience-live.spec.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "defect",
+   "cause_why": "repair changed 1 code or test file(s); Configured E2E verdict (selected): step: Fail unless the selection is a clean verdict",
+   "with_gate": false
+  },
+  {
+   "pr": 2321,
+   "title": "Interaction phase 2: join by /j/ link and QR, a branded phone page, and a Join card",
+   "head_ref": "claude/plan-interaction-2-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-09T17:10:21Z",
+   "run": 42659544695,
+   "attempt": 1,
+   "head": "40837c96cbb0efbd386303a53795b7ea305716af",
+   "green_run": 42667493967,
+   "green_attempt": 2,
+   "green_head": "66a01599baabd00055d977f2392806b4c86bb176",
+   "green_at": "2026-11-09T18:07:08Z",
+   "lost_min": 56.8,
+   "wait_min": 49.9,
+   "ci_min": 6.9,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "CI gate",
+     "step": "Require every gate",
+     "kind": "gate",
+     "gate": "capacity (growth)",
+     "why": "E2E capacity line - 174.4 of 210.7 table-minutes (83%) on 13 runners; this change adds 0.4 offline minute(s), 1.9 runner-minutes per landing and 0.4 per day, taking the offline tier to 88% of its ceiling (the 85% line)",
+     "specs": [],
+     "quarantined": []
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": "E2E capacity line - 174.4 of 210.7 table-minutes (83%) on 13 runners; this change adds 0.4 offline minute(s), 1.9 runner-minutes per landing and 0.4 per day, taking the offline tier to 88% of its ceiling (the 85% line)",
+    "noFlag": false
+   },
+   "change": {
+    "files": 12,
+    "code": 10,
+    "test": 4,
+    "codeFiles": [
+     "e2e/audience-pack.spec.ts",
+     "e2e/join-surface.spec.ts",
+     "e2e/production-audience.spec.ts",
+     "scripts/join-page-sync.test.mjs",
+     "src/audience/audienceData.ts",
+     "src/audience/audienceTypes.ts",
+     "src/components/home/ProductionAudienceWorkspace.tsx",
+     "src/control/hostedControl.ts",
+     "src/control/joinPageSync.ts",
+     "scripts/app-clean-url.mjs"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "gate",
+   "gate": "capacity (growth)",
+   "cause_why": "CI gate: E2E capacity line - 174.4 of 210.7 table-minutes (83%) on 13 runners; this change adds 0.4 offline minute(s), 1.9 runner-minutes per landing and 0.4 per day, taking the offline tier to 88% of its ceiling (the 85% line)"
+  },
+  {
+   "pr": 2321,
+   "title": "Interaction phase 2: join by /j/ link and QR, a branded phone page, and a Join card",
+   "head_ref": "claude/plan-interaction-2-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-09T17:36:45Z",
+   "run": 42663392944,
+   "attempt": 1,
+   "head": "49f9a4d51a01b5d5177a9575ac43e5c069022b35",
+   "green_run": 42667493967,
+   "green_attempt": 2,
+   "green_head": "66a01599baabd00055d977f2392806b4c86bb176",
+   "green_at": "2026-11-09T18:07:08Z",
+   "lost_min": 30.4,
+   "wait_min": 23.5,
+   "ci_min": 6.9,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "CI gate",
+     "step": "Require every gate",
+     "kind": "gate",
+     "gate": "capacity (growth)",
+     "why": "E2E capacity line - 174.4 of 210.7 table-minutes (83%) on 13 runners; this change adds 0.4 offline minute(s), 1.9 runner-minutes per landing and 0.4 per day, taking the offline tier to 88% of its ceiling (the 85% line)",
+     "specs": [],
+     "quarantined": []
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": "E2E capacity line - 174.4 of 210.7 table-minutes (83%) on 13 runners; this change adds 0.4 offline minute(s), 1.9 runner-minutes per landing and 0.4 per day, taking the offline tier to 88% of its ceiling (the 85% line)",
+    "noFlag": false
+   },
+   "change": {
+    "files": 5,
+    "code": 3,
+    "test": 3,
+    "codeFiles": [
+     "e2e/audience-pack.spec.ts",
+     "e2e/join-surface.spec.ts",
+     "e2e/production-audience.spec.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "gate",
+   "gate": "capacity (growth)",
+   "cause_why": "CI gate: E2E capacity line - 174.4 of 210.7 table-minutes (83%) on 13 runners; this change adds 0.4 offline minute(s), 1.9 runner-minutes per landing and 0.4 per day, taking the offline tier to 88% of its ceiling (the 85% line)"
+  },
+  {
+   "pr": 2321,
+   "title": "Interaction phase 2: join by /j/ link and QR, a branded phone page, and a Join card",
+   "head_ref": "claude/plan-interaction-2-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-09T17:59:39Z",
+   "run": 42667493967,
+   "attempt": 1,
+   "head": "66a01599baabd00055d977f2392806b4c86bb176",
+   "green_run": 42667493967,
+   "green_attempt": 2,
+   "green_head": "66a01599baabd00055d977f2392806b4c86bb176",
+   "green_at": "2026-11-09T18:07:08Z",
+   "lost_min": 7.5,
+   "wait_min": 0.6,
+   "ci_min": 6.9,
+   "green_by": "rerun of the same run",
+   "rerun_failed_only": true,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Build",
+     "step": "E2E protection check",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 0.5,
+     "kind": "gate",
+     "gate": "e2e protection",
+     "why": "policy step: E2E protection check",
+     "quarantined": [],
+     "passed_later_same_commit": true
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "same": true
+   },
+   "cause": "gate",
+   "gate": "e2e protection",
+   "cause_why": "Build: policy step: E2E protection check"
+  },
+  {
+   "pr": 2332,
+   "title": "Keep subpixel canvas outline dimensions valid",
+   "head_ref": "codex/c-canvas-guide-dimensions",
+   "merged": false,
+   "type": "pr",
+   "at": "2026-11-09T21:27:45Z",
+   "run": 42700275296,
+   "attempt": 1,
+   "head": "56ca837c7de4853bedaad7ca5c0cdbd68aa61402",
+   "green_run": null,
+   "green_attempt": null,
+   "green_head": null,
+   "green_at": null,
+   "lost_min": null,
+   "wait_min": null,
+   "ci_min": null,
+   "green_by": null,
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "CI gate",
+     "step": "Require every gate",
+     "kind": "gate",
+     "gate": "capacity (growth)",
+     "why": "E2E capacity line - 174.4 of 210.7 table-minutes (83%) on 13 runners; this change adds 0.4 offline minute(s), 1.9 runner-minutes per landing and 0.4 per day, taking the offline tier to 88% of its ceiling (the 85% line)",
+     "specs": [],
+     "quarantined": []
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": "E2E capacity line - 174.4 of 210.7 table-minutes (83%) on 13 runners; this change adds 0.4 offline minute(s), 1.9 runner-minutes per landing and 0.4 per day, taking the offline tier to 88% of its ceiling (the 85% line)",
+    "noFlag": false
+   },
+   "change": null,
+   "cause": "gate",
+   "gate": "capacity (growth)",
+   "cause_why": "CI gate: E2E capacity line - 174.4 of 210.7 table-minutes (83%) on 13 runners; this change adds 0.4 offline minute(s), 1.9 runner-minutes per landing and 0.4 per day, taking the offline tier to 88% of its ceiling (the 85% line)"
+  },
+  {
+   "pr": 2338,
+   "title": "Interaction phase 3: results reach the rundown as one saved cue per question, and nothing airs by itself",
+   "head_ref": "claude/plan-interaction-3-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-10T06:29:56Z",
+   "run": 42767053419,
+   "attempt": 1,
+   "head": "4c7c7f8635dca79a7bc4f64fc4b70a672789b405",
+   "green_run": 42768975279,
+   "green_attempt": 1,
+   "green_head": "fb9d864af9ac1fc8af0f2c08cc80b5116328da88",
+   "green_at": "2026-11-10T06:46:57Z",
+   "lost_min": 17,
+   "wait_min": 0.6,
+   "ci_min": 16.4,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Configured E2E verdict (selected)",
+     "step": "Fail unless the selection is a clean verdict",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 0.5,
+     "kind": "code",
+     "why": "step: Fail unless the selection is a clean verdict",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 6,
+    "code": 4,
+    "test": 2,
+    "codeFiles": [
+     "e2e/configured/audience-live.spec.ts",
+     "scripts/result-staging.test.mjs",
+     "src/components/home/ProductionAudienceWorkspace.tsx",
+     "src/control/resultStaging.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "defect",
+   "cause_why": "repair changed 4 code or test file(s); Configured E2E verdict (selected): step: Fail unless the selection is a clean verdict",
+   "with_gate": false
+  },
+  {
+   "pr": 2343,
+   "title": "Interaction phase 5: result boards, home-made result graphics and the QR layer",
+   "head_ref": "claude/plan-interaction-5-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-10T10:41:46Z",
+   "run": 42798977212,
+   "attempt": 1,
+   "head": "0e0dd499380110b951caf5b508822546bf02d95d",
+   "green_run": 42806266343,
+   "green_attempt": 1,
+   "green_head": "7c6ff71167550f3c531ce0c9d6c1c154dec0f6da",
+   "green_at": "2026-11-10T11:34:26Z",
+   "lost_min": 52.7,
+   "wait_min": 35.8,
+   "ci_min": 16.9,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Build",
+     "step": "Build (typecheck + lint + bundle)",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 4.9,
+     "kind": "code",
+     "why": "[gates] tests failed (exit 1)",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    },
+    {
+     "name": "Catalog calibration gate",
+     "step": "Catalog emit fingerprints",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 0.4,
+     "kind": "code",
+     "why": "step: Catalog emit fingerprints",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    },
+    {
+     "name": "E2E 5/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/audience-pack.spec.ts"
+     ],
+     "minutes": 10.6,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    },
+    {
+     "name": "E2E 1/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/catalog-baseline.spec.ts"
+     ],
+     "minutes": 12.6,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 22,
+    "code": 14,
+    "test": 4,
+    "codeFiles": [
+     "src/components/wizard/import/index.ts",
+     ".dependency-cruiser.cjs",
+     "e2e/audience-pack.spec.ts",
+     "src/bridge/bridgeApi.ts",
+     "src/components/wizard/import/svgDefault.ts",
+     "src/templates/importedDesign/svgFromMarkup.ts",
+     "e2e/catalog-baseline.json",
+     "src/templates/poll/results.ts",
+     "src/ai/pro/harness/exemplars.ts",
+     "cli/src/commands/scaffold.ts",
+     "cli/test/unit.test.mjs",
+     "src/templates/importedDesign/svgBind.ts",
+     "src/templates/importedDesign/svgQr.ts",
+     "e2e/configured/audience-live.spec.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "defect",
+   "cause_why": "repair changed 14 code or test file(s); Build: [gates] tests failed (exit 1); Catalog calibration gate: step: Catalog emit fingerprints; E2E 5/15 (subset): 1 spec file(s) failed; E2E 1/15 (subset): 1 spec file(s) failed",
+   "with_gate": false
+  },
+  {
+   "pr": 2362,
+   "title": "Retire the hosted control page; old control links open the production page",
+   "head_ref": "claude/plan-live-publishing-1-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-10T20:02:30Z",
+   "run": 42888551600,
+   "attempt": 1,
+   "head": "6fd8b6cbfb46db9ae837bcd25f47fb5ba1ec3ce7",
+   "green_run": 42891397109,
+   "green_attempt": 1,
+   "green_head": "fd8ad9f877994ac35c3fb0966b455c9e686ce282",
+   "green_at": "2026-11-10T20:19:39Z",
+   "lost_min": 17.2,
+   "wait_min": 0.7,
+   "ci_min": 16.5,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Configured E2E verdict (selected)",
+     "step": "Fail unless the selection is a clean verdict",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 0.5,
+     "kind": "code",
+     "why": "step: Fail unless the selection is a clean verdict",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 1,
+    "code": 1,
+    "test": 1,
+    "codeFiles": [
+     "e2e/configured/live-ready.spec.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "defect",
+   "cause_why": "repair changed 1 code or test file(s); Configured E2E verdict (selected): step: Fail unless the selection is a clean verdict",
+   "with_gate": false
+  },
+  {
+   "pr": 2364,
+   "title": "Add Clean Studio SVG templates, and roll credits as one text with the show title first",
+   "head_ref": "noacg/nice-davinci-097mls",
+   "merged": false,
+   "type": "pr",
+   "at": "2026-11-10T20:48:21Z",
+   "run": 42896291546,
+   "attempt": 1,
+   "head": "0afcf6df94777e289d7652c1c6e814c4e052cf24",
+   "green_run": null,
+   "green_attempt": null,
+   "green_head": null,
+   "green_at": null,
+   "lost_min": null,
+   "wait_min": null,
+   "ci_min": null,
+   "green_by": null,
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "E2E 4/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/ograf-lifecycle.spec.ts"
+     ],
+     "minutes": 8.8,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    },
+    {
+     "name": "E2E 15/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/jev-svg-preparation.spec.ts"
+     ],
+     "minutes": 12.4,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    },
+    {
+     "name": "CI gate",
+     "step": "Require every gate",
+     "kind": "gate",
+     "gate": "capacity (growth)",
+     "why": "E2E capacity line - 174.4 of 210.7 table-minutes (83%) on 13 runners; this change adds 0.8 offline minute(s), 3.8 runner-minutes per landing and 0.8 per day, taking the offline tier to 88% of its ceiling (the 85% line)",
+     "specs": [],
+     "quarantined": []
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": "E2E capacity line - 174.4 of 210.7 table-minutes (83%) on 13 runners; this change adds 0.8 offline minute(s), 3.8 runner-minutes per landing and 0.8 per day, taking the offline tier to 88% of its ceiling (the 85% line)",
+    "noFlag": false
+   },
+   "change": null,
+   "cause": "unresolved",
+   "ambiguous": true,
+   "cause_why": "no green on this PR by the end of the listing; E2E 4/15 (subset): 1 spec file(s) failed; E2E 15/15 (subset): 1 spec file(s) failed; CI gate: E2E capacity line - 174.4 of 210.7 table-minutes (83%) on 13 runners; this change adds 0.8 offline minute(s), 3.8 runner-minutes per landing and 0.8 per day, taking the offline tier to 88% of its ceiling (the 85% line)"
+  },
+  {
+   "pr": 2364,
+   "title": "Add Clean Studio SVG templates, and roll credits as one text with the show title first",
+   "head_ref": "noacg/nice-davinci-097mls",
+   "merged": false,
+   "type": "pr",
+   "at": "2026-11-10T21:57:47Z",
+   "run": 42907389416,
+   "attempt": 1,
+   "head": "c76480a4e1787b3036248c1e37002ca6e53a854d",
+   "green_run": null,
+   "green_attempt": null,
+   "green_head": null,
+   "green_at": null,
+   "lost_min": null,
+   "wait_min": null,
+   "ci_min": null,
+   "green_by": null,
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "CI gate",
+     "step": "Require every gate",
+     "kind": "gate",
+     "gate": "capacity (growth)",
+     "why": "E2E capacity line - 174.4 of 210.7 table-minutes (83%) on 13 runners; this change adds 0.8 offline minute(s), 3.8 runner-minutes per landing and 0.8 per day, taking the offline tier to 88% of its ceiling (the 85% line)",
+     "specs": [],
+     "quarantined": []
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": "E2E capacity line - 174.4 of 210.7 table-minutes (83%) on 13 runners; this change adds 0.8 offline minute(s), 3.8 runner-minutes per landing and 0.8 per day, taking the offline tier to 88% of its ceiling (the 85% line)",
+    "noFlag": false
+   },
+   "change": null,
+   "cause": "gate",
+   "gate": "capacity (growth)",
+   "cause_why": "CI gate: E2E capacity line - 174.4 of 210.7 table-minutes (83%) on 13 runners; this change adds 0.8 offline minute(s), 3.8 runner-minutes per landing and 0.8 per day, taking the offline tier to 88% of its ceiling (the 85% line)"
+  },
+  {
+   "pr": 2369,
+   "title": "Finish editor timeline and SVG pivot authoring",
+   "head_ref": "codex/plan-editor-r1-5-e1-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-11T01:41:38Z",
+   "run": 42938883051,
+   "attempt": 1,
+   "head": "95f65b051d7c8303e119c428d0e33726069e88ff",
+   "green_run": 42941182085,
+   "green_attempt": 1,
+   "green_head": "3d0187a9d64d2edc3683ce6277c65728622c18d6",
+   "green_at": "2026-11-11T02:02:29Z",
+   "lost_min": 20.9,
+   "wait_min": 3.4,
+   "ci_min": 17.5,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "E2E 5/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/editor-canvas-transforms.spec.ts"
+     ],
+     "minutes": 10.5,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [
+      "e2e/editor-canvas-transforms.spec.ts"
+     ],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 3,
+    "code": 2,
+    "test": 1,
+    "codeFiles": [
+     "scripts/canvas-transforms.test.mjs",
+     "src/components/editorFoundation/animationAuthoring.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "flake",
+   "ambiguous": true,
+   "cause_why": "known quarantined spec(s) e2e/editor-canvas-transforms.spec.ts, not changed by the repair"
+  },
+  {
+   "pr": 2374,
+   "title": "Author repeat and yoyo loops on artwork tracks",
+   "head_ref": "codex/plan-editor-r1-5-e2-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-11T05:28:01Z",
+   "run": 42964189955,
+   "attempt": 1,
+   "head": "cb0f639ab8ac2f4a6396ed0ded9a6d1c767a6749",
+   "green_run": 43001220919,
+   "green_attempt": 1,
+   "green_head": "9c5ae1926d6662e0e2806f3233be85b83972f166",
+   "green_at": "2026-11-11T10:27:58Z",
+   "lost_min": 300,
+   "wait_min": 281.5,
+   "ci_min": 18.5,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "E2E 5/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/editor-base-edits.spec.ts"
+     ],
+     "minutes": 10.3,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [
+      "e2e/editor-base-edits.spec.ts"
+     ],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 19,
+    "code": 17,
+    "test": 6,
+    "codeFiles": [
+     "e2e/_editorLoops.ts",
+     "e2e/motion-presets.spec.ts",
+     "scripts/ograf-timed-exit.test.mjs",
+     "src/blocks/motionPresets.ts",
+     "src/export/targets/ograf.ts",
+     "scripts/editor-loops.test.mjs",
+     "src/templates/shared/animLoopRuntime.ts",
+     "src/templates/shared/animRuntime.ts",
+     "e2e/editor-out-step.spec.ts",
+     "src/blocks/animEdit.ts",
+     "src/blocks/animLoopTiming.ts",
+     "src/blocks/editorAnimation.ts",
+     "src/blocks/editorImages.ts",
+     "src/blocks/editorLoops.ts",
+     "src/blocks/editorPaths.ts",
+     "src/components/editorFoundation/keySelection.ts",
+     "e2e/editor-base-edits.spec.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "defect",
+   "cause_why": "repair changed 17 code or test file(s); E2E 5/15 (subset): 1 spec file(s) failed",
+   "with_gate": false
+  },
+  {
+   "pr": 2374,
+   "title": "Author repeat and yoyo loops on artwork tracks",
+   "head_ref": "codex/plan-editor-r1-5-e2-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-11T10:08:18Z",
+   "run": 42998288984,
+   "attempt": 1,
+   "head": "5b00e271a4249c1a6b11bda50ae33823baefbafe",
+   "green_run": 43001220919,
+   "green_attempt": 1,
+   "green_head": "9c5ae1926d6662e0e2806f3233be85b83972f166",
+   "green_at": "2026-11-11T10:27:58Z",
+   "lost_min": 19.7,
+   "wait_min": 1.2,
+   "ci_min": 18.5,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Build",
+     "step": "Build (typecheck + lint + bundle)",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 5.9,
+     "kind": "code",
+     "why": "[gates] tests failed (exit 1)",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 2,
+    "code": 1,
+    "test": 1,
+    "codeFiles": [
+     "e2e/_editorLoops.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "defect",
+   "cause_why": "repair changed 1 code or test file(s); Build: [gates] tests failed (exit 1)",
+   "with_gate": false
+  },
+  {
+   "pr": 2364,
+   "title": "Add Clean Studio SVG templates, and roll credits as one text with the show title first",
+   "head_ref": "noacg/nice-davinci-097mls",
+   "merged": false,
+   "type": "pr",
+   "at": "2026-11-11T12:18:34Z",
+   "run": 42907389416,
+   "attempt": 2,
+   "head": "c76480a4e1787b3036248c1e37002ca6e53a854d",
+   "green_run": null,
+   "green_attempt": null,
+   "green_head": null,
+   "green_at": null,
+   "lost_min": null,
+   "wait_min": null,
+   "ci_min": null,
+   "green_by": null,
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "CI gate",
+     "step": "Require every gate",
+     "kind": "gate",
+     "gate": "capacity (growth)",
+     "why": "E2E capacity line - 174.4 of 210.7 table-minutes (83%) on 13 runners; durations table recorded 2026-11-02, 9 days old, over its 8-day bound; pending, not accepted: #2316; this change adds 0.8 offline minute(s), 3.8 runne",
+     "specs": [],
+     "quarantined": []
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": "E2E capacity line - 174.4 of 210.7 table-minutes (83%) on 13 runners; durations table recorded 2026-11-02, 9 days old, over its 8-day bound; pending, not accepted: #2316; this change adds 0.8 offline minute(s), 3.8 runne",
+    "noFlag": false
+   },
+   "change": null,
+   "cause": "gate",
+   "gate": "capacity (growth)",
+   "cause_why": "CI gate: E2E capacity line - 174.4 of 210.7 table-minutes (83%) on 13 runners; durations table recorded 2026-11-02, 9 days old, over its 8-day bound; pending, not accepted: #2316; this change adds 0.8 offline minute(s), 3.8 runne"
+  },
+  {
+   "pr": 2380,
+   "title": "Live publishing phase 3: a Take never waits on the page's own work",
+   "head_ref": "claude/plan-live-publishing-3-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-11T13:18:52Z",
+   "run": 43025578382,
+   "attempt": 1,
+   "head": "92bf8cf321615cd3684033c1ffb91e14fe08f328",
+   "green_run": 43034883718,
+   "green_attempt": 1,
+   "green_head": "e2f17431f9fe0470fc0d4748386124eee6286e17",
+   "green_at": "2026-11-11T14:19:56Z",
+   "lost_min": 61.1,
+   "wait_min": 45.1,
+   "ci_min": 16,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "E2E 10/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/playout-air-contract.spec.ts"
+     ],
+     "minutes": 7.4,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 8,
+    "code": 6,
+    "test": 4,
+    "codeFiles": [
+     "e2e/rundown-history.spec.ts",
+     "scripts/graphic-verbs.test.mjs",
+     "src/components/home/ProductionPage.tsx",
+     "src/control/graphicVerbs.ts",
+     "e2e/studio-evening-reliability.spec.ts",
+     "e2e/playout-air-contract.spec.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "defect",
+   "cause_why": "repair changed 6 code or test file(s); E2E 10/15 (subset): 1 spec file(s) failed",
+   "with_gate": false
+  },
+  {
+   "pr": 2380,
+   "title": "Live publishing phase 3: a Take never waits on the page's own work",
+   "head_ref": "claude/plan-live-publishing-3-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-11T13:36:09Z",
+   "run": 43028208244,
+   "attempt": 1,
+   "head": "e88a55169c792dc879d795e127bf13f66861b9e7",
+   "green_run": 43034883718,
+   "green_attempt": 1,
+   "green_head": "e2f17431f9fe0470fc0d4748386124eee6286e17",
+   "green_at": "2026-11-11T14:19:56Z",
+   "lost_min": 43.8,
+   "wait_min": 27.8,
+   "ci_min": 16,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "E2E 6/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/studio-evening-reliability.spec.ts"
+     ],
+     "minutes": 10.2,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 6,
+    "code": 5,
+    "test": 3,
+    "codeFiles": [
+     "e2e/rundown-history.spec.ts",
+     "scripts/graphic-verbs.test.mjs",
+     "src/components/home/ProductionPage.tsx",
+     "src/control/graphicVerbs.ts",
+     "e2e/studio-evening-reliability.spec.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "defect",
+   "cause_why": "repair changed 5 code or test file(s); E2E 6/15 (subset): 1 spec file(s) failed",
+   "with_gate": false
+  },
+  {
+   "pr": 2389,
+   "title": "A Take pressed right after an edit sends before the edit's save",
+   "head_ref": "claude/plan-live-publishing-fix-2388",
+   "merged": false,
+   "type": "pr",
+   "at": "2026-11-11T17:46:48Z",
+   "run": 43068851204,
+   "attempt": 1,
+   "head": "87ea071976de23cafd2d070c45e11d24caf8120d",
+   "green_run": 43074480576,
+   "green_attempt": 1,
+   "green_head": "9115e4ea4942f4dc5435622c6fcdc52378198697",
+   "green_at": "2026-11-11T18:21:52Z",
+   "lost_min": 35.1,
+   "wait_min": 19.1,
+   "ci_min": 15.9,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "E2E 12/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/publish-output-setup.spec.ts"
+     ],
+     "minutes": 6.6,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [
+      "e2e/publish-output-setup.spec.ts"
+     ],
+     "passed_later_same_commit": false
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "files": 3,
+    "code": 2,
+    "test": 1,
+    "codeFiles": [
+     "scripts/cue-draft.test.mjs",
+     "src/control/cueDraft.ts"
+    ],
+    "limits": [],
+    "merges": 0
+   },
+   "cause": "flake",
+   "ambiguous": true,
+   "cause_why": "known quarantined spec(s) e2e/publish-output-setup.spec.ts, not changed by the repair"
+  }
+ ],
+ "prs": [
+  {
+   "pr": 1801,
+   "title": "Hand an output the frame it lost while the production page reloaded (#1797)",
+   "head_ref": "claude/pp-fix-1797",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 10.3,
+   "unresolved": 0,
+   "causes": [
+    "flake"
+   ]
+  },
+  {
+   "pr": 1840,
+   "title": "Refresh the traced e2e spec map from the nightly",
+   "head_ref": "bot/e2e-traced",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 1470.9,
+   "unresolved": 0,
+   "causes": [
+    "defect"
+   ]
+  },
+  {
+   "pr": 1870,
+   "title": "jev-svg row 6: inspectable prepared fields, corrections kept on re-drop",
+   "head_ref": "claude/plan-jev-svg-import-6-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 15.4,
+   "unresolved": 0,
+   "causes": [
+    "defect"
+   ]
+  },
+  {
+   "pr": 1872,
+   "title": "[ci06] Require complete selected configured PR checks",
+   "head_ref": "claude/plan-cicd-improvement-ci06-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 2,
+   "red_min": 34.8,
+   "unresolved": 0,
+   "causes": [
+    "defect",
+    "flake"
+   ]
+  },
+  {
+   "pr": 1877,
+   "title": "Quarantine e2e/configured/production-data-key-tick.spec.ts after a fail-then-pass on one commit",
+   "head_ref": "claude/quarantine-production-data-key-tick",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 9.9,
+   "unresolved": 0,
+   "causes": [
+    "flake"
+   ]
+  },
+  {
+   "pr": 1878,
+   "title": "jev-svg row 7: the imported clock as an instanced part beside a score tracker",
+   "head_ref": "claude/plan-jev-svg-import-7-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 30,
+   "unresolved": 0,
+   "causes": [
+    "defect"
+   ]
+  },
+  {
+   "pr": 1896,
+   "title": "ci07: critical and shared sets, quarantine incidents, miss audit against original culprit plans",
+   "head_ref": "claude/plan-cicd-improvement-ci07-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 12.4,
+   "unresolved": 0,
+   "causes": [
+    "infra"
+   ]
+  },
+  {
+   "pr": 1899,
+   "title": "Imported clock: per-mode controls, hours on a target time, and three clock fixes",
+   "head_ref": "claude/plan-jev-svg-import-11-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 14.8,
+   "unresolved": 0,
+   "causes": [
+    "infra"
+   ]
+  },
+  {
+   "pr": 1919,
+   "title": "jev-svg row 14: the true no-Lock quiz variant",
+   "head_ref": "claude/plan-jev-svg-import-14-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 8.5,
+   "unresolved": 0,
+   "causes": [
+    "flake"
+   ]
+  },
+  {
+   "pr": 1943,
+   "title": "ci15: record the audit qualification as not qualified, with its blockers",
+   "head_ref": "claude/plan-cicd-improvement-ci15-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 8.7,
+   "unresolved": 0,
+   "causes": [
+    "flake"
+   ]
+  },
+  {
+   "pr": 1974,
+   "title": "Styled credits play as cards, on Next card or a card time",
+   "head_ref": "claude/plan-jev-svg-import-23-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 28.5,
+   "unresolved": 0,
+   "causes": [
+    "infra"
+   ]
+  },
+  {
+   "pr": 1985,
+   "title": "Reimport keeps a saved SVG graphic's ids, keys and bindings, and never writes over what it cannot match",
+   "head_ref": "claude/plan-jev-svg-import-27-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 4,
+   "red_min": 135.1,
+   "unresolved": 0,
+   "causes": [
+    "flake",
+    "flake",
+    "flake",
+    "flake"
+   ]
+  },
+  {
+   "pr": 1993,
+   "title": "Keep control arrangements through reimport and one panel dispatch (jev-svg-import row 28)",
+   "head_ref": "claude/plan-jev-svg-import-28-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 7.5,
+   "unresolved": 0,
+   "causes": [
+    "defect"
+   ]
+  },
+  {
+   "pr": 2005,
+   "title": "Jev SVG import, row 32: the comparison and metering harness",
+   "head_ref": "claude/plan-jev-svg-import-32-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 4,
+   "red_min": 123.5,
+   "unresolved": 0,
+   "causes": [
+    "gate",
+    "gate",
+    "gate",
+    "gate"
+   ]
+  },
+  {
+   "pr": 2020,
+   "title": "Watch the production database's load and alarm before it stalls",
+   "head_ref": "claude/production-load-watch",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 16.5,
+   "unresolved": 0,
+   "causes": [
+    "defect"
+   ]
+  },
+  {
+   "pr": 2038,
+   "title": "Row 38: rehearse the complete unfamiliar-artwork journey (AC-26)",
+   "head_ref": "claude/plan-jev-svg-import-38-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 2,
+   "red_min": 63.3,
+   "unresolved": 0,
+   "causes": [
+    "defect",
+    "gate"
+   ]
+  },
+  {
+   "pr": 2122,
+   "title": "Saved editable credits rolls measure again when their face lands",
+   "head_ref": "claude/credits-runtime-1965-1969",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 20.5,
+   "unresolved": 0,
+   "causes": [
+    "defect"
+   ]
+  },
+  {
+   "pr": 2124,
+   "title": "Add editable clock, timer and credits SVG examples",
+   "head_ref": "codex/agent-authored-svg-examples",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 19.1,
+   "unresolved": 0,
+   "causes": [
+    "flake"
+   ]
+  },
+  {
+   "pr": 2134,
+   "title": "Publish the Companion module as a release and offer it from Downloads",
+   "head_ref": "claude/a-companion-download",
+   "merged": true,
+   "state": "closed",
+   "rounds": 3,
+   "red_min": 73.2,
+   "unresolved": 0,
+   "causes": [
+    "defect",
+    "gate",
+    "gate"
+   ]
+  },
+  {
+   "pr": 2164,
+   "title": "Keep the PROGRAM monitor's clock through a resolve overtaken by a command",
+   "head_ref": "claude/f-clock-replay",
+   "merged": false,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 16.8,
+   "unresolved": 0,
+   "causes": [
+    "gate"
+   ]
+  },
+  {
+   "pr": 2173,
+   "title": "Keep a debate clock through an Update",
+   "head_ref": "claude/g-speaking-clock-update",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 59.6,
+   "unresolved": 0,
+   "causes": [
+    "defect"
+   ]
+  },
+  {
+   "pr": 2194,
+   "title": "Held credits: a rebuilt stage airs the list held, not the newest",
+   "head_ref": "claude/c2-credits-held-reload",
+   "merged": true,
+   "state": "closed",
+   "rounds": 2,
+   "red_min": 152.7,
+   "unresolved": 0,
+   "causes": [
+    "gate",
+    "gate"
+   ]
+  },
+  {
+   "pr": 2210,
+   "title": "Keep a debate clock on the hosted PROGRAM where air holds it after a reload",
+   "head_ref": "claude/hosted-debate-program",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 12,
+   "unresolved": 0,
+   "causes": [
+    "flake"
+   ]
+  },
+  {
+   "pr": 2218,
+   "title": "An off-air clock is rebuilt at boot unless a command moved that clock, not any graphic",
+   "head_ref": "claude/offair-clock-boot-read",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 1240.3,
+   "unresolved": 0,
+   "causes": [
+    "infra"
+   ]
+  },
+  {
+   "pr": 2220,
+   "title": "Retry a library sync by itself after the cloud stopped answering",
+   "head_ref": "claude/sync-retry-no-answer",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 36.2,
+   "unresolved": 0,
+   "causes": [
+    "gate"
+   ]
+  },
+  {
+   "pr": 2227,
+   "title": "Live marker and PROGRAM monitor show only what is on air (#1713, #1719, #1721)",
+   "head_ref": "claude/l-live-marker-truth",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 329.5,
+   "unresolved": 0,
+   "causes": [
+    "flake"
+   ]
+  },
+  {
+   "pr": 2229,
+   "title": "Revert the 2 landings up to e76e101 - main went red",
+   "head_ref": "revert/e76e101",
+   "merged": false,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 0,
+   "unresolved": 1,
+   "causes": [
+    "gate"
+   ]
+  },
+  {
+   "pr": 2314,
+   "title": "Interaction phase 1: questions and their lifecycle",
+   "head_ref": "claude/plan-interaction-1-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 17,
+   "unresolved": 0,
+   "causes": [
+    "defect"
+   ]
+  },
+  {
+   "pr": 2321,
+   "title": "Interaction phase 2: join by /j/ link and QR, a branded phone page, and a Join card",
+   "head_ref": "claude/plan-interaction-2-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 3,
+   "red_min": 56.8,
+   "unresolved": 0,
+   "causes": [
+    "gate",
+    "gate",
+    "gate"
+   ]
+  },
+  {
+   "pr": 2332,
+   "title": "Keep subpixel canvas outline dimensions valid",
+   "head_ref": "codex/c-canvas-guide-dimensions",
+   "merged": false,
+   "state": "open",
+   "rounds": 1,
+   "red_min": 0,
+   "unresolved": 1,
+   "causes": [
+    "gate"
+   ]
+  },
+  {
+   "pr": 2338,
+   "title": "Interaction phase 3: results reach the rundown as one saved cue per question, and nothing airs by itself",
+   "head_ref": "claude/plan-interaction-3-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 17,
+   "unresolved": 0,
+   "causes": [
+    "defect"
+   ]
+  },
+  {
+   "pr": 2343,
+   "title": "Interaction phase 5: result boards, home-made result graphics and the QR layer",
+   "head_ref": "claude/plan-interaction-5-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 52.7,
+   "unresolved": 0,
+   "causes": [
+    "defect"
+   ]
+  },
+  {
+   "pr": 2362,
+   "title": "Retire the hosted control page; old control links open the production page",
+   "head_ref": "claude/plan-live-publishing-1-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 17.2,
+   "unresolved": 0,
+   "causes": [
+    "defect"
+   ]
+  },
+  {
+   "pr": 2364,
+   "title": "Add Clean Studio SVG templates, and roll credits as one text with the show title first",
+   "head_ref": "noacg/nice-davinci-097mls",
+   "merged": false,
+   "state": "open",
+   "rounds": 3,
+   "red_min": 0,
+   "unresolved": 3,
+   "causes": [
+    "unresolved",
+    "gate",
+    "gate"
+   ]
+  },
+  {
+   "pr": 2369,
+   "title": "Finish editor timeline and SVG pivot authoring",
+   "head_ref": "codex/plan-editor-r1-5-e1-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 20.9,
+   "unresolved": 0,
+   "causes": [
+    "flake"
+   ]
+  },
+  {
+   "pr": 2374,
+   "title": "Author repeat and yoyo loops on artwork tracks",
+   "head_ref": "codex/plan-editor-r1-5-e2-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 2,
+   "red_min": 300,
+   "unresolved": 0,
+   "causes": [
+    "defect",
+    "defect"
+   ]
+  },
+  {
+   "pr": 2380,
+   "title": "Live publishing phase 3: a Take never waits on the page's own work",
+   "head_ref": "claude/plan-live-publishing-3-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 2,
+   "red_min": 61.1,
+   "unresolved": 0,
+   "causes": [
+    "defect",
+    "defect"
+   ]
+  },
+  {
+   "pr": 2389,
+   "title": "A Take pressed right after an edit sends before the edit's save",
+   "head_ref": "claude/plan-live-publishing-fix-2388",
+   "merged": false,
+   "state": "open",
+   "rounds": 1,
+   "red_min": 35.1,
+   "unresolved": 0,
+   "causes": [
+    "flake"
+   ]
+  }
+ ]
+}
