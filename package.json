@@ -13,6 +13,7 @@
     "dev:worktree": "node scripts/dev-worktree.mjs",
     "endurance:election": "node scripts/endurance-election.mjs",
     "endurance:replay-smoke": "node scripts/replay-smoke.mjs",
+    "endurance:editor-causality": "node scripts/editor-quarantine-causality.mjs",
     "trial:late-send-abandoned": "node scripts/configured-trial.mjs --spec e2e/configured/late-send-abandoned.spec.ts --repeat 40",
     "trial:import-svg-growth-limit": "node scripts/configured-trial.mjs --spec e2e/import-svg.spec.ts --grep \"cannot be dragged past either\" --repeat 270",
     "trial:chat-intake-newest-100": "node scripts/configured-trial.mjs --spec e2e/production-chat-intake.spec.ts --grep \"one press brings the newest 100\" --repeat 100",
