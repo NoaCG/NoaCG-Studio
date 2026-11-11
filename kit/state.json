@@ -1312,6 +1312,39 @@
       "quarantine": "Retained, incident2371 existing owner miwco due2026-11-25",
       "acceptedIncidentComment": 6805651314,
       "boundary": "Clock only; overall gate still closed while operator remains unresolved"
+    },
+    "operatorQualifiedBeforeCompletion": {
+      "parentQualified": 295,
+      "parentFailed": 8,
+      "landingQualified": 296,
+      "landingFailed": 7,
+      "signatures": "All15qualifiedfailuresold-linknavigation-context:14member164,1visitor176",
+      "status": "Not yet final causal clearance",
+      "sourceOrigin": "redirectandunsafeURL-evaluatepollintroducedbyearlierretirementPR2362/commitbb02ec3433, beforeE1; source/specblobsidenticalacrossE1",
+      "readerSource": "0c16ec82d474c6de1dcb9fdd636b658625cade51",
+      "readerRun": 43092554609,
+      "privateEvidence": "/workspace/noacg-editor-r1-5-state/17e47924/causality-evidence/actions/analysis-read-04-results.json",
+      "originalUnknown": "cohort4batch03parent41:raw2passedcasesbutNOterminalqueuejournal; remainsUNQUALIFIED",
+      "originalUnadmitted": "8slots:pairs42..45botharms;filesabsent",
+      "methodReview": "AGREE/A afterimmutableinventory;nooriginalsamplediscarded"
+    },
+    "operatorCompletion": {
+      "status": "Onecompletionnativeworker in progress; no additionaladmissionauthorizedwithoutnewreviewedcount",
+      "qualifiedTargetPerCommit": 301,
+      "pairedTarget": 300,
+      "unmatched": "retainoriginalqualifiedL41;newP46separateunmatchedobservation",
+      "newInvocations": 11,
+      "schedule": "5newmatchedpairs41..45seededorder+P46",
+      "producerHead": "5688142041b4a60e19647bd08b01f4ac61208e0d",
+      "producerReview": "AGREE/A,8unitPASS,focusedESLintPASS;queue-observeronlyfix keepssamejob/existingcadence/caps, reportqualificationunchanged",
+      "nativeRun": 43094048053,
+      "nativeRef": "codex/editor-causality-20261111-operator-c4-03-completion-01",
+      "nativeBinding": "exactsource/ref/firstattemptreadbackverified",
+      "readerHead": "ed266b1a923a841dc6a9084c2e0052f0d1c4b108",
+      "readerRef": "codex/editor-causality-evidence-reader-20261111",
+      "literal33RunManifest": "scripts/editor-causality-evidence-runs.json",
+      "readerReview": "AGREE/A afterseparateoriginal/completioncensorcounterfix;10PythonunitPASS/29workflowvalidationPASS",
+      "futureRead": "Notyetdispatched;waitcompletionterminal,thenexactreader33.OriginalpartialbatchmustremainRED/unknown;neverinferpassfromrawreportalone. Reportcensoringsensitivityandseparatecompletionworkerresults."
     }
   },
   "waitingOn": {
