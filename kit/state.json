@@ -42,7 +42,16 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {},
-  "inFlight": [],
+  "inFlight": [
+    {
+      "note": "Codex Cloud task acknowledged for independent read-only reassessment. PR #2380 has overlapping writes. The current coordinator retains PR ownership and required Windows checks.",
+      "head": "d041c1ca924d6047722631d33808318135510463",
+      "session": "6af49273-cd14-8191-93b3-191619531065",
+      "pr": 2378,
+      "phase": "v4",
+      "step": "build"
+    }
+  ],
   "owner": [],
   "fixes": [],
   "triggers": []
