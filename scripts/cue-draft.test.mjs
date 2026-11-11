@@ -462,3 +462,14 @@ test("the session's end during a press saves the edit and drops the held save", 
   h.tick();
   assert.deepEqual(saves, []);
 });
+
+test('an edit to another cue while one is owed saves the owed one first, in its own group', () => {
+  const h = harness();
+  h.draft.edit(OPENER, { values: { f0: 'Owed' } });
+  const writesAtGroup = [];
+  h.groups.push = (group) => { writesAtGroup.push([group, h.writes.length]); return Array.prototype.push.call(h.groups, group); };
+  h.draft.edit(CLOSER, { note: 'next' });
+  assert.deepEqual(h.writes.map((w) => [w.cueId, w.fields.values.f0]), [['c1', 'Owed']]);
+  assert.deepEqual(writesAtGroup, [['c2:note', 1]], 'the save starts before the next group opens');
+  assert.equal(h.session.draft.get().cueId, 'c2');
+});

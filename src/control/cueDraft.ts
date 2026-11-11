@@ -235,6 +235,9 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     part,
     edit: (cue, patch) => {
       if (!session.alive() || !io.canWrite()) return;
+      // An edit to another cue never drops one still owed: that one's save starts first, in its
+      // own history group.
+      if (part.get()?.cueId !== cue.id && pending) void flush();
       const d = part.get();
       io.editing(editGroup(cue.id, patch));
       const base: DraftPart = d && d.cueId === cue.id ? d : { cueId: cue.id, label: cue.label, note: cue.note ?? '', values: { ...cue.values } };

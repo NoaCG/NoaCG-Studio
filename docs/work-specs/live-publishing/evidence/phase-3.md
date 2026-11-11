@@ -199,18 +199,36 @@ above. Review class: Risky (it moves when the draft's save runs, which is reload
 Written after the first build commit (8bdd8f2), before the review; a Rules-first `/so` challenges
 them separately from the code.
 
-- R1. A press on a control that sends first (Take, Re-take, Next, a quick button or one of its
-  picks, a live number's step) made while an edit is owed: the press's handler runs, and its send
-  starts, before the draft's save rewrites the stored productions.
+- R1. A press with a pointer on the button of a W1 Take path (Take for a graphic, picture,
+  folder or server cue; Re-take; Next, which also steps a folder; a quick button or one of its
+  picks; a live number's step), made while an edit is owed: the press's handler runs, and its
+  send starts, before the draft's save rewrites the stored productions. A keyboard press (SPACE,
+  R, N) or a hardware panel's command blurs nothing, sends from memory and saves afterwards.
+- R1a. A Take of a cue with typed OGraf data still saves before it sends, as before (D2,
+  `graphicVerbs.ts` `typedFirst`); R1 is about the save a blur owes, which that press then
+  finds already started. AC-1's paths have no typed data.
 - R2. What that press sends carries the edited value, read from memory.
-- R3. The edit is still saved, once, with the latest text: by the Take path's own save after its
-  send, or by the save the editor's blur owes, which runs after the press is over (pointer up,
-  pointer cancelled, or the window losing focus; at most 2 s after it is owed).
+- R3. The edit is still saved, by one stored write carrying the latest text: by the Take path's
+  own save after its send, or by the save the editor's blur owes, which runs after the press is
+  over (pointer up, pointer cancelled, or the window losing focus; at most 2 s after it is owed).
+  Whichever runs second finds nothing owed and writes nothing.
+- R3a. The typing before the press stays one undo step: its history group closes with the held
+  save. If a write the press makes through the history lands first, it closes the group before
+  it, so the typing is still one step, recorded after the press's.
 - R4. Nothing typed is lost if the page hides, closes or reloads at any moment after the press:
-  the edit stays owed until saved, and the page going saves what is owed at once.
+  the edit stays owed until saved, and the page going saves what is owed at once. A save that
+  fails or is refused leaves the edit owed, as before.
+- R4a. An edit to another cue never starts while an earlier cue's edit is owed: that edit's save
+  starts first, in its own history group. (Selecting another cue already saves at once; this
+  holds for any other way the editor could change cue.)
 - R5. An idle save (300 ms after the last keystroke) falling due while such a press is down waits
   for the press to end too.
 - R6. A blur not made by such a press (Tab, a click anywhere else, another control) saves at once,
-  as before, so a verb that reads the stored record sees the edit.
+  as before, so a verb that reads the stored record sees the edit. The account's request to save
+  everything (a pause, a sign-out) is never held.
 - R7. Once the page's session ends (it moves to another production), a held save never runs; what
   was owed was saved at the end.
+
+Revised after the Rules-first `/so` (grade B, 2026-11-11): R1 names every W1 path and the
+keyboard; R1a, R3a and R4a are new; R3, R4 and R6 say what a second save, a failed save and the
+account's request do. R4a needed one guard in `cueDraft.edit`, tested in `scripts/cue-draft.test.mjs`.
