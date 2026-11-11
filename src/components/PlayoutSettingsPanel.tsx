@@ -8,6 +8,7 @@ import {
   loadPlayoutSettings,
   pairingLinkForAnotherBrowser,
   playoutConfigured,
+  playoutPairingRevision,
   putOutputOnAir,
   savePlayoutSettings,
   serverAddress,
@@ -584,16 +585,17 @@ export default function PlayoutSettingsPanel({ outputUrl, canPutOutputOnAir, onO
 }
 
 export function usePlayoutPairing() {
-  const [scope, setScope] = useState(() => ({ settings: loadPlayoutSettings(), revision: 0 }));
+  const [scope, setScope] = useState(() => ({ settings: loadPlayoutSettings(), revision: playoutPairingRevision() }));
   useEffect(() => {
-    const refresh = (changed: boolean) => {
+    const refresh = () => {
       const settings = loadPlayoutSettings();
-      setScope(previous => changed || vmixPairing(previous.settings) !== vmixPairing(settings)
-        ? { settings, revision: previous.revision + 1 }
+      const revision = playoutPairingRevision();
+      setScope(previous => previous.revision !== revision || vmixPairing(previous.settings) !== vmixPairing(settings)
+        ? { settings, revision }
         : previous);
     };
-    const stop = watchPlayoutPairing(() => refresh(true));
-    refresh(false);
+    const stop = watchPlayoutPairing(refresh);
+    refresh();
     return stop;
   }, []);
   return scope;
@@ -602,10 +604,11 @@ export function usePlayoutPairing() {
 /** App-wide vMix setup is local to this browser. The Bridge supplies the available channels. */
 export function VmixSettings({ settings, revision }: ReturnType<typeof usePlayoutPairing>) {
   if (!bridgePaired(settings)) return null;
-  return <VmixSettingsForPairing key={revision} agentUrl={settings.agentUrl} agentToken={settings.agentToken} />;
+  return <VmixSettingsForPairing key={JSON.stringify([revision, vmixPairing(settings)])}
+    agentUrl={settings.agentUrl} agentToken={settings.agentToken} revision={revision} />;
 }
 
-function VmixSettingsForPairing({ agentUrl, agentToken }: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'>) {
+function VmixSettingsForPairing({ agentUrl, agentToken, revision }: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'> & { revision: number }) {
   const [connection, setConnection] = useState<VmixConnection>();
   const [retry, setRetry] = useState(0);
   const [checking, setChecking] = useState(false);
@@ -616,28 +619,30 @@ function VmixSettingsForPairing({ agentUrl, agentToken }: Pick<PlayoutSettings, 
   const [mediaFolder, setMediaFolder] = useState<string>();
   const [mediaProblem, setMediaProblem] = useState<string>();
   const [choosing, setChoosing] = useState(false);
+  const currentPairing = useCallback(() => revision === playoutPairingRevision()
+    && vmixPairing({ agentUrl, agentToken }) === vmixPairing(loadPlayoutSettings()), [agentUrl, agentToken, revision]);
   useEffect(() => {
     mounted.current = true;
     return () => { mounted.current = false; };
   }, []);
   useEffect(() => {
+    if (!currentPairing()) return;
     const current = ++request.current;
-    const now = { ...loadPlayoutSettings(), agentUrl, agentToken };
-    void testVmix(now, retry > 0).then(result => {
-      if (request.current !== current) return;
+    void testVmix(loadPlayoutSettings(), retry > 0).then(result => {
+      if (request.current !== current || !currentPairing()) return;
       setConnection(previous => result.supported === undefined && previous?.supported ? { ...result, supported: true } : result);
       setChecking(false);
     });
     return () => { request.current += 1; };
-  }, [agentUrl, agentToken, retry]);
+  }, [currentPairing, retry]);
   const media = connection?.media === true;
   useEffect(() => {
     if (!media) return;
-    const pairing = { ...loadPlayoutSettings(), agentUrl, agentToken };
     const read = () => {
-      const revision = ++mediaRead.current;
-      void vmixMediaFolder(pairing).then(reply => {
-        if (mediaRead.current !== revision || vmixPairing(pairing) !== vmixPairing(loadPlayoutSettings())) return;
+      if (!currentPairing()) return;
+      const reading = ++mediaRead.current;
+      void vmixMediaFolder(loadPlayoutSettings()).then(reply => {
+        if (mediaRead.current !== reading || !currentPairing()) return;
         if (reply.folder) {
           setMediaFolder(reply.folder);
           setMediaProblem(undefined);
@@ -645,22 +650,25 @@ function VmixSettingsForPairing({ agentUrl, agentToken }: Pick<PlayoutSettings, 
       });
     };
     read();
-    const stop = watchVmixMediaFolder(read);
+    const stop = watchVmixMediaFolder(() => {
+      setMediaFolder(undefined);
+      read();
+    });
     return () => {
       mediaRead.current += 1;
       stop();
     };
-  }, [agentUrl, agentToken, media, retry]);
+  }, [currentPairing, media, retry]);
   const chooseFolder = async () => {
+    if (!currentPairing()) return;
     const pairing = loadPlayoutSettings();
-    if (vmixPairing(pairing) !== vmixPairing({ agentUrl, agentToken })) return;
     setChoosing(true);
     setMediaProblem(undefined);
     const reply = await vmixMediaFolder(pairing, true);
     if (!mounted.current) return;
     setChoosing(false);
     // The folder-change signal starts a fresh /studio read. A chooser reply never sets the folder.
-    if (reply.result.state !== 'ok' && vmixPairing(pairing) === vmixPairing(loadPlayoutSettings())) {
+    if (reply.result.state !== 'ok' && currentPairing()) {
       setMediaProblem(reply.result.detail);
     }
   };

@@ -1282,11 +1282,49 @@ test('vMix media browses the selected folder and plays on separate clip and audi
   expect(bridge.actions).toEqual([]);
   expect(vmix.actions).toEqual([]);
 
+  // Both pairing transitions can arrive before React commits another render. The original
+  // Bridge really accepted this Take, but its reply cannot establish ownership in the new scope.
+  const takeSent = Promise.withResolvers<void>();
+  const releaseTake = Promise.withResolvers<void>();
+  const holdTake = async (route: Route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    takeSent.resolve();
+    await releaseTake.promise;
+    await route.fallback();
+  };
+  await page.route(BRIDGE + '/act', holdTake);
+  try {
+    await page.getByTestId('verb-take').click();
+    await takeSent.promise;
+    await page.evaluate(() => {
+      const key = 'spx-gfx-caspar';
+      const current = localStorage.getItem(key)!;
+      const other = JSON.stringify({ ...JSON.parse(current), agentUrl: 'http://127.0.0.1:8900' });
+      const changed = (oldValue: string, newValue: string) => {
+        window.dispatchEvent(new StorageEvent('storage', { key, storageArea: localStorage, oldValue, newValue }));
+      };
+      changed(current, other);
+      changed(other, current);
+    });
+    releaseTake.resolve();
+    await expect(page.getByTestId('production-note')).toContainText('The vMix connection changed.');
+    await expect(clipRow).not.toContainText('ON AIR');
+  } finally {
+    releaseTake.resolve();
+    await page.unroute(BRIDGE + '/act', holdTake);
+  }
+  await expect(page.getByTestId('verb-take')).toBeEnabled();
+  await page.getByTestId('verb-take').click();
+  await expect(clipRow).toContainText('ON AIR');
+  await page.getByTestId('verb-out').click();
+  await expect(clipRow).not.toContainText('ON AIR');
+
   await page.getByTestId('production-status').click();
   await panel.getByTestId('panel-playout-settings').click();
   const settings = page.getByTestId('playout-settings');
   const mediaFolder = settings.getByTestId('vmix-media-folder');
-  const choose = settings.getByRole('button', { name: 'Choose folder…' });
+  const choose = settings.getByTestId('vmix-choose-folder');
+  await expect(choose).toHaveAccessibleName('Choose folder…');
   await expect(mediaFolder).toHaveText(folder);
   await settleDurableWrites(page);
   const other = await page.context().newPage();
@@ -1375,6 +1413,24 @@ test('vMix media browses the selected folder and plays on separate clip and audi
       await pairedFromOtherTab(BRIDGE);
       await expect(mediaFolder).toHaveText(chosen);
       expect(media.choices).toBe(3);
+
+      const unsettled = { hop: 'agent' as const, code: 'uncertain' as const, detail: 'The folder save is still settling.' };
+      media.chooseError = unsettled;
+      const pendingStudio = (route: Route) => route.fulfill({
+        json: { ok: false, v: 2, error: unsettled }, headers: { 'Access-Control-Allow-Origin': '*' },
+      });
+      await page.route(BRIDGE + '/studio', pendingStudio);
+      try {
+        await choose.click();
+        await expect(settings.getByText(unsettled.detail, { exact: true })).toBeVisible();
+        await expect(mediaFolder).toHaveCount(0);
+        await expect(choose).toBeEnabled();
+      } finally {
+        media.chooseError = undefined;
+        await page.unroute(BRIDGE + '/studio', pendingStudio);
+      }
+      await choose.click();
+      await expect(mediaFolder).toHaveText(chosen);
     } finally {
       finishChoice.resolve();
     }

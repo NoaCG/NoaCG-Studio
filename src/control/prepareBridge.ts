@@ -41,7 +41,7 @@ export async function gatherBridgeFacts(
     const result = connection.result ?? unavailable;
     const status = !connection.media && result.state === 'ok' ? unavailable : result;
     if (!canReadServerFiles(status, true)) return { ...base, status };
-    const files = await findServerFiles({ listLibrary, listVmixMedia }, settings, items);
+    const files = await findServerFiles({ listLibrary, listVmixMedia }, settings, items, vmixCurrent);
     if (!vmixCurrent()) return base;
     return {
       ...base, status,

@@ -60,6 +60,10 @@ import {
   type VmixStateReply,
 } from './playoutProtocol';
 
+import { vmixPairing } from './playoutStatus';
+
+export { vmixPairing } from './playoutStatus';
+
 const STORE_KEY = 'spx-gfx-caspar';
 const STORE_V = 1;
 
@@ -196,28 +200,37 @@ export function savePlayoutSettings(patch: Partial<PlayoutSettings>): void {
   const was = loadPlayoutSettings();
   const next = { ...was, ...patch };
   const studioChanged = !sameStudio(studioOf(was), studioOf(normalized(next)));
-  writeSettings(studioChanged ? { ...next, studioPending: { host: next.host.trim(), port: next.amcpPort } } : next);
+  writeSettings(studioChanged ? { ...next, studioPending: { host: next.host.trim(), port: next.amcpPort } } : next, was);
 }
 
 const playoutPairingListeners = new Set<() => void>();
+let pairingRevision = 0;
 
-/** Settings also observes writes from other tabs. The event identifies a transition even if the
- *  saved pairing has already switched back by the time the event runs. */
+export const playoutPairingRevision = () => pairingRevision;
+
+function pairingChanged(): void {
+  pairingRevision += 1;
+  mediaFolderRevision += 1;
+  currentVmixMediaPairings.clear();
+  for (const listener of playoutPairingListeners) listener();
+}
+
+// A storage event identifies a transition even if the browser has already switched back.
+function pairingStorageChanged({ storageArea, key, oldValue, newValue }: StorageEvent): void {
+  if (storageArea !== localStorage || (key !== STORE_KEY && key !== null)) return;
+  if (key === null || vmixPairing(readPlayoutSettings(oldValue)) !== vmixPairing(readPlayoutSettings(newValue))) pairingChanged();
+}
+
 export function watchPlayoutPairing(onChange: () => void): () => void {
-  const onStorage = ({ storageArea, key, oldValue, newValue }: StorageEvent) => {
-    if (storageArea !== localStorage || (key !== STORE_KEY && key !== null)) return;
-    if (key === null || vmixPairing(readPlayoutSettings(oldValue)) !== vmixPairing(readPlayoutSettings(newValue))) onChange();
-  };
+  if (!playoutPairingListeners.size) window.addEventListener('storage', pairingStorageChanged);
   playoutPairingListeners.add(onChange);
-  window.addEventListener('storage', onStorage);
   return () => {
     playoutPairingListeners.delete(onChange);
-    window.removeEventListener('storage', onStorage);
+    if (!playoutPairingListeners.size) window.removeEventListener('storage', pairingStorageChanged);
   };
 }
 
-function writeSettings(settings: PlayoutSettings): void {
-  const previousPairing = playoutPairingListeners.size ? vmixPairing(loadPlayoutSettings()) : undefined;
+function writeSettings(settings: PlayoutSettings, previous: PlayoutSettings): void {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify({ ...settings, v: STORE_V }));
   } catch {
@@ -225,9 +238,7 @@ function writeSettings(settings: PlayoutSettings): void {
     // render-adjacent path costs the whole app.
     return;
   }
-  if (previousPairing !== undefined && previousPairing !== vmixPairing(settings)) {
-    for (const listener of playoutPairingListeners) listener();
-  }
+  if (vmixPairing(previous) !== vmixPairing(settings)) pairingChanged();
 }
 
 /** Enough filled in to be worth trying at all. */
@@ -921,7 +932,7 @@ async function syncWith(settings: PlayoutSettings, list: RememberedServer[]): Pr
     const now = loadPlayoutSettings();
     // Changed here while the Bridge was asked: decide again from what the browser holds now.
     if (pendingServer(now) || !sameStudio(studioOf(now), sent)) return syncWith(now, servers);
-    writeSettings({ ...now, ...studioFields(step.studio) });
+    writeSettings({ ...now, ...studioFields(step.studio) }, now);
     return { keeper: 'bridge', changed: true, servers };
   }
   if (step.kind === 'push') {
@@ -939,7 +950,7 @@ async function syncWith(settings: PlayoutSettings, list: RememberedServer[]): Pr
  *  the setup again since, in which case that change still waits for its own turn. */
 function settlePending(sent: StudioSetup): void {
   const now = loadPlayoutSettings();
-  if (now.studioPending && sameStudio(studioOf(now), sent)) writeSettings({ ...now, studioPending: undefined });
+  if (now.studioPending && sameStudio(studioOf(now), sent)) writeSettings({ ...now, studioPending: undefined }, now);
 }
 
 /** The server a change waits for, when one does and the record says a server. */
@@ -1373,15 +1384,11 @@ export function watchVmixMediaFolder(onChange: () => void): () => void {
 }
 
 function announceVmixMediaFolder(settings: PlayoutSettings): void {
-  if (vmixPairing(settings) === vmixPairing(loadPlayoutSettings())) signalVmixMediaFolderChange();
+  if (mediaBridgeUrl(settings) === mediaBridgeUrl(loadPlayoutSettings())) signalVmixMediaFolderChange();
   if (typeof BroadcastChannel !== 'function') return;
   const channel = mediaFolderChannel ?? new BroadcastChannel(VMIX_MEDIA_FOLDER_CHANGED);
   channel.postMessage(mediaBridgeUrl(settings));
   if (channel !== mediaFolderChannel) channel.close();
-}
-
-export function vmixPairing(settings: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'>): string {
-  return JSON.stringify([settings.agentUrl, settings.agentToken]);
 }
 
 /** The media capability belongs to the paired Bridge. Listing and folder setup need no mixer. */
@@ -1437,14 +1444,15 @@ export async function actVmixMedia(
   if (action.slot.adapter !== 'vmix' || !('player' in action.slot)) {
     return { state: 'config', detail: 'This cue has no vMix player.' };
   }
+  const evidence = currentVmixMediaPairings.get(pairing);
   const call = await callBridge(settings.agentUrl, '/act', { target: vmixTarget, action }, ACT_TIMEOUT_MS, settings.agentToken, 'vmix');
   const { result } = readVmixReply(settings, call, '/act', action.verb === 'take', true);
   // vMix can refuse cleanup after the requested clip has started. A failed dispatched action
   // cannot authorize transport on the previous cue without a fresh accepted Take.
   const refusedBeforeDispatch = 'http' in call && (call.http === 401 || call.http === 403) && !result.unknownAction;
   if (result.state !== 'ok' && !refusedBeforeDispatch) {
-    currentVmixMediaPairings.delete(pairing);
-    if (known && !('http' in call)) {
+    if (currentVmixMediaPairings.get(pairing) === evidence) currentVmixMediaPairings.delete(pairing);
+    if (known && !('http' in call) && canSend()) {
       const diagnosis = await probeVmix(settings.agentUrl);
       if (diagnosis.kind !== 'current') {
         return { ...result, ...diagnosis.result, detail: `${diagnosis.result.detail} ${result.detail}`, playerUncertain: true };

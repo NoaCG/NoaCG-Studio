@@ -1196,10 +1196,11 @@ test('an uncertain vMix folder choice invalidates outstanding reads in both pair
 });
 
 test('Settings pairing observers see local changes and cross-tab switch-back', async (t) => {
-  const { savePlayoutSettings, watchPlayoutPairing } = await import('../src/control/playoutLink.ts');
+  const { savePlayoutSettings, watchPlayoutPairing, playoutPairingRevision, vmixMediaFolderRevision } = await import('../src/control/playoutLink.ts');
   const events = new EventTarget();
   let stop = () => {};
-  t.after(() => stop());
+  let stopSecond = () => {};
+  t.after(() => { stop(); stopSecond(); });
   const saved = new Map();
   const storage = { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value) };
   for (const [name, value] of Object.entries({ window: events, localStorage: storage })) {
@@ -1209,7 +1210,10 @@ test('Settings pairing observers see local changes and cross-tab switch-back', a
   }
   savePlayoutSettings(settings);
   let observed = 0;
+  let second = 0;
+  const start = [playoutPairingRevision(), vmixMediaFolderRevision()];
   stop = watchPlayoutPairing(() => { observed += 1; });
+  stopSecond = watchPlayoutPairing(() => { second += 1; });
   savePlayoutSettings({ layer: 31 });
   assert.equal(observed, 0);
   savePlayoutSettings({ agentToken: 'new-token' });
@@ -1223,9 +1227,13 @@ test('Settings pairing observers see local changes and cross-tab switch-back', a
   changed(current, other);
   changed(other, current);
   assert.equal(observed, 4, 'both transitions are observed even though storage already reads the original pairing');
+  assert.equal(second, 4);
+  assert.deepEqual([playoutPairingRevision(), vmixMediaFolderRevision()], start.map(revision => revision + 4),
+    'each transition retires the previous evidence once, independent of subscriber count');
   stop();
   changed(current, other);
   assert.equal(observed, 4);
+  assert.equal(second, 5);
 });
 
 test('a stale vMix folder chooser sends no request and an in-flight result still notifies its originating Bridge', async (t) => {
@@ -1275,6 +1283,69 @@ test('a stale vMix folder chooser sends no request and an in-flight result still
     settings.agentUrl + '/vmix/choose-folder', 'Bearer fixture-token',
   ]));
   assert.deepEqual(notifications, [settings.agentUrl, settings.agentUrl], 'only the originating address is published');
+
+  const sameAddress = Promise.withResolvers();
+  reply = sameAddress.promise;
+  stored = settings;
+  const choosing = first.vmixMediaFolder(settings, true);
+  stored = { ...settings, agentToken: next.agentToken };
+  sameAddress.resolve(Response.json({ ...ok, mediaFolder: 'C:/Selected' }));
+  await choosing;
+  assert.equal(first.vmixMediaFolderRevision(), before + 1, 'new credentials still read the same Bridge folder');
+  assert.deepEqual(notifications, [settings.agentUrl, settings.agentUrl, settings.agentUrl]);
+});
+
+test('a previous pairing lifetime cannot restore or clear the new vMix capability', async (t) => {
+  const { savePlayoutSettings, watchPlayoutPairing, playoutPairingRevision } = await import('../src/control/playoutLink.ts');
+  const events = new EventTarget();
+  const saved = new Map();
+  let stop = () => {};
+  t.after(() => stop());
+  for (const [name, value] of Object.entries({
+    window: events, localStorage: { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value) },
+  })) {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, name);
+    Object.defineProperty(globalThis, name, { configurable: true, value });
+    t.after(() => previous ? Object.defineProperty(globalThis, name, previous) : delete globalThis[name]);
+  }
+  savePlayoutSettings(settings);
+  stop = watchPlayoutPairing(() => {});
+  forgetBridges();
+  const capability = { ...health, features: ['vmix-media'] };
+  const action = { verb: 'take', slot: { adapter: 'vmix', player: 'clips' }, item: { kind: 'media', name: 'clip.mov' } };
+  const actionReply = { ...acted, instance: 'fixture.play-1' };
+  let pendingAction;
+  let pendingHealth;
+  const paths = [];
+  t.mock.method(globalThis, 'fetch', async url => {
+    const path = new URL(url).pathname;
+    paths.push(path);
+    if (path === '/act') return pendingAction?.promise ?? Response.json(actionReply);
+    if (path === '/health') return pendingHealth?.promise ?? Response.json(capability);
+    assert.equal(path, '/status');
+    return Response.json(status);
+  });
+  assert.equal((await testVmix(settings)).media, true);
+  const before = playoutPairingRevision();
+  const oldAction = Promise.withResolvers();
+  const oldHealth = Promise.withResolvers();
+  pendingAction = oldAction;
+  const acting = actVmixMedia(settings, action, () => playoutPairingRevision() === before);
+  pendingAction = undefined;
+  pendingHealth = oldHealth;
+  const checking = testVmix(settings);
+  pendingHealth = undefined;
+
+  savePlayoutSettings({ agentToken: 'another-pairing' });
+  savePlayoutSettings({ agentToken: settings.agentToken });
+  assert.equal((await testVmix(settings)).media, true);
+  oldHealth.resolve(Response.json(capability));
+  oldAction.resolve(new Response('{', { status: 502 }));
+  assert.equal((await checking).media, undefined);
+  assert.equal((await acting).playerUncertain, true);
+  paths.length = 0;
+  assert.equal((await actVmixMedia(settings, action, () => true)).state, 'ok');
+  assert.deepEqual(paths, ['/act'], 'a failed old action cannot delete capability established by the new pairing');
 });
 
 test('a known vMix media pairing sends directly and rechecks capability after a lost action reply', async (t) => {

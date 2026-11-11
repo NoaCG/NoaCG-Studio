@@ -22,6 +22,10 @@ import type { PlayoutSettings, PlayoutState } from './playoutLink';
 import { bridgeAnswersLabel } from './prepareLive.ts';
 import { plural, type ReadySummary, type ReadyTone } from './readiness.ts';
 
+export function vmixPairing(settings: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'>): string {
+  return JSON.stringify([settings.agentUrl, settings.agentToken]);
+}
+
 /** READY's four, in the same colours. */
 export type StatusTone = ReadyTone;
 

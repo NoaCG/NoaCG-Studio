@@ -49,6 +49,7 @@ import {
   channelOf,
   vmixPairing,
   vmixMediaFolderRevision,
+  watchPlayoutPairing,
   watchVmixMediaFolder,
   currentProductionPlayout,
   loadPlayoutSettings,
@@ -308,6 +309,7 @@ const BRIDGE_IO: BridgeWatchIo = {
   listLibrary,
   listVmixMedia,
   vmixMediaRevision: vmixMediaFolderRevision,
+  watchPlayoutPairing,
   syncStudio,
   rememberOutput: (showId, target) => saveReadyMemory(showId, { ...loadReadyMemory(showId), casparOutput: target }),
   loadedOutput: (showId) => loadReadyMemory(showId).casparLoaded ?? null,
@@ -1387,7 +1389,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       rundown: () => rundownRef.current,
       slots: { itemSlot, folderSlot },
       serverPlayout,
-      settingsChanged: () => setPlayoutSettingsRev((n) => n + 1),
+      settingsChanged: () => {
+        setPlayoutSettingsRev((n) => n + 1);
+        setVmixMediaRev(vmixMediaFolderRevision());
+      },
       learnt: (showId, facts) => setShows(fillPlayoutItemFacts(showId, facts)),
       reload: () => reloadRef.current(),
     });
