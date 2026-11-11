@@ -74,7 +74,7 @@
       "sourceSha": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
       "branch": "codex/plan-editor-r1-5-e3-build",
       "worktree": "/workspace/noacg-editor-r1-5-e3-build",
-      "note": "E3 builder active finishing reviewable changes after first corrected-help recheck safely refused malformed output; real quality unverified. Paid calls stopped; fresh independent read-only diagnose requested. E2/quarantine closure preserved."
+      "note": "E3 active: fresh independent diagnose recommends final native structured-output repair; Rules-first/deterministic validation before one explicitly bounded final Help verification. Original5of6 sample and failed first recheck preserved; no queue without actual acceptance."
     }
   ],
   "owner": [],
@@ -695,7 +695,7 @@
       "sample": "original six-task evaluation, all HTTP200 one attempt, estimatedUSD0.104124; machineExecutionPASS only",
       "independentActor": "/root/editor_r15_e3_builder/e3_model_quality",
       "finding": "5/6 quality; help-out FAIL: invented Rehearse/Next controls in authoring timeline. Original answer/output/finding retained. Successful reviewed edits/default/position/create/atomic-refusal individually correct.",
-      "current": "Paid calls stopped. Finish unaffected evidence, source/check/review and concrete draft/blocked PR; one fresh read-only independent diagnose requested under existing shared loop. No further product/model action before verdict/authority reconciliation.",
+      "current": "Fresh independent diagnose REPAIR accepted for final scoped native JSON-schema correction and explicit bounded final help quality verification only after cost-bound review. Earlier six sample/consumed first recheck remain unchanged; any subsequent failure stops.",
       "budget": "original sample cap6 unchanged; cumulativeUSD2 unchanged; recheck1call/1attempt, same provider/native model/key/funding/no fallback. No further paid call authorized by this coordinator instruction.",
       "access": "Real self-hosted managed/BYOK; hosted guards/rate-limit/timeout/ownership simulated in applicable gateway tests. Generic assistant has per-IP60/60s cap, not distinct Lite/Pro daily allowance surface; exact source mapping pending independent review.",
       "firstRecheck": {
@@ -704,6 +704,19 @@
         "result": "HTTP502 malformed_response, expected structured result absent, retryablefalse; one product call/no fallback; safe refusal/no source write",
         "quality": "corrected-help UNVERIFIED; not a repeated hallucination finding; original six sample remains5of6"
       }
+    },
+    "terminalReviewers": {
+      "receipt": "receipts/e3-terminal-reviewers.json",
+      "archive": "three completed reviewers read back and app confirmed archived; builder/diagnoser remain active"
+    },
+    "freshDiagnose": {
+      "actor": "/root/editor_r15_e3_builder/e3_diagnose",
+      "head": "b08176a144de3ff8d8d3656f819de5c5d5d22f4c",
+      "verdict": "REPAIR: ONE FINAL exact-native structured-output repair, prior paid work stopped",
+      "evidence": "auto tool choice is optional while parser requires named tool_use; installed native SDK0.133.0 documents output_config.format JSON schema and existing native capability metadata supports it, application schemas still require verification",
+      "uncertainty": "no raw discarded content/exact parse branch; previous failed recheck usage/cost UNKNOWN, not zero",
+      "limit": "explicit replacement rule+fresh Rules-first before code; deterministic schema/parser/accounting tests; exact native route only; no arbitrary prose acceptance, retry, fallback/provider/model/key/default/funding/ceiling change",
+      "coordinatorDisposition": "Existing approved E3 scope/shared loop authorizes final scoped repair. Separate explicit coordinator authorization for exactly ONE final help-out quality verification,1call/1attempt/no fallback, after deterministic checks/pinned source and conservative worst-case cumulative cost including old unknown recheck fits unchangedUSD2. Return bound before call. No successful task reruns. Any later failure STOP same run; no further patch/call."
     }
   }
 }
