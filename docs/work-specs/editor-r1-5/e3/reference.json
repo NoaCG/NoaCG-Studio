@@ -1,0 +1,33 @@
+{
+  "result": "PASS",
+  "at": "2026-11-11T13:21:07.245Z",
+  "requestedPin": "3142fc7d02934494931eb14e7dc255393e4110d0",
+  "executedSource": "a1e9776120fa19d9f3f9d40ab4b10ae1be034347",
+  "version": "0.17.0",
+  "binarySha256": "9ba1de317cdc8380c38a694f1d201964d7b805833597419111dab9eea9a02681",
+  "sourceCorrespondence": "Only .github/workflows/release.yml differs; editor and runtime source identical to requested pin",
+  "viewport": {
+    "width": 1366,
+    "height": 768
+  },
+  "task": "Create text, set Morning dispatch, change Evening dispatch, move X +40, explicit Edit Undo/Redo",
+  "beforeX": 100,
+  "afterUndo": {
+    "text": "Evening dispatch",
+    "x": 100
+  },
+  "afterRedo": {
+    "text": "Evening dispatch",
+    "x": 140
+  },
+  "errors": [],
+  "firstAttempt": "j-0018 FAIL: rapid completed edits coalesced into one documented500ms reference history burst; Undo removed layer",
+  "settledAttempt": "j-0019 PASS; waits550ms for each reference action to settle, not a performance measurement",
+  "relevantSource": [
+    "apps/editor/src/canvas/AddElementToolbar.tsx",
+    "apps/editor/src/panels/InspectorPanel.tsx",
+    "apps/editor/src/panels/Menubar.tsx",
+    "apps/editor/src/state/historyStore.ts"
+  ],
+  "comparison": "Both editors change wording, move X+40, and restore exact properties with undo/redo. NoaCG isolates completed operations; reference batches edits within500ms. Reference has no equivalent qualified NoaCG source/operator-field/export preservation or grounded Help contract. No broad parity or usability claim."
+}

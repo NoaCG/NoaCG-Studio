@@ -11,6 +11,7 @@ async function setup(page: Page) {
     (await import('/src/ai/settings.ts')).saveAiSettings({ provider: 'openai', model: 'deterministic-test', configuredProviders: ['openai'] });
   });
   await page.getByRole('button', { name: 'Assistant', exact: true }).click();
+  await page.getByRole('group', { name: 'Assistance mode' }).getByRole('button', { name: 'Edit', exact: true }).click();
 }
 async function propose(page: Page, prompt = 'Change the public text default to Reviewed default') {
   await page.getByRole('textbox', { name: 'Describe an edit', exact: true }).fill(prompt);
@@ -103,8 +104,8 @@ test('delayed response refuses changed context and disappears on document remoun
   await expect(page.getByRole('button', { name: 'Apply edits', exact: true })).toHaveCount(0); expect(await snapshot(page)).toEqual(reopened);
 });
 
-for (const failure of ['rate_limited', 'provider_rejected', 'unavailable', 'network'] as const) test(failure + ' retains manual editing', async ({ page }) => {
-  await page.route('**/api/ai/generate', route => failure === 'network' ? route.abort('failed') : route.fulfill({ status: failure === 'unavailable' ? 503 : 429, json: { error: { code: failure, message: failure, retryable: false } } }));
+for (const failure of ['rate_limited', 'timeout', 'provider_rejected', 'unavailable', 'network'] as const) test(failure + ' retains manual editing', async ({ page }) => {
+  await page.route('**/api/ai/generate', route => failure === 'network' ? route.abort('failed') : route.fulfill({ status: failure === 'unavailable' ? 503 : failure === 'timeout' ? 504 : 429, json: { error: { code: failure, message: failure, retryable: false } } }));
   await setup(page); const before = await snapshot(page); await propose(page);
   await expect(page.locator('[data-testid=editor-proposals] [role=alert]')).toBeVisible(); expect(await snapshot(page)).toEqual(before);
   await page.getByRole('button', { name: 'Close assistant', exact: true }).click();
@@ -145,7 +146,7 @@ test('unconfigured assistant leaves offline authoring available', async ({ page 
   await page.goto('/app?editor=foundation#/editor-foundation'); await expect(page.getByTestId('editor-foundation')).toBeVisible();
   await page.getByRole('button', { name: 'Assistant', exact: true }).click();
   await expect(page.getByText('Configure AI in New graphic → AI settings. Manual editing is available.', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Propose edits', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Ask', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Close assistant', exact: true }).click();
   await page.getByRole('button', { name: 'ellipse tool', exact: true }).click();
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-tool', 'ellipse');
@@ -173,4 +174,121 @@ test('review describes the dimensions actually used by point text and shapes', a
   expect(after.history.undo).toBe(before.history.undo + 1);
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   expect((await snapshot(page)).source).toEqual(before.source);
+});
+
+async function askHelp(page: Page, question = 'How do I add an Out for the selected title?') {
+  await page.getByRole('group', { name: 'Assistance mode' }).getByRole('button', { name: 'Help', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Ask about this graphic', exact: true }).fill(question);
+  const sent = page.waitForRequest('**/api/ai/generate');
+  const accepted = await page.evaluate(async () => (await import('/src/ai/consent.ts')).noticeAcceptedLocally());
+  await page.getByRole('button', { name: 'Ask', exact: true }).click();
+  if (!accepted) await page.getByTestId('ai-consent-accept').click();
+  await sent;
+}
+
+test('help is grounded in current controls and selection, read-only and rendered as text', async ({ page }) => {
+  let request: { request: { messages: { content: string }[] } } | undefined;
+  const answer = 'For f0, move the playhead and use Set Out at playhead. <img src=x onerror=alert(1)>';
+  await page.route('**/api/ai/generate', route => { request = route.request().postDataJSON(); return route.fulfill({ json: response({ answer }) }); });
+  await setup(page);
+  await page.evaluate(async () => {
+    const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands();
+    const i = c.inspect(); if (!i.ok) throw Error(i.refusal.message);
+    const selected = c.view({ expected: i.expected, action: 'select', targetIds: ['f0'] });
+    if (!selected.ok) throw Error(selected.refusal.message);
+    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().setSampleValue('f0', 'PRIVATE_REHEARSAL_SENTINEL');
+    await new Promise(resolve => setTimeout(resolve, 0));
+  });
+  const before = await snapshot(page);
+  await askHelp(page);
+  await expect(page.getByRole('region', { name: 'Editor help' })).toHaveText(answer);
+  expect(await snapshot(page)).toEqual(before);
+  await expect(page.getByRole('button', { name: 'Apply edits', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Editor help' }).locator('img')).toHaveCount(0);
+  const payload = request!.request.messages[0].content;
+  const grounding = JSON.parse(payload);
+  expect(grounding.guide.join('\n')).toContain('Set Out at playhead');
+  expect(grounding.guideVersion).toBe(2);
+  for (const name of [...grounding.editorControls.transport.filter((name: string) => name !== 'Pause'), ...grounding.editorControls.exit]) {
+    await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
+  }
+  expect(grounding.editorControls.reverseChoices).toEqual(['Yes, reverse', 'No, author manually']);
+  expect(grounding.inspection.inspection.view.selectedIds).toEqual(['f0']);
+  expect(grounding.inspection.inspection.expected.documentId).toBeTruthy();
+  expect(grounding.inspection.catalog.commands).toHaveLength(6);
+  expect(payload).not.toContain('PRIVATE_REHEARSAL_SENTINEL');
+  expect(grounding.inspection.inspection.targets.find((t: { id: string }) => t.id === 'f0').text.fieldId).toBe('f0');
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Editor help' })).toHaveCount(0);
+  expect(await snapshot(page)).toEqual(before);
+});
+
+for (const output of [{ answer: 'Unexpected commands', commands: [edit] }, { answer: '' }]) test('invalid help output cannot become an edit: ' + JSON.stringify(output), async ({ page }) => {
+  await page.route('**/api/ai/generate', route => route.fulfill({ json: response(output) }));
+  await setup(page); const before = await snapshot(page); await askHelp(page);
+  await expect(page.getByRole('alert')).toContainText('invalid help answer');
+  await expect(page.getByRole('region', { name: 'Editor help' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Apply edits', exact: true })).toHaveCount(0);
+  expect(await snapshot(page)).toEqual(before);
+});
+
+// Independent transition oracle from E3 Rules 1–3. The expected outcomes are a table of
+// observable states, not an implementation of context tokens, generations or source guards.
+const helpOracle = [
+  { event: 'reply', outcome: 'answer' },
+  { event: 'cancel', outcome: 'quiet' },
+  { event: 'mode', outcome: 'quiet' },
+  { event: 'close', outcome: 'quiet' },
+  { event: 'selection-away-back', outcome: 'refuse' },
+  { event: 'source', outcome: 'refuse' },
+  { event: 'assets', outcome: 'refuse' },
+  { event: 'playhead', outcome: 'refuse' },
+  { event: 'sample', outcome: 'refuse' },
+  { event: 'gesture', outcome: 'refuse' },
+  { event: 'history-away-back', outcome: 'refuse' },
+] as const;
+for (const row of helpOracle) test('help ownership oracle: ' + row.event + ' → ' + row.outcome, async ({ page }) => {
+  let reply: (() => Promise<void>) | undefined;
+  await page.route('**/api/ai/generate', route => new Promise<void>(resolve => {
+    reply = async () => { await route.fulfill({ json: response({ answer: 'Current answer' }) }); resolve(); };
+  }));
+  await setup(page); await askHelp(page); await expect.poll(() => Boolean(reply)).toBe(true);
+  if (row.event === 'cancel') await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  else if (row.event === 'mode') await page.getByRole('group', { name: 'Assistance mode' }).getByRole('button', { name: 'Edit', exact: true }).click();
+  else if (row.event === 'close') await page.getByRole('button', { name: 'Close assistant', exact: true }).click();
+  else if (row.event !== 'reply') await page.evaluate(async event => {
+    const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(), s = c.session;
+    const store = (await import('/src/store/templateStore.ts')).useTemplateStore;
+    if (event === 'selection-away-back') { const v = s.port.view(); s.port.restore({ ...v, selectedParts: ['#f1'] }); s.observeView(); s.port.restore(v); s.observeView(); }
+    else if (event === 'playhead') { s.port.restore({ ...s.port.view(), time: .2 }); s.observeView(); }
+    else if (event === 'sample') store.getState().setSampleValue('f0', 'New rehearsal value');
+    else if (event === 'gesture') s.begin();
+    else if (event === 'history-away-back') { const i = c.inspect(); if (!i.ok) throw Error(i.refusal.message); const r = c.apply({ expected: i.expected, transactionId: 'oracle-history', commands: [{ id: 'text.set', args: { targetId: 'f0', text: 'Oracle history' } }] }); if (!r.ok) throw Error(r.refusal.message); s.undo(); }
+    else { const t = s.port.read(); store.getState().applyTemplate(event === 'assets' ? { ...t, assets: [...t.assets, { path: 'images/oracle.svg', mime: 'image/svg+xml', data: 'data:image/svg+xml;base64,PHN2Zy8+' }] } : { ...t, css: t.css + '\n/* oracle edit */' }); }
+    await new Promise(resolve => setTimeout(resolve, 0));
+  }, row.event);
+  const human = await snapshot(page); const received = page.waitForResponse('**/api/ai/generate');
+  await reply!(); await (await received).finished();
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  if (row.outcome === 'answer') await expect(page.getByRole('region', { name: 'Editor help' })).toHaveText('Current answer');
+  else {
+    if (row.outcome === 'refuse') await expect(page.getByRole('alert')).toBeVisible();
+    // Let the current request settle; then assert the invalidated handler stayed quiet.
+    await expect(page.getByText('Preparing answer…', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Editor help' })).toHaveCount(0);
+  }
+  await expect(page.getByRole('button', { name: 'Apply edits', exact: true })).toHaveCount(0);
+  expect(await snapshot(page)).toEqual(human);
+});
+
+for (const failure of ['rate_limited', 'timeout', 'network'] as const) test('help ' + failure + ' retains offline guide and manual editing', async ({ page }) => {
+  await page.route('**/api/ai/generate', route => failure === 'network' ? route.abort('failed') : route.fulfill({ status: failure === 'timeout' ? 504 : 429, json: { error: { code: failure, message: failure, retryable: true } } }));
+  await setup(page); const before = await snapshot(page); await askHelp(page);
+  await expect(page.getByRole('alert')).toBeVisible();
+  expect(await snapshot(page)).toEqual(before);
+  await page.getByText('Editing guide', { exact: true }).click();
+  await expect(page.locator('[data-testid=editor-proposals] details')).toContainText('Set Out at playhead');
+  await page.getByRole('button', { name: 'Close assistant', exact: true }).click();
+  await page.getByRole('button', { name: 'rectangle tool', exact: true }).click();
+  await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-tool', 'rectangle');
 });

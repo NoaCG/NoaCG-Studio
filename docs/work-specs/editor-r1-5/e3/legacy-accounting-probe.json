@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-11T14:09:41.204Z",
+  "head": "fda2cfdf9de35055d57299f0eeae90eff3f7ed70",
+  "mode": "deterministic injected HTTP200 reply only; no provider or database call",
+  "providerInputTokens": 17,
+  "providerOutputTokens": 23,
+  "errorCode": "malformed_response",
+  "servedUsageMissing": true,
+  "legacyParserByteIdenticalToBase": true,
+  "base": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+  "finding": "Pre-existing other-Anthropic-model malformed tool response loses served usage before accounting. Exact-native Sonnet5.5 path is repaired separately; older route untouched.",
+  "followUp": "https://github.com/NoaCG/NoaCG-Studio/issues/2385"
+}
