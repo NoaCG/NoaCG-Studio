@@ -42,16 +42,7 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {},
-  "inFlight": [
-    {
-      "step": "check",
-      "session": "/root/v3_checker",
-      "phase": "v3",
-      "pr": 2368,
-      "head": "e9b0c550082c540c925e2cce25ffdee093d2d7b3",
-      "note": "GitHub merged after the queue checks. The fresh independent checker was accepted on the exact merge and is verifying AC-7/8/9 and exact-main CI."
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [],
   "triggers": []
