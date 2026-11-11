@@ -1,0 +1,13 @@
+E1 final independent review, second full attempt
+Reviewed head 1c3a197a7b87f9468e732ce445488a88895f8e33
+Merge base 78ce3f35063386fdc7217d0542e3df871fc32b8d
+Branch codex/plan-editor-r1-5-e1-build, clean, 35 changed files, pushed
+Verdict AGREE WITH CORRECTIONS, grade B, below A gate
+
+Product defect, canonical SVG pivot precision. Exact generated interpreter and bundled GSAP plus production splitCue reproduced the unsplit .500 value as 100px between 100px and 100.000098px, and the split arriving .500 value as 100.000049px from stored 100000049. GSAP CSS complex strings round interpolated px to four decimals. Scale 16 causes a .000735 local translation jump over .0005, against an independent matrix. Keep the matrix oracle and all prior failures intact.
+
+Repeated ownership family, ordinary anchor. In its exact own CSS rule, duplicate --base-anchor-x values 100px and 50px produce different source reader and effective browser values. The Inspector uses the former and Enable X can jump painted rotation. An origin of 0 var(--base-anchor-y) permits ineffective X keying. Continue with a fresh ownership model reassessment before editing.
+
+Repeated hit-target family, close positive time. The actual flagLayouts function allows .4175 CSS px at .400/.401 on an 835px ruler and 2s extent, and 2.3857 CSS px at .400/.440 and 14s extent. The user needs separate use and unchanged exact times, so zero-only stacking does not resolve the family. Continue with a fresh ruler model reassessment before editing.
+
+Reviewer cross-cue suite 26/26 and diff check passed. Required CI and Codex PR review were not started. Local selection is provisional: 179 offline, 15 shards, catalog required, 65 configured, mode all. Native 125% and file receipts stay pinned to their operated candidate. No PR, no queue, no migration.

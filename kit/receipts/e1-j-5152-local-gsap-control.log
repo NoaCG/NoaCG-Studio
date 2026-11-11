@@ -1,0 +1,11 @@
+=== j-5152 node .noacg/e1-pivot-local-gsap-control.mjs
+=== cwd C:\claude\Temp\editor-r15-e1-build-1108
+{
+  "before": -1500000735,
+  "midway": -1500.000328,
+  "getter": -1500000328,
+  "afterKill": -1500.000328,
+  "rawProperty": 90,
+  "rawPivot": "40px",
+  "plugin": false
+}

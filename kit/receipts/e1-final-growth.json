@@ -1,0 +1,2672 @@
+{
+  "generatedAt": "2026-11-09T15:45:53.684Z",
+  "ceilingsVersion": 2,
+  "owner": "miwco (primary); the weekly owner session (backup coverage)",
+  "measurement": {
+    "source": "weekly growth report",
+    "windowStart": "2026-11-02",
+    "windowEnd": "2026-11-09",
+    "landings": 158,
+    "tiers": {
+      "offline": {
+        "perLanding": 375.5683339515619,
+        "perDay": 189.30833333333337,
+        "evidence": "partial",
+        "lowerBound": true,
+        "why": "configured-suite.yml|push: 1 read(s) failed"
+      },
+      "backend": {
+        "perLanding": 148.17878742214185,
+        "perDay": 79.14761904761905,
+        "evidence": "partial",
+        "lowerBound": true,
+        "why": "configured-suite.yml|push: 1 read(s) failed"
+      },
+      "graphics": {
+        "perLanding": 25.226738767561553,
+        "perDay": 90.1765873015873,
+        "evidence": "partial",
+        "lowerBound": true,
+        "why": "configured-suite.yml|push: 1 read(s) failed"
+      },
+      "overhead": {
+        "perLanding": 93.36625110121945,
+        "perDay": 10.478287981859411,
+        "evidence": "partial",
+        "lowerBound": true,
+        "why": "configured-suite.yml|push: 1 read(s) failed"
+      }
+    },
+    "jobs": {
+      "deploy-verify.yml/Deep link on the deployed bundle": {
+        "perLanding": 0,
+        "perDay": 1.4149659863945576
+      },
+      "deploy-verify.yml/Drift check (live vs main)": {
+        "perLanding": 0,
+        "perDay": 0.7414965986394558
+      },
+      "deploy-verify.yml/Verify production deployment": {
+        "perLanding": 0,
+        "perDay": 0
+      },
+      "alarm-test.yml/Raise one test alarm": {
+        "perLanding": 0.0008438818565400844,
+        "perDay": 0
+      },
+      "configured-suite.yml/Configured shard plan": {
+        "perLanding": 0.3442334739803094,
+        "perDay": 0.20714285714285713
+      },
+      "configured-suite.yml/Configured E2E shard 4/4": {
+        "perLanding": 15.096817862165965,
+        "perDay": 13.083333333333332
+      },
+      "configured-suite.yml/Configured E2E shard 1/4": {
+        "perLanding": 14.798909985935305,
+        "perDay": 13.178571428571429
+      },
+      "configured-suite.yml/Configured E2E shard 2/4": {
+        "perLanding": 15.327074542897329,
+        "perDay": 13.457142857142856
+      },
+      "configured-suite.yml/Configured E2E shard 3/4": {
+        "perLanding": 14.770868495077357,
+        "perDay": 13.423809523809524
+      },
+      "configured-suite.yml/Configured E2E (authenticated, local Supabase)": {
+        "perLanding": 0.5153832630098453,
+        "perDay": 0.41428571428571426
+      },
+      "configured-suite.yml/Configured quarantine": {
+        "perLanding": 0.09583333333333333,
+        "perDay": 0.026190476190476188
+      },
+      "ci.yml/Build": {
+        "perLanding": 30.768440595972244,
+        "perDay": 0
+      },
+      "ci.yml/Factory gates": {
+        "perLanding": 10.074025130987158,
+        "perDay": 0
+      },
+      "ci.yml/E2E plan": {
+        "perLanding": 2.5081235220475726,
+        "perDay": 0
+      },
+      "ci.yml/Vercel accepted the commit": {
+        "perLanding": 1.5820512820512822,
+        "perDay": 0
+      },
+      "ci.yml/Reviewed": {
+        "perLanding": 5.331108097247338,
+        "perDay": 0
+      },
+      "ci.yml/Catalog calibration gate": {
+        "perLanding": 25.226738767561553,
+        "perDay": 0
+      },
+      "ci.yml/E2E 6/15 (full)": {
+        "perLanding": 10.056237152439683,
+        "perDay": 0
+      },
+      "ci.yml/E2E 3/15 (full)": {
+        "perLanding": 9.705409499080384,
+        "perDay": 0
+      },
+      "ci.yml/E2E 4/15 (full)": {
+        "perLanding": 9.338293843990046,
+        "perDay": 0
+      },
+      "ci.yml/E2E 7/15 (full)": {
+        "perLanding": 9.197554906415665,
+        "perDay": 0
+      },
+      "ci.yml/E2E 9/15 (full)": {
+        "perLanding": 9.417588986259872,
+        "perDay": 0
+      },
+      "ci.yml/E2E 11/15 (full)": {
+        "perLanding": 9.02821865195283,
+        "perDay": 0
+      },
+      "ci.yml/E2E 10/15 (full)": {
+        "perLanding": 9.642561938764468,
+        "perDay": 0
+      },
+      "ci.yml/E2E 5/15 (full)": {
+        "perLanding": 8.794620253164556,
+        "perDay": 0
+      },
+      "ci.yml/E2E 8/15 (full)": {
+        "perLanding": 9.656066753218651,
+        "perDay": 0
+      },
+      "ci.yml/E2E 2/15 (full)": {
+        "perLanding": 9.31885480904468,
+        "perDay": 0
+      },
+      "ci.yml/E2E 1/15 (full)": {
+        "perLanding": 10.231932273071513,
+        "perDay": 0
+      },
+      "ci.yml/E2E 12/15 (full)": {
+        "perLanding": 10.036811641242021,
+        "perDay": 0
+      },
+      "ci.yml/E2E 15/15 (full)": {
+        "perLanding": 9.751003462079412,
+        "perDay": 0
+      },
+      "ci.yml/E2E 14/15 (full)": {
+        "perLanding": 9.599634858812074,
+        "perDay": 0
+      },
+      "ci.yml/E2E 13/15 (full)": {
+        "perLanding": 8.80603700097371,
+        "perDay": 0
+      },
+      "ci.yml/Guided mod (Claude Code ${{ matrix.claude-code }})": {
+        "perLanding": 0,
+        "perDay": 0
+      },
+      "ci.yml/Configured E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (selected, local Supabase)": {
+        "perLanding": 0,
+        "perDay": 0
+      },
+      "ci.yml/Configured E2E verdict (selected)": {
+        "perLanding": 0.7310628892907375,
+        "perDay": 0
+      },
+      "ci.yml/Re-run (failed Build or Factory job, same commit)": {
+        "perLanding": 0,
+        "perDay": 0
+      },
+      "ci.yml/Combined E2E report": {
+        "perLanding": 1.3378985641643868,
+        "perDay": 0
+      },
+      "ci.yml/CI gate": {
+        "perLanding": 0.5774392976924624,
+        "perDay": 0
+      },
+      "ci.yml/E2E retry (failed specs, same commit)": {
+        "perLanding": 0,
+        "perDay": 0
+      },
+      "ci.yml/After the gate": {
+        "perLanding": 0.535623869801085,
+        "perDay": 0
+      },
+      "ci.yml/Guided mod (Claude Code 2.1.287)": {
+        "perLanding": 0.028021205236395112,
+        "perDay": 0
+      },
+      "ci.yml/Guided mod (Claude Code 2.1.295)": {
+        "perLanding": 0.03606513036892784,
+        "perDay": 0
+      },
+      "ci.yml/E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (${{ needs.plan.outputs.mode }})": {
+        "perLanding": 0,
+        "perDay": 0
+      },
+      "codeql/Analyze (actions)": {
+        "perLanding": 3.254520795660036,
+        "perDay": 0
+      },
+      "codeql/Analyze (javascript-typescript)": {
+        "perLanding": 28.488848704038578,
+        "perDay": 0
+      },
+      "codeql/Analyze (python)": {
+        "perLanding": 3.867691380349608,
+        "perDay": 0
+      },
+      "post-land.yml/Apply migrations": {
+        "perLanding": 0.7761904761904762,
+        "perDay": 0
+      },
+      "post-land.yml/Delivery age alarms": {
+        "perLanding": 0.6261904761904763,
+        "perDay": 0
+      },
+      "quarantine.yml/Quarantined specs": {
+        "perLanding": 0.22142857142857147,
+        "perDay": 0
+      },
+      "quarantine.yml/Quarantine (e2e/production-chat-intake.spec.ts)": {
+        "perLanding": 0.1738095238095238,
+        "perDay": 0
+      },
+      "quarantine.yml/Quarantine (e2e/import-svg.spec.ts)": {
+        "perLanding": 0.41190476190476194,
+        "perDay": 0
+      },
+      "quarantine.yml/Quarantine (e2e/production-data.spec.ts)": {
+        "perLanding": 1.7071428571428569,
+        "perDay": 0
+      },
+      "quarantine.yml/Quarantine release": {
+        "perLanding": 0.5119047619047619,
+        "perDay": 0
+      },
+      "quarantine.yml/Quarantine (e2e/import-svg-credits.spec.ts)": {
+        "perLanding": 0.9309523809523809,
+        "perDay": 0
+      },
+      "quarantine.yml/Quarantine (e2e/editor-canvas-transforms.spec.ts)": {
+        "perLanding": 0.2380952380952381,
+        "perDay": 0
+      },
+      "quarantine.yml/Quarantine (e2e/imported-credits-live-data.spec.ts)": {
+        "perLanding": 0.3761904761904762,
+        "perDay": 0
+      },
+      "quarantine.yml/Quarantine (e2e/format.spec.ts)": {
+        "perLanding": 0.07857142857142858,
+        "perDay": 0
+      },
+      "quarantine.yml/Quarantine (e2e/output-debate-clock.spec.ts)": {
+        "perLanding": 0.7380952380952381,
+        "perDay": 0
+      },
+      "quarantine.yml/Quarantine (e2e/community-pack-lock.spec.ts)": {
+        "perLanding": 0.08333333333333334,
+        "perDay": 0
+      },
+      "ci.yml/E2E 2/15 (subset)": {
+        "perLanding": 15.08134418324292,
+        "perDay": 0
+      },
+      "ci.yml/E2E 4/15 (subset)": {
+        "perLanding": 14.331057866184448,
+        "perDay": 0
+      },
+      "ci.yml/E2E 8/15 (subset)": {
+        "perLanding": 13.866515973477998,
+        "perDay": 0
+      },
+      "ci.yml/E2E 3/15 (subset)": {
+        "perLanding": 15.781811332127791,
+        "perDay": 0
+      },
+      "ci.yml/E2E 10/15 (subset)": {
+        "perLanding": 15.830967450271247,
+        "perDay": 0
+      },
+      "ci.yml/E2E 13/15 (subset)": {
+        "perLanding": 15.494364074743821,
+        "perDay": 0
+      },
+      "ci.yml/E2E 7/15 (subset)": {
+        "perLanding": 15.208333333333332,
+        "perDay": 0
+      },
+      "ci.yml/E2E 6/15 (subset)": {
+        "perLanding": 15.33812537673297,
+        "perDay": 0
+      },
+      "ci.yml/E2E 14/15 (subset)": {
+        "perLanding": 15.319680530440023,
+        "perDay": 0
+      },
+      "ci.yml/E2E 1/15 (subset)": {
+        "perLanding": 14.990506329113927,
+        "perDay": 0
+      },
+      "ci.yml/E2E 12/15 (subset)": {
+        "perLanding": 13.27664255575648,
+        "perDay": 0
+      },
+      "ci.yml/E2E 5/15 (subset)": {
+        "perLanding": 12.214014466546113,
+        "perDay": 0
+      },
+      "ci.yml/E2E 11/15 (subset)": {
+        "perLanding": 13.063185654008441,
+        "perDay": 0
+      },
+      "ci.yml/E2E 9/15 (subset)": {
+        "perLanding": 14.596880650994576,
+        "perDay": 0
+      },
+      "ci.yml/E2E 15/15 (subset)": {
+        "perLanding": 12.43814044605184,
+        "perDay": 0
+      },
+      "ci.yml/E2E 2/13 (subset)": {
+        "perLanding": 0.6349608197709464,
+        "perDay": 0
+      },
+      "ci.yml/E2E 9/13 (subset)": {
+        "perLanding": 0.44364074743821574,
+        "perDay": 0
+      },
+      "ci.yml/E2E 3/13 (subset)": {
+        "perLanding": 0.5878239903556359,
+        "perDay": 0
+      },
+      "ci.yml/E2E 8/13 (subset)": {
+        "perLanding": 0.4796865581675708,
+        "perDay": 0
+      },
+      "ci.yml/E2E 5/13 (subset)": {
+        "perLanding": 0.4852320675105485,
+        "perDay": 0
+      },
+      "ci.yml/E2E 12/13 (subset)": {
+        "perLanding": 0.5850512356841471,
+        "perDay": 0
+      },
+      "ci.yml/E2E 11/13 (subset)": {
+        "perLanding": 0.4963230861965039,
+        "perDay": 0
+      },
+      "ci.yml/E2E 10/13 (subset)": {
+        "perLanding": 0.4519590114526823,
+        "perDay": 0
+      },
+      "ci.yml/E2E 13/13 (subset)": {
+        "perLanding": 0.5351416515973478,
+        "perDay": 0
+      },
+      "ci.yml/E2E 1/13 (subset)": {
+        "perLanding": 0.7209162145871005,
+        "perDay": 0
+      },
+      "ci.yml/E2E 7/13 (subset)": {
+        "perLanding": 0.4519590114526823,
+        "perDay": 0
+      },
+      "ci.yml/E2E 6/13 (subset)": {
+        "perLanding": 0.42423146473779383,
+        "perDay": 0
+      },
+      "ci.yml/E2E 4/13 (subset)": {
+        "perLanding": 0.7125979505726341,
+        "perDay": 0
+      },
+      "ci.yml/E2E 1/1 (subset)": {
+        "perLanding": 0.5622965641952984,
+        "perDay": 0
+      },
+      "cloud-queue-merge.yml/Stamp, label and queue": {
+        "perLanding": 0.3069318866787222,
+        "perDay": 0
+      },
+      "ci.yml/Configured E2E 3/4 (selected, local Supabase)": {
+        "perLanding": 18.79216897729556,
+        "perDay": 0
+      },
+      "ci.yml/Configured E2E 1/4 (selected, local Supabase)": {
+        "perLanding": 18.482167972674304,
+        "perDay": 0
+      },
+      "ci.yml/Configured E2E 4/4 (selected, local Supabase)": {
+        "perLanding": 19.820800683142455,
+        "perDay": 0
+      },
+      "ci.yml/Configured E2E 2/4 (selected, local Supabase)": {
+        "perLanding": 18.70855937311633,
+        "perDay": 0
+      },
+      "ci.yml/Configured E2E 1/2 (selected, local Supabase)": {
+        "perLanding": 4.3374773960217,
+        "perDay": 0
+      },
+      "ci.yml/Configured E2E 2/2 (selected, local Supabase)": {
+        "perLanding": 3.6367540687160944,
+        "perDay": 0
+      },
+      "feedback-digest.yml/Mail yesterday's feedback": {
+        "perLanding": 0,
+        "perDay": 0.2261904761904762
+      },
+      "nightly-drift.yml/Schedule watch - configured-suite.yml": {
+        "perLanding": 0,
+        "perDay": 0.2095238095238095
+      },
+      "nightly-drift.yml/Schedule watch - catalog-gates.yml": {
+        "perLanding": 0,
+        "perDay": 0.2095238095238095
+      },
+      "nightly-drift.yml/Schedule watch - nightly.yml": {
+        "perLanding": 0,
+        "perDay": 1.4428571428571428
+      },
+      "weekly-audit.yml/audit": {
+        "perLanding": 0.035654008438818566,
+        "perDay": 0.08571428571428572
+      },
+      "weekly-audit.yml/Weekly growth report": {
+        "perLanding": 0.05358649789029536,
+        "perDay": 1.1071428571428572
+      },
+      "e2e-durations-refresh.yml/refresh": {
+        "perLanding": 0,
+        "perDay": 0.21666666666666665
+      },
+      "endurance.yml/trial:late-send-abandoned for 40 min": {
+        "perLanding": 0.8786919831223627,
+        "perDay": 0
+      },
+      "endurance.yml/trial:import-svg-growth-limit for 70 min": {
+        "perLanding": 0.9182489451476792,
+        "perDay": 0
+      },
+      "endurance.yml/trial:controls-adjust-measure for 75 min": {
+        "perLanding": 0.9551687763713079,
+        "perDay": 0
+      },
+      "endurance.yml/drill:stack-hold for 20 min": {
+        "perLanding": 0.18829113924050633,
+        "perDay": 0
+      },
+      "endurance.yml/drill:stack-concurrent for 1 min": {
+        "perLanding": 0.13924050632911394,
+        "perDay": 0
+      },
+      "endurance.yml/endurance:election for 60 min": {
+        "perLanding": 1.9910337552742614,
+        "perDay": 0
+      },
+      "catalog-gates.yml/Which designs": {
+        "perLanding": 0,
+        "perDay": 0.6095238095238095
+      },
+      "catalog-gates.yml/Type floor, overflow, field coverage, numerals": {
+        "perLanding": 0,
+        "perDay": 11.988095238095237
+      },
+      "catalog-gates.yml/Emit fingerprints and catalog specs": {
+        "perLanding": 0,
+        "perDay": 10.295238095238094
+      },
+      "jev-svg-eval.yml/evaluate": {
+        "perLanding": 0.22802893309222425,
+        "perDay": 0
+      },
+      "fit-sweep.yml/Fit sweep 3/4": {
+        "perLanding": 0,
+        "perDay": 15.611904761904759
+      },
+      "fit-sweep.yml/Fit sweep 1/4": {
+        "perLanding": 0,
+        "perDay": 9.764285714285716
+      },
+      "fit-sweep.yml/Fit sweep 2/4": {
+        "perLanding": 0,
+        "perDay": 5.897619047619047
+      },
+      "fit-sweep.yml/Fit sweep 4/4": {
+        "perLanding": 0,
+        "perDay": 13.43095238095238
+      },
+      "fit-sweep.yml/Fit sweep verdict": {
+        "perLanding": 0,
+        "perDay": 0.25952380952380955
+      },
+      "nightly.yml/Catalog calibration tripwire": {
+        "perLanding": 0,
+        "perDay": 10.266666666666667
+      },
+      "nightly.yml/Type floor, overflow sweep and field coverage": {
+        "perLanding": 0,
+        "perDay": 12.052777777777777
+      },
+      "nightly.yml/Nightly shard plan": {
+        "perLanding": 0,
+        "perDay": 0.30277777777777776
+      },
+      "nightly.yml/Nightly E2E 2/12": {
+        "perLanding": 0,
+        "perDay": 7.833333333333333
+      },
+      "nightly.yml/Nightly E2E 12/12": {
+        "perLanding": 0,
+        "perDay": 6.697222222222223
+      },
+      "nightly.yml/Nightly E2E 8/12": {
+        "perLanding": 0,
+        "perDay": 8.261111111111111
+      },
+      "nightly.yml/Nightly E2E 4/12": {
+        "perLanding": 0,
+        "perDay": 8.677777777777777
+      },
+      "nightly.yml/Nightly E2E 7/12": {
+        "perLanding": 0,
+        "perDay": 7.43611111111111
+      },
+      "nightly.yml/Nightly E2E 3/12": {
+        "perLanding": 0,
+        "perDay": 7.297222222222222
+      },
+      "nightly.yml/Nightly E2E 11/12": {
+        "perLanding": 0,
+        "perDay": 8.147222222222224
+      },
+      "nightly.yml/Nightly E2E 5/12": {
+        "perLanding": 0,
+        "perDay": 7.666666666666667
+      },
+      "nightly.yml/Nightly E2E 9/12": {
+        "perLanding": 0,
+        "perDay": 7.416666666666667
+      },
+      "nightly.yml/Nightly E2E 6/12": {
+        "perLanding": 0,
+        "perDay": 7.8999999999999995
+      },
+      "nightly.yml/Nightly E2E 1/12": {
+        "perLanding": 0,
+        "perDay": 8.152777777777777
+      },
+      "nightly.yml/Nightly E2E 10/12": {
+        "perLanding": 0,
+        "perDay": 8.152777777777779
+      },
+      "nightly.yml/Combined nightly report": {
+        "perLanding": 0,
+        "perDay": 0.775
+      },
+      "nightly.yml/Nightly verdict": {
+        "perLanding": 0,
+        "perDay": 0.25277777777777777
+      },
+      "nightly.yml/Nightly E2E 5/13": {
+        "perLanding": 0,
+        "perDay": 7.536111111111111
+      },
+      "nightly.yml/Nightly E2E 4/13": {
+        "perLanding": 0,
+        "perDay": 7.888888888888888
+      },
+      "nightly.yml/Nightly E2E 12/13": {
+        "perLanding": 0,
+        "perDay": 6.075
+      },
+      "nightly.yml/Nightly E2E 13/13": {
+        "perLanding": 0,
+        "perDay": 7.1305555555555555
+      },
+      "nightly.yml/Nightly E2E 10/13": {
+        "perLanding": 0,
+        "perDay": 7.491666666666667
+      },
+      "nightly.yml/Nightly E2E 6/13": {
+        "perLanding": 0,
+        "perDay": 7.486111111111112
+      },
+      "nightly.yml/Nightly E2E 7/13": {
+        "perLanding": 0,
+        "perDay": 7.2444444444444445
+      },
+      "nightly.yml/Nightly E2E 1/13": {
+        "perLanding": 0,
+        "perDay": 7.172222222222222
+      },
+      "nightly.yml/Nightly E2E 3/13": {
+        "perLanding": 0,
+        "perDay": 7.052777777777778
+      },
+      "nightly.yml/Nightly E2E 8/13": {
+        "perLanding": 0,
+        "perDay": 7.588888888888889
+      },
+      "nightly.yml/Nightly E2E 2/13": {
+        "perLanding": 0,
+        "perDay": 7.416666666666667
+      },
+      "nightly.yml/Nightly E2E 11/13": {
+        "perLanding": 0,
+        "perDay": 6.908333333333334
+      },
+      "nightly.yml/Nightly E2E 9/13": {
+        "perLanding": 0,
+        "perDay": 7.6000000000000005
+      },
+      "production-load.yml/Read the production database's load": {
+        "perLanding": 0.007594936708860759,
+        "perDay": 4.571428571428571
+      },
+      "hosted-latency.yml/Configured E2E against hosted staging 1/4": {
+        "perLanding": 0.6264416315049225,
+        "perDay": 6.25
+      },
+      "hosted-latency.yml/Configured E2E against hosted staging 2/4": {
+        "perLanding": 0.6022503516174403,
+        "perDay": 4.942857142857143
+      },
+      "hosted-latency.yml/Configured E2E against hosted staging 4/4": {
+        "perLanding": 0.7954992967651195,
+        "perDay": 6.75
+      },
+      "hosted-latency.yml/Configured E2E against hosted staging 3/4": {
+        "perLanding": 0.6917018284106892,
+        "perDay": 7.30952380952381
+      },
+      "hosted-latency.yml/Hosted staging verdict": {
+        "perLanding": 0.004781997187060478,
+        "perDay": 0.10476190476190476
+      },
+      "import-analysis-diagnostic.yml/diagnose": {
+        "perLanding": 0.002215189873417721,
+        "perDay": 0
+      },
+      "release-companion.yml/Rehearse or release?": {
+        "perLanding": 0.0035864978902953584,
+        "perDay": 0
+      },
+      "release-companion.yml/Test and package the module": {
+        "perLanding": 0.024542897327707456,
+        "perDay": 0
+      },
+      "release-companion.yml/Publish the module's Release": {
+        "perLanding": 0.0027426160337552744,
+        "perDay": 0
+      },
+      "release-companion.yml/Does this run release the module?": {
+        "perLanding": 0.009476090014064697,
+        "perDay": 0
+      },
+      "preview-trial.yml/preview-trial": {
+        "perLanding": 0.04388185654008439,
+        "perDay": 0
+      },
+      "output-heap-2h.yml/endurance:election for 135 min": {
+        "perLanding": 0.8717299578059071,
+        "perDay": 0
+      },
+      "rerecord-screenshots.yml/Re-record Linux screenshots": {
+        "perLanding": 0.00580168776371308,
+        "perDay": 0
+      },
+      "release-cli.yml/Does this push release a version?": {
+        "perLanding": 0.001160337552742616,
+        "perDay": 0
+      },
+      "release-cli.yml/Publish @noacg/cli": {
+        "perLanding": 0,
+        "perDay": 0
+      },
+      "release-cli.yml/Update the generated toolkit distribution branch": {
+        "perLanding": 0,
+        "perDay": 0
+      },
+      "release-cli.yml/Tag the release": {
+        "perLanding": 0,
+        "perDay": 0
+      },
+      "release-bridge.yml/Does this push release the Bridge?": {
+        "perLanding": 0.0010548523206751054,
+        "perDay": 0
+      },
+      "release-bridge.yml/Build and publish the NoaCG Bridge exe": {
+        "perLanding": 0.007172995780590717,
+        "perDay": 0
+      },
+      "toolkit-distribution.yml/Directory checks on the generated distribution": {
+        "perLanding": 0.010021097046413503,
+        "perDay": 0
+      }
+    }
+  },
+  "slowdowns": {},
+  "assessment": {
+    "status": "warn",
+    "tiers": {
+      "offline": {
+        "status": "warn",
+        "why": "375.6/535 per landing, 189.3/215 per day (88%); evidence partial: configured-suite.yml|push: 1 read(s) failed",
+        "evidence": "partial",
+        "share": 0.8805038759689924
+      },
+      "backend": {
+        "status": "warn",
+        "why": "148.2/117 per landing, 79.1/78 per day (127%), jev-svg-import-journey excepts 0/landing (claims 6.85, capped at what it covers) to 2026-12-03; evidence partial: configured-suite.yml|push: 1 read(s) failed",
+        "evidence": "partial",
+        "share": 1.266485362582409
+      },
+      "graphics": {
+        "status": "ok",
+        "why": "7.5/10 per landing, 90.2/115 per day (78%), ci04-catalog-gate excepts 17.7/landing to 2026-11-30; evidence partial: configured-suite.yml|push: 1 read(s) failed",
+        "evidence": "partial",
+        "share": 0.784144237405107
+      },
+      "overhead": {
+        "status": "warn",
+        "why": "93.4/105 per landing, 5.9/10 per day (89%), production-load-watch excepts 0/landing to 2026-12-03; evidence partial: configured-suite.yml|push: 1 read(s) failed",
+        "evidence": "partial",
+        "share": 0.8892023914401852
+      }
+    }
+  },
+  "aggregate": {
+    "perDay": 14867.644767137626,
+    "allocatedPerDay": 17730.285714285717
+  },
+  "table": {
+    "recordedAt": "2026-11-02",
+    "ageDays": 7,
+    "stale": false,
+    "pending": [
+      {
+        "number": 2316,
+        "opened": "2026-11-09"
+      }
+    ],
+    "reason": "durations table recorded 2026-11-02, 7 days old (bound 8); pending, not accepted: #2316"
+  },
+  "exceptions": [
+    {
+      "id": "ci04-catalog-gate",
+      "tier": "graphics",
+      "covers": [
+        "job:ci.yml/Catalog calibration gate"
+      ],
+      "expires": "2026-11-30",
+      "repayment": "#1862",
+      "state": "active",
+      "soon": false
+    },
+    {
+      "id": "production-load-watch",
+      "tier": "overhead",
+      "covers": [
+        "job:production-load.yml/Read the production database's load"
+      ],
+      "expires": "2026-12-03",
+      "repayment": "#2019",
+      "state": "active",
+      "soon": false
+    },
+    {
+      "id": "jev-svg-import-journey",
+      "tier": "backend",
+      "covers": [
+        "spec:e2e/configured/svg-import-journey.spec.ts"
+      ],
+      "expires": "2026-12-03",
+      "repayment": "#1503",
+      "state": "active",
+      "soon": false
+    }
+  ],
+  "timing": [
+    {
+      "measure": "prReady",
+      "pooled": {
+        "n": 93,
+        "p50": 13,
+        "p90": 33.3,
+        "max": 190.9
+      },
+      "categories": {
+        "jev-plan": {
+          "n": 19,
+          "p50": 12.583333333333334,
+          "p90": 14.5,
+          "max": 15.166666666666666
+        },
+        "cicd-plan": {
+          "n": 12,
+          "p50": 7.616666666666666,
+          "p90": 12.866666666666667,
+          "max": 13
+        },
+        "other": {
+          "n": 48,
+          "p50": 18.033333333333335,
+          "p90": 46.3,
+          "max": 190.9
+        },
+        "bot": {
+          "n": 5,
+          "p50": 12.9,
+          "p90": 15.366666666666667,
+          "max": 15.366666666666667
+        },
+        "quarantine": {
+          "n": 9,
+          "p50": 12.683333333333334,
+          "p90": 21.983333333333334,
+          "max": 21.983333333333334
+        }
+      },
+      "adequate": true,
+      "above": false,
+      "ceiling": {
+        "p50": 30,
+        "p90": 60
+      },
+      "sustained": false
+    },
+    {
+      "measure": "phase",
+      "pooled": {
+        "n": 0,
+        "p50": null,
+        "p90": null,
+        "max": null
+      },
+      "categories": {},
+      "adequate": false,
+      "above": false,
+      "ceiling": {
+        "p50": 4,
+        "p90": 10
+      },
+      "sustained": false
+    },
+    {
+      "measure": "queue",
+      "pooled": {
+        "n": 93,
+        "p50": 8.95,
+        "p90": 14.8,
+        "max": 70.46666666666667
+      },
+      "categories": {
+        "jev-plan": {
+          "n": 19,
+          "p50": 12.05,
+          "p90": 14,
+          "max": 14.45
+        },
+        "cicd-plan": {
+          "n": 12,
+          "p50": 6.983333333333333,
+          "p90": 12.366666666666667,
+          "max": 12.383333333333333
+        },
+        "other": {
+          "n": 48,
+          "p50": 10.1,
+          "p90": 28.95,
+          "max": 70.46666666666667
+        },
+        "bot": {
+          "n": 5,
+          "p50": 6.85,
+          "p90": 7.933333333333334,
+          "max": 7.933333333333334
+        },
+        "quarantine": {
+          "n": 9,
+          "p50": 6.616666666666666,
+          "p90": 17.283333333333335,
+          "max": 17.283333333333335
+        }
+      },
+      "adequate": true,
+      "above": false,
+      "ceiling": {
+        "p50": 10,
+        "p90": 20
+      },
+      "sustained": false
+    }
+  ],
+  "timingSamples": [
+    {
+      "measure": "prReady",
+      "id": "#1962",
+      "category": "jev-plan",
+      "value": 13.266666666666667,
+      "finishedAt": "2026-11-02T10:15:53Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1962",
+      "category": "jev-plan",
+      "value": 12.783333333333333,
+      "finishedAt": "2026-11-02T10:15:53Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1970",
+      "category": "cicd-plan",
+      "value": 7.016666666666667,
+      "finishedAt": "2026-11-02T11:41:59Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1970",
+      "category": "cicd-plan",
+      "value": 6,
+      "finishedAt": "2026-11-02T11:41:59Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1983",
+      "category": "jev-plan",
+      "value": 7.8,
+      "finishedAt": "2026-11-02T19:42:36Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1983",
+      "category": "jev-plan",
+      "value": 7.333333333333333,
+      "finishedAt": "2026-11-02T19:42:36Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1993",
+      "category": "jev-plan",
+      "value": 5.666666666666667,
+      "finishedAt": "2026-11-03T01:40:58Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1993",
+      "category": "jev-plan",
+      "value": 5.25,
+      "finishedAt": "2026-11-03T01:40:58Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2002",
+      "category": "jev-plan",
+      "value": 6.233333333333333,
+      "finishedAt": "2026-11-03T06:29:43Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2002",
+      "category": "jev-plan",
+      "value": 5.566666666666666,
+      "finishedAt": "2026-11-03T06:29:43Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2012",
+      "category": "cicd-plan",
+      "value": 7.616666666666666,
+      "finishedAt": "2026-11-03T09:21:43Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2012",
+      "category": "cicd-plan",
+      "value": 6.966666666666667,
+      "finishedAt": "2026-11-03T09:21:43Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2023",
+      "category": "jev-plan",
+      "value": 7.45,
+      "finishedAt": "2026-11-03T12:55:03Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2023",
+      "category": "jev-plan",
+      "value": 6.95,
+      "finishedAt": "2026-11-03T12:55:03Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2027",
+      "category": "other",
+      "value": 20.916666666666668,
+      "finishedAt": "2026-11-03T13:28:29Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2027",
+      "category": "other",
+      "value": 7.15,
+      "finishedAt": "2026-11-03T13:28:29Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2031",
+      "category": "cicd-plan",
+      "value": 8.333333333333334,
+      "finishedAt": "2026-11-03T17:05:43Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2031",
+      "category": "cicd-plan",
+      "value": 7.333333333333333,
+      "finishedAt": "2026-11-03T17:05:43Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2042",
+      "category": "other",
+      "value": 9.05,
+      "finishedAt": "2026-11-03T21:00:20Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2042",
+      "category": "other",
+      "value": 8.4,
+      "finishedAt": "2026-11-03T21:00:20Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2047",
+      "category": "bot",
+      "value": 15.366666666666667,
+      "finishedAt": "2026-11-04T07:05:01Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2047",
+      "category": "bot",
+      "value": 7.933333333333334,
+      "finishedAt": "2026-11-04T07:05:01Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2053",
+      "category": "other",
+      "value": 18.033333333333335,
+      "finishedAt": "2026-11-04T12:23:51Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2053",
+      "category": "other",
+      "value": 17,
+      "finishedAt": "2026-11-04T12:23:51Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2060",
+      "category": "other",
+      "value": 30.4,
+      "finishedAt": "2026-11-04T13:16:54Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2060",
+      "category": "other",
+      "value": 28.95,
+      "finishedAt": "2026-11-04T13:16:54Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2076",
+      "category": "other",
+      "value": 21.816666666666666,
+      "finishedAt": "2026-11-04T13:50:21Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2076",
+      "category": "other",
+      "value": 13.233333333333333,
+      "finishedAt": "2026-11-04T13:50:21Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2081",
+      "category": "other",
+      "value": 32.583333333333336,
+      "finishedAt": "2026-11-04T14:33:23Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2081",
+      "category": "other",
+      "value": 30.7,
+      "finishedAt": "2026-11-04T14:33:23Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2106",
+      "category": "quarantine",
+      "value": 16.8,
+      "finishedAt": "2026-11-04T14:50:25Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2106",
+      "category": "quarantine",
+      "value": 8.983333333333333,
+      "finishedAt": "2026-11-04T14:50:25Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2067",
+      "category": "other",
+      "value": 13.4,
+      "finishedAt": "2026-11-04T15:34:31Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2067",
+      "category": "other",
+      "value": 12.6,
+      "finishedAt": "2026-11-04T15:34:31Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2119",
+      "category": "other",
+      "value": 14.316666666666666,
+      "finishedAt": "2026-11-04T16:50:52Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2119",
+      "category": "other",
+      "value": 13.066666666666666,
+      "finishedAt": "2026-11-04T16:50:52Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2131",
+      "category": "other",
+      "value": 32.38333333333333,
+      "finishedAt": "2026-11-04T20:05:58Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2131",
+      "category": "other",
+      "value": 18.216666666666665,
+      "finishedAt": "2026-11-04T20:05:58Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2136",
+      "category": "other",
+      "value": 33.3,
+      "finishedAt": "2026-11-04T20:24:30Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2136",
+      "category": "other",
+      "value": 14.8,
+      "finishedAt": "2026-11-04T20:24:30Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2155",
+      "category": "other",
+      "value": 27.7,
+      "finishedAt": "2026-11-04T22:51:25Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2155",
+      "category": "other",
+      "value": 11.983333333333333,
+      "finishedAt": "2026-11-04T22:51:25Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2170",
+      "category": "other",
+      "value": 26.3,
+      "finishedAt": "2026-11-05T01:14:32Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2170",
+      "category": "other",
+      "value": 11,
+      "finishedAt": "2026-11-05T01:14:32Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2173",
+      "category": "other",
+      "value": 25.383333333333333,
+      "finishedAt": "2026-11-05T11:32:18Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2173",
+      "category": "other",
+      "value": 22.533333333333335,
+      "finishedAt": "2026-11-05T11:32:18Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2203",
+      "category": "other",
+      "value": 40.38333333333333,
+      "finishedAt": "2026-11-05T13:28:36Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2203",
+      "category": "other",
+      "value": 38.766666666666666,
+      "finishedAt": "2026-11-05T13:28:36Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2197",
+      "category": "other",
+      "value": 190.9,
+      "finishedAt": "2026-11-05T14:43:00Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2197",
+      "category": "other",
+      "value": 61.766666666666666,
+      "finishedAt": "2026-11-05T14:43:00Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2232",
+      "category": "other",
+      "value": 27.383333333333333,
+      "finishedAt": "2026-11-05T17:11:07Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2232",
+      "category": "other",
+      "value": 12.916666666666666,
+      "finishedAt": "2026-11-05T17:11:07Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2234",
+      "category": "bot",
+      "value": 10.683333333333334,
+      "finishedAt": "2026-11-06T07:21:17Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2234",
+      "category": "bot",
+      "value": 5.516666666666667,
+      "finishedAt": "2026-11-06T07:21:17Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2211",
+      "category": "other",
+      "value": 27.2,
+      "finishedAt": "2026-11-06T10:14:34Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2211",
+      "category": "other",
+      "value": 12.666666666666666,
+      "finishedAt": "2026-11-06T10:14:34Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2214",
+      "category": "other",
+      "value": 27.483333333333334,
+      "finishedAt": "2026-11-06T10:58:56Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2214",
+      "category": "other",
+      "value": 11.533333333333333,
+      "finishedAt": "2026-11-06T10:58:56Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2246",
+      "category": "other",
+      "value": 34.85,
+      "finishedAt": "2026-11-06T13:17:55Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2246",
+      "category": "other",
+      "value": 10.816666666666666,
+      "finishedAt": "2026-11-06T13:17:55Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2257",
+      "category": "other",
+      "value": 24.6,
+      "finishedAt": "2026-11-06T18:10:07Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2257",
+      "category": "other",
+      "value": 12.35,
+      "finishedAt": "2026-11-06T18:10:07Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2263",
+      "category": "other",
+      "value": 28.733333333333334,
+      "finishedAt": "2026-11-06T21:04:27Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2263",
+      "category": "other",
+      "value": 12.066666666666666,
+      "finishedAt": "2026-11-06T21:04:27Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2276",
+      "category": "other",
+      "value": 22.866666666666667,
+      "finishedAt": "2026-11-07T01:54:42Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2276",
+      "category": "other",
+      "value": 12.183333333333334,
+      "finishedAt": "2026-11-07T01:54:42Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2282",
+      "category": "other",
+      "value": 11.25,
+      "finishedAt": "2026-11-07T19:28:16Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2282",
+      "category": "other",
+      "value": 6.883333333333334,
+      "finishedAt": "2026-11-07T19:28:16Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2288",
+      "category": "other",
+      "value": 7.616666666666666,
+      "finishedAt": "2026-11-08T11:44:35Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2288",
+      "category": "other",
+      "value": 7.233333333333333,
+      "finishedAt": "2026-11-08T11:44:35Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2297",
+      "category": "other",
+      "value": 13.35,
+      "finishedAt": "2026-11-09T07:46:08Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2297",
+      "category": "other",
+      "value": 6.333333333333333,
+      "finishedAt": "2026-11-09T07:46:08Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1774",
+      "category": "other",
+      "value": 46.3,
+      "finishedAt": "2026-10-27T14:34:30Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1774",
+      "category": "other",
+      "value": 10.4,
+      "finishedAt": "2026-10-27T14:34:30Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1782",
+      "category": "bot",
+      "value": 9.333333333333334,
+      "finishedAt": "2026-10-28T06:16:10Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1782",
+      "category": "bot",
+      "value": 4.85,
+      "finishedAt": "2026-10-28T06:16:10Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1788",
+      "category": "quarantine",
+      "value": 11.55,
+      "finishedAt": "2026-10-28T09:38:34Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1788",
+      "category": "quarantine",
+      "value": 6.616666666666666,
+      "finishedAt": "2026-10-28T09:38:34Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1792",
+      "category": "other",
+      "value": 10.8,
+      "finishedAt": "2026-10-28T15:42:51Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1792",
+      "category": "other",
+      "value": 9.833333333333334,
+      "finishedAt": "2026-10-28T15:42:51Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1806",
+      "category": "quarantine",
+      "value": 12.683333333333334,
+      "finishedAt": "2026-10-28T20:53:35Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1806",
+      "category": "quarantine",
+      "value": 5.2,
+      "finishedAt": "2026-10-28T20:53:35Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1804",
+      "category": "other",
+      "value": 10.833333333333334,
+      "finishedAt": "2026-10-29T00:15:17Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1804",
+      "category": "other",
+      "value": 10.1,
+      "finishedAt": "2026-10-29T00:15:17Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1813",
+      "category": "bot",
+      "value": 13.216666666666667,
+      "finishedAt": "2026-10-29T06:22:45Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1813",
+      "category": "bot",
+      "value": 6.85,
+      "finishedAt": "2026-10-29T06:22:45Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1819",
+      "category": "other",
+      "value": 11.633333333333333,
+      "finishedAt": "2026-10-29T20:55:48Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1819",
+      "category": "other",
+      "value": 4.95,
+      "finishedAt": "2026-10-29T20:55:48Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1823",
+      "category": "quarantine",
+      "value": 13.716666666666667,
+      "finishedAt": "2026-10-30T08:56:26Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1823",
+      "category": "quarantine",
+      "value": 7.833333333333333,
+      "finishedAt": "2026-10-30T08:56:26Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1663",
+      "category": "other",
+      "value": 13.683333333333334,
+      "finishedAt": "2026-10-30T20:51:57Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1663",
+      "category": "other",
+      "value": 6.283333333333333,
+      "finishedAt": "2026-10-30T20:51:57Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1827",
+      "category": "other",
+      "value": 10.7,
+      "finishedAt": "2026-10-30T21:57:23Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1827",
+      "category": "other",
+      "value": 4.95,
+      "finishedAt": "2026-10-30T21:57:23Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1836",
+      "category": "other",
+      "value": 13.033333333333333,
+      "finishedAt": "2026-10-30T22:52:37Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1836",
+      "category": "other",
+      "value": 6.583333333333333,
+      "finishedAt": "2026-10-30T22:52:37Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1839",
+      "category": "other",
+      "value": 12.15,
+      "finishedAt": "2026-10-30T23:33:26Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1839",
+      "category": "other",
+      "value": 5.55,
+      "finishedAt": "2026-10-30T23:33:26Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1848",
+      "category": "cicd-plan",
+      "value": 7.35,
+      "finishedAt": "2026-10-31T10:07:34Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1848",
+      "category": "cicd-plan",
+      "value": 6.816666666666666,
+      "finishedAt": "2026-10-31T10:07:34Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1855",
+      "category": "quarantine",
+      "value": 11.833333333333334,
+      "finishedAt": "2026-10-31T13:25:55Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1855",
+      "category": "quarantine",
+      "value": 5.55,
+      "finishedAt": "2026-10-31T13:25:55Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1861",
+      "category": "cicd-plan",
+      "value": 12.7,
+      "finishedAt": "2026-10-31T16:21:26Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1861",
+      "category": "cicd-plan",
+      "value": 12.366666666666667,
+      "finishedAt": "2026-10-31T16:21:26Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1872",
+      "category": "cicd-plan",
+      "value": 12.866666666666667,
+      "finishedAt": "2026-10-31T21:28:08Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1872",
+      "category": "cicd-plan",
+      "value": 12.383333333333333,
+      "finishedAt": "2026-10-31T21:28:08Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1883",
+      "category": "jev-plan",
+      "value": 13.533333333333333,
+      "finishedAt": "2026-11-01T00:06:47Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1883",
+      "category": "jev-plan",
+      "value": 13.15,
+      "finishedAt": "2026-11-01T00:06:47Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1902",
+      "category": "other",
+      "value": 11.9,
+      "finishedAt": "2026-11-01T07:17:10Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1902",
+      "category": "other",
+      "value": 5.533333333333333,
+      "finishedAt": "2026-11-01T07:17:10Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1909",
+      "category": "jev-plan",
+      "value": 12.733333333333333,
+      "finishedAt": "2026-11-01T12:19:01Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1909",
+      "category": "jev-plan",
+      "value": 12.25,
+      "finishedAt": "2026-11-01T12:19:01Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1922",
+      "category": "cicd-plan",
+      "value": 13,
+      "finishedAt": "2026-11-01T18:26:52Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1922",
+      "category": "cicd-plan",
+      "value": 12.266666666666667,
+      "finishedAt": "2026-11-01T18:26:52Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1929",
+      "category": "bot",
+      "value": 12.9,
+      "finishedAt": "2026-11-01T21:05:38Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1929",
+      "category": "bot",
+      "value": 6.85,
+      "finishedAt": "2026-11-01T21:05:38Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1936",
+      "category": "cicd-plan",
+      "value": 7.616666666666666,
+      "finishedAt": "2026-11-01T22:53:20Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1936",
+      "category": "cicd-plan",
+      "value": 6.983333333333333,
+      "finishedAt": "2026-11-01T22:53:20Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1947",
+      "category": "jev-plan",
+      "value": 12.916666666666666,
+      "finishedAt": "2026-11-02T00:49:09Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1947",
+      "category": "jev-plan",
+      "value": 12.416666666666666,
+      "finishedAt": "2026-11-02T00:49:09Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1956",
+      "category": "jev-plan",
+      "value": 13.1,
+      "finishedAt": "2026-11-02T06:10:37Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1956",
+      "category": "jev-plan",
+      "value": 12.583333333333334,
+      "finishedAt": "2026-11-02T06:10:37Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1966",
+      "category": "jev-plan",
+      "value": 12.15,
+      "finishedAt": "2026-11-02T11:17:45Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1966",
+      "category": "jev-plan",
+      "value": 11.383333333333333,
+      "finishedAt": "2026-11-02T11:17:45Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1978",
+      "category": "jev-plan",
+      "value": 15.166666666666666,
+      "finishedAt": "2026-11-02T16:51:34Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1978",
+      "category": "jev-plan",
+      "value": 14.45,
+      "finishedAt": "2026-11-02T16:51:34Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1985",
+      "category": "jev-plan",
+      "value": 14.5,
+      "finishedAt": "2026-11-03T00:01:35Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1985",
+      "category": "jev-plan",
+      "value": 14,
+      "finishedAt": "2026-11-03T00:01:35Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2000",
+      "category": "jev-plan",
+      "value": 11.25,
+      "finishedAt": "2026-11-03T04:18:19Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2000",
+      "category": "jev-plan",
+      "value": 10.683333333333334,
+      "finishedAt": "2026-11-03T04:18:19Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2007",
+      "category": "quarantine",
+      "value": 13.916666666666666,
+      "finishedAt": "2026-11-03T07:59:03Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2007",
+      "category": "quarantine",
+      "value": 7.283333333333333,
+      "finishedAt": "2026-11-03T07:59:03Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2005",
+      "category": "jev-plan",
+      "value": 7.883333333333334,
+      "finishedAt": "2026-11-03T09:57:07Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2005",
+      "category": "jev-plan",
+      "value": 7.183333333333334,
+      "finishedAt": "2026-11-03T09:57:07Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#2024",
+      "category": "quarantine",
+      "value": 21.983333333333334,
+      "finishedAt": "2026-11-03T12:55:03Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#2024",
+      "category": "quarantine",
+      "value": 17.283333333333335,
+      "finishedAt": "2026-11-03T12:55:03Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1740",
+      "category": "other",
+      "value": 106.85,
+      "finishedAt": "2026-10-26T09:52:06Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1740",
+      "category": "other",
+      "value": 70.46666666666667,
+      "finishedAt": "2026-10-26T09:52:06Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1751",
+      "category": "other",
+      "value": 14.383333333333333,
+      "finishedAt": "2026-10-26T12:16:04Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1751",
+      "category": "other",
+      "value": 5.25,
+      "finishedAt": "2026-10-26T12:16:04Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1756",
+      "category": "other",
+      "value": 40.833333333333336,
+      "finishedAt": "2026-10-26T18:55:19Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1756",
+      "category": "other",
+      "value": 9,
+      "finishedAt": "2026-10-26T18:55:19Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1763",
+      "category": "other",
+      "value": 38.05,
+      "finishedAt": "2026-10-27T06:00:20Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1763",
+      "category": "other",
+      "value": 8.95,
+      "finishedAt": "2026-10-27T06:00:20Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1765",
+      "category": "other",
+      "value": 94.43333333333334,
+      "finishedAt": "2026-10-27T08:50:04Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1765",
+      "category": "other",
+      "value": 7.883333333333334,
+      "finishedAt": "2026-10-27T08:50:04Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1786",
+      "category": "other",
+      "value": 9.05,
+      "finishedAt": "2026-10-28T09:23:48Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1786",
+      "category": "other",
+      "value": 8.616666666666667,
+      "finishedAt": "2026-10-28T09:23:48Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1794",
+      "category": "other",
+      "value": 102.78333333333333,
+      "finishedAt": "2026-10-28T15:42:51Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1794",
+      "category": "other",
+      "value": 14.45,
+      "finishedAt": "2026-10-28T15:42:51Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1811",
+      "category": "quarantine",
+      "value": 11.183333333333334,
+      "finishedAt": "2026-10-29T00:30:35Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1811",
+      "category": "quarantine",
+      "value": 6.616666666666666,
+      "finishedAt": "2026-10-29T00:30:35Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1814",
+      "category": "other",
+      "value": 12.366666666666667,
+      "finishedAt": "2026-10-29T13:46:05Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1814",
+      "category": "other",
+      "value": 6.35,
+      "finishedAt": "2026-10-29T13:46:05Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1581",
+      "category": "other",
+      "value": 14.733333333333333,
+      "finishedAt": "2026-10-30T20:50:05Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1581",
+      "category": "other",
+      "value": 6.65,
+      "finishedAt": "2026-10-30T20:50:05Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1826",
+      "category": "other",
+      "value": 12.3,
+      "finishedAt": "2026-10-30T21:12:12Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1826",
+      "category": "other",
+      "value": 5.333333333333333,
+      "finishedAt": "2026-10-30T21:12:12Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1832",
+      "category": "quarantine",
+      "value": 11.133333333333333,
+      "finishedAt": "2026-10-30T22:31:18Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1832",
+      "category": "quarantine",
+      "value": 5.533333333333333,
+      "finishedAt": "2026-10-30T22:31:18Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1828",
+      "category": "other",
+      "value": 12.85,
+      "finishedAt": "2026-10-30T22:52:37Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1828",
+      "category": "other",
+      "value": 6.683333333333334,
+      "finishedAt": "2026-10-30T22:52:37Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1841",
+      "category": "other",
+      "value": 15.666666666666666,
+      "finishedAt": "2026-10-31T07:49:50Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1841",
+      "category": "other",
+      "value": 8.2,
+      "finishedAt": "2026-10-31T07:49:50Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1853",
+      "category": "jev-plan",
+      "value": 9.05,
+      "finishedAt": "2026-10-31T13:12:39Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1853",
+      "category": "jev-plan",
+      "value": 8.483333333333333,
+      "finishedAt": "2026-10-31T13:12:39Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1860",
+      "category": "jev-plan",
+      "value": 7.866666666666666,
+      "finishedAt": "2026-10-31T16:15:26Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1860",
+      "category": "jev-plan",
+      "value": 6.75,
+      "finishedAt": "2026-10-31T16:15:26Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1866",
+      "category": "cicd-plan",
+      "value": 10.683333333333334,
+      "finishedAt": "2026-10-31T18:14:31Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1866",
+      "category": "cicd-plan",
+      "value": 10.333333333333334,
+      "finishedAt": "2026-10-31T18:14:31Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1877",
+      "category": "other",
+      "value": 11.25,
+      "finishedAt": "2026-10-31T21:35:15Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1877",
+      "category": "other",
+      "value": 10.65,
+      "finishedAt": "2026-10-31T21:35:15Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1882",
+      "category": "other",
+      "value": 14.55,
+      "finishedAt": "2026-11-01T00:43:42Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1882",
+      "category": "other",
+      "value": 5.55,
+      "finishedAt": "2026-11-01T00:43:42Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1893",
+      "category": "jev-plan",
+      "value": 13.8,
+      "finishedAt": "2026-11-01T05:54:54Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1893",
+      "category": "jev-plan",
+      "value": 13.383333333333333,
+      "finishedAt": "2026-11-01T05:54:54Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1918",
+      "category": "cicd-plan",
+      "value": 7.483333333333333,
+      "finishedAt": "2026-11-01T14:19:23Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1918",
+      "category": "cicd-plan",
+      "value": 6.733333333333333,
+      "finishedAt": "2026-11-01T14:19:23Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1927",
+      "category": "cicd-plan",
+      "value": 11.05,
+      "finishedAt": "2026-11-01T20:01:41Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1927",
+      "category": "cicd-plan",
+      "value": 10.733333333333333,
+      "finishedAt": "2026-11-01T20:01:41Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1930",
+      "category": "cicd-plan",
+      "value": 6.016666666666667,
+      "finishedAt": "2026-11-01T21:25:11Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1930",
+      "category": "cicd-plan",
+      "value": 4.783333333333333,
+      "finishedAt": "2026-11-01T21:25:11Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1938",
+      "category": "jev-plan",
+      "value": 12.583333333333334,
+      "finishedAt": "2026-11-01T23:32:28Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1938",
+      "category": "jev-plan",
+      "value": 12.05,
+      "finishedAt": "2026-11-01T23:32:28Z",
+      "source": "timeline"
+    },
+    {
+      "measure": "prReady",
+      "id": "#1959",
+      "category": "jev-plan",
+      "value": 12.85,
+      "finishedAt": "2026-11-02T09:07:03Z",
+      "source": "stamp"
+    },
+    {
+      "measure": "queue",
+      "id": "#1959",
+      "category": "jev-plan",
+      "value": 12.2,
+      "finishedAt": "2026-11-02T09:07:03Z",
+      "source": "timeline"
+    }
+  ],
+  "unknownClocks": [
+    "#2316",
+    "#2293",
+    "#1642",
+    "#1641"
+  ],
+  "breaches": [
+    {
+      "key": "cost:backend",
+      "kind": "cost",
+      "subject": "backend",
+      "detail": "backend at 127% of its ceiling: 148.2/117 per landing, 79.1/78 per day (127%), jev-svg-import-journey excepts 0/landing (claims 6.85, capped at what it covers) to 2026-12-03; evidence partial: configured-suite.yml|push: 1 read(s) failed",
+      "owner": "miwco (primary); the weekly owner session (backup coverage)",
+      "since": "2026-11-02",
+      "corrections": 1,
+      "due": "2026-11-09",
+      "state": "stopped"
+    },
+    {
+      "key": "age:#2261",
+      "kind": "age",
+      "subject": "#2261",
+      "category": "prReady",
+      "owner": "miwco (primary); the weekly owner session (backup coverage)",
+      "due": "2026-11-10",
+      "detail": "prReady #2261 unfinished for 4026 min, over its 120 minutes ceiling (clock from stamp 2026-11-06T20:39:33Z)",
+      "since": "2026-11-09",
+      "state": "correcting",
+      "corrections": 1
+    },
+    {
+      "key": "cost:overhead",
+      "kind": "cost",
+      "subject": "overhead",
+      "detail": "overhead at 126% of its ceiling: 132.1/105 per landing, 6.1/10 per day (126%), production-load-watch excepts 0/landing to 2026-12-03 (not re-measured this week: kept until evidence clears it)",
+      "owner": "miwco (primary); the weekly owner session (backup coverage)",
+      "since": "2026-11-02",
+      "corrections": 1,
+      "due": "2026-11-09",
+      "state": "stopped"
+    }
+  ],
+  "stops": {
+    "backend": "cost:backend since 2026-11-02, one correction due 2026-11-09 did not bring it back in bounds",
+    "overhead": "cost:overhead since 2026-11-02, one correction due 2026-11-09 did not bring it back in bounds"
+  },
+  "cleared": [
+    "table:stale",
+    "age:#1834",
+    "age:#1834 queue"
+  ],
+  "collection": "550 API call(s) of 550, 3252 completed run(s) in 38 strata, 193 sampled, 0 still running at the window end, 1 failed read(s)",
+  "quarantine": [
+    {
+      "spec": "e2e/configured/production-data-key-tick.spec.ts",
+      "severity": "affected",
+      "since": "2026-11-09",
+      "due": "2026-11-23",
+      "overdue": false,
+      "owner": "miwco (primary); the weekly owner session (backup coverage)",
+      "gap": "changes to api/_lib/dataTick.ts api/_lib/systemSettings.ts api/data/?...path?.ts, src/control/sheetSource.ts src/control/hostedControl.ts, src/components/home/SourcesLine.tsx src/components/home/ProductionPage.tsx, src/components/home/useProductionPublish.ts, src/control/airState.ts src/control/sessionWire.ts, src/control/graphicVerbs.ts src/control/verbDispatch.ts src/control/verbView.ts, src/control/cueDraft.ts merge without it blocking",
+      "count": 2,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/42600303380"
+    }
+  ],
+  "ceilings": {
+    "tiers": {
+      "offline": {
+        "perLanding": 535,
+        "perDay": 215
+      },
+      "backend": {
+        "perLanding": 117,
+        "perDay": 78
+      },
+      "graphics": {
+        "perLanding": 10,
+        "perDay": 115
+      },
+      "overhead": {
+        "perLanding": 105,
+        "perDay": 10
+      }
+    },
+    "envelopeRunnerMinutesPerDay": 28800,
+    "timing": {
+      "prReady": {
+        "unit": "minutes",
+        "age": 120,
+        "p50": 30,
+        "p90": 60
+      },
+      "phase": {
+        "unit": "hours",
+        "age": 12,
+        "p50": 4,
+        "p90": 10
+      },
+      "queue": {
+        "unit": "minutes",
+        "age": 30,
+        "p50": 10,
+        "p90": 20
+      },
+      "pooledWindowDays": 28,
+      "pooledMinSamples": 12
+    }
+  },
+  "openStarts": {
+    "#1834": "2026-10-30T22:27:46Z",
+    "#2040": "2026-11-03T19:26:26Z",
+    "#2261": "2026-11-06T20:39:33Z"
+  },
+  "finishedPrs": {
+    "merged": 178,
+    "sampled": 36
+  },
+  "strata": {
+    "deploy-verify.yml|deployment_status": {
+      "runs": 965,
+      "sampled": 7
+    },
+    "alarm-test.yml|workflow_dispatch": {
+      "runs": 1,
+      "sampled": 1
+    },
+    "configured-suite.yml|push": {
+      "runs": 158,
+      "sampled": 12
+    },
+    "ci.yml|push": {
+      "runs": 158,
+      "sampled": 13
+    },
+    "codeql|dynamic": {
+      "runs": 626,
+      "sampled": 7
+    },
+    "post-land.yml|push": {
+      "runs": 158,
+      "sampled": 7
+    },
+    "quarantine.yml|push": {
+      "runs": 158,
+      "sampled": 7
+    },
+    "ci.yml|merge_group": {
+      "runs": 184,
+      "sampled": 7
+    },
+    "cloud-queue-merge.yml|workflow_dispatch": {
+      "runs": 152,
+      "sampled": 7
+    },
+    "ci.yml|pull_request": {
+      "runs": 465,
+      "sampled": 7
+    },
+    "feedback-digest.yml|schedule": {
+      "runs": 7,
+      "sampled": 7
+    },
+    "nightly-drift.yml|schedule": {
+      "runs": 14,
+      "sampled": 7
+    },
+    "weekly-audit.yml|schedule": {
+      "runs": 1,
+      "sampled": 1
+    },
+    "deploy-verify.yml|schedule": {
+      "runs": 20,
+      "sampled": 7
+    },
+    "e2e-durations-refresh.yml|schedule": {
+      "runs": 1,
+      "sampled": 1
+    },
+    "endurance.yml|workflow_dispatch": {
+      "runs": 35,
+      "sampled": 7
+    },
+    "catalog-gates.yml|schedule": {
+      "runs": 7,
+      "sampled": 7
+    },
+    "jev-svg-eval.yml|workflow_dispatch": {
+      "runs": 13,
+      "sampled": 7
+    },
+    "fit-sweep.yml|schedule": {
+      "runs": 7,
+      "sampled": 7
+    },
+    "configured-suite.yml|schedule": {
+      "runs": 7,
+      "sampled": 7
+    },
+    "nightly.yml|schedule": {
+      "runs": 7,
+      "sampled": 6
+    },
+    "ci.yml|workflow_dispatch": {
+      "runs": 10,
+      "sampled": 6
+    },
+    "production-load.yml|workflow_dispatch": {
+      "runs": 1,
+      "sampled": 1
+    },
+    "production-load.yml|schedule": {
+      "runs": 24,
+      "sampled": 6
+    },
+    "weekly-audit.yml|workflow_dispatch": {
+      "runs": 1,
+      "sampled": 1
+    },
+    "hosted-latency.yml|schedule": {
+      "runs": 2,
+      "sampled": 2
+    },
+    "configured-suite.yml|workflow_dispatch": {
+      "runs": 27,
+      "sampled": 6
+    },
+    "hosted-latency.yml|workflow_dispatch": {
+      "runs": 16,
+      "sampled": 6
+    },
+    "import-analysis-diagnostic.yml|workflow_dispatch": {
+      "runs": 1,
+      "sampled": 1
+    },
+    "release-companion.yml|workflow_dispatch": {
+      "runs": 2,
+      "sampled": 2
+    },
+    "release-companion.yml|push": {
+      "runs": 1,
+      "sampled": 1
+    },
+    "release-companion.yml|pull_request": {
+      "runs": 7,
+      "sampled": 6
+    },
+    "preview-trial.yml|pull_request": {
+      "runs": 6,
+      "sampled": 6
+    },
+    "output-heap-2h.yml|push": {
+      "runs": 1,
+      "sampled": 1
+    },
+    "rerecord-screenshots.yml|workflow_dispatch": {
+      "runs": 1,
+      "sampled": 1
+    },
+    "release-cli.yml|push": {
+      "runs": 1,
+      "sampled": 1
+    },
+    "release-bridge.yml|push": {
+      "runs": 1,
+      "sampled": 1
+    },
+    "toolkit-distribution.yml|pull_request": {
+      "runs": 6,
+      "sampled": 6
+    }
+  }
+}

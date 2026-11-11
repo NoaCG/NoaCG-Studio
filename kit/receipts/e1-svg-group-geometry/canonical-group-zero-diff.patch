@@ -1,0 +1,698 @@
+diff --git a/e2e/editor-groups.spec.ts b/e2e/editor-groups.spec.ts
+index 035859b44..826d00997 100644
+--- a/e2e/editor-groups.spec.ts
++++ b/e2e/editor-groups.spec.ts
+@@ -379,6 +379,8 @@ test('SVG group pivot is centered and remains static during child and group moti
+   await open(page,'svg');
+   await evaluateInPage(page, async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<rect id="pivot-a" x="180" y="90" width="90" height="60" fill="orange"/><path id="pivot-b" d="M370 170 L450 170 L420 230 Z" fill="red"/></svg>')});});await ready(page);
+   const ids=['#pivot-a','#pivot-b'],id=await group(page,ids),f=(await(await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!;
++  await expect(page.locator('.ef-anchor')).toContainText('This older SVG group keeps its saved pivot');
++  await expect(page.getByRole('button', { name: 'Enable Anchor X animation', exact: true })).toHaveCount(0);
+   expect((await f.locator(id).getAttribute('data-svg-origin'))!.split(' ').map(Number)).toEqual([315,160]);
+   const before=await source(page),pose=await rects(page,ids);
+   const input=page.getByRole('textbox',{name:'Anchor X',exact:true});await input.fill('100');await input.press('Enter');await ready(page);
+@@ -392,6 +394,143 @@ test('SVG group pivot is centered and remains static during child and group moti
+   for(const[i,time]of [0,.2,.4,0].entries()){await seek(page,time);nearRects(await rects(page,ids),poses[i]);}
+ });
+ 
++test('SVG group anchor keys keep their stored frame while a member moves', async ({ page }) => {
++  await open(page, 'svg');
++  await evaluateInPage(page, async () => {
++    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
++    const { parseAnimData } = await import('/src/blocks/animData.ts');
++    const { replaceRegionWithAnimData } = await import('/src/templates/shared/animRuntime.ts');
++    const data = parseAnimData(store.template.js)!;
++    data.steps[0].ease = 'none';
++    const members = '<g id="pivot-parent" transform="translate(100 80) rotate(30) scale(2 1.5)"><rect id="pivot-a" x="180" y="90" width="90" height="60" fill="orange"/><path id="pivot-b" d="M370 170 L450 170 L420 230 Z" fill="red"/></g>';
++    const html = store.template.html.replace('viewBox="0 0 960 270"', 'viewBox="35 24 960 270"').replace('</svg>', members + '</svg>');
++    store.applyTemplate({ ...store.template, js: replaceRegionWithAnimData(store.template.js, data)!, html });
++  });
++  await ready(page);
++  const members = ['#pivot-a', '#pivot-b'];
++  const painted = async () => {
++    await expect.poll(() => evaluateInPage(page, async () => {
++      const controller = (await import('/src/components/editorFoundation/Canvas.tsx')).foundationDiagnostics();
++      const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
++      return controller?.receipt(session.version(), session.port.view()).state;
++    })).toBe('ready');
++  };
++  const scrub = async (time: number) => { await seek(page, time); await painted(); };
++  await painted();
++  const beforeGroup = await rects(page, members), id = await group(page, members);
++  await painted();
++  nearRects(await rects(page, members), beforeGroup);
++  const iframe = page.frameLocator('iframe[title="Foundation graphic preview"]');
++  const matrix = async (selector: string) => iframe.locator(selector).evaluate(el => {
++    const node = el as SVGGraphicsElement;
++    const ancestor = document.getElementById('pivot-parent') as unknown as SVGGraphicsElement;
++    const m = ancestor.getScreenCTM()!.inverse().multiply(node.getScreenCTM()!);
++    return [m.a, m.b, m.c, m.d, m.e, m.f];
++  });
++  const poses = () => Promise.all(members.map(matrix));
++  const samePose = (actual: number[][], expected: number[][], stage: string) => {
++    actual.forEach((m, layer) => m.forEach((value, component) => expect(value, `${stage}, member ${layer}`).toBeCloseTo(expected[layer][component], 3)));
++  };
++  await expect(iframe.locator(id)).toHaveAttribute('data-noacg-group-pivot', 'frame-v1');
++  await evaluateInPage(page, async selector => {
++    const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
++    s.execute({ documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(),
++      operations: [{ kind: 'base.set', selector, values: { anchorX: 135.00049, anchorY: 70 } }] });
++  }, id);
++  await ready(page);
++  await key(page, members[0], 'x', 0, 0);
++  await key(page, members[0], 'x', .4, -80);
++  await key(page, id, 'x', 0, 17.375);
++  await key(page, id, 'y', 0, -9.25);
++  for (const [property, first, last] of [['rotation', 0, 35], ['scaleX', 1, 1.4], ['scaleY', 1, .8]] as const) {
++    await key(page, id, property, 0, first);
++    await key(page, id, property, .4, last);
++  }
++  await key(page, id, 'scaleX', .2, 3);
++  await select(page, [id]);
++  await scrub(.2);
++  const first = await poses(), original = await source(page);
++  expect(await iframe.locator(id).getAttribute('transform')).toBeNull();
++  const history = () => evaluateInPage(page, async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().history.length);
++  const entries = await history();
++  await page.getByRole('button', { name: 'Enable Anchor X animation', exact: true }).click();
++  await ready(page);
++  await painted();
++  samePose(await poses(), first, 'fractional first enable');
++  expect(await iframe.locator(id).getAttribute('transform')).toBeNull();
++  expect(await history()).toBe(entries + 1);
++  const put = async (axis: 'X' | 'Y', value: number) => {
++    const field = page.getByRole('textbox', { name: 'Anchor ' + axis, exact: true });
++    await field.fill(String(value));
++    await field.press('Enter');
++    await ready(page);
++    await expect(page.locator('.ef-anchor').getByRole('alert')).toHaveCount(0);
++    await expect(field).toHaveValue(String(value));
++    await expect(page.getByRole('button', { name: 'Remove Anchor ' + axis + ' key', exact: true })).toBeVisible();
++  };
++  await scrub(.4);
++  await put('X', 95);
++  await page.getByRole('button', { name: 'Enable Anchor Y animation', exact: true }).click();
++  await ready(page);
++  await scrub(.6);
++  await put('Y', 95);
++  const authored = await source(page);
++  expect(authored.html).toBe(original.html);
++  expect(authored.css).toBe(original.css);
++  expect(authored.fields).toEqual(original.fields);
++  const data = await evaluateInPage(page, async ({ prior, edited, id }) => {
++    const { parseAnimData } = await import('/src/blocks/animData.ts');
++    const { SVG_GROUP_PIVOT_UNITS } = await import('/src/model/svgGroupTransform.ts');
++    const before = parseAnimData(prior)!, after = parseAnimData(edited)!;
++    const axes = ['--base-anchor-x', '--base-anchor-y'];
++    const pivot = Object.fromEntries(axes.map(axis => [axis, after.steps[0].layers[id][axis].map(key => ({ ...key, value: Number(key.value) / SVG_GROUP_PIVOT_UNITS }))]));
++    for (const step of after.steps) if (step.layers[id]) for (const axis of axes) delete step.layers[id][axis];
++    return { before, after, pivot };
++  }, { prior: original.js, edited: authored.js, id });
++  expect(data.after).toEqual(data.before);
++  expect(data.pivot).toEqual({ '--base-anchor-x': [{ time: .2, value: 135.00049 }, { time: .4, value: 95 }], '--base-anchor-y': [{ time: .4, value: 70 }, { time: .6, value: 95 }] });
++  expect(data.before.steps[0].layers[id].scaleX).toEqual([{ time: 0, value: 1 }, { time: .2, value: 3 }, { time: .4, value: 1.4 }]);
++  for (const [time, pivotX, pivotY, moved, degrees, scaleX, scaleY] of [
++    [0, 315, 160, 0, 0, 1, 1], [.4, 275, 160, -80, 35, 1.4, .8],
++    [.6, 275, 185, -80, 35, 1.4, .8], [.4, 275, 160, -80, 35, 1.4, .8],
++  ]) {
++    await scrub(time);
++    const style = await iframe.locator(id).evaluate(el => ({ inline: el.getAttribute('style'), scale: getComputedStyle(el).getPropertyValue('--noacg-group-scale-x') }));
++    const angle = degrees * Math.PI / 180;
++    const a = Math.cos(angle) * scaleX, b = Math.sin(angle) * scaleX;
++    const c = -Math.sin(angle) * scaleY, d = Math.cos(angle) * scaleY;
++    const e = 17.375 + pivotX - a * pivotX - c * pivotY, f = -9.25 + pivotY - b * pivotX - d * pivotY;
++    for (const [selector, expected] of [[id, [a, b, c, d, e, f]], [members[0], [a, b, c, d, e + a * moved, f + b * moved]], [members[1], [a, b, c, d, e, f]]] as const) {
++      for (const [index, value] of (await matrix(selector)).entries()) expect(value, `${selector} at ${time}: ${JSON.stringify(style)}`).toBeCloseTo(expected[index], 3);
++    }
++    const marker = (await page.locator('.ef-selection [data-anchor]').getAttribute('transform'))!.match(/-?[\d.]+/g)!.map(Number);
++    const projected = await iframe.locator(id).evaluate((el, p) => {
++      const point = new DOMPoint(p[0], p[1]).matrixTransform((el as SVGGraphicsElement).getScreenCTM()!);
++      return [point.x, point.y];
++    }, [time === 0 ? 315.00049 : pivotX, pivotY]);
++    marker.forEach((value, index) => expect(Math.abs(value - projected[index])).toBeLessThan(.01));
++  }
++  const beforeRefusal = await history();
++  await page.getByRole('button', { name: 'Ungroup selection', exact: true }).click();
++  await expect(page.locator('.ef-group-error')).toContainText('animates its pivot');
++  expect(await source(page)).toEqual(authored);
++  expect(await history()).toBe(beforeRefusal);
++  expect(await evaluateInPage(page, async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts)).toEqual([id]);
++
++  for (const [axis, time] of [['X', .32], ['Y', .52]] as const) {
++    await scrub(time);
++    const prior = await poses();
++    await page.getByRole('button', { name: 'Disable Anchor ' + axis + ' animation', exact: true }).click();
++    await ready(page); await painted();
++    samePose(await poses(), prior, 'baked Anchor ' + axis);
++  }
++  const baked = await poses();
++  await page.getByRole('button', { name: 'Ungroup selection', exact: true }).click();
++  await ready(page); await painted();
++  samePose(await poses(), baked, 'ungroup after bake');
++  await expect(iframe.locator('g[data-noacg-carrier][data-noacg-group-pivot="frame-v1"]')).toHaveCount(1);
++});
++
+ test('local parent trim keeps child motion and navigation cancels timeline drafts',async({page})=>{
+   await open(page);const ids=await create(page),id=await group(page,ids.slice(0,2));
+   await key(page,ids[0],'x',0,0);await key(page,ids[0],'x',.4,44);
+diff --git a/src/blocks/baseEdits.ts b/src/blocks/baseEdits.ts
+index 754f0c7a1..5374128d8 100644
+--- a/src/blocks/baseEdits.ts
++++ b/src/blocks/baseEdits.ts
+@@ -1,9 +1,10 @@
+ // Base artwork edits share the existing source writers. Motion retains transform ownership.
+ import type { SpxTemplate } from '../model/types';
+ import { getTemplateParts, detectPrefix } from '../model/structure';
++import { SVG_GROUP_PIVOT_SELECTOR, SVG_GROUP_TRACK_CSS, SVG_GROUP_TRANSFORM, svgGroupOrigin, svgGroupViewport } from '../model/svgGroupTransform';
+ import { parseTransform } from '../assets/svgGeometry';
+ import { locateAnimData, losslessAnimData, parseAnimData, type AnimData, type AnimLayerTracks, type AnimStep } from './animData';
+-import { canWriteAnchorData, writeAnimData } from '../templates/shared/animRuntime';
++import { canWriteAnchorData, hasSvgGroupRuntime, writeAnimData } from '../templates/shared/animRuntime';
+ import { allTimelines } from './animMachine';
+ import { addCatalogLine, appendCss, findRuleBody, setCssDeclaration } from './edit';
+ import { addPlacedLine, placedLines, placeLine, placementCss, setLineFit } from './designLayout';
+@@ -30,6 +31,8 @@ export interface BaseValues {
+   anchorReason: string | null;
+   /** The imported SVG member's origin belongs to CSS rather than GSAP. */
+   cssSvgAnchor?: boolean;
++  /** A marked SVG group, with true for an intact generated transform owner. */
++  svgGroupPivot?: boolean;
+ }
+ const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+ export const precise = (n: number) => Math.round(n * 1000) / 1000;
+@@ -134,12 +137,17 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues
+   const targetNode = doc.querySelector(target)!;
+   const rules = matchingRules(template.css, targetNode), styles = rules.map(({ rule }) => rule.style);
+   const motion = parseAnimData(template.js);
++  // Read the exact source rule the base writer edits, without serializing CSSOM.
++  const own = findRuleBody(template.css, target)?.body ?? '';
++  const ownValue = (property: string) => own.match(new RegExp('(?:^|[;{]|\\*/)\\s*' + esc(property) + '\\s*:\\s*([^;]+)'))?.[1].trim() ?? null;
++  const ownRule = rules.find(({ rule, nested }) => !nested && rule.selectorText === target)?.rule;
++  const fixedMarker = svg && !!groupFrame && node.localName === 'g' && node.matches(SVG_GROUP_PIVOT_SELECTOR);
+   // The channels animated on the base target: a placed text's box, which its text's tracks never touch.
+   const owned = new Set(tracksOn(motion?.steps ?? [], targetNode).flatMap(tracks => Object.keys(tracks)));
+   const scaleReason = ['scale', 'scaleX', 'scaleY', 'transform'].some(key => owned.has(key))
+     ? 'Scale is animated on this layer. Use its existing animation controls; base scaling would compete with that motion.' : null;
+   const svgMatrix = svg ? parseTransform(node.getAttribute('transform')) : null;
+-  const rawTransforms = [...styles.map(style => style.transform), (targetNode as HTMLElement).style.transform].filter(raw => raw && raw !== 'none');
++  const rawTransforms = [...rules.filter(({ rule }) => !fixedMarker || rule !== ownRule).map(({ rule }) => rule.style.transform), (targetNode as HTMLElement).style.transform].filter(raw => raw && raw !== 'none');
+   const mixed = svgMatrix && (Math.abs(svgMatrix.b) > 1e-8 || Math.abs(svgMatrix.c) > 1e-8) || rawTransforms.some(raw => {
+     try { const matrix = new DOMMatrix(raw); return !matrix.is2D || Math.abs(matrix.b) > 1e-8 || Math.abs(matrix.c) > 1e-8 || Math.abs(matrix.e) > 1e-8 || Math.abs(matrix.f) > 1e-8; }
+     catch { return true; }
+@@ -188,8 +196,6 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues
+   }
+   // The anchor is the base target's transform-origin, ours where it names our custom properties, read
+   // from the rule the writer writes (the first top-level rule with exactly the target's selector).
+-  const own = findRuleBody(template.css, target)?.body ?? '';
+-  const ownValue = (property: string) => own.match(new RegExp('(?:^|[;{]|\\*/)\\s*' + esc(property) + '\\s*:\\s*([^;]+)'))?.[1].trim() ?? null;
+   const rawAnchor = ownValue('transform-origin')?.includes('--base-anchor-') ? { x: parseFloat(ownValue('--base-anchor-x') ?? '') || 0, y: parseFloat(ownValue('--base-anchor-y') ?? '') || 0 } : null;
+   const anchor = rawAnchor && groupFrame && !svg ? { x: rawAnchor.x - groupFrame.x, y: rawAnchor.y - groupFrame.y } : rawAnchor;
+   // A second declaration (or its -webkit- alias) later in the rule would win over the one written.
+@@ -208,7 +214,34 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues
+     const keys = step.layers[selector]?.transformOrigin;
+     return keys?.length === 1 && keys[0].time === 0 && keys[0].value === rawAnchor.x+'px '+rawAnchor.y+'px';
+   });
+-  const anchorReason = svg && !groupFrame && !cssSvgAnchor ? 'This SVG member has a transform or source GSAP places independently. Its pivot is preserved.'
++  let svgGroupPivot: boolean | undefined;
++  if (fixedMarker && groupFrame) {
++    const box = svgGroupViewport(node);
++    const critical = ['transform', 'transform-box', 'transform-origin', '--base-anchor-x', '--base-anchor-y', '--base-x', '--base-y',
++      '--base-rotation', '--base-scale-x', '--base-scale-y', ...Object.values(SVG_GROUP_TRACK_CSS)];
++    const competing = [...critical, '-webkit-transform', '-webkit-transform-origin', 'translate', 'rotate', 'scale', 'display'];
++    const sourceStyles = [...doc.querySelectorAll('style')].flatMap(style => matchingRules(style.textContent ?? '', node));
++    const competingRules = [...rules, ...sourceStyles].some(({ rule }) => rule !== ownRule && competing.some(key => rule.style.getPropertyValue(key)));
++    const inline = (node as SVGElement).style;
++    const timelines = motion ? allTimelines(motion) : [];
++    const transformTracks = new Set([...TRANSFORM_CHANNELS, 'transformOrigin', 'svgOrigin', 'smoothOrigin', 'display', '--base-anchor-x', '--base-anchor-y', ...Object.values(SVG_GROUP_TRACK_CSS)]);
++    const allowed = new Set<string>([...Object.keys(SVG_GROUP_TRACK_CSS), '--base-anchor-x', '--base-anchor-y']);
++    const foreignMotion = timelines.some(step => Object.entries(step.layers).some(([name, tracks]) => {
++      try { return node.matches(name) && Object.keys(tracks).some(prop => transformTracks.has(prop) && (name !== target || !allowed.has(prop))); }
++      catch { return true; }
++    }) || step.dynamics?.some(entry => entry.target && node.matches(entry.target)));
++    svgGroupPivot = target === '#' + node.id && hasSvgGroupRuntime(template.js) && !!motion && !!ownRule && !competingRules && !foreignMotion
++      && !node.hasAttribute('transform') && !competing.some(key => inline.getPropertyValue(key)) && !originSetFor(template.js, motion, node)
++      && !['translate', 'rotate', 'scale', 'display', '-webkit-transform', '-webkit-transform-origin'].some(ownValue)
++      && critical.every(key => ownRule.style.getPropertyValue(key) && !ownRule.style.getPropertyPriority(key)
++        && (own.match(new RegExp('(?:^|[;{]|\\*/)\\s*' + esc(key) + '\\s*:', 'g'))?.length ?? 0) === 1)
++      && ['x', 'y', 'width', 'height'].every(key => node.getAttribute('data-group-' + key)?.trim())
++      && ['x', 'y'].every(axis => /^-?(?:\d+(?:\.\d+)?|\.\d+)px$/.test(ownValue('--base-anchor-' + axis) ?? ''))
++      && ownValue('transform-box') === 'view-box' && ownValue('transform') === SVG_GROUP_TRANSFORM
++      && ownValue('transform-origin') === svgGroupOrigin(transformPrecision(groupFrame.x - box.x), transformPrecision(groupFrame.y - box.y));
++  }
++  const anchorReason = svgGroupPivot === false ? 'This SVG group has a conflicting pivot owner. Its source is preserved.'
++    : svg && !groupFrame && !cssSvgAnchor ? 'This SVG member has a transform or source GSAP places independently. Its pivot is preserved.'
+     : originSetFor(template.js, motion, targetNode) && !ownedSvgPivot ? 'This graphic\'s script or animation data sets this layer\'s transformOrigin itself, which would replace an anchor written in CSS. Its source is preserved.'
+     : rival ? `This layer's transform-origin is set by another rule, or measured from another box by transform-box (${rival}), so an anchor written here would not hold. Its source is preserved.`
+     : repeated ? 'This layer\'s own rule declares transform-origin more than once, so an anchor written there would lose to the later one. Its source is preserved.'
+@@ -216,7 +249,7 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues
+     : textMotion ? `${selector} animates Rotation or Scale on its text inside its placed box, which turns about the text's own centre, so no anchor on the box can be its pivot. Its source is preserved.`
+     : null;
+   return { selector, target, mode, groupFrame, offsetPosition, scaleReason, axisResizeReason, rotationReason, scaled: placed?.scaled ?? left?.scaled ?? false,
+-    originX, originY, anchor, anchorReason, cssSvgAnchor: cssSvgAnchor && !anchorReason,
++    originX, originY, anchor, anchorReason, cssSvgAnchor: cssSvgAnchor && !anchorReason, svgGroupPivot,
+     x: offsetPosition ? originX + number(template.css, target, '--base-x') : placed?.x ?? left?.value ?? originX + number(template.css, target, svg ? '--base-x' : '--layout-x'),
+     y: offsetPosition ? originY + number(template.css, target, '--base-y') : placed?.y ?? top?.value ?? originY + number(template.css, target, svg ? '--base-y' : '--layout-y'),
+     scaleX: Number(declaration(template.css, target, '--base-scale-x') ?? 1),
+@@ -267,6 +300,7 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
+     throw new Error('Enter finite artwork coordinates and scale.');
+   }
+   const base = baseValues(template, selector);
++  if (base.svgGroupPivot === false) throw new Error(base.anchorReason!);
+   const changeScale = patch.scaleX !== undefined && patch.scaleX !== base.scaleX || patch.scaleY !== undefined && patch.scaleY !== base.scaleY;
+   if (changeScale && base.scaleReason) throw new Error(base.scaleReason);
+   if (patch.rotation !== undefined && base.rotationReason) throw new Error(base.rotationReason);
+@@ -277,7 +311,7 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
+   if (Object.entries(patch).every(([key, value]) => unchanged(key, value))) return template;
+   const x = transformPrecision(patch.x ?? base.x), y = transformPrecision(patch.y ?? base.y);
+   let html = template.html;
+-  const svgMotion = base.mode === 'svg' && parseAnimData(template.js)?.steps.some(step => step.layers[selector]?.x?.length || step.layers[selector]?.y?.length);
++  const svgMotion = base.mode === 'svg' && !base.svgGroupPivot && parseAnimData(template.js)?.steps.some(step => step.layers[selector]?.x?.length || step.layers[selector]?.y?.length);
+   if (svgMotion && (patch.x !== undefined || patch.y !== undefined)) {
+     // Numeric SVG geometry remains independent of GSAP's transform channels.
+     // Moving its authored coordinates preserves motion instead of writing a CSS
+@@ -311,7 +345,7 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
+       css = setCssDeclaration(css, base.target, '--base-x', transformPrecision(x - base.originX) + 'px');
+       css = setCssDeclaration(css, base.target, '--base-y', transformPrecision(y - base.originY) + 'px');
+       const offset = (axis: string) => base.scaled ? `calc(var(--base-${axis}) * var(--scale, 1))` : `var(--base-${axis})`;
+-      css = setCssDeclaration(css, base.target, 'translate', offset('x') + ' ' + offset('y'));
++      if (!base.svgGroupPivot) css = setCssDeclaration(css, base.target, 'translate', offset('x') + ' ' + offset('y'));
+     } else if (base.mode === 'placed' || base.mode === 'absolute') {
+       css = setCssDeclaration(css, base.target, 'left', placementCss(x, base.scaled));
+       css = setCssDeclaration(css, base.target, 'top', placementCss(y, base.scaled));
+@@ -333,11 +367,11 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
+     // A one-pixel resize of wide artwork also needs fine transform precision.
+     css = setCssDeclaration(css, base.target, '--base-scale-x', String(transformPrecision(patch.scaleX ?? base.scaleX)));
+     css = setCssDeclaration(css, base.target, '--base-scale-y', String(transformPrecision(patch.scaleY ?? base.scaleY)));
+-    css = setCssDeclaration(css, base.target, 'scale', 'var(--base-scale-x) var(--base-scale-y)');
++    if (!base.svgGroupPivot) css = setCssDeclaration(css, base.target, 'scale', 'var(--base-scale-x) var(--base-scale-y)');
+   }
+   if (patch.rotation !== undefined) {
+     css = setCssDeclaration(css, base.target, '--base-rotation', String(precise(patch.rotation)));
+-    css = setCssDeclaration(css, base.target, 'rotate', 'calc(var(--base-rotation) * 1deg)');
++    if (!base.svgGroupPivot) css = setCssDeclaration(css, base.target, 'rotate', 'calc(var(--base-rotation) * 1deg)');
+   }
+   if (anchored) {
+     // Rotation and scale, base and animated alike, turn about transform-origin. A layer whose placement
+@@ -345,11 +379,11 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
+     const unit = (axis: string) => base.mode === 'flow' || base.scaled ? `calc(var(--base-anchor-${axis}) * var(--scale, 1))` : `var(--base-anchor-${axis})`;
+     css = setCssDeclaration(css, base.target, '--base-anchor-x', transformPrecision(patch.anchorX! + (base.mode === 'svg' ? 0 : base.groupFrame?.x ?? 0)) + 'px');
+     css = setCssDeclaration(css, base.target, '--base-anchor-y', transformPrecision(patch.anchorY! + (base.mode === 'svg' ? 0 : base.groupFrame?.y ?? 0)) + 'px');
+-    css = setCssDeclaration(css, base.target, 'transform-origin', unit('x') + ' ' + unit('y'));
++    if (!base.svgGroupPivot) css = setCssDeclaration(css, base.target, 'transform-origin', unit('x') + ' ' + unit('y'));
+     if (base.cssSvgAnchor) css = setCssDeclaration(css, base.target, 'transform-box', 'fill-box');
+   }
+   let js = template.js;
+-  if (anchored && base.groupFrame && base.mode === 'svg') {
++  if (anchored && base.groupFrame && base.mode === 'svg' && !base.svgGroupPivot) {
+     const data = losslessAnimData(js);
+     if (!data) throw new Error('This SVG group has no supported pivot initializer. Its source is preserved.');
+     for (const step of allTimelines(data)) if (step.layers[selector]?.transformOrigin) step.layers[selector].transformOrigin = [{time:0,value:transformPrecision(patch.anchorX!)+'px '+transformPrecision(patch.anchorY!)+'px'}];
+@@ -358,7 +392,7 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
+   // With its transform already animated (Rotation, Scale), GSAP would clear a CSS translate here too,
+   // so the move goes into the transform attribute. Only this move: an offset already in the CSS,
+   // which GSAP already hides on a graphic saved before #2062, stays where it is.
+-  const motion = base.mode === 'svg' && !svgMotion && (patch.x !== undefined || patch.y !== undefined) ? parseAnimData(template.js) : null;
++  const motion = base.mode === 'svg' && !base.svgGroupPivot && !svgMotion && (patch.x !== undefined || patch.y !== undefined) ? parseAnimData(template.js) : null;
+   const transformed = !!motion && allTimelines(motion).some(step => TRANSFORM_CHANNELS.some(channel => step.layers[selector]?.[channel]?.length));
+   const kept = { x: number(template.css, base.target, '--base-x'), y: number(template.css, base.target, '--base-y') };
+   return transformed ? settleSvgOffset({ ...template, html, css, js }, selector, kept).template : { ...template, html, css, js };
+diff --git a/src/blocks/editorAnimation.ts b/src/blocks/editorAnimation.ts
+index d4b6d272a..4f6ded624 100644
+--- a/src/blocks/editorAnimation.ts
++++ b/src/blocks/editorAnimation.ts
+@@ -1,5 +1,6 @@
+ import type { SpxTemplate } from '../model/types';
+ import { getTemplateParts } from '../model/structure';
++import { SVG_GROUP_PIVOT_UNITS } from '../model/svgGroupTransform';
+ import { losslessAnimData, spliceAnimData, type AnimData } from './animData';
+ import { captureKeys, deleteKeyframe, easeKeys, EPS, setKeyframe, moveKeys, moveLayerSpan, pasteKeys, trimLayerSpan, type CopiedKey, type KeyEasePreset, type KeyRef } from './animEdit';
+ import { resolveValue } from './animEval';
+@@ -223,8 +224,11 @@ export function anchorKeyReason(template: SpxTemplate, selector: string): string
+     const data = animationSource(template), owner = animationTarget(template, data, selector);
+     const base = baseValues(template, selector);
+     if (base.anchorReason) return base.anchorReason;
+-    if (base.groupFrame) return 'This group uses a shared pivot. Set its pivot in the base.';
+-    if (base.mode === 'svg' && !base.cssSvgAnchor || base.target !== selector) return 'This layer uses a separate transform origin. Its pivot can only be set in the base.';
++    if (base.groupFrame && !base.svgGroupPivot) return base.mode === 'svg'
++      ? 'This older SVG group keeps its saved pivot. Set its pivot in the base.' : 'This group uses a shared pivot. Set its pivot in the base.';
++    if ((base.mode === 'svg' && !base.cssSvgAnchor && !base.svgGroupPivot) || base.target !== selector || (base.svgGroupPivot && owner !== selector)) {
++      return 'This layer uses a separate transform origin. Its pivot can only be set in the base.';
++    }
+     if (base.scaleX === 0 || base.scaleY === 0) return 'Restore a nonzero scale before animating this pivot.';
+     for (const channel of Object.values(ANCHOR_CHANNELS)) {
+       if (data.steps.some(step => step.layers[owner]?.[channel]?.some(key => typeof key.value !== 'number'))) return 'This pivot has nonnumeric keys in its source.';
+@@ -325,6 +329,7 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
+     if (TRANSFORM_CHANNELS.includes(operation.property) && template.css.includes('--base-anchor-')) {
+       let base;
+       try { base = baseValues(template, selector); } catch { /* A track can be editable without base placement. */ }
++      if (base?.svgGroupPivot === false) throw new Error(base.anchorReason!);
+       if (base?.cssSvgAnchor && base.anchor) throw new Error('This SVG member has a CSS pivot. A GSAP transform key would replace it, so its source is preserved.');
+     }
+   }
+@@ -332,11 +337,13 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
+     const reason = anchorKeyReason(template, selector);
+     if (reason) throw new Error(reason);
+     if (Math.abs(operation.value) > 100000) throw new Error('Enter a finite anchor coordinate.');
+-    if (operation.action === 'set' && !baseValues(template, selector).anchor) {
++    const base = baseValues(template, selector);
++    if (operation.action === 'set' && !base.anchor) {
+       const { anchorX, anchorY } = operation.baseValues ?? {};
+       if (anchorX === undefined || anchorY === undefined) throw new Error('A current rendered pivot is required to create the first anchor key.');
+       template = editBase(template, selector, { anchorX, anchorY });
+     }
++    if (operation.action === 'set' && base.svgGroupPivot) operation = { ...operation, value: operation.value * SVG_GROUP_PIVOT_UNITS };
+   }
+   const channels = operation.kind !== 'animation.key' ? undefined : operation.action === 'set' ? [operation.property] : CONTROL_CHANNELS[operation.property as ControlProperty] ?? [operation.property];
+   const owner = animationTarget(template, source, selector, channels);
+diff --git a/src/blocks/editorGroups.ts b/src/blocks/editorGroups.ts
+index cf75f79b5..ef882a78d 100644
+--- a/src/blocks/editorGroups.ts
++++ b/src/blocks/editorGroups.ts
+@@ -1,5 +1,6 @@
+ import type { SpxTemplate } from '../model/types';
+ import { getTemplateParts, svgInspectionSelector } from '../model/structure';
++import { SVG_GROUP_PIVOT_ATTRIBUTE, SVG_GROUP_PIVOT_SELECTOR, SVG_GROUP_PIVOT_VERSION, SVG_GROUP_TRACK_CSS, svgGroupOrigin, svgGroupTransformCss, svgGroupViewport } from '../model/svgGroupTransform';
+ import { artworkNode, artworkRange } from './artworkEdits';
+ import { artworkLayerNode } from './artworkLayers';
+ import { baseValues } from './baseEdits';
+@@ -7,7 +8,7 @@ import { appendCss, findRuleBody } from './edit';
+ import { locateAnimData, losslessAnimData } from './animData';
+ import { allTimelines } from './animMachine';
+ import { animateLayer, documentContains, sequenceAuthoringReason, trackOwner } from './editorAnimation';
+-import { writeAnimData } from '../templates/shared/animRuntime';
++import { withSvgGroupRuntime, writeAnimData } from '../templates/shared/animRuntime';
+ 
+ export interface GroupBox { x: number; y: number; width: number; height: number }
+ export type GroupOperation =
+@@ -133,20 +134,25 @@ function createGroup(template: SpxTemplate, selectors: string[], box: GroupBox)
+   if (svg && allTimelines(data!).some(step => Object.keys(step.layers).some(selector => Object.keys(step.layers[selector]).some(property => property !== 'transformOrigin') && nodes.some(node => node.matches(selector) || [...node.querySelectorAll('*')].some(member => member.matches(selector)))))) throw new Error('Group SVG members before authoring their motion so the new pivot can be initialized exactly. Their existing motion is preserved.');
+   const ranges = ordered.map(node => artworkRange(template.html, node));
+   const id = freshId(template, 'group-'), selector = '#' + id;
++  const fixedRuntime = svg && data ? withSvgGroupRuntime(template.js) : null;
++  const fixedMarker = fixedRuntime ? ' ' + SVG_GROUP_PIVOT_ATTRIBUTE + '="' + SVG_GROUP_PIVOT_VERSION + '"' : '';
+   const wrapper = doc.createElementNS(svg ? SVG : 'http://www.w3.org/1999/xhtml', svg ? 'g' : 'div');
+   wrapper.id = id; wrapper.setAttribute('data-gfx', ''); wrapper.setAttribute('data-noacg-group', '');
++  if (fixedRuntime) wrapper.setAttribute(SVG_GROUP_PIVOT_ATTRIBUTE, SVG_GROUP_PIVOT_VERSION);
+   const frame = (['x', 'y', 'width', 'height'] as const).map(key => [key, fine(box[key])] as const);
+   frame.forEach(([key, value]) => wrapper.setAttribute('data-group-' + key, String(value)));
+   checkStructure(template, doc, () => { parent.insertBefore(wrapper, ordered[0]); ordered.forEach(node => wrapper.appendChild(node)); return [wrapper]; });
+   const tag = svg ? 'g' : 'div', attrs = frame.map(([key, value]) => ' data-group-' + key + '="' + value + '"').join('');
+-  const opening = '<' + tag + ' id="' + id + '" data-gfx data-noacg-group' + attrs + '>';
++  const opening = '<' + tag + ' id="' + id + '" data-gfx data-noacg-group' + fixedMarker + attrs + '>';
+   const html = template.html.slice(0, ranges[0].start) + opening + template.html.slice(ranges[0].start, ranges[ranges.length - 1].end) + '</' + tag + '>' + template.html.slice(ranges[ranges.length - 1].end);
+-  const geometry = svg ? 'transform-box: fill-box;' : 'position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; box-sizing: border-box;';
++  const viewport = fixedRuntime ? svgGroupViewport(parent) : null;
++  const geometry = viewport ? svgGroupTransformCss(svgGroupOrigin(fine(fine(box.x) - viewport.x), fine(fine(box.y) - viewport.y)))
++    : svg ? 'transform-box: fill-box;' : 'position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; box-sizing: border-box;';
+   const css = appendCss(template.css, 'Group transform; member coordinates and animation remain intact.', selector + ' { ' + geometry + '\n' +
+     '  --base-anchor-x: ' + fine((svg ? 0 : box.x) + box.width / 2) + 'px; --base-anchor-y: ' + fine((svg ? 0 : box.y) + box.height / 2) + 'px;\n' +
+-    '  transform-origin: var(--base-anchor-x) var(--base-anchor-y);\n}');
+-  let js = template.js;
+-  if (data) {
++    (fixedRuntime ? '' : '  transform-origin: var(--base-anchor-x) var(--base-anchor-y);\n') + '}');
++  let js = fixedRuntime ?? template.js;
++  if (data && !fixedRuntime) {
+     // A static source initializer fixes GSAP's SVG pivot before any member motion.
+     // It uses the existing interpreter and remains a base pivot, hidden from key authoring.
+     for (const step of allTimelines(data)) step.layers[selector] = {transformOrigin:[{time:0,value:fine(box.width/2)+'px '+fine(box.height/2)+'px'}]};
+@@ -162,9 +168,13 @@ function groupNode(template: SpxTemplate, selector: string) {
+ }
+ function ungroup(template: SpxTemplate, selector: string) {
+   const node = groupNode(template, selector), range = artworkRange(template.html, node);
++  const fixed = node.namespaceURI === SVG && node.matches(SVG_GROUP_PIVOT_SELECTOR);
+   const data = losslessAnimData(template.js);
+   if (locateAnimData(template.js) && !data) throw new Error('This animation contains data the current writer cannot preserve exactly. Its source is preserved.');
+   const timelines = data ? allTimelines(data) : [];
++  if (fixed && timelines.some(step => step.layers[selector]?.['--base-anchor-x']?.length || step.layers[selector]?.['--base-anchor-y']?.length)) {
++    throw new Error('This SVG group animates its pivot. Disable that motion before ungrouping. Its source is preserved.');
++  }
+   const originalData = JSON.stringify(data);
+   if (data && node.matches(data.root)) throw new Error('The graphic root is owned by playback. Its source is preserved.');
+   for (const step of timelines) {
+@@ -179,6 +189,7 @@ function ungroup(template: SpxTemplate, selector: string) {
+     'transform-box', 'transform-origin', '--base-anchor-x', '--base-anchor-y', '--base-x', '--base-y', '--base-scale-x', '--base-scale-y', '--base-rotation',
+     'transform', 'translate', 'scale', 'rotate', 'visibility', 'overflow', 'opacity',
+     'filter', 'backdrop-filter', 'clip-path', 'mask', 'mask-image', 'mix-blend-mode', 'isolation', 'background', 'background-color', 'box-shadow']);
++  if (fixed) for (const property of Object.values(SVG_GROUP_TRACK_CSS)) ownedProperties.add(property);
+   const neutralEdge = (property: string) => /^(?:margin|padding)-(?:top|right|bottom|left)$/.test(property) && Number.parseFloat(rule.style.getPropertyValue(property)) === 0 || /^border-(?:top|right|bottom|left)-(?:width|style|color)$/.test(property) && ['top', 'right', 'bottom', 'left'].every(side => Number.parseFloat(rule.style.getPropertyValue('border-' + side + '-width')) === 0);
+   for (const property of rule.style) if (!ownedProperties.has(property) && !neutralEdge(property) && !(property.startsWith('border-image-') && ['none', 'initial', ''].includes(rule.style.getPropertyValue('border-image-source')))) throw new Error('This group owns unsupported CSS (' + property + '). Ungroup cannot remove or split that appearance exactly. Its source is preserved.');
+   const opacity = rule.style.opacity;
+@@ -188,7 +199,9 @@ function ungroup(template: SpxTemplate, selector: string) {
+   }) || timelines.some(step => Object.entries(step.layers[selector] ?? {}).some(([property, keys]) => ['opacity', 'autoAlpha', 'filter', 'clipPath'].includes(property) && keys.some(key => property !== 'opacity' || key.value !== 1)))) {
+     throw new Error('This group composites opacity, masking or effects across its members. Ungroup cannot split that appearance exactly. Its source is preserved.');
+   }
+-  if (node.attributes.length !== [...node.attributes].filter(attr => ['id', 'data-gfx', 'data-noacg-group', 'data-noacg-label', 'data-group-x', 'data-group-y', 'data-group-width', 'data-group-height'].includes(attr.name)).length) throw new Error('This group has additional source attributes. Ungroup would change their meaning; its source is preserved.');
++  const ownedAttributes = ['id', 'data-gfx', 'data-noacg-group', 'data-noacg-label', 'data-group-x', 'data-group-y', 'data-group-width', 'data-group-height'];
++  if (fixed) ownedAttributes.push(SVG_GROUP_PIVOT_ATTRIBUTE);
++  if ([...node.attributes].some(attr => !ownedAttributes.includes(attr.name))) throw new Error('This group has additional source attributes. Ungroup would change their meaning; its source is preserved.');
+   const groupReference = new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\w-])');
+   const relatedRules = rulesOf(template).filter(rule => groupReference.test(rule.selectorText));
+   if (relatedRules.length !== 1 || relatedRules[0].selectorText !== selector) throw new Error('Other CSS rules refer to this group. Its source is preserved.');
+@@ -208,6 +221,7 @@ function ungroup(template: SpxTemplate, selector: string) {
+   const transformed = ['left', 'top', '--base-x', '--base-y', '--base-scale-x', '--base-scale-y', '--base-rotation'].some(property => {
+     const value = rule.style.getPropertyValue(property); return value && Number.parseFloat(value) !== (property.includes('scale') ? 1 : 0);
+   }) || ['transform', 'translate', 'scale', 'rotate', 'visibility', 'overflow'].some(property => {
++    if (fixed && property === 'transform') return false;
+     const value = rule.style.getPropertyValue(property); return value && !['none', 'visible'].includes(value);
+   }) || node.namespaceURI !== SVG && (rule.style.width !== '100%' || rule.style.height !== '100%') || timelines.some(step => step.layers[selector] || step.spans?.[selector] || step.reveals?.includes(selector) || step.hides?.includes(selector));
+   if (transformed && rulesOf(template).some(rule => rule.style.zIndex && rule.style.zIndex !== 'auto' && [...node.querySelectorAll('*')].some(member => member.matches(rule.selectorText)))) throw new Error('Group members own a stacking order inside the shared transform. Ungroup cannot split that order exactly. Its source is preserved.');
+diff --git a/src/components/editorFoundation/animationAuthoring.ts b/src/components/editorFoundation/animationAuthoring.ts
+index 77b5f56cd..b71cd94ea 100644
+--- a/src/components/editorFoundation/animationAuthoring.ts
++++ b/src/components/editorFoundation/animationAuthoring.ts
+@@ -1,4 +1,5 @@
+ import type { SpxTemplate } from '../../model/types';
++import { SVG_GROUP_PIVOT_UNITS } from '../../model/svgGroupTransform';
+ import { baseValues, type BasePatch, type BaseValues, type TransformPatch } from '../../blocks/baseEdits';
+ import { ANCHOR_CHANNELS, channelValue, controlKeyReason, isArmed, poseKey, sequenceAuthoringReason, writeChannel, type Channel } from '../../blocks/editorAnimation';
+ import type { AnimData } from '../../blocks/animData';
+@@ -151,7 +152,7 @@ export function anchorAtPlayhead(template: SpxTemplate, base: BaseValues, appear
+     const channel = ANCHOR_CHANNELS[axis];
+     if (!isArmed(view.data, owner, channel)) continue;
+     const sampled = departing ? resolveValue(view.data, owner, channel, segment.index, 0) : appearance?.origin?.[index];
+-    if (typeof sampled === 'number') result[axis] = departing ? sampled : sampled / (appearance?.unit ?? 1);
++    if (typeof sampled === 'number') result[axis] = departing ? sampled / (base.svgGroupPivot ? SVG_GROUP_PIVOT_UNITS : 1) : sampled / (appearance?.unit ?? 1);
+   }
+   return result;
+ }
+diff --git a/src/components/editorFoundation/runtime.ts b/src/components/editorFoundation/runtime.ts
+index 8c3ebeebd..569d60163 100644
+--- a/src/components/editorFoundation/runtime.ts
++++ b/src/components/editorFoundation/runtime.ts
+@@ -1,3 +1,5 @@
++import { SVG_GROUP_TRACK_CSS } from '../../model/svgGroupTransform';
++
+ /** Original authoring bridge. Deliberately a literal script, not function.toString:
+  * production minification cannot rewrite names captured by the sandbox.
+  * Motion is evaluated by the template's bundled buildStepTimeline/GSAP interpreter.
+@@ -23,6 +25,7 @@ export const foundationRuntime = String.raw`
+   var failed = false;
+   var currentCss = null;
+   var draftCopies = [];
++  var groupChannels = ${JSON.stringify(SVG_GROUP_TRACK_CSS)};
+   window.addEventListener('error', function (event) {
+     failed = true;
+     send('error', lastRequest, { message: event.message || 'Template runtime failed.' });
+@@ -76,10 +79,17 @@ export const foundationRuntime = String.raw`
+       });
+     });
+   }
+-  function numericPose(element, cssSvgPivot, style) {
++  function numericPose(element, adapter, style) {
++    if (adapter && adapter.svgGroupPivot !== undefined) {
++      var groupPose = { xPercent: 0, yPercent: 0, opacity: Number(style.opacity) };
++      ['x', 'y', 'rotation', 'scaleX', 'scaleY'].forEach(function (property) {
++        groupPose[property] = Number(style.getPropertyValue(groupChannels[property]));
++      });
++      return groupPose;
++    }
+     // Reading GSAP transform properties on a CSS-owned SVG pivot sets an inline origin and
+     // takes over its reference box. This member has no GSAP transform channels to read.
+-    if (cssSvgPivot) {
++    if (cssSvgPivotFor(adapter)) {
+       return { x: 0, y: 0, xPercent: 0, yPercent: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: Number(style.opacity) };
+     }
+     var pose = {};
+@@ -106,7 +116,7 @@ export const foundationRuntime = String.raw`
+       resetPose();
+       config.selectors.forEach(function (selector) {
+         var element = document.querySelector(selector);
+-        if (element) initialMotion[selector] = numericPose(element, cssSvgPivotFor(config.adapters[selector]), getComputedStyle(element));
++        if (element) initialMotion[selector] = numericPose(element, config.adapters[selector], getComputedStyle(element));
+       });
+       gsap.set(NOACG_ANIM.root, { opacity: 1 });
+       for (var i = 0; i < step; i++) {
+@@ -129,7 +139,9 @@ export const foundationRuntime = String.raw`
+     // Existence is explicit, independent of whether a layer owns any keys.
+     NOACG_ANIM.steps.forEach(function (segment, i) {
+       (segment.reveals || []).forEach(function (selector) {
+-        if (i > step) gsap.set(selector, { visibility: 'hidden' });
++        var group = typeof noacgSvgGroupDisplay === 'function' && noacgSvgGroupDisplay(selector, i > step);
++        if (group) gsap.set(selector, group);
++        else if (i > step) gsap.set(selector, { visibility: 'hidden' });
+         else gsap.set(selector, { visibility: 'visible' });
+       });
+     });
+@@ -178,7 +190,7 @@ export const foundationRuntime = String.raw`
+       var unit = adapter && adapter.scaled || adapter && adapter.mode === 'flow'
+         ? parseFloat(targetStyle.getPropertyValue('--scale')) || 1 : 1;
+       var cssSvgPivot = cssSvgPivotFor(adapter);
+-      var motion = window.gsap ? numericPose(element, cssSvgPivot, style) : undefined;
++      var motion = window.gsap ? numericPose(element, adapter, style) : undefined;
+       // Reuse this pose's HTML geometry for both handles and pivot. Each ancestor
+       // walk was repeated three times per layer; no value survives this measure.
+       var targetMatrix = target instanceof SVGGraphicsElement ? null : basis(target);
+@@ -198,7 +210,15 @@ export const foundationRuntime = String.raw`
+       // The pivot rotation and scale use, from the top-left of the box the corners are measured on.
+       var origin = targetStyle.transformOrigin.split(' ').slice(0, 2).map(parseFloat);
+       var groupOrigin = frame && [parseFloat(targetStyle.getPropertyValue('--base-anchor-x')),parseFloat(targetStyle.getPropertyValue('--base-anchor-y'))];
+-      if (frame) { if (svg) { var svgOrigin = (target.getAttribute('data-svg-origin') || '').split(' ').map(Number); if (svgOrigin.length === 2 && svgOrigin.every(Number.isFinite)) groupOrigin = svgOrigin; else { var groupBounds = target.getBBox(); groupOrigin[0] += groupBounds.x; groupOrigin[1] += groupBounds.y; } } origin = [(svg ? groupOrigin[0] : origin[0])-frame.x,(svg ? groupOrigin[1] : origin[1])-frame.y]; }
++      if (frame) {
++        if (svg && adapter.svgGroupPivot !== undefined) { groupOrigin[0] += frame.x; groupOrigin[1] += frame.y; }
++        else if (svg) {
++          var svgOrigin = (target.getAttribute('data-svg-origin') || '').split(' ').map(Number);
++          if (svgOrigin.length === 2 && svgOrigin.every(Number.isFinite)) groupOrigin = svgOrigin;
++          else { var groupBounds = target.getBBox(); groupOrigin[0] += groupBounds.x; groupOrigin[1] += groupBounds.y; }
++        }
++        origin = [(svg ? groupOrigin[0] : origin[0])-frame.x,(svg ? groupOrigin[1] : origin[1])-frame.y];
++      }
+       var groupPivot = frame && svg ? {x:frameMatrix.a*groupOrigin[0]+frameMatrix.c*groupOrigin[1]+frameMatrix.e,y:frameMatrix.b*groupOrigin[0]+frameMatrix.d*groupOrigin[1]+frameMatrix.f} : null;
+       if (cssSvgPivot && targetStyle.transformBox !== 'fill-box') {
+         var viewBox = target.ownerSVGElement.viewBox.baseVal;
+@@ -287,7 +307,8 @@ export const foundationRuntime = String.raw`
+   }
+   function setCss(css) {
+     var sheet = document.getElementById('spx-inline-css');
+-    var baseTransforms = /--base-(?:scale-[xy]|[xy]|rotation)\s*:[^;}]+/g;
++    var baseTransforms = Object.values(config.adapters).some(function (adapter) { return adapter.svgGroupPivot; })
++      ? /--base-(?:anchor-[xy]|scale-[xy]|[xy]|rotation)\s*:[^;}]+/g : /--base-(?:scale-[xy]|[xy]|rotation)\s*:[^;}]+/g;
+     var changed = String((currentCss === null ? sheet.textContent : currentCss).match(baseTransforms)) !== String(css.match(baseTransforms));
+     var step = activeStep, time = timeline ? timeline.time() : 0;
+     // GSAP folds independent CSS transforms into its cached matrix and writes inline
+diff --git a/src/templates/shared/animRuntime.ts b/src/templates/shared/animRuntime.ts
+index 0e7849bad..bac2eeea9 100644
+--- a/src/templates/shared/animRuntime.ts
++++ b/src/templates/shared/animRuntime.ts
+@@ -13,6 +13,7 @@ import { SOUND_RUNTIME_JS } from '../../assets/graphicSoundRuntime';
+ import { ANIM_INTERPRETER_BEFORE_CARRIED_HASH, ANIM_INTERPRETER_BEFORE_EXIT_REST_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_PRE_OUT_JS } from './animRuntimeLegacy';
+ import { NOACG_EASE_JS, needsEaseRuntime, needsHoldRuntime } from './easeRuntime';
+ import { contentHash } from '../../model/contentHash';
++import { SVG_GROUP_PIVOT_SELECTOR, SVG_GROUP_PIVOT_UNITS, SVG_GROUP_TRACK_CSS } from '../../model/svgGroupTransform';
+ 
+ /** The interpreter body — identical in every template. Kept as one exported string so the
+  *  emitter, the AI prompt, and (later) the convert-on-edit path all ship the same code. */
+@@ -1085,6 +1086,78 @@ noacgEntranceTimeline = (function (enter) {
+   };
+ })(noacgEntranceTimeline);`;
+ 
++// A marked group composes its transform in CSS. Translate its authored channels once, then
++// let the same step and exit builders provide holds, ease, visibility and interruption.
++const SVG_GROUP_RUNTIME_JS = `// Capability: svg-group-fixed-frame-v1.
++function noacgSvgGroup(selector) {
++  if (selector.charAt(0) !== '#') return null;
++  var matches = document.querySelectorAll(selector);
++  var element = matches.length === 1 && matches[0];
++  return element && selector === '#' + element.id && element.localName === 'g'
++    && element.namespaceURI === 'http://www.w3.org/2000/svg'
++    && element.matches('${SVG_GROUP_PIVOT_SELECTOR}') ? element : null;
++}
++function noacgSvgGroupDisplay(selector, hidden) {
++  var element = noacgSvgGroup(selector);
++  if (!element || (NOACG_ANIM.steps[0].spans || {})[selector] !== undefined) return null;
++  return { display: hidden ? 'none' : 'inline' };
++}
++(function (stepTimeline, exitTimeline, applyReveals, enter) {
++  var channels = ${JSON.stringify(SVG_GROUP_TRACK_CSS)};
++  var axes = ['--base-anchor-x', '--base-anchor-y'];
++  var runtimeProperties = Object.keys(channels).map(function (key) { return channels[key]; }).concat(axes, 'display');
++  function adapt(step) {
++    var layers = step.layers, loops = step.loops;
++    Object.keys(step.layers).forEach(function (selector) {
++      if (!noacgSvgGroup(selector)) return;
++      if (layers === step.layers) layers = Object.assign({}, layers);
++      var tracks = step.layers[selector], converted = {};
++      Object.keys(tracks).forEach(function (key) {
++        converted[channels[key] || key] = axes.indexOf(key) < 0 ? tracks[key] : tracks[key].map(function (frame) {
++          return Object.assign({}, frame, { value: frame.value / ${SVG_GROUP_PIVOT_UNITS} });
++        });
++      });
++      layers[selector] = converted;
++      if (step.loops && step.loops[selector]) {
++        if (loops === step.loops) loops = Object.assign({}, loops);
++        var mapped = {};
++        Object.keys(loops[selector]).forEach(function (key) { mapped[channels[key] || key] = loops[selector][key]; });
++        loops[selector] = mapped;
++      }
++    });
++    return layers === step.layers ? step : Object.assign({}, step, { layers: layers, loops: loops });
++  }
++  buildStepTimeline = function (input) {
++    var step = typeof input === 'number' ? NOACG_ANIM.steps[input] : input;
++    var timeline = stepTimeline(adapt(step));
++    (step.reveals || []).forEach(function (selector) {
++      var display = noacgSvgGroupDisplay(selector, false);
++      if (display) timeline.set(selector, display, 0);
++    });
++    return timeline;
++  };
++  noacgBuildExit = function (step, interrupted, silent, early) {
++    return exitTimeline(adapt(step), interrupted, silent, early);
++  };
++  noacgApplyReveals = function (timeline) {
++    var hidden = Object.create(null);
++    applyReveals({ set: function (selector, vars, at) {
++      var display = noacgSvgGroupDisplay(selector, true);
++      if (!display) timeline.set(selector, vars, at);
++      else if (!hidden[selector]) {
++        hidden[selector] = true;
++        timeline.set(selector, display, at);
++      }
++    } });
++  };
++  noacgEntranceTimeline = function () {
++    document.querySelectorAll('g${SVG_GROUP_PIVOT_SELECTOR}').forEach(function (element) {
++      runtimeProperties.forEach(function (property) { element.style.removeProperty(property); });
++    });
++    return enter();
++  };
++})(buildStepTimeline, noacgBuildExit, noacgApplyReveals, noacgEntranceTimeline);`;
++
+ /** Emit the full marked ANIMATION region for a data-driven template. */
+ export function emitAnimRegion(data: AnimData): string {
+   return `${ANIMATION_MARK_OPEN}
+@@ -1200,18 +1273,33 @@ function interpreterBody(js: string): string | null {
+ 
+ const currentInterpreter = ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n').trim();
+ const anchorInterpreter = currentInterpreter + '\n\n' + ANCHOR_REPLAY_JS;
++const svgGroupInterpreter = anchorInterpreter + '\n' + SVG_GROUP_RUNTIME_JS;
++
++export function hasSvgGroupRuntime(js: string): boolean {
++  return js.includes('// Capability: svg-group-fixed-frame-v1.') && interpreterBody(js) === svgGroupInterpreter;
++}
++
++/** Group creation adds the capability without rewriting the existing literal or surrounding JS. */
++export function withSvgGroupRuntime(js: string): string | null {
++  const body = interpreterBody(js);
++  if (body === svgGroupInterpreter) return js;
++  if (body !== currentInterpreter && body !== anchorInterpreter) return null;
++  const at = js.indexOf(ANIMATION_MARK_CLOSE), line = js.includes('\r\n') ? '\r\n' : '\n';
++  const extension = (body === currentInterpreter ? '\n\n' + ANCHOR_REPLAY_JS : '') + '\n' + SVG_GROUP_RUNTIME_JS + '\n';
++  return js.slice(0, at).trimEnd() + extension.replace(/\n/g, line) + js.slice(at);
++}
+ 
+ /** Only the exact shared interpreter and its generated anchor extension can take a new anchor track. */
+ export function canWriteAnchorData(js: string): boolean {
+   const body = interpreterBody(js);
+-  return body === currentInterpreter || body === anchorInterpreter;
++  return body === currentInterpreter || body === anchorInterpreter || body === svgGroupInterpreter;
+ }
+ 
+ /** Exact known bodies only: a capability comment alone cannot authorize replacement. */
+ export function writeOutData(js: string, data: AnimData): string | null {
+   const body = interpreterBody(js);
+   if (body === null) return null;
+-  if (body === anchorInterpreter) return spliceAnimData(js, data);
++  if (body === anchorInterpreter || body === svgGroupInterpreter) return spliceAnimData(js, data);
+   if (body === currentInterpreter) return dataUsesAnchor(data) ? replaceRegionWithAnimData(js, data) : spliceAnimData(js, data);
+   const hash = contentHash(body);
+   if (dataUsesAnchor(data)) return null;

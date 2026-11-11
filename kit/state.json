@@ -74,9 +74,9 @@
       "phase": "E1",
       "actionId": "plan-editor-r1-5-2026-11-08:1",
       "nativeId": "/root/editor_r15_e1_resume",
-      "note": "Same E1 worker acknowledged on bc8dfdf6 after the owner compatibility decision. Updating and reviewing SVG group rules before product edits.",
+      "note": "E1 remains active. Owner-approved safe old/new SVG group behavior, exact group matrices, ordinary pivots, raw/owned compatibility and multi-instance OGraf have targeted Windows evidence. Fresh reviews caught further source ownership and shared-runtime edges; current corrections passed j-5155 6/6. Final review/PR worker gates still pending. No PR or queue stamp.",
       "checkpointed": false,
-      "head": "bc8dfdf685e4fe7d6c7e3a124211979f99f3bc3f"
+      "head": "38504330b24497edc9d634c25ac239361ca38b14"
     }
   ],
   "owner": [],
@@ -189,6 +189,13 @@
         "head": "bc8dfdf685e4fe7d6c7e3a124211979f99f3bc3f",
         "observedAt": "2026-11-10T21:38:46Z"
       }
+    },
+    "activeVerification": {
+      "boundaries": "Preserve old SVG group paint and unsafe-edit refusal. Explicit owned tracks preserve raw legacy source and runtime. No global GSAP plugin hijack. Physical zoom and file receipts stay tied to their observed source, with final responsive viewport checks reported separately.",
+      "at": "2026-11-11T01:15:44.512Z",
+      "worker": "/root/editor_r15_e1_resume",
+      "recentJob": "j-5155 terminal exit 0, six integrated browser cases",
+      "next": "Finish exact correction evidence and full independent review. Then normal PR CI and Codex review before coordinator stamp/queue."
     }
   }
 }

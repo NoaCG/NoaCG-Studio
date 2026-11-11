@@ -1,0 +1,32 @@
+=== j-5151 node .noacg/e1-pivot-paint-control.mjs
+=== cwd C:\claude\Temp\editor-r15-e1-build-1108
+{
+  "head": "46c7165b618d569f0f44ce5a0f012e4a3d912b2b",
+  "rows": [
+    {
+      "label": "HTML descendant",
+      "before": "10px",
+      "after": "160px"
+    },
+    {
+      "label": "HTML owner alias",
+      "before": "10px",
+      "after": "160px"
+    },
+    {
+      "label": "SVG presentation attribute",
+      "before": "3px",
+      "after": "30px"
+    },
+    {
+      "label": "Canonical member motion",
+      "before": "135px",
+      "after": "80px"
+    },
+    {
+      "label": "Locally shielded HTML descendant",
+      "before": "10px",
+      "after": "10px"
+    }
+  ]
+}

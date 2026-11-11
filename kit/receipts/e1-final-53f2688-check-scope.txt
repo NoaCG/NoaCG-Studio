@@ -1,0 +1,59 @@
+Review ONLY the 38 file(s) listed at the end of this request. Effort level: high.
+
+Branch:     codex/plan-editor-r1-5-e1-build
+Merge base: 78ce3f35063386fdc7217d0542e3df871fc32b8d  (against origin/main)
+
+THIS LIST IS THE SCOPE. It was computed in the worktree that owns the branch and handed to you
+deliberately, so there is nothing for you to work out. Do not derive the changed set yourself, and
+in particular do not diff against `main`: that local ref does not move under this project's merge
+queue, and a scope taken from it reviews other branches' landed files while reporting this branch's
+real diff as clean. That happened ten times here by 2026-09-09, and every pass was discarded whole.
+
+IF YOU DISAGREE, REFUSE. If a file listed under FILES is missing or unreadable, or your own view of
+what this branch changed differs from these lists, stop and say so: print both lists and the base
+sha you would have used, and review nothing. Do not quietly review what you think changed instead.
+A review of the wrong files is worse than no review, because it returns findings and so looks like
+it worked.
+
+Report the merge-base sha and every file you actually read, so the caller can compare your scope
+against this one. A pass that will not say what it scoped is treated as a failed pass.
+
+FILES (38):
+  cli/plugin/skills/noacg-graphic/references/contract.md
+  cli/skill/noacg-graphic/references/contract.md
+  docs/work-specs/editor-r1-5/e1-inventory.md
+  docs/work-specs/editor-r1-5/e1-notes.md
+  docs/work-specs/editor-r1-5/gsap.md
+  e2e/editor-canvas-transforms.spec.ts
+  e2e/editor-fidelity-trim.spec.ts
+  e2e/editor-groups.spec.ts
+  e2e/editor-key-ease.spec.ts
+  e2e/editor-steps.spec.ts
+  e2e/editor-typography.spec.ts
+  e2e/ograf-isolation.spec.ts
+  scripts/canvas-transforms.test.mjs
+  scripts/cross-cue.test.mjs
+  src/blocks/animEdit.ts
+  src/blocks/baseEdits.ts
+  src/blocks/edit.ts
+  src/blocks/editorAnimation.ts
+  src/blocks/editorGroups.ts
+  src/components/editorFoundation/AnchorPoint.tsx
+  src/components/editorFoundation/AnimationProperties.tsx
+  src/components/editorFoundation/ArtworkAppearance.tsx
+  src/components/editorFoundation/EditorFoundation.tsx
+  src/components/editorFoundation/Inspector.tsx
+  src/components/editorFoundation/PreviewController.ts
+  src/components/editorFoundation/StepFlag.tsx
+  src/components/editorFoundation/Timeline.tsx
+  src/components/editorFoundation/animationAuthoring.ts
+  src/components/editorFoundation/foundation.css
+  src/components/editorFoundation/operations.ts
+  src/components/editorFoundation/runtime.ts
+  src/components/editorFoundation/session.ts
+  src/components/editorFoundation/timelineView.ts
+  src/components/editorFoundation/useArtworkGesture.ts
+  src/components/wizard/import/stageMeasure.ts
+  src/model/fonts.ts
+  src/model/svgGroupTransform.ts
+  src/templates/shared/animRuntime.ts

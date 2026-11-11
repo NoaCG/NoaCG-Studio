@@ -1,0 +1,2399 @@
+
+> noacg-studio@0.1.0 gates
+> node scripts/gates.mjs run --changed origin/main
+
+
+[gates] check:contract-freshness: node scripts/check-contract-freshness.mjs
+[measured] 877 contract files
+warning: unable to access 'C:\Users\ahonemi/.config/git/ignore': Permission denied
+Contract freshness OK: 877 contract file(s), every referenced script, doc and path exists.
+[gates] check:contract-freshness ok (0.6s) - 877 contract files
+
+[gates] check:contract-citations: node scripts/check-contract-citations.mjs
+warning: unable to access 'C:\Users\ahonemi/.config/git/ignore': Permission denied
+[measured] 572 rule ids in contracts/rules
+[measured] 5157 text files scanned for citations
+Contract citations OK: 5157 file(s), every cited rule id and contract section exists.
+[gates] check:contract-citations ok (2.9s) - 572 rule ids in contracts/rules, 5157 text files scanned for citations
+
+[gates] check:docs-index: node scripts/check-docs-index.mjs
+warning: unable to access 'C:\Users\ahonemi/.config/git/ignore': Permission denied
+[measured] 150 top-level docs
+[measured] 153 docs/README.md index rows
+check-docs-index: OK - all 150 top-level docs in docs/ have exactly one row in docs/README.md (subdirectories are exempt).
+[gates] check:docs-index ok (0.3s) - 150 top-level docs, 153 docs/README.md index rows
+
+[gates] check:client-secrets: node scripts/check-client-secrets.mjs
+[measured] 4646 source files scanned
+Client secret scan OK (src, e2e, scripts, docs).
+[gates] check:client-secrets ok (1.6s) - 4646 source files scanned
+
+[gates] check:skill: node cli/scripts/build-skill.mjs --check
+[measured] 32 generated files
+build-skill --check OK: 32 generated files match the source (noacg v0.12.4).
+[gates] check:skill ok (0.1s) - 32 generated files
+
+[gates] check:gate-coverage: node scripts/check-gate-coverage.mjs
+[measured] 447 gates audited
+check-gate-coverage: OK - 48 check(s) and 399 test file(s) declare their tier and guards (build 395, after-build 2, workflow 11, none 6, factory 33).
+[gates] check:gate-coverage ok (2.4s) - 447 gates audited
+
+[gates] check:example-layers: node scripts/check-example-layers.mjs
+[measured] 6 cheat-sheet copies
+check-example-layers: exempt docs/tutorials/talk-show-set - the 2026-09-24 talk-show set predates the settled Board rule (Show name, Background, Role 1 and Person 1) and the owner removes it himself; it is never edited to pass
+[measured] 29 example SVGs
+check-example-layers: ok public/docs/examples/countdown.svg
+check-example-layers: ok public/docs/examples/end-credits.svg
+check-example-layers: ok public/docs/examples/live-vote.svg
+check-example-layers: ok public/docs/examples/name-tag.svg
+check-example-layers: ok public/docs/examples/quiz.svg
+check-example-layers: ok public/docs/examples/scoreboard.svg
+check-example-layers: ok public/docs/examples/ticker.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/alert.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/bingo.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/choice.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/countdown.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/digital-clock.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/editable-credits.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/end-credits.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/lineup.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/live-vote.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/lower-third.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/meter.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/puzzle.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/quiz.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/reveal.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/scoreboard.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/scorebug-clock.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/standings.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/stepped-list.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/survey.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/switch.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/ticker.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/title.svg
+[gates] check:example-layers ok (0.2s) - 6 cheat-sheet copies, 29 example SVGs
+
+[gates] check:client-neutral: node scripts/check-client-neutral.mjs
+[measured] 253 user-readable source files scanned
+Client-neutral copy - SPX may be named as a TARGET, never as the product's own vocabulary
+
+PASS - no client name is doing a general concept's job.
+[gates] check:client-neutral ok (0.3s) - 253 user-readable source files scanned
+
+[gates] check:copy: node scripts/check-copy.mjs
+[measured] 932 source files scanned
+[measured] 481 copy baseline rows
+Copy tells - user-facing text must not read as machine-written
+
+PASS - no new tells, and the baseline still matches the tree.
+[gates] check:copy ok (0.6s) - 932 source files scanned, 481 copy baseline rows
+
+[gates] check:preview-serialization: node scripts/check-preview-serialization.mjs
+[measured] 1428 source files scanned
+[measured] 34 module-scope names in files that interpolate a toString()
+[check:preview-serialization] ok - every serialized helper goes through serializeHelper
+[gates] check:preview-serialization ok (0.7s) - 1428 source files scanned, 34 module-scope names in files that interpolate a toString()
+
+[gates] check:landed-ref: node scripts/check-landed-ref.mjs
+[measured] 519 scripts scanned for a bare local `main` revision
+check-landed-ref: OK - 519 script(s) scanned, 4 deliberate use(s) of the bare local ref, 0 stale reads.
+[gates] check:landed-ref ok (0.5s) - 519 scripts scanned for a bare local `main` revision
+
+[gates] check:toolkit: node scripts/check-toolkit-distribution.mjs
+[measured] 81 distribution files validated across independent packages
+Toolkit 0.12.4: Claude main/MCP, Codex main/local MCP and repository validate.
+[gates] check:toolkit ok (0.3s) - 81 distribution files validated across independent packages
+
+[gates] node --test over 26 file(s)
+TAP version 13
+# Subtest: configured entrances land once; repaints stay quiet and state re-entry can replay
+ok 1 - configured entrances land once; repaints stay quiet and state re-entry can replay
+  ---
+  duration_ms: 1.8904
+  type: 'test'
+  ...
+# Subtest: cut suppresses legacy pops; unconfigured saved looks keep theirs
+ok 2 - cut suppresses legacy pops; unconfigured saved looks keep theirs
+  ---
+  duration_ms: 2.268
+  type: 'test'
+  ...
+# Subtest: snap is immediate; hide, Out, reset and replay restore interrupted entrances
+ok 3 - snap is immediate; hide, Out, reset and replay restore interrupted entrances
+  ---
+  duration_ms: 1.01
+  type: 'test'
+  ...
+# Subtest: the parser reads a real cmap: Inter latin has A and å, and no Š
+ok 4 - the parser reads a real cmap: Inter latin has A and å, and no Š
+  ---
+  duration_ms: 4.6674
+  type: 'test'
+  ...
+# Subtest: Inter: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Inter
+ok 5 - Inter: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Inter
+  ---
+  duration_ms: 1.9335
+  type: 'test'
+  ...
+# Subtest: Space Grotesk: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Space Grotesk
+ok 6 - Space Grotesk: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Space Grotesk
+  ---
+  duration_ms: 2.0644
+  type: 'test'
+  ...
+# Subtest: JetBrains Mono: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in JetBrains Mono
+ok 7 - JetBrains Mono: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in JetBrains Mono
+  ---
+  duration_ms: 1.6908
+  type: 'test'
+  ...
+# Subtest: Manrope: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Manrope
+ok 8 - Manrope: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Manrope
+  ---
+  duration_ms: 2.1133
+  type: 'test'
+  ...
+# Subtest: Archivo: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Archivo
+ok 9 - Archivo: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Archivo
+  ---
+  duration_ms: 2.2698
+  type: 'test'
+  ...
+# Subtest: Oswald: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Oswald
+ok 10 - Oswald: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Oswald
+  ---
+  duration_ms: 1.6909
+  type: 'test'
+  ...
+# Subtest: Bebas Neue: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Bebas Neue
+ok 11 - Bebas Neue: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Bebas Neue
+  ---
+  duration_ms: 1.3136
+  type: 'test'
+  ...
+# Subtest: Playfair Display: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Playfair Display
+ok 12 - Playfair Display: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Playfair Display
+  ---
+  duration_ms: 1.7388
+  type: 'test'
+  ...
+# Subtest: Source Serif 4: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Source Serif 4
+ok 13 - Source Serif 4: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Source Serif 4
+  ---
+  duration_ms: 5.285
+  type: 'test'
+  ...
+# Subtest: IBM Plex Sans: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in IBM Plex Sans
+ok 14 - IBM Plex Sans: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in IBM Plex Sans
+  ---
+  duration_ms: 2.2302
+  type: 'test'
+  ...
+# Subtest: Libre Franklin: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Libre Franklin
+ok 15 - Libre Franklin: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Libre Franklin
+  ---
+  duration_ms: 1.782
+  type: 'test'
+  ...
+# Subtest: Sora: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Sora
+ok 16 - Sora: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Sora
+  ---
+  duration_ms: 1.3781
+  type: 'test'
+  ...
+# Subtest: Outfit: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Outfit
+ok 17 - Outfit: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Outfit
+  ---
+  duration_ms: 1.5428
+  type: 'test'
+  ...
+# Subtest: Anton: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Anton
+ok 18 - Anton: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Anton
+  ---
+  duration_ms: 1.655
+  type: 'test'
+  ...
+# Subtest: Big Shoulders: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Big Shoulders
+ok 19 - Big Shoulders: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Big Shoulders
+  ---
+  duration_ms: 2.7589
+  type: 'test'
+  ...
+# Subtest: Saira: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Saira
+ok 20 - Saira: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in Saira
+  ---
+  duration_ms: 2.8587
+  type: 'test'
+  ...
+# Subtest: DM Sans: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in DM Sans
+ok 21 - DM Sans: every letter of "Åsa Öberg-Ærø Šimon Žáková" sets in DM Sans
+  ---
+  duration_ms: 4.0653
+  type: 'test'
+  ...
+# Subtest: the label, supporting and imported-alias faces carry the latin-ext rule too
+ok 22 - the label, supporting and imported-alias faces carry the latin-ext rule too
+  ---
+  duration_ms: 2.2488
+  type: 'test'
+  ...
+# Subtest: a look that swaps the typeface replaces both rules of the old face
+ok 23 - a look that swaps the typeface replaces both rules of the old face
+  ---
+  duration_ms: 2.4988
+  type: 'test'
+  ...
+# Subtest: a turn of the rotation handle is unwrapped, follows the pointer through a mirrored parent, and Shift snaps to 15 degrees
+ok 24 - a turn of the rotation handle is unwrapped, follows the pointer through a mirrored parent, and Shift snaps to 15 degrees
+  ---
+  duration_ms: 2.1548
+  type: 'test'
+  ...
+# Subtest: scale handles measure the pointer in the layer's own axes and keep the opposite side or corner in place
+ok 25 - scale handles measure the pointer in the layer's own axes and keep the opposite side or corner in place
+  ---
+  duration_ms: 1.3331
+  type: 'test'
+  ...
+# Subtest: the rotation handle sits outside the top side, away from the centre, however the layer turns
+ok 26 - the rotation handle sits outside the top side, away from the centre, however the layer turns
+  ---
+  duration_ms: 0.3605
+  type: 'test'
+  ...
+# Subtest: moving the anchor moves only the pivot: a drag mapped through the parent keeps it under the pointer, and the layer then turns about it
+ok 27 - moving the anchor moves only the pivot: a drag mapped through the parent keeps it under the pointer, and the layer then turns about it
+  ---
+  duration_ms: 1.0131
+  type: 'test'
+  ...
+# Subtest: an anchor edit writes the pivot alone, whatever the layer animates, and shows the rendered one until it is declared
+ok 28 - an anchor edit writes the pivot alone, whatever the layer animates, and shows the rendered one until it is declared
+  ---
+  duration_ms: 0.3371
+  type: 'test'
+  ...
+# Subtest: a declaration added after a commented one keeps the rule clean: no stray separator after the comment
+ok 29 - a declaration added after a commented one keeps the rule clean: no stray separator after the comment
+  ---
+  duration_ms: 0.9898
+  type: 'test'
+  ...
+# Subtest: a handle gesture writes what typing writes: a turn keys an animated rotation unwrapped, else the base, which a raw transform leaves to the base write
+ok 30 - a handle gesture writes what typing writes: a turn keys an animated rotation unwrapped, else the base, which a raw transform leaves to the base write
+  ---
+  duration_ms: 0.8632
+  type: 'test'
+  ...
+# Subtest: repeated CSS declarations patch the effective value and retain important priority
+ok 31 - repeated CSS declarations patch the effective value and retain important priority
+  ---
+  duration_ms: 0.236
+  type: 'test'
+  ...
+# Subtest: a pivot write preserves case-distinct variables, comments, strings and nested rules
+ok 32 - a pivot write preserves case-distinct variables, comments, strings and nested rules
+  ---
+  duration_ms: 0.3818
+  type: 'test'
+  ...
+# Subtest: new declarations stay in the first owned rule for anchor and group readers
+ok 33 - new declarations stay in the first owned rule for anchor and group readers
+  ---
+  duration_ms: 0.3151
+  type: 'test'
+  ...
+# catalog index: 72 types, 328 designs, 20 palettes, 17 fonts, 98468 bytes
+# Subtest: the catalog index holds every registered type, and every name in it resolves
+ok 34 - the catalog index holds every registered type, and every name in it resolves
+  ---
+  duration_ms: 14914.8194
+  type: 'test'
+  ...
+# Subtest: only a recognized generated interpreter upgrades when its first anchor track is written
+ok 35 - only a recognized generated interpreter upgrades when its first anchor track is written
+  ---
+  duration_ms: 10.5536
+  type: 'test'
+  ...
+# Subtest: an unrelated key move preserves a saved raw pivot track and its original interpreter
+ok 36 - an unrelated key move preserves a saved raw pivot track and its original interpreter
+  ---
+  duration_ms: 14.6118
+  type: 'test'
+  ...
+# Subtest: clipboard keeps the ruler offsets and incoming eases in an existing Out cue
+ok 37 - clipboard keeps the ruler offsets and incoming eases in an existing Out cue
+  ---
+  duration_ms: 5.4943
+  type: 'test'
+  ...
+# Subtest: clipboard refuses ambiguous source keys and an occupied opposite flag side
+ok 38 - clipboard refuses ambiguous source keys and an occupied opposite flag side
+  ---
+  duration_ms: 1.0253
+  type: 'test'
+  ...
+# Subtest: clipboard never normalizes filters and refuses an incompatible key atomically
+ok 39 - clipboard never normalizes filters and refuses an incompatible key atomically
+  ---
+  duration_ms: 1.9555
+  type: 'test'
+  ...
+# Subtest: carried is an optional nonnegative number on a step that round-trips
+ok 40 - carried is an optional nonnegative number on a step that round-trips
+  ---
+  duration_ms: 31.6344
+  type: 'test'
+  ...
+# Subtest: Out later or into still air keeps the exit on its own clock, and into motion carries the rest first
+ok 41 - Out later or into still air keeps the exit on its own clock, and into motion carries the rest first
+  ---
+  duration_ms: 118.3729
+  type: 'test'
+  ...
+# Subtest: moving Out again starts from the whole motion: any two moves equal one, and back is the source
+ok 42 - moving Out again starts from the whole motion: any two moves equal one, and back is the source
+  ---
+  duration_ms: 39.5645
+  type: 'test'
+  ...
+# Subtest: Set Out refuses what the runtime could not play exactly, leaving the source as it was
+ok 43 - Set Out refuses what the runtime could not play exactly, leaving the source as it was
+  ---
+  duration_ms: 10.2591
+  type: 'test'
+  ...
+# Subtest: pressing Out after Set Out inside Step 2 plays the rest of its motion, then the exit at once
+ok 44 - pressing Out after Set Out inside Step 2 plays the rest of its motion, then the exit at once
+  ---
+  duration_ms: 71.8712
+  type: 'test'
+  ...
+# Subtest: Out pressed at an earlier step skips the carried time: the exit starts at the press
+ok 45 - Out pressed at an earlier step skips the carried time: the exit starts at the press
+  ---
+  duration_ms: 41.0795
+  type: 'test'
+  ...
+# Subtest: a layer outside the root fades where the exit starts: after the carried motion, or at an earlier press
+ok 46 - a layer outside the root fades where the exit starts: after the carried motion, or at an earlier press
+  ---
+  duration_ms: 24.9591
+  type: 'test'
+  ...
+# Subtest: a layer outside the root whose reveal is carried still fades, and an earlier step keeps the exit's beat
+ok 47 - a layer outside the root whose reveal is carried still fades, and an earlier step keeps the exit's beat
+  ---
+  duration_ms: 57.9556
+  type: 'test'
+  ...
+# Subtest: a graphic saved with the R1.2a.4 interpreter upgrades once, and custom source still refuses
+ok 48 - a graphic saved with the R1.2a.4 interpreter upgrades once, and custom source still refuses
+  ---
+  duration_ms: 15.6735
+  type: 'test'
+  ...
+# Subtest: a graphic saved before the entrance undid the exit's writes upgrades once (\#1795)
+ok 49 - a graphic saved before the entrance undid the exit's writes upgrades once (\#1795)
+  ---
+  duration_ms: 6.4773
+  type: 'test'
+  ...
+# Subtest: Out's carried time follows its length, and a preset replacing Out clears it
+ok 50 - Out's carried time follows its length, and a preset replacing Out clears it
+  ---
+  duration_ms: 4.734
+  type: 'test'
+  ...
+# Subtest: a key dragged across a Step flag lands at its absolute time and the curve is cut at the flag
+ok 51 - a key dragged across a Step flag lands at its absolute time and the curve is cut at the flag
+  ---
+  duration_ms: 120.976
+  type: 'test'
+  ...
+# Subtest: a key dragged across the Out flag lands in Out, and none moves past its end
+ok 52 - a key dragged across the Out flag lands in Out, and none moves past its end
+  ---
+  duration_ms: 75.0478
+  type: 'test'
+  ...
+# Subtest: keys keep their order and their cue defaults, and a boundary key moves as one
+ok 53 - keys keep their order and their cue defaults, and a boundary key moves as one
+  ---
+  duration_ms: 79.8472
+  type: 'test'
+  ...
+# Subtest: a move beside a jump, within one cue, changes only its cue
+ok 54 - a move beside a jump, within one cue, changes only its cue
+  ---
+  duration_ms: 1.19
+  type: 'test'
+  ...
+# Subtest: cuts at several flags rejoin into one curve, and a key only holding a first value is the flag's
+ok 55 - cuts at several flags rejoin into one curve, and a key only holding a first value is the flag's
+  ---
+  duration_ms: 21.3145
+  type: 'test'
+  ...
+# Subtest: a key move the runtime could not play exactly refuses, leaving the source as it was
+ok 56 - a key move the runtime could not play exactly refuses, leaving the source as it was
+  ---
+  duration_ms: 6.0421
+  type: 'test'
+  ...
+# Subtest: a bar body dragged across a Step flag moves its visibility and keys, and back is the source
+ok 57 - a bar body dragged across a Step flag moves its visibility and keys, and back is the source
+  ---
+  duration_ms: 62.8285
+  type: 'test'
+  ...
+# Subtest: a bar move the runtime could not play exactly refuses, leaving the source as it was
+ok 58 - a bar move the runtime could not play exactly refuses, leaving the source as it was
+  ---
+  duration_ms: 6.2007
+  type: 'test'
+  ...
+# Subtest: a legacy reveal follows the layer to the cue it now first appears in
+ok 59 - a legacy reveal follows the layer to the cue it now first appears in
+  ---
+  duration_ms: 2.5053
+  type: 'test'
+  ...
+# Subtest: a key landed on a flag stays selected as the one key it is on the ruler
+ok 60 - a key landed on a flag stays selected as the one key it is on the ruler
+  ---
+  duration_ms: 0.7367
+  type: 'test'
+  ...
+# Subtest: the key move operation writes one lossless region and refuses machines, calls and custom bodies
+ok 61 - the key move operation writes one lossless region and refuses machines, calls and custom bodies
+  ---
+  duration_ms: 16.0606
+  type: 'test'
+  ...
+# Subtest: the record and its reader
+    # Subtest: absent, this version, and a later one kept read-only
+    ok 1 - absent, this version, and a later one kept read-only
+      ---
+      duration_ms: 2.0664
+      type: 'test'
+      ...
+    # Subtest: a patch writes over the record, keeps members it does not know, and a null removes one
+    ok 2 - a patch writes over the record, keeps members it does not know, and a null removes one
+      ---
+      duration_ms: 5.3931
+      type: 'test'
+      ...
+    1..2
+ok 62 - the record and its reader
+  ---
+  duration_ms: 9.0536
+  type: 'suite'
+  ...
+# Subtest: AC-4: the fold is member by member, narrowest wins, identity after
+    # Subtest: a cue that sets place alone still inherits x; the default's place leaves it
+    ok 1 - a cue that sets place alone still inherits x; the default's place leaves it
+      ---
+      duration_ms: 0.9386
+      type: 'test'
+      ...
+    # Subtest: a later version's record applies nothing and makes the fold read-only
+    ok 2 - a later version's record applies nothing and makes the fold read-only
+      ---
+      duration_ms: 0.3352
+      type: 'test'
+      ...
+    1..2
+ok 63 - AC-4: the fold is member by member, narrowest wins, identity after
+  ---
+  duration_ms: 4.8972
+  type: 'suite'
+  ...
+# Subtest: AC-1: a lower third moves to the other side and nudges precisely
+    # Subtest: bottom-right puts its right edge on the right safe inset; three 1 px and one 10 px nudge move it 13 px
+    ok 1 - bottom-right puts its right edge on the right safe inset; three 1 px and one 10 px nudge move it 13 px
+      ---
+      duration_ms: 5.7063
+      type: 'test'
+      ...
+    # Subtest: the presets are the safe area of base.ts zoneDecls: left and right 120, top 86, bottom 119 at 1080p
+    ok 2 - the presets are the safe area of base.ts zoneDecls: left and right 120, top 86, bottom 119 at 1080p
+      ---
+      duration_ms: 0.2913
+      type: 'test'
+      ...
+    # Subtest: a longer name re-measured keeps the right edge on the inset and the anchor unchanged
+    ok 3 - a longer name re-measured keeps the right edge on the inset and the anchor unchanged
+      ---
+      duration_ms: 0.286
+      type: 'test'
+      ...
+    # Subtest: a nudge never takes a frame off the stage
+    ok 4 - a nudge never takes a frame off the stage
+      ---
+      duration_ms: 0.1907
+      type: 'test'
+      ...
+    1..4
+ok 64 - AC-1: a lower third moves to the other side and nudges precisely
+  ---
+  duration_ms: 6.831
+  type: 'suite'
+  ...
+# Subtest: AC-2: about five percent smaller, with no pivot drift
+    # Subtest: lt01 at 95 % keeps its left and bottom edges and shrinks 5 %
+    ok 1 - lt01 at 95 % keeps its left and bottom edges and shrinks 5 %
+      ---
+      duration_ms: 0.2384
+      type: 'test'
+      ...
+    # Subtest: a centred board keeps its centre
+    ok 2 - a centred board keeps its centre
+      ---
+      duration_ms: 0.2124
+      type: 'test'
+      ...
+    # Subtest: every one of the nine anchors is the fixed point of the size
+    ok 3 - every one of the nine anchors is the fixed point of the size
+      ---
+      duration_ms: 0.2569
+      type: 'test'
+      ...
+    # Subtest: a 720p and a portrait graphic pivot on their own boxes at the stage origin
+    ok 4 - a 720p and a portrait graphic pivot on their own boxes at the stage origin
+      ---
+      duration_ms: 0.1917
+      type: 'test'
+      ...
+    # Subtest: lt63 spans the frame: no size, no horizontal preset, a vertical nudge moves it
+    ok 5 - lt63 spans the frame: no size, no horizontal preset, a vertical nudge moves it
+      ---
+      duration_ms: 0.2359
+      type: 'test'
+      ...
+    # Subtest: a ticker with no information box takes no preset; with no measurement the size acts about the frame
+    ok 6 - a ticker with no information box takes no preset; with no measurement the size acts about the frame
+      ---
+      duration_ms: 0.1522
+      type: 'test'
+      ...
+    1..6
+ok 65 - AC-2: about five percent smaller, with no pivot drift
+  ---
+  duration_ms: 1.5334
+  type: 'suite'
+  ...
+# Subtest: AC-3: the oversized quiz assessed per board
+    # Subtest: qz01 at 0.84 is amber, the agent votes board at 0.47 is red with the remedy, qz05 is fine
+    ok 1 - qz01 at 0.84 is amber, the agent votes board at 0.47 is red with the remedy, qz05 is fine
+      ---
+      duration_ms: 0.2235
+      type: 'test'
+      ...
+    1..1
+ok 66 - AC-3: the oversized quiz assessed per board
+  ---
+  duration_ms: 0.3028
+  type: 'suite'
+  ...
+# Subtest: the wire: the four rules
+    # Subtest: rule 1: an update without an appearance, an event and a stop keep the one applied
+    ok 1 - rule 1: an update without an appearance, an event and a stop keep the one applied
+      ---
+      duration_ms: 0.5765
+      type: 'test'
+      ...
+    # Subtest: rule 3: an appearance replaces the one applied (never multiplies), the identity clears it
+    ok 2 - rule 3: an appearance replaces the one applied (never multiplies), the identity clears it
+      ---
+      duration_ms: 0.1797
+      type: 'test'
+      ...
+    # Subtest: rule 2 and AC-10: no record, no field; an emptied record sends the identity; a resolved one itself
+    ok 3 - rule 2 and AC-10: no record, no field; an emptied record sends the identity; a resolved one itself
+      ---
+      duration_ms: 0.2689
+      type: 'test'
+      ...
+    # Subtest: the hosted page applies the published appearance, and an identity only when something holds one
+    ok 4 - the hosted page applies the published appearance, and an identity only when something holds one
+      ---
+      duration_ms: 0.2259
+      type: 'test'
+      ...
+    # Subtest: rule 4: what the page remembers and what rebuilds PROGRAM is what was applied, never preparation
+    ok 5 - rule 4: what the page remembers and what rebuilds PROGRAM is what was applied, never preparation
+      ---
+      duration_ms: 1.278
+      type: 'test'
+      ...
+    1..5
+ok 67 - the wire: the four rules
+  ---
+  duration_ms: 2.7656
+  type: 'suite'
+  ...
+# Subtest: a re-resolve takes each report as the renderer's word: a report with no appearance clears an older one
+ok 68 - a re-resolve takes each report as the renderer's word: a report with no appearance clears an older one
+  ---
+  duration_ms: 0.3353
+  type: 'test'
+  ...
+# Subtest: a command applied while the read was out keeps what this page believes is applied
+ok 69 - a command applied while the read was out keeps what this page believes is applied
+  ---
+  duration_ms: 0.2518
+  type: 'test'
+  ...
+# Subtest: measurements: identified and qualified
+    # Subtest: one qualify rule for both measurers: agree, ask again, or give up after three
+    ok 1 - one qualify rule for both measurers: agree, ask again, or give up after three
+      ---
+      duration_ms: 0.4587
+      type: 'test'
+      ...
+    # Subtest: a longer name, a new copy or another stage is another identity
+    ok 2 - a longer name, a new copy or another stage is another identity
+      ---
+      duration_ms: 0.2179
+      type: 'test'
+      ...
+    # Subtest: two answers keep only what agrees within 1 px
+    ok 3 - two answers keep only what agrees within 1 px
+      ---
+      duration_ms: 0.27
+      type: 'test'
+      ...
+    # Subtest: the session keeps the last measurement of a cue while its new identity is measured
+    ok 4 - the session keeps the last measurement of a cue while its new identity is measured
+      ---
+      duration_ms: 0.2115
+      type: 'test'
+      ...
+    # Subtest: a change waits while what a Take would send differs from what is applied; nothing waits unadjusted
+    ok 5 - a change waits while what a Take would send differs from what is applied; nothing waits unadjusted
+      ---
+      duration_ms: 0.1335
+      type: 'test'
+      ...
+    # Subtest: a Take of a placed cue nothing measured yet is measured first, and waits only so long
+    ok 6 - a Take of a placed cue nothing measured yet is measured first, and waits only so long
+      ---
+      duration_ms: 62.0816
+      type: 'test'
+      ...
+    # Subtest: a Take waits for its own identity, not an older attempt of the same cue
+    ok 7 - a Take waits for its own identity, not an older attempt of the same cue
+      ---
+      duration_ms: 1.251
+      type: 'test'
+      ...
+    # Subtest: a longer name typed just before a Take is measured first, and the edge lands on the inset
+    ok 8 - a longer name typed just before a Take is measured first, and the edge lands on the inset
+      ---
+      duration_ms: 1.0871
+      type: 'test'
+      ...
+    # Subtest: a press job survives a render that re-wants the background list
+    ok 9 - a press job survives a render that re-wants the background list
+      ---
+      duration_ms: 1.0774
+      type: 'test'
+      ...
+    # Subtest: a press: at once when nothing waits, after a queued Adjust write (capped), then after a measurement
+    ok 10 - a press: at once when nothing waits, after a queued Adjust write (capped), then after a measurement
+      ---
+      duration_ms: 43.2694
+      type: 'test'
+      ...
+    # Subtest: Publish waits for the measurer only so long
+    ok 11 - Publish waits for the measurer only so long
+      ---
+      duration_ms: 30.5914
+      type: 'test'
+      ...
+    # Subtest: the background measurer drops an answer for an identity no longer wanted
+    ok 12 - the background measurer drops an answer for an identity no longer wanted
+      ---
+      duration_ms: 2.0109
+      type: 'test'
+      ...
+    1..12
+ok 70 - measurements: identified and qualified
+  ---
+  duration_ms: 143.5177
+  type: 'suite'
+  ...
+# Subtest: the merge never deletes a cue exception (both probes)
+    # Subtest: a promotion against a concurrent pool-layer edit keeps the exception
+    ok 1 - a promotion against a concurrent pool-layer edit keeps the exception
+      ---
+      duration_ms: 2.0297
+      type: 'test'
+      ...
+    # Subtest: a promotion against a concurrent cue-text edit keeps the new default and the old exception
+    ok 2 - a promotion against a concurrent cue-text edit keeps the new default and the old exception
+      ---
+      duration_ms: 0.2654
+      type: 'test'
+      ...
+    # Subtest: an operator's own reset is not undone by a merge
+    ok 3 - an operator's own reset is not undone by a merge
+      ---
+      duration_ms: 0.2803
+      type: 'test'
+      ...
+    1..3
+ok 71 - the merge never deletes a cue exception (both probes)
+  ---
+  duration_ms: 2.8108
+  type: 'suite'
+  ...
+# Subtest: lifecycle: copy and paste, undo of a graphic on air
+    # Subtest: copy and paste copies the cue record
+    ok 1 - copy and paste copies the cue record
+      ---
+      duration_ms: 1.0768
+      type: 'test'
+      ...
+    # Subtest: undoing an adjustment of a graphic on air is allowed; another change of it is not
+    ok 2 - undoing an adjustment of a graphic on air is allowed; another change of it is not
+      ---
+      duration_ms: 1.5858
+      type: 'test'
+      ...
+    1..2
+ok 72 - lifecycle: copy and paste, undo of a graphic on air
+  ---
+  duration_ms: 2.8314
+  type: 'suite'
+  ...
+# Subtest: the doors: graphic default, cue exception, promotion in one write, reset, and a later version refused at each
+ok 73 - the doors: graphic default, cue exception, promotion in one write, reset, and a later version refused at each
+  ---
+  duration_ms: 98.9968
+  type: 'test'
+  ...
+# Subtest: the export resolver (phase 1b)
+    # Subtest: a production nobody adjusted gets nothing, so every package stays what it was
+    ok 1 - a production nobody adjusted gets nothing, so every package stays what it was
+      ---
+      duration_ms: 0.5301
+      type: 'test'
+      ...
+    # Subtest: the graphic level is the default alone, the cue level the fold, each against its own box
+    ok 2 - the graphic level is the default alone, the cue level the fold, each against its own box
+      ---
+      duration_ms: 0.2442
+      type: 'test'
+      ...
+    # Subtest: a graphic in a package is its own page: a 720p graphic places against its own safe area
+    ok 3 - a graphic in a package is its own page: a 720p graphic places against its own safe area
+      ---
+      duration_ms: 0.1594
+      type: 'test'
+      ...
+    # Subtest: an identity travels when the fold moves nothing, and a later version applies nothing
+    ok 4 - an identity travels when the fold moves nothing, and a later version applies nothing
+      ---
+      duration_ms: 0.4113
+      type: 'test'
+      ...
+    # Subtest: a preset, a size or a sideways nudge needs a box; a nudge down does not
+    ok 5 - a preset, a size or a sideways nudge needs a box; a nudge down does not
+      ---
+      duration_ms: 0.3357
+      type: 'test'
+      ...
+    # Subtest: a band spanning the frame drops a sideways nudge in a package, as on the stage
+    ok 6 - a band spanning the frame drops a sideways nudge in a package, as on the stage
+      ---
+      duration_ms: 0.3844
+      type: 'test'
+      ...
+    1..6
+ok 74 - the export resolver (phase 1b)
+  ---
+  duration_ms: 2.4713
+  type: 'suite'
+  ...
+# Subtest: the bake and the root runtime (phase 1b)
+    # Subtest: a package nobody adjusted bakes nothing; an adjusted one bakes one tagged script
+    ok 1 - a package nobody adjusted bakes nothing; an adjusted one bakes one tagged script
+      ---
+      duration_ms: 0.9434
+      type: 'test'
+      ...
+    # Subtest: what the bake and the relay receiver emit is ES5, for CasparCG 2.3's Chromium 71
+    ok 2 - what the bake and the relay receiver emit is ES5, for CasparCG 2.3's Chromium 71
+      ---
+      duration_ms: 0.8239
+      type: 'test'
+      ...
+    # Subtest: the relay receiver of a production nobody adjusted keeps its bytes (AC-10)
+    ok 3 - the relay receiver of a production nobody adjusted keeps its bytes (AC-10)
+      ---
+      duration_ms: 1.5282
+      type: 'test'
+      ...
+    # Subtest: the transformed root maps every rect read back to its untransformed box
+    ok 4 - the transformed root maps every rect read back to its untransformed box
+      ---
+      duration_ms: 2.0649
+      type: 'test'
+      ...
+    1..4
+ok 75 - the bake and the root runtime (phase 1b)
+  ---
+  duration_ms: 5.6241
+  type: 'suite'
+  ...
+# Subtest: type and colour (phase 2): the record, the fold, the resolve
+    # Subtest: the reader keeps style members it can apply and drops the rest
+    ok 1 - the reader keeps style members it can apply and drops the rest
+      ---
+      duration_ms: 0.8065
+      type: 'test'
+      ...
+    # Subtest: a patch merges variables key by key; a null removes one key, then the member
+    ok 2 - a patch merges variables key by key; a null removes one key, then the member
+      ---
+      duration_ms: 0.4306
+      type: 'test'
+      ...
+    # Subtest: AC-6: a cue overrides the graphic per property, inherits the rest, and its reset reveals the graphic
+    ok 3 - AC-6: a cue overrides the graphic per property, inherits the rest, and its reset reveals the graphic
+      ---
+      duration_ms: 0.7934
+      type: 'test'
+      ...
+    # Subtest: a bundled face resolves to its stack, its numbers and both its files; never bytes
+    ok 4 - a bundled face resolves to its stack, its numbers and both its files; never bytes
+      ---
+      duration_ms: 0.5373
+      type: 'test'
+      ...
+    # Subtest: the heading weight goes as written; an imported face declares 100-900 and offers Regular
+    ok 5 - the heading weight goes as written; an imported face declares 100-900 and offers Regular
+      ---
+      duration_ms: 1.4806
+      type: 'test'
+      ...
+    # Subtest: a face pick drops a weight the new face cannot draw, masking the graphic's at cue scope
+    ok 6 - a face pick drops a weight the new face cannot draw, masking the graphic's at cue scope
+      ---
+      duration_ms: 0.6982
+      type: 'test'
+      ...
+    # Subtest: the asset road: bundled files by path, an imported face by its bytes, a face with none left out
+    ok 7 - the asset road: bundled files by path, an imported face by its bytes, a face with none left out
+      ---
+      duration_ms: 1.2674
+      type: 'test'
+      ...
+    # Subtest: the wire carries names and numbers only, and a reader keeps what it knows
+    ok 8 - the wire carries names and numbers only, and a reader keeps what it knows
+      ---
+      duration_ms: 1.0642
+      type: 'test'
+      ...
+    # Subtest: rule 2 with style: a styled cue sends its style; resetting every scope sends the identity
+    ok 9 - rule 2 with style: a styled cue sends its style; resetting every scope sends the identity
+      ---
+      duration_ms: 1.106
+      type: 'test'
+      ...
+    1..9
+ok 76 - type and colour (phase 2): the record, the fold, the resolve
+  ---
+  duration_ms: 8.6862
+  type: 'suite'
+  ...
+# Subtest: what an author and an agent learn is adjustable (phase 2)
+    # Subtest: an agent-made board that paints with the contract is adjustable in what it paints, and validate is quiet
+    ok 1 - an agent-made board that paints with the contract is adjustable in what it paints, and validate is quiet
+      ---
+      duration_ms: 7.3076
+      type: 'test'
+      ...
+    # Subtest: a stylesheet that paints none of it says so in one line, and validate gives one non-blocking finding
+    ok 2 - a stylesheet that paints none of it says so in one line, and validate gives one non-blocking finding
+      ---
+      duration_ms: 1.0876
+      type: 'test'
+      ...
+    # Subtest: an imported SVG reaches none: its text carries the artwork's own face, whatever the canvas reset inherits
+    ok 3 - an imported SVG reaches none: its text carries the artwork's own face, whatever the canvas reset inherits
+      ---
+      duration_ms: 0.3978
+      type: 'test'
+      ...
+    1..3
+ok 77 - what an author and an agent learn is adjustable (phase 2)
+  ---
+  duration_ms: 9.1118
+  type: 'suite'
+  ...
+# Subtest: the Type row's weights (phase 2)
+    # Subtest: a face with one weight offers its numbers' sibling's weights where the design draws live numbers
+    ok 1 - a face with one weight offers its numbers' sibling's weights where the design draws live numbers
+      ---
+      duration_ms: 1.6113
+      type: 'test'
+      ...
+    1..1
+ok 78 - the Type row's weights (phase 2)
+  ---
+  duration_ms: 1.7782
+  type: 'suite'
+  ...
+# Subtest: type and colour in a package (phase 2)
+    # Subtest: the export resolves a style alone, with no box, for the graphic and each cue
+    ok 1 - the export resolves a style alone, with no box, for the graphic and each cue
+      ---
+      duration_ms: 0.6374
+      type: 'test'
+      ...
+    # Subtest: a style alone bakes one tagged script, ES5
+    ok 2 - a style alone bakes one tagged script, ES5
+      ---
+      duration_ms: 0.2414
+      type: 'test'
+      ...
+    # Subtest: the runtime sets the variables on the host and replaces them; a value it cannot set changes nothing
+    ok 3 - the runtime sets the variables on the host and replaces them; a value it cannot set changes nothing
+      ---
+      duration_ms: 1.7984
+      type: 'test'
+      ...
+    # Subtest: every face a package's appearances name ships in it: bundled by reference, imported with its bytes
+    ok 4 - every face a package's appearances name ships in it: bundled by reference, imported with its bytes
+      ---
+      duration_ms: 1.3567
+      type: 'test'
+      ...
+    1..4
+ok 79 - type and colour in a package (phase 2)
+  ---
+  duration_ms: 4.3691
+  type: 'suite'
+  ...
+# Subtest: cross-feature cases (E8.1a)
+    # Subtest: an active look reaches a native graphic and never an imported OGraf package, which keeps its place and size alone (L2.3 with E3, \#1784)
+    ok 1 - an active look reaches a native graphic and never an imported OGraf package, which keeps its place and size alone (L2.3 with E3, \#1784)
+      ---
+      duration_ms: 0.8418
+      type: 'test'
+      ...
+    # Subtest: the look a production turns on is never handed to an imported OGraf package, so Publish and the hosted page resolve none for it either (L2.3 with E3)
+    ok 2 - the look a production turns on is never handed to an imported OGraf package, so Publish and the hosted page resolve none for it either (L2.3 with E3)
+      ---
+      duration_ms: 9.0256
+      type: 'test'
+      ...
+    # Subtest: a bound cue with its own typeface under an active look: a source moving its value re-measures the box, never the face, the look or the style it sends (L2.2, L2.3 with C1)
+    ok 3 - a bound cue with its own typeface under an active look: a source moving its value re-measures the box, never the face, the look or the style it sends (L2.2, L2.3 with C1)
+      ---
+      duration_ms: 1.5546
+      type: 'test'
+      ...
+    1..3
+ok 80 - cross-feature cases (E8.1a)
+  ---
+  duration_ms: 11.7556
+  type: 'suite'
+  ...
+# Subtest: the real repository: the map and every header agree, and the critical set sits inside the shared-change set
+ok 81 - the real repository: the map and every header agree, and the critical set sits inside the shared-change set
+  ---
+  duration_ms: 9.2478
+  type: 'test'
+  ...
+# Subtest: Rule K1: a spec is critical only by its own `critical:` line; a malformed line or an unknown contract fails
+ok 82 - Rule K1: a spec is critical only by its own `critical:` line; a malformed line or an unknown contract fails
+  ---
+  duration_ms: 1.2895
+  type: 'test'
+  ...
+# Subtest: Rule K2: a critical journey outside the shared-change set fails, so every escalation still plans it
+ok 83 - Rule K2: a critical journey outside the shared-change set fails, so every escalation still plans it
+  ---
+  duration_ms: 0.5091
+  type: 'test'
+  ...
+# Subtest: Rule K3: every faithful layer has a check, and a mapped check missing from disk fails
+ok 84 - Rule K3: every faithful layer has a check, and a mapped check missing from disk fails
+  ---
+  duration_ms: 0.4444
+  type: 'test'
+  ...
+# Subtest: Rule K4: a contract with no critical journey needs a complete backend exception whose configured specs exist
+ok 85 - Rule K4: a contract with no critical journey needs a complete backend exception whose configured specs exist
+  ---
+  duration_ms: 0.5598
+  type: 'test'
+  ...
+# Subtest: Rule K5: the critical set is measured against 5 minutes; unmeasured is never 0 and over the target removes nothing
+ok 86 - Rule K5: the critical set is measured against 5 minutes; unmeasured is never 0 and over the target removes nothing
+  ---
+  duration_ms: 0.495
+  type: 'test'
+  ...
+# Subtest: the critical set today, reported from the committed durations table (never refused for being unmeasured)
+ok 87 - the critical set today, reported from the committed durations table (never refused for being unmeasured)
+  ---
+  duration_ms: 1.0621
+  type: 'test'
+  ...
+# Critical journeys: 12 spec(s), 7.13 measured test-minutes against the 5-minute target - over the target; reported, never met by removing a journey.
+# Subtest: every named ease equals the bundled GSAP 3.15 bit for bit
+ok 88 - every named ease equals the bundled GSAP 3.15 bit for bit
+  ---
+  duration_ms: 75.2315
+  type: 'test'
+  ...
+# Subtest: the grammar is strict, never rewrites a string, and leaves the rest to GSAP as before
+ok 89 - the grammar is strict, never rewrites a string, and leaves the rest to GSAP as before
+  ---
+  duration_ms: 1.4222
+  type: 'test'
+  ...
+# Subtest: cubic-bezier is the CSS curve, monotonic in time and exact at its ends
+ok 90 - cubic-bezier is the CSS curve, monotonic in time and exact at its ends
+  ---
+  duration_ms: 29.0226
+  type: 'test'
+  ...
+# Subtest: reversal writes the exact mirror E_rev(u) = 1 - E(1 - u), or refuses
+ok 91 - reversal writes the exact mirror E_rev(u) = 1 - E(1 - u), or refuses
+  ---
+  duration_ms: 112.6844
+  type: 'test'
+  ...
+# Subtest: a slice is the rescaled part of its ease, and flattens rather than nests
+ok 92 - a slice is the rescaled part of its ease, and flattens rather than nests
+  ---
+  duration_ms: 14.5923
+  type: 'test'
+  ...
+# Subtest: the editor sampler reads the eased, clamped value the runtime renders
+ok 93 - the editor sampler reads the eased, clamped value the runtime renders
+  ---
+  duration_ms: 12.4191
+  type: 'test'
+  ...
+# Subtest: a split at 40 percent keeps samples, endpoints, boundary velocity and neighbouring sides
+ok 94 - a split at 40 percent keeps samples, endpoints, boundary velocity and neighbouring sides
+  ---
+  duration_ms: 59.6123
+  type: 'test'
+  ...
+# Subtest: every split it accepts stays within one stored quantum, short halves included
+ok 95 - every split it accepts stays within one stored quantum, short halves included
+  ---
+  duration_ms: 4683.2787
+  type: 'test'
+  ...
+# Subtest: splits refuse atomically where no exact form exists, and a flat segment always splits
+ok 96 - splits refuse atomically where no exact form exists, and a flat segment always splits
+  ---
+  duration_ms: 2.7947
+  type: 'test'
+  ...
+# Subtest: the interpreter carries the shared source and needs it for exact forms
+ok 97 - the interpreter carries the shared source and needs it for exact forms
+  ---
+  duration_ms: 5.4606
+  type: 'test'
+  ...
+# Subtest: hold keeps the departing value to its key, jump is its exact mirror, and both split exactly
+ok 98 - hold keeps the departing value to its key, jump is its exact mirror, and both split exactly
+  ---
+  duration_ms: 8.0436
+  type: 'test'
+  ...
+# Subtest: the part of a split Hold that jumps must last 10 ms of played time
+ok 99 - the part of a split Hold that jumps must last 10 ms of played time
+  ---
+  duration_ms: 0.4527
+  type: 'test'
+  ...
+# Subtest: Sheet replacement has one block, keeps handwritten code and removes only its own block
+ok 100 - Sheet replacement has one block, keeps handwritten code and removes only its own block
+  ---
+  duration_ms: 6.3039
+  type: 'test'
+  ...
+# Subtest: invalid Sheet input refuses an entire batch without changing its input
+ok 101 - invalid Sheet input refuses an entire batch without changing its input
+  ---
+  duration_ms: 2.7544
+  type: 'test'
+  ...
+# Subtest: an unknown animation extension refuses insertion before calling the donor builder
+ok 102 - an unknown animation extension refuses insertion before calling the donor builder
+  ---
+  duration_ms: 6.1506
+  type: 'test'
+  ...
+# Subtest: Sheet edits use the session history and a stale request preserves the newer document
+ok 103 - Sheet edits use the session history and a stale request preserves the newer document
+  ---
+  duration_ms: 8.791
+  type: 'test'
+  ...
+# Subtest: insertion preserves an authored one-step machine rather than extending its graph implicitly
+ok 104 - insertion preserves an authored one-step machine rather than extending its graph implicitly
+  ---
+  duration_ms: 7.7068
+  type: 'test'
+  ...
+# Subtest: a saved bundled block gains its latin-ext twin under the same family, right after it
+ok 105 - a saved bundled block gains its latin-ext twin under the same family, right after it
+  ---
+  duration_ms: 4.8775
+  type: 'test'
+  ...
+# Subtest: a static bundled face, its alias included, widens to 100-900; a variable one is left alone
+ok 106 - a static bundled face, its alias included, widens to 100-900; a variable one is left alone
+  ---
+  duration_ms: 0.8132
+  type: 'test'
+  ...
+# Subtest: an imported block that declares no weight gains 100-900, and its note stops promising a synthesised bold
+ok 107 - an imported block that declares no weight gains 100-900, and its note stops promising a synthesised bold
+  ---
+  duration_ms: 0.6572
+  type: 'test'
+  ...
+# Subtest: the upgrade is idempotent, leaves the rest of the stylesheet as it was, and passes new CSS through unchanged
+ok 108 - the upgrade is idempotent, leaves the rest of the stylesheet as it was, and passes new CSS through unchanged
+  ---
+  duration_ms: 0.9983
+  type: 'test'
+  ...
+# Subtest: a hand-written face gets no twin; a static one is still widened, on one line as on several
+ok 109 - a hand-written face gets no twin; a static one is still widened, on one line as on several
+  ---
+  duration_ms: 0.5942
+  type: 'test'
+  ...
+# Subtest: an imported block whose src spans lines gains its weight after the whole declaration
+ok 110 - an imported block whose src spans lines gains its weight after the whole declaration
+  ---
+  duration_ms: 0.3134
+  type: 'test'
+  ...
+# Subtest: a saved block written on one line, or with a single-quoted family, still gains its twin at its own weight
+ok 111 - a saved block written on one line, or with a single-quoted family, still gains its twin at its own weight
+  ---
+  duration_ms: 0.3755
+  type: 'test'
+  ...
+# Subtest: an imported block embedded as a data URL (a single-file export read back) keeps its src whole
+ok 112 - an imported block embedded as a data URL (a single-file export read back) keeps its src whole
+  ---
+  duration_ms: 0.3063
+  type: 'test'
+  ...
+# Subtest: an imported block written on one line gains its weight too
+ok 113 - an imported block written on one line gains its weight too
+  ---
+  duration_ms: 0.422
+  type: 'test'
+  ...
+# Subtest: a long, unterminated src is scanned in linear time
+ok 114 - a long, unterminated src is scanned in linear time
+  ---
+  duration_ms: 8.2518
+  type: 'test'
+  ...
+# Subtest: two saved blocks for the same face gain one twin between them
+ok 115 - two saved blocks for the same face gain one twin between them
+  ---
+  duration_ms: 0.4752
+  type: 'test'
+  ...
+# Subtest: an imported family the stylesheet also gives weighted files keeps its weight-less rule
+ok 116 - an imported family the stylesheet also gives weighted files keeps its weight-less rule
+  ---
+  duration_ms: 0.2331
+  type: 'test'
+  ...
+# Subtest: ensureFontFace counts both files, and leaves a saved block the use-time upgrade completes as it is
+ok 117 - ensureFontFace counts both files, and leaves a saved block the use-time upgrade completes as it is
+  ---
+  duration_ms: 0.4816
+  type: 'test'
+  ...
+# Subtest: the newsroom pack declares Outfit exactly as the generator does
+ok 118 - the newsroom pack declares Outfit exactly as the generator does
+  ---
+  duration_ms: 1.6631
+  type: 'test'
+  ...
+# Subtest: the composed document carries the upgrade; the saved template is not touched
+ok 119 - the composed document carries the upgrade; the saved template is not touched
+  ---
+  duration_ms: 82.4379
+  type: 'test'
+  ...
+# Subtest: the video faces declare the latin-ext file too
+ok 120 - the video faces declare the latin-ext file too
+  ---
+  duration_ms: 0.9226
+  type: 'test'
+  ...
+# Subtest: the weights offered are the face's own: single-weight and imported faces offer Regular alone
+ok 121 - the weights offered are the face's own: single-weight and imported faces offer Regular alone
+  ---
+  duration_ms: 3.0218
+  type: 'test'
+  ...
+# Subtest: the weight row counts the numbers' sibling face: Anton draws one weight, its Saira numbers draw 400-900
+ok 122 - the weight row counts the numbers' sibling face: Anton draws one weight, its Saira numbers draw 400-900
+  ---
+  duration_ms: 0.8637
+  type: 'test'
+  ...
+# Subtest: a face the app knows is bundled or imported; any other family is left alone
+ok 123 - a face the app knows is bundled or imported; any other family is left alone
+  ---
+  duration_ms: 0.377
+  type: 'test'
+  ...
+# Subtest: a single-weight face and an imported face declare 100-900, so no request is a synthesised bold
+ok 124 - a single-weight face and an imported face declare 100-900, so no request is a synthesised bold
+  ---
+  duration_ms: 1.3649
+  type: 'test'
+  ...
+# Subtest: an imported face is read back from the stylesheet that ships it
+ok 125 - an imported face is read back from the stylesheet that ships it
+  ---
+  duration_ms: 0.4827
+  type: 'test'
+  ...
+# Subtest: the build keeps the family's heading weight: it weights the sibling numbers too
+ok 126 - the build keeps the family's heading weight: it weights the sibling numbers too
+  ---
+  duration_ms: 2.1373
+  type: 'test'
+  ...
+# Subtest: a look that swaps to a single-weight face keeps the stored weight, and the face cannot smear it
+ok 127 - a look that swaps to a single-weight face keeps the stored weight, and the face cannot smear it
+  ---
+  duration_ms: 3.0906
+  type: 'test'
+  ...
+# Subtest: each control reads its channels and writes the one the runtime already animates
+ok 128 - each control reads its channels and writes the one the runtime already animates
+  ---
+  duration_ms: 2.5802
+  type: 'test'
+  ...
+# Subtest: a channel that cannot take a key exactly refuses: a raw transform, or two tracks on one control
+ok 129 - a channel that cannot take a key exactly refuses: a raw transform, or two tracks on one control
+  ---
+  duration_ms: 0.9459
+  type: 'test'
+  ...
+# Subtest: a layer's owner is its own selector or the one other selector naming only it
+ok 130 - a layer's owner is its own selector or the one other selector naming only it
+  ---
+  duration_ms: 1.0655
+  type: 'test'
+  ...
+# Subtest: a pose reads a scale track as both Scale axes and autoAlpha as opacity
+ok 131 - a pose reads a scale track as both Scale axes and autoAlpha as opacity
+  ---
+  duration_ms: 0.9783
+  type: 'test'
+  ...
+# Subtest: a key on a catalog channel lands in that channel at the playhead, leaving every other track byte-identical
+ok 132 - a key on a catalog channel lands in that channel at the playhead, leaving every other track byte-identical
+  ---
+  duration_ms: 1.8413
+  type: 'test'
+  ...
+# Subtest: the stopwatch and the diamond act on every channel of their control, and keep a percent only where it is 0
+ok 133 - the stopwatch and the diamond act on every channel of their control, and keep a percent only where it is 0
+  ---
+  duration_ms: 2.8312
+  type: 'test'
+  ...
+# Subtest: bars move and trim on every channel but autoAlpha's, keeping untouched tracks byte-identical
+ok 134 - bars move and trim on every channel but autoAlpha's, keeping untouched tracks byte-identical
+  ---
+  duration_ms: 11.2069
+  type: 'test'
+  ...
+# Subtest: the displayed value and its inverse agree: a typed value lands where the field says, in the channel's own units
+ok 135 - the displayed value and its inverse agree: a typed value lands where the field says, in the channel's own units
+  ---
+  duration_ms: 1.1768
+  type: 'test'
+  ...
+# Subtest: each control takes its own channel's key; the rest move the base by the change, and one scale track keys only a linked change
+ok 136 - each control takes its own channel's key; the rest move the base by the change, and one scale track keys only a linked change
+  ---
+  duration_ms: 1.9687
+  type: 'test'
+  ...
+# Subtest: canonical sound data survives strict parse, duplicate, rename and delete with its asset binding
+ok 137 - canonical sound data survives strict parse, duplicate, rename and delete with its asset binding
+  ---
+  duration_ms: 3.6864
+  type: 'test'
+  ...
+# Subtest: sound shape rejects paths outside the package and levels the runtime cannot honor
+ok 138 - sound shape rejects paths outside the package and levels the runtime cannot honor
+  ---
+  duration_ms: 1.6589
+  type: 'test'
+  ...
+# Subtest: only the exact shipped sound decoder is exempt from the network screen
+ok 139 - only the exact shipped sound decoder is exempt from the network screen
+  ---
+  duration_ms: 4.8636
+  type: 'test'
+  ...
+# Subtest: the wall refuses a session when what is left, less the overshoot margin, cannot cover its budget
+ok 140 - the wall refuses a session when what is left, less the overshoot margin, cannot cover its budget
+  ---
+  duration_ms: 6.7593
+  type: 'test'
+  ...
+# Subtest: a phase ceiling is a wall inside the run's: H3 stops at its $10 whatever the ledger has left
+ok 141 - a phase ceiling is a wall inside the run's: H3 stops at its $10 whatever the ledger has left
+  ---
+  duration_ms: 0.6915
+  type: 'test'
+  ...
+# Subtest: a session's trace measures its cold start, turns, images and largest request at list prices
+ok 142 - a session's trace measures its cold start, turns, images and largest request at list prices
+  ---
+  duration_ms: 2.8089
+  type: 'test'
+  ...
+# Subtest: H3's proofs: the planted defect validates clean, and the packages environment adds only the published CLI
+ok 143 - H3's proofs: the planted defect validates clean, and the packages environment adds only the published CLI
+  ---
+  duration_ms: 1.5532
+  type: 'test'
+  ...
+# Subtest: an entry the credit did not fund carries no cost, and a credit session names its session
+ok 144 - an entry the credit did not fund carries no cost, and a credit session names its session
+  ---
+  duration_ms: 0.7726
+  type: 'test'
+  ...
+# Subtest: the committed ledger reads: no credit before H3, H3 within its $10, and H0 completed
+ok 145 - the committed ledger reads: no credit before H3, H3 within its $10, and H0 completed
+  ---
+  duration_ms: 3.0641
+  type: 'test'
+  ...
+# Subtest: --build refuses a $0 phase, a completed one, tuning before the exam is reserved, and anything not a phase
+ok 146 - --build refuses a $0 phase, a completed one, tuning before the exam is reserved, and anything not a phase
+  ---
+  duration_ms: 3.3618
+  type: 'test'
+  ...
+# Subtest: the exam reserve is 5.2's arithmetic, and the wall holds it from every phase but the exam's
+ok 147 - the exam reserve is 5.2's arithmetic, and the wall holds it from every phase but the exam's
+  ---
+  duration_ms: 3.8147
+  type: 'test'
+  ...
+# Subtest: --reserve names every term, records the reserve beside the entries, and writes nothing when the exam no longer fits
+ok 148 - --reserve names every term, records the reserve beside the entries, and writes nothing when the exam no longer fits
+  ---
+  duration_ms: 5.1346
+  type: 'test'
+  ...
+# Subtest: the committed ledger holds the exam reserve the wall reads, and H4 closed at $0 with no session
+ok 149 - the committed ledger holds the exam reserve the wall reads, and H4 closed at $0 with no session
+  ---
+  duration_ms: 5.0036
+  type: 'test'
+  ...
+# Subtest: the fake arm and the stubbed managed-agents arm deliver through record, shape check, capture and ledger at $0
+ok 150 - the fake arm and the stubbed managed-agents arm deliver through record, shape check, capture and ledger at $0
+  ---
+  duration_ms: 109.4445
+  type: 'test'
+  ...
+# Subtest: a session paused at its budget hands in its last record as not ready; a refusal hands in nothing
+ok 151 - a session paused at its budget hands in its last record as not ready; a refusal hands in nothing
+  ---
+  duration_ms: 33.7479
+  type: 'test'
+  ...
+# Subtest: --adopt collects a session a stopped run left working, and creates none
+ok 152 - --adopt collects a session a stopped run left working, and creates none
+  ---
+  duration_ms: 21.544
+  type: 'test'
+  ...
+# Subtest: a short ledger starts nothing: the session is refused before it is created, and the refusal is recorded
+ok 153 - a short ledger starts nothing: the session is refused before it is created, and the refusal is recorded
+  ---
+  duration_ms: 2.2015
+  type: 'test'
+  ...
+# Subtest: a session that fails after it was created is still stopped, read, deleted and named in the ledger
+ok 154 - a session that fails after it was created is still stopped, read, deleted and named in the ledger
+  ---
+  duration_ms: 14.2531
+  type: 'test'
+  ...
+# Subtest: a resumed --build runs only what the ledger does not already hold for that phase
+ok 155 - a resumed --build runs only what the ledger does not already hold for that phase
+  ---
+  duration_ms: 1.1899
+  type: 'test'
+  ...
+# Subtest: a delivered version that is not the one last reviewed, or a missing action, is caught
+ok 156 - a delivered version that is not the one last reviewed, or a missing action, is caught
+  ---
+  duration_ms: 1.0641
+  type: 'test'
+  ...
+# Subtest: a stress value keyed by what the field is reaches that field in any field order
+ok 157 - a stress value keyed by what the field is reaches that field in any field order
+  ---
+  duration_ms: 5.5228
+  type: 'test'
+  ...
+# Subtest: the archived reference arm re-captures an August cell at $0 through the shared half
+ok 158 - the archived reference arm re-captures an August cell at $0 through the shared half
+  ---
+  duration_ms: 16.3842
+  type: 'test'
+  ...
+# Subtest: the gallery shows opaque ids, never an arm, and keeps the key beside it
+ok 159 - the gallery shows opaque ids, never an arm, and keeps the key beside it
+  ---
+  duration_ms: 74.3581
+  type: 'test'
+  ...
+# Subtest: a subscription child's environment is built from scratch and carries no key
+ok 160 - a subscription child's environment is built from scratch and carries no key
+  ---
+  duration_ms: 7.077
+  type: 'test'
+  ...
+# Subtest: nothing starts unless claude auth status in that environment reports the OAuth token
+ok 161 - nothing starts unless claude auth status in that environment reports the OAuth token
+  ---
+  duration_ms: 19.6111
+  type: 'test'
+  ...
+# Subtest: the reference arm runs claude -p outside the repository, on the subscription, with the plugin and the shimmed CLI
+ok 162 - the reference arm runs claude -p outside the repository, on the subscription, with the plugin and the shimmed CLI
+  ---
+  duration_ms: 15.7247
+  type: 'test'
+  ...
+# Subtest: the committed judge is frozen on a pinned model id, and a judge whose files changed is refused
+ok 163 - the committed judge is frozen on a pinned model id, and a judge whose files changed is refused
+  ---
+  duration_ms: 23.9137
+  type: 'test'
+  ...
+# Subtest: a judgement is claude -p with the frozen prompt as its system prompt, Read only and the rubric schema
+ok 164 - a judgement is claude -p with the frozen prompt as its system prompt, Read only and the rubric schema
+  ---
+  duration_ms: 3.5407
+  type: 'test'
+  ...
+# Subtest: a pair is judged in both orders, and a preference that flips with the order is a tie
+ok 165 - a pair is judged in both orders, and a preference that flips with the order is a tie
+  ---
+  duration_ms: 70.9026
+  type: 'test'
+  ...
+# Subtest: the exam's judge runner refuses a judge whose hash differs, before any judgement starts
+ok 166 - the exam's judge runner refuses a judge whose hash differs, before any judgement starts
+  ---
+  duration_ms: 5.685
+  type: 'test'
+  ...
+# Subtest: the calibration split is reproducible from its seed, held back by brief, and scored against fixed thresholds
+ok 167 - the calibration split is reproducible from its seed, held back by brief, and scored against fixed thresholds
+  ---
+  duration_ms: 6.5096
+  type: 'test'
+  ...
+# Subtest: the exam briefs are sealed: the committed file has the seal's shape, and a wrong passphrase gets nothing
+ok 168 - the exam briefs are sealed: the committed file has the seal's shape, and a wrong passphrase gets nothing
+  ---
+  duration_ms: 173.4115
+  type: 'test'
+  ...
+# Subtest: the sealed briefs decrypt to the committed hash, where the private passphrase is on this machine
+ok 169 - the sealed briefs decrypt to the committed hash, where the private passphrase is on this machine
+  ---
+  duration_ms: 103.9993
+  type: 'test'
+  ...
+# Subtest: no tuning run can reach an exam brief: the runner reads the tuning set only
+ok 170 - no tuning run can reach an exam brief: the runner reads the tuning set only
+  ---
+  duration_ms: 1.1415
+  type: 'test'
+  ...
+# Subtest: the container's system prompt is plumbing within 25 lines, on an agent with the web off
+ok 171 - the container's system prompt is plumbing within 25 lines, on an agent with the web off
+  ---
+  duration_ms: 1.3653
+  type: 'test'
+  ...
+# Subtest: a subagent file the agent lists is synced first and pinned by version (D4, as H6 ran the critic)
+ok 172 - a subagent file the agent lists is synced first and pinned by version (D4, as H6 ran the critic)
+  ---
+  duration_ms: 4.4685
+  type: 'test'
+  ...
+# Subtest: a critic thread is measured apart: its events kept, its usage and largest request beside the session
+ok 173 - a critic thread is measured apart: its events kept, its usage and largest request beside the session
+  ---
+  duration_ms: 2.091
+  type: 'test'
+  ...
+# Subtest: the sync clears a multiagent block the definition dropped, and its plan sees what the server kept
+ok 174 - the sync clears a multiagent block the definition dropped, and its plan sees what the server kept
+  ---
+  duration_ms: 248.2463
+  type: 'test'
+  ...
+# Subtest: a run deletes the CLI uploads a stopped run left, and only those
+ok 175 - a run deletes the CLI uploads a stopped run left, and only those
+  ---
+  duration_ms: 0.9274
+  type: 'test'
+  ...
+# Subtest: --agent-version names an earlier synced version, as the round's control
+ok 176 - --agent-version names an earlier synced version, as the round's control
+  ---
+  duration_ms: 0.5766
+  type: 'test'
+  ...
+# Subtest: the Skills API bundle is the skill's own bytes under one top folder
+ok 177 - the Skills API bundle is the skill's own bytes under one top folder
+  ---
+  duration_ms: 220.7461
+  type: 'test'
+  ...
+# Subtest: the bench is frozen from the close of tuning to the close of the exam
+ok 178 - the bench is frozen from the close of tuning to the close of the exam
+  ---
+  duration_ms: 0.5312
+  type: 'test'
+  ...
+# Subtest: a cli/skill another plan changed after tuning: the exam runs the lock's skill and names what changed it
+ok 179 - a cli/skill another plan changed after tuning: the exam runs the lock's skill and names what changed it
+  ---
+  duration_ms: 3.0178
+  type: 'test'
+  ...
+# Subtest: the lock's skill is found in git: the newest commit holding its bytes, and the commits since that changed them
+ok 180 - the lock's skill is found in git: the newest commit holding its bytes, and the commits since that changed them
+  ---
+  duration_ms: 1861.6243
+  type: 'test'
+  ...
+# Subtest: the reference arm's plugin is the checkout's with the pinned skill, copied as build-skill copies it
+ok 181 - the reference arm's plugin is the checkout's with the pinned skill, copied as build-skill copies it
+  ---
+  duration_ms: 50.2449
+  type: 'test'
+  ...
+# Subtest: while the exam is pending the sync plans the lock's skill and refuses to change the bench
+ok 182 - while the exam is pending the sync plans the lock's skill and refuses to change the bench
+  ---
+  duration_ms: 1.3779
+  type: 'test'
+  ...
+# Subtest: the sealed briefs open only in the exam, verified against the committed hash first
+ok 183 - the sealed briefs open only in the exam, verified against the committed hash first
+  ---
+  duration_ms: 250.2797
+  type: 'test'
+  ...
+# Subtest: an exam brief's positional stress is named by its field's label, and lands on that field in any order
+ok 184 - an exam brief's positional stress is named by its field's label, and lands on that field in any order
+  ---
+  duration_ms: 4.2071
+  type: 'test'
+  ...
+# Subtest: the exam's verdict is 4.5 as written: every line, the flip rule, and nothing decided before it is all judged
+ok 185 - the exam's verdict is 4.5 as written: every line, the flip rule, and nothing decided before it is all judged
+  ---
+  duration_ms: 8.0834
+  type: 'test'
+  ...
+#   a.claude-code                            delivered [0s]
+#   b.claude-code                            paused [0s]
+#   b.claude-code: paused by the usage limit until an unknown reset; this lane waits, then runs it again
+#   b.claude-code                            delivered [0s]
+#   a.managed-agents                         delivered [0s]
+#   b.managed-agents                         delivered [0s]
+#   a.claude-code                            delivered [0s]
+#   a.rung                                   delivered [0s]
+#   b.rung                                   delivered [0s]
+#   c.rung                                   delivered [0s]
+#   d.rung                                   delivered [0s]
+#   a.rung                                   delivered [0s]
+#   b.rung                                   delivered [0s]
+#   c.rung                                   delivered [0s]
+#   d.rung                                   delivered [0s]
+#   e.rung                                   delivered [0s]
+#   f.rung                                   delivered [0s]
+# Subtest: a build runs each arm in its own lane, side by side, and a paused reference cell waits and runs again
+ok 186 - a build runs each arm in its own lane, side by side, and a paused reference cell waits and runs again
+  ---
+  duration_ms: 77.5722
+  type: 'test'
+  ...
+# Subtest: a misplaced stress value is moved by hand, and both arms of its brief are captured again
+ok 187 - a misplaced stress value is moved by hand, and both arms of its brief are captured again
+  ---
+  duration_ms: 30.9779
+  type: 'test'
+  ...
+# Subtest: the exam judges only what was handed in, a few judgements at a time
+ok 188 - the exam judges only what was handed in, a few judgements at a time
+  ---
+  duration_ms: 12.2989
+  type: 'test'
+  ...
+# Subtest: the ledger holds L4's exam reserve and L3's ceiling, keeps both from every other phase, and refuses a session past either
+ok 189 - the ledger holds L4's exam reserve and L3's ceiling, keeps both from every other phase, and refuses a session past either
+  ---
+  duration_ms: 5.9884
+  type: 'test'
+  ...
+# Subtest: --hold writes the hold into the ledger and refuses one that does not fit, writing nothing
+ok 190 - --hold writes the hold into the ledger and refuses one that does not fit, writing nothing
+  ---
+  duration_ms: 5.2388
+  type: 'test'
+  ...
+# Subtest: the committed ledger holds D9 before any ladder session, at the H8 spend
+ok 191 - the committed ledger holds D9 before any ladder session, at the H8 spend
+  ---
+  duration_ms: 5.4252
+  type: 'test'
+  ...
+# Subtest: the ladder's phases run in order, L0 to L2 on the subscription only, credit only in L3 and L4
+ok 192 - the ladder's phases run in order, L0 to L2 on the subscription only, credit only in L3 and L4
+  ---
+  duration_ms: 2.9662
+  type: 'test'
+  ...
+# Subtest: a rung is its model and effort, and a teaching round its stage: another of either runs again
+ok 193 - a rung is its model and effort, and a teaching round its stage: another of either runs again
+  ---
+  duration_ms: 0.6364
+  type: 'test'
+  ...
+# Subtest: the harness and the skill hand in with record --review, the system prompt within its 25 lines
+ok 194 - the harness and the skill hand in with record --review, the system prompt within its 25 lines
+  ---
+  duration_ms: 1.4854
+  type: 'test'
+  ...
+# Subtest: the look line counts the reviewed frames a trace opened, from Managed Agents steps or a Claude Code transcript
+ok 195 - the look line counts the reviewed frames a trace opened, from Managed Agents steps or a Claude Code transcript
+  ---
+  duration_ms: 2.8915
+  type: 'test'
+  ...
+# Subtest: the subscription arm runs claude -p with the rung's model and effort, the web off, the 5.4 environment and the local CLI
+ok 196 - the subscription arm runs claude -p with the rung's model and effort, the web off, the 5.4 environment and the local CLI
+  ---
+  duration_ms: 25.4804
+  type: 'test'
+  ...
+# Subtest: a ladder hand-in without a review, or without DELIVERED, is not delivered; a stopped session is costed from its transcript
+ok 197 - a ladder hand-in without a review, or without DELIVERED, is not delivered; a stopped session is costed from its transcript
+  ---
+  duration_ms: 96.3487
+  type: 'test'
+  ...
+# Subtest: the ladder exam is sealed: the committed file has the seal's shape, and a wrong passphrase gets nothing
+ok 198 - the ladder exam is sealed: the committed file has the seal's shape, and a wrong passphrase gets nothing
+  ---
+  duration_ms: 58.0583
+  type: 'test'
+  ...
+# Subtest: the ladder exam decrypts to its hash and holds section 2's mix, no id of an earlier brief file, where the passphrase is here
+ok 199 - the ladder exam decrypts to its hash and holds section 2's mix, no id of an earlier brief file, where the passphrase is here
+  ---
+  duration_ms: 180.1735
+  type: 'test'
+  ...
+# Subtest: the seal was committed before any ladder session
+ok 200 - the seal was committed before any ladder session
+  ---
+  duration_ms: 214.5775
+  type: 'test'
+  ...
+# Subtest: the ladder exam opens only in L4, and the ladder set only from H8's closed exam
+ok 201 - the ladder exam opens only in L4, and the ladder set only from H8's closed exam
+  ---
+  duration_ms: 191.6257
+  type: 'test'
+  ...
+# Subtest: the ladder judge is Opus 5.5 on the exam judge's own prompt and rubric, and is used only if its calibration passed
+ok 202 - the ladder judge is Opus 5.5 on the exam judge's own prompt and rubric, and is used only if its calibration passed
+  ---
+  duration_ms: 4.5418
+  type: 'test'
+  ...
+# Subtest: a rung is counted as H8 counted: D5's screen ends it early, D6 matches only on all eight
+ok 203 - a rung is counted as H8 counted: D5's screen ends it early, D6 matches only on all eight
+  ---
+  duration_ms: 5.5481
+  type: 'test'
+  ...
+# Subtest: a teaching round's tuning briefs are counted the same way, with no screen and no match (D7)
+ok 204 - a teaching round's tuning briefs are counted the same way, with no screen and no match (D7)
+  ---
+  duration_ms: 1.9632
+  type: 'test'
+  ...
+# Subtest: the ladder judge reads each graphic three times: usable on two passing readings, and the tally says how often it agreed (D8 as amended)
+ok 205 - the ladder judge reads each graphic three times: usable on two passing readings, and the tally says how often it agreed (D8 as amended)
+  ---
+  duration_ms: 1.3144
+  type: 'test'
+  ...
+# Subtest: a ladder judge run asks each graphic until it has its readings, each in its own folder
+ok 206 - a ladder judge run asks each graphic until it has its readings, each in its own folder
+  ---
+  duration_ms: 23.3255
+  type: 'test'
+  ...
+# Subtest: the presets are the seven the plan names, in its order
+ok 207 - the presets are the seven the plan names, in its order
+  ---
+  duration_ms: 1.6328
+  type: 'test'
+  ...
+# Subtest: each preset writes its sides on a mixed selection and leaves every other key side alone
+ok 208 - each preset writes its sides on a mixed selection and leaves every other key side alone
+  ---
+  duration_ms: 6.5117
+  type: 'test'
+  ...
+# Subtest: a kept side is kept exactly: bezier text, and the exact cubic arrival of power1, power2 and back
+ok 209 - a kept side is kept exactly: bezier text, and the exact cubic arrival of power1, power2 and back
+  ---
+  duration_ms: 19.4832
+  type: 'test'
+  ...
+# Subtest: both points written from both keys keep nothing, and a straight result is none
+ok 210 - both points written from both keys keep nothing, and a straight result is none
+  ---
+  duration_ms: 0.6328
+  type: 'test'
+  ...
+# Subtest: Bounce and Overshoot keep a departure set on its own; Hold replaces its whole segment
+ok 211 - Bounce and Overshoot keep a departure set on its own; Hold replaces its whole segment
+  ---
+  duration_ms: 2.1318
+  type: 'test'
+  ...
+# Subtest: every refusal is whole, names what it could not keep and leaves the input untouched
+ok 212 - every refusal is whole, names what it could not keep and leaves the input untouched
+  ---
+  duration_ms: 2.2929
+  type: 'test'
+  ...
+# Subtest: one registry operation writes the batch, upgrades a known older interpreter and refuses a custom one
+ok 213 - one registry operation writes the batch, upgrades a known older interpreter and refuses a custom one
+  ---
+  duration_ms: 17.033
+  type: 'test'
+  ...
+# Subtest: the editor samples every preset as its curve, and a Hold holds until its key
+ok 214 - the editor samples every preset as its curve, and a Hold holds until its key
+  ---
+  duration_ms: 4.0833
+  type: 'test'
+  ...
+# Subtest: review cases: an instant jump, a departure inside a split curve, the 10 ms floor and names after speed
+ok 215 - review cases: an instant jump, a departure inside a split curve, the 10 ms floor and names after speed
+  ---
+  duration_ms: 2.2494
+  type: 'test'
+  ...
+# [measured] 715 template runtime source files
+# [measured] 11 document members the template runtimes read
+# Subtest: scopedDocument scopes the lookups, the canvas, the head, the loading state and the listeners
+ok 216 - scopedDocument scopes the lookups, the canvas, the head, the loading state and the listeners
+  ---
+  duration_ms: 1.5846
+  type: 'test'
+  ...
+# Subtest: every document member a template runtime reads is scoped or a decided pass-through
+ok 217 - every document member a template runtime reads is scoped or a decided pass-through
+  ---
+  duration_ms: 1.8232
+  type: 'test'
+  ...
+# Subtest: no template runtime reaches the renderer page around the scoped document
+ok 218 - no template runtime reaches the renderer page around the scoped document
+  ---
+  duration_ms: 0.3109
+  type: 'test'
+  ...
+# Subtest: a runtime listens on the document only for DOMContentLoaded, which the scoped document holds
+ok 219 - a runtime listens on the document only for DOMContentLoaded, which the scoped document holds
+  ---
+  duration_ms: 0.3001
+  type: 'test'
+  ...
+# Subtest: every pass-through decision is still in use and not also scoped
+ok 220 - every pass-through decision is still in use and not also scoped
+  ---
+  duration_ms: 0.2556
+  type: 'test'
+  ...
+# Subtest: Set Out across the last In key keeps every absolute value, both velocities at b and the untouched keys
+ok 221 - Set Out across the last In key keeps every absolute value, both velocities at b and the untouched keys
+  ---
+  duration_ms: 760.7136
+  type: 'test'
+  ...
+# Subtest: the parts it writes: a split, a hold key, moved keys and an exit joined without a jump
+ok 222 - the parts it writes: a split, a hold key, moved keys and an exit joined without a jump
+  ---
+  duration_ms: 4.4301
+  type: 'test'
+  ...
+# Subtest: an exit key on the old boundary merges when it holds the same value, and a jump refuses
+ok 223 - an exit key on the old boundary merges when it holds the same value, and a jump refuses
+  ---
+  duration_ms: 90.4498
+  type: 'test'
+  ...
+# Subtest: visibility bars keep their absolute times; a layer Out could not reveal refuses
+ok 224 - visibility bars keep their absolute times; a layer Out could not reveal refuses
+  ---
+  duration_ms: 612.6977
+  type: 'test'
+  ...
+# Subtest: a layer with Out bars but none on the moved cue stays visible over the moved part
+ok 225 - a layer with Out bars but none on the moved cue stays visible over the moved part
+  ---
+  duration_ms: 83.098
+  type: 'test'
+  ...
+# Subtest: what moves into Out must not sit in a layer hidden there
+ok 226 - what moves into Out must not sit in a layer hidden there
+  ---
+  duration_ms: 18.092
+  type: 'test'
+  ...
+# Subtest: a graphic saved with the G01 interpreter upgrades once an exit can end on a slice
+ok 227 - a graphic saved with the G01 interpreter upgrades once an exit can end on a slice
+  ---
+  duration_ms: 16.6858
+  type: 'test'
+  ...
+# Subtest: the exit keeps its own timing when Out moves into still air or later, and bars follow the hold
+ok 228 - the exit keeps its own timing when Out moves into still air or later, and bars follow the hold
+  ---
+  duration_ms: 56.9405
+  type: 'test'
+  ...
+# Subtest: Set Out inside a Next cue carries its motion into Out, and moving Out back gives the source
+ok 229 - Set Out inside a Next cue carries its motion into Out, and moving Out back gives the source
+  ---
+  duration_ms: 253.508
+  type: 'test'
+  ...
+# Subtest: every refusal leaves the input untouched and names what could not be kept
+ok 230 - every refusal leaves the input untouched and names what could not be kept
+  ---
+  duration_ms: 116.5405
+  type: 'test'
+  ...
+# Subtest: applyOut snaps the playhead through speed and writes one lossless region
+ok 231 - applyOut snaps the playhead through speed and writes one lossless region
+  ---
+  duration_ms: 101.9514
+  type: 'test'
+  ...
+# Subtest: Set Out across a Hold splits it into two held halves and plays as before
+ok 232 - Set Out across a Hold splits it into two held halves and plays as before
+  ---
+  duration_ms: 301.972
+  type: 'test'
+  ...
+# Subtest: a graphic saved with the R1.2a.1 interpreter upgrades once to play a Hold
+ok 233 - a graphic saved with the R1.2a.1 interpreter upgrades once to play a Hold
+  ---
+  duration_ms: 6.5614
+  type: 'test'
+  ...
+# Subtest: Out moved later keeps a layer visible at the old hold visible up to the new one
+ok 234 - Out moved later keeps a layer visible at the old hold visible up to the new one
+  ---
+  duration_ms: 20.5964
+  type: 'test'
+  ...
+# Subtest: Out parked at an earlier step leaves from the live pose and never shows an unreached step
+ok 235 - Out parked at an earlier step leaves from the live pose and never shows an unreached step
+  ---
+  duration_ms: 76.5478
+  type: 'test'
+  ...
+# Subtest: an interrupted exit ends with each bar's end state, reaching a layer outside the root
+ok 236 - an interrupted exit ends with each bar's end state, reaching a layer outside the root
+  ---
+  duration_ms: 95.4763
+  type: 'test'
+  ...
+# Subtest: Out at the last step plays the authored exit from the held pose, as before
+ok 237 - Out at the last step plays the authored exit from the held pose, as before
+  ---
+  duration_ms: 60.5855
+  type: 'test'
+  ...
+# Subtest: Out during In or during a Next is interrupted as before
+ok 238 - Out during In or during a Next is interrupted as before
+  ---
+  duration_ms: 128.6748
+  type: 'test'
+  ...
+# Subtest: Next does nothing once Out has started, until the next play()
+ok 239 - Next does nothing once Out has started, until the next play()
+  ---
+  duration_ms: 20.638
+  type: 'test'
+  ...
+# Subtest: a machine graphic keeps its authored exit from every state
+ok 240 - a machine graphic keeps its authored exit from every state
+  ---
+  duration_ms: 39.2221
+  type: 'test'
+  ...
+# Subtest: Out before play() is as before, and a one-key Out track cuts only at the last step
+ok 241 - Out before play() is as before, and a one-key Out track cuts only at the last step
+  ---
+  duration_ms: 75.6307
+  type: 'test'
+  ...
+# Subtest: a graphic saved with the R1.2a.2 interpreter upgrades once to leave from any step
+ok 242 - a graphic saved with the R1.2a.2 interpreter upgrades once to leave from any step
+  ---
+  duration_ms: 73.4326
+  type: 'test'
+  ...
+# Subtest: steps, pose-only states and accepted edges share one descriptor; an imported asset is one patch
+ok 243 - steps, pose-only states and accepted edges share one descriptor; an imported asset is one patch
+  ---
+  duration_ms: 42.6757
+  type: 'test'
+  ...
+# Subtest: invalid loop targets, bad levels, duplicate ids and future data are refused without losing source
+ok 244 - invalid loop targets, bad levels, duplicate ids and future data are refused without losing source
+  ---
+  duration_ms: 5.5308
+  type: 'test'
+  ...
+# Subtest: Add Step at every frame inside a cue plays as before on the ruler, and Delete gives back the source
+ok 245 - Add Step at every frame inside a cue plays as before on the ruler, and Delete gives back the source
+  ---
+  duration_ms: 759.1379
+  type: 'test'
+  ...
+# Subtest: the parts Add Step writes: on a key, on a bar edge, inside held and flat segments, before a first key
+ok 246 - the parts Add Step writes: on a key, on a bar edge, inside held and flat segments, before a first key
+  ---
+  duration_ms: 13.7918
+  type: 'test'
+  ...
+# Subtest: Add Step then Delete gives back authored Hold keys, layer and track order
+ok 247 - Add Step then Delete gives back authored Hold keys, layer and track order
+  ---
+  duration_ms: 28.8752
+  type: 'test'
+  ...
+# Subtest: flags one frame apart at 30 and 60 fps are accepted though stored at 3 decimals
+ok 248 - flags one frame apart at 30 and 60 fps are accepted though stored at 3 decimals
+  ---
+  duration_ms: 21.9012
+  type: 'test'
+  ...
+# Subtest: a flag read from summed cue lengths a float step off its frame is the arriving side
+ok 249 - a flag read from summed cue lengths a float step off its frame is the arriving side
+  ---
+  duration_ms: 0.8717
+  type: 'test'
+  ...
+# Subtest: Add Step refuses on a flag, within a frame of one, and where a split is not exact
+ok 250 - Add Step refuses on a flag, within a frame of one, and where a split is not exact
+  ---
+  duration_ms: 29.0464
+  type: 'test'
+  ...
+# Subtest: legacy reveals stay with the first part and legacy hides move to the second
+ok 251 - legacy reveals stay with the first part and legacy hides move to the second
+  ---
+  duration_ms: 32.3537
+  type: 'test'
+  ...
+# Subtest: Delete joins a Step into the cue before at its absolute times
+ok 252 - Delete joins a Step into the cue before at its absolute times
+  ---
+  duration_ms: 22.3205
+  type: 'test'
+  ...
+# Subtest: Delete next to a cue with another default ease writes explicit eases and plays the same
+ok 253 - Delete next to a cue with another default ease writes explicit eases and plays the same
+  ---
+  duration_ms: 18.8129
+  type: 'test'
+  ...
+# Subtest: Delete refuses a jump at the flag, a legacy hide before it, and keys past a cue end
+ok 254 - Delete refuses a jump at the flag, a legacy hide before it, and keys past a cue end
+  ---
+  duration_ms: 21.0301
+  type: 'test'
+  ...
+# Subtest: a layer keyed again after a legacy hide keeps its playback through Add Step, and Delete refuses to guess
+ok 255 - a layer keyed again after a legacy hide keeps its playback through Add Step, and Delete refuses to guess
+  ---
+  duration_ms: 31.3604
+  type: 'test'
+  ...
+# Subtest: Delete refuses legacy visibility it cannot keep: a hide beside bars, a reveal of a layer that also leaves
+ok 256 - Delete refuses legacy visibility it cannot keep: a hide beside bars, a reveal of a layer that also leaves
+  ---
+  duration_ms: 1.6689
+  type: 'test'
+  ...
+# Subtest: Delete converts a legacy reveal to bars so the layer appears where its step began
+ok 257 - Delete converts a legacy reveal to bars so the layer appears where its step began
+  ---
+  duration_ms: 64.743
+  type: 'test'
+  ...
+# Subtest: a Step flag drag to any legal frame plays as before, and so does its reverse
+ok 258 - a Step flag drag to any legal frame plays as before, and so does its reverse
+  ---
+  duration_ms: 1244.0579
+  type: 'test'
+  ...
+# Subtest: flags stay ordered: onto or past a neighbour, or within a frame of one, refuses
+ok 259 - flags stay ordered: onto or past a neighbour, or within a frame of one, refuses
+  ---
+  duration_ms: 34.1963
+  type: 'test'
+  ...
+# Subtest: applyStep snaps the playhead, keeps the step count and the SPX definition, and refuses atomically
+ok 260 - applyStep snaps the playhead, keeps the step count and the SPX definition, and refuses atomically
+  ---
+  duration_ms: 46.6301
+  type: 'test'
+  ...
+# Subtest: a legacy one-step graphic gains its Out first; machines, loops, calls, dynamics and custom bodies refuse
+ok 261 - a legacy one-step graphic gains its Out first; machines, loops, calls, dynamics and custom bodies refuse
+  ---
+  duration_ms: 20.7203
+  type: 'test'
+  ...
+# Subtest: a one-key Out track holds its live value from an earlier step and cuts at the last
+ok 262 - a one-key Out track holds its live value from an earlier step and cuts at the last
+  ---
+  duration_ms: 73.3449
+  type: 'test'
+  ...
+# Subtest: a graphic saved with the R1.2a.3 interpreter upgrades once to hold a one-key Out track
+ok 263 - a graphic saved with the R1.2a.3 interpreter upgrades once to hold a one-key Out track
+  ---
+  duration_ms: 43.8573
+  type: 'test'
+  ...
+# Subtest: split slices rejoin into the curve they were cut from
+ok 264 - split slices rejoin into the curve they were cut from
+  ---
+  duration_ms: 1.047
+  type: 'test'
+  ...
+# Subtest: no font named: no CSS at all
+ok 265 - no font named: no CSS at all
+  ---
+  duration_ms: 1.888
+  type: 'test'
+  ...
+# Subtest: a bundled face under its own name is the bundled declaration, whole range
+ok 266 - a bundled face under its own name is the bundled declaration, whole range
+  ---
+  duration_ms: 1.1775
+  type: 'test'
+  ...
+# Subtest: a bundled face under the artwork's own name is an alias pinned to the weight the name states
+ok 267 - a bundled face under the artwork's own name is an alias pinned to the weight the name states
+  ---
+  duration_ms: 0.8621
+  type: 'test'
+  ...
+# Subtest: an embedded face is the custom declaration; a bundled id wins over it
+ok 268 - an embedded face is the custom declaration; a bundled id wins over it
+  ---
+  duration_ms: 0.6497
+  type: 'test'
+  ...
+# Subtest: an unresolved family is named in one comment, after every face, never blocked
+ok 269 - an unresolved family is named in one comment, after every face, never blocked
+  ---
+  duration_ms: 0.7111
+  type: 'test'
+  ...
+# Subtest: every independent ZIP extracts with verified CRCs and canonical bytes
+ok 270 - every independent ZIP extracts with verified CRCs and canonical bytes
+  ---
+  duration_ms: 290.8803
+  type: 'test'
+  ...
+# Subtest: both MCP manifests name every verb the tool has
+ok 271 - both MCP manifests name every verb the tool has
+  ---
+  duration_ms: 2.3865
+  type: 'test'
+  ...
+# Subtest: each host gets an MCP entry it can start: Claude expands its root variable, Codex resolves cwd
+ok 272 - each host gets an MCP entry it can start: Claude expands its root variable, Codex resolves cwd
+  ---
+  duration_ms: 1.7633
+  type: 'test'
+  ...
+# Subtest: output is idempotent, and altered or stray output is refused without deletion
+ok 273 - output is idempotent, and altered or stray output is refused without deletion
+  ---
+  duration_ms: 155.5443
+  type: 'test'
+  ...
+# Subtest: reject missing licence
+ok 274 - reject missing licence
+  ---
+  duration_ms: 1.0973
+  type: 'test'
+  ...
+# Subtest: reject wrong licence
+ok 275 - reject wrong licence
+  ---
+  duration_ms: 2.4905
+  type: 'test'
+  ...
+# Subtest: reject missing reference
+ok 276 - reject missing reference
+  ---
+  duration_ms: 1.4042
+  type: 'test'
+  ...
+# Subtest: reject stale setup pin
+ok 277 - reject stale setup pin
+  ---
+  duration_ms: 1.1164
+  type: 'test'
+  ...
+# Subtest: reject setup without the pin
+ok 278 - reject setup without the pin
+  ---
+  duration_ms: 1.2871
+  type: 'test'
+  ...
+# Subtest: reject floating skill launcher
+ok 279 - reject floating skill launcher
+  ---
+  duration_ms: 1.1978
+  type: 'test'
+  ...
+# Subtest: reject floating install in a reference
+ok 280 - reject floating install in a reference
+  ---
+  duration_ms: 1.2347
+  type: 'test'
+  ...
+# Subtest: reject text limit
+ok 281 - reject text limit
+  ---
+  duration_ms: 0.6493
+  type: 'test'
+  ...
+# Subtest: reject file limit
+ok 282 - reject file limit
+  ---
+  duration_ms: 0.7882
+  type: 'test'
+  ...
+# Subtest: reject binary/LFS pointer
+ok 283 - reject binary/LFS pointer
+  ---
+  duration_ms: 0.5954
+  type: 'test'
+  ...
+# Subtest: reject main accidentally starts MCP
+ok 284 - reject main accidentally starts MCP
+  ---
+  duration_ms: 1.3078
+  type: 'test'
+  ...
+# Subtest: reject manifest outside path
+ok 285 - reject manifest outside path
+  ---
+  duration_ms: 1.058
+  type: 'test'
+  ...
+# Subtest: reject plugin file count and malformed Codex metadata independently
+ok 286 - reject plugin file count and malformed Codex metadata independently
+  ---
+  duration_ms: 6.7138
+  type: 'test'
+  ...
+# Subtest: reject traversal, Windows devices, attributes, system files and case collisions in parents
+ok 287 - reject traversal, Windows devices, attributes, system files and case collisions in parents
+  ---
+  duration_ms: 0.9554
+  type: 'test'
+  ...
+# Subtest: repository compressed, unpacked and entry boundaries are rejected independently
+ok 288 - repository compressed, unpacked and entry boundaries are rejected independently
+  ---
+  duration_ms: 0.4933
+  type: 'test'
+  ...
+# Subtest: source/generated skill drift is caught before packaging
+ok 289 - source/generated skill drift is caught before packaging
+  ---
+  duration_ms: 90.2696
+  type: 'test'
+  ...
+# Subtest: launcher imports matching install and forwards MCP arguments in one process
+ok 290 - launcher imports matching install and forwards MCP arguments in one process
+  ---
+  duration_ms: 251.4397
+  type: 'test'
+  ...
+# Subtest: launcher never runs an older/newer/unknown installation; it goes to the pinned npx instead
+ok 291 - launcher never runs an older/newer/unknown installation; it goes to the pinned npx instead
+  ---
+  duration_ms: 4330.8832
+  type: 'test'
+  ...
+# Subtest: explicit development override is disclosed; missing override cannot fall through
+ok 292 - explicit development override is disclosed; missing override cannot fall through
+  ---
+  duration_ms: 435.1217
+  type: 'test'
+  ...
+# Subtest: a font offers the weights it really draws, named as type menus name them
+ok 293 - a font offers the weights it really draws, named as type menus name them
+  ---
+  duration_ms: 2.6301
+  type: 'test'
+  ...
+# Subtest: a side handle resizes a text box along its own sides and keeps the opposite side where it was
+ok 294 - a side handle resizes a text box along its own sides and keeps the opposite side where it was
+  ---
+  duration_ms: 13.0454
+  type: 'test'
+  ...
+# Subtest: the emitter writes the animation declaration the validators look for
+ok 295 - the emitter writes the animation declaration the validators look for
+  ---
+  duration_ms: 17.7256
+  type: 'test'
+  ...
+# Subtest: the engine feature table is populated and consulted
+ok 296 - the engine feature table is populated and consulted
+  ---
+  duration_ms: 2.828
+  type: 'test'
+  ...
+# Subtest: the unsafe-JS table is populated and consulted
+ok 297 - the unsafe-JS table is populated and consulted
+  ---
+  duration_ms: 0.6504
+  type: 'test'
+  ...
+# Subtest: the design-rules warnings say "not checked" when there is no frame to read
+ok 298 - the design-rules warnings say "not checked" when there is no frame to read
+  ---
+  duration_ms: 1.2301
+  type: 'test'
+  ...
+# Subtest: the readiness report claims "not checked" on the legibility row instead of passing
+ok 299 - the readiness report claims "not checked" on the legibility row instead of passing
+  ---
+  duration_ms: 0.6328
+  type: 'test'
+  ...
+# Subtest: the readiness report claims both legibility size rules on its row, as warnings that never gate
+ok 300 - the readiness report claims both legibility size rules on its row, as warnings that never gate
+  ---
+  duration_ms: 0.417
+  type: 'test'
+  ...
+# Subtest: a call with no options is refused, a call that shows windowsHide passes
+ok 301 - a call with no options is refused, a call that shows windowsHide passes
+  ---
+  duration_ms: 54.6104
+  type: 'test'
+  ...
+# Subtest: options without windowsHide are refused, whatever else they say
+ok 302 - options without windowsHide are refused, whatever else they say
+  ---
+  duration_ms: 19.5996
+  type: 'test'
+  ...
+# Subtest: every child_process function is covered, under every way of reaching it
+ok 303 - every child_process function is covered, under every way of reaching it
+  ---
+  duration_ms: 62.9055
+  type: 'test'
+  ...
+# Subtest: a same-file const object counts; options the file cannot see do not
+ok 304 - a same-file const object counts; options the file cannot see do not
+  ---
+  duration_ms: 20.4615
+  type: 'test'
+  ...
+# Subtest: windowsHide: false is reported, a function passed as a value is untraceable, a test seam is a call
+ok 305 - windowsHide: false is reported, a function passed as a value is untraceable, a test seam is a call
+  ---
+  duration_ms: 40.7811
+  type: 'test'
+  ...
+# Subtest: names that only look like child_process are left alone
+ok 306 - names that only look like child_process are left alone
+  ---
+  duration_ms: 9.1803
+  type: 'test'
+  ...
+# Subtest: every child process started under scripts/ shows windowsHide
+ok 307 - every child process started under scripts/ shows windowsHide
+  ---
+  duration_ms: 2773.6576
+  type: 'test'
+  ...
+1..307
+# tests 358
+# suites 16
+# pass 358
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 15364.3324
+[gates] 26 test file(s) ran 358 test(s)

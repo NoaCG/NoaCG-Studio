@@ -1,0 +1,13 @@
+E1 full independent review, third exact candidate
+Head 536f8f370922d579aa2ade42465205cab3ea09c1
+Base 78ce3f35063386fdc7217d0542e3df871fc32b8d
+Clean pushed branch codex/plan-editor-r1-5-e1-build, 37 changed paths
+AGREE WITH CORRECTIONS, Grade B, required A/A+ not met
+
+OGraf package parity, product defect. A shared GSAP registry retains the first graphic's scoped document in the registered plugin init. Exact emitted extension execution in two contexts with one registry: first writes keyed 20px, second init returns false and remains base 10px. New runtime must validate passed marked SVG element without capturing registering graphic's scoped DOM. Exercise separate authored outputs with two mounted graphics, disposal and remount.
+
+Repeated CSS source and owner family. Native nested CSS `svg { & > [data-noacg-group-pivot] { transform: scale(2) !important; } }` bypasses group creation rulesOf and changes the first painted group. The later guard sees it too late. Raw lowercase @property regex misses case and comments; a valid <number> registration invalidates generated pixel variables. Shared CSSOM inspection should detect actual registrations, scoped selectors and nested rules. Shared lexical declaration spans should recognize equivalent CSS identifier escapes.
+
+Source fidelity. Existing current CSS writer accepts `--base-anchor-x /* keep */: 10px` but deletes the comment while changing the value. Replace only the value while preserving comments and priority. Base's ordinary static behavior predates E1 and must remain in scope as previously reviewed.
+
+36/36 read-only Node tests and toolkit distribution checks passed. Existing local targeted and catalog evidence are scoped; no PR or GitHub CI opened. Prior requirements and failure history preserved. Round-cap read-only reassessment commissioned before the next patch.
