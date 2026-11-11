@@ -61,8 +61,8 @@
     }
   },
   "brief": {
-    "read": "Read the finalized spec and phases from f0f2e3fe0c2cc14e23b171957b6f8d18905fd434 with git show; the runtime worktree starts on pinned main, independently of the plan-only source. Read docs/EDITOR_PLAN.md, the editor acceptance register and the October single-device closure named in the spec. Preserve the old October ledger and source-specific evidence. #2294 exact acceptance and terminal checks are recorded in its repair-owner closeout. Read the latest issue details for #774, #1749 and #775 before using them.",
-    "rules": "Run the current worker plan preflight before work and use only the owned absolute Windows worktree. Use the local verification scheduler, isolated accounts and required native 125% zoom/file interactions; full suites stay in GitHub Actions. Respect the October single-device boundaries and the serial phase order. Before E1 product edits reproduce and write the short observable rule or gap. Report every subcriterion and retain original failures and any missing evidence. Inventory the exact GSAP browser, CLI and export artifacts early and send the finished draft back to the coordinator for the owner. State that NoaCG is open source, entirely free, earns no revenue and serves broadcast graphics. The owner superseded the six-month deferral and sends the request. Preserve licence, provenance, notices and redistribution checks. A delayed reply is not an engineering wait before OW1. Stage actual receiving hosts/operator, first-time users/moderator and existing model-access leads in E1 without claiming availability. Do not launch other phases. Do not change provider, funding, licence, engine or release posture. Do not use or modify production data. Respect #1967 and check sideEnds on exact candidate paths, including package versions. The active coordinator acknowledges PR repair duty and owns queue stamping and terminal monitoring. Follow the latest check and queue guidance and obtain fresh independent review under the shared traps."
+    "read": "Future phases use the reviewed Cloud-first spec/phases and owner-decision-2026-11-11-cloud-first.md at 3a56a966c4c03fa47f53b4d1ecb09ed882d12ef0 with git show. Product work starts on current main in its own worktree. Completed E1-E3 retain original plan source f0f2e3fe0c2cc14e23b171957b6f8d18905fd434 and their exact tested-source/environment receipts. Read docs/EDITOR_PLAN.md, the acceptance register, October single-device closure and latest relevant issues; historical evidence is reused only with current source/environment applicability.",
+    "rules": "Run the current worker resource/network preflights and folder rules in an owned absolute feature worktree. E4/E5C/E6C execute in qualified Cloud. Qualify real isolated authentication/persistence on the worker or existing Actions stack; no production data/secrets. Full suites stay in GitHub Actions. Finish Cloud engineering before final E5 real participants/named devices/native 125% and E6 named receiving hosts/operator; Cloud diagnostics/fixtures cannot pass those gates. Respect the October single-device boundaries and the serial phase order. Before product edits reproduce and write the short observable rule or gap. Report every subcriterion and retain original failures and any missing evidence. Inventory the exact GSAP browser, CLI and export artifacts early and send the finished draft back to the coordinator for the owner. State that NoaCG is open source, entirely free, earns no revenue and serves broadcast graphics. The owner superseded the six-month deferral and sends the request. Preserve licence, provenance, notices and redistribution checks. A delayed reply is not an engineering wait before OW1. Stage actual receiving hosts/operator, first-time users/moderator and existing model-access leads in E1 without claiming availability. Do not launch other phases. Do not change provider, funding, licence, engine or release posture. Do not use or modify production data. Respect #1967 and check sideEnds on exact candidate paths, including package versions. The active coordinator acknowledges PR repair duty and owns queue stamping and terminal monitoring. Follow the latest check and queue guidance and obtain fresh independent review under the shared traps. No new paid model round or reset of E3 limits follows from E5C/E6C. OW1 written GSAP disposition and candidate-specific owner approval still gate E7 adoption."
   },
   "inFlight": [],
   "owner": [
@@ -70,7 +70,13 @@
     "Arrange E6 named receiving hosts/operator and off-air access for the final local stage.",
     "Written GSAP disposition gates OW1; candidate-specific release approval gates E7. Neither is a Cloud preparation wait."
   ],
-  "fixes": [],
+  "fixes": [
+    {
+      "pr": 2391,
+      "what": "Mandatory mechanical fail-then-pass quarantine; original main red retained; active coordinator owns",
+      "ownerComment": 6802774510
+    }
+  ],
   "triggers": [],
   "prerequisites": {
     "gsap": {
@@ -558,11 +564,6 @@
       "retained": "active coordinator/control store, E3 owned worktree and route-probe worktree"
     }
   },
-  "waitingOn": {
-    "what": "Terminal exact-merge main CI and configured-suite for merged Cloud-first amendment PR2387; old E4 local-only prerequisite superseded by later owner decision",
-    "responsible": "active Cloud coordinator / GitHub Actions",
-    "resume": "Reconcile PR2387 exact 3a56a966 terminal checks; clear verification dependency, start bounded block and use run-supervisor admit with receipts/cloud-first-admission.json. Then refresh kit/packet and ask next for Cloud E4. No new run or attempt reset."
-  },
   "cloudContinuation": {
     "at": "2026-11-11T11:52:56.956Z",
     "ownerInstruction": "Start a Codex Cloud chat in the NoaCG-Studio environment and resume $plan-run editor-r1-5 from the saved E2 checkpoint. Continue the same run.",
@@ -943,26 +944,22 @@
     }
   },
   "e4RouteReadiness": {
-    "scope": "preparatory capability read only; E4 not admitted, E3 still pending actualmerge/check",
-    "requiredEnvironment": "WL: isolated test account, disposable production and browser rehearsal; preserved approved local environment",
-    "localProject": {
-      "id": "da1ef08c-3674-45b2-9b43-bcc613c61b86",
-      "path": "C:\\claude\\NoaCG-Studio",
-      "hostId": "local",
-      "repository": true
-    },
-    "toolEvidence": "App list_projects/read_thread/list_threads/archive exposed; exhaustive current tool search found no create_thread/fork_thread/send_message_to_thread/handoff_thread or remote Windows execution capability. Project metadata does not prove qualified execution.",
-    "selectedExecutor": "current managed Cloud Linux only; no local Windows process/resource/network preflight possible through exposed tools",
-    "futureAction": "After E3 independentPASS, ask supervisor next and checkpoint exact first dependent local-route gate if still unavailable. Resume same run/recoveryref from existing Windows project; qualify actual local coordinator/worker before E4admission. Do not substitute Cloud or open a second run.",
-    "status": "Historical local-only interpretation superseded by November11 owner Cloud-first request and merged PR2387; await reviewed future-phase admission, no E4 launch."
+    "requiredEnvironment": "BL: qualified Cloud browser/CLI with an isolated authenticated backend on the worker or GitHub Actions",
+    "selectedExecutor": "qualified active managed Cloud; own worktree and existing isolated worker/Actions backend routes",
+    "backendCapability": "Docker daemon 28.4.0 available. Existing isolated Actions stack has real authentication/schema fixtures. E4-specific backend qualification and compound acceptance have not run.",
+    "futureAction": "Ask supervisor next, qualify isolated Cloud persistence/auth/access, then admit exactly one fresh E4 builder through intent/ready/observe. Do not rerun E1-E3 or spend an E4 attempt during plan preparation.",
+    "status": "Cloud-first route prepared; no E4 builder admitted"
   },
   "handoff": {
     "run": "plan-editor-r1-5-2026-11-08",
+    "phasePosition": "E1/E2/E3 PASS; next E4 build in Cloud, then E5C/E6C before final local E5/E6",
     "recoveryRef": "claude/noacg-recovery/plan-editor-r1-5-2026-11-08",
-    "phasePosition": "E1-E3 PASS; Cloud-first amendment merged, pending terminal checks/admission",
-    "firstAction": "Reconcile PR2387 exact 3a56a966 terminal checks; clear verification dependency, start bounded block and use run-supervisor admit with receipts/cloud-first-admission.json. Then refresh kit/packet and ask next for Cloud E4. No new run or attempt reset.",
-    "ownedPRs": "2387 current active coordinator repair owner through terminal checks; earlier 2374/2382/2386 complete",
-    "overall": "NOT complete; no E4 admission and no wake. Actual old route context remains historical, not an owner input request."
+    "firstAction": "Resume the same plan-run editor-r1-5 in NoaCG-Studio Cloud, reconcile native ownership/no pending delivery and bounded authority, ask supervisor next for E4 and qualify isolated backend. Use updated kit/source; no new run or allowance reset.",
+    "nativeReconciliation": "All known phase/review workers terminal and archived; no wake. Current Cloud coordinator reaches ready checkpoint at turn completion. A replacement must verify that completion before taking over.",
+    "ownedPRs": "2374/2382/2386 complete;2387 amendment terminal with original unrelated CI red retained and CI gate/retry success;2391 mandatory follow-up ACTIVE coordinator-owned",
+    "retainedWorktree": "/workspace/noacg-editor-r1-5-cloud",
+    "overall": "NOT complete: E4/E5C/E6C/E5/E6/OW1/E7 acceptance remains. No unattended monitoring or periodic check-in claimed.",
+    "at": "2026-11-11T17:34:45.273Z"
   },
   "cloudFirstAmendment": {
     "run": "plan-editor-r1-5-2026-11-08",
@@ -1006,19 +1003,62 @@
       "codex": "completed, no findings on reviewed head",
       "mergeGroupCI": 43060812220
     },
-    "status": "LANDED at 3a56a966; future phase transaction NOT YET ADMITTED. Await exact-merge terminal main CI/configured results; then clear this dependency, start bounded authority and admit the saved amendment once.",
+    "status": "ADMITTED through existing supervisor; same run, E4 Cloud build next",
     "preservation": "Same run, original authorization/start/target/grants/failures/attempts/native bootstrap binding retained. E1-E3 untouched; E4 environment and E5 additive dependency only; every existing acceptance string unchanged. Old local-only route superseded by this owner decision; full old kit/packet remains in prior checkpoints.",
-    "pendingAdmission": "receipts/cloud-first-admission.json",
-    "requiredRuns": {
-      "mainCI": 43062390990,
-      "configured": 43062390956,
-      "postLanding": 43062390973,
-      "quarantine": 43062391147,
-      "codeQL": 43062390358,
-      "deployment": [
-        43062873935,
-        43062472640
+    "admittedAt": "2026-11-11T17:34:45.273Z",
+    "pendingAmendmentCheckpoint": "aa792584373fdd114991d47d184ad902a18247fe",
+    "postLanding": {
+      "mergeGroup": {
+        "id": 43060812220,
+        "conclusion": "success"
+      },
+      "mainCI": {
+        "id": 43062390990,
+        "conclusion": "failure",
+        "gate": 130689808043,
+        "gateConclusion": "success",
+        "firstFailedJob": 130677200005,
+        "spec": "e2e/publish-output-setup.spec.ts:407",
+        "retryJob": 130688567742,
+        "retryConclusion": "success",
+        "retryPassed": 18,
+        "disposition": "Raw failure retained; normal same-SHA retry and mandatory monitored quarantine2391. Client/test bytes identical to preceding main c0bc989f, whose full run passed."
+      },
+      "configured": {
+        "id": 43062390956,
+        "conclusion": "success",
+        "blockingSpecs": 64,
+        "stacks": 4,
+        "existingQuarantine": "separate success"
+      },
+      "codeQL": {
+        "id": 43062390358,
+        "conclusion": "success"
+      },
+      "postLanding": {
+        "id": 43062390973,
+        "conclusion": "success"
+      },
+      "quarantine": {
+        "id": 43062391147,
+        "conclusion": "success"
+      },
+      "deploymentVerification": [
+        {
+          "id": 43062472640,
+          "conclusion": "success"
+        },
+        {
+          "id": 43062873935,
+          "conclusion": "success"
+        }
       ]
+    },
+    "quarantineFollowup": {
+      "pr": 2391,
+      "head": "a15d7c77c2d171addcbd243bbace696c31341f2a",
+      "ownerComment": 6802774510,
+      "status": "ACTIVE current coordinator owns through merge and terminal results; no wake"
     }
   }
 }
