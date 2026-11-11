@@ -76,5 +76,13 @@
     "landing": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
     "spec": "e2e/configured/operator-outage-not-unpublished.spec.ts",
     "expectedCases": 2
+  },
+  "operatorExtension": {
+    "cohorts": 5,
+    "countPerCommit": 300,
+    "initialCountPerCommit": 60,
+    "addedPairedInvocations": 240,
+    "protocolCommit": "b2bd1becc",
+    "ordering": "Original balanced seed2295 sequence reused per fresh-runner cohort; every result retained"
   }
 }

@@ -23,11 +23,12 @@ function run(command, args, cwd = ROOT, env = process.env) {
 }
 
 export function batch(ref) {
-  const hit = /^codex\/editor-causality-20261111-(clock|operator)-(\d{2})$/.exec(ref);
+  const hit = /^codex\/editor-causality-20261111-(clock|operator)(?:-c([2-5]))?-(\d{2})$/.exec(ref);
   assert(hit, 'unexpected diagnostic batch ref');
-  const kind = hit[1], index = Number(hit[2]), size = kind === 'clock' ? 5 : 15;
+  const kind = hit[1], cohort = Number(hit[2] ?? 1), index = Number(hit[3]), size = kind === 'clock' ? 5 : 15;
+  assert(cohort === 1 || kind === 'operator', 'only operator comparison is extended');
   assert(index >= 1 && index <= 60 / size, 'batch outside prewritten count');
-  return { kind, index, size, start: (index - 1) * size };
+  return { kind, cohort, index, size, start: (index - 1) * size };
 }
 export function caseRows(suites) {
   return suites.flatMap(suite => [
@@ -113,7 +114,7 @@ function matchingJob(directory, command, jobsDirectory) {
   assert(found.length <= 1, 'duplicate queue admission');
   return found[0];
 }
-async function trial(kind, pair, arm, directory, env, deadline) {
+async function trial(kind, pair, arm, directory, env, deadline, cohort) {
   assert(Date.now() + 5 * 60_000 < deadline, 'insufficient time for a capped invocation');
   assert.equal(run('git', ['rev-parse', 'HEAD'], directory), PLAN[kind][arm]);
   assert.equal(run('git', ['status', '--porcelain'], directory), '');
@@ -125,7 +126,7 @@ async function trial(kind, pair, arm, directory, env, deadline) {
   const command = `env ${quote(`PLAYWRIGHT_JSON_OUTPUT_FILE=${out}/report.json`)} ${quote(`PLAYWRIGHT_BLOB_OUTPUT_DIR=${out}/blob`)} ${argv.join(' ')}`;
   const common = path.resolve(directory, run('git', ['rev-parse', '--git-common-dir'], directory));
   const jobsDirectory = path.join(common, 'noacg-jobs');
-  const intent = { kind, pair, arm, source: PLAN[kind][arm], specHash: SPEC_HASH[kind], directory, command, started: new Date().toISOString() };
+  const intent = { kind, cohort, pair, arm, source: PLAN[kind][arm], specHash: SPEC_HASH[kind], directory, command, started: new Date().toISOString() };
   save(path.join(out, 'intent.json'), intent);
   const admitted = spawnSync('node', ['scripts/jobs.mjs', 'add', command, '--kind', 'sweep', '--cap', '5'], { cwd: directory, env, encoding: 'utf8', timeout: 30_000 });
   writeFileSync(path.join(out, 'admission.log'), String(admitted.stdout) + String(admitted.stderr));
@@ -166,7 +167,7 @@ async function main() {
   for (let i = selection.start; i < selection.start + selection.size; i++) {
     const order = PLAN.pairs[i] === 'parent-first' ? ['parent', 'landing'] : ['landing', 'parent'];
     for (const arm of order) {
-      rows.push(await trial(selection.kind, i + 1, arm, directories[arm], env, deadline));
+      rows.push(await trial(selection.kind, i + 1, arm, directories[arm], env, deadline, selection.cohort));
       save(path.join(OUT, 'progress.json'), { ...selection, rows });
     }
   }

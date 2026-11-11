@@ -57,3 +57,19 @@ test('diagnostic queue admission owns the browser slot before any process starts
   assert.equal(drivesBrowser(job), true);
   assert.equal(watchedForBrowser(job), false);
 });
+
+test('operator extension has exactly four bounded additional sixty-pair cohorts', () => {
+  const identities = new Set();
+  for (let cohort = 2; cohort <= 5; cohort++) {
+    for (let index = 1; index <= 4; index++) {
+      const b = batch(`codex/editor-causality-20261111-operator-c${cohort}-${String(index).padStart(2, '0')}`);
+      assert.equal(b.cohort, cohort);
+      for (let pair = b.start + 1; pair <= b.start + b.size; pair++) identities.add(`${cohort}:${pair}`);
+    }
+  }
+  assert.equal(identities.size, 240);
+  assert.equal(batch('codex/editor-causality-20261111-operator-01').cohort, 1);
+  for (const ref of ['operator-c1-01', 'operator-c6-01', 'operator-c2-00', 'operator-c2-05', 'clock-c2-01']) {
+    assert.throws(() => batch(`codex/editor-causality-20261111-${ref}`));
+  }
+});
