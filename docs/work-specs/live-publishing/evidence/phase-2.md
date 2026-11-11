@@ -309,6 +309,12 @@ None.
   used passed and no sample inside them failed (Failures: none, above). Jobs that wrote nothing:
   one running when the container restarted (queued again), and one extra publish part that met its
   dev server shutting down at set-up, because the job before it had just been cancelled.
+- Every graphic checked is not every graphic ready: an output can finish its checks with a script
+  error, a broken image or a failed font named in its readiness (a review finding on the pull
+  request). The harness now fails any sample whose output names an issue. Run with that check on
+  both fixtures, the output starts (3 each) and one round of cue edit, graphic added, removed and
+  updated named none, so the run above, measured before the check, holds the same fixtures with
+  nothing wrong.
 - `npx eslint e2e/configured/measure/`: clean.
 - `npm run gates -- run --changed origin/main`: see the pull request.
 - The configured suite itself is unchanged: `*.measure.ts` does not match its spec pattern, and
