@@ -1234,7 +1234,7 @@
       "countPerArmPerSpec": 60,
       "workers": 1,
       "retries": 0,
-      "status": "IN FLIGHT, no causal verdict; no new phase",
+      "status": "INITIAL COHORT COMPLETE; operator extension running, no overall causal clearance",
       "cloudPair": "separate stratum, one invocation per arm,24cases each allpass",
       "artifactReadBlocker": "Cloud download proxies deny ZIPstorage; scoped Actions read-only retrieval fallback e109f039a under method review, not yet implemented",
       "artifactReader": {
@@ -1258,7 +1258,36 @@
           "parentFailedInvocations": 0,
           "status": "signature not yetread, overall60perarmnotcomplete, no attribution"
         }
-      ]
+      ],
+      "operatorExtension": {
+        "status": "16newnativebatchesdispatchedandreadbackattributed",
+        "countPerCommit": 300,
+        "initialCountPerCommit": 60,
+        "addedPairs": 240,
+        "methodHead": "b2bd1becc",
+        "methodReview": "AGREE/A before implementation",
+        "producerHead": "bc4bf841964449e113da5fa45eefc76c9ebde315",
+        "producerReview": "AGREE/A before dispatch;6unitPASS +focusedESLint",
+        "cohorts": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "readerHead": "f26184dc1c8a7d7de3a3d077f2e57af46eac5300",
+        "readerRef": "codex/editor-causality-evidence-reader-20261111",
+        "literalManifest": "scripts/editor-causality-evidence-runs.json",
+        "readerReview": "AGREE/A;7PythonunitPASS,29workflowvalidationPASS;notyetdispatchedfor32runs",
+        "privateDispatchRecords": "/workspace/noacg-editor-r1-5-state/17e47924/causality-evidence/operator-extension",
+        "policy": "All32nativeIDs/source/ref/firstattempt are retained in the pinned literal manifest; never resend unknown admission. All initial failures remain included. No phases."
+      },
+      "initialEvidence": {
+        "status": "All16exactprimaryrunsandartifactsreconciled;noincomplete/skip/retrysamples",
+        "readerRun": 43087009483,
+        "clock": "parent1/60,landing2/60",
+        "operator": "parent0/60,landing3/60originalnavcontext164;unresolved",
+        "evidenceRef": "b2bd1becc:docs/work-specs/editor-r1-5/quarantine-initial-ci-evidence-2026-11-11.json"
+      }
     },
     "documentProbe": {
       "status": "Corrected exact catalog-created document compared successfully; original base-design probe remains retained but invalid for causal applicability",
@@ -1273,6 +1302,16 @@
       "controlledOutcome": "Between-next-wire-and-event ordering reproduces B06:01 then05:21 on both commits; before/aftercontrols04:20. Matches original22trace readings ending05:02.",
       "evidenceCommit": "43dd0927e",
       "statusBoundary": "Mechanism evidence, not final causal clearance;60-per-arm CI comparisons still running"
+    },
+    "clockDisposition": {
+      "verdict": "NOT CAUSED BY THIS EDITOR RUN",
+      "review": "Fresh causal SO AGREE/A at31cce1222",
+      "reportRef": "codex/editor-r1-5-quarantine-causality-20261111",
+      "reportHead": "cc3afa857",
+      "reportPath": "docs/work-specs/editor-r1-5/quarantine-clock-disposition-2026-11-11.md",
+      "quarantine": "Retained, incident2371 existing owner miwco due2026-11-25",
+      "acceptedIncidentComment": 6805651314,
+      "boundary": "Clock only; overall gate still closed while operator remains unresolved"
     }
   },
   "waitingOn": {
