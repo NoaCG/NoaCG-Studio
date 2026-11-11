@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import './lib/tsResolve.mjs';
 
-const { act, actVmix, actVmixMedia, finishCasparAllOut, listVmixMedia, PLAYOUT_DEFAULTS, readVmixOverlays, testVmix, vmixMediaFolder } = await import('../src/control/playoutLink.ts');
+const { act, actVmix, actVmixMedia, finishCasparAllOut, forgetBridges, listVmixMedia, PLAYOUT_DEFAULTS, readVmixOverlays, testVmix, vmixMediaFolder } = await import('../src/control/playoutLink.ts');
 const { gatherBridgeFacts } = await import('../src/control/prepareBridge.ts');
 const { bridgeChecks, finishedBridgeChecks, stampOf } = await import('../src/control/prepareLive.ts');
 const { changeVmixOutput, readVmixOutput, vmixOverlay } = await import('../src/control/vmixSetup.ts');
@@ -842,6 +842,8 @@ test('scoped vMix state grants overlay authority only as a complete fresh snapsh
 });
 
 test('a native Clear cancelled during the health probe does not reach the Bridge', { timeout: 3000 }, async (t) => {
+  // A Bridge this page load has not heard yet is asked `/health` first (W1 skips it only for one heard).
+  forgetBridges();
   const entered = Promise.withResolvers();
   const release = Promise.withResolvers();
   let canClear = true;
@@ -861,6 +863,7 @@ test('a native Clear cancelled during the health probe does not reach the Bridge
 test('accepted All out after navigation reads the original CasparCG slot before cutting', { timeout: 3000 }, async (t) => {
   for (const change of ['navigation', 'occupant', 'adapter']) {
     await t.test(change, async (t) => {
+      forgetBridges();
       const entered = Promise.withResolvers();
       const release = Promise.withResolvers();
       const paths = [];
@@ -1056,4 +1059,37 @@ test('vMix lists preserve nonempty exact names and report the Bridge’s unsettl
   assert.equal(unavailable.items, undefined);
   assert.match(unavailable.result.detail, /folder save is still settling/);
   assert.deepEqual(calls, [undefined, folder, folder]);
+});
+
+test('W1: a server action to a Bridge already heard as current sends /act with no /health first; a failure to reach it asks /health why', { timeout: 3000 }, async (t) => {
+  forgetBridges();
+  const paths = [];
+  let down = false;
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    const path = new URL(url).pathname;
+    paths.push(path);
+    if (down) throw new TypeError('Failed to fetch');
+    if (path === '/health') return Response.json(health);
+    return Response.json({ ok: true });
+  });
+  const take = { verb: 'out', slot: { adapter: 'casparcg', channel: 1, layer: 10 } };
+  assert.equal((await act(settings, take)).state, 'ok');
+  assert.deepEqual(paths, ['/health', '/act'], 'an address never heard is asked first, as before');
+  paths.length = 0;
+  assert.equal((await act(settings, take)).state, 'ok');
+  assert.deepEqual(paths, ['/act'], 'heard as current: the action waits on no health request');
+  paths.length = 0;
+  down = true;
+  // The reason names the page's own address, as a browser's would.
+  const before = globalThis.window;
+  globalThis.window = { location: { origin: 'http://127.0.0.1:5173', host: '127.0.0.1:5173' } };
+  t.after(() => { globalThis.window = before; });
+  const failed = await act(settings, take);
+  assert.deepEqual(paths, ['/act', '/health'], 'not reached: the health request says why');
+  assert.equal(failed.state, 'bridge');
+  assert.match(failed.detail, /Could not reach|No answer/);
+  paths.length = 0;
+  down = false;
+  await act(settings, take);
+  assert.deepEqual(paths, ['/health', '/act'], 'an address that failed is asked first again');
 });

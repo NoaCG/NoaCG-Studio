@@ -47,7 +47,8 @@ async function seed(page: Page, name = 'catalog', nested = false) {
 }
 async function numeric(page: Page, label: string, value: number) {
   label = 'Base ' + label;
-  const details = page.locator('.ef-inspector details');
+  const summary = page.getByText('Edit base values (preserve motion)', { exact: true });
+  const details = page.locator('.ef-inspector details').filter({ has: summary });
   await details.evaluate(el => { (el as HTMLDetailsElement).open = true; });
   await details.getByRole('textbox', { name: label, exact: true }).fill(String(value));
   await details.getByRole('textbox', { name: label, exact: true }).press('Enter');

@@ -77,7 +77,7 @@ import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control
 import { createPlayoutSession, type AirPart, type DraftPart, type LogPart, type PlayoutSession } from '../../control/playoutSession';
 import { createCueDraft, unsentNow, type CueDraft, type CueDraftAdapters, type CueEdit, type CueText } from '../../control/cueDraft';
 import type { StorePart } from '../../control/storePart';
-import { claimAndApply, clockSpecsFrom, loggedHere, moveLiveCue, programItems, rememberAired, restoreItems, withoutTypedAir, type ClockSpecs } from '../../control/airState';
+import { claimAndApply, clockSpecsFrom, loggedHere, moveLiveCue, placedLook, programItems, rememberAired, restoreItems, withoutTypedAir, type ClockSpecs } from '../../control/airState';
 import { startSessionWire, type SessionWireIo, type SessionWirePage } from '../../control/sessionWire';
 import { createProductionDataSession } from '../../control/productionDataSession';
 import type { FieldDescriptor } from '../../model/fieldModel';
@@ -143,8 +143,8 @@ import { useAudienceInbox, useMessagesBackend } from './useAudienceInbox';
 import { createSheetInbox } from '../../audience/sheetMessages';
 import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
 import { captureLookFromTemplate, loadLooks, type SavedGraphic } from '../../model/packets';
-import { measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
-import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, pressAppearance, type MeasureJob } from '../../control/adjustGeometry';
+import { measureId, placedAppearance, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
+import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, takeAppearance, updateAppearance, type MeasureJob } from '../../control/adjustGeometry';
 import { lightPanel, lookExceptions, lookFaceUnpublished, lookFontRef, lookImportedFace, lookPanelImported, lookReach, lookStyleContext, lookSentWords, lookToActivate, withLookAssets } from '../../control/productionLook';
 import { asDesignedPatch, assetDataIn, facePickPatch, facesCss, styleContextFor, styleReach, weightsFor, COLOUR_VARS } from '../../control/cueStyle';
 import { FONTS } from '../../model/fonts';
@@ -3104,6 +3104,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     bridgeWatch.current?.wake();
     if (failed.length) setNote(`All out: ${failed.join(' ')}`);
   };
+  /** A cue as a record holds it, else as the newest render does, else as pressed. */
+  const cueInRecord = (taken: ShowCue, record: Show | null) =>
+    record?.cues?.find((c) => c.id === taken.id) ?? cuesRef.current.find((c) => c.id === taken.id) ?? taken;
   verbPage.current = {
     graphics: show.graphics,
     liveCue,
@@ -3114,8 +3117,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     graphicOf: cueGraphicName,
     cueView,
     resolvedOf: (graphic) => resolvedRef.current[graphic] ?? {},
-    // Read after the wait (this object is the render's): the place and size a Take or Update
-    // carries, decided in control/adjustGeometry.ts `pressAppearance`.
     cueById: (cueId) => cuesRef.current.find((c) => c.id === cueId),
     // A send to on-air graphics: the style as the stored record gives it once the page's writes
     // landed, beside the place and size the graphic holds (control/adjustGeometry.ts `lookAppearance`).
@@ -3128,9 +3129,37 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       if (lookCtx.current?.key !== key) lookCtx.current = { key, ctx: styleCtxOf(record, (record?.graphics ?? []).map((g) => templateForSavedGraphic(g, library))) };
       return lookAppearance(adjustStateOf(cue, record, library, lookCtx.current.ctx), session.air.get().looks?.[graphic]);
     },
+    // The place and size a Take carries, from memory at the press (W1: the newest rendered record
+    // and the last box measured), and an Update's, read after its wait (this object is the
+    // render's), decided in control/adjustGeometry.ts `takeAppearance` and `updateAppearance`.
+    takeAppearanceOf: (taken) =>
+      takeAppearance<Show>({
+        rendered: () => latestShow.current ?? null,
+        stateOf: (record) => adjustStateOf(cueInRecord(taken, record), record),
+        sizes: (record) => {
+          const g = record.graphics.find((x) => x.id === cueInRecord(taken, record).sourceId);
+          return g ? { frame: frameOf(g), stage } : null;
+        },
+      }),
+    placeTaken: (taken, graphic, sent, values, place, latest) => {
+      // The values the Take sent, measured as an output measures them, never the record: the save
+      // comes after the send (W1), and an edit made since never aired.
+      const record = latestShow.current ?? null;
+      const cue = cueInRecord(taken, record);
+      const g = record?.graphics.find((x) => x.id === cue.sourceId);
+      if (!g) return;
+      // In the look the Take sent, as an output measures it (output/stage.ts).
+      const style = sent.vars || sent.fonts ? { id: '', vars: sent.vars ?? null, faces: facesCss(sent.fonts, assetDataIn(faceAssets)) } : null;
+      void measureCue(templateForSavedGraphic(g, library), values, style)
+        .catch(() => null)
+        .then((m) => {
+          const resolved = placedAppearance(sent, place, m);
+          if (resolved && latest() && session.alive()) session.apply((parts) => ({ ...parts, air: placedLook(parts.air, graphic, sent, resolved) }));
+        });
+    },
     appearanceOf: (taken) => {
-      const cueIn = (record: Show | null) => record?.cues?.find((c) => c.id === taken.id) ?? cuesRef.current.find((c) => c.id === taken.id) ?? taken;
-      return pressAppearance({
+      const cueIn = (record: Show | null) => cueInRecord(taken, record);
+      return updateAppearance<Show>({
         pendingWrites: adjustWrites.pending,
         settleWrites: () => history.settle(),
         rendered: () => latestShow.current ?? null,
@@ -3148,6 +3177,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     selectionFor: (cue, graphic) => selectionTake(cue, graphic, selectionFacts()),
     // After the wait: a typed form's edit it landed is in the record, newer than this render's cue.
     typedFor: (cue, graphic) => {
+      // A cue with no typed data in this render or the newest one sends none, read from memory: the
+      // stored record is parsed whole, which a Take never waits on (live-publishing W1).
+      if (cue.typed === undefined && cuesRef.current.find((c) => c.id === cue.id)?.typed === undefined) return typedFor(cue, graphic);
       const unsaved = cue.typed === undefined ? null : typedSaves.current.refusal(cue.id, [TYPED_VALUES_PART]);
       return unsaved ? { status: 'refused', reason: unsaved } : typedFor(storedCue(cue), graphic);
     },
@@ -3175,6 +3207,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     patchBound: patchBoundValues,
     writeCue: (cueId, values) => setShows(updateShowCueChecked(id, cueId, { values }).shows),
     savedValues: (cueId) => cuesRef.current.find((c) => c.id === cueId)?.values,
+    unsavedValues: (cueId) => {
+      const draft = session.draft.get();
+      return draft?.cueId === cueId ? draft.values : undefined;
+    },
     writeLive: (cueId, values) => {
       if (canAuthorAccount()) setShows(updateShowCue(id, cueId, { values }));
     },

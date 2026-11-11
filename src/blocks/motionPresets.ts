@@ -476,6 +476,9 @@ export function applyMotionPreset(
     tidyLoops(step);
 
     // 3. Pace the step: the motion's own length, stretched only by what was kept.
+    for (const tracks of Object.values(step.loops ?? {})) {
+      for (const loop of Object.values(tracks)) if (loop.range) reach = Math.max(reach, loop.range[1]);
+    }
     for (const c of step.calls ?? []) reach = Math.max(reach, c.time);
     for (const d of step.dynamics ?? []) reach = Math.max(reach, d.time ?? 0);
     step.duration = round(Math.max(phase.duration, reach));

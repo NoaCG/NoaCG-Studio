@@ -319,3 +319,83 @@ Filled in by each phase's pull request.
   says the link is dead; R4 an offline build says the link no longer works at once and asks
   nothing; R5 the production page's own behaviour and every persisted value are unchanged.
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-1.md`.
+
+### Phase 2: Measure
+
+- Previous verified `main`: 78ce3f35063386fdc7217d0542e3df871fc32b8d.
+- Revert: `git revert -m 1 <this pull request's merge commit>` removes the harness and the
+  receipt; no product file and nothing persisted changed, so no data step goes with it.
+- Decisions: measured with the configured suite's own ground (its local Supabase stack, its Vite
+  development server, headless Chromium) on the cloud worker, so later phases can rerun the same
+  harness against the same baseline; these are numbers for this harness, not studio numbers.
+  "Press" is the `click` event, since every measured button acts on click. "Page's own" is press to
+  sent minus the overlap of a kept ordering wait, read from the page's own requests; a send is tied
+  to its press by the sender id and press number in its body. A cue text
+  edit needs no publish today, so its bytes are the save alone. Update rounds add, remove and
+  update one graphic, so the production keeps its size, and stay clear of the output's 15 s
+  preparation spacing. Throttling starts once the fixture is built. "Second of two fast" is two
+  mouse clicks back to back; the first press still unanswered counts as a kept wait. The stepped
+  graphic is a three-line lower third, so two fast Nexts have steps to take. The harness lives in
+  `e2e/configured/measure/` as `*.measure.ts`, which the configured suite never runs.
+- Targets the numbers show wrong or unproven, for the owner before the phase that uses them: AC-1's
+  50 ms p95 (Next, which W1 changes nothing in, already takes 77 to 144 ms p95 here), AC-4's 50 ms
+  margin during a publish (198 against 98 ms p95 typical, 385 against 186 large, unthrottled),
+  and D1's 5 s ceiling against a 30 to 33 s whole
+  update on the large fixture throttled. Details in the evidence.
+- Traps: in the evidence, "Traps met" (the local stack does start on a cloud worker from Docker
+  Hub; one 12-minute queue job per commit; Playwright empties `test-results/`; Realtime frames are
+  binary).
+- Evidence: `docs/work-specs/live-publishing/evidence/phase-2.md`.
+
+### Phase 3: A Take never waits on the page's own work
+
+- Previous verified `main`: fb04bbd9658857318e4b954611b6dd08a4815e9d.
+- Revert: `git revert -m 1 <this pull request's merge commit>` puts the waits back: the draft save
+  and history close before a Take, the server cue's 250 ms save head start, the Adjust write and
+  box measurement wait, and `/health` before every `/act`. Nothing persisted changed: the place
+  hint is an optional member of a command an older output ignores, so no data step goes with it.
+- Rules (written beside the code, so the Rules-first review came after it, as in phase 1):
+  R1 every W1 Take path (graphic cue, folder Take and step, picture, server cue, quick button,
+  +1, Next, a panel's Take) sends before it saves: the draft's save and the history group's close
+  start once the send is answered, whatever it came to, and never hold the send;
+  R2 the values sent are those on screen at the press, the draft over the newest record, read
+  from memory; R3 a cue whose typed OGraf data is its source still saves first, since its values
+  are read from the stored record; R4 a Take's place and size come from memory (the newest
+  rendered record, the last box measured) and never wait for an Adjust write or a measurement;
+  R5 when that box is for other values and a preset or size resolves against it, the Take also
+  carries the preset (`place`), a new output measures the values itself and first shows the
+  graphic at the preset (2 s cap, then the place sent), and an older output applies the place
+  sent; R6 a server action to a Bridge this page load already heard as current sends `/act`
+  without `/health`, and a failure to reach it asks `/health` why; an address never heard is
+  asked first, as before; R7 kept as ordering: road discovery, one send in flight per graphic, a
+  quick button or +1 waiting for its previous press, a folder's Outs before its next Take;
+  R8 D2's refusals (invalid typed data, a stale view of air) still refuse; R9 a +1 or quick
+  button writes its accepted figure into the cue only after its own save has landed, and counts a
+  field typed and not yet saved as the text on screen.
+- Rules found after coding (review): R10 a press waits for the press before it on its graphic
+  until that press is answered, never for its save or its figure's write; R11 after a hinted Take
+  the page measures the values the Take sent, as an output does, and holds what that resolves as
+  the graphic's look, unless a later send set its look or took it off (any Take, Update or look
+  send that carries a look, or an Out; a figure, a +1 or a snap does not count). An output whose own measurement ran past its
+  cap shows the place sent meanwhile; the next look sent to on-air graphics moves it to the
+  preset. R12 a Take that takes another graphic off its layer (an imported package sharing it)
+  carries no hint, so the layer is never blank while an output measures (PR review); R13 an Out
+  never waits on an output's measurement: what waits goes at once at the place sent, then the
+  Out.
+- Decisions: Update and snap are not Take paths and keep their waits. A typed OGraf cue keeps its
+  save first (R3). The page's own PROGRAM monitor resolves a hint too, starting its measurement
+  after the press's task, so the send leaves first. An output resolves a hint only while on air
+  (a restart's catch-up applies the place sent), and a hint is never read for typed data or a
+  package. The Bridge's "heard as current" lives in memory per page load. A Take reads typed data
+  from the stored record only for a cue that has some, so a Take no longer parses the whole store.
+  AC-1 is judged on a production build (owner, 2026-11-11, run issue #2361): the phase 2 harness
+  gained `MEASURE_BUILD=prod` (one origin, the fixture built through the development modules, the
+  page reloaded under `vite preview`) and `MEASURE_STALL=1` (an owed edit before each press, the
+  save and `/health` held 3 s).
+- Traps: Docker Hub refused anonymous pulls (429) for most of the stack's images; the default
+  registry (public.ecr.aws) answered, so `SUPABASE_INTERNAL_IMAGE_REGISTRY` was not needed this
+  time. The Supabase CLI came from npm (`supabase@2.111.0`), since a download from GitHub
+  releases was refused. A harness page that imports `/src/...` cannot run on a bundled build.
+  `preview/` may not import `control/`, so the measuring frame takes its qualification from its
+  caller.
+- Evidence: `docs/work-specs/live-publishing/evidence/phase-3.md`.

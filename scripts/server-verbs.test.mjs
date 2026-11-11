@@ -1,8 +1,8 @@
 // guards: src/control/serverVerbs.ts
 //
 // ONE VERB ON THE PLAYOUT SERVER AND ITS FOLD, run in Node with the Bridge faked (docs/BRIDGE.md §5,
-// docs/CLIP_PLAYBACK_PLAN.md §6.6): the refusal said at the press, the draft's head start, the
-// settings and the store read after the wait, a Play-through folder's stray copies taken off first,
+// docs/CLIP_PLAYBACK_PLAN.md §6.6): the refusal said at the press, the settings and the store read
+// at the press, the draft saved after the verb (live-publishing W1), a Play-through folder's stray copies taken off first,
 // each accepted action folded, and the server read again once. The order is pinned, since the page's
 // verbs depend on it. Moved out of ProductionPage in the production-page refactor's phase 5; what
 // each action looks like is scripts/server-playout.test.mjs, and the browser half is
@@ -11,7 +11,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { LOCAL_SAVE_HEAD_START_MS, runAndRecord, runVmixAndRecord } = await import('../src/control/serverVerbs.ts');
+const { runAndRecord, runVmixAndRecord } = await import('../src/control/serverVerbs.ts');
 const { throughPlaces } = await import('../src/control/serverPlayout.ts');
 const { rundownView } = await import('../src/model/rundownRows.ts');
 const { createServerPlayoutStore } = await import('../src/control/serverPlayoutStore.ts');
@@ -98,62 +98,34 @@ test('the refusal holds up only a Take: Out goes whatever it says', async () => 
   assert.deepEqual(h.sent.map((s) => s.action.verb), ['out']);
 });
 
-test('the order: save started, settings read after it, the action built and sent, folded, then the server woken', async () => {
+test('the order (W1): settings read at the press, the action built and sent, folded, the server woken, then the save', async () => {
   const r = rundownOf([cue('s', 's')], [strap]);
   const h = harness();
   const outcome = await runAndRecord(h.recorded, h.io, intentOf(r, r.cues[0], 'take'));
   assert.equal(outcome.ok, true);
   assert.equal(outcome.note, '✓ Take: STRAP on 1-21');
-  assert.deepEqual(h.log, ['flush', 'settings', 'view s', 'act take 1-21', 'fold', 'now', 'wake']);
+  assert.deepEqual(h.log, ['settings', 'view s', 'act take 1-21', 'fold', 'now', 'wake', 'flush']);
 });
 
-test('the settings, the store and the values are read after the wait, not at the press', async () => {
-  let release;
-  let settings = SETTINGS;
-  let values = { f0: 'typed before' };
-  const r = rundownOf([cue('s', 's')], [{ ...strap, channel: undefined }]);
-  const h = harness({ flush: () => new Promise((resolve) => (release = resolve)), settings: () => settings, values: () => values });
-  const pending = runAndRecord(h.recorded, h.io, intentOf(r, r.cues[0], 'take'));
-  await tick();
-  assert.deepEqual(h.log, ['flush'], 'nothing is read or sent while the save has its head start');
-  settings = { ...SETTINGS, channel: 3 };
-  values = { f0: 'typed after' };
-  release();
-  await pending;
-  assert.equal(h.sent[0].settings, settings, 'the Bridge is asked with the settings as they stand after the wait');
-  assert.deepEqual(h.sent[0].action.slot, slot(3, 21), 'the item\'s slot comes from them');
-  assert.deepEqual(h.sent[0].action.data, { f0: 'typed after' });
-
-  // Out goes where the take WENT, as the store says after the wait.
-  const r2 = rundownOf([cue('a', 'a')], [vt('a')]);
-  let let2;
-  const h2 = harness({ flush: () => new Promise((resolve) => (let2 = resolve)), onAir: { a: { cueId: 'a', slot: slot(2, 10) } } });
-  const out = runAndRecord(h2.recorded, h2.io, intentOf(r2, r2.cues[0], 'out', { label: 'Out' }));
-  await tick();
-  h2.store.apply((parts) => ({ ...parts, ownership: { ...parts.ownership, onAir: { a: { cueId: 'a', slot: slot(2, 7) } } } }));
-  let2();
-  await out;
-  assert.deepEqual(h2.sent.map((s) => s.action.slot), [slot(2, 7)]);
-});
-
-test('a save that takes long gets its head start and no more; a failed save holds nothing up', async (t) => {
-  assert.equal(LOCAL_SAVE_HEAD_START_MS, 250);
+test('W1: a save that never ends, or fails, holds nothing up: the action goes with the values as typed at the press', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
-  const r = rundownOf([cue('a', 'a')], [vt('a')]);
-  const h = harness({ flush: () => new Promise(() => {}) });
+  const r = rundownOf([cue('s', 's')], [strap]);
+  const h = harness({ flush: () => new Promise(() => {}), values: () => ({ f0: 'typed, not saved' }) });
   const pending = runAndRecord(h.recorded, h.io, intentOf(r, r.cues[0], 'take'));
   await tick();
-  t.mock.timers.tick(LOCAL_SAVE_HEAD_START_MS - 1);
-  await tick();
-  assert.deepEqual(h.sent, [], 'not before the head start is over');
-  t.mock.timers.tick(1);
-  await tick();
-  assert.equal(h.sent.length, 1, 'and not after it either, with the save still running');
+  assert.equal(h.sent.length, 1, 'sent with no time passing, the save still running');
+  assert.deepEqual(h.sent[0].action.data, { f0: 'typed, not saved' }, 'the draft as typed, from memory');
   assert.equal((await pending).ok, true);
+  assert.equal(h.log.indexOf('flush'), h.log.length - 1, 'the save starts once the verb is answered');
 
-  // A save that has already failed: the Take goes with no time passing at all.
+  // A save that fails: the Take goes the same way.
   const failed = harness({ flush: () => Promise.reject(new Error('offline')) });
   assert.equal((await runAndRecord(failed.recorded, failed.io, intentOf(r, r.cues[0], 'take'))).ok, true);
+  // Out goes where the store says the take went, read at the press.
+  const r2 = rundownOf([cue('a', 'a')], [vt('a')]);
+  const h2 = harness({ flush: () => new Promise(() => {}), onAir: { a: { cueId: 'a', slot: slot(2, 7) } } });
+  await runAndRecord(h2.recorded, h2.io, intentOf(r2, r2.cues[0], 'out', { label: 'Out' }));
+  assert.deepEqual(h2.sent.map((s) => s.action.slot), [slot(2, 7)]);
 });
 
 test('an accepted take is folded with the page\'s clock, the clip\'s length and what the Bridge said', async () => {
@@ -186,7 +158,7 @@ test('a re-take after a move folds the Out and then the Take, in that order, and
   const h = harness({ onAir: { a: { cueId: 'a', slot: slot(2, 7) } } });
   const outcome = await runAndRecord(h.recorded, h.io, intentOf(r, r.cues[0], 'take'));
   assert.deepEqual(outcome.accepted.map((a) => a.verb), ['out', 'take']);
-  assert.deepEqual(h.log, ['flush', 'settings', 'act out 2-7', 'view a', 'act take 2-10', 'fold', 'now', 'fold', 'now', 'wake']);
+  assert.deepEqual(h.log, ['settings', 'act out 2-7', 'view a', 'act take 2-10', 'fold', 'now', 'fold', 'now', 'wake', 'flush']);
   assert.deepEqual(h.store.ownership.get().onAir, { a: { cueId: 'a', slot: slot(2, 10), instance: 's1.2', takenAt: 1002, end: 'hold' } });
 });
 
@@ -225,7 +197,7 @@ test('a folder moved while it plays: its clip on the old slot is cut first and f
   const h = harness({ onAir: { a: { cueId: 'a', slot: slot(3, 10) } } });
   const outcome = await runAndRecord(h.recorded, h.io, intentOf(r, r.cues[1], 'take', { label: 'Take of Opening' }));
   assert.equal(outcome.ok, true);
-  assert.deepEqual(h.log, ['flush', 'settings', 'act out 3-10', 'fold', 'now', 'view b', 'act take 2-10', 'fold', 'now', 'wake']);
+  assert.deepEqual(h.log, ['settings', 'act out 3-10', 'fold', 'now', 'view b', 'act take 2-10', 'fold', 'now', 'wake', 'flush']);
   assert.deepEqual(h.sent[0].action, { verb: 'out', slot: slot(3, 10), item: { kind: 'media', name: 'A' } }, 'a cut: no fade out');
   assert.deepEqual(h.store.ownership.get().onAir, { b: { cueId: 'b', slot: slot(2, 10), instance: 's1.2', takenAt: 1002, end: 'hold' } });
 });
@@ -273,7 +245,7 @@ test('a folder whose run cannot be played is not sent, and says why', async () =
   assert.equal(outcome.ok, false);
   assert.match(outcome.note, /^Take of Opening was not sent: .+/);
   assert.deepEqual(h.sent, []);
-  assert.deepEqual(h.log, ['flush', 'settings']);
+  assert.deepEqual(h.log, ['settings', 'flush']);
 });
 
 const vmixSlot = player => ({ adapter: 'vmix', player });
