@@ -1,0 +1,614 @@
+{
+  "generatedAt": "2026-11-03T19:33:19.973Z",
+  "collection": "550 API call(s) of 550, 3021 completed run(s) in 34 strata, 175 sampled, 0 still running at the window end",
+  "measurement": {
+    "source": "weekly growth report",
+    "windowStart": "2026-10-27",
+    "windowEnd": "2026-11-03",
+    "landings": 131,
+    "tiers": {
+      "offline": {
+        "perLanding": 419.30802573168984,
+        "perDay": 173.34722222222226,
+        "evidence": "complete"
+      },
+      "backend": {
+        "perLanding": 164.7132637718516,
+        "perDay": 64.98452380952381,
+        "evidence": "complete"
+      },
+      "graphics": {
+        "perLanding": 22.329120815571198,
+        "perDay": 90.74563492063491,
+        "evidence": "complete"
+      },
+      "overhead": {
+        "perLanding": 132.12626863193293,
+        "perDay": 6.134693877551022,
+        "evidence": "complete",
+        "slowdown": {
+          "range": {
+            "after": "6b3592c3fc70e9306a54a41bbf87ab9674d894f5",
+            "through": "e6eadadcc4ec745ebb51dbca7248c62bc61981c5"
+          },
+          "ratio": 1.3063829787234045
+        }
+      }
+    },
+    "jobs": {
+      "cloud-queue-merge.yml/Stamp, label and queue": {
+        "perLanding": 0.3410577971646674,
+        "perDay": 0
+      },
+      "configured-suite.yml/Configured shard plan": {
+        "perLanding": 0.5633389511252106,
+        "perDay": 0.16666666666666666
+      },
+      "configured-suite.yml/Configured E2E shard 4/4": {
+        "perLanding": 22.218965004461186,
+        "perDay": 10.911111111111111
+      },
+      "configured-suite.yml/Configured E2E shard 1/4": {
+        "perLanding": 23.983419252503225,
+        "perDay": 10.005555555555555
+      },
+      "configured-suite.yml/Configured E2E shard 3/4": {
+        "perLanding": 23.46696903605301,
+        "perDay": 10.261111111111111
+      },
+      "configured-suite.yml/Configured E2E shard 2/4": {
+        "perLanding": 24.25016688146459,
+        "perDay": 10.363888888888889
+      },
+      "configured-suite.yml/Configured quarantine": {
+        "perLanding": 0.18333333333333338,
+        "perDay": 0.14444444444444446
+      },
+      "configured-suite.yml/Configured E2E (authenticated, local Supabase)": {
+        "perLanding": 0.6532781467895972,
+        "perDay": 0.32222222222222224
+      },
+      "ci.yml/Factory gates": {
+        "perLanding": 10.050031118160891,
+        "perDay": 0
+      },
+      "ci.yml/E2E plan": {
+        "perLanding": 2.105580339931485,
+        "perDay": 0
+      },
+      "ci.yml/Build": {
+        "perLanding": 34.36303162486369,
+        "perDay": 0
+      },
+      "ci.yml/Reviewed": {
+        "perLanding": 9.75547679631649,
+        "perDay": 0
+      },
+      "ci.yml/Vercel accepted the commit": {
+        "perLanding": 1.4136363636363636,
+        "perDay": 0
+      },
+      "ci.yml/Catalog calibration gate": {
+        "perLanding": 21.76321750768316,
+        "perDay": 0
+      },
+      "ci.yml/Guided mod (Claude Code ${{ matrix.claude-code }})": {
+        "perLanding": 0,
+        "perDay": 0
+      },
+      "ci.yml/E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (${{ needs.plan.outputs.mode }})": {
+        "perLanding": 0,
+        "perDay": 0
+      },
+      "ci.yml/E2E retry (failed specs, same commit)": {
+        "perLanding": 0.10757575757575757,
+        "perDay": 0
+      },
+      "ci.yml/CI gate": {
+        "perLanding": 0.46872569754249144,
+        "perDay": 0
+      },
+      "ci.yml/Combined E2E report": {
+        "perLanding": 1.4874555258143045,
+        "perDay": 0
+      },
+      "ci.yml/Re-run (failed Build or Factory job, same commit)": {
+        "perLanding": 0,
+        "perDay": 0
+      },
+      "ci.yml/After the gate": {
+        "perLanding": 0.46073907009021514,
+        "perDay": 0
+      },
+      "ci.yml/E2E 3/15 (subset)": {
+        "perLanding": 14.780776687265233,
+        "perDay": 0
+      },
+      "ci.yml/E2E 6/15 (subset)": {
+        "perLanding": 13.812113776808436,
+        "perDay": 0
+      },
+      "ci.yml/E2E 1/15 (subset)": {
+        "perLanding": 14.802750514964258,
+        "perDay": 0
+      },
+      "ci.yml/E2E 5/15 (subset)": {
+        "perLanding": 14.708254574094267,
+        "perDay": 0
+      },
+      "ci.yml/E2E 9/15 (subset)": {
+        "perLanding": 17.34201502483945,
+        "perDay": 0
+      },
+      "ci.yml/E2E 2/15 (subset)": {
+        "perLanding": 15.82185265963892,
+        "perDay": 0
+      },
+      "ci.yml/E2E 7/15 (subset)": {
+        "perLanding": 14.294565612504543,
+        "perDay": 0
+      },
+      "ci.yml/E2E 10/15 (subset)": {
+        "perLanding": 14.485983884648007,
+        "perDay": 0
+      },
+      "ci.yml/E2E 4/15 (subset)": {
+        "perLanding": 15.515600387737793,
+        "perDay": 0
+      },
+      "ci.yml/E2E 12/15 (subset)": {
+        "perLanding": 15.798561129286322,
+        "perDay": 0
+      },
+      "ci.yml/E2E 8/15 (subset)": {
+        "perLanding": 14.425636132315523,
+        "perDay": 0
+      },
+      "ci.yml/E2E 15/15 (subset)": {
+        "perLanding": 15.206706652126499,
+        "perDay": 0
+      },
+      "ci.yml/E2E 13/15 (subset)": {
+        "perLanding": 16.592033200048466,
+        "perDay": 0
+      },
+      "ci.yml/E2E 11/15 (subset)": {
+        "perLanding": 16.20345934811584,
+        "perDay": 0
+      },
+      "ci.yml/E2E 14/15 (subset)": {
+        "perLanding": 17.57897734157276,
+        "perDay": 0
+      },
+      "ci.yml/Configured E2E 2/4 (selected, local Supabase)": {
+        "perLanding": 17.394738276990186,
+        "perDay": 0
+      },
+      "ci.yml/Configured E2E 4/4 (selected, local Supabase)": {
+        "perLanding": 17.185759723736822,
+        "perDay": 0
+      },
+      "ci.yml/Configured E2E 3/4 (selected, local Supabase)": {
+        "perLanding": 16.948854961832062,
+        "perDay": 0
+      },
+      "ci.yml/Configured E2E 1/4 (selected, local Supabase)": {
+        "perLanding": 17.495583424209375,
+        "perDay": 0
+      },
+      "ci.yml/Configured E2E verdict (selected)": {
+        "perLanding": 0.36885677935296257,
+        "perDay": 0
+      },
+      "ci.yml/E2E 1/1 (subset)": {
+        "perLanding": 2.7470465285350776,
+        "perDay": 0
+      },
+      "ci.yml/Configured E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (selected, local Supabase)": {
+        "perLanding": 0,
+        "perDay": 0
+      },
+      "codeql/Analyze (javascript-typescript)": {
+        "perLanding": 24.308251544892773,
+        "perDay": 0
+      },
+      "codeql/Analyze (python)": {
+        "perLanding": 4.46430388949473,
+        "perDay": 0
+      },
+      "codeql/Analyze (actions)": {
+        "perLanding": 3.7046710287168305,
+        "perDay": 0
+      },
+      "catalog-gates.yml/Which designs": {
+        "perLanding": 0.01208651399491094,
+        "perDay": 0.5547619047619048
+      },
+      "catalog-gates.yml/Emit fingerprints and catalog specs": {
+        "perLanding": 0.18282442748091599,
+        "perDay": 10.588095238095239
+      },
+      "catalog-gates.yml/Type floor, overflow, field coverage, numerals": {
+        "perLanding": 0.194910941475827,
+        "perDay": 12.049999999999999
+      },
+      "deploy-verify.yml/Drift check (live vs main)": {
+        "perLanding": 0,
+        "perDay": 1.746938775510204
+      },
+      "deploy-verify.yml/Deep link on the deployed bundle": {
+        "perLanding": 0,
+        "perDay": 1.730612244897959
+      },
+      "deploy-verify.yml/Verify production deployment": {
+        "perLanding": 0,
+        "perDay": 0
+      },
+      "quarantine.yml/Quarantined specs": {
+        "perLanding": 0.18333333333333332,
+        "perDay": 0
+      },
+      "quarantine.yml/Quarantine (e2e/editor-canvas-transforms.spec.ts)": {
+        "perLanding": 0.25277777777777777,
+        "perDay": 0
+      },
+      "quarantine.yml/Quarantine (e2e/import-svg.spec.ts)": {
+        "perLanding": 0.875,
+        "perDay": 0
+      },
+      "quarantine.yml/Quarantine release": {
+        "perLanding": 0.3499999999999999,
+        "perDay": 0
+      },
+      "quarantine.yml/Quarantine (e2e/rundown-history.spec.ts)": {
+        "perLanding": 0.2833333333333333,
+        "perDay": 0
+      },
+      "quarantine.yml/Quarantine (e2e/publish-output-setup.spec.ts)": {
+        "perLanding": 0.3361111111111111,
+        "perDay": 0
+      },
+      "quarantine.yml/Quarantine (${{ matrix.spec }})": {
+        "perLanding": 0,
+        "perDay": 0
+      },
+      "quarantine.yml/Quarantine (e2e/production-data.spec.ts)": {
+        "perLanding": 0.7527777777777778,
+        "perDay": 0
+      },
+      "quarantine.yml/Quarantine (e2e/import-svg-credits.spec.ts)": {
+        "perLanding": 0.6055555555555555,
+        "perDay": 0
+      },
+      "post-land.yml/Apply migrations": {
+        "perLanding": 0.5361111111111111,
+        "perDay": 0
+      },
+      "post-land.yml/Delivery age alarms": {
+        "perLanding": 0.2111111111111111,
+        "perDay": 0
+      },
+      "ci.yml/E2E 2/15 (full)": {
+        "perLanding": 12.192135091371732,
+        "perDay": 0
+      },
+      "ci.yml/E2E 6/15 (full)": {
+        "perLanding": 11.534061993985656,
+        "perDay": 0
+      },
+      "ci.yml/E2E 14/15 (full)": {
+        "perLanding": 11.413034929447141,
+        "perDay": 0
+      },
+      "ci.yml/E2E 1/15 (full)": {
+        "perLanding": 12.462820957668287,
+        "perDay": 0
+      },
+      "ci.yml/E2E 3/15 (full)": {
+        "perLanding": 11.261727966689799,
+        "perDay": 0
+      },
+      "ci.yml/E2E 4/15 (full)": {
+        "perLanding": 12.373606291926903,
+        "perDay": 0
+      },
+      "ci.yml/E2E 11/15 (full)": {
+        "perLanding": 12.060970390932223,
+        "perDay": 0
+      },
+      "ci.yml/E2E 15/15 (full)": {
+        "perLanding": 13.335305343511452,
+        "perDay": 0
+      },
+      "ci.yml/E2E 9/15 (full)": {
+        "perLanding": 11.921640064769838,
+        "perDay": 0
+      },
+      "ci.yml/E2E 5/15 (full)": {
+        "perLanding": 11.362711080268332,
+        "perDay": 0
+      },
+      "ci.yml/E2E 10/15 (full)": {
+        "perLanding": 11.954956049040018,
+        "perDay": 0
+      },
+      "ci.yml/E2E 12/15 (full)": {
+        "perLanding": 11.465978487161694,
+        "perDay": 0
+      },
+      "ci.yml/E2E 8/15 (full)": {
+        "perLanding": 10.992094610224383,
+        "perDay": 0
+      },
+      "ci.yml/E2E 13/15 (full)": {
+        "perLanding": 10.776659727041407,
+        "perDay": 0
+      },
+      "ci.yml/E2E 7/15 (full)": {
+        "perLanding": 11.954539671524403,
+        "perDay": 0
+      },
+      "nightly-drift.yml/Schedule watch - catalog-gates.yml": {
+        "perLanding": 0.0019083969465648854,
+        "perDay": 0.1650793650793651
+      },
+      "nightly-drift.yml/Schedule watch - configured-suite.yml": {
+        "perLanding": 0.0019083969465648854,
+        "perDay": 0.1753968253968254
+      },
+      "nightly-drift.yml/Schedule watch - nightly.yml": {
+        "perLanding": 0.009287531806615778,
+        "perDay": 0.4746031746031746
+      },
+      "nightly.yml/Type floor, overflow sweep and field coverage": {
+        "perLanding": 0.09122137404580152,
+        "perDay": 12.125
+      },
+      "nightly.yml/Nightly shard plan": {
+        "perLanding": 0.0022900763358778627,
+        "perDay": 0.27499999999999997
+      },
+      "nightly.yml/Catalog calibration tripwire": {
+        "perLanding": 0.08486005089058525,
+        "perDay": 10.311111111111112
+      },
+      "nightly.yml/Nightly E2E 6/11": {
+        "perLanding": 0.13091603053435114,
+        "perDay": 7.961111111111111
+      },
+      "nightly.yml/Nightly E2E 1/11": {
+        "perLanding": 0.12124681933842239,
+        "perDay": 6.88888888888889
+      },
+      "nightly.yml/Nightly E2E 10/11": {
+        "perLanding": 0.10916030534351145,
+        "perDay": 8.105555555555554
+      },
+      "nightly.yml/Nightly E2E 3/11": {
+        "perLanding": 0.12188295165394403,
+        "perDay": 8.172222222222222
+      },
+      "nightly.yml/Nightly E2E 5/11": {
+        "perLanding": 0.14440203562340967,
+        "perDay": 8.302777777777777
+      },
+      "nightly.yml/Nightly E2E 9/11": {
+        "perLanding": 0.12888040712468193,
+        "perDay": 7.2
+      },
+      "nightly.yml/Nightly E2E 11/11": {
+        "perLanding": 0.13231552162849872,
+        "perDay": 8.47777777777778
+      },
+      "nightly.yml/Nightly E2E 4/11": {
+        "perLanding": 0.10661577608142493,
+        "perDay": 8.350000000000001
+      },
+      "nightly.yml/Nightly E2E 8/11": {
+        "perLanding": 0.09427480916030534,
+        "perDay": 8.43611111111111
+      },
+      "nightly.yml/Nightly E2E 7/11": {
+        "perLanding": 0.12519083969465647,
+        "perDay": 6.847222222222222
+      },
+      "nightly.yml/Nightly E2E 2/11": {
+        "perLanding": 0.10114503816793893,
+        "perDay": 7.813888888888889
+      },
+      "nightly.yml/Combined nightly report": {
+        "perLanding": 0.004961832061068702,
+        "perDay": 0.7694444444444445
+      },
+      "nightly.yml/Nightly verdict": {
+        "perLanding": 0.0015267175572519084,
+        "perDay": 0.26111111111111107
+      },
+      "nightly.yml/Nightly E2E 4/12": {
+        "perLanding": 0,
+        "perDay": 7.88888888888889
+      },
+      "nightly.yml/Nightly E2E 6/12": {
+        "perLanding": 0,
+        "perDay": 6.9944444444444445
+      },
+      "nightly.yml/Nightly E2E 2/12": {
+        "perLanding": 0,
+        "perDay": 7
+      },
+      "nightly.yml/Nightly E2E 9/12": {
+        "perLanding": 0,
+        "perDay": 6.594444444444444
+      },
+      "nightly.yml/Nightly E2E 12/12": {
+        "perLanding": 0,
+        "perDay": 7.2749999999999995
+      },
+      "nightly.yml/Nightly E2E 8/12": {
+        "perLanding": 0,
+        "perDay": 7.902777777777779
+      },
+      "nightly.yml/Nightly E2E 1/12": {
+        "perLanding": 0,
+        "perDay": 6.8694444444444445
+      },
+      "nightly.yml/Nightly E2E 10/12": {
+        "perLanding": 0,
+        "perDay": 6.733333333333334
+      },
+      "nightly.yml/Nightly E2E 5/12": {
+        "perLanding": 0,
+        "perDay": 7.191666666666667
+      },
+      "nightly.yml/Nightly E2E 3/12": {
+        "perLanding": 0,
+        "perDay": 6.705555555555556
+      },
+      "nightly.yml/Nightly E2E 11/12": {
+        "perLanding": 0,
+        "perDay": 7.141666666666667
+      },
+      "nightly.yml/Nightly E2E 7/12": {
+        "perLanding": 0,
+        "perDay": 7.449999999999998
+      },
+      "ci.yml/Guided mod (Claude Code 2.1.295)": {
+        "perLanding": 0.013931297709923662,
+        "perDay": 0
+      },
+      "ci.yml/Guided mod (Claude Code 2.1.287)": {
+        "perLanding": 0.01431297709923664,
+        "perDay": 0
+      },
+      "dependabot-updates/Dependabot": {
+        "perLanding": 0.05279898218829516,
+        "perDay": 0
+      },
+      "hosted-latency.yml/Configured E2E against hosted staging 3/4": {
+        "perLanding": 0,
+        "perDay": 7.330952380952381
+      },
+      "hosted-latency.yml/Configured E2E against hosted staging 2/4": {
+        "perLanding": 0,
+        "perDay": 4.135714285714286
+      },
+      "hosted-latency.yml/Configured E2E against hosted staging 1/4": {
+        "perLanding": 0,
+        "perDay": 4.480952380952381
+      },
+      "hosted-latency.yml/Configured E2E against hosted staging 4/4": {
+        "perLanding": 0,
+        "perDay": 6.726190476190476
+      },
+      "hosted-latency.yml/Hosted staging verdict": {
+        "perLanding": 0,
+        "perDay": 0.1357142857142857
+      },
+      "fit-sweep.yml/Fit sweep 2/4": {
+        "perLanding": 0,
+        "perDay": 6.072222222222223
+      },
+      "fit-sweep.yml/Fit sweep 4/4": {
+        "perLanding": 0,
+        "perDay": 13.549999999999999
+      },
+      "fit-sweep.yml/Fit sweep 1/4": {
+        "perLanding": 0,
+        "perDay": 9.625
+      },
+      "fit-sweep.yml/Fit sweep 3/4": {
+        "perLanding": 0,
+        "perDay": 15.541666666666666
+      },
+      "fit-sweep.yml/Fit sweep verdict": {
+        "perLanding": 0,
+        "perDay": 0.3277777777777778
+      },
+      "endurance.yml/endurance:election for 60 min": {
+        "perLanding": 4.657167090754878,
+        "perDay": 0
+      },
+      "endurance.yml/endurance:election for 6 min": {
+        "perLanding": 0.6519083969465649,
+        "perDay": 0
+      },
+      "endurance.yml/trial:import-svg-growth-limit for 70 min": {
+        "perLanding": 2.0673452078032235,
+        "perDay": 0
+      },
+      "endurance.yml/trial:controls-adjust-measure for 75 min": {
+        "perLanding": 2.1504664970313825,
+        "perDay": 0
+      },
+      "endurance.yml/drill:stack-hold for 20 min": {
+        "perLanding": 0.21017811704834607,
+        "perDay": 0
+      },
+      "feedback-digest.yml/Mail yesterday's feedback": {
+        "perLanding": 0,
+        "perDay": 0.1714285714285714
+      },
+      "toolkit-distribution.yml/Directory checks on the generated distribution": {
+        "perLanding": 0.010687022900763359,
+        "perDay": 0
+      },
+      "release-bridge.yml/Does this push release the Bridge?": {
+        "perLanding": 0.0034351145038167934,
+        "perDay": 0
+      },
+      "release-bridge.yml/Build and publish the NoaCG Bridge exe": {
+        "perLanding": 0.009541984732824428,
+        "perDay": 0
+      },
+      "release-cli.yml/Does this push release a version?": {
+        "perLanding": 0.003816793893129771,
+        "perDay": 0
+      },
+      "release-cli.yml/Publish @noacg/cli": {
+        "perLanding": 0.030152671755725193,
+        "perDay": 0
+      },
+      "release-cli.yml/Update the generated toolkit distribution branch": {
+        "perLanding": 0.0015267175572519084,
+        "perDay": 0
+      },
+      "release-cli.yml/Tag the release": {
+        "perLanding": 0.0007633587786259542,
+        "perDay": 0
+      },
+      "preview-trial.yml/preview-trial": {
+        "perLanding": 0.030661577608142494,
+        "perDay": 0
+      },
+      "jev-svg-qualification.yml/qualify": {
+        "perLanding": 0.0015267175572519084,
+        "perDay": 0
+      },
+      "alarm-test.yml/Raise one test alarm": {
+        "perLanding": 0.0010178117048346056,
+        "perDay": 0
+      },
+      "weekly-audit.yml/audit": {
+        "perLanding": 0,
+        "perDay": 0.08571428571428572
+      },
+      "weekly-audit.yml/Weekly growth report": {
+        "perLanding": 0,
+        "perDay": 1.1071428571428572
+      },
+      "e2e-durations-refresh.yml/refresh": {
+        "perLanding": 0,
+        "perDay": 0.21666666666666665
+      },
+      "jev-svg-eval.yml/evaluate": {
+        "perLanding": 0.5934902459711621,
+        "perDay": 0
+      },
+      "production-load.yml/Read the production database's load": {
+        "perLanding": 0.00916030534351145,
+        "perDay": 0
+      }
+    }
+  },
+  "stops": {}
+}

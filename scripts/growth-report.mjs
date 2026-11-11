@@ -8,7 +8,9 @@
 //        [--clocks clocks.json] [--ledger <wave file>] [--out report.json] [--summary file] [--now ISO]
 //        [--issue]                                            # keep the weekly rolling issue
 //   node scripts/growth-report.mjs ages [--ledger <wave file>] [--issue]   # items past their age ceiling
-//   node scripts/growth-report.mjs fetch --out report.json     # the latest published report
+//   node scripts/growth-report.mjs fetch --out report.json     # the newest complete report (the capacity line's)
+//   node scripts/growth-report.mjs fetch --newest --out f.json # the newest report, whatever its state
+//   node scripts/growth-report.mjs health [--issue]           # say when to re-run a partial report, or alarm the owner
 //
 // `collect` reads this repository's Actions runs for the window (ending six hours ago, so runs
 // have finished) and prices every job's runner-minutes into its tier: offline, backend,
@@ -45,13 +47,48 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = process.env.GH_REPO || process.env.GITHUB_REPOSITORY || 'NoaCG/NoaCG-Studio';
 const DAY = 86_400_000;
 
-/** A bounded reader over `gh api`: it counts calls and refuses past its budget. */
-export function makeReader(budget, run = (args) => execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 64 << 20, windowsHide: true })) {
-  const reader = { calls: 0, failures: 0, exhausted: false };
+/**
+ * TRANSIENT GITHUB ERRORS are retried, never counted as data. A 5xx answer or a dropped
+ * connection says nothing about the runs it was asked for, so the read is made again, at most
+ * RETRY.attempts times in all, after RETRY.delaysMs. GitHub's 5xx answers clear in seconds, so
+ * two retries 2 s and 8 s apart cover a blip and add at most 10 s to a call; a longer outage is
+ * not waited out here: the read fails, the report says so (partial), and the report is re-run
+ * (`health`). A 4xx (rate limit, permission, not found) is never retried: asking again changes
+ * nothing and spends the budget. This is a network retry for data collection, not a test retry.
+ */
+export const RETRY = { attempts: 3, delaysMs: [2000, 8000], perReader: 20 };
+const TRANSIENT = /HTTP 5\d\d|\b50[0-4] (?:Internal Server Error|Bad Gateway|Service Unavailable|Gateway Time-?out)|ECONNRESET|ETIMEDOUT|ECONNREFUSED|EAI_AGAIN|socket hang up|connection reset|i\/o timeout|TLS handshake timeout|unexpected EOF/i;
+/** Whether a failed `gh` call is worth asking again: a server error or a dropped connection. Pure. */
+export function transient(error) {
+  return TRANSIENT.test(`${error?.message ?? ''}\n${error?.stderr ?? ''}`);
+}
+/** A blocking wait between retries (the CLIs here are synchronous). */
+export const sleepSync = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+/**
+ * `run` with transient errors retried (RETRY). `budget` is shared across calls: it caps the
+ * retries one reader or one fetch may spend, so an outage cannot burn the API budget.
+ */
+export function withRetries(run, { sleep = sleepSync, budget = { left: RETRY.perReader }, onAttempt = () => true } = {}) {
+  return (args) => {
+    for (let attempt = 1; ; attempt++) {
+      try { return run(args); } catch (e) {
+        if (attempt >= RETRY.attempts || !transient(e) || budget.left <= 0 || !onAttempt()) throw e;
+        budget.left -= 1;
+        sleep(RETRY.delaysMs[attempt - 1] ?? RETRY.delaysMs.at(-1));
+      }
+    }
+  };
+}
+
+/** A bounded reader over `gh api`: it counts calls (retries included) and refuses past its budget. */
+export function makeReader(budget, run = (args) => execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 64 << 20, windowsHide: true }), { sleep = sleepSync } = {}) {
+  const reader = { calls: 0, failures: 0, retries: 0, exhausted: false };
+  // A retry is a call against the budget too: the budget protects the token's hourly limit.
+  const retried = withRetries(run, { sleep, onAttempt: () => { if (reader.calls >= budget) { reader.exhausted = true; return false; } reader.calls += 1; reader.retries += 1; return true; } });
   reader.get = (route) => {
     if (reader.calls >= budget) { reader.exhausted = true; return null; }
     reader.calls += 1;
-    try { return JSON.parse(run(['api', '-X', 'GET', route])); } catch { reader.failures += 1; return null; }
+    try { return JSON.parse(retried(['api', '-X', 'GET', route])); } catch { reader.failures += 1; return null; }
   };
   return reader;
 }
@@ -445,7 +482,7 @@ export function sampleJobs(reader, runs, budget) {
   return { strata, keys };
 }
 
-export function collect({ days = 7, budget = 550, now = new Date().toISOString(), previous = null, clocksFile = null, ledgerFile = null, ceilings }) {
+export function collect({ days = 7, budget = 550, now = new Date().toISOString(), previous = null, clocksFile = null, ledgerFile = null, ceilings, attempt = 1 }) {
   const reader = makeReader(budget);
   const to = Date.parse(now) - 6 * 3_600_000;
   const from = to - days * DAY;
@@ -461,7 +498,7 @@ export function collect({ days = 7, budget = 550, now = new Date().toISOString()
   const table = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'e2e-durations.json'), 'utf8'));
   const unfinished = runs.filter((r) => r.status !== 'completed').length;
   const sampled = runs.filter((r) => r.jobs).length;
-  const collection = `${reader.calls} API call(s) of ${budget}, ${runs.length - unfinished} completed run(s) in ${keys.length} strata, ${sampled} sampled, ${unfinished} still running at the window end${reader.exhausted ? ', BUDGET EXHAUSTED' : ''}${listed.complete ? '' : ', RUN LIST INCOMPLETE'}${reader.failures ? `, ${reader.failures} failed read(s)` : ''}`;
+  const collection = `${reader.calls} API call(s) of ${budget}, ${runs.length - unfinished} completed run(s) in ${keys.length} strata, ${sampled} sampled, ${unfinished} still running at the window end${reader.exhausted ? ', BUDGET EXHAUSTED' : ''}${listed.complete ? '' : ', RUN LIST INCOMPLETE'}${reader.failures ? `, ${reader.failures} failed read(s)` : ''}${reader.retries ? `, ${reader.retries} transient error(s) retried` : ''}`;
   // The quarantine's open incidents, counted in this report (ci07): a store it cannot read is 'unread'.
   let quarantine;
   try {
@@ -474,6 +511,8 @@ export function collect({ days = 7, budget = 550, now = new Date().toISOString()
   for (const i of open.items) if (i.category === 'prReady' && i.clock.start && (!built.report.openStarts[i.id] || i.clock.start < built.report.openStarts[i.id])) built.report.openStarts[i.id] = i.clock.start;
   // A closed PR's start is kept for 30 days: it may only be sampled as merged in a later week.
   for (const id of Object.keys(built.report.openStarts)) if (!open.items.some((i) => i.id === id) && open.complete && Date.parse(built.report.openStarts[id]) < Date.parse(now) - 30 * DAY) delete built.report.openStarts[id];
+  // Which try of this week's report this is: a partial one is re-run (`health`) a bounded number of times.
+  built.report.attempt = attempt;
   built.report.finishedPrs = { merged: done.merged, sampled: done.samples.filter((x) => x.measure === 'prReady').length + done.unknown.length };
   built.report.strata = Object.fromEntries(keys.map((key) => [key, { runs: strata[key].length, sampled: strata[key].filter((r) => r.jobs).length }]));
   return built;
@@ -547,7 +586,8 @@ export function ages({ ceilings, now = new Date().toISOString(), budget = 400, r
 /** The most artifact pages the report search reads; past it the search fails rather than guess. */
 export const ARTIFACT_PAGES = 30;
 
-export function fetchLatest(out, gh = (args) => execFileSync('gh', args, { encoding: 'utf8', windowsHide: true }), restart = null) {
+/** Main's `growth-report` artifacts of THIS repository, newest first, every page read. */
+export function listReports(gh) {
   // Every page (Rule E22): branch dispatches upload reports too, so main's newest may sit past the
   // first page, and only a finished listing can show that no report was ever published.
   const listed = [];
@@ -559,11 +599,25 @@ export function fetchLatest(out, gh = (args) => execFileSync('gh', args, { encod
     // A listing that does not say how long it is ends only on a short page.
     if (got.length < 100 || (Number.isFinite(body.total_count) && listed.length >= body.total_count)) break;
   }
-  const all = listed
+  return listed
     // main of THIS repository: a fork's pull request can upload an artifact of the same name from
     // its own branch called main, and its run carries the fork as its head repository.
     .filter((a) => a.workflow_run?.head_branch === 'main' && a.workflow_run?.repository_id != null && a.workflow_run.head_repository_id === a.workflow_run.repository_id)
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+/** One published report's JSON, downloaded from its run. */
+export function downloadReport(artifact, gh) {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'growth-'));
+  gh(['run', 'download', String(artifact.workflow_run.id), '-n', 'growth-report', '-D', dir, '-R', REPO]);
+  const file = readdirSync(dir).find((f) => f.endsWith('.json'));
+  return readFileSync(path.join(dir, file), 'utf8');
+}
+
+const ghRun = (args) => execFileSync('gh', args, { encoding: 'utf8', windowsHide: true });
+
+export function fetchLatest(out, gh = withRetries(ghRun), restart = null) {
+  const all = listReports(gh);
   if (all.length === 0) {
     writeFileSync(out, `${JSON.stringify({ none: true })}\n`);
     return null;
@@ -576,20 +630,183 @@ export function fetchLatest(out, gh = (args) => execFileSync('gh', args, { encod
     return null;
   }
   if (!live) throw new Error(`every growth report has expired (newest ${all[0].created_at}): weeks went unreported, which is not a first week`);
-  const dir = mkdtempSync(path.join(os.tmpdir(), 'growth-'));
-  gh(['run', 'download', String(live.workflow_run.id), '-n', 'growth-report', '-D', dir, '-R', REPO]);
-  const file = readdirSync(dir).find((f) => f.endsWith('.json'));
-  writeFileSync(out, readFileSync(path.join(dir, file)));
+  writeFileSync(out, downloadReport(live, gh));
   return { run: live.workflow_run.id, file: out };
+}
+
+// ---------------------------------------------------------------------------------------------
+// A BAD REPORT NEVER TIGHTENS THE LINE (owner request 2026-11-11, run issue #1967).
+//
+// A report is one of four states, from what it already records:
+//   missing   no report could be read (none published, every one expired, a failed fetch);
+//   partial   a tier's evidence is not complete (a failed or unmade read, an incomplete run list);
+//   stale     complete, but generated more than `reportMaxAgeDays` (8: the Monday schedule plus a
+//             day's grace) before now, or measured to a window end over `freshnessDays` (8) old;
+//   complete  every tier completely measured, and fresh.
+// The capacity line judges a pull request against the newest COMPLETE report (age aside), at the
+// normal 95% line, so a pull request is refused only for its own measured cost against that line.
+// The bad report raises one owner alarm (`health`, after each landing), never a refusal.
+
+/** Whether a report's every tier is completely measured (age aside). Pure. */
+export function reportComplete(report) {
+  const tiers = report?.measurement?.tiers;
+  return Boolean(tiers) && TIERS.every((t) => tiers[t]?.evidence === 'complete' && Number.isFinite(tiers[t]?.perLanding));
+}
+
+/** A report's state and why, from what it records. Pure. */
+export function classifyReport(report, { now, maxAgeDays, freshnessDays }) {
+  if (!report || report.none || !report.measurement?.tiers) return { state: 'missing', why: report?.why ?? 'no weekly growth report could be read' };
+  if (!reportComplete(report)) {
+    const t = TIERS.find((x) => report.measurement.tiers[x]?.evidence !== 'complete');
+    return { state: 'partial', why: `${t} evidence ${report.measurement.tiers[t]?.evidence ?? 'missing'}: ${report.measurement.tiers[t]?.why ?? 'not measured'} (${report.collection ?? 'no collection record'})` };
+  }
+  const age = Math.floor((Date.parse(now) - Date.parse(report.generatedAt)) / DAY);
+  const measured = Math.floor((Date.parse(now.slice(0, 10)) - Date.parse(String(report.measurement.windowEnd).slice(0, 10))) / DAY);
+  if (!(age <= maxAgeDays)) return { state: 'stale', why: `generated ${String(report.generatedAt).slice(0, 10)}, ${Number.isFinite(age) ? age : '?'} days ago (bound ${maxAgeDays})` };
+  if (!(measured <= freshnessDays)) return { state: 'stale', why: `measured to ${report.measurement.windowEnd}, ${Number.isFinite(measured) ? measured : '?'} days ago (bound ${freshnessDays})` };
+  return { state: 'complete', why: '' };
+}
+
+/** The most reports read to find the newest complete one: 35-day retention holds about six weeks. */
+export const GATE_CANDIDATES = 6;
+
+/**
+ * What the capacity line judges against: the newest report and its state, and the newest
+ * complete report (itself when it is complete). Never throws: a failed listing or download is a
+ * missing report, which the gate judges on the frozen seed and the owner alarm names.
+ */
+export function gateReport({ gh = withRetries(ghRun), now = new Date().toISOString(), ceilings, candidates = GATE_CANDIDATES }) {
+  const bounds = { now, maxAgeDays: ceilings.reportMaxAgeDays, freshnessDays: ceilings.freshnessDays };
+  let all;
+  try { all = listReports(gh).filter((a) => !a.expired); } catch (e) {
+    return { newest: { run: null, generatedAt: null, attempt: null, state: 'missing', readFailed: true, why: `the report listing failed: ${String(e?.message ?? e).split('\n')[0]}` }, judged: null };
+  }
+  let newest = null;
+  for (const a of all.slice(0, candidates)) {
+    let report = null;
+    try { report = JSON.parse(downloadReport(a, gh)); } catch { /* unreadable: not complete */ }
+    const c = classifyReport(report, bounds);
+    newest ??= { run: a.workflow_run.id, generatedAt: report?.generatedAt ?? a.created_at, attempt: report?.attempt ?? 1, ...(report ? c : { state: 'missing', readFailed: true, why: `the report of run ${a.workflow_run.id} could not be read` }) };
+    if (reportComplete(report)) return { newest, judged: { run: a.workflow_run.id, generatedAt: report.generatedAt, report } };
+  }
+  return { newest: newest ?? { run: null, generatedAt: null, attempt: null, state: 'missing', why: 'no live weekly growth report has been published on main' }, judged: null };
+}
+
+/** The file the capacity line reads: the judged report with a `gate` record, or none. */
+export function gateFile(out, picked) {
+  const gate = { newest: picked.newest, judgedOn: picked.judged ? { run: picked.judged.run, generatedAt: picked.judged.generatedAt } : null };
+  writeFileSync(out, `${JSON.stringify(picked.judged ? { ...picked.judged.report, gate } : { none: true, gate })}\n`);
+}
+
+/** At most this many tries of one week's report: the scheduled one and two re-runs. */
+export const MAX_ATTEMPTS = 3;
+/** A re-run waits this long after the try before it, so the two never share the token's hourly API limit. */
+export const RERUN_GAP_MINUTES = 65;
+export const REPORT_ISSUE = 'Growth report not complete';
+
+/**
+ * What to do about the newest report, run after every landing. Pure.
+ * - complete: close the alarm.
+ * - partial with tries left: re-run it (once the gap has passed and no run is under way); no alarm yet.
+ * - partial with no tries left, stale or missing: one alarm for that report.
+ */
+export function healthAction({ newest, judgedOn = null, now, running = false }) {
+  if (newest.state === 'complete') return { kind: 'close' };
+  // This check could not read the report: a failure of the check, not a bad report. The next landing reads again.
+  if (newest.readFailed) return { kind: 'wait', why: newest.why };
+  if (newest.state === 'partial' && (newest.attempt ?? 1) < MAX_ATTEMPTS) {
+    const waited = (Date.parse(now) - Date.parse(newest.generatedAt)) / 60_000;
+    if (running) return { kind: 'wait', why: 'a re-run is already under way' };
+    if (!(waited >= RERUN_GAP_MINUTES)) return { kind: 'wait', why: `the re-run waits ${RERUN_GAP_MINUTES} minutes after try ${newest.attempt ?? 1} for the API limit` };
+    return { kind: 'rerun', attempt: (newest.attempt ?? 1) + 1 };
+  }
+  const key = `<!-- growth-report: ${newest.run ?? 'none'} ${newest.state} -->`;
+  const tries = newest.state === 'partial' ? ` after ${newest.attempt ?? 1} tries` : '';
+  const judged = judgedOn ? `The capacity line judges pull requests against the newest complete report, run ${judgedOn.run} (${String(judgedOn.generatedAt).slice(0, 10)}), at its normal line; no pull request is refused because of this report.` : 'No complete report exists, so the capacity line judges pull requests against the frozen measurement in scripts/growth-ceilings.json at its normal line, each on its own cost; no pull request is refused because of this.';
+  const body = [
+    key,
+    `The newest weekly growth report is **${newest.state}**${tries}: ${newest.why}.${newest.run ? ` Run: https://github.com/${REPO}/actions/runs/${newest.run}.` : ''}`,
+    '',
+    judged,
+    '',
+    'What to do: find why the report is not complete (the run\'s step summary names it), fix that, then run weekly-audit by hand. This issue closes itself after a landing once the newest report is complete.',
+  ].join('\n');
+  return { kind: 'alarm', key, body };
+}
+
+/** In a re-run (try `attempt`): whether the newest report is still the partial try before it. Pure. */
+export function rerunStillNeeded(newest, attempt) {
+  return newest.state === 'partial' && (newest.attempt ?? 1) === attempt - 1 && attempt <= MAX_ATTEMPTS;
+}
+
+/** Raise, keep or close the report alarm: one notification per bad report, never one per landing. */
+export function reportAlarm(action, login, gh = withRetries(ghRun)) {
+  const found = findIssue(REPORT_ISSUE, gh);
+  if (action.kind === 'close') {
+    if (!found) return 'no report alarm open';
+    gh(['api', '-X', 'POST', `repos/${REPO}/issues/${found.number}/comments`, '-f', 'body=The newest weekly growth report is complete again; closing.']);
+    gh(['api', '-X', 'PATCH', `repos/${REPO}/issues/${found.number}`, '-f', 'state=closed']);
+    return `closed #${found.number}`;
+  }
+  if (action.kind !== 'alarm') return 'no alarm';
+  // The same bad report already alarmed: nothing new to say, and nobody is notified again.
+  if (found && String(found.body ?? '').includes(action.key)) return `#${found.number} already names this report`;
+  if (found) {
+    gh(['api', '-X', 'PATCH', `repos/${REPO}/issues/${found.number}`, '-f', `body=${action.body}`]);
+    // A new bad report on an open alarm: one comment, which notifies the assignee once.
+    gh(['api', '-X', 'POST', `repos/${REPO}/issues/${found.number}/comments`, '-f', `body=${action.body.split('\n')[1]}`]);
+    return `updated #${found.number}; ${routeOrWarn(found.number, { login, repo: REPO, gh })}`;
+  }
+  const made = JSON.parse(gh(['api', '-X', 'POST', `repos/${REPO}/issues`, '-f', `title=${REPORT_ISSUE}`, '-f', `body=${action.body}`]));
+  return `opened #${made.number}; ${routeOrWarn(made.number, { login, repo: REPO, gh })}`;
+}
+
+/** Whether a weekly-audit run is queued or running on main, so a re-run is never started twice. */
+function auditRunning(gh) {
+  for (const status of ['queued', 'in_progress']) {
+    const body = JSON.parse(gh(['api', '-X', 'GET', `repos/${REPO}/actions/workflows/weekly-audit.yml/runs?branch=main&status=${status}&per_page=1`]));
+    if ((body.total_count ?? 0) > 0) return true;
+  }
+  return false;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [command, ...args] = process.argv.slice(2);
   const value = (flag) => { const i = args.indexOf(flag); return i >= 0 ? args[i + 1] : undefined; };
-  if (command === 'fetch') {
+  if (command === 'fetch' && args.includes('--newest')) {
+    // The newest report whatever its state: last week's breaches and stops to carry forward.
     const ceilings = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'growth-ceilings.json'), 'utf8'));
     const got = fetchLatest(value('--out') ?? 'growth-report.json', undefined, ceilings.reportRestart ?? null);
     console.log(got ? `growth report from weekly-audit run ${got.run} -> ${got.file}` : 'no published growth report found');
+  } else if (command === 'fetch') {
+    // What the capacity line judges against: the newest complete report.
+    const ceilings = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'growth-ceilings.json'), 'utf8'));
+    const picked = gateReport({ ceilings, now: value('--now') ?? new Date().toISOString() });
+    gateFile(value('--out') ?? 'growth-report.json', picked);
+    const n = picked.newest;
+    console.log(`newest growth report: ${n.run ? `run ${n.run}` : 'none'}, ${n.state}${n.why ? ` (${n.why})` : ''}; judged on ${picked.judged ? `run ${picked.judged.run}` : 'the frozen seed in growth-ceilings.json'}`);
+    if (n.state !== 'complete') console.log(`::warning title=Growth report::the newest weekly growth report is ${n.state}; pull requests are judged against ${picked.judged ? `the newest complete report (run ${picked.judged.run})` : 'the frozen seed'} and the owner alarm is raised after landing`);
+  } else if (command === 'health') {
+    // After each landing (post-land.yml) and after each report (weekly-audit.yml): re-run a
+    // partial report while tries are left, otherwise alarm the owner once about the bad report.
+    const ceilings = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'growth-ceilings.json'), 'utf8'));
+    const now = value('--now') ?? new Date().toISOString();
+    const gh = withRetries(ghRun);
+    const picked = gateReport({ ceilings, now, gh });
+    if (value('--still-needed') !== undefined) {
+      // In a re-run itself: still needed only while the newest report is the partial try before it.
+      const needed = rerunStillNeeded(picked.newest, Number(value('--still-needed')));
+      console.log(`re-run try ${value('--still-needed')}: ${needed ? 'needed' : 'not needed, the newest report has moved on'}`);
+      if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `needed=${needed}\n`);
+      process.exit(0);
+    }
+    let running = false;
+    if (picked.newest.state === 'partial') { try { running = auditRunning(gh); } catch { running = true; } }
+    const action = healthAction({ newest: picked.newest, judgedOn: picked.judged, now, running });
+    console.log(`newest growth report: ${picked.newest.run ? `run ${picked.newest.run}` : 'none'}, ${picked.newest.state}; ${action.kind}${action.why ? ` (${action.why})` : ''}`);
+    // The re-run itself is dispatched by the workflow step (post-land.yml), from this output.
+    if (action.kind === 'rerun' && process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `rerun=${action.attempt}\n`);
+    if (args.includes('--issue')) console.log(reportAlarm(action, alarmOwner(ceilings).login, gh));
   } else if (command === 'ages') {
     const ceilings = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'growth-ceilings.json'), 'utf8'));
     const ledgerFile = value('--ledger');
@@ -628,14 +845,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     }
     const read = previousFile ? JSON.parse(readFileSync(previousFile, 'utf8')) : null;
     const previous = read && !read.none ? read : null;
-    const { report, markdown } = collect({ days: Number(value('--days') ?? 7), budget: Number(value('--budget') ?? 550), now: value('--now') ?? new Date().toISOString(), previous, clocksFile: value('--clocks'), ledgerFile: value('--ledger'), ceilings });
+    const { report, markdown } = collect({ days: Number(value('--days') ?? 7), budget: Number(value('--budget') ?? 550), now: value('--now') ?? new Date().toISOString(), previous, clocksFile: value('--clocks'), ledgerFile: value('--ledger'), ceilings, attempt: Number(value('--attempt') ?? 1) });
     measured(report.measurement.landings, 'landings in the growth window');
     console.log(markdown);
     if (value('--out')) writeFileSync(value('--out'), `${JSON.stringify(report, null, 2)}\n`);
     if (value('--summary')) appendFileSync(value('--summary'), `${markdown}\n`);
     if (args.includes('--issue')) console.log(rollingIssue(WEEKLY_ISSUE, report.breaches.length ? markdown : '', alarmOwner(ceilings).login));
   } else {
-    console.error('usage: growth-report.mjs collect|ages|fetch [...] (see the header)');
+    console.error('usage: growth-report.mjs collect|ages|fetch|health [...] (see the header)');
     process.exit(2);
   }
 }

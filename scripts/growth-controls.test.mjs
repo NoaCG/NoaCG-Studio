@@ -1,4 +1,4 @@
-// guards: scripts/growth-controls.mjs, scripts/growth-report.mjs, scripts/growth-ceilings.json, scripts/e2e-capacity.mjs, docs/work-specs/cicd-improvement/evidence/phase-ci01.md
+// guards: scripts/growth-controls.mjs, scripts/growth-report.mjs, scripts/growth-ceilings.json, scripts/e2e-capacity.mjs, docs/work-specs/cicd-improvement/evidence/phase-ci01.md, scripts/fixtures/growth-reports/**
 // D7 growth controls (docs/work-specs/cicd-improvement/spec.md D7, AC-9; phase ci18). Each test
 // names the acceptance line it proves: (a) tiers and envelope, (b) per-tier refusal, estimates,
 // evidence, freshness and exceptions, (c) indirect slowdown, (d) clocks and ages, (e) ownership,
@@ -15,7 +15,7 @@ import {
   ceilingsRevision, coverCosts, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, knownCovers, landingDispatched, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   quarantineLines, tableFreshness, tierOfCover, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
-import { AGE_ISSUE, ages, buildReport, carriedDues, carriedStarts, fetchLatest, findIssue, finishedPrs, listRuns, makeReader, phaseIssueTitle, priceRuns, readJobs, sampleJobs, seriesOf, spread } from './growth-report.mjs';
+import { AGE_ISSUE, GATE_CANDIDATES, MAX_ATTEMPTS, REPORT_ISSUE, RETRY, ages, buildReport, carriedDues, carriedStarts, classifyReport, fetchLatest, findIssue, finishedPrs, gateFile, gateReport, healthAction, listRuns, makeReader, phaseIssueTitle, priceRuns, readJobs, reportAlarm, rerunStillNeeded, sampleJobs, seriesOf, spread, transient } from './growth-report.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -1548,4 +1548,229 @@ test('(e) quarantine coverage gaps are counted in the weekly report (ci07, AC-4/
   const src = readFileSync(new URL('./growth-report.mjs', import.meta.url), 'utf8');
   assert.match(src, /readStore\(QUARANTINE_STORE, \{ strict: true \}\)/);
   assert.match(src, /collection, quarantine \}\);/);
+});
+
+// --- A bad report never tightens the line (owner request 2026-11-11, run issue #1967) ----------
+
+const GROWTH_FIXTURES = new URL('./fixtures/growth-reports/', import.meta.url);
+const realReport = (run) => JSON.parse(readFileSync(new URL(`run-${run}.json`, GROWTH_FIXTURES), 'utf8'));
+const artifactOf = (run, createdAt, extra = {}) => ({ id: run, expired: false, created_at: createdAt, workflow_run: { id: run, head_branch: 'main', repository_id: 1, head_repository_id: 1 }, ...extra });
+/** A `gh` that serves report artifacts from memory: `reports` maps a run id to its JSON (or to an Error). */
+function reportsGh(artifacts, reports, calls = []) {
+  return (args) => {
+    calls.push(args.join(' '));
+    if (args[0] === 'api' && /actions\/artifacts\?name=growth-report/.test(args[3])) return JSON.stringify({ total_count: artifacts.length, artifacts });
+    if (args[0] === 'run' && args[1] === 'download') {
+      const got = reports[args[2]];
+      if (got instanceof Error) throw got;
+      writeFileSync(path.join(args[args.indexOf('-D') + 1], 'growth-report.json'), JSON.stringify(got));
+      return '';
+    }
+    throw new Error(`unexpected gh ${args.join(' ')}`);
+  };
+}
+const GATE_CEILINGS = { reportMaxAgeDays: 8, freshnessDays: 8 };
+const BOUNDS = { maxAgeDays: 8, freshnessDays: 8 };
+
+test('reproduction: the partial report of 2026-11-09 refused one added offline minute that the complete report of 2026-11-03 had room for', async () => {
+  // Real reports: weekly-audit run 42647874522 (partial: "configured-suite.yml|push: 1 read(s)
+  // failed", offline 189.3/215 per day, 88%, over the 85% partial line) and run 41704224273
+  // (complete, offline 173.3/215 per day, 81%). The capacity line's own path: the CLI fetch with
+  // `gh` on PATH, then growthAssessment and applyOfflineStop as e2e-capacity.mjs runs them.
+  const { execFileSync } = await import('node:child_process');
+  const { growthAssessment } = await import('./e2e-capacity.mjs');
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'gate-repro-'));
+  writeFileSync(path.join(dir, 'artifacts.json'), JSON.stringify({ total_count: 2, artifacts: [artifactOf(42647874522, '2026-11-09T15:53:37Z'), artifactOf(41704224273, '2026-11-03T19:41:07Z')] }));
+  for (const run of [42647874522, 41704224273]) writeFileSync(path.join(dir, `${run}.json`), JSON.stringify(realReport(run)));
+  writeFileSync(path.join(dir, 'gh'), `#!/usr/bin/env node
+const fs = require('node:fs'); const path = require('node:path');
+const a = process.argv.slice(2); const dir = ${JSON.stringify(dir)};
+if (a[0] === 'api') process.stdout.write(fs.readFileSync(path.join(dir, 'artifacts.json'), 'utf8'));
+else if (a[0] === 'run' && a[1] === 'download') fs.copyFileSync(path.join(dir, a[2] + '.json'), path.join(a[a.indexOf('-D') + 1], 'growth-report.json'));
+else process.exit(1);
+`, { mode: 0o755 });
+  const out = path.join(dir, 'growth.json');
+  execFileSync(process.execPath, [new URL('./growth-report.mjs', import.meta.url).pathname, 'fetch', '--out', out, '--now', '2026-11-10T12:00:00Z'], { env: { ...process.env, PATH: `${dir}${path.delimiter}${process.env.PATH}`, GH_REPO: 'NoaCG/NoaCG-Studio' }, encoding: 'utf8' });
+  const growth = growthAssessment({ base: null, reportPath: out, table: { source: { recordedAt: '2026-11-09' } }, today: '2026-11-10' });
+  const verdict = applyOfflineStop(growth, { added: 1 });
+  assert.notEqual(verdict.status, 'refuse', verdict.reasons.join('; '));
+  assert.match(verdict.reasons.join('; '), /run 42647874522\) is partial.*judged on the newest complete report, run 41704224273/);
+});
+
+test('a report is complete, partial, stale or missing from what it records', () => {
+  const now = '2026-11-10T12:00:00Z';
+  assert.equal(classifyReport(realReport(41704224273), { now, ...BOUNDS }).state, 'complete', 'complete, 6 days old');
+  const partial = classifyReport(realReport(42647874522), { now, ...BOUNDS });
+  assert.equal(partial.state, 'partial');
+  assert.match(partial.why, /1 read\(s\) failed/);
+  // Stale: generated more than 8 days (the Monday schedule plus a day) before now, or measured to a window end over 8 days old.
+  assert.equal(classifyReport(realReport(41704224273), { now: '2026-11-11T19:41:00Z', ...BOUNDS }).state, 'complete', '8 days: still in bounds');
+  assert.equal(classifyReport(realReport(41704224273), { now: '2026-11-12T19:42:00Z', ...BOUNDS }).state, 'stale', '9 days');
+  assert.equal(classifyReport({ ...realReport(41704224273), measurement: { ...realReport(41704224273).measurement, windowEnd: '2026-10-25' } }, { now, ...BOUNDS }).state, 'stale');
+  for (const r of [null, { none: true }, { generatedAt: now }]) assert.equal(classifyReport(r, { now, ...BOUNDS }).state, 'missing');
+  // Partial wins over stale: what is wrong with the report itself is named first.
+  assert.equal(classifyReport(realReport(42647874522), { now: '2026-12-01T00:00:00Z', ...BOUNDS }).state, 'partial');
+});
+
+test('the capacity line judges on the newest complete report, and names the bad newest one', () => {
+  const now = '2026-11-10T12:00:00Z';
+  const arts = [artifactOf(3, '2026-11-09T15:53:37Z'), artifactOf(2, '2026-11-03T19:41:07Z'), artifactOf(1, '2026-11-02T15:25:44Z')];
+  const reports = { 3: realReport(42647874522), 2: realReport(41704224273), 1: realReport(41704224273) };
+  const calls = [];
+  const picked = gateReport({ gh: reportsGh(arts, reports, calls), now, ceilings: GATE_CEILINGS });
+  assert.deepEqual([picked.newest.run, picked.newest.state, picked.judged.run], [3, 'partial', 2]);
+  assert.equal(calls.filter((c) => c.startsWith('run download')).length, 2, 'stops at the first complete report');
+  // A complete newest report is judged on itself.
+  assert.equal(gateReport({ gh: reportsGh(arts.slice(1), reports), now, ceilings: GATE_CEILINGS }).judged.run, 2);
+  // Stale but complete: still the newest complete report, judged on, and named stale.
+  const late = gateReport({ gh: reportsGh(arts.slice(1), reports), now: '2026-11-20T00:00:00Z', ceilings: GATE_CEILINGS });
+  assert.deepEqual([late.newest.state, late.judged.run], ['stale', 2]);
+  // An unreadable newest report is skipped, not trusted.
+  const broken = gateReport({ gh: reportsGh(arts, { ...reports, 3: new Error('HTTP 404') }), now, ceilings: GATE_CEILINGS });
+  assert.deepEqual([broken.newest.state, broken.newest.readFailed, broken.judged.run], ['missing', true, 2]);
+  // No complete report among the candidates: none to judge on; the seed stands in at the gate.
+  const none = gateReport({ gh: reportsGh([arts[0]], reports), now, ceilings: GATE_CEILINGS });
+  assert.deepEqual([none.newest.state, none.judged], ['partial', null]);
+  // A failed listing is missing, never a throw that leaves the gate without a file.
+  const failing = gateReport({ gh: () => { throw new Error('HTTP 403'); }, now, ceilings: GATE_CEILINGS });
+  assert.deepEqual([failing.newest.state, failing.judged], ['missing', null]);
+  // Bounded: at most GATE_CANDIDATES downloads.
+  const many = Array.from({ length: 10 }, (_, i) => artifactOf(100 + i, `2026-11-0${9 - Math.min(i, 8)}T00:00:00Z`));
+  const counted = [];
+  gateReport({ gh: reportsGh(many, Object.fromEntries(many.map((a) => [a.id, realReport(42647874522)])), counted), now, ceilings: GATE_CEILINGS });
+  assert.equal(counted.filter((c) => c.startsWith('run download')).length, GATE_CANDIDATES);
+});
+
+/** The gate as e2e-capacity.mjs runs it, on a picked report written to a file. */
+async function gateOn(picked, { today = '2026-11-10', added = 0 } = {}) {
+  const { growthAssessment } = await import('./e2e-capacity.mjs');
+  const out = path.join(mkdtempSync(path.join(os.tmpdir(), 'gate-')), 'growth.json');
+  gateFile(out, picked);
+  const growth = growthAssessment({ base: null, reportPath: out, table: { source: { recordedAt: today } }, today });
+  return added ? applyOfflineStop(growth, { added }) : growth;
+}
+const pick = (newestRun, newestState, judgedReport, judgedRun = 7) => ({ newest: { run: newestRun, state: newestState, why: 'x', attempt: 3 }, judged: judgedReport ? { run: judgedRun, generatedAt: judgedReport.generatedAt, report: judgedReport } : null });
+
+test('a complete report still refuses a change for its own cost exactly as before (strictness kept)', async () => {
+  const complete = realReport(41704224273);
+  // Offline per day 173.3/215 (81%): 30 added minutes a day (and 145 per landing) cross 95%.
+  assert.equal((await gateOn(pick(7, 'complete', complete), { added: 30 })).status, 'refuse');
+  assert.notEqual((await gateOn(pick(7, 'complete', complete), { added: 1 })).status, 'refuse');
+  // The same report as a fallback behind a partial newest one refuses the same change: no looser.
+  assert.equal((await gateOn(pick(9, 'partial', complete), { added: 30 })).status, 'refuse');
+  assert.equal((await gateOn(pick(9, 'stale', complete), { added: 30 })).status, 'refuse');
+  // A stop on the judged complete report still refuses any addition to its tier.
+  const stopped = { ...complete, stops: { offline: 'cost:offline since 2026-11-02' } };
+  assert.equal((await gateOn(pick(9, 'partial', stopped), { added: 0.1 })).status, 'refuse');
+  // So does a stop in any other tier, on the judged report.
+  const backendStop = await gateOn(pick(9, 'partial', { ...complete, stops: { backend: 'cost:backend since 2026-11-02' } }));
+  assert.equal(backendStop.assessWith([backendItem(0.1)]).tiers.backend.status, 'refuse');
+  assert.match(backendStop.assessWith([backendItem(0.1)]).tiers.backend.why, /growth stopped/);
+  // A tier over its line on the judged report refuses any addition, as on main.
+  const over = clone(complete);
+  over.measurement.tiers.offline.perDay = 214;
+  assert.equal((await gateOn(pick(7, 'complete', over), { added: 0.5 })).status, 'refuse');
+  assert.equal((await gateOn(pick(9, 'partial', over), { added: 0.5 })).status, 'refuse');
+});
+
+test('no complete report at all: the frozen seed at the normal line, refused only for own cost, never for the absence', async () => {
+  const seed = await gateOn(pick(null, 'missing', null));
+  assert.notEqual(seed.status, 'refuse');
+  assert.match(seed.reasons.join('; '), /is missing.*frozen seed/);
+  const tiny = await gateOn(pick(null, 'missing', null), { added: 1 });
+  assert.notEqual(tiny.status, 'refuse', tiny.reasons.join('; '));
+  // The seed's offline is 166/215 per day (77%): 45 added minutes a day cross 95%, refused for that cost.
+  assert.equal((await gateOn(pick(null, 'missing', null), { added: 45 })).status, 'refuse');
+  // A fetch that wrote nothing readable is the same: judged on the seed, not refused for it.
+  const { growthAssessment } = await import('./e2e-capacity.mjs');
+  const gone = growthAssessment({ base: null, reportPath: path.join(os.tmpdir(), 'no-such-growth-report.json'), table: { source: { recordedAt: '2026-11-10' } }, today: '2026-11-10' });
+  assert.notEqual(applyOfflineStop(gone, { added: 1 }).status, 'refuse');
+  assert.equal(applyOfflineStop(gone, { added: 45 }).status, 'refuse');
+});
+
+test('trusted evidence: a tier nothing measured is judged on the change alone; exceptions waive only on complete tiers', () => {
+  const m = measurement({});
+  delete m.tiers.graphics;
+  const item = { tier: 'graphics', id: 'spec:e2e/catalog/new.spec.ts', perLanding: 2, perDay: 0, how: 'test' };
+  assert.equal(assessTiers({ ceilings: noExceptions, measurement: m, items: [item], today: TODAY }).tiers.graphics.status, 'refuse', 'untrusted: missing refuses (the weekly report\'s own judgement)');
+  assert.equal(assessTiers({ ceilings: noExceptions, measurement: m, items: [item], today: TODAY, trustEvidence: true }).tiers.graphics.status, 'warn');
+  assert.equal(assessTiers({ ceilings: noExceptions, measurement: m, items: [{ ...item, perLanding: 9.5 }], today: TODAY, trustEvidence: true }).tiers.graphics.status, 'refuse', 'its own cost at 95% of the ceiling');
+  // A partial tier (the seed's backend) is a lower bound: an exception waives nothing on it, trusted or not.
+  const partial = measurement({ backend: 100 }, { evidence: 'partial' });
+  const ex = { id: 's', tier: 'backend', covers: ['spec:e2e/configured/new.spec.ts'], perLanding: 30, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
+  const t = assessTiers({ ceilings: { ...CEILINGS, exceptions: [ex] }, measurement: partial, items: [backendItem(12)], today: TODAY, trustEvidence: true }).tiers.backend;
+  assert.equal(t.addedLanding, 12, 'nothing waived');
+  assert.equal(t.status, 'refuse', '(100 + 12) / 117 = 96% at the 95% line');
+});
+
+test('the collector retries transient GitHub errors a bounded number of times, and nothing else', () => {
+  const slept = [];
+  const flaky = (failures, error) => { let n = 0; return () => { n += 1; if (n <= failures) throw error; return '{"ok":1}'; }; };
+  const e502 = Object.assign(new Error('Command failed: gh api'), { stderr: 'gh: Server Error (HTTP 502)' });
+  const r = makeReader(10, flaky(2, e502), { sleep: (ms) => slept.push(ms) });
+  assert.deepEqual(r.get('x'), { ok: 1 });
+  assert.deepEqual([r.calls, r.retries, r.failures, slept], [3, 2, 0, [2000, 8000]], 'two retries, 2 s and 8 s apart, each a call against the budget');
+  const r3 = makeReader(10, flaky(3, e502), { sleep: () => {} });
+  assert.equal(r3.get('x'), null, 'three failures: the read fails and the report says so');
+  assert.deepEqual([r3.calls, r3.failures], [3, 1]);
+  for (const msg of ['HTTP 503', 'read ECONNRESET', 'socket hang up', 'net/http: TLS handshake timeout']) assert.ok(transient(new Error(msg)), msg);
+  for (const msg of ['HTTP 403: API rate limit exceeded', 'HTTP 404: Not Found', 'HTTP 422', 'Unexpected token']) assert.ok(!transient(new Error(msg)), msg);
+  const r4 = makeReader(10, flaky(1, new Error('HTTP 403: rate limit')), { sleep: () => { throw new Error('no sleep for a 4xx'); } });
+  assert.equal(r4.get('x'), null);
+  assert.deepEqual([r4.calls, r4.retries], [1, 0], 'a 4xx is never retried');
+  // The budget bounds retries too, and one reader retries at most RETRY.perReader times in all.
+  const tight = makeReader(2, flaky(5, e502), { sleep: () => {} });
+  assert.equal(tight.get('x'), null);
+  assert.deepEqual([tight.calls, tight.exhausted], [2, true]);
+  const outage = makeReader(1000, () => { throw e502; }, { sleep: () => {} });
+  for (let i = 0; i < 30; i++) outage.get('x');
+  assert.equal(outage.retries, RETRY.perReader);
+});
+
+test('a partial report is re-run at most twice, 65 minutes apart, then the owner is alarmed once', () => {
+  const at = '2026-11-09T15:53:00Z';
+  const later = (min) => new Date(Date.parse(at) + min * 60_000).toISOString();
+  const partial = (attempt) => ({ run: 42647874522, generatedAt: at, attempt, state: 'partial', why: 'configured-suite.yml|push: 1 read(s) failed' });
+  assert.equal(healthAction({ newest: partial(1), now: later(30) }).kind, 'wait', 'inside the API limit window');
+  assert.deepEqual(healthAction({ newest: partial(1), now: later(66) }), { kind: 'rerun', attempt: 2 });
+  assert.equal(healthAction({ newest: partial(1), now: later(66), running: true }).kind, 'wait', 'never twice at once');
+  assert.deepEqual(healthAction({ newest: partial(2), now: later(66) }), { kind: 'rerun', attempt: 3 });
+  const alarm = healthAction({ newest: partial(3), judgedOn: { run: 41704224273, generatedAt: '2026-11-03T19:33:19Z' }, now: later(66) });
+  assert.equal(alarm.kind, 'alarm');
+  assert.match(alarm.body, /partial\*\* after 3 tries: configured-suite\.yml\|push: 1 read\(s\) failed/);
+  assert.match(alarm.body, /run 41704224273 \(2026-11-03\)/);
+  for (const state of ['stale', 'missing']) assert.equal(healthAction({ newest: { run: 5, state, why: 'x', generatedAt: at }, now: later(1) }).kind, 'alarm', state);
+  assert.equal(healthAction({ newest: { run: 5, state: 'missing', readFailed: true, why: 'listing failed' }, now: later(1) }).kind, 'wait', 'a failed read of this check is not a bad report');
+  assert.deepEqual(healthAction({ newest: { run: 5, state: 'complete' }, now: later(1) }), { kind: 'close' });
+  // A re-run goes ahead only while the newest report is still the try before it.
+  assert.equal(rerunStillNeeded(partial(1), 2), true);
+  assert.equal(rerunStillNeeded(partial(2), 2), false, 'that try already ran');
+  assert.equal(rerunStillNeeded({ ...partial(1), state: 'complete' }, 2), false);
+  assert.equal(rerunStillNeeded(partial(3), 4), false, 'never past MAX_ATTEMPTS');
+  assert.equal(MAX_ATTEMPTS, 3);
+});
+
+test('one alarm per bad report: raised once, routed to the owner, not repeated per landing, closed when complete', () => {
+  const issues = [];
+  const posted = [];
+  const gh = (args) => {
+    const route = args[3];
+    if (args[0] === 'api' && args[2] === 'GET' && /\/issues\?state=open/.test(route)) return JSON.stringify(issues);
+    posted.push(`${args[2]} ${route}`);
+    if (/\/assignees$/.test(route)) return JSON.stringify({ assignees: [{ login: 'miwco' }] });
+    if (args[2] === 'POST' && /\/issues$/.test(route)) { const title = args[5].slice(6); const body = args[7].slice(5); issues.push({ number: 90, title, body, author_association: 'OWNER', user: { type: 'User' } }); return JSON.stringify({ number: 90 }); }
+    if (args[2] === 'PATCH') { const f = args[5]; if (f.startsWith('body=')) issues[0].body = f.slice(5); else issues.length = 0; return '{}'; }
+    return '{}';
+  };
+  const bad = healthAction({ newest: { run: 1, state: 'stale', why: 'x', generatedAt: '2026-11-01T00:00:00Z' }, now: '2026-11-12T00:00:00Z' });
+  assert.equal(reportAlarm(bad, 'miwco', gh), 'opened #90; #90 routed to miwco');
+  assert.equal(issues[0].title, REPORT_ISSUE);
+  posted.length = 0;
+  assert.equal(reportAlarm(bad, 'miwco', gh), '#90 already names this report', 'the next landing says nothing new');
+  assert.deepEqual(posted, []);
+  const worse = healthAction({ newest: { run: 2, state: 'partial', attempt: 3, why: 'y', generatedAt: '2026-11-16T00:00:00Z' }, now: '2026-11-16T05:00:00Z' });
+  assert.match(reportAlarm(worse, 'miwco', gh), /^updated #90/);
+  assert.ok(posted.some((p) => p === 'POST repos/NoaCG/NoaCG-Studio/issues/90/comments'), 'a new bad report is one new comment');
+  assert.equal(reportAlarm({ kind: 'close' }, 'miwco', gh), 'closed #90');
+  assert.equal(reportAlarm({ kind: 'wait' }, 'miwco', gh), 'no alarm');
 });
