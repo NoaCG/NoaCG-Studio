@@ -929,6 +929,13 @@ pivot. Changed-file lint, TypeScript, 37 focused Node cases and all 358
 affected offline gates passed. GitHub still owns the full affected,
 catalog and configured checks.
 
+On committed product `66978d48f7cf0b9fd83c07d71fd69741499b9270`,
+`j-5158` exited 0 and retained the exact-main grouping and unrelated raw
+edit controls from `j-5148`. The final capacity check fetched weekly
+growth report run `42647874522` and exited 0 at 82.6% of the execution
+envelope. It retained the existing stale-duration and partial-growth
+warnings. No test budget, tolerance or baseline was changed.
+
 #### Catalog and affected CI scope
 
 Windows factory `j-5098` exited 0 with 328 checks across 12 kits. The
@@ -959,6 +966,12 @@ main `a3f3e13ca`. All were identical, including raw `jc01` JavaScript
 committed fingerprint `8d17b8a35536b6dd`. The Windows raw gate remains
 red and the baseline is unchanged. The affected offline gates ran 358
 tests on the product head with zero failures.
+
+With the local per-element accessor on committed `66978d48f`, raw
+Windows catalog gate `j-5159` remained red on `jc01` alone. The control
+`j-5160` exited 0 with all 539 fingerprints identical to exact main
+`a3f3e13ca`. Both raw JavaScript hashes remain `ec5dc4ccf279231f`, and
+the normalized unchanged QR encoder fingerprint stays `8d17b8a35536b6dd`.
 
 ## Earlier checkpoints
 
