@@ -219,13 +219,13 @@ export type PlayoutMediaKind = 'movie' | 'still' | 'audio';
 
 export interface PlayoutItem {
   id: string;
-  /** The system whose library owns the item. */
-  adapter: 'casparcg' | 'vmix';
+  /** The system whose library owns the item. Absent on older CasparCG records. */
+  adapter?: 'casparcg' | 'vmix';
   kind: 'template' | 'media';
   /** The server's own name: a template id as it lists templates, a clip name as it lists media. */
   name: string;
   /** The layer it plays on. A template takes the next free layer like a graphic does; a clip
-   *  plays on the shared clip layer below every graphic (PLAYOUT_CLIP_LAYER). */
+   *  plays on the shared clip layer below every graphic (PLAYOUT_CLIP_LAYER). vMix uses 0. */
   layer: number;
   /** ADDITIVE OPTIONAL. The CasparCG channel it plays on, picked in the cue editor from the
    *  channels the studio names in Settings -> Playout. Absent = the studio's GRAPHICS channel,
@@ -1239,11 +1239,12 @@ export function addPlayoutItems(
     if (!batch.length) return false;
     for (const item of batch) {
       const items = show.playoutItems ?? [];
-      let entry = items.find((i) => i.adapter === item.adapter && i.kind === item.kind && i.name === item.name);
+      let entry = items.find((i) => (i.adapter ?? 'casparcg') === (item.adapter ?? 'casparcg') && i.kind === item.kind && i.name === item.name);
       if (!entry) {
         // The output's layer is taken only on the output's own channel; no channel means that one.
         const avoid = output && (item.channel ?? output.channel) === output.channel ? output.layer : undefined;
-        entry = { ...item, id: uuid(), layer: item.layer ?? defaultItemLayer(item, show, items, avoid) };
+        entry = { ...item, id: uuid(), layer: item.adapter === 'vmix' ? 0 : item.layer ?? defaultItemLayer(item, show, items, avoid) };
+        if (item.adapter === 'vmix') delete entry.channel;
         show.playoutItems = [...items, entry];
       } else {
         if (item.fields && !entry.fields?.length) entry.fields = item.fields;
@@ -1276,7 +1277,7 @@ export const MAX_PLAYOUT_CHANNEL = 99;
 export function setPlayoutItemChannel(showId: string, itemId: string, channel: number): Show[] {
   return patchShow(showId, (show) => {
     const item = show.playoutItems?.find((i) => i.id === itemId);
-    if (!item || !Number.isInteger(channel) || channel < MIN_PLAYOUT_CHANNEL || channel > MAX_PLAYOUT_CHANNEL) return false;
+    if (!item || item.adapter === 'vmix' || !Number.isInteger(channel) || channel < MIN_PLAYOUT_CHANNEL || channel > MAX_PLAYOUT_CHANNEL) return false;
     item.channel = channel;
     return true;
   });
@@ -1301,7 +1302,7 @@ export function setPlayoutItemLoop(showId: string, itemId: string, loop: boolean
 export function setPlayoutItemMediaKind(showId: string, itemId: string, mediaKind: PlayoutMediaKind): Show[] {
   return patchShow(showId, (show) => {
     const item = show.playoutItems?.find((i) => i.id === itemId);
-    if (!item || item.kind !== 'media' || item.mediaKind === mediaKind) return false;
+    if (!item || item.adapter === 'vmix' || item.kind !== 'media' || item.mediaKind === mediaKind) return false;
     item.mediaKind = mediaKind;
     return true;
   });
@@ -1394,7 +1395,7 @@ export function setCueAuto(showId: string, cueId: string, auto: CueAuto | null):
 export function setPlayoutItemLayer(showId: string, itemId: string, layer: number): Show[] {
   return patchShow(showId, (show) => {
     const item = show.playoutItems?.find((i) => i.id === itemId);
-    if (!item) return false;
+    if (!item || item.adapter === 'vmix') return false;
     item.layer = Math.min(MAX_PLAYOUT_LAYER, Math.max(MIN_PLAYOUT_LAYER, Math.round(layer) || PLAYOUT_CLIP_LAYER));
     return true;
   });

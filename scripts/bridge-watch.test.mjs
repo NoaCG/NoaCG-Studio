@@ -9,7 +9,7 @@
 import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { startBridgeWatch, SLOT_READ_MS, FRESH_LOAD_MS, RECOVERY_WINDOW_MS } = await import('../src/control/bridgeWatch.ts');
+const { serverFilesKey, startBridgeWatch, SLOT_READ_MS, FRESH_LOAD_MS, RECOVERY_WINDOW_MS } = await import('../src/control/bridgeWatch.ts');
 const { createPlayoutSession, NO_BRIDGE } = await import('../src/control/playoutSession.ts');
 const { createServerPlayoutStore } = await import('../src/control/serverPlayoutStore.ts');
 const { loadReadyMemory, saveReadyMemory } = await import('../src/model/readyMemory.ts');
@@ -1810,4 +1810,41 @@ test('a recovery read in the same millisecond as the outage note still ends the 
   server.layer = EMPTY;
   await t.readSlot();
   assert.ok(!t.calls.includes('reload'), 'the CLEAR is never undone');
+});
+
+test('vMix file checks use relative parent folders and never learn from a CasparCG name match', async () => {
+  const name = 'Replays/Opening.mp4';
+  const caspar = vt('caspar', { name });
+  const vmix = vt('vmix', { name, adapter: 'vmix', layer: 0 });
+  const nested = vt('nested', { name: 'Alternate/Opening.mp4', adapter: 'vmix', layer: 0 });
+  const items = [caspar, vmix, nested];
+  const cues = items.map(item => cue('cue-' + item.id, item.id));
+  const r = rig({ items });
+  const oldRoot = Promise.withResolvers();
+  const paths = [];
+  let old = true;
+  r.io.listVmixMedia = async (_, path) => {
+    paths.push(path);
+    if (old) await oldRoot.promise;
+    return { result: OK, items: path === 'Replays' ? [{ name, kind: 'movie', frames: 100, fps: 25 }] : [] };
+  };
+  const update = mediaRev => r.update({
+    casparOn: false, vmixOn: true, vmixPairing: 'paired', mediaRev,
+    serverFiles: serverFilesKey('show-1', 'paired', cues, items, true, mediaRev),
+  });
+  update(0);
+  r.answer({ ...OK, features: ['state', 'vmix-media'] });
+  await tick();
+  old = false;
+  update(1);
+  await settle();
+  oldRoot.resolve();
+  await settle();
+  assert.deepEqual(new Set(paths), new Set(['Replays', 'Alternate']));
+  assert.deepEqual(r.take(), ['status'], 'no CasparCG file, status follow-up, or state route is used');
+  assert.equal(r.learnt.length, 1);
+  assert.deepEqual([...r.learnt[0][1]], [['vmix', { mediaKind: 'movie', frames: 100, fps: 25 }]]);
+  const current = r.session.bridge.get().serverFiles;
+  assert.equal(current.key, serverFilesKey('show-1', 'paired', cues, items, true, 1));
+  assert.match(current.check.label, /^Unavailable vMix files: Alternate\/Opening\.mp4$/);
 });

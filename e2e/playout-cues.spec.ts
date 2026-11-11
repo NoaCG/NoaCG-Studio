@@ -34,12 +34,14 @@
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
+// covers: src/components/PlayoutSettingsPanel.tsx
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor } from './_create';
 import { settleDurableWrites } from './_durable';
 import { evaluateInPage } from './_evaluate';
 import { parkFocusOffControls } from './_keys';
+import { fakeBridge as slotBridge, fakeVmix } from './_fakeBridge';
 
 // Cues over the PLAYOUT SERVER'S OWN LIBRARY (docs/BRIDGE.md §5): a template or a clip that
 // already lives on the CasparCG box, listed through NoaCG Bridge, added to the rundown beside
@@ -1152,4 +1154,145 @@ test('a re-take onto a channel the server refuses leaves nothing marked ON AIR, 
   ]);
   await expect(strap).not.toContainText('ON AIR');
   await expect(page.getByTestId('playout-on-air')).toHaveCount(0);
+});
+
+test('vMix media browses the selected folder and plays on separate clip and audio players', async ({ page }, info) => {
+  const folder = 'C:\\Videos';
+  const chosen = 'D:\\Show media';
+  const movie = 'Replays/Opening.mp4';
+  const sound = 'Sting.wav';
+  const vmix = fakeVmix(8, {
+    folder,
+    files: {
+      [folder]: {
+        '': [{ name: 'Replays', kind: 'folder' }, { name: sound, kind: 'audio', frames: 240000, fps: 48000 }],
+        Replays: [{ name: movie, kind: 'movie', frames: 250, fps: 25 }],
+      },
+      [chosen]: { '': [{ name: 'New clip.mov', kind: 'movie' }] },
+    },
+  });
+  const media = vmix.media!;
+  const bridge = await slotBridge(page, { vmix });
+  await seedSettings(page);
+  await productionPage(page);
+  const casparCueId = await evaluateInPage(page, async (name: string) => {
+    const { addPlayoutItem, loadShows } = await import('/src/model/shows.ts');
+    const show = loadShows().find(s => s.name === 'Evening News')!;
+    const { cueId } = addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'media', name, layer: 10, channel: 2 });
+    await new Promise(resolve => setTimeout(resolve));
+    return cueId;
+  }, movie);
+  await settleDurableWrites(page);
+  await page.getByTestId('production-status').click();
+  const panel = page.getByTestId('production-status-panel');
+  await panel.getByTestId('vmix-switch').click();
+  await expect(panel.getByTestId('vmix-switch')).toBeChecked();
+  await page.keyboard.press('Escape');
+
+  const oldCue = page.getByTestId('cue-' + casparCueId);
+  await oldCue.getByTestId('select-cue').click();
+  await expect(oldCue.getByTestId('cue-caspar-off')).toHaveAttribute('title', 'This cue plays on CasparCG. This production uses vMix.');
+  await expect(page.getByTestId('verb-take')).toBeDisabled();
+  await expect(page.getByTestId('playout-take-blocked')).toContainText('This production uses vMix.');
+  await parkFocusOffControls(page);
+  await page.keyboard.press('Space');
+  await page.keyboard.press('0');
+  expect(bridge.actions).toEqual([]);
+  expect(media.actions).toEqual([]);
+
+  const openPicker = async () => {
+    await page.getByTestId('rundown-add').click();
+    await page.getByTestId('menu-add-from-vmix').click();
+  };
+  await openPicker();
+  await expect(page.getByTestId('picker-templates')).toHaveCount(0);
+  await expect(page.getByTestId('picker-add-typed')).toHaveCount(0);
+  const root = page.getByTestId('picker-path').getByRole('button', { name: 'All media' });
+  await page.getByTestId('picker-folder').filter({ hasText: 'Replays' }).click();
+  const clip = page.getByTestId('picker-row').filter({ hasText: 'Opening.mp4' });
+  await expect(clip).toHaveAttribute('data-name', movie);
+  await page.screenshot({ path: info.outputPath('vmix-media-picker.png') });
+  await clip.getByTestId('picker-add').click();
+  await expect(page.getByTestId('picker-added')).toHaveText('Added 1 cue');
+  await root.click();
+  await page.getByTestId('picker-row').filter({ hasText: sound }).getByTestId('picker-add').click();
+  await expect(page.getByTestId('picker-added')).toHaveText('Added 1 cue');
+  await page.getByTestId('picker-done').click();
+
+  const saved = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const show = loadShows().find(s => s.name === 'Evening News')!;
+    return (show.playoutItems ?? []).map(item => ({ item, cueId: show.cues?.find(c => c.sourceId === item.id)?.id }));
+  });
+  const clips = saved.find(({ item }) => item.adapter === 'vmix' && item.name === movie)!;
+  const audio = saved.find(({ item }) => item.adapter === 'vmix' && item.name === sound)!;
+  expect(saved.filter(({ item }) => item.name === movie)).toHaveLength(2);
+  expect(clips.item).toMatchObject({ adapter: 'vmix', kind: 'media', layer: 0, mediaKind: 'movie', frames: 250, fps: 25 });
+  expect(audio.item).toMatchObject({ adapter: 'vmix', kind: 'media', layer: 0, mediaKind: 'audio' });
+  expect(clips.item).not.toHaveProperty('channel');
+  expect(audio.item).not.toHaveProperty('channel');
+  expect(media.paths).toContain('Replays');
+
+  const clipRow = page.getByTestId('cue-' + clips.cueId);
+  const audioRow = page.getByTestId('cue-' + audio.cueId);
+  await clipRow.getByTestId('select-cue').click();
+  await expect(page.getByTestId('playout-cue-where')).toContainText('NoaCG Clips');
+  await expect(page.getByTestId('playout-channel')).toHaveCount(0);
+  await expect(page.getByTestId('playout-layer')).toHaveCount(0);
+  await expect(page.getByTestId('clip-end-hold')).toBeEnabled();
+  await expect(page.getByTestId('clip-end-loop')).toBeEnabled();
+  await expect(page.getByTestId('clip-end-clear')).toBeDisabled();
+  await expect(page.getByTestId('clip-end-next')).toBeDisabled();
+  await page.screenshot({ path: info.outputPath('vmix-cue-editor.png') });
+  await page.getByTestId('verb-take').click();
+  await expect(clipRow).toContainText('ON AIR');
+  await page.getByTestId('playout-pause').click();
+  await expect.poll(() => media.actions.length).toBe(2);
+  await page.getByTestId('playout-resume').click();
+  await expect.poll(() => media.actions.length).toBe(3);
+
+  await audioRow.getByTestId('select-cue').click();
+  await expect(page.getByTestId('playout-cue-where')).toContainText('NoaCG Audio');
+  await page.getByTestId('verb-take').click();
+  await expect(audioRow).toContainText('ON AIR');
+  await expect(clipRow).toContainText('ON AIR');
+  await page.getByTestId('verb-out').click();
+  await expect(audioRow).not.toContainText('ON AIR');
+  await expect(clipRow).toContainText('ON AIR');
+  await clipRow.getByTestId('select-cue').click();
+  await page.getByTestId('verb-out').click();
+  await expect(clipRow).not.toContainText('ON AIR');
+  const player = (verb: string, slot: 'clips' | 'audio', name: string, cueId?: string) => ({
+    target: { adapter: 'vmix' },
+    action: { verb, slot: { adapter: 'vmix', player: slot }, item: { kind: 'media', name }, ...(cueId ? { cueId } : {}) },
+  });
+  expect(media.actions).toEqual([
+    player('take', 'clips', movie, clips.cueId),
+    player('pause', 'clips', movie),
+    player('resume', 'clips', movie),
+    player('take', 'audio', sound, audio.cueId),
+    player('out', 'audio', sound),
+    player('out', 'clips', movie),
+  ]);
+  expect(bridge.actions).toEqual([]);
+  expect(vmix.actions).toEqual([]);
+
+  await page.getByTestId('production-status').click();
+  await panel.getByTestId('panel-playout-settings').click();
+  const settings = page.getByTestId('playout-settings');
+  const mediaFolder = settings.getByTestId('vmix-media-folder');
+  const choose = settings.getByRole('button', { name: 'Choose folder…' });
+  await expect(mediaFolder).toHaveText(folder);
+  await choose.click();
+  await expect(choose).toBeEnabled();
+  await expect(mediaFolder).toHaveText(folder);
+  media.choice = chosen;
+  await choose.click();
+  await expect(mediaFolder).toHaveText(chosen);
+  expect(media.choices).toBe(2);
+  await page.screenshot({ path: info.outputPath('vmix-media-settings.png') });
+  await settings.getByTestId('playout-settings-close').click();
+  await openPicker();
+  await expect(page.getByTestId('picker-row')).toHaveText(/New clip\.mov/);
+  await page.getByTestId('picker-done').click();
 });

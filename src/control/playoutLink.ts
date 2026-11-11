@@ -27,7 +27,7 @@
 // so another browser or account paired with it opens with the same channels; the copy here is what
 // every surface reads, and the only one with an older Bridge.
 
-import { loadShows, productionPlayoutSystem, MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL, PLAYOUT_CLIP_LAYER, type ShowFolder } from '../model/shows';
+import { loadShows, productionPlayoutSystem, MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL, PLAYOUT_CLIP_LAYER, type PlayoutItem, type ShowFolder } from '../model/shows';
 import { DEFAULT_STUDIO, defaultChannelName, sameServer, sameStudio, studioFields, studioOf, studioStep } from './studioSetup';
 import {
   MAX_VMIX_OVERLAYS,
@@ -56,6 +56,7 @@ import {
   type VmixInfo,
   type VmixInput,
   type VmixOverlayState,
+  type VmixPlayerSlot,
   type VmixStateReply,
 } from './playoutProtocol';
 
@@ -233,7 +234,8 @@ export function folderSlot(s: PlayoutSettings, folder: Pick<ShowFolder, 'slot'>)
 }
 
 /** Where an item plays, as the protocol names it. */
-export function itemSlot(s: PlayoutSettings, item: { channel?: number; layer: number }): CasparSlot {
+export function itemSlot(s: PlayoutSettings, item: Pick<PlayoutItem, 'adapter' | 'channel' | 'layer' | 'mediaKind'>): CasparSlot | VmixPlayerSlot {
+  if (item.adapter === 'vmix') return { adapter: 'vmix', player: item.mediaKind === 'audio' ? 'audio' : 'clips' };
   return slotOf(s, item.layer, channelOf(s, item));
 }
 
@@ -363,6 +365,8 @@ export interface PlayoutResult {
   instance?: string;
   /** An accepted action that did not all go through: one sentence (plan §9, `ActReply.warning`). */
   warning?: string;
+  /** A dispatched vMix player action may have changed the player's selection. */
+  playerUncertain?: true;
 }
 
 /** Whether the page may ask this Bridge what the server holds: the Bridge reads state, and the
@@ -400,6 +404,8 @@ interface BridgeReply {
   linked?: VmixStateReply['linked'];
   overlays?: VmixOverlayState[];
   loadProblem?: string;
+  mediaFolder?: string;
+  cancelled?: true;
 }
 
 // A field added to a Bridge route must be classified here. Unknown additions stay compatible.
@@ -456,12 +462,12 @@ async function callBridge(
   bridgeUrl: string,
   path: string,
   body: Record<string, unknown> | null,
-  timeoutMs: number,
+  timeoutMs: number | undefined,
   token?: string,
   replyMode?: 'vmix',
 ): Promise<Call> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const timer = timeoutMs === undefined ? undefined : setTimeout(() => controller.abort(), timeoutMs);
   try {
     // A POST carries a JSON content type (and usually an Authorization header), and either
     // alone forces a CORS preflight - which is the point. The Bridge refuses the preflight for
@@ -1013,6 +1019,7 @@ export interface VmixConnection {
   /** Undefined when this request could not establish the pairing's advertised capabilities. */
   supported?: boolean;
   keyed: boolean;
+  media?: boolean;
   result?: PlayoutResult;
   info?: VmixInfo;
 }
@@ -1039,7 +1046,7 @@ async function probeVmix(bridgeUrl: string): Promise<VmixHealth> {
         hasOnlyPayloadFields(body, ['agent', 'version', 'adapters', 'features']) &&
         Array.isArray(adapters) && adapters.every(adapter => typeof adapter === 'string') &&
         (features === undefined || (Array.isArray(features) && features.every(feature => typeof feature === 'string'))) &&
-        (adapters.includes('vmix') || !features?.includes('vmix-output-key'))) {
+        (adapters.includes('vmix') || !features?.some(feature => feature === 'vmix-output-key' || feature === 'vmix-media'))) {
         return { kind: 'current', adapters, features: features ?? [] };
       }
     }
@@ -1083,9 +1090,12 @@ function validVmixError(route: VmixRoute, http: number, error: AgentError | unde
   if (error.hop === 'target') {
     return error.code === 'refused' || error.code === 'unreachable' || (route === '/act' && error.code === 'uncertain');
   }
+  if (route === '/studio' || route === '/vmix/choose-folder') {
+    return error.hop === 'agent' && ['refused', 'uncertain', 'unreachable'].includes(error.code);
+  }
   return error.hop === 'agent' &&
     ((error.code === 'usage' && (route === '/state' || route === '/act')) ||
-      (error.code === 'unsupported' && route === '/act'));
+      (error.code === 'unsupported' && (route === '/act' || route === '/list')));
 }
 
 function vmixOverlayRows(overlays: VmixOverlayState[] | undefined, info: VmixInfo, loadProblem?: string) {
@@ -1133,6 +1143,9 @@ const vmixReplyFields = {
   '/connect': ['version', 'raw', 'capabilities', 'vmix', 'servers'],
   '/state': ['vmix', 'session', 'observedAt', 'linked', 'overlays', 'players', 'loadProblem'],
   '/act': ['raw', 'generation', 'session', 'warning', 'instance'],
+  '/list': ['items'],
+  '/studio': ['mediaFolder'],
+  '/vmix/choose-folder': ['mediaFolder', 'cancelled'],
 } as const satisfies Record<string, readonly BridgePayloadField[]>;
 
 type VmixRoute = keyof typeof vmixReplyFields;
@@ -1140,9 +1153,11 @@ type VmixActionResult = PlayoutResult & { unknownAction?: true; browserAdded?: t
 
 /** vMix output controls depend on an observed result, so validate this adapter's wire replies. */
 function readVmixReply(
-  settings: PlayoutSettings, call: Call, route: VmixRoute, loading = false,
+  settings: PlayoutSettings, call: Call, route: VmixRoute, loading = false, player = false,
 ): PlayoutReply & { result: VmixActionResult } {
-  const unknownAction = 'The vMix action result is unknown. Check the overlay before trying again.';
+  const unknownAction = player
+    ? 'The vMix action result is unknown. Check the player before trying again.'
+    : 'The vMix action result is unknown. Check the overlay before trying again.';
   if (!('http' in call)) {
     const { result } = readReply(settings, call, 'vMix');
     return { result: route === '/act' ? { ...result, detail: `${result.detail} ${unknownAction}`, unknownAction: true } : result };
@@ -1165,7 +1180,12 @@ function readVmixReply(
     if (route === '/act') {
       if (nonblank(body.raw) && whole(body.generation, 0) && nonblank(body.session) &&
         (body.warning === undefined || typeof body.warning === 'string') &&
-        (body.instance === undefined || nonblank(body.instance))) return readReply(settings, call, 'vMix');
+        (body.instance === undefined || (nonblank(body.instance) && (!player || body.instance.startsWith(body.session + '.')))) &&
+        (!player || !loading || body.instance !== undefined)) return readReply(settings, call, 'vMix');
+    } else if (route === '/list') {
+      if (Array.isArray(body.items)) return readReply(settings, call, 'vMix');
+    } else if (route === '/studio' || route === '/vmix/choose-folder') {
+      if (nonblank(body.mediaFolder) && (body.cancelled === undefined || body.cancelled === true)) return readReply(settings, call, 'vMix');
     } else if (route === '/state') {
       if (validVmixInfo(body.vmix) && nonblank(body.session) && whole(body.observedAt, 0) &&
         validVmixLinks(body.linked, body.vmix.overlays) && (body.loadProblem === undefined || nonblank(body.loadProblem))) {
@@ -1196,7 +1216,10 @@ export async function testVmix(settings: PlayoutSettings, reconnect = false): Pr
   const route = reconnect ? '/connect' : '/status';
   const call = await callBridge(settings.agentUrl, route, { target: vmixTarget }, ACT_TIMEOUT_MS, settings.agentToken, 'vmix');
   const { result, body } = readVmixReply(settings, call, route);
-  return { supported: true, keyed: features.includes('vmix-output-key'), result, info: result.state === 'ok' ? body?.vmix : undefined };
+  return {
+    supported: true, keyed: features.includes('vmix-output-key'), media: features.includes('vmix-media'),
+    result: { ...result, features }, info: result.state === 'ok' ? body?.vmix : undefined,
+  };
 }
 
 export async function readVmixOverlays(settings: PlayoutSettings, outputUrl: string): Promise<{
@@ -1225,6 +1248,67 @@ export async function actVmix(
     settings.agentUrl, '/act', { target: vmixTarget, action }, ACT_TIMEOUT_MS, VMIX_OUTPUT_TOKEN_PREFIX + settings.agentToken, 'vmix',
   );
   return readVmixReply(settings, call, '/act', loading).result;
+}
+
+export const VMIX_MEDIA_FOLDER_CHANGED = 'noacg-vmix-media-folder';
+
+export function vmixPairing(settings: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'>): string {
+  return JSON.stringify([settings.agentUrl, settings.agentToken]);
+}
+
+/** The media capability belongs to the paired Bridge. Listing and folder setup need no mixer. */
+async function vmixMediaRoute(settings: PlayoutSettings, route: '/list' | '/studio' | '/vmix/choose-folder', fields: RequestFields = {}) {
+  const call = await callBridge(settings.agentUrl, route, { target: vmixTarget, ...fields },
+    route === '/vmix/choose-folder' ? undefined : LIST_TIMEOUT_MS, settings.agentToken, 'vmix');
+  return readVmixReply(settings, call, route);
+}
+
+export async function listVmixMedia(settings: PlayoutSettings, path = ''): Promise<{ result: PlayoutResult; items?: ListItem[] }> {
+  const { result, body } = await vmixMediaRoute(settings, '/list', { kind: 'media', ...(path ? { path } : {}) });
+  if (!body?.items || result.state !== 'ok') return { result };
+  const prefix = path ? path + '/' : '';
+  const items = body.items.filter(item => {
+    if (!item || typeof item.name !== 'string' || !item.name.startsWith(prefix)) return false;
+    const leaf = item.name.slice(prefix.length);
+    return !!leaf.trim() && leaf !== '.' && leaf !== '..' && !/[/\\:*?"<>|]/.test(leaf) &&
+      ['folder', 'movie', 'still', 'audio'].includes(item.kind);
+  });
+  return { result, items };
+}
+
+export async function vmixMediaFolder(settings: PlayoutSettings, choose = false): Promise<{
+  result: PlayoutResult; folder?: string; cancelled?: true;
+}> {
+  const { result, body } = await vmixMediaRoute(settings, choose ? '/vmix/choose-folder' : '/studio');
+  if (result.state !== 'ok') return { result };
+  if (typeof window !== 'undefined' && choose && !body?.cancelled && vmixPairing(settings) === vmixPairing(loadPlayoutSettings())) {
+    window.dispatchEvent(new Event(VMIX_MEDIA_FOLDER_CHANGED));
+  }
+  return { result, folder: body?.mediaFolder, cancelled: body?.cancelled };
+}
+
+/** A player uses the normal paired token and rechecks the dispatch condition after the probe. */
+export async function actVmixMedia(
+  settings: PlayoutSettings, action: PlayoutAction, canSend: () => boolean,
+): Promise<PlayoutResult | null> {
+  if (!canSend()) return null;
+  const health = await probeVmix(settings.agentUrl);
+  if (!canSend()) return null;
+  if (health.kind !== 'current') return health.result;
+  if (!health.adapters.includes('vmix') || !health.features.includes('vmix-media')) {
+    return { state: 'outdated', detail: 'Update NoaCG Bridge to play vMix media.' };
+  }
+  if (action.slot.adapter !== 'vmix' || !('player' in action.slot)) {
+    return { state: 'config', detail: 'This cue has no vMix player.' };
+  }
+  const call = await callBridge(settings.agentUrl, '/act', { target: vmixTarget, action }, ACT_TIMEOUT_MS, settings.agentToken, 'vmix');
+  const { result } = readVmixReply(settings, call, '/act', action.verb === 'take', true);
+  // vMix can refuse cleanup after the requested clip has started. A failed dispatched action
+  // cannot authorize transport on the previous cue without a fresh accepted Take.
+  if (result.state !== 'ok' && (!('http' in call) || (call.http !== 401 && call.http !== 403))) {
+    return { ...result, playerUncertain: true };
+  }
+  return result;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1287,11 +1371,14 @@ export function subscribeTargetStatus(
   settings: PlayoutSettings,
   onStatus: (result: PlayoutResult) => void,
   intervalMs = 3000,
+  adapter: 'casparcg' | 'vmix' = 'casparcg',
 ): () => void {
   let alive = true;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const tick = async () => {
-    const result = await testConnection(settings);
+    const result = adapter === 'vmix'
+      ? (await testVmix(settings)).result ?? { state: 'outdated' as const, detail: 'Update NoaCG Bridge to play vMix media.' }
+      : await testConnection(settings);
     if (!alive) return;
     onStatus(result);
     timer = setTimeout(() => void tick(), intervalMs);

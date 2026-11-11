@@ -15,7 +15,7 @@ import type { PlayoutAction } from './playoutProtocol';
 import type { ServerPlayoutStore } from './serverPlayoutStore';
 import type { TakeContext } from './takeBlockers';
 import { folderRun, runServerVerb, sequenceAction, sequenceMembers, type SequenceMember, type ServerVerb, type ServerVerbOutcome } from './serverPlayout.ts';
-import { applyAccepted } from './serverState.ts';
+import { applyAccepted, applyClearedSlot } from './serverState.ts';
 import { slotAddress } from './playoutSlots.ts';
 import { effectiveEnd, segmentSeconds } from './cuePlayback.ts';
 
@@ -49,6 +49,39 @@ export interface ServerVerbIntent {
   /** The Bridge reads the server (control/playoutLink.ts `stateReadable`). */
   readable: boolean;
   rundown: Pick<TakeContext, 'cues' | 'items' | 'folders' | 'members' | 'places' | 'itemOf' | 'slots'>;
+}
+
+/** The Bridge's player transport affects its current selection, without a cue-instance check.
+ * Keep local commands ordered and check that the accepted cue at the press still owns the player. */
+export function runVmixAndRecord(
+  store: ServerPlayoutStore,
+  io: ServerVerbIo,
+  intent: ServerVerbIntent,
+  current: () => boolean,
+): Promise<ServerVerbOutcome> {
+  const { item, cue, verb, label } = intent;
+  const settings = io.loadSettings();
+  const slot = intent.rundown.slots.itemSlot(settings, item);
+  const refused = (reason: string): ServerVerbOutcome => ({ ok: false, note: `${label} was not sent: ${reason}`, accepted: [] });
+  if (slot.adapter !== 'vmix' || !('player' in slot)) return Promise.resolve(refused('This cue has no vMix player.'));
+  if (verb === 'update' || verb === 'next') return Promise.resolve(refused('This control is unavailable for vMix media.'));
+  const expected = store.ownership.get().onAir[item.id];
+  const owns = () => verb === 'take' || (!!expected && expected.cueId === cue.id && store.ownership.get().onAir[item.id] === expected);
+  return store.runVmix(slot.player, () => {
+    if (!current()) return Promise.resolve(refused('The vMix connection changed.'));
+    if (!owns()) return Promise.resolve(refused('This cue is no longer on its vMix player.'));
+    return runAndRecord(store, {
+      ...io,
+      loadSettings: () => settings,
+      act: async (sendSettings, action) => {
+        if (!current() || !owns()) return { state: 'config', detail: 'This vMix action was cancelled.' };
+        const result = await io.act(sendSettings, action);
+        if (!current()) return { state: 'config', detail: 'The vMix connection changed.' };
+        if (result.playerUncertain) store.apply(parts => applyClearedSlot(parts, { slot }));
+        return result;
+      },
+    }, intent);
+  });
 }
 
 /**
@@ -131,7 +164,7 @@ export async function runAndRecord(
         itemId: item.id,
         cueId: cue.id,
         // The take's own count until the server's first reading: the part of the file it plays.
-        length: segmentSeconds(first.cue, item),
+        length: item.adapter === 'vmix' ? undefined : segmentSeconds(first.cue, item),
         loop: effectiveEnd(first.cue, item) === 'loop',
         // What this take sent for its end, which the clock says until the next Take.
         end: effectiveEnd(first.cue, item),

@@ -30,10 +30,12 @@ import {
   itemSlot,
   loadPlayoutSettings,
   playoutConfigured,
+  vmixPairing,
   slotAddress,
   type PlayoutSettings,
 } from '../../control/playoutLink';
 import type { LiveCueMap } from '../../control/hostedControl';
+import { casparOffRefusal } from '../../control/takeBlockers';
 import { serverCueLive, THROUGH_END, type ThroughRole } from '../../control/serverPlayout';
 import type { ServerOwnership, ServerTiming, StorePart } from '../../control/serverPlayoutStore';
 import { namesItem } from '../../control/serverState';
@@ -142,6 +144,8 @@ export default function CueRundown({
   started,
   casparOn,
   vmixOn,
+  vmixMediaReady,
+  vmixMediaRev,
   unsentOnAir,
   serverOwnership,
   serverTiming,
@@ -213,6 +217,8 @@ export default function CueRundown({
    *  "CasparCG off" and cannot be taken. */
   casparOn: boolean;
   vmixOn?: boolean;
+  vmixMediaReady?: boolean;
+  vmixMediaRev?: number;
   /** The ON-AIR cues edited since they were sent (the editor's "not on air yet", said on the row). */
   unsentOnAir: ReadonlySet<string>;
   /** What this page put up on the playout server, and what the server says besides. Read-only. */
@@ -511,6 +517,8 @@ export default function CueRundown({
     ...(casparOn ? [
       { id: 'add-from-server', label: 'CasparCG files…', help: playoutConfigured(playoutSettings) ? undefined : 'Set up NoaCG Bridge in Playout settings.', disabled: !playoutConfigured(playoutSettings), footer: true, run: () => openMedia() },
       { id: 'add-audio', label: 'Audio / effect…', help: 'A sound-only cue on its own audio layer.', disabled: !playoutConfigured(playoutSettings), footer: false, run: () => openMedia('audio') },
+    ] : vmixMediaReady ? [
+      { id: 'add-from-vmix', label: 'From vMix…', help: undefined, disabled: false, footer: true, run: () => openMedia() },
     ] : []),
     { id: 'add-folder', label: 'Folder from selected cues', help: undefined, disabled: !folderCueIds.length, footer: false, run: () => void newFolder(folderCueIds) },
   ];
@@ -553,10 +561,11 @@ export default function CueRundown({
             <div role="separator" className="pd-setup-sep" />
             <button role="menuitem" disabled={refreshing} onClick={pickAdd(() => void refreshRundown())} data-testid="rundown-refresh">{refreshing ? 'Refreshing…' : 'Refresh rundown'}</button>
           </LibMenu>
-          {playoutConfigured(playoutSettings) && <PlayoutItemPicker
+          {(vmixOn ? vmixMediaReady : playoutConfigured(playoutSettings)) && <PlayoutItemPicker
             // Named media shortcuts start on their own tab each time they open.
-            key={pickerMedia ? `${pickerMedia}-${pickerOpen}` : 'all'}
+            key={vmixOn ? JSON.stringify([vmixPairing(playoutSettings), vmixMediaRev, pickerOpen]) : pickerMedia ? `${pickerMedia}-${pickerOpen}` : 'all'}
             open={pickerOpen}
+            vmix={vmixOn}
             mediaFilter={pickerMedia}
             triggerRef={serverPick}
             onClose={() => setPickerOpen(false)}
@@ -567,7 +576,7 @@ export default function CueRundown({
               const settings = loadPlayoutSettings();
               const { shows: next, cueIds, error: writeError } = addPlayoutItems(
                 show.id,
-                items.map(item => ({ adapter: 'casparcg', ...item, channel: defaultChannelFor(settings, item.kind) })),
+                items.map(item => vmixOn ? { ...item, adapter: 'vmix' } : { ...item, adapter: 'casparcg', channel: defaultChannelFor(settings, item.kind) }),
                 { output: { channel: settings.channel, layer: settings.layer } },
               );
               setShows(next);
@@ -663,6 +672,8 @@ export default function CueRundown({
           const cueGraphic = cueGraphicName(cue);
           const poolEntry = graphicByPoolId.get(cue.sourceId);
           const playoutItem = playoutItemFor(cue);
+          const vmixItem = playoutItem?.adapter === 'vmix';
+          const adapterOff = playoutItem ? casparOffRefusal(cue, casparOn, vmixOn, playoutItem) : null;
           const cueIsLive = liveIds.has(cue.id);
           // ON AIR ONLY WHEN IT IS, as the program monitor says it (studio-day-playout AC-9): a server
           // cue plays through NoaCG Bridge whether or not the production is started (D16), a graphic
@@ -698,7 +709,7 @@ export default function CueRundown({
           const carrier = `${playoutSettings.channel}-${playoutSettings.layer}`;
           const graphicBadge = casparOn ? `${carrier} · G${layer}` : `G${layer}`;
           const graphicRouteHelp = `NoaCG graphic layer ${layer}${casparOn ? `; CasparCG ${carrier}` : ''}`;
-          const routeTone = routeColor(show.rundownColors, playoutItem ? channelOfCue(cue) : undefined);
+          const routeTone = routeColor(show.rundownColors, playoutItem && !vmixItem ? channelOfCue(cue) : undefined);
           // THE DIM SUMMARY after the name: what tells two cues of one graphic apart at a glance -
           // a graphic's first words ("Alexandra Riva"), a server item's own name. A graphic with
           // no words (a logo, a picture) falls back to its name, as the old second line did.
@@ -892,9 +903,9 @@ export default function CueRundown({
                 <span className="pd-tag miss" title={miss} aria-label={`Not taken: ${miss}`} data-testid="cue-take-miss">
                   NOT TAKEN
                 </span>
-              ) : playoutItem && !casparOn ? (
-                <span className="pd-tag off" title={vmixOn ? 'This cue plays on CasparCG. This production uses vMix.' : 'Switch CasparCG on in the Playout panel to take this cue.'} data-testid="cue-caspar-off">
-                  CasparCG off
+              ) : adapterOff ? (
+                <span className="pd-tag off" title={adapterOff} data-testid={vmixItem ? 'cue-vmix-off' : 'cue-caspar-off'}>
+                  {vmixItem ? 'vMix off' : 'CasparCG off'}
                 </span>
               ) : isPreviewed ? (
                 <span className="pd-tag pvw">PVW</span>
@@ -945,7 +956,8 @@ export default function CueRundown({
                   title={
                     through
                       ? `${playoutItem.name} plays on ${address}, the slot of ${folderName(through.folder)}`
-                      : `${playoutItem.name} plays on the playout server, ${channelTitle(playoutSettings, channelOf(playoutSettings, playoutItem))}, layer ${playoutItem.layer}`
+                      : vmixItem ? `${playoutItem.name} plays on ${address}`
+                        : `${playoutItem.name} plays on the playout server, ${channelTitle(playoutSettings, channelOf(playoutSettings, playoutItem))}, layer ${playoutItem.layer}`
                   }
                   data-testid="cue-layer"
                 >

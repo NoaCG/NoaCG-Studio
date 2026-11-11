@@ -11,7 +11,7 @@
 
 import type { PlayoutItem, ShowCue, ShowFolder } from '../model/shows';
 import type { PlayoutSettings } from './playoutLink';
-import type { Slot } from './playoutProtocol';
+import type { CasparSlot, Slot } from './playoutProtocol';
 import type { PlaybackAbility } from './cuePlayback';
 import type { ServerOwnership } from './serverState';
 import { folderMode } from '../model/showFolders.ts';
@@ -22,8 +22,8 @@ import { effectiveEnd } from './cuePlayback.ts';
 
 /** Where an item, and a Play-through folder, play by the settings given (control/playoutLink.ts). */
 export interface SlotRules {
-  itemSlot: (settings: PlayoutSettings, item: { channel?: number; layer: number }) => Slot;
-  folderSlot: (settings: PlayoutSettings, folder: Pick<ShowFolder, 'slot'>) => Slot;
+  itemSlot: (settings: PlayoutSettings, item: PlayoutItem) => Slot;
+  folderSlot: (settings: PlayoutSettings, folder: Pick<ShowFolder, 'slot'>) => CasparSlot;
 }
 
 /** One render's facts, as the page holds them. */
@@ -72,10 +72,13 @@ const addressOf = (ctx: TakeContext) => (i: PlayoutItem) => slotAddress(ctx.slot
 /** A native cue is not taken while the production's CasparCG switch is off (AC-4): the one place
  *  that says so, read by the TAKE button's title, the cue editor, a One-by-one step and the send.
  *  An All-together folder still takes its other cues and marks such a member NOT TAKEN. */
-export const casparOffRefusal = (cue: ShowCue, casparOn: boolean, vmixOn = false): string | null =>
-  cue.source === 'playout' && !casparOn
-    ? vmixOn ? 'This cue plays on CasparCG. This production uses vMix.' : 'CasparCG is off for this production.'
-    : null;
+export function casparOffRefusal(cue: ShowCue, casparOn: boolean, vmixOn = false, item?: PlayoutItem | null): string | null {
+  if (cue.source !== 'playout') return null;
+  if (item?.adapter === 'vmix') {
+    return vmixOn ? null : casparOn ? 'This cue plays on vMix. This production uses CasparCG.' : 'Choose vMix in the Playout panel to take this cue.';
+  }
+  return casparOn ? null : vmixOn ? 'This cue plays on CasparCG. This production uses vMix.' : 'CasparCG is off for this production.';
+}
 
 /**
  * WHERE A TAKE OF THIS CUE - OR THIS FOLDER - LANDS on the server: one plan per slot it plays on,
@@ -130,8 +133,14 @@ export const takePlans = (target: ShowCue | ShowFolder, ctx: TakeContext): { slo
  */
 export const takeBlockerFor = (target: ShowCue | ShowFolder | null, ctx: TakeContext): string | null => {
   if (!target) return null;
-  const off = 'source' in target ? casparOffRefusal(target, ctx.casparOn, ctx.vmixOn) : null;
+  const off = 'sourceId' in target ? casparOffRefusal(target, ctx.casparOn, ctx.vmixOn, ctx.itemOf(target)) : null;
   if (off) return off;
+  if (ctx.vmixOn && !('sourceId' in target) && folderMode(target) === 'through') {
+    for (const cue of ctx.members.get(target.id) ?? []) {
+      const reason = casparOffRefusal(cue, ctx.casparOn, ctx.vmixOn, ctx.itemOf(cue));
+      if (reason) return `${cue.label}: ${reason}`;
+    }
+  }
   const candidate = selectionRefusal(target, ctx);
   if (candidate) return candidate;
   const plans = takePlans(target, ctx);
@@ -154,9 +163,9 @@ export const takeBlockerFor = (target: ShowCue | ShowFolder | null, ctx: TakeCon
  *  The output slot is judged by `settings` as they stand at the press, which the page reads then. */
 export const directBlocker = (cue: ShowCue, ctx: TakeContext, settings: PlayoutSettings): string | null => {
   if (cue.source !== 'playout') return !ctx.graphicOf(cue)?.name ? `${cue.label} has no graphic.` : selectionRefusal(cue, ctx);
-  const off = casparOffRefusal(cue, ctx.casparOn, ctx.vmixOn);
-  if (off) return off;
   const item = ctx.itemOf(cue);
+  const off = casparOffRefusal(cue, ctx.casparOn, ctx.vmixOn, item);
+  if (off) return off;
   if (!item) return `${cue.label} has no media file.`;
   const addressOfItem = addressOf(ctx);
   return outputSlotRefusal(slotAddress(ctx.slots.itemSlot(settings, item)), settings) ?? takeBlocker(cue, [cue], ctx.items, addressOfItem, ctx.ability, [], ctx.graphicOf);

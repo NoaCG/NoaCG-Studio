@@ -11,7 +11,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { LOCAL_SAVE_HEAD_START_MS, runAndRecord } = await import('../src/control/serverVerbs.ts');
+const { LOCAL_SAVE_HEAD_START_MS, runAndRecord, runVmixAndRecord } = await import('../src/control/serverVerbs.ts');
 const { throughPlaces } = await import('../src/control/serverPlayout.ts');
 const { rundownView } = await import('../src/model/rundownRows.ts');
 const { createServerPlayoutStore } = await import('../src/control/serverPlayoutStore.ts');
@@ -274,4 +274,92 @@ test('a folder whose run cannot be played is not sent, and says why', async () =
   assert.match(outcome.note, /^Take of Opening was not sent: .+/);
   assert.deepEqual(h.sent, []);
   assert.deepEqual(h.log, ['flush', 'settings']);
+});
+
+const vmixSlot = player => ({ adapter: 'vmix', player });
+
+function vmixRig() {
+  const clips = vt('clip', { adapter: 'vmix', name: 'clip.mov' });
+  const audio = vt('audio', { adapter: 'vmix', name: 'audio.wav', mediaKind: 'audio' });
+  const a = cue('a', clips.id);
+  const b = cue('b', clips.id);
+  const sound = cue('sound', audio.id);
+  const rundown = rundownOf([a, b, sound], [clips, audio]);
+  rundown.slots = { ...SLOTS, itemSlot: (_, item) => vmixSlot(item.mediaKind === 'audio' ? 'audio' : 'clips') };
+  const h = harness();
+  h.store.bindVmix('paired');
+  const press = (c, verb) => {
+    const binding = h.store.vmixBinding();
+    return runVmixAndRecord(h.store, h.io, intentOf(rundown, c, verb), () => h.store.vmixBinding() === binding);
+  };
+  // Independent reference state. The mixer verbs affect its current selection by player.
+  // The expected call list and accepted page ownership are checked separately.
+  const selected = new Map();
+  const sent = [];
+  let count = 0;
+  const accept = action => {
+    sent.push([action.slot.player, action.verb, action.cueId]);
+    if (action.verb === 'take') selected.set(action.slot.player, action.cueId);
+    if (action.verb === 'out') selected.delete(action.slot.player);
+    return { state: 'ok', detail: 'accepted', generation: ++count, session: 'mix', instance: 'mix.' + count };
+  };
+  h.io.act = async (_, action) => accept(action);
+  return { h, a, b, sound, clips, audio, press, accept, selected, sent };
+}
+
+test('vMix transport for an old cue sends nothing after a pending Take replaces its player', async () => {
+  for (const verb of ['out', 'pause', 'resume']) {
+    const r = vmixRig();
+    assert.equal((await r.press(r.a, 'take')).ok, true);
+    const started = Promise.withResolvers();
+    const reply = Promise.withResolvers();
+    r.h.io.act = async (_, action) => {
+      if (action.cueId === 'b') {
+        started.resolve();
+        await reply.promise;
+      }
+      return r.accept(action);
+    };
+    const replacing = r.press(r.b, 'take');
+    await started.promise;
+    const stale = r.press(r.a, verb);
+    assert.equal((await r.press(r.sound, 'take')).ok, true, 'the audio player has a separate turn');
+    reply.resolve();
+    assert.equal((await replacing).ok, true);
+    assert.equal((await stale).ok, false, verb);
+    assert.deepEqual(r.sent, [['clips', 'take', 'a'], ['audio', 'take', 'sound'], ['clips', 'take', 'b']]);
+    assert.deepEqual([...r.selected].sort(), [['audio', 'sound'], ['clips', 'b']]);
+    assert.equal(r.h.store.ownership.get().onAir[r.clips.id].cueId, 'b');
+    assert.equal(r.h.store.ownership.get().onAir[r.audio.id].cueId, 'sound');
+  }
+});
+
+test('vMix discards old playback ownership after a partial failure or pairing change', async () => {
+  const r = vmixRig();
+  await r.press(r.a, 'take');
+  await r.press(r.sound, 'take');
+  r.h.io.act = async (_, action) => {
+    r.accept(action);
+    return { state: 'server', detail: 'cleanup was refused after the new clip started', playerUncertain: true };
+  };
+  assert.equal((await r.press(r.b, 'take')).ok, false);
+  assert.equal(r.selected.get('clips'), 'b', 'the failed request changed the fake mixer');
+  assert.deepEqual(Object.keys(r.h.store.ownership.get().onAir), [r.audio.id]);
+  assert.equal((await r.press(r.a, 'out')).ok, false);
+  assert.equal(r.sent.length, 3);
+  const started = Promise.withResolvers();
+  const reply = Promise.withResolvers();
+  r.h.io.act = async (_, action) => {
+    const result = r.accept(action);
+    started.resolve();
+    await reply.promise;
+    return result;
+  };
+  const old = r.press(r.b, 'take');
+  await started.promise;
+  r.h.store.bindVmix('another pairing');
+  r.h.store.bindVmix('paired');
+  reply.resolve();
+  assert.equal((await old).ok, false);
+  assert.deepEqual(r.h.store.ownership.get().onAir, {});
 });

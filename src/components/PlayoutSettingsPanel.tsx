@@ -18,6 +18,9 @@ import {
   targetOf,
   testConnection,
   testVmix,
+  vmixMediaFolder,
+  vmixPairing,
+  VMIX_MEDIA_FOLDER_CHANGED,
   type VmixConnection,
   type PlayoutChannel,
   type PlayoutResult,
@@ -581,7 +584,7 @@ export default function PlayoutSettingsPanel({ outputUrl, canPutOutputOnAir, onO
 /** App-wide vMix setup is local to this browser. The Bridge supplies the available channels. */
 export function VmixSettings({ agentUrl, agentToken }: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'>) {
   if (!bridgePaired({ agentUrl, agentToken })) return null;
-  return <VmixSettingsForPairing key={JSON.stringify([agentUrl, agentToken])} agentUrl={agentUrl} agentToken={agentToken} />;
+  return <VmixSettingsForPairing key={vmixPairing({ agentUrl, agentToken })} agentUrl={agentUrl} agentToken={agentToken} />;
 }
 
 function VmixSettingsForPairing({ agentUrl, agentToken }: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'>) {
@@ -590,6 +593,15 @@ function VmixSettingsForPairing({ agentUrl, agentToken }: Pick<PlayoutSettings, 
   const [checking, setChecking] = useState(false);
   const [settings, setSettings] = useState(loadPlayoutSettings);
   const request = useRef(0);
+  const mediaRead = useRef(0);
+  const mounted = useRef(false);
+  const [mediaFolder, setMediaFolder] = useState<string>();
+  const [mediaProblem, setMediaProblem] = useState<string>();
+  const [choosing, setChoosing] = useState(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   useEffect(() => {
     const current = ++request.current;
     const now = { ...loadPlayoutSettings(), agentUrl, agentToken };
@@ -600,6 +612,36 @@ function VmixSettingsForPairing({ agentUrl, agentToken }: Pick<PlayoutSettings, 
     });
     return () => { request.current += 1; };
   }, [agentUrl, agentToken, retry]);
+  const media = connection?.media === true;
+  useEffect(() => {
+    if (!media) return;
+    const pairing = { ...loadPlayoutSettings(), agentUrl, agentToken };
+    const read = () => {
+      const revision = ++mediaRead.current;
+      void vmixMediaFolder(pairing).then(reply => {
+        if (mediaRead.current !== revision || vmixPairing(pairing) !== vmixPairing(loadPlayoutSettings())) return;
+        if (reply.folder) setMediaFolder(reply.folder);
+        else setMediaProblem(reply.result.detail);
+      });
+    };
+    read();
+    window.addEventListener(VMIX_MEDIA_FOLDER_CHANGED, read);
+    return () => {
+      mediaRead.current += 1;
+      window.removeEventListener(VMIX_MEDIA_FOLDER_CHANGED, read);
+    };
+  }, [agentUrl, agentToken, media, retry]);
+  const chooseFolder = async () => {
+    mediaRead.current += 1;
+    setChoosing(true);
+    setMediaProblem(undefined);
+    const pairing = { ...loadPlayoutSettings(), agentUrl, agentToken };
+    const reply = await vmixMediaFolder(pairing, true);
+    if (!mounted.current || vmixPairing(pairing) !== vmixPairing(loadPlayoutSettings())) return;
+    if (reply.folder) setMediaFolder(previous => reply.cancelled ? previous ?? reply.folder : reply.folder);
+    else setMediaProblem(reply.result.detail);
+    setChoosing(false);
+  };
   if (!connection?.supported) return null;
   const info = connection.info;
   const overlay = info && vmixOverlay(settings, info.overlays);
@@ -633,6 +675,22 @@ function VmixSettingsForPairing({ agentUrl, agentToken }: Pick<PlayoutSettings, 
           <button type="button" disabled={checking} onClick={() => { setChecking(true); setRetry(n => n + 1); }}>
             {checking ? 'Connecting…' : 'Try again'}
           </button>
+        </>
+      )}
+      {media && (
+        <>
+          <div className="dlg-rows">
+            <div className="dlg-row">
+              <span>Media folder</span>
+              <div>
+                {mediaFolder && <p className="hint" data-testid="vmix-media-folder">{mediaFolder}</p>}
+                <button type="button" data-testid="vmix-choose-folder" disabled={choosing} onClick={() => void chooseFolder()}>
+                  {choosing ? 'Choosing folder…' : 'Choose folder…'}
+                </button>
+              </div>
+            </div>
+          </div>
+          {mediaProblem && <p className="status-bad" role="status">{mediaProblem}</p>}
         </>
       )}
     </section>

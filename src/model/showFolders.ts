@@ -147,8 +147,11 @@ export function settleFolders<T extends FolderMember, F extends Pick<ShowFolder,
  */
 export function throughRefusal(
   cue: Pick<ShowCue, 'label' | 'source' | 'sourceId'>,
-  items: readonly Pick<PlayoutItem, 'id' | 'kind' | 'mediaKind'>[],
+  items: readonly Pick<PlayoutItem, 'id' | 'adapter' | 'kind' | 'mediaKind'>[],
 ): string | null {
+  if (cue.source === 'playout' && items.some(item => item.id === cue.sourceId && item.adapter === 'vmix')) {
+    return `${cue.label} plays on vMix. Choose One by one or All together for this folder.`;
+  }
   const what = throughMisfit(cue, items);
   return what ? `${cue.label} is ${what}, and a folder that plays through plays clips and audio files only.` : null;
 }

@@ -72,6 +72,7 @@ export default function ServerCueEditor({
   live,
   cueNo,
   bridgeStatus,
+  adapterActive = true,
   ability,
   playoutSettings,
   takeBlocked,
@@ -93,6 +94,7 @@ export default function ServerCueEditor({
   cueNo: number;
   /** The Bridge's last word on the playout server; null while it is still being asked. */
   bridgeStatus: PlayoutResult | null;
+  adapterActive?: boolean;
   /** What the Bridge and its server can do, for the clip's settings; null while it is being asked. */
   ability: PlaybackAbility | null;
   playoutSettings: PlayoutSettings;
@@ -111,6 +113,7 @@ export default function ServerCueEditor({
   /** The channel it is set to play on, for the pick. */
   const channel = channelOf(playoutSettings, item);
   const media = item.kind === 'media';
+  const vmix = item.adapter === 'vmix';
   const references = () => loadShows().find(s => s.id === showId)?.cues?.filter(c => c.source === 'playout' && c.sourceId === item.id) ?? [];
   const [routeChange, setRouteChange] = useState<{ field: 'channel' | 'layer'; value: number; cues: ShowCue[] } | null>(null);
   const applyRoute = (field: 'channel' | 'layer', value: number) => setShows(field === 'channel' ? setPlayoutItemChannel(showId, item.id, value) : setPlayoutItemLayer(showId, item.id, value));
@@ -176,7 +179,7 @@ export default function ServerCueEditor({
           aria-label="Cue name"
           data-testid="cue-label"
         />
-        <span
+        {adapterActive && <span
           className={bridgeStatus && bridgeStatus.state !== 'ok' ? 'pd-editor-fate pd-unsent-note' : 'muted pd-editor-fate'}
           data-testid="playout-cue-status"
           data-state={bridgeStatus?.state ?? 'pending'}
@@ -184,9 +187,9 @@ export default function ServerCueEditor({
           {bridgeStatus === null
             ? 'asking the playout server…'
             : bridgeStatus.state === 'ok'
-              ? `CasparCG${bridgeStatus.version ? ` ${bridgeStatus.version}` : ''} · connected`
+              ? `${vmix ? 'vMix' : 'CasparCG'}${bridgeStatus.version ? ` ${bridgeStatus.version}` : ''} · connected`
               : bridgeStatus.detail}
-        </span>
+        </span>}
       </div>
       <p className="hint pd-server-where" data-testid="playout-cue-where">
         {through ? (
@@ -268,14 +271,13 @@ export default function ServerCueEditor({
             data-testid="cue-note"
           />
         </label>
-        {channelPick}
-        {layerBox}
+        {!vmix && <>{channelPick}{layerBox}</>}
       </div>
-      <details className="pd-shared-route" data-testid="shared-file-route">
+      {!vmix && <details className="pd-shared-route" data-testid="shared-file-route">
         <summary>Shared file route: {sharedCues.length} {sharedCues.length === 1 ? 'cue' : 'cues'}</summary>
         <ul>{sharedCues.map(c => <li key={c.id}>{c.label}{c.folderId ? ' (folder may override route)' : ''}</li>)}</ul>
         <p className="hint">Channel and layer belong to this file. All its cues share them. Play-through folders retain their own route.</p>
-      </details>
+      </details>}
       {routeChange && <SharedRouteConfirm change={routeChange} onCancel={() => setRouteChange(null)} onConfirm={() => {
         const latest = references();
         if (latest.map(c => c.id).sort().join(',') !== routeChange.cues.map(c => c.id).sort().join(',')) { setRouteChange({ ...routeChange, cues: latest }); return; }
@@ -289,7 +291,7 @@ export default function ServerCueEditor({
       )}
       {media && (
         <AccountAuthoringGate>
-        {item.mediaKind === 'still' && (
+        {!vmix && item.mediaKind === 'still' && (
           <div className="pd-clip-row" data-testid="picture-fit">
             <span className="pd-clip-label">Picture</span>
             <span className="ctl-segmented" role="radiogroup" aria-label="Picture fitting">
@@ -311,7 +313,7 @@ export default function ServerCueEditor({
           cue={cue}
           ability={ability}
           setTrim={(trim) => setShows(setCuePlayback(showId, cue.id, trim))}
-          setKind={(kind) => setShows(setPlayoutItemMediaKind(showId, item.id, kind))}
+          setKind={vmix ? undefined : (kind) => setShows(setPlayoutItemMediaKind(showId, item.id, kind))}
         />
         </AccountAuthoringGate>
       )}
@@ -539,7 +541,7 @@ function ClipAdvanced({
   cue: ShowCue;
   ability: PlaybackAbility | null;
   setTrim: (trim: { trimIn: number | null; trimOut: number | null }) => void;
-  setKind: (kind: PlayoutMediaKind) => void;
+  setKind?: (kind: PlayoutMediaKind) => void;
 }) {
   const [open, setOpen] = useState(false);
   const trimIn = cue.playback?.trimIn;
@@ -637,7 +639,7 @@ function ClipAdvanced({
               {problem ?? trimOff}
             </p>
           )}
-          {!item.mediaKind && (
+          {setKind && !item.mediaKind && (
             <label className="pd-field pd-clip-kind">
               <span>Kind</span>
               <select value="" onChange={(e) => e.target.value && setKind(e.target.value as PlayoutMediaKind)} data-testid="clip-kind">

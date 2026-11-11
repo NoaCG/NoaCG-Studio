@@ -62,7 +62,7 @@
 
 import type { PlayoutItem, PlayoutMediaKind, ShowCue, ShowFolder } from '../model/shows';
 import type { PlayoutResult, PlayoutSettings, StudioSync } from './playoutLink';
-import type { CasparSlot, ItemKind, ListItem, SlotState, StateReply } from './playoutProtocol';
+import type { CasparSlot, ItemKind, ListItem, SlotState, StateReply, VmixPlayerSlot } from './playoutProtocol';
 import type { BridgePart, PlayoutSession } from './playoutSession';
 import type { SlotReading, StatusCheck } from './playoutStatus';
 import type { ServerPlayoutStore } from './serverPlayoutStore';
@@ -97,9 +97,10 @@ export interface BridgeWatchIo {
   /** Whether this Bridge and server can say what is playing (playoutLink.ts `stateReadable`). */
   readable: (status: PlayoutResult | null) => boolean;
   /** The Bridge's word on the server, every few seconds; answers the unsubscribe. */
-  subscribeTargetStatus: (settings: PlayoutSettings, onStatus: (result: PlayoutResult) => void) => () => void;
+  subscribeTargetStatus: (settings: PlayoutSettings, onStatus: (result: PlayoutResult) => void, intervalMs?: number, adapter?: 'casparcg' | 'vmix') => () => void;
   readState: (settings: PlayoutSettings, channel: number) => Promise<{ result: PlayoutResult; reply?: StateReply }>;
   listLibrary: (settings: PlayoutSettings, kind: ItemKind) => Promise<{ result: PlayoutResult; items?: ListItem[] }>;
+  listVmixMedia: (settings: PlayoutSettings, path: string) => Promise<{ result: PlayoutResult; items?: ListItem[] }>;
   syncStudio: () => Promise<StudioSync>;
   /** This production was seen on its CasparCG slot at `target` (model/readyMemory.ts). */
   rememberOutput: (showId: string, target: string) => void;
@@ -165,11 +166,11 @@ export interface BridgeWatchAdapters {
   rundown: () => { cues: readonly ShowCue[]; playoutItems: readonly PlayoutItem[]; folders: readonly ShowFolder[] };
   /** Where an item and a Play-through folder play (control/playoutLink.ts). */
   slots: {
-    itemSlot: (settings: PlayoutSettings, item: { channel?: number; layer: number }) => CasparSlot;
+    itemSlot: (settings: PlayoutSettings, item: PlayoutItem) => CasparSlot | VmixPlayerSlot;
     folderSlot: (settings: PlayoutSettings, folder: Pick<ShowFolder, 'slot'>) => CasparSlot;
   };
   /** The server's ownership and timing, which each reading folds into. */
-  serverPlayout: Pick<ServerPlayoutStore, 'ownership' | 'apply'>;
+  serverPlayout: Pick<ServerPlayoutStore, 'ownership' | 'apply' | 'bindVmix'>;
   /** The Bridge's studio setup changed this browser's: the page re-reads its settings. */
   settingsChanged: () => void;
   /** The server's list filled in facts an older clip was missing (model/shows.ts `fillPlayoutItemFacts`). */
@@ -186,6 +187,9 @@ export interface BridgeInputs {
   target: string | null;
   hostedSlug: string | null;
   casparOn: boolean;
+  vmixOn?: boolean;
+  vmixPairing?: string | null;
+  mediaRev?: number;
   outputSlug: string | null;
   showId: string | null;
   /** The output's slot as the settings name it (control/playoutStatus.ts `casparOutputTarget`). */
@@ -202,6 +206,37 @@ export interface BridgeInputs {
   settingsRev: number;
   /** Bumped by Put on air and Take off. */
   slotRev: number;
+}
+
+type FileReference = Pick<PlayoutItem, 'id' | 'kind' | 'name' | 'adapter'>;
+
+export function serverFilesKey(
+  showId: string | null, target: string | null, cues: readonly ShowCue[], items: readonly PlayoutItem[],
+  vmix: boolean, mediaRev: number,
+): string | null {
+  const byId = new Map(items.map(item => [item.id, item]));
+  const refs = cues.filter(cue => cue.source === 'playout' && (byId.get(cue.sourceId)?.adapter === 'vmix') === vmix)
+    .map(cue => cue.sourceId);
+  if (!refs.length) return null;
+  const files = new Set(refs);
+  return JSON.stringify({
+    show: showId, target, refs,
+    ...(vmix ? { mediaRev } : {}),
+    items: items.filter(item => files.has(item.id)).map(({ id, kind, name, adapter }) => ({ id, kind, name, adapter })),
+  });
+}
+
+export function canReadServerFiles(status: PlayoutResult | null, vmix: boolean): boolean {
+  if (!vmix) return status?.state === 'ok';
+  return !!status?.features?.includes('vmix-media') && (status.state === 'ok' || status.state === 'server');
+}
+
+export function serverFilesCheck(
+  key: string | null, reading: BridgePart['serverFiles'], status: PlayoutResult | null, vmix: boolean,
+): StatusCheck | null {
+  if (!key || !canReadServerFiles(status, vmix)) return null;
+  if (reading?.key === key) return reading.check;
+  return { key: 'files', tone: 'warn', short: 'Checking server files…', label: `Checking referenced ${vmix ? 'vMix' : 'CasparCG'} files…` };
 }
 
 export interface BridgeWatch {
@@ -397,17 +432,19 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
 
   // THE SERVER'S STATUS, re-asked every few seconds while a Bridge is set up and CasparCG is on:
   // what the header shows, and what every other poll here waits on. Cleared at each restart.
-  const startStatus = (target: string | null) => {
+  const startStatus = (target: string | null, vmix: boolean) => {
     writeBridge(session, { status: null });
     if (target === null) return;
     let live = true;
     const off = io.subscribeTargetStatus(io.loadSettings(), (result) => {
       if (!live) return;
-      if (result.state !== 'ok') sawOutage();
-      else answered = true;
+      if (!vmix) {
+        if (result.state !== 'ok') sawOutage();
+        else answered = true;
+      }
       writeBridge(session, { status: result });
       follow();
-    });
+    }, undefined, vmix ? 'vmix' : 'casparcg');
     return () => {
       live = false;
       off();
@@ -638,6 +675,34 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     run.detail = result.state === 'ok' ? '' : result.detail;
   };
 
+  /** vMix lists one folder at a time. CasparCG lists its whole library by item kind. */
+  const findFiles = async (settings: PlayoutSettings, files: readonly FileReference[]) => {
+    const groups = new Map<string, FileReference[]>();
+    for (const file of files) {
+      const scope = file.adapter === 'vmix' ? file.name.slice(0, Math.max(0, file.name.lastIndexOf('/'))) : file.kind;
+      const key = JSON.stringify([file.adapter ?? 'casparcg', scope]);
+      const group = groups.get(key);
+      if (group) group.push(file);
+      else groups.set(key, [file]);
+    }
+    const lists = await Promise.all([...groups.values()].map(async group => {
+      const sample = group[0];
+      const list = sample.adapter === 'vmix'
+        ? await io.listVmixMedia(settings, sample.name.slice(0, Math.max(0, sample.name.lastIndexOf('/'))))
+        : await io.listLibrary(settings, sample.kind);
+      return { group, ...list };
+    }));
+    const found = new Map<string, ListItem>();
+    for (const list of lists) {
+      const byName = new Map(list.items?.filter(item => item.kind !== 'folder').map(item => [item.name.toLowerCase(), item]));
+      for (const file of list.group) {
+        const item = byName.get(file.name.toLowerCase());
+        if (item) found.set(file.id, item);
+      }
+    }
+    return { found, unavailable: lists.find(list => !list.items)?.result };
+  };
+
   // WHETHER THE RUNDOWN'S SERVER FILES ARE THERE: the server's lists, once per key while the Bridge
   // answers. Read-only listing; never a playback action.
   const startFiles = (key: string) => {
@@ -645,15 +710,15 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     writeBridge(session, { serverFiles: null });
     void (async () => {
       const settings = io.loadSettings();
-      const requirements = JSON.parse(key) as { items: Pick<PlayoutItem, 'id' | 'kind' | 'name'>[]; refs: string[] };
-      const kinds = [...new Set(requirements.items.map(i => i.kind))];
-      const lists = await Promise.all(kinds.map(async kind => ({ kind, ...await io.listLibrary(settings, kind) })));
+      const requirements = JSON.parse(key) as { items: FileReference[]; refs: string[]; mediaRev?: number };
+      const { found, unavailable } = await findFiles(settings, requirements.items);
       if (!live) return;
-      const unavailable = lists.find(l => !l.items);
-      const missing = requirements.items.filter(i => !lists.find(l => l.kind === i.kind)?.items?.some(f => f.name.toLowerCase() === i.name.toLowerCase()));
+      const vmix = requirements.mediaRev !== undefined;
+      const server = vmix ? 'vMix' : 'CasparCG';
+      const missing = requirements.items.filter(item => !found.has(item.id));
       const orphan = requirements.refs.some(id => !requirements.items.some(i => i.id === id));
-      const check: StatusCheck | null = unavailable ? { key: 'files', tone: 'warn', short: 'Server files unavailable', label: 'CasparCG file list unavailable', advice: unavailable.result.detail }
-        : missing.length || orphan ? { key: 'files', tone: 'bad', short: 'Server files missing', label: `Unavailable CasparCG files: ${missing.map(i => i.name).join(', ')}${orphan ? ' (cue has no file definition)' : ''}`, advice: 'Copy the required pictures and videos to the server manually, then Check Readiness again.' } : null;
+      const check: StatusCheck | null = unavailable ? { key: 'files', tone: 'warn', short: 'Server files unavailable', label: `${server} file list unavailable`, advice: unavailable.detail }
+        : missing.length || orphan ? { key: 'files', tone: 'bad', short: 'Server files missing', label: `Unavailable ${server} files: ${missing.map(i => i.name).join(', ')}${orphan ? ' (cue has no file definition)' : ''}`, advice: vmix ? 'Put the required files in the vMix media folder, then Check Readiness again.' : 'Copy the required pictures and videos to the server manually, then Check Readiness again.' } : null;
       writeBridge(session, { serverFiles: { key, check } });
     })();
     return () => {
@@ -666,20 +731,19 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   // rev. Only a missing fact is filled, and the answer is the production's whenever it lands.
   const learnFacts = (i: BridgeInputs) => {
     if (!i.showId) return;
-    const key = `${i.showId} ${i.settingsRev}`;
+    const key = i.vmixOn ? JSON.stringify([i.showId, i.vmixPairing, i.mediaRev]) : `${i.showId} ${i.settingsRev}`;
     if (session.bridge.get().learntFacts === key) return;
     // A still has no length to learn.
-    const missing = i.playoutItems.filter((m) => m.kind === 'media' && (!m.mediaKind || (m.mediaKind !== 'still' && !(m.frames && m.fps))));
+    const missing = i.playoutItems.filter((m) => (m.adapter === 'vmix') === !!i.vmixOn && m.kind === 'media' && (!m.mediaKind || (m.mediaKind !== 'still' && !(m.frames && m.fps))));
     if (!missing.length) return;
     writeBridge(session, { learntFacts: key });
     const showId = i.showId;
     void (async () => {
-      const { items } = await io.listLibrary(io.loadSettings(), 'media');
-      if (!items) return;
-      const byName = new Map(items.map((x) => [x.name.toLowerCase(), x] as const));
+      const { found: byId } = await findFiles(io.loadSettings(), missing);
+      if (!alive || (i.vmixOn && (!inputs?.vmixOn || inputs.showId !== showId || inputs.vmixPairing !== i.vmixPairing || inputs.mediaRev !== i.mediaRev))) return;
       const facts = new Map<string, { mediaKind?: PlayoutMediaKind; frames?: number; fps?: number }>();
       for (const m of missing) {
-        const found = byName.get(m.name.toLowerCase());
+        const found = byId.get(m.id);
         if (found) facts.set(m.id, { ...mediaKindOf(found.kind), frames: found.frames, fps: found.fps });
       }
       if (facts.size) adapters.learnt(showId, facts);
@@ -698,7 +762,11 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       read: (channel) => io.readState(io.loadSettings(), channel),
       channels: () => {
         const settings = io.loadSettings();
-        const channels = new Set(adapters.rundown().playoutItems.map((i) => adapters.slots.itemSlot(settings, i).channel));
+        const channels = new Set<number>();
+        for (const item of adapters.rundown().playoutItems) {
+          const slot = adapters.slots.itemSlot(settings, item);
+          if (slot.adapter === 'casparcg') channels.add(slot.channel);
+        }
         for (const s of folderSlots(settings)) channels.add(s.channel);
         for (const l of Object.values(adapters.serverPlayout.ownership.get().onAir)) if (l.slot.adapter === 'casparcg') channels.add(l.slot.channel);
         return [...channels].sort((a, b) => a - b);
@@ -711,7 +779,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
         const settings = io.loadSettings();
         const { cues, playoutItems: items } = adapters.rundown();
         adapters.serverPlayout.apply((parts) =>
-          applyReading(parts, reply, { channel, now: receivedAt, cues, items, slotOf: (i) => adapters.slots.itemSlot(settings, i), alsoSlots: folderSlots(settings) }),
+          applyReading(parts, reply, { channel, now: receivedAt, cues, items: items.filter(item => item.adapter !== 'vmix'), slotOf: (i) => adapters.slots.itemSlot(settings, i), alsoSlots: folderSlots(settings) }),
         );
       },
     });
@@ -730,17 +798,19 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     if (!alive || !i) return;
     const now = session.bridge.get().status;
     const answers = now?.state === 'ok';
-    const readable = io.readable(now);
+    const readable = !i.vmixOn && io.readable(now);
     slot.run(JSON.stringify([i.hostedSlug, i.casparOn, answers, readable, i.outputSlug, i.slotRev, i.showId, i.casparTarget]), () => startSlot(i, answers, readable));
     // The file key is already a string; '' while there is nothing to check.
-    const filesKey = answers ? (i.serverFiles ?? '') : '';
+    const filesAvailable = canReadServerFiles(now, !!i.vmixOn);
+    const filesKey = filesAvailable ? (i.serverFiles ?? '') : '';
     files.run(filesKey, () => (filesKey ? startFiles(filesKey) : undefined));
     // A SETUP CHANGE MADE WHILE THE BRIDGE WAS AWAY goes to it as soon as it answers again (D17).
-    pending.run(String(answers), () => {
-      if (answers && io.loadSettings().studioPending) void io.syncStudio();
+    const casparAnswers = answers && !i.vmixOn;
+    pending.run(String(casparAnswers), () => {
+      if (casparAnswers && io.loadSettings().studioPending) void io.syncStudio();
     });
-    if (answers) learnFacts(i);
-    const reads = readable && i.playoutItems.length > 0;
+    if (filesAvailable) learnFacts(i);
+    const reads = readable && i.playoutItems.some(item => item.adapter !== 'vmix');
     state.run(JSON.stringify([reads, i.settingsRev]), () => (reads ? startState() : undefined));
   };
 
@@ -748,6 +818,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     update: (next) => {
       if (!alive) return;
       inputs = next;
+      adapters.serverPlayout.bindVmix(next.vmixPairing ?? null);
       // WHAT THIS BROWSER LOADED (#2245) is read for the production the page names. A Load or
       // Unload that landed before it named one is the newer word, and is kept for it.
       if (next.showId !== showId) {
@@ -759,11 +830,11 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
         if (was !== null) local = undefined;
         else if (showId && local !== undefined) keep(local);
       }
-      status.run(JSON.stringify([next.target, next.checkAgain]), () => startStatus(next.target));
+      status.run(JSON.stringify([next.target, next.checkAgain, !!next.vmixOn]), () => startStatus(next.target, !!next.vmixOn));
       // THE STUDIO SETUP THE BRIDGE KEEPS, read once as the page opens, so a channel, output slot
       // or New media channel another browser set is the one this page plays to. Not guarded by
       // the start that asked: the settings it writes are the page's whichever start asks.
-      if (!studioAsked) {
+      if (!studioAsked && !next.vmixOn) {
         studioAsked = true;
         if (io.configured(io.loadSettings())) {
           void io.syncStudio().then((done) => {

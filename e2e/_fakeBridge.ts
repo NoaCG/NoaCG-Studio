@@ -1,5 +1,5 @@
 import { type Page, type Route } from '@playwright/test';
-import { PLAYOUT_V, VMIX_BROWSER_LOAD_PROBLEM, VMIX_OUTPUT_TOKEN_PREFIX, playedSeconds, type AgentError, type ItemRef, type VmixInfo, type VmixInput } from '../src/control/playoutProtocol';
+import { PLAYOUT_V, VMIX_BROWSER_LOAD_PROBLEM, VMIX_OUTPUT_TOKEN_PREFIX, playedSeconds, type AgentError, type ItemRef, type ListItem, type VmixInfo, type VmixInput, type VmixPlayerSlot } from '../src/control/playoutProtocol';
 
 // A FAKE NOACG BRIDGE AT THE NETWORK LAYER, for the playout specs that drive server clips
 // (docs/CLIP_PLAYBACK_PLAN.md §10): `/health`, `/status`, `/list`, `/act` and `/state`, answered from
@@ -29,7 +29,30 @@ export interface FakeVmixRequest {
   outputUrl?: string;
 }
 
-export function fakeVmix(overlays: 1 | 4 | 8 = 8) {
+interface FakeVmixMediaAction {
+  verb: 'take' | 'out' | 'pause' | 'resume';
+  slot: VmixPlayerSlot;
+  item: ItemRef;
+  cueId?: string;
+}
+
+interface FakeVmixMediaRequest {
+  target: { adapter: 'vmix' };
+  action?: FakeVmixMediaAction;
+  kind?: string;
+  path?: string;
+  outputUrl?: never;
+}
+
+export function fakeVmix(overlays: 1 | 4 | 8 = 8, library?: {
+  folder: string;
+  files: Record<string, Record<string, ListItem[]>>;
+}) {
+  const media = library && {
+    ...library, choice: null as string | null, paths: [] as string[], actions: [] as FakeVmixMediaRequest[],
+    choices: 0, chooseError: undefined as AgentError | undefined,
+  };
+  const players: Partial<Record<VmixPlayerSlot['player'], string>> = {};
   const info: VmixInfo = {
     version: overlays === 4 ? '28.0.0.42' : '29.0.0.49',
     edition: overlays === 1 ? 'Basic HD' : 'Trial', overlays, inputs: 0,
@@ -47,11 +70,26 @@ export function fakeVmix(overlays: 1 | 4 | 8 = 8) {
     return url.href;
   };
   const removeInput = (url: string) => kept.delete(outputId(url));
-  const reply = (path: string, body: FakeVmixRequest) => {
+  const reply = (path: string, body: FakeVmixRequest | FakeVmixMediaRequest) => {
     routes.push(path);
+    const playerAction = body.action && 'player' in body.action.slot ? body.action as FakeVmixMediaAction : undefined;
     if (path === '/act') {
-      actions.push(body);
+      if (playerAction) media?.actions.push(body as FakeVmixMediaRequest);
+      else actions.push(body as FakeVmixRequest);
       if (state.refuseAction) return { ok: false, v: PLAYOUT_V, error: state.refuseAction };
+    }
+    if (media && path === '/studio') return { ok: true, v: PLAYOUT_V, mediaFolder: media.folder };
+    if (media && path === '/vmix/choose-folder') {
+      media.choices += 1;
+      if (media.chooseError) return { ok: false, v: PLAYOUT_V, error: media.chooseError };
+      if (media.choice === null) return { ok: true, v: PLAYOUT_V, mediaFolder: media.folder, cancelled: true };
+      media.folder = media.choice;
+      return { ok: true, v: PLAYOUT_V, mediaFolder: media.folder };
+    }
+    if (media && path === '/list') {
+      const requested = (body as FakeVmixMediaRequest).path ?? '';
+      media.paths.push(requested);
+      return { ok: true, v: PLAYOUT_V, items: media.files[media.folder]?.[requested] ?? [] };
     }
     if (state.setup) return { ok: false, v: PLAYOUT_V, error: state.setup };
     const inputKeys = new Set([...kept.values()].map(input => input.key));
@@ -70,8 +108,17 @@ export function fakeVmix(overlays: 1 | 4 | 8 = 8) {
         return { overlay, input: held[overlay]?.input, ownsOutput: !!remembered && held[overlay]?.input.key === remembered.key };
       }),
     } : state.stateReply;
-    if (path === '/act' && body.action) {
-      const { slot: { overlay }, verb, item, expectedOverlayInput } = body.action;
+    if (path === '/act' && media && playerAction) {
+      const player = playerAction.slot.player;
+      generation += 1;
+      if (playerAction.verb === 'take') players[player] = `test.media-${generation}`;
+      if (playerAction.verb === 'out') delete players[player];
+      return state.actionReply === undefined
+        ? { ok: true, v: PLAYOUT_V, raw: 'FUNCTION OK', session: 'test', generation, ...(players[player] ? { instance: players[player] } : {}) }
+        : state.actionReply;
+    }
+    if (path === '/act' && body.action && 'overlay' in body.action.slot) {
+      const { slot: { overlay }, verb, item, expectedOverlayInput } = body.action as FakeVmixAction;
       const id = outputId(item.name);
       if (verb === 'take') {
         if (kept.has(id)) return { ok: false, v: PLAYOUT_V, error: { hop: 'target', code: 'refused', detail: VMIX_BROWSER_LOAD_PROBLEM } };
@@ -96,7 +143,7 @@ export function fakeVmix(overlays: 1 | 4 | 8 = 8) {
     }
     return { ok: false, v: PLAYOUT_V, error: { hop: 'agent', code: 'unsupported', detail: 'Unsupported vMix test route.' } };
   };
-  return { info, held, actions, routes, state, reply, removeInput };
+  return { info, held, actions, routes, state, reply, removeInput, media };
 }
 
 /** Settings for a paired Bridge and a studio with two channels, clips on channel 2. */
@@ -255,14 +302,14 @@ export async function fakeBridge(page: Pick<Page, 'route'>, init: Partial<Omit<F
       return json(route, {
         ok: true, agent: 'noacg-bridge', v: 2, version: fake.version,
         adapters: fake.vmix ? ['casparcg', 'vmix'] : ['casparcg'],
-        features: fake.vmix ? [...fake.features, 'vmix-output-key'] : fake.features,
+        features: fake.vmix ? [...fake.features, 'vmix-output-key', ...(fake.vmix.media ? ['vmix-media'] : [])] : fake.features,
       });
     }
     const body = JSON.parse(req.postData() || '{}') as { channel?: number; kind?: string; action?: FakeAction; target?: { adapter: string } };
     if (fake.vmix && body.target?.adapter === 'vmix') {
-      const token = path === '/act' ? VMIX_OUTPUT_TOKEN_PREFIX + TOKEN : TOKEN;
+      const token = path === '/act' && !(body.action?.slot && 'player' in body.action.slot) ? VMIX_OUTPUT_TOKEN_PREFIX + TOKEN : TOKEN;
       if (req.headers().authorization !== `Bearer ${token}`) return route.fulfill({ status: 401, headers: cors });
-      return json(route, fake.vmix.reply(path, body as unknown as FakeVmixRequest));
+      return json(route, fake.vmix.reply(path, body as unknown as FakeVmixRequest | FakeVmixMediaRequest));
     }
     if (path === '/status') {
       return json(route, { ok: true, v: 2, version: '2.5.0 69e8ad5 Stable', raw: '201 VERSION OK', capabilities: fake.capabilities });

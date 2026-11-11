@@ -181,7 +181,7 @@ export interface ReadingContext {
   cues: readonly ShowCue[];
   items: readonly PlayoutItem[];
   /** Where each rundown item plays now: the slots whose content this page reports on. */
-  slotOf: (item: PlayoutItem) => CasparSlot;
+  slotOf: (item: PlayoutItem) => Slot;
   /** Slots the rundown plays on besides its items' own: each Play-through folder's. */
   alsoSlots?: readonly CasparSlot[];
 }
@@ -235,7 +235,7 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
   const layers = new Set<number>();
   for (const item of ctx.items) {
     const s = ctx.slotOf(item);
-    if (s.channel === channel) layers.add(s.layer);
+    if (s.adapter === 'casparcg' && s.channel === channel) layers.add(s.layer);
   }
   for (const s of ctx.alsoSlots ?? []) if (s.channel === channel) layers.add(s.layer);
   for (const live of Object.values(ownership.onAir)) {
@@ -575,6 +575,7 @@ export function followedClip(ownership: ServerOwnership, items: readonly Playout
 export function hasClock(item: PlayoutItem, t: SlotTiming | undefined): boolean {
   if (item.kind !== 'media') return false;
   if (t?.producer) return t.producer === 'video';
+  if (item.adapter === 'vmix') return false;
   return !!item.frames && !!item.fps && item.frames > 1 && item.fps > 0;
 }
 
