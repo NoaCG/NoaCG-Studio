@@ -329,14 +329,15 @@ Filled in by each phase's pull request.
   development server, headless Chromium) on the cloud worker, so later phases can rerun the same
   harness against the same baseline; these are numbers for this harness, not studio numbers.
   "Press" is the `click` event, since every measured button acts on click. "Page's own" is press to
-  sent minus the overlap of a kept ordering wait, read from the page's own requests. A cue text
+  sent minus the overlap of a kept ordering wait, read from the page's own requests; a send is tied
+  to its press by the sender id and press number in its body. A cue text
   edit needs no publish today, so its bytes are the save alone. Update rounds add, remove and
   update one graphic, so the production keeps its size, and stay clear of the output's 15 s
   preparation spacing. Throttling starts once the fixture is built. The harness lives in
   `e2e/configured/measure/` as `*.measure.ts`, which the configured suite never runs.
 - Targets the numbers show wrong or unproven, for the owner before the phase that uses them: AC-1's
-  50 ms p95 (Next, which W1 changes nothing in, already takes 65 to 118 ms p95 here), AC-4's 50 ms
-  margin during a publish (952 against 99 ms p95 today), and D1's 5 s ceiling against a 32 s whole
+  50 ms p95 (Next, which W1 changes nothing in, already takes 69 to 146 ms p95 here), AC-4's 50 ms
+  margin during a publish (1064 against 98 ms p95 today), and D1's 5 s ceiling against a 32 s whole
   update on the large fixture throttled. Details in the evidence.
 - Traps: in the evidence, "Traps met" (the local stack does start on a cloud worker from Docker
   Hub; one 12-minute queue job per commit; Playwright empties `test-results/`; Realtime frames are
