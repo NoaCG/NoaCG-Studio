@@ -42,16 +42,7 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {},
-  "inFlight": [
-    {
-      "note": "Verified Windows loopback readiness for the revised manual handoff. Operator has direct browser address; draft stays unqueued until picker proof passes.",
-      "head": "e85660d8087d617e1acb777f2468c5e01100ce3b",
-      "step": "build",
-      "phase": "v3",
-      "pr": 2368,
-      "session": "j-5207"
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [],
   "triggers": []
