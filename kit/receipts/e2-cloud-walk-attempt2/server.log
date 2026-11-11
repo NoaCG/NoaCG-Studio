@@ -1,0 +1,15 @@
+
+> noacg-studio@0.1.0 dev:worktree
+> node scripts/dev-worktree.mjs
+
+Checkout:  /workspace/noacg-editor-r1-5-e2-cloud
+Dev port:  5252 (reservation)
+Serving:   src/ - the dev server
+App:       http://localhost:5252/app
+Sweeps:    --base http://localhost:5252   (e.g. node scripts/svg-import-sweep.mjs --base http://localhost:5252)
+
+
+  VITE v8.3.5  ready in 384 ms
+
+  ➜  Local:   http://localhost:5252/
+  ➜  Network: use --host to expose

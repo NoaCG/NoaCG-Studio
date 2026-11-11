@@ -1,0 +1,16 @@
+=== j-0004 node e2-cloud-walk.tmp.mjs
+=== cwd /workspace/noacg-editor-r1-5-e2-cloud
+{
+  "head": "9c5ae1926d6662e0e2806f3233be85b83972f166",
+  "observations": [
+    "Property yoyo has an independent ruler; forward/backward sample is deterministic and composition stays at 0.36 seconds.",
+    "Whole layer finite repeat applies to X and opacity together, reaches its endpoint and supports atomic undo/redo while preserving source and operator field.",
+    "Saved fixture reopens with the exact authored loop source in isolated browser storage."
+  ],
+  "console": [],
+  "pageErrors": [],
+  "failedRequests": [],
+  "badResponses": [],
+  "external": [],
+  "result": "PASS"
+}

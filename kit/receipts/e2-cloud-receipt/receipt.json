@@ -1,0 +1,181 @@
+{
+  "nonce": "e2-b-cloud-resume-1111",
+  "phase": "E2",
+  "action": "plan-editor-r1-5-2026-11-08:3",
+  "nativeWorker": "/root/editor_r15_e2_cloud_resume",
+  "coordinator": "6af455f4-b1c8-8191-86b2-8bfdfc619075",
+  "environmentId": "ccarenv_b64_Y2NhcmVudl9mOGJiMmY0OWI4ZjA4MTkxYjE5YjAzNDFjZjcxMmRiYg",
+  "execution": "fresh same-VM Cloud worker; no independent child or unattended recovery claim",
+  "pr": "https://github.com/NoaCG/NoaCG-Studio/pull/2374",
+  "head": "9c5ae1926d6662e0e2806f3233be85b83972f166",
+  "branch": "codex/plan-editor-r1-5-e2-build",
+  "worktree": "/workspace/noacg-editor-r1-5-e2-cloud",
+  "briefSha256": "76ffa719627935397a0f304115eed58e313a0208e787977b91c9fc4c50a6a8cb",
+  "windowEnd": "2026-11-12T10:00:00Z",
+  "preflight": "Cloud network and two fresh --context worker --wave probes passed at 11:57:36.521Z and 11:57:51.686Z",
+  "profile": {
+    "cpus": 4,
+    "memoryGiB": 16,
+    "workers": 2,
+    "smallMinutes": 5,
+    "limitsObserved": false,
+    "fallback": "machine totals for hidden cgroup ancestors"
+  },
+  "browser": {
+    "job": "j-0001",
+    "result": "PASS",
+    "tests": 61,
+    "duration": "3.1m",
+    "workers": 2,
+    "capMinutes": 5,
+    "specs": [
+      "editor-base-edits.spec.ts",
+      "editor-keys.spec.ts",
+      "editor-out-step.spec.ts",
+      "motion-presets.spec.ts"
+    ]
+  },
+  "uiWalk": {
+    "job": "j-0004",
+    "result": "PASS",
+    "capMinutes": 5,
+    "console": "clean",
+    "network": "clean",
+    "pageErrors": [],
+    "screenshots": [
+      "test-results/e2-cloud-walk/property-yoyo-1920.png",
+      "test-results/e2-cloud-walk/layer-repeat-1366.png"
+    ],
+    "visuallyInspected": true
+  },
+  "preservedFailures": [
+    {
+      "job": "j-0002",
+      "class": "infrastructure/harness startup",
+      "result": "FAIL",
+      "detail": "Before browser open, harness polled 127.0.0.1 while dev:worktree bound localhost; URL corrected only in ignored harness."
+    },
+    {
+      "job": "j-0003",
+      "class": "faulty harness input",
+      "result": "FAIL",
+      "detail": "Whole layer target selected its own defaults; harness omitted intended range/phase/delay. Explicit input actions restored, exact assertion unchanged."
+    },
+    {
+      "detail": "All historical failures in prior notes, PR and original builder receipt retained. No maintained product check rerun, source edits or repair allowance spent."
+    }
+  ],
+  "reusedEvidence": {
+    "independentReview": {
+      "native": "01a1ca0d-1348-7bb1-82ec-d75a8feea0a0",
+      "actor": "/root/editor_r15_e2_builder/e2_full_reader_repair_review",
+      "grade": "A",
+      "scope": "43 paths",
+      "base": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+      "head": "9c5ae1926d6662e0e2806f3233be85b83972f166"
+    },
+    "simplify": "Original exact43-path inline simplification reused; no further change.",
+    "checks": "Prior exact223 targeted Node tests,30 planner regressions,TypeScript j-5230,lint,dependency and sideEnds; CI Build/Factory/Catalog/test protection passed.",
+    "reference": "Windows Studio0.17 j-5193, bounded same-task comparison retained.",
+    "codexReviewComments": [
+      6787338576,
+      6793111660
+    ]
+  },
+  "ci": {
+    "run": 43001220919,
+    "head": "9c5ae1926d6662e0e2806f3233be85b83972f166",
+    "workflowConclusion": "failure solely Reviewed awaiting coordinator stamp",
+    "gateJob": 130466210042,
+    "gateConclusion": "success",
+    "configuredMode": "all",
+    "configuredSpecs": 64,
+    "configuredStacks": 4,
+    "configuredVerdict": "success",
+    "offlineMode": "subset",
+    "offlineSpecs": 210,
+    "offlineShards": 15,
+    "offlineResult": "success"
+  },
+  "checkStamp": {
+    "v": 1,
+    "branch": "codex/plan-editor-r1-5-e2-build",
+    "mergeBase": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+    "reviewedSha": "9c5ae1926d6662e0e2806f3233be85b83972f166",
+    "files": [
+      "docs/STATE_MACHINE_SCHEMA.md",
+      "docs/work-specs/editor-r1-5/e1-inventory.md",
+      "docs/work-specs/editor-r1-5/e2-notes.md",
+      "e2e/_editorLoops.ts",
+      "e2e/editor-base-edits.spec.ts",
+      "e2e/editor-keys.spec.ts",
+      "e2e/editor-out-step.spec.ts",
+      "e2e/fixtures/editor-loops.json",
+      "e2e/motion-presets.spec.ts",
+      "scripts/editor-loops.test.mjs",
+      "scripts/ograf-timed-exit.test.mjs",
+      "src/blocks/animData.ts",
+      "src/blocks/animEdit.ts",
+      "src/blocks/animEval.ts",
+      "src/blocks/animLoopTiming.ts",
+      "src/blocks/animMachine.ts",
+      "src/blocks/animMigration.ts",
+      "src/blocks/behaviourKeys.ts",
+      "src/blocks/editorAnimation.ts",
+      "src/blocks/editorImages.ts",
+      "src/blocks/editorLoops.ts",
+      "src/blocks/editorPaths.ts",
+      "src/blocks/motionPresets.ts",
+      "src/components/editorFoundation/EditorFoundation.tsx",
+      "src/components/editorFoundation/Inspector.tsx",
+      "src/components/editorFoundation/LoopControls.tsx",
+      "src/components/editorFoundation/PreviewController.ts",
+      "src/components/editorFoundation/Timeline.tsx",
+      "src/components/editorFoundation/animationAuthoring.ts",
+      "src/components/editorFoundation/foundation.css",
+      "src/components/editorFoundation/keySelection.ts",
+      "src/components/editorFoundation/operations.ts",
+      "src/components/editorFoundation/protocol.ts",
+      "src/components/editorFoundation/runtime.ts",
+      "src/components/editorFoundation/timelineView.ts",
+      "src/export/targets/htmlOverlay.ts",
+      "src/export/targets/ograf.ts",
+      "src/model/animLoopClock.ts",
+      "src/preview/settleGraphic.ts",
+      "src/preview/simulatorRuntime.ts",
+      "src/templates/shared/animLoopRuntime.ts",
+      "src/templates/shared/animRuntime.ts",
+      "src/validation/validateTemplate.ts"
+    ],
+    "legs": {
+      "review": {
+        "mode": "delegated",
+        "findings": 0,
+        "fixed": 0
+      },
+      "simplify": {
+        "mode": "inline",
+        "findings": 0,
+        "fixed": 0
+      },
+      "verify": {
+        "mode": "inline",
+        "findings": 0,
+        "fixed": 0
+      }
+    },
+    "verdict": "pass",
+    "at": "2026-11-11T12:05:13.368Z"
+  },
+  "mergeTree": {
+    "originMain": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+    "result": "clean",
+    "tree": "3cb844844fda9cd6c2798f905f97d6ec0b6203ba"
+  },
+  "migration": null,
+  "statusPorcelain": "",
+  "notRun": "No duplicate review, full local suite, production build, new reference comparison, hardware/native-device acceptance or merge/post-land checks. Final independent merge acceptance remains coordinator work.",
+  "githubWrites": "none; no noacg/reviewed, label, auto-merge, queue or merge",
+  "cleanup": "Browser and attributed dev-server process groups stopped; all four jobs terminal. Worktree retained for coordinator-owned pending PR and artifacts.",
+  "at": "2026-11-11T12:06:19.486151+00:00"
+}

@@ -1,0 +1,75 @@
+=== j-0003 node e2-cloud-walk.tmp.mjs
+=== cwd /workspace/noacg-editor-r1-5-e2-cloud
+ExpectError: expect(received).toEqual(expected) // deep equality
+
+- Expected  - 8
++ Received  + 4
+
+  Object {
+    "opacity": Object {
+-     "phase": 0.25,
+      "range": Array [
+-       0.1,
+-       1.1,
++       0.2,
++       1,
+      ],
+      "repeat": 1,
+-     "repeatDelay": 0.25,
+    },
+    "x": Object {
+-     "phase": 0.25,
+      "range": Array [
+-       0.1,
+-       1.1,
++       0.2,
++       1,
+      ],
+      "repeat": 1,
+-     "repeatDelay": 0.25,
+    },
+  }
+
+Call Log:
+- Timeout 5000ms exceeded while waiting on the predicate
+    at captureRawStack (/workspace/NoaCG-Studio/node_modules/playwright-core/lib/coreBundle.js:3172:17)
+    at callMatcherAsStep (/workspace/NoaCG-Studio/node_modules/playwright/lib/matchers/expect.js:12877:57)
+    at Object.toEqual (/workspace/NoaCG-Studio/node_modules/playwright/lib/matchers/expect.js:12867:23)
+    at /workspace/noacg-editor-r1-5-e2-cloud/e2-cloud-walk.tmp.mjs:98:72 {
+  matcherResult: {
+    pass: false,
+    message: 'expect(received).toEqual(expected) // deep equality\n' +
+      '\n' +
+      '- Expected  - 8\n' +
+      '+ Received  + 4\n' +
+      '\n' +
+      '  Object {\n' +
+      '    "opacity": Object {\n' +
+      '-     "phase": 0.25,\n' +
+      '      "range": Array [\n' +
+      '-       0.1,\n' +
+      '-       1.1,\n' +
+      '+       0.2,\n' +
+      '+       1,\n' +
+      '      ],\n' +
+      '      "repeat": 1,\n' +
+      '-     "repeatDelay": 0.25,\n' +
+      '    },\n' +
+      '    "x": Object {\n' +
+      '-     "phase": 0.25,\n' +
+      '      "range": Array [\n' +
+      '-       0.1,\n' +
+      '-       1.1,\n' +
+      '+       0.2,\n' +
+      '+       1,\n' +
+      '      ],\n' +
+      '      "repeat": 1,\n' +
+      '-     "repeatDelay": 0.25,\n' +
+      '    },\n' +
+      '  }\n' +
+      '\n' +
+      'Call Log:\n' +
+      '- Timeout 5000ms exceeded while waiting on the predicate',
+    name: 'toEqual'
+  }
+}

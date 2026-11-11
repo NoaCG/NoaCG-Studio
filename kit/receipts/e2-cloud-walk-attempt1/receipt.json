@@ -1,0 +1,12 @@
+{
+  "head": "9c5ae1926d6662e0e2806f3233be85b83972f166",
+  "observations": [],
+  "console": [],
+  "pageErrors": [],
+  "failedRequests": [],
+  "badResponses": [],
+  "external": [],
+  "result": "FAIL",
+  "error": "Error: Owned dev server did not become ready\n    at file:///workspace/noacg-editor-r1-5-e2-cloud/e2-cloud-walk.tmp.mjs:23:22",
+  "at": "2026-11-11T12:02:29.528Z"
+}

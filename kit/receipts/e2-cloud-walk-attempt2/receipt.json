@@ -1,0 +1,14 @@
+{
+  "head": "9c5ae1926d6662e0e2806f3233be85b83972f166",
+  "observations": [
+    "Property yoyo has an independent ruler; forward/backward sample is deterministic and composition stays at 0.36 seconds."
+  ],
+  "console": [],
+  "pageErrors": [],
+  "failedRequests": [],
+  "badResponses": [],
+  "external": [],
+  "result": "FAIL",
+  "error": "Error: expect(received).toEqual(expected) // deep equality\n\n- Expected  - 8\n+ Received  + 4\n\n  Object {\n    \"opacity\": Object {\n-     \"phase\": 0.25,\n      \"range\": Array [\n-       0.1,\n-       1.1,\n+       0.2,\n+       1,\n      ],\n      \"repeat\": 1,\n-     \"repeatDelay\": 0.25,\n    },\n    \"x\": Object {\n-     \"phase\": 0.25,\n      \"range\": Array [\n-       0.1,\n-       1.1,\n+       0.2,\n+       1,\n      ],\n      \"repeat\": 1,\n-     \"repeatDelay\": 0.25,\n    },\n  }\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate\n    at captureRawStack (/workspace/NoaCG-Studio/node_modules/playwright-core/lib/coreBundle.js:3172:17)\n    at callMatcherAsStep (/workspace/NoaCG-Studio/node_modules/playwright/lib/matchers/expect.js:12877:57)\n    at Object.toEqual (/workspace/NoaCG-Studio/node_modules/playwright/lib/matchers/expect.js:12867:23)\n    at /workspace/noacg-editor-r1-5-e2-cloud/e2-cloud-walk.tmp.mjs:98:72",
+  "at": "2026-11-11T12:03:42.305Z"
+}

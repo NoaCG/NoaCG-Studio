@@ -1,0 +1,70 @@
+{
+  "v": 1,
+  "branch": "codex/plan-editor-r1-5-e2-build",
+  "mergeBase": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+  "reviewedSha": "9c5ae1926d6662e0e2806f3233be85b83972f166",
+  "files": [
+    "docs/STATE_MACHINE_SCHEMA.md",
+    "docs/work-specs/editor-r1-5/e1-inventory.md",
+    "docs/work-specs/editor-r1-5/e2-notes.md",
+    "e2e/_editorLoops.ts",
+    "e2e/editor-base-edits.spec.ts",
+    "e2e/editor-keys.spec.ts",
+    "e2e/editor-out-step.spec.ts",
+    "e2e/fixtures/editor-loops.json",
+    "e2e/motion-presets.spec.ts",
+    "scripts/editor-loops.test.mjs",
+    "scripts/ograf-timed-exit.test.mjs",
+    "src/blocks/animData.ts",
+    "src/blocks/animEdit.ts",
+    "src/blocks/animEval.ts",
+    "src/blocks/animLoopTiming.ts",
+    "src/blocks/animMachine.ts",
+    "src/blocks/animMigration.ts",
+    "src/blocks/behaviourKeys.ts",
+    "src/blocks/editorAnimation.ts",
+    "src/blocks/editorImages.ts",
+    "src/blocks/editorLoops.ts",
+    "src/blocks/editorPaths.ts",
+    "src/blocks/motionPresets.ts",
+    "src/components/editorFoundation/EditorFoundation.tsx",
+    "src/components/editorFoundation/Inspector.tsx",
+    "src/components/editorFoundation/LoopControls.tsx",
+    "src/components/editorFoundation/PreviewController.ts",
+    "src/components/editorFoundation/Timeline.tsx",
+    "src/components/editorFoundation/animationAuthoring.ts",
+    "src/components/editorFoundation/foundation.css",
+    "src/components/editorFoundation/keySelection.ts",
+    "src/components/editorFoundation/operations.ts",
+    "src/components/editorFoundation/protocol.ts",
+    "src/components/editorFoundation/runtime.ts",
+    "src/components/editorFoundation/timelineView.ts",
+    "src/export/targets/htmlOverlay.ts",
+    "src/export/targets/ograf.ts",
+    "src/model/animLoopClock.ts",
+    "src/preview/settleGraphic.ts",
+    "src/preview/simulatorRuntime.ts",
+    "src/templates/shared/animLoopRuntime.ts",
+    "src/templates/shared/animRuntime.ts",
+    "src/validation/validateTemplate.ts"
+  ],
+  "legs": {
+    "review": {
+      "mode": "delegated",
+      "findings": 0,
+      "fixed": 0
+    },
+    "simplify": {
+      "mode": "inline",
+      "findings": 0,
+      "fixed": 0
+    },
+    "verify": {
+      "mode": "inline",
+      "findings": 0,
+      "fixed": 0
+    }
+  },
+  "verdict": "pass",
+  "at": "2026-11-11T12:05:13.368Z"
+}

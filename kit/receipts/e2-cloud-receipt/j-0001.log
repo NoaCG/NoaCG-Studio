@@ -1,0 +1,86 @@
+=== j-0001 npm run test:e2e -- e2e/editor-base-edits.spec.ts e2e/editor-keys.spec.ts e2e/editor-out-step.spec.ts e2e/motion-presets.spec.ts
+=== cwd /workspace/noacg-editor-r1-5-e2-cloud
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/editor-base-edits.spec.ts e2e/editor-keys.spec.ts e2e/editor-out-step.spec.ts e2e/motion-presets.spec.ts
+
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 15282 MB free (machine totals stand in for cgroup limits it could not read)
+[WebServer] (node:2442) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:2455) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 61 tests using 2 workers
+
+(node:2558) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2559) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   2 [chromium] › e2e/editor-base-edits.spec.ts:63:1 › B04 basic artwork text and appearance controls are available (3.0s)
+  ✓   1 [chromium] › e2e/editor-base-edits.spec.ts:70:1 › B04 basic opacity preserves motion and survives history and reopening (6.4s)
+  ✓   3 [chromium] › e2e/editor-base-edits.spec.ts:95:40 › B04 artwork content, appearance and structure on catalog (7.1s)
+  ✓   4 [chromium] › e2e/editor-base-edits.spec.ts:95:40 › B04 artwork content, appearance and structure on svg (8.1s)
+  ✓   5 [chromium] › e2e/editor-base-edits.spec.ts:145:1 › B02 multi-object drag, marquee and cancel share one undo transaction (5.7s)
+  ✓   6 [chromium] › e2e/editor-base-edits.spec.ts:178:1 › B04 solid fill and reference-sensitive refusal preserve source atomically (3.3s)
+  ✓   7 [chromium] › e2e/editor-base-edits.spec.ts:198:1 › B04 duplicate retains CSS cascade and delete removes rules before an ID can be reused (2.3s)
+  ✓   8 [chromium] › e2e/editor-base-edits.spec.ts:220:1 › B03 multi-object SVG drag maps the same screen delta through different parents (4.5s)
+  ✓   9 [chromium] › e2e/editor-base-edits.spec.ts:238:1 › D03 flow offset preserves siblings, exact motion, cancellation, atomic history and saved source (6.5s)
+  ✓  10 [chromium] › e2e/editor-base-edits.spec.ts:263:1 › D03 SVG parent inverse mapping and numeric/canvas agreement (5.2s)
+  ✓  11 [chromium] › e2e/editor-base-edits.spec.ts:287:1 › D03 base layout and an existing animation channel remain independent (5.1s)
+  ✓  12 [chromium] › e2e/editor-base-edits.spec.ts:314:1 › B04 tools create real text fields, shapes, selection and bars; box reflows; undo removes the whole addition (5.5s)
+  ✓  13 [chromium] › e2e/editor-base-edits.spec.ts:371:3 › B01 identical final document through both Finish routes: Hairline (9.6s)
+  ✓  14 [chromium] › e2e/editor-base-edits.spec.ts:371:3 › B01 identical final document through both Finish routes: House Quiz (9.9s)
+  ✓  16 [chromium] › e2e/editor-base-edits.spec.ts:371:3 › B01 identical final document through both Finish routes: Illustrator (5.9s)
+  ✓  15 [chromium] › e2e/editor-base-edits.spec.ts:371:3 › B01 identical final document through both Finish routes: House Countdown (10.1s)
+  ✓  18 [chromium] › e2e/editor-base-edits.spec.ts:412:1 › B03 linked/unlinked, negative and zero scale, Shift/Alt pivot and singular refusal (5.8s)
+  ✓  17 [chromium] › e2e/editor-base-edits.spec.ts:371:3 › B01 identical final document through both Finish routes: Stretch (7.6s)
+  ✓  20 [chromium] › e2e/editor-base-edits.spec.ts:444:40 › B04 edited svg survives save/reopen and SPX/CasparCG/OGraf export (8.7s)
+  ✓  19 [chromium] › e2e/editor-base-edits.spec.ts:444:40 › B04 edited catalog survives save/reopen and SPX/CasparCG/OGraf export (13.7s)
+  ✓  21 [chromium] › e2e/editor-base-edits.spec.ts:548:1 › B04 point text and canceled creation; base scale agrees with handles at zoom (4.8s)
+  ✓  22 [chromium] › e2e/editor-base-edits.spec.ts:573:1 › B01 optional Finish Edit consumes final catalog result and creates no production (5.3s)
+  ✓  23 [chromium] › e2e/editor-base-edits.spec.ts:585:1 › B01 direct production remains primary (5.1s)
+  ✓  25 [chromium] › e2e/editor-base-edits.spec.ts:607:1 › D03 refuses competing flow constraints and independent transforms without rewriting source (2.8s)
+  ✓  26 [chromium] › e2e/editor-base-edits.spec.ts:621:1 › B03 refuses conflicting animated scale ownership without changing motion (2.7s)
+  ✓  24 [chromium] › e2e/editor-base-edits.spec.ts:594:1 › B03 base scaling preserves an animated catalog line through reload (6.7s)
+  ✓  27 [chromium] › e2e/editor-keys.spec.ts:11:1 › Quiz source-controlled animation is preserved and explains the base editing path (5.4s)
+  ✓  28 [chromium] › e2e/editor-keys.spec.ts:85:41 › text and box second keys, cancel, history and reopen 1920 (15.4s)
+  ✓  29 [chromium] › e2e/editor-keys.spec.ts:85:41 › text and box second keys, cancel, history and reopen 1366 (15.3s)
+  ✓  31 [chromium] › e2e/editor-keys.spec.ts:153:1 › nonzero first key, diamond last removal, interpolated disable and exact undo (5.7s)
+  ✓  32 [chromium] › e2e/editor-keys.spec.ts:172:1 › nested SVG armed parent-coordinate drag and explicit base offset preserve motion (4.0s)
+  ✓  30 [chromium] › e2e/editor-keys.spec.ts:85:41 › text and box second keys, cancel, history and reopen 1093 (15.1s)
+  ✓  34 [chromium] › e2e/editor-keys.spec.ts:221:1 › numeric animation controls are available on a created layer (2.6s)
+  ✓  33 [chromium] › e2e/editor-keys.spec.ts:201:1 › bar movement carries disjoint spans and keys, cancel and refusal are atomic (6.2s)
+  ✓  35 [chromium] › e2e/editor-keys.spec.ts:235:1 › armed scale handles key both axes in one transaction and stale numeric drafts refuse (4.6s)
+  ✓  36 [chromium] › e2e/editor-keys.spec.ts:252:1 › mixed multi-selection keys only armed channels and commits one undo (4.5s)
+  ✓  37 [chromium] › e2e/editor-keys.spec.ts:267:1 › explicit visibility preserves keyed opacity at a hold and resolves cue-side ownership (4.0s)
+  ✓  38 [chromium] › e2e/editor-keys.spec.ts:291:1 › stored frames, source preservation, inheritance and atomic refusal (2.6s)
+  ✓  39 [chromium] › e2e/editor-keys.spec.ts:332:1 › known legacy interpreter upgrades for spans while customized source refuses (2.5s)
+  ✓  41 [chromium] › e2e/editor-out-step.spec.ts:177:31 › Out from each step leaves from what is on screen in simulator (2.8s)
+  ✓  40 [chromium] › e2e/editor-keys.spec.ts:355:1 › visibility intervals and numeric poses match executable SPX, CasparCG and OGraf packages (5.8s)
+  ✓  42 [chromium] › e2e/editor-out-step.spec.ts:177:31 › Out from each step leaves from what is on screen in spx (2.8s)
+  ✓  43 [chromium] › e2e/editor-out-step.spec.ts:177:31 › Out from each step leaves from what is on screen in casparcg (3.0s)
+  ✓  44 [chromium] › e2e/editor-out-step.spec.ts:177:31 › Out from each step leaves from what is on screen in ograf (3.6s)
+  ✓  45 [chromium] › e2e/editor-out-step.spec.ts:177:31 › Out from each step leaves from what is on screen in single-file (3.0s)
+  ✓  47 [chromium] › e2e/editor-out-step.spec.ts:280:1 › a last flag a float step short of its cue end still plays the authored exit in the editor (5.0s)
+  ✓  48 [chromium] › e2e/editor-out-step.spec.ts:287:1 › a paused Out preview refuses edits until the playhead moves (3.5s)
+  ✓  49 [chromium] › e2e/editor-out-step.spec.ts:312:1 › a graphic saved with the R1.2a.2 interpreter upgrades once and then leaves from any step (2.6s)
+  ✓  50 [chromium] › e2e/editor-out-step.spec.ts:337:1 › a machine graphic parked at its first state keeps its authored exit (2.0s)
+  ✓  46 [chromium] › e2e/editor-out-step.spec.ts:271:1 › the editor Out button from a flag plays what the simulator plays (14.8s)
+  ✓  52 [chromium] › e2e/editor-out-step.spec.ts:351:1 › SVG loops keep the composition clock and an effective one-frame nudge at speed two (3.9s)
+  ✓  53 [chromium] › e2e/editor-out-step.spec.ts:352:1 › plays, interrupts, settles and replays the same loop in the simulator and browser exports (7.6s)
+  ✓  51 [chromium] › e2e/editor-out-step.spec.ts:350:1 › authors an independent property loop and a synchronized layer loop through save and reopen (12.4s)
+  ✓  55 [chromium] › e2e/motion-presets.spec.ts:95:1 › control page: the Motion section rewrites the entrance and exit on the graphic as one unit, saves it, and lights the card it reads back (4.0s)
+  ✓  56 [chromium] › e2e/motion-presets.spec.ts:157:1 › engine: a motion rewrite keeps lifecycle calls, ambient loops and layers outside the root, and clears a styled lifecycle arrow (2.4s)
+  ✓  57 [chromium] › e2e/motion-presets.spec.ts:267:1 › wizard: an imported SVG picks from the same ten motions on its Animation step, and the control page reads the pick back (3.3s)
+  ✓  54 [chromium] › e2e/editor-out-step.spec.ts:353:1 › a timed browser overlay holds after finite In while its loop moves, then goes Out (10.6s)
+  ✓  59 [chromium] › e2e/motion-presets.spec.ts:408:1 › wizard: the easing list is what the picked motion can render, and an impossible curve falls back to Auto (3.0s)
+  ✓  58 [chromium] › e2e/motion-presets.spec.ts:316:1 › wizard: the layer stagger spends its beats on what is visible, and the words take their turn (3.9s)
+  ✓  60 [chromium] › e2e/motion-presets.spec.ts:445:1 › control page: the operator can change the curve after creation, and it lands in the emitted code (4.6s)
+  ✓  61 [chromium] › e2e/motion-presets.spec.ts:516:1 › wizard: a catalog design keeps its own cards and offers the universal six under them (4.8s)
+
+  61 passed (3.1m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice
