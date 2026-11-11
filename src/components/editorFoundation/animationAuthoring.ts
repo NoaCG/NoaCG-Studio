@@ -4,6 +4,7 @@ import { baseValues, type BasePatch, type BaseValues, type TransformPatch } from
 import { anchorChannels, channelValue, controlKeyReason, isArmed, poseKey, sequenceAuthoringReason, writeChannel, type Channel } from '../../blocks/editorAnimation';
 import type { AnimData } from '../../blocks/animData';
 import { resolveValue } from '../../blocks/animEval';
+import { hasAnchorRuntime } from '../../templates/shared/animRuntime';
 import type { RenderedPart } from './protocol';
 import type { EditorOperation } from './operations';
 import { FLOAT_STEP, ownerOf, readTimeline, segmentAt } from './timelineView';
@@ -145,6 +146,7 @@ export const anchorOperations = (selector: string, anchor: Point): EditorOperati
 export function anchorAtPlayhead(template: SpxTemplate, base: BaseValues, appearance: RenderedPart['appearance'], time: number, cue?: number): Point | null {
   const anchor = shownAnchor(base, appearance);
   if (!anchor) return null;
+  if (!base.svgGroupPivot && !hasAnchorRuntime(template.js)) return anchor;
   const { view, segment, departing } = editSegment(template, base.selector, time, cue);
   if (!view.data) return anchor;
   const owner = ownerOf(view, base.selector), result = { ...anchor };
@@ -160,9 +162,12 @@ export function anchorAtPlayhead(template: SpxTemplate, base: BaseValues, appear
 
 /** A typed, centered or dragged pivot edits armed axes at the playhead and unarmed axes in CSS. */
 export function editAnchorAtPlayhead(template: SpxTemplate, base: BaseValues, current: Point, changed: Partial<Point>, time: number, cue?: number): EditorOperation[] {
-  const view = readTimeline(template), owner = ownerOf(view, base.selector), position = authoringPosition(template, base.selector, time, cue);
-  const pivot = { ...base.anchor ?? current }, keys: EditorOperation[] = [];
+  if (!base.svgGroupPivot && !hasAnchorRuntime(template.js)) return anchorOperations(base.selector, { ...current, ...changed });
+  const view = readTimeline(template), owner = ownerOf(view, base.selector);
   const channels = anchorChannels(base);
+  if (!Object.values(channels).some(channel => isArmed(view.data, owner, channel))) return anchorOperations(base.selector, { ...current, ...changed });
+  const position = authoringPosition(template, base.selector, time, cue);
+  const pivot = { ...base.anchor ?? current }, keys: EditorOperation[] = [];
   let editBase = false;
   for (const axis of ['x', 'y'] as const) {
     const value = changed[axis];

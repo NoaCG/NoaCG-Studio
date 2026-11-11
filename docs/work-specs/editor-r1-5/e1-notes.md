@@ -973,6 +973,38 @@ Windows catalog gate `j-5159` remained red on `jc01` alone. The control
 `a3f3e13ca`. Both raw JavaScript hashes remain `ec5dc4ccf279231f`, and
 the normalized unchanged QR encoder fingerprint stays `8d17b8a35536b6dd`.
 
+#### Static Center anchor on the PR candidate
+
+[PR #2369 run 42938883051](https://github.com/NoaCG/NoaCG-Studio/actions/runs/42938883051)
+tested `95f65b051d7c8303e119c428d0e33726069e88ff`. Build, Factory and
+the catalog calibration job passed, including the raw fingerprint
+step. The plan selected 183 offline specs in 15 shards and all 65
+configured specs across four local stacks. All four configured jobs
+and their selected verdict passed. The CI gate failed after offline
+shard 5 found one regression. The Clean Steps test expected the
+explicit Center anchor edit to add history entry 4 and saw entry 3.
+The completed Codex review on that head had zero findings, and the
+independent full review graded A before CI exposed this failure.
+
+The identical test passed on Windows `j-5163`. Exact equal-value probe
+`j-5164` then reproduced the underlying dispatch difference on the
+same head. With a rendered default center of `(160, 50)` and that
+same requested center, main's unchanged static operation writes both
+coordinates and the candidate returned an empty batch. Existing
+unarmed targets now use the prior base write, including when the
+rendered and requested values are equal. Timed edits use only exact
+owned, armed anchor tracks. An ordinary raw same-name track without
+the capability stays on the static path.
+
+The repeated equal-value control `j-5165` exited 0 with the expected
+base operation. `j-5166` logged all six focused static, armed, nested
+Illustrator and package cases passing. The scheduler reaped it with
+no exit code, so its recorded terminal verdict remains failed.
+The directly affected Clean Steps and armed-anchor cases both passed
+in terminal job `j-5167`. The deterministic Node regression, 359
+affected offline gates, changed-file lint and TypeScript passed. The
+test assertions and CI thresholds remain intact.
+
 ## Earlier checkpoints
 
 At this earlier checkpoint the E1 inventory and verified alias repair were
