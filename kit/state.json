@@ -681,6 +681,23 @@
       "correspondence": "forward compare from release source to pin: five commits, only added .github/workflows/release.yml; product/editor/runtime sources identical",
       "provenance": "receipts/studio-reference-017",
       "result": "j-0019 same task PASS after documented500ms history burst settling; initial j-0018 failure retained; E5 human/device gates remain"
+    },
+    "protocolFix": {
+      "head": "e2393159a",
+      "rulesReview": {
+        "actor": "/root/editor_r15_e3_builder/e3_protocol_rules",
+        "source": "b0a22d53f6d6e890814f561215cba461a9dec63e",
+        "grade": "A"
+      },
+      "tests": "528 gateway tests PASS0fail0skip; targeted eslint/client tsc PASS"
+    },
+    "realQuality": {
+      "sample": "original six-task evaluation, all HTTP200 one attempt, estimatedUSD0.104124; machineExecutionPASS only",
+      "independentActor": "/root/editor_r15_e3_builder/e3_model_quality",
+      "finding": "5/6 quality; help-out FAIL: invented Rehearse/Next controls in authoring timeline. Original answer/output/finding retained. Successful reviewed edits/default/position/create/atomic-refusal individually correct.",
+      "current": "first grounded-guide correction, then separate exactly ONE help-out quality recheck, independent assessment required",
+      "budget": "original sample cap6 unchanged; cumulativeUSD2 unchanged; recheck1call/1attempt, same provider/native model/key/funding/no fallback. No further paid call authorized by this coordinator instruction.",
+      "access": "Real self-hosted managed/BYOK; hosted guards/rate-limit/timeout/ownership simulated in applicable gateway tests. Generic assistant has per-IP60/60s cap, not distinct Lite/Pro daily allowance surface; exact source mapping pending independent review."
     }
   }
 }
