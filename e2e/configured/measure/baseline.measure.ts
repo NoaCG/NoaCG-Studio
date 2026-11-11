@@ -447,7 +447,7 @@ test('publish', async ({ page, browser }) => {
   }, fx.showId);
   const during: Sample[] = [];
   const outside: Sample[] = [];
-  const deadline = Date.now() + 2.5 * 60_000;
+  const deadline = Date.now() + Number(process.env.MEASURE_DEADLINE_S ?? 150) * 1000;
   let k = 0;
   while (during.length < SAMPLES && Date.now() < deadline) {
     await select(page, labels[k++ % labels.length]);
