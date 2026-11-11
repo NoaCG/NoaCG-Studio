@@ -1,0 +1,22 @@
+{
+  "actionId": "plan-editor-r1-5-2026-11-08:4",
+  "nativeId": "/root/editor_r15_e2_cloud_check",
+  "session": "6af45f8f-6140-8191-8e0f-97a9d72a705b",
+  "at": "2026-11-11T12:30:23.226131+00:00",
+  "initialDispatch": "Source environment ID mistyped; preserved as a delivery discrepancy, not an exact initial send",
+  "correction": "Same native worker read full saved brief, verified exact SHA and actual environment before verification; no duplicate launch",
+  "brief": "briefs/e2-check-e2-c-cloud-1111.txt",
+  "sha256": "09ee7e82f59ff7e8bdccbc7536441302fc999affe4808cd35453f75972212cab",
+  "observation": {
+    "provider": "codex",
+    "sessionId": "6af455f4-b1c8-8191-86b2-8bfdfc619075",
+    "environmentId": "ccarenv_b64_Y2NhcmVudl9mOGJiMmY0OWI4ZjA4MTkxYjE5YjAzNDFjZjcxMmRiYg",
+    "policySha256": "9ddcaeece3d8e54669564a11b0c48c16e6fbfc5b19e406691deb508df65b9a74",
+    "revision": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+    "actionId": "plan-editor-r1-5-2026-11-08:4",
+    "requestSha256": "6c6b805c59c0ba849521fab7ca5675c29a632ecd17da2d01f1883589d36559d3",
+    "state": "accepted",
+    "nativeId": "/root/editor_r15_e2_cloud_check",
+    "evidence": "spawn_agent accepted exactly once as /root/editor_r15_e2_cloud_check, native app session6af45f8f-6140-8191-8e0f-97a9d72a705b. Initial dispatch Source line mistyped encoded environment ID; before verification the same worker read the complete authoritative saved brief and acknowledged SHA25609ee7e82f59ff7e8bdccbc7536441302fc999affe4808cd35453f75972212cab plus actual environment_status binding matching this intent. No replacement/re-admission; exact corrected request now acknowledged, source worktree clean on actual merge."
+  }
+}

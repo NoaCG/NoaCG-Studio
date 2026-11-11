@@ -67,17 +67,15 @@
   "inFlight": [
     {
       "phase": "E2",
-      "branch": "codex/plan-editor-r1-5-e2-build",
-      "nativeId": "/root/editor_r15_e2_cloud_resume",
-      "checkpointed": true,
-      "step": "build",
-      "sourceSha": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
-      "actionId": "plan-editor-r1-5-2026-11-08:3",
-      "note": "E2 merged d8b18080 through queue; exact-merge fresh checker admission next. CI/configured running, post-land/quarantine success. E3 remains gated.",
-      "worktree": "/workspace/noacg-editor-r1-5-e2-cloud",
-      "head": "9c5ae1926d6662e0e2806f3233be85b83972f166",
+      "step": "check",
+      "nativeId": "/root/editor_r15_e2_cloud_check",
+      "session": "6af45f8f-6140-8191-8e0f-97a9d72a705b",
+      "actionId": "plan-editor-r1-5-2026-11-08:4",
+      "branch": "codex/plan-editor-r1-5-e2-check",
+      "worktree": "/workspace/noacg-editor-r1-5-e2-check",
+      "sourceSha": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
       "pr": 2374,
-      "session": "/root/editor_r15_e2_cloud_resume"
+      "note": "Fresh independent exact-merge checker accepted; corrected saved brief hash/runtime binding acknowledged before verification. Main CI/full configured pending; E3 gated."
     }
   ],
   "owner": [],
