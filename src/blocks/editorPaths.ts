@@ -1,4 +1,6 @@
 import type { SpxTemplate } from '../model/types';
+import { hasLoopRuntime } from '../templates/shared/animRuntime';
+import { withPlacedLayer } from './animEdit';
 import { artworkNode, artworkRange } from './artworkEdits';
 import { creationParent, insertArtworkChild, precise } from './baseEdits';
 import { appendCss } from './edit';
@@ -90,15 +92,7 @@ export function createPath(template: SpxTemplate, geometry: PathGeometry, time: 
   const snippet = '\n<!-- Editable SVG path; layer transforms use its initial centered frame. -->\n<div id="' + selector.slice(1) + '" data-gfx data-pen-path><svg xmlns="http://www.w3.org/2000/svg" width="' + precise(box.width) + '" height="' + precise(box.height) + '" viewBox="0 0 ' + precise(box.width) + ' ' + precise(box.height) + '" style="display:block;overflow:visible"><path d="' + pathSource({ ...geometry, points }) + '" fill="' + (geometry.closed ? '#8bd5f6' : 'none') + '" stroke="#8bd5f6" stroke-width="3" /></svg></div>';
   const html = insertArtworkChild(template.html, parent, snippet);
   const css = appendCss(template.css, 'Path layer; geometry and transform frame are independent.', selector + ' { position: absolute; left: ' + precise(box.x) + 'px; top: ' + precise(box.y) + 'px; width: ' + precise(box.width) + 'px; height: ' + precise(box.height) + 'px; transform-origin: 50% 50%; }');
-  const stored = Math.round(time * data.speed * 1000) / 1000;
-  let elapsed = 0;
-  const steps = data.steps.map(step => {
-    const local = Math.max(0, stored - elapsed), duration = step.duration;
-    const start = Math.abs(local - duration) < 1e-6 ? Math.max(0, duration - .001) : local;
-    elapsed += duration;
-    return { ...step, layers: { ...step.layers, [selector]: { opacity: [{ time: 0, value: 1, ease: 'none' }] } }, spans: { ...step.spans, [selector]: start >= duration ? [] : [{ start, end: duration }] } };
-  });
-  const js = spliceAnimData(template.js, { ...data, steps });
+  const js = spliceAnimData(template.js, withPlacedLayer(data, selector, time, hasLoopRuntime(template.js)));
   if (js === null) throw new Error('The layer timeline cannot be preserved.');
   return { template: { ...template, html, css, js }, selector };
 }

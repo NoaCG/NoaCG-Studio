@@ -34,6 +34,7 @@ async function load(input, name) {
 
 const { buildOgrafManifest, validateOgrafManifest } = await load('src/export/targets/ograf.ts', 'ograf');
 const { emitAnimRegion } = await load('src/templates/shared/animRuntime.ts', 'animRuntime');
+const { deriveMachine } = await load('src/blocks/animMachine.ts', 'animMachine');
 
 /** A one-box graphic: a 1 s entrance, then a 0.5 s exit, at `speed` 2, so 500 ms and 250 ms. */
 const ANIM = emitAnimRegion({
@@ -83,5 +84,36 @@ test('a graphic that waits for Stop or stays keeps its steps and its out mode', 
 test('an out SPX does not know is sent as manual, never as written', () => {
   for (const out of ['', '4s', '-1', 'manual ']) {
     assert.equal(buildOgrafManifest(template({ out })).v_spx.out, 'manual', JSON.stringify(out));
+  }
+});
+
+test('a canonical styled Play or Continue declares the style instead of a finite repeat it replaces', () => {
+  const ranged = (name) => ({
+    name, duration: 1, ease: 'none',
+    layers: { '#part': { x: [{ time: 0.1, value: 0 }, { time: 0.9, value: 20 }] } },
+    loops: { '#part': { x: { repeat: 1, range: [0.1, 0.9] } } },
+  });
+  const data = {
+    version: 2, root: '#box', speed: 2, steps: [
+      ranged('In'), ranged('Reveal'), { name: 'Out', duration: 0.5, ease: 'none', layers: {} },
+    ],
+  };
+  data.machine = structuredClone(deriveMachine(data));
+  const main = data.machine.groups[0];
+  const play = main.transitions.find((edge) => edge.trigger === 'lifecycle' && edge.event === 'play');
+  const advance = main.transitions.find((edge) => edge.trigger === 'operator' && edge.to === main.defaultPath[1]);
+  Object.assign(play, { style: 'fade', duration: 1.3 });
+  advance.event = 'advance';
+  for (const [style, expected] of [['fade', 300], ['cut', 0], [undefined, 850]]) {
+    advance.style = style;
+    for (const out of ['manual', 'none', '700']) {
+      const manifest = buildOgrafManifest({ ...template({ out, steps: '2' }), js: emitAnimRegion(data) });
+      assert.deepEqual(validateOgrafManifest(manifest), []);
+      const playback = manifest.actionDurations.find((entry) => entry.type === 'playAction');
+      assert.equal(playback.duration, out === '700' ? 650 + 700 + 250 : 650);
+      assert.deepEqual(playback.steps, out === '700' ? undefined : [{ step: 0, duration: 650 }, { step: 1, duration: expected }]);
+      assert.equal(manifest.actionDurations.find((entry) => entry.type === 'stopAction').duration, 250);
+      assert.equal(manifest.actionDurations.find((entry) => entry.customActionId === 'advance').duration, -1);
+    }
   }
 });

@@ -7,7 +7,7 @@ import { resolveValue } from './animEval';
 import { artworkNode, editArtworkStyle } from './artworkEdits';
 import { anchorCssReason, baseValues, editBase, settleSvgOffset, TRANSFORM_CHANNELS, type BasePatch } from './baseEdits';
 import { allTimelines } from './animMachine';
-import { canWriteAnchorData, hasAnchorRuntime, ORDINARY_ANCHOR_CHANNELS, withAnchorRuntime, writeAnimData, writeOutData } from '../templates/shared/animRuntime';
+import { canWriteAnchorData, hasAnchorRuntime, hasLoopRuntime, ORDINARY_ANCHOR_CHANNELS, withAnchorRuntime, writeAnimData, writeOutData } from '../templates/shared/animRuntime';
 import { locateBehaviourData, parseBehaviourData } from './behaviourData';
 import { behaviourSequenceReason, claimReason, claimRelations, recipeClaims, requireUserTracksOnly, sequenceOwned, stamped, SEQUENCE_REFUSAL, type RecipeClaim } from './behaviourKeys';
 
@@ -73,10 +73,10 @@ export function keyedAt(data: AnimData | null, owner: string, property: ControlP
 }
 /** A pose value at a cue time as the runtime reports it: a `scale` track reports as both Scale axes
  *  and `autoAlpha` as opacity. */
-export function channelValue(data: AnimData, owner: string, property: keyof NumericPose, step: number, time: number) {
-  const value = resolveValue(data, owner, property, step, time);
+export function channelValue(data: AnimData, owner: string, property: keyof NumericPose, step: number, time: number, includeLegacy = false) {
+  const value = resolveValue(data, owner, property, step, time, includeLegacy);
   const shared = property === 'scaleX' || property === 'scaleY' ? 'scale' : property === 'opacity' ? 'autoAlpha' : null;
-  return value === null && shared ? resolveValue(data, owner, shared, step, time) : value;
+  return value === null && shared ? resolveValue(data, owner, shared, step, time, includeLegacy) : value;
 }
 /**
  * The channel a key on this control writes: the pixel or per-axis channel when the layer animates
@@ -111,6 +111,7 @@ const BEHAVIOUR_RUNTIME = /function noacgRepaint\(/;
 export function keySequenceReason(template: SpxTemplate, data: AnimData | null): string | null {
   const reason = sequenceAuthoringReason(data);
   if (!reason || !data) return reason;
+  if (!sequenceOwned(data, false)) return null;
   return behaviourSequenceReason(data, parseBehaviourData(template.js), BEHAVIOUR_RUNTIME.test(template.js));
 }
 /** The recipe's claims on one template, read once per source (#1982): a drag asks per frame. */
@@ -128,7 +129,7 @@ function claimsOf(template: SpxTemplate, doc: Document): RecipeClaim[] {
  */
 export function keyAuthoringReason(template: SpxTemplate, data: AnimData | null, selector: string, channel: string): string | null {
   const reason = keySequenceReason(template, data);
-  if (reason || !data || !sequenceOwned(data)) return reason;
+  if (reason || !data || !sequenceOwned(data, false)) return reason;
   const doc = parsed(template.html);
   let layers: Element[];
   try { layers = Array.from(doc.querySelectorAll(selector)); } catch { return SEQUENCE_REFUSAL; }
@@ -144,7 +145,7 @@ export function controlKeyReason(template: SpxTemplate, data: AnimData | null, s
 /** K7: on an owned sequence, an edit may change only tracks that are the user's, checked on every
  *  element each changed track's selector matches. */
 function requireUserEdit(template: SpxTemplate, before: AnimData, after: AnimData) {
-  if (!sequenceOwned(before)) return;
+  if (!sequenceOwned(before, false)) return;
   requireUserTracksOnly(before, after, (owner, channel) => !keyAuthoringReason(template, before, owner, channel));
 }
 /** K7: the paint table a key edit leaves exactly as it was. */
@@ -213,11 +214,16 @@ export function trackOwners(template: SpxTemplate, data: AnimData, selectors: st
     try { return [selector, layerOwner(data, selector, names(selector))]; } catch { return [selector, selector]; }
   }));
 }
+function requireArtworkLayer(template: SpxTemplate, data: AnimData, selector: string) {
+  if (artworkNode(template, selector).matches(data.root)) {
+    throw new Error('The graphic root is owned by playback. Animate an artwork layer.');
+  }
+}
+
 /** Refuse what playback owns and return the layer's owner. Keys on `channels` ask whose they
  *  are (#1982); without channels the edit is structural (a bar), which an owned sequence keeps. */
 export function animationTarget(template: SpxTemplate, data: AnimData, selector: string, channels?: readonly string[]) {
-  const node = artworkNode(template, selector);
-  if (node.matches(data.root)) throw new Error('The graphic root is owned by playback. Animate an artwork layer.');
+  requireArtworkLayer(template, data, selector);
   const reason = channels?.length ? channels.map(channel => keyAuthoringReason(template, data, selector, channel)).find(Boolean) ?? null : sequenceAuthoringReason(data);
   if (reason) throw new Error(reason);
   return trackOwner(template, data, selector);
@@ -226,7 +232,12 @@ export function animationTarget(template: SpxTemplate, data: AnimData, selector:
 /** The CSS pivot and its keyed variables must be on the same layer as its other motion. */
 export function anchorKeyReason(template: SpxTemplate, selector: string): string | null {
   try {
-    const data = animationSource(template), owner = animationTarget(template, data, selector);
+    const data = animationSource(template);
+    requireArtworkLayer(template, data, selector);
+    // An editor loop owns its numeric tracks. Earlier runtimes and other sequence owners
+    // keep the existing pivot refusal.
+    if (sequenceOwned(data, !hasLoopRuntime(template.js))) return SEQUENCE_REFUSAL;
+    const owner = trackOwner(template, data, selector);
     const base = baseValues(template, selector);
     if (base.anchorReason) return base.anchorReason;
     if (base.groupFrame && !base.svgGroupPivot) return base.mode === 'svg'
@@ -444,7 +455,7 @@ function requireUserKeys(template: SpxTemplate, data: AnimData, keys: KeyRef[]) 
 
 /** Capture the animation owner and the uniquely editable artwork it names. */
 export function captureKeyClipboard(template: SpxTemplate, refs: readonly KeyRef[]): ClipboardKey[] {
-  const data = animationSource(template), keys = captureKeys(data, refs);
+  const data = animationSource(template), keys = captureKeys(data, refs, hasLoopRuntime(template.js));
   const artwork = keyArtworkResolver(template, data);
   const copied = keys.map(key => ({ ...key, artwork: artwork(key) }));
   requireAnchorArtwork(template, ownedAnchorTracks(template, copied).map(key => key.artwork));
@@ -460,7 +471,7 @@ export function applyKeyPaste(template: SpxTemplate, operation: KeyPasteOperatio
     }
   }
   requireAnchorArtwork(template, ownedAnchorTracks(template, operation.keys).map(key => key.artwork));
-  const next = pasteKeys(data, operation.keys, operation.step, operation.time);
+  const next = pasteKeys(data, operation.keys, operation.step, operation.time, hasLoopRuntime(template.js));
   requireUserEdit(template, data, next);
   const exit = data.steps.length > 1 && operation.step === data.steps.length - 1;
   const patched = writeKeys(template, next, exit, 'the pasted keys');
@@ -475,7 +486,7 @@ export function applyKeyPaste(template: SpxTemplate, operation: KeyPasteOperatio
 export function applyKeyMove(template: SpxTemplate, operation: KeyMoveOperation): SpxTemplate {
   const data = animationSource(template);
   requireUserKeys(template, data, operation.keys);
-  const next = moveKeys(data, operation.keys, operation.delta);
+  const next = moveKeys(data, operation.keys, operation.delta, { includeLegacy: hasLoopRuntime(template.js) });
   if (next === data) return template;
   requireUserEdit(template, data, next);
   const out = next.steps.length - 1;

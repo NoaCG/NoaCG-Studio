@@ -5,6 +5,8 @@ export interface Envelope {
   type: typeof EDITOR_MESSAGE; documentId: string; revision: Revision;
   generation: number; requestId: number;
 }
+/** A temporary sample on the selected track's loop clock, in effective cue seconds. */
+export interface LoopProbe { step: number; owner: string; properties: string[]; time: number }
 export interface RenderedPart {
   selector: string; x: number; y: number; width: number; height: number;
   opacity: number; transform: string;
@@ -16,7 +18,7 @@ export interface RenderedPart {
   anchor?: { x: number; y: number };
   /** SVG path user space to composition, including a created path's HTML frame. */
   pathMatrix?: [number, number, number, number, number, number];
-  appearance?: { cue?: number; exiting?: boolean; fontFamily: string; fontSize: number; color: string;
+  appearance?: { cue?: number; exiting?: boolean; looping?: boolean; fontFamily: string; fontSize: number; color: string;
     /** The rendered weight, line spacing as a multiple of the size (none when normal) and letter
      *  spacing in the layer's own pixels (R1.2b.2). */
     fontWeight?: number; lineHeight?: number; letterSpacing?: number; fill: string; opacity: number; motion?: NumericPose; initialMotion?: NumericPose; unit?: number;
