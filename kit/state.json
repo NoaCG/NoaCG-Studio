@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
+      "session": "/root/v4_evidence_scope_reassessment",
       "step": "build",
-      "phase": "v4",
+      "note": "Fresh independent review reproduced a pairing switch-back retaining old Take ownership and an uncertain folder remaining displayed. Read-only reassessment active before repair. Local browser job withdrawn before execution.",
       "head": "5ccb5151c9a0994f51dbeccafe85aca279feca61",
-      "note": "Same-PR folder pairing repair passed 214 Windows Node tests, TypeScript and lint. Fresh full independent review active. Required local Chromium j-5237 and normal PR CI 43071254290 pending.",
-      "pr": 2378,
-      "session": "/root/v4_final_pairing_review"
+      "phase": "v4",
+      "pr": 2378
     }
   ],
   "owner": [],
