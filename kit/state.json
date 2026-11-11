@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "note": "Overlap landed and both Bridge issues repaired. Windows Node 176, TypeScript and lint passed. Exact PR CI 43063458764, independent review and local Chromium j-5234 pending.",
-      "head": "4e0f1a6460eccba31ebcd7f2016c4e3964f3047f",
-      "step": "build",
-      "session": "j-5234",
+      "phase": "v4",
+      "note": "Fresh independent final review started in its own checkout. Codex PR review returned clean. Exact PR CI 43063458764 in progress; Windows Chromium j-5234 awaits local memory capacity.",
+      "session": "/root/v4_final_repair_review",
       "pr": 2378,
-      "phase": "v4"
+      "step": "build",
+      "head": "4e0f1a6460eccba31ebcd7f2016c4e3964f3047f"
     }
   ],
   "owner": [],
