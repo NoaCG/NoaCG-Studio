@@ -36,7 +36,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   TIERS, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, detectSlowdown, exceptionStatus,
-  confirmedStops, expiringSoon, phaseClock, phasesFromLedger, pooledTiming, prClock, queueClock, reportCadence, sustained, tableFreshness, tierOfJob, weeklyMarkdown,
+  expiringSoon, phaseClock, phasesFromLedger, pooledTiming, prClock, queueClock, reportCadence, sustained, tableFreshness, tierOfJob, weeklyMarkdown,
 } from './growth-controls.mjs';
 import { knownCoversOnDisk } from './e2e-capacity.mjs';
 import { CONFIGURED_HEADERS, SPEC_HEADERS } from './e2e-lists.mjs';
@@ -692,42 +692,22 @@ export function gateReport({ gh = withRetries(ghRun), now = new Date().toISOStri
     return { newest: { run: null, generatedAt: null, attempt: null, state: 'missing', readFailed: true, why: `the report listing failed: ${String(e?.message ?? e).split('\n')[0]}` }, judged: null };
   }
   let newest = null;
-  const newer = [];
   for (const a of all.slice(0, candidates)) {
     let report = null;
     try { report = JSON.parse(downloadReport(a, gh)); } catch { /* unreadable: not complete */ }
     const c = classifyReport(report, bounds);
-    if (reportComplete(report) && newest) newest.stops = standingStops(newer);
-    if (!reportComplete(report)) newer.push(report);
-    newest ??= { run: a.workflow_run.id, generatedAt: report?.generatedAt ?? a.created_at, attempt: report?.attempt ?? 1, firstTryAt: report?.firstTryAt ?? report?.generatedAt ?? null, stops: {}, ...(report ? c : { state: 'missing', readFailed: true, why: `the report of run ${a.workflow_run.id} could not be read` }) };
+    // The newest report's stops stand whatever its state (E20, E21): a partial week keeps a stop
+    // it cannot re-measure, and a stop only ever comes from an earlier measurement and its date.
+    newest ??= { run: a.workflow_run.id, generatedAt: report?.generatedAt ?? a.created_at, attempt: report?.attempt ?? 1, firstTryAt: report?.firstTryAt ?? report?.generatedAt ?? null, stops: report?.stops ?? {}, ...(report ? c : { state: 'missing', readFailed: true, why: `the report of run ${a.workflow_run.id} could not be read` }) };
     if (reportComplete(report)) return { newest, judged: { run: a.workflow_run.id, generatedAt: report.generatedAt, report } };
   }
-  if (newest) newest.stops = standingStops(newer);
   return { newest: newest ?? { run: null, generatedAt: null, attempt: null, state: 'missing', why: 'no live weekly growth report has been published on main' }, judged: null };
 }
 
-/**
- * The stops standing across the reports newer than the judged complete one, newest first. Each
- * breach is decided by the newest report that judged it: a stop that report confirmed stands; one
- * it only kept for lack of evidence is decided by the report before it; one it cleared or no
- * longer carries is gone. A failed measurement never reopens growth a confirmed stop closed. Pure.
- */
-export function standingStops(reports) {
-  const live = reports.filter(Boolean);
-  if (live.length === 0) return {};
-  const decided = new Map();
-  for (const r of live) for (const b of r.breaches ?? []) {
-    if (decided.has(b.key) || (r !== live[0] && !decided.has(`?${b.key}`))) continue;
-    const kept = b.kept || /not re-measured this week/.test(b.detail ?? '');
-    if (kept) { decided.set(`?${b.key}`, true); continue; }
-    decided.set(b.key, b.state === 'stopped' ? b : null);
-  }
-  return confirmedStops({ breaches: [...decided.entries()].filter(([k, b]) => !k.startsWith('?') && b).map(([, b]) => b) });
-}
 
 /**
- * The file the capacity line reads: the judged report with a `gate` record, or none. A newer
- * report than the judged one adds the stops its own evidence confirmed (Rule E21).
+ * The file the capacity line reads: the judged report with a `gate` record, or none. The newest
+ * report's stops are applied with the judged report's (Rule E21).
  */
 export function gateFile(out, picked) {
   const gate = { newest: picked.newest, judgedOn: picked.judged ? { run: picked.judged.run, generatedAt: picked.judged.generatedAt } : null };

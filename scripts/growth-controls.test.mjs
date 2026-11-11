@@ -12,10 +12,10 @@ import test from 'node:test';
 import { HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, knownCoversOnDisk, offlineExceptionChanges, parseExceptions } from './e2e-capacity.mjs';
 import {
   TIERS, admit, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, cronRunsPerDay, detectSlowdown,
-  ceilingsRevision, confirmedStops, coverCosts, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, knownCovers, landingDispatched, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
+  ceilingsRevision, coverCosts, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, knownCovers, landingDispatched, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   quarantineLines, tableFreshness, tierOfCover, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
-import { AGE_ISSUE, GATE_CANDIDATES, MAX_ATTEMPTS, REPORT_ISSUE, RETRY, ages, buildReport, carriedDues, carriedStarts, classifyReport, fetchLatest, findIssue, finishedPrs, gateFile, gateReport, healthAction, standingStops, weekOf, listRuns, makeReader, phaseIssueTitle, priceRuns, readJobs, reportAlarm, rerunStillNeeded, sampleJobs, seriesOf, spread, transient } from './growth-report.mjs';
+import { AGE_ISSUE, GATE_CANDIDATES, MAX_ATTEMPTS, REPORT_ISSUE, RETRY, ages, buildReport, carriedDues, carriedStarts, classifyReport, fetchLatest, findIssue, finishedPrs, gateFile, gateReport, healthAction, weekOf, listRuns, makeReader, phaseIssueTitle, priceRuns, readJobs, reportAlarm, rerunStillNeeded, sampleJobs, seriesOf, spread, transient } from './growth-report.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -1783,25 +1783,24 @@ test('one alarm per bad report: raised once, routed to the owner, not repeated p
   assert.equal(reportAlarm({ kind: 'wait' }, 'miwco', gh), 'no alarm');
 });
 
-test('a newer partial report adds only the stops its own evidence confirmed (Rule E21)', async () => {
+test('the newest report\'s stops apply at the gate, a kept one included (Rules E20, E21)', async () => {
   // Run 42647874522 (partial) carries two stops: backend re-measured over its ceiling that week,
-  // overhead only kept because the week could not judge it.
+  // overhead kept because the week could not re-measure it after the complete report of 2026-11-03
+  // put it at 126% with its correction due 2026-11-09. Both stand until evidence clears them.
   const partial = realReport(42647874522);
   assert.deepEqual(Object.keys(partial.stops).sort(), ['backend', 'overhead']);
-  assert.deepEqual(Object.keys(confirmedStops(partial)), ['backend']);
-  const kept = { breaches: [{ key: 'cost:graphics', state: 'stopped', since: 'a', due: 'b', kept: true, detail: 'x' }] };
-  assert.deepEqual(confirmedStops(kept), {});
-  // gateReport passes the newest report's confirmed stops; the gate applies them to the judged report.
   const arts = [artifactOf(3, '2026-11-09T15:53:37Z'), artifactOf(2, '2026-11-03T19:41:07Z')];
   const picked = gateReport({ gh: reportsGh(arts, { 3: partial, 2: realReport(41704224273) }), now: '2026-11-10T12:00:00Z', ceilings: GATE_CEILINGS });
-  assert.deepEqual(Object.keys(picked.newest.stops), ['backend']);
+  assert.deepEqual(Object.keys(picked.newest.stops).sort(), ['backend', 'overhead']);
   const growth = await gateOn(picked);
-  assert.equal(growth.assessWith([backendItem(0.1)]).tiers.backend.status, 'refuse');
-  assert.match(growth.assessWith([backendItem(0.1)]).tiers.backend.why, /growth stopped: cost:backend/);
-  // The unconfirmed overhead stop does not refuse: the 2026-11-03 report has overhead over its line
-  // per landing, so judge a per-day-only addition, which only a stop would refuse.
-  const overhead = growth.assessWith([{ tier: 'overhead', id: 'job:x.yml/y', perLanding: 0, perDay: 0.1, how: 't' }]).tiers.overhead;
-  assert.doesNotMatch(overhead.why, /growth stopped/);
+  for (const tier of ['backend', 'overhead']) {
+    const t = growth.assessWith([{ tier, id: `job:x.yml/${tier}`, perLanding: 0, perDay: 0.1, how: 't' }]).tiers[tier];
+    assert.equal(t.status, 'refuse', tier);
+    assert.match(t.why, /growth stopped/, tier);
+  }
+  // A newer report that cleared the stop lifts it: only the newest report's stops count.
+  const cleared = gateReport({ gh: reportsGh([artifactOf(4, '2026-11-10T06:00:00Z'), ...arts], { 4: { ...partial, stops: {} }, 3: partial, 2: realReport(41704224273) }), now: '2026-11-10T12:00:00Z', ceilings: GATE_CEILINGS });
+  assert.deepEqual(cleared.newest.stops, {});
 });
 
 test('a re-run carries from the report before the first try, never from the try itself', () => {
@@ -1858,20 +1857,13 @@ test('re-runs stay within a day of the week\'s first try', () => {
   assert.deepEqual(healthAction({ newest: { ...second, generatedAt: '2026-11-09T08:00:00Z' }, now: '2026-11-09T09:10:00Z' }), { kind: 'rerun', attempt: 3 });
 });
 
-test('a confirmed stop stands across later tries that could only keep it (Codex review)', () => {
-  const stopped = (key, extra = {}) => ({ key, state: 'stopped', since: '2026-11-02', due: '2026-11-09', detail: 'x', ...extra });
-  const keptOf = (b) => ({ ...b, kept: true, detail: `${b.detail} (not re-measured this week: kept until evidence clears it)` });
-  const try1 = { breaches: [stopped('cost:backend')] };
-  const try2 = { breaches: [keptOf(stopped('cost:backend'))] };
-  assert.deepEqual(Object.keys(standingStops([try2, try1])), ['backend'], 'try 2 kept it, try 1 confirmed it');
-  assert.deepEqual(standingStops([try2]), {}, 'kept with nothing older that confirmed it');
-  assert.deepEqual(standingStops([{ breaches: [] }, try1]), {}, 'a newer report that no longer carries it cleared it');
-  assert.deepEqual(standingStops([{ breaches: [{ ...stopped('cost:backend'), state: 'correcting' }] }, try1]), {}, 'the newest judgement wins');
-  // Through gateReport: two partial tries, then the complete report the gate judges on.
-  const p1 = { ...realReport(42647874522) };
-  const p2 = { ...p1, breaches: p1.breaches.map((b) => (b.key === 'cost:backend' ? keptOf(b) : b)) };
+test('a stop stands across later tries that could only keep it (Codex review)', () => {
+  // Try 1 re-measured the backend breach and stopped it; try 2 could only keep it. The newest
+  // report's stops are the gate's, so the stop stands.
+  const p1 = realReport(42647874522);
+  const p2 = { ...p1, breaches: p1.breaches.map((b) => (b.key === 'cost:backend' ? { ...b, detail: `${b.detail} (not re-measured this week: kept until evidence clears it)` } : b)) };
   const arts = [artifactOf(13, '2026-11-09T18:00:00Z'), artifactOf(12, '2026-11-09T16:00:00Z'), artifactOf(2, '2026-11-03T19:41:07Z')];
   const picked = gateReport({ gh: reportsGh(arts, { 13: p2, 12: p1, 2: realReport(41704224273) }), now: '2026-11-10T12:00:00Z', ceilings: GATE_CEILINGS });
   assert.equal(picked.judged.run, 2);
-  assert.deepEqual(Object.keys(picked.newest.stops), ['backend']);
+  assert.ok(picked.newest.stops.backend);
 });

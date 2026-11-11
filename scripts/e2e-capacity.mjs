@@ -354,7 +354,7 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
   const gate = report?.gate ?? null;
   if (report?.none) report = null;
   const measurement = report?.measurement ?? ceilings.measurement;
-  // The judged report's stops, and any a newer report's own evidence confirmed (Rule E21).
+  // The judged report's stops, and the newest report's (Rule E21): a stop stands until evidence clears it.
   const stops = { ...(gate?.newest?.stops ?? {}), ...(report?.stops ?? {}) };
   const newest = gate?.newest;
   if (newest && newest.state !== 'complete') reasons.push(`the newest weekly growth report${newest.run ? ` (run ${newest.run})` : ''} is ${newest.state}${newest.why ? `: ${newest.why}` : ''}; judged on ${gate.judgedOn ? `the newest complete report, run ${gate.judgedOn.run}` : `the frozen seed measured to ${ceilings.measurement.windowEnd}`} at the normal line, and the owner (${ceilings.owner}) is alarmed after landing`);
