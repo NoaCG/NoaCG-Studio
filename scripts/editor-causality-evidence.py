@@ -17,6 +17,7 @@ import zipfile
 REPO = 'NoaCG/NoaCG-Studio'
 INITIAL_SHA = '81f782eaebf00e35a41ccec0eba5d2272a629dc0'
 EXTENSION_SHA = 'bc4bf841964449e113da5fa45eefc76c9ebde315'
+COMPLETION_SHA = '5688142041b4a60e19647bd08b01f4ac61208e0d'
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / 'endurance-output'
 LIMIT = 200 * 1024 * 1024
@@ -135,14 +136,29 @@ def trial_result(archive, prefix, expected, kind):
 
 
 def validate_manifest(manifest):
+    primary = [x for x in manifest if x.get('condition', 'primary') == 'primary']
+    completion = [x for x in manifest if x.get('condition') == 'completion-01']
     expected = {('clock', 1, i) for i in range(1, 13)} | {('operator', c, i) for c in range(1, 6) for i in range(1, 5)}
-    assert len(manifest) == 32 and len({x['runId'] for x in manifest}) == 32
-    assert {(x['kind'], x['cohort'], x['batch']) for x in manifest} == expected
-    for item in manifest:
+    assert len(manifest) == 33 and len({x['runId'] for x in manifest}) == 33
+    assert len(primary) == 32 and len(completion) == 1
+    assert {(x['kind'], x['cohort'], x['batch']) for x in primary} == expected
+    for item in primary:
         assert item['sha'] == (INITIAL_SHA if item['cohort'] == 1 else EXTENSION_SHA)
         suffix = '' if item['cohort'] == 1 else f'-c{item["cohort"]}'
         assert item['ref'] == f'codex/editor-causality-20261111-{item["kind"]}{suffix}-{item["batch"]:02}'
-        assert isinstance(item['runId'], int) and item['runId'] > 0
+    item = completion[0]
+    assert (item['kind'], item['cohort'], item['batch'], item['sha']) == ('operator', 4, 3, COMPLETION_SHA)
+    assert item['ref'] == 'codex/editor-causality-20261111-operator-c4-03-completion-01'
+    assert all(isinstance(x['runId'], int) and x['runId'] > 0 for x in manifest)
+
+
+def expected_observations(item):
+    if item.get('condition', 'primary') == 'completion-01':
+        return [(pair, arm) for pair in range(41, 46) for arm in ('parent', 'landing')] + [(46, 'parent')]
+    assert item.get('condition', 'primary') == 'primary'
+    size = 5 if item['kind'] == 'clock' else 15
+    start = (item['batch'] - 1) * size
+    return [(pair, arm) for pair in range(start + 1, start + size + 1) for arm in ('parent', 'landing')]
 
 
 def receipt_inventory(archive, prefix):
@@ -169,7 +185,8 @@ def receipt_inventory(archive, prefix):
 def read_batch(item):
     run_id = item['runId']
     run = request_api(f'repos/{REPO}/actions/runs/{run_id}')
-    assert run['head_sha'] == item['sha'] and item['sha'] == (INITIAL_SHA if item['cohort'] == 1 else EXTENSION_SHA) and run['head_branch'] == item['ref']
+    expected_sha = COMPLETION_SHA if item.get('condition') == 'completion-01' else INITIAL_SHA if item['cohort'] == 1 else EXTENSION_SHA
+    assert run['head_sha'] == item['sha'] == expected_sha and run['head_branch'] == item['ref']
     assert run['event'] == 'workflow_dispatch' and run['run_attempt'] == 1
     assert run['status'] == 'completed', 'primary run not terminal; no replacement or inferred pass'
     artifacts = request_api(f'repos/{REPO}/actions/runs/{run_id}/artifacts?per_page=100')
@@ -183,24 +200,23 @@ def read_batch(item):
     assert environment['head'] == item['sha'] and int(environment['run']) == run_id and environment['attempt'] == 1
     assert environment['kind'] == item['kind'] and environment['index'] == item['batch'] and environment.get('cohort', 1) == item['cohort']
     kind = item['kind']
-    size = 5 if kind == 'clock' else 15
-    start = (item['batch'] - 1) * size
+    condition = item.get('condition', 'primary')
+    assert environment.get('completion', 'primary') == condition
     rows, unresolved = [], []
-    for pair in range(start + 1, start + size + 1):
+    for pair, arm in expected_observations(item):
         remaining_timeout()
-        for arm in ('parent', 'landing'):
-            prefix = f'pair-{pair:03}-{arm}/'
-            try:
-                trial = trial_result(archive, prefix, 24 if kind == 'clock' else 2, kind)
-                assert trial['pair'] == pair and trial['arm'] == arm
-                assert trial['source'] == environment['plan'][kind][arm]
-                raw_trial = json.loads(archive.read(prefix + 'trial.json'))
-                assert raw_trial.get('cohort', 1) == item['cohort']
-                trial.update(cohort=item['cohort'], globalPair=(item['cohort'] - 1) * 60 + pair)
-                rows.append(trial)
-            except (AssertionError, KeyError, ValueError) as error:
-                unresolved.append({'pair': pair, 'arm': arm, 'error': safe_text(type(error).__name__ + ': ' + str(error)), 'receiptInventory': receipt_inventory(archive, prefix)})
-    return {'kind': kind, 'cohort': item['cohort'], 'batch': item['batch'], 'run': run_id, 'conclusion': run['conclusion'], 'artifact': found[0]['id'], 'zipSha256': hashlib.sha256(data).hexdigest(), 'rows': rows, 'unresolved': unresolved}
+        prefix = f'pair-{pair:03}-{arm}/'
+        try:
+            trial = trial_result(archive, prefix, 24 if kind == 'clock' else 2, kind)
+            assert trial['pair'] == pair and trial['arm'] == arm
+            assert trial['source'] == environment['plan'][kind][arm]
+            raw_trial = json.loads(archive.read(prefix + 'trial.json'))
+            assert raw_trial.get('cohort', 1) == item['cohort'] and raw_trial.get('condition', 'primary') == condition
+            trial.update(cohort=item['cohort'], condition=condition, plannedPair=(item['cohort'] - 1) * 60 + pair, observationId=f'{run_id}:{pair}:{arm}', pairId=f'{run_id}:{pair}')
+            rows.append(trial)
+        except (AssertionError, KeyError, ValueError) as error:
+            unresolved.append({'pair': pair, 'arm': arm, 'error': safe_text(type(error).__name__ + ': ' + str(error)), 'receiptInventory': receipt_inventory(archive, prefix)})
+    return {'kind': kind, 'cohort': item['cohort'], 'batch': item['batch'], 'condition': condition, 'run': run_id, 'conclusion': run['conclusion'], 'artifact': found[0]['id'], 'zipSha256': hashlib.sha256(data).hexdigest(), 'rows': rows, 'unresolved': unresolved}
 
 
 def original_clock_trace():
@@ -234,6 +250,28 @@ def original_clock_trace():
     return {'run': run, 'artifact': 13854769457, 'zipSha256': hashlib.sha256(data).hexdigest(), 'traces': traces}
 
 
+def summarize_results(results):
+    summary = {}
+    seen = set()
+    for kind in ('clock', 'operator'):
+        rows = [row for batch in results if batch['kind'] == kind for row in batch.get('rows', [])]
+        groups = {}
+        for row in rows:
+            assert row['observationId'] not in seen, 'duplicate qualified observation'
+            seen.add(row['observationId'])
+            group = groups.setdefault(row['pairId'], {})
+            assert row['arm'] not in group, 'duplicate arm in within-worker pair'
+            group[row['arm']] = row
+        pairs = [g for g in groups.values() if set(g) == {'parent', 'landing'}]
+        unpaired = [r['observationId'] for g in groups.values() if len(g) == 1 for r in g.values()]
+        summary[kind] = {'arms': {arm: {'qualified': sum(r['arm'] == arm for r in rows), 'failed': sum(r['arm'] == arm and r['failed'] for r in rows)} for arm in ('parent', 'landing')}, 'completeWithinWorkerPairs': len(pairs), 'unpairedObservationIds': unpaired, 'discordance': {'parentOnlyFailure': sum(g['parent']['failed'] and not g['landing']['failed'] for g in pairs), 'landingOnlyFailure': sum(g['landing']['failed'] and not g['parent']['failed'] for g in pairs), 'bothFailed': sum(g['parent']['failed'] and g['landing']['failed'] for g in pairs)}}
+    unresolved = [u for b in results if isinstance(b.get('unresolved'), list) for u in b['unresolved']]
+    summary['originalUnqualifiedAttempts'] = sum(bool(u.get('receiptInventory', {}).get('available')) for u in unresolved)
+    summary['originalUnadmittedSlots'] = sum(not u.get('receiptInventory', {}).get('available') for u in unresolved)
+    summary['note'] = 'Qualified observations only; original missing terminal receipts stay unqualified. No causal verdict; a failed original workflow is not turned green.'
+    return summary
+
+
 def main():
     assert os.environ.get('GITHUB_ACTIONS') == 'true' and os.environ.get('GITHUB_REPOSITORY') == REPO
     assert os.environ.get('GITHUB_REF_NAME') == 'codex/editor-causality-evidence-reader-20261111'
@@ -252,6 +290,9 @@ def main():
         results.append(result)
         (OUT / 'analysis.json').write_text(json.dumps(results, indent=2) + '\n')
         print('MEASUREMENT ' + json.dumps(result), flush=True)
+    summary = summarize_results(results)
+    (OUT / 'qualified-summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+    print('QUALIFIED_SUMMARY ' + json.dumps(summary), flush=True)
     try:
         trace = original_clock_trace()
         assert original_trace_resolved(trace), 'required original clock trace/readings missing'

@@ -35,6 +35,37 @@ class ReaderTests(unittest.TestCase):
         self.assertNotIn('qualified', result)
         self.assertEqual(result['rawReport']['stats']['expected'], 2)
 
+    def test_completion_read_plan_is_exactly_five_pairs_and_one_parent(self):
+        import json
+        manifest = json.loads(Path(__file__).with_name('editor-causality-evidence-runs.json').read_text())
+        item = next(x for x in manifest if x.get('condition') == 'completion-01')
+        rows = reader.expected_observations(item)
+        self.assertEqual(len(rows), 11)
+        self.assertEqual(sum(a == 'parent' for _, a in rows), 6)
+        self.assertEqual(sum(a == 'landing' for _, a in rows), 5)
+        self.assertEqual(rows[-1], (46, 'parent'))
+        wrong = [dict(x) for x in manifest]
+        wrong[-1]['sha'] = reader.EXTENSION_SHA
+        with self.assertRaises(AssertionError): reader.validate_manifest(wrong)
+        wrong[-1]['sha'] = reader.COMPLETION_SHA
+        wrong[-1]['ref'] = 'codex/editor-causality-20261111-operator-c4-03-completion-02'
+        with self.assertRaises(AssertionError): reader.validate_manifest(wrong)
+
+    def test_summary_retains_unmatched_observations_without_pairing_across_workers(self):
+        def row(run, pair, arm, failed=False):
+            return {'observationId': f'{run}:{pair}:{arm}', 'pairId': f'{run}:{pair}', 'arm': arm, 'failed': failed}
+        original = [row(1, 1, 'parent'), row(1, 1, 'landing', True), row(1, 2, 'parent', True), row(1, 2, 'landing'), row(1, 3, 'landing')]
+        completed = [row(2, 3, 'parent'), row(2, 3, 'landing'), row(2, 4, 'parent', True)]
+        results = [{'kind': 'operator', 'rows': original, 'unresolved': [{'receiptInventory': {'available': ['intent.json', 'report.json']}}, {'receiptInventory': {'available': []}}]}, {'kind': 'operator', 'rows': completed, 'unresolved': []}]
+        summary = reader.summarize_results(results)
+        self.assertEqual(summary['operator']['arms'], {'parent': {'qualified': 4, 'failed': 2}, 'landing': {'qualified': 4, 'failed': 1}})
+        self.assertEqual(summary['operator']['completeWithinWorkerPairs'], 3)
+        self.assertEqual(set(summary['operator']['unpairedObservationIds']), {'1:3:landing', '2:4:parent'})
+        self.assertEqual(summary['originalUnqualifiedAttempts'], 1)
+        self.assertEqual(summary['originalUnadmittedSlots'], 1)
+        results[-1]['rows'].append(original[0])
+        with self.assertRaises(AssertionError): reader.summarize_results(results)
+
     def test_original_trace_completion_requires_observed_clock_readings(self):
         for trace in [{}, {'traces': []}, {'traces': [{'readings': []}]}]:
             self.assertFalse(reader.original_trace_resolved(trace))

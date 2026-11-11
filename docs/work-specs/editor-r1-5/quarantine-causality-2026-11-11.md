@@ -247,3 +247,25 @@ independently reviewed AGREE/A before its16 dispatches. All16 returned native
 IDs were reconciled to that head, exact cohort ref and first attempt before this
 32-run reader manifest was committed. Initial producer81f782eae and all its
 failures remain part of this same comparison.
+
+## Completion reader identity and accounting
+
+The artifact-confirmed301 method and observation-only producer repair were
+independently accepted AGREE/A before completion tests. The sole completion
+producer is5688142041b4a60e19647bd08b01f4ac61208e0d; its one returned native ID
+was read back against that head, exact completion ref and first attempt.
+The literal reader manifest now retains all32 originals and adds that33rd run.
+
+Read exactly the new five matched pairs41–45 and parent46. Each qualified file
+uses native-run/pair/arm as observation identity, and native-run/pair as pair
+identity; planned slot numbers are not observation identities. This preserves
+the original unmatched landing41 and prevents pairing the new parent46 with an
+older worker's landing46. The summary reports every qualified arm observation,
+complete within-worker pairs, unmatched observations and original missingness.
+No report qualification is loosened. The original admitted parent lacking its
+terminal journal remains unqualified, the later eight slots remain unadmitted,
+and their workflow remains failed even after the new target is reached. The
+reader still exits failure for those original unresolved records; a completed
+qualified comparison is not a claim that the failed original workflow passed.
+Final interpretation includes censoring sensitivity and independent causal
+review. Fresh reader implementation review precedes this final read.
