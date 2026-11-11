@@ -209,8 +209,9 @@ them separately from the code.
   finds already started. AC-1's paths have no typed data.
 - R2. What that press sends carries the edited value, read from memory.
 - R3. The edit is still saved, by one stored write carrying the latest text: by the Take path's
-  own save after its send, or by the save the editor's blur owes, which runs after the press is
-  over (pointer up, pointer cancelled, or the window losing focus; at most 2 s after it is owed).
+  own save after its send, or by the save the editor's blur owes, which runs once such presses
+  pause: 300 ms (the draft's idle delay) after the last one ends (pointer up, pointer cancelled,
+  or the window losing focus), never while one is down, and at most 2 s after it is owed.
   Whichever runs second finds nothing owed and writes nothing.
 - R3a. The typing before the press stays one undo step: its history group closes with the held
   save. If a write the press makes through the history lands first, it closes the group before
