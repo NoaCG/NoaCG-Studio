@@ -1,9 +1,8 @@
 import { scriptKind } from '../../model/scriptKind';
 import { APPEARANCE_RUNTIME_JS } from '../../control/appearanceRuntime';
 import { isIdentity, type AppliedAppearance } from '../../control/cueAdjust';
-import { prepareOutRuntime } from '../../blocks/animMigration';
+import { hasLoopRuntime, prepareOutRuntime } from '../../blocks/animMigration';
 import { authoredCueEnd } from '../../blocks/animLoopTiming';
-import { hasLoopRuntime } from '../../templates/shared/animRuntime';
 import { upgradeFontCss } from '../../model/fonts';
 // OGraf export: packages the template as an EBU OGraf v1 Graphic — a manifest
 // (<slug>.ograf.json) plus a JS entry point (graphic.mjs) exporting a Web Component that

@@ -236,3 +236,8 @@ for an upgraded cue with a range-less yoyo and ranged opacity loop.
 Browser job j-5195 verified the bridge handoff for inherited and terminal
 loop samples at Out. The maintained browser parity case also checks the
 1.8-second editor flag, the rendered terminal pose and OGraf metadata.
+
+The full independent assessment graded `6add1f4ea149ceca6f745268a1200f7a537939de` A.
+It identified an OGraf import that crossed the export dependency boundary.
+Dependency Cruiser reproduced the violation. OGraf now reads the same exact
+capability predicate through the existing animation migration entry point.
