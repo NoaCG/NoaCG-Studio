@@ -73,7 +73,7 @@
       "step": "build",
       "sourceSha": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
       "actionId": "plan-editor-r1-5-2026-11-08:3",
-      "note": "PR #2374 remote cb0f639ab. Original E2 builder is active. Latest local 0c9a1d6f includes styled repeated Stop and one-cue OGraf fixes. Browser j-5218 reached normal admission and passed 65, failed two new export cases. Focused diagnostic j-5220 reproduced both. No stamp, review request on the old head, or queue entry.",
+      "note": "E2 builder active in the same worktree. b5f9327 local and unpushed. Timed OGraf and one-cue self-entry fixed and exact package/Node checks passed. Independent B found manual and none styled OGraf metadata and unrelated Fade range floor. Scoped repairs in progress. Third and final styled metadata attempt. PR #2374 unchanged and unqueued.",
       "worktree": "C:/claude/Temp/editor-r15-e2-build-1111",
       "head": "cb0f639ab8ac2f4a6396ed0ded9a6d1c767a6749",
       "pr": 2374
@@ -256,12 +256,11 @@
       "attempts": "First repair for each of the selector, moving-track and live finite timer findings"
     },
     "latestLocal": {
-      "head": "0c9a1d6fe9694030c8c99e4299c37c5abcfe0a44",
+      "head": "b5f9327a0cfc80822ebd3876f9b34e4fc75c6daa",
       "pushed": false,
-      "previous": "e19b3815 passed j-5214 134/134; full independent B found the public repeated Stop styled-Out defect. 80f4db28 retained the timeline and protected its style tweens. Bundled GSAP oracle 27/27 passed.",
-      "checks": "0c9a fixed timed one-cue machine OGraf duration fallback. Eight generated-ZIP probes passed. Focused Node 38/38, static checks and TypeScript j-5219 passed.",
-      "red": "Windows Chromium j-5218 passed 65, failed two new export cases. SPX styled repeat fixture and non-real-time OGraf load failures reproduced in focused j-5220. Investigating fixture versus product before another patch.",
-      "pending": "Exact public ZIP controls confirmed styled and measured timed duration errors and public one-cue self-entry retirement. Fresh rule reviews authorized the bounded second timed export and second shared-dispatch ownership repairs. Existing assertions and scheduler guard kept."
+      "checks": "Exact bundled Node 39/39, lint, TypeScript j-5224 and both generated ZIP probe families passed. Actual public state probe: one-cue and two-cue controls move x20 to x85, with main In and parallel On. Measured and styled timed OGraf match HTML, with exact scheduled Out at 3900/2000 ms and styled timed manifest 2500 ms.",
+      "red": "Fresh full independent review graded B. Exact generated manual and none OGraf ZIPs show incorrect static Play/Continue estimates for styled E2 entrance. Exact preset picker operation preserves unrelated x loop but shrinks its authored cue, causing source writer refusal.",
+      "pending": "Third and final styled metadata repair, following independent action-duration inventory and exact controls. First contained preset-range repair. Normal Windows j-5223 queued pending 4 GiB. GitHub remains at cb0f639ab and unqueued."
     }
   },
   "waitingOn": null
