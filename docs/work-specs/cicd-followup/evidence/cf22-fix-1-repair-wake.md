@@ -91,7 +91,8 @@ required changes, all taken).
    The keys of every alarm issue closed in the last two days are remembered too: an owner who
    closes it by hand, even more than once, is not alarmed again for the same failures, and a closed issue is reopened as a new one only for
    a new failure. Those issues are read up to three pages; unread memory raises no new alarm. A list that has not changed is not rewritten, and an alarm
-   whose assignment did not take is assigned again by later checks.
+   whose assignment did not take is assigned again by later checks. The notice is sent before the
+   body lists its keys, so a notice that failed is sent by the next check.
 9. **Withdrawal.** A complete check that finds none of the listed failures still a PR's red
    verdict closes the issue. A failure stops being one only by a new verdict (a push, a run, a
    re-run), the PR closing, or the PR turning draft, so it cannot come back with the same key
@@ -121,7 +122,8 @@ check incomplete; a body rewritten on every check; CRLF bodies losing their sect
 Codex review and the final `/so` (same class for the first): the closed alarm's memory read only
 50 closed issues; a failed assignment was never retried; a failed merge-group listing let an older
 red PR run raise a new alarm; and two hand-closed alarms with an incomplete check between them
-forgot the first one's failures. Each is fixed with a test. One mutant survives as equivalent: marking
+forgot the first one's failures; and a notice that failed after the body already listed its keys
+was never sent. Each is fixed with a test. One mutant survives as equivalent: marking
 a PR uncertain when a remembered merge-group run cannot be re-read. That read only happens for a
 run over two days old, so any PR run it could be confused with failed over a day ago and raises
 nothing new anyway.

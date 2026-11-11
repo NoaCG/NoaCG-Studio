@@ -265,14 +265,16 @@ export function raise({ entries, complete, now, ceilings, gh, repo = REPO, alarm
     const made = JSON.parse(gh(['api', '-X', 'POST', `repos/${repo}/issues`, '-f', `title=${RED_ISSUE}`, '-f', `body=${body}`]));
     return `opened #${made.number} with ${fresh.length} new; ${routeOrWarn(made.number, { login, repo, gh })}`;
   }
+  // The notice goes first: a key is remembered once it is in the body, so a notice that failed
+  // after the edit would never be sent. A failed notice leaves the body as it was, and the next
+  // check sends it again.
+  if (fresh.length) gh(['api', '-X', 'POST', `repos/${repo}/issues/${found.number}/comments`, '-f', `body=New since the last check:\n\n${fresh.map((e) => e.line).join('\n')}`]);
   // An unchanged list is not rewritten: each edit would only move the check time.
   if (listedPart(body) !== listedPart(found.body)) gh(['api', '-X', 'PATCH', `repos/${repo}/issues/${found.number}`, '-f', `body=${body}`]);
   // A route that did not take when the issue opened is tried again until it does.
   const routed = (found.assignees ?? []).some((a) => String(a?.login).toLowerCase() === login.toLowerCase());
-  if (!fresh.length) return `#${found.number} kept, nothing new${routed ? '' : `; ${routeOrWarn(found.number, { login, repo, gh })}`}`;
-  // One comment per check, listing every new failure: the assignee is notified once.
-  gh(['api', '-X', 'POST', `repos/${repo}/issues/${found.number}/comments`, '-f', `body=New since the last check:\n\n${fresh.map((e) => e.line).join('\n')}`]);
-  return `updated #${found.number} with ${fresh.length} new; ${routeOrWarn(found.number, { login, repo, gh })}`;
+  const route = routed ? '' : `; ${routeOrWarn(found.number, { login, repo, gh })}`;
+  return fresh.length ? `updated #${found.number} with ${fresh.length} new${route}` : `#${found.number} kept, nothing new${route}`;
 }
 
 /** A `gh` that refuses past `limit` calls, so reads and writes together stay within rule 10. */

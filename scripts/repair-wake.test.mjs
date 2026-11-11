@@ -353,6 +353,24 @@ test('rule 8: a route that did not take is tried again by later checks', () => {
   assert.deepEqual(notices(gh), ['open'], 'routing again sends no second alarm');
 });
 
+test('rule 8: a notice that failed is sent by the next check, not lost to the body that already lists it', () => {
+  const t = '2026-11-11T10:00:00Z';
+  const fx = { prs: [{ number: 7, sha: 's' }], runs: [prRun({ id: 1, sha: 's', start: plus(t, -15), end: t })] };
+  const gh = fakeGitHub(fx);
+  check(gh, plus(t, 61));
+  fx.prs.push({ number: 8, sha: 'u' });
+  fx.runs.push(prRun({ id: 2, sha: 'u', start: plus(t, 50), end: plus(t, 60) }));
+  let refuse = true;
+  const flaky = { ...gh, run: (args) => { if (refuse && args[2] === 'POST' && /\/comments$/.test(args[3])) throw new Error('HTTP 503'); return gh.run(args); } };
+  assert.throws(() => check(flaky, plus(t, 121)), /503/, 'a failed notice fails the run, where it is seen');
+  assert.doesNotMatch(gh.state.issues[0].body, /#8:/, 'and #8 is not yet remembered');
+  refuse = false;
+  check(flaky, plus(t, 141));
+  assert.deepEqual(notices(gh), ['open', 'comment']);
+  assert.match(gh.state.posted.find((p) => p[0] === 'comment')[2], /#8:/);
+  assert.match(gh.state.issues[0].body, /#8:/);
+});
+
 test('rule 6: the bound is 60 minutes exactly', () => {
   const t = '2026-11-11T10:00:00Z';
   const fx = { prs: [{ number: 7, sha: 's' }], runs: [prRun({ id: 1, sha: 's', start: plus(t, -15), end: t })] };
