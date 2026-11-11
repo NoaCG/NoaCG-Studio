@@ -1,5 +1,5 @@
 {
-  "status": "MECHANISM EVIDENCE ONLY; primary60-per-arm CI comparison still in flight; no causal clearance or later phase launch",
+  "status": "CLOCK disposition independently reviewed AGREE/A at31cce1222: not caused by this editor run; initial CI comparison complete. Operator300-per-commit extension remains in flight/unresolved; overall phase gate stays closed.",
   "clock": {
     "landing": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
     "parent": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
@@ -911,6 +911,6 @@
     "documentedBehavior": "docs/work-specs/retire-hosted-control/spec.md AC-1 requires the old link to open its production. OldControlLink.tsx41 uses window.location.replace, removing the old query and replacing the document.",
     "identicalRedirectBlob": "0a61fb23984f1ae96cfbf338478ecc4a11bcfaec",
     "identicalSpecBlob": "e5441f2354eeb8a7537b16e1110c59a439d1e5ad",
-    "status": "Suspected navigation-unsafe test observation, not yet a causal verdict; wait for exact paired CI outcomes."
+    "status": "Initial parent0/60 versus landing3/60 original navigation failures; prewritten300-per-commit extension is in flight. No causal verdict or later phase launch."
   }
 }

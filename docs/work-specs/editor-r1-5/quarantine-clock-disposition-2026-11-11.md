@@ -1,6 +1,8 @@
-# Clock quarantine: proposed causal disposition
+# Clock quarantine: reviewed causal disposition
 
-Proposed verdict for independent review: **not caused by this editor run**.
+Reviewed verdict: **not caused by this editor run**. A fresh independent
+causal second opinion at31cce1222 returned AGREE/A, confirming the initial
+counts, all four catalog-document hashes and the controlled/source mechanism.
 The original failure mechanism exists before E1 and E2. This does not assert that
 the true population failure rates are exactly equal. Operator causality remains
 unresolved, so the overall owner gate is still closed and no later phase launches.
