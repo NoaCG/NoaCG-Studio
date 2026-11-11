@@ -297,23 +297,22 @@ export async function switchBuild(page: Page, to: 'dev' | 'prod', ready: () => P
 export const STALL = process.env.MEASURE_STALL === '1';
 export const STALL_MS = 3_000;
 
-/** Hold every IndexedDB write's completion while `window.__lpStallSave` is set (ms). */
+/** Hold every IndexedDB write open for `window.__lpStallSave` ms after it is made: a read issued
+ *  from the last one's success keeps the transaction from committing (the hold
+ *  e2e/playout-air-contract.spec.ts uses), so the save is confirmed only that much later. */
 export const SAVE_STALL = () => {
-  if (window.top !== window) return;
-  const desc = Object.getOwnPropertyDescriptor(IDBTransaction.prototype, 'oncomplete');
-  if (!desc?.set || !desc.get) return;
-  Object.defineProperty(IDBTransaction.prototype, 'oncomplete', {
-    configurable: true,
-    get() { return desc.get!.call(this); },
-    set(fn: ((this: IDBTransaction, e: Event) => unknown) | null) {
-      const tx = this as IDBTransaction;
-      desc.set!.call(tx, fn && function (this: IDBTransaction, e: Event) {
-        const ms = (window as unknown as { __lpStallSave?: number }).__lpStallSave ?? 0;
-        if (ms > 0 && tx.mode === 'readwrite') setTimeout(() => fn.call(tx, e), ms);
-        else fn.call(tx, e);
-      });
-    },
-  });
+  if (window.top !== window || typeof IDBObjectStore === 'undefined') return;
+  const w = window as unknown as { __lpStallSave?: number };
+  const realPut = IDBObjectStore.prototype.put;
+  const holdOpen = (store: IDBObjectStore, until: number) => {
+    if (Date.now() < until) store.get('__lp_hold__').onsuccess = () => holdOpen(store, until);
+  };
+  IDBObjectStore.prototype.put = function put(this: IDBObjectStore, ...args: unknown[]) {
+    const request = (realPut as (...a: unknown[]) => IDBRequest).apply(this, args);
+    const ms = w.__lpStallSave ?? 0;
+    if (ms > 0) holdOpen(this, Date.now() + ms);
+    return request;
+  } as typeof IDBObjectStore.prototype.put;
 };
 
 /** Under MEASURE_STALL: stall the page's saves and the fake Bridge's health answer from now on. */
