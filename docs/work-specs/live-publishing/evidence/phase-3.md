@@ -381,8 +381,8 @@ page-hide write at once) was graded B and withdrawn after the touch measurement 
   and a write the store refuses (a live candidate's field, editing paused at the store) is not
   retried. While the account may not write, the record stays for a later visit. Nothing is
   shown to the operator.
-- P3. A save of the draft that the store confirms removes the record. A record whose page stayed
-  (the tab was only hidden) is removed on the next visit, since the cue then holds the typed text.
+- P3. A save of the draft that the store confirms removes the record, and so does the page being
+  shown again after it hid (it stayed, so the store's write lands).
   A record of a production deleted before its next visit stays, a few hundred bytes.
 - P4. Therefore R4 holds: an edit typed and not yet saved is in the stored production after a
   reload at any moment after the press (pointer still down, mouse or touch; the send unanswered or
@@ -401,3 +401,72 @@ stands) and 6 (a later save to another cue no longer drops the edit). Finding 2:
 record goes, and that a deleted production's record stays. Finding 3: listed in P4. Smaller
 points: the key moves with the account (P1), a refused write and the silence (P2).
 
+Rules found after coding, apart from those stated before it: the record is removed when the
+page is shown again after it hid. Without that, an undo after a hide the page came back from
+would put the cue back to the text the typing started from, and the next visit would bring the
+undone edit back (inline review of 063798e). A first version also removed it when a draft was
+dropped (`cancel`); the page drops a draft while it starts, before `recover`, so that lost the
+record (the held-press reload test failed 2 of 6 on 310f222) and was taken out.
+
+### What changed
+
+- `src/model/owedCueEdit.ts` (new): the record, one localStorage key per account
+  (`spx-gfx-owed-cue-edits`, versioned), a map by production; added to the account's small keys
+  in `accountScope.ts`.
+- `src/control/cueDraft.ts`: `retain` on page hide also covers a save out through the history,
+  and records the owed edit first with the text the draft started from; `recover` applies a
+  record once; a confirmed save and the page shown again after it hid remove it.
+- `src/components/home/ProductionPage.tsx`: the record's storage calls for this production, the
+  "shown again" moment (visible again, or restored from the back-forward cache; never a fresh
+  load's own `pageshow`), and `recover` once the production's cues are there.
+- No Take path, no draft timing and no server change. The withdrawn first fix
+  (`durableStore.ts`, commit at once) is reverted on the branch (97f0bdd).
+
+### The checker's case on the local stack
+
+A temporary configured spec (not committed): sign in, publish the scorebug, select its first
+cue, delay `control_send_seq` by N ms with `page.route`, `fill` a text field, click Take, wait
+50 ms, reload, select the cue again and read the field.
+
+| Send answer delay | Without the fix (92e581a7) | With the fix |
+|---|---|---|
+| 200 ms | lost 4 of 4 (the field reads the old "HOME") | kept 4 of 4 |
+| 800 ms | not run here (the checker: lost 6 of 6) | kept 4 of 4 |
+
+### AC-1 measured again
+
+Production build with the stack's variables, `MEASURE_BUILD=prod MEASURE_STALL=1`, typical
+fixture, local Supabase stack, takes-a narrowed to the graphic cue Take (50 samples each):
+
+| Build | Own time p50 / p95 (ms) | Failures | Max |
+|---|---|---|---|
+| 063798e (the fix) | 11.8 / 24.7 | 0 | 28.2 |
+| FINAL_ROW |
+
+The checker's sample on 92e581a7 was 12.0 / 21.4. The fix runs only when the page hides, is
+shown again, or a draft save is confirmed, so no Take path's work changed; the other paths
+were not measured again.
+
+### Tests
+
+- `e2e/playout-air-contract.spec.ts`: "an unsaved edit is kept when the page reloads inside its
+  save window, pressed or not" (mouse pointer held down on Take, then no press) and, on a touch
+  screen, "typed, Take tapped, then the page reloads at once". Mutation: with the record never
+  written (`if (false && hiding) io.owed.keep(...)`) both fail 3 of 3 (the field reads the old
+  "Alexandra Riva"); the earlier "typed then taken, then the page reloads at once" stays green,
+  as the check said. With the fix the whole file passes 36 of 36 (`--repeat-each 3`, 063798e).
+- `scripts/cue-draft.test.mjs`: P1 to P3 and P5 cases, and the history's out save. Mutations:
+  no record on hide turns three red; no removal on a confirmed save one; `recover` never writing
+  two; the page hide not covering an out save one.
+- `scripts/owed-cue-edit.test.mjs` (new): records per production and per account, a store of
+  another version never read, written over or cleared, an unreadable record read as none.
+- Specs that hold writes or reload (`save-transaction-holds`, `rundown-history-storage`,
+  `cross-tab`, `network-resilience`, `production-data`, `account-library`) passed 79 of 80 on
+  the withdrawn first fix; the one failure, `rundown-history-storage.spec.ts:89`, was its home
+  page not appearing at the first `goto`, and the file then passed 21 of 21. Not rerun on the
+  final code, which does not touch the durable store; CI runs them.
+
+### For the owner's final check (phase 9)
+
+- In the studio: type into a cue, press Take, and reload at once with the output on a slow link;
+  the typed text is still there. Not counted as passed here.

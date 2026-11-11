@@ -369,7 +369,9 @@ test('P3: a save the store confirms removes the record; a refused one keeps it',
   stop();
 });
 
-test('P3: the page shown again, or the draft dropped (an undo, another cue), removes the record', () => {
+test('P3: the page shown again after it hid removes the record; a page that never hid removes none', () => {
+  // An undo can only follow a hide the page came back from: the record is gone by then, so the
+  // undone edit never comes back on the next visit.
   const h = harness();
   const stop = h.draft.listen(h.adapters);
   h.draft.edit(OPENER, { values: { f0: 'Hidden' } });
@@ -380,13 +382,8 @@ test('P3: the page shown again, or the draft dropped (an undo, another cue), rem
   h.owed = { cueId: 'c1', base: {}, fields: {} };
   for (const run of h.listeners.shown) run();
   assert.notEqual(h.owed, null, 'shown with no hide of its own: nothing to remove');
-  h.owed = null;
-  for (const run of h.listeners.hide) run();
-  h.draft.edit(OPENER, { values: { f0: 'Hidden again' } });
-  for (const run of h.listeners.hide) run();
-  assert.notEqual(h.owed, null);
   h.draft.cancel();
-  assert.equal(h.owed, null, 'dropped');
+  assert.notEqual(h.owed, null, 'a draft dropped at start-up leaves the record for recover');
   stop();
 });
 

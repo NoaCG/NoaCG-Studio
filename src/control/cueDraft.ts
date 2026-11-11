@@ -327,9 +327,6 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     cancel: () => {
       stopTimer();
       set(null);
-      // An undo puts the cue back to the text the typing started from: a record must not bring
-      // the undone edit back on the next visit.
-      io.owed.forget();
     },
     showing: (cueId, save) => {
       if (cueId === shown) return;
