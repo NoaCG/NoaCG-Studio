@@ -123,7 +123,8 @@ for (const pr of prs) Object.assign(pr, { m3: 0, failThenPass: false, flaky: [],
 for (const run of runs) {
   const pr = owner(run);
   if (!pr) continue;
-  if (run.event === "push" && run.head_branch === "main" && run.path.endsWith("ci.yml") && run.conclusion === "failure") pr.postLandingFailure = true;
+  // A landing's own main push run (ci.yml or the configured suite) ending red.
+  if (run.event === "push" && run.head_branch === "main" && /(ci|configured-suite)\.yml$/.test(run.path) && run.conclusion === "failure") pr.postLandingFailure = true;
   const jobs = jobsOf.get(run.id);
   if (!jobs) { trialRunsUnread += 1; continue; }
   const counted = new Set();
@@ -165,6 +166,22 @@ events.sort((a, b) => a[0].localeCompare(b[0]) || a[1] - b[1]);
 let now = 0, peak = 0, peakAt = null;
 for (const [t, d] of events) { now += d; if (now > peak) { peak = now; peakAt = t; } }
 
+// 4b. Quarantines added in the window: each entry names the run that recorded the flake; one whose
+// run belongs to a trial PR (its PR, merge-group or main push run) was added from a trial landing.
+const quarantines = [];
+const qCommits = read("quarantine-commits", () => api(`repos/${REPO}/commits?path=e2e/quarantine.json&sha=main&since=${SINCE}&until=${UNTIL}&per_page=100`), () => false) ?? [];
+for (const c of qCommits) {
+  const spec = /^Quarantine (\S+)/.exec(c.commit.message)?.[1];
+  if (!spec) continue;
+  const file = read(`quarantine-${c.sha}`, () => api(`repos/${REPO}/contents/e2e/quarantine.json?ref=${c.sha}`), () => true);
+  if (!file) continue;
+  const entry = JSON.parse(Buffer.from(file.content, "base64").toString("utf8")).specs?.[spec];
+  const runId = Number(/runs\/(\d+)/.exec(entry?.run ?? "")?.[1]);
+  const run = runs.find((r) => r.id === runId);
+  const pr = run ? owner(run) : null;
+  quarantines.push({ spec, at: c.commit.committer.date, commit: c.sha.slice(0, 8), run: runId || null, trialPr: pr?.number ?? null, plan: pr?.plan ?? null });
+}
+
 // 5. Figures and stop lines (phase-cf17.md sections 2 to 4).
 const landed = prs.filter((p) => inWindow(p.mergedAt));
 const q = landed.map((p) => p.queue?.minutes).filter((x) => x != null);
@@ -178,6 +195,7 @@ const out = {
   W: Object.fromEntries(["live-publishing", "vmix", "editor-r1-5"].map((plan) => [plan, new Set(landed.filter((p) => p.plan === plan && p.kind !== "check").map((p) => p.phase)).size])),
   Q: { n: q.length, p50: pct(q, 50), p90: pct(q, 90), max: q.length ? Math.max(...q) : null, openOver30: prs.filter((p) => p.queue?.state === "unfinished" && p.queue.minutes > 30).map((p) => p.number) },
   C: { queueRemovals: contention, maxRunnerWaitMinutes: Math.round(maxRunnerWait * 10) / 10, repoPeakConcurrentJobs: peak, peakAt, runsInWindow: runs.length, runsWithJobsRead: jobsOf.size, peakIsLowerBound: jobsOf.size < runs.length },
+  quarantines,
   R: { landings: landed.length, failThenPass: ftp, share: landed.length ? ftp / landed.length : null, postLandingFailures: landed.filter((p) => p.postLandingFailure).length, reruns: prs.reduce((a, p) => a + p.reruns, 0) },
   K: { landings: landed.length, tierMinutesPerLanding: Object.fromEntries(TIERS.map((t) => [t, landed.length ? Math.round((tierMinutes[t] / landed.length) * 10) / 10 : null])), trialRunsUnread },
 };
@@ -190,6 +208,7 @@ out.stop = {
     peak >= 57 && "repository-wide peak reached 57 concurrent jobs",
   ].filter(Boolean),
   failureRate: [
+    quarantines.some((x) => x.trialPr) && "a quarantine added from a trial landing's run (check whether the landing caused the flake)",
     landed.length >= 5 && out.R.share >= 0.29 && "fail-then-pass share at or above 29%",
     out.R.postLandingFailures >= 2 && "two post-landing failures on main from trial landings",
   ].filter(Boolean),
