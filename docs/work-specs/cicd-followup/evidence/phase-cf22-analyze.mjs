@@ -171,8 +171,10 @@ function derive(cache) {
       if (kind === 'queue') outcome = gateAny?.conclusion === 'success' && rev?.conclusion === 'success' ? 'green' : (RED.has(gate?.conclusion) || RED.has(rev?.conclusion) ? 'red' : 'other');
       // A PR run is judged by its CI gate: a red Reviewed there is review wait (cf17), not a bounce.
       else outcome = gate?.conclusion === 'success' ? 'green' : RED.has(gate?.conclusion) ? 'red' : 'other';
+      // A red merge group ends when its first red required job ended; otherwise at the last of them.
       const ends = [gateAny?.completed_at, kind === 'queue' && rev ? rev.completed_at : null].filter(Boolean).sort();
-      const end = outcome === 'red' && kind === 'queue' ? ends[0] : ends[ends.length - 1] ?? null;
+      const redEnds = [RED.has(gate?.conclusion) ? gate.completed_at : null, kind === 'queue' && RED.has(rev?.conclusion) ? rev.completed_at : null].filter(Boolean).sort();
+      const end = outcome === 'red' && kind === 'queue' ? redEnds[0] : ends[ends.length - 1] ?? null;
       const fails = own.filter((j) => STOPPED.has(j.conclusion) && !VERDICT_ONLY.has(j.name) && !(kind === 'pr' && j.name === 'Reviewed'));
       if (!perPr.has(n)) perPr.set(n, []);
       perPr.get(n).push({ run: r.id, attempt: a, kind, event: r.event, sha: r.head_sha, created, end, outcome, fails, gateJob: gate, ranJobs: own.map((j) => j.name),
@@ -237,11 +239,7 @@ function derive(cache) {
       };
       if (it.att) {
         b.jobs = it.att.fails.map((j) => classJob(j, cache));
-        // A failing job that later passed on the same commit (cf03 fail-then-pass).
-        for (const j of b.jobs) {
-          j.quarantined = j.specs.filter((s) => quarantined.has(s));
-          j.passed_later_same_commit = atts.some((a) => a.sha === it.att.sha && a.end > it.at && a.outcome === 'green');
-        }
+        for (const j of b.jobs) j.quarantined = j.specs.filter((s0) => quarantined.has(s0));
         b.gate_log = gateLog(it.att.gateJob, cache);
         if (b.gate_log?.capacity) b.jobs.push({ name: 'CI gate', step: 'Require every gate', kind: 'gate', gate: 'capacity (growth)', why: b.gate_log.capacity, specs: [], quarantined: [] });
         if (b.gate_log?.noFlag) b.jobs.push({ name: 'CI gate', step: 'Require every gate', kind: 'infra', why: 'the E2E plan gave no configured flag', specs: [], quarantined: [] });
@@ -342,7 +340,7 @@ function cause(b, queueReds) {
 // ---------------------------------------------------------------------------------------------
 // report
 
-export function report(rec) {
+function report(rec) {
   const B = rec.bounces;
   const out = { window: rec.window, denominators: rec.denominators };
   out.prs_bounced = rec.prs.length;
@@ -403,7 +401,7 @@ function loopMin(bs) {
   }
   return round1(total);
 }
-export function savedByRemoving(bounces, remove) {
+function savedByRemoving(bounces, remove) {
   let saved = 0;
   for (const pr of new Set(bounces.map((b) => b.pr))) {
     const mine = bounces.filter((b) => b.pr === pr);

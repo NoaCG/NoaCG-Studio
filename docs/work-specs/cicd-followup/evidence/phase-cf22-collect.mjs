@@ -148,7 +148,7 @@ export function prOf(run, byRef) {
   return null;
 }
 
-// 3. Issue events of every PR with a non-green ci.yml run in the window (draft and ready changes,
+// 3. Issue events of every PR with a non-green or re-run ci.yml run in the window (draft and ready changes,
 // merge-queue entries and removals, review stamps are statuses and are read from jobs instead).
 function events(prs) {
   for (const n of prs) {
@@ -222,7 +222,9 @@ if (MAIN) try {
   const prRuns = list.filter((r) => r.status === 'completed' && prOf(r, byRef) != null);
   const inWindow = (r) => r.created_at >= FROM && r.created_at < UNTIL;
   const bad = (r) => r.conclusion !== 'success' && r.conclusion !== 'cancelled' && r.conclusion !== 'skipped';
-  const touched = new Set(prRuns.filter((r) => inWindow(r) && bad(r)).map((r) => prOf(r, byRef)));
+  // A run's listed conclusion is its latest attempt's: a red attempt that a re-run turned green
+  // shows as success, so every run with more than one attempt is read too.
+  const touched = new Set(prRuns.filter((r) => inWindow(r) && (bad(r) || r.run_attempt > 1)).map((r) => prOf(r, byRef)));
   events([...touched].sort((a, b) => a - b));
   // Jobs of every non-success, non-cancelled run of those PRs (and, for the green time, every run
   // of theirs created in or after the window).

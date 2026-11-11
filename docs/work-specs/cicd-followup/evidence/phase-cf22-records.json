@@ -10,13 +10,13 @@
   "pr_runs_cancelled": 453,
   "merge_group_runs": 323,
   "prs_merged": 315,
-  "prs_with_a_red_run_read": 111,
-  "review_wait_attempts_of_those_prs": 246,
+  "prs_with_a_red_run_read": 204,
+  "review_wait_attempts_of_those_prs": 340,
   "green_first_attempt_pr_run_minutes": {
-   "n": 253,
-   "median": 13.5,
-   "p90": 20.2,
-   "sum": 3425.5
+   "n": 347,
+   "median": 13.7,
+   "p90": 29.2,
+   "sum": 5112.7
   }
  },
  "bounces": [
@@ -49,8 +49,7 @@
      "minutes": 20.3,
      "kind": "hang",
      "why": "cancelled in E2E shard",
-     "quarantined": [],
-     "passed_later_same_commit": true
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -71,7 +70,7 @@
    "head_ref": "bot/e2e-traced",
    "merged": true,
    "type": "queue",
-   "at": "2026-10-31T06:11:24Z",
+   "at": "2026-10-31T06:13:39Z",
    "run": 41175546812,
    "attempt": 1,
    "head": null,
@@ -79,8 +78,8 @@
    "green_attempt": 1,
    "green_head": null,
    "green_at": "2026-11-01T06:42:16Z",
-   "lost_min": 1470.9,
-   "wait_min": 1464.9,
+   "lost_min": 1468.6,
+   "wait_min": 1462.7,
    "ci_min": 6,
    "green_by": "head unknown",
    "rerun_failed_only": false,
@@ -94,8 +93,7 @@
      "minutes": 2.3,
      "kind": "code",
      "why": "[gates] tests failed (exit 1)",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -137,8 +135,7 @@
      "minutes": 3.4,
      "kind": "code",
      "why": "[gates] tests failed (exit 1)",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     },
     {
      "name": "E2E 9/15 (subset)",
@@ -150,8 +147,7 @@
      "minutes": 7.1,
      "kind": "code",
      "why": "1 spec file(s) failed",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -204,8 +200,7 @@
      "minutes": 3.4,
      "kind": "code",
      "why": "[gates] tests failed (exit 1)",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     },
     {
      "name": "Configured E2E verdict (selected)",
@@ -215,8 +210,7 @@
      "minutes": 0.6,
      "kind": "code",
      "why": "step: Fail unless the selection is a clean verdict",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -268,8 +262,7 @@
      "minutes": 2.7,
      "kind": "code",
      "why": "[gates] tests failed (exit 1)",
-     "quarantined": [],
-     "passed_later_same_commit": true
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -290,7 +283,7 @@
    "head_ref": "claude/quarantine-production-data-key-tick",
    "merged": true,
    "type": "queue",
-   "at": "2026-10-31T21:25:00Z",
+   "at": "2026-10-31T21:27:20Z",
    "run": 41243467985,
    "attempt": 1,
    "head": "06cabd05be192db57400fda020c2234c962815e8",
@@ -298,8 +291,8 @@
    "green_attempt": 1,
    "green_head": "06cabd05be192db57400fda020c2234c962815e8",
    "green_at": "2026-10-31T21:34:51Z",
-   "lost_min": 9.9,
-   "wait_min": 5.5,
+   "lost_min": 7.5,
+   "wait_min": 3.2,
    "ci_min": 4.3,
    "green_by": "new run, same commit",
    "rerun_failed_only": false,
@@ -313,8 +306,7 @@
      "minutes": 2.4,
      "kind": "code",
      "why": "[gates] tests failed (exit 1)",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -360,8 +352,7 @@
      "minutes": 8.3,
      "kind": "code",
      "why": "1 spec file(s) failed",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -416,8 +407,7 @@
      "minutes": 1.3,
      "kind": "infra",
      "why": "setup step: Run ./.github/actions/configured-stack",
-     "quarantined": [],
-     "passed_later_same_commit": true
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -460,8 +450,7 @@
      "minutes": 1.4,
      "kind": "infra",
      "why": "setup step: Run ./.github/actions/configured-stack",
-     "quarantined": [],
-     "passed_later_same_commit": true
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -506,8 +495,7 @@
      "minutes": 8.7,
      "kind": "code",
      "why": "1 spec file(s) failed",
-     "quarantined": [],
-     "passed_later_same_commit": true
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -553,8 +541,7 @@
      "minutes": 5.1,
      "kind": "code",
      "why": "1 spec file(s) failed",
-     "quarantined": [],
-     "passed_later_same_commit": true
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -567,6 +554,54 @@
    },
    "cause": "flake",
    "cause_why": "green again on the same commit (rerun of the same run); E2E 6/15 (subset): 1 spec file(s) failed",
+   "with_gate": false
+  },
+  {
+   "pr": 1966,
+   "title": "Styled credits measure their roll again when the design's font lands after the take",
+   "head_ref": "claude/plan-jev-svg-import-21-build",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-02T10:56:01Z",
+   "run": 41431355698,
+   "attempt": 1,
+   "head": "58d52e1ac70ac317e3ef861f1fb70431e14d0987",
+   "green_run": 41431355698,
+   "green_attempt": 2,
+   "green_head": "58d52e1ac70ac317e3ef861f1fb70431e14d0987",
+   "green_at": "2026-11-02T11:04:05Z",
+   "lost_min": 8.1,
+   "wait_min": 4.4,
+   "ci_min": 3.7,
+   "green_by": "rerun of the same run",
+   "rerun_failed_only": true,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "E2E 9/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/import-svg.spec.ts"
+     ],
+     "minutes": 3.6,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [
+      "e2e/import-svg.spec.ts"
+     ]
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "same": true
+   },
+   "cause": "flake",
+   "cause_why": "green again on the same commit (rerun of the same run); E2E 9/15 (subset): 1 spec file(s) failed",
    "with_gate": false
   },
   {
@@ -598,8 +633,7 @@
      "minutes": 1.7,
      "kind": "infra",
      "why": "setup step: Run ./.github/actions/configured-stack",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -656,8 +690,7 @@
      "quarantined": [
       "e2e/editor-transform-qualification.spec.ts",
       "e2e/import-svg-behaviour.spec.ts"
-     ],
-     "passed_later_same_commit": false
+     ]
     }
    ],
    "gate_log": {
@@ -716,8 +749,7 @@
      "why": "1 spec file(s) failed",
      "quarantined": [
       "e2e/import-svg-behaviour.spec.ts"
-     ],
-     "passed_later_same_commit": false
+     ]
     }
    ],
    "gate_log": {
@@ -776,8 +808,7 @@
      "why": "1 spec file(s) failed",
      "quarantined": [
       "e2e/import-svg-behaviour.spec.ts"
-     ],
-     "passed_later_same_commit": false
+     ]
     }
    ],
    "gate_log": {
@@ -831,8 +862,7 @@
      "minutes": 1.5,
      "kind": "infra",
      "why": "setup step: Run ./.github/actions/configured-stack",
-     "quarantined": [],
-     "passed_later_same_commit": true
+     "quarantined": []
     },
     {
      "name": "E2E 11/15 (subset)",
@@ -846,8 +876,7 @@
      "why": "1 spec file(s) failed",
      "quarantined": [
       "e2e/import-svg-credits.spec.ts"
-     ],
-     "passed_later_same_commit": true
+     ]
     }
    ],
    "gate_log": {
@@ -891,8 +920,7 @@
      "minutes": 0.3,
      "kind": "code",
      "why": "step: Merge the shard reports and list the selected tests",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -1047,8 +1075,7 @@
      "minutes": 1.6,
      "kind": "infra",
      "why": "setup step: Run ./.github/actions/configured-stack",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     },
     {
      "name": "CI gate",
@@ -1154,8 +1181,7 @@
      "minutes": 0.9,
      "kind": "code",
      "why": "[gates] check:workflows FAILED (exit 1, 2.8s)",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -1176,6 +1202,79 @@
    "cause": "defect",
    "cause_why": "repair changed 1 code or test file(s); Build: [gates] check:workflows FAILED (exit 1, 2.8s)",
    "with_gate": false
+  },
+  {
+   "pr": 2021,
+   "title": "Read a document's revision without opening the document",
+   "head_ref": "noacg/zealous-joliot-c78c83",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-03T12:16:40Z",
+   "run": 41632194764,
+   "attempt": 1,
+   "head": "ec1d464631103269ea4aaacc6400b367bc05a1be",
+   "green_run": 41632194764,
+   "green_attempt": 2,
+   "green_head": "ec1d464631103269ea4aaacc6400b367bc05a1be",
+   "green_at": "2026-11-03T12:31:53Z",
+   "lost_min": 15.2,
+   "wait_min": 2.3,
+   "ci_min": 12.9,
+   "green_by": "rerun of the same run",
+   "rerun_failed_only": true,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "Configured E2E verdict (selected)",
+     "step": "Fail unless the selection is a clean verdict",
+     "conclusion": "failure",
+     "specs": [],
+     "minutes": 0.5,
+     "kind": "code",
+     "why": "step: Fail unless the selection is a clean verdict",
+     "quarantined": []
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "same": true
+   },
+   "cause": "flake",
+   "cause_why": "green again on the same commit (rerun of the same run); Configured E2E verdict (selected): step: Fail unless the selection is a clean verdict",
+   "with_gate": false
+  },
+  {
+   "pr": 2021,
+   "title": "Read a document's revision without opening the document",
+   "head_ref": "noacg/zealous-joliot-c78c83",
+   "merged": true,
+   "type": "dequeue",
+   "at": "2026-11-03T12:48:13Z",
+   "run": null,
+   "attempt": null,
+   "head": "ec1d464631103269ea4aaacc6400b367bc05a1be",
+   "green_run": 41639164443,
+   "green_attempt": 1,
+   "green_head": "ec1d464631103269ea4aaacc6400b367bc05a1be",
+   "green_at": "2026-11-03T12:58:06Z",
+   "lost_min": 9.9,
+   "wait_min": 2.7,
+   "ci_min": 7.2,
+   "green_by": "new run, same commit",
+   "rerun_failed_only": false,
+   "actor": "github-merge-queue[bot]",
+   "jobs": [],
+   "gate_log": null,
+   "change": {
+    "same": true
+   },
+   "cause": "gate",
+   "cause_why": "removed from the queue by github-merge-queue[bot] with no red merge group run",
+   "ambiguous": true
   },
   {
    "pr": 2038,
@@ -1206,8 +1305,7 @@
      "minutes": 0.4,
      "kind": "code",
      "why": "step: Fail unless the selection is a clean verdict",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     },
     {
      "name": "CI gate",
@@ -1298,6 +1396,40 @@
    "cause_why": "CI gate: E2E capacity line - 159.7 of 210.3 table-minutes (76%) on 13 runners; backend tier refuse: 138.9/117 per landing, 72.8/78 per day (119%); this change adds 6.8/landing 4.1/day, reaching 125%, at or over the 95% line; dura"
   },
   {
+   "pr": 2095,
+   "title": "Imported credits hold the taken list at the cue, before the take runs",
+   "head_ref": "claude/credits-runtime-2057",
+   "merged": true,
+   "type": "dequeue",
+   "at": "2026-11-04T15:17:04Z",
+   "run": null,
+   "attempt": null,
+   "head": "a5fa74bdc03189164a969eed8e88bdd5bde6bc52",
+   "green_run": 41860309345,
+   "green_attempt": 1,
+   "green_head": "55fa25649247f11275fb212707b0da9ca4c6b9b9",
+   "green_at": "2026-11-04T15:51:23Z",
+   "lost_min": 34.3,
+   "wait_min": 24.1,
+   "ci_min": 10.2,
+   "green_by": "new commit",
+   "rerun_failed_only": false,
+   "actor": "github-merge-queue[bot]",
+   "jobs": [],
+   "gate_log": null,
+   "change": {
+    "files": 0,
+    "code": 0,
+    "test": 0,
+    "codeFiles": [],
+    "limits": [],
+    "merges": 1
+   },
+   "cause": "gate",
+   "cause_why": "removed from the queue by github-merge-queue[bot] with no red merge group run",
+   "ambiguous": true
+  },
+  {
    "pr": 2122,
    "title": "Saved editable credits rolls measure again when their face lands",
    "head_ref": "claude/credits-runtime-1965-1969",
@@ -1330,8 +1462,7 @@
      "why": "1 spec file(s) failed",
      "quarantined": [
       "e2e/import-svg-credits.spec.ts"
-     ],
-     "passed_later_same_commit": false
+     ]
     }
    ],
    "gate_log": {
@@ -1382,8 +1513,7 @@
      "minutes": 4.8,
      "kind": "code",
      "why": "[gates] tests failed (exit 1)",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     },
     {
      "name": "E2E 4/15 (subset)",
@@ -1397,8 +1527,7 @@
      "why": "1 spec file(s) failed",
      "quarantined": [
       "e2e/docs.spec.ts"
-     ],
-     "passed_later_same_commit": false
+     ]
     }
    ],
    "gate_log": {
@@ -1454,8 +1583,7 @@
      "why": "1 spec file(s) failed",
      "quarantined": [
       "e2e/imported-credits-live-data.spec.ts"
-     ],
-     "passed_later_same_commit": false
+     ]
     },
     {
      "name": "E2E 12/15 (subset)",
@@ -1467,8 +1595,7 @@
      "minutes": 10.2,
      "kind": "code",
      "why": "1 spec file(s) failed",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     },
     {
      "name": "CI gate",
@@ -1691,8 +1818,7 @@
      "why": "1 spec file(s) failed",
      "quarantined": [
       "e2e/output-debate-clock.spec.ts"
-     ],
-     "passed_later_same_commit": false
+     ]
     }
    ],
    "gate_log": {
@@ -1818,6 +1944,54 @@
    "cause_why": "CI gate: E2E capacity line - 174.0 of 210.7 table-minutes (83%) on 13 runners; backend tier refuse: 164.7/117 per landing, 65/78 per day (141%), jev-svg-import-journey excepts 0/landing (claims 6.85, capped at what it covers) to "
   },
   {
+   "pr": 2215,
+   "title": "Exported graphics come back whole on a second Take; a second quick press waits its turn",
+   "head_ref": "claude/vf-press-order-board",
+   "merged": true,
+   "type": "pr",
+   "at": "2026-11-05T13:47:20Z",
+   "run": 42031696823,
+   "attempt": 1,
+   "head": "8bd23447910be0af0587e1cdc37c989edd77fc73",
+   "green_run": 42031696823,
+   "green_attempt": 2,
+   "green_head": "8bd23447910be0af0587e1cdc37c989edd77fc73",
+   "green_at": "2026-11-05T14:12:20Z",
+   "lost_min": 25,
+   "wait_min": 0.3,
+   "ci_min": 24.7,
+   "green_by": "rerun of the same run",
+   "rerun_failed_only": true,
+   "actor": null,
+   "jobs": [
+    {
+     "name": "E2E 6/15 (subset)",
+     "step": "E2E shard",
+     "conclusion": "failure",
+     "specs": [
+      "e2e/editor-foundation.spec.ts"
+     ],
+     "minutes": 7.8,
+     "kind": "code",
+     "why": "1 spec file(s) failed",
+     "quarantined": [
+      "e2e/editor-foundation.spec.ts"
+     ]
+    }
+   ],
+   "gate_log": {
+    "read": true,
+    "capacity": null,
+    "noFlag": false
+   },
+   "change": {
+    "same": true
+   },
+   "cause": "flake",
+   "cause_why": "green again on the same commit (rerun of the same run); E2E 6/15 (subset): 1 spec file(s) failed",
+   "with_gate": false
+  },
+  {
    "pr": 2218,
    "title": "An off-air clock is rebuilt at boot unless a command moved that clock, not any graphic",
    "head_ref": "claude/offair-clock-boot-read",
@@ -1846,8 +2020,7 @@
      "minutes": 25,
      "kind": "hang",
      "why": "cancelled in Run actions/checkout@v5",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -1898,8 +2071,7 @@
      "minutes": 9.8,
      "kind": "code",
      "why": "1 spec file(s) failed",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -1949,8 +2121,7 @@
      "kind": "gate",
      "gate": "e2e protection",
      "why": "policy step: E2E protection check",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -2030,8 +2201,7 @@
      "why": "1 spec file(s) failed",
      "quarantined": [
       "e2e/output-debate-clock.spec.ts"
-     ],
-     "passed_later_same_commit": true
+     ]
     }
    ],
    "gate_log": {
@@ -2075,8 +2245,7 @@
      "minutes": 0.4,
      "kind": "code",
      "why": "step: Fail unless the selection is a clean verdict",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -2239,8 +2408,7 @@
      "kind": "gate",
      "gate": "e2e protection",
      "why": "policy step: E2E protection check",
-     "quarantined": [],
-     "passed_later_same_commit": true
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -2325,8 +2493,7 @@
      "minutes": 0.5,
      "kind": "code",
      "why": "step: Fail unless the selection is a clean verdict",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -2380,8 +2547,7 @@
      "minutes": 4.9,
      "kind": "code",
      "why": "[gates] tests failed (exit 1)",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     },
     {
      "name": "Catalog calibration gate",
@@ -2391,8 +2557,7 @@
      "minutes": 0.4,
      "kind": "code",
      "why": "step: Catalog emit fingerprints",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     },
     {
      "name": "E2E 5/15 (subset)",
@@ -2404,8 +2569,7 @@
      "minutes": 10.6,
      "kind": "code",
      "why": "1 spec file(s) failed",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     },
     {
      "name": "E2E 1/15 (subset)",
@@ -2417,8 +2581,7 @@
      "minutes": 12.6,
      "kind": "code",
      "why": "1 spec file(s) failed",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -2482,8 +2645,7 @@
      "minutes": 0.5,
      "kind": "code",
      "why": "step: Fail unless the selection is a clean verdict",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -2536,8 +2698,7 @@
      "minutes": 8.8,
      "kind": "code",
      "why": "1 spec file(s) failed",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     },
     {
      "name": "E2E 15/15 (subset)",
@@ -2549,8 +2710,7 @@
      "minutes": 12.4,
      "kind": "code",
      "why": "1 spec file(s) failed",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     },
     {
      "name": "CI gate",
@@ -2646,8 +2806,7 @@
      "why": "1 spec file(s) failed",
      "quarantined": [
       "e2e/editor-canvas-transforms.spec.ts"
-     ],
-     "passed_later_same_commit": false
+     ]
     }
    ],
    "gate_log": {
@@ -2703,8 +2862,7 @@
      "why": "1 spec file(s) failed",
      "quarantined": [
       "e2e/editor-base-edits.spec.ts"
-     ],
-     "passed_later_same_commit": false
+     ]
     }
    ],
    "gate_log": {
@@ -2771,8 +2929,7 @@
      "minutes": 5.9,
      "kind": "code",
      "why": "[gates] tests failed (exit 1)",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -2866,8 +3023,7 @@
      "minutes": 7.4,
      "kind": "code",
      "why": "1 spec file(s) failed",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -2925,8 +3081,7 @@
      "minutes": 10.2,
      "kind": "code",
      "why": "1 spec file(s) failed",
-     "quarantined": [],
-     "passed_later_same_commit": false
+     "quarantined": []
     }
    ],
    "gate_log": {
@@ -2985,8 +3140,7 @@
      "why": "1 spec file(s) failed",
      "quarantined": [
       "e2e/publish-output-setup.spec.ts"
-     ],
-     "passed_later_same_commit": false
+     ]
     }
    ],
    "gate_log": {
@@ -3031,7 +3185,7 @@
    "merged": true,
    "state": "closed",
    "rounds": 1,
-   "red_min": 1470.9,
+   "red_min": 1468.6,
    "unresolved": 0,
    "causes": [
     "defect"
@@ -3071,7 +3225,7 @@
    "merged": true,
    "state": "closed",
    "rounds": 1,
-   "red_min": 9.9,
+   "red_min": 7.5,
    "unresolved": 0,
    "causes": [
     "flake"
@@ -3137,6 +3291,19 @@
    "state": "closed",
    "rounds": 1,
    "red_min": 8.7,
+   "unresolved": 0,
+   "causes": [
+    "flake"
+   ]
+  },
+  {
+   "pr": 1966,
+   "title": "Styled credits measure their roll again when the design's font lands after the take",
+   "head_ref": "claude/plan-jev-svg-import-21-build",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 8.1,
    "unresolved": 0,
    "causes": [
     "flake"
@@ -3214,6 +3381,20 @@
    ]
   },
   {
+   "pr": 2021,
+   "title": "Read a document's revision without opening the document",
+   "head_ref": "noacg/zealous-joliot-c78c83",
+   "merged": true,
+   "state": "closed",
+   "rounds": 2,
+   "red_min": 25.1,
+   "unresolved": 0,
+   "causes": [
+    "flake",
+    "gate"
+   ]
+  },
+  {
    "pr": 2038,
    "title": "Row 38: rehearse the complete unfamiliar-artwork journey (AC-26)",
    "head_ref": "claude/plan-jev-svg-import-38-build",
@@ -3224,6 +3405,19 @@
    "unresolved": 0,
    "causes": [
     "defect",
+    "gate"
+   ]
+  },
+  {
+   "pr": 2095,
+   "title": "Imported credits hold the taken list at the cue, before the take runs",
+   "head_ref": "claude/credits-runtime-2057",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 34.3,
+   "unresolved": 0,
+   "causes": [
     "gate"
    ]
   },
@@ -3316,6 +3510,19 @@
    "state": "closed",
    "rounds": 1,
    "red_min": 12,
+   "unresolved": 0,
+   "causes": [
+    "flake"
+   ]
+  },
+  {
+   "pr": 2215,
+   "title": "Exported graphics come back whole on a second Take; a second quick press waits its turn",
+   "head_ref": "claude/vf-press-order-board",
+   "merged": true,
+   "state": "closed",
+   "rounds": 1,
+   "red_min": 25,
    "unresolved": 0,
    "causes": [
     "flake"
