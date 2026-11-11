@@ -1465,6 +1465,54 @@ test('a slower vMix Settings status read uses the newest validated capability fo
   assert.equal(opened.result.state, 'ok');
 });
 
+test('held vMix status uses newer capability and discards retired pairing evidence', async t => {
+  for (const change of ['newer health', 'uncertain action during status', 'uncertain action during reconnect']) await t.test(change, async t => {
+    forgetBridges();
+    const pairing = { ...settings, agentUrl: 'http://127.0.0.1:59996' };
+    const reconnect = change === 'uncertain action during reconnect';
+    const statusStarted = Promise.withResolvers();
+    const releaseStatus = Promise.withResolvers();
+    let features = ['vmix-media'];
+    let statusCalls = 0;
+    t.mock.method(globalThis, 'fetch', async url => {
+      const path = new URL(url).pathname;
+      if (path === '/health') return Response.json({ ...health, features });
+      if (path === '/act') return new Response('{', { status: 502 });
+      assert.ok(path === '/status' || path === '/connect');
+      if (++statusCalls === 1) {
+        statusStarted.resolve();
+        await releaseStatus.promise;
+      }
+      return Response.json(path === '/connect' ? connected : status);
+    });
+
+    const opening = testVmix(pairing, reconnect);
+    await statusStarted.promise;
+    if (change === 'newer health') {
+      features = ['vmix-output-key'];
+      assert.equal((await testVmix(pairing)).media, false);
+    } else {
+      const out = { verb: 'out', slot: { adapter: 'vmix', player: 'clips' } };
+      assert.equal((await actVmixMedia(pairing, out, () => true)).playerUncertain, true);
+      assert.equal((await testVmix(pairing)).media, true, 'the same pairing has a new positive observation');
+    }
+    releaseStatus.resolve();
+    const result = await opening;
+    if (change === 'newer health') {
+      assert.equal(result.media, false);
+      assert.equal(result.keyed, true);
+      assert.deepEqual(result.result.features, features);
+      assert.deepEqual(result.info, vmix);
+    } else {
+      assert.equal(result.supported, undefined);
+      assert.equal(result.media, undefined);
+      assert.equal(result.result.state, 'bridge');
+      assert.equal(result.result.features, undefined);
+      assert.equal(result.info, undefined);
+    }
+  });
+});
+
 test('an older positive vMix health reply cannot authorize a Take after a newer negative one', async (t) => {
   const pairing = { ...settings, agentUrl: 'http://127.0.0.1:59994' };
   const action = { verb: 'take', slot: { adapter: 'vmix', player: 'clips' }, item: { kind: 'media', name: 'clip.mov' } };

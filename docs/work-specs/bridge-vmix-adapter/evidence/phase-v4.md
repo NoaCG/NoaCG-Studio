@@ -64,3 +64,5 @@ The exact review of c4878797 reproduced a second player continuing after an acce
 A genuine uncertain player action or Bridge deadline preserves the Bridge's detail while retiring the old player reading. V4 has no Bridge version or release. The next planned Bridge release is V5.
 
 Dispatch checks the captured owner. Reply handling checks the pairing, so retiring an uncertain owner does not hide the Bridge's error. A successful cut on the other player does not overwrite that error. A late status probe can use the latest strict observation in the same pairing. A superseded action probe still cannot authorize a send.
+
+The exact review of 7307d6f8 held a status reply across a newer negative health observation and across retirement by an uncertain player action. Both used to publish the old media capability. Status now revalidates the same health observation at each await boundary. It can use a newer strict observation for the same live pairing. If the pairing entry was retired, it cannot use a replacement entry with the same address and token. A command or reconnect must still hold its own latest observation before sending.

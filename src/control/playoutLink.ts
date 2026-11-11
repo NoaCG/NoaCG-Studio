@@ -573,8 +573,7 @@ export async function reachBridge(bridgeUrl: string): Promise<PlayoutResult | nu
 const currentBridges = new Map<string, BridgeFeature[]>();
 interface VmixMediaEvidence {
   requested: number;
-  observed: number;
-  health?: VmixHealth;
+  latest?: { request: number; health: VmixHealth };
 }
 const currentVmixMediaPairings = new Map<string, VmixMediaEvidence>();
 
@@ -1131,21 +1130,34 @@ async function probeVmix(bridgeUrl: string): Promise<VmixHealth> {
   return { kind: 'failed', result: vmixCapabilityProblem };
 }
 
-/** Only the strict vMix health reply can establish a pairing's media capability. */
-async function probeVmixMediaPairing(settings: PlayoutSettings, readOnly = false): Promise<VmixHealth> {
+interface VmixHealthObservation {
+  pairing: string;
+  evidence: VmixMediaEvidence;
+  request: number;
+}
+
+/** Only a strict health reply from a current pairing can establish its media capability. */
+async function probeVmixMediaPairing(settings: PlayoutSettings): Promise<VmixHealthObservation> {
   const pairing = vmixPairing(settings);
-  const evidence: VmixMediaEvidence = currentVmixMediaPairings.get(pairing) ?? { requested: 0, observed: 0 };
+  const evidence: VmixMediaEvidence = currentVmixMediaPairings.get(pairing) ?? { requested: 0 };
   currentVmixMediaPairings.set(pairing, evidence);
   const request = ++evidence.requested;
   const health = await probeVmix(settings.agentUrl);
-  const unavailable: VmixHealth = { kind: 'failed', result: vmixCapabilityProblem };
-  // An uncertain action discards the entry. A late status read can use the latest
-  // observation from this entry, but a superseded action cannot use it to send.
-  if (currentVmixMediaPairings.get(pairing) !== evidence) return unavailable;
-  if (request < evidence.observed) return readOnly && evidence.health ? evidence.health : unavailable;
-  evidence.observed = request;
-  evidence.health = health;
-  return health;
+  if (currentVmixMediaPairings.get(pairing) === evidence && request > (evidence.latest?.request ?? 0)) {
+    evidence.latest = { request, health };
+  }
+  return { pairing, evidence, request };
+}
+
+/** A status read can follow newer evidence from its pairing. A send requires its own
+ *  observation, and neither can cross a retired entry even if the same pairing returns. */
+function currentVmixHealth(observation: VmixHealthObservation, readOnly = false): VmixHealth {
+  const { pairing, evidence, request } = observation;
+  const latest = evidence.latest;
+  if (currentVmixMediaPairings.get(pairing) === evidence && latest && (readOnly || latest.request === request)) {
+    return latest.health;
+  }
+  return { kind: 'failed', result: vmixCapabilityProblem };
 }
 
 const whole = (value: unknown, min: number): value is number =>
@@ -1308,19 +1320,23 @@ function readVmixReply(
 
 export async function testVmix(settings: PlayoutSettings, reconnect = false): Promise<VmixConnection> {
   if (!bridgePaired(settings)) return { supported: false, keyed: false };
-  const health = await probeVmixMediaPairing(settings, !reconnect);
-  if (health.kind !== 'current') {
-    return { ...(health.kind === 'legacy' ? { supported: false } : {}), keyed: false, result: health.result };
+  const observation = await probeVmixMediaPairing(settings);
+  let health = currentVmixHealth(observation, !reconnect);
+  if (health.kind === 'current' && health.adapters.includes('vmix')) {
+    const route = reconnect ? '/connect' : '/status';
+    const call = await callBridge(settings.agentUrl, route, { target: vmixTarget }, ACT_TIMEOUT_MS, settings.agentToken, 'vmix');
+    health = currentVmixHealth(observation, !reconnect);
+    if (health.kind === 'current' && health.adapters.includes('vmix')) {
+      const { features } = health;
+      const { result, body } = readVmixReply(settings, call, route);
+      return {
+        supported: true, keyed: features.includes('vmix-output-key'), media: features.includes('vmix-media'),
+        result: { ...result, features }, info: result.state === 'ok' ? body?.vmix : undefined,
+      };
+    }
   }
-  const { adapters, features } = health;
-  if (!adapters.includes('vmix')) return { supported: false, keyed: false };
-  const route = reconnect ? '/connect' : '/status';
-  const call = await callBridge(settings.agentUrl, route, { target: vmixTarget }, ACT_TIMEOUT_MS, settings.agentToken, 'vmix');
-  const { result, body } = readVmixReply(settings, call, route);
-  return {
-    supported: true, keyed: features.includes('vmix-output-key'), media: features.includes('vmix-media'),
-    result: { ...result, features }, info: result.state === 'ok' ? body?.vmix : undefined,
-  };
+  return health.kind === 'current' ? { supported: false, keyed: false }
+    : { ...(health.kind === 'legacy' ? { supported: false } : {}), keyed: false, result: health.result };
 }
 
 export async function readVmixOverlays(settings: PlayoutSettings, outputUrl: string): Promise<{
@@ -1434,11 +1450,12 @@ export async function actVmixMedia(
 ): Promise<PlayoutResult | null> {
   if (!canSend()) return null;
   const pairing = vmixPairing(settings);
-  const previous = currentVmixMediaPairings.get(pairing)?.health;
+  const previous = currentVmixMediaPairings.get(pairing)?.latest?.health;
   const known = previous?.kind === 'current' && previous.features.includes('vmix-media');
   if (!known) {
-    const health = await probeVmixMediaPairing(settings);
+    const observation = await probeVmixMediaPairing(settings);
     if (!canSend()) return null;
+    const health = currentVmixHealth(observation);
     if (health.kind !== 'current') return health.result;
     if (!health.features.includes('vmix-media')) {
       return { state: 'outdated', detail: 'Update NoaCG Bridge to play vMix media.' };
@@ -1448,7 +1465,7 @@ export async function actVmixMedia(
     return { state: 'config', detail: 'This cue has no vMix player.' };
   }
   const evidence = currentVmixMediaPairings.get(pairing);
-  const health = evidence?.health;
+  const health = evidence?.latest?.health;
   if (health?.kind !== 'current' || !health.features.includes('vmix-media')) return vmixCapabilityProblem;
   const guardedOut = action.verb === 'out' && action.expectedPlayerInstance !== undefined;
   if (guardedOut && !health.features.includes('vmix-player-out-guard')) {
