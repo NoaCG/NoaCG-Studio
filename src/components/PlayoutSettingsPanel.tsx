@@ -20,6 +20,7 @@ import {
   testVmix,
   vmixMediaFolder,
   vmixPairing,
+  watchPlayoutPairing,
   watchVmixMediaFolder,
   type VmixConnection,
   type PlayoutChannel,
@@ -96,6 +97,7 @@ export default function PlayoutSettingsPanel({ outputUrl, canPutOutputOnAir, onO
   onOutputOnAir?: (result: PlayoutResult, target: string) => void;
 } = {}) {
   const [settings, setSettings] = useState(loadPlayoutSettings);
+  const vmixScope = usePlayoutPairing();
   const [busy, setBusy] = useState<Verb | null>(null);
   // The verdict, with its success sentence written AT THE PRESS: it is past tense, so it must not be
   // re-derived from settings typed since (a Load line once named a channel typed after the
@@ -576,15 +578,31 @@ export default function PlayoutSettingsPanel({ outputUrl, canPutOutputOnAir, onO
           CasparCG guide
         </a>
       </p>
-      <VmixSettings agentUrl={settings.agentUrl} agentToken={settings.agentToken} />
+      <VmixSettings {...vmixScope} />
     </div>
   );
 }
 
+export function usePlayoutPairing() {
+  const [scope, setScope] = useState(() => ({ settings: loadPlayoutSettings(), revision: 0 }));
+  useEffect(() => {
+    const refresh = (changed: boolean) => {
+      const settings = loadPlayoutSettings();
+      setScope(previous => changed || vmixPairing(previous.settings) !== vmixPairing(settings)
+        ? { settings, revision: previous.revision + 1 }
+        : previous);
+    };
+    const stop = watchPlayoutPairing(() => refresh(true));
+    refresh(false);
+    return stop;
+  }, []);
+  return scope;
+}
+
 /** App-wide vMix setup is local to this browser. The Bridge supplies the available channels. */
-export function VmixSettings({ agentUrl, agentToken }: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'>) {
-  if (!bridgePaired({ agentUrl, agentToken })) return null;
-  return <VmixSettingsForPairing key={vmixPairing({ agentUrl, agentToken })} agentUrl={agentUrl} agentToken={agentToken} />;
+export function VmixSettings({ settings, revision }: ReturnType<typeof usePlayoutPairing>) {
+  if (!bridgePaired(settings)) return null;
+  return <VmixSettingsForPairing key={revision} agentUrl={settings.agentUrl} agentToken={settings.agentToken} />;
 }
 
 function VmixSettingsForPairing({ agentUrl, agentToken }: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'>) {
@@ -634,15 +652,17 @@ function VmixSettingsForPairing({ agentUrl, agentToken }: Pick<PlayoutSettings, 
     };
   }, [agentUrl, agentToken, media, retry]);
   const chooseFolder = async () => {
-    mediaRead.current += 1;
+    const pairing = loadPlayoutSettings();
+    if (vmixPairing(pairing) !== vmixPairing({ agentUrl, agentToken })) return;
     setChoosing(true);
     setMediaProblem(undefined);
-    const pairing = { ...loadPlayoutSettings(), agentUrl, agentToken };
     const reply = await vmixMediaFolder(pairing, true);
-    if (!mounted.current || vmixPairing(pairing) !== vmixPairing(loadPlayoutSettings())) return;
-    if (reply.folder) setMediaFolder(previous => reply.cancelled ? previous ?? reply.folder : reply.folder);
-    else setMediaProblem(reply.result.detail);
+    if (!mounted.current) return;
     setChoosing(false);
+    // The folder-change signal starts a fresh /studio read. A chooser reply never sets the folder.
+    if (reply.result.state !== 'ok' && vmixPairing(pairing) === vmixPairing(loadPlayoutSettings())) {
+      setMediaProblem(reply.result.detail);
+    }
   };
   if (!connection?.supported) return null;
   const info = connection.info;

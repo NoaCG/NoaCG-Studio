@@ -46,3 +46,10 @@ After #2380 landed as c0bc989f, the merge retained both sets of tests and carrie
 The independent review of 4e0f1a64 reproduced unexpected target errors that the chooser could not have returned and a repeated health request on known vMix media actions. The chooser now validates its own error shapes before the generic target rules. A paired Bridge whose strict health reply established vMix media support receives the action directly. An uncertain action discards that capability observation, and a missed reply can trigger one diagnostic health request without resending the action. The current pairing and ownership checks still guard dispatch and acceptance.
 
 The independent review of 5ae2d18c reproduced an older health reply reviving capability after an uncertain action or a newer negative reply. Strict health observations now belong to the pairing entry and are ordered by request. An uncertain action retires the entry, and an earlier reply cannot replace a newer observation. The direct action still checks current authority immediately before dispatch.
+
+
+## Pairing changes while Settings is open
+
+The independent review of 6fa491f8 verified both capability races and reproduced a stale Settings press reaching the previous Bridge. A fresh read-only reassessment also reproduced the originating Bridge missing folder invalidation if an already-sent chooser reply settled after the initiating tab switched away.
+
+Both Settings entry points now observe saved pairing changes. A chooser press requires its displayed pairing to match current storage immediately before dispatch and is never transferred to a new Bridge. A completed or uncertain choice invalidates readings for its originating Bridge. Settings reads the folder again from Bridge instead of folding the chooser reply into the newly displayed pairing. A picker also checks the pairing before sending its list request, so a switch back cannot admit rows from a request that used the intervening pairing.

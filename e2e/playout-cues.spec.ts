@@ -1326,11 +1326,62 @@ test('vMix media browses the selected folder and plays on separate clip and audi
     await other.evaluate(() => new Promise(resolve => setTimeout(resolve)));
     await expect(newClip).toBeVisible();
     await expect(otherPicker.getByTestId('picker-folder')).toHaveCount(0);
+    expect(media.choices).toBe(2);
+
+    // Pairing changes in a different tab while the old Bridge's native picker is open.
+    const nextBridge = 'http://127.0.0.1:8900';
+    const nextFolder = 'E:/Other Bridge';
+    const nextVmix = fakeVmix(8, { folder: nextFolder, files: {} });
+    await slotBridge({ route: (_url, handler) => page.context().route(nextBridge + '/**', handler) }, { vmix: nextVmix });
+    // The picker still belongs to the original pairing when Refresh is pressed in this task.
+    await other.evaluate(bridgeUrl => {
+      const key = 'spx-gfx-caspar';
+      const saved = localStorage.getItem(key)!;
+      localStorage.setItem(key, JSON.stringify({ ...JSON.parse(saved), agentUrl: bridgeUrl }));
+      try {
+        document.querySelector<HTMLButtonElement>('[data-testid="picker-refresh"]')!.click();
+      } finally {
+        localStorage.setItem(key, saved);
+      }
+    }, nextBridge);
+    await otherPicker.getByTestId('picker-refresh').click();
+    await expect(newClip).toBeVisible();
+    expect(nextVmix.media!.paths).toEqual([]);
+    const opened = Promise.withResolvers<void>();
+    const finishChoice = Promise.withResolvers<void>();
+    await page.route(BRIDGE + '/vmix/choose-folder', async route => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      opened.resolve();
+      await finishChoice.promise;
+      await route.fallback();
+    });
+    const pairedFromOtherTab = (agentUrl: string) => evaluateInPage(other, async (url: string) => {
+      const { savePlayoutSettings } = await import('/src/control/playoutLink.ts');
+      savePlayoutSettings({ agentUrl: url });
+      await new Promise(resolve => setTimeout(resolve));
+    }, agentUrl);
+    try {
+      await choose.click();
+      await opened.promise;
+      await expect(choose).toBeDisabled();
+      await pairedFromOtherTab(nextBridge);
+      await expect(mediaFolder).toHaveText(nextFolder);
+      await expect(choose).toBeEnabled();
+      const oldChoice = page.waitForResponse(response =>
+        response.url() === BRIDGE + '/vmix/choose-folder' && response.request().method() === 'POST');
+      finishChoice.resolve();
+      await (await oldChoice).finished();
+      await expect(mediaFolder).toHaveText(nextFolder);
+      await pairedFromOtherTab(BRIDGE);
+      await expect(mediaFolder).toHaveText(chosen);
+      expect(media.choices).toBe(3);
+    } finally {
+      finishChoice.resolve();
+    }
   } finally {
     oldRead.resolve();
     await other.close();
   }
-  expect(media.choices).toBe(2);
   await page.screenshot({ path: info.outputPath('vmix-media-settings.png') });
   await settings.getByTestId('playout-settings-close').click();
   await openPicker();

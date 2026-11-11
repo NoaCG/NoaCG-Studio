@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import PlayoutSettingsPanel, { VmixSettings } from './PlayoutSettingsPanel';
+import PlayoutSettingsPanel, { usePlayoutPairing, VmixSettings } from './PlayoutSettingsPanel';
 import RundownColors from './home/RundownColors';
 import type { Show } from '../model/shows';
 import { bridgePaired, loadPlayoutSettings, type PlayoutResult } from '../control/playoutLink';
@@ -23,8 +23,8 @@ export default function PlayoutSettingsDialog({
 }) {
   useModalGate();
   const pressedOnBackdrop = useRef(false);
-  const settings = loadPlayoutSettings();
-  const needsPairing = vmixOn && !bridgePaired(settings);
+  const vmixScope = usePlayoutPairing();
+  const needsPairing = vmixOn && !bridgePaired(vmixScope.settings);
   return <div className="gallery-backdrop"
     onMouseDown={event => { pressedOnBackdrop.current = event.target === event.currentTarget; }}
     onClick={event => {
@@ -43,7 +43,7 @@ export default function PlayoutSettingsDialog({
           <p className="dlg-caption">{casparOn ? 'CasparCG through NoaCG Bridge' : 'NoaCG Bridge'}</p>
           <PlayoutSettingsPanel outputUrl={casparOn ? outputUrl : undefined} canPutOutputOnAir={canPutOutputOnAir} onOutputOnAir={onOutputOnAir} />
         </section>}
-        {vmixOn && !needsPairing && <VmixSettings agentUrl={settings.agentUrl} agentToken={settings.agentToken} />}
+        {vmixOn && !needsPairing && <VmixSettings {...vmixScope} />}
         <section>
           <p className="dlg-caption">Rundown colours</p>
           <AccountAuthoringGate><RundownColors show={show} settings={loadPlayoutSettings()} casparOn={casparOn} setShows={setShows} /></AccountAuthoringGate>

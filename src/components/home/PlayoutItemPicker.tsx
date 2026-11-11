@@ -62,7 +62,8 @@ export default function PlayoutItemPicker({
   onAdd: (items: PickerItem[]) => Promise<boolean>;
 }) {
   const [mediaScope] = useState(() => vmix ? { pairing: vmixPairing(loadPlayoutSettings()), revision: vmixMediaFolderRevision() } : null);
-  const mediaCurrent = () => !mediaScope || (mediaScope.revision === vmixMediaFolderRevision() && mediaScope.pairing === vmixPairing(loadPlayoutSettings()));
+  const mediaCurrent = (settings = loadPlayoutSettings()) => !mediaScope ||
+    (mediaScope.revision === vmixMediaFolderRevision() && mediaScope.pairing === vmixPairing(settings));
   const [kind, setKind] = useState<'template' | 'media'>(vmix || mediaFilter ? 'media' : 'template');
   const [items, setItems] = useState<ListItem[] | null>(null);
   const [result, setResult] = useState<PlayoutResult | null>(null);
@@ -84,6 +85,7 @@ export default function PlayoutItemPicker({
     setResult(null);
     try {
       const settings = loadPlayoutSettings();
+      if (!mediaCurrent(settings)) return;
       const r = vmix ? await listVmixMedia(settings, path) : await listLibrary(settings, which);
       if (request.current !== revision || !mediaCurrent()) return;
       setResult(r.result);

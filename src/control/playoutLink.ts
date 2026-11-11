@@ -170,7 +170,15 @@ interface StoredSettings extends Partial<PlayoutSettings> {
  */
 export function loadPlayoutSettings(): PlayoutSettings {
   try {
-    const { v, ...raw } = JSON.parse(localStorage.getItem(STORE_KEY) ?? '{}') as StoredSettings;
+    return readPlayoutSettings(localStorage.getItem(STORE_KEY));
+  } catch {
+    return { ...PLAYOUT_DEFAULTS };
+  }
+}
+
+function readPlayoutSettings(stored: string | null): PlayoutSettings {
+  try {
+    const { v, ...raw } = JSON.parse(stored ?? '{}') as StoredSettings;
     // An unknown FUTURE version degrades honestly rather than being half-read: fall back to
     // the defaults and leave the stored row alone, so an older build never eats newer data.
     if (typeof v === 'number' && v > STORE_V) return { ...PLAYOUT_DEFAULTS };
@@ -191,12 +199,34 @@ export function savePlayoutSettings(patch: Partial<PlayoutSettings>): void {
   writeSettings(studioChanged ? { ...next, studioPending: { host: next.host.trim(), port: next.amcpPort } } : next);
 }
 
+const playoutPairingListeners = new Set<() => void>();
+
+/** Settings also observes writes from other tabs. The event identifies a transition even if the
+ *  saved pairing has already switched back by the time the event runs. */
+export function watchPlayoutPairing(onChange: () => void): () => void {
+  const onStorage = ({ storageArea, key, oldValue, newValue }: StorageEvent) => {
+    if (storageArea !== localStorage || (key !== STORE_KEY && key !== null)) return;
+    if (key === null || vmixPairing(readPlayoutSettings(oldValue)) !== vmixPairing(readPlayoutSettings(newValue))) onChange();
+  };
+  playoutPairingListeners.add(onChange);
+  window.addEventListener('storage', onStorage);
+  return () => {
+    playoutPairingListeners.delete(onChange);
+    window.removeEventListener('storage', onStorage);
+  };
+}
+
 function writeSettings(settings: PlayoutSettings): void {
+  const previousPairing = playoutPairingListeners.size ? vmixPairing(loadPlayoutSettings()) : undefined;
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify({ ...settings, v: STORE_V }));
   } catch {
     // Same reasoning as model/prefs.ts: a preference is a convenience, and throwing from a
     // render-adjacent path costs the whole app.
+    return;
+  }
+  if (previousPairing !== undefined && previousPairing !== vmixPairing(settings)) {
+    for (const listener of playoutPairingListeners) listener();
   }
 }
 
@@ -1343,7 +1373,7 @@ export function watchVmixMediaFolder(onChange: () => void): () => void {
 }
 
 function announceVmixMediaFolder(settings: PlayoutSettings): void {
-  signalVmixMediaFolderChange();
+  if (vmixPairing(settings) === vmixPairing(loadPlayoutSettings())) signalVmixMediaFolderChange();
   if (typeof BroadcastChannel !== 'function') return;
   const channel = mediaFolderChannel ?? new BroadcastChannel(VMIX_MEDIA_FOLDER_CHANGED);
   channel.postMessage(mediaBridgeUrl(settings));
@@ -1378,11 +1408,12 @@ export async function listVmixMedia(settings: PlayoutSettings, path = ''): Promi
 export async function vmixMediaFolder(settings: PlayoutSettings, choose = false): Promise<{
   result: PlayoutResult; folder?: string; cancelled?: true;
 }> {
+  if (choose && vmixPairing(settings) !== vmixPairing(loadPlayoutSettings())) {
+    return { result: { state: 'config', detail: 'The Bridge pairing changed. Choose the folder again in Playout Settings.' } };
+  }
   const { result, body, folderUncertain } = await vmixMediaRoute(settings, choose ? '/vmix/choose-folder' : '/studio');
   const folderMayHaveChanged = choose && (folderUncertain || (result.state === 'ok' && !body?.cancelled));
-  if (typeof window !== 'undefined' && folderMayHaveChanged && vmixPairing(settings) === vmixPairing(loadPlayoutSettings())) {
-    announceVmixMediaFolder(settings);
-  }
+  if (typeof window !== 'undefined' && folderMayHaveChanged) announceVmixMediaFolder(settings);
   if (result.state !== 'ok') return { result };
   return { result, folder: body?.mediaFolder, cancelled: body?.cancelled };
 }

@@ -900,6 +900,9 @@ test('accepted All out after navigation reads the original CasparCG slot before 
 });
 
 test('vMix media routes use the paired token and a Take requires the current capability and session', async (t) => {
+  const priorStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: () => JSON.stringify(settings) } });
+  t.after(() => priorStorage ? Object.defineProperty(globalThis, 'localStorage', priorStorage) : delete globalThis.localStorage);
   const calls = [];
   const target = { adapter: 'vmix' };
   const action = { verb: 'take', slot: { adapter: 'vmix', player: 'clips' }, item: { kind: 'media', name: 'Replay/clip.mov' } };
@@ -1190,6 +1193,88 @@ test('an uncertain vMix folder choice invalidates outstanding reads in both pair
     assert.equal((await first.vmixMediaFolder(settings, true)).folder, undefined);
     assert.deepEqual(tabs.map(tab => tab.vmixMediaFolderRevision()), revisions.map(revision => revision + 1));
   }
+});
+
+test('Settings pairing observers see local changes and cross-tab switch-back', async (t) => {
+  const { savePlayoutSettings, watchPlayoutPairing } = await import('../src/control/playoutLink.ts');
+  const events = new EventTarget();
+  let stop = () => {};
+  t.after(() => stop());
+  const saved = new Map();
+  const storage = { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value) };
+  for (const [name, value] of Object.entries({ window: events, localStorage: storage })) {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, name);
+    Object.defineProperty(globalThis, name, { configurable: true, value });
+    t.after(() => previous ? Object.defineProperty(globalThis, name, previous) : delete globalThis[name]);
+  }
+  savePlayoutSettings(settings);
+  let observed = 0;
+  stop = watchPlayoutPairing(() => { observed += 1; });
+  savePlayoutSettings({ layer: 31 });
+  assert.equal(observed, 0);
+  savePlayoutSettings({ agentToken: 'new-token' });
+  assert.equal(observed, 1);
+  savePlayoutSettings({ agentToken: settings.agentToken });
+  assert.equal(observed, 2);
+
+  const [key, current] = [...saved.entries()][0];
+  const other = JSON.stringify({ ...JSON.parse(current), agentUrl: 'http://127.0.0.1:59993' });
+  const changed = (oldValue, newValue) => events.dispatchEvent(Object.assign(new Event('storage'), { storageArea: storage, key, oldValue, newValue }));
+  changed(current, other);
+  changed(other, current);
+  assert.equal(observed, 4, 'both transitions are observed even though storage already reads the original pairing');
+  stop();
+  changed(current, other);
+  assert.equal(observed, 4);
+});
+
+test('a stale vMix folder chooser sends no request and an in-flight result still notifies its originating Bridge', async (t) => {
+  const first = await import('../src/control/playoutLink.ts');
+  const next = { ...settings, agentUrl: 'http://127.0.0.1:59993', agentToken: 'replacement-token' };
+  let stored = next;
+  const notifications = [];
+  const globals = {
+    window: { location: { origin: 'http://127.0.0.1:5173' } },
+    localStorage: { getItem: () => JSON.stringify(stored) },
+    BroadcastChannel: class {
+      postMessage(data) { notifications.push(data); }
+      close() {}
+    },
+  };
+  for (const [name, value] of Object.entries(globals)) {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, name);
+    Object.defineProperty(globalThis, name, { configurable: true, value });
+    t.after(() => previous ? Object.defineProperty(globalThis, name, previous) : delete globalThis[name]);
+  }
+
+  const requests = [];
+  let reply = Promise.resolve(Response.json({ ...ok, mediaFolder: 'C:/Selected' }));
+  t.mock.method(globalThis, 'fetch', (url, options) => {
+    requests.push([url, options.headers.authorization]);
+    return reply;
+  });
+  assert.equal((await first.vmixMediaFolder(settings, true)).folder, undefined);
+  assert.deepEqual(requests, [], 'a stale press chooses on neither the displayed Bridge nor the new one');
+  assert.deepEqual(notifications, []);
+
+  const before = first.vmixMediaFolderRevision();
+  for (const body of [
+    { ...ok, mediaFolder: 'C:/Selected' },
+    { v: 2, ok: false, error: { hop: 'agent', code: 'uncertain', detail: 'The save is still settling.' } },
+  ]) {
+    const hold = Promise.withResolvers();
+    reply = hold.promise;
+    stored = settings;
+    const choosing = first.vmixMediaFolder(settings, true);
+    stored = next;
+    hold.resolve(Response.json(body));
+    await choosing;
+    assert.equal(first.vmixMediaFolderRevision(), before, 'the sender is now reading a different Bridge');
+  }
+  assert.deepEqual(requests, Array.from({ length: 2 }, () => [
+    settings.agentUrl + '/vmix/choose-folder', 'Bearer fixture-token',
+  ]));
+  assert.deepEqual(notifications, [settings.agentUrl, settings.agentUrl], 'only the originating address is published');
 });
 
 test('a known vMix media pairing sends directly and rechecks capability after a lost action reply', async (t) => {
