@@ -719,7 +719,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const fromMemory = p.takeAppearanceOf?.(cue, graphic);
     const pending = fromMemory ? fromMemory.appearance : p.appearanceOf?.(cue, graphic);
     const appearance = pending instanceof Promise ? await pending : pending;
-    const place = fromMemory?.place;
+    let place = fromMemory?.place;
     // A live candidate resolves whole from one revision, or the cue is not taken: an unknown B
     // never airs B's prepared values, or A's (E7.1).
     const selection = p.selectionFor(cue, graphic);
@@ -736,6 +736,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // log, every output and this page's marker all see it. In the Take's own batch when they fit in
     // one command call, else in batches of their own sent first.
     const peers = (p.layerPeers?.(graphic) ?? []).filter((g) => g !== graphic && session.air.get().liveCue[g]);
+    // A Take that takes another graphic off its layer carries no place hint: an output would clear
+    // that graphic at once and hold this one for its measurement, leaving the layer blank meanwhile.
+    // It airs at the place sent, as on an older output.
+    if (peers.length > 0) place = undefined;
     const captured = [{ g: graphic, c: p.selectionAired(graphic, cue.id, selection, true) }, ...peers.map((g) => ({ g, c: p.selectionAired(g, '', { status: 'none' }, true) }))];
     const take = takeCueItems({ id: cue.id, graphic, values, ...envelope, ...(appearance ? { appearance } : {}), ...(place ? { place } : {}), ...(direct ? { direct: true, auto: cue.auto ? markerAuto({ auto: cue.auto, next: null }) : null } : {}) });
     const sent = await sendWith(s, withPeersOff(peers, take), label);

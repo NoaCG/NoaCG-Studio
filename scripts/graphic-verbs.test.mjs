@@ -810,6 +810,23 @@ test('a Take carries the place and size read from memory at the press, with a pl
   await plain;
 });
 
+test('W1: a Take that takes a package off its layer carries no place hint, so the layer is never left blank while an output measures', async () => {
+  const look = { v: 1, frame: { dx: 10, dy: 0, s: 1, ox: 0, oy: 0 } };
+  const hint = { v: 1, place: 'br', frame: { width: 1920, height: 1080 }, stage: { width: 1920, height: 1080 } };
+  const r = rig({ liveCue: { Pkg: 'p1' } });
+  r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Pkg: 'p1' } } }));
+  r.page.layerPeers = () => ['Pkg'];
+  r.page.takeAppearanceOf = () => ({ appearance: look, place: hint });
+  const taking = r.verbs.take(graphicCue('c1', 'Strap', { f0: 'A' }));
+  await settle();
+  const update = r.sends[0].batches.flat().find((i) => i.graphic === 'Strap' && i.msg.t === 'update');
+  assert.deepEqual(sentAs(update).msg.appearance, look, 'the place sent');
+  assert.equal('place' in update.msg, false);
+  assert.ok(r.sends[0].batches.flat().some((i) => i.graphic === 'Pkg' && i.msg.t === 'stop'), 'the package goes off');
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await taking;
+});
+
 test('a Take waits for a box still being measured, then carries the placement it gives', async () => {
   const placed = { v: 1, frame: { dx: 1270, dy: 0, s: 1, ox: 530, oy: 961 } };
   const r = rig();
