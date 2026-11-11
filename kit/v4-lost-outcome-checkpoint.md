@@ -8,3 +8,9 @@ The fourth exact-head independent review returned AGREE WITH CORRECTIONS, below 
 - A typed agent/uncertain Choose can follow submitted folder publication and complete afterwards. An old delayed list can then be admitted because the Choose wrapper leaves the shared folder revision unchanged. The builder independently reproduced old and new /studio and /list evidence on the same head.
 
 173 focused Node and independent 136 Node cases passed, plus TypeScript, changed ESLint and diff check. Normal exact CI 43006843528 at checkpoint in_progress ; Build and Factory passed, plan all 64 configured specs on four local stacks, Reviewed withheld. CI was not rerun or cancelled. Local Chromium j-5233 was cancelled while waiting, with zero executions. No merge, no release, no active scheduled wake.
+
+Cloud reassessment received at 2026-11-11T16:12:40Z. Task 6af49273-cd14-8191-93b3-191619531065, nonce v4-cloud-2378-d041c1ca. Isolated checkout and GitHub PR both matched d041c1ca924d6047722631d33808318135510463. Git and Actions read preflights passed. Cloud model and effort were not independently exposed. Read-only, no dirty paths or pushes. Independent verdict AGREE WITH CORRECTIONS.
+
+After Take B replaced A in the simulated mixer and returned malformed 401/403, all three queued Pause, Resume and Out actions from A reached B. A malformed 502 blocked them, and genuine empty 401/403 stayed definitive refusals. In the uncertain Choose probe both tab revisions stayed zero. Old picker, readiness and metadata replies remained admissible after simulated folder publication. The smallest proposed repair uses the typed uncertainty at the common transport boundary and invalidates folder evidence locally and across same-pair tabs.
+
+Current #2380 head 593afc5d is open with five shared paths and CI gate green, Reviewed red, no auto-merge at observation. No editing until the shared write allocation clears.
