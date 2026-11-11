@@ -4,7 +4,7 @@
     "until": "2026-11-11T17:17:33Z"
   },
   "complete": true,
-  "calls": 11,
+  "calls": 9,
   "trialPrs": [
     {
       "number": 2378,
@@ -218,10 +218,10 @@
   "K": {
     "landings": 8,
     "tierMinutesPerLanding": {
-      "offline": 944.9,
-      "backend": 291.7,
-      "graphics": 57.8,
-      "overhead": 98
+      "offline": 854.5,
+      "backend": 258.2,
+      "graphics": 51.1,
+      "overhead": 91
     },
     "trialRunsUnread": 0
   },

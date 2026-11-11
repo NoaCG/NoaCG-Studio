@@ -198,14 +198,18 @@ concurrency stays off.** Stage 1 landed before the trial counted (#2359, merged
   build PR merged; the runs' independent checks are recorded on the owner's machine and were not
   read.
 - **Q, queue to landing** (first queue entry to merge, n = 8): p50 13.8, p90 18.2, max 18.2
-  minutes. No PR was removed from the queue before merging.
-- **C, contention:** 0 dequeues; longest wait of a trial job for a runner 2.0 minutes;
+  minutes. No PR was removed from the queue before merging. cf03's M2 split into waiting and
+  execution, and M1 by cf03 group, were not computed (section 2 asked for them beside Q).
+- **C, contention:** 0 dequeues; merges of `origin/main` into a trial branch forced by another
+  trial plan's landing not measured; longest wait of a trial job for a runner 2.0 minutes;
   **repository-wide peak of 60 concurrent jobs at 2026-11-11T12:38:00Z**. Of the 60: 16 from
   editor E2's landing on `main` (CI 43020316776, configured suite 43020316884, code scan), 13 from
   live-publishing phase 3's PR (CI 43021936320 and its code scan), 31 from non-trial PRs (CI and
   code scans, 23 of them one growth-gate PR's CI run).
-- **R, retries:** by cf03's job definition, 0 of 8 landings had a fail-then-pass job and 0 real
-  re-run attempts (Reviewed re-runs after the stamp are review wait). But two landings' own main
+- **R, retries:** by cf03's job definition, 0 of 8 landings had a fail-then-pass job, and there was
+  1 real re-run attempt: live-publishing phase 3 (#2380), run 43050146650, where attempt 2 re-ran
+  E2E 11/15 after it failed and that re-run was cancelled (Reviewed-only re-runs after the stamp are
+  review wait). Hangs (a job ending at its timeout cap) were not detected by the script. But two landings' own main
   push runs met a flaky spec that the quarantine route then recorded:
   `e2e/configured/operator-outage-not-unpublished.spec.ts`, quarantined 2026-11-11T02:40:17Z
   (d3777803) from editor E1's configured-suite run 42945843116, and `e2e/output-debate-clock.spec.ts`,
@@ -213,8 +217,9 @@ concurrency stays off.** Stage 1 landed before the trial counted (#2359, merged
   is the one red post-landing run of the window. E2 changed `src/model/animLoopClock.ts` and
   animation timing, so a link to the debate-clock flake is plausible; E1 and the configured outage
   spec look unrelated. Neither cause is established.
-- **K, CI cost per landing** (every run of the trial PRs, their merge groups and main pushes, n = 8):
-  offline 944.9, backend 291.7, graphics 57.8, overhead 98.0 runner-minutes. The last weekly
+- **K, CI cost per landing** (every run in the window of the 8 landed trial PRs, their merge groups
+  and main pushes, n = 8; the open V4 PR #2378 and runs before the start are left out): offline
+  854.5, backend 258.2, graphics 51.1, overhead 91.0 runner-minutes. The last weekly
   growth report before the window (2026-11-09, run 42647874522, evidence partial, so its figures
   are lower bounds): offline 375.6, backend 148.2, graphics 25.2, overhead 93.4. M3 per landing:
   median 634, range 588 to 2,688.
@@ -243,7 +248,7 @@ keep running side by side.
 | S2 queue delay | not met | queue to landing p50 13.8 against at most 10; M1 by cf03 group not computed (cannot be judged) |
 | S3 contention | not met | repository peak 60, at or above 57; repair-owner and admission rules in the three ledgers not read |
 | S4 retries | not met | one post-landing failure on `main` (#2374's push run); M4 by cf03's definition 0 of 8, but two quarantines followed trial landings |
-| S5 CI cost | not met | per-landing minutes above the last report's in every tier (offline 945 against 376, backend 292 against 148, graphics 58 against 25, overhead 98 against 93); M3 by cf03 group not computed |
+| S5 CI cost | not met | per-landing minutes above the last report's in three tiers (offline 855 against 376, backend 258 against 148, graphics 51 against 25); overhead 91 against 93 is below; M3 by cf03 group not computed |
 | S6 pause and resume | not met | not exercised in the window |
 
 ### 7.5 Decision
@@ -255,9 +260,11 @@ the owner after 21.6 hours with 8 landings, and showed no benefit it could measu
 are operating evidence, not statistical proof.
 
 What it does show, for whoever plans concurrency next: at three plans plus ordinary work the
-repository reached the 60-job ceiling once, landings queued about 14 minutes (over the 10-minute
-target, inside the 20-minute p90), and per-landing CI cost was well above the last weekly report,
-driven by the trial PRs' many pushes (#2362 and #2380 each above 2,000 runner-minutes).
+repository reached the 60-job ceiling once, and landings queued about 14 minutes (over the
+10-minute target, inside the 20-minute p90). Per-landing CI cost was above the last weekly report
+in three tiers, but that compares large plan phases with the repository's average landing (#2362
+and #2380 each above 2,000 runner-minutes over 14 and 18 PR CI runs), so it reflects the size of
+these phases; it does not show that running them together raised cost.
 
 ### 7.6 Phase notes
 

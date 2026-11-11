@@ -138,7 +138,7 @@ for (const run of runs) {
     counted.add(key);
     const m = min(job.started_at, job.completed_at);
     pr.m3 += m;
-    tierMinutes[tierOfJob(run.path, job.name)] += m;
+    if (inWindow(pr.mergedAt)) tierMinutes[tierOfJob(run.path, job.name)] += m; // K: landed PRs only
     if (job.created_at) maxRunnerWait = Math.max(maxRunnerWait, min(job.created_at, job.started_at));
     const prev = seen.get(job.name);
     if (job.name === "Reviewed") {
