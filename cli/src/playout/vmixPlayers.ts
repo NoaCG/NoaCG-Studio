@@ -305,17 +305,15 @@ export function createVmixPlayers(media: VmixMedia) {
     const { key, list: preparedList } = prepared;
     const loop = action.loop === true || action.playback?.end === 'loop';
     const send = (name: string, value?: string) => mixer.send(name, { Input: key, ...(value !== undefined ? { Value: value } : {}) });
-    for (const [name, value] of [[loop ? 'LoopOn' : 'LoopOff'], ['AutoPlayNextOff'], ['SetAlpha', '255']]) {
-      const result = await send(name, value);
-      if (!result.ok) return result;
-    }
+    const autoNext = await send('AutoPlayNextOff');
+    if (!autoNext.ok) return autoNext;
 
     const snapshot = await mixer.read();
     const before = snapshot.ok && snapshot.value.lists.get(key);
     if (!before) return uncertain('setting up the Take');
     const currentProblem = await playbackProblem(port, player, before, mixer.until);
     if (currentProblem) return currentProblem;
-    if (before.loop !== loop || !readyForPlayback(player, before) || !sameSelection(preparedList, before)) {
+    if (!readyForPlayback(player, before) || !sameSelection(preparedList, before)) {
       return uncertain('setting up the Take');
     }
     const file = await withinVmixDeadline(mixer.until, () => media.file(port, action.item.name));
@@ -323,9 +321,21 @@ export function createVmixPlayers(media: VmixMedia) {
     const appended = [...before.items, file];
     const added = await send('ListAdd', file);
     if (!added.ok) return added;
-    const addedList = await observe(port, player, mixer, key, list => list.loop === loop && sameItems(list.items, appended));
+    const currentIndex = before.items.length ? before.selected : 1;
+    const addedList = await observe(port, player, mixer, key, list => list.selected === currentIndex && sameItems(list.items, appended));
     if (addedList && 'error' in addedList) return addedList;
     if (!addedList || !readyForPlayback(player, addedList)) return uncertain('adding the file');
+
+    // vMix acknowledges Loop on an empty list without applying it.
+    const ending = await send(loop ? 'LoopOn' : 'LoopOff');
+    if (!ending.ok) return ending;
+    const alpha = await send('SetAlpha', '255');
+    if (!alpha.ok) return alpha;
+    const sameAppend = (list: VmixVideoList) => sameSelection(list, addedList) && readyForPlayback(player, list);
+    // Stop polling if the occurrence changes while vMix applies the setting.
+    const configured = await observe(port, player, mixer, key, list => !sameAppend(list) || list.loop === loop);
+    if (configured && 'error' in configured) return configured;
+    if (!configured || !sameAppend(configured) || configured.loop !== loop) return uncertain('setting the Take loop');
 
     const index = appended.length;
     const selected = (list: VmixVideoList) => list.selected === index && list.loop === loop && sameItems(list.items, appended);

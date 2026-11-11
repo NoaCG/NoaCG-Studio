@@ -1727,9 +1727,12 @@ async function playerFixture(t, fakeOptions = {}, adapterOptions = {}, mediaOpti
 
 test('AC-8: Take configures one keyed player and its full list, then replaces without clearing it first', async t => {
   const selectedAtPlay = [];
+  const loopAtSelect = [];
   const { fake, adapter, target, player, take, root } = await playerFixture(t, {
     selectDelayMs: 180,
+    loopDelayMs: 180,
     afterFunction(name) {
+      if (name === 'SelectIndex') loopAtSelect.push(fake.inputs[0].loop);
       if (name === 'Play') selectedAtPlay.push(fake.inputs[0].selectedIndex);
       return false;
     },
@@ -1745,6 +1748,13 @@ test('AC-8: Take configures one keyed player and its full list, then replaces wi
   assert.equal(second.ok, true, JSON.stringify(second));
   assert.notEqual(first.instance, second.instance);
   assert.deepEqual(selectedAtPlay, [1, 2]);
+  assert.deepEqual(loopAtSelect, [true, false]);
+  const settings = fake.functions.filter(fn => /^(AutoPlayNextOff|ListAdd|LoopOn|LoopOff|SetAlpha|SelectIndex|Play)$/.test(fn.name));
+  assert.deepEqual(settings.map(fn => fn.name), [
+    'AutoPlayNextOff',
+    'AutoPlayNextOff', 'ListAdd', 'LoopOn', 'SetAlpha', 'SelectIndex', 'Play',
+    'AutoPlayNextOff', 'ListAdd', 'LoopOff', 'SetAlpha', 'SelectIndex', 'Play',
+  ]);
   assert.equal(fake.inputs.filter(input => input.type === 'VideoList').length, 1);
   assert.equal(clips.loop, false);
   assert.deepEqual(clips.list, [join(root, 'clip B.mp4')]);
@@ -2083,21 +2093,27 @@ test('AC-8: a reused audio player with unconfirmed readiness refuses Take before
 });
 
 test('AC-8: audio Take stops at the first matching stage with unconfirmed readiness', async t => {
-  for (const [command, absent] of [
-    ['AudioOn', 'SetAlpha'], ['SetAlpha', 'ListAdd'], ['ListAdd', 'SelectIndex'], ['Play', 'ListRemove'],
+  for (const [command, absent, occurrence = 1] of [
+    ['AudioOn', 'ListAdd'], ['AutoPlayNextOff', 'ListAdd', 2], ['ListAdd', 'LoopOff'],
+    ['SetAlpha', 'SelectIndex'], ['SelectIndex', 'Play'], ['Play', 'ListRemove'],
   ]) {
     for (const fault of muteFaults) {
+      let commands = 0;
       let broken = false;
       const fixture = await playerFixture(t, {
-        inputs: [{ type: 'VideoList', title: 'NoaCG Audio' }],
-        afterFunction(name) { if (name === command) broken = true; return false; },
+        inputs: [{ type: 'VideoList', title: 'NoaCG Audio', state: 'Running' }],
+        afterFunction(name) {
+          if (name === command && ++commands === occurrence) broken = true;
+          return false;
+        },
         transformXml: xml => broken ? unreadableMute(xml, fault) : xml,
       }, { timeoutMs: 600 });
+      fixture.fake.inputs[0].list = [join(fixture.root, 'sting.wav')];
       const reply = await fixture.take('sting.wav');
       const label = command + ', ' + fault.label;
       assert.equal(reply.ok, false, label);
       assert.equal(reply.error.code, 'uncertain', label);
-      assert.equal(fixture.fake.functions.filter(fn => fn.name === command).length, 1, label);
+      assert.equal(fixture.fake.functions.filter(fn => fn.name === command).length, occurrence, label);
       assert.equal(fixture.fake.functions.some(fn => fn.name === absent), false, label);
       assert.equal((await fixture.adapter.overlays(fixture.target)).value.players[1].instance, undefined, label);
     }
@@ -2391,10 +2407,11 @@ test('AC-9: an unsafe retained predecessor or successor blocks Take and Resume w
 test('AC-9: a later unsafe list reading stops a Take before appending or playing', async t => {
   let input;
   let outside;
+  let autoNext = 0;
   const fixture = await playerFixture(t, {
     inputs: [{ type: 'VideoList', title: 'NoaCG Clips', state: 'Running' }],
     afterFunction(name) {
-      if (name === 'SetAlpha') input.list.push(outside);
+      if (name === 'AutoPlayNextOff' && ++autoNext === 2) input.list.push(outside);
       return false;
     },
   });
@@ -2853,4 +2870,42 @@ test('AC-8: a known new GUID survives an unsaved setup until the next explicit T
   assert.equal(fake.functions.filter(fn => fn.name === 'AddInput').length, 1);
   assert.ok(fake.functions.slice(1).every(fn => fn.params.Input === input.key));
   assert.equal((await media.setup(target.port)).adding.clips, undefined);
+});
+
+
+test('AC-8: native empty-list Loop ACK leaves loop false, so Take applies it after the append', async t => {
+  const { fake, take } = await playerFixture(t, { inputs: [{ type: 'VideoList', title: 'NoaCG Clips' }] });
+  const [input] = fake.inputs;
+  const conn = new VmixConnection(fake.port);
+  try {
+    assert.equal((await conn.open(Date.now() + 1000)).ok, true);
+    const reply = await conn.command(functionLine('LoopOn', { Input: input.key }), Date.now() + 1000);
+    assert.equal(reply.status, 'OK');
+    const read = await conn.command('XML', Date.now() + 1000);
+    assert.equal(parseVmixXml(read.body).lists.get(input.key).loop, false);
+  } finally {
+    conn.close();
+  }
+
+  const result = await take('clip A.mp4', { loop: true });
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.equal(input.loop, true);
+  assert.deepEqual(fake.functions.slice(-5).map(fn => fn.name), ['ListAdd', 'LoopOn', 'SetAlpha', 'SelectIndex', 'Play']);
+});
+
+test('AC-8: an acknowledged populated Loop no-op never selects or plays the replacement', async t => {
+  const { fake, root, take } = await playerFixture(t, {
+    ignore: ['LoopOn'], inputs: [{ type: 'VideoList', title: 'NoaCG Clips', state: 'Running' }],
+  }, { timeoutMs: 650 });
+  const input = fake.inputs[0];
+  input.list = [join(root, 'clip A.mp4')];
+  const result = await take('clip B.mp4', { loop: true });
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'uncertain');
+  assert.match(result.error.detail, /setting the Take loop/);
+  assert.deepEqual(input.list, [join(root, 'clip A.mp4'), join(root, 'clip B.mp4')]);
+  assert.equal(input.selectedIndex, 1);
+  assert.equal(input.state, 'Running');
+  assert.equal(input.loop, false);
+  assert.deepEqual(fake.functions.slice(-3).map(fn => fn.name), ['ListAdd', 'LoopOn', 'SetAlpha']);
 });

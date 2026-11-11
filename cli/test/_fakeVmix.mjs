@@ -67,6 +67,12 @@ export async function startFakeVmix(options = {}) {
       if (name === 'ListAdd') {
         if (!existsSync(params.Value) && !Object.hasOwn(options.files ?? {}, params.Value)) return 'File Not Found: ' + params.Value;
         input.list.push(params.Value);
+        if (input.list.length === 1) {
+          input.selectedIndex = 1;
+          input.state = 'Paused';
+          input.position = 0;
+          input.duration = options.files?.[params.Value] ?? 4000;
+        }
       } else if (name === 'SelectIndex') {
         const choose = () => {
           input.selectedIndex = value;
@@ -78,7 +84,13 @@ export async function startFakeVmix(options = {}) {
       } else if (name === 'Play') {
         input.state = 'Running';
       } else if (name === 'Pause') input.state = 'Paused';
-      else if (name === 'LoopOn' || name === 'LoopOff') input.loop = name === 'LoopOn';
+      else if (name === 'LoopOn' || name === 'LoopOff') {
+        // The native mixer ACKs Loop on an empty list without changing it.
+        if (!input.list.length) return;
+        const setLoop = () => { input.loop = name === 'LoopOn'; };
+        if (options.loopDelayMs) setTimeout(setLoop, options.loopDelayMs);
+        else setLoop();
+      }
       else if (name === 'ListRemove') {
         input.list.splice(value - 1, 1);
         if (value < input.selectedIndex) input.selectedIndex -= 1;
