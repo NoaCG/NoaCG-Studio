@@ -15,7 +15,7 @@ import {
   ceilingsRevision, coverCosts, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, knownCovers, landingDispatched, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   quarantineLines, tableFreshness, tierOfCover, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
-import { AGE_ISSUE, GATE_CANDIDATES, MAX_ATTEMPTS, REPORT_ISSUE, RETRY, ages, buildReport, carriedDues, carriedStarts, classifyReport, fetchLatest, findIssue, finishedPrs, gateFile, gateReport, healthAction, lowerBounds, previousForTry, weekOf, listRuns, makeReader, phaseIssueTitle, priceRuns, readJobs, reportAlarm, rerunStillNeeded, sampleJobs, seriesOf, spread, transient } from './growth-report.mjs';
+import { AGE_ISSUE, GATE_CANDIDATES, MAX_ATTEMPTS, REPORT_ISSUE, RETRY, ages, buildReport, carriedDues, carriedStarts, classifyReport, fetchLatest, findIssue, finishedPrs, gateFile, gateReport, healthAction, lowerBounds, maxBounds, previousForTry, weekOf, listRuns, makeReader, phaseIssueTitle, priceRuns, readJobs, reportAlarm, rerunStillNeeded, sampleJobs, seriesOf, spread, transient } from './growth-report.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -1900,4 +1900,27 @@ test('a newer partial report is a floor: the gate never judges a tier below what
   assert.equal((await withFloor(17)).status, 'refuse', 'with it 206.3/215 is refused');
   // The owner's case still lands: one minute on the partial week's own figure is 190.3/215.
   assert.notEqual((await withFloor(1)).status, 'refuse');
+});
+
+test('the floor is the highest lower bound of every partial try newer than the judged report', () => {
+  const now = '2026-11-10T12:00:00Z';
+  const tryWith = (offline) => { const r = clone(realReport(42647874522)); r.measurement.tiers.offline.perDay = offline; return r; };
+  const arts = [artifactOf(13, '2026-11-09T18:00:00Z'), artifactOf(12, '2026-11-09T16:00:00Z'), artifactOf(2, '2026-11-03T19:41:07Z')];
+  // Try 1 read 210, try 2 (cut shorter) read 150: the gate's floor is 210.
+  const picked = gateReport({ gh: reportsGh(arts, { 13: tryWith(150), 12: tryWith(210), 2: realReport(41704224273) }), now, ceilings: GATE_CEILINGS });
+  assert.equal(picked.newest.floor.offline.perDay, 210);
+  // An unreadable newest try leaves the older try's floor in place.
+  const broken = gateReport({ gh: reportsGh(arts, { 13: new Error('HTTP 502'), 12: tryWith(210), 2: realReport(41704224273) }), now, ceilings: GATE_CEILINGS });
+  assert.equal(broken.newest.floor.offline.perDay, 210);
+  // A complete newest report has no floor.
+  assert.equal(gateReport({ gh: reportsGh(arts.slice(2), { 2: realReport(41704224273) }), now, ceilings: GATE_CEILINGS }).newest.floor, null);
+  assert.deepEqual(maxBounds(null, {}), null);
+});
+
+test('a first week\'s re-run invents no missing week', () => {
+  const tried = { generatedAt: '2026-11-09T06:10:00Z', breaches: [], stops: {} };
+  const prev = previousForTry(null, tried);
+  assert.equal(prev.generatedAt, tried.generatedAt);
+  const { report } = buildReport({ ceilings: CEILINGS, runs: [], days: 7, windowEnd: '2026-11-09T08:00:00Z', now: '2026-11-09T08:00:00Z', previous: prev, tableRecordedAt: '2026-11-08', collection: 'fixture' });
+  assert.ok(!report.breaches.some((b) => b.key === 'report:missing'));
 });

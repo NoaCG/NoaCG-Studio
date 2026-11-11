@@ -687,6 +687,14 @@ export function lowerBounds(report) {
   return out;
 }
 
+/** The per-tier larger of two floors (either may be null). Pure. */
+export function maxBounds(a, b) {
+  if (!a) return b && Object.keys(b).length ? b : null;
+  const out = { ...a };
+  for (const [t, m] of Object.entries(b ?? {})) out[t] = out[t] ? { perLanding: Math.max(out[t].perLanding, m.perLanding), perDay: Math.max(out[t].perDay, m.perDay) } : m;
+  return out;
+}
+
 /** At most this many tries of one week's report: the scheduled one and two re-runs. */
 export const MAX_ATTEMPTS = 3;
 
@@ -708,14 +716,18 @@ export function gateReport({ gh = withRetries(ghRun), now = new Date().toISOStri
     return { newest: { run: null, generatedAt: null, attempt: null, state: 'missing', readFailed: true, why: `the report listing failed: ${String(e?.message ?? e).split('\n')[0]}` }, judged: null };
   }
   let newest = null;
+  // Every report newer than the judged complete one proves a floor; the gate takes the highest.
+  let floor = null;
   for (const a of all.slice(0, candidates)) {
     let report = null;
     try { report = JSON.parse(downloadReport(a, gh)); } catch { /* unreadable: not complete */ }
     const c = classifyReport(report, bounds);
+    if (report && !reportComplete(report)) floor = maxBounds(floor, lowerBounds(report));
     // The newest report's stops are the current ones whatever its state (E20, E21): it carried
     // every breach forward, kept what it could not re-measure and cleared only on evidence. An
     // unreadable newest report has none to give (null), so the judged report's stops stand.
-    newest ??= { run: a.workflow_run.id, generatedAt: report?.generatedAt ?? a.created_at, attempt: report?.attempt ?? 1, firstTryAt: report?.firstTryAt ?? report?.generatedAt ?? null, stops: report ? report.stops ?? {} : null, floor: reportComplete(report) ? null : lowerBounds(report), ...(report ? c : { state: 'missing', readFailed: true, why: `the report of run ${a.workflow_run.id} could not be read` }) };
+    newest ??= { run: a.workflow_run.id, generatedAt: report?.generatedAt ?? a.created_at, attempt: report?.attempt ?? 1, firstTryAt: report?.firstTryAt ?? report?.generatedAt ?? null, stops: report ? report.stops ?? {} : null, floor: null, ...(report ? c : { state: 'missing', readFailed: true, why: `the report of run ${a.workflow_run.id} could not be read` }) };
+    newest.floor = floor;
     if (reportComplete(report)) return { newest, judged: { run: a.workflow_run.id, generatedAt: report.generatedAt, report } };
   }
   return { newest: newest ?? { run: null, generatedAt: null, attempt: null, state: 'missing', why: 'no live weekly growth report has been published on main' }, judged: null };
@@ -793,7 +805,8 @@ export function weekOf(newest, now, rerunAttempt = null) {
  * breach an earlier try found is carried, never dropped without evidence (Rule E20). Pure.
  */
 export function previousForTry(before, tried) {
-  return { ...(before ?? {}), breaches: tried?.breaches ?? [], stops: tried?.stops ?? {}, openStarts: { ...(before?.openStarts ?? {}), ...(tried?.openStarts ?? {}) } };
+  // A first week has nothing before it: the try's own date stands in, so no "missing week" is invented.
+  return { ...(before ?? {}), generatedAt: before?.generatedAt ?? tried?.generatedAt, breaches: tried?.breaches ?? [], stops: tried?.stops ?? {}, openStarts: { ...(before?.openStarts ?? {}), ...(tried?.openStarts ?? {}) } };
 }
 
 /** In a re-run (try `attempt`): whether the newest report is still the partial try before it. Pure. */
