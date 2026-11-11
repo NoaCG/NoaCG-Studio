@@ -67,14 +67,13 @@
   "inFlight": [
     {
       "phase": "E3",
-      "step": "queue",
-      "nativeId": "/root/editor_r15_e3_builder",
-      "session": "6af466f2-e57c-8191-8419-e116f7c9c06f",
-      "actionId": "plan-editor-r1-5-2026-11-08:5",
-      "sourceSha": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
-      "branch": "codex/plan-editor-r1-5-e3-build",
-      "worktree": "/workspace/noacg-editor-r1-5-e3-build",
-      "note": "E3 PR2386 exactf420 entered realmergequeue14:42:38Z; helper43040695849/reviewed/CIgaterecoverySUCCESS. Currentcoordinator soleactiveowner/monitor56595 throughactualmerge/independentacceptance/terminalpostchecks; no newpaidcalls."
+      "step": "check",
+      "nativeId": "/root/editor_r15_e3_cloud_check",
+      "session": "6af48349-f9e8-8191-98f5-4ce8910a2060",
+      "actionId": "plan-editor-r1-5-2026-11-08:6",
+      "sourceSha": "a387d69db5d02ac6e15d4d8e81f3674fb817e0e7",
+      "worktree": "/workspace/noacg-editor-r1-5-e3-check",
+      "note": "Fresh independent checker adopted clean exactmerge worktree; reservedaction6 dispatchedonce, nativeacceptance observed. Bounded ownBLverification and all exactmerge checks pending; no paidcalls."
     }
   ],
   "owner": [],
@@ -859,6 +858,25 @@
       "result": "refused before intent/dispatch",
       "reason": "Direct recordRun API received phase ID E3 instead of numeric row3, so exact-landed lookup did not match; next stilllaunchcheck3, no pending/nativeaction created",
       "correction": "Reuse original saved brief; numericrow3; no new allowance or phase"
+    },
+    "actualMerge": {
+      "sha": "a387d69db5d02ac6e15d4d8e81f3674fb817e0e7",
+      "firstParent": "7e1ae4cf80f8fe302aa6a0ee0381537aa72354f4",
+      "mergedAt": "2026-11-11T14:54:39Z",
+      "mergeGroupCi": 43041147227,
+      "mergeGroupResult": "success",
+      "ledgerLandedAt": "2026-11-11T14:55:55.383Z"
+    },
+    "independentCheck": {
+      "actor": "/root/editor_r15_e3_cloud_check",
+      "session": "6af48349-f9e8-8191-98f5-4ce8910a2060",
+      "actionId": "plan-editor-r1-5-2026-11-08:6",
+      "brief": "briefs/e3-check-e3-c-cloud-1111.txt",
+      "briefSha256": "40415181aac71e350c39166ff5b02e74a0b1daa73d38568d00a77fac95ec2eb3",
+      "requestSha256": "68096ef353e91d048a9f951ab75046386fafdacf4320c3f1d376168bd258586d",
+      "worktree": "/workspace/noacg-editor-r1-5-e3-check",
+      "source": "a387d69db5d02ac6e15d4d8e81f3674fb817e0e7",
+      "status": "accepted; independent verification pending"
     }
   },
   "e4RouteReadiness": {
