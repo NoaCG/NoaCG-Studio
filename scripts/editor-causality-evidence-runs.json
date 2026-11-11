@@ -4,111 +4,255 @@
     "batch": 1,
     "ref": "codex/editor-causality-20261111-clock-01",
     "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
-    "runId": 43081528522
+    "runId": 43081528522,
+    "cohort": 1
   },
   {
     "kind": "clock",
     "batch": 2,
     "ref": "codex/editor-causality-20261111-clock-02",
     "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
-    "runId": 43081764656
+    "runId": 43081764656,
+    "cohort": 1
   },
   {
     "kind": "clock",
     "batch": 3,
     "ref": "codex/editor-causality-20261111-clock-03",
     "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
-    "runId": 43081776017
+    "runId": 43081776017,
+    "cohort": 1
   },
   {
     "kind": "clock",
     "batch": 4,
     "ref": "codex/editor-causality-20261111-clock-04",
     "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
-    "runId": 43081786512
+    "runId": 43081786512,
+    "cohort": 1
   },
   {
     "kind": "clock",
     "batch": 5,
     "ref": "codex/editor-causality-20261111-clock-05",
     "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
-    "runId": 43081799624
+    "runId": 43081799624,
+    "cohort": 1
   },
   {
     "kind": "clock",
     "batch": 6,
     "ref": "codex/editor-causality-20261111-clock-06",
     "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
-    "runId": 43082037198
+    "runId": 43082037198,
+    "cohort": 1
   },
   {
     "kind": "clock",
     "batch": 7,
     "ref": "codex/editor-causality-20261111-clock-07",
     "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
-    "runId": 43082048035
+    "runId": 43082048035,
+    "cohort": 1
   },
   {
     "kind": "clock",
     "batch": 8,
     "ref": "codex/editor-causality-20261111-clock-08",
     "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
-    "runId": 43082308813
+    "runId": 43082308813,
+    "cohort": 1
   },
   {
     "kind": "clock",
     "batch": 9,
     "ref": "codex/editor-causality-20261111-clock-09",
     "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
-    "runId": 43082319105
+    "runId": 43082319105,
+    "cohort": 1
   },
   {
     "kind": "clock",
     "batch": 10,
     "ref": "codex/editor-causality-20261111-clock-10",
     "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
-    "runId": 43082329619
+    "runId": 43082329619,
+    "cohort": 1
   },
   {
     "kind": "clock",
     "batch": 11,
     "ref": "codex/editor-causality-20261111-clock-11",
     "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
-    "runId": 43082449812
+    "runId": 43082449812,
+    "cohort": 1
   },
   {
     "kind": "clock",
     "batch": 12,
     "ref": "codex/editor-causality-20261111-clock-12",
     "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
-    "runId": 43082461833
+    "runId": 43082461833,
+    "cohort": 1
   },
   {
     "kind": "operator",
     "batch": 1,
     "ref": "codex/editor-causality-20261111-operator-01",
     "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
-    "runId": 43081541233
+    "runId": 43081541233,
+    "cohort": 1
   },
   {
     "kind": "operator",
     "batch": 2,
     "ref": "codex/editor-causality-20261111-operator-02",
     "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
-    "runId": 43082471652
+    "runId": 43082471652,
+    "cohort": 1
   },
   {
     "kind": "operator",
     "batch": 3,
     "ref": "codex/editor-causality-20261111-operator-03",
     "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
-    "runId": 43082481613
+    "runId": 43082481613,
+    "cohort": 1
   },
   {
     "kind": "operator",
     "batch": 4,
     "ref": "codex/editor-causality-20261111-operator-04",
     "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
-    "runId": 43082665932
+    "runId": 43082665932,
+    "cohort": 1
+  },
+  {
+    "kind": "operator",
+    "cohort": 2,
+    "batch": 1,
+    "ref": "codex/editor-causality-20261111-operator-c2-01",
+    "sha": "bc4bf841964449e113da5fa45eefc76c9ebde315",
+    "runId": 43088179085
+  },
+  {
+    "kind": "operator",
+    "cohort": 2,
+    "batch": 2,
+    "ref": "codex/editor-causality-20261111-operator-c2-02",
+    "sha": "bc4bf841964449e113da5fa45eefc76c9ebde315",
+    "runId": 43088183885
+  },
+  {
+    "kind": "operator",
+    "cohort": 2,
+    "batch": 3,
+    "ref": "codex/editor-causality-20261111-operator-c2-03",
+    "sha": "bc4bf841964449e113da5fa45eefc76c9ebde315",
+    "runId": 43088188319
+  },
+  {
+    "kind": "operator",
+    "cohort": 2,
+    "batch": 4,
+    "ref": "codex/editor-causality-20261111-operator-c2-04",
+    "sha": "bc4bf841964449e113da5fa45eefc76c9ebde315",
+    "runId": 43088192620
+  },
+  {
+    "kind": "operator",
+    "cohort": 3,
+    "batch": 1,
+    "ref": "codex/editor-causality-20261111-operator-c3-01",
+    "sha": "bc4bf841964449e113da5fa45eefc76c9ebde315",
+    "runId": 43088196327
+  },
+  {
+    "kind": "operator",
+    "cohort": 3,
+    "batch": 2,
+    "ref": "codex/editor-causality-20261111-operator-c3-02",
+    "sha": "bc4bf841964449e113da5fa45eefc76c9ebde315",
+    "runId": 43088200566
+  },
+  {
+    "kind": "operator",
+    "cohort": 3,
+    "batch": 3,
+    "ref": "codex/editor-causality-20261111-operator-c3-03",
+    "sha": "bc4bf841964449e113da5fa45eefc76c9ebde315",
+    "runId": 43088205002
+  },
+  {
+    "kind": "operator",
+    "cohort": 3,
+    "batch": 4,
+    "ref": "codex/editor-causality-20261111-operator-c3-04",
+    "sha": "bc4bf841964449e113da5fa45eefc76c9ebde315",
+    "runId": 43088209648
+  },
+  {
+    "kind": "operator",
+    "cohort": 4,
+    "batch": 1,
+    "ref": "codex/editor-causality-20261111-operator-c4-01",
+    "sha": "bc4bf841964449e113da5fa45eefc76c9ebde315",
+    "runId": 43088214207
+  },
+  {
+    "kind": "operator",
+    "cohort": 4,
+    "batch": 2,
+    "ref": "codex/editor-causality-20261111-operator-c4-02",
+    "sha": "bc4bf841964449e113da5fa45eefc76c9ebde315",
+    "runId": 43088218887
+  },
+  {
+    "kind": "operator",
+    "cohort": 4,
+    "batch": 3,
+    "ref": "codex/editor-causality-20261111-operator-c4-03",
+    "sha": "bc4bf841964449e113da5fa45eefc76c9ebde315",
+    "runId": 43088222961
+  },
+  {
+    "kind": "operator",
+    "cohort": 4,
+    "batch": 4,
+    "ref": "codex/editor-causality-20261111-operator-c4-04",
+    "sha": "bc4bf841964449e113da5fa45eefc76c9ebde315",
+    "runId": 43088226528
+  },
+  {
+    "kind": "operator",
+    "cohort": 5,
+    "batch": 1,
+    "ref": "codex/editor-causality-20261111-operator-c5-01",
+    "sha": "bc4bf841964449e113da5fa45eefc76c9ebde315",
+    "runId": 43088232090
+  },
+  {
+    "kind": "operator",
+    "cohort": 5,
+    "batch": 2,
+    "ref": "codex/editor-causality-20261111-operator-c5-02",
+    "sha": "bc4bf841964449e113da5fa45eefc76c9ebde315",
+    "runId": 43088236049
+  },
+  {
+    "kind": "operator",
+    "cohort": 5,
+    "batch": 3,
+    "ref": "codex/editor-causality-20261111-operator-c5-03",
+    "sha": "bc4bf841964449e113da5fa45eefc76c9ebde315",
+    "runId": 43088240156
+  },
+  {
+    "kind": "operator",
+    "cohort": 5,
+    "batch": 4,
+    "ref": "codex/editor-causality-20261111-operator-c5-04",
+    "sha": "bc4bf841964449e113da5fa45eefc76c9ebde315",
+    "runId": 43088244601
   }
 ]

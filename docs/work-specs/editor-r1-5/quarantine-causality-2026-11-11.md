@@ -190,3 +190,60 @@ source, reruns tests, modifies quarantine or submits a later phase. Use a finite
 results. Inspect/publish only relevant synthetic-fixture evidence, not tokens,
 headers, service keys or raw private environment metadata. Fresh final review
 and targeted validation precede this read-only dispatch.
+
+
+## First cohort and operator extension, prewritten before more tests
+
+The complete first-cohort reader43087009483/job130753925546 reconciled all16
+primary runs and artifacts at81f782eae, with no missing/incomplete invocations,
+no skipped cases and one worker. All first-attempt failures remain in the data.
+Clock: parent1/60 whole-file invocations failed, landing2/60. Operator: parent0/60,
+landing3/60. The three operator failures all reproduce the original line164
+navigation-context exception. Do not treat that0/3 contrast as causal clearance
+or proof of an E1 effect. The original navigation failure has not yet occurred
+naturally on its parent in this sample.
+
+**Next operator count:240 additional paired invocations, for a final300 complete
+whole-spec invocations per commit.** This is four additional cohorts of60 pairs,
+each retaining the original balanced seed2295 ordering. Preserve and include all
+initial60 and all failures; never replace an initial run. Clock stays at its
+completed60-per-commit count, with separate exact-runtime mechanism evidence;
+no additional clock comparison is requested by this extension.
+
+Rationale: zero of60 leaves a one-sided95% upper failure-rate bound of4.87%, so it
+does not resolve the observed5% landing rate. Zero of300 would reduce that bound
+to0.994%;300 has a95.1% chance of observing a1% baseline failure rate. For planning,
+a fixed-N one-sided Fisher comparison at0.05 has about87.6% power for parent1%
+versus landing5%, versus only11.0% at60 and39.8% at120. These are planning figures,
+not a claim of fixed-sample significance after this adaptive extension. Report
+all cohorts, discordant pairs, failure signatures, uncertainty and mechanism
+checks; statistical non-significance or a parent failure alone still cannot
+establish that E1 did not change the failure rate. If a material difference
+remains unresolved, preserve the gate and predeclare the next investigation.
+
+Obtain a fresh method second opinion before implementation. The only producer
+code extension is a bounded cohort namespace in its batch-ref parser: operator
+`-c2-` through `-c5-`, batch01 through04. Each has15 paired invocations on its
+own CI worker. Initial refs/source81f782eae remain immutable. The new producer
+revision changes no historical source, tests, dependencies, worker count,
+assertions, timeouts, trace settings, retries, queue cap or backend guard.
+Keep one browser job per machine and all original completeness checks. Each new
+ref gets one intent and authoritative run ID; no uncertain admission is resent.
+
+The existing read-only analysis helper receives the literal32-run manifest:
+12 original clock batches and20 operator batches across five cohorts. It must
+verify each row's exact producer head, cohort, ref and native ID, distinguish
+cohort/pair identities, retain original ZIPs/checksums and reject missing/duplicate
+results. Both producer SHAs must be explicitly pinned after implementation;
+never accept arbitrary heads or artifact declarations. The initial16-run reader
+and source remain retrievable. Branch-only reader permissions and15-minute
+ceiling remain unchanged. Fresh final review precedes new diagnostic dispatches.
+If E1 caused an increase, final correction proof requires300 whole-file
+invocations on the fixed commit with zero failures, as the owner required.
+
+
+The extension producer is pinned at `bc4bf841964449e113da5fa45eefc76c9ebde315`,
+independently reviewed AGREE/A before its16 dispatches. All16 returned native
+IDs were reconciled to that head, exact cohort ref and first attempt before this
+32-run reader manifest was committed. Initial producer81f782eae and all its
+failures remain part of this same comparison.

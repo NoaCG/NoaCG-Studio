@@ -15,7 +15,8 @@ import urllib.request
 import zipfile
 
 REPO = 'NoaCG/NoaCG-Studio'
-SHA = '81f782eaebf00e35a41ccec0eba5d2272a629dc0'
+INITIAL_SHA = '81f782eaebf00e35a41ccec0eba5d2272a629dc0'
+EXTENSION_SHA = 'bc4bf841964449e113da5fa45eefc76c9ebde315'
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / 'endurance-output'
 LIMIT = 200 * 1024 * 1024
@@ -133,10 +134,21 @@ def trial_result(archive, prefix, expected, kind):
     return {k: trial[k] for k in ('pair', 'arm', 'source', 'failed', 'job')} | {'cases': len(rows), 'failures': failures}
 
 
+def validate_manifest(manifest):
+    expected = {('clock', 1, i) for i in range(1, 13)} | {('operator', c, i) for c in range(1, 6) for i in range(1, 5)}
+    assert len(manifest) == 32 and len({x['runId'] for x in manifest}) == 32
+    assert {(x['kind'], x['cohort'], x['batch']) for x in manifest} == expected
+    for item in manifest:
+        assert item['sha'] == (INITIAL_SHA if item['cohort'] == 1 else EXTENSION_SHA)
+        suffix = '' if item['cohort'] == 1 else f'-c{item["cohort"]}'
+        assert item['ref'] == f'codex/editor-causality-20261111-{item["kind"]}{suffix}-{item["batch"]:02}'
+        assert isinstance(item['runId'], int) and item['runId'] > 0
+
+
 def read_batch(item):
     run_id = item['runId']
     run = request_api(f'repos/{REPO}/actions/runs/{run_id}')
-    assert run['head_sha'] == SHA == item['sha'] and run['head_branch'] == item['ref']
+    assert run['head_sha'] == item['sha'] and item['sha'] == (INITIAL_SHA if item['cohort'] == 1 else EXTENSION_SHA) and run['head_branch'] == item['ref']
     assert run['event'] == 'workflow_dispatch' and run['run_attempt'] == 1
     assert run['status'] == 'completed', 'primary run not terminal; no replacement or inferred pass'
     artifacts = request_api(f'repos/{REPO}/actions/runs/{run_id}/artifacts?per_page=100')
@@ -147,8 +159,8 @@ def read_batch(item):
     (OUT / f'original-{run_id}.zip').write_bytes(data)
     archive = checked_zip(data)
     environment = json.loads(archive.read('environment.json'))
-    assert environment['head'] == SHA and int(environment['run']) == run_id and environment['attempt'] == 1
-    assert environment['kind'] == item['kind'] and environment['index'] == item['batch']
+    assert environment['head'] == item['sha'] and int(environment['run']) == run_id and environment['attempt'] == 1
+    assert environment['kind'] == item['kind'] and environment['index'] == item['batch'] and environment.get('cohort', 1) == item['cohort']
     kind = item['kind']
     size = 5 if kind == 'clock' else 15
     start = (item['batch'] - 1) * size
@@ -161,10 +173,13 @@ def read_batch(item):
                 trial = trial_result(archive, prefix, 24 if kind == 'clock' else 2, kind)
                 assert trial['pair'] == pair and trial['arm'] == arm
                 assert trial['source'] == environment['plan'][kind][arm]
+                raw_trial = json.loads(archive.read(prefix + 'trial.json'))
+                assert raw_trial.get('cohort', 1) == item['cohort']
+                trial.update(cohort=item['cohort'], globalPair=(item['cohort'] - 1) * 60 + pair)
                 rows.append(trial)
             except (AssertionError, KeyError, ValueError) as error:
                 unresolved.append({'pair': pair, 'arm': arm, 'error': safe_text(type(error).__name__ + ': ' + str(error))})
-    return {'kind': kind, 'batch': item['batch'], 'run': run_id, 'conclusion': run['conclusion'], 'artifact': found[0]['id'], 'zipSha256': hashlib.sha256(data).hexdigest(), 'rows': rows, 'unresolved': unresolved}
+    return {'kind': kind, 'cohort': item['cohort'], 'batch': item['batch'], 'run': run_id, 'conclusion': run['conclusion'], 'artifact': found[0]['id'], 'zipSha256': hashlib.sha256(data).hexdigest(), 'rows': rows, 'unresolved': unresolved}
 
 
 def original_clock_trace():
@@ -203,8 +218,7 @@ def main():
     assert os.environ.get('GITHUB_REF_NAME') == 'codex/editor-causality-evidence-reader-20261111'
     assert os.environ.get('GITHUB_RUN_ATTEMPT') == '1'
     manifest = json.loads((ROOT / 'scripts/editor-causality-evidence-runs.json').read_text())
-    assert len(manifest) == 16 and len({x['runId'] for x in manifest}) == 16
-    assert {(x['kind'], x['batch']) for x in manifest} == {('clock', i) for i in range(1, 13)} | {('operator', i) for i in range(1, 5)}
+    validate_manifest(manifest)
     OUT.mkdir(exist_ok=True)
     signal.signal(signal.SIGALRM, alarm_expired)
     signal.setitimer(signal.ITIMER_REAL, max(0.001, DEADLINE - time.monotonic()))
@@ -213,7 +227,7 @@ def main():
         try:
             result = read_batch(item)
         except Exception as error:
-            result = {'kind': item['kind'], 'batch': item['batch'], 'run': item['runId'], 'unresolved': safe_text(type(error).__name__)}
+            result = {'kind': item['kind'], 'cohort': item['cohort'], 'batch': item['batch'], 'run': item['runId'], 'unresolved': safe_text(type(error).__name__)}
         results.append(result)
         (OUT / 'analysis.json').write_text(json.dumps(results, indent=2) + '\n')
         print('MEASUREMENT ' + json.dumps(result), flush=True)

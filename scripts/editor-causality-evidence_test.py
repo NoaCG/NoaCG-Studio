@@ -10,6 +10,19 @@ reader = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(reader)
 
 class ReaderTests(unittest.TestCase):
+    def test_manifest_binds_all_cohorts_to_literal_heads_refs_and_unique_native_ids(self):
+        import copy
+        import json
+        manifest = json.loads(Path(__file__).with_name('editor-causality-evidence-runs.json').read_text())
+        reader.validate_manifest(manifest)
+        for field, value in [('sha', '0' * 40), ('ref', 'main'), ('cohort', 6), ('runId', manifest[1]['runId'])]:
+            changed = copy.deepcopy(manifest)
+            changed[0][field] = value
+            with self.assertRaises(AssertionError):
+                reader.validate_manifest(changed)
+        with self.assertRaises(AssertionError):
+            reader.validate_manifest(manifest[:-1])
+
     def test_original_trace_completion_requires_observed_clock_readings(self):
         for trace in [{}, {'traces': []}, {'traces': [{'readings': []}]}]:
             self.assertFalse(reader.original_trace_resolved(trace))
