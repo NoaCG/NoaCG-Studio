@@ -40,6 +40,10 @@ import type { DraftPart, PlayoutSession } from './playoutSession';
 /** How long typing must pause before the draft is saved. */
 export const FLUSH_DELAY_MS = 300;
 
+/** The longest a save waits for a press that sends first to end (#2388): a pointer held longer is
+ *  not a quick press, and the save then goes as usual. */
+export const PRESS_HOLD_MAX_MS = 2000;
+
 /** A cue's text as the editor shows it. */
 export type CueText = Omit<DraftPart, 'cueId'>;
 
@@ -87,6 +91,9 @@ export interface CueDraftAdapters {
   onPageHide: (run: () => void) => () => void;
   /** The account asks every surface to save what it holds. */
   onFlushAsked: (run: () => void) => () => void;
+  /** A pointer goes down (`true`, on a control whose press sends first; `false` on any other) or
+   *  comes up, is cancelled or leaves with the window (`false`), told before the press's handlers. */
+  onSendsFirstPress: (run: (down: boolean) => void) => () => void;
 }
 
 export interface CueDraft {
@@ -98,6 +105,12 @@ export interface CueDraft {
   flush: () => Promise<boolean>;
   /** Drop the draft unsaved. */
   cancel: () => void;
+  /** The editor lost focus and owes `save` (the draft's save and the history group's close). Run
+   *  at once, unless a press that sends first took the focus (live-publishing W1, #2388): then the
+   *  save waits until that press is over and its handlers have run, so the send goes before the
+   *  save's synchronous store write. The draft stays owed meanwhile, so the page closing or
+   *  reloading saves it at once. */
+  blurred: (save: () => void) => void;
   /** The cue as the operator sees it: the draft over the newest record. */
   view: (cue: CueRecord) => CueText;
   /** A cue's label as the operator sees it, null if the production has no such cue. */
@@ -161,6 +174,24 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     if (timer !== null) io.clearTimeout(timer);
     timer = null;
   };
+  /** Whether a pointer is down on a control whose press sends first. */
+  let pressing = false;
+  /** The save waiting for that press to end, and its cap. */
+  let held: (() => void) | null = null;
+  let holdCap: unknown = null;
+  const hold = (save: () => void) => {
+    held = save;
+    if (holdCap === null) holdCap = io.setTimeout(release, PRESS_HOLD_MAX_MS);
+  };
+  /** The press is over: its click is dispatched in the same task as the release, so the save runs
+   *  on a later task, after the press's handler has started its send. */
+  function release() {
+    if (holdCap !== null) io.clearTimeout(holdCap);
+    holdCap = null;
+    const save = held;
+    held = null;
+    if (save) io.setTimeout(() => { if (session.alive()) save(); }, 0);
+  }
 
   const flush = (): Promise<boolean> => {
     stopTimer();
@@ -192,6 +223,9 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
   session.onDispose(() => {
     retain();
     stopTimer();
+    if (holdCap !== null) io.clearTimeout(holdCap);
+    holdCap = null;
+    held = null;
     pending = false;
   });
 
@@ -206,13 +240,26 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
       set({ ...base, ...patch, values: { ...base.values, ...(patch.values ?? {}) } });
       pending = true;
       stopTimer();
-      timer = io.setTimeout(() => void flush(), FLUSH_DELAY_MS);
+      // The idle save does not land on a press that sends first either: it waits for it.
+      timer = io.setTimeout(() => {
+        timer = null;
+        if (pressing) hold(held ?? (() => void flush()));
+        else void flush();
+      }, FLUSH_DELAY_MS);
     },
     flush,
     // Nothing is owed without a draft, and the next edit owes its own.
     cancel: () => {
       stopTimer();
       set(null);
+    },
+    blurred: (save) => {
+      if (!pressing) {
+        save();
+        return;
+      }
+      stopTimer();
+      hold(save);
     },
     view,
     label: (cueId) => {
@@ -226,11 +273,18 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     listen: (adapters) => {
       const offHide = adapters.onPageHide(retain);
       const offFlush = adapters.onFlushAsked(() => void flush());
+      const offPress = adapters.onSendsFirstPress((down) => {
+        pressing = down;
+        if (!down) release();
+      });
       // The page stops showing this draft (it left, or moved to another production): what is owed
       // is saved at once, as when the page hides.
       return () => {
         offHide();
         offFlush();
+        offPress();
+        pressing = false;
+        release();
         retain();
       };
     },

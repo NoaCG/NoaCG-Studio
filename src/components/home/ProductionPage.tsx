@@ -287,6 +287,22 @@ const DRAFT_ADAPTERS: CueDraftAdapters = {
     window.addEventListener('noacg-account-authoring-flush', run);
     return () => window.removeEventListener('noacg-account-authoring-flush', run);
   },
+  // A control whose press sends before it saves (live-publishing W1) is marked `data-sends-first`.
+  // Captured on the window, so the draft hears it before the focus moves and before any handler.
+  onSendsFirstPress: (run) => {
+    const down = (e: PointerEvent) => run(e.target instanceof Element && e.target.closest('[data-sends-first]') !== null);
+    const up = () => run(false);
+    window.addEventListener('pointerdown', down, true);
+    window.addEventListener('pointerup', up, true);
+    window.addEventListener('pointercancel', up, true);
+    window.addEventListener('blur', up);
+    return () => {
+      window.removeEventListener('pointerdown', down, true);
+      window.removeEventListener('pointerup', up, true);
+      window.removeEventListener('pointercancel', up, true);
+      window.removeEventListener('blur', up);
+    };
+  },
 };
 /** Where an item and a Play-through folder play, for the Take refusals and the server verbs. */
 const PLAYOUT_SLOTS: SlotRules = { itemSlot, folderSlot };
@@ -4094,6 +4110,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             onClick={() => onVerb('take')}
             title={takeButton.title}
             data-testid="verb-take"
+            data-sends-first
           >
             {takeButton.face.text} <kbd>SPACE</kbd>
           </button>
@@ -4108,6 +4125,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             onClick={() => selectedCue && void takeCue(selectedCue)}
             title="Re-take: play this cue’s entrance again from the start"
             data-testid="verb-retake"
+            data-sends-first
           >
             ⟳ Re-take <kbd>R</kbd>
           </button>
@@ -4153,6 +4171,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 : undefined
             }
             data-testid="verb-next"
+            data-sends-first
           >
             {/* Unnamed, the button is drawn exactly as it always was. */}
             {nextLabel ? (
@@ -4328,6 +4347,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             editDraft={editDraft}
             flushDraft={flushDraft}
             rundownHistory={history}
+            saveOnBlur={cueDraft.blurred}
             updateLive={updateLive}
             hasUnsent={hasUnsent}
             unsentFields={unsentFields}

@@ -219,14 +219,39 @@ test('typed then taken at once: the typed value airs while its save is still lan
   await production(page, 'Type then take');
   await cue(page, 'Hairline').getByTestId('select-cue').click();
   const before = await plays(page);
+  // #2388: the click's pointer-down blurs the editor, and that blur's save rewrites the stored
+  // productions synchronously. It waits until the Take's own handler has run: what is stored when
+  // the click reaches the page is read in the capture phase, before any handler.
+  await evaluateInPage(page, async () => {
+    const m = await import('/src/model/shows.ts');
+    const w = window as unknown as { __storedAtClick?: boolean[] };
+    w.__storedAtClick = [];
+    window.addEventListener('click', (e) => {
+      if ((e.target as Element).closest?.('[data-testid="verb-take"]')) w.__storedAtClick!.push(JSON.stringify(m.loadShows()).includes('Typed then taken'));
+    }, true);
+  });
   await holdWrites(page, true);
   await page.getByTestId('cue-field-f0').fill('Typed then taken');
   await page.getByTestId('verb-take').click();
   await onProgram(page, '#f0', 'Typed then taken');
+  expect(await page.evaluate(() => (window as unknown as { __storedAtClick: boolean[] }).__storedAtClick), 'the Take ran before the save').toEqual([false]);
   await holdWrites(page, false);
   await expect(page.getByTestId('cue-unsent')).toBeEmpty();
   await page.waitForTimeout(500);
   expect(await plays(page), 'one entrance').toBe(before + 1);
+});
+
+test('typed then taken, then the page reloads at once: the edit is kept', async ({ page }) => {
+  // #2388: the blur's save waits for the Take, so the edit is still owed when the page goes; the
+  // page going saves it at once.
+  await production(page, 'Take then reload');
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await page.getByTestId('cue-field-f0').fill('Kept over a reload');
+  await page.getByTestId('verb-take').click();
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Kept over a reload');
 });
 
 test('Update sends every field, and u is the same press', async ({ page }) => {

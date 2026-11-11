@@ -10,7 +10,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createPlayoutSession } from '../src/control/playoutSession.ts';
-import { FLUSH_DELAY_MS, createCueDraft, editGroup, unsentFields, unsentNow, viewOf } from '../src/control/cueDraft.ts';
+import { FLUSH_DELAY_MS, PRESS_HOLD_MAX_MS, createCueDraft, editGroup, unsentFields, unsentNow, viewOf } from '../src/control/cueDraft.ts';
 
 const OPENER = { id: 'c1', label: 'Opener', note: null, values: { f0: 'Anna Riva', f1: 'Host' } };
 const CLOSER = { id: 'c2', label: 'Closer', note: 'last', values: { f0: 'Ben Lund', f1: 'Guest' } };
@@ -24,7 +24,7 @@ function harness() {
   const retained = [];
   const groups = [];
   const timers = new Map();
-  const listeners = { hide: new Set(), flush: new Set() };
+  const listeners = { hide: new Set(), flush: new Set(), press: new Set() };
   let nextTimer = 1;
   const h = {
     session,
@@ -70,6 +70,14 @@ function harness() {
       listeners.flush.add(run);
       return () => listeners.flush.delete(run);
     },
+    onSendsFirstPress: (run) => {
+      listeners.press.add(run);
+      return () => listeners.press.delete(run);
+    },
+  };
+  /** A pointer goes down on a control that sends first (`true`), or comes up (`false`). */
+  h.press = (down) => {
+    for (const run of listeners.press) run(down);
   };
   return h;
 }
@@ -366,4 +374,91 @@ test('viewOf reads the draft only for its own cue', () => {
   assert.equal(viewOf(draft, OPENER), draft);
   assert.deepEqual(viewOf(draft, CLOSER), { label: 'Closer', note: 'last', values: { f0: 'Ben Lund', f1: 'Guest' } });
   assert.deepEqual(viewOf(null, OPENER), { label: 'Opener', note: '', values: { f0: 'Anna Riva', f1: 'Host' } });
+});
+
+// #2388: a Take pressed right after an unsaved edit. The press's pointer-down takes the focus, and
+// the editor's blur owes the save; that save rewrites the stored productions synchronously, so it
+// runs only once the press is over and its handler has sent.
+
+test('a blur saves at once when no press that sends first took the focus', () => {
+  const h = harness();
+  h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: 'Tabbed away' } });
+  const saves = [];
+  h.draft.blurred(() => saves.push('save'));
+  assert.deepEqual(saves, ['save']);
+  h.press(false);
+  h.draft.blurred(() => saves.push('again'));
+  assert.deepEqual(saves, ['save', 'again'], 'a press elsewhere is no press that sends first');
+});
+
+test('a blur by a press that sends first saves after the press, once, and keeps the edit owed meanwhile', () => {
+  const h = harness();
+  h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: 'Typed then Take' } });
+  const saves = [];
+  h.press(true);
+  h.draft.blurred(() => saves.push(h.draft.view(OPENER).values.f0));
+  assert.deepEqual(saves, [], 'the press runs before the save');
+  assert.ok(![...h.timers.values()].some((t) => t.ms === FLUSH_DELAY_MS), 'the idle save does not land on the press');
+  assert.deepEqual(h.draft.view(OPENER).values.f0, 'Typed then Take', 'the press reads the edit from memory');
+  h.press(false);
+  assert.deepEqual(saves, [], 'not inside the release: its click is dispatched in the same task');
+  assert.deepEqual([...h.timers.values()].map((t) => t.ms), [0]);
+  h.tick();
+  assert.deepEqual(saves, ['Typed then Take']);
+  h.tick();
+  assert.equal(saves.length, 1, 'once');
+});
+
+test('the page closing during the press saves the edit at once', () => {
+  const h = harness();
+  h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: 'Closed after Take' } });
+  h.press(true);
+  h.draft.blurred(() => void h.draft.flush());
+  for (const run of h.listeners.hide) run();
+  assert.deepEqual(h.retained.map((r) => r.fields.values.f0), ['Closed after Take']);
+});
+
+test('the idle save that falls during a press that sends first waits for its release', () => {
+  const h = harness();
+  h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: 'Idle' } });
+  h.press(true);
+  h.tick();
+  assert.equal(h.writes.length, 0, 'not during the press');
+  h.press(false);
+  h.tick();
+  assert.equal(h.writes.length, 1);
+  assert.equal(h.writes[0].fields.values.f0, 'Idle');
+});
+
+test('a press held past the cap no longer holds the save', () => {
+  const h = harness();
+  h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: 'Held' } });
+  const saves = [];
+  h.press(true);
+  h.draft.blurred(() => saves.push('save'));
+  const cap = [...h.timers].find(([, t]) => t.ms === PRESS_HOLD_MAX_MS);
+  assert.ok(cap, 'capped');
+  h.timers.delete(cap[0]);
+  cap[1].run();
+  h.tick();
+  assert.deepEqual(saves, ['save']);
+});
+
+test("the session's end during a press saves the edit and drops the held save", () => {
+  const h = harness();
+  h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: 'Ended' } });
+  const saves = [];
+  h.press(true);
+  h.draft.blurred(() => saves.push('save'));
+  h.session.dispose();
+  assert.deepEqual(h.retained.map((r) => r.fields.values.f0), ['Ended']);
+  h.press(false);
+  h.tick();
+  assert.deepEqual(saves, []);
 });
