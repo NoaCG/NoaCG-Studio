@@ -414,7 +414,8 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
       });
     },
     listen: (adapters) => {
-      // Hidden or going: what is owed is saved and recorded where a reload cannot drop it.
+      // Hidden, going or pausing: what is owed is saved; when the page may go it is also recorded
+      // where a reload cannot drop it.
       const offHide = adapters.onPageHide((going) => {
         if (going) leaving = true;
         retain(going);

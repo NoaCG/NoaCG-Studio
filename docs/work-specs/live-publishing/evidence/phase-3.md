@@ -516,7 +516,7 @@ were not measured again.
   listed text only one; a save not listed when handed to the history three; `cancel` always
   removing the record one; `cancel` never removing it one; `cancel` removing it while the page is
   going one; removing a record another tab wrote one; a cap on the list one; no replacement on a
-  confirmed save one.
+  confirmed save one; keeping only the confirmed text (dropping those handed after it) one.
 - `e2e/configured/command-sequence.spec.ts`: "typed, Take with the send still unanswered, then
   the page reloads: the edit is kept", the checker's case committed (send held 800 ms, reload
   50 ms after the Take). 3 of 3 on the local stack; with the record never written, 3 of 3 red

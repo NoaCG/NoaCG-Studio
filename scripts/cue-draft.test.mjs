@@ -551,6 +551,23 @@ test('P1: every save handed over and not yet confirmed stays listed, however man
   stop();
 });
 
+test('P1: a confirmed save keeps every text handed over after it listed', async () => {
+  // Delta review of 6a53c40: T2 may still wait in a team outbox when T1 is confirmed.
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: 'T1' } });
+  const first = h.draft.flush();
+  h.draft.edit(OPENER, { values: { f0: 'T2' } });
+  void h.draft.flush();
+  h.draft.edit(OPENER, { values: { f0: 'T3' } });
+  h.writes[0].answer(true);
+  await first;
+  for (const run of h.listeners.hide) run(true);
+  assert.deepEqual(h.owed?.bases.map((b) => b.values.f0), ['T1', 'T2']);
+  assert.equal(h.owed?.fields.values.f0, 'T3');
+  stop();
+});
+
 test('P1: an earlier save of the same cue confirmed while typing went on replaces the texts listed before it', async () => {
   // PR review of 7901c00: the store then holds that save's text, so the newer typing must be applied
   // over it, not over the text before it.
