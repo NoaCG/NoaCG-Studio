@@ -108,9 +108,10 @@ export interface CueDraft {
   flush: () => Promise<boolean>;
   /** Drop the draft unsaved. */
   cancel: () => void;
-  /** The editor now shows `cueId` (or no cue). A draft of another cue is saved through `save` (the
-   *  page's save and history close, as a selection change runs them) and dropped, so the next edit
-   *  never starts over it. Nothing happens while the draft is this cue's. */
+  /** The editor now shows `cueId` (or no cue). When that changed and the draft is another cue's,
+   *  its save starts at once through `save` (the page's save and history close, as a selection
+   *  change runs them). The draft is kept until its save is confirmed, so a failed save stays owed
+   *  and the page going still saves it. */
   showing: (cueId: string | null, save: () => void) => void;
   /** The editor lost focus and owes `save` (the draft's save and the history group's close). Run
    *  at once, unless a press that sends first took the focus (live-publishing W1, #2388): then the
@@ -181,6 +182,8 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     if (timer !== null) io.clearTimeout(timer);
     timer = null;
   };
+  /** The cue the editor last showed (`showing`). */
+  let shown: string | null = null;
   /** Whether a pointer is down on a control whose press sends first. */
   let pressing = false;
   /** The save waiting for presses that send first to pause, its wait and its cap. */
@@ -277,13 +280,12 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
       set(null);
     },
     showing: (cueId, save) => {
+      if (cueId === shown) return;
+      shown = cueId;
       const d = part.get();
       if (!d || d.cueId === cueId) return;
       dropHeld();
-      // The save takes the draft as it stands now, before it is dropped here.
       save();
-      stopTimer();
-      set(null);
     },
     blurred: (save) => {
       if (!pressing) {

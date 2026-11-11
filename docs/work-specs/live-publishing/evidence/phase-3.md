@@ -228,9 +228,13 @@ them separately from the code.
 - R4a. An edit to another cue never starts while an earlier cue's edit is owed. Selecting a cue
   or a folder saves and drops the draft first (`selectCue`, `selectFolder`), as before. The editor
   can also follow the cue on air to another cue (`editTarget === 'air'`, a Take from elsewhere);
-  after that render the page saves and drops the draft of the cue it left (`cueDraft.showing`),
-  the same way. Neither starts a write inside an edit. If such a save fails, the edit is not owed
-  again, as with a selection change before this repair.
+  after the render that moved it, the save of the draft it left starts (`cueDraft.showing`); that
+  draft is kept until the save is confirmed, so a failed save stays owed and the page going
+  saves it. Neither starts a write inside an edit. Typing into the new cue before that save is
+  confirmed still starts a new draft; if the save then fails, the earlier edit is not owed again
+  (as on `main`). Making `edit` save another cue's owed draft first needs the history to open a
+  group in queue order, after every write queued before it: `beginGroup` snapshots at once while
+  writes land through its queue. That rule is missing on `main` too and is left to #2394.
 - R5. An idle save (300 ms after the last keystroke) falling due while such a press is down waits
   for the press to end too.
 - R6. A blur not made by such a press (Tab, a click anywhere else, another control) saves at once,
@@ -257,10 +261,10 @@ dc38070 had in `edit` covered it with the flaw above, and 9956f3f had removed it
   pointer is down on a control marked `data-sends-first`. Then it is held until such presses
   pause for 300 ms (never during one), with a 2 s cap. An idle save falling due during such a
   press is held the same way. Typing again during the hold drops the held save (R3a); `edit`
-  starts no write. `showing` saves and drops a draft of a cue the editor no longer shows (R4a).
+  starts no write. `showing` starts the save of a draft of a cue the editor no longer shows (R4a).
 - `ProductionPage.tsx` gives the draft the window's pointer events (`onSendsFirstPress`; a touch
   or pen press ends at its click, since a tap moves the focus after its pointer is up), and after
-  each render tells it which cue the editor shows (`showing`);
+  each render tells it which cue the editor shows (`showing`, which acts only when it changes);
   `CueEditor.tsx` routes its blur through `blurred`; Take, Re-take, Next, the quick buttons and
   their picks and the live number steps carry `data-sends-first`.
 

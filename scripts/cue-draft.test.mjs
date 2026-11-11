@@ -494,18 +494,19 @@ test('typing again before the held save ran carries on in the same draft and gro
   assert.equal(h.timers.size, 0);
 });
 
-test('the editor moving to another cue saves and drops the draft it left; the same cue keeps it', () => {
+test('the editor moving to another cue starts the save of the draft it left, once, and keeps it until confirmed', async () => {
   const h = harness();
   h.draft.listen(h.adapters);
+  h.draft.showing('c1', () => assert.fail('no draft yet'));
   h.draft.edit(OPENER, { values: { f0: 'Typed on air' } });
-  const saves = [];
-  h.draft.showing('c1', () => saves.push('save'));
-  assert.deepEqual(saves, [], 'still this cue');
-  h.draft.showing('c2', () => saves.push(h.session.draft.get().values.f0));
-  assert.deepEqual(saves, ['Typed on air'], 'saved as it stood');
-  assert.equal(h.session.draft.get(), null, 'the next edit starts from the new cue');
-  h.draft.edit(CLOSER, { note: 'next' });
-  assert.equal(h.session.draft.get().cueId, 'c2');
-  h.draft.showing(null, () => saves.push('left'));
-  assert.deepEqual(saves, ['Typed on air', 'left']);
+  h.draft.showing('c1', () => assert.fail('still this cue'));
+  h.draft.showing('c2', () => void h.draft.flush());
+  assert.deepEqual(h.writes.map((w) => [w.cueId, w.fields.values.f0]), [['c1', 'Typed on air']], 'saved as it stood');
+  h.draft.showing('c2', () => assert.fail('only when the cue changes'));
+  assert.deepEqual(h.draft.view(CLOSER).values, CLOSER.values, 'the new cue reads its record');
+  h.writes[0].answer(false);
+  await settle();
+  assert.equal(h.session.draft.get().values.f0, 'Typed on air', 'a failed save keeps the draft');
+  for (const run of h.listeners.hide) run();
+  assert.deepEqual(h.retained.map((r) => r.fields.values.f0), ['Typed on air'], 'and the page going saves it');
 });
