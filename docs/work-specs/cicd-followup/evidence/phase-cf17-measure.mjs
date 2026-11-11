@@ -84,7 +84,8 @@ for (const pr of prs) {
   if (!tl) continue;
   const queued = tl.filter((e) => e.event === "added_to_merge_queue").map((e) => e.created_at);
   pr.queueEntries = queued.length;
-  pr.queueRemovals = tl.filter((e) => e.event === "removed_from_merge_queue").length;
+  // GitHub also logs a removal at the merge itself; only a removal before the merge is a dequeue.
+  pr.queueRemovals = tl.filter((e) => e.event === "removed_from_merge_queue" && e.created_at !== pr.mergedAt).length;
   pr.queue = queueClock({ queued, mergedAt: pr.mergedAt, now: UNTIL });
 }
 
@@ -115,25 +116,38 @@ for (const run of ordered) {
 const tierMinutes = Object.fromEntries(TIERS.map((t) => [t, 0]));
 let trialRunsUnread = 0;
 let maxRunnerWait = 0;
-for (const pr of prs) Object.assign(pr, { m3: 0, failThenPass: false, reruns: 0, postLandingFailure: false });
+// cf03 section 1: a re-run attempt lists every job again, and the jobs it did not re-run are copies
+// with the original times, counted once. A `Reviewed` attempt that failed before the review stamp
+// existed is review wait, not a fail-then-pass, and a re-run of only Reviewed is not a re-run.
+for (const pr of prs) Object.assign(pr, { m3: 0, failThenPass: false, flaky: [], reruns: 0, reviewWait: 0, postLandingFailure: false });
 for (const run of runs) {
   const pr = owner(run);
   if (!pr) continue;
-  if (run.run_attempt > 1) pr.reruns += 1;
   if (run.event === "push" && run.head_branch === "main" && run.path.endsWith("ci.yml") && run.conclusion === "failure") pr.postLandingFailure = true;
   const jobs = jobsOf.get(run.id);
   if (!jobs) { trialRunsUnread += 1; continue; }
-  const seen = new Map();
-  for (const job of [...jobs].sort((a, b) => (a.started_at ?? "").localeCompare(b.started_at ?? ""))) {
+  const counted = new Set();
+  const seen = new Map(); // job name -> the conclusion of its previous attempt on this commit
+  const rerun = new Set(); // attempts above 1 that re-ran a job other than Reviewed
+  for (const job of [...jobs].sort((x, y) => (x.started_at ?? "").localeCompare(y.started_at ?? "") || x.run_attempt - y.run_attempt)) {
     if (!job.started_at || !job.completed_at) continue;
+    const key = `${job.name}|${job.started_at}|${job.completed_at}`;
+    if (counted.has(key)) continue;
+    counted.add(key);
     const m = min(job.started_at, job.completed_at);
     pr.m3 += m;
     tierMinutes[tierOfJob(run.path, job.name)] += m;
     if (job.created_at) maxRunnerWait = Math.max(maxRunnerWait, min(job.created_at, job.started_at));
     const prev = seen.get(job.name);
-    if (job.conclusion === "success" && prev && prev !== "success" && prev !== "skipped") pr.failThenPass = true;
+    if (job.name === "Reviewed") {
+      if (job.conclusion !== "success") pr.reviewWait += m;
+    } else {
+      if (job.run_attempt > 1) rerun.add(job.run_attempt);
+      if (job.conclusion === "success" && prev && prev !== "success" && prev !== "skipped") { pr.failThenPass = true; pr.flaky.push(`${run.id}/${job.name}: ${prev} then success`); }
+    }
     seen.set(job.name, job.conclusion);
   }
+  pr.reruns += rerun.size;
 }
 const events = [];
 let jobsRead = 0;
@@ -151,7 +165,7 @@ const out = {
   window: { since: SINCE, until: UNTIL },
   complete: complete && trialRunsUnread === 0,
   calls,
-  trialPrs: prs.map(({ number, plan, phase, kind, state, createdAt, mergedAt, queueEntries, queueRemovals, queue, m3, failThenPass, reruns, postLandingFailure }) => ({ number, plan, phase, kind, state, createdAt, mergedAt, queueEntries, queueRemovals, queueMinutes: queue?.minutes ?? null, m3: Math.round(m3 * 10) / 10, failThenPass, reruns, postLandingFailure })),
+  trialPrs: prs.map(({ number, plan, phase, kind, state, createdAt, mergedAt, queueEntries, queueRemovals, queue, m3, failThenPass, flaky, reruns, reviewWait, postLandingFailure }) => ({ number, plan, phase, kind, state, createdAt, mergedAt, queueEntries, queueRemovals, queueMinutes: queue?.minutes ?? null, m3: Math.round(m3 * 10) / 10, failThenPass, flaky, reruns, reviewWaitMinutes: Math.round(reviewWait * 10) / 10, postLandingFailure })),
   W: Object.fromEntries(["live-publishing", "vmix", "editor-r1-5"].map((plan) => [plan, new Set(landed.filter((p) => p.plan === plan && p.kind !== "check").map((p) => p.phase)).size])),
   Q: { n: q.length, p50: pct(q, 50), p90: pct(q, 90), max: q.length ? Math.max(...q) : null, openOver30: prs.filter((p) => p.queue?.state === "unfinished" && p.queue.minutes > 30).map((p) => p.number) },
   C: { queueRemovals: contention, maxRunnerWaitMinutes: Math.round(maxRunnerWait * 10) / 10, repoPeakConcurrentJobs: peak, peakAt, runsInWindow: runs.length, runsWithJobsRead: jobsOf.size, peakIsLowerBound: jobsOf.size < runs.length },
