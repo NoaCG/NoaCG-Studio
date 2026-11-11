@@ -246,12 +246,12 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     part,
     edit: (cue, patch) => {
       if (!session.alive() || !io.canWrite()) return;
-      // Typing again after the press: the held save (and its history group's close) goes first, so
-      // the new typing is its own undo step.
-      if (held && !pressing) runHeld(true);
-      // An edit to another cue never drops one still owed: that one's save starts first, in its
-      // own history group.
-      if (part.get()?.cueId !== cue.id && pending) void flush();
+      // Typing again after the press, before the held save ran: the typing carries on in the same
+      // draft and history group, saved on its own idle delay. Nothing here starts a write: a write
+      // queued in the same call as `editing` opens a group would land after that group's snapshot,
+      // and the history would then drop the draft. (Another cue's edit never finds this draft
+      // owed: the page saves and clears it when the selection moves, `selectCue`.)
+      if (held && !pressing) dropHeld();
       const d = part.get();
       io.editing(editGroup(cue.id, patch));
       const base: DraftPart = d && d.cueId === cue.id ? d : { cueId: cue.id, label: cue.label, note: cue.note ?? '', values: { ...cue.values } };
