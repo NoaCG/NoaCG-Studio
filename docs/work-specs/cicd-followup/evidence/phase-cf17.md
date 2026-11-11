@@ -170,8 +170,8 @@ and nothing is bought.
 **Result: the trial ran for 21.6 hours and was ended early by the owner. Permanent three-plan
 concurrency stays off.** Stage 1 landed before the trial counted (#2359, merged
 2026-11-10T18:05Z). Stage 2 is section 7. **Addendum (section 8): the trial did not stop when two stop lines
-were crossed, and the owner ended it on a status that said none had been; the owner closed cf17
-with the missed stop recorded.**
+were crossed, and the owner ended it on a status that said none had been; the owner decided to close
+cf17 with the missed stop recorded.**
 
 ## 7. Result (stage 2)
 
@@ -257,7 +257,7 @@ keep running side by side.
 
 Permanent three-plan concurrency is **not** enabled (acceptance (c)): no success criterion is met.
 Nothing in `plan-run.md` changes; plan runs of different plans may still run side by side as
-before, with no three-plan setting turned on. For cf20(b): decision E's trial ran, ended early by
+before, with no three-plan setting turned on. For cf20(b) (section 8 adds the missed stop): decision E's trial ran, ended early by
 the owner after 21.6 hours with 8 landings, and showed no benefit it could measure. Small samples
 are operating evidence, not statistical proof.
 
@@ -306,7 +306,7 @@ Sections 1 to 7 stand as written; this section corrects how the trial ended.
   ([comment 6803963699](https://github.com/NoaCG/NoaCG-Studio/issues/1967#issuecomment-6803963699)).
 - **The owner's decision**, 2026-11-11, verbatim
   ([#1967, comment 6804043344](https://github.com/NoaCG/NoaCG-Studio/issues/1967#issuecomment-6804043344)):
-  "Record missed stop, close (Recommended)". The option read: "the trial is closed with the missed
+  "Record missed stop, close (Recommended)". The option read, in part: "the trial is closed with the missed
   stop and its cause recorded as a finding for cf20. No re-trial, since a re-run still could not
   turn three-plan running on (no solo baseline). cf22 starts right away."
 - **What follows.** No re-trial. Permanent three-plan concurrency stays off. For cf20(b): decision
