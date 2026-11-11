@@ -73,7 +73,7 @@
       "step": "build",
       "sourceSha": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
       "actionId": "plan-editor-r1-5-2026-11-08:3",
-      "note": "Fresh Cloud worker terminal. Same exact 9c5ae192: 61/61 Chromium and UI walk pass, final /check pass; original A/Codex/CI green. Coordinator beginning normal queue admission and retaining repair duty. No source changes; all prior failures preserved.",
+      "note": "E2 exact9c5ae192 in merge queue since12:09:01Z. Cloud browser61/61 and UI walk pass; final/check,A,Codex,CI/configured64 pass. Queue helper43017754844 success, Reviewed130513141188 success. Active coordinator watches queue and terminal merge checks; phase acceptance pending.",
       "worktree": "/workspace/noacg-editor-r1-5-e2-cloud",
       "head": "9c5ae1926d6662e0e2806f3233be85b83972f166",
       "pr": 2374,
@@ -452,7 +452,20 @@
       "head": "9c5ae1926d6662e0e2806f3233be85b83972f166",
       "directStatus": "GitHub API returned 403 Resource not accessible by integration; no status posted",
       "route": "Existing queue-merge fallback cloud-queue-merge.yml on main for status/label/Reviewed, session-owned auto-merge after exact-head readback",
-      "dispatch": "intent recorded before dispatch; reconcile original if acknowledgement unknown"
+      "dispatch": "intent recorded before dispatch; reconcile original if acknowledgement unknown",
+      "helperRun": 43017754844,
+      "helperResult": "success",
+      "reviewedStatus": 58627199409,
+      "reviewedJob": 130513141188,
+      "reviewedResult": "success",
+      "autoMerge": "GitHub connector success; exact head checked before and after",
+      "queueEvent": "added_to_merge_queue 2026-11-11T12:09:01Z by miwco",
+      "monitor": {
+        "kind": "active bounded read-only process",
+        "execSession": 50701,
+        "end": "2026-11-12T10:00:00Z",
+        "wake": false
+      }
     }
   },
   "waitingOn": {},
