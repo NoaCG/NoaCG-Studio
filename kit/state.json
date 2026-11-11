@@ -69,11 +69,11 @@
       "phase": "E2",
       "branch": "codex/plan-editor-r1-5-e2-build",
       "nativeId": "/root/editor_r15_e2_builder",
-      "checkpointed": true,
+      "checkpointed": false,
       "step": "build",
       "sourceSha": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
       "actionId": "plan-editor-r1-5-2026-11-08:3",
-      "note": "Original E2 builder stopped cleanly at cb0f639ab. Owner explicitly resumed the same E2 build. Existing CI 42964189955 completed. Build and all four configured shards passed. Four existing base edits tests hit the same strict selector ambiguity after the loop disclosure was added. Reviewed is unstamped.",
+      "note": "CI 42964189955 (cb0f639ab8ac2f4a6396ed0ded9a6d1c767a6749) completed. Build, Factory, Catalog and the four configured E2E shards passed. E2E 5/15 had four strict-selector failures in editor-base-edits.spec.ts 237, 286, 443 and 593. The helper matched Edit loop and Edit base values. The Reviewed gate awaits a coordinator stamp. Keep the first red attempt. Original actor resumed in epoch 6, native status running, worker preflight passed at 2026-11-11T07:31:43Z. Focused reproduction j-5202 admitted and awaiting the normal Windows RAM gate.",
       "worktree": "C:/claude/Temp/editor-r15-e2-build-1111",
       "head": "cb0f639ab8ac2f4a6396ed0ded9a6d1c767a6749",
       "pr": 2374
@@ -239,11 +239,12 @@
   },
   "e2Checkpoint": {
     "pr": 2374,
-    "resume": "After explicit owner resume, reconcile PR #2374 and its exact CI and Codex review state. Finish a fresh independent A/A+ review for the exact head, request Codex review if still due, then follow queue-merge and independent E2 acceptance. Keep later phases gated on E2.",
+    "resume": "Continue the original E2 worker through the selector repair, scoped verification, fresh final review and Codex review, then read exact CI before queueing. Admit independent E2 acceptance on the actual merge before E3.",
     "repairOwnerComment": 6787343956,
     "head": "cb0f639ab8ac2f4a6396ed0ded9a6d1c767a6749",
     "ci": 42964189955,
-    "verification": "j-5201 75/75; 22 GSAP oracle cases; 197 affected Node cases; scoped lint, TypeScript, Dependency Cruiser and diff check passed. Windows catalog baseline and candidate reproduced the same jc01 fingerprint (#2372); local E2E protection could not create a dependency symlink (#2373). Studio reference comparison j-5193 passed."
+    "verification": "j-5201 75/75; 22 GSAP oracle cases; 197 affected Node cases; scoped lint, TypeScript, Dependency Cruiser and diff check passed. Windows catalog baseline and candidate reproduced the same jc01 fingerprint (#2372); local E2E protection could not create a dependency symlink (#2373). Studio reference comparison j-5193 passed.",
+    "failedRun": "CI 42964189955 (cb0f639ab8ac2f4a6396ed0ded9a6d1c767a6749) completed. Build, Factory, Catalog and the four configured E2E shards passed. E2E 5/15 had four strict-selector failures in editor-base-edits.spec.ts 237, 286, 443 and 593. The helper matched Edit loop and Edit base values. The Reviewed gate awaits a coordinator stamp. Keep the first red attempt."
   },
   "waitingOn": null
 }
