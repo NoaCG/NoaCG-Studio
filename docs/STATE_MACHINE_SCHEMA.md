@@ -212,8 +212,9 @@ asynchronously, so an event arriving mid-transition evaluates against the NEW st
 interrupts by finishing the previous group timeline instantly with suppressed callbacks.
 
 **Timers** are `gsap.delayedCall`, armed by a `tl.call` at the finite end of an authored
-loop cue or at the end of a legacy finite entry timeline. A measured timeline with no
-known end retains its existing timer guard. That one choice buys three things at once: the bench's `timeScale` accelerates
+loop cue or at the end of a legacy finite entry timeline. A supported rate change moves a
+pending arm to the finite children’s new end. A measured timeline with no known end
+retains its existing timer guard. That one choice buys three things at once: the bench's `timeScale` accelerates
 timer states for free, the render pipeline's virtual clock drives them deterministically, and
 GSAP's own callback suppression means a settled or scrubbed graphic **never arms a timer** and
 so can never auto-advance under the user.

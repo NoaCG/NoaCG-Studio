@@ -1,4 +1,4 @@
-// guards: src/blocks/animData.ts, src/blocks/animEdit.ts, src/blocks/animEval.ts, src/blocks/animLoopTiming.ts, src/blocks/animMachine.ts, src/blocks/animMigration.ts, src/model/animLoopClock.ts, src/templates/shared/animRuntime.ts, src/templates/shared/animLoopRuntime.ts, src/assets/gsap.min.js, e2e/fixtures/editor-loops.json
+// guards: src/blocks/animData.ts, src/blocks/animEdit.ts, src/blocks/animEval.ts, src/blocks/animLoopTiming.ts, src/blocks/animMachine.ts, src/blocks/animMigration.ts, src/blocks/editorLoops.ts, src/model/animLoopClock.ts, src/templates/shared/animRuntime.ts, src/templates/shared/animLoopRuntime.ts, src/assets/gsap.min.js, e2e/fixtures/editor-loops.json
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -14,9 +14,10 @@ async function load(file) {
   return import(`data:text/javascript;base64,${Buffer.from(output[0].code).toString('base64')}`);
 }
 
-const [runtime, timing, dataModule, evaluator, machine, edit, migration] = await Promise.all([
+const [runtime, timing, dataModule, evaluator, machine, edit, migration, loopEditor] = await Promise.all([
   'src/templates/shared/animRuntime.ts', 'src/blocks/animLoopTiming.ts', 'src/blocks/animData.ts',
   'src/blocks/animEval.ts', 'src/blocks/animMachine.ts', 'src/blocks/animEdit.ts', 'src/blocks/animMigration.ts',
+  'src/blocks/editorLoops.ts',
 ].map(load));
 const gsap = readFileSync(new URL('../src/assets/gsap.min.js', import.meta.url), 'utf8');
 const baseline = () => JSON.parse(readFileSync(new URL('../e2e/fixtures/editor-loops.json', import.meta.url), 'utf8'));
@@ -472,6 +473,41 @@ test('a loop state can arm a timer at the finite end and retire on advance', () 
   near(g.box.x, pose, 'timer exits retiring loop');
 });
 
+test('a timer follows the live finite end at both supported rates with an indefinite sibling', () => {
+  for (const [rate, end] of [[.5, 3.85], [2, 1.3]]) {
+    const data = authoredMachine(addLoop(baseline(), finite), { timer: true });
+    data.steps[0].loops['#box'].opacity = forever;
+    assert.equal(machine.validateMachine(data).errors.length, 0);
+    const g = graphic(data);
+    g.w.gsap.updateRoot(0);
+    const cue = g.w.buildInTimeline();
+    const start = cue.startTime();
+    const tick = at => g.w.gsap.updateRoot(start + at);
+    tick(.35);
+    const clock = cue.__noacgLoops[0].animation;
+    assert.equal(clock.timeScale(rate), clock);
+    assert.equal(clock.timeScale(), rate);
+    near(g.box.x, 60, 'rate change holds the displayed sample');
+    tick(end - .01);
+    assert.equal(g.w.noacgTimers.main, undefined, 'no arm before the actual finite end');
+    tick(end + .01);
+    near(g.box.x, 100, 'finite loop has reached its terminal pose at the arm');
+    near(g.w.noacgTimers.main.delay(), .2, 'authored timer delay is preserved');
+    tick(end + .19);
+    assert.equal(g.w.noacgMachineState().groups.main, 'in');
+    tick(end + .22);
+    assert.equal(g.w.noacgMachineState().groups.main, 'reveal');
+
+    const parked = graphic(data);
+    const parkedCue = parked.w.buildInTimeline();
+    sample(parkedCue, .35);
+    parkedCue.__noacgLoops[0].animation.timeScale(rate);
+    parked.w.noacgSettleCue(parkedCue);
+    near(parked.box.x, 100, 'suppressed settle reaches the same finite endpoint');
+    assert.equal(parked.w.noacgTimers.main, undefined, 'settling never arms the timer');
+  }
+});
+
 test('a retired entry cannot arm a timer after the same state is replayed', () => {
   const data = authoredMachine(authored());
   data.machine.groups[1].transitions.push({ from: 'pulse', to: 'off', trigger: 'timer', after: .2 });
@@ -533,10 +569,31 @@ test('known runtime upgrades preserve source, compose with E1 capabilities and k
   assert.equal(runtime.writeOutData(custom, authored()), null);
 });
 
+test('whole layer selects moving tracks and refuses unsupported tracks only when they move', () => {
+  const cue = baseline().steps[0];
+  const tracks = cue.layers['#box'];
+  tracks.opacity = [{ time: 0, value: .5 }, { time: 1.3, value: .5 }];
+  tracks.filter = [{ time: 0, value: 'blur(0px)' }, { time: 1.3, value: 'blur(0px)' }];
+  assert.deepEqual(loopEditor.loopTracks(cue, '#box'), ['x']);
+  const selection = loopEditor.loopSelection(cue, '#box');
+  assert.deepEqual(selection.properties, ['x']);
+  assert.deepEqual(selection.range, [.2, 1]);
+  tracks.filter[1].value = 'blur(2px)';
+  assert.equal(loopEditor.loopSelection(cue, '#box'), null);
+  assert.deepEqual(loopEditor.loopSelection(cue, '#box', 'x').properties, ['x']);
+});
+
 test('range-invalid keys refuse atomically, and resizing preserves or scales the range', () => {
   const data = authored(), original = runtime.emitAnimRegion(data);
   const incompatible = edit.setKeyframe(data, 0, '#box', 'x', 1.2, 110);
   assert.equal(runtime.writeAnimData(original, incompatible), null);
+  const flat = edit.setKeyframe(data, 0, '#box', 'x', 1, 20);
+  assert.equal(runtime.writeAnimData(original, flat), null);
+  assert.deepEqual(dataModule.losslessAnimData(original), data);
+  const legacy = addLoop(baseline(), { repeat: -1, yoyo: true });
+  const legacySource = runtime.emitAnimRegion(legacy);
+  const legacyFlat = edit.setKeyframe(legacy, 0, '#box', 'x', 1, 20);
+  assert.equal(runtime.writeAnimData(legacySource, legacyFlat), dataModule.spliceAnimData(legacySource, legacyFlat));
   const unrelated = edit.setKeyframe(data, 0, '#score', 'y', .6, 55);
   assert.ok(runtime.writeAnimData(original, unrelated));
   const preserved = edit.resizeStep(data, 0, 1.05, 'preserve');

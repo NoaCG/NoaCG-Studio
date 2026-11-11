@@ -620,14 +620,15 @@ function noacgArmTimer(group, stateId, tl) {
   var edge = noacgTimerEdge(group, stateId);
   if (!edge) return;
   var arm = function () {${loopCode(`
-    if (noacgCurrent[group.id] !== stateId || (tl && noacgGroupTl[group.id] !== tl)) return;`)}
+    if (noacgCurrent[group.id] !== stateId || (tl && noacgGroupTl[group.id] !== tl)) return false;`)}
     noacgCancelTimer(group.id);
     noacgTimers[group.id] = gsap.delayedCall(edge.after / (NOACG_ANIM.speed || 1), function () {
       noacgTimers[group.id] = null;
       noacgDispatch({ timerGroup: group.id, from: stateId });
-    });
+    });${loopCode(`
+    return true;`)}
   };
-  if (tl) tl.call(arm, null, ${loopCode('noacgFiniteEnd(tl)') || 'tl.duration()'});
+  if (tl) ${loopCode('noacgCallAtFiniteEnd(tl, arm)') || 'tl.call(arm, null, tl.duration())'};
   else arm();
 }
 

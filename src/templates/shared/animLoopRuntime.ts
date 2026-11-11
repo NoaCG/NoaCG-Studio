@@ -165,8 +165,26 @@ function noacgRepaintOtherLoops(groupId) {
 }
 function noacgFiniteEnd(tl) {
   return tl.getChildren(false).reduce(function (end, child) {
-    return child.totalDuration() < 1e9 ? Math.max(end, child.endTime(true)) : end;
+    return child !== tl.__noacgTimerArm && child.totalDuration() < 1e9 ? Math.max(end, child.endTime(true)) : end;
   }, 0);
+}
+// Keep the callback on GSAP's clock and follow the finite children when their rate changes.
+function noacgCallAtFiniteEnd(tl, arm) {
+  var armed = false;
+  tl.call(function () {
+    if (!armed) armed = arm();
+  }, null, noacgFiniteEnd(tl));
+  var marker = tl.__noacgTimerArm = tl.recent();
+  (tl.__noacgLoops || []).forEach(function (loop) {
+    var clock = loop.animation;
+    if (clock.totalDuration() >= 1e9) return;
+    var timeScale = clock.timeScale;
+    clock.timeScale = function (rate) {
+      var result = timeScale.apply(this, arguments);
+      if (arguments.length && rate > 0 && !armed) marker.startTime(noacgFiniteEnd(tl));
+      return result;
+    };
+  });
 }
 function noacgLiveFiniteEnd() {
   var live = noacgGroupTl[noacgMachine.groups[0].id] || noacgLiveTimeline;

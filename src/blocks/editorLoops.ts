@@ -1,7 +1,7 @@
 import type { SpxTemplate } from '../model/types';
 import { writeOutData } from '../templates/shared/animRuntime';
 import type { AnimLoop, AnimStep } from './animData';
-import { validAuthoredLoop, type RangedLoop } from './animLoopTiming';
+import { hasMovingKeys, validAuthoredLoop, type RangedLoop } from './animLoopTiming';
 import { animationSource, animationTarget, trackOwner } from './editorAnimation';
 
 const LOOP_CHANNELS = new Set(['x', 'y', 'xPercent', 'yPercent', 'scale', 'scaleX', 'scaleY', 'rotation', 'opacity', 'autoAlpha']);
@@ -17,7 +17,7 @@ export interface LoopOperation {
 }
 
 function supportedTrack(property: string, keys: AnimStep['layers'][string][string]) {
-  return LOOP_CHANNELS.has(property) && keys.length > 1 && keys.every(key => typeof key.value === 'number');
+  return LOOP_CHANNELS.has(property) && hasMovingKeys(keys) && keys.every(key => typeof key.value === 'number');
 }
 
 export function loopTracks(step: AnimStep, owner: string) {
@@ -26,7 +26,7 @@ export function loopTracks(step: AnimStep, owner: string) {
 
 export function loopSelection(step: AnimStep, owner: string, property?: string) {
   const tracks = step.layers[owner] ?? {};
-  const properties = property ? [property] : Object.keys(tracks).filter(name => tracks[name].length > 1);
+  const properties = property ? [property] : Object.keys(tracks).filter(name => hasMovingKeys(tracks[name]));
   if (!properties.length || properties.some(name => !tracks[name] || !supportedTrack(name, tracks[name]))) return null;
   if (properties.some(name => name === 'scale' ? tracks.scaleX?.length || tracks.scaleY?.length
       : name === 'scaleX' || name === 'scaleY' ? tracks.scale?.length

@@ -266,3 +266,23 @@ selector that matched both Inspector disclosures. The test now opens
 Edit base values by its visible name. All of its source and rendered
 position assertions are retained. The focused old-code job j-5200 also
 showed that the loop disclosure closed before its settings could be used.
+
+GitHub CI 42964189955 and Windows Chromium j-5202 both found four base-edit
+cases whose shared helper selected both Inspector disclosures. The repair
+selects the exact base-values summary. The input actions and assertions are
+unchanged. Windows Chromium j-5204 passed 54 cases across the full base-edits,
+keys and maintained Out/loop parity specs.
+
+The independent review on `b041b4a5b8f362abeed7b14333204b2ec0ad9701` found
+two product defects. Flat siblings widened or blocked Whole layer selection,
+and flattening an existing ranged loop left invalid motion in source. Whole
+layer now uses only tracks whose authored values change, and ranged-loop writes
+use the same check. Legacy range-less tracks keep their previous behavior.
+
+The same review found that changing a finite loop’s running rate left a state
+timer at the earlier endpoint. A .5× change at 0.35 seconds preserved x = 60
+but entered the next state at 2.31 seconds with x = 33. At 2× the finite cue
+settled at 1.30 seconds but the timer still armed at 2.10. The pending GSAP
+callback now follows the finite endpoint. The oracle checks the 3.85-second
+and 1.30-second boundaries, an indefinite sibling, the authored delay and
+suppressed settling.

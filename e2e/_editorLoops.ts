@@ -73,7 +73,10 @@ async function settings(panel: Locator, target: string, speed: number, forever: 
 
 export async function authorLocalLoops(page: Page, testInfo: TestInfo) {
   await open(page);
-  const input = await template(page, fixture());
+  const data = fixture();
+  data.steps[0].layers['#box'].rotation = [{ time: 0, value: 0 }, { time: 1.3, value: 0 }];
+  data.steps[0].layers['#box'].filter = [{ time: 0, value: 'blur(0px)' }, { time: 1.3, value: 'blur(0px)' }];
+  const input = await template(page, data);
   await apply(page, input);
   await seek(page, .36);
   await select(page, '#box');
@@ -155,7 +158,7 @@ export async function authorLocalLoops(page: Page, testInfo: TestInfo) {
   expect(saved.html).toBe(input.html);
   expect(saved.css).toBe(input.css);
   expect(saved.fields).toEqual(input.fields);
-  expect((await anim(page)).steps.map(step => step.layers)).toEqual(fixture().steps.map(step => step.layers));
+  expect((await anim(page)).steps.map(step => step.layers)).toEqual(data.steps.map(step => step.layers));
 }
 
 export async function scrubSvgLoop(page: Page) {

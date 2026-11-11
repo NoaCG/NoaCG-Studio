@@ -29,11 +29,15 @@ export function authoredCueEnd(step: AnimStep, includeLegacy = false, speed = 1)
   return step.loops ? shared().end(step, includeLegacy, speed) : step.duration;
 }
 
+export function hasMovingKeys(keys: readonly AnimKeyframe[]): boolean {
+  return keys.length > 1 && keys.some(key => key.value !== keys[0].value);
+}
+
 export function validAuthoredLoop(loop: RangedLoop, duration: number, keys: readonly AnimKeyframe[]): boolean {
   if (!Array.isArray(loop.range) || loop.range.length !== 2) return false;
   const [from, to] = loop.range;
   if (!Number.isFinite(from) || !Number.isFinite(to) || from < 0 || to <= from || to > duration ||
-      keys.length < 2 || !Number.isSafeInteger(loop.repeat)) return false;
+      !hasMovingKeys(keys) || !Number.isSafeInteger(loop.repeat)) return false;
   if (!keys.every((key, index) => Number.isFinite(key.value) && key.time >= from && key.time <= to &&
       (index === 0 || key.time > keys[index - 1].time))) return false;
   const phase = loop.phase ?? 0, window = shared().window(loop);
