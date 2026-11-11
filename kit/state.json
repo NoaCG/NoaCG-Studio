@@ -36,8 +36,8 @@
  },
  "waitingOn": [
   {
-   "what": "phase 2 rerun of Take paths and publish overlap, then receipt, PR, CI, /so",
-   "eta": "2026-11-11T11:30:00Z"
+   "what": "phase 2 reruns, delta /so, receipt",
+   "eta": "2026-11-11T12:00:00Z"
   }
  ],
  "inFlight": [
@@ -48,7 +48,8 @@
    "session": "session_017SdbwRAwGnmr1povTTBwU9",
    "branch": "claude/plan-live-publishing-2-build",
    "launchedAt": "2026-11-10T22:13:03Z",
-   "lastSeen": "2026-11-11T06:11Z first campaign done (125 jobs); /check review found 3 measurement defects (send-to-press attribution, panel press clock, publish-window classification), fixed; rerunning Take paths and publish overlap (53 jobs) to ~10:15Z; boot, bytes, render stand"
+   "lastSeen": "2026-11-11T08:50Z PR #2376 open; full /so B+ on 7bd86e0 (4 harness/receipt findings, accepted, fixed); 40 rerun jobs to ~11:30Z; then delta /so and Codex on final head",
+   "pr": 2376
   }
  ],
  "owner": [
