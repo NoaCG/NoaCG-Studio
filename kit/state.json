@@ -44,11 +44,11 @@
   "waitingOn": {},
   "inFlight": [
     {
+      "head": "98bae714744b40bebb20b0bb60e89587a8744696",
       "pr": 2378,
-      "note": "Grouped review corrections pushed on the same draft. Exact CI 43001418378, fresh review and shared local browser j-5231 remain due; no landing until they pass.",
-      "head": "389306ae14a3abb2ef8d7c848e3d9364c97056f0",
       "step": "build",
       "session": "/root/v4_builder",
+      "note": "Reassessed media readiness corrections pushed. Exact CI 43004109036 and fresh review pending; required local browser j-5232 awaits capacity. Draft remains unqueued.",
       "phase": "v4"
     }
   ],
