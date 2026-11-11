@@ -36,8 +36,8 @@
  },
  "waitingOn": [
   {
-   "what": "phase 2 measurement campaign, then receipt, /check and PR",
-   "eta": "2026-11-11T05:30:00Z"
+   "what": "phase 2 rerun of Take paths and publish overlap, then receipt, PR, CI, /so",
+   "eta": "2026-11-11T11:30:00Z"
   }
  ],
  "inFlight": [
@@ -48,7 +48,7 @@
    "session": "session_017SdbwRAwGnmr1povTTBwU9",
    "branch": "claude/plan-live-publishing-2-build",
    "launchedAt": "2026-11-10T22:13:03Z",
-   "lastSeen": "2026-11-11T02:01Z builder: container restarted ~01:40Z, saved results survived, stack and queue restarted, one job rerun; 66 of 119 done"
+   "lastSeen": "2026-11-11T06:11Z first campaign done (125 jobs); /check review found 3 measurement defects (send-to-press attribution, panel press clock, publish-window classification), fixed; rerunning Take paths and publish overlap (53 jobs) to ~10:15Z; boot, bytes, render stand"
   }
  ],
  "owner": [
@@ -84,5 +84,11 @@
   "pass": "2026-11-10T22:12Z",
   "builderCostUSD": 69.5,
   "checkerCostUSD": 1.9
- }
+ },
+ "ownerQuestions": [
+  {
+   "what": "Early signal: AC-1 50 ms p95 Take target may be unreachable by removing the W1 waits alone (Next, untouched by W1, measured 65-118 ms p95 in run 1). Confirm with the final phase 2 receipt, then ask the owner before launching phase 3.",
+   "state": "pending final numbers"
+  }
+ ]
 }
