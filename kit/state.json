@@ -69,6 +69,11 @@
    "branch": "claude/plan-run-live-publishing-started",
    "head": "35b1914f97a824d7db58d3896e43db5492c2cd1e",
    "state": "landed 27d50cc1; CI 42889219830, configured-suite 42889219566, Post-landing 42889219803, Quarantine 42889219881, Push on main 42889218344 all green; repair ownership ended"
+  },
+  {
+   "what": "Phase 3 AC-1 repair (owner B): run the owed edit save after the press",
+   "issue": 2388,
+   "state": "waiting for PR #2380 to merge, then launch from that main"
   }
  ],
  "triggers": {
