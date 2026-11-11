@@ -161,3 +161,32 @@ batch pending native/API reconciliation; never blindly resubmit. Explicitly
 retain GITHUB_ACTIONS on actual Actions; never fake it in Cloud. The active owner
 stays through diagnostics and the causal gate. These opt-in results cannot pass
 normal gates or earn quarantine release;20 consecutive main passes remain required.
+
+## Read-only evidence retrieval, before analysis helper implementation
+
+The managed Cloud shell cannot download Actions ZIP storage: both the GitHub
+artifact redirect and the connector's returned file URL are denied by its proxy.
+The attachment-download tool also cannot create its directory under this task's
+read-only permission profile. Original job logs remain readable through the
+GitHub connector. Do not bypass the proxy or change the environment allowlist.
+
+Use a separate diagnostic feature branch, never merged to main, for a read-only
+artifact analysis dispatch. Its copy of the existing manual endurance workflow
+adds only `actions: read` and passes its own scoped job token to the analysis step.
+No user credential is copied or exposed. It does not start a backend or tests,
+change a primary batch, earn release passes or change any normal gate/limit.
+Before implementing this retrieval helper, obtain a fresh method second opinion.
+
+The helper reads only this repository's16 recorded immutable primary run IDs,
+verifying head81f782eae, expected batch refs, attempt1 and artifact ownership. It
+keeps each original ZIP and checksum privately in its existing always-upload
+output, reads trial JSON without extracting archive paths, prints a bounded
+sanitized summary with counts, failed titles/errors and unresolved attempts,
+and never treats a missing or unfinished artifact as a passing sample. It also
+reads original clock failure artifact13854769457 from run43020316776, extracting
+only relevant trace API results/network timing for diagnosis. It never changes
+source, reruns tests, modifies quarantine or submits a later phase. Use a finite
+15-minute read ceiling within the existing90-minute workflow and retain partial
+results. Inspect/publish only relevant synthetic-fixture evidence, not tokens,
+headers, service keys or raw private environment metadata. Fresh final review
+and targeted validation precede this read-only dispatch.
