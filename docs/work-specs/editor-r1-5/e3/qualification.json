@@ -216,6 +216,13 @@
       "failed": 0,
       "skipped": 0,
       "newExactModelCases": 10
+    },
+    "finalNativeJson": {
+      "source": "fda2cfdf9de35055d57299f0eeae90eff3f7ed70",
+      "passed": 533,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "Targeted gateway tests; actual encoding/lowering, original schema preservation, native usage retained on parse failure, unchanged legacy/unstructured requests"
     }
   },
   "failuresRetained": {
@@ -258,7 +265,30 @@
       ],
       "failure": "scratch document.querySelector did not pierce OGraf open shadow root; corrected j-0026 uses its actual shadow scope"
     },
-    "capacity": "WARN: growth blob inaccessible403; table9days old; coordinator retrieved weekly job report showing backend STOP. No headroom or exception claimed."
+    "capacity": "WARN: growth blob inaccessible403; table9days old; coordinator retrieved weekly job report showing backend STOP. No headroom or exception claimed.",
+    "consumedHelpRecheck": {
+      "source": "b08176a144de3ff8d8d3656f819de5c5d5d22f4c",
+      "job": "j-0028",
+      "status": 502,
+      "code": "malformed_response",
+      "answer": "none",
+      "usage": "not reported; reserved at sent caps",
+      "receipt": "help-recheck-failed.json"
+    },
+    "finalTestAuthoring": "TS18048 optional fixture closure narrowing before behavioral run; corrected local const binding, compiler output retained in isolated scratch"
   },
-  "scope": "Codex Cloud Linux isolated browser/CLI fixtures, actual configured-provider calls separately; no hosted-staging, receiving-host, native zoom/participant or release approval claim"
+  "scope": "Codex Cloud Linux isolated browser/CLI fixtures, actual configured-provider calls separately; no hosted-staging, receiving-host, native zoom/participant or release approval claim",
+  "finalQuality": {
+    "source": "fda2cfdf9de35055d57299f0eeae90eff3f7ed70",
+    "job": "j-0029",
+    "calls": 1,
+    "attempts": 1,
+    "status": 200,
+    "tokens": 7515,
+    "readOnly": true,
+    "receipt": "help-final.json",
+    "independentReview": "quality-review.json",
+    "cumulativeUpperEstimateUsd": 1.742653,
+    "noMorePaidCalls": true
+  }
 }

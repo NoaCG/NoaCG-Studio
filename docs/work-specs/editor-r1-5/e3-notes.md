@@ -1,23 +1,78 @@
 # E3: assisted editing and CLI round-trip
 
-Phase E3 of the immutable editor-r1-5 plan at
-`f0f2e3fe0c2cc14e23b171957b6f8d18905fd434`. Previous independently verified
-main/product source: `d8b18080bfacf2303a1d88e4ca1398fb263d9657` (E2). Owned branch
-`codex/plan-editor-r1-5-e3-build`. This phase does not grant release approval.
+The Assistant now offers read-only grounded **Help**, separately reviewed **Edit**,
+and an offline Editing guide. Help captures the selected document/context, names
+actual editor controls and refuses stale, cancelled or invalid replies. Reviewed
+edits continue through the existing atomic preparation/apply/history handlers.
+Only structured requests to the exact native Anthropic `claude-sonnet-5-5` route
+use supported native JSON-schema output; other routes retain their wire behavior.
+Served native usage survives malformed responses. No migration or dependency change.
 
-## Reproduction and decision
+This is phase E3 of the immutable plan at
+`f0f2e3fe0c2cc14e23b171957b6f8d18905fd434`. Previous independently verified main is
+`d8b18080bfacf2303a1d88e4ca1398fb263d9657` (E2). Product verification below is pinned
+to `fda2cfdf9de35055d57299f0eeae90eff3f7ed70`; later receipt-only commits do not
+relabel earlier executions. These are bounded engineering receipts. Final full-diff
+review, exact-head CI/Codex and independent exact-merge acceptance remain required.
 
-The current Assistant only offers “Describe an edit” and “Propose edits”.
-`ProposalPanel.tsx`, `proposals.ts` and `ai/editorProposals.ts` have no help mode
-or grounded editor instructions. Historical command/proposal/CLI receipts explicitly
-leave general help, access qualification and broader real-model quality open.
-Reproduce in the current browser before product changes. Reuse the same gateway,
-consent, account guard, bounded inspection and session handlers for help. No new
-provider/model, funded route, billing policy, endpoint, credential storage or retry.
+## Evidence and limits
 
-Required acceptance is the E3 row in spec.md, including B17/B18 R1 core,
-E22/E23 and the consuming E12 preservation safeguards. Paired live MCP, WebMCP,
-R2/R3, receiving applications and later owner/participant/device gates stay separate.
+- [Inventory](e3-inventory.md) maps B17/B18 R1 core, E22/E23 and E12 safeguards.
+  [Qualification](e3/qualification.json) retains source/environment pins and failures.
+  Maintained assistant/shared-command checks passed 46/46; corrected-guide checks
+  passed 40/40; final gateway checks passed 533/533, all zero skips. An independent
+  ownership oracle caught the deliberately removed request invalidation.
+- [Final actual Help](e3/help-final.json) on the pinned product source returned native
+  JSON HTTP 200, one call/attempt, 7515 tokens, read-only/no Apply. A fresh
+  [quality assessor](e3/quality-review.json) passed the actual control guidance and
+  explicitly accepted bounded reuse of five original successful tasks from
+  `e2393159a...` auto-tool mode. [Deterministic replay](e3/native-schema-replay.json)
+  proves current encoding preserves their original neutral schemas/outputs; it
+  does not claim five new native generations or broad reliability. Original 5/6
+  quality and the consumed malformed recheck remain failures at their own scope.
+- CLI 0.12.4 scaffold/validate/inspect and actual stdio MCP inspection preceded a
+  fresh package import, visual wording/+40 px edit, exact undo/redo, durable save
+  and reopen. JS, field keys and font bytes stayed intact. All three fresh
+  SPX/CasparCG/OGraf exports executed operator data, held Play and finite Out in
+  Chromium without errors. Existing scoreboard/Riverlight cases retain static
+  exclusions, inert JSON, unknown CSS, font/logo bytes and machine actions.
+- [Executed comparable Studio task](e3/reference.json) uses official Linux Studio
+  0.17.0, actual source `a1e9776...`, binary SHA256
+  `9ba1de317cdc8380c38a694f1d201964d7b805833597419111dab9eea9a02681`.
+  Its product source matches required pin `3142fc7...` (only release workflow
+  differs). Text and X+40/undo/redo passed after respecting its 500 ms history
+  burst. This is a comparable functional task, not whole-editor/device parity.
+- Access evidence separates real self-hosted managed/BYOK and normal sealed-key
+  endpoints from isolated simulated hosted-auth/ledger/rate/timeout fixtures.
+  Generic assistant free/basic policy uses the existing per-IP burst, optional
+  sign-in, bounded context/output and existing routing/fallback policy. No hosted
+  account, Lite/Pro daily allowance or receiving-application qualification is claimed.
+- Growth remains WARN/STOP under unchanged ceilings: the coordinator's current
+  weekly job report shows backend STOP at 188%. No exception, selection dodge or
+  headroom claim. Normal fresh PR capacity and CI checks remain authoritative.
+- An unchanged older-model tool parser loses served usage on malformed responses.
+  An isolated [probe](e3/legacy-accounting-probe.json) confirms byte-identical base
+  code; tracked separately as [P2 #2385](https://github.com/NoaCG/NoaCG-Studio/issues/2385).
+
+Initial sandbox disposable IO failed; reviewed escalation passed preflight at
+2026-11-11T13:01:52Z. Git/Actions network reads passed. Environment: Codex Cloud
+Linux, 4 CPUs, 16 GiB, 2 measured browser workers, isolated fixtures. Hosted staging
+was not accessed. Production credentials/data were not accessed. No local build
+was run: the scheduler rejected an unnecessary CLI build, so published CLI 0.12.4
+was used; full CI remains authoritative. Physical receiving hosts, paired live MCP,
+WebMCP, R2/R3, device/participant/owner release gates retain their assigned phases.
+
+## Rule chronology and independent challenges
+
+Pre-code rules `aeb3ef946...`: fresh Rules-first A, native
+`6af467e1-77dc-8191-8433-62d6aadfa069`. Initial auto-tool compatibility rule
+`b0a22d53...`: fresh A, native `6af46d9c-88a8-8191-8a0f-ceb52bcf505f`.
+Fresh diagnose native `6af471e3-aedc-8191-950c-c17627c20064` recommended the final
+exact-native JSON repair. Superseding rule `f7d537ad...`: fresh Rules-first A,
+native `6af473d2-96f4-8191-bd02-bd0aa32f104e`; it explicitly challenged SDK lowering
+and client validation boundaries. Final task-quality assessor native
+`6af476d8-c350-8191-a251-e9d2e9f70075` passed the final Help and bounded historical
+source applicability. These are distinct reviews; none is the final full-diff so.
 
 ## Rules stated before implementation (Risky)
 
@@ -50,22 +105,6 @@ R2/R3, receiving applications and later owner/participant/device gates stay sepa
 A fresh read-only Rules-first second opinion must challenge these rules before code.
 Any rule discovered after implementation is recorded separately below. Verify
 transitions using a small independently derived oracle, not a production algorithm copy.
-
-## Verification (pending)
-
-Retain baseline, failures and source/environment applicability. New source-specific
-receipts must cover every E3 subcriterion in the inventory. Deterministic shared
-command parity is separate from real configured-model quality and live access.
-The initial sandboxed worker preflight failed disposable IO; reviewed escalation
-passed at 2026-11-11T13:01:52Z. Git and Actions network reads passed. Runtime is
-Codex Cloud Linux, 4 visible CPUs, 16 GiB, measured selector 2 browser workers.
-Native child launch/wake-after-host-loss are unqualified; this is an active worker.
-
-## Rollback
-
-After landing, use a fresh owned feature worktree and `git revert -m 1 <E3_MERGE_SHA>`;
-verify and land the revert only through `/queue-merge`. Replace the placeholder with
-this PR's actual merge SHA in the independent landing receipt. No migration planned.
 
 ## Additional rule stated before the protocol correction
 
@@ -165,7 +204,7 @@ Any subsequent failure stops this same run; no further patch or paid call.
   authorized one-attempt limit; it does not alter product retry policy.
 
 A fresh Rules-first challenge of schema lowering, full caller validation and
-served-usage accounting is required before this final adapter edit. The original
+served-usage accounting preceded this final adapter edit. The original
 six-task sample and first quality repair are not rerun or retroactively passed.
 
 ## Final protocol verification and source applicability before the last call
@@ -195,7 +234,8 @@ occurred in those replays. Frontend review/apply/context/history handlers and
 neutral output contracts are unchanged; Help grounding alone gained accurate
 control names. Original real edit/data/refusal quality remains source/protocol
 specific, and this replay does not claim final-protocol model generation quality.
-The fresh final reviewer and exact-merge checker must judge that applicability.
+The fresh independent quality assessor accepted that bounded applicability; the
+final full-diff reviewer and exact-merge checker still judge their own gates.
 
 [The conservative bound](e3/final-cost-bound.json) reserves all four prior
 unknown-usage inference attempts at their full sent caps, six known successes at
@@ -212,3 +252,16 @@ persist intent/source/bound before queue dispatch; an unknown acknowledgement is
 consumed/unknown until reconciled, never an automatic resubmit. Exactly one
 help-out request/attempt, no fallback, successful tasks not rerun. Any subsequent
 behavioral/model failure stops this same run with the missing receipt explicit.
+
+## Final call disposition and rollback
+
+[Persisted intent](e3/final-call-intent.json) nonce `e3-final-help-1111` preceded
+dispatch. The actual payload's conservative cumulative upper estimate was
+USD 1.742653, below the unchanged USD 2 ceiling, with unknown prior attempts
+reserved at full sent caps; this is an estimate, not an invoice. The sole final
+call completed successfully. No further paid calls are authorized or needed.
+
+After landing, use a fresh owned feature worktree and
+`git revert -m 1 <E3_MERGE_SHA>`; verify and land through `/queue-merge`. The
+independent landing receipt replaces this placeholder with the actual merge SHA.
+No migration. Coordinator owns review stamp, queue and repair responsibility.
