@@ -36,20 +36,16 @@
  },
  "waitingOn": [
   {
-   "what": "PR #2380 merge, then launch the phase 3 save-after-press fix on top",
-   "eta": "2026-11-11T17:30:00Z"
+   "what": "fix #2388 lands; then launch the phase 3 check on the fix merge (phase 3 landed c0bc989f; check held for the owner-approved repair)",
+   "eta": "2026-11-11T22:00:00Z"
   }
  ],
  "inFlight": [
   {
    "phase": "3",
-   "step": "build",
-   "actor": "builder-3-3-b-3bcc",
-   "session": "session_017SdbwMUFxuZM3zn8yuUWTy",
-   "branch": "claude/plan-live-publishing-3-build",
-   "launchedAt": "2026-11-11T11:52:22Z",
-   "pr": 2380,
-   "lastSeen": "2026-11-11T16:31Z receipt 3-b-3bcc; reviewed head 593afc5d stamped, in merge queue 16:34:22Z"
+   "step": "fix #2388 (owner B), before the phase 3 check",
+   "session": "session_017SdbwQBunbe22rioNbxXpN",
+   "launchedAt": "2026-11-11T16:49:52Z"
   }
  ],
  "owner": [
@@ -73,7 +69,11 @@
   {
    "what": "Phase 3 AC-1 repair (owner B): run the owed edit save after the press",
    "issue": 2388,
-   "state": "waiting for PR #2380 to merge, then launch from that main"
+   "state": "building",
+   "session": "session_017SdbwQBunbe22rioNbxXpN",
+   "branch": "claude/plan-live-publishing-fix-2388",
+   "source": "c0bc989f77bb6523fbe718bd2299f1518d749305",
+   "nonce": "fix-2388-f-47fe"
   }
  ],
  "triggers": {
@@ -124,5 +124,9 @@
  "retro": [
   "Phase 1 used 9 /so sessions (1 full A, then 7 deltas B to B+ chasing stale docs one at a time, about 11 USD) before the final A. Builders should sweep the whole class of stale docs once before the first full /so (the traps file says fix every instance of a class in one checkpoint)."
  ],
- "archiveOnPass": "At each PASS, archive the builder child sessions too: list them by parent_session_id = the builder session (the /runs helper found 8 phase 1 /so sessions left open)."
+ "archiveOnPass": "At each PASS, archive the builder child sessions too: list them by parent_session_id = the builder session (the /runs helper found 8 phase 1 /so sessions left open).",
+ "phase3": {
+  "landed": "c0bc989f77bb6523fbe718bd2299f1518d749305",
+  "builderCostUSD": "about 70"
+ }
 }
