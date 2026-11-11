@@ -1,0 +1,10 @@
+
+### Reachable media and blank-mixer creation clarified during review
+
+Every entry in a current Video List can be reached when vMix's Auto Play Next or wrap behavior is not observable. Before Take, Resume or Ending can send a function, verify the entire fresh list under one canonical media root. Each existing entry must resolve to a regular file of the supported player kind. Repeat that check at fresh observations before later commands can expose or start media. A genuinely missing new leaf beneath a verified parent can still receive vMix's File Not Found. Pause, Out and Clear remain recovery paths.
+
+A lexical path comparison can identify a possible root spelling. Authorization resolves the actual native path and compares exact canonical components. Keep distinct case-sensitive folder and file names separate, including in list identity. Use the existing action deadline and XML size boundary to bound list verification and filesystem waits. A late lookup cannot send a command. Resolve the picker result outside the mixer turn and keep its final save serialized. The Bridge checks the state it observes before sending. Native edits and separate filesystem opens retain the documented limits.
+
+An owned vMix 29 Trial session initially reported two built-in Blank XML inputs. One AddInput replaced position 1 with an empty VideoList named List and rekeyed the remaining Blank in position 2. A stable, single new empty VideoList at the replaced position can be attributed when the other inputs retain their identities and the remaining built-in placeholders retain their positions and shape. Changed real inputs or competing candidates remain ambiguous. The device changed its own Preview selection in this blank state after AddInput. The trace contained no Program, Preview or transition function.
+
+Show and activate the local top-most owner window before opening the native folder dialog. Verify foreground visibility, selection and restart persistence from the packaged Windows executable. If the native dialog still cannot be made visible, demonstrate the specified local Bridge-window fallback.
