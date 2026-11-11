@@ -1059,25 +1059,86 @@ const DATA_HEADER = `// The graphic's animation as DATA. Steps play in order —
  */
 export const STOP_AGAIN_GUARD_JS = "if (typeof noacgOutActive === 'function' && noacgOutActive()) return (activeTl = buildOutTimeline());";
 
-// The shared interpreter plays a private channel; only that channel owns a CSS pivot reset.
+// Keep the element as GSAP's target for cancellation and live Out capture. The local
+// accessor interpolates numeric units without changing the renderer's plugin registry.
+const LOCAL_PIVOT_TRACK_JS = `var noacgLocalPivotProperty = (function () {
+  var source, reserved, next = 0, accessors = new Map();
+  return function (element, css, units) {
+    if (source !== NOACG_ANIM) {
+      accessors.forEach(function (properties, target) {
+        Object.keys(properties).forEach(function (axis) { delete target[properties[axis]]; });
+      });
+      accessors.clear();
+      source = NOACG_ANIM;
+      reserved = Object.create(null);
+      source.steps.forEach(function (step) {
+        [step.layers, step.loops || {}].forEach(function (layers) {
+          Object.keys(layers).forEach(function (selector) {
+            Object.keys(layers[selector]).forEach(function (key) { reserved[key] = true; });
+          });
+        });
+      });
+    }
+    var properties = accessors.get(element);
+    if (!properties) { properties = Object.create(null); accessors.set(element, properties); }
+    if (properties[css]) return properties[css];
+    var name;
+    do { name = '__noacgPivot_' + next++; }
+    while (reserved[name] || name in element || name in element.style || name in gsap.plugins);
+    Object.defineProperty(element, name, {
+      configurable: true,
+      get: function () { return parseFloat(getComputedStyle(element).getPropertyValue(css)) * units; },
+      set: function (value) { element.style.setProperty(css, (value / units) + 'px'); }
+    });
+    return properties[css] = name;
+  };
+})();
+function noacgMapPivotStep(step, mapFor) {
+  var layers = step.layers, loops = step.loops;
+  function mapKeys(tracks, convert) {
+    var mapped = Object.create(null);
+    Object.keys(tracks).forEach(function (key) { mapped[convert(key)] = tracks[key]; });
+    return mapped;
+  }
+  Object.keys(step.layers).forEach(function (selector) {
+    var convert = mapFor(selector, step.layers[selector]);
+    if (!convert) return;
+    if (layers === step.layers) layers = Object.assign({}, layers);
+    layers[selector] = mapKeys(step.layers[selector], convert);
+    if (step.loops && step.loops[selector]) {
+      if (loops === step.loops) loops = Object.assign({}, loops);
+      loops[selector] = mapKeys(step.loops[selector], convert);
+    }
+  });
+  return layers === step.layers ? step : Object.assign({}, step, { layers: layers, loops: loops });
+}`;
+
+// Under this exact opt-in body the stored private channels belong to ordinary pivots.
 const ANCHOR_REPLAY_JS = `// Capability: owned-anchor-replay-v1.
-(function (stepTimeline, exitTimeline, enter) {
-  var axes = ${JSON.stringify({ [ORDINARY_ANCHOR_CHANNELS.x]: '--base-anchor-x', [ORDINARY_ANCHOR_CHANNELS.y]: '--base-anchor-y' })};
-  function registerAxes() {
-    Object.keys(axes).forEach(function (name) {
-      if (gsap.plugins[name]) return;
-      var property = axes[name];
-      var read = function (element) { return parseFloat(getComputedStyle(element).getPropertyValue(property)); };
-      gsap.registerPlugin({ name: name, get: read, init: function (element, value) {
-        var target = {};
-        Object.defineProperty(target, 'value', { set: function (next) { element.style.setProperty(property, next + 'px'); } });
-        this.add(target, 'value', read(element), value);
-        this._props.push(name);
-      } });
+(function (stepTimeline, exitTimeline, applyReveals, enter) {
+  var axes = Object.assign(Object.create(null), ${JSON.stringify({ [ORDINARY_ANCHOR_CHANNELS.x]: '--base-anchor-x', [ORDINARY_ANCHOR_CHANNELS.y]: '--base-anchor-y' })});
+  function owner(selector) {
+    var targets = document.querySelectorAll(selector);
+    return targets.length === 1 && !targets[0].hasAttribute('data-noacg-group') ? targets[0] : null;
+  }
+  function adapt(step) {
+    return noacgMapPivotStep(step, function (selector, tracks) {
+      if (!Object.keys(axes).some(function (key) { return tracks[key] && tracks[key].length; })) return null;
+      var element = owner(selector);
+      return element && function (key) { return axes[key] ? noacgLocalPivotProperty(element, axes[key], 1) : key; };
     });
   }
-  buildStepTimeline = function (input) { registerAxes(); return stepTimeline(input); };
-  noacgBuildExit = function (step, interrupted, silent, early) { registerAxes(); return exitTimeline(step, interrupted, silent, early); };
+  buildStepTimeline = function (input) { return stepTimeline(adapt(typeof input === 'number' ? NOACG_ANIM.steps[input] : input)); };
+  noacgBuildExit = function (step, interrupted, silent, early) { return exitTimeline(adapt(step), interrupted, silent, early); };
+  noacgApplyReveals = function (timeline) {
+    applyReveals({ set: function (selector, vars, at) {
+      var property = Object.keys(vars)[0], element = axes[property] && owner(selector);
+      if (!element) { timeline.set(selector, vars, at); return; }
+      var mapped = {};
+      mapped[noacgLocalPivotProperty(element, axes[property], 1)] = vars[property];
+      timeline.set(selector, mapped, at);
+    } });
+  };
   var source, tracks;
   noacgEntranceTimeline = function () {
     if (source !== NOACG_ANIM) {
@@ -1096,14 +1157,12 @@ const ANCHOR_REPLAY_JS = `// Capability: owned-anchor-replay-v1.
       });
     }
     Object.keys(tracks).forEach(function (selector) {
-      var axes = Object.keys(tracks[selector]);
-      document.querySelectorAll(selector).forEach(function (el) {
-        axes.forEach(function (property) { el.style.removeProperty(property); });
-      });
+      var element = owner(selector);
+      if (element) Object.keys(tracks[selector]).forEach(function (property) { element.style.removeProperty(property); });
     });
     return enter();
   };
-})(buildStepTimeline, noacgBuildExit, noacgEntranceTimeline);`;
+})(buildStepTimeline, noacgBuildExit, noacgApplyReveals, noacgEntranceTimeline);`;
 
 // A marked group composes its transform in CSS. Translate its authored channels once, then
 // let the same step and exit builders provide holds, ease, visibility and interruption.
@@ -1126,48 +1185,15 @@ function noacgSvgGroupDisplay(selector, hidden) {
 }
 (function (stepTimeline, exitTimeline, applyReveals, enter, reset) {
   var channels = Object.assign(Object.create(null), ${JSON.stringify(SVG_GROUP_TRACK_CSS)});
-  var axes = Object.assign(Object.create(null), { '--base-anchor-x': 'noacgSvgGroupPivotX', '--base-anchor-y': 'noacgSvgGroupPivotY' });
+  var axes = Object.assign(Object.create(null), { '--base-anchor-x': true, '--base-anchor-y': true });
   var runtimeProperties = Object.keys(channels).map(function (key) { return channels[key]; }).concat(Object.keys(axes), 'display');
-  function pivotChannel(property) {
-    var name = axes[property];
-    if (!gsap.plugins[name]) {
-      // Keep fixed units in the shared tweens and live Out getter. CSSPlugin rounds
-      // length strings before they paint, so convert to pixels only at the setter.
-      var read = function (element) {
-        return parseFloat(getComputedStyle(element).getPropertyValue(property)) * ${SVG_GROUP_PIVOT_UNITS};
-      };
-      gsap.registerPlugin({ name: name, get: read, init: function (element, value) {
-        // OGraf instances share GSAP's registry. The plugin must stay independent of the
-        // document scope which first registered it; selector lookup remains in adapt().
-        if (!noacgHasSvgGroupPivot(element)) return false;
-        var target = {};
-        Object.defineProperty(target, 'value', { set: function (next) {
-          element.style.setProperty(property, (next / ${SVG_GROUP_PIVOT_UNITS}) + 'px');
-        } });
-        this.add(target, 'value', read(element), value);
-        this._props.push(name);
-      } });
-    }
-    return name;
-  }
   function adapt(step) {
-    var layers = step.layers, loops = step.loops;
-    Object.keys(step.layers).forEach(function (selector) {
-      if (!noacgSvgGroup(selector)) return;
-      if (layers === step.layers) layers = Object.assign({}, layers);
-      var tracks = step.layers[selector], converted = Object.create(null);
-      Object.keys(tracks).forEach(function (key) {
-        converted[axes[key] ? pivotChannel(key) : channels[key] || key] = tracks[key];
-      });
-      layers[selector] = converted;
-      if (step.loops && step.loops[selector]) {
-        if (loops === step.loops) loops = Object.assign({}, loops);
-        var mapped = Object.create(null);
-        Object.keys(loops[selector]).forEach(function (key) { mapped[channels[key] || key] = loops[selector][key]; });
-        loops[selector] = mapped;
-      }
+    return noacgMapPivotStep(step, function (selector) {
+      var element = noacgSvgGroup(selector);
+      return element && function (key) {
+        return axes[key] ? noacgLocalPivotProperty(element, key, ${SVG_GROUP_PIVOT_UNITS}) : channels[key] || key;
+      };
     });
-    return layers === step.layers ? step : Object.assign({}, step, { layers: layers, loops: loops });
   }
   buildStepTimeline = function (input) {
     var step = typeof input === 'number' ? NOACG_ANIM.steps[input] : input;
@@ -1323,8 +1349,10 @@ function interpreterBody(js: string): string | null {
 }
 
 const currentInterpreter = ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n').trim();
-const anchorInterpreter = currentInterpreter + '\n\n' + ANCHOR_REPLAY_JS;
-const svgGroupInterpreter = currentInterpreter + '\n\n' + SVG_GROUP_RUNTIME_JS;
+const anchorCapability = LOCAL_PIVOT_TRACK_JS + '\n\n' + ANCHOR_REPLAY_JS;
+const svgGroupCapability = LOCAL_PIVOT_TRACK_JS + '\n\n' + SVG_GROUP_RUNTIME_JS;
+const anchorInterpreter = currentInterpreter + '\n\n' + anchorCapability;
+const svgGroupInterpreter = currentInterpreter + '\n\n' + svgGroupCapability;
 const combined = [anchorInterpreter + '\n\n' + SVG_GROUP_RUNTIME_JS, svgGroupInterpreter + '\n\n' + ANCHOR_REPLAY_JS];
 const groupInterpreters = [svgGroupInterpreter, ...combined], anchorInterpreters = [anchorInterpreter, ...combined];
 const pivotInterpreters = [currentInterpreter, anchorInterpreter, ...groupInterpreters];
@@ -1342,7 +1370,8 @@ function appendCapability(js: string, capability: string) {
 export function withSvgGroupRuntime(js: string): string | null {
   const body = interpreterBody(js) ?? '';
   if (groupInterpreters.includes(body)) return js;
-  return body === currentInterpreter || body === anchorInterpreter ? appendCapability(js, SVG_GROUP_RUNTIME_JS) : null;
+  return body === currentInterpreter ? appendCapability(js, svgGroupCapability)
+    : body === anchorInterpreter ? appendCapability(js, SVG_GROUP_RUNTIME_JS) : null;
 }
 
 export function hasAnchorRuntime(js: string): boolean {
@@ -1353,7 +1382,8 @@ export function hasAnchorRuntime(js: string): boolean {
 export function withAnchorRuntime(js: string): string | null {
   const body = interpreterBody(js) ?? '';
   if (anchorInterpreters.includes(body)) return js;
-  return body === currentInterpreter || body === svgGroupInterpreter ? appendCapability(js, ANCHOR_REPLAY_JS) : null;
+  return body === currentInterpreter ? appendCapability(js, anchorCapability)
+    : body === svgGroupInterpreter ? appendCapability(js, ANCHOR_REPLAY_JS) : null;
 }
 
 /** Only the exact shared interpreter and its generated anchor extension can take a new anchor track. */

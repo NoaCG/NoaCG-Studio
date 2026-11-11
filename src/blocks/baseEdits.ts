@@ -55,11 +55,16 @@ function length(raw: string | null) {
  * Refuse competing constraints even in conditional rules: changing the viewport must
  * not silently change which placement or independent transform the editor owns. Each rule
  * says whether it sits inside a grouping rule (`@media`, `@supports`). */
-function matchingRules(rules: CssStyleSource[], node: Element, potential = false) {
+function matchingRules(rules: CssStyleSource[], node: Element, potential: boolean | 'pivot' = false) {
   const matches = (selector: string) => {
     try {
       if (node.matches(selector)) return true;
       if (!potential) return false;
+      if (potential === 'pivot') {
+        const state = /::[\w-]+(?:\([^)]*\))?|:(?!(?:root|scope|is|where|not|has|(?:first|last|only|nth|nth-last)-(?:child|of-type))\b)[\w-]+(?:\([^)]*\))?/g;
+        const host = selector.replace(state, '');
+        if (host !== selector) return /:(?:is|where|not|has)\(/.test(selector) || node.matches(host || '*');
+      }
       const withoutState = selector.replace(/:(?:hover|active|focus-visible|focus-within|focus|checked|target)\b/g, '');
       return withoutState !== selector && node.matches(withoutState || '*');
     } catch (cause) {
@@ -96,15 +101,17 @@ function cssMovesPivot(style: CSSStyleDeclaration, properties: string[]) {
 
 /** The additional inherited values introduced by a canonical group, compared with a legacy group. */
 const groupInheritedProperties = new Set(['--base-x', '--base-y', '--base-rotation', '--base-scale-x', '--base-scale-y', ...Object.values(SVG_GROUP_TRACK_CSS)]);
-function groupInheritedRead(group: Element, sheets: ReturnType<typeof inspectCss>[]): string | undefined {
+const keyedAnchorProperties = new Set(anchorVariables);
+function ownedVariableRead(group: Element, sheets: ReturnType<typeof inspectCss>[], pivot?: { own: CssStyleSource | undefined; steps: AnimStep[] }): string | undefined {
   const rules = sheets.flatMap(sheet => sheet.rules);
   const keyframes = sheets.flatMap(sheet => sheet.keyframes);
-  const reads = (source: string) => cssVariableReads(source).filter(name => groupInheritedProperties.has(name));
-  const cached = new Map<Element, { style: CSSStyleDeclaration; own: boolean }[]>();
+  const properties = pivot ? keyedAnchorProperties : groupInheritedProperties;
+  const reads = (source: string) => cssVariableReads(source).filter(name => properties.has(name));
+  const cached = new Map<Element, { style: CSSStyleDeclaration; own: boolean; rule?: CssStyleSource }[]>();
   const stylesFor = (node: Element) => {
     let styles = cached.get(node);
     if (!styles) {
-      styles = matchingRules(rules, node, true).map(rule => ({ style: rule.style, own: !rule.nested && rule.selectorText === '#' + node.id }));
+      styles = matchingRules(rules, node, pivot ? 'pivot' : true).map(rule => ({ style: rule.style, own: !rule.nested && rule.selectorText === '#' + node.id, rule }));
       if ((node as HTMLElement).style) styles.push({ style: (node as HTMLElement).style, own: true });
       cached.set(node, styles);
     }
@@ -116,18 +123,66 @@ function groupInheritedRead(group: Element, sheets: ReturnType<typeof inspectCss
       const declarations = stylesFor(current).map(({ style, own }) => ({ value: style.getPropertyValue(name).trim(), own })).filter(({ value }) => value);
       if (!declarations.length) continue;
       const owner = current;
+      if (pivot) {
+        return declarations.some(({ own }) => own) && declarations.every(({ value }) => isPixelLength(value))
+          && !stylesFor(owner).some(({ style }) => style.getPropertyValue('all') || style.animationName && style.animationName !== 'none')
+          && tracksOn(pivot.steps, owner).every(tracks => (tracks[name] ?? []).every(key =>
+            typeof key.value === 'number' && Number.isFinite(key.value)
+            || typeof key.value === 'string' && isPixelLength(key.value)));
+      }
       return declarations.some(({ own }) => own) && declarations.every(({ value }) => !/^(?:inherit|unset|revert(?:-layer)?)$/i.test(value)
         && reads(value).every(dependency => shielded(owner, dependency, [...seen, name])));
     }
     return false;
   };
-  for (const node of group.querySelectorAll('*')) {
+  const findRead = (node: Element, allowShield: boolean) => {
     const styles = stylesFor(node);
     const animationNames = styles.flatMap(({ style }) => style.animationName.split(',').map(name => name.trim()));
-    const source = [...styles.map(({ style }) => style.cssText), ...[...node.attributes].map(attribute => attribute.value),
-      ...keyframes.filter(keyframe => animationNames.includes(keyframe.name)).map(keyframe => keyframe.css)];
-    const unshielded = source.flatMap(reads).find(name => !shielded(node, name));
-    if (unshielded) return unshielded;
+    const unknownAnimation = pivot && styles.some(({ style }) => /var\(|\b(?:inherit|revert(?:-layer)?)\b/.test(style.getPropertyValue('animation') || style.animationName));
+    const source = [...styles.map(({ style, rule }) => pivot && node === group && rule && rule === pivot.own
+      ? cssDeclarations(style.cssText).filter(({ name }) => name !== 'transform-origin').map(({ value }) => value).join(';')
+      : style.cssText), ...[...node.attributes].map(attribute => attribute.value),
+      ...keyframes.filter(keyframe => unknownAnimation || animationNames.includes(keyframe.name)).map(keyframe => keyframe.css)];
+    return source.flatMap(reads).find(name => !allowShield || !shielded(node, name));
+  };
+  for (const node of pivot ? [group, ...group.querySelectorAll('*')] : group.querySelectorAll('*')) {
+    const property = findRead(node, node !== group);
+    if (property) return property;
+  }
+  if (pivot) {
+    const reference = (use: Element) => {
+      const href = use.getAttribute('href') ?? use.getAttribute('xlink:href');
+      return href?.startsWith('#') ? group.ownerDocument.getElementById(href.slice(1)) : null;
+    };
+    // A use outside the layer can paint another copy of the layer's own changed origin.
+    const uses = [...group.ownerDocument.querySelectorAll('svg use')];
+    const reachesOwner = (use: Element) => {
+      const pending = [use], seen = new Set<Element>();
+      for (const next of pending) {
+        const target = reference(next);
+        if (!target || seen.has(target)) continue;
+        if (target.contains(group)) return true;
+        seen.add(target);
+        pending.push(...target.querySelectorAll('use'));
+        if (target.localName === 'use') pending.push(target);
+      }
+      return false;
+    };
+    if (uses.some(use => !group.contains(use) && reachesOwner(use))) return 'SVG use';
+    const pending = uses.filter(use => group.contains(use)), seen = new Set<Element>();
+    for (const use of pending) {
+      const target = reference(use);
+      if (!target) return 'SVG use';
+      if (target.contains(group)) return 'SVG use';
+      if (seen.has(target)) continue;
+      seen.add(target);
+      for (const node of [target, ...target.querySelectorAll('*')]) {
+        const property = findRead(node, false);
+        if (property) return property;
+        if (node.localName === 'use') pending.push(node);
+      }
+    }
+    return undefined;
   }
   // A <use> can inherit into artwork whose selector matches are outside this parsed subtree.
   if (group.querySelector('use')) return [...rules.filter(rule => rule.selectorText !== '#' + group.id).map(rule => rule.style.cssText), ...keyframes.map(frame => frame.css),
@@ -136,7 +191,7 @@ function groupInheritedRead(group: Element, sheets: ReturnType<typeof inspectCss
 }
 
 /** Prove an ordinary keyed pivot has one source rule and that both axes drive the browser origin. */
-function inspectAnchorCss(template: SpxTemplate, base: BaseValues): string | null {
+function inspectAnchorCss(template: SpxTemplate, base: BaseValues, keyed: boolean): string | null {
   const node = artworkNode(template, base.selector), target = base.target;
   const origins = ['transform-origin', '-webkit-transform-origin'];
   const pivot = [...anchorVariables, ...origins, 'transform-box', 'all',
@@ -146,6 +201,12 @@ function inspectAnchorCss(template: SpxTemplate, base: BaseValues): string | nul
   const rules = matchingRules(authored.rules, node, true);
   const own = rules.find(rule => !rule.nested && rule.selectorText === target);
   const embedded = [...node.ownerDocument.querySelectorAll('style')].map(style => inspectCss(style.textContent ?? ''));
+  const motion = parseAnimData(template.js), steps = motion ? allTimelines(motion) : [];
+  if (keyed) {
+    const consumer = ownedVariableRead(node, [authored, ...embedded], { own, steps });
+    if (consumer) return 'This artwork uses its pivot value in other artwork CSS (' + consumer + '). Its source is preserved.';
+    if (base.svgGroupPivot) return null;
+  }
   const other = [...rules.filter(rule => rule !== own), ...embedded.flatMap(css => matchingRules(css.rules, node, true))];
   const hasPivot = (style: CSSStyleDeclaration) => pivot.some(property => style.getPropertyValue(property));
   if (other.some(rule => hasPivot(rule.style)) || hasPivot((node as HTMLElement).style)) return reason;
@@ -168,8 +229,7 @@ function inspectAnchorCss(template: SpxTemplate, base: BaseValues): string | nul
     if (!own?.style.transformOrigin || values.length > 2 || values.some(value => !/^(?:left|right|top|bottom|center|[+-]?(?:\d|\.\d)[\w.%+-]*)$/i.test(value))) return reason;
   }
 
-  const motion = parseAnimData(template.js);
-  if (tracksOn(motion ? allTimelines(motion) : [], node).some(tracks => ['svgOrigin', 'smoothOrigin', 'transform-origin'].some(key => tracks[key]?.length))) return reason;
+  if (tracksOn(steps, node).some(tracks => ['svgOrigin', 'smoothOrigin', 'transform-origin'].some(key => tracks[key]?.length))) return reason;
   const writesOrigin = /transformOrigin|transform-origin|svgOrigin|smoothOrigin|--base-anchor-[xy]/;
   if (externalWrite(template.js, node, writesOrigin) || [...node.ownerDocument.querySelectorAll('script')].some(script => externalWrite(script.textContent ?? '', node, writesOrigin))) return reason;
   return null;
@@ -205,12 +265,13 @@ export function baseValues(template: SpxTemplate, selector: string): BaseValues 
   return { ...value };
 }
 
-export function anchorCssReason(template: SpxTemplate, base: BaseValues): string | null {
+export function anchorCssReason(template: SpxTemplate, base: BaseValues, keyed = false): string | null {
   const reasons = inspectionCache.get(template)?.anchorReasons;
-  const cached = reasons?.get(base.selector);
+  const key = (keyed ? 'keyed:' : 'static:') + base.selector;
+  const cached = reasons?.get(key);
   if (cached !== undefined) return cached;
-  const reason = inspectAnchorCss(template, base);
-  reasons?.set(base.selector, reason);
+  const reason = inspectAnchorCss(template, base, keyed);
+  reasons?.set(key, reason);
   return reason;
 }
 
@@ -323,7 +384,7 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
     const groupRules = matchingRules(parsedCss.rules, node, true);
     const owner = groupRules.find(rule => !rule.nested && rule.selectorText === target);
     const embedded = [...doc.querySelectorAll('style')].map(style => inspectCss(style.textContent ?? ''));
-    inheritedProperty = groupInheritedRead(node, [parsedCss, ...embedded]);
+    inheritedProperty = ownedVariableRead(node, [parsedCss, ...embedded]);
     const groupStyles = [...groupRules, ...embedded.flatMap(css => matchingRules(css.rules, node, true))];
     const competingRules = groupStyles.some(rule => cssMovesPivot(rule.style, competing)
       || rule !== owner && competing.some(key => rule.style.getPropertyValue(key)))

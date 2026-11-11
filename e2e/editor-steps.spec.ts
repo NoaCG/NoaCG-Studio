@@ -526,6 +526,61 @@ test('ordinary anchor keys refuse competing CSS variables and source style rules
     .rejects.toThrow('competing pivot CSS');
 });
 
+test('keyed pivots refuse other paint consumers while preserving independent artwork', async ({ page }) => {
+  await open(page);
+  const original = await template(page, fixture());
+  const html = original.html.replace('id="box" data-gfx></div>', 'id="box" data-gfx><span id="pivot-child">Child</span></div>');
+  const key = { kind: 'animation.key', selector: '#box', property: 'noacgAnchorX', step: 0, time: 0, value: 160, action: 'set', baseValues: { anchorX: 160, anchorY: 50 } };
+  const descendant = { ...original, html, css: original.css + '\n#pivot-child { padding-left: var(--base-anchor-x, 10px); }' };
+  const refusal = 'uses its pivot value in other artwork CSS';
+  for (const css of [
+    '#box { --measure: var(--base-anchor-x, 10px); padding-left: var(--measure); }',
+    '#box { --measure: var(--base-anchor-x, 10px); } #pivot-child { --base-anchor-x: 10px; padding-left: var(--measure); }',
+    '@media (min-width: 100px) { #pivot-child::before { content: "x"; padding-left: var(--base-anchor-y, 10px); } }',
+    '#pivot-child:not(:hover)::before { content: "x"; padding-left: var(--base-anchor-x, 10px); }',
+    '@keyframes drift { to { padding-left: var(--base-anchor-x, 10px); } } #pivot-child { animation: drift 1s; }',
+  ]) await expect.soft(operate(page, { ...original, html, css: original.css + '\n' + css }, [key]), css).rejects.toThrow(refusal);
+  for (const css of [
+    ':root { --measure: var(--base-anchor-x, 10px); } #pivot-child { padding-left: var(--measure); }',
+    '#pivot-child { --base-anchor-x: 10px; padding-left: var(--base-anchor-x); }',
+  ]) expect((await operate(page, { ...original, html, css: original.css + '\n' + css }, [key])).html).toBe(html);
+  for (const changedHtml of [
+    html.replace('id="pivot-child"', 'id="pivot-child" style="padding-left:var(--base-anchor-x,10px)"'),
+    html.replace('</head>', '<style>#pivot-child {padding-left:var(--base-anchor-x,10px)}</style></head>'),
+  ]) await expect(operate(page, { ...original, html: changedHtml }, [key])).rejects.toThrow(refusal);
+  const inherited = fixture();
+  inherited.steps[0].layers['#pivot-child'] = { '--base-anchor-x': [{ time: 0, value: 'inherit' }] };
+  const inheritedSource = await template(page, inherited);
+  await expect(operate(page, { ...inheritedSource, html, css: original.css + '\n#pivot-child {--base-anchor-x:10px;padding-left:var(--base-anchor-x)}' }, [key])).rejects.toThrow(refusal);
+
+  const svg = { ...original, html: original.html.replace('</div></body>', '<svg class="imported-design-art" width="960" height="270"><text id="pivot-text" data-gfx x="20" y="60"><tspan stroke-width="var(--base-anchor-x, 3px)">Text</tspan></text></svg></div></body>') };
+  await expect(operate(page, svg, [{ ...key, selector: '#pivot-text', value: 30, baseValues: { anchorX: 30, anchorY: 20 } }])).rejects.toThrow(refusal);
+  const group = { ...original, html: original.html.replace('</div></body>', '<svg width="960" height="270"><defs><g id="symbol"><path id="clone-paint" stroke-width="var(--base-anchor-x, 5px)" d="M0 0L5 5"/></g></defs><rect id="part-a" data-gfx width="90" height="60"/><rect id="part-b" data-gfx x="180" width="90" height="60"/><use href="#symbol"/></svg></div></body>') };
+  const grouped = await operate(page, group, [{ kind: 'group.create', selectors: ['#part-a', '#part-b'], box: { x: 0, y: 0, width: 270, height: 60 } }]);
+  const groupKey = { ...key, selector: '#group-1', property: '--base-anchor-x', value: 80 };
+  expect((await operate(page, grouped, [groupKey])).html).toBe(grouped.html);
+  const reachable = { ...grouped, html: grouped.html.replace('<rect id="part-a"', '<use href="#symbol"/><rect id="part-a"') };
+  const clonedOwner = { ...grouped, html: grouped.html.replace('</svg>', '<use href="#group-1"/></svg>') };
+  const nestedClone = { ...grouped, html: grouped.html.replace('</defs>', '<g id="second-symbol"><use href="#group-1"/></g></defs>').replace('</svg>', '<use href="#second-symbol"/></svg>') };
+  for (const conflict of [reachable, clonedOwner, nestedClone, { ...grouped, css: grouped.css + '\n#part-a { stroke-width: var(--base-anchor-x, 135px); }' }]) {
+    await expect.soft(operate(page, conflict, [groupKey])).rejects.toThrow(refusal);
+  }
+
+  await editorWith(page, descendant);
+  const row = page.locator('.ef-track[data-selector="#box"]');
+  await row.locator('.ef-layer').click(); await ready(page);
+  const before = await source(page), entries = await history(page);
+  const painted = page.frameLocator('iframe[title="Foundation graphic preview"]').locator('#pivot-child');
+  await expect(painted).toHaveCSS('padding-left', '10px');
+  await expect(page.locator('.ef-anchor')).toContainText(refusal);
+  await expect(page.getByRole('button', { name: 'Enable Anchor X animation', exact: true })).toHaveCount(0);
+  await expect(operate(page, before, [key])).rejects.toThrow(refusal);
+  await expect(painted).toHaveCSS('padding-left', '10px');
+  await expect(row).toHaveClass(/is-selected/);
+  expect(await source(page)).toEqual(before);
+  expect(await history(page)).toBe(entries);
+});
+
 test('a canonical SVG pivot paints the same precise pose across a cue cut', async ({ page }) => {
   await open(page);
   const data: Data = { version: fixture().version, root: '.fixture', speed: 1, steps: [

@@ -62,6 +62,30 @@ the wizard's SVG default through #2343. The November 10
 native receipt remains pinned to the source actually operated. Retest affected
 import and export behavior on the reconciled candidate before claiming parity.
 
+#### Native receipt applicability after reconciliation
+
+The native SVG picker and Explorer drop in `j-5042` entered through
+`ImportStep.tsx`, `ImportDesignStep.tsx` and `import/drop.ts`. Their files
+are identical between operated `be049c7ea` and the reconciled E1 head.
+`ExportSurface.tsx` still calls the same `saveAs` ZIP download path, and
+it and `export/registry.ts` are identical across those revisions.
+The raster input, drop and placement path in `editorFoundation/Canvas.tsx`,
+`useImageImport.ts`, `blocks/editorImages.ts` and `assets/imageImport.ts`
+is identical to operated `24439f46f`. Both comparisons used
+`git diff --exit-code` on those exact paths and returned 0.
+The changed import measurement and generated pivot playback have separate
+reconciled Illustrator, save/reopen and exported-package browser checks
+recorded below. The Windows dialog and OS drag receipts keep their
+operated revisions.
+
+Actual Chrome 125% remains `j-5004` at `be049c7ea`. Revised cue-label and
+pivot surfaces have the rendered responsive Chromium checks below,
+including 1093 and 1440 CSS-pixel viewports. The coordinator classified a
+fresh native repeat as advisory after the supported Windows controller
+stopped at verifying the owned browser URL. E5 still requires its own
+candidate-specific physical zoom and first-use evidence. This E1 record
+keeps each of these environments and sources separate.
+
 ### Agent easing and clip-path splits
 
 The agent guide covered plain GSAP ease names but omitted the data form's key
@@ -867,6 +891,43 @@ rules after those observations. They apply to new owned anchor keys.
   carrying and interruption in every browser package. First enable and
   last-key removal preserve the observed pose. The independent SVG
   matrix expectations and tolerance stay the same.
+
+The fresh read-only repeated-family rules review returned AGREE WITH
+CORRECTIONS. It confirmed that the conservative paired-axis ownership
+boundary is consistent with acceptance. Both source variables belong to
+the paired first-enable and last-key transaction and the shared control
+admission. Ordinary retake still resets only axes with owned tracks.
+The local accessor feasibility `j-5152` exited 0 with the vendored GSAP,
+fixed-unit precision, `getProperty`, selector cancellation and an
+unchanged raw neighbor. No global pivot plugin was registered.
+
+The correction remaps owned tracks to hidden accessors on their actual
+DOM elements. The generated name avoids existing element and prototype
+properties, CSS properties, plugin names and all authored track names.
+In, Next, reveal pre-arm, loops metadata and Out keep the existing
+builders. Canonical numeric units convert to pixels at the local setter.
+No global pivot plugin is installed. The exact opt-in body distinguishes
+the private ordinary track names, while raw interpreters and literals
+keep their own behavior. The shared CSS dependency check admits only
+independent or definitely shielded reads below the edited origin and
+checks reachable SVG copies. Its legacy grouping and static-pivot
+branches retain their earlier admission.
+
+`j-5153` stored a malformed command and exited 0 without executing a
+probe. It supplies no product verdict. `j-5154` exited 1 after the new
+paint and renderer cases passed. A dollar at the end of the temporary
+accessor prefix formed a replacement-string token in composed preview
+HTML. An underscore prefix corrected that generated syntax.
+`j-5155` then exited 0 with six cases. `j-5156` exited 0 with the same
+six after adding nested SVG copies and a raw property deliberately
+colliding with the first candidate accessor name. Its tests preserve
+the independent matrix tolerance and all five output paths.
+`j-5157` exited 0 with eight ordinary/static/Illustrator/group checks,
+including first and last anchor keys, duplicate-declaration refusal,
+source-preserving Illustrator save/export and the older static group
+pivot. Changed-file lint, TypeScript, 37 focused Node cases and all 358
+affected offline gates passed. GitHub still owns the full affected,
+catalog and configured checks.
 
 #### Catalog and affected CI scope
 

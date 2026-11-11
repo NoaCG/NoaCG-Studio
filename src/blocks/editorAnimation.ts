@@ -248,7 +248,7 @@ export function anchorKeyReason(template: SpxTemplate, selector: string): string
     }
     writeChannel(data, owner, channels.x);
     if (!canWriteAnchorData(template.js)) return 'This interpreter cannot animate the pivot without changing unknown source.';
-    return base.svgGroupPivot ? null : anchorCssReason(template, base);
+    return anchorCssReason(template, base, true);
   } catch (cause) { return cause instanceof Error ? cause.message : String(cause); }
 }
 /** Throws unless a layer's Scale handles can key it: both axes have a channel to write. */
