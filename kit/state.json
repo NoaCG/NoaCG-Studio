@@ -47,7 +47,8 @@
    "actor": "repairer-3-3-r-bd79",
    "session": "session_017SdbwPBsXDiAbce4iDNNsj",
    "branch": "claude/plan-live-publishing-3-repair",
-   "launchedAt": "2026-11-11T20:42:25Z"
+   "launchedAt": "2026-11-11T20:42:25Z",
+   "lastSeen": "2026-11-11T20:51Z repairer: fix keeps the edit 4/4 at 200 ms; touch run queued"
   }
  ],
  "owner": [
@@ -141,5 +142,6 @@
  },
  "phase9Checklist": [
   "From fix #2388: on a real show, with a mouse and on a touch screen, type into a cue field and press Take (also Next, a quick button, a live number) at once: it airs with the typed text with no pause, and the text is still there after a reload straight after the press. In air-edit mode, a Take from elsewhere while typing keeps the typed text."
- ]
+ ],
+ "mainChecks": "92e581a7: CI 43092663612 (Combined E2E report: download-artifact service error) and configured-suite 43092663800 (shard 2/4: upload-artifact service error, tests passed) red on GitHub artifact service errors; failed jobs re-run once 2026-11-11T21:17Z"
 }
