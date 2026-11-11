@@ -520,7 +520,389 @@
       ],
       "interpretation": "Between ordering alone produces B06:01 then05:21 on both commits, matching the original trace. Earlier callback is still using eventA timestamp when clockB already reflects the next wire update; debateHold banks B against that older timestamp. Later entry hands B an inflated balance. Before/after control orderings give04:20. E2 authored-loop changes are absent from this emitted machine runtime."
     },
-    "retainedInvalidProbes": "An earlier direct dc01-module probe omitted catalog type decoration; its machine floor was undefined. It and its results are retained privately but are not causal evidence. Both factory and machine presence were checked in the corrected probe."
+    "retainedInvalidProbes": "An earlier direct dc01-module probe omitted catalog type decoration; its machine floor was undefined. It and its results are retained privately but are not causal evidence. Both factory and machine presence were checked in the corrected probe.",
+    "preRunCounterfactual": {
+      "sources": {
+        "beforeE1": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+        "E1": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f"
+      },
+      "count": "one exact catalog emission and one burst per each3orderingconditions per historical arm, no natural spec invocations",
+      "documentHashes": {
+        "parent": {
+          "html": {
+            "bytes": 5409,
+            "sha256": "846808f950d721a6958f3c7516010918173a3f28315a5487de914cf52f9c5440"
+          },
+          "css": {
+            "bytes": 13436,
+            "sha256": "ae78c6862cae9ca07d912fe9571db6367cbe1975df3374c1d0cfec8136346d90"
+          },
+          "js": {
+            "bytes": 135457,
+            "sha256": "e103ead49e65ffa7672bdfe31abaf151b639d3625f7cef27a535b92df9459b6e"
+          }
+        },
+        "landing": {
+          "html": {
+            "bytes": 5409,
+            "sha256": "846808f950d721a6958f3c7516010918173a3f28315a5487de914cf52f9c5440"
+          },
+          "css": {
+            "bytes": 13436,
+            "sha256": "ae78c6862cae9ca07d912fe9571db6367cbe1975df3374c1d0cfec8136346d90"
+          },
+          "js": {
+            "bytes": 135457,
+            "sha256": "e103ead49e65ffa7672bdfe31abaf151b639d3625f7cef27a535b92df9459b6e"
+          }
+        }
+      },
+      "controlledOutcomes": [
+        {
+          "arm": "parent",
+          "condition": "before",
+          "record": [
+            {
+              "label": "after first event",
+              "a": "03:20",
+              "b": "05:00",
+              "active": "a",
+              "deadline": 200001,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "first callback before next wire",
+              "a": "03:20",
+              "b": "05:00",
+              "active": "a",
+              "deadline": 200001,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second wire",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second event",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after final callback",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after repaint",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            }
+          ]
+        },
+        {
+          "arm": "parent",
+          "condition": "between",
+          "record": [
+            {
+              "label": "after first event",
+              "a": "03:20",
+              "b": "05:00",
+              "active": "a",
+              "deadline": 200001,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second wire",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "first callback between wire and event",
+              "a": "04:00",
+              "b": "06:01",
+              "active": "a",
+              "deadline": 140000,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second event",
+              "a": "04:00",
+              "b": "06:01",
+              "active": "a",
+              "deadline": 140000,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after final callback",
+              "a": "03:00",
+              "b": "06:01",
+              "active": "b",
+              "deadline": 321000,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after repaint",
+              "a": "03:00",
+              "b": "05:21",
+              "active": "b",
+              "deadline": 321000,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            }
+          ]
+        },
+        {
+          "arm": "parent",
+          "condition": "after",
+          "record": [
+            {
+              "label": "after first event",
+              "a": "03:20",
+              "b": "05:00",
+              "active": "a",
+              "deadline": 200001,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second wire",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second event",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after final callback",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after repaint",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            }
+          ]
+        },
+        {
+          "arm": "landing",
+          "condition": "before",
+          "record": [
+            {
+              "label": "after first event",
+              "a": "03:20",
+              "b": "05:00",
+              "active": "a",
+              "deadline": 200001,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "first callback before next wire",
+              "a": "03:20",
+              "b": "05:00",
+              "active": "a",
+              "deadline": 200001,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second wire",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second event",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after final callback",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after repaint",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            }
+          ]
+        },
+        {
+          "arm": "landing",
+          "condition": "between",
+          "record": [
+            {
+              "label": "after first event",
+              "a": "03:20",
+              "b": "05:00",
+              "active": "a",
+              "deadline": 200001,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second wire",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "first callback between wire and event",
+              "a": "04:00",
+              "b": "06:01",
+              "active": "a",
+              "deadline": 140000,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second event",
+              "a": "04:00",
+              "b": "06:01",
+              "active": "a",
+              "deadline": 140000,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after final callback",
+              "a": "03:00",
+              "b": "06:01",
+              "active": "b",
+              "deadline": 321000,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after repaint",
+              "a": "03:00",
+              "b": "05:21",
+              "active": "b",
+              "deadline": 321000,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            }
+          ]
+        },
+        {
+          "arm": "landing",
+          "condition": "after",
+          "record": [
+            {
+              "label": "after first event",
+              "a": "03:20",
+              "b": "05:00",
+              "active": "a",
+              "deadline": 200001,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second wire",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second event",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after final callback",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after repaint",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            }
+          ]
+        }
+      ],
+      "interpretation": "The same emitted catalog document and same B06:01 then05:21 ordering defect exist before E1 as well as before E2. This is mechanistic evidence, not additional failure-rate samples."
+    }
   },
   "operator": {
     "landing": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
