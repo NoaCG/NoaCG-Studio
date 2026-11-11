@@ -378,7 +378,9 @@ Filled in by each phase's pull request.
   the graphic's look, unless a later send replaced it. An output whose own measurement ran past its
   cap shows the place sent meanwhile; the next look sent to on-air graphics moves it to the
   preset. R12 a Take that takes another graphic off its layer (an imported package sharing it)
-  carries no hint, so the layer is never blank while an output measures (PR review).
+  carries no hint, so the layer is never blank while an output measures (PR review); R13 an Out
+  never waits on an output's measurement: what waits goes at once at the place sent, then the
+  Out.
 - Decisions: Update and snap are not Take paths and keep their waits. A typed OGraf cue keeps its
   save first (R3). The page's own PROGRAM monitor resolves a hint too, starting its measurement
   after the press's task, so the send leaves first. An output resolves a hint only while on air

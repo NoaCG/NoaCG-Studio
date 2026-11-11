@@ -3099,7 +3099,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const cue = cueInRecord(taken, record);
       const g = record?.graphics.find((x) => x.id === cue.sourceId);
       if (!g) return;
-      void measureCue(templateForSavedGraphic(g, library), values, previewStyleOf(adjustStateOf(cue, record)))
+      // In the look the Take sent, as an output measures it (output/stage.ts).
+      const style = sent.vars || sent.fonts ? { id: '', vars: sent.vars ?? null, faces: facesCss(sent.fonts, assetDataIn(faceAssets)) } : null;
+      void measureCue(templateForSavedGraphic(g, library), values, style)
         .catch(() => null)
         .then((m) => {
           const resolved = placedAppearance(sent, place, m);
