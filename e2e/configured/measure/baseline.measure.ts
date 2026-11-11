@@ -120,9 +120,10 @@ async function pressAndMeasure(op: Page, button: Locator, testId: string, match:
 
 /** Two clicks, the second as soon as the first press is sent; the second is measured. */
 async function secondOfTwo(op: Page, button: Locator, testId: string, match: RegExp): Promise<Sample> {
+  const earlier = sidsOf(await readLpm(op));
   const before = await nowOn(op);
   await button.click();
-  const first = await sentAfter(op, before, match, 15_000, sidsOf(await readLpm(op)));
+  const first = await sentAfter(op, before, match, 15_000, earlier);
   if (!first) return { failed: `no first ${match}` };
   // Every send so far, the first press's included, belongs to an earlier press.
   const seen = sidsOf(await readLpm(op));
