@@ -36,20 +36,18 @@
  },
  "waitingOn": [
   {
-   "what": "phase 2 reruns, delta /so, receipt",
-   "eta": "2026-11-11T12:00:00Z"
+   "what": "phase 2 checker verdict",
+   "eta": "2026-11-11T13:00:00Z"
   }
  ],
  "inFlight": [
   {
    "phase": "2",
-   "step": "build",
-   "actor": "builder-2-2-b-3da5",
-   "session": "session_017SdbwRAwGnmr1povTTBwU9",
-   "branch": "claude/plan-live-publishing-2-build",
-   "launchedAt": "2026-11-10T22:13:03Z",
-   "lastSeen": "2026-11-11T08:50Z PR #2376 open; full /so B+ on 7bd86e0 (4 harness/receipt findings, accepted, fixed); 40 rerun jobs to ~11:30Z; then delta /so and Codex on final head",
-   "pr": 2376
+   "step": "check",
+   "actor": "checker-2-2-c-7374",
+   "session": "session_017SdbwNbkSqow1cKTmktXKW",
+   "mergeSha": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+   "launchedAt": "2026-11-11T11:29:40Z"
   }
  ],
  "owner": [
@@ -75,7 +73,8 @@
   "checkin": "trig_016XrrtLph81wXbWrX6R4JL2"
  },
  "traps": [
-  "A cloud worker container restart (~2026-11-11T01:40Z) stops dockerd and a local job queue; results in /tmp survived. Long local campaigns should be resumable. Add to docs/plan-runs/known-traps.md at the end of the run if it recurs."
+  "A cloud worker container restart (~2026-11-11T01:40Z) stops dockerd and a local job queue; results in /tmp survived. Long local campaigns should be resumable. Add to docs/plan-runs/known-traps.md at the end of the run if it recurs.",
+  "Local Supabase stack on a cloud worker: dockerd + iproute2 + supabase CLI 2.111.0 + SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io (phase 2 builder). Add to docs/plan-runs/known-traps.md."
  ],
  "heartbeat": {
   "issue": 2361,
@@ -103,5 +102,9 @@
    "answer": "a",
    "meaning": "Phase 3 judges AC-1 50 ms p95 on a production build; if it still misses, phase 3 stops and brings the owner the number."
   }
- ]
+ ],
+ "phase2": {
+  "builderCostUSD": "about 50",
+  "landed": "fb04bbd9658857318e4b954611b6dd08a4815e9d"
+ }
 }

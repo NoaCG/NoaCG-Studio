@@ -15,3 +15,5 @@ VERDICT End with exactly one line, then the JSON receipt, and send it with mcp__
         {"actor":"checker-2-2-c-7374","session":"<your native session id>","findings":"... <PR comment link>","mergeSha":"fb04bbd9658857318e4b954611b6dd08a4815e9d","mergeChecks":"<each required check on fb04bbd9658857318e4b954611b6dd08a4815e9d with its conclusion and run id>","evidence":[{"criterion":"Phase 2 of the spec: a receipt in evidence/ with every listed timing and byte count, on both fixtures, under the measurement rules. No product change.","environment":"CA: qualified Claude cloud builder/checker plus GitHub Actions","evidence":"..."}]}
         One evidence entry per criterion, "criterion" and "environment" exactly as written above. Nonce 2-c-7374.
 Source: https://github.com/NoaCG/NoaCG-Studio at fb04bbd9658857318e4b954611b6dd08a4815e9d. Environment env_017nuiDZBW9smUNLdWVQK8cf (Claude Code Cloud, NoaCG). Authorized window ends 2026-11-11T20:47:00+02:00.
+
+--- sent with a coordinator NOTES addition: check the receipt against the spec list, spot-check a sample, verify the targets section.
