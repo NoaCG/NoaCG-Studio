@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
+      "session": "/root/v4_final_all_out_review",
       "phase": "v4",
-      "note": "GitHub Codex and independent reviewer reproduced the accepted All out navigation issue. Read-only reassessment active before patch. Prior local Chromium withdrawn before execution.",
-      "head": "c48787975d71ed1a15082ebd9a15cfe321d8e9ee",
+      "pr": 2378,
       "step": "build",
-      "session": "/root/v4_all_out_reassessment",
-      "pr": 2378
+      "note": "Accepted All out now guards the original Bridge player instance. 443 Windows Studio and 36 compiled fake-vMix tests passed. Fresh independent review, local Chromium j-5240 and normal CI 43078183462 pending.",
+      "head": "7058ccdc1fdcafa69d00fd6c323336165fa8a468"
     }
   ],
   "owner": [],
