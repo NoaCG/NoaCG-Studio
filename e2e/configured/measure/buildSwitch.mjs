@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // ONE ORIGIN, TWO BUILDS (docs/work-specs/live-publishing/spec.md, phase 3; owner decision on run
 // issue #2361: AC-1's 50 ms p95 is judged on a production build). The harness builds its fixture
 // through the development server's modules (`import('/src/...')`), which a bundled build does not
