@@ -1,0 +1,38 @@
+AGREE
+
+Risky grade A.
+Fresh full reviewer /root/editor_r15_e1_resume/e1_final_local_so.
+Assessed base a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44.
+Assessed head 95f65b051d7c8303e119c428d0e33726069e88ff.
+All 38 changed paths read in full. No remaining product finding.
+
+The reviewer read the immutable acceptance at
+f0f2e3fe0c2cc14e23b171957b6f8d18905fd434, workflow, known traps,
+folder contracts and architecture. It checked all changed CLI references,
+E1 documents, seven E2E specs, two Node tests, five block modules, sixteen
+editor-foundation files, import measurement, two model files and the shared
+animation runtime. Its source-derived checks found the preceding ownership,
+inherited-paint, raw-track, renderer-isolation, precision and ruler findings
+covered by source guards and regression assertions. The matrix and transition
+checks use independent expected values. Failures, thresholds and baselines remain.
+
+Independent verification confirmed a clean exact head, only inventory and
+notes after tested product 66978d48f, unchanged native ingress/download and
+raster paths against their operated pins, and a passing diff check. An in-memory
+probe with the actual accessor/runtime and vendored GSAP passed precision,
+authored-name collision avoidance, raw-property and plugin-registry isolation,
+and immutable layer/loop mapping. The initial VM harness lacked timers and
+failed before probing. The corrected harness passed. The reviewer performed
+no browser, scheduler, native or write operations.
+
+Actual Chrome 125% remains pinned to be049c7ea. Revised surfaces have responsive
+Chromium evidence. Native SVG picker/drop/download and raster observations
+retain separate receipts. The raw Windows catalog j-5159 is red on jc01,
+while j-5160 has 539 candidate fingerprints identical to exact main. The
+reviewer calls this an environment-specific prior difference and does not
+call the raw gate green.
+
+Still required after the review are exact-head PR CI, authoritative configured
+selection, the completed Codex PR review, catalog CI, coordinator stamp and
+queue, and exact-merge checks. Later E5 physical zoom/first-use, E6 hosts and
+OW1 licence/release obligations remain in their phases. The review is complete.

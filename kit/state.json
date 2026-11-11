@@ -74,9 +74,10 @@
       "phase": "E1",
       "actionId": "plan-editor-r1-5-2026-11-08:1",
       "nativeId": "/root/editor_r15_e1_resume",
-      "note": "E1 remains active. Owner-approved safe old/new SVG group behavior, exact group matrices, ordinary pivots, raw/owned compatibility and multi-instance OGraf have targeted Windows evidence. Fresh reviews caught further source ownership and shared-runtime edges; current corrections passed j-5155 6/6. Final review/PR worker gates still pending. No PR or queue stamp.",
+      "note": "E1 final independent review grade A, PR #2369 open on exact head 95f65b0. Worker monitors exact PR CI and Codex. Active coordinator sole repair owner through terminal results at comment 6784239834. No queue stamp or auto-merge yet.",
       "checkpointed": false,
-      "head": "38504330b24497edc9d634c25ac239361ca38b14"
+      "head": "95f65b051d7c8303e119c428d0e33726069e88ff",
+      "pr": 2369
     }
   ],
   "owner": [],
@@ -196,6 +197,14 @@
       "worker": "/root/editor_r15_e1_resume",
       "recentJob": "j-5155 terminal exit 0, six integrated browser cases",
       "next": "Finish exact correction evidence and full independent review. Then normal PR CI and Codex review before coordinator stamp/queue."
+    },
+    "pullRequest": {
+      "repairOwnerComment": 6784239834,
+      "mode": "active",
+      "ci": 42938883051,
+      "head": "95f65b051d7c8303e119c428d0e33726069e88ff",
+      "number": 2369,
+      "review": "Independent full exact-head A"
     }
   }
 }
