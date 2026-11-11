@@ -69,11 +69,11 @@
       "phase": "E2",
       "branch": "codex/plan-editor-r1-5-e2-build",
       "nativeId": "/root/editor_r15_e2_builder",
-      "checkpointed": false,
+      "checkpointed": true,
       "step": "build",
       "sourceSha": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
       "actionId": "plan-editor-r1-5-2026-11-08:3",
-      "note": "PR #2374 is pushed at 9c5ae192 with fresh full independent A. Exact 30 planner cases pass locally after fixture-only repair. Previous 5b run retained all offline and configured browser passes and its Build failure. Exact CI 43001220919, Codex review and normal Windows j-5229 pending. No stamp or queue.",
+      "note": "Native E2 builder returned terminal checkpoint. PR #2374 exact 9c5ae192 has fresh independent A, clean Codex review, and CI gate success. Sole pending Windows j-5229 remains queued under normal 4.0 GB guard with the active coordinator observing. PR unstamped and unqueued.",
       "worktree": "C:/claude/Temp/editor-r15-e2-build-1111",
       "head": "9c5ae1926d6662e0e2806f3233be85b83972f166",
       "pr": 2374
@@ -239,7 +239,7 @@
   },
   "e2Checkpoint": {
     "pr": 2374,
-    "resume": "Await CI gate, Codex review and Windows j-5229 on reviewed 9c5ae192. Coordinator reconciles latest main and queues through the approved route, then independently checks the actual merge.",
+    "resume": "Wait for normal Windows j-5229. If it passes, verify /check, exact head and current merge-tree, then stamp and queue through the documented route. Independently check the actual merge before E3.",
     "repairOwnerComment": 6787343956,
     "head": "9c5ae1926d6662e0e2806f3233be85b83972f166",
     "ci": 43001220919,
@@ -262,8 +262,8 @@
       "checks": "30/30 exact planner regressions and 223/223 affected Node cases pass. TypeScript j-5230 and lint pass. Wider Windows workflow checks retain four unchanged missing bash/CRLF failures.",
       "independentReview": "Fresh full independent A for all 43 changed paths, no confirmed findings.",
       "priorCI": "42998288984 terminal CI gate failure from the unreadable fixture tokenizer path in Build. All 15 Linux browser shards and all four configured shards/verdict passed, including all affected editor and OGraf acceptance.",
-      "windows": "j-5229 waiting under normal 4.0 GB guard.",
-      "ci": "43001220919 in progress. One Codex request comment 6793030124."
+      "windows": "j-5229 is the sole pending local job. Normal guard 4.0 GB. Native worker terminal receipt at 2026-11-11T10:33:58Z, no owned browser or reviewer processes remain. Active coordinator observes the retained job.",
+      "ci": "CI gate 130466210042 passed in exact 43001220919: Build, Factory, Catalog, all 15 Chromium shards (210 selected), four configured stacks (64 selected), selected verdict and combined report passed. Whole workflow failed only at Reviewed pending stamp. Exact Codex review clean on 9c5ae192."
     }
   },
   "waitingOn": null
