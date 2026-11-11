@@ -1,0 +1,14 @@
+{
+  "id": "6af466f2-e57c-8191-8419-e116f7c9c06f",
+  "archived": true,
+  "turn": [
+    {
+      "id": "01a1cab2-2d27-73c1-ae2b-ce1fd4376852",
+      "status": "completed",
+      "completedAt": 1794407926,
+      "final": [
+        "```text\nnonce: e3-b-cloud-1111\nphase: E3\nPR: https://github.com/NoaCG/NoaCG-Studio/pull/2386\nreviewed_head: f42038dbe0661c5c2af620f7157f0a93c2d283bf\nCI: 43037611275, exact head, completed\nconfigured_selection: all, 64 specs, 4 local stacks\nCI_gate: SUCCESS\nconfigured_verdict: SUCCESS\noverall_run: FAILURE solely Reviewed; coordinator stamp/recovery remains\nCodex: completed clean, comment 6798324617\nfinal_so: AGREE/A on reviewed_head, all 21 files\nfinal_so_native: 6af47949-9ce0-8191-a24f-92a35c3ab04b\ncheck: PASS; inline review 0/0, simplify, verify\nverification:\n  PASS: 533 gateway + 21 script tests; lint; frontend/API TypeScript\n  PASS: assistant 40/40; earlier shared checks 46/46; ownership mutation killed\n  PASS: CLI round-trip, three executable exports, pinned Studio reference\n  PASS: final real Help quality; bounded historical-five applicability\n  retained_failures: original model/protocol/quality/recheck and harness/compiler attempts\n  skipped_tests: 0\n  local_build: not run; Actions Build SUCCESS\ncapacity: WARN; backend STOP evidence preserved; no exceptions\nmigration: none\ngit_status_porcelain: \"\"\ncredential_scan: PASS\nrepair_owner: coordinator acknowledged, comment 6798337901\nfinal_PR_receipt: comment 6798732774\nqueue_action_by_worker: none\nremaining: coordinator stamp/queue, independent exact-merge and post-land acceptance\nUTC: 2026-11-11T14:38:29Z\n```"
+      ]
+    }
+  ]
+}

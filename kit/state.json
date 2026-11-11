@@ -67,14 +67,14 @@
   "inFlight": [
     {
       "phase": "E3",
-      "step": "build",
+      "step": "queue",
       "nativeId": "/root/editor_r15_e3_builder",
       "session": "6af466f2-e57c-8191-8419-e116f7c9c06f",
       "actionId": "plan-editor-r1-5-2026-11-08:5",
       "sourceSha": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
       "branch": "codex/plan-editor-r1-5-e3-build",
       "worktree": "/workspace/noacg-editor-r1-5-e3-build",
-      "note": "E3 PR2386 open at f42038db; coordinator sole repair owner6798337901 acknowledged before workerends. Fullfreshso/CI43037611275/autoCodex pending; noqueue. Bounded modelquality PASS with originalfailures preserved."
+      "note": "E3 builder terminal/archived; allworker gatesgreen exceptReviewed documentedexception. Coordinator retainedsoleownership, exactf420 pinned; cloud queue intent recorded beforedispatch."
     }
   ],
   "owner": [],
@@ -804,7 +804,32 @@
         "verdict": "pass",
         "at": "2026-11-11T14:20:40.095Z",
         "all21paths": true
+      },
+      "sourceCiFinal": {
+        "run": 43037611275,
+        "head": "f42038dbe0661c5c2af620f7157f0a93c2d283bf",
+        "ciGate": 130589451922,
+        "gateResult": "success",
+        "configuredAggregate": 130589192897,
+        "configuredResult": "success",
+        "coreJobs": "all15offline/all4configured/build/factory/combined success",
+        "overall": "failure solelyReviewed timeout130580531287; documentedcoordinator recovery pending"
       }
+    },
+    "builderFinal": {
+      "receipt": "receipts/e3-builder-final.json",
+      "comment": 6798732774,
+      "archive": "native completed readback and appconfirmed",
+      "source": "f42038dbe0661c5c2af620f7157f0a93c2d283bf"
+    },
+    "cloudQueue": {
+      "intent": "coordinator verified exacthead /check/fullA/Codexclean/allworkerCIgates; record before dispatch; reconcile original on unknownack",
+      "route": "documented cloud-queue-merge.yml onmain; prior sameenvironment directstatusPOST403 retained, do not retry known-denied status route",
+      "branch": "codex/plan-editor-r1-5-e3-build",
+      "sha": "f42038dbe0661c5c2af620f7157f0a93c2d283bf",
+      "review": "E3 /check PASS review inline0/0 simplify inline verify inline; fresh full21file AGREE/A; exact-head Codex clean; CIgate130589451922 and configured aggregate130589192897 SUCCESS all64/4stacks",
+      "reconciliation": "currentmain7e1..., merge-treeclean/merge-orderclear/sideEnds{}, no relay, latest1967holdended; no sourcechanges",
+      "dispatchState": "not yet dispatched"
     }
   }
 }
