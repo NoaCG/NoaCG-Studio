@@ -11,7 +11,7 @@ Claude's commands and default templates continue to use `.agent-workflows/plan-r
   `deadline` (ledger `Window ends: when-complete`); a date binds unless explicit untilComplete makes
   it a target. Blocks stay at most 24 hours; automatic renewal separately needs blockRenewal.
   Preserve the immutable scope, any date and attempts.
-- Only phases written in the plan. Missing acceptance refuses launch. Owner closure is not technical PASS.
+- Only phases written in the plan. Missing acceptance refuses launch. Owner closure is not technical PASS. Later explicit owner amendments use the existing `admit` transaction with reviewed owner-decision receipts on main: future insertions and unrecorded environment/additive-prerequisite revisions only. Preserve acceptance/history/authority/attempts and real human/device/release gates; resolve old waits with evidence. See `docs/work-specs/continuing-plan-preparation/runbook.md`; never edit digests or launch from draft amendments.
 - Only the merge queue writes `main`. Use `.agent-workflows/queue-merge.md` and
   `.agent-workflows/verify.md` with their current checks, budgets, retry rules and one PR repair owner.
 - The wave ledger is execution authority; work.json is acceptance evidence; kit/heartbeat are context/views.
@@ -34,18 +34,6 @@ is authoritatively reconciled. Git checkpoint ownership is not a native lock. Re
 acknowledgement before replacing a worker that may still run; otherwise stop safely.
 Run the executing worker's resource/network preflights and current folder rules. Same-machine
 workers use fresh conversations and owned absolute worktrees, serially with isolated ports/services.
-
-## Owner amendments to unstarted work
-
-Later explicit owner decisions may change future scheduling/environment without opening
-another run. First publish the owner-decision receipt and amended plan through the normal
-queue. Then use the existing supervisor `admit` with that exact main commit and receipts:
-optional `insert` adds future phases; optional `revise: [{id, environment?, dependsOn?}]`
-changes only never-recorded phases. Dependencies may only gain prerequisites. Original
-acceptance, recorded phases/history, authority, dates and attempts cannot change.
-Reconcile/resolve the old prerequisite with actual evidence before opening block authority;
-do not launch against draft docs, edit digests or reinterpret a required device environment
-without the owner amendment. Preserve real hardware/human/release gates in the revised plan.
 
 ## Admit and execute
 
