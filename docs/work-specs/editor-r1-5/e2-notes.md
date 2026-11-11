@@ -373,3 +373,31 @@ identity and the non-real-time load. j-5222 reached public offline seek
 after isolating browser clocks, then exposed a stale canvas in the test
 read. The maintained browser checks now sample a running public clock
 and read the current offline frame after each seek.
+
+The full review of `b5f9327a0cfc80822ebd3876f9b34e4fc75c6daa` graded it B
+with two confirmed compatibility findings. In generated OGraf Both
+packages, manual and none advertised 2.10 seconds for the Play action
+and step 0 while a styled Play ran for 1.30, matching E1 playback and
+its original declaration. The same introduced estimate affected
+canonical Continue in both modes. The underlying ranged repeat reached
+0.90 seconds, while public Continue selected the first operator edge
+and actually ran a 0.40-second Fade, a 0.60-second default Fade, or a
+zero-duration Cut. The unstyled control correctly ran and advertised
+0.90 seconds. Independent rule review traced the real-time and offline
+walk, canonical transitions, manifest consumers, timed and stepped
+modes, and dynamic custom actions before the third and final timing
+repair. It uses the selected canonical style for the extended estimate
+and keeps the timed Play style rule. Custom actions, Stop, nominal
+measured metadata and legacy exports retain their established fields.
+
+The other finding was the first motion-preset range repair. The normal
+writer refused an In-only Fade that preserved X keys at 0.20 and 0.60
+and their range ending at 1.10 but reduced the cue to 0.80. The E1
+range-less control saved successfully. The preset duration now counts
+the stored ends of surviving ranges. Slide Left still owns and replaces
+X and saves at 0.80. The maintained browser transform exercises both
+cases through the actual writer and reads the selected card back.
+
+Windows j-5223 was cancelled while waiting for normal RAM admission
+because this candidate superseded its pinned head. It produced no test
+result.

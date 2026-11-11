@@ -202,13 +202,15 @@ function entranceMs(template: SpxTemplate): number | null {
   return data && data.steps.length >= 2 ? wallMs(data, data.steps[0].duration) : null;
 }
 
-/** A timed styled Play replaces the authored entry, so its declared duration is known. */
-function styledPlayMs(data: AnimData): number | null {
+/** Match the styled edge selected by the runtime's Play or canonical Continue. */
+function styledEntryMs(data: AnimData, index: number): number | null {
   const group = data.machine?.groups[0];
   if (!group) return null;
-  const pair = lifecyclePair(group, 'play');
+  const path = group.defaultPath ?? [];
+  const pair = index === 0 ? lifecyclePair(group, 'play') : { from: path[index - 1], to: path[index] };
   if (!pair) return null;
-  const edge = group.transitions.find(edge => edge.trigger === 'lifecycle' && edge.event === 'play' && edge.from === pair.from && edge.to === pair.to);
+  const edge = group.transitions.find(edge => edge.from === pair.from && edge.to === pair.to &&
+    (index === 0 ? edge.trigger === 'lifecycle' && edge.event === 'play' : edge.trigger === 'operator'));
   if (!edge?.style || !(TRANSITION_STYLES as readonly string[]).includes(edge.style)) return null;
   return edge.style === 'cut' ? 0 : wallMs(data, edge.duration || .6);
 }
@@ -303,18 +305,27 @@ function actionDurations(template: SpxTemplate, stepCount: number, actionIds: st
   if (!data || data.steps.length < 2) return [];
   const ms = (seconds: number) => wallMs(data, seconds);
   const steps = data.steps;
-  const includeLegacy = hasLoopRuntime(template.js);
-  const perStep: Array<{ step: number; duration: number }> = [];
-  for (let i = 0; i < stepCount && i < steps.length - 1; i++) perStep.push({ step: i, duration: ms(authoredCueEnd(steps[i], includeLegacy, data.speed || 1)) });
-  const exit = ms(steps[steps.length - 1].duration);
+  const loopRuntime = hasLoopRuntime(template.js);
   const hold = timedOutMs(template);
-  const styled = hold !== null && includeLegacy ? styledPlayMs(data) : null;
+  const playMs = (index: number) => {
+    const step = steps[index];
+    const duration = ms(authoredCueEnd(step, loopRuntime, data.speed || 1));
+    // A style replaces the extended entry. Keep the established nominal estimate for
+    // stepped cues whose advertised duration did not change with the loop clock.
+    if (loopRuntime && ((hold !== null && index === 0) || duration !== ms(step.duration))) {
+      return styledEntryMs(data, index) ?? duration;
+    }
+    return duration;
+  };
+  const perStep: Array<{ step: number; duration: number }> = [];
+  for (let i = 0; i < stepCount && i < steps.length - 1; i++) perStep.push({ step: i, duration: playMs(i) });
+  const exit = ms(steps[steps.length - 1].duration);
   return [
     {
       type: 'playAction',
       // The action-level value is the fallback for any step the list below does not name. A
       // graphic with no steps plays its entrance, its hold and its exit in this one action.
-      duration: hold !== null ? (styled ?? ms(authoredCueEnd(steps[0], includeLegacy, data.speed || 1))) + hold + exit : perStep[0]?.duration ?? 0,
+      duration: hold !== null ? playMs(0) + hold + exit : perStep[0]?.duration ?? 0,
       ...(perStep.length ? { steps: perStep } : {}),
     },
     { type: 'stopAction', duration: exit },
