@@ -71,6 +71,19 @@ export interface CueFields {
   values: Record<string, string>;
 }
 
+/** An owed edit as kept over a reload: the cue, the texts it may hold under the edit (its text
+ *  when the typing started, then each part of the typing handed to the store), the typed text. */
+export interface OwedEdit {
+  cueId: string;
+  bases: CueFields[];
+  fields: CueFields;
+}
+
+/** Whether `cue` holds `text`: the label, the note and each of the text's values. */
+function holds(cue: CueRecord, text: CueFields): boolean {
+  return cue.label === text.label && (cue.note || null) === (text.note || null) && Object.entries(text.values).every(([k, v]) => cue.values[k] === v);
+}
+
 /** The browser half the page hands in. */
 export interface CueDraftIo {
   /** Whether this account may write the record now. */
@@ -83,14 +96,24 @@ export interface CueDraftIo {
   retainCue: (cueId: string, fields: CueFields) => boolean;
   /** The newest record of a cue, if the production holds it. */
   record: (cueId: string) => CueRecord | undefined;
+  /** The owed edit kept where a reload cannot drop it (model/owedCueEdit.ts): record it, read it
+   *  back (null when none of a known version is there), and remove it. One per production. */
+  owed: {
+    keep: (edit: OwedEdit) => void;
+    read: () => OwedEdit | null;
+    forget: () => void;
+  };
   setTimeout: (run: () => void, ms: number) => unknown;
   clearTimeout: (timer: unknown) => void;
 }
 
 /** The browser's moments, for `listen`; each answers its unsubscribe. */
 export interface CueDraftAdapters {
-  /** The page may be gone before a promise settles: it is hidden, closing, or the account pauses. */
-  onPageHide: (run: () => void) => () => void;
+  /** The page may be gone before a promise settles: it is hidden or closing (`going`), or the
+   *  account pauses (the page stays). */
+  onPageHide: (run: (going: boolean) => void) => () => void;
+  /** The page is shown again after it was hidden: it did not go. */
+  onPageShown: (run: () => void) => () => void;
   /** The account asks every surface to save what it holds. */
   onFlushAsked: (run: () => void) => () => void;
   /** A pointer goes down (`true`, on a control whose press sends first; `false` on any other), or
@@ -125,6 +148,12 @@ export interface CueDraft {
   label: (cueId: string) => string | null;
   /** The fields of `cue` whose values differ from what air was sent, bound fields aside. */
   unsent: (cue: CueRecord, aired: Readonly<Record<string, string>> | undefined, bound: Readonly<Record<string, string>>) => string[];
+  /** The page shows this production, as first loaded: an edit recorded when a page of it last
+   *  went is written to its cue, through the history, if the cue still holds the text the typing
+   *  started from. The record is removed once that write is confirmed, or at once when the cue
+   *  holds anything else. While the account may not write, or the write is not confirmed, it stays;
+   *  the page calls this again when the account may write. */
+  recover: () => void;
   /** Listen to the browser's moments while the page shows this draft; the stop answered also saves
    *  at once what is owed. */
   listen: (adapters: CueDraftAdapters) => () => void;
@@ -176,6 +205,42 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
   const part = session.draft;
   /** Whether the draft holds edits the record does not have yet. */
   let pending = false;
+  /** The draft whose save is out through the history and not yet confirmed. The history writes
+   *  it from its queue, a moment after `flush`, so the page going meanwhile still owes it. */
+  let out: DraftPart | null = null;
+  /** The texts the draft's cue may hold under it: the text when the draft started, then each
+   *  part of the typing handed to the store (it may or may not have landed when the page goes).
+   *  What a recorded edit may be applied over on the next visit, and nothing else. */
+  let startedFrom: { cueId: string; texts: { from: DraftPart | null; text: CueFields }[] } | null = null;
+  /** The owed-edit record this page last wrote when it hid, as stored, or null. */
+  let recorded: string | null = null;
+  /** Remove the record only if it is still the one this page wrote: another tab of the same
+   *  production may have written its own since. */
+  const forgetOwn = () => {
+    if (recorded !== null && JSON.stringify(io.owed.read()) === recorded) io.owed.forget();
+    recorded = null;
+  };
+  /** Whether this page is hidden or going: from its hide until it is shown again. */
+  let leaving = false;
+  /** Whether this page has taken the record (or found none): it takes it once, at its start. A
+   *  take whose write is not yet confirmed may be asked again; the same text written twice is
+   *  harmless, and the first write can be dropped (a remount moves the history on). */
+  let recovered = false;
+  const copyOf = (d: DraftPart): CueFields => ({ ...fieldsOf(d), values: { ...d.values } });
+  const started = (d: DraftPart) => {
+    startedFrom = { cueId: d.cueId, texts: [{ from: null, text: copyOf(d) }] };
+  };
+  /** The store was given `d`'s text while typing in its cue goes on. */
+  const handed = (d: DraftPart) => {
+    if (startedFrom?.cueId !== d.cueId) return;
+    startedFrom = { cueId: d.cueId, texts: [...startedFrom.texts, { from: d, text: copyOf(d) }] };
+  };
+  /** The store confirmed `d`'s save while typing goes on: the store can no longer hold a text
+   *  listed before it, so only it and later ones stay listed. */
+  const confirmed = (d: DraftPart) => {
+    const at = startedFrom?.texts.findIndex((t) => t.from === d) ?? -1;
+    if (startedFrom && at > 0) startedFrom = { cueId: startedFrom.cueId, texts: startedFrom.texts.slice(at) };
+  };
   let timer: unknown = null;
   const set = (draft: DraftPart | null) => session.apply((parts) => ({ ...parts, draft }));
   const stopTimer = () => {
@@ -221,21 +286,46 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     // After the session's end nothing is owed: the end saved it, and an edit starts nothing.
     if (!d || !pending || !io.canWrite()) return Promise.resolve(true);
     pending = false;
+    out = d;
+    // The store may hold this text from here on, before the history confirms it (a team
+    // production's local outbox lands before the server answers): typing on may be applied over it.
+    handed(d);
     return io.writeCue(d.cueId, fieldsOf(d)).then((saved) => {
+      if (out === d) out = null;
       // Typing went on during the save, or the session ended: the newer draft is still owed.
       if (part.get() === d && session.alive()) {
-        if (saved) set(null);
+        if (saved) {
+          set(null);
+          // The store holds the latest text: a record of it must never be applied over later work.
+          forgetOwn();
+        }
         else pending = true;
+      } else if (saved) {
+        confirmed(d);
       }
       return saved;
     });
   };
 
   /** Save synchronously what is owed: pausing and teardown cannot await a microtask. The draft
-   *  stays; no history survives this boundary. */
-  const retain = () => {
+   *  stays; no history survives this boundary. When the page may be gone (`hiding`), a save still
+   *  out through the history is owed too: the history would write it only after the page is gone. */
+  const retain = (hiding = false) => {
     const d = part.get();
-    if (d && pending && io.canWrite() && io.retainCue(d.cueId, fieldsOf(d))) pending = false;
+    if (!d || !(pending || (hiding && out === d)) || !io.canWrite()) return;
+    // Recorded where a reload cannot drop it: the store's write may still be committing when the
+    // page goes, and a reload aborts it.
+    if (hiding && startedFrom && startedFrom.cueId === d.cueId) {
+      io.owed.keep({ cueId: d.cueId, bases: startedFrom.texts.map((t) => t.text), fields: fieldsOf(d) });
+      recorded = JSON.stringify(io.owed.read());
+    }
+    if (io.retainCue(d.cueId, fieldsOf(d))) {
+      pending = false;
+      if (out === d) out = null;
+      // The store is given this text (the record above covers a page that goes before it lands):
+      // typing on in this cue may be applied over it.
+      handed(d);
+    }
   };
 
   const view = (cue: CueRecord) => viewOf(part.get(), io.record(cue.id) ?? cue);
@@ -262,6 +352,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
       const d = part.get();
       io.editing(editGroup(cue.id, patch));
       const base: DraftPart = d && d.cueId === cue.id ? d : { cueId: cue.id, label: cue.label, note: cue.note ?? '', values: { ...cue.values } };
+      if (base !== d) started(base);
       // Set before the timer, so a flush in this same tick sees the edit.
       set({ ...base, ...patch, values: { ...base.values, ...(patch.values ?? {}) } });
       pending = true;
@@ -278,6 +369,12 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     cancel: () => {
       stopTimer();
       set(null);
+      // A draft this page recorded is dropped by the operator (an undo, another cue selected): an
+      // undo puts the cue back to a text listed under the edit, so the record must not bring it
+      // back next visit. Not while the page is hidden or going: the history drops the draft then
+      // too, when its queued save finds the cue the hide's save rewrote. A page that recorded
+      // nothing (one just opened, before `recover`) leaves the record alone.
+      if (!leaving) forgetOwn();
     },
     showing: (cueId, save) => {
       if (cueId === shown) return;
@@ -304,8 +401,44 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
       return io.record(cueId)?.label ?? null;
     },
     unsent: (cue, aired, bound) => unsentFields(view(cue).values, aired, bound),
+    recover: () => {
+      // Never once this page has hidden or recorded: the record is then this page's own.
+      if (recovered || leaving || recorded !== null || !session.alive()) return;
+      const e = io.owed.read();
+      if (!e) {
+        recovered = true;
+        return;
+      }
+      if (!io.canWrite()) return;
+      const cue = io.record(e.cueId);
+      // Saved after all, or changed since the typing started (another tab, a teammate, an undo):
+      // what the cue holds stands.
+      if (!cue || holds(cue, e.fields) || !e.bases.some((b) => holds(cue, b))) {
+        recovered = true;
+        io.owed.forget();
+        return;
+      }
+      // Through the history, so the store confirms it; the record goes only then, and only if no
+      // later hide has recorded a newer edit meanwhile. Unconfirmed, it is tried again next visit.
+      const same = JSON.stringify(e);
+      void io.writeCue(e.cueId, e.fields).then((saved) => {
+        if (!saved) return;
+        recovered = true;
+        if (JSON.stringify(io.owed.read()) === same) io.owed.forget();
+      });
+    },
     listen: (adapters) => {
-      const offHide = adapters.onPageHide(retain);
+      // Hidden, going or pausing: what is owed is saved; when the page may go it is also recorded
+      // where a reload cannot drop it.
+      const offHide = adapters.onPageHide((going) => {
+        if (going) leaving = true;
+        retain(going);
+      });
+      // Back: the record stays (the hide's save may still be committing), and the operator's own
+      // drops count again.
+      const offShown = adapters.onPageShown(() => {
+        leaving = false;
+      });
       const offFlush = adapters.onFlushAsked(() => void flush());
       const offPress = adapters.onSendsFirstPress((down) => {
         pressing = down;
@@ -315,6 +448,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
       // is saved at once, as when the page hides.
       return () => {
         offHide();
+        offShown();
         offFlush();
         offPress();
         pressing = false;
