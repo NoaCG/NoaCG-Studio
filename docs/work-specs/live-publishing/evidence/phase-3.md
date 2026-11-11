@@ -270,6 +270,9 @@ Rules found after coding, apart from those stated before it:
   dropped draft that page recorded then lost it on the reload itself (the history resets after
   the hide's save rewrites the cue, and drops the draft), so a drop counts only while the page is
   shown (P3).
+- From the final `/so` on 43bcf60 (grade A): with two tabs of one production, one tab's confirmed
+  save or dropped draft could remove the other tab's record; a page now removes only a record
+  still as it wrote it (P3). And the checker's exact case now has a committed configured test.
 
 ### What changed
 
@@ -405,7 +408,8 @@ page-hide write at once) was graded B and withdrawn after the touch measurement 
   Coming back to the page does not remove it: the hide's save may still be committing. While the
   page is hidden or going, a dropped draft leaves it (the history drops the draft then too, when
   its queued save finds the cue the hide's save rewrote). A page that recorded nothing (one just
-  opened) never removes a record when it drops a draft.
+  opened) never removes a record when it drops a draft, and a page removes only the record it
+  wrote: another tab of the same production may have written its own since.
   A record of a production deleted before its next visit stays, a few hundred bytes.
 - P4. Therefore R4 holds: an edit typed and not yet saved is in the stored production after a
   reload at any moment after the press (pointer still down, mouse or touch; the send unanswered or
@@ -478,7 +482,8 @@ fixture, local Supabase stack, takes-a narrowed to the graphic cue Take (50 samp
 | Build | Own time p50 / p95 (ms) | Failures | Max |
 |---|---|---|---|
 | 063798e (the fix) | 11.8 / 24.7 | 0 | 28.2 |
-| a95b872 (final code) | 10.4 / 16.3 | 0 | 17.5 |
+| a95b872 | 10.4 / 16.3 | 0 | 17.5 |
+| 3f403ca | 9.9 / 15.3 | 0 | 20.0 |
 
 The checker's sample on 92e581a7 was 12.0 / 21.4. The fix runs when the page hides, a draft is
 dropped, a draft save starts or is confirmed, and on a visit's first render: none of it before a
@@ -495,9 +500,9 @@ were not measured again.
   "Alexandra Riva"); the earlier "typed then taken, then the page reloads at once" stays green,
   as the check said. The tab step cannot isolate its own rule in a browser (the 300 ms idle
   save lands during it and starts a fresh draft); the unit case below does. With the fix the
-  whole file passes 36 of 36 (`--repeat-each 3`) on a95b872, d5c0b63, 7acd729b and 3f403cab. AC-1 was
-  measured on a95b872; the later commits change only recovery, the record's contents and a
-  confirmed save's bookkeeping, off the press path.
+  whole file passes 36 of 36 (`--repeat-each 3`) on a95b872, d5c0b63, 7acd729b, 3f403cab and eb0d3a91. AC-1 was
+  measured again on 3f403ca; the last code change after it only guards which record a page
+  removes, off the press path.
 - `scripts/cue-draft.test.mjs`: P1 to P3 and P5 cases, the history's out save, an earlier save
   confirmed while typing goes on, a hide the page came back from, and the account pausing.
   Mutations: no record on hide turns three red; no removal on a confirmed save one; `recover`
@@ -506,7 +511,11 @@ were not measured again.
   listed one; the hide's save not listed one; a pause recording one; applying over the first
   listed text only one; a save not listed when handed to the history three; `cancel` always
   removing the record one; `cancel` never removing it one; `cancel` removing it while the page is
-  going one.
+  going one; removing a record another tab wrote one.
+- `e2e/configured/command-sequence.spec.ts`: "typed, Take with the send still unanswered, then
+  the page reloads: the edit is kept", the checker's case committed (send held 800 ms, reload
+  50 ms after the Take). 3 of 3 on the local stack; with the record never written, 3 of 3 red
+  (the field reads the old "HOME").
 - `scripts/owed-cue-edit.test.mjs` (new): records per production and per account, a store of
   another version never read, written over or cleared, an unreadable record read as none.
 - Specs that hold writes or reload (`save-transaction-holds`, `rundown-history-storage`,
