@@ -273,6 +273,12 @@ Rules found after coding, apart from those stated before it:
 - From the PR review of b584860: the list was capped at eight texts, which could drop a text a
   team production's outbox still held while its saves waited on the server. No cap now; a
   confirmed save replaces the texts listed before it.
+- From the PR review of 6a53c40: a page that opened before its account could write never took
+  the record later; it now takes it when the account may write. A take is only ever at a page's
+  start: after the page hid or recorded, a take would find the cue holding the page's own hide
+  save and remove the record the next visit needs. A guard against a second take while
+  the first write was out lost the edit in development, where the first write is dropped by a
+  remount; asking again simply writes the same text again.
 - From the final `/so` on 43bcf60 (grade A): with two tabs of one production, one tab's confirmed
   save or dropped draft could remove the other tab's record; a page now removes only a record
   still as it wrote it (P3). And the checker's exact case now has a committed configured test.
@@ -405,7 +411,9 @@ page-hide write at once) was graded B and withdrawn after the touch measurement 
   newer edit meanwhile. Unconfirmed (refused, or aborted by another reload), it stays and is tried
   again on the next visit. Otherwise (the cue holds the typed text already, was changed since by
   another tab, a teammate or an undo, or is gone) nothing is written and the record is removed.
-  While the account may not write, the record stays for a later visit. Nothing is shown to the
+  While the account may not write, the record stays, and is taken when the account may write
+  (an account's page can open before its session lets it write). A page takes it only at its
+  start, before it hides or records anything, and once a take's write is confirmed never again. Nothing is shown to the
   operator.
 - P3. A save of the draft that the store confirms removes the record, and so does this page
   dropping a draft after it recorded it while the page is shown (an undo, another cue selected).
@@ -516,7 +524,8 @@ were not measured again.
   listed text only one; a save not listed when handed to the history three; `cancel` always
   removing the record one; `cancel` never removing it one; `cancel` removing it while the page is
   going one; removing a record another tab wrote one; a cap on the list one; no replacement on a
-  confirmed save one; keeping only the confirmed text (dropping those handed after it) one.
+  confirmed save one; keeping only the confirmed text (dropping those handed after it) one; taking
+  the record again after a confirmed take one; taking it after the page recorded one.
 - `e2e/configured/command-sequence.spec.ts`: "typed, Take with the send still unanswered, then
   the page reloads: the edit is kept", the checker's case committed (send held 800 ms, reload
   50 ms after the Take). 3 of 3 on the local stack; with the record never written, 3 of 3 red

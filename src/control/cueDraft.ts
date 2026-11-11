@@ -151,7 +151,8 @@ export interface CueDraft {
   /** The page shows this production, as first loaded: an edit recorded when a page of it last
    *  went is written to its cue, through the history, if the cue still holds the text the typing
    *  started from. The record is removed once that write is confirmed, or at once when the cue
-   *  holds anything else. While the account may not write, or the write is not confirmed, it stays. */
+   *  holds anything else. While the account may not write, or the write is not confirmed, it stays;
+   *  the page calls this again when the account may write. */
   recover: () => void;
   /** Listen to the browser's moments while the page shows this draft; the stop answered also saves
    *  at once what is owed. */
@@ -221,6 +222,10 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
   };
   /** Whether this page is hidden or going: from its hide until it is shown again. */
   let leaving = false;
+  /** Whether this page has taken the record (or found none): it takes it once, at its start. A
+   *  take whose write is not yet confirmed may be asked again; the same text written twice is
+   *  harmless, and the first write can be dropped (a remount moves the history on). */
+  let recovered = false;
   const copyOf = (d: DraftPart): CueFields => ({ ...fieldsOf(d), values: { ...d.values } });
   const started = (d: DraftPart) => {
     startedFrom = { cueId: d.cueId, texts: [{ from: null, text: copyOf(d) }] };
@@ -397,12 +402,19 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     },
     unsent: (cue, aired, bound) => unsentFields(view(cue).values, aired, bound),
     recover: () => {
+      // Never once this page has hidden or recorded: the record is then this page's own.
+      if (recovered || leaving || recorded !== null || !session.alive()) return;
       const e = io.owed.read();
-      if (!e || !session.alive() || !io.canWrite()) return;
+      if (!e) {
+        recovered = true;
+        return;
+      }
+      if (!io.canWrite()) return;
       const cue = io.record(e.cueId);
       // Saved after all, or changed since the typing started (another tab, a teammate, an undo):
       // what the cue holds stands.
       if (!cue || holds(cue, e.fields) || !e.bases.some((b) => holds(cue, b))) {
+        recovered = true;
         io.owed.forget();
         return;
       }
@@ -410,7 +422,9 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
       // later hide has recorded a newer edit meanwhile. Unconfirmed, it is tried again next visit.
       const same = JSON.stringify(e);
       void io.writeCue(e.cueId, e.fields).then((saved) => {
-        if (saved && JSON.stringify(io.owed.read()) === same) io.owed.forget();
+        if (!saved) return;
+        recovered = true;
+        if (JSON.stringify(io.owed.read()) === same) io.owed.forget();
       });
     },
     listen: (adapters) => {

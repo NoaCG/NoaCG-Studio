@@ -1493,7 +1493,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // production as first loaded: the effect runs after the render that has them.
   const showHere = !!show;
   useEffect(() => {
-    if (showHere) cueDraft.recover();
+    if (!showHere) return;
+    cueDraft.recover();
+    // An account's page can open before its session lets it write: the record waits for that.
+    const again = () => cueDraft.recover();
+    window.addEventListener('noacg-account-authoring', again);
+    return () => window.removeEventListener('noacg-account-authoring', again);
   }, [cueDraft, showHere]);
   useEffect(() => { void flushDraft(); void historyRef.current?.closeGroup(); }, [sub, flushDraft]);
 

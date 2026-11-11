@@ -500,9 +500,11 @@ test('P2: a cue changed since the typing started keeps what it holds, and the re
   h.draft.recover();
   assert.equal(h.writes.length, 0);
   assert.equal(h.owed, null);
-  h.owed = owedOver({ ...ASTYPED, label: 'Renamed since' });
-  h.draft.recover();
-  assert.equal(h.writes.length, 0);
+  const g = harness();
+  g.owed = owedOver({ ...ASTYPED, label: 'Renamed since' });
+  g.draft.recover();
+  assert.equal(g.writes.length, 0);
+  assert.equal(g.owed, null);
 });
 
 test('P2: a record applies over any text listed under it: the start, or a part handed to the store', () => {
@@ -518,10 +520,49 @@ test('P2: a record for a cue that is gone, or that the cue already holds, writes
   h.draft.recover();
   assert.equal(h.writes.length, 0);
   assert.equal(h.owed, null);
-  h.owed = { cueId: 'c1', bases: [{ ...ASTYPED, values: { f0: 'Older' } }], fields: ASTYPED };
+  const g = harness();
+  g.owed = { cueId: 'c1', bases: [{ ...ASTYPED, values: { f0: 'Older' } }], fields: ASTYPED };
+  g.draft.recover();
+  assert.equal(g.writes.length, 0);
+  assert.equal(g.owed, null);
+});
+
+test('P2: a page takes the record only at its start: never after it hid or recorded, never twice', async () => {
+  // A page's own hide writes the record and its cue then holds the typed text: taking it then
+  // would remove the record the next visit needs.
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
   h.draft.recover();
-  assert.equal(h.writes.length, 0);
+  h.draft.edit(OPENER, { values: { f0: 'Mine' } });
+  for (const run of h.listeners.hide) run(true);
+  const mine = structuredClone(h.owed);
+  h.draft.recover();
+  assert.deepEqual(h.owed, mine, 'kept for the next visit');
+  stop();
+  const g = harness();
+  g.owed = owedOver(ASTYPED);
+  g.draft.recover();
+  g.writes[0].answer(true);
+  await settle();
+  g.owed = owedOver(ASTYPED);
+  g.draft.recover();
+  assert.equal(g.writes.length, 1, 'taken once');
+});
+
+test('P2: recovery asked again before its write is confirmed writes again; after, never', async () => {
+  // The first write can be dropped (a remount moves the history on), so asking again writes again.
+  const h = harness();
+  h.owed = owedOver(ASTYPED);
+  h.draft.recover();
+  h.draft.recover();
+  assert.equal(h.writes.length, 2);
+  h.writes[0].answer(false);
+  h.writes[1].answer(true);
+  await settle();
   assert.equal(h.owed, null);
+  h.owed = owedOver(ASTYPED);
+  h.draft.recover();
+  assert.equal(h.writes.length, 2, 'taken: never again on this page');
 });
 
 test('P2: while the account may not write, the record stays for a later visit', () => {
