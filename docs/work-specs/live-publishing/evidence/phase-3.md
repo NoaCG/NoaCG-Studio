@@ -249,11 +249,27 @@ the delta `/so` on 9956f3f (R4a: the air-follow path). Revised after the Rules-f
 keyboard; R1a, R3a and R4a are new; R3, R4 and R6 say what a second save, a failed save and the
 account's request do.
 
-Rules found after coding, apart from those stated before it: R1's touch and pen case (final `/so`
-on c0a5aee); R3a's "an edit never starts a write" (Codex on dc38070: running the held save, or an
-other-cue save, inside `edit` let the history drop the new typing); R4a's air-follow path (delta
-`/so` on 9956f3f: the editor follows the on-air cue with no save, as on `main`; the guard
-dc38070 had in `edit` covered it with the flaw above, and 9956f3f had removed it).
+Rules found after coding, apart from those stated before it:
+
+- An undo after a hide the page came back from puts the cue back to the starting text, and the
+  next visit would bring the undone edit back (inline review of 063798e). Answered first by
+  removing the record when the page was shown again, and by removing it whenever a draft was
+  dropped (310f222: the page drops a draft while it starts, before `recover`, so that lost the
+  record; taken out). Now: removed when this page drops a draft it recorded (P3).
+- From the PR review of 7901c00: an earlier save of the same cue confirmed while typing goes on
+  must count as a text the edit applies over; recovery writes through the history and keeps the
+  record until the store confirms it.
+- From the final `/so` on 7901c00 (grade B): typing on after a hide the page came back from lost
+  the edit, since the cue then held the text that hide saved; and the account pausing kept a
+  record nothing removed. So each part of the typing handed to the store is listed under the
+  edit, and a pause keeps no record.
+- From the PR review of 43bcf60: coming back to the page removed the record while the hide's save
+  could still be committing; and a team production's save lands in its local outbox before the
+  history confirms it. So coming back no longer removes the record (P3), and a save's text is
+  listed when it is handed to the history, not when confirmed (P1). Removing the record on any
+  dropped draft that page recorded then lost it on the reload itself (the history resets after
+  the hide's save rewrites the cue, and drops the draft), so a drop counts only while the page is
+  shown (P3).
 
 ### What changed
 
@@ -369,7 +385,8 @@ page-hide write at once) was graded B and withdrawn after the touch measurement 
 - P1. When the page may be going (hidden, closing or reloading), an owed edit is saved to the
   store as before and, first and synchronously, recorded in localStorage for its production: the
   cue, the texts the cue may hold under the edit (its text when the typing started, then each
-  part of this typing handed to the store, whether or not it has landed), and the typed text. The
+  part of this typing handed to the store, from the moment it is handed, whether or not it has
+  landed), and the typed text. The
   account pausing saves as before with no record: the page stays. Owed means typed and not yet saved, or saved through the history and not yet
   confirmed by the store. One record per production, in one key per account
   (`spx-gfx-owed-cue-edits`, moved with the account's other small records when an account adopts
@@ -383,8 +400,12 @@ page-hide write at once) was graded B and withdrawn after the touch measurement 
   another tab, a teammate or an undo, or is gone) nothing is written and the record is removed.
   While the account may not write, the record stays for a later visit. Nothing is shown to the
   operator.
-- P3. A save of the draft that the store confirms removes the record, and so does the page being
-  shown again after it hid (it stayed, so the store's write lands).
+- P3. A save of the draft that the store confirms removes the record, and so does this page
+  dropping a draft after it recorded it while the page is shown (an undo, another cue selected).
+  Coming back to the page does not remove it: the hide's save may still be committing. While the
+  page is hidden or going, a dropped draft leaves it (the history drops the draft then too, when
+  its queued save finds the cue the hide's save rewrote). A page that recorded nothing (one just
+  opened) never removes a record when it drops a draft.
   A record of a production deleted before its next visit stays, a few hundred bytes.
 - P4. Therefore R4 holds: an edit typed and not yet saved is in the stored production after a
   reload at any moment after the press (pointer still down, mouse or touch; the send unanswered or
@@ -425,12 +446,13 @@ record (the held-press reload test failed 2 of 6 on 310f222) and was taken out.
   (`spx-gfx-owed-cue-edits`, versioned), a map by production; added to the account's small keys
   in `accountScope.ts`.
 - `src/control/cueDraft.ts`: `retain` on page hide also covers a save out through the history,
-  and records the owed edit first with the text the draft started from (moved on when an earlier
-  save of the same cue is confirmed); `recover` applies a record through the history and removes
-  it once confirmed; a confirmed save and the page shown again after it hid remove it.
+  and records the owed edit first with the texts it may be applied over (the starting text and
+  each part of the typing handed to the store); `recover` applies a record through the history
+  and removes it once confirmed; a confirmed save, and this page dropping a draft it recorded,
+  remove it.
 - `src/components/home/ProductionPage.tsx`: the record's storage calls for this production, the
-  "shown again" moment (visible again, or restored from the back-forward cache; never a fresh
-  load's own `pageshow`), and `recover` once the production's cues are there.
+  account pause told apart from a hide, the page shown again (visible again, or restored from the
+  back-forward cache), and `recover` once the production's cues are there.
 - No Take path, no draft timing and no server change. The withdrawn first fix
   (`durableStore.ts`, commit at once) is reverted on the branch (97f0bdd).
 
@@ -445,7 +467,7 @@ cue, delay `control_send_seq` by N ms with `page.route`, `fill` a text field, cl
 | 200 ms | lost 4 of 4 (the field reads the old "HOME") | kept 4 of 4 |
 | 800 ms | not run here (the checker: lost 6 of 6) | kept 4 of 4 |
 
-Run on a95b872, and again on d5c0b63 and 7acd729b (kept 4 of 4 at each delay). The intermediate 310f222, which also removed the record when a draft was dropped,
+Run on a95b872, and again on d5c0b63, 7acd729b and 3f403cab (kept 4 of 4 at each delay). The intermediate 310f222, which also removed the record when a draft was dropped,
 lost it 4 of 4 at 200 ms, as the "Rules found after coding" note says.
 
 ### AC-1 measured again
@@ -458,8 +480,9 @@ fixture, local Supabase stack, takes-a narrowed to the graphic cue Take (50 samp
 | 063798e (the fix) | 11.8 / 24.7 | 0 | 28.2 |
 | a95b872 (final code) | 10.4 / 16.3 | 0 | 17.5 |
 
-The checker's sample on 92e581a7 was 12.0 / 21.4. The fix runs only when the page hides, is
-shown again, or a draft save is confirmed, so no Take path's work changed; the other paths
+The checker's sample on 92e581a7 was 12.0 / 21.4. The fix runs when the page hides, a draft is
+dropped, a draft save starts or is confirmed, and on a visit's first render: none of it before a
+Take's send, so no Take path's work changed; the other paths
 were not measured again.
 
 ### Tests
@@ -472,7 +495,7 @@ were not measured again.
   "Alexandra Riva"); the earlier "typed then taken, then the page reloads at once" stays green,
   as the check said. The tab step cannot isolate its own rule in a browser (the 300 ms idle
   save lands during it and starts a fresh draft); the unit case below does. With the fix the
-  whole file passes 36 of 36 (`--repeat-each 3`) on a95b872, d5c0b63 and 7acd729b. AC-1 was
+  whole file passes 36 of 36 (`--repeat-each 3`) on a95b872, d5c0b63, 7acd729b and 3f403cab. AC-1 was
   measured on a95b872; the later commits change only recovery, the record's contents and a
   confirmed save's bookkeeping, off the press path.
 - `scripts/cue-draft.test.mjs`: P1 to P3 and P5 cases, the history's out save, an earlier save
@@ -481,7 +504,9 @@ were not measured again.
   never writing two; removing the record before its write two; removing any record on a
   confirmation one; the page hide not covering an out save one; a confirmed earlier save not
   listed one; the hide's save not listed one; a pause recording one; applying over the first
-  listed text only one.
+  listed text only one; a save not listed when handed to the history three; `cancel` always
+  removing the record one; `cancel` never removing it one; `cancel` removing it while the page is
+  going one.
 - `scripts/owed-cue-edit.test.mjs` (new): records per production and per account, a store of
   another version never read, written over or cleared, an unreadable record read as none.
 - Specs that hold writes or reload (`save-transaction-holds`, `rundown-history-storage`,
