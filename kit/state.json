@@ -36,18 +36,18 @@
  },
  "waitingOn": [
   {
-   "what": "phase 3 checker verdict",
-   "eta": "2026-11-11T21:30:00Z"
+   "what": "phase 3 repair (data loss on reload after a Take, on main since #2389)",
+   "eta": "2026-11-12T01:00:00Z"
   }
  ],
  "inFlight": [
   {
    "phase": "3",
-   "step": "check",
-   "actor": "checker-3-3-c-448a",
-   "session": "session_017SdbwPRKQgBfYAwbV51Qzv",
-   "mergeSha": "92e581a7 (fix) over c0bc989f (phase)",
-   "launchedAt": "2026-11-11T20:03:44Z"
+   "step": "repair",
+   "actor": "repairer-3-3-r-bd79",
+   "session": "session_017SdbwPBsXDiAbce4iDNNsj",
+   "branch": "claude/plan-live-publishing-3-repair",
+   "launchedAt": "2026-11-11T20:42:25Z"
   }
  ],
  "owner": [
