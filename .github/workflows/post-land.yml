@@ -161,8 +161,8 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: node scripts/growth-report.mjs ages --issue
       # THE WEEKLY GROWTH REPORT'S HEALTH (owner request 2026-11-11). A partial report is re-run,
-      # at most twice and 65 minutes after the try before it so the two never share the token's
-      # hourly API limit; one still partial after that, or a stale or missing report, raises one
+      # at most twice, within a day of its first try, and 65 minutes after the try before it so the
+      # two never share the token's hourly API limit; one still partial after that, or a stale or missing report, raises one
       # owner alarm (scripts/alarm-owner.mjs routing), and a complete one closes it. The capacity
       # line meanwhile judges pull requests on the newest complete report, never refusing for this.
       - name: Weekly growth report health

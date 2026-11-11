@@ -621,9 +621,10 @@ const ghRun = (args) => execFileSync('gh', args, { encoding: 'utf8', windowsHide
 
 export function fetchLatest(out, gh = withRetries(ghRun), restart = null, before = null) {
   // `before` (a re-run): the newest report published before this week's first try, the one that
-  // try carried from. None found is an error, never a first week: it would reset every breach.
+  // try carried from.
+  // The listing includes expired reports, so nothing before it means nothing was ever published
+  // before: a first week, exactly as the first try found it; expired ones fall to the checks below.
   const all = listReports(gh).filter((a) => !before || a.created_at < before);
-  if (before && !all.some((a) => !a.expired)) throw new Error(`no live growth report published before ${before}: the re-run has nothing to carry from`);
   if (all.length === 0) {
     writeFileSync(out, `${JSON.stringify({ none: true })}\n`);
     return null;
@@ -691,14 +692,37 @@ export function gateReport({ gh = withRetries(ghRun), now = new Date().toISOStri
     return { newest: { run: null, generatedAt: null, attempt: null, state: 'missing', readFailed: true, why: `the report listing failed: ${String(e?.message ?? e).split('\n')[0]}` }, judged: null };
   }
   let newest = null;
+  const newer = [];
   for (const a of all.slice(0, candidates)) {
     let report = null;
     try { report = JSON.parse(downloadReport(a, gh)); } catch { /* unreadable: not complete */ }
     const c = classifyReport(report, bounds);
-    newest ??= { run: a.workflow_run.id, generatedAt: report?.generatedAt ?? a.created_at, attempt: report?.attempt ?? 1, firstTryAt: report?.firstTryAt ?? report?.generatedAt ?? null, stops: confirmedStops(report), ...(report ? c : { state: 'missing', readFailed: true, why: `the report of run ${a.workflow_run.id} could not be read` }) };
+    if (reportComplete(report) && newest) newest.stops = standingStops(newer);
+    if (!reportComplete(report)) newer.push(report);
+    newest ??= { run: a.workflow_run.id, generatedAt: report?.generatedAt ?? a.created_at, attempt: report?.attempt ?? 1, firstTryAt: report?.firstTryAt ?? report?.generatedAt ?? null, stops: {}, ...(report ? c : { state: 'missing', readFailed: true, why: `the report of run ${a.workflow_run.id} could not be read` }) };
     if (reportComplete(report)) return { newest, judged: { run: a.workflow_run.id, generatedAt: report.generatedAt, report } };
   }
+  if (newest) newest.stops = standingStops(newer);
   return { newest: newest ?? { run: null, generatedAt: null, attempt: null, state: 'missing', why: 'no live weekly growth report has been published on main' }, judged: null };
+}
+
+/**
+ * The stops standing across the reports newer than the judged complete one, newest first. Each
+ * breach is decided by the newest report that judged it: a stop that report confirmed stands; one
+ * it only kept for lack of evidence is decided by the report before it; one it cleared or no
+ * longer carries is gone. A failed measurement never reopens growth a confirmed stop closed. Pure.
+ */
+export function standingStops(reports) {
+  const live = reports.filter(Boolean);
+  if (live.length === 0) return {};
+  const decided = new Map();
+  for (const r of live) for (const b of r.breaches ?? []) {
+    if (decided.has(b.key) || (r !== live[0] && !decided.has(`?${b.key}`))) continue;
+    const kept = b.kept || /not re-measured this week/.test(b.detail ?? '');
+    if (kept) { decided.set(`?${b.key}`, true); continue; }
+    decided.set(b.key, b.state === 'stopped' ? b : null);
+  }
+  return confirmedStops({ breaches: [...decided.entries()].filter(([k, b]) => !k.startsWith('?') && b).map(([, b]) => b) });
 }
 
 /**
@@ -714,7 +738,7 @@ export function gateFile(out, picked) {
 export const MAX_ATTEMPTS = 3;
 /** A re-run waits this long after the try before it, so the two never share the token's hourly API limit. */
 export const RERUN_GAP_MINUTES = 65;
-/** Re-runs happen the same day: past this, a still-partial report is alarmed, not re-run. */
+/** Re-runs happen within a day of the week's first try: past this, a still-partial report is alarmed, not re-run. */
 export const RERUN_WINDOW_HOURS = 24;
 export const REPORT_ISSUE = 'Growth report not complete';
 
@@ -730,7 +754,8 @@ export function healthAction({ newest, judgedOn = null, now, running = false }) 
   // This check could not read the report: a failure of the check, not a bad report. The next landing reads again.
   if (newest.readFailed) return { kind: 'wait', why: newest.why };
   const waited = (Date.parse(now) - Date.parse(newest.generatedAt)) / 60_000;
-  if (newest.state === 'partial' && (newest.attempt ?? 1) < MAX_ATTEMPTS && waited <= RERUN_WINDOW_HOURS * 60) {
+  const sinceFirst = (Date.parse(now) - Date.parse(newest.firstTryAt ?? newest.generatedAt)) / 60_000;
+  if (newest.state === 'partial' && (newest.attempt ?? 1) < MAX_ATTEMPTS && sinceFirst <= RERUN_WINDOW_HOURS * 60) {
     if (running) return { kind: 'wait', why: 'a re-run is already under way' };
     if (!(waited >= RERUN_GAP_MINUTES)) return { kind: 'wait', why: `the re-run waits ${RERUN_GAP_MINUTES} minutes after try ${newest.attempt ?? 1} for the API limit` };
     return { kind: 'rerun', attempt: (newest.attempt ?? 1) + 1 };
@@ -752,16 +777,19 @@ export function healthAction({ newest, judgedOn = null, now, running = false }) 
 /**
  * Which week a run measures, so it carries from the report before that week (never from the
  * week itself, which would compare the week's timing with itself). A run while the newest report
- * is partial and under six days old is another try of that week: it carries from the report
+ * is partial and its week's first try is under six days old is another try of that week: it carries from the report
  * before that week's first try. A re-run dispatched by `health` says its own try. Otherwise a
  * new week: carry from the newest report. Pure.
  */
 export function weekOf(newest, now, rerunAttempt = null) {
-  const age = (Date.parse(now) - Date.parse(newest?.generatedAt ?? '')) / DAY;
+  // Unread is unknown, never a new week: a new week would carry from this week's own try.
+  if (newest?.readFailed) return { needed: false, failed: true, attempt: rerunAttempt ?? 1, firstTryAt: null };
+  const first = newest?.firstTryAt ?? newest?.generatedAt ?? '';
+  const age = (Date.parse(now) - Date.parse(first)) / DAY;
   const retry = rerunAttempt != null || (newest?.state === 'partial' && age < 6);
   if (!retry) return { needed: true, attempt: 1, firstTryAt: null };
   if (rerunAttempt != null && !rerunStillNeeded(newest, rerunAttempt)) return { needed: false, attempt: rerunAttempt, firstTryAt: null };
-  return { needed: true, attempt: rerunAttempt ?? (newest.attempt ?? 1) + 1, firstTryAt: newest.firstTryAt ?? newest.generatedAt };
+  return { needed: true, attempt: rerunAttempt ?? (newest.attempt ?? 1) + 1, firstTryAt: first };
 }
 
 /** In a re-run (try `attempt`): whether the newest report is still the partial try before it. Pure. */
@@ -828,6 +856,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       const rerun = value('--rerun-attempt') ? Number(value('--rerun-attempt')) : null;
       const week = weekOf(picked.newest, now, rerun);
       console.log(`${rerun ? `re-run try ${rerun}` : 'run'}: ${week.needed ? `try ${week.attempt}${week.firstTryAt ? `, carrying from the report before ${week.firstTryAt}` : ', a new week'}` : 'not needed, the newest report has moved on'}`);
+      if (week.failed) {
+        // No report is published from an unknown week: the run fails, and the report's age alarms the owner.
+        console.log(`::error title=Weekly growth report::the newest report could not be read (${picked.newest.why}), so this run cannot tell which week it measures`);
+        process.exit(1);
+      }
       if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `needed=${week.needed}\nattempt=${week.attempt}\nfirst_try=${week.firstTryAt ?? ''}\n`);
       process.exit(0);
     }

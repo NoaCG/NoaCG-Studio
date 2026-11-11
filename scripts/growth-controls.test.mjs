@@ -15,7 +15,7 @@ import {
   ceilingsRevision, confirmedStops, coverCosts, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, knownCovers, landingDispatched, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   quarantineLines, tableFreshness, tierOfCover, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
-import { AGE_ISSUE, GATE_CANDIDATES, MAX_ATTEMPTS, REPORT_ISSUE, RETRY, ages, buildReport, carriedDues, carriedStarts, classifyReport, fetchLatest, findIssue, finishedPrs, gateFile, gateReport, healthAction, weekOf, listRuns, makeReader, phaseIssueTitle, priceRuns, readJobs, reportAlarm, rerunStillNeeded, sampleJobs, seriesOf, spread, transient } from './growth-report.mjs';
+import { AGE_ISSUE, GATE_CANDIDATES, MAX_ATTEMPTS, REPORT_ISSUE, RETRY, ages, buildReport, carriedDues, carriedStarts, classifyReport, fetchLatest, findIssue, finishedPrs, gateFile, gateReport, healthAction, standingStops, weekOf, listRuns, makeReader, phaseIssueTitle, priceRuns, readJobs, reportAlarm, rerunStillNeeded, sampleJobs, seriesOf, spread, transient } from './growth-report.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -1815,7 +1815,13 @@ test('a re-run carries from the report before the first try, never from the try 
   const out = path.join(dir, 'prev.json');
   assert.equal(fetchLatest(out, gh, null, '2026-11-09T06:10:00Z').run, 10, 'last week, for try 2 and try 3 alike');
   assert.equal(fetchLatest(out, gh).run, 12, 'without --before: the newest, as the weekly run uses');
-  assert.throws(() => fetchLatest(out, gh, null, '2026-11-01T00:00:00Z'), /nothing to carry from/, 'never a first week by accident');
+  // Nothing at all published before the first try (the listing includes expired reports): a first
+  // week, exactly as the first try found it, so its re-run can run (Codex review).
+  assert.equal(fetchLatest(out, gh, null, '2026-11-01T00:00:00Z'), null);
+  assert.deepEqual(JSON.parse(readFileSync(out, 'utf8')), { none: true });
+  // Only expired reports before it: not a first week, refused as before.
+  const gone = reportsGh([artifactOf(9, '2026-09-01T00:00:00Z', { expired: true }), ...arts], {});
+  assert.throws(() => fetchLatest(out, gone, null, '2026-11-01T00:00:00Z'), /expired/);
   // Each try records the first try's time, which gateReport hands the re-run.
   const picked = gateReport({ gh, now: '2026-11-09T10:00:00Z', ceilings: GATE_CEILINGS });
   assert.equal(picked.newest.firstTryAt, '2026-11-09T06:10:00Z');
@@ -1839,4 +1845,33 @@ test('a run by hand while the newest report is partial is another try of that we
   assert.deepEqual(weekOf({ ...partial, state: 'complete' }, '2026-11-10T09:00:00Z'), { needed: true, attempt: 1, firstTryAt: null });
   assert.deepEqual(weekOf(partial, '2026-11-16T06:10:00Z'), { needed: true, attempt: 1, firstTryAt: null });
   assert.deepEqual(weekOf({ state: 'missing', run: null, generatedAt: null }, '2026-11-16T06:10:00Z'), { needed: true, attempt: 1, firstTryAt: null });
+  // An unread newest report is unknown, never a new week (it would carry from this week's own try).
+  for (const rerun of [null, 2]) assert.deepEqual(weekOf({ state: 'missing', readFailed: true, why: 'HTTP 502' }, '2026-11-10T09:00:00Z', rerun).failed, true);
+  // The week counts from its first try: a late third try never makes next Monday's run a fourth.
+  const late = { ...partial, attempt: 3, generatedAt: '2026-11-11T05:00:00Z' };
+  assert.deepEqual(weekOf(late, '2026-11-16T06:10:00Z'), { needed: true, attempt: 1, firstTryAt: null });
+});
+
+test('re-runs stay within a day of the week\'s first try', () => {
+  const second = { run: 12, state: 'partial', attempt: 2, generatedAt: '2026-11-10T05:00:00Z', firstTryAt: '2026-11-09T06:10:00Z', why: 'x' };
+  assert.equal(healthAction({ newest: second, now: '2026-11-10T06:30:00Z' }).kind, 'alarm', '24 h after the first try, even if the second try was recent');
+  assert.deepEqual(healthAction({ newest: { ...second, generatedAt: '2026-11-09T08:00:00Z' }, now: '2026-11-09T09:10:00Z' }), { kind: 'rerun', attempt: 3 });
+});
+
+test('a confirmed stop stands across later tries that could only keep it (Codex review)', () => {
+  const stopped = (key, extra = {}) => ({ key, state: 'stopped', since: '2026-11-02', due: '2026-11-09', detail: 'x', ...extra });
+  const keptOf = (b) => ({ ...b, kept: true, detail: `${b.detail} (not re-measured this week: kept until evidence clears it)` });
+  const try1 = { breaches: [stopped('cost:backend')] };
+  const try2 = { breaches: [keptOf(stopped('cost:backend'))] };
+  assert.deepEqual(Object.keys(standingStops([try2, try1])), ['backend'], 'try 2 kept it, try 1 confirmed it');
+  assert.deepEqual(standingStops([try2]), {}, 'kept with nothing older that confirmed it');
+  assert.deepEqual(standingStops([{ breaches: [] }, try1]), {}, 'a newer report that no longer carries it cleared it');
+  assert.deepEqual(standingStops([{ breaches: [{ ...stopped('cost:backend'), state: 'correcting' }] }, try1]), {}, 'the newest judgement wins');
+  // Through gateReport: two partial tries, then the complete report the gate judges on.
+  const p1 = { ...realReport(42647874522) };
+  const p2 = { ...p1, breaches: p1.breaches.map((b) => (b.key === 'cost:backend' ? keptOf(b) : b)) };
+  const arts = [artifactOf(13, '2026-11-09T18:00:00Z'), artifactOf(12, '2026-11-09T16:00:00Z'), artifactOf(2, '2026-11-03T19:41:07Z')];
+  const picked = gateReport({ gh: reportsGh(arts, { 13: p2, 12: p1, 2: realReport(41704224273) }), now: '2026-11-10T12:00:00Z', ceilings: GATE_CEILINGS });
+  assert.equal(picked.judged.run, 2);
+  assert.deepEqual(Object.keys(picked.newest.stops), ['backend']);
 });
