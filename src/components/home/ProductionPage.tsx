@@ -290,17 +290,35 @@ const DRAFT_ADAPTERS: CueDraftAdapters = {
   // A control whose press sends before it saves (live-publishing W1) is marked `data-sends-first`.
   // Captured on the window, so the draft hears it before the focus moves and before any handler.
   onSendsFirstPress: (run) => {
-    const down = (e: PointerEvent) => run(e.target instanceof Element && e.target.closest('[data-sends-first]') !== null);
-    const up = () => run(false);
+    // A mouse press moves the focus while its button is down. A touch or pen press moves it after
+    // the pointer is up, with the click the tap makes, so it ends at that click (or 1 s on, if the
+    // tap makes none).
+    let late: ReturnType<typeof setTimeout> | undefined;
+    const end = () => {
+      clearTimeout(late);
+      run(false);
+    };
+    const down = (e: PointerEvent) => {
+      clearTimeout(late);
+      run(e.target instanceof Element && e.target.closest('[data-sends-first]') !== null);
+    };
+    const up = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse') return end();
+      clearTimeout(late);
+      late = setTimeout(end, 1000);
+    };
     window.addEventListener('pointerdown', down, true);
     window.addEventListener('pointerup', up, true);
-    window.addEventListener('pointercancel', up, true);
-    window.addEventListener('blur', up);
+    window.addEventListener('pointercancel', end, true);
+    window.addEventListener('click', end, true);
+    window.addEventListener('blur', end);
     return () => {
+      clearTimeout(late);
       window.removeEventListener('pointerdown', down, true);
       window.removeEventListener('pointerup', up, true);
-      window.removeEventListener('pointercancel', up, true);
-      window.removeEventListener('blur', up);
+      window.removeEventListener('pointercancel', end, true);
+      window.removeEventListener('click', end, true);
+      window.removeEventListener('blur', end);
     };
   },
 };

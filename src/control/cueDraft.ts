@@ -93,8 +93,9 @@ export interface CueDraftAdapters {
   onPageHide: (run: () => void) => () => void;
   /** The account asks every surface to save what it holds. */
   onFlushAsked: (run: () => void) => () => void;
-  /** A pointer goes down (`true`, on a control whose press sends first; `false` on any other) or
-   *  comes up, is cancelled or leaves with the window (`false`), told before the press's handlers. */
+  /** A pointer goes down (`true`, on a control whose press sends first; `false` on any other), or
+   *  the press ends (`false`): told before the press's handlers, and never before the press has
+   *  moved the focus. */
   onSendsFirstPress: (run: (down: boolean) => void) => () => void;
 }
 
@@ -245,6 +246,9 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     part,
     edit: (cue, patch) => {
       if (!session.alive() || !io.canWrite()) return;
+      // Typing again after the press: the held save (and its history group's close) goes first, so
+      // the new typing is its own undo step.
+      if (held && !pressing) runHeld(true);
       // An edit to another cue never drops one still owed: that one's save starts first, in its
       // own history group.
       if (part.get()?.cueId !== cue.id && pending) void flush();

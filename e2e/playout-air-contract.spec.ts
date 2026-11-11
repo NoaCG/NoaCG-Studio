@@ -241,6 +241,32 @@ test('typed then taken at once: the typed value airs while its save is still lan
   expect(await plays(page), 'one entrance').toBe(before + 1);
 });
 
+test.describe('on a touch screen', () => {
+  test.use({ hasTouch: true });
+  test('typed then tapped Take: the Take runs before the save there too', async ({ page }) => {
+    // #2388 on touch: a tap moves the focus after its pointer is up, with the click it makes, so
+    // the press must not count as over at the pointer's release.
+    await installWriteHold(page);
+    await production(page, 'Type then tap');
+    await cue(page, 'Hairline').getByTestId('select-cue').click();
+    await evaluateInPage(page, async () => {
+      const m = await import('/src/model/shows.ts');
+      const w = window as unknown as { __storedAtClick?: boolean[] };
+      w.__storedAtClick = [];
+      window.addEventListener('click', (e) => {
+        if ((e.target as Element).closest?.('[data-testid="verb-take"]')) w.__storedAtClick!.push(JSON.stringify(m.loadShows()).includes('Typed then tapped'));
+      }, true);
+    });
+    await holdWrites(page, true);
+    await page.getByTestId('cue-field-f0').fill('Typed then tapped');
+    await page.getByTestId('verb-take').tap();
+    await onProgram(page, '#f0', 'Typed then tapped');
+    expect(await page.evaluate(() => (window as unknown as { __storedAtClick: boolean[] }).__storedAtClick), 'the Take ran before the save').toEqual([false]);
+    await holdWrites(page, false);
+    await expect(page.getByTestId('cue-unsent')).toBeEmpty();
+  });
+});
+
 test('typed then taken, then the page reloads at once: the edit is kept', async ({ page }) => {
   // #2388: the blur's save waits for the Take, so the edit is still owed when the page goes; the
   // page going saves it at once.

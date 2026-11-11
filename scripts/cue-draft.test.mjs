@@ -487,3 +487,18 @@ test('an edit to another cue while one is owed saves the owed one first, in its 
   assert.deepEqual(writesAtGroup, [['c2:note', 1]], 'the save starts before the next group opens');
   assert.equal(h.session.draft.get().cueId, 'c2');
 });
+
+test('typing again after the press runs the held save first, so the new typing is its own undo step', () => {
+  const h = harness();
+  h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: 'Before' } });
+  const order = [];
+  h.press(true);
+  h.draft.blurred(() => order.push(`save ${h.draft.view(OPENER).values.f0}`));
+  h.press(false);
+  h.groups.push = (group) => { order.push(`group ${group}`); return Array.prototype.push.call(h.groups, group); };
+  h.draft.edit(OPENER, { values: { f0: 'After' } });
+  assert.deepEqual(order, ['save Before', 'group c1:f0']);
+  runTimers(h, FLUSH_DELAY_MS);
+  assert.equal(order.length, 2, 'the held save does not run again');
+});
