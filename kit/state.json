@@ -42,7 +42,15 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {},
-  "inFlight": [],
+  "inFlight": [
+    {
+      "note": "V3 accepted. Windows was above the 4 GiB floor, live allocations clear, and a fresh V4 builder was accepted from current main in an isolated worktree.",
+      "head": "e9b0c550082c540c925e2cce25ffdee093d2d7b3",
+      "step": "build",
+      "phase": "v4",
+      "session": "/root/v4_builder"
+    }
+  ],
   "owner": [],
   "fixes": [],
   "triggers": []
