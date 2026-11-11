@@ -44,13 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "note": "Draft PR open. Exact candidate and static verification clean. Required queued local Chromium j-5228 waits for the shared memory floor. Normal PR CI and fresh review remain required before the merge queue.",
-      "session": "/root/v4_builder",
-      "phase": "v4",
-      "step": "build",
-      "head": "2e3b09dbd91d709ff8f20fd2172f6b6eb038659c",
       "pr": 2378,
-      "repairComment": 6792695771
+      "note": "Grouped review corrections pushed on the same draft. Exact CI 43001418378, fresh review and shared local browser j-5231 remain due; no landing until they pass.",
+      "head": "389306ae14a3abb2ef8d7c848e3d9364c97056f0",
+      "step": "build",
+      "session": "/root/v4_builder",
+      "phase": "v4"
     }
   ],
   "owner": [],
