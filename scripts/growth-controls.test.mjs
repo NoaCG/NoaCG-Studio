@@ -1739,6 +1739,9 @@ test('a partial report is re-run at most twice, 65 minutes apart, then the owner
   assert.equal(alarm.kind, 'alarm');
   assert.match(alarm.body, /partial\*\* after 3 tries: configured-suite\.yml\|push: 1 read\(s\) failed/);
   assert.match(alarm.body, /run 41704224273 \(2026-11-03\)/);
+  // Same day only: a partial report a day old with tries left is alarmed, not re-run.
+  assert.equal(healthAction({ newest: partial(1), now: later(24 * 60 + 1) }).kind, 'alarm');
+  assert.match(healthAction({ newest: partial(1), now: later(24 * 60 + 1) }).body, /after 1 try:/);
   for (const state of ['stale', 'missing']) assert.equal(healthAction({ newest: { run: 5, state, why: 'x', generatedAt: at }, now: later(1) }).kind, 'alarm', state);
   assert.equal(healthAction({ newest: { run: 5, state: 'missing', readFailed: true, why: 'listing failed' }, now: later(1) }).kind, 'wait', 'a failed read of this check is not a bad report');
   assert.deepEqual(healthAction({ newest: { run: 5, state: 'complete' }, now: later(1) }), { kind: 'close' });

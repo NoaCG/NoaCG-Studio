@@ -26,7 +26,7 @@
 // Breaches carry over from `--previous`, and only complete evidence clears one.
 //
 // The report is a step summary and a JSON artifact (`growth-report`); the capacity line in
-// ci.yml fetches the newest one, so its stops and its measurement reach every pull request.
+// ci.yml fetches the newest complete one, so its stops and its measurement reach every pull request.
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
@@ -702,26 +702,29 @@ export function gateFile(out, picked) {
 export const MAX_ATTEMPTS = 3;
 /** A re-run waits this long after the try before it, so the two never share the token's hourly API limit. */
 export const RERUN_GAP_MINUTES = 65;
+/** Re-runs happen the same day: past this, a still-partial report is alarmed, not re-run. */
+export const RERUN_WINDOW_HOURS = 24;
 export const REPORT_ISSUE = 'Growth report not complete';
 
 /**
  * What to do about the newest report, run after every landing. Pure.
  * - complete: close the alarm.
- * - partial with tries left: re-run it (once the gap has passed and no run is under way); no alarm yet.
+ * - partial with tries left, within a day of it: re-run it (once the gap has passed and no run is
+ *   under way); no alarm yet.
  * - partial with no tries left, stale or missing: one alarm for that report.
  */
 export function healthAction({ newest, judgedOn = null, now, running = false }) {
   if (newest.state === 'complete') return { kind: 'close' };
   // This check could not read the report: a failure of the check, not a bad report. The next landing reads again.
   if (newest.readFailed) return { kind: 'wait', why: newest.why };
-  if (newest.state === 'partial' && (newest.attempt ?? 1) < MAX_ATTEMPTS) {
-    const waited = (Date.parse(now) - Date.parse(newest.generatedAt)) / 60_000;
+  const waited = (Date.parse(now) - Date.parse(newest.generatedAt)) / 60_000;
+  if (newest.state === 'partial' && (newest.attempt ?? 1) < MAX_ATTEMPTS && waited <= RERUN_WINDOW_HOURS * 60) {
     if (running) return { kind: 'wait', why: 'a re-run is already under way' };
     if (!(waited >= RERUN_GAP_MINUTES)) return { kind: 'wait', why: `the re-run waits ${RERUN_GAP_MINUTES} minutes after try ${newest.attempt ?? 1} for the API limit` };
     return { kind: 'rerun', attempt: (newest.attempt ?? 1) + 1 };
   }
   const key = `<!-- growth-report: ${newest.run ?? 'none'} ${newest.state} -->`;
-  const tries = newest.state === 'partial' ? ` after ${newest.attempt ?? 1} tries` : '';
+  const tries = newest.state === 'partial' ? ` after ${newest.attempt ?? 1} ${(newest.attempt ?? 1) === 1 ? 'try' : 'tries'}` : '';
   const judged = judgedOn ? `The capacity line judges pull requests against the newest complete report, run ${judgedOn.run} (${String(judgedOn.generatedAt).slice(0, 10)}), at its normal line; no pull request is refused because of this report.` : 'No complete report exists, so the capacity line judges pull requests against the frozen measurement in scripts/growth-ceilings.json at its normal line, each on its own cost; no pull request is refused because of this.';
   const body = [
     key,
