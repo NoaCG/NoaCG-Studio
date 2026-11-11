@@ -457,6 +457,42 @@ test('repeated styled Stop retains its exit when it interrupts a loop, and Play 
   near(g.box.x, 20, 'replay returns to the opening loop sample');
 });
 
+test('public one-cue re-entry restarts its loop and the shared event still reaches the parallel group', () => {
+  const data = authoredMachine(authored());
+  data.steps.length = 1;
+  const [main] = data.machine.groups;
+  main.defaultPath = ['in'];
+  main.states = main.states.filter(state => state.id === 'off' || state.id === 'in');
+  main.transitions = [{ from: 'in', to: 'in', trigger: 'operator', event: 'pulse' }];
+  assert.deepEqual(machine.validateMachine(data).errors, []);
+  const g = graphic(data, true);
+  g.w.play();
+  const first = g.w.noacgGroupTl.main;
+  sample(first, .35);
+  near(g.box.x, 60, 'first public Play');
+  g.w.noacgDispatch('pulse');
+  const again = g.w.noacgGroupTl.main, accent = g.w.noacgGroupTl.accent;
+  assert.notStrictEqual(again, first);
+  assert.equal(g.w.noacgMachineState().groups.main, 'in');
+  assert.equal(g.w.noacgMachineState().groups.accent, 'pulse');
+  assert.equal(g.w.noacgOutActive(), false);
+  near(g.box.x, 20, 'self-edge starts the new loop at its opening value');
+  sample(again, .35);
+  near(g.box.x, 60, 're-entered main loop advances');
+  sample(first, 1.35);
+  near(g.box.x, 60, 'the retired entry cannot repaint');
+  sample(accent, .45);
+  near(g.score.x, 45, 'the same event starts the accent loop');
+  g.w.stop();
+  assert.equal(g.w.noacgMachineState().groups.main, 'off');
+  assert.equal(g.w.noacgMachineState().groups.accent, 'off');
+  g.w.noacgOutTimeline.progress(1, true);
+  near(g.stage.opacity, 0, 'public Stop hides the one-cue graphic');
+  g.w.play();
+  sample(g.w.noacgGroupTl.main, .35);
+  near(g.box.x, 60, 'Play after real Stop still restarts');
+});
+
 test('the public Stop keeps a styled Out advancing and Play retires it', () => {
   const data = authoredMachine(authored());
   const stop = { from: 'reveal', to: 'out', trigger: 'lifecycle', event: 'stop', style: 'fade', duration: .6, ease: 'none' };

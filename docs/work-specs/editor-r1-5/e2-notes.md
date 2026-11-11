@@ -346,3 +346,30 @@ known E2 interpreter for a valid one-cue machine. Its real-time and
 offline wrappers keep one running entry and start the 700 ms hold at
 the finite boundary. Legacy and unreadable duration fallbacks and the
 manifest stay as authored.
+
+The full review of `0c9a1d6fe9694030c8c99e4299c37c5abcfe0a44` graded it B
+with two further boundary cases. Exact ZIPs showed that the first timed
+OGraf repair used the stored cue clock even when Play chose another
+timeline. With a 1.30-second styled Play and a stored loop reaching 2.10,
+both OGraf routes waited 2.80 seconds. E1 and the overlay waited 2.00.
+With a measured 3.20-second entrance, OGraf again waited 2.80 while E1
+and the overlay waited 3.90. The second timed export repair reads the
+active finite end after Play in both modes and avoids rebuilding a known
+E2 entry. The deterministic styled timed Play manifest reports 2.50
+seconds including Hold and Out, as in the matched E1 control.
+
+The second shared-dispatch ownership repair distinguishes a real last
+Out after In from an explicit machine's only In waypoint. On the
+pre-repair E2 source, a shared self-entry event left both groups off
+and the main artwork stayed at x = 20. With a distinct Out control,
+both groups entered and advanced from x = 20 to x = 85. The E1 one-cue
+control mislabelled the main pointer but kept both writers moving. The
+new public oracle checks main and parallel re-entry, the retired old
+writer, real Out and built-in Stop followed by replay.
+
+Windows j-5218 passed 65 cases and retained two new browser failures.
+The focused diagnostics j-5220 and j-5221 isolated the styled timeline
+identity and the non-real-time load. j-5222 reached public offline seek
+after isolating browser clocks, then exposed a stale canvas in the test
+read. The maintained browser checks now sample a running public clock
+and read the current offline frame after each seek.

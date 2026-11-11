@@ -203,6 +203,7 @@ async function loadExport(output: Page, artifact: Awaited<ReturnType<typeof buil
   const files = artifact.files!;
   await output.route('http://loop-package.local/**', route => {
     const path = new URL(route.request().url()).pathname.slice(1);
+    if (path === '') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Loop package</title>' });
     const body = files[path];
     return route.fulfill({ status: body == null ? 404 : 200, body: body == null ? '' : Buffer.from(body, 'base64'),
       contentType: /\.(m?js)$/.test(path) ? 'application/javascript' : path.endsWith('.css') ? 'text/css' : 'text/html' });
@@ -399,7 +400,7 @@ export async function playTimedLoopOverlay(page: Page) {
     await output.clock.runFor(850);
     await expect(root).toHaveCSS('opacity', '0');
   } finally { await output.close(); }
-  await verifyTimedOneCueOgraf(page);
+  await verifyTimedOgraf(page);
 }
 
 async function verifyLoopCompositionEdits(page: Page) {
@@ -479,103 +480,137 @@ async function verifyPublicStyledOut(page: Page) {
         event: authored ? 'leave' : 'stop', style, duration: .6, ease: 'none' }],
     }] };
     const input = await template(page, data);
-    const probe = { ...input, js: `${input.js}
-function countStyleSwap() { var root = document.querySelector(".loop-fixture"); root.dataset.styleSwaps = String((Number(root.dataset.styleSwaps) || 0) + 1); }
-` };
-    const output = await page.context().newPage();
+    const probe = { ...input, js: input.js +
+      '\nfunction countStyleSwap() { var root = document.querySelector(".loop-fixture"); root.dataset.styleSwaps = String((Number(root.dataset.styleSwaps) || 0) + 1); }\n' };
+    const context = await page.context().browser()!.newContext();
     try {
+      const output = await context.newPage();
+      await output.clock.install();
       await loadExport(output, await built(page, probe, target), target);
-      const result = await output.evaluate(async ({ target, authored }) => {
+      await output.clock.pauseAt(await output.evaluate(() => Date.now() + 100));
+      await output.evaluate(({ target, authored }) => {
         type Styled = Timeline & { call(fn: () => void, params: null, at: number): void; progress(value: number, suppress: boolean): void };
-        const w = window as unknown as { play(): void; stop(): void; noacgDispatch(event: string): void;
-          gsap: { getProperty(element: Element, prop: string): number; globalTimeline: { getChildren(n: boolean, tw: boolean, tl: boolean): Styled[] } } };
-        const el = document.querySelector('loop-graphic') as HTMLElement & { playAction(p: unknown): Promise<unknown>; stopAction(p: unknown): Promise<unknown> };
+        const w = window as unknown as {
+          play(): void; stop(): void; noacgDispatch(event: string): Styled; noacgStyledOut: Styled | null;
+          gsap: { getProperty(element: Element, prop: string): number;
+            globalTimeline: { getChildren(n: boolean, tw: boolean, tl: boolean): Styled[] } };
+          styledOutProbe: (operation: 'play' | 'stop' | 'repeat' | 'sample' | 'settle') => Promise<unknown>;
+        };
+        type Status = { statusCode: number; statusMessage?: string };
+        const el = document.querySelector('loop-graphic') as HTMLElement & { playAction(p: object): Promise<Status>; stopAction(p: object): Promise<Status> };
         const body = target === 'ograf' ? graphicBody(el) : document;
         const root = body.querySelector('.loop-fixture')!, box = body.querySelector('#box')!;
-        const timelines = () => w.gsap.globalTimeline.getChildren(false, false, true);
-        const exit = () => timelines().findLast(tl => Math.abs(tl.duration() - .6) < .001)!;
+        const exit = () => target === 'spx' ? w.noacgStyledOut
+          : w.gsap.globalTimeline.getChildren(false, false, true).findLast(tl => Math.abs(tl.duration() - .6) < .001);
         const command = async (name: 'play' | 'stop') => {
-          if (target === 'ograf') {
-            if (name === 'stop') await el.stopAction({});
-            else await el.playAction({});
-          } else w[name]();
+          if (target === 'spx') { w[name](); return; }
+          const result = name === 'stop' ? await el.stopAction({}) : await el.playAction({});
+          if (result.statusCode !== 200) throw new Error(result.statusMessage || 'OGraf action failed');
         };
-        const take = (tl: Timeline, time: number, suppress = false) => tl.pause().time(time, suppress);
-        const round = (n: number) => Math.round(n * 1000) / 1000;
+        let active: Styled | null | undefined;
         const snapshot = () => {
           const css = getComputedStyle(root);
           const clip = [...css.clipPath.matchAll(/(-?[\d.]+)(?:%|px)/g)].map(match => Number(match[1]));
-          return [Number(css.opacity), Number(w.gsap.getProperty(root, 'xPercent')), clip[1] ?? 0, clip[3] ?? clip[1] ?? 0].map(round);
+          return { x: Number(w.gsap.getProperty(box, 'x')), time: active?.time() ?? 0,
+            pose: [Number(css.opacity), Number(w.gsap.getProperty(root, 'xPercent')), clip[1] ?? 0, clip[3] ?? clip[1] ?? 0] };
         };
         const swaps = () => Number(root.getAttribute('data-style-swaps') ?? 0);
-        const play = async () => {
-          await command('play');
-          const entry = timelines().findLast(tl => tl.__noacgLoops?.length)!;
-          take(entry, .35, true);
-          return Number(w.gsap.getProperty(box, 'x'));
-        };
-        const begin = async () => {
-          if (authored) w.noacgDispatch('leave');
-          else await command('stop');
-          return exit();
-        };
-        const run = async (repeat: boolean) => {
-          const live = await play(), out = await begin(), released = Number(w.gsap.getProperty(box, 'x'));
-          const samples = [], same = [], continuous = [];
-          for (const at of [.1, .2, .3, .4, .5, .6]) {
-            take(out, at);
-            samples.push(snapshot());
-            if (repeat && (at === .1 || at === .4)) {
-              await command('stop');
-              same.push(exit() === out);
-              continuous.push(snapshot());
-            }
+        w.styledOutProbe = async operation => {
+          if (operation === 'play') { await command('play'); active = null; }
+          if (operation === 'stop') {
+            if (authored) active = w.noacgDispatch('leave');
+            else { await command('stop'); active = exit(); }
+            if (!active) throw new Error('Public Stop did not start a styled exit');
+            return { ...snapshot(), duration: active.duration() };
           }
-          return { live, released, samples, same, continuous, duration: out.duration() };
+          if (operation === 'repeat') {
+            const before = snapshot();
+            await command('stop');
+            return { before, after: snapshot(), same: exit() === active };
+          }
+          if (operation === 'settle') {
+            let callbacks = 0;
+            active!.call(() => { callbacks++; }, null, .15);
+            const before = swaps();
+            active!.progress(1, true);
+            active!.progress(1, true);
+            return { callbacks, swaps: swaps() - before, opacity: snapshot().pose[0] };
+          }
+          return snapshot();
         };
-        const control = await run(false), repeated = await run(true), replay = await play();
-        const settling = await begin();
-        let callbacks = 0;
-        settling.call(() => { callbacks++; }, null, .15);
-        const priorSwaps = swaps();
-        settling.progress(1, true);
-        settling.progress(1, true);
-        return { control, repeated, replay, callbacks, settleOpacity: snapshot()[0], swaps: swaps() - priorSwaps };
       }, { target, authored });
-      const channel = style === 'fade' ? 0 : style === 'push-left' ? 1 : 2;
+
+      type Sample = { x: number; time: number; pose: number[] };
+      type Operation = 'play' | 'stop' | 'repeat' | 'sample' | 'settle';
+      const observe = <T>(operation: Operation) => output.evaluate(async operation =>
+        (window as unknown as { styledOutProbe(operation: Operation): Promise<T> }).styledOutProbe(operation), operation);
       const label = target + ' ' + style;
-      const leaving = style === 'fade' ? [.667, .333] : style === 'push-left' ? [-40, -80] : [33.333, 66.667];
-      expect(result.control.samples.slice(0, 2).map(sample => sample[channel]), label).toEqual(leaving);
-      const arriving = style === 'fade' ? [0, 0] : style === 'push-left' ? [80, 40] : [66.667, 33.333];
-      expect(result.control.samples.slice(3, 5).map(sample => sample[style === 'wipe-left' ? 3 : channel]), label).toEqual(arriving);
-      expect(result.control.samples[5], label).toEqual([0, 0, 0, 0]);
-      expect(result.control.live, label).toBe(60);
-      expect(result.repeated.released, label).toBe(60);
-      expect(result.repeated.same, label).toEqual([true, true]);
-      expect(result.repeated.duration, label).toBeCloseTo(.6, 6);
-      expect(result.repeated.samples, label).toEqual(result.control.samples);
-      expect(result.repeated.continuous, label).toEqual([result.control.samples[0], result.control.samples[3]]);
-      expect(result.replay, label).toBe(60);
-      expect(result.callbacks, label).toBe(0);
-      expect(result.settleOpacity, label).toBe(0);
-      expect(result.swaps, label).toBe(1);
-    } finally { await output.close(); }
+      const play = async () => {
+        await observe('play');
+        await output.clock.runFor(352);
+        const sample = await observe<Sample>('sample');
+        expect(Math.abs(sample.x - 60), label).toBeLessThan(4);
+        return sample;
+      };
+      for (const repeated of [false, true]) {
+        const live = await play();
+        const out = await observe<Sample & { duration: number }>('stop');
+        expect(out.x, label).toBe(live.x);
+        expect(out.time, label).toBeCloseTo(0, 6);
+        expect(out.duration, label).toBeCloseTo(.6, 6);
+        let elapsed = 0;
+        for (const at of [96, 192, 400, 496]) {
+          await output.clock.runFor(at - elapsed);
+          elapsed = at;
+          const sample = await observe<Sample>('sample');
+          expect(Math.abs(sample.time - at / 1000), label).toBeLessThan(.025);
+          const leaving = sample.time < .3;
+          const rest = leaving ? 1 - sample.time / .3 : (.6 - sample.time) / .3;
+          if (style === 'fade') expect(sample.pose[0], label).toBeCloseTo(leaving ? rest : 0, 4);
+          else if (style === 'push-left') expect(sample.pose[1], label).toBeCloseTo(leaving ? -120 * (1 - rest) : 120 * rest, 2);
+          else expect(sample.pose[leaving ? 2 : 3], label).toBeCloseTo(100 * (leaving ? 1 - rest : rest), 2);
+          if (repeated && (at === 96 || at === 400)) {
+            const result = await observe<{ before: Sample; after: Sample; same: boolean }>('repeat');
+            expect(result.same, label).toBe(true);
+            expect(result.after, label).toEqual(result.before);
+          }
+        }
+        await output.clock.runFor(640 - elapsed);
+        expect((await observe<Sample>('sample')).pose, label).toEqual([0, 0, 0, 0]);
+      }
+      await play();
+      await observe('stop');
+      expect(await observe('settle'), label).toEqual({ callbacks: 0, swaps: 1, opacity: 0 });
+    } finally { await context.close(); }
   }
 }
 
-async function verifyTimedOneCueOgraf(page: Page) {
-  for (const [repeat, wait] of [[-1, 2000], [1, 2800]] as const) {
-    const data = fixture();
-    data.steps.length = 1;
+async function verifyTimedOgraf(page: Page) {
+  for (const [kind, repeat, wait] of [
+    ['forever', -1, 2000], ['finite', 1, 2800], ['styled', 1, 2000], ['measured', 1, 3900],
+  ] as const) {
+    const data = fixture(), styled = kind === 'styled', measured = kind === 'measured';
+    data.steps = styled ? [data.steps[0], data.steps[2]] : [data.steps[0]];
     data.steps[0].loops = { '#box': { x: { ...loop, repeat } } };
+    if (measured) data.steps[0].dynamics = [{ time: 0, build: 'measureLoopEntrance' }];
     data.machine = { groups: [{
-      id: 'main', initial: 'off', defaultPath: ['in'], states: [{ id: 'off' }, { id: 'in' }],
-      transitions: [{ from: 'in', to: 'off', trigger: 'operator', event: 'quiet' }],
+      id: 'main', initial: 'off', defaultPath: styled ? ['in', 'out'] : ['in'],
+      states: (styled ? ['off', 'in', 'out'] : ['off', 'in']).map(id => ({ id })),
+      transitions: styled ? [{ from: 'off', to: 'in', trigger: 'lifecycle', event: 'play', style: 'fade', duration: 1.3, ease: 'none' }]
+        : [{ from: 'in', to: 'off', trigger: 'operator', event: 'quiet' }],
     }] };
     const input = await template(page, data, box, '700');
+    if (measured) input.js += '\nfunction measureLoopEntrance() { var tl = gsap.timeline(); tl.to("#score", { y: 320, duration: 3.2, ease: "none" }); return tl; }';
     const artifact = await built(page, input, 'ograf', 'both');
+    if (styled) {
+      const [, encoded] = Object.entries(artifact.files!).find(([name]) => name.endsWith('.ograf.json'))!;
+      const manifest = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
+      expect(manifest.actionDurations.find((entry: { type: string }) => entry.type === 'playAction').duration).toBe(2500);
+    }
     for (const mode of ['realtime', 'non-realtime'] as const) {
-      const output = await page.context().newPage();
+      // Playwright pauses the entire browser context's clock, including its other frames.
+      const context = await page.context().browser()!.newContext();
+      const output = await context.newPage();
       try {
         if (mode === 'realtime') await output.clock.install();
         await loadExport(output, artifact, 'ograf', mode);
@@ -605,7 +640,7 @@ async function verifyTimedOneCueOgraf(page: Page) {
             if (mode === 'non-realtime') {
               const result = await el.goToTime({ timestamp: at });
               if (result.statusCode !== 200) throw new Error('OGraf could not render timed Play: ' + result.statusCode);
-              const frame = body.querySelector('iframe')!;
+              const frame = graphicBody(el).querySelector('iframe')!;
               view = frame.contentWindow!;
               body = frame.contentDocument!;
             }
@@ -617,16 +652,20 @@ async function verifyTimedOneCueOgraf(page: Page) {
             };
           }, { mode, at }));
         }
-        const label = mode + ' repeat ' + repeat;
-        expect(samples[0].x, label).toBeGreaterThan(54);
-        expect(samples[0].x, label).toBeLessThan(66);
-        expect(samples[1].x, label).toBeGreaterThan(79);
-        expect(samples[1].x, label).toBeLessThan(91);
+        const label = mode + ' ' + kind;
+        if (styled) expect(samples[2].x, label).toBe(20);
+        else {
+          expect(samples[0].x, label).toBeGreaterThan(54);
+          expect(samples[0].x, label).toBeLessThan(66);
+          expect(samples[1].x, label).toBeGreaterThan(79);
+          expect(samples[1].x, label).toBeLessThan(91);
+          expect(samples.slice(0, 5).map(sample => sample.opacity), label).toEqual([1, 1, 1, 1, 1]);
+        }
         if (repeat === -1) expect(samples[2].x - samples[3].x, label).toBeGreaterThan(20);
-        expect(samples.slice(0, 5).map(sample => sample.opacity), label).toEqual([1, 1, 1, 1, 1]);
+        expect(samples[4].opacity, label).toBe(1);
         expect([samples[4].step, samples[5].step], label).toEqual([0, -1]);
         expect(samples.at(-1)!.opacity, label).toBe(0);
-      } finally { await output.close(); }
+      } finally { await context.close(); }
     }
   }
 }

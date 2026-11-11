@@ -151,6 +151,10 @@ function noacgRetireLoops(tl) {
   tl.__noacgLoops.forEach(function (loop) { loop.animation.kill(); });
   tl.__noacgLoops = [];
 }
+function noacgIsMainOut(group, stateId) {
+  var path = group.defaultPath || [];
+  return group === noacgMachine.groups[0] && path.length > 1 && stateId === path[path.length - 1];
+}
 function noacgRetireGroupLoops() {
   Object.keys(noacgGroupTl).forEach(function (group) {
     var tl = noacgGroupTl[group];

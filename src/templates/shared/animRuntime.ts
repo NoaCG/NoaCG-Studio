@@ -768,7 +768,7 @@ function noacgStyleTimeline(group, edge${loopCode(', retainOut')}) {
 // target's entry timer arms. Entering the exit state takes the graphic off air.
 function noacgFire(group, edge) {
   if (!noacgSoundCanExecute()) return null;
-  var isOut = group === noacgMachine.groups[0] && edge.to === (group.defaultPath || []).slice(-1)[0];
+  var isOut = ${loopCode('noacgIsMainOut(group, edge.to)') || 'group === noacgMachine.groups[0] && edge.to === (group.defaultPath || []).slice(-1)[0]'};
   if (isOut) noacgSoundStopAll();
   else noacgSoundLeave(group.id);
   noacgCancelTimer(group.id);
@@ -800,8 +800,8 @@ ${loopCode(`  // Out captures the live pose before completing or retiring any de
   `)}var soundStep = noacgStepFor(group, edge.to);
   noacgSoundExecute(edge.sound || (soundStep && soundStep.sound), group.id, tl, !!edge.sound);
   if (tl) noacgGroupTl[group.id] = tl;
-  var path = main.defaultPath || [];
-  if (group === main && edge.to === path[path.length - 1]) {${loopCode(`
+  ${loopCode('if (isOut)') || `var path = main.defaultPath || [];
+  if (group === main && edge.to === path[path.length - 1])`} {${loopCode(`
     noacgRetireGroupLoops();`)}
     // The exit was reached (an authored next-drives-out arrow): off air, like stop().
     noacgCancelAllTimers();
@@ -875,8 +875,7 @@ function noacgProcessOne(e) {
     var tl = noacgFire(firing[f].group, firing[f].edge);
     if (tl) last = tl;${loopCode(`
     // The main Out resets every group. The same event cannot re-enter one.
-    var main = noacgMachine.groups[0];
-    if (firing[f].group === main && firing[f].edge.to === (main.defaultPath || []).slice(-1)[0]) break;`)}
+    if (noacgIsMainOut(firing[f].group, firing[f].edge.to)) break;`)}
   }
   return last;
 }

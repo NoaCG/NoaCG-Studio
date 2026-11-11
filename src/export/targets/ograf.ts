@@ -3,6 +3,7 @@ import { APPEARANCE_RUNTIME_JS } from '../../control/appearanceRuntime';
 import { isIdentity, type AppliedAppearance } from '../../control/cueAdjust';
 import { hasLoopRuntime, prepareOutRuntime } from '../../blocks/animMigration';
 import { authoredCueEnd } from '../../blocks/animLoopTiming';
+import { lifecyclePair } from '../../blocks/animMachine';
 import { upgradeFontCss } from '../../model/fonts';
 // OGraf export: packages the template as an EBU OGraf v1 Graphic — a manifest
 // (<slug>.ograf.json) plus a JS entry point (graphic.mjs) exporting a Web Component that
@@ -16,7 +17,7 @@ import { flexGapShimSource } from '../../assets/flexGapSupport';
 import lottieSource from '../../assets/lottie.min.js?raw';
 import { inlineAssetRefs, isLottieAsset, parseDataUrl } from '../../assets/assetUtils';
 import { templateUsesLottie } from '../../assets/lottieSupport';
-import { ANIM_CALL_NAME_RE, animSounds, parseAnimData, type AnimData, type AnimStep } from '../../blocks/animData';
+import { ANIM_CALL_NAME_RE, animSounds, parseAnimData, TRANSITION_STYLES, type AnimData, type AnimStep } from '../../blocks/animData';
 import { SOUND_RUNTIME_JS } from '../../assets/graphicSoundRuntime';
 import { hasProductionSound } from '../../assets/productionSounds';
 import { eventButtons, kindForField, type ControlButton } from '../../control/controlModel';
@@ -198,13 +199,18 @@ function wallMs(data: AnimData, seconds: number): number {
  */
 function entranceMs(template: SpxTemplate): number | null {
   const data = parseAnimData(template.js);
-  if (!data) return null;
-  const loopRuntime = hasLoopRuntime(template.js);
-  // An explicit one-cue machine has no implicit Out. Measuring a second entry
-  // under the loop runtime would retire the graphic's real entrance.
-  return data.steps.length >= 2 || loopRuntime
-    ? wallMs(data, authoredCueEnd(data.steps[0], loopRuntime, data.speed || 1))
-    : null;
+  return data && data.steps.length >= 2 ? wallMs(data, data.steps[0].duration) : null;
+}
+
+/** A timed styled Play replaces the authored entry, so its declared duration is known. */
+function styledPlayMs(data: AnimData): number | null {
+  const group = data.machine?.groups[0];
+  if (!group) return null;
+  const pair = lifecyclePair(group, 'play');
+  if (!pair) return null;
+  const edge = group.transitions.find(edge => edge.trigger === 'lifecycle' && edge.event === 'play' && edge.from === pair.from && edge.to === pair.to);
+  if (!edge?.style || !(TRANSITION_STYLES as readonly string[]).includes(edge.style)) return null;
+  return edge.style === 'cut' ? 0 : wallMs(data, edge.duration || .6);
 }
 
 /**
@@ -302,12 +308,13 @@ function actionDurations(template: SpxTemplate, stepCount: number, actionIds: st
   for (let i = 0; i < stepCount && i < steps.length - 1; i++) perStep.push({ step: i, duration: ms(authoredCueEnd(steps[i], includeLegacy, data.speed || 1)) });
   const exit = ms(steps[steps.length - 1].duration);
   const hold = timedOutMs(template);
+  const styled = hold !== null && includeLegacy ? styledPlayMs(data) : null;
   return [
     {
       type: 'playAction',
       // The action-level value is the fallback for any step the list below does not name. A
       // graphic with no steps plays its entrance, its hold and its exit in this one action.
-      duration: hold !== null ? ms(authoredCueEnd(steps[0], includeLegacy, data.speed || 1)) + hold + exit : perStep[0]?.duration ?? 0,
+      duration: hold !== null ? (styled ?? ms(authoredCueEnd(steps[0], includeLegacy, data.speed || 1))) + hold + exit : perStep[0]?.duration ?? 0,
       ...(perStep.length ? { steps: perStep } : {}),
     },
     { type: 'stopAction', duration: exit },
@@ -605,6 +612,7 @@ function scriptSafe(source: string): string {
  * the reset boundary that makes backward and shuffled seeks independent of prior frames. */
 function offlineDocument(template: SpxTemplate, lib: OgrafLibPaths = DEFAULT_LIB): string {
   const js = stripRealtimeControl(stripLiveData(template.js));
+  const liveTiming = hasLoopRuntime(template.js);
   const lottie = templateUsesLottie(template)
     ? `<script src="${lib.lottie}"></script>`
     : '';
@@ -613,8 +621,7 @@ function offlineDocument(template: SpxTemplate, lib: OgrafLibPaths = DEFAULT_LIB
   const bridge = `
 ${STEP_WALK_JS}
 var __ografStep = -1;
-var __ografOutMs = ${timedOutMs(template)};
-var __ografEntranceMs = ${entranceMs(template)};
+var __ografOutMs = ${timedOutMs(template)};${liveTiming ? '' : `\nvar __ografEntranceMs = ${entranceMs(template)};`}
 var __ografExit = null;
 var __ografOffStates = ${JSON.stringify(offStatesOf(template))};
 var __ografGraphic = {
@@ -645,7 +652,7 @@ window.__noacgScheduledAction = function (entry) {
   clearTimeout(__ografExit); __ografExit = null;
   if (__ografOutMs !== null) {
     play(); __ografStep = 0;
-    var wait = ografExitDelay(__ografEntranceMs, typeof buildInTimeline === 'function' ? buildInTimeline : null, __ografOutMs);
+    var wait = ografExitDelay(${liveTiming ? 'noacgLiveFiniteEnd() * 1000' : '__ografEntranceMs'}, typeof buildInTimeline === 'function' ? buildInTimeline : null, __ografOutMs);
     __ografExit = setTimeout(function () { __ografExit = null; stop(); __ografStep = -1; }, wait);
     return;
   }
@@ -1233,6 +1240,7 @@ function timelineFunctionNames(template: SpxTemplate): string[] {
 /** graphic.mjs: a readable Web Component wrapping the template's own runtime. */
 function graphicModule(template: SpxTemplate, lib: OgrafLibPaths = DEFAULT_LIB, appearance?: AppliedAppearance): string {
   const baked = appearance && !isIdentity(appearance) ? appearance : undefined;
+  const liveTiming = hasLoopRuntime(template.js);
   const stepCount = ografStepCount(template);
   const machine = parseAnimData(template.js)?.machine;
   const timelineNames = timelineFunctionNames(template);
@@ -1426,8 +1434,7 @@ ${STEP_WALK_JS}
 // waits for stopAction or stays), which declares stepCount 0. Its hold starts once the entrance
 // has landed, ENTRANCE_MS after play (null when the export could not read the timeline).
 const STEP_COUNT = ${stepCount};
-const OUT_MS = ${timedOutMs(template)};
-const ENTRANCE_MS = ${entranceMs(template)};
+const OUT_MS = ${timedOutMs(template)};${liveTiming ? '' : `\nconst ENTRANCE_MS = ${entranceMs(template)};`}
 
 // The machine's custom-action vocabulary (the manifest's customActions[].id list), plus the
 // main group's walk — how the wrapper re-derives its step pointer after an event moved the
@@ -1807,7 +1814,7 @@ ${
   return {
     play: play, stop: stop, update: update, next: next,
     // The entrance timeline's builder, which a graphic set to leave by itself measures its wait by.
-    entrance: (typeof buildInTimeline === 'function') ? buildInTimeline : null,
+    entrance: (typeof buildInTimeline === 'function') ? buildInTimeline : null,${liveTiming ? '\n    liveFiniteEnd: noacgLiveFiniteEnd,' : ''}
     machineState: (typeof noacgMachineState === 'function') ? noacgMachineState : null,
     dispatch: (typeof noacgDispatch === 'function') ? noacgDispatch : null,
     // How a skipAnimation action lands instantly: noacgSnap() composes a state's settled pose
@@ -2123,7 +2130,7 @@ class Graphic extends HTMLElement {
   // action that took the graphic off air leaves nothing to exit.
   _playTimed(runtime, params) {
     runtime.play();
-    const wait = ografExitDelay(params.skipAnimation ? 0 : ENTRANCE_MS, runtime.entrance, OUT_MS);
+    const wait = ografExitDelay(params.skipAnimation ? 0 : ${liveTiming ? 'runtime.liveFiniteEnd() * 1000' : 'ENTRANCE_MS'}, runtime.entrance, OUT_MS);
     this._step = 0;
     if (params.skipAnimation) this._settle();
     const exit = setTimeout(() => this._serial(() => {
