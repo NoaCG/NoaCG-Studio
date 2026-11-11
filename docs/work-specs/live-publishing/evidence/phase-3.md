@@ -217,16 +217,20 @@ them separately from the code.
   Whichever runs second finds nothing owed and writes nothing.
 - R3a. The typing before the press stays one undo step: its history group closes with the held
   save. If a write the press makes through the history lands first, it closes the group before
-  it, so the typing is still one step, recorded after the press's. Typing again before the held
-  save has run runs it first, so the new typing is its own step.
+  it, so the typing is still one step, recorded after the press's. Typing again in the editor
+  before the held save has run drops that save: the typing carries on in the same draft, so the
+  typing before and after the press is one step, saved on its own idle delay. An edit never
+  starts a write itself: a write queued in the same call as a new history group would land after
+  the group's snapshot, and the history would then drop the draft.
 - R4. Nothing typed is lost if the page hides, closes or reloads at any moment after the press:
   the edit stays owed until saved, and the page going saves what is owed at once. A save that
   fails or is refused leaves the edit owed, as before.
-- R4a. An edit to another cue never starts while an earlier cue's edit is owed: that edit's save
-  starts first, in its own history group. (Selecting another cue already saves at once; this
-  holds for any other way the editor could change cue.) If that save fails, the draft has
-  already moved to the other cue, so the failed edit is not owed again: no worse than before the
-  guard, when the edit was dropped outright.
+- R4a. An edit to another cue never starts while an earlier cue's edit is owed. Selecting a cue
+  or a folder saves and drops the draft first (`selectCue`, `selectFolder`), as before. The editor
+  can also follow the cue on air to another cue (`editTarget === 'air'`, a Take from elsewhere);
+  after that render the page saves and drops the draft of the cue it left (`cueDraft.showing`),
+  the same way. Neither starts a write inside an edit. If such a save fails, the edit is not owed
+  again, as with a selection change before this repair.
 - R5. An idle save (300 ms after the last keystroke) falling due while such a press is down waits
   for the press to end too.
 - R6. A blur not made by such a press (Tab, a click anywhere else, another control) saves at once,
@@ -236,19 +240,27 @@ them separately from the code.
   was owed was saved at the end.
 
 Revised again after the final `/so` on c0a5aee (grade B): R1 covers touch and pen, R3a typing
-again during the hold, R4a a failed save. Revised after the Rules-first `/so` (grade B, 2026-11-11): R1 names every W1 path and the
+again during the hold. Then after the Codex review of dc38070 (R3a: no write inside an edit) and
+the delta `/so` on 9956f3f (R4a: the air-follow path). Revised after the Rules-first `/so` (grade B, 2026-11-11): R1 names every W1 path and the
 keyboard; R1a, R3a and R4a are new; R3, R4 and R6 say what a second save, a failed save and the
-account's request do. R4a needed one guard in `cueDraft.edit`, tested in `scripts/cue-draft.test.mjs`.
+account's request do.
+
+Rules found after coding, apart from those stated before it: R1's touch and pen case (final `/so`
+on c0a5aee); R3a's "an edit never starts a write" (Codex on dc38070: running the held save, or an
+other-cue save, inside `edit` let the history drop the new typing); R4a's air-follow path (delta
+`/so` on 9956f3f: the editor follows the on-air cue with no save, as on `main`; the guard
+dc38070 had in `edit` covered it with the flaw above, and 9956f3f had removed it).
 
 ### What changed
 
 - `src/control/cueDraft.ts` `blurred`: the save the cue editor's blur owes runs at once, unless a
   pointer is down on a control marked `data-sends-first`. Then it is held until such presses
   pause for 300 ms (never during one), with a 2 s cap. An idle save falling due during such a
-  press is held the same way. `edit` runs a held save first (R3a) and starts the save of an owed
-  edit to another cue first (R4a).
+  press is held the same way. Typing again during the hold drops the held save (R3a); `edit`
+  starts no write. `showing` saves and drops a draft of a cue the editor no longer shows (R4a).
 - `ProductionPage.tsx` gives the draft the window's pointer events (`onSendsFirstPress`; a touch
-  or pen press ends at its click, since a tap moves the focus after its pointer is up);
+  or pen press ends at its click, since a tap moves the focus after its pointer is up), and after
+  each render tells it which cue the editor shows (`showing`);
   `CueEditor.tsx` routes its blur through `blurred`; Take, Re-take, Next, the quick buttons and
   their picks and the live number steps carry `data-sends-first`.
 
@@ -300,9 +312,10 @@ it.
 
 ### Tests
 
-- `scripts/cue-draft.test.mjs`: eight new cases (R1, R3 to R7, R3a, R4a, a second fast press
-  during the wait). Mutations: `blurred` saving at once again turns four red; the held save
-  running during a press turns one red; dropping the R3a or the R4a step turns its case red.
+- `scripts/cue-draft.test.mjs`: eight new cases (R1, R3 to R7, R3a, R4a's `showing`, a second
+  fast press during the wait). Mutations: `blurred` saving at once again turns four red; the held
+  save running during a press turns one red; running the held save inside an edit (dc38070's
+  version) turns the R3a case red; `showing` doing nothing turns the R4a case red.
 - `e2e/playout-air-contract.spec.ts`: "typed then taken at once" reads, in the click's capture
   phase, that the stored productions do not yet hold the typed text (with `blurred` saving at once
   it fails: "the Take ran before the save"); "typed then taken, then the page reloads at once"

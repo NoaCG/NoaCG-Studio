@@ -493,3 +493,19 @@ test('typing again before the held save ran carries on in the same draft and gro
   assert.deepEqual(h.writes.map((w) => w.fields.values.f0), ['After'], 'the idle save writes the latest text once');
   assert.equal(h.timers.size, 0);
 });
+
+test('the editor moving to another cue saves and drops the draft it left; the same cue keeps it', () => {
+  const h = harness();
+  h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: 'Typed on air' } });
+  const saves = [];
+  h.draft.showing('c1', () => saves.push('save'));
+  assert.deepEqual(saves, [], 'still this cue');
+  h.draft.showing('c2', () => saves.push(h.session.draft.get().values.f0));
+  assert.deepEqual(saves, ['Typed on air'], 'saved as it stood');
+  assert.equal(h.session.draft.get(), null, 'the next edit starts from the new cue');
+  h.draft.edit(CLOSER, { note: 'next' });
+  assert.equal(h.session.draft.get().cueId, 'c2');
+  h.draft.showing(null, () => saves.push('left'));
+  assert.deepEqual(saves, ['Typed on air', 'left']);
+});

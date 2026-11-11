@@ -2595,6 +2595,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     armEngine.current?.update({ published: !!hostedSlug, timedCues });
   }, [session, hostedSlug, timedCues]);
 
+  // The editor can move to another cue without a selection change: it follows the cue on air
+  // (`editTarget === 'air'`). After each render, a draft of a cue the editor no longer shows is
+  // saved and dropped, as `selectCue` does. The cue is set further down, past the early return.
+  const editingCueIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    cueDraft.showing(editingCueIdRef.current, () => { void flushDraft(); void historyRef.current?.closeGroup(); });
+  });
+
   if (!show) {
     // A TEAM production opened cold - a teammate's link, a reload - arrives with the first team
     // fetch, a moment after this page. Saying "no longer exists" for that moment, or while the
@@ -2901,6 +2909,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const editDraft = (patch: CueEdit) => {
     if (editingCue) cueDraft.edit(editingCue, patch);
   };
+  editingCueIdRef.current = editingCue?.id ?? null;
 
   /**
    * ONE VERB ON THE PLAYOUT SERVER, reporting nothing: control/serverPlayout.ts decides what it sends

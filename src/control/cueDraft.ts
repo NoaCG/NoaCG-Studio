@@ -108,6 +108,10 @@ export interface CueDraft {
   flush: () => Promise<boolean>;
   /** Drop the draft unsaved. */
   cancel: () => void;
+  /** The editor now shows `cueId` (or no cue). A draft of another cue is saved through `save` (the
+   *  page's save and history close, as a selection change runs them) and dropped, so the next edit
+   *  never starts over it. Nothing happens while the draft is this cue's. */
+  showing: (cueId: string | null, save: () => void) => void;
   /** The editor lost focus and owes `save` (the draft's save and the history group's close). Run
    *  at once, unless a press that sends first took the focus (live-publishing W1, #2388): then the
    *  save waits until that press is over and its handlers have run, so the send goes before the
@@ -269,6 +273,15 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     flush,
     // Nothing is owed without a draft, and the next edit owes its own.
     cancel: () => {
+      stopTimer();
+      set(null);
+    },
+    showing: (cueId, save) => {
+      const d = part.get();
+      if (!d || d.cueId === cueId) return;
+      dropHeld();
+      // The save takes the draft as it stands now, before it is dropped here.
+      save();
       stopTimer();
       set(null);
     },
