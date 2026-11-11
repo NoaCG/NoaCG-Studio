@@ -42,16 +42,7 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {},
-  "inFlight": [
-    {
-      "phase": "v2",
-      "session": "/root/v2_checker",
-      "pr": 2293,
-      "note": "V2 landed at 00:30:40Z; exact merge-group gate passed and reviewed tree matches. Fresh independent exact-merge checker is verifying main CI and Bridge 0.11.0 release and download.",
-      "head": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
-      "step": "check"
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [],
   "triggers": []
