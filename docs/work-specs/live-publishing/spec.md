@@ -365,14 +365,19 @@ Filled in by each phase's pull request.
   R5 when that box is for other values and a preset or size resolves against it, the Take also
   carries the preset (`place`), a new output measures the values itself and first shows the
   graphic at the preset (2 s cap, then the place sent), and an older output applies the place
-  sent; once the page has measured the same values it holds what the outputs resolved as the
-  graphic's look, unless a later send replaced it; R6 a server action to a Bridge this page load already heard as current sends `/act`
+  sent; R6 a server action to a Bridge this page load already heard as current sends `/act`
   without `/health`, and a failure to reach it asks `/health` why; an address never heard is
   asked first, as before; R7 kept as ordering: road discovery, one send in flight per graphic, a
   quick button or +1 waiting for its previous press, a folder's Outs before its next Take;
   R8 D2's refusals (invalid typed data, a stale view of air) still refuse; R9 a +1 or quick
   button writes its accepted figure into the cue only after its own save has landed, and counts a
   field typed and not yet saved as the text on screen.
+- Rules found after coding (review): R10 a press waits for the press before it on its graphic
+  until that press is answered, never for its save or its figure's write; R11 after a hinted Take
+  the page measures the values the Take sent, as an output does, and holds what that resolves as
+  the graphic's look, unless a later send replaced it. An output whose own measurement ran past its
+  cap shows the place sent meanwhile; the next look sent to on-air graphics moves it to the
+  preset.
 - Decisions: Update and snap are not Take paths and keep their waits. A typed OGraf cue keeps its
   save first (R3). The page's own PROGRAM monitor resolves a hint too, starting its measurement
   after the press's task, so the send leaves first. An output resolves a hint only while on air

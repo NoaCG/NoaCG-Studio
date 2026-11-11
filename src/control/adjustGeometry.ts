@@ -240,9 +240,6 @@ export function pressWaitsForBox(state: Pick<CueAdjustState, 'eff' | 'fresh'> | 
  *  it airs (an Update is not a Take path: live-publishing spec W1). */
 export const PRESS_WRITE_CAP_MS = 1_000;
 export const PRESS_MEASURE_CAP_MS = 2_000;
-/** How long the page waits, after a Take that carried a place hint, for its own measurement of the
- *  values aired (beyond the measuring frame's own 5 s cap), to hold what the outputs resolved. */
-export const PLACED_LOOK_WAIT_MS = 6_000;
 
 /** Adjust writes still in the history's queue: an Update waits for them (`updateAppearance`). */
 export function pendingWrites() {

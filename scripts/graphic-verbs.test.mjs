@@ -778,13 +778,16 @@ test('a Take carries the place and size read from memory at the press, with a pl
   // A box for other values: the Take carries the hint beside the place the last box gives.
   place = hint;
   const placed = [];
-  r.page.placeTaken = (c, graphic, sent) => placed.push([c.id, graphic, sent]);
+  r.page.placeTaken = (c, graphic, sent, values, hinted) => placed.push([c.id, graphic, sent, values, hinted]);
+  // Typed and not saved: the page settles the place from the values the Take sent, not the record.
+  r.draft.c1 = { f0: 'Typed longer, not saved' };
   const hinted = r.verbs.take(cue);
   await settle();
-  assert.deepEqual(sentAs(r.sends[1].batches[0][0]), { graphic: 'Strap', msg: { t: 'update', data: { f0: 'A' }, appearance: before, place: hint } });
+  assert.deepEqual(sentAs(r.sends[1].batches[0][0]), { graphic: 'Strap', msg: { t: 'update', data: { f0: 'Typed longer, not saved' }, appearance: before, place: hint } });
   r.sends[1].answer.resolve({ ...noneLeft });
   await hinted;
-  assert.deepEqual(placed, [['c1', 'Strap', before]], 'once it reached the output, the page settles what the outputs resolved');
+  assert.deepEqual(placed, [['c1', 'Strap', before, { f0: 'Typed longer, not saved' }, hint]], 'once it reached the output, the page settles what the outputs resolved, from the values sent');
+  delete r.draft.c1;
   r.flushes[1].resolve();
   // An Update is not a Take path: it waits for its save, then reads what is newest.
   const updating = r.verbs.update(sel({ editingCue: cue, selectedGraphic: 'Strap', editingIsLive: true }));
@@ -951,11 +954,33 @@ test('an unbound bump counts from what air was sent, sends that one field at onc
   r.sends[0].answer.resolve({ ...noneLeft });
   await settle();
   assert.deepEqual(r.log.filter(([k]) => k === 'flush' || k === 'send'), [['send', 'Strap:update'], ['flush']]);
-  // The figure is written only once the press's own save has landed, as before W1.
+  // The press is done at its answer (the next press waits for no save); its figure is written only
+  // once its own save has landed, as before W1.
+  await bumping;
   assert.deepEqual(r.log.filter(([k]) => k === 'writeCue'), []);
   r.flushes[0].resolve();
-  await bumping;
+  await settle();
   assert.deepEqual(r.log.filter(([k]) => k === 'writeCue'), [['writeCue', 'c1', '{"f3":"8"}']]);
+});
+
+test('W1: two fast unbound +1s with every save held: the second goes once the first is answered, never waiting for its save, and both count', async () => {
+  const r = rig({ flushHeld: true, aired: { Strap: { f3: '7' } } });
+  const cue = graphicCue('c1', 'Strap', { f3: '7' });
+  const view = sel({ editingCue: cue, selectedGraphic: 'Strap', editingIsLive: true });
+  const first = r.verbs.bump(view, 'f3', 1);
+  const second = r.verbs.bump(view, 'f3', 1);
+  await settle();
+  assert.equal(r.sends.length, 1, 'the second waits for the first press (kept order)');
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await first;
+  await settle();
+  assert.equal(r.sends.length, 2, 'and goes at its answer, the first press\'s save still held');
+  assert.deepEqual(r.sends.map((x) => x.batches[0][0].msg.data), [{ f3: '8' }, { f3: '9' }], 'both count');
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await second;
+  for (const f of r.flushes) f.resolve();
+  await settle();
+  assert.deepEqual(r.log.filter(([k]) => k === 'writeCue').at(-1), ['writeCue', 'c1', '{"f3":"9"}'], 'the cue ends at the second figure');
 });
 
 test('an unbound bump with nothing aired counts from the cue as stored, never a draft staged in PREP, then from 0', async () => {
@@ -1083,12 +1108,12 @@ test('an event goes at once with the ON-AIR cue as typed, moves an adjusted figu
   assert.deepEqual(r.log, [['send', 'Score:event']]);
   assert.deepEqual(sentAs(r.sends[0].batches[0][0].msg), { t: 'event', event: 'both', payload: { answer: 'typed' } });
   r.sends[0].answer.resolve({ ...noneLeft });
-  await settle();
+  await pressing;
   assert.equal(r.flushes.length, 1, 'the save starts once the send is answered');
   assert.deepEqual(r.log.filter(([k]) => k === 'writeLive'), [], 'the figure waits for the press\'s own save');
   r.flushes[0].resolve();
-  await pressing;
-  assert.deepEqual(r.log.filter(([k]) => k === 'writeLive' || k === 'patch'), [['writeLive', 'a1', '{"home":"5"}'], ['patch', '']]);
+  await settle();
+  assert.deepEqual(r.log.filter(([k]) => k === 'writeLive' || k === 'patch'), [['patch', ''], ['writeLive', 'a1', '{"home":"5"}']]);
 });
 
 test('an event with no payload sends the bare event, and nothing on a layer that is not up', async () => {

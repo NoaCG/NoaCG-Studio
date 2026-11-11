@@ -135,8 +135,8 @@ import { useAudienceInbox, useMessagesBackend } from './useAudienceInbox';
 import { createSheetInbox } from '../../audience/sheetMessages';
 import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
 import { captureLookFromTemplate, loadLooks, type SavedGraphic } from '../../model/packets';
-import { measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
-import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, PLACED_LOOK_WAIT_MS, takeAppearance, updateAppearance, type MeasureJob } from '../../control/adjustGeometry';
+import { measureId, placedAppearance, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
+import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, takeAppearance, updateAppearance, type MeasureJob } from '../../control/adjustGeometry';
 import { lightPanel, lookExceptions, lookFaceUnpublished, lookFontRef, lookImportedFace, lookPanelImported, lookReach, lookStyleContext, lookSentWords, lookToActivate, withLookAssets } from '../../control/productionLook';
 import { asDesignedPatch, assetDataIn, facePickPatch, facesCss, styleContextFor, styleReach, weightsFor, COLOUR_VARS } from '../../control/cueStyle';
 import { FONTS } from '../../model/fonts';
@@ -3092,17 +3092,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           return g ? { frame: frameOf(g), stage } : null;
         },
       }),
-    placeTaken: (taken, graphic, sent) => {
-      const record = latestShow.current;
-      const job = record ? measureJobs(record).find((j) => j.cueId === taken.id) : undefined;
-      if (!job) return;
-      void measurer.now(job, PLACED_LOOK_WAIT_MS).then(() => {
-        const now = latestShow.current ?? null;
-        const state = adjustStateOf(cueInRecord(taken, now), now);
-        if (!state?.fresh || !state.send) return;
-        const resolved = state.send;
-        session.apply((parts) => ({ ...parts, air: placedLook(parts.air, graphic, sent, resolved) }));
-      });
+    placeTaken: (taken, graphic, sent, values, place) => {
+      // The values the Take sent, measured as an output measures them, never the record: the save
+      // comes after the send (W1), and an edit made since never aired.
+      const record = latestShow.current ?? null;
+      const cue = cueInRecord(taken, record);
+      const g = record?.graphics.find((x) => x.id === cue.sourceId);
+      if (!g) return;
+      void measureCue(templateForSavedGraphic(g, library), values, previewStyleOf(adjustStateOf(cue, record)))
+        .catch(() => null)
+        .then((m) => {
+          const resolved = placedAppearance(sent, place, m);
+          if (resolved && session.alive()) session.apply((parts) => ({ ...parts, air: placedLook(parts.air, graphic, sent, resolved) }));
+        });
     },
     appearanceOf: (taken) => {
       const cueIn = (record: Show | null) => cueInRecord(taken, record);
