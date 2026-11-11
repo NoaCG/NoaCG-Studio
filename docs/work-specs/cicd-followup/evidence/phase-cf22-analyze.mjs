@@ -240,6 +240,8 @@ function derive(cache) {
           return next ? round1(Math.max(0, min(it.at, next.created))) : null;
         })(),
         ci_min: green ? round1(min(start > it.at ? start : it.at, green.end)) : null,
+        // The refused round itself: the red attempt's start to its failure (a dequeue has none).
+        round_min: it.att ? round1(min(it.att.created, it.at)) : null,
         green_by: !green ? (greenAt ? 'merge' : null) : green.run === it.att?.run ? 'rerun of the same run' : head && greenHead === head ? 'new run, same commit' : head ? 'new commit' : 'head unknown',
         rerun_failed_only: Boolean(green && green.run === it.att?.run && green.attempt > it.att?.attempt && green.ranJobs.length < 0.5 * (it.att?.ranJobs.length ?? 0)),
         actor: it.actor ?? null, jobs: [], gate_log: null,
@@ -499,13 +501,13 @@ function candidates(rec) {
   // D (from the data). The capacity line is computed before any test runs and its inputs are on
   // the agent's machine (scripts/e2e-capacity.mjs, as known-traps runs it): checking it before
   // pushing turns each capacity refusal into an owner question before a CI round. Saved: the CI
-  // round of the first capacity refusal on each PR; every later one is a loop (C's, or one an
-  // agent clears itself).
+  // round of the first capacity refusal on each PR (the refused attempt's own minutes, not the
+  // later green's); every later one is a loop (C's, or one an agent clears itself).
   const cap = allGates.filter((b) => /capacity/.test(b.gate ?? ''));
   const firstCap = cap.filter((b, i) => !cap.slice(0, i).some((p0) => p0.pr === b.pr));
   out.push({ id: 'D', name: 'Agents check the capacity line before pushing and ask the owner then', bounces: cap.length,
-    saved_min: sum(firstCap.filter((b) => b.lost_min != null), (b) => b.ci_min),
-    basis: 'the CI minutes of the first capacity refusal per PR, which a local check replaces; the repeats are C\'s' });
+    saved_min: sum(firstCap.filter((b) => b.lost_min != null), (b) => b.round_min),
+    basis: 'the CI minutes of the first capacity refusal per PR, its attempt\'s start to the red gate, which a local check replaces; the repeats are C\'s' });
 
   // E (from the data). A failure in a spec that is already known flaky (in e2e/quarantine.json's
   // history) is named as such in the failure, so the agent does not repair code for it: the
