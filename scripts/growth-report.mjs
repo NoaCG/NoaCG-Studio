@@ -682,7 +682,10 @@ export function lowerBounds(report) {
   const out = {};
   for (const t of TIERS) {
     const m = report?.measurement?.tiers?.[t];
-    if (Number.isFinite(m?.perLanding)) out[t] = { perLanding: m.perLanding, perDay: Number.isFinite(m.perDay) ? m.perDay : 0 };
+    // Each figure on its own: a week with no landings still proves its daily cost.
+    const perLanding = Number.isFinite(m?.perLanding) ? m.perLanding : 0;
+    const perDay = Number.isFinite(m?.perDay) ? m.perDay : 0;
+    if (perLanding > 0 || perDay > 0) out[t] = { perLanding, perDay };
   }
   return out;
 }

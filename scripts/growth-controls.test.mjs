@@ -1936,3 +1936,12 @@ test('an unreadable newest try never drops the stops of the readable try before 
   const only = gateReport({ gh: reportsGh([arts[0], arts[2]], { 13: new Error('HTTP 502'), 2: { ...realReport(41704224273), stops: { graphics: 'x' } } }), now, ceilings: GATE_CEILINGS });
   assert.deepEqual(only.newest.stops, { graphics: 'x' });
 });
+
+test('a partial report with no landings still proves its daily floor (Codex review)', async () => {
+  const noLandings = clone(realReport(42647874522));
+  noLandings.measurement.tiers.offline = { perLanding: null, perDay: 214.3, evidence: 'partial' };
+  assert.deepEqual(lowerBounds(noLandings).offline, { perLanding: 0, perDay: 214.3 });
+  const complete = realReport(41704224273);
+  const growth = await gateOn({ newest: { run: 9, state: 'partial', why: 'x', stops: {}, floor: lowerBounds(noLandings) }, judged: { run: 7, generatedAt: complete.generatedAt, report: complete } }, { added: 1 });
+  assert.equal(growth.status, 'refuse', '214.3 + 1 per day is over the 204.25 line');
+});
