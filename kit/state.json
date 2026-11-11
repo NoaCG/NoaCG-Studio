@@ -785,6 +785,25 @@
         "specs": 64,
         "localStacks": 4,
         "existingQuarantineWarning": "retained"
+      },
+      "coordinatorPlanRead": {
+        "receipt": "receipts/e3-ci43037611275-plan.json",
+        "job": 130580531150,
+        "offlineMode": "subset",
+        "offlineSpecs": 128,
+        "shards": 15,
+        "configuredMode": "all",
+        "configuredSpecs": 64,
+        "stacks": 4,
+        "excludedExistingQuarantine": "e2e/configured/operator-outage-not-unpublished.spec.ts; warning retained",
+        "capacity": "CI actual latest-growth artifact fetched43014542120;WARN under unchanged limits, no growth waiver/headroom assertion"
+      },
+      "checkStamp": {
+        "receipt": "receipts/e3-check-stamp.json",
+        "source": "f42038dbe0661c5c2af620f7157f0a93c2d283bf",
+        "verdict": "pass",
+        "at": "2026-11-11T14:20:40.095Z",
+        "all21paths": true
       }
     }
   }

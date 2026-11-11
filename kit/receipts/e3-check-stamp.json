@@ -1,0 +1,54 @@
+{
+  "v": 1,
+  "branch": "codex/plan-editor-r1-5-e3-build",
+  "mergeBase": "7e1ae4cf80f8fe302aa6a0ee0381537aa72354f4",
+  "reviewedSha": "f42038dbe0661c5c2af620f7157f0a93c2d283bf",
+  "files": [
+    "api/_lib/aiGateway.test.ts",
+    "api/_lib/aiGateway.ts",
+    "api/_lib/aiGenerate.test.ts",
+    "docs/work-specs/editor-r1-5/e1-inventory.md",
+    "docs/work-specs/editor-r1-5/e3-inventory.md",
+    "docs/work-specs/editor-r1-5/e3-notes.md",
+    "docs/work-specs/editor-r1-5/e3/final-call-intent.json",
+    "docs/work-specs/editor-r1-5/e3/final-cost-bound.json",
+    "docs/work-specs/editor-r1-5/e3/help-final.json",
+    "docs/work-specs/editor-r1-5/e3/help-recheck-failed.json",
+    "docs/work-specs/editor-r1-5/e3/legacy-accounting-probe.json",
+    "docs/work-specs/editor-r1-5/e3/model-initial.json",
+    "docs/work-specs/editor-r1-5/e3/native-schema-replay.json",
+    "docs/work-specs/editor-r1-5/e3/qualification.json",
+    "docs/work-specs/editor-r1-5/e3/quality-review.json",
+    "docs/work-specs/editor-r1-5/e3/reference.json",
+    "e2e/editor-command-task.spec.ts",
+    "e2e/editor-model-proposals.spec.ts",
+    "src/ai/editorProposals.ts",
+    "src/components/editorFoundation/ProposalPanel.tsx",
+    "src/components/editorFoundation/proposals.ts"
+  ],
+  "legs": {
+    "review": {
+      "mode": "inline",
+      "findings": 0,
+      "fixed": 0,
+      "model": "GPT-6/Codex (runtime model ID not exposed)",
+      "effort": "not exposed"
+    },
+    "simplify": {
+      "mode": "inline",
+      "findings": 0,
+      "fixed": 0,
+      "model": "GPT-6/Codex (runtime model ID not exposed)",
+      "effort": "not exposed"
+    },
+    "verify": {
+      "mode": "inline",
+      "findings": 0,
+      "fixed": 0,
+      "model": "GPT-6/Codex (runtime model ID not exposed)",
+      "effort": "not exposed"
+    }
+  },
+  "verdict": "pass",
+  "at": "2026-11-11T14:20:40.095Z"
+}
