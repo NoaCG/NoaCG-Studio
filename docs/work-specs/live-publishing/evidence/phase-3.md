@@ -433,6 +433,9 @@ cue, delay `control_send_seq` by N ms with `page.route`, `fill` a text field, cl
 | 200 ms | lost 4 of 4 (the field reads the old "HOME") | kept 4 of 4 |
 | 800 ms | not run here (the checker: lost 6 of 6) | kept 4 of 4 |
 
+Run on a95b872. The intermediate 310f222, which also removed the record when a draft was dropped,
+lost it 4 of 4 at 200 ms, as the "Rules found after coding" note says.
+
 ### AC-1 measured again
 
 Production build with the stack's variables, `MEASURE_BUILD=prod MEASURE_STALL=1`, typical
@@ -441,7 +444,7 @@ fixture, local Supabase stack, takes-a narrowed to the graphic cue Take (50 samp
 | Build | Own time p50 / p95 (ms) | Failures | Max |
 |---|---|---|---|
 | 063798e (the fix) | 11.8 / 24.7 | 0 | 28.2 |
-| FINAL_ROW |
+| a95b872 (final code) | 10.4 / 16.3 | 0 | 17.5 |
 
 The checker's sample on 92e581a7 was 12.0 / 21.4. The fix runs only when the page hides, is
 shown again, or a draft save is confirmed, so no Take path's work changed; the other paths
@@ -454,7 +457,7 @@ were not measured again.
   screen, "typed, Take tapped, then the page reloads at once". Mutation: with the record never
   written (`if (false && hiding) io.owed.keep(...)`) both fail 3 of 3 (the field reads the old
   "Alexandra Riva"); the earlier "typed then taken, then the page reloads at once" stays green,
-  as the check said. With the fix the whole file passes 36 of 36 (`--repeat-each 3`, 063798e).
+  as the check said. With the fix the whole file passes 36 of 36 (`--repeat-each 3`, a95b872).
 - `scripts/cue-draft.test.mjs`: P1 to P3 and P5 cases, and the history's out save. Mutations:
   no record on hide turns three red; no removal on a confirmed save one; `recover` never writing
   two; the page hide not covering an out save one.
