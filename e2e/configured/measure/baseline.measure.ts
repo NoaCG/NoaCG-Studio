@@ -100,7 +100,7 @@ async function sentAfter(op: Page, after: number, match: RegExp, timeout = 15_00
 
 const pressOf = (lpm: Lpm, target: string) => [...lpm.presses].reverse().find((p) => p.kind === 'click' && p.target === target)?.t ?? null;
 
-type Sample = { total: number; own: number; keptMs: number; kept: Record<string, boolean>; others: string[]; kinds?: string[] } | { failed: string };
+type Sample = { total: number; own: number; keptMs: number; kept: Record<string, boolean>; others: string[]; kinds?: string[]; clickGap?: number } | { failed: string };
 
 /** Sender ids the page has already used: a send carrying one of them answers an earlier press. */
 const sidsOf = (lpm: Lpm) => new Set(lpm.allSids ?? []);
@@ -117,22 +117,39 @@ async function pressAndMeasure(op: Page, button: Locator, testId: string, match:
   return attribute(got.lpm, press, got.sent);
 }
 
-/** Two clicks, the second as soon as the first press is sent; the second is measured. */
+/**
+ * Two presses back to back, as a person pressing twice fast: the second click follows the first at
+ * once, waiting for nothing. The second press is measured. Its send is the second new press
+ * identity (sender id and press number); the gap between the two clicks is kept with the sample.
+ * The kept ordering waits for the press before it (W1: one send in flight per graphic, a quick
+ * button waiting for its previous press) count as kept, not as the page's own: the time the first
+ * press was still unanswered after the second click.
+ */
 async function secondOfTwo(op: Page, button: Locator, testId: string, match: RegExp): Promise<Sample> {
   const earlier = sidsOf(await readLpm(op));
   const before = await nowOn(op);
   await button.click();
-  const first = await sentAfter(op, before, match, 15_000, earlier);
-  if (!first) return { failed: `no first ${match}` };
-  // Every send so far, the first press's included, belongs to an earlier press.
-  const seen = sidsOf(await readLpm(op));
-  const mid = await nowOn(op);
   await button.click();
-  const got = await sentAfter(op, Math.max(mid, first.sent.t + 0.01), match, 15_000, seen);
-  if (!got) return { failed: `no second ${match} after ${testId}` };
-  const press = pressOf(got.lpm, testId);
-  if (press === null) return { failed: `no press stamp for ${testId}` };
-  return attribute(got.lpm, press, got.sent);
+  const pressNo = (sid: string) => Number(sid.slice(sid.lastIndexOf(':') + 1));
+  const end = Date.now() + 15_000;
+  for (;;) {
+    const lpm = await readLpm(op);
+    const mine = lpm.sends.filter((x) => x.t >= before && match.test(x.name) && x.sid && !earlier.has(x.sid));
+    const ids = [...new Set(mine.map((x) => x.sid!))].sort((a, b) => pressNo(a) - pressNo(b));
+    const first = ids[0] ? mine.find((x) => x.sid === ids[0]) : undefined;
+    const second = ids[1] ? mine.find((x) => x.sid === ids[1]) : undefined;
+    if (first && second && first.end !== undefined) {
+      const clicks = lpm.presses.filter((p) => p.kind === 'click' && p.target === testId).slice(-2);
+      if (clicks.length < 2) return { failed: `two clicks not stamped for ${testId}` };
+      const press = clicks[1].t;
+      const a = attribute(lpm, press, second);
+      const previous = Math.max(0, Math.min(first.end, second.t) - press);
+      const keptMs = Math.max(a.keptMs, previous);
+      return { ...a, own: a.total - keptMs, keptMs, kept: { ...a.kept, previous: previous > 0 }, clickGap: press - clicks[0].t } as Sample;
+    }
+    if (Date.now() > end) return { failed: `no two sends ${match} after ${testId}` };
+    await op.waitForTimeout(15);
+  }
 }
 
 /** Instrument the production page. Its network is throttled only once the fixture is built
@@ -288,8 +305,8 @@ test('takes-b', async ({ page, browser }) => {
     samples.quick.push(await pressAndMeasure(page, goal, 'cue-action-goalA', SEND));
     await settle(page);
   }
-  // TWO FAST PRESSES: the second Goal pressed as soon as the first is sent, so the kept wait for
-  // the previous press (graphicVerbs.ts afterPress) and one send in flight per graphic show up.
+  // TWO FAST PRESSES: the second Goal pressed right after the first (secondOfTwo), so the kept
+  // waits for the previous press (graphicVerbs.ts afterPress, one send in flight per graphic) act.
   for (let i = 0; i < count('quickSecondOfTwo'); i++) {
     await clearLpm(page);
     samples.quickSecondOfTwo.push(await secondOfTwo(page, goal, 'cue-action-goalA', SEND));
@@ -322,7 +339,7 @@ test('takes-c', async ({ page, browser }) => {
   const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
   await healthyOutput(out, fx.graphics);
   const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');
-  const samples: Record<string, Sample[]> = { next: [], panel: [] };
+  const samples: Record<string, Sample[]> = { next: [], nextSecondOfTwo: [], panel: [] };
 
   // NEXT on the stepped lower third: Take it, measure one Next, Out.
   const next = page.getByTestId('verb-next');
@@ -333,6 +350,19 @@ test('takes-c', async ({ page, browser }) => {
     await expect(next).toBeEnabled({ timeout: 10_000 });
     await clearLpm(page);
     samples.next.push(await pressAndMeasure(page, next, 'verb-next', SEND));
+    await settle(page);
+    await outBtn.click();
+    await settle(page);
+  }
+
+  // TWO FAST NEXTS on the stepped lower third: the second is measured (AC-1 counts both).
+  for (let i = 0; i < count('nextSecondOfTwo'); i++) {
+    await select(page, 'LP2 Stepped');
+    await take.click();
+    await settle(page);
+    await expect(next).toBeEnabled({ timeout: 10_000 });
+    await clearLpm(page);
+    samples.nextSecondOfTwo.push(await secondOfTwo(page, next, 'verb-next', SEND));
     await settle(page);
     await outBtn.click();
     await settle(page);
@@ -612,6 +642,12 @@ test('bytes', async ({ page, browser }) => {
       } catch { /* recorded as a failure below */ }
       lastPrepare = Date.now();
     }
+    // When the output started preparing: its fetch of the whole published copy
+    // (`control_output_resolve`), and the start before it, so a sample can show it stayed clear of
+    // the output's 15 s preparation spacing (src/output/prepare.ts PREPARE_EVERY_MS).
+    const resolves = (await readLpm(out)).sends.filter((x) => x.name === 'rpc:control_output_resolve').map((x) => x.t);
+    const prepareStart = resolves.find((t) => t >= tPress) ?? NaN;
+    const previousStart = [...resolves].reverse().find((t) => t < tPress) ?? NaN;
     // What the page sends behind it (the sync mirror, on a 2.5 s debounce) counts too: wait until
     // nothing has started for 4 s.
     await settle(page, 4_000, 60_000);
@@ -625,6 +661,9 @@ test('bytes', async ({ page, browser }) => {
       newFrameLoads: kind === 'cue-edit' ? [] : loads,
       editToPress: tPress - t0,
       pressToOutputPrepared: tReady - tPress,
+      pressToPrepareStart: prepareStart - tPress,
+      prepareStartToPrepared: tReady - prepareStart,
+      sincePreviousPrepareStart: prepareStart - previousStart,
       failed: kind !== 'cue-edit' && Number.isNaN(tReady),
       op: opMeter.total(),
       output: outMeter.total(),
