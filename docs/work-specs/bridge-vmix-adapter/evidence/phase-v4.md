@@ -1,0 +1,18 @@
+# V4 evidence for vMix clip cues in the rundown
+
+The starting verified main is `e9b0c550082c540c925e2cce25ffdee093d2d7b3`, the independently accepted V3 Bridge player implementation. V4 implements AC-10. The vMix clip clock and reload recovery, fades and trims, sequence playback and Bridge releases are covered by later phases.
+
+## Rules proposed before coding
+
+- An added vMix item retains its adapter, relative media name and kind, with layer 0 and no channel. An item without an adapter remains CasparCG. A lookup, list result or fact about one adapter cannot change an item of the other adapter.
+- The vMix picker uses the paired Bridge's advertised `vmix-media` capability and its folder-relative listing. Entering a subfolder asks the Bridge for that path. A late listing from a previous folder, pairing or picker cannot replace the current listing. vMix does not use CasparCG thumbnails or the typed-name fallback.
+- Take, Out, Pause and Resume send the saved item's adapter and matching slot, including when sent from the existing shortcut, rundown or one-by-one controls. Audio uses the audio player and other supported media use the clips player. The current production system and pairing are checked before dispatch, including after an asynchronous capability check. A mismatch or lost capability sends no command. A failed or uncertain request does not create a new locally accepted cue and is never retried automatically.
+- A successful Take replaces the previously accepted cue on the same player and keeps the other player. Out, Pause and Resume are enabled for the selected cue only while this page knows it as live. V4 uses the current session's accepted actions for that display. A reply for an older action cannot reinstate ownership after a newer accepted action. The V5 clock and external or reload reconciliation remain separate.
+- A CasparCG cue in a vMix production shows the mismatch and sends nothing. A vMix cue in a CasparCG or unassigned production also sends nothing. Play-through and Play next never route across adapters and V4 refuses vMix sequences before sending. All-together uses the existing member gate so a disabled member does not send. Unsupported vMix controls cannot silently degrade a Take.
+- The Settings folder belongs to the Bridge pairing. Choosing is an explicit paired action. Cancellation and errors preserve the prior folder, and a result for an old pairing cannot change the visible folder for a new pairing. A successful change refreshes the Studio's view of the folder.
+
+## Allocation and rollback
+
+Codebase-health #2285 is closed. Editor #2374 and live-publishing #2376 have no overlapping paths, and #1967 records that the cf13 merge hold ended. The current shared Take/verb owners are used for adapter checks and existing CasparCG gates.
+
+After landing, revert the merge with `git revert -m 1 <V4 merge SHA>` through the merge queue. The item field is additive and needs no database migration.
