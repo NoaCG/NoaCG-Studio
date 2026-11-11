@@ -22,7 +22,7 @@ async function load(entry) {
   await bundle.close();
   return import(`data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`);
 }
-const [gestures, { anchorOperations, shownAnchor, transformOperations }, { setCssDeclaration }] = await Promise.all(
+const [gestures, { anchorOperations, editAnchorAtPlayhead, shownAnchor, transformOperations }, { setCssDeclaration }] = await Promise.all(
   ['src/components/editorFoundation/transformGestures.ts', 'src/components/editorFoundation/animationAuthoring.ts', 'src/blocks/edit.ts'].map(load));
 const { apply, invert, multiply, localFrame, edgePoints, centreOf, rotationKnob, sweep, snapRotation, handleRatios, pivotShift, ownLinear } = gestures;
 
@@ -30,6 +30,17 @@ const k = (time, value) => ({ time, value });
 const one = layers => ({ version: 2, root: '.g', speed: 1, steps: [{ name: 'In', duration: 2, ease: 'none', layers }, { name: 'Out', duration: 1, ease: 'none', layers: {} }] });
 const close = (a, b, tolerance = 1e-9) => Math.abs(a - b) <= tolerance;
 const samePoint = (p, q, tolerance = 1e-9, what = '') => assert.ok(close(p.x, q.x, tolerance) && close(p.y, q.y, tolerance), `${what} ${JSON.stringify(p)} vs ${JSON.stringify(q)}`);
+
+test('an unarmed static pivot still writes its explicit default and ignores raw same-name tracks', () => {
+  const center = { x: 160, y: 50 }, base = { selector: '#a', anchor: null };
+  for (const js of ['', 'var NOACG_ANIM = { steps: [{ layers: { "#a": { noacgAnchorX: [{time:0,value:7}] } } }] };']) {
+    const template = { js };
+    assert.deepEqual(editAnchorAtPlayhead(template, base, center, center, 0),
+      [{ kind: 'base.set', selector: '#a', values: { anchorX: 160, anchorY: 50 } }]);
+    assert.deepEqual(editAnchorAtPlayhead(template, base, center, { x: 20 }, 0),
+      [{ kind: 'base.set', selector: '#a', values: { anchorX: 20, anchorY: 50 } }]);
+  }
+});
 
 /**
  * A rendered layer: a w x h box whose own transform (rotation, then scale) turns about `anchor` (box
@@ -206,6 +217,15 @@ test('repeated CSS declarations patch the effective value and retain important p
   const original = '#a { color: red !important; }\n#a { width: 20px; color: green; }';
   assert.equal(setCssDeclaration(original, '#a', 'color', 'blue'), '#a { color: blue !important; }\n#a { width: 20px; color: green; }');
   assert.equal(setCssDeclaration('#a { color: red; color: green; }', '#a', 'color', 'blue'), '#a { color: red; color: blue; }');
+});
+
+test('a pivot write preserves case-distinct variables, comments, strings and nested rules', () => {
+  const source = '#a { --base-anchor-x:100px; --base-anchor-X:75px; /* ; --base-anchor-x:80px; { } */ content:"; --base-anchor-x:90px; { }"; &:hover { --base-anchor-x:95px; } }';
+  assert.equal(setCssDeclaration(source, '#a', '--base-anchor-x', '4px'), source.replace('--base-anchor-x:100px', '--base-anchor-x: 4px'));
+  const annotated = '#a { --base-anchor-x /* name */: /* value */ 100px /* priority */ !important; }';
+  assert.equal(setCssDeclaration(annotated, '#a', '--base-anchor-x', '4px'), annotated.replace('100px', '4px'));
+  const escaped = '#a { --base-anchor-x:10px; --base-\\61 nchor-x: 100px; }';
+  assert.equal(setCssDeclaration(escaped, '#a', '--base-anchor-x', '4px'), escaped.replace('100px', '4px'));
 });
 
 

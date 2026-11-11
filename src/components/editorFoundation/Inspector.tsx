@@ -101,7 +101,7 @@ function Inspector({ reveal, seek, view, template, selection, select, session, l
         {selection.length === 1 && <><ArtworkAppearance seek={seek} key={session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} previewCss={previewCss} previewTemplate={previewTemplate} />
           <ImageControls key={'image:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} openAssets={openAssets} />
           <PathControls key={'path:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} editPoints={editPoints} />
-          <AnchorPoint key={'anchor:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} />
+          <AnchorPoint key={'anchor:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} seek={seek} />
           <AnimationProperties seek={seek} key={'animation:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} linked={linked} previewTemplate={previewTemplate} />
           <label className="ef-link"><input type="checkbox" checked={linked} onChange={event => setLinked(event.target.checked)} /> Link proportions</label></>}
         <div className="ef-edit-actions">
@@ -120,6 +120,10 @@ function Inspector({ reveal, seek, view, template, selection, select, session, l
           {base.scaleReason ? <p className="ef-muted">{base.scaleReason}</p> : <><div className="ef-number-row"><Numeric label="Base Scale X %" value={base.scaleX * 100} commit={x => scale('scaleX', x)} />
             <Numeric label="Base Scale Y %" value={base.scaleY * 100} commit={y => scale('scaleY', y)} /></div>
           </>}
+          {base.anchor && !base.anchorReason && <div className="ef-number-row">
+            <Numeric label="Base Anchor X" value={base.anchor.x} commit={x => change({ anchorX: x, anchorY: base.anchor!.y })} />
+            <Numeric label="Base Anchor Y" value={base.anchor.y} commit={y => change({ anchorX: base.anchor!.x, anchorY: y })} />
+          </div>}
           <p className="ef-muted">Base edits preserve existing motion. Position uses the parent’s coordinates.</p>
         </details>}
         {capability.reason && <p className="ef-muted">{capability.reason}</p>}
