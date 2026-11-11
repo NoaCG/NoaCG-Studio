@@ -35,6 +35,18 @@ acknowledgement before replacing a worker that may still run; otherwise stop saf
 Run the executing worker's resource/network preflights and current folder rules. Same-machine
 workers use fresh conversations and owned absolute worktrees, serially with isolated ports/services.
 
+## Owner amendments to unstarted work
+
+Later explicit owner decisions may change future scheduling/environment without opening
+another run. First publish the owner-decision receipt and amended plan through the normal
+queue. Then use the existing supervisor `admit` with that exact main commit and receipts:
+optional `insert` adds future phases; optional `revise: [{id, environment?, dependsOn?}]`
+changes only never-recorded phases. Dependencies may only gain prerequisites. Original
+acceptance, recorded phases/history, authority, dates and attempts cannot change.
+Reconcile/resolve the old prerequisite with actual evidence before opening block authority;
+do not launch against draft docs, edit digests or reinterpret a required device environment
+without the owner amendment. Preserve real hardware/human/release gates in the revised plan.
+
 ## Admit and execute
 
 `node scripts/run-supervisor.mjs next <db> <id>` is the sole phase admission view.

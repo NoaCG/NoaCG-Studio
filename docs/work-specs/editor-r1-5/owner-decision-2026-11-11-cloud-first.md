@@ -38,7 +38,7 @@ Cloud machine, not a replacement for E5's named-device distributions or native
 existing E5/E6/OW1/E7 criteria are not removed, retitled or relaxed.
 
 E4 requires actual isolated persistence/auth/permissions, not only intercepted
-UI responses: use a qualified local-to-Cloud test stack or an existing authorized
+UI responses: use the existing isolated worker/GitHub Actions stack or an existing authorized
 disposable test backend. Disposable test users/productions in that isolated stack
 are fixtures, not new external provider accounts. Never use production data or
 transplant production credentials. If that infrastructure is unavailable, record
