@@ -121,3 +121,49 @@ Only that verification process sets AI_RETRY_LIMIT=0 to enforce the explicitly
 required one attempt; product/default retries are unchanged. No additional paid
 recheck is authorized if the same guidance family fails again: reassess and stop.
 An independent quality assessment must judge the actual returned answer.
+
+## Consumed recheck, independent diagnosis and final protocol rule
+
+The one-task recheck j-0028 on `b08176a144de3ff8d8d3656f819de5c5d5d22f4c`
+returned HTTP 502 / malformed_response / “The model did not return the expected
+structured result.” It returned no usable answer or usage. The quality assessor
+kept corrected Help **unverified** and classified this as structured delivery failure,
+not another hallucinated answer. USD 0.104124 remains only the known six-success
+estimate; the failed recheck is not asserted free.
+
+Fresh independent diagnose `/root/editor_r15_e3_builder/e3_diagnose` (native
+`6af471e3-aedc-8191-950c-c17627c20064`) recommended **one final scoped repair**.
+The installed, already pinned direct dependency @anthropic-ai/sdk 0.133.0 documents
+that auto tool choice lets the model choose whether to emit a tool, while
+output_config.format supports native JSON-schema output. Thus optional tool
+emission is mismatched with a required-tool parser; the native model itself is
+not shown unsuitable. The coordinator explicitly authorized that final repair
+and, only after deterministic checks and a conservative cumulative cost-bound
+review, exactly one final Help verification (one call/attempt, no fallback,
+unchanged cumulative USD 2 ceiling). Every prior failure and consumed limit remains.
+Any subsequent failure stops this same run; no further patch or paid call.
+
+**This observable rule explicitly replaces the earlier auto-tool rule, before code:**
+
+- Only structured requests for the exact native Anthropic claude-sonnet-5-5 ID
+  use output_config.format JSON schema. Use the installed public SDK
+  jsonSchemaOutputFormat helper to lower its supported wire representation; add
+  no dependency or provider/default/model-ID alias. Non-object root schemas
+  refuse explicitly rather than being silently coerced.
+- The helper deep-clones the schema. Provider-unsupported string/numeric/array
+  constraints and literal values may become wire descriptions, while strict
+  object structure and unions remain represented. The original neutral schema
+  remains unchanged for gateway validation, and the existing frontend Zod
+  contract still governs Help/proposals. No accepted edit/answer shape widens.
+- Normalize a native served response's usage before parsing; existing servedParse
+  carries it through malformed JSON, wrong shape, absent output and truncation.
+  The existing executor/ledger accumulates that usage without capturing content.
+  Never turn arbitrary prose, tool-only output or a truncated result into success.
+- Other Anthropic IDs and unstructured requests retain their existing wire and
+  result behavior. Route, credentials, funding, effort, timeout, defaults and
+  fallback policies remain unchanged. Final verification alone has the explicitly
+  authorized one-attempt limit; it does not alter product retry policy.
+
+A fresh Rules-first challenge of schema lowering, full caller validation and
+served-usage accounting is required before this final adapter edit. The original
+six-task sample and first quality repair are not rerun or retroactively passed.
