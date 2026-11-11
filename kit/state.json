@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "head": "e85660d8087d617e1acb777f2468c5e01100ce3b",
-      "note": "Local packaged picker and persistence proof passed; owned processes exited. Reconciling the existing exact-head merge gates.",
+      "note": "Exact reviewed head and AC-9 proof passed. PR CI green after normal targeted Reviewed recovery, and GitHub added the PR to the merge queue. Await exact merge and fresh independent checker.",
+      "session": "42957323644",
       "phase": "v3",
-      "step": "build",
-      "pr": 2368,
-      "session": "j-5211"
+      "step": "queue",
+      "head": "e85660d8087d617e1acb777f2468c5e01100ce3b",
+      "pr": 2368
     }
   ],
   "owner": [],
