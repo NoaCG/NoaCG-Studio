@@ -53,6 +53,41 @@ belong to later phases.
   fields survive. Opening, saving or exporting unrelated saved motion does not install
   the capability. Unknown bodies and channels are refused without a source or history write.
 
+### Boundary and compatibility details
+
+- Before activation the first key holds. Activation samples the chosen phase, which
+  may fall in a repeat delay. For a finite loop the phase consumes elapsed time from
+  its repeat budget and must precede its terminal hold. For an indefinite loop it
+  is within one repeating waveform. Its local ruler shows one pass plus its delay,
+  or both alternating passes with their delays for yoyo. The finite ruler ends
+  at the terminal sample. Ruler seconds and frame nudges use the existing effective
+  clock at speeds 0.5, 1 and 2.
+- The authored cue duration stays a floor. When finite repeats extend it, the
+  composition ruler and browser cue metadata show the derived finite end, including
+  the actual terminal pose at the arriving boundary. The next cue's local data
+  does not move. An indefinite repeat contributes no time beyond the authored cue
+  to the composition ruler. Its phase at that finite boundary is also its settled pose.
+- A styled edge still substitutes its style for destination motion and parks the
+  destination's finite pose. An unrelated group's active loop keeps its phase
+  during that swap and repaints its live sample after canonical composition.
+  An ordinary edge, including a self-transition, stops only the departed group's
+  loop. The Stop action and an authored edge into the main Out both retire all
+  groups' loop writers. They take live samples for interrupted Out before any
+  departing finite motion can replace those values. A styled stop keeps its
+  existing style and starts with the live rendered pose.
+- Existing saved loops under the exact older interpreter retain their existing
+  playback on ordinary open, save and export. An explicit Apply in Edit Loop is
+  the upgrade action. That document then uses finite settling and state-exit
+  ownership for its loop table; untouched legacy loop keyframes, easing and
+  forward samples remain as authored. Removing an editor loop leaves its keys
+  and its recognized interpreter. The existing anchor and SVG group capabilities
+  can still be applied after removal, with source outside the marked region intact.
+- Existing structural cue split/join guards remain. A resize must preserve the
+  range or, on an explicit stretch, scale its endpoints, phase and delay together
+  with its keys. Refuse atomically any key write that makes a stored range invalid
+  or removes its last moving segment while its loop remains. Unrelated tracks
+  retain the same key edits they had before adding an editor loop.
+ 
 ## Baseline observations
 
 The exact E1 baseline was clean and the worker preflight passed. On that revision the
