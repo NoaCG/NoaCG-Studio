@@ -298,6 +298,7 @@ test('an unsaved edit is kept when the page reloads inside its save window, pres
   // Phase 3 check on 92e581a7: with the pointer still down on Take the blur's save is held, and with
   // no press the idle save has not run, so only the page-hide save carries the edit. That save's
   // transaction must commit before the reload ends the document.
+  await installWriteHold(page);
   await production(page, 'Reload in the window');
   const field = page.getByTestId('cue-field-f0');
   await cue(page, 'Hairline').getByTestId('select-cue').click();
@@ -312,6 +313,25 @@ test('an unsaved edit is kept when the page reloads inside its save window, pres
   await page.reload();
   await cue(page, 'Hairline').getByTestId('select-cue').click();
   await expect(field).toHaveValue('Kept with no press');
+  // Away to another tab and back mid-edit (its hide saves the first part), typing on, reload: the
+  // record must be applied over the part that hide saved.
+  await field.fill('Before the tab');
+  await page.evaluate(() => {
+    const flip = (state: string) => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+      document.dispatchEvent(new Event('visibilitychange'));
+    };
+    flip('hidden');
+    flip('visible');
+    delete (document as unknown as { visibilityState?: string }).visibilityState;
+  });
+  // That save lands; every later one is held, so the reload aborts it, as on a slow disk.
+  await settleDurableWrites(page);
+  await holdWrites(page, true);
+  await field.fill('Before the tab and after it');
+  await page.reload();
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await expect(field).toHaveValue('Before the tab and after it');
 });
 
 test('Update sends every field, and u is the same press', async ({ page }) => {

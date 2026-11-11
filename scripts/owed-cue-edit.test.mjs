@@ -14,7 +14,7 @@ const { setLibraryAccount } = await import('../src/model/accountScope.ts');
 const { OWED_CUE_EDITS_KEY, forgetOwedCueEdit, keepOwedCueEdit, readOwedCueEdit } = await import('../src/model/owedCueEdit.ts');
 
 const text = (f0) => ({ label: 'Opener', note: null, values: { f0 } });
-const edit = (cueId, f0) => ({ cueId, base: text('before'), fields: text(f0) });
+const edit = (cueId, f0) => ({ cueId, bases: [text('before')], fields: text(f0) });
 
 test('a record per production, read back as written, and the key goes with the last one', () => {
   store.clear();
@@ -55,7 +55,7 @@ test('a store of another version is never read, written over or cleared', () => 
 
 test('an unreadable record reads as none', () => {
   store.clear();
-  store.set(OWED_CUE_EDITS_KEY, JSON.stringify({ v: 1, shows: { 'show-a': { cueId: 'c1', base: null, fields: text('x') } } }));
+  store.set(OWED_CUE_EDITS_KEY, JSON.stringify({ v: 1, shows: { 'show-a': { cueId: 'c1', bases: [null], fields: text('x') } } }));
   assert.equal(readOwedCueEdit('show-a'), null);
   store.set(OWED_CUE_EDITS_KEY, '{not json');
   assert.equal(readOwedCueEdit('show-a'), null);

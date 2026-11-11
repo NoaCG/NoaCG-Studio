@@ -3,8 +3,9 @@
 //
 // The page-hide save writes the production to the durable store, but IndexedDB takes tens of
 // milliseconds to commit and a reload aborts every write still committing. localStorage is written
-// synchronously and the next page reads it. One small record per production: the cue, the text it
-// held when the typing started (`base`) and the typed text (`fields`). The production page takes it
+// synchronously and the next page reads it. One small record per production: the cue, the texts it
+// may hold under the edit (`bases`: its text when the typing started, then each part of the typing
+// handed to the store) and the typed text (`fields`). The production page takes it
 // on its next visit (control/cueDraft.ts `recover`). Device-local, never synced, one key per
 // account (accountScope.ts `ACCOUNT_LOCAL_KEYS`).
 
@@ -20,7 +21,7 @@ export interface OwedCueText {
 /** One production's record. */
 export interface OwedCueEdit {
   cueId: string;
-  base: OwedCueText;
+  bases: OwedCueText[];
   fields: OwedCueText;
 }
 
@@ -70,8 +71,9 @@ export function keepOwedCueEdit(showId: string, edit: OwedCueEdit): void {
 export function readOwedCueEdit(showId: string): OwedCueEdit | null {
   const e = load()?.shows[showId];
   if (!e || typeof e.cueId !== 'string') return null;
-  const base = text(e.base), fields = text(e.fields);
-  return base && fields ? { cueId: e.cueId, base, fields } : null;
+  const bases = Array.isArray(e.bases) ? e.bases.map(text) : [], fields = text(e.fields);
+  if (!fields || bases.length === 0 || bases.some((b) => b === null)) return null;
+  return { cueId: e.cueId, bases: bases as OwedCueText[], fields };
 }
 
 /** Remove a production's record. Never throws. */

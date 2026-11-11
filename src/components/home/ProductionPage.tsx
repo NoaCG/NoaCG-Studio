@@ -273,14 +273,16 @@ import { usePrepareForLive } from '../control/PrepareForLive';
 const DRAFT_ADAPTERS: CueDraftAdapters = {
   onPageHide: (run) => {
     const hidden = () => {
-      if (document.visibilityState === 'hidden') run();
+      if (document.visibilityState === 'hidden') run(true);
     };
-    window.addEventListener('noacg-account-authoring-pausing', run);
-    window.addEventListener('pagehide', run);
+    const going = () => run(true);
+    const pausing = () => run(false);
+    window.addEventListener('noacg-account-authoring-pausing', pausing);
+    window.addEventListener('pagehide', going);
     document.addEventListener('visibilitychange', hidden);
     return () => {
-      window.removeEventListener('noacg-account-authoring-pausing', run);
-      window.removeEventListener('pagehide', run);
+      window.removeEventListener('noacg-account-authoring-pausing', pausing);
+      window.removeEventListener('pagehide', going);
       document.removeEventListener('visibilitychange', hidden);
     };
   },
