@@ -44,6 +44,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read # Branch-only diagnostic reader; never merged to main.
 
 jobs:
   run:
@@ -97,6 +98,7 @@ jobs:
 
       - name: Run
         env:
+          GH_TOKEN: ${{ github.token }} # Same-job read-only artifact analysis.
           SCRIPT: ${{ inputs.script }}
           MINUTES: ${{ inputs.minutes }}
         run: npm run "$SCRIPT" -- --minutes "$MINUTES"

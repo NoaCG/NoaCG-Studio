@@ -1,0 +1,114 @@
+[
+  {
+    "kind": "clock",
+    "batch": 1,
+    "ref": "codex/editor-causality-20261111-clock-01",
+    "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
+    "runId": 43081528522
+  },
+  {
+    "kind": "clock",
+    "batch": 2,
+    "ref": "codex/editor-causality-20261111-clock-02",
+    "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
+    "runId": 43081764656
+  },
+  {
+    "kind": "clock",
+    "batch": 3,
+    "ref": "codex/editor-causality-20261111-clock-03",
+    "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
+    "runId": 43081776017
+  },
+  {
+    "kind": "clock",
+    "batch": 4,
+    "ref": "codex/editor-causality-20261111-clock-04",
+    "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
+    "runId": 43081786512
+  },
+  {
+    "kind": "clock",
+    "batch": 5,
+    "ref": "codex/editor-causality-20261111-clock-05",
+    "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
+    "runId": 43081799624
+  },
+  {
+    "kind": "clock",
+    "batch": 6,
+    "ref": "codex/editor-causality-20261111-clock-06",
+    "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
+    "runId": 43082037198
+  },
+  {
+    "kind": "clock",
+    "batch": 7,
+    "ref": "codex/editor-causality-20261111-clock-07",
+    "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
+    "runId": 43082048035
+  },
+  {
+    "kind": "clock",
+    "batch": 8,
+    "ref": "codex/editor-causality-20261111-clock-08",
+    "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
+    "runId": 43082308813
+  },
+  {
+    "kind": "clock",
+    "batch": 9,
+    "ref": "codex/editor-causality-20261111-clock-09",
+    "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
+    "runId": 43082319105
+  },
+  {
+    "kind": "clock",
+    "batch": 10,
+    "ref": "codex/editor-causality-20261111-clock-10",
+    "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
+    "runId": 43082329619
+  },
+  {
+    "kind": "clock",
+    "batch": 11,
+    "ref": "codex/editor-causality-20261111-clock-11",
+    "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
+    "runId": 43082449812
+  },
+  {
+    "kind": "clock",
+    "batch": 12,
+    "ref": "codex/editor-causality-20261111-clock-12",
+    "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
+    "runId": 43082461833
+  },
+  {
+    "kind": "operator",
+    "batch": 1,
+    "ref": "codex/editor-causality-20261111-operator-01",
+    "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
+    "runId": 43081541233
+  },
+  {
+    "kind": "operator",
+    "batch": 2,
+    "ref": "codex/editor-causality-20261111-operator-02",
+    "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
+    "runId": 43082471652
+  },
+  {
+    "kind": "operator",
+    "batch": 3,
+    "ref": "codex/editor-causality-20261111-operator-03",
+    "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
+    "runId": 43082481613
+  },
+  {
+    "kind": "operator",
+    "batch": 4,
+    "ref": "codex/editor-causality-20261111-operator-04",
+    "sha": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
+    "runId": 43082665932
+  }
+]
