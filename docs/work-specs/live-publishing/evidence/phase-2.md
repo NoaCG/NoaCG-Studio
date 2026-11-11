@@ -20,14 +20,19 @@ Hardware checks: none in this phase (see "Not measured here").
   suite never runs them. Rerun one group with, for example,
   `MEASURE_FIXTURE=large MEASURE_NET=slow MEASURE_PATHS=graphic npx playwright test --config=e2e/configured/measure/measure.config.ts baseline --grep takes-a`,
   then `node e2e/configured/measure/summarize.mjs`. The cloud queue's five-minute cap split the
-  run into 125 jobs that each wrote a result; the summary merges their raw samples before taking
-  any statistic.
+  run into jobs of one group part each; the summary merges their raw samples before taking any
+  statistic.
 - **One time origin.** Every stamp is `performance.timeOrigin + performance.now()` (or an event's
   own `timeStamp` on that base) in the page that saw it, all pages and outputs on one machine. The
-  scripted hardware panel's press is stamped in the Playwright process on the same clock base as
-  the module's request leaves.
+  scripted hardware panel's press is stamped in the Playwright process as the module's request
+  leaves, then moved onto the page's clock: the page's clock is read between two of the process's
+  own readings and the midpoint gives the offset. Half that bracket bounds the error: 0.9 ms p50
+  and 3.6 ms p95 over the 200 panel samples (largest 60 ms); it is kept with each sample.
 - **Words.** "Press": the `click` event's timestamp (every button measured acts on click). "Sent":
-  the page calls `fetch` for the send (`control_send_seq`; the Bridge's `/act` for a server cue).
+  the page calls `fetch` for the press's own send (`control_send_seq`; the Bridge's `/act` for a
+  server cue). A command send is tied to its press by the sender id and press number in its body
+  (`src/control/seqSend.ts` `senderBody`), so a resend or a later send of an earlier press is never
+  read as this press's.
   "Page's own": press to sent minus the time a kept ordering wait overlapped it, read from the
   page's own requests (road discovery: a slug resolve inside the window; one send in flight per
   graphic: an earlier send still running at the press; a folder's earlier sends). "Ran" does not
@@ -67,57 +72,57 @@ Cases: "unthrottled" and "throttled" (20 Mbit/s, 50 ms) on each fixture.
 
 | Case | Graphics | Image files | Stored output (published JSON text) | First publish of the fixture |
 |---|---|---|---|---|
-| Typical, unthrottled | 20 | 3.00 MB | 6.16 MB | 9945 / 11030 (n 25) |
-| Typical, throttled | 20 | 3.00 MB | 6.16 MB | 9935 / 10994 (n 25) |
-| Large, unthrottled | 60 | 10.00 MB | 20.21 MB | 17611 / 19452 (n 38) |
-| Large, throttled | 60 | 10.00 MB | 20.21 MB | 17399 / 19324 (n 37) |
+| Typical, unthrottled | 20 | 3.00 MB | 6.16 MB | 10186 / 11643 (n 25) |
+| Typical, throttled | 20 | 3.00 MB | 6.16 MB | 10177 / 11519 (n 25) |
+| Large, unthrottled | 60 | 10.00 MB | 20.21 MB | 17668 / 19490 (n 39) |
+| Large, throttled | 60 | 10.00 MB | 20.21 MB | 17561 / 19901 (n 37) |
 
 #### Take paths: press to sent (p50 / p95, ms)
 
 | Path | Case | n | Page's own | Total | Samples a kept wait added time to |
 |---|---|---|---|---|---|
-| Graphic cue Take | Typical, unthrottled | 50 | 53.2 / 99.3 | 53.2 / 99.3 | none |
-| Graphic cue Take | Typical, throttled | 50 | 50.0 / 87.6 | 50.0 / 87.6 | none |
-| Graphic cue Take | Large, unthrottled | 50 | 139 / 185 | 139 / 185 | none |
-| Graphic cue Take | Large, throttled | 50 | 88.7 / 158 | 88.7 / 158 | none |
-| Picture cue Take | Typical, unthrottled | 50 | 70.3 / 93.4 | 70.3 / 93.4 | none |
-| Picture cue Take | Typical, throttled | 50 | 67.3 / 91.9 | 67.3 / 91.9 | none |
-| Picture cue Take | Large, unthrottled | 50 | 123 / 179 | 123 / 179 | none |
-| Picture cue Take | Large, throttled | 50 | 75.4 / 156 | 75.4 / 156 | none |
-| Folder Take (two cues, together) | Typical, unthrottled | 50 | 109 / 160 | 109 / 160 | none |
-| Folder Take (two cues, together) | Typical, throttled | 50 | 114 / 165 | 114 / 165 | none |
-| Folder Take (two cues, together) | Large, unthrottled | 50 | 182 / 313 | 182 / 313 | none |
-| Folder Take (two cues, together) | Large, throttled | 50 | 146 / 286 | 146 / 286 | none |
-| Server cue Take (fake Bridge) | Typical, unthrottled | 50 | 16.6 / 32.6 | 16.6 / 32.6 | none |
-| Server cue Take (fake Bridge) | Typical, throttled | 50 | 16.5 / 20.4 | 16.5 / 20.4 | none |
-| Server cue Take (fake Bridge) | Large, unthrottled | 50 | 32.2 / 51.8 | 32.2 / 51.8 | none |
-| Server cue Take (fake Bridge) | Large, throttled | 50 | 32.4 / 205 | 32.4 / 205 | none |
-| Quick button (Goal) | Typical, unthrottled | 50 | 56.2 / 76.3 | 56.2 / 76.3 | none |
-| Quick button (Goal) | Typical, throttled | 50 | 56.8 / 66.9 | 56.8 / 66.9 | none |
-| Quick button (Goal) | Large, unthrottled | 50 | 96.3 / 121 | 96.3 / 121 | none |
-| Quick button (Goal) | Large, throttled | 50 | 105 / 144 | 105 / 144 | none |
-| Quick button, second of two fast | Typical, unthrottled | 50 | 50.8 / 69.7 | 50.8 / 69.7 | none |
-| Quick button, second of two fast | Typical, throttled | 50 | 53.6 / 92.7 | 53.6 / 100 | send in flight 3 (adds 12.5 / 15.2) |
-| Quick button, second of two fast | Large, unthrottled | 50 | 50.1 / 102 | 50.1 / 102 | none |
-| Quick button, second of two fast | Large, throttled | 50 | 18.4 / 117 | 18.4 / 117 | none |
-| +1 | Typical, unthrottled | 50 | 58.2 / 76.8 | 58.2 / 76.8 | none |
-| +1 | Typical, throttled | 50 | 54.2 / 72.6 | 54.2 / 72.6 | none |
-| +1 | Large, unthrottled | 50 | 95.5 / 117 | 95.5 / 117 | none |
-| +1 | Large, throttled | 50 | 100 / 131 | 100 / 131 | none |
-| +1, second of two fast | Typical, unthrottled | 50 | 52.9 / 68.6 | 52.9 / 68.6 | none |
-| +1, second of two fast | Typical, throttled | 50 | 53.3 / 102 | 53.3 / 102 | send in flight 8 (adds 14.4 / 16.0) |
-| +1, second of two fast | Large, unthrottled | 50 | 16.6 / 115 | 16.6 / 115 | none |
-| +1, second of two fast | Large, throttled | 50 | 59.1 / 118 | 59.1 / 118 | none |
-| Next | Typical, unthrottled | 50 | 32.8 / 65.3 | 32.8 / 65.3 | none |
-| Next | Typical, throttled | 50 | 36.2 / 80.6 | 36.2 / 80.6 | none |
-| Next | Large, unthrottled | 50 | 17.2 / 92.6 | 17.2 / 92.6 | none |
-| Next | Large, throttled | 50 | 22.7 / 118 | 22.7 / 118 | none |
-| Hardware panel Take (scripted) | Typical, unthrottled | 50 | 16.0 / 24.9 | 21.8 / 36.5 | none |
-| Hardware panel Take (scripted) | Typical, throttled | 50 | 16.9 / 26.8 | 24.7 / 36.9 | none |
-| Hardware panel Take (scripted) | Large, unthrottled | 50 | 42.8 / 49.5 | 47.8 / 60.1 | none |
-| Hardware panel Take (scripted) | Large, throttled | 50 | 51.4 / 68.0 | 59.4 / 87.4 | none |
+| Graphic cue Take | Typical, unthrottled | 50 | 79.6 / 97.6 | 79.6 / 97.6 | none |
+| Graphic cue Take | Typical, throttled | 50 | 74.8 / 92.3 | 74.8 / 92.3 | none |
+| Graphic cue Take | Large, unthrottled | 50 | 129 / 186 | 129 / 186 | none |
+| Graphic cue Take | Large, throttled | 50 | 113 / 201 | 113 / 201 | none |
+| Picture cue Take | Typical, unthrottled | 50 | 76.3 / 97.8 | 76.3 / 97.8 | none |
+| Picture cue Take | Typical, throttled | 50 | 75.4 / 99.8 | 75.4 / 99.8 | none |
+| Picture cue Take | Large, unthrottled | 50 | 96.4 / 173 | 96.4 / 173 | none |
+| Picture cue Take | Large, throttled | 50 | 79.2 / 167 | 79.2 / 167 | none |
+| Folder Take (two cues, together) | Typical, unthrottled | 50 | 139 / 182 | 139 / 182 | none |
+| Folder Take (two cues, together) | Typical, throttled | 50 | 135 / 183 | 135 / 183 | none |
+| Folder Take (two cues, together) | Large, unthrottled | 50 | 214 / 319 | 214 / 319 | none |
+| Folder Take (two cues, together) | Large, throttled | 50 | 216 / 339 | 216 / 339 | none |
+| Server cue Take (fake Bridge) | Typical, unthrottled | 50 | 17.0 / 33.5 | 17.0 / 33.5 | none |
+| Server cue Take (fake Bridge) | Typical, throttled | 50 | 31.5 / 34.1 | 31.5 / 34.1 | none |
+| Server cue Take (fake Bridge) | Large, unthrottled | 50 | 30.6 / 178 | 30.6 / 178 | none |
+| Server cue Take (fake Bridge) | Large, throttled | 50 | 32.0 / 230 | 32.0 / 230 | none |
+| Quick button (Goal) | Typical, unthrottled | 50 | 62.4 / 84.4 | 62.4 / 84.4 | none |
+| Quick button (Goal) | Typical, throttled | 50 | 60.6 / 83.6 | 60.6 / 83.6 | none |
+| Quick button (Goal) | Large, unthrottled | 50 | 106 / 138 | 106 / 138 | none |
+| Quick button (Goal) | Large, throttled | 50 | 108 / 145 | 108 / 145 | none |
+| Quick button, second of two fast | Typical, unthrottled | 50 | 50.5 / 74.7 | 50.5 / 74.7 | none |
+| Quick button, second of two fast | Typical, throttled | 50 | 58.4 / 114 | 58.4 / 114 | send in flight 1 (adds 0.1 / 0.1) |
+| Quick button, second of two fast | Large, unthrottled | 50 | 65.3 / 124 | 65.3 / 124 | none |
+| Quick button, second of two fast | Large, throttled | 50 | 81.7 / 139 | 81.7 / 139 | none |
+| +1 | Typical, unthrottled | 50 | 60.9 / 77.0 | 60.9 / 77.0 | none |
+| +1 | Typical, throttled | 50 | 58.9 / 69.8 | 58.9 / 69.8 | none |
+| +1 | Large, unthrottled | 50 | 108 / 132 | 108 / 132 | none |
+| +1 | Large, throttled | 50 | 107 / 146 | 107 / 146 | none |
+| +1, second of two fast | Typical, unthrottled | 50 | 58.6 / 85.8 | 58.6 / 85.8 | none |
+| +1, second of two fast | Typical, throttled | 50 | 56.6 / 126 | 56.6 / 126 | send in flight 1 (adds 14.3 / 14.3) |
+| +1, second of two fast | Large, unthrottled | 50 | 79.4 / 152 | 79.4 / 152 | none |
+| +1, second of two fast | Large, throttled | 50 | 84.5 / 124 | 84.5 / 124 | none |
+| Next | Typical, unthrottled | 50 | 55.5 / 69.3 | 55.5 / 69.3 | none |
+| Next | Typical, throttled | 50 | 37.8 / 69.2 | 37.8 / 69.2 | none |
+| Next | Large, unthrottled | 50 | 37.4 / 133 | 37.4 / 133 | none |
+| Next | Large, throttled | 50 | 83.0 / 146 | 83.0 / 146 | none |
+| Hardware panel Take (scripted) | Typical, unthrottled | 50 | 20.9 / 34.2 | 26.3 / 39.5 | none |
+| Hardware panel Take (scripted) | Typical, throttled | 50 | 21.2 / 30.0 | 27.8 / 38.9 | none |
+| Hardware panel Take (scripted) | Large, unthrottled | 50 | 55.9 / 76.7 | 61.8 / 97.3 | none |
+| Hardware panel Take (scripted) | Large, throttled | 50 | 59.3 / 87.7 | 68.0 / 96.1 | none |
 
-Other requests running inside press..sent: Picture cue Take: 127.0.0.1:8899/status, 127.0.0.1:8899/state, rpc:panel_list; Folder Take (two cues, together): rest:control_shows, 127.0.0.1:8899/state; Server cue Take (fake Bridge): 127.0.0.1:8899/health, rpc:panel_list, 127.0.0.1:8899/status, rpc:audience_list, rest:teams, rest:team_members, rest:team_productions; Quick button (Goal): rpc:audience_list, rest:teams, rest:team_members, rest:team_productions; Quick button, second of two fast: rest:control_shows, rpc:control_tail_seq, rpc:panel_list, rest:teams, rest:team_members, rest:team_productions, rpc:audience_list; +1: rest:teams, rest:team_members, rest:team_productions; +1, second of two fast: rest:teams, rest:team_members, rest:team_productions, rpc:audience_list, rest:control_shows, rpc:control_tail_seq, rpc:panel_list.
+Other requests running inside press..sent: Graphic cue Take: rpc:audience_list; Picture cue Take: rest:teams, rest:team_members, rest:team_productions, rest:control_shows, 127.0.0.1:8899/status; Folder Take (two cues, together): 127.0.0.1:8899/state, rpc:audience_list, rest:teams, rest:team_members, rest:team_productions; Server cue Take (fake Bridge): 127.0.0.1:8899/health, 127.0.0.1:8899/state, rest:teams, rest:team_members, rest:team_productions, 127.0.0.1:8899/status; Quick button (Goal): rest:control_shows, rpc:control_tail_seq; Quick button, second of two fast: rest:teams, rest:team_members, rest:team_productions, rpc:audience_list; +1: rest:teams, rest:team_members, rest:team_productions, rpc:audience_list, rpc:panel_list; +1, second of two fast: rest:teams, rest:team_members, rest:team_productions, rpc:panel_list, rpc:audience_list; Hardware panel Take (scripted): rpc:panel_list, rpc:panel_renew.
 
 #### Sent to render dispatch to first seen (p50 / p95, ms)
 
@@ -132,10 +137,10 @@ Other requests running inside press..sent: Picture cue Take: 127.0.0.1:8899/stat
 
 | Case | n | Total, during a publish | Total, no publish (from the table above) | Publish duration | Publishes |
 |---|---|---|---|---|---|
-| Typical, unthrottled | 75 | 79.5 / 952 | 53.2 / 99.3 | 1398 / 1571 | 517 |
-| Typical, throttled | 50 | 71.0 / 96.8 | 50.0 / 87.6 | 5463 / 5608 | 10 |
-| Large, unthrottled | 55 | 160 / 285 | 139 / 185 | 4787 / 5140 | 261 |
-| Large, throttled | 50 | 149 / 219 | 88.7 / 158 | 17398 / 17569 | 4 |
+| Typical, unthrottled | 63 | 84.3 / 1064 | 79.6 / 97.6 | 1440 / 1594 | 445 |
+| Typical, throttled | 50 | 81.2 / 104 | 74.8 / 92.3 | 5600 / 5775 | 11 |
+| Large, unthrottled | 56 | 170 / 385 | 129 / 186 | 4881 / 5320 | 279 |
+| Large, throttled | 50 | 141 / 200 | 113 / 201 | 17288 / 17832 | 4 |
 
 #### Bytes and time per change
 
@@ -206,25 +211,27 @@ None.
 ## What the numbers say
 
 - **Every graphic Take path spends more than 50 ms of the page's own time at p95 today**, in
-  every case. Graphic cue Take 87.6 to 185 ms p95 across the four cases, picture 91.9 to 179,
-  folder 160 to 313, quick button 66.9 to 144, +1 72.6 to 131, Next 65.3 to 118. Under 50 ms:
-  the server cue (fake Bridge) at 20.4 to 51.8 ms, except 205 ms in the large throttled case, and
-  the hardware panel's page share at 24.9 to 49.5 ms, except 68.0 ms in the large throttled case. The page's own time grows with the production: the graphic cue Take goes from 53 ms p50
-  (20 graphics) to 139 ms p50 (60 graphics), unthrottled.
-- **Next and the second of two fast presses split into two groups**, not one spread: on the large
-  fixture about 15 to 20 ms in roughly 60 % of samples and 50 to 110 ms in the rest (raw samples in
-  the result files). That is consistent with the press finding the page idle, or still busy with
-  the work the press before it started (the Take before a Next; the first of two presses), which
-  is why their p50 can sit below the single press's. The p95 is the busy group.
+  every case. Graphic cue Take 92.3 to 201 ms p95 across the four cases, picture 97.8 to 173,
+  folder 182 to 339, quick button 83.6 to 145, +1 69.8 to 146, Next 69.2 to 146. Under 50 ms on
+  the typical fixture only: the server cue (fake Bridge) at 33.5 and 34.1 ms (178 and 230 ms on
+  the large one) and the hardware panel's page share at 34.2 and 30.0 ms (76.7 and 87.7 ms on the
+  large one). The page's own time grows with the production: the graphic cue Take goes from
+  79.6 ms p50 (20 graphics) to 129 ms p50 (60 graphics), unthrottled.
+- **Some presses are sent at once, most are not.** Next is sent within 30 ms in 17 to 23 of 50
+  presses, the second of two fast presses in 7 to 23, a single quick button or +1 press in 0 to
+  13; the rest take 50 to 150 ms. Each send here is tied to its own press by the press's sender
+  id and number, so this is the page, consistent with a press finding it idle or still busy
+  with the work the press before it started.
 - **Kept ordering waits almost never add time.** No road discovery and no folder ordering inside
-  any window. "One send in flight per graphic" added 12 to 16 ms in 3 and 8 of 50 "second of two
-  fast" presses (typical, throttled), and in none elsewhere. So nearly all of press to sent is the
-  page's own work.
-- **A publish slows Takes, badly on the unthrottled case.** Press to sent during a publish loop:
-  typical unthrottled 79.5 / 952 ms (p50 / p95) against 53.2 / 99.3 without; large unthrottled
-  160 / 285 against 139 / 185; large throttled 149 / 219 against 88.7 / 158. Publishing is page work (a 6 or 20 MB payload built and sent on the
-  main thread), so a Take pressed during one waits behind it. A publish takes 1.4 s (typical) to
-  17.4 s (large, throttled).
+  any window. "One send in flight per graphic" appeared in one "second of two fast" press each for
+  the quick button and the +1 (typical, throttled), adding 0.1 and 14.3 ms. Nearly all of press
+  to sent is the page's own work.
+- **A publish slows Takes, badly on the unthrottled cases.** Press to sent during a publish loop
+  against none: typical unthrottled 84.3 / 1064 ms (p50 / p95) against 79.6 / 97.6; large
+  unthrottled 170 / 385 against 129 / 186; typical throttled 81.2 / 104 against 74.8 / 92.3; large
+  throttled 141 / 200 against 113 / 201. Publishing builds and sends a 6 or 20 MB payload from the
+  page, so a Take pressed during one can wait behind it. A publish takes 1.4 s (typical) to 17.3 s
+  (large, throttled).
 - **Sent to first seen is about 40 to 50 ms p50 and 150 to 170 ms p95**, with play() 10 to 16 ms
   and render dispatch 20 to 25 ms after sent. Capture resolution: 12 to 15 ms p50, 43 to 59 ms p95
   between screencast frames, so first seen is known to within about one frame.
@@ -248,15 +255,15 @@ None.
 
 1. **AC-1's 50 ms p95 for the page's own time, as measured here, is not reachable by removing the
    W1 waits alone.** Next has no save, measurement or health wait before its send (nothing W1
-   removes), and it already takes 65.3 to 118 ms p95; the quick button 66.9 to 144 ms. The rest
-   is the page's render and dispatch work in this harness: a development build on a 4-CPU cloud
-   worker, which overstates a bundled build on a studio machine. Phase 3 needs one of: the target
-   judged on a production build, the target set relative to this baseline, or work on the page's
-   own render cost in scope. Owner decision before phase 3.
-2. **AC-4's "press to ran within 50 ms p95 of nothing being published" fails today by up to
-   850 ms** (952 against 99.3 ms p95, typical unthrottled). It is reachable only if a publish stops
-   blocking the page's main thread; whole publishes (phase 6) keep that cost. Not wrong, but phase
-   6's design has to take the publish's own work off the Take's path to meet it.
+   removes), and it already takes 69.2 to 146 ms p95; the quick button 83.6 to 145 ms. The rest
+   is the page's own render and dispatch work in this harness: a development build on a 4-CPU
+   cloud worker, which overstates a bundled build on a studio machine. Phase 3 needs one of: the
+   target judged on a production build, the target set relative to this baseline, or work on the
+   page's own render cost in scope. Owner decision before phase 3.
+2. **AC-4's "press to ran within 50 ms p95 of nothing being published" fails today by up to about
+   970 ms** (1064 against 97.6 ms p95, typical unthrottled). It is reachable only if a publish
+   stops blocking the page; whole publishes (phase 6) keep that cost unless phase 6's design takes
+   the publish's own work off the Take's path.
 3. **D1's 5 s ceiling for a Take of a brand-new graphic** is far below today's update time on the
    large fixture over 20 Mbit/s (31.6 s p50), because the output downloads the whole production
    for one new graphic. The ceiling holds only once phase 7 sends what changed, or the new graphic
@@ -293,11 +300,15 @@ None.
 
 ## Checks
 
-- The harness's own trials ran each group with 2 to 10 samples before the run. In the run, 125
-  jobs passed and wrote results, and no sample inside them failed (Failures: none, above). Two
-  jobs wrote nothing: one was running when the container restarted (queued again), and one extra
-  publish-overlap part met its dev server shutting down at set-up, because the job before it had
-  just been cancelled to change its time limit; that group still has 55 samples.
+- The harness's own trials ran each group with 2 to 10 samples before the run. The first full run
+  (125 jobs) matched a send to a press as "the first send after the click"; `/check`'s review
+  showed that can credit a press with an earlier press's later send, and that its panel stamp and
+  publish windows needed the corrections above. The Take paths and the publish overlap were run
+  again with them (54 jobs). The tables hold that rerun for those groups, and the first run for
+  render, bytes and output start, which do not match sends to presses. Every job whose result is
+  used passed and no sample inside them failed (Failures: none, above). Jobs that wrote nothing:
+  one running when the container restarted (queued again), and one extra publish part that met its
+  dev server shutting down at set-up, because the job before it had just been cancelled.
 - `npx eslint e2e/configured/measure/`: clean.
 - `npm run gates -- run --changed origin/main`: see the pull request.
 - The configured suite itself is unchanged: `*.measure.ts` does not match its spec pattern, and
