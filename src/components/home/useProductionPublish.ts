@@ -11,7 +11,7 @@
 // inline code did. The rehearsal the first publish clears stays the page's (`onFirstPublish`): the
 // live map and PROGRAM are not this module's.
 
-import { useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import { saveAs } from 'file-saver';
 import {
   loadShows,
@@ -28,6 +28,7 @@ import { commitDurableWrites } from '../../model/durableStore';
 import { accountCasparDefault, casparDestinationId, destinationUrl, outputSetupForFirstPublish, readOutputSetup, wantsAccountOutputDefault } from '../../model/outputSetup';
 import { readDefaultOutput } from '../../backend/auth';
 import {
+  currentProductionPlayout,
   loadPlayoutSettings,
   playoutConfigured,
   putOutputOnAir,
@@ -38,6 +39,7 @@ import {
   type PlayoutResult,
   type PlayoutSettings,
 } from '../../control/playoutLink';
+import { changeVmixOutput, type VmixOutputCommand, type VmixReplace } from '../../control/vmixSetup';
 import type { Resolution } from '../../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../../model/projectFormat';
 import { outputEmbedFileName, outputEmbedHtml } from '../../export/outputEmbed';
@@ -83,6 +85,8 @@ export function useProductionPublish({ authStatus, signInOpen }: { authStatus: A
   const [nameNote, setNameNote] = useState<string | null>(null);
   /** Publish found another production on the slot: Load waits for "Replace". */
   const [replaceAsk, setReplaceAsk] = useState(false);
+  const [vmixReplace, setVmixReplace] = useState<VmixReplace>();
+  const vmixNoteRef = useRef<string | null>(null);
   /** A Load or Unload is on its way to the Bridge: a second press waits for it. */
   const [slotBusy, setSlotBusy] = useState(false);
   const slotBusyRef = useRef(false);
@@ -107,8 +111,8 @@ export function useProductionPublish({ authStatus, signInOpen }: { authStatus: A
   }, [authStatus, signInOpen]);
   return {
     statusOpen, setStatusOpen, linksOpen, setLinksOpen, busy, setBusy, publishing, setPublishing, copied, setCopied,
-    nameDraft, setNameDraft, nameNote, setNameNote, replaceAsk, setReplaceAsk, slotBusy, setSlotBusy, slotBusyRef,
-    publishAfterSignIn, publishRef,
+    nameDraft, setNameDraft, nameNote, setNameNote, replaceAsk, setReplaceAsk, vmixReplace, setVmixReplace, slotBusy, setSlotBusy, slotBusyRef,
+    publishAfterSignIn, publishRef, vmixNoteRef,
   };
 }
 
@@ -118,7 +122,7 @@ export type ProductionPublishState = ReturnType<typeof useProductionPublish>;
 interface PublishActionsIo {
   show: Show;
   setShows: (shows: Show[]) => void;
-  setNote: (note: string | null) => void;
+  setNote: Dispatch<SetStateAction<string | null>>;
   backendConfigured: boolean;
   authStatus: AuthUiState['status'];
   needsSignIn: boolean;
@@ -129,6 +133,9 @@ interface PublishActionsIo {
   hostedSlug: string | null;
   slotReadable: boolean;
   outputSlot: SlotReading | undefined;
+  pageCanDispatch: () => boolean;
+  canSendCaspar: () => boolean;
+  casparAllowed: () => boolean;
   onAirChanged: (what: 'air' | 'stop', result: PlayoutResult, target: string) => void;
   flushDraft: () => Promise<unknown>;
   history: Pick<ReturnType<typeof useRundownHistory>, 'closeGroup'>;
@@ -150,7 +157,7 @@ interface PublishActionsIo {
 
 /** The publish, slot and links handlers, built on every render after the page's early return. */
 export function publishActions(state: ProductionPublishState, io: PublishActionsIo) {
-  const { setBusy, setPublishing, setCopied, nameDraft, setNameDraft, setNameNote, setReplaceAsk, setStatusOpen, setSlotBusy, slotBusyRef, publishAfterSignIn, publishRef } = state;
+  const { setBusy, setPublishing, setCopied, nameDraft, setNameDraft, setNameNote, setReplaceAsk, setVmixReplace, setStatusOpen, setSlotBusy, slotBusyRef, publishAfterSignIn, publishRef, vmixNoteRef } = state;
   const {
     show, setShows, setNote, backendConfigured, authStatus, needsSignIn, openSignIn, user, outputUrl, browserOutputUrl,
     hostedSlug, slotReadable, outputSlot, onAirChanged, flushDraft, history, legacyCasparActivity, accountCaspar, publishedReaders,
@@ -254,13 +261,15 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
       setSlotBusy(false);
     }
   };
-  const readSavedOutputSetup = () => readOutputSetup(loadShows().find(s => s.id === show.id)?.outputSetup);
+  const currentCaspar = () => io.pageCanDispatch()
+    ? currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'casparcg') : null;
   /** The load itself, tagged with the production's CasparCG destination, and what it changed. */
   const sendLoad = async (settings: PlayoutSettings, url: string): Promise<PlayoutResult | null> => {
-    if (readSavedOutputSetup()?.vmix) return null;
+    if (!currentCaspar()) return null;
     const result = await putOutputOnAir(settings, () => {
-      const setup = readSavedOutputSetup();
-      if (setup?.vmix) return null;
+      const saved = currentCaspar();
+      if (!saved) return null;
+      const setup = readOutputSetup(saved.outputSetup);
       return destinationUrl(url, casparDestinationId(setup) ?? 'casparcg') ?? url;
     });
     if (result) onAirChanged('air', result, casparOutputTarget(settings));
@@ -275,8 +284,7 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
     }
     const reading = replace ? null : await readState(settings, settings.channel);
     // The operator's saved choice can change while the Bridge is reading the slot.
-    const setup = readSavedOutputSetup();
-    if (setup?.vmix) {
+    if (!currentCaspar()) {
       setReplaceAsk(false);
       return;
     }
@@ -312,16 +320,19 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
   };
   /** Take this production's renderer off its CasparCG slot through the Bridge: where, and the note
    *  a failure leaves. */
-  const takeOffSlot = async (): Promise<{ where: string; failed: string | null }> => {
-    const settings = loadPlayoutSettings();
+  const takeOffSlot = async (
+    settings = loadPlayoutSettings(), canSend = io.canSendCaspar, verify?: () => Promise<boolean>,
+  ): Promise<{ where: string; failed: string | null } | null> => {
+    if (!canSend()) return null;
     const where = slotAddress(slotOf(settings));
-    const result = await takeOutputOff(settings);
-    onAirChanged('stop', result, casparOutputTarget(settings));
+    const result = await takeOutputOff(settings, canSend, verify);
+    if (!result) return null;
+    if (io.pageCanDispatch()) onAirChanged('stop', result, casparOutputTarget(settings));
     return { where, failed: result.state === 'ok' ? null : `Unload from ${where} failed: ${result.detail}` };
   };
   const unloadFromSlot = (): Promise<void> => slotAction(async () => {
-    const { failed } = await takeOffSlot();
-    if (failed) setNote(failed);
+    const result = await takeOffSlot();
+    if (result?.failed) setNote(result.failed);
   });
   /** THE OFFLINE CLEAR (docs/work-specs/offline-clear/spec.md): All out did not clear NoaCG
    *  graphics through the cloud, so this production's renderer comes off its CasparCG slot through
@@ -329,14 +340,51 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
    *  is on air, which is why the note asks for All out before Load. Answers `base` with that said,
    *  or `base` alone when the slot does not hold this production's renderer. */
   const clearThroughBridge = async (base: string): Promise<string> => {
-    if (outputSlot?.holds !== 'ours') return base;
+    const slug = show.outputSlug;
+    if (!slug || outputSlot?.holds !== 'ours' || !io.canSendCaspar()) return base;
+    const settings = loadPlayoutSettings();
     let said = '';
     await slotAction(async () => {
-      const { where, failed } = await takeOffSlot();
-      said = failed ?? `Unloaded NoaCG graphics from ${where}. When the connection is back, press All out before Load on ${where}.`;
+      // The fallback was accepted on the open page. It can finish after navigation, only on
+      // the original slot and after the Bridge confirms this production still holds it.
+      const result = await takeOffSlot(settings, io.casparAllowed, async () => {
+        if (!io.casparAllowed()) return false;
+        const { reply } = await readState(settings, settings.channel);
+        const current = reply?.slots.find(slot => slot.layer === settings.layer);
+        return !!current && !current.arriving && slotHolds(current, slug) === 'ours';
+      });
+      if (!result) return;
+      said = result.failed ?? `Unloaded NoaCG graphics from ${result.where}. When the connection is back, press All out before Load on ${result.where}.`;
     });
     return said ? `${base.replace(/\.?$/, '.')} ${said}` : base;
   };
+
+  const vmixVerb = (command: VmixOutputCommand, url: string, automatic = false) => slotAction(async () => {
+    setVmixReplace(undefined);
+    const outcome = await changeVmixOutput(command, () => {
+      if (!io.pageCanDispatch()) return null;
+      const saved = currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'vmix');
+      if (!saved?.outputSlug || outputPageUrl(saved.outputSlug) !== url || (automatic && !readOutputSetup(saved.outputSetup)?.vmix)) return null;
+      return { settings: loadPlayoutSettings(), url, title: saved.name };
+    }, () => {
+      if (!io.pageCanDispatch()) return null;
+      const slug = loadShows().find(item => item.id === show.id)?.outputSlug;
+      return slug ? { settings: loadPlayoutSettings(), url: outputPageUrl(slug) } : null;
+    });
+    if (!io.pageCanDispatch()) return;
+    if (outcome.replace) {
+      setVmixReplace(outcome.replace);
+      setStatusOpen(true);
+    }
+    if (outcome.message) {
+      vmixNoteRef.current = outcome.message;
+      setNote(outcome.message);
+    } else if (outcome.completed) {
+      const previous = vmixNoteRef.current;
+      vmixNoteRef.current = null;
+      if (previous) setNote(note => note === previous ? null : note);
+    }
+  });
 
   /** Publish; the version it wrote, or null when it did not (the note says why). The readiness
    *  flow owns preparation and reports the result in the status panel. */
@@ -438,6 +486,8 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
           const latest = loadShows().find(s => s.id === show.id);
           if (latest && productionPlayoutSystem(latest, legacyCasparActivity, defaultCaspar) === 'casparcg') {
             await loadOnSlot(outputPageUrl(published.outputSlug));
+          } else if (readOutputSetup(latest?.outputSetup)?.vmix) {
+            await vmixVerb({ verb: 'take' }, outputPageUrl(published.outputSlug), true);
           }
         }
         return published.version ? { n: published.version.n, h: published.version.h } : null;
@@ -460,7 +510,7 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
   };
   // What the sign-in follow-through presses (`useProductionPublish`).
   publishRef.current = publish;
-  return { claimName, downloadEmbed, copy, loadOnSlot, reloadOnSlot, unloadFromSlot, clearThroughBridge, publishNow, publish };
+  return { claimName, downloadEmbed, copy, loadOnSlot, reloadOnSlot, unloadFromSlot, clearThroughBridge, vmixVerb, publishNow, publish };
 }
 
 /** The header's one action and the Playout panel's CasparCG facts, from this render's values. */

@@ -1,8 +1,8 @@
 import { useRef } from 'react';
-import PlayoutSettingsPanel from './PlayoutSettingsPanel';
+import PlayoutSettingsPanel, { VmixSettings } from './PlayoutSettingsPanel';
 import RundownColors from './home/RundownColors';
 import type { Show } from '../model/shows';
-import { loadPlayoutSettings, type PlayoutResult } from '../control/playoutLink';
+import { bridgePaired, loadPlayoutSettings, type PlayoutResult } from '../control/playoutLink';
 import { useModalGate } from './spaceKey';
 import AccountAuthoringGate from './AccountAuthoringGate';
 
@@ -10,17 +10,21 @@ import AccountAuthoringGate from './AccountAuthoringGate';
  *  rundown's route colours (docs/work-specs/playout-workflow-simplification AC-3, D9). The browser
  *  source and the CasparCG switch live in the Playout panel, so nothing here repeats them. */
 export default function PlayoutSettingsDialog({
-  onClose, show, setShows, casparOn, outputUrl, onOutputOnAir,
+  onClose, show, setShows, casparOn, vmixOn, outputUrl, canPutOutputOnAir, onOutputOnAir,
 }: {
   onClose: () => void;
   show: Show;
   setShows: (shows: Show[]) => void;
   casparOn: boolean;
+  vmixOn: boolean;
+  canPutOutputOnAir: () => boolean;
   outputUrl: string | null;
   onOutputOnAir?: (result: PlayoutResult, target: string) => void;
 }) {
   useModalGate();
   const pressedOnBackdrop = useRef(false);
+  const settings = loadPlayoutSettings();
+  const needsPairing = vmixOn && !bridgePaired(settings);
   return <div className="gallery-backdrop"
     onMouseDown={event => { pressedOnBackdrop.current = event.target === event.currentTarget; }}
     onClick={event => {
@@ -35,10 +39,11 @@ export default function PlayoutSettingsDialog({
         <button className="gallery-close" onClick={onClose} title="Close" data-testid="playout-settings-close">✕</button>
       </div>
       <div className="settings-content">
-        {casparOn && <section>
-          <p className="dlg-caption">CasparCG through NoaCG Bridge</p>
-          <PlayoutSettingsPanel outputUrl={outputUrl} onOutputOnAir={onOutputOnAir} />
+        {(casparOn || needsPairing) && <section>
+          <p className="dlg-caption">{casparOn ? 'CasparCG through NoaCG Bridge' : 'NoaCG Bridge'}</p>
+          <PlayoutSettingsPanel outputUrl={casparOn ? outputUrl : undefined} canPutOutputOnAir={canPutOutputOnAir} onOutputOnAir={onOutputOnAir} />
         </section>}
+        {vmixOn && !needsPairing && <VmixSettings agentUrl={settings.agentUrl} agentToken={settings.agentToken} />}
         <section>
           <p className="dlg-caption">Rundown colours</p>
           <AccountAuthoringGate><RundownColors show={show} settings={loadPlayoutSettings()} casparOn={casparOn} setShows={setShows} /></AccountAuthoringGate>

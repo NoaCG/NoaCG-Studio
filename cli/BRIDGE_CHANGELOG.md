@@ -15,6 +15,31 @@ Write a section the way you would tell an operator what they get by downloading 
 wrong or missing, what it does now, and anything they have to do. No pull request lists, no
 usernames, no internal names, nothing about how the program is built.
 
+## 0.11.0 - 2026-11-08
+
+You can now load a production's graphics into vMix from NoaCG. Start vMix and NoaCG Bridge
+on the same Windows computer, pair your browser, then switch on **vMix via Bridge** in the
+production's Playout panel. **Load** puts the production's Browser input on an overlay.
+**Unload** takes that input off with the overlay's transition. Settings > Playout shows which
+vMix is connected and lets you choose the overlay. NoaCG uses the highest available by default.
+
+The Playout panel shows **Source unverified** when it sees the Browser on an overlay because
+Bridge cannot read its current page. You can still **Unload** it. Before using **Load** again,
+check the Browser in vMix, unload it if needed, and remove it when safe. If another input is
+on the overlay when you Load, NoaCG asks before replacing it. The vMix operator controls
+Program and Preview.
+
+If you save the Browser input in a vMix preset, start Bridge on the same port before opening it.
+If you start Bridge late, reload that Browser input in vMix. The Playout panel tells you which
+port the Browser needs.
+If two copies of Bridge are open, use the one already controlling vMix. A second copy can still
+run CasparCG or OGraf.
+
+Download and start this Bridge between broadcasts. The vMix connection first shipped in
+[Bridge 0.10.0](https://github.com/NoaCG/NoaCG-Studio/releases/tag/bridge-v0.10.0).
+This update also includes the fixes in [0.10.1](https://github.com/NoaCG/NoaCG-Studio/releases/tag/bridge-v0.10.1)
+and [0.10.2](https://github.com/NoaCG/NoaCG-Studio/releases/tag/bridge-v0.10.2).
+
 ## 0.10.2 - 2026-11-06
 
 After a CasparCG restart, the production page puts its output back by itself, but only if it
