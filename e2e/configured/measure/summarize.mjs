@@ -45,8 +45,10 @@ function takeSamples(group, path, c) {
       inflight: ok.filter((x) => x.kept.inflight).length,
       road: ok.filter((x) => x.kept.road).length,
       ordered: ok.filter((x) => x.kept.ordered).length,
+      previous: ok.filter((x) => x.kept.previous).length,
       ms: stat(ok.filter((x) => x.keptMs > 0).map((x) => x.keptMs)),
     },
+    clickGap: stat(ok.map((x) => x.clickGap).filter((v) => v !== undefined)),
     others: [...new Set(ok.flatMap((x) => x.others))].filter((o) => o !== 'frame-stamped'),
     failures: all.filter((x) => 'failed' in x).map((x) => x.failed),
   };
@@ -66,6 +68,8 @@ p();
 
 p('### Take paths: press to sent (p50 / p95, ms)');
 p();
+p('"Second of two fast": two clicks back to back, the second measured; its kept wait is the time the first press was still unanswered after the second click.');
+p();
 p('| Path | Case | n | Page\'s own | Total | Samples a kept wait added time to |');
 p('|---|---|---|---|---|---|');
 const PATHS = [
@@ -78,6 +82,7 @@ const PATHS = [
   ['takes-b', 'plusOne', '+1'],
   ['takes-b', 'plusOneSecondOfTwo', '+1, second of two fast'],
   ['takes-c', 'next', 'Next'],
+  ['takes-c', 'nextSecondOfTwo', 'Next, second of two fast'],
   ['takes-c', 'panel', 'Hardware panel Take (scripted)'],
 ];
 const failures = [];
@@ -86,12 +91,20 @@ for (const [group, path, label] of PATHS) {
     const r = takeSamples(group, path, c);
     if (!r) continue;
     const k = r.kept;
-    const kept = [k.inflight && `send in flight ${k.inflight}`, k.road && `road ${k.road}`, k.ordered && `earlier send ${k.ordered}`].filter(Boolean).join(', ') || 'none';
+    const kept = [k.previous && `previous press unanswered ${k.previous}`, k.inflight && `send in flight ${k.inflight}`, k.road && `road ${k.road}`, k.ordered && `earlier send ${k.ordered}`].filter(Boolean).join(', ') || 'none';
     p(`| ${label} | ${caseName[c]} | ${n(r.total)} | ${s(r.own)} | ${s(r.total)} | ${kept}${k.ms.n ? ` (adds ${s(k.ms)})` : ''} |`);
     if (r.failures.length) failures.push(`${label}, ${caseName[c]}: ${[...new Set(r.failures)].join('; ')}`);
   }
 }
 p();
+const gaps = PATHS.filter(([, path]) => /SecondOfTwo/.test(path)).flatMap(([g, path, label]) => CASES.map((c) => {
+  const r = takeSamples(g, path, c);
+  return r?.clickGap?.n ? `${label}, ${caseName[c]}: ${s(r.clickGap)}` : null;
+})).filter(Boolean);
+if (gaps.length) {
+  p(`Gap between the two clicks (p50 / p95, ms): ${gaps.join('; ')}.`);
+  p();
+}
 const others = PATHS.map(([g, path, label]) => {
   const seen = new Set(CASES.flatMap((c) => takeSamples(g, path, c)?.others ?? []));
   return seen.size ? `${label}: ${[...seen].join(', ')}` : null;
@@ -115,8 +128,8 @@ p();
 
 p('### Press to sent during a publish (graphic cue Take, p50 / p95, ms)');
 p();
-p('| Case | n | Total, during a publish | Total, no publish (from the table above) | Publish duration | Publishes |');
-p('|---|---|---|---|---|---|');
+p('| Case | n | Total, during a publish | Presses over 500 ms | Same job, between publishes (n, p50 / p95) | Total, no publish loop (graphic cue Take above) | Publish duration | Publishes |');
+p('|---|---|---|---|---|---|---|---|');
 for (const c of CASES) {
   const ps = parts('publish', c);
   if (!ps.length) continue;
@@ -128,7 +141,9 @@ for (const c of CASES) {
   if (pubErrors) failures.push(`publish loop, ${caseName[c]}: ${pubErrors} publishes failed (${[...new Set(ps.flatMap((x) => x.publishes.errors ?? []))].join('; ')})`);
   const failedPresses = all.filter((x) => 'failed' in x).map((x) => x.failed);
   if (failedPresses.length) failures.push(`press during a publish, ${caseName[c]}: ${[...new Set(failedPresses)].join('; ')}`);
-  p(`| ${caseName[c]} | ${n(stat(ok.map((x) => x.total), all.length - ok.length))} | ${s(stat(ok.map((x) => x.total)))} | ${s(base?.total)} | ${s(stat(durations))} | ${durations.length} |`);
+  const between = ps.flatMap((x) => x.paths.outsidePublish.samples).filter((x) => !('failed' in x)).map((x) => x.total);
+  const slow = ok.filter((x) => x.total > 500).length;
+  p(`| ${caseName[c]} | ${n(stat(ok.map((x) => x.total), all.length - ok.length))} | ${s(stat(ok.map((x) => x.total)))} | ${slow} | ${between.length ? `${between.length}, ${s(stat(between))}` : 'none'} | ${s(base?.total)} | ${s(stat(durations))} | ${durations.length} |`);
 }
 p();
 
@@ -155,7 +170,20 @@ for (const [kind, label] of KINDS) {
   }
 }
 p();
-p('Output update time over every publishing change (added, removed and updated together):');
+const prepRows = CASES.flatMap((c) => bytesRows(c).filter((r) => r.kind !== 'cue-edit' && Number.isFinite(r.pressToPrepareStart)).map((r) => ({ ...r, c })));
+if (prepRows.length) {
+  p('When the output started preparing (its fetch of the whole published copy), per change:');
+  p();
+  p('| Change | Case | n | Press to preparation start | Preparation start to prepared | Samples within 15 s of the previous preparation start |');
+  p('|---|---|---|---|---|---|');
+  for (const [kind, label] of KINDS.slice(1)) for (const c of CASES) {
+    const rows = prepRows.filter((r) => r.kind === kind && r.c === c && !r.failed);
+    if (!rows.length) continue;
+    p(`| ${label} | ${caseName[c]} | ${rows.length} | ${s(stat(rows.map((r) => r.pressToPrepareStart)))} | ${s(stat(rows.map((r) => r.prepareStartToPrepared)))} | ${rows.filter((r) => r.sincePreviousPrepareStart < 15_000).length} |`);
+  }
+  p();
+}
+p('Output update time over every publishing change (added, removed and updated together, a mix of three kinds):');
 p();
 p('| Case | n | Press to output prepared (p50 / p95, ms) |');
 p('|---|---|---|');
