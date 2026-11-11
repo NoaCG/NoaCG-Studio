@@ -1250,7 +1250,40 @@ export async function actVmix(
   return readVmixReply(settings, call, '/act', loading).result;
 }
 
-export const VMIX_MEDIA_FOLDER_CHANGED = 'noacg-vmix-media-folder';
+const VMIX_MEDIA_FOLDER_CHANGED = 'noacg-vmix-media-folder';
+const mediaFolderListeners = new Set<() => void>();
+let mediaFolderChannel: BroadcastChannel | undefined;
+
+function mediaBridgeUrl(settings: Pick<PlayoutSettings, 'agentUrl'>): string {
+  return settings.agentUrl.replace(/\/+$/, '');
+}
+
+export function watchVmixMediaFolder(onChange: () => void): () => void {
+  mediaFolderListeners.add(onChange);
+  if (!mediaFolderChannel && typeof BroadcastChannel === 'function') {
+    mediaFolderChannel = new BroadcastChannel(VMIX_MEDIA_FOLDER_CHANGED);
+    mediaFolderChannel.onmessage = ({ data }) => {
+      if (data === mediaBridgeUrl(loadPlayoutSettings())) {
+        for (const listener of mediaFolderListeners) listener();
+      }
+    };
+  }
+  return () => {
+    mediaFolderListeners.delete(onChange);
+    if (!mediaFolderListeners.size) {
+      mediaFolderChannel?.close();
+      mediaFolderChannel = undefined;
+    }
+  };
+}
+
+function announceVmixMediaFolder(settings: PlayoutSettings): void {
+  for (const listener of mediaFolderListeners) listener();
+  if (typeof BroadcastChannel !== 'function') return;
+  const channel = mediaFolderChannel ?? new BroadcastChannel(VMIX_MEDIA_FOLDER_CHANGED);
+  channel.postMessage(mediaBridgeUrl(settings));
+  if (channel !== mediaFolderChannel) channel.close();
+}
 
 export function vmixPairing(settings: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'>): string {
   return JSON.stringify([settings.agentUrl, settings.agentToken]);
@@ -1283,7 +1316,7 @@ export async function vmixMediaFolder(settings: PlayoutSettings, choose = false)
   const { result, body } = await vmixMediaRoute(settings, choose ? '/vmix/choose-folder' : '/studio');
   if (result.state !== 'ok') return { result };
   if (typeof window !== 'undefined' && choose && !body?.cancelled && vmixPairing(settings) === vmixPairing(loadPlayoutSettings())) {
-    window.dispatchEvent(new Event(VMIX_MEDIA_FOLDER_CHANGED));
+    announceVmixMediaFolder(settings);
   }
   return { result, folder: body?.mediaFolder, cancelled: body?.cancelled };
 }

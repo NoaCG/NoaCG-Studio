@@ -220,7 +220,7 @@ export default function PlayoutItemPicker({
         </p>
       )}
 
-      {view && (vmix || !!items?.length) && (
+      {(vmix || !!items?.length) && (
         <>
           {/* Where in the library this is, and the way back out. Each crumb is a button, so a
               deep folder is one click from any level above it. */}
@@ -252,7 +252,7 @@ export default function PlayoutItemPicker({
               </span>
             ))}
           </nav>
-          <ul className="pd-picker-list" data-testid="picker-list">
+          {view && <ul className="pd-picker-list" data-testid="picker-list">
             {folders.map((f) => (
               <li key={`dir:${f.name}`} className="pd-picker-row">
                 <button
@@ -283,12 +283,12 @@ export default function PlayoutItemPicker({
                 thumbnail={!vmix}
                 known={kind === 'template' && !!fieldsFor(item.name)}
                 selected={selected.has(item.name)}
-                disabled={adding}
+                disabled={adding || (vmix && loading)}
                 onSelect={shift => select(item.name, shift)}
                 onAdd={() => void add([item])}
               />
             ))}
-          </ul>
+          </ul>}
         </>
       )}
 

@@ -1817,7 +1817,8 @@ test('vMix file checks use relative parent folders and never learn from a Caspar
   const caspar = vt('caspar', { name });
   const vmix = vt('vmix', { name, adapter: 'vmix', layer: 0 });
   const nested = vt('nested', { name: 'Alternate/Opening.mp4', adapter: 'vmix', layer: 0 });
-  const items = [caspar, vmix, nested];
+  const wrongCase = vt('wrong-case', { name: 'Replays/OPENING.mp4', adapter: 'vmix', layer: 0 });
+  const items = [caspar, vmix, nested, wrongCase];
   const cues = items.map(item => cue('cue-' + item.id, item.id));
   const r = rig({ items });
   const oldRoot = Promise.withResolvers();
@@ -1846,5 +1847,5 @@ test('vMix file checks use relative parent folders and never learn from a Caspar
   assert.deepEqual([...r.learnt[0][1]], [['vmix', { mediaKind: 'movie', frames: 100, fps: 25 }]]);
   const current = r.session.bridge.get().serverFiles;
   assert.equal(current.key, serverFilesKey('show-1', 'paired', cues, items, true, 1));
-  assert.match(current.check.label, /^Unavailable vMix files: Alternate\/Opening\.mp4$/);
+  assert.equal(current.check.label, 'Unavailable vMix files: Alternate/Opening.mp4, Replays/OPENING.mp4');
 });

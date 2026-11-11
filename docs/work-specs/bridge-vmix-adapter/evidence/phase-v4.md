@@ -13,6 +13,10 @@ The starting verified main is `e9b0c550082c540c925e2cce25ffdee093d2d7b3`, the in
 
 The independent Rules review agreed with corrections. The rules above include its corrections for stale player controls, same-pair folder reads and the cue editor.
 
+## Rule corrections after the first implementation review
+
+The independent review of `2e3b09dbd91d709ff8f20fd2172f6b6eb038659c` graded it B and found three product defects. vMix readiness and metadata lookups now use exact relative names. A folder change refreshes open pickers in tabs connected to the same Bridge, while an earlier response cannot restore the old list. Folder navigation stays available if a listed child is no longer readable.
+
 ## Allocation and rollback
 
 Codebase-health #2285 is closed. Editor #2374 and live-publishing #2376 have no overlapping paths, and #1967 records that the cf13 merge hold ended. The current shared Take/verb owners are used for adapter checks and existing CasparCG gates.

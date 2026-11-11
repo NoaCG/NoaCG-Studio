@@ -1165,14 +1165,14 @@ test('vMix media browses the selected folder and plays on separate clip and audi
     folder,
     files: {
       [folder]: {
-        '': [{ name: 'Replays', kind: 'folder' }, { name: sound, kind: 'audio', frames: 240000, fps: 48000 }],
+        '': [{ name: 'Replays', kind: 'folder' }, { name: 'Removed', kind: 'folder' }, { name: sound, kind: 'audio', frames: 240000, fps: 48000 }],
         Replays: [{ name: movie, kind: 'movie', frames: 250, fps: 25 }],
       },
       [chosen]: { '': [{ name: 'New clip.mov', kind: 'movie' }] },
     },
   });
   const media = vmix.media!;
-  const bridge = await slotBridge(page, { vmix });
+  const bridge = await slotBridge(page.context(), { vmix });
   await seedSettings(page);
   await productionPage(page);
   const casparCueId = await evaluateInPage(page, async (name: string) => {
@@ -1200,14 +1200,17 @@ test('vMix media browses the selected folder and plays on separate clip and audi
   expect(bridge.actions).toEqual([]);
   expect(media.actions).toEqual([]);
 
-  const openPicker = async () => {
-    await page.getByTestId('rundown-add').click();
-    await page.getByTestId('menu-add-from-vmix').click();
+  const openPicker = async (tab = page) => {
+    await tab.getByTestId('rundown-add').click();
+    await tab.getByTestId('menu-add-from-vmix').click();
   };
   await openPicker();
   await expect(page.getByTestId('picker-templates')).toHaveCount(0);
   await expect(page.getByTestId('picker-add-typed')).toHaveCount(0);
   const root = page.getByTestId('picker-path').getByRole('button', { name: 'All media' });
+  await page.getByTestId('picker-folder').filter({ hasText: 'Removed' }).click();
+  await expect(page.getByTestId('picker-error')).toContainText('could not be listed');
+  await page.getByTestId('picker-up').click();
   await page.getByTestId('picker-folder').filter({ hasText: 'Replays' }).click();
   const clip = page.getByTestId('picker-row').filter({ hasText: 'Opening.mp4' });
   await expect(clip).toHaveAttribute('data-name', movie);
@@ -1283,12 +1286,48 @@ test('vMix media browses the selected folder and plays on separate clip and audi
   const mediaFolder = settings.getByTestId('vmix-media-folder');
   const choose = settings.getByRole('button', { name: 'Choose folder…' });
   await expect(mediaFolder).toHaveText(folder);
+  await settleDurableWrites(page);
+  const other = await page.context().newPage();
+  await other.goto(page.url());
+  await openPicker(other);
+  const otherPicker = other.getByTestId('playout-picker');
+  await expect(otherPicker.getByTestId('picker-folder').filter({ hasText: 'Replays' })).toBeVisible();
+
   await choose.click();
   await expect(choose).toBeEnabled();
   await expect(mediaFolder).toHaveText(folder);
-  media.choice = chosen;
-  await choose.click();
-  await expect(mediaFolder).toHaveText(chosen);
+  await expect(otherPicker.getByTestId('picker-folder').filter({ hasText: 'Replays' })).toBeVisible();
+
+  // Hold an old root response across a successful choice in the other tab. A late list
+  // must not replace the newly read root or make its old files addable again.
+  const oldRead = Promise.withResolvers<void>();
+  let held = false;
+  await other.route(BRIDGE + '/list', async route => {
+    const request = route.request().postDataJSON();
+    if (held || request?.target?.adapter !== 'vmix' || request.path) return route.fallback();
+    held = true;
+    const snapshot = vmix.reply('/list', request);
+    await oldRead.promise;
+    await route.fulfill({ json: snapshot, headers: { 'Access-Control-Allow-Origin': '*' } });
+  });
+  try {
+    await otherPicker.getByTestId('picker-refresh').click();
+    await expect.poll(() => held).toBe(true);
+    media.choice = chosen;
+    await choose.click();
+    await expect(mediaFolder).toHaveText(chosen);
+    const newClip = otherPicker.getByTestId('picker-row').filter({ hasText: 'New clip.mov' });
+    await expect(newClip).toBeVisible();
+    const late = other.waitForResponse(response => response.url() === BRIDGE + '/list' && !response.request().postDataJSON()?.path);
+    oldRead.resolve();
+    await (await late).finished();
+    await other.evaluate(() => new Promise(resolve => setTimeout(resolve)));
+    await expect(newClip).toBeVisible();
+    await expect(otherPicker.getByTestId('picker-folder')).toHaveCount(0);
+  } finally {
+    oldRead.resolve();
+    await other.close();
+  }
   expect(media.choices).toBe(2);
   await page.screenshot({ path: info.outputPath('vmix-media-settings.png') });
   await settings.getByTestId('playout-settings-close').click();

@@ -89,7 +89,11 @@ export function fakeVmix(overlays: 1 | 4 | 8 = 8, library?: {
     if (media && path === '/list') {
       const requested = (body as FakeVmixMediaRequest).path ?? '';
       media.paths.push(requested);
-      return { ok: true, v: PLAYOUT_V, items: media.files[media.folder]?.[requested] ?? [] };
+      const items = media.files[media.folder]?.[requested];
+      if (requested && !items) {
+        return { ok: false, v: PLAYOUT_V, error: { hop: 'target', code: 'refused', detail: 'The vMix media folder could not be listed.' } };
+      }
+      return { ok: true, v: PLAYOUT_V, items: items ?? [] };
     }
     if (state.setup) return { ok: false, v: PLAYOUT_V, error: state.setup };
     const inputKeys = new Set([...kept.values()].map(input => input.key));

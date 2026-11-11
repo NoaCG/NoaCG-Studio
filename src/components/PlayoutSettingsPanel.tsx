@@ -20,7 +20,7 @@ import {
   testVmix,
   vmixMediaFolder,
   vmixPairing,
-  VMIX_MEDIA_FOLDER_CHANGED,
+  watchVmixMediaFolder,
   type VmixConnection,
   type PlayoutChannel,
   type PlayoutResult,
@@ -627,10 +627,10 @@ function VmixSettingsForPairing({ agentUrl, agentToken }: Pick<PlayoutSettings, 
       });
     };
     read();
-    window.addEventListener(VMIX_MEDIA_FOLDER_CHANGED, read);
+    const stop = watchVmixMediaFolder(read);
     return () => {
       mediaRead.current += 1;
-      window.removeEventListener(VMIX_MEDIA_FOLDER_CHANGED, read);
+      stop();
     };
   }, [agentUrl, agentToken, media, retry]);
   const chooseFolder = async () => {

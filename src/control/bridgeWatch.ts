@@ -690,13 +690,14 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       const list = sample.adapter === 'vmix'
         ? await io.listVmixMedia(settings, sample.name.slice(0, Math.max(0, sample.name.lastIndexOf('/'))))
         : await io.listLibrary(settings, sample.kind);
-      return { group, ...list };
+      return { group, ...list, exactName: sample.adapter === 'vmix' };
     }));
     const found = new Map<string, ListItem>();
     for (const list of lists) {
-      const byName = new Map(list.items?.filter(item => item.kind !== 'folder').map(item => [item.name.toLowerCase(), item]));
+      const key = (name: string) => list.exactName ? name : name.toLowerCase();
+      const byName = new Map(list.items?.filter(item => item.kind !== 'folder').map(item => [key(item.name), item]));
       for (const file of list.group) {
-        const item = byName.get(file.name.toLowerCase());
+        const item = byName.get(key(file.name));
         if (item) found.set(file.id, item);
       }
     }

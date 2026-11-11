@@ -1204,7 +1204,7 @@ export default function CueRundown({
         </div>
         {addActions.filter(action => action.footer).map(action => <button key={action.id}
           className="pd-new-graphic" disabled={action.disabled} title={action.help} data-testid={action.id}
-          ref={action.id === 'add-from-server' ? serverPick : undefined} onClick={pickAdd(action.run)}>＋ {action.label}</button>)}
+          ref={action.id === (vmixOn ? 'add-from-vmix' : 'add-from-server') ? serverPick : undefined} onClick={pickAdd(action.run)}>＋ {action.label}</button>)}
         <input
           ref={pictureInput}
           type="file"

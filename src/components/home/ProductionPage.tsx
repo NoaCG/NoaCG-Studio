@@ -48,7 +48,7 @@ import {
   bridgePaired,
   channelOf,
   vmixPairing,
-  VMIX_MEDIA_FOLDER_CHANGED,
+  watchVmixMediaFolder,
   currentProductionPlayout,
   loadPlayoutSettings,
   playoutConfigured,
@@ -639,11 +639,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [playoutSettingsOpen, setPlayoutSettingsOpen] = useState(false);
   const [playoutSettingsRev, setPlayoutSettingsRev] = useState(0);
   const [vmixMediaRev, setVmixMediaRev] = useState(0);
-  useEffect(() => {
-    const refresh = () => setVmixMediaRev(rev => rev + 1);
-    window.addEventListener(VMIX_MEDIA_FOLDER_CHANGED, refresh);
-    return () => window.removeEventListener(VMIX_MEDIA_FOLDER_CHANGED, refresh);
-  }, []);
   /** Whether a Bridge is paired and a server named - what the header's Playout control shows
    *  before any answer comes back. Re-read with the rev, on the dialog's close. */
   const [playoutIsConfigured, setPlayoutIsConfigured] = useState(() => playoutConfigured(loadPlayoutSettings()));
@@ -1008,6 +1003,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const playoutSystem = show && productionPlayoutSystem(show, legacyCasparActivity, accountCaspar ?? null);
   const casparOn = playoutSystem === 'casparcg';
   const vmixOn = playoutSystem === 'vmix';
+  useEffect(() => {
+    if (vmixOn) return watchVmixMediaFolder(() => setVmixMediaRev(rev => rev + 1));
+  }, [vmixOn]);
   const playoutRelevance = relevantPlayout({ configured: playoutConfigured(relevanceSettings), casparOn });
   /** Prepare for Live's own publish, set once `publishNow` exists below. */
   const preparePublishRef = useRef<() => Promise<HeldVersion | null>>(async () => null);
