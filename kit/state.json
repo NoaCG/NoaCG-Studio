@@ -106,5 +106,9 @@
  "phase2": {
   "builderCostUSD": "about 50",
   "landed": "fb04bbd9658857318e4b954611b6dd08a4815e9d"
- }
+ },
+ "retro": [
+  "Phase 1 used 9 /so sessions (1 full A, then 7 deltas B to B+ chasing stale docs one at a time, about 11 USD) before the final A. Builders should sweep the whole class of stale docs once before the first full /so (the traps file says fix every instance of a class in one checkpoint)."
+ ],
+ "archiveOnPass": "At each PASS, archive the builder child sessions too: list them by parent_session_id = the builder session (the /runs helper found 8 phase 1 /so sessions left open)."
 }
