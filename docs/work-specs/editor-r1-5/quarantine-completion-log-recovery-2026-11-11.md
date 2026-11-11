@@ -52,3 +52,21 @@ log-qualified completion records. Require301 qualified observations per arm and
 The final reader and final causal disposition each need a fresh independent
 second opinion before the editor gate can clear. No additional test is part of
 this recovery, and no old workflow is turned green.
+
+## GitHub Actions recovery blocker
+
+Reader43097924632 ended with startup_failure before any job was created.
+GitHub's public run annotation says an unexpected internal error occurred and
+that GitHub was automatically notified (request3f42ceac-de11-11f1-8c46-7ccd4a9cdbeb).
+The CLI's generic suggestion of a workflow-file issue is not the server's actual
+diagnostic; endurance.yml is unchanged from the last executed reader0c16ec82d.
+No product test or evidence retrieval ran in this failed startup.
+
+The original completion job still reports in_progress although its steps are
+finished. Its job-log endpoint returns502 (connectorReadTimeout), whole-run log
+archive returns404, and artifact listing is empty. Public job UI requires sign-in
+to view logs. These are evidence-access failures, not eleven inferred passes.
+No new test dispatch is permitted by this recovery. Once the service exposes the
+original log/artifact, use the independently reviewed reader and retain this
+failed reader run as well. Until then the operator verdict and editor gate remain
+unresolved; the same run is durably checkpointed, not restarted.
