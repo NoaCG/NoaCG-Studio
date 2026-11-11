@@ -855,5 +855,18 @@
         "status": "in_progress; candidate only, no actualmerge claim"
       }
     }
+  },
+  "e4RouteReadiness": {
+    "scope": "preparatory capability read only; E4 not admitted, E3 still pending actualmerge/check",
+    "requiredEnvironment": "WL: isolated test account, disposable production and browser rehearsal; preserved approved local environment",
+    "localProject": {
+      "id": "da1ef08c-3674-45b2-9b43-bcc613c61b86",
+      "path": "C:\\claude\\NoaCG-Studio",
+      "hostId": "local",
+      "repository": true
+    },
+    "toolEvidence": "App list_projects/read_thread/list_threads/archive exposed; exhaustive current tool search found no create_thread/fork_thread/send_message_to_thread/handoff_thread or remote Windows execution capability. Project metadata does not prove qualified execution.",
+    "selectedExecutor": "current managed Cloud Linux only; no local Windows process/resource/network preflight possible through exposed tools",
+    "futureAction": "After E3 independentPASS, ask supervisor next and checkpoint exact first dependent local-route gate if still unavailable. Resume same run/recoveryref from existing Windows project; qualify actual local coordinator/worker before E4admission. Do not substitute Cloud or open a second run."
   }
 }
