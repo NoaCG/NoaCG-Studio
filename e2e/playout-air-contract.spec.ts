@@ -139,14 +139,15 @@ const doublePress = (page: Page, key: string) =>
     setTimeout(press, 0);
   }, key);
 
-test('S3: two SPACE presses on a held folder take it once, even with a save still landing', async ({ page }) => {
-  // spec §1.3 S3, refuted and recorded. A folder's Take checks "already running" and registers its
-  // run in the same task (live-publishing W1: it waits on no save), so a second press while the
-  // first is still being sent finds it running and does nothing. Here the disk is slow and an edit
-  // was still saving when the folder was held. The Bridge answers the Take slowly, so the second
-  // press lands while the first is still being sent: with the old save wait gone, a fake Bridge
-  // answering in a few ms would put the folder up first, and SPACE on a folder that is up takes it
-  // off, as designed.
+test('S3, W1: two SPACE presses on a held folder never take it twice, even with a save still landing: the second takes it off', async ({ page }) => {
+  // spec §1.3 S3. A folder's Take checks "already running" and registers its run in the same task
+  // (live-publishing W1: it waits on no save), and a folder being sent counts as up
+  // (ProductionPage `folderUp`), so the second press, drawn after the first, is SPACE on a folder
+  // that is up: it takes it off, as SPACE does. Before W1 the save wait delayed the run past the
+  // second press's render, so the second read the folder as down and was ignored. The rule that
+  // holds either way: the folder is never taken twice. Here the disk is slow and an edit was still
+  // saving when the folder was held, and the Bridge answers the Take slowly, so the second press
+  // lands while the first is still being sent.
   await installWriteHold(page);
   await seedSettings(page);
   const fake = await fakeBridge(page);
@@ -167,12 +168,13 @@ test('S3: two SPACE presses on a held folder take it once, even with a save stil
   const before = await plays(page);
 
   await doublePress(page, ' ');
-  await expect.poll(() => sent(fake), { message: 'the folder is taken' }).toContain('take 2-10 VT');
-  await page.waitForTimeout(500);
+  // The Take's clip lands after the second press, which takes it back off.
+  await expect.poll(() => sent(fake), { message: 'taken once, then off' }).toEqual(['take 2-10 VT', 'out 2-10']);
   await holdWrites(page, false);
   await page.waitForTimeout(500);
-  expect(sent(fake).filter((line) => line === 'take 2-10 VT'), 'two presses take the folder once').toHaveLength(1);
-  expect(await plays(page), 'Strap played once').toBe(before + 1);
+  expect(sent(fake), 'two presses never take the folder twice').toEqual(['take 2-10 VT', 'out 2-10']);
+  expect(await plays(page), 'the Out came before the folder\'s graphics went: Strap never played').toBe(before);
+  await expect(page.getByTestId('production-note')).toContainText('Out: Opening');
 });
 
 test('S2, W1: a graphic Take pressed while its edit is still a draft airs the edit at once, the save still held', async ({ page }) => {
