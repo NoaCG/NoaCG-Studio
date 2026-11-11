@@ -210,3 +210,51 @@ and source remain retrievable. Branch-only reader permissions and15-minute
 ceiling remain unchanged. Fresh final review precedes new diagnostic dispatches.
 If E1 caused an increase, final correction proof requires300 whole-file
 invocations on the fixed commit with zero failures, as the owner required.
+
+## Proposed explicit completion after a measurement-status fault
+
+One extension batch (cohort4, batch03) stopped with `Unexpected end of JSON input`
+after21 validated invocations:10 parent and11 landing, all21 passed. The next
+parent invocation may have run, but its normal terminal receipt has not yet been
+validated; the remaining planned slots were not reached. This is an unresolved
+measurement/infrastructure outcome, not a passing or product-failing sample.
+Retain its original native run, artifact, complete samples and partial evidence.
+No new completion test has been launched under this proposal.
+
+Before implementation, independently review the exact original artifact and
+status-reader path. The first task is to establish whether the missing receipt
+can be recovered from that immutable artifact under the existing qualification
+rules. Do not infer a terminal queue result or weaken qualification to call it a
+pass. The bounded reader may add diagnostics about which receipt files exist
+and whether raw reports parse, without changing any primary judge.
+
+If the original receipt cannot be recovered, proposed completion is five new
+matched pairs plus one additional parent-only whole-spec invocation, on one
+fresh CI worker under a distinct immutable completion ref. With all other
+batches complete, this gives301 qualified whole-file observations per commit:
+300 complete within-worker matched pairs, plus the original unmatched landing
+observation and the additional unmatched parent observation. Include every
+qualified observation in arm failure rates; use only complete pairs in paired
+analyses. Preserve the original unresolved parent attempt and all unadmitted
+slots explicitly. Do not overwrite/relabel them as the new samples. Report a
+worst-case sensitivity bound for that unresolved attempt, not a fictitious pass.
+If caused, correction proof must match this final301-qualified-per-commit count
+with zero failures and no unresolved correction attempts.
+
+This301 proposal preserves the300 planning power target and balances all retained
+qualified observations rather than discarding the extra original landing pass.
+It is conditional on the artifact inventory; a different missingness count needs
+its count/rationale recorded before new tests. No test assertions, worker count,
+retries, timeouts, trace settings, backend guards or queue caps change.
+
+If the fault is a transient partial queue-journal read, the producer fix must
+reconcile the SAME admitted job through the existing two-second status cadence,
+record unreadable observations and preserve the last known state. It must never
+resubmit or restart a spec, add a test wait/retry, skip a judge, treat an unreadable
+state as success, or reset the75-minute/individual-five-minute bounds. Record
+terminal receipts before parsing dependent reports and retain fault diagnostics.
+Fresh method and final implementation reviews precede any completion tests.
+The original partial batch remains visibly incomplete; obtaining enough new
+qualified evidence does not turn its workflow green. The operator causal gate
+stays closed until the complete observations, failures and censoring sensitivity
+settle attribution.
