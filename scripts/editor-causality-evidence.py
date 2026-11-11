@@ -265,9 +265,10 @@ def summarize_results(results):
         pairs = [g for g in groups.values() if set(g) == {'parent', 'landing'}]
         unpaired = [r['observationId'] for g in groups.values() if len(g) == 1 for r in g.values()]
         summary[kind] = {'arms': {arm: {'qualified': sum(r['arm'] == arm for r in rows), 'failed': sum(r['arm'] == arm and r['failed'] for r in rows)} for arm in ('parent', 'landing')}, 'completeWithinWorkerPairs': len(pairs), 'unpairedObservationIds': unpaired, 'discordance': {'parentOnlyFailure': sum(g['parent']['failed'] and not g['landing']['failed'] for g in pairs), 'landingOnlyFailure': sum(g['landing']['failed'] and not g['parent']['failed'] for g in pairs), 'bothFailed': sum(g['parent']['failed'] and g['landing']['failed'] for g in pairs)}}
-    unresolved = [u for b in results if isinstance(b.get('unresolved'), list) for u in b['unresolved']]
-    summary['originalUnqualifiedAttempts'] = sum(bool(u.get('receiptInventory', {}).get('available')) for u in unresolved)
-    summary['originalUnadmittedSlots'] = sum(not u.get('receiptInventory', {}).get('available') for u in unresolved)
+    for label, condition in [('original', 'primary'), ('completion', 'completion-01')]:
+        unresolved = [u for b in results if b.get('condition', 'primary') == condition and isinstance(b.get('unresolved'), list) for u in b['unresolved']]
+        summary[label + 'UnqualifiedAttempts'] = sum(bool(u.get('receiptInventory', {}).get('available')) for u in unresolved)
+        summary[label + 'UnadmittedSlots'] = sum(not u.get('receiptInventory', {}).get('available') for u in unresolved)
     summary['note'] = 'Qualified observations only; original missing terminal receipts stay unqualified. No causal verdict; a failed original workflow is not turned green.'
     return summary
 

@@ -63,6 +63,12 @@ class ReaderTests(unittest.TestCase):
         self.assertEqual(set(summary['operator']['unpairedObservationIds']), {'1:3:landing', '2:4:parent'})
         self.assertEqual(summary['originalUnqualifiedAttempts'], 1)
         self.assertEqual(summary['originalUnadmittedSlots'], 1)
+        partial_completion = {'kind': 'operator', 'condition': 'completion-01', 'rows': [], 'unresolved': [{'receiptInventory': {'available': ['intent.json']}}, {'receiptInventory': {'available': []}}]}
+        partial_summary = reader.summarize_results(results + [partial_completion])
+        self.assertEqual(partial_summary['originalUnqualifiedAttempts'], 1)
+        self.assertEqual(partial_summary['originalUnadmittedSlots'], 1)
+        self.assertEqual(partial_summary['completionUnqualifiedAttempts'], 1)
+        self.assertEqual(partial_summary['completionUnadmittedSlots'], 1)
         results[-1]['rows'].append(original[0])
         with self.assertRaises(AssertionError): reader.summarize_results(results)
 
