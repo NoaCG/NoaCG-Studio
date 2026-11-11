@@ -42,7 +42,16 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {},
-  "inFlight": [],
+  "inFlight": [
+    {
+      "head": "e85660d8087d617e1acb777f2468c5e01100ce3b",
+      "phase": "v3",
+      "step": "build",
+      "session": "j-5211",
+      "note": "Standalone Chrome confirmed. Windows loopback returned ready, and the operator was sent the direct address for the manual proof.",
+      "pr": 2368
+    }
+  ],
   "owner": [],
   "fixes": [],
   "triggers": []
