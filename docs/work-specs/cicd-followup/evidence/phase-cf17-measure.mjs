@@ -84,8 +84,8 @@ for (const pr of prs) {
   if (!tl) continue;
   const queued = tl.filter((e) => e.event === "added_to_merge_queue").map((e) => e.created_at);
   pr.queueEntries = queued.length;
-  // GitHub also logs a removal at the merge itself; only a removal before the merge is a dequeue.
-  pr.queueRemovals = tl.filter((e) => e.event === "removed_from_merge_queue" && e.created_at !== pr.mergedAt).length;
+  // GitHub also logs a removal as the PR merges (within a minute of it); only an earlier one is a dequeue.
+  pr.queueRemovals = tl.filter((e) => e.event === "removed_from_merge_queue" && !(pr.mergedAt && Math.abs(min(e.created_at, pr.mergedAt)) <= 1)).length;
   pr.queue = queueClock({ queued, mergedAt: pr.mergedAt, now: UNTIL });
 }
 
@@ -130,8 +130,9 @@ for (const run of runs) {
   const seen = new Map(); // job name -> the conclusion of its previous attempt on this commit
   const rerun = new Set(); // attempts above 1 that re-ran a job other than Reviewed
   for (const job of [...jobs].sort((x, y) => (x.started_at ?? "").localeCompare(y.started_at ?? "") || x.run_attempt - y.run_attempt)) {
-    if (!job.started_at || !job.completed_at) continue;
-    const key = `${job.name}|${job.started_at}|${job.completed_at}`;
+    // A copied job keeps its original end, and a skipped one can carry a start after its end.
+    if (!job.started_at || !job.completed_at || job.conclusion === "skipped" || job.completed_at < job.started_at) continue;
+    const key = `${job.name}|${job.completed_at}`;
     if (counted.has(key)) continue;
     counted.add(key);
     const m = min(job.started_at, job.completed_at);
@@ -151,7 +152,15 @@ for (const run of runs) {
 }
 const events = [];
 let jobsRead = 0;
-for (const jobs of jobsOf.values()) for (const j of jobs) if (j.started_at && j.completed_at) { jobsRead += 1; events.push([j.started_at, 1], [j.completed_at, -1]); }
+for (const jobs of jobsOf.values()) {
+  const once = new Set();
+  for (const j of jobs) {
+    if (!j.started_at || !j.completed_at || j.conclusion === "skipped" || j.completed_at <= j.started_at || once.has(`${j.name}|${j.completed_at}`)) continue;
+    once.add(`${j.name}|${j.completed_at}`);
+    jobsRead += 1;
+    events.push([j.started_at, 1], [j.completed_at, -1]);
+  }
+}
 events.sort((a, b) => a[0].localeCompare(b[0]) || a[1] - b[1]);
 let now = 0, peak = 0, peakAt = null;
 for (const [t, d] of events) { now += d; if (now > peak) { peak = now; peakAt = t; } }
