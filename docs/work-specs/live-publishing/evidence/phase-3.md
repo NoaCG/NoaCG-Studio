@@ -89,6 +89,10 @@ RESULTS_PENDING
   still runs and a closing page still saves at once (`control/cueDraft.ts`), so typed text is not
   held unsaved for the send's round trip. A Bridge's features are refreshed by every status
   poll, which still asks `/health`.
+- Fixed after the PR review (1bbcc23f): two hinted Takes of one graphic can send the same stale
+  look with different values. The page now applies a measurement only from the newest hinted Take
+  of that graphic that reached the outputs (`placeTaken`'s `latest`), so it holds the place the
+  outputs show. This runs after the send, so the timings below are unchanged by it.
 
 ## Not checked here
 
