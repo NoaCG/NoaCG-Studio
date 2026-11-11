@@ -669,7 +669,9 @@
       "artifact": 13851967966,
       "digest": "5ad034e38ae9dc5baec0761bbbe9a651d962e47f65b03a373810423db2afa5c5",
       "transport": "CLI GitHub artifact403; connector file ref succeeded but Cloud HTTPS transport403, no bytes retrieved; no policy/credential changes, no retry of denied host",
-      "next": "normal fresh PR/main growth report"
+      "next": "normal fresh PR/main growth report",
+      "decodedJobLog": "receipts/growth-report-43014542120-job130502214903.txt",
+      "measuredOutcome": "147landings, complete evidence; backend growth STOPPED188%; offline122%/graphics186% under correction; durations9daysold, no headroom established. No exceptions/budget/selection changes."
     },
     "reference": {
       "binary": "/workspace/scratch/ograf-studio-reference-017/OGrafStudioServer-linux-x64",

@@ -1,0 +1,39 @@
+2026-11-11T11:52:23.0324623Z [measured] 147 landings in the growth window
+2026-11-11T11:52:23.0330628Z ## Growth controls, week to 2026-11-11
+2026-11-11T11:52:23.0330982Z 
+2026-11-11T11:52:23.0332475Z Owner: miwco (primary); the weekly owner session (backup coverage). Landings in the window: 147. Collection: 550 API call(s) of 550, 3088 completed run(s) in 34 strata, 227 sampled, 0 still running at the window end.
+2026-11-11T11:52:23.0333488Z 
+2026-11-11T11:52:23.0333945Z | Tier | Per landing | Ceiling | Per day | Ceiling | Evidence | Verdict |
+2026-11-11T11:52:23.0334994Z |---|---:|---:|---:|---:|---|---|
+2026-11-11T11:52:23.0335648Z | offline | 654.3 | 535 | 191.5 | 215 | complete | warn |
+2026-11-11T11:52:23.0336464Z | backend | 219.9 | 117 | 79.7 | 78 | complete | warn |
+2026-11-11T11:52:23.0337220Z | graphics | 36.3 | 10 | 90.3 | 115 | complete | warn |
+2026-11-11T11:52:23.0337996Z | overhead | 91.8 | 105 | 11.4 | 10 | complete | warn |
+2026-11-11T11:52:23.0338471Z 
+2026-11-11T11:52:23.0339505Z Aggregate (a report line, not a gate): 21422.5 runner-minutes a day of the 28800 envelope (74.4%); allocated at this workload 16525.
+2026-11-11T11:52:23.0340440Z 
+2026-11-11T11:52:23.0341501Z Durations table: durations table recorded 2026-11-02, 9 days old, over its 8-day bound; pending, not accepted: #2316 - OVERDUE REFRESH.
+2026-11-11T11:52:23.0342387Z 
+2026-11-11T11:52:23.0342549Z Exceptions:
+2026-11-11T11:52:23.0343571Z - `ci04-catalog-gate` (graphics, job:ci.yml/Catalog calibration gate): active, expires 2026-11-30; repayment #1862
+2026-11-11T11:52:23.0345230Z - `production-load-watch` (overhead, job:production-load.yml/Read the production database's load): active, expires 2026-12-03; repayment #2019
+2026-11-11T11:52:23.0346389Z - `jev-svg-import-journey` (backend, spec:e2e/configured/svg-import-journey.spec.ts): active, expires 2026-12-03; repayment #1503
+2026-11-11T11:52:23.0346920Z 
+2026-11-11T11:52:23.0348656Z Timing prReady: 125 samples pooled (need 12), p50 13.7, p90 40.8, max 712.7 against p50 30/p90 60. Categories: bot n=6 p50 12.9, other n=72 p50 22.9, quarantine n=14 p50 13.9, cicd-plan n=14 p50 7.6, jev-plan n=19 p50 12.6.
+2026-11-11T11:52:23.0349934Z Timing phase: 0 samples pooled (need 12, descriptive only), p50 n/a, p90 n/a, max n/a against p50 4/p90 10. Categories: none.
+2026-11-11T11:52:23.0351251Z Timing queue: 125 samples pooled (need 12), p50 9.7, p90 23.4, max 70.5 against p50 10/p90 20. Categories: bot n=6 p50 6.9, other n=72 p50 11, quarantine n=14 p50 7.8, cicd-plan n=14 p50 7, jev-plan n=19 p50 12.1.
+2026-11-11T11:52:23.0351940Z 
+2026-11-11T11:52:23.0352251Z Unknown clock starts (reported, never zero): #2378, #2374, #2316, #1642, #1641.
+2026-11-11T11:52:23.0352559Z 
+2026-11-11T11:52:23.0353274Z Quarantine coverage gaps: 1 open incident(s), 0 critical, 0 overdue. Each blocks affected narrowing and expansion until it is back in the blocking gate.
+2026-11-11T11:52:23.0358126Z - `e2e/configured/operator-outage-not-unpublished.spec.ts` (affected, since 2026-11-11, repair due 2026-11-25): changes to src/components/home/ProductionPage.tsx src/components/OldControlLink.tsx, src/control/hostedControl.ts, src/control/liveCue.ts src/control/cueItems.ts src/control/playoutSession.ts src/control/productionDataSession.ts src/components/home/useStorePart.ts, src/components/home/ProductionShell.tsx, src/components/home/useProductionPublish.ts, src/control/airState.ts src/control/sessionWire.ts, src/control/graphicVerbs.ts src/control/verbDispatch.ts src/control/verbView.ts, src/control/cueDraft.ts merge without it blocking. Owner miwco (primary); the weekly owner session (backup coverage).
+2026-11-11T11:52:23.0360755Z 
+2026-11-11T11:52:23.0360868Z ### Actions
+2026-11-11T11:52:23.0361830Z - **cost:offline** (correcting): offline at 122% of its ceiling: 654.3/535 per landing, 191.5/215 per day (122%). Owner miwco (primary); the weekly owner session (backup coverage); correction due 2026-11-18.
+2026-11-11T11:52:23.0363877Z - **cost:backend** (stopped): backend at 188% of its ceiling: 219.9/117 per landing, 79.7/78 per day (188%), jev-svg-import-journey excepts 0/landing (claims 6.85, capped at what it covers) to 2026-12-03. Owner miwco (primary); the weekly owner session (backup coverage); growth stopped in backend until measured back in bounds.
+2026-11-11T11:52:23.0367017Z - **cost:graphics** (correcting): graphics at 186% of its ceiling: 18.6/10 per landing, 90.3/115 per day (186%), ci04-catalog-gate excepts 17.7/landing to 2026-11-30. Owner miwco (primary); the weekly owner session (backup coverage); correction due 2026-11-18.
+2026-11-11T11:52:23.0368858Z - **age:#2364** (correcting): prReady #2364 unfinished for 923 min, over its 120 minutes ceiling (clock from stamp 2026-11-10T20:22:13Z). Owner miwco (primary); the weekly owner session (backup coverage); correction due 2026-11-12.
+2026-11-11T11:52:23.0371359Z - **age:#2332** (correcting): prReady #2332 unfinished for 2313 min, over its 120 minutes ceiling (clock from stamp 2026-11-09T21:12:20Z). Owner miwco (primary); the weekly owner session (backup coverage); correction due 2026-11-12.
+2026-11-11T11:52:23.0374680Z - **table:stale** (correcting): durations table recorded 2026-11-02, 9 days old, over its 8-day bound; pending, not accepted: #2316. Owner miwco (primary); the weekly owner session (backup coverage); correction due 2026-11-18.
+2026-11-11T11:52:23.0376118Z 
+2026-11-11T11:52:25.7750536Z updated #1976; #1976 routed to miwco
