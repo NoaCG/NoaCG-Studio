@@ -530,7 +530,12 @@ export async function reachBridge(bridgeUrl: string): Promise<PlayoutResult | nu
  *  current Bridge's (in memory, this page load only). A server action to an address here does not
  *  ask `/health` first (live-publishing W1); its failure asks again (`through`). */
 const currentBridges = new Map<string, BridgeFeature[]>();
-const currentVmixMediaPairings = new Set<string>();
+interface VmixMediaEvidence {
+  requested: number;
+  observed: number;
+  supported: boolean;
+}
+const currentVmixMediaPairings = new Map<string, VmixMediaEvidence>();
 
 /** Forget every Bridge heard: the next server action to any address asks `/health` first. */
 export function forgetBridges(): void {
@@ -1087,13 +1092,17 @@ async function probeVmix(bridgeUrl: string): Promise<VmixHealth> {
 
 /** Only the strict vMix health reply can establish a pairing's media capability. */
 async function probeVmixMediaPairing(settings: PlayoutSettings): Promise<VmixHealth> {
-  const health = await probeVmix(settings.agentUrl);
   const pairing = vmixPairing(settings);
-  if (health.kind === 'current' && health.features.includes('vmix-media')) {
-    currentVmixMediaPairings.add(pairing);
-  } else {
-    currentVmixMediaPairings.delete(pairing);
+  const evidence = currentVmixMediaPairings.get(pairing) ?? { requested: 0, observed: 0, supported: false };
+  currentVmixMediaPairings.set(pairing, evidence);
+  const request = ++evidence.requested;
+  const health = await probeVmix(settings.agentUrl);
+  // An uncertain action discards the entry. An earlier read cannot outvote a newer one.
+  if (currentVmixMediaPairings.get(pairing) !== evidence || request < evidence.observed) {
+    return { kind: 'failed', result: vmixCapabilityProblem };
   }
+  evidence.observed = request;
+  evidence.supported = health.kind === 'current' && health.features.includes('vmix-media');
   return health;
 }
 
@@ -1384,7 +1393,7 @@ export async function actVmixMedia(
 ): Promise<PlayoutResult | null> {
   if (!canSend()) return null;
   const pairing = vmixPairing(settings);
-  const known = currentVmixMediaPairings.has(pairing);
+  const known = currentVmixMediaPairings.get(pairing)?.supported === true;
   if (!known) {
     const health = await probeVmixMediaPairing(settings);
     if (!canSend()) return null;
@@ -1392,6 +1401,7 @@ export async function actVmixMedia(
     if (!health.features.includes('vmix-media')) {
       return { state: 'outdated', detail: 'Update NoaCG Bridge to play vMix media.' };
     }
+    if (!currentVmixMediaPairings.get(pairing)?.supported) return vmixCapabilityProblem;
   }
   if (action.slot.adapter !== 'vmix' || !('player' in action.slot)) {
     return { state: 'config', detail: 'This cue has no vMix player.' };

@@ -1222,3 +1222,64 @@ test('a known vMix media pairing sends directly and rechecks capability after a 
   assert.equal((await actVmixMedia(settingsForPlayer, action, () => true)).state, 'ok');
   assert.deepEqual(paths.splice(0), ['/health', '/act']);
 });
+
+test('a health reply started before an uncertain vMix action cannot restore capability', async (t) => {
+  const pairing = { ...settings, agentUrl: 'http://127.0.0.1:59993' };
+  const action = { verb: 'take', slot: { adapter: 'vmix', player: 'clips' }, item: { kind: 'media', name: 'clip.mov' } };
+  const oldHealth = Promise.withResolvers();
+  const oldStarted = Promise.withResolvers();
+  const paths = [];
+  let healthReads = 0;
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    const path = new URL(url).pathname;
+    paths.push(path);
+    if (path === '/status') return Response.json(status);
+    if (path === '/act') throw new TypeError('Response lost');
+    assert.equal(path, '/health');
+    healthReads += 1;
+    if (healthReads === 2) {
+      oldStarted.resolve();
+      await oldHealth.promise;
+      return Response.json({ ...health, features: ['vmix-media'] });
+    }
+    return Response.json({ ...health, features: healthReads === 1 ? ['vmix-media'] : [] });
+  });
+  assert.equal((await testVmix(pairing)).media, true);
+  const stale = testVmix(pairing);
+  await oldStarted.promise;
+  assert.equal((await actVmixMedia(pairing, action, () => true)).playerUncertain, true);
+  oldHealth.resolve();
+  assert.equal((await stale).media, undefined);
+  assert.deepEqual(paths.splice(0), ['/health', '/status', '/health', '/act', '/health']);
+  assert.equal((await actVmixMedia(pairing, action, () => true)).state, 'outdated');
+  assert.deepEqual(paths, ['/health']);
+});
+
+test('an older positive vMix health reply cannot authorize a Take after a newer negative one', async (t) => {
+  const pairing = { ...settings, agentUrl: 'http://127.0.0.1:59994' };
+  const action = { verb: 'take', slot: { adapter: 'vmix', player: 'clips' }, item: { kind: 'media', name: 'clip.mov' } };
+  const oldHealth = Promise.withResolvers();
+  const oldStarted = Promise.withResolvers();
+  const paths = [];
+  let healthReads = 0;
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    const path = new URL(url).pathname;
+    paths.push(path);
+    if (path === '/status') return Response.json(status);
+    if (path === '/act') return Response.json({ ...acted, instance: 'fixture.play-1' });
+    assert.equal(path, '/health');
+    healthReads += 1;
+    if (healthReads === 1) {
+      oldStarted.resolve();
+      await oldHealth.promise;
+      return Response.json({ ...health, features: ['vmix-media'] });
+    }
+    return Response.json({ ...health, features: [] });
+  });
+  const waiting = actVmixMedia(pairing, action, () => true);
+  await oldStarted.promise;
+  assert.equal((await testVmix(pairing)).media, false);
+  oldHealth.resolve();
+  assert.equal((await waiting).state, 'bridge');
+  assert.deepEqual(paths, ['/health', '/health', '/status']);
+});
