@@ -1,0 +1,20 @@
+=== j-5167 npm run test:e2e -- e2e/editor-canvas-transforms.spec.ts -g "Clean Steps: a turned|armed anchor X" --retries=0
+=== cwd C:\claude\Temp\editor-r15-e1-build-1108
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/editor-canvas-transforms.spec.ts -g Clean Steps: a turned|armed anchor X --retries=0
+
+[e2e] 3 workers - 4185 MB free
+[WebServer] (node:6388) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 2 workers
+
+(node:23608) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21600) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 [chromium] › e2e\editor-canvas-transforms.spec.ts:480:1 › armed anchor X captures a nonzero pose, keys only its axis, and bakes the inspected value on disable (8.8s)
+  ok 2 [chromium] › e2e\editor-canvas-transforms.spec.ts:709:1 › Clean Steps: a turned row's anchor moves only its pivot, so its whole reveal turns about it; on a Step flag Center anchor writes it too (8.7s)
+
+  2 passed (18.1s)

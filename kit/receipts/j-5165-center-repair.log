@@ -1,0 +1,25 @@
+=== j-5165 node .noacg/e1-center-base-control.mjs
+=== cwd C:\claude\Temp\editor-r15-e1-build-1108
+{
+  "head": "95f65b051d7c8303e119c428d0e33726069e88ff",
+  "expected": [
+    {
+      "kind": "base.set",
+      "selector": "#a",
+      "values": {
+        "anchorX": 160,
+        "anchorY": 50
+      }
+    }
+  ],
+  "actual": [
+    {
+      "kind": "base.set",
+      "selector": "#a",
+      "values": {
+        "anchorX": 160,
+        "anchorY": 50
+      }
+    }
+  ]
+}

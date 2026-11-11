@@ -74,9 +74,9 @@
       "phase": "E1",
       "actionId": "plan-editor-r1-5-2026-11-08:1",
       "nativeId": "/root/editor_r15_e1_resume",
-      "note": "PR #2369 first CI run 42938883051 failed one Center anchor browser assertion. Configured, build, factory, catalog and Codex review on 95f65b0 passed. Exact equal-value operation reproduced and repaired locally, PR product repair attempt 1 in progress. Sole coordinator owner retained.",
+      "note": "E1 PR #2369 repair 1 pushed at 3d0187a9. Full exact independent grade A, targeted verification passed. Current PR CI 42941182085 and one new-head Codex review in progress. Original CI failure remains in the receipt. Sole active repair owner retained.",
       "checkpointed": false,
-      "head": "95f65b051d7c8303e119c428d0e33726069e88ff",
+      "head": "3d0187a9d64d2edc3683ce6277c65728622c18d6",
       "pr": 2369
     }
   ],
@@ -201,10 +201,10 @@
     "pullRequest": {
       "repairOwnerComment": 6784239834,
       "mode": "active",
-      "ci": 42938883051,
-      "head": "95f65b051d7c8303e119c428d0e33726069e88ff",
+      "ci": 42941182085,
+      "head": "3d0187a9d64d2edc3683ce6277c65728622c18d6",
       "number": 2369,
-      "review": "Independent full exact-head A",
+      "review": "Independent full exact-head A after repair 1",
       "firstCIFailure": {
         "job": 130255773106,
         "attempt": 1,
@@ -214,6 +214,12 @@
         "head": "95f65b051d7c8303e119c428d0e33726069e88ff",
         "reproduction": "j-5164",
         "family": "unarmed static Center anchor at the authored default"
+      },
+      "repair1": {
+        "head": "3d0187a9d64d2edc3683ce6277c65728622c18d6",
+        "planJob": 130263113828,
+        "reviewRequest": 6784648120,
+        "reviewSHA256": "70646dbee4b6e7716ca68346e4ff40f81eba0368aaaa3703d6c10737446505f1"
       }
     }
   }

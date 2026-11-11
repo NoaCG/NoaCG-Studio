@@ -1,0 +1,26 @@
+=== j-5166 npm run test:e2e -- e2e/editor-canvas-transforms.spec.ts e2e/editor-fidelity-trim.spec.ts e2e/editor-steps.spec.ts -g "Clean Steps: a turned|armed anchor X|first anchor key|nested Illustrator text|Out-only pivot starts|canonical SVG groups keep" --retries=0
+=== cwd C:\claude\Temp\editor-r15-e1-build-1108
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/editor-canvas-transforms.spec.ts e2e/editor-fidelity-trim.spec.ts e2e/editor-steps.spec.ts -g Clean Steps: a turned|armed anchor X|first anchor key|nested Illustrator text|Out-only pivot starts|canonical SVG groups keep --retries=0
+
+[e2e] 3 workers - 4585 MB free
+[WebServer] (node:40952) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 6 tests using 3 workers
+
+(node:46156) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:36696) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:43420) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 3 [chromium] › e2e\editor-canvas-transforms.spec.ts:521:1 › first anchor key refuses a rotated layer with two authored values for one axis (4.3s)
+  ok 1 [chromium] › e2e\editor-canvas-transforms.spec.ts:480:1 › armed anchor X captures a nonzero pose, keys only its axis, and bakes the inspected value on disable (7.6s)
+  ok 2 [chromium] › e2e\editor-canvas-transforms.spec.ts:709:1 › Clean Steps: a turned row's anchor moves only its pivot, so its whole reveal turns about it; on a Step flag Center anchor writes it too (7.7s)
+  ok 5 [chromium] › e2e\editor-steps.spec.ts:401:1 › an Out-only pivot starts at the CSS base again on the next take in every package (3.5s)
+  ok 4 [chromium] › e2e\editor-fidelity-trim.spec.ts:172:1 › nested Illustrator text keys its CSS pivot without re-folding the SVG source (13.0s)
+  ok 6 [chromium] › e2e\editor-steps.spec.ts:610:1 › canonical SVG groups keep their cue pivots in every saved package (9.8s)
+
+  6 passed (24.3s)
