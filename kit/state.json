@@ -445,7 +445,7 @@
       "cleanup": "Browser and attributed dev-server process groups stopped; all four jobs terminal. Worktree retained for coordinator-owned pending PR and artifacts.",
       "at": "2026-11-11T12:06:19.486151+00:00",
       "nativeSession": "6af457f2-caf8-8191-bdeb-b13a1fcc307b",
-      "archive": "app could not determine existence on durable host; no archive claimed"
+      "archive": "confirmed by app after native completed-session readback"
     },
     "cloudQueue": {
       "at": "2026-11-11T12:08:16.824352+00:00",
@@ -470,6 +470,27 @@
       "mergeGroupSha": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
       "mergeSha": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
       "mergeGroupResult": "success"
+    },
+    "exactMergeRuns": {
+      "mergeSha": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+      "ci": 43020316776,
+      "configured": 43020316884,
+      "postLanding": {
+        "run": 43020316943,
+        "result": "success"
+      },
+      "quarantine": {
+        "run": 43020316849,
+        "result": "success"
+      },
+      "deployVerify": {
+        "run": 43020697824,
+        "result": "success"
+      },
+      "codeql": {
+        "run": 43020316213,
+        "result": "in_progress"
+      }
     }
   },
   "waitingOn": {},
