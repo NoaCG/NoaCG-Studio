@@ -23,6 +23,18 @@ class ReaderTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             reader.validate_manifest(manifest[:-1])
 
+    def test_partial_receipt_inventory_reports_raw_presence_without_qualifying_it(self):
+        import json
+        data = io.BytesIO()
+        with zipfile.ZipFile(data, 'w') as archive:
+            archive.writestr('pair-041-parent/report.json', json.dumps({'config': {'workers': 1}, 'stats': {'expected': 2}, 'suites': []}))
+            archive.writestr('pair-041-parent/test-results/.last-run.json', json.dumps({'status': 'passed', 'failedTests': []}))
+        result = reader.receipt_inventory(reader.checked_zip(data.getvalue()), 'pair-041-parent/')
+        self.assertEqual(result['available'], ['report.json', 'test-results/.last-run.json'])
+        self.assertNotIn('queue', result)
+        self.assertNotIn('qualified', result)
+        self.assertEqual(result['rawReport']['stats']['expected'], 2)
+
     def test_original_trace_completion_requires_observed_clock_readings(self):
         for trace in [{}, {'traces': []}, {'traces': [{'readings': []}]}]:
             self.assertFalse(reader.original_trace_resolved(trace))

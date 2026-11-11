@@ -145,6 +145,27 @@ def validate_manifest(manifest):
         assert isinstance(item['runId'], int) and item['runId'] > 0
 
 
+def receipt_inventory(archive, prefix):
+    # Diagnostic only: presence/raw outcomes do NOT qualify an incomplete invocation.
+    names = set(archive.namelist())
+    wanted = ['intent.json', 'admission.log', 'queue-identity.json', 'queue-result.json', 'queue.log', 'report.json', 'trial.json', 'test-results/.last-run.json']
+    result = {'available': [name for name in wanted if prefix + name in names]}
+    for name in ['queue-result.json', 'report.json', 'test-results/.last-run.json']:
+        if prefix + name not in names:
+            continue
+        try:
+            value = json.loads(archive.read(prefix + name))
+            if name == 'queue-result.json':
+                result['queue'] = {key: value.get(key) for key in ['id', 'state', 'kind', 'exitCode']}
+            elif name == 'report.json':
+                result['rawReport'] = {'workers': value.get('config', {}).get('workers'), 'stats': value.get('stats'), 'caseStatuses': [row.get('results') and [{'status': r.get('status'), 'retry': r.get('retry')} for r in row['results']] for row in report_cases(value.get('suites', []))][:30], 'globalErrors': len(value.get('errors', []))}
+            else:
+                result['lastRun'] = {'status': value.get('status'), 'failedTestCount': len(value.get('failedTests', []))}
+        except (ValueError, KeyError) as error:
+            result[name] = {'parseError': type(error).__name__}
+    return result
+
+
 def read_batch(item):
     run_id = item['runId']
     run = request_api(f'repos/{REPO}/actions/runs/{run_id}')
@@ -178,7 +199,7 @@ def read_batch(item):
                 trial.update(cohort=item['cohort'], globalPair=(item['cohort'] - 1) * 60 + pair)
                 rows.append(trial)
             except (AssertionError, KeyError, ValueError) as error:
-                unresolved.append({'pair': pair, 'arm': arm, 'error': safe_text(type(error).__name__ + ': ' + str(error))})
+                unresolved.append({'pair': pair, 'arm': arm, 'error': safe_text(type(error).__name__ + ': ' + str(error)), 'receiptInventory': receipt_inventory(archive, prefix)})
     return {'kind': kind, 'cohort': item['cohort'], 'batch': item['batch'], 'run': run_id, 'conclusion': run['conclusion'], 'artifact': found[0]['id'], 'zipSha256': hashlib.sha256(data).hexdigest(), 'rows': rows, 'unresolved': unresolved}
 
 
