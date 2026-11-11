@@ -74,7 +74,7 @@
       "phase": "E1",
       "actionId": "plan-editor-r1-5-2026-11-08:1",
       "nativeId": "/root/editor_r15_e1_resume",
-      "note": "E1 PR #2369 repair 1 pushed at 3d0187a9. Full exact independent grade A, targeted verification passed. Current PR CI 42941182085 and one new-head Codex review in progress. Original CI failure remains in the receipt. Sole active repair owner retained.",
+      "note": "E1 PR #2369 reviewed exact 3d0187a9 is in the normal GitHub merge queue. Coordinator stamp 58593245967, Reviewed rerun success and merge-group run 42943724281 observed. Active repair owner remains through merge and terminal evidence.",
       "checkpointed": false,
       "head": "3d0187a9d64d2edc3683ce6277c65728622c18d6",
       "pr": 2369
@@ -220,6 +220,14 @@
         "planJob": 130263113828,
         "reviewRequest": 6784648120,
         "reviewSHA256": "70646dbee4b6e7716ca68346e4ff40f81eba0368aaaa3703d6c10737446505f1"
+      },
+      "queue": {
+        "mergeGroupRun": 42943724281,
+        "prRun": 42941182085,
+        "ownerComment": 6784239834,
+        "reviewedJob": 130271123971,
+        "position": 1,
+        "stamp": 58593245967
       }
     }
   }

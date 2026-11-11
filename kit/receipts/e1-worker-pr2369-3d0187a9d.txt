@@ -1,0 +1,58 @@
+E1 worker gates ready for coordinator handoff
+
+Action plan-editor-r1-5-2026-11-08:1, nonce e1-b-fb43.
+Actor /root/editor_r15_e1_resume. Active block ends 2026-11-11T05:37:25.364Z.
+Worktree C:/claude/Temp/editor-r15-e1-build-1108.
+Branch codex/plan-editor-r1-5-e1-build.
+Base a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44.
+Reviewed and pushed head 3d0187a9d64d2edc3683ce6277c65728622c18d6.
+PR https://github.com/NoaCG/NoaCG-Studio/pull/2369.
+Active coordinator ownership acknowledged in comment 6784239834.
+
+Fresh full independent review of all 38 paths returned AGREE, Risky grade A.
+Artifact e1-final-review-3d0187a9d.txt SHA256
+70646dbee4b6e7716ca68346e4ff40f81eba0368aaaa3703d6c10737446505f1.
+The worker's inline code review checked scope, reproduced the one confirmed
+CI product defect and verified the correction. Inline simplification kept
+the pre-existing static operation and the existing timed authoring path.
+Inline verification passed 359 affected offline tests, 38 focused Node
+tests, changed-file lint, TypeScript and the targeted browser checks.
+Side-end audit returned an empty set, diff check passed, worktree clean,
+and no E1 scheduler job was pending or running at 02:04:02.9759689Z.
+
+Current PR CI run 42941182085, attempt 1, has exact head 3d0187a9d.
+CI gate job 130269623969 passed at 2026-11-11T02:02:29Z.
+E2E plan job 130263113828 selected 183 offline specs in 15 shards and all
+65 configured specs across four local stacks. Plan artifact
+e1-pr2369-repair1-plan.log SHA256
+3c1ac3758a65bcf11e011930ea77d3659e081eea3656993a27c230f35b565fb2.
+All 15 offline shards, all four configured stacks, configured verdict
+130268482374, Build 130263113528, Factory 130263113902 and Catalog
+130263274998 passed. Catalog includes raw fingerprints and calibration.
+The run conclusion is failure solely because Reviewed 130263113951
+was evaluated before the coordinator stamp. This is a separate gate.
+
+The one Codex request on this head is comment 6784648120. The completed
+Codex receipt is 6784708678, and summary 6784230173 names the full SHA
+with both finding fields false. There is no outstanding review.
+
+One PR CI product repair was used. Old exact head 95f65b051 failed
+CI gate 130261781441 after Clean Steps expected history 4 and saw 3.
+Its full shard log e1-pr2369-e2e5.log SHA256
+b68a7f635b007b0c30cef41b9a2d6850ac30896d06b105b48710db9f89385e6b
+is retained. Equal-value control j-5164 failed before the fix, j-5165
+passed after it, j-5166 logged six passing assertions but has a failed
+scheduler state with no exit code, and j-5167 passed both cases with
+exit 0. Repaired CI shard 130263275385 passed all 166 cases.
+There was no same-head CI retry or test/tolerance/baseline weakening.
+
+Native actual Chrome 125% and Illustrator picker, Explorer drop and SPX
+download stay pinned to be049c7ea. Native raster placement stays pinned to
+24439f46f. The source applicability audit and responsive Chromium evidence
+are in e1-notes.md. Account evidence is isolated simulation. Windows raw
+catalog j-5159 remains red on jc01 while j-5160 matched all 539 exact-main
+fingerprints and the raw Linux PR catalog gate passed. Named receiving
+hosts and first-use physical zoom remain later-phase work.
+
+The coordinator owns the stamp, queue admission, exact merge verification
+and repair ownership. No migration. Remaining work is coordinator-owned.

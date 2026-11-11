@@ -1,0 +1,538 @@
+﻿2026-11-11T01:45:29.1466980Z Current runner version: '2.338.2'
+2026-11-11T01:45:29.1490990Z ##[group]Runner Image Provisioner
+2026-11-11T01:45:29.1492018Z Hosted Compute Agent
+2026-11-11T01:45:29.1492607Z Version: 20261028.624
+2026-11-11T01:45:29.1493275Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-11T01:45:29.1494024Z Build Date: 2026-10-28T21:51:42Z
+2026-11-11T01:45:29.1494745Z Worker ID: {5dc49160-bef4-4c22-ad19-19815296b59c}
+2026-11-11T01:45:29.1495530Z Region: westcentralus
+2026-11-11T01:45:29.1496104Z Cloud: Azure
+2026-11-11T01:45:29.1496611Z ##[endgroup]
+2026-11-11T01:45:29.1498489Z ##[group]Operating System
+2026-11-11T01:45:29.1499130Z Ubuntu
+2026-11-11T01:45:29.1499795Z 26.04.1
+2026-11-11T01:45:29.1500299Z LTS
+2026-11-11T01:45:29.1500785Z ##[endgroup]
+2026-11-11T01:45:29.1501395Z ##[group]Runner Image
+2026-11-11T01:45:29.1502039Z Image: ubuntu-26.04
+2026-11-11T01:45:29.1502639Z Version: 20261101.186.1
+2026-11-11T01:45:29.1503915Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-11T01:45:29.1505573Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261101.186
+2026-11-11T01:45:29.1506602Z ##[endgroup]
+2026-11-11T01:45:29.1507966Z ##[group]GITHUB_TOKEN Permissions
+2026-11-11T01:45:29.1509798Z Contents: read
+2026-11-11T01:45:29.1510467Z Metadata: read
+2026-11-11T01:45:29.1511038Z ##[endgroup]
+2026-11-11T01:45:29.1513096Z Secret source: Actions
+2026-11-11T01:45:29.1514176Z Cache mode: write
+2026-11-11T01:45:29.1514850Z Prepare workflow directory
+2026-11-11T01:45:29.1898081Z Prepare all required actions
+2026-11-11T01:45:29.1945056Z Getting action download info
+2026-11-11T01:45:29.4881850Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+2026-11-11T01:45:29.6324331Z Download action repository 'actions/setup-node@v5' (SHA:a0853c24544627f65ddf259abe73b1d18a591444)
+2026-11-11T01:45:29.7144641Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-11-11T01:45:29.9050344Z Complete job name: E2E 5/15 (subset)
+2026-11-11T01:45:29.9978581Z ##[group]Run actions/checkout@v5
+2026-11-11T01:45:29.9979542Z with:
+2026-11-11T01:45:29.9980029Z   repository: NoaCG/NoaCG-Studio
+2026-11-11T01:45:29.9984214Z   token: ***
+2026-11-11T01:45:29.9984675Z   ssh-strict: true
+2026-11-11T01:45:29.9985133Z   ssh-user: git
+2026-11-11T01:45:29.9985612Z   persist-credentials: true
+2026-11-11T01:45:29.9986131Z   clean: true
+2026-11-11T01:45:29.9986609Z   sparse-checkout-cone-mode: true
+2026-11-11T01:45:29.9987163Z   fetch-depth: 1
+2026-11-11T01:45:29.9987795Z   fetch-tags: false
+2026-11-11T01:45:29.9988273Z   show-progress: true
+2026-11-11T01:45:29.9988744Z   lfs: false
+2026-11-11T01:45:29.9989190Z   submodules: false
+2026-11-11T01:45:29.9989669Z   set-safe-directory: true
+2026-11-11T01:45:29.9990211Z   allow-unsafe-pr-checkout: false
+2026-11-11T01:45:29.9991370Z ##[endgroup]
+2026-11-11T01:45:30.2394757Z Syncing repository: NoaCG/NoaCG-Studio
+2026-11-11T01:45:30.2397297Z ##[group]Getting Git version info
+2026-11-11T01:45:30.2398772Z Working directory is '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+2026-11-11T01:45:30.2400481Z [command]/usr/bin/git version
+2026-11-11T01:45:30.2448931Z git version 2.56.0
+2026-11-11T01:45:30.2530776Z ##[endgroup]
+2026-11-11T01:45:30.2538203Z Temporarily overriding HOME='/home/runner/work/_temp/908595c1-b13c-4b0c-b56b-0a8bcccff6ba' before making global git config changes
+2026-11-11T01:45:30.2541122Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T01:45:30.2543526Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-11T01:45:30.2579634Z Deleting the contents of '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+2026-11-11T01:45:30.2581699Z ##[group]Initializing the repository
+2026-11-11T01:45:30.2582989Z [command]/usr/bin/git init /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-11T01:45:30.2673351Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-11T01:45:30.2675167Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-11T01:45:30.2676460Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-11T01:45:30.2677252Z hint: call:
+2026-11-11T01:45:30.2677946Z hint:
+2026-11-11T01:45:30.2678497Z hint: 	git config --global init.defaultBranch <name>
+2026-11-11T01:45:30.2679175Z hint:
+2026-11-11T01:45:30.2679799Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-11T01:45:30.2680822Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-11T01:45:30.2681600Z hint:
+2026-11-11T01:45:30.2682054Z hint: 	git branch -m <name>
+2026-11-11T01:45:30.2682571Z hint:
+2026-11-11T01:45:30.2683250Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-11T01:45:30.2696789Z Initialized empty Git repository in /home/runner/work/NoaCG-Studio/NoaCG-Studio/.git/
+2026-11-11T01:45:30.2709443Z [command]/usr/bin/git remote add origin https://github.com/NoaCG/NoaCG-Studio
+2026-11-11T01:45:30.2762415Z ##[endgroup]
+2026-11-11T01:45:30.2763777Z ##[group]Disabling automatic garbage collection
+2026-11-11T01:45:30.2766403Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-11T01:45:30.2804945Z ##[endgroup]
+2026-11-11T01:45:30.2806127Z ##[group]Setting up auth
+2026-11-11T01:45:30.2813315Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T01:45:30.2850651Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T01:45:30.3340666Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T01:45:30.3374795Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T01:45:30.3648441Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T01:45:30.3683471Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T01:45:30.3957853Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-11T01:45:30.4002616Z ##[endgroup]
+2026-11-11T01:45:30.4004077Z ##[group]Fetching the repository
+2026-11-11T01:45:30.4014150Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +2bb06cf04c6c2cd4a61d6462c7614955a097d401:refs/remotes/pull/2369/merge
+2026-11-11T01:45:31.9296368Z From https://github.com/NoaCG/NoaCG-Studio
+2026-11-11T01:45:31.9328988Z  * [new ref]         2bb06cf04c6c2cd4a61d6462c7614955a097d401 -> pull/2369/merge
+2026-11-11T01:45:31.9333310Z ##[endgroup]
+2026-11-11T01:45:31.9334743Z ##[group]Determining the checkout info
+2026-11-11T01:45:31.9336178Z ##[endgroup]
+2026-11-11T01:45:31.9336829Z [command]/usr/bin/git sparse-checkout disable
+2026-11-11T01:45:31.9369645Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-11T01:45:31.9405607Z ##[group]Checking out the ref
+2026-11-11T01:45:31.9409395Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/2369/merge
+2026-11-11T01:45:32.7167172Z Note: switching to 'refs/remotes/pull/2369/merge'.
+2026-11-11T01:45:32.7168913Z 
+2026-11-11T01:45:32.7169957Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-11T01:45:32.7172326Z changes and commit them, and you can discard any commits you make in this
+2026-11-11T01:45:32.7174587Z state without impacting any branches by switching back to a branch.
+2026-11-11T01:45:32.7175933Z 
+2026-11-11T01:45:32.7176836Z If you want to create a new branch to retain commits you create, you may
+2026-11-11T01:45:32.7179233Z do so (now or later) by using -c with the switch command. Example:
+2026-11-11T01:45:32.7180840Z 
+2026-11-11T01:45:32.7181429Z   git switch -c <new-branch-name>
+2026-11-11T01:45:32.7182317Z 
+2026-11-11T01:45:32.7182878Z Or undo this operation with:
+2026-11-11T01:45:32.7183725Z 
+2026-11-11T01:45:32.7184215Z   git switch -
+2026-11-11T01:45:32.7184901Z 
+2026-11-11T01:45:32.7185990Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-11T01:45:32.7188008Z 
+2026-11-11T01:45:32.7190022Z HEAD is now at 2bb06cf Merge 3d0187a9d64d2edc3683ce6277c65728622c18d6 into a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44
+2026-11-11T01:45:32.7210864Z ##[endgroup]
+2026-11-11T01:45:32.7253503Z [command]/usr/bin/git log -1 --format=%H
+2026-11-11T01:45:32.7278178Z 2bb06cf04c6c2cd4a61d6462c7614955a097d401
+2026-11-11T01:45:32.7686157Z ##[group]Run actions/setup-node@v5
+2026-11-11T01:45:32.7687576Z with:
+2026-11-11T01:45:32.7688504Z   node-version: 24
+2026-11-11T01:45:32.7689488Z   cache: npm
+2026-11-11T01:45:32.7690457Z   always-auth: false
+2026-11-11T01:45:32.7691477Z   check-latest: false
+2026-11-11T01:45:32.7702796Z   token: ***
+2026-11-11T01:45:32.7703824Z   package-manager-cache: true
+2026-11-11T01:45:32.7704979Z ##[endgroup]
+2026-11-11T01:45:32.9198230Z (node:2448) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-11T01:45:32.9203107Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-11T01:45:32.9209584Z Found in cache @ /opt/hostedtoolcache/node/24.22.2/x64
+2026-11-11T01:45:32.9213141Z ##[group]Environment details
+2026-11-11T01:45:35.9881380Z node: v24.22.2
+2026-11-11T01:45:35.9882392Z npm: 11.19.1
+2026-11-11T01:45:35.9882956Z yarn: 1.22.22
+2026-11-11T01:45:35.9884995Z ##[endgroup]
+2026-11-11T01:45:35.9911692Z [command]/opt/hostedtoolcache/node/24.22.2/x64/bin/npm config get cache
+2026-11-11T01:45:36.2923976Z /home/runner/.npm
+2026-11-11T01:45:36.4909331Z Cache hit for: node-cache-Linux-x64-npm-f6534e8efbcb185272d21504ced33f1ba33b656490018118e5beb65abcf01961
+2026-11-11T01:45:36.5048194Z (node:2448) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-11T01:45:37.7065727Z Received 54525952 of 124649611 (43.7%), 52.0 MBs/sec
+2026-11-11T01:45:38.1696055Z Received 124649611 of 124649611 (100.0%), 81.3 MBs/sec
+2026-11-11T01:45:38.1696834Z Cache Size: ~119 MB (124649611 B)
+2026-11-11T01:45:38.1823903Z [command]/usr/bin/tar -xf /home/runner/work/_temp/995e74f7-0d68-4498-9b0b-c492b7b8caad/cache.tzst -P -C /home/runner/work/NoaCG-Studio/NoaCG-Studio --use-compress-program unzstd
+2026-11-11T01:45:38.4221232Z Cache restored successfully
+2026-11-11T01:45:38.4280408Z Cache restored from key: node-cache-Linux-x64-npm-f6534e8efbcb185272d21504ced33f1ba33b656490018118e5beb65abcf01961
+2026-11-11T01:45:38.4601295Z Prepare all required actions
+2026-11-11T01:45:38.4601895Z Getting action download info
+2026-11-11T01:45:38.5801746Z Download action repository 'actions/cache@v4' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-11-11T01:45:38.6649417Z ##[group]Run ./.github/actions/node-modules
+2026-11-11T01:45:38.6649736Z ##[endgroup]
+2026-11-11T01:45:38.6705862Z ##[start-action display=Resolve Node version;id=__self.node]
+2026-11-11T01:45:38.6752926Z ##[group]Run echo "major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"
+2026-11-11T01:45:38.6753634Z [36;1mecho "major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"[0m
+2026-11-11T01:45:38.6857794Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T01:45:38.6858174Z ##[endgroup]
+2026-11-11T01:45:38.7396049Z ##[end-action id=__self.node;outcome=success;conclusion=success;duration_ms=68]
+2026-11-11T01:45:38.7401518Z ##[start-action display=Cache node_modules;id=__self.cache]
+2026-11-11T01:45:38.8107878Z ##[group]Run actions/cache@v4
+2026-11-11T01:45:38.8108180Z with:
+2026-11-11T01:45:38.8108662Z   path: node_modules
+player-host/node_modules
+
+2026-11-11T01:45:38.8109248Z   key: node-modules-Linux-X64-node24-b1074435e9e3d609f008a5f0c32dfc6893940add5c9b920b483f90d4d00ab61a
+2026-11-11T01:45:38.8109844Z   enableCrossOsArchive: false
+2026-11-11T01:45:38.8110107Z   fail-on-cache-miss: false
+2026-11-11T01:45:38.8110348Z   lookup-only: false
+2026-11-11T01:45:38.8110563Z   save-always: false
+2026-11-11T01:45:38.8110776Z ##[endgroup]
+2026-11-11T01:45:38.9203968Z (node:2520) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-11T01:45:38.9205525Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-11T01:45:39.0915598Z Cache hit for: node-modules-Linux-X64-node24-b1074435e9e3d609f008a5f0c32dfc6893940add5c9b920b483f90d4d00ab61a
+2026-11-11T01:45:39.1023443Z (node:2520) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-11T01:45:40.2985473Z Received 75497472 of 125977077 (59.9%), 72.0 MBs/sec
+2026-11-11T01:45:40.6649537Z Received 125977077 of 125977077 (100.0%), 88.0 MBs/sec
+2026-11-11T01:45:40.6653120Z Cache Size: ~120 MB (125977077 B)
+2026-11-11T01:45:40.6771509Z [command]/usr/bin/tar -xf /home/runner/work/_temp/0c86212e-733e-41e6-8dbd-517a0980c503/cache.tzst -P -C /home/runner/work/NoaCG-Studio/NoaCG-Studio --use-compress-program unzstd
+2026-11-11T01:45:42.1643946Z Cache restored successfully
+2026-11-11T01:45:42.1927721Z Cache restored from key: node-modules-Linux-X64-node24-b1074435e9e3d609f008a5f0c32dfc6893940add5c9b920b483f90d4d00ab61a
+2026-11-11T01:45:42.2040070Z ##[end-action id=__self.cache;outcome=success;conclusion=success;duration_ms=3463]
+2026-11-11T01:45:42.2044204Z ##[start-action display=npm ci;id=__self.__run]
+2026-11-11T01:45:42.2060023Z ##[end-action id=__self.__run;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-11T01:45:42.2063243Z ##[start-action display=Regenerate install-time artifacts;id=__self.__run_2]
+2026-11-11T01:45:42.2095711Z ##[group]Run npm run postinstall
+2026-11-11T01:45:42.2096061Z [36;1mnpm run postinstall[0m
+2026-11-11T01:45:42.2154428Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T01:45:42.2154802Z ##[endgroup]
+2026-11-11T01:45:42.3466491Z 
+2026-11-11T01:45:42.3467139Z > noacg-studio@0.1.0 postinstall
+2026-11-11T01:45:42.3468136Z > node scripts/dev-port.mjs && node scripts/gen-video-font-css.mjs && node scripts/build-player-host.mjs
+2026-11-11T01:45:42.3468586Z 
+2026-11-11T01:45:42.4032466Z 5174
+2026-11-11T01:45:42.6451995Z [video-fonts] wrote 521370 chars of @font-face CSS -> render-worker/remotion/videoFontFaces.generated.ts
+2026-11-11T01:45:42.7442601Z [player-host] npm run build
+2026-11-11T01:45:42.8663074Z 
+2026-11-11T01:45:42.8663770Z > noacg-player-host@0.1.0 build
+2026-11-11T01:45:42.8664927Z > vite build
+2026-11-11T01:45:42.8665175Z 
+2026-11-11T01:45:43.2578395Z [36mvite v8.3.4 [32mbuilding client environment for production...[36m[39m
+2026-11-11T01:45:43.2674758Z transforming...
+2026-11-11T01:45:43.3265994Z ✓ 21 modules transformed.
+2026-11-11T01:45:43.3514693Z rendering chunks...
+2026-11-11T01:45:43.4017859Z computing gzip size...
+2026-11-11T01:45:43.4089791Z ../public/player-host/index.html                  0.69 kB │ gzip:   0.43 kB
+2026-11-11T01:45:43.4091064Z ../public/player-host/assets/index-BRpXzI9k.js  460.89 kB │ gzip: 145.29 kB
+2026-11-11T01:45:43.4091770Z 
+2026-11-11T01:45:43.4103618Z [32m✓ built in 152ms[39m
+2026-11-11T01:45:43.4391985Z [player-host] built into public/player-host/ (single self-contained page)
+2026-11-11T01:45:43.4541369Z ##[end-action id=__self.__run_2;outcome=success;conclusion=success;duration_ms=1247]
+2026-11-11T01:45:43.4598504Z Prepare all required actions
+2026-11-11T01:45:43.4599080Z Getting action download info
+2026-11-11T01:45:43.5794770Z ##[group]Run ./.github/actions/playwright-chromium
+2026-11-11T01:45:43.5795284Z ##[endgroup]
+2026-11-11T01:45:43.5800409Z ##[start-action display=Resolve Playwright version;id=__self_2.version]
+2026-11-11T01:45:43.5818230Z ##[group]Run echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+2026-11-11T01:45:43.5818978Z [36;1mecho "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"[0m
+2026-11-11T01:45:43.5868717Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T01:45:43.5869075Z ##[endgroup]
+2026-11-11T01:45:43.6270286Z ##[end-action id=__self_2.version;outcome=success;conclusion=success;duration_ms=46]
+2026-11-11T01:45:43.6272858Z ##[start-action display=Cache Playwright browser;id=__self_2.cache]
+2026-11-11T01:45:43.6315355Z ##[group]Run actions/cache@v4
+2026-11-11T01:45:43.6315648Z with:
+2026-11-11T01:45:43.6315856Z   path: ~/.cache/ms-playwright
+2026-11-11T01:45:43.6316124Z   key: playwright-Linux-1.61.1
+2026-11-11T01:45:43.6316395Z   enableCrossOsArchive: false
+2026-11-11T01:45:43.6316659Z   fail-on-cache-miss: false
+2026-11-11T01:45:43.6316899Z   lookup-only: false
+2026-11-11T01:45:43.6317119Z   save-always: false
+2026-11-11T01:45:43.6317327Z ##[endgroup]
+2026-11-11T01:45:43.7385305Z (node:2619) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-11T01:45:43.7387107Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-11T01:45:43.9201786Z Cache hit for: playwright-Linux-1.61.1
+2026-11-11T01:45:43.9305522Z (node:2619) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-11T01:45:45.1305289Z Received 50331648 of 274154549 (18.4%), 48.0 MBs/sec
+2026-11-11T01:45:46.1311893Z Received 243269632 of 274154549 (88.7%), 116.0 MBs/sec
+2026-11-11T01:45:46.4364614Z Received 274154549 of 274154549 (100.0%), 113.4 MBs/sec
+2026-11-11T01:45:46.4367054Z Cache Size: ~261 MB (274154549 B)
+2026-11-11T01:45:46.4492926Z [command]/usr/bin/tar -xf /home/runner/work/_temp/ad3e1d52-3b81-4ab6-be49-844b9d68373b/cache.tzst -P -C /home/runner/work/NoaCG-Studio/NoaCG-Studio --use-compress-program unzstd
+2026-11-11T01:45:47.6806478Z Cache restored successfully
+2026-11-11T01:45:47.7035193Z Cache restored from key: playwright-Linux-1.61.1
+2026-11-11T01:45:47.7185683Z ##[end-action id=__self_2.cache;outcome=success;conclusion=success;duration_ms=4091]
+2026-11-11T01:45:47.7190814Z ##[start-action display=Install Playwright browser;id=__self_2.__run]
+2026-11-11T01:45:47.7200809Z ##[end-action id=__self_2.__run;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-11T01:45:47.7204214Z ##[start-action display=Install Playwright system dependencies (bounded);id=__self_2.__run_2]
+2026-11-11T01:45:47.7212150Z ##[end-action id=__self_2.__run_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-11T01:45:47.7311147Z ##[group]Run PLAN="$(node -e '
+2026-11-11T01:45:47.7311653Z [36;1mPLAN="$(node -e '[0m
+2026-11-11T01:45:47.7312080Z [36;1m  const bins = JSON.parse(process.env.SHARD_SPECS ?? "[]");[0m
+2026-11-11T01:45:47.7312541Z [36;1m  const mine = bins[Number(process.env.SHARD_INDEX) - 1];[0m
+2026-11-11T01:45:47.7312949Z [36;1m  if (!Array.isArray(mine) || mine.length === 0) {[0m
+2026-11-11T01:45:47.7313526Z [36;1m    console.error(`shard ${process.env.SHARD_INDEX} has no spec files in the plan`);[0m
+2026-11-11T01:45:47.7314336Z [36;1m    process.exit(1);[0m
+2026-11-11T01:45:47.7314696Z [36;1m  }[0m
+2026-11-11T01:45:47.7315203Z [36;1m  import("./scripts/e2e-affected.mjs").then((m) => console.log(`${mine.map(m.specFilterArg).join(" ")}\n${mine.join(" ")}`));[0m
+2026-11-11T01:45:47.7315753Z [36;1m')"[0m
+2026-11-11T01:45:47.7316060Z [36;1m{ read -r SPECS; read -r NOACG_E2E_EXPECTED_SPECS; } <<< "$PLAN"[0m
+2026-11-11T01:45:47.7316454Z [36;1mexport NOACG_E2E_EXPECTED_SPECS[0m
+2026-11-11T01:45:47.7316944Z [36;1mecho "::notice title=E2E shard ${SHARD_INDEX}::$(echo "$SPECS" | wc -w) spec file(s)"[0m
+2026-11-11T01:45:47.7317874Z [36;1mnpm run test:e2e -- $SPECS[0m
+2026-11-11T01:45:47.7366801Z shell: /usr/bin/bash -e {0}
+2026-11-11T01:45:47.7367065Z env:
+2026-11-11T01:45:47.7367282Z   TMPDIR: /home/runner/work/_temp
+2026-11-11T01:45:47.7385949Z   SHARD_SPECS: [["editor-foundation.spec.ts","editor-model-proposals.spec.ts","editor-out.spec.ts","google-fonts.spec.ts","imported-credits-live-data.spec.ts","legacy-timeline.spec.ts","live-actions-first.spec.ts","output-font-hold.spec.ts","playout-clock.spec.ts","playout-rail-width.spec.ts","project-format.spec.ts","save-transaction-leave-shortcut.spec.ts","stream-notification.spec.ts"],["ai-retrieval.spec.ts","anim-engine.spec.ts","design-rules-product.spec.ts","editor-base-edits.spec.ts","editor-fidelity-trim.spec.ts","editor-typography.spec.ts","editor-usability.spec.ts","import-svg-centred-title.spec.ts","import-svg-sticker-sample.spec.ts","jev-svg-preparation.spec.ts","machine-graph.spec.ts","template-insert.spec.ts","wizard-filters.spec.ts"],["account-library.spec.ts","editor-arrangement.spec.ts","editor-drawing-persistence.spec.ts","import-svg-behaviour.spec.ts","import-svg-credits.spec.ts","library-bulk.spec.ts","live-field-change.spec.ts","machine-edit.spec.ts","package.spec.ts","playout-drills.spec.ts","publish-gate.spec.ts","sync-dot.spec.ts"],["analytics.spec.ts","editor-ease.spec.ts","editor-transform-qualification.spec.ts","feedback.spec.ts","holding-pack.spec.ts","images.spec.ts","import-graphic.spec.ts","import.spec.ts","ograf-starters.spec.ts","playout-folders.spec.ts","playout-sequence.spec.ts","quiz-show.spec.ts","wizard-brand.spec.ts"],["audience-pack.spec.ts","bridge-ograf.spec.ts","docs.spec.ts","editor-canvas-transforms.spec.ts","editor-cli-round-trip.spec.ts","editor-key-ease.spec.ts","end-credits.spec.ts","format.spec.ts","new-graphic-guard.spec.ts","productions.spec.ts","save-transaction-leave-modal.spec.ts","spx-operator.spec.ts","stage-fit-determinism.spec.ts"],["control.spec.ts","editor-command-task.spec.ts","editor-pen.spec.ts","full-frame-offering.spec.ts","lite-parity.spec.ts","snap-recovery.spec.ts","sync.spec.ts","timeline-v2.spec.ts","ux.spec.ts","wave2.spec.ts","wizard-entry-fit.spec.ts","wizard-preview.spec.ts"],["bundled-font-glyphs.spec.ts","catalog-baseline.spec.ts","editor-groups.spec.ts","editor-out-step.spec.ts","import-svg-reimport.spec.ts","layout.spec.ts","library.spec.ts","ograf-conformance.spec.ts","ograf-isolation.spec.ts","project.spec.ts","public-service.spec.ts","quiz-pilot.spec.ts","wizard-kit.spec.ts"],["cross-tab.spec.ts","editor-images.spec.ts","editor-transforms.spec.ts","flows.spec.ts","imported-text-live-data.spec.ts","inspector.spec.ts","production-pack.spec.ts","production-sounds.spec.ts","quiz-live-consistency.spec.ts","save-transaction-holds.spec.ts","wizard-finish.spec.ts","wizard-shell.spec.ts"],["data-api.spec.ts","editor-keys.spec.ts","lite-field-paint.spec.ts","lite-line-content.spec.ts","network-resilience.spec.ts","no-old-editor.spec.ts","ograf-parity.spec.ts","playout-baseline.spec.ts","preview-error.spec.ts","svg-examples.spec.ts","template-deep-link.spec.ts","wizard-logo.spec.ts","wizard-setup-fields.spec.ts"],["bundled-font-weights.spec.ts","editor-cross-cue.spec.ts","editor-folders-bins.spec.ts","house.spec.ts","import-canvas.spec.ts","import-name-collision.spec.ts","playout-rundown-feedback.spec.ts","production-gate.spec.ts","save-transaction.spec.ts","shows.spec.ts","state-machine.spec.ts"],["assets.spec.ts","counting-settle.spec.ts","editor-canvas-short-height.spec.ts","landing.spec.ts","library-productions.spec.ts","overlay-layers.spec.ts","playout-air-contract.spec.ts","playout-cues.spec.ts","playout-feedback-health.spec.ts","playout-fixed-panes.spec.ts","sports.spec.ts","template-pack-4.spec.ts"],["agent-access.spec.ts","bench.spec.ts","control-panel-types.spec.ts","creative-routing.spec.ts","editor-layer-property-qualification.spec.ts","exports.spec.ts","graphic-sound.spec.ts","production-controls.spec.ts","production-data.spec.ts","score-tracker-moments.spec.ts","storage-full.spec.ts"],["bridge-connect.spec.ts","dashboard-operator-walk.spec.ts","editor-steps.spec.ts","import-analysis.spec.ts","local-relay.spec.ts","ograf-lifecycle.spec.ts","production-persistence.spec.ts","save-copy-arrival.spec.ts","save-transaction-leave.spec.ts","student-rehearsal.spec.ts","template-pack-10.spec.ts","wysiwyg.spec.ts"],["agent-made-graphics.spec.ts","asset-workflow.spec.ts","competition-pack.spec.ts","editor-commands.spec.ts","editor-drawing-task.spec.ts","graphic-sound-controls.spec.ts","import-prepare.spec.ts","import-stretch.spec.ts","import-svg.spec.ts","playout-adjust-documents.spec.ts","template-escaping.spec.ts","video-project.spec.ts"],["auth.spec.ts","editor-alpha-entry.spec.ts","graphic-types.spec.ts","hosted-control.spec.ts","import-svg-corpus.spec.ts","motion-presets.spec.ts","offline.spec.ts","production-audience.spec.ts","production-chat-intake.spec.ts","render.spec.ts","route-transition-flash.spec.ts"]]
+2026-11-11T01:45:47.7405718Z   SHARD_INDEX: 5
+2026-11-11T01:45:47.7405970Z   NOACG_BLOB_NAME: report-5.zip
+2026-11-11T01:45:47.7406225Z ##[endgroup]
+2026-11-11T01:45:47.9419954Z ##[notice]13 spec file(s)
+2026-11-11T01:45:48.0576595Z 
+2026-11-11T01:45:48.0577208Z > noacg-studio@0.1.0 test:e2e
+2026-11-11T01:45:48.0581164Z > playwright test [\\/]audience-pack\.spec\.ts$ [\\/]bridge-ograf\.spec\.ts$ [\\/]docs\.spec\.ts$ [\\/]editor-canvas-transforms\.spec\.ts$ [\\/]editor-cli-round-trip\.spec\.ts$ [\\/]editor-key-ease\.spec\.ts$ [\\/]end-credits\.spec\.ts$ [\\/]format\.spec\.ts$ [\\/]new-graphic-guard\.spec\.ts$ [\\/]productions\.spec\.ts$ [\\/]save-transaction-leave-modal\.spec\.ts$ [\\/]spx-operator\.spec\.ts$ [\\/]stage-fit-determinism\.spec\.ts$
+2026-11-11T01:45:48.0583766Z 
+2026-11-11T01:45:56.6697259Z 
+2026-11-11T01:45:56.6698058Z Running 166 tests using 1 worker
+2026-11-11T01:45:56.6735084Z 
+2026-11-11T01:45:57.1128414Z [1/166] [chromium] › e2e/audience-pack.spec.ts:78:1 › a very long message is clamped inside the frame, never spilled out of it
+2026-11-11T01:46:01.2660283Z [2/166] [chromium] › e2e/audience-pack.spec.ts:127:1 › a question with no name reads as anonymous, and no separator is left dangling
+2026-11-11T01:46:04.0655625Z [3/166] [chromium] › e2e/audience-pack.spec.ts:195:1 › the queue survives a bare list, a single entry, and an index past the end
+2026-11-11T01:46:06.9366065Z [4/166] [chromium] › e2e/audience-pack.spec.ts:264:1 › the vote board handles no votes, uneven options, and a dead heat
+2026-11-11T01:46:08.7090193Z [5/166] [chromium] › e2e/audience-pack.spec.ts:335:1 › two-, three- and four-answer boards all select, lock, and refuse a late change
+2026-11-11T01:46:10.7523306Z [6/166] [chromium] › e2e/audience-pack.spec.ts:428:1 › every state of every new type is reachable, and snapping to it lands its pose
+2026-11-11T01:46:14.0651023Z [7/166] [chromium] › e2e/audience-pack.spec.ts:492:1 › a chat highlight takes itself off air, and holding it stops the clock
+2026-11-11T01:46:17.6312708Z [8/166] [chromium] › e2e/audience-pack.spec.ts:534:1 › a pack graphic survives a save and load round trip with its machine intact
+2026-11-11T01:46:19.1359867Z [9/166] [chromium] › e2e/audience-pack.spec.ts:577:1 › every pack graphic exports to every target with no dangling references
+2026-11-11T01:46:22.9090726Z [10/166] [chromium] › e2e/audience-pack.spec.ts:662:3 › the Join card draws its QR from its Join link (AC-11) › live: the rendered card decodes to its link, follows an update, and an empty link draws nothing
+2026-11-11T01:46:25.7560239Z [11/166] [chromium] › e2e/audience-pack.spec.ts:702:3 › the Join card draws its QR from its Join link (AC-11) › exported: the single-file card, opened with no network, still draws the same code
+2026-11-11T01:46:28.4661961Z [12/166] [chromium] › e2e/audience-pack.spec.ts:733:1 › an imported SVG with a layer named QR draws its Join link as a code that decodes
+2026-11-11T01:46:29.8176512Z [13/166] [chromium] › e2e/audience-pack.spec.ts:814:3 › studio import: a home-made vote board draws each bar at its share within one pixel
+2026-11-11T01:46:32.3385258Z [14/166] [chromium] › e2e/audience-pack.spec.ts:814:3 › CLI scaffold --svg: a home-made vote board draws each bar at its share within one pixel
+2026-11-11T01:46:34.7429156Z [15/166] [chromium] › e2e/audience-pack.spec.ts:906:1 › result boards: three layouts by three placements take 2 and 8 options and long names without overflow
+2026-11-11T01:47:01.9503121Z [16/166] [chromium] › e2e/audience-pack.spec.ts:1034:1 › CLI scaffold --svg builds the studio import's own default for every corpus file
+2026-11-11T01:47:03.9097670Z [17/166] [chromium] › e2e/audience-pack.spec.ts:1078:1 › the word cloud draws its Words by count, keeps every word inside its box, and draws nothing when empty (AC-14)
+2026-11-11T01:47:05.7442073Z [18/166] [chromium] › e2e/bridge-ograf.spec.ts:85:1 › the Bridge names the OGraf adapter, and status and list read the server, its graphics and its renderers
+2026-11-11T01:47:05.9563135Z [19/166] [chromium] › e2e/bridge-ograf.spec.ts:127:1 › take, update, next, out and All out each put exactly the standard request on the wire
+2026-11-11T01:47:06.1305442Z [20/166] [chromium] › e2e/bridge-ograf.spec.ts:195:1 › a result the Bridge cannot be sure of is uncertain and never retried; what OGraf cannot do sends nothing
+2026-11-11T01:47:07.2564571Z [21/166] [chromium] › e2e/docs.spec.ts:35:1 › /docs serves the static docs home, not the app
+2026-11-11T01:47:07.6930252Z [22/166] [chromium] › e2e/docs.spec.ts:45:1 › the top bar is the landing top bar, with a readable button
+2026-11-11T01:47:08.0939913Z [23/166] [chromium] › e2e/docs.spec.ts:57:1 › every section-nav link points at a section that exists
+2026-11-11T01:47:08.6249174Z [24/166] [chromium] › e2e/docs.spec.ts:82:1 › the section nav opens on five topics and unfolds the one being read
+2026-11-11T01:47:09.1349868Z [25/166] [chromium] › e2e/docs.spec.ts:107:1 › on a phone the nav above the text stays five topics and unfolds only on a tap
+2026-11-11T01:47:11.0463879Z [26/166] [chromium] › e2e/docs.spec.ts:125:1 › the Companion setup guide is readable on a phone and links to the module
+2026-11-11T01:47:13.0113739Z [27/166] [chromium] › e2e/docs.spec.ts:180:5 › a deep link lands on its heading at 1366 wide, with smooth scrolling
+2026-11-11T01:47:19.5810390Z [28/166] [chromium] › e2e/docs.spec.ts:180:5 › a deep link lands on its heading at 1366 wide, without smooth scrolling
+2026-11-11T01:47:20.9004539Z [29/166] [chromium] › e2e/docs.spec.ts:180:5 › a deep link lands on its heading at 390 wide, with smooth scrolling
+2026-11-11T01:47:26.9450509Z [30/166] [chromium] › e2e/docs.spec.ts:180:5 › a deep link lands on its heading at 390 wide, without smooth scrolling
+2026-11-11T01:47:28.2609454Z [31/166] [chromium] › e2e/docs.spec.ts:199:1 › every docs screenshot reserves its height before it loads
+2026-11-11T01:47:28.8638443Z [32/166] [chromium] › e2e/docs.spec.ts:225:3 › without JavaScript › every nav link shows, so nothing hides behind the module
+2026-11-11T01:47:29.3101551Z [33/166] [chromium] › e2e/docs.spec.ts:238:1 › the graphics topic has one page per type, each with its file, layers and names
+2026-11-11T01:47:30.1233508Z [34/166] [chromium] › e2e/docs.spec.ts:328:1 › an example link downloads the file rather than opening it
+2026-11-11T01:47:30.5252449Z [35/166] [chromium] › e2e/docs.spec.ts:337:1 › the four guides carry their load-bearing content
+2026-11-11T01:47:30.9937372Z [36/166] [chromium] › e2e/docs.spec.ts:381:1 › the package chooser names every export target, and the live route first
+2026-11-11T01:47:31.4270358Z [37/166] [chromium] › e2e/docs.spec.ts:404:1 › the artwork guide carries the three facts a picture brings with it
+2026-11-11T01:47:31.8452795Z [38/166] [chromium] › e2e/docs.spec.ts:432:1 › the import walk keeps its steps, its two surprises and its handoffs
+2026-11-11T01:47:32.2984621Z [39/166] [chromium] › e2e/docs.spec.ts:460:1 › the teams guide sends people down the route that exists, and says which one does not
+2026-11-11T01:47:32.7769268Z [40/166] [chromium] › e2e/docs.spec.ts:518:1 › the worked example carries one show a reader can copy exactly
+2026-11-11T01:47:33.2600176Z [41/166] [chromium] › e2e/docs.spec.ts:573:1 › every docs screenshot loads at the size the page reserved for it
+2026-11-11T01:47:34.8285611Z [42/166] [chromium] › e2e/docs.spec.ts:606:1 › every command block is one copy-paste, with a copy button
+2026-11-11T01:47:35.2481161Z [43/166] [chromium] › e2e/docs.spec.ts:631:1 › mobile docs commands fit clear of Copy and still copy exactly
+2026-11-11T01:47:37.6277254Z [44/166] [chromium] › e2e/docs.spec.ts:666:1 › the agent guide offers both install routes, and they are the real ones
+2026-11-11T01:47:38.1109620Z [45/166] [chromium] › e2e/docs.spec.ts:694:1 › Getting started points a coding-agent owner at the CLI
+2026-11-11T01:47:38.5926860Z [46/166] [chromium] › e2e/docs.spec.ts:739:1 › the docs page prints as it reads, in ink rather than in white
+2026-11-11T01:47:39.1493395Z [47/166] [chromium] › e2e/docs.spec.ts:770:1 › the docs page routes back into the product
+2026-11-11T01:47:39.5796138Z [48/166] [chromium] › e2e/editor-canvas-transforms.spec.ts:168:1 › rotation handle: a created rectangle turns about its anchor, agrees with the field, snaps with Shift and keeps 720
+2026-11-11T01:47:52.6980091Z [49/166] [chromium] › e2e/editor-canvas-transforms.spec.ts:229:1 › rotation handle keys an animated Rotation at the playhead; a raw transform track refuses it
+2026-11-11T01:47:56.6741085Z [50/166] [chromium] › e2e/editor-canvas-transforms.spec.ts:270:1 › unlinked edge handles scale one axis about the opposite side, Shift both, Alt about the anchor; a rotated layer scales along its own sides
+2026-11-11T01:48:04.7722109Z [51/166] [chromium] › e2e/editor-canvas-transforms.spec.ts:339:1 › catalog edges: the accent keys scaleX from its side and refuses its top; Frosted Panel keys scale with Shift and refuses one axis
+2026-11-11T01:48:12.2650560Z [52/166] [chromium] › e2e/editor-canvas-transforms.spec.ts:386:1 › anchor point: numeric X/Y, Center anchor and the Anchor tool on a rotated, scaled rectangle
+2026-11-11T01:48:21.0401271Z [53/166] [chromium] › e2e/editor-canvas-transforms.spec.ts:480:1 › armed anchor X captures a nonzero pose, keys only its axis, and bakes the inspected value on disable
+2026-11-11T01:48:27.0298826Z [54/166] [chromium] › e2e/editor-canvas-transforms.spec.ts:521:1 › first anchor key refuses a rotated layer with two authored values for one axis
+2026-11-11T01:48:30.0320733Z [55/166] [chromium] › e2e/editor-canvas-transforms.spec.ts:543:1 › anchor on animated and placed layers: Frosted Panel moves only its pivot at the playhead; created text anchors its box; refusals
+2026-11-11T01:48:35.6796711Z [56/166] [chromium] › e2e/editor-canvas-transforms.spec.ts:632:1 › a layer’s own CSS transform: a side handle scales outside it about the opposite side, and the Anchor tool moves only its pivot
+2026-11-11T01:48:41.0794315Z [57/166] [chromium] › e2e/editor-canvas-transforms.spec.ts:684:1 › the Anchor tool inside a turned, scaled parent maps the pointer through it: the crosshair stays under the pointer and only the anchor changes
+2026-11-11T01:48:44.4301071Z [58/166] [chromium] › e2e/editor-canvas-transforms.spec.ts:709:1 › Clean Steps: a turned row's anchor moves only its pivot, so its whole reveal turns about it; on a Step flag Center anchor writes it too
+2026-11-11T01:48:50.9510087Z [59/166] [chromium] › e2e/editor-canvas-transforms.spec.ts:753:1 › nested SVG: the rotation and edge handles write what the fields write; its anchor refuses beside the control
+2026-11-11T01:48:56.8969173Z [60/166] [chromium] › e2e/editor-canvas-transforms.spec.ts:808:1 › catalog: on every layer with base placement an anchor and a 15 degree Rotation apply or refuse with a kept reason
+2026-11-11T01:49:03.1179543Z [chromium] › e2e/editor-canvas-transforms.spec.ts:808:1 › catalog: on every layer with base placement an anchor and a 15 degree Rotation apply or refuse with a kept reason
+2026-11-11T01:49:03.1181330Z {
+2026-11-11T01:49:03.1182402Z  "layers": 1909,
+2026-11-11T01:49:03.1183065Z  "anchor": 1905,
+2026-11-11T01:49:03.1183645Z  "rotation": 1909,
+2026-11-11T01:49:03.1184698Z  "refused": {
+2026-11-11T01:49:03.1185639Z   "anchor: This graphic's script or animation data sets this layer's transformOrigin itself, which wo": 3,
+2026-11-11T01:49:03.1186465Z   "anchor: This SVG member has a transform or source GSAP places independently. Its pivot is preserve": 1
+2026-11-11T01:49:03.1186979Z  },
+2026-11-11T01:49:03.1187175Z  "wrong": []
+2026-11-11T01:49:03.1187603Z }
+2026-11-11T01:49:03.1187774Z 
+2026-11-11T01:49:03.2349473Z [61/166] [chromium] › e2e/editor-cli-round-trip.spec.ts:81:124 › agent package visual round-trip desktop
+2026-11-11T01:49:17.3924224Z [62/166] [chromium] › e2e/editor-cli-round-trip.spec.ts:81:124 › agent package visual round-trip laptop
+2026-11-11T01:49:31.3285375Z [63/166] [chromium] › e2e/editor-cli-round-trip.spec.ts:81:124 › agent package visual round-trip laptop-125
+2026-11-11T01:49:45.0433747Z [64/166] [chromium] › e2e/editor-cli-round-trip.spec.ts:169:1 › independent CLI scoreboard retains its operator machine after visual edit and reopen
+2026-11-11T01:49:58.7400283Z [65/166] [chromium] › e2e/editor-cli-round-trip.spec.ts:209:1 › inline data scripts retain their tags while classic scripts use the JS pane
+2026-11-11T01:49:59.0956648Z [66/166] [chromium] › e2e/editor-cli-round-trip.spec.ts:223:1 › CSS edits patch effective repeated rules without changing nested or unrelated rules
+2026-11-11T01:49:59.5070492Z [67/166] [chromium] › e2e/editor-key-ease.spec.ts:78:1 › copying selected keys and pasting at the playhead keeps values and easing in one undo
+2026-11-11T01:50:02.6003788Z [68/166] [chromium] › e2e/editor-key-ease.spec.ts:112:1 › marquee copy keeps timeline focus and the copied keys through a refused paste
+2026-11-11T01:50:05.2764718Z [69/166] [chromium] › e2e/editor-key-ease.spec.ts:132:1 › paste on inspected Out preserves its interpreter and refuses a required upgrade
+2026-11-11T01:50:08.2770288Z [70/166] [chromium] › e2e/editor-key-ease.spec.ts:165:1 › a marquee across rows and the toolbar dropdown write key-side eases as one undo
+2026-11-11T01:50:13.0577682Z [71/166] [chromium] › e2e/editor-key-ease.spec.ts:218:1 › right-click keeps the selection, the context menu matches the dropdown, and the keyboard opens it
+2026-11-11T01:50:16.4940136Z [72/166] [chromium] › e2e/editor-key-ease.spec.ts:269:1 › Escape cancels a marquee, and a refused batch keeps source and history and says why
+2026-11-11T01:50:19.9106397Z [73/166] [chromium] › e2e/editor-key-ease.spec.ts:300:1 › the last key of one cue and the first of the next are one boundary key
+2026-11-11T01:50:22.2192943Z [74/166] [chromium] › e2e/end-credits.spec.ts:49:1 › the whole credit roll is one field, and one role can credit five people
+2026-11-11T01:50:24.8334636Z [75/166] [chromium] › e2e/end-credits.spec.ts:83:1 › a list pasted with no marks at all still reads as names
+2026-11-11T01:50:27.2971977Z [76/166] [chromium] › e2e/end-credits.spec.ts:90:1 › the same text lays out as columns in the column design
+2026-11-11T01:50:29.8840249Z [77/166] [chromium] › e2e/end-credits.spec.ts:110:1 › the Fields step is one paste box, not a field per person
+2026-11-11T01:50:34.7407882Z [78/166] [chromium] › e2e/end-credits.spec.ts:161:1 › the closing logo is a default, not a requirement
+2026-11-11T01:50:39.4902264Z [79/166] [chromium] › e2e/end-credits.spec.ts:204:1 › the Style step picks which line of a credit is the loud one
+2026-11-11T01:50:44.3420233Z [80/166] [chromium] › e2e/end-credits.spec.ts:246:3 › every credits design settles with its names ON SCREEN (thumbnail)
+2026-11-11T01:50:49.0045479Z [81/166] [chromium] › e2e/end-credits.spec.ts:246:3 › every credits design settles with its names ON SCREEN (canvas)
+2026-11-11T01:50:56.3191167Z [82/166] [chromium] › e2e/end-credits.spec.ts:326:3 › the roll runs the list off the frame, then brings the mark in on its own
+2026-11-11T01:50:58.5330670Z [83/166] [chromium] › e2e/end-credits.spec.ts:326:3 › the crawl runs the list off the frame, then brings the mark in on its own
+2026-11-11T01:51:00.6670283Z [84/166] [chromium] › e2e/format.spec.ts:16:1 › a newly created project starts from a Prettier-formatted HTML baseline
+2026-11-11T01:51:04.6818591Z [85/166] [chromium] › e2e/new-graphic-guard.spec.ts:64:1 › an untouched graphic from the Edit door: + New graphic on Home opens the wizard without asking, before and after a reload
+2026-11-11T01:51:10.5501388Z [86/166] [chromium] › e2e/new-graphic-guard.spec.ts:85:1 › real changes still ask: an edited never-saved graphic, and a saved graphic edited since its save
+2026-11-11T01:51:16.3969779Z [87/166] [chromium] › e2e/new-graphic-guard.spec.ts:124:1 › leave-editor naming cancellation keeps edits; Save first keeps one exact library copy
+2026-11-11T01:51:21.6788159Z [88/166] [chromium] › e2e/new-graphic-guard.spec.ts:170:1 › discard restores the saved copy and never retains a discarded experiment across reload
+2026-11-11T01:51:32.0318193Z [89/166] [chromium] › e2e/new-graphic-guard.spec.ts:199:1 › browser Back asks before changing surfaces, with Cancel preserving history
+2026-11-11T01:51:35.7993085Z [90/166] [chromium] › e2e/new-graphic-guard.spec.ts:242:1 › direct hash navigation asks before Home and discards without a repeated question
+2026-11-11T01:51:39.0849656Z [91/166] [chromium] › e2e/new-graphic-guard.spec.ts:251:1 › a refused save stays in the editor with its draft and can be retried
+2026-11-11T01:51:42.6931980Z [92/166] [chromium] › e2e/new-graphic-guard.spec.ts:273:3 › a refused discard preserves the entire linked session, including Redo
+2026-11-11T01:51:49.4980689Z [93/166] [chromium] › e2e/new-graphic-guard.spec.ts:273:3 › a refused discard preserves the entire unsaved session, including Redo
+2026-11-11T01:51:55.9848545Z [94/166] [chromium] › e2e/new-graphic-guard.spec.ts:322:1 › discard keeps source and history live until the working-slot write is confirmed
+2026-11-11T01:51:59.4120032Z [95/166] [chromium] › e2e/new-graphic-guard.spec.ts:352:1 › a refused pending autosave cannot make Discard replace the live document
+2026-11-11T01:52:03.7749781Z [96/166] [chromium] › e2e/new-graphic-guard.spec.ts:421:1 › second checker newer edit rejects a delayed discard and preserves its session and durable draft
+2026-11-11T01:52:09.7953980Z [97/166] [chromium] › e2e/new-graphic-guard.spec.ts:436:1 › second checker newer edit during autosave confirmation refuses the already requested discard
+2026-11-11T01:52:13.6792189Z [98/166] [chromium] › e2e/new-graphic-guard.spec.ts:474:3 › a newer edit during the autosave wait refuses Discard and keeps its source, session and history
+2026-11-11T01:52:19.4580666Z [99/166] [chromium] › e2e/new-graphic-guard.spec.ts:474:3 › a newer edit during the replacement wait refuses Discard and keeps its source, session and history
+2026-11-11T01:52:25.3359356Z [100/166] [chromium] › e2e/new-graphic-guard.spec.ts:511:3 › a newer edit's restoring write is confirmed before Discard reports its refusal
+2026-11-11T01:52:30.4697610Z [101/166] [chromium] › e2e/new-graphic-guard.spec.ts:511:3 › a newer edit's restoring write is refused before Discard reports its refusal
+2026-11-11T01:52:34.2130103Z [102/166] [chromium] › e2e/new-graphic-guard.spec.ts:563:1 › a linked save refused while an autosave write is in flight keeps the editor and its draft
+2026-11-11T01:52:39.2952026Z [103/166] [chromium] › e2e/new-graphic-guard.spec.ts:609:1 › a refused autosave nobody waits on still raises the app-level storage notice
+2026-11-11T01:52:42.6912229Z [104/166] [chromium] › e2e/new-graphic-guard.spec.ts:638:1 › a newer edit during a held linked Save stays unsaved, and leaving asks again
+2026-11-11T01:52:49.2433412Z [105/166] [chromium] › e2e/new-graphic-guard.spec.ts:670:1 › a newer edit during a held first Save is kept unsaved, and leaving asks again
+2026-11-11T01:52:55.1089911Z [106/166] [chromium] › e2e/new-graphic-guard.spec.ts:747:3 › fourth: the first Save's own link write refused after its library write landed
+2026-11-11T01:53:01.0194237Z [107/166] [chromium] › e2e/new-graphic-guard.spec.ts:798:3 › a refused link write on the first Save stays in the editor; a retry leaves once with one record and asks nothing after
+2026-11-11T01:53:06.5454321Z [108/166] [chromium] › e2e/new-graphic-guard.spec.ts:747:3 › fourth: the linked Save's own link write refused after its library write landed
+2026-11-11T01:53:12.8399702Z [109/166] [chromium] › e2e/new-graphic-guard.spec.ts:798:3 › a refused link write on the linked Save stays in the editor; a retry leaves once with one record and asks nothing after
+2026-11-11T01:53:19.0005554Z [110/166] [chromium] › e2e/new-graphic-guard.spec.ts:840:1 › a refused link write on the wizard export door keeps its record: a renamed retry writes over it
+2026-11-11T01:53:23.8650401Z [111/166] [chromium] › e2e/productions.spec.ts:43:1 › a production page manages cues: auto-cue on add, edit, duplicate, reorder, preview
+2026-11-11T01:53:31.0646066Z [112/166] [chromium] › e2e/productions.spec.ts:120:1 › Home Productions creates a production and opens its page; removing a graphic removes its cues
+2026-11-11T01:53:35.5752218Z [113/166] [chromium] › e2e/productions.spec.ts:160:1 › the rundown is the only list: the last cue takes its graphic with it
+2026-11-11T01:53:39.9426102Z [114/166] [chromium] › e2e/productions.spec.ts:199:1 › the LAST cue's ⋯ menu opens upward, inside the rundown that would otherwise clip it
+2026-11-11T01:53:44.9600519Z [115/166] [chromium] › e2e/productions.spec.ts:247:1 › the playout panel stays whole on a short screen — it caps and scrolls itself
+2026-11-11T01:53:49.3183167Z [116/166] [chromium] › e2e/productions.spec.ts:304:1 › the production page fits one 1080p screen, and the preview takes only the room left over
+2026-11-11T01:53:51.8919259Z [117/166] [chromium] › e2e/productions.spec.ts:352:1 › the header shows a two-word production name in full on a school laptop, and never loses ■ All out
+2026-11-11T01:53:56.8150218Z [118/166] [chromium] › e2e/productions.spec.ts:431:1 › a production taller than the window never scrolls the page out from under its background
+2026-11-11T01:53:59.4970273Z [119/166] [chromium] › e2e/productions.spec.ts:476:1 › the /output page answers honestly offline and builds a stage from a payload
+2026-11-11T01:54:00.4212168Z [120/166] [chromium] › e2e/productions.spec.ts:541:1 › a dropped recovery RPC is retried, and only an answer is ever concluded from
+2026-11-11T01:54:01.6665587Z [121/166] [chromium] › e2e/productions.spec.ts:623:1 › every graphic gets its own playout layer, typed, and it is what the output stacks
+2026-11-11T01:54:09.9288824Z [122/166] [chromium] › e2e/productions.spec.ts:716:1 › the program monitor is the real renderer, and every verb reaches it without a wire
+2026-11-11T01:54:18.7392096Z [123/166] [chromium] › e2e/productions.spec.ts:819:1 › the verbs answer their keyboard shortcuts, and never while a field has focus
+2026-11-11T01:54:21.7949943Z [124/166] [chromium] › e2e/productions.spec.ts:846:1 › a published production reads SHOW; an unpublished one says so and offers no rehearsal
+2026-11-11T01:54:26.9121135Z [125/166] [chromium] › e2e/productions.spec.ts:890:1 › the action log reads commands as operator language, and drops the bookkeeping
+2026-11-11T01:54:27.2825077Z [126/166] [chromium] › e2e/productions.spec.ts:934:1 › a cue is live per LAYER, not per production
+2026-11-11T01:54:28.4550258Z [127/166] [chromium] › e2e/productions.spec.ts:971:1 › the output embed is a legal SPX template whose frame IS the production output
+2026-11-11T01:54:28.9805092Z [128/166] [chromium] › e2e/productions.spec.ts:1062:1 › the output embed stays transparent inside a host page that declares no colour scheme
+2026-11-11T01:54:29.1800252Z [129/166] [chromium] › e2e/productions.spec.ts:1104:1 › a published production offers the SPX template file beside its output URL
+2026-11-11T01:54:33.3860482Z [130/166] [chromium] › e2e/productions.spec.ts:1147:1 › pictures upload straight into the rundown: one cue each, one layer, and they survive a reload
+2026-11-11T01:54:37.4587195Z [131/166] [chromium] › e2e/productions.spec.ts:1224:1 › pictures that do not save are said as not added, never with a tick, and adding them again works
+2026-11-11T01:54:40.3279872Z [132/166] [chromium] › e2e/productions.spec.ts:1247:1 › an empty production reads as a start: its empty line sits like a row, and Start production waits for a cue
+2026-11-11T01:54:42.4062696Z [133/166] [chromium] › e2e/productions.spec.ts:1292:1 › a match clock survives a renderer reboot: the wire carries the instant the value was true
+2026-11-11T01:54:42.7355101Z [134/166] [chromium] › e2e/productions.spec.ts:1348:1 › a resend of the cue’s own clock value keeps the origin, so half time banks the running time
+2026-11-11T01:54:43.0331031Z [135/166] [chromium] › e2e/productions.spec.ts:1419:1 › the clock walks a whole match through the log: start, bump, stop, restart, reset
+2026-11-11T01:54:43.3316441Z [136/166] [chromium] › e2e/productions.spec.ts:1503:1 › a debate’s two clocks survive a renderer reboot: the stamp says which one is running
+2026-11-11T01:54:44.4990689Z [137/166] [chromium] › e2e/productions.spec.ts:1650:1 › the debate board itself reads a stamped clock: it opens mid-speech and keeps counting
+2026-11-11T01:54:48.7883184Z [138/166] [chromium] › e2e/productions.spec.ts:1718:1 › a renderer that has never reported boots from the START of the log, not its head
+2026-11-11T01:54:49.1390573Z [139/166] [chromium] › e2e/save-transaction-leave-modal.spec.ts:17:3 › matrix in-flight leave: save-as / K held, hash
+2026-11-11T01:54:55.9223015Z [140/166] [chromium] › e2e/save-transaction-leave-modal.spec.ts:17:3 › matrix in-flight leave: save-as / K refused, hash
+2026-11-11T01:55:00.7329728Z [141/166] [chromium] › e2e/save-transaction-leave-modal.spec.ts:17:3 › matrix in-flight leave: save-as / K refused+retry, hash
+2026-11-11T01:55:07.8064282Z [142/166] [chromium] › e2e/save-transaction-leave-modal.spec.ts:17:3 › matrix in-flight leave: save-as / K held, back
+2026-11-11T01:55:16.2814953Z [143/166] [chromium] › e2e/save-transaction-leave-modal.spec.ts:17:3 › matrix in-flight leave: save-as / K refused, back
+2026-11-11T01:55:22.5450920Z [144/166] [chromium] › e2e/save-transaction-leave-modal.spec.ts:17:3 › matrix in-flight leave: save-as / K refused+retry, back
+2026-11-11T01:55:31.2449671Z [145/166] [chromium] › e2e/save-transaction-leave-modal.spec.ts:17:3 › matrix in-flight leave: first-named / K held, hash
+2026-11-11T01:55:37.1999949Z [146/166] [chromium] › e2e/save-transaction-leave-modal.spec.ts:17:3 › matrix in-flight leave: first-named / K refused, hash
+2026-11-11T01:55:41.3641431Z [147/166] [chromium] › e2e/save-transaction-leave-modal.spec.ts:17:3 › matrix in-flight leave: first-named / K refused+retry, hash
+2026-11-11T01:55:47.5907375Z [148/166] [chromium] › e2e/save-transaction-leave-modal.spec.ts:17:3 › matrix in-flight leave: first-named / K held, back
+2026-11-11T01:55:54.7720938Z [149/166] [chromium] › e2e/save-transaction-leave-modal.spec.ts:17:3 › matrix in-flight leave: first-named / K refused, back
+2026-11-11T01:56:00.1634234Z [150/166] [chromium] › e2e/save-transaction-leave-modal.spec.ts:17:3 › matrix in-flight leave: first-named / K refused+retry, back
+2026-11-11T01:56:07.6067102Z [151/166] [chromium] › e2e/save-transaction-leave-modal.spec.ts:17:3 › matrix in-flight leave: discard / D held, hash
+2026-11-11T01:56:14.4238630Z [152/166] [chromium] › e2e/save-transaction-leave-modal.spec.ts:17:3 › matrix in-flight leave: discard / D refused, hash
+2026-11-11T01:56:19.1312774Z [153/166] [chromium] › e2e/save-transaction-leave-modal.spec.ts:17:3 › matrix in-flight leave: discard / D refused+retry, hash
+2026-11-11T01:56:26.1039326Z [154/166] [chromium] › e2e/save-transaction-leave-modal.spec.ts:17:3 › matrix in-flight leave: discard / D held, back
+2026-11-11T01:56:32.2690034Z [155/166] [chromium] › e2e/save-transaction-leave-modal.spec.ts:17:3 › matrix in-flight leave: discard / D refused, back
+2026-11-11T01:56:36.7941875Z [156/166] [chromium] › e2e/save-transaction-leave-modal.spec.ts:17:3 › matrix in-flight leave: discard / D refused+retry, back
+2026-11-11T01:56:43.1626581Z [157/166] [chromium] › e2e/spx-operator.spec.ts:37:1 › the SPX export puts each kind of graphic on its own layer inside SPX Solo's five
+2026-11-11T01:56:45.1880092Z [158/166] [chromium] › e2e/spx-operator.spec.ts:77:1 › the production package maps the operator's layer order onto SPX's range
+2026-11-11T01:56:46.2115534Z [159/166] [chromium] › e2e/spx-operator.spec.ts:98:1 › SPX's template browser finds only graphics in the single and the production package
+2026-11-11T01:56:48.2855079Z [160/166] [chromium] › e2e/spx-operator.spec.ts:151:1 › one Continue past the last step takes the graphic out, as SPX's rundown shows it
+2026-11-11T01:56:50.7283383Z [161/166] [chromium] › e2e/spx-operator.spec.ts:228:1 › a value SPX hands over HTML-escaped goes on air as typed
+2026-11-11T01:56:52.9532158Z [162/166] [chromium] › e2e/spx-operator.spec.ts:280:1 › a Picture and a CasparCG single file played from SPX show what was picked and typed
+2026-11-11T01:56:55.5280627Z [163/166] [chromium] › e2e/spx-operator.spec.ts:398:1 › an imported clock and imported cards made by the import road run on SPX's calls and the package's own control page
+2026-11-11T01:57:27.9917584Z [164/166] [chromium] › e2e/stage-fit-determinism.spec.ts:161:1 › the probe list still describes the catalog
+2026-11-11T01:57:30.3513948Z [165/166] [chromium] › e2e/stage-fit-determinism.spec.ts:181:1 › a reserve is the same number every time it is measured
+2026-11-11T01:57:33.4697100Z [166/166] [chromium] › e2e/stage-fit-determinism.spec.ts:214:1 › a reserve does not depend on when the webfonts arrive
+2026-11-11T01:57:47.5625667Z ##[warning][chromium] › e2e/new-graphic-guard.spec.ts took 2.3m
+2026-11-11T01:57:47.5658733Z ##[warning][chromium] › e2e/save-transaction-leave-modal.spec.ts took 1.9m
+2026-11-11T01:57:47.5661451Z ##[warning][chromium] › e2e/productions.spec.ts took 1.4m
+2026-11-11T01:57:47.5664146Z ##[warning][chromium] › e2e/editor-canvas-transforms.spec.ts took 1.4m
+2026-11-11T01:57:47.5666619Z ##[warning][chromium] › e2e/audience-pack.spec.ts took 1.1m
+2026-11-11T01:57:47.5669951Z ##[warning][chromium] › e2e/editor-cli-round-trip.spec.ts took 56.2s
+2026-11-11T01:57:47.5671526Z ##[notice]  166 passed (12.0m)
+2026-11-11T01:57:47.5672668Z   Slow test file: [chromium] › e2e/new-graphic-guard.spec.ts (2.3m)
+2026-11-11T01:57:47.5673337Z   Slow test file: [chromium] › e2e/save-transaction-leave-modal.spec.ts (1.9m)
+2026-11-11T01:57:47.5673928Z   Slow test file: [chromium] › e2e/productions.spec.ts (1.4m)
+2026-11-11T01:57:47.5674488Z   Slow test file: [chromium] › e2e/editor-canvas-transforms.spec.ts (1.4m)
+2026-11-11T01:57:47.5675059Z   Slow test file: [chromium] › e2e/audience-pack.spec.ts (1.1m)
+2026-11-11T01:57:47.5675627Z   Slow test file: [chromium] › e2e/editor-cli-round-trip.spec.ts (56.2s)
+2026-11-11T01:57:47.5676313Z   Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+2026-11-11T01:57:47.5676848Z   166 passed (12.0m)
+2026-11-11T01:57:48.4235001Z ##[group]Run DIRTY="$(git status --porcelain --untracked-files=all)"
+2026-11-11T01:57:48.4235575Z [36;1mDIRTY="$(git status --porcelain --untracked-files=all)"[0m
+2026-11-11T01:57:48.4235957Z [36;1mif [ -n "$DIRTY" ]; then[0m
+2026-11-11T01:57:48.4236705Z [36;1m  echo "::error title=E2E wrote into the repository::A spec in this shard changed or created files git does not ignore. Write test output to testInfo.outputPath() instead."[0m
+2026-11-11T01:57:48.4237758Z [36;1m  echo "$DIRTY"[0m
+2026-11-11T01:57:48.4238015Z [36;1m  exit 1[0m
+2026-11-11T01:57:48.4238225Z [36;1mfi[0m
+2026-11-11T01:57:48.4286044Z shell: /usr/bin/bash -e {0}
+2026-11-11T01:57:48.4286314Z ##[endgroup]
+2026-11-11T01:57:48.9353686Z ##[group]Run actions/upload-artifact@v4
+2026-11-11T01:57:48.9354013Z with:
+2026-11-11T01:57:48.9354226Z   name: blob-report-5
+2026-11-11T01:57:48.9354464Z   path: blob-report/
+2026-11-11T01:57:48.9354693Z   retention-days: 7
+2026-11-11T01:57:48.9354920Z   if-no-files-found: error
+2026-11-11T01:57:48.9355175Z   compression-level: 6
+2026-11-11T01:57:48.9355399Z   overwrite: false
+2026-11-11T01:57:48.9355634Z   include-hidden-files: false
+2026-11-11T01:57:48.9355911Z ##[endgroup]
+2026-11-11T01:57:49.1138534Z (node:5746) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-11T01:57:49.1139801Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-11T01:57:49.1221476Z With the provided path, there will be 1 file uploaded
+2026-11-11T01:57:49.1227923Z Artifact name is valid!
+2026-11-11T01:57:49.1228814Z Root directory input is valid!
+2026-11-11T01:57:49.4291662Z Beginning upload of artifact content to blob storage
+2026-11-11T01:57:49.4737255Z (node:5746) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-11T01:57:49.9118313Z Uploaded bytes 669913
+2026-11-11T01:57:49.9702469Z Finished uploading artifact content to blob storage!
+2026-11-11T01:57:49.9703641Z SHA256 digest of uploaded artifact zip is 98181c9a03c9fa468ec88f4900013a4d1ebcd5ebbc71c8782afcd506809d6edb
+2026-11-11T01:57:49.9704757Z Finalizing artifact upload
+2026-11-11T01:57:50.3382643Z Artifact blob-report-5.zip successfully finalized. Artifact ID 13821680796
+2026-11-11T01:57:50.3384311Z Artifact blob-report-5 has been successfully uploaded! Final size is 669913 bytes. Artifact ID is 13821680796
+2026-11-11T01:57:50.3391267Z Artifact download URL: https://github.com/NoaCG/NoaCG-Studio/actions/runs/42941182085/artifacts/13821680796
+2026-11-11T01:57:50.3610108Z Post job cleanup.
+2026-11-11T01:57:50.3613574Z ##[start-action display=Cache Playwright browser;id=__5aeb9ef2-9691-44ea-bdc6-0849a5b58d41.cache]
+2026-11-11T01:57:50.3650257Z Post job cleanup.
+2026-11-11T01:57:50.4779402Z Cache hit occurred on the primary key playwright-Linux-1.61.1, not saving cache.
+2026-11-11T01:57:50.4781074Z (node:5760) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-11T01:57:50.4782119Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-11T01:57:50.4853454Z ##[end-action id=__5aeb9ef2-9691-44ea-bdc6-0849a5b58d41.cache;outcome=success;conclusion=success;duration_ms=123]
+2026-11-11T01:57:50.4930491Z Post job cleanup.
+2026-11-11T01:57:50.4933752Z ##[start-action display=Cache node_modules;id=__f967f747-5faa-4652-9ec6-1d76ac8bea03.cache]
+2026-11-11T01:57:50.5605705Z Post job cleanup.
+2026-11-11T01:57:50.6812707Z Cache hit occurred on the primary key node-modules-Linux-X64-node24-b1074435e9e3d609f008a5f0c32dfc6893940add5c9b920b483f90d4d00ab61a, not saving cache.
+2026-11-11T01:57:50.6814707Z (node:5780) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-11T01:57:50.6816318Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-11T01:57:50.6883001Z ##[end-action id=__f967f747-5faa-4652-9ec6-1d76ac8bea03.cache;outcome=success;conclusion=success;duration_ms=194]
+2026-11-11T01:57:50.6941686Z Post job cleanup.
+2026-11-11T01:57:50.8228388Z (node:5788) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-11T01:57:50.8229895Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-11T01:57:50.8232829Z Cache hit occurred on the primary key node-cache-Linux-x64-npm-f6534e8efbcb185272d21504ced33f1ba33b656490018118e5beb65abcf01961, not saving cache.
+2026-11-11T01:57:50.8400197Z Post job cleanup.
+2026-11-11T01:57:50.9296958Z [command]/usr/bin/git version
+2026-11-11T01:57:50.9347038Z git version 2.56.0
+2026-11-11T01:57:50.9394101Z Temporarily overriding HOME='/home/runner/work/_temp/b5522a94-9556-4634-a37c-00475782358e' before making global git config changes
+2026-11-11T01:57:50.9395971Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T01:57:50.9400711Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-11T01:57:50.9446898Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T01:57:50.9484912Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T01:57:50.9817049Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T01:57:50.9848602Z http.https://github.com/.extraheader
+2026-11-11T01:57:50.9873012Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-11T01:57:50.9913618Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T01:57:51.0247672Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T01:57:51.0290659Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T01:57:51.0726909Z Cleaning up orphan processes
+2026-11-11T01:57:51.1213368Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
