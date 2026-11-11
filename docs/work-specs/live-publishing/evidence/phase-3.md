@@ -47,13 +47,86 @@ The phase 2 harness (`e2e/configured/measure/`), with two additions, on one Clau
   press); every IndexedDB write is held open 3 s after it is made (the hold
   `e2e/playout-air-contract.spec.ts` uses), and the fake Bridge's `/health` answers 3 s late.
 
-"Before" is `origin/main` built the same way, unthrottled, without the stall unless a row says so.
-"After" is this branch's build with the stall on. Words, samples and the kept-wait attribution are
-phase 2's.
+"Before" is `origin/main` built the same way. "After" is this branch built at 72c1b5b8; the
+product changes after it (92bf8cf3, e88a5516, 1bbcc23f) run after the send or only read a list
+the Take already holds, so they do not move these numbers. Both are unthrottled, with and
+without the stall as each table says. Words, samples and the kept-wait attribution are phase 2's:
+"own" is press to the start of sending less the kept ordering waits, "total" includes them.
 
 ## Results
 
-RESULTS_PENDING
+Production build, milliseconds, own p50 / p95 (samples, failures). Fast network, unthrottled.
+
+### Without the stall
+
+| Path | Fixture | Before: own p50 / p95 (n, failures) | After: own p50 / p95 (n, failures) | Total p50 / p95 (last column) |
+|---|---|---|---|---|
+| Graphic cue Take | Typical | 26.2 / 38.2 (50, 0) | 11.7 / 17.2 (50, 0) | 11.7 / 17.2 |
+| Picture cue Take | Typical | 25.6 / 35.2 (50, 0) | 11.9 / 17.9 (50, 0) | 11.9 / 17.9 |
+| Folder Take (two cues, together) | Typical | 43.4 / 63.6 (50, 0) | 12.3 / 18.0 (50, 0) | 12.3 / 18.0 |
+| Server cue Take (fake Bridge) | Typical | 42.0 / 69.5 (50, 0) | 30.9 / 41.9 (50, 0) | 30.9 / 41.9 |
+| Quick button (Goal) | Typical | 8.3 / 10.9 (50, 0) | 8.1 / 11.5 (50, 0) | 8.1 / 11.5 |
+| Quick button, second of two fast | Typical | 96.0 / 122 (50, 0) | 91.8 / 120 (50, 0) | 106 / 139 |
+| +1 | Typical | 7.1 / 9.8 (50, 0) | 8.2 / 12.1 (50, 0) | 8.2 / 12.1 |
+| +1, second of two fast | Typical | 98.5 / 141 (50, 0) | 96.8 / 128 (50, 0) | 112 / 156 |
+| Next | Typical | 7.7 / 13.0 (50, 0) | 7.5 / 12.1 (50, 0) | 7.5 / 12.1 |
+| Next, second of two fast | Typical | 7.3 / 19.6 (50, 0) | 6.5 / 14.0 (50, 0) | 20.5 / 27.8 |
+| Hardware panel Take (scripted) | Typical | 21.0 / 30.6 (50, 0) | 2.7 / 6.6 (50, 0) | 10.0 / 16.8 |
+| Graphic cue Take | Large | 65.0 / 96.4 (50, 0) | 14.1 / 20.1 (50, 0) | 14.1 / 20.1 |
+| Picture cue Take | Large | 62.2 / 91.0 (50, 0) | 13.8 / 18.8 (50, 0) | 13.8 / 18.8 |
+| Folder Take (two cues, together) | Large | 114 / 152 (50, 0) | 16.9 / 22.3 (50, 0) | 16.9 / 22.3 |
+| Server cue Take (fake Bridge) | Large | 129 / 168 (50, 0) | 96.4 / 118 (50, 0) | 96.4 / 118 |
+| Quick button (Goal) | Large | 10.7 / 21.5 (50, 0) | 10.2 / 15.7 (50, 0) | 10.2 / 15.7 |
+| Quick button, second of two fast | Large | 320 / 410 (50, 0) | 288 / 337 (50, 0) | 311 / 370 |
+| +1 | Large | 10.7 / 16.0 (50, 0) | 9.8 / 13.6 (50, 0) | 9.8 / 13.6 |
+| +1, second of two fast | Large | 318 / 432 (50, 0) | 290 / 354 (50, 0) | 312 / 392 |
+| Next | Large | 10.4 / 22.3 (50, 0) | 10.5 / 15.6 (50, 0) | 10.5 / 15.6 |
+| Next, second of two fast | Large | 12.9 / 24.3 (50, 0) | 13.6 / 30.0 (50, 0) | 34.9 / 59.5 |
+| Hardware panel Take (scripted) | Large | 56.6 / 121 (50, 0) | 3.1 / 7.3 (50, 0) | 10.2 / 20.7 |
+
+### With the save and the Bridge health request stalled
+
+| Path | Fixture | Before, stalled: own p50 / p95 (n, failures) | After, stalled: own p50 / p95 (n, failures) | Total p50 / p95 (last column) |
+|---|---|---|---|---|
+| Graphic cue Take | Typical | not run | 17.7 / 225 (50, 0) | 17.7 / 225 |
+| Picture cue Take | Typical | not run | 13.1 / 230 (50, 0) | 13.1 / 230 |
+| Folder Take (two cues, together) | Typical | not run | 12.2 / 17.4 (50, 0) | 12.2 / 17.4 |
+| Server cue Take (fake Bridge) | Typical | not run | 37.9 / 47.6 (25, 0) and 32.8 / 40.2 (25, 0), two runs | 32.8 / 40.2 |
+| Quick button (Goal) | Typical | 17.0 / 264 (10, 0) | 14.1 / 192 (50, 0) | 14.1 / 192 |
+| +1 | Typical | 12.9 / 199 (10, 0) | 12.9 / 189 (50, 0) | 12.9 / 189 |
+| Next | Typical | not run | 11.1 / 287 (50, 0) | 11.1 / 287 |
+| Next, second of two fast | Typical | not run | 5.7 / 13.6 (50, 0) | 22.7 / 36.8 |
+| Hardware panel Take (scripted) | Typical | not run | 2.7 / 6.1 (50, 0) | 8.9 / 18.7 |
+
+"Not run" before the stall: the before build waits for the stalled `/health` (3 s by
+construction) before each server Take and saves before each graphic Take, so those runs were cut
+to the quick button and +1 pair. Large with the stall: see "Large, stalled" below.
+
+### Against AC-1 (50 ms p95, own time)
+
+Meets it without the stall, on both fixtures: graphic, picture, folder, panel, quick, +1, Next
+and Next second of two, and the server Take on the typical fixture. With the stall: the folder
+Take, the server Take (40 to 48 ms) and Next second of two.
+
+Misses it (the numbers the owner decision sends to the coordinator):
+
+- With the stall, typical: graphic 225, picture 230, quick 192, +1 189, Next 287 ms p95; p50 stays
+  11 to 18 ms. The tail is the press that follows an owed edit: the edit's blur starts the
+  draft's save, and that save rewrites the stored productions synchronously before the press's
+  handler runs. It is the page's own work, not a wait, and it is the same with the old build
+  (quick 264, +1 199). Traced in this phase's profiling of the stalled runs.
+- Second of two fast quick buttons or +1s: typical 92 / 120 and 97 / 128, large 288 / 337 and
+  290 / 354 (before: 96 / 122, 99 / 141, 320 / 410, 318 / 432). The wait for the first press's
+  answer is kept and excluded; the cause of the remainder was not traced. It was there before and
+  is lower now.
+- Server Take, large, without the stall: 96 / 118 (before 129 / 168). The `/health` wait and the
+  250 ms head start are gone; the cause of the remainder was not traced.
+
+No product change was made for these, as the owner decision says.
+
+### Large, stalled
+
+LARGE_STALLED_PENDING
 
 ## D2 and the order
 
