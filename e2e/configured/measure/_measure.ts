@@ -14,8 +14,8 @@ import { dirname } from 'node:path';
 /** One stamped event, in epoch milliseconds on the page's high-resolution clock. */
 export interface Stamp { t: number }
 export interface Press extends Stamp { kind: string; target: string | null; key?: string }
-/** A fetch the page made. For a command send, `sid` is the press's sender id (one per press, kept
- *  by its resends, src/control/seqSend.ts `senderBody`) and `kinds` the message types it carries. */
+/** A fetch the page made. For a command send, `sid` is the press's identity (sender id and press
+ *  number, kept by its resends, src/control/seqSend.ts `senderBody`) and `kinds` its message types. */
 export interface Sent extends Stamp { name: string; end?: number; status?: number; failed?: string; sid?: string; kinds?: string[] }
 export interface FramePlay { graphic: string; playAt: number; dispatchAt: number | null }
 
@@ -71,8 +71,9 @@ export const OPERATOR_STAMPS = () => {
     const rec: Record<string, unknown> = { name: nameOf(url), t: now() };
     if (/control_send_seq|control_send_many/.test(url) && typeof init?.body === 'string') {
       try {
-        const b = JSON.parse(init.body) as { p_sender?: { id?: string }; p_items?: { msg?: { t?: string } }[] };
-        rec.sid = b.p_sender?.id;
+        const b = JSON.parse(init.body) as { p_sender?: { id?: string; press?: number }; p_items?: { msg?: { t?: string } }[] };
+        // The sender id names the page; its press number names the press (seqSend.ts senderBody).
+        rec.sid = b.p_sender?.id !== undefined ? `${b.p_sender.id}:${b.p_sender.press}` : undefined;
         // Kept across `clearLpm`: a late resend of a press made before the clear is still known.
         if (rec.sid) (w.__lpm as unknown as { allSids: string[] }).allSids.push(rec.sid as string);
         rec.kinds = (b.p_items ?? []).map((i) => String(i.msg?.t ?? '?'));
