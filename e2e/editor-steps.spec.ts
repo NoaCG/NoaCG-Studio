@@ -72,15 +72,15 @@ async function build(page: Page, t: unknown, target: string) {
 }
 type Built = Awaited<ReturnType<typeof build>>;
 
-type Run = { poses: Record<string, Pose>; held: Pose; visible: string[]; released: Pose; leaving: Pose[] };
+type Run = { poses: Record<string, Pose>; held: Pose; visible: string[]; released: Pose; leaving: Pose[]; retaken?: Pose };
 /**
  * Load the built graphic in a fresh page and walk it. With `cues`, each pre-Out cue is sampled at its
  * local times (a `left` sample reads visibility a microsecond earlier, the left limit) and settled,
  * and Next is pressed at every flag; otherwise `nexts` Next cues are played and settled. Then Out,
  * sampled at `exit` seconds on its own clock.
  */
-async function run(page: Page, built: Built, target: string, seconds: number[], { cues, nexts = seconds.length - 2, exit, layers = LAYERS, props = PROPS, root = '.fixture' }:
-  { cues?: Sample[][]; nexts?: number; exit: number[]; layers?: string[]; props?: string[]; root?: string }): Promise<Run> {
+async function run(page: Page, built: Built, target: string, seconds: number[], { cues, nexts = seconds.length - 2, exit, layers = LAYERS, props = PROPS, root = '.fixture', retake = false, svgParent, interruptAt, outLength, repeatStopAt }:
+  { cues?: Sample[][]; nexts?: number; exit: number[]; layers?: string[]; props?: string[]; root?: string; retake?: boolean; svgParent?: string; interruptAt?: number; outLength?: number; repeatStopAt?: number }): Promise<Run> {
   const output = await page.context().newPage();
   await output.setViewportSize({ width: 1920, height: 1080 });
   if (built.html) await output.setContent(built.html);
@@ -100,7 +100,7 @@ async function run(page: Page, built: Built, target: string, seconds: number[], 
       });
     } else await output.goto('http://step-package.local/' + Object.keys(files).find(n => n.endsWith('.html') && !n.includes('controlpanel')));
   }
-  const result = await output.evaluate(async ({ target, seconds, cues, nexts, exit, layers, props, root }) => {
+  const result = await output.evaluate(async ({ target, seconds, cues, nexts, exit, layers, props, root, retake, svgParent, interruptAt, outLength, repeatStopAt }) => {
     type Tl = { pause(): void; time(t: number, s?: boolean): void; progress(p: number, s?: boolean): void; duration(): number };
     const w = window as unknown as Record<string, () => unknown> & { gsap: { getProperty(e: Element, p: string): number; globalTimeline: { getChildren(n: boolean, tw: boolean, tl: boolean): Tl[] } } };
     const element = document.querySelector('step-graphic') as HTMLElement & { playAction(p: unknown): Promise<unknown>; stopAction(p: unknown): Promise<unknown> };
@@ -128,9 +128,25 @@ async function run(page: Page, built: Built, target: string, seconds: number[], 
       return 1;
     };
     const seen = (e: Element, style: CSSStyleDeclaration) => style.visibility === 'hidden' || style.display === 'none' ? 0 : Number(style.opacity) * clipped(e);
-    const pose = () => layers.flatMap(s => { const e = body.querySelector(s)!; return props.map(p => Number(w.gsap.getProperty(e, p))).concat(seen(e, getComputedStyle(e))); });
-    const shown = (s: string) => { const style = getComputedStyle(body.querySelector(s)!); return style.visibility !== 'hidden' && style.display !== 'none' && Number(style.opacity) > 0; };
-    const poses: Record<string, number[]> = {}, width = props.length + 1;
+    const parent = svgParent ? body.querySelector<SVGGraphicsElement>(svgParent) : null;
+    const matrix = (e: Element) => {
+      const { a, b, c, d, e: x, f: y } = parent!.getScreenCTM()!.inverse().multiply((e as SVGGraphicsElement).getScreenCTM()!);
+      return [a, b, c, d, x, y];
+    };
+    const svgOpacity = (e: Element) => {
+      let opacity = 1;
+      for (let node: Element | null = e; node && !node.matches(root); node = node.parentElement) opacity *= seen(node, getComputedStyle(node));
+      return opacity;
+    };
+    const pose = () => layers.flatMap(s => {
+      const e = body.querySelector(s)!;
+      return parent ? [...matrix(e), svgOpacity(e)] : props.map(p => Number(w.gsap.getProperty(e, p))).concat(seen(e, getComputedStyle(e)));
+    });
+    const shown = (s: string) => {
+      const e = body.querySelector(s)!, style = getComputedStyle(e);
+      return parent ? svgOpacity(e) > 0 : style.visibility !== 'hidden' && style.display !== 'none' && Number(style.opacity) > 0;
+    };
+    const poses: Record<string, number[]> = {}, width = parent ? 7 : props.length + 1;
     await command('play');
     let cue = timeline(seconds[0]);
     const walked = cues ? seconds.length - 2 : nexts;
@@ -143,15 +159,28 @@ async function run(page: Page, built: Built, target: string, seconds: number[], 
         if (sample.left) { cue.time(Math.max(0, sample.t - 1e-6), true); const before = pose(); at.forEach((_, j) => { if (j % width === width - 1) at[j] = before[j]; }); }
         poses[sample.key] = at;
       }
-      cue.progress(1, true);
+      if (i === walked && interruptAt !== undefined) cue.time(interruptAt, true);
+      else cue.progress(1, true);
     }
     const held = pose(), visible = layers.filter(shown);
     await command('stop');
     const released = pose();
-    const out = timeline(seconds[seconds.length - 1]); out.pause();
-    const leaving = exit.map(t => { out.time(t, true); return pose(); });
-    return { poses, held, visible, released, leaving };
-  }, { target, seconds, cues, nexts, exit, layers, props, root });
+    const duration = outLength ?? seconds[seconds.length - 1], out = timeline(duration); out.pause();
+    const leaving: Pose[] = [];
+    for (const t of exit) {
+      out.time(t, true);
+      if (t === repeatStopAt) {
+        await command('stop');
+        if (timeline(duration) !== out) throw new Error('Repeated Stop replaced its live timeline.');
+      }
+      leaving.push(pose());
+    }
+    const result = { poses, held, visible, released, leaving };
+    if (!retake) return result;
+    await command('play');
+    timeline(seconds[0]).pause();
+    return { ...result, retaken: pose() };
+  }, { target, seconds, cues, nexts, exit, layers, props, root, retake, svgParent, interruptAt, outLength, repeatStopAt });
   await output.close();
   return result;
 }
@@ -349,6 +378,395 @@ async function dragFlag(page: Page, name: string, frames: number, hold = false) 
 const undo = async (page: Page) => { await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); };
 const redo = async (page: Page) => { await page.getByRole('button', { name: 'Redo', exact: true }).click(); await ready(page); };
 
+test('Add Step and Set Out refuse a crossed clip-path track without changing the document', async ({ page }) => {
+  const withClip = fixture();
+  for (const step of withClip.steps.slice(0, -1)) {
+    step.layers['#box'].clipPath = [{ time: 0, value: 'inset(100%)' }, { time: step.duration, value: 'inset(0%)' }];
+  }
+  const refuses = /Only numeric tracks split exactly/;
+  await editorWith(page, withClip);
+  const original = await source(page), entries = await history(page);
+  await seekFrames(page, 10);
+  await page.getByRole('button', { name: 'Add Step at playhead', exact: true }).click();
+  await expect(page.getByRole('alert').filter({ hasText: refuses })).toBeVisible();
+  expect(await source(page)).toEqual(original);
+  expect(await history(page)).toBe(entries);
+  await seekFrames(page, 30);
+  await page.getByRole('button', { name: 'Set Out at playhead', exact: true }).click();
+  await expect(page.locator('.ef-out-controls').getByRole('alert')).toContainText(refuses);
+  expect(await source(page)).toEqual(original);
+  expect(await history(page)).toBe(entries);
+});
+
+test('an Out-only pivot starts at the CSS base again on the next take in every package', async ({ page }) => {
+  await open(page);
+  const data = fixture(), out = data.steps.at(-1)!;
+  const raw = [{ time: 0, value: '40px' }, { time: out.duration, value: '55px' }];
+  out.layers['#raw-pivot'] = { '--base-anchor-x': raw };
+  const original = await template(page, data);
+  original.html = original.html.replace('</div></body>', '<div id="raw-pivot" data-gfx></div></div></body>');
+  original.css += '\n#raw-pivot { --base-anchor-x: 40px; transform-origin: var(--base-anchor-x) 10px; }';
+  const key = (step: number, time: number, value: number) => ({ kind: 'animation.key', selector: '#box', property: 'noacgAnchorX', step, time, value, action: 'set', baseValues: { anchorX: 100, anchorY: 50 } });
+  const t = await operate(page, original, [key(2, 0, 100), key(2, out.duration, 180)]);
+  expect(t.html).toBe(original.html);
+  expect((await dataOf(page, t)).steps.at(-1)!.layers['#raw-pivot']['--base-anchor-x']).toEqual(raw);
+  const seconds = secondsOf(data);
+  for (const target of TARGETS) {
+    const control = await run(page, await build(page, original, target), target, seconds,
+      { nexts: 0, exit: [seconds.at(-1)!], layers: ['#raw-pivot'], props: ['--base-anchor-x'], retake: true });
+    const result = await run(page, await build(page, t, target), target, seconds,
+      { nexts: 0, exit: [seconds.at(-1)!], layers: ['#box', '#raw-pivot'], props: ['--base-anchor-x'], retake: true });
+    expect([result.held[0], result.leaving[0][0], result.retaken?.[0]], target).toEqual([100, 180, 100]);
+    expect([control.held[0], control.leaving[0][0]], target + ' raw source plays').toEqual([40, 55]);
+    expect([result.held[2], result.leaving[0][2], result.retaken?.[2]], target + ' raw source is preserved').toEqual([40, 55, control.retaken?.[0]]);
+  }
+  const split = await operate(page, t, [key(0, 0, 100), key(0, 1, 180), { kind: 'layer.duplicate', selector: '#box' }, { kind: 'step.add', time: .4 }]);
+  const splitData = await dataOf(page, split);
+  for (const selector of ['#box', '#box-copy-1']) {
+    expect(splitData.steps[0].layers[selector].noacgAnchorX.at(-1)?.value).toBe(140);
+    expect(splitData.steps[1].layers[selector].noacgAnchorX[0].value).toBe(140);
+  }
+  expect(splitData.steps.at(-1)!.layers['#raw-pivot']['--base-anchor-x']).toEqual(raw);
+});
+
+test('SVG group pivot ownership is checked again before ungrouping or editing saved keys', async ({ page }) => {
+  await open(page);
+  const original = await template(page, fixture());
+  original.html = original.html.replace('</div></body>', '<svg width="960" height="270"><rect id="pivot-a" data-gfx width="90" height="60"/><rect id="pivot-b" data-gfx x="200" width="50" height="40"/></svg></div></body>');
+  const selector = '#group-1', property = '--base-anchor-x';
+  const grouped = await operate(page, original, [{ kind: 'group.create', selectors: ['#pivot-a', '#pivot-b'], box: { x: 0, y: 0, width: 250, height: 60 } }]);
+  const ungroup = [{ kind: 'group.ungroup', selector }];
+  const editCss = (t: Template, key: string, value: string) => page.evaluate(async ({ t, selector, key, value }) => ({
+    ...t, css: (await import('/src/blocks/edit.ts')).setCssDeclaration(t.css, selector, key, value),
+  }), { t, selector, key, value });
+  for (const [key, value] of [['transform', 'matrix(1,0,0,1,20,0)'], ['--noacg-group-x', '20'], ['--base-x', 'calc(20px)']]) {
+    const conflict = await editCss(grouped, key, value);
+    await expect.soft(operate(page, conflict, ungroup), key).rejects.toThrow('conflicting pivot owner');
+  }
+  expect((await operate(page, grouped, ungroup)).html).not.toContain('id="group-1"');
+  const unknown = { ...grouped, html: grouped.html.replace('data-noacg-group-pivot="frame-v1"', 'data-noacg-group-pivot="frame-v2"') };
+  await expect.soft(operate(page, unknown, ungroup)).rejects.toThrow('unrecognized pivot format');
+  await expect.soft(operate(page, unknown, [{ kind: 'base.set', selector, values: { anchorX: 10, anchorY: 20 } }])).rejects.toThrow('unrecognized pivot format');
+  await expect.soft(operate(page, unknown, [{ kind: 'animation.key', selector, property: 'rotation', step: 0, time: .4, value: 25, action: 'set' }])).rejects.toThrow('unrecognized pivot format');
+  const escaped = { ...grouped, css: grouped.css.replace(/(#group-1\s*\{[^}]*)(\})/, '$1--base-\\61 nchor-x: 99px;$2') };
+  await expect.soft(operate(page, escaped, ungroup)).rejects.toThrow('conflicting pivot owner');
+
+  const key = { selector, property, step: 0, time: .4 };
+  const set = { kind: 'animation.key', ...key, value: 80, action: 'set' };
+  const keyed = await operate(page, grouped, [set, { ...set, time: .1, value: 125 }]);
+  const capture = (t: Template) => page.evaluate(async ({ t, key }) =>
+    (await import('/src/blocks/editorAnimation.ts')).captureKeyClipboard(t as never, [key]), { t, key });
+  const keys = await capture(keyed);
+  const operations = [
+    { kind: 'key.paste', keys, step: 0, time: .8 },
+    { kind: 'key.move', keys: [key], delta: .1 },
+    { kind: 'key.ease', keys: [key], preset: 'bounce' },
+  ];
+  const conflict = await editCss(keyed, 'transform', 'matrix(1,0,0,1,20,0)');
+  await expect.soft(capture(conflict)).rejects.toThrow('conflicting pivot owner');
+  for (const operation of operations) {
+    expect((await operate(page, keyed, [operation])).js).not.toBe(keyed.js);
+    await expect.soft(operate(page, conflict, [operation]), operation.kind).rejects.toThrow('conflicting pivot owner');
+  }
+  const unrelated = { ...key, selector: '#box', property: 'opacity', time: .5 };
+  expect((await operate(page, conflict, [{ kind: 'key.move', keys: [unrelated], delta: .1 }])).js).not.toBe(conflict.js);
+
+  const precise = await operate(page, grouped, [{ kind: 'base.set', selector, values: { anchorX: 1e-9, anchorY: 20 } }]);
+  expect(precise.css).toContain('--base-anchor-x: 1e-9px;');
+  const rekeyed = await operate(page, precise, [{ ...set, value: 1e-9 }]);
+  expect(rekeyed.css).toBe(precise.css);
+  expect((await dataOf(page, rekeyed)).steps[0].layers[selector][property]).toEqual([{ time: .4, value: .001 }]);
+});
+
+test('ordinary anchor keys refuse competing CSS variables and source style rules', async ({ page }) => {
+  await open(page);
+  const original = await template(page, fixture());
+  const key = { kind: 'animation.key', selector: '#box', property: 'noacgAnchorX', step: 0, time: .4, value: 80, action: 'set', baseValues: { anchorX: 160, anchorY: 50 } };
+  expect((await operate(page, original, [key])).js).not.toBe(original.js);
+  const rawData = fixture();
+  rawData.steps[0].layers['#box']['--base-anchor-x'] = [{ time: 0, value: '40px' }];
+  await expect(operate(page, await template(page, rawData), [key])).rejects.toThrow('already has a raw pivot track');
+  const foreignName = fixture();
+  foreignName.steps[0].layers['#title'].noacgAnchorX = [{ time: .4, value: '40px' }];
+  const foreign = await template(page, foreignName);
+  const moved = await operate(page, foreign, [{ kind: 'key.move', keys: [{ step: 0, selector: '#title', property: 'noacgAnchorX', time: .4 }], delta: .2 }]);
+  expect((await dataOf(page, moved)).steps[0].layers['#title'].noacgAnchorX).toEqual([{ time: .6, value: '40px' }]);
+  await expect(operate(page, foreign, [key])).rejects.toThrow('already uses an editor pivot channel name');
+  const conflicts = [
+    { ...original, css: original.css + '\nbody #box { --base-anchor-x:25px !important; }' },
+    { ...original, css: original.css.replace('#box{', '#box{--base-anchor-x:25px !important;') },
+    { ...original, html: original.html.replace('</head>', '<style>#box { transform-origin: 25px 25px !important; }</style></head>') },
+    { ...original, css: original.css.replace('#box{', '#box{--base-anchor-x:25px;--base-anchor-y:50px;transform-origin:0 var(--base-anchor-y);') },
+    { ...original, css: original.css.replace('#box{', '#box{--base-anchor-x:25px;--base-\\61 nchor-x:25px;--base-anchor-y:50px;transform-origin:var(--base-anchor-x) var(--base-anchor-y);') },
+    { ...original, css: original.css.replace('#box{', '#box{transform-origin:25px 50px 20px;') },
+    { ...original, css: original.css.replace('#box{', '#box{transform-origin:inherit;') },
+    { ...original, css: original.css.replace('#box{', '#box{transition-duration:.2s;') },
+    { ...original, css: original.css + '\n#box:hover { transform-origin: 0 0; }' },
+    { ...original, css: original.css + '\nbody { & #box { all: unset; } }' },
+    { ...original, css: original.css + '\n#box { @media (min-width: 1px) { --base-anchor-x: 25px !important; } }' },
+    { ...original, css: original.css + '\n@property --base-anchor-x { syntax: "<number>"; inherits: false; initial-value: 0; }' },
+    { ...original, css: original.css + '\n@PROPERTY /* authored */ --base-anchor-x { syntax: "<number>"; inherits: false; initial-value: 0; }' },
+    { ...original, html: original.html.replace('</head>', '<style>@property /* authored */ --base-anchor-x { syntax: "<number>"; inherits: false; initial-value: 0; }</style></head>') },
+    { ...original, css: '@import url("data:text/css,%23box%7Btransform-origin%3A0%7D");\n' + original.css },
+  ];
+  for (const conflict of conflicts) await expect.soft(operate(page, conflict, [key])).rejects.toThrow('competing pivot CSS');
+  const scoped = { ...original, css: original.css + '\n@scope (.fixture) { #box { transform-origin: 0 0; } }' };
+  await expect(operate(page, scoped, [key])).rejects.toThrow('transform-origin is set by another rule');
+
+  const authored = { ...original, css: original.css.replace('#box{', '#box{--base-anchor-x /* owner */: /* pixels */ 100px;--base-anchor-y:50px;transform-origin:var(--base-anchor-x) var(--base-anchor-y);--base-anchor-X:75px;/* ; --base-anchor-x:75px; { } */') };
+  const keyed = await operate(page, authored, [key]);
+  const baked = await operate(page, keyed, [{ ...key, action: 'disable', baseValues: { anchorX: 80, anchorY: 50 } }]);
+  expect(baked.css).toContain('--base-anchor-x /* owner */: /* pixels */ 80px;');
+  expect(baked.css).toContain('--base-anchor-X:75px;/* ; --base-anchor-x:75px; { } */');
+
+  const svg = { ...original, html: original.html.replace('</div></body>', '<svg class="imported-design-art" width="960" height="270"><text id="pivot-text" data-gfx x="20" y="60">Text</text></svg></div></body>') };
+  const staticEdit = { kind: 'base.set', selector: '#pivot-text', values: { anchorX: 30, anchorY: 20 } };
+  expect((await operate(page, svg, [staticEdit])).css).toContain('--base-anchor-x: 30px');
+  await expect(operate(page, { ...svg, css: svg.css + '\n@PROPERTY /* authored */ --base-anchor-x { syntax: "<number>"; inherits: false; initial-value: 0; }' }, [staticEdit]))
+    .rejects.toThrow('competing pivot CSS');
+});
+
+test('keyed pivots refuse other paint consumers while preserving independent artwork', async ({ page }) => {
+  await open(page);
+  const original = await template(page, fixture());
+  const html = original.html.replace('id="box" data-gfx></div>', 'id="box" data-gfx><span id="pivot-child">Child</span></div>');
+  const key = { kind: 'animation.key', selector: '#box', property: 'noacgAnchorX', step: 0, time: 0, value: 160, action: 'set', baseValues: { anchorX: 160, anchorY: 50 } };
+  const descendant = { ...original, html, css: original.css + '\n#pivot-child { padding-left: var(--base-anchor-x, 10px); }' };
+  const refusal = 'uses its pivot value in other artwork CSS';
+  for (const css of [
+    '#box { --measure: var(--base-anchor-x, 10px); padding-left: var(--measure); }',
+    '#box { --measure: var(--base-anchor-x, 10px); } #pivot-child { --base-anchor-x: 10px; padding-left: var(--measure); }',
+    '@media (min-width: 100px) { #pivot-child::before { content: "x"; padding-left: var(--base-anchor-y, 10px); } }',
+    '#pivot-child:not(:hover)::before { content: "x"; padding-left: var(--base-anchor-x, 10px); }',
+    '@keyframes drift { to { padding-left: var(--base-anchor-x, 10px); } } #pivot-child { animation: drift 1s; }',
+  ]) await expect.soft(operate(page, { ...original, html, css: original.css + '\n' + css }, [key]), css).rejects.toThrow(refusal);
+  for (const css of [
+    ':root { --measure: var(--base-anchor-x, 10px); } #pivot-child { padding-left: var(--measure); }',
+    '#pivot-child { --base-anchor-x: 10px; padding-left: var(--base-anchor-x); }',
+  ]) expect((await operate(page, { ...original, html, css: original.css + '\n' + css }, [key])).html).toBe(html);
+  for (const changedHtml of [
+    html.replace('id="pivot-child"', 'id="pivot-child" style="padding-left:var(--base-anchor-x,10px)"'),
+    html.replace('</head>', '<style>#pivot-child {padding-left:var(--base-anchor-x,10px)}</style></head>'),
+  ]) await expect(operate(page, { ...original, html: changedHtml }, [key])).rejects.toThrow(refusal);
+  const inherited = fixture();
+  inherited.steps[0].layers['#pivot-child'] = { '--base-anchor-x': [{ time: 0, value: 'inherit' }] };
+  const inheritedSource = await template(page, inherited);
+  await expect(operate(page, { ...inheritedSource, html, css: original.css + '\n#pivot-child {--base-anchor-x:10px;padding-left:var(--base-anchor-x)}' }, [key])).rejects.toThrow(refusal);
+
+  const svg = { ...original, html: original.html.replace('</div></body>', '<svg class="imported-design-art" width="960" height="270"><text id="pivot-text" data-gfx x="20" y="60"><tspan stroke-width="var(--base-anchor-x, 3px)">Text</tspan></text></svg></div></body>') };
+  await expect(operate(page, svg, [{ ...key, selector: '#pivot-text', value: 30, baseValues: { anchorX: 30, anchorY: 20 } }])).rejects.toThrow(refusal);
+  const group = { ...original, html: original.html.replace('</div></body>', '<svg width="960" height="270"><defs><g id="symbol"><path id="clone-paint" stroke-width="var(--base-anchor-x, 5px)" d="M0 0L5 5"/></g></defs><rect id="part-a" data-gfx width="90" height="60"/><rect id="part-b" data-gfx x="180" width="90" height="60"/><use href="#symbol"/></svg></div></body>') };
+  const grouped = await operate(page, group, [{ kind: 'group.create', selectors: ['#part-a', '#part-b'], box: { x: 0, y: 0, width: 270, height: 60 } }]);
+  const groupKey = { ...key, selector: '#group-1', property: '--base-anchor-x', value: 80 };
+  expect((await operate(page, grouped, [groupKey])).html).toBe(grouped.html);
+  const reachable = { ...grouped, html: grouped.html.replace('<rect id="part-a"', '<use href="#symbol"/><rect id="part-a"') };
+  const clonedOwner = { ...grouped, html: grouped.html.replace('</svg>', '<use href="#group-1"/></svg>') };
+  const nestedClone = { ...grouped, html: grouped.html.replace('</defs>', '<g id="second-symbol"><use href="#group-1"/></g></defs>').replace('</svg>', '<use href="#second-symbol"/></svg>') };
+  for (const conflict of [reachable, clonedOwner, nestedClone, { ...grouped, css: grouped.css + '\n#part-a { stroke-width: var(--base-anchor-x, 135px); }' }]) {
+    await expect.soft(operate(page, conflict, [groupKey])).rejects.toThrow(refusal);
+  }
+
+  await editorWith(page, descendant);
+  const row = page.locator('.ef-track[data-selector="#box"]');
+  await row.locator('.ef-layer').click(); await ready(page);
+  const before = await source(page), entries = await history(page);
+  const painted = page.frameLocator('iframe[title="Foundation graphic preview"]').locator('#pivot-child');
+  await expect(painted).toHaveCSS('padding-left', '10px');
+  await expect(page.locator('.ef-anchor')).toContainText(refusal);
+  await expect(page.getByRole('button', { name: 'Enable Anchor X animation', exact: true })).toHaveCount(0);
+  await expect(operate(page, before, [key])).rejects.toThrow(refusal);
+  await expect(painted).toHaveCSS('padding-left', '10px');
+  await expect(row).toHaveClass(/is-selected/);
+  expect(await source(page)).toEqual(before);
+  expect(await history(page)).toBe(entries);
+});
+
+test('a canonical SVG pivot paints the same precise pose across a cue cut', async ({ page }) => {
+  await open(page);
+  const data: Data = { version: fixture().version, root: '.fixture', speed: 1, steps: [
+    { name: 'In', duration: .96, ease: 'none', layers: {} },
+    { name: 'Out', duration: .32, ease: 'none', layers: {} },
+  ] };
+  const original = await template(page, data);
+  original.html = original.html.replace('</div></body>', '<svg id="precision-parent" width="960" height="270"><rect id="a" data-gfx width="90" height="60"/><rect id="b" data-gfx x="180" width="50" height="40"/></svg></div></body>');
+  const selector = '#group-1', property = '--base-anchor-x';
+  const grouped = await operate(page, original, [{ kind: 'group.create', selectors: ['#a', '#b'], box: { x: 0, y: 0, width: 230, height: 60 } }]);
+  const key = (time: number, value: number) => ({ kind: 'animation.key', selector, property, step: 0, time, value, action: 'set' });
+  const authored = await operate(page, grouped, [{ kind: 'base.set', selector, values: { scaleX: 16, anchorX: 100, anchorY: 30 } }, key(0, 100), key(.96, 100.000098)]);
+  const split = await operate(page, authored, [{ kind: 'step.add', time: .48 }]);
+  const splitData = await dataOf(page, split);
+  expect(splitData.steps[0].layers[selector][property].at(-1)).toEqual({ time: .48, value: 100000049, ease: 'none' });
+  const sample = { svgParent: '#precision-parent', layers: [selector], exit: [0] };
+  const expectedTranslation = (1 - 16) * 100.000049;
+  for (const target of TARGETS) {
+    const before = await run(page, await build(page, authored, target), target, secondsOf(data), { ...sample, cues: [[{ key: 'mid', t: .48 }]] });
+    const after = await run(page, await build(page, split, target), target, secondsOf(splitData), { ...sample, cues: [[{ key: 'arriving', t: .48 }], [{ key: 'departing', t: 0 }]] });
+    expect(before.poses.mid[4], target + ' unsplit matrix').toBeCloseTo(expectedTranslation, 3);
+    expect(after.poses.arriving[4], target + ' arriving matrix').toBeCloseTo(expectedTranslation, 3);
+    expect(after.poses.departing[4], target + ' departing matrix').toBeCloseTo(expectedTranslation, 3);
+  }
+});
+
+test('canonical SVG groups keep their cue pivots in every saved package', async ({ page }) => {
+  await open(page);
+  const init = { time: 0, value: '40px 25px' };
+  const data: Data = { version: fixture().version, root: '.fixture', speed: 1, steps: [
+    { name: 'In', duration: .8, ease: 'none', layers: { '#old-pivot': { transformOrigin: [init], rotation: [{ time: 0, value: 35 }] } } },
+    { name: 'Step 2', duration: .56, ease: 'none', layers: { '#old-pivot': { transformOrigin: [init] } } },
+    { name: 'Out', duration: .72, ease: 'none', layers: { '#old-pivot': { transformOrigin: [init] } } },
+  ] };
+  const original = await template(page, data);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="270" viewBox="35 24 960 270">
+    <g id="matrix-parent" transform="translate(100 80) rotate(30) scale(2 1.5)">
+      <g id="old-pivot" data-gfx data-noacg-group data-group-x="20" data-group-y="30" data-group-width="80" data-group-height="50"><rect id="old-member" x="20" y="30" width="80" height="50"/></g>
+      <rect id="matrix-a" data-gfx x="180" y="90" width="90" height="60" fill="orange"/><path id="matrix-b" data-gfx d="M370 170 L450 170 L420 230 Z" fill="red"/>
+      <rect id="future-a" data-gfx x="500" y="100" width="80" height="60"/><rect id="future-b" data-gfx x="600" y="180" width="40" height="30"/>
+    </g></svg>`;
+  original.html = original.html.replace('</div></body>', svg + '</div></body>');
+  original.css += '\n.fixture svg { overflow: visible; }\n#old-pivot {transform-box: fill-box; --base-anchor-x: 40px; --base-anchor-y: 25px; transform-origin: var(--base-anchor-x) var(--base-anchor-y);}\n';
+  const grouped = await operate(page, original, [
+    { kind: 'group.create', selectors: ['#matrix-a', '#matrix-b'], box: { x: 180, y: 90, width: 270, height: 140 } },
+    { kind: 'group.create', selectors: ['#future-a', '#future-b'], box: { x: 500, y: 100, width: 140, height: 110 } },
+  ]);
+  expect(grouped.html).toContain('id="group-1" data-gfx data-noacg-group data-noacg-group-pivot="frame-v1"');
+  expect(grouped.html).toContain('id="group-2" data-gfx data-noacg-group data-noacg-group-pivot="frame-v1"');
+  expect((await dataOf(page, grouped)).steps).toEqual(data.steps);
+  const olderBefore = await run(page, await build(page, original, 'simulator'), 'simulator', secondsOf(data),
+    { svgParent: '#matrix-parent', layers: ['#old-pivot'], exit: [0] });
+  await expect(operate(page, grouped, [{ kind: 'animation.key', selector: '#old-pivot', step: 0, time: .2, property: '--base-anchor-x', value: 40, action: 'set' }]))
+    .rejects.toThrow('This older SVG group keeps its saved pivot');
+
+  const a = '#group-1', b = '#group-2';
+  const customData = structuredClone(data);
+  const customJs = (await template(page, customData)).js.replace('function noacgPaintFirstFrame(', '// Custom preview instrument\nfunction noacgPaintFirstFrame(');
+  const custom = { ...original, js: customJs };
+  const customGroup = await operate(page, custom, [{ kind: 'group.create', selectors: ['#matrix-a', '#matrix-b'], box: { x: 180, y: 90, width: 270, height: 140 } }]);
+  expect(customGroup.html).not.toContain('data-noacg-group-pivot');
+  expect(customGroup.js).toContain('// Custom preview instrument');
+  expect((await dataOf(page, customGroup)).steps.every(step => step.layers[a].transformOrigin?.[0].time === 0)).toBe(true);
+  const conflict = { ...grouped, css: grouped.css + '\nsvg g { transform-box: stroke-box; }' };
+  await expect(operate(page, conflict, [{ kind: 'animation.key', selector: a, step: 0, time: .2, property: '--base-anchor-x', value: 135, action: 'set' }]))
+    .rejects.toThrow('conflicting pivot owner');
+  const withReveal = await page.evaluate(async ({ grouped, selector }) => {
+    const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
+    const source = parseAnimData(grouped.js)!;
+    source.steps[1].reveals = [selector];
+    return { ...grouped, js: spliceAnimData(grouped.js, source)! };
+  }, { grouped, selector: b });
+  const key = (selector: string, step: number, time: number, property: string, value: number) =>
+    ({ kind: 'animation.key', selector, step, time, property, value, action: 'set' });
+  const authored = await operate(page, withReveal, [
+    { kind: 'base.set', selector: a, values: { x: 17.375, y: -9.25, rotation: 35, scaleX: 1.4, scaleY: .8, anchorX: 135.00049, anchorY: 70 } },
+    { kind: 'base.set', selector: b, values: { x: -14, y: 23, rotation: 24, scaleX: 1.25, scaleY: .75 } },
+    key('#matrix-a', 0, 0, 'x', 0), key('#matrix-a', 0, .6, 'x', -80),
+    key(a, 0, 0, '--base-anchor-x', 135.00049), key(a, 0, .6, '--base-anchor-x', 95),
+    key(a, 1, .12, '--base-anchor-y', 90), key(a, 1, .48, '--base-anchor-y', 110),
+    key(b, 1, .12, '--base-anchor-x', 45), key(b, 1, .4, '--base-anchor-x', 55),
+    key(a, 2, 0, '--base-anchor-x', 95), key(a, 2, .56, '--base-anchor-x', 130), key(a, 2, .72, '--base-anchor-y', 110),
+    { ...key('#box', 2, 0, 'noacgAnchorX', 100), baseValues: { anchorX: 100, anchorY: 50 } }, key('#box', 2, .72, 'noacgAnchorX', 180),
+  ]);
+  await editorWith(page, authored);
+  await page.getByTestId('save-graphic').click();
+  await page.getByTestId('save-name').fill('SVG cue pivots');
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  await settleDurableWrites(page);
+  await page.reload(); await ready(page);
+  const saved = await source(page);
+  expect([saved.html, saved.css, saved.js]).toEqual([authored.html, authored.css, authored.js]);
+  const savedData = await dataOf(page, saved), seconds = secondsOf(savedData);
+  const stepRoundTrip = await operate(page, saved, [{ kind: 'step.add', time: .32 }, { kind: 'step.move', step: 1, time: .36 }, { kind: 'step.delete', step: 1 }]);
+  expect(await dataOf(page, stepRoundTrip)).toEqual(savedData);
+  const carried = await operate(page, stepRoundTrip, [{ kind: 'out.set', time: 1.04 }]);
+  const carriedData = await dataOf(page, carried), carriedSeconds = secondsOf(carriedData);
+  expect(carriedSeconds).toEqual([.8, .24, .96]);
+  expect(carriedData.steps.map(step => step.layers[a]?.transformOrigin)).toEqual([undefined, undefined, undefined]);
+  const rejoined = await operate(page, carried, [{ kind: 'out.set', time: 1.36 }]);
+  expect(await dataOf(page, rejoined)).toEqual(savedData);
+  const bounded = await operate(page, saved, [
+    { kind: 'group.trim', selector: a, step: 0, interval: 0, edge: 'end', time: .72 },
+    ...['#matrix-a', '#matrix-b'].map(selector => ({ kind: 'layer.trim', selector, step: 0, interval: 0, edge: 'end', time: .72 })),
+  ]);
+  expect((await dataOf(page, bounded)).steps[0].layers[a]).toEqual(savedData.steps[0].layers[a]);
+  const moved = await operate(page, bounded, [{ kind: 'group.move', selector: a, step: 0, delta: .04 }]);
+  const movedIn = (await dataOf(page, moved)).steps[0];
+  expect(movedIn.layers[a]['--base-anchor-x']).toEqual(savedData.steps[0].layers[a]['--base-anchor-x'].map((key, i) => ({ ...key, time: [.04, .64][i] })));
+  expect(movedIn.layers['#matrix-a'].x.map(key => key.time)).toEqual([.04, .64]);
+  expect(movedIn.spans?.[a]).toEqual([{ start: .04, end: .76 }]);
+  const duplicate = await operate(page, saved, [{ kind: 'layer.duplicate', selector: a }]);
+  const copies = (await dataOf(page, duplicate)).steps[0].layers;
+  const copy = Object.keys(copies).find(id => id !== a && copies[id]['--base-anchor-x']?.length)!;
+  expect(copy).toBeTruthy();
+  expect(copies[copy]).toEqual(copies[a]);
+  expect(duplicate.html).toContain(`id="${copy.slice(1)}" data-gfx data-noacg-group data-noacg-group-pivot="frame-v1"`);
+  const bake = (selector: string, step: number, time: number, axis: 'x' | 'y', value: number) => ({ ...key(selector, step, time, '--base-anchor-' + axis, value), action: 'disable', baseValues: { [axis === 'x' ? 'anchorX' : 'anchorY']: value } });
+  const baked = await operate(page, saved, [bake(a, 0, .3, 'x', 115.000245), bake(a, 1, .3, 'y', 100), bake(b, 1, .3, 'x', 45 + 10 * .18 / .28),
+    { kind: 'step.add', time: .32 }, { kind: 'step.delete', step: 1 }]);
+  expect((await dataOf(page, baked)).steps.some(step => [a, b].some(id => step.layers[id]?.['--base-anchor-x'] || step.layers[id]?.['--base-anchor-y']))).toBe(false);
+
+  function composed(x: number, y: number, angle: number, sx: number, sy: number, px: number, py: number) {
+    const radians = angle * Math.PI / 180;
+    const a = Math.cos(radians) * sx, b = Math.sin(radians) * sx, c = -Math.sin(radians) * sy, d = Math.cos(radians) * sy;
+    return [a, b, c, d, x + px - a * px - c * py, y + py - b * px - d * py];
+  }
+  const expected = (x: number, y: number, moved: number, future: number, showing: number) => {
+    const main = composed(17.375, -9.25, 35, 1.4, .8, 180 + x, 90 + y);
+    const child = [...main]; child[4] += main[0] * moved; child[5] += main[1] * moved;
+    const later = composed(-14, 23, 24, 1.25, .75, 500 + future, 155);
+    return [...main, 1, ...child, 1, ...main, 1, ...later, showing];
+  };
+  const match = (actual: Pose, wanted: Pose, label: string) => {
+    expect(actual).toHaveLength(wanted.length);
+    actual.forEach((value, i) => expect(value, `${label}, matrix component ${i}`).toBeCloseTo(wanted[i], 3));
+  };
+  const samples = { svgParent: '#matrix-parent', layers: [a, '#matrix-a', '#matrix-b', b] };
+  for (const target of TARGETS) {
+    const built = await build(page, saved, target);
+    const normal = await run(page, built, target, seconds, { ...samples, exit: [0, .28, .72], retake: true, repeatStopAt: .28,
+      cues: [[{ key: 'in', t: 0 }, { key: 'arriving', t: .8 }], [{ key: 'departing', t: 0 }, { key: 'inside', t: .3 }]] });
+    match(normal.poses.in, expected(135.00049, 70, 0, 70, 0), target + ' In before future group');
+    match(normal.poses.arriving, expected(95, 70, -80, 70, 0), target + ' arriving at flag');
+    match(normal.poses.departing, expected(95, 90, -80, 45, 1), target + ' departing and revealing');
+    match(normal.poses.inside, expected(95, 100, -80, 45 + 10 * .18 / .28, 1), target + ' inside Next');
+    match(normal.leaving[1], expected(112.5, 110, -80, 55, 1), target + ' authored Out');
+    match(normal.leaving[2], expected(130, 110, -80, 55, 1), target + ' Out terminal');
+    match(normal.retaken!, expected(135.00049, 70, 0, 70, 0), target + ' next Take');
+
+    const early = await run(page, built, target, seconds, { ...samples, nexts: 0, interruptAt: .3, exit: [0, .28, .72] });
+    match(early.released, expected(115.000245, 70, -40, 70, 0), target + ' early Out live pose');
+    match(early.leaving[1], expected(122.5001225, 70, -40, 70, 0), target + ' early Out holds single Y');
+    match(early.leaving[2], expected(130, 110, -40, 70, 0), target + ' early Out takes terminal Y');
+
+    const carriedOutput = await build(page, carried, target);
+    const carriedOut = await run(page, carriedOutput, target, carriedSeconds, { ...samples, exit: [0, .24, .52, .96] });
+    match(carriedOut.leaving[0], expected(95, 90 + 20 / 3, -80, 45 + 10 * .12 / .28, 1), target + ' carried Out starts at the cut');
+    match(carriedOut.leaving[1], expected(95, 110, -80, 55, 1), target + ' finishes carried motion');
+    match(carriedOut.leaving[2], expected(112.5, 110, -80, 55, 1), target + ' authored Out follows the carry');
+    match(carriedOut.leaving[3], expected(130, 110, -80, 55, 1), target + ' carried Out terminal');
+
+    const skipped = await run(page, carriedOutput, target, carriedSeconds,
+      { ...samples, nexts: 0, interruptAt: .3, outLength: .72, exit: [0, .28, .72] });
+    match(skipped.leaving[0], early.leaving[0], target + ' early Out skips unreached carry');
+    match(skipped.leaving[1], early.leaving[1], target + ' early Out keeps live Y during carry skip');
+    match(skipped.leaving[2], early.leaving[2], target + ' early Out keeps the terminal value');
+
+    const baseOnly = await run(page, await build(page, baked, target), target, seconds, { ...samples, exit: [.72], retake: true,
+      cues: [[{ key: 'in', t: 0 }], [{ key: 'departing', t: 0 }]] });
+    const bakedFuture = 45 + 10 * .18 / .28;
+    match(baseOnly.poses.in, expected(115.000245, 100, 0, bakedFuture, 0), target + ' baked pivot before reveal');
+    match(baseOnly.poses.departing, expected(115.000245, 100, -80, bakedFuture, 1), target + ' keyless group still reveals');
+    match(baseOnly.retaken!, expected(115.000245, 100, 0, bakedFuture, 0), target + ' baked retake');
+  }
+  const mixed = await build(page, saved, 'simulator');
+  const lastInterrupted = await run(page, mixed, 'simulator', seconds, { ...samples, interruptAt: .3, exit: [0, .28, .72] });
+  match(lastInterrupted.held, expected(95, 100, -80, 45 + 10 * .18 / .28, 1), 'last cue live pose');
+  match(lastInterrupted.leaving[1], expected(112.5, 110, -80, 45 + 10 * .18 / .28, 1), 'last cue interrupted Out');
+  const olderAfter = await run(page, mixed, 'simulator', seconds, { svgParent: '#matrix-parent', layers: ['#old-pivot'], exit: [0] });
+  match(olderAfter.held, olderBefore.held, 'older group unchanged beside new group');
+  const ordinary = await run(page, mixed, 'simulator', seconds, { nexts: 0, layers: ['#box'], props: ['--base-anchor-x'], exit: [.72], retake: true });
+  expect([ordinary.held[0], ordinary.leaving[0][0], ordinary.retaken![0]]).toEqual([100, 180, 100]);
+});
+
 test('Add Step, rename, delete and drags are one undo each and survive save and reopen', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   const original = await editorWith(page, fixture()), start = await state(page);
@@ -401,6 +819,121 @@ test('Add Step, rename, delete and drags are one undo each and survive save and 
   const again = await page.evaluate(async () => { const { saveCurrentGraphic } = await import('/src/store/saveActions.ts'); await saveCurrentGraphic(); return (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js; });
   expect(again).toBe(saved.js);
   expect(errors).toEqual([]);
+});
+
+test('nearby flags keep separate readable hit targets at their stored times', async ({ page }) => {
+  await page.setViewportSize({ width: 1093, height: 720 });
+  const data = fixture();
+  data.steps.splice(1, 0, { name: 'Headline reveal', duration: .05, ease: 'none', layers: {} });
+  await editorWith(page, data);
+  const first = flag(page, 'Headline reveal');
+  const second = flag(page, data.steps[2].name);
+  const ruler = page.getByRole('slider', { name: 'Playhead' });
+  const bounds = (await ruler.boundingBox())!, extent = Number(await ruler.getAttribute('data-extent'));
+  const [firstTime, secondTime] = flagsOf(data);
+  const a = (await first.boundingBox())!, b = (await second.boundingBox())!;
+  expect(a.x).toBeLessThan(b.x);
+  const sameLane = Math.abs(a.y - b.y) < .5;
+  if (sameLane) expect(a.x + a.width).toBeLessThanOrEqual(b.x + .5);
+  else expect(Math.abs(a.y - b.y)).toBeGreaterThanOrEqual(a.height);
+  expect(a.x).toBeCloseTo(bounds.x + firstTime / extent * bounds.width, 0);
+  expect(b.x).toBeCloseTo(bounds.x + secondTime / extent * bounds.width, 0);
+  await expect(first).toHaveAttribute('title', /^Headline reveal/);
+  await ruler.screenshot({ path: test.info().outputPath('nearby-flags.png') });
+  await second.click();
+  await expect(second).toHaveAttribute('aria-pressed', 'true');
+  await first.focus();
+  await expect(first).toBeFocused();
+  await page.keyboard.press('F2');
+  await expect(page.getByRole('textbox', { name: 'Step name', exact: true })).toHaveValue('Headline reveal');
+  await page.keyboard.press('Escape');
+  await expect(first).toBeFocused();
+});
+
+test('an immediate Out keeps its hit area at the start of the ruler', async ({ page }) => {
+  const data = fixture();
+  data.steps = [{ ...data.steps[0], duration: 0, layers: {}, spans: undefined }, data.steps.at(-1)!];
+  await editorWith(page, data);
+  const ruler = page.getByRole('slider', { name: 'Playhead' });
+  const start = (await ruler.boundingBox())!.x;
+  const out = flag(page, 'Out'), box = (await out.boundingBox())!;
+  expect(box.x).toBeCloseTo(start, 0);
+  expect(box.width).toBeGreaterThan(0);
+  await out.click();
+  await expect(out).toBeFocused();
+  await expect(out).toHaveAttribute('aria-pressed', 'true');
+  await expect(ruler).toHaveAttribute('aria-valuenow', '0');
+});
+
+test('clicking the passive In label seeks the ruler', async ({ page }) => {
+  await editorWith(page, fixture());
+  const original = await source(page), slider = page.getByRole('slider', { name: 'Playhead' });
+  await seekFrames(page, 10);
+  await page.locator('span.ef-flag').filter({ hasText: /^In$/ }).click();
+  expect(Number(await slider.getAttribute('aria-valuenow'))).toBeLessThan(.2);
+  expect(await source(page)).toEqual(original);
+});
+
+test('a saved zero-duration Step and Out have separate hit targets at the same time', async ({ page }) => {
+  for (const inLength of [1.2, 0]) {
+    const data = fixture();
+    data.steps[0] = { name: 'In', duration: inLength, ease: 'none', layers: {} };
+    data.steps[1] = { name: 'Instant cue', duration: 0, ease: 'none', layers: {} };
+    await editorWith(page, data);
+    const before = await source(page);
+    const step = flag(page, 'Instant cue'), out = flag(page, 'Out');
+    const a = (await step.boundingBox())!, b = (await out.boundingBox())!;
+    expect(a.x).toBeCloseTo(b.x, 4);
+    expect(a.width).toBeGreaterThanOrEqual(24);
+    expect(a.y).not.toBe(b.y);
+    if (inLength === 0) {
+      const entrance = (await page.locator('.ef-flag').filter({ hasText: /^In$/ }).boundingBox())!;
+      expect(entrance.x).toBeCloseTo(a.x, 4);
+      expect(entrance.width).toBeGreaterThanOrEqual(24);
+      expect([a.y, b.y]).not.toContain(entrance.y);
+    }
+    await page.getByRole('slider', { name: 'Playhead' }).screenshot({ path: test.info().outputPath(`coincident-flags-${inLength}.png`) });
+    await step.click();
+    await expect(step).toHaveAttribute('aria-pressed', 'true');
+    await out.click();
+    await expect(out).toHaveAttribute('aria-pressed', 'true');
+    expect(await source(page)).toEqual(before);
+  }
+});
+
+test('close positive flag intervals stay readable and operable at their stored times', async ({ page }) => {
+  await page.setViewportSize({ width: 1093, height: 720 });
+  for (const [gap, outLength] of [[.001, .6], [.04, 12]]) {
+    const data = fixture();
+    data.speed = 1;
+    data.steps = [
+      { name: 'In', duration: .4, ease: 'none', layers: {} },
+      { name: 'Short cue', duration: gap, ease: 'none', layers: {} },
+      { name: 'Out', duration: outLength, ease: 'none', layers: {} },
+    ];
+    await editorWith(page, data);
+    const before = await source(page), step = flag(page, 'Short cue'), out = flag(page, 'Out');
+    const slider = page.getByRole('slider', { name: 'Playhead' });
+    for (const width of [1093, 1440]) {
+      await page.setViewportSize({ width, height: 720 });
+      await expect.poll(async () => (await step.boundingBox())!.width).toBeGreaterThanOrEqual(24);
+      const bounds = (await slider.boundingBox())!, extent = Number(await slider.getAttribute('data-extent'));
+      const [a, b] = await Promise.all([step.boundingBox(), out.boundingBox()]);
+      expect(a!.x).toBeCloseTo(bounds.x + .4 / extent * bounds.width, 0);
+      expect(b!.x).toBeCloseTo(bounds.x + (.4 + gap) / extent * bounds.width, 0);
+      expect(a!.y).not.toBe(b!.y);
+      await slider.screenshot({ path: test.info().outputPath(`close-flags-${gap}-${width}.png`) });
+      await step.click();
+      await expect(step).toHaveAttribute('aria-pressed', 'true');
+      await out.focus();
+      await out.press('Enter');
+      await expect(out).toHaveAttribute('aria-pressed', 'true');
+      await step.focus();
+      await step.press('Space');
+      await expect(step).toHaveAttribute('aria-pressed', 'true');
+    }
+    expect(await source(page)).toEqual(before);
+  }
 });
 
 test('flags stay ordered: a drag or nudge onto or past a neighbour refuses and changes nothing', async ({ page }) => {

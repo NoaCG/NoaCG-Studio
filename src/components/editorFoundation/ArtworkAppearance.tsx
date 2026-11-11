@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { SpxTemplate } from '../../model/types';
 import { artworkNode, artworkText, typeReasons, type ArtworkStyle } from '../../blocks/artworkEdits';
 import { lineFit, lineTextStyle, placedLines, slotSize } from '../../blocks/designLayout';
-import { FONTS, fontWeights, importedFontFamilies } from '../../model/fonts';
+import { bundledFontAlias, FONTS, fontWeights, importedFontFamilies } from '../../model/fonts';
 import type { FieldDescriptor } from '../../model/fieldModel';
 import { FieldControl } from '../fields/FieldControl';
 import ArtworkTextEditor from './ArtworkTextEditor';
@@ -121,7 +121,11 @@ function Typography(props: Props) {
   const place = placedLines(template.html, template.css)[selector];
   const style = place ? lineTextStyle(template.html, template.css, id) : null, fit = place ? lineFit(template.html, template.css, id) : null;
   const box = place ? slotSize(template.css, place.wrapperId) : null;
-  const weight = appearance?.fontWeight ?? 400, weights = fontWeights(appearance?.fontFamily ?? '', importedFontFamilies(template.css));
+  const family = appearance?.fontFamily ?? '';
+  const alias = bundledFontAlias(family, template.css);
+  const weights = alias ? fontWeights(alias.family) : fontWeights(family, importedFontFamilies(template.css));
+  // An old source can request bold from a static file, which still draws its single weight.
+  const weight = alias && alias.weights[0] === alias.weights[1] ? alias.weights[0] : appearance?.fontWeight ?? 400;
   if (!weights.some(w => w.value === weight)) weights.push({ value: weight, label: String(weight) });
   const options = (pairs: [string, string][]) => pairs.map(([value, label]) => ({ value, label }));
   const said = [...new Set(Object.values(reasons))];

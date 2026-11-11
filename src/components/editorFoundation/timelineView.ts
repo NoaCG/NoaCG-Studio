@@ -53,6 +53,23 @@ export function readTimeline(template: SpxTemplate): TimelineView {
 }
 /** The data selector a layer's motion lives under (R1.2a.6). */
 export const ownerOf = (view: TimelineView, selector: string) => view.owners[selector] ?? selector;
+/** A label stays at its marker and has at least 24 CSS pixels to read and click. */
+export function flagLayouts(segments: Segment[], extent: number, width: number) {
+  const minWidth = 24, rowHeight = 20;
+  const lanes: { at: number; index: number }[] = [];
+  const labels: { minWidth: number; maxWidth: number; marginBottom: number }[] = [];
+  for (const { index, start } of segments) {
+    const at = start / extent * width;
+    const free = lanes.findIndex(previous => at - previous.at >= minWidth);
+    const lane = free < 0 ? lanes.length : free;
+    const previous = lanes[lane];
+    if (previous) labels[previous.index].maxWidth = at - previous.at;
+    lanes[lane] = { at, index };
+    // The ruler reserves a right margin wider than the minimum label width.
+    labels.push({ minWidth, maxWidth: Math.max(minWidth, width - at), marginBottom: lane * rowHeight });
+  }
+  return { extraHeight: Math.max(0, lanes.length - 1) * rowHeight, labels };
+}
 /** A flag is a sum of cue lengths, a float step off the time it was set on: read it within this. */
 export const FLOAT_STEP = 1e-6;
 /** A cue boundary belongs to its arriving segment; the finite clock contains no fake hold. */

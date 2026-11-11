@@ -30,7 +30,7 @@ import {
   stateById,
   syncWaypointNames,
 } from './animMachine';
-import { filterKeysUsed, normalizeFilterTrack, withFilterComponent } from './filterTrack';
+import { composeFilter, filterKeysUsed, normalizeFilterTrack, parseFilter, sameFilterShape, withFilterComponent } from './filterTrack';
 
 /** Two stored times match within half a serializer step. */
 export const EPS = 0.0005;
@@ -1034,6 +1034,80 @@ export type KeyEasePreset = keyof typeof PRESET_SIDES;
 export const KEY_EASE_PRESETS = (Object.keys(PRESET_SIDES) as KeyEasePreset[]).map(id => ({ id, label: PRESET_SIDES[id].label }));
 /** One key by its cue, layer, property and stored time: editor selection, never document data. */
 export interface KeyRef { step: number; selector: string; property: string; time: number }
+
+export interface CopiedKey {
+  selector: string;
+  property: string;
+  offset: number;
+  value: AnimKeyframe['value'];
+  ease: string;
+}
+
+/** Count authored keys at a stored ruler time, including both sides of a flag. */
+function authoredKeysAt(data: AnimData, starts: number[], selector: string, property: string, at: number) {
+  return data.steps.reduce((count, cue, index) => count + (cue.layers[selector]?.[property] ?? [])
+    .filter(key => round(starts[index] + key.time) === at).length, 0);
+}
+
+/** Capture values and their effective incoming eases without touching the source. */
+export function captureKeys(data: AnimData, refs: readonly KeyRef[]): CopiedKey[] {
+  if (!refs.length || refs.length > 1000) throw new Error('Select between 1 and 1,000 keys to copy.');
+  const starts = cueStarts(data);
+  const copied = refs.map(({ step, selector, property, time }) => {
+    const cue = data.steps[step], track = cue?.layers[selector]?.[property];
+    const key = track?.find(candidate => Math.abs(candidate.time - time) < EPS);
+    if (!key) throw new Error('A selected key has changed. Select the keys again.');
+    const at = round(starts[step] + key.time);
+    if (authoredKeysAt(data, starts, selector, property, at) !== 1) throw new Error('A selected time has more than one key on its track. Copy keys away from that flag or jump.');
+    const ease = track?.[0] === key ? cue.ease : key.ease || cue.ease;
+    if (!parseEase(ease)) throw new Error('A selected key uses an unsupported ease. Its source is preserved.');
+    return { selector, property, at, value: key.value, ease };
+  });
+  const first = Math.min(...copied.map(key => key.at));
+  return copied.map(({ at, ...key }) => ({ ...key, offset: round(at - first) }));
+}
+
+function canonicalFilter(value: AnimKeyframe['value']): value is string {
+  return typeof value === 'string' && value === composeFilter(parseFilter(value), filterKeysUsed([{ time: 0, value }]));
+}
+
+/** Add a batch to the existing tracks in one authored cue, or leave the data untouched. */
+export function pasteKeys(data: AnimData, keys: readonly CopiedKey[], step: number, time: number): AnimData {
+  const cue = data.steps[step];
+  if (!cue || step === data.steps.length - 1 && cue.carried) throw new Error('Paste keys into an authored cue without carried Out motion.');
+  if (!keys.length || keys.length > 1000) throw new Error('Copy between 1 and 1,000 keys before pasting.');
+  if (!Number.isFinite(time) || time < 0 || time > cue.duration) throw new Error('Move the playhead inside the destination cue.');
+  const next = structuredClone(data), starts = cueStarts(data);
+  const changed = new Set<AnimKeyframe[]>(), additions = new Set<AnimKeyframe>();
+  for (const { selector, property, offset, value, ease } of keys) {
+    const at = round(time + offset);
+    const track = next.steps[step].layers[selector]?.[property];
+    if (!track?.length) throw new Error('The destination cue has no keys on one of the copied tracks. No keys changed.');
+    if (!Number.isFinite(offset) || offset < 0 || at > round(cue.duration)) throw new Error('The copied keys would cross a cue boundary. No keys changed.');
+    if (authoredKeysAt(next, starts, selector, property, round(starts[step] + at))) throw new Error('A destination already has a key. No keys changed.');
+    if (typeof value === 'number' ? !Number.isFinite(value) : typeof value !== 'string') throw new Error('A copied value is unsupported. No keys changed.');
+    if (!parseEase(ease) || track.some(key => typeof key.value !== typeof value)) throw new Error('A copied key does not match the destination track. No keys changed.');
+    if (property === 'filter' && (!canonicalFilter(value) || track.some(key => !canonicalFilter(key.value) || !sameFilterShape(value, key.value)))) {
+      throw new Error('The copied filter does not match the destination track. No keys changed.');
+    }
+    const key = { time: at, value, ease };
+    track.push(key);
+    changed.add(track);
+    additions.add(key);
+  }
+  for (const track of changed) {
+    track.sort((a, b) => a.time - b.time);
+    for (let index = 1; index < track.length; index++) {
+      const from = track[index - 1], to = track[index];
+      const kind = to.ease || cue.ease;
+      if ((additions.has(from) || additions.has(to)) && (kind === 'hold' || kind === 'jump') &&
+          from.value !== to.value && (to.time - from.time) / data.speed < HOLD_SHORTEST - 1e-9) {
+        throw new Error('Paste would leave a Hold or jump shorter than 10 ms. No keys changed.');
+      }
+    }
+  }
+  return next;
+}
 export interface KeyEaseWrite { step: number; selector: string; property: string; index: number; ease: string }
 
 /**

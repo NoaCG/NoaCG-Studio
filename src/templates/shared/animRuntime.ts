@@ -13,6 +13,10 @@ import { SOUND_RUNTIME_JS } from '../../assets/graphicSoundRuntime';
 import { ANIM_INTERPRETER_BEFORE_CARRIED_HASH, ANIM_INTERPRETER_BEFORE_EXIT_REST_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_PRE_OUT_JS } from './animRuntimeLegacy';
 import { NOACG_EASE_JS, needsEaseRuntime, needsHoldRuntime } from './easeRuntime';
 import { contentHash } from '../../model/contentHash';
+import { SVG_GROUP_PIVOT_SELECTOR, SVG_GROUP_PIVOT_UNITS, SVG_GROUP_TRACK_CSS } from '../../model/svgGroupTransform';
+
+/** Stored ordinary pivot channels are distinct from historical raw CSS tracks. */
+export const ORDINARY_ANCHOR_CHANNELS = { x: 'noacgAnchorX', y: 'noacgAnchorY' } as const;
 
 /** The interpreter body — identical in every template. Kept as one exported string so the
  *  emitter, the AI prompt, and (later) the convert-on-edit path all ship the same code. */
@@ -1055,6 +1059,185 @@ const DATA_HEADER = `// The graphic's animation as DATA. Steps play in order —
  */
 export const STOP_AGAIN_GUARD_JS = "if (typeof noacgOutActive === 'function' && noacgOutActive()) return (activeTl = buildOutTimeline());";
 
+// Keep the element as GSAP's target for cancellation and live Out capture. The local
+// accessor interpolates numeric units without changing the renderer's plugin registry.
+const LOCAL_PIVOT_TRACK_JS = `var noacgLocalPivotProperty = (function () {
+  var source, reserved, next = 0, accessors = new Map();
+  return function (element, css, units) {
+    if (source !== NOACG_ANIM) {
+      accessors.forEach(function (properties, target) {
+        Object.keys(properties).forEach(function (axis) { delete target[properties[axis]]; });
+      });
+      accessors.clear();
+      source = NOACG_ANIM;
+      reserved = Object.create(null);
+      source.steps.forEach(function (step) {
+        [step.layers, step.loops || {}].forEach(function (layers) {
+          Object.keys(layers).forEach(function (selector) {
+            Object.keys(layers[selector]).forEach(function (key) { reserved[key] = true; });
+          });
+        });
+      });
+    }
+    var properties = accessors.get(element);
+    if (!properties) { properties = Object.create(null); accessors.set(element, properties); }
+    if (properties[css]) return properties[css];
+    var name;
+    do { name = '__noacgPivot_' + next++; }
+    while (reserved[name] || name in element || name in element.style || name in gsap.plugins);
+    Object.defineProperty(element, name, {
+      configurable: true,
+      get: function () { return parseFloat(getComputedStyle(element).getPropertyValue(css)) * units; },
+      set: function (value) { element.style.setProperty(css, (value / units) + 'px'); }
+    });
+    return properties[css] = name;
+  };
+})();
+function noacgMapPivotStep(step, mapFor) {
+  var layers = step.layers, loops = step.loops;
+  function mapKeys(tracks, convert) {
+    var mapped = Object.create(null);
+    Object.keys(tracks).forEach(function (key) { mapped[convert(key)] = tracks[key]; });
+    return mapped;
+  }
+  Object.keys(step.layers).forEach(function (selector) {
+    var convert = mapFor(selector, step.layers[selector]);
+    if (!convert) return;
+    if (layers === step.layers) layers = Object.assign({}, layers);
+    layers[selector] = mapKeys(step.layers[selector], convert);
+    if (step.loops && step.loops[selector]) {
+      if (loops === step.loops) loops = Object.assign({}, loops);
+      loops[selector] = mapKeys(step.loops[selector], convert);
+    }
+  });
+  return layers === step.layers ? step : Object.assign({}, step, { layers: layers, loops: loops });
+}`;
+
+// Under this exact opt-in body the stored private channels belong to ordinary pivots.
+const ANCHOR_REPLAY_JS = `// Capability: owned-anchor-replay-v1.
+(function (stepTimeline, exitTimeline, applyReveals, enter) {
+  var axes = Object.assign(Object.create(null), ${JSON.stringify({ [ORDINARY_ANCHOR_CHANNELS.x]: '--base-anchor-x', [ORDINARY_ANCHOR_CHANNELS.y]: '--base-anchor-y' })});
+  function owner(selector) {
+    var targets = document.querySelectorAll(selector);
+    return targets.length === 1 && !targets[0].hasAttribute('data-noacg-group') ? targets[0] : null;
+  }
+  function adapt(step) {
+    return noacgMapPivotStep(step, function (selector, tracks) {
+      if (!Object.keys(axes).some(function (key) { return tracks[key] && tracks[key].length; })) return null;
+      var element = owner(selector);
+      return element && function (key) { return axes[key] ? noacgLocalPivotProperty(element, axes[key], 1) : key; };
+    });
+  }
+  buildStepTimeline = function (input) { return stepTimeline(adapt(typeof input === 'number' ? NOACG_ANIM.steps[input] : input)); };
+  noacgBuildExit = function (step, interrupted, silent, early) { return exitTimeline(adapt(step), interrupted, silent, early); };
+  noacgApplyReveals = function (timeline) {
+    applyReveals({ set: function (selector, vars, at) {
+      var property = Object.keys(vars)[0], element = axes[property] && owner(selector);
+      if (!element) { timeline.set(selector, vars, at); return; }
+      var mapped = {};
+      mapped[noacgLocalPivotProperty(element, axes[property], 1)] = vars[property];
+      timeline.set(selector, mapped, at);
+    } });
+  };
+  var source, tracks;
+  noacgEntranceTimeline = function () {
+    if (source !== NOACG_ANIM) {
+      source = NOACG_ANIM;
+      tracks = Object.create(null);
+      source.steps.forEach(function (step) {
+        Object.keys(step.layers).forEach(function (selector) {
+          var layer = step.layers[selector];
+          Object.keys(axes).forEach(function (name) {
+            if (layer[name] && layer[name].length) {
+              if (!tracks[selector]) tracks[selector] = {};
+              tracks[selector][axes[name]] = true;
+            }
+          });
+        });
+      });
+    }
+    Object.keys(tracks).forEach(function (selector) {
+      var element = owner(selector);
+      if (element) Object.keys(tracks[selector]).forEach(function (property) { element.style.removeProperty(property); });
+    });
+    return enter();
+  };
+})(buildStepTimeline, noacgBuildExit, noacgApplyReveals, noacgEntranceTimeline);`;
+
+// A marked group composes its transform in CSS. Translate its authored channels once, then
+// let the same step and exit builders provide holds, ease, visibility and interruption.
+const SVG_GROUP_RUNTIME_JS = `// Capability: svg-group-fixed-frame-v1.
+function noacgHasSvgGroupPivot(element) {
+  return element && element.localName === 'g' && element.namespaceURI === 'http://www.w3.org/2000/svg'
+    && (element.hasAttribute('data-noacg-group') || element.hasAttribute('data-noacg-carrier'))
+    && element.matches('${SVG_GROUP_PIVOT_SELECTOR}');
+}
+function noacgSvgGroup(selector) {
+  if (!/^#[a-zA-Z_][\\w-]*$/.test(selector)) return null;
+  var matches = document.querySelectorAll(selector);
+  var element = matches.length === 1 && matches[0];
+  return noacgHasSvgGroupPivot(element) && selector === '#' + element.id ? element : null;
+}
+function noacgSvgGroupDisplay(selector, hidden) {
+  var element = noacgSvgGroup(selector);
+  if (!element || (NOACG_ANIM.steps[0].spans || {})[selector] !== undefined) return null;
+  return { display: hidden ? 'none' : 'inline' };
+}
+(function (stepTimeline, exitTimeline, applyReveals, enter, reset) {
+  var channels = Object.assign(Object.create(null), ${JSON.stringify(SVG_GROUP_TRACK_CSS)});
+  var axes = Object.assign(Object.create(null), { '--base-anchor-x': true, '--base-anchor-y': true });
+  var runtimeProperties = Object.keys(channels).map(function (key) { return channels[key]; }).concat(Object.keys(axes), 'display');
+  function adapt(step) {
+    return noacgMapPivotStep(step, function (selector) {
+      var element = noacgSvgGroup(selector);
+      return element && function (key) {
+        return axes[key] ? noacgLocalPivotProperty(element, key, ${SVG_GROUP_PIVOT_UNITS}) : channels[key] || key;
+      };
+    });
+  }
+  buildStepTimeline = function (input) {
+    var step = typeof input === 'number' ? NOACG_ANIM.steps[input] : input;
+    var timeline = stepTimeline(adapt(step));
+    (step.reveals || []).forEach(function (selector) {
+      var display = noacgSvgGroupDisplay(selector, false);
+      if (display) timeline.set(selector, display, 0);
+    });
+    return timeline;
+  };
+  noacgBuildExit = function (step, interrupted, silent, early) {
+    return exitTimeline(adapt(step), interrupted, silent, early);
+  };
+  noacgApplyReveals = function (timeline) {
+    var hidden = Object.create(null);
+    applyReveals({ set: function (selector, vars, at) {
+      var display = noacgSvgGroupDisplay(selector, true);
+      if (!display) timeline.set(selector, vars, at);
+      else if (!hidden[selector]) {
+        hidden[selector] = true;
+        timeline.set(selector, display, at);
+      }
+    } });
+  };
+  function resetGroups() {
+    document.querySelectorAll('g${SVG_GROUP_PIVOT_SELECTOR}').forEach(function (element) {
+      if (!noacgSvgGroup('#' + element.id)) return;
+      runtimeProperties.forEach(function (property) { element.style.removeProperty(property); });
+      // GSAP's clearProps reparses SVG transforms and inserts a zero inline origin.
+      // A canonical group always gets its base origin from its own CSS instead.
+      element.style.removeProperty('transform-origin');
+      element.removeAttribute('data-svg-origin');
+    });
+  }
+  noacgEntranceTimeline = function () {
+    resetGroups();
+    return enter();
+  };
+  noacgResetGraphic = function () {
+    reset();
+    resetGroups();
+  };
+})(buildStepTimeline, noacgBuildExit, noacgApplyReveals, noacgEntranceTimeline, noacgResetGraphic);`;
+
 /** Emit the full marked ANIMATION region for a data-driven template. */
 export function emitAnimRegion(data: AnimData): string {
   return `${ANIMATION_MARK_OPEN}
@@ -1156,22 +1339,71 @@ export function writeAnimData(js: string, data: AnimData): string | null {
   return spliceAnimData(js, data);
 }
 
-/** Exact known bodies only: a capability comment alone cannot authorize replacement. */
-export function writeOutData(js: string, data: AnimData): string | null {
+function interpreterBody(js: string): string | null {
   const text = js.replace(/\r\n/g, '\n');
   const location = locateAnimData(text), start = text.indexOf(ANIMATION_MARK_OPEN), end = text.indexOf(ANIMATION_MARK_CLOSE);
   if (!location || start < 0 || end < location.end) return null;
   const prefix = text.slice(start, location.start).trim();
   if (prefix !== `${ANIMATION_MARK_OPEN}\n${DATA_HEADER}\n${ANIM_DECLARATION} =`.replace(/\r\n/g, '\n')) return null;
-  const body = text.slice(location.end, end).replace(/^;\s*/, '').trim();
-  if (body === ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n').trim()) return spliceAnimData(js, data);
+  return text.slice(location.end, end).replace(/^;\s*/, '').trim();
+}
+
+const currentInterpreter = ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n').trim();
+const anchorCapability = LOCAL_PIVOT_TRACK_JS + '\n\n' + ANCHOR_REPLAY_JS;
+const svgGroupCapability = LOCAL_PIVOT_TRACK_JS + '\n\n' + SVG_GROUP_RUNTIME_JS;
+const anchorInterpreter = currentInterpreter + '\n\n' + anchorCapability;
+const svgGroupInterpreter = currentInterpreter + '\n\n' + svgGroupCapability;
+const combined = [anchorInterpreter + '\n\n' + SVG_GROUP_RUNTIME_JS, svgGroupInterpreter + '\n\n' + ANCHOR_REPLAY_JS];
+const groupInterpreters = [svgGroupInterpreter, ...combined], anchorInterpreters = [anchorInterpreter, ...combined];
+const pivotInterpreters = [currentInterpreter, anchorInterpreter, ...groupInterpreters];
+
+export function hasSvgGroupRuntime(js: string): boolean {
+  return js.includes('// Capability: svg-group-fixed-frame-v1.') && groupInterpreters.includes(interpreterBody(js) ?? '');
+}
+
+function appendCapability(js: string, capability: string) {
+  const at = js.indexOf(ANIMATION_MARK_CLOSE), line = js.includes('\r\n') ? '\r\n' : '\n';
+  return js.slice(0, at).trimEnd() + ('\n\n' + capability + '\n').replace(/\n/g, line) + js.slice(at);
+}
+
+/** Group creation adds only its capability, leaving ordinary raw CSS tracks as authored. */
+export function withSvgGroupRuntime(js: string): string | null {
+  const body = interpreterBody(js) ?? '';
+  if (groupInterpreters.includes(body)) return js;
+  return body === currentInterpreter ? appendCapability(js, svgGroupCapability)
+    : body === anchorInterpreter ? appendCapability(js, SVG_GROUP_RUNTIME_JS) : null;
+}
+
+export function hasAnchorRuntime(js: string): boolean {
+  return js.includes('// Capability: owned-anchor-replay-v1.') && anchorInterpreters.includes(interpreterBody(js) ?? '');
+}
+
+/** Only an explicit ordinary anchor edit may install the replay capability. */
+export function withAnchorRuntime(js: string): string | null {
+  const body = interpreterBody(js) ?? '';
+  if (anchorInterpreters.includes(body)) return js;
+  return body === currentInterpreter ? appendCapability(js, anchorCapability)
+    : body === svgGroupInterpreter ? appendCapability(js, ANCHOR_REPLAY_JS) : null;
+}
+
+/** Only the exact shared interpreter and its generated anchor extension can take a new anchor track. */
+export function canWriteAnchorData(js: string): boolean {
+  return pivotInterpreters.includes(interpreterBody(js) ?? '');
+}
+
+/** Exact known bodies only: a capability comment alone cannot authorize replacement. */
+export function writeOutData(js: string, data: AnimData): string | null {
+  const body = interpreterBody(js);
+  if (body === null) return null;
+  if (pivotInterpreters.includes(body)) return spliceAnimData(js, data);
+  const hash = contentHash(body);
   if (body === ANIM_INTERPRETER_JS.replace(SOUND_RUNTIME_JS, SOUND_RUNTIME_V1_JS).replace(/\r\n/g, '\n').trim()) return replaceRegionWithAnimData(js, data);
   const beforeSpans = ANIM_INTERPRETER_PRE_OUT_JS
     .replace(/\/\/ Visibility is independent of opacity\.[\s\S]*?\n}\n\n/, '')
     .replace(/ {2}Object\.keys\(step\.spans \|\| \{\}\)\.forEach[\s\S]*?\n {2}}\);\n/, '')
     .replace(/^ +if \(step(?:s\[0\])?\.spans[^\n]+\n/gm, '');
   if (![ANIM_INTERPRETER_PRE_OUT_JS, beforeSpans].some(known => body === known.replace(/\r\n/g, '\n').trim()) &&
-      !['f4463f758f4e2', ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_CARRIED_HASH, ANIM_INTERPRETER_BEFORE_EXIT_REST_HASH].includes(contentHash(body))) return null;
+      !['f4463f758f4e2', ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_CARRIED_HASH, ANIM_INTERPRETER_BEFORE_EXIT_REST_HASH].includes(hash)) return null;
   return replaceRegionWithAnimData(js, data);
 }
 

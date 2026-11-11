@@ -6,7 +6,7 @@ import type { SpxTemplate } from '../../model/types';
 import { foundationRuntime } from './runtime';
 import { acceptsReply, EDITOR_MESSAGE, type Envelope, type PreviewReply } from './protocol';
 import type { Revision } from './session';
-import { readTimeline, segmentAt } from './timelineView';
+import { ownerOf, readTimeline, segmentAt } from './timelineView';
 import { artworkLayerNode } from '../../blocks/artworkLayers';
 import { svgInspectionSelector } from '../../model/structure';
 import { baseValues, creationParent } from '../../blocks/baseEdits';
@@ -202,7 +202,7 @@ export class PreviewController {
             const parent = artworkLayerNode(template, p.selector).parentElement;
             if (parent) groupParent = svgInspectionSelector(parent);
           } catch { /* Containers keep their existing adapter. */ }
-          return [[p.selector, { ...adapter, groupParent }]];
+          return [[p.selector, { ...adapter, groupParent, motionOwner: ownerOf(view, p.selector) }]];
         } catch { return []; }
       }));
       let parent = '';
