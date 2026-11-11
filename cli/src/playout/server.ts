@@ -27,6 +27,7 @@ import { amcpSend } from './amcp.js';
 import type { ActResult, PlayoutAdapter } from './adapters/casparcg.js';
 import { ografApiBase } from './adapters/ograf.js';
 import type { VmixAdapter } from './adapters/vmix.js';
+import { VmixDeadline, VmixPublicationUncertain } from './vmixMedia.js';
 import {
   MAX_SEQUENCE_ENTRIES,
   MAX_VMIX_OVERLAYS,
@@ -602,7 +603,8 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
             const value = url === '/studio' ? { mediaFolder: await vmix.mediaFolder(target) } : await vmix.chooseFolder(target);
             send(200, { ok: true, v: PLAYOUT_V, ...value }, true);
           } catch (error) {
-            send(200, { ok: false, v: PLAYOUT_V, error: { hop: 'agent', code: 'refused', detail: error instanceof Error ? error.message : 'The vMix media folder is unavailable.' } }, true);
+            const code = error instanceof VmixPublicationUncertain ? 'uncertain' : error instanceof VmixDeadline ? 'unreachable' : 'refused';
+            send(200, { ok: false, v: PLAYOUT_V, error: { hop: 'agent', code, detail: error instanceof Error ? error.message : 'The vMix media folder is unavailable.' } }, true);
           }
           return;
         }

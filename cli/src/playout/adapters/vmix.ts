@@ -12,8 +12,8 @@
 import { VMIX_BROWSER_LOAD_PROBLEM, VMIX_INPUT_KEY, vmixOverlayCount, type AgentError, type ItemRef, type PlayoutAction, type VmixInfo, type VmixInput, type VmixOverlayState, type VmixOverlaySlot, type VmixStateReply, type VmixTarget } from '../protocol.js';
 import { DEFAULT_VMIX_PORT, VmixConnection, parseVmixXml, type VmixXml } from '../vmixTcp.js';
 import { newVmixBrowser, vmixOutputAddress, vmixOutputId, vmixOutputStore, vmixRedirectRequest, type VmixOutputStore } from '../vmixOutputs.js';
-import { createVmixMedia, type VmixMedia } from '../vmixMedia.js';
-import { createVmixPlayers, unsupportedPlayerAction, VmixLookupTimeout, type VmixActResult } from '../vmixPlayers.js';
+import { createVmixMedia, VmixDeadline, VmixPublicationUncertain, type VmixMedia } from '../vmixMedia.js';
+import { createVmixPlayers, unsupportedPlayerAction, type VmixActResult } from '../vmixPlayers.js';
 import type { ActContext, ActResult, AdapterResult, PlayoutAdapter } from './casparcg.js';
 
 /** The time ONE verb may take, all its commands together, inside the page's 9 s for `/act`. */
@@ -63,6 +63,13 @@ const refused = (detail: string): { ok: false; error: AgentError } =>
   ({ ok: false, error: { hop: 'target', code: 'refused', detail } });
 const storageFailed = () => refused('NoaCG Bridge could not read or keep its vMix output keys. Check vmix-outputs.json before trying again.');
 const usage = (detail: string): { ok: false; error: AgentError } => ({ ok: false, error: { hop: 'agent', code: 'usage', detail } });
+
+function mediaFailure(error: unknown, fallback: string): { ok: false; error: AgentError } {
+  if (error instanceof VmixDeadline || error instanceof VmixPublicationUncertain) return {
+    ok: false, error: { hop: 'agent', code: error instanceof VmixDeadline ? 'unreachable' : 'uncertain', detail: error.message },
+  };
+  return refused(error instanceof Error ? error.message : fallback);
+}
 
 /** The production's title from a url item, cleaned for an input name: one line, no control
  *  characters or lone surrogates (which could not be URL-encoded), at most 100 characters. */
@@ -293,14 +300,31 @@ export function createVmixAdapter(options: {
       try {
         return { ok: true, value: await media.list(portOf(target), path), raw: 'vMix media folder' };
       } catch (error) {
-        return refused(error instanceof Error ? error.message : 'The vMix media folder could not be listed.');
+        return mediaFailure(error, 'The vMix media folder could not be listed.');
       }
     },
 
     mediaFolder(target) { return media.folder(portOf(target)); },
     chooseFolder(target) {
       const port = portOf(target);
-      return media.chooseFolder(port, save => exclusive(port, save));
+      return media.chooseFolder(port, save => {
+        const until = Date.now() + timeoutMs;
+        const expired = () => new VmixDeadline('Bridge could not start saving the vMix media folder within the request deadline.');
+        return new Promise((resolve, reject) => {
+          // Bound queue wait here. Once the turn begins, the store distinguishes a
+          // pre-publication deadline from a rename that has already been submitted.
+          let missedTurn = false;
+          const waiting = setTimeout(() => {
+            missedTurn = true;
+            reject(expired());
+          }, timeoutMs);
+          exclusive(port, async () => {
+            clearTimeout(waiting);
+            if (missedTurn || Date.now() >= until) throw expired();
+            return save(until);
+          }).then(resolve, reject);
+        });
+      });
     },
 
     async thumbnail() {
@@ -331,11 +355,13 @@ export function createVmixAdapter(options: {
             return await players.act(portOf(target), slot.player, action, {
               before: s.xml, until, session: context?.session,
               read: () => read(s.conn, until, 'diagnostic'),
-              send: (name, params) => fn(s.conn, name, params, until, true),
+              send: async (name, params) => {
+                const storageProblem = options.ownershipProblem?.();
+                return storageProblem ? refused(storageProblem) : fn(s.conn, name, params, until, true);
+              },
             });
           } catch (error) {
-            if (error instanceof VmixLookupTimeout) return { ok: false, error: { hop: 'agent', code: 'unreachable', detail: error.message } };
-            return refused(error instanceof Error ? error.message : 'The vMix player setup could not be read or kept.');
+            return mediaFailure(error, 'The vMix player setup could not be read or kept.');
           }
         });
       }

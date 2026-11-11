@@ -112,3 +112,19 @@ The fresh read-only reassessment agreed with the following bounded corrections a
 
 
 The prior compiled candidate reproduced unsafe retained entries, a later unsafe list change, a hung lookup retaining the port, case-folded identity and the measured Blank refusal. The repaired CLI build and all 119 focused vMix/media tests passed, including all 76 V2 tests. Changed root gates passed 70/70 Node tests. The visible owner is implemented in this candidate. Its packaged foreground proof still needs to be run.
+
+
+### Selected occurrence and bounded setup publication
+
+The independent review of 6f636a63 graded B+. A fresh post-setup list could introduce an unsafe file before playback settings were sent. An acknowledged SelectIndex could leave the earlier paused file selected when Play was sent. A slow setup write held the mixer turn past the verb deadline, and checking a newly picked folder still took place inside that turn. The exact reviewed source and verification receipts are retained.
+
+The owned vMix 29.0.0.49 Trial diagnostic observed index 1 Paused in the full one-item list 2.9 ms after SelectIndex ACK. For a paused replacement in the full two-item list, index 1 was still selected 1.1 ms after ACK, then index 2 was observable Paused at 28.5 ms before any replacement Play. The only Play in the trace started the first synthetic file for the fixture. Both settings were restored by hash and vMixService stayed running. The XML, trace and receipt are in the local selectindex-native-20261111-corrected folder. The first diagnostic harness checked the wrong TCP status token, issued only XML and restored the same settings. This is a selection prerequisite diagnostic.
+
+The published correction requires full list validation after setup and on each readable observation before further playback exposure. After SelectIndex, poll for the same player, full order, exact occurrence, loop and audio readiness before Play. Observe Running separately. Report a partial effect and preserve the confirmed instance if later cleanup fails.
+
+Resolve and inspect the picked path outside the mixer turn. The final publication uses a finite budget under the port turn. The actual serialized setup writer checks the deadline and writer claim before publication. Expiry before submitting a rename prevents it. After submission, a timeout reports uncertainty and fences affected player or folder operations until the outcome settles. Unrelated mixer reads and recovery on an independently authorized same GUID remain available. Later explicit actions read fresh disk and mixer state.
+
+Keep the creation marker if Add has no usable reply. Clear it after a definitely unsent or refused Add only after the marker write has settled and only while its original attempt and claim still match. Unconfirmed marker publication leaves a conservative barrier. A timed-out writer can never continue to a mixer function.
+
+
+The exact repaired CLI build and all 131 vMix/media tests passed, including the 76 V2 cases. The added checks cover the post-setup and intermediate list reads, delayed or ignored selection, missed post-ACK observation, slow picker path checks, pre-rename and queued expiry, pending key and root publication, writer claim loss, and creation barriers and explicit recovery. The unfinished-setup fixture first used a test deadline shorter than the native attribution reserve. After correcting that fixture budget, it exercised the intended write boundary. Changed root gates passed all 70 selected Node tests. The native foreground picker and the full synthetic playback proof remain pending.

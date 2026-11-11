@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { request as httpRequest } from 'node:http';
+import { promises as fs } from 'node:fs';
 import { mkdir, mkdtemp, readFile, realpath, rm, rmdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -1712,18 +1713,27 @@ import { createVmixMedia } from '../dist/playout/vmixMedia.js';
 async function playerFixture(t, fakeOptions = {}, adapterOptions = {}, mediaOptions = {}) {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'noacg-vmix-player-')));
   for (const name of ['clip A.mp4', 'clip B.mp4', 'still.png', 'sting.wav']) await writeFile(join(root, name), 'fixture');
-  const media = createVmixMedia({ defaultFolder: async () => root, ...mediaOptions });
+  const { persisted, ...options } = mediaOptions;
+  const setupFile = persisted ? join(root, 'vmix-setup.json') : options.file;
+  const media = createVmixMedia({ defaultFolder: async () => root, ...options, file: setupFile });
   const fake = await startFakeVmix(fakeOptions);
   const adapter = createVmixAdapter({ port: fake.port, media, ...adapterOptions });
   t.after(async () => { adapter.close(); await fake.stop(); await rm(root, { recursive: true, force: true }); });
   const target = { adapter: 'vmix', port: fake.port };
   const player = (name = 'clips') => ({ adapter: 'vmix', player: name });
   const take = (name, extra = {}) => adapter.act(target, { verb: 'take', slot: player(name === 'sting.wav' ? 'audio' : 'clips'), item: { kind: 'media', name }, cueId: 'cue:' + name, ...extra });
-  return { root, fake, adapter, target, player, take, media };
+  return { root, fake, adapter, target, player, take, media, setupFile };
 }
 
 test('AC-8: Take configures one keyed player and its full list, then replaces without clearing it first', async t => {
-  const { fake, adapter, target, player, take, root } = await playerFixture(t, { selectDelayMs: 180 });
+  const selectedAtPlay = [];
+  const { fake, adapter, target, player, take, root } = await playerFixture(t, {
+    selectDelayMs: 180,
+    afterFunction(name) {
+      if (name === 'Play') selectedAtPlay.push(fake.inputs[0].selectedIndex);
+      return false;
+    },
+  });
   const first = await take('clip A.mp4', { loop: true });
   assert.equal(first.ok, true, JSON.stringify(first));
   const clips = fake.inputs.find(input => input.title === 'NoaCG Clips');
@@ -1734,6 +1744,7 @@ test('AC-8: Take configures one keyed player and its full list, then replaces wi
   const second = await take('clip B.mp4');
   assert.equal(second.ok, true, JSON.stringify(second));
   assert.notEqual(first.instance, second.instance);
+  assert.deepEqual(selectedAtPlay, [1, 2]);
   assert.equal(fake.inputs.filter(input => input.type === 'VideoList').length, 1);
   assert.equal(clips.loop, false);
   assert.deepEqual(clips.list, [join(root, 'clip B.mp4')]);
@@ -2501,4 +2512,345 @@ test('AC-9: an owned Hold-to-Loop refuses when a retained predecessor falls outs
   assert.match(result.error.detail, /Clear or Out/);
   assert.equal(fixture.fake.functions.length, before);
   assert.equal((await fixture.adapter.act(fixture.target, { verb: 'clear', slot: fixture.player() })).ok, true);
+});
+
+
+test('AC-9: the post-setup list is checked before Take playback settings', async t => {
+  const fixture = await playerFixture(t, { inputs: [{ type: 'VideoList', title: 'NoaCG Clips', state: 'Paused' }] });
+  fixture.fake.inputs[0].list = [join(fixture.root, 'clip A.mp4')];
+  const keep = fixture.media.keepPlayer;
+  fixture.media.keepPlayer = async (...args) => {
+    await keep(...args);
+    if (args[3]) fixture.fake.inputs[0].list.push(join(fixture.root, '..', 'unsafe.mp4'));
+  };
+  const result = await fixture.take('clip B.mp4');
+  assert.equal(result.ok, false);
+  assert.match(result.error.detail, /Clear or Out/);
+  assert.equal(fixture.fake.functions.some(fn => /^(Loop|SetAlpha|ListAdd|Play)/.test(fn.name)), false);
+});
+
+test('AC-9: a readable unsafe intermediate list stops observation before a later clean list', async t => {
+  let mismatch = false;
+  const fixture = await playerFixture(t, {
+    afterFunction(name) {
+      if (name === 'ListAdd') mismatch = true;
+      return false;
+    },
+    transformXml(xml) {
+      if (!mismatch) return xml;
+      mismatch = false;
+      return xml.replace('</list>', '<item>unsafe.mp4</item></list>');
+    },
+  });
+  const result = await fixture.take('clip A.mp4');
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'refused');
+  assert.match(result.error.detail, /Clear or Out/);
+  assert.equal(fixture.fake.functions.some(fn => /^(SelectIndex|Play)$/.test(fn.name)), false);
+});
+
+test('AC-7: an ignored SelectIndex ACK cannot Play the earlier paused occurrence', async t => {
+  const { fake, root, take } = await playerFixture(t, {
+    ignore: ['SelectIndex'], inputs: [{ type: 'VideoList', title: 'NoaCG Clips', state: 'Paused' }],
+  }, { timeoutMs: 600 });
+  const input = fake.inputs[0];
+  input.list = [join(root, 'clip A.mp4')];
+  const result = await take('clip B.mp4');
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'uncertain');
+  assert.match(result.error.detail, /selecting the requested file/);
+  assert.equal(fake.functions.filter(fn => fn.name === 'SelectIndex').length, 1);
+  assert.equal(fake.functions.some(fn => /^(Play|ListRemove)$/.test(fn.name)), false);
+  assert.equal(input.selectedIndex, 1);
+  assert.equal(input.state, 'Paused');
+});
+
+test('AC-9: slow picked-folder verification leaves the mixer turn available', async t => {
+  let chosen;
+  const { promise: checking, resolve: checked } = Promise.withResolvers();
+  const { promise: held, resolve: release } = Promise.withResolvers();
+  const { root, adapter, target, take } = await playerFixture(t, {}, { timeoutMs: 700 }, { picker: async () => chosen });
+  chosen = join(root, 'Chosen');
+  await mkdir(chosen);
+  const resolvePath = fs.realpath;
+  t.mock.method(fs, 'realpath', async (file, ...args) => {
+    if (file === chosen) {
+      checked();
+      await held;
+    }
+    return resolvePath(file, ...args);
+  });
+  const choosing = adapter.chooseFolder(target);
+  await checking;
+  try {
+    assert.equal((await adapter.status(target)).ok, true);
+    assert.equal((await take('clip A.mp4')).ok, true);
+  } finally {
+    release();
+    assert.equal((await choosing).mediaFolder, chosen);
+  }
+});
+
+test('AC-7: expired pre-rename setup work and queued writes cannot publish or dispatch late', async t => {
+  let chosen;
+  const { promise: writing, resolve: started } = Promise.withResolvers();
+  const { promise: held, resolve: release } = Promise.withResolvers();
+  const { adapter, target, fake, take, root, setupFile } = await playerFixture(t, {
+    inputs: [{ type: 'VideoList', title: 'NoaCG Clips' }],
+  }, { timeoutMs: 350 }, { persisted: true, picker: async () => chosen });
+  chosen = join(root, 'Chosen');
+  await mkdir(chosen);
+  const write = fs.writeFile;
+  const tempPaths = [];
+  t.mock.method(fs, 'writeFile', async (file, ...args) => {
+    if (String(file).startsWith(setupFile + '.')) {
+      tempPaths.push(file);
+      started();
+      await held;
+    }
+    return write(file, ...args);
+  });
+  const taking = take('clip A.mp4');
+  await writing;
+  try {
+    const result = await Promise.race([taking, sleep(1200).then(() => undefined)]);
+    assert.equal(result?.ok, false, 'a stalled setup writer releases the caller and the mixer turn');
+    assert.equal(result.error.code, 'unreachable');
+    assert.equal((await adapter.status(target)).ok, true);
+    await assert.rejects(adapter.chooseFolder(target), { name: 'Error', message: /publish the vMix setup within/ });
+  } finally {
+    release();
+    await taking;
+  }
+  // Wait for actual writer settlement through the next legitimate update, on an unrelated port.
+  await adapter.chooseFolder({ ...target, port: target.port === 65535 ? 1 : target.port + 1 });
+  const kept = JSON.parse(await readFile(setupFile, 'utf8'));
+  assert.equal(kept.ports[target.port], undefined);
+  assert.equal(tempPaths.length, 2, 'expired queued save never opened a temporary file');
+  assert.deepEqual(fake.functions, []);
+});
+
+test('AC-7: a pending key publication fences playback and allows only recovery with the same GUID', async t => {
+  const { promise: renaming, resolve: started } = Promise.withResolvers();
+  const { promise: held, resolve: release } = Promise.withResolvers();
+  const { adapter, target, fake, player, take, root, media, setupFile } = await playerFixture(t, {
+    inputs: [{ type: 'VideoList', title: 'NoaCG Clips', state: 'Running' }],
+  }, { timeoutMs: 350 }, { persisted: true });
+  const input = fake.inputs[0];
+  input.list = [join(root, 'clip A.mp4')];
+  const oldKey = 'c123c558-633c-4aa4-acd4-65b433f5dd2a';
+  await media.keepPlayer(target.port, 'clips', oldKey, true);
+  const rename = fs.rename;
+  t.mock.method(fs, 'rename', async (from, to) => {
+    if (to === setupFile) {
+      started();
+      await held;
+    }
+    return rename(from, to);
+  });
+  const taking = take('clip B.mp4');
+  await renaming;
+  try {
+    const result = await Promise.race([taking, sleep(1200).then(() => undefined)]);
+    assert.equal(result?.ok, false);
+    assert.equal(result.error.code, 'uncertain');
+    assert.equal((await adapter.status(target)).ok, true);
+    const overlay = await adapter.overlays(target);
+    assert.equal(overlay.ok, true);
+    assert.equal(overlay.value.players, undefined);
+    assert.equal((await take('clip B.mp4')).error.code, 'uncertain');
+    assert.equal((await adapter.act(target, { verb: 'pause', slot: player() })).ok, true);
+    assert.deepEqual(fake.functions.map(fn => [fn.name, fn.params.Input]), [['Pause', input.key]]);
+    fake.inputs.push({ ...input, key: oldKey, title: 'Previous player', list: [...input.list] });
+    assert.equal((await adapter.act(target, { verb: 'clear', slot: player() })).error.code, 'uncertain');
+    assert.deepEqual(fake.functions.map(fn => fn.name), ['Pause']);
+  } finally {
+    release();
+    await taking;
+  }
+  // Drain the writer through an unrelated field update and then take an explicit fresh reading.
+  await media.keepPlayer(target.port, 'audio', 'b123c558-633c-4aa4-acd4-65b433f5dd2a', true);
+  assert.equal((await adapter.act(target, { verb: 'clear', slot: player() })).ok, true);
+  assert.ok(fake.functions.every(fn => fn.params.Input === input.key));
+  assert.equal(fake.inputs[1].list.length, 1);
+});
+
+test('AC-9: an unanswered folder publication fences media until rename settles, while recovery stays available', async t => {
+  let chosen;
+  const { promise: renaming, resolve: started } = Promise.withResolvers();
+  const { promise: held, resolve: release } = Promise.withResolvers();
+  const { adapter, target, fake, player, take, root, media, setupFile } = await playerFixture(t, {
+    inputs: [{ type: 'VideoList', title: 'NoaCG Clips', state: 'Running' }],
+  }, { timeoutMs: 350 }, { persisted: true, picker: async () => chosen });
+  const input = fake.inputs[0];
+  input.list = [join(root, 'clip A.mp4')];
+  await media.keepPlayer(target.port, 'clips', input.key, true);
+  chosen = join(root, 'Chosen');
+  await mkdir(chosen);
+  await writeFile(join(chosen, 'clip B.mp4'), 'inside');
+  const rename = fs.rename;
+  t.mock.method(fs, 'rename', async (from, to) => {
+    if (to === setupFile) {
+      started();
+      await held;
+    }
+    return rename(from, to);
+  });
+  await withBridge(adapter, async post => {
+    const choosing = post('/vmix/choose-folder', { target });
+    await renaming;
+    try {
+      const result = await Promise.race([choosing, sleep(1200).then(() => undefined)]);
+      assert.equal(result?.ok, false);
+      assert.equal(result.error.code, 'uncertain');
+      assert.equal((await post('/studio', { target })).error.code, 'uncertain');
+      assert.equal((await adapter.list(target, 'media')).error.code, 'uncertain');
+      assert.equal((await take('clip B.mp4')).error.code, 'uncertain');
+      assert.equal((await adapter.status(target)).ok, true);
+      assert.equal((await adapter.act(target, { verb: 'pause', slot: player() })).ok, true);
+      assert.deepEqual(fake.functions.map(fn => fn.name), ['Pause']);
+    } finally {
+      release();
+      await choosing;
+    }
+    await media.keepPlayer(target.port, 'clips', input.key, true);
+    assert.equal((await post('/studio', { target })).mediaFolder, chosen);
+    assert.equal((await take('clip B.mp4')).error.code, 'refused');
+    assert.equal((await adapter.act(target, { verb: 'clear', slot: player() })).ok, true);
+    assert.equal((await take('clip B.mp4')).ok, true);
+  });
+});
+
+
+test('AC-7: a late creation marker is a barrier and never dispatches AddInput', async t => {
+  const { promise: renaming, resolve: started } = Promise.withResolvers();
+  const { promise: held, resolve: release } = Promise.withResolvers();
+  const { adapter, target, fake, take, media, setupFile } = await playerFixture(t, {}, { timeoutMs: 350 }, { persisted: true });
+  const rename = fs.rename;
+  t.mock.method(fs, 'rename', async (from, to) => {
+    if (to === setupFile) {
+      started();
+      await held;
+    }
+    return rename(from, to);
+  });
+  const taking = take('clip A.mp4');
+  await renaming;
+  try {
+    const result = await Promise.race([taking, sleep(1200).then(() => undefined)]);
+    assert.equal(result?.ok, false);
+    assert.equal(result.error.code, 'uncertain');
+    assert.equal((await take('clip A.mp4')).error.code, 'uncertain');
+    assert.equal((await adapter.status(target)).ok, true);
+  } finally {
+    release();
+    await taking;
+  }
+  await media.keepPlayer(target.port, 'audio', 'b123c558-633c-4aa4-acd4-65b433f5dd2a', true);
+  assert.match((await media.setup(target.port)).adding.clips, GUID);
+  const retry = await take('clip A.mp4');
+  assert.equal(retry.error.code, 'refused');
+  assert.match(retry.error.detail, /previous NoaCG Clips creation/);
+  assert.deepEqual(fake.functions, []);
+});
+
+test('AC-7: a refused Add clears only its matching settled creation attempt', async t => {
+  const { fake, take, media, target } = await playerFixture(t, {
+    hook(line, socket) {
+      if (!line.startsWith('FUNCTION AddInput ')) return false;
+      socket.write('FUNCTION ER Video List unavailable\r\n');
+      return true;
+    },
+  }, {}, { persisted: true });
+  const result = await take('clip A.mp4');
+  assert.equal(result.error.code, 'refused');
+  assert.equal(result.error.raw, 'FUNCTION ER Video List unavailable');
+  assert.equal((await media.setup(target.port)).adding.clips, undefined);
+  assert.equal(fake.lines.filter(line => line.startsWith('FUNCTION AddInput ')).length, 1);
+});
+
+test('AC-7: loss of writer claim after the temporary file prevents publication', async t => {
+  let ownership;
+  const { fake, take, setupFile } = await playerFixture(t, {
+    inputs: [{ type: 'VideoList', title: 'NoaCG Clips' }],
+  }, {}, { persisted: true, ownershipProblem: () => ownership });
+  const write = fs.writeFile;
+  const rename = fs.rename;
+  t.mock.method(fs, 'writeFile', async (file, ...args) => {
+    await write(file, ...args);
+    if (String(file).startsWith(setupFile + '.')) ownership = 'Another Bridge owns this setup.';
+  });
+  const publishing = t.mock.method(fs, 'rename', rename);
+  const result = await take('clip A.mp4');
+  assert.equal(result.error.code, 'refused');
+  assert.equal(result.error.detail, ownership);
+  assert.equal(publishing.mock.callCount(), 0);
+  await assert.rejects(readFile(setupFile), { code: 'ENOENT' });
+  assert.deepEqual(fake.functions, []);
+});
+
+
+test('AC-7: a missed selection observation after ACK stays uncertain and never sends Play', async t => {
+  let selected = false;
+  const { promise: checking, resolve: started } = Promise.withResolvers();
+  const { promise: held, resolve: release } = Promise.withResolvers();
+  const { take, adapter, fake, target, media } = await playerFixture(t, {
+    inputs: [{ type: 'VideoList', title: 'NoaCG Clips', state: 'Paused' }],
+    afterFunction(name) {
+      if (name === 'SelectIndex') selected = true;
+      return false;
+    },
+  }, { timeoutMs: 450 });
+  const relativeFile = media.relativeFile;
+  media.relativeFile = async (...args) => {
+    if (selected) {
+      started();
+      await held;
+    }
+    return relativeFile(...args);
+  };
+  const taking = take('clip A.mp4');
+  await checking;
+  try {
+    const result = await Promise.race([taking, sleep(1200).then(() => undefined)]);
+    assert.equal(result?.error?.code, 'uncertain');
+    assert.match(result.error.detail, /selecting the requested file/);
+    assert.equal((await adapter.status(target)).ok, true);
+  } finally {
+    release();
+    await taking;
+  }
+  assert.equal(fake.functions.at(-1).name, 'SelectIndex');
+  assert.equal(fake.inputs[0].state, 'Paused');
+});
+
+test('AC-8: a known new GUID survives an unsaved setup until the next explicit Take', { timeout: 5000 }, async t => {
+  const { promise: writing, resolve: started } = Promise.withResolvers();
+  const { promise: held, resolve: release } = Promise.withResolvers();
+  const { target, fake, take, media, setupFile } = await playerFixture(t, {}, { timeoutMs: 950 }, { persisted: true });
+  const write = fs.writeFile;
+  t.mock.method(fs, 'writeFile', async (file, data, ...args) => {
+    if (String(file).startsWith(setupFile + '.') && String(data).includes('"ready":false')) {
+      started();
+      await held;
+    }
+    return write(file, data, ...args);
+  });
+  const taking = take('clip A.mp4');
+  await writing;
+  try {
+    assert.equal((await taking).error.code, 'unreachable');
+    assert.deepEqual(fake.functions.map(fn => fn.name), ['AddInput']);
+  } finally {
+    release();
+    await taking;
+  }
+  await media.keepPlayer(target.port, 'audio', 'b123c558-633c-4aa4-acd4-65b433f5dd2a', true);
+  assert.match((await media.setup(target.port)).adding.clips, GUID);
+  const input = fake.inputs[0];
+  assert.equal(input.title, 'List');
+  assert.equal((await take('clip A.mp4')).ok, true);
+  assert.equal(fake.functions.filter(fn => fn.name === 'AddInput').length, 1);
+  assert.ok(fake.functions.slice(1).every(fn => fn.params.Input === input.key));
+  assert.equal((await media.setup(target.port)).adding.clips, undefined);
 });

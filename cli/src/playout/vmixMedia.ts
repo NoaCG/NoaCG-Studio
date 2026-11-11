@@ -30,6 +30,30 @@ const isRecord = (v: unknown): v is Record<string, unknown> => v !== null && typ
 
 export class VmixMediaError extends Error {}
 
+export class VmixDeadline extends VmixMediaError {}
+export class VmixPublicationUncertain extends VmixMediaError {}
+
+const lookupTimeout = () => new VmixDeadline('Bridge could not finish checking the vMix media files within the action deadline.');
+const writeTimeout = () => new VmixDeadline('Bridge could not publish the vMix setup within the request deadline.');
+const publicationUncertain = () => new VmixPublicationUncertain('Bridge could not confirm the saved vMix setup. Wait for the save to finish, then check the setup before trying again.');
+
+export async function withinVmixDeadline<T>(until: number, read: () => Promise<T>, expired: () => Error = lookupTimeout): Promise<T> {
+  if (until === Infinity) return read();
+  const remaining = until - Date.now();
+  if (remaining <= 0) throw expired();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(expired()), remaining);
+    });
+    const result = await Promise.race([read(), timeout]);
+    if (Date.now() >= until) throw expired();
+    return result;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const badPath = () => new VmixMediaError('Use a path inside the vMix media folder.');
 const unavailable = () => new VmixMediaError('NoaCG Bridge could not read or keep its vMix setup. Check vmix-setup.json.');
 
@@ -63,9 +87,16 @@ interface VmixPlayerSetup {
 interface PortSetup {
   root?: string;
   players: Partial<Record<VmixPlayer, VmixPlayerSetup>>;
-  adding: Partial<Record<VmixPlayer, true>>;
+  adding: Partial<Record<VmixPlayer, true | string>>;
 }
 type Setup = Record<string, PortSetup>;
+
+interface SetupPublication {
+  port: number;
+  scope: 'root' | VmixPlayer;
+  before: PortSetup;
+  after: PortSetup;
+}
 
 function emptyPort(): PortSetup {
   return { players: {}, adding: {} };
@@ -84,7 +115,8 @@ function readSetup(text: string): Setup {
       keys.add(saved.key.toLowerCase());
     }
     for (const [player, pending] of Object.entries(port.adding)) {
-      if ((player !== 'clips' && player !== 'audio') || pending !== true) throw unavailable();
+      if ((player !== 'clips' && player !== 'audio') ||
+          (pending !== true && (typeof pending !== 'string' || !VMIX_INPUT_KEY.test(pending)))) throw unavailable();
     }
   }
   return data.ports as Setup;
@@ -168,6 +200,8 @@ export function createVmixMedia(options: {
   const { file, ownershipProblem } = options;
   let memory: Setup = {};
   let writes: Promise<unknown> = Promise.resolve();
+  let publishing: SetupPublication | undefined;
+  let closed = false;
   let picking = false;
   let pickerController: AbortController | undefined;
   let defaultFolder: Promise<string> | undefined;
@@ -182,14 +216,35 @@ export function createVmixMedia(options: {
     }
   }
 
-  const setup = async (port: number): Promise<PortSetup> => (await setups())[port] ?? emptyPort();
+  async function setup(port: number): Promise<PortSetup> {
+    if (publishing?.port === port) throw publicationUncertain();
+    const current = (await setups())[port] ?? emptyPort();
+    if (publishing?.port === port) throw publicationUncertain();
+    return current;
+  }
 
-  function update(port: number, change: (previous: PortSetup) => PortSetup): Promise<void> {
-    const done = writes.then(async () => {
+  function update(
+    port: number, scope: SetupPublication['scope'], until: number, change: (previous: PortSetup) => PortSetup,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    let submitted = false;
+    let expired = false;
+    function check() {
+      if (signal?.aborted) throw new VmixMediaError('The media folder picker was closed with Bridge.');
+      if (closed) throw new VmixMediaError('Bridge closed before saving the vMix setup.');
+      if (expired || Date.now() >= until) throw writeTimeout();
       const problem = ownershipProblem?.();
       if (problem) throw new VmixMediaError(problem);
+    }
+    // The writer tail includes any outstanding filesystem work even when its caller has timed out.
+    const done = writes.then(async () => {
+      check();
       const data = await setups();
-      const next = { ...data, [port]: change(data[port] ?? emptyPort()) };
+      check();
+      const before = data[port] ?? emptyPort();
+      const after = change(before);
+      if (after === before) return;
+      const next = { ...data, [port]: after };
       if (!file) {
         memory = next;
         return;
@@ -197,14 +252,28 @@ export function createVmixMedia(options: {
       const temp = file + '.' + randomUUID() + '.tmp';
       try {
         await fs.writeFile(temp, JSON.stringify({ v: 1, ports: next }) + '\n', { encoding: 'utf8', flag: 'wx', mode: 0o600 });
-        await fs.rename(temp, file);
-      } catch {
+        check();
+        publishing = { port, scope, before, after };
+        submitted = true;
+        try {
+          await fs.rename(temp, file);
+        } catch (error) {
+          submitted = false;
+          throw error;
+        } finally {
+          publishing = undefined;
+        }
+      } catch (error) {
         await fs.rm(temp, { force: true }).catch(() => undefined);
+        if (error instanceof VmixMediaError) throw error;
         throw unavailable();
       }
     });
     writes = done.catch(() => undefined);
-    return done;
+    return withinVmixDeadline(until, () => done, () => {
+      expired = true;
+      return submitted ? publicationUncertain() : writeTimeout();
+    });
   }
 
   const configuredFolder = () => defaultFolder ??= (options.defaultFolder ?? windowsVideos)().then(async dir => {
@@ -219,7 +288,11 @@ export function createVmixMedia(options: {
   });
 
   async function folder(port: number): Promise<string> {
-    return (await setup(port)).root ?? configuredFolder();
+    const pendingRoot = () => publishing?.port === port && publishing.scope === 'root';
+    if (pendingRoot()) throw publicationUncertain();
+    const current = (await setups())[port]?.root;
+    if (pendingRoot()) throw publicationUncertain();
+    return current ?? configuredFolder();
   }
 
   async function root(port: number): Promise<string> {
@@ -232,19 +305,36 @@ export function createVmixMedia(options: {
   return {
     setup,
     folder,
-    close() { pickerController?.abort(); },
+    async playerSetups(port: number, player: VmixPlayer, recovery: boolean): Promise<readonly [PortSetup, PortSetup?]> {
+      const pending = publishing;
+      if (pending?.port === port) {
+        if (!recovery && (pending.scope === 'root' || pending.scope === player)) throw publicationUncertain();
+        // An unrelated player may share an ownership check against the changed GUID.
+        return [pending.before, pending.after];
+      }
+      return [await setup(port)];
+    },
+    close() {
+      closed = true;
+      pickerController?.abort();
+    },
 
-    markAdding(port: number, player: VmixPlayer, adding: boolean) {
-      return update(port, previous => {
+    markAdding(port: number, player: VmixPlayer, attempt: string, adding: boolean, until: number) {
+      return update(port, player, until, previous => {
         const pending = { ...previous.adding };
-        if (adding) pending[player] = true;
-        else delete pending[player];
+        if (adding) {
+          if (pending[player]) throw new VmixMediaError('A vMix player creation is already recorded. Check the input in vMix.');
+          pending[player] = attempt;
+        } else {
+          if (pending[player] !== attempt) return previous;
+          delete pending[player];
+        }
         return { ...previous, adding: pending };
       });
     },
 
-    keepPlayer(port: number, player: VmixPlayer, key: string, ready: boolean) {
-      return update(port, previous => {
+    keepPlayer(port: number, player: VmixPlayer, key: string, ready: boolean, until = Infinity) {
+      return update(port, player, until, previous => {
         const adding = { ...previous.adding };
         delete adding[player];
         return { ...previous, adding, players: { ...previous.players, [player]: { key, ready } } };
@@ -252,7 +342,7 @@ export function createVmixMedia(options: {
     },
 
     async chooseFolder(
-      port: number, publish: (save: () => Promise<string>) => Promise<string> = save => save(),
+      port: number, publish: (save: (until: number) => Promise<string>) => Promise<string> = save => save(Infinity),
     ): Promise<{ mediaFolder: string; cancelled?: true }> {
       const problem = ownershipProblem?.();
       if (problem) throw new VmixMediaError(problem);
@@ -266,12 +356,11 @@ export function createVmixMedia(options: {
         if (controller.signal.aborted) throw new VmixMediaError('The media folder picker was closed with Bridge.');
         if (chosen === undefined) return { mediaFolder: current, cancelled: true };
         if (!path.isAbsolute(chosen)) throw badPath();
-        // The dialog did not hold the port turn. Join it only to publish the chosen root.
-        const mediaFolder = await publish(async () => {
-          if (controller.signal.aborted) throw new VmixMediaError('The media folder picker was closed with Bridge.');
-          const canonical = await fs.realpath(chosen);
-          if (!(await fs.stat(canonical)).isDirectory()) throw badPath();
-          await update(port, previous => ({ ...previous, root: canonical }));
+        const canonical = await fs.realpath(chosen);
+        if (!(await fs.stat(canonical)).isDirectory()) throw badPath();
+        // The modal and path checks finish before this picker joins the port turn.
+        const mediaFolder = await publish(async until => {
+          await update(port, 'root', until, previous => ({ ...previous, root: canonical }), controller.signal);
           return canonical;
         });
         return { mediaFolder };
@@ -321,6 +410,7 @@ export function createVmixMedia(options: {
         dir = await root(port);
       } catch (error) {
         if (name === '' && missing(error)) return [];
+        if (error instanceof VmixPublicationUncertain) throw error;
         throw badPath();
       }
       const browse = name === '' ? { file: dir } : await resolveChild(dir, name);

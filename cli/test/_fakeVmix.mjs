@@ -72,14 +72,11 @@ export async function startFakeVmix(options = {}) {
           input.selectedIndex = value;
           input.position = 0;
           input.duration = options.files?.[input.list[value - 1]] ?? 4000;
-          if (input.playPending) input.state = 'Running';
-          delete input.playPending;
         };
         if (options.selectDelayMs) setTimeout(choose, options.selectDelayMs);
         else choose();
       } else if (name === 'Play') {
         input.state = 'Running';
-        input.playPending = true;
       } else if (name === 'Pause') input.state = 'Paused';
       else if (name === 'LoopOn' || name === 'LoopOff') input.loop = name === 'LoopOn';
       else if (name === 'ListRemove') {
