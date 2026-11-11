@@ -4,7 +4,7 @@ import { readyOf } from '../_helpers';
 import { answerPanel, pairPanel } from '../_panel';
 import { buildFixture, cleanUp, outputSlugOf } from './_fixture';
 import {
-  FIXTURE, FRAME_LOADS, NET, SAMPLES, clearLpm, framePlays, instrument, meterBytes, nowOn, readLpm, screencast, summary, throttle, writeResult,
+  BUILD, FIXTURE, FRAME_LOADS, NET, SAMPLES, clearLpm, switchBuild, framePlays, instrument, meterBytes, nowOn, readLpm, screencast, summary, throttle, writeResult,
   type Lpm, type Sent,
 } from './_measure';
 
@@ -27,15 +27,30 @@ import {
 
 test.skip(!process.env.E2E_EMAIL, 'configured measurement: needs the local stack and its account');
 
-const tag = `${FIXTURE}-${NET}`;
+const tag = `${FIXTURE}-${NET}${BUILD === 'prod' ? '-prod' : ''}`;
 
 // A run that leaves its production behind makes the next sign-in pull it down again.
 test.afterEach(async ({ page }) => {
   await page.unrouteAll({ behavior: 'ignoreErrors' });
+  // Clean-up reads the development server's modules.
+  await switchBuild(page, 'dev', async () => { await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 }); }).catch((e) => log('back to dev failed', String(e).slice(0, 200)));
   await cleanUp(page);
 });
 const t0 = Date.now();
 const log = (...a: unknown[]) => console.log(`[measure ${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
+
+/** Under MEASURE_BUILD=prod, reload the production page under the bundled build once the fixture
+ *  is built and every development-module read is done. */
+const toProd = (page: Page) =>
+  switchBuild(page, 'prod', async () => {
+    await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
+    const panel = page.getByTestId('production-status-panel');
+    if (await panel.isVisible()) {
+      await page.getByTestId('production-status').click();
+      await expect(panel).toBeHidden();
+    }
+  });
 
 /** The kept ordering waits of W1, as a trace shows them: requests running inside press..sent. */
 function attribute(lpm: Lpm, press: number, sent: Sent) {
@@ -231,20 +246,25 @@ test('takes-a', async ({ page, browser }) => {
   log('build');
   const fx = await buildFixture(page, FIXTURE);
   log('built', fx.graphics, fx.storedOutputBytes);
-  await throttle(page, NET);
-  const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
-  await healthyOutput(out, fx.graphics);
-  const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');
-  const samples: Record<string, Sample[]> = { graphic: [], folder: [], picture: [], server: [] };
+  // Read through the development modules before any switch to the bundled build.
   const plainLabels = await page.evaluate(async ({ id, cues }) => {
     const { loadShows } = await import('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === id)!;
     return cues.map((c) => s.cues!.find((x) => x.id === c)!.label);
   }, { id: fx.showId, cues: fx.cues.plain });
-  const labelOf = async (cue: string) => page.evaluate(async ({ id, cue }) => {
+  const labels = await page.evaluate(async ({ id, cues }) => {
     const { loadShows } = await import('/src/model/shows.ts');
-    return loadShows().find((x) => x.id === id)!.cues!.find((c) => c.id === cue)!.label;
-  }, { id: fx.showId, cue });
+    const s = loadShows().find((x) => x.id === id)!;
+    return Object.fromEntries(cues.map((c) => [c, s.cues!.find((x) => x.id === c)!.label]));
+  }, { id: fx.showId, cues: [fx.cues.picture, fx.cues.server] });
+  const labelOf = async (cue: string) => labels[cue];
+  const slug = await outputSlugOf(page, fx.showId);
+  await toProd(page);
+  await throttle(page, NET);
+  const out = await openOutput(browser, slug);
+  await healthyOutput(out, fx.graphics);
+  const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');
+  const samples: Record<string, Sample[]> = { graphic: [], folder: [], picture: [], server: [] };
 
   for (let i = 0; i < count('graphic'); i++) {
     await select(page, plainLabels[i % Math.min(5, plainLabels.length)]);
@@ -293,8 +313,10 @@ test('takes-b', async ({ page, browser }) => {
   log('build');
   const fx = await buildFixture(page, FIXTURE);
   log('built', fx.graphics, fx.storedOutputBytes);
+  const slug = await outputSlugOf(page, fx.showId);
+  await toProd(page);
   await throttle(page, NET);
-  const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
+  const out = await openOutput(browser, slug);
   await healthyOutput(out, fx.graphics);
   const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');
   const samples: Record<string, Sample[]> = { quick: [], quickSecondOfTwo: [], plusOne: [], plusOneSecondOfTwo: [] };
@@ -340,8 +362,10 @@ test('takes-c', async ({ page, browser }) => {
   log('build');
   const fx = await buildFixture(page, FIXTURE);
   log('built', fx.graphics, fx.storedOutputBytes);
+  const slug = await outputSlugOf(page, fx.showId);
+  await toProd(page);
   await throttle(page, NET);
-  const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
+  const out = await openOutput(browser, slug);
   await healthyOutput(out, fx.graphics);
   const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');
   const samples: Record<string, Sample[]> = { next: [], nextSecondOfTwo: [], panel: [] };

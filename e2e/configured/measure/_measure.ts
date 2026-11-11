@@ -274,3 +274,17 @@ export function writeResult(name: string, data: unknown): string {
 export const FIXTURE = (process.env.MEASURE_FIXTURE ?? 'typical') as 'typical' | 'large';
 export const NET = (process.env.MEASURE_NET ?? 'fast') as Net;
 export const SAMPLES = Number(process.env.MEASURE_SAMPLES ?? 50);
+
+/** MEASURE_BUILD=prod measures under a production build (phase 3: AC-1 is judged there). The
+ *  fixture is still built through the development server's modules; `buildSwitch.mjs` stands on the
+ *  harness's port and a reload then runs the same storage under the bundled build. */
+export const BUILD = (process.env.MEASURE_BUILD ?? 'dev') as 'dev' | 'prod';
+
+/** Switch the origin to `to` and reload `page` under it (a no-op unless MEASURE_BUILD=prod). */
+export async function switchBuild(page: Page, to: 'dev' | 'prod', ready: () => Promise<void>): Promise<void> {
+  if (BUILD !== 'prod') return;
+  const answer = await page.request.get(`/__measure/build?to=${to}`);
+  if ((await answer.text()) !== to) throw new Error(`the build switch did not move to ${to}: is buildSwitch.mjs on the harness's port?`);
+  await page.reload();
+  await ready();
+}

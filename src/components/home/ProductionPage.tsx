@@ -136,7 +136,7 @@ import { createSheetInbox } from '../../audience/sheetMessages';
 import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
 import { captureLookFromTemplate, loadLooks, type SavedGraphic } from '../../model/packets';
 import { measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
-import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, pressAppearance, type MeasureJob } from '../../control/adjustGeometry';
+import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, takeAppearance, updateAppearance, type MeasureJob } from '../../control/adjustGeometry';
 import { lightPanel, lookExceptions, lookFaceUnpublished, lookFontRef, lookImportedFace, lookPanelImported, lookReach, lookStyleContext, lookSentWords, lookToActivate, withLookAssets } from '../../control/productionLook';
 import { asDesignedPatch, assetDataIn, facePickPatch, facesCss, styleContextFor, styleReach, weightsFor, COLOUR_VARS } from '../../control/cueStyle';
 import { FONTS } from '../../model/fonts';
@@ -3079,9 +3079,21 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       if (lookCtx.current?.key !== key) lookCtx.current = { key, ctx: styleCtxOf(record, (record?.graphics ?? []).map((g) => templateForSavedGraphic(g, library))) };
       return lookAppearance(adjustStateOf(cue, record, library, lookCtx.current.ctx), session.air.get().looks?.[graphic]);
     },
+    // A Take's, from memory at the press (W1): the newest rendered record and the last box measured.
+    takeAppearanceOf: (taken) => {
+      const cueIn = (record: Show | null) => record?.cues?.find((c) => c.id === taken.id) ?? cuesRef.current.find((c) => c.id === taken.id) ?? taken;
+      return takeAppearance<Show>({
+        rendered: () => latestShow.current ?? null,
+        stateOf: (record) => adjustStateOf(cueIn(record), record),
+        sizes: (record) => {
+          const g = record.graphics.find((x) => x.id === cueIn(record).sourceId);
+          return g ? { frame: frameOf(g), stage } : null;
+        },
+      });
+    },
     appearanceOf: (taken) => {
       const cueIn = (record: Show | null) => record?.cues?.find((c) => c.id === taken.id) ?? cuesRef.current.find((c) => c.id === taken.id) ?? taken;
-      return pressAppearance({
+      return updateAppearance<Show>({
         pendingWrites: adjustWrites.pending,
         settleWrites: () => history.settle(),
         rendered: () => latestShow.current ?? null,
@@ -3099,6 +3111,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     selectionFor: (cue, graphic) => selectionTake(cue, graphic, selectionFacts()),
     // After the wait: a typed form's edit it landed is in the record, newer than this render's cue.
     typedFor: (cue, graphic) => {
+      // A cue with no typed data in this render or the newest one sends none, read from memory: the
+      // stored record is parsed whole, which a Take never waits on (live-publishing W1).
+      if (cue.typed === undefined && cuesRef.current.find((c) => c.id === cue.id)?.typed === undefined) return typedFor(cue, graphic);
       const unsaved = cue.typed === undefined ? null : typedSaves.current.refusal(cue.id, [TYPED_VALUES_PART]);
       return unsaved ? { status: 'refused', reason: unsaved } : typedFor(storedCue(cue), graphic);
     },
@@ -3126,6 +3141,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     patchBound: patchBoundValues,
     writeCue: (cueId, values) => setShows(updateShowCueChecked(id, cueId, { values }).shows),
     savedValues: (cueId) => cuesRef.current.find((c) => c.id === cueId)?.values,
+    unsavedValues: (cueId) => {
+      const draft = session.draft.get();
+      return draft?.cueId === cueId ? draft.values : undefined;
+    },
     writeLive: (cueId, values) => {
       if (canAuthorAccount()) setShows(updateShowCue(id, cueId, { values }));
     },

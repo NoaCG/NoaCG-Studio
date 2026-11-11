@@ -1,6 +1,6 @@
 // ONE VERB ON THE PLAYOUT SERVER AND ITS FOLD: what the production page does around
-// ./serverPlayout.ts `runServerVerb` - the refusal said at the press, the draft's head start, the
-// settings read after the wait, a Play-through folder's stray copies taken off first, each accepted
+// ./serverPlayout.ts `runServerVerb` - the refusal said at the press, the settings read at the
+// press, the draft saved after the verb (live-publishing W1), a Play-through folder's stray copies taken off first, each accepted
 // action folded into the store, and the server read again at once (docs/BRIDGE.md §5,
 // docs/CLIP_PLAYBACK_PLAN.md §6.6).
 //
@@ -19,9 +19,6 @@ import { applyAccepted } from './serverState.ts';
 import { slotAddress } from './playoutSlots.ts';
 import { effectiveEnd, segmentSeconds } from './cuePlayback.ts';
 
-/** How long a native cue's verb lets the local save run before it sends (AC-14). */
-export const LOCAL_SAVE_HEAD_START_MS = 250;
-
 export interface ServerVerbIo {
   act: (settings: PlayoutSettings, action: PlayoutAction) => Promise<PlayoutResult>;
   /** The studio's settings as they stand now. */
@@ -30,7 +27,8 @@ export interface ServerVerbIo {
   now: () => number;
   /** Read the server at once. */
   wake: () => void;
-  /** Save the typed draft (`cueDraft.flush`) and close the history group. */
+  /** Save the typed draft (`cueDraft.flush`) and close the history group: started once the verb
+   *  is answered, never awaited by it (W1). */
   flush: () => Promise<unknown>;
   /** The cue as typed, draft included (`cueDraft.view`). */
   cueView: (cue: ShowCue) => { values: Record<string, string> };
@@ -65,23 +63,29 @@ export async function runAndRecord(
   io: ServerVerbIo,
   intent: ServerVerbIntent,
 ): Promise<ServerVerbOutcome> {
-  const { cue, item, verb, label, options = {}, readable } = intent;
-  const { cues, items: playoutItems, folders, places } = intent.rundown;
   // A Take never goes the old way with a setting dropped (docs/CLIP_PLAYBACK_PLAN.md §6.9). SPACE,
   // the button and Re-take all come through here, so the check is made once, where it cannot be
-  // stepped round; taking a cue OFF and staging it on PREVIEW are never held up by it.
-  if (verb === 'take') {
-    const blocked = intent.blocked;
-    if (blocked) return { ok: false, note: `${label} was not sent: ${blocked}`, accepted: [] };
+  // stepped round; taking a cue OFF and staging it on PREVIEW are never held up by it. Refused, it
+  // touches nothing, the draft included.
+  if (intent.verb === 'take' && intent.blocked) return { ok: false, note: `${intent.label} was not sent: ${intent.blocked}`, accepted: [] };
+  try {
+    return await runVerb(store, io, intent);
+  } finally {
+    // A save that fails reports itself through the save state; it never holds or aborts the verb.
+    void io.flush().catch(() => undefined);
   }
-  // A NATIVE CUE NEVER WAITS ON THE CLOUD (playout-workflow-simplification AC-14). Its values come
-  // from this page's own draft (`cueView`), so the save only has to start first: a team
-  // production's save goes to the server, which on a network that swallows requests would hold
-  // the Take for seconds. The local write gets a moment, then the Take goes and the save finishes
-  // behind it.
-  // A save that fails reports itself through the save state; it must not hold or abort the Take.
-  const saved = io.flush().catch(() => undefined);
-  await Promise.race([saved, new Promise((resolve) => setTimeout(resolve, LOCAL_SAVE_HEAD_START_MS))]);
+}
+
+async function runVerb(
+  store: Pick<ServerPlayoutStore, 'ownership' | 'apply'>,
+  io: ServerVerbIo,
+  intent: ServerVerbIntent,
+): Promise<ServerVerbOutcome> {
+  const { cue, item, verb, label, options = {}, readable } = intent;
+  const { cues, items: playoutItems, folders, places } = intent.rundown;
+  // A NATIVE CUE NEVER WAITS ON THE PAGE'S OWN WORK (playout-workflow-simplification AC-14,
+  // live-publishing W1). Its values come from this page's own draft (`cueView`), so the save starts
+  // once the verb is answered (`runAndRecord`), on any network.
   const settings = io.loadSettings();
   const through = !options.direct && verb === 'take' && item.kind === 'media' ? places.get(cue.id)?.folder : undefined;
   const run = through ? folderRun(through, cues, playoutItems, cue.id) : null;

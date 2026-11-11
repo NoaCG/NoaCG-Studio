@@ -417,7 +417,7 @@ describe('measurements: identified and qualified', () => {
     assert.equal(part.get().byCue.c.id, 'fresh', 'and its answer is kept');
   });
 
-  test('a press: at once when nothing waits, after a queued Adjust write (capped), then after a measurement', async () => {
+  test('an Update: at once when nothing waits, after a queued Adjust write (capped), then after a measurement', async () => {
     const look = (dx) => ({ v: 1, frame: { dx, dy: 0, s: 1, ox: 0, oy: 0 } });
     const state = (send, extra = {}) => ({ eff: eff({ v: 1, x: 4 }, undefined), fresh: true, send, ...extra });
     const io = (over) => ({
@@ -432,24 +432,73 @@ describe('measurements: identified and qualified', () => {
       ...over,
     });
     const caps = { writeMs: 30, measureMs: 30 };
-    assert.deepEqual(G.pressAppearance(io({}), caps), look(4), 'nothing queued: the rendered record, with no promise');
-    assert.equal(G.pressAppearance(io({ stateOf: () => null }), caps), undefined, 'a production nobody adjusts');
+    assert.deepEqual(G.updateAppearance(io({}), caps), look(4), 'nothing queued: the rendered record, with no promise');
+    assert.equal(G.updateAppearance(io({ stateOf: () => null }), caps), undefined, 'a production nobody adjusts');
     let settled = false;
-    const afterWrite = G.pressAppearance(io({ pendingWrites: () => 1, settleWrites: () => new Promise((r) => setTimeout(() => ((settled = true), r()), 5)) }), caps);
+    const afterWrite = G.updateAppearance(io({ pendingWrites: () => 1, settleWrites: () => new Promise((r) => setTimeout(() => ((settled = true), r()), 5)) }), caps);
     assert.ok(afterWrite instanceof Promise);
     assert.deepEqual(await afterWrite, look(5), 'a queued write: the stored record');
     assert.equal(settled, true, 'read after the write landed');
     const t = Date.now();
-    assert.deepEqual(await G.pressAppearance(io({ pendingWrites: () => 1, settleWrites: () => new Promise(() => {}) }), caps), look(5), 'a write that never lands holds it only so long');
+    assert.deepEqual(await G.updateAppearance(io({ pendingWrites: () => 1, settleWrites: () => new Promise(() => {}) }), caps), look(5), 'a write that never lands holds it only so long');
     assert.ok(Date.now() - t < 1000);
     // A preset with a box for other values waits for the measurement, then reads again.
     let measuredNow = false;
     const placed = (fresh) => ({ eff: eff({ v: 1, place: 'br' }, undefined), fresh, send: look(fresh ? 9 : 1) });
-    const waited = await G.pressAppearance(
+    const waited = await G.updateAppearance(
       io({ stateOf: () => placed(measuredNow), jobOf: () => ({ cueId: 'c', graphicId: 'g', id: 'x', input: 1 }), now: async () => void (measuredNow = true) }),
       caps,
     );
     assert.deepEqual(waited, look(9));
+  });
+
+  test('W1: a Take reads its place from memory and never waits; a box for other values sends the preset as a hint', () => {
+    const graphic = { id: 'g', savedAt: 's1', adjust: { v: 1, place: 'br', anchor: 'bl' } };
+    const cue = { id: 'c' };
+    const idOf = (values) => A.measureId('g', 's1', 'c', values, HD);
+    const part = storePart(G.measured(G.NO_GEOMETRY, 'c', 'g', idOf({ name: 'Ann' }), strap()));
+    const take = (values, g = graphic) =>
+      G.takeAppearance({
+        rendered: () => 'record',
+        stateOf: () => G.cueAdjustState(g, cue, HD, HD, values, part.get(), undefined, false),
+        sizes: () => ({ frame: HD, stage: HD }),
+      });
+    const fresh = take({ name: 'Ann' });
+    assert.ok(!(fresh instanceof Promise), 'never a promise');
+    assert.ok(fresh.appearance?.frame, 'the measured place');
+    assert.equal(fresh.place, undefined, 'a box of these values: no hint');
+    const stale = take({ name: 'Annabel Longname' });
+    assert.deepEqual(stale.appearance, fresh.appearance, 'the place the last box gives, which an older output applies');
+    assert.deepEqual(stale.place, { v: 1, place: 'br', anchor: 'bl', frame: HD, stage: HD });
+    assert.equal(take({ name: 'Annabel Longname' }, { id: 'g', savedAt: 's1', adjust: { v: 1, x: 4 } }).place, undefined, 'a nudge alone resolves without a box');
+    assert.deepEqual(G.takeAppearance({ rendered: () => null, stateOf: () => null, sizes: () => null }), {}, 'a production nobody adjusts');
+  });
+
+  test('W1: an output resolving the hint against its own box lands where the page would after measuring (the page as oracle)', () => {
+    const graphic = { id: 'g', savedAt: 's1', adjust: { v: 1, place: 'br', anchor: 'bl', x: -12, scale: 0.9 } };
+    const cue = { id: 'c' };
+    const idOf = (values) => A.measureId('g', 's1', 'c', values, HD);
+    const typed = { name: 'Annabel Longname' };
+    const longer = strap({ ...LT, w: 520 });
+    const old = G.measured(G.NO_GEOMETRY, 'c', 'g', idOf({ name: 'Ann' }), strap());
+    const stale = G.cueAdjustState(graphic, cue, HD, HD, typed, old, undefined, false);
+    const hint = A.placeHintOf(stale.eff, HD, HD);
+    // The page measuring first, as it did before W1: the oracle.
+    const measuredNow = G.cueAdjustState(graphic, cue, HD, HD, typed, G.measured(old, 'c', 'g', idOf(typed), longer), undefined, false);
+    assert.deepEqual(A.placedAppearance(stale.send, A.readPlaceHint(JSON.parse(JSON.stringify(hint))), longer), measuredNow.send);
+    assert.notDeepEqual(stale.send, measuredNow.send, 'the old box would have aired another place');
+    assert.equal(A.placedAppearance(stale.send, hint, null), stale.send, 'no measurement: the place as sent');
+    // The style travels with it untouched.
+    const styled = { ...stale.send, vars: { 'brand-primary': '#123456' } };
+    assert.deepEqual(A.placedAppearance(styled, hint, longer).vars, { 'brand-primary': '#123456' });
+  });
+
+  test('W1: a place hint off the wire is read whole or not at all', () => {
+    const ok = { v: 1, place: 'br', anchor: 'bl', x: 4, y: -2, scale: 1.5, frame: HD, stage: HD };
+    assert.deepEqual(A.readPlaceHint(ok), ok);
+    for (const bad of [null, 'x', { ...ok, v: 2 }, { ...ok, place: 'zz' }, { ...ok, x: 'a' }, { ...ok, scale: 99 }, { ...ok, frame: { width: 0, height: 5 } }, { ...ok, stage: undefined }, { ...ok, y: Infinity }]) {
+      assert.equal(A.readPlaceHint(bad), null, JSON.stringify(bad));
+    }
   });
 
   test('Publish waits for the measurer only so long', async () => {

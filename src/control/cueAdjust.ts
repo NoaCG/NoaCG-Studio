@@ -17,7 +17,7 @@
 //
 // Pure and Node-tested; type imports aside, it imports only ./adjust.ts and the floor table.
 
-import { readAdjust, styleValue, NUDGE_MAX, STYLE_VARS, type AdjustRecord, type FontRef, type Zone9 } from '../model/adjust.ts';
+import { readAdjust, styleValue, NUDGE_MAX, SCALE_MAX, SCALE_MIN, STYLE_VARS, ZONES, type AdjustRecord, type FontRef, type Zone9 } from '../model/adjust.ts';
 import { typeFloorFor } from '../model/designRules.ts';
 
 /** A rectangle in a graphic document's px, which is production px: a frame sits at the stage
@@ -313,6 +313,74 @@ export function readAppearance(raw: unknown): AppliedAppearance | null {
   const ok = ['dx', 'dy', 's', 'ox', 'oy'].every((k) => typeof f?.[k] === 'number' && Number.isFinite(f[k] as number));
   if (!ok || (f.s as number) <= 0) return null;
   return appearanceOf({ dx: f.dx as number, dy: f.dy as number, s: f.s as number, ox: f.ox as number, oy: f.oy as number }, style);
+}
+
+/**
+ * A PRESET STILL TO RESOLVE (live-publishing spec W1, phase 3). A Take never waits for the page to
+ * measure the values it airs: when the box the page holds is for other values (`pressWaitsForBox`)
+ * the Take's `update` carries, beside `appearance` (the place and size that last box gives, which an
+ * older output applies as it is), the fold's place and size and the two sizes, and an output that
+ * reads it resolves them against its own measurement of the values before it first shows the
+ * graphic (output/placeOnOutput.ts). Absent: the update is exactly what it always was.
+ */
+export interface PlaceHint {
+  v: 1;
+  place?: Zone9;
+  x?: number;
+  y?: number;
+  scale?: number;
+  anchor?: Zone9;
+  /** The graphic's own resolution, and the production's. */
+  frame: Size;
+  stage: Size;
+}
+
+/** The hint a Take carries for the fold `eff` (nudge, size and pivot members only). */
+export function placeHintOf(eff: Pick<EffectiveAdjust, 'place' | 'x' | 'y' | 'scale' | 'anchor'>, frame: Size, stage: Size): PlaceHint {
+  return {
+    v: 1,
+    ...(eff.place ? { place: eff.place } : {}),
+    ...(eff.x !== undefined ? { x: eff.x } : {}),
+    ...(eff.y !== undefined ? { y: eff.y } : {}),
+    ...(eff.scale !== undefined ? { scale: eff.scale } : {}),
+    ...(eff.anchor ? { anchor: eff.anchor } : {}),
+    frame: { width: frame.width, height: frame.height },
+    stage: { width: stage.width, height: stage.height },
+  };
+}
+
+/** A hint off the wire, checked whole: null when any member is not what a page writes. */
+export function readPlaceHint(raw: unknown): PlaceHint | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const h = raw as Record<string, unknown>;
+  if (h.v !== 1) return null;
+  const zone = (z: unknown) => z === undefined || (typeof z === 'string' && (ZONES as readonly string[]).includes(z));
+  const num = (n: unknown, max: number) => n === undefined || (typeof n === 'number' && Number.isFinite(n) && Math.abs(n) <= max);
+  const size = (z: unknown) => {
+    const o = z as { width?: unknown; height?: unknown } | null;
+    return !!o && typeof o === 'object' && [o.width, o.height].every((n) => typeof n === 'number' && Number.isFinite(n) && n > 0 && n <= 16384);
+  };
+  if (!zone(h.place) || !zone(h.anchor) || !num(h.x, NUDGE_MAX) || !num(h.y, NUDGE_MAX) || !size(h.frame) || !size(h.stage)) return null;
+  if (h.scale !== undefined && !(typeof h.scale === 'number' && h.scale >= SCALE_MIN && h.scale <= SCALE_MAX)) return null;
+  const f = h.frame as Size, st = h.stage as Size;
+  return {
+    v: 1,
+    ...(h.place ? { place: h.place as Zone9 } : {}),
+    ...(h.x !== undefined ? { x: h.x as number } : {}),
+    ...(h.y !== undefined ? { y: h.y as number } : {}),
+    ...(h.scale !== undefined ? { scale: h.scale as number } : {}),
+    ...(h.anchor ? { anchor: h.anchor as Zone9 } : {}),
+    frame: { width: f.width, height: f.height },
+    stage: { width: st.width, height: st.height },
+  };
+}
+
+/** The appearance an output applies once it has measured the values itself: `sent` with its frame
+ *  resolved from the hint and `m`, its style kept. No measurement keeps `sent` as it came. */
+export function placedAppearance(sent: AppliedAppearance | null, hint: PlaceHint, m: Measurement | null): AppliedAppearance | null {
+  if (!m) return sent;
+  const eff: EffectiveAdjust = { place: hint.place, x: hint.x, y: hint.y, scale: hint.scale, anchor: hint.anchor, own: [], readOnly: false, any: true };
+  return appearanceOf(resolveFrame(eff, m, hint.frame, hint.stage), sent);
 }
 
 export function isIdentity(a: AppliedAppearance | null | undefined): boolean {

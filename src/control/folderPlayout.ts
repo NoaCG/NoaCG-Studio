@@ -86,7 +86,8 @@ export interface FolderPage {
   takeCue: (cue: ShowCue) => Promise<void>;
   /** The page's sender (`sendVerb`). */
   send: (batches: ControlSendItem[][], label: string) => Promise<Sent>;
-  /** Save the draft and close the history group. */
+  /** Save the draft and close the history group: started once a folder's Take or step has sent,
+   *  never awaited before it (live-publishing W1; the members' values come from memory). */
   flush: () => Promise<void>;
   note: (text: string) => void;
 }
@@ -147,6 +148,16 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
 
   /** Run a folder's Take once at a time, and let Out and All out stop it. Nothing runs once the
    *  session has ended (it may have ended during the save wait). */
+  /** W1: a folder's Take or step reads its members' values from memory and saves the draft once
+   *  its sends are done, whatever they came to; a save that fails never holds or aborts them. */
+  const savedAfter = async (p: FolderPage, run: Promise<void>) => {
+    try {
+      await run;
+    } finally {
+      void p.flush().catch(() => undefined);
+    }
+  };
+
   const runFolder = async (folderId: string, work: (run: Run) => Promise<void>) => {
     if (!session.alive()) return;
     const run: Run = { stop: null };
@@ -190,8 +201,7 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
       return;
     }
     if (runs.has(folder.id)) return;
-    await p.flush();
-    await runFolder(folder.id, async (run) => {
+    await savedAfter(p, runFolder(folder.id, async (run) => {
       clearMisses(members.map((c) => c.id));
       if (folderMode(folder) === 'through') {
         const outcome = await p.serverVerb(members[0], 'take', `Take of ${p.folderName(folder)}`);
@@ -221,7 +231,7 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
       if (run.stop) return;
       misses((m) => ({ ...m, ...Object.fromEntries(results.filter((r) => !r.ok).map((r) => [r.cueId, r.note])) }));
       p.note(togetherNote(p.folderName(folder), results));
-    });
+    }));
   };
 
   /** Take these graphic cues' graphics off together, as one Out. The failure's sentence, or null. */
@@ -291,8 +301,7 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
       p.note(`Take was not sent: ${blocked}`);
       return;
     }
-    await p.flush();
-    await runFolder(folder.id, async (run) => {
+    await savedAfter(p, runFolder(folder.id, async (run) => {
       const off = next.off.map((id) => p.cues.find((c) => c.id === id)).filter((c): c is ShowCue => !!c);
       if (!(await offWith(p, off))) return;
       if (!cue) {
@@ -313,7 +322,7 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
         if (graphic) await offLate(p, { cue, graphic, layer: 0 }, run.stop);
       }
       steps((m) => ({ ...m, [folder.id]: null }));
-    });
+    }));
   };
 
   const stopAll = (reason: 'all-out' | 'ended') => {

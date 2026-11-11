@@ -50,7 +50,7 @@ import type { LiveCueMap, VerbSent } from './liveCue';
 import type { ServerVerb } from './serverPlayout';
 import type { SelectionTake, SendFailure } from './selectionAir';
 import type { PlayoutSession } from './playoutSession';
-import type { AppliedAppearance } from './cueAdjust';
+import type { AppliedAppearance, PlaceHint } from './cueAdjust';
 import type { createSendDebts } from './failedSends';
 import { ALL_OUT_CONFIRM_MS, allOutTargets } from './allOut.ts';
 import { moveLiveCue } from './airState.ts';
@@ -149,6 +149,9 @@ export interface GraphicPage {
    *  `appearanceToSend`), read after the wait; absent or undefined, the update carries none. A
    *  promise when the cue's box is still being measured (capped by the page). */
   appearanceOf?: (cue: ShowCue, graphic: string) => AppliedAppearance | undefined | Promise<AppliedAppearance | undefined>;
+  /** What a TAKE carries for place and size, read from memory at the press (./adjustGeometry.ts
+   *  `takeAppearance`, W1): never a promise. Absent, a Take reads `appearanceOf`. */
+  takeAppearanceOf?: (cue: ShowCue, graphic: string) => { appearance?: AppliedAppearance; place?: PlaceHint };
   /** THE LOOK A SEND TO ON-AIR GRAPHICS CARRIES for the cue on a layer (phase 3,
    *  ./adjustGeometry.ts `lookAppearance`): the style its records and the production look give it
    *  now, read after the page's writes landed, beside the place and size the graphic already holds.
@@ -156,8 +159,12 @@ export interface GraphicPage {
   lookAppearanceOf?: (cue: ShowCue, graphic: string) => AppliedAppearance | undefined | Promise<AppliedAppearance | undefined>;
   /** A cue of the rundown by id, as the render has it. */
   cueById?: (id: string) => ShowCue | undefined;
-  /** Save the typed draft (`cueDraft.flush`) and close the history group. */
+  /** Save the typed draft (`cueDraft.flush`) and close the history group. A Take path calls it
+   *  after its send (W1, `saveAfter`), never before: what it sends is read from memory. */
   flush: () => Promise<void>;
+  /** The draft's values when the draft is this cue's (`cueDraft.view`'s unsaved half), else
+   *  undefined: what the operator sees of a field the press's own save has not written yet. */
+  unsavedValues?: (cueId: string) => Readonly<Record<string, string>> | undefined;
   /** A graphic's bound fields, field key to tree path. */
   boundFields: (graphic: string) => Record<string, string>;
   /** What a Take or an Update of this cue may send for its live candidate, from the newest tree
@@ -382,7 +389,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    *  when it is accepted: an edit saved meanwhile (a correction typed while the send was out) is
    *  newer preparation, which an accepted press never writes over. */
   const savedAt = (p: GraphicPage, cueId: string, keys: readonly string[]) => {
-    const before = Object.fromEntries(keys.map((key) => [key, p.savedValues(cueId)?.[key]]));
+    // A field typed and not yet saved counts as its typed text: the press saves it after its send
+    // (W1), so that save is the press's own, never an edit made while the send was out.
+    const unsaved = p.unsavedValues?.(cueId);
+    const before = Object.fromEntries(keys.map((key) => [key, unsaved && key in unsaved ? unsaved[key] : p.savedValues(cueId)?.[key]]));
     return (figures: Record<string, string>) => {
       const now = p.savedValues(cueId);
       const kept = Object.fromEntries(Object.entries(figures).filter(([key]) => now?.[key] === before[key] || now?.[key] === pressWrote.get(`${cueId}:${key}`)));
@@ -390,6 +400,17 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       return kept;
     };
   };
+
+  /**
+   * W1 (live-publishing spec S1): A TAKE NEVER WAITS ON THE PAGE'S OWN WORK. Its values come from
+   * memory (`cueView`: the draft over the newest record) and the draft's save and the history
+   * group's close start once the send is answered, whatever it came to. A save that fails reports
+   * itself through the save state and never holds or aborts a press. A cue whose typed OGraf data
+   * is the source still waits for its save first (`typedFirst`): its values are read from the stored
+   * record (`typedFor`), not from memory.
+   */
+  const saveAfter = (p: GraphicPage): Promise<unknown> => p.flush().catch(() => undefined);
+  const typedFirst = (p: GraphicPage, cue: ShowCue | null) => (cue?.typed !== undefined ? p.flush() : undefined);
 
   /** Move the live marker for these graphics (a no-op once the session ended). */
   const mark = (graphics: readonly string[], cueId: string | null) =>
@@ -668,11 +689,20 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     return graphic ? behind([graphic], takeOn(s, p, cue, graphic, label, direct)) : Promise.resolve(null);
   };
   const takeOn = async (s: VerbSender, p: GraphicPage, cue: ShowCue, graphic: string, label: string, direct: boolean): Promise<GraphicTake> => {
-    await p.flush();
-    // Waited for only when the page answers a promise (a box still being measured): a page with
-    // nothing to measure adds no turn to the press.
-    const pending = p.appearanceOf?.(cue, graphic);
+    try {
+      return await takeSent(s, p, cue, graphic, label, direct);
+    } finally {
+      void saveAfter(p);
+    }
+  };
+  const takeSent = async (s: VerbSender, p: GraphicPage, cue: ShowCue, graphic: string, label: string, direct: boolean): Promise<GraphicTake> => {
+    await typedFirst(p, cue);
+    // From memory (W1): the page answers at once, with a place hint when its box is not of these
+    // values. A page without `takeAppearanceOf` answers through `appearanceOf`.
+    const fromMemory = p.takeAppearanceOf?.(cue, graphic);
+    const pending = fromMemory ? fromMemory.appearance : p.appearanceOf?.(cue, graphic);
     const appearance = pending instanceof Promise ? await pending : pending;
+    const place = fromMemory?.place;
     // A live candidate resolves whole from one revision, or the cue is not taken: an unknown B
     // never airs B's prepared values, or A's (E7.1).
     const selection = p.selectionFor(cue, graphic);
@@ -690,7 +720,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // one command call, else in batches of their own sent first.
     const peers = (p.layerPeers?.(graphic) ?? []).filter((g) => g !== graphic && session.air.get().liveCue[g]);
     const captured = [{ g: graphic, c: p.selectionAired(graphic, cue.id, selection, true) }, ...peers.map((g) => ({ g, c: p.selectionAired(g, '', { status: 'none' }, true) }))];
-    const take = takeCueItems({ id: cue.id, graphic, values, ...envelope, ...(appearance ? { appearance } : {}), ...(direct ? { direct: true, auto: cue.auto ? markerAuto({ auto: cue.auto, next: null }) : null } : {}) });
+    const take = takeCueItems({ id: cue.id, graphic, values, ...envelope, ...(appearance ? { appearance } : {}), ...(place ? { place } : {}), ...(direct ? { direct: true, auto: cue.auto ? markerAuto({ auto: cue.auto, next: null }) : null } : {}) });
     const sent = await sendWith(s, withPeersOff(peers, take), label);
     if (!sent.ok) {
       for (const { c } of captured) c.undo(sent);
@@ -813,11 +843,14 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const path = p.boundFields(graphic)[fieldKey];
     if (path) {
       return afterPress(graphic, async (): Promise<PressDone> => {
-        await p.flush();
         if (!still()) return refused(changedNote(graphic));
         if (!p.boundReady()) return refused('The production data is not read yet.');
-        const landed = await p.patchBound([{ path, text: io.adjustedValue(p.boundNow(graphic)[fieldKey], delta), verb: 'adjust' }]);
-        return landed === false ? { outcome: 'failed', note: SHARED_NOT_MOVED } : { outcome: 'accepted' };
+        try {
+          const landed = await p.patchBound([{ path, text: io.adjustedValue(p.boundNow(graphic)[fieldKey], delta), verb: 'adjust' }]);
+          return landed === false ? { outcome: 'failed', note: SHARED_NOT_MOVED } : { outcome: 'accepted' };
+        } finally {
+          void saveAfter(p);
+        }
       });
     }
     // A live candidate's field comes from its source only: a press would air a figure no
@@ -830,7 +863,6 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       return refused(fixedNote);
     }
     return afterPress(graphic, async (): Promise<PressDone> => {
-      await p.flush();
       if (!still()) return refused(changedNote(graphic));
       if (fixed()) {
         s.note(fixedNote);
@@ -840,7 +872,15 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       const unedited = savedAt(p, editingCue.id, [fieldKey]);
       // The press number the send takes, which it takes at once.
       const stamp = sendSeq + 1;
-      const sent = await sendWith(s, [[{ graphic, msg: { t: 'update', data: { [fieldKey]: next } } }]], 'Update');
+      let sent: Sent;
+      let saved: Promise<unknown> | undefined;
+      try {
+        sent = await sendWith(s, [[{ graphic, msg: { t: 'update', data: { [fieldKey]: next } } }]], 'Update');
+      } finally {
+        saved = saveAfter(p);
+      }
+      // The press's own save lands before its figure is written, as the wait before the send did.
+      await saved;
       if (!sent.ok) s.note(sent.note);
       // Written only once accepted: a refused or failed send writes nothing (the note says why),
       // and a late answer writes nothing over a newer send's figure or a newer saved edit.
@@ -971,10 +1011,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     };
     const before = candidate();
     if (before) return refused(before);
-    await p.flush();
     if (!still()) return refused(changedNote(graphic));
-    const after = candidate();
-    if (after) return refused(after);
     const values = airValues(p, sel);
     // A press that would move a SHARED value waits for the tree, and the EVENT waits with it.
     if (movedList.some((key) => bound[key]) && !p.boundReady()) return refused('The production data is not read yet.');
@@ -995,7 +1032,16 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const unedited = sel.airCue ? savedAt(p, sel.airCue.id, Object.keys(adjusted)) : null;
     // The press number the send takes, which it takes at once.
     const stamp = sendSeq + 1;
-    const outcome = await sendWith(s, [[{ graphic, msg }]], `Event ${button.event}`, false, adjusted);
+    let outcome: Sent;
+    let saved: Promise<unknown> | undefined;
+    try {
+      outcome = await sendWith(s, [[{ graphic, msg }]], `Event ${button.event}`, false, adjusted);
+    } finally {
+      saved = saveAfter(p);
+    }
+    // The press's own save lands before its accepted figures are written, as the wait before the
+    // send did.
+    await saved;
     if (!outcome.ok) s.note(outcome.note);
     const sent = outcome.ok ? outcome : null;
     // Not `leftAlone`: an event that landed moves the tree even when a later press followed it.
