@@ -240,6 +240,8 @@ test('live Take and Out remain independent of a held team authoring acknowledgem
     await parkFocusOffControls(page); await expect.poll(() => state.calls).toBeGreaterThan(calls);
     await select(page, 'GAMMA'); await key(page, 'Space');
     await expect.poll(() => fake.actions.length, { message: 'Take must reach Bridge while the authoring save remains held' }).toBe(1);
+    // Out goes to what the page knows is on air: once the Bridge answered the Take, not when it was asked.
+    await expect(row(page, 'GAMMA')).toHaveClass(/on-air|up-here/);
     await key(page, '0');
     await expect.poll(() => fake.actions.length, { message: 'Out must reach Bridge while the authoring save remains held' }).toBe(2);
     await key(page, 'Delete');
