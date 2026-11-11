@@ -10,6 +10,20 @@ function noacgClearStyledOut() {
   if (noacgStyledOut) noacgStyledOut.kill();
   noacgStyledOut = null;
 }
+/** Keep native CSS interpolation out of wildcard Stop kills, on the same GSAP playhead. */
+function noacgStyledOutTween(tl, element, vars) {
+  var paintVars = Object.assign({}, vars, { paused: true, immediateRender: false, lazy: false });
+  delete paintVars.onComplete;
+  tl.to(element, paintVars);
+  var painter = tl.recent();
+  tl.remove(painter);
+  var clock = {};
+  Object.defineProperty(clock, 'position', {
+    get: function () { return painter.progress(); },
+    set: function (value) { painter.progress(value, true); }
+  });
+  tl.to(clock, { position: 1, duration: vars.duration, ease: 'none', onComplete: vars.onComplete });
+}
 function noacgClearLoopHolds() { noacgLoopHolds = new WeakMap(); }
 // CSSPlugin resolves aliases to actual output channels, including each scale axis.
 function noacgLoopChannels(property) {

@@ -650,7 +650,7 @@ function noacgApplyPayload(payload) {
 // instantly (the snap recipe, suppressed callbacks), the new pose arrives — landing exactly
 // where the entry timeline would have settled, so a styled entry and a snap agree on every
 // pose. An unknown style returns null and the entry timeline plays: honest degradation.
-function noacgStyleTimeline(group, edge) {
+function noacgStyleTimeline(group, edge${loopCode(', retainOut')}) {
   var style = edge.style;
   var root = document.querySelector(NOACG_ANIM.root);
   var known = { cut: 1, fade: 1, 'push-left': 1, 'push-right': 1, 'push-up': 1, 'push-down': 1, 'wipe-left': 1, 'wipe-right': 1 };
@@ -713,16 +713,19 @@ function noacgStyleTimeline(group, edge) {
   if (style === 'cut') {
     tl.call(swap);
     return finishAware(tl);
-  }
+  }${loopCode(`
+  var styleTween = retainOut ? function (target, vars) {
+    noacgStyledOutTween(tl, target, vars);
+  } : tl.to.bind(tl);`)}
   // Phase 1: the old pose leaves.
   if (style === 'fade') {
-    tl.to(root, { opacity: 0, duration: half, ease: ease });
+    ${loopCode('styleTween') || 'tl.to'}(root, { opacity: 0, duration: half, ease: ease });
   } else if (isPush) {
     var outVars = { duration: half, ease: ease };
     outVars[axis] = sign * 120;
-    tl.to(root, outVars);
+    ${loopCode('styleTween') || 'tl.to'}(root, outVars);
   } else {
-    tl.to(root, { clipPath: style === 'wipe-left' ? 'inset(0% 100% 0% 0%)' : 'inset(0% 0% 0% 100%)', duration: half, ease: ease });
+    ${loopCode('styleTween') || 'tl.to'}(root, { clipPath: style === 'wipe-left' ? 'inset(0% 100% 0% 0%)' : 'inset(0% 0% 0% 100%)', duration: half, ease: ease });
   }
   // The swap, plus parking the root at the IN phase's starting offset (entering from the
   // side the old pose left toward — a continuous push, a continuous wipe).
@@ -743,13 +746,13 @@ function noacgStyleTimeline(group, edge) {
   // Phase 2: the new pose arrives, ending on the CAPTURED pose values (function-based ends
   // read them after the swap ran).
   if (style === 'fade') {
-    tl.to(root, { opacity: function () { return pose.v; }, duration: half, ease: ease });
+    ${loopCode('styleTween') || 'tl.to'}(root, { opacity: function () { return pose.v; }, duration: half, ease: ease });
   } else if (isPush) {
     var inVars = { duration: half, ease: ease };
     inVars[axis] = function () { return pose.v; };
-    tl.to(root, inVars);
+    ${loopCode('styleTween') || 'tl.to'}(root, inVars);
   } else {
-    tl.to(root, {
+    ${loopCode('styleTween') || 'tl.to'}(root, {
       clipPath: 'inset(0% 0% 0% 0%)',
       duration: half,
       ease: ease,
@@ -786,7 +789,7 @@ ${loopCode(`  // Out captures the live pose before completing or retiring any de
     var idx = noacgPathIndex(edge.to);
     if (idx >= 0) noacgStepsPlayed = idx + 1;
   }
-  ${loopCode(`var styled = noacgStyleTimeline(group, edge);
+  ${loopCode(`var styled = noacgStyleTimeline(group, edge, isOut);
   if (isOut && styled) {
     noacgRetireGroupLoops();
     noacgStyledOut = styled;
@@ -934,7 +937,7 @@ function noacgMachineStop() {
   noacgCancelAllTimers();
   noacgQueue.length = 0;
   var edge = noacgLifecycleEdge('stop');
-  var styled = edge && edge.style !== undefined ? noacgStyleTimeline(noacgMachine.groups[0], edge) : null;
+  var styled = edge && edge.style !== undefined ? noacgStyleTimeline(noacgMachine.groups[0], edge${loopCode(', true')}) : null;
   ${loopCode(`if (styled) {
     noacgRetireLoops(noacgLiveTimeline);
     noacgRetireGroupLoops();

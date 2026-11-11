@@ -314,3 +314,19 @@ placements refused, unrelated anchor set, capture and paste preserved, and
 an overflowing delay refused before writing. The 26-case Node oracle also
 passed, including two document speeds, the ordinary flag and older
 range-less data before and after a runtime upgrade.
+
+The next full review of `e19b3815317cd6820a11fcb6601e82f4a751c66e`
+graded it B with one finding in the repeated styled Out family. The exact
+public Stop wrapper is byte-identical to E1. E1 built a second fade when
+Stop repeated at 0.10 seconds. E2 kept one exit, but the same wrapper
+killed its root tweens. In the pinned bundled-GSAP probe E2 held opacity
+at 0.666667 through 0.20 seconds and jumped at 0.30, instead of advancing
+to 0.333333 at 0.20. The earlier oracle called the internal builder.
+
+The second repair for that family keeps the native GSAP style painters
+paused and detached and lets the public timeline drive both phases. Its
+swap, style ease and callback suppression keep their original timing.
+Only the E2 style path for Stop and an authored main Out uses this
+protection. The legacy interpreter and the Stop wrapper are unchanged.
+The 27-case Node oracle covers the public Stop and Play, both phases,
+silent settlement, Snap and the existing cut.

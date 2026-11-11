@@ -14,10 +14,10 @@ async function load(file) {
   return import(`data:text/javascript;base64,${Buffer.from(output[0].code).toString('base64')}`);
 }
 
-const [runtime, timing, dataModule, evaluator, machine, edit, migration, loopEditor] = await Promise.all([
+const [runtime, timing, dataModule, evaluator, machine, edit, migration, loopEditor, scaffold] = await Promise.all([
   'src/templates/shared/animRuntime.ts', 'src/blocks/animLoopTiming.ts', 'src/blocks/animData.ts',
   'src/blocks/animEval.ts', 'src/blocks/animMachine.ts', 'src/blocks/animEdit.ts', 'src/blocks/animMigration.ts',
-  'src/blocks/editorLoops.ts',
+  'src/blocks/editorLoops.ts', 'src/templates/shared/base.ts',
 ].map(load));
 const gsap = readFileSync(new URL('../src/assets/gsap.min.js', import.meta.url), 'utf8');
 const baseline = () => JSON.parse(readFileSync(new URL('../e2e/fixtures/editor-loops.json', import.meta.url), 'utf8'));
@@ -29,7 +29,7 @@ const addLoop = (data, loop, all = false) => {
 };
 const authored = (loop = forever) => addLoop(baseline(), loop, true);
 
-function graphic(data) {
+function graphic(data, publicWrappers = false) {
   const stage = { opacity: 0, visibility: 'visible', display: 'block', parentElement: null };
   const layer = () => ({ x: 0, y: 0, opacity: 1, visibility: 'visible', display: 'block', parentElement: stage });
   const elements = { '.loop-fixture': stage, '#box': layer(), '#score': layer(), '#late': layer() };
@@ -45,7 +45,8 @@ function graphic(data) {
     requestAnimationFrame: () => 0, cancelAnimationFrame: () => {} });
   w.window = w; w.self = w;
   vm.runInContext(gsap, w);
-  vm.runInContext(runtime.emitAnimRegion(data), w);
+  const region = runtime.emitAnimRegion(data);
+  vm.runInContext(publicWrappers ? scaffold.runtimeJs('Loop oracle', region) : region, w);
   return { w, elements, stage, box: elements['#box'], score: elements['#score'], late: elements['#late'] };
 }
 
@@ -454,6 +455,60 @@ test('repeated styled Stop retains its exit when it interrupts a loop, and Play 
   assert.ok(g.w.buildOutTimeline() === out, 'same exit after completion until replay');
   near(g.w.buildInTimeline().time(), 0, 'replay builds a fresh entrance');
   near(g.box.x, 20, 'replay returns to the opening loop sample');
+});
+
+test('the public Stop keeps a styled Out advancing and Play retires it', () => {
+  const data = authoredMachine(authored());
+  const stop = { from: 'reveal', to: 'out', trigger: 'lifecycle', event: 'stop', style: 'fade', duration: .6, ease: 'none' };
+  data.machine.groups[0].transitions.push(stop);
+  const g = graphic(data, true);
+  g.w.gsap.updateRoot(0);
+  g.w.play();
+  const entry = g.w.noacgGroupTl.main;
+  g.w.gsap.updateRoot(entry.startTime() + .35);
+  near(g.box.x, 60, 'public Play reaches a live loop sample');
+  g.w.stop();
+  const out = g.w.noacgStyledOut, start = out.startTime();
+  const tick = at => g.w.gsap.updateRoot(start + at);
+  near(g.box.x, 60, 'public Stop keeps the live opening pose');
+  tick(.1);
+  near(g.stage.opacity, 2 / 3, 'first styled sample');
+  g.w.stop();
+  assert.strictEqual(g.w.noacgStyledOut, out);
+  near(g.stage.opacity, 2 / 3, 'second Stop is continuous');
+  tick(.2);
+  near(g.stage.opacity, 1 / 3, 'the original fade advances after repeated Stop');
+  tick(.4);
+  g.w.stop();
+  assert.strictEqual(g.w.noacgStyledOut, out);
+  near(out.duration(), .6, 'repeated Stop keeps both phases');
+  tick(.6);
+  near(g.stage.opacity, 0, 'the original exit finishes');
+  g.w.play();
+  assert.equal(g.w.noacgStyledOut, null);
+  sample(g.w.noacgGroupTl.main, .35);
+  near(g.box.x, 60, 'public Play restarts the loop');
+
+  g.w.stop();
+  const settling = g.w.noacgStyledOut;
+  let callbacks = 0;
+  settling.call(() => { callbacks++; }, null, .15);
+  settling.progress(1, true);
+  settling.progress(1, true);
+  assert.equal(callbacks, 0);
+  near(g.stage.opacity, 0, 'silent settlement reaches the off pose');
+  g.w.noacgSnap(null, { timers: false });
+  assert.equal(g.w.noacgStyledOut, null);
+
+  const cutData = authoredMachine(authored());
+  cutData.machine.groups[0].transitions.push({ ...stop, style: 'cut' });
+  const cut = graphic(cutData, true);
+  cut.w.play();
+  cut.w.stop();
+  const cutOut = cut.w.noacgStyledOut;
+  cut.w.stop();
+  assert.strictEqual(cut.w.noacgStyledOut, cutOut);
+  assert.equal(cutOut.duration(), 0);
 });
 
 test('a loop state can arm a timer at the finite end and retire on advance', () => {

@@ -320,6 +320,8 @@ export async function playLoopOutputs(page: Page) {
     } finally { await output.close(); }
   }
 
+  await verifyPublicStyledOut(page);
+
   // The foundation editor composes preceding cues to reconstruct a parked pose.
   await page.clock.install();
   await apply(page, input);
@@ -457,5 +459,102 @@ async function verifyLoopCompositionEdits(page: Page) {
     for (const selector of result.after.selectors) {
       await expect.poll(() => stage.locator(selector).evaluate(node => getComputedStyle(node).visibility)).toBe(visibility);
     }
+  }
+}
+
+async function verifyPublicStyledOut(page: Page) {
+  for (const [target, style, authored] of [
+    ['spx', 'fade', false], ['spx', 'push-left', false], ['spx', 'wipe-left', true], ['ograf', 'fade', false],
+  ] as const) {
+    const data = fixture();
+    data.steps[0].loops = { '#box': { x: loop } };
+    data.steps[2].calls = [{ time: 0, call: 'countStyleSwap' }];
+    data.machine = { groups: [{ id: 'main', initial: 'off', defaultPath: ['in', 'reveal', 'out'],
+      states: ['off', 'in', 'reveal', 'out'].map(id => ({ id })),
+      transitions: [{ from: authored ? 'in' : 'reveal', to: 'out', trigger: authored ? 'operator' : 'lifecycle',
+        event: authored ? 'leave' : 'stop', style, duration: .6, ease: 'none' }],
+    }] };
+    const input = await template(page, data);
+    const probe = { ...input, js: `${input.js}
+function countStyleSwap() { var root = document.querySelector(".loop-fixture"); root.dataset.styleSwaps = String((Number(root.dataset.styleSwaps) || 0) + 1); }
+` };
+    const output = await page.context().newPage();
+    try {
+      await loadExport(output, await built(page, probe, target), target);
+      const result = await output.evaluate(async ({ target, authored }) => {
+        type Styled = Timeline & { call(fn: () => void, params: null, at: number): void; progress(value: number, suppress: boolean): void };
+        const w = window as unknown as { play(): void; stop(): void; noacgDispatch(event: string): void;
+          gsap: { getProperty(element: Element, prop: string): number; globalTimeline: { getChildren(n: boolean, tw: boolean, tl: boolean): Styled[] } } };
+        const el = document.querySelector('loop-graphic') as HTMLElement & { playAction(p: unknown): Promise<unknown>; stopAction(p: unknown): Promise<unknown> };
+        const body = target === 'ograf' ? graphicBody(el) : document;
+        const root = body.querySelector('.loop-fixture')!, box = body.querySelector('#box')!;
+        const timelines = () => w.gsap.globalTimeline.getChildren(false, false, true);
+        const exit = () => timelines().findLast(tl => Math.abs(tl.duration() - .6) < .001)!;
+        const command = async (name: 'play' | 'stop') => {
+          if (target === 'ograf') {
+            if (name === 'stop') await el.stopAction({});
+            else await el.playAction({});
+          } else w[name]();
+        };
+        const take = (tl: Timeline, time: number, suppress = false) => tl.pause().time(time, suppress);
+        const round = (n: number) => Math.round(n * 1000) / 1000;
+        const snapshot = () => {
+          const css = getComputedStyle(root);
+          const clip = [...css.clipPath.matchAll(/(-?[\d.]+)(?:%|px)/g)].map(match => Number(match[1]));
+          return [Number(css.opacity), Number(w.gsap.getProperty(root, 'xPercent')), clip[1] ?? 0, clip[3] ?? clip[1] ?? 0].map(round);
+        };
+        const swaps = () => Number(root.getAttribute('data-style-swaps') ?? 0);
+        const play = async () => {
+          await command('play');
+          const entry = timelines().findLast(tl => tl.__noacgLoops?.length)!;
+          take(entry, .35, true);
+          return Number(w.gsap.getProperty(box, 'x'));
+        };
+        const begin = async () => {
+          if (authored) w.noacgDispatch('leave');
+          else await command('stop');
+          return exit();
+        };
+        const run = async (repeat: boolean) => {
+          const live = await play(), out = await begin(), released = Number(w.gsap.getProperty(box, 'x'));
+          const samples = [], same = [], continuous = [];
+          for (const at of [.1, .2, .3, .4, .5, .6]) {
+            take(out, at);
+            samples.push(snapshot());
+            if (repeat && (at === .1 || at === .4)) {
+              await command('stop');
+              same.push(exit() === out);
+              continuous.push(snapshot());
+            }
+          }
+          return { live, released, samples, same, continuous, duration: out.duration() };
+        };
+        const control = await run(false), repeated = await run(true), replay = await play();
+        const settling = await begin();
+        let callbacks = 0;
+        settling.call(() => { callbacks++; }, null, .15);
+        const priorSwaps = swaps();
+        settling.progress(1, true);
+        settling.progress(1, true);
+        return { control, repeated, replay, callbacks, settleOpacity: snapshot()[0], swaps: swaps() - priorSwaps };
+      }, { target, authored });
+      const channel = style === 'fade' ? 0 : style === 'push-left' ? 1 : 2;
+      const label = target + ' ' + style;
+      const leaving = style === 'fade' ? [.667, .333] : style === 'push-left' ? [-40, -80] : [33.333, 66.667];
+      expect(result.control.samples.slice(0, 2).map(sample => sample[channel]), label).toEqual(leaving);
+      const arriving = style === 'fade' ? [0, 0] : style === 'push-left' ? [80, 40] : [66.667, 33.333];
+      expect(result.control.samples.slice(3, 5).map(sample => sample[style === 'wipe-left' ? 3 : channel]), label).toEqual(arriving);
+      expect(result.control.samples[5], label).toEqual([0, 0, 0, 0]);
+      expect(result.control.live, label).toBe(60);
+      expect(result.repeated.released, label).toBe(60);
+      expect(result.repeated.same, label).toEqual([true, true]);
+      expect(result.repeated.duration, label).toBeCloseTo(.6, 6);
+      expect(result.repeated.samples, label).toEqual(result.control.samples);
+      expect(result.repeated.continuous, label).toEqual([result.control.samples[0], result.control.samples[3]]);
+      expect(result.replay, label).toBe(60);
+      expect(result.callbacks, label).toBe(0);
+      expect(result.settleOpacity, label).toBe(0);
+      expect(result.swaps, label).toBe(1);
+    } finally { await output.close(); }
   }
 }
