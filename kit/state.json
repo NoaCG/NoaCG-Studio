@@ -45,10 +45,10 @@
   "inFlight": [
     {
       "pr": 2378,
-      "note": "Independent review verified the guarded cut boundary and reproduced two diagnostic issues. Reassessment active before remaining repair. Prior local Chromium was withdrawn before execution.",
+      "head": "7307d6f858990b110a31f08224bf2b76571a0535",
+      "note": "All out preserves cut failure details and same-pair status stays available. 446 focused Windows Studio tests pass, plus unchanged Bridge build and 36 fake-vMix tests. Exact review, local Chromium j-5241 and normal CI 43080075127 pending.",
+      "session": "/root/v4_final_feedback_review",
       "phase": "v4",
-      "head": "7058ccdc1fdcafa69d00fd6c323336165fa8a468",
-      "session": "/root/v4_out_feedback_reassessment",
       "step": "build"
     }
   ],
