@@ -34,3 +34,11 @@ Normal [CI run 43004109036](https://github.com/NoaCG/NoaCG-Studio/actions/runs/4
 Codebase-health #2285 is closed. Editor #2374 and live-publishing #2376 have no overlapping paths, and #1967 records that the cf13 merge hold ended. The current shared Take/verb owners are used for adapter checks and existing CasparCG gates.
 
 After landing, revert the merge with `git revert -m 1 <V4 merge SHA>` through the merge queue. The item field is additive and needs no database migration.
+
+## Reassessment of uncertain Bridge replies
+
+The fourth review of d041c1ca reproduced two cases where a sent request could change Bridge or vMix while Studio still trusted its previous reading. A fresh read-only Codex Cloud reassessment reproduced both on the exact draft and confirmed the shared rule. An unknown outcome retires the affected evidence until a fresh reading or accepted action establishes it again.
+
+A malformed 401 or 403 retires the old cue's ownership of its player. A genuine token or origin refusal keeps it. An uncertain folder choice invalidates outstanding folder reads in the same pairing across tabs and leaves the selection unconfirmed. The same invalidation applies when the choice reply is lost or malformed. Cancellation and definitive refusal keep the previous reading.
+
+After #2380 landed as c0bc989f, the merge retained both sets of tests and carried the current pairing guard through the new action wrapper. The new Windows Node regressions reproduced both failures before the repair. The tests cover genuine refusals, old Pause, Resume and Out after an uncertain replacement, successful Take recovery, and fresh folder reads after an uncertain publication.

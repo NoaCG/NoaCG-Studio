@@ -10,6 +10,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import './lib/tsResolve.mjs';
 
 const { runAndRecord, runVmixAndRecord } = await import('../src/control/serverVerbs.ts');
 const { throughPlaces } = await import('../src/control/serverPlayout.ts');
@@ -353,4 +354,47 @@ test('a vMix pairing change after the reply guard and before the ownership fold 
   assert.equal(result.ok, false);
   assert.deepEqual(result.accepted, []);
   assert.deepEqual(r.h.store.ownership.get().onAir, {});
+});
+
+test('queued vMix transport cannot reach a replacement after a malformed authorization reply', async (t) => {
+  const { actVmixMedia, PLAYOUT_DEFAULTS } = await import('../src/control/playoutLink.ts');
+  for (const status of [401, 403]) {
+    await t.test('HTTP ' + status, async (t) => {
+      const rig = vmixRig();
+      const entered = Promise.withResolvers();
+      const reply = Promise.withResolvers();
+      const settings = { ...PLAYOUT_DEFAULTS, agentToken: 'fixture-token' };
+      let loseReply = true;
+      t.mock.method(globalThis, 'fetch', async (url, options) => {
+        if (new URL(url).pathname === '/health') {
+          return Response.json({ ok: true, agent: 'noacg-bridge', v: 2, version: '0.11.0', adapters: ['vmix'], features: ['vmix-media'] });
+        }
+        const { action } = JSON.parse(options.body);
+        const result = rig.accept(action);
+        if (loseReply && action.cueId === rig.b.id && action.verb === 'take') {
+          entered.resolve();
+          await reply.promise;
+          return new Response('{', { status });
+        }
+        return Response.json({ v: 2, ok: true, raw: 'FUNCTION OK', generation: result.generation, session: result.session, instance: result.instance });
+      });
+      rig.h.io.act = (_, action) => actVmixMedia(settings, action, () => true);
+      assert.equal((await rig.press(rig.a, 'take')).ok, true);
+      assert.equal((await rig.press(rig.sound, 'take')).ok, true);
+      const replacement = rig.press(rig.b, 'take');
+      await entered.promise;
+      const stale = ['pause', 'resume', 'out'].map(verb => rig.press(rig.a, verb));
+      reply.resolve();
+      assert.equal((await replacement).ok, false);
+      assert.deepEqual((await Promise.all(stale)).map(result => result.ok), [false, false, false]);
+      assert.deepEqual(rig.sent, [['clips', 'take', 'a'], ['audio', 'take', 'sound'], ['clips', 'take', 'b']]);
+      assert.equal(rig.selected.get('clips'), 'b');
+      assert.equal(rig.h.store.ownership.get().onAir[rig.clips.id], undefined);
+      assert.equal(rig.h.store.ownership.get().onAir[rig.audio.id].cueId, rig.sound.id);
+      loseReply = false;
+      assert.equal((await rig.press(rig.b, 'take')).ok, true);
+      assert.equal((await rig.press(rig.b, 'pause')).ok, true);
+      assert.equal(rig.h.store.ownership.get().onAir[rig.clips.id].cueId, rig.b.id);
+    });
+  }
 });

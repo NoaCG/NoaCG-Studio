@@ -1184,13 +1184,15 @@ type VmixActionResult = PlayoutResult & { unknownAction?: true; browserAdded?: t
 /** vMix output controls depend on an observed result, so validate this adapter's wire replies. */
 function readVmixReply(
   settings: PlayoutSettings, call: Call, route: VmixRoute, loading = false, player = false,
-): PlayoutReply & { result: VmixActionResult } {
+): PlayoutReply & { result: VmixActionResult; folderUncertain?: true } {
+  const choosingFolder = route === '/vmix/choose-folder';
   const unknownAction = player
     ? 'The vMix action result is unknown. Check the player before trying again.'
     : 'The vMix action result is unknown. Check the overlay before trying again.';
   if (!('http' in call)) {
     const { result } = readReply(settings, call, 'vMix');
-    return { result: route === '/act' ? { ...result, detail: `${result.detail} ${unknownAction}`, unknownAction: true } : result };
+    if (route === '/act') return { result: { ...result, detail: `${result.detail} ${unknownAction}`, unknownAction: true } };
+    return choosingFolder ? { result, folderUncertain: true } : { result };
   }
   const { http, body, bodyKind } = call;
   if ((http === 401 || http === 403) && (bodyKind === 'empty' || bodyKind === 'null')) {
@@ -1199,7 +1201,9 @@ function readVmixReply(
   const current = bodyKind === 'object' && body.v === PLAYOUT_V;
   if (current && body.ok === false && hasOnlyPayloadFields(body) && validVmixError(route, http, body.error, loading && !player)) {
     const reply = readReply(settings, call, 'vMix');
-    if (route !== '/act') return reply;
+    if (route !== '/act') {
+      return choosingFolder && body.error.code === 'uncertain' ? { ...reply, folderUncertain: true } : reply;
+    }
     const result: VmixActionResult = { ...reply.result };
     if (http === 502 || body.error.code === 'uncertain') result.unknownAction = true;
     if (body.error.browserAdded) result.browserAdded = true;
@@ -1228,10 +1232,10 @@ function readVmixReply(
       return readReply(settings, call, 'vMix');
     }
   }
+  if (route === '/act') return { result: { state: 'bridge', detail: unknownAction, unknownAction: true } };
   return {
-    result: route === '/act'
-      ? { state: 'bridge', detail: unknownAction, unknownAction: true }
-      : { state: 'bridge', detail: 'NoaCG Bridge did not return a valid vMix reading. Try again.' },
+    result: { state: 'bridge', detail: 'NoaCG Bridge did not return a valid vMix reading. Try again.' },
+    ...(choosingFolder ? { folderUncertain: true } : {}),
   };
 }
 
@@ -1351,11 +1355,12 @@ export async function listVmixMedia(settings: PlayoutSettings, path = ''): Promi
 export async function vmixMediaFolder(settings: PlayoutSettings, choose = false): Promise<{
   result: PlayoutResult; folder?: string; cancelled?: true;
 }> {
-  const { result, body } = await vmixMediaRoute(settings, choose ? '/vmix/choose-folder' : '/studio');
-  if (result.state !== 'ok') return { result };
-  if (typeof window !== 'undefined' && choose && !body?.cancelled && vmixPairing(settings) === vmixPairing(loadPlayoutSettings())) {
+  const { result, body, folderUncertain } = await vmixMediaRoute(settings, choose ? '/vmix/choose-folder' : '/studio');
+  const folderMayHaveChanged = choose && (folderUncertain || (result.state === 'ok' && !body?.cancelled));
+  if (typeof window !== 'undefined' && folderMayHaveChanged && vmixPairing(settings) === vmixPairing(loadPlayoutSettings())) {
     announceVmixMediaFolder(settings);
   }
+  if (result.state !== 'ok') return { result };
   return { result, folder: body?.mediaFolder, cancelled: body?.cancelled };
 }
 
@@ -1377,7 +1382,8 @@ export async function actVmixMedia(
   const { result } = readVmixReply(settings, call, '/act', action.verb === 'take', true);
   // vMix can refuse cleanup after the requested clip has started. A failed dispatched action
   // cannot authorize transport on the previous cue without a fresh accepted Take.
-  if (result.state !== 'ok' && (!('http' in call) || (call.http !== 401 && call.http !== 403))) {
+  const refusedBeforeDispatch = 'http' in call && (call.http === 401 || call.http === 403) && !result.unknownAction;
+  if (result.state !== 'ok' && !refusedBeforeDispatch) {
     return { ...result, playerUncertain: true };
   }
   return result;
