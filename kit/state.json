@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "session": "/root/v3_builder",
-      "head": "75556c972ca0334ff1a4970ff3762eeb71c76684",
       "phase": "v3",
-      "note": "Full independent B+ found audio readiness lost during cleanup. Fresh rule-model reassessment completed; shared Take/Resume observation rule published. Bounded correction precedes real-device proof. Remote remains Rules-only.",
-      "step": "build",
-      "pr": 2368
+      "note": "Shared audio correction verified in fresh full review. B+ for media path/root sequencing, V2 state isolation and shortTitle authority. Corrections recorded under Rules before scoped repair. Remote remains Rules-only.",
+      "head": "b326ceb9579fd2ac61394b76fde5618da805ac05",
+      "pr": 2368,
+      "session": "/root/v3_builder",
+      "step": "build"
     }
   ],
   "owner": [],
