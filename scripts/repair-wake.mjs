@@ -224,24 +224,25 @@ function alarmBody({ owner, now, unattended, attended = [] }) {
 }
 
 /**
- * Rule 8's memory: the open alarm issue, and the keys it and the newest closed one list. A closed
- * issue's keys are remembered too, so an owner who closes the alarm by hand is not alarmed again
- * for the same failures. Only a closed issue updated in the last two days can matter: a key it
- * holds is new-alarm material only while its failure is under a day old (rule 7), and closing it
- * updated it after that. `complete` is false when those two days could not all be read; the
- * check then raises no new alarm, since an unread issue could already hold it.
+ * Rule 8's memory: the open alarm issue, and the keys it and every alarm issue closed in the last
+ * two days list. Closed issues' keys are remembered too, so an owner who closes the alarm by hand,
+ * even more than once, is not alarmed again for the same failures. Only an issue updated in the
+ * last two days can matter: a key is new-alarm material only while its failure is under a day old
+ * (rule 7), and closing the issue updated it after that. `complete` is false when those two days
+ * could not all be read (three pages); the check then raises no new alarm, since an unread issue
+ * could already hold it.
  */
 export function readAlarm({ gh, now, repo = REPO }) {
   const found = findAlarmIssue(RED_ISSUE, { repo, gh });
   const since = new Date(at(now) - 2 * WINDOW_HOURS * 60 * MINUTE).toISOString();
-  let closed = null, complete = false;
-  for (let page = 1; page <= 3 && !closed; page++) {
+  const closed = [];
+  let complete = false;
+  for (let page = 1; page <= 3 && !complete; page++) {
     const list = JSON.parse(gh(['api', '-X', 'GET', `repos/${repo}/issues?state=closed&sort=updated&direction=desc&since=${since}&per_page=100&page=${page}`]) || '[]');
-    closed = list.find((i) => i.title === RED_ISSUE && !i.pull_request && trustedAuthor(i)) ?? null;
-    complete = Boolean(closed) || list.length < 100;
-    if (complete) break;
+    closed.push(...list.filter((i) => i.title === RED_ISSUE && !i.pull_request && trustedAuthor(i)));
+    complete = list.length < 100;
   }
-  return { found, complete, remembered: [...new Set([...keysIn(found?.body), ...keysIn(closed?.body)])] };
+  return { found, complete, remembered: [...new Set([...keysIn(found?.body), ...closed.flatMap((i) => keysIn(i.body))])] };
 }
 
 /** The listed part of an alarm body, without its header and check time. Pure. */

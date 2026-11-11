@@ -88,10 +88,9 @@ required changes, all taken).
    while its failure is the PR's red verdict, so it is never alarmed again, however its owner's
    comments come and go. A check that finds new unattended keys opens the issue (the assignment
    notifies) or adds one comment listing all of them (the assignee is notified once per check).
-   The keys of the newest closed alarm issue are remembered too: an owner who closes it by hand is
-   not alarmed again for the same failures, and a closed issue is reopened as a new one only for
-   a new failure. It is looked for among issues closed in the last two days, up to three pages;
-   unread memory raises no new alarm. A list that has not changed is not rewritten, and an alarm
+   The keys of every alarm issue closed in the last two days are remembered too: an owner who
+   closes it by hand, even more than once, is not alarmed again for the same failures, and a closed issue is reopened as a new one only for
+   a new failure. Those issues are read up to three pages; unread memory raises no new alarm. A list that has not changed is not rewritten, and an alarm
    whose assignment did not take is assigned again by later checks.
 9. **Withdrawal.** A complete check that finds none of the listed failures still a PR's red
    verdict closes the issue. A failure stops being one only by a new verdict (a push, a run, a
@@ -121,7 +120,8 @@ out after two days; a hand-closed alarm alarming again; more than 100 merge-grou
 check incomplete; a body rewritten on every check; CRLF bodies losing their sections. From the
 Codex review and the final `/so` (same class for the first): the closed alarm's memory read only
 50 closed issues; a failed assignment was never retried; a failed merge-group listing let an older
-red PR run raise a new alarm. Each is fixed with a test. One mutant survives as equivalent: marking
+red PR run raise a new alarm; and two hand-closed alarms with an incomplete check between them
+forgot the first one's failures. Each is fixed with a test. One mutant survives as equivalent: marking
 a PR uncertain when a remembered merge-group run cannot be re-read. That read only happens for a
 run over two days old, so any PR run it could be confused with failed over a day ago and raises
 nothing new anyway.

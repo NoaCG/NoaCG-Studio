@@ -314,6 +314,22 @@ test('rule 8: the closed alarm is found past the first page of closed issues; an
   assert.deepEqual(notices(busy), [], 'an unread closed alarm could already hold this failure');
 });
 
+test('rule 8: failures listed by any alarm closed by hand in the last two days stay remembered, across reopenings and incomplete checks', () => {
+  const t = '2026-11-11T10:00:00Z';
+  const fx = { prs: [{ number: 7, sha: 's' }], runs: [prRun({ id: 1, sha: 's', start: plus(t, -15), end: t })] };
+  const gh = fakeGitHub(fx);
+  check(gh, plus(t, 61));
+  gh.state.issues[0].state = 'closed'; // the owner closes alarm A, listing #7
+  // #7's comments cannot be read in the next check, which opens alarm B for #8.
+  fx.prs.push({ number: 8, sha: 'u' });
+  fx.runs.push(prRun({ id: 2, sha: 'u', start: plus(t, 50), end: plus(t, 60) }));
+  const broken = { ...gh, run: (args) => { if (/issues\/7\/comments/.test(args[3])) throw new Error('HTTP 502'); return gh.run(args); } };
+  check(broken, plus(t, 121));
+  gh.state.issues.find((i) => i.state === 'open').state = 'closed'; // and closes alarm B too
+  check(gh, plus(t, 141));
+  assert.deepEqual(notices(gh), ['open', 'open'], 'two failures, two alarms: #7 is not raised a third time');
+});
+
 test('rule 1: a new alarm needs an established verdict: with the merge-group listing unread, an older red PR run raises nothing', () => {
   const t = '2026-11-11T10:00:00Z';
   const fx = { prs: [{ number: 7, sha: 's' }], runs: [prRun({ id: 1, sha: 's', start: plus(t, -15), end: t })], groups: [groupRun({ id: 2, pr: 7, start: plus(t, 5), end: plus(t, 9), conclusion: 'success' })] };
