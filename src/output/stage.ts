@@ -15,6 +15,8 @@
 // commands, whoever wrote them (an operator today, a data connector later).
 
 import { composeDocument } from '../preview/composeDocument';
+import { measureDocument } from '../preview/measureDocument';
+import { createPlacer, PLACE_CAP_MS } from './placeOnOutput';
 import {
   postPreviewCmd,
   FRAME_HOLD_CAP_MS,
@@ -32,7 +34,7 @@ import {
 } from '../preview/previewProtocol';
 import type { ControlEventRow, OutputGraphicSpec, OutputPayload } from '../control/hostedControl';
 import type { ControlMessage } from '../control/controlModel';
-import { frameCss, isIdentity, readAppearance, styleKey, type AppliedAppearance } from '../control/cueAdjust';
+import { frameCss, isIdentity, MEASURE_QUALIFY, readAppearance, styleKey, type AppliedAppearance } from '../control/cueAdjust';
 import { facesCss } from '../control/cueStyle';
 import { readTypedWire, typedValuesOf } from '../model/ografTyped';
 import { mountForeignOgraf, type ForeignOgrafLayer, type ForeignOgrafOptions, type ForeignOgrafSpec, type OgrafReturn } from './foreignOgraf';
@@ -887,7 +889,7 @@ export function createOutputStage(
 
   /** Graphics whose data on this stage is a typed envelope's (E1.2a). */
   const typedAiring = new Set<string>();
-  const apply = (graphic: string, msg: ControlEventRow['msg']) => {
+  const applyNow = (graphic: string, msg: ControlEventRow['msg']) => {
     // A status row has no OGraf meaning either; ografCallFor drops whatever it cannot map.
     // TYPED DATA (E1.2a): an update's envelope values are the graphic's data as they are, never
     // strings; one this build cannot read sends no data at all (the output's gate refused it first).
@@ -990,6 +992,30 @@ export function createOutputStage(
     post(graphic, { cmd: 'state' });
   };
 
+  /** A TAKE'S PRESET, RESOLVED HERE FROM THIS STAGE'S OWN MEASUREMENT (./placeOnOutput.ts, W1): a
+   *  NoaCG graphic's commands wait behind a Take carrying a place hint until its values are measured
+   *  in a frame of their own, capped; every other command goes straight to `applyNow`. Off air
+   *  (a restart's catch-up) the place is applied as sent. */
+  const placer = createPlacer<ControlEventRow['msg']>({
+    apply: (graphic, msg) => applyNow(graphic, msg),
+    canPlace: (graphic) => !offAir && !destroyed && frames.has(graphic) && !foreign.has(graphic) && !waitingOgraf.has(graphic),
+    measure: (graphic, values, look) => {
+      const frame = frames.get(graphic);
+      if (!frame) return Promise.resolve(null);
+      const template = templateFromSpec(frame.spec);
+      const styled = !!look && (!!look.vars || !!look.fonts);
+      return measureDocument({
+        srcdoc: composeDocument(template, { liveControl: true }),
+        size: template.resolution,
+        values,
+        style: styled ? { vars: look.vars ?? null, faces: facesCss(look.fonts, (src) => assetData(graphic, src)) } : null,
+        capMs: PLACE_CAP_MS,
+        invisible: true,
+      }, MEASURE_QUALIFY);
+    },
+    defer: (run) => void setTimeout(run, 0),
+  });
+
   /** THE WARM PASS AND READY CHECK, on any document, current or prepared. */
   const warmFrame = (frame: Frame, data: Record<string, string> | null) =>
     new Promise<PreviewReadyMessage | null>((resolve) => {
@@ -1019,7 +1045,7 @@ export function createOutputStage(
       quiet = on;
       for (const key of frames.keys()) post(key, { cmd: 'sound-quiet', on });
     },
-    apply,
+    apply: placer.apply,
     requestState: (graphic) => {
       // Polls are droppable pre-load — queueing them would just replay stale asks.
       if (frames.get(graphic)?.loaded) post(graphic, { cmd: 'state' });
@@ -1123,6 +1149,7 @@ export function createOutputStage(
       else if (!frames.has(spec.key)) adopt(makeFrame(spec, laterLayerOf(spec), true));
     },
     remove: (graphic) => {
+      placer.drop(graphic);
       // A foreign package leaves with its instance: every call still out on it reads `gone`.
       foreign.get(graphic)?.destroy();
       foreign.delete(graphic);
@@ -1144,7 +1171,7 @@ export function createOutputStage(
       dispose(frame);
     },
     destroy: () => {
-      destroyed = true; encoded.clear(); soundDeadlines.forEach(clearTimeout); soundDeadlines.clear();
+      destroyed = true; placer.clear(); encoded.clear(); soundDeadlines.forEach(clearTimeout); soundDeadlines.clear();
       for (const frame of [...frames.values(), ...staged]) frame.budgetKeys.forEach((key) => budget.release(key));
       window.removeEventListener('message', onMessage);
       window.removeEventListener('resize', rescale);

@@ -4,7 +4,7 @@
 // descriptors drive every surface that edits a field: the in-app Data and Control panels
 // (through the shared components/fields control), and the standalone controlpanel.html export.
 
-import type { AppliedAppearance } from './cueAdjust';
+import type { AppliedAppearance, PlaceHint } from './cueAdjust';
 import type { SpxField } from '../model/types';
 import type { FieldDescriptor, FieldKind } from '../model/fieldModel';
 import type { TypedActionCall, TypedValues } from '../model/ografTyped';
@@ -852,7 +852,10 @@ export type ControlMessage =
   // values in E1's envelope, beside `data` (then empty) and never inside it. Sent only to outputs
   // that say they read it (model/ografTyped.ts `typedOutputsRefusal`); an output that cannot read
   // it refuses the command whole and never applies `data` in its place.
-  | { t: 'update'; data: Record<string, string>; appearance?: AppliedAppearance; typed?: TypedValues }
+  // `place` (live-publishing spec W1): a Take's preset still to resolve, beside the `appearance` its
+  // page's last box gives (control/cueAdjust.ts `PlaceHint`); a receiver that does not know it
+  // applies `appearance` as it is.
+  | { t: 'update'; data: Record<string, string>; appearance?: AppliedAppearance; place?: PlaceHint; typed?: TypedValues }
   | { t: 'play' }
   | { t: 'stop'; sound?: false }
   | { t: 'next' }

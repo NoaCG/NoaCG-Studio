@@ -9,8 +9,9 @@
 // changes when the list of unsent fields does and not with every character. Whether a save is owed
 // and its idle timer are this module's: nothing draws them.
 //
-// What a verb reads: it awaits `flush` and then reads `view`, which reads the part as it stands at
-// that moment, never a render's copy. While the save is out the draft stays and `view` answers it;
+// What a verb reads: `view`, which reads the part as it stands at that moment, never a render's
+// copy. A Take path reads it at once and calls `flush` after its send (live-publishing W1); an
+// Update or a snap awaits `flush` first. While the save is out the draft stays and `view` answers it;
 // once the save is confirmed the draft goes and `view` answers the newest record the page rendered.
 // The history hands the page that record when the store accepts the write, before it confirms it,
 // so the record holds the text unless the store confirms before React renders (as the page's old

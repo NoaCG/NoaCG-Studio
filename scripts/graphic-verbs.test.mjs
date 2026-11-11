@@ -433,33 +433,38 @@ test('after the session ends nothing more is sent, local or published, and the p
 
 // ── Take graphic, and Re-take (§4.2 rows 1 and 3) ─────────────────────────────────────────────
 
-test('Take waits for the save, then reads the draft and the bound values as they stand after the wait', async () => {
+test('W1: a Take sends at once with the draft and the bound values from memory, and saves once its send is answered', async () => {
   const r = rig({ flushHeld: true });
   const cue = graphicCue('c1', 'Strap', { f0: 'stored', f1: 'kept' });
-  r.draft.c1 = { f0: 'typed before' };
-  r.resolved.Strap = { f2: '1-0' };
+  r.draft.c1 = { f0: 'typed, not saved' };
+  r.resolved.Strap = { f2: '3-2' };
   const taking = r.verbs.take(cue);
   await settle();
-  // Nothing goes before the save has landed.
-  assert.equal(r.sends.length, 0);
-  // Typed and moved during the wait: the Take carries what is newest.
-  r.draft.c1 = { f0: 'typed during' };
-  r.resolved.Strap = { f2: '3-2', f0: 'bound wins' };
-  r.flushes[0].resolve();
-  await settle();
+  // Sent with no save landed: the save is the page's own work, and a Take never waits on it.
   assert.deepEqual(sentAs(r.sends[0].batches), [
     [
-      { graphic: 'Strap', msg: { t: 'update', data: { f0: 'bound wins', f1: 'kept', f2: '3-2' } } },
+      { graphic: 'Strap', msg: { t: 'update', data: { f0: 'typed, not saved', f1: 'kept', f2: '3-2' } } },
       { graphic: 'Strap', msg: { t: 'play' } },
       { graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'oid-1' } },
     ],
   ]);
+  assert.equal(r.flushes.length, 0, 'the save has not started while the send is out');
   // The marker moves on the answer, not before it.
   assert.deepEqual(r.liveCue(), {});
   r.sends[0].answer.resolve({ ...noneLeft });
   await taking;
   assert.deepEqual(r.liveCue(), { Strap: 'c1' });
+  assert.equal(r.flushes.length, 1, 'then it saves, and a save still held holds nothing');
   assert.deepEqual(r.log.filter(([k]) => k === 'clearMisses' || k === 'noteStep'), [['clearMisses', 'c1'], ['noteStep', 'c1']]);
+});
+
+test('W1: a Take whose send fails still saves the draft afterwards', async () => {
+  const r = rig({ flushHeld: true });
+  const taking = r.verbs.take(graphicCue('c1', 'Strap'));
+  await settle();
+  r.sends[0].answer.reject(new Error('offline'));
+  await taking;
+  assert.equal(r.flushes.length, 1);
 });
 
 test('Take marks nothing for a graphic the send left alone: skipped or superseded', async () => {
@@ -524,13 +529,10 @@ test('a Take whose answer comes after the session ended changes nothing here; on
   await taking;
   assert.deepEqual(r.liveCue(), {});
   assert.equal(r.moves(), 0);
-  // The next press: the save wait ends after the end, and the send refuses.
+  // A press after the end: the send refuses (W1: there is no save wait for it to end during).
   const r2 = rig({ flushHeld: true });
-  const later = r2.verbs.take(graphicCue('c1', 'Strap'));
-  await settle();
   r2.session.dispose();
-  r2.flushes[0].resolve();
-  await later;
+  await r2.verbs.take(graphicCue('c1', 'Strap'));
   assert.equal(r2.sends.length, 0);
   assert.deepEqual(r2.notes, ['This production is closed, so nothing was sent.']);
 });
@@ -757,38 +759,92 @@ test('Update waits for the save and sends the full set, bound values over the dr
   assert.equal(r.moves(), 0);
 });
 
-test('Take and Update carry the place and size read after the wait; without one their update is as it was (playout adjustments)', async () => {
+test('a Take carries the place and size read from memory at the press, with a place hint when the page gives one; an Update reads them after its wait (playout adjustments, W1)', async () => {
   const before = { v: 1, frame: { dx: 10, dy: 0, s: 1, ox: 0, oy: 0 } };
   const after = { v: 1, frame: { dx: 20, dy: 0, s: 0.95, ox: 120, oy: 961 } };
+  const hint = { v: 1, place: 'br', frame: { width: 1920, height: 1080 }, stage: { width: 1920, height: 1080 } };
   const r = rig({ flushHeld: true });
   let look = before;
+  let place;
+  r.page.takeAppearanceOf = (cue, graphic) => (cue.id === 'c1' && graphic === 'Strap' ? { appearance: look, ...(place ? { place } : {}) } : {});
   r.page.appearanceOf = (cue, graphic) => (cue.id === 'c1' && graphic === 'Strap' ? look : undefined);
   const cue = graphicCue('c1', 'Strap', { f0: 'A' });
   const taking = r.verbs.take(cue);
   await settle();
-  // A nudge written while the Take waits for its save: the Take carries the newer one.
-  look = after;
-  r.flushes[0].resolve();
-  await settle();
-  assert.deepEqual(sentAs(r.sends[0].batches[0][0]), { graphic: 'Strap', msg: { t: 'update', data: { f0: 'A' }, appearance: after } });
+  assert.deepEqual(sentAs(r.sends[0].batches[0][0]), { graphic: 'Strap', msg: { t: 'update', data: { f0: 'A' }, appearance: before } }, 'at the press, no save waited for');
   r.sends[0].answer.resolve({ ...noneLeft });
   await taking;
+  r.flushes[0].resolve();
+  // A box for other values: the Take carries the hint beside the place the last box gives.
+  place = hint;
+  const placed = [];
+  const latest = [];
+  r.page.placeTaken = (c, graphic, sent, values, hinted, isLatest) => { placed.push([c.id, graphic, sent, values, hinted]); latest.push(isLatest); };
+  // Typed and not saved: the page settles the place from the values the Take sent, not the record.
+  r.draft.c1 = { f0: 'Typed longer, not saved' };
+  const hinted = r.verbs.take(cue);
+  await settle();
+  assert.deepEqual(sentAs(r.sends[1].batches[0][0]), { graphic: 'Strap', msg: { t: 'update', data: { f0: 'Typed longer, not saved' }, appearance: before, place: hint } });
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await hinted;
+  assert.deepEqual(placed, [['c1', 'Strap', before, { f0: 'Typed longer, not saved' }, hint]], 'once it reached the output, the page settles what the outputs resolved, from the values sent');
+  assert.equal(latest[0](), true);
+  // A second hinted Take of the same graphic, sending the same stale look with other values: only
+  // its measurement is what the outputs show, so the first one's may no longer settle the look.
+  r.draft.c1 = { f0: 'Other' };
+  const again = r.verbs.take(cue);
+  await settle();
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await again;
+  assert.deepEqual(latest.map((l) => l()), [false, true], 'the newer hinted Take is the one that settles the look');
+  delete r.draft.c1;
+  r.flushes[1].resolve();
+  r.flushes[2].resolve();
+  place = undefined;
+  // A send that sets no look (a figure, a +1) leaves the measurement standing.
+  const figure = r.verbs.send([[{ graphic: 'Strap', msg: { t: 'update', data: { f0: 'B' } } }]], 'Update');
+  await settle();
+  r.sends[3].answer.resolve({ ...noneLeft });
+  await figure;
+  assert.equal(latest[1](), true, 'a send that sets no look leaves the measurement standing');
+  // An Update is not a Take path: it waits for its save, then reads what is newest.
   const updating = r.verbs.update(sel({ editingCue: cue, selectedGraphic: 'Strap', editingIsLive: true }));
   await settle();
-  r.flushes[1].resolve();
+  assert.equal(r.sends.length, 4, 'nothing goes while the Update waits for its save');
+  look = after;
+  r.flushes[3].resolve();
   await settle();
-  assert.deepEqual(sentAs(r.sends[1].batches), [[{ graphic: 'Strap', msg: { t: 'update', data: { f0: 'A' }, appearance: after } }]]);
-  r.sends[1].answer.resolve({ ...noneLeft });
+  assert.deepEqual(sentAs(r.sends[4].batches), [[{ graphic: 'Strap', msg: { t: 'update', data: { f0: 'A' }, appearance: after } }]]);
+  // Any later send that sets the graphic's look, hinted or not, stands over a pending measurement.
+  assert.equal(latest[1](), false, 'a later Update that sets the look stands over the measurement');
+  r.sends[4].answer.resolve({ ...noneLeft });
   await updating;
   // A cue the page has nothing for: the update carries no field at all.
   look = undefined;
-  const plain = r.verbs.update(sel({ editingCue: cue, selectedGraphic: 'Strap', editingIsLive: true }));
+  place = undefined;
+  const plain = r.verbs.take(cue);
   await settle();
-  r.flushes[2].resolve();
-  await settle();
-  assert.equal('appearance' in r.sends[2].batches[0][0].msg, false);
-  r.sends[2].answer.resolve({ ...noneLeft });
+  assert.equal('appearance' in r.sends[5].batches[0][0].msg, false);
+  assert.equal('place' in r.sends[5].batches[0][0].msg, false);
+  r.sends[5].answer.resolve({ ...noneLeft });
   await plain;
+});
+
+test('W1: a Take that takes a package off its layer carries no place hint, so the layer is never left blank while an output measures', async () => {
+  const look = { v: 1, frame: { dx: 10, dy: 0, s: 1, ox: 0, oy: 0 } };
+  const hint = { v: 1, place: 'br', frame: { width: 1920, height: 1080 }, stage: { width: 1920, height: 1080 } };
+  const r = rig({ liveCue: { Pkg: 'p1' } });
+  r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Pkg: 'p1' } } }));
+  r.page.layerPeers = () => ['Pkg'];
+  r.page.takeAppearanceOf = () => ({ appearance: look, place: hint });
+  const taking = r.verbs.take(graphicCue('c1', 'Strap', { f0: 'A' }));
+  await settle();
+  const update = r.sends[0].batches.flat().find((i) => i.graphic === 'Strap' && i.msg.t === 'update');
+  assert.deepEqual(sentAs(update).msg.appearance, look, 'the place sent');
+  assert.equal('place' in update.msg, false);
+  assert.ok(r.sends[0].batches.flat().some((i) => i.graphic === 'Pkg' && i.msg.t === 'stop'), 'the package goes off');
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await taking;
 });
 
 test('a Take waits for a box still being measured, then carries the placement it gives', async () => {
@@ -924,20 +980,44 @@ test('Update of a cue not on air sends nothing; a server cue updates through the
 
 // ── ± bump (§4.2 row 7) ───────────────────────────────────────────────────────────────────────
 
-test('an unbound bump counts from what air was sent, sends that one field, and writes the cue once accepted', async () => {
+test('an unbound bump counts from what air was sent, sends that one field at once, saves after it, and writes the cue once accepted and saved (W1)', async () => {
   const r = rig({ flushHeld: true, aired: { Strap: { f3: '7' } } });
   const cue = graphicCue('c1', 'Strap', { f3: '1', f0: 'Name' });
   const bumping = r.verbs.bump(sel({ editingCue: cue, selectedGraphic: 'Strap', editingIsLive: true }), 'f3', 1);
   await settle();
-  // The save comes first.
-  assert.deepEqual(r.log, [['flush']]);
-  r.flushes[0].resolve();
-  await settle();
-  assert.deepEqual(r.log.slice(1), [['send', 'Strap:update']]);
+  // The send goes first; the save waits for its answer.
+  assert.deepEqual(r.log, [['send', 'Strap:update']]);
   assert.deepEqual(sentAs(r.sends[0].batches[0][0].msg), { t: 'update', data: { f3: '8' } });
   r.sends[0].answer.resolve({ ...noneLeft });
+  await settle();
+  assert.deepEqual(r.log.filter(([k]) => k === 'flush' || k === 'send'), [['send', 'Strap:update'], ['flush']]);
+  // The press is done at its answer (the next press waits for no save); its figure is written only
+  // once its own save has landed, as before W1.
   await bumping;
+  assert.deepEqual(r.log.filter(([k]) => k === 'writeCue'), []);
+  r.flushes[0].resolve();
+  await settle();
   assert.deepEqual(r.log.filter(([k]) => k === 'writeCue'), [['writeCue', 'c1', '{"f3":"8"}']]);
+});
+
+test('W1: two fast unbound +1s with every save held: the second goes once the first is answered, never waiting for its save, and both count', async () => {
+  const r = rig({ flushHeld: true, aired: { Strap: { f3: '7' } } });
+  const cue = graphicCue('c1', 'Strap', { f3: '7' });
+  const view = sel({ editingCue: cue, selectedGraphic: 'Strap', editingIsLive: true });
+  const first = r.verbs.bump(view, 'f3', 1);
+  const second = r.verbs.bump(view, 'f3', 1);
+  await settle();
+  assert.equal(r.sends.length, 1, 'the second waits for the first press (kept order)');
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await first;
+  await settle();
+  assert.equal(r.sends.length, 2, 'and goes at its answer, the first press\'s save still held');
+  assert.deepEqual(r.sends.map((x) => x.batches[0][0].msg.data), [{ f3: '8' }, { f3: '9' }], 'both count');
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await second;
+  for (const f of r.flushes) f.resolve();
+  await settle();
+  assert.deepEqual(r.log.filter(([k]) => k === 'writeCue').at(-1), ['writeCue', 'c1', '{"f3":"9"}'], 'the cue ends at the second figure');
 });
 
 test('an unbound bump with nothing aired counts from the cue as stored, never a draft staged in PREP, then from 0', async () => {
@@ -956,16 +1036,12 @@ test('an unbound bump with nothing aired counts from the cue as stored, never a 
   await two;
 });
 
-test('a bound bump moves the tree, counted from the tree after the save, and writes nothing into the cue', async () => {
+test('a bound bump moves the tree at once, counted from the tree at the press, saves after it, and writes nothing into the cue (W1)', async () => {
   const tree = { Score: { home: '2' } };
   const r = rig({ flushHeld: true, bound: { Score: { home: 'match.home' } }, tree });
   const bumping = r.verbs.bump(sel({ editingCue: graphicCue('s1', 'Score'), selectedGraphic: 'Score', editingIsLive: true }), 'home', 1);
-  await settle();
-  // A feed moved the figure during the save: the press counts from it.
-  tree.Score.home = '5';
-  r.flushes[0].resolve();
   await bumping;
-  assert.deepEqual(r.log.filter(([k]) => k !== 'flush'), [['patch', 'match.home=6']]);
+  assert.deepEqual(r.log, [['patch', 'match.home=3'], ['flush']]);
   assert.equal(r.sends.length, 0);
 });
 
@@ -1059,20 +1135,22 @@ test('Next sends at once on a live layer and moves no marker; a server cue goes 
 const goal = { event: 'goal', adjust: { home: 1 } };
 const reveal = { event: 'reveal', payload: ['answer'] };
 
-test('an event waits for the save, carries the ON-AIR cue as typed after the wait, and moves an adjusted figure from air', async () => {
+test('an event goes at once with the ON-AIR cue as typed, moves an adjusted figure from air, and saves after its send (W1)', async () => {
   const airCue = graphicCue('a1', 'Score', { answer: 'stored', home: '0' });
   const r = rig({ flushHeld: true, aired: { Score: { home: '4' } } });
+  r.draft.a1 = { answer: 'typed' };
   const view = sel({ selectedGraphic: 'Score', selectedLayerLive: true, airCue });
   const pressing = r.verbs.event(view, { event: 'both', adjust: { home: 1 }, payload: ['answer'] });
   await settle();
-  r.draft.a1 = { answer: 'typed' };
-  r.flushes[0].resolve();
-  await settle();
-  assert.deepEqual(r.log.slice(1), [['send', 'Score:event']]);
+  assert.deepEqual(r.log, [['send', 'Score:event']]);
   assert.deepEqual(sentAs(r.sends[0].batches[0][0].msg), { t: 'event', event: 'both', payload: { answer: 'typed' } });
   r.sends[0].answer.resolve({ ...noneLeft });
   await pressing;
-  assert.deepEqual(r.log.filter(([k]) => k === 'writeLive' || k === 'patch'), [['writeLive', 'a1', '{"home":"5"}'], ['patch', '']]);
+  assert.equal(r.flushes.length, 1, 'the save starts once the send is answered');
+  assert.deepEqual(r.log.filter(([k]) => k === 'writeLive'), [], 'the figure waits for the press\'s own save');
+  r.flushes[0].resolve();
+  await settle();
+  assert.deepEqual(r.log.filter(([k]) => k === 'writeLive' || k === 'patch'), [['patch', ''], ['writeLive', 'a1', '{"home":"5"}']]);
 });
 
 test('an event with no payload sends the bare event, and nothing on a layer that is not up', async () => {
@@ -1274,31 +1352,32 @@ test('a press sends with the page of its press, even when a later render changed
   await updating;
 });
 
-test('a press whose save wait ends after the production closed moves nothing here; only All out still clears what it named', async () => {
-  // An unbound bump: the cue is not written alone.
+test('a press answered, or pressed, after the production closed moves nothing here; only All out still clears what it named (W1)', async () => {
+  // An unbound bump answered after the end: the cue is not written.
   const a = rig({ flushHeld: true });
   const bumping = a.verbs.bump(sel({ editingCue: graphicCue('c1', 'Strap'), selectedGraphic: 'Strap', editingIsLive: true }), 'f3', 1);
   await settle();
   a.session.dispose();
+  a.sends[0].answer.resolve({ ...noneLeft });
+  await settle();
   a.flushes[0].resolve();
   await bumping;
-  assert.deepEqual(a.log, [['flush']]);
-  // A bound bump: the tree is not written.
+  assert.equal(a.log.filter(([k]) => k === 'writeCue').length, 0);
+  // A bound bump pressed after the end: the tree is not written.
   const b = rig({ flushHeld: true, bound: { Score: { home: 'match.home' } }, tree: { Score: { home: '2' } } });
-  const bound = b.verbs.bump(sel({ editingCue: graphicCue('s1', 'Score'), selectedGraphic: 'Score', editingIsLive: true }), 'home', 1);
-  await settle();
   b.session.dispose();
-  b.flushes[0].resolve();
-  await bound;
+  await b.verbs.bump(sel({ editingCue: graphicCue('s1', 'Score'), selectedGraphic: 'Score', editingIsLive: true }), 'home', 1);
   assert.equal(b.log.filter(([k]) => k === 'patch').length, 0);
-  // An adjust event: the moved figure is not written into the cue.
+  // An adjust event answered after the end: the moved figure is not written into the cue.
   const c = rig({ flushHeld: true, aired: { Score: { home: '4' } } });
   const pressing = c.verbs.event(sel({ selectedGraphic: 'Score', selectedLayerLive: true, airCue: graphicCue('a1', 'Score') }), goal);
   await settle();
   c.session.dispose();
+  c.sends[0].answer.resolve({ ...noneLeft });
+  await settle();
   c.flushes[0].resolve();
   await pressing;
-  assert.equal(c.log.filter(([k]) => k === 'writeLive' || k === 'send').length, 0);
+  assert.equal(c.log.filter(([k]) => k === 'writeLive').length, 0);
   // All out pressed before the end still clears what it named, and its answer moves nothing here.
   const d = rig({ liveCue: { Strap: 'c1' } });
   d.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Strap: 'c1' } } }));
@@ -1322,12 +1401,10 @@ test('a press whose save wait ends after the production closed moves nothing her
 });
 
 test('the gaps the assessment found: what each press keeps, counts and says', async (t) => {
-  await t.test('a Take sends with the page of its press across the save wait', async () => {
+  await t.test('a Take sends with the page of its press, whatever the page becomes after it (W1: no save wait before it)', async () => {
     const r = rig({ flushHeld: true });
     const taking = r.verbs.take(graphicCue('c1', 'Strap'));
-    await settle();
     r.state.sender = { ...r.sender, published: 'slug-2' };
-    r.flushes[0].resolve();
     await settle();
     assert.equal(r.sends[0].slug, 'slug-1');
     r.sends[0].answer.resolve({ ...noneLeft });
@@ -1571,30 +1648,37 @@ test('± on a live candidate\'s field sends nothing and writes nothing: it comes
   assert.deepEqual(r.notes, ['F1 shows a live candidate, so it comes from its source.']);
 });
 
-test('± on a field of the candidate the layer airs sends nothing, and a Take landing during the save wait is asked about again (E7.1)', async () => {
+test('± on a field of the candidate the layer airs sends nothing, and a candidate landing while the press waits behind the one before it is asked about again (E7.1)', async () => {
   // Not awaited: a send would wait on its answer, so the test reads what left after a tick.
   const r = rig({ liveCue: { Strap: 'plain' }, airedFields: { Strap: ['f1'] } });
   void r.verbs.bump(sel({ editingCue: graphicCue('plain', 'Strap', { f1: '5' }), selectedGraphic: 'Strap', editingIsLive: true }), 'f1', 1);
   await settle();
   assert.deepEqual([r.sends.length, r.notes], [0, ['F1 shows a live candidate, so it comes from its source.']]);
+  // W1 left no save wait before a send; the wait for the press before it on the graphic stays.
   const fields = {};
-  const w = rig({ flushHeld: true, liveCue: { Strap: 'plain' }, airedFields: fields });
-  const bumping = w.verbs.bump(sel({ editingCue: graphicCue('plain', 'Strap', { f1: '5' }), selectedGraphic: 'Strap', editingIsLive: true }), 'f1', 1);
+  const w = rig({ liveCue: { Strap: 'plain' }, airedFields: fields });
+  const v = sel({ editingCue: graphicCue('plain', 'Strap', { f1: '5', f2: '1' }), selectedGraphic: 'Strap', editingIsLive: true });
+  const before = w.verbs.bump(v, 'f2', 1);
+  await settle();
+  const bumping = w.verbs.bump(v, 'f1', 1);
   await settle();
   fields.Strap = ['f1'];
-  w.flushes[0].resolve();
-  await settle();
-  void bumping;
-  assert.deepEqual([w.sends.length, w.log.some(([k]) => k === 'writeCue')], [0, false], 'nothing sent or written');
+  w.sends[0].answer.resolve({ ...noneLeft });
+  await before;
+  await bumping;
+  assert.deepEqual([w.sends.length, w.log.filter(([k]) => k === 'writeCue').length], [1, 1], 'the second sends and writes nothing');
   const eventFields = {};
-  const e = rig({ flushHeld: true, liveCue: { Strap: 'plain' }, airedFields: eventFields });
-  const pressing = e.verbs.event(sel({ selectedGraphic: 'Strap', selectedLayerLive: true, airCue: graphicCue('plain', 'Strap', { f1: '5' }) }), { event: 'bump', adjust: { f1: 1 } });
+  const e = rig({ liveCue: { Strap: 'plain' }, airedFields: eventFields });
+  const view = sel({ selectedGraphic: 'Strap', selectedLayerLive: true, airCue: graphicCue('plain', 'Strap', { f1: '5' }) });
+  const first = e.verbs.event(view, { event: 'go' });
+  await settle();
+  const pressing = e.verbs.event(view, { event: 'bump', adjust: { f1: 1 } });
   await settle();
   eventFields.Strap = ['f1'];
-  e.flushes[0].resolve();
-  await settle();
-  void pressing;
-  assert.deepEqual([e.sends.length, e.notes], [0, ['F1 shows a live candidate, so it comes from its source.']], 'nor an event');
+  e.sends[0].answer.resolve({ ...noneLeft });
+  await first;
+  await pressing;
+  assert.deepEqual([e.sends.length, e.notes], [1, ['F1 shows a live candidate, so it comes from its source.']], 'nor an event');
 });
 
 test('an event that moves a live candidate\'s field sends nothing; one that only reads it goes (E7.1)', async () => {
@@ -2192,19 +2276,29 @@ test('a pinned graphic that is off air sends nothing, whatever is pressed', asyn
   assert.deepEqual(r.log, []);
 });
 
-test('a Take of another cue of the graphic during a held save refuses the press, which sends and writes nothing (F1)', async () => {
+test('a Take of another cue of the graphic while a press waits refuses it, which sends and writes nothing (F1): a snap waits on its save, a bump or an event on the press before it (W1)', async () => {
   for (const press of ['bump', 'event', 'snap']) {
     const banner = graphicCue('b1', 'Score', { home: '7' });
     const r = rig({ seed: false, flushHeld: true, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
     const view = liveSelection('Score', [banner], r.liveCue());
+    // A bump or an event waits for no save (W1): it waits behind an earlier press on the graphic.
+    const earlier = press === 'snap' ? null : r.verbs.event(view, { event: 'go' });
+    if (earlier) await settle();
+    const sentBefore = r.sends.length;
     const pressing = press === 'bump' ? r.verbs.bump(view, 'home', 1) : press === 'event' ? r.verbs.event(view, goal) : r.verbs.snap(view, null);
     await settle();
-    // Another cue of the banner is taken while the save is held.
+    // Another cue of the banner is taken while the press waits.
     r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Score: 'b2' } } }));
-    r.flushes[0].resolve();
+    if (earlier) {
+      r.sends[0].answer.resolve({ ...noneLeft });
+      await settle();
+      for (const f of r.flushes) f.resolve();
+      await earlier;
+    } else r.flushes[0].resolve();
     await pressing;
-    assert.equal(r.sends.length, 0, press);
-    assert.deepEqual(r.log.filter(([k]) => k === 'writeCue' || k === 'writeLive' || k === 'patch'), [], press);
+    assert.equal(r.sends.length, sentBefore, press);
+    // The earlier event moves no shared value: its empty tree write is not this press's.
+    assert.deepEqual(r.log.filter(([k, v]) => k === 'writeCue' || k === 'writeLive' || (k === 'patch' && v !== '')), [], press);
     assert.deepEqual(r.notes, ['Nothing sent: the cue on Score changed.'], press);
   }
 });
@@ -3056,9 +3150,7 @@ test('a press is refused when another screen takes another cue while this page\'
   const view = () => liveSelection('Score', [s1, s2], r.liveCue());
   const retake = r.verbs.take(s2);
   await settle();
-  r.flushes[0].resolve();
-  await settle();
-  assert.equal(r.sends.length, 1);
+  assert.equal(r.sends.length, 1, 'the Re-take is out at once, its save after its answer (W1)');
   const plus = r.verbs.bump(view(), 'home', 1);
   await settle();
   // Another screen takes s1 (Katri's 7), and its rows are heard: the live marker names s1.
@@ -3081,24 +3173,26 @@ test('a press is refused when another screen takes another cue while this page\'
   await plus;
 });
 
-test('a press is refused when this page\'s own Take of another cue goes out while it waits on its save', async () => {
+test('a press is refused when this page\'s own Take of another cue goes out while it waits behind the press before it (W1: no save wait)', async () => {
   const s1 = graphicCue('s1', 'Score', { home: '7' });
   const s2 = graphicCue('s2', 'Score', { home: '0' });
-  const r = rig({ seed: false, flushHeld: true, liveCue: { Score: 's1' }, aired: { Score: { home: '7' } } });
-  const plus = r.verbs.bump(liveSelection('Score', [s1, s2], r.liveCue()), 'home', 1);
+  const r = rig({ seed: false, liveCue: { Score: 's1' }, aired: { Score: { home: '7' } } });
+  const view = liveSelection('Score', [s1, s2], r.liveCue());
+  const earlier = r.verbs.event(view, { event: 'go' });
+  await settle();
+  const plus = r.verbs.bump(view, 'home', 1);
   await settle();
   const taking = r.verbs.take(s2);
   await settle();
-  // The Take's save ends first and it goes; the live marker still names s1 until its answer.
-  r.flushes[1].resolve();
-  await settle();
-  assert.equal(r.sends.length, 1);
+  // The Take goes; the live marker still names s1 until its answer.
+  assert.equal(r.sends.length, 2);
   assert.equal(r.liveCue().Score, 's1');
-  r.flushes[0].resolve();
-  await plus;
-  assert.equal(r.sends.length, 1);
-  assert.deepEqual(r.notes, ['Nothing sent: the cue on Score changed.']);
   r.sends[0].answer.resolve({ ...noneLeft });
+  await earlier;
+  await plus;
+  assert.equal(r.sends.length, 2);
+  assert.deepEqual(r.notes, ['Nothing sent: the cue on Score changed.']);
+  r.sends[1].answer.resolve({ ...noneLeft });
   await taking;
 });
 
@@ -3400,14 +3494,19 @@ test('a live press that sends nothing answers refused with the reason: off air, 
     const off = rig({ seed: false });
     const offView = liveSelection('Score', [banner], {});
     assert.deepEqual(await (press === 'bump' ? off.verbs.bump(offView, 'home', 1) : off.verbs.event(offView, goal)), { outcome: 'refused', note: 'Score is off air' }, press);
-    const r = rig({ seed: false, flushHeld: true, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+    // Another cue takes the layer while the press waits behind the one before it (W1: a live
+    // press waits for no save).
+    const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
     const view = liveSelection('Score', [banner], r.liveCue());
+    const earlier = r.verbs.event(view, { event: 'go' });
+    await settle();
     const pressing = press === 'bump' ? r.verbs.bump(view, 'home', 1) : r.verbs.event(view, goal);
     await settle();
     r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Score: 'b2' } } }));
-    r.flushes[0].resolve();
+    r.sends[0].answer.resolve({ ...noneLeft });
+    await earlier;
     assert.deepEqual(await pressing, { outcome: 'refused', note: 'Nothing sent: the cue on Score changed.' }, press);
-    assert.equal(r.sends.length, 0, press);
+    assert.equal(r.sends.length, 1, press);
   }
 });
 
@@ -3442,14 +3541,17 @@ test('a panel press on a layer airing a cue this page cannot see is held to the 
   assert.equal(r.sends.length, 1);
   r.sends[0].answer.resolve({ ...noneLeft });
   assert.deepEqual(await going, { outcome: 'accepted' });
-  // Named, and replaced during the save wait: refused after the wait.
-  const held = rig({ seed: false, flushHeld: true, liveCue: { Score: 'other' } });
+  // Named, and replaced while it waits behind the press before it: refused after the wait.
+  const held = rig({ seed: false, liveCue: { Score: 'other' } });
+  const before = held.verbs.event(liveSelection('Score', [], held.liveCue()), { event: 'go' }, 'other');
+  await settle();
   const waiting = held.verbs.event(liveSelection('Score', [], held.liveCue()), { event: 'go' }, 'other');
   await settle();
   held.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Score: 'third' } } }));
-  held.flushes[0].resolve();
+  held.sends[0].answer.resolve({ ...noneLeft });
+  await before;
   assert.deepEqual(await waiting, { outcome: 'refused', note: 'Nothing sent: the cue on Score changed.' });
-  assert.equal(held.sends.length, 0);
+  assert.equal(held.sends.length, 1);
 });
 
 test('a press whose selection and key name different cues goes nowhere, whichever is on the layer (E6.1)', async () => {

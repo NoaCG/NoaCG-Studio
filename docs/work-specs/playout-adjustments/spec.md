@@ -346,15 +346,18 @@ SVG text fit does not follow it. It remains the right knob for a designer and ma
   `dy`, `s`, the pivot in px, the style variables and the font declarations by name. A place
   preset resolves against the current qualified box, so a strap placed right stays inside the
   right safe inset when a longer name is typed and remeasured before the Take; a nudge is
-  absolute px. The resolved form is what travels and what recovery restores; receivers never
-  measure. A left-aligned strap placed right keeps its left alignment and grows to the right;
+  absolute px. The resolved form is what travels and what recovery restores. Receivers measure in
+  one case only, added by docs/work-specs/live-publishing/spec.md W1: a Take whose box is for
+  other values carries the preset beside it, and an output that reads it resolves it against its
+  own measurement before it first shows the graphic (`output/placeOnOutput.ts`). A left-aligned strap placed right keeps its left alignment and grows to the right;
   the summary says so, and a re-anchor that changes alignment is a design edit, not this feature.
 - **Stale geometry.** When the current identity has no qualified measurement yet (the operator
   typed and the settle has not completed, the hosted page has no PREVIEW of that cue, a font is
   still loading), a preset cannot be resolved afresh: the surface keeps the **last qualified
   placement** for that cue, marks the block "measuring" (or "no measurement" where none will
-  come), and the Take sends that last placement rather than nothing or a guess. Nudges and size
-  need no box and always apply.
+  come), and the Take sends that last placement rather than nothing or a guess, with the preset
+  as a place hint an output resolves itself (live-publishing W1: a Take never waits for the page's
+  own measurement). Nudges and size need no box and always apply.
 - **Where the box lives.** The measured box is **not** a member of the inherited record and is
   never written to the show on a PREVIEW settle: every show write stamps `updatedAt` and so
   fires the publish-again comparison, team saves and sync. The page keeps measurements in the

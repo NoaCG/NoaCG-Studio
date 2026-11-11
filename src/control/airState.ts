@@ -41,7 +41,7 @@ import {
   type SpeakingClockPair,
 } from './matchClockWire.ts';
 import { airedAfter, heldFirst, holdAfter, reportedTypedAir, rowsPastHold, type AiredMap, type ReplayItem } from './outputRecovery.ts';
-import { lookAfter, reportedLook, type AppliedLooks } from './cueAdjust.ts';
+import { appearanceEquals, lookAfter, reportedLook, type AppliedAppearance, type AppliedLooks } from './cueAdjust.ts';
 import { typedValuesOf, type TypedValues } from '../model/ografTyped.ts';
 
 /** The clocks each graphic's published markup carries, by the name the wire uses. A graphic
@@ -92,6 +92,17 @@ export function moveLiveCue(air: AirPart, next: LiveCueMap | ((map: LiveCueMap) 
   const moves = air.moves + 1;
   if (!took) return { ...air, liveCue, moves, clearedAt: moves };
   return { ...air, liveCue, moves, tookAt: { ...air.tookAt, ...Object.fromEntries(took.map((graphic) => [graphic, moves])) } };
+}
+
+/** A TAKE THAT CARRIED A PLACE HINT (live-publishing W1, ./cueAdjust.ts `PlaceHint`): the outputs
+ *  first showed it at the preset as their own measurement resolved it, not at the place the Take
+ *  sent. Once this page has measured the same values (`resolved`, by the same measurement and
+ *  resolution the outputs run), what the graphic holds is that. Only while the look it holds is
+ *  still the one the Take sent: a later send stands. */
+export function placedLook(air: AirPart, graphic: string, sent: AppliedAppearance, resolved: AppliedAppearance): AirPart {
+  const looks = air.looks ?? {};
+  if (!appearanceEquals(looks[graphic], sent) || appearanceEquals(sent, resolved)) return air;
+  return { ...air, looks: { ...looks, [graphic]: resolved } };
 }
 
 /** What these commands leave on air, MERGED into what was (`airedAfter`): an update may be partial

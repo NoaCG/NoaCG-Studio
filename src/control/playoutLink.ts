@@ -520,8 +520,27 @@ export async function reachBridge(bridgeUrl: string): Promise<PlayoutResult | nu
   return (await probeBridge(bridgeUrl)).unreachable;
 }
 
+/** Per Bridge address, what its last `/health` answer said it understands, while that answer was a
+ *  current Bridge's (in memory, this page load only). A server action to an address here does not
+ *  ask `/health` first (live-publishing W1); its failure asks again (`through`). */
+const currentBridges = new Map<string, BridgeFeature[]>();
+
+/** Forget every Bridge heard: the next server action to any address asks `/health` first. */
+export function forgetBridges(): void {
+  currentBridges.clear();
+}
+
 /** `reachBridge`, and what a current Bridge said it understands for CasparCG. */
 async function probeBridge(bridgeUrl: string): Promise<{
+  unreachable: PlayoutResult | null; features: BridgeFeature[];
+}> {
+  const probed = await probeHealth(bridgeUrl);
+  if (probed.unreachable) currentBridges.delete(bridgeUrl);
+  else currentBridges.set(bridgeUrl, probed.features);
+  return probed;
+}
+
+async function probeHealth(bridgeUrl: string): Promise<{
   unreachable: PlayoutResult | null; features: BridgeFeature[];
 }> {
   const health = await callBridge(bridgeUrl, '/health', null, BRIDGE_TIMEOUT_MS);
@@ -651,7 +670,12 @@ async function through(
   if (!playoutConfigured(settings)) {
     return { result: { state: 'config', detail: 'Pair NoaCG Bridge and fill in the playout server first (Playout settings).' } };
   }
-  const { unreachable, features } = await probeBridge(settings.agentUrl);
+  // A SERVER ACTION NEVER WAITS ON A HEALTH REQUEST (live-publishing W1): to a Bridge this page
+  // load already heard answer as current, `/act` goes at once, and only a failure to reach it asks
+  // `/health` why (the permission prompt, an older Bridge, nothing there). Anything else, and an
+  // address never heard, asks first, as before.
+  const known = path === '/act' ? currentBridges.get(settings.agentUrl) : undefined;
+  const { unreachable, features } = known ? { unreachable: null, features: known } : await probeBridge(settings.agentUrl);
   if (verify && !unreachable) {
     const allowed = verify();
     if (!(typeof allowed === 'boolean' ? allowed : await allowed)) return null;
@@ -667,6 +691,11 @@ async function through(
     hop === 'list' ? LIST_TIMEOUT_MS : ACT_TIMEOUT_MS,
     settings.agentToken,
   );
+  if (known && !('http' in call)) {
+    // Not reached: say why in the words the health request has, as when it went first.
+    const now = await probeBridge(settings.agentUrl);
+    if (now.unreachable) return { result: now.unreachable };
+  }
   const reply = readReply(settings, call);
   return reply.result.state === 'ok' ? { ...reply, result: { ...reply.result, features } } : reply;
 }

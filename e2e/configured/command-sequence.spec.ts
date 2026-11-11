@@ -141,6 +141,57 @@ function holdNextPress(op: Page, release: Promise<void>): Promise<unknown> {
 
 const airPlays = (air: Page) => air.evaluate(() => document.body.getAttribute('data-plays'));
 
+test('W1: a Take sends before its own save, with the typed value from memory, and airs while every save is held', async ({ page }) => {
+  // live-publishing spec W1 (S1), AC-1's order: a Take never waits on the page's own work. The
+  // page's durable writes are held open (a disk that does not confirm), a value is typed and Take
+  // pressed at once: the numbered send leaves carrying the typed value and air plays it with the
+  // save still held; the save lands once the disk answers.
+  test.setTimeout(360_000);
+  await signIn(page);
+  await page.keyboard.press('Escape');
+  test.skip(!(await hasSequenceRoad(page)), 'this server has not applied 0071 (the sequence road); see expected-run.json');
+  await clearPublishedShows(page);
+  const { output } = await publishScorebug(page, `Take First ${Date.now()}`);
+  const air = await openAir(page, output);
+  await page.getByTestId('cue-list').locator('.pd-cue').first().getByTestId('select-cue').click();
+  const box = page.getByTestId('cue-editor').locator('input[type="text"][data-testid^="cue-field-"]').first();
+  await expect(box).toBeVisible();
+  // Hold every IndexedDB write from here: a read issued from the last one's success keeps the
+  // transaction from committing until the flag drops (as e2e/playout-air-contract.spec.ts does).
+  await page.evaluate(() => {
+    const w = window as unknown as { __holdWrites?: boolean; __held?: number };
+    w.__holdWrites = true;
+    w.__held = 0;
+    const realPut = IDBObjectStore.prototype.put;
+    const holdOpen = (store: IDBObjectStore) => {
+      if (w.__holdWrites) store.get('__noacg_hold__').onsuccess = () => holdOpen(store);
+    };
+    IDBObjectStore.prototype.put = function put(this: IDBObjectStore, ...args: unknown[]) {
+      const request = (realPut as (...a: unknown[]) => IDBRequest).apply(this, args);
+      w.__held = (w.__held ?? 0) + 1;
+      holdOpen(this);
+      return request;
+    } as typeof IDBObjectStore.prototype.put;
+  });
+  const sends: string[] = [];
+  page.on('request', (req) => {
+    if (/control_send_seq/.test(req.url())) sends.push(req.postData() ?? '');
+  });
+  await box.fill('W1 typed first');
+  await page.getByTestId('verb-take').click();
+  await expect.poll(() => sends.some((b) => b.includes('W1 typed first')), { message: 'the Take is sent with the typed value', timeout: 10_000 }).toBe(true);
+  await expect.poll(() => airPlays(air), { message: 'air plays it while the save is held', timeout: 30_000 }).toBe('1');
+  expect(await page.evaluate(() => (window as unknown as { __held?: number }).__held ?? 0), 'a save was owed and is still held').toBeGreaterThan(0);
+  await page.evaluate(() => { (window as unknown as { __holdWrites?: boolean }).__holdWrites = false; });
+  // The save lands after the send: the typed value is the cue's.
+  await expect(page.getByTestId('cue-unsent')).toBeEmpty({ timeout: 15_000 });
+  await expect(box).toHaveValue('W1 typed first');
+
+  await air.close();
+  await clearPublishedShows(page);
+  await wipeMyGraphics(page);
+});
+
 test('a press another screen overtook is refused, writes nothing, and the operator is told', async ({ page }) => {
   test.setTimeout(360_000);
   await signIn(page);
