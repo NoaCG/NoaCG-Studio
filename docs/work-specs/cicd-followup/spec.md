@@ -254,7 +254,7 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   stamp) or infrastructure, with sample sizes, using cf03's measurement rules. (b) Candidate fixes,
   including re-running only the failed part, agents running the affected tests before pushing, and
   gate refusals that an agent cannot fix going to the owner alarm at once instead of looping, are
-  ranked by measured time saved, each with its basis. (c) The phase changes no test, check or
+  ranked by the time each would save, estimated from the measurements in (a), each with its basis. (c) The phase changes no test, check or
   limit; the numbers and the ranked list go to the owner before anything is built, and building any
   fix needs the owner's decision. (d) cf20 reports the result.
 - **cf18.** (a) After the final selector change's clean audit window and every other
