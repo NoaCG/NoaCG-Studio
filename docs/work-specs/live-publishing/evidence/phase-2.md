@@ -32,7 +32,9 @@ Hardware checks: none in this phase (see "Not measured here").
   the page calls `fetch` for the press's own send (`control_send_seq`; the Bridge's `/act` for a
   server cue). A command send is tied to its press by the sender id and press number in its body
   (`src/control/seqSend.ts` `senderBody`), so a resend or a later send of an earlier press is never
-  read as this press's.
+  read as this press's. "Second of two fast": two mouse clicks on the button back to back, the
+  second measured; the time the first press was still unanswered after the second click counts as
+  a kept wait (one send in flight per graphic, a quick button waiting for its previous press).
   "Page's own": press to sent minus the time a kept ordering wait overlapped it, read from the
   page's own requests (road discovery: a slug resolve inside the window; one send in flight per
   graphic: an earlier send still running at the press; a folder's earlier sends). "Ran" does not
@@ -59,7 +61,9 @@ Hardware checks: none in this phase (see "Not measured here").
   across categories (`_fixture.ts`). Each template graphic carries one generated PNG of seeded
   noise (incompressible), shown by a small `<img>` in its markup. "Typical": 20 graphics, 3 MB of
   image files. "Large": 60 graphics, 10 MB. 1 MB is 1,048,576 bytes of file; the stored JSON holds
-  them as base64. Each fixture holds the W1 subjects: a stepped lower third (Next), the House Score
+  them as base64. Each fixture holds the W1 subjects: a stepped lower third (Next; "Stack Three", three
+  lines, so a Take leaves two Nexts to press; the render, publish, bytes and output start groups
+  ran before this change, with the two-line "Hairline", a few hundred bytes smaller), the House Score
   board (Goal is the quick button, its number stepper the +1), a folder of two cues played together,
   the production's picture graphic, and a CasparCG clip (server cue) on a fake NoaCG Bridge
   (`e2e/_fakeBridge.ts`), with one browser output open.
@@ -72,12 +76,14 @@ Cases: "unthrottled" and "throttled" (20 Mbit/s, 50 ms) on each fixture.
 
 | Case | Graphics | Image files | Stored output (published JSON text) | First publish of the fixture |
 |---|---|---|---|---|
-| Typical, unthrottled | 20 | 3.00 MB | 6.16 MB | 10186 / 11643 (n 25) |
-| Typical, throttled | 20 | 3.00 MB | 6.16 MB | 10177 / 11519 (n 25) |
-| Large, unthrottled | 60 | 10.00 MB | 20.21 MB | 17668 / 19490 (n 39) |
-| Large, throttled | 60 | 10.00 MB | 20.21 MB | 17561 / 19901 (n 37) |
+| Typical, unthrottled | 20 | 3.00 MB | 6.16 MB | 10594 / 11643 (n 34) |
+| Typical, throttled | 20 | 3.00 MB | 6.16 MB | 10282 / 11519 (n 26) |
+| Large, unthrottled | 60 | 10.00 MB | 20.21 MB | 17706 / 19465 (n 46) |
+| Large, throttled | 60 | 10.00 MB | 20.21 MB | 17561 / 19901 (n 38) |
 
 #### Take paths: press to sent (p50 / p95, ms)
+
+"Second of two fast": two clicks back to back, the second measured; its kept wait is the time the first press was still unanswered after the second click.
 
 | Path | Case | n | Page's own | Total | Samples a kept wait added time to |
 |---|---|---|---|---|---|
@@ -101,28 +107,34 @@ Cases: "unthrottled" and "throttled" (20 Mbit/s, 50 ms) on each fixture.
 | Quick button (Goal) | Typical, throttled | 50 | 60.6 / 83.6 | 60.6 / 83.6 | none |
 | Quick button (Goal) | Large, unthrottled | 50 | 106 / 138 | 106 / 138 | none |
 | Quick button (Goal) | Large, throttled | 50 | 108 / 145 | 108 / 145 | none |
-| Quick button, second of two fast | Typical, unthrottled | 50 | 50.5 / 74.7 | 50.5 / 74.7 | none |
-| Quick button, second of two fast | Typical, throttled | 50 | 58.4 / 114 | 58.4 / 114 | send in flight 1 (adds 0.1 / 0.1) |
-| Quick button, second of two fast | Large, unthrottled | 50 | 65.3 / 124 | 65.3 / 124 | none |
-| Quick button, second of two fast | Large, throttled | 50 | 81.7 / 139 | 81.7 / 139 | none |
+| Quick button, second of two fast | Typical, unthrottled | 50 | 151 / 201 | 170 / 213 | previous press unanswered 50, send in flight 50 (adds 8.9 / 18.6) |
+| Quick button, second of two fast | Typical, throttled | 50 | 125 / 208 | 201 / 295 | previous press unanswered 50, send in flight 50 (adds 73.4 / 132) |
+| Quick button, second of two fast | Large, unthrottled | 50 | 339 / 502 | 355 / 519 | previous press unanswered 50, send in flight 50 (adds 15.8 / 42.0) |
+| Quick button, second of two fast | Large, throttled | 50 | 315 / 531 | 402 / 656 | previous press unanswered 50, send in flight 50 (adds 72.3 / 213) |
 | +1 | Typical, unthrottled | 50 | 60.9 / 77.0 | 60.9 / 77.0 | none |
 | +1 | Typical, throttled | 50 | 58.9 / 69.8 | 58.9 / 69.8 | none |
 | +1 | Large, unthrottled | 50 | 108 / 132 | 108 / 132 | none |
 | +1 | Large, throttled | 50 | 107 / 146 | 107 / 146 | none |
-| +1, second of two fast | Typical, unthrottled | 50 | 58.6 / 85.8 | 58.6 / 85.8 | none |
-| +1, second of two fast | Typical, throttled | 50 | 56.6 / 126 | 56.6 / 126 | send in flight 1 (adds 14.3 / 14.3) |
-| +1, second of two fast | Large, unthrottled | 50 | 79.4 / 152 | 79.4 / 152 | none |
-| +1, second of two fast | Large, throttled | 50 | 84.5 / 124 | 84.5 / 124 | none |
-| Next | Typical, unthrottled | 50 | 55.5 / 69.3 | 55.5 / 69.3 | none |
-| Next | Typical, throttled | 50 | 37.8 / 69.2 | 37.8 / 69.2 | none |
-| Next | Large, unthrottled | 50 | 37.4 / 133 | 37.4 / 133 | none |
-| Next | Large, throttled | 50 | 83.0 / 146 | 83.0 / 146 | none |
+| +1, second of two fast | Typical, unthrottled | 50 | 176 / 238 | 185 / 251 | previous press unanswered 50, send in flight 50 (adds 10.0 / 27.3) |
+| +1, second of two fast | Typical, throttled | 50 | 123 / 183 | 201 / 266 | previous press unanswered 50, send in flight 50 (adds 72.8 / 106) |
+| +1, second of two fast | Large, unthrottled | 50 | 385 / 518 | 410 / 574 | previous press unanswered 50, send in flight 50 (adds 17.1 / 58.7) |
+| +1, second of two fast | Large, throttled | 50 | 323 / 446 | 398 / 595 | previous press unanswered 50, send in flight 50 (adds 63.6 / 193) |
+| Next | Typical, unthrottled | 50 | 58.7 / 91.7 | 58.7 / 91.7 | none |
+| Next | Typical, throttled | 50 | 28.9 / 76.6 | 28.9 / 76.6 | none |
+| Next | Large, unthrottled | 50 | 45.4 / 144 | 45.4 / 144 | none |
+| Next | Large, throttled | 50 | 30.3 / 130 | 30.3 / 130 | none |
+| Next, second of two fast | Typical, unthrottled | 50 | 29.0 / 85.5 | 106 / 175 | previous press unanswered 49, send in flight 49 (adds 61.7 / 99.0) |
+| Next, second of two fast | Typical, throttled | 50 | 2.7 / 102 | 60.4 / 210 | previous press unanswered 50, send in flight 50 (adds 58.7 / 137) |
+| Next, second of two fast | Large, unthrottled | 50 | 38.3 / 113 | 99.4 / 238 | previous press unanswered 50, send in flight 50 (adds 58.3 / 129) |
+| Next, second of two fast | Large, throttled | 50 | 31.2 / 135 | 101 / 258 | previous press unanswered 50, send in flight 50 (adds 72.7 / 137) |
 | Hardware panel Take (scripted) | Typical, unthrottled | 50 | 20.9 / 34.2 | 26.3 / 39.5 | none |
 | Hardware panel Take (scripted) | Typical, throttled | 50 | 21.2 / 30.0 | 27.8 / 38.9 | none |
 | Hardware panel Take (scripted) | Large, unthrottled | 50 | 55.9 / 76.7 | 61.8 / 97.3 | none |
 | Hardware panel Take (scripted) | Large, throttled | 50 | 59.3 / 87.7 | 68.0 / 96.1 | none |
 
-Other requests running inside press..sent: Graphic cue Take: rpc:audience_list; Picture cue Take: rest:teams, rest:team_members, rest:team_productions, rest:control_shows, 127.0.0.1:8899/status; Folder Take (two cues, together): 127.0.0.1:8899/state, rpc:audience_list, rest:teams, rest:team_members, rest:team_productions; Server cue Take (fake Bridge): 127.0.0.1:8899/health, 127.0.0.1:8899/state, rest:teams, rest:team_members, rest:team_productions, 127.0.0.1:8899/status; Quick button (Goal): rest:control_shows, rpc:control_tail_seq; Quick button, second of two fast: rest:teams, rest:team_members, rest:team_productions, rpc:audience_list; +1: rest:teams, rest:team_members, rest:team_productions, rpc:audience_list, rpc:panel_list; +1, second of two fast: rest:teams, rest:team_members, rest:team_productions, rpc:panel_list, rpc:audience_list; Hardware panel Take (scripted): rpc:panel_list, rpc:panel_renew.
+Gap between the two clicks (p50 / p95, ms): Quick button, second of two fast, Typical, unthrottled: 61.8 / 89.6; Quick button, second of two fast, Typical, throttled: 67.0 / 98.5; Quick button, second of two fast, Large, unthrottled: 28.8 / 139; Quick button, second of two fast, Large, throttled: 88.1 / 152; +1, second of two fast, Typical, unthrottled: 66.7 / 90.0; +1, second of two fast, Typical, throttled: 68.0 / 89.0; +1, second of two fast, Large, unthrottled: 108 / 149; +1, second of two fast, Large, throttled: 87.1 / 225; Next, second of two fast, Typical, unthrottled: 42.4 / 94.9; Next, second of two fast, Typical, throttled: 29.3 / 95.0; Next, second of two fast, Large, unthrottled: 91.2 / 137; Next, second of two fast, Large, throttled: 29.0 / 115.
+
+Other requests running inside press..sent: Graphic cue Take: rpc:audience_list; Picture cue Take: rest:teams, rest:team_members, rest:team_productions, rest:control_shows, 127.0.0.1:8899/status; Folder Take (two cues, together): 127.0.0.1:8899/state, rpc:audience_list, rest:teams, rest:team_members, rest:team_productions; Server cue Take (fake Bridge): 127.0.0.1:8899/health, 127.0.0.1:8899/state, rest:teams, rest:team_members, rest:team_productions, 127.0.0.1:8899/status; Quick button (Goal): rest:control_shows, rpc:control_tail_seq; Quick button, second of two fast: rpc:audience_list, rest:control_shows, rpc:panel_list, rest:teams, rest:team_members, rest:team_productions; +1: rest:teams, rest:team_members, rest:team_productions, rpc:audience_list, rpc:panel_list; +1, second of two fast: rest:teams, rest:team_members, rest:team_productions, rest:control_shows, rpc:panel_list, rpc:audience_list; Next, second of two fast: rest:teams, rest:team_members, rest:team_productions, rpc:control_tail_seq, rest:control_shows, rpc:audience_list, rpc:panel_list; Hardware panel Take (scripted): rpc:panel_list, rpc:panel_renew.
 
 #### Sent to render dispatch to first seen (p50 / p95, ms)
 
@@ -135,12 +147,12 @@ Other requests running inside press..sent: Graphic cue Take: rpc:audience_list; 
 
 #### Press to sent during a publish (graphic cue Take, p50 / p95, ms)
 
-| Case | n | Total, during a publish | Total, no publish (from the table above) | Publish duration | Publishes |
-|---|---|---|---|---|---|
-| Typical, unthrottled | 63 | 84.3 / 1064 | 79.6 / 97.6 | 1440 / 1594 | 445 |
-| Typical, throttled | 50 | 81.2 / 104 | 74.8 / 92.3 | 5600 / 5775 | 11 |
-| Large, unthrottled | 56 | 170 / 385 | 129 / 186 | 4881 / 5320 | 279 |
-| Large, throttled | 50 | 141 / 200 | 113 / 201 | 17288 / 17832 | 4 |
+| Case | n | Total, during a publish | Presses over 500 ms | Same job, between publishes (n, p50 / p95) | Total, no publish loop (graphic cue Take above) | Publish duration | Publishes |
+|---|---|---|---|---|---|---|---|
+| Typical, unthrottled | 176 | 89.1 / 198 | 7 | 34, 88.9 / 134 | 79.6 / 97.6 | 1461 / 1628 | 1331 |
+| Typical, throttled | 50 | 81.2 / 104 | 0 | none | 74.8 / 92.3 | 5600 / 5775 | 11 |
+| Large, unthrottled | 98 | 168 / 385 | 2 | 6, 165 / 223 | 129 / 186 | 4835 / 5272 | 490 |
+| Large, throttled | 50 | 141 / 200 | 0 | none | 113 / 201 | 17288 / 17832 | 4 |
 
 #### Bytes and time per change
 
@@ -165,7 +177,24 @@ Bytes: every request and response of the production page and the output, from th
 | Design updated | Large, unthrottled | 17 | 80.45 MB | 40.22 MB | 19.99 MB | 20.23 MB | 10876 / 12275 | 62.1 / 76.3 |
 | Design updated | Large, throttled | 17 | 80.47 MB | 40.23 MB | 20.00 MB | 20.23 MB | 31549 / 32588 | 110 / 119 |
 
-Output update time over every publishing change (added, removed and updated together):
+When the output started preparing (its fetch of the whole published copy), per change, from a separate diagnostic run of the same bytes group with preparation-start stamps (3 or 4 changes per kind and case):
+
+| Change | Case | n | Press to preparation start | Preparation start to prepared | Samples within 15 s of the previous preparation start |
+|---|---|---|---|---|---|
+| Graphic added | Typical, unthrottled | 4 | 4305 / 4772 | 374 / 496 | 0 |
+| Graphic added | Typical, throttled | 4 | 8277 / 8387 | 3253 / 3271 | 0 |
+| Graphic added | Large, unthrottled | 3 | 12394 / 12486 | 736 / 772 | 0 |
+| Graphic added | Large, throttled | 3 | 25200 / 25556 | 9453 / 9503 | 0 |
+| Graphic removed | Typical, unthrottled | 4 | 7537 / 9285 | 264 / 301 | 0 |
+| Graphic removed | Typical, throttled | 4 | 10472 / 10965 | 2856 / 2917 | 0 |
+| Graphic removed | Large, unthrottled | 3 | 11044 / 11767 | 638 / 666 | 0 |
+| Graphic removed | Large, throttled | 3 | 22087 / 22820 | 9062 / 9148 | 0 |
+| Design updated | Typical, unthrottled | 4 | 7520 / 9082 | 340 / 371 | 0 |
+| Design updated | Typical, throttled | 4 | 7105 / 7942 | 3077 / 3184 | 0 |
+| Design updated | Large, unthrottled | 3 | 10098 / 10388 | 744 / 803 | 0 |
+| Design updated | Large, throttled | 3 | 22961 / 23073 | 9318 / 9342 | 0 |
+
+Output update time over every publishing change (added, removed and updated together, a mix of three kinds):
 
 | Case | n | Press to output prepared (p50 / p95, ms) |
 |---|---|---|
@@ -212,26 +241,25 @@ None.
 
 - **Every graphic Take path spends more than 50 ms of the page's own time at p95 today**, in
   every case. Graphic cue Take 92.3 to 201 ms p95 across the four cases, picture 97.8 to 173,
-  folder 182 to 339, quick button 83.6 to 145, +1 69.8 to 146, Next 69.2 to 146. Under 50 ms on
+  folder 182 to 339, quick button 83.6 to 145, +1 69.8 to 146, Next 76.6 to 144. Under 50 ms on
   the typical fixture only: the server cue (fake Bridge) at 33.5 and 34.1 ms (178 and 230 ms on
   the large one) and the hardware panel's page share at 34.2 and 30.0 ms (76.7 and 87.7 ms on the
   large one). The page's own time grows with the production: the graphic cue Take goes from
   79.6 ms p50 (20 graphics) to 129 ms p50 (60 graphics), unthrottled.
-- **Some presses are sent at once, most are not.** Next is sent within 30 ms in 17 to 23 of 50
-  presses, the second of two fast presses in 7 to 23, a single quick button or +1 press in 0 to
-  13; the rest take 50 to 150 ms. Each send here is tied to its own press by the press's sender
-  id and number, so this is the page, consistent with a press finding it idle or still busy
-  with the work the press before it started.
-- **Kept ordering waits almost never add time.** No road discovery and no folder ordering inside
-  any window. "One send in flight per graphic" appeared in one "second of two fast" press each for
-  the quick button and the +1 (typical, throttled), adding 0.1 and 14.3 ms. Nearly all of press
-  to sent is the page's own work.
-- **A publish slows Takes, badly on the unthrottled cases.** Press to sent during a publish loop
-  against none: typical unthrottled 84.3 / 1064 ms (p50 / p95) against 79.6 / 97.6; large
-  unthrottled 170 / 385 against 129 / 186; typical throttled 81.2 / 104 against 74.8 / 92.3; large
-  throttled 141 / 200 against 113 / 201. Publishing builds and sends a 6 or 20 MB payload from the
-  page, so a Take pressed during one can wait behind it. A publish takes 1.4 s (typical) to 17.3 s
-  (large, throttled).
+- **Two fast presses: the second waits for the first, and then does a lot of its own work.** With
+  the two clicks 29 to 108 ms apart (p50), the first press was still unanswered at the second in
+  49 or 50 of every 50 samples, which adds 9 to 73 ms p50 (the kept waits: one send in flight per
+  graphic, a quick button waiting for its previous press). Beyond that, the second quick button or
+  +1 press takes 123 to 385 ms p50 and 183 to 531 ms p95 of the page's own time; the second Next
+  2.7 to 38 ms p50 and 85.5 to 135 ms p95. Pressed one at a time, no kept wait added time to any
+  path, in any case: no road discovery and no folder ordering inside any window.
+- **A publish slows Takes on the unthrottled cases.** Press to sent for a graphic cue Take during
+  a publish loop, against the same Take with no loop: typical unthrottled 89.1 / 198 ms (p50 /
+  p95, 176 presses, 7 over 500 ms) against 79.6 / 97.6; large unthrottled 168 / 385 (98 presses,
+  2 over 500 ms) against 129 / 186. Throttled, where each publish takes longer and loads the page
+  less often: 81.2 / 104 against 74.8 / 92.3 (typical) and 141 / 200 against 113 / 201 (large). A
+  publish builds and sends a 6 or 20 MB payload from the page and takes 1.5 s (typical,
+  unthrottled) to 17.3 s (large, throttled).
 - **Sent to first seen is about 40 to 50 ms p50 and 150 to 170 ms p95**, with play() 10 to 16 ms
   and render dispatch 20 to 25 ms after sent. Capture resolution: 12 to 15 ms p50, 43 to 59 ms p95
   between screencast frames, so first seen is known to within about one frame.
@@ -242,9 +270,15 @@ None.
   moves the production document, and the output downloads the whole published copy again
   (6.2 MB and 20.2 MB through `control_output_resolve`).
 - **Output update** (Publish changes pressed to the output holding the new version, every graphic
-  checked): 6.7 / 10.9 s typical unthrottled, 11.3 / 13.4 s typical throttled, 11.5 / 13.2 s large
-  unthrottled, 31.6 / 34.2 s large throttled. A changed or new graphic's own frame loads in 46 to
-  152 ms; the rest is publishing and downloading the whole production.
+  checked) is 4.4 to 10.6 s p50 on the typical fixture unthrottled and up to 33.4 s on the large
+  one throttled. Almost all of it is before the output starts: the preparation-start diagnostic
+  (the table above) shows 4.3 to 25.2 s from
+  the press to the output's fetch of the new copy, then 0.3 to 0.7 s (unthrottled) or 2.9 to 9.5 s
+  (throttled, the whole copy downloading) to prepared. No measured change started within 15 s of
+  the output's previous preparation, so the 15 s spacing (`src/output/prepare.ts`) never added
+  time; the larger p50 for a removal or design update than for an addition on the typical
+  unthrottled fixture (10.6 and 10.4 s against 4.4 s) is in the wait before the output starts,
+  not in loading. A changed or new graphic's own frame loads in 46 to 152 ms.
 - **Output start, cold cache**: ready in 1.5 s (typical) and 4.3 s (large) unthrottled, 8.9 s and
   17.9 s throttled. Each start downloads the development build's app code (10.6 MB) and the
   whole production (6.2 MB typical, 20.2 MB large): on the typical fixture the app code is the
@@ -255,19 +289,23 @@ None.
 
 1. **AC-1's 50 ms p95 for the page's own time, as measured here, is not reachable by removing the
    W1 waits alone.** Next has no save, measurement or health wait before its send (nothing W1
-   removes), and it already takes 69.2 to 146 ms p95; the quick button 83.6 to 145 ms. The rest
-   is the page's own render and dispatch work in this harness: a development build on a 4-CPU
-   cloud worker, which overstates a bundled build on a studio machine. Phase 3 needs one of: the
-   target judged on a production build, the target set relative to this baseline, or work on the
-   page's own render cost in scope. Owner decision before phase 3.
-2. **AC-4's "press to ran within 50 ms p95 of nothing being published" fails today by up to about
-   970 ms** (1064 against 97.6 ms p95, typical unthrottled). It is reachable only if a publish
-   stops blocking the page; whole publishes (phase 6) keep that cost unless phase 6's design takes
-   the publish's own work off the Take's path.
+   removes), and it already takes 76.6 to 144 ms p95; the quick button 83.6 to 145 ms; the second
+   of two fast quick or +1 presses 183 to 531 ms of its own work at p95. The rest is the page's
+   own render and dispatch work in this harness: a development build on a 4-CPU cloud worker,
+   which overstates a bundled build on a studio machine. Phase 3 needs one of: the target judged
+   on a production build, the target set relative to this baseline, or work on the page's own
+   render cost in scope. Owner decision before phase 3.
+2. **AC-4's "press to ran within 50 ms p95 of nothing being published" fails today on the
+   unthrottled cases**: a graphic cue Take is 100 ms slower at p95 during a publish on the typical
+   fixture (198 against 97.6 ms) and 199 ms slower on the large one (385 against 186 ms); the
+   throttled cases are within 12 ms. It is reachable only if a publish stops loading the page's
+   main thread; whole publishes (phase 6) keep that cost unless phase 6's design takes the
+   publish's own work off the Take's path.
 3. **D1's 5 s ceiling for a Take of a brand-new graphic** is far below today's update time on the
-   large fixture over 20 Mbit/s (31.6 s p50), because the output downloads the whole production
-   for one new graphic. The ceiling holds only once phase 7 sends what changed, or the new graphic
-   is loaded on its own ahead of the rest.
+   large fixture over 20 Mbit/s (30 to 33 s p50 per change), because the output starts preparing
+   22 to 25 s after the press and then downloads the whole production for one new graphic. The
+   ceiling holds only once phases 6 and 7 start the output at once and send what changed, or the
+   new graphic is loaded on its own ahead of the rest.
 4. **AC-5's 20 kB for a cue edit** is not shown wrong: today is 4.4 MB to 13.9 MB, all of it whole
    documents, and a patch of at most 2 kB of text plus headers fits in 20 kB.
 
@@ -303,12 +341,16 @@ None.
 - The harness's own trials ran each group with 2 to 10 samples before the run. The first full run
   (125 jobs) matched a send to a press as "the first send after the click"; `/check`'s review
   showed that can credit a press with an earlier press's later send, and that its panel stamp and
-  publish windows needed the corrections above. The Take paths and the publish overlap were run
-  again with them (54 jobs). The tables hold that rerun for those groups, and the first run for
-  render, bytes and output start, which do not match sends to presses. Every job whose result is
-  used passed and no sample inside them failed (Failures: none, above). Jobs that wrote nothing:
-  one running when the container restarted (queued again), and one extra publish part that met its
-  dev server shutting down at set-up, because the job before it had just been cancelled.
+  publish windows needed the corrections above, so the Take paths and the publish overlap were
+  run again (54 jobs). A fresh second opinion then found that "second of two fast" presses were
+  not back to back, that two fast Nexts were missing, that the update time did not show the
+  output's preparation start, and that the publish-overlap p95 rested on a handful of presses; the
+  three "second of two" rows and Next were run again on all four cases, the publish overlap on the
+  unthrottled cases got 14 more jobs, and the preparation-start diagnostic ran (40 jobs). The
+  tables hold the latest run of each group. Every job whose result is used passed and no sample in
+  them failed (Failures: none, above). Jobs that wrote nothing: one running when the container
+  restarted (queued again), and one publish part that met its dev server shutting down at set-up,
+  because the job before it had just been cancelled.
 - Every graphic checked is not every graphic ready: an output can finish its checks with a script
   error, a broken image or a failed font named in its readiness (a review finding on the pull
   request). The harness now fails any sample whose output names an issue. Run with that check on

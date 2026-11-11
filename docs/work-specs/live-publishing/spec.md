@@ -333,11 +333,13 @@ Filled in by each phase's pull request.
   to its press by the sender id and press number in its body. A cue text
   edit needs no publish today, so its bytes are the save alone. Update rounds add, remove and
   update one graphic, so the production keeps its size, and stay clear of the output's 15 s
-  preparation spacing. Throttling starts once the fixture is built. The harness lives in
+  preparation spacing. Throttling starts once the fixture is built. "Second of two fast" is two
+  mouse clicks back to back; the first press still unanswered counts as a kept wait. The stepped
+  graphic is a three-line lower third, so two fast Nexts have steps to take. The harness lives in
   `e2e/configured/measure/` as `*.measure.ts`, which the configured suite never runs.
 - Targets the numbers show wrong or unproven, for the owner before the phase that uses them: AC-1's
-  50 ms p95 (Next, which W1 changes nothing in, already takes 69 to 146 ms p95 here), AC-4's 50 ms
-  margin during a publish (1064 against 98 ms p95 today), and D1's 5 s ceiling against a 32 s whole
+  50 ms p95 (Next, which W1 changes nothing in, already takes 77 to 144 ms p95 here), AC-4's 50 ms
+  margin during a publish (198 against 98 ms p95 typical, 385 against 186 large, unthrottled), and D1's 5 s ceiling against a 30 to 33 s whole
   update on the large fixture throttled. Details in the evidence.
 - Traps: in the evidence, "Traps met" (the local stack does start on a cloud worker from Docker
   Hub; one 12-minute queue job per commit; Playwright empties `test-results/`; Realtime frames are
