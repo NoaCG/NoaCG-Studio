@@ -3065,8 +3065,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     graphicOf: cueGraphicName,
     cueView,
     resolvedOf: (graphic) => resolvedRef.current[graphic] ?? {},
-    // Read after the wait (this object is the render's): the place and size a Take or Update
-    // carries, decided in control/adjustGeometry.ts `pressAppearance`.
     cueById: (cueId) => cuesRef.current.find((c) => c.id === cueId),
     // A send to on-air graphics: the style as the stored record gives it once the page's writes
     // landed, beside the place and size the graphic holds (control/adjustGeometry.ts `lookAppearance`).
@@ -3079,7 +3077,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       if (lookCtx.current?.key !== key) lookCtx.current = { key, ctx: styleCtxOf(record, (record?.graphics ?? []).map((g) => templateForSavedGraphic(g, library))) };
       return lookAppearance(adjustStateOf(cue, record, library, lookCtx.current.ctx), session.air.get().looks?.[graphic]);
     },
-    // A Take's, from memory at the press (W1): the newest rendered record and the last box measured.
+    // The place and size a Take carries, from memory at the press (W1: the newest rendered record
+    // and the last box measured), and an Update's, read after its wait (this object is the
+    // render's), decided in control/adjustGeometry.ts `takeAppearance` and `updateAppearance`.
     takeAppearanceOf: (taken) => {
       const cueIn = (record: Show | null) => record?.cues?.find((c) => c.id === taken.id) ?? cuesRef.current.find((c) => c.id === taken.id) ?? taken;
       return takeAppearance<Show>({

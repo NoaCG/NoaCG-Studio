@@ -6,7 +6,8 @@
 // graphic's `x`. The page resolves the fold against the graphic's MEASURED box into one APPLIED
 // APPEARANCE, which is what travels on the `update` message (`appearance`, beside `data`) and what
 // every surface applies and restores: a `translate(dx, dy) scale(s)` about the pivot (ox, oy), on the
-// frame NoaCG owns, in production px. Receivers never measure.
+// frame NoaCG owns, in production px. Receivers measure only to resolve a Take's place hint
+// (`PlaceHint`, live-publishing W1), before they first show the graphic.
 //
 // THE WIRE'S FOUR RULES, each a test (scripts/cue-adjust.test.mjs):
 //   1. an `update` without `appearance` keeps the one applied (the ± block, a data row);

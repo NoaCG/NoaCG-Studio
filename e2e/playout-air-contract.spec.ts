@@ -9,6 +9,7 @@
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
+// covers: src/control/adjustGeometry.ts
 //
 // THE PRODUCTION PAGE'S AIR CONTRACT, pinned before the page is split (production-page refactor,
 // phase 1; docs/work-specs/production-page-refactor/spec.md §5.3 and §1.3). Each test presses
@@ -17,9 +18,11 @@
 // the code underneath; these assertions do not change (D9).
 //
 // The save wait is what most of these walk through. A typed value is a DRAFT for up to 300 ms and
-// then a durable write that IndexedDB confirms a moment later (model/durableStore.ts); every verb
-// waits for both before it reads (spec §4.1 R2). To walk INSIDE that wait the durable writes are
-// held open on purpose (`holdWrites`): a slow disk, which is all the fault injection there is.
+// then a durable write that IndexedDB confirms a moment later (model/durableStore.ts); an Update
+// or a snap waits for both before it reads (spec §4.1 R2), and a Take path waits for neither: it
+// reads the draft from memory and saves after its send (live-publishing W1). To walk INSIDE that
+// save the durable writes are held open on purpose (`holdWrites`): a slow disk, which is all the
+// fault injection there is.
 
 import { test, expect, type Page } from '@playwright/test';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from './_create';
@@ -167,10 +170,11 @@ test('S3: two SPACE presses on a held folder take it once, even with a save stil
   expect(await plays(page), 'Strap played once').toBe(before + 1);
 });
 
-test('S2: a graphic Take pressed while its edit is still a draft waits for the save, then airs the edit', async ({ page }) => {
-  // spec §1.3 S2, characterised and retained: a graphic Take awaits the draft's save and the edit
-  // group with no bound (a server cue's Take races them against 250 ms instead). The wait is real
-  // when the press does not blur the editor: SPACE from a checkbox in it, or a panel's key.
+test('S2, W1: a graphic Take pressed while its edit is still a draft airs the edit at once, the save still held', async ({ page }) => {
+  // live-publishing spec W1 (S1), replacing S2's characterised wait: a Take never waits on the
+  // page's own work. Its values come from memory (the draft over the record) and the draft's save
+  // starts once the send is answered. The wait was real when the press does not blur the editor:
+  // SPACE from a checkbox in it, or a panel's key. Here the disk holds every save open throughout.
   await installWriteHold(page);
   await production(page, 'Save wait');
   await cue(page, 'Strap').getByTestId('select-cue').click();
@@ -183,13 +187,15 @@ test('S2: a graphic Take pressed while its edit is still a draft waits for the s
   await page.keyboard.press(' ');
   // The checkbox kept its tick: SPACE was the verb's, not the box's.
   await expect(toggle).toBeChecked();
-  await page.waitForTimeout(800);
-  expect(await plays(page), 'the Take is still waiting for the save').toBe(before);
-  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  // On air with the save still held: well inside the time the save wait used to take.
+  await expect(page.getByTestId('live-cue-chip')).toContainText('Strap', { timeout: 2_000 });
+  await expect.poll(() => plays(page), { timeout: 2_000 }).toBe(before + 1);
 
   await holdWrites(page, false);
-  await expect(page.getByTestId('live-cue-chip')).toContainText('Strap');
-  await expect.poll(() => plays(page)).toBe(before + 1);
+  // The save lands after the send: nothing typed is lost, and nothing airs twice.
+  await expect(page.getByTestId('cue-unsent')).toBeEmpty();
+  await page.waitForTimeout(500);
+  expect(await plays(page), 'one entrance').toBe(before + 1);
 });
 
 /** The editor's text boxes, by field id. */

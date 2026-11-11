@@ -5,7 +5,7 @@
 // (AC-2, AC-8, AC-10), and the /output renderer booting from a report that carries an appearance
 // (AC-9's renderer half), with only the backend stood in for as in output-ready.spec.ts. The arithmetic
 // is scripts/cue-adjust.test.mjs; the operator's flow is e2e/production-controls.spec.ts.
-// covers: src/preview/settleGraphic.ts, src/components/home/measureCue.ts, src/output/stage.ts, src/output/main.ts, src/control/cueAdjust.ts, src/control/cueStyle.ts, src/preview/composeDocument.ts
+// covers: src/preview/settleGraphic.ts, src/components/home/measureCue.ts, src/preview/measureDocument.ts, src/output/placeOnOutput.ts, src/output/stage.ts, src/output/main.ts, src/control/cueAdjust.ts, src/control/cueStyle.ts, src/preview/composeDocument.ts
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 
@@ -146,6 +146,62 @@ test('the output stage composes the frame transform as the resolver says, and ke
   const doc = page.frames().find((f) => f.parentFrame() === page.mainFrame());
   const got = await doc!.evaluate(() => (window as unknown as { __got: string[] }).__got);
   expect(got).toEqual([JSON.stringify({ f0: 'a' }), JSON.stringify({ f0: 'b' }), '{}', '{}']);
+});
+
+test('W1: a Take carrying a place hint is first shown at the preset as this stage measures it; without the hint (an older output) at the place sent', async ({ page }) => {
+  // live-publishing spec W1, AC-1: "a preset cue taken right after its text grows is first seen at
+  // the preset's place on a new output and at the sent position on an older one". The page sent
+  // the place its box for the SHORT name gives, with the hint; the stage measures the LONG name
+  // itself (output/placeOnOutput.ts) before the update and the play reach the document. An older
+  // output ignores the hint, which is this stage handed the same command without it.
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto('/app#/home');
+  const result = await page.evaluate(async () => {
+    const { createOutputStage } = await import('/src/output/stage.ts');
+    const { measureCue } = await import('/src/components/home/measureCue.ts');
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { seedValues } = await import('/src/model/shows.ts');
+    const A = await import('/src/control/cueAdjust.ts');
+    const template = variantById('lt01')!.create({});
+    const fieldId = template.fields[0].field;
+    const short = { ...seedValues(template.fields), [fieldId]: 'Ann' };
+    const long = { ...short, [fieldId]: 'Annabel Longname-Whitworth' };
+    const RES = { width: 1920, height: 1080, label: '1080p' };
+    const eff = A.effectiveAdjust({ v: 1, place: 'br', anchor: 'bl' }, undefined);
+    const oldBox = await measureCue(template, short);
+    const newBox = await measureCue(template, long);
+    const sent = A.appearanceOf(A.resolveFrame(eff, oldBox, RES, RES));
+    const expected = A.appearanceOf(A.resolveFrame(eff, newBox, RES, RES));
+    const hint = A.placeHintOf(eff, RES, RES);
+    const run = async (withHint: boolean) => {
+      document.body.innerHTML = '';
+      const root = document.createElement('div');
+      root.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px';
+      document.body.appendChild(root);
+      const spec = { key: 'Strap', html: template.html, css: template.css, js: template.js, assets: template.assets, resolution: RES, fps: 50, layer: 20 };
+      const stage = createOutputStage(root, { v: 1, resolution: RES, graphics: [spec], cues: [] }, { fit: () => ({ width: 1920, height: 1080 }) });
+      const iframe = root.querySelector('iframe[title="Strap"]') as HTMLIFrameElement;
+      for (let i = 0; i < 100 && iframe.style.visibility !== 'visible'; i++) await new Promise((r) => setTimeout(r, 100));
+      stage.apply('Strap', { t: 'update', data: long, appearance: sent, ...(withHint ? { place: hint } : {}) });
+      stage.apply('Strap', { t: 'play' });
+      // What the frame carries the moment the document is first told to play.
+      const atOnce = iframe.dataset.appearance ?? null;
+      for (let i = 0; i < 60 && (iframe.dataset.appearance ?? null) === atOnce && withHint; i++) await new Promise((r) => setTimeout(r, 50));
+      const landed = iframe.dataset.appearance ? JSON.parse(iframe.dataset.appearance) : null;
+      stage.destroy();
+      return { atOnce: atOnce ? JSON.parse(atOnce) : null, landed };
+    };
+    const hinted = await run(true);
+    const older = await run(false);
+    return { sent, expected, hinted, older };
+  });
+  expect(result.expected).not.toEqual(result.sent);
+  // New output: nothing reaches the frame until its own measurement answers, then the preset.
+  expect(result.hinted.atOnce, 'nothing is shown at the sent place first').toBeNull();
+  expect(result.hinted.landed).toEqual(result.expected);
+  // Older output: the place sent, at once.
+  expect(result.older.atOnce).toEqual(result.sent);
+  expect(result.older.landed).toEqual(result.sent);
 });
 
 // ── The /output renderer boots from its report (AC-9, renderer half) ──────────────────────────────

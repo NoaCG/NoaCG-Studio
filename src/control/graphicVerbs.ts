@@ -4,11 +4,15 @@
 //
 // Moved out of ProductionPage with their order, sentences and guards unchanged (phase 12). Each verb
 // follows spec §4.2: what it captures at the press (the cue, the graphic, the verb, its options and
-// the selection, all from the render that handled the press), what it waits on (the draft's save and
-// the history group), what it reads after the wait (the draft through `cueView`, the bound values
-// through `resolvedOf`, the newest tree through `boundNow`), and how it treats the answer: the one
+// the selection, all from the render that handled the press), what it waits on, what it reads after
+// the wait (the draft through `cueView`, the bound values through `resolvedOf`, the newest tree
+// through `boundNow`), and how it treats the answer: the one
 // sender writes the live marker from its answers, on this page's newest marker press that landed
-// (liveCue.ts `answerMarker`, #1696). After
+// (liveCue.ts `answerMarker`, #1696). A Take path (Take, a folder's Take and step, ±, a ⚡ event)
+// waits on no save: it reads from memory and saves the draft once its send is answered
+// (live-publishing W1, `saveAfter`); an Update and a snap still wait for the draft's save and the
+// history group first. The kept waits are the order: one press after another per graphic
+// (`afterPress`), this page's own sends of the graphic (`behind`). After
 // the session's end nothing more is sent (`send` refuses) and an answer changes nothing (the
 // session's folds are no-ops).
 //
@@ -141,13 +145,14 @@ export interface GraphicPage {
   liveLayers: readonly { graphic: string }[];
   livePlayoutLayers: readonly { cue: ShowCue }[];
   graphicOf: (cue: ShowCue) => string | null;
-  /** The cue as typed, draft included (`cueDraft.view`), read after the wait. */
+  /** The cue as typed, draft included (`cueDraft.view`), read from memory at the send. */
   cueView: (cue: ShowCue) => { values: Record<string, string> };
   /** One graphic's bound values from the render's resolution, the one PREVIEW reads. */
   resolvedOf: (graphic: string) => Record<string, string>;
-  /** The place and size a Take or a full Update of the cue carries (./cueAdjust.ts
-   *  `appearanceToSend`), read after the wait; absent or undefined, the update carries none. A
-   *  promise when the cue's box is still being measured (capped by the page). */
+  /** The place and size a full Update of the cue carries (./cueAdjust.ts `appearanceToSend`),
+   *  read after its wait, and a Take's when the page has no `takeAppearanceOf`; absent or undefined,
+   *  the update carries none. A promise when the cue's box is still being measured (capped by the
+   *  page). */
   appearanceOf?: (cue: ShowCue, graphic: string) => AppliedAppearance | undefined | Promise<AppliedAppearance | undefined>;
   /** What a TAKE carries for place and size, read from memory at the press (./adjustGeometry.ts
    *  `takeAppearance`, W1): never a promise. Absent, a Take reads `appearanceOf`. */
@@ -982,7 +987,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   };
 
   /** The data that belongs to AIR: the cue live on the selected layer, draft included. Events and
-   *  snaps act on the live graphic, so their values come from ITS cue, read after the wait. A live
+   *  snaps act on the live graphic, so their values come from ITS cue, read when they send. A live
    *  candidate's fields are what its aired instance shows; with no instance here they are left out,
    *  so the layer keeps what it shows rather than the cue's prepared text (E7.1). */
   const airValues = (p: GraphicPage, sel: VerbSelection): Record<string, string> => {
@@ -1000,7 +1005,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   const pressEvent = async (s: VerbSender, p: GraphicPage, sel: VerbSelection, button: ControlButton, graphic: string, bound: Record<string, string>, movedList: string[], still: () => boolean): Promise<PressDone> => {
     // An event may READ a live candidate's fields, never move one: that figure would be in no
     // revision (E7.1).
-    // Asked again after the wait, which a Take may have moved.
+    // Asked after the wait for the press before it, which a Take may have moved.
     const candidate = (): string | null => {
       const fixed = [...(sel.airCue ? p.candidateFields(sel.airCue) : []), ...p.airedCandidateFields(graphic)];
       const moving = movedList.filter((key) => fixed.includes(key));

@@ -909,6 +909,11 @@ with each other and most of them are the user's to fix:
 | `scanner` | a list came back `501` | The server answered, but its media scanner is not running. |
 | `ok` | AMCP `201 VERSION OK` | Shows the server's own version string. |
 
+Every request asks `/health` first, with one exception: a server action (`/act`) to an address this
+page load has already heard answer as a current Bridge goes at once, so a Take never waits on a
+health request (docs/work-specs/live-publishing/spec.md W1). When that action cannot reach the
+Bridge, `/health` is asked then, and the table above says why.
+
 `config` is one more state for settings that are not filled in yet, and it is why **Test
 connection** is disabled rather than offering a call that must fail. `permission` is only ever
 offered when it is possible - a NoaCG on `http://localhost` or a LAN self-host cannot hit it

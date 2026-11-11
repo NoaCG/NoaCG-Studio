@@ -146,8 +146,6 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
   /** Whether a cue is on air now, from the store as it stands and liveCue as last set. */
   const onAirNow = (p: FolderPage, cue: ShowCue) => cueOnAir(cue, { items: p.items, ownership: p.ownership(), liveCue: p.liveCueOf(), graphicName: p.graphicOf });
 
-  /** Run a folder's Take once at a time, and let Out and All out stop it. Nothing runs once the
-   *  session has ended (it may have ended during the save wait). */
   /** W1: a folder's Take or step reads its members' values from memory and saves the draft once
    *  its sends are done, whatever they came to; a save that fails never holds or aborts them. */
   const savedAfter = async (p: FolderPage, run: Promise<void>) => {
@@ -158,6 +156,8 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
     }
   };
 
+  /** Run a folder's Take once at a time, and let Out and All out stop it. Nothing runs once the
+   *  session has ended. */
   const runFolder = async (folderId: string, work: (run: Run) => Promise<void>) => {
     if (!session.alive()) return;
     const run: Run = { stop: null };
