@@ -451,6 +451,7 @@ test('P1: after a hide the page came back from, typing on is applied over the te
   const stop = h.draft.listen(h.adapters);
   h.draft.edit(OPENER, { values: { f0: 'A' } });
   for (const run of h.listeners.hide) run(true);
+  for (const run of h.listeners.shown) run();
   h.draft.edit(OPENER, { values: { f0: 'AB' } });
   for (const run of h.listeners.hide) run(true);
   assert.deepEqual(h.owed?.bases.map((b) => b.values.f0), ['Anna Riva', 'A']);

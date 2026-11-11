@@ -214,8 +214,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
    *  part of the typing handed to the store (it may or may not have landed when the page goes).
    *  What a recorded edit may be applied over on the next visit, and nothing else. */
   let startedFrom: { cueId: string; texts: CueFields[] } | null = null;
-  /** Whether this page recorded the draft's owed edit when it hid, and whether it is hidden or
-   *  going now (from its hide until it is shown again). */
+  /** The owed-edit record this page last wrote when it hid, as stored, or null. */
   let recorded: string | null = null;
   /** Remove the record only if it is still the one this page wrote: another tab of the same
    *  production may have written its own since. */
@@ -223,6 +222,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     if (recorded !== null && JSON.stringify(io.owed.read()) === recorded) io.owed.forget();
     recorded = null;
   };
+  /** Whether this page is hidden or going: from its hide until it is shown again. */
   let leaving = false;
   const copyOf = (d: DraftPart): CueFields => ({ ...fieldsOf(d), values: { ...d.values } });
   const started = (d: DraftPart) => {
@@ -410,8 +410,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
       });
     },
     listen: (adapters) => {
-      // Shown again after this page hid: it stayed, so the store's write lands, and the record is
-      // for a page that goes. (A page that never hid has applied or kept no record of its own.)
+      // Hidden or going: what is owed is saved and recorded where a reload cannot drop it.
       const offHide = adapters.onPageHide((going) => {
         if (going) leaving = true;
         retain(going);
