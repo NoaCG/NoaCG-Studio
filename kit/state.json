@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "pr": 2368,
-      "note": "Fresh full review A on exact final source. CLI 131/131, changed gates 70/70, and exact Windows package health passed. Required picker/playback proof waits for the existing shared queue. Draft remains Rules-only and outside merge queue.",
-      "step": "build",
+      "phase": "v3",
       "session": "/root/v3_builder",
+      "pr": 2368,
       "head": "f7dd9bf838d4eb097e1e488175b43ec41574bb39",
-      "phase": "v3"
+      "note": "Exact source review A and package health passed. Native AC-8 found empty VideoList ACKed LoopOn without loop; device stopped and both settings restored. Independent measured-order repair rules published. Picker j-5181 stopped before invoking dialog due browser URL grounding.",
+      "step": "build"
     }
   ],
   "owner": [],
