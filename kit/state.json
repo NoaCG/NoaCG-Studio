@@ -64,7 +64,19 @@
     "read": "Read the finalized spec and phases from f0f2e3fe0c2cc14e23b171957b6f8d18905fd434 with git show; the runtime worktree starts on pinned main, independently of the plan-only source. Read docs/EDITOR_PLAN.md, the editor acceptance register and the October single-device closure named in the spec. Preserve the old October ledger and source-specific evidence. #2294 exact acceptance and terminal checks are recorded in its repair-owner closeout. Read the latest issue details for #774, #1749 and #775 before using them.",
     "rules": "Run the current worker plan preflight before work and use only the owned absolute Windows worktree. Use the local verification scheduler, isolated accounts and required native 125% zoom/file interactions; full suites stay in GitHub Actions. Respect the October single-device boundaries and the serial phase order. Before E1 product edits reproduce and write the short observable rule or gap. Report every subcriterion and retain original failures and any missing evidence. Inventory the exact GSAP browser, CLI and export artifacts early and send the finished draft back to the coordinator for the owner. State that NoaCG is open source, entirely free, earns no revenue and serves broadcast graphics. The owner superseded the six-month deferral and sends the request. Preserve licence, provenance, notices and redistribution checks. A delayed reply is not an engineering wait before OW1. Stage actual receiving hosts/operator, first-time users/moderator and existing model-access leads in E1 without claiming availability. Do not launch other phases. Do not change provider, funding, licence, engine or release posture. Do not use or modify production data. Respect #1967 and check sideEnds on exact candidate paths, including package versions. The active coordinator acknowledges PR repair duty and owns queue stamping and terminal monitoring. Follow the latest check and queue guidance and obtain fresh independent review under the shared traps."
   },
-  "inFlight": [],
+  "inFlight": [
+    {
+      "phase": "E3",
+      "step": "build",
+      "nativeId": "/root/editor_r15_e3_builder",
+      "session": "6af466f2-e57c-8191-8419-e116f7c9c06f",
+      "actionId": "plan-editor-r1-5-2026-11-08:5",
+      "sourceSha": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+      "branch": "codex/plan-editor-r1-5-e3-build",
+      "worktree": "/workspace/noacg-editor-r1-5-e3-build",
+      "note": "Fresh builder accepted and exact brief/source verified. E3 research and current-source qualification; Rules-first review before risky code. Existing model/funding route preserved. E2 PASS recorded, unrelated clock red retained; owned mechanical quarantine2382 remains monitored separately."
+    }
+  ],
   "owner": [],
   "fixes": [
     {
@@ -538,7 +550,8 @@
       "mergeSha": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
       "findings": "Independent exact-merge E2 findings: https://github.com/NoaCG/NoaCG-Studio/pull/2374#issuecomment-6796374704",
       "receipt": "receipts/e2-independent-check/final-receipt.json",
-      "disposition": "https://github.com/NoaCG/NoaCG-Studio/pull/2374#issuecomment-6796352748"
+      "disposition": "https://github.com/NoaCG/NoaCG-Studio/pull/2374#issuecomment-6796352748",
+      "archive": "confirmed"
     }
   },
   "waitingOn": {},
@@ -601,5 +614,14 @@
       "wakes": false
     },
     "policyEvidence": "Effective approval, sandbox and network taken from current execution instructions and enforced environment status; no writable default roots. Invocation-specific escalations are not permanent broad write permission."
+  },
+  "e3Checkpoint": {
+    "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+    "actionId": "plan-editor-r1-5-2026-11-08:5",
+    "nativeId": "/root/editor_r15_e3_builder",
+    "session": "6af466f2-e57c-8191-8419-e116f7c9c06f",
+    "brief": "briefs/e3-build-e3-b-cloud-1111.txt",
+    "sha256": "5a76b6aea1afa2ae157e0aee526b515ec9be7b72bded3b0a8edf0e9bfe61ae53",
+    "preflight": "PASS2026-11-11T13:01:52Z; initial sandbox IO failure retained; scoped reviewed escalation succeeded"
   }
 }
