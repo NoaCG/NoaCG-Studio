@@ -90,3 +90,25 @@ The existing Bridge ownership wire contract binds a stored instance to the respo
 
 
 The four focused media/root/ownership probes reproduced the reviewed failures on b326ceb9. The HTTP prefix probe also reproduced a player instance with no session prefix. On the repaired tree all 112 vMix and media tests passed, including 76 V2 tests and the new picker-publication, root recovery, overlay isolation, shortTitle and HTTP session checks. Changed root gates passed 70/70 Node tests, CLI compilation passed and the work-spec status reported no structural or digest problems. The prepared native proof scripts passed syntax checks. No device run was performed on the failed-reviewed candidates.
+
+
+### First packaged host attempts on 701ad808
+
+The development executable built in j-5169 had SHA-256 10435250c00d7dcaacdf6035712f5366b9151b1d461014364eaba00ba8b5aebd. It passed its native health smoke. The fresh full review graded this head B+. It confirmed the earlier corrections and found the default Blank attribution, reachable Resume entries and Windows case-sensitive path comparison problems.
+
+The required packaged-picker probe j-5170 failed. Its owned headed browser issued the native chooser request, and a second request was refused while that request was pending. Both Windows window inventories showed the proof browser and no visible picker. The picker PowerShell process remained alive in the interactive session with no main window handle. The Chrome-for-Testing window also hit a Computer Use ownership error when binding for a screenshot. The first chooser request timed out after 125 seconds. No folder choice or visible modal was verified. The owned browser, Bridge and picker child exited, and the mixer and its settings were untouched.
+
+A separately admitted AC-8-only diagnostic used a disposable Bridge setup and the owned blank vMix 29.0.0.49 Trial session. Initial XML reported two native inputs at positions 1 and 2, each with type, title and shortTitle Blank. The single AddInput VideoList request replaced position 1 with a new GUID, type VideoList and title/shortTitle List, with an empty list, Completed and zero position/duration. The remaining position-2 Blank also changed GUID. vMix changed its own Preview index from 2 to 1 during creation. The wire contained only XML reads and the one AddInput, with no keyed function or Program, Preview or transition function. Bridge stopped uncertain under the old attribution check. Both settings files were restored by SHA-256, the owned process was stopped, and vMixService stayed running. The before and after XML, TCP trace and receipt remain in the local real-10435250c00d-fixture-folder-blank-only evidence folder. This diagnostic makes no playback acceptance claim.
+
+
+### Reassessed reachable paths, native Blank and picker rules
+
+The fresh read-only reassessment agreed with the following bounded corrections and the updated Rules were published before implementation.
+
+- Before a Take, Resume or ending can issue a playback-capable function, each existing list entry that playback can reach must resolve to a supported file inside the current root and on the intended player. Without an authoritative vMix Auto Play Next reading, any retained predecessor or successor can be reachable. Recheck later observed list changes before further playback exposure. Pause, Out and Clear remain available for recovery. A missing new leaf still reaches vMix after its parent is verified.
+- Windows lexical folding can locate a candidate relative path. It grants no containment or identity. Resolve the actual candidate root and path, require exact canonical root segments, and compare item identity without folding distinct case names. A legitimate spelling alias is allowed only when its actual root resolves to the same canonical root. A lexical path on a foreign drive or UNC share is refused without probing it. Filesystem lookup cannot hold the port past the existing verb deadline or cause a late function.
+- The measured native startup exception applies to exact built-in Blank inputs at their startup positions. Only one stable new empty VideoList can replace a Blank position. Other real input identities and the remaining Blank positions and shape stay fixed. A remaining native Blank GUID may rekey. A new or changed real input still leaves attribution uncertain. The observed native Preview movement is a vMix side effect of AddInput, with no runtime Preview command.
+- The packaged picker uses a shown and activated top-most owned Windows form before opening its modal dialog. The native dialog still waits outside the mixer turn. If an exact packaged proof still cannot establish a visible choice, build and prove the spec's Bridge-window fallback.
+
+
+The prior compiled candidate reproduced unsafe retained entries, a later unsafe list change, a hung lookup retaining the port, case-folded identity and the measured Blank refusal. The repaired CLI build and all 119 focused vMix/media tests passed, including all 76 V2 tests. Changed root gates passed 70/70 Node tests. The visible owner is implemented in this candidate. Its packaged foreground proof still needs to be run.

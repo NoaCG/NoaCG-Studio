@@ -13,7 +13,7 @@ import { VMIX_BROWSER_LOAD_PROBLEM, VMIX_INPUT_KEY, vmixOverlayCount, type Agent
 import { DEFAULT_VMIX_PORT, VmixConnection, parseVmixXml, type VmixXml } from '../vmixTcp.js';
 import { newVmixBrowser, vmixOutputAddress, vmixOutputId, vmixOutputStore, vmixRedirectRequest, type VmixOutputStore } from '../vmixOutputs.js';
 import { createVmixMedia, type VmixMedia } from '../vmixMedia.js';
-import { createVmixPlayers, unsupportedPlayerAction, type VmixActResult } from '../vmixPlayers.js';
+import { createVmixPlayers, unsupportedPlayerAction, VmixLookupTimeout, type VmixActResult } from '../vmixPlayers.js';
 import type { ActContext, ActResult, AdapterResult, PlayoutAdapter } from './casparcg.js';
 
 /** The time ONE verb may take, all its commands together, inside the page's 9 s for `/act`. */
@@ -255,7 +255,8 @@ export function createVmixAdapter(options: {
 
     async overlays(target, outputUrl, { receivedAt = Date.now(), vmixBridgePort } = {}) {
       return exclusive(portOf(target), async () => {
-        const s = await begin(target, receivedAt + timeoutMs);
+        const until = receivedAt + timeoutMs;
+        const s = await begin(target, until);
         if (!('conn' in s)) return s;
         const vmix = describe(s.xml);
         const id = outputUrl === undefined ? undefined : vmixOutputId(outputUrl);
@@ -281,7 +282,7 @@ export function createVmixAdapter(options: {
           value.push({ overlay, ...(input ? { input } : {}), ...(id && !ownershipProblem ? { ownsOutput: !!owned && input?.key === owned.key } : {}) });
         }
         const playerStates = outputUrl === undefined
-          ? await players.states(portOf(target), s.xml).catch(() => undefined)
+          ? await players.states(portOf(target), s.xml, until).catch(() => undefined)
           : undefined;
         return { ok: true, value: { vmix, overlays: value, ...(playerStates ? { players: playerStates } : {}), ...(loadProblem ? { loadProblem } : {}) }, raw: s.raw };
       });
@@ -333,6 +334,7 @@ export function createVmixAdapter(options: {
               send: (name, params) => fn(s.conn, name, params, until, true),
             });
           } catch (error) {
+            if (error instanceof VmixLookupTimeout) return { ok: false, error: { hop: 'agent', code: 'unreachable', detail: error.message } };
             return refused(error instanceof Error ? error.message : 'The vMix player setup could not be read or kept.');
           }
         });

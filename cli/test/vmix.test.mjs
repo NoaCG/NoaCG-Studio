@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { request as httpRequest } from 'node:http';
-import { mkdtemp, readFile, realpath, rm, rmdir, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, realpath, rm, rmdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -2350,4 +2350,155 @@ test('AC-8: HTTP player instances belong to the Bridge session and disappear on 
     assert.equal(reading.players[0].instance, undefined);
     assert.equal(reading.players[0].cueId, undefined);
   });
+});
+
+
+test('AC-9: an unsafe retained predecessor or successor blocks Take and Resume while Out stays available', async t => {
+  const outside = await realpath(await mkdtemp(join(tmpdir(), 'noacg-vmix-reachable-')));
+  t.after(() => rm(outside, { recursive: true, force: true }));
+  const forbidden = join(outside, 'unselected.mp4');
+  await writeFile(forbidden, 'outside');
+  for (const selectedIndex of [1, 2]) {
+    const fixture = await playerFixture(t, { inputs: [{ type: 'VideoList', title: 'NoaCG Clips', state: 'Paused' }] });
+    const allowed = join(fixture.root, 'clip A.mp4');
+    const input = fixture.fake.inputs[0];
+    input.list = selectedIndex === 1 ? [allowed, forbidden] : [forbidden, allowed];
+    input.selectedIndex = selectedIndex;
+    for (const result of [
+      await fixture.adapter.act(fixture.target, { verb: 'resume', slot: fixture.player() }),
+      await fixture.take('clip B.mp4'),
+    ]) {
+      assert.equal(result.ok, false, 'unsafe retained item');
+      assert.equal(result.error.code, 'refused');
+      assert.match(result.error.detail, /Clear or Out/);
+    }
+    assert.deepEqual(fixture.fake.functions, []);
+    assert.equal((await fixture.adapter.act(fixture.target, { verb: 'out', slot: fixture.player() })).ok, true);
+  }
+});
+
+test('AC-9: a later unsafe list reading stops a Take before appending or playing', async t => {
+  let input;
+  let outside;
+  const fixture = await playerFixture(t, {
+    inputs: [{ type: 'VideoList', title: 'NoaCG Clips', state: 'Running' }],
+    afterFunction(name) {
+      if (name === 'SetAlpha') input.list.push(outside);
+      return false;
+    },
+  });
+  const otherRoot = await realpath(await mkdtemp(join(tmpdir(), 'noacg-vmix-later-')));
+  t.after(() => rm(otherRoot, { recursive: true, force: true }));
+  outside = join(otherRoot, 'later.mp4');
+  await writeFile(outside, 'outside');
+  input = fixture.fake.inputs[0];
+  input.list = [join(fixture.root, 'clip A.mp4')];
+  input.selectedIndex = 1;
+  const reply = await fixture.take('clip B.mp4');
+  assert.equal(reply.ok, false);
+  assert.match(reply.error.detail, /Clear or Out/);
+  assert.equal(fixture.fake.functions.some(fn => /^(ListAdd|SelectIndex|Play)$/.test(fn.name)), false);
+});
+
+test('AC-7: a hung filesystem lookup releases the vMix port at its deadline and never sends late', async t => {
+  let release;
+  let started;
+  const waiting = new Promise(resolve => { started = resolve; });
+  const filesystem = new Promise(resolve => { release = resolve; });
+  const fixture = await playerFixture(t, {
+    inputs: [{ type: 'VideoList', title: 'NoaCG Clips', state: 'Paused' }],
+  }, { timeoutMs: 240 });
+  fixture.fake.inputs[0].list = [join(fixture.root, 'clip A.mp4')];
+  fixture.fake.inputs[0].selectedIndex = 1;
+  const relativeFile = fixture.media.relativeFile;
+  fixture.media.relativeFile = async (...args) => {
+    started();
+    await filesystem;
+    return relativeFile(...args);
+  };
+  const resume = fixture.adapter.act(fixture.target, { verb: 'resume', slot: fixture.player() });
+  await waiting;
+  try {
+    const result = await Promise.race([resume, sleep(750).then(() => undefined)]);
+    assert.equal(result?.ok, false, 'held media lookup cannot keep the port');
+    assert.equal(result.error.code, 'unreachable');
+    assert.equal((await fixture.adapter.status(fixture.target)).ok, true);
+  } finally {
+    release();
+    await resume;
+  }
+  await sleep(20);
+  assert.deepEqual(fixture.fake.functions, []);
+  assert.equal(fixture.fake.connections, 1);
+});
+
+test('AC-8: the measured startup Blank replacement keeps only a stable new empty Video List', async t => {
+  const fixture = await playerFixture(t, {
+    inputs: [{ type: 'Blank', title: 'Blank' }, { type: 'Blank', title: 'Blank' }],
+    replaceStartupBlanks: true,
+  });
+  const previous = fixture.fake.inputs.map(input => input.key);
+  const result = await fixture.take('clip A.mp4');
+  assert.equal(result.ok, true, JSON.stringify(result));
+  const [clips, placeholder] = fixture.fake.inputs;
+  assert.equal(clips.title, 'NoaCG Clips');
+  assert.equal(placeholder.type, 'Blank');
+  assert.ok(!previous.includes(clips.key));
+  assert.ok(!previous.includes(placeholder.key));
+  assert.equal(fixture.fake.functions.filter(fn => fn.name === 'AddInput').length, 1);
+  assert.ok(fixture.fake.functions.filter(fn => fn.params.Input).every(fn => fn.params.Input === clips.key));
+});
+
+test('AC-8: a Blank or real input changing in an unmeasured way grants no new ownership', async t => {
+  for (const kind of ['other Blank became real', 'existing real changed']) {
+    let fake;
+    const blank = kind === 'other Blank became real';
+    const fixture = await playerFixture(t, {
+      inputs: blank ? [{ type: 'Blank', title: 'Blank' }, { type: 'Blank', title: 'Blank' }] : [{ type: 'Colour', title: 'Camera' }],
+      replaceStartupBlanks: blank,
+      afterFunction(name) {
+        if (name !== 'AddInput') return false;
+        if (blank) fake.inputs[1].type = 'Colour';
+        else fake.inputs[0].title = 'Changed Camera';
+        return false;
+      },
+    });
+    fake = fixture.fake;
+    const reply = await fixture.take('clip A.mp4');
+    assert.equal(reply.ok, false, kind);
+    assert.equal(reply.error.code, 'uncertain', kind);
+    assert.deepEqual(fake.functions.map(fn => fn.name), ['AddInput'], kind);
+  }
+});
+
+
+test('AC-9: an owned Hold-to-Loop refuses when a retained predecessor falls outside the new root', async t => {
+  let chosen;
+  let refuseRemoval = false;
+  const fixture = await playerFixture(t, {
+    hook(line, socket) {
+      if (!refuseRemoval || !line.startsWith('FUNCTION ListRemove ')) return false;
+      socket.write('FUNCTION ER List removal refused\r\n');
+      return true;
+    },
+  }, {}, { picker: async () => chosen });
+  chosen = join(fixture.root, 'Selected');
+  await mkdir(chosen);
+  await writeFile(join(chosen, 'clip A.mp4'), 'inside narrower root');
+  assert.equal((await fixture.take('clip B.mp4')).ok, true);
+  refuseRemoval = true;
+  const partial = await fixture.take('Selected/clip A.mp4');
+  assert.equal(partial.ok, false);
+  assert.equal(partial.error.code, 'refused');
+  assert.ok((await fixture.adapter.overlays(fixture.target)).value.players[0].instance);
+  assert.equal((await fixture.adapter.chooseFolder(fixture.target)).mediaFolder, chosen);
+  const before = fixture.fake.functions.length;
+  const result = await fixture.adapter.act(fixture.target, {
+    verb: 'ending', slot: fixture.player(), item: { kind: 'media', name: 'clip A.mp4' }, playback: { end: 'loop' },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'refused');
+  assert.match(result.error.detail, /Clear or Out/);
+  assert.equal(fixture.fake.functions.length, before);
+  assert.equal((await fixture.adapter.act(fixture.target, { verb: 'clear', slot: fixture.player() })).ok, true);
 });

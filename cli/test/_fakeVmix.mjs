@@ -53,7 +53,11 @@ export async function startFakeVmix(options = {}) {
     if (name === 'AddInput') {
       const [type, rest] = params.Value.split(/\|(.*)/s);
       const input = makeInput({ type, title: type === 'Browser' ? 'Browser ' + new URL(rest).hostname : type === 'VideoList' ? 'List' : rest.split(/[\\/]/).pop(), url: rest });
-      const add = () => inputs.push(input);
+      const add = () => {
+        if (options.replaceStartupBlanks && type === 'VideoList' && inputs.length === 2 && inputs.every(old => old.type === 'Blank')) {
+          inputs.splice(0, 2, input, makeInput({ type: 'Blank', title: 'Blank' }));
+        } else inputs.push(input);
+      };
       if (options.addDelayMs) setTimeout(add, options.addDelayMs);
       else add();
     } else if (inputs.find(i => i.key === key)?.list && name !== 'SetInputName' && name !== 'RemoveInput') {

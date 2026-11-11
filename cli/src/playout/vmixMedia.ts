@@ -43,12 +43,16 @@ export function vmixMediaName(name: string): boolean {
 }
 
 export function sameVmixPath(a: string, b: string): boolean {
-  return path.relative(a, b) === '';
+  return path.normalize(a) === path.normalize(b);
 }
 
 function relativeName(root: string, file: string): string | undefined {
   if (!path.isAbsolute(file)) return;
-  const name = path.relative(root, file).split(path.sep).join('/');
+  const canonicalRoot = path.normalize(root);
+  const prefix = canonicalRoot.endsWith(path.sep) ? canonicalRoot : canonicalRoot + path.sep;
+  const canonicalFile = path.normalize(file);
+  if (!canonicalFile.startsWith(prefix)) return;
+  const name = canonicalFile.slice(prefix.length).split(path.sep).join('/');
   if (vmixMediaName(name)) return name;
 }
 
@@ -113,12 +117,14 @@ async function windowsFolderPicker(initial: string, signal?: AbortSignal): Promi
     'Add-Type -AssemblyName System.Windows.Forms',
     '$owner = [Windows.Forms.Form]::new()',
     '$owner.TopMost = $true',
-    '$owner.ShowInTaskbar = $false',
-    '$owner.Opacity = 0',
+    "$owner.Text = 'NoaCG Bridge media folder'",
+    "$owner.StartPosition = 'CenterScreen'",
+    "$owner.FormBorderStyle = 'FixedDialog'",
+    '$owner.ClientSize = [System.Drawing.Size]::new(300, 48)',
     '$picker = [Windows.Forms.FolderBrowserDialog]::new()',
     "$picker.Description = 'Choose the NoaCG vMix media folder'",
     '$picker.SelectedPath = $env:NOACG_VMX_PICKER_INITIAL',
-    'try { if ($picker.ShowDialog($owner) -eq [Windows.Forms.DialogResult]::OK) { ConvertTo-Json -Compress -InputObject $picker.SelectedPath } }',
+    'try { $owner.Show(); $owner.Activate(); if ($picker.ShowDialog($owner) -eq [Windows.Forms.DialogResult]::OK) { ConvertTo-Json -Compress -InputObject $picker.SelectedPath } }',
     'finally { $picker.Dispose(); $owner.Dispose() }',
   ].join('\n'), initial, signal);
   return answer ? JSON.parse(answer) as string : undefined;
@@ -292,10 +298,17 @@ export function createVmixMedia(options: {
     async relativeFile(port: number, file: string): Promise<string | undefined> {
       try {
         const dir = await root(port);
-        const name = relativeName(dir, file);
-        if (!name) return;
+        if (!path.isAbsolute(file) || file.split(/[\\/]/).some(part => part === '.' || part === '..')) return;
+        // Windows folds case in relative(). Treat that only as a candidate. Verify the root
+        // from the actual reported path before resolving the candidate under our canonical root.
+        const name = path.relative(dir, file).split(path.sep).join('/');
+        if (!vmixMediaName(name)) return;
+        let rawRoot = path.normalize(file);
+        const levels = name.split('/').length;
+        for (let level = 0; level < levels; level += 1) rawRoot = path.dirname(rawRoot);
+        if (!sameVmixPath(dir, await fs.realpath(rawRoot))) return;
         const resolved = await resolveChild(dir, name);
-        if (resolved.stat?.isFile() && sameVmixPath(resolved.file, file)) return name;
+        if (resolved.stat?.isFile()) return relativeName(dir, resolved.file);
       } catch {
         // An external or now-missing path is not a media name Bridge can publish.
       }

@@ -271,6 +271,7 @@ export interface VmixXml {
   edition: string;
   inputs: VmixInput[];
   shortTitles: Map<string, string>;
+  blanks: Set<string>;
   lists: Map<string, VmixVideoList>;
   overlays: Map<number, number>;
   reportedOverlays: Set<number>;
@@ -319,6 +320,7 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
   const numbers = new Set<number>();
   const inputs: VmixInput[] = [];
   const shortTitles = new Map<string, string>();
+  const blanks = new Set<string>();
   const lists = new Map<string, VmixVideoList>();
   const overlays = new Map<number, number>();
   const reportedOverlays = new Set<number>();
@@ -374,6 +376,8 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
       inputs.push({ key, number, title, type });
       const shortTitle = attribute('shortTitle');
       if (shortTitle !== undefined) shortTitles.set(key, shortTitle);
+      if (type === 'Blank' && title === 'Blank' && shortTitle === 'Blank' && attribute('state') === 'Paused' &&
+          attribute('position') === '0' && attribute('duration') === '0' && stateBoolean(attribute('loop')) === false) blanks.add(key);
       if (type === 'VideoList') {
         const selected = stateInteger(attribute('selectedIndex'));
         const positionMs = stateInteger(attribute('position'));
@@ -469,5 +473,5 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
     return;
   }
   if (!VMIX_VERSION.test(version) || !edition || !seen.has('inputs') || !seen.has('overlays')) return;
-  return { version, edition, inputs, shortTitles, lists, overlays, reportedOverlays };
+  return { version, edition, inputs, shortTitles, blanks, lists, overlays, reportedOverlays };
 }

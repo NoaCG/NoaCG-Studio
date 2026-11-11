@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { createVmixMedia, vmixMediaName } from '../dist/playout/vmixMedia.js';
+import { createVmixMedia, sameVmixPath, vmixMediaName } from '../dist/playout/vmixMedia.js';
 
 async function mediaFixture(t, options = {}) {
   const base = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'noacg-vmix-media-')));
@@ -189,4 +189,20 @@ test('AC-9: closing Bridge aborts its owned picker and preserves the media root'
   await assert.rejects(choosing, /could not open/);
   assert.equal(signal.aborted, true);
   assert.equal(await media.folder(8099), root);
+});
+
+
+test('AC-9: path identity preserves case-distinct names and valid aliases resolve to actual files', async t => {
+  const { base, root, media } = await mediaFixture(t);
+  assert.equal(sameVmixPath(path.join(root, 'Reel.mp4'), path.join(root, 'reel.mp4')), false);
+  await fs.writeFile(path.join(root, 'Clip.mp4'), movie(1000));
+  const alias = path.join(base, 'VIDEOS');
+  const actual = await fs.realpath(alias).catch(() => undefined);
+  const raw = path.join(alias, 'Clip.mp4');
+  assert.equal(await media.relativeFile(8099, raw), actual === root ? 'Clip.mp4' : undefined);
+  const inside = path.join(root, 'Subfolder');
+  await fs.mkdir(inside);
+  await fs.writeFile(path.join(inside, 'Nested.mp4'), movie(1000));
+  await fs.symlink(inside, path.join(root, 'in-root-link'), process.platform === 'win32' ? 'junction' : 'dir');
+  assert.equal(await media.relativeFile(8099, path.join(root, 'in-root-link', 'Nested.mp4')), 'Subfolder/Nested.mp4');
 });
