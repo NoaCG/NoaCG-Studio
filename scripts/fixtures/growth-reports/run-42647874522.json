@@ -714,5 +714,41 @@
   "stops": {
     "backend": "cost:backend since 2026-11-02, one correction due 2026-11-09 did not bring it back in bounds",
     "overhead": "cost:overhead since 2026-11-02, one correction due 2026-11-09 did not bring it back in bounds"
-  }
+  },
+  "breaches": [
+    {
+      "key": "cost:backend",
+      "kind": "cost",
+      "subject": "backend",
+      "detail": "backend at 127% of its ceiling: 148.2/117 per landing, 79.1/78 per day (127%), jev-svg-import-journey excepts 0/landing (claims 6.85, capped at what it covers) to 2026-12-03; evidence partial: configured-suite.yml|push: 1 read(s) failed",
+      "owner": "miwco (primary); the weekly owner session (backup coverage)",
+      "since": "2026-11-02",
+      "corrections": 1,
+      "due": "2026-11-09",
+      "state": "stopped"
+    },
+    {
+      "key": "age:#2261",
+      "kind": "age",
+      "subject": "#2261",
+      "category": "prReady",
+      "owner": "miwco (primary); the weekly owner session (backup coverage)",
+      "due": "2026-11-10",
+      "detail": "prReady #2261 unfinished for 4026 min, over its 120 minutes ceiling (clock from stamp 2026-11-06T20:39:33Z)",
+      "since": "2026-11-09",
+      "state": "correcting",
+      "corrections": 1
+    },
+    {
+      "key": "cost:overhead",
+      "kind": "cost",
+      "subject": "overhead",
+      "detail": "overhead at 126% of its ceiling: 132.1/105 per landing, 6.1/10 per day (126%), production-load-watch excepts 0/landing to 2026-12-03 (not re-measured this week: kept until evidence clears it)",
+      "owner": "miwco (primary); the weekly owner session (backup coverage)",
+      "since": "2026-11-02",
+      "corrections": 1,
+      "due": "2026-11-09",
+      "state": "stopped"
+    }
+  ]
 }

@@ -12,7 +12,7 @@ import test from 'node:test';
 import { HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, knownCoversOnDisk, offlineExceptionChanges, parseExceptions } from './e2e-capacity.mjs';
 import {
   TIERS, admit, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, cronRunsPerDay, detectSlowdown,
-  ceilingsRevision, coverCosts, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, knownCovers, landingDispatched, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
+  ceilingsRevision, confirmedStops, coverCosts, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, knownCovers, landingDispatched, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   quarantineLines, tableFreshness, tierOfCover, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
 import { AGE_ISSUE, GATE_CANDIDATES, MAX_ATTEMPTS, REPORT_ISSUE, RETRY, ages, buildReport, carriedDues, carriedStarts, classifyReport, fetchLatest, findIssue, finishedPrs, gateFile, gateReport, healthAction, listRuns, makeReader, phaseIssueTitle, priceRuns, readJobs, reportAlarm, rerunStillNeeded, sampleJobs, seriesOf, spread, transient } from './growth-report.mjs';
@@ -1776,4 +1776,49 @@ test('one alarm per bad report: raised once, routed to the owner, not repeated p
   assert.ok(posted.some((p) => p === 'POST repos/NoaCG/NoaCG-Studio/issues/90/comments'), 'a new bad report is one new comment');
   assert.equal(reportAlarm({ kind: 'close' }, 'miwco', gh), 'closed #90');
   assert.equal(reportAlarm({ kind: 'wait' }, 'miwco', gh), 'no alarm');
+});
+
+test('a newer partial report adds only the stops its own evidence confirmed (Rule E21)', async () => {
+  // Run 42647874522 (partial) carries two stops: backend re-measured over its ceiling that week,
+  // overhead only kept because the week could not judge it.
+  const partial = realReport(42647874522);
+  assert.deepEqual(Object.keys(partial.stops).sort(), ['backend', 'overhead']);
+  assert.deepEqual(Object.keys(confirmedStops(partial)), ['backend']);
+  const kept = { breaches: [{ key: 'cost:graphics', state: 'stopped', since: 'a', due: 'b', kept: true, detail: 'x' }] };
+  assert.deepEqual(confirmedStops(kept), {});
+  // gateReport passes the newest report's confirmed stops; the gate applies them to the judged report.
+  const arts = [artifactOf(3, '2026-11-09T15:53:37Z'), artifactOf(2, '2026-11-03T19:41:07Z')];
+  const picked = gateReport({ gh: reportsGh(arts, { 3: partial, 2: realReport(41704224273) }), now: '2026-11-10T12:00:00Z', ceilings: GATE_CEILINGS });
+  assert.deepEqual(Object.keys(picked.newest.stops), ['backend']);
+  const growth = await gateOn(picked);
+  assert.equal(growth.assessWith([backendItem(0.1)]).tiers.backend.status, 'refuse');
+  assert.match(growth.assessWith([backendItem(0.1)]).tiers.backend.why, /growth stopped: cost:backend/);
+  // The unconfirmed overhead stop does not refuse: the 2026-11-03 report has overhead over its line
+  // per landing, so judge a per-day-only addition, which only a stop would refuse.
+  const overhead = growth.assessWith([{ tier: 'overhead', id: 'job:x.yml/y', perLanding: 0, perDay: 0.1, how: 't' }]).tiers.overhead;
+  assert.doesNotMatch(overhead.why, /growth stopped/);
+});
+
+test('a re-run carries from the report before the first try, never from the try itself', () => {
+  // A re-run compared with its own week would find a "two weeks running" latency breach.
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'rerun-prev-'));
+  const lastWeek = { ...realReport(41704224273), generatedAt: '2026-11-02T06:10:00Z' };
+  const try1 = { ...realReport(42647874522), generatedAt: '2026-11-09T06:10:00Z', attempt: 1, firstTryAt: '2026-11-09T06:10:00Z' };
+  const try2 = { ...try1, generatedAt: '2026-11-09T08:00:00Z', attempt: 2 };
+  const arts = [artifactOf(12, '2026-11-09T08:07:00Z'), artifactOf(11, '2026-11-09T06:17:00Z'), artifactOf(10, '2026-11-02T06:17:00Z')];
+  const gh = reportsGh(arts, { 12: try2, 11: try1, 10: lastWeek });
+  const out = path.join(dir, 'prev.json');
+  assert.equal(fetchLatest(out, gh, null, '2026-11-09T06:10:00Z').run, 10, 'last week, for try 2 and try 3 alike');
+  assert.equal(fetchLatest(out, gh).run, 12, 'without --before: the newest, as the weekly run uses');
+  assert.throws(() => fetchLatest(out, gh, null, '2026-11-01T00:00:00Z'), /nothing to carry from/, 'never a first week by accident');
+  // Each try records the first try's time, which gateReport hands the re-run.
+  const picked = gateReport({ gh, now: '2026-11-09T10:00:00Z', ceilings: GATE_CEILINGS });
+  assert.equal(picked.newest.firstTryAt, '2026-11-09T06:10:00Z');
+});
+
+test('stale evidence waives nothing under the trusted line either (Rule X9)', () => {
+  const ex = { id: 's', tier: 'backend', covers: ['spec:e2e/configured/new.spec.ts'], perLanding: 30, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
+  const old = measurement({ backend: 100 }, { windowEnd: '2026-10-20' });
+  const t = assessTiers({ ceilings: { ...CEILINGS, exceptions: [ex] }, measurement: old, items: [backendItem(12)], today: TODAY, trustEvidence: true }).tiers.backend;
+  assert.deepEqual([t.evidence, t.addedLanding, t.status], ['stale', 12, 'refuse']);
 });

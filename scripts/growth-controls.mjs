@@ -598,11 +598,11 @@ export function assessTiers({ ceilings, measurement, items = [], today, stops = 
     // `trustEvidence` (the capacity line on a pull request): the measurement is the newest
     // complete report, or the frozen seed when none exists, and its age or a missing tier never
     // tightens the line. A tier nothing measured is judged on this change's own cost alone. An
-    // exception still waives only against a completely measured tier, since partial cost is a
-    // lower bound (Rule X9).
+    // exception still waives only against complete, fresh evidence (Rule X9): partial cost is a
+    // lower bound, and old cost may since have grown into the room it would give.
     const unmeasured = trustEvidence && ev.state === 'missing';
     const m = unmeasured ? { perLanding: 0, perDay: 0 } : measurement?.tiers?.[tier];
-    const waives = trustEvidence ? m?.evidence === 'complete' : ev.state === 'complete';
+    const waives = ev.state === 'complete';
     // Credit (Rule X8): the allowance, capped at the measured cost of the jobs its covers match in
     // this tier. A cover nothing measured earns nothing; one active exception per tier (X4), so
     // credit is never pooled or summed across exceptions.
@@ -848,7 +848,7 @@ export function carryBreaches({ previous = [], current = [], today, owner, corre
   // A breach is cleared only by evidence that it is back in bounds. One this week's evidence
   // could not judge (a tier measured partially, a read that failed) stays as it was, stop included.
   const unconfirmed = previous.filter((b) => !current.some((c) => c.key === b.key) && !confirmed(b));
-  current = [...current, ...unconfirmed.map((b) => ({ ...b, detail: `${b.detail} (not re-measured this week: kept until evidence clears it)` }))];
+  current = [...current, ...unconfirmed.map((b) => ({ ...b, kept: true, detail: `${b.detail} (not re-measured this week: kept until evidence clears it)` }))];
   const out = [];
   for (const b of current) {
     const was = prev.get(b.key);
@@ -862,6 +862,20 @@ export function carryBreaches({ previous = [], current = [], today, owner, corre
   for (const b of out) if (b.state === 'stopped') for (const t of affectedTiers(b.key)) stops[t] ??= `${b.key} since ${b.since}, one correction due ${b.due} did not bring it back in bounds`;
   const cleared = previous.filter((b) => !current.some((c) => c.key === b.key)).map((b) => b.key);
   return { breaches: out, stops, cleared };
+}
+
+/**
+ * The stops a report's own evidence confirmed: a breach that week re-measured and still found
+ * out of bounds, past its one correction. A stop kept only because the week could not judge it
+ * (`kept`) is left out, so a partial report cannot add one. Pure.
+ */
+export function confirmedStops(report) {
+  const stops = {};
+  for (const b of report?.breaches ?? []) {
+    if (b.state !== 'stopped' || b.kept || /not re-measured this week/.test(b.detail ?? '')) continue;
+    for (const t of affectedTiers(b.key)) stops[t] ??= `${b.key} since ${b.since}, one correction due ${b.due} did not bring it back in bounds`;
+  }
+  return stops;
 }
 
 /** Cost breaches: a tier whose measured cost, net of active exceptions, is over its ceiling. */

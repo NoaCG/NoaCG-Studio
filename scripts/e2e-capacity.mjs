@@ -354,7 +354,8 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
   const gate = report?.gate ?? null;
   if (report?.none) report = null;
   const measurement = report?.measurement ?? ceilings.measurement;
-  const stops = report?.stops ?? {};
+  // The judged report's stops, and any a newer report's own evidence confirmed (Rule E21).
+  const stops = { ...(gate?.newest?.stops ?? {}), ...(report?.stops ?? {}) };
   const newest = gate?.newest;
   if (newest && newest.state !== 'complete') reasons.push(`the newest weekly growth report${newest.run ? ` (run ${newest.run})` : ''} is ${newest.state}${newest.why ? `: ${newest.why}` : ''}; judged on ${gate.judgedOn ? `the newest complete report, run ${gate.judgedOn.run}` : `the frozen seed measured to ${ceilings.measurement.windowEnd}`} at the normal line, and the owner (${ceilings.owner}) is alarmed after landing`);
   const cadence = reportCadence({ generatedAt: report?.generatedAt ?? null, today, maxAgeDays: ceilings.reportMaxAgeDays });

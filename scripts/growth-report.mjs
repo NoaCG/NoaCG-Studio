@@ -35,7 +35,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   TIERS, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, detectSlowdown, exceptionStatus,
-  expiringSoon, phaseClock, phasesFromLedger, pooledTiming, prClock, queueClock, reportCadence, sustained, tableFreshness, tierOfJob, weeklyMarkdown,
+  confirmedStops, expiringSoon, phaseClock, phasesFromLedger, pooledTiming, prClock, queueClock, reportCadence, sustained, tableFreshness, tierOfJob, weeklyMarkdown,
 } from './growth-controls.mjs';
 import { knownCoversOnDisk } from './e2e-capacity.mjs';
 import { CONFIGURED_HEADERS, SPEC_HEADERS } from './e2e-lists.mjs';
@@ -482,7 +482,7 @@ export function sampleJobs(reader, runs, budget) {
   return { strata, keys };
 }
 
-export function collect({ days = 7, budget = 550, now = new Date().toISOString(), previous = null, clocksFile = null, ledgerFile = null, ceilings, attempt = 1 }) {
+export function collect({ days = 7, budget = 550, now = new Date().toISOString(), previous = null, clocksFile = null, ledgerFile = null, ceilings, attempt = 1, firstTryAt = null }) {
   const reader = makeReader(budget);
   const to = Date.parse(now) - 6 * 3_600_000;
   const from = to - days * DAY;
@@ -513,6 +513,8 @@ export function collect({ days = 7, budget = 550, now = new Date().toISOString()
   for (const id of Object.keys(built.report.openStarts)) if (!open.items.some((i) => i.id === id) && open.complete && Date.parse(built.report.openStarts[id]) < Date.parse(now) - 30 * DAY) delete built.report.openStarts[id];
   // Which try of this week's report this is: a partial one is re-run (`health`) a bounded number of times.
   built.report.attempt = attempt;
+  // When this week's first try ran: every re-run carries from the report published before it.
+  built.report.firstTryAt = firstTryAt ?? now;
   built.report.finishedPrs = { merged: done.merged, sampled: done.samples.filter((x) => x.measure === 'prReady').length + done.unknown.length };
   built.report.strata = Object.fromEntries(keys.map((key) => [key, { runs: strata[key].length, sampled: strata[key].filter((r) => r.jobs).length }]));
   return built;
@@ -616,8 +618,11 @@ export function downloadReport(artifact, gh) {
 
 const ghRun = (args) => execFileSync('gh', args, { encoding: 'utf8', windowsHide: true });
 
-export function fetchLatest(out, gh = withRetries(ghRun), restart = null) {
-  const all = listReports(gh);
+export function fetchLatest(out, gh = withRetries(ghRun), restart = null, before = null) {
+  // `before` (a re-run): the newest report published before this week's first try, the one that
+  // try carried from. None found is an error, never a first week: it would reset every breach.
+  const all = listReports(gh).filter((a) => !before || a.created_at < before);
+  if (before && !all.some((a) => !a.expired)) throw new Error(`no live growth report published before ${before}: the re-run has nothing to carry from`);
   if (all.length === 0) {
     writeFileSync(out, `${JSON.stringify({ none: true })}\n`);
     return null;
@@ -686,13 +691,16 @@ export function gateReport({ gh = withRetries(ghRun), now = new Date().toISOStri
     let report = null;
     try { report = JSON.parse(downloadReport(a, gh)); } catch { /* unreadable: not complete */ }
     const c = classifyReport(report, bounds);
-    newest ??= { run: a.workflow_run.id, generatedAt: report?.generatedAt ?? a.created_at, attempt: report?.attempt ?? 1, ...(report ? c : { state: 'missing', readFailed: true, why: `the report of run ${a.workflow_run.id} could not be read` }) };
+    newest ??= { run: a.workflow_run.id, generatedAt: report?.generatedAt ?? a.created_at, attempt: report?.attempt ?? 1, firstTryAt: report?.firstTryAt ?? report?.generatedAt ?? null, stops: confirmedStops(report), ...(report ? c : { state: 'missing', readFailed: true, why: `the report of run ${a.workflow_run.id} could not be read` }) };
     if (reportComplete(report)) return { newest, judged: { run: a.workflow_run.id, generatedAt: report.generatedAt, report } };
   }
   return { newest: newest ?? { run: null, generatedAt: null, attempt: null, state: 'missing', why: 'no live weekly growth report has been published on main' }, judged: null };
 }
 
-/** The file the capacity line reads: the judged report with a `gate` record, or none. */
+/**
+ * The file the capacity line reads: the judged report with a `gate` record, or none. A newer
+ * report than the judged one adds the stops its own evidence confirmed (Rule E21).
+ */
 export function gateFile(out, picked) {
   const gate = { newest: picked.newest, judgedOn: picked.judged ? { run: picked.judged.run, generatedAt: picked.judged.generatedAt } : null };
   writeFileSync(out, `${JSON.stringify(picked.judged ? { ...picked.judged.report, gate } : { none: true, gate })}\n`);
@@ -779,7 +787,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (command === 'fetch' && args.includes('--newest')) {
     // The newest report whatever its state: last week's breaches and stops to carry forward.
     const ceilings = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'growth-ceilings.json'), 'utf8'));
-    const got = fetchLatest(value('--out') ?? 'growth-report.json', undefined, ceilings.reportRestart ?? null);
+    const got = fetchLatest(value('--out') ?? 'growth-report.json', undefined, ceilings.reportRestart ?? null, value('--before') || null);
     console.log(got ? `growth report from weekly-audit run ${got.run} -> ${got.file}` : 'no published growth report found');
   } else if (command === 'fetch') {
     // What the capacity line judges against: the newest complete report.
@@ -800,7 +808,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       // In a re-run itself: still needed only while the newest report is the partial try before it.
       const needed = rerunStillNeeded(picked.newest, Number(value('--still-needed')));
       console.log(`re-run try ${value('--still-needed')}: ${needed ? 'needed' : 'not needed, the newest report has moved on'}`);
-      if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `needed=${needed}\n`);
+      if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `needed=${needed}\nfirst_try=${picked.newest.firstTryAt ?? ''}\n`);
       process.exit(0);
     }
     let running = false;
@@ -848,7 +856,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     }
     const read = previousFile ? JSON.parse(readFileSync(previousFile, 'utf8')) : null;
     const previous = read && !read.none ? read : null;
-    const { report, markdown } = collect({ days: Number(value('--days') ?? 7), budget: Number(value('--budget') ?? 550), now: value('--now') ?? new Date().toISOString(), previous, clocksFile: value('--clocks'), ledgerFile: value('--ledger'), ceilings, attempt: Number(value('--attempt') ?? 1) });
+    const { report, markdown } = collect({ days: Number(value('--days') ?? 7), budget: Number(value('--budget') ?? 550), now: value('--now') ?? new Date().toISOString(), previous, clocksFile: value('--clocks'), ledgerFile: value('--ledger'), ceilings, attempt: Number(value('--attempt') ?? 1), firstTryAt: value('--first-try') || null });
     measured(report.measurement.landings, 'landings in the growth window');
     console.log(markdown);
     if (value('--out')) writeFileSync(value('--out'), `${JSON.stringify(report, null, 2)}\n`);

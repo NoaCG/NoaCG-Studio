@@ -610,5 +610,64 @@
       }
     }
   },
-  "stops": {}
+  "stops": {},
+  "breaches": [
+    {
+      "key": "cost:backend",
+      "kind": "cost",
+      "subject": "backend",
+      "detail": "backend at 141% of its ceiling: 164.7/117 per landing, 65/78 per day (141%)",
+      "owner": "miwco (primary); the weekly owner session (backup coverage)",
+      "since": "2026-11-02",
+      "corrections": 1,
+      "due": "2026-11-09",
+      "state": "correcting"
+    },
+    {
+      "key": "cost:overhead",
+      "kind": "cost",
+      "subject": "overhead",
+      "detail": "overhead at 126% of its ceiling: 132.1/105 per landing, 6.1/10 per day (126%), production-load-watch excepts 0/landing to 2026-12-03",
+      "owner": "miwco (primary); the weekly owner session (backup coverage)",
+      "since": "2026-11-02",
+      "corrections": 1,
+      "due": "2026-11-09",
+      "state": "correcting"
+    },
+    {
+      "key": "table:stale",
+      "kind": "table",
+      "subject": "e2e-durations",
+      "detail": "durations table recorded 2026-10-19, 15 days old, over its 8-day bound; pending, not accepted: #1503",
+      "owner": "miwco (primary); the weekly owner session (backup coverage)",
+      "since": "2026-11-02",
+      "corrections": 1,
+      "due": "2026-11-09",
+      "state": "correcting"
+    },
+    {
+      "key": "age:#1834",
+      "kind": "age",
+      "subject": "#1834",
+      "category": "prReady",
+      "owner": "miwco (primary); the weekly owner session (backup coverage)",
+      "due": "2026-11-03",
+      "detail": "prReady #1834 unfinished for 3890 min, over its 120 minutes ceiling (clock from stamp 2026-10-30T22:27:46Z) (not re-measured this week: kept until evidence clears it)",
+      "since": "2026-11-02",
+      "state": "stopped",
+      "corrections": 1
+    },
+    {
+      "key": "age:#1834 queue",
+      "kind": "age",
+      "subject": "#1834 queue",
+      "category": "queue",
+      "owner": "miwco (primary); the weekly owner session (backup coverage)",
+      "due": "2026-11-03",
+      "detail": "queue #1834 queue unfinished for 3884 min, over its 30 minutes ceiling (clock from timeline 2026-10-30T22:34:12Z) (not re-measured this week: kept until evidence clears it)",
+      "since": "2026-11-02",
+      "state": "stopped",
+      "corrections": 1
+    }
+  ]
 }
