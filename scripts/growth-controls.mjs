@@ -857,6 +857,30 @@ export function carryBreaches({ previous = [], current = [], today, owner, corre
   return { breaches: out, stops, cleared };
 }
 
+/**
+ * The reduction plan's due steps the measurement does not meet (growth-ceilings.json
+ * `reductionPlan`): one owned action each, raised from its date. Raw measured cost is judged, so
+ * an exception cannot meet a step. A step never moves a line or stops growth: each lower line is
+ * its own reviewed version. Pure.
+ */
+export function planBreaches(ceilings, measurement, today) {
+  const out = [];
+  for (const step of ceilings.reductionPlan?.steps ?? []) {
+    if (dayMs(today) < dayMs(step.by)) continue;
+    // Met only on complete evidence: a partial week's lower bound under the target proves nothing.
+    if (planStepMet(step, measurement)) continue;
+    const measured = measurement?.tiers?.[step.tier]?.[step.measure];
+    out.push({ key: `plan:${step.tier}:${step.measure}:${step.by}`, kind: 'plan', subject: step.tier, step, detail: `reduction step due ${step.by}: ${step.tier} ${step.measure} ${Number.isFinite(measured) ? `measured ${Math.round(measured * 10) / 10}` : 'not measured'}, target ${step.target} (${step.work}); the line stays where it is until the owner (${ceilings.reductionPlan.owner}) decides` });
+  }
+  return out;
+}
+
+/** Whether a due plan step is now met by complete evidence. Pure. */
+export function planStepMet(step, measurement) {
+  const t = measurement?.tiers?.[step.tier];
+  return t?.evidence === 'complete' && Number.isFinite(t?.[step.measure]) && t[step.measure] <= step.target;
+}
+
 /** Cost breaches: a tier whose measured cost, net of active exceptions, is over its ceiling. */
 export function costBreaches(assessment) {
   return TIERS.filter((t) => (assessment.tiers[t].share ?? 0) > 1).map((t) => ({ key: `cost:${t}`, kind: 'cost', subject: t, detail: `${t} at ${Math.round(100 * assessment.tiers[t].share)}% of its ceiling: ${assessment.tiers[t].why}` }));

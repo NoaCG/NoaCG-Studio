@@ -32,7 +32,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  TIERS, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, detectSlowdown, exceptionStatus,
+  TIERS, ageAlarms, applySlowdown, planBreaches, planStepMet, assessTiers, carryBreaches, costBreaches, detectSlowdown, exceptionStatus,
   expiringSoon, phaseClock, phasesFromLedger, pooledTiming, prClock, queueClock, reportCadence, sustained, tableFreshness, tierOfJob, weeklyMarkdown,
 } from './growth-controls.mjs';
 import { knownCoversOnDisk } from './e2e-capacity.mjs';
@@ -192,6 +192,7 @@ export function buildReport({ ceilings, runs, days, windowEnd, now, previous = n
     ...(table.stale ? [{ key: 'table:stale', kind: 'table', subject: 'e2e-durations', detail: table.reason }] : []),
     ...exceptions.filter((e) => e.soon).map((e) => ({ key: `exception:${e.id}`, kind: 'exception', subject: e.id, due: e.expires, detail: `exception ${e.id} expires ${e.expires}; expiry restores refusal; renewal needs a measured repayment (${e.repayment ?? 'no repayment named'})` })),
     ...ex.invalid.map((e) => ({ key: `exception-invalid:${e.id}`, kind: 'exception', subject: e.id, detail: `exception ${e.id} covers nothing: ${e.problems.join('; ')}` })),
+    ...planBreaches(ceilings, measurement, today),
   ];
   const cadence = previous ? reportCadence({ generatedAt: previous.generatedAt, today, maxAgeDays: ceilings.reportMaxAgeDays }) : { overdue: false };
   if (cadence.overdue) current.push({ key: 'report:missing', kind: 'report', subject: 'weekly', detail: `${cadence.reason}: a week went unreported` });
@@ -205,6 +206,8 @@ export function buildReport({ ceilings, runs, days, windowEnd, now, previous = n
     if (kind === 'latency') { const t = timing.find((x) => x.measure === subject); return Boolean(timingComplete && t?.adequate && !t.above); }
     // An age item: its read was complete (open PRs from GitHub, phases from a clocks file that was read).
     if (kind === 'age') return b.category === 'phase' ? clocksRead : openComplete;
+    // A reduction step: met only on complete evidence at or under its target.
+    if (kind === 'plan') return Boolean(b.step && planStepMet(b.step, measurement));
     // Re-derived in full from files every week: the table's date, the exception ledger, this report.
     return ['table', 'exception', 'exception-invalid', 'report'].includes(kind);
   };

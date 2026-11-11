@@ -12,12 +12,17 @@ import test from 'node:test';
 import { HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, knownCoversOnDisk, offlineExceptionChanges, parseExceptions } from './e2e-capacity.mjs';
 import {
   TIERS, admit, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, cronRunsPerDay, detectSlowdown,
-  ceilingsRevision, coverCosts, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, knownCovers, landingDispatched, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
+  ceilingsRevision, coverCosts, planBreaches, planStepMet, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, knownCovers, landingDispatched, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   quarantineLines, tableFreshness, tierOfCover, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
 import { AGE_ISSUE, ages, buildReport, carriedDues, carriedStarts, fetchLatest, findIssue, finishedPrs, listRuns, makeReader, phaseIssueTitle, priceRuns, readJobs, sampleJobs, seriesOf, spread } from './growth-report.mjs';
 
-const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
+const CEILINGS_FILE = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
+// The rule tests below judge fixed tier lines (ci01's version 1 values), so a reviewed change of
+// the real lines (version 3) neither loosens nor breaks a rule's proof. The file's own values are
+// asserted in (a), with the reduction plan that brings them back to these.
+const RULE_TIERS = { offline: { perLanding: 535, perDay: 215 }, backend: { perLanding: 117, perDay: 78 }, graphics: { perLanding: 10, perDay: 115 }, overhead: { perLanding: 105, perDay: 10 } };
+const CEILINGS = { ...CEILINGS_FILE, tiers: RULE_TIERS };
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const TODAY = '2026-10-31';
 
@@ -30,17 +35,19 @@ const noExceptions = { ...CEILINGS, exceptions: [] };
 
 // --- (a) ------------------------------------------------------------------------------------
 
-test('(a) the tiers are ci01 version 1, unchanged, and their allocation fits the envelope', () => {
-  // Version 2 (#1951) moved only the owner; the tiers below are still ci01's version 1 values.
-  assert.equal(CEILINGS.version, 2);
-  assert.deepEqual(CEILINGS.revisions.map((r) => r.version), [2]);
-  assert.deepEqual(CEILINGS.tiers, { offline: { perLanding: 535, perDay: 215 }, backend: { perLanding: 117, perDay: 78 }, graphics: { perLanding: 10, perDay: 115 }, overhead: { perLanding: 105, perDay: 10 } });
-  assert.equal(CEILINGS.envelopeRunnerMinutesPerDay, 28800);
-  const perLanding = TIERS.reduce((a, t) => a + CEILINGS.tiers[t].perLanding, 0);
-  const perDay = TIERS.reduce((a, t) => a + CEILINGS.tiers[t].perDay, 0);
-  assert.equal(perLanding, 767);
-  assert.equal(perDay, 418);
-  assert.ok(perLanding * 17.4 + perDay <= CEILINGS.envelopeRunnerMinutesPerDay, 'the reference workload fits');
+test('(a) the tiers are version 3, owner-approved, and their allocation fits the envelope', () => {
+  // Version 2 (#1951) moved only the owner. Version 3 (owner decision 2026-11-11) raised offline,
+  // backend and graphics to the measured cost of the complete report of 2026-11-11, with a dated
+  // reduction plan back to the version 2 lines; overhead and every per-day line not named stay.
+  assert.equal(CEILINGS_FILE.version, 3);
+  assert.deepEqual(CEILINGS_FILE.revisions.map((r) => r.version), [2, 3]);
+  assert.deepEqual(CEILINGS_FILE.tiers, { offline: { perLanding: 720, perDay: 215 }, backend: { perLanding: 235, perDay: 88 }, graphics: { perLanding: 20, perDay: 115 }, overhead: { perLanding: 105, perDay: 10 } });
+  assert.equal(CEILINGS_FILE.envelopeRunnerMinutesPerDay, 28800);
+  const perLanding = TIERS.reduce((a, t) => a + CEILINGS_FILE.tiers[t].perLanding, 0);
+  const perDay = TIERS.reduce((a, t) => a + CEILINGS_FILE.tiers[t].perDay, 0);
+  assert.equal(perLanding, 1080);
+  assert.equal(perDay, 428);
+  assert.ok(perLanding * 17.4 + perDay <= CEILINGS_FILE.envelopeRunnerMinutesPerDay, 'the reference workload fits');
   // The offline line keeps its own constants: the per-landing tier never replaces or raises it.
   assert.equal(MAIN_RUNNERS, 13);
   assert.equal(WARN_SHARE, 0.85);
@@ -1548,4 +1555,41 @@ test('(e) quarantine coverage gaps are counted in the weekly report (ci07, AC-4/
   const src = readFileSync(new URL('./growth-report.mjs', import.meta.url), 'utf8');
   assert.match(src, /readStore\(QUARANTINE_STORE, \{ strict: true \}\)/);
   assert.match(src, /collection, quarantine \}\);/);
+});
+
+test('version 3: every raised line has a dated reduction step back to its version 2 line, owned by miwco', () => {
+  const plan = CEILINGS_FILE.reductionPlan;
+  assert.equal(plan.owner, 'miwco');
+  assert.ok(readFileSync(new URL(`../${plan.decision}`, import.meta.url), 'utf8').includes('> Approve v3 and plan (Recommended)'), 'the decision is recorded verbatim');
+  for (const t of TIERS) for (const m of ['perLanding', 'perDay']) {
+    const steps = plan.steps.filter((s) => s.tier === t && s.measure === m).sort((a, b) => a.by.localeCompare(b.by));
+    if (CEILINGS_FILE.tiers[t][m] === RULE_TIERS[t][m]) { assert.equal(steps.length, 0, `${t} ${m} was not raised`); continue; }
+    assert.ok(steps.length, `${t} ${m} was raised, so it has a plan`);
+    assert.equal(steps.at(-1).target, RULE_TIERS[t][m], `${t} ${m} comes back to its version 2 line`);
+    for (let i = 1; i < steps.length; i++) assert.ok(steps[i].target < steps[i - 1].target, `${t} ${m} steps only go down`);
+    assert.ok(steps[0].target < CEILINGS_FILE.tiers[t][m]);
+  }
+  const v3 = CEILINGS_FILE.revisions.find((r) => r.version === 3);
+  assert.equal(v3.authority, 'repository owner (miwco)');
+  assert.match(v3.rationale, /43014542120/);
+});
+
+test('a due reduction step that is not met is an owned action, never a stop and never a line change', () => {
+  const m = (offline, evidence = 'complete') => ({ windowEnd: '2026-12-14', tiers: { offline: { perLanding: offline, perDay: 190, evidence } } });
+  assert.deepEqual(planBreaches(CEILINGS_FILE, m(650), '2026-12-13'), [], 'not due yet');
+  const due = planBreaches(CEILINGS_FILE, m(650), '2026-12-14').filter((b) => b.subject === 'offline');
+  assert.deepEqual(due.map((b) => b.key), ['plan:offline:perLanding:2026-12-14']);
+  assert.match(due[0].detail, /measured 650, target 600/);
+  assert.deepEqual(planBreaches(CEILINGS_FILE, m(590), '2026-12-14').filter((b) => b.subject === 'offline'), [], 'met on complete evidence');
+  assert.equal(planBreaches(CEILINGS_FILE, m(590, 'partial'), '2026-12-14').filter((b) => b.subject === 'offline').length, 1, 'a partial lower bound under the target proves nothing');
+  assert.equal(planStepMet({ tier: 'offline', measure: 'perLanding', target: 600 }, m(600)), true);
+  // Carried a week past its correction it is "stopped" as an action, yet stops no tier's growth.
+  const { breaches, stops } = carryBreaches({ previous: [{ ...due[0], since: '2026-12-14', due: '2026-12-21', corrections: 1, state: 'correcting', owner: 'o' }], current: due, today: '2026-12-21', owner: 'o' });
+  assert.equal(breaches[0].state, 'stopped');
+  assert.deepEqual(stops, {});
+  // The weekly report raises it, and clears it once complete evidence meets the step.
+  const report = (offline, previous = null) => buildReport({ ceilings: CEILINGS_FILE, runs: [], days: 7, windowEnd: '2026-12-14T00:00:00Z', now: '2026-12-14T06:00:00Z', previous, tableRecordedAt: '2026-12-10', collection: 'fixture' }).report;
+  const raised = report(0);
+  assert.ok(raised.breaches.some((b) => b.key === 'plan:offline:perLanding:2026-12-14'), 'no measurement does not meet a step');
+  assert.deepEqual(raised.ceilings.tiers, CEILINGS_FILE.tiers, 'no line moved');
 });

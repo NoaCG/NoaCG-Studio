@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "frozenAt": "2026-10-31",
   "source": "docs/work-specs/cicd-improvement/evidence/phase-ci01.md section 4",
   "authority": "repository owner; a ceiling increase needs a new version with a reviewed rationale and that authority",
@@ -14,21 +14,91 @@
   "reportMaxAgeDays": 8,
   "tiers": {
     "offline": {
-      "perLanding": 535,
+      "perLanding": 720,
       "perDay": 215
     },
     "backend": {
-      "perLanding": 117,
-      "perDay": 78
+      "perLanding": 235,
+      "perDay": 88
     },
     "graphics": {
-      "perLanding": 10,
+      "perLanding": 20,
       "perDay": 115
     },
     "overhead": {
       "perLanding": 105,
       "perDay": 10
     }
+  },
+  "reductionPlan": {
+    "why": "Version 3 raised offline, backend and graphics to what the complete report of 2026-11-11 (weekly-audit run 43014542120) measured; each line comes back down by these dated steps. A step that is due and not met is an owned action in the weekly report, assigned to the owner. It never lowers or raises a line by itself: each lower line is its own reviewed version.",
+    "owner": "miwco",
+    "decision": "docs/work-specs/cicd-followup/evidence/owner-decision-2026-11-11-growth-ceilings-v3.md",
+    "steps": [
+      {
+        "tier": "offline",
+        "measure": "perLanding",
+        "by": "2026-12-14",
+        "target": 600,
+        "work": "#2168, #1994, PR runs per landing back to 2.84"
+      },
+      {
+        "tier": "offline",
+        "measure": "perLanding",
+        "by": "2027-01-11",
+        "target": 535,
+        "work": "#2168, #1994"
+      },
+      {
+        "tier": "backend",
+        "measure": "perLanding",
+        "by": "2026-12-14",
+        "target": 180,
+        "work": "#1871, #2172"
+      },
+      {
+        "tier": "backend",
+        "measure": "perLanding",
+        "by": "2027-01-11",
+        "target": 140,
+        "work": "#1871"
+      },
+      {
+        "tier": "backend",
+        "measure": "perLanding",
+        "by": "2027-02-08",
+        "target": 117,
+        "work": "#1871"
+      },
+      {
+        "tier": "backend",
+        "measure": "perDay",
+        "by": "2026-12-14",
+        "target": 82,
+        "work": "#1871"
+      },
+      {
+        "tier": "backend",
+        "measure": "perDay",
+        "by": "2027-01-11",
+        "target": 78,
+        "work": "#1871"
+      },
+      {
+        "tier": "graphics",
+        "measure": "perLanding",
+        "by": "2026-12-14",
+        "target": 19,
+        "work": "run the catalog gate once per commit (cf16), before cf14-catalog-gate-extension ends"
+      },
+      {
+        "tier": "graphics",
+        "measure": "perLanding",
+        "by": "2027-01-11",
+        "target": 10,
+        "work": "#2165"
+      }
+    ]
   },
   "timing": {
     "prReady": {
@@ -121,6 +191,12 @@
       "rationale": "Alarm and incident ownership after the cicd-improvement run: miwco is the primary owner of the growth, age and quarantine alarms and incidents, and the weekly owner session reviews them each week as backup coverage. Only owner and ownerLogin (the account each alarm issue is assigned to) change; no ceiling, estimate or measurement moves.",
       "authority": "repository owner (miwco)",
       "reviewed": "https://github.com/NoaCG/NoaCG-Studio/issues/1951#issuecomment-6570085219"
+    },
+    {
+      "version": 3,
+      "rationale": "Ceilings that match measured reality, with a dated plan to bring them down (owner request 2026-11-11, run issue #1967). The complete report of 2026-11-11 (weekly-audit run 43014542120) measured offline 654.3 per landing, backend 219.9 per landing and 79.7 per day, graphics 36.3 per landing (18.6 net of ci04-catalog-gate). Raised: offline per landing 535 to 720, backend per landing 117 to 235 and per day 78 to 88, graphics per landing 10 to 20. Nothing else moves; no exception is added or renewed. The steps in reductionPlan bring each back to its version 2 line. Proposal: docs/work-specs/cicd-followup/evidence/growth-ceilings-proposal-2026-11.md; decision: docs/work-specs/cicd-followup/evidence/owner-decision-2026-11-11-growth-ceilings-v3.md.",
+      "authority": "repository owner (miwco)",
+      "reviewed": "PENDING-ISSUE-COMMENT"
     }
   ],
   "exceptions": [
