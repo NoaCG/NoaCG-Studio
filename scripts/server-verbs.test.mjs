@@ -277,7 +277,7 @@ function vmixRig() {
     return { state: 'ok', detail: 'accepted', generation: ++count, session: 'mix', instance: 'mix.' + count };
   };
   h.io.act = async (_, action) => accept(action);
-  return { h, a, b, sound, clips, audio, press, accept, selected, sent };
+  return { h, a, b, sound, clips, audio, rundown, press, accept, selected, sent };
 }
 
 test('vMix transport for an old cue sends nothing after a pending Take replaces its player', async () => {
@@ -418,10 +418,10 @@ test('accepted vMix All out keeps its player instances until the final cut and r
       listener => { changed = listener; return () => { changed = undefined; }; },
       async cut => { await cut(audio); await cut(clip); },
       async (selected, scope) => {
-        if (!scope.current()) return false;
+        if (!scope.current() || !scope.owns()) return null;
         observed.push([selected.id, scope.instance]);
         if (selected === audio) await release.promise;
-        return scope.current();
+        return { ok: scope.current(), note: 'All out', accepted: [] };
       });
     assert.equal(typeof changed, 'function');
     assert.deepEqual(observed, [['audio', 'session.audio']]);
@@ -436,4 +436,34 @@ test('accepted vMix All out keeps its player instances until the final cut and r
       : [['audio', 'session.audio']]);
     assert.equal(changed, undefined);
   });
+});
+
+test('a guarded All out reports the Bridge deadline after retiring local ownership', async t => {
+  const { actVmixMedia, forgetBridges, PLAYOUT_DEFAULTS } = await import('../src/control/playoutLink.ts');
+  const r = vmixRig();
+  await r.press(r.a, 'take');
+  const settings = { ...PLAYOUT_DEFAULTS, agentToken: 'fixture-token' };
+  const detail = 'The player command reached its deadline.';
+  forgetBridges();
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (new URL(url).pathname === '/health') return Response.json({
+      ok: true, v: 2, agent: 'noacg-bridge', version: '0.11.0', adapters: ['vmix'], features: ['vmix-media', 'vmix-player-out-guard'],
+    });
+    assert.equal(JSON.parse(options.body).action.verb, 'out-player-instance');
+    return Response.json({ ok: false, v: 2, error: { hop: 'agent', code: 'unreachable', detail } });
+  });
+  let outcome;
+  await finishVmixAllOut(r.h.store, settings, () => () => {},
+    async cut => { await cut(r.a); },
+    async (selected, scope) => {
+      const io = { ...r.h.io, loadSettings: () => settings,
+        act: (config, action) => actVmixMedia(config, { ...action, expectedPlayerInstance: scope.instance },
+          () => scope.current() && scope.owns()),
+      };
+      outcome = await runVmixAndRecord(r.h.store, io, intentOf(r.rundown, selected, 'out', { label: 'All out', options: { cut: true } }), scope.current);
+      return outcome;
+    });
+  assert.equal(outcome.ok, false);
+  assert.ok(outcome.note.includes(detail), outcome.note);
+  assert.equal(r.h.store.ownership.get().onAir[r.clips.id], undefined);
 });

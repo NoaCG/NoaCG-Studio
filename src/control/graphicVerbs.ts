@@ -51,7 +51,7 @@ import type { ControlButton, PressSend } from './controlModel';
 import type { ControlSendItem } from './hostedControl';
 import type { ArmSpec } from './cueAuto';
 import type { LiveCueMap, VerbSent } from './liveCue';
-import type { ServerVerb } from './serverPlayout';
+import type { ServerVerb, ServerVerbOutcome } from './serverPlayout';
 import type { SelectionTake, SendFailure } from './selectionAir';
 import type { PlayoutSession } from './playoutSession';
 import type { AppliedAppearance, PlaceHint } from './cueAdjust';
@@ -271,7 +271,7 @@ export interface GraphicVerbs {
   next: (sel: VerbSelection) => Promise<void>;
   out: (sel: VerbSelection) => Promise<void>;
   takeOff: (graphic: string) => Promise<void>;
-  allOut: (cutServerCue?: (cue: ShowCue) => Promise<boolean>) => Promise<void>;
+  allOut: (server?: { cut: (cue: ShowCue) => Promise<ServerVerbOutcome | null>; report: (note: string) => void }) => Promise<void>;
   /** `named`: the cue a panel key was drawn for (control/panelActions.ts), held to as the selection's
    *  own cue is, for a layer whose cue the selection could not draw. */
   event: (sel: VerbSelection, button: ControlButton, named?: string, args?: Record<string, unknown>) => Promise<PressDone>;
@@ -977,7 +977,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   /** Clear the screen: every server cue this page put up goes off where it was taken, then whatever
    *  plays on a slot this rundown uses that no cue names, then every graphic this page or the
    *  server's heads say is up, in one send. */
-  const allOut: GraphicVerbs['allOut'] = async cutServerCue => {
+  const allOut: GraphicVerbs['allOut'] = async server => {
     if (!session.alive()) return;
     const s = sender();
     const p = page();
@@ -985,8 +985,22 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // nothing airs after the panic control. Every One-by-one folder starts again from its first cue.
     p.stopFolders();
     // The panic control cuts, as it always did, whatever fade out a clip is set to.
-    const cut = cutServerCue ?? (cue => p.playoutVerb(cue, 'out', 'All out', { cut: true }));
-    for (const layer of p.livePlayoutLayers) await cut(layer.cue);
+    const cutFailures: string[] = [];
+    let lastCutNote = '';
+    for (const layer of p.livePlayoutLayers) {
+      if (!server) {
+        await p.playoutVerb(layer.cue, 'out', 'All out', { cut: true });
+        continue;
+      }
+      const cut = await server.cut(layer.cue);
+      if (!cut) continue;
+      lastCutNote = cut.note;
+      if (!cut.ok) cutFailures.push(cut.note);
+    }
+    const report = (graphicFailure?: string) => {
+      const note = [...cutFailures, graphicFailure].filter(Boolean).join(' ') || lastCutNote;
+      if (note) (server?.report ?? s.note)(note);
+    };
     await p.outUnnamed();
     // WHAT THE SERVER SAYS IS ON, not only what this page believes (AC-13): a graphic whose cue
     // marker went missing, or one a renderer kept across a republish, is cleared too.
@@ -996,7 +1010,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       all: p.graphics.map((g) => g.name),
       published: !!s.published,
     });
-    if (cleared.length === 0) return;
+    if (cleared.length === 0) return report();
     p.clearing(true);
     // Each Out is a press on its layer: no correction follows it out or overtakes it.
     const settleOuts = pressOuts(p.selectionAired, cleared);
@@ -1004,7 +1018,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       const sent = await behind(cleared, sendWith(s, clearAllCueBatches(cleared), 'All out', true));
       settleOuts(sent);
       if (!sent.ok) {
-        s.note(await p.clearThroughBridge(sent.note));
+        report(await p.clearThroughBridge(sent.note));
         return;
       }
       // A graphic this page pressed again while the All out was on its way stays as that later
@@ -1012,7 +1026,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       const off = cleared.filter((g) => !leftAlone(sent).includes(g));
       // Clearing… until the heads say each is off; one still on is named, never assumed gone.
       const still = s.published ? await io.headsStillOn(s.published, off, ALL_OUT_CONFIRM_MS) : [];
-      if (still.length > 0) s.note(await p.clearThroughBridge(`All out did not clear ${io.nameList(still)}`));
+      report(still.length > 0 ? await p.clearThroughBridge(`All out did not clear ${io.nameList(still)}`) : undefined);
     } finally {
       p.clearing(false);
     }

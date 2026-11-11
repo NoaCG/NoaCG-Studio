@@ -54,6 +54,7 @@ export interface VmixAllOutCut {
   pairing: NonNullable<ReturnType<ServerPlayoutStore['vmixBinding']>>;
   instance: string;
   current: () => boolean;
+  owns: () => boolean;
 }
 
 /** Keep the accepted player instances and their pairing until the last cut settles, including
@@ -62,8 +63,8 @@ export async function finishVmixAllOut(
   store: ServerPlayoutStore,
   settings: PlayoutSettings,
   watchPairing: (changed: () => void) => () => void,
-  allOut: (cut: (cue: ShowCue) => Promise<boolean>) => Promise<void>,
-  cut: (cue: ShowCue, scope: VmixAllOutCut) => Promise<boolean>,
+  allOut: (cut: (cue: ShowCue) => Promise<ServerVerbOutcome | null>) => Promise<void>,
+  cut: (cue: ShowCue, scope: VmixAllOutCut) => Promise<ServerVerbOutcome | null>,
 ): Promise<void> {
   const pairing = store.vmixBinding();
   const original = store.ownership.get().onAir;
@@ -72,9 +73,10 @@ export async function finishVmixAllOut(
   try {
     await allOut(async cue => {
       const owner = original[cue.sourceId];
-      if (!pairing || !owner?.instance || owner.cueId !== cue.id || owner.slot.adapter !== 'vmix') return false;
-      const current = () => paired && store.ownership.get().onAir[cue.sourceId] === owner;
-      return cut(cue, { settings, pairing, instance: owner.instance, current });
+      if (!pairing || !owner?.instance || owner.cueId !== cue.id || owner.slot.adapter !== 'vmix') return null;
+      const owns = () => store.ownership.get().onAir[cue.sourceId] === owner;
+      const result = await cut(cue, { settings, pairing, instance: owner.instance, current: () => paired, owns });
+      return result ?? { ok: false, note: 'All out: The vMix connection or playback instance changed before the cut.', accepted: [] };
     });
   } finally {
     stop();

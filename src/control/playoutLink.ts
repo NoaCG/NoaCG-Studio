@@ -574,8 +574,7 @@ const currentBridges = new Map<string, BridgeFeature[]>();
 interface VmixMediaEvidence {
   requested: number;
   observed: number;
-  supported: boolean;
-  guardedOut: boolean;
+  health?: VmixHealth;
 }
 const currentVmixMediaPairings = new Map<string, VmixMediaEvidence>();
 
@@ -1133,19 +1132,19 @@ async function probeVmix(bridgeUrl: string): Promise<VmixHealth> {
 }
 
 /** Only the strict vMix health reply can establish a pairing's media capability. */
-async function probeVmixMediaPairing(settings: PlayoutSettings): Promise<VmixHealth> {
+async function probeVmixMediaPairing(settings: PlayoutSettings, readOnly = false): Promise<VmixHealth> {
   const pairing = vmixPairing(settings);
-  const evidence = currentVmixMediaPairings.get(pairing) ?? { requested: 0, observed: 0, supported: false, guardedOut: false };
+  const evidence: VmixMediaEvidence = currentVmixMediaPairings.get(pairing) ?? { requested: 0, observed: 0 };
   currentVmixMediaPairings.set(pairing, evidence);
   const request = ++evidence.requested;
   const health = await probeVmix(settings.agentUrl);
-  // An uncertain action discards the entry. An earlier read cannot outvote a newer one.
-  if (currentVmixMediaPairings.get(pairing) !== evidence || request < evidence.observed) {
-    return { kind: 'failed', result: vmixCapabilityProblem };
-  }
+  const unavailable: VmixHealth = { kind: 'failed', result: vmixCapabilityProblem };
+  // An uncertain action discards the entry. A late status read can use the latest
+  // observation from this entry, but a superseded action cannot use it to send.
+  if (currentVmixMediaPairings.get(pairing) !== evidence) return unavailable;
+  if (request < evidence.observed) return readOnly && evidence.health ? evidence.health : unavailable;
   evidence.observed = request;
-  evidence.supported = health.kind === 'current' && health.features.includes('vmix-media');
-  evidence.guardedOut = health.kind === 'current' && health.features.includes('vmix-player-out-guard');
+  evidence.health = health;
   return health;
 }
 
@@ -1309,7 +1308,7 @@ function readVmixReply(
 
 export async function testVmix(settings: PlayoutSettings, reconnect = false): Promise<VmixConnection> {
   if (!bridgePaired(settings)) return { supported: false, keyed: false };
-  const health = await probeVmixMediaPairing(settings);
+  const health = await probeVmixMediaPairing(settings, !reconnect);
   if (health.kind !== 'current') {
     return { ...(health.kind === 'legacy' ? { supported: false } : {}), keyed: false, result: health.result };
   }
@@ -1435,7 +1434,8 @@ export async function actVmixMedia(
 ): Promise<PlayoutResult | null> {
   if (!canSend()) return null;
   const pairing = vmixPairing(settings);
-  const known = currentVmixMediaPairings.get(pairing)?.supported === true;
+  const previous = currentVmixMediaPairings.get(pairing)?.health;
+  const known = previous?.kind === 'current' && previous.features.includes('vmix-media');
   if (!known) {
     const health = await probeVmixMediaPairing(settings);
     if (!canSend()) return null;
@@ -1443,14 +1443,15 @@ export async function actVmixMedia(
     if (!health.features.includes('vmix-media')) {
       return { state: 'outdated', detail: 'Update NoaCG Bridge to play vMix media.' };
     }
-    if (!currentVmixMediaPairings.get(pairing)?.supported) return vmixCapabilityProblem;
   }
   if (action.slot.adapter !== 'vmix' || !('player' in action.slot)) {
     return { state: 'config', detail: 'This cue has no vMix player.' };
   }
   const evidence = currentVmixMediaPairings.get(pairing);
+  const health = evidence?.health;
+  if (health?.kind !== 'current' || !health.features.includes('vmix-media')) return vmixCapabilityProblem;
   const guardedOut = action.verb === 'out' && action.expectedPlayerInstance !== undefined;
-  if (guardedOut && !evidence?.guardedOut) {
+  if (guardedOut && !health.features.includes('vmix-player-out-guard')) {
     return { state: 'outdated', detail: 'Update NoaCG Bridge to safely finish All out.' };
   }
   // A Bridge that lost this capability since health must reject the new verb outright.

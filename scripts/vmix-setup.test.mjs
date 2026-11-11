@@ -1440,6 +1440,31 @@ test('a health reply started before an uncertain vMix action cannot restore capa
   assert.deepEqual(paths, ['/health']);
 });
 
+test('a slower vMix Settings status read uses the newest validated capability for its pairing', async t => {
+  const pairing = { ...settings, agentUrl: 'http://127.0.0.1:59995' };
+  const firstHealth = Promise.withResolvers();
+  const firstStarted = Promise.withResolvers();
+  const payload = { ...health, features: ['vmix-media'] };
+  let reads = 0;
+  t.mock.method(globalThis, 'fetch', async url => {
+    if (new URL(url).pathname === '/status') return Response.json(status);
+    if (++reads === 1) {
+      firstStarted.resolve();
+      await firstHealth.promise;
+      return Response.json({ ...health, features: ['vmix-output-key'] });
+    }
+    return Response.json(payload);
+  });
+  const opening = testVmix(pairing);
+  await firstStarted.promise;
+  assert.equal((await testVmix(pairing)).media, true);
+  firstHealth.resolve();
+  const opened = await opening;
+  assert.equal(opened.media, true);
+  assert.equal(opened.keyed, false);
+  assert.equal(opened.result.state, 'ok');
+});
+
 test('an older positive vMix health reply cannot authorize a Take after a newer negative one', async (t) => {
   const pairing = { ...settings, agentUrl: 'http://127.0.0.1:59994' };
   const action = { verb: 'take', slot: { adapter: 'vmix', player: 'clips' }, item: { kind: 'media', name: 'clip.mov' } };

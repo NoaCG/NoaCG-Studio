@@ -62,3 +62,5 @@ The next exact review of 5ccb5151 reproduced a delivered switch away and back th
 The exact review of c4878797 reproduced a second player continuing after an accepted All out when the operator navigated away during the first cut. All out captures each player instance and its pairing at the press. Only those cuts can finish after navigation, and a pairing change or new owner ends that authority. Bridge checks the captured instance against the reconciled player in its mixer turn before issuing a function. A distinct guarded Out verb rejects on a Bridge that lacks the guard, even if a previous health reading advertised it.
 
 A genuine uncertain player action or Bridge deadline preserves the Bridge's detail while retiring the old player reading. V4 has no Bridge version or release. The next planned Bridge release is V5.
+
+Dispatch checks the captured owner. Reply handling checks the pairing, so retiring an uncertain owner does not hide the Bridge's error. A successful cut on the other player does not overwrite that error. A late status probe can use the latest strict observation in the same pairing. A superseded action probe still cannot authorize a send.

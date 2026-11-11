@@ -2945,13 +2945,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const pairing = vmixCut?.pairing ?? serverPlayout.vmixBinding();
     const currentVmix = () => !!(vmixSettings && pairing && (!vmixCut || vmixCut.current()) &&
       currentVmixShow(vmixSettings, pairing, !!vmixCut));
-    if (vmix ? !currentVmix() : !(acceptedAllOut ? casparAllowed() : canSendCaspar())) return null;
+    const canSendVmix = () => currentVmix() && (!vmixCut || vmixCut.owns());
+    if (vmix ? !canSendVmix() : !(acceptedAllOut ? casparAllowed() : canSendCaspar())) return null;
     const live = acceptedAllOut ? serverPlayout.ownership.get().onAir[item.id] : undefined;
     const io: ServerVerbIo = {
       act: async (settings, action) => {
         if (vmix) {
           const guarded = vmixCut && action.verb === 'out' ? { ...action, expectedPlayerInstance: vmixCut.instance } : action;
-          return await actVmixMedia(settings, guarded, currentVmix)
+          return await actVmixMedia(settings, guarded, canSendVmix)
             ?? { state: 'config', detail: 'The vMix action was cancelled.' };
         }
         const result = acceptedAllOut
@@ -2975,7 +2976,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     return vmix ? runVmixAndRecord(serverPlayout, io, intent, currentVmix) : runAndRecord(serverPlayout, io, intent);
   };
   /** One verb on the playout server, and the note line says how it went, whichever way that was. */
-  const playoutVerb = async (cue: ShowCue, verb: ServerVerb, label: string, options: { cut?: boolean; vmixCut?: VmixAllOutCut } = {}): Promise<boolean> => {
+  const playoutVerb = async (cue: ShowCue, verb: ServerVerb, label: string, options: { cut?: boolean } = {}): Promise<boolean> => {
     // The graphic verb accepts All out before it gives its native cues the panic cut.
     const outcome = await serverVerb(cue, verb, label, options, verb === 'out' && options.cut === true);
     if (!outcome) return false;
@@ -3089,8 +3090,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  from the others, in the header, and a named verb a hardware panel can press (`all-out`). A layer
    *  this rundown does not use is never touched (control/graphicVerbs.ts `allOut`). */
   const outAll = () => vmixOn && pageCanDispatch()
-    ? finishVmixAllOut(serverPlayout, loadPlayoutSettings(), watchPlayoutPairing, verbs.allOut,
-      (cue, vmixCut) => playoutVerb(cue, 'out', 'All out', { cut: true, vmixCut }))
+    ? finishVmixAllOut(serverPlayout, loadPlayoutSettings(), watchPlayoutPairing,
+      cut => verbs.allOut({ cut, report: note => { if (pageCanDispatch()) setNote(note); } }),
+      (cue, vmixCut) => serverVerb(cue, 'out', 'All out', { cut: true, vmixCut }, true))
     : verbs.allOut();
   /**
    * All out's second half (docs/CLIP_PLAYBACK_PLAN.md §20.1): what plays on a slot this rundown uses
