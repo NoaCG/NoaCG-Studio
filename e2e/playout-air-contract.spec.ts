@@ -28,7 +28,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { settleDurableWrites } from './_durable';
 import { evaluateInPage } from './_evaluate';
-import { fakeBridge, seedSettings } from './_fakeBridge';
+import { BRIDGE, fakeBridge, seedSettings } from './_fakeBridge';
 import { parkFocusOffControls } from './_keys';
 
 /**
@@ -140,16 +140,21 @@ const doublePress = (page: Page, key: string) =>
   }, key);
 
 test('S3: two SPACE presses on a held folder take it once, even with a save still landing', async ({ page }) => {
-  // spec §1.3 S3, refuted and recorded. A folder's Take checks "already running", waits for the
-  // draft and the edit group, and only then registers the run. A second press inside that wait
-  // would pass the check too. But holding a folder saves the draft and closes the edit group, and
-  // a held folder has no cue editor to start another, so both waits answer at once (microtasks)
-  // and the first press has registered before the second key event is handled. Here the disk is
-  // slow and an edit was still saving when the folder was held, which is the case the wait would
-  // have been real in.
+  // spec §1.3 S3, refuted and recorded. A folder's Take checks "already running" and registers its
+  // run in the same task (live-publishing W1: it waits on no save), so a second press while the
+  // first is still being sent finds it running and does nothing. Here the disk is slow and an edit
+  // was still saving when the folder was held. The Bridge answers the Take slowly, so the second
+  // press lands while the first is still being sent: with the old save wait gone, a fake Bridge
+  // answering in a few ms would put the folder up first, and SPACE on a folder that is up takes it
+  // off, as designed.
   await installWriteHold(page);
   await seedSettings(page);
   const fake = await fakeBridge(page);
+  // Registered after the fake, so it answers first: each /act waits 400 ms, then goes on to the fake.
+  await page.route(`${BRIDGE}/act`, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    await route.fallback();
+  });
   await production(page, 'Folder twice', { media: [VT], folder: { labels: ['Strap', 'VT'], name: 'Opening', mode: 'together' } });
   // An edit on Strap, still a draft, then the disk slow and the folder held.
   await cue(page, 'Strap').getByTestId('select-cue').click();
