@@ -36,18 +36,18 @@
  },
  "waitingOn": [
   {
-   "what": "phase 2 checker verdict",
-   "eta": "2026-11-11T13:00:00Z"
+   "what": "phase 3 builder receipt",
+   "eta": "2026-11-11T18:00:00Z"
   }
  ],
  "inFlight": [
   {
-   "phase": "2",
-   "step": "check",
-   "actor": "checker-2-2-c-7374",
-   "session": "session_017SdbwNbkSqow1cKTmktXKW",
-   "mergeSha": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
-   "launchedAt": "2026-11-11T11:29:40Z"
+   "phase": "3",
+   "step": "build",
+   "actor": "builder-3-3-b-3bcc",
+   "session": "session_017SdbwMUFxuZM3zn8yuUWTy",
+   "branch": "claude/plan-live-publishing-3-build",
+   "launchedAt": "2026-11-11T11:52:22Z"
   }
  ],
  "owner": [
@@ -105,7 +105,8 @@
  ],
  "phase2": {
   "builderCostUSD": "about 50",
-  "landed": "fb04bbd9658857318e4b954611b6dd08a4815e9d"
+  "landed": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+  "pass": "2026-11-11T11:51Z"
  },
  "retro": [
   "Phase 1 used 9 /so sessions (1 full A, then 7 deltas B to B+ chasing stale docs one at a time, about 11 USD) before the final A. Builders should sweep the whole class of stale docs once before the first full /so (the traps file says fix every instance of a class in one checkpoint)."
