@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
+      "pr": 2368,
+      "head": "c97586a9ad0b38125cc7e257e1295d73324a6e37",
       "session": "/root/v3_builder",
-      "head": "bab3be527f84e1247b18f7705a133b01b2b173a4",
-      "note": "Independent Rules reviewed and published. Scoped player/media-folder implementation in progress. V2 accepted with release/download and all exact-merge checks green.",
-      "step": "build",
       "phase": "v3",
-      "pr": 2368
+      "step": "build",
+      "note": "Local V3 candidate passed 99 focused tests and compilation. Fresh full review B+ found acknowledged AudioOn could remain muted. Scoped correction and regression underway before device validation. Remote draft remains Rules-only bab3be52."
     }
   ],
   "owner": [],
