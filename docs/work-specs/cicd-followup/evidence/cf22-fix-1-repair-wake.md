@@ -23,57 +23,88 @@ Codex chat or a local session, and nothing notices when no one owns a red PR.
 
 ## Design
 
-Keep the wakes that work. Add one check, run by GitHub Actions on `main`, that notices a red PR
-nobody is repairing and raises the owner alarm (`scripts/alarm-owner.mjs`, owner `miwco`, the
-weekly owner session as backup). It changes no PR, check, test or limit.
+Keep the wakes that work, and add one check that notices a red PR nobody is repairing and raises
+the owner alarm (`scripts/alarm-owner.mjs`: owner `miwco`, the weekly owner session as backup).
+The check changes no PR, check, test or limit.
+
+How a red check reaches each kind of repair owner:
+
+| Repair owner | Route to it on a red check | Within |
+| --- | --- | --- |
+| Claude Code Cloud session subscribed to the PR (`subscribe_pr_activity`) | the CI event wakes the session (existing) | minutes |
+| Claude app with Auto-fix on | Auto-fix wakes on the red check (existing) | minutes |
+| Plan-run coordinator | its PR subscription, or its check-in for the docs PRs it does not subscribe to (existing) | minutes to its check-in |
+| Codex chat, local session, or a session that has ended | none: nothing in the repository can wake them | the owner alarm after the bound (rule 6) |
+| None recorded, or a bot PR | none | the owner alarm after the bound, or at the next check when no worker can be left (rule 6) |
+
+The gap the owner accepts: for owners in the last two rows, the first person to hear of a red
+check is the owner, through the alarm, up to about 80 minutes after it (rule 6's bound plus rule
+10's schedule). A repository workflow cannot resume a Codex chat or a local session: it has no
+credential or interface to reach them.
 
 ## Rules
 
-Each rule is observable from GitHub alone.
+Each rule is observable from GitHub alone. Revised after the Rules-first review (grade B-, eight
+required changes, all taken).
 
-1. **Red.** An open, non-draft PR is red when its newest verdict is a failure:
-   - its newest `ci.yml` PR run (event `pull_request` or `workflow_dispatch`) on the PR's current
-     head has finished and its `CI gate` job ended `failure` or `timed_out`; or
-   - its newest merge-group run (branch `gh-readonly-queue/main/pr-<n>-…`) was created after that
-     PR run, has finished, and ended `failure` or `timed_out`.
-
-   A run that is queued or in progress is not red. A red `Reviewed` beside a green `CI gate` is
-   review wait, not red (cf17, cf22).
-2. **Failure time and key.** The failure time is the `CI gate` job's end (PR run) or the run's
-   last update (merge group). A failure's key is the PR number, the run id and the failure time.
-3. **Acted.** Someone acted on a failure when, after its failure time, any of these happened: a
-   push or a new run or attempt (rule 1 then reads the newer verdict), a PR comment by a person
-   with owner, member or collaborator access (bots do not count: Codex's review, Vercel), or an
-   edit of the repair-owner comment.
+1. **Red.** An open, non-draft PR is red when its newest verdict is a red `CI gate`. Its
+   candidates are its newest `ci.yml` PR run (event `pull_request` or `workflow_dispatch`) on the
+   PR's current head and its newest merge-group run (branch `gh-readonly-queue/main/pr-<n>-…`);
+   the one whose newest attempt started later is the verdict. It is red when that run has
+   finished and its `CI gate` job ended `failure` or `timed_out`. A run that is queued or in
+   progress is not red. A red `Reviewed` beside a green `CI gate` is review wait, not red (cf17,
+   cf22), on both kinds of run. Not covered: a run that never started (`startup_failure`), a PR
+   with no run (a conflict), and the PRs of a batched merge group other than the one it is named
+   after.
+2. **Failure and key.** The failure time is the `CI gate` job's end. A failure's key is the PR
+   number, the run id, its attempt and that time; a re-run that fails again is a new failure.
+3. **Action.** An action on the PR is a person's comment (owner, member or collaborator access; a
+   bot's does not count: Codex's review, Vercel), an edit of the repair-owner comment, or the
+   start of a newer attempt of the red run. A push or a new run is not an action but a new
+   verdict (rule 1).
 4. **Repair owner.** The PR's newest comment holding `<!-- noacg:repair-owner`, written by a bot or
    a repository member. None means the PR has no acknowledged repair owner.
-5. **Alarm.** A red PR whose failure nobody acted on for **60 minutes** raises the owner alarm. The
-   bound is the same with or without a repair owner; the alarm says which, and quotes the owner's
-   record. Why 60: in cf22's window the idle time after a failure had p90 49 minutes; at 60 only 5
-   of 57 bounces would have alarmed, and they include #1840, #2218 and #2374. A shorter bound for
-   PRs with no owner would alarm on workers still busy repairing, because owners are recorded
-   when a worker ends (13 of the 20 bounces idle over 15 minutes had no owner comment yet).
-6. **Window.** A failure more than 24 hours old when checked is not alarmed here. Old open PRs
-   are the delivery-age alarm's (`growth-report.mjs ages`), and the first run raises no history.
-7. **Once per failure.** The alarm is one rolling issue, `Red pull requests nobody is repairing`,
-   assigned to `ownerLogin` from `scripts/growth-ceilings.json`. Its body lists each alarmed
-   failure that is still red and unacted, with its key. A new key opens the issue (the assignment
-   notifies) or adds one comment to it (the assignee is notified). A key already listed is never
-   alarmed again.
-8. **Withdrawal.** A complete check that finds none of the listed failures still red and unacted
-   closes the issue. An incomplete check (the call budget ran out, a read failed) closes nothing
-   and drops no entry; it may still add a new one.
-9. **Bounds.** At most 100 GitHub API calls per check. It runs when a `CI` run fails and every 20
-   minutes, one at a time, so an alarm lands within about 20 minutes of the bound, plus GitHub's
-   schedule delay.
-10. **Owner.** The alarm goes to the owner `scripts/growth-ceilings.json` records, read by
+5. **Unattended for.** The time since the later of the failure and the PR's last action. An owner
+   who answers and then goes quiet is unattended again from the answer.
+6. **Alarm.** A red PR unattended for **60 minutes** raises the owner alarm, whether or not it has
+   a repair owner; the alarm says which and quotes the owner's record. Why 60: in cf22's window
+   the idle time after a failure had p90 49 minutes; at 60, 5 of 57 bounces would have alarmed,
+   among them #1840, #2218 and #2374. With no repair owner the bound is the same for a PR run,
+   because a worker may still be repairing it (owners are recorded when a worker ends: 13 of the
+   20 bounces idle over 15 minutes had no owner comment yet). It is **0**, the next check, when no
+   worker can be left: a merge-group failure on a PR with no repair owner (queueing needs one), or
+   a PR a bot opened with no repair owner.
+7. **New alarms only for recent failures.** A failure first found unattended more than 24 hours
+   after it happened raises no alarm here: the first run raises no history, and old open PRs are
+   the delivery-age alarm's too. A failure already listed stays listed at any age while it is red
+   and unattended. One PR can appear in this alarm and in the delivery-age alarm.
+8. **Once per failure, one notification per check.** The alarm is one rolling issue, `Red pull
+   requests nobody is repairing`, assigned to `ownerLogin` from `scripts/growth-ceilings.json`.
+   Its body lists every alarmed failure that is still red and unattended, with its key. A check
+   that finds new keys opens the issue (the assignment notifies) or adds one comment listing all
+   of them (the assignee is notified once). A key already listed is never alarmed again. A red
+   `main` that turns every open PR red is one comment, not one per PR.
+9. **Withdrawal.** A complete check that finds none of the listed failures still red and
+   unattended closes the issue. An incomplete check (the call budget ran out, a read failed)
+   closes nothing and drops no entry; it may still add a new one, and it warns in its run.
+10. **Bounds.** At most 100 GitHub API calls per check, reads and writes together. It runs every 20
+    minutes and after each failed `CI` run.
+11. **Trust.** The workflow runs `main`'s code only (`workflow_run` and `schedule` run the default
+    branch). It never checks out, or puts into a shell, the triggering run's head, branch or
+    title; PR data reaches GitHub only as API arguments. Permissions: `contents`, `actions` and
+    `pull-requests` read, `issues` write. One concurrency group for every trigger, never cancelled
+    mid-write.
+12. **Owner.** The alarm goes to the owner `scripts/growth-ceilings.json` records, read by
     `alarmOwner`. If it names none, the check fails loudly; it never invents one.
-11. **Read-only on PRs.** The check reads PRs, runs and comments and writes only its alarm issue.
+13. **Read-only on PRs.** The check reads PRs, runs and comments and writes only its alarm issue.
     The weekly owner session sees it through `alarm-owner.mjs list`.
-</content>
-</invoke>
-<invoke name="Bash">
-<parameter name="command">cd /home/user/NoaCG-Studio/.claude/worktrees/repair-fix-1; git add -A && git commit -qm "cf22 fix 1: rules for waking a red PR's repair owner, before code
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_017SdbwNq7cFBvsVc3RQYNXs" && git push -u origin claude/repair-loop-wake-owner 2>&1 | tail -1; git rev-parse HEAD
+### The four PRs under these rules
+
+- #1840: merge-group failure 06:13, no owner, a bot PR: alarmed at the next check, about 06:33.
+- #2218: PR-run failure 13:50, no owner, no action: alarmed about 14:50.
+- #2227: failure 15:30; the owner commented at 15:33 and 15:39, then waited on main's fix. Alarmed
+  once, about 16:39. The PR's own comment says why; one notification.
+- #2374: failure 05:28, an owner with no PR wake, no action: alarmed about 06:28, about an hour
+  before its next work began.
+
