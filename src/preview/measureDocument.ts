@@ -31,7 +31,7 @@ export interface MeasureDocument {
   style: { vars: Record<string, string> | null; faces: string } | null;
   /** How long the whole measurement may take before it answers null. */
   capMs: number;
-  /** Paint nothing, even a speck (an output's window is the picture). */
+  /** Paint nothing, even a speck, and start no media (an output's window is the picture). */
   invisible?: boolean;
 }
 
@@ -41,6 +41,9 @@ export function measureDocument<M>(job: MeasureDocument, qualify: Qualify<M>): P
     iframe.setAttribute('sandbox', 'allow-scripts');
     iframe.setAttribute('aria-hidden', 'true');
     iframe.tabIndex = -1;
+    // On an output the frame sits beside the picture and its sound: a design's own media must not
+    // start there (the stage's own frames are the only ones that air sound).
+    if (job.invisible) iframe.setAttribute('allow', "autoplay 'none'");
     iframe.style.cssText = [
       'position:fixed',
       'left:0',

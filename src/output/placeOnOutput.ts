@@ -9,7 +9,7 @@
 // or runs past its cap leaves `appearance` as sent, which is what an older output applies.
 //
 // Other graphics never wait on it, and nothing else changes: a command for a graphic not being
-// placed goes straight through. The stage decides where a hint may be read (`canPlace`): a NoaCG
+// placed goes straight through, and an Out (`stop`) releases what waits at once, at the place sent. The stage decides where a hint may be read (`canPlace`): a NoaCG
 // graphic's frame on a stage that is on air. Node-tested with fakes (scripts/place-on-output.test.mjs).
 
 import { placedAppearance, readAppearance, readPlaceHint, type AppliedAppearance, type Measurement } from '../control/cueAdjust.ts';
@@ -35,10 +35,19 @@ export interface PlacerIo<M extends Msg> {
 export function createPlacer<M extends Msg>(io: PlacerIo<M>) {
   /** Per graphic being placed, the update with the hint first, then what came behind it. */
   const holding = new Map<string, M[]>();
+  /** Apply what waits for `graphic`, the hinted update first, with `look` as its place. */
+  const release = (graphic: string, held: M[], look: AppliedAppearance | null) => {
+    holding.delete(graphic);
+    const [first, ...rest] = held;
+    io.apply(graphic, look ? ({ ...first, appearance: look } as M) : first);
+    for (const next of rest) apply(graphic, next);
+  };
   const apply = (graphic: string, msg: M): void => {
     const queue = holding.get(graphic);
     if (queue) {
       queue.push(msg);
+      // An Out never waits on a measurement: what waits goes now, at the place sent, then the Out.
+      if (msg.t === 'stop') release(graphic, queue, null);
       return;
     }
     const hint = msg.t === 'update' && msg.typed === undefined && msg.place !== undefined ? readPlaceHint(msg.place) : null;
@@ -54,11 +63,7 @@ export function createPlacer<M extends Msg>(io: PlacerIo<M>) {
         .then((m) => {
           // Dropped meanwhile (the graphic left the stage, the stage went): nothing to apply.
           if (holding.get(graphic) !== held) return;
-          holding.delete(graphic);
-          const look = placedAppearance(sent, hint, m);
-          const [first, ...rest] = held;
-          io.apply(graphic, look ? ({ ...first, appearance: look } as M) : first);
-          for (const next of rest) apply(graphic, next);
+          release(graphic, held, placedAppearance(sent, hint, m));
         });
     });
   };

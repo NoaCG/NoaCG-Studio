@@ -100,3 +100,17 @@ test('a graphic that leaves while it is being placed applies nothing later; a se
   assert.deepEqual(h.applied.map((a) => a.msg.t), ['update', 'play', 'update', 'play']);
   assert.notDeepEqual(h.applied[0].msg.appearance, h.applied[2].msg.appearance);
 });
+
+test('an Out never waits on a measurement: what waits goes at once at the place sent, then the Out, and a late answer applies nothing', async () => {
+  const h = harness();
+  h.placer.apply('G', { t: 'update', data: { name: 'A' }, appearance: sent, place: hint });
+  h.placer.apply('G', { t: 'play' });
+  h.runDeferred();
+  h.placer.apply('G', { t: 'stop' });
+  assert.deepEqual(h.applied.map((a) => a.msg.t), ['update', 'play', 'stop']);
+  assert.deepEqual(h.applied[0].msg.appearance, sent);
+  assert.equal(h.placer.placing('G'), false);
+  h.measures[0].resolve(box(520));
+  await tick();
+  assert.equal(h.applied.length, 3);
+});

@@ -3055,6 +3055,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     bridgeWatch.current?.wake();
     if (failed.length) setNote(`All out: ${failed.join(' ')}`);
   };
+  /** A cue as a record holds it, else as the newest render does, else as pressed. */
+  const cueInRecord = (taken: ShowCue, record: Show | null) =>
+    record?.cues?.find((c) => c.id === taken.id) ?? cuesRef.current.find((c) => c.id === taken.id) ?? taken;
   verbPage.current = {
     graphics: show.graphics,
     liveCue,
@@ -3080,31 +3083,29 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // The place and size a Take carries, from memory at the press (W1: the newest rendered record
     // and the last box measured), and an Update's, read after its wait (this object is the
     // render's), decided in control/adjustGeometry.ts `takeAppearance` and `updateAppearance`.
-    takeAppearanceOf: (taken) => {
-      const cueIn = (record: Show | null) => record?.cues?.find((c) => c.id === taken.id) ?? cuesRef.current.find((c) => c.id === taken.id) ?? taken;
-      return takeAppearance<Show>({
+    takeAppearanceOf: (taken) =>
+      takeAppearance<Show>({
         rendered: () => latestShow.current ?? null,
-        stateOf: (record) => adjustStateOf(cueIn(record), record),
+        stateOf: (record) => adjustStateOf(cueInRecord(taken, record), record),
         sizes: (record) => {
-          const g = record.graphics.find((x) => x.id === cueIn(record).sourceId);
+          const g = record.graphics.find((x) => x.id === cueInRecord(taken, record).sourceId);
           return g ? { frame: frameOf(g), stage } : null;
         },
-      });
-    },
+      }),
     placeTaken: (taken, graphic, sent) => {
       const record = latestShow.current;
       const job = record ? measureJobs(record).find((j) => j.cueId === taken.id) : undefined;
       if (!job) return;
       void measurer.now(job, PLACED_LOOK_WAIT_MS).then(() => {
         const now = latestShow.current ?? null;
-        const state = adjustStateOf(now?.cues?.find((c) => c.id === taken.id) ?? taken, now);
+        const state = adjustStateOf(cueInRecord(taken, now), now);
         if (!state?.fresh || !state.send) return;
         const resolved = state.send;
         session.apply((parts) => ({ ...parts, air: placedLook(parts.air, graphic, sent, resolved) }));
       });
     },
     appearanceOf: (taken) => {
-      const cueIn = (record: Show | null) => record?.cues?.find((c) => c.id === taken.id) ?? cuesRef.current.find((c) => c.id === taken.id) ?? taken;
+      const cueIn = (record: Show | null) => cueInRecord(taken, record);
       return updateAppearance<Show>({
         pendingWrites: adjustWrites.pending,
         settleWrites: () => history.settle(),

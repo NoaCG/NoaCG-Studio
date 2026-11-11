@@ -74,6 +74,22 @@ RESULTS_PENDING
   `scripts/cue-adjust.test.mjs` and `scripts/place-on-output.test.mjs` (the page's own resolution
   as the oracle, order and cancellation on the output).
 
+## Review answered (/check, inline review of the diff)
+
+- Fixed: the output's measuring frame starts no media of the design (`allow="autoplay 'none'"`),
+  so nothing it settles can reach program audio; an Out pressed while a hinted Take is being
+  placed no longer waits for the measurement (what waits goes at once at the place sent, then the
+  Out); one cue lookup shared by the Take and Update reads.
+- Kept, with the reason: after a hinted Take the page holds the place its own measurement
+  resolves, the place a new output shows. An older output, or one whose measurement ran past its
+  2 s cap, shows the place sent, and the page cannot tell which until outputs report what they
+  ran, which is W3 (phase 5, the honest light). A later look sent to on-air graphics then moves an
+  older output to the resolved place, which is where it belongs.
+- Kept: a Take saves the draft after its send is answered, but the draft's own 300 ms idle save
+  still runs and a closing page still saves at once (`control/cueDraft.ts`), so typed text is not
+  held unsaved for the send's round trip. A Bridge's features are refreshed by every status
+  poll, which still asks `/health`.
+
 ## Not checked here
 
 - Chromium 71 (CasparCG 2.3) and CasparCG 2.5 running the output's own measurement: the code is
