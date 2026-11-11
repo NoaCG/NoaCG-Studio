@@ -57,15 +57,6 @@
    "note": "CI gate change will end cf03 sides and lands during the cf17 trial window; record both."
   },
   {
-   "phase": "cf17",
-   "step": "check",
-   "session": "session_017SdbwMe4Kw9SwaEi6kZZEM",
-   "nonce": "cf17-c-cf93",
-   "launchedAt": "2026-11-11T18:02:42Z",
-   "mergeSha": "ada1c781b162916f962501298506873c42a47954",
-   "pr": 2390
-  },
-  {
    "phase": "cf22",
    "step": "build",
    "session": "session_017SdbwMcvMZqQq4rrzkBWrJ",
@@ -276,6 +267,12 @@
    "verdict": "FAIL product (b)",
    "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2390#issuecomment-6803951305",
    "note": "Trial not stopped at crossed lines; coordinator status to owner wrong; corrected on #1967 comment 6803963699."
+  },
+  {
+   "phase": "cf17",
+   "verdict": "CLOSED ON OWNER DECISION (checker FAIL on b)",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2390#issuecomment-6803951305",
+   "addendum": "#2393 7fb82768"
   }
  ],
  "decisions": [
