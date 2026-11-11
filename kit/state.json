@@ -73,7 +73,7 @@
       "actionId": "plan-editor-r1-5-2026-11-08:6",
       "sourceSha": "a387d69db5d02ac6e15d4d8e81f3674fb817e0e7",
       "worktree": "/workspace/noacg-editor-r1-5-e3-check",
-      "note": "Fresh independent checker adopted clean exactmerge worktree; reservedaction6 dispatchedonce, nativeacceptance observed. Bounded ownBLverification and all exactmerge checks pending; no paidcalls."
+      "note": "E3 independentcheck active on actuala387;100targeted testsPASS, jobs30/31; exactmergequarantine/postlanding/deploySUCCESS, CI/configured/CodeQLpending. Rootactive monitorresumed92354 after provingoldprocessgone."
     }
   ],
   "owner": [],
@@ -842,9 +842,16 @@
       "queueEvent": "added_to_merge_queue 2026-11-11T14:42:38Z",
       "monitor": {
         "mode": "active bounded read-only, no wake/after-session claim",
-        "execSession": 56595,
+        "execSession": 92354,
         "liveFile": "/workspace/noacg-editor-r1-5-state/17e47924/e3-pr2386-live.json",
-        "deadline": "2026-11-12T10:00:00Z"
+        "deadline": "2026-11-12T10:00:00Z",
+        "history": [
+          {
+            "execSession": 56595,
+            "result": "transporthandlelost; oldpid36422authoritativelyabsent; lastsnapshot14:57:53Z preserved; no after-sessioncontinuity claimed"
+          }
+        ],
+        "resumption": "same active bounded read-only monitor, originaldeadlineunchanged, no nativeworker/externalaction repeated"
       },
       "observation": "verification-dispatch observed first; custom helper inputs/default schema unresolved advisory; original dispatch executed once. No resubmission/alternate status route.",
       "mergeGroup": {
@@ -876,7 +883,27 @@
       "requestSha256": "68096ef353e91d048a9f951ab75046386fafdacf4320c3f1d376168bd258586d",
       "worktree": "/workspace/noacg-editor-r1-5-e3-check",
       "source": "a387d69db5d02ac6e15d4d8e81f3674fb817e0e7",
-      "status": "accepted; independent verification pending"
+      "status": "accepted; independent verification pending",
+      "progress": "AuthoritativebriefSHAverified; sourceequalfinalfda product/treeidenticalreviewedf420. Own100gateway/auth/quota/ratetestsPASS0skip. Maintained55browserj30running; independentCLI/MCP/manual/help/edit/oracle/3exportsj31queued. No provider calls; allremainingexactmergechecks pending."
+    },
+    "exactMergeRuns": {
+      "sha": "a387d69db5d02ac6e15d4d8e81f3674fb817e0e7",
+      "ci": 43043057863,
+      "configured": 43043057966,
+      "quarantine": {
+        "run": 43043057833,
+        "result": "success"
+      },
+      "postLanding": {
+        "run": 43043057859,
+        "result": "success"
+      },
+      "deployVerify": {
+        "run": 43043458085,
+        "result": "success"
+      },
+      "codeql": 43043057316,
+      "status": "CI/configured/CodeQL stillrunning at latestdirectAPI; earlierinapplicabledeploymentsskipped"
     }
   },
   "e4RouteReadiness": {
