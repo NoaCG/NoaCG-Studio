@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "pr": 2378,
-      "head": "7307d6f858990b110a31f08224bf2b76571a0535",
-      "note": "All out preserves cut failure details and same-pair status stays available. 446 focused Windows Studio tests pass, plus unchanged Bridge build and 36 fake-vMix tests. Exact review, local Chromium j-5241 and normal CI 43080075127 pending.",
-      "session": "/root/v4_final_feedback_review",
+      "step": "build",
       "phase": "v4",
-      "step": "build"
+      "note": "Independent review verified guarded-cut feedback and found an older /status can publish superseded capability after its reply. Reassessment active before repair. Local Chromium was withdrawn before execution.",
+      "pr": 2378,
+      "session": "/root/v4_status_observation_reassessment",
+      "head": "7307d6f858990b110a31f08224bf2b76571a0535"
     }
   ],
   "owner": [],
