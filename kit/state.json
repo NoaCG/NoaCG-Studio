@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "step": "build",
-      "phase": "v4",
-      "note": "Independent review verified guarded-cut feedback and found an older /status can publish superseded capability after its reply. Reassessment active before repair. Local Chromium was withdrawn before execution.",
+      "session": "/root/v4_final_observation_review",
       "pr": 2378,
-      "session": "/root/v4_status_observation_reassessment",
-      "head": "7307d6f858990b110a31f08224bf2b76571a0535"
+      "note": "Held status/reconnect reply correction passed 450 focused Windows Node tests, TypeScript and lint. Exact review, local Chromium j-5242 and normal CI 43081534761 pending.",
+      "step": "build",
+      "head": "eee31a8d068b6e60070a74c714a3df24b6043dea",
+      "phase": "v4"
     }
   ],
   "owner": [],
