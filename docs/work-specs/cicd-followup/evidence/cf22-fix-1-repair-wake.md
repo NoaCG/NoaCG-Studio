@@ -48,9 +48,11 @@ Each rule is observable from GitHub alone. Revised after the Rules-first review 
 required changes, all taken).
 
 1. **Red.** An open, non-draft PR is red when its newest verdict is a red `CI gate`. Its
-   candidates are its newest `ci.yml` PR run (event `pull_request` or `workflow_dispatch`) on the
-   PR's current head and its newest merge-group run (branch `gh-readonly-queue/main/pr-<n>-…`);
-   the one whose newest attempt started later is the verdict. It is red when that run has
+   verdict is its newest `ci.yml` PR run (event `pull_request` or `workflow_dispatch`) on the PR's
+   current head, or its newest merge-group run (branch name matching
+   `^gh-readonly-queue/main/pr-(\d+)-`) when that run's newest attempt started later. With no PR
+   run on the current head there is no verdict, so a merge-group failure on an older head never
+   outlives a push. It is red when that run has
    finished and its `CI gate` job ended `failure` or `timed_out`. A run that is queued or in
    progress is not red. A red `Reviewed` beside a green `CI gate` is review wait, not red (cf17,
    cf22), on both kinds of run. Not covered: a run that never started (`startup_failure`), a PR
@@ -80,12 +82,15 @@ required changes, all taken).
    and unattended. One PR can appear in this alarm and in the delivery-age alarm.
 8. **Once per failure, one notification per check.** The alarm is one rolling issue, `Red pull
    requests nobody is repairing`, assigned to `ownerLogin` from `scripts/growth-ceilings.json`.
-   Its body lists every alarmed failure that is still red and unattended, with its key. A check
-   that finds new keys opens the issue (the assignment notifies) or adds one comment listing all
-   of them (the assignee is notified once). A key already listed is never alarmed again. A red
-   `main` that turns every open PR red is one comment, not one per PR.
-9. **Withdrawal.** A complete check that finds none of the listed failures still red and
-   unattended closes the issue. An incomplete check (the call budget ran out, a read failed)
+   Its body lists, with its key, every alarmed failure that is still the PR's red verdict: those
+   still unattended, and apart from them those someone has attended to since. A key stays listed
+   while its failure is the PR's red verdict, so it is never alarmed again, however its owner's
+   comments come and go. A check that finds new unattended keys opens the issue (the assignment
+   notifies) or adds one comment listing all of them (the assignee is notified once per check).
+9. **Withdrawal.** A complete check that finds none of the listed failures still a PR's red
+   verdict closes the issue. A failure stops being one only by a new verdict (a push, a run, a
+   re-run), the PR closing, or the PR turning draft, so it cannot come back with the same key
+   while the issue is closed, except a draft made ready again. An incomplete check (the call budget ran out, a read failed)
    closes nothing and drops no entry; it may still add a new one, and it warns in its run.
 10. **Bounds.** At most 100 GitHub API calls per check, reads and writes together. It runs every 20
     minutes and after each failed `CI` run.

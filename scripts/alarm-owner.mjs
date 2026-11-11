@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// WHO THE GROWTH, AGE AND QUARANTINE ALARMS GO TO, and the proof that they get there.
+// WHO THE GROWTH, AGE, QUARANTINE AND RED-PR ALARMS GO TO, and the proof that they get there.
 //
 //   node scripts/alarm-owner.mjs test-alarm --run <url>   # one labelled test alarm, routed like a real one
 //   node scripts/alarm-owner.mjs list                     # the open owned alarm issues (weekly backup review)
@@ -130,7 +130,8 @@ export function pastDate(body) {
 export async function ownedAlarmTitles() {
   const { AGE_ISSUE, PHASE_AGE_ISSUE, WEEKLY_ISSUE } = await import('./growth-report.mjs');
   const { STALE_ISSUE_TITLE, INCIDENT_ISSUE_TITLE } = await import('./e2e-quarantine.mjs');
-  return [WEEKLY_ISSUE, AGE_ISSUE, PHASE_AGE_ISSUE, STALE_ISSUE_TITLE, INCIDENT_ISSUE_TITLE];
+  const { RED_ISSUE } = await import('./repair-wake.mjs');
+  return [WEEKLY_ISSUE, AGE_ISSUE, PHASE_AGE_ISSUE, STALE_ISSUE_TITLE, INCIDENT_ISSUE_TITLE, RED_ISSUE];
 }
 
 // The CLI runs after this module has finished evaluating (no top-level await): `list` imports

@@ -74,6 +74,10 @@ presence, or a successful scheduling call do not prove this.
   post-landing results. Do not end at “queued” or claim that anything watches after the session
   ends. A restart or unavailable scheduler is an explicit qualification gap, never a silent handoff.
 
+The backstop, not a wake: a ready PR whose CI gate is red with no re-run or comment by a person
+for 60 minutes (at once for a merge-group failure or a bot's PR with no recorded owner) is listed
+in the owner alarm `Red pull requests nobody is repairing` (`scripts/repair-wake.mjs`).
+
 The wake prompt names the PR, branch, worktree (or reconstruction from origin), and this procedure.
 It reads current head/checks, failed job logs, mergeability, auto-merge and queue entry, plus the
 merge SHA's CI and post-land runs. Red checks or conflicts follow the repair paragraph and section
