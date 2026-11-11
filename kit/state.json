@@ -45,11 +45,11 @@
   "inFlight": [
     {
       "head": "e85660d8087d617e1acb777f2468c5e01100ce3b",
+      "note": "Local packaged picker and persistence proof passed; owned processes exited. Reconciling the existing exact-head merge gates.",
       "phase": "v3",
       "step": "build",
-      "session": "j-5211",
-      "note": "Standalone Chrome confirmed. Windows loopback returned ready, and the operator was sent the direct address for the manual proof.",
-      "pr": 2368
+      "pr": 2368,
+      "session": "j-5211"
     }
   ],
   "owner": [],
