@@ -672,8 +672,11 @@ export function classifyReport(report, { now, maxAgeDays, freshnessDays }) {
   return { state: 'complete', why: '' };
 }
 
-/** The most reports read to find the newest complete one: 35-day retention holds about six weeks. */
-export const GATE_CANDIDATES = 6;
+/**
+ * The most reports read to find the newest complete one: 35-day retention holds five weekly
+ * reports, each with up to MAX_ATTEMPTS tries, so every retained try is in reach.
+ */
+export const GATE_CANDIDATES = 15;
 
 /**
  * What the capacity line judges against: the newest report and its state, and the newest

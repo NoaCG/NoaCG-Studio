@@ -1635,7 +1635,12 @@ test('the capacity line judges on the newest complete report, and names the bad 
   const failing = gateReport({ gh: () => { throw new Error('HTTP 403'); }, now, ceilings: GATE_CEILINGS });
   assert.deepEqual([failing.newest.state, failing.judged], ['missing', null]);
   // Bounded: at most GATE_CANDIDATES downloads.
-  const many = Array.from({ length: 10 }, (_, i) => artifactOf(100 + i, `2026-11-0${9 - Math.min(i, 8)}T00:00:00Z`));
+  // Five retained weeks of three partial tries each, then a complete report: in reach.
+  assert.equal(GATE_CANDIDATES, 5 * MAX_ATTEMPTS);
+  const weeks = Array.from({ length: 14 }, (_, i) => artifactOf(200 + i, new Date(Date.parse('2026-11-09T00:00:00Z') - i * 3_600_000).toISOString()));
+  const deep = gateReport({ gh: reportsGh([...weeks, artifactOf(300, '2026-10-01T00:00:00Z')], { ...Object.fromEntries(weeks.map((a) => [a.id, realReport(42647874522)])), 300: realReport(41704224273) }), now, ceilings: GATE_CEILINGS });
+  assert.equal(deep.judged?.run, 300, 'the complete report behind fourteen partial tries is found');
+  const many = Array.from({ length: 20 }, (_, i) => artifactOf(100 + i, new Date(Date.parse('2026-11-09T00:00:00Z') - i * 3_600_000).toISOString()));
   const counted = [];
   gateReport({ gh: reportsGh(many, Object.fromEntries(many.map((a) => [a.id, realReport(42647874522)])), counted), now, ceilings: GATE_CEILINGS });
   assert.equal(counted.filter((c) => c.startsWith('run download')).length, GATE_CANDIDATES);
