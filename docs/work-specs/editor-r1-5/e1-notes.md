@@ -822,6 +822,17 @@ return, and three representative isolated sync and recovery cases.
 The earlier `j-5096` terminal pass remains the complete 19-case receipt
 on its reconciled source.
 
+`j-5148` exited 0 in Chromium with base
+`a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44` and product
+`7d7e801fb3117102a2986729b32b94e614e7cd02`. The exact base grouped
+the inherited-opacity fixture with opacity staying at `.25`. The
+candidate refused that grouping because the artwork inherits
+`--base-scale-x`, preserving the source. For both known and custom raw
+interpreters the same unrelated opacity edit reached `.6` on base and
+candidate, with exact interpreter bytes and the existing `40px` key.
+Main `a3f3e13ca` then merged cleanly with no changed path in common
+with the E1 diff.
+
 #### Catalog and affected CI scope
 
 Windows factory `j-5098` exited 0 with 328 checks across 12 kits. The
@@ -844,6 +855,14 @@ After the shared stylesheet and renderer correction, `j-5136` retained
 the same raw Windows failure on `jc01` alone. `j-5137` exited 0 with all
 539 candidate fingerprints identical to the unchanged-main control and
 the same raw `jc01` JavaScript hash. No catalog baseline changed.
+
+On `7d7e801fb` raw Windows gate `j-5149` exited 1 on `jc01` JavaScript
+alone. `j-5150` exited 0 and compared all 539 candidate fingerprints with
+main `a3f3e13ca`. All were identical, including raw `jc01` JavaScript
+`ec5dc4ccf279231f`. The same unchanged QR encoder normalized to the
+committed fingerprint `8d17b8a35536b6dd`. The Windows raw gate remains
+red and the baseline is unchanged. The affected offline gates ran 358
+tests on the product head with zero failures.
 
 ## Earlier checkpoints
 
