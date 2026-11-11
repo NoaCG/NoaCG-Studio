@@ -858,19 +858,31 @@ export function carryBreaches({ previous = [], current = [], today, owner, corre
 }
 
 /**
- * The reduction plan's due steps the measurement does not meet (growth-ceilings.json
- * `reductionPlan`): one owned action each, raised from its date. Raw measured cost is judged, so
- * an exception cannot meet a step. A step never moves a line or stops growth: each lower line is
- * its own reviewed version. Pure.
+ * The reduction plan's due steps as owned actions (growth-ceilings.json `reductionPlan`): for
+ * each tier and measure, the latest step whose date has come, while the line is still above its
+ * target. Met on complete evidence, the action is to land the reviewed version that lowers the
+ * line; not met, it is to bring the cost down or take the figure back to the owner. Raw measured
+ * cost is judged, so an exception cannot meet a step. A step never moves a line or stops growth:
+ * each lower line is its own reviewed version. Pure.
  */
 export function planBreaches(ceilings, measurement, today) {
-  const out = [];
+  const latest = new Map();
   for (const step of ceilings.reductionPlan?.steps ?? []) {
     if (dayMs(today) < dayMs(step.by)) continue;
-    // Met only on complete evidence: a partial week's lower bound under the target proves nothing.
-    if (planStepMet(step, measurement)) continue;
+    const key = `${step.tier}:${step.measure}`;
+    if (!latest.has(key) || step.by > latest.get(key).by) latest.set(key, step);
+  }
+  const out = [];
+  for (const step of latest.values()) {
+    const line = ceilings.tiers?.[step.tier]?.[step.measure];
+    if (Number.isFinite(line) && line <= step.target) continue;
     const measured = measurement?.tiers?.[step.tier]?.[step.measure];
-    out.push({ key: `plan:${step.tier}:${step.measure}:${step.by}`, kind: 'plan', subject: step.tier, step, detail: `reduction step due ${step.by}: ${step.tier} ${step.measure} ${Number.isFinite(measured) ? `measured ${Math.round(measured * 10) / 10}` : 'not measured'}, target ${step.target} (${step.work}); the line stays where it is until the owner (${ceilings.reductionPlan.owner}) decides` });
+    const shown = Number.isFinite(measured) ? `measured ${Math.round(measured * 10) / 10}` : 'not measured';
+    // Met only on complete evidence: a partial week's lower bound under the target proves nothing.
+    const what = planStepMet(step, measurement)
+      ? `met: land the reviewed version that lowers the line from ${line} to ${step.target}`
+      : `not met: bring the cost down (${step.work}), or take the figure back to the owner; the line stays at ${line}`;
+    out.push({ key: `plan:${step.tier}:${step.measure}:${step.by}`, kind: 'plan', subject: step.tier, step, detail: `reduction step due ${step.by}: ${step.tier} ${step.measure} ${shown}, target ${step.target}, ${what} (owner ${ceilings.reductionPlan.owner})` });
   }
   return out;
 }

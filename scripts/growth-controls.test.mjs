@@ -1574,22 +1574,35 @@ test('version 3: every raised line has a dated reduction step back to its versio
   assert.match(v3.rationale, /43014542120/);
 });
 
-test('a due reduction step that is not met is an owned action, never a stop and never a line change', () => {
+test('a due reduction step is an owned action, met or not, until its line is lowered; never a stop or a line change', () => {
   const m = (offline, evidence = 'complete') => ({ windowEnd: '2026-12-14', tiers: { offline: { perLanding: offline, perDay: 190, evidence } } });
+  const offline = (list) => list.filter((b) => b.subject === 'offline');
   assert.deepEqual(planBreaches(CEILINGS_FILE, m(650), '2026-12-13'), [], 'not due yet');
-  const due = planBreaches(CEILINGS_FILE, m(650), '2026-12-14').filter((b) => b.subject === 'offline');
+  const due = offline(planBreaches(CEILINGS_FILE, m(650), '2026-12-14'));
   assert.deepEqual(due.map((b) => b.key), ['plan:offline:perLanding:2026-12-14']);
-  assert.match(due[0].detail, /measured 650, target 600/);
-  assert.deepEqual(planBreaches(CEILINGS_FILE, m(590), '2026-12-14').filter((b) => b.subject === 'offline'), [], 'met on complete evidence');
-  assert.equal(planBreaches(CEILINGS_FILE, m(590, 'partial'), '2026-12-14').filter((b) => b.subject === 'offline').length, 1, 'a partial lower bound under the target proves nothing');
+  assert.match(due[0].detail, /measured 650, target 600, not met: .*the line stays at 720/);
+  // Met on complete evidence: the action is to land the lower line, so the ratchet is never silent.
+  const met = offline(planBreaches(CEILINGS_FILE, m(590), '2026-12-14'));
+  assert.match(met[0].detail, /target 600, met: land the reviewed version that lowers the line from 720 to 600/);
+  assert.match(offline(planBreaches(CEILINGS_FILE, m(590, 'partial'), '2026-12-14'))[0].detail, /not met/, 'a partial lower bound under the target proves nothing');
+  // Done once the line is lowered to the step's target.
+  const lowered = { ...CEILINGS_FILE, tiers: { ...CEILINGS_FILE.tiers, offline: { perLanding: 600, perDay: 215 } } };
+  assert.deepEqual(offline(planBreaches(lowered, m(590), '2026-12-20')), []);
+  // Only the latest due step per line: on 2027-01-11 offline shows the 535 step alone.
+  assert.deepEqual(offline(planBreaches(CEILINGS_FILE, m(650), '2027-01-11')).map((b) => b.step.target), [535]);
   assert.equal(planStepMet({ tier: 'offline', measure: 'perLanding', target: 600 }, m(600)), true);
   // Carried a week past its correction it is "stopped" as an action, yet stops no tier's growth.
   const { breaches, stops } = carryBreaches({ previous: [{ ...due[0], since: '2026-12-14', due: '2026-12-21', corrections: 1, state: 'correcting', owner: 'o' }], current: due, today: '2026-12-21', owner: 'o' });
   assert.equal(breaches[0].state, 'stopped');
   assert.deepEqual(stops, {});
-  // The weekly report raises it, and clears it once complete evidence meets the step.
-  const report = (offline, previous = null) => buildReport({ ceilings: CEILINGS_FILE, runs: [], days: 7, windowEnd: '2026-12-14T00:00:00Z', now: '2026-12-14T06:00:00Z', previous, tableRecordedAt: '2026-12-10', collection: 'fixture' }).report;
-  const raised = report(0);
-  assert.ok(raised.breaches.some((b) => b.key === 'plan:offline:perLanding:2026-12-14'), 'no measurement does not meet a step');
-  assert.deepEqual(raised.ceilings.tiers, CEILINGS_FILE.tiers, 'no line moved');
+  // The weekly report raises it for the owner and moves no line.
+  const report = buildReport({ ceilings: CEILINGS_FILE, runs: [], days: 7, windowEnd: '2026-12-14T00:00:00Z', now: '2026-12-14T06:00:00Z', tableRecordedAt: '2026-12-10', collection: 'fixture' }).report;
+  assert.ok(report.breaches.some((b) => b.key === 'plan:offline:perLanding:2026-12-14'));
+  assert.deepEqual(report.ceilings.tiers, CEILINGS_FILE.tiers, 'no line moved');
+  // Cleared once the line is lowered; while it is not, it stays raised, even after a good week.
+  const carry = (ceilings, now) => buildReport({ ceilings, runs: [], days: 7, windowEnd: now, now, previous: report, tableRecordedAt: '2026-12-20', collection: 'fixture' }).report.breaches.filter((b) => b.kind === 'plan' && b.subject === 'offline').map((b) => b.key);
+  assert.deepEqual(carry(lowered, '2026-12-21T06:00:00Z'), [], 'the lowered line clears it');
+  assert.deepEqual(carry(CEILINGS_FILE, '2026-12-21T06:00:00Z'), ['plan:offline:perLanding:2026-12-14'], 'still raised while the line stays');
+  // The next step replaces it when due, never beside it.
+  assert.deepEqual(carry(CEILINGS_FILE, '2027-01-11T06:00:00Z'), ['plan:offline:perLanding:2027-01-11']);
 });

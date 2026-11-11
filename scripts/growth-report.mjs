@@ -32,7 +32,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  TIERS, ageAlarms, applySlowdown, planBreaches, planStepMet, assessTiers, carryBreaches, costBreaches, detectSlowdown, exceptionStatus,
+  TIERS, ageAlarms, applySlowdown, planBreaches, assessTiers, carryBreaches, costBreaches, detectSlowdown, exceptionStatus,
   expiringSoon, phaseClock, phasesFromLedger, pooledTiming, prClock, queueClock, reportCadence, sustained, tableFreshness, tierOfJob, weeklyMarkdown,
 } from './growth-controls.mjs';
 import { knownCoversOnDisk } from './e2e-capacity.mjs';
@@ -206,10 +206,10 @@ export function buildReport({ ceilings, runs, days, windowEnd, now, previous = n
     if (kind === 'latency') { const t = timing.find((x) => x.measure === subject); return Boolean(timingComplete && t?.adequate && !t.above); }
     // An age item: its read was complete (open PRs from GitHub, phases from a clocks file that was read).
     if (kind === 'age') return b.category === 'phase' ? clocksRead : openComplete;
-    // A reduction step: met only on complete evidence at or under its target.
-    if (kind === 'plan') return Boolean(b.step && planStepMet(b.step, measurement));
-    // Re-derived in full from files every week: the table's date, the exception ledger, this report.
-    return ['table', 'exception', 'exception-invalid', 'report'].includes(kind);
+    // Re-derived in full from files every week: the table's date, the exception ledger, this
+    // report, and the reduction plan against the ceilings (a step stays raised while its line is
+    // above its target, and gives way to the next step when that one is due).
+    return ['table', 'exception', 'exception-invalid', 'report', 'plan'].includes(kind);
   };
   const carried = carryBreaches({ previous: previous?.breaches ?? [], current, today, owner: ceilings.owner, confirmed });
   const report = {
