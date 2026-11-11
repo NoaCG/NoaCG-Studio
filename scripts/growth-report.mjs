@@ -11,6 +11,7 @@
 //   node scripts/growth-report.mjs fetch --out report.json     # the newest complete report (the capacity line's)
 //   node scripts/growth-report.mjs fetch --newest --out f.json # the newest report, whatever its state
 //   node scripts/growth-report.mjs health [--issue]           # say when to re-run a partial report, or alarm the owner
+//   node scripts/growth-report.mjs health --week [--rerun-attempt n]  # which week a run measures (weekly-audit)
 //
 // `collect` reads this repository's Actions runs for the window (ending six hours ago, so runs
 // have finished) and prices every job's runner-minutes into its tier: offline, backend,
@@ -748,6 +749,21 @@ export function healthAction({ newest, judgedOn = null, now, running = false }) 
   return { kind: 'alarm', key, body };
 }
 
+/**
+ * Which week a run measures, so it carries from the report before that week (never from the
+ * week itself, which would compare the week's timing with itself). A run while the newest report
+ * is partial and under six days old is another try of that week: it carries from the report
+ * before that week's first try. A re-run dispatched by `health` says its own try. Otherwise a
+ * new week: carry from the newest report. Pure.
+ */
+export function weekOf(newest, now, rerunAttempt = null) {
+  const age = (Date.parse(now) - Date.parse(newest?.generatedAt ?? '')) / DAY;
+  const retry = rerunAttempt != null || (newest?.state === 'partial' && age < 6);
+  if (!retry) return { needed: true, attempt: 1, firstTryAt: null };
+  if (rerunAttempt != null && !rerunStillNeeded(newest, rerunAttempt)) return { needed: false, attempt: rerunAttempt, firstTryAt: null };
+  return { needed: true, attempt: rerunAttempt ?? (newest.attempt ?? 1) + 1, firstTryAt: newest.firstTryAt ?? newest.generatedAt };
+}
+
 /** In a re-run (try `attempt`): whether the newest report is still the partial try before it. Pure. */
 export function rerunStillNeeded(newest, attempt) {
   return newest.state === 'partial' && (newest.attempt ?? 1) === attempt - 1 && attempt <= MAX_ATTEMPTS;
@@ -807,11 +823,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const now = value('--now') ?? new Date().toISOString();
     const gh = withRetries(ghRun);
     const picked = gateReport({ ceilings, now, gh });
-    if (value('--still-needed') !== undefined) {
-      // In a re-run itself: still needed only while the newest report is the partial try before it.
-      const needed = rerunStillNeeded(picked.newest, Number(value('--still-needed')));
-      console.log(`re-run try ${value('--still-needed')}: ${needed ? 'needed' : 'not needed, the newest report has moved on'}`);
-      if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `needed=${needed}\nfirst_try=${picked.newest.firstTryAt ?? ''}\n`);
+    if (args.includes('--week')) {
+      // Before a report is collected: which week it measures, and whether a re-run is still needed.
+      const rerun = value('--rerun-attempt') ? Number(value('--rerun-attempt')) : null;
+      const week = weekOf(picked.newest, now, rerun);
+      console.log(`${rerun ? `re-run try ${rerun}` : 'run'}: ${week.needed ? `try ${week.attempt}${week.firstTryAt ? `, carrying from the report before ${week.firstTryAt}` : ', a new week'}` : 'not needed, the newest report has moved on'}`);
+      if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `needed=${week.needed}\nattempt=${week.attempt}\nfirst_try=${week.firstTryAt ?? ''}\n`);
       process.exit(0);
     }
     let running = false;

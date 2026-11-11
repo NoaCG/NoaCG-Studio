@@ -234,22 +234,23 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-      # A re-run of a partial report (post-land.yml dispatches it at most twice) goes ahead only
-      # while the newest report is still the partial try before it.
-      - name: Re-run still needed
+      # Which week this run measures. A re-run of a partial report (post-land.yml dispatches it at
+      # most twice) goes ahead only while the newest report is still the partial try before it; a
+      # run by hand while the newest report is a partial one is another try of that week too.
+      - name: Which week
         id: rerun
-        if: ${{ inputs.growth_rerun }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: node scripts/growth-report.mjs health --still-needed "${{ inputs.attempt }}"
+          RERUN: ${{ inputs.growth_rerun && inputs.attempt || '' }}
+        run: node scripts/growth-report.mjs health --week --rerun-attempt "$RERUN"
       # A failed fetch leaves no file, and the step below then refuses to publish rather than
       # reset last week's breaches and stops; no report at all (the first week) is written down.
       # The newest report whatever its state. A re-run carries from the report published before
       # this week's first try, as that try did, never from the try itself: comparing the week with
       # itself would invent a "two weeks running" latency breach.
       - name: Last week's report
-        if: ${{ !inputs.growth_rerun || steps.rerun.outputs.needed == 'true' }}
+        if: ${{ steps.rerun.outputs.needed != 'false' }}
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
@@ -260,12 +261,12 @@ jobs:
       # schedule or a run on main raises or withdraws it.
       - name: Measure, attribute and assign
         id: collect
-        if: ${{ !inputs.growth_rerun || steps.rerun.outputs.needed == 'true' }}
+        if: ${{ steps.rerun.outputs.needed != 'false' }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           ISSUE: ${{ (github.event_name == 'schedule' || github.ref == 'refs/heads/main') && '--issue' || '' }}
-          ATTEMPT: ${{ inputs.growth_rerun && inputs.attempt || '1' }}
+          ATTEMPT: ${{ steps.rerun.outputs.attempt || '1' }}
           FIRST_TRY: ${{ steps.rerun.outputs.first_try }}
         run: node scripts/growth-report.mjs collect --budget 550 --attempt "$ATTEMPT" --first-try "$FIRST_TRY" --previous "$RUNNER_TEMP/previous-growth.json" --out growth-report.json --summary "$GITHUB_STEP_SUMMARY" $ISSUE
       - uses: actions/upload-artifact@v4

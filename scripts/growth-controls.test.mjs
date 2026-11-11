@@ -15,7 +15,7 @@ import {
   ceilingsRevision, confirmedStops, coverCosts, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, knownCovers, landingDispatched, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   quarantineLines, tableFreshness, tierOfCover, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
-import { AGE_ISSUE, GATE_CANDIDATES, MAX_ATTEMPTS, REPORT_ISSUE, RETRY, ages, buildReport, carriedDues, carriedStarts, classifyReport, fetchLatest, findIssue, finishedPrs, gateFile, gateReport, healthAction, listRuns, makeReader, phaseIssueTitle, priceRuns, readJobs, reportAlarm, rerunStillNeeded, sampleJobs, seriesOf, spread, transient } from './growth-report.mjs';
+import { AGE_ISSUE, GATE_CANDIDATES, MAX_ATTEMPTS, REPORT_ISSUE, RETRY, ages, buildReport, carriedDues, carriedStarts, classifyReport, fetchLatest, findIssue, finishedPrs, gateFile, gateReport, healthAction, weekOf, listRuns, makeReader, phaseIssueTitle, priceRuns, readJobs, reportAlarm, rerunStillNeeded, sampleJobs, seriesOf, spread, transient } from './growth-report.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -1826,4 +1826,17 @@ test('stale evidence waives nothing under the trusted line either (Rule X9)', ()
   const old = measurement({ backend: 100 }, { windowEnd: '2026-10-20' });
   const t = assessTiers({ ceilings: { ...CEILINGS, exceptions: [ex] }, measurement: old, items: [backendItem(12)], today: TODAY, trustEvidence: true }).tiers.backend;
   assert.deepEqual([t.evidence, t.addedLanding, t.status], ['stale', 12, 'refuse']);
+});
+
+test('a run by hand while the newest report is partial is another try of that week, never compared with itself', () => {
+  const partial = { run: 11, state: 'partial', generatedAt: '2026-11-09T06:10:00Z', attempt: 1, firstTryAt: '2026-11-09T06:10:00Z' };
+  // The owner fixes the cause and runs weekly-audit by hand, as the alarm says.
+  assert.deepEqual(weekOf(partial, '2026-11-10T09:00:00Z'), { needed: true, attempt: 2, firstTryAt: '2026-11-09T06:10:00Z' });
+  // A re-run dispatched by health says its own try.
+  assert.deepEqual(weekOf(partial, '2026-11-09T08:00:00Z', 2), { needed: true, attempt: 2, firstTryAt: '2026-11-09T06:10:00Z' });
+  assert.equal(weekOf({ ...partial, attempt: 2 }, '2026-11-09T09:00:00Z', 2).needed, false, 'that try already ran');
+  // A new week: after a complete report, or a partial one six or more days old, or no report.
+  assert.deepEqual(weekOf({ ...partial, state: 'complete' }, '2026-11-10T09:00:00Z'), { needed: true, attempt: 1, firstTryAt: null });
+  assert.deepEqual(weekOf(partial, '2026-11-16T06:10:00Z'), { needed: true, attempt: 1, firstTryAt: null });
+  assert.deepEqual(weekOf({ state: 'missing', run: null, generatedAt: null }, '2026-11-16T06:10:00Z'), { needed: true, attempt: 1, firstTryAt: null });
 });
