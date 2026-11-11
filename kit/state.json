@@ -74,7 +74,7 @@
       "sourceSha": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
       "branch": "codex/plan-editor-r1-5-e3-build",
       "worktree": "/workspace/noacg-editor-r1-5-e3-build",
-      "note": "E3 bounded real-model quality independently PASS at explicit source scope. Builder consolidating final notes/inventory before full-diff review/check/PR; no overallphasePASS, no further paid calls."
+      "note": "E3 PR2386 open at f42038db; coordinator sole repair owner6798337901 acknowledged before workerends. Fullfreshso/CI43037611275/autoCodex pending; noqueue. Bounded modelquality PASS with originalfailures preserved."
     }
   ],
   "owner": [],
@@ -756,6 +756,18 @@
       "archive": "confirmed"
     },
     "finalDeliveryActualUpperEstimateUsd": 1.742653,
-    "trackedOtherRouteBug": "https://github.com/NoaCG/NoaCG-Studio/issues/2385"
+    "trackedOtherRouteBug": "https://github.com/NoaCG/NoaCG-Studio/issues/2385",
+    "candidate": {
+      "pr": 2386,
+      "url": "https://github.com/NoaCG/NoaCG-Studio/pull/2386",
+      "head": "f42038dbe0661c5c2af620f7157f0a93c2d283bf",
+      "base": "7e1ae4cf8 docs-only latestmain reconciled",
+      "sourceCi": 43037611275,
+      "autoCodexComment": 6798324617,
+      "repairOwnerComment": 6798337901,
+      "repairOwner": "active coordinator6af455f4-b1c8-8191-86b2-8bfdfc619075, sole acknowledged; no wake",
+      "workerCheck": "PASS exacthead, inline review0/0/simplify/verify;533gateway+21script,lint/root+API tscPASS; protection3to3/22to40; capacityWARN retained",
+      "gates": "fullfreshso,exactheadCI/Codex pending. No reviewed/status/queue/automerge yet"
+    }
   }
 }
