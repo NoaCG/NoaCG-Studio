@@ -530,10 +530,12 @@ export async function reachBridge(bridgeUrl: string): Promise<PlayoutResult | nu
  *  current Bridge's (in memory, this page load only). A server action to an address here does not
  *  ask `/health` first (live-publishing W1); its failure asks again (`through`). */
 const currentBridges = new Map<string, BridgeFeature[]>();
+const currentVmixMediaPairings = new Set<string>();
 
 /** Forget every Bridge heard: the next server action to any address asks `/health` first. */
 export function forgetBridges(): void {
   currentBridges.clear();
+  currentVmixMediaPairings.clear();
 }
 
 /** `reachBridge`, and what a current Bridge said it understands for CasparCG. */
@@ -1083,6 +1085,18 @@ async function probeVmix(bridgeUrl: string): Promise<VmixHealth> {
   return { kind: 'failed', result: vmixCapabilityProblem };
 }
 
+/** Only the strict vMix health reply can establish a pairing's media capability. */
+async function probeVmixMediaPairing(settings: PlayoutSettings): Promise<VmixHealth> {
+  const health = await probeVmix(settings.agentUrl);
+  const pairing = vmixPairing(settings);
+  if (health.kind === 'current' && health.features.includes('vmix-media')) {
+    currentVmixMediaPairings.add(pairing);
+  } else {
+    currentVmixMediaPairings.delete(pairing);
+  }
+  return health;
+}
+
 const whole = (value: unknown, min: number): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value) && value >= min;
 
@@ -1113,14 +1127,14 @@ function validVmixError(route: VmixRoute, http: number, error: AgentError | unde
 
   if (http === 401 || http === 403) return error.hop === 'agent' && error.code === 'refused';
   if (http === 400) return error.hop === 'agent' && error.code === 'usage';
+  if (route === '/studio' || route === '/vmix/choose-folder') {
+    return http === 200 && error.hop === 'agent' && ['refused', 'uncertain', 'unreachable'].includes(error.code);
+  }
   if (http === 502) return error.hop === 'target' && error.code === 'unreachable';
   if (http !== 200) return false;
 
   if (error.hop === 'target') {
     return error.code === 'refused' || error.code === 'unreachable' || (route === '/act' && error.code === 'uncertain');
-  }
-  if (route === '/studio' || route === '/vmix/choose-folder') {
-    return error.hop === 'agent' && ['refused', 'uncertain', 'unreachable'].includes(error.code);
   }
   return error.hop === 'agent' &&
     ((error.code === 'usage' && (route === '/state' || route === '/act')) ||
@@ -1241,7 +1255,7 @@ function readVmixReply(
 
 export async function testVmix(settings: PlayoutSettings, reconnect = false): Promise<VmixConnection> {
   if (!bridgePaired(settings)) return { supported: false, keyed: false };
-  const health = await probeVmix(settings.agentUrl);
+  const health = await probeVmixMediaPairing(settings);
   if (health.kind !== 'current') {
     return { ...(health.kind === 'legacy' ? { supported: false } : {}), keyed: false, result: health.result };
   }
@@ -1364,16 +1378,20 @@ export async function vmixMediaFolder(settings: PlayoutSettings, choose = false)
   return { result, folder: body?.mediaFolder, cancelled: body?.cancelled };
 }
 
-/** A player uses the normal paired token and rechecks the dispatch condition after the probe. */
+/** A player uses the paired token and rechecks dispatch after any capability probe. */
 export async function actVmixMedia(
   settings: PlayoutSettings, action: PlayoutAction, canSend: () => boolean,
 ): Promise<PlayoutResult | null> {
   if (!canSend()) return null;
-  const health = await probeVmix(settings.agentUrl);
-  if (!canSend()) return null;
-  if (health.kind !== 'current') return health.result;
-  if (!health.adapters.includes('vmix') || !health.features.includes('vmix-media')) {
-    return { state: 'outdated', detail: 'Update NoaCG Bridge to play vMix media.' };
+  const pairing = vmixPairing(settings);
+  const known = currentVmixMediaPairings.has(pairing);
+  if (!known) {
+    const health = await probeVmixMediaPairing(settings);
+    if (!canSend()) return null;
+    if (health.kind !== 'current') return health.result;
+    if (!health.features.includes('vmix-media')) {
+      return { state: 'outdated', detail: 'Update NoaCG Bridge to play vMix media.' };
+    }
   }
   if (action.slot.adapter !== 'vmix' || !('player' in action.slot)) {
     return { state: 'config', detail: 'This cue has no vMix player.' };
@@ -1384,6 +1402,13 @@ export async function actVmixMedia(
   // cannot authorize transport on the previous cue without a fresh accepted Take.
   const refusedBeforeDispatch = 'http' in call && (call.http === 401 || call.http === 403) && !result.unknownAction;
   if (result.state !== 'ok' && !refusedBeforeDispatch) {
+    currentVmixMediaPairings.delete(pairing);
+    if (known && !('http' in call)) {
+      const diagnosis = await probeVmix(settings.agentUrl);
+      if (diagnosis.kind !== 'current') {
+        return { ...result, ...diagnosis.result, detail: `${diagnosis.result.detail} ${result.detail}`, playerUncertain: true };
+      }
+    }
     return { ...result, playerUncertain: true };
   }
   return result;

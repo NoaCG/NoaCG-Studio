@@ -1181,10 +1181,44 @@ test('an uncertain vMix folder choice invalidates outstanding reads in both pair
     assert.equal((await tab.vmixMediaFolder(settings)).folder, 'C:\\New');
     assert.deepEqual((await tab.listVmixMedia(settings)).items, [{ name: 'New.mp4', kind: 'movie' }]);
   }
-  for (const reply of [() => new Response('{'), () => { throw new TypeError('Response lost'); }]) {
+  const unexpectedFolderErrors = [200, 502].map(status => () => Response.json({
+    v: 2, ok: false, error: { hop: 'target', code: 'unreachable', detail: 'Unrecognized chooser outcome.' },
+  }, { status }));
+  for (const reply of [...unexpectedFolderErrors, () => new Response('{'), () => { throw new TypeError('Response lost'); }]) {
     chooseReply = reply;
     const revisions = tabs.map(tab => tab.vmixMediaFolderRevision());
     assert.equal((await first.vmixMediaFolder(settings, true)).folder, undefined);
     assert.deepEqual(tabs.map(tab => tab.vmixMediaFolderRevision()), revisions.map(revision => revision + 1));
   }
+});
+
+test('a known vMix media pairing sends directly and rechecks capability after a lost action reply', async (t) => {
+  const settingsForPlayer = { ...settings, agentUrl: 'http://127.0.0.1:59992' };
+  const action = { verb: 'take', slot: { adapter: 'vmix', player: 'clips' }, item: { kind: 'media', name: 'clip.mov' } };
+  const paths = [];
+  let media = true;
+  let lost = false;
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    const path = new URL(url).pathname;
+    paths.push(path);
+    if (path === '/health') return Response.json({ ...health, features: media ? ['vmix-media'] : [] });
+    if (path === '/status') return Response.json(status);
+    assert.equal(path, '/act');
+    if (lost) throw new TypeError('Response lost');
+    return Response.json({ ...acted, instance: 'fixture.play-1' });
+  });
+  assert.equal((await testVmix(settingsForPlayer)).media, true);
+  assert.deepEqual(paths.splice(0), ['/health', '/status']);
+  assert.equal((await actVmixMedia(settingsForPlayer, action, () => true)).state, 'ok');
+  assert.deepEqual(paths.splice(0), ['/act']);
+  lost = true;
+  media = false;
+  assert.equal((await actVmixMedia(settingsForPlayer, action, () => true)).playerUncertain, true);
+  assert.deepEqual(paths.splice(0), ['/act', '/health'], 'diagnose without repeating the action');
+  lost = false;
+  assert.equal((await actVmixMedia(settingsForPlayer, action, () => true)).state, 'outdated');
+  assert.deepEqual(paths.splice(0), ['/health']);
+  media = true;
+  assert.equal((await actVmixMedia(settingsForPlayer, action, () => true)).state, 'ok');
+  assert.deepEqual(paths.splice(0), ['/health', '/act']);
 });
