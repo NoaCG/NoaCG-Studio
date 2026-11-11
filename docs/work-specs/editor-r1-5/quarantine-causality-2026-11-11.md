@@ -86,3 +86,23 @@ its incident [#2371](https://github.com/NoaCG/NoaCG-Studio/issues/2371), assigne
 `miwco`; both existing policy rows have repair due2026-11-25. Preserve that real
 owner/date rather than inventing one. Publish the exact evidence and any fix or
 release PR. Further phase launches remain stopped until both cases are settled.
+
+## Execution and diagnostics
+
+The independent protocol review at `ea2a9edb` returned AGREE/A; it is a method
+review, not a causal result. Use the existing browser queue for individual named
+spec invocations with the normal five-minute small-selection bound. Never turn
+sixty pairs into one oversized job or evade broader-selection admission limits.
+If a complete trial needs a different existing bound, stop and document that
+route before continuing; preserve any exhausted-cap result.
+
+Set `CI=1` for the historical config, with `GITHUB_ACTIONS` unset in this actual
+Cloud worker; the execution profile remains Cloud. Explicitly request one worker.
+Add JSON reporting while retaining existing integrity checks/reporters. Verify
+exact source/spec identity and clean snapshots, and reject an unexpected existing
+listener before each server start; record the same lifecycle on both arms.
+
+The historical live config traces only its retry. With diagnostic retries zero,
+primary operator runs consequently have no trace. Preserve that primary setting;
+if tracing is needed, declare a separate matched trace-on diagnostic condition,
+retain its counts and never pool it into the primary failure-rate comparison.
