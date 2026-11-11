@@ -287,6 +287,40 @@ const DRAFT_ADAPTERS: CueDraftAdapters = {
     window.addEventListener('noacg-account-authoring-flush', run);
     return () => window.removeEventListener('noacg-account-authoring-flush', run);
   },
+  // A control whose press sends before it saves (live-publishing W1) is marked `data-sends-first`.
+  // Captured on the window, so the draft hears it before the focus moves and before any handler.
+  onSendsFirstPress: (run) => {
+    // A mouse press moves the focus while its button is down. A touch or pen press moves it after
+    // the pointer is up, with the click the tap makes, so it ends at that click (or 1 s on, if the
+    // tap makes none).
+    let late: ReturnType<typeof setTimeout> | undefined;
+    const end = () => {
+      clearTimeout(late);
+      run(false);
+    };
+    const down = (e: PointerEvent) => {
+      clearTimeout(late);
+      run(e.target instanceof Element && e.target.closest('[data-sends-first]') !== null);
+    };
+    const up = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse') return end();
+      clearTimeout(late);
+      late = setTimeout(end, 1000);
+    };
+    window.addEventListener('pointerdown', down, true);
+    window.addEventListener('pointerup', up, true);
+    window.addEventListener('pointercancel', end, true);
+    window.addEventListener('click', end, true);
+    window.addEventListener('blur', end);
+    return () => {
+      clearTimeout(late);
+      window.removeEventListener('pointerdown', down, true);
+      window.removeEventListener('pointerup', up, true);
+      window.removeEventListener('pointercancel', end, true);
+      window.removeEventListener('click', end, true);
+      window.removeEventListener('blur', end);
+    };
+  },
 };
 /** Where an item and a Play-through folder play, for the Take refusals and the server verbs. */
 const PLAYOUT_SLOTS: SlotRules = { itemSlot, folderSlot };
@@ -2561,6 +2595,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     armEngine.current?.update({ published: !!hostedSlug, timedCues });
   }, [session, hostedSlug, timedCues]);
 
+  // The editor can move to another cue without a selection change: it follows the cue on air
+  // (`editTarget === 'air'`). After a render that moved it, the save of the draft it left starts,
+  // as `selectCue` starts it. The cue is set further down, past the early return.
+  const editingCueIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    cueDraft.showing(editingCueIdRef.current, () => { void flushDraft(); void historyRef.current?.closeGroup(); });
+  });
+
   if (!show) {
     // A TEAM production opened cold - a teammate's link, a reload - arrives with the first team
     // fetch, a moment after this page. Saying "no longer exists" for that moment, or while the
@@ -2867,6 +2909,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const editDraft = (patch: CueEdit) => {
     if (editingCue) cueDraft.edit(editingCue, patch);
   };
+  editingCueIdRef.current = editingCue?.id ?? null;
 
   /**
    * ONE VERB ON THE PLAYOUT SERVER, reporting nothing: control/serverPlayout.ts decides what it sends
@@ -4094,6 +4137,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             onClick={() => onVerb('take')}
             title={takeButton.title}
             data-testid="verb-take"
+            data-sends-first
           >
             {takeButton.face.text} <kbd>SPACE</kbd>
           </button>
@@ -4108,6 +4152,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             onClick={() => selectedCue && void takeCue(selectedCue)}
             title="Re-take: play this cue’s entrance again from the start"
             data-testid="verb-retake"
+            data-sends-first
           >
             ⟳ Re-take <kbd>R</kbd>
           </button>
@@ -4153,6 +4198,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 : undefined
             }
             data-testid="verb-next"
+            data-sends-first
           >
             {/* Unnamed, the button is drawn exactly as it always was. */}
             {nextLabel ? (
@@ -4328,6 +4374,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             editDraft={editDraft}
             flushDraft={flushDraft}
             rundownHistory={history}
+            saveOnBlur={cueDraft.blurred}
             updateLive={updateLive}
             hasUnsent={hasUnsent}
             unsentFields={unsentFields}

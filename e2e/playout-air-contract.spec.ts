@@ -213,20 +213,71 @@ const textFields = (page: Page) =>
 
 test('typed then taken at once: the typed value airs while its save is still landing, as one entrance', async ({ page }) => {
   // spec §5.3, "type then Take at once": the Take comes inside the 300 ms draft flush. The click
-  // blurs the editor, which starts the save; with the disk held the save is still out when the
-  // Take reads the cue, so what airs must be the draft, once.
+  // blurs the editor, whose save then waits for the Take; with the disk held the save is still out
+  // after it, so what airs must be the draft, once.
   await installWriteHold(page);
   await production(page, 'Type then take');
   await cue(page, 'Hairline').getByTestId('select-cue').click();
   const before = await plays(page);
+  // #2388: the click's pointer-down blurs the editor, and that blur's save rewrites the stored
+  // productions synchronously. It waits until the Take's own handler has run: what is stored when
+  // the click reaches the page is read in the capture phase, before any handler.
+  await evaluateInPage(page, async () => {
+    const m = await import('/src/model/shows.ts');
+    const w = window as unknown as { __storedAtClick?: boolean[] };
+    w.__storedAtClick = [];
+    window.addEventListener('click', (e) => {
+      if ((e.target as Element).closest?.('[data-testid="verb-take"]')) w.__storedAtClick!.push(JSON.stringify(m.loadShows()).includes('Typed then taken'));
+    }, true);
+  });
   await holdWrites(page, true);
   await page.getByTestId('cue-field-f0').fill('Typed then taken');
   await page.getByTestId('verb-take').click();
   await onProgram(page, '#f0', 'Typed then taken');
+  expect(await page.evaluate(() => (window as unknown as { __storedAtClick: boolean[] }).__storedAtClick), 'the Take ran before the save').toEqual([false]);
   await holdWrites(page, false);
   await expect(page.getByTestId('cue-unsent')).toBeEmpty();
   await page.waitForTimeout(500);
   expect(await plays(page), 'one entrance').toBe(before + 1);
+});
+
+test.describe('on a touch screen', () => {
+  test.use({ hasTouch: true });
+  test('typed then tapped Take: the Take runs before the save there too', async ({ page }) => {
+    // #2388 on touch: a tap moves the focus after its pointer is up, with the click it makes, so
+    // the press must not count as over at the pointer's release.
+    await installWriteHold(page);
+    await production(page, 'Type then tap');
+    await cue(page, 'Hairline').getByTestId('select-cue').click();
+    await evaluateInPage(page, async () => {
+      const m = await import('/src/model/shows.ts');
+      const w = window as unknown as { __storedAtClick?: boolean[] };
+      w.__storedAtClick = [];
+      window.addEventListener('click', (e) => {
+        if ((e.target as Element).closest?.('[data-testid="verb-take"]')) w.__storedAtClick!.push(JSON.stringify(m.loadShows()).includes('Typed then tapped'));
+      }, true);
+    });
+    await holdWrites(page, true);
+    await page.getByTestId('cue-field-f0').fill('Typed then tapped');
+    await page.getByTestId('verb-take').tap();
+    await onProgram(page, '#f0', 'Typed then tapped');
+    expect(await page.evaluate(() => (window as unknown as { __storedAtClick: boolean[] }).__storedAtClick), 'the Take ran before the save').toEqual([false]);
+    await holdWrites(page, false);
+    await expect(page.getByTestId('cue-unsent')).toBeEmpty();
+  });
+});
+
+test('typed then taken, then the page reloads at once: the edit is kept', async ({ page }) => {
+  // #2388: the blur's save waits for the Take, so the edit is still owed when the page goes; the
+  // page going saves it at once.
+  await production(page, 'Take then reload');
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await page.getByTestId('cue-field-f0').fill('Kept over a reload');
+  await page.getByTestId('verb-take').click();
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Kept over a reload');
 });
 
 test('Update sends every field, and u is the same press', async ({ page }) => {

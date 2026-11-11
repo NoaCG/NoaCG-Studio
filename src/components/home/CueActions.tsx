@@ -101,6 +101,7 @@ export function actionButtonFor(ctx: ActionContext) {
               title={!ctx.live || !legal ? title : `Fires ${name} on the live graphic with ${o.label}.`}
               onClick={() => ctx.fire(pickButton(b, options, o.value))}
               data-testid={`cue-pick-${b.event}-${o.value}`}
+              data-sends-first
             >
               {o.label}
             </button>
@@ -120,6 +121,7 @@ export function actionButtonFor(ctx: ActionContext) {
         title={title}
         onClick={() => ctx.fire(b)}
         data-testid={`cue-action-${b.event}`}
+        data-sends-first
       >
         ⚡ {label}
       </MarkedButton>
@@ -345,10 +347,10 @@ export default function CueActions({
               return (
                 <span key={d.key} className="pd-live-number" data-testid={`live-number-${d.key}`}>
                   <span className="pd-live-number-label">{d.label}</span>
-                  <button disabled={disabled} title={title} onClick={() => void bumpLive(d.key, -1)} data-testid={`live-number-${d.key}-down`}>
+                  <button disabled={disabled} title={title} onClick={() => void bumpLive(d.key, -1)} data-testid={`live-number-${d.key}-down`} data-sends-first>
                     −
                   </button>
-                  <button disabled={disabled} title={title} onClick={() => void bumpLive(d.key, 1)} data-testid={`live-number-${d.key}-up`}>
+                  <button disabled={disabled} title={title} onClick={() => void bumpLive(d.key, 1)} data-testid={`live-number-${d.key}-up`} data-sends-first>
                     +
                   </button>
                 </span>
