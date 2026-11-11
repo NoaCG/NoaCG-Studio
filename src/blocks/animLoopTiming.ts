@@ -76,6 +76,6 @@ export function validAuthoredLoop(loop: RangedLoop, duration: number, keys: read
   if (!keys.every((key, index) => Number.isFinite(key.value) && key.time >= from && key.time <= to &&
       (index === 0 || key.time > keys[index - 1].time))) return false;
   const phase = loop.phase ?? 0, window = shared().window(loop);
-  return Number.isFinite(phase) && phase >= 0 && phase < Math.min(window.lap, window.total) &&
+  return Number.isFinite(phase) && phase >= 0 && phase < (loop.repeat < 0 ? window.lap : window.total) &&
     (loop.repeat < 0 || window.total < 1e7);
 }

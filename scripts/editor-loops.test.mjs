@@ -141,6 +141,75 @@ test('early and repeated Out use the live sample, hide unreached layers and fini
   }
 });
 
+test('Out from a later cue preserves the held loop sample and the authored later exit keys', () => {
+  const data = authored();
+  const exit = data.steps[2].layers['#box'];
+  exit.x.splice(1, 0, { time: .2, value: 30 });
+  exit.opacity = [{ time: 0, value: 0 }];
+  const g = graphic(data);
+  sample(g.w.buildInTimeline(), .35);
+  sample(g.w.revealNextStep(), .4);
+  const out = g.w.buildOutTimeline();
+  near(g.box.x, 60, 'Out begins at the inherited loop position');
+  near(g.box.opacity, .75, 'one-key exit starts at the held opacity');
+  sample(out, .1);
+  near(g.box.x, 45, 'first authored exit segment starts at the live value');
+  sample(out, .2);
+  near(g.box.x, 30, 'the intermediate authored key keeps its time');
+  near(g.box.opacity, .75, 'one-key exit holds before its endpoint');
+  sample(out, .5);
+  near(g.box.x, -100, 'the last authored key keeps its time');
+  near(g.box.opacity, 0, 'the one-key exit completes');
+
+  data.steps[1].layers['#box'] = { x: [{ time: 0, value: 15 }, { time: .4, value: 25 }] };
+  const replacement = graphic(data);
+  sample(replacement.w.buildInTimeline(), .35);
+  sample(replacement.w.revealNextStep(), .4);
+  replacement.w.buildOutTimeline();
+  near(replacement.box.x, 100, 'a later writer keeps the authored Out pose');
+  near(replacement.box.opacity, .75, 'only the held loop channel follows the held pose');
+});
+
+test('explicit hides and visibility spans keep ownership during loop Hold and backward seek', () => {
+  const data = authored();
+  data.steps[0].hides = ['#box'];
+  const g = graphic(data);
+  const cue = g.w.buildInTimeline();
+  for (const [at, opacity] of [[1.29, 1], [1.3, 0], [1.6, 0], [.35, .75]]) {
+    sample(cue, at);
+    near(g.box.opacity, opacity, 'explicit hide at ' + at);
+  }
+
+  const spanData = authored();
+  const step = spanData.steps[0];
+  step.layers['#box'].autoAlpha = step.layers['#box'].opacity;
+  delete step.layers['#box'].opacity;
+  step.loops['#box'].autoAlpha = step.loops['#box'].opacity;
+  delete step.loops['#box'].opacity;
+  step.spans = { '#box': [{ start: 0, end: .7 }] };
+  const span = graphic(spanData);
+  const spanCue = span.w.buildInTimeline();
+  for (const [at, visibility] of [[.35, 'visible'], [.75, 'hidden'], [1.6, 'hidden'], [.35, 'visible']]) {
+    sample(spanCue, at);
+    assert.equal(span.box.visibility, visibility, 'span at ' + at);
+  }
+});
+
+test('a finite phase can start after the first waveform and consumes only the remaining passes', () => {
+  const loop = { ...finite, repeat: 4, phase: 2 };
+  const data = addLoop(baseline(), loop);
+  assert.ok(dataModule.isAnimData(data));
+  const g = graphic(data);
+  const cue = g.w.buildInTimeline();
+  sample(cue, .1);
+  near(g.box.x, 85, 'starts three quarters into the second pass');
+  near(cue.duration(), 4.1, 'finite budget subtracts the full phase');
+  sample(cue, 4.1);
+  near(g.box.x, 100, 'last pass still reaches the endpoint');
+  sample(cue, .1);
+  near(g.box.x, 85, 'backward seek finds the same activation phase');
+});
+
 test('changing the speed of a running loop preserves its phase, then advances at the new rate', () => {
   const g = graphic(authored());
   const cue = g.w.buildInTimeline();
@@ -191,6 +260,38 @@ test('styled entry keeps the other group running and an authored edge into Out r
   near(g.stage.opacity, 0, 'Next-to-Out finishes');
 });
 
+test('a styled swap tolerates an unrelated group whose loop has already stopped', () => {
+  const g = graphic(authoredMachine(authored(), { styled: true }));
+  sample(g.w.buildInTimeline(), .35);
+  sample(g.w.noacgDispatch('pulse'), .45);
+  g.w.noacgDispatch('quiet');
+  const styled = g.w.revealNextStep();
+  styled.pause().progress(1, true);
+  assert.equal(g.w.noacgMachineState().groups.accent, 'off');
+  near(g.stage.opacity, 1, 'styled composition completes');
+  near(g.late.opacity, 1, 'styled entry reaches the destination pose');
+});
+
+test('repeated styled Stop retains its exit when it interrupts a loop, and Play restarts', () => {
+  const data = authoredMachine(authored());
+  data.machine.groups[0].transitions.push({ from: 'reveal', to: 'out', trigger: 'lifecycle',
+    event: 'stop', style: 'fade', duration: .6, ease: 'none' });
+  const g = graphic(data);
+  const entry = g.w.buildInTimeline();
+  sample(entry, .35);
+  const out = g.w.buildOutTimeline();
+  near(g.box.x, 60, 'style starts at the live pose');
+  sample(entry, 1.6);
+  near(g.box.x, 60, 'styled Out retires the loop');
+  sample(out, .1);
+  assert.ok(g.w.buildOutTimeline() === out, 'repeat keeps the exit timeline');
+  out.progress(1, true);
+  near(g.stage.opacity, 0, 'styled exit finishes');
+  assert.ok(g.w.buildOutTimeline() === out, 'same exit after completion until replay');
+  near(g.w.buildInTimeline().time(), 0, 'replay builds a fresh entrance');
+  near(g.box.x, 20, 'replay returns to the opening loop sample');
+});
+
 test('a loop state can arm a timer at the finite end and retire on advance', () => {
   const data = authoredMachine(authored(), { timer: true });
   assert.equal(machine.validateMachine(data).errors.length, 0);
@@ -226,6 +327,13 @@ test('known runtime upgrades preserve source, compose with E1 capabilities and k
   const foreign = legacy.replace('function noacgRememberEntrance', '/* custom */\nfunction noacgRememberEntrance');
   assert.equal(runtime.writeOutData(foreign, authored()), null);
   assert.equal(migration.prepareOutRuntime(foreign), foreign);
+  const withSpan = baseline();
+  withSpan.steps[0].spans = { '#box': [{ start: 0, end: 1.3 }] };
+  const custom = runtime.emitAnimRegion(withSpan).replace('/* == END ANIMATION == */',
+    '// Custom source retained inside the region.\n/* == END ANIMATION == */');
+  const changed = edit.setKeyframe(withSpan, 0, '#box', 'x', .6, 50);
+  assert.equal(runtime.writeAnimData(custom, changed), dataModule.spliceAnimData(custom, changed));
+  assert.equal(runtime.writeOutData(custom, authored()), null);
 });
 
 test('range-invalid keys refuse atomically, and resizing preserves or scales the range', () => {

@@ -1,7 +1,7 @@
 import type { SpxTemplate } from '../../model/types';
 import { getTemplateParts } from '../../model/structure';
 import { readOrganization, writeOrganization } from '../../model/editorOrganization';
-import { locateAnimData, losslessAnimData, parseAnimData, serializeAnimData } from '../../blocks/animData';
+import { locateAnimData, losslessAnimData, parseAnimData, serializeAnimData, spliceAnimData } from '../../blocks/animData';
 import { applySound, type SoundOperation } from '../../blocks/soundEdit';
 import { addStep, layerPress, setKeyframe, setLayerActivation } from '../../blocks/animEdit';
 import { createArtwork, editBase, type BasePatch, type Creation } from '../../blocks/baseEdits';
@@ -10,6 +10,7 @@ import { changeArtworkLayer, reorderArtwork } from '../../blocks/artworkLayers';
 import { applyAnimation, applyKeyEase, applyKeyMove, applyKeyPaste, type AnimationOperation, type KeyEaseOperation, type KeyMoveOperation, type KeyPasteOperation } from '../../blocks/editorAnimation';
 import { applyOut, type OutOperation } from '../../blocks/editorOut';
 import { applyEditorLoop, type LoopOperation } from '../../blocks/editorLoops';
+import { usesAuthoredLoops } from '../../blocks/animLoopTiming';
 import { applyStep, type StepOperation } from '../../blocks/editorSteps';
 import { commitSvgIdentity } from '../../blocks/svgIdentity';
 import { importAssets, placeGraphicImage, removeUnusedAsset, renameGraphicAsset, replaceGraphicImage } from '../../blocks/editorImages';
@@ -257,7 +258,7 @@ function applyKeyOperations(template: SpxTemplate, operations: Extract<EditorOpe
     data = setKeyframe(data, step, selector, property, time, value);
     changedTargets.add(selector);
   }
-  const js = writeAnimData(template.js, data);
+  const js = usesAuthoredLoops(data) ? writeAnimData(template.js, data) : spliceAnimData(template.js, data);
   if (js === null) throw new Error('The animation region changed. Inspect the source again.');
   return { template: { ...template, js }, changedTargets: [...changedTargets],
     diff: js === template.js ? [] : [{ file: 'js', before: template.js, after: js }] };

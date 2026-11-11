@@ -103,6 +103,17 @@ export async function authorLocalLoops(page: Page, testInfo: TestInfo) {
   await panel.getByRole('button', { name: 'Return to composition' }).click();
   await pose(page, 61, .5, 36);
 
+  for (const tab of ['Outline', 'Assistant'] as const) {
+    await local.press('Home');
+    await pose(page, 35, .5, 36);
+    const control = page.getByRole(tab === 'Outline' ? 'tab' : 'button', { name: tab, exact: true });
+    await control.click();
+    await pose(page, 61, .5, 36);
+    if (tab === 'Outline') await page.getByRole('tab', { name: 'Properties', exact: true }).click();
+    else await control.click();
+    await edit.click();
+  }
+
   const propertyEdit = await source(page);
   await settings(panel, '', 1, false);
   const repeated = { repeat: 1, repeatDelay: .25, range: [.1, 1.1], phase: .25 };
@@ -248,6 +259,7 @@ export async function playLoopOutputs(page: Page) {
         take(first, 2.1);
         const afterNext = snapshot()[0];
         await command('stop');
+        const releasedAfterNext = snapshot();
         const out1 = timelines().findLast(tl => Math.abs(tl.duration() - .5) < .001)!;
         take(out1, .5);
         await command('play');
@@ -268,12 +280,12 @@ export async function playLoopOutputs(page: Page) {
           else w.noacgSnap(assignments, options);
           return snapshot();
         });
-        return { sequence, afterScale, faster, score, afterNext, held, released, midpoint, sameOut, hidden, late, snaps };
+        return { sequence, afterScale, faster, score, afterNext, releasedAfterNext, held, released, midpoint, sameOut, hidden, late, snaps };
       }, target);
       expect(errors, target).toEqual([]);
       expect(samples, target).toEqual({
         sequence: [[60, .75, 35], [60, .75, 130], [20, .5, 130], [20, .5, 5], [60, .75, 35]],
-        afterScale: [60, .75, 35], faster: [70, .813, 40], score: '7', afterNext: 70,
+        afterScale: [60, .75, 35], faster: [70, .813, 40], score: '7', afterNext: 70, releasedAfterNext: [70, .813, 130],
         held: [60, .75, 35], released: [60, .75, 35], midpoint: [-20, .375, 35],
         sameOut: true, hidden: 0, late: 0, snaps: [[90, 1, 130], [90, 1, 130]],
       });

@@ -147,3 +147,23 @@ repeat boundary, Studio samples the next pass at zero and NoaCG shows the
 arriving endpoint before restarting. This comparison ran the pinned clock
 function. E5 owns the comparable full-editor tasks.
 [Pinned Studio sampler](https://github.com/zerodensity/ograf-studio/blob/3142fc7d02934494931eb14e7dc255393e4110d0/packages/scene-model/src/loopAnimation.ts)
+
+## Rules found after coding
+
+The first final review found product defects on `71d57cd9e8f767904dd529de51d4290fb7d44e55`
+and graded it B. The repairs below add observed cases to the loop and export oracles.
+
+- **State exit and Out.** A pose-only group may have no timeline at a styled swap. A loop channel
+  still showing its held sample enters Out from that sample even after a nonwriting Next. Its
+  remaining authored keys keep their timing. A later writer on that channel and all unrelated
+  tracks keep the authored Out. Repeated styled Out keeps its existing exit until replay or Snap.
+- **Visibility.** A declared hide stays effective during Hold even when an opacity loop is still
+  running. An explicit visibility span controls whether the layer exists, and an autoAlpha loop
+  in that span writes opacity. Seeking backward reproduces the earlier visible pose.
+- **Preview ownership.** Opening Outline or Assistant leaves the local ruler and restores the
+  composition sample, including when a preview reply is still owed.
+- **Finite phase.** A finite phase can begin after the first waveform and must be before the
+  terminal sample. It consumes the corresponding elapsed part of the finite repeat budget.
+- **Source ownership.** Legacy edits that were data-only keep that behavior for custom text around
+  the original interpreter, including spans. Installing the new loop runtime still requires an
+  exact recognized body.

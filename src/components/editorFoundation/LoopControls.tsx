@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import type { AnimStep } from '../../blocks/animData';
 import type { SpxTemplate } from '../../model/types';
 import { authoringPosition } from './animationAuthoring';
@@ -57,6 +57,7 @@ function LoopSettings({ cue, step, selector, owner, target, selection, speed, fp
   target: string; selection: NonNullable<ReturnType<typeof loopSelection>>;
 }) {
   const [time, setTime] = useState<number>();
+  useEffect(() => () => preview(), [preview]);
   const [indefinite, setIndefinite] = useState(selection.common?.repeat === -1);
   const common = selection.common;
   const range = common?.range ?? selection.range;

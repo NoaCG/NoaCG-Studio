@@ -41,7 +41,7 @@ var noacgLiveTimeline = null;
 var noacgOutTimeline = null;
 
 // Capability: live-pose-out-v1. Capture before killing or applying any first key.
-function noacgOutActive() { return !!noacgOutTimeline; }
+function noacgOutActive() { return !!noacgOutTimeline${loopCode(' || !!noacgStyledOut')}; }
 function noacgRememberEntrance(tl) {
   if (noacgOutTimeline) noacgOutTimeline.kill();
   noacgOutTimeline = null;
@@ -160,7 +160,9 @@ function noacgBuildExit(step, interrupted, silent, early) {
       // So does a track whose motion is all carried.
       tl.set(proxy, { value: last.value }, at(step.duration) / speed);
     } else {
-      tl.set(proxy, { value: keys[0].value }, 0);
+      ${loopCode(`var held = noacgStillHoldsLoop(entry.element, entry.prop, entry.live);
+      if (held && keys.length === 1) tl.set(proxy, { value: keys[0].value }, at(step.duration) / speed);
+      `)}tl.set(proxy, { value: ${loopCode('held ? entry.live : ')}keys[0].value }, 0);
       for (var k = 1; k < keys.length; k++) {
         tl.to(proxy, { value: keys[k].value, duration: (keys[k].time - keys[k - 1].time) / speed,
           ease: noacgEaseOf(keys[k].ease || step.ease) }, keys[k - 1].time / speed);
@@ -202,7 +204,7 @@ function buildStepTimeline(index) {
       var loop = step.loops && step.loops[selector] && step.loops[selector][prop];
       if (loop) {${loopCode(`
         if (loop.range) {
-          noacgAddAuthoredLoop(tl, selector, prop, kfs, loop, step.ease, speed);
+          noacgAddAuthoredLoop(tl, selector, prop, kfs, loop, step, speed);
           return;
         }`)}
         // A looping track plays in its own repeating sub-timeline (a breathing pulse, a
@@ -224,7 +226,7 @@ function buildStepTimeline(index) {
           sub.to(selector, lv, (kfs[j - 1].time - kfs[0].time) / speed);
         }
         tl.add(sub, kfs[0].time / speed);${loopCode(`
-        noacgOwnLoop(tl, sub, function () { sub.render(sub.totalTime(), true, true); });`)}
+        noacgOwnLoop(tl, sub, selector, prop, function () { sub.render(sub.totalTime(), true, true); });`)}
         return;
       }
       var start = {};
@@ -404,6 +406,8 @@ function buildInTimeline() {
   if (noacgOutTimeline) noacgOutTimeline.kill();
   noacgOutTimeline = null;
   ${loopCode(`noacgRetireLoops(noacgLiveTimeline);
+  noacgClearLoopHolds();
+  noacgClearStyledOut();
   `)}noacgLiveTimeline = null;
   if (NOACG_ANIM.machine) return noacgMachinePlay();
   noacgStepsPlayed = 1;
@@ -424,7 +428,7 @@ function revealNextStep() {
   // most visible case of all (noacgPaintFirstFrame above).
   noacgSoundLeave(noacgMachine.groups[0].id);
   var step = NOACG_ANIM.steps[noacgStepsPlayed];${loopCode(`
-  noacgRetireLoops(noacgLiveTimeline);`)}
+  noacgRetireLoops(noacgLiveTimeline, true);`)}
   var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
   noacgSoundStart(step.sound, noacgMachine.groups[0].id);
   noacgLiveTimeline = tl;
@@ -435,7 +439,8 @@ function revealNextStep() {
 // buildOutTimeline(): the exit. Called by stop() — the built-in event that is legal from
 // EVERY state (an operator can always take the graphic off air).
 function buildOutTimeline() {
-  if (noacgOutTimeline) return noacgOutTimeline;
+  if (noacgOutTimeline) return noacgOutTimeline;${loopCode(`
+  if (noacgStyledOut) return noacgStyledOut;`)}
   if (NOACG_ANIM.machine) return noacgMachineStop();
   noacgSoundStopAll();
   var tl = noacgExitTimeline();
@@ -663,7 +668,7 @@ function noacgStyleTimeline(group, edge) {
       if (!route) continue;
       for (var s = 0; s < route.length; s++) {
         var enter = noacgEnterTimeline(gr, route[s]);
-        if (enter) { enter.pause(0); ${loopCode('noacgSettleCue(enter)') || 'enter.progress(1, true)'}; enter.kill(); }
+        if (enter) { enter.pause(0); ${loopCode('noacgSettleCue(enter)') || 'enter.progress(1, true)'};${loopCode(' noacgRetireLoops(enter, true);')} enter.kill(); }
         if (gr === noacgMachine.groups[0]) {
           var idx = noacgPathIndex(route[s]);
           if (idx >= 0) noacgStepsPlayed = idx + 1;
@@ -753,7 +758,7 @@ function noacgFire(group, edge) {
 ${loopCode(`  // Out captures the live pose before completing or retiring any departing motion.
   if (isOut && noacgRunningGroupLoop()) prev = null;
 `)}  if (prev) {
-    ${loopCode(`noacgRetireLoops(prev);
+    ${loopCode(`noacgRetireLoops(prev, true);
     `)}if (prev.progress() < 1) ${loopCode('noacgSettleCue(prev)') || 'prev.progress(1, true)'};
     if (prev.__noacgSwap) prev.__noacgSwap(); // a suppressed finish skipped the pose swap
     prev.kill();
@@ -766,7 +771,10 @@ ${loopCode(`  // Out captures the live pose before completing or retiring any de
     if (idx >= 0) noacgStepsPlayed = idx + 1;
   }
   ${loopCode(`var styled = noacgStyleTimeline(group, edge);
-  if (isOut && styled) noacgRetireGroupLoops();
+  if (isOut && styled) {
+    noacgRetireGroupLoops();
+    noacgStyledOut = styled;
+  }
   var tl = styled || noacgEnterTimeline(group, edge.to);`) || 'var tl = noacgStyleTimeline(group, edge) || noacgEnterTimeline(group, edge.to);'}
   ${loopCode(`if (isOut && noacgGroupTl[group.id]) noacgGroupTl[group.id].kill();
   `)}var soundStep = noacgStepFor(group, edge.to);
@@ -906,7 +914,11 @@ function noacgMachineStop() {
   noacgQueue.length = 0;
   var edge = noacgLifecycleEdge('stop');
   var styled = edge && edge.style !== undefined ? noacgStyleTimeline(noacgMachine.groups[0], edge) : null;
-  ${loopCode(`if (styled) { noacgRetireLoops(noacgLiveTimeline); noacgRetireGroupLoops(); }
+  ${loopCode(`if (styled) {
+    noacgRetireLoops(noacgLiveTimeline);
+    noacgRetireGroupLoops();
+    noacgStyledOut = styled;
+  }
   `)}var tl = styled || noacgExitTimeline();
   noacgSoundExecute((edge && edge.sound) || NOACG_ANIM.steps[NOACG_ANIM.steps.length - 1].sound, noacgMachine.groups[0].id, tl, !!(edge && edge.sound));
   noacgGroupTl = {};
@@ -959,7 +971,8 @@ function noacgCanonicalPath(group, targetId) {
 
 // Return the graphic to its CSS rest: clear every inline style the animations wrote.
 // Self-contained (no editor needed), so snap works identically in exports.
-function noacgResetGraphic() {
+function noacgResetGraphic() {${loopCode(`
+  noacgClearLoopHolds();`)}
   if (noacgOutTimeline) noacgOutTimeline.kill();
   noacgOutTimeline = null;
   noacgLiveTimeline = null;
@@ -994,7 +1007,8 @@ function noacgResetGraphic() {
 // suppressed callbacks, so clocks, loops and timers stay silent during composition. Entry
 // timers then arm by default (recovery: a snapped-into ticker resumes cycling); pass
 // { timers: false } to park the graphic (the editor's preview does).
-function noacgSnap(assignments, opts) {
+function noacgSnap(assignments, opts) {${loopCode(`
+  noacgClearStyledOut();`)}
   opts = opts || {};
   var want = {};
   var g, group;
@@ -1026,7 +1040,7 @@ function noacgSnap(assignments, opts) {
     if (!route) continue; // unreachable — the group rests at its initial state
     for (var s = 0; s < route.length; s++) {
       var tl = noacgEnterTimeline(group, route[s]);
-      if (tl) { tl.pause(0); ${loopCode('noacgSettleCue(tl)') || 'tl.progress(1, true)'}; tl.kill(); }
+      if (tl) { tl.pause(0); ${loopCode('noacgSettleCue(tl)') || 'tl.progress(1, true)'};${loopCode(' noacgRetireLoops(tl, true);')} tl.kill(); }
       noacgCurrent[group.id] = route[s];
       if (group === noacgMachine.groups[0]) {
         var idx = noacgPathIndex(route[s]);
@@ -1356,7 +1370,9 @@ export const dataUsesHoldEase = (data: AnimData) => dataUses(data, needsHoldRunt
 export function writeAnimData(js: string, data: AnimData): string | null {
   if (usesAuthoredLoops(data)) return writeOutData(js, data);
   if (animSounds(data).length && !/\/\/ Capability: graphic-sound-v[12]/.test(js)) return writeOutData(js, data);
-  if ((data.steps.some(step => step.spans || step.carried) || dataUsesExactEase(data))  && !ownedInterpreter(js)) {
+  if ((data.steps.some(step => step.spans || step.carried) || dataUsesExactEase(data)) &&
+      !js.replace(/\r\n/g, '\n').includes(ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n')) &&
+      !hasLoopRuntime(js)) {
     return writeOutData(js, data);
   }
   if (data.machine && !hasMachineRuntime(js)) return replaceRegionWithAnimData(js, data);

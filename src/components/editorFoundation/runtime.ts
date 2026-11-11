@@ -52,6 +52,7 @@ export const foundationRuntime = String.raw`
     activeStep = -1;
     exiting = false;
     looping = false;
+    if (typeof noacgClearLoopHolds === 'function') noacgClearLoopHolds();
     if (window.gsap) {
       gsap.globalTimeline.clear();
       initial.forEach(function (entry) {
@@ -129,6 +130,7 @@ export const foundationRuntime = String.raw`
         var previous = build(i);
         previous.pause();
         previous.time(cueSeconds(NOACG_ANIM.steps[i]), true);
+        if (typeof noacgRetireLoops === 'function') noacgRetireLoops(previous, true);
         previous.kill();
       }
       timeline = build(step);
@@ -167,9 +169,15 @@ export const foundationRuntime = String.raw`
     var step = { duration: 0, ease: source.ease, layers: {}, loops: {} };
     step.layers[probe.owner] = {};
     step.loops[probe.owner] = {};
+    var parked = editorStep(activeStep);
+    var spans = source.spans && source.spans[probe.owner];
+    var hidden = parked && (!parked.spans || !parked.spans[probe.owner]) &&
+      (parked.hides || []).indexOf(probe.owner) >= 0 && localTime >= parked.duration / NOACG_ANIM.speed;
     probe.properties.forEach(function (prop) {
-      step.layers[probe.owner][prop] = tracks[prop];
-      step.loops[probe.owner][prop] = loops[prop];
+      var channel = prop === 'autoAlpha' && spans ? 'opacity' : prop;
+      if (hidden && (prop === 'opacity' || prop === 'autoAlpha')) return;
+      step.layers[probe.owner][channel] = tracks[prop];
+      step.loops[probe.owner][channel] = loops[prop];
     });
     var overlay = buildStepTimeline(step);
     overlay.pause();
