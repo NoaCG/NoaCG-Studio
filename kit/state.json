@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "phase": "v2",
+      "note": "Local and Codex reviews passed. Exact PR CI 42927802583 green, 65 configured specs on 4 stacks. GitHub added #2293 to the merge queue at 00:17:21Z, merge-group CI 42930200593 running. Exact-merge acceptance and Bridge release follow.",
+      "session": "/root/v2_tcp_repair",
       "step": "build",
-      "head": "72bdca8d6030c2b57f58cdc9b7ab13467f9a8577",
+      "phase": "v2",
       "pr": 2293,
-      "note": "Fresh full independent A. Exact package passed owned real vMix j-5131; both settings restored by hash. Existing PR CI 42927802583 started. Waiting for normal GitHub review and configured gate.",
-      "session": "/root/v2_tcp_repair"
+      "head": "72bdca8d6030c2b57f58cdc9b7ab13467f9a8577"
     }
   ],
   "owner": [],
