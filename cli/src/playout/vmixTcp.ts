@@ -284,6 +284,8 @@ export interface VmixVideoList {
   positionMs: number;
   durationMs: number;
   loop: boolean;
+  /** Omitted when this input did not report audio mute state. */
+  muted?: boolean;
 }
 
 const MAX_XML_DEPTH = 128;
@@ -378,8 +380,11 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
         const durationMs = stateInteger(attribute('duration'));
         const state = attribute('state');
         const loop = stateBoolean(attribute('loop'));
-        const value = selected !== undefined && positionMs !== undefined && durationMs !== undefined && state && loop !== undefined
-          ? { items: [], selected, state, positionMs, durationMs, loop }
+        const rawMuted = attribute('muted');
+        const muted = stateBoolean(rawMuted);
+        const value = selected !== undefined && positionMs !== undefined && durationMs !== undefined && state && loop !== undefined &&
+          (rawMuted === undefined || muted !== undefined)
+          ? { items: [], selected, state, positionMs, durationMs, loop, ...(muted !== undefined ? { muted } : {}) }
           : undefined;
         videoList = { key, value, seen: false, invalid: false, marked: [] };
       }

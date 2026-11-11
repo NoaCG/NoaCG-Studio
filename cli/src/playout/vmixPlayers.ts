@@ -174,7 +174,10 @@ export function createVmixPlayers(media: VmixMedia) {
     const title = VMIX_PLAYER_TITLE[player];
     let input = current?.input;
     const kept = setup.players[player];
-    if (input && kept?.key.toLowerCase() === input.key && kept.ready) return input.key;
+    if (input && kept?.key.toLowerCase() === input.key && kept.ready) {
+      if (player === 'audio' && current?.list.muted !== false) return refused('vMix has not confirmed NoaCG Audio unmuted. Check its audio in vMix before taking the cue.');
+      return input.key;
+    }
     if (!input) {
       if (setup.adding[player]) return refused('Bridge could not identify a previous ' + title + ' creation. Check the Video Lists in vMix and name the intended input ' + title + ' before trying again.');
       await media.markAdding(port, player, true);
@@ -202,7 +205,9 @@ export function createVmixPlayers(media: VmixMedia) {
       if (!result.ok) return result;
     }
     const confirmed = await mixer.read();
-    if (!confirmed.ok || confirmed.value.shortTitles.get(key) !== title || !confirmed.value.lists.has(key)) return uncertain('preparing ' + title);
+    const list = confirmed.ok && confirmed.value.lists.get(key);
+    if (!confirmed.ok || confirmed.value.shortTitles.get(key) !== title || !list ||
+        (player === 'audio' && list.muted !== false)) return uncertain('preparing ' + title);
     await media.keepPlayer(port, player, key, true);
     return key;
   }
@@ -220,7 +225,7 @@ export function createVmixPlayers(media: VmixMedia) {
 
     const snapshot = await mixer.read();
     const before = snapshot.ok && snapshot.value.lists.get(key);
-    if (!before || before.loop !== loop) return uncertain('setting up the Take');
+    if (!before || before.loop !== loop || (player === 'audio' && before.muted !== false)) return uncertain('setting up the Take');
     const file = await media.file(port, action.item.name);
     if (!sameVmixPath(initialPath, file)) return refused('The vMix media path changed during Take. Check the folder and try again.');
     const appended = [...before.items, file];
@@ -238,7 +243,8 @@ export function createVmixPlayers(media: VmixMedia) {
     if (!play.ok) return play;
     const playing = await observe(mixer, xml => {
       const list = xml.lists.get(key);
-      return list && list.state === 'Running' && list.selected === index && list.loop === loop && sameItems(list.items, appended) ? list : undefined;
+      return list && list.state === 'Running' && list.selected === index && list.loop === loop &&
+        (player !== 'audio' || list.muted === false) && sameItems(list.items, appended) ? list : undefined;
     });
     if (!playing) return uncertain('playing the file');
     const instance = randomUUID();

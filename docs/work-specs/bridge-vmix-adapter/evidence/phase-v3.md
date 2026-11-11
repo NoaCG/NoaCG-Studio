@@ -47,3 +47,13 @@ The previous verified main is the full SHA above. Once PR #2368 lands, revert it
 The CLI build passed. The full focused vMix and media files passed 99/99 tests, including all 76 V2 tests. Changed root gates passed, including 70 Node tests in three selected files. Studio and API TypeScript checks and changed Studio ESLint passed. The CLI source files are outside the root ESLint configuration, so their separate lint invocation was ignored and the CLI TypeScript build is the applicable compilation check. Git diff whitespace checks passed.
 
 The inline review found and fixed four contained cases, output image-fit acceptance, cleanup completion before playback observation, owned picker lifetime, and ER detail preservation during a storage failure. Simplification remained within the player and media helpers. The next checkpoint needs real-host and packaged-picker evidence.
+
+
+### Rule correction after independent review of c97586a9
+
+The full independent review graded c97586a9 B+ and found one blocker. A valid AudioOn acknowledgement can leave the Audio Video List muted, while the candidate marks setup ready and reports a successful audio Take. The existing initial readback checks the name and list, but omits the observable muted attribute.
+
+An audio player is ready only after fresh XML identifies the same GUID and named list with muted false. A missing, malformed or still-muted observation after AudioOn leaves setup uncertain and stops the action. Bridge sends no automatic retry. A reused ready audio input also needs an observed unmuted state before Take can proceed. This correction changes the observation rule, with a silent-no-op fake regression and the real audio-meter proof required. The default blank's initial and post-Add XML still need the real-host check.
+
+
+The audio defect reproduced on the reviewed candidate, the silent-no-op fake returned success while muted remained true. The repair parses a strict optional mute attribute privately, requires an observed unmuted audio list during setup and Take observation, and refuses a reused muted player before another function. Missing and malformed post-AudioOn observations remain uncertain. The repaired CLI build passed, the complete vMix/media regression passed 102/102, and changed root gates passed with 70/70 Node tests. The first reviewed executable and checksum remain preserved in the local evidence folder.

@@ -35,7 +35,7 @@ export async function startFakeVmix(options = {}) {
         const selected = i.list?.[i.selectedIndex - 1];
         const title = i.type === 'VideoList' && selected ? i.title + ' - ' + path.basename(selected) : i.title;
         const list = i.list ? '<list>' + i.list.map((file, index) => '<item' + (index === i.selectedIndex - 1 ? ' selected="true"' : '') + '>' + esc(file) + '</item>').join('') + '</list>' : '';
-        return '<input key="' + i.key + '" number="' + (n + 1) + '" type="' + i.type + '" title="' + esc(title) + '" shortTitle="' + esc(i.title) + '" state="' + (i.state ?? 'Paused') + '" position="' + (i.position ?? 0) + '" duration="' + (i.duration ?? 0) + '" loop="' + (i.loop ? 'True' : 'False') + '"' + (i.list ? ' selectedIndex="' + i.selectedIndex + '"' : '') + '>' + list + esc(i.title) + '</input>';
+        return '<input key="' + i.key + '" number="' + (n + 1) + '" type="' + i.type + '" title="' + esc(title) + '" shortTitle="' + esc(i.title) + '" state="' + (i.state ?? 'Paused') + '" position="' + (i.position ?? 0) + '" duration="' + (i.duration ?? 0) + '" muted="' + (i.muted ? 'True' : 'False') + '" loop="' + (i.loop ? 'True' : 'False') + '"' + (i.list ? ' selectedIndex="' + i.selectedIndex + '"' : '') + '>' + list + esc(i.title) + '</input>';
       })
       .join('')}</inputs><overlays>${Array.from({ length: 16 }, (_, c) => {
       const key = overlays.get(c + 1);

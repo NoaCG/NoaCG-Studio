@@ -2015,3 +2015,42 @@ test('AC-8: a simultaneous unmarked list creation grants no player ownership', a
   assert.equal(reply.error.code, 'uncertain');
   assert.deepEqual(fake.functions.map(fn => fn.name), ['AddInput']);
 });
+
+test('AC-8: an acknowledged AudioOn that leaves the list muted cannot make audio setup successful', async t => {
+  const { fake, take } = await playerFixture(t, { ignore: ['AudioOn'] });
+  const result = await take('sting.wav');
+  assert.equal(result.ok, false, 'a muted audio list cannot satisfy successful setup');
+  assert.equal(result.error.code, 'uncertain');
+  assert.equal(fake.functions.filter(fn => fn.name === 'AudioOn').length, 1);
+  assert.equal(fake.functions.some(fn => fn.name === 'Play'), false);
+  assert.equal(fake.inputs[0].muted, true);
+});
+
+test('AC-8: missing or malformed mute readback after AudioOn remains uncertain without resend', async t => {
+  for (const mute of [undefined, 'maybe']) {
+    let afterAudioOn = false;
+    const fixture = await playerFixture(t, {
+      afterFunction(name) { if (name === 'AudioOn') afterAudioOn = true; return false; },
+      transformXml(xml) {
+        if (!afterAudioOn) return xml;
+        return xml.replace(/ muted="[^"]*"/g, mute === undefined ? '' : ' muted="' + mute + '"');
+      },
+    });
+    const reply = await fixture.take('sting.wav');
+    assert.equal(reply.ok, false);
+    assert.equal(reply.error.code, 'uncertain');
+    assert.equal(fixture.fake.functions.filter(fn => fn.name === 'AudioOn').length, 1);
+    assert.equal(fixture.fake.functions.some(fn => fn.name === 'Play'), false);
+  }
+});
+
+test('AC-8: a reused audio player observed muted refuses Take before another function', async t => {
+  const fixture = await playerFixture(t);
+  assert.equal((await fixture.take('sting.wav')).ok, true);
+  fixture.fake.inputs[0].muted = true;
+  const before = fixture.fake.functions.length;
+  const reply = await fixture.take('sting.wav');
+  assert.equal(reply.ok, false);
+  assert.equal(reply.error.code, 'refused');
+  assert.equal(fixture.fake.functions.length, before);
+});
