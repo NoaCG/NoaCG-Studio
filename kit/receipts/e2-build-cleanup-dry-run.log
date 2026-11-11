@@ -1,0 +1,9 @@
+Self cleanup is safe: /workspace/noacg-editor-r1-5-e2-cloud (branch codex/plan-editor-r1-5-e2-build, contained in main and origin/main).
+  archived first: e2-cloud-walk.tmp.mjs (9.4KB)
+  rebuildable, deleted: .claude/dev-port.json, .claude/launch.json, node_modules, test-results/
+
+Before anything is removed, 1 file(s) (9.4KB) are copied to
+  /home/agent/noacg-archives/worktree-cleanup/2026-11-11/noacg-editor-r1-5-e2-cloud-1xmfewo
+and the copy is verified file by file. A copy that cannot be proven stops the removal.
+
+Dry run - rerun with --self --apply to remove it.

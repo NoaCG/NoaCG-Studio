@@ -1,0 +1,4 @@
+Self cleanup is safe: /workspace/noacg-editor-r1-5-e2-check (branch codex/plan-editor-r1-5-e2-check, contained in main and origin/main).
+  rebuildable, deleted: .claude/dev-port.json, .claude/launch.json, node_modules, test-results/
+
+Dry run - rerun with --self --apply to remove it.

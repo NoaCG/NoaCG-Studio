@@ -526,11 +526,21 @@
       "coordinator": "6af455f4-b1c8-8191-86b2-8bfdfc619075",
       "attempts": 0,
       "route": "Existing automatic fail-then-pass quarantine; no manual rerun or test changes",
-      "status": "active ownership through queue and terminal checks",
+      "status": "merged; current coordinator remains through exact-merge post-checks",
       "monitor": {
         "execSession": 79864,
         "mode": "active bounded read-only",
         "deadline": "2026-11-12T10:00:00Z"
+      },
+      "mergeSha": "a314415e54c565efea80944afa06a179855e356f",
+      "mergeGroupRun": 43024728862,
+      "mergeGroupResult": "success",
+      "runs": {
+        "ci": 43025990508,
+        "configured": 43025990599,
+        "postLanding": 43025990393,
+        "quarantine": 43025990382,
+        "codeql": 43025988977
       }
     },
     "unrelatedRedDisposition": {
@@ -552,6 +562,11 @@
       "receipt": "receipts/e2-independent-check/final-receipt.json",
       "disposition": "https://github.com/NoaCG/NoaCG-Studio/pull/2374#issuecomment-6796352748",
       "archive": "confirmed"
+    },
+    "cleanup": {
+      "builder": "removed after safe --self dry-run/apply; evidence already exported; harness archived and verified at /home/agent/noacg-archives/worktree-cleanup/2026-11-11/noacg-editor-r1-5-e2-cloud-1xmfewo",
+      "checker": "removed after safe --self dry-run/apply; all1.6MB scratch evidence hash-verified in kit receipts/e2-independent-check",
+      "retained": "active coordinator/control store, E3 owned worktree and route-probe worktree"
     }
   },
   "waitingOn": {},
@@ -622,6 +637,21 @@
     "session": "6af466f2-e57c-8191-8419-e116f7c9c06f",
     "brief": "briefs/e3-build-e3-b-cloud-1111.txt",
     "sha256": "5a76b6aea1afa2ae157e0aee526b515ec9be7b72bded3b0a8edf0e9bfe61ae53",
-    "preflight": "PASS2026-11-11T13:01:52Z; initial sandbox IO failure retained; scoped reviewed escalation succeeded"
+    "preflight": "PASS2026-11-11T13:01:52Z; initial sandbox IO failure retained; scoped reviewed escalation succeeded",
+    "rulesFirst": {
+      "head": "aeb3ef946fedc68a38ef7b989c584757af72120e",
+      "actor": "/root/editor_r15_e3_builder/e3_rules_review",
+      "grade": "AGREE/A"
+    },
+    "baseline": "j-0013 PASS28/28, no skips; j-0014 reproduced missing grounded general help",
+    "currentWork": "Help(default)/Edit mode and offline Editing guide implemented after Rules-first A; current transition oracle/cumulative parity running",
+    "accessEvidence": {
+      "configuredBackend": "production; no auth/query allowed or attempted",
+      "stagingRef": "garafohbzmsybtysxphb",
+      "broadProjectEnumeration": "automatic approval review rejected potential organization/production metadata exposure; not retried",
+      "targetedStagingConnector": "MCP permission denied; no retry/key fetch",
+      "scopeReview": "Hosted staging not explicit BL acceptance; worker assessing isolated real local auth/API ledger and separate existing real-model route before identifying a true missing receipt",
+      "model": "existing anthropic/claude-sonnet-5.5, fallbacks[]; catalog checked; credentials present metadata only; no new keys/accounts/funding"
+    }
   }
 }
