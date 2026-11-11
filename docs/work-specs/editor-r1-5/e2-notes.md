@@ -286,3 +286,31 @@ settled at 1.30 seconds but the timer still armed at 2.10. The pending GSAP
 callback now follows the finite endpoint. The oracle checks the 3.85-second
 and 1.30-second boundaries, an indefinite sibling, the authored delay and
 suppressed settling.
+
+The full review of `1bef2427eb0b7a3795c7d0404a8723560616e496` graded it B.
+Windows Chromium j-5206 passed 101 existing affected cases. The focused
+pre-repair Chromium probe j-5212 then reproduced three additional defects.
+
+- **Composition placement.** A finite loop shifted Reveal from 1.30 to 2.10
+  seconds. Pen and Image at 2.20 both wrote only an Out span at 0.50, while the
+  equivalent plain cue wrote Reveal at 0.10 and the full Out. Both tools now
+  use the same visible cue starts as key edits, keep authored span limits,
+  and refuse when a placement would have to begin in the repeat-only tail
+  or on its arriving flag. An ordinary arriving flag keeps its existing
+  final-millisecond behavior. This is the second derived cue-clock repair.
+- **Unrelated anchor keys.** An ordinary anchor key could be set, copied
+  and pasted before the loop edit, then all three operations refused on
+  the same unrelated artwork. The exact loop interpreter now keeps those
+  edits eligible while retaining earlier sequence and pivot guards. This
+  is the first repair for this family.
+- **Finite stored numbers.** Forever with a finite input delay of `1e306`
+  wrote `Infinity` after millisecond rounding, which made the literal
+  unreadable. The writer and ranged parser now check that stored timing
+  values survive serialization. This is the first repair for this family.
+
+Windows Chromium j-5213 passed the maintained authoring journey with both
+writers rendered hidden at 2.16 and visible at 2.24, the unrepresentable
+placements refused, unrelated anchor set, capture and paste preserved, and
+an overflowing delay refused before writing. The 26-case Node oracle also
+passed, including two document speeds, the ordinary flag and older
+range-less data before and after a runtime upgrade.

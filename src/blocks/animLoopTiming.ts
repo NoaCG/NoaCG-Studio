@@ -33,14 +33,19 @@ export function hasMovingKeys(keys: readonly AnimKeyframe[]): boolean {
   return keys.length > 1 && keys.some(key => key.value !== keys[0].value);
 }
 
+// The data literal rounds times to milliseconds before it writes them as JSON.
+const fitsStoredTime = (value: number) => Number.isFinite(value) && Number.isFinite(value * 1000);
+
 export function validAuthoredLoop(loop: RangedLoop, duration: number, keys: readonly AnimKeyframe[]): boolean {
   if (!Array.isArray(loop.range) || loop.range.length !== 2) return false;
   const [from, to] = loop.range;
-  if (!Number.isFinite(from) || !Number.isFinite(to) || from < 0 || to <= from || to > duration ||
-      !hasMovingKeys(keys) || !Number.isSafeInteger(loop.repeat)) return false;
+  const delay = loop.repeatDelay ?? 0;
+  if (!fitsStoredTime(from) || !fitsStoredTime(to) || from < 0 || to <= from || to > duration ||
+      !fitsStoredTime(delay) || delay < 0 || !hasMovingKeys(keys) ||
+      !Number.isSafeInteger(loop.repeat) || loop.repeat < -1) return false;
   if (!keys.every((key, index) => Number.isFinite(key.value) && key.time >= from && key.time <= to &&
       (index === 0 || key.time > keys[index - 1].time))) return false;
   const phase = loop.phase ?? 0, window = shared().window(loop);
-  return Number.isFinite(phase) && phase >= 0 && phase < (loop.repeat < 0 ? window.lap : window.total) &&
+  return fitsStoredTime(phase) && phase >= 0 && phase < (loop.repeat < 0 ? window.lap : window.total) &&
     (loop.repeat < 0 || window.total < 1e7);
 }

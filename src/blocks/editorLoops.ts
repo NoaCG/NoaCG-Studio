@@ -56,9 +56,10 @@ export function applyEditorLoop(template: SpxTemplate, operation: LoopOperation)
   const loop = operation.loop;
   let next: AnimLoop | null = null;
   if (loop) {
+    const inputDelay = loop.repeatDelay ?? 0, delay = round(inputDelay);
     if (!Number.isSafeInteger(loop.repeat) || loop.repeat < -1 ||
-        !Number.isFinite(loop.repeatDelay ?? 0) || (loop.repeatDelay ?? 0) < 0) {
-      throw new Error('Enter a whole repeat count and a nonnegative delay.');
+        !Number.isFinite(inputDelay) || inputDelay < 0 || !Number.isFinite(delay)) {
+      throw new Error('Enter a whole repeat count and a finite nonnegative delay.');
     }
     if (!Array.isArray(loop.range) || loop.range.length !== 2 || !loop.range.every(Number.isFinite) ||
         !Number.isFinite(loop.phase ?? 0) || (loop.phase ?? 0) < 0 ||
@@ -68,7 +69,7 @@ export function applyEditorLoop(template: SpxTemplate, operation: LoopOperation)
     const [start, end] = loop.range.map(round);
     const range: RangedLoop = { repeat: loop.repeat, range: [start, end] };
     if (loop.yoyo) range.yoyo = true;
-    if (loop.repeatDelay) range.repeatDelay = round(loop.repeatDelay);
+    if (delay) range.repeatDelay = delay;
     if (loop.phase) range.phase = round(loop.phase);
     if (!selection.properties.every(name => validAuthoredLoop(range, step.duration, step.layers[owner][name]))) {
       throw new Error('Keep the keys inside the loop range and the phase inside its playback.');

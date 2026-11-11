@@ -73,6 +73,7 @@ async function settings(panel: Locator, target: string, speed: number, forever: 
 
 export async function authorLocalLoops(page: Page, testInfo: TestInfo) {
   await open(page);
+  await verifyLoopCompositionEdits(page);
   const data = fixture();
   data.steps[0].layers['#box'].rotation = [{ time: 0, value: 0 }, { time: 1.3, value: 0 }];
   data.steps[0].layers['#box'].filter = [{ time: 0, value: 'blur(0px)' }, { time: 1.3, value: 'blur(0px)' }];
@@ -393,4 +394,68 @@ export async function playTimedLoopOverlay(page: Page) {
     await output.clock.runFor(850);
     await expect(root).toHaveCSS('opacity', '0');
   } finally { await output.close(); }
+}
+
+async function verifyLoopCompositionEdits(page: Page) {
+  const data = fixture();
+  const input = await template(page, data, box + '<div id="spare" data-gfx></div>');
+  const result = await page.evaluate(async original => {
+    const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
+    const { anchorKeyReason, applyAnimation, applyKeyPaste, captureKeyClipboard } = await import('/src/blocks/editorAnimation.ts');
+    const { createPath } = await import('/src/blocks/editorPaths.ts');
+    const { placeGraphicImage } = await import('/src/blocks/editorImages.ts');
+    const { applyEditorLoop } = await import('/src/blocks/editorLoops.ts');
+    const asset = { path: 'images/test.png', data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9p0AAAAASUVORK5CYII=' };
+    const source = { ...original, assets: [asset],
+      html: original.html.replace('loop-fixture imported-design-box', 'loop-fixture imported-design imported-design-box'),
+      css: original.css + '#spare{position:absolute;left:20px;top:20px;width:40px;height:40px}' };
+    const settings = { kind: 'loop.set' as const, selector: '#box', step: 0, property: 'x',
+      loop: { repeat: 1, repeatDelay: .25, range: [.1, 1.1] as [number, number], phase: .25 } };
+    const geometry = { x: 20, y: 30, width: 25, height: 30 };
+    const points = { points: [{ x: 5, y: 10 }, { x: 30, y: 30 }], closed: false };
+    const path = (template: SpxTemplate, time: number) => createPath(template, points, time);
+    const image = (template: SpxTemplate, time: number) => placeGraphicImage(template, asset.path, geometry, time);
+    const spans = (template: SpxTemplate, selector: string) => parseAnimData(template.js)!.steps.map(step => step.spans?.[selector]);
+    const refuse = (run: () => unknown) => {
+      try { run(); return ''; } catch (cause) { return String(cause); }
+    };
+    const placed = (template: SpxTemplate, time: number) => {
+      const drawn = path(template, time), added = image(drawn.template, time);
+      return { template: added.template, selectors: [drawn.selector, added.selector],
+        spans: [spans(added.template, drawn.selector), spans(added.template, added.selector)] };
+    };
+    const looped = applyEditorLoop(source, settings), baseline = placed(source, 1.4);
+    const placedAfterLoop = placed(looped, 2.2);
+    const refusedPlacement = [1.3, 1.6, 2.1].flatMap(time => [
+      refuse(() => path(looped, time)), refuse(() => image(looped, time)),
+    ]);
+
+    const anchor = (time: number) => ({ kind: 'animation.key' as const, selector: '#spare', step: 0,
+      property: 'noacgAnchorX' as const, time, value: 12, action: 'set' as const, baseValues: { anchorX: 20, anchorY: 20 } });
+    const pivot = applyAnimation(source, anchor(.3)), loopedPivot = applyEditorLoop(pivot, settings);
+    const anchorOperations = (template: SpxTemplate) => {
+      const copied = captureKeyClipboard(template, [{ selector: '#spare', property: anchor(0).property, step: 0, time: .3 }]);
+      const written = applyKeyPaste(applyAnimation(template, anchor(.55)), { kind: 'key.paste', keys: copied, step: 0, time: .65 });
+      return parseAnimData(written.js)!.steps[0].layers['#spare'][anchor(0).property].map(key => key.time);
+    };
+    const mismatched = { ...pivot, js: spliceAnimData(pivot.js, parseAnimData(loopedPivot.js)!)! };
+    const invalidDelay = refuse(() => applyEditorLoop(source, { ...settings, loop: { ...settings.loop, repeat: -1, repeatDelay: 1e306 } }));
+    return { before: baseline.spans, after: placedAfterLoop, refusedPlacement,
+      anchors: [anchorOperations(pivot), anchorOperations(loopedPivot)], mismatch: anchorKeyReason(mismatched, '#spare'), invalidDelay };
+  }, input);
+  const spans = [[], [{ start: .1, end: .4 }], [{ start: 0, end: .5 }]];
+  expect(result.before).toEqual([spans, spans]);
+  expect(result.after.spans).toEqual([spans, spans]);
+  for (const refused of result.refusedPlacement) expect(refused).toContain("Move the playhead outside the loop's extra time");
+  expect(result.anchors).toEqual([[.3, .55, .65], [.3, .55, .65]]);
+  expect(result.mismatch).toContain('its animation is preserved');
+  expect(result.invalidDelay).toContain('finite nonnegative delay');
+  await apply(page, result.after.template);
+  for (const [at, visibility] of [[2.16, 'hidden'], [2.24, 'visible']] as const) {
+    await seek(page, at);
+    const stage = await frame(page);
+    for (const selector of result.after.selectors) {
+      await expect.poll(() => stage.locator(selector).evaluate(node => getComputedStyle(node).visibility)).toBe(visibility);
+    }
+  }
 }

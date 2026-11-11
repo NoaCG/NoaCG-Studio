@@ -567,12 +567,30 @@ export function moveStepFlag(source: AnimData, step: number, b: number, minimum:
 /** One key of a track on the concatenated ruler: its cue, its key there, and its time on the ruler. */
 type Placed = { cue: number; key: AnimKeyframe; at: number; moved: boolean };
 export const cueStarts = (data: AnimData) => data.steps.reduce<number[]>((acc, step, i) => [...acc, round(acc[i] + step.duration)], [0]);
-/** Key positions follow the visible ruler. Stored cue bounds still limit where keys can be written. */
-export const keyCueStarts = (data: AnimData, includeLegacy = false) => data.steps.reduce<number[]>((acc, _step, i) =>
+/** The visible ruler's cue starts, in stored units. Stored cue bounds still limit edits. */
+export const rulerCueStarts = (data: AnimData, includeLegacy = false) => data.steps.reduce<number[]>((acc, _step, i) =>
   [...acc, round(acc[i] + stepSeconds(data, i, includeLegacy) * data.speed)], [0]);
+
+/** Add artwork at a composition time while keeping visibility spans within stored cue bounds. */
+export function withPlacedLayer(data: AnimData, selector: string, time: number, includeLegacy: boolean): AnimData {
+  const stored = round(time * data.speed), starts = rulerCueStarts(data, includeLegacy);
+  const steps = data.steps.map((step, index) => {
+    const duration = step.duration, local = round(Math.max(0, stored - starts[index]));
+    const end = starts[index + 1], extendsCue = end > round(starts[index] + duration);
+    if (extendsCue && local >= duration && stored <= end) {
+      throw new Error("Move the playhead outside the loop's extra time to place artwork.");
+    }
+    // At an ordinary arriving flag, keep the layer visible on the last stored millisecond.
+    const start = local === duration ? round(Math.max(0, duration - .001)) : local;
+    return { ...step, layers: { ...step.layers, [selector]: { opacity: [{ time: 0, value: 1, ease: 'none' }] } },
+      spans: { ...step.spans, [selector]: start >= duration ? [] : [{ start, end: duration }] } };
+  });
+  return { ...data, steps };
+}
+
 const seconds = (data: AnimData, stored: number) => `${round(stored / data.speed).toFixed(2)} s`;
 
-/** The cue a key moved from cue `from` lands in at ruler time `at` (`starts` from cueStarts): the one
+/** The cue a key moved from cue `from` lands in at ruler time `at` (`starts` are cue offsets): the one
  *  holding that time, and on a flag the side it came from (moved later onto it, it ends the cue
  *  before; moved earlier, it starts the next). */
 export function landingCue(starts: number[], at: number, from: number) {
@@ -605,7 +623,7 @@ export const crossesCarried = (keys: AnimKeyframe[], carried: number) =>
  * the runtime could not play the result exactly; `source` is never mutated.
  */
 export function moveKeys(source: AnimData, keys: KeyRef[], delta: number, {
-  pairs = true, before = source, includeLegacy = false, starts = keyCueStarts(source, includeLegacy),
+  pairs = true, before = source, includeLegacy = false, starts = rulerCueStarts(source, includeLegacy),
 }: { pairs?: boolean; before?: AnimData; includeLegacy?: boolean; starts?: number[] } = {}): AnimData {
   if (!Array.isArray(keys) || !keys.length || !Number.isFinite(delta)) throw new Error('Select keys and a finite move. No keys changed.');
   delta = round(delta);
@@ -1068,7 +1086,7 @@ function authoredKeysAt(data: AnimData, starts: number[], selector: string, prop
 /** Capture values and their effective incoming eases without touching the source. */
 export function captureKeys(data: AnimData, refs: readonly KeyRef[], includeLegacy = false): CopiedKey[] {
   if (!refs.length || refs.length > 1000) throw new Error('Select between 1 and 1,000 keys to copy.');
-  const starts = keyCueStarts(data, includeLegacy);
+  const starts = rulerCueStarts(data, includeLegacy);
   const copied = refs.map(({ step, selector, property, time }) => {
     const cue = data.steps[step], track = cue?.layers[selector]?.[property];
     const key = track?.find(candidate => Math.abs(candidate.time - time) < EPS);
@@ -1093,7 +1111,7 @@ export function pasteKeys(data: AnimData, keys: readonly CopiedKey[], step: numb
   if (!cue || step === data.steps.length - 1 && cue.carried) throw new Error('Paste keys into an authored cue without carried Out motion.');
   if (!keys.length || keys.length > 1000) throw new Error('Copy between 1 and 1,000 keys before pasting.');
   if (!Number.isFinite(time) || time < 0 || time > cue.duration) throw new Error('Move the playhead inside the destination cue.');
-  const next = structuredClone(data), starts = keyCueStarts(data, includeLegacy);
+  const next = structuredClone(data), starts = rulerCueStarts(data, includeLegacy);
   const changed = new Set<AnimKeyframe[]>(), additions = new Set<AnimKeyframe>();
   for (const { selector, property, offset, value, ease } of keys) {
     const at = round(time + offset);

@@ -214,11 +214,16 @@ export function trackOwners(template: SpxTemplate, data: AnimData, selectors: st
     try { return [selector, layerOwner(data, selector, names(selector))]; } catch { return [selector, selector]; }
   }));
 }
+function requireArtworkLayer(template: SpxTemplate, data: AnimData, selector: string) {
+  if (artworkNode(template, selector).matches(data.root)) {
+    throw new Error('The graphic root is owned by playback. Animate an artwork layer.');
+  }
+}
+
 /** Refuse what playback owns and return the layer's owner. Keys on `channels` ask whose they
  *  are (#1982); without channels the edit is structural (a bar), which an owned sequence keeps. */
 export function animationTarget(template: SpxTemplate, data: AnimData, selector: string, channels?: readonly string[]) {
-  const node = artworkNode(template, selector);
-  if (node.matches(data.root)) throw new Error('The graphic root is owned by playback. Animate an artwork layer.');
+  requireArtworkLayer(template, data, selector);
   const reason = channels?.length ? channels.map(channel => keyAuthoringReason(template, data, selector, channel)).find(Boolean) ?? null : sequenceAuthoringReason(data);
   if (reason) throw new Error(reason);
   return trackOwner(template, data, selector);
@@ -227,7 +232,12 @@ export function animationTarget(template: SpxTemplate, data: AnimData, selector:
 /** The CSS pivot and its keyed variables must be on the same layer as its other motion. */
 export function anchorKeyReason(template: SpxTemplate, selector: string): string | null {
   try {
-    const data = animationSource(template), owner = animationTarget(template, data, selector);
+    const data = animationSource(template);
+    requireArtworkLayer(template, data, selector);
+    // An editor loop owns its numeric tracks. Earlier runtimes and other sequence owners
+    // keep the existing pivot refusal.
+    if (sequenceOwned(data, !hasLoopRuntime(template.js))) return SEQUENCE_REFUSAL;
+    const owner = trackOwner(template, data, selector);
     const base = baseValues(template, selector);
     if (base.anchorReason) return base.anchorReason;
     if (base.groupFrame && !base.svgGroupPivot) return base.mode === 'svg'

@@ -250,7 +250,7 @@ test('unrelated keys use the visible cue starts and cannot land in the repeat-on
   data.steps[1].layers['#score'] = { y: [{ time: .2, value: 4 }, { time: .8, value: 12 }] };
   const key = (cue, time) => ({ step: cue, selector: '#score', property: 'y', time });
   const original = JSON.stringify(data);
-  assert.deepEqual(edit.keyCueStarts(data), [0, 3, 4, 4.5]);
+  assert.deepEqual(edit.rulerCueStarts(data), [0, 3, 4, 4.5]);
   assert.throws(() => edit.moveKeys(data, [key(0, .8)], .5), /extra time added by a finite loop/);
   assert.throws(() => edit.moveKeys(data, [key(1, .2)], -2.3), /across a flag extended by a finite loop/);
   assert.throws(() => edit.setKeyframe(data, 0, '#box', 'x', 1.5, 50), /extra time added by a finite loop/);
@@ -602,4 +602,40 @@ test('range-invalid keys refuse atomically, and resizing preserves or scales the
   const stretched = edit.resizeStep(data, 0, 2.6, 'stretch');
   assert.deepEqual(stretched.steps[0].loops['#box'].x, { repeat: -1, yoyo: true, repeatDelay: .5, range: [.2, 2.2], phase: .5 });
   assert.ok(runtime.writeAnimData(original, stretched));
+});
+
+test('new artwork uses derived cue starts and only representable stored spans', () => {
+  const data = addLoop(baseline(), finite), original = structuredClone(data);
+  const selector = '#new', spans = next => next.steps.map(step => step.spans[selector]);
+  const reveal = [[], [{ start: .1, end: .4 }], [{ start: 0, end: .5 }]];
+  assert.deepEqual(spans(edit.withPlacedLayer(data, selector, 2.2, true)), reveal);
+  assert.deepEqual(spans(edit.withPlacedLayer(data, selector, .6, true)), [
+    [{ start: .6, end: 1.3 }], [{ start: 0, end: .4 }], [{ start: 0, end: .5 }],
+  ]);
+  for (const at of [1.3, 1.6, 2.1]) {
+    assert.throws(() => edit.withPlacedLayer(data, selector, at, true), /outside the loop's extra time/);
+  }
+  assert.deepEqual(data, original);
+  assert.deepEqual(spans(edit.withPlacedLayer({ ...data, speed: 2 }, selector, 1.1, true)), reveal);
+  assert.deepEqual(spans(edit.withPlacedLayer(baseline(), selector, 1.3, false)), [
+    [{ start: 1.299, end: 1.3 }], [{ start: 0, end: .4 }], [{ start: 0, end: .5 }],
+  ]);
+
+  const legacy = addLoop(baseline(), { repeat: 2, repeatDelay: .25 });
+  assert.deepEqual(spans(edit.withPlacedLayer(legacy, selector, 1.4, false)), reveal);
+  assert.deepEqual(spans(edit.withPlacedLayer(legacy, selector, 3.2, true)), reveal);
+  assert.throws(() => edit.withPlacedLayer(legacy, selector, 3.1, true), /outside the loop's extra time/);
+});
+
+test('ranged loop delays must survive millisecond serialization', () => {
+  const data = addLoop(baseline(), forever);
+  const { x } = data.steps[0].layers['#box'];
+  assert.equal(timing.validAuthoredLoop({ ...forever, repeatDelay: 1e306 }, 1.3, x), false);
+  assert.equal(timing.validAuthoredLoop({ ...forever, repeatDelay: Infinity }, 1.3, x), false);
+  assert.equal(timing.validAuthoredLoop({ ...forever, repeatDelay: 10 }, 1.3, x), true);
+  const valid = runtime.emitAnimRegion(data);
+  assert.ok(dataModule.parseAnimData(valid));
+  const overflow = valid.replace('"repeatDelay": 0.25', '"repeatDelay": 1e306');
+  assert.notEqual(overflow, valid);
+  assert.equal(dataModule.parseAnimData(overflow), null);
 });
