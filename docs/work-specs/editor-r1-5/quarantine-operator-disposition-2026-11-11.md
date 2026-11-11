@@ -1,8 +1,9 @@
 # Operator quarantine: causal investigation (completion evidence pending)
 
-**No final operator disposition yet.** Reader43097924632 must qualify the existing
-eleven completion records before the prewritten target and final causal review
-can close. The editor gate remains closed. E3 is historical; no E4 was launched.
+**No final operator disposition yet.** The approved recovery reader must qualify
+the original eleven completion records after GitHub service recovery before the
+prewritten target and final causal review can close. Reader43097924632 failed
+at startup and retrieved no observations. The editor gate remains closed. E3 is historical; no E4 was launched.
 
 ## Original failure and quarantine
 
