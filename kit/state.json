@@ -65,21 +65,7 @@
     "rules": "Run the current worker plan preflight before work and use only the owned absolute Windows worktree. Use the local verification scheduler, isolated accounts and required native 125% zoom/file interactions; full suites stay in GitHub Actions. Respect the October single-device boundaries and the serial phase order. Before E1 product edits reproduce and write the short observable rule or gap. Report every subcriterion and retain original failures and any missing evidence. Inventory the exact GSAP browser, CLI and export artifacts early and send the finished draft back to the coordinator for the owner. State that NoaCG is open source, entirely free, earns no revenue and serves broadcast graphics. The owner superseded the six-month deferral and sends the request. Preserve licence, provenance, notices and redistribution checks. A delayed reply is not an engineering wait before OW1. Stage actual receiving hosts/operator, first-time users/moderator and existing model-access leads in E1 without claiming availability. Do not launch other phases. Do not change provider, funding, licence, engine or release posture. Do not use or modify production data. Respect #1967 and check sideEnds on exact candidate paths, including package versions. The active coordinator acknowledges PR repair duty and owns queue stamping and terminal monitoring. Follow the latest check and queue guidance and obtain fresh independent review under the shared traps."
   },
   "waitingOn": null,
-  "inFlight": [
-    {
-      "sourceSha": "361cb6f628df0a44d410954aae527cde976d1750",
-      "worktree": "C:/claude/Temp/editor-r15-e1-build-1108",
-      "step": "build",
-      "branch": "codex/plan-editor-r1-5-e1-build",
-      "phase": "E1",
-      "actionId": "plan-editor-r1-5-2026-11-08:1",
-      "nativeId": "/root/editor_r15_e1_resume",
-      "note": "E1 PR #2369 reviewed exact 3d0187a9 is in the normal GitHub merge queue. Coordinator stamp 58593245967, Reviewed rerun success and merge-group run 42943724281 observed. Active repair owner remains through merge and terminal evidence.",
-      "checkpointed": false,
-      "head": "3d0187a9d64d2edc3683ce6277c65728622c18d6",
-      "pr": 2369
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [],
   "triggers": [],
@@ -99,7 +85,7 @@
     }
   },
   "e1Checkpoint": {
-    "resume": "Revise and independently review the group rules under the owner choice before product edits. Use a canonical pivot for new owned groups, preserve legacy paint and atomic refusal, and verify the unchanged independent oracle and original failures.",
+    "resume": "E1 accepted on exact merge. Ask supervisor next for E2.",
     "pendingProbesSHA256": "8131576d9a90b3c9419a3a08758cc86117e48661b186a88921adc646cf39c9b0",
     "stopped": "Native worker completed and acknowledged clean owned checkout, closed port 5212 and no live E1 browser/scheduler job. Remote branch and absence of a live PR verified.",
     "jobs": "j-4996 reproduced #1749; j-4997 8 pass; j-4998 62 pass; zero retries/skips; j-4999 offline setup only; j-5000 and j-5001 incomplete, j-5001 app approval timeout; j-5002 and j-5003 cancelled before launch at the unchanged RAM floor.",
@@ -228,6 +214,13 @@
         "reviewedJob": 130271123971,
         "position": 1,
         "stamp": 58593245967
+      },
+      "acceptance": {
+        "result": "PASS",
+        "receipt": "receipts/e1-independent-pass-8c9f2684.json",
+        "merge": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+        "findings": 6785538392,
+        "checker": "/root/editor_r15_e1_check"
       }
     }
   }
