@@ -213,8 +213,8 @@ const textFields = (page: Page) =>
 
 test('typed then taken at once: the typed value airs while its save is still landing, as one entrance', async ({ page }) => {
   // spec §5.3, "type then Take at once": the Take comes inside the 300 ms draft flush. The click
-  // blurs the editor, which starts the save; with the disk held the save is still out when the
-  // Take reads the cue, so what airs must be the draft, once.
+  // blurs the editor, whose save then waits for the Take; with the disk held the save is still out
+  // after it, so what airs must be the draft, once.
   await installWriteHold(page);
   await production(page, 'Type then take');
   await cue(page, 'Hairline').getByTestId('select-cue').click();

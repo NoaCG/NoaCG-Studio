@@ -188,3 +188,29 @@ No product change was made for these, as the owner decision says.
   the hardware check is listed for the owner's final check (phase 9), not counted as passed.
 - A real NoaCG Bridge skipping `/health` (the fake Bridge answers here), and a physical panel.
 - A hosted backend and the studio network.
+
+## Repair: a Take right after an unsaved edit (#2388)
+
+Owner decision 2026-11-11, answer "B" on #2361: one scoped repair in phase 3 for the stalled tail
+above. Review class: Risky (it moves when the draft's save runs, which is reload and recovery).
+
+### Rules
+
+Written after the first build commit (8bdd8f2), before the review; a Rules-first `/so` challenges
+them separately from the code.
+
+- R1. A press on a control that sends first (Take, Re-take, Next, a quick button or one of its
+  picks, a live number's step) made while an edit is owed: the press's handler runs, and its send
+  starts, before the draft's save rewrites the stored productions.
+- R2. What that press sends carries the edited value, read from memory.
+- R3. The edit is still saved, once, with the latest text: by the Take path's own save after its
+  send, or by the save the editor's blur owes, which runs after the press is over (pointer up,
+  pointer cancelled, or the window losing focus; at most 2 s after it is owed).
+- R4. Nothing typed is lost if the page hides, closes or reloads at any moment after the press:
+  the edit stays owed until saved, and the page going saves what is owed at once.
+- R5. An idle save (300 ms after the last keystroke) falling due while such a press is down waits
+  for the press to end too.
+- R6. A blur not made by such a press (Tab, a click anywhere else, another control) saves at once,
+  as before, so a verb that reads the stored record sees the edit.
+- R7. Once the page's session ends (it moves to another production), a held save never runs; what
+  was owed was saved at the end.

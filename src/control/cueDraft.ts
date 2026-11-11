@@ -11,7 +11,9 @@
 //
 // What a verb reads: `view`, which reads the part as it stands at that moment, never a render's
 // copy. A Take path reads it at once and calls `flush` after its send (live-publishing W1); an
-// Update or a snap awaits `flush` first. While the save is out the draft stays and `view` answers it;
+// Update or a snap awaits `flush` first. A Take path's button takes the focus as it is pressed, and
+// the save that blur owes, or an idle save falling due then, waits until the press has run
+// (`blurred`, #2388). While the save is out the draft stays and `view` answers it;
 // once the save is confirmed the draft goes and `view` answers the newest record the page rendered.
 // The history hands the page that record when the store accepts the write, before it confirms it,
 // so the record holds the text unless the store confirms before React renders (as the page's old
