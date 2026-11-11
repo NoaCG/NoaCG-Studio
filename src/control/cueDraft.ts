@@ -216,7 +216,13 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
   let startedFrom: { cueId: string; texts: CueFields[] } | null = null;
   /** Whether this page recorded the draft's owed edit when it hid, and whether it is hidden or
    *  going now (from its hide until it is shown again). */
-  let recorded = false;
+  let recorded: string | null = null;
+  /** Remove the record only if it is still the one this page wrote: another tab of the same
+   *  production may have written its own since. */
+  const forgetOwn = () => {
+    if (recorded !== null && JSON.stringify(io.owed.read()) === recorded) io.owed.forget();
+    recorded = null;
+  };
   let leaving = false;
   const copyOf = (d: DraftPart): CueFields => ({ ...fieldsOf(d), values: { ...d.values } });
   const started = (d: DraftPart) => {
@@ -284,8 +290,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
         if (saved) {
           set(null);
           // The store holds the latest text: a record of it must never be applied over later work.
-          io.owed.forget();
-          recorded = false;
+          forgetOwn();
         }
         else pending = true;
       }
@@ -303,7 +308,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     // page goes, and a reload aborts it.
     if (hiding && startedFrom && startedFrom.cueId === d.cueId) {
       io.owed.keep({ cueId: d.cueId, bases: startedFrom.texts, fields: fieldsOf(d) });
-      recorded = true;
+      recorded = JSON.stringify(io.owed.read());
     }
     if (io.retainCue(d.cueId, fieldsOf(d))) {
       pending = false;
@@ -360,10 +365,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
       // back next visit. Not while the page is hidden or going: the history drops the draft then
       // too, when its queued save finds the cue the hide's save rewrote. A page that recorded
       // nothing (one just opened, before `recover`) leaves the record alone.
-      if (recorded && !leaving) {
-        io.owed.forget();
-        recorded = false;
-      }
+      if (!leaving) forgetOwn();
     },
     showing: (cueId, save) => {
       if (cueId === shown) return;

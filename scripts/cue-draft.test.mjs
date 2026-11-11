@@ -388,6 +388,29 @@ test('P3: the record stays when the page comes back; a draft this page recorded 
   stop();
 });
 
+test('P3: a page removes only the record it wrote: another tab of the production may have written its own since', async () => {
+  // Final review of 43bcf60: both tabs share one record per production.
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: 'Mine' } });
+  for (const run of h.listeners.hide) run(true);
+  for (const run of h.listeners.shown) run();
+  const theirs = { cueId: 'c2', bases: [{ label: 'Closer', note: 'last', values: { f0: 'Ben Lund', f1: 'Guest' } }], fields: { label: 'Theirs', note: 'last', values: {} } };
+  h.owed = structuredClone(theirs);
+  h.draft.edit(OPENER, { values: { f0: 'Mine, typed on' } });
+  const saved = h.draft.flush();
+  h.writes.at(-1).answer(true);
+  await saved;
+  assert.deepEqual(h.owed, theirs, 'a confirmed save leaves the other tab\'s record');
+  h.draft.edit(OPENER, { values: { f0: 'Again' } });
+  for (const run of h.listeners.hide) run(true);
+  for (const run of h.listeners.shown) run();
+  h.owed = structuredClone(theirs);
+  h.draft.cancel();
+  assert.deepEqual(h.owed, theirs, 'a dropped draft leaves the other tab\'s record');
+  stop();
+});
+
 test('P3: a page that recorded nothing leaves a record alone when it drops a draft', () => {
   // A page just opened drops a draft while it starts, before `recover`.
   const h = harness();
