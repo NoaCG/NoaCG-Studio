@@ -73,9 +73,9 @@
       "step": "build",
       "sourceSha": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
       "actionId": "plan-editor-r1-5-2026-11-08:3",
-      "note": "E2 builder active in the same worktree. b5f9327 local and unpushed. Timed OGraf and one-cue self-entry fixed and exact package/Node checks passed. Independent B found manual and none styled OGraf metadata and unrelated Fade range floor. Scoped repairs in progress. Third and final styled metadata attempt. PR #2374 unchanged and unqueued.",
+      "note": "PR #2374 nonforce-pushed to reviewed 5b00e271a. Independent full A. Exact CI 42998288984 in progress. Browser j-5225 waiting under normal RAM guard. Original worker remains active. No stamp or queue.",
       "worktree": "C:/claude/Temp/editor-r15-e2-build-1111",
-      "head": "cb0f639ab8ac2f4a6396ed0ded9a6d1c767a6749",
+      "head": "5b00e271a4249c1a6b11bda50ae33823baefbafe",
       "pr": 2374
     }
   ],
@@ -239,10 +239,10 @@
   },
   "e2Checkpoint": {
     "pr": 2374,
-    "resume": "Continue the original E2 worker through the selector repair, scoped verification, fresh final review and Codex review, then read exact CI before queueing. Admit independent E2 acceptance on the actual merge before E3.",
+    "resume": "Wait for exact candidate GitHub CI, Codex review and required browser verification. Coordinator reconciles latest main and queues only after review gates. Independent checker uses actual merge SHA.",
     "repairOwnerComment": 6787343956,
-    "head": "cb0f639ab8ac2f4a6396ed0ded9a6d1c767a6749",
-    "ci": 42964189955,
+    "head": "5b00e271a4249c1a6b11bda50ae33823baefbafe",
+    "ci": 42998288984,
     "verification": "j-5201 75/75; 22 GSAP oracle cases; 197 affected Node cases; scoped lint, TypeScript, Dependency Cruiser and diff check passed. Windows catalog baseline and candidate reproduced the same jc01 fingerprint (#2372); local E2E protection could not create a dependency symlink (#2373). Studio reference comparison j-5193 passed.",
     "failedRun": "CI 42964189955 (cb0f639ab8ac2f4a6396ed0ded9a6d1c767a6749) completed. Build, Factory, Catalog and the four configured E2E shards passed. E2E 5/15 had four strict-selector failures in editor-base-edits.spec.ts 237, 286, 443 and 593. The helper matched Edit loop and Edit base values. The Reviewed gate awaits a coordinator stamp. Keep the first red attempt.",
     "resumedRepair": {
@@ -256,11 +256,12 @@
       "attempts": "First repair for each of the selector, moving-track and live finite timer findings"
     },
     "latestLocal": {
-      "head": "b5f9327a0cfc80822ebd3876f9b34e4fc75c6daa",
-      "pushed": false,
-      "checks": "Exact bundled Node 39/39, lint, TypeScript j-5224 and both generated ZIP probe families passed. Actual public state probe: one-cue and two-cue controls move x20 to x85, with main In and parallel On. Measured and styled timed OGraf match HTML, with exact scheduled Out at 3900/2000 ms and styled timed manifest 2500 ms.",
-      "red": "Fresh full independent review graded B. Exact generated manual and none OGraf ZIPs show incorrect static Play/Continue estimates for styled E2 entrance. Exact preset picker operation preserves unrelated x loop but shrinks its authored cue, causing source writer refusal.",
-      "pending": "Third and final styled metadata repair, following independent action-duration inventory and exact controls. First contained preset-range repair. Normal Windows j-5223 queued pending 4 GiB. GitHub remains at cb0f639ab and unqueued."
+      "head": "5b00e271a4249c1a6b11bda50ae33823baefbafe",
+      "pushed": true,
+      "checks": "35 targeted gates, 223 Node cases, changed-file lint, TypeScript j-5226, merge-tree and sideEnds passed. Local protection reproduced Windows symlink EPERM (#2373).",
+      "independentReview": "Fresh full independent review of 43 paths from the pinned E1 base graded A on this exact head. No confirmed findings.",
+      "windows": "Final targeted Chromium j-5225 waiting under normal 4.0 GB floor. Earlier 134/134 was on e19b3815 and older red remains retained.",
+      "ci": "Normal PR CI 42998288984 in progress. Codex review requested through the original worker route once on this head."
     }
   },
   "waitingOn": null
