@@ -1,10 +1,5 @@
-// covers: src/components/editorFoundation/**
-// covers: src/blocks/{animData,animEval,animLoopTiming,animMachine,animMigration,editorLoops}.ts
-// covers: src/templates/shared/{animRuntime,animLoopRuntime}.ts, src/preview/{simulatorRuntime,settleGraphic}.ts
-// covers: src/export/{selfContained,targets/ograf,targets/htmlOverlay}.ts, e2e/fixtures/editor-loops.json
-
 import { readFileSync } from 'node:fs';
-import { test, expect, type Page, type Locator } from '@playwright/test';
+import { expect, type Page, type Locator, type TestInfo } from '@playwright/test';
 import type { AnimData } from '../src/blocks/animData';
 import type { SpxTemplate } from '../src/model/types';
 import { evaluateInPage } from './_evaluate';
@@ -76,7 +71,7 @@ async function settings(panel: Locator, target: string, speed: number, forever: 
   await panel.getByRole('button', { name: 'Apply loop' }).click();
 }
 
-test('authors an independent property loop and a synchronized layer loop through save and reopen', async ({ page }, testInfo) => {
+export async function authorLocalLoops(page: Page, testInfo: TestInfo) {
   await open(page);
   const input = await template(page, fixture());
   await apply(page, input);
@@ -134,9 +129,9 @@ test('authors an independent property loop and a synchronized layer loop through
   expect(saved.css).toBe(input.css);
   expect(saved.fields).toEqual(input.fields);
   expect((await anim(page)).steps.map(step => step.layers)).toEqual(fixture().steps.map(step => step.layers));
-});
+}
 
-test('SVG loops keep the composition clock and an effective one-frame nudge at speed two', async ({ page }) => {
+export async function scrubSvgLoop(page: Page) {
   await open(page);
   const data = fixture();
   data.speed = 2;
@@ -158,7 +153,7 @@ test('SVG loops keep the composition clock and an effective one-frame nudge at s
   await pose(page, 35, .5, 40);
   await expect(page.getByRole('slider', { name: 'Playhead', exact: true })).toHaveAttribute('aria-valuenow', '0.2');
   expect((await source(page)).html).toBe(input.html);
-});
+}
 
 async function built(page: Page, t: SpxTemplate, target: string) {
   return page.evaluate(async ({ t, target }) => {
@@ -197,7 +192,7 @@ async function loadExport(output: Page, artifact: Awaited<ReturnType<typeof buil
 type Timeline = { time(t?: number, suppress?: boolean): number; pause(): Timeline; duration(): number;
   __noacgLoops?: Array<{ animation: { timeScale(value: number): void } }> };
 
-test('plays, interrupts, settles and replays the same loop in the simulator and browser exports', async ({ page }) => {
+export async function playLoopOutputs(page: Page) {
   await open(page);
   const data = fixture();
   data.steps[0].loops = { '#box': { x: loop, opacity: loop } };
@@ -284,9 +279,9 @@ test('plays, interrupts, settles and replays the same loop in the simulator and 
       });
     } finally { await output.close(); }
   }
-});
+}
 
-test('a timed browser overlay holds after finite In while its loop moves, then goes Out', async ({ page }) => {
+export async function playTimedLoopOverlay(page: Page) {
   await open(page);
   const data = fixture();
   data.steps[0].loops = { '#box': { x: loop } };
@@ -304,4 +299,4 @@ test('a timed browser overlay holds after finite In while its loop moves, then g
     await output.clock.runFor(850);
     await expect(root).toHaveCSS('opacity', '0');
   } finally { await output.close(); }
-});
+}

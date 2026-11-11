@@ -1,6 +1,9 @@
 // covers: src/templates/shared/{animRuntime,animRuntimeLegacy,easeRuntime}.ts
 // covers: src/blocks/{animMigration,animMachine,animEval,animData}.ts, src/components/editorFoundation/**
 // covers: e2e/fixtures/out-steps.json, e2e/fixtures/interpreter-hold-v1.js
+// covers: e2e/_editorLoops.ts, e2e/fixtures/editor-loops.json
+// covers: src/blocks/{animLoopTiming,editorLoops}.ts, src/templates/shared/animLoopRuntime.ts
+// covers: src/preview/{simulatorRuntime,settleGraphic}.ts, src/export/{selfContained,targets/ograf,targets/htmlOverlay}.ts
 //
 // R1.2a.3 Out from any step (docs/research/editor-r1-2a-3): at the last step Out plays its authored
 // exit from the held pose; at an earlier step each visible layer leaves from its live pose on the
@@ -12,6 +15,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { installGraphicBody } from './_graphicBody';
 import { readFileSync } from 'node:fs';
 import { evaluateInPage } from './_evaluate';
+import { authorLocalLoops, playLoopOutputs, playTimedLoopOverlay, scrubSvgLoop } from './_editorLoops';
 
 type Key = { time: number; value: number | string; ease?: string };
 type Step = { name: string; duration: number; ease: string; layers: Record<string, Record<string, Key[]>>; spans?: Record<string, { start: number; end: number }[]>; reveals?: string[] };
@@ -342,3 +346,8 @@ test('a machine graphic parked at its first state keeps its authored exit', asyn
     near(run.leaving, await model(page, data, run.held, run.visible, TIMES, 'authored'), `machine in ${target}: the authored exit`);
   }
 });
+
+test('authors an independent property loop and a synchronized layer loop through save and reopen', ({ page }, testInfo) => authorLocalLoops(page, testInfo));
+test('SVG loops keep the composition clock and an effective one-frame nudge at speed two', ({ page }) => scrubSvgLoop(page));
+test('plays, interrupts, settles and replays the same loop in the simulator and browser exports', ({ page }) => playLoopOutputs(page));
+test('a timed browser overlay holds after finite In while its loop moves, then goes Out', ({ page }) => playTimedLoopOverlay(page));

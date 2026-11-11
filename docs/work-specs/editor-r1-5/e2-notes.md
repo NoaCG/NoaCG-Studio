@@ -119,7 +119,22 @@ The first browser job j-5180 passed the export and timed overlay tests. It found
 a local seek just after applying settings could be lost while the preview reloaded.
 The controller now retains that seek until the matching preview is ready. The SVG
 fixture also needed the standard imported artwork wrapper to expose its named layer
-in the editor. j-5182 passed all four cases after those corrections.
+in the editor. j-5182 passed all four cases after those corrections. The combined
+Windows job j-5183 passed 61 cases covering the same loop journey, the legacy
+starting-soon and measured motion, existing Out behavior and E1 SVG grouping.
+
+The fast Windows catalog check reported a `jc01` JavaScript fingerprint mismatch.
+The isolated Chromium control j-5184 loaded the pinned E1 source and candidate in
+the same browser and emitted the same HTML, CSS and JavaScript fingerprints for
+`jc01`. All other 538 emitted designs matched the recorded catalog. CI owns the
+full rendered catalog battery. The local E2E protection command reached its normal
+base-checkout path and failed on Windows `EPERM` creating a dependency symlink.
+The final diff extends the maintained Out and parity spec with all four named loop
+cases and keeps its original cases. The standalone spec checkpoint hit the offline
+growth refusal at 88%, with 0.40 minutes of unmeasured estimated growth, using
+weekly report 42647874522. The cases moved to the existing spec that covers the
+same Out, runtime and browser export paths. The capacity rules, existing test
+assertions and browser protection checks stay in force.
 
 ### Same-task reference
 

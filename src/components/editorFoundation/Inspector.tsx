@@ -12,7 +12,7 @@ import ImageControls from './ImageControls';
 import PathControls from './PathControls';
 import LoopControls from './LoopControls';
 import type { LoopProbe, RenderedPart } from './protocol';
-import { authoringPosition, editTarget } from './animationAuthoring';
+import { editTarget } from './animationAuthoring';
 import { layerPress } from '../../blocks/animEdit';
 import { behaviourLooks, type LookEntrance } from '../../blocks/behaviourLook';
 interface Props {
@@ -56,8 +56,6 @@ function Inspector({ reveal, seek, view, template, selection, select, session, l
     revealed.current = reveal.id;
   }, [reveal, tab]);
   const part = view.parts.find(p => p.selector === selection[0]), cue = session.port.view().cue;
-  const loopStep = part ? authoringPosition(template, part.selector, time, cue).step : -1;
-  const loopCue = view.segments[loopStep]?.out ? undefined : view.data?.steps[loopStep];
   const node = useMemo(() => part ? new DOMParser().parseFromString(template.html, 'text/html').querySelector(part.selector) : null, [template.html, part]);
   const tracks = part && view.data ? animatedProps(view.data, ownerOf(view, part.selector)) : [];
   const capability = useMemo(() => {
@@ -107,9 +105,7 @@ function Inspector({ reveal, seek, view, template, selection, select, session, l
           <PathControls key={'path:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} editPoints={editPoints} />
           <AnchorPoint key={'anchor:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} seek={seek} />
           <AnimationProperties seek={seek} key={'animation:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} linked={linked} previewTemplate={previewTemplate} />
-          {loopCue && <LoopControls key={JSON.stringify([part.selector, loopStep, time, cue])}
-            cue={loopCue} step={loopStep} selector={part.selector} owner={ownerOf(view, part.selector)}
-            speed={view.data!.speed} fps={template.fps} execute={execute} preview={previewLoop} />}
+          <LoopControls template={template} view={view} selector={part.selector} time={time} inspectedCue={cue} execute={execute} preview={previewLoop} />
           <label className="ef-link"><input type="checkbox" checked={linked} onChange={event => setLinked(event.target.checked)} /> Link proportions</label></>}
         <div className="ef-edit-actions">
           <button title="Duplicate artwork (Ctrl/Cmd+D)" onClick={() => execute({ kind: 'layer.duplicate', selector: part.selector })} disabled={selection.length !== 1}>Duplicate</button>

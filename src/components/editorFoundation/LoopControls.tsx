@@ -1,5 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import type { AnimStep } from '../../blocks/animData';
+import type { SpxTemplate } from '../../model/types';
+import { authoringPosition } from './animationAuthoring';
+import { ownerOf, type TimelineView } from './timelineView';
 import { loopElapsed, type RangedLoop } from '../../blocks/animLoopTiming';
 import { loopSelection, loopTracks, type LoopOperation } from '../../blocks/editorLoops';
 import type { LoopProbe } from './protocol';
@@ -19,7 +22,18 @@ interface Props {
   preview: (probe?: LoopProbe) => void;
 }
 
-export default function LoopControls(props: Props) {
+export default function LoopControls({ template, view, time, inspectedCue, selector, execute, preview }: Pick<Props, 'selector' | 'execute' | 'preview'> & {
+  template: SpxTemplate; view: TimelineView; time: number; inspectedCue?: number;
+}) {
+  if (!view.data) return null;
+  const { step } = authoringPosition(template, selector, time, inspectedCue);
+  const cue = view.data.steps[step];
+  if (!cue || view.segments[step]?.out) return null;
+  return <LoopTarget key={JSON.stringify([selector, step, time, inspectedCue])} cue={cue} step={step} selector={selector}
+    owner={ownerOf(view, selector)} speed={view.data.speed} fps={template.fps} execute={execute} preview={preview} />;
+}
+
+function LoopTarget(props: Props) {
   const [choice, setChoice] = useState<string>();
   const properties = loopTracks(props.cue, props.owner);
   const all = loopSelection(props.cue, props.owner);
