@@ -36,8 +36,8 @@
  },
  "waitingOn": [
   {
-   "what": "fix #2388 lands; then launch the phase 3 check on the fix merge (phase 3 landed c0bc989f; check held for the owner-approved repair)",
-   "eta": "2026-11-11T22:00:00Z"
+   "what": "PR #2389 merge, then launch the phase 3 check on its merge",
+   "eta": "2026-11-11T20:30:00Z"
   }
  ],
  "inFlight": [
@@ -56,6 +56,10 @@
   {
    "what": "Follow-ups filed by phase 1: #2365, #2366, #2367",
    "where": "backlog, not run scope"
+  },
+  {
+   "what": "Follow-ups filed by the phase 3 fix: #2392, #2394",
+   "where": "backlog, not run scope"
   }
  ],
  "fixes": [
@@ -69,11 +73,14 @@
   {
    "what": "Phase 3 AC-1 repair (owner B): run the owed edit save after the press",
    "issue": 2388,
-   "state": "building",
+   "state": "in merge queue 19:47:58Z",
    "session": "session_017SdbwQBunbe22rioNbxXpN",
    "branch": "claude/plan-live-publishing-fix-2388",
    "source": "c0bc989f77bb6523fbe718bd2299f1518d749305",
-   "nonce": "fix-2388-f-47fe"
+   "nonce": "fix-2388-f-47fe",
+   "pr": 2389,
+   "head": "09fd191950227b0c8e9ed9265cf75dacb6a2dffc",
+   "ac1After": "production build, stalled, p95: graphic 18.8, picture 12.7, quick 13.8, +1 12.8, Next 11.2, large graphic 26.1, folder 20.3, server 48.2 ms; met on every path measured"
   }
  ],
  "triggers": {
@@ -128,5 +135,8 @@
  "phase3": {
   "landed": "c0bc989f77bb6523fbe718bd2299f1518d749305",
   "builderCostUSD": "about 70"
- }
+ },
+ "phase9Checklist": [
+  "From fix #2388: on a real show, with a mouse and on a touch screen, type into a cue field and press Take (also Next, a quick button, a live number) at once: it airs with the typed text with no pause, and the text is still there after a reload straight after the press. In air-edit mode, a Take from elsewhere while typing keeps the typed text."
+ ]
 }
