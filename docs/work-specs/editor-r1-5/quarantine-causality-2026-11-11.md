@@ -106,3 +106,58 @@ The historical live config traces only its retry. With diagnostic retries zero,
 primary operator runs consequently have no trace. Preserve that primary setting;
 if tracing is needed, declare a separate matched trace-on diagnostic condition,
 retain its counts and never pool it into the primary failure-rate comparison.
+
+
+## CI execution route amendment, before additional trials
+
+The first Cloud pair completed all24 clock cases on both commits (0/1 failed
+whole-file invocations each). Preserve those two reports as a separate Cloud
+stratum. The operator stack never reached readiness: CLI2.111.0 image unpacking
+exhausted the managed Docker vfs disk. No operator trial ran. Its nine downloaded
+images were removed and free space returned to56GiB; there were no containers.
+This is an infrastructure outcome, not evidence about E1.
+
+Use the **existing** manual `endurance.yml` workflow without changing any workflow
+or normal gate. Add one opt-in diagnostic npm entry and a bounded controller;
+its only job is measurement, never a plan phase launch or causal verdict. Dispatch
+on twelve immutable clock batch refs (five complete paired invocations each) and
+four immutable operator batch refs (fifteen paired invocations each). Thus the CI
+stratum still has exactly60 invocations per commit per spec. Use the seed2295
+balanced ordering globally, split across batch refs. Each worker runs only one
+browser job at a time, with explicit workers1 and diagnostic retries0. Parallel
+batches live on separate GitHub runners, not shared-VM agents. The already completed
+Cloud pair is not pooled into the primary CI failure rates. No abandoned or failed
+attempt is silently replaced.
+
+Before implementation, obtain a fresh Rules-first second opinion on this route.
+The controller must verify the actual CI runner, batch ref syntax, first attempt,
+exact source/spec/lock identities and the unmodified Supabase tree (`3c50971d`).
+Create both historical feature worktrees before preparing them. Reuse only the
+identical installed package files; give Vite caches and generated postinstall
+artifacts their own worktree. No tracked snapshot file changes. The root runner's
+endurance script and package entry are diagnostic harness only.
+
+Use `local-supabase=true` only for operator batches. Endurance starts and tears
+down the same CLI2.111.0 stack as configured CI. Reuse the original composite
+action's export, schema/grant/publication and disposable-account shell blocks
+verbatim, rather than a weaker replacement. Check exact Supabase tree equality
+on both historical arms and the diagnostic branch. Require loopback API/auth and
+actual successful sign-in; no production config or credentials. Keep the primary
+operator trace setting and all original timeout limits. Both arms use fresh
+Playwright/browser/server per invocation; require an empty assigned server port.
+
+Admit each invocation through its snapshot's existing browser queue with cap5.
+Keep every admission, log, JSON/blob/result artifact and per-case first outcome.
+Require24/2 collected cases respectively, one worker, no skips/flaky/retries,
+no global errors, and consistent terminal queue/report status. Product failures
+remain data and planned measurement continues; missing/invalid/incomplete results
+stop that batch as unresolved. The controller has a75-minute ceiling within the
+existing90-minute workflow. Upload receipts through the workflow's existing
+always-upload step, including partial evidence. No cap or workflow is raised.
+
+Dispatch once per immutable batch ref, record intent before submission and
+reconcile the returned run ID plus exact head. Lost acknowledgement stops that
+batch pending native/API reconciliation; never blindly resubmit. Explicitly
+retain GITHUB_ACTIONS on actual Actions; never fake it in Cloud. The active owner
+stays through diagnostics and the causal gate. These opt-in results cannot pass
+normal gates or earn quarantine release;20 consecutive main passes remain required.
