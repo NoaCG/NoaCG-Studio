@@ -1,0 +1,26 @@
+{
+  "source": "fda2cfdf9de35055d57299f0eeae90eff3f7ed70",
+  "machineResult": "PASS",
+  "task": "help-out",
+  "status": 200,
+  "output": {
+    "answer": "The selected artwork is \"Name\" (f0, \"Amira Solano\"). One caution: the Out is set at a composition time, so it applies to the graphic's timeline, not only to this text. The timeline already lists an \"Out\" segment from 1.26s for 0.55s, and the playhead is at 1.26s. You may not need to add one.\n\n1. To check the existing Out, use Edit Out in Layers & Timeline to inspect where it starts.\n2. To add or move an Out, move the playhead to the time you want the exit to begin. Then use Set Out at playhead in Layers & Timeline.\n3. If the graphic has no exit keys, you will be asked to choose Yes, reverse or No, author manually. Yes, reverse builds the exit from the entrance. No, author manually leaves the exit for you to key yourself. I can't tell from the context whether exit keys already exist, so you may or may not see this prompt.\n4. To rehearse the entrance, use Go to beginning, then Play. At the end of a segment, Play replays that segment.\n5. To rehearse the exit, use Out. It previews the exit from the current pose.\n6. Undo reverts a change, and Save keeps the graphic.\n\nI haven't changed anything. Rehearsing and editing only affect this graphic and never replace an on-air copy. If you want a reviewed, bounded change instead, choose Edit, check the exact values and targets, then Apply edits or Cancel."
+  },
+  "usage": {
+    "inputTokens": 6568,
+    "outputTokens": 947,
+    "totalTokens": 7515
+  },
+  "attempts": [
+    {
+      "route": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-5-5"
+      },
+      "attempts": 1
+    }
+  ],
+  "readOnly": true,
+  "estimatedUsd": 0.022606,
+  "quality": "pending fresh independent assessment; machine PASS only"
+}
