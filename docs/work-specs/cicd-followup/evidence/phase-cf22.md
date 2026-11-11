@@ -35,9 +35,9 @@ the owner's decision. (d) cf20 reports the result.
 - **Causes:** 18 real defects, 16 flakes, 21 gate refusals, 4 infrastructure, 1 unresolved. 16
   of the 21 gate refusals were the E2E capacity (growth) line, not the review stamp or a budget.
 - **Ranked fixes** (section 4): a red PR waking its repair owner at once (up to 3,244 minutes), then
-  sending gate refusals an agent cannot fix to the owner (215), then naming a known-flaky spec in
-  the failure (102), then a local capacity check before pushing (85). Re-running only the failed
-  part saves 52 minutes, because agents already did that in 11 of 20 cases. Agents running the affected tests before every push would save 675 minutes
+  sending gate refusals an agent cannot fix to the owner (215), then a local capacity check before
+  pushing (118). Re-running only the failed part saves 52 minutes, because agents already did that
+  in 11 of 20 cases. Agents running the affected tests before every push would save 675 minutes
   gross. As a blanket rule it costs more than that, since it breaks even at 0.7 minutes per push.
 - **Nothing is built** (c). The numbers and the list went to the coordinator for the owner before
   this PR's reviews. Every fix needs the owner's decision.
@@ -255,8 +255,8 @@ and F come from the data.
 | ---: | --- | ---: | ---: | --- |
 | 1 | **F. A red PR wakes its repair owner at once** | **≤ 3,244** | 4 | Each non-gate idle stretch over an hour, less the 4.4-minute median idle time a woken owner is assumed to match: (1,463 + 1,226 + 313 + 261) − 4 × 4.4. This is an upper bound: part of an idle stretch can be repair work done before the push, and #1840 is a bot PR whose fix was the next nightly. #2374 is also one of B's defect bounces, so F and B overlap there. |
 | 2 | **C. Gate refusals an agent cannot fix go to the owner alarm at once** | **215** (floor 49) | 14 refusals on 8 PRs; 3 PRs looped | This counts only the refusals that need the owner: a tier budget, a stale report or the protection check. The 4 refusals for "the change over the line" are left out (#2321 twice, #2332, #2364's first), because an agent clears those by making its change cheaper; their loop was 30 minutes. On 3 PRs the same refusal came back 6 more times: #2005 three times, #2134 twice, #2194 once. Saved: the red time from each PR's second refusal of a kind to its green, which the agent spent looping after it had already seen the refusal. It assumes the owner answers an alarm within the first refusal's own round. Floor: only the 6 repeats removed, 49 minutes. The first refusals waited 267 minutes in all, and a quick owner answer could save part of that too. |
-| 3 | **E. Name a known-flaky spec in the failure** | **102** | 5 (1 PR looped) | On #1985 the agent pushed code twice more for `import-svg-behaviour.spec.ts`, which is already in quarantine's history. Saved: the red time from its second such bounce to green. Ambiguous by rule 3, and one PR. |
-| 4 | **D. Agents check the capacity line before pushing and ask the owner then** | **85** | 16 capacity refusals | The capacity line is decided before any test runs, from the plan and the newest growth report. Known-traps already runs it locally (`scripts/e2e-capacity.mjs`). Checking it before pushing replaces the first CI round of each refusal: the sum, over each PR, of its first capacity refusal's own CI round, from that attempt's start to the red gate: 4.7 + 9.6 + 16.9 + 12.0 + 26.9 + 15.2 for #2005, #2038, #2134, #2164, #2194 and #2321. Every later one is a loop: C's, or one an agent clears itself. Cost: one run of that script per push of an E2E or ceiling change, not measured here. It reads the plan and one growth report and runs no test. |
+| 3 | **D. Agents check the capacity line before pushing and ask the owner then** | **118** | 16 capacity refusals | The capacity line is decided before any test runs, from the plan and the newest growth report. Known-traps already runs it locally (`scripts/e2e-capacity.mjs`). Checking it before pushing replaces the first CI round of each refusal: the sum, over each PR, of its first capacity refusal's own CI round, from that attempt's start to the red gate: 4.7 + 9.6 + 16.9 + 12.0 + 26.9 + 15.2 + 15.4 + 16.9 for #2005, #2038, #2134, #2164, #2194, #2321, #2332 and #2364. The last two have no green yet, but their refused round was spent all the same. Every later one is a loop: C's, or one an agent clears itself. Cost: one run of that script per push of an E2E or ceiling change, not measured here. It reads the plan and one growth report and runs no test. |
+| 4 | **E. Name a known-flaky spec in the failure** | **102** | 5 (1 PR looped) | On #1985 the agent pushed code twice more for `import-svg-behaviour.spec.ts`, which is already in quarantine's history. Saved: the red time from its second such bounce to green. Ambiguous by rule 3, and one PR. |
 | 5 | **A1. Re-run only the failed jobs** | **52** | 20 flake and infra | For each flake or infra bounce whose green was a new full run: its CI minutes minus the longest failed job. In 11 of 20 the green was already a re-run of only the failed jobs, so most of the saving is already taken. ci.yml also retries failed specs and failed Build or Factory jobs inside the run. |
 | 6 | **A2. CI re-runs an infrastructure failure's failed jobs once, at once** | **28** | 3 | For each unambiguous infra bounce: its wait plus A1. Known-traps allows one re-run for an infrastructure death. For flakes the rules forbid added retries, and they go to quarantine. |
 | 7 | **B. Agents run the affected tests before pushing** | gross **675**; as a blanket rule it costs more than it saves | 17 defect | Removing every unambiguous defect bounce saves 675 minutes: offline E2E 451, build and unit tests 132, configured 72. That assumes the local run catches what CI caught. The cost lands on every push. 983 heads were pushed in the window, so B breaks even at 675 / 983 = 0.7 minutes of local running per push, and a targeted build alone takes 5 to 10 minutes on a worker (verify.md caps). verify.md already asks for targeted local checks, so these 17 are what got past them. A narrow version could pay: for example, running the spec files the change edits, where the failing spec was edited in 6 of 17. Its cost per push has to be measured before it is chosen. |
@@ -336,12 +336,14 @@ cached once. This collection took at most about 1,190 calls:
   was A once this was fixed, with no further re-review needed.
 - **Correction after the independent check** (PR #2395, nonce cf22-c-ada6). D was 107.9 minutes in
   the first version, ranked third. That figure summed the CI minutes of the later green attempt,
-  not of the refused round its basis names. The code now sums the refused attempt's own round
-  (`round_min`, the attempt's start to the red gate), giving 85.3, and D drops below E to fourth.
-  The owner was first told "D (108)" in rank 3, with the order F, C, D, E, A1, A2, B; the corrected
-  order is F, C, E, D, A1, A2, B. The checker measured 80.9 by starting each round at its first
-  job; this file starts an attempt where `derive` does everywhere else (a first attempt at the
-  run's creation), and the order is the same either way. `round_min` was added to the committed
+  not of the refused round its basis names, and it left out the two PRs with no green yet (#2332,
+  #2364), since they have no green. The code now sums the refused attempt's own round
+  (`round_min`, the attempt's start to the red gate) on all 8 PRs, giving 117.6. The owner was
+  first told "D (108)" in rank 3, with the order F, C, D, E, A1, A2, B. The order stands; D's
+  figure is 118. The checker measured 80.9 on the six PRs with a green, starting each round at
+  its first job, which would put D below E; its review here (a fresh /so) found the two open PRs
+  missing, and with them D is above E on either start. This file starts an attempt where
+  `derive` does everywhere else (a first attempt at the run's creation). `round_min` was added to the committed
   records from the API (each red attempt's start), without re-collecting, so every other figure
   is unchanged. The checker's nit that a dequeue with a cancelled group and no red run (#2021,
   #2095, #2220) is weakly classed as a gate refusal stands as stated in section 2: it moves counts

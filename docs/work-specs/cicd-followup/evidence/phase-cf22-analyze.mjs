@@ -502,11 +502,12 @@ function candidates(rec) {
   // the agent's machine (scripts/e2e-capacity.mjs, as known-traps runs it): checking it before
   // pushing turns each capacity refusal into an owner question before a CI round. Saved: the CI
   // round of the first capacity refusal on each PR (the refused attempt's own minutes, not the
-  // later green's); every later one is a loop (C's, or one an agent clears itself).
+  // later green's, so a PR with no green yet counts too); every later one is a loop (C's, or one
+  // an agent clears itself).
   const cap = allGates.filter((b) => /capacity/.test(b.gate ?? ''));
   const firstCap = cap.filter((b, i) => !cap.slice(0, i).some((p0) => p0.pr === b.pr));
   out.push({ id: 'D', name: 'Agents check the capacity line before pushing and ask the owner then', bounces: cap.length,
-    saved_min: sum(firstCap.filter((b) => b.lost_min != null), (b) => b.round_min),
+    saved_min: sum(firstCap, (b) => b.round_min),
     basis: 'the CI minutes of the first capacity refusal per PR, its attempt\'s start to the red gate, which a local check replaces; the repeats are C\'s' });
 
   // E (from the data). A failure in a spec that is already known flaky (in e2e/quarantine.json's
