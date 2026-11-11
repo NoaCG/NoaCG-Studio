@@ -202,7 +202,9 @@ them separately from the code.
 - R1. A press with a pointer on the button of a W1 Take path (Take for a graphic, picture,
   folder or server cue; Re-take; Next, which also steps a folder; a quick button or one of its
   picks; a live number's step), made while an edit is owed: the press's handler runs, and its
-  send starts, before the draft's save rewrites the stored productions. A keyboard press (SPACE,
+  send starts, before the draft's save rewrites the stored productions. This holds for a mouse,
+  a touch and a pen: a tap moves the focus after its pointer is up, so a touch or pen press ends
+  at its click (or 1 s after the pointer is up if it makes none). A keyboard press (SPACE,
   R, N) or a hardware panel's command blurs nothing, sends from memory and saves afterwards.
 - R1a. A Take of a cue with typed OGraf data still saves before it sends, as before (D2,
   `graphicVerbs.ts` `typedFirst`); R1 is about the save a blur owes, which that press then
@@ -215,13 +217,16 @@ them separately from the code.
   Whichever runs second finds nothing owed and writes nothing.
 - R3a. The typing before the press stays one undo step: its history group closes with the held
   save. If a write the press makes through the history lands first, it closes the group before
-  it, so the typing is still one step, recorded after the press's.
+  it, so the typing is still one step, recorded after the press's. Typing again before the held
+  save has run runs it first, so the new typing is its own step.
 - R4. Nothing typed is lost if the page hides, closes or reloads at any moment after the press:
   the edit stays owed until saved, and the page going saves what is owed at once. A save that
   fails or is refused leaves the edit owed, as before.
 - R4a. An edit to another cue never starts while an earlier cue's edit is owed: that edit's save
   starts first, in its own history group. (Selecting another cue already saves at once; this
-  holds for any other way the editor could change cue.)
+  holds for any other way the editor could change cue.) If that save fails, the draft has
+  already moved to the other cue, so the failed edit is not owed again: no worse than before the
+  guard, when the edit was dropped outright.
 - R5. An idle save (300 ms after the last keystroke) falling due while such a press is down waits
   for the press to end too.
 - R6. A blur not made by such a press (Tab, a click anywhere else, another control) saves at once,
@@ -230,7 +235,8 @@ them separately from the code.
 - R7. Once the page's session ends (it moves to another production), a held save never runs; what
   was owed was saved at the end.
 
-Revised after the Rules-first `/so` (grade B, 2026-11-11): R1 names every W1 path and the
+Revised again after the final `/so` on c0a5aee (grade B): R1 covers touch and pen, R3a typing
+again during the hold, R4a a failed save. Revised after the Rules-first `/so` (grade B, 2026-11-11): R1 names every W1 path and the
 keyboard; R1a, R3a and R4a are new; R3, R4 and R6 say what a second save, a failed save and the
 account's request do. R4a needed one guard in `cueDraft.edit`, tested in `scripts/cue-draft.test.mjs`.
 
@@ -239,8 +245,10 @@ account's request do. R4a needed one guard in `cueDraft.edit`, tested in `script
 - `src/control/cueDraft.ts` `blurred`: the save the cue editor's blur owes runs at once, unless a
   pointer is down on a control marked `data-sends-first`. Then it is held until such presses
   pause for 300 ms (never during one), with a 2 s cap. An idle save falling due during such a
-  press is held the same way. `edit` starts the save of an owed edit to another cue first (R4a).
-- `ProductionPage.tsx` gives the draft the window's pointer events (`onSendsFirstPress`);
+  press is held the same way. `edit` runs a held save first (R3a) and starts the save of an owed
+  edit to another cue first (R4a).
+- `ProductionPage.tsx` gives the draft the window's pointer events (`onSendsFirstPress`; a touch
+  or pen press ends at its click, since a tap moves the focus after its pointer is up);
   `CueEditor.tsx` routes its blur through `blurred`; Take, Re-take, Next, the quick buttons and
   their picks and the live number steps carry `data-sends-first`.
 
@@ -248,7 +256,8 @@ account's request do. R4a needed one guard in `cueDraft.edit`, tested in `script
 
 Same harness, cases and machine as above (`MEASURE_BUILD=prod`, `MEASURE_STALL=1`, unthrottled),
 against the local Supabase stack. Before: `origin/main` c0bc989 (this phase's build). After: this
-branch at f3b21e5. Milliseconds, own p50 / p95 (samples, failures); "total" includes the kept
+branch at f3b21e5 (the later commits change a touch press's end and what an edit does first,
+neither on a mouse press's path to its send). Milliseconds, own p50 / p95 (samples, failures); "total" includes the kept
 ordering waits. Multi-part paths are merged from the raw samples.
 
 | Path | Fixture | Before, stalled | After, stalled | After, total |
@@ -291,13 +300,15 @@ it.
 
 ### Tests
 
-- `scripts/cue-draft.test.mjs`: seven new cases (R1, R3 to R7, R4a, a second fast press during
-  the wait). Mutations: `blurred` saving at once again turns four red; the held save running
-  during a press turns one red; dropping the R4a guard turns one red.
+- `scripts/cue-draft.test.mjs`: eight new cases (R1, R3 to R7, R3a, R4a, a second fast press
+  during the wait). Mutations: `blurred` saving at once again turns four red; the held save
+  running during a press turns one red; dropping the R3a or the R4a step turns its case red.
 - `e2e/playout-air-contract.spec.ts`: "typed then taken at once" reads, in the click's capture
   phase, that the stored productions do not yet hold the typed text (with `blurred` saving at once
   it fails: "the Take ran before the save"); "typed then taken, then the page reloads at once"
-  finds the edit kept (R4). The whole file passes 9 of 9 on f3b21e5.
+  finds the edit kept (R4); "on a touch screen" taps Take and checks the same capture-phase read
+  (with a touch press ending at its pointer's release it fails: "the Take ran before the save").
+  The whole file passes 10 of 10 on 71aada1.
 - `e2e/publish-output-setup.spec.ts:384` failed once in CI on 87ea071 (#2392). It races its own
   save on `main` too: with the save after a server Take's answer delayed 1 s, it fails 3 of 3
   with CI's message at `407:268` on c0bc989 and on this branch alike. A server cue's editor has no
@@ -305,6 +316,6 @@ it.
 
 ### For the owner's final check (phase 9)
 
-On a real show, type into a cue's field and press Take (also Next, a quick button, a live number)
+On a real show, with a mouse and on a touch screen, type into a cue's field and press Take (also Next, a quick button, a live number)
 at once: the graphic goes on air with the typed text, without the pause the save used to cause,
 and the text is still there after a reload made straight after the press.
