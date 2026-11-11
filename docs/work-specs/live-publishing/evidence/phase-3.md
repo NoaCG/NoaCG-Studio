@@ -173,7 +173,13 @@ No product change was made for these, as the owner decision says.
   alone cannot tell which measurement the outputs show. Every send that sets a graphic's look or
   takes it off is now counted as it leaves, and a hinted Take's measurement applies only while
   none followed it (`placeTaken`'s `latest`); a send that sets no look (a figure, a +1) leaves it
-  standing. This runs after the send, so the timings below are unchanged by it.
+  standing. This runs after the send, so the timings above are unchanged by it.
+- Test races found by CI, not product changes: specs pressed a key that depends on what is on
+  air (Out, Delete, undo, redo, a second Space) as soon as the fake Bridge saw the request, before
+  the page had its answer. Each now waits for the row to show it
+  (`e2e/studio-evening-reliability.spec.ts`, `e2e/rundown-history.spec.ts`). Proven by fault
+  injection: with the Bridge's answer delayed 1.5 s the old specs failed with CI's exact messages
+  and the new ones passed.
 
 ## Not checked here
 

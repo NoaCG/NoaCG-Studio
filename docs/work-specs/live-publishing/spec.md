@@ -376,7 +376,7 @@ Filled in by each phase's pull request.
   until that press is answered, never for its save or its figure's write; R11 after a hinted Take
   the page measures the values the Take sent, as an output does, and holds what that resolves as
   the graphic's look, unless a later send set its look or took it off (any Take, Update or look
-  send, hinted or not; a figure or +1 does not count). An output whose own measurement ran past its
+  send that carries a look, or an Out; a figure, a +1 or a snap does not count). An output whose own measurement ran past its
   cap shows the place sent meanwhile; the next look sent to on-air graphics moves it to the
   preset. R12 a Take that takes another graphic off its layer (an imported package sharing it)
   carries no hint, so the layer is never blank while an output measures (PR review); R13 an Out
