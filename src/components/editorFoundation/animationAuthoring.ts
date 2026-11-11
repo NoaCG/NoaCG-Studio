@@ -1,7 +1,7 @@
 import type { SpxTemplate } from '../../model/types';
 import { SVG_GROUP_PIVOT_UNITS } from '../../model/svgGroupTransform';
 import { baseValues, type BasePatch, type BaseValues, type TransformPatch } from '../../blocks/baseEdits';
-import { ANCHOR_CHANNELS, channelValue, controlKeyReason, isArmed, poseKey, sequenceAuthoringReason, writeChannel, type Channel } from '../../blocks/editorAnimation';
+import { anchorChannels, channelValue, controlKeyReason, isArmed, poseKey, sequenceAuthoringReason, writeChannel, type Channel } from '../../blocks/editorAnimation';
 import type { AnimData } from '../../blocks/animData';
 import { resolveValue } from '../../blocks/animEval';
 import type { RenderedPart } from './protocol';
@@ -148,8 +148,9 @@ export function anchorAtPlayhead(template: SpxTemplate, base: BaseValues, appear
   const { view, segment, departing } = editSegment(template, base.selector, time, cue);
   if (!view.data) return anchor;
   const owner = ownerOf(view, base.selector), result = { ...anchor };
+  const channels = anchorChannels(base);
   for (const [index, axis] of (['x', 'y'] as const).entries()) {
-    const channel = ANCHOR_CHANNELS[axis];
+    const channel = channels[axis];
     if (!isArmed(view.data, owner, channel)) continue;
     const sampled = departing ? resolveValue(view.data, owner, channel, segment.index, 0) : appearance?.origin?.[index];
     if (typeof sampled === 'number') result[axis] = departing ? sampled / (base.svgGroupPivot ? SVG_GROUP_PIVOT_UNITS : 1) : sampled / (appearance?.unit ?? 1);
@@ -161,11 +162,12 @@ export function anchorAtPlayhead(template: SpxTemplate, base: BaseValues, appear
 export function editAnchorAtPlayhead(template: SpxTemplate, base: BaseValues, current: Point, changed: Partial<Point>, time: number, cue?: number): EditorOperation[] {
   const view = readTimeline(template), owner = ownerOf(view, base.selector), position = authoringPosition(template, base.selector, time, cue);
   const pivot = { ...base.anchor ?? current }, keys: EditorOperation[] = [];
+  const channels = anchorChannels(base);
   let editBase = false;
   for (const axis of ['x', 'y'] as const) {
     const value = changed[axis];
     if (value === undefined || value === current[axis]) continue;
-    const channel = ANCHOR_CHANNELS[axis];
+    const channel = channels[axis];
     if (isArmed(view.data, owner, channel)) keys.push({ kind: 'animation.key', selector: base.selector, property: channel, ...position, value, action: 'set' });
     else { pivot[axis] = value; editBase = true; }
   }

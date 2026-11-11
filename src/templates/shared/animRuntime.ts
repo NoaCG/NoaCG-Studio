@@ -15,6 +15,9 @@ import { NOACG_EASE_JS, needsEaseRuntime, needsHoldRuntime } from './easeRuntime
 import { contentHash } from '../../model/contentHash';
 import { SVG_GROUP_PIVOT_SELECTOR, SVG_GROUP_PIVOT_UNITS, SVG_GROUP_TRACK_CSS } from '../../model/svgGroupTransform';
 
+/** Stored ordinary pivot channels are distinct from historical raw CSS tracks. */
+export const ORDINARY_ANCHOR_CHANNELS = { x: 'noacgAnchorX', y: 'noacgAnchorY' } as const;
+
 /** The interpreter body — identical in every template. Kept as one exported string so the
  *  emitter, the AI prompt, and (later) the convert-on-edit path all ship the same code. */
 export const ANIM_INTERPRETER_JS = `// ---- The interpreter (the same in every template — edit the DATA above instead) ----
@@ -1056,21 +1059,37 @@ const DATA_HEADER = `// The graphic's animation as DATA. Steps play in order —
  */
 export const STOP_AGAIN_GUARD_JS = "if (typeof noacgOutActive === 'function' && noacgOutActive()) return (activeTl = buildOutTimeline());";
 
-// The unchanged interpreter handles motion. A keyed graphic adds its owned pivot reset.
-const ANCHOR_REPLAY_JS = `// The CSS anchor is the base pose at a new take, including when its first key is on Next or Out.
-noacgEntranceTimeline = (function (enter) {
+// The shared interpreter plays a private channel; only that channel owns a CSS pivot reset.
+const ANCHOR_REPLAY_JS = `// Capability: owned-anchor-replay-v1.
+(function (stepTimeline, exitTimeline, enter) {
+  var axes = ${JSON.stringify({ [ORDINARY_ANCHOR_CHANNELS.x]: '--base-anchor-x', [ORDINARY_ANCHOR_CHANNELS.y]: '--base-anchor-y' })};
+  function registerAxes() {
+    Object.keys(axes).forEach(function (name) {
+      if (gsap.plugins[name]) return;
+      var property = axes[name];
+      var read = function (element) { return parseFloat(getComputedStyle(element).getPropertyValue(property)); };
+      gsap.registerPlugin({ name: name, get: read, init: function (element, value) {
+        var target = {};
+        Object.defineProperty(target, 'value', { set: function (next) { element.style.setProperty(property, next + 'px'); } });
+        this.add(target, 'value', read(element), value);
+        this._props.push(name);
+      } });
+    });
+  }
+  buildStepTimeline = function (input) { registerAxes(); return stepTimeline(input); };
+  noacgBuildExit = function (step, interrupted, silent, early) { registerAxes(); return exitTimeline(step, interrupted, silent, early); };
   var source, tracks;
-  return function () {
+  noacgEntranceTimeline = function () {
     if (source !== NOACG_ANIM) {
       source = NOACG_ANIM;
       tracks = Object.create(null);
       source.steps.forEach(function (step) {
         Object.keys(step.layers).forEach(function (selector) {
           var layer = step.layers[selector];
-          ['--base-anchor-x', '--base-anchor-y'].forEach(function (property) {
-            if (layer[property] && layer[property].length) {
+          Object.keys(axes).forEach(function (name) {
+            if (layer[name] && layer[name].length) {
               if (!tracks[selector]) tracks[selector] = {};
-              tracks[selector][property] = true;
+              tracks[selector][axes[name]] = true;
             }
           });
         });
@@ -1084,7 +1103,7 @@ noacgEntranceTimeline = (function (enter) {
     });
     return enter();
   };
-})(noacgEntranceTimeline);`;
+})(buildStepTimeline, noacgBuildExit, noacgEntranceTimeline);`;
 
 // A marked group composes its transform in CSS. Translate its authored channels once, then
 // let the same step and exit builders provide holds, ease, visibility and interruption.
@@ -1199,7 +1218,7 @@ export function emitAnimRegion(data: AnimData): string {
 ${DATA_HEADER}
 ${ANIM_DECLARATION} = ${serializeAnimData(data)};
 
-${ANIM_INTERPRETER_JS}${dataUsesAnchor(data) ? '\n' + ANCHOR_REPLAY_JS : ''}
+${ANIM_INTERPRETER_JS}
 ${ANIMATION_MARK_CLOSE}`;
 }
 
@@ -1283,7 +1302,6 @@ export const dataUsesHoldEase = (data: AnimData) => dataUses(data, needsHoldRunt
  * identically when the data grows a transition STYLE the frozen interpreter cannot play.
  */
 export function writeAnimData(js: string, data: AnimData): string | null {
-  if (dataUsesAnchor(data)) return writeOutData(js, data);
   if (animSounds(data).length && !/\/\/ Capability: graphic-sound-v[12]/.test(js)) return writeOutData(js, data);
   if ((data.steps.some(step => step.spans || step.carried) || dataUsesExactEase(data)) &&!js.replace(/\r\n/g, '\n').includes(ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n'))) {
     return writeOutData(js, data);
@@ -1294,8 +1312,6 @@ export function writeAnimData(js: string, data: AnimData): string | null {
   if (dataUsesLifecycleStyle(data) && !hasLifecycleStyleRuntime(js)) return replaceRegionWithAnimData(js, data);
   return spliceAnimData(js, data);
 }
-
-const dataUsesAnchor = (data: AnimData) => data.steps.some(step => Object.values(step.layers).some(layer => layer['--base-anchor-x']?.length || layer['--base-anchor-y']?.length));
 
 function interpreterBody(js: string): string | null {
   const text = js.replace(/\r\n/g, '\n');
@@ -1308,36 +1324,49 @@ function interpreterBody(js: string): string | null {
 
 const currentInterpreter = ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n').trim();
 const anchorInterpreter = currentInterpreter + '\n\n' + ANCHOR_REPLAY_JS;
-const svgGroupInterpreter = anchorInterpreter + '\n' + SVG_GROUP_RUNTIME_JS;
+const svgGroupInterpreter = currentInterpreter + '\n\n' + SVG_GROUP_RUNTIME_JS;
+const combined = [anchorInterpreter + '\n\n' + SVG_GROUP_RUNTIME_JS, svgGroupInterpreter + '\n\n' + ANCHOR_REPLAY_JS];
+const groupInterpreters = [svgGroupInterpreter, ...combined], anchorInterpreters = [anchorInterpreter, ...combined];
+const pivotInterpreters = [currentInterpreter, anchorInterpreter, ...groupInterpreters];
 
 export function hasSvgGroupRuntime(js: string): boolean {
-  return js.includes('// Capability: svg-group-fixed-frame-v1.') && interpreterBody(js) === svgGroupInterpreter;
+  return js.includes('// Capability: svg-group-fixed-frame-v1.') && groupInterpreters.includes(interpreterBody(js) ?? '');
 }
 
-/** Group creation adds the capability without rewriting the existing literal or surrounding JS. */
-export function withSvgGroupRuntime(js: string): string | null {
-  const body = interpreterBody(js);
-  if (body === svgGroupInterpreter) return js;
-  if (body !== currentInterpreter && body !== anchorInterpreter) return null;
+function appendCapability(js: string, capability: string) {
   const at = js.indexOf(ANIMATION_MARK_CLOSE), line = js.includes('\r\n') ? '\r\n' : '\n';
-  const extension = (body === currentInterpreter ? '\n\n' + ANCHOR_REPLAY_JS : '') + '\n' + SVG_GROUP_RUNTIME_JS + '\n';
-  return js.slice(0, at).trimEnd() + extension.replace(/\n/g, line) + js.slice(at);
+  return js.slice(0, at).trimEnd() + ('\n\n' + capability + '\n').replace(/\n/g, line) + js.slice(at);
+}
+
+/** Group creation adds only its capability, leaving ordinary raw CSS tracks as authored. */
+export function withSvgGroupRuntime(js: string): string | null {
+  const body = interpreterBody(js) ?? '';
+  if (groupInterpreters.includes(body)) return js;
+  return body === currentInterpreter || body === anchorInterpreter ? appendCapability(js, SVG_GROUP_RUNTIME_JS) : null;
+}
+
+export function hasAnchorRuntime(js: string): boolean {
+  return js.includes('// Capability: owned-anchor-replay-v1.') && anchorInterpreters.includes(interpreterBody(js) ?? '');
+}
+
+/** Only an explicit ordinary anchor edit may install the replay capability. */
+export function withAnchorRuntime(js: string): string | null {
+  const body = interpreterBody(js) ?? '';
+  if (anchorInterpreters.includes(body)) return js;
+  return body === currentInterpreter || body === svgGroupInterpreter ? appendCapability(js, ANCHOR_REPLAY_JS) : null;
 }
 
 /** Only the exact shared interpreter and its generated anchor extension can take a new anchor track. */
 export function canWriteAnchorData(js: string): boolean {
-  const body = interpreterBody(js);
-  return body === currentInterpreter || body === anchorInterpreter || body === svgGroupInterpreter;
+  return pivotInterpreters.includes(interpreterBody(js) ?? '');
 }
 
 /** Exact known bodies only: a capability comment alone cannot authorize replacement. */
 export function writeOutData(js: string, data: AnimData): string | null {
   const body = interpreterBody(js);
   if (body === null) return null;
-  if (body === anchorInterpreter || body === svgGroupInterpreter) return spliceAnimData(js, data);
-  if (body === currentInterpreter) return dataUsesAnchor(data) ? replaceRegionWithAnimData(js, data) : spliceAnimData(js, data);
+  if (pivotInterpreters.includes(body)) return spliceAnimData(js, data);
   const hash = contentHash(body);
-  if (dataUsesAnchor(data)) return null;
   if (body === ANIM_INTERPRETER_JS.replace(SOUND_RUNTIME_JS, SOUND_RUNTIME_V1_JS).replace(/\r\n/g, '\n').trim()) return replaceRegionWithAnimData(js, data);
   const beforeSpans = ANIM_INTERPRETER_PRE_OUT_JS
     .replace(/\/\/ Visibility is independent of opacity\.[\s\S]*?\n}\n\n/, '')

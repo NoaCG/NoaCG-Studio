@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { baseValues } from '../../blocks/baseEdits';
-import { ANCHOR_CHANNELS, CONTROL_CHANNELS, controlKeyReason, isAnchorChannel, isArmed, keyedAt, poseKey, writeChannel, type AnchorChannel, type NumericProperty } from '../../blocks/editorAnimation';
+import { anchorAxis, CONTROL_CHANNELS, controlKeyReason, isAnchorChannel, isArmed, keyedAt, poseKey, writeChannel, type AnchorChannel, type NumericProperty } from '../../blocks/editorAnimation';
 import type { SpxTemplate } from '../../model/types';
 import type { EditorSession, Revision } from './session';
 import type { RenderedPart } from './protocol';
@@ -37,7 +37,7 @@ export function AnimationButtons({ template, selector, property, label, session,
       const channel = action === 'set' ? writeChannel(view.data, owner, property) : property;
       const base = property === 'opacity' ? null : baseValues(template, selector);
       const anchor = isAnchorChannel(property) && base ? anchorAtPlayhead(template, base, appearance, current.time, current.cue) : null;
-      const value = isAnchorChannel(property) ? anchor?.[property === ANCHOR_CHANNELS.x ? 'x' : 'y'] : pose?.motion?.[poseKey(channel, property)];
+      const value = isAnchorChannel(property) ? anchor?.[anchorAxis(property)] : pose?.motion?.[poseKey(channel, property)];
       if (value === undefined) throw new Error('Wait for the rendered pose before editing animation.');
       const shown = anchor ? { anchorX: anchor.x, anchorY: anchor.y } : base
         ? Object.fromEntries((['x', 'y', 'scaleX', 'scaleY', 'rotation'] as const).map(p => [p, displayedBase(base, pose, p)])) : undefined;

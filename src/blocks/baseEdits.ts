@@ -4,9 +4,9 @@ import { getTemplateParts, detectPrefix } from '../model/structure';
 import { SVG_GROUP_PIVOT_ATTRIBUTE, SVG_GROUP_PIVOT_SELECTOR, SVG_GROUP_TRACK_CSS, SVG_GROUP_TRACK_DEFAULTS, SVG_GROUP_TRANSFORM, svgGroupOrigin } from '../model/svgGroupTransform';
 import { parseTransform } from '../assets/svgGeometry';
 import { locateAnimData, losslessAnimData, parseAnimData, type AnimLayerTracks, type AnimStep } from './animData';
-import { canWriteAnchorData, hasSvgGroupRuntime, writeAnimData } from '../templates/shared/animRuntime';
+import { canWriteAnchorData, hasSvgGroupRuntime, ORDINARY_ANCHOR_CHANNELS, writeAnimData } from '../templates/shared/animRuntime';
 import { allTimelines } from './animMachine';
-import { addCatalogLine, appendCss, cssDeclarations, findRuleBody, inspectCss, setCssDeclaration, type CssStyleSource } from './edit';
+import { addCatalogLine, appendCss, cssDeclarations, cssVariableReads, findRuleBody, inspectCss, setCssDeclaration, type CssStyleSource } from './edit';
 import { addPlacedLine, placedLines, placeLine, placementCss, setLineFit } from './designLayout';
 import { artworkNode, artworkRange } from './artworkEdits';
 import { ANIMATION_MARK_CLOSE, ANIMATION_MARK_OPEN } from '../templates/lowerThirds/animPresets';
@@ -92,6 +92,47 @@ function cssMovesPivot(style: CSSStyleDeclaration, properties: string[]) {
   return style.getPropertyValue('all') || style.animationName && style.animationName !== 'none'
     || style.transitionDuration.split(',').some(value => parseFloat(value) > 0)
       && (style.transitionProperty || 'all').split(',').some(value => properties.includes(value.trim()));
+}
+
+/** The additional inherited values introduced by a canonical group, compared with a legacy group. */
+const groupInheritedProperties = new Set(['--base-x', '--base-y', '--base-rotation', '--base-scale-x', '--base-scale-y', ...Object.values(SVG_GROUP_TRACK_CSS)]);
+function groupInheritedRead(group: Element, sheets: ReturnType<typeof inspectCss>[]): string | undefined {
+  const rules = sheets.flatMap(sheet => sheet.rules);
+  const keyframes = sheets.flatMap(sheet => sheet.keyframes);
+  const reads = (source: string) => cssVariableReads(source).filter(name => groupInheritedProperties.has(name));
+  const cached = new Map<Element, { style: CSSStyleDeclaration; own: boolean }[]>();
+  const stylesFor = (node: Element) => {
+    let styles = cached.get(node);
+    if (!styles) {
+      styles = matchingRules(rules, node, true).map(rule => ({ style: rule.style, own: !rule.nested && rule.selectorText === '#' + node.id }));
+      if ((node as HTMLElement).style) styles.push({ style: (node as HTMLElement).style, own: true });
+      cached.set(node, styles);
+    }
+    return styles;
+  };
+  const shielded = (node: Element, name: string, seen: string[] = []): boolean => {
+    if (seen.includes(name)) return false;
+    for (let current: Element | null = node; current && current !== group; current = current.parentElement) {
+      const declarations = stylesFor(current).map(({ style, own }) => ({ value: style.getPropertyValue(name).trim(), own })).filter(({ value }) => value);
+      if (!declarations.length) continue;
+      const owner = current;
+      return declarations.some(({ own }) => own) && declarations.every(({ value }) => !/^(?:inherit|unset|revert(?:-layer)?)$/i.test(value)
+        && reads(value).every(dependency => shielded(owner, dependency, [...seen, name])));
+    }
+    return false;
+  };
+  for (const node of group.querySelectorAll('*')) {
+    const styles = stylesFor(node);
+    const animationNames = styles.flatMap(({ style }) => style.animationName.split(',').map(name => name.trim()));
+    const source = [...styles.map(({ style }) => style.cssText), ...[...node.attributes].map(attribute => attribute.value),
+      ...keyframes.filter(keyframe => animationNames.includes(keyframe.name)).map(keyframe => keyframe.css)];
+    const unshielded = source.flatMap(reads).find(name => !shielded(node, name));
+    if (unshielded) return unshielded;
+  }
+  // A <use> can inherit into artwork whose selector matches are outside this parsed subtree.
+  if (group.querySelector('use')) return [...rules.filter(rule => rule.selectorText !== '#' + group.id).map(rule => rule.style.cssText), ...keyframes.map(frame => frame.css),
+    ...[...group.ownerDocument.querySelectorAll('svg *')].flatMap(node => [...node.attributes].map(attribute => attribute.value))].flatMap(reads)[0];
+  return undefined;
 }
 
 /** Prove an ordinary keyed pivot has one source rule and that both axes drive the browser origin. */
@@ -274,6 +315,7 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
     return keys?.length === 1 && keys[0].time === 0 && keys[0].value === rawAnchor.x+'px '+rawAnchor.y+'px';
   });
   let svgGroupPivot: boolean | undefined = marked ? false : undefined;
+  let inheritedProperty: string | undefined;
   if (fixedMarker && groupFrame) {
     const critical = ['transform', 'transform-box', 'transform-origin', '--base-anchor-x', '--base-anchor-y', '--base-x', '--base-y',
       '--base-rotation', '--base-scale-x', '--base-scale-y', ...Object.values(SVG_GROUP_TRACK_CSS)];
@@ -281,19 +323,20 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
     const groupRules = matchingRules(parsedCss.rules, node, true);
     const owner = groupRules.find(rule => !rule.nested && rule.selectorText === target);
     const embedded = [...doc.querySelectorAll('style')].map(style => inspectCss(style.textContent ?? ''));
+    inheritedProperty = groupInheritedRead(node, [parsedCss, ...embedded]);
     const groupStyles = [...groupRules, ...embedded.flatMap(css => matchingRules(css.rules, node, true))];
     const competingRules = groupStyles.some(rule => cssMovesPivot(rule.style, competing)
       || rule !== owner && competing.some(key => rule.style.getPropertyValue(key)))
       || [parsedCss, ...embedded].some(css => css.unresolved || critical.some(key => css.registrations.has(key)));
     const inline = (node as SVGElement).style;
     const timelines = motion ? allTimelines(motion) : [];
-    const transformTracks = new Set([...TRANSFORM_CHANNELS, ...competing, 'transformOrigin', 'svgOrigin', 'smoothOrigin']);
+    const transformTracks = new Set([...TRANSFORM_CHANNELS, ...competing, ...Object.values(ORDINARY_ANCHOR_CHANNELS), 'transformOrigin', 'svgOrigin', 'smoothOrigin']);
     const allowed = new Set<string>([...Object.keys(SVG_GROUP_TRACK_CSS), '--base-anchor-x', '--base-anchor-y']);
     const foreignMotion = timelines.some(step => Object.entries(step.layers).some(([name, tracks]) => {
       try { return node.matches(name) && Object.keys(tracks).some(prop => transformTracks.has(prop) && (name !== target || !allowed.has(prop))); }
       catch { return true; }
     }) || step.dynamics?.some(entry => entry.target && node.matches(entry.target)));
-    svgGroupPivot = target === '#' + node.id && hasSvgGroupRuntime(template.js) && !!motion && !!owner && !competingRules && !foreignMotion
+    svgGroupPivot = target === '#' + node.id && hasSvgGroupRuntime(template.js) && !!motion && !!owner && !competingRules && !foreignMotion && !inheritedProperty
       && !node.hasAttribute('transform') && !competing.some(key => inline.getPropertyValue(key)) && !cssMovesPivot(inline, competing)
       && !externalWrite(template.js, node, /transform|svgOrigin|smoothOrigin|--(?:base|noacg-group)-|\b(?:rotation|scale[XY]?|translate|rotate)\s*:/)
       && !['translate', 'rotate', 'scale', 'display', '-webkit-transform', '-webkit-transform-origin'].some(ownValue)
@@ -310,6 +353,7 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
   const originSet = tracksOn(motion ? allTimelines(motion) : [], targetNode).some(tracks => tracks.transformOrigin?.length)
     || externalWrite(template.js, targetNode, /transformOrigin|transform-origin|--base-anchor-[xy]/);
   const anchorReason = marked && !fixedMarker ? 'This SVG group has an unrecognized pivot format. Its source is preserved.'
+    : inheritedProperty ? `This artwork inherits a group transform property (${inheritedProperty}). Its source is preserved.`
     : svgGroupPivot === false ? 'This SVG group has a conflicting pivot owner. Its source is preserved.'
     : svg && !groupFrame && !cssSvgAnchor ? 'This SVG member has a transform or source GSAP places independently. Its pivot is preserved.'
     : originSet && !ownedSvgPivot ? 'This graphic\'s script or animation data sets this layer\'s transformOrigin itself, which would replace an anchor written in CSS. Its source is preserved.'

@@ -7,16 +7,20 @@ import { resolveValue } from './animEval';
 import { artworkNode, editArtworkStyle } from './artworkEdits';
 import { anchorCssReason, baseValues, editBase, settleSvgOffset, TRANSFORM_CHANNELS, type BasePatch } from './baseEdits';
 import { allTimelines } from './animMachine';
-import { canWriteAnchorData, writeAnimData, writeOutData } from '../templates/shared/animRuntime';
+import { canWriteAnchorData, hasAnchorRuntime, ORDINARY_ANCHOR_CHANNELS, withAnchorRuntime, writeAnimData, writeOutData } from '../templates/shared/animRuntime';
 import { locateBehaviourData, parseBehaviourData } from './behaviourData';
 import { behaviourSequenceReason, claimReason, claimRelations, recipeClaims, requireUserTracksOnly, sequenceOwned, stamped, SEQUENCE_REFUSAL, type RecipeClaim } from './behaviourKeys';
 
 /** A transform or opacity control of the inspector and canvas. */
 export type NumericProperty = 'x' | 'y' | 'scaleX' | 'scaleY' | 'rotation' | 'opacity';
-export const ANCHOR_CHANNELS = { x: '--base-anchor-x', y: '--base-anchor-y' } as const;
-export type AnchorChannel = typeof ANCHOR_CHANNELS[keyof typeof ANCHOR_CHANNELS];
+export const SVG_GROUP_ANCHOR_CHANNELS = { x: '--base-anchor-x', y: '--base-anchor-y' } as const;
+export { ORDINARY_ANCHOR_CHANNELS as ANCHOR_CHANNELS };
+export type AnchorChannel = typeof ORDINARY_ANCHOR_CHANNELS['x' | 'y'] | typeof SVG_GROUP_ANCHOR_CHANNELS['x' | 'y'];
 type ControlProperty = NumericProperty | AnchorChannel;
-export const isAnchorChannel = (property: string): property is AnchorChannel => property === ANCHOR_CHANNELS.x || property === ANCHOR_CHANNELS.y;
+const ordinaryAnchor = (property: string) => property === ORDINARY_ANCHOR_CHANNELS.x || property === ORDINARY_ANCHOR_CHANNELS.y;
+export const isAnchorChannel = (property: string): property is AnchorChannel => ordinaryAnchor(property) || property === SVG_GROUP_ANCHOR_CHANNELS.x || property === SVG_GROUP_ANCHOR_CHANNELS.y;
+export const anchorChannels = (base: { svgGroupPivot?: boolean }) => base.svgGroupPivot ? SVG_GROUP_ANCHOR_CHANNELS : ORDINARY_ANCHOR_CHANNELS;
+export const anchorAxis = (property: AnchorChannel) => property === ORDINARY_ANCHOR_CHANNELS.x || property === SVG_GROUP_ANCHOR_CHANNELS.x ? 'x' : 'y';
 /** A runtime track a control reads and writes (R1.2a.6, docs/research/editor-r1-2a-6). */
 export type Channel = ControlProperty | 'xPercent' | 'yPercent' | 'scale' | 'autoAlpha';
 /** One preset over a key selection, as one transaction (R1.2a.2, docs/research/editor-r1-2a-2). */
@@ -38,7 +42,8 @@ export type AnimationOperation =
  *  Position, the per-axis and the shared scale for Scale, opacity or autoAlpha for Opacity. */
 export const CONTROL_CHANNELS: Readonly<Record<ControlProperty, readonly Channel[]>> = {
   x: ['x', 'xPercent'], y: ['y', 'yPercent'], scaleX: ['scaleX', 'scale'], scaleY: ['scaleY', 'scale'], rotation: ['rotation'], opacity: ['opacity', 'autoAlpha'],
-  [ANCHOR_CHANNELS.x]: [ANCHOR_CHANNELS.x], [ANCHOR_CHANNELS.y]: [ANCHOR_CHANNELS.y],
+  [ORDINARY_ANCHOR_CHANNELS.x]: [ORDINARY_ANCHOR_CHANNELS.x], [ORDINARY_ANCHOR_CHANNELS.y]: [ORDINARY_ANCHOR_CHANNELS.y],
+  [SVG_GROUP_ANCHOR_CHANNELS.x]: [SVG_GROUP_ANCHOR_CHANNELS.x], [SVG_GROUP_ANCHOR_CHANNELS.y]: [SVG_GROUP_ANCHOR_CHANNELS.y],
 };
 const CONTROLS = Object.keys(CONTROL_CHANNELS) as ControlProperty[];
 /** The controls a channel belongs to: `scale` is both Scale axes. */
@@ -47,7 +52,7 @@ export const controlsOf = (channel: string) => CONTROLS.filter(control => CONTRO
  *  `autoAlpha` as opacity. */
 export const poseKey = (channel: Channel, control: NumericProperty): keyof NumericPose => channel === 'scale' || channel === 'autoAlpha' ? control : channel as keyof NumericPose;
 const NAMES: Record<ControlProperty, string> = { x: 'Position X', y: 'Position Y', scaleX: 'Scale X', scaleY: 'Scale Y', rotation: 'Rotation', opacity: 'Opacity',
-  [ANCHOR_CHANNELS.x]: 'Anchor X', [ANCHOR_CHANNELS.y]: 'Anchor Y' };
+  [ORDINARY_ANCHOR_CHANNELS.x]: 'Anchor X', [ORDINARY_ANCHOR_CHANNELS.y]: 'Anchor Y', [SVG_GROUP_ANCHOR_CHANNELS.x]: 'Anchor X', [SVG_GROUP_ANCHOR_CHANNELS.y]: 'Anchor Y' };
 const animates = (data: AnimData | null, owner: string, channel: string) => !!data?.steps.some(step => step.layers[owner]?.[channel]?.length);
 
 export function animationSource(template: SpxTemplate): AnimData {
@@ -230,11 +235,18 @@ export function anchorKeyReason(template: SpxTemplate, selector: string): string
       return 'This layer uses a separate transform origin. Its pivot can only be set in the base.';
     }
     if (base.scaleX === 0 || base.scaleY === 0) return 'Restore a nonzero scale before animating this pivot.';
-    for (const channel of Object.values(ANCHOR_CHANNELS)) {
+    const channels = anchorChannels(base);
+    if (!base.svgGroupPivot && Object.values(SVG_GROUP_ANCHOR_CHANNELS).some(channel => animates(data, owner, channel))) {
+      return 'This layer already has a raw pivot track. Its source is preserved.';
+    }
+    if (!base.svgGroupPivot && !hasAnchorRuntime(template.js) && Object.values(ORDINARY_ANCHOR_CHANNELS).some(channel => template.js.includes(channel))) {
+      return 'This source already uses an editor pivot channel name with another interpreter. Its source is preserved.';
+    }
+    for (const channel of Object.values(channels)) {
       if (data.steps.some(step => step.layers[owner]?.[channel]?.some(key => typeof key.value !== 'number'))) return 'This pivot has nonnumeric keys in its source.';
       if (!base.anchor && animates(data, owner, channel)) return 'This pivot has keys but no editable base value.';
     }
-    writeChannel(data, owner, ANCHOR_CHANNELS.x);
+    writeChannel(data, owner, channels.x);
     if (!canWriteAnchorData(template.js)) return 'This interpreter cannot animate the pivot without changing unknown source.';
     return base.svgGroupPivot ? null : anchorCssReason(template, base);
   } catch (cause) { return cause instanceof Error ? cause.message : String(cause); }
@@ -343,12 +355,16 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
     if (reason) throw new Error(reason);
     if (Math.abs(operation.value) > 100000) throw new Error('Enter a finite anchor coordinate.');
     const base = baseValues(template, selector);
+    if (!Object.values(anchorChannels(base)).includes(operation.property)) throw new Error('This pivot channel has a different source owner. Its source is preserved.');
     if (operation.action === 'set' && !base.anchor) {
       const { anchorX, anchorY } = operation.baseValues ?? {};
       if (anchorX === undefined || anchorY === undefined) throw new Error('A current rendered pivot is required to create the first anchor key.');
       template = editBase(template, selector, { anchorX, anchorY });
     }
-    if (operation.action === 'set' && base.svgGroupPivot) operation = { ...operation, value: operation.value * SVG_GROUP_PIVOT_UNITS };
+    if (operation.action === 'set') {
+      if (base.svgGroupPivot) operation = { ...operation, value: operation.value * SVG_GROUP_PIVOT_UNITS };
+      else template = { ...template, js: withAnchorRuntime(template.js)! };
+    }
   }
   const channels = operation.kind !== 'animation.key' ? undefined : operation.action === 'set' ? [operation.property] : CONTROL_CHANNELS[operation.property as ControlProperty] ?? [operation.property];
   const owner = animationTarget(template, source, selector, channels);
@@ -369,7 +385,7 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
     if (ended.includes('opacity')) template = editArtworkStyle(template, selector, { opacity: operation.value });
     const patch: BasePatch = {};
     for (const c of ended) if (c !== 'opacity') {
-      const axis = c === ANCHOR_CHANNELS.x ? 'anchorX' : c === ANCHOR_CHANNELS.y ? 'anchorY' : c;
+      const axis = isAnchorChannel(c) ? anchorAxis(c) === 'x' ? 'anchorX' : 'anchorY' : c;
       const shown = operation.baseValues?.[axis];
       if (!Number.isFinite(shown)) throw new Error('A current rendered base pose is required to remove the last key.');
       patch[axis] = shown;
@@ -407,12 +423,22 @@ function requireAnchorArtwork(template: SpxTemplate, selectors: string[]) {
   }
 }
 
+function ownedAnchorTracks<T extends { property: string; selector: string }>(template: SpxTemplate, keys: readonly T[]) {
+  const ownedOrdinary = keys.some(key => ordinaryAnchor(key.property)) && hasAnchorRuntime(template.js);
+  return keys.filter(key => {
+    if (ordinaryAnchor(key.property)) return ownedOrdinary;
+    if (!isAnchorChannel(key.property) || !template.html.includes(SVG_GROUP_PIVOT_ATTRIBUTE)) return false;
+    try { return [...parsed(template.html).querySelectorAll(key.selector)].some(node => node.hasAttribute(SVG_GROUP_PIVOT_ATTRIBUTE)); }
+    catch { return false; }
+  });
+}
+
 /** Refuse a key selection unless every key is on a track that is the user's (#1982). */
 function requireUserKeys(template: SpxTemplate, data: AnimData, keys: KeyRef[]) {
   const selected = Array.isArray(keys) ? keys : [];
   const reason = keySequenceReason(template, data) ?? selected.map(key => keyAuthoringReason(template, data, key.selector, key.property)).find(Boolean);
   if (reason) throw new Error(reason);
-  const pivots = selected.filter(key => isAnchorChannel(key.property));
+  const pivots = ownedAnchorTracks(template, selected);
   if (pivots.length) requireAnchorArtwork(template, pivots.map(keyArtworkResolver(template, data)));
 }
 
@@ -421,7 +447,7 @@ export function captureKeyClipboard(template: SpxTemplate, refs: readonly KeyRef
   const data = animationSource(template), keys = captureKeys(data, refs);
   const artwork = keyArtworkResolver(template, data);
   const copied = keys.map(key => ({ ...key, artwork: artwork(key) }));
-  requireAnchorArtwork(template, copied.filter(key => isAnchorChannel(key.property)).map(key => key.artwork));
+  requireAnchorArtwork(template, ownedAnchorTracks(template, copied).map(key => key.artwork));
   return copied;
 }
 
@@ -433,7 +459,7 @@ export function applyKeyPaste(template: SpxTemplate, operation: KeyPasteOperatio
       throw new Error('A copied track has changed owner. No keys changed.');
     }
   }
-  requireAnchorArtwork(template, operation.keys.filter(key => isAnchorChannel(key.property)).map(key => key.artwork));
+  requireAnchorArtwork(template, ownedAnchorTracks(template, operation.keys).map(key => key.artwork));
   const next = pasteKeys(data, operation.keys, operation.step, operation.time);
   requireUserEdit(template, data, next);
   const exit = data.steps.length > 1 && operation.step === data.steps.length - 1;

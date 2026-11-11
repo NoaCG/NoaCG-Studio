@@ -48,14 +48,45 @@ test('only a recognized generated interpreter upgrades when its first anchor tra
   assert.equal(runtime.canWriteAnchorData(generated), true);
   assert.equal(writeOutData(generated, original), generated, 'unrelated source retains the original body');
   const next = structuredClone(original);
-  next.steps.at(-1).layers['#box']['--base-anchor-x'] = [{ time: .25, value: 170 }];
-  const written = runtime.writeAnimData(generated, next);
-  assert.equal(written, generated.replace(emitAnimRegion(original), () => emitAnimRegion(next)));
+  next.steps.at(-1).layers['#box'][runtime.ORDINARY_ANCHOR_CHANNELS.x] = [{ time: .25, value: 170 }];
+  assert.equal(runtime.writeAnimData(generated, next), animData.spliceAnimData(generated, next), 'generic writes add no capability');
+  const optedIn = runtime.withAnchorRuntime(generated);
+  const written = runtime.writeAnimData(optedIn, next);
+  assert.equal(written, animData.spliceAnimData(optedIn, next));
+  assert.equal(runtime.hasAnchorRuntime(written), true);
   assert.equal(runtime.canWriteAnchorData(written), true);
   assert.equal(runtime.writeAnimData(written, next), written, 'later writes keep the exact extension');
+  for (const mixed of [runtime.withSvgGroupRuntime(optedIn), runtime.withAnchorRuntime(runtime.withSvgGroupRuntime(generated))]) {
+    assert.equal(runtime.hasAnchorRuntime(mixed), true);
+    assert.equal(runtime.hasSvgGroupRuntime(mixed), true);
+    assert.equal(runtime.withAnchorRuntime(mixed), mixed);
+    assert.equal(runtime.withSvgGroupRuntime(mixed), mixed);
+  }
   const foreign = generated.replace('function noacgPaintFirstFrame(tl)', 'function noacgPaintFirstFrame(tl /* edited */)');
   assert.equal(runtime.canWriteAnchorData(foreign), false);
-  assert.equal(runtime.writeAnimData(foreign, next), null);
+  assert.equal(runtime.withAnchorRuntime(foreign), null);
+});
+
+test('an unrelated key move preserves a saved raw pivot track and its original interpreter', () => {
+  const original = fixture();
+  original.steps = [{ name: 'In', duration: 1, ease: 'none', layers: { '#box': { opacity: [{ time: 0, value: .2 }, { time: .5, value: 1 }] } } }];
+  const template = templateOf(original), raw = structuredClone(original);
+  raw.steps[0].layers['#box']['--base-anchor-x'] = [{ time: 0, value: '40px' }];
+  const generated = animData.spliceAnimData(template.js, raw);
+  const custom = generated.replace('function noacgPaintFirstFrame(tl)', 'function noacgPaintFirstFrame(tl /* authored */)');
+  const expected = structuredClone(raw);
+  expected.steps[0].layers['#box'].opacity[1].time = .6;
+  for (const js of [generated, custom]) {
+    const moved = animation.applyKeyMove({ ...template, js }, { kind: 'key.move', keys: [{ step: 0, selector: '#box', property: 'opacity', time: .5 }], delta: .1 });
+    assert.equal(moved.js, animData.spliceAnimData(js, expected));
+  }
+  const withOut = structuredClone(raw);
+  withOut.steps.push({ name: 'Out', duration: 0, ease: 'none', layers: {} });
+  assert.equal(emitAnimRegion(raw), generated);
+  assert.equal(prepareOutRuntime(generated), animData.spliceAnimData(generated, withOut));
+  assert.equal(prepareOutRuntime(custom), custom);
+  const old = generated.replace(ANIM_INTERPRETER_JS, legacy.ANIM_INTERPRETER_PRE_OUT_JS);
+  assert.equal(prepareOutRuntime(old), animData.spliceAnimData(generated, withOut));
 });
 
 test('clipboard keeps the ruler offsets and incoming eases in an existing Out cue', () => {

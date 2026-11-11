@@ -401,15 +401,32 @@ test('Add Step and Set Out refuse a crossed clip-path track without changing the
 test('an Out-only pivot starts at the CSS base again on the next take in every package', async ({ page }) => {
   await open(page);
   const data = fixture(), out = data.steps.at(-1)!;
-  out.layers['#box']['--base-anchor-x'] = [{ time: 0, value: 100 }, { time: out.duration, value: 180 }];
-  const t = await template(page, data);
-  t.css += '\n#box { --base-anchor-x: 100px; transform-origin: var(--base-anchor-x) 50px; }';
+  const raw = [{ time: 0, value: '40px' }, { time: out.duration, value: '55px' }];
+  out.layers['#raw-pivot'] = { '--base-anchor-x': raw };
+  const original = await template(page, data);
+  original.html = original.html.replace('</div></body>', '<div id="raw-pivot" data-gfx></div></div></body>');
+  original.css += '\n#raw-pivot { --base-anchor-x: 40px; transform-origin: var(--base-anchor-x) 10px; }';
+  const key = (step: number, time: number, value: number) => ({ kind: 'animation.key', selector: '#box', property: 'noacgAnchorX', step, time, value, action: 'set', baseValues: { anchorX: 100, anchorY: 50 } });
+  const t = await operate(page, original, [key(2, 0, 100), key(2, out.duration, 180)]);
+  expect(t.html).toBe(original.html);
+  expect((await dataOf(page, t)).steps.at(-1)!.layers['#raw-pivot']['--base-anchor-x']).toEqual(raw);
   const seconds = secondsOf(data);
   for (const target of TARGETS) {
+    const control = await run(page, await build(page, original, target), target, seconds,
+      { nexts: 0, exit: [seconds.at(-1)!], layers: ['#raw-pivot'], props: ['--base-anchor-x'], retake: true });
     const result = await run(page, await build(page, t, target), target, seconds,
-      { nexts: 0, exit: [seconds.at(-1)!], layers: ['#box'], props: ['--base-anchor-x'], retake: true });
+      { nexts: 0, exit: [seconds.at(-1)!], layers: ['#box', '#raw-pivot'], props: ['--base-anchor-x'], retake: true });
     expect([result.held[0], result.leaving[0][0], result.retaken?.[0]], target).toEqual([100, 180, 100]);
+    expect([control.held[0], control.leaving[0][0]], target + ' raw source plays').toEqual([40, 55]);
+    expect([result.held[2], result.leaving[0][2], result.retaken?.[2]], target + ' raw source is preserved').toEqual([40, 55, control.retaken?.[0]]);
   }
+  const split = await operate(page, t, [key(0, 0, 100), key(0, 1, 180), { kind: 'layer.duplicate', selector: '#box' }, { kind: 'step.add', time: .4 }]);
+  const splitData = await dataOf(page, split);
+  for (const selector of ['#box', '#box-copy-1']) {
+    expect(splitData.steps[0].layers[selector].noacgAnchorX.at(-1)?.value).toBe(140);
+    expect(splitData.steps[1].layers[selector].noacgAnchorX[0].value).toBe(140);
+  }
+  expect(splitData.steps.at(-1)!.layers['#raw-pivot']['--base-anchor-x']).toEqual(raw);
 });
 
 test('SVG group pivot ownership is checked again before ungrouping or editing saved keys', async ({ page }) => {
@@ -464,8 +481,17 @@ test('SVG group pivot ownership is checked again before ungrouping or editing sa
 test('ordinary anchor keys refuse competing CSS variables and source style rules', async ({ page }) => {
   await open(page);
   const original = await template(page, fixture());
-  const key = { kind: 'animation.key', selector: '#box', property: '--base-anchor-x', step: 0, time: .4, value: 80, action: 'set', baseValues: { anchorX: 160, anchorY: 50 } };
+  const key = { kind: 'animation.key', selector: '#box', property: 'noacgAnchorX', step: 0, time: .4, value: 80, action: 'set', baseValues: { anchorX: 160, anchorY: 50 } };
   expect((await operate(page, original, [key])).js).not.toBe(original.js);
+  const rawData = fixture();
+  rawData.steps[0].layers['#box']['--base-anchor-x'] = [{ time: 0, value: '40px' }];
+  await expect(operate(page, await template(page, rawData), [key])).rejects.toThrow('already has a raw pivot track');
+  const foreignName = fixture();
+  foreignName.steps[0].layers['#title'].noacgAnchorX = [{ time: .4, value: '40px' }];
+  const foreign = await template(page, foreignName);
+  const moved = await operate(page, foreign, [{ kind: 'key.move', keys: [{ step: 0, selector: '#title', property: 'noacgAnchorX', time: .4 }], delta: .2 }]);
+  expect((await dataOf(page, moved)).steps[0].layers['#title'].noacgAnchorX).toEqual([{ time: .6, value: '40px' }]);
+  await expect(operate(page, foreign, [key])).rejects.toThrow('already uses an editor pivot channel name');
   const conflicts = [
     { ...original, css: original.css + '\nbody #box { --base-anchor-x:25px !important; }' },
     { ...original, css: original.css.replace('#box{', '#box{--base-anchor-x:25px !important;') },
@@ -532,7 +558,7 @@ test('canonical SVG groups keep their cue pivots in every saved package', async 
   const data: Data = { version: fixture().version, root: '.fixture', speed: 1, steps: [
     { name: 'In', duration: .8, ease: 'none', layers: { '#old-pivot': { transformOrigin: [init], rotation: [{ time: 0, value: 35 }] } } },
     { name: 'Step 2', duration: .56, ease: 'none', layers: { '#old-pivot': { transformOrigin: [init] } } },
-    { name: 'Out', duration: .72, ease: 'none', layers: { '#old-pivot': { transformOrigin: [init] }, '#box': { '--base-anchor-x': [{ time: 0, value: 100 }, { time: .72, value: 180 }] } } },
+    { name: 'Out', duration: .72, ease: 'none', layers: { '#old-pivot': { transformOrigin: [init] } } },
   ] };
   const original = await template(page, data);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="270" viewBox="35 24 960 270">
@@ -542,8 +568,7 @@ test('canonical SVG groups keep their cue pivots in every saved package', async 
       <rect id="future-a" data-gfx x="500" y="100" width="80" height="60"/><rect id="future-b" data-gfx x="600" y="180" width="40" height="30"/>
     </g></svg>`;
   original.html = original.html.replace('</div></body>', svg + '</div></body>');
-  original.css += '\n.fixture svg { overflow: visible; }\n#old-pivot {transform-box: fill-box; --base-anchor-x: 40px; --base-anchor-y: 25px; transform-origin: var(--base-anchor-x) var(--base-anchor-y);}\n' +
-    '#box { --base-anchor-x: 100px; transform-origin: var(--base-anchor-x) 50px; }';
+  original.css += '\n.fixture svg { overflow: visible; }\n#old-pivot {transform-box: fill-box; --base-anchor-x: 40px; --base-anchor-y: 25px; transform-origin: var(--base-anchor-x) var(--base-anchor-y);}\n';
   const grouped = await operate(page, original, [
     { kind: 'group.create', selectors: ['#matrix-a', '#matrix-b'], box: { x: 180, y: 90, width: 270, height: 140 } },
     { kind: 'group.create', selectors: ['#future-a', '#future-b'], box: { x: 500, y: 100, width: 140, height: 110 } },
@@ -558,7 +583,6 @@ test('canonical SVG groups keep their cue pivots in every saved package', async 
 
   const a = '#group-1', b = '#group-2';
   const customData = structuredClone(data);
-  delete customData.steps[2].layers['#box'];
   const customJs = (await template(page, customData)).js.replace('function noacgPaintFirstFrame(', '// Custom preview instrument\nfunction noacgPaintFirstFrame(');
   const custom = { ...original, js: customJs };
   const customGroup = await operate(page, custom, [{ kind: 'group.create', selectors: ['#matrix-a', '#matrix-b'], box: { x: 180, y: 90, width: 270, height: 140 } }]);
@@ -584,6 +608,7 @@ test('canonical SVG groups keep their cue pivots in every saved package', async 
     key(a, 1, .12, '--base-anchor-y', 90), key(a, 1, .48, '--base-anchor-y', 110),
     key(b, 1, .12, '--base-anchor-x', 45), key(b, 1, .4, '--base-anchor-x', 55),
     key(a, 2, 0, '--base-anchor-x', 95), key(a, 2, .56, '--base-anchor-x', 130), key(a, 2, .72, '--base-anchor-y', 110),
+    { ...key('#box', 2, 0, 'noacgAnchorX', 100), baseValues: { anchorX: 100, anchorY: 50 } }, key('#box', 2, .72, 'noacgAnchorX', 180),
   ]);
   await editorWith(page, authored);
   await page.getByTestId('save-graphic').click();
@@ -783,6 +808,15 @@ test('an immediate Out keeps its hit area at the start of the ruler', async ({ p
   await expect(out).toBeFocused();
   await expect(out).toHaveAttribute('aria-pressed', 'true');
   await expect(ruler).toHaveAttribute('aria-valuenow', '0');
+});
+
+test('clicking the passive In label seeks the ruler', async ({ page }) => {
+  await editorWith(page, fixture());
+  const original = await source(page), slider = page.getByRole('slider', { name: 'Playhead' });
+  await seekFrames(page, 10);
+  await page.locator('span.ef-flag').filter({ hasText: /^In$/ }).click();
+  expect(Number(await slider.getAttribute('aria-valuenow'))).toBeLessThan(.2);
+  expect(await source(page)).toEqual(original);
 });
 
 test('a saved zero-duration Step and Out have separate hit targets at the same time', async ({ page }) => {

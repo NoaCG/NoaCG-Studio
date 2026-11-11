@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import type { groupHierarchy } from '../../blocks/editorGroups';
 import type { KeyRef } from '../../blocks/animEdit';
-import { ANCHOR_CHANNELS } from '../../blocks/editorAnimation';
+import { ANCHOR_CHANNELS, SVG_GROUP_ANCHOR_CHANNELS } from '../../blocks/editorAnimation';
 import { flagLayouts, ownerOf, readTimeline, type TimelineView } from './timelineView';
 import type { EditorSession, Revision } from './session';
 import { applyOperations } from './operations';
@@ -16,7 +16,8 @@ import { useLayerOrganization } from './OrganizationControls';
 import { editorShortcutsLive } from '../spaceKey';
 
 const PROPERTY_LABELS: Record<string, string> = { x: 'X', y: 'Y', scaleX: 'Scale X', scaleY: 'Scale Y', rotation: 'Rotation', opacity: 'Opacity',
-  xPercent: 'X %', yPercent: 'Y %', scale: 'Scale', autoAlpha: 'Opacity (autoAlpha)', [ANCHOR_CHANNELS.x]: 'Anchor X', [ANCHOR_CHANNELS.y]: 'Anchor Y' };
+  xPercent: 'X %', yPercent: 'Y %', scale: 'Scale', autoAlpha: 'Opacity (autoAlpha)', [ANCHOR_CHANNELS.x]: 'Anchor X', [ANCHOR_CHANNELS.y]: 'Anchor Y',
+  [SVG_GROUP_ANCHOR_CHANNELS.x]: 'Anchor X', [SVG_GROUP_ANCHOR_CHANNELS.y]: 'Anchor Y' };
 type Marquee = { x0: number; y0: number; x1: number; y1: number; base: KeyRef[] | null };
 /** A key drag: the keys it moves, the pressed key's row and ruler time, and the move so far in ruler
  *  seconds with the registry's verdict on it. */
@@ -350,11 +351,11 @@ export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, vi
             onPointerUp={() => { startTime.current = null; }}
             onPointerCancel={() => { if (startTime.current !== null) seek(startTime.current); startTime.current = null; }}>
             {ticks.map(tick => <span className="ef-tick" key={tick} style={{ left: tick / extent * 100 + '%' }}>{display(tick)}</span>)}
+            <span className="ef-flag" style={{ left: 0, ...flags.labels[0] }}>In</span>
+            {groupScope && view.segments.filter(segment => segment.index > 0).map(segment => <span className="ef-flag" key={segment.index} title={segment.name}
+              style={{ left: segment.start / extent * 100 + '%', ...flags.labels[segment.index] }}>{segment.name}</span>)}
             <span className="ef-playhead-head" style={{ left: time / extent * 100 + '%' }} />
           </div>
-          <span className="ef-flag" style={{ left: 0, ...flags.labels[0] }}>In</span>
-          {groupScope && view.segments.filter(segment => segment.index > 0).map(segment => <span className="ef-flag" key={segment.index} title={segment.name}
-            style={{ left: segment.start / extent * 100 + '%', ...flags.labels[segment.index] }}>{segment.name}</span>)}
           {!groupScope && !view.reason && view.segments.filter(s => s.index > 0).map(s => <StepFlag key={s.index} segment={s} view={view} extent={extent} fps={fps}
             layout={flags.labels[s.index]} snaps={snaps} playhead={time} selected={cue === s.index} session={session} pause={pause} display={display}
             inspect={() => inspectStep(s.index)} setOut={to => out.current?.setOutAt(to)} focusRuler={() => rulerSeek.current?.focus()} />)}

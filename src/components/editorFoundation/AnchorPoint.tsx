@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { baseValues } from '../../blocks/baseEdits';
-import { ANCHOR_CHANNELS, anchorKeyReason } from '../../blocks/editorAnimation';
+import { anchorChannels, anchorKeyReason } from '../../blocks/editorAnimation';
 import type { SpxTemplate } from '../../model/types';
 import type { EditorSession, Revision } from './session';
 import type { EditorOperation } from './operations';
@@ -23,6 +23,7 @@ export default function AnchorPoint({ template, selector, session, appearance, s
   const { time, cue } = session.port.view();
   const anchor = base.anchorReason ? null : anchorAtPlayhead(template, base, appearance, time, cue);
   if (!anchor) return <div className="ef-anchor" data-reveal="a" tabIndex={-1}><span className="ef-section-label">Anchor point</span><p className="ef-muted">{base.anchorReason ?? 'Reading the layer’s pivot from the preview…'}</p></div>;
+  const channels = anchorChannels(base);
   const run = (operations: () => EditorOperation[], expected: Revision) => {
     try {
       const batch = operations();
@@ -51,7 +52,7 @@ export default function AnchorPoint({ template, selector, session, appearance, s
       const label = 'Anchor ' + axis.toUpperCase();
       return <div className="ef-transform-property" key={axis}>
         <AnimationNumber label={label} value={anchor[axis]} commit={commit(axis)} session={session} />
-        {!keyReason && <AnimationButtons label={label} property={ANCHOR_CHANNELS[axis]} template={template}
+        {!keyReason && <AnimationButtons label={label} property={channels[axis]} template={template}
           selector={selector} session={session} appearance={appearance} seek={seek} />}
       </div>;
     })}

@@ -202,7 +202,7 @@ test('nested Illustrator text keys its CSS pivot without re-folding the SVG sour
   const changed = await pose();
   for (let i = 0; i < 4; i++) expect(changed[i]).toBeCloseTo(first[i], 4);
   expect(Math.hypot(changed[4] - first[4], changed[5] - first[5])).toBeGreaterThan(10);
-  expect((await data(page)).steps[0].layers['#f0']['--base-anchor-x'].map(key => key.value)).toEqual([start, start + 35]);
+  expect((await data(page)).steps[0].layers['#f0'].noacgAnchorX.map(key => key.value)).toEqual([start, start + 35]);
   const authored = await source(page);
   expect(await tryKey(page, { selector: '#f0', property: 'x', value: 20 })).toMatch(/CSS pivot.*source is preserved/);
   expect(await source(page)).toEqual(authored);

@@ -230,13 +230,29 @@ function escapeRe(s: string): string {
 
 type CssRuleBody = { body: string; start: number; end: number };
 const CSS_SOURCE_TOKENS = /\/\*[\s\S]*?\*\/|"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'|\\[\s\S]|[()[\]{}:;,&]/g;
+const CSS_IDENTIFIER = /(?:[-\w]|\\(?:[0-9a-f]{1,6}(?:\r\n|[\t\n\f\r ])?|[^\n\f\r]))+/.source;
 const cssWithoutComments = (value: string) => value.replace(/\/\*[\s\S]*?\*\//g, comment => ' '.repeat(comment.length));
+const cssWithoutLiterals = (value: string) => value.replace(CSS_SOURCE_TOKENS, token => /^["']|^\/\*/.test(token) ? ' '.repeat(token.length) : token);
 function cssName(source: string) {
   return source.replace(/\\(?:([0-9a-f]{1,6})(?:\r\n|[\t\n\f\r ])?|([^\n\f\r]))/gi, (_match, hex: string | undefined, escaped: string) => {
     if (!hex) return escaped;
     const code = parseInt(hex, 16);
     return code && code <= 0x10ffff && (code < 0xd800 || code > 0xdfff) ? String.fromCodePoint(code) : '\ufffd';
   });
+}
+
+/** Custom property reads, including escaped identifiers and reads inside fallback expressions. */
+export function cssVariableReads(value: string): string[] {
+  if (!value.includes('(')) return [];
+  const names = new Set<string>();
+  const source = cssWithoutLiterals(value);
+  const calls = new RegExp(`(${CSS_IDENTIFIER})\\(`, 'gi'), argument = new RegExp(`^\\s*(${CSS_IDENTIFIER})`, 'i');
+  for (const match of source.matchAll(calls)) {
+    if (cssName(match[1]).toLowerCase() !== 'var') continue;
+    const name = cssName(source.slice(match.index! + match[0].length).match(argument)?.[1] ?? '');
+    if (name.startsWith('--')) names.add(name);
+  }
+  return [...names];
 }
 
 function selectorBranches(selector: string) {
@@ -256,13 +272,14 @@ function selectorBranches(selector: string) {
 export type CssStyleSource = { selectorText: string; selectors: string[]; style: CSSStyleDeclaration; nested: boolean };
 /** Read authored CSS without rewriting it or loading styles from outside the document. */
 export function inspectCss(css: string, nativeNesting = true) {
-  const visible = nativeNesting ? css.replace(CSS_SOURCE_TOKENS, token => /^["']|^\/\*/.test(token) ? ' '.repeat(token.length) : token) : '';
+  const visible = nativeNesting ? cssWithoutLiterals(css) : '';
   // A constructed sheet ignores @import. The structural owner must still account for it.
-  let unresolved = [...visible.matchAll(/(?:^|[;}])\s*@((?:[-\w]|\\(?:[0-9a-f]{1,6}(?:\r\n|[\t\n\f\r ])?|[^\n\f\r]))+)/gi)]
+  let unresolved = [...visible.matchAll(new RegExp(`(?:^|[;}])\\s*@(${CSS_IDENTIFIER})`, 'gi'))]
     .some(match => cssName(match[1]).toLowerCase() === 'import');
   const sheet = new CSSStyleSheet();
   sheet.replaceSync(css);
   const rules: CssStyleSource[] = [], registrations = new Set<string>();
+  const keyframes: { name: string; css: string }[] = [];
   const visit = (list: CSSRuleList, nested: boolean, parent?: string) => {
     for (const rule of list) {
       if (rule instanceof CSSStyleRule) {
@@ -280,6 +297,8 @@ export function inspectCss(css: string, nativeNesting = true) {
         if (nativeNesting && rule.cssRules?.length) visit(rule.cssRules, true, selectors.join(', '));
       } else if (typeof CSSPropertyRule !== 'undefined' && rule instanceof CSSPropertyRule) {
         registrations.add(rule.name);
+      } else if (nativeNesting && rule instanceof CSSKeyframesRule) {
+        keyframes.push({ name: rule.name, css: rule.cssText });
       } else if (rule instanceof CSSGroupingRule) {
         if (nativeNesting && typeof CSSScopeRule !== 'undefined' && rule instanceof CSSScopeRule && rule.cssRules.length) unresolved = true;
         visit(rule.cssRules, true, parent);
@@ -290,7 +309,7 @@ export function inspectCss(css: string, nativeNesting = true) {
     }
   };
   visit(sheet.cssRules, false);
-  return { rules, registrations, unresolved };
+  return { rules, registrations, keyframes, unresolved };
 }
 
 /** Exact top-level rules, preserving the scanner used by the source readers. */

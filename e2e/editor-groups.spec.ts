@@ -83,6 +83,12 @@ test('group editing exposes parent bar, local ruler and breadcrumb without hidin
   await expect(page.getByTestId('foundation-canvas')).toBeVisible();
   await expect(page.locator(`.ef-track[data-selector="${ids[2]}"]`)).toHaveCount(0);
   await expect(page.locator(`.ef-track[data-selector="${ids[0]}"]`)).toBeVisible();
+  const local = page.getByRole('slider', { name: 'Group local playhead' });
+  await local.press('Home');
+  const start = Number(await local.getAttribute('aria-valuenow'));
+  const outLabel = page.getByTestId('foundation-local-ruler').locator('span.ef-flag[title="Out"]');
+  await outLabel.click();
+  expect(Number(await local.getAttribute('aria-valuenow'))).toBeGreaterThan(start);
   await page.getByRole('button', { name: 'Composition', exact: true }).click();
   await expect(page.getByTestId('foundation-local-ruler')).toHaveCount(0); expect(await source(page)).toEqual(before);
 });
@@ -382,7 +388,7 @@ test('new SVG grouping refuses CSS that would take ownership of its paint', asyn
     const { parseAnimData } = await import('/src/blocks/animData.ts');
     const { replaceRegionWithAnimData } = await import('/src/templates/shared/animRuntime.ts');
     return { ...t, js: replaceRegionWithAnimData(t.js, parseAnimData(t.js)!)!,
-      html: t.html.replace('</svg>', '<rect id="candidate-a" x="180" y="90" width="90" height="60" fill="orange"/><rect id="candidate-b" x="330" y="100" width="80" height="50" fill="red"/></svg>') };
+      html: t.html.replace('</svg>', '<rect id="candidate-a" x="180" y="90" width="90" height="60" fill="orange"/><rect id="candidate-b" x="330" y="100" width="80" height="50" fill="red"/><rect id="candidate-c" x="450" y="110" width="80" height="50" fill="blue"/></svg>') };
   });
   const ids = ['#candidate-a', '#candidate-b'];
   const state = () => evaluateInPage(page, async () => {
@@ -399,9 +405,13 @@ test('new SVG grouping refuses CSS that would take ownership of its paint', asyn
     ['svg { & > [data-noacg-group-pivot] { transform: scale(2) !important; } }', 'would style the new group'],
     ['svg { & > #candidate-a, rect { fill: purple; } }', 'structural selector'],
     ['@PROPERTY /* authored */ --base-anchor-x { syntax: "<number>"; inherits: false; initial-value: 0; }', 'conflicting pivot owner'],
+    ['#candidate-a { opacity: var(--base-scale-x, .25); }', 'inherits a group transform property'],
+    ['#candidate-b { --opacity: var(--base-\\73 cale-x, .25); opacity: var(--opacity); }', 'inherits a group transform property'],
   ]) {
     await apply(rule);
     const before = await source(page), selection = await state(), painted = await rects(page, ids);
+    const memberOpacity = () => Promise.all(ids.map(id => page.frameLocator('iframe[title="Foundation graphic preview"]').locator(id).evaluate(el => getComputedStyle(el).opacity)));
+    const opacity = await memberOpacity();
     await page.getByRole('button', { name: 'Group selection', exact: true }).click();
     await ready(page);
     expect.soft((await source(page)).html === before.html, rule).toBe(true);
@@ -409,11 +419,17 @@ test('new SVG grouping refuses CSS that would take ownership of its paint', asyn
     expect.soft((await source(page)).js === before.js, rule).toBe(true);
     expect.soft(await state()).toEqual(selection);
     expect.soft(await rects(page, ids)).toEqual(painted);
+    expect.soft(await memberOpacity()).toEqual(opacity);
     await expect.soft(page.locator('.ef-group-error')).toContainText(reason, { timeout: 1000 });
   }
-  await apply('svg { & > .unrelated { fill: purple; } }');
+  await apply('svg { & > .unrelated { fill: purple; } }\n#candidate-a { --base-scale-x: .25; opacity: var(--base-scale-x); }\n#f0 { opacity: var(--base-scale-x, .3); }');
   const id = await group(page, ids);
   expect((await source(page)).html).toContain('id="' + id.slice(1) + '" data-gfx data-noacg-group data-noacg-group-pivot="frame-v1"');
+  const outer = await group(page, [id, '#candidate-c']);
+  expect(outer).not.toBe(id);
+  const preview = page.frameLocator('iframe[title="Foundation graphic preview"]');
+  await expect(preview.locator(outer).locator(id)).toHaveCount(1);
+  await expect(preview.locator('#candidate-a')).toHaveCSS('opacity', '0.25');
 });
 
 test('SVG group pivot is centered and remains static during child and group motion',async({page})=>{

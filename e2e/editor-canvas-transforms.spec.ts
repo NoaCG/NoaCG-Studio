@@ -485,7 +485,7 @@ test('armed anchor X captures a nonzero pose, keys only its axis, and bakes the 
   await seekFrames(page, 4, t.fps);
   const original = await source(page), initial = await base(page, t.rect), before = await bounds(page, t.rect);
   const entries = await history(page), clock = (frame: number) => Math.round(frame / t.fps * 1e6) / 1e6;
-  const keys = async () => (await data(page)).steps[0].layers[t.rect]?.['--base-anchor-x'];
+  const keys = async () => (await data(page)).steps[0].layers[t.rect]?.noacgAnchorX;
   await page.getByRole('button', { name: 'Enable Anchor X animation', exact: true }).click();
   await ready(page);
   expect(await keys()).toEqual([{ time: clock(4), value: 150 }]);

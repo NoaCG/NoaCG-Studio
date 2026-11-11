@@ -764,6 +764,64 @@ exited 0 with all ten maintained OGraf isolation cases.
 The affected local gates passed 357 Node tests in 26 files, including the
 36 targeted canvas and cross-cue tests. Changed-file lint and TypeScript passed.
 
+#### Existing raw tracks and inherited member paint
+
+The full review of `53f2688cc0fa6a3e6bc6d1a75113f068b7491e06` returned
+AGREE WITH CORRECTIONS, grade B. A fresh reassessment isolated three
+changes to prior behavior. Windows exact-main control `j-5138` ran the same
+operations on `78ce3f35063386fdc7217d0542e3df871fc32b8d` and the reviewed
+head. Main kept a grouped SVG member at opacity `0.25`. The canonical
+wrapper changed it to `1` through an inherited transform variable.
+Main also moved the opacity key from `0.5` to `0.6` while keeping the raw
+`40px` pivot track and both interpreter bodies exact. The reviewed head
+rewrote the generated interpreter and refused the same unrelated move
+when the source carried an authored comment.
+
+A canonical group proves its additional inherited transform variables
+leave member paint independent. A descendant may retain a verified local
+value. Indirect reads, inline and presentation values, and affected
+keyframes use the same source check. Grouping refuses atomically when
+the new wrapper would change inherited paint. Older group source keeps
+its existing behavior. The passive In and group-local labels are part
+of the ruler's seek area again, with their hover text and exact positions.
+The Step and Out buttons remain separate controls.
+
+The coordinator approved distinct internal track names for newly
+authored ordinary pivots. They use the existing axis controls and data
+track format. Only an explicit validated ordinary anchor edit installs
+the replay capability. The capability maps its own tracks to the same CSS
+variables and resets only its own axes on Take. The canonical group
+reset stays scoped to marked groups. Generic emit, source edits, preview,
+save and export keep previously raw pivot tracks under the existing
+interpreter and Out rules. The two generated capabilities can coexist in
+either installation order, without changing imported markup or migrating
+saved data.
+
+`j-5139` reproduced the two passive ruler seek failures and direct and
+indirect member inheritance failures. The Node raw-track regression also
+failed on the reviewed head. `j-5140` exited 0 with five ruler and grouping
+cases, including safe nested grouping and exact preserved opacity.
+`j-5141` exited 0 with five ordinary and canonical pivot cases. All five
+browser outputs reset the newly owned Out-only pivot while the raw track
+matches its bare-interpreter playback control. Duplication and splitting
+kept the same ordinary pivot values at the arriving and departing sides
+of the cut. The Node canvas and cross-cue suites passed 37 tests, and
+changed-file lint and TypeScript passed.
+
+`j-5142` passed five precise matrix, shared-renderer and legacy SVG
+checks. `j-5143` passed seven clipboard and key-ease cases. `j-5144`
+logged 19 passing entry and isolated sync cases, but the scheduler reaped
+it without an exit code, so its terminal verdict remains failed. A raw
+track using the same private channel spelling without the capability
+must also remain generically editable. `j-5145` reproduced a refusal of
+that unrelated raw edit. `j-5146` exited 0 with the corrected admission,
+the refusal to install the capability over that foreign name, and both
+mixed and canonical output cases.
+`j-5147` exited 0 with desktop, phone and landscape editor entry and
+return, and three representative isolated sync and recovery cases.
+The earlier `j-5096` terminal pass remains the complete 19-case receipt
+on its reconciled source.
+
 #### Catalog and affected CI scope
 
 Windows factory `j-5098` exited 0 with 328 checks across 12 kits. The
