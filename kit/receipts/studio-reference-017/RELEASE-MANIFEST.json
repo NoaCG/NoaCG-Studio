@@ -1,0 +1,51 @@
+{
+  "tag": "v0.17",
+  "packageVersion": "0.17.0",
+  "repository": "https://github.com/zerodensity/ograf-studio",
+  "sourceCommit": "a1e9776120fa19d9f3f9d40ab4b10ae1be034347",
+  "builtAt": "2026-09-09T12:14:15.241Z",
+  "build": {
+    "runner": "windows-latest",
+    "node": "22",
+    "bun": "1.3.11",
+    "dependencies": "npm ci from committed lockfile"
+  },
+  "validation": {
+    "repositoryGate": true,
+    "dependencyAudit": true,
+    "binaryFormatAndArchitecture": true,
+    "windowsStartupHttpMcpAndAssets": true,
+    "linuxX64StartupAndHttp": true,
+    "nativeMacOS": false,
+    "nativeArm64": false
+  },
+  "signing": {
+    "windowsSigned": false,
+    "macOSSigned": false,
+    "macOSNotarized": false
+  },
+  "workflow": "https://github.com/zerodensity/ograf-studio/actions/runs/34349523549",
+  "artifacts": [
+    {
+      "file": "OGrafStudioServer.exe",
+      "bytes": 119389696,
+      "sha256": "88836062eab024aac85e5f71400bcf2e198ca09f12447fe4c52ebc1e7473cebd"
+    },
+    {
+      "file": "OGrafStudioServer-linux-x64",
+      "bytes": 104195752,
+      "sha256": "9ba1de317cdc8380c38a694f1d201964d7b805833597419111dab9eea9a02681"
+    },
+    {
+      "file": "OGrafStudioServer-linux-arm64",
+      "bytes": 103636800,
+      "sha256": "bc4f8eec3e911c5d4e76e94cddd2bca52724971d182ac4d0ad97d4f9cdf7e94b"
+    },
+    {
+      "file": "ograf-authoring.zip",
+      "bytes": 40227,
+      "sha256": "f6c71eb2fc48206452292c0f291f2f75597a0ca1a2c8fed92915e93cd5af4fe9"
+    }
+  ],
+  "distributionNote": "macOS Intel and Apple Silicon downloads temporarily withdrawn following user reports of non-working binaries."
+}

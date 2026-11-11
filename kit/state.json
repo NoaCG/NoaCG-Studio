@@ -74,18 +74,11 @@
       "sourceSha": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
       "branch": "codex/plan-editor-r1-5-e3-build",
       "worktree": "/workspace/noacg-editor-r1-5-e3-build",
-      "note": "Fresh builder accepted and exact brief/source verified. E3 research and current-source qualification; Rules-first review before risky code. Existing model/funding route preserved. E2 PASS recorded, unrelated clock red retained; owned mechanical quarantine2382 remains monitored separately."
+      "note": "Fresh E3 builder active; E2 PASS preserved with unrelated clock failure disposition; automatic quarantine2382 complete after actual terminal checks. E3 native structured-tool compatibility under Rules-first review."
     }
   ],
   "owner": [],
-  "fixes": [
-    {
-      "pr": 2382,
-      "what": "Owned mechanical quarantine follow-up for unrelated clock fail-then-pass; original E2 red retained",
-      "monitor": 79864,
-      "owner": "6af455f4-b1c8-8191-86b2-8bfdfc619075"
-    }
-  ],
+  "fixes": [],
   "triggers": [],
   "prerequisites": {
     "gsap": {
@@ -526,11 +519,12 @@
       "coordinator": "6af455f4-b1c8-8191-86b2-8bfdfc619075",
       "attempts": 0,
       "route": "Existing automatic fail-then-pass quarantine; no manual rerun or test changes",
-      "status": "merged; current coordinator remains through exact-merge post-checks",
+      "status": "COMPLETE: merged and all exact-main required checks terminal SUCCESS",
       "monitor": {
         "execSession": 79864,
         "mode": "active bounded read-only",
-        "deadline": "2026-11-12T10:00:00Z"
+        "deadline": "2026-11-12T10:00:00Z",
+        "status": "terminal; exec79864 exited0"
       },
       "mergeSha": "a314415e54c565efea80944afa06a179855e356f",
       "mergeGroupRun": 43024728862,
@@ -541,7 +535,10 @@
         "postLanding": 43025990393,
         "quarantine": 43025990382,
         "codeql": 43025988977
-      }
+      },
+      "completedAt": "2026-11-11T13:29:47.405750+00:00",
+      "ownerCloseout": "https://github.com/NoaCG/NoaCG-Studio/pull/2382#issuecomment-6796281993",
+      "terminalReceipt": "receipts/quarantine2382-terminal.json"
     },
     "unrelatedRedDisposition": {
       "at": "2026-11-11T12:53:32.845480+00:00",
@@ -644,7 +641,7 @@
       "grade": "AGREE/A"
     },
     "baseline": "j-0013 PASS28/28, no skips; j-0014 reproduced missing grounded general help",
-    "currentWork": "Help(default)/Edit mode and offline Editing guide implemented after Rules-first A; current transition oracle/cumulative parity running",
+    "currentWork": "Help/Edit and offline guide committed dbc3ceb2150d987807e7d5da03d1537a77926ea9; j-0016 PASS46/46. Real-model compatibility diagnosed by actual HTTP400 before narrow Rules-first fix. Independent final review/PR not yet complete.",
     "accessEvidence": {
       "configuredBackend": "production; no auth/query allowed or attempted",
       "stagingRef": "garafohbzmsybtysxphb",
@@ -652,6 +649,36 @@
       "targetedStagingConnector": "MCP permission denied; no retry/key fetch",
       "scopeReview": "Hosted staging not explicit BL acceptance; worker assessing isolated real local auth/API ledger and separate existing real-model route before identifying a true missing receipt",
       "model": "existing anthropic/claude-sonnet-5.5, fallbacks[]; catalog checked; credentials present metadata only; no new keys/accounts/funding"
+    },
+    "modelDiagnosis": {
+      "provider": "Anthropic direct, same existing key/endpoint/fallbacks/funding",
+      "configuredId": "claude-sonnet-5.5",
+      "nativeId": "claude-sonnet-5-5",
+      "identity": "native GET models confirms same intended Claude Sonnet5.5 created2026-09-28, active",
+      "scope": "native ID correction in isolated verification process only; no global alias/default change",
+      "failures": [
+        "j-0017 unknown configured ID retained",
+        "j-0020 native ID resolves but request rejected, retained",
+        "single diagnostic HTTP400 invalid_request_error: tool_choice type tool and any are not supported for this model; sanitized receipt retained by builder"
+      ],
+      "next": "narrow protocol correction under fresh Rules-first review, then real help and edit quality; no quality PASS yet"
+    },
+    "capacity": {
+      "status": "WARN retained; no headroom established",
+      "artifactRun": 43014542120,
+      "artifact": 13851967966,
+      "digest": "5ad034e38ae9dc5baec0761bbbe9a651d962e47f65b03a373810423db2afa5c5",
+      "transport": "CLI GitHub artifact403; connector file ref succeeded but Cloud HTTPS transport403, no bytes retrieved; no policy/credential changes, no retry of denied host",
+      "next": "normal fresh PR/main growth report"
+    },
+    "reference": {
+      "binary": "/workspace/scratch/ograf-studio-reference-017/OGrafStudioServer-linux-x64",
+      "sha256": "9ba1de317cdc8380c38a694f1d201964d7b805833597419111dab9eea9a02681",
+      "source": "a1e9776120fa19d9f3f9d40ab4b10ae1be034347",
+      "requiredPin": "3142fc7d02934494931eb14e7dc255393e4110d0",
+      "correspondence": "forward compare from release source to pin: five commits, only added .github/workflows/release.yml; product/editor/runtime sources identical",
+      "provenance": "receipts/studio-reference-017",
+      "result": "j-0019 same task PASS after documented500ms history burst settling; initial j-0018 failure retained; E5 human/device gates remain"
     }
   }
 }

@@ -1,0 +1,100 @@
+{
+  "at": "2026-11-11T13:25:45.739419+00:00",
+  "pr": 2382,
+  "state": "closed",
+  "merged": true,
+  "head": "2e25447624979729b2b4c12de21ab5d69abd4713",
+  "mergeSha": "a314415e54c565efea80944afa06a179855e356f",
+  "mergeable": null,
+  "mergeableState": "unknown",
+  "runs": [
+    {
+      "id": 43026094467,
+      "name": "deploy-verify",
+      "event": "deployment_status",
+      "status": "completed",
+      "conclusion": "skipped",
+      "sha": "a314415e54c565efea80944afa06a179855e356f"
+    },
+    {
+      "id": 43026015375,
+      "name": "deploy-verify",
+      "event": "deployment_status",
+      "status": "completed",
+      "conclusion": "skipped",
+      "sha": "a314415e54c565efea80944afa06a179855e356f"
+    },
+    {
+      "id": 43026014499,
+      "name": "deploy-verify",
+      "event": "deployment_status",
+      "status": "completed",
+      "conclusion": "skipped",
+      "sha": "a314415e54c565efea80944afa06a179855e356f"
+    },
+    {
+      "id": 43026010358,
+      "name": "deploy-verify",
+      "event": "deployment_status",
+      "status": "completed",
+      "conclusion": "skipped",
+      "sha": "a314415e54c565efea80944afa06a179855e356f"
+    },
+    {
+      "id": 43026008156,
+      "name": "deploy-verify",
+      "event": "deployment_status",
+      "status": "completed",
+      "conclusion": "skipped",
+      "sha": "a314415e54c565efea80944afa06a179855e356f"
+    },
+    {
+      "id": 43025990599,
+      "name": "configured-suite",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "a314415e54c565efea80944afa06a179855e356f"
+    },
+    {
+      "id": 43025990393,
+      "name": "Post-landing",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "a314415e54c565efea80944afa06a179855e356f"
+    },
+    {
+      "id": 43025990382,
+      "name": "Quarantine",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "a314415e54c565efea80944afa06a179855e356f"
+    },
+    {
+      "id": 43025988977,
+      "name": "Push on main",
+      "event": "dynamic",
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "a314415e54c565efea80944afa06a179855e356f"
+    },
+    {
+      "id": 43025990508,
+      "name": "CI",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "a314415e54c565efea80944afa06a179855e356f"
+    },
+    {
+      "id": 43024728862,
+      "name": "CI",
+      "event": "merge_group",
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "a314415e54c565efea80944afa06a179855e356f"
+    }
+  ]
+}
