@@ -73,7 +73,7 @@
       "step": "build",
       "sourceSha": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
       "actionId": "plan-editor-r1-5-2026-11-08:3",
-      "note": "E2 exact9c5ae192 in merge queue since12:09:01Z. Cloud browser61/61 and UI walk pass; final/check,A,Codex,CI/configured64 pass. Queue helper43017754844 success, Reviewed130513141188 success. Active coordinator watches queue and terminal merge checks; phase acceptance pending.",
+      "note": "E2 merged d8b18080 through queue; exact-merge fresh checker admission next. CI/configured running, post-land/quarantine success. E3 remains gated.",
       "worktree": "/workspace/noacg-editor-r1-5-e2-cloud",
       "head": "9c5ae1926d6662e0e2806f3233be85b83972f166",
       "pr": 2374,
@@ -469,7 +469,9 @@
         "wake": false
       },
       "mergeGroupRun": 43017886013,
-      "mergeGroupSha": "d8b18080bfacf2303a1d88e4ca1398fb263d9657"
+      "mergeGroupSha": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+      "mergeSha": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+      "mergeGroupResult": "success"
     }
   },
   "waitingOn": {},
