@@ -1236,18 +1236,70 @@
       "retries": 0,
       "status": "IN FLIGHT, no causal verdict; no new phase",
       "cloudPair": "separate stratum, one invocation per arm,24cases each allpass",
-      "artifactReadBlocker": "Cloud download proxies deny ZIPstorage; scoped Actions read-only retrieval fallback e109f039a under method review, not yet implemented"
+      "artifactReadBlocker": "Cloud download proxies deny ZIPstorage; scoped Actions read-only retrieval fallback e109f039a under method review, not yet implemented",
+      "artifactReader": {
+        "ref": "codex/editor-causality-evidence-reader-20261111",
+        "source": "73fa80ecf647ae720107c96a99ad98e70ad43d12",
+        "methodReview": "AGREE/A",
+        "finalReview": "AGREE/A after two completion/deadline corrections",
+        "tests": "6Python synthetic PASS,29workflowvalidation PASS",
+        "run": 43083982443,
+        "result": "FAILURE expected because16primaryruns not terminal; originalclocktrace successfullyretrieved. No testsrunbyreader; partialresults remainunresolved.",
+        "future": "Read-only final retrieval after primarycompletion; neverrerunprimarytestsforartifactaccess"
+      },
+      "partialObservations": [
+        {
+          "spec": "operator",
+          "batch": 1,
+          "run": 43081541233,
+          "job": 130735089251,
+          "completePerArm": 15,
+          "landingFailedInvocations": 2,
+          "parentFailedInvocations": 0,
+          "status": "signature not yetread, overall60perarmnotcomplete, no attribution"
+        }
+      ]
     },
     "documentProbe": {
-      "status": "parent/landing identical exactdefaultdc01 HTML CSS JS emitted in realbrowser",
-      "jsSha256": "a7eab830025a16381fd144716c9fa15968fd32aba389076b318dd2be6e611347",
-      "result": "applicability evidence only, not causal verdict",
-      "timingProbe": "separate 3conditions/arm, proposed prior-event-entry-timing hypothesis did NOT reproduce; all B04:20, preserve negative probe"
+      "status": "Corrected exact catalog-created document compared successfully; original base-design probe remains retained but invalid for causal applicability",
+      "catalogJsBytes": 135457,
+      "catalogJsSha256": "e103ead49e65ffa7672bdfe31abaf151b639d3625f7cef27a535b92df9459b6e",
+      "machineGroups": [
+        "main",
+        "floor",
+        "penalty"
+      ],
+      "controlledCount": "one burst per each of3orderingconditions per historicalarm, not pooled with primary spec rates",
+      "controlledOutcome": "Between-next-wire-and-event ordering reproduces B06:01 then05:21 on both commits; before/aftercontrols04:20. Matches original22trace readings ending05:02.",
+      "evidenceCommit": "43dd0927e",
+      "statusBoundary": "Mechanism evidence, not final causal clearance;60-per-arm CI comparisons still running"
     }
   },
   "waitingOn": {
     "what": "Owner-required E1/E2 quarantine causality investigation, before any further phase work",
     "responsible": "current Cloud coordinator",
     "resume": "Resolve both specs with prewritten paired repeat protocol, actual rates/root causes and queued fix/release or policy incident ownership; only then clear this hold."
-  }
+  },
+  "completedCausalityReviews": [
+    {
+      "id": "6af4b05b-8a1c-8191-b931-182efca3b062",
+      "status": "nativecompleted, readbackverified andarchived"
+    },
+    {
+      "id": "6af4b6fd-00a8-8191-9d33-b9361e87606e",
+      "status": "nativecompleted, readbackverified andarchived"
+    },
+    {
+      "id": "6af4b816-5054-8191-9a4a-e673bb299078",
+      "status": "nativecompleted, readbackverified andarchived"
+    },
+    {
+      "id": "6af4bafa-c694-8191-9912-23f61b169078",
+      "status": "nativecompleted, readbackverified andarchived"
+    },
+    {
+      "id": "6af4bbc8-9c4c-8191-9d45-cd4873804062",
+      "status": "nativecompleted, readbackverified andarchived"
+    }
+  ]
 }
