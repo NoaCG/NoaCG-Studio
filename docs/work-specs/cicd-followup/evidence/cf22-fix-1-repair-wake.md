@@ -90,12 +90,16 @@ required changes, all taken).
    notifies) or adds one comment listing all of them (the assignee is notified once per check).
    The keys of the newest closed alarm issue are remembered too: an owner who closes it by hand is
    not alarmed again for the same failures, and a closed issue is reopened as a new one only for
-   a new failure. A list that has not changed is not rewritten.
+   a new failure. It is looked for among issues closed in the last two days, up to three pages;
+   unread memory raises no new alarm. A list that has not changed is not rewritten, and an alarm
+   whose assignment did not take is assigned again by later checks.
 9. **Withdrawal.** A complete check that finds none of the listed failures still a PR's red
    verdict closes the issue. A failure stops being one only by a new verdict (a push, a run, a
    re-run), the PR closing, or the PR turning draft, so it cannot come back with the same key
    while the issue is closed, except a draft made ready again. An incomplete check (the call budget ran out, a read failed)
-   closes nothing and drops no entry; it may still add a new one, and it warns in its run.
+   closes nothing and drops no entry, and it warns in its run. It raises a new alarm only for a PR
+   whose verdict it established: with the merge-group runs unread, an older red PR run could pass
+   for the verdict, so it raises none.
 10. **Bounds.** At most 100 GitHub API calls per check, reads and writes together; merge-group runs
     are read up to three pages (300 runs in two days; about 55 is usual). It runs every 20 minutes
     and after each failed `CI` run.
@@ -114,7 +118,13 @@ Found after the Rules, in `/check`'s review (all fixed, each with a test): a spa
 would have crashed the script at load; workflow-level concurrency letting skipped runs displace a
 waiting check; the zero bound ignoring a person's action; a listed merge-group failure dropping
 out after two days; a hand-closed alarm alarming again; more than 100 merge-group runs leaving every
-check incomplete; a body rewritten on every check; CRLF bodies losing their sections.
+check incomplete; a body rewritten on every check; CRLF bodies losing their sections. From the
+Codex review and the final `/so` (same class for the first): the closed alarm's memory read only
+50 closed issues; a failed assignment was never retried; a failed merge-group listing let an older
+red PR run raise a new alarm. Each is fixed with a test. One mutant survives as equivalent: marking
+a PR uncertain when a remembered merge-group run cannot be re-read. That read only happens for a
+run over two days old, so any PR run it could be confused with failed over a day ago and raises
+nothing new anyway.
 
 ### The four PRs under these rules
 

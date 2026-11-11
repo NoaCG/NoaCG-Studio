@@ -57,7 +57,11 @@ function fakeGitHub(world = {}) {
       return JSON.stringify(found);
     }
     if (method === 'GET' && (m = /\/issues\/(\d+)\/comments$/.exec(p))) return JSON.stringify(Number(url.searchParams.get('page') ?? 1) === 1 ? comments[m[1]] ?? [] : []);
-    if (method === 'GET' && p.endsWith('/issues')) return JSON.stringify(state.issues.filter((i) => i.state === (url.searchParams.get('state') ?? 'open')).reverse());
+    if (method === 'GET' && p.endsWith('/issues')) {
+      const page = Number(url.searchParams.get('page') ?? 1), size = Number(url.searchParams.get('per_page') ?? 30);
+      const listed = state.issues.filter((i) => i.state === (url.searchParams.get('state') ?? 'open')).reverse();
+      return JSON.stringify(listed.slice((page - 1) * size, page * size));
+    }
     if (method === 'POST' && p.endsWith('/issues')) {
       const made = { number: state.next++, title: field('title'), body: field('body'), state: 'open', assignees: [], user: { type: 'Bot' }, author_association: 'NONE' };
       state.issues.push(made);
@@ -284,6 +288,59 @@ test('rule 8: an owner who closes the alarm by hand is not alarmed again for the
   const r = check(gh, plus(t, 161));
   assert.deepEqual(notices(gh), ['open', 'open'], 'a new failure opens a new alarm');
   assert.match(r.alarm.body, /#7:[\s\S]*#8:/, 'listing the remembered one too');
+});
+
+test('rule 8: the closed alarm is found past the first page of closed issues; an outsider\'s look-alike is not memory; unread memory raises nothing new', () => {
+  const t = '2026-11-11T10:00:00Z';
+  const fx = { prs: [{ number: 7, sha: 's' }], runs: [prRun({ id: 1, sha: 's', start: plus(t, -15), end: t })] };
+  const filler = (n, extra = {}) => Array.from({ length: n }, (_, i) => ({ number: 5000 + i, title: `Other ${i}`, body: '', state: 'closed', ...extra }));
+  // The owner closed the alarm, then 150 other issues closed after it.
+  const gh = fakeGitHub(fx);
+  check(gh, plus(t, 61));
+  gh.state.issues[0].state = 'closed';
+  gh.state.issues.push(...filler(150));
+  assert.equal(check(gh, plus(t, 81)).complete, true, 'the memory was read, not given up on');
+  assert.deepEqual(notices(gh), ['open'], 'found on the second page: remembered');
+
+  // An outsider's closed issue with the title and a copied key is not the alarm's memory.
+  const out = fakeGitHub({ ...fx, issues: [{ number: 40, title: RED_ISSUE, state: 'closed', body: '- x <!-- key: 7/1/1/2026-11-11T10:00:00Z -->', user: { type: 'User' }, author_association: 'NONE' }] });
+  check(out, plus(t, 61));
+  assert.deepEqual(notices(out), ['open'], 'alarmed despite the look-alike');
+
+  // Three full pages of newer closed issues and no alarm among them: memory unread, nothing raised.
+  const busy = fakeGitHub({ ...fx, issues: filler(300) });
+  const r = check(busy, plus(t, 61));
+  assert.equal(r.complete, false);
+  assert.deepEqual(notices(busy), [], 'an unread closed alarm could already hold this failure');
+});
+
+test('rule 1: a new alarm needs an established verdict: with the merge-group listing unread, an older red PR run raises nothing', () => {
+  const t = '2026-11-11T10:00:00Z';
+  const fx = { prs: [{ number: 7, sha: 's' }], runs: [prRun({ id: 1, sha: 's', start: plus(t, -15), end: t })], groups: [groupRun({ id: 2, pr: 7, start: plus(t, 5), end: plus(t, 9), conclusion: 'success' })] };
+  const gh = fakeGitHub(fx);
+  const broken = { ...gh, run: (args) => { if (/event=merge_group/.test(args[3])) throw new Error('HTTP 502'); return gh.run(args); } };
+  const r = check(broken, plus(t, 61));
+  assert.equal(r.complete, false);
+  assert.deepEqual(notices(gh), []);
+});
+
+test('rule 8: a route that did not take is tried again by later checks', () => {
+  const t = '2026-11-11T10:00:00Z';
+  const gh = fakeGitHub({ prs: [{ number: 7, sha: 's' }], runs: [prRun({ id: 1, sha: 's', start: plus(t, -15), end: t })] });
+  let refuse = true;
+  const flaky = { ...gh, run: (args) => { if (refuse && /assignees$/.test(args[3])) throw new Error('HTTP 503'); return gh.run(args); } };
+  check(flaky, plus(t, 61));
+  assert.deepEqual(gh.state.issues[0].assignees, []);
+  refuse = false;
+  check(flaky, plus(t, 81));
+  assert.deepEqual(gh.state.issues[0].assignees.map((a) => a.login), ['miwco']);
+  assert.deepEqual(notices(gh), ['open'], 'routing again sends no second alarm');
+});
+
+test('rule 6: the bound is 60 minutes exactly', () => {
+  const t = '2026-11-11T10:00:00Z';
+  const fx = { prs: [{ number: 7, sha: 's' }], runs: [prRun({ id: 1, sha: 's', start: plus(t, -15), end: t })] };
+  assert.ok(check(fakeGitHub(fx), plus(t, BOUND_MINUTES)).alarm, 'at 60 minutes');
 });
 
 test('rule 8: an unchanged list is not rewritten; a CRLF body edited on GitHub keeps its sections', () => {

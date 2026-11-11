@@ -146,6 +146,9 @@ export function sweep({ reader, now, repo = REPO, remembered = [] }) {
   const since = new Date(at(now) - 2 * WINDOW_HOURS * 60 * MINUTE).toISOString();
   const listed = readPages(reader, `repos/${repo}/actions/workflows/ci.yml/runs?event=merge_group&created=${encodeURIComponent(`>=${since}`)}`, (got) => got?.workflow_runs);
   if (!listed.complete) complete = false;
+  // Without every merge-group run an older red PR run could pass for the verdict, so no entry of
+  // this check may raise a new alarm; listed ones are kept as rule 9 says.
+  const groupsKnown = listed.complete;
   const groups = new Map();
   for (const r of listed.items) {
     const n = Number(GROUP_BRANCH.exec(r.head_branch ?? '')?.[1]);
@@ -163,9 +166,10 @@ export function sweep({ reader, now, repo = REPO, remembered = [] }) {
     const prRun = runs.workflow_runs.filter((r) => ['pull_request', 'workflow_dispatch'].includes(r.event))
       .sort((a, b) => started(b) - started(a))[0] ?? null;
     let groupRun = groups.get(pr.number) ?? null;
+    let certain = groupsKnown;
     for (const id of groupRun ? [] : (alarmedRuns.get(pr.number) ?? []).filter((id) => id !== prRun?.id)) {
       const old = reader.get(`repos/${repo}/actions/runs/${id}`);
-      if (!old) complete = false;
+      if (!old) { complete = false; certain = false; }
       else if (old.event === 'merge_group' && (!groupRun || started(old) > started(groupRun))) groupRun = old;
     }
     const run = verdictRun({ prRun, groupRun });
@@ -178,7 +182,7 @@ export function sweep({ reader, now, repo = REPO, remembered = [] }) {
     const comments = readPages(reader, `repos/${repo}/issues/${pr.number}/comments`);
     if (!comments.complete) { complete = false; continue; }
     const entry = decide({ pr, failure, comments: comments.items, now });
-    if (entry) entries.push(entry);
+    if (entry) entries.push({ ...entry, certain });
   }
   if (reader.exhausted || reader.failures) complete = false;
   return { entries, complete };
@@ -193,7 +197,8 @@ export function sweep({ reader, now, repo = REPO, remembered = [] }) {
  */
 export function nextAlarm({ entries, complete, previousBody = '', remembered = keysIn(previousBody) }) {
   const listed = new Set(remembered);
-  const fresh = entries.filter((e) => e.unattended && !listed.has(e.key) && e.ageMinutes <= WINDOW_HOURS * 60);
+  // A new alarm needs an established verdict (`certain`); one already listed is kept either way.
+  const fresh = entries.filter((e) => e.unattended && e.certain !== false && !listed.has(e.key) && e.ageMinutes <= WINDOW_HOURS * 60);
   const kept = entries.filter((e) => listed.has(e.key) || fresh.includes(e));
   const unattended = kept.filter((e) => e.unattended).map((e) => e.line);
   const attended = kept.filter((e) => !e.unattended).map((e) => e.line);
@@ -211,7 +216,7 @@ const ATTENDED_HEADING = 'Attended to since the alarm, still red (listed so they
 
 function alarmBody({ owner, now, unattended, attended = [] }) {
   return [
-    `Owner: ${owner}. Checked ${now}. Each pull request below has a red required check that nobody has attended to for ${BOUND_MINUTES} minutes or more (at once for a merge-group failure or a bot's PR with no repair owner): no re-run and no comment by a person since the failure or the last one. Repair it, wake its repair owner, or close it with a reason. Rules: \`${RULES}\`.`,
+    `Owner: ${owner}. Checked ${now}. Each pull request below has a red required check that nobody has attended to for ${BOUND_MINUTES} minutes or more (at once when there is no repair owner and the failure is a merge group's or the PR is a bot's): no re-run and no comment by a person since the failure or the last one. Repair it, wake its repair owner, or close it with a reason. Rules: \`${RULES}\`.`,
     '',
     ...(unattended.length ? unattended : ['None unattended now.']),
     ...(attended.length ? ['', ATTENDED_HEADING, '', ...attended] : []),
@@ -221,22 +226,31 @@ function alarmBody({ owner, now, unattended, attended = [] }) {
 /**
  * Rule 8's memory: the open alarm issue, and the keys it and the newest closed one list. A closed
  * issue's keys are remembered too, so an owner who closes the alarm by hand is not alarmed again
- * for the same failures.
+ * for the same failures. Only a closed issue updated in the last two days can matter: a key it
+ * holds is new-alarm material only while its failure is under a day old (rule 7), and closing it
+ * updated it after that. `complete` is false when those two days could not all be read; the
+ * check then raises no new alarm, since an unread issue could already hold it.
  */
-export function readAlarm({ gh, repo = REPO }) {
+export function readAlarm({ gh, now, repo = REPO }) {
   const found = findAlarmIssue(RED_ISSUE, { repo, gh });
-  const closedList = JSON.parse(gh(['api', '-X', 'GET', `repos/${repo}/issues?state=closed&sort=updated&direction=desc&per_page=50`]) || '[]');
-  const closed = closedList.find((i) => i.title === RED_ISSUE && !i.pull_request && trustedAuthor(i));
-  return { found, remembered: [...new Set([...keysIn(found?.body), ...keysIn(closed?.body)])] };
+  const since = new Date(at(now) - 2 * WINDOW_HOURS * 60 * MINUTE).toISOString();
+  let closed = null, complete = false;
+  for (let page = 1; page <= 3 && !closed; page++) {
+    const list = JSON.parse(gh(['api', '-X', 'GET', `repos/${repo}/issues?state=closed&sort=updated&direction=desc&since=${since}&per_page=100&page=${page}`]) || '[]');
+    closed = list.find((i) => i.title === RED_ISSUE && !i.pull_request && trustedAuthor(i)) ?? null;
+    complete = Boolean(closed) || list.length < 100;
+    if (complete) break;
+  }
+  return { found, complete, remembered: [...new Set([...keysIn(found?.body), ...keysIn(closed?.body)])] };
 }
 
 /** The listed part of an alarm body, without its header and check time. Pure. */
 const listedPart = (body) => String(body ?? '').split(/\r?\n/).slice(1).map((l) => l.trimEnd()).join('\n');
 
 /** Write the alarm: open it, update it with one comment for new failures, or close it. */
-export function raise({ entries, complete, now, ceilings, gh, repo = REPO, alarm = readAlarm({ gh, repo }) }) {
-  const { owner, login } = alarmOwner(ceilings);
-  const { found, remembered } = alarm;
+export function raise({ entries, complete, now, ceilings, gh, repo = REPO, alarm = null }) {
+  const { owner, login } = alarmOwner(ceilings); // rule 12 first: no owner, nothing read or written
+  const { found, remembered } = alarm ?? readAlarm({ gh, now, repo });
   const { unattended, attended, fresh, close } = nextAlarm({ entries, complete, previousBody: found?.body ?? '', remembered });
   if (close && found) {
     gh(['api', '-X', 'POST', `repos/${repo}/issues/${found.number}/comments`, '-f', 'body=No listed pull request is red and unattended any more; closing.']);
@@ -252,7 +266,9 @@ export function raise({ entries, complete, now, ceilings, gh, repo = REPO, alarm
   }
   // An unchanged list is not rewritten: each edit would only move the check time.
   if (listedPart(body) !== listedPart(found.body)) gh(['api', '-X', 'PATCH', `repos/${repo}/issues/${found.number}`, '-f', `body=${body}`]);
-  if (!fresh.length) return `#${found.number} kept, nothing new`;
+  // A route that did not take when the issue opened is tried again until it does.
+  const routed = (found.assignees ?? []).some((a) => String(a?.login).toLowerCase() === login.toLowerCase());
+  if (!fresh.length) return `#${found.number} kept, nothing new${routed ? '' : `; ${routeOrWarn(found.number, { login, repo, gh })}`}`;
   // One comment per check, listing every new failure: the assignee is notified once.
   gh(['api', '-X', 'POST', `repos/${repo}/issues/${found.number}/comments`, '-f', `body=New since the last check:\n\n${fresh.map((e) => e.line).join('\n')}`]);
   return `updated #${found.number} with ${fresh.length} new; ${routeOrWarn(found.number, { login, repo, gh })}`;
@@ -275,8 +291,11 @@ export function budgetedGh(limit, run = (args) => execFileSync('gh', args, { enc
  */
 export function runCheck({ now, ceilings, issue = false, repo = REPO, run }) {
   const gh = budgetedGh(MAX_CALLS, run);
-  const alarm = issue ? readAlarm({ gh, repo }) : { found: null, remembered: [] };
-  const { entries, complete } = sweep({ reader: makeReader(MAX_CALLS - WRITE_RESERVE, gh), now, repo, remembered: alarm.remembered });
+  const alarm = issue ? readAlarm({ gh, now, repo }) : { found: null, complete: true, remembered: [] };
+  const swept = sweep({ reader: makeReader(MAX_CALLS - WRITE_RESERVE, gh), now, repo, remembered: alarm.remembered });
+  const complete = swept.complete && alarm.complete;
+  // Unread alarm memory could already hold any of these: none raises a new alarm (rule 8).
+  const entries = alarm.complete ? swept.entries : swept.entries.map((e) => ({ ...e, certain: false }));
   const did = issue ? raise({ entries, complete, now, ceilings, gh, repo, alarm }) : null;
   return { entries, complete, did, calls: gh.calls };
 }
