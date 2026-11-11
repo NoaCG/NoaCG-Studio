@@ -36,8 +36,8 @@
  },
  "waitingOn": [
   {
-   "what": "PR #2380 merge; then owner answer on AC-1 misses before the phase 3 check",
-   "eta": "owner"
+   "what": "PR #2380 merge, then launch the phase 3 save-after-press fix on top",
+   "eta": "2026-11-11T17:30:00Z"
   }
  ],
  "inFlight": [
@@ -89,10 +89,6 @@
  },
  "ownerQuestions": [
   {
-   "what": "Phase 3 AC-1 misses on the production build (evidence/phase-3.md): stalled typical graphic 225, picture 230, quick 192, +1 189, Next 287 ms p95 (p50 11-18), large stalled graphic 734, caused by the owed edit's draft save rewriting stored productions synchronously before the press handler; second of two fast quick/+1 120-128 typical, 337-354 large; server Take large 118. Options: A land as is and accept; B one scoped repair deferring the blur-triggered save; C B plus tracing the remainders.",
-   "state": "asked 2026-11-11T16:3xZ"
-  },
-  {
    "what": "AC-4: Take during a publish 100-200 ms slower at p95 unthrottled (phase 2 receipt). Ask before phase 6.",
    "state": "pending, before phase 6"
   },
@@ -107,6 +103,12 @@
    "question": "AC-1 50 ms p95 not reachable by removing W1 waits alone (phase 2 receipt: Next 77-144 ms p95 in a dev build on the cloud worker). (A) keep 50 ms, judged on a production build; if the production build still misses, phase 3 stops and brings the number. (B) target relative to the measured baseline. (C) keep 50 ms and add page render work to phase 3.",
    "answer": "a",
    "meaning": "Phase 3 judges AC-1 50 ms p95 on a production build; if it still misses, phase 3 stops and brings the owner the number."
+  },
+  {
+   "at": "2026-11-11T16:5xZ",
+   "question": "Phase 3 AC-1 misses on the production build (evidence/phase-3.md): stalled typical graphic 225, picture 230, quick 192, +1 189, Next 287 ms p95 (p50 11-18), large stalled graphic 734, caused by the owed edit's draft save rewriting stored productions synchronously before the press handler; second of two fast quick/+1 120-128 typical, 337-354 large; server Take large 118. Options: A land as is and accept; B one scoped repair deferring the blur-triggered save; C B plus tracing the remainders.",
+   "answer": "B",
+   "meaning": "One scoped repair in phase 3: run the owed edit draft save after the press is sent instead of before, then remeasure AC-1 on the production build. The two smaller misses are accepted as measured."
   }
  ],
  "phase2": {
