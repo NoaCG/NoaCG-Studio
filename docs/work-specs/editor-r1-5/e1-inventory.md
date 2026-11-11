@@ -95,6 +95,15 @@ checked. The status column records what remains on that path.
 
 ## Assisted editing, projects, receiving and adoption
 
+The [Cloud-first owner amendment](owner-decision-2026-11-11-cloud-first.md)
+keeps every historical E1-E3 result and original acceptance string. E4 now runs in
+qualified Cloud infrastructure. New E5C/E6C phases finish cumulative software/F4
+diagnostics, exports, technical provenance and the consolidated local kit before
+the original E5 real-user/device and E6 receiving-host gates. The phase-specific
+[spec](spec.md) and [manifest](phases.json) define that order. Cloud evidence never
+claims native-device/human or real-host acceptance; OW1/E7 release gates remain.
+
+
 Current-source E3 subcriteria and retained model-quality failures are reconciled in
 [the E3 inventory](e3-inventory.md); the rows below add bounded E3 receipts while preserving historical boundaries.
 
