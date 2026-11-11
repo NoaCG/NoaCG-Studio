@@ -712,9 +712,10 @@ export function gateReport({ gh = withRetries(ghRun), now = new Date().toISOStri
     let report = null;
     try { report = JSON.parse(downloadReport(a, gh)); } catch { /* unreadable: not complete */ }
     const c = classifyReport(report, bounds);
-    // The newest report's stops stand whatever its state (E20, E21): a partial week keeps a stop
-    // it cannot re-measure, and a stop only ever comes from an earlier measurement and its date.
-    newest ??= { run: a.workflow_run.id, generatedAt: report?.generatedAt ?? a.created_at, attempt: report?.attempt ?? 1, firstTryAt: report?.firstTryAt ?? report?.generatedAt ?? null, stops: report?.stops ?? {}, floor: reportComplete(report) ? null : lowerBounds(report), ...(report ? c : { state: 'missing', readFailed: true, why: `the report of run ${a.workflow_run.id} could not be read` }) };
+    // The newest report's stops are the current ones whatever its state (E20, E21): it carried
+    // every breach forward, kept what it could not re-measure and cleared only on evidence. An
+    // unreadable newest report has none to give (null), so the judged report's stops stand.
+    newest ??= { run: a.workflow_run.id, generatedAt: report?.generatedAt ?? a.created_at, attempt: report?.attempt ?? 1, firstTryAt: report?.firstTryAt ?? report?.generatedAt ?? null, stops: report ? report.stops ?? {} : null, floor: reportComplete(report) ? null : lowerBounds(report), ...(report ? c : { state: 'missing', readFailed: true, why: `the report of run ${a.workflow_run.id} could not be read` }) };
     if (reportComplete(report)) return { newest, judged: { run: a.workflow_run.id, generatedAt: report.generatedAt, report } };
   }
   return { newest: newest ?? { run: null, generatedAt: null, attempt: null, state: 'missing', why: 'no live weekly growth report has been published on main' }, judged: null };
@@ -723,7 +724,7 @@ export function gateReport({ gh = withRetries(ghRun), now = new Date().toISOStri
 
 /**
  * The file the capacity line reads: the judged report with a `gate` record, or none. The newest
- * report's stops are applied with the judged report's (Rule E21).
+ * report's stops, when it was read, are the gate's (Rule E21).
  */
 export function gateFile(out, picked) {
   const gate = { newest: picked.newest, judgedOn: picked.judged ? { run: picked.judged.run, generatedAt: picked.judged.generatedAt } : null };

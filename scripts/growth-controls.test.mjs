@@ -1798,6 +1798,13 @@ test('the newest report\'s stops apply at the gate, a kept one included (Rules E
     assert.equal(t.status, 'refuse', tier);
     assert.match(t.why, /growth stopped/, tier);
   }
+  // A newer report that cleared the stop lifts it, even one the judged complete report still lists (Codex review).
+  const judgedStop = { ...realReport(41704224273), stops: { offline: 'latency:queue since 2026-10-27' } };
+  const lifted = await gateOn({ newest: { run: 9, state: 'partial', why: 'x', stops: {} }, judged: { run: 7, generatedAt: judgedStop.generatedAt, report: judgedStop } });
+  assert.notEqual(lifted.assessWith([{ tier: 'offline', id: 'job:x.yml/o', perLanding: 0.1, perDay: 0, how: 't' }]).tiers.offline.status, 'refuse');
+  // An unreadable newest report gives no stops (null): the judged report's stand.
+  const unread = await gateOn({ newest: { run: 9, state: 'missing', why: 'x', readFailed: true, stops: null }, judged: { run: 7, generatedAt: judgedStop.generatedAt, report: judgedStop } });
+  assert.equal(unread.assessWith([{ tier: 'offline', id: 'job:x.yml/o', perLanding: 0.1, perDay: 0, how: 't' }]).tiers.offline.status, 'refuse');
   // A newer report that cleared the stop lifts it: only the newest report's stops count.
   const cleared = gateReport({ gh: reportsGh([artifactOf(4, '2026-11-10T06:00:00Z'), ...arts], { 4: { ...partial, stops: {} }, 3: partial, 2: realReport(41704224273) }), now: '2026-11-10T12:00:00Z', ceilings: GATE_CEILINGS });
   assert.deepEqual(cleared.newest.stops, {});

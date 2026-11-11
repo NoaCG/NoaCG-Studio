@@ -358,8 +358,10 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
   const floor = gate?.newest?.floor ?? null;
   const judged = report?.measurement ?? ceilings.measurement;
   const measurement = floor ? { ...judged, tiers: Object.fromEntries(Object.entries(judged.tiers ?? {}).map(([t, m]) => [t, floor[t] ? { ...m, perLanding: Math.max(m.perLanding, floor[t].perLanding), perDay: Math.max(m.perDay ?? 0, floor[t].perDay) } : m])) } : judged;
-  // The judged report's stops, and the newest report's (Rule E21): a stop stands until evidence clears it.
-  const stops = { ...(gate?.newest?.stops ?? {}), ...(report?.stops ?? {}) };
+  // The newest report's stops when it was read (Rule E21): it carried every breach forward and
+  // cleared only on evidence, so an older report's stop it cleared does not return. Unread, the
+  // judged report's stops stand.
+  const stops = gate?.newest?.stops ?? report?.stops ?? {};
   const newest = gate?.newest;
   if (newest && newest.state !== 'complete') reasons.push(`the newest weekly growth report${newest.run ? ` (run ${newest.run})` : ''} is ${newest.state}${newest.why ? `: ${newest.why}` : ''}; judged on ${gate.judgedOn ? `the newest complete report, run ${gate.judgedOn.run}` : `the frozen seed measured to ${ceilings.measurement.windowEnd}`} at the normal line, and the owner (${ceilings.owner}) is alarmed after landing`);
   const cadence = reportCadence({ generatedAt: report?.generatedAt ?? null, today, maxAgeDays: ceilings.reportMaxAgeDays });
