@@ -7,7 +7,7 @@
 
 import { composeDocument } from '../../preview/composeDocument';
 import { measureDocument } from '../../preview/measureDocument';
-import type { Measurement } from '../../control/cueAdjust';
+import { MEASURE_QUALIFY, type Measurement } from '../../control/cueAdjust';
 import type { SpxTemplate } from '../../model/types';
 
 /** How long one cue may take before it has no measurement. */
@@ -28,5 +28,5 @@ export function measureCue(template: SpxTemplate, values: Record<string, string>
     values,
     style: style ? { vars: style.vars, faces: style.faces } : null,
     capMs: MEASURE_CAP_MS,
-  });
+  }, MEASURE_QUALIFY);
 }

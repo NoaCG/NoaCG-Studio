@@ -11,9 +11,16 @@
 // On an output, whose window is the picture, `invisible` also gives it no opacity.
 
 import { postPreviewCmd, PREVIEW_BOX_TYPE, PREVIEW_RESTYLED_TYPE } from './previewProtocol';
-import { qualifyStep, readMeasurement, QUALIFY_GAP_MS, type Measurement } from '../control/cueAdjust';
 
 let serial = 0;
+
+/** How two answers qualify into one measurement (control/cueAdjust.ts `readMeasurement`,
+ *  `qualifyStep`, `QUALIFY_GAP_MS`), handed in by the caller: preview/ does not import control/. */
+export interface Qualify<M> {
+  read: (msg: unknown) => M | null;
+  step: (first: M | null, m: M, tries: number) => { done: M | null } | { giveUp: true } | { again: M; tries: number };
+  gapMs: number;
+}
 
 export interface MeasureDocument {
   /** The composed document (preview/composeDocument.ts with `liveControl`). */
@@ -28,7 +35,7 @@ export interface MeasureDocument {
   invisible?: boolean;
 }
 
-export function measureDocument(job: MeasureDocument): Promise<Measurement | null> {
+export function measureDocument<M>(job: MeasureDocument, qualify: Qualify<M>): Promise<M | null> {
   return new Promise((resolve) => {
     const iframe = document.createElement('iframe');
     iframe.setAttribute('sandbox', 'allow-scripts');
@@ -47,11 +54,11 @@ export function measureDocument(job: MeasureDocument): Promise<Measurement | nul
       'pointer-events:none',
       ...(job.invisible ? ['opacity:0'] : []),
     ].join(';');
-    let first: Measurement | null = null;
+    let first: M | null = null;
     let tries = 0;
     let asked = -1;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const done = (m: Measurement | null) => {
+    const done = (m: M | null) => {
       clearTimeout(cap);
       clearTimeout(timer);
       window.removeEventListener('message', onMessage);
@@ -68,9 +75,9 @@ export function measureDocument(job: MeasureDocument): Promise<Measurement | nul
       const msg = ev.data as { type?: string; id?: number } | undefined;
       if (msg && msg.type === PREVIEW_RESTYLED_TYPE && asked < 0) return settle();
       if (!msg || msg.type !== PREVIEW_BOX_TYPE || msg.id !== asked) return;
-      const m = readMeasurement(msg);
+      const m = qualify.read(msg);
       if (!m) return done(null);
-      const step = qualifyStep(first, m, tries);
+      const step = qualify.step(first, m, tries);
       if ('done' in step) return done(step.done);
       if ('giveUp' in step) return done(null);
       first = step.again;
@@ -78,7 +85,7 @@ export function measureDocument(job: MeasureDocument): Promise<Measurement | nul
       timer = setTimeout(() => {
         asked = ++serial;
         postPreviewCmd(iframe.contentWindow, { cmd: 'measure', id: asked });
-      }, QUALIFY_GAP_MS);
+      }, qualify.gapMs);
     };
     window.addEventListener('message', onMessage);
     iframe.addEventListener('load', () => {

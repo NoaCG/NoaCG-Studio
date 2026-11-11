@@ -34,7 +34,7 @@ import {
 } from '../preview/previewProtocol';
 import type { ControlEventRow, OutputGraphicSpec, OutputPayload } from '../control/hostedControl';
 import type { ControlMessage } from '../control/controlModel';
-import { frameCss, isIdentity, readAppearance, styleKey, type AppliedAppearance } from '../control/cueAdjust';
+import { frameCss, isIdentity, MEASURE_QUALIFY, readAppearance, styleKey, type AppliedAppearance } from '../control/cueAdjust';
 import { facesCss } from '../control/cueStyle';
 import { readTypedWire, typedValuesOf } from '../model/ografTyped';
 import { mountForeignOgraf, type ForeignOgrafLayer, type ForeignOgrafOptions, type ForeignOgrafSpec, type OgrafReturn } from './foreignOgraf';
@@ -1011,7 +1011,7 @@ export function createOutputStage(
         style: styled ? { vars: look.vars ?? null, faces: facesCss(look.fonts, (src) => assetData(graphic, src)) } : null,
         capMs: PLACE_CAP_MS,
         invisible: true,
-      });
+      }, MEASURE_QUALIFY);
     },
     defer: (run) => void setTimeout(run, 0),
   });

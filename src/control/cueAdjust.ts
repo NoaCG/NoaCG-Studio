@@ -596,3 +596,6 @@ export function publishedAppearance(
   if (own) return own;
   return !isIdentity(applied) || cues.some((c) => c.graphic === cue.graphic && c.appearance) ? IDENTITY : undefined;
 }
+
+/** The qualification a measuring frame applies (preview/measureDocument.ts `Qualify`). */
+export const MEASURE_QUALIFY = { read: readMeasurement, step: qualifyStep, gapMs: QUALIFY_GAP_MS };
