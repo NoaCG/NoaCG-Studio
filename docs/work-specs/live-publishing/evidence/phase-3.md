@@ -270,6 +270,9 @@ Rules found after coding, apart from those stated before it:
   dropped draft that page recorded then lost it on the reload itself (the history resets after
   the hide's save rewrites the cue, and drops the draft), so a drop counts only while the page is
   shown (P3).
+- From the PR review of b584860: the list was capped at eight texts, which could drop a text a
+  team production's outbox still held while its saves waited on the server. No cap now; a
+  confirmed save replaces the texts listed before it.
 - From the final `/so` on 43bcf60 (grade A): with two tabs of one production, one tab's confirmed
   save or dropped draft could remove the other tab's record; a page now removes only a record
   still as it wrote it (P3). And the checker's exact case now has a committed configured test.
@@ -389,7 +392,8 @@ page-hide write at once) was graded B and withdrawn after the touch measurement 
   store as before and, first and synchronously, recorded in localStorage for its production: the
   cue, the texts the cue may hold under the edit (its text when the typing started, then each
   part of this typing handed to the store, from the moment it is handed, whether or not it has
-  landed), and the typed text. The
+  landed; a save the store confirms replaces the texts listed before it, which it can no longer
+  hold; nothing else ever drops one), and the typed text. The
   account pausing saves as before with no record: the page stays. Owed means typed and not yet saved, or saved through the history and not yet
   confirmed by the store. One record per production, in one key per account
   (`spx-gfx-owed-cue-edits`, moved with the account's other small records when an account adopts
@@ -511,11 +515,14 @@ were not measured again.
   listed one; the hide's save not listed one; a pause recording one; applying over the first
   listed text only one; a save not listed when handed to the history three; `cancel` always
   removing the record one; `cancel` never removing it one; `cancel` removing it while the page is
-  going one; removing a record another tab wrote one.
+  going one; removing a record another tab wrote one; a cap on the list one; no replacement on a
+  confirmed save one.
 - `e2e/configured/command-sequence.spec.ts`: "typed, Take with the send still unanswered, then
   the page reloads: the edit is kept", the checker's case committed (send held 800 ms, reload
   50 ms after the Take). 3 of 3 on the local stack; with the record never written, 3 of 3 red
-  (the field reads the old "HOME").
+  (the field reads the old "HOME"). A later local run passed 1 of 2: in the other the page never
+  booted after the reload ("could not finish loading": the local dev server stalled serving the
+  app's modules), before anything this test checks.
 - `scripts/owed-cue-edit.test.mjs` (new): records per production and per account, a store of
   another version never read, written over or cleared, an unreadable record read as none.
 - Specs that hold writes or reload (`save-transaction-holds`, `rundown-history-storage`,

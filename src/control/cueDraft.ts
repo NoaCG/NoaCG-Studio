@@ -79,9 +79,6 @@ export interface OwedEdit {
   fields: CueFields;
 }
 
-/** The most texts a record lists under its edit: the starting text and the latest saves. */
-const MAX_BASES = 8;
-
 /** Whether `cue` holds `text`: the label, the note and each of the text's values. */
 function holds(cue: CueRecord, text: CueFields): boolean {
   return cue.label === text.label && (cue.note || null) === (text.note || null) && Object.entries(text.values).every(([k, v]) => cue.values[k] === v);
@@ -213,7 +210,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
   /** The texts the draft's cue may hold under it: the text when the draft started, then each
    *  part of the typing handed to the store (it may or may not have landed when the page goes).
    *  What a recorded edit may be applied over on the next visit, and nothing else. */
-  let startedFrom: { cueId: string; texts: CueFields[] } | null = null;
+  let startedFrom: { cueId: string; texts: { from: DraftPart | null; text: CueFields }[] } | null = null;
   /** The owed-edit record this page last wrote when it hid, as stored, or null. */
   let recorded: string | null = null;
   /** Remove the record only if it is still the one this page wrote: another tab of the same
@@ -226,13 +223,18 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
   let leaving = false;
   const copyOf = (d: DraftPart): CueFields => ({ ...fieldsOf(d), values: { ...d.values } });
   const started = (d: DraftPart) => {
-    startedFrom = { cueId: d.cueId, texts: [copyOf(d)] };
+    startedFrom = { cueId: d.cueId, texts: [{ from: null, text: copyOf(d) }] };
   };
   /** The store was given `d`'s text while typing in its cue goes on. */
   const handed = (d: DraftPart) => {
     if (startedFrom?.cueId !== d.cueId) return;
-    const [first, ...rest] = startedFrom.texts;
-    startedFrom = { cueId: d.cueId, texts: [first, ...rest.slice(-(MAX_BASES - 2)), copyOf(d)] };
+    startedFrom = { cueId: d.cueId, texts: [...startedFrom.texts, { from: d, text: copyOf(d) }] };
+  };
+  /** The store confirmed `d`'s save while typing goes on: the store can no longer hold a text
+   *  listed before it, so only it and later ones stay listed. */
+  const confirmed = (d: DraftPart) => {
+    const at = startedFrom?.texts.findIndex((t) => t.from === d) ?? -1;
+    if (startedFrom && at > 0) startedFrom = { cueId: startedFrom.cueId, texts: startedFrom.texts.slice(at) };
   };
   let timer: unknown = null;
   const set = (draft: DraftPart | null) => session.apply((parts) => ({ ...parts, draft }));
@@ -293,6 +295,8 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
           forgetOwn();
         }
         else pending = true;
+      } else if (saved) {
+        confirmed(d);
       }
       return saved;
     });
@@ -307,7 +311,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     // Recorded where a reload cannot drop it: the store's write may still be committing when the
     // page goes, and a reload aborts it.
     if (hiding && startedFrom && startedFrom.cueId === d.cueId) {
-      io.owed.keep({ cueId: d.cueId, bases: startedFrom.texts, fields: fieldsOf(d) });
+      io.owed.keep({ cueId: d.cueId, bases: startedFrom.texts.map((t) => t.text), fields: fieldsOf(d) });
       recorded = JSON.stringify(io.owed.read());
     }
     if (io.retainCue(d.cueId, fieldsOf(d))) {

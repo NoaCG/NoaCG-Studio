@@ -536,7 +536,22 @@ test('P2: while the account may not write, the record stays for a later visit', 
   assert.equal(h.writes.length, 1);
 });
 
-test('P1: an earlier save of the same cue confirmed while typing went on is listed under the edit', async () => {
+test('P1: every save handed over and not yet confirmed stays listed, however many', () => {
+  // PR review of b584860: a team production's saves can wait on the server while each is already
+  // in its local outbox, so none of them may fall off the list before a later one is confirmed.
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  for (let i = 1; i <= 10; i++) {
+    h.draft.edit(OPENER, { values: { f0: `T${i}` } });
+    void h.draft.flush();
+  }
+  h.draft.edit(OPENER, { values: { f0: 'Last' } });
+  for (const run of h.listeners.hide) run(true);
+  assert.deepEqual(h.owed?.bases.map((b) => b.values.f0), ['Anna Riva', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10']);
+  stop();
+});
+
+test('P1: an earlier save of the same cue confirmed while typing went on replaces the texts listed before it', async () => {
   // PR review of 7901c00: the store then holds that save's text, so the newer typing must be applied
   // over it, not over the text before it.
   const h = harness();
@@ -547,7 +562,7 @@ test('P1: an earlier save of the same cue confirmed while typing went on is list
   h.writes[0].answer(true);
   await first;
   for (const run of h.listeners.hide) run(true);
-  assert.deepEqual(h.owed?.bases.map((b) => b.values.f0), ['Anna Riva', 'B']);
+  assert.deepEqual(h.owed?.bases.map((b) => b.values.f0), ['B']);
   assert.equal(h.owed?.fields.values.f0, 'C');
   stop();
 });
