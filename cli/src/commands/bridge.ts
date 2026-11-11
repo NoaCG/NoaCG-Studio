@@ -14,7 +14,8 @@
 // 0.0.0.0 would turn any web page the operator visits into a remote for the playout box, so
 // the command refuses to.
 
-import { bridgeVersion, noacgUrl } from '../config.js';
+import path from 'node:path';
+import { bridgeVersion, configDir, noacgUrl } from '../config.js';
 import { launchUrl } from '../openUrl.js';
 import { EXIT_OK, flagBool, flagList, flagNumber, flagString, refuseStray, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { casparcgAdapter } from '../playout/adapters/casparcg.js';
@@ -45,7 +46,7 @@ export async function runBridge(args: ParsedArgs, out: Out): Promise<number> {
   // Only Bridge startup needs the vMix XML parser.
   const { createVmixAdapter } = await import('../playout/adapters/vmix.js');
   const vmixStorage = await fileVmixOutputStore();
-  const vmix = createVmixAdapter({ port: vmixPort, outputs: vmixStorage.outputs, ownershipProblem: vmixStorage.ownershipProblem });
+  const vmix = createVmixAdapter({ port: vmixPort, outputs: vmixStorage.outputs, ownershipProblem: vmixStorage.ownershipProblem, mediaFile: path.join(configDir(), 'vmix-setup.json') });
   const token = await resolveToken(flagString(args, 'token'), args.flags['new-token'] === true);
   const origins = allowedOrigins(flagList(args, 'origin'));
   const quiet = args.flags.quiet === true;

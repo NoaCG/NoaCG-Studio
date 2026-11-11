@@ -12,6 +12,7 @@ import type { CasparSlot, OgrafSlot, Slot, VmixSlot } from './playoutProtocol';
  *  slot reads as its renderer and the render target's own fields: `renderer-0 layerId=1`; a vMix
  *  slot as its overlay channel, `Overlay 8`. */
 export function slotAddress(slot: Pick<CasparSlot, 'channel' | 'layer'> | OgrafSlot | VmixSlot): string {
+  if ('player' in slot) return slot.player === 'clips' ? 'NoaCG Clips' : 'NoaCG Audio';
   if ('overlay' in slot) return `Overlay ${slot.overlay}`;
   if ('rendererId' in slot) {
     return [slot.rendererId, ...Object.entries(slot.renderTarget).map(([k, v]) => `${k}=${String(v)}`)].join(' ');
@@ -35,6 +36,10 @@ export function outputSlotRefusal(address: string, output: Pick<CasparSlot, 'cha
  *  stacks them. An OGraf slot has no channel, so it follows, by its address. */
 export function compareSlots(a: Slot, b: Slot): number {
   if (a.adapter === 'casparcg' && b.adapter === 'casparcg') return a.channel - b.channel || b.layer - a.layer;
-  if (a.adapter !== b.adapter) return a.adapter === 'casparcg' ? -1 : 1;
+  if (a.adapter !== b.adapter) {
+    if (a.adapter === 'casparcg') return -1;
+    if (b.adapter === 'casparcg') return 1;
+    return a.adapter.localeCompare(b.adapter);
+  }
   return slotAddress(a).localeCompare(slotAddress(b));
 }

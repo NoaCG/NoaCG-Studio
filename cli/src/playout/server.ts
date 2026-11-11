@@ -27,6 +27,7 @@ import { amcpSend } from './amcp.js';
 import type { ActResult, PlayoutAdapter } from './adapters/casparcg.js';
 import { ografApiBase } from './adapters/ograf.js';
 import type { VmixAdapter } from './adapters/vmix.js';
+import { VmixDeadline, VmixPublicationUncertain } from './vmixMedia.js';
 import {
   MAX_SEQUENCE_ENTRIES,
   MAX_VMIX_OVERLAYS,
@@ -225,6 +226,10 @@ function readSlot(v: unknown): Slot {
     return { adapter: 'ograf', rendererId, renderTarget: readRenderTarget(v.renderTarget) };
   }
   if (isRecord(v) && v.adapter === 'vmix') {
+    if ('player' in v) {
+      if ('overlay' in v || (v.player !== 'clips' && v.player !== 'audio')) throw new UsageError('A vMix slot names exactly one overlay or player.');
+      return { adapter: 'vmix', player: v.player };
+    }
     const overlay = v.overlay;
     if (typeof overlay !== 'number' || !Number.isInteger(overlay) || overlay < 1 || overlay > MAX_VMIX_OVERLAYS) throw new UsageError(`A vmix slot names an overlay channel from 1 to ${MAX_VMIX_OVERLAYS}.`);
     return { adapter: 'vmix', overlay };
@@ -356,7 +361,7 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
   if (!isRecord(a)) throw new UsageError('The request has no action.');
   const slot = readSlot(a.slot);
   const expected = a.expectedOverlayInput;
-  if (expected !== undefined && (slot.adapter !== 'vmix' || (a.verb !== 'take' && a.verb !== 'out') ||
+  if (expected !== undefined && (slot.adapter !== 'vmix' || !('overlay' in slot) || (a.verb !== 'take' && a.verb !== 'out') ||
     (expected !== null && (typeof expected !== 'string' || !VMIX_INPUT_KEY.test(expected))) ||
     (expected === null && a.verb !== 'take'))) {
     throw new UsageError('A vMix take or out can name the current input by key. Only take can expect an empty overlay.');
@@ -510,7 +515,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
     if (url === '/health' && req.method === 'GET') {
       send(
         200,
-        { ok: true, agent: 'noacg-bridge', v: PLAYOUT_V, version: options.version, adapters: [...byId.keys()], features: [...BRIDGE_FEATURES, ...(byId.has('vmix') ? ['vmix-output-key' as const] : [])] } satisfies BridgeWireReply<'/health'>,
+        { ok: true, agent: 'noacg-bridge', v: PLAYOUT_V, version: options.version, adapters: [...byId.keys()], features: [...BRIDGE_FEATURES, ...(byId.has('vmix') ? ['vmix-output-key' as const, 'vmix-media' as const] : [])] } satisfies BridgeWireReply<'/health'>,
         true,
       );
       return;
@@ -592,6 +597,17 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
         // server"): its channels, the NoaCG output's slot and the New media channel, kept on that
         // server's entry so every browser paired with this Bridge opens with them. Only for a server
         // a page connected to; it contacts no server.
+        if ((url === '/studio' || url === '/vmix/choose-folder') && target.adapter === 'vmix' && vmix) {
+          if (Object.keys(body).some(key => key !== 'target')) throw new UsageError('The vMix media folder is chosen in the Windows picker. This route takes no folder path.');
+          try {
+            const value = url === '/studio' ? { mediaFolder: await vmix.mediaFolder(target) } : await vmix.chooseFolder(target);
+            send(200, { ok: true, v: PLAYOUT_V, ...value }, true);
+          } catch (error) {
+            const code = error instanceof VmixPublicationUncertain ? 'uncertain' : error instanceof VmixDeadline ? 'unreachable' : 'refused';
+            send(200, { ok: false, v: PLAYOUT_V, error: { hop: 'agent', code, detail: error instanceof Error ? error.message : 'The vMix media folder is unavailable.' } }, true);
+          }
+          return;
+        }
         if (url === '/studio') {
           if (target.adapter !== 'casparcg') throw new UsageError('Only a CasparCG server keeps a studio setup.');
           const studio = readStudio(body.studio);
@@ -715,6 +731,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
         if (url === '/list') {
           const kind = body.kind;
           if (kind !== 'template' && kind !== 'media') throw new UsageError('A list is of kind "template" or "media".');
+          if (target.adapter === 'vmix' && body.path !== undefined && typeof body.path !== 'string') throw new UsageError('A vMix media path is a relative folder name.');
           const path = typeof body.path === 'string' ? body.path : undefined;
           const r = await adapter.list(target, kind, path);
           // A target with renderers (OGraf) answers where its library can play in the same reply.
@@ -736,6 +753,16 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
         if (url === '/act') {
           const action = readAction(body);
           const { slot } = action;
+          if (keyedVmixAct && slot.adapter === 'vmix' && 'player' in slot) throw new UsageError('An output-keyed token cannot control a vMix player.');
+          if (target.adapter === 'vmix' && slot.adapter === 'vmix' && 'player' in slot && vmix) {
+            // The port turn includes fresh identity, ending permission, state and generations.
+            const result = await vmix.act(target, action, { receivedAt, vmixBridgePort: req.socket.localPort, session: memory.session });
+            send(200, result.ok ? {
+              ok: true, v: PLAYOUT_V, raw: result.raw, session: memory.session,
+              generation: result.generation, ...(result.instance ? { instance: result.instance } : {}),
+            } : { ok: false, v: PLAYOUT_V, error: result.error }, true);
+            return;
+          }
           // An ending is changed only on the clip this Bridge put on air there: on somebody else's,
           // or after this Bridge restarted, nothing is sent and nothing it runs moves. Asked of a
           // fresh reading before the generation moves - the server may have switched the clip, or

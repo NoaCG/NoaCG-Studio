@@ -9,10 +9,12 @@
 // or an input key it does not know, so an OK proves nothing: what matters is read back from the XML.
 // A function sent without a usable answer is `uncertain` and never sent again.
 
-import { VMIX_BROWSER_LOAD_PROBLEM, VMIX_INPUT_KEY, vmixOverlayCount, type AgentError, type ItemRef, type PlayoutAction, type VmixInfo, type VmixInput, type VmixOverlayState, type VmixSlot, type VmixTarget } from '../protocol.js';
+import { VMIX_BROWSER_LOAD_PROBLEM, VMIX_INPUT_KEY, vmixOverlayCount, type AgentError, type ItemRef, type PlayoutAction, type VmixInfo, type VmixInput, type VmixOverlayState, type VmixOverlaySlot, type VmixStateReply, type VmixTarget } from '../protocol.js';
 import { DEFAULT_VMIX_PORT, VmixConnection, parseVmixXml, type VmixXml } from '../vmixTcp.js';
 import { newVmixBrowser, vmixOutputAddress, vmixOutputId, vmixOutputStore, vmixRedirectRequest, type VmixOutputStore } from '../vmixOutputs.js';
-import type { ActResult, AdapterResult, PlayoutAdapter } from './casparcg.js';
+import { createVmixMedia, VmixDeadline, VmixPublicationUncertain, type VmixMedia } from '../vmixMedia.js';
+import { createVmixPlayers, unsupportedPlayerAction, type VmixActResult } from '../vmixPlayers.js';
+import type { ActContext, ActResult, AdapterResult, PlayoutAdapter } from './casparcg.js';
 
 /** The time ONE verb may take, all its commands together, inside the page's 9 s for `/act`. */
 const VMIX_TIMEOUT_MS = 7_000;
@@ -42,7 +44,10 @@ export interface VmixAdapter extends PlayoutAdapter<VmixTarget> {
   /** The port a target that names none reaches: 8099, or `--vmix-port`. */
   readonly port: number;
   status(target: VmixTarget, receivedAt?: number): Promise<AdapterResult<{ version: string; vmix: VmixInfo }>>;
-  overlays: NonNullable<PlayoutAdapter<VmixTarget>['overlays']>;
+  overlays(target: VmixTarget, outputUrl?: string, context?: { receivedAt?: number; vmixBridgePort?: number }): Promise<AdapterResult<Pick<VmixStateReply, 'vmix' | 'overlays' | 'loadProblem' | 'players'>>>;
+  act: (target: VmixTarget, action: PlayoutAction, context?: ActContext & { session?: string }) => Promise<VmixActResult>;
+  mediaFolder(target: VmixTarget): Promise<string>;
+  chooseFolder(target: VmixTarget): Promise<{ mediaFolder: string; cancelled?: true }>;
   outputRedirect(host: string | undefined, path: string | undefined, port: number): Promise<string | undefined>;
   /** Close every connection, for a Bridge that stops. */
   close(): void;
@@ -50,7 +55,7 @@ export interface VmixAdapter extends PlayoutAdapter<VmixTarget> {
 
 const unsupported = (what: string): { ok: false; error: AgentError } => ({
   ok: false,
-  error: { hop: 'agent', code: 'unsupported', detail: `vMix takes the NoaCG output and nothing else from the Bridge, so ${what} was not sent.` },
+  error: { hop: 'agent', code: 'unsupported', detail: `This vMix Bridge cannot honour ${what}, so nothing was sent.` },
 });
 const uncertain = (detail: string): { ok: false; error: AgentError } =>
   ({ ok: false, error: { hop: 'target', code: 'uncertain', detail } });
@@ -58,6 +63,13 @@ const refused = (detail: string): { ok: false; error: AgentError } =>
   ({ ok: false, error: { hop: 'target', code: 'refused', detail } });
 const storageFailed = () => refused('NoaCG Bridge could not read or keep its vMix output keys. Check vmix-outputs.json before trying again.');
 const usage = (detail: string): { ok: false; error: AgentError } => ({ ok: false, error: { hop: 'agent', code: 'usage', detail } });
+
+function mediaFailure(error: unknown, fallback: string): { ok: false; error: AgentError } {
+  if (error instanceof VmixDeadline || error instanceof VmixPublicationUncertain) return {
+    ok: false, error: { hop: 'agent', code: error instanceof VmixDeadline ? 'unreachable' : 'uncertain', detail: error.message },
+  };
+  return refused(error instanceof Error ? error.message : fallback);
+}
 
 /** The production's title from a url item, cleaned for an input name: one line, no control
  *  characters or lone surrogates (which could not be URL-encoded), at most 100 characters. */
@@ -130,10 +142,14 @@ function otherOverlay(xml: VmixXml, input: VmixInput, overlay: number): number |
 export function createVmixAdapter(options: {
   port?: number; timeoutMs?: number; greetingMs?: number; replyMs?: number; outputs?: VmixOutputStore;
   ownershipProblem?: () => string | undefined;
+  media?: VmixMedia;
+  mediaFile?: string;
 } = {}): VmixAdapter {
   const defaultPort = options.port ?? DEFAULT_VMIX_PORT;
   const timeoutMs = options.timeoutMs ?? VMIX_TIMEOUT_MS;
   const outputs = options.outputs ?? vmixOutputStore();
+  const media = options.media ?? createVmixMedia({ file: options.mediaFile, ownershipProblem: options.ownershipProblem });
+  const players = createVmixPlayers(media);
   const connections = new Map<number, VmixConnection>();
   const portOf = (target: VmixTarget) => target.port ?? defaultPort;
   // A Browser can navigate while AddInput is still being confirmed. Only committed aliases
@@ -232,7 +248,7 @@ export function createVmixAdapter(options: {
     port: defaultPort,
 
     capabilities() {
-      return { lists: [], thumbnails: false, verbs: ['take', 'out', 'clear'], target: ['state'] };
+      return { lists: ['media'], thumbnails: false, verbs: ['take', 'out', 'clear', 'pause', 'resume', 'ending'], target: ['state'] };
     },
 
     async status(target, receivedAt = Date.now()) {
@@ -246,7 +262,8 @@ export function createVmixAdapter(options: {
 
     async overlays(target, outputUrl, { receivedAt = Date.now(), vmixBridgePort } = {}) {
       return exclusive(portOf(target), async () => {
-        const s = await begin(target, receivedAt + timeoutMs);
+        const until = receivedAt + timeoutMs;
+        const s = await begin(target, until);
         if (!('conn' in s)) return s;
         const vmix = describe(s.xml);
         const id = outputUrl === undefined ? undefined : vmixOutputId(outputUrl);
@@ -271,12 +288,43 @@ export function createVmixAdapter(options: {
           const input = onChannel(s.xml, overlay);
           value.push({ overlay, ...(input ? { input } : {}), ...(id && !ownershipProblem ? { ownsOutput: !!owned && input?.key === owned.key } : {}) });
         }
-        return { ok: true, value: { vmix, overlays: value, ...(loadProblem ? { loadProblem } : {}) }, raw: s.raw };
+        const playerStates = outputUrl === undefined
+          ? await players.states(portOf(target), s.xml, until).catch(() => undefined)
+          : undefined;
+        return { ok: true, value: { vmix, overlays: value, ...(playerStates ? { players: playerStates } : {}), ...(loadProblem ? { loadProblem } : {}) }, raw: s.raw };
       });
     },
 
-    async list() {
-      return unsupported('a list');
+    async list(target, kind, path) {
+      if (kind !== 'media') return unsupported('a template list');
+      try {
+        return { ok: true, value: await media.list(portOf(target), path), raw: 'vMix media folder' };
+      } catch (error) {
+        return mediaFailure(error, 'The vMix media folder could not be listed.');
+      }
+    },
+
+    mediaFolder(target) { return media.folder(portOf(target)); },
+    chooseFolder(target) {
+      const port = portOf(target);
+      return media.chooseFolder(port, save => {
+        const until = Date.now() + timeoutMs;
+        const expired = () => new VmixDeadline('Bridge could not start saving the vMix media folder within the request deadline.');
+        return new Promise((resolve, reject) => {
+          // Bound queue wait here. Once the turn begins, the store distinguishes a
+          // pre-publication deadline from a rename that has already been submitted.
+          let missedTurn = false;
+          const waiting = setTimeout(() => {
+            missedTurn = true;
+            reject(expired());
+          }, timeoutMs);
+          exclusive(port, async () => {
+            clearTimeout(waiting);
+            if (missedTurn || Date.now() >= until) throw expired();
+            return save(until);
+          }).then(resolve, reject);
+        });
+      });
     },
 
     async thumbnail() {
@@ -292,16 +340,42 @@ export function createVmixAdapter(options: {
     },
 
     async act(target, action: PlayoutAction, context) {
+      if (action.slot.adapter === 'vmix' && 'player' in action.slot) {
+        const slot = action.slot;
+        if ('overlay' in slot || (slot.player !== 'clips' && slot.player !== 'audio')) return usage('A vMix slot names exactly one overlay or player.');
+        const unsupportedOption = unsupportedPlayerAction(action, slot.player);
+        if (unsupportedOption) return unsupported(unsupportedOption);
+        const problem = options.ownershipProblem?.();
+        if (problem) return refused(problem);
+        const until = (context?.receivedAt ?? Date.now()) + timeoutMs;
+        return exclusive(portOf(target), async () => {
+          try {
+            const s = await begin(target, until, 'diagnostic');
+            if (!('conn' in s)) return s;
+            return await players.act(portOf(target), slot.player, action, {
+              before: s.xml, until, session: context?.session,
+              read: () => read(s.conn, until, 'diagnostic'),
+              send: async (name, params) => {
+                const storageProblem = options.ownershipProblem?.();
+                return storageProblem ? refused(storageProblem) : fn(s.conn, name, params, until, true);
+              },
+            });
+          } catch (error) {
+            return mediaFailure(error, 'The vMix player setup could not be read or kept.');
+          }
+        });
+      }
       // Everything vMix cannot do from here is refused before anything is sent: the cues play inside
       // the output, so the only things the Bridge puts on a channel are that page and nothing else.
       if (action.verb !== 'take' && action.verb !== 'out' && action.verb !== 'clear') return unsupported(`a ${action.verb}`);
       const ownershipProblem = options.ownershipProblem?.();
       if (ownershipProblem) return refused(ownershipProblem);
       if (action.slot.adapter !== 'vmix') return usage('A vMix command needs a vmix slot.');
-      const slot: VmixSlot = action.slot;
+      if (!('overlay' in action.slot)) return usage('The vMix output needs an overlay slot.');
+      const slot: VmixOverlaySlot = action.slot;
       const { item } = action;
       if (item && item.kind !== 'url') return unsupported(`a ${item.kind}`);
-      if (action.verb === 'take' && (action.loop || action.playback)) return unsupported('a loop or a playback');
+      if (action.verb === 'take' && (action.loop || action.playback || action.imageFit !== undefined)) return unsupported('a loop, playback settings or image fit on the output');
       const title = titleOf(item);
       if (!title) return usage(`${action.verb === 'take' ? 'Put on air' : 'Taking the output off'} names the production: the item's label is its title, which names the vMix input.`);
       const name = outputInputName(title);
@@ -314,6 +388,7 @@ export function createVmixAdapter(options: {
     },
 
     close() {
+      media.close();
       for (const c of connections.values()) c.close();
       connections.clear();
     },
@@ -365,7 +440,7 @@ export function createVmixAdapter(options: {
 
   async function perform(
     target: VmixTarget, action: Extract<PlayoutAction, { verb: 'take' | 'out' | 'clear' }>,
-    slot: VmixSlot, name: string, id: string, address: string, until: number, bridgePort: number | undefined,
+    slot: VmixOverlaySlot, name: string, id: string, address: string, until: number, bridgePort: number | undefined,
   ): Promise<ActResult> {
     const port = portOf(target);
     const overlay = slot.overlay;
