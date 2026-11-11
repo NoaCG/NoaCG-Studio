@@ -44,8 +44,8 @@ function loopedTime(kfs: AnimKeyframe[], loop: AnimLoop, localT: number): number
 
 /** Effective (real-second) duration of one step — stored values are speed-relative. */
 export function stepSeconds(data: AnimData, index: number, includeLegacy = false): number {
-  const speed = data.speed || 1;
-  return authoredCueEnd(data.steps[index], includeLegacy, speed) / speed;
+  const speed = data.speed || 1, out = index > 0 && index === data.steps.length - 1;
+  return authoredCueEnd(data.steps[index], includeLegacy && !out, speed) / speed;
 }
 
 /** Each step's start offset on the concatenated editing ruler, in real seconds. */

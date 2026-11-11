@@ -39,9 +39,10 @@ export function readTimeline(template: SpxTemplate): TimelineView {
   const bars = parts.flatMap(part => {
     const owner = owners[part.selector] ?? part.selector;
     return segments.flatMap(segment => {
-      const spans = data!.steps[segment.index]?.spans?.[owner];
+      const step = data!.steps[segment.index], spans = step?.spans?.[owner];
       if (spans) return spans.map((span, interval) => ({ selector: part.selector, step: segment.index, interval, cueStart: segment.start,
-        start: segment.start + span.start / data!.speed, end: segment.start + span.end / data!.speed }));
+        start: segment.start + span.start / data!.speed,
+        end: segment.start + (span.end === step.duration ? segment.duration : span.end / data!.speed) }));
       // A cue without bars shows the layer as the runtime plays it.
       if (!shownWithoutBars(data!, owner, segment.index)) return [];
       return [{ selector: part.selector, step: segment.index, interval: 0, cueStart: segment.start, start: segment.start, end: segment.start + segment.duration }];

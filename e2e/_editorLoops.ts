@@ -333,10 +333,21 @@ export async function playLoopOutputs(page: Page) {
     x: { repeat: 1, yoyo: true },
     opacity: { repeat: 0, range: [.4, .8] },
   } };
+  mixed.steps[0].spans = { '#score': [{ start: .2, end: 1.3 }] };
+  mixed.steps[1].spans = { '#score': [{ start: 0, end: .4 }] };
   const mixedInput = await template(page, mixed);
   await apply(page, mixedInput);
   await seek(page, 1.8);
   await pose(page, 20, 1, 130);
+  const flag = await page.evaluate(async () => {
+    const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const template = session.port.read();
+    const { readTimeline } = await import('/src/components/editorFoundation/timelineView.ts');
+    const { authoringPosition } = await import('/src/components/editorFoundation/animationAuthoring.ts');
+    const arrivingBar = readTimeline(template).bars.find(bar => bar.selector === '#score' && bar.step === 0);
+    return { barEnd: arrivingBar?.end, position: authoringPosition(template, '#score', 1.8) };
+  });
+  expect(flag).toEqual({ barEnd: 1.8, position: { step: 0, time: 1.8 } });
   const ograf = await built(page, mixedInput, 'ograf');
   const manifestFile = Object.entries(ograf.files!).find(([file]) => file.endsWith('.ograf.json'))!;
   const manifest = JSON.parse(Buffer.from(manifestFile[1], 'base64').toString('utf8'));

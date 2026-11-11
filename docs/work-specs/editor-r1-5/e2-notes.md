@@ -241,3 +241,13 @@ The full independent assessment graded `6add1f4ea149ceca6f745268a1200f7a537939de
 It identified an OGraf import that crossed the export dependency boundary.
 Dependency Cruiser reproduced the violation. OGraf now reads the same exact
 capability predicate through the existing animation migration entry point.
+
+Codex's PR review also caught two template imports that crossed the nested
+template contract, and key moves that used the shorter stored cue clock.
+The shared clock literal and range detection now live in the model. Key moves,
+clipboard positions and the selection after a move use the ruler's cue starts.
+A move into a repeat-only tail or across a flag that would need a key in that
+tail refuses before changing source. Keys within authored ranges keep their
+existing edits. A terminal visibility span reaches the derived flag, so its
+continuous layer stays on the arriving cue at that boundary. Legacy Out still
+uses its finite authored duration.

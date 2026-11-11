@@ -1,4 +1,4 @@
-// guards: src/blocks/animData.ts, src/blocks/animEdit.ts, src/blocks/animEval.ts, src/blocks/animLoopTiming.ts, src/blocks/animMachine.ts, src/blocks/animMigration.ts, src/templates/shared/animRuntime.ts, src/templates/shared/animLoopRuntime.ts, src/assets/gsap.min.js, e2e/fixtures/editor-loops.json
+// guards: src/blocks/animData.ts, src/blocks/animEdit.ts, src/blocks/animEval.ts, src/blocks/animLoopTiming.ts, src/blocks/animMachine.ts, src/blocks/animMigration.ts, src/model/animLoopClock.ts, src/templates/shared/animRuntime.ts, src/templates/shared/animLoopRuntime.ts, src/assets/gsap.min.js, e2e/fixtures/editor-loops.json
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -226,6 +226,8 @@ test('mixed upgraded cues include finite legacy repeats in their derived endpoin
   data.steps[0].loops['#box'].x = { repeat: 1, yoyo: true };
   near(evaluator.stepSeconds(data, 0), 1.3, 'untouched legacy metadata keeps its authored floor');
   near(evaluator.stepSeconds(data, 0, true), 1.8, 'upgraded cue includes the full legacy yoyo');
+  data.steps[2].loops = { '#box': { x: { repeat: 4, yoyo: true } } };
+  near(evaluator.stepSeconds(data, 2, true), .5, 'old Out data keeps the finite authored exit');
   near(evaluator.resolveValue(data, '#box', 'x', 1, 0, true), 20, 'later cue inherits the reverse endpoint');
   const g = graphic(data);
   const inCue = g.w.buildInTimeline();
@@ -236,6 +238,32 @@ test('mixed upgraded cues include finite legacy repeats in their derived endpoin
   const upgraded = runtime.emitAnimRegion(data);
   delete data.steps[0].loops['#box'].opacity;
   assert.ok(runtime.hasLoopRuntime(runtime.writeOutData(upgraded, data)), 'removal leaves the exact capability');
+});
+
+test('unrelated keys use the visible cue starts and cannot land in the repeat-only tail', () => {
+  const data = baseline(), step = data.steps[0];
+  step.duration = 1;
+  step.loops = { '#box': { x: { repeat: 2, range: [0, 1] } } };
+  step.layers['#score'].y = [{ time: 0, value: 4 }, { time: .8, value: 4 }];
+  data.steps[1].duration = 1;
+  data.steps[1].layers['#score'] = { y: [{ time: .2, value: 4 }, { time: .8, value: 12 }] };
+  const key = (cue, time) => ({ step: cue, selector: '#score', property: 'y', time });
+  const original = JSON.stringify(data);
+  assert.deepEqual(edit.keyCueStarts(data), [0, 3, 4, 4.5]);
+  assert.throws(() => edit.moveKeys(data, [key(0, .8)], .5), /extra time added by a finite loop/);
+  assert.throws(() => edit.moveKeys(data, [key(1, .2)], -2.3), /across a flag extended by a finite loop/);
+  assert.throws(() => edit.setKeyframe(data, 0, '#box', 'x', 1.5, 50), /extra time added by a finite loop/);
+  assert.equal(JSON.stringify(data), original, 'refused writes preserve the full data');
+  const moved = edit.moveKeys(data, [key(1, .8)], -.3);
+  assert.deepEqual(moved.steps[1].layers['#score'].y.map(k => k.time), [.2, .5]);
+  const held = structuredClone(data);
+  held.steps[1].layers['#score'].y[1].value = 4;
+  const across = edit.moveKeys(held, [key(1, .2)], -2.3);
+  assert.deepEqual(across.steps[0].layers['#score'].y.map(k => k.time), [0, .8, .9]);
+  const copied = edit.captureKeys(data, [key(0, .8), key(1, .8)]);
+  assert.deepEqual(copied.map(k => k.offset), [0, 3]);
+  const pasted = edit.pasteKeys(data, copied.slice(0, 1), 1, .5);
+  assert.deepEqual(pasted.steps[1].layers['#score'].y.map(k => k.time), [.2, .5, .8]);
 });
 
 test('explicit hides and visibility spans keep ownership during loop Hold and backward seek', () => {

@@ -7,7 +7,7 @@ import { resolveValue } from './animEval';
 import { artworkNode, editArtworkStyle } from './artworkEdits';
 import { anchorCssReason, baseValues, editBase, settleSvgOffset, TRANSFORM_CHANNELS, type BasePatch } from './baseEdits';
 import { allTimelines } from './animMachine';
-import { canWriteAnchorData, hasAnchorRuntime, ORDINARY_ANCHOR_CHANNELS, withAnchorRuntime, writeAnimData, writeOutData } from '../templates/shared/animRuntime';
+import { canWriteAnchorData, hasAnchorRuntime, hasLoopRuntime, ORDINARY_ANCHOR_CHANNELS, withAnchorRuntime, writeAnimData, writeOutData } from '../templates/shared/animRuntime';
 import { locateBehaviourData, parseBehaviourData } from './behaviourData';
 import { behaviourSequenceReason, claimReason, claimRelations, recipeClaims, requireUserTracksOnly, sequenceOwned, stamped, SEQUENCE_REFUSAL, type RecipeClaim } from './behaviourKeys';
 
@@ -445,7 +445,7 @@ function requireUserKeys(template: SpxTemplate, data: AnimData, keys: KeyRef[]) 
 
 /** Capture the animation owner and the uniquely editable artwork it names. */
 export function captureKeyClipboard(template: SpxTemplate, refs: readonly KeyRef[]): ClipboardKey[] {
-  const data = animationSource(template), keys = captureKeys(data, refs);
+  const data = animationSource(template), keys = captureKeys(data, refs, hasLoopRuntime(template.js));
   const artwork = keyArtworkResolver(template, data);
   const copied = keys.map(key => ({ ...key, artwork: artwork(key) }));
   requireAnchorArtwork(template, ownedAnchorTracks(template, copied).map(key => key.artwork));
@@ -461,7 +461,7 @@ export function applyKeyPaste(template: SpxTemplate, operation: KeyPasteOperatio
     }
   }
   requireAnchorArtwork(template, ownedAnchorTracks(template, operation.keys).map(key => key.artwork));
-  const next = pasteKeys(data, operation.keys, operation.step, operation.time);
+  const next = pasteKeys(data, operation.keys, operation.step, operation.time, hasLoopRuntime(template.js));
   requireUserEdit(template, data, next);
   const exit = data.steps.length > 1 && operation.step === data.steps.length - 1;
   const patched = writeKeys(template, next, exit, 'the pasted keys');
@@ -476,7 +476,7 @@ export function applyKeyPaste(template: SpxTemplate, operation: KeyPasteOperatio
 export function applyKeyMove(template: SpxTemplate, operation: KeyMoveOperation): SpxTemplate {
   const data = animationSource(template);
   requireUserKeys(template, data, operation.keys);
-  const next = moveKeys(data, operation.keys, operation.delta);
+  const next = moveKeys(data, operation.keys, operation.delta, { includeLegacy: hasLoopRuntime(template.js) });
   if (next === data) return template;
   requireUserEdit(template, data, next);
   const out = next.steps.length - 1;

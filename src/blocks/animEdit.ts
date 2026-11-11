@@ -5,7 +5,8 @@
 // numbers), rounded to the same 3 decimals the serializer writes.
 
 import { animSounds, type AnimData, type AnimKeyframe, type AnimLayerTracks, type AnimStep } from './animData';
-import { BOUNDED_RANGES, resolveValue } from './animEval';
+import { BOUNDED_RANGES, resolveValue, stepSeconds } from './animEval';
+import { authoredCueEnd } from './animLoopTiming';
 import {
   arrivingPoint,
   departingPoint,
@@ -112,7 +113,7 @@ function moveLayerAcross(source: AnimData, spelled: AnimData, cues: number[], se
     throw new Error(`${selector} would appear only after the Out flag, and Out never reveals a hidden layer. No keys or spans changed.`);
   }
   const keys = cues.flatMap(cue => Object.entries(source.steps[cue].layers[selector] ?? {}).flatMap(([property, list]) => list.map(key => ({ step: cue, selector, property, time: key.time }))));
-  if (keys.length) data = moveKeys(data, keys, delta, { pairs: false, before: source });
+  if (keys.length) data = moveKeys(data, keys, delta, { pairs: false, before: source, starts });
   const revealed = data.steps.findIndex((step, i) => i > 0 && step.reveals?.includes(selector)), first = data.steps.findIndex(step => (step.spans?.[selector] ?? []).length > 0);
   if (revealed > 0 && first >= 0 && first !== revealed) {
     const step = data.steps[revealed];
@@ -208,6 +209,9 @@ export function setKeyframe(
   const next = clone(data);
   const step = next.steps[stepIndex];
   if (!step) return data;
+  if (time > step.duration + EPS && authoredCueEnd(step) > step.duration + EPS) {
+    throw new Error('Keys cannot land in the extra time added by a finite loop. No keys changed.');
+  }
   const t = round(Math.max(0, Math.min(time, step.duration)));
   const layer = (step.layers[selector] ??= {});
   const track = (layer[prop] ??= []);
@@ -563,6 +567,9 @@ export function moveStepFlag(source: AnimData, step: number, b: number, minimum:
 /** One key of a track on the concatenated ruler: its cue, its key there, and its time on the ruler. */
 type Placed = { cue: number; key: AnimKeyframe; at: number; moved: boolean };
 export const cueStarts = (data: AnimData) => data.steps.reduce<number[]>((acc, step, i) => [...acc, round(acc[i] + step.duration)], [0]);
+/** Key positions follow the visible ruler. Stored cue bounds still limit where keys can be written. */
+export const keyCueStarts = (data: AnimData, includeLegacy = false) => data.steps.reduce<number[]>((acc, _step, i) =>
+  [...acc, round(acc[i] + stepSeconds(data, i, includeLegacy) * data.speed)], [0]);
 const seconds = (data: AnimData, stored: number) => `${round(stored / data.speed).toFixed(2)} s`;
 
 /** The cue a key moved from cue `from` lands in at ruler time `at` (`starts` from cueStarts): the one
@@ -597,7 +604,9 @@ export const crossesCarried = (keys: AnimKeyframe[], carried: number) =>
  * read in (a bar body's own move has changed its visibility already). Throws with the reason where
  * the runtime could not play the result exactly; `source` is never mutated.
  */
-export function moveKeys(source: AnimData, keys: KeyRef[], delta: number, { pairs = true, before = source }: { pairs?: boolean; before?: AnimData } = {}): AnimData {
+export function moveKeys(source: AnimData, keys: KeyRef[], delta: number, {
+  pairs = true, before = source, includeLegacy = false, starts = keyCueStarts(source, includeLegacy),
+}: { pairs?: boolean; before?: AnimData; includeLegacy?: boolean; starts?: number[] } = {}): AnimData {
   if (!Array.isArray(keys) || !keys.length || !Number.isFinite(delta)) throw new Error('Select keys and a finite move. No keys changed.');
   delta = round(delta);
   if (delta === 0) return source;
@@ -606,12 +615,12 @@ export function moveKeys(source: AnimData, keys: KeyRef[], delta: number, { pair
     const track = key.selector + '\n' + key.property;
     groups.set(track, [...groups.get(track) ?? [], key]);
   }
-  for (const refs of groups.values()) moveTrack(data, before, refs, delta, pairs);
+  for (const refs of groups.values()) moveTrack(data, before, refs, delta, pairs, starts);
   return data;
 }
 
-function moveTrack(data: AnimData, source: AnimData, refs: KeyRef[], delta: number, pairs: boolean) {
-  const { selector, property: prop } = refs[0], out = data.steps.length - 1, starts = cueStarts(data), ease = (cue: number) => data.steps[cue].ease;
+function moveTrack(data: AnimData, source: AnimData, refs: KeyRef[], delta: number, pairs: boolean, starts: number[]) {
+  const { selector, property: prop } = refs[0], out = data.steps.length - 1, ease = (cue: number) => data.steps[cue].ease;
   if (data.steps.some(step => step.loops?.[selector]?.[prop])) throw new Error(`${selector} ${prop} loops, so its keys keep their cycle. Its source is preserved.`);
   const placed: Placed[] = [];
   data.steps.forEach((step, cue) => {
@@ -694,6 +703,10 @@ function moveTrack(data: AnimData, source: AnimData, refs: KeyRef[], delta: numb
     const to = round(p.at + delta);
     if (to < -EPS) throw new Error(`${selector} ${prop} would move before In starts. No keys changed.`);
     if (to > end + EPS) throw new Error(`${selector} ${prop} would move past the end of Out. No keys changed.`);
+    const target = landingCue(starts, to, p.cue);
+    if (to - starts[target] > data.steps[target].duration + EPS) {
+      throw new Error('Keys cannot land in the extra time added by a finite loop. No keys changed.');
+    }
     const passed = ruler.find(u => !u.moved && (delta > 0 ? u.at > p.at + EPS && u.at < to + EPS : u.at < p.at - EPS && u.at > to - EPS));
     if (passed) throw new Error(`${selector} ${prop} would pass its key at ${seconds(data, passed.at)}. Keys keep their order on a track: select that key too to move both. No keys changed.`);
   }
@@ -727,6 +740,9 @@ function moveTrack(data: AnimData, source: AnimData, refs: KeyRef[], delta: numb
     if (!held || !next || held.cue === flag) continue;
     if (Math.abs(held.at - at) < EPS) entries.push({ cue: flag, at, key: { time: 0, value: held.key.value } });
     else if (held.key.value !== next.key.value) {
+      if (at - starts[flag - 1] > data.steps[flag - 1].duration + EPS) {
+        throw new Error('Keys cannot move across a flag extended by a finite loop when the curve needs a key there. No keys changed.');
+      }
       const span = round(next.at - held.at);
       const piece: AnimData = { ...data, steps: [{ name: 'segment', duration: span, ease: ease(next.cue), layers: { [selector]: { [prop]: [{ time: 0, value: held.key.value }, { ...next.key, time: span }] } } }] };
       let split: AnimKeyframe[];
@@ -1050,9 +1066,9 @@ function authoredKeysAt(data: AnimData, starts: number[], selector: string, prop
 }
 
 /** Capture values and their effective incoming eases without touching the source. */
-export function captureKeys(data: AnimData, refs: readonly KeyRef[]): CopiedKey[] {
+export function captureKeys(data: AnimData, refs: readonly KeyRef[], includeLegacy = false): CopiedKey[] {
   if (!refs.length || refs.length > 1000) throw new Error('Select between 1 and 1,000 keys to copy.');
-  const starts = cueStarts(data);
+  const starts = keyCueStarts(data, includeLegacy);
   const copied = refs.map(({ step, selector, property, time }) => {
     const cue = data.steps[step], track = cue?.layers[selector]?.[property];
     const key = track?.find(candidate => Math.abs(candidate.time - time) < EPS);
@@ -1072,12 +1088,12 @@ function canonicalFilter(value: AnimKeyframe['value']): value is string {
 }
 
 /** Add a batch to the existing tracks in one authored cue, or leave the data untouched. */
-export function pasteKeys(data: AnimData, keys: readonly CopiedKey[], step: number, time: number): AnimData {
+export function pasteKeys(data: AnimData, keys: readonly CopiedKey[], step: number, time: number, includeLegacy = false): AnimData {
   const cue = data.steps[step];
   if (!cue || step === data.steps.length - 1 && cue.carried) throw new Error('Paste keys into an authored cue without carried Out motion.');
   if (!keys.length || keys.length > 1000) throw new Error('Copy between 1 and 1,000 keys before pasting.');
   if (!Number.isFinite(time) || time < 0 || time > cue.duration) throw new Error('Move the playhead inside the destination cue.');
-  const next = structuredClone(data), starts = cueStarts(data);
+  const next = structuredClone(data), starts = keyCueStarts(data, includeLegacy);
   const changed = new Set<AnimKeyframe[]>(), additions = new Set<AnimKeyframe>();
   for (const { selector, property, offset, value, ease } of keys) {
     const at = round(time + offset);

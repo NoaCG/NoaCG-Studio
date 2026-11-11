@@ -70,13 +70,15 @@ export const foundationRuntime = String.raw`
     var step = editorStep(index);
     // Cloning only this transient interpreter input leaves canonical source untouched.
     // Remove calls before building, not just during seek: no callback can fire at t=0.
-    return buildStepTimeline(Object.assign({}, step, { calls: [], dynamics: [] }));
+    return buildStepTimeline(Object.assign({}, step, { calls: [], dynamics: [], loops: isOut(index) ? undefined : step.loops }));
   }
   function editorStep(index) {
     return NOACG_ANIM.steps[index] || (index === 1 && NOACG_ANIM.steps.length === 1 ? { duration: 0, ease: 'none', layers: {} } : null);
   }
-  function cueSeconds(step) {
-    return (typeof noacgAuthoredCueEnd === 'function' ? noacgAuthoredCueEnd(step, true, NOACG_ANIM.speed) : step.duration) / NOACG_ANIM.speed;
+  function isOut(index) { return index > 0 && index === NOACG_ANIM.steps.length - 1; }
+  function cueSeconds(index) {
+    var step = editorStep(index);
+    return (typeof noacgAuthoredCueEnd === 'function' ? noacgAuthoredCueEnd(step, !isOut(index), NOACG_ANIM.speed) : step.duration) / NOACG_ANIM.speed;
   }
   function cssSvgPivotFor(adapter) {
     return !!adapter && adapter.cssSvgAnchor && !NOACG_ANIM.steps.some(function (step) {
@@ -129,7 +131,7 @@ export const foundationRuntime = String.raw`
       for (var i = 0; i < step; i++) {
         var previous = build(i);
         previous.pause();
-        previous.time(cueSeconds(NOACG_ANIM.steps[i]), true);
+        previous.time(cueSeconds(i), true);
         if (typeof noacgAdoptCueTracks === 'function') {
           noacgAdoptCueTracks(previous);
           noacgRetireLoops(previous);
@@ -143,7 +145,7 @@ export const foundationRuntime = String.raw`
     }
     inspected = !!inspect;
     localTime = time;
-    var end = cueSeconds(editorStep(step));
+    var end = cueSeconds(step);
     var target = Math.max(0, Math.min(time, end));
     timeline.time(target, true);
     // Same first-frame rule as noacgPaintFirstFrame in the emitted interpreter.
@@ -200,7 +202,7 @@ export const foundationRuntime = String.raw`
       // authored exit starts, so Out plays from there as at the last step.
       var outCue = Math.max(1, NOACG_ANIM.steps.length - 1), near = 1e-6;
       var outStart = activeStep === outCue && localTime < near;
-      var interrupted = activeStep >= 0 && !outStart && localTime < cueSeconds(editorStep(activeStep)) - near;
+      var interrupted = activeStep >= 0 && !outStart && localTime < cueSeconds(activeStep) - near;
       if (!outStart && typeof noacgRunningLoop === 'function') interrupted = interrupted || noacgRunningLoop(timeline);
       if (timeline) {
         if (typeof noacgRetireLoops === 'function') {
@@ -222,7 +224,7 @@ export const foundationRuntime = String.raw`
   }
   function measure() {
     var poseTime = config.scrubbable ? localTime : config.time;
-    for (var i = 0; i < activeStep; i++) poseTime += cueSeconds(NOACG_ANIM.steps[i]);
+    for (var i = 0; i < activeStep; i++) poseTime += cueSeconds(i);
     return config.selectors.flatMap(function (selector) {
       var element = document.querySelector(selector);
       if (!element) return [];

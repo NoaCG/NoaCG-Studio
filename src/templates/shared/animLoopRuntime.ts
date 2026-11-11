@@ -1,4 +1,4 @@
-import { LOOP_TIMING_JS } from '../../blocks/animLoopTiming';
+import { LOOP_TIMING_JS } from '../../model/animLoopClock';
 
 /** Opt-in cue-owned loop runtime. The base body remains byte-identical for legacy documents. */
 export const AUTHORED_LOOP_RUNTIME_JS = String.raw`
