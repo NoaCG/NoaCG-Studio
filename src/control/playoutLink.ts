@@ -575,6 +575,7 @@ interface VmixMediaEvidence {
   requested: number;
   observed: number;
   supported: boolean;
+  guardedOut: boolean;
 }
 const currentVmixMediaPairings = new Map<string, VmixMediaEvidence>();
 
@@ -1123,7 +1124,7 @@ async function probeVmix(bridgeUrl: string): Promise<VmixHealth> {
         hasOnlyPayloadFields(body, ['agent', 'version', 'adapters', 'features']) &&
         Array.isArray(adapters) && adapters.every(adapter => typeof adapter === 'string') &&
         (features === undefined || (Array.isArray(features) && features.every(feature => typeof feature === 'string'))) &&
-        (adapters.includes('vmix') || !features?.some(feature => feature === 'vmix-output-key' || feature === 'vmix-media'))) {
+        (adapters.includes('vmix') || !features?.some(feature => feature === 'vmix-output-key' || feature === 'vmix-media' || feature === 'vmix-player-out-guard'))) {
         return { kind: 'current', adapters, features: features ?? [] };
       }
     }
@@ -1134,7 +1135,7 @@ async function probeVmix(bridgeUrl: string): Promise<VmixHealth> {
 /** Only the strict vMix health reply can establish a pairing's media capability. */
 async function probeVmixMediaPairing(settings: PlayoutSettings): Promise<VmixHealth> {
   const pairing = vmixPairing(settings);
-  const evidence = currentVmixMediaPairings.get(pairing) ?? { requested: 0, observed: 0, supported: false };
+  const evidence = currentVmixMediaPairings.get(pairing) ?? { requested: 0, observed: 0, supported: false, guardedOut: false };
   currentVmixMediaPairings.set(pairing, evidence);
   const request = ++evidence.requested;
   const health = await probeVmix(settings.agentUrl);
@@ -1144,6 +1145,7 @@ async function probeVmixMediaPairing(settings: PlayoutSettings): Promise<VmixHea
   }
   evidence.observed = request;
   evidence.supported = health.kind === 'current' && health.features.includes('vmix-media');
+  evidence.guardedOut = health.kind === 'current' && health.features.includes('vmix-player-out-guard');
   return health;
 }
 
@@ -1167,7 +1169,7 @@ function validVmixLinks(linked: VmixStateReply['linked'] | undefined, count: num
     Array.isArray(row.live) && row.live.every(nonblank));
 }
 
-function validVmixError(route: VmixRoute, http: number, error: AgentError | undefined, loading: boolean): error is AgentError {
+function validVmixError(route: VmixRoute, http: number, error: AgentError | undefined, loading: boolean, player: boolean): error is AgentError {
   if (!error || typeof error !== 'object' || Array.isArray(error) || !nonblank(error.detail) ||
     (error.raw !== undefined && (error.hop !== 'target' || typeof error.raw !== 'string')) ||
     (error.setup !== undefined && (error.hop !== 'target' || error.code !== 'unreachable' ||
@@ -1189,7 +1191,8 @@ function validVmixError(route: VmixRoute, http: number, error: AgentError | unde
   return error.hop === 'agent' &&
     ((error.code === 'usage' && (route === '/state' || route === '/act')) ||
       (error.code === 'unsupported' && (route === '/act' || route === '/list')) ||
-      (error.code === 'uncertain' && route === '/list'));
+      (error.code === 'uncertain' && route === '/list') ||
+      (player && route === '/act' && (error.code === 'uncertain' || error.code === 'unreachable')));
 }
 
 function vmixOverlayRows(overlays: VmixOverlayState[] | undefined, info: VmixInfo, loadProblem?: string) {
@@ -1263,13 +1266,14 @@ function readVmixReply(
     return readReply(settings, call, 'vMix');
   }
   const current = bodyKind === 'object' && body.v === PLAYOUT_V;
-  if (current && body.ok === false && hasOnlyPayloadFields(body) && validVmixError(route, http, body.error, loading && !player)) {
+  if (current && body.ok === false && hasOnlyPayloadFields(body) && validVmixError(route, http, body.error, loading && !player, player)) {
     const reply = readReply(settings, call, 'vMix');
     if (route !== '/act') {
       return choosingFolder && body.error.code === 'uncertain' ? { ...reply, folderUncertain: true } : reply;
     }
     const result: VmixActionResult = { ...reply.result };
-    if (http === 502 || body.error.code === 'uncertain') result.unknownAction = true;
+    if (http === 502 || body.error.code === 'uncertain' ||
+      (player && body.error.hop === 'agent' && body.error.code === 'unreachable')) result.unknownAction = true;
     if (body.error.browserAdded) result.browserAdded = true;
     return { ...reply, result };
   }
@@ -1445,7 +1449,13 @@ export async function actVmixMedia(
     return { state: 'config', detail: 'This cue has no vMix player.' };
   }
   const evidence = currentVmixMediaPairings.get(pairing);
-  const call = await callBridge(settings.agentUrl, '/act', { target: vmixTarget, action }, ACT_TIMEOUT_MS, settings.agentToken, 'vmix');
+  const guardedOut = action.verb === 'out' && action.expectedPlayerInstance !== undefined;
+  if (guardedOut && !evidence?.guardedOut) {
+    return { state: 'outdated', detail: 'Update NoaCG Bridge to safely finish All out.' };
+  }
+  // A Bridge that lost this capability since health must reject the new verb outright.
+  const request = guardedOut ? { ...action, verb: 'out-player-instance' } : action;
+  const call = await callBridge(settings.agentUrl, '/act', { target: vmixTarget, action: request }, ACT_TIMEOUT_MS, settings.agentToken, 'vmix');
   const { result } = readVmixReply(settings, call, '/act', action.verb === 'take', true);
   // vMix can refuse cleanup after the requested clip has started. A failed dispatched action
   // cannot authorize transport on the previous cue without a fresh accepted Take.

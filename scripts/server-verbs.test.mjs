@@ -12,7 +12,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import './lib/tsResolve.mjs';
 
-const { runAndRecord, runVmixAndRecord } = await import('../src/control/serverVerbs.ts');
+const { finishVmixAllOut, runAndRecord, runVmixAndRecord } = await import('../src/control/serverVerbs.ts');
 const { throughPlaces } = await import('../src/control/serverPlayout.ts');
 const { rundownView } = await import('../src/model/rundownRows.ts');
 const { createServerPlayoutStore } = await import('../src/control/serverPlayoutStore.ts');
@@ -397,4 +397,43 @@ test('queued vMix transport cannot reach a replacement after a malformed authori
       assert.equal(rig.h.store.ownership.get().onAir[rig.clips.id].cueId, rig.b.id);
     });
   }
+});
+
+test('accepted vMix All out keeps its player instances until the final cut and refuses revoked ownership', async t => {
+  for (const change of ['none', 'pairing', 'replacement']) await t.test(change, async () => {
+    const store = createServerPlayoutStore();
+    store.bindVmix('pairing');
+    const clip = cue('clip', 'clip-item');
+    const audio = cue('audio', 'audio-item');
+    const owner = (selected, player, instance) => ({
+      cueId: selected.id, slot: { adapter: 'vmix', player }, instance,
+    });
+    const clips = owner(clip, 'clips', 'session.clip');
+    const sound = owner(audio, 'audio', 'session.audio');
+    store.apply(parts => ({ ...parts, ownership: { ...parts.ownership, onAir: { [clip.sourceId]: clips, [audio.sourceId]: sound } } }));
+    const release = Promise.withResolvers();
+    let changed;
+    const observed = [];
+    const run = finishVmixAllOut(store, SETTINGS,
+      listener => { changed = listener; return () => { changed = undefined; }; },
+      async cut => { await cut(audio); await cut(clip); },
+      async (selected, scope) => {
+        if (!scope.current()) return false;
+        observed.push([selected.id, scope.instance]);
+        if (selected === audio) await release.promise;
+        return scope.current();
+      });
+    assert.equal(typeof changed, 'function');
+    assert.deepEqual(observed, [['audio', 'session.audio']]);
+    if (change === 'pairing') changed();
+    if (change === 'replacement') store.apply(parts => ({ ...parts, ownership: { ...parts.ownership,
+      onAir: { ...parts.ownership.onAir, [clip.sourceId]: owner(clip, 'clips', 'session.replacement') },
+    } }));
+    release.resolve();
+    await run;
+    assert.deepEqual(observed, change === 'none'
+      ? [['audio', 'session.audio'], ['clip', 'session.clip']]
+      : [['audio', 'session.audio']]);
+    assert.equal(changed, undefined);
+  });
 });

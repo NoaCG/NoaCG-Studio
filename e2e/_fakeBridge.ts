@@ -30,10 +30,11 @@ export interface FakeVmixRequest {
 }
 
 interface FakeVmixMediaAction {
-  verb: 'take' | 'out' | 'pause' | 'resume';
+  verb: 'take' | 'out' | 'out-player-instance' | 'pause' | 'resume';
   slot: VmixPlayerSlot;
   item: ItemRef;
   cueId?: string;
+  expectedPlayerInstance?: string;
 }
 
 interface FakeVmixMediaRequest {
@@ -114,9 +115,13 @@ export function fakeVmix(overlays: 1 | 4 | 8 = 8, library?: {
     } : state.stateReply;
     if (path === '/act' && media && playerAction) {
       const player = playerAction.slot.player;
+      if (playerAction.verb === 'out-player-instance' &&
+        (!playerAction.expectedPlayerInstance || playerAction.expectedPlayerInstance !== players[player])) {
+        return { ok: false, v: PLAYOUT_V, error: { hop: 'target', code: 'refused', detail: 'The playback instance changed.' } };
+      }
       generation += 1;
       if (playerAction.verb === 'take') players[player] = `test.media-${generation}`;
-      if (playerAction.verb === 'out') delete players[player];
+      if (playerAction.verb === 'out' || playerAction.verb === 'out-player-instance') delete players[player];
       return state.actionReply === undefined
         ? { ok: true, v: PLAYOUT_V, raw: 'FUNCTION OK', session: 'test', generation, ...(players[player] ? { instance: players[player] } : {}) }
         : state.actionReply;
@@ -306,7 +311,7 @@ export async function fakeBridge(page: Pick<Page, 'route'>, init: Partial<Omit<F
       return json(route, {
         ok: true, agent: 'noacg-bridge', v: 2, version: fake.version,
         adapters: fake.vmix ? ['casparcg', 'vmix'] : ['casparcg'],
-        features: fake.vmix ? [...fake.features, 'vmix-output-key', ...(fake.vmix.media ? ['vmix-media'] : [])] : fake.features,
+        features: fake.vmix ? [...fake.features, 'vmix-output-key', ...(fake.vmix.media ? ['vmix-media', 'vmix-player-out-guard'] : [])] : fake.features,
       });
     }
     const body = JSON.parse(req.postData() || '{}') as { channel?: number; kind?: string; action?: FakeAction; target?: { adapter: string } };

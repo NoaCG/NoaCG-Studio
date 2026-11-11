@@ -1422,7 +1422,7 @@ test('vMix media browses the selected folder and plays on separate clip and audi
       await page.route(BRIDGE + '/studio', pendingStudio);
       try {
         await choose.click();
-        await expect(settings.getByText(unsettled.detail, { exact: true })).toBeVisible();
+        await expect(settings.getByRole('status').filter({ hasText: unsettled.detail })).toBeVisible();
         await expect(mediaFolder).toHaveCount(0);
         await expect(choose).toBeEnabled();
       } finally {
@@ -1482,4 +1482,64 @@ test('vMix media browses the selected folder and plays on separate clip and audi
   }, { folderId: mixed.folderId, cueId: clips.cueId });
   await folderRow.getByTestId('select-folder').click();
   await expect(page.getByTestId('verb-take')).toBeDisabled();
+});
+
+test('an accepted vMix All out finishes both original players after leaving the production', async ({ page }) => {
+  const folder = 'C:/Videos';
+  const vmix = fakeVmix(8, { folder, files: { [folder]: { '': [
+    { name: 'Clip.mp4', kind: 'movie' }, { name: 'Sting.wav', kind: 'audio' },
+  ] } } });
+  const media = vmix.media!;
+  await slotBridge(page.context(), { vmix });
+  await seedSettings(page);
+  await productionPage(page);
+  const [clips, audio] = await evaluateInPage(page, async () => {
+    const { addPlayoutItem, loadShows } = await import('/src/model/shows.ts');
+    const show = loadShows().find(s => s.name === 'Evening News')!;
+    const clips = addPlayoutItem(show.id, { adapter: 'vmix', kind: 'media', name: 'Clip.mp4', mediaKind: 'movie', layer: 0 }).cueId;
+    const audio = addPlayoutItem(show.id, { adapter: 'vmix', kind: 'media', name: 'Sting.wav', mediaKind: 'audio', layer: 0 }).cueId;
+    if (!clips || !audio) throw new Error('Both vMix cues must be saved.');
+    await new Promise(resolve => setTimeout(resolve));
+    return [clips, audio];
+  });
+  await page.getByTestId('production-status').click();
+  await page.getByTestId('production-status-panel').getByTestId('vmix-switch').click();
+  await page.keyboard.press('Escape');
+  const take = async (id: string) => {
+    const row = page.getByTestId('cue-' + id);
+    await row.getByTestId('select-cue').click();
+    const sent = page.waitForResponse(response => response.url() === BRIDGE + '/act' &&
+      response.request().postDataJSON()?.action?.cueId === id);
+    await page.getByTestId('verb-take').click();
+    await expect(row).toContainText('ON AIR');
+    return (await (await sent).json()).instance as string;
+  };
+  const clipInstance = await take(clips);
+  const audioInstance = await take(audio);
+  const firstSent = Promise.withResolvers<void>();
+  const finish = Promise.withResolvers<void>();
+  let holding = true;
+  await page.route(BRIDGE + '/act', async route => {
+    if (route.request().method() !== 'POST' || route.request().postDataJSON()?.action?.verb !== 'out-player-instance') return route.fallback();
+    if (holding) {
+      holding = false;
+      firstSent.resolve();
+      await finish.promise;
+    }
+    await route.fallback();
+  });
+  try {
+    await page.getByTestId('verb-out-all').click();
+    await firstSent.promise;
+    await page.evaluate(() => { location.hash = '#/home'; });
+    await expect(page.getByTestId('verb-out-all')).toHaveCount(0);
+    finish.resolve();
+    await expect.poll(() => media.actions.filter(call => call.action.verb === 'out-player-instance')
+      .map(call => [call.action.slot.player, call.action.expectedPlayerInstance]).sort()).toEqual([
+      ['audio', audioInstance],
+      ['clips', clipInstance],
+    ]);
+  } finally {
+    finish.resolve();
+  }
 });

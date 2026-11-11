@@ -49,8 +49,39 @@ export interface ServerVerbIntent {
   rundown: Pick<TakeContext, 'cues' | 'items' | 'folders' | 'members' | 'places' | 'itemOf' | 'slots'>;
 }
 
-/** The Bridge's player transport affects its current selection, without a cue-instance check.
- * Keep local commands ordered and check that the accepted cue at the press still owns the player. */
+export interface VmixAllOutCut {
+  settings: PlayoutSettings;
+  pairing: NonNullable<ReturnType<ServerPlayoutStore['vmixBinding']>>;
+  instance: string;
+  current: () => boolean;
+}
+
+/** Keep the accepted player instances and their pairing until the last cut settles, including
+ *  after the production unmounts. An intervening pairing change revokes every remaining cut. */
+export async function finishVmixAllOut(
+  store: ServerPlayoutStore,
+  settings: PlayoutSettings,
+  watchPairing: (changed: () => void) => () => void,
+  allOut: (cut: (cue: ShowCue) => Promise<boolean>) => Promise<void>,
+  cut: (cue: ShowCue, scope: VmixAllOutCut) => Promise<boolean>,
+): Promise<void> {
+  const pairing = store.vmixBinding();
+  const original = store.ownership.get().onAir;
+  let paired = true;
+  const stop = watchPairing(() => { paired = false; });
+  try {
+    await allOut(async cue => {
+      const owner = original[cue.sourceId];
+      if (!pairing || !owner?.instance || owner.cueId !== cue.id || owner.slot.adapter !== 'vmix') return false;
+      const current = () => paired && store.ownership.get().onAir[cue.sourceId] === owner;
+      return cut(cue, { settings, pairing, instance: owner.instance, current });
+    });
+  } finally {
+    stop();
+  }
+}
+
+/** Keep local commands ordered and check that the accepted cue at the press still owns the player. */
 export function runVmixAndRecord(
   store: ServerPlayoutStore,
   io: ServerVerbIo,

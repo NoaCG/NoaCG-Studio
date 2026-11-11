@@ -271,7 +271,7 @@ export interface GraphicVerbs {
   next: (sel: VerbSelection) => Promise<void>;
   out: (sel: VerbSelection) => Promise<void>;
   takeOff: (graphic: string) => Promise<void>;
-  allOut: () => Promise<void>;
+  allOut: (cutServerCue?: (cue: ShowCue) => Promise<boolean>) => Promise<void>;
   /** `named`: the cue a panel key was drawn for (control/panelActions.ts), held to as the selection's
    *  own cue is, for a layer whose cue the selection could not draw. */
   event: (sel: VerbSelection, button: ControlButton, named?: string, args?: Record<string, unknown>) => Promise<PressDone>;
@@ -977,7 +977,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   /** Clear the screen: every server cue this page put up goes off where it was taken, then whatever
    *  plays on a slot this rundown uses that no cue names, then every graphic this page or the
    *  server's heads say is up, in one send. */
-  const allOut = async () => {
+  const allOut: GraphicVerbs['allOut'] = async cutServerCue => {
     if (!session.alive()) return;
     const s = sender();
     const p = page();
@@ -985,7 +985,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // nothing airs after the panic control. Every One-by-one folder starts again from its first cue.
     p.stopFolders();
     // The panic control cuts, as it always did, whatever fade out a clip is set to.
-    for (const l of p.livePlayoutLayers) await p.playoutVerb(l.cue, 'out', 'All out', { cut: true });
+    const cut = cutServerCue ?? (cue => p.playoutVerb(cue, 'out', 'All out', { cut: true }));
+    for (const layer of p.livePlayoutLayers) await cut(layer.cue);
     await p.outUnnamed();
     // WHAT THE SERVER SAYS IS ON, not only what this page believes (AC-13): a graphic whose cue
     // marker went missing, or one a renderer kept across a republish, is cleared too.

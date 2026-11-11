@@ -1348,6 +1348,35 @@ test('a previous pairing lifetime cannot restore or clear the new vMix capabilit
   assert.deepEqual(paths, ['/act'], 'a failed old action cannot delete capability established by the new pairing');
 });
 
+test('guarded vMix Out requires the Bridge feature and preserves typed player failure details', async (t) => {
+  forgetBridges();
+  const out = { verb: 'out', slot: { adapter: 'vmix', player: 'clips' }, expectedPlayerInstance: 'fixture.play-1' };
+  const sent = [];
+  let features = ['vmix-media'];
+  let response = acted;
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    const path = new URL(url).pathname;
+    if (path === '/health') return Response.json({ ...health, features });
+    if (path === '/status') return Response.json(status);
+    assert.equal(path, '/act');
+    sent.push(JSON.parse(options.body).action);
+    return Response.json(response);
+  });
+  assert.equal((await actVmixMedia(settings, out, () => true)).state, 'outdated');
+  assert.deepEqual(sent, []);
+  features = [...features, 'vmix-player-out-guard'];
+  assert.equal((await testVmix(settings)).media, true);
+  assert.equal((await actVmixMedia(settings, out, () => true)).state, 'ok');
+  assert.deepEqual(sent, [{ ...out, verb: 'out-player-instance' }]);
+  for (const code of ['uncertain', 'unreachable']) {
+    const detail = code === 'uncertain' ? 'Bridge could not confirm the player setup.' : 'The player command reached its deadline.';
+    response = { ok: false, v: 2, error: { hop: 'agent', code, detail } };
+    const result = await actVmixMedia(settings, out, () => true);
+    assert.ok(result.detail.includes(detail));
+    assert.equal(result.playerUncertain, true);
+  }
+});
+
 test('a known vMix media pairing sends directly and rechecks capability after a lost action reply', async (t) => {
   const settingsForPlayer = { ...settings, agentUrl: 'http://127.0.0.1:59992' };
   const action = { verb: 'take', slot: { adapter: 'vmix', player: 'clips' }, item: { kind: 'media', name: 'clip.mov' } };

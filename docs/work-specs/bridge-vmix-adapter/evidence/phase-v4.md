@@ -55,3 +55,10 @@ The independent review of 6fa491f8 verified both capability races and reproduced
 Both Settings entry points now observe saved pairing changes. A chooser press requires its displayed pairing to match current storage immediately before dispatch and is never transferred to a new Bridge. A completed or uncertain choice invalidates readings for its originating Bridge. Settings reads the folder again from Bridge instead of folding the chooser reply into the newly displayed pairing. A picker also checks the pairing before sending its list request, so a switch back cannot admit rows from a request that used the intervening pairing.
 
 The next exact review of 5ccb5151 reproduced a delivered switch away and back that never reached the production binding, and a Settings path remaining displayed after an uncertain folder publication. The read-only reassessment distinguished pairing changes from folder changes. One delivered pairing transition now retires the old player binding, pending status, strict capability and media reads synchronously, even if both credentials match again by the next render. A folder change only retires media readings. Settings leaves the path unconfirmed until a fresh Bridge read establishes it. File checks compare the expected pairing and revision before each nested read and before accepting a result.
+
+
+## All out after leaving a production
+
+The exact review of c4878797 reproduced a second player continuing after an accepted All out when the operator navigated away during the first cut. All out captures each player instance and its pairing at the press. Only those cuts can finish after navigation, and a pairing change or new owner ends that authority. Bridge checks the captured instance against the reconciled player in its mixer turn before issuing a function. A distinct guarded Out verb rejects on a Bridge that lacks the guard, even if a previous health reading advertised it.
+
+A genuine uncertain player action or Bridge deadline preserves the Bridge's detail while retiring the old player reading. V4 has no Bridge version or release. The next planned Bridge release is V5.

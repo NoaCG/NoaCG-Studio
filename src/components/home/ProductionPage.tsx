@@ -94,7 +94,7 @@ import { folderStep, type FolderStep, type StepMember } from '../../control/fold
 import { webLockLead } from '../../control/webLockLead';
 import { serverFilesCheck, serverFilesKey, startBridgeWatch, writeBridge, type BridgeWatch, type BridgeWatchIo } from '../../control/bridgeWatch';
 import { serverCueOffRefusal as serverOff, serverCueAdapterMismatch, directBlocker as directBlockerOf, stepBlocker as stepBlockerOf, takeBlockerFor as takeBlockerOf, type SlotRules, type TakeContext } from '../../control/takeBlockers';
-import { runAndRecord, runVmixAndRecord, type ServerVerbIo } from '../../control/serverVerbs';
+import { runAndRecord, finishVmixAllOut, runVmixAndRecord, type ServerVerbIo, type VmixAllOutCut } from '../../control/serverVerbs';
 import { createGraphicVerbs, type GraphicPage, type GraphicVerbIo, type VerbSelection, type VerbSender } from '../../control/graphicVerbs';
 import { createPressMarks } from '../../control/pressFeedback';
 import { decideVerb } from '../../control/verbDispatch';
@@ -1014,9 +1014,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     refresh();
     return watchVmixMediaFolder(refresh);
   }, [vmixOn]);
-  const currentVmixShow = (settings: PlayoutSettings, pairing: ReturnType<ServerPlayoutStore['vmixBinding']>) => {
+  const currentVmixShow = (settings: PlayoutSettings, pairing: ReturnType<ServerPlayoutStore['vmixBinding']>, acceptedCut = false) => {
     const key = vmixPairing(settings);
-    if (!show || !pageCanDispatch() || serverPlayout.vmixBinding() !== pairing
+    if (!show || (!acceptedCut && !pageCanDispatch()) || serverPlayout.vmixBinding() !== pairing
       || (pairing?.key ?? null) !== (bridgePaired(settings) ? key : null)
       || vmixPairing(loadPlayoutSettings()) !== key) return null;
     return currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'vmix');
@@ -2932,7 +2932,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     cue: ShowCue,
     verb: ServerVerb,
     label: string,
-    options: { cut?: boolean; takenAt?: number; direct?: boolean } = {},
+    options: { cut?: boolean; takenAt?: number; direct?: boolean; vmixCut?: VmixAllOutCut } = {},
     acceptedAllOut = false,
   ): Promise<ServerVerbOutcome | null> => {
     const item = playoutItemFor(cue);
@@ -2940,15 +2940,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const mismatch = serverCueAdapterMismatch(cue, takeContext);
     if (mismatch) return { ok: false, note: `${label} was not sent: ${mismatch}`, accepted: [] };
     const vmix = item.adapter === 'vmix';
-    const vmixSettings = vmix ? loadPlayoutSettings() : null;
-    const pairing = serverPlayout.vmixBinding();
-    const currentVmix = () => !!(vmixSettings && pairing && currentVmixShow(vmixSettings, pairing));
+    const { vmixCut } = options;
+    const vmixSettings = vmix ? vmixCut?.settings ?? loadPlayoutSettings() : null;
+    const pairing = vmixCut?.pairing ?? serverPlayout.vmixBinding();
+    const currentVmix = () => !!(vmixSettings && pairing && (!vmixCut || vmixCut.current()) &&
+      currentVmixShow(vmixSettings, pairing, !!vmixCut));
     if (vmix ? !currentVmix() : !(acceptedAllOut ? casparAllowed() : canSendCaspar())) return null;
     const live = acceptedAllOut ? serverPlayout.ownership.get().onAir[item.id] : undefined;
     const io: ServerVerbIo = {
       act: async (settings, action) => {
-        if (vmix) return await actVmixMedia(settings, action, currentVmix)
-          ?? { state: 'config', detail: 'The vMix action was cancelled.' };
+        if (vmix) {
+          const guarded = vmixCut && action.verb === 'out' ? { ...action, expectedPlayerInstance: vmixCut.instance } : action;
+          return await actVmixMedia(settings, guarded, currentVmix)
+            ?? { state: 'config', detail: 'The vMix action was cancelled.' };
+        }
         const result = acceptedAllOut
           ? await finishCasparAllOut(settings, action, casparAllowed, pageCanDispatch, current =>
               current.cueId === cue.id && (!live?.instance || live.instance === current.instance))
@@ -2970,7 +2975,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     return vmix ? runVmixAndRecord(serverPlayout, io, intent, currentVmix) : runAndRecord(serverPlayout, io, intent);
   };
   /** One verb on the playout server, and the note line says how it went, whichever way that was. */
-  const playoutVerb = async (cue: ShowCue, verb: ServerVerb, label: string, options: { cut?: boolean } = {}): Promise<boolean> => {
+  const playoutVerb = async (cue: ShowCue, verb: ServerVerb, label: string, options: { cut?: boolean; vmixCut?: VmixAllOutCut } = {}): Promise<boolean> => {
     // The graphic verb accepts All out before it gives its native cues the panic cut.
     const outcome = await serverVerb(cue, verb, label, options, verb === 'out' && options.cut === true);
     if (!outcome) return false;
@@ -3083,7 +3088,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Clear the screen — the one an operator reaches for under pressure, which is why it sits apart
    *  from the others, in the header, and a named verb a hardware panel can press (`all-out`). A layer
    *  this rundown does not use is never touched (control/graphicVerbs.ts `allOut`). */
-  const outAll = verbs.allOut;
+  const outAll = () => vmixOn && pageCanDispatch()
+    ? finishVmixAllOut(serverPlayout, loadPlayoutSettings(), watchPlayoutPairing, verbs.allOut,
+      (cue, vmixCut) => playoutVerb(cue, 'out', 'All out', { cut: true, vmixCut }))
+    : verbs.allOut();
   /**
    * All out's second half (docs/CLIP_PLAYBACK_PLAN.md §20.1): what plays on a slot this rundown uses
    * with no cue of this page to take it off - an unidentified item, or what replaced a cue's clip.
