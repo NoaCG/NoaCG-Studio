@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
+      "head": "c48787975d71ed1a15082ebd9a15cfe321d8e9ee",
       "step": "build",
-      "head": "4a4e5dd7f9ce9a614f70d39f513ec2fa3bdcf25e",
-      "note": "Consolidated vMix pairing repair passed 284 focused Windows Node tests, TypeScript and lint. Corrected the previous CI Chromium locator. Fresh independent review, Windows Chromium j-5238 and normal CI 43074214379 are pending.",
-      "session": "/root/v4_final_evidence_review",
+      "phase": "v4",
+      "session": "/root/v4_final_exact_review",
       "pr": 2378,
-      "phase": "v4"
+      "note": "Prior exact review found a browser assertion count error and no product defect. Fixed test action counts and matched the held reply by request identity. Fresh review, local Chromium j-5239 and normal CI 43075178983 pending."
     }
   ],
   "owner": [],
