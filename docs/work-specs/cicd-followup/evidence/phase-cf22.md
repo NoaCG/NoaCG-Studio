@@ -28,16 +28,17 @@ the owner's decision. (d) cf20 reports the result.
 - **A bounce costs 30.4 minutes median and 123.5 at p90** (n = 55 resolved), from the failure to
   the next green. In total 5,290 minutes, or 4,616 once overlapping bounces on one PR are counted
   once.
-- **Most of that time is waiting, not CI.** 86% (4,545 minutes) passes before the next attempt
-  starts: the agent noticing, repairing and pushing, or nobody working on the PR. CI time is 13%
-  (14%, median 14.3 minutes per bounce). Five waits of 2 to 24 hours make up 64% of all time lost.
-- **Causes:** 18 real defects, 17 flakes, 20 gate refusals, 4 infrastructure, 1 unresolved. 15
-  of the 20 gate refusals were the E2E capacity (growth) line, not the review stamp or a budget.
-- **Ranked fixes** (section 4): a red PR waking its repair owner at once (up to 3,324 minutes), then
-  sending repeated gate refusals to the owner (228), then a local capacity check before pushing
-  (108). Re-running only the failed part saves 63 minutes, because agents already did that in 11
-  of 21 cases. Agents running the affected tests before every push would save 670 minutes gross. As a
-  blanket rule it costs more than that, since it breaks even at 0.7 minutes per push.
+- **Most of that time nothing runs.** 72% (3,830 minutes) passes between a failure and the PR's
+  next attempt, whatever that attempt's result: the agent noticing, repairing and pushing, or
+  nobody working on the PR. The rest is CI rounds, red ones included. Idle time per bounce has a
+  median of only 4.4 minutes; four idle stretches of 4 to 24 hours make up 62% of all time lost.
+- **Causes:** 18 real defects, 16 flakes, 21 gate refusals, 4 infrastructure, 1 unresolved. 16
+  of the 21 gate refusals were the E2E capacity (growth) line, not the review stamp or a budget.
+- **Ranked fixes** (section 4): a red PR waking its repair owner at once (up to 3,244 minutes), then
+  sending gate refusals an agent cannot fix to the owner (215), then a local capacity check before
+  pushing (115). Re-running only the failed part saves 52 minutes, because agents already did that
+  in 11 of 20 cases. Agents running the affected tests before every push would save 675 minutes
+  gross. As a blanket rule it costs more than that, since it breaks even at 0.7 minutes per push.
 - **Nothing is built** (c). The numbers and the list went to the coordinator for the owner before
   this PR's reviews. Every fix needs the owner's decision.
 
@@ -103,8 +104,9 @@ re-ran only `Reviewed` lists a copy of the old gate and gives no new verdict.
 - After a PR-run bounce, the next green is the next green `CI gate` on a PR run.
 - After a merge-group bounce or a dequeue, the next green is the next green merge-group run, or the
   merge if that comes first.
-- The loss splits into two parts. **Wait** runs from the failure to the creation of the attempt
-  that went green: noticing, repairing, pushing or re-running. **CI** runs from that creation to
+- **Idle** runs from the failure to the creation of the PR's next attempt of the same kind,
+  whatever its result: the time nothing ran. **Wait** runs from the failure to the creation of the
+  attempt that went green, so it can hold red rounds in between. **CI** runs from that creation to
   green.
 - A PR's red time is the union of its bounces' intervals, so overlapping bounces count once.
 - A bounce with no green by the end of the listing is unresolved and has no time.
@@ -119,7 +121,12 @@ by its log:
 | hang | a job cancelled or timed out inside a run that was not superseded |
 | code | anything else: `[gates] tests failed`, a failed `check:` that is not a budget, failing specs (the log's `N) [chromium] › e2e/….spec.ts` lines), a configured verdict |
 
-The configured verdict restates its shards, so when a shard failed too, the shard decides. The
+The configured verdict restates its shards, so when a shard failed too, the shard decides.
+
+Before the rules below, cf03's fail-then-pass is applied job by job. A failing job that passed in a
+later attempt on the same commit, even an attempt that stayed red for another reason, is set aside,
+and the rules read the parts that did not pass again. When every failing job passed again, the
+bounce is infrastructure if each failed in setup or on a runner, and a flake otherwise. The
 bounce's cause is then decided in this order:
 
 1. **Gate refusal.** A gate part with no code part beside it. An infrastructure part beside a
@@ -127,9 +134,9 @@ bounce's cause is then decided in this order:
    the refusal.
 2. **Infrastructure.** Every part is infra.
 3. **Flake.** The next green ran on the same commit, which is cf03's fail-then-pass; for a
-   merge-group bounce, the PR's head is compared. Also a flake, marked ambiguous: every failing spec
-   is a known quarantined spec (current or released in `e2e/quarantine.json` at ada1c781) and the
-   repair did not touch it.
+   merge-group bounce, the PR's head is compared. Also a flake, marked ambiguous: every failing part
+   is a spec, every failing spec is a known quarantined spec (current or released in
+   `e2e/quarantine.json` at ada1c781), and the repair did not touch it.
 4. **Real defect.** The PR's own commits between the failed head and the green head changed code or
    tests: a path outside `docs/` that is not `*.md`. Merges of `main` are left out
    (`git log --first-parent --no-merges`).
@@ -139,10 +146,11 @@ bounce's cause is then decided in this order:
    - unreadable repair commits are a defect;
    - a green after a push with no own code change, such as a merge of `main` only, is a flake.
 
-   Ambiguous bounces are counted in their class and shown separately: 13 of 60.
+   Ambiguous bounces are counted in their class and shown separately: 12 of 60.
 
-A bounce with a code part and a gate part is a defect, recorded `with_gate`. The code had to change
-anyway. Two bounces are like this, and one more is unresolved.
+A bounce with a gate part and a code part that did not pass again is a defect, recorded
+`with_gate`, because the code had to change anyway. One bounce is like this, and one more is
+unresolved.
 
 ## 3. (a) Results
 
@@ -163,8 +171,9 @@ anyway. Two bounces are like this, and one more is unresolved.
 | | n | median | p90 | sum |
 | --- | ---: | ---: | ---: | ---: |
 | Time lost (failure to next green) | 55 | **30.4** | **123.5** | 5,290 |
-| of which wait before the next attempt | 55 | 16.0 | 117.1 | 4,545 (86%) |
-| of which CI time of the green attempt | 55 | 14.3 | 17.5 | 745 (14%) |
+| Idle: failure to the next attempt (nothing ran) | 55 | 4.4 | 49.0 | 3,830 (72%) |
+| Wait: failure to the attempt that went green (can hold red rounds) | 55 | 16.0 | 117.1 | 4,545 |
+| CI time of the green attempt | 55 | 14.3 | 17.5 | 745 (14%) |
 | Red time per PR (overlaps once) | 42 | 20.9 | 152.7 | 4,616 |
 | For reference: a first-attempt green PR run of these PRs | 347 | 13.7 | 29.2 | |
 
@@ -172,16 +181,16 @@ anyway. Two bounces are like this, and one more is unresolved.
 
 | Cause | Bounces (ambiguous) | PRs | Lost: median / p90 / sum | Wait: median | CI: median |
 | --- | --- | ---: | --- | ---: | ---: |
-| Real defect | 18 (1) | 16 | 30.0 / 300.0 / 2,318 | 16.0 | 15.6 |
-| Flake | 17 (7) | 14 | 19.1 / 135.1 / 846 | 3.4 | 14.3 |
-| Gate refusal | 20 (3) | 12 | 45.3 / 106.1 / 830 (n 16) | 26.9 | 7.2 |
+| Real defect | 18 (1) | 16 | 20.5 / 300.0 / 2,264 | 6.1 | 15.6 |
+| Flake | 16 (6) | 13 | 15.2 / 135.1 / 827 | 3.4 | 12.9 |
+| Gate refusal | 21 (3) | 12 | 49.1 / 106.1 / 903 (n 17) | 32.9 | 10.1 |
 | Infrastructure | 4 (1) | 4 | 14.8 / 1,240.3 / 1,296 | 0.7 | 14.1 |
 | Unresolved | 1 (1) | 1 | none | | |
 
-**Gate refusals by kind (20).**
+**Gate refusals by kind (21).**
 
-- 15 capacity (growth) line refusals:
-  - 6 overhead tier over its per-landing budget;
+- 16 capacity (growth) line refusals:
+  - 7 overhead tier over its per-landing budget;
   - 4 backend tier over its budget;
   - 4 the change itself over the line;
   - 1 the durations table 9 days old, over its 8-day bound (#2364). That is a bad report: the
@@ -194,38 +203,44 @@ refused a PR in the window.
 
 **Real defects by what failed (17 unambiguous).**
 
-- 7 offline E2E specs;
-- 5 Build (unit tests, `check:workflows`);
+- 6 Build (unit tests, `check:workflows`);
+- 6 offline E2E specs;
 - 5 configured specs.
 
-In 7 of them the failing spec file was one the repair changed.
+In 6 of them the failing spec file was one the repair changed.
 
-**Flakes (17).**
+**Flakes (16).**
 
 - 9 passed on a re-run of the same run, and 1 on a new run of the same head.
-- The other 7 are ambiguous:
-  - 6 failed only in known quarantined specs, such as `import-svg-behaviour` 3 times on #1985;
+- The other 6 are ambiguous:
+  - 5 failed only in known quarantined specs, such as `import-svg-behaviour` 3 times on #1985;
   - 1 went green after a push with no own code change (#2227, a merge of `main`).
+
+#2134's first bounce shows the job-level rule at work. Two E2E shards failed there and passed in
+the next attempt on the same commit, while the capacity line kept refusing, so the bounce is a gate
+refusal.
 
 **Infrastructure (4).** 3 configured stacks failed to start (`configured-stack`), and 1 Factory
 gates job was cancelled in checkout (#2218).
 
-**Which jobs fail.** Of the failing jobs counted across all bounces, offline E2E shards are 27 (11 in
-defects, 14 in flakes, 2 unresolved), `CI gate`'s capacity line 18, Build 11 (2 of them the E2E
-protection step) and configured jobs 12.
+**Which jobs fail.** Of the failing jobs counted across all bounces, offline E2E shards are 27 (10 in
+defects, 13 in flakes, 2 in a gate refusal where they passed again, 2 unresolved), `CI gate`'s
+capacity line 18, Build 11 (2 of them the E2E protection step) and configured jobs 12.
 
-### 3.4 The long waits
+### 3.4 The long idle stretches
 
-Five non-gate bounces waited over an hour before the next attempt started. Together they are 3,404
-minutes, 64% of all time lost:
+Four non-gate bounces sat idle for over an hour, with nothing running before the PR's next attempt.
+Together they are 3,262 minutes, 62% of all time lost:
 
-| PR | Failure | Wait (min) | Cause | What happened |
+| PR | Failure | Idle (min) | Cause | What happened |
 | --- | --- | ---: | --- | --- |
 | #1840 | 2026-10-31 06:13 | 1,463 | defect (ambiguous) | a bot PR (`bot/e2e-traced`) red in the merge group; the next nightly refresh replaced it a day later |
 | #2218 | 2026-11-05 13:50 | 1,226 | infra (ambiguous) | Factory gates cancelled in checkout; green the next morning |
 | #2227 | 2026-11-05 15:30 | 313 | flake (ambiguous) | an E2E spec failed; green after a merge of `main` 5 hours later |
-| #2374 | 2026-11-11 05:28 | 282 | defect | an E2E spec failed at night; the fix came in the morning |
-| #1985 | 2026-11-02 21:25 | 121 | flake (ambiguous) | a known flaky spec; three repair pushes before green |
+| #2374 | 2026-11-11 05:28 | 261 | defect | an E2E spec failed at night; the fix came in the morning |
+
+#1985's 121-minute wait is not idle time: it held three repair pushes, each red. That is E's
+loop.
 
 ## 4. (b) Candidate fixes, ranked by estimated time saved
 
@@ -236,22 +251,23 @@ and F come from the data.
 
 | Rank | Fix | Saved (min) | Bounces it acts on | Basis and arithmetic |
 | ---: | --- | ---: | ---: | --- |
-| 1 | **F. A red PR wakes its repair owner at once** | **≤ 3,324** | 5 | Each non-gate wait over an hour, less the 16.0-minute median wait a woken owner is assumed to match: (1,463 + 1,226 + 313 + 282 + 121) − 5 × 16.0. This is an upper bound: part of a long wait can be real repair work, and #1840 is a bot PR whose fix was the next nightly. |
-| 2 | **C. Gate refusals an agent cannot fix go to the owner alarm at once** | **228** (floor 49) | 17 refusals; 5 PRs looped | On 5 PRs the same refusal came back 7 more times (#2005 three times, #2134, #2194, #2321, #2364). Saved: the red time from each PR's second refusal of a kind to its green, which the agent spent looping after it had already seen the refusal. It assumes the owner answers an alarm within the first refusal's own round. Floor: only the 7 repeats removed, 49 minutes. The first refusals waited 303 minutes in all, and a quick owner answer could save part of that too. |
-| 3 | **D. Agents check the capacity line before pushing and ask the owner then** | **108** | 15 capacity refusals | The capacity line is decided before any test runs, from the plan and the newest growth report. Known-traps already runs it locally (`scripts/e2e-capacity.mjs`). Checking it before pushing replaces the first CI round of each refusal: the sum of the first capacity refusal's CI minutes per PR. The repeats are C's. Cost: a few seconds per push of an E2E or ceiling change. |
-| 4 | **E. Name a known-flaky spec in the failure** | **102** | 6 (1 PR looped) | On #1985 the agent pushed code twice more for `import-svg-behaviour.spec.ts`, which is already in quarantine's history. Saved: the red time from its second such bounce to green. Ambiguous by rule 3, and one PR. |
-| 5 | **A1. Re-run only the failed jobs** | **63** | 21 flake and infra | For each flake or infra bounce whose green was a new full run: its CI minutes minus the longest failed job. In 11 of 21 the green was already a re-run of only the failed jobs, so most of the saving is already taken. ci.yml also retries failed specs and failed Build or Factory jobs inside the run. |
+| 1 | **F. A red PR wakes its repair owner at once** | **≤ 3,244** | 4 | Each non-gate idle stretch over an hour, less the 4.4-minute median idle time a woken owner is assumed to match: (1,463 + 1,226 + 313 + 261) − 4 × 4.4. This is an upper bound: part of an idle stretch can be repair work done before the push, and #1840 is a bot PR whose fix was the next nightly. #2374 is also one of B's defect bounces, so F and B overlap there. |
+| 2 | **C. Gate refusals an agent cannot fix go to the owner alarm at once** | **215** (floor 49) | 14 refusals on 8 PRs; 3 PRs looped | This counts only the refusals that need the owner: a tier budget, a stale report or the protection check. The 4 refusals for "the change over the line" are left out (#2321 twice, #2332, #2364's first), because an agent clears those by making its change cheaper; their loop was 30 minutes. On 3 PRs the same refusal came back 6 more times: #2005 three times, #2134 twice, #2194 once. Saved: the red time from each PR's second refusal of a kind to its green, which the agent spent looping after it had already seen the refusal. It assumes the owner answers an alarm within the first refusal's own round. Floor: only the 6 repeats removed, 49 minutes. The first refusals waited 267 minutes in all, and a quick owner answer could save part of that too. |
+| 3 | **D. Agents check the capacity line before pushing and ask the owner then** | **115** | 16 capacity refusals | The capacity line is decided before any test runs, from the plan and the newest growth report. Known-traps already runs it locally (`scripts/e2e-capacity.mjs`). Checking it before pushing replaces the first CI round of each refusal: the sum of the first capacity refusal's CI minutes per PR. The repeats are C's. Cost: one run of that script per push of an E2E or ceiling change, not measured here. It reads the plan and one growth report and runs no test. |
+| 4 | **E. Name a known-flaky spec in the failure** | **102** | 5 (1 PR looped) | On #1985 the agent pushed code twice more for `import-svg-behaviour.spec.ts`, which is already in quarantine's history. Saved: the red time from its second such bounce to green. Ambiguous by rule 3, and one PR. |
+| 5 | **A1. Re-run only the failed jobs** | **52** | 20 flake and infra | For each flake or infra bounce whose green was a new full run: its CI minutes minus the longest failed job. In 11 of 20 the green was already a re-run of only the failed jobs, so most of the saving is already taken. ci.yml also retries failed specs and failed Build or Factory jobs inside the run. |
 | 6 | **A2. CI re-runs an infrastructure failure's failed jobs once, at once** | **28** | 3 | For each unambiguous infra bounce: its wait plus A1. Known-traps allows one re-run for an infrastructure death. For flakes the rules forbid added retries, and they go to quarantine. |
-| 7 | **B. Agents run the affected tests before pushing** | gross **670**; as a blanket rule it costs more than it saves | 17 defect | Removing every unambiguous defect bounce saves 670 minutes: offline E2E 465, build and unit tests 113, configured 72. That assumes the local run catches what CI caught. The cost lands on every push. 983 heads were pushed in the window, so B breaks even at 670 / 983 = 0.7 minutes of local running per push, and a targeted build alone takes 5 to 10 minutes on a worker (verify.md caps). verify.md already asks for targeted local checks, so these 17 are what got past them. A narrow version could pay: for example, running the spec files the change edits, where the failing spec was edited in 7 of 17. Its cost per push has to be measured before it is chosen. |
+| 7 | **B. Agents run the affected tests before pushing** | gross **675**; as a blanket rule it costs more than it saves | 17 defect | Removing every unambiguous defect bounce saves 675 minutes: offline E2E 451, build and unit tests 132, configured 72. That assumes the local run catches what CI caught. The cost lands on every push. 983 heads were pushed in the window, so B breaks even at 675 / 983 = 0.7 minutes of local running per push, and a targeted build alone takes 5 to 10 minutes on a worker (verify.md caps). verify.md already asks for targeted local checks, so these 17 are what got past them. A narrow version could pay: for example, running the spec files the change edits, where the failing spec was edited in 6 of 17. Its cost per push has to be measured before it is chosen. |
 
 **Reading the ranking.**
 
-- CI speed is not where the loop's time goes: CI is 14% of the time lost. Re-running less (A1, A2)
-  saves under 100 minutes in 14 days.
-- The loss sits in the waits, and above all in five long ones (F).
+- CI speed is not where the loop's time goes. For 72% of the time lost nothing runs, and the green
+  attempt's CI is 14%. Re-running less (A1, A2) saves 80 minutes in 14 days.
+- The savings overlap, so they do not add up: F and B share #2374.
+- The loss sits in idle time, and above all in four long stretches (F).
 - The second place it sits is in the agent looping on a refusal it cannot fix: capacity refusals,
-  15 of the 20 gate refusals (C and D).
-- F's 3,324 is an upper bound resting on five cases, and C's 228 on five PRs. Both are small
+  16 of the 21 gate refusals (C and D).
+- F's 3,244 is an upper bound resting on four cases, and C's 215 on three PRs. Both are small
   samples. cf20 should re-measure them before and after any fix that is chosen.
 
 ## 5. (c) Nothing built
@@ -303,6 +319,15 @@ cached once. This collection took at most about 1,190 calls:
     saves almost nothing while the loop itself is real. Both floors are given.
   - B is ranked last despite the largest gross figure: its cost lands on every push, and the
     break-even is shown.
+- **Review round 1** (fresh read-only /so on b3da0cc7b, grade B, class: faulty measurement rules).
+  All four findings were fixed in one checkpoint:
+  - Fail-then-pass is now applied job by job. #2134's shards passed again on the same commit, so
+    that bounce is a gate refusal, not a defect.
+  - The quarantine clause now needs every failing part to be a quarantined spec, so #2124 (Build
+    red too) is a defect.
+  - Idle time is separated from wait, and F is based on idle time; #1985 left F.
+  - C counts only the refusals that need the owner.
+  The ranking order did not change.
 - **Traps met.**
   - GitHub records `removed_from_merge_queue` at the moment the queue merges a PR. Read without
     the `merged` event beside it, every landing looks like a dequeue (97 of 100 removals here).
@@ -328,8 +353,8 @@ cached once. This collection took at most about 1,190 calls:
 | --- | --- | --- |
 | (a) every PR that bounced after ready, counted from 14 days of history | met | section 3.1; rules in section 2; every PR with a red or re-run run was read in full (204) |
 | (a) rounds per PR | met | section 3.1, histogram |
-| (a) time lost per bounce, failure to next green, median and p90 with n | met | section 3.2; wait and CI split |
-| (a) cause classed as defect, flake, gate refusal or infrastructure, with sample sizes, how decided and how ambiguous ones count | met | sections 2 and 3.3; 13 ambiguous, each by a named rule |
+| (a) time lost per bounce, failure to next green, median and p90 with n | met | section 3.2; idle, wait and CI split |
+| (a) cause classed as defect, flake, gate refusal or infrastructure, with sample sizes, how decided and how ambiguous ones count | met | sections 2 and 3.3; 12 ambiguous, each by a named rule |
 | (a) cf03's measurement rules | met | section 1: copied jobs once, fail-then-pass on one commit, nearest-rank, review wait apart |
 | (b) the three named candidates and others the data shows, ranked by time saved, each with basis and arithmetic | met | section 4: A1, A2, B, C, D, E, F |
 | (c) no test, check or limit changed; numbers to the owner first; building needs the owner | met | section 5; the diff is four new files in this folder |

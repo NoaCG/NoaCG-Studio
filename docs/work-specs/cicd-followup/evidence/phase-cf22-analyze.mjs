@@ -178,6 +178,7 @@ function derive(cache) {
       const fails = own.filter((j) => STOPPED.has(j.conclusion) && !VERDICT_ONLY.has(j.name) && !(kind === 'pr' && j.name === 'Reviewed'));
       if (!perPr.has(n)) perPr.set(n, []);
       perPr.get(n).push({ run: r.id, attempt: a, kind, event: r.event, sha: r.head_sha, created, end, outcome, fails, gateJob: gate, ranJobs: own.map((j) => j.name),
+        passed: new Set(own.filter((j) => j.conclusion === 'success').map((j) => j.name)),
         reviewedRed: RED.has(rev?.conclusion) });
     }
   }
@@ -232,6 +233,12 @@ function derive(cache) {
         run: it.att?.run ?? null, attempt: it.att?.attempt ?? null, head, green_run: green?.run ?? null, green_attempt: green?.attempt ?? null,
         green_head: greenHead, green_at: greenAt, lost_min: greenAt ? round1(min(it.at, greenAt)) : null,
         wait_min: start ? round1(Math.max(0, min(it.at, start))) : null,
+        // The wait before the PR's next attempt of the same kind started (red or green): the time
+        // nothing ran. wait_min above runs to the attempt that went green and can hold red rounds.
+        idle_min: (() => {
+          const next = atts.filter((a) => a.kind === wantKind && a.created > (it.att?.created ?? it.at) && (a.end ?? '') > it.at).sort((x, y) => x.created.localeCompare(y.created))[0];
+          return next ? round1(Math.max(0, min(it.at, next.created))) : null;
+        })(),
         ci_min: green ? round1(min(start > it.at ? start : it.at, green.end)) : null,
         green_by: !green ? (greenAt ? 'merge' : null) : green.run === it.att?.run ? 'rerun of the same run' : head && greenHead === head ? 'new run, same commit' : head ? 'new commit' : 'head unknown',
         rerun_failed_only: Boolean(green && green.run === it.att?.run && green.attempt > it.att?.attempt && green.ranJobs.length < 0.5 * (it.att?.ranJobs.length ?? 0)),
@@ -239,7 +246,12 @@ function derive(cache) {
       };
       if (it.att) {
         b.jobs = it.att.fails.map((j) => classJob(j, cache));
-        for (const j of b.jobs) j.quarantined = j.specs.filter((s0) => quarantined.has(s0));
+        for (const j of b.jobs) {
+          j.quarantined = (j.specs ?? []).filter((s0) => quarantined.has(s0));
+          // cf03 fail-then-pass at job level: the same job passed in a later attempt on this commit,
+          // even when that attempt stayed red for another reason.
+          if (j.kind !== 'gate') j.passed_later_same_commit = atts.some((a) => a.kind === it.att.kind && a.sha === it.att.sha && a.created > it.att.created && a.passed.has(j.name));
+        }
         b.gate_log = gateLog(it.att.gateJob, cache);
         if (b.gate_log?.capacity) b.jobs.push({ name: 'CI gate', step: 'Require every gate', kind: 'gate', gate: 'capacity (growth)', why: b.gate_log.capacity, specs: [], quarantined: [] });
         if (b.gate_log?.noFlag) b.jobs.push({ name: 'CI gate', step: 'Require every gate', kind: 'infra', why: 'the E2E plan gave no configured flag', specs: [], quarantined: [] });
@@ -305,14 +317,29 @@ function cause(b, queueReds) {
     }
     return { cause: 'gate', cause_why: `removed from the queue by ${b.actor ?? 'unknown'} with no red merge group run`, ambiguous: true };
   }
-  const parts = b.jobs;
+  // A failing part that passed later on the same commit is a fail-then-pass (cf03): it decides
+  // nothing beyond flake, so the rules below read the parts that did not pass again.
+  const all = b.jobs;
+  const passedAgain = all.filter((j) => j.passed_later_same_commit);
+  const parts = passedAgain.length < all.length ? all.filter((j) => !j.passed_later_same_commit) : all;
   const kinds = new Set(parts.map((j) => j.kind));
-  const why = () => parts.map((j) => `${j.name}: ${j.why}`).join('; ');
+  const why = () => all.map((j) => `${j.name}: ${j.why}${j.passed_later_same_commit ? ' (passed again on the same commit)' : ''}`).join('; ');
+  // Every failing job passed again on the same commit: infrastructure when each failed in setup or
+  // on a runner (a re-run is how an infrastructure death clears), otherwise a flake.
+  if (passedAgain.length && passedAgain.length === all.length) {
+    if (all.every((j) => j.kind === 'infra')) return { cause: 'infra', cause_why: `passed again on the same commit; ${why()}` };
+    return { cause: 'flake', cause_why: `every failing job passed again on the same commit; ${why()}` };
+  }
   // 1. Gate refusal: a policy refusal (review stamp, budget, capacity, protection) with no code
   // failure beside it. An infrastructure or hang part beside a refusal does not change the cause:
   // a re-run passes those, never the refusal.
   const gateKinds = [...new Set(parts.filter((j) => j.kind === 'gate').map((j) => j.gate))];
-  if (gateKinds.length && !kinds.has('code')) return { cause: 'gate', gate: gateKinds.join(' + '), cause_why: why() };
+  if (gateKinds.length && !kinds.has('code')) {
+    const capWhy = parts.find((j) => j.gate === 'capacity (growth)')?.why ?? '';
+    const detail = /days old/.test(capWhy) ? 'durations table too old (a bad report)' : /overhead tier refuse/.test(capWhy) ? 'overhead tier over its budget'
+      : /backend tier refuse/.test(capWhy) ? 'backend tier over its budget' : capWhy ? 'the change over the capacity line' : gateKinds.join(' + ');
+    return { cause: 'gate', gate: gateKinds.join(' + '), gate_detail: detail, with_flake: passedAgain.length > 0, cause_why: why() };
+  }
   // 2. Infrastructure: every failing part failed in setup, with no failed step, or on a runner,
   // network or registry error.
   if (parts.every((j) => j.kind === 'infra')) return { cause: 'infra', cause_why: why() };
@@ -322,7 +349,9 @@ function cause(b, queueReds) {
   const code = parts.filter((j) => j.kind === 'code' || j.kind === 'hang');
   const c = b.change;
   const specsFailed = code.flatMap((j) => j.specs);
-  if (specsFailed.length && specsFailed.every((s) => code.some((j) => j.quarantined.includes(s))) && !(c?.codeFiles ?? []).some((f) => specsFailed.includes(f))) {
+  // Every code part must be a failing spec that is known quarantined: a Build or other failure
+  // beside it is not explained by the quarantine.
+  if (code.length && code.every((j) => j.specs.length && j.specs.every((s0) => j.quarantined.includes(s0))) && !(c?.codeFiles ?? []).some((f) => specsFailed.includes(f))) {
     return { cause: 'flake', ambiguous: true, cause_why: `known quarantined spec(s) ${[...new Set(specsFailed)].join(', ')}, not changed by the repair` };
   }
   // 4. Real defect: the PR's own commits between the failed and the green head changed code or tests.
@@ -351,6 +380,7 @@ function report(rec) {
   out.by_type = Object.fromEntries(['pr', 'queue', 'dequeue'].map((t) => [t, B.filter((b) => b.type === t).length]));
   out.lost_per_bounce = stats(B.map((b) => b.lost_min));
   out.wait_per_bounce = stats(B.map((b) => b.wait_min));
+  out.idle_per_bounce = stats(B.filter((b) => b.lost_min != null).map((b) => b.idle_min));
   out.ci_per_bounce = stats(B.map((b) => b.ci_min));
   out.red_per_pr = stats(rec.prs.map((p) => p.red_min));
   out.unresolved = B.filter((b) => b.lost_min == null).length;
@@ -360,12 +390,7 @@ function report(rec) {
     return [c, { bounces: x.length, ambiguous: x.filter((b) => b.ambiguous).length, prs: new Set(x.map((b) => b.pr)).size,
       lost: stats(x.map((b) => b.lost_min)), wait: stats(x.map((b) => b.wait_min)), ci: stats(x.map((b) => b.ci_min)) }];
   }));
-  out.capacity_kinds = B.filter((b) => /capacity/.test(b.gate ?? '')).reduce((h, b) => {
-    const why = b.cause_why;
-    const k = /days old/.test(why) ? 'durations table too old (a bad report)' : /overhead tier refuse/.test(why) ? 'overhead tier over its budget'
-      : /backend tier refuse/.test(why) ? 'backend tier over its budget' : 'the change over the capacity line';
-    return { ...h, [k]: (h[k] ?? 0) + 1 };
-  }, {});
+  out.capacity_kinds = B.filter((b) => /capacity/.test(b.gate ?? '')).reduce((h, b) => ({ ...h, [b.gate_detail]: (h[b.gate_detail] ?? 0) + 1 }), {});
   out.gate_kinds = B.filter((b) => b.cause === 'gate').reduce((h, b) => ({ ...h, [b.gate ?? 'dequeue']: (h[b.gate ?? 'dequeue'] ?? 0) + 1 }), {});
   out.green_by = B.reduce((h, b) => ({ ...h, [`${b.cause} / ${b.green_by}`]: (h[`${b.cause} / ${b.green_by}`] ?? 0) + 1 }), {});
   // Which failing jobs, per cause (n/m matrix names folded).
@@ -451,14 +476,21 @@ function candidates(rec) {
 
   // C. Gate refusals an agent cannot fix go to the owner alarm at once instead of looping. Saved:
   // every refusal after the first on the same PR and gate kind (the loop), removed.
-  const gates = B.filter((b) => b.cause === 'gate' && b.type !== 'dequeue').sort((x, y) => x.at.localeCompare(y.at));
+  // An agent can clear 'the change over the capacity line' by making its own change cheaper; the
+  // tier budgets, a stale report and the protection check need the owner.
+  const agentFixable = (b) => b.gate_detail === 'the change over the capacity line';
+  const allGates = B.filter((b) => b.cause === 'gate' && b.type !== 'dequeue').sort((x, y) => x.at.localeCompare(y.at));
+  const gates = allGates.filter((b) => !agentFixable(b));
   const seen = new Set(); const repeats = [];
   for (const b of gates) { const k = `${b.pr}|${b.gate}`; if (seen.has(k)) repeats.push(b); else seen.add(k); }
   const loopGroups = new Map();
   for (const b of gates) { const k = `${b.pr}|${b.gate}`; if (!loopGroups.has(k)) loopGroups.set(k, []); loopGroups.get(k).push(b); }
   const looping = [...loopGroups.values()].filter((g) => g.length > 1);
   const cSaved = round1(looping.reduce((t, g) => t + loopMin(g.map((b) => ({ ...b, pr: 0 }))), 0));
+  const fixLoops = new Map();
+  for (const b of allGates.filter(agentFixable)) { if (!fixLoops.has(b.pr)) fixLoops.set(b.pr, []); fixLoops.get(b.pr).push(b); }
   out.push({ id: 'C', name: 'Gate refusals an agent cannot fix go to the owner alarm at once', bounces: gates.length,
+    agent_fixable_left_out: { bounces: allGates.length - gates.length, loop_min: round1([...fixLoops.values()].filter((g) => g.length > 1).reduce((t, g) => t + loopMin(g), 0)) },
     prs: seen.size, looping_prs: looping.length, repeats: repeats.length, saved_min: cSaved,
     removed_only_min: savedByRemoving(B, (b) => repeats.includes(b)),
     first_refusal_wait_min: sum(gates.filter((b) => !repeats.includes(b)), (b) => b.wait_min),
@@ -468,7 +500,7 @@ function candidates(rec) {
   // the agent's machine (scripts/e2e-capacity.mjs, as known-traps runs it): checking it before
   // pushing turns each capacity refusal into an owner question before a CI round. Saved: every
   // capacity bounce's CI round (the first refusal's CI minutes and every repeat), less C's repeats.
-  const cap = gates.filter((b) => /capacity/.test(b.gate ?? ''));
+  const cap = allGates.filter((b) => /capacity/.test(b.gate ?? ''));
   const firstCap = cap.filter((b) => !repeats.includes(b));
   out.push({ id: 'D', name: 'Agents check the capacity line before pushing and ask the owner then', bounces: cap.length,
     saved_min: sum(firstCap.filter((b) => b.lost_min != null), (b) => b.ci_min),
@@ -489,17 +521,12 @@ function candidates(rec) {
   // once. Saved: for each wait over an hour (bounces that share one green attempt counted once, at
   // their longest wait; gate refusals left to C and D), the wait above the median wait of all
   // bounces, which a woken owner is assumed to match.
-  const medWait = quantile(R.map((b) => b.wait_min), 0.5);
-  const byGreen = new Map();
-  for (const b of R.filter((x) => x.cause !== 'gate')) {
-    const k = `${b.pr}|${b.green_run}|${b.green_attempt}|${b.green_at}`;
-    if (!byGreen.has(k) || byGreen.get(k).wait_min < b.wait_min) byGreen.set(k, b);
-  }
-  const long = [...byGreen.values()].filter((b) => b.wait_min > 60);
-  out.push({ id: 'F', name: 'A red PR wakes its repair owner at once', bounces: long.length, median_wait_min: medWait,
-    waits: long.map((b) => ({ pr: b.pr, at: b.at, wait_min: b.wait_min, cause: b.cause })),
-    saved_min: round1(long.reduce((t, b) => t + b.wait_min - medWait, 0)),
-    basis: 'per non-gate bounce whose wait before the next attempt exceeded an hour (shared greens once): the wait above the median wait of all bounces; an upper bound, since part of a long wait can be real repair work' });
+  const medIdle = quantile(R.map((b) => b.idle_min), 0.5);
+  const long = R.filter((b) => b.cause !== 'gate' && b.idle_min > 60);
+  out.push({ id: 'F', name: 'A red PR wakes its repair owner at once', bounces: long.length, median_idle_min: medIdle,
+    waits: long.map((b) => ({ pr: b.pr, at: b.at, idle_min: b.idle_min, cause: b.cause })),
+    saved_min: round1(long.reduce((t, b) => t + b.idle_min - medIdle, 0)),
+    basis: 'per non-gate bounce whose idle time (failure to the next attempt of any result) exceeded an hour: that time above the median idle time of all bounces; an upper bound, since part of a long idle time can be repair work done before the push' });
   return out.sort((a, b) => b.saved_min - a.saved_min);
 }
 
