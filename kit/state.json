@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "session": "windows:j-5242",
       "pr": 2378,
-      "phase": "v4",
+      "session": "windows:j-5242",
       "head": "eee31a8d068b6e60070a74c714a3df24b6043dea",
-      "note": "Exact independent A and Codex clean. Required Windows Chromium j-5242 is waiting for the shared runner RAM floor. Normal CI 43081534761 remains under observation.",
-      "step": "build"
+      "step": "build",
+      "note": "Exact independent A, Codex clean, normal CI gate and configured verdict passed. Only required local Chromium j-5242 remains before the queue, waiting for the shared Windows RAM floor.",
+      "phase": "v4"
     }
   ],
   "owner": [],
