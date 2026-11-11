@@ -64,19 +64,10 @@
     "read": "Read the finalized spec and phases from f0f2e3fe0c2cc14e23b171957b6f8d18905fd434 with git show; the runtime worktree starts on pinned main, independently of the plan-only source. Read docs/EDITOR_PLAN.md, the editor acceptance register and the October single-device closure named in the spec. Preserve the old October ledger and source-specific evidence. #2294 exact acceptance and terminal checks are recorded in its repair-owner closeout. Read the latest issue details for #774, #1749 and #775 before using them.",
     "rules": "Run the current worker plan preflight before work and use only the owned absolute Windows worktree. Use the local verification scheduler, isolated accounts and required native 125% zoom/file interactions; full suites stay in GitHub Actions. Respect the October single-device boundaries and the serial phase order. Before E1 product edits reproduce and write the short observable rule or gap. Report every subcriterion and retain original failures and any missing evidence. Inventory the exact GSAP browser, CLI and export artifacts early and send the finished draft back to the coordinator for the owner. State that NoaCG is open source, entirely free, earns no revenue and serves broadcast graphics. The owner superseded the six-month deferral and sends the request. Preserve licence, provenance, notices and redistribution checks. A delayed reply is not an engineering wait before OW1. Stage actual receiving hosts/operator, first-time users/moderator and existing model-access leads in E1 without claiming availability. Do not launch other phases. Do not change provider, funding, licence, engine or release posture. Do not use or modify production data. Respect #1967 and check sideEnds on exact candidate paths, including package versions. The active coordinator acknowledges PR repair duty and owns queue stamping and terminal monitoring. Follow the latest check and queue guidance and obtain fresh independent review under the shared traps."
   },
-  "inFlight": [
-    {
-      "phase": "E3",
-      "step": "check",
-      "nativeId": "/root/editor_r15_e3_cloud_check",
-      "session": "6af48349-f9e8-8191-98f5-4ce8910a2060",
-      "actionId": "plan-editor-r1-5-2026-11-08:6",
-      "sourceSha": "a387d69db5d02ac6e15d4d8e81f3674fb817e0e7",
-      "worktree": "/workspace/noacg-editor-r1-5-e3-check",
-      "note": "E3 independentcheck active on actuala387;100targeted testsPASS, jobs30/31; exactmergequarantine/postlanding/deploySUCCESS, CI/configured/CodeQLpending. Rootactive monitorresumed92354 after provingoldprocessgone."
-    }
+  "inFlight": [],
+  "owner": [
+    "Resume the same editor-r1-5 run in the existing local NoaCG Studio project for E4. E1-E3 passed; E4-E7/OW1 retain approved environments/acceptance. No periodic check-in or unattended wake."
   ],
-  "owner": [],
   "fixes": [],
   "triggers": [],
   "prerequisites": {
@@ -565,7 +556,11 @@
       "retained": "active coordinator/control store, E3 owned worktree and route-probe worktree"
     }
   },
-  "waitingOn": {},
+  "waitingOn": {
+    "what": "Qualified local Windows E4 execution route and fresh coordinator/worker preflight; no remote launch/handoff tool exposed in this Cloud chat",
+    "responsible": "owner/local environment operator",
+    "resume": "Open the existing local NoaCG Studio project, resume plan-editor-r1-5-2026-11-08 from the same recoveryref, reconcile this Cloud coordinator terminal/native workers stopped, qualify local route, then clear dependency wait with evidence and ask supervisor next. No E4 admission spent."
+  },
   "cloudContinuation": {
     "at": "2026-11-11T11:52:56.956Z",
     "ownerInstruction": "Start a Codex Cloud chat in the NoaCG-Studio environment and resume $plan-run editor-r1-5 from the saved E2 checkpoint. Continue the same run.",
@@ -851,14 +846,15 @@
             "result": "transporthandlelost; oldpid36422authoritativelyabsent; lastsnapshot14:57:53Z preserved; no after-sessioncontinuity claimed"
           }
         ],
-        "resumption": "same active bounded read-only monitor, originaldeadlineunchanged, no nativeworker/externalaction repeated"
+        "resumption": "same active bounded read-only monitor, originaldeadlineunchanged, no nativeworker/externalaction repeated",
+        "stopRequested": "afterallterminalrequiredresults andindependentPASS"
       },
       "observation": "verification-dispatch observed first; custom helper inputs/default schema unresolved advisory; original dispatch executed once. No resubmission/alternate status route.",
       "mergeGroup": {
         "run": 43041147227,
         "candidateSha": "a387d69db5d02ac6e15d4d8e81f3674fb817e0e7",
         "branch": "gh-readonly-queue/main/pr-2386-7e1ae4cf80f8fe302aa6a0ee0381537aa72354f4",
-        "status": "in_progress; candidate only, no actualmerge claim"
+        "status": "SUCCESS;candidatebecameactualmerge"
       }
     },
     "checkAdmissionGuard": {
@@ -883,7 +879,7 @@
       "requestSha256": "68096ef353e91d048a9f951ab75046386fafdacf4320c3f1d376168bd258586d",
       "worktree": "/workspace/noacg-editor-r1-5-e3-check",
       "source": "a387d69db5d02ac6e15d4d8e81f3674fb817e0e7",
-      "status": "accepted; independent verification pending",
+      "status": "PASSrecorded;terminalarchived",
       "progress": "AuthoritativebriefSHAverified; sourceequalfinalfda product/treeidenticalreviewedf420. Own100gateway/auth/quota/ratetestsPASS0skip. Maintained55browserj30running; independentCLI/MCP/manual/help/edit/oracle/3exportsj31queued. No provider calls; allremainingexactmergechecks pending."
     },
     "exactMergeRuns": {
@@ -913,7 +909,26 @@
       "receipt": "receipts/e3-curation-hash-provenance.json",
       "comment": "https://github.com/NoaCG/NoaCG-Studio/pull/2386#issuecomment-6799523403",
       "result": "all6 reproduce original Python sorted ASCII JSON method; not JSON.stringify/wirebytes; original failed checker probe retained"
-    }
+    },
+    "acceptance": {
+      "result": "PASS",
+      "recordedAt": "2026-11-11T15:21:15.666Z",
+      "actor": "/root/editor_r15_e3_cloud_check",
+      "session": "6af48349-f9e8-8191-98f5-4ce8910a2060",
+      "mergeSha": "a387d69db5d02ac6e15d4d8e81f3674fb817e0e7",
+      "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2386#issuecomment-6799693278",
+      "nativeArchive": "terminalreadback;appconfirmedarchived",
+      "technical": "55maintainedbrowser+100gateway+independentCLI/MCP/manual/Help/reviewededit/history/sourcepreservation/3outputsPASS;allrequiredexactmergeworkflowsSUCCESS",
+      "originalFailures": "preserved, including checker serialization assumption and early compositor capture",
+      "publicFindings": "firstmetadata-bearingpost rejected beforeprocesscreation; saferredactedtechnicalpayloadpostedonce andreadbackverified; no bypass/no remainingpublicwriteblock",
+      "privateArtifact": {
+        "archiveSha256": "eb31a79fee85839634232a671bd01a1ebfbfa8ae1859cf07be3467e4e013d629",
+        "manifestSha256": "c7509cd11fc2274dbc515c70fc5c669af1d105fe1431fed6d2c93da447cfc966",
+        "copy": "privatelypreserved outside repository; exacthashesverified; notpublished",
+        "credentialScan": "PASS"
+      }
+    },
+    "repairOwnership": "COMPLETE comment6798337901;exactmergeallterminal/independentPASS"
   },
   "e4RouteReadiness": {
     "scope": "preparatory capability read only; E4 not admitted, E3 still pending actualmerge/check",
@@ -926,6 +941,7 @@
     },
     "toolEvidence": "App list_projects/read_thread/list_threads/archive exposed; exhaustive current tool search found no create_thread/fork_thread/send_message_to_thread/handoff_thread or remote Windows execution capability. Project metadata does not prove qualified execution.",
     "selectedExecutor": "current managed Cloud Linux only; no local Windows process/resource/network preflight possible through exposed tools",
-    "futureAction": "After E3 independentPASS, ask supervisor next and checkpoint exact first dependent local-route gate if still unavailable. Resume same run/recoveryref from existing Windows project; qualify actual local coordinator/worker before E4admission. Do not substitute Cloud or open a second run."
+    "futureAction": "After E3 independentPASS, ask supervisor next and checkpoint exact first dependent local-route gate if still unavailable. Resume same run/recoveryref from existing Windows project; qualify actual local coordinator/worker before E4admission. Do not substitute Cloud or open a second run.",
+    "status": "Supervisor next afterE3PASS requestsE4build; requiredlocalrouteunavailablehere, dependencycheckpointbeingrecorded"
   }
 }
