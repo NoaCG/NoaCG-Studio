@@ -126,7 +126,12 @@ No product change was made for these, as the owner decision says.
 
 ### Large, stalled
 
-LARGE_STALLED_PENDING
+- Graphic cue Take, large, after: own 27.5 / 734 ms p95 (50, 0); max 807. A miss, from the same
+  source as the typical stalled tail: the owed edit's save rewrites the larger stored production
+  before the press's handler runs.
+- The other paths were not run with the stall on the large fixture: a run needs the large
+  fixture's build plus 50 samples that each wait out a 3 s stall, which does not fit the worker's
+  5 minute job cap (the server Take reached 29 samples in 290 s). Not counted as passed.
 
 ## D2 and the order
 
