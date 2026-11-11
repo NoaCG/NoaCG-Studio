@@ -1590,7 +1590,7 @@ else if (a[0] === 'run' && a[1] === 'download') fs.copyFileSync(path.join(dir, a
 else process.exit(1);
 `, { mode: 0o755 });
   const out = path.join(dir, 'growth.json');
-  execFileSync(process.execPath, [new URL('./growth-report.mjs', import.meta.url).pathname, 'fetch', '--out', out, '--now', '2026-11-10T12:00:00Z'], { env: { ...process.env, PATH: `${dir}${path.delimiter}${process.env.PATH}`, GH_REPO: 'NoaCG/NoaCG-Studio' }, encoding: 'utf8' });
+  execFileSync(process.execPath, [new URL('./growth-report.mjs', import.meta.url).pathname, 'fetch', '--out', out, '--now', '2026-11-10T12:00:00Z'], { env: { ...process.env, PATH: `${dir}${path.delimiter}${process.env.PATH}`, GH_REPO: 'NoaCG/NoaCG-Studio' }, encoding: 'utf8', windowsHide: true });
   const growth = growthAssessment({ base: null, reportPath: out, table: { source: { recordedAt: '2026-11-09' } }, today: '2026-11-10' });
   const verdict = applyOfflineStop(growth, { added: 1 });
   assert.notEqual(verdict.status, 'refuse', verdict.reasons.join('; '));
