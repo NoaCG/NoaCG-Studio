@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "pr": 2368,
-      "head": "c97586a9ad0b38125cc7e257e1295d73324a6e37",
       "session": "/root/v3_builder",
+      "head": "75556c972ca0334ff1a4970ff3762eeb71c76684",
       "phase": "v3",
+      "note": "Full independent B+ found audio readiness lost during cleanup. Fresh rule-model reassessment completed; shared Take/Resume observation rule published. Bounded correction precedes real-device proof. Remote remains Rules-only.",
       "step": "build",
-      "note": "Local V3 candidate passed 99 focused tests and compilation. Fresh full review B+ found acknowledged AudioOn could remain muted. Scoped correction and regression underway before device validation. Remote draft remains Rules-only bab3be52."
+      "pr": 2368
     }
   ],
   "owner": [],
