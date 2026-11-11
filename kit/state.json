@@ -44,11 +44,13 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "note": "V4 candidate committed and focused Node tests passed. Required local Chromium job j-5227 waits for the shared Windows memory floor while independent review proceeds. No PR or queue landing yet.",
+      "note": "Draft PR open. Exact candidate and static verification clean. Required queued local Chromium j-5228 waits for the shared memory floor. Normal PR CI and fresh review remain required before the merge queue.",
       "session": "/root/v4_builder",
       "phase": "v4",
       "step": "build",
-      "head": "68ad7e170c662a1bf5dc85126ebad2502890865d"
+      "head": "2e3b09dbd91d709ff8f20fd2172f6b6eb038659c",
+      "pr": 2378,
+      "repairComment": 6792695771
     }
   ],
   "owner": [],
