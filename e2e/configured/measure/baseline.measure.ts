@@ -85,7 +85,6 @@ async function settle(op: Page, quietMs = 250, timeout = 20_000, only?: RegExp) 
   }
 }
 
-/** The first matching send that started at or after `after`, waited for. */
 /** The first matching send that started at or after `after` and belongs to a NEW press: a command
  *  send whose sender id was already seen (`seen`, an earlier press or its resend) is not it. */
 async function sentAfter(op: Page, after: number, match: RegExp, timeout = 15_000, seen: Set<string> = new Set()): Promise<{ lpm: Lpm; sent: Sent } | null> {
@@ -103,10 +102,10 @@ const pressOf = (lpm: Lpm, target: string) => [...lpm.presses].reverse().find((p
 
 type Sample = { total: number; own: number; keptMs: number; kept: Record<string, boolean>; others: string[]; kinds?: string[] } | { failed: string };
 
-/** One clicked press, measured: click `button`, find its send. */
 /** Sender ids the page has already used: a send carrying one of them answers an earlier press. */
 const sidsOf = (lpm: Lpm) => new Set(lpm.allSids ?? []);
 
+/** One clicked press, measured: click `button`, find its send. */
 async function pressAndMeasure(op: Page, button: Locator, testId: string, match: RegExp): Promise<Sample> {
   const seen = sidsOf(await readLpm(op));
   const before = await nowOn(op);
@@ -138,7 +137,7 @@ async function secondOfTwo(op: Page, button: Locator, testId: string, match: Reg
 
 /** Instrument the production page. Its network is throttled only once the fixture is built
  *  (`throttle` after `buildFixture`): signing in and building are set-up, not timings. */
-async function opPage(page: Page, _net: typeof NET) {
+async function opPage(page: Page) {
   await instrument(page.context());
 }
 
@@ -191,7 +190,7 @@ const SEND = /rpc:control_send_seq|rpc:control_send_many/;
 test('takes-a', async ({ page, browser }) => {
   await seedSettings(page);
   await fakeBridge(page);
-  await opPage(page, NET);
+  await opPage(page);
   log('build');
   const fx = await buildFixture(page, FIXTURE);
   log('built', fx.graphics, fx.storedOutputBytes);
@@ -253,7 +252,7 @@ test('takes-a', async ({ page, browser }) => {
 });
 
 test('takes-b', async ({ page, browser }) => {
-  await opPage(page, NET);
+  await opPage(page);
   log('build');
   const fx = await buildFixture(page, FIXTURE);
   log('built', fx.graphics, fx.storedOutputBytes);
@@ -300,7 +299,7 @@ test('takes-b', async ({ page, browser }) => {
 });
 
 test('takes-c', async ({ page, browser }) => {
-  await opPage(page, NET);
+  await opPage(page);
   log('build');
   const fx = await buildFixture(page, FIXTURE);
   log('built', fx.graphics, fx.storedOutputBytes);
@@ -366,7 +365,7 @@ test('takes-c', async ({ page, browser }) => {
 });
 
 test('render', async ({ page, browser }) => {
-  await opPage(page, NET);
+  await opPage(page);
   log('build');
   const fx = await buildFixture(page, FIXTURE);
   log('built', fx.graphics, fx.storedOutputBytes);
@@ -442,7 +441,7 @@ test('render', async ({ page, browser }) => {
 });
 
 test('publish', async ({ page, browser }) => {
-  await opPage(page, NET);
+  await opPage(page);
   log('build');
   const fx = await buildFixture(page, FIXTURE);
   log('built', fx.graphics, fx.storedOutputBytes);
@@ -502,7 +501,7 @@ test('publish', async ({ page, browser }) => {
 });
 
 test('bytes', async ({ page, browser }) => {
-  await opPage(page, NET);
+  await opPage(page);
   log('build');
   const fx = await buildFixture(page, FIXTURE);
   log('built', fx.graphics, fx.storedOutputBytes);
@@ -636,7 +635,7 @@ test('bytes', async ({ page, browser }) => {
 });
 
 test('boot', async ({ page, browser }) => {
-  await opPage(page, NET);
+  await opPage(page);
   log('build');
   const fx = await buildFixture(page, FIXTURE);
   log('built', fx.graphics, fx.storedOutputBytes);

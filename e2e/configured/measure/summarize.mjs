@@ -9,7 +9,12 @@ import { join } from 'node:path';
 
 const dir = process.argv[2] ?? process.env.MEASURE_OUT ?? '/tmp/noacg-measure';
 const files = readdirSync(dir).filter((f) => f.endsWith('.json'));
-const load = (f) => JSON.parse(readFileSync(join(dir, f), 'utf8'));
+/** Each result file parsed once: the tables below read the same files many times. */
+const parsed = new Map();
+const load = (f) => {
+  if (!parsed.has(f)) parsed.set(f, JSON.parse(readFileSync(join(dir, f), 'utf8')));
+  return parsed.get(f);
+};
 const CASES = ['typical-fast', 'typical-slow', 'large-fast', 'large-slow'];
 const caseName = { 'typical-fast': 'Typical, unthrottled', 'typical-slow': 'Typical, throttled', 'large-fast': 'Large, unthrottled', 'large-slow': 'Large, throttled' };
 /** Every part file of one group and case. */

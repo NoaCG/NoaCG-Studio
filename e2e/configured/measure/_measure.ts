@@ -17,7 +17,6 @@ export interface Press extends Stamp { kind: string; target: string | null; key?
 /** A fetch the page made. For a command send, `sid` is the press's identity (sender id and press
  *  number, kept by its resends, src/control/seqSend.ts `senderBody`) and `kinds` its message types. */
 export interface Sent extends Stamp { name: string; end?: number; status?: number; failed?: string; sid?: string; kinds?: string[] }
-export interface FramePlay { graphic: string; playAt: number; dispatchAt: number | null }
 
 /**
  * The operator page's stamps: every pointerdown and keydown (capture phase, so before any app

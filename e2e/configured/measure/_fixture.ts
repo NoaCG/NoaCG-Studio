@@ -58,7 +58,7 @@ export async function buildFixture(page: Page, which: FixtureName): Promise<Buil
       const { formatTemplate } = await import('/src/format/formatCode.ts');
       const m = await import('/src/model/shows.ts');
       const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-      const { createPictureTemplate, addPictureToTemplate, PICTURE_FIELD } = await import('/src/templates/picture.ts');
+      const { createPictureTemplate, addPictureToTemplate } = await import('/src/templates/picture.ts');
 
       // Seeded noise, so every run builds the same bytes.
       let seed = 0x2468ace;
@@ -163,7 +163,6 @@ export async function buildFixture(page: Page, which: FixtureName): Promise<Buil
       const server = record.cues!.find((c) => c.source === 'playout')!.id;
       const failure = await commitDurableWrites();
       if (failure) throw new Error(failure);
-      void PICTURE_FIELD;
       return { id, plain: plain.slice(0, -2), picture, stepped, score, server, folder: folderId, imageFileBytes, graphics: record.graphics.length };
     },
     { name, graphics: spec.graphics, imageBytes: spec.imageBytes },
