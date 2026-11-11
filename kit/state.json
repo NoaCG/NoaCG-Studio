@@ -36,20 +36,18 @@
  },
  "waitingOn": [
   {
-   "what": "PR #2399 merge, then the second phase 3 check on its merge",
-   "eta": "2026-11-12T00:30:00Z"
+   "what": "phase 3 second checker verdict",
+   "eta": "2026-11-12T01:00:00Z"
   }
  ],
  "inFlight": [
   {
    "phase": "3",
-   "step": "repair",
-   "actor": "repairer-3-3-r-bd79",
-   "session": "session_017SdbwPBsXDiAbce4iDNNsj",
-   "branch": "claude/plan-live-publishing-3-repair",
-   "launchedAt": "2026-11-11T20:42:25Z",
-   "lastSeen": "2026-11-11T23:16Z receipt 3-r-bd79; b8e611bd stamped, in merge queue 23:18:04Z",
-   "pr": 2399
+   "step": "check (second)",
+   "actor": "checker-3-3-c-e769",
+   "session": "session_017SdbwPZuLaoAgZLxPw3MTv",
+   "mergeSha": "0e65d859eb7978589b48eb42f2fb45161236d813",
+   "launchedAt": "2026-11-11T23:32:45Z"
   }
  ],
  "owner": [
