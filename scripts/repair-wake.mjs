@@ -101,8 +101,10 @@ export function decide({ pr, failure, comments, now }) {
   if (!failure) return null;
   const owner = repairOwner(comments);
   const since = lastAction(failure, comments, owner) ?? failure.at;
-  // With no owner, no worker can be left on a merge-group failure or on a bot's PR.
-  const bound = !owner && (failure.kind === 'merge group' || pr.user?.type === 'Bot') ? 0 : BOUND_MINUTES;
+  // With no owner, no worker can be left on a merge-group failure or on a bot's PR: the next check
+  // alarms, unless a person has acted since, whose action then gets the full bound.
+  const noWorker = !owner && (failure.kind === 'merge group' || pr.user?.type === 'Bot');
+  const bound = noWorker && since === failure.at ? 0 : BOUND_MINUTES;
   const unattended = (at(now) - at(since)) / MINUTE >= bound;
   const key = `${pr.number}/${failure.run}/${failure.attempt}/${failure.at}`;
   const last = since === failure.at ? '' : `, last action ${since.slice(0, 16).replace('T', ' ')} UTC`;
@@ -127,19 +129,40 @@ function readComments(reader, repo, number) {
   return null;
 }
 
-/** Rules 1 to 6 over every open PR, within the reader's budget. Returns { entries, complete }. */
-export function sweep({ reader, now, repo = REPO }) {
+/** The merge-group runs of the last two days, up to three pages; `complete` when all were read. */
+function readGroups(reader, repo, now) {
+  const since = new Date(at(now) - 2 * WINDOW_HOURS * 60 * MINUTE).toISOString();
+  const runs = [];
+  for (let page = 1; page <= 3; page++) {
+    const got = reader.get(`repos/${repo}/actions/workflows/ci.yml/runs?event=merge_group&per_page=100&page=${page}&created=${encodeURIComponent(`>=${since}`)}`);
+    if (!Array.isArray(got?.workflow_runs)) return { runs, complete: false };
+    runs.push(...got.workflow_runs);
+    if (got.workflow_runs.length < 100) return { runs, complete: true };
+  }
+  return { runs, complete: false };
+}
+
+/**
+ * Rules 1 to 6 over every open PR, within the reader's budget. Returns { entries, complete }.
+ * `remembered` holds the keys already alarmed: a listed merge-group failure older than the
+ * two-day listing is read by its run id, so it stays the PR's verdict at any age (rule 7).
+ */
+export function sweep({ reader, now, repo = REPO, remembered = [] }) {
   const prs = reader.get(`repos/${repo}/pulls?state=open&per_page=100`);
   if (!Array.isArray(prs)) return { entries: [], complete: false };
   let complete = prs.length < 100;
-  // The newest merge-group run per PR from the last two days, by the group branch's PR number.
-  const since = new Date(at(now) - 2 * WINDOW_HOURS * 60 * MINUTE).toISOString();
-  const listed = reader.get(`repos/${repo}/actions/workflows/ci.yml/runs?event=merge_group&per_page=100&created=${encodeURIComponent(`>=${since}`)}`);
-  if (!Array.isArray(listed?.workflow_runs) || listed.workflow_runs.length >= 100) complete = false;
+  // The newest merge-group run per PR, by the group branch's PR number.
+  const listed = readGroups(reader, repo, now);
+  if (!listed.complete) complete = false;
   const groups = new Map();
-  for (const r of listed?.workflow_runs ?? []) {
+  for (const r of listed.runs) {
     const n = Number(GROUP_BRANCH.exec(r.head_branch ?? '')?.[1]);
     if (n && (!groups.has(n) || started(r) > started(groups.get(n)))) groups.set(n, r);
+  }
+  const alarmedRuns = new Map();
+  for (const key of remembered) {
+    const [n, run] = key.split('/').map(Number);
+    alarmedRuns.set(n, [...(alarmedRuns.get(n) ?? []), run]);
   }
   const entries = [];
   for (const pr of prs.filter((p) => !p.draft)) {
@@ -147,7 +170,13 @@ export function sweep({ reader, now, repo = REPO }) {
     if (!Array.isArray(runs?.workflow_runs)) { complete = false; continue; }
     const prRun = runs.workflow_runs.filter((r) => ['pull_request', 'workflow_dispatch'].includes(r.event))
       .sort((a, b) => started(b) - started(a))[0] ?? null;
-    const run = verdictRun({ prRun, groupRun: groups.get(pr.number) ?? null });
+    let groupRun = groups.get(pr.number) ?? null;
+    for (const id of groupRun ? [] : (alarmedRuns.get(pr.number) ?? []).filter((id) => id !== prRun?.id)) {
+      const old = reader.get(`repos/${repo}/actions/runs/${id}`);
+      if (!old) complete = false;
+      else if (old.event === 'merge_group' && (!groupRun || started(old) > started(groupRun))) groupRun = old;
+    }
+    const run = verdictRun({ prRun, groupRun });
     if (run?.status !== 'completed' || !FAILED.has(run.conclusion)) continue;
     const jobs = reader.get(`repos/${repo}/actions/runs/${run.id}/attempts/${run.run_attempt ?? 1}/jobs?per_page=100`);
     if (!Array.isArray(jobs?.jobs) || jobs.jobs.length >= 100) { complete = false; continue; }
@@ -170,8 +199,8 @@ export function sweep({ reader, now, repo = REPO }) {
  * the entries new since the last check, and whether to close the issue. An incomplete check keeps
  * every listed line it could not re-read.
  */
-export function nextAlarm({ entries, complete, previousBody = '' }) {
-  const listed = new Set(keysIn(previousBody));
+export function nextAlarm({ entries, complete, previousBody = '', remembered = keysIn(previousBody) }) {
+  const listed = new Set(remembered);
   const fresh = entries.filter((e) => e.unattended && !listed.has(e.key) && e.ageMinutes <= WINDOW_HOURS * 60);
   const kept = entries.filter((e) => listed.has(e.key) || fresh.includes(e));
   const unattended = kept.filter((e) => e.unattended).map((e) => e.line);
@@ -179,8 +208,8 @@ export function nextAlarm({ entries, complete, previousBody = '' }) {
   if (!complete) {
     const seen = new Set(entries.map((e) => e.key));
     let section = unattended;
-    for (const l of String(previousBody).split('\n')) {
-      if (l === ATTENDED_HEADING) section = attended;
+    for (const l of String(previousBody).split(/\r?\n/)) {
+      if (l.trim() === ATTENDED_HEADING) section = attended;
       const k = keysIn(l)[0];
       if (k && !seen.has(k)) section.push(l);
     }
@@ -199,11 +228,26 @@ export function alarmBody({ owner, now, unattended, attended = [] }) {
   ].join('\n');
 }
 
-/** Write the alarm: open it, update it with one comment for new failures, or close it. */
-export function raise({ entries, complete, now, ceilings, gh, repo = REPO }) {
-  const { owner, login } = alarmOwner(ceilings);
+/**
+ * Rule 8's memory: the open alarm issue, and the keys it and the newest closed one list. A closed
+ * issue's keys are remembered too, so an owner who closes the alarm by hand is not alarmed again
+ * for the same failures.
+ */
+export function readAlarm({ gh, repo = REPO }) {
   const found = findAlarmIssue(RED_ISSUE, { repo, gh });
-  const { unattended, attended, fresh, close } = nextAlarm({ entries, complete, previousBody: found?.body ?? '' });
+  const closedList = JSON.parse(gh(['api', '-X', 'GET', `repos/${repo}/issues?state=closed&sort=updated&direction=desc&per_page=50`]) || '[]');
+  const closed = closedList.find((i) => i.title === RED_ISSUE && !i.pull_request && trustedAuthor(i));
+  return { found, remembered: [...new Set([...keysIn(found?.body), ...keysIn(closed?.body)])] };
+}
+
+/** The listed part of an alarm body, without its header and check time. Pure. */
+const listedPart = (body) => String(body ?? '').split(/\r?\n/).slice(1).map((l) => l.trimEnd()).join('\n');
+
+/** Write the alarm: open it, update it with one comment for new failures, or close it. */
+export function raise({ entries, complete, now, ceilings, gh, repo = REPO, alarm = readAlarm({ gh, repo }) }) {
+  const { owner, login } = alarmOwner(ceilings);
+  const { found, remembered } = alarm;
+  const { unattended, attended, fresh, close } = nextAlarm({ entries, complete, previousBody: found?.body ?? '', remembered });
   if (close && found) {
     gh(['api', '-X', 'POST', `repos/${repo}/issues/${found.number}/comments`, '-f', 'body=No listed pull request is red and unattended any more; closing.']);
     gh(['api', '-X', 'PATCH', `repos/${repo}/issues/${found.number}`, '-f', 'state=closed']);
@@ -211,12 +255,14 @@ export function raise({ entries, complete, now, ceilings, gh, repo = REPO }) {
   }
   if (!unattended.length && !attended.length) return 'nothing to raise';
   const body = alarmBody({ owner, now, unattended, attended });
+  if (!found && !fresh.length) return 'nothing new: the alarm issue was closed, and its failures are remembered';
   if (!found) {
     const made = JSON.parse(gh(['api', '-X', 'POST', `repos/${repo}/issues`, '-f', `title=${RED_ISSUE}`, '-f', `body=${body}`]));
     return `opened #${made.number} with ${fresh.length} new; ${routeOrWarn(made.number, { login, repo, gh })}`;
   }
-  gh(['api', '-X', 'PATCH', `repos/${repo}/issues/${found.number}`, '-f', `body=${body}`]);
-  if (!fresh.length) return `updated #${found.number}, nothing new`;
+  // An unchanged list is not rewritten: each edit would only move the check time.
+  if (listedPart(body) !== listedPart(found.body)) gh(['api', '-X', 'PATCH', `repos/${repo}/issues/${found.number}`, '-f', `body=${body}`]);
+  if (!fresh.length) return `#${found.number} kept, nothing new`;
   // One comment per check, listing every new failure: the assignee is notified once.
   gh(['api', '-X', 'POST', `repos/${repo}/issues/${found.number}/comments`, '-f', `body=New since the last check:\n\n${fresh.map((e) => e.line).join('\n')}`]);
   return `updated #${found.number} with ${fresh.length} new; ${routeOrWarn(found.number, { login, repo, gh })}`;
@@ -244,12 +290,13 @@ function main() {
   alarmOwner(ceilings); // rule 12: no recorded owner, no check
   const now = value('--now') ?? new Date().toISOString();
   const gh = budgetedGh(MAX_CALLS);
-  const { entries, complete } = sweep({ reader: makeReader(MAX_CALLS - WRITE_RESERVE, gh), now });
+  const alarm = args.includes('--issue') ? readAlarm({ gh }) : { found: null, remembered: [] };
+  const { entries, complete } = sweep({ reader: makeReader(MAX_CALLS - WRITE_RESERVE, gh), now, remembered: alarm.remembered });
   console.log(`${entries.filter((e) => e.unattended).length} of ${entries.length} red PR(s) unattended past their bound; check ${complete ? 'complete' : 'incomplete'} (${gh.calls} calls)`);
   for (const e of entries) console.log(`${e.unattended ? 'UNATTENDED' : 'attended'} ${e.line}`);
   // Rule 9: an incomplete check withdraws nothing, and says so where the run is read.
   if (!complete) console.log('::warning title=Repair wake::the check was incomplete (a read failed or the call budget ran out); no alarm was withdrawn');
-  if (args.includes('--issue')) console.log(raise({ entries, complete, now, ceilings, gh }));
+  if (args.includes('--issue')) console.log(raise({ entries, complete, now, ceilings, gh, alarm }));
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

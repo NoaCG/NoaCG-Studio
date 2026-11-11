@@ -9,7 +9,7 @@ import test from 'node:test';
 
 import { ownedAlarmTitles } from './alarm-owner.mjs';
 import { makeReader } from './growth-report.mjs';
-import { BOUND_MINUTES, budgetedGh, failureOf, MAX_CALLS, ownerText, raise, RED_ISSUE, sweep } from './repair-wake.mjs';
+import { BOUND_MINUTES, budgetedGh, failureOf, keysIn, MAX_CALLS, nextAlarm, ownerText, raise, readAlarm, RED_ISSUE, sweep } from './repair-wake.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const plus = (iso, min) => new Date(Date.parse(iso) + min * 60_000).toISOString().replace('.000Z', 'Z');
@@ -42,14 +42,23 @@ function fakeGitHub(world = {}) {
     const p = url.pathname;
     if (method === 'GET' && p.endsWith('/pulls')) return JSON.stringify(prs.map((x) => ({ draft: false, ...x, head: { sha: x.sha } })));
     if (method === 'GET' && p.endsWith('/actions/workflows/ci.yml/runs')) {
-      if (url.searchParams.get('event') === 'merge_group') return JSON.stringify({ workflow_runs: groups });
+      if (url.searchParams.get('event') === 'merge_group') {
+        const from = Date.parse(url.searchParams.get('created').slice(2)), page = Number(url.searchParams.get('page') ?? 1);
+        const inWindow = groups.filter((g) => Date.parse(g.created_at) >= from);
+        return JSON.stringify({ workflow_runs: inWindow.slice((page - 1) * 100, page * 100) });
+      }
       const sha = url.searchParams.get('head_sha');
       return JSON.stringify({ workflow_runs: runs.filter((r) => r.run.head_sha === sha).map((r) => r.run) });
     }
     let m;
     if (method === 'GET' && (m = /\/actions\/runs\/(\d+)\/attempts\/\d+\/jobs$/.exec(p))) return JSON.stringify({ jobs: (runs.find((r) => r.run.id === Number(m[1])) ?? groups.find((g) => g.id === Number(m[1]))).jobs });
+    if (method === 'GET' && (m = /\/actions\/runs\/(\d+)$/.exec(p))) {
+      const found = runs.find((r) => r.run.id === Number(m[1]))?.run ?? groups.find((g) => g.id === Number(m[1]));
+      if (!found) throw new Error('HTTP 404');
+      return JSON.stringify(found);
+    }
     if (method === 'GET' && (m = /\/issues\/(\d+)\/comments$/.exec(p))) return JSON.stringify(Number(url.searchParams.get('page') ?? 1) === 1 ? comments[m[1]] ?? [] : []);
-    if (method === 'GET' && p.endsWith('/issues')) return JSON.stringify(state.issues.filter((i) => i.state === 'open'));
+    if (method === 'GET' && p.endsWith('/issues')) return JSON.stringify(state.issues.filter((i) => i.state === (url.searchParams.get('state') ?? 'open')).reverse());
     if (method === 'POST' && p.endsWith('/issues')) {
       const made = { number: state.next++, title: field('title'), body: field('body'), state: 'open', assignees: [], user: { type: 'Bot' }, author_association: 'NONE' };
       state.issues.push(made);
@@ -58,7 +67,7 @@ function fakeGitHub(world = {}) {
     }
     if (method === 'PATCH' && (m = /\/issues\/(\d+)$/.exec(p))) {
       const i = state.issues.find((x) => x.number === Number(m[1]));
-      if (field('body') !== undefined) i.body = field('body');
+      if (field('body') !== undefined) { i.body = field('body'); state.posted.push(['edit', i.number]); }
       if (field('state')) i.state = field('state');
       return JSON.stringify(i);
     }
@@ -74,11 +83,15 @@ function fakeGitHub(world = {}) {
   return { run, state };
 }
 
+/** The notifications a check sent: issues opened and comments, not body edits. */
+const notices = (gh) => gh.state.posted.filter((p) => p[0] !== 'edit').map((p) => p[0]);
+
 /** One check, as the workflow runs it: sweep within the budget, then raise. */
 function check(gh, now) {
   const counted = budgetedGh(MAX_CALLS, gh.run);
-  const { entries, complete } = sweep({ reader: makeReader(MAX_CALLS - 15, counted), now, repo: 'NoaCG/NoaCG-Studio' });
-  const did = raise({ entries, complete, now, ceilings: CEILINGS, gh: counted, repo: 'NoaCG/NoaCG-Studio' });
+  const alarm = readAlarm({ gh: counted, repo: 'NoaCG/NoaCG-Studio' });
+  const { entries, complete } = sweep({ reader: makeReader(MAX_CALLS - 15, counted), now, repo: 'NoaCG/NoaCG-Studio', remembered: alarm.remembered });
+  const did = raise({ entries, complete, now, ceilings: CEILINGS, gh: counted, repo: 'NoaCG/NoaCG-Studio', alarm });
   return { entries, complete, did, calls: counted.calls, alarm: gh.state.issues.find((i) => i.title === RED_ISSUE && i.state === 'open') };
 }
 
@@ -152,6 +165,9 @@ test('rule 6: no repair owner and no worker left (a merge-group failure, a bot\'
   const pr = (user) => ({ prs: [{ number: 7, sha: 's', user }], runs: [prRun({ id: 1, sha: 's', start: plus(t, -15), end: t })] });
   assert.ok(check(fakeGitHub(pr({ login: 'app[bot]', type: 'Bot' })), plus(t, 1)).alarm, 'a bot\'s PR with no owner');
   assert.equal(check(fakeGitHub(pr({ login: 'miwco', type: 'User' })), plus(t, 59)).alarm, undefined, 'a worker may still be on it');
+  const answered = { ...pr({ login: 'app[bot]', type: 'Bot' }), comments: { 7: [person(plus(t, 1))] } };
+  assert.equal(check(fakeGitHub(answered), plus(t, 4)).alarm, undefined, 'a person acted: the bound runs from that action');
+  assert.ok(check(fakeGitHub(answered), plus(t, 62)).alarm, '... and then it is unattended again');
   const owned = { ...pr({ login: 'app[bot]', type: 'Bot' }), comments: { 7: [ownerRecord(plus(t, -30), 'the coordinator')] } };
   assert.equal(check(fakeGitHub(owned), plus(t, 59)).alarm, undefined, 'a bot\'s PR with an owner gets the owner\'s 60 minutes');
   const group = { prs: [{ number: 7, sha: 's' }], runs: [prRun({ id: 1, sha: 's', start: plus(t, -30), end: plus(t, -20), gate: 'success' })], groups: [groupRun({ id: 2, pr: 7, start: plus(t, -10), end: t })] };
@@ -178,7 +194,7 @@ test('rules 6 to 8: one alarm per failure, none for old history, withdrawn only 
   check(gh, plus(t, 61));
   check(gh, plus(t, 81));
   check(gh, plus(t, 60 * 30));
-  assert.deepEqual(gh.state.posted.map((p) => p[0]), ['open'], 'one alarm for one failure, however many checks see it, and kept past 24 hours while unattended');
+  assert.deepEqual(notices(gh), ['open'], 'one alarm for one failure, however many checks see it, and kept past 24 hours while unattended');
   assert.equal(gh.state.issues[0].assignees[0].login, 'miwco');
 
   // A second failure on another PR adds one comment to the open issue; seen again, nothing more.
@@ -186,9 +202,9 @@ test('rules 6 to 8: one alarm per failure, none for old history, withdrawn only 
   fx.runs.push(prRun({ id: 2, sha: 'u', start: plus(t, 100), end: plus(t, 110) }));
   check(gh, plus(t, 175));
   check(gh, plus(t, 195));
-  assert.deepEqual(gh.state.posted.map((p) => p[0]), ['open', 'comment']);
-  assert.match(gh.state.posted[1][2], /#8: CI gate red/);
-  assert.doesNotMatch(gh.state.posted[1][2], /#7:/);
+  assert.deepEqual(notices(gh), ['open', 'comment']);
+  assert.match(gh.state.posted.find((p) => p[0] === 'comment')[2], /#8: CI gate red/);
+  assert.doesNotMatch(gh.state.posted.find((p) => p[0] === 'comment')[2], /#7:/);
 
   // Answered, then quiet again: still the same failure, listed apart, never alarmed twice.
   fx.comments = { 7: [person(plus(t, 200), 'still on it')] };
@@ -196,7 +212,7 @@ test('rules 6 to 8: one alarm per failure, none for old history, withdrawn only 
   assert.match(answered.alarm.body, /Attended to since the alarm[\s\S]*#7:/);
   check(gh, plus(t, 300));
   check(gh, plus(t, 400));
-  assert.deepEqual(gh.state.posted.map((p) => p[0]), ['open', 'comment'], 'no second alarm for #7 when it goes quiet again');
+  assert.deepEqual(notices(gh), ['open', 'comment'], 'no second alarm for #7 when it goes quiet again');
   assert.equal(gh.state.issues[0].state, 'open', 'still red: kept open and remembered');
 
   // A failed read keeps both listed lines and closes nothing, even though #8 was answered too.
@@ -218,7 +234,7 @@ test('rules 6 to 8: one alarm per failure, none for old history, withdrawn only 
   const done = check(failing, plus(t, 450));
   assert.equal(done.alarm, undefined);
   assert.equal(gh.state.issues[0].state, 'closed');
-  assert.deepEqual(gh.state.posted.map((p) => p[0]), ['open', 'comment', 'comment']);
+  assert.deepEqual(notices(gh), ['open', 'comment', 'comment']);
 
   // History: a failure first seen more than a day after it happened raises nothing.
   const old = fakeGitHub({ prs: [{ number: 9, sha: 'v' }], runs: [prRun({ id: 3, sha: 'v', start: plus(t, -15), end: t })] });
@@ -246,6 +262,54 @@ test('rule 9: a PR with more comments than a check reads is not judged, and the 
   const r = check(many, plus(t, 61));
   assert.equal(r.complete, false);
   assert.equal(r.alarm, undefined, 'an unread comment could be the action');
+});
+
+test('rule 8: a listed merge-group failure stays listed after it leaves the two-day run listing', () => {
+  const t = '2026-11-11T10:00:00Z';
+  const gh = fakeGitHub({ prs: [{ number: 7, sha: 's' }], runs: [prRun({ id: 1, sha: 's', start: plus(t, -30), end: plus(t, -20), gate: 'success' })], groups: [groupRun({ id: 2, pr: 7, start: plus(t, -10), end: t })] });
+  check(gh, plus(t, 1));
+  const later = check(gh, plus(t, 60 * 50));
+  assert.equal(later.complete, true);
+  assert.equal(later.alarm?.state, 'open', 'still red, still listed');
+  assert.match(later.alarm.body, /#7: CI gate red on the merge group/);
+});
+
+test('rule 8: an owner who closes the alarm by hand is not alarmed again for the same failures', () => {
+  const t = '2026-11-11T10:00:00Z';
+  const fx = { prs: [{ number: 7, sha: 's' }], runs: [prRun({ id: 1, sha: 's', start: plus(t, -15), end: t })] };
+  const gh = fakeGitHub(fx);
+  check(gh, plus(t, 61));
+  gh.state.issues[0].state = 'closed';
+  check(gh, plus(t, 81));
+  check(gh, plus(t, 101));
+  assert.deepEqual(notices(gh), ['open'], 'remembered from the closed issue');
+  fx.prs.push({ number: 8, sha: 'u' });
+  fx.runs.push(prRun({ id: 2, sha: 'u', start: plus(t, 90), end: plus(t, 100) }));
+  const r = check(gh, plus(t, 161));
+  assert.deepEqual(notices(gh), ['open', 'open'], 'a new failure opens a new alarm');
+  assert.match(r.alarm.body, /#7:[\s\S]*#8:/, 'listing the remembered one too');
+});
+
+test('rule 8: an unchanged list is not rewritten; a CRLF body edited on GitHub keeps its sections', () => {
+  const t = '2026-11-11T10:00:00Z';
+  const fx = { prs: [{ number: 7, sha: 's' }], runs: [prRun({ id: 1, sha: 's', start: plus(t, -15), end: t })] };
+  const gh = fakeGitHub(fx);
+  check(gh, plus(t, 61));
+  check(gh, plus(t, 81));
+  check(gh, plus(t, 101));
+  assert.equal(gh.state.posted.filter((p) => p[0] === 'edit').length, 0, 'no edit when only the check time would change');
+  const body = ['Owner: x.', '', '- #9: a <!-- key: 9/5/1/2026-11-11T09:00:00Z -->', '', 'Attended to since the alarm, still red (listed so they do not alarm again):', '', '- #8: b <!-- key: 8/4/1/2026-11-11T09:00:00Z -->'].join('\r\n');
+  const next = nextAlarm({ entries: [], complete: false, previousBody: body });
+  assert.deepEqual(next.unattended.map((l) => keysIn(l)), [['9/5/1/2026-11-11T09:00:00Z']]);
+  assert.deepEqual(next.attended.map((l) => keysIn(l)), [['8/4/1/2026-11-11T09:00:00Z']]);
+  assert.ok([...next.unattended, ...next.attended].every((l) => !l.includes('\r')), 'no stray carriage return');
+});
+
+test('rule 10: a busy two days of merge groups (over 100 runs) is read in pages, and the check stays complete', () => {
+  const t = '2026-11-11T10:00:00Z';
+  const groups = Array.from({ length: 150 }, (_, i) => groupRun({ id: 5000 + i, pr: 900 + i, start: plus(t, -i * 10), end: plus(t, -i * 10 + 5), conclusion: 'success' }));
+  const r = check(fakeGitHub({ prs: [{ number: 7, sha: 's' }], runs: [prRun({ id: 1, sha: 's', start: t, end: t, gate: 'success' })], groups }), plus(t, 61));
+  assert.equal(r.complete, true);
 });
 
 test('rule 9: a check spends at most 100 calls, and a spent budget is an incomplete check', () => {
@@ -277,5 +341,7 @@ test('the workflow runs the check on main, after a failed CI run and on a schedu
   assert.match(wf, /issues: write/);
   assert.doesNotMatch(wf, /pull-requests: write|contents: write|actions: write/, 'read-only on PRs');
   assert.doesNotMatch(wf, /workflow_run\.head|head_sha|head_branch/, 'never checks out the PR\'s code');
-  assert.match(wf, /cancel-in-progress: false/, 'one check at a time, none dropped mid-write');
+  assert.match(wf, /\n {4}concurrency:\n {6}group: repair-wake\n {6}cancel-in-progress: false/, 'one check at a time, none dropped mid-write, on the job');
+  assert.doesNotMatch(wf, /^concurrency:/m, 'not on the workflow, where skipped runs of green CI would displace a waiting check');
+  assert.doesNotMatch(wf, /sparse-checkout/, 'the script\'s imports read e2e/ at load');
 });

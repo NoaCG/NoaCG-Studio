@@ -52,7 +52,8 @@ required changes, all taken).
    current head, or its newest merge-group run (branch name matching
    `^gh-readonly-queue/main/pr-(\d+)-`) when that run's newest attempt started later. With no PR
    run on the current head there is no verdict, so a merge-group failure on an older head never
-   outlives a push. It is red when that run has
+   outlives a push. A merge-group run already listed in the alarm is read by its id, so it stays
+   the verdict after it leaves the check's two-day run listing. It is red when that run has
    finished and its `CI gate` job ended `failure` or `timed_out`. A run that is queued or in
    progress is not red. A red `Reviewed` beside a green `CI gate` is review wait, not red (cf17,
    cf22), on both kinds of run. Not covered: a run that never started (`startup_failure`), a PR
@@ -87,22 +88,33 @@ required changes, all taken).
    while its failure is the PR's red verdict, so it is never alarmed again, however its owner's
    comments come and go. A check that finds new unattended keys opens the issue (the assignment
    notifies) or adds one comment listing all of them (the assignee is notified once per check).
+   The keys of the newest closed alarm issue are remembered too: an owner who closes it by hand is
+   not alarmed again for the same failures, and a closed issue is reopened as a new one only for
+   a new failure. A list that has not changed is not rewritten.
 9. **Withdrawal.** A complete check that finds none of the listed failures still a PR's red
    verdict closes the issue. A failure stops being one only by a new verdict (a push, a run, a
    re-run), the PR closing, or the PR turning draft, so it cannot come back with the same key
    while the issue is closed, except a draft made ready again. An incomplete check (the call budget ran out, a read failed)
    closes nothing and drops no entry; it may still add a new one, and it warns in its run.
-10. **Bounds.** At most 100 GitHub API calls per check, reads and writes together. It runs every 20
-    minutes and after each failed `CI` run.
+10. **Bounds.** At most 100 GitHub API calls per check, reads and writes together; merge-group runs
+    are read up to three pages (300 runs in two days; about 55 is usual). It runs every 20 minutes
+    and after each failed `CI` run.
 11. **Trust.** The workflow runs `main`'s code only (`workflow_run` and `schedule` run the default
     branch). It never checks out, or puts into a shell, the triggering run's head, branch or
     title; PR data reaches GitHub only as API arguments. Permissions: `contents`, `actions` and
-    `pull-requests` read, `issues` write. One concurrency group for every trigger, never cancelled
-    mid-write.
+    `pull-requests` read, `issues` write. One concurrency group on the job for every trigger, never
+    cancelled mid-write; on the job, so the skipped runs that green CI runs start never displace a
+    waiting check.
 12. **Owner.** The alarm goes to the owner `scripts/growth-ceilings.json` records, read by
     `alarmOwner`. If it names none, the check fails loudly; it never invents one.
 13. **Read-only on PRs.** The check reads PRs, runs and comments and writes only its alarm issue.
     The weekly owner session sees it through `alarm-owner.mjs list`.
+
+Found after the Rules, in `/check`'s review (all fixed, each with a test): a sparse checkout that
+would have crashed the script at load; workflow-level concurrency letting skipped runs displace a
+waiting check; the zero bound ignoring a person's action; a listed merge-group failure dropping
+out after two days; a hand-closed alarm alarming again; more than 100 merge-group runs leaving every
+check incomplete; a body rewritten on every check; CRLF bodies losing their sections.
 
 ### The four PRs under these rules
 

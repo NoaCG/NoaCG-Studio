@@ -24,26 +24,26 @@ on:
 permissions:
   contents: read
 
-# One check at a time, for every trigger; a check is never cancelled part way through its writes.
-concurrency:
-  group: repair-wake
-  cancel-in-progress: false
-
 jobs:
   check:
     name: Red PRs nobody is repairing
     if: ${{ github.ref == 'refs/heads/main' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'failure' || github.event.workflow_run.conclusion == 'timed_out') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # One check at a time, for every trigger; a check is never cancelled part way through its
+    # writes. On the job, not the workflow, so the skipped runs of green CI runs never displace a
+    # waiting check (a newer waiting check may: it reads everything the older one would).
+    concurrency:
+      group: repair-wake
+      cancel-in-progress: false
     permissions:
       contents: read
       actions: read # CI runs and their jobs
       pull-requests: read # open PRs
       issues: write # the alarm issue: open, update, comment, assign, close
     steps:
+      # A whole checkout: the script reads its helpers' own imports (e2e/ among them) at load.
       - uses: actions/checkout@v5
-        with:
-          sparse-checkout: scripts
       - uses: actions/setup-node@v5
         with:
           node-version: 24
