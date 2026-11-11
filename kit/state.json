@@ -42,16 +42,7 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {},
-  "inFlight": [
-    {
-      "pr": 2368,
-      "head": "e85660d8087d617e1acb777f2468c5e01100ce3b",
-      "step": "build",
-      "session": "j-5203",
-      "note": "Exact packaged Windows Bridge picker proof running in the shared queue. Operator has the local fixture link. Draft stays unqueued until the verification passes.",
-      "phase": "v3"
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [],
   "triggers": []
