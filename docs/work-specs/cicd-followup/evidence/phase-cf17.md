@@ -169,7 +169,9 @@ and nothing is bought.
 
 **Result: the trial ran for 21.6 hours and was ended early by the owner. Permanent three-plan
 concurrency stays off.** Stage 1 landed before the trial counted (#2359, merged
-2026-11-10T18:05Z). Stage 2 is section 7.
+2026-11-10T18:05Z). Stage 2 is section 7. **Addendum (section 8): the trial did not stop when two stop lines
+were crossed, and the owner ended it on a status that said none had been; the owner decided to close
+cf17 with the missed stop recorded.**
 
 ## 7. Result (stage 2)
 
@@ -255,7 +257,7 @@ keep running side by side.
 
 Permanent three-plan concurrency is **not** enabled (acceptance (c)): no success criterion is met.
 Nothing in `plan-run.md` changes; plan runs of different plans may still run side by side as
-before, with no three-plan setting turned on. For cf20(b): decision E's trial ran, ended early by
+before, with no three-plan setting turned on. For cf20(b) (section 8 adds the missed stop): decision E's trial ran, ended early by
 the owner after 21.6 hours with 8 landings, and showed no benefit it could measure. Small samples
 are operating evidence, not statistical proof.
 
@@ -279,3 +281,35 @@ these phases; it does not show that running them together raised cost.
   6-hour measurement cadence can miss a short peak by hours; a stop line that matters for a
   running system needs a check that runs when the event happens (the quarantine route and the
   weekly report already do).
+
+## 8. Addendum: the missed stop
+
+Added after the independent check of the result (#2390, merge `ada1c781`) failed criterion (b)
+([checker comment](https://github.com/NoaCG/NoaCG-Studio/pull/2390#issuecomment-6803951305)).
+Sections 1 to 7 stand as written; this section corrects how the trial ended.
+
+- **Both stop lines were crossed while the trial ran, and the trial did not stop.** Failure rate:
+  a spec was quarantined from a trial landing's own run at 2026-11-11T02:40:17Z
+  (`e2e/configured/operator-outage-not-unpublished.spec.ts`, after editor E1 #2369) and again at
+  12:47:48Z (`e2e/output-debate-clock.spec.ts`, after editor E2 #2374). Contention: the
+  repository-wide peak reached 60 concurrent jobs at 12:38:00Z, against the 57 line. Section 4
+  says crossing a line stops the trial; the runs were not paused at any of these times.
+- **Why it did not stop.** The stop rule was checked by measurement passes every 6 hours
+  (01:36Z, 06:05Z, 12:05Z, then the final pass). The script did not read quarantines until the
+  final pass, so the 06:05Z and 12:05Z passes reported no stop although the first quarantine had
+  landed at 02:40Z; and the 12:38Z peak fell between the 12:05Z pass and the next one. Both
+  crossings were first found in the final pass at about 17:20Z, after the window had ended.
+- **The owner ended the trial on a wrong status.** The coordinator's status, on which the owner
+  ended it ([#1967, comment 6802438629](https://github.com/NoaCG/NoaCG-Studio/issues/1967#issuecomment-6802438629)),
+  said: "After about 18 hours it had 3 landings and no stop limit crossed." By then 8 phases had
+  landed and both lines had been crossed. The coordinator corrected it on #1967
+  ([comment 6803963699](https://github.com/NoaCG/NoaCG-Studio/issues/1967#issuecomment-6803963699)).
+- **The owner's decision**, 2026-11-11, verbatim
+  ([#1967, comment 6804043344](https://github.com/NoaCG/NoaCG-Studio/issues/1967#issuecomment-6804043344)):
+  "Record missed stop, close (Recommended)". The option read, in part: "the trial is closed with the missed
+  stop and its cause recorded as a finding for cf20. No re-trial, since a re-run still could not
+  turn three-plan running on (no solo baseline). cf22 starts right away."
+- **What follows.** No re-trial. Permanent three-plan concurrency stays off. For cf20(b): decision
+  E's trial ran, its stop lines were crossed and missed, and the cause (6-hourly passes;
+  quarantines not read until the final pass) is a finding. A stop line meant to protect running
+  work needs a check that fires when the event happens, not a periodic pass.
