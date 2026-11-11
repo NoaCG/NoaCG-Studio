@@ -207,7 +207,9 @@ type Timeline = { time(t?: number, suppress?: boolean): number; pause(): Timelin
 export async function playLoopOutputs(page: Page) {
   await open(page);
   const data = fixture();
-  data.steps[0].loops = { '#box': { x: loop, opacity: loop } };
+  data.steps[0].layers['#box'].scaleX = [{ time: .2, value: 1 }, { time: 1, value: 3 }];
+  data.steps[0].loops = { '#box': { x: loop, opacity: loop, scaleX: loop } };
+  data.steps[2].layers['#box'].scale = [{ time: 0, value: 4 }, { time: .5, value: 1 }];
   data.machine = { groups: [{
     id: 'main', initial: 'off', defaultPath: ['in', 'reveal', 'out'],
     states: ['off', 'in', 'reveal', 'out'].map(id => ({ id })),
@@ -261,6 +263,8 @@ export async function playLoopOutputs(page: Page) {
         const afterNext = snapshot()[0];
         await command('stop');
         const releasedAfterNext = snapshot();
+        const outShape = body.querySelector('#box')!;
+        const outAxes = ['scaleX', 'scaleY'].map(axis => Number(w.gsap.getProperty(outShape, axis)));
         const out1 = timelines().findLast(tl => Math.abs(tl.duration() - .5) < .001)!;
         take(out1, .5);
         await command('play');
@@ -281,13 +285,13 @@ export async function playLoopOutputs(page: Page) {
           else w.noacgSnap(assignments, options);
           return snapshot();
         });
-        return { sequence, afterScale, faster, score, afterNext, releasedAfterNext, held, released, midpoint, sameOut, hidden, late, snaps };
+        return { sequence, afterScale, faster, score, afterNext, releasedAfterNext, outAxes, held, released, midpoint, sameOut, hidden, late, snaps };
       }, target);
       expect(errors, target).toEqual([]);
       expect(samples, target).toEqual({
         sequence: [[60, .75, 35], [60, .75, 130], [20, .5, 130], [20, .5, 5], [60, .75, 35]],
         afterScale: [60, .75, 35], faster: [70, .813, 40], score: '7', afterNext: 70, releasedAfterNext: [70, .813, 130],
-        held: [60, .75, 35], released: [60, .75, 35], midpoint: [-20, .375, 35],
+        outAxes: [2.125, 4], held: [60, .75, 35], released: [60, .75, 35], midpoint: [-20, .375, 35],
         sameOut: true, hidden: 0, late: 0, snaps: [[90, 1, 130], [90, 1, 130]],
       });
     } finally { await output.close(); }

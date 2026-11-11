@@ -11,24 +11,51 @@ function noacgClearStyledOut() {
   noacgStyledOut = null;
 }
 function noacgClearLoopHolds() { noacgLoopHolds = new WeakMap(); }
-function noacgOwnLoop(tl, animation, selector, property, paint) {
-  (tl.__noacgLoops || (tl.__noacgLoops = [])).push({
-    animation: animation, selector: selector, property: property, paint: paint
+// These are the actual CSSPlugin destinations after the anchor/SVG adapters have run.
+function noacgLoopChannels(property) {
+  var css = gsap.plugins.css;
+  return (css && css.aliases[property] || property).split(',').filter(function (channel) {
+    return property !== 'autoAlpha' || channel !== 'visibility';
   });
 }
-function noacgRememberLoopHold(loop) {
-  var property = loop.property;
-  var channels = property === 'autoAlpha' || property === 'opacity' ? ['opacity', 'autoAlpha']
-    : property === 'scale' ? ['scale', 'scaleX', 'scaleY'] : [property];
-  Array.prototype.forEach.call(document.querySelectorAll(loop.selector), function (element) {
+function noacgTrackWriter(tl, selector, property, loop) {
+  var writer = { selector: selector, channels: noacgLoopChannels(property), loop: loop };
+  (tl.__noacgTracks || (tl.__noacgTracks = [])).push(writer);
+  return writer;
+}
+function noacgOwnLoop(tl, animation, selector, property, paint) {
+  var loop = { parent: tl, animation: animation, paint: paint };
+  loop.writer = noacgTrackWriter(tl, selector, property, loop);
+  (tl.__noacgLoops || (tl.__noacgLoops = [])).push(loop);
+}
+function noacgLoopPainted(loop) {
+  return loop.parent ? loop.parent.time() >= loop.animation.startTime() : loop.painted;
+}
+function noacgHeldLoop(claim) {
+  return claim && (noacgLoopPainted(claim.loop) ? claim.loop : claim.previous);
+}
+function noacgAdoptWriter(writer) {
+  Array.prototype.forEach.call(document.querySelectorAll(writer.selector), function (element) {
     var held = noacgLoopHolds.get(element) || Object.create(null);
-    channels.forEach(function (channel) { held[channel] = gsap.getProperty(element, channel); });
+    writer.channels.forEach(function (channel) {
+      if (writer.loop) {
+        held[channel] = { loop: writer.loop, previous: noacgHeldLoop(held[channel]) };
+      } else {
+        delete held[channel];
+      }
+    });
     noacgLoopHolds.set(element, held);
   });
 }
-function noacgStillHoldsLoop(element, property, live) {
+function noacgAdoptCueTracks(tl) {
+  if (tl && tl.__noacgTracks) tl.__noacgTracks.forEach(noacgAdoptWriter);
+}
+function noacgStillHoldsLoop(element, property) {
   var held = noacgLoopHolds.get(element);
-  return !!held && property in held && held[property] === live;
+  return !!held && noacgLoopChannels(property).some(function (channel) { return noacgHeldLoop(held[channel]); });
+}
+function noacgRecordHide(tl, selector) {
+  (tl.__noacgHides || (tl.__noacgHides = Object.create(null)))[selector] = tl.recent();
 }
 
 // GSAP owns the elapsed clock and the timeScale contract. Rendering from absolute time
@@ -38,7 +65,7 @@ function noacgAddAuthoredLoop(tl, selector, prop, keys, loop, step, speed) {
   var spans = step.spans && step.spans[selector];
   // An explicit span owns visibility. autoAlpha still controls opacity inside it.
   var channel = prop === 'autoAlpha' && spans ? 'opacity' : prop;
-  var hides = !spans && (step.hides || []).indexOf(selector) >= 0 && (prop === 'opacity' || prop === 'autoAlpha');
+  var opacityTrack = channel === 'opacity' || channel === 'autoAlpha';
   var length = loop.repeat < 0 ? bounds.lap : bounds.total - (loop.phase || 0);
   var curves = keys.map(function (key) { return gsap.parseEase(noacgEaseOf(key.ease || step.ease)) || gsap.parseEase('power1.out'); });
   var clock = gsap.timeline({ smoothChildTiming: true });
@@ -52,7 +79,8 @@ function noacgAddAuthoredLoop(tl, selector, prop, keys, loop, step, speed) {
         left.value + (right.value - left.value) * curves[i]((time - left.time) / (right.time - left.time));
     }
     var vars = {};
-    vars[channel] = hides && tl.time() >= step.duration / speed ? 0 : value;
+    var hide = opacityTrack && tl.__noacgHides && tl.__noacgHides[selector];
+    vars[channel] = hide && tl.time() >= hide.startTime() ? 0 : value;
     gsap.set(selector, vars);
   }
   var driver = {};
@@ -71,11 +99,12 @@ function noacgAddAuthoredLoop(tl, selector, prop, keys, loop, step, speed) {
   noacgOwnLoop(tl, clock, selector, channel, paint);
 }
 
-function noacgRetireLoops(tl, keepPose) {
+function noacgRetireLoops(tl) {
   if (!tl || !tl.__noacgLoops) return;
   tl.__noacgLoops.forEach(function (loop) {
-    if (keepPose) noacgRememberLoopHold(loop);
+    loop.painted = noacgLoopPainted(loop);
     loop.animation.kill();
+    loop.parent = loop.animation = loop.paint = loop.writer = null;
   });
   tl.__noacgLoops = [];
 }
@@ -94,7 +123,11 @@ function noacgRepaintOtherLoops(groupId) {
   Object.keys(noacgGroupTl).forEach(function (group) {
     var tl = noacgGroupTl[group];
     if (group === groupId || !tl) return;
-    (tl.__noacgLoops || []).forEach(function (loop) { loop.paint(); });
+    (tl.__noacgLoops || []).forEach(function (loop) {
+      if (!noacgLoopPainted(loop)) return;
+      loop.paint();
+      noacgAdoptWriter(loop.writer);
+    });
   });
 }
 function noacgFiniteEnd(tl) {

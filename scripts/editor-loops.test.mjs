@@ -162,12 +162,42 @@ test('Out from a later cue preserves the held loop sample and the authored later
   near(g.box.opacity, 0, 'the one-key exit completes');
 
   data.steps[1].layers['#box'] = { x: [{ time: 0, value: 15 }, { time: .4, value: 25 }] };
+  // The later author deliberately lands on the same number as the departed loop.
+  data.steps[1].layers['#box'].x[1].value = 60;
   const replacement = graphic(data);
   sample(replacement.w.buildInTimeline(), .35);
   sample(replacement.w.revealNextStep(), .4);
+  near(replacement.box.x, 60, 'the later track happens to match the held sample');
   replacement.w.buildOutTimeline();
   near(replacement.box.x, 100, 'a later writer keeps the authored Out pose');
   near(replacement.box.opacity, .75, 'only the held loop channel follows the held pose');
+});
+
+test('completed finite loops keep their terminal Out pose and unstarted legacy loops do not claim it', () => {
+  for (const useMachine of [false, true]) {
+    const data = useMachine ? authoredMachine(authored()) : authored();
+    const step = data.steps[1];
+    step.duration = 1.1;
+    step.layers['#box'] = { x: [{ time: 0, value: 20 }, { time: .5, value: 100 }] };
+    step.loops = { '#box': { x: { repeat: 1, yoyo: true, range: [0, .5] } } };
+    const g = graphic(data);
+    sample(g.w.buildInTimeline(), .35);
+    sample(g.w.revealNextStep(), 1.1);
+    near(g.box.x, 20, 'the completed reverse pass holds the first key');
+    const out = g.w.buildOutTimeline();
+    near(g.box.x, 20, 'Out begins from the completed loop sample');
+    sample(out, .25);
+    near(g.box.x, -40, 'Out continues to its authored endpoint');
+  }
+
+  const legacy = authored();
+  legacy.steps[0].loops['#box'].x = { repeat: -1, yoyo: true };
+  const g = graphic(legacy);
+  sample(g.w.buildInTimeline(), .05);
+  near(g.box.x, 0, 'the legacy loop has not reached its delayed first key');
+  sample(g.w.revealNextStep(), .4);
+  g.w.buildOutTimeline();
+  near(g.box.x, 100, 'unstarted legacy loop does not substitute its channel in Out');
 });
 
 test('explicit hides and visibility spans keep ownership during loop Hold and backward seek', () => {
@@ -220,6 +250,28 @@ test('changing the speed of a running loop preserves its phase, then advances at
   near(clock.time(), .35, 'same clock position');
   sample(cue, .4);
   near(g.box.x, 70, 'the next .05 s advances .10 s');
+});
+
+test('slowing running loop children preserves the wall time of an explicit hide', () => {
+  const data = authored();
+  data.steps[0].hides = ['#box'];
+  const g = graphic(data);
+  g.w.gsap.updateRoot(0);
+  const cue = g.w.buildInTimeline();
+  const start = cue.startTime();
+  const tick = elapsed => g.w.gsap.updateRoot(start + elapsed);
+  tick(.35);
+  near(g.box.opacity, .75, 'the original rate reaches the first interpolated sample');
+  cue.__noacgLoops.forEach(({ animation }) => animation.timeScale(.5));
+  near(g.box.opacity, .75, 'changing rate keeps the current opacity');
+  tick(1.01);
+  near(g.box.opacity, 1, 'the slow clock has reached its endpoint, but the hide is still pending');
+  tick(1.29);
+  near(g.box.opacity, 1, 'the last pre-hide sample stays visible');
+  tick(1.31);
+  near(g.box.opacity, 0, 'the cue hides at its authored wall time');
+  tick(1.5);
+  near(g.box.opacity, 0, 'the loop cannot show the layer again during Hold');
 });
 
 function authoredMachine(data, { styled = false, timer = false, outEdge = false } = {}) {
@@ -307,6 +359,40 @@ test('a loop state can arm a timer at the finite end and retire on advance', () 
   const pose = g.box.x;
   sample(inCue, 2.1);
   near(g.box.x, pose, 'timer exits retiring loop');
+});
+
+test('a retired entry cannot arm a timer after the same state is replayed', () => {
+  const data = authoredMachine(authored());
+  data.machine.groups[1].transitions.push({ from: 'pulse', to: 'off', trigger: 'timer', after: .2 });
+  const g = graphic(data);
+  g.w.buildInTimeline();
+  const retired = g.w.noacgDispatch('pulse').pause();
+  retired.time(.4, false);
+  sample(g.w.buildOutTimeline(), .5);
+  g.w.buildInTimeline();
+  const fresh = g.w.noacgDispatch('pulse').pause();
+  fresh.time(.41, false);
+  retired.time(1.01, false);
+  assert.equal(g.w.noacgTimers.accent, undefined, 'the old finite-end callback cannot arm the current state');
+  fresh.time(1.01, false);
+  const timer = g.w.noacgTimers.accent;
+  near(timer.delay(), .2, 'the fresh cue arms at its own end');
+  timer.totalTime(1, false);
+  assert.equal(g.w.noacgMachineState().groups.accent, 'off');
+});
+
+test('a shared operator event stops processing groups after the main Out', () => {
+  const data = authoredMachine(authored(), { outEdge: true });
+  data.machine.groups[1].transitions[0].event = 'leave';
+  const g = graphic(data);
+  sample(g.w.buildInTimeline(), .35);
+  sample(g.w.revealNextStep(), .4);
+  const out = g.w.noacgDispatch('leave');
+  assert.equal(g.w.noacgMachineState().groups.main, 'off');
+  assert.equal(g.w.noacgMachineState().groups.accent, 'off', 'the same event does not restart the accent');
+  sample(out, .5);
+  near(g.stage.opacity, 0, 'the returned timeline is the main Out');
+  near(g.score.x, 0, 'no accent loop starts after retirement');
 });
 
 test('known runtime upgrades preserve source, compose with E1 capabilities and keep unrelated legacy bytes', () => {

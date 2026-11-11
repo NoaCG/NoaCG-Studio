@@ -144,8 +144,24 @@ period, 250 ms phase and two total passes. At elapsed 0, 500, 749, 751 and
 1750 ms they returned 250, 750, 999, 1 and 1000 ms in the pass. Seeking back
 from 1750 to 751 and 250 ms returned 1 and 500 ms again. At the exact 750 ms
 repeat boundary, Studio samples the next pass at zero and NoaCG shows the
-arriving endpoint before restarting. This comparison ran the pinned clock
-function. E5 owns the comparable full-editor tasks.
+arriving endpoint before restarting.
+
+In the public Studio 0.17 standalone editor from
+`a1e9776120fa19d9f3f9d40ab4b10ae1be034347`, Windows Chromium job j-5193 added a
+rectangle, selected its Position X track and opened Local property loop.
+The loop used three linear keys over 25 frames, six frames of phase offset
+and two passes. The rendered x advanced from the base of 100 through the
+two passes, held at 340 and returned to 100 when Stop preview was clicked.
+The composition ruler stayed at frame 0. The screenshot showed the moving
+rectangle and the property editor beside the parked ruler. The executed
+binary's SHA-256 was
+`88836062eab024aac85e5f71400bcf2e198ca09f12447fe4c52ebc1e7473cebd`.
+The work spec pin is five commits ahead of the release. The compared
+`TimelinePanel.tsx`, `Stage.tsx` and `loopAnimation.ts` files are unchanged
+in that range. Studio's Preview button runs its elapsed clock. The NoaCG
+browser cases also seek the independent ruler backward, use repeat delay
+and yoyo, and apply the loop to two tracks on the same layer.
+[Executed Studio editor](https://github.com/zerodensity/ograf-studio/releases/tag/v0.17)
 [Pinned Studio sampler](https://github.com/zerodensity/ograf-studio/blob/3142fc7d02934494931eb14e7dc255393e4110d0/packages/scene-model/src/loopAnimation.ts)
 
 ## Rules found after coding
@@ -172,4 +188,22 @@ and graded it B. The repairs below add observed cases to the loop and export ora
 Windows j-5188 passed 60 of 61 cases. The new Outline/Assistant regression found
 that reopening Edit loop selected Whole layer for a property-only loop, hiding
 its local ruler until the property was chosen again. The default now selects
-the installed property when there are no shared layer settings.
+the installed property when there are no shared layer settings. j-5189 passed
+all 61 targeted browser cases after the change.
+
+The second final review graded
+`310829a53171a35a0e9204a4184cd974ff9dc68b` B and reproduced three related
+ownership failures. An equal value can be the result of a later authored
+track. A completed loop still owns its last value, and a legacy loop that
+left before its first key has not painted a sample. Out now reads committed
+track ownership on the actual rendered element and channel, including
+CSSPlugin aliases and separate scale axes. Canonical Snap and styled swaps
+apply that ownership as they compose. Preview-only timelines do not adopt it.
+
+A retired timeline can no longer arm a timer for a replayed state. A shared
+operator event that takes the main group Out ends there. An explicit hide
+uses the hide tween's current position on the parent clock, so slowing a
+loop child does not shift that cue-level hide in wall time. The 18-case
+bundled GSAP oracle covers all three families, including both linear and
+machine finite Out, old and fresh timer callbacks, and GSAP root updates
+through the hide boundary.

@@ -109,7 +109,14 @@ function noacgBuildExit(step, interrupted, silent, early) {
       if (!noacgExitVisible(element, selector)) return;
       Object.keys(step.layers[selector]).forEach(function (prop) {
         var keys = step.layers[selector][prop];
-        if (keys.length) entries.push({ element: element, prop: prop, keys: keys, live: gsap.getProperty(element, prop) });
+        ${loopCode(`// Uniform scale can inherit just one axis from a preceding loop.
+        if (keys.length && prop === 'scale' && noacgStillHoldsLoop(element, prop)) {
+          ['scaleX', 'scaleY'].forEach(function (axis) {
+            entries.push({ element: element, prop: axis, keys: keys, live: gsap.getProperty(element, axis) });
+          });
+          return;
+        }
+        `)}if (keys.length) entries.push({ element: element, prop: prop, keys: keys, live: gsap.getProperty(element, prop) });
       });
     });
   });
@@ -160,7 +167,7 @@ function noacgBuildExit(step, interrupted, silent, early) {
       // So does a track whose motion is all carried.
       tl.set(proxy, { value: last.value }, at(step.duration) / speed);
     } else {
-      ${loopCode(`var held = noacgStillHoldsLoop(entry.element, entry.prop, entry.live);
+      ${loopCode(`var held = noacgStillHoldsLoop(entry.element, entry.prop);
       if (held && keys.length === 1) tl.set(proxy, { value: keys[0].value }, at(step.duration) / speed);
       `)}tl.set(proxy, { value: ${loopCode('held ? entry.live : ')}keys[0].value }, 0);
       for (var k = 1; k < keys.length; k++) {
@@ -229,7 +236,8 @@ function buildStepTimeline(index) {
         noacgOwnLoop(tl, sub, selector, prop, function () { sub.render(sub.totalTime(), true, true); });`)}
         return;
       }
-      var start = {};
+${loopCode(`      noacgTrackWriter(tl, selector, prop);
+`)}      var start = {};
       start[prop] = kfs[0].value;
       tl.set(selector, start, 0);
       for (var i = 1; i < kfs.length; i++) {
@@ -247,7 +255,8 @@ function buildStepTimeline(index) {
   // inline props, then step 0 shows it again).
   (step.hides || []).forEach(function (selector) {
     if (step.spans && step.spans[selector] !== undefined) return;
-    tl.set(selector, { opacity: 0 }, step.duration / speed);
+    tl.set(selector, { opacity: 0 }, step.duration / speed);${loopCode(`
+    noacgRecordHide(tl, selector);`)}
   });
   // Step calls: named template functions fire at their moment on the step's clock (the
   // clock engine's startClock/stopClock — the timeline never owns that logic). Resolved by
@@ -411,7 +420,8 @@ function buildInTimeline() {
   `)}noacgLiveTimeline = null;
   if (NOACG_ANIM.machine) return noacgMachinePlay();
   noacgStepsPlayed = 1;
-  var tl = noacgEntranceTimeline();
+  var tl = noacgEntranceTimeline();${loopCode(`
+  noacgAdoptCueTracks(tl);`)}
   noacgTrackPath(); // pointer bookkeeping only — playback is untouched
   noacgSoundStart(NOACG_ANIM.steps[0].sound, noacgMachine.groups[0].id);
   return tl;
@@ -428,8 +438,9 @@ function revealNextStep() {
   // most visible case of all (noacgPaintFirstFrame above).
   noacgSoundLeave(noacgMachine.groups[0].id);
   var step = NOACG_ANIM.steps[noacgStepsPlayed];${loopCode(`
-  noacgRetireLoops(noacgLiveTimeline, true);`)}
-  var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
+  noacgRetireLoops(noacgLiveTimeline);`)}
+  var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));${loopCode(`
+  noacgAdoptCueTracks(tl);`)}
   noacgSoundStart(step.sound, noacgMachine.groups[0].id);
   noacgLiveTimeline = tl;
   noacgTrackPath();
@@ -606,7 +617,8 @@ function noacgFireCalls(step) {
 function noacgArmTimer(group, stateId, tl) {
   var edge = noacgTimerEdge(group, stateId);
   if (!edge) return;
-  var arm = function () {
+  var arm = function () {${loopCode(`
+    if (noacgCurrent[group.id] !== stateId || (tl && noacgGroupTl[group.id] !== tl)) return;`)}
     noacgCancelTimer(group.id);
     noacgTimers[group.id] = gsap.delayedCall(edge.after / (NOACG_ANIM.speed || 1), function () {
       noacgTimers[group.id] = null;
@@ -668,7 +680,7 @@ function noacgStyleTimeline(group, edge) {
       if (!route) continue;
       for (var s = 0; s < route.length; s++) {
         var enter = noacgEnterTimeline(gr, route[s]);
-        if (enter) { enter.pause(0); ${loopCode('noacgSettleCue(enter)') || 'enter.progress(1, true)'};${loopCode(' noacgRetireLoops(enter, true);')} enter.kill(); }
+        if (enter) { enter.pause(0); ${loopCode('noacgSettleCue(enter)') || 'enter.progress(1, true)'};${loopCode(' noacgAdoptCueTracks(enter); noacgRetireLoops(enter);')} enter.kill(); }
         if (gr === noacgMachine.groups[0]) {
           var idx = noacgPathIndex(route[s]);
           if (idx >= 0) noacgStepsPlayed = idx + 1;
@@ -758,7 +770,7 @@ function noacgFire(group, edge) {
 ${loopCode(`  // Out captures the live pose before completing or retiring any departing motion.
   if (isOut && noacgRunningGroupLoop()) prev = null;
 `)}  if (prev) {
-    ${loopCode(`noacgRetireLoops(prev, true);
+    ${loopCode(`noacgRetireLoops(prev);
     `)}if (prev.progress() < 1) ${loopCode('noacgSettleCue(prev)') || 'prev.progress(1, true)'};
     if (prev.__noacgSwap) prev.__noacgSwap(); // a suppressed finish skipped the pose swap
     prev.kill();
@@ -775,7 +787,8 @@ ${loopCode(`  // Out captures the live pose before completing or retiring any de
     noacgRetireGroupLoops();
     noacgStyledOut = styled;
   }
-  var tl = styled || noacgEnterTimeline(group, edge.to);`) || 'var tl = noacgStyleTimeline(group, edge) || noacgEnterTimeline(group, edge.to);'}
+  var tl = styled || noacgEnterTimeline(group, edge.to);
+  if (!isOut) noacgAdoptCueTracks(tl);`) || 'var tl = noacgStyleTimeline(group, edge) || noacgEnterTimeline(group, edge.to);'}
   ${loopCode(`if (isOut && noacgGroupTl[group.id]) noacgGroupTl[group.id].kill();
   `)}var soundStep = noacgStepFor(group, edge.to);
   noacgSoundExecute(edge.sound || (soundStep && soundStep.sound), group.id, tl, !!edge.sound);
@@ -853,7 +866,10 @@ function noacgProcessOne(e) {
   var last = null;
   for (var f = 0; f < firing.length; f++) {
     var tl = noacgFire(firing[f].group, firing[f].edge);
-    if (tl) last = tl;
+    if (tl) last = tl;${loopCode(`
+    // The main Out resets every group. The same event cannot re-enter one.
+    var main = noacgMachine.groups[0];
+    if (firing[f].group === main && firing[f].edge.to === (main.defaultPath || []).slice(-1)[0]) break;`)}
   }
   return last;
 }
@@ -893,7 +909,8 @@ function noacgMachinePlay() {${loopCode(`
   var edge = noacgLifecycleEdge('play');
   var tl = (edge && edge.style !== undefined ? noacgStyleTimeline(main, edge) : null) || noacgEntranceTimeline();
   noacgSoundStart((edge && edge.sound) || NOACG_ANIM.steps[0].sound, main.id);
-  noacgGroupTl[main.id] = tl;
+  noacgGroupTl[main.id] = tl;${loopCode(`
+  noacgAdoptCueTracks(tl);`)}
   noacgArmTimer(main, noacgCurrent[main.id], tl);
   return tl;
 }
@@ -1040,7 +1057,7 @@ function noacgSnap(assignments, opts) {${loopCode(`
     if (!route) continue; // unreachable — the group rests at its initial state
     for (var s = 0; s < route.length; s++) {
       var tl = noacgEnterTimeline(group, route[s]);
-      if (tl) { tl.pause(0); ${loopCode('noacgSettleCue(tl)') || 'tl.progress(1, true)'};${loopCode(' noacgRetireLoops(tl, true);')} tl.kill(); }
+      if (tl) { tl.pause(0); ${loopCode('noacgSettleCue(tl)') || 'tl.progress(1, true)'};${loopCode(' noacgAdoptCueTracks(tl); noacgRetireLoops(tl);')} tl.kill(); }
       noacgCurrent[group.id] = route[s];
       if (group === noacgMachine.groups[0]) {
         var idx = noacgPathIndex(route[s]);
