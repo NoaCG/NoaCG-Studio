@@ -904,6 +904,11 @@
       },
       "codeql": 43043057316,
       "status": "CI/configured/CodeQL stillrunning at latestdirectAPI; earlierinapplicabledeploymentsskipped"
+    },
+    "curationHashClarification": {
+      "receipt": "receipts/e3-curation-hash-provenance.json",
+      "comment": "https://github.com/NoaCG/NoaCG-Studio/pull/2386#issuecomment-6799523403",
+      "result": "all6 reproduce original Python sorted ASCII JSON method; not JSON.stringify/wirebytes; original failed checker probe retained"
     }
   },
   "e4RouteReadiness": {

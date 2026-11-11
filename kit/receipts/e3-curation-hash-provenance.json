@@ -1,0 +1,21 @@
+{
+  "nativeSession": "6af466f2-e57c-8191-8419-e116f7c9c06f",
+  "nativeCommand": "exec-d4d8c48c-02d9-4c18-a5e6-c247893f5dbc",
+  "commandTruncated": false,
+  "exactStatement": "row['requestSha256']=hashlib.sha256(json.dumps(task['request'],sort_keys=True).encode()).hexdigest()",
+  "serialization": {
+    "ensure_ascii": true,
+    "sort_keys": true,
+    "indent": null,
+    "separators": [
+      ", ",
+      ": "
+    ],
+    "encoding": "UTF-8"
+  },
+  "matches": 6,
+  "total": 6,
+  "wireHashClaim": false,
+  "initialCheckerAssertion": "JSON.stringify hash comparison failed; retained as serialization assumption/probe",
+  "comment": "https://github.com/NoaCG/NoaCG-Studio/pull/2386#issuecomment-6799523403"
+}
