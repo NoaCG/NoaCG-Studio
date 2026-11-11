@@ -903,7 +903,11 @@
         "result": "success"
       },
       "codeql": 43043057316,
-      "status": "CI/configured/CodeQL stillrunning at latestdirectAPI; earlierinapplicabledeploymentsskipped"
+      "status": "allrequiredterminalSUCCESS;5inapplicabledeploymentSKIPs; independentverdictstillpending",
+      "terminalReceipt": "receipts/e3-exactmerge-terminal.json",
+      "codeqlResult": "success",
+      "ciResult": "success",
+      "configuredResult": "success"
     },
     "curationHashClarification": {
       "receipt": "receipts/e3-curation-hash-provenance.json",
