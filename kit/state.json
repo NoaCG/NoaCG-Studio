@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "session": "/root/v4_final_all_out_review",
-      "phase": "v4",
       "pr": 2378,
-      "step": "build",
-      "note": "Accepted All out now guards the original Bridge player instance. 443 Windows Studio and 36 compiled fake-vMix tests passed. Fresh independent review, local Chromium j-5240 and normal CI 43078183462 pending.",
-      "head": "7058ccdc1fdcafa69d00fd6c323336165fa8a468"
+      "note": "Independent review verified the guarded cut boundary and reproduced two diagnostic issues. Reassessment active before remaining repair. Prior local Chromium was withdrawn before execution.",
+      "phase": "v4",
+      "head": "7058ccdc1fdcafa69d00fd6c323336165fa8a468",
+      "session": "/root/v4_out_feedback_reassessment",
+      "step": "build"
     }
   ],
   "owner": [],
