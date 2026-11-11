@@ -1,3 +1,4 @@
+import { jsonSchemaOutputFormat } from '@anthropic-ai/sdk/helpers/json-schema';
 import {
   isAiProviderId,
   type AiGatewayErrorCode,
@@ -353,6 +354,13 @@ function providerCost(value: unknown): ModelUsage['estimatedCost'] {
   return amount > 0 ? { amount, currency: 'USD', source: 'provider' } : undefined;
 }
 
+/** The installed native SDK lowers wire-only constraints without mutating caller validation. */
+function nativeAnthropicFormat(schema: Record<string, unknown>) {
+  if (schema.type !== 'object') throw new GatewayError('invalid_request', 'This native model requires an object-root structured schema.', 400, false);
+  const format = jsonSchemaOutputFormat({ ...schema, type: 'object' });
+  return { type: format.type, schema: format.schema };
+}
+
 export const anthropicAdapter: ProviderAdapter = {
   id: 'anthropic',
   endpoint: 'https://api.anthropic.com/v1/messages',
@@ -365,18 +373,16 @@ export const anthropicAdapter: ProviderAdapter = {
         ? [{ type: 'text', text: request.system, cache_control: { type: 'ephemeral' } }]
         : request.system,
       messages: request.messages,
-      ...(request.structuredOutput
+      ...(request.structuredOutput && route.model === 'claude-sonnet-5-5'
+        ? { output_config: { format: nativeAnthropicFormat(request.structuredOutput.schema) } }
+        : request.structuredOutput
         ? {
             tools: [{
               name: request.structuredOutput.name,
               description: request.structuredOutput.description,
               input_schema: request.structuredOutput.schema,
             }],
-            // Native Sonnet 5.5 rejects forced tool choice (HTTP 400). Auto still
-            // owes the exact named tool and schema below; prose never counts as output.
-            tool_choice: route.model === 'claude-sonnet-5-5'
-              ? { type: 'auto' }
-              : { type: 'tool', name: request.structuredOutput.name },
+            tool_choice: { type: 'tool', name: request.structuredOutput.name },
           }
         : {}),
     };
@@ -390,8 +396,20 @@ export const anthropicAdapter: ProviderAdapter = {
       body: JSON.stringify(body),
     };
   },
-  parseResponse(value, request) {
+  parseResponse(value, request, route) {
     const data = object(value);
+    if (request.structuredOutput && route.model === 'claude-sonnet-5-5') {
+      const usage = object(data.usage ?? {});
+      const normalized = totalUsage(
+        safeNumber(usage.input_tokens) + safeNumber(usage.cache_creation_input_tokens) + safeNumber(usage.cache_read_input_tokens),
+        usage.output_tokens, undefined, usage.cache_read_input_tokens,
+      );
+      return servedParse(normalized, () => {
+        if (data.stop_reason === 'max_tokens') throw new GatewayError('malformed_response', 'The AI response was cut off. Try a simpler request.', 502, false);
+        const text = array(data.content).map(object).filter(item => item.type === 'text' && typeof item.text === 'string').map(item => item.text as string).join('\n');
+        return { output: parseStructured(text), usage: normalized };
+      });
+    }
     if (data.stop_reason === 'max_tokens') {
       throw new GatewayError('malformed_response', 'The AI response was cut off. Try a simpler request.', 502, false);
     }

@@ -167,3 +167,48 @@ Any subsequent failure stops this same run; no further patch or paid call.
 A fresh Rules-first challenge of schema lowering, full caller validation and
 served-usage accounting is required before this final adapter edit. The original
 six-task sample and first quality repair are not rerun or retroactively passed.
+
+## Final protocol verification and source applicability before the last call
+
+Final Rules-first reviewer `/root/editor_r15_e3_builder/e3_final_protocol_rules`
+returned AGREE/A at `f7d537adfb85408dd93a68d6d817e5b11adf9135`. It explicitly
+noted SDK lowering of const/exclusive bounds and that the gateway does not validate
+every JSON Schema keyword. Command/action literals and positive geometry still owe
+the unchanged strict frontend Zod checks. No global validator change was made.
+
+Targeted ESLint/API TypeScript passed. Gateway tests passed **533/533**, zero
+skips/failures, including native JSON encoding, unchanged older/unstructured
+routes, non-object refusal before fetch, strict union/bounds validation and
+served usage for malformed/prose/missing/tool-only/truncated results. One local
+uncommitted test-closure narrowing error (TS18048) was authoring feedback before
+that acceptance run and is retained separately; no behavioral/policy failure was
+hidden. Inline review found no further source defect; simplification reuses the
+installed SDK helper, parseStructured and servedParse rather than another schema
+or parsing implementation.
+
+The original five successful quality outputs were generated at `e2393159a...`
+using **auto tool use**, not the final JSON wire. Their exact original prompts,
+inspection and complete neutral schemas were replayed with injected native JSON
+responses: [five deterministic adapter replays](e3/native-schema-replay.json)
+returned identical neutral outputs and unchanged schemas. No real provider call
+occurred in those replays. Frontend review/apply/context/history handlers and
+neutral output contracts are unchanged; Help grounding alone gained accurate
+control names. Original real edit/data/refusal quality remains source/protocol
+specific, and this replay does not claim final-protocol model generation quality.
+The fresh final reviewer and exact-merge checker must judge that applicability.
+
+[The conservative bound](e3/final-cost-bound.json) reserves all four prior
+unknown-usage inference attempts at their full sent caps, six known successes at
+the highest already observed regional token prices (USD 2.2/11 per million), and
+the prospective final call. It uses one input token per serialized UTF-8 request
+byte plus 4096 framing tokens, full output caps and no cache discount. Its upper
+**estimate is USD 1.7426464**, below the unchanged USD 2 ceiling, not an invoice or
+an assertion that unknown prior usage was zero. Metadata GETs and mocked fixtures
+are not inference calls. The coordinator read and approved this table before dispatch.
+
+The sole final intent is nonce **e3-final-help-1111**, with a distinct exclusive
+intent/result path in the worker's scratch receipts. Pin the verified source and
+persist intent/source/bound before queue dispatch; an unknown acknowledgement is
+consumed/unknown until reconciled, never an automatic resubmit. Exactly one
+help-out request/attempt, no fallback, successful tasks not rerun. Any subsequent
+behavioral/model failure stops this same run with the missing receipt explicit.

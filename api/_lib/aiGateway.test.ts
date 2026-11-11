@@ -1458,7 +1458,7 @@ test('an unbounded deadline or non-gateway deadline does not receive a guessed c
 });
 
 
-for (const model of ['claude-sonnet-5-5', 'claude-sonnet-5', 'claude-sonnet-5.5', 'claude-sonnet-5-5-other']) test('native Sonnet tool choice preserves exact route: ' + model, async () => {
+for (const model of ['claude-sonnet-5-5', 'claude-sonnet-5', 'claude-sonnet-5.5', 'claude-sonnet-5-5-other']) test('native Sonnet structured encoding preserves exact route: ' + model, async () => {
   const request = body('anthropic', model);
   request.request.structuredOutput = { name: 'result', description: 'A title.', schema: {
     type: 'object', properties: { title: { type: 'string' } }, required: ['title'], additionalProperties: false,
@@ -1468,12 +1468,21 @@ for (const model of ['claude-sonnet-5-5', 'claude-sonnet-5', 'claude-sonnet-5.5'
     assert.equal(String(url), 'https://api.anthropic.com/v1/messages');
     sent = JSON.parse(String(init?.body));
     assert.equal(new Headers(init?.headers).get('x-api-key'), 'server-side-test-key');
-    return new Response(JSON.stringify({ content: [{ type: 'tool_use', name: 'result', input: { title: 'Exact title' } }], stop_reason: 'tool_use', usage: { input_tokens: 10, output_tokens: 5 } }));
+    return new Response(JSON.stringify({ content: model === 'claude-sonnet-5-5'
+      ? [{ type: 'text', text: JSON.stringify({ title: 'Exact title' }) }]
+      : [{ type: 'tool_use', name: 'result', input: { title: 'Exact title' } }],
+      stop_reason: model === 'claude-sonnet-5-5' ? 'end_turn' : 'tool_use', usage: { input_tokens: 10, output_tokens: 5 } }));
   } });
   assert.equal(sent.model, model);
-  assert.deepEqual(sent.tool_choice, model === 'claude-sonnet-5-5' ? { type: 'auto' } : { type: 'tool', name: 'result' });
+  if (model === 'claude-sonnet-5-5') {
+    assert.equal('tools' in sent, false); assert.equal('tool_choice' in sent, false);
+    assert.deepEqual(sent.output_config, { format: { type: 'json_schema', schema: request.request.structuredOutput.schema } });
+  } else {
+    assert.deepEqual(sent.tool_choice, { type: 'tool', name: 'result' });
+    assert.deepEqual(sent.tools, [{ name: 'result', description: 'A title.', input_schema: request.request.structuredOutput.schema }]);
+    assert.equal('output_config' in sent, false);
+  }
   assert.equal(sent.system, request.request.system); assert.equal(sent.max_tokens, 100);
-  assert.deepEqual(sent.tools, [{ name: 'result', description: 'A title.', input_schema: request.request.structuredOutput.schema }]);
   assert.deepEqual(result.output, { title: 'Exact title' });
   assert.equal(result.model, model); assert.equal(result.provider, 'anthropic');
   assert.equal(result.attempts.length, 1); assert.equal(result.usage.totalTokens, 15);
@@ -1490,18 +1499,64 @@ test('native Sonnet unstructured request remains unchanged', async () => {
 });
 
 for (const [kind, content, stop] of [
-  ['prose', [{ type: 'text', text: '{"title":"Not a tool"}' }], 'end_turn'],
+  ['prose', [{ type: 'text', text: 'Not a JSON result' }], 'end_turn'],
   ['missing', [], 'end_turn'],
   ['wrong tool', [{ type: 'tool_use', name: 'other', input: { title: 'Wrong' } }], 'tool_use'],
-  ['invalid schema', [{ type: 'tool_use', name: 'result', input: { title: 42 } }], 'tool_use'],
-  ['truncated', [{ type: 'tool_use', name: 'result', input: { title: 'Incomplete' } }], 'max_tokens'],
-] as const) test('native Sonnet auto tool choice refuses ' + kind, async () => {
+  ['invalid schema', [{ type: 'text', text: '{"title":42}' }], 'end_turn'],
+  ['truncated', [{ type: 'text', text: '{"title":"Incomplete"}' }], 'max_tokens'],
+] as const) test('native Sonnet JSON output refuses and accounts for ' + kind, async () => {
   const request = body('anthropic', 'claude-sonnet-5-5');
   request.request.structuredOutput = { name: 'result', description: 'A title.', schema: {
     type: 'object', properties: { title: { type: 'string' } }, required: ['title'], additionalProperties: false,
   } };
   await assert.rejects(executeGatewayRequest(request, { keyFor, fetchImpl: async (_url, init) => {
-    assert.deepEqual(JSON.parse(String(init?.body)).tool_choice, { type: 'auto' });
+    const sent = JSON.parse(String(init?.body));
+    assert.equal(sent.output_config.format.type, 'json_schema'); assert.equal('tool_choice' in sent, false);
     return new Response(JSON.stringify({ content, stop_reason: stop, usage: { input_tokens: 10, output_tokens: 5 } }));
-  } }), (error: unknown) => error instanceof GatewayError && error.code === 'malformed_response');
+  } }), (error: unknown) => error instanceof GatewayError && error.code === 'malformed_response' && error.servedUsage?.totalTokens === 15);
+});
+
+
+test('native JSON wire lowering preserves the original strict union and checked bounds', async () => {
+  const request = body('anthropic', 'claude-sonnet-5-5');
+  request.request.structuredOutput = { name: 'result', description: 'Bounded commands.', schema: {
+    type: 'object', additionalProperties: false, required: ['answer', 'commands'], properties: {
+      answer: { type: 'string', minLength: 1, maxLength: 5000 },
+      commands: { type: 'array', maxItems: 2, items: { oneOf: [
+        { type: 'object', additionalProperties: false, required: ['id', 'x'], properties: { id: { type: 'string', enum: ['move'] }, x: { type: 'number', minimum: 0, maximum: 100 } } },
+        { type: 'object', additionalProperties: false, required: ['id', 'text'], properties: { id: { type: 'string', enum: ['text'] }, text: { type: 'string', minLength: 1 } } },
+      ] } },
+    },
+  } };
+  const neutralSchema = request.request.structuredOutput.schema;
+  const original = JSON.stringify(neutralSchema);
+  const output = { answer: 'Move', commands: [{ id: 'move', x: 40 }] };
+  const run = (value: unknown) => executeGatewayRequest(request, { keyFor, fetchImpl: async (_url, init) => {
+    const wire = JSON.parse(String(init?.body)).output_config.format.schema;
+    assert.equal(wire.additionalProperties, false);
+    assert.equal(wire.properties.answer.minLength, undefined);
+    assert.match(wire.properties.answer.description, /minLength: 1/);
+    assert.match(wire.properties.answer.description, /maxLength: 5000/);
+    assert.equal(wire.properties.commands.items.anyOf.length, 2);
+    assert.equal(wire.properties.commands.items.anyOf[0].additionalProperties, false);
+    assert.match(wire.properties.commands.items.anyOf[0].properties.x.description, /maximum: 100/);
+    assert.equal(JSON.stringify(neutralSchema), original);
+    return Response.json({ content: [{ type: 'text', text: JSON.stringify(value) }], stop_reason: 'end_turn', usage: { input_tokens: 2, cache_creation_input_tokens: 3, cache_read_input_tokens: 4, output_tokens: 5 } });
+  } });
+  assert.deepEqual((await run(output)).output, output);
+  for (const invalid of [
+    { ...output, answer: '' }, { ...output, answer: 'x'.repeat(5001) },
+    { ...output, commands: [{ id: 'move', x: 101 }] }, { ...output, commands: [{ id: 'wrong', x: 40 }] },
+    { ...output, commands: [{ id: 'move', x: 40, extra: true }] }, { ...output, commands: Array(3).fill(output.commands[0]) },
+  ]) await assert.rejects(run(invalid), (error: unknown) => error instanceof GatewayError && error.code === 'malformed_response' && error.servedUsage?.totalTokens === 14);
+  assert.equal(JSON.stringify(neutralSchema), original);
+});
+
+test('native JSON refuses a non-object schema before fetching or silently coercing it', async () => {
+  const request = body('anthropic', 'claude-sonnet-5-5');
+  request.request.structuredOutput = { name: 'result', description: 'Array.', schema: { type: 'array', items: { type: 'string' } } };
+  let calls = 0;
+  await assert.rejects(executeGatewayRequest(request, { keyFor, fetchImpl: async () => { calls++; return Response.json({}); } }),
+    (error: unknown) => error instanceof GatewayError && error.code === 'invalid_request');
+  assert.equal(calls, 0);
 });
