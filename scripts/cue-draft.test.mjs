@@ -24,7 +24,7 @@ function harness() {
   const retained = [];
   const groups = [];
   const timers = new Map();
-  const listeners = { hide: new Set(), flush: new Set(), press: new Set() };
+  const listeners = { hide: new Set(), shown: new Set(), flush: new Set(), press: new Set() };
   let nextTimer = 1;
   const h = {
     session,
@@ -76,6 +76,10 @@ function harness() {
     onPageHide: (run) => {
       listeners.hide.add(run);
       return () => listeners.hide.delete(run);
+    },
+    onPageShown: (run) => {
+      listeners.shown.add(run);
+      return () => listeners.shown.delete(run);
     },
     onFlushAsked: (run) => {
       listeners.flush.add(run);
@@ -362,6 +366,27 @@ test('P3: a save the store confirms removes the record; a refused one keeps it',
   h.writes[1].answer(true);
   await saved;
   assert.equal(h.owed, null, 'confirmed: removed');
+  stop();
+});
+
+test('P3: the page shown again, or the draft dropped (an undo, another cue), removes the record', () => {
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: 'Hidden' } });
+  for (const run of h.listeners.hide) run();
+  assert.notEqual(h.owed, null);
+  for (const run of h.listeners.shown) run();
+  assert.equal(h.owed, null, 'shown again');
+  h.owed = { cueId: 'c1', base: {}, fields: {} };
+  for (const run of h.listeners.shown) run();
+  assert.notEqual(h.owed, null, 'shown with no hide of its own: nothing to remove');
+  h.owed = null;
+  for (const run of h.listeners.hide) run();
+  h.draft.edit(OPENER, { values: { f0: 'Hidden again' } });
+  for (const run of h.listeners.hide) run();
+  assert.notEqual(h.owed, null);
+  h.draft.cancel();
+  assert.equal(h.owed, null, 'dropped');
   stop();
 });
 

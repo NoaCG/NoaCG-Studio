@@ -110,6 +110,8 @@ export interface CueDraftIo {
 export interface CueDraftAdapters {
   /** The page may be gone before a promise settles: it is hidden, closing, or the account pauses. */
   onPageHide: (run: () => void) => () => void;
+  /** The page is shown again after it was hidden: it did not go. */
+  onPageShown: (run: () => void) => () => void;
   /** The account asks every surface to save what it holds. */
   onFlushAsked: (run: () => void) => () => void;
   /** A pointer goes down (`true`, on a control whose press sends first; `false` on any other), or
@@ -325,6 +327,9 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     cancel: () => {
       stopTimer();
       set(null);
+      // An undo puts the cue back to the text the typing started from: a record must not bring
+      // the undone edit back on the next visit.
+      io.owed.forget();
     },
     showing: (cueId, save) => {
       if (cueId === shown) return;
@@ -362,7 +367,18 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
       io.retainCue(e.cueId, e.fields);
     },
     listen: (adapters) => {
-      const offHide = adapters.onPageHide(() => retain(true));
+      // Shown again after this page hid: it stayed, so the store's write lands, and the record is
+      // for a page that goes. (A page that never hid has applied or kept no record of its own.)
+      let hid = false;
+      const offHide = adapters.onPageHide(() => {
+        hid = true;
+        retain(true);
+      });
+      const offShown = adapters.onPageShown(() => {
+        if (!hid) return;
+        hid = false;
+        io.owed.forget();
+      });
       const offFlush = adapters.onFlushAsked(() => void flush());
       const offPress = adapters.onSendsFirstPress((down) => {
         pressing = down;
@@ -372,6 +388,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
       // is saved at once, as when the page hides.
       return () => {
         offHide();
+        offShown();
         offFlush();
         offPress();
         pressing = false;

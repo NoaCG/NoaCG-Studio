@@ -284,6 +284,22 @@ const DRAFT_ADAPTERS: CueDraftAdapters = {
       document.removeEventListener('visibilitychange', hidden);
     };
   },
+  // Shown again: visible after hidden, or restored from the back-forward cache. Never a fresh
+  // load's own `pageshow`, which would remove the record before the page has applied it.
+  onPageShown: (run) => {
+    const shown = () => {
+      if (document.visibilityState === 'visible') run();
+    };
+    const restored = (e: PageTransitionEvent) => {
+      if (e.persisted) run();
+    };
+    window.addEventListener('pageshow', restored);
+    document.addEventListener('visibilitychange', shown);
+    return () => {
+      window.removeEventListener('pageshow', restored);
+      document.removeEventListener('visibilitychange', shown);
+    };
+  },
   onFlushAsked: (run) => {
     window.addEventListener('noacg-account-authoring-flush', run);
     return () => window.removeEventListener('noacg-account-authoring-flush', run);
