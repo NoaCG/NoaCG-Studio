@@ -854,6 +854,11 @@
         "branch": "gh-readonly-queue/main/pr-2386-7e1ae4cf80f8fe302aa6a0ee0381537aa72354f4",
         "status": "in_progress; candidate only, no actualmerge claim"
       }
+    },
+    "checkAdmissionGuard": {
+      "result": "refused before intent/dispatch",
+      "reason": "Direct recordRun API received phase ID E3 instead of numeric row3, so exact-landed lookup did not match; next stilllaunchcheck3, no pending/nativeaction created",
+      "correction": "Reuse original saved brief; numericrow3; no new allowance or phase"
     }
   },
   "e4RouteReadiness": {
