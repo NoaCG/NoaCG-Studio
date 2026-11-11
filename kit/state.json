@@ -66,7 +66,9 @@
   },
   "inFlight": [],
   "owner": [
-    "Resume the same editor-r1-5 run in the existing local NoaCG Studio project for E4. E1-E3 passed; E4-E7/OW1 retain approved environments/acceptance. No periodic check-in or unattended wake."
+    "Arrange E5 real first-time users/moderator and named desktop/laptop for the final local stage; prepare now without blocking Cloud engineering.",
+    "Arrange E6 named receiving hosts/operator and off-air access for the final local stage.",
+    "Written GSAP disposition gates OW1; candidate-specific release approval gates E7. Neither is a Cloud preparation wait."
   ],
   "fixes": [],
   "triggers": [],
@@ -557,9 +559,9 @@
     }
   },
   "waitingOn": {
-    "what": "Qualified local Windows E4 execution route and fresh coordinator/worker preflight; no remote launch/handoff tool exposed in this Cloud chat",
-    "responsible": "owner/local environment operator",
-    "resume": "Open the existing local NoaCG Studio project, resume plan-editor-r1-5-2026-11-08 from the same recoveryref, reconcile this Cloud coordinator terminal/native workers stopped, qualify local route, then clear dependency wait with evidence and ask supervisor next. No E4 admission spent."
+    "what": "Terminal exact-merge main CI and configured-suite for merged Cloud-first amendment PR2387; old E4 local-only prerequisite superseded by later owner decision",
+    "responsible": "active Cloud coordinator / GitHub Actions",
+    "resume": "Reconcile PR2387 exact 3a56a966 terminal checks; clear verification dependency, start bounded block and use run-supervisor admit with receipts/cloud-first-admission.json. Then refresh kit/packet and ask next for Cloud E4. No new run or attempt reset."
   },
   "cloudContinuation": {
     "at": "2026-11-11T11:52:56.956Z",
@@ -952,16 +954,71 @@
     "toolEvidence": "App list_projects/read_thread/list_threads/archive exposed; exhaustive current tool search found no create_thread/fork_thread/send_message_to_thread/handoff_thread or remote Windows execution capability. Project metadata does not prove qualified execution.",
     "selectedExecutor": "current managed Cloud Linux only; no local Windows process/resource/network preflight possible through exposed tools",
     "futureAction": "After E3 independentPASS, ask supervisor next and checkpoint exact first dependent local-route gate if still unavailable. Resume same run/recoveryref from existing Windows project; qualify actual local coordinator/worker before E4admission. Do not substitute Cloud or open a second run.",
-    "status": "same supervisor BLOCKEDdependency afterE3PASS; noE4admission/attempt spent"
+    "status": "Historical local-only interpretation superseded by November11 owner Cloud-first request and merged PR2387; await reviewed future-phase admission, no E4 launch."
   },
   "handoff": {
-    "at": "2026-11-11T15:28:49.714277+00:00",
     "run": "plan-editor-r1-5-2026-11-08",
-    "phasePosition": "E1/E2/E3PASS, nextE4build underdependencywait",
     "recoveryRef": "claude/noacg-recovery/plan-editor-r1-5-2026-11-08",
-    "firstAction": "Resume existing local NoaCG Studio project with plan-run editor-r1-5; qualify actuallocalroute before clearingdependencywait and admittingE4; no newrun or allowance reset",
-    "nativeReconciliation": "Allknownworkersandmonitorsstopped; thisCloudcoordinatorfinishingcurrentturn. Nextcoordinator must authoritativelyread currentturnterminalbeforetakeover. No unattendedwake or periodiccheck-in.",
-    "ownedPRs": "2374/E2,2382mechanicalfollowup,2386/E3 allmerged/terminalaccepted orcomplete; repairownershipclosed",
-    "overall": "NOTcomplete: remainingE4/E5/E6/OW1/E7andtheirrequiredenvironments/approvalpersist"
+    "phasePosition": "E1-E3 PASS; Cloud-first amendment merged, pending terminal checks/admission",
+    "firstAction": "Reconcile PR2387 exact 3a56a966 terminal checks; clear verification dependency, start bounded block and use run-supervisor admit with receipts/cloud-first-admission.json. Then refresh kit/packet and ask next for Cloud E4. No new run or attempt reset.",
+    "ownedPRs": "2387 current active coordinator repair owner through terminal checks; earlier 2374/2382/2386 complete",
+    "overall": "NOT complete; no E4 admission and no wake. Actual old route context remains historical, not an owner input request."
+  },
+  "cloudFirstAmendment": {
+    "run": "plan-editor-r1-5-2026-11-08",
+    "ownerInstruction": "can you modify the plan-run for the editor so it can be run in the cloud and leave any local work at the very end?",
+    "pr": 2387,
+    "source": "3a56a966c4c03fa47f53b4d1ecb09ed882d12ef0",
+    "receipt": "docs/work-specs/editor-r1-5/owner-decision-2026-11-11-cloud-first.md",
+    "originalSource": "f0f2e3fe0c2cc14e23b171957b6f8d18905fd434",
+    "priorCheckpoint": "52e3e9fa3a7fe3901356c14e8dcd49fe3d7e789a",
+    "order": [
+      "E1",
+      "E2",
+      "E3",
+      "E4",
+      "E5C",
+      "E6C",
+      "E5",
+      "E6",
+      "OW1",
+      "E7"
+    ],
+    "review": {
+      "rulesFirst": {
+        "head": "3700b101d8e3a0fe08f2980c43a413ed5f03947d",
+        "verdict": "AGREE",
+        "grade": "A"
+      },
+      "final": {
+        "head": "0b99f9c9514202fe7797cc4ea5d2107d9def494c",
+        "verdict": "AGREE",
+        "grade": "A",
+        "scope": "all 10 changed files"
+      },
+      "targetedTests": {
+        "pass": 125,
+        "fail": 0,
+        "skip": 0
+      },
+      "sourceCI": 43059162585,
+      "configuredSelection": "none, 0 specs",
+      "codex": "completed, no findings on reviewed head",
+      "mergeGroupCI": 43060812220
+    },
+    "status": "LANDED at 3a56a966; future phase transaction NOT YET ADMITTED. Await exact-merge terminal main CI/configured results; then clear this dependency, start bounded authority and admit the saved amendment once.",
+    "preservation": "Same run, original authorization/start/target/grants/failures/attempts/native bootstrap binding retained. E1-E3 untouched; E4 environment and E5 additive dependency only; every existing acceptance string unchanged. Old local-only route superseded by this owner decision; full old kit/packet remains in prior checkpoints.",
+    "pendingAdmission": "receipts/cloud-first-admission.json",
+    "requiredRuns": {
+      "mainCI": 43062390990,
+      "configured": 43062390956,
+      "postLanding": 43062390973,
+      "quarantine": 43062391147,
+      "codeQL": 43062390358,
+      "deployment": [
+        43062873935,
+        43062472640
+      ]
+    }
   }
 }

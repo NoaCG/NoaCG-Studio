@@ -1,0 +1,54 @@
+{
+  "receipts": [
+    "docs/work-specs/editor-r1-5/owner-decision-2026-11-11-cloud-first.md"
+  ],
+  "commit": "3a56a966c4c03fa47f53b4d1ecb09ed882d12ef0",
+  "insert": [
+    {
+      "after": "E4",
+      "phases": [
+        {
+          "id": "E5C",
+          "title": "R1.5 Cloud software qualification",
+          "environment": "BL: qualified Cloud browser/CLI, isolated fixtures/backend and executed pinned reference",
+          "acceptance": [
+            "Rehearse the imported-SVG and starter-to-rundown journeys cumulatively on the tested candidate, verifying the applicable E1-E4 software contracts, source/assets/operator fields, history, save/reopen, rehearsal and browser exports. Run comparable tasks in the executed pinned reference and retain exact sources, deliberate differences and prior failures.",
+            "Measure F4's 30-layer/300-key scene at 1366x768 and 1920x1080 on the recorded Cloud worker, with actual zoom/resource settings, raw feedback distributions and rendered captures. Investigate software regressions against the existing targets; Cloud diagnostics do not replace E5's named-device measurements or actual native 125% zoom.",
+            "Resolve known release-critical Cloud-reproducible software gaps within existing repair/check limits, retain independently verified evidence, and prepare a ready-to-run final local qualification kit: candidate/fixtures, short introduction, both participant journeys, timing/error/assistance forms and device/reference instructions. Participant or desktop availability is not a Cloud exit condition."
+          ],
+          "dependsOn": [
+            "E4"
+          ],
+          "spec": "docs/work-specs/editor-r1-5/spec.md"
+        },
+        {
+          "id": "E6C",
+          "title": "R1.5 Cloud export and receiving preparation",
+          "environment": "BL: qualified Cloud Linux/browser/export fixtures and available isolated renderer tools",
+          "acceptance": [
+            "Generate the exact candidate packages for every proposed release target with a bundled font and logo. Verify available browser/isolated-renderer data, In, Next, Out, interruption, replay, asset/source preservation and expected output; record executed versions and limits without claiming named real receiving-host acceptance.",
+            "Investigate #775 on Cloud Linux where its path is reachable, fix proven software defects within existing limits, and prepare a reproducible long-text/font fixture and expected fit measurements for the applicable named Linux receiver. Preserve unavailable native-host evidence as an E6 requirement; a browser or Cloud fixture cannot close real-host fit.",
+            "Complete the technical G07 artifact/notices/provenance/dependency-boundary audit, preserving unresolved written GSAP disposition for OW1. Stage a consolidated final local kit with exact packages/checksums, compatibility scope, clean receiving setup/version checklist, operator data and In/Next/Out/interruption scripts, expected captures/resource observations and off-air/rollback procedure. Host/operator availability and the vendor reply do not block this preparation."
+          ],
+          "dependsOn": [
+            "E5C"
+          ],
+          "spec": "docs/work-specs/editor-r1-5/spec.md"
+        }
+      ]
+    }
+  ],
+  "revise": [
+    {
+      "id": "E4",
+      "environment": "BL: qualified Cloud browser/CLI with an isolated authenticated backend on the worker or GitHub Actions"
+    },
+    {
+      "id": "E5",
+      "dependsOn": [
+        "E4",
+        "E6C"
+      ]
+    }
+  ]
+}
