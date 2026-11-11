@@ -401,3 +401,19 @@ cases through the actual writer and reads the selected card back.
 Windows j-5223 was cancelled while waiting for normal RAM admission
 because this candidate superseded its pinned head. It produced no test
 result.
+
+CI run [42998288984](https://github.com/NoaCG/NoaCG-Studio/actions/runs/42998288984)
+on `5b00e271a4249c1a6b11bda50ae33823baefbafe` passed its type, lint and
+dependency lane. The Build Node gates recorded 30 failures in the
+affected-suite planner and its downstream consumers. The earlier paused
+head's Build and the exact main control both passed. The exact reader
+index showed `_editorLoops.ts` unreadable only on the new head. It
+mistook a generic arrow for JSX and therefore included the maintained
+Out spec for unrelated paths. The first fixture-parser repair writes
+the same generic operation as a named function. The actual loop fixture
+still selects its Out spec, and unrelated paths no longer select it.
+The planner, test cases, assertions and selection rules are unchanged.
+All 30 exact Build failures passed in the focused rerun. A wider local
+run passed 191 of 195 tests. The four other results came from Windows
+WSL missing bash and CRLF in the unchanged Linux workflow fixture.
+Windows j-5225 was cancelled while waiting for normal RAM admission.

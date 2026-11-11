@@ -542,8 +542,10 @@ async function verifyPublicStyledOut(page: Page) {
 
       type Sample = { x: number; time: number; pose: number[] };
       type Operation = 'play' | 'stop' | 'repeat' | 'sample' | 'settle';
-      const observe = <T>(operation: Operation) => output.evaluate(async operation =>
-        (window as unknown as { styledOutProbe(operation: Operation): Promise<T> }).styledOutProbe(operation), operation);
+      function observe<T>(operation: Operation) {
+        return output.evaluate(async operation =>
+          (window as unknown as { styledOutProbe(operation: Operation): Promise<T> }).styledOutProbe(operation), operation);
+      }
       const label = target + ' ' + style;
       const play = async () => {
         await observe('play');
