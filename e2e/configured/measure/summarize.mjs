@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // Turn the measurement results (MEASURE_OUT, default /tmp/noacg-measure) into the receipt's tables.
 //   node e2e/configured/measure/summarize.mjs [dir] > tables.md
 // A group's samples may come from several jobs (`-part<k>` files); they are merged from the raw
