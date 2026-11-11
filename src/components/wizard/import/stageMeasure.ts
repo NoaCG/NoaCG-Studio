@@ -887,8 +887,19 @@ export function withoutBackplates(
   const limit = frame.width * frame.height * BACKPLATE_SHARE_OF_FRAME;
   const out: Record<string, string> = {};
   for (const [lineId, boxId] of Object.entries(boxOfLine)) {
-    const box = markerEl(stage, boxId)?.getBoundingClientRect();
-    if (box && box.width * box.height >= limit) continue;
+    const plate = markerEl(stage, boxId);
+    const box = plate?.getBoundingClientRect();
+    let area = box ? box.width * box.height : 0;
+    if (plate instanceof SVGRectElement) {
+      const matrix = plate.getScreenCTM();
+      if (matrix) {
+        // The screen bounding box also covers empty corners when a plate turns. The determinant
+        // converts the plate's own area to screen pixels without counting those corners.
+        const own = plate.getBBox();
+        area = own.width * own.height * Math.abs(matrix.a * matrix.d - matrix.b * matrix.c);
+      }
+    }
+    if (area >= limit) continue;
     out[lineId] = boxId;
   }
   return out;

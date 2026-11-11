@@ -1,12 +1,14 @@
-import type { ReactNode } from 'react';
+import { useEffect, useEffectEvent, useState, type ReactNode } from 'react';
 import { TONE_DOT, type OutputLine, type ReadyTone } from '../../control/readiness';
 import type { StatusCheck } from '../../control/playoutStatus';
+import { bridgePaired, type PlayoutSettings } from '../../control/playoutLink';
+import { observeVmixOutput, readVmixOutput, sameVmixOutputSetup, type VmixManualOutputCommand, type VmixOutputReading, type VmixReplace } from '../../control/vmixSetup';
 import { DOWNLOADS_BRIDGE_URL } from '../../downloads/links';
 
 /**
  * THE PLAYOUT PANEL'S SECTIONS (docs/work-specs/playout-workflow-simplification AC-3), opened from
- * the header's one status: the outputs as they report, the browser source, the CasparCG switch with
- * its Bridge and slot, and Playout settings. Labels, states and actions only; a longer reason sits
+ * the header's one status: the reporting outputs, the browser source, and the Bridge switches with
+ * the selected adapter's controls and Playout settings. Labels, states and actions only; a longer reason sits
  * in a row's tooltip, and only real errors are spelled out. Read-only with respect to the page:
  * everything is drawn from props and every press calls back.
  */
@@ -160,6 +162,55 @@ export function BrowserSourceRow({
   );
 }
 
+function BridgeSwitch({ label, testId, on, locked, onToggle }: {
+  label: string;
+  testId: string;
+  on: boolean;
+  locked?: boolean;
+  onToggle: (on: boolean) => void;
+}) {
+  return (
+    <label className="pd-pp-switch-row">
+      <span className="pd-pp-switch-label">{label}</span>
+      <input
+        type="checkbox"
+        role="switch"
+        className="pd-pp-switch"
+        checked={on}
+        disabled={locked}
+        onChange={event => onToggle(event.target.checked)}
+        data-testid={testId}
+      />
+    </label>
+  );
+}
+
+export function BridgeSection({ vmixOn, casparOn, locked, onVmix, onCaspar, onSettings, children }: {
+  vmixOn: boolean;
+  casparOn: boolean;
+  locked?: boolean;
+  onVmix: (on: boolean) => void;
+  onCaspar: (on: boolean) => void;
+  onSettings: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Section testId="playout-panel-bridge">
+      <div className="pd-pp-switches">
+        <BridgeSwitch label="vMix via Bridge" testId="vmix-switch" on={vmixOn} locked={locked} onToggle={onVmix} />
+        <BridgeSwitch label="CasparCG via Bridge" testId="caspar-switch" on={casparOn} locked={locked} onToggle={onCaspar} />
+      </div>
+      {children}
+      {/* Always available because Playout settings also holds the rundown colours (D9). */}
+      <div className="pd-pp-actions">
+        <button type="button" onClick={onSettings} data-testid="panel-playout-settings">
+          Playout settings…
+        </button>
+      </div>
+    </Section>
+  );
+}
+
 export interface CasparFacts {
   /** The switch. */
   on: boolean;
@@ -176,42 +227,25 @@ export interface CasparFacts {
   busy: boolean;
 }
 
-/** CasparCG via Bridge: the switch, then (on) the Bridge, the slot with Load and Unload, and the one
- *  confirmation this redesign keeps, before replacing another production. */
-export function CasparSection({
+/** The CasparCG Bridge, output slot and replacement confirmation. */
+export function CasparRows({
   facts,
-  onToggle,
   onLoad,
   onUnload,
   onReplace,
   onCancelReplace,
   onPair,
-  onSettings,
 }: {
   facts: CasparFacts;
-  onToggle: (on: boolean) => void;
   onLoad: () => void;
   onUnload: () => void;
   onReplace: () => void;
   onCancelReplace: () => void;
   onPair: () => void;
-  onSettings: () => void;
 }) {
   const { on, bridge, slot, replaceAsk } = facts;
   return (
-    <Section testId="playout-panel-caspar">
-      <label className="pd-pp-switch-row">
-        <span className="pd-pp-switch-label">CasparCG via Bridge</span>
-        <input
-          type="checkbox"
-          role="switch"
-          className="pd-pp-switch"
-          checked={on}
-          disabled={facts.locked}
-          onChange={(e) => onToggle(e.target.checked)}
-          data-testid="caspar-switch"
-        />
-      </label>
+    <>
       {on && facts.unpaired && (
         <div className="pd-pp-row" data-testid="caspar-bridge">
           <Dot tone="idle" />
@@ -261,13 +295,7 @@ export function CasparSection({
           </button>
         </div>
       )}
-      {/* Always: Playout settings also holds the rundown colours (D9). */}
-      <div className="pd-pp-actions">
-        <button type="button" onClick={onSettings} data-testid="panel-playout-settings">
-          Playout settings…
-        </button>
-      </div>
-    </Section>
+    </>
   );
 }
 
@@ -277,5 +305,85 @@ export function DueActions({ children }: { children: ReactNode }) {
     <Section testId="playout-panel-actions">
       <div className="pd-pp-actions">{children}</div>
     </Section>
+  );
+}
+
+/** The overlay row reads the Bridge while this panel is open. Its poll updates only this section. */
+export function VmixRows({
+  on, settings, url, busy, replace, onPair, onAction, onCancelReplace,
+}: {
+  on: boolean;
+  settings: PlayoutSettings;
+  url: string | null;
+  busy: boolean;
+  replace?: VmixReplace;
+  onPair: () => void;
+  onAction: (command: VmixManualOutputCommand) => void;
+  onCancelReplace: () => void;
+}) {
+  const paired = bridgePaired(settings);
+  const { agentUrl, agentToken } = settings;
+  const configuredOverlay = settings.vmix?.overlay;
+  const [observed, setObserved] = useState<{ settings: PlayoutSettings; url: string | null; reading: VmixOutputReading }>();
+  // Each poll and its result use the same snapshot until this effect restarts.
+  const startObservation = useEffectEvent(() =>
+    observeVmixOutput(() => readVmixOutput(settings, url), reading => setObserved({ settings, url, reading })));
+  useEffect(() => {
+    if (!on || !paired || busy) return;
+    return startObservation();
+  }, [on, paired, busy, agentUrl, agentToken, configuredOverlay, url]);
+  const setup = { settings, url };
+  const currentObservation = !busy && observed && sameVmixOutputSetup(observed, setup) ? observed : undefined;
+  const reading = currentObservation?.reading;
+  const connection = reading?.connection;
+  const update = connection && !connection.keyed && (connection.supported || !connection.result || connection.result.state === 'outdated');
+  const status = connection?.info ? `vMix ${connection.info.version}` : 'NoaCG Bridge';
+  const loadProblem = reading?.loadProblem;
+  const problem = update ? undefined : loadProblem ?? reading?.detail ?? (connection?.result?.state === 'ok' ? undefined : connection?.result?.detail);
+  const row = reading?.overlay;
+  const displayed = row && currentObservation?.url ? {
+    settings: { agentUrl: currentObservation.settings.agentUrl, agentToken: currentObservation.settings.agentToken },
+    url: currentObservation.url,
+    overlay: row.overlay,
+  } : undefined;
+  const activeReplace = !loadProblem && row && !row.ownsOutput && replace?.overlay === row.overlay &&
+    replace.input.key === row.input?.key && sameVmixOutputSetup(replace.choice, setup) ? replace : undefined;
+  const matched = row?.ownsOutput ? row.input : undefined;
+  const tone = loadProblem && !matched ? 'bad' : row?.input ? 'warn' : 'idle';
+  return (
+    <>
+      {on && (
+        <div className="pd-pp-row" data-testid="vmix-bridge">
+          <Dot tone={problem ? 'bad' : update ? 'warn' : connection?.info ? 'ok' : 'idle'} />
+          <span className="pd-pp-name">{status}</span>
+          {!paired || update ? (
+            <a className="pd-pp-button-link" href={DOWNLOADS_BRIDGE_URL} target="_blank" rel="noopener" data-testid="vmix-bridge-download">
+              {update ? 'Update' : 'Download'}
+            </a>
+          ) : null}
+          {!paired && <button type="button" onClick={onPair}>Pair</button>}
+          {problem && <span className="pd-pp-advice pd-pp-advice--row">{problem}</span>}
+        </div>
+      )}
+      {on && row && displayed && (
+        <div className={`pd-pp-row pd-pp-row--${tone}`} data-testid="vmix-output" data-tone={tone}>
+          <Dot tone={tone} />
+          <span className="pd-pp-name">Output on Overlay {row.overlay}</span>
+          <span className="pd-pp-state">{matched ? 'Source unverified' : row.input?.title ?? 'Off'}</span>
+          {matched ? (
+            <button type="button" onClick={() => onAction({ verb: 'out', observed: displayed, inputKey: matched.key })} data-testid="vmix-unload">Unload</button>
+          ) : (
+            <button type="button" onClick={() => onAction({ verb: 'take', observed: displayed })} disabled={!!activeReplace || !!loadProblem} data-testid="vmix-load">Load</button>
+          )}
+        </div>
+      )}
+      {on && displayed && activeReplace && (
+        <div className="pd-pp-confirm" role="alertdialog" aria-label="Replace the input on the overlay" data-testid="vmix-replace">
+          <span>Replace “{activeReplace.input.title}” on Overlay {activeReplace.overlay}?</span>
+          <button type="button" className="pd-pp-link" onClick={onCancelReplace}>Cancel</button>
+          <button type="button" onClick={() => onAction({ verb: 'take', observed: displayed, confirmed: activeReplace })}>Replace</button>
+        </div>
+      )}
+    </>
   );
 }

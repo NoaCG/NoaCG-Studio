@@ -7,6 +7,7 @@
 // in the simulator and every export is e2e/editor-ease.spec.ts.
 
 import { test, expect, type Locator, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import { settleDurableWrites } from './_durable';
 import { evaluateInPage } from './_evaluate';
 
@@ -73,6 +74,93 @@ async function marquee(page: Page, from: [number, Locator], to: [number, Locator
   if (finish) await page.mouse.up();
   for (const m of modifiers) await page.keyboard.up(m);
 }
+
+test('copying selected keys and pasting at the playhead keeps values and easing in one undo', async ({ page }) => {
+  await fixture(page);
+  const before = await state(page);
+  await key(page, '#box', 'x', '1.00').click();
+  await key(page, '#title', 'y', '1.00').click({ modifiers: ['Control'] });
+  await page.keyboard.press('Control+c');
+  expect(await state(page)).toEqual(before);
+  const ruler = page.getByRole('slider', { name: 'Playhead', exact: true });
+  await ruler.press('Home');
+  await ruler.press('Shift+ArrowRight');
+  await ruler.press('Control+v');
+  await ready(page);
+
+  const [entrance] = await layers(page);
+  expect(entrance['#box'].x).toContainEqual({ time: .4, value: -200, ease: 'power2.out' });
+  expect(entrance['#title'].y).toContainEqual({ time: .4, value: 0, ease: 'cubic-bezier(0.3,-0.4,0.6,1.5)' });
+  const pasted = await state(page);
+  expect(pasted.history).toBe(before.history + 1);
+  await ruler.press('Control+v');
+  await expect(page.getByTestId('foundation-timeline').getByRole('alert')).toHaveText(/already has a key/);
+  expect(await state(page)).toEqual(pasted);
+  await ruler.press('Shift+ArrowRight');
+  await ruler.press('Control+v');
+  expect((await layers(page))[0]['#box'].x).toContainEqual({ time: .8, value: -200, ease: 'power2.out' });
+  expect((await state(page)).history).toBe(before.history + 2);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  expect((await state(page)).js).toBe(pasted.js);
+  await ruler.press('Control+v');
+  await expect(page.getByTestId('foundation-timeline').getByRole('alert')).toHaveText(/Copy its keys again/);
+  expect((await state(page)).js).toBe(pasted.js);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  expect((await state(page)).js).toBe(before.js);
+});
+
+test('marquee copy keeps timeline focus and the copied keys through a refused paste', async ({ page }) => {
+  await fixture(page);
+  const before = await state(page);
+  await marquee(page, [.9, row(page, '#box', 'x')], [1.1, row(page, '#title', 'y')]);
+  await expect(page.getByTestId('key-count')).toHaveText('3 keys');
+  await expect(page.locator('.ef-track-scroll')).toBeFocused();
+  await page.keyboard.press('Control+c');
+  expect(await state(page)).toEqual(before);
+  await page.getByRole('button', { name: 'Out flag', exact: true }).click();
+  await page.keyboard.press('Control+v');
+  await expect(page.getByTestId('foundation-timeline').getByRole('alert')).toHaveText(/destination cue has no keys/);
+  expect(await state(page)).toEqual(before);
+  const ruler = page.getByRole('slider', { name: 'Playhead', exact: true });
+  await ruler.press('Home');
+  await ruler.press('Shift+ArrowRight');
+  await ruler.press('Control+v');
+  expect((await layers(page))[0]['#box'].opacity).toContainEqual({ time: .4, value: 1, ease: 'none' });
+  expect((await state(page)).history).toBe(before.history + 1);
+});
+
+test('paste on inspected Out preserves its interpreter and refuses a required upgrade', async ({ page }) => {
+  await fixture(page);
+  const oldBody = readFileSync(new URL('./fixtures/interpreter-step-out-v1.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const ruler = page.getByRole('slider', { name: 'Playhead', exact: true });
+  const copyIntoOut = async () => {
+    await key(page, '#title', 'x', '1.60').click();
+    await page.keyboard.press('Control+c');
+    await page.getByRole('button', { name: 'Out flag', exact: true }).click();
+    await ruler.press('Shift+ArrowRight');
+    await ruler.press('Control+v');
+  };
+  const original = await source(page);
+  await copyIntoOut();
+  await ready(page);
+  const [, exit] = await layers(page);
+  expect(exit['#title'].x).toContainEqual({ time: .4, value: 0, ease: 'bounce.out' });
+  const outside = (js: string) => js.replace(/var NOACG_ANIM = [\s\S]*?;\n/, '');
+  const pasted = await source(page);
+  expect(outside(pasted.js)).toBe(outside(original.js));
+  expect([pasted.html, pasted.css, pasted.fields]).toEqual([original.html, original.css, original.fields]);
+  await evaluateInPage(page, async ({ original, oldBody }) => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { ANIM_INTERPRETER_JS } = await import('/src/templates/shared/animRuntime.ts');
+    useTemplateStore.getState().applyTemplate({ ...original, js: original.js.replace(ANIM_INTERPRETER_JS, () => oldBody) });
+  }, { original, oldBody });
+  await ready(page);
+  const old = await state(page);
+  expect(old.js).toContain(oldBody);
+  await copyIntoOut();
+  await expect(page.getByTestId('foundation-timeline').getByRole('alert')).toHaveText(/upgrade this animation/);
+  expect(await state(page)).toEqual(old);
+});
 
 test('a marquee across rows and the toolbar dropdown write key-side eases as one undo', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));

@@ -229,25 +229,109 @@ function escapeRe(s: string): string {
 }
 
 type CssRuleBody = { body: string; start: number; end: number };
+const CSS_SOURCE_TOKENS = /\/\*[\s\S]*?\*\/|"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'|\\[\s\S]|[()[\]{}:;,&]/g;
+const CSS_IDENTIFIER = /(?:[-\w]|\\(?:[0-9a-f]{1,6}(?:\r\n|[\t\n\f\r ])?|[^\n\f\r]))+/.source;
+const cssWithoutComments = (value: string) => value.replace(/\/\*[\s\S]*?\*\//g, comment => ' '.repeat(comment.length));
+const cssWithoutLiterals = (value: string) => value.replace(CSS_SOURCE_TOKENS, token => /^["']|^\/\*/.test(token) ? ' '.repeat(token.length) : token);
+function cssName(source: string) {
+  return source.replace(/\\(?:([0-9a-f]{1,6})(?:\r\n|[\t\n\f\r ])?|([^\n\f\r]))/gi, (_match, hex: string | undefined, escaped: string) => {
+    if (!hex) return escaped;
+    const code = parseInt(hex, 16);
+    return code && code <= 0x10ffff && (code < 0xd800 || code > 0xdfff) ? String.fromCodePoint(code) : '\ufffd';
+  });
+}
+
+/** Custom property reads, including escaped identifiers and reads inside fallback expressions. */
+export function cssVariableReads(value: string): string[] {
+  if (!value.includes('(')) return [];
+  const names = new Set<string>();
+  const source = cssWithoutLiterals(value);
+  const calls = new RegExp(`(${CSS_IDENTIFIER})\\(`, 'gi'), argument = new RegExp(`^\\s*(${CSS_IDENTIFIER})`, 'i');
+  for (const match of source.matchAll(calls)) {
+    if (cssName(match[1]).toLowerCase() !== 'var') continue;
+    const name = cssName(source.slice(match.index! + match[0].length).match(argument)?.[1] ?? '');
+    if (name.startsWith('--')) names.add(name);
+  }
+  return [...names];
+}
+
+function selectorBranches(selector: string) {
+  const branches: string[] = [];
+  let depth = 0, start = 0;
+  for (const match of selector.matchAll(CSS_SOURCE_TOKENS)) {
+    if (match[0] === '(' || match[0] === '[') depth++;
+    else if (match[0] === ')' || match[0] === ']') depth--;
+    else if (!depth && match[0] === ',') {
+      branches.push(selector.slice(start, match.index).trim());
+      start = match.index! + 1;
+    }
+  }
+  return [...branches, selector.slice(start).trim()];
+}
+
+export type CssStyleSource = { selectorText: string; selectors: string[]; style: CSSStyleDeclaration; nested: boolean };
+/** Read authored CSS without rewriting it or loading styles from outside the document. */
+export function inspectCss(css: string, nativeNesting = true) {
+  const visible = nativeNesting ? cssWithoutLiterals(css) : '';
+  // A constructed sheet ignores @import. The structural owner must still account for it.
+  let unresolved = [...visible.matchAll(new RegExp(`(?:^|[;}])\\s*@(${CSS_IDENTIFIER})`, 'gi'))]
+    .some(match => cssName(match[1]).toLowerCase() === 'import');
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(css);
+  const rules: CssStyleSource[] = [], registrations = new Set<string>();
+  const keyframes: { name: string; css: string }[] = [];
+  const visit = (list: CSSRuleList, nested: boolean, parent?: string) => {
+    for (const rule of list) {
+      if (rule instanceof CSSStyleRule) {
+        const selectors = selectorBranches(rule.selectorText).map(selector => {
+          if (!parent) return selector;
+          let explicit = false;
+          const expanded = selector.replace(CSS_SOURCE_TOKENS, token => {
+            if (token !== '&') return token;
+            explicit = true;
+            return `:is(${parent})`;
+          });
+          return explicit ? expanded : `:is(${parent}) ${selector}`;
+        });
+        rules.push({ selectorText: rule.selectorText, selectors, style: rule.style, nested });
+        if (nativeNesting && rule.cssRules?.length) visit(rule.cssRules, true, selectors.join(', '));
+      } else if (typeof CSSPropertyRule !== 'undefined' && rule instanceof CSSPropertyRule) {
+        registrations.add(rule.name);
+      } else if (nativeNesting && rule instanceof CSSKeyframesRule) {
+        keyframes.push({ name: rule.name, css: rule.cssText });
+      } else if (rule instanceof CSSGroupingRule) {
+        if (nativeNesting && typeof CSSScopeRule !== 'undefined' && rule instanceof CSSScopeRule && rule.cssRules.length) unresolved = true;
+        visit(rule.cssRules, true, parent);
+      } else if (nativeNesting && parent && 'style' in rule) {
+        // A conditional rule inside a style can expose declarations without a selector of its own.
+        rules.push({ selectorText: parent, selectors: selectorBranches(parent), style: rule.style as CSSStyleDeclaration, nested: true });
+      }
+    }
+  };
+  visit(sheet.cssRules, false);
+  return { rules, registrations, keyframes, unresolved };
+}
 
 /** Exact top-level rules, preserving the scanner used by the source readers. */
 function* ruleBodies(css: string, selector: string): Generator<CssRuleBody> {
-  let i = 0, ruleStart = 0;
-  while (i < css.length) {
-    if (css[i] === '{') {
-      const sel = css.slice(ruleStart, i).replace(/\/\*[\s\S]*?\*\//g, '').trim();
-      let depth = 1, j = i + 1;
-      while (j < css.length && depth > 0) {
-        if (css[j] === '{') depth++;
-        else if (css[j] === '}') depth--;
-        j++;
+  let depth = 0, ruleStart = 0, start = 0, name = '';
+  for (const match of css.matchAll(CSS_SOURCE_TOKENS)) {
+    const token = match[0], at = match.index!;
+    if (token === '{') {
+      if (depth === 0) {
+        name = cssWithoutComments(css.slice(ruleStart, at)).trim();
+        start = at + 1;
       }
-      if (sel === selector) yield { body: css.slice(i + 1, j - 1), start: i + 1, end: j - 1 };
-      i = j;
-      ruleStart = j;
-      continue;
+      depth++;
+    } else if (token === '}') {
+      depth--;
+      if (depth === 0) {
+        if (name === selector) yield { body: css.slice(start, at), start, end: at };
+        ruleStart = at + 1;
+      }
+    } else if (token === ';' && !depth) {
+      ruleStart = at + 1;
     }
-    i++;
   }
 }
 
@@ -256,28 +340,60 @@ export function findRuleBody(css: string, selector: string): CssRuleBody | null 
   return ruleBodies(css, selector).next().value ?? null;
 }
 
+/** Declarations and their source spans in one rule body. CSSOM keeps only the winner. */
+export function cssDeclarations(body: string) {
+  const declarations: { name: string; value: string; important: boolean; start: number; end: number }[] = [];
+  let start = 0, colon = -1, depth = 0;
+  const finish = (end: number) => {
+    if (colon >= 0) {
+      const head = cssWithoutComments(body.slice(start, colon));
+      const name = cssName(head.trim()), raw = cssWithoutComments(body.slice(colon + 1, end)).trimEnd();
+      const priority = /!\s*important$/i.exec(raw);
+      const value = raw.slice(0, priority?.index).trimEnd();
+      if (/^[-\w]+$/.test(name)) declarations.push({ name: name.startsWith('--') ? name : name.toLowerCase(),
+        value: value.trimStart(), important: !!priority,
+        start: colon + 1 + value.length - value.trimStart().length, end: colon + 1 + value.length });
+    }
+    start = end + 1;
+    colon = -1;
+  };
+  for (const match of body.matchAll(CSS_SOURCE_TOKENS)) {
+    const token = match[0], at = match.index!;
+    if (token === '(' || token === '[' || token === '{') depth++;
+    else if (token === ')' || token === ']' || token === '}') {
+      depth--;
+      if (!depth && token === '}' && !body.slice(start, colon).trimStart().startsWith('--')) {
+        start = at + 1;
+        colon = -1;
+      }
+    } else if (!depth && token === ':' && colon < 0) colon = at;
+    else if (!depth && token === ';') finish(at);
+  }
+  finish(body.length);
+  return declarations;
+}
+
 /**
  * Set the effective declaration among repeated exact top-level rules, or append to the first
  * rule when absent. Keep unrelated and nested rules intact, and retain important priority.
  */
 export function setCssDeclaration(css: string, selector: string, prop: string, value: string): string {
   let rule: CssRuleBody | undefined;
-  let chosen: { rule: CssRuleBody; match: RegExpMatchArray; important: boolean } | undefined;
-  // A trailing comment on the previous declaration also counts as a boundary.
-  const re = new RegExp(`(^|;|\\{|\\*\\/)(\\s*)${escapeRe(prop)}\\s*:[^;}]*`, 'gi');
+  let chosen: { rule: CssRuleBody; declaration: ReturnType<typeof cssDeclarations>[number] } | undefined;
+  const name = prop.startsWith('--') ? prop : prop.toLowerCase();
   for (const candidate of ruleBodies(css, selector)) {
     // New properties stay in the first owned rule, which anchor/group readers inspect.
     rule ??= candidate;
-    for (const match of candidate.body.matchAll(re)) {
-      const important = /!\s*important\s*$/i.test(match[0].replace(/\/\*[\s\S]*?\*\//g, ''));
-      if (!chosen || important || !chosen.important) chosen = { rule: candidate, match, important };
+    for (const declaration of cssDeclarations(candidate.body)) {
+      if (declaration.name === name && (!chosen || declaration.important || !chosen.declaration.important)) chosen = { rule: candidate, declaration };
     }
   }
   if (chosen) {
-    const { match, important } = chosen;
+    const { start, end, important } = chosen.declaration;
     rule = chosen.rule;
-    const priority = important && !/!\s*important\s*$/i.test(value) ? ' !important' : '';
-    const body = rule.body.slice(0, match.index) + match[1] + match[2] + prop + ': ' + value + priority + rule.body.slice(match.index! + match[0].length);
+    const next = important ? value.replace(/\s*!\s*important\s*$/i, '') : value;
+    const space = rule.body[start - 1] === ':' ? ' ' : '';
+    const body = rule.body.slice(0, start) + space + next + rule.body.slice(end);
     return css.slice(0, rule.start) + body + css.slice(rule.end);
   }
   if (rule) {

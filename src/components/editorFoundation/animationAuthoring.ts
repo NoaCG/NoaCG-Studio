@@ -1,7 +1,10 @@
 import type { SpxTemplate } from '../../model/types';
+import { SVG_GROUP_PIVOT_UNITS } from '../../model/svgGroupTransform';
 import { baseValues, type BasePatch, type BaseValues, type TransformPatch } from '../../blocks/baseEdits';
-import { channelValue, controlKeyReason, isArmed, poseKey, sequenceAuthoringReason, writeChannel, type Channel } from '../../blocks/editorAnimation';
+import { anchorChannels, channelValue, controlKeyReason, isArmed, poseKey, sequenceAuthoringReason, writeChannel, type Channel } from '../../blocks/editorAnimation';
 import type { AnimData } from '../../blocks/animData';
+import { resolveValue } from '../../blocks/animEval';
+import { hasAnchorRuntime } from '../../templates/shared/animRuntime';
 import type { RenderedPart } from './protocol';
 import type { EditorOperation } from './operations';
 import { FLOAT_STEP, ownerOf, readTimeline, segmentAt } from './timelineView';
@@ -138,6 +141,43 @@ export function shownAnchor(base: BaseValues, pose: RenderedPart['appearance']):
  */
 export const anchorOperations = (selector: string, anchor: Point): EditorOperation[] =>
   [{ kind: 'base.set', selector, values: { anchorX: anchor.x, anchorY: anchor.y } }];
+
+/** The live pivot, or the departing cue's own value when its layer has not appeared yet. */
+export function anchorAtPlayhead(template: SpxTemplate, base: BaseValues, appearance: RenderedPart['appearance'], time: number, cue?: number): Point | null {
+  const anchor = shownAnchor(base, appearance);
+  if (!anchor) return null;
+  if (!base.svgGroupPivot && !hasAnchorRuntime(template.js)) return anchor;
+  const { view, segment, departing } = editSegment(template, base.selector, time, cue);
+  if (!view.data) return anchor;
+  const owner = ownerOf(view, base.selector), result = { ...anchor };
+  const channels = anchorChannels(base);
+  for (const [index, axis] of (['x', 'y'] as const).entries()) {
+    const channel = channels[axis];
+    if (!isArmed(view.data, owner, channel)) continue;
+    const sampled = departing ? resolveValue(view.data, owner, channel, segment.index, 0) : appearance?.origin?.[index];
+    if (typeof sampled === 'number') result[axis] = departing ? sampled / (base.svgGroupPivot ? SVG_GROUP_PIVOT_UNITS : 1) : sampled / (appearance?.unit ?? 1);
+  }
+  return result;
+}
+
+/** A typed, centered or dragged pivot edits armed axes at the playhead and unarmed axes in CSS. */
+export function editAnchorAtPlayhead(template: SpxTemplate, base: BaseValues, current: Point, changed: Partial<Point>, time: number, cue?: number): EditorOperation[] {
+  if (!base.svgGroupPivot && !hasAnchorRuntime(template.js)) return anchorOperations(base.selector, { ...current, ...changed });
+  const view = readTimeline(template), owner = ownerOf(view, base.selector);
+  const channels = anchorChannels(base);
+  if (!Object.values(channels).some(channel => isArmed(view.data, owner, channel))) return anchorOperations(base.selector, { ...current, ...changed });
+  const position = authoringPosition(template, base.selector, time, cue);
+  const pivot = { ...base.anchor ?? current }, keys: EditorOperation[] = [];
+  let editBase = false;
+  for (const axis of ['x', 'y'] as const) {
+    const value = changed[axis];
+    if (value === undefined || value === current[axis]) continue;
+    const channel = channels[axis];
+    if (isArmed(view.data, owner, channel)) keys.push({ kind: 'animation.key', selector: base.selector, property: channel, ...position, value, action: 'set' });
+    else { pivot[axis] = value; editBase = true; }
+  }
+  return editBase ? [...anchorOperations(base.selector, pivot), ...keys] : keys;
+}
 
 /** Independent artwork targets measured at the exact revision and playhead being edited. */
 export function arrangementTargets(template: SpxTemplate, parts: RenderedPart[], selection: string[], time: number, revision: Revision, cue?: number): RenderedPart[] {

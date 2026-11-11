@@ -1,3 +1,5 @@
+import { SVG_GROUP_TRACK_CSS } from '../../model/svgGroupTransform';
+
 /** Original authoring bridge. Deliberately a literal script, not function.toString:
  * production minification cannot rewrite names captured by the sandbox.
  * Motion is evaluated by the template's bundled buildStepTimeline/GSAP interpreter.
@@ -23,6 +25,7 @@ export const foundationRuntime = String.raw`
   var failed = false;
   var currentCss = null;
   var draftCopies = [];
+  var groupChannels = ${JSON.stringify(SVG_GROUP_TRACK_CSS)};
   window.addEventListener('error', function (event) {
     failed = true;
     send('error', lastRequest, { message: event.message || 'Template runtime failed.' });
@@ -69,7 +72,26 @@ export const foundationRuntime = String.raw`
   function editorStep(index) {
     return NOACG_ANIM.steps[index] || (index === 1 && NOACG_ANIM.steps.length === 1 ? { duration: 0, ease: 'none', layers: {} } : null);
   }
-  function numericPose(element) {
+  function cssSvgPivotFor(adapter) {
+    return !!adapter && adapter.cssSvgAnchor && !NOACG_ANIM.steps.some(function (step) {
+      return Object.keys(step.layers[adapter.motionOwner] || {}).some(function (channel) {
+        return /^(?:[xy]|[xy]Percent|scale(?:X|Y)?|rotation|skewX|skewY|transform)$/.test(channel);
+      });
+    });
+  }
+  function numericPose(element, adapter, style) {
+    if (adapter && adapter.svgGroupPivot !== undefined) {
+      var groupPose = { xPercent: 0, yPercent: 0, opacity: Number(style.opacity) };
+      ['x', 'y', 'rotation', 'scaleX', 'scaleY'].forEach(function (property) {
+        groupPose[property] = Number(style.getPropertyValue(groupChannels[property]));
+      });
+      return groupPose;
+    }
+    // Reading GSAP transform properties on a CSS-owned SVG pivot sets an inline origin and
+    // takes over its reference box. This member has no GSAP transform channels to read.
+    if (cssSvgPivotFor(adapter)) {
+      return { x: 0, y: 0, xPercent: 0, yPercent: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: Number(style.opacity) };
+    }
     var pose = {};
     ['x', 'y', 'xPercent', 'yPercent', 'scaleX', 'scaleY', 'rotation', 'opacity'].forEach(function (property) { pose[property] = Number(gsap.getProperty(element, property)); });
     return pose;
@@ -90,11 +112,12 @@ export const foundationRuntime = String.raw`
       throw new Error('This source does not expose the supported animation interpreter.');
     }
     if (!editorStep(step)) throw new Error('The requested segment no longer exists.');
-    if (activeStep !== step || exiting) {
+    var rebuilt = activeStep !== step || exiting;
+    if (rebuilt) {
       resetPose();
       config.selectors.forEach(function (selector) {
         var element = document.querySelector(selector);
-        if (element) initialMotion[selector] = numericPose(element);
+        if (element) initialMotion[selector] = numericPose(element, config.adapters[selector], getComputedStyle(element));
       });
       gsap.set(NOACG_ANIM.root, { opacity: 1 });
       for (var i = 0; i < step; i++) {
@@ -112,12 +135,15 @@ export const foundationRuntime = String.raw`
     var target = Math.max(0, Math.min(time, editorStep(step).duration / NOACG_ANIM.speed));
     timeline.time(target, true);
     // Same first-frame rule as noacgPaintFirstFrame in the emitted interpreter.
-    // A newly paused timeline at zero otherwise leaves its initial .set unapplied.
-    if (target === 0) timeline.render(0, true, true);
+    // A new paused timeline needs its opening .set. After a seek back to zero,
+    // a second forced render can instead paint the start of a later tween.
+    if (rebuilt && target === 0) timeline.render(0, true, true);
     // Existence is explicit, independent of whether a layer owns any keys.
     NOACG_ANIM.steps.forEach(function (segment, i) {
       (segment.reveals || []).forEach(function (selector) {
-        if (i > step) gsap.set(selector, { visibility: 'hidden' });
+        var group = typeof noacgSvgGroupDisplay === 'function' && noacgSvgGroupDisplay(selector, i > step);
+        if (group) gsap.set(selector, group);
+        else if (i > step) gsap.set(selector, { visibility: 'hidden' });
         else gsap.set(selector, { visibility: 'visible' });
       });
     });
@@ -165,7 +191,8 @@ export const foundationRuntime = String.raw`
       var targetStyle = target === element ? style : getComputedStyle(target);
       var unit = adapter && adapter.scaled || adapter && adapter.mode === 'flow'
         ? parseFloat(targetStyle.getPropertyValue('--scale')) || 1 : 1;
-      var motion = window.gsap ? numericPose(element) : undefined;
+      var cssSvgPivot = cssSvgPivotFor(adapter);
+      var motion = window.gsap ? numericPose(element, adapter, style) : undefined;
       // Reuse this pose's HTML geometry for both handles and pivot. Each ancestor
       // walk was repeated three times per layer; no value survives this measure.
       var targetMatrix = target instanceof SVGGraphicsElement ? null : basis(target);
@@ -185,8 +212,27 @@ export const foundationRuntime = String.raw`
       // The pivot rotation and scale use, from the top-left of the box the corners are measured on.
       var origin = targetStyle.transformOrigin.split(' ').slice(0, 2).map(parseFloat);
       var groupOrigin = frame && [parseFloat(targetStyle.getPropertyValue('--base-anchor-x')),parseFloat(targetStyle.getPropertyValue('--base-anchor-y'))];
-      if (frame) { if (svg) { var svgOrigin = (target.getAttribute('data-svg-origin') || '').split(' ').map(Number); if (svgOrigin.length === 2 && svgOrigin.every(Number.isFinite)) groupOrigin = svgOrigin; else { var groupBounds = target.getBBox(); groupOrigin[0] += groupBounds.x; groupOrigin[1] += groupBounds.y; } } origin = [(svg ? groupOrigin[0] : origin[0])-frame.x,(svg ? groupOrigin[1] : origin[1])-frame.y]; }
+      if (frame) {
+        if (svg && adapter.svgGroupPivot !== undefined) { groupOrigin[0] += frame.x; groupOrigin[1] += frame.y; }
+        else if (svg) {
+          var svgOrigin = (target.getAttribute('data-svg-origin') || '').split(' ').map(Number);
+          if (svgOrigin.length === 2 && svgOrigin.every(Number.isFinite)) groupOrigin = svgOrigin;
+          else { var groupBounds = target.getBBox(); groupOrigin[0] += groupBounds.x; groupOrigin[1] += groupBounds.y; }
+        }
+        origin = [(svg ? groupOrigin[0] : origin[0])-frame.x,(svg ? groupOrigin[1] : origin[1])-frame.y];
+      }
       var groupPivot = frame && svg ? {x:frameMatrix.a*groupOrigin[0]+frameMatrix.c*groupOrigin[1]+frameMatrix.e,y:frameMatrix.b*groupOrigin[0]+frameMatrix.d*groupOrigin[1]+frameMatrix.f} : null;
+      if (cssSvgPivot && targetStyle.transformBox !== 'fill-box') {
+        var viewBox = target.ownerSVGElement.viewBox.baseVal;
+        origin = [origin[0] + viewBox.x - bbox.x, origin[1] + viewBox.y - bbox.y];
+      }
+      if (cssSvgPivot) {
+        var memberMatrix = target.getScreenCTM();
+        if (memberMatrix) {
+          var localPivot = new DOMPoint(bbox.x + origin[0], bbox.y + origin[1]).matrixTransform(memberMatrix);
+          groupPivot = { x: localPivot.x, y: localPivot.y };
+        }
+      }
       var path = element.tagName.toLowerCase() === 'path' ? element : element.hasAttribute('data-pen-path') ? element.querySelector(':scope > svg > path') : null;
       var pathMatrix = path && path.getScreenCTM();
       // Point edits can extend past the initial transform frame. Hit testing follows the artwork;
@@ -198,7 +244,7 @@ export const foundationRuntime = String.raw`
       }
       return [{ selector: selector, x: hit.x, y: hit.y, width: hit.width,
         height: hit.height, opacity: Number(style.opacity), transform: style.transform,
-        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, size: frame ? percentBox(element, style) : target !== element ? percentBox(element, style) : svg ? undefined : box, box: box, origin: svg && !frame ? undefined : origin, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), fontWeight: Number(style.fontWeight), lineHeight: style.lineHeight === 'normal' ? undefined : parseFloat(style.lineHeight) / parseFloat(style.fontSize), letterSpacing: style.letterSpacing === 'normal' ? 0 : parseFloat(style.letterSpacing) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
+        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, size: frame ? percentBox(element, style) : target !== element ? percentBox(element, style) : svg ? undefined : box, box: box, origin: svg && !frame && !cssSvgPivot ? undefined : origin, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), fontWeight: Number(style.fontWeight), lineHeight: style.lineHeight === 'normal' ? undefined : parseFloat(style.lineHeight) / parseFloat(style.fontSize), letterSpacing: style.letterSpacing === 'normal' ? 0 : parseFloat(style.letterSpacing) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
         parent: [matrix.a * unit, matrix.b * unit, matrix.c * unit, matrix.d * unit],
         parentSpace: adapter && adapter.groupParent ? coordinateSpace(document.querySelector(adapter.groupParent)) : undefined,
         corners: points, anchor: groupPivot || anchor(target, targetMatrix, points, origin),
@@ -263,7 +309,8 @@ export const foundationRuntime = String.raw`
   }
   function setCss(css) {
     var sheet = document.getElementById('spx-inline-css');
-    var baseTransforms = /--base-(?:scale-[xy]|[xy]|rotation)\s*:[^;}]+/g;
+    var baseTransforms = Object.values(config.adapters).some(function (adapter) { return adapter.svgGroupPivot; })
+      ? /--base-(?:anchor-[xy]|scale-[xy]|[xy]|rotation)\s*:[^;}]+/g : /--base-(?:scale-[xy]|[xy]|rotation)\s*:[^;}]+/g;
     var changed = String((currentCss === null ? sheet.textContent : currentCss).match(baseTransforms)) !== String(css.match(baseTransforms));
     var step = activeStep, time = timeline ? timeline.time() : 0;
     // GSAP folds independent CSS transforms into its cached matrix and writes inline
@@ -291,6 +338,8 @@ export const foundationRuntime = String.raw`
     // A design that fits placed text to a slot measures from the stylesheet, so a new slot width or
     // spacing refits it, as the design's own update() does after every value (R1.2b.2).
     if (typeof fitPlacedText === 'function') fitPlacedText();
+    // Measure a drawn SVG pivot from the same fitted box that a fresh export would load.
+    if (changed && typeof refitSvgText === 'function' && Object.values(config.adapters).some(cssSvgPivotFor)) refitSvgText();
     if (changed && step >= 0) seek(step, time);
   }
   function presented(request, kind, interactive) {

@@ -18,9 +18,11 @@
 // closes the connection - the next reply could no longer be told from this one's - and the next
 // request opens a new one. Nothing is ever sent twice.
 
+import { isUtf8 } from 'node:buffer';
 import { connect, type Socket } from 'node:net';
-import { decode } from './info.js';
-import { MAX_VMIX_OVERLAYS, type VmixInput } from './protocol.js';
+import { SaxesParser } from 'saxes';
+import { isNCNameStartChar } from 'xmlchars/xmlns/1.0/ed3.js';
+import { VMIX_INPUT_KEY, VMIX_VERSION, type VmixInput } from './protocol.js';
 
 /** vMix's TCP API port, documented and fixed unless somebody changed vMix's own setting. */
 export const DEFAULT_VMIX_PORT = 8099;
@@ -32,12 +34,13 @@ const VMIX_REPLY_MS = 3000;
 const MAX_LINE_BYTES = 64 * 1024;
 const MAX_XML_BYTES = 16 * 1024 * 1024;
 
-export type VmixOpen = { ok: true } | { ok: false; setup: 'not-running' | 'not-vmix'; why: string };
+export type VmixOpen = { ok: true } | { ok: false; setup?: 'not-running' | 'not-vmix'; why: string };
 
 /** One command's answer: its status line (and an XML body), or why there is none. `not-sent` (no
  *  connection) and `late` (its turn came with the verb's time spent) never left, so nothing can have
- *  happened; `timeout` and `closed` left and were not answered, so they may have. */
-export type VmixReply = { ok: true; status: string; line: string; body?: string } | { ok: false; lost: 'not-sent' | 'late' | 'timeout' | 'closed' };
+ *  happened. `timeout`, `closed` and `invalid-reply` left without a usable answer, so they may have.
+ */
+export type VmixReply = { ok: true; status: string; line: string; body?: string } | { ok: false; lost: 'not-sent' | 'late' | 'timeout' | 'closed' | 'invalid-reply' };
 
 interface Pending {
   word: string;
@@ -64,9 +67,11 @@ export class VmixConnection {
   }
 
   /** The connection, greeted: the open one, or a new one. */
-  open(): Promise<VmixOpen> {
+  open(until = Infinity): Promise<VmixOpen> {
+    const wait = Math.min(this.greetingMs, until - Date.now());
+    if (wait <= 0) return Promise.resolve({ ok: false, why: 'the request deadline expired' });
     if (this.socket && this.version && !this.socket.destroyed) return Promise.resolve({ ok: true });
-    this.opening ??= this.start().finally(() => {
+    this.opening ??= this.start(wait).finally(() => {
       this.opening = undefined;
     });
     return this.opening;
@@ -77,7 +82,7 @@ export class VmixConnection {
     this.socket?.destroy();
   }
 
-  private start(): Promise<VmixOpen> {
+  private start(wait: number): Promise<VmixOpen> {
     return new Promise((resolve) => {
       const s = connect({ host: '127.0.0.1', port: this.port });
       s.setNoDelay(true);
@@ -95,10 +100,9 @@ export class VmixConnection {
         if (!r.ok) s.destroy();
         resolve(r);
       };
-      const timer = setTimeout(
-        () => settle({ ok: false, setup: 'not-vmix', why: `port ${this.port} accepted the connection but sent no VERSION OK greeting within ${this.greetingMs} ms` }),
-        this.greetingMs,
-      );
+      const timer = setTimeout(() => settle(wait < this.greetingMs
+        ? { ok: false, why: 'the request deadline expired during the greeting' }
+        : { ok: false, setup: 'not-vmix', why: `port ${this.port} accepted the connection but sent no VERSION OK greeting within ${this.greetingMs} ms` }), wait);
       s.once('connect', () => {
         connected = true;
       });
@@ -140,16 +144,28 @@ export class VmixConnection {
         this.buf = this.buf.subarray(n);
         if (body.got < body.data.length) return;
         this.body = undefined;
-        this.finish({ ok: true, status: body.status, line: body.line, body: body.data.toString('utf8') });
+        this.finish({ ok: true, status: body.status, line: body.line, body: isUtf8(body.data) ? body.data.toString('utf8') : undefined });
         continue;
       }
+      const awaitingFunction = this.pending?.word === 'FUNCTION';
       const nl = this.buf.indexOf(0x0a);
       if (nl < 0) {
-        if (this.buf.length > MAX_LINE_BYTES) s.destroy();
+        if (this.buf.length > MAX_LINE_BYTES) {
+          if (awaitingFunction) this.rejectFunctionReply(s);
+          else s.destroy();
+        }
         return;
       }
-      const line = this.buf.subarray(0, nl).toString('utf8').replace(/\r$/, '');
+      const lineBytes = this.buf.subarray(0, nl);
       this.buf = this.buf.subarray(nl + 1);
+      if (awaitingFunction) {
+        if (!this.readFunctionLine(lineBytes)) {
+          this.rejectFunctionReply(s);
+          return;
+        }
+        continue;
+      }
+      const line = lineBytes.toString('utf8').replace(/\r$/, '');
       if (!this.version) {
         const m = /^VERSION OK (\S.*)$/.exec(line);
         if (!m) {
@@ -164,17 +180,45 @@ export class VmixConnection {
       // Only the waiting command's own word answers it: a subscription's `ACTS OK …` lines are no
       // reply to anything (the overlay-press reader takes them).
       if (!this.pending || word !== this.pending.word) continue;
-      if (word === 'XML' && /^\d+$/.test(status)) {
-        const length = Number(status);
-        if (length > MAX_XML_BYTES) {
+      if (word === 'XML') {
+        const size = /^XML (\d+)$/.exec(line)?.[1];
+        if (size !== undefined) {
+          const length = Number(size);
+          if (length > MAX_XML_BYTES) {
+            s.destroy();
+            return;
+          }
+          this.body = { line, status, data: Buffer.allocUnsafe(length), got: 0 };
+          continue;
+        }
+        if (status !== 'ER') {
+          // A malformed header may be followed by a body we can no longer frame.
+          this.finish({ ok: true, status, line });
           s.destroy();
           return;
         }
-        this.body = { line, status, data: Buffer.allocUnsafe(length), got: 0 };
-        continue;
       }
       this.finish({ ok: true, status, line });
     }
+  }
+
+  /** Only a FUNCTION answer or an asynchronous event can arrive during a FUNCTION turn. */
+  private readFunctionLine(bytes: Buffer): boolean {
+    if (bytes.length > MAX_LINE_BYTES || bytes.at(-1) !== 0x0d || !isUtf8(bytes)) return false;
+    const line = bytes.subarray(0, -1).toString('utf8');
+    const envelope = /^(FUNCTION|ACTS|TALLY) (OK|ER)(?: [^\r\n]+)?$/.exec(line);
+    if (!envelope) return false;
+    const [, word, status] = envelope;
+    if (word !== 'FUNCTION') return status === 'OK';
+    this.finish({ ok: true, status, line });
+    return true;
+  }
+
+  private rejectFunctionReply(s: Socket): void {
+    // Discard the remaining bytes so a later line cannot answer the command.
+    s.destroy();
+    this.finish({ ok: false, lost: 'invalid-reply' });
+    this.closed(s);
   }
 
   private finish(r: VmixReply): void {
@@ -227,48 +271,124 @@ export interface VmixXml {
   edition: string;
   inputs: VmixInput[];
   overlays: Map<number, number>;
+  reportedOverlays: Set<number>;
 }
 
-/** The part of the XML between `<tag>` and `</tag>`, or nothing. */
-function section(xml: string, tag: string): string {
-  const start = xml.indexOf(`<${tag}>`);
-  const end = xml.indexOf(`</${tag}>`, start);
-  return start < 0 || end < 0 ? '' : xml.slice(start + tag.length + 2, end);
+const MAX_XML_DEPTH = 128;
+const STATE_SECTIONS = new Set(['version', 'edition', 'inputs', 'overlays']);
+const XML_SPACE = /^[ \t\r\n]*$/;
+const trimXml = (text: string) => text.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, '');
+const unqualified = ({ prefix, uri }: { prefix: string; uri: string }) => prefix === '' && uri === '';
+
+function positiveInteger(value: string | undefined): number | undefined {
+  if (value === undefined || !/^[1-9]\d*$/.test(value)) return;
+  const number = Number(value);
+  if (Number.isSafeInteger(number)) return number;
 }
 
-function attributes(tag: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const m of tag.matchAll(/([\w:-]+)="([^"]*)"/g)) out[m[1]] = decode(m[2]);
-  return out;
-}
-
-/** vMix's state XML, or nothing when it is not one. Only `<input>` elements directly in `<inputs>`
- *  and `<overlay number>` elements in `<overlays>` count: an input's own layers are `<overlay
- *  index>` elements inside it. */
+/** Validate the whole document, including content the Bridge does not use. Only direct vMix
+ *  state elements count: an input's own layers are nested <overlay index> elements. */
 export function parseVmixXml(xml: string): VmixXml | undefined {
-  const version = /<version>([^<]*)<\/version>/.exec(xml)?.[1];
-  if (!/^\s*<vmix>/.test(xml) || version === undefined) return undefined;
-  const edition = decode(/<edition>([^<]*)<\/edition>/.exec(xml)?.[1] ?? '');
+  const parser = new SaxesParser({ xmlns: true });
+  const seen = new Set<string>();
+  const keys = new Set<string>();
+  const numbers = new Set<number>();
   const inputs: VmixInput[] = [];
-  for (const m of section(xml, 'inputs').matchAll(/<input\s([^>]*)>/g)) {
-    const a = attributes(m[1]);
-    const number = Number(a.number);
-    if (a.key && Number.isInteger(number)) inputs.push({ key: a.key, number, title: a.title ?? '', type: a.type ?? '' });
-  }
   const overlays = new Map<number, number>();
-  for (const m of section(xml, 'overlays').matchAll(/<overlay\s([^>]*?)\/?>([^<]*)/g)) {
-    const channel = Number(attributes(m[1]).number);
-    const input = Number(m[2].trim());
-    // `<overlay number="1" />` is an empty channel: no text follows it.
-    if (Number.isInteger(channel) && m[2].trim() && Number.isInteger(input)) overlays.set(channel, input);
-  }
-  return { version: decode(version).trim(), edition: edition.trim(), inputs, overlays };
-}
+  const reportedOverlays = new Set<number>();
+  let depth = 0;
+  let section: string | undefined;
+  let scalar: string | undefined;
+  let channel: number | undefined;
+  let version = '';
+  let edition = '';
 
-/** How many overlay channels this vMix's UI offers, the one place the rule lives: 8 from vMix 29,
- *  4 before it, and 1 on a Basic edition. The XML's own `<overlay>` count (16 on 29) is not it. Only
- *  vMix 29 Trial has been measured; the rest is vMix's published edition table. */
-export function vmixOverlayCount(version: string, edition: string): number {
-  if (/^basic/i.test(edition.trim())) return 1;
-  return Number.parseInt(version, 10) >= 29 ? MAX_VMIX_OVERLAYS : 4;
+  const invalid = (): never => { throw new Error('Invalid vMix state XML.'); };
+  parser.on('doctype', invalid);
+  parser.on('xmldecl', ({ version, encoding }) => {
+    if (version !== '1.0' || (encoding !== undefined && encoding.toLowerCase() !== 'utf-8')) invalid();
+  });
+  parser.on('opentagstart', () => {
+    // Namespace lookup in Saxes walks the ancestors. Bound it even in ignored data.
+    if (scalar !== undefined || depth >= MAX_XML_DEPTH) invalid();
+  });
+  parser.on('attribute', ({ name, prefix, local, value }) => {
+    // Saxes 6 checks for misplaced colons, but accepts a QName local part starting with a digit.
+    if (!isNCNameStartChar(local.codePointAt(0) ?? -1)) invalid();
+    // Saxes trims declarations when resolving names. Don't let whitespace change a namespace.
+    if ((prefix === 'xmlns' || name === 'xmlns') && (/[ \t\r\n]/.test(value) || value !== value.trim())) invalid();
+  });
+  parser.on('opentag', tag => {
+    if (!isNCNameStartChar(tag.local.codePointAt(0) ?? -1)) invalid();
+    depth += 1;
+    if (depth === 1) {
+      if (tag.local !== 'vmix' || !unqualified(tag) || Object.keys(tag.attributes).length) invalid();
+    } else if (depth === 2 && STATE_SECTIONS.has(tag.local)) {
+      section = tag.local;
+      if (!unqualified(tag) || Object.keys(tag.attributes).length || seen.has(section)) invalid();
+      seen.add(section);
+      if (section === 'version' || section === 'edition') scalar = '';
+    } else if (depth === 3 && section === 'inputs') {
+      if (tag.local !== 'input' || !unqualified(tag)) invalid();
+      const attribute = (name: string) => {
+        const a = tag.attributes[name];
+        return a && unqualified(a) ? a.value : undefined;
+      };
+      const key = attribute('key')?.toLowerCase();
+      const number = positiveInteger(attribute('number'));
+      const title = attribute('title');
+      const type = attribute('type');
+      if (!key || !VMIX_INPUT_KEY.test(key) || number === undefined || title === undefined || !type?.trim() ||
+        keys.has(key) || numbers.has(number)) return invalid();
+      keys.add(key);
+      numbers.add(number);
+      inputs.push({ key, number, title, type });
+    } else if (depth === 3 && section === 'overlays') {
+      const number = tag.attributes.number;
+      channel = number && unqualified(number) ? positiveInteger(number.value) : undefined;
+      if (tag.local !== 'overlay' || !unqualified(tag) || Object.keys(tag.attributes).length !== 1 ||
+        channel === undefined || reportedOverlays.has(channel)) invalid();
+      scalar = '';
+    }
+  });
+  parser.on('text', text => {
+    if (scalar !== undefined) scalar += text;
+    else if ((depth === 1 || (depth === 2 && section !== undefined)) && !XML_SPACE.test(text)) invalid();
+  });
+  const noMarkup = () => {
+    if (scalar !== undefined || (depth === 2 && section === 'overlays')) invalid();
+  };
+  parser.on('comment', noMarkup);
+  parser.on('processinginstruction', noMarkup);
+  parser.on('cdata', () => {
+    noMarkup();
+    if (depth <= 1 || (depth === 2 && section === 'inputs')) invalid();
+  });
+  parser.on('closetag', () => {
+    if (scalar !== undefined) {
+      if (channel !== undefined) {
+        const occupant = trimXml(scalar);
+        if (occupant) {
+          const input = positiveInteger(occupant);
+          if (input === undefined) return invalid();
+          overlays.set(channel, input);
+        }
+        // An explicit empty channel is distinct from one vMix omitted.
+        reportedOverlays.add(channel);
+        channel = undefined;
+      } else if (section === 'version') version = trimXml(scalar);
+      else edition = scalar.trim();
+      scalar = undefined;
+    }
+    if (depth === 2) section = undefined;
+    depth -= 1;
+  });
+
+  try {
+    parser.write(xml).close();
+  } catch {
+    return;
+  }
+  if (!VMIX_VERSION.test(version) || !edition || !seen.has('inputs') || !seen.has('overlays')) return;
+  return { version, edition, inputs, overlays, reportedOverlays };
 }

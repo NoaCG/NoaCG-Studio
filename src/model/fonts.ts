@@ -543,6 +543,21 @@ function ruleFace(rule: string): BundledFont | undefined {
   return file ? FONTS.find((f) => f.file === file || latinExtFile(f) === file) : undefined;
 }
 
+/**
+ * SVG imports may keep the artwork's original family name while loading a bundled face.
+ * Resolve it only when all declarations for that family name the same bundled face.
+ */
+export function bundledFontAlias(value: string, css: string): BundledFont | undefined {
+  const family = stackFamily(value)?.toLowerCase();
+  if (!family || fontByStack(value) || !css.includes('@font-face')) return undefined;
+  const faces = [...css.matchAll(/@font-face\s*\{[^}]*\}/g)]
+    .map(([rule]) => rule)
+    .filter(rule => ruleFamily(rule)?.toLowerCase() === family)
+    .map(ruleFace);
+  const face = faces[0];
+  return face && faces.every(candidate => candidate === face) ? face : undefined;
+}
+
 /** Just past the `;` that ends a rule's `src` declaration, or -1. A scan rather than a regex: the
  *  `;` inside a quoted string or a `url(...)` (a data: URL has one) does not end it. */
 function srcDeclarationEnd(rule: string): number {

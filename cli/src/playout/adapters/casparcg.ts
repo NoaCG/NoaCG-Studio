@@ -39,7 +39,7 @@ import type {
   Target,
   TargetCapability,
   VmixInfo,
-  VmixOverlayState,
+  VmixStateReply,
 } from '../protocol.js';
 import { UsageError } from '../../output.js';
 
@@ -49,6 +49,10 @@ export type AdapterResult<T> = { ok: true; value: T; raw: string } | { ok: false
 export interface ActContext {
   /** What this Bridge queued behind the clip with AUTO that has not aired yet. */
   follower?: Follower;
+  /** The actual loopback HTTP listener port for a new vMix Browser address. */
+  vmixBridgePort?: number;
+  /** The HTTP arrival time, before a vMix action waits for its slot and TCP port. */
+  receivedAt?: number;
 }
 
 /** What an action left behind the clip: the file now queued with AUTO, `null` for nothing, and
@@ -77,7 +81,7 @@ export interface PlayoutAdapter<T extends Target = Target> {
    *  §6.9): the page offers a control only when the target can honour it. */
   capabilities(version?: string): { lists: ItemKind[]; thumbnails: boolean; verbs: PlayoutVerb[]; target: TargetCapability[] };
   /** `vmix` is what a vMix target is, which `/status` and `/connect` pass on. */
-  status(target: T): Promise<AdapterResult<{ version: string; vmix?: VmixInfo }>>;
+  status(target: T, receivedAt?: number): Promise<AdapterResult<{ version: string; vmix?: VmixInfo }>>;
   list(target: T, kind: ItemKind, path?: string): Promise<AdapterResult<ListItem[]>>;
   /** Where the library can play, for a target that has renderers of its own (OGraf). */
   renderers?(target: T): Promise<AdapterResult<PlayoutRenderer[]>>;
@@ -88,7 +92,7 @@ export interface PlayoutAdapter<T extends Target = Target> {
   /** What each layer of one channel holds, for a target that can say (`/state`). */
   state?(target: T, channel: number): Promise<AdapterResult<SlotReading[]>>;
   /** What each overlay channel holds, for a target that has them (vMix's `/state`). */
-  overlays?(target: T): Promise<AdapterResult<VmixOverlayState[]>>;
+  overlays?(target: T, outputUrl?: string, context?: Pick<ActContext, 'receivedAt' | 'vmixBridgePort'>): Promise<AdapterResult<Pick<VmixStateReply, 'vmix' | 'overlays' | 'loadProblem'>>>;
   /** Queue what plays when the clip on the slot ends, for a target that runs sequences. */
   follow?(target: T, slot: Slot, next: FollowWith): Promise<ActResult>;
 }
