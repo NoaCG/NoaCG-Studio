@@ -74,7 +74,7 @@
       "sourceSha": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
       "branch": "codex/plan-editor-r1-5-e3-build",
       "worktree": "/workspace/noacg-editor-r1-5-e3-build",
-      "note": "Fresh E3 builder active; E2 PASS preserved with unrelated clock failure disposition; automatic quarantine2382 complete after actual terminal checks. E3 native structured-tool compatibility under Rules-first review."
+      "note": "E3 builder active finishing reviewable changes after first corrected-help recheck safely refused malformed output; real quality unverified. Paid calls stopped; fresh independent read-only diagnose requested. E2/quarantine closure preserved."
     }
   ],
   "owner": [],
@@ -641,7 +641,7 @@
       "grade": "AGREE/A"
     },
     "baseline": "j-0013 PASS28/28, no skips; j-0014 reproduced missing grounded general help",
-    "currentWork": "Help/Edit and offline guide committed dbc3ceb2150d987807e7d5da03d1537a77926ea9; j-0016 PASS46/46. Real-model compatibility diagnosed by actual HTTP400 before narrow Rules-first fix. Independent final review/PR not yet complete.",
+    "currentWork": "Corrected grounded guide committed b08176a14; targeted40browser cases PASS,531 gateway tests PASS,21selected Node PASS. Corrected-help real quality still mandatory missing after single recheck malformed output. No PR yet and no queue authorized.",
     "accessEvidence": {
       "configuredBackend": "production; no auth/query allowed or attempted",
       "stagingRef": "garafohbzmsybtysxphb",
@@ -695,9 +695,15 @@
       "sample": "original six-task evaluation, all HTTP200 one attempt, estimatedUSD0.104124; machineExecutionPASS only",
       "independentActor": "/root/editor_r15_e3_builder/e3_model_quality",
       "finding": "5/6 quality; help-out FAIL: invented Rehearse/Next controls in authoring timeline. Original answer/output/finding retained. Successful reviewed edits/default/position/create/atomic-refusal individually correct.",
-      "current": "first grounded-guide correction, then separate exactly ONE help-out quality recheck, independent assessment required",
+      "current": "Paid calls stopped. Finish unaffected evidence, source/check/review and concrete draft/blocked PR; one fresh read-only independent diagnose requested under existing shared loop. No further product/model action before verdict/authority reconciliation.",
       "budget": "original sample cap6 unchanged; cumulativeUSD2 unchanged; recheck1call/1attempt, same provider/native model/key/funding/no fallback. No further paid call authorized by this coordinator instruction.",
-      "access": "Real self-hosted managed/BYOK; hosted guards/rate-limit/timeout/ownership simulated in applicable gateway tests. Generic assistant has per-IP60/60s cap, not distinct Lite/Pro daily allowance surface; exact source mapping pending independent review."
+      "access": "Real self-hosted managed/BYOK; hosted guards/rate-limit/timeout/ownership simulated in applicable gateway tests. Generic assistant has per-IP60/60s cap, not distinct Lite/Pro daily allowance surface; exact source mapping pending independent review.",
+      "firstRecheck": {
+        "job": "j-0028",
+        "source": "b08176a144de3ff8d8d3656f819de5c5d5d22f4c",
+        "result": "HTTP502 malformed_response, expected structured result absent, retryablefalse; one product call/no fallback; safe refusal/no source write",
+        "quality": "corrected-help UNVERIFIED; not a repeated hallucination finding; original six sample remains5of6"
+      }
     }
   }
 }
