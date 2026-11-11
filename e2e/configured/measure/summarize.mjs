@@ -119,6 +119,10 @@ for (const c of CASES) {
   const ok = all.filter((x) => !('failed' in x));
   const durations = ps.flatMap((x) => x.publishes.durations ?? []);
   const base = takeSamples('takes-a', 'graphic', c);
+  const pubErrors = ps.reduce((a, x) => a + (x.publishes.errorCount ?? x.publishes.errors?.length ?? 0), 0);
+  if (pubErrors) failures.push(`publish loop, ${caseName[c]}: ${pubErrors} publishes failed (${[...new Set(ps.flatMap((x) => x.publishes.errors ?? []))].join('; ')})`);
+  const failedPresses = all.filter((x) => 'failed' in x).map((x) => x.failed);
+  if (failedPresses.length) failures.push(`press during a publish, ${caseName[c]}: ${[...new Set(failedPresses)].join('; ')}`);
   p(`| ${caseName[c]} | ${n(stat(ok.map((x) => x.total), all.length - ok.length))} | ${s(stat(ok.map((x) => x.total)))} | ${s(base?.total)} | ${s(stat(durations))} | ${durations.length} |`);
 }
 p();
@@ -138,6 +142,7 @@ for (const [kind, label] of KINDS) {
     if (!rows.length) continue;
     const tot = rows.map((r) => r.op.up + r.op.down + r.output.up + r.output.down);
     const failed = rows.filter((r) => r.failed).length;
+    if (failed) failures.push(`${label}, ${caseName[c]}: ${failed} of ${rows.length} never reached the output`);
     const prep = rows.filter((r) => !r.failed).map((r) => r.pressToOutputPrepared);
     if (kind !== 'cue-edit') (updateTimes[c] ??= { v: [], f: 0 }).v.push(...prep), (updateTimes[c].f += failed);
     const loads = rows.flatMap((r) => r.newFrameLoads ?? []);

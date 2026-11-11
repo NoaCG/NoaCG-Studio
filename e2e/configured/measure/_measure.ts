@@ -14,7 +14,9 @@ import { dirname } from 'node:path';
 /** One stamped event, in epoch milliseconds on the page's high-resolution clock. */
 export interface Stamp { t: number }
 export interface Press extends Stamp { kind: string; target: string | null; key?: string }
-export interface Sent extends Stamp { name: string; end?: number; status?: number; failed?: string; body?: string }
+/** A fetch the page made. For a command send, `sid` is the press's sender id (one per press, kept
+ *  by its resends, src/control/seqSend.ts `senderBody`) and `kinds` the message types it carries. */
+export interface Sent extends Stamp { name: string; end?: number; status?: number; failed?: string; sid?: string; kinds?: string[] }
 export interface FramePlay { graphic: string; playAt: number; dispatchAt: number | null }
 
 /**
@@ -26,6 +28,7 @@ export const OPERATOR_STAMPS = () => {
   if (window.top !== window) return;
   const w = window as unknown as { __lpm: { presses: unknown[]; sends: unknown[] } };
   w.__lpm = { presses: [], sends: [] };
+  (w.__lpm as unknown as { allSids: string[] }).allSids = [];
   const now = () => performance.timeOrigin + performance.now();
   const target = (e: Event) => {
     const el = e.target as Element | null;
@@ -66,7 +69,15 @@ export const OPERATOR_STAMPS = () => {
   window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     const rec: Record<string, unknown> = { name: nameOf(url), t: now() };
-    if (/control_send_seq|control_send_many/.test(url) && typeof init?.body === 'string') rec.body = init.body.slice(0, 2000);
+    if (/control_send_seq|control_send_many/.test(url) && typeof init?.body === 'string') {
+      try {
+        const b = JSON.parse(init.body) as { p_sender?: { id?: string }; p_items?: { msg?: { t?: string } }[] };
+        rec.sid = b.p_sender?.id;
+        // Kept across `clearLpm`: a late resend of a press made before the clear is still known.
+        if (rec.sid) (w.__lpm as unknown as { allSids: string[] }).allSids.push(rec.sid as string);
+        rec.kinds = (b.p_items ?? []).map((i) => String(i.msg?.t ?? '?'));
+      } catch { /* not JSON: matched by name alone */ }
+    }
     w.__lpm.sends.push(rec);
     return original(input, init).then(
       (r) => { rec.end = now(); rec.status = r.status; return r; },
@@ -124,7 +135,7 @@ export async function instrument(context: BrowserContext): Promise<void> {
   await context.addInitScript(FRAME_STAMPS);
 }
 
-export type Lpm = { presses: Press[]; sends: Sent[]; frames?: { t: number; data: string }[] };
+export type Lpm = { presses: Press[]; sends: Sent[]; frames?: { t: number; data: string }[]; allSids?: string[] };
 export const readLpm = (page: Page): Promise<Lpm> =>
   page.evaluate(() => (window as unknown as { __lpm: { presses: Press[]; sends: Sent[] } }).__lpm);
 export const clearLpm = (page: Page): Promise<void> =>

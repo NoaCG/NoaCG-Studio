@@ -53,6 +53,7 @@ function attribute(lpm: Lpm, press: number, sent: Sent) {
   const total = sent.t - press;
   return {
     total,
+    kinds: sent.kinds,
     own: total - keptMs,
     keptMs,
     kept: { inflight: kept.inflight.length > 0, road: kept.road.length > 0, ordered: kept.ordered.length > 0 },
@@ -85,11 +86,13 @@ async function settle(op: Page, quietMs = 250, timeout = 20_000, only?: RegExp) 
 }
 
 /** The first matching send that started at or after `after`, waited for. */
-async function sentAfter(op: Page, after: number, match: RegExp, timeout = 15_000): Promise<{ lpm: Lpm; sent: Sent } | null> {
+/** The first matching send that started at or after `after` and belongs to a NEW press: a command
+ *  send whose sender id was already seen (`seen`, an earlier press or its resend) is not it. */
+async function sentAfter(op: Page, after: number, match: RegExp, timeout = 15_000, seen: Set<string> = new Set()): Promise<{ lpm: Lpm; sent: Sent } | null> {
   const end = Date.now() + timeout;
   for (;;) {
     const lpm = await readLpm(op);
-    const sent = lpm.sends.find((s) => s.t >= after && match.test(s.name));
+    const sent = lpm.sends.find((s) => s.t >= after && match.test(s.name) && !(s.sid && seen.has(s.sid)));
     if (sent) return { lpm, sent };
     if (Date.now() > end) return null;
     await op.waitForTimeout(15);
@@ -98,13 +101,17 @@ async function sentAfter(op: Page, after: number, match: RegExp, timeout = 15_00
 
 const pressOf = (lpm: Lpm, target: string) => [...lpm.presses].reverse().find((p) => p.kind === 'click' && p.target === target)?.t ?? null;
 
-type Sample = { total: number; own: number; keptMs: number; kept: Record<string, boolean>; others: string[] } | { failed: string };
+type Sample = { total: number; own: number; keptMs: number; kept: Record<string, boolean>; others: string[]; kinds?: string[] } | { failed: string };
 
 /** One clicked press, measured: click `button`, find its send. */
+/** Sender ids the page has already used: a send carrying one of them answers an earlier press. */
+const sidsOf = (lpm: Lpm) => new Set(lpm.allSids ?? []);
+
 async function pressAndMeasure(op: Page, button: Locator, testId: string, match: RegExp): Promise<Sample> {
+  const seen = sidsOf(await readLpm(op));
   const before = await nowOn(op);
   await button.click();
-  const got = await sentAfter(op, before, match);
+  const got = await sentAfter(op, before, match, 15_000, seen);
   if (!got) return { failed: `no ${match} after ${testId}` };
   const press = pressOf(got.lpm, testId);
   if (press === null) return { failed: `no press stamp for ${testId}` };
@@ -115,11 +122,13 @@ async function pressAndMeasure(op: Page, button: Locator, testId: string, match:
 async function secondOfTwo(op: Page, button: Locator, testId: string, match: RegExp): Promise<Sample> {
   const before = await nowOn(op);
   await button.click();
-  const first = await sentAfter(op, before, match);
+  const first = await sentAfter(op, before, match, 15_000, sidsOf(await readLpm(op)));
   if (!first) return { failed: `no first ${match}` };
+  // Every send so far, the first press's included, belongs to an earlier press.
+  const seen = sidsOf(await readLpm(op));
   const mid = await nowOn(op);
   await button.click();
-  const got = await sentAfter(op, Math.max(mid, first.sent.t + 0.01), match);
+  const got = await sentAfter(op, Math.max(mid, first.sent.t + 0.01), match, 15_000, seen);
   if (!got) return { failed: `no second ${match} after ${testId}` };
   const press = pressOf(got.lpm, testId);
   if (press === null) return { failed: `no press stamp for ${testId}` };
@@ -328,15 +337,23 @@ test('takes-c', async ({ page, browser }) => {
     const seen = (await deck.state()).ver as number;
     // The relay takes ids shaped `name:number` (supabase/migrations/0110_panel_last_press.sql).
     const id = `lp2deck:${2 * i + 1}`;
-    const press = performance.timeOrigin + performance.now();
+    // This process and the page keep separate clocks. Read the page's clock between two of ours
+    // and move the press onto the page's clock by the midpoint; half the bracket is the error,
+    // kept with the sample.
+    const before = sidsOf(await readLpm(page));
+    const a0 = performance.timeOrigin + performance.now();
+    const pageNow = await nowOn(page);
+    const a1 = performance.timeOrigin + performance.now();
+    const offset = pageNow - (a0 + a1) / 2;
+    const press = performance.timeOrigin + performance.now() + offset;
     const r = await deck.press('take-cue', target.id, seen, id);
-    const got = r.outcome === 'ran' ? await sentAfter(page, press - 5, SEND) : null;
+    const got = r.outcome === 'ran' ? await sentAfter(page, press, SEND, 15_000, before) : null;
     if (!got) samples.panel.push({ failed: `panel take ${r.outcome}` });
     else {
       const a = attribute(got.lpm, press, got.sent);
       const arrived = (got.lpm.frames ?? []).find((f) => f.data.includes(`"${id}"`));
       const reachedPage = arrived ? arrived.t : null;
-      samples.panel.push({ ...a, own: reachedPage !== null ? got.sent.t - reachedPage - a.keptMs : NaN, others: [...a.others, reachedPage === null ? 'no-frame-stamp' : 'frame-stamped'] });
+      samples.panel.push({ ...a, own: reachedPage !== null ? got.sent.t - reachedPage - a.keptMs : NaN, clockError: (a1 - a0) / 2, others: [...a.others, reachedPage === null ? 'no-frame-stamp' : 'frame-stamped'] } as Sample);
     }
     await settle(page);
     const again = (await deck.state()).ver as number;
@@ -377,7 +394,14 @@ test('render', async ({ page, browser }) => {
     const before = await nowOn(page);
     await page.getByTestId('verb-take').click();
     const got = await sentAfter(page, before, SEND);
-    if (!got) { failures.push('no send'); continue; }
+    if (!got) {
+      failures.push('no send');
+      // Take it off before the next sample, so a late Take cannot be read as that sample's.
+      await page.getByTestId('verb-out').click();
+      await settle(page);
+      await page.waitForTimeout(1_200);
+      continue;
+    }
     const sent = got.sent.t;
     // Wait for the picture and the stamps.
     let seen: { t: number } | undefined, idx = -1;
@@ -434,13 +458,17 @@ test('publish', async ({ page, browser }) => {
   await page.evaluate(async (id) => {
     const { loadShows } = await import('/src/model/shows.ts');
     const { publishControlShow } = await import('/src/control/hostedControl.ts');
-    const w = window as unknown as { __lpPub: { on: boolean; windows: [number, number][]; errors: string[] } };
-    w.__lpPub = { on: true, windows: [], errors: [] };
+    const w = window as unknown as { __lpPub: { on: boolean; windows: [number, number][]; errors: string[]; running: number | null } };
+    w.__lpPub = { on: true, windows: [], errors: [], running: null };
     void (async () => {
       while (w.__lpPub.on) {
         const t0 = performance.timeOrigin + performance.now();
-        try { await publishControlShow(loadShows().find((s) => s.id === id)!); } catch (e) { w.__lpPub.errors.push(String(e)); }
-        w.__lpPub.windows.push([t0, performance.timeOrigin + performance.now()]);
+        w.__lpPub.running = t0;
+        let ok = true;
+        try { await publishControlShow(loadShows().find((s) => s.id === id)!); } catch (e) { ok = false; w.__lpPub.errors.push(String(e)); }
+        w.__lpPub.running = null;
+        // Only a publish that completed counts as one running.
+        if (ok) w.__lpPub.windows.push([t0, performance.timeOrigin + performance.now()]);
         await new Promise((r) => setTimeout(r, 20));
       }
     })();
@@ -455,10 +483,10 @@ test('publish', async ({ page, browser }) => {
     const s = await pressAndMeasure(page, page.getByTestId('verb-take'), 'verb-take', SEND);
     const lpm = await readLpm(page);
     const press = pressOf(lpm, 'verb-take');
-    const windows = await page.evaluate(() => (window as unknown as { __lpPub: { windows: [number, number][] } }).__lpPub.windows);
-    // A press inside a finished window, or after the start of the window still running.
-    const lastEnd = windows.length ? windows[windows.length - 1][1] : 0;
-    const inside = press !== null && (windows.some(([a, b]) => press >= a && press <= b) || press > lastEnd + 25);
+    const { windows, running } = await page.evaluate(() => (window as unknown as { __lpPub: { windows: [number, number][]; running: number | null } }).__lpPub);
+    // During a publish: inside a completed publish, or after the start of the one still running.
+    // A press in the gap between two publishes is not.
+    const inside = press !== null && (windows.some(([a, b]) => press >= a && press <= b) || (running !== null && press >= running));
     (inside ? during : outside).push(s);
     // The publish loop never goes quiet: wait for the Take's and the Out's own sends only.
     await settle(page, 150, 20_000, SEND);
@@ -468,7 +496,7 @@ test('publish', async ({ page, browser }) => {
   const pub = await page.evaluate(() => { const w = window as unknown as { __lpPub: { on: boolean; windows: [number, number][]; errors: string[] } }; w.__lpPub.on = false; return w.__lpPub; });
   report('publish', { duringPublish: during, outsidePublish: outside }, {
     fixtureFacts: fx,
-    publishes: { n: pub.windows.length, ms: summary(pub.windows.map(([a, b]) => b - a)), durations: pub.windows.map(([a, b]) => b - a), errors: pub.errors.slice(0, 3) },
+    publishes: { n: pub.windows.length, ms: summary(pub.windows.map(([a, b]) => b - a)), durations: pub.windows.map(([a, b]) => b - a), errors: pub.errors.slice(0, 3), errorCount: pub.errors.length },
   });
 });
 
