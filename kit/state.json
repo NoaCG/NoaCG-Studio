@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
+      "phase": "v4",
+      "note": "GitHub Codex and independent reviewer reproduced the accepted All out navigation issue. Read-only reassessment active before patch. Prior local Chromium withdrawn before execution.",
       "head": "c48787975d71ed1a15082ebd9a15cfe321d8e9ee",
       "step": "build",
-      "phase": "v4",
-      "session": "/root/v4_final_exact_review",
-      "pr": 2378,
-      "note": "Prior exact review found a browser assertion count error and no product defect. Fixed test action counts and matched the held reply by request identity. Fresh review, local Chromium j-5239 and normal CI 43075178983 pending."
+      "session": "/root/v4_all_out_reassessment",
+      "pr": 2378
     }
   ],
   "owner": [],
