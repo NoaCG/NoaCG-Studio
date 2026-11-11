@@ -5,9 +5,9 @@
   "spec": "docs/work-specs/editor-r1-5/spec.md",
   "issue": 2295,
   "coordinator": {
-    "return": "Return your exact evidence to the active coordinator through this native Codex worker.",
-    "environment": "codex-desktop-windows",
-    "session": "01a1bcc9-81d3-7782-8cc7-198b5e9a40c6"
+    "return": "Return native final receipt to /root in active Cloud chat 6af455f4-b1c8-8191-86b2-8bfdfc619075",
+    "environment": "ccarenv_b64_Y2NhcmVudl9mOGJiMmY0OWI4ZjA4MTkxYjE5YjAzNDFjZjcxMmRiYg",
+    "session": "6af455f4-b1c8-8191-86b2-8bfdfc619075"
   },
   "authorization": {
     "line": "Execution mode: I explicitly authorize ACTIVE LOCAL Codex execution. This supersedes the draft's requested unattended mode. Record this later decision in the launch receipt and use execution harness codex, mode active.",
@@ -73,7 +73,7 @@
       "step": "build",
       "sourceSha": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
       "actionId": "plan-editor-r1-5-2026-11-08:3",
-      "note": "Clean pushed E2 PR #2374 9c5ae192. Independent A, clean Codex, and CI gate passed. Sole outstanding targeted Windows run j-5229 cancelled before starting at 2.26 GB free. Dependency wait, no active worker or wake, no PR stamp or queue.",
+      "note": "Original Windows builder terminal and no live jobs/wake. Same E2 attempt resumes at exact reviewed 9c5ae192 on qualified active Cloud; browser verification pending; PR unstamped and unqueued.",
       "worktree": "C:/claude/Temp/editor-r15-e2-build-1111",
       "head": "9c5ae1926d6662e0e2806f3233be85b83972f166",
       "pr": 2374
@@ -239,7 +239,7 @@
   },
   "e2Checkpoint": {
     "pr": 2374,
-    "resume": "When normal Windows admission is available, resume the same E2 attempt at 9c5ae192 and rerun the targeted selection from j-5229 under the normal guard. After it passes, verify the final /check, reconcile current main, stamp and queue PR #2374. Independently check its actual merge before E3.",
+    "resume": "Resume the same admitted E2 build at exact 9c5ae192 on qualified Cloud. Complete targeted browser verification and /check, reconcile current main, then coordinator queues PR #2374 and independently checks the actual merge before E3.",
     "repairOwnerComment": 6787343956,
     "head": "9c5ae1926d6662e0e2806f3233be85b83972f166",
     "ci": 43001220919,
@@ -266,7 +266,53 @@
       "ci": "CI gate 130466210042 passed in exact 43001220919: Build, Factory, Catalog, all 15 Chromium shards (210 selected), four configured stacks (64 selected), selected verdict and combined report passed. Whole workflow failed only at Reviewed pending stamp. Exact Codex review clean on 9c5ae192."
     }
   },
-  "waitingOn": {
-    "what": "Windows browser test needs 4.0 GB free. E2 stops before queue until normal admission is available."
+  "waitingOn": {},
+  "cloudContinuation": {
+    "at": "2026-11-11T11:52:56.956Z",
+    "ownerInstruction": "Start a Codex Cloud chat in the NoaCG-Studio environment and resume $plan-run editor-r1-5 from the saved E2 checkpoint. Continue the same run.",
+    "priorCoordinator": {
+      "session": "01a1bcc9-81d3-7782-8cc7-198b5e9a40c6",
+      "title": "Run editor-r1-5 plan",
+      "latestTurn": "01a1ca69-349e-7b93-84a5-b1ec52dc7217",
+      "status": "completed",
+      "decision": "E2 BL browser/export checks and E3 may run in qualified Cloud. Prior Windows-only statement corrected. E4, E5 and E6 retain their required setups."
+    },
+    "nativeStop": "Previous coordinator and builder terminal; saved checkpoint records original worker /root/editor_r15_e2_builder stopped, no live E2 jobs or wakes. j-5229 cancelled before start. No pending supervisor action.",
+    "session": "6af455f4-b1c8-8191-86b2-8bfdfc619075",
+    "environment": "ccarenv_b64_Y2NhcmVudl9mOGJiMmY0OWI4ZjA4MTkxYjE5YjAzNDFjZjcxMmRiYg",
+    "execution": {
+      "harness": "codex",
+      "mode": "active"
+    },
+    "coordinatorProbes": [
+      "2026-11-11T11:51:18.928Z",
+      "2026-11-11T11:51:31.720Z"
+    ],
+    "workerProbe": {
+      "actor": "/root/editor_r15_cloud_qual",
+      "nonce": "editor-r15-cloud-route-20261111T115131Z",
+      "at": "2026-11-11T11:52:50.845Z",
+      "final": "2026-11-11T11:52:56.956Z",
+      "head": "e9b0c550082c540c925e2cce25ffdee093d2d7b3",
+      "worktree": "/workspace/noacg-editor-r1-5-route-probe",
+      "result": "PASS workspace child, Git main, Actions API; clean worktree; native final received"
+    },
+    "resources": {
+      "cpus": 4,
+      "memoryGiB": 16,
+      "freeMiB": 15891,
+      "browserWorkers": 2,
+      "limitsFullyObserved": false
+    },
+    "limitations": "Same-VM fresh workers; no independently hosted child or unattended wake/host-loss recovery qualified. Current active coordinator retains PR ownership.",
+    "policy": {
+      "filesystem": "read-only; scoped writes via individually reviewed require_escalated shell commands",
+      "network": "managed proxy, current policy enforced; explicit shell network permission",
+      "provider": "codex",
+      "model": "inherited; unchanged",
+      "mode": "active",
+      "wakes": false
+    },
+    "policySha256": "e98bb906d11135315a03089318428c48a6d31ffd80b0a405a672044338c14694"
   }
 }
