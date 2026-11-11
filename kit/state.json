@@ -36,16 +36,18 @@
  },
  "waitingOn": [
   {
-   "what": "PR #2389 merge, then launch the phase 3 check on its merge",
-   "eta": "2026-11-11T20:30:00Z"
+   "what": "phase 3 checker verdict",
+   "eta": "2026-11-11T21:30:00Z"
   }
  ],
  "inFlight": [
   {
    "phase": "3",
-   "step": "fix #2388 (owner B), before the phase 3 check",
-   "session": "session_017SdbwQBunbe22rioNbxXpN",
-   "launchedAt": "2026-11-11T16:49:52Z"
+   "step": "check",
+   "actor": "checker-3-3-c-448a",
+   "session": "session_017SdbwPRKQgBfYAwbV51Qzv",
+   "mergeSha": "92e581a7 (fix) over c0bc989f (phase)",
+   "launchedAt": "2026-11-11T20:03:44Z"
   }
  ],
  "owner": [
@@ -73,7 +75,7 @@
   {
    "what": "Phase 3 AC-1 repair (owner B): run the owed edit save after the press",
    "issue": 2388,
-   "state": "in merge queue 19:47:58Z",
+   "state": "landed 92e581a7af13312ec4eb3474dcc812b7406f672e",
    "session": "session_017SdbwQBunbe22rioNbxXpN",
    "branch": "claude/plan-live-publishing-fix-2388",
    "source": "c0bc989f77bb6523fbe718bd2299f1518d749305",
@@ -88,7 +90,8 @@
  },
  "traps": [
   "A cloud worker container restart (~2026-11-11T01:40Z) stops dockerd and a local job queue; results in /tmp survived. Long local campaigns should be resumable. Add to docs/plan-runs/known-traps.md at the end of the run if it recurs.",
-  "Local Supabase stack on a cloud worker: dockerd + iproute2 + supabase CLI 2.111.0 + SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io (phase 2 builder). Add to docs/plan-runs/known-traps.md."
+  "Local Supabase stack on a cloud worker: dockerd + iproute2 + supabase CLI 2.111.0 + SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io (phase 2 builder). Add to docs/plan-runs/known-traps.md.",
+  "The ledger takes one landed per phase; an owner-approved repair that lands after it is checked on its own merge, with the PASS receipt naming the phase landing SHA and mergeChecks for both (phase 3, 2026-11-11)."
  ],
  "heartbeat": {
   "issue": 2361,
