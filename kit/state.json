@@ -42,16 +42,7 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {},
-  "inFlight": [
-    {
-      "phase": "v3",
-      "session": "/root/v3_builder",
-      "note": "Exact independent A, 133 focused tests, 70 changed checks, package health and owned AC-8 clips/audio PASS. Normal PR checks running. Computer Use stopped AC-9 automation; manual picker visibility/persistence required. Draft unqueued.",
-      "head": "e85660d8087d617e1acb777f2468c5e01100ce3b",
-      "step": "build",
-      "pr": 2368
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [],
   "triggers": []
