@@ -847,7 +847,13 @@
         "liveFile": "/workspace/noacg-editor-r1-5-state/17e47924/e3-pr2386-live.json",
         "deadline": "2026-11-12T10:00:00Z"
       },
-      "observation": "verification-dispatch observed first; custom helper inputs/default schema unresolved advisory; original dispatch executed once. No resubmission/alternate status route."
+      "observation": "verification-dispatch observed first; custom helper inputs/default schema unresolved advisory; original dispatch executed once. No resubmission/alternate status route.",
+      "mergeGroup": {
+        "run": 43041147227,
+        "candidateSha": "a387d69db5d02ac6e15d4d8e81f3674fb817e0e7",
+        "branch": "gh-readonly-queue/main/pr-2386-7e1ae4cf80f8fe302aa6a0ee0381537aa72354f4",
+        "status": "in_progress; candidate only, no actualmerge claim"
+      }
     }
   }
 }
