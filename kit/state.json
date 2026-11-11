@@ -49,22 +49,21 @@
  "waitingOn": [],
  "inFlight": [
   {
-   "phase": "cf17",
-   "step": "build",
-   "session": "session_017SdbwR5CFaeV77jgyULQ9U",
-   "nonce": "cf17-b-dba6",
-   "launchedAt": "2026-11-10T17:31:44Z",
-   "note": "two PRs: stage 1 criteria (nonce cf17-b-dba6-s1), then result after ~3-day window",
-   "trialStart": "2026-11-10T19:38:54Z",
-   "trialEnd": "2026-11-13T19:38:54Z"
-  },
-  {
    "phase": "owner-growth",
    "step": "build",
    "session": "session_017SdbwMBepf4nt2hwUQBL8Y",
    "nonce": "growth-b-1111",
    "launchedAt": "2026-11-11T12:00:31Z",
    "note": "CI gate change will end cf03 sides and lands during the cf17 trial window; record both."
+  },
+  {
+   "phase": "cf17",
+   "step": "check",
+   "session": "session_017SdbwMe4Kw9SwaEi6kZZEM",
+   "nonce": "cf17-c-cf93",
+   "launchedAt": "2026-11-11T18:02:42Z",
+   "mergeSha": "ada1c781b162916f962501298506873c42a47954",
+   "pr": 2390
   }
  ],
  "owner": [],
