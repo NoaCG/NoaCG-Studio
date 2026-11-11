@@ -1253,6 +1253,14 @@ export async function actVmix(
 const VMIX_MEDIA_FOLDER_CHANGED = 'noacg-vmix-media-folder';
 const mediaFolderListeners = new Set<() => void>();
 let mediaFolderChannel: BroadcastChannel | undefined;
+let mediaFolderRevision = 0;
+
+export const vmixMediaFolderRevision = () => mediaFolderRevision;
+
+function signalVmixMediaFolderChange(): void {
+  mediaFolderRevision += 1;
+  for (const listener of mediaFolderListeners) listener();
+}
 
 function mediaBridgeUrl(settings: Pick<PlayoutSettings, 'agentUrl'>): string {
   return settings.agentUrl.replace(/\/+$/, '');
@@ -1264,7 +1272,7 @@ export function watchVmixMediaFolder(onChange: () => void): () => void {
     mediaFolderChannel = new BroadcastChannel(VMIX_MEDIA_FOLDER_CHANGED);
     mediaFolderChannel.onmessage = ({ data }) => {
       if (data === mediaBridgeUrl(loadPlayoutSettings())) {
-        for (const listener of mediaFolderListeners) listener();
+        signalVmixMediaFolderChange();
       }
     };
   }
@@ -1278,7 +1286,7 @@ export function watchVmixMediaFolder(onChange: () => void): () => void {
 }
 
 function announceVmixMediaFolder(settings: PlayoutSettings): void {
-  for (const listener of mediaFolderListeners) listener();
+  signalVmixMediaFolderChange();
   if (typeof BroadcastChannel !== 'function') return;
   const channel = mediaFolderChannel ?? new BroadcastChannel(VMIX_MEDIA_FOLDER_CHANGED);
   channel.postMessage(mediaBridgeUrl(settings));
@@ -1305,7 +1313,7 @@ export async function listVmixMedia(settings: PlayoutSettings, path = ''): Promi
     const leaf = item.name.slice(prefix.length);
     return !!leaf.trim() && leaf !== '.' && leaf !== '..' && !/[/\\:*?"<>|]/.test(leaf) &&
       ['folder', 'movie', 'still', 'audio'].includes(item.kind) &&
-      (item.frames === undefined && item.fps === undefined || whole(item.frames, 1) && whole(item.fps, 1));
+      (item.frames === undefined && item.fps === undefined || whole(item.frames, 0) && whole(item.fps, 1));
   });
   return valid ? { result, items: body.items } : { result: { state: 'bridge', detail: 'NoaCG Bridge did not return a valid vMix media list. Try again.' } };
 }

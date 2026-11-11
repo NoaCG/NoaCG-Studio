@@ -1,9 +1,11 @@
-// guards: src/control/vmixSetup.ts, src/control/playoutLink.ts
+// guards: src/control/vmixSetup.ts, src/control/playoutLink.ts, src/control/prepareBridge.ts, src/control/prepareLive.ts
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import './lib/tsResolve.mjs';
 
 const { act, actVmix, actVmixMedia, finishCasparAllOut, listVmixMedia, PLAYOUT_DEFAULTS, readVmixOverlays, testVmix, vmixMediaFolder } = await import('../src/control/playoutLink.ts');
+const { gatherBridgeFacts } = await import('../src/control/prepareBridge.ts');
+const { bridgeChecks, stampOf } = await import('../src/control/prepareLive.ts');
 const { changeVmixOutput, readVmixOutput, vmixOverlay } = await import('../src/control/vmixSetup.ts');
 
 const settings = { ...PLAYOUT_DEFAULTS, agentToken: 'fixture-token', vmix: { overlay: 3 } };
@@ -911,7 +913,7 @@ test('vMix media routes use the paired token and a Take requires the current cap
     }
     assert.equal(options.headers.authorization, 'Bearer fixture-token');
     calls.push([path, JSON.parse(options.body)]);
-    if (path === '/list') return Response.json({ ...ok, items: [{ name: malformed ? '../clip.mov' : action.item.name, kind: 'movie' }] });
+    if (path === '/list') return Response.json({ ...ok, items: [{ name: malformed ? '../clip.mov' : action.item.name, kind: 'movie' }, { name: 'Replay/empty.wav', kind: 'audio', frames: 0, fps: 48000 }] });
     if (path === '/studio' || path === '/vmix/choose-folder') {
       return Response.json({ ...ok, mediaFolder: 'C:\\Videos', ...(path === '/vmix/choose-folder' ? { cancelled: true } : {}) });
     }
@@ -929,7 +931,7 @@ test('vMix media routes use the paired token and a Take requires the current cap
   assert.equal((await send()).instance, instance);
   instance = 'different.play-1';
   assert.equal((await send()).playerUncertain, true);
-  assert.deepEqual((await listVmixMedia(settings, 'Replay')).items, [{ name: action.item.name, kind: 'movie' }]);
+  assert.deepEqual((await listVmixMedia(settings, 'Replay')).items, [{ name: action.item.name, kind: 'movie' }, { name: 'Replay/empty.wav', kind: 'audio', frames: 0, fps: 48000 }]);
   malformed = true;
   assert.equal((await listVmixMedia(settings, 'Replay')).result.state, 'bridge');
   assert.equal((await vmixMediaFolder(settings)).folder, 'C:\\Videos');
@@ -942,4 +944,79 @@ test('vMix media routes use the paired token and a Take requires the current cap
     ['/studio', { target }],
     ['/vmix/choose-folder', { target }],
   ]);
+});
+
+test('Check Readiness verifies only the active adapter and the exact vMix ancestor and leaf names', async (t) => {
+  const calls = [];
+  let available = true;
+  let mixerRunning = true;
+  const delay = Promise.withResolvers();
+  const requested = Promise.withResolvers();
+  let hold = false;
+  const studio = { ...settings, host: '127.0.0.1' };
+  const items = [
+    { id: 'caspar', kind: 'media', name: 'OPENING', layer: 10 },
+    ...['Replay/Opening.mp4', 'Replay/opening.mp4', 'replay/Opening.mp4']
+      .map((name, index) => ({ id: 'vmix' + index, adapter: 'vmix', kind: 'media', name, layer: 0 })),
+  ];
+  const show = {
+    playoutItems: items,
+    cues: items.map(item => ({ id: 'cue-' + item.id, source: 'playout', sourceId: item.id, label: item.name, values: {} })),
+  };
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    const path = new URL(url).pathname;
+    if (path === '/health') return Response.json({ ...health, features: ['vmix-media'] });
+    const body = JSON.parse(options.body);
+    calls.push([body.target.adapter, path, body.path]);
+    if (path === '/status') {
+      if (body.target.adapter !== 'vmix') return Response.json({ ...ok, version: '2.5.0', raw: 'VERSION OK' });
+      return Response.json(mixerRunning ? status : {
+        ok: false, v: 2, error: { hop: 'target', code: 'unreachable', setup: 'not-running', detail: 'Start vMix.' },
+      });
+    }
+    assert.equal(path, '/list');
+    if (body.target.adapter !== 'vmix') return Response.json({ ...ok, items: [{ name: 'opening', kind: 'movie' }] });
+    if (body.path === undefined) return Response.json({ ...ok, items: [{ name: 'Replay', kind: 'folder' }] });
+    assert.equal(body.path, 'Replay', 'an exact parent listing is required before descent');
+    if (hold) {
+      requested.resolve();
+      await delay.promise;
+    }
+    if (!available) return Response.json({ ok: false, v: 2, error: { hop: 'target', code: 'refused', detail: 'Folder unavailable.' } });
+    return Response.json({ ...ok, items: [{ name: 'Replay/Opening.mp4', kind: 'movie' }] });
+  });
+  const caspar = await gatherBridgeFacts(studio, show, { bridge: true, slot: false });
+  assert.deepEqual(calls.splice(0), [['casparcg', '/status', undefined], ['casparcg', '/list', undefined]]);
+  assert.equal(bridgeChecks(caspar).find(line => line.key === 'bridge-media').tone, 'ok');
+  assert.deepEqual(caspar.items.map(item => item.name), ['OPENING']);
+  let current = true;
+  const mix = () => gatherBridgeFacts(studio, show, { bridge: false, slot: false, vmixCurrent: () => current });
+  const complete = await mix();
+  const observed = bridgeChecks(complete);
+  const files = observed.find(line => line.key === 'bridge-media');
+  assert.equal(files.tone, 'bad');
+  assert.match(files.label, /Replay\/opening\.mp4, replay\/Opening\.mp4/);
+  assert.match(files.advice, /vMix media folder/);
+  assert.deepEqual(calls.splice(0), [['vmix', '/status', undefined], ['vmix', '/list', undefined], ['vmix', '/list', 'Replay']]);
+  assert.equal(stampOf(observed, { n: 1, h: 'prepared' }, 0).problems, 1);
+  current = false;
+  assert.match(bridgeChecks(complete)[0].advice, /connection or media folder changed/, 'the final stamp rechecks a completed reading');
+  current = true;
+  mixerRunning = false;
+  const stopped = bridgeChecks(await mix());
+  assert.equal(stopped.find(line => line.key === 'bridge').tone, 'bad');
+  assert.equal(stopped.find(line => line.key === 'bridge-media').tone, 'bad', 'Bridge can still verify files with vMix stopped');
+  mixerRunning = true;
+  available = false;
+  assert.equal(bridgeChecks(await mix()).find(line => line.key === 'bridge-media').tone, 'warn');
+  available = true;
+  hold = true;
+  const older = mix();
+  await requested.promise;
+  current = false;
+  delay.resolve();
+  const superseded = bridgeChecks(await older);
+  assert.equal(stampOf(superseded, { n: 1, h: 'prepared' }, 0).problems, 1);
+  assert.equal(superseded.some(line => line.key === 'bridge-media'), false);
+  assert.match(superseded[0].advice, /connection or media folder changed/);
 });

@@ -17,6 +17,12 @@ The independent Rules review agreed with corrections. The rules above include it
 
 The independent review of `2e3b09dbd91d709ff8f20fd2172f6b6eb038659c` graded it B and found three product defects. vMix readiness and metadata lookups now use exact relative names. A folder change refreshes open pickers in tabs connected to the same Bridge, while an earlier response cannot restore the old list. Folder navigation stays available if a listed child is no longer readable.
 
+## Reassessment of file identity and late action replies
+
+The full review of `389306ae14a3abb2ef8d7c848e3d9364c97056f0` graded it B. The fresh file-rule reassessment verified that the real Windows Bridge can echo a requested parent spelling when the directory resolves case-insensitively. The shared lookup checks every vMix ancestor by its exact listed name, and both readiness paths use the active adapter. A missing entry and an unavailable reading remain distinct. The explicit check discards results from a superseded pairing or root. A zero-frame file remains in the list beside playable siblings.
+
+The action reply is also checked at the synchronous ownership fold. The new regression resolves an old Take, switches pairing before the fold and proves that the old cue never becomes actionable on the new connection.
+
 ## Allocation and rollback
 
 Codebase-health #2285 is closed. Editor #2374 and live-publishing #2376 have no overlapping paths, and #1967 records that the cf13 merge hold ended. The current shared Take/verb owners are used for adapter checks and existing CasparCG gates.

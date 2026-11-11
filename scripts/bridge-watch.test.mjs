@@ -1818,7 +1818,8 @@ test('vMix file checks use relative parent folders and never learn from a Caspar
   const vmix = vt('vmix', { name, adapter: 'vmix', layer: 0 });
   const nested = vt('nested', { name: 'Alternate/Opening.mp4', adapter: 'vmix', layer: 0 });
   const wrongCase = vt('wrong-case', { name: 'Replays/OPENING.mp4', adapter: 'vmix', layer: 0 });
-  const items = [caspar, vmix, nested, wrongCase];
+  const wrongParent = vt('wrong-parent', { name: 'replays/Opening.mp4', adapter: 'vmix', layer: 0 });
+  const items = [caspar, vmix, nested, wrongCase, wrongParent];
   const cues = items.map(item => cue('cue-' + item.id, item.id));
   const r = rig({ items });
   const oldRoot = Promise.withResolvers();
@@ -1827,7 +1828,10 @@ test('vMix file checks use relative parent folders and never learn from a Caspar
   r.io.listVmixMedia = async (_, path) => {
     paths.push(path);
     if (old) await oldRoot.promise;
-    return { result: OK, items: path === 'Replays' ? [{ name, kind: 'movie', frames: 100, fps: 25 }] : [] };
+    const items = path === '' ? [{ name: 'Replays', kind: 'folder' }, { name: 'Alternate', kind: 'folder' }]
+      : path.toLowerCase() === 'replays' ? [{ name: path + '/Opening.mp4', kind: 'movie', frames: 100, fps: 25 }]
+      : [];
+    return { result: OK, items };
   };
   const update = mediaRev => r.update({
     casparOn: false, vmixOn: true, vmixPairing: 'paired', mediaRev,
@@ -1841,11 +1845,11 @@ test('vMix file checks use relative parent folders and never learn from a Caspar
   await settle();
   oldRoot.resolve();
   await settle();
-  assert.deepEqual(new Set(paths), new Set(['Replays', 'Alternate']));
+  assert.deepEqual(new Set(paths), new Set(['', 'Replays', 'Alternate']));
   assert.deepEqual(r.take(), ['status'], 'no CasparCG file, status follow-up, or state route is used');
   assert.equal(r.learnt.length, 1);
   assert.deepEqual([...r.learnt[0][1]], [['vmix', { mediaKind: 'movie', frames: 100, fps: 25 }]]);
   const current = r.session.bridge.get().serverFiles;
   assert.equal(current.key, serverFilesKey('show-1', 'paired', cues, items, true, 1));
-  assert.equal(current.check.label, 'Unavailable vMix files: Alternate/Opening.mp4, Replays/OPENING.mp4');
+  assert.equal(current.check.label, 'Unavailable vMix files: Alternate/Opening.mp4, Replays/OPENING.mp4, replays/Opening.mp4');
 });

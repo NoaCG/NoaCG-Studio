@@ -363,3 +363,22 @@ test('vMix discards old playback ownership after a partial failure or pairing ch
   assert.equal((await old).ok, false);
   assert.deepEqual(r.h.store.ownership.get().onAir, {});
 });
+
+test('a vMix pairing change after the reply guard and before the ownership fold drops acceptance', async () => {
+  const r = vmixRig();
+  const started = Promise.withResolvers();
+  const response = Promise.withResolvers();
+  r.h.io.act = (_, action) => {
+    r.accept(action);
+    started.resolve();
+    return response.promise;
+  };
+  const pending = r.press(r.a, 'take');
+  await started.promise;
+  response.resolve({ state: 'ok', detail: 'played', generation: 1, session: 'mix', instance: 'mix.1' });
+  queueMicrotask(() => r.h.store.bindVmix('new pairing'));
+  const result = await pending;
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.accepted, []);
+  assert.deepEqual(r.h.store.ownership.get().onAir, {});
+});

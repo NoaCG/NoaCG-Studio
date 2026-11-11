@@ -80,7 +80,7 @@ export function runVmixAndRecord(
         if (result.playerUncertain) store.apply(parts => applyClearedSlot(parts, { slot }));
         return result;
       },
-    }, intent);
+    }, intent, current);
   });
 }
 
@@ -97,6 +97,7 @@ export async function runAndRecord(
   store: Pick<ServerPlayoutStore, 'ownership' | 'apply'>,
   io: ServerVerbIo,
   intent: ServerVerbIntent,
+  current?: () => boolean,
 ): Promise<ServerVerbOutcome> {
   const { cue, item, verb, label, options = {}, readable } = intent;
   const { cues, items: playoutItems, folders, places } = intent.rundown;
@@ -157,6 +158,8 @@ export async function runAndRecord(
     loop,
     ...(options.cut ? { cut: true } : {}),
   });
+  // A pairing can change between the action reply and this synchronous acceptance fold.
+  if (current && !current()) return { ok: false, note: `${label}: The vMix connection changed.`, accepted: [] };
   for (const a of outcome.accepted) {
     store.apply((parts) =>
       applyAccepted(parts, {

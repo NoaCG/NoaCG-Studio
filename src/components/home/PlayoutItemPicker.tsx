@@ -6,7 +6,7 @@ import type { GraphicDoc } from '../../model/library';
 import type { PlayoutField, PlayoutMediaKind } from '../../model/shows';
 import { mediaKindOf } from '../../control/cuePlayback';
 import type { ListItem } from '../../control/playoutProtocol';
-import { listLibrary, listVmixMedia, loadPlayoutSettings, vmixPairing, type PlayoutResult } from '../../control/playoutLink';
+import { listLibrary, listVmixMedia, loadPlayoutSettings, vmixMediaFolderRevision, vmixPairing, type PlayoutResult } from '../../control/playoutLink';
 import { serverThumbnail } from './serverThumbnail';
 
 export interface PickerItem {
@@ -61,6 +61,8 @@ export default function PlayoutItemPicker({
    *  what puts an audio file on its own layer and keeps a still out of a sequence. */
   onAdd: (items: PickerItem[]) => Promise<boolean>;
 }) {
+  const [mediaScope] = useState(() => vmix ? { pairing: vmixPairing(loadPlayoutSettings()), revision: vmixMediaFolderRevision() } : null);
+  const mediaCurrent = () => !mediaScope || (mediaScope.revision === vmixMediaFolderRevision() && mediaScope.pairing === vmixPairing(loadPlayoutSettings()));
   const [kind, setKind] = useState<'template' | 'media'>(vmix || mediaFilter ? 'media' : 'template');
   const [items, setItems] = useState<ListItem[] | null>(null);
   const [result, setResult] = useState<PlayoutResult | null>(null);
@@ -83,7 +85,7 @@ export default function PlayoutItemPicker({
     try {
       const settings = loadPlayoutSettings();
       const r = vmix ? await listVmixMedia(settings, path) : await listLibrary(settings, which);
-      if (request.current !== revision || (vmix && vmixPairing(settings) !== vmixPairing(loadPlayoutSettings()))) return;
+      if (request.current !== revision || !mediaCurrent()) return;
       setResult(r.result);
       setItems(r.items ?? null);
     } finally {
@@ -136,7 +138,7 @@ export default function PlayoutItemPicker({
       .map((id) => ({ field: id, title: id.toUpperCase(), value: '' }));
 
   const add = async (batch: ListItem[]) => {
-    if (adding || !batch.length) return;
+    if (adding || !batch.length || !mediaCurrent()) return;
     setAdding(true);
     try {
       const picked = batch.map(item => kind === 'media'

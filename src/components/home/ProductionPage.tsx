@@ -48,6 +48,7 @@ import {
   bridgePaired,
   channelOf,
   vmixPairing,
+  vmixMediaFolderRevision,
   watchVmixMediaFolder,
   currentProductionPlayout,
   loadPlayoutSettings,
@@ -59,6 +60,7 @@ import {
   subscribeTargetStatus,
   syncStudio,
   type PlayoutResult,
+  type PlayoutSettings,
 } from '../../control/playoutLink';
 import type { Slot } from '../../control/playoutProtocol';
 import {
@@ -305,6 +307,7 @@ const BRIDGE_IO: BridgeWatchIo = {
   readState,
   listLibrary,
   listVmixMedia,
+  vmixMediaRevision: vmixMediaFolderRevision,
   syncStudio,
   rememberOutput: (showId, target) => saveReadyMemory(showId, { ...loadReadyMemory(showId), casparOutput: target }),
   loadedOutput: (showId) => loadReadyMemory(showId).casparLoaded ?? null,
@@ -638,7 +641,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  `playoutSettingsRev`, which re-reads the settings for the connection poll below. */
   const [playoutSettingsOpen, setPlayoutSettingsOpen] = useState(false);
   const [playoutSettingsRev, setPlayoutSettingsRev] = useState(0);
-  const [vmixMediaRev, setVmixMediaRev] = useState(0);
+  const [vmixMediaRev, setVmixMediaRev] = useState(vmixMediaFolderRevision);
   /** Whether a Bridge is paired and a server named - what the header's Playout control shows
    *  before any answer comes back. Re-read with the rev, on the dialog's close. */
   const [playoutIsConfigured, setPlayoutIsConfigured] = useState(() => playoutConfigured(loadPlayoutSettings()));
@@ -1004,8 +1007,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const casparOn = playoutSystem === 'casparcg';
   const vmixOn = playoutSystem === 'vmix';
   useEffect(() => {
-    if (vmixOn) return watchVmixMediaFolder(() => setVmixMediaRev(rev => rev + 1));
+    if (!vmixOn) return;
+    const refresh = () => setVmixMediaRev(vmixMediaFolderRevision());
+    refresh();
+    return watchVmixMediaFolder(refresh);
   }, [vmixOn]);
+  const vmixConnectionCurrent = (settings: PlayoutSettings, pairing: ReturnType<ServerPlayoutStore['vmixBinding']>) => {
+    const key = vmixPairing(settings);
+    return !!show && pageCanDispatch() && serverPlayout.vmixBinding() === pairing
+      && (pairing?.key ?? null) === (bridgePaired(settings) ? key : null)
+      && vmixPairing(loadPlayoutSettings()) === key
+      && !!currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'vmix');
+  };
   const playoutRelevance = relevantPlayout({ configured: playoutConfigured(relevanceSettings), casparOn });
   /** Prepare for Live's own publish, set once `publishNow` exists below. */
   const preparePublishRef = useRef<() => Promise<HeldVersion | null>>(async () => null);
@@ -1023,9 +1036,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       setReadyStamp(stamp);
       saveReadyMemory(show.id, { ...loadReadyMemory(show.id), stamp });
     },
+    vmix: vmixOn,
     bridge: () => {
       if (playoutRelevance.bridge || vmixOn) setCheckAgainRev((n) => n + 1);
-      return gatherBridgeFacts(loadPlayoutSettings(), show ?? {}, playoutRelevance);
+      const settings = loadPlayoutSettings();
+      const pairing = serverPlayout.vmixBinding();
+      const revision = vmixMediaFolderRevision();
+      return gatherBridgeFacts(settings, show ?? {}, {
+        ...playoutRelevance,
+        ...(vmixOn ? { vmixCurrent: () => vmixMediaFolderRevision() === revision && vmixConnectionCurrent(settings, pairing) } : {}),
+      });
     },
     ping: (id) => (hostedSlug ? controlPingSeq(hostedSlug, id) : Promise.resolve({ ok: false, unavailable: true, detail: 'not published' })),
   });
@@ -2910,11 +2930,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (mismatch) return { ok: false, note: `${label} was not sent: ${mismatch}`, accepted: [] };
     const vmix = item.adapter === 'vmix';
     const vmixSettings = vmix ? loadPlayoutSettings() : null;
-    const binding = vmixSettings && bridgePaired(vmixSettings) ? vmixPairing(vmixSettings) : null;
-    const bound = serverPlayout.vmixBinding();
-    const currentVmix = () => !!binding && bound?.key === binding && pageCanDispatch() && serverPlayout.vmixBinding() === bound
-      && vmixPairing(loadPlayoutSettings()) === binding
-      && !!currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'vmix');
+    const pairing = serverPlayout.vmixBinding();
+    const currentVmix = () => !!(vmixSettings && pairing && vmixConnectionCurrent(vmixSettings, pairing));
     if (vmix ? !currentVmix() : !(acceptedAllOut ? casparAllowed() : canSendCaspar())) return null;
     const live = acceptedAllOut ? serverPlayout.ownership.get().onAir[item.id] : undefined;
     const io: ServerVerbIo = {
