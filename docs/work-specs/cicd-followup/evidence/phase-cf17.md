@@ -167,6 +167,115 @@ and nothing is bought.
 
 ## 6. Status
 
-Stage 1 is written before any execution and lands before the trial counts. The trial starts when
-all three runs are running, measured as above; if that has not happened by 2026-11-11T06:00Z,
-stage 2 records the trial as not run, with the reason, and cf17 passes under (a).
+**Result: the trial ran for 21.6 hours and was ended early by the owner. Permanent three-plan
+concurrency stays off.** Stage 1 landed before the trial counted (#2359, merged
+2026-11-10T18:05Z). Stage 2 is section 7.
+
+## 7. Result (stage 2)
+
+### 7.1 The window
+
+- **Start:** 2026-11-10T19:38:54Z, when the last of the three runs showed a phase in flight
+  (editor-r1-5 heartbeat on #2295; vMix and live-publishing were already in flight, #2289, #2361).
+- **End:** 2026-11-11T17:17:33Z, ended early by the owner (#1967, comment 6802438629). The owner
+  was told the trial cannot turn on permanent concurrency (S1 cannot be judged, section 2) and that
+  ending it lets cf22 start about two days sooner. Answer, verbatim: "ok, end the trial". Only the
+  measurement stopped; the three runs on the owner's machine were not paused.
+- **Measured with** [phase-cf17-measure.mjs](phase-cf17-measure.mjs) over the whole window: 375
+  workflow runs, the jobs of every one read, 9 trial PRs and their timelines, and the
+  `e2e/quarantine.json` commits. Output: [phase-cf17-records.json](phase-cf17-records.json).
+  Passes ran at 01:36Z, 06:05Z, 12:05Z and 17:20Z, each under 100 API calls.
+
+### 7.2 Figures
+
+| Plan | Phases landed (merged build PRs) | PRs |
+| --- | ---: | --- |
+| live-publishing | 3 | #2362 (1), #2376 (2), #2380 (3) |
+| vMix | 2 | #2293 (V2), #2368 (V3); V4 #2378 open at the end |
+| editor-r1-5 | 3 | #2369 (E1), #2374 (E2), #2386 (E3) |
+
+- **W, completed work:** 8 phases in 21.6 hours, 8.9 a day combined. A phase is counted when its
+  build PR merged; the runs' independent checks are recorded on the owner's machine and were not
+  read.
+- **Q, queue to landing** (first queue entry to merge, n = 8): p50 13.8, p90 18.2, max 18.2
+  minutes. No PR was removed from the queue before merging. cf03's M2 split into waiting and
+  execution, and M1 by cf03 group, were not computed (section 2 asked for them beside Q).
+- **C, contention:** 0 dequeues; merges of `origin/main` into a trial branch forced by another
+  trial plan's landing not measured; longest wait of a trial job for a runner 2.0 minutes;
+  **repository-wide peak of 60 concurrent jobs at 2026-11-11T12:38:00Z**. Of the 60: 16 from
+  editor E2's landing on `main` (CI 43020316776, configured suite 43020316884, code scan), 13 from
+  live-publishing phase 3's PR (CI 43021936320 and its code scan), 31 from non-trial PRs (CI and
+  code scans, 23 of them one growth-gate PR's CI run).
+- **R, retries:** by cf03's job definition, 0 of 8 landings had a fail-then-pass job, and there was
+  1 real re-run attempt: live-publishing phase 3 (#2380), run 43050146650, where attempt 2 re-ran
+  E2E 11/15 after it failed and that re-run was cancelled (Reviewed-only re-runs after the stamp are
+  review wait). Hangs (a job ending at its timeout cap) were not detected by the script. But two landings' own main
+  push runs met a flaky spec that the quarantine route then recorded:
+  `e2e/configured/operator-outage-not-unpublished.spec.ts`, quarantined 2026-11-11T02:40:17Z
+  (d3777803) from editor E1's configured-suite run 42945843116, and `e2e/output-debate-clock.spec.ts`,
+  quarantined 12:47:48Z (2e254476) from editor E2's CI run 43020316776, which failed E2E 15/15 and
+  is the one red post-landing run of the window. E2 changed `src/model/animLoopClock.ts` and
+  animation timing, so a link to the debate-clock flake is plausible; E1 and the configured outage
+  spec look unrelated. Neither cause is established.
+- **K, CI cost per landing** (every run in the window of the 8 landed trial PRs, their merge groups
+  and main pushes, n = 8; the open V4 PR #2378 and runs before the start are left out): offline
+  854.5, backend 258.2, graphics 51.1, overhead 91.0 runner-minutes. The last weekly
+  growth report before the window (2026-11-09, run 42647874522, evidence partial, so its figures
+  are lower bounds): offline 375.6, backend 148.2, graphics 25.2, overhead 93.4. M3 per landing:
+  median 634, range 588 to 2,688.
+- **Spend:** no run reported session cost on GitHub; not measured.
+
+### 7.3 Stop lines
+
+Both were crossed, and neither was raised in time:
+
+- **Failure rate**, "any quarantine added because of a trial landing": on its wording, at
+  02:40:17Z (first quarantine) and again at 12:47:48Z. The script did not read quarantines until
+  the final pass, so the 06:05Z and 12:05Z passes reported no stop. That was a gap in the
+  measurement, now fixed in the script (section 4b of it).
+- **Contention**, a repository-wide peak of 57 jobs: reached at 12:38:00Z, between the 12:05Z pass
+  and the next one due at 18:05Z. With the stop rule's 6-hour cadence, it would have been raised
+  at 18:05Z; the owner ended the trial at 17:17Z.
+
+Both were reported to the coordinator after the final pass, for the owner, because the three runs
+keep running side by side.
+
+### 7.4 Each criterion
+
+| Criterion | Result | Why |
+| --- | --- | --- |
+| S1 completed work | not met | cannot be judged: no plan has a solo reference with n of at least 3 (section 2) |
+| S2 queue delay | not met | queue to landing p50 13.8 against at most 10; M1 by cf03 group not computed (cannot be judged) |
+| S3 contention | not met | repository peak 60, at or above 57; repair-owner and admission rules in the three ledgers not read |
+| S4 retries | not met | one post-landing failure on `main` (#2374's push run); M4 by cf03's definition 0 of 8, but two quarantines followed trial landings |
+| S5 CI cost | not met | per-landing minutes above the last report's in three tiers (offline 855 against 376, backend 258 against 148, graphics 51 against 25); overhead 91 against 93 is below; M3 by cf03 group not computed |
+| S6 pause and resume | not met | not exercised in the window |
+
+### 7.5 Decision
+
+Permanent three-plan concurrency is **not** enabled (acceptance (c)): no success criterion is met.
+Nothing in `plan-run.md` changes; plan runs of different plans may still run side by side as
+before, with no three-plan setting turned on. For cf20(b): decision E's trial ran, ended early by
+the owner after 21.6 hours with 8 landings, and showed no benefit it could measure. Small samples
+are operating evidence, not statistical proof.
+
+What it does show, for whoever plans concurrency next: at three plans plus ordinary work the
+repository reached the 60-job ceiling once, and landings queued about 14 minutes (over the
+10-minute target, inside the 20-minute p90). Per-landing CI cost was above the last weekly report
+in three tiers, but that compares large plan phases with the repository's average landing (#2362
+and #2380 each above 2,000 runner-minutes over 14 and 18 PR CI runs), so it reflects the size of
+these phases; it does not show that running them together raised cost.
+
+### 7.6 Phase notes
+
+- Previous verified main SHA: `27d50cc14fffffdabaa4df70adf0ed65bb3105c2` (result branch base).
+- Revert: `git revert -m 1 <merge sha>` (evidence and a read-only script only).
+- Decisions: the window ended at the owner's decision time, 17:17:33Z, not at the next pass.
+  Quarantines count against the failure-rate line on its wording, with the cause stated as
+  unestablished, rather than being excused. Unread ledger rules and uncomputed cf03 groups count
+  as not met (section 3).
+- Traps: a re-run attempt copies jobs with their original end times, and skipped jobs can carry a
+  start after their end; GitHub logs a queue removal about a second before each merge. A
+  6-hour measurement cadence can miss a short peak by hours; a stop line that matters for a
+  running system needs a check that runs when the event happens (the quarantine route and the
+  weekly report already do).
