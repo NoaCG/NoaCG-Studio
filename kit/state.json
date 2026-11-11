@@ -445,7 +445,9 @@
       "notRun": "No duplicate review, full local suite, production build, new reference comparison, hardware/native-device acceptance or merge/post-land checks. Final independent merge acceptance remains coordinator work.",
       "githubWrites": "none; no noacg/reviewed, label, auto-merge, queue or merge",
       "cleanup": "Browser and attributed dev-server process groups stopped; all four jobs terminal. Worktree retained for coordinator-owned pending PR and artifacts.",
-      "at": "2026-11-11T12:06:19.486151+00:00"
+      "at": "2026-11-11T12:06:19.486151+00:00",
+      "nativeSession": "6af457f2-caf8-8191-bdeb-b13a1fcc307b",
+      "archive": "app could not determine existence on durable host; no archive claimed"
     },
     "cloudQueue": {
       "at": "2026-11-11T12:08:16.824352+00:00",
@@ -465,7 +467,9 @@
         "execSession": 50701,
         "end": "2026-11-12T10:00:00Z",
         "wake": false
-      }
+      },
+      "mergeGroupRun": 43017886013,
+      "mergeGroupSha": "d8b18080bfacf2303a1d88e4ca1398fb263d9657"
     }
   },
   "waitingOn": {},
@@ -497,7 +501,9 @@
       "final": "2026-11-11T11:52:56.956Z",
       "head": "e9b0c550082c540c925e2cce25ffdee093d2d7b3",
       "worktree": "/workspace/noacg-editor-r1-5-route-probe",
-      "result": "PASS workspace child, Git main, Actions API; clean worktree; native final received"
+      "result": "PASS workspace child, Git main, Actions API; clean worktree; native final received",
+      "sessionId": "6af456ce-641c-8191-b312-b607070f0065",
+      "archive": "confirmed"
     },
     "resources": {
       "cpus": 4,
@@ -508,6 +514,16 @@
     },
     "limitations": "Same-VM fresh workers; no independently hosted child or unattended wake/host-loss recovery qualified. Current active coordinator retains PR ownership.",
     "policy": {
+      "approval": "auto_review",
+      "sandbox": "read-only",
+      "network": "enabled via managed inherited proxy; current restricted environment policy enforced",
+      "writableRoots": [],
+      "networkPolicySha256": "dd7128df53fa20a8fb596302552ef9a00b1c41e6a63db47c9df2b115cb5ee515",
+      "escalation": "require_escalated invokes per-command automatic review; successful preflights establish those invocations only"
+    },
+    "policySha256": "9ddcaeece3d8e54669564a11b0c48c16e6fbfc5b19e406691deb508df65b9a74",
+    "authorizationDescriptionSha256": "e98bb906d11135315a03089318428c48a6d31ffd80b0a405a672044338c14694",
+    "authorizationDescription": {
       "filesystem": "read-only; scoped writes via individually reviewed require_escalated shell commands",
       "network": "managed proxy, current policy enforced; explicit shell network permission",
       "provider": "codex",
@@ -515,6 +531,6 @@
       "mode": "active",
       "wakes": false
     },
-    "policySha256": "e98bb906d11135315a03089318428c48a6d31ffd80b0a405a672044338c14694"
+    "policyEvidence": "Effective approval, sandbox and network taken from current execution instructions and enforced environment status; no writable default roots. Invocation-specific escalations are not permanent broad write permission."
   }
 }
