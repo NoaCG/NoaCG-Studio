@@ -336,3 +336,42 @@ it.
 On a real show, with a mouse and on a touch screen, type into a cue's field and press Take (also Next, a quick button, a live number)
 at once: the graphic goes on air with the typed text, without the pause the save used to cause,
 and the text is still there after a reload made straight after the press.
+
+## Repair 2: an edit lost when the page reloads before its save lands (check on 92e581a7)
+
+The phase 3 check on merge 92e581a7 ([#2389 comment](https://github.com/NoaCG/NoaCG-Studio/pull/2389#issuecomment-6806518108))
+failed it: an edit typed and then Taken was lost when the page reloaded while the send was
+unanswered. Review class: Risky (reload and recovery).
+
+### Cause, reproduced on 92e581a7
+
+Offline, signed out, the scratch spec in "Tests" below: an edit typed into a cue and then a
+reload at once, with no press, was lost 3 of 3; with the pointer still down on Take (the blur's
+save held, R3) it was lost 3 of 3; typed, Take clicked, reload at once (the Take path's own save
+lands first offline) was kept 3 of 3. So the hold of #2389 only widened a window that was
+already there: R4's "the page going saves what is owed at once" was not true.
+
+The page going does run the save (`cueDraft` `retain` on `pagehide`), and the save does reach
+the durable store, which opens its IndexedDB transaction at once (`durableStore.ts` `pending`).
+But a transaction is committed only when the task that made it ends, and a reload ends the
+document inside that task: Chromium then drops the transaction. With the transaction asked to
+commit at once (`IDBTransaction.commit()`), the same three cases were kept 9 of 9.
+
+### Rules
+
+Written before the code; a Rules-first `/so` challenges them.
+
+- P1. A durable write made while the page is going (from its `pagehide` until a `pageshow`
+  brings it back from the back-forward cache) is handed to the database to commit at once, in
+  the task that made it. A reload or a close right after it keeps it.
+- P2. Every other durable write commits as before, when its task ends: nothing about the order of
+  writes, their receipts, a refusal's rollback or the write holds the specs and the AC-1 harness
+  use changes. Writes that read before they put (`rebasedDurableSet`, the conditional writes,
+  the account move) are not changed: they commit as before.
+- P3. Therefore R4 holds as written: an edit typed and not yet saved is in the stored production
+  after a reload at any moment after the press (pointer still down, the send unanswered or
+  answered) and with no press at all.
+- P4. When the Take sends, when the blur's save runs and what it writes do not change (R1 to R7
+  above): AC-1's path is not touched, and it is measured again on the production build.
+- P5. A browser with no `commit()` behaves as before; the localStorage fallback is synchronous
+  and was never affected.
