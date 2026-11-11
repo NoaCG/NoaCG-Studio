@@ -375,12 +375,13 @@ page-hide write at once) was graded B and withdrawn after the touch measurement 
   the signed-out workspace). A refused localStorage write changes nothing else.
 - P2. When the production page first has that production's cues on a visit, before anything on
   it is typed or sent, the record is taken once. If the cue still holds exactly the text the
-  typing started from, the typed text is written to it at once, as the page-hide save writes it
-  (no undo step). Otherwise (the cue holds the typed text already, was changed since by another
-  tab, a teammate or an undo, or is gone) nothing is written. The record is removed either way,
-  and a write the store refuses (a live candidate's field, editing paused at the store) is not
-  retried. While the account may not write, the record stays for a later visit. Nothing is
-  shown to the operator.
+  typing started from, the typed text is written to it through the history (one undo step), and
+  the record is removed once the store confirms that write, unless a later hide has recorded a
+  newer edit meanwhile. Unconfirmed (refused, or aborted by another reload), it stays and is tried
+  again on the next visit. Otherwise (the cue holds the typed text already, was changed since by
+  another tab, a teammate or an undo, or is gone) nothing is written and the record is removed.
+  While the account may not write, the record stays for a later visit. Nothing is shown to the
+  operator.
 - P3. A save of the draft that the store confirms removes the record, and so does the page being
   shown again after it hid (it stayed, so the store's write lands).
   A record of a production deleted before its next visit stays, a few hundred bytes.
@@ -404,7 +405,11 @@ points: the key moves with the account (P1), a refused write and the silence (P2
 Rules found after coding, apart from those stated before it: the record is removed when the
 page is shown again after it hid. Without that, an undo after a hide the page came back from
 would put the cue back to the text the typing started from, and the next visit would bring the
-undone edit back (inline review of 063798e). A first version also removed it when a draft was
+undone edit back (inline review of 063798e). From the PR review of 7901c00: when an earlier
+save of the same cue is confirmed while typing goes on, the text the record is applied over moves
+to that save's text (the store holds it now), and recovery writes through the history and keeps
+the record until the store confirms it (it removed it first, so a refused or aborted write lost
+the text). A first version also removed it when a draft was
 dropped (`cancel`); the page drops a draft while it starts, before `recover`, so that lost the
 record (the held-press reload test failed 2 of 6 on 310f222) and was taken out.
 
@@ -414,8 +419,9 @@ record (the held-press reload test failed 2 of 6 on 310f222) and was taken out.
   (`spx-gfx-owed-cue-edits`, versioned), a map by production; added to the account's small keys
   in `accountScope.ts`.
 - `src/control/cueDraft.ts`: `retain` on page hide also covers a save out through the history,
-  and records the owed edit first with the text the draft started from; `recover` applies a
-  record once; a confirmed save and the page shown again after it hid remove it.
+  and records the owed edit first with the text the draft started from (moved on when an earlier
+  save of the same cue is confirmed); `recover` applies a record through the history and removes
+  it once confirmed; a confirmed save and the page shown again after it hid remove it.
 - `src/components/home/ProductionPage.tsx`: the record's storage calls for this production, the
   "shown again" moment (visible again, or restored from the back-forward cache; never a fresh
   load's own `pageshow`), and `recover` once the production's cues are there.

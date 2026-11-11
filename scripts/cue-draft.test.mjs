@@ -390,37 +390,58 @@ test('P3: the page shown again after it hid removes the record; a page that neve
 const owedOver = (base) => ({ cueId: 'c1', base, fields: { label: 'Opener', note: null, values: { f0: 'From the record', f1: 'Host' } } });
 const ASTYPED = { label: 'Opener', note: null, values: { f0: 'Anna Riva', f1: 'Host' } };
 
-test('P2: a record over the text the cue still holds is written to it once, then removed', () => {
+test('P2: a record over the text the cue still holds is written through the history, and goes once confirmed', async () => {
   const h = harness();
   h.owed = owedOver(ASTYPED);
   h.draft.recover();
-  assert.deepEqual(h.retained, [{ cueId: 'c1', fields: owedOver(ASTYPED).fields }]);
+  assert.deepEqual(h.writes.map((w) => [w.cueId, w.fields]), [['c1', owedOver(ASTYPED).fields]]);
+  assert.equal(h.retained.length, 0);
+  assert.notEqual(h.owed, null, 'kept until the store confirms');
+  h.writes[0].answer(true);
+  await settle();
   assert.equal(h.owed, null);
+});
+
+test('P2: an unconfirmed recovery keeps the record for the next visit', async () => {
+  const h = harness();
+  h.owed = owedOver(ASTYPED);
   h.draft.recover();
-  assert.equal(h.retained.length, 1, 'once');
-  assert.equal(h.writes.length, 0, 'not through the history');
+  h.writes[0].answer(false);
+  await settle();
+  assert.notEqual(h.owed, null);
+});
+
+test('P2: a newer record written while the recovery is out is not removed by its confirmation', async () => {
+  const h = harness();
+  h.owed = owedOver(ASTYPED);
+  h.draft.recover();
+  const newer = { cueId: 'c1', base: ASTYPED, fields: { ...ASTYPED, label: 'Newer' } };
+  h.owed = newer;
+  h.writes[0].answer(true);
+  await settle();
+  assert.deepEqual(h.owed, newer);
 });
 
 test('P2: a cue changed since the typing started keeps what it holds, and the record goes', () => {
   const h = harness();
   h.owed = owedOver({ ...ASTYPED, values: { f0: 'Someone else', f1: 'Host' } });
   h.draft.recover();
-  assert.equal(h.retained.length, 0);
+  assert.equal(h.writes.length, 0);
   assert.equal(h.owed, null);
   h.owed = owedOver({ ...ASTYPED, label: 'Renamed since' });
   h.draft.recover();
-  assert.equal(h.retained.length, 0);
+  assert.equal(h.writes.length, 0);
 });
 
 test('P2: a record for a cue that is gone, or that the cue already holds, writes nothing and goes', () => {
   const h = harness();
   h.owed = { ...owedOver(ASTYPED), cueId: 'gone' };
   h.draft.recover();
-  assert.equal(h.retained.length, 0);
+  assert.equal(h.writes.length, 0);
   assert.equal(h.owed, null);
   h.owed = { cueId: 'c1', base: { ...ASTYPED, values: { f0: 'Older' } }, fields: ASTYPED };
   h.draft.recover();
-  assert.equal(h.retained.length, 0);
+  assert.equal(h.writes.length, 0);
   assert.equal(h.owed, null);
 });
 
@@ -429,11 +450,27 @@ test('P2: while the account may not write, the record stays for a later visit', 
   h.owed = owedOver(ASTYPED);
   h.canWrite = false;
   h.draft.recover();
-  assert.equal(h.retained.length, 0);
+  assert.equal(h.writes.length, 0);
   assert.notEqual(h.owed, null);
   h.canWrite = true;
   h.draft.recover();
-  assert.equal(h.retained.length, 1);
+  assert.equal(h.writes.length, 1);
+});
+
+test('P1: an earlier save of the same cue confirmed while typing went on moves the base to its text', async () => {
+  // PR review of 7901c00: the store then holds that save's text, so the newer typing must be applied
+  // over it, not over the text before it.
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: 'B' } });
+  const first = h.draft.flush();
+  h.draft.edit(OPENER, { values: { f0: 'C' } });
+  h.writes[0].answer(true);
+  await first;
+  for (const run of h.listeners.hide) run();
+  assert.equal(h.owed?.base.values.f0, 'B');
+  assert.equal(h.owed?.fields.values.f0, 'C');
+  stop();
 });
 
 test('the page hiding saves nothing while the account may not write, and the edit stays owed', () => {

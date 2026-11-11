@@ -147,8 +147,9 @@ export interface CueDraft {
   /** The fields of `cue` whose values differ from what air was sent, bound fields aside. */
   unsent: (cue: CueRecord, aired: Readonly<Record<string, string>> | undefined, bound: Readonly<Record<string, string>>) => string[];
   /** The page shows this production, as first loaded: an edit recorded when a page of it last
-   *  went is written to its cue once if the cue still holds the text the typing started from, and
-   *  the record is removed whatever it finds. While the account may not write it stays. */
+   *  went is written to its cue, through the history, if the cue still holds the text the typing
+   *  started from. The record is removed once that write is confirmed, or at once when the cue
+   *  holds anything else. While the account may not write, or the write is not confirmed, it stays. */
   recover: () => void;
   /** Listen to the browser's moments while the page shows this draft; the stop answered also saves
    *  at once what is owed. */
@@ -266,6 +267,10 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
           io.owed.forget();
         }
         else pending = true;
+      } else if (saved && session.alive() && startedFrom?.cueId === d.cueId && part.get()?.cueId === d.cueId) {
+        // Typing went on in this cue: the store now holds this save's text, which is what the
+        // newer draft is applied over if the page goes before its own save lands.
+        startedFrom = { cueId: d.cueId, text: { ...fieldsOf(d), values: { ...d.values } } };
       }
       return saved;
     });
@@ -356,12 +361,19 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     recover: () => {
       const e = io.owed.read();
       if (!e || !session.alive() || !io.canWrite()) return;
-      io.owed.forget();
       const cue = io.record(e.cueId);
       // Saved after all, or changed since the typing started (another tab, a teammate, an undo):
       // what the cue holds stands.
-      if (!cue || holds(cue, e.fields) || !holds(cue, e.base)) return;
-      io.retainCue(e.cueId, e.fields);
+      if (!cue || holds(cue, e.fields) || !holds(cue, e.base)) {
+        io.owed.forget();
+        return;
+      }
+      // Through the history, so the store confirms it; the record goes only then, and only if no
+      // later hide has recorded a newer edit meanwhile. Unconfirmed, it is tried again next visit.
+      const same = JSON.stringify(e);
+      void io.writeCue(e.cueId, e.fields).then((saved) => {
+        if (saved && JSON.stringify(io.owed.read()) === same) io.owed.forget();
+      });
     },
     listen: (adapters) => {
       // Shown again after this page hid: it stayed, so the store's write lands, and the record is
