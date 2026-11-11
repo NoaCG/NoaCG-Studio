@@ -239,9 +239,10 @@ None.
   unthrottled, 31.6 / 34.2 s large throttled. A changed or new graphic's own frame loads in 46 to
   152 ms; the rest is publishing and downloading the whole production.
 - **Output start, cold cache**: ready in 1.5 s (typical) and 4.3 s (large) unthrottled, 8.9 s and
-  17.9 s throttled. The throttled figures are mostly the development build's app code (10.6 MB
-  over 20 Mbit/s); the production data is 6.2 MB and 20.2 MB. One graphic's own load while the
-  whole production loads beside it: 0.7 s (typical), 2.2 to 2.4 s (large).
+  17.9 s throttled. Each start downloads the development build's app code (10.6 MB) and the
+  whole production (6.2 MB typical, 20.2 MB large): on the typical fixture the app code is the
+  larger part, on the large one the production is about two thirds. One graphic's own load while
+  the whole production loads beside it: 0.7 s (typical), 2.2 to 2.4 s (large).
 
 ## Targets this shows wrong or unproven (for the owner, through the coordinator)
 
@@ -262,6 +263,17 @@ None.
    is loaded on its own ahead of the rest.
 4. **AC-5's 20 kB for a cue edit** is not shown wrong: today is 4.4 MB to 13.9 MB, all of it whole
    documents, and a patch of at most 2 kB of text plus headers fits in 20 kB.
+
+## Known biases
+
+- **Output ready and update times are late by up to about 60 ms.** The harness polls the
+  output's `ready()` every 50 ms and stamps the moment it reads it, so each "navigation to ready"
+  and "press to output prepared" sample includes up to one poll interval plus a page round trip.
+  Against figures of 1.5 to 34 s this is 0.2 to 4 %.
+- **WebSocket bytes are over-counted by up to a third.** DevTools gives a binary frame's payload
+  as base64 and the harness counts its characters. WebSocket traffic is at most about 8 kB per
+  change here, against 4.4 to 81.5 MB totals.
+- Both stay in the harness as written, so a later phase rerunning it compares like with like.
 
 ## Not measured here
 
