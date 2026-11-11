@@ -56,10 +56,19 @@ export interface OgrafSlot {
 }
 
 /** Where in vMix: one of its overlay channels, from 1 to the `overlays` it reports. */
-export interface VmixSlot {
+export type VmixPlayer = 'clips' | 'audio';
+
+export interface VmixOverlaySlot {
   adapter: 'vmix';
   overlay: number;
 }
+
+export interface VmixPlayerSlot {
+  adapter: 'vmix';
+  player: VmixPlayer;
+}
+
+export type VmixSlot = VmixOverlaySlot | VmixPlayerSlot;
 
 export type Slot = CasparSlot | OgrafSlot | VmixSlot;
 
@@ -168,6 +177,8 @@ export interface ListItem {
   name: string;
   /** The name to show, when the target keeps one apart from `name` (an OGraf graphic's own). */
   label?: string;
+  /** vMix library path relative to the configured media folder. */
+  path?: string;
   /** The target's own word for it: `template`, `movie` / `still` / `audio` for media, or `graphic`. */
   kind: string;
   frames?: number;
@@ -213,7 +224,7 @@ export interface AgentError {
  *  `/studio`, which keeps it. `pair-link` is `/pair-link`: a fresh pairing code for another browser.
  *  `ending` is the `ending` verb: a clip's ending changed while it plays. `channels` is `/channels`:
  *  the channels a server reports it has. */
-export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels' | 'image-fit' | 'vmix-output-key';
+export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels' | 'image-fit' | 'vmix-output-key' | 'vmix-media';
 
 /** Prefix the paired token for keyed vMix verbs so a legacy Bridge refuses the request even if it
  * replaced the new Bridge after the browser's capability probe. The token itself is unchanged. */
@@ -302,6 +313,7 @@ export interface VmixStateReply {
   /** Edition and channel count from the same XML as the overlay rows. */
   vmix: VmixInfo;
   overlays: VmixOverlayState[];
+  players?: SlotState[];
   /** The scoped output cannot be loaded. A reported owned input can still be unloaded. */
   loadProblem?: string;
   linked: { id: string; output: { onOverlay?: number }; live: string[] }[];
@@ -406,6 +418,15 @@ export interface StudioReply {
   servers: RememberedServer[];
 }
 
+export interface VmixStudioReply {
+  ok: true;
+  mediaFolder: string;
+}
+
+export interface VmixChooseFolderReply extends VmixStudioReply {
+  cancelled?: true;
+}
+
 /** What `POST /pair-link` answers: a fresh one-time pairing code, good for `expiresIn` seconds. The
  *  page puts it in a link for another browser, on its own origin and this Bridge's port. */
 export interface PairLinkReply {
@@ -421,6 +442,7 @@ export interface PairLinkReply {
  * it is, so a trimmed clip counts down its own length, never the file's.
  */
 export interface SlotState {
+  player?: VmixPlayer;
   /** The slot's layer; the channel is the request's. */
   layer: number;
   /** `empty` after a STOP, `colour` after `PLAY … EMPTY`; nothing is on air in either. */
@@ -541,7 +563,8 @@ interface BridgeRepliesByRoute {
   '/act': ActReply;
   '/channels': ChannelsReply;
   '/servers': ServersReply;
-  '/studio': StudioReply;
+  '/studio': StudioReply | VmixStudioReply;
+  '/vmix/choose-folder': VmixChooseFolderReply;
   '/pair': PairReply;
   '/pair-link': PairLinkReply;
   '/list': ListReply;

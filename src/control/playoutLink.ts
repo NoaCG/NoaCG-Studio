@@ -404,9 +404,9 @@ interface BridgeReply {
 
 // A field added to a Bridge route must be classified here. Unknown additions stay compatible.
 const bridgePayloadFields = {
-  adapters: true, agent: true, capabilities: true, channel: true, channels: true, code: true,
+  adapters: true, agent: true, cancelled: true, capabilities: true, channel: true, channels: true, code: true,
   command: true, expiresIn: true, features: true, generation: true, instance: true, items: true,
-  lines: true, link: true, linked: true, loadProblem: true, observedAt: true, overlays: true,
+  lines: true, link: true, linked: true, loadProblem: true, mediaFolder: true, observedAt: true, overlays: true, players: true,
   png: true, raw: true, renderers: true, servers: true, session: true, slots: true, status: true,
   token: true, version: true, vmix: true, warning: true,
 } satisfies Record<BridgePayloadField, true>;
@@ -1131,7 +1131,7 @@ function vmixOverlayRows(overlays: VmixOverlayState[] | undefined, info: VmixInf
 const vmixReplyFields = {
   '/status': ['version', 'raw', 'capabilities', 'vmix'],
   '/connect': ['version', 'raw', 'capabilities', 'vmix', 'servers'],
-  '/state': ['vmix', 'session', 'observedAt', 'linked', 'overlays', 'loadProblem'],
+  '/state': ['vmix', 'session', 'observedAt', 'linked', 'overlays', 'players', 'loadProblem'],
   '/act': ['raw', 'generation', 'session', 'warning', 'instance'],
 } as const satisfies Record<string, readonly BridgePayloadField[]>;
 

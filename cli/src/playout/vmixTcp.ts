@@ -270,8 +270,20 @@ export interface VmixXml {
   version: string;
   edition: string;
   inputs: VmixInput[];
+  shortTitles: Map<string, string>;
+  lists: Map<string, VmixVideoList>;
   overlays: Map<number, number>;
   reportedOverlays: Set<number>;
+}
+
+export interface VmixVideoList {
+  items: string[];
+  /** The XML uses a one-based index. No item may be selected while the list changes. */
+  selected: number;
+  state: string;
+  positionMs: number;
+  durationMs: number;
+  loop: boolean;
 }
 
 const MAX_XML_DEPTH = 128;
@@ -279,6 +291,16 @@ const STATE_SECTIONS = new Set(['version', 'edition', 'inputs', 'overlays']);
 const XML_SPACE = /^[ \t\r\n]*$/;
 const trimXml = (text: string) => text.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, '');
 const unqualified = ({ prefix, uri }: { prefix: string; uri: string }) => prefix === '' && uri === '';
+
+function stateInteger(value: string | undefined): number | undefined {
+  if (value === '0') return 0;
+  return positiveInteger(value);
+}
+
+function stateBoolean(value: string | undefined): boolean | undefined {
+  if (value?.toLowerCase() === 'true') return true;
+  if (value?.toLowerCase() === 'false') return false;
+}
 
 function positiveInteger(value: string | undefined): number | undefined {
   if (value === undefined || !/^[1-9]\d*$/.test(value)) return;
@@ -294,6 +316,8 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
   const keys = new Set<string>();
   const numbers = new Set<number>();
   const inputs: VmixInput[] = [];
+  const shortTitles = new Map<string, string>();
+  const lists = new Map<string, VmixVideoList>();
   const overlays = new Map<number, number>();
   const reportedOverlays = new Set<number>();
   let depth = 0;
@@ -302,6 +326,9 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
   let channel: number | undefined;
   let version = '';
   let edition = '';
+  let videoList: { key: string; value?: VmixVideoList; seen: boolean; invalid: boolean; marked: number[] } | undefined;
+  let listDepth: number | undefined;
+  let item: { text: string; selected: boolean } | undefined;
 
   const invalid = (): never => { throw new Error('Invalid vMix state XML.'); };
   parser.on('doctype', invalid);
@@ -343,16 +370,44 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
       keys.add(key);
       numbers.add(number);
       inputs.push({ key, number, title, type });
+      const shortTitle = attribute('shortTitle');
+      if (shortTitle !== undefined) shortTitles.set(key, shortTitle);
+      if (type === 'VideoList') {
+        const selected = stateInteger(attribute('selectedIndex'));
+        const positionMs = stateInteger(attribute('position'));
+        const durationMs = stateInteger(attribute('duration'));
+        const state = attribute('state');
+        const loop = stateBoolean(attribute('loop'));
+        const value = selected !== undefined && positionMs !== undefined && durationMs !== undefined && state && loop !== undefined
+          ? { items: [], selected, state, positionMs, durationMs, loop }
+          : undefined;
+        videoList = { key, value, seen: false, invalid: false, marked: [] };
+      }
     } else if (depth === 3 && section === 'overlays') {
       const number = tag.attributes.number;
       channel = number && unqualified(number) ? positiveInteger(number.value) : undefined;
       if (tag.local !== 'overlay' || !unqualified(tag) || Object.keys(tag.attributes).length !== 1 ||
         channel === undefined || reportedOverlays.has(channel)) invalid();
       scalar = '';
+    } else if (videoList && depth === 4 && tag.local === 'list') {
+      if (!unqualified(tag) || videoList.seen) videoList.invalid = true;
+      videoList.seen = true;
+      listDepth = depth;
+    } else if (videoList && listDepth !== undefined) {
+      if (depth !== listDepth + 1 || tag.local !== 'item' || !unqualified(tag)) {
+        videoList.invalid = true;
+      } else {
+        const selected = tag.attributes.selected;
+        const flag = selected && unqualified(selected) ? stateBoolean(selected.value) : undefined;
+        if (selected && flag === undefined) videoList.invalid = true;
+        item = { text: '', selected: flag === true };
+      }
     }
   });
   parser.on('text', text => {
     if (scalar !== undefined) scalar += text;
+    else if (item) item.text += text;
+    else if (videoList && listDepth !== undefined && !XML_SPACE.test(text)) videoList.invalid = true;
     else if ((depth === 1 || (depth === 2 && section !== undefined)) && !XML_SPACE.test(text)) invalid();
   });
   const noMarkup = () => {
@@ -362,6 +417,7 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
   parser.on('processinginstruction', noMarkup);
   parser.on('cdata', () => {
     noMarkup();
+    if (videoList && listDepth !== undefined) videoList.invalid = true;
     if (depth <= 1 || (depth === 2 && section === 'inputs')) invalid();
   });
   parser.on('closetag', () => {
@@ -380,6 +436,24 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
       else edition = scalar.trim();
       scalar = undefined;
     }
+    if (videoList && listDepth !== undefined) {
+      if (item && depth === listDepth + 1) {
+        const items = videoList.value?.items;
+        if (!item.text) videoList.invalid = true;
+        if (items) {
+          items.push(item.text);
+          if (item.selected) videoList.marked.push(items.length);
+        }
+        item = undefined;
+      }
+      if (depth === listDepth) listDepth = undefined;
+    }
+    if (videoList && depth === 3) {
+      const { value, key, seen, invalid, marked } = videoList;
+      if (value && seen && !invalid && value.selected <= Math.max(1, value.items.length) &&
+          marked.length <= 1 && (!marked.length || marked[0] === value.selected)) lists.set(key, value);
+      videoList = undefined;
+    }
     if (depth === 2) section = undefined;
     depth -= 1;
   });
@@ -390,5 +464,5 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
     return;
   }
   if (!VMIX_VERSION.test(version) || !edition || !seen.has('inputs') || !seen.has('overlays')) return;
-  return { version, edition, inputs, overlays, reportedOverlays };
+  return { version, edition, inputs, shortTitles, lists, overlays, reportedOverlays };
 }

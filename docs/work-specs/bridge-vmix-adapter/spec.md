@@ -872,3 +872,10 @@ Verification and rollback are in [phase V1 evidence](evidence/phase-v1.md).
 - The page sends a level as a linear gain (`MediaPlayback.gain`), never dB.
 - `SetVolumeFade` moves the fader linearly, which is a fourth-power fade in gain: a different shape
   from CasparCG's. V6 records it and decides whether the Bridge steps the volume itself instead.
+
+
+### V3 build notes
+
+V3 adds the Bridge's two Video List players and local media-folder routes under AC-7 through AC-9. The players share the existing per-port TCP turn with overlays. Accepted commands require observable readback, and unknown function outcomes stop without resending. The media folder comes only from the local picker, with a durable per-port setup and bounded relative paths. Studio media controls, clip timing, sequences and release remain in their later phases.
+
+The starting verified main, Rules-first review, implementation choices, partial-action behavior, verification and revert instruction are recorded in `evidence/phase-v3.md`.

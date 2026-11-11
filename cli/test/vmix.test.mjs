@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { request as httpRequest } from 'node:http';
-import { mkdtemp, readFile, rm, rmdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, realpath, rm, rmdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -1504,6 +1504,7 @@ test('every verb vMix cannot honour is refused before anything is sent', async (
       { verb: 'next', slot: slot() },
       { verb: 'pause', slot: slot() },
       { verb: 'resume', slot: slot() },
+      { verb: 'take', item, slot: slot(), imageFit: 'fit' },
       { verb: 'take', item: { kind: 'template', name: 'lower-third', label: TITLE }, slot: slot() },
       { verb: 'take', item: { kind: 'media', name: 'clip', label: TITLE }, slot: slot() },
       { verb: 'sequence', slot: slot(), entries: [] },
@@ -1512,7 +1513,7 @@ test('every verb vMix cannot honour is refused before anything is sent', async (
       const r = await vmix.act(t, action);
       assert.equal(r.error.code, 'unsupported', `${action.verb} ${action.item?.kind ?? ''}`);
     }
-    assert.equal((await vmix.list(t, 'media')).error.code, 'unsupported');
+    assert.equal((await vmix.list(t, 'template')).error.code, 'unsupported');
     assert.equal((await vmix.thumbnail(t, 'x')).error.code, 'unsupported');
     assert.equal(fake.connections, 0);
   } finally {
@@ -1702,4 +1703,315 @@ test('one connection serves every reading and every action, with subscription li
   } finally {
     await fake.stop();
   }
+});
+
+// V3's reference model is the operator's observable list: append the requested path, observe its
+// selected occurrence running, then remove only the prefix. It never derives state from an ACK.
+import { createVmixMedia } from '../dist/playout/vmixMedia.js';
+
+async function playerFixture(t, fakeOptions = {}, adapterOptions = {}) {
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'noacg-vmix-player-')));
+  for (const name of ['clip A.mp4', 'clip B.mp4', 'still.png', 'sting.wav']) await writeFile(join(root, name), 'fixture');
+  const media = createVmixMedia({ defaultFolder: async () => root });
+  const fake = await startFakeVmix(fakeOptions);
+  const adapter = createVmixAdapter({ port: fake.port, media, ...adapterOptions });
+  t.after(async () => { adapter.close(); await fake.stop(); await rm(root, { recursive: true, force: true }); });
+  const target = { adapter: 'vmix', port: fake.port };
+  const player = (name = 'clips') => ({ adapter: 'vmix', player: name });
+  const take = (name, extra = {}) => adapter.act(target, { verb: 'take', slot: player(name === 'sting.wav' ? 'audio' : 'clips'), item: { kind: 'media', name }, cueId: 'cue:' + name, ...extra });
+  return { root, fake, adapter, target, player, take, media };
+}
+
+test('AC-8: Take configures one keyed player and its full list, then replaces without clearing it first', async t => {
+  const { fake, adapter, target, player, take, root } = await playerFixture(t, { selectDelayMs: 180 });
+  const first = await take('clip A.mp4', { loop: true });
+  assert.equal(first.ok, true, JSON.stringify(first));
+  const clips = fake.inputs.find(input => input.title === 'NoaCG Clips');
+  assert.equal(clips.type, 'VideoList');
+  for (const setting of ['autoPlay', 'autoPause', 'autoRestart', 'autoPlayNext']) assert.equal(clips[setting], false);
+  assert.equal(clips.loop, true);
+  assert.equal(clips.alpha, 255);
+  const second = await take('clip B.mp4');
+  assert.equal(second.ok, true, JSON.stringify(second));
+  assert.notEqual(first.instance, second.instance);
+  assert.equal(fake.inputs.filter(input => input.type === 'VideoList').length, 1);
+  assert.equal(clips.loop, false);
+  assert.deepEqual(clips.list, [join(root, 'clip B.mp4')]);
+  assert.equal(clips.selectedIndex, 1);
+  assert.equal(clips.state, 'Running');
+  assert.equal(fake.functions.some(fn => fn.name === 'ListRemoveAll'), false);
+  assert.equal(fake.functions.filter(fn => fn.name === 'AddInput').length, 1);
+  assert.equal(fake.functions.filter(fn => fn.name === 'SetAlpha').length, 2);
+  assert.ok(fake.functions.filter(fn => fn.params.Input).every(fn => GUID.test(fn.params.Input)));
+  assert.ok(fake.functions.every(fn => /^(AddInput|SetInputName|AutoPlayOff|AutoPauseOff|AutoRestartOff|AutoPlayNextOff|LoopOn|LoopOff|SetAlpha|ListAdd|SelectIndex|Play|ListRemove)$/.test(fn.name)));
+  const paused = await adapter.act(target, { verb: 'pause', slot: player() });
+  assert.equal(paused.ok, true);
+  const pausedState = await adapter.overlays(target);
+  const state = pausedState.value.players.find(row => row.player === 'clips');
+  assert.equal(state.file, 'clip B.mp4');
+  assert.equal(state.position, 0);
+  assert.equal(state.segment.length, 4);
+  assert.equal(state.paused, true);
+  assert.equal(state.loop, false);
+  assert.equal(state.cueId, 'cue:clip B.mp4');
+  assert.equal(state.instance, second.instance);
+  assert.equal(state.generation, paused.generation);
+  assert.equal((await adapter.act(target, { verb: 'resume', slot: player() })).ok, true);
+  for (const ending of ['loop', 'hold']) {
+    assert.equal((await adapter.act(target, { verb: 'ending', slot: player(), item: { kind: 'media', name: 'clip B.mp4' }, playback: { end: ending } })).ok, true);
+    assert.equal(clips.loop, ending === 'loop');
+  }
+  const out = await adapter.act(target, { verb: 'out', slot: player() });
+  assert.equal(out.ok, true);
+  assert.deepEqual(fake.functions.slice(-2).map(fn => fn.name), ['Pause', 'ListRemoveAll']);
+  assert.deepEqual(clips.list, []);
+  assert.equal((await adapter.overlays(target)).value.players.find(row => row.player === 'clips').producer, 'empty');
+  assert.equal(fake.connections, 1);
+});
+
+test('AC-8: same-path retake observes the appended occurrence and uses a new instance', async t => {
+  const { fake, take, root } = await playerFixture(t, { selectDelayMs: 200 });
+  const first = await take('clip A.mp4');
+  const second = await take('clip A.mp4');
+  assert.equal(first.ok, true);
+  assert.equal(second.ok, true, JSON.stringify(second));
+  assert.notEqual(first.instance, second.instance);
+  assert.deepEqual(fake.inputs[0].list, [join(root, 'clip A.mp4')]);
+  assert.deepEqual(fake.functions.filter(fn => fn.name === 'SelectIndex').map(fn => fn.params.Value), ['1', '2']);
+});
+
+test('AC-8: persisted player keys beat names and unique shortTitle is recovered on a new Bridge', async t => {
+  const { fake, media, take, adapter, target } = await playerFixture(t);
+  assert.equal((await take('clip A.mp4')).ok, true);
+  const input = fake.inputs[0];
+  input.title = 'Operator rename';
+  assert.equal((await take('clip B.mp4')).ok, true);
+  assert.equal(fake.inputs.length, 1);
+  input.title = 'NoaCG Clips';
+  const fresh = createVmixAdapter({ port: fake.port, media: createVmixMedia({ defaultFolder: async () => await media.folder(fake.port) }) });
+  t.after(() => fresh.close());
+  assert.equal((await fresh.act(target, { verb: 'take', slot: { adapter: 'vmix', player: 'clips' }, item: { kind: 'media', name: 'clip A.mp4' } })).ok, true);
+  assert.equal(fake.functions.filter(fn => fn.name === 'AddInput').length, 1);
+  adapter.close();
+});
+
+test('AC-8: audio and still use the separate intended players, and Clear leaves both lists empty', async t => {
+  const { fake, adapter, target, player, take } = await playerFixture(t);
+  assert.equal((await take('still.png')).ok, true);
+  const clips = fake.inputs.find(input => input.title === 'NoaCG Clips');
+  const untouched = structuredClone(clips);
+  const before = fake.functions.length;
+  assert.equal((await take('sting.wav')).ok, true);
+  const audio = fake.inputs.find(input => input.title === 'NoaCG Audio');
+  assert.equal(audio.audioAuto, false);
+  assert.equal(audio.muted, false);
+  assert.deepEqual(clips, untouched);
+  assert.ok(fake.functions.slice(before).filter(fn => fn.params.Input).every(fn => fn.params.Input === audio.key));
+  const reading = (await adapter.overlays(target)).value.players;
+  assert.equal(reading.find(row => row.player === 'clips').producer, 'still');
+  assert.equal(reading.find(row => row.player === 'audio').file, 'sting.wav');
+  for (const name of ['clips', 'audio']) assert.equal((await adapter.act(target, { verb: 'clear', slot: player(name) })).ok, true);
+  assert.ok(fake.inputs.every(input => !input.list.length));
+});
+
+test('AC-8: Basic HD names its edition and a missing file preserves vMix File Not Found with its path', async t => {
+  const basic = await playerFixture(t, { edition: 'Basic HD' });
+  const limited = await basic.take('clip A.mp4');
+  assert.equal(limited.ok, false);
+  assert.match(limited.error.detail, /Basic HD/);
+  assert.equal(basic.fake.functions.length, 0);
+  const full = await playerFixture(t);
+  const missing = await full.take('missing.mp4');
+  assert.equal(missing.ok, false);
+  assert.equal(missing.error.code, 'refused');
+  assert.ok(missing.error.detail.includes('File Not Found: ' + join(full.root, 'missing.mp4')));
+  assert.equal(full.fake.functions.some(fn => fn.name === 'Play'), false);
+});
+
+test('AC-7: unsupported player actions, ambiguous slots and output-keyed tokens send no TCP command', async t => {
+  const { adapter, target, player, fake } = await playerFixture(t);
+  for (const action of [
+    { verb: 'update', slot: player(), data: { title: 'x' } },
+    { verb: 'next', slot: player() },
+    { verb: 'take', slot: player(), item: { kind: 'template', name: 'x' } },
+    { verb: 'take', slot: player(), item: { kind: 'media', name: 'clip A.mp4' }, imageFit: 'fit' },
+    { verb: 'take', slot: player(), item: { kind: 'media', name: 'clip A.mp4' }, playback: { gain: 0.5 } },
+    { verb: 'take', slot: player(), item: { kind: 'media', name: '../clip A.mp4' } },
+  ]) assert.equal((await adapter.act(target, action)).ok, false);
+  assert.equal((await adapter.thumbnail(target, 'clip A.mp4')).ok, false);
+  assert.equal((await adapter.list(target, 'template')).ok, false);
+  assert.deepEqual(fake.lines, []);
+  await withBridge(adapter, async post => {
+    for (const slot of [{ adapter: 'vmix', player: 'clips', overlay: 8 }, { adapter: 'vmix', player: 'wrong' }]) {
+      const reply = await post('/act', { target, action: { verb: 'out', slot } });
+      assert.equal(reply.ok, false);
+    }
+    const keyed = await post('/act', { target, action: { verb: 'out', slot: player() } }, VMIX_OUTPUT_TOKEN_PREFIX + 't');
+    assert.equal(keyed.ok, false);
+    const expect = await post('/act', { target, action: { verb: 'out', slot: player(), expectedOverlayInput: XML_INPUT_KEY } });
+    assert.equal(expect.ok, false);
+    assert.deepEqual(fake.lines, []);
+  });
+});
+
+test('AC-7: an applied Play with a dropped reply stays uncertain and is never resent', async t => {
+  let drop = true;
+  const { fake, take, adapter, target } = await playerFixture(t, {
+    afterFunction(name, params, socket) {
+      if (name !== 'Play' || !drop) return false;
+      drop = false;
+      socket.destroy();
+      return true;
+    },
+  });
+  const reply = await take('clip A.mp4');
+  assert.equal(reply.ok, false);
+  assert.equal(reply.error.code, 'uncertain');
+  assert.equal(fake.inputs[0].state, 'Running');
+  assert.equal(fake.functions.filter(fn => fn.name === 'Play').length, 1);
+  const state = await adapter.overlays(target);
+  assert.equal(state.ok, true);
+  assert.equal(state.value.players[0].instance, undefined);
+  assert.equal(fake.functions.filter(fn => fn.name === 'Play').length, 1);
+  assert.equal(fake.connections, 2);
+});
+
+test('AC-7: cleanup ER reports refused after observed playback and retains that instance without retry', async t => {
+  let refuseCleanup = false;
+  const { fake, take, adapter, target } = await playerFixture(t, {
+    hook(line, socket) {
+      if (!refuseCleanup || !line.startsWith('FUNCTION ListRemove ')) return false;
+      socket.write('FUNCTION ER Removal refused by vMix\r\n');
+      return true;
+    },
+  });
+  assert.equal((await take('clip A.mp4')).ok, true);
+  refuseCleanup = true;
+  const reply = await take('clip B.mp4');
+  assert.equal(reply.ok, false);
+  assert.equal(reply.error.code, 'refused');
+  assert.match(reply.error.detail, /observed playing.*Removal refused by vMix/);
+  const state = (await adapter.overlays(target)).value.players[0];
+  assert.equal(state.file, 'clip B.mp4');
+  assert.equal(state.cueId, 'cue:clip B.mp4');
+  assert.ok(state.instance);
+  assert.equal(fake.lines.filter(line => line.startsWith('FUNCTION ListRemove ')).length, 1);
+  assert.equal(fake.inputs[0].list.length, 2);
+});
+
+test('AC-8: other writers invalidate ending authority and serialized takes keep their own instances', async t => {
+  const { take, adapter, target, player, fake, root } = await playerFixture(t);
+  const [first, second] = await Promise.all([take('clip A.mp4'), take('clip B.mp4')]);
+  assert.equal(first.ok, true);
+  assert.equal(second.ok, true, JSON.stringify(second));
+  assert.equal(second.generation, first.generation + 1);
+  const current = (await adapter.overlays(target)).value.players[0];
+  assert.equal(current.instance, second.instance);
+  fake.inputs[0].list[0] = join(root, 'clip A.mp4');
+  const before = fake.functions.length;
+  const ending = await adapter.act(target, { verb: 'ending', slot: player(), item: { kind: 'media', name: 'clip B.mp4' }, playback: { end: 'loop' } });
+  assert.equal(ending.ok, false);
+  assert.equal(fake.functions.length, before);
+  assert.equal((await adapter.overlays(target)).value.players[0].instance, undefined);
+});
+
+test('AC-8: unfinished creation retains its GUID and an unknown Add is never automatically repeated', async t => {
+  let stopAtName = true;
+  const first = await playerFixture(t, {
+    afterFunction(name, params, socket) {
+      if (name !== 'SetInputName' || !stopAtName) return false;
+      stopAtName = false;
+      socket.destroy();
+      return true;
+    },
+  });
+  assert.equal((await first.take('clip A.mp4')).error.code, 'uncertain');
+  assert.equal((await first.take('clip A.mp4')).ok, true);
+  assert.equal(first.fake.functions.filter(fn => fn.name === 'AddInput').length, 1);
+  const second = await playerFixture(t, {
+    afterFunction(name, params, socket) {
+      if (name !== 'AddInput') return false;
+      socket.destroy();
+      return true;
+    },
+  });
+  assert.equal((await second.take('clip A.mp4')).error.code, 'uncertain');
+  assert.equal((await second.take('clip A.mp4')).error.code, 'refused');
+  assert.equal(second.fake.functions.filter(fn => fn.name === 'AddInput').length, 1);
+});
+
+test('AC-9: HTTP media reads and picker require pairing and never take a root path from the page', async t => {
+  const { adapter, target, fake, media, root } = await playerFixture(t);
+  await withBridge(adapter, async post => {
+    assert.equal((await post('/studio', { target }, '')).ok, false);
+    assert.equal((await post('/vmix/choose-folder', { target }, '')).ok, false);
+    for (const field of ['path', 'mediaFolder', 'folder', 'studio']) {
+      assert.equal((await post('/studio', { target, [field]: root })).ok, false);
+      assert.equal((await post('/vmix/choose-folder', { target, [field]: root })).ok, false);
+    }
+    assert.equal((await post('/studio', { target })).mediaFolder, root);
+    const list = await post('/list', { target, kind: 'media' });
+    assert.equal(list.ok, true);
+    assert.equal(list.items.length, 4);
+    assert.ok(list.items.every(item => item.name === item.path && !item.path.includes(root)));
+    assert.equal((await post('/list', { target, kind: 'media', path: '../' })).ok, false);
+    const taken = await post('/act', { target, action: { verb: 'take', slot: { adapter: 'vmix', player: 'clips' }, item: { kind: 'media', name: 'clip A.mp4' }, cueId: 'http-cue' } });
+    assert.equal(taken.ok, true, JSON.stringify(taken));
+    const state = await post('/state', { target });
+    assert.equal(state.players[0].instance, taken.instance);
+    assert.equal(state.players[0].generation, taken.generation);
+    assert.equal(state.players[0].cueId, 'http-cue');
+    // The V2 overlay input wire shape never leaks the absolute paths present in the XML list.
+    fake.overlays.set(3, fake.inputs[0].key);
+    const overlays = await post('/state', { target });
+    assert.deepEqual(Object.keys(overlays.overlays[2].input).sort(), ['key', 'number', 'title', 'type']);
+    assert.equal(JSON.stringify(overlays.overlays).includes(root), false);
+  });
+});
+
+test('AC-7: unanswered cleanup stops uncertain and a separate state read never resends it', async t => {
+  const fixture = await playerFixture(t, {
+    afterFunction(name, params, socket) {
+      if (name !== 'ListRemove') return false;
+      socket.destroy();
+      return true;
+    },
+  });
+  assert.equal((await fixture.take('clip A.mp4')).ok, true);
+  const reply = await fixture.take('clip B.mp4');
+  assert.equal(reply.ok, false);
+  assert.equal(reply.error.code, 'uncertain');
+  assert.equal(fixture.fake.functions.filter(fn => fn.name === 'ListRemove').length, 1);
+  const state = await fixture.adapter.overlays(fixture.target);
+  assert.equal(state.ok, true);
+  assert.equal(state.value.players[0].file, 'clip B.mp4');
+  assert.equal(fixture.fake.functions.filter(fn => fn.name === 'ListRemove').length, 1);
+});
+
+test('AC-8: foreign or ambiguous player identities refuse without adding or addressing an input', async t => {
+  for (const inputs of [
+    [{ type: 'Browser', title: 'NoaCG Clips' }],
+    [{ type: 'VideoList', title: 'NoaCG Clips' }, { type: 'VideoList', title: 'NoaCG Clips' }],
+  ]) {
+    const fixture = await playerFixture(t, { inputs });
+    const reply = await fixture.take('clip A.mp4');
+    assert.equal(reply.ok, false);
+    assert.equal(reply.error.code, 'refused');
+    assert.equal(fixture.fake.functions.length, 0);
+  }
+});
+
+test('AC-8: a simultaneous unmarked list creation grants no player ownership', async t => {
+  let fake;
+  const fixture = await playerFixture(t, {
+    afterFunction(name) {
+      if (name === 'AddInput') fake.add('VideoList', 'List');
+      return false;
+    },
+  });
+  fake = fixture.fake;
+  const reply = await fixture.take('clip A.mp4');
+  assert.equal(reply.ok, false);
+  assert.equal(reply.error.code, 'uncertain');
+  assert.deepEqual(fake.functions.map(fn => fn.name), ['AddInput']);
 });

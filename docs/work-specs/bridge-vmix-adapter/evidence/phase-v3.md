@@ -17,3 +17,33 @@ The independent Rules review agreed with corrections. The rules above include th
 The previous verified main was `a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44`, the independently accepted V2 and published Bridge 0.11.0 source. [V2 acceptance](https://github.com/NoaCG/NoaCG-Studio/pull/2293#issuecomment-6783585581)
 
 On initial allocation review, codebase-health was closed and the changed paths in open PRs #2364, #2332, #2316, #1642 and #1641 did not overlap the V3 Bridge, wire-type, test or evidence paths. The mirrored wire fields also require the narrow registry change in `src/control/playoutLink.ts` so each remains scoped to its route. The CI/CD coordinator ended the cf13 hold. The exact changed files still need the queue's sideEnds check before landing. [Codebase health closeout](https://github.com/NoaCG/NoaCG-Studio/issues/2285#issuecomment-6721737348) [CI hold end](https://github.com/NoaCG/NoaCG-Studio/issues/1967#issuecomment-6749875855)
+
+
+## V3 implementation decisions and automated checkpoint
+
+The Bridge entrypoint passes the player setup file under its existing data-directory writer claim. The approved narrow extra paths are `cli/src/commands/bridge.ts` and `src/control/playoutLink.ts`. The latter only classifies the new wire fields and permits players on state replies. The separate player helper keeps player ownership and generation bookkeeping out of the CasparCG memory bank. The adapter shares one port turn across players, overlays and reads.
+
+An unresolved Add records a durable creation marker before dispatch. A later explicit Take can use a saved GUID or the uniquely named Video List, and can finish setup of an identified GUID. It refuses another unmarked Add while the earlier creation is unknown. This leaves an input available for inspection instead of risking a duplicate player.
+
+A same-path retake appends a distinct list occurrence and observes its index, ordered list and Running state before cleanup. A cleanup ER preserves vMix's refusal and the fact that the requested file was already observed playing, with its instance available in state. A missing cleanup reply stays uncertain and never causes a retry.
+
+The Windows picker runs with a top-most owner window and a hidden PowerShell console. It holds no mixer turn. Closing Bridge aborts only its owned picker. Folder writes and player-key writes merge fields atomically in the same setup writer queue. The file browser reports canonical in-root relative paths and bounded header durations. Duration fields carry the MP4/MOV or WAV time base, which need not be a video frame rate.
+
+The initial focused test run failed eight strict expected-path assertions because the test temporary root used a different Windows path casing from realpath. The fixtures now canonicalize the root at creation. The first full vMix-file run found one old expectation that media listing was unsupported. V3's media-list test replaces that expectation, while the old no-TCP refusal check now names the still-unsupported template list. These were deterministic test expectations for the new behavior.
+
+Review also added immediate output-image-fit refusal, observed playback after prefix cleanup, preservation of ER text if clearing a failed Add marker cannot be saved, and teardown for an owned open picker. The configured selection planner selects the whole 65-spec set because the mirrored reply registry is a shared boundary. No selector or CI policy changed.
+
+## Verification still pending
+
+The exact committed Windows executable, native picker in front of the browser, real vMix 29 playback and snapshots, fresh final independent review, PR CI and exact-merge checks remain required. The automated checkpoint is separate from those proofs. No Bridge release is part of V3.
+
+## Revert
+
+The previous verified main is the full SHA above. Once PR #2368 lands, revert its merge with `git revert -m 1 <merge SHA of PR #2368>` through the ordinary feature-branch merge-queue flow. The change adds `vmix-setup.json` beside the existing Bridge token and output store. No database migration is involved.
+
+
+### Automated checkpoint results
+
+The CLI build passed. The full focused vMix and media files passed 99/99 tests, including all 76 V2 tests. Changed root gates passed, including 70 Node tests in three selected files. Studio and API TypeScript checks and changed Studio ESLint passed. The CLI source files are outside the root ESLint configuration, so their separate lint invocation was ignored and the CLI TypeScript build is the applicable compilation check. Git diff whitespace checks passed.
+
+The inline review found and fixed four contained cases, output image-fit acceptance, cleanup completion before playback observation, owned picker lifetime, and ER detail preservation during a storage failure. Simplification remained within the player and media helpers. The next checkpoint needs real-host and packaged-picker evidence.
