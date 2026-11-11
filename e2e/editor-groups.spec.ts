@@ -375,6 +375,47 @@ test('ungroup refuses a group-owned outline without losing source or selection',
   expect(await evaluateInPage(page, async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts)).toEqual([id]);
 });
 
+test('new SVG grouping refuses CSS that would take ownership of its paint', async ({ page }) => {
+  await open(page, 'svg');
+  const initial = await evaluateInPage(page, async () => {
+    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { replaceRegionWithAnimData } = await import('/src/templates/shared/animRuntime.ts');
+    return { ...t, js: replaceRegionWithAnimData(t.js, parseAnimData(t.js)!)!,
+      html: t.html.replace('</svg>', '<rect id="candidate-a" x="180" y="90" width="90" height="60" fill="orange"/><rect id="candidate-b" x="330" y="100" width="80" height="50" fill="red"/></svg>') };
+  });
+  const ids = ['#candidate-a', '#candidate-b'];
+  const state = () => evaluateInPage(page, async () => {
+    const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    return { selection: s.selectedParts, history: s.history.length };
+  });
+  const apply = async (rule: string) => {
+    await evaluateInPage(page, async t => { (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t); },
+      { ...initial, css: initial.css + '\n' + rule });
+    await ready(page);
+    await select(page, ids);
+  };
+  for (const [rule, reason] of [
+    ['svg { & > [data-noacg-group-pivot] { transform: scale(2) !important; } }', 'would style the new group'],
+    ['svg { & > #candidate-a, rect { fill: purple; } }', 'structural selector'],
+    ['@PROPERTY /* authored */ --base-anchor-x { syntax: "<number>"; inherits: false; initial-value: 0; }', 'conflicting pivot owner'],
+  ]) {
+    await apply(rule);
+    const before = await source(page), selection = await state(), painted = await rects(page, ids);
+    await page.getByRole('button', { name: 'Group selection', exact: true }).click();
+    await ready(page);
+    expect.soft((await source(page)).html === before.html, rule).toBe(true);
+    expect.soft((await source(page)).css === before.css, rule).toBe(true);
+    expect.soft((await source(page)).js === before.js, rule).toBe(true);
+    expect.soft(await state()).toEqual(selection);
+    expect.soft(await rects(page, ids)).toEqual(painted);
+    await expect.soft(page.locator('.ef-group-error')).toContainText(reason, { timeout: 1000 });
+  }
+  await apply('svg { & > .unrelated { fill: purple; } }');
+  const id = await group(page, ids);
+  expect((await source(page)).html).toContain('id="' + id.slice(1) + '" data-gfx data-noacg-group data-noacg-group-pivot="frame-v1"');
+});
+
 test('SVG group pivot is centered and remains static during child and group motion',async({page})=>{
   await open(page,'svg');
   await evaluateInPage(page, async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<rect id="pivot-a" x="180" y="90" width="90" height="60" fill="orange"/><path id="pivot-b" d="M370 170 L450 170 L420 230 Z" fill="red"/></svg>')});});await ready(page);

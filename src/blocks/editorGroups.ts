@@ -4,7 +4,7 @@ import { SVG_GROUP_PIVOT_ATTRIBUTE, SVG_GROUP_PIVOT_VERSION, SVG_GROUP_TRACK_CSS
 import { artworkNode, artworkRange } from './artworkEdits';
 import { artworkLayerNode } from './artworkLayers';
 import { baseValues } from './baseEdits';
-import { appendCss, findRuleBody } from './edit';
+import { appendCss, findRuleBody, inspectCss, type CssStyleSource } from './edit';
 import { locateAnimData, losslessAnimData } from './animData';
 import { allTimelines } from './animMachine';
 import { animateLayer, documentContains, sequenceAuthoringReason, trackOwner } from './editorAnimation';
@@ -45,24 +45,13 @@ function freshId(template: SpxTemplate, prefix: string, reserved: string[] = [])
   while (source.includes(prefix + index) || reserved.includes(prefix + index)) index++;
   return prefix + index;
 }
-function rulesOf(template: SpxTemplate) {
-  const doc = new DOMParser().parseFromString(template.html, 'text/html');
-  const sheet = new CSSStyleSheet();
-  sheet.replaceSync(template.css + '\n' + [...doc.querySelectorAll('style')].map(node => node.textContent).join('\n'));
-  const rules: CSSStyleRule[] = [];
-  const visit = (list: CSSRuleList) => {
-    for (const rule of list) {
-      if (rule instanceof CSSStyleRule) rules.push(rule);
-      else if (rule instanceof CSSGroupingRule) visit(rule.cssRules);
-    }
-  };
-  visit(sheet.cssRules);
-  return rules;
+function rulesOf(template: SpxTemplate, doc: Document) {
+  return [template.css, ...[...doc.querySelectorAll('style')].map(node => node.textContent ?? '')].flatMap(css => inspectCss(css).rules);
 }
 // Pseudo-elements paint on their host even though Element.matches never matches them.
 const hostSelector = (selector: string) => selector.replace(/::[\w-]+(?:\([^)]*\))?|:(?:before|after)\b/g, '');
-function checkWrapperStyle(rules: CSSStyleRule[], wrapper: Element, name: string) {
-  for (const rule of rules.filter(rule => wrapper.matches(hostSelector(rule.selectorText)))) {
+function checkWrapperStyle(rules: CssStyleSource[], wrapper: Element, name: string) {
+  for (const rule of rules.filter(rule => rule.selectors.some(selector => wrapper.matches(hostSelector(selector))))) {
     for (const property of rule.style) {
       const value = rule.style.getPropertyValue(property).trim();
       if (property === 'box-sizing' ||
@@ -74,11 +63,12 @@ function checkWrapperStyle(rules: CSSStyleRule[], wrapper: Element, name: string
 }
 /** A new wrapper may not change any existing selector's meaning, including unselected siblings. */
 function checkStructure(template: SpxTemplate, doc: Document, mutate: () => Element[], name = 'the new group') {
-  const rules = rulesOf(template);
+  const rules = rulesOf(template, doc);
   const location = locateAnimData(template.js);
   const raw = location ? JSON.parse(template.js.slice(location.start, location.end)) : null;
-  if (rules.some(rule => /:(?:hover|active|focus(?:-visible|-within)?|target|visited|checked)\b/.test(rule.selectorText))) throw new Error('This source uses interaction-state CSS selectors. Grouping cannot preserve their structural meaning exactly. Its source is preserved.');
-  const selectors = new Set(rules.map(rule => hostSelector(rule.selectorText)));
+  const branches = rules.flatMap(rule => rule.selectors);
+  if (branches.some(selector => /:(?:hover|active|focus(?:-visible|-within)?|target|visited|checked)\b/.test(selector))) throw new Error('This source uses interaction-state CSS selectors. Grouping cannot preserve their structural meaning exactly. Its source is preserved.');
+  const selectors = new Set(branches.map(hostSelector));
   const motionSelectors = new Set<string>();
   const motion = (selector: string) => { selectors.add(selector); motionSelectors.add(selector); };
   const collect = (value: unknown) => {
@@ -157,7 +147,12 @@ function createGroup(template: SpxTemplate, selectors: string[], box: GroupBox) 
     for (const step of allTimelines(data)) step.layers[selector] = {transformOrigin:[{time:0,value:fine(box.width/2)+'px '+fine(box.height/2)+'px'}]};
     const changed = writeAnimData(js, data); if (!changed) throw new Error('The group pivot initializer cannot be written.'); js = changed;
   }
-  return { template: { ...template, html, css, js }, targets: [selector] };
+  const next = { ...template, html, css, js };
+  if (fixedRuntime) {
+    const owner = baseValues(next, selector);
+    if (!owner.svgGroupPivot) throw new Error(owner.anchorReason!);
+  }
+  return { template: next, targets: [selector] };
 }
 function groupNode(template: SpxTemplate, selector: string) {
   const node = artworkNode(template, selector);
@@ -187,7 +182,9 @@ function ungroup(template: SpxTemplate, selector: string) {
   const own = findRuleBody(template.css, selector);
   if (!own) throw new Error('This group has no owned transform rule. Its source is preserved.');
   const cssStart = template.css.lastIndexOf(selector, own.start), cssEnd = own.end + 1;
-  const rule = rulesOf(template).find(rule => rule.selectorText === selector)!;
+  const doc = node.ownerDocument, rules = rulesOf(template, doc);
+  const rule = rules.find(rule => !rule.nested && rule.selectorText === selector);
+  if (!rule) throw new Error('This group has no owned transform rule. Its source is preserved.');
   const ownedProperties = new Set(['position', 'left', 'top', 'width', 'height', 'margin', 'padding', 'border', 'box-sizing',
     'transform-box', 'transform-origin', '--base-anchor-x', '--base-anchor-y', '--base-x', '--base-y', '--base-scale-x', '--base-scale-y', '--base-rotation',
     'transform', 'translate', 'scale', 'rotate', 'visibility', 'overflow', 'opacity',
@@ -206,16 +203,16 @@ function ungroup(template: SpxTemplate, selector: string) {
   if (fixed) ownedAttributes.push(SVG_GROUP_PIVOT_ATTRIBUTE);
   if ([...node.attributes].some(attr => !ownedAttributes.includes(attr.name))) throw new Error('This group has additional source attributes. Ungroup would change their meaning; its source is preserved.');
   const groupReference = new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\w-])');
-  const relatedRules = rulesOf(template).filter(rule => groupReference.test(rule.selectorText));
+  const relatedRules = rules.filter(rule => rule.selectors.some(selector => groupReference.test(selector)));
   if (relatedRules.length !== 1 || relatedRules[0].selectorText !== selector) throw new Error('Other CSS rules refer to this group. Its source is preserved.');
-  checkWrapperStyle(rulesOf(template).filter(rule => rule.selectorText !== selector), node, 'this group during ungroup');
+  checkWrapperStyle(rules.filter(other => other !== rule), node, 'this group during ungroup');
   if (node.namespaceURI !== SVG && (rule.style.position !== 'absolute' || rule.style.display && rule.style.display !== 'block' || ['padding', 'margin', 'border'].some(property => {
     const value = rule.style.getPropertyValue(property); return value && !/^(?:0(?:px)?|none)$/.test(value);
   }))) throw new Error('This group owns a layout that cannot be split between its members. Its source is preserved.');
   const location = locateAnimData(template.js);
   const outside = location ? template.js.slice(0, location.start) + template.js.slice(location.end) : template.js;
   if (outside.includes(node.id)) throw new Error('Custom behavior refers to this group. Its source is preserved.');
-  const doc = node.ownerDocument, parts = getTemplateParts(template.html, template.fields, true);
+  const parts = getTemplateParts(template.html, template.fields, true);
   const members = parts.filter(part => doc.querySelector(part.selector)?.parentElement?.closest(GROUP) === node);
   const targets = members.filter(part => !members.some(other => other !== part && doc.querySelector(other.selector)!.contains(doc.querySelector(part.selector)))).map(part => part.selector);
   if (!targets.length || [...node.childNodes].some(child => child.nodeType === Node.TEXT_NODE && child.textContent?.trim())) throw new Error('This group contains unaddressable content. Its source is preserved.');
@@ -227,10 +224,10 @@ function ungroup(template: SpxTemplate, selector: string) {
     if (fixed && property === 'transform') return false;
     const value = rule.style.getPropertyValue(property); return value && !['none', 'visible'].includes(value);
   }) || node.namespaceURI !== SVG && (rule.style.width !== '100%' || rule.style.height !== '100%') || timelines.some(step => step.layers[selector] || step.spans?.[selector] || step.reveals?.includes(selector) || step.hides?.includes(selector));
-  if (transformed && rulesOf(template).some(rule => rule.style.zIndex && rule.style.zIndex !== 'auto' && [...node.querySelectorAll('*')].some(member => member.matches(rule.selectorText)))) throw new Error('Group members own a stacking order inside the shared transform. Ungroup cannot split that order exactly. Its source is preserved.');
-  if (transformed && node.namespaceURI !== SVG && rulesOf(template).some(rule => {
+  if (transformed && rules.some(rule => rule.style.zIndex && rule.style.zIndex !== 'auto' && [...node.querySelectorAll('*')].some(member => rule.selectors.some(selector => member.matches(selector))))) throw new Error('Group members own a stacking order inside the shared transform. Ungroup cannot split that order exactly. Its source is preserved.');
+  if (transformed && node.namespaceURI !== SVG && rules.some(rule => {
     const blend = rule.style.mixBlendMode, backdrop = rule.style.getPropertyValue('backdrop-filter');
-    return (blend && blend !== 'normal' || backdrop && backdrop !== 'none') && [...node.querySelectorAll('*')].some(member => member.matches(rule.selectorText.replace(/::[\w-]+(?:\([^)]*\))?|:(?:before|after)\b/g, '')));
+    return (blend && blend !== 'normal' || backdrop && backdrop !== 'none') && [...node.querySelectorAll('*')].some(member => rule.selectors.some(selector => member.matches(hostSelector(selector))));
   })) throw new Error('This group has member blending or backdrop filtering. Ungroup cannot split its shared compositing context exactly. Its source is preserved.');
   let html: string, css = template.css, js = template.js;
   if (transformed && node.namespaceURI === SVG) {

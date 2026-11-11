@@ -1,4 +1,5 @@
 // covers: src/export/targets/ograf.ts, src/templates/importedDesign/{stretch,svg}.ts, src/assets/svgImport.ts
+// covers: src/templates/shared/animRuntime.ts, src/blocks/editorGroups.ts
 //
 // TWO GRAPHICS, ONE RENDERER (issue #789). An OGraf renderer mounts every layer as a Web Component
 // in ONE document, so anything a graphic carries that is document-wide reaches the graphic beside
@@ -68,8 +69,8 @@ async function serveRenderer(page: Page, packages: Record<string, Files>, rules 
  * Put one package on the stage, load it and land its entrance. `key` names the layer when one
  * package is placed twice (it defaults to the folder), and `left` moves that layer sideways.
  */
-async function place(page: Page, folder: string, tag: string, opts: { key?: string; left?: number } = {}) {
-  await page.evaluate(async ({ origin, folder, tag, key, left }) => {
+async function place(page: Page, folder: string, tag: string, opts: { key?: string; left?: number; skipAnimation?: boolean } = {}) {
+  await page.evaluate(async ({ origin, folder, tag, key, left, skipAnimation }) => {
     const mod = await import(`${origin}/${folder}/graphic.mjs`);
     if (!customElements.get(tag)) customElements.define(tag, mod.default);
     type Driver = HTMLElement & { load(p: unknown): Promise<{ statusCode: number }>; playAction(p: unknown): Promise<unknown> };
@@ -79,10 +80,10 @@ async function place(page: Page, folder: string, tag: string, opts: { key?: stri
     document.getElementById('stage')!.appendChild(el);
     const loaded = await el.load({ data: {}, renderType: 'realtime', renderCharacteristics: {} });
     if (loaded.statusCode !== 200) throw new Error(`load() answered ${JSON.stringify(loaded)}`);
-    await el.playAction({ skipAnimation: true });
+    await el.playAction({ skipAnimation });
     await document.fonts.ready;
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-  }, { origin: ORIGIN, folder, tag, key: opts.key ?? null, left: opts.left ?? null });
+  }, { origin: ORIGIN, folder, tag, key: opts.key ?? null, left: opts.left ?? null, skipAnimation: opts.skipAnimation ?? true });
 }
 
 /** Dispose one mounted graphic and take it off the stage, as a renderer clears a layer. */
@@ -168,6 +169,62 @@ test('two imported SVG designs on one renderer keep their own colours, gradients
   await unmount(page, 'a');
   expect(await pixels(page, { bClass: points.bClass, bGradient: points.bGradient, bShown: points.bShown }))
     .toEqual({ bClass: own.bClass, bGradient: own.bGradient, bShown: own.bShown });
+});
+
+test('two keyed SVG groups keep independent pivots through interrupted Out and remount', async ({ page }) => {
+  await page.goto('/app');
+  const draft = await graphicTemplate(page, { kind: 'probe', name: 'Shared renderer pivots', css: '',
+    html: '<svg id="pivot-art" width="960" height="270"><rect id="part-a" data-gfx width="100" height="50"/><rect id="part-b" data-gfx x="200" width="100" height="50"/></svg>' });
+  const make = async (opening: number, inTime: number, outTime: number) => {
+    const source = await page.evaluate(async ({ draft, opening, inTime, outTime }) => {
+      const { parseAnimData } = await import('/src/blocks/animData.ts');
+      const { replaceRegionWithAnimData } = await import('/src/templates/shared/animRuntime.ts');
+      const { applyOperations } = await import('/src/components/editorFoundation/operations.ts');
+      const template = draft as Parameters<typeof applyOperations>[0], data = parseAnimData(template.js)!;
+      data.steps = [{ name: 'In', duration: inTime, ease: 'none', layers: {} }, { name: 'Out', duration: outTime, ease: 'none', layers: {} }];
+      const selector = '#group-1';
+      const key = (step: number, time: number, value: number) => ({ kind: 'animation.key' as const, selector, step, time, value, property: '--base-anchor-x' as const, action: 'set' as const });
+      return applyOperations({ ...template, js: replaceRegionWithAnimData(template.js, data)! }, [
+        { kind: 'group.create', selectors: ['#part-a', '#part-b'], box: { x: 0, y: 0, width: 300, height: 50 } },
+        { kind: 'base.set', selector, values: { scaleX: 2, anchorX: 10, anchorY: 25 } },
+        key(0, 0, opening), key(0, inTime, opening + 20), key(1, 0, opening + 20), key(1, outTime, opening + 40),
+      ]).template;
+    }, { draft, opening, inTime, outTime });
+    const files = await ografFiles(page, source);
+    if (typeof files === 'string') throw new Error(files);
+    return files;
+  };
+  const a = await make(20, .8, .52), b = await make(35, .92, .68);
+  await serveRenderer(page, { a, b });
+  const tagA = 'ograf-isolation-pivot-a', tagB = 'ograf-isolation-pivot-b';
+  const matrix = (key: string, seek?: { duration: number; at: number }) => page.evaluate(({ key, seek }) => {
+    if (seek) {
+      type Timeline = { duration(): number; pause(): Timeline; time(at: number, suppress: boolean): void };
+      const gsap = (window as unknown as { gsap: { globalTimeline: { getChildren(nested: boolean, tweens: boolean, timelines: boolean): Timeline[] } } }).gsap;
+      const timeline = gsap.globalTimeline.getChildren(false, false, true).find(t => Math.abs(t.duration() - seek.duration) < .0001);
+      if (!timeline) throw new Error(`No ${seek.duration} timeline`);
+      timeline.pause().time(seek.at, true);
+    }
+    const body = graphicBody(document.querySelector(`[data-folder="${key}"]`)!);
+    const parent = body.querySelector<SVGGraphicsElement>('#pivot-art')!, group = body.querySelector<SVGGraphicsElement>('#group-1')!;
+    return parent.getScreenCTM()!.inverse().multiply(group.getScreenCTM()!).e;
+  }, { key, seek });
+  await place(page, 'a', tagA, { skipAnimation: false });
+  expect(await matrix('a', { duration: .8, at: .4 })).toBeCloseTo(-30, 3);
+  await place(page, 'b', tagB, { skipAnimation: false });
+  expect.soft(await matrix('b', { duration: .92, at: .46 })).toBeCloseTo(-45, 3);
+  expect(await matrix('a')).toBeCloseTo(-30, 3);
+  await page.evaluate(async () => {
+    const elements = Array.from(document.querySelectorAll('#stage > *')) as (HTMLElement & { stopAction(p: unknown): Promise<unknown> })[];
+    await Promise.all(elements.map(el => el.stopAction({})));
+  });
+  expect.soft(await matrix('a', { duration: .52, at: .26 })).toBeCloseTo(-45, 3);
+  expect.soft(await matrix('b', { duration: .68, at: .34 })).toBeCloseTo(-60, 3);
+  await unmount(page, 'a');
+  expect.soft(await matrix('b')).toBeCloseTo(-60, 3);
+  await place(page, 'a', tagA, { skipAnimation: false });
+  expect.soft(await matrix('a', { duration: .8, at: .4 })).toBeCloseTo(-30, 3);
+  expect.soft(await matrix('b')).toBeCloseTo(-60, 3);
 });
 
 test("a child-combinator rule off `body` matches the design's own top-level elements, and `body.children` lists them", async ({ page }) => {

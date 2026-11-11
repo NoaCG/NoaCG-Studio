@@ -724,6 +724,46 @@ This is responsive Windows Chromium evidence. Actual Chrome 125% remains
 the earlier source-specific `j-5004` receipt. The native file receipts
 remain separate.
 
+#### Shared stylesheet and renderer ownership
+
+The full review of `536f8f370922d579aa2ade42465205cab3ea09c1` returned
+AGREE WITH CORRECTIONS, grade B. The round-cap reassessment verified the
+related CSS ownership cases and confirmed that the narrower ordinary HTML
+and legacy static controls predate E1.
+
+The writer edits the value span and preserves surrounding property spelling,
+comments and priority. CSS escapes resolve to the same property identity for
+the read, uniqueness proof and write. Group creation and pivot editing read
+the same parsed stylesheet rules, including nested selectors and actual
+custom-property registrations. The group structural check considers each
+selector-list branch. A proposed canonical group also passes the existing
+owner guard before the edit returns. Unsupported scoped or imported styles
+cannot establish an editor-owned pivot. The new ordinary imported SVG static
+pivot route uses the same CSS proof. The older HTML and unmarked group static
+routes keep their existing admission rules.
+
+The fixed-frame GSAP adapter validates its passed SVG group or carrier
+element. It shares no document scope with the graphic that registers the
+adapter. Each package's track adapter still resolves selectors inside its
+own graphic. This keeps two OGraf instances, including a disposed and
+remounted instance, independent on a shared renderer.
+
+The Node source test first reproduced the dropped declaration comments.
+Windows `j-5130` reproduced the four browser cases. Unsafe group creation
+committed source and history under nested CSS and a registration. A second
+OGraf instance stayed at matrix translation `-10` instead of `-45` on In
+and `-60` on interrupted Out. Remounting the first also stayed at `-10`
+instead of `-30`. `j-5132` passed four corrected cases, and its scoped CSS
+refusal had the existing specific origin-owner message. `j-5133` exited 0
+with all seven cases after recording that message. The existing independent
+matrix tolerance stays `0.0005`. The checks compare actual same-renderer In,
+interrupted Out and remount, source and history on structural refusal,
+commented and escaped declaration ownership, and single-instance exports.
+`j-5134` exited 0 with eight existing HTML and SVG group cases. `j-5135`
+exited 0 with all ten maintained OGraf isolation cases.
+The affected local gates passed 357 Node tests in 26 files, including the
+36 targeted canvas and cross-cue tests. Changed-file lint and TypeScript passed.
+
 #### Catalog and affected CI scope
 
 Windows factory `j-5098` exited 0 with 328 checks across 12 kits. The
@@ -741,6 +781,11 @@ control `j-5128` exited 0 and found no candidate difference across all
 539 fingerprints, with the same raw `jc01` hash above. The local CI plan
 now selects 182 offline specs in 15 shards and all 65 configured specs.
 The exact PR run supplies the authoritative selection.
+
+After the shared stylesheet and renderer correction, `j-5136` retained
+the same raw Windows failure on `jc01` alone. `j-5137` exited 0 with all
+539 candidate fingerprints identical to the unchanged-main control and
+the same raw `jc01` JavaScript hash. No catalog baseline changed.
 
 ## Earlier checkpoints
 

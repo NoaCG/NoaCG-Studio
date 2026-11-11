@@ -1089,14 +1089,16 @@ noacgEntranceTimeline = (function (enter) {
 // A marked group composes its transform in CSS. Translate its authored channels once, then
 // let the same step and exit builders provide holds, ease, visibility and interruption.
 const SVG_GROUP_RUNTIME_JS = `// Capability: svg-group-fixed-frame-v1.
+function noacgHasSvgGroupPivot(element) {
+  return element && element.localName === 'g' && element.namespaceURI === 'http://www.w3.org/2000/svg'
+    && (element.hasAttribute('data-noacg-group') || element.hasAttribute('data-noacg-carrier'))
+    && element.matches('${SVG_GROUP_PIVOT_SELECTOR}');
+}
 function noacgSvgGroup(selector) {
   if (!/^#[a-zA-Z_][\\w-]*$/.test(selector)) return null;
   var matches = document.querySelectorAll(selector);
   var element = matches.length === 1 && matches[0];
-  return element && selector === '#' + element.id && element.localName === 'g'
-    && element.namespaceURI === 'http://www.w3.org/2000/svg'
-    && (element.hasAttribute('data-noacg-group') || element.hasAttribute('data-noacg-carrier'))
-    && element.matches('${SVG_GROUP_PIVOT_SELECTOR}') ? element : null;
+  return noacgHasSvgGroupPivot(element) && selector === '#' + element.id ? element : null;
 }
 function noacgSvgGroupDisplay(selector, hidden) {
   var element = noacgSvgGroup(selector);
@@ -1116,7 +1118,9 @@ function noacgSvgGroupDisplay(selector, hidden) {
         return parseFloat(getComputedStyle(element).getPropertyValue(property)) * ${SVG_GROUP_PIVOT_UNITS};
       };
       gsap.registerPlugin({ name: name, get: read, init: function (element, value) {
-        if (noacgSvgGroup('#' + element.id) !== element) return false;
+        // OGraf instances share GSAP's registry. The plugin must stay independent of the
+        // document scope which first registered it; selector lookup remains in adapt().
+        if (!noacgHasSvgGroupPivot(element)) return false;
         var target = {};
         Object.defineProperty(target, 'value', { set: function (next) {
           element.style.setProperty(property, (next / ${SVG_GROUP_PIVOT_UNITS}) + 'px');

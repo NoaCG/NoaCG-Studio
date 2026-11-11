@@ -431,6 +431,8 @@ test('SVG group pivot ownership is checked again before ungrouping or editing sa
   await expect.soft(operate(page, unknown, ungroup)).rejects.toThrow('unrecognized pivot format');
   await expect.soft(operate(page, unknown, [{ kind: 'base.set', selector, values: { anchorX: 10, anchorY: 20 } }])).rejects.toThrow('unrecognized pivot format');
   await expect.soft(operate(page, unknown, [{ kind: 'animation.key', selector, property: 'rotation', step: 0, time: .4, value: 25, action: 'set' }])).rejects.toThrow('unrecognized pivot format');
+  const escaped = { ...grouped, css: grouped.css.replace(/(#group-1\s*\{[^}]*)(\})/, '$1--base-\\61 nchor-x: 99px;$2') };
+  await expect.soft(operate(page, escaped, ungroup)).rejects.toThrow('conflicting pivot owner');
 
   const key = { selector, property, step: 0, time: .4 };
   const set = { kind: 'animation.key', ...key, value: 80, action: 'set' };
@@ -469,6 +471,7 @@ test('ordinary anchor keys refuse competing CSS variables and source style rules
     { ...original, css: original.css.replace('#box{', '#box{--base-anchor-x:25px !important;') },
     { ...original, html: original.html.replace('</head>', '<style>#box { transform-origin: 25px 25px !important; }</style></head>') },
     { ...original, css: original.css.replace('#box{', '#box{--base-anchor-x:25px;--base-anchor-y:50px;transform-origin:0 var(--base-anchor-y);') },
+    { ...original, css: original.css.replace('#box{', '#box{--base-anchor-x:25px;--base-\\61 nchor-x:25px;--base-anchor-y:50px;transform-origin:var(--base-anchor-x) var(--base-anchor-y);') },
     { ...original, css: original.css.replace('#box{', '#box{transform-origin:25px 50px 20px;') },
     { ...original, css: original.css.replace('#box{', '#box{transform-origin:inherit;') },
     { ...original, css: original.css.replace('#box{', '#box{transition-duration:.2s;') },
@@ -476,14 +479,25 @@ test('ordinary anchor keys refuse competing CSS variables and source style rules
     { ...original, css: original.css + '\nbody { & #box { all: unset; } }' },
     { ...original, css: original.css + '\n#box { @media (min-width: 1px) { --base-anchor-x: 25px !important; } }' },
     { ...original, css: original.css + '\n@property --base-anchor-x { syntax: "<number>"; inherits: false; initial-value: 0; }' },
+    { ...original, css: original.css + '\n@PROPERTY /* authored */ --base-anchor-x { syntax: "<number>"; inherits: false; initial-value: 0; }' },
+    { ...original, html: original.html.replace('</head>', '<style>@property /* authored */ --base-anchor-x { syntax: "<number>"; inherits: false; initial-value: 0; }</style></head>') },
+    { ...original, css: '@import url("data:text/css,%23box%7Btransform-origin%3A0%7D");\n' + original.css },
   ];
   for (const conflict of conflicts) await expect.soft(operate(page, conflict, [key])).rejects.toThrow('competing pivot CSS');
+  const scoped = { ...original, css: original.css + '\n@scope (.fixture) { #box { transform-origin: 0 0; } }' };
+  await expect(operate(page, scoped, [key])).rejects.toThrow('transform-origin is set by another rule');
 
-  const authored = { ...original, css: original.css.replace('#box{', '#box{--base-anchor-x:100px;--base-anchor-y:50px;transform-origin:var(--base-anchor-x) var(--base-anchor-y);--base-anchor-X:75px;/* ; --base-anchor-x:75px; { } */') };
+  const authored = { ...original, css: original.css.replace('#box{', '#box{--base-anchor-x /* owner */: /* pixels */ 100px;--base-anchor-y:50px;transform-origin:var(--base-anchor-x) var(--base-anchor-y);--base-anchor-X:75px;/* ; --base-anchor-x:75px; { } */') };
   const keyed = await operate(page, authored, [key]);
   const baked = await operate(page, keyed, [{ ...key, action: 'disable', baseValues: { anchorX: 80, anchorY: 50 } }]);
-  expect(baked.css).toContain('--base-anchor-x: 80px;');
+  expect(baked.css).toContain('--base-anchor-x /* owner */: /* pixels */ 80px;');
   expect(baked.css).toContain('--base-anchor-X:75px;/* ; --base-anchor-x:75px; { } */');
+
+  const svg = { ...original, html: original.html.replace('</div></body>', '<svg class="imported-design-art" width="960" height="270"><text id="pivot-text" data-gfx x="20" y="60">Text</text></svg></div></body>') };
+  const staticEdit = { kind: 'base.set', selector: '#pivot-text', values: { anchorX: 30, anchorY: 20 } };
+  expect((await operate(page, svg, [staticEdit])).css).toContain('--base-anchor-x: 30px');
+  await expect(operate(page, { ...svg, css: svg.css + '\n@PROPERTY /* authored */ --base-anchor-x { syntax: "<number>"; inherits: false; initial-value: 0; }' }, [staticEdit]))
+    .rejects.toThrow('competing pivot CSS');
 });
 
 test('a canonical SVG pivot paints the same precise pose across a cue cut', async ({ page }) => {

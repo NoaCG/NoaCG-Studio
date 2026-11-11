@@ -229,8 +229,69 @@ function escapeRe(s: string): string {
 }
 
 type CssRuleBody = { body: string; start: number; end: number };
-const CSS_SOURCE_TOKENS = /\/\*[\s\S]*?\*\/|"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'|\\[\s\S]|[()[\]{}:;]/g;
+const CSS_SOURCE_TOKENS = /\/\*[\s\S]*?\*\/|"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'|\\[\s\S]|[()[\]{}:;,&]/g;
 const cssWithoutComments = (value: string) => value.replace(/\/\*[\s\S]*?\*\//g, comment => ' '.repeat(comment.length));
+function cssName(source: string) {
+  return source.replace(/\\(?:([0-9a-f]{1,6})(?:\r\n|[\t\n\f\r ])?|([^\n\f\r]))/gi, (_match, hex: string | undefined, escaped: string) => {
+    if (!hex) return escaped;
+    const code = parseInt(hex, 16);
+    return code && code <= 0x10ffff && (code < 0xd800 || code > 0xdfff) ? String.fromCodePoint(code) : '\ufffd';
+  });
+}
+
+function selectorBranches(selector: string) {
+  const branches: string[] = [];
+  let depth = 0, start = 0;
+  for (const match of selector.matchAll(CSS_SOURCE_TOKENS)) {
+    if (match[0] === '(' || match[0] === '[') depth++;
+    else if (match[0] === ')' || match[0] === ']') depth--;
+    else if (!depth && match[0] === ',') {
+      branches.push(selector.slice(start, match.index).trim());
+      start = match.index! + 1;
+    }
+  }
+  return [...branches, selector.slice(start).trim()];
+}
+
+export type CssStyleSource = { selectorText: string; selectors: string[]; style: CSSStyleDeclaration; nested: boolean };
+/** Read authored CSS without rewriting it or loading styles from outside the document. */
+export function inspectCss(css: string, nativeNesting = true) {
+  const visible = nativeNesting ? css.replace(CSS_SOURCE_TOKENS, token => /^["']|^\/\*/.test(token) ? ' '.repeat(token.length) : token) : '';
+  // A constructed sheet ignores @import. The structural owner must still account for it.
+  let unresolved = [...visible.matchAll(/(?:^|[;}])\s*@((?:[-\w]|\\(?:[0-9a-f]{1,6}(?:\r\n|[\t\n\f\r ])?|[^\n\f\r]))+)/gi)]
+    .some(match => cssName(match[1]).toLowerCase() === 'import');
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(css);
+  const rules: CssStyleSource[] = [], registrations = new Set<string>();
+  const visit = (list: CSSRuleList, nested: boolean, parent?: string) => {
+    for (const rule of list) {
+      if (rule instanceof CSSStyleRule) {
+        const selectors = selectorBranches(rule.selectorText).map(selector => {
+          if (!parent) return selector;
+          let explicit = false;
+          const expanded = selector.replace(CSS_SOURCE_TOKENS, token => {
+            if (token !== '&') return token;
+            explicit = true;
+            return `:is(${parent})`;
+          });
+          return explicit ? expanded : `:is(${parent}) ${selector}`;
+        });
+        rules.push({ selectorText: rule.selectorText, selectors, style: rule.style, nested });
+        if (nativeNesting && rule.cssRules?.length) visit(rule.cssRules, true, selectors.join(', '));
+      } else if (typeof CSSPropertyRule !== 'undefined' && rule instanceof CSSPropertyRule) {
+        registrations.add(rule.name);
+      } else if (rule instanceof CSSGroupingRule) {
+        if (nativeNesting && typeof CSSScopeRule !== 'undefined' && rule instanceof CSSScopeRule && rule.cssRules.length) unresolved = true;
+        visit(rule.cssRules, true, parent);
+      } else if (nativeNesting && parent && 'style' in rule) {
+        // A conditional rule inside a style can expose declarations without a selector of its own.
+        rules.push({ selectorText: parent, selectors: selectorBranches(parent), style: rule.style as CSSStyleDeclaration, nested: true });
+      }
+    }
+  };
+  visit(sheet.cssRules, false);
+  return { rules, registrations, unresolved };
+}
 
 /** Exact top-level rules, preserving the scanner used by the source readers. */
 function* ruleBodies(css: string, selector: string): Generator<CssRuleBody> {
@@ -267,11 +328,12 @@ export function cssDeclarations(body: string) {
   const finish = (end: number) => {
     if (colon >= 0) {
       const head = cssWithoutComments(body.slice(start, colon));
-      const name = head.trim(), raw = cssWithoutComments(body.slice(colon + 1, end)).trimEnd();
+      const name = cssName(head.trim()), raw = cssWithoutComments(body.slice(colon + 1, end)).trimEnd();
       const priority = /!\s*important$/i.exec(raw);
+      const value = raw.slice(0, priority?.index).trimEnd();
       if (/^[-\w]+$/.test(name)) declarations.push({ name: name.startsWith('--') ? name : name.toLowerCase(),
-        value: raw.slice(0, priority?.index).trim(), important: !!priority,
-        start: start + head.search(/\S/), end: colon + 1 + raw.length });
+        value: value.trimStart(), important: !!priority,
+        start: colon + 1 + value.length - value.trimStart().length, end: colon + 1 + value.length });
     }
     start = end + 1;
     colon = -1;
@@ -310,8 +372,9 @@ export function setCssDeclaration(css: string, selector: string, prop: string, v
   if (chosen) {
     const { start, end, important } = chosen.declaration;
     rule = chosen.rule;
-    const priority = important && !/!\s*important\s*$/i.test(value) ? ' !important' : '';
-    const body = rule.body.slice(0, start) + prop + ': ' + value + priority + rule.body.slice(end);
+    const next = important ? value.replace(/\s*!\s*important\s*$/i, '') : value;
+    const space = rule.body[start - 1] === ':' ? ' ' : '';
+    const body = rule.body.slice(0, start) + space + next + rule.body.slice(end);
     return css.slice(0, rule.start) + body + css.slice(rule.end);
   }
   if (rule) {

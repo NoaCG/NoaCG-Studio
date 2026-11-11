@@ -211,6 +211,10 @@ test('repeated CSS declarations patch the effective value and retain important p
 test('a pivot write preserves case-distinct variables, comments, strings and nested rules', () => {
   const source = '#a { --base-anchor-x:100px; --base-anchor-X:75px; /* ; --base-anchor-x:80px; { } */ content:"; --base-anchor-x:90px; { }"; &:hover { --base-anchor-x:95px; } }';
   assert.equal(setCssDeclaration(source, '#a', '--base-anchor-x', '4px'), source.replace('--base-anchor-x:100px', '--base-anchor-x: 4px'));
+  const annotated = '#a { --base-anchor-x /* name */: /* value */ 100px /* priority */ !important; }';
+  assert.equal(setCssDeclaration(annotated, '#a', '--base-anchor-x', '4px'), annotated.replace('100px', '4px'));
+  const escaped = '#a { --base-anchor-x:10px; --base-\\61 nchor-x: 100px; }';
+  assert.equal(setCssDeclaration(escaped, '#a', '--base-anchor-x', '4px'), escaped.replace('100px', '4px'));
 });
 
 

@@ -6,7 +6,7 @@ import { parseTransform } from '../assets/svgGeometry';
 import { locateAnimData, losslessAnimData, parseAnimData, type AnimLayerTracks, type AnimStep } from './animData';
 import { canWriteAnchorData, hasSvgGroupRuntime, writeAnimData } from '../templates/shared/animRuntime';
 import { allTimelines } from './animMachine';
-import { addCatalogLine, appendCss, cssDeclarations, findRuleBody, setCssDeclaration } from './edit';
+import { addCatalogLine, appendCss, cssDeclarations, findRuleBody, inspectCss, setCssDeclaration, type CssStyleSource } from './edit';
 import { addPlacedLine, placedLines, placeLine, placementCss, setLineFit } from './designLayout';
 import { artworkNode, artworkRange } from './artworkEdits';
 import { ANIMATION_MARK_CLOSE, ANIMATION_MARK_OPEN } from '../templates/lowerThirds/animPresets';
@@ -55,11 +55,7 @@ function length(raw: string | null) {
  * Refuse competing constraints even in conditional rules: changing the viewport must
  * not silently change which placement or independent transform the editor owns. Each rule
  * says whether it sits inside a grouping rule (`@media`, `@supports`). */
-type MatchedRule = { rule: { selectorText: string; style: CSSStyleDeclaration }; nested: boolean };
-function matchingRules(css: string, node: Element, potential = false): MatchedRule[] {
-  const sheet = new CSSStyleSheet();
-  sheet.replaceSync(css);
-  const rules: MatchedRule[] = [];
+function matchingRules(rules: CssStyleSource[], node: Element, potential = false) {
   const matches = (selector: string) => {
     try {
       if (node.matches(selector)) return true;
@@ -71,34 +67,18 @@ function matchingRules(css: string, node: Element, potential = false): MatchedRu
       return true;
     }
   };
-  const visit = (list: CSSRuleList, nested: boolean, parent?: string) => {
-    for (const rule of list) {
-      if (rule instanceof CSSStyleRule) {
-        const local = rule.selectorText;
-        const selector = !parent ? local : local.includes('&') ? local.replace(/&/g, `:is(${parent})`) : `:is(${parent}) ${local}`;
-        if (matches(selector)) rules.push({ rule, nested });
-        const children = (rule as CSSStyleRule & { cssRules?: CSSRuleList }).cssRules;
-        if (potential && children?.length) visit(children, true, selector);
-      } else if (rule instanceof CSSGroupingRule) visit(rule.cssRules, true, parent);
-      else if (potential && parent && 'style' in rule && matches(parent)) {
-        // Nested @media and rules below nested selectors can carry declarations directly.
-        rules.push({ rule: { selectorText: parent, style: rule.style as CSSStyleDeclaration }, nested: true });
-      }
-    }
-  };
-  visit(sheet.cssRules, false);
-  return rules;
+  return rules.filter(rule => rule.selectors.some(matches));
 }
 /** The rule, other than the target's own (the first top-level rule with exactly its selector, which
  *  `setCssDeclaration` writes), that sets `transform-origin`; or any rule whose `transform-box` measures
  *  an HTML element's origin from a box other than its border box. */
-function originOwner(rules: MatchedRule[], target: string, ownFillBox = false): string | null {
-  const own = rules.find(({ rule, nested }) => !nested && rule.selectorText === target)?.rule;
-  return rules.find(({ rule }) => {
+function originOwner(rules: CssStyleSource[], target: string, ownFillBox = false): string | null {
+  const own = rules.find(rule => !rule.nested && rule.selectorText === target);
+  return rules.find(rule => {
     const box = rule.style.getPropertyValue('transform-box');
     if (ownFillBox && rule === own && box === 'fill-box') return false;
     return box && !['border-box', 'view-box', 'stroke-box'].includes(box) || rule !== own && rule.style.getPropertyValue('transform-origin');
-  })?.rule.selectorText ?? null;
+  })?.selectorText ?? null;
 }
 
 const anchorVariables = ['--base-anchor-x', '--base-anchor-y'];
@@ -107,6 +87,7 @@ function cssAnchorOrigin(scaled: boolean) {
 }
 const isPixelLength = (value: string) => /^-?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?px$/i.test(value) && Number.isFinite(parseFloat(value));
 const isFiniteNumber = (value: string) => /^-?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value) && Number.isFinite(Number(value));
+const compactCssValue = (value: string) => value.replace(/\/\*[\s\S]*?\*\/|\s+/g, '');
 function cssMovesPivot(style: CSSStyleDeclaration, properties: string[]) {
   return style.getPropertyValue('all') || style.animationName && style.animationName !== 'none'
     || style.transitionDuration.split(',').some(value => parseFloat(value) > 0)
@@ -120,14 +101,15 @@ function inspectAnchorCss(template: SpxTemplate, base: BaseValues): string | nul
   const pivot = [...anchorVariables, ...origins, 'transform-box', 'all',
     ...(base.mode === 'svg' ? ['transform', '-webkit-transform', 'translate', 'rotate', 'scale'] : [])];
   const reason = 'This layer has competing pivot CSS. Its source is preserved.';
-  const rules = matchingRules(template.css, node, true);
-  const own = rules.find(({ rule, nested }) => !nested && rule.selectorText === target)?.rule;
-  const embedded = [...node.ownerDocument.querySelectorAll('style')].map(style => style.textContent ?? '');
-  const other = [...rules.filter(({ rule }) => rule !== own), ...embedded.flatMap(css => matchingRules(css, node, true))];
+  const authored = inspectCss(template.css);
+  const rules = matchingRules(authored.rules, node, true);
+  const own = rules.find(rule => !rule.nested && rule.selectorText === target);
+  const embedded = [...node.ownerDocument.querySelectorAll('style')].map(style => inspectCss(style.textContent ?? ''));
+  const other = [...rules.filter(rule => rule !== own), ...embedded.flatMap(css => matchingRules(css.rules, node, true))];
   const hasPivot = (style: CSSStyleDeclaration) => pivot.some(property => style.getPropertyValue(property));
-  if (other.some(({ rule }) => hasPivot(rule.style)) || hasPivot((node as HTMLElement).style)) return reason;
-  if ([template.css, ...embedded].some(css => /@property\s+--base-anchor-[xy](?![\w-])/.test(css))) return reason;
-  const styles = [own?.style, (node as HTMLElement).style, ...other.map(({ rule }) => rule.style)];
+  if (other.some(rule => hasPivot(rule.style)) || hasPivot((node as HTMLElement).style)) return reason;
+  if ([authored, ...embedded].some(css => css.unresolved || anchorVariables.some(property => css.registrations.has(property)))) return reason;
+  const styles = [own?.style, (node as HTMLElement).style, ...other.map(rule => rule.style)];
   if (styles.some(style => style && cssMovesPivot(style, pivot))) return reason;
 
   const source = cssDeclarations(findRuleBody(template.css, target)?.body ?? '');
@@ -135,12 +117,11 @@ function inspectAnchorCss(template: SpxTemplate, base: BaseValues): string | nul
   const axis = anchorVariables.map(property => source.filter(({ name }) => name === property));
   const origin = declaredOrigin[0];
   if (declaredOrigin.length > 1 || origin?.name === '-webkit-transform-origin') return reason;
-  const normalize = (value: string) => value.replace(/\s+/g, '');
   if (axis.some(entries => entries.length) || origin?.value.includes('--base-anchor-')) {
-    if (!own || !origin || normalize(origin.value) !== normalize(cssAnchorOrigin(base.mode === 'flow' || base.scaled))
-      || normalize(own.style.getPropertyValue('transform-origin')) !== normalize(origin.value)
+    if (!own || !origin || compactCssValue(origin.value) !== compactCssValue(cssAnchorOrigin(base.mode === 'flow' || base.scaled))
+      || compactCssValue(own.style.getPropertyValue('transform-origin')) !== compactCssValue(origin.value)
       || axis.some((entries, i) => entries.length !== 1 || entries[0].important || !isPixelLength(entries[0].value)
-        || own.style.getPropertyValue(anchorVariables[i]).trim() !== entries[0].value)) return reason;
+        || compactCssValue(own.style.getPropertyValue(anchorVariables[i])) !== entries[0].value)) return reason;
   } else if (origin) {
     const values = origin.value.split(/\s+/);
     if (!own?.style.transformOrigin || values.length > 2 || values.some(value => !/^(?:left|right|top|bottom|center|[+-]?(?:\d|\.\d)[\w.%+-]*)$/i.test(value))) return reason;
@@ -214,17 +195,18 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
   const mode = placed ? 'placed' : svg ? 'svg' : left && top ? 'absolute' : ['line', 'panel', 'block'].includes(part.kind) ? 'flow' : null;
   if (!mode) throw new Error('This layer has no supported base placement. Its source is preserved.');
   const targetNode = doc.querySelector(target)!;
-  const rules = matchingRules(template.css, targetNode), styles = rules.map(({ rule }) => rule.style);
-  const motion = parseAnimData(template.js);
-  const ownRule = rules.find(({ rule, nested }) => !nested && rule.selectorText === target)?.rule;
   const marked = svg && !!groupFrame && node.localName === 'g' && node.hasAttribute(SVG_GROUP_PIVOT_ATTRIBUTE);
   const fixedMarker = marked && node.matches(SVG_GROUP_PIVOT_SELECTOR);
+  const parsedCss = inspectCss(template.css, fixedMarker);
+  const rules = matchingRules(parsedCss.rules, targetNode), styles = rules.map(rule => rule.style);
+  const motion = parseAnimData(template.js);
+  const ownRule = rules.find(rule => !rule.nested && rule.selectorText === target);
   // The channels animated on the base target: a placed text's box, which its text's tracks never touch.
   const owned = new Set(tracksOn(motion?.steps ?? [], targetNode).flatMap(tracks => Object.keys(tracks)));
   const scaleReason = ['scale', 'scaleX', 'scaleY', 'transform'].some(key => owned.has(key))
     ? 'Scale is animated on this layer. Use its existing animation controls; base scaling would compete with that motion.' : null;
   const svgMatrix = svg ? parseTransform(node.getAttribute('transform')) : null;
-  const rawTransforms = [...rules.filter(({ rule }) => !fixedMarker || rule !== ownRule).map(({ rule }) => rule.style.transform), (targetNode as HTMLElement).style.transform].filter(raw => raw && raw !== 'none');
+  const rawTransforms = [...rules.filter(rule => !fixedMarker || rule !== ownRule).map(rule => rule.style.transform), (targetNode as HTMLElement).style.transform].filter(raw => raw && raw !== 'none');
   const mixed = svgMatrix && (Math.abs(svgMatrix.b) > 1e-8 || Math.abs(svgMatrix.c) > 1e-8) || rawTransforms.some(raw => {
     try { const matrix = new DOMMatrix(raw); return !matrix.is2D || Math.abs(matrix.b) > 1e-8 || Math.abs(matrix.c) > 1e-8 || Math.abs(matrix.e) > 1e-8 || Math.abs(matrix.f) > 1e-8; }
     catch { return true; }
@@ -296,13 +278,13 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
     const critical = ['transform', 'transform-box', 'transform-origin', '--base-anchor-x', '--base-anchor-y', '--base-x', '--base-y',
       '--base-rotation', '--base-scale-x', '--base-scale-y', ...Object.values(SVG_GROUP_TRACK_CSS)];
     const competing = [...critical, '-webkit-transform', '-webkit-transform-origin', 'translate', 'rotate', 'scale', 'display', 'all'];
-    const groupRules = matchingRules(template.css, node, true);
-    const owner = groupRules.find(({ rule, nested }) => !nested && rule.selectorText === target)?.rule;
-    const embedded = [...doc.querySelectorAll('style')].map(style => style.textContent ?? '');
-    const groupStyles = [...groupRules, ...embedded.flatMap(css => matchingRules(css, node, true))];
-    const competingRules = groupStyles.some(({ rule }) => cssMovesPivot(rule.style, competing)
+    const groupRules = matchingRules(parsedCss.rules, node, true);
+    const owner = groupRules.find(rule => !rule.nested && rule.selectorText === target);
+    const embedded = [...doc.querySelectorAll('style')].map(style => inspectCss(style.textContent ?? ''));
+    const groupStyles = [...groupRules, ...embedded.flatMap(css => matchingRules(css.rules, node, true))];
+    const competingRules = groupStyles.some(rule => cssMovesPivot(rule.style, competing)
       || rule !== owner && competing.some(key => rule.style.getPropertyValue(key)))
-      || [template.css, ...embedded].some(css => /@property\s+--(?:base-(?:anchor-|rotation|scale-|[xy])|noacg-group-)/.test(css));
+      || [parsedCss, ...embedded].some(css => css.unresolved || critical.some(key => css.registrations.has(key)));
     const inline = (node as SVGElement).style;
     const timelines = motion ? allTimelines(motion) : [];
     const transformTracks = new Set([...TRANSFORM_CHANNELS, ...competing, 'transformOrigin', 'svgOrigin', 'smoothOrigin']);
@@ -316,7 +298,8 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
       && !externalWrite(template.js, node, /transform|svgOrigin|smoothOrigin|--(?:base|noacg-group)-|\b(?:rotation|scale[XY]?|translate|rotate)\s*:/)
       && !['translate', 'rotate', 'scale', 'display', '-webkit-transform', '-webkit-transform-origin'].some(ownValue)
       && critical.every(key => owner.style.getPropertyValue(key) && !owner.style.getPropertyPriority(key)
-        && own.filter(({ name }) => name === key).length === 1)
+        && own.filter(({ name }) => name === key).length === 1
+        && (!key.startsWith('--') || compactCssValue(owner.style.getPropertyValue(key)) === compactCssValue(ownValue(key) ?? '')))
       && ['x', 'y', 'width', 'height'].every(key => node.getAttribute('data-group-' + key)?.trim())
       && [...anchorVariables, '--base-x', '--base-y'].every(property => isPixelLength(ownValue(property) ?? ''))
       && ['--base-rotation', '--base-scale-x', '--base-scale-y'].every(property => isFiniteNumber(ownValue(property) ?? ''))
@@ -394,6 +377,10 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
   const anchored = patch.anchorX !== undefined || patch.anchorY !== undefined;
   if (anchored && (patch.anchorX === undefined || patch.anchorY === undefined)) throw new Error('Set both anchor coordinates.');
   if (anchored && base.anchorReason) throw new Error(base.anchorReason);
+  if (anchored && base.cssSvgAnchor) {
+    const reason = anchorCssReason(template, base);
+    if (reason) throw new Error(reason);
+  }
   const unchanged = (key: string, value: number | undefined) => key === 'anchorX' ? base.anchor?.x === value : key === 'anchorY' ? base.anchor?.y === value : value === base[key as keyof BaseValues];
   if (Object.entries(patch).every(([key, value]) => unchanged(key, value))) return template;
   const x = transformPrecision(patch.x ?? base.x), y = transformPrecision(patch.y ?? base.y);
