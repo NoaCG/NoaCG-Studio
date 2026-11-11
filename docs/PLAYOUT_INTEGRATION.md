@@ -265,6 +265,29 @@ OBS-specific notes (the dock, local-file and refresh behaviour below was measure
 
 ## 5. vMix
 
+### Load from NoaCG
+
+1. Start vMix and NoaCG Bridge 0.11.0 or newer on the same Windows computer. Pair the browser
+   from the page Bridge opens. The page shows the vMix version when it connects.
+2. In **Settings > Playout**, choose the **NoaCG output** overlay channel. NoaCG starts with
+   the highest channel vMix offers.
+3. In the production's Playout panel, switch on **vMix via Bridge**. Publish the production if
+   it is new, or press **Load** if it is already published. If the overlay holds another input,
+   the panel names it and asks before replacing it.
+4. Take and update graphics from the rundown. **Unload** takes the production's Browser input
+   off the overlay with the channel's transition. Direct the show from vMix as usual.
+
+Bridge gives its Browser input a local address that points to the production. If you save it
+in a vMix preset, start Bridge on the same port before opening the preset. If Bridge starts late,
+reload the Browser input from vMix. If the Playout panel says the Browser uses a different port,
+start Bridge on the port it names and pair it again.
+
+**Source unverified** means Bridge sees the Browser on the overlay but cannot read its current
+page. You can still **Unload** it. Before using **Load** again, check the Browser in vMix,
+unload it if needed, and remove it when safe.
+
+### Add a Browser input by hand
+
 1. **Add Input → More → Web Browser**.
 2. URL: the production's output URL. For an exported file, its relay address or its full local
    path (`file:///C:/overlays/lower-third.html`).

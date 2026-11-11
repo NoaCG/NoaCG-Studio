@@ -15,7 +15,9 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { configDir } from '../config.js';
-import { MAX_CHANNEL_NAME, MAX_STUDIO_CHANNEL, MAX_STUDIO_CHANNELS, MAX_STUDIO_LAYER, type RememberedServer, type StudioSetup } from './protocol.js';
+import { isRememberedServerAddress, readStudio, type RememberedServer, type StudioSetup } from './protocol.js';
+
+export { readStudio } from './protocol.js';
 
 /** Enough for every server one studio laptop meets; the oldest falls off. */
 export const MAX_SERVERS = 8;
@@ -27,43 +29,6 @@ export interface ServerMemory {
   /** Replace the setup of a server in the list and return the new list, or null when the list does
    *  not hold that server. Its place in the list stays. */
   setStudio(server: RememberedServer, studio: StudioSetup): Promise<RememberedServer[] | null>;
-}
-
-function isServer(v: unknown): v is RememberedServer {
-  if (!v || typeof v !== 'object') return false;
-  const { host, port } = v as Record<string, unknown>;
-  return (
-    typeof host === 'string' &&
-    host.length > 0 &&
-    host.length <= 253 &&
-    !/\s/.test(host) &&
-    typeof port === 'number' &&
-    Number.isInteger(port) &&
-    port > 0 &&
-    port < 65536
-  );
-}
-
-const wholeIn = (v: unknown, min: number, max: number): v is number => typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max;
-
-/**
- * A studio setup, or null when it is not one. Read the same way from the page and from the file, so
- * what the Bridge hands a page is always whole. What it MEANS (a duplicate row, New media on a channel
- * no row names) is the page's to judge; this only keeps the shape and the sizes bounded.
- */
-export function readStudio(v: unknown): StudioSetup | null {
-  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
-  const { channels, output, newMedia } = v as Record<string, unknown>;
-  if (!Array.isArray(channels) || channels.length === 0 || channels.length > MAX_STUDIO_CHANNELS) return null;
-  const rows: StudioSetup['channels'] = [];
-  for (const row of channels) {
-    const { channel, name } = (row ?? {}) as Record<string, unknown>;
-    if (!wholeIn(channel, 1, MAX_STUDIO_CHANNEL) || typeof name !== 'string' || name.length > MAX_CHANNEL_NAME) return null;
-    rows.push({ channel, name });
-  }
-  const { channel, layer } = (output ?? {}) as Record<string, unknown>;
-  if (!wholeIn(channel, 1, MAX_STUDIO_CHANNEL) || !wholeIn(layer, 0, MAX_STUDIO_LAYER) || !wholeIn(newMedia, 1, MAX_STUDIO_CHANNEL)) return null;
-  return { channels: rows, output: { channel, layer }, newMedia };
 }
 
 const same = (a: RememberedServer, b: RememberedServer) => a.host.toLowerCase() === b.host.toLowerCase() && a.port === b.port;
@@ -84,7 +49,7 @@ export function fileServerMemory(file = path.join(configDir(), 'caspar-servers.j
     try {
       const top = JSON.parse(await fs.readFile(file, 'utf8')) as Record<string, unknown> | null;
       const servers = top?.servers;
-      const rows = Array.isArray(servers) ? (servers.filter(isServer) as Row[]).slice(0, MAX_SERVERS) : [];
+      const rows = Array.isArray(servers) ? (servers.filter(isRememberedServerAddress) as Row[]).slice(0, MAX_SERVERS) : [];
       return { rows, top: top && typeof top === 'object' && !Array.isArray(top) ? top : {} };
     } catch {
       return { rows: [], top: {} };

@@ -16,6 +16,7 @@ import {
   serverAddress,
   slotAddress,
   slotOf,
+  testVmix,
   type PlayoutResult,
 } from '../control/playoutLink';
 import type { RememberedServer } from '../control/playoutProtocol';
@@ -139,6 +140,7 @@ export default function BridgePairPage({ params }: { params: URLSearchParams }) 
  * else: nothing goes on air from here. Put on air stays in the production.
  */
 function ConnectStep() {
+  const [vmixVersion, setVmixVersion] = useState<string | null>(null);
   const [servers, setServers] = useState<RememberedServer[] | null>(null);
   const [host, setHost] = useState('');
   const [port, setPort] = useState(PLAYOUT_DEFAULTS.amcpPort);
@@ -177,6 +179,9 @@ function ConnectStep() {
     started.current = true;
     void (async () => {
       const own = loadPlayoutSettings();
+      void testVmix(own).then(({ info }) => {
+        if (info) setVmixVersion(info.version);
+      });
       const list = await rememberedServers(own);
       setServers(list);
       // The last server used: the Bridge's, else this browser's own once somebody has changed it.
@@ -204,7 +209,7 @@ function ConnectStep() {
           </p>
         }
       >
-        Enter the IP address of your CasparCG server.
+        {vmixVersion ? 'Connect a CasparCG server' : 'Enter the IP address of your CasparCG server.'}
       </InfoLine>
       <form
         className="bridge-connect-form"
@@ -261,6 +266,11 @@ function ConnectStep() {
           )}
         </p>
       )}
+      {vmixVersion && (
+        <p className="status-ok" data-testid="bridge-vmix-connected">
+          ✓ Connected to vMix {vmixVersion} on this computer.
+        </p>
+      )}
       {failure && (
         <p className="status-bad" data-testid="bridge-connect-error" data-state={failure.state}>
           {failure.detail}
@@ -280,7 +290,7 @@ function ConnectStep() {
         testId="bridge-another"
       />
       <div className="agent-consent-actions">
-        <button className={connected ? 'primary' : ''} onClick={() => window.location.assign('/app#/home')} data-testid="bridge-pair-open">
+        <button className={connected || vmixVersion ? 'primary' : ''} onClick={() => window.location.assign('/app#/home')} data-testid="bridge-pair-open">
           Open NoaCG
         </button>
       </div>

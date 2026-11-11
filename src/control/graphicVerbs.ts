@@ -902,6 +902,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    *  plays on a slot this rundown uses that no cue names, then every graphic this page or the
    *  server's heads say is up, in one send. */
   const allOut = async () => {
+    if (!session.alive()) return;
     const s = sender();
     const p = page();
     // A folder's Take still being sent sends nothing more, and what of it lands after is cut too:

@@ -17,16 +17,9 @@
 import { connect, type Socket } from 'node:net';
 import { StringDecoder } from 'node:string_decoder';
 import { UsageError } from '../output.js';
-import type { ServerChannel } from './protocol.js';
+import type { AmcpReply, ServerChannel } from './protocol.js';
 
-export interface AmcpReply {
-  /** The numeric status code: 2xx fine, 4xx the client's fault, 5xx the server's. */
-  code: number;
-  /** The status line, verbatim. */
-  status: string;
-  /** The data lines that followed it, if any. */
-  lines: string[];
-}
+export type { AmcpReply } from './protocol.js';
 
 export interface AmcpTarget {
   host: string;
