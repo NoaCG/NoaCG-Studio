@@ -157,6 +157,21 @@ async function outputReady(out: Page, graphics: number, timeout = 180_000) {
     .toBe(true);
 }
 
+/** What the output's own readiness names as wrong once every graphic is checked: a script error,
+ *  a broken image, a failed font (src/control/readiness.ts). Every graphic checked is not every
+ *  graphic ready, so a sample whose output names an issue is a failure, never a timing. */
+async function readyIssues(out: Page): Promise<string[]> {
+  const r = await readyOf(out);
+  return (r?.is ?? []).map((i) => [i.k, i.g, i.d].filter(Boolean).join(' '));
+}
+
+/** Set-up: the measured output must hold the fixture with nothing wrong, or no sample counts. */
+async function healthyOutput(out: Page, graphics: number) {
+  await outputReady(out, graphics);
+  const issues = await readyIssues(out);
+  if (issues.length) throw new Error(`the output names issues after loading the fixture: ${issues.join('; ')}`);
+}
+
 /** MEASURE_PATHS (comma-separated) narrows a takes group to some of its paths, so one path's 50
  *  samples fit one five-minute job; MEASURE_PART names the job's result file. */
 const PATHS = process.env.MEASURE_PATHS ? new Set(process.env.MEASURE_PATHS.split(',')) : null;
@@ -196,7 +211,7 @@ test('takes-a', async ({ page, browser }) => {
   log('built', fx.graphics, fx.storedOutputBytes);
   await throttle(page, NET);
   const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
-  await outputReady(out, fx.graphics);
+  await healthyOutput(out, fx.graphics);
   const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');
   const samples: Record<string, Sample[]> = { graphic: [], folder: [], picture: [], server: [] };
   const plainLabels = await page.evaluate(async ({ id, cues }) => {
@@ -258,7 +273,7 @@ test('takes-b', async ({ page, browser }) => {
   log('built', fx.graphics, fx.storedOutputBytes);
   await throttle(page, NET);
   const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
-  await outputReady(out, fx.graphics);
+  await healthyOutput(out, fx.graphics);
   const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');
   const samples: Record<string, Sample[]> = { quick: [], quickSecondOfTwo: [], plusOne: [], plusOneSecondOfTwo: [] };
 
@@ -305,7 +320,7 @@ test('takes-c', async ({ page, browser }) => {
   log('built', fx.graphics, fx.storedOutputBytes);
   await throttle(page, NET);
   const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
-  await outputReady(out, fx.graphics);
+  await healthyOutput(out, fx.graphics);
   const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');
   const samples: Record<string, Sample[]> = { next: [], panel: [] };
 
@@ -371,7 +386,7 @@ test('render', async ({ page, browser }) => {
   log('built', fx.graphics, fx.storedOutputBytes);
   await throttle(page, NET);
   const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
-  await outputReady(out, fx.graphics);
+  await healthyOutput(out, fx.graphics);
   const cast = await screencast(out);
   const labels = await page.evaluate(async ({ id, cues }) => {
     const { loadShows } = await import('/src/model/shows.ts');
@@ -447,7 +462,7 @@ test('publish', async ({ page, browser }) => {
   log('built', fx.graphics, fx.storedOutputBytes);
   await throttle(page, NET);
   const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
-  await outputReady(out, fx.graphics);
+  await healthyOutput(out, fx.graphics);
   const labels = await page.evaluate(async ({ id, cues }) => {
     const { loadShows } = await import('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === id)!;
@@ -507,7 +522,7 @@ test('bytes', async ({ page, browser }) => {
   log('built', fx.graphics, fx.storedOutputBytes);
   await throttle(page, NET);
   const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
-  await outputReady(out, fx.graphics);
+  await healthyOutput(out, fx.graphics);
   const opMeter = await meterBytes(page);
   const outMeter = await meterBytes(out);
   // Each round: a cue edit, a graphic added, that graphic removed again, a design updated. The
@@ -592,6 +607,8 @@ test('bytes', async ({ page, browser }) => {
       try {
         await expect.poll(async () => { const r = await readyOf(out); return (r?.v?.n ?? 0) > before && r!.n === r!.of; }, { timeout: 120_000, intervals: [50] }).toBe(true);
         tReady = await nowOn(out);
+        // Read after the stamp; an output that names an issue did not take the change.
+        if ((await readyIssues(out)).length) tReady = NaN;
       } catch { /* recorded as a failure below */ }
       lastPrepare = Date.now();
     }
@@ -654,6 +671,9 @@ test('boot', async ({ page, browser }) => {
       await out.goto(`/output?production=${encodeURIComponent(slug)}`);
       await outputReady(out, fx.graphics, 120_000);
       const t = await out.evaluate(() => ({ origin: performance.timeOrigin, now: performance.timeOrigin + performance.now(), frames: (window as unknown as { __lpFrames: { add: number; load?: number }[] }).__lpFrames }));
+      // Read after the stamp, so the check adds nothing to the timing.
+      const issues = await readyIssues(out);
+      if (issues.length) throw new Error(`not ready: ${issues.join('; ')}`);
       const loads = t.frames.filter((f) => f.load).map((f) => f.load! - f.add);
       const total = meter.total();
       const data = Object.entries(total.byName).filter(([k]) => /^rpc:|^rest:|^storage/.test(k)).reduce((n, [, b]) => n + b.down, 0);
