@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "head": "fcb4f15167973b94a53dedef30733f2fcdd5f855",
-      "session": "/root/v2_tcp_repair",
       "phase": "v2",
       "step": "build",
-      "note": "TCP reply candidate passed focused, changed-file and packaged real-vMix checks. Fresh full review B for malformed prefix/length framing. Independent reassessment recorded; continuing the same focused repair under normal limits.",
-      "pr": 2293
+      "head": "72bdca8d6030c2b57f58cdc9b7ab13467f9a8577",
+      "pr": 2293,
+      "note": "Fresh full independent A. Exact package passed owned real vMix j-5131; both settings restored by hash. Existing PR CI 42927802583 started. Waiting for normal GitHub review and configured gate.",
+      "session": "/root/v2_tcp_repair"
     }
   ],
   "owner": [],
