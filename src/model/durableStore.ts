@@ -366,22 +366,6 @@ function idbReadKey(target: IDBDatabase, key: string): Promise<string | null> {
   });
 }
 
-/**
- * Whether the page is going: from its `pagehide` until a `pageshow` brings it back from the
- * back-forward cache. A transaction commits when the task that made it ends, and a reload ends the
- * document inside that task, which drops it: so the saves the page makes as it goes (a typed edit's,
- * control/cueDraft.ts `retain`) were lost on a reload. A write made meanwhile asks to commit at
- * once. Every other write commits as before, when its task ends, so the write holds the specs and
- * the measurement harness use still hold. Captured on the window and registered as this module
- * loads, before the app mounts, so it runs before any surface's own `pagehide` save: a transaction
- * goes inactive once the listener that made it returns, and can no longer be asked to commit.
- */
-let leaving = false;
-if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-  window.addEventListener('pagehide', () => { leaving = true; }, true);
-  window.addEventListener('pageshow', () => { leaving = false; }, true);
-}
-
 /** One transaction applying a batch of puts/deletes. Rejects with the transaction's error, so
  *  a quota failure keeps its `QuotaExceededError` name for the caller to recognise. */
 function idbWrite(target: IDBDatabase, entries: [string, string | null][], audioMove?: { from: string | null; to: string | null }): Promise<void> {
@@ -425,8 +409,6 @@ function idbWrite(target: IDBDatabase, entries: [string, string | null][], audio
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error ?? new Error('IndexedDB write failed'));
     tx.onabort = () => reject(tx.error ?? new Error('IndexedDB write was aborted'));
-    // The account move reads with a cursor after its puts, so it never commits early.
-    if (leaving && !audioMove && typeof tx.commit === 'function') tx.commit();
   });
 }
 
