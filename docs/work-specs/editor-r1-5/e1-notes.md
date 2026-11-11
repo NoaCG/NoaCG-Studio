@@ -833,6 +833,41 @@ candidate, with exact interpreter bytes and the existing `40px` key.
 Main `a3f3e13ca` then merged cleanly with no changed path in common
 with the E1 diff.
 
+#### Pivot values belong to the edited artwork
+
+The full read-only review of `46c7165b618d569f0f44ce5a0f012e4a3d912b2b`
+graded the diff B. It found two pivot ownership defects. Chromium job
+`j-5151` exited 1 on that head. First enable changed an HTML child's
+padding and the selected HTML layer's padding through an alias from
+`10px` to `160px`. It changed an imported SVG tspan stroke from `3px`
+to `30px`. An existing canonical group's pivot motion changed a
+member's stroke from `135px` to `80px`. A locally shielded child stayed
+at `10px`. The review's separate vendored-GSAP probe began with a raw
+property at `70` and CSS pivot `40px`. After loading the other graphic's
+anchor adapter, setting the raw property to `90` left it at `70` and
+changed the CSS pivot to `90px`.
+
+These rules refine the first-enable, exact paint and unrelated-source
+rules after those observations. They apply to new owned anchor keys.
+
+- An ordinary or canonical pivot may write its owned transform origin.
+  If that write could affect another authored property on the target
+  or artwork below it, refuse the anchor operation before changing source,
+  selection or history. Check inherited reads and aliases, embedded and
+  conditional styles, and SVG presentation attributes. Admit a provably
+  independent or locally shielded read. Existing unrelated edits and the
+  legacy static pivot paths keep their admission and source behavior.
+- A saved ordinary or canonical pivot plays only through its own
+  graphic's adapter and target. Loading, playing, stopping, disposing
+  or remounting that graphic cannot change another graphic's track
+  resolution, values or paint. Check a same-name raw track and a live
+  owned pivot together on one OGraf page in both load orders, then
+  replay after remount. The raw track and its interpreter stay exact.
+- The authored pivot still uses the same timeline clock, easing,
+  carrying and interruption in every browser package. First enable and
+  last-key removal preserve the observed pose. The independent SVG
+  matrix expectations and tolerance stay the same.
+
 #### Catalog and affected CI scope
 
 Windows factory `j-5098` exited 0 with 328 checks across 12 kits. The
