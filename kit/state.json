@@ -767,7 +767,25 @@
       "repairOwnerComment": 6798337901,
       "repairOwner": "active coordinator6af455f4-b1c8-8191-86b2-8bfdfc619075, sole acknowledged; no wake",
       "workerCheck": "PASS exacthead, inline review0/0/simplify/verify;533gateway+21script,lint/root+API tscPASS; protection3to3/22to40; capacityWARN retained",
-      "gates": "fullfreshso,exactheadCI/Codex pending. No reviewed/status/queue/automerge yet"
+      "gates": "Exact-head CI43037611275 running; E2Eplan/FactorySUCCESS,Reviewedtimeout pendinglaterstamp recovery. No queue/status/automerge.",
+      "fullSo": {
+        "actor": "/root/editor_r15_e3_builder/e3_final_so",
+        "session": "6af47949-9ce0-8191-a24f-92a35c3ab04b",
+        "grade": "AGREE/A",
+        "source": "f42038dbe0661c5c2af620f7157f0a93c2d283bf",
+        "base": "7e1ae4cf80f8fe302aa6a0ee0381537aa72354f4",
+        "scope": "all21files, no newfindings",
+        "receipt": "receipts/e3-full-final-so.json",
+        "archive": "native completed readback and appconfirmed"
+      },
+      "codex": "COMPLETED exactf420, no findings/unresolved, summary6798324617 at14:23:01Z; review/inline APIs empty",
+      "workerGatesComment": 6798391533,
+      "configuredSelection": {
+        "mode": "all",
+        "specs": 64,
+        "localStacks": 4,
+        "existingQuarantineWarning": "retained"
+      }
     }
   }
 }
