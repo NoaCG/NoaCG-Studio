@@ -73,7 +73,7 @@
       "step": "build",
       "sourceSha": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
       "actionId": "plan-editor-r1-5-2026-11-08:3",
-      "note": "Stopped and acknowledged by /root/editor_r15_e2_builder at 2026-11-11T05:14:49Z. Clean pushed cb0f639ab8ac2f4a6396ed0ded9a6d1c767a6749. Windows Chromium j-5201 passed 75/75; GSAP oracle 22 and affected Node tests 197 passed. Exact CI 42964189955 in progress at pause; configured 64 specs on four stacks. Earlier independent A is for 6add1f4ea only. Fresh full review interrupted before grade and exact-head Codex review still due. PR open, no auto-merge or queue entry. Local jobs and reference services stopped.",
+      "note": "Original E2 builder stopped cleanly at cb0f639ab. Owner explicitly resumed the same E2 build. Existing CI 42964189955 completed. Build and all four configured shards passed. Four existing base edits tests hit the same strict selector ambiguity after the loop disclosure was added. Reviewed is unstamped.",
       "worktree": "C:/claude/Temp/editor-r15-e2-build-1111",
       "head": "cb0f639ab8ac2f4a6396ed0ded9a6d1c767a6749",
       "pr": 2374
@@ -245,7 +245,5 @@
     "ci": 42964189955,
     "verification": "j-5201 75/75; 22 GSAP oracle cases; 197 affected Node cases; scoped lint, TypeScript, Dependency Cruiser and diff check passed. Windows catalog baseline and candidate reproduced the same jc01 fingerprint (#2372); local E2E protection could not create a dependency symlink (#2373). Studio reference comparison j-5193 passed."
   },
-  "waitingOn": {
-    "what": "Owner explicitly paused the run. Await explicit owner resume."
-  }
+  "waitingOn": null
 }
