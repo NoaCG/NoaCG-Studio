@@ -74,8 +74,10 @@
       "step": "build",
       "sourceSha": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
       "actionId": "plan-editor-r1-5-2026-11-08:3",
-      "note": "Fresh native E2 worker admitted after independent E1 PASS. Reproducing loop gaps and writing observable rules before code.",
-      "worktree": "C:/claude/Temp/editor-r15-e2-build-1111"
+      "note": "E2 PR #2374 open at 6add1f4e. Targeted browser j-5197 passed 61/61, 21 oracle and 189 affected Node tests passed. Full independent review, Codex and CI 42961774078 pending. Sole active repair owner recorded in comment 6787343956.",
+      "worktree": "C:/claude/Temp/editor-r15-e2-build-1111",
+      "head": "6add1f4ea149ceca6f745268a1200f7a537939de",
+      "pr": 2374
     }
   ],
   "owner": [],
@@ -235,5 +237,12 @@
         "checker": "/root/editor_r15_e1_check"
       }
     }
+  },
+  "e2Checkpoint": {
+    "pr": 2374,
+    "resume": "Wait for full independent A/A+, exact CI and Codex review; coordinator then reconciles and stamps through queue-merge.",
+    "repairOwnerComment": 6787343956,
+    "head": "6add1f4ea149ceca6f745268a1200f7a537939de",
+    "ci": 42961774078
   }
 }
