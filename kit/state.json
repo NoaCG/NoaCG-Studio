@@ -68,15 +68,16 @@
     {
       "phase": "E2",
       "branch": "codex/plan-editor-r1-5-e2-build",
-      "nativeId": "/root/editor_r15_e2_builder",
-      "checkpointed": true,
+      "nativeId": "/root/editor_r15_e2_cloud_resume",
+      "checkpointed": false,
       "step": "build",
       "sourceSha": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
       "actionId": "plan-editor-r1-5-2026-11-08:3",
-      "note": "Original Windows builder terminal and no live jobs/wake. Same E2 attempt resumes at exact reviewed 9c5ae192 on qualified active Cloud; browser verification pending; PR unstamped and unqueued.",
-      "worktree": "C:/claude/Temp/editor-r15-e2-build-1111",
+      "note": "Fresh native Cloud replacement accepted for the same E2 build/action at exact 9c5ae192. Missing targeted browser checks and UI walkthrough underway. Original Windows worker terminal; no duplicate or new product attempt. Active coordinator owns #2374.",
+      "worktree": "/workspace/noacg-editor-r1-5-e2-cloud",
       "head": "9c5ae1926d6662e0e2806f3233be85b83972f166",
-      "pr": 2374
+      "pr": 2374,
+      "session": "/root/editor_r15_e2_cloud_resume"
     }
   ],
   "owner": [],
