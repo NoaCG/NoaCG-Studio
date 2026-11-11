@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { drivesBrowser, watchedForBrowser } from './jobs-store.mjs';
-import { actionShell, batch, validateReport } from './editor-quarantine-causality.mjs';
+import { actionShell, batch, validateReport, observeQueueFile, scheduledInvocations } from './editor-quarantine-causality.mjs';
 
 const report = () => ({ config: { workers: 1 }, stats: { expected: 2, unexpected: 0, skipped: 0, flaky: 0 }, suites: [{ specs: [0, 1].map(i => ({ title: `case${i}`, tests: [{ projectName: 'chromium', results: [{ status: 'passed', retry: 0 }] }] })) }] });
 const done = { state: 'done', exitCode: 0 };
@@ -72,4 +74,30 @@ test('operator extension has exactly four bounded additional sixty-pair cohorts'
   for (const ref of ['operator-c1-01', 'operator-c6-01', 'operator-c2-00', 'operator-c2-05', 'clock-c2-01']) {
     assert.throws(() => batch(`codex/editor-causality-20261111-${ref}`));
   }
+});
+
+test('a partial live queue observation preserves the same job and later observes its failure', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'causal-queue-'));
+  const file = path.join(directory, 'j-0001.json'), previous = { id: 'j-0001', state: 'running' }, faults = [];
+  try {
+    writeFileSync(file, '');
+    assert.equal(observeQueueFile(file, previous, f => faults.push(f)), previous);
+    assert.equal(faults.length, 1);
+    writeFileSync(file, JSON.stringify({ id: 'j-0001', state: 'failed', exitCode: 1 }));
+    assert.deepEqual(observeQueueFile(file, previous, f => faults.push(f)), { id: 'j-0001', state: 'failed', exitCode: 1 });
+    writeFileSync(file, '{');
+    assert.equal(observeQueueFile(file, undefined, f => faults.push(f)), undefined);
+    assert.throws(() => observeQueueFile(path.join(directory, 'missing'), previous, () => {}), { code: 'ENOENT' });
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+test('completion keeps five matched units and one separately identified parent observation', () => {
+  const selection = batch('codex/editor-causality-20261111-operator-c4-03-completion-01');
+  const rows = scheduledInvocations(selection);
+  assert.equal(selection.completion, 'completion-01');
+  assert.equal(rows.length, 11);
+  assert.equal(rows.filter(r => r.arm === 'parent').length, 6);
+  assert.equal(rows.filter(r => r.arm === 'landing').length, 5);
+  for (let pair = 41; pair <= 45; pair++) assert.deepEqual(rows.filter(r => r.pair === pair).map(r => r.arm).sort(), ['landing', 'parent']);
+  assert.deepEqual(rows.filter(r => r.pair === 46), [{ pair: 46, arm: 'parent' }]);
+  for (const ref of ['operator-c4-02-completion-01', 'operator-c4-03-completion-02', 'operator-c3-03-completion-01']) assert.throws(() => batch(`codex/editor-causality-20261111-${ref}`));
 });

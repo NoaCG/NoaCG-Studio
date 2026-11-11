@@ -23,6 +23,9 @@ function run(command, args, cwd = ROOT, env = process.env) {
 }
 
 export function batch(ref) {
+  if (ref === 'codex/editor-causality-20261111-operator-c4-03-completion-01') {
+    return { kind: 'operator', cohort: 4, index: 3, start: 40, size: 6, completion: 'completion-01', parentOnlyLast: true };
+  }
   const hit = /^codex\/editor-causality-20261111-(clock|operator)(?:-c([2-5]))?-(\d{2})$/.exec(ref);
   assert(hit, 'unexpected diagnostic batch ref');
   const kind = hit[1], cohort = Number(hit[2] ?? 1), index = Number(hit[3]), size = kind === 'clock' ? 5 : 15;
@@ -30,6 +33,26 @@ export function batch(ref) {
   assert(index >= 1 && index <= 60 / size, 'batch outside prewritten count');
   return { kind, cohort, index, size, start: (index - 1) * size };
 }
+export function scheduledInvocations(selection) {
+  const rows = [];
+  for (let i = selection.start; i < selection.start + selection.size; i++) {
+    const order = selection.parentOnlyLast && i === selection.start + selection.size - 1
+      ? ['parent'] : PLAN.pairs[i] === 'parent-first' ? ['parent', 'landing'] : ['landing', 'parent'];
+    for (const arm of order) rows.push({ pair: i + 1, arm });
+  }
+  return rows;
+}
+
+// A torn live journal is an unknown observation, never a new admission or a pass.
+export function observeQueueFile(file, previous, onUnreadable) {
+  try { return json(file); }
+  catch (error) {
+    if (!(error instanceof SyntaxError)) throw error;
+    onUnreadable({ file: path.basename(file), error: error.message });
+    return previous;
+  }
+}
+
 export function caseRows(suites) {
   return suites.flatMap(suite => [
     ...(suite.specs ?? []).flatMap(spec => spec.tests.map(test => ({ title: spec.title, project: test.projectName, results: test.results }))),
@@ -109,34 +132,48 @@ async function emptyPort(port) {
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', resolve); });
   await new Promise(resolve => server.close(resolve));
 }
-function matchingJob(directory, command, jobsDirectory) {
-  const found = readdirSync(jobsDirectory).filter(name => /^j-\d+\.json$/.test(name)).map(name => json(path.join(jobsDirectory, name))).filter(job => job.checkout === directory && job.command === command);
+function matchingJob(directory, command, jobsDirectory, onUnreadable) {
+  const found = readdirSync(jobsDirectory).filter(name => /^j-\d+\.json$/.test(name)).map(name => observeQueueFile(path.join(jobsDirectory, name), undefined, onUnreadable)).filter(Boolean).filter(job => job.checkout === directory && job.command === command);
   assert(found.length <= 1, 'duplicate queue admission');
   return found[0];
 }
-async function trial(kind, pair, arm, directory, env, deadline, cohort) {
+async function trial(kind, pair, arm, directory, env, deadline, cohort, condition) {
   assert(Date.now() + 5 * 60_000 < deadline, 'insufficient time for a capped invocation');
   assert.equal(run('git', ['rev-parse', 'HEAD'], directory), PLAN[kind][arm]);
   assert.equal(run('git', ['status', '--porcelain'], directory), '');
   const out = path.join(OUT, `pair-${String(pair).padStart(3, '0')}-${arm}`);
   mkdirSync(out); // Refuse an accidental repeated invocation under the same identity.
+  const observationFaults = [];
+  const onUnreadable = fault => {
+    observationFaults.push({ ...fault, at: new Date().toISOString() });
+    save(path.join(out, 'queue-observation-faults.json'), observationFaults);
+  };
   const ports = json(path.join(directory, '.claude/dev-port.json'));
   await emptyPort(kind === 'clock' ? ports.port : ports.livePort);
   const argv = ['npm', 'run', kind === 'clock' ? 'test:e2e' : 'test:e2e:live', '--', PLAN[kind].spec, '--workers=1', '--retries=0', '--reporter=line,github,blob,./scripts/e2e-run-integrity.mjs,json', `--output=${out}/test-results`];
   const command = `env ${quote(`PLAYWRIGHT_JSON_OUTPUT_FILE=${out}/report.json`)} ${quote(`PLAYWRIGHT_BLOB_OUTPUT_DIR=${out}/blob`)} ${argv.join(' ')}`;
   const common = path.resolve(directory, run('git', ['rev-parse', '--git-common-dir'], directory));
   const jobsDirectory = path.join(common, 'noacg-jobs');
-  const intent = { kind, cohort, pair, arm, source: PLAN[kind][arm], specHash: SPEC_HASH[kind], directory, command, started: new Date().toISOString() };
+  const intent = { kind, cohort, condition, pair, arm, source: PLAN[kind][arm], specHash: SPEC_HASH[kind], directory, command, started: new Date().toISOString() };
   save(path.join(out, 'intent.json'), intent);
   const admitted = spawnSync('node', ['scripts/jobs.mjs', 'add', command, '--kind', 'sweep', '--cap', '5'], { cwd: directory, env, encoding: 'utf8', timeout: 30_000 });
   writeFileSync(path.join(out, 'admission.log'), String(admitted.stdout) + String(admitted.stderr));
-  let job = existsSync(jobsDirectory) && matchingJob(directory, command, jobsDirectory);
+  let job = existsSync(jobsDirectory) && matchingJob(directory, command, jobsDirectory, onUnreadable);
+  const acknowledgedId = /\b(j-\d+) queued:/.exec(admitted.stdout ?? '')?.[1];
+  if (job && acknowledgedId) assert.equal(job.id, acknowledgedId, 'admission identity mismatch');
+  if (!job && acknowledgedId) job = { id: acknowledgedId, state: 'awaiting-receipt' };
   assert(job, 'queue admission unresolved; do not resubmit');
   save(path.join(out, 'queue-identity.json'), { id: job.id });
-  while (['waiting', 'running'].includes(job.state)) {
+  while (['awaiting-receipt', 'waiting', 'running'].includes(job.state)) {
     assert(Date.now() < deadline, '75-minute diagnostic ceiling reached');
     await sleep(2_000);
-    job = json(path.join(jobsDirectory, `${job.id}.json`));
+    const observed = observeQueueFile(path.join(jobsDirectory, `${job.id}.json`), job, onUnreadable);
+    if (observed.state !== 'awaiting-receipt') {
+      assert.equal(observed.id, job.id, 'queue identity changed');
+      assert.equal(observed.command, command, 'queue command changed');
+      assert.equal(observed.checkout, directory, 'queue source changed');
+    }
+    job = observed;
   }
   save(path.join(out, 'queue-result.json'), job);
   if (job.logPath && existsSync(job.logPath)) cpSync(job.logPath, path.join(out, 'queue.log'));
@@ -164,12 +201,9 @@ async function main() {
   const directories = Object.fromEntries(['parent', 'landing'].map(arm => [arm, prepareArm(selection.kind, arm, PLAN[selection.kind][arm])]));
   const env = selection.kind === 'operator' ? operatorEnvironment() : process.env;
   const rows = [];
-  for (let i = selection.start; i < selection.start + selection.size; i++) {
-    const order = PLAN.pairs[i] === 'parent-first' ? ['parent', 'landing'] : ['landing', 'parent'];
-    for (const arm of order) {
-      rows.push(await trial(selection.kind, i + 1, arm, directories[arm], env, deadline, selection.cohort));
-      save(path.join(OUT, 'progress.json'), { ...selection, rows });
-    }
+  for (const { pair, arm } of scheduledInvocations(selection)) {
+    rows.push(await trial(selection.kind, pair, arm, directories[arm], env, deadline, selection.cohort, selection.completion ?? 'primary'));
+    save(path.join(OUT, 'progress.json'), { ...selection, rows });
   }
   save(path.join(OUT, 'complete.json'), { ...selection, rows, note: 'Complete measurements; this is not a causal verdict or a quarantine release.' });
   // A real first-attempt failure remains visible in the workflow conclusion and reports.

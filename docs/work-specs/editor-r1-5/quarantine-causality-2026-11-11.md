@@ -258,3 +258,23 @@ The original partial batch remains visibly incomplete; obtaining enough new
 qualified evidence does not turn its workflow green. The operator causal gate
 stays closed until the complete observations, failures and censoring sensitivity
 settle attribution.
+
+The reviewed immutable inventory confirms the irrecoverable-receipt condition:
+parent41 has intent, admission, queue identity and a two-passed-case JSON report,
+but no terminal queue result, queue log or derived trial receipt. Raw passing
+case results alone therefore remain unqualified. The eight later slots have no
+files and were not admitted. All other32-run records are fully qualified:
+parent295 with8 failures, landing296 with7; every product failure is the original
+old-link navigation-context class. The301 completion method was independently
+accepted AGREE/A after this inventory, before completion implementation/tests.
+
+The sole completion ref is
+`codex/editor-causality-20261111-operator-c4-03-completion-01`: pairs41–45 use
+the original seeded order and both arms, followed by a separately identified
+parent46. Native-run/condition/pair/arm identify observations; never merge its
+new pair41 with the original unmatched landing41 or its parent46 with an older
+worker's landing46. The observer records partial journal reads and continues
+observing the same admitted job at its existing cadence; report parsing and
+all original qualification checks remain strict. Eight lightweight producer
+tests and focused lint pass. Final implementation review is still required
+before this completion dispatch.

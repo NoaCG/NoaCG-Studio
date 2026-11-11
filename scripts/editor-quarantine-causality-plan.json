@@ -84,5 +84,20 @@
     "addedPairedInvocations": 240,
     "protocolCommit": "b2bd1becc",
     "ordering": "Original balanced seed2295 sequence reused per fresh-runner cohort; every result retained"
+  },
+  "operatorCompletion": {
+    "method": "4da43ea59, independently accepted after immutable receipt inventory",
+    "qualifiedCountPerCommit": 301,
+    "newMatchedPairs": [
+      41,
+      42,
+      43,
+      44,
+      45
+    ],
+    "extraUnmatchedParent": 46,
+    "originalUnqualifiedParent": "cohort4 batch03 pair41",
+    "originalUnadmittedSlots": "pairs42..45 both arms",
+    "policy": "Preserve all original qualified and censored observations; no spec is resubmitted on a journal read fault."
   }
 }
