@@ -339,7 +339,8 @@ Filled in by each phase's pull request.
   `e2e/configured/measure/` as `*.measure.ts`, which the configured suite never runs.
 - Targets the numbers show wrong or unproven, for the owner before the phase that uses them: AC-1's
   50 ms p95 (Next, which W1 changes nothing in, already takes 77 to 144 ms p95 here), AC-4's 50 ms
-  margin during a publish (198 against 98 ms p95 typical, 385 against 186 large, unthrottled), and D1's 5 s ceiling against a 30 to 33 s whole
+  margin during a publish (198 against 98 ms p95 typical, 385 against 186 large, unthrottled),
+  and D1's 5 s ceiling against a 30 to 33 s whole
   update on the large fixture throttled. Details in the evidence.
 - Traps: in the evidence, "Traps met" (the local stack does start on a cloud worker from Docker
   Hub; one 12-minute queue job per commit; Playwright empties `test-results/`; Realtime frames are
