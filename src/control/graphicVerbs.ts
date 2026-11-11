@@ -157,6 +157,9 @@ export interface GraphicPage {
   /** What a TAKE carries for place and size, read from memory at the press (./adjustGeometry.ts
    *  `takeAppearance`, W1): never a promise. Absent, a Take reads `appearanceOf`. */
   takeAppearanceOf?: (cue: ShowCue, graphic: string) => { appearance?: AppliedAppearance; place?: PlaceHint };
+  /** A Take that carried a place hint reached the outputs: the page measures the values itself and
+   *  then holds what the outputs resolved, not `sent` (./airState.ts `placedLook`). */
+  placeTaken?: (cue: ShowCue, graphic: string, sent: AppliedAppearance) => void;
   /** THE LOOK A SEND TO ON-AIR GRAPHICS CARRIES for the cue on a layer (phase 3,
    *  ./adjustGeometry.ts `lookAppearance`): the style its records and the production look give it
    *  now, read after the page's writes landed, beside the place and size the graphic already holds.
@@ -733,6 +736,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     }
     // A capture lands only with its press on the output; a later press that overtook it stands.
     for (const { g, c } of captured) if (reachedOutput(sent, g)) c.landed(); else c.undo();
+    if (place && appearance && reachedOutput(sent, graphic)) p.placeTaken?.(cue, graphic, appearance);
     p.clearMisses([cue.id]);
     const named = namedOnce(label, cue.label);
     if (p.answersOnOutput?.(graphic)) return { ok: true, unconfirmed: true, note: `${named} sent to the outputs` };

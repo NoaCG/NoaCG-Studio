@@ -365,7 +365,8 @@ Filled in by each phase's pull request.
   R5 when that box is for other values and a preset or size resolves against it, the Take also
   carries the preset (`place`), a new output measures the values itself and first shows the
   graphic at the preset (2 s cap, then the place sent), and an older output applies the place
-  sent; R6 a server action to a Bridge this page load already heard as current sends `/act`
+  sent; once the page has measured the same values it holds what the outputs resolved as the
+  graphic's look, unless a later send replaced it; R6 a server action to a Bridge this page load already heard as current sends `/act`
   without `/health`, and a failure to reach it asks `/health` why; an address never heard is
   asked first, as before; R7 kept as ordering: road discovery, one send in flight per graphic, a
   quick button or +1 waiting for its previous press, a folder's Outs before its next Take;

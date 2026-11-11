@@ -777,11 +777,14 @@ test('a Take carries the place and size read from memory at the press, with a pl
   r.flushes[0].resolve();
   // A box for other values: the Take carries the hint beside the place the last box gives.
   place = hint;
+  const placed = [];
+  r.page.placeTaken = (c, graphic, sent) => placed.push([c.id, graphic, sent]);
   const hinted = r.verbs.take(cue);
   await settle();
   assert.deepEqual(sentAs(r.sends[1].batches[0][0]), { graphic: 'Strap', msg: { t: 'update', data: { f0: 'A' }, appearance: before, place: hint } });
   r.sends[1].answer.resolve({ ...noneLeft });
   await hinted;
+  assert.deepEqual(placed, [['c1', 'Strap', before]], 'once it reached the output, the page settles what the outputs resolved');
   r.flushes[1].resolve();
   // An Update is not a Take path: it waits for its save, then reads what is newest.
   const updating = r.verbs.update(sel({ editingCue: cue, selectedGraphic: 'Strap', editingIsLive: true }));

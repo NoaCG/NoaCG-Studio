@@ -30,7 +30,7 @@ const { mergeTeamShow } = await import('../src/model/teamShowMerge.ts');
 const { copyClip, pasteCopies } = await import('../src/model/cueClipboard.ts');
 const { liveRundownRefusal } = await import('../src/model/rundownHistory.ts');
 const { takeCueItems } = await import('../src/control/cueItems.ts');
-const { rememberAired, restoreItems, seedFromResolve } = await import('../src/control/airState.ts');
+const { placedLook, rememberAired, restoreItems, seedFromResolve } = await import('../src/control/airState.ts');
 const { NO_AIR } = await import('../src/control/playoutSession.ts');
 const { storePart } = await import('../src/control/storePart.ts');
 
@@ -491,6 +491,18 @@ describe('measurements: identified and qualified', () => {
     // The style travels with it untouched.
     const styled = { ...stale.send, vars: { 'brand-primary': '#123456' } };
     assert.deepEqual(A.placedAppearance(styled, hint, longer).vars, { 'brand-primary': '#123456' });
+  });
+
+  test('W1: after a hinted Take the page holds what the outputs resolved, unless a later send replaced it', () => {
+    const sent = { v: 1, frame: { dx: 100, dy: 0, s: 1, ox: 120, oy: 961 } };
+    const resolved = { v: 1, frame: { dx: 60, dy: 0, s: 1, ox: 120, oy: 961 } };
+    const later = { v: 1, frame: { dx: 5, dy: 0, s: 1, ox: 120, oy: 961 } };
+    const air = rememberAired(NO_AIR, takeCueItems({ id: 'c', graphic: 'Strap', values: {}, appearance: sent, place: { v: 1, place: 'br', frame: HD, stage: HD } }));
+    assert.deepEqual(air.looks.Strap, sent, 'the Take is recorded as sent');
+    assert.deepEqual(placedLook(air, 'Strap', sent, resolved).looks.Strap, resolved);
+    const moved = rememberAired(air, [{ graphic: 'Strap', msg: { t: 'update', data: {}, appearance: later } }]);
+    assert.equal(placedLook(moved, 'Strap', sent, resolved), moved, 'a later send stands');
+    assert.equal(placedLook(air, 'Strap', sent, sent), air, 'nothing to change');
   });
 
   test('W1: a place hint off the wire is read whole or not at all', () => {
