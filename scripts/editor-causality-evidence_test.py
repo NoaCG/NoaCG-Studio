@@ -10,6 +10,23 @@ reader = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(reader)
 
 class ReaderTests(unittest.TestCase):
+    def test_original_trace_completion_requires_observed_clock_readings(self):
+        for trace in [{}, {'traces': []}, {'traces': [{'readings': []}]}]:
+            self.assertFalse(reader.original_trace_resolved(trace))
+        self.assertTrue(reader.original_trace_resolved({'traces': [{'readings': [{'value': '05:02'}]}]}))
+
+    def test_deadline_refuses_new_requests_and_archive_parsing(self):
+        with patch.object(reader.time, 'monotonic', return_value=reader.DEADLINE + 1), patch.object(reader.urllib.request, 'build_opener') as network:
+            with self.assertRaises(AssertionError):
+                reader.request_api('repos/NoaCG/NoaCG-Studio/actions/runs/1')
+            with self.assertRaises(AssertionError):
+                reader.checked_zip(b'')
+            network.assert_not_called()
+        with patch.object(reader.time, 'monotonic', return_value=reader.DEADLINE - 2):
+            self.assertEqual(reader.remaining_timeout(), 2)
+        with self.assertRaises(TimeoutError):
+            reader.alarm_expired()
+
     def test_duplicate_archive_entries_are_rejected(self):
         data = io.BytesIO()
         with zipfile.ZipFile(data, 'w') as archive:

@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import re
+import signal
 import sys
 import time
 import urllib.error
@@ -20,6 +21,20 @@ OUT = ROOT / 'endurance-output'
 LIMIT = 200 * 1024 * 1024
 DEADLINE = time.monotonic() + 15 * 60
 
+def remaining_timeout():
+    left = DEADLINE - time.monotonic()
+    assert left > 0, '15-minute reader ceiling'
+    return min(30, left)
+
+
+def alarm_expired(*_):
+    raise TimeoutError('15-minute reader ceiling')
+
+
+def original_trace_resolved(trace):
+    return bool(trace.get('traces')) and any(t.get('readings') for t in trace['traces'])
+
+
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
@@ -29,7 +44,7 @@ def bounded(response, limit=LIMIT):
     chunks = []
     size = 0
     while True:
-        assert time.monotonic() < DEADLINE, '15-minute reader ceiling'
+        remaining_timeout()
         block = response.read(min(1024 * 1024, limit - size + 1))
         if not block:
             break
@@ -40,6 +55,7 @@ def bounded(response, limit=LIMIT):
 
 
 def request_api(endpoint, archive=False):
+    remaining_timeout()
     assert endpoint.startswith('repos/' + REPO + '/actions/'), 'unexpected API scope'
     req = urllib.request.Request('https://api.github.com/' + endpoint, headers={
         'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
@@ -47,7 +63,7 @@ def request_api(endpoint, archive=False):
     })
     opener = urllib.request.build_opener(NoRedirect)
     try:
-        with opener.open(req, timeout=30) as response:
+        with opener.open(req, timeout=remaining_timeout()) as response:
             data = bounded(response, LIMIT if archive else 16 * 1024 * 1024)
     except urllib.error.HTTPError as error:
         if not archive or error.code not in (301, 302, 303, 307, 308):
@@ -60,12 +76,13 @@ def request_api(endpoint, archive=False):
             parsed.hostname.endswith('.github.com')
         ), 'unexpected artifact storage origin'
         # New request, new opener: NEVER forward the GitHub job token to storage.
-        with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'NoaCG-causality-reader'}), timeout=30) as response:
+        with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'NoaCG-causality-reader'}), timeout=remaining_timeout()) as response:
             data = bounded(response)
     return data if archive else json.loads(data)
 
 
 def checked_zip(data):
+    remaining_timeout()
     archive = zipfile.ZipFile(io.BytesIO(data))
     entries = archive.infolist()
     assert len(entries) <= 20000, 'too many archive entries'
@@ -137,6 +154,7 @@ def read_batch(item):
     start = (item['batch'] - 1) * size
     rows, unresolved = [], []
     for pair in range(start + 1, start + size + 1):
+        remaining_timeout()
         for arm in ('parent', 'landing'):
             prefix = f'pair-{pair:03}-{arm}/'
             try:
@@ -159,13 +177,16 @@ def original_clock_trace():
     archive = checked_zip(data)
     traces = []
     for name in archive.namelist():
+        remaining_timeout()
         if name.endswith('/trace.zip') and 'output-debate-clock' in name:
             trace = checked_zip(archive.read(name))
             calls, readings = {}, []
             for member in trace.namelist():
+                remaining_timeout()
                 if not member.endswith('.trace'):
                     continue
                 for line in trace.read(member).decode().splitlines():
+                    remaining_timeout()
                     event = json.loads(line)
                     if event.get('type') == 'before' and event.get('method') == 'textContent':
                         calls[event['callId']] = safe_text(event.get('params', {}).get('selector', ''))
@@ -185,6 +206,8 @@ def main():
     assert len(manifest) == 16 and len({x['runId'] for x in manifest}) == 16
     assert {(x['kind'], x['batch']) for x in manifest} == {('clock', i) for i in range(1, 13)} | {('operator', i) for i in range(1, 5)}
     OUT.mkdir(exist_ok=True)
+    signal.signal(signal.SIGALRM, alarm_expired)
+    signal.setitimer(signal.ITIMER_REAL, max(0.001, DEADLINE - time.monotonic()))
     results = []
     for item in manifest:
         try:
@@ -196,11 +219,15 @@ def main():
         print('MEASUREMENT ' + json.dumps(result), flush=True)
     try:
         trace = original_clock_trace()
+        assert original_trace_resolved(trace), 'required original clock trace/readings missing'
         (OUT / 'original-clock-trace-summary.json').write_text(json.dumps(trace, indent=2) + '\n')
         print('ORIGINAL_TRACE ' + json.dumps(trace), flush=True)
     except Exception as error:
+        trace = {'unresolved': type(error).__name__}
+        (OUT / 'original-clock-trace-summary.json').write_text(json.dumps(trace, indent=2) + '\n')
         print('ORIGINAL_TRACE_UNRESOLVED ' + type(error).__name__, flush=True)
-    if any(x.get('unresolved') for x in results):
+    signal.setitimer(signal.ITIMER_REAL, 0)
+    if trace.get('unresolved') or any(x.get('unresolved') for x in results):
         sys.exit(1)
 
 if __name__ == '__main__':
