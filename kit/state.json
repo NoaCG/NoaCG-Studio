@@ -74,7 +74,7 @@
       "sourceSha": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
       "branch": "codex/plan-editor-r1-5-e3-build",
       "worktree": "/workspace/noacg-editor-r1-5-e3-build",
-      "note": "E3 builder terminal/archived; allworker gatesgreen exceptReviewed documentedexception. Coordinator retainedsoleownership, exactf420 pinned; cloud queue intent recorded beforedispatch."
+      "note": "E3 PR2386 exactf420 entered realmergequeue14:42:38Z; helper43040695849/reviewed/CIgaterecoverySUCCESS. Currentcoordinator soleactiveowner/monitor56595 throughactualmerge/independentacceptance/terminalpostchecks; no newpaidcalls."
     }
   ],
   "owner": [],
@@ -829,7 +829,25 @@
       "sha": "f42038dbe0661c5c2af620f7157f0a93c2d283bf",
       "review": "E3 /check PASS review inline0/0 simplify inline verify inline; fresh full21file AGREE/A; exact-head Codex clean; CIgate130589451922 and configured aggregate130589192897 SUCCESS all64/4stacks",
       "reconciliation": "currentmain7e1..., merge-treeclean/merge-orderclear/sideEnds{}, no relay, latest1967holdended; no sourcechanges",
-      "dispatchState": "not yet dispatched"
+      "dispatchState": "accepted/observedhelperSUCCESS",
+      "helperRun": 43040695849,
+      "helperJob": 130591389420,
+      "helperResult": "success",
+      "reviewedStatus": 58638749270,
+      "reviewedStatusResult": "success",
+      "recoveredReviewedJob": 130591674745,
+      "recoveredReviewedResult": "success",
+      "recoveredCiGateJob": 130591812719,
+      "recoveredCiGateResult": "success",
+      "autoMerge": "session-owned GitHubconnector success; exactf420 head checked before and after; APIautoMergeRequestnull oncequeued, actualqueueevent authoritative",
+      "queueEvent": "added_to_merge_queue 2026-11-11T14:42:38Z",
+      "monitor": {
+        "mode": "active bounded read-only, no wake/after-session claim",
+        "execSession": 56595,
+        "liveFile": "/workspace/noacg-editor-r1-5-state/17e47924/e3-pr2386-live.json",
+        "deadline": "2026-11-12T10:00:00Z"
+      },
+      "observation": "verification-dispatch observed first; custom helper inputs/default schema unresolved advisory; original dispatch executed once. No resubmission/alternate status route."
     }
   }
 }
