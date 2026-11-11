@@ -280,6 +280,26 @@ test('typed then taken, then the page reloads at once: the edit is kept', async 
   await expect(page.getByTestId('cue-field-f0')).toHaveValue('Kept over a reload');
 });
 
+test('an unsaved edit is kept when the page reloads inside its save window, pressed or not', async ({ page }) => {
+  // Phase 3 check on 92e581a7: with the pointer still down on Take the blur's save is held, and with
+  // no press the idle save has not run, so only the page-hide save carries the edit. That save's
+  // transaction must commit before the reload ends the document.
+  await production(page, 'Reload in the window');
+  const field = page.getByTestId('cue-field-f0');
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await field.fill('Kept with the press held');
+  await page.getByTestId('verb-take').hover();
+  await page.mouse.down();
+  await page.reload();
+  await page.mouse.up();
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await expect(field).toHaveValue('Kept with the press held');
+  await field.fill('Kept with no press');
+  await page.reload();
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await expect(field).toHaveValue('Kept with no press');
+});
+
 test('Update sends every field, and u is the same press', async ({ page }) => {
   // spec §4.2 Update: the full set, bound over the cue's own, read after the wait. `u` was never
   // pressed in any spec (§5.3).
