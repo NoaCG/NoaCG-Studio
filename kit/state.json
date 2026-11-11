@@ -719,6 +719,15 @@
       "coordinatorDisposition": "Existing approved E3 scope/shared loop authorizes final scoped repair. Separate explicit coordinator authorization for exactly ONE final help-out quality verification,1call/1attempt/no fallback, after deterministic checks/pinned source and conservative worst-case cumulative cost including old unknown recheck fits unchangedUSD2. Return bound before call. No successful task reruns. Any later failure STOP same run; no further patch/call.",
       "receipt": "receipts/e3-fresh-diagnose.json",
       "archive": "native terminal readback and app confirmed"
-    }
+    },
+    "finalCostReview": {
+      "receipt": "receipts/e3-final-cost-bound.json",
+      "upperEstimateUsd": 1.7426464,
+      "ceilingUsd": 2,
+      "method": "all4unknown prior calls reserved at full sent caps,6known successes repriced conservative regional2.2/11,final1call;1token/UTF8byte+4096framing,no cache discount",
+      "status": "coordinator reviewed fits unchanged ceiling; estimate not invoice; historical usage remains unknown",
+      "approval": "Exactly ONE final help-out verification after pinned verified source;1call/1attempt/no fallback,same native route/key/funding. Persist intent before dispatch; unknown acknowledgement never resubmits. Any later behavioral/model failure STOP."
+    },
+    "finalDeterministic": "533gateway tests PASS0fail0skip; targetedlint/type PASS; finalnativeJSON sourcecommit pending"
   }
 }
