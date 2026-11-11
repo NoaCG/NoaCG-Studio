@@ -112,6 +112,7 @@ export async function authorLocalLoops(page: Page, testInfo: TestInfo) {
     if (tab === 'Outline') await page.getByRole('tab', { name: 'Properties', exact: true }).click();
     else await control.click();
     await edit.click();
+    await expect(panel.getByLabel('Loop target')).toHaveValue('x');
   }
 
   const propertyEdit = await source(page);

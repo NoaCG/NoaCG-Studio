@@ -38,7 +38,9 @@ function LoopTarget(props: Props) {
   const properties = loopTracks(props.cue, props.owner);
   const all = loopSelection(props.cue, props.owner);
   const available = all ? [LAYER, ...properties] : properties;
-  const target = choice !== undefined && available.includes(choice) ? choice : available[0];
+  const installed = properties.find(property => props.cue.loops?.[props.owner]?.[property]);
+  const initial = all?.common ? LAYER : installed ?? available[0];
+  const target = choice !== undefined && available.includes(choice) ? choice : initial;
   if (target === undefined) return null;
   const selection = loopSelection(props.cue, props.owner, target || undefined);
   return <details className="ef-loop-controls" onToggle={event => { if (!event.currentTarget.open) props.preview(); }}>

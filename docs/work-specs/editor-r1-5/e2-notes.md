@@ -161,9 +161,15 @@ and graded it B. The repairs below add observed cases to the loop and export ora
   running. An explicit visibility span controls whether the layer exists, and an autoAlpha loop
   in that span writes opacity. Seeking backward reproduces the earlier visible pose.
 - **Preview ownership.** Opening Outline or Assistant leaves the local ruler and restores the
-  composition sample, including when a preview reply is still owed.
+  composition sample, including when a preview reply is still owed. Reopening Edit loop
+  chooses an installed property loop when the whole layer has no shared settings.
 - **Finite phase.** A finite phase can begin after the first waveform and must be before the
   terminal sample. It consumes the corresponding elapsed part of the finite repeat budget.
 - **Source ownership.** Legacy edits that were data-only keep that behavior for custom text around
   the original interpreter, including spans. Installing the new loop runtime still requires an
   exact recognized body.
+
+Windows j-5188 passed 60 of 61 cases. The new Outline/Assistant regression found
+that reopening Edit loop selected Whole layer for a property-only loop, hiding
+its local ruler until the property was chosen again. The default now selects
+the installed property when there are no shared layer settings.
