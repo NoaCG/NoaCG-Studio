@@ -131,7 +131,7 @@ No product change was made for these, as the owner decision says.
   before the press's handler runs.
 - The other paths were not run with the stall on the large fixture: a run needs the large
   fixture's build plus 50 samples that each wait out a 3 s stall, which does not fit the worker's
-  5 minute job cap (the server Take reached 29 samples in 290 s). Not counted as passed.
+  5 minute job cap (the server Take run reached 24 of 25 presses in 290 s). Not counted as passed.
 
 ## D2 and the order
 
