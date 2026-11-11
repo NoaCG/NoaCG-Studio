@@ -372,7 +372,11 @@ export const anthropicAdapter: ProviderAdapter = {
               description: request.structuredOutput.description,
               input_schema: request.structuredOutput.schema,
             }],
-            tool_choice: { type: 'tool', name: request.structuredOutput.name },
+            // Native Sonnet 5.5 rejects forced tool choice (HTTP 400). Auto still
+            // owes the exact named tool and schema below; prose never counts as output.
+            tool_choice: route.model === 'claude-sonnet-5-5'
+              ? { type: 'auto' }
+              : { type: 'tool', name: request.structuredOutput.name },
           }
         : {}),
     };

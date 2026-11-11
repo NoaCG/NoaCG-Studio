@@ -1456,3 +1456,52 @@ test('an unbounded deadline or non-gateway deadline does not receive a guessed c
     timeoutMs: 5, maxAttempts: 1, timeoutCostFor: () => 0.001,
   }), (error) => error instanceof GatewayError && error.code === 'timeout' && !error.servedUsage);
 });
+
+
+for (const model of ['claude-sonnet-5-5', 'claude-sonnet-5', 'claude-sonnet-5.5', 'claude-sonnet-5-5-other']) test('native Sonnet tool choice preserves exact route: ' + model, async () => {
+  const request = body('anthropic', model);
+  request.request.structuredOutput = { name: 'result', description: 'A title.', schema: {
+    type: 'object', properties: { title: { type: 'string' } }, required: ['title'], additionalProperties: false,
+  } };
+  let sent: Record<string, unknown> = {};
+  const result = await executeGatewayRequest(request, { keyFor, fetchImpl: async (url, init) => {
+    assert.equal(String(url), 'https://api.anthropic.com/v1/messages');
+    sent = JSON.parse(String(init?.body));
+    assert.equal(new Headers(init?.headers).get('x-api-key'), 'server-side-test-key');
+    return new Response(JSON.stringify({ content: [{ type: 'tool_use', name: 'result', input: { title: 'Exact title' } }], stop_reason: 'tool_use', usage: { input_tokens: 10, output_tokens: 5 } }));
+  } });
+  assert.equal(sent.model, model);
+  assert.deepEqual(sent.tool_choice, model === 'claude-sonnet-5-5' ? { type: 'auto' } : { type: 'tool', name: 'result' });
+  assert.equal(sent.system, request.request.system); assert.equal(sent.max_tokens, 100);
+  assert.deepEqual(sent.tools, [{ name: 'result', description: 'A title.', input_schema: request.request.structuredOutput.schema }]);
+  assert.deepEqual(result.output, { title: 'Exact title' });
+  assert.equal(result.model, model); assert.equal(result.provider, 'anthropic');
+  assert.equal(result.attempts.length, 1); assert.equal(result.usage.totalTokens, 15);
+});
+
+test('native Sonnet unstructured request remains unchanged', async () => {
+  const request = body('anthropic', 'claude-sonnet-5-5');
+  const result = await executeGatewayRequest(request, { keyFor, fetchImpl: async (_url, init) => {
+    const sent = JSON.parse(String(init?.body));
+    assert.deepEqual(sent, { model: request.route.model, max_tokens: 100, system: request.request.system, messages: request.request.messages });
+    return new Response(JSON.stringify({ content: [{ type: 'text', text: 'Plain answer' }], stop_reason: 'end_turn' }));
+  } });
+  assert.equal(result.output, 'Plain answer');
+});
+
+for (const [kind, content, stop] of [
+  ['prose', [{ type: 'text', text: '{"title":"Not a tool"}' }], 'end_turn'],
+  ['missing', [], 'end_turn'],
+  ['wrong tool', [{ type: 'tool_use', name: 'other', input: { title: 'Wrong' } }], 'tool_use'],
+  ['invalid schema', [{ type: 'tool_use', name: 'result', input: { title: 42 } }], 'tool_use'],
+  ['truncated', [{ type: 'tool_use', name: 'result', input: { title: 'Incomplete' } }], 'max_tokens'],
+] as const) test('native Sonnet auto tool choice refuses ' + kind, async () => {
+  const request = body('anthropic', 'claude-sonnet-5-5');
+  request.request.structuredOutput = { name: 'result', description: 'A title.', schema: {
+    type: 'object', properties: { title: { type: 'string' } }, required: ['title'], additionalProperties: false,
+  } };
+  await assert.rejects(executeGatewayRequest(request, { keyFor, fetchImpl: async (_url, init) => {
+    assert.deepEqual(JSON.parse(String(init?.body)).tool_choice, { type: 'auto' });
+    return new Response(JSON.stringify({ content, stop_reason: stop, usage: { input_tokens: 10, output_tokens: 5 } }));
+  } }), (error: unknown) => error instanceof GatewayError && error.code === 'malformed_response');
+});
