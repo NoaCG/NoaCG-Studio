@@ -46,10 +46,10 @@
     {
       "phase": "v3",
       "session": "/root/v3_builder",
-      "pr": 2368,
-      "head": "f7dd9bf838d4eb097e1e488175b43ec41574bb39",
-      "note": "Exact source review A and package health passed. Native AC-8 found empty VideoList ACKed LoopOn without loop; device stopped and both settings restored. Independent measured-order repair rules published. Picker j-5181 stopped before invoking dialog due browser URL grounding.",
-      "step": "build"
+      "note": "Exact independent A, 133 focused tests, 70 changed checks, package health and owned AC-8 clips/audio PASS. Normal PR checks running. Computer Use stopped AC-9 automation; manual picker visibility/persistence required. Draft unqueued.",
+      "head": "e85660d8087d617e1acb777f2468c5e01100ce3b",
+      "step": "build",
+      "pr": 2368
     }
   ],
   "owner": [],
