@@ -1,4 +1,4 @@
-// guards: src/blocks/animData.ts, src/blocks/animEdit.ts, src/blocks/animEval.ts, src/blocks/animLoopTiming.ts, src/blocks/animMachine.ts, src/blocks/animMigration.ts, src/blocks/editorLoops.ts, src/model/animLoopClock.ts, src/templates/shared/animRuntime.ts, src/templates/shared/animLoopRuntime.ts, src/assets/gsap.min.js, e2e/fixtures/editor-loops.json
+// guards: src/blocks/animData.ts, src/blocks/animEdit.ts, src/blocks/animEval.ts, src/blocks/animLoopTiming.ts, src/blocks/animMachine.ts, src/blocks/animMigration.ts, src/blocks/editorLoops.ts, src/model/animLoopClock.ts, src/templates/shared/animRuntime.ts, src/templates/shared/animLoopRuntime.ts, src/templates/shared/base.ts, src/assets/gsap.min.js, e2e/fixtures/editor-loops.json
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';

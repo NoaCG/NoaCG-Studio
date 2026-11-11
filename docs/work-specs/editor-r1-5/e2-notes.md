@@ -330,3 +330,19 @@ Only the E2 style path for Stop and an authored main Out uses this
 protection. The legacy interpreter and the Stop wrapper are unchanged.
 The 27-case Node oracle covers the public Stop and Play, both phases,
 silent settlement, Snap and the existing cut.
+
+The full review of `80f4db28701217c31a15adafd8f3bf7d8690b004` graded it B
+on a timed export parity defect. Exact real-time and offline OGraf ZIPs
+kept a valid explicit one-cue machine at one cue. Both emitted a null
+entrance duration and re-entered the runtime to measure it. That second
+entrance retired the visible ranged loop, and the probe then killed its
+replacement. Both modes stayed at x = 20 from 0.35 to 0.60 seconds.
+Forever scheduled the 700 ms hold immediately. The finite case scheduled
+Out at 2.80 seconds but lost the same motion. The prepared linear control
+already added a second cue and moved from x = 60 to x = 85.
+
+The first timed OGraf parity repair takes the finite entrance from the
+known E2 interpreter for a valid one-cue machine. Its real-time and
+offline wrappers keep one running entry and start the 700 ms hold at
+the finite boundary. Legacy and unreadable duration fallbacks and the
+manifest stay as authored.

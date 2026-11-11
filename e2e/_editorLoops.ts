@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, type Page, type Locator, type TestInfo } from '@playwright/test';
 import type { AnimData } from '../src/blocks/animData';
+import type { GraphicUsage } from '../src/export/registry';
 import type { SpxTemplate } from '../src/model/types';
 import { evaluateInPage } from './_evaluate';
 import { installGraphicBody } from './_graphicBody';
@@ -26,7 +27,8 @@ async function template(page: Page, data: AnimData, artwork = box, out = 'manual
     const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
     const { runtimeJs } = await import('/src/templates/shared/base.ts');
     const { replaceDefinitionInHtml } = await import('/src/model/spxDefinition.ts');
-    const settings = { ...store.template.settings, steps: '2', out };
+    const { spxSteps } = await import('/src/blocks/animMachine.ts');
+    const settings = { ...store.template.settings, steps: String(spxSteps(data)), out };
     const fields = [{ field: 'f0', ftype: 'textfield' as const, title: 'Score', value: '0' }];
     return { ...store.template, name: 'Loop fixture', settings, fields, layers: [], fps: 25,
       html: replaceDefinitionInHtml(html, settings, fields), css,
@@ -186,17 +188,17 @@ export async function scrubSvgLoop(page: Page) {
   expect((await source(page)).html).toBe(input.html);
 }
 
-async function built(page: Page, t: SpxTemplate, target: string) {
-  return page.evaluate(async ({ t, target }) => {
+async function built(page: Page, t: SpxTemplate, target: string, usage?: GraphicUsage) {
+  return page.evaluate(async ({ t, target, usage }) => {
     if (target === 'simulator') return { html: (await import('/src/preview/composeDocument.ts')).composeDocument(t, { simulate: true }) };
     if (target === 'single-file') return { html: await (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(t) };
-    const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(entry => entry.id === target)!.build(t);
+    const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(entry => entry.id === target)!.build(t, usage ? { graphicUsage: usage } : undefined);
     return { files: Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(name => !zip.files[name].dir).map(async name =>
       [name.slice(name.indexOf('/') + 1), await zip.file(name)!.async('base64')]))) as Record<string, string> };
-  }, { t, target });
+  }, { t, target, usage });
 }
 
-async function loadExport(output: Page, artifact: Awaited<ReturnType<typeof built>>, target: string) {
+async function loadExport(output: Page, artifact: Awaited<ReturnType<typeof built>>, target: string, renderType: 'realtime' | 'non-realtime' = 'realtime') {
   if (artifact.html) { await output.setContent(artifact.html); return; }
   const files = artifact.files!;
   await output.route('http://loop-package.local/**', route => {
@@ -211,13 +213,14 @@ async function loadExport(output: Page, artifact: Awaited<ReturnType<typeof buil
   }
   await installGraphicBody(output);
   await output.goto('http://loop-package.local/');
-  await output.evaluate(async () => {
+  const status = await output.evaluate(async renderType => {
     const mod = await import('http://loop-package.local/graphic.mjs');
     customElements.define('loop-graphic', mod.default);
-    const el = document.createElement('loop-graphic') as HTMLElement & { load(params: unknown): Promise<void> };
+    const el = document.createElement('loop-graphic') as HTMLElement & { load(params: unknown): Promise<{ statusCode: number }> };
     document.body.appendChild(el);
-    await el.load({ data: { f0: '0' }, renderType: 'realtime', renderCharacteristics: {} });
-  });
+    return (await el.load({ data: { f0: '0' }, renderType, renderCharacteristics: {} })).statusCode;
+  }, renderType);
+  expect(status, 'OGraf package loads').toBe(200);
 }
 
 type Timeline = { time(t?: number, suppress?: boolean): number; pause(): Timeline; duration(): number;
@@ -396,6 +399,7 @@ export async function playTimedLoopOverlay(page: Page) {
     await output.clock.runFor(850);
     await expect(root).toHaveCSS('opacity', '0');
   } finally { await output.close(); }
+  await verifyTimedOneCueOgraf(page);
 }
 
 async function verifyLoopCompositionEdits(page: Page) {
@@ -556,5 +560,73 @@ function countStyleSwap() { var root = document.querySelector(".loop-fixture"); 
       expect(result.settleOpacity, label).toBe(0);
       expect(result.swaps, label).toBe(1);
     } finally { await output.close(); }
+  }
+}
+
+async function verifyTimedOneCueOgraf(page: Page) {
+  for (const [repeat, wait] of [[-1, 2000], [1, 2800]] as const) {
+    const data = fixture();
+    data.steps.length = 1;
+    data.steps[0].loops = { '#box': { x: { ...loop, repeat } } };
+    data.machine = { groups: [{
+      id: 'main', initial: 'off', defaultPath: ['in'], states: [{ id: 'off' }, { id: 'in' }],
+      transitions: [{ from: 'in', to: 'off', trigger: 'operator', event: 'quiet' }],
+    }] };
+    const input = await template(page, data, box, '700');
+    const artifact = await built(page, input, 'ograf', 'both');
+    for (const mode of ['realtime', 'non-realtime'] as const) {
+      const output = await page.context().newPage();
+      try {
+        if (mode === 'realtime') await output.clock.install();
+        await loadExport(output, artifact, 'ograf', mode);
+        if (mode === 'realtime') await output.clock.pauseAt(await output.evaluate(() => Date.now() + 100));
+        await output.evaluate(async mode => {
+          const el = document.querySelector('loop-graphic') as HTMLElement & {
+            playAction(p: object): Promise<{ statusCode: number }>;
+            setActionsSchedule(p: object): Promise<{ statusCode: number }>;
+          };
+          const result = mode === 'realtime' ? await el.playAction({}) : await el.setActionsSchedule({
+            schedule: [{ timestamp: 0, action: { type: 'playAction', params: {} } }],
+          });
+          if (result.statusCode !== 200) throw new Error('OGraf could not begin timed Play: ' + result.statusCode);
+        }, mode);
+
+        const samples = [];
+        let elapsed = 0;
+        for (const at of [350, 600, 1400, 1700, wait - 40, wait + 40, wait + 1500]) {
+          if (mode === 'realtime') await output.clock.runFor(at - elapsed);
+          elapsed = at;
+          samples.push(await output.evaluate(async ({ mode, at }) => {
+            const el = document.querySelector('loop-graphic') as HTMLElement & {
+              _step: number;
+              goToTime(p: { timestamp: number }): Promise<{ statusCode: number }>;
+            };
+            let view = window, body: ParentNode = graphicBody(el);
+            if (mode === 'non-realtime') {
+              const result = await el.goToTime({ timestamp: at });
+              if (result.statusCode !== 200) throw new Error('OGraf could not render timed Play: ' + result.statusCode);
+              const frame = body.querySelector('iframe')!;
+              view = frame.contentWindow!;
+              body = frame.contentDocument!;
+            }
+            const gsap = (view as unknown as { gsap: { getProperty(e: Element, p: string): number } }).gsap;
+            return {
+              x: Number(gsap.getProperty(body.querySelector('#box')!, 'x')),
+              opacity: Number(view.getComputedStyle(body.querySelector('.loop-fixture')!).opacity),
+              step: mode === 'realtime' ? el._step : (view as Window & { __ografStep: number }).__ografStep,
+            };
+          }, { mode, at }));
+        }
+        const label = mode + ' repeat ' + repeat;
+        expect(samples[0].x, label).toBeGreaterThan(54);
+        expect(samples[0].x, label).toBeLessThan(66);
+        expect(samples[1].x, label).toBeGreaterThan(79);
+        expect(samples[1].x, label).toBeLessThan(91);
+        if (repeat === -1) expect(samples[2].x - samples[3].x, label).toBeGreaterThan(20);
+        expect(samples.slice(0, 5).map(sample => sample.opacity), label).toEqual([1, 1, 1, 1, 1]);
+        expect([samples[4].step, samples[5].step], label).toEqual([0, -1]);
+        expect(samples.at(-1)!.opacity, label).toBe(0);
+      } finally { await output.close(); }
+    }
   }
 }

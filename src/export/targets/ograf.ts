@@ -198,7 +198,13 @@ function wallMs(data: AnimData, seconds: number): number {
  */
 function entranceMs(template: SpxTemplate): number | null {
   const data = parseAnimData(template.js);
-  return data && data.steps.length >= 2 ? wallMs(data, authoredCueEnd(data.steps[0], hasLoopRuntime(template.js), data.speed || 1)) : null;
+  if (!data) return null;
+  const loopRuntime = hasLoopRuntime(template.js);
+  // An explicit one-cue machine has no implicit Out. Measuring a second entry
+  // under the loop runtime would retire the graphic's real entrance.
+  return data.steps.length >= 2 || loopRuntime
+    ? wallMs(data, authoredCueEnd(data.steps[0], loopRuntime, data.speed || 1))
+    : null;
 }
 
 /**

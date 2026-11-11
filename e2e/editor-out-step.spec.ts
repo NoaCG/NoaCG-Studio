@@ -1,4 +1,4 @@
-// covers: src/templates/shared/{animRuntime,animRuntimeLegacy,easeRuntime}.ts
+// covers: src/templates/shared/{animRuntime,animRuntimeLegacy,base,easeRuntime}.ts
 // covers: src/blocks/{animMigration,animMachine,animEval,animData}.ts, src/components/editorFoundation/**
 // covers: e2e/fixtures/out-steps.json, e2e/fixtures/interpreter-hold-v1.js
 // covers: e2e/_editorLoops.ts, e2e/fixtures/editor-loops.json
