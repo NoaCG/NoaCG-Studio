@@ -88,8 +88,20 @@
  },
  "ownerQuestions": [
   {
-   "what": "Early signal: AC-1 50 ms p95 Take target may be unreachable by removing the W1 waits alone (Next, untouched by W1, measured 65-118 ms p95 in run 1). Confirm with the final phase 2 receipt, then ask the owner before launching phase 3.",
-   "state": "pending final numbers"
+   "what": "AC-4: Take during a publish 100-200 ms slower at p95 unthrottled (phase 2 receipt). Ask before phase 6.",
+   "state": "pending, before phase 6"
+  },
+  {
+   "what": "D1: 5 s ceiling vs 30-33 s large-fixture update over 20 Mbit/s (phase 2 receipt). Ask before phase 6/7.",
+   "state": "pending, before phase 6"
+  }
+ ],
+ "ownerDecisions": [
+  {
+   "at": "2026-11-11T11:2xZ",
+   "question": "AC-1 50 ms p95 not reachable by removing W1 waits alone (phase 2 receipt: Next 77-144 ms p95 in a dev build on the cloud worker). (A) keep 50 ms, judged on a production build; if the production build still misses, phase 3 stops and brings the number. (B) target relative to the measured baseline. (C) keep 50 ms and add page render work to phase 3.",
+   "answer": "a",
+   "meaning": "Phase 3 judges AC-1 50 ms p95 on a production build; if it still misses, phase 3 stops and brings the owner the number."
   }
  ]
 }
