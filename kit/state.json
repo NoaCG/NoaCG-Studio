@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "note": "Exact reviewed head and AC-9 proof passed. PR CI green after normal targeted Reviewed recovery, and GitHub added the PR to the merge queue. Await exact merge and fresh independent checker.",
-      "session": "42957323644",
+      "step": "check",
+      "session": "/root/v3_checker",
       "phase": "v3",
-      "step": "queue",
-      "head": "e85660d8087d617e1acb777f2468c5e01100ce3b",
-      "pr": 2368
+      "pr": 2368,
+      "head": "e9b0c550082c540c925e2cce25ffdee093d2d7b3",
+      "note": "GitHub merged after the queue checks. The fresh independent checker was accepted on the exact merge and is verifying AC-7/8/9 and exact-main CI."
     }
   ],
   "owner": [],
