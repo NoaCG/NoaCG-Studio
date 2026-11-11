@@ -86,6 +86,21 @@ export async function authorLocalLoops(page: Page, testInfo: TestInfo) {
   await pose(page, 61, .5, 36);
   const local = panel.getByRole('slider', { name: 'Loop playhead' });
   const ruler = page.getByRole('slider', { name: 'Playhead', exact: true });
+  await page.clock.install();
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  const play = page.getByRole('button', { name: 'Play', exact: true });
+  await play.press('Enter');
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+  await page.clock.runFor(100);
+  await expect(local).toBeVisible({ timeout: 2000 });
+  await local.press('Home');
+  await page.clock.runFor(80);
+  await expect(play).toBeVisible();
+  const parked = await ruler.getAttribute('aria-valuenow');
+  await page.clock.runFor(200);
+  await expect(ruler).toHaveAttribute('aria-valuenow', parked!);
+  await page.clock.resume();
+  await seek(page, .36);
   await local.focus();
   await local.press('Home');
   await pose(page, 35, .5, 36);
@@ -335,6 +350,8 @@ export async function playLoopOutputs(page: Page) {
   } };
   mixed.steps[0].spans = { '#score': [{ start: .2, end: 1.3 }] };
   mixed.steps[1].spans = { '#score': [{ start: 0, end: .4 }] };
+  delete mixed.steps[1].reveals;
+  mixed.steps[0].hides = ['#late'];
   const mixedInput = await template(page, mixed);
   await apply(page, mixedInput);
   await seek(page, 1.8);
@@ -344,10 +361,11 @@ export async function playLoopOutputs(page: Page) {
     const template = session.port.read();
     const { readTimeline } = await import('/src/components/editorFoundation/timelineView.ts');
     const { authoringPosition } = await import('/src/components/editorFoundation/animationAuthoring.ts');
-    const arrivingBar = readTimeline(template).bars.find(bar => bar.selector === '#score' && bar.step === 0);
-    return { barEnd: arrivingBar?.end, position: authoringPosition(template, '#score', 1.8) };
+    const bars = readTimeline(template).bars.filter(bar => bar.step === 0);
+    return { barEnd: bars.find(bar => bar.selector === '#score')?.end,
+      hideEnd: bars.find(bar => bar.selector === '#late')?.end, position: authoringPosition(template, '#score', 1.8) };
   });
-  expect(flag).toEqual({ barEnd: 1.8, position: { step: 0, time: 1.8 } });
+  expect(flag).toEqual({ barEnd: 1.8, hideEnd: 1.3, position: { step: 0, time: 1.8 } });
   const ograf = await built(page, mixedInput, 'ograf');
   const manifestFile = Object.entries(ograf.files!).find(([file]) => file.endsWith('.ograf.json'))!;
   const manifest = JSON.parse(Buffer.from(manifestFile[1], 'base64').toString('utf8'));

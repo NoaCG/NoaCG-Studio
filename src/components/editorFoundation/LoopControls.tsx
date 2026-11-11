@@ -12,6 +12,9 @@ const LABELS: Record<string, string> = { x: 'Position X', y: 'Position Y', xPerc
 const LAYER = '';
 
 interface Props {
+  template: SpxTemplate;
+  compositionTime: number;
+  pause: () => void;
   cue: AnimStep;
   step: number;
   selector: string;
@@ -22,19 +25,21 @@ interface Props {
   preview: (probe?: LoopProbe) => void;
 }
 
-export default function LoopControls({ template, view, time, inspectedCue, selector, execute, preview }: Pick<Props, 'selector' | 'execute' | 'preview'> & {
+export default function LoopControls({ template, view, time, inspectedCue, selector, execute, preview, pause }: Pick<Props, 'selector' | 'execute' | 'preview' | 'pause'> & {
   template: SpxTemplate; view: TimelineView; time: number; inspectedCue?: number;
 }) {
   if (!view.data) return null;
   const { step } = authoringPosition(template, selector, time, inspectedCue);
   const cue = view.data.steps[step];
   if (!cue || view.segments[step]?.out) return null;
-  return <LoopTarget key={JSON.stringify([selector, step, time, inspectedCue])} cue={cue} step={step} selector={selector}
+  return <LoopTarget key={JSON.stringify([selector, step, inspectedCue])} template={template} compositionTime={time} pause={pause}
+    cue={cue} step={step} selector={selector}
     owner={ownerOf(view, selector)} speed={view.data.speed} fps={template.fps} execute={execute} preview={preview} />;
 }
 
 function LoopTarget(props: Props) {
   const [choice, setChoice] = useState<string>();
+  const [open, setOpen] = useState(false);
   const properties = loopTracks(props.cue, props.owner);
   const all = loopSelection(props.cue, props.owner);
   const available = all ? [LAYER, ...properties] : properties;
@@ -43,23 +48,31 @@ function LoopTarget(props: Props) {
   const target = choice !== undefined && available.includes(choice) ? choice : initial;
   if (target === undefined) return null;
   const selection = loopSelection(props.cue, props.owner, target || undefined);
-  return <details className="ef-loop-controls" onToggle={event => { if (!event.currentTarget.open) props.preview(); }}>
-    <summary>Edit loop</summary>
-    <label className="ef-appearance-field">Loop target
-      <select aria-label="Loop target" value={target} onChange={event => { props.preview(); setChoice(event.target.value); }}>
-        {available.map(name => <option key={name} value={name}>{name === LAYER ? 'Whole layer' : LABELS[name]}</option>)}
-      </select>
-    </label>
-    {selection ? <LoopSettings key={JSON.stringify([target, selection])} {...props} target={target} selection={selection} />
-      : <p className="ef-muted">These tracks share a transform or opacity channel. Choose an independent track.</p>}
+  return <details className="ef-loop-controls" onToggle={event => {
+    const opened = event.currentTarget.open;
+    setOpen(opened);
+    if (opened) props.pause();
+    else props.preview();
+  }}>
+    <summary onClick={() => { if (!open) props.pause(); }}>Edit loop</summary>
+    {open && <>
+      <label className="ef-appearance-field">Loop target
+        <select aria-label="Loop target" value={target} onChange={event => { props.preview(); setChoice(event.target.value); }}>
+          {available.map(name => <option key={name} value={name}>{name === LAYER ? 'Whole layer' : LABELS[name]}</option>)}
+        </select>
+      </label>
+      {selection ? <LoopSettings key={JSON.stringify([target, selection])} {...props} target={target} selection={selection} />
+        : <p className="ef-muted">These tracks share a transform or opacity channel. Choose an independent track.</p>}
+    </>}
   </details>;
 }
 
-function LoopSettings({ cue, step, selector, owner, target, selection, speed, fps, execute, preview }: Props & {
+function LoopSettings({ template, compositionTime, pause, cue, step, selector, owner, target, selection, speed, fps, execute, preview }: Props & {
   target: string; selection: NonNullable<ReturnType<typeof loopSelection>>;
 }) {
   const [time, setTime] = useState<number>();
   useEffect(() => () => preview(), [preview]);
+  useEffect(() => setTime(undefined), [compositionTime, template]);
   const [indefinite, setIndefinite] = useState(selection.common?.repeat === -1);
   const common = selection.common;
   const range = common?.range ?? selection.range;
@@ -77,6 +90,7 @@ function LoopSettings({ cue, step, selector, owner, target, selection, speed, fp
       repeat: indefinite ? -1 : Number(fields.get('repeat')), yoyo: fields.get('direction') === 'yoyo' });
   };
   const sample = (at: number) => {
+    pause();
     const next = Math.max(0, Math.min(length, at));
     setTime(next);
     preview({ step, owner, properties: selection.properties, time: range[0] / speed + next });

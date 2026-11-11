@@ -251,3 +251,18 @@ tail refuses before changing source. Keys within authored ranges keep their
 existing edits. A terminal visibility span reaches the derived flag, so its
 continuous layer stays on the arriving cue at that boundary. Legacy Out still
 uses its finite authored duration.
+
+The review of `d874c51f18911cbc59eb1c358d8ea9a77b1da02e` reproduced
+an Edit loop disclosure that was remounted by each composition tick.
+Entering the local controls parks the composition. A local sample also
+parks it, and starting composition Play restores any local probe. The
+disclosure now stays mounted within its selected cue and layer. Closing
+it or changing the source clears the local readout. The maintained
+browser journey exercises Play followed by a loop-ruler key. Its covers
+header includes the model clock, verified by the affected plan.
+
+Windows j-5199 passed 74 cases and found one existing SVG test with a
+selector that matched both Inspector disclosures. The test now opens
+Edit base values by its visible name. All of its source and rendered
+position assertions are retained. The focused old-code job j-5200 also
+showed that the loop disclosure closed before its settings could be used.

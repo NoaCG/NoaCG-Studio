@@ -82,6 +82,7 @@ export default function EditorFoundation() {
     const exiting = preview.current?.isExiting();
     const resumeExit = exiting && time < view.duration;
     if (!resumeExit) preview.current?.stopExit();
+    preview.current?.previewLoop();
     const segment = view.segments[exiting ? (resumeExit ? view.segments.length - 1 : 0) : segmentAt(view.segments, time).step];
     const end = segment.start + segment.duration;
     const from = time >= end ? segment.start : time;

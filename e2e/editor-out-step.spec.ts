@@ -2,7 +2,7 @@
 // covers: src/blocks/{animMigration,animMachine,animEval,animData}.ts, src/components/editorFoundation/**
 // covers: e2e/fixtures/out-steps.json, e2e/fixtures/interpreter-hold-v1.js
 // covers: e2e/_editorLoops.ts, e2e/fixtures/editor-loops.json
-// covers: src/blocks/{animLoopTiming,editorLoops}.ts, src/templates/shared/animLoopRuntime.ts
+// covers: src/blocks/{animLoopTiming,editorLoops}.ts, src/model/animLoopClock.ts, src/templates/shared/animLoopRuntime.ts
 // covers: src/preview/{simulatorRuntime,settleGraphic}.ts, src/export/{selfContained,targets/ograf,targets/htmlOverlay}.ts
 //
 // R1.2a.3 Out from any step (docs/research/editor-r1-2a-3): at the last step Out plays its authored

@@ -189,7 +189,9 @@ test('nested SVG armed parent-coordinate drag and explicit base offset preserve 
   const motion = (await data(page)).steps[0].layers['#nested'];
   expect(motion.x[1].value).toBeCloseTo(20, 1); expect(motion.y).toBeUndefined();
   const before = await source(page), pose = await (await preview(page)).locator('#nested').evaluate(el => el.getBoundingClientRect().x);
-  const details = page.locator('.ef-inspector details'); await details.locator('summary').click();
+  const summary = page.getByText('Edit base values (preserve motion)', { exact: true });
+  const details = page.locator('.ef-inspector details').filter({ has: summary });
+  await summary.click();
   const input = details.getByRole('textbox', { name: 'Base Position X', exact: true });
   const value = Number(await input.inputValue()); await input.fill(String(value + 40)); await input.press('Enter'); await ready(page);
   expect((await source(page)).js).toBe(before.js);

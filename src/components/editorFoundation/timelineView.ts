@@ -45,7 +45,8 @@ export function readTimeline(template: SpxTemplate): TimelineView {
         end: segment.start + (span.end === step.duration ? segment.duration : span.end / data!.speed) }));
       // A cue without bars shows the layer as the runtime plays it.
       if (!shownWithoutBars(data!, owner, segment.index)) return [];
-      return [{ selector: part.selector, step: segment.index, interval: 0, cueStart: segment.start, start: segment.start, end: segment.start + segment.duration }];
+      const duration = step?.hides?.includes(owner) ? step.duration / data!.speed : segment.duration;
+      return [{ selector: part.selector, step: segment.index, interval: 0, cueStart: segment.start, start: segment.start, end: segment.start + duration }];
     });
   });
   const reason = !data ? 'This source has no supported timeline. Its artwork and code are preserved.'

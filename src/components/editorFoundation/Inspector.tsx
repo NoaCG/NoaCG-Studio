@@ -105,7 +105,7 @@ function Inspector({ reveal, seek, view, template, selection, select, session, l
           <PathControls key={'path:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} editPoints={editPoints} />
           <AnchorPoint key={'anchor:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} seek={seek} />
           <AnimationProperties seek={seek} key={'animation:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} linked={linked} previewTemplate={previewTemplate} />
-          <LoopControls template={template} view={view} selector={part.selector} time={time} inspectedCue={cue} execute={execute} preview={previewLoop} />
+          <LoopControls template={template} view={view} selector={part.selector} time={time} inspectedCue={cue} execute={execute} preview={previewLoop} pause={pause} />
           <label className="ef-link"><input type="checkbox" checked={linked} onChange={event => setLinked(event.target.checked)} /> Link proportions</label></>}
         <div className="ef-edit-actions">
           <button title="Duplicate artwork (Ctrl/Cmd+D)" onClick={() => execute({ kind: 'layer.duplicate', selector: part.selector })} disabled={selection.length !== 1}>Duplicate</button>
