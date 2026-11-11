@@ -42,7 +42,16 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {},
-  "inFlight": [],
+  "inFlight": [
+    {
+      "note": "Overlap landed and both Bridge issues repaired. Windows Node 176, TypeScript and lint passed. Exact PR CI 43063458764, independent review and local Chromium j-5234 pending.",
+      "head": "4e0f1a6460eccba31ebcd7f2016c4e3964f3047f",
+      "step": "build",
+      "session": "j-5234",
+      "pr": 2378,
+      "phase": "v4"
+    }
+  ],
   "owner": [],
   "fixes": [],
   "triggers": []
