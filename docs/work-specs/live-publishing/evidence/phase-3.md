@@ -366,16 +366,17 @@ Written before the code; a Rules-first `/so` challenges them. A first version (c
 page-hide write at once) was graded B and withdrawn after the touch measurement above. A second
 (a record compared by time) was graded B; its findings are answered below.
 
-- P1. When the page may be going (`onPageHide`: hidden, closing or reloading, or the account
-  pausing), an owed edit is saved to the store as before and, first and synchronously, recorded
-  in localStorage for its production: the cue, the text the cue held when the typing started, and
-  the typed text. Owed means typed and not yet saved, or saved through the history and not yet
+- P1. When the page may be going (hidden, closing or reloading), an owed edit is saved to the
+  store as before and, first and synchronously, recorded in localStorage for its production: the
+  cue, the texts the cue may hold under the edit (its text when the typing started, then each
+  part of this typing handed to the store, whether or not it has landed), and the typed text. The
+  account pausing saves as before with no record: the page stays. Owed means typed and not yet saved, or saved through the history and not yet
   confirmed by the store. One record per production, in one key per account
   (`spx-gfx-owed-cue-edits`, moved with the account's other small records when an account adopts
   the signed-out workspace). A refused localStorage write changes nothing else.
 - P2. When the production page first has that production's cues on a visit, before anything on
-  it is typed or sent, the record is taken once. If the cue still holds exactly the text the
-  typing started from, the typed text is written to it through the history (one undo step), and
+  it is typed or sent, the record is taken once. If the cue holds exactly one of the texts listed
+  under the edit, the typed text is written to it through the history (one undo step), and
   the record is removed once the store confirms that write, unless a later hide has recorded a
   newer edit meanwhile. Unconfirmed (refused, or aborted by another reload), it stays and is tried
   again on the next visit. Otherwise (the cue holds the typed text already, was changed since by
@@ -390,7 +391,8 @@ page-hide write at once) was graded B and withdrawn after the touch measurement 
   answered) and with no press at all. Not covered: a crash or a killed tab (no event fires); a
   second cue's owed save when the editor followed the cue on air to another cue and the operator
   typed there before the first save was confirmed (R4a, the history rule left to #2394); a cue
-  changed by someone else since the typing started (their text stands, P2).
+  changed by someone else since the typing started (their text stands, P2), unless they changed
+  it back to exactly a listed text, when the typed text is applied over theirs.
 - P5. The session's end and the listening's stop save at once as before, with no record: the page
   stays, so the store's write lands. When the Take sends, when the blur's save runs and what it
   writes do not change (R1 to R7 above), and AC-1 is measured again on the production build.
@@ -409,7 +411,11 @@ undone edit back (inline review of 063798e). From the PR review of 7901c00: when
 save of the same cue is confirmed while typing goes on, the text the record is applied over moves
 to that save's text (the store holds it now), and recovery writes through the history and keeps
 the record until the store confirms it (it removed it first, so a refused or aborted write lost
-the text). A first version also removed it when a draft was
+the text). From the final `/so` on 7901c00 (grade B): typing on after a hide the page came back
+from lost the edit, since the cue then held the text that hide saved; and the account pausing
+kept a record nothing removed. So each part of the typing handed to the store is listed under the
+edit (a single moving base failed when that part had not landed yet), and a pause keeps no
+record. A first version also removed it when a draft was
 dropped (`cancel`); the page drops a draft while it starts, before `recover`, so that lost the
 record (the held-press reload test failed 2 of 6 on 310f222) and was taken out.
 
@@ -439,7 +445,7 @@ cue, delay `control_send_seq` by N ms with `page.route`, `fill` a text field, cl
 | 200 ms | lost 4 of 4 (the field reads the old "HOME") | kept 4 of 4 |
 | 800 ms | not run here (the checker: lost 6 of 6) | kept 4 of 4 |
 
-Run on a95b872, and again on d5c0b63 (kept 4 of 4 at each delay). The intermediate 310f222, which also removed the record when a draft was dropped,
+Run on a95b872, and again on d5c0b63 and 7acd729b (kept 4 of 4 at each delay). The intermediate 310f222, which also removed the record when a draft was dropped,
 lost it 4 of 4 at 200 ms, as the "Rules found after coding" note says.
 
 ### AC-1 measured again
@@ -459,16 +465,23 @@ were not measured again.
 ### Tests
 
 - `e2e/playout-air-contract.spec.ts`: "an unsaved edit is kept when the page reloads inside its
-  save window, pressed or not" (mouse pointer held down on Take, then no press) and, on a touch
+  save window, pressed or not" (mouse pointer held down on Take; then no press; then away to
+  another tab and back mid-edit, typing on with the store's writes held, reload) and, on a touch
   screen, "typed, Take tapped, then the page reloads at once". Mutation: with the record never
   written (`if (false && hiding) io.owed.keep(...)`) both fail 3 of 3 (the field reads the old
   "Alexandra Riva"); the earlier "typed then taken, then the page reloads at once" stays green,
-  as the check said. With the fix the whole file passes 36 of 36 (`--repeat-each 3`, a95b872 and
-  d5c0b63). AC-1 was measured on a95b872; d5c0b63 changes only recovery and a confirmed save's
-  bookkeeping, off the press path.
-- `scripts/cue-draft.test.mjs`: P1 to P3 and P5 cases, and the history's out save. Mutations:
-  no record on hide turns three red; no removal on a confirmed save one; `recover` never writing
-  two; the page hide not covering an out save one.
+  as the check said. The tab step cannot isolate its own rule in a browser (the 300 ms idle
+  save lands during it and starts a fresh draft); the unit case below does. With the fix the
+  whole file passes 36 of 36 (`--repeat-each 3`) on a95b872, d5c0b63 and 7acd729b. AC-1 was
+  measured on a95b872; the later commits change only recovery, the record's contents and a
+  confirmed save's bookkeeping, off the press path.
+- `scripts/cue-draft.test.mjs`: P1 to P3 and P5 cases, the history's out save, an earlier save
+  confirmed while typing goes on, a hide the page came back from, and the account pausing.
+  Mutations: no record on hide turns three red; no removal on a confirmed save one; `recover`
+  never writing two; removing the record before its write two; removing any record on a
+  confirmation one; the page hide not covering an out save one; a confirmed earlier save not
+  listed one; the hide's save not listed one; a pause recording one; applying over the first
+  listed text only one.
 - `scripts/owed-cue-edit.test.mjs` (new): records per production and per account, a store of
   another version never read, written over or cleared, an unreadable record read as none.
 - Specs that hold writes or reload (`save-transaction-holds`, `rundown-history-storage`,
