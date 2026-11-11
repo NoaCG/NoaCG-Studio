@@ -85,6 +85,14 @@ const type = (h, cue, field, text) => {
   for (let i = 1; i <= text.length; i += 1) h.draft.edit(cue, { values: { [field]: text.slice(0, i) } });
 };
 const settle = () => new Promise((resolve) => setImmediate(resolve));
+/** Run the live timers set for `ms`, as the clock reaching them would. */
+const runTimers = (h, ms) => {
+  for (const [id, t] of [...h.timers]) {
+    if (t.ms !== ms) continue;
+    h.timers.delete(id);
+    t.run();
+  }
+};
 
 test('an edit echoes in the draft part at once, over the record it started from', () => {
   const h = harness();
@@ -404,11 +412,17 @@ test('a blur by a press that sends first saves after the press, once, and keeps 
   assert.deepEqual(h.draft.view(OPENER).values.f0, 'Typed then Take', 'the press reads the edit from memory');
   h.press(false);
   assert.deepEqual(saves, [], 'not inside the release: its click is dispatched in the same task');
-  assert.deepEqual([...h.timers.values()].map((t) => t.ms), [0]);
-  h.tick();
-  assert.deepEqual(saves, ['Typed then Take']);
+  // A second fast press inside the idle delay: the save waits for it too.
+  h.press(true);
+  runTimers(h, FLUSH_DELAY_MS);
+  assert.deepEqual(saves, [], 'never during a press');
+  h.press(false);
+  assert.deepEqual(saves, []);
+  runTimers(h, FLUSH_DELAY_MS);
+  assert.deepEqual(saves, ['Typed then Take'], 'once presses pause for the idle delay');
   h.tick();
   assert.equal(saves.length, 1, 'once');
+  assert.equal(h.timers.size, 0, 'the cap goes with it');
 });
 
 test('the page closing during the press saves the edit at once', () => {

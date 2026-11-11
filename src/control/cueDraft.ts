@@ -178,21 +178,33 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
   };
   /** Whether a pointer is down on a control whose press sends first. */
   let pressing = false;
-  /** The save waiting for that press to end, and its cap. */
+  /** The save waiting for presses that send first to pause, its wait and its cap. */
   let held: (() => void) | null = null;
+  let heldWait: unknown = null;
   let holdCap: unknown = null;
   const hold = (save: () => void) => {
     held = save;
-    if (holdCap === null) holdCap = io.setTimeout(release, PRESS_HOLD_MAX_MS);
+    if (holdCap === null) holdCap = io.setTimeout(() => runHeld(true), PRESS_HOLD_MAX_MS);
   };
-  /** The press is over: its click is dispatched in the same task as the release, so the save runs
-   *  on a later task, after the press's handler has started its send. */
-  function release() {
-    if (holdCap !== null) io.clearTimeout(holdCap);
-    holdCap = null;
-    const save = held;
+  const dropHeld = () => {
+    for (const t of [heldWait, holdCap]) if (t !== null) io.clearTimeout(t);
+    heldWait = holdCap = null;
     held = null;
-    if (save) io.setTimeout(() => { if (session.alive()) save(); }, 0);
+  };
+  /** The held save runs once presses pause, never during one (a second fast press must not wait
+   *  for the first one's save either), and at the cap whatever happens. */
+  function runHeld(capped: boolean) {
+    heldWait = null;
+    if (pressing && !capped) return;
+    const save = held;
+    dropHeld();
+    if (save && session.alive()) save();
+  }
+  /** A press is over: the held save waits the idle delay from here, which a next press restarts. */
+  function release() {
+    if (!held) return;
+    if (heldWait !== null) io.clearTimeout(heldWait);
+    heldWait = io.setTimeout(() => runHeld(false), FLUSH_DELAY_MS);
   }
 
   const flush = (): Promise<boolean> => {
@@ -225,9 +237,7 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
   session.onDispose(() => {
     retain();
     stopTimer();
-    if (holdCap !== null) io.clearTimeout(holdCap);
-    holdCap = null;
-    held = null;
+    dropHeld();
     pending = false;
   });
 
@@ -289,7 +299,8 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
         offFlush();
         offPress();
         pressing = false;
-        release();
+        // What is held is saved at once by `retain`; the history it would close moves on anyway.
+        dropHeld();
         retain();
       };
     },
