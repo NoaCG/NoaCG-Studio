@@ -182,14 +182,88 @@ def receipt_inventory(archive, prefix):
     return result
 
 
+
+COMPLETION_RUN = 43094048053
+COMPLETION_JOB = 130778205104
+COMPLETION_ORDER = [(41, 'landing'), (41, 'parent'), (42, 'parent'), (42, 'landing'), (43, 'parent'), (43, 'landing'), (44, 'landing'), (44, 'parent'), (45, 'parent'), (45, 'landing'), (46, 'parent')]
+OPERATOR_SOURCES = {'parent': 'a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44', 'landing': '8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f'}
+
+
+def completion_log_records(data, step):
+    from datetime import datetime
+    parse_time = lambda value: datetime.fromisoformat(value.replace('Z', '+00:00'))
+    start, end = parse_time(step['started_at']), parse_time(step['completed_at'])
+    assert start < end
+    lines = []
+    for raw in data.decode('utf-8', errors='strict').splitlines():
+        match = re.fullmatch(r'(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+Z) (.*)', raw)
+        if match and start <= parse_time(match[1]) <= end:
+            lines.append(match[2])
+    assert lines.count('##[group]Run npm run "$SCRIPT" -- --minutes "$MINUTES"') == 1, 'missing exact Run command'
+    assert '  SCRIPT: endurance:editor-causality' in lines and '  MINUTES: 75' in lines
+    records = []
+    for line in lines:
+        if line.startswith('{"pair"'):
+            record = json.loads(line)
+            assert set(record) == {'pair', 'arm', 'job', 'failed', 'stats'}
+            assert type(record['pair']) is int and type(record['arm']) is str
+            assert type(record['job']) is str and re.fullmatch(r'j-\d+', record['job'])
+            assert record['failed'] is False
+            for key, expected in [('expected', 2), ('unexpected', 0), ('skipped', 0), ('flaky', 0)]:
+                assert type(record['stats'][key]) is int and record['stats'][key] == expected
+            records.append(record)
+    assert [(r['pair'], r['arm']) for r in records] == COMPLETION_ORDER, 'missing/extra/out-of-order completion records'
+    assert len({r['job'] for r in records}) == 11, 'duplicate queue identity'
+    return records
+
+
+def read_completion_log(item, run, artifacts):
+    assert item == {'kind': 'operator', 'cohort': 4, 'batch': 3, 'condition': 'completion-01', 'ref': 'codex/editor-causality-20261111-operator-c4-03-completion-01', 'sha': COMPLETION_SHA, 'runId': COMPLETION_RUN}
+    assert run['id'] == COMPLETION_RUN and run['repository']['full_name'] == REPO
+    assert run['path'] == '.github/workflows/endurance.yml' and run['workflow_id'] == 390372433
+    assert artifacts['total_count'] == 0 and artifacts['artifacts'] == [], 'prefer original artifact; no ambiguous recovery'
+    job = request_api(f'repos/{REPO}/actions/jobs/{COMPLETION_JOB}')
+    assert job['id'] == COMPLETION_JOB and job['run_id'] == COMPLETION_RUN and job['run_attempt'] == 1
+    assert job['head_sha'] == COMPLETION_SHA and job['head_branch'] == item['ref']
+    assert job['name'] == 'endurance:editor-causality for 75 min'
+    def exact_step(name):
+        found = [s for s in job['steps'] if s['name'] == name]
+        assert len(found) == 1
+        return found[0]
+    step = exact_step('Run')
+    assert step['status'] == 'completed' and step['conclusion'] == 'success'
+    assert exact_step('Start the local Supabase stack')['conclusion'] == 'success'
+    assert exact_step('Take the local stack down and prove it gone')['conclusion'] == 'success'
+    upload = exact_step('Keep the receipts')
+    assert upload['status'] == 'completed' and upload['conclusion'] == 'failure'
+    for other in job['steps']:
+        assert other['conclusion'] in ('success', 'skipped', None) or other['name'] == 'Keep the receipts', 'other step failure'
+    metadata = {'run': run, 'job': job, 'artifacts': artifacts}
+    metadata_data = (json.dumps(metadata, sort_keys=True) + '\n').encode()
+    (OUT / 'completion-native-metadata.json').write_bytes(metadata_data)
+    data = request_api(f'repos/{REPO}/actions/jobs/{COMPLETION_JOB}/logs', archive=True)
+    (OUT / 'completion-original-job.log').write_bytes(data)
+    records = completion_log_records(data, step)
+    (OUT / 'completion-guarded-records.json').write_text(json.dumps(records, indent=2) + '\n')
+    rows = []
+    for record in records:
+        pair, arm = record['pair'], record['arm']
+        rows.append({'pair': pair, 'arm': arm, 'job': record['job'], 'source': OPERATOR_SOURCES[arm], 'failed': False, 'cases': 2, 'failures': [], 'cohort': 4, 'condition': 'completion-01', 'plannedPair': 180 + pair, 'observationId': f'{COMPLETION_RUN}:{pair}:{arm}', 'pairId': f'{COMPLETION_RUN}:{pair}', 'qualification': 'guarded-producer-log'})
+    return {'kind': 'operator', 'cohort': 4, 'batch': 3, 'condition': 'completion-01', 'run': COMPLETION_RUN, 'job': COMPLETION_JOB, 'status': run['status'], 'conclusion': run['conclusion'], 'jobStatus': job['status'], 'jobConclusion': job['conclusion'], 'uploadConclusion': upload['conclusion'], 'qualification': 'guarded-producer-log', 'jobLogSha256': hashlib.sha256(data).hexdigest(), 'metadataSha256': hashlib.sha256(metadata_data).hexdigest(), 'rows': rows, 'unresolved': [], 'limitation': 'Raw completion artifacts unavailable; pinned producer guarded records qualify observations, not recreated raw reports. Native workflow/upload status is preserved.'}
+
+
 def read_batch(item):
     run_id = item['runId']
     run = request_api(f'repos/{REPO}/actions/runs/{run_id}')
     expected_sha = COMPLETION_SHA if item.get('condition') == 'completion-01' else INITIAL_SHA if item['cohort'] == 1 else EXTENSION_SHA
     assert run['head_sha'] == item['sha'] == expected_sha and run['head_branch'] == item['ref']
     assert run['event'] == 'workflow_dispatch' and run['run_attempt'] == 1
-    assert run['status'] == 'completed', 'primary run not terminal; no replacement or inferred pass'
+    if item.get('condition') != 'completion-01':
+        assert run['status'] == 'completed', 'primary run not terminal; no replacement or inferred pass'
     artifacts = request_api(f'repos/{REPO}/actions/runs/{run_id}/artifacts?per_page=100')
+    if item.get('condition') == 'completion-01' and artifacts['total_count'] == 0:
+        return read_completion_log(item, run, artifacts)
+    assert run['status'] == 'completed', 'artifact run not terminal'
     assert artifacts['total_count'] <= 100
     found = [a for a in artifacts['artifacts'] if a['name'] == f'endurance-{run_id}']
     assert len(found) == 1 and not found[0]['expired'], 'missing or ambiguous artifact'

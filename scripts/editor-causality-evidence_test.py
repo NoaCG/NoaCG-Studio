@@ -109,6 +109,71 @@ class ReaderTests(unittest.TestCase):
         self.assertNotIn('\x1b', value)
         self.assertIn('%250A', value)
 
+
+    def completion_log_fixture(self):
+        import json
+        step = {'started_at': '2026-11-11T20:13:22Z', 'completed_at': '2026-11-11T20:21:08Z'}
+        rows = [{'pair': pair, 'arm': arm, 'job': f'j-{index:04}', 'failed': False, 'stats': {'expected': 2, 'unexpected': 0, 'skipped': 0, 'flaky': 0}} for index, (pair, arm) in enumerate(reader.COMPLETION_ORDER, 1)]
+        def encode(records):
+            lines = ['##[group]Run npm run "$SCRIPT" -- --minutes "$MINUTES"', '  SCRIPT: endurance:editor-causality', '  MINUTES: 75'] + [json.dumps(r) for r in records]
+            return ('\n'.join('2026-11-11T20:14:00.0000000Z ' + line for line in lines) + '\n').encode()
+        return step, rows, encode
+
+    def test_completion_log_requires_all_guarded_records_exact_order_types_and_jobs(self):
+        import copy
+        step, rows, encode = self.completion_log_fixture()
+        self.assertEqual(reader.completion_log_records(encode(rows), step), rows)
+        malformed = []
+        malformed += [rows[:-1], rows + rows[:1], list(reversed(rows))]
+        for key, value in [('pair', True), ('failed', 0), ('failed', True), ('job', rows[1]['job']), ('job', 'unsafe'), ('arm', 'unknown')]:
+            bad = copy.deepcopy(rows); bad[0][key] = value; malformed.append(bad)
+        for key, value in [('expected', True), ('unexpected', 1), ('skipped', 1), ('flaky', 1)]:
+            bad = copy.deepcopy(rows); bad[0]['stats'][key] = value; malformed.append(bad)
+        for bad in malformed:
+            with self.assertRaises((AssertionError, KeyError)): reader.completion_log_records(encode(bad), step)
+        with self.assertRaises(AssertionError): reader.completion_log_records(encode(rows).replace(b'endurance:editor-causality', b'other'), step)
+        with self.assertRaises(AssertionError): reader.completion_log_records(encode(rows), {'started_at': '2026-11-11T21:00:00Z', 'completed_at': '2026-11-11T21:10:00Z'})
+
+    def test_log_recovery_is_exact_completion_only_and_retains_failed_upload_status(self):
+        import copy
+        import json
+        import tempfile
+        item = json.loads(Path(__file__).with_name('editor-causality-evidence-runs.json').read_text())[-1]
+        step, rows, encode = self.completion_log_fixture()
+        run = {'id': reader.COMPLETION_RUN, 'repository': {'full_name': reader.REPO}, 'path': '.github/workflows/endurance.yml', 'workflow_id': 390372433, 'status': 'in_progress', 'conclusion': None}
+        job = {'id': reader.COMPLETION_JOB, 'run_id': reader.COMPLETION_RUN, 'run_attempt': 1, 'head_sha': reader.COMPLETION_SHA, 'head_branch': item['ref'], 'name': 'endurance:editor-causality for 75 min', 'status': 'in_progress', 'conclusion': None, 'steps': [
+            dict(step, name='Run', status='completed', conclusion='success'),
+            {'name': 'Start the local Supabase stack', 'conclusion': 'success'},
+            {'name': 'Take the local stack down and prove it gone', 'conclusion': 'success'},
+            {'name': 'Keep the receipts', 'status': 'completed', 'conclusion': 'failure'}]}
+        empty = {'total_count': 0, 'artifacts': []}
+        with tempfile.TemporaryDirectory() as directory, patch.object(reader, 'OUT', Path(directory)):
+            with patch.object(reader, 'request_api', side_effect=[job, encode(rows)]):
+                result = reader.read_completion_log(item, run, empty)
+            self.assertEqual(len(result['rows']), 11)
+            self.assertEqual(result['status'], 'in_progress'); self.assertIsNone(result['conclusion'])
+            self.assertEqual(result['uploadConclusion'], 'failure')
+            self.assertEqual(result['qualification'], 'guarded-producer-log')
+            self.assertEqual(result['unresolved'], [])
+            self.assertTrue((Path(directory) / 'completion-original-job.log').exists())
+            for field, value in [('runId', 1), ('sha', reader.INITIAL_SHA), ('condition', 'primary')]:
+                bad = dict(item); bad[field] = value
+                with patch.object(reader, 'request_api') as network, self.assertRaises(AssertionError):
+                    reader.read_completion_log(bad, run, empty)
+                network.assert_not_called()
+            for field, value in [('run_attempt', 2), ('head_sha', reader.INITIAL_SHA), ('run_id', 1)]:
+                bad = dict(job); bad[field] = value
+                with patch.object(reader, 'request_api', return_value=bad), self.assertRaises(AssertionError):
+                    reader.read_completion_log(item, run, empty)
+            for name in ['Run', 'Keep the receipts']:
+                bad = copy.deepcopy(job)
+                next(s for s in bad['steps'] if s['name'] == name)['conclusion'] = None
+                with patch.object(reader, 'request_api', return_value=bad), self.assertRaises(AssertionError):
+                    reader.read_completion_log(item, run, empty)
+            with patch.object(reader, 'request_api') as network, self.assertRaises(AssertionError):
+                reader.read_completion_log(item, run, {'total_count': 1, 'artifacts': [{}]})
+            network.assert_not_called()
+
     def test_token_is_only_sent_to_github_api_not_storage_redirect(self):
         import urllib.error
         import urllib.request
