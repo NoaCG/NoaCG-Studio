@@ -399,7 +399,7 @@ Filled in by each phase's pull request.
   `preview/` may not import `control/`, so the measuring frame takes its qualification from its
   caller.
 - Repair 2 (check on 92e581a7 failed it): an edit was lost when the page reloaded before its save
-  landed, with no press too. The page-hide save's IndexedDB transaction is dropped when a reload
-  ends the document inside its task; a write made while the page is going now asks to commit at
-  once. Rules P1 to P5 in the evidence.
+  landed, with no press too. IndexedDB aborts a write still committing when the page reloads, so
+  the page going also records the owed edit in localStorage, and the production page applies it
+  once on its next visit unless the production was saved after it. Rules P1 to P5 in the evidence.
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-3.md`.

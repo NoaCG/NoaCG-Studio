@@ -345,33 +345,41 @@ unanswered. Review class: Risky (reload and recovery).
 
 ### Cause, reproduced on 92e581a7
 
-Offline, signed out, the scratch spec in "Tests" below: an edit typed into a cue and then a
-reload at once, with no press, was lost 3 of 3; with the pointer still down on Take (the blur's
-save held, R3) it was lost 3 of 3; typed, Take clicked, reload at once (the Take path's own save
-lands first offline) was kept 3 of 3. So the hold of #2389 only widened a window that was
-already there: R4's "the page going saves what is owed at once" was not true.
+Offline, signed out (temporary specs): an edit typed into a cue and then a reload at once, with
+no press, was lost 3 of 3; with the pointer still down on Take (the blur's save held, R3) lost
+3 of 3. On the local stack, the checker's case (send answered after 200 ms, Take, reload 50 ms
+later) lost 4 of 4. So the hold of #2389 only widened a window that was already there: R4's "the
+page going saves what is owed at once" was not true, for two reasons.
 
-The page going does run the save (`cueDraft` `retain` on `pagehide`), and the save does reach
-the durable store, which opens its IndexedDB transaction at once (`durableStore.ts` `pending`).
-But a transaction is committed only when the task that made it ends, and a reload ends the
-document inside that task: Chromium then drops the transaction. With the transaction asked to
-commit at once (`IDBTransaction.commit()`), the same three cases were kept 9 of 9.
+- The page-hide save (`cueDraft` `retain`) does reach the durable store, but IndexedDB here takes
+  50 to 90 ms to commit a write, and a reload aborts every write still committing. Asking the
+  transaction to commit at once (`IDBTransaction.commit()`) kept the mouse and no-press cases, but
+  a touch Take then reload was still lost 5 of 6: the Take path's own save had been handed to the
+  database 60 ms before the reload and was aborted with the page-hide write queued behind it
+  (logged with a record that survives the reload). No IndexedDB write made near a reload is safe.
+- A save already handed to the rundown history is written from its queue a moment later, and
+  `retain` counted it as no longer owed, so the page going wrote nothing for it.
 
 ### Rules
 
-Written before the code; a Rules-first `/so` challenges them.
+Written before the code; a Rules-first `/so` challenges them. A first version (commit the
+page-hide write at once) was graded B and withdrawn after the touch measurement above.
 
-- P1. A durable write made while the page is going (from its `pagehide` until a `pageshow`
-  brings it back from the back-forward cache) is handed to the database to commit at once, in
-  the task that made it. A reload or a close right after it keeps it.
-- P2. Every other durable write commits as before, when its task ends: nothing about the order of
-  writes, their receipts, a refusal's rollback or the write holds the specs and the AC-1 harness
-  use changes. Writes that read before they put (`rebasedDurableSet`, the conditional writes,
-  the account move) are not changed: they commit as before.
-- P3. Therefore R4 holds as written: an edit typed and not yet saved is in the stored production
-  after a reload at any moment after the press (pointer still down, the send unanswered or
-  answered) and with no press at all.
-- P4. When the Take sends, when the blur's save runs and what it writes do not change (R1 to R7
-  above): AC-1's path is not touched, and it is measured again on the production build.
-- P5. A browser with no `commit()` behaves as before; the localStorage fallback is synchronous
-  and was never affected.
+- P1. When the page may be going (`onPageHide`: hidden, closing or reloading, or the account
+  pausing), an owed edit is saved to the store as before and, synchronously, recorded in
+  localStorage for its production: the cue, its fields and the time. Owed means typed and not yet
+  saved, or saved through the history and not yet confirmed by the store.
+- P2. When the production page shows that production again on the same account, the record is
+  taken once. If the stored production was not saved after the record's time (its `updatedAt`
+  is earlier) and the cue still exists, the fields are written to the cue at once, as the
+  page-hide save writes them (no undo step); otherwise the record is dropped. While the account may
+  not write, the record stays for a later visit. A record for another production waits for that
+  production.
+- P3. A save of the draft that the store confirms removes the record, so it is never applied over
+  later work; a later save of the production from anywhere (a later `updatedAt`) wins over it.
+- P4. Therefore R4 holds: an edit typed and not yet saved is in the stored production after a
+  reload at any moment after the press (pointer still down, mouse or touch; the send unanswered or
+  answered) and with no press at all. A crash or a killed tab fires no event and is not covered.
+- P5. The session's end and the listening's stop save at once as before, with no record: the page
+  stays, so the store's write lands. When the Take sends, when the blur's save runs and what it
+  writes do not change (R1 to R7 above), and AC-1 is measured again on the production build.
