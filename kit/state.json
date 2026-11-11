@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "note": "Independent review verified capability ordering and found stale Settings chooser dispatch to an old pairing. Reassessment active before repair. Prior Windows Chromium job withdrawn before execution; normal PR CI 43068505880 observed.",
-      "session": "/root/v4_chooser_authority_reassessment",
-      "head": "6fa491f8433341b811fc388cadbe61ab04891ff8",
-      "phase": "v4",
       "step": "build",
-      "pr": 2378
+      "phase": "v4",
+      "head": "5ccb5151c9a0994f51dbeccafe85aca279feca61",
+      "note": "Same-PR folder pairing repair passed 214 Windows Node tests, TypeScript and lint. Fresh full independent review active. Required local Chromium j-5237 and normal PR CI 43071254290 pending.",
+      "pr": 2378,
+      "session": "/root/v4_final_pairing_review"
     }
   ],
   "owner": [],
