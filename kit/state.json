@@ -74,7 +74,7 @@
       "phase": "E1",
       "actionId": "plan-editor-r1-5-2026-11-08:1",
       "nativeId": "/root/editor_r15_e1_resume",
-      "note": "E1 final independent review grade A, PR #2369 open on exact head 95f65b0. Worker monitors exact PR CI and Codex. Active coordinator sole repair owner through terminal results at comment 6784239834. No queue stamp or auto-merge yet.",
+      "note": "PR #2369 first CI run 42938883051 failed one Center anchor browser assertion. Configured, build, factory, catalog and Codex review on 95f65b0 passed. Exact equal-value operation reproduced and repaired locally, PR product repair attempt 1 in progress. Sole coordinator owner retained.",
       "checkpointed": false,
       "head": "95f65b051d7c8303e119c428d0e33726069e88ff",
       "pr": 2369
@@ -204,7 +204,17 @@
       "ci": 42938883051,
       "head": "95f65b051d7c8303e119c428d0e33726069e88ff",
       "number": 2369,
-      "review": "Independent full exact-head A"
+      "review": "Independent full exact-head A",
+      "firstCIFailure": {
+        "job": 130255773106,
+        "attempt": 1,
+        "fixedProbe": "j-5165",
+        "gate": 130261781441,
+        "run": 42938883051,
+        "head": "95f65b051d7c8303e119c428d0e33726069e88ff",
+        "reproduction": "j-5164",
+        "family": "unarmed static Center anchor at the authored default"
+      }
     }
   }
 }
