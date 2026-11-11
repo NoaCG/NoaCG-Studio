@@ -159,8 +159,10 @@ export interface GraphicPage {
   takeAppearanceOf?: (cue: ShowCue, graphic: string) => { appearance?: AppliedAppearance; place?: PlaceHint };
   /** A Take that carried a place hint reached the outputs: the page measures the values it sent, as
    *  an output does, and then holds what the outputs resolved, not `sent` (./airState.ts
-   *  `placedLook`, ./cueAdjust.ts `placedAppearance`). */
-  placeTaken?: (cue: ShowCue, graphic: string, sent: AppliedAppearance, values: Record<string, string>, place: PlaceHint) => void;
+   *  `placedLook`, ./cueAdjust.ts `placedAppearance`). `latest` stays true while no later hinted
+   *  Take of the graphic reached the outputs: two can send the same stale look with different
+   *  values, and only the newer one's measurement is what the outputs show. */
+  placeTaken?: (cue: ShowCue, graphic: string, sent: AppliedAppearance, values: Record<string, string>, place: PlaceHint, latest: () => boolean) => void;
   /** THE LOOK A SEND TO ON-AIR GRAPHICS CARRIES for the cue on a layer (phase 3,
    *  ./adjustGeometry.ts `lookAppearance`): the style its records and the production look give it
    *  now, read after the page's writes landed, beside the place and size the graphic already holds.
@@ -423,6 +425,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    *  order the save before the send gave it), never inside the press order: the next press on the
    *  graphic waits for this one's send (`afterPress`), not for its save. Nothing is written after
    *  the session's end. */
+  /** Per graphic, the newest hinted Take that reached the outputs (`placeTaken`'s `latest`). */
+  const hinted = new Map<string, number>();
   const writeAfter = (saved: Promise<unknown> | undefined, write: () => void) =>
     void (saved ?? Promise.resolve()).then(() => {
       if (session.alive()) write();
@@ -749,7 +753,11 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     }
     // A capture lands only with its press on the output; a later press that overtook it stands.
     for (const { g, c } of captured) if (reachedOutput(sent, g)) c.landed(); else c.undo();
-    if (place && appearance && reachedOutput(sent, graphic)) p.placeTaken?.(cue, graphic, appearance, values, place);
+    if (place && appearance && reachedOutput(sent, graphic)) {
+      const stamp = (hinted.get(graphic) ?? 0) + 1;
+      hinted.set(graphic, stamp);
+      p.placeTaken?.(cue, graphic, appearance, values, place, () => hinted.get(graphic) === stamp);
+    }
     p.clearMisses([cue.id]);
     const named = namedOnce(label, cue.label);
     if (p.answersOnOutput?.(graphic)) return { ok: true, unconfirmed: true, note: `${named} sent to the outputs` };

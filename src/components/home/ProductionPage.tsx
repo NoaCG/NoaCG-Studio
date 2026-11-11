@@ -3092,7 +3092,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           return g ? { frame: frameOf(g), stage } : null;
         },
       }),
-    placeTaken: (taken, graphic, sent, values, place) => {
+    placeTaken: (taken, graphic, sent, values, place, latest) => {
       // The values the Take sent, measured as an output measures them, never the record: the save
       // comes after the send (W1), and an edit made since never aired.
       const record = latestShow.current ?? null;
@@ -3105,7 +3105,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         .catch(() => null)
         .then((m) => {
           const resolved = placedAppearance(sent, place, m);
-          if (resolved && session.alive()) session.apply((parts) => ({ ...parts, air: placedLook(parts.air, graphic, sent, resolved) }));
+          if (resolved && latest() && session.alive()) session.apply((parts) => ({ ...parts, air: placedLook(parts.air, graphic, sent, resolved) }));
         });
     },
     appearanceOf: (taken) => {

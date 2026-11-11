@@ -778,7 +778,8 @@ test('a Take carries the place and size read from memory at the press, with a pl
   // A box for other values: the Take carries the hint beside the place the last box gives.
   place = hint;
   const placed = [];
-  r.page.placeTaken = (c, graphic, sent, values, hinted) => placed.push([c.id, graphic, sent, values, hinted]);
+  const latest = [];
+  r.page.placeTaken = (c, graphic, sent, values, hinted, isLatest) => { placed.push([c.id, graphic, sent, values, hinted]); latest.push(isLatest); };
   // Typed and not saved: the page settles the place from the values the Take sent, not the record.
   r.draft.c1 = { f0: 'Typed longer, not saved' };
   const hinted = r.verbs.take(cue);
@@ -787,26 +788,37 @@ test('a Take carries the place and size read from memory at the press, with a pl
   r.sends[1].answer.resolve({ ...noneLeft });
   await hinted;
   assert.deepEqual(placed, [['c1', 'Strap', before, { f0: 'Typed longer, not saved' }, hint]], 'once it reached the output, the page settles what the outputs resolved, from the values sent');
+  assert.equal(latest[0](), true);
+  // A second hinted Take of the same graphic, sending the same stale look with other values: only
+  // its measurement is what the outputs show, so the first one's may no longer settle the look.
+  r.draft.c1 = { f0: 'Other' };
+  const again = r.verbs.take(cue);
+  await settle();
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await again;
+  assert.deepEqual(latest.map((l) => l()), [false, true], 'the newer hinted Take is the one that settles the look');
   delete r.draft.c1;
   r.flushes[1].resolve();
+  r.flushes[2].resolve();
+  place = undefined;
   // An Update is not a Take path: it waits for its save, then reads what is newest.
   const updating = r.verbs.update(sel({ editingCue: cue, selectedGraphic: 'Strap', editingIsLive: true }));
   await settle();
-  assert.equal(r.sends.length, 2, 'nothing goes while the Update waits for its save');
+  assert.equal(r.sends.length, 3, 'nothing goes while the Update waits for its save');
   look = after;
-  r.flushes[2].resolve();
+  r.flushes[3].resolve();
   await settle();
-  assert.deepEqual(sentAs(r.sends[2].batches), [[{ graphic: 'Strap', msg: { t: 'update', data: { f0: 'A' }, appearance: after } }]]);
-  r.sends[2].answer.resolve({ ...noneLeft });
+  assert.deepEqual(sentAs(r.sends[3].batches), [[{ graphic: 'Strap', msg: { t: 'update', data: { f0: 'A' }, appearance: after } }]]);
+  r.sends[3].answer.resolve({ ...noneLeft });
   await updating;
   // A cue the page has nothing for: the update carries no field at all.
   look = undefined;
   place = undefined;
   const plain = r.verbs.take(cue);
   await settle();
-  assert.equal('appearance' in r.sends[3].batches[0][0].msg, false);
-  assert.equal('place' in r.sends[3].batches[0][0].msg, false);
-  r.sends[3].answer.resolve({ ...noneLeft });
+  assert.equal('appearance' in r.sends[4].batches[0][0].msg, false);
+  assert.equal('place' in r.sends[4].batches[0][0].msg, false);
+  r.sends[4].answer.resolve({ ...noneLeft });
   await plain;
 });
 
