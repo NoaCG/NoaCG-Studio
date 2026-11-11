@@ -45,12 +45,11 @@
   "inFlight": [
     {
       "session": "/root/v3_builder",
-      "phase": "v3",
-      "step": "build",
       "head": "bab3be527f84e1247b18f7705a133b01b2b173a4",
-      "note": "V2 independent PASS recorded with exact-merge CI and Bridge 0.11.0 download verification. Fresh V3 builder admitted on latest main and preparing independently reviewed rules for clip/audio players and the media folder.",
-      "pr": 2368,
-      "repairComment": 6783771580
+      "note": "Independent Rules reviewed and published. Scoped player/media-folder implementation in progress. V2 accepted with release/download and all exact-merge checks green.",
+      "step": "build",
+      "phase": "v3",
+      "pr": 2368
     }
   ],
   "owner": [],
