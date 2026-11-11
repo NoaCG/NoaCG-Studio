@@ -15,7 +15,7 @@ import {
   ceilingsRevision, coverCosts, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, knownCovers, landingDispatched, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   quarantineLines, tableFreshness, tierOfCover, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
-import { AGE_ISSUE, GATE_CANDIDATES, MAX_ATTEMPTS, REPORT_ISSUE, RETRY, ages, buildReport, carriedDues, carriedStarts, classifyReport, fetchLatest, findIssue, finishedPrs, gateFile, gateReport, healthAction, weekOf, listRuns, makeReader, phaseIssueTitle, priceRuns, readJobs, reportAlarm, rerunStillNeeded, sampleJobs, seriesOf, spread, transient } from './growth-report.mjs';
+import { AGE_ISSUE, GATE_CANDIDATES, MAX_ATTEMPTS, REPORT_ISSUE, RETRY, ages, buildReport, carriedDues, carriedStarts, classifyReport, fetchLatest, findIssue, finishedPrs, gateFile, gateReport, healthAction, lowerBounds, previousForTry, weekOf, listRuns, makeReader, phaseIssueTitle, priceRuns, readJobs, reportAlarm, rerunStillNeeded, sampleJobs, seriesOf, spread, transient } from './growth-report.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -1866,4 +1866,31 @@ test('a stop stands across later tries that could only keep it (Codex review)', 
   const picked = gateReport({ gh: reportsGh(arts, { 13: p2, 12: p1, 2: realReport(41704224273) }), now: '2026-11-10T12:00:00Z', ceilings: GATE_CEILINGS });
   assert.equal(picked.judged.run, 2);
   assert.ok(picked.newest.stops.backend);
+});
+
+test('another try of a week carries the breaches its earlier try found, and the timing from before the week', () => {
+  const before = { generatedAt: '2026-11-02T06:10:00Z', timing: [{ measure: 'prReady', adequate: true, above: false }], timingSamples: [{ id: '#1' }], breaches: [], stops: {}, openStarts: { '#5': 'a' } };
+  // Try 1 opened a new backend cost breach this week; a re-run must carry it, not drop it.
+  const try1 = { breaches: [{ key: 'cost:backend', state: 'correcting', since: '2026-11-09', due: '2026-11-16', corrections: 1, owner: 'o', detail: 'x' }], stops: {}, openStarts: { '#6': 'b' }, timing: [{ measure: 'prReady', adequate: true, above: true }] };
+  const prev = previousForTry(before, try1);
+  assert.deepEqual(prev.timing, before.timing, 'timing from before the week: never compared with itself');
+  assert.deepEqual(prev.timingSamples, before.timingSamples);
+  assert.deepEqual(prev.breaches, try1.breaches, 'breaches from the newest try');
+  assert.deepEqual(prev.openStarts, { '#5': 'a', '#6': 'b' });
+  // Carried, the breach keeps its first date and due date even when the re-run cannot re-measure it.
+  const { breaches } = carryBreaches({ previous: prev.breaches, current: [], today: '2026-11-09', owner: 'o', confirmed: () => false });
+  assert.deepEqual(breaches.map((b) => [b.key, b.since, b.due]), [['cost:backend', '2026-11-09', '2026-11-16']]);
+});
+
+test('a newer partial report is a floor: the gate never judges a tier below what it read', async () => {
+  const complete = realReport(41704224273);
+  const partial = realReport(42647874522);
+  assert.equal(lowerBounds(partial).offline.perDay, partial.measurement.tiers.offline.perDay);
+  assert.equal(lowerBounds(complete).offline.perDay, complete.measurement.tiers.offline.perDay);
+  const withFloor = (added) => gateOn({ newest: { run: 9, state: 'partial', why: 'x', stops: {}, floor: lowerBounds(partial) }, judged: { run: 7, generatedAt: complete.generatedAt, report: complete } }, { added });
+  // Offline per day: complete 173.3, partial lower bound 189.3, line 95% of 215 = 204.25.
+  assert.equal((await gateOn(pick(9, 'partial', complete), { added: 17 })).status !== 'refuse', true, 'without the floor 190.3/215 passes');
+  assert.equal((await withFloor(17)).status, 'refuse', 'with it 206.3/215 is refused');
+  // The owner's case still lands: one minute on the partial week's own figure is 190.3/215.
+  assert.notEqual((await withFloor(1)).status, 'refuse');
 });

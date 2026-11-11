@@ -256,7 +256,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           BEFORE: ${{ steps.rerun.outputs.first_try }}
-        run: node scripts/growth-report.mjs fetch --newest --before "$BEFORE" --out "$RUNNER_TEMP/previous-growth.json"
+        run: |
+          node scripts/growth-report.mjs fetch --newest --before "$BEFORE" --out "$RUNNER_TEMP/previous-growth.json"
+          # Another try of a week also reads that week's newest try, whose breaches it carries.
+          if [ -n "$BEFORE" ]; then node scripts/growth-report.mjs fetch --newest --out "$RUNNER_TEMP/tried-growth.json"; fi
       # The rolling issue is a statement about main (the audit's own rule above), so only a
       # schedule or a run on main raises or withdraws it.
       - name: Measure, attribute and assign
@@ -268,7 +271,7 @@ jobs:
           ISSUE: ${{ (github.event_name == 'schedule' || github.ref == 'refs/heads/main') && '--issue' || '' }}
           ATTEMPT: ${{ steps.rerun.outputs.attempt || '1' }}
           FIRST_TRY: ${{ steps.rerun.outputs.first_try }}
-        run: node scripts/growth-report.mjs collect --budget 550 --attempt "$ATTEMPT" --first-try "$FIRST_TRY" --previous "$RUNNER_TEMP/previous-growth.json" --out growth-report.json --summary "$GITHUB_STEP_SUMMARY" $ISSUE
+        run: node scripts/growth-report.mjs collect --budget 550 --attempt "$ATTEMPT" --first-try "$FIRST_TRY" --previous "$RUNNER_TEMP/previous-growth.json" ${FIRST_TRY:+--breaches-from "$RUNNER_TEMP/tried-growth.json"} --out growth-report.json --summary "$GITHUB_STEP_SUMMARY" $ISSUE
       - uses: actions/upload-artifact@v4
         if: ${{ always() && steps.collect.outcome != 'skipped' }}
         with:

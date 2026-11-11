@@ -353,7 +353,11 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
   if (reportPath) { try { report = JSON.parse(readFileSync(reportPath, 'utf8')); } catch { report = { none: true, gate: { newest: { state: 'missing', why: 'the report fetch wrote nothing readable' }, judgedOn: null } }; } }
   const gate = report?.gate ?? null;
   if (report?.none) report = null;
-  const measurement = report?.measurement ?? ceilings.measurement;
+  // A newer report that is not complete still proves a floor: each tier is judged on the larger
+  // of the complete cost and that lower bound, so a bad week never makes a tier look cheaper.
+  const floor = gate?.newest?.floor ?? null;
+  const judged = report?.measurement ?? ceilings.measurement;
+  const measurement = floor ? { ...judged, tiers: Object.fromEntries(Object.entries(judged.tiers ?? {}).map(([t, m]) => [t, floor[t] ? { ...m, perLanding: Math.max(m.perLanding, floor[t].perLanding), perDay: Math.max(m.perDay ?? 0, floor[t].perDay) } : m])) } : judged;
   // The judged report's stops, and the newest report's (Rule E21): a stop stands until evidence clears it.
   const stops = { ...(gate?.newest?.stops ?? {}), ...(report?.stops ?? {}) };
   const newest = gate?.newest;

@@ -624,7 +624,7 @@ export function fetchLatest(out, gh = withRetries(ghRun), restart = null, before
   // try carried from.
   // The listing includes expired reports, so nothing before it means nothing was ever published
   // before: a first week, exactly as the first try found it; expired ones fall to the checks below.
-  const all = listReports(gh).filter((a) => !before || a.created_at < before);
+  const all = listReports(gh).filter((a) => !before || Date.parse(a.created_at) < Date.parse(before));
   if (all.length === 0) {
     writeFileSync(out, `${JSON.stringify({ none: true })}\n`);
     return null;
@@ -675,10 +675,26 @@ export function classifyReport(report, { now, maxAgeDays, freshnessDays }) {
 }
 
 /**
+ * What a report that is not complete still proves: each tier's measured cost is at least what it
+ * read (partial cost is a lower bound), so the gate never judges a tier below it. Pure.
+ */
+export function lowerBounds(report) {
+  const out = {};
+  for (const t of TIERS) {
+    const m = report?.measurement?.tiers?.[t];
+    if (Number.isFinite(m?.perLanding)) out[t] = { perLanding: m.perLanding, perDay: Number.isFinite(m.perDay) ? m.perDay : 0 };
+  }
+  return out;
+}
+
+/** At most this many tries of one week's report: the scheduled one and two re-runs. */
+export const MAX_ATTEMPTS = 3;
+
+/**
  * The most reports read to find the newest complete one: 35-day retention holds five weekly
  * reports, each with up to MAX_ATTEMPTS tries, so every retained try is in reach.
  */
-export const GATE_CANDIDATES = 15;
+export const GATE_CANDIDATES = 5 * MAX_ATTEMPTS;
 
 /**
  * What the capacity line judges against: the newest report and its state, and the newest
@@ -698,7 +714,7 @@ export function gateReport({ gh = withRetries(ghRun), now = new Date().toISOStri
     const c = classifyReport(report, bounds);
     // The newest report's stops stand whatever its state (E20, E21): a partial week keeps a stop
     // it cannot re-measure, and a stop only ever comes from an earlier measurement and its date.
-    newest ??= { run: a.workflow_run.id, generatedAt: report?.generatedAt ?? a.created_at, attempt: report?.attempt ?? 1, firstTryAt: report?.firstTryAt ?? report?.generatedAt ?? null, stops: report?.stops ?? {}, ...(report ? c : { state: 'missing', readFailed: true, why: `the report of run ${a.workflow_run.id} could not be read` }) };
+    newest ??= { run: a.workflow_run.id, generatedAt: report?.generatedAt ?? a.created_at, attempt: report?.attempt ?? 1, firstTryAt: report?.firstTryAt ?? report?.generatedAt ?? null, stops: report?.stops ?? {}, floor: reportComplete(report) ? null : lowerBounds(report), ...(report ? c : { state: 'missing', readFailed: true, why: `the report of run ${a.workflow_run.id} could not be read` }) };
     if (reportComplete(report)) return { newest, judged: { run: a.workflow_run.id, generatedAt: report.generatedAt, report } };
   }
   return { newest: newest ?? { run: null, generatedAt: null, attempt: null, state: 'missing', why: 'no live weekly growth report has been published on main' }, judged: null };
@@ -714,8 +730,6 @@ export function gateFile(out, picked) {
   writeFileSync(out, `${JSON.stringify(picked.judged ? { ...picked.judged.report, gate } : { none: true, gate })}\n`);
 }
 
-/** At most this many tries of one week's report: the scheduled one and two re-runs. */
-export const MAX_ATTEMPTS = 3;
 /** A re-run waits this long after the try before it, so the two never share the token's hourly API limit. */
 export const RERUN_GAP_MINUTES = 65;
 /** Re-runs happen within a day of the week's first try: past this, a still-partial report is alarmed, not re-run. */
@@ -770,6 +784,15 @@ export function weekOf(newest, now, rerunAttempt = null) {
   if (!retry) return { needed: true, attempt: 1, firstTryAt: null };
   if (rerunAttempt != null && !rerunStillNeeded(newest, rerunAttempt)) return { needed: false, attempt: rerunAttempt, firstTryAt: null };
   return { needed: true, attempt: rerunAttempt ?? (newest.attempt ?? 1) + 1, firstTryAt: first };
+}
+
+/**
+ * What another try of a week carries from: timing and samples from the report before the week,
+ * so the week is never compared with itself; breaches and stops from the week's newest try, so a
+ * breach an earlier try found is carried, never dropped without evidence (Rule E20). Pure.
+ */
+export function previousForTry(before, tried) {
+  return { ...(before ?? {}), breaches: tried?.breaches ?? [], stops: tried?.stops ?? {}, openStarts: { ...(before?.openStarts ?? {}), ...(tried?.openStarts ?? {}) } };
 }
 
 /** In a re-run (try `attempt`): whether the newest report is still the partial try before it. Pure. */
@@ -888,7 +911,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       process.exit(1);
     }
     const read = previousFile ? JSON.parse(readFileSync(previousFile, 'utf8')) : null;
-    const previous = read && !read.none ? read : null;
+    let previous = read && !read.none ? read : null;
+    // Another try of a week: timing and samples come from the report before the week (above), so
+    // the week is never compared with itself; breaches and stops come from the newest try, so a
+    // breach an earlier try found is carried, never dropped without evidence (Rule E20).
+    const triedFile = value('--breaches-from');
+    if (triedFile) {
+      if (!existsSync(triedFile)) { console.log(`::error title=Weekly growth report::the week's newest try (${triedFile}) could not be read; not publishing a try that would drop its breaches`); process.exit(1); }
+      previous = previousForTry(previous, JSON.parse(readFileSync(triedFile, 'utf8')));
+    }
     const { report, markdown } = collect({ days: Number(value('--days') ?? 7), budget: Number(value('--budget') ?? 550), now: value('--now') ?? new Date().toISOString(), previous, clocksFile: value('--clocks'), ledgerFile: value('--ledger'), ceilings, attempt: Number(value('--attempt') ?? 1), firstTryAt: value('--first-try') || null });
     measured(report.measurement.landings, 'landings in the growth window');
     console.log(markdown);
