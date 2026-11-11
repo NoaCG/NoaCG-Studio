@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "phase": "v3",
-      "note": "Shared audio correction verified in fresh full review. B+ for media path/root sequencing, V2 state isolation and shortTitle authority. Corrections recorded under Rules before scoped repair. Remote remains Rules-only.",
-      "head": "b326ceb9579fd2ac61394b76fde5618da805ac05",
+      "step": "build",
       "pr": 2368,
+      "head": "701ad8081195db0d1f97c2e264356239c6fc9294",
       "session": "/root/v3_builder",
-      "step": "build"
+      "phase": "v3",
+      "note": "Full review B+ found reachable-list and canonical casing gaps. Fresh rules reassessment published. Owned blank diagnostic measured placeholder replacement and restored both files; picker proof j-5170 did not complete. Bounded corrections remain in progress."
     }
   ],
   "owner": [],
