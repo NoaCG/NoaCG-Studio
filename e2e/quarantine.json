@@ -11,6 +11,11 @@
       "since": "2026-11-11",
       "count": 2,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43020316776"
+    },
+    "e2e/publish-output-setup.spec.ts": {
+      "since": "2026-11-11",
+      "count": 3,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43062390990"
     }
   },
   "released": {
@@ -185,10 +190,6 @@
     "e2e/production-data.spec.ts": {
       "count": 2,
       "last": "2026-11-04"
-    },
-    "e2e/publish-output-setup.spec.ts": {
-      "count": 2,
-      "last": "2026-10-30"
     },
     "e2e/rundown-history.spec.ts": {
       "count": 3,
