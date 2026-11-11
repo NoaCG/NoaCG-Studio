@@ -1,0 +1,515 @@
+E2E 9/15 (subset)	UNKNOWN STEP	﻿2026-11-11T17:46:27.7029591Z Current runner version: '2.338.2'
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7054652Z ##[group]Runner Image Provisioner
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7055550Z Hosted Compute Agent
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7056161Z Version: 20261028.624
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7056870Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7057600Z Build Date: 2026-10-28T21:51:42Z
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7058360Z Worker ID: {dae96c27-6918-4f64-b3b9-6aa4ce951d27}
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7059080Z Region: westus
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7059641Z Cloud: Azure
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7060232Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7061704Z ##[group]Operating System
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7062415Z Ubuntu
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7062954Z 26.04.1
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7063494Z LTS
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7064050Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7065004Z ##[group]Runner Image
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7065719Z Image: ubuntu-26.04
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7066309Z Version: 20261101.186.1
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7067644Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7069216Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261101.186
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7070254Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7071386Z ##[group]GITHUB_TOKEN Permissions
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7073350Z Contents: read
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7073983Z Metadata: read
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7074889Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7077110Z Secret source: Actions
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7078115Z Cache mode: write
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7078858Z Prepare workflow directory
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7457849Z Prepare all required actions
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:27.7526117Z Getting action download info
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.1174663Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.3301480Z Download action repository 'actions/setup-node@v5' (SHA:a0853c24544627f65ddf259abe73b1d18a591444)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.4765262Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.7101695Z Complete job name: E2E 9/15 (subset)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.8020974Z ##[group]Run actions/checkout@v5
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.8021868Z with:
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.8022315Z   repository: NoaCG/NoaCG-Studio
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.8026664Z   token: ***
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.8027099Z   ssh-strict: true
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.8027527Z   ssh-user: git
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.8027972Z   persist-credentials: true
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.8028450Z   clean: true
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.8028884Z   sparse-checkout-cone-mode: true
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.8029392Z   fetch-depth: 1
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.8029823Z   fetch-tags: false
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.8030260Z   show-progress: true
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.8030694Z   lfs: false
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.8031101Z   submodules: false
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.8031540Z   set-safe-directory: true
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.8032042Z   allow-unsafe-pr-checkout: false
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:28.8032846Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.4886164Z Syncing repository: NoaCG/NoaCG-Studio
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.4888360Z ##[group]Getting Git version info
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.4889418Z Working directory is '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.4890818Z [command]/usr/bin/git version
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.4913874Z git version 2.56.0
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.4948212Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.4958403Z Temporarily overriding HOME='/home/runner/work/_temp/4141dd20-58f4-4a15-9753-1ede128a6d34' before making global git config changes
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.4961496Z Adding repository directory to the temporary git global config as a safe directory
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.4964945Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5194581Z Deleting the contents of '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5198528Z ##[group]Initializing the repository
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5205130Z [command]/usr/bin/git init /home/runner/work/NoaCG-Studio/NoaCG-Studio
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5345421Z hint: Using 'master' as the name for the initial branch. This default branch name
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5348112Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5349864Z hint: to use in all of your new repositories, which will suppress this warning,
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5351423Z hint: call:
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5352207Z hint:
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5353194Z hint: 	git config --global init.defaultBranch <name>
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5354815Z hint:
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5355907Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5357842Z hint: 'development'. The just-created branch can be renamed via this command:
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5359316Z hint:
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5360080Z hint: 	git branch -m <name>
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5361050Z hint:
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5362184Z hint: Disable this message with "git config set advice.defaultBranchName false"
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5364495Z Initialized empty Git repository in /home/runner/work/NoaCG-Studio/NoaCG-Studio/.git/
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5377933Z [command]/usr/bin/git remote add origin https://github.com/NoaCG/NoaCG-Studio
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5437725Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5439200Z ##[group]Disabling automatic garbage collection
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5441446Z [command]/usr/bin/git config --local gc.auto 0
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5485223Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5486542Z ##[group]Setting up auth
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5495799Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.5546612Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.6076471Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.6111493Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.6390872Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.6431666Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.6797178Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.6799622Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.6800440Z ##[group]Fetching the repository
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:29.6801938Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +31cec0fc65c5ec80c5ee3abbbae2fe4b8c3b7b24:refs/remotes/pull/2378/merge
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:36.7363036Z From https://github.com/NoaCG/NoaCG-Studio
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:36.7375435Z  * [new ref]         31cec0fc65c5ec80c5ee3abbbae2fe4b8c3b7b24 -> pull/2378/merge
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:36.7377889Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:36.7378933Z ##[group]Determining the checkout info
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:36.7379770Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:36.7380111Z [command]/usr/bin/git sparse-checkout disable
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:36.7430263Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:36.7459403Z ##[group]Checking out the ref
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:36.7462737Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/2378/merge
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5335905Z Note: switching to 'refs/remotes/pull/2378/merge'.
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5336460Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5336801Z You are in 'detached HEAD' state. You can look around, make experimental
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5337640Z changes and commit them, and you can discard any commits you make in this
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5338463Z state without impacting any branches by switching back to a branch.
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5338990Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5339376Z If you want to create a new branch to retain commits you create, you may
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5340138Z do so (now or later) by using -c with the switch command. Example:
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5341123Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5341310Z   git switch -c <new-branch-name>
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5341628Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5341819Z Or undo this operation with:
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5342111Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5342217Z   git switch -
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5342414Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5342770Z Turn off this advice by setting config variable advice.detachedHead to false
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5343236Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5343625Z HEAD is now at 31cec0f Merge 5ccb5151c9a0994f51dbeccafe85aca279feca61 into 3a56a966c4c03fa47f53b4d1ecb09ed882d12ef0
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5377309Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5427570Z [command]/usr/bin/git log -1 --format=%H
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5453252Z 31cec0fc65c5ec80c5ee3abbbae2fe4b8c3b7b24
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5756082Z ##[group]Run actions/setup-node@v5
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5756397Z with:
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5756614Z   node-version: 24
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5756837Z   cache: npm
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5757044Z   always-auth: false
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5757292Z   check-latest: false
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5759802Z   token: ***
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5760050Z   package-manager-cache: true
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.5760306Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.7302809Z (node:2387) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.7303792Z (Use `node --trace-deprecation ...` to show where the warning was created)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.7305550Z Found in cache @ /opt/hostedtoolcache/node/24.22.2/x64
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:37.7306525Z ##[group]Environment details
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:38.1945896Z node: v24.22.2
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:38.1946372Z npm: 11.19.1
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:38.1946702Z yarn: 1.22.22
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:38.1947663Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:38.1971757Z [command]/opt/hostedtoolcache/node/24.22.2/x64/bin/npm config get cache
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:38.3171752Z /home/runner/.npm
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:38.6158765Z Cache hit for: node-cache-Linux-x64-npm-f6534e8efbcb185272d21504ced33f1ba33b656490018118e5beb65abcf01961
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:38.6277561Z (node:2387) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:39.8904837Z Received 8388608 of 124649611 (6.7%), 8.0 MBs/sec
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:40.6839130Z Received 124649611 of 124649611 (100.0%), 66.3 MBs/sec
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:40.6840368Z Cache Size: ~119 MB (124649611 B)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:40.6968347Z [command]/usr/bin/tar -xf /home/runner/work/_temp/8b2db971-b12f-43c1-ab33-79862b43c9d4/cache.tzst -P -C /home/runner/work/NoaCG-Studio/NoaCG-Studio --use-compress-program unzstd
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:40.9839033Z Cache restored successfully
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:40.9902218Z Cache restored from key: node-cache-Linux-x64-npm-f6534e8efbcb185272d21504ced33f1ba33b656490018118e5beb65abcf01961
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.0220713Z Prepare all required actions
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.0221330Z Getting action download info
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.1382321Z Download action repository 'actions/cache@v4' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.2195444Z ##[group]Run ./.github/actions/node-modules
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.2195766Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.2254217Z ##[start-action display=Resolve Node version;id=__self.node]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.2296775Z ##[group]Run echo "major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.2297483Z ^[[36;1mecho "major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"^[[0m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.2360024Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.2360400Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.2789304Z ##[end-action id=__self.node;outcome=success;conclusion=success;duration_ms=53]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.2794134Z ##[start-action display=Cache node_modules;id=__self.cache]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.3486892Z ##[group]Run actions/cache@v4
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.3487185Z with:
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.3487664Z   path: node_modules
+E2E 9/15 (subset)	UNKNOWN STEP	player-host/node_modules
+E2E 9/15 (subset)	UNKNOWN STEP	
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.3488240Z   key: node-modules-Linux-X64-node24-b1074435e9e3d609f008a5f0c32dfc6893940add5c9b920b483f90d4d00ab61a
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.3488796Z   enableCrossOsArchive: false
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.3489068Z   fail-on-cache-miss: false
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.3489317Z   lookup-only: false
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.3489540Z   save-always: false
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.3489774Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.4611959Z (node:2458) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.4613543Z (Use `node --trace-deprecation ...` to show where the warning was created)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.7127298Z Cache hit for: node-modules-Linux-X64-node24-b1074435e9e3d609f008a5f0c32dfc6893940add5c9b920b483f90d4d00ab61a
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:41.7243614Z (node:2458) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:43.0041491Z Received 4194304 of 125977077 (3.3%), 4.0 MBs/sec
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:43.9876849Z Received 125977077 of 125977077 (100.0%), 60.6 MBs/sec
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:43.9880509Z Cache Size: ~120 MB (125977077 B)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:43.9993989Z [command]/usr/bin/tar -xf /home/runner/work/_temp/b4b771c3-30e6-43d3-a3ef-4882d09339c0/cache.tzst -P -C /home/runner/work/NoaCG-Studio/NoaCG-Studio --use-compress-program unzstd
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:45.5961516Z Cache restored successfully
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:45.6215522Z Cache restored from key: node-modules-Linux-X64-node24-b1074435e9e3d609f008a5f0c32dfc6893940add5c9b920b483f90d4d00ab61a
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:45.6308681Z ##[end-action id=__self.cache;outcome=success;conclusion=success;duration_ms=4351]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:45.6311258Z ##[start-action display=npm ci;id=__self.__run]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:45.6323192Z ##[end-action id=__self.__run;outcome=skipped;conclusion=skipped;duration_ms=0]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:45.6325787Z ##[start-action display=Regenerate install-time artifacts;id=__self.__run_2]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:45.6349689Z ##[group]Run npm run postinstall
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:45.6350017Z ^[[36;1mnpm run postinstall^[[0m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:45.6402768Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:45.6403133Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:45.7552717Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:45.7553308Z > noacg-studio@0.1.0 postinstall
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:45.7554155Z > node scripts/dev-port.mjs && node scripts/gen-video-font-css.mjs && node scripts/build-player-host.mjs
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:45.7554902Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:45.7963606Z 5174
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:45.8840408Z [video-fonts] wrote 521370 chars of @font-face CSS -> render-worker/remotion/videoFontFaces.generated.ts
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:45.9712161Z [player-host] npm run build
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.0791721Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.0792313Z > noacg-player-host@0.1.0 build
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.0793150Z > vite build
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.0793489Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.3185197Z ^[[36mvite v8.3.4 ^[[32mbuilding client environment for production...^[[36m^[[39m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.3284462Z transforming...
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.3912113Z ✓ 21 modules transformed.
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.4115815Z rendering chunks...
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.4630985Z computing gzip size...
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.4702597Z ../public/player-host/index.html                  0.69 kB │ gzip:   0.43 kB
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.4703602Z ../public/player-host/assets/index-BRpXzI9k.js  460.89 kB │ gzip: 145.29 kB
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.4703954Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.4716426Z ^[[32m✓ built in 152ms^[[39m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.5004513Z [player-host] built into public/player-host/ (single self-contained page)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.5155584Z ##[end-action id=__self.__run_2;outcome=success;conclusion=success;duration_ms=882]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.5210663Z Prepare all required actions
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.5211191Z Getting action download info
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.6568018Z ##[group]Run ./.github/actions/playwright-chromium
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.6568355Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.6573131Z ##[start-action display=Resolve Playwright version;id=__self_2.version]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.6590770Z ##[group]Run echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.6591510Z ^[[36;1mecho "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"^[[0m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.6641024Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.6641388Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.7014115Z ##[end-action id=__self_2.version;outcome=success;conclusion=success;duration_ms=44]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.7016827Z ##[start-action display=Cache Playwright browser;id=__self_2.cache]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.7058696Z ##[group]Run actions/cache@v4
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.7058984Z with:
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.7059196Z   path: ~/.cache/ms-playwright
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.7059469Z   key: playwright-Linux-1.61.1
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.7059732Z   enableCrossOsArchive: false
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.7059998Z   fail-on-cache-miss: false
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.7060258Z   lookup-only: false
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.7060477Z   save-always: false
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.7060687Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.8105003Z (node:2555) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:46.8105883Z (Use `node --trace-deprecation ...` to show where the warning was created)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:47.0826224Z Cache hit for: playwright-Linux-1.61.1
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:47.0931161Z (node:2555) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:48.3471831Z Received 12582912 of 274154549 (4.6%), 12.0 MBs/sec
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:49.3473543Z Received 167772160 of 274154549 (61.2%), 80.0 MBs/sec
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:50.1738156Z Received 274154549 of 274154549 (100.0%), 92.5 MBs/sec
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:50.1740467Z Cache Size: ~261 MB (274154549 B)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:50.1854863Z [command]/usr/bin/tar -xf /home/runner/work/_temp/0fdf81e5-d5d9-47db-a78a-694ea5e31e1e/cache.tzst -P -C /home/runner/work/NoaCG-Studio/NoaCG-Studio --use-compress-program unzstd
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.3459243Z Cache restored successfully
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.3664730Z Cache restored from key: playwright-Linux-1.61.1
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.3779288Z ##[end-action id=__self_2.cache;outcome=success;conclusion=success;duration_ms=4676]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.3782924Z ##[start-action display=Install Playwright browser;id=__self_2.__run]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.3790462Z ##[end-action id=__self_2.__run;outcome=skipped;conclusion=skipped;duration_ms=0]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.3792674Z ##[start-action display=Install Playwright system dependencies (bounded);id=__self_2.__run_2]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.3797781Z ##[end-action id=__self_2.__run_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4091932Z ##[group]Run PLAN="$(node -e '
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4092480Z ^[[36;1mPLAN="$(node -e '^[[0m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4093074Z ^[[36;1m  const bins = JSON.parse(process.env.SHARD_SPECS ?? "[]");^[[0m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4093835Z ^[[36;1m  const mine = bins[Number(process.env.SHARD_INDEX) - 1];^[[0m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4094695Z ^[[36;1m  if (!Array.isArray(mine) || mine.length === 0) {^[[0m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4095541Z ^[[36;1m    console.error(`shard ${process.env.SHARD_INDEX} has no spec files in the plan`);^[[0m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4096297Z ^[[36;1m    process.exit(1);^[[0m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4096712Z ^[[36;1m  }^[[0m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4097520Z ^[[36;1m  import("./scripts/e2e-affected.mjs").then((m) => console.log(`${mine.map(m.specFilterArg).join(" ")}\n${mine.join(" ")}`));^[[0m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4098439Z ^[[36;1m')"^[[0m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4098950Z ^[[36;1m{ read -r SPECS; read -r NOACG_E2E_EXPECTED_SPECS; } <<< "$PLAN"^[[0m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4099609Z ^[[36;1mexport NOACG_E2E_EXPECTED_SPECS^[[0m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4100394Z ^[[36;1mecho "::notice title=E2E shard ${SHARD_INDEX}::$(echo "$SPECS" | wc -w) spec file(s)"^[[0m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4101380Z ^[[36;1mnpm run test:e2e -- $SPECS^[[0m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4167357Z shell: /usr/bin/bash -e {0}
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4167631Z env:
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4167853Z   TMPDIR: /home/runner/work/_temp
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4182080Z   SHARD_SPECS: [["account-library.spec.ts","auth.spec.ts","docs.spec.ts","import-stretch.spec.ts","import-svg-credits.spec.ts","import-svg.spec.ts","production-chat-intake.spec.ts","production-data.spec.ts","rundown-history.spec.ts","storage-full.spec.ts","wysiwyg.spec.ts"],["control.spec.ts","flows.spec.ts","import-prepare.spec.ts","inspector.spec.ts","new-graphic-guard.spec.ts","playout-adjust.spec.ts","playout-baseline.spec.ts","production-gate.spec.ts","publish-output-setup.spec.ts","studio-evening-reliability.spec.ts","wave2.spec.ts"],["ograf-contract.spec.ts","output-boot-resilience.spec.ts","output-prepare.spec.ts","package.spec.ts","playout-fixed-panes.spec.ts","playout-folders.spec.ts","playout-rundown-feedback.spec.ts","publish-drift.spec.ts","student-rehearsal.spec.ts","template-pack-10.spec.ts"],["asset-workflow.spec.ts","bridge-connect.spec.ts","holding-pack.spec.ts","house.spec.ts","images.spec.ts","import-svg-centred-title.spec.ts","motion-presets.spec.ts","production-api-mapping.spec.ts","wizard-draft-guard.spec.ts","wizard-filters.spec.ts","wizard-shell.spec.ts"],["ai-more-control.spec.ts","assets.spec.ts","editor-cli-round-trip.spec.ts","editor-out.spec.ts","imported-credits-live-data.spec.ts","panel-production-page.spec.ts","production-audience.spec.ts","production-sounds.spec.ts","quiz-show.spec.ts","save-transaction-wizard.spec.ts","spx-operator.spec.ts"],["cross-tab.spec.ts","editor-command-task.spec.ts","landing.spec.ts","live-actions-first.spec.ts","no-old-editor.spec.ts","offline.spec.ts","pack-import.spec.ts","render.spec.ts","shows.spec.ts"],["agent-access.spec.ts","competition-pack.spec.ts","import-svg-behaviour.spec.ts","jev-svg-preparation.spec.ts","pasteboard.spec.ts","playout-rail-width.spec.ts","project-format.spec.ts","project.spec.ts","rundown-history-storage.spec.ts","sync-dot.spec.ts"],["design-rules-product.spec.ts","editor-base-edits.spec.ts","editor-fidelity-trim.spec.ts","exports.spec.ts","format.spec.ts","import-canvas.spec.ts","imported-text-live-data.spec.ts","layout.spec.ts","playout-nav.spec.ts","quiz-live-consistency.spec.ts","snap-recovery.spec.ts"],["editor-drawing-task.spec.ts","output-font-hold.spec.ts","playout-cues.spec.ts","playout-feedback-health.spec.ts","preview-error.spec.ts","quiz-pilot.spec.ts","rundown-timing.spec.ts","score-tracker-moments.spec.ts","studio-feedback.spec.ts","wizard-entry-fit.spec.ts","wizard-finish.spec.ts"],["end-credits.spec.ts","feedback.spec.ts","graphic-sound.spec.ts","library-bulk.spec.ts","ograf-lifecycle.spec.ts","ograf-parity.spec.ts","productions.spec.ts","svg-examples.spec.ts","template-pack-4.spec.ts","timeline-v2.spec.ts"],["ai.spec.ts","control-panel-types.spec.ts","import-graphic.spec.ts","import.spec.ts","library-productions.spec.ts","local-relay.spec.ts","ograf-starters.spec.ts","production-views.spec.ts","template-deep-link.spec.ts","ticker-linked-update.spec.ts"],["bridge-ograf.spec.ts","community-pack-lock.spec.ts","community-packs.spec.ts","hosted-control.spec.ts","import-name-collision.spec.ts","ograf-controls.spec.ts","overlay-layers.spec.ts","playout-adjust-documents.spec.ts","playout-clock.spec.ts","studio-release-completion.spec.ts","sync.spec.ts","template-insert.spec.ts"],["brand-editor.spec.ts","dashboard-operator-walk.spec.ts","import-svg-sticker-sample.spec.ts","library.spec.ts","network-resilience.spec.ts","ograf-library.spec.ts","playout-air-contract.spec.ts","ux.spec.ts","wizard-brand.spec.ts","wizard-kit.spec.ts","wizard-preview.spec.ts"],["analytics.spec.ts","data-api.spec.ts","editor-layer-property-qualification.spec.ts","google-fonts.spec.ts","import-svg-corpus.spec.ts","playout-drills.spec.ts","playout-sequence.spec.ts","production-persistence.spec.ts","specialist-lower-thirds.spec.ts","video-project.spec.ts","wizard-logo.spec.ts"],["agent-made-graphics.spec.ts","graphic-sound-controls.spec.ts","import-svg-reimport.spec.ts","legacy-timeline.spec.ts","ograf-conformance.spec.ts","production-controls.spec.ts","production-pack.spec.ts","public-service.spec.ts","publish-gate.spec.ts","route-transition-flash.spec.ts"]]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4196604Z   SHARD_INDEX: 9
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4196840Z   NOACG_BLOB_NAME: report-9.zip
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.4197099Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.6056354Z ##[notice]11 spec file(s)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.7140727Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.7141244Z > noacg-studio@0.1.0 test:e2e
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.7143202Z > playwright test [\\/]editor-drawing-task\.spec\.ts$ [\\/]output-font-hold\.spec\.ts$ [\\/]playout-cues\.spec\.ts$ [\\/]playout-feedback-health\.spec\.ts$ [\\/]preview-error\.spec\.ts$ [\\/]quiz-pilot\.spec\.ts$ [\\/]rundown-timing\.spec\.ts$ [\\/]score-tracker-moments\.spec\.ts$ [\\/]studio-feedback\.spec\.ts$ [\\/]wizard-entry-fit\.spec\.ts$ [\\/]wizard-finish\.spec\.ts$
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:51.7144823Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:58.6132975Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:58.6133681Z Running 92 tests using 1 worker
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:58.6167902Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:46:59.0547685Z [1/92] [chromium] › e2e/editor-drawing-task.spec.ts:43:124 › cumulative wizard authoring, reopen and output task desktop
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:47:27.5448919Z [2/92] [chromium] › e2e/editor-drawing-task.spec.ts:43:124 › cumulative wizard authoring, reopen and output task laptop
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:47:54.3189582Z [3/92] [chromium] › e2e/editor-drawing-task.spec.ts:43:124 › cumulative wizard authoring, reopen and output task laptop-125
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:48:20.6060946Z [4/92] [chromium] › e2e/output-font-hold.spec.ts:109:3 › a font host on the output › that never answers: every graphic still airs, on a fallback face, and the debug line says why
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:48:25.1577324Z [5/92] [chromium] › e2e/output-font-hold.spec.ts:151:3 › a font host on the output › that answers within the cap: nothing is released early and the first Take shows the real face
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:48:27.4962807Z [6/92] [chromium] › e2e/playout-cues.spec.ts:266:1 › the CasparCG file action explains unavailable setup in both add surfaces
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:48:31.3055194Z [7/92] [chromium] › e2e/playout-cues.spec.ts:279:1 › a clip from the server becomes a cue on the clip layer, and Take, Pause, Resume and Out are one command each
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:48:35.5894154Z [8/92] [chromium] › e2e/playout-cues.spec.ts:344:1 › a deep media library is browsed folder by folder, a long name gives way, and Add never leaves the popover
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:48:39.7592106Z [9/92] [chromium] › e2e/playout-cues.spec.ts:399:1 › a clip set to Loop is taken with LOOP, the row says so, and the choice survives a reload
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:48:46.1267554Z [10/92] [chromium] › e2e/playout-cues.spec.ts:445:1 › each setting goes out with its Take: Clear with a fade, a fade in, a level and a trim; Out fades
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:48:51.4778611Z [11/92] [chromium] › e2e/playout-cues.spec.ts:523:1 › a trim outside the file or ending before it starts is refused in the panel and never saved
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:48:55.4430508Z [12/92] [chromium] › e2e/playout-cues.spec.ts:554:1 › an audio file plays on its own layer, 5, below the clips, and a still offers Hold only
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:49:00.1557809Z [13/92] [chromium] › e2e/playout-cues.spec.ts:577:1 › a cue with a setting an old Bridge cannot play is not taken, and says why; a legacy cue still goes as it did
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:49:06.5102650Z [14/92] [chromium] › e2e/playout-cues.spec.ts:612:1 › a cue on air that the Bridge can no longer take still comes OFF by SPACE, and is never re-taken the old way
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:49:13.0079695Z [15/92] [chromium] › e2e/playout-cues.spec.ts:637:1 › a server that cannot do a setting has it off, named by its version
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:49:16.8078028Z [16/92] [chromium] › e2e/playout-cues.spec.ts:648:1 › THE LOOP RULE: an older build's Loop box still reaches cues nobody chose an ending for here, and never overrules one
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:49:28.7371104Z [17/92] [chromium] › e2e/playout-cues.spec.ts:719:1 › a server template takes the next free layer, carries its typed fields as JSON data, and Update, Next and Out follow
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:49:33.2297028Z [18/92] [chromium] › e2e/playout-cues.spec.ts:772:1 › a template NoaCG exported brings its own fields, matched by the export slug
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:49:39.0525396Z [19/92] [chromium] › e2e/playout-cues.spec.ts:787:1 › the server that cannot list says so, and a typed name still makes a cue
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:49:42.9044997Z [20/92] [chromium] › e2e/playout-cues.spec.ts:804:1 › with no Bridge running a server cue cannot be taken, and the editor names the hop
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:49:49.5108398Z [21/92] [chromium] › e2e/playout-cues.spec.ts:823:1 › a server cue and its item are removed together, and survive a reload as part of the record
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:49:55.4867049Z [22/92] [chromium] › e2e/playout-cues.spec.ts:848:1 › one rundown cues a template on the graphics channel and a clip on the insert channel, any cue can move, and All out clears both
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:00.8705487Z [23/92] [chromium] › e2e/playout-cues.spec.ts:955:1 › nothing replaces the NoaCG output: a server item on its slot is refused with the reason, and a new template never defaults there
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:06.8143059Z [24/92] [chromium] › e2e/playout-cues.spec.ts:989:1 › a take on a slot another cue holds replaces it, and a channel the studio does not name stays listed as itself
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:13.6853987Z [25/92] [chromium] › e2e/playout-cues.spec.ts:1042:1 › every verb sends the same action after a drag reorder and after a reload, and a reload forgets what is up
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:21.5077262Z [26/92] [chromium] › e2e/playout-cues.spec.ts:1134:1 › a re-take onto a channel the server refuses leaves nothing marked ON AIR, since the old copy already came off
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:25.6466917Z [27/92] [chromium] › e2e/playout-cues.spec.ts:1159:1 › vMix media browses the selected folder and plays on separate clip and audio players
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2795577Z ##[error]  1) [chromium] › e2e/playout-cues.spec.ts:1159:1 › vMix media browses the selected folder and plays on separate clip and audio players 
+E2E 9/15 (subset)	UNKNOWN STEP	    Error: expect(locator).toBeDisabled() failed
+E2E 9/15 (subset)	UNKNOWN STEP	
+E2E 9/15 (subset)	UNKNOWN STEP	    Locator: getByTestId('playout-settings').getByRole('button', { name: 'Choose folder…' })
+E2E 9/15 (subset)	UNKNOWN STEP	    Expected: disabled
+E2E 9/15 (subset)	UNKNOWN STEP	    Timeout: 7000ms
+E2E 9/15 (subset)	UNKNOWN STEP	    Error: element(s) not found
+E2E 9/15 (subset)	UNKNOWN STEP	
+E2E 9/15 (subset)	UNKNOWN STEP	    Call log:
+E2E 9/15 (subset)	UNKNOWN STEP	      - Expect "toBeDisabled" with timeout 7000ms
+E2E 9/15 (subset)	UNKNOWN STEP	      - waiting for getByTestId('playout-settings').getByRole('button', { name: 'Choose folder…' })
+E2E 9/15 (subset)	UNKNOWN STEP	
+E2E 9/15 (subset)	UNKNOWN STEP	
+E2E 9/15 (subset)	UNKNOWN STEP	      1364 |       await choose.click();
+E2E 9/15 (subset)	UNKNOWN STEP	      1365 |       await opened.promise;
+E2E 9/15 (subset)	UNKNOWN STEP	    > 1366 |       await expect(choose).toBeDisabled();
+E2E 9/15 (subset)	UNKNOWN STEP	           |                            ^
+E2E 9/15 (subset)	UNKNOWN STEP	      1367 |       await pairedFromOtherTab(nextBridge);
+E2E 9/15 (subset)	UNKNOWN STEP	      1368 |       await expect(mediaFolder).toHaveText(nextFolder);
+E2E 9/15 (subset)	UNKNOWN STEP	      1369 |       await expect(choose).toBeEnabled();
+E2E 9/15 (subset)	UNKNOWN STEP	        at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/playout-cues.spec.ts:1366:28
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2801883Z   1) [chromium] › e2e/playout-cues.spec.ts:1159:1 › vMix media browses the selected folder and plays on separate clip and audio players 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2802459Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2802650Z     Error: expect(locator).toBeDisabled() failed
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2802891Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2803322Z     Locator: getByTestId('playout-settings').getByRole('button', { name: 'Choose folder…' })
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2803824Z     Expected: disabled
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2804081Z     Timeout: 7000ms
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2805399Z     Error: element(s) not found
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2805758Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2805934Z     Call log:
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2806467Z       - Expect "toBeDisabled" with timeout 7000ms
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2807637Z       - waiting for getByTestId('playout-settings').getByRole('button', { name: 'Choose folder…' })
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2808321Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2808330Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2808561Z       1364 |       await choose.click();
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2809108Z       1365 |       await opened.promise;
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2809725Z     > 1366 |       await expect(choose).toBeDisabled();
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2810311Z            |                            ^
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2811458Z       1367 |       await pairedFromOtherTab(nextBridge);
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2812045Z       1368 |       await expect(mediaFolder).toHaveText(nextFolder);
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2812606Z       1369 |       await expect(choose).toBeEnabled();
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2813125Z         at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/playout-cues.spec.ts:1366:28
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2813477Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2813943Z     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2815023Z     test-results/playout-cues-vMix-media-br-fc0ba-rate-clip-and-audio-players-chromium/test-failed-1.png
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2815871Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2816209Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2816714Z     Error Context: test-results/playout-cues-vMix-media-br-fc0ba-rate-clip-and-audio-players-chromium/error-context.md
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2817244Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2817649Z     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2818387Z     test-results/playout-cues-vMix-media-br-fc0ba-rate-clip-and-audio-players-chromium/trace.zip
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2818921Z     Usage:
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2819042Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2819538Z         npx playwright show-trace test-results/playout-cues-vMix-media-br-fc0ba-rate-clip-and-audio-players-chromium/trace.zip
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2820062Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2820415Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2820714Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.2820719Z 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:50:42.9255869Z [28/92] [chromium] › e2e/playout-feedback-health.spec.ts:16:1 › a browser production ignores a paired Bridge and old outputs, while CasparCG switched on survives a disconnect and reload
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:51:17.9177325Z [29/92] [chromium] › e2e/preview-error.spec.ts:9:1 › a preview command that throws is worn on the stage and Reload preview recovers
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:51:21.7705742Z [30/92] [chromium] › e2e/quiz-pilot.spec.ts:26:1 › the hidden-pick quiz sequence: seal, reveal choice, verdict, audience result — then the next question from the bank
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:51:29.8717676Z [31/92] [chromium] › e2e/quiz-pilot.spec.ts:133:1 › the TV-style flow still stands: select paints immediately, lock follows, verdict tells the wrong pick apart
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:51:33.1405857Z [32/92] [chromium] › e2e/rundown-timing.spec.ts:83:1 › a cue timed 4 s, Out and next cue: it counts, arms the next, and at zero hands over once, selection untouched
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:51:37.9265387Z [33/92] [chromium] › e2e/rundown-timing.spec.ts:116:1 › H holds the countdown and H again resumes it from the frozen remainder
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:51:42.5144458Z [34/92] [chromium] › e2e/rundown-timing.spec.ts:139:1 › Manual drops the timed end: the cue stays on air for good
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:51:46.3798785Z [35/92] [chromium] › e2e/rundown-timing.spec.ts:153:1 › an end action more than 5 s late is missed and never runs, until the operator acts
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:51:50.7131427Z [36/92] [chromium] › e2e/rundown-timing.spec.ts:173:1 › the editor sets the timing and says what Next cue will take
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:51:53.4624111Z [37/92] [chromium] › e2e/rundown-timing.spec.ts:191:1 › a duplicate keeps the timing, and making a counting cue manual stops its countdown
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:51:57.3769849Z [38/92] [chromium] › e2e/rundown-timing.spec.ts:206:1 › published on a server that keeps no timed cues, a timed cue is offered disabled and airs as a manual one
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:52:00.9117354Z [39/92] [chromium] › e2e/score-tracker-moments.spec.ts:23:1 › a tracker without a Full time layer offers no Full time, and one with it does
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:52:16.5066896Z [40/92] [chromium] › e2e/studio-feedback.spec.ts:38:1 › routine anonymous work uses persistent header state without a global notice
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:52:18.7437019Z [41/92] [chromium] › e2e/studio-feedback.spec.ts:50:1 › a browser production hides every CasparCG control, and its panel names the browser source
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:52:21.7626623Z [42/92] [chromium] › e2e/studio-feedback.spec.ts:77:1 › Delete removes the selected range and leaves native fields and open menus alone
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:52:25.6856977Z [43/92] [chromium] › e2e/studio-feedback.spec.ts:91:1 › color picker previews every event and persists one settled edit
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:52:30.0454787Z [44/92] [chromium] › e2e/studio-feedback.spec.ts:123:1 › CasparCG setup can return to browser output without changing sources or links
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:52:34.6257560Z [45/92] [chromium] › e2e/studio-feedback.spec.ts:166:1 › additive selection, range selection and clipboard act on the intended rows
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:52:37.5519311Z [46/92] [chromium] › e2e/wizard-entry-fit.spec.ts:58:3 › the entry step fits a 1366x768 window without scrolling
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:52:39.0829803Z [47/92] [chromium] › e2e/wizard-entry-fit.spec.ts:58:3 › the entry step fits a 1440x900 window without scrolling
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:52:40.5676960Z [48/92] [chromium] › e2e/wizard-entry-fit.spec.ts:65:3 › creation navigation starts only after a card is opened on desktop
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:52:42.9357390Z [49/92] [chromium] › e2e/wizard-entry-fit.spec.ts:65:3 › creation navigation starts only after a card is opened on phone
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:52:45.3778682Z [50/92] [chromium] › e2e/wizard-entry-fit.spec.ts:103:1 › the whole step, Playout row included, is inside the scrollport at 1366x768
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:52:46.8446402Z [51/92] [chromium] › e2e/wizard-entry-fit.spec.ts:125:1 › the four start cards are one row of equal cards, in the owner order
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:52:48.3275926Z [52/92] [chromium] › e2e/wizard-entry-fit.spec.ts:191:3 › every start card title fits its card at 1101px
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:52:49.7956958Z [53/92] [chromium] › e2e/wizard-entry-fit.spec.ts:191:3 › every start card title fits its card at 1125px
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:52:51.2774602Z [54/92] [chromium] › e2e/wizard-entry-fit.spec.ts:191:3 › every start card title fits its card at 1150px
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:52:52.7809828Z [55/92] [chromium] › e2e/wizard-entry-fit.spec.ts:210:1 › the phone reads top to bottom: four equal cards, then the Playout row
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:52:54.2935274Z [56/92] [chromium] › e2e/wizard-entry-fit.spec.ts:265:1 › the hero intro is the owner copy: make graphics, then every route to air and EVERY export target
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:52:55.7858385Z [57/92] [chromium] › e2e/wizard-entry-fit.spec.ts:335:1 › the Home row carries its two section shortcuts
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:52:58.3087282Z [58/92] [chromium] › e2e/wizard-entry-fit.spec.ts:367:1 › the Home row answers a hover like an entry card, and its shortcuts do not
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:53:02.2823827Z [59/92] [chromium] › e2e/wizard-entry-fit.spec.ts:467:1 › Run the show is a card you press, on the Home row chassis, and still fits 1366x768
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:53:06.6287673Z [60/92] [chromium] › e2e/wizard-entry-fit.spec.ts:564:1 › the video card is greyed, and the grey is its whole caveat
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:53:08.1403697Z [61/92] [chromium] › e2e/wizard-entry-fit.spec.ts:610:1 › New production from a fresh profile opens an empty production, ready to add graphics
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:53:10.6310460Z [62/92] [chromium] › e2e/wizard-entry-fit.spec.ts:644:1 › Run the show opens the productions list with none, and names and opens the last used production
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:53:12.3908442Z [63/92] [chromium] › e2e/wizard-entry-fit.spec.ts:677:1 › Run the show follows a production that arrives while the step is open
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:53:14.0257293Z [64/92] [chromium] › e2e/wizard-entry-fit.spec.ts:696:1 › the Import card names the file types its own drop zone takes
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:53:15.5026911Z [65/92] [chromium] › e2e/wizard-entry-fit.spec.ts:710:1 › the AI card carries no tier or paid-edition copy
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:53:16.9924766Z [66/92] [chromium] › e2e/wizard-entry-fit.spec.ts:720:1 › no start card carries a caveat, and every card holds its copy in the reserve
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:53:18.4755492Z [67/92] [chromium] › e2e/wizard-entry-fit.spec.ts:747:1 › the deliberate divergences from the reference hold
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:53:21.7940428Z [68/92] [chromium] › e2e/wizard-entry-fit.spec.ts:762:1 › a window too short for the step cues its overflow
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:53:23.7827729Z [69/92] [chromium] › e2e/wizard-finish.spec.ts:28:1 › finish: the production door leads, export follows, and the retired code door is absent
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:53:27.9083656Z [70/92] [chromium] › e2e/wizard-finish.spec.ts:48:1 › finish: the production door saves, pools with a seeded cue, and lands on the production page
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:53:32.6115998Z [71/92] [chromium] › e2e/wizard-finish.spec.ts:86:1 › finish: the production door names the rundown before it leaves the wizard
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:53:37.7275157Z [72/92] [chromium] › e2e/wizard-finish.spec.ts:117:1 › back after creating returns to the wizard, warns, and replaces rather than duplicates
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:53:43.9086656Z [73/92] [chromium] › e2e/wizard-finish.spec.ts:208:1 › finish: skip-to-finish jumps from Browse once a design is picked
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:53:47.8436837Z [74/92] [chromium] › e2e/wizard-finish.spec.ts:226:1 › finish: the editor door creates the project and leaves saving to the user
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:53:52.1657351Z [75/92] [chromium] › e2e/wizard-finish.spec.ts:244:1 › finish: the export door saves the graphic and opens the export window over the wizard
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:53:56.8622451Z [76/92] [chromium] › e2e/wizard-finish.spec.ts:304:1 › finish: rewinding with ✕ makes the next graphic its own record
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:54:02.9410631Z [77/92] [chromium] › e2e/wizard-finish.spec.ts:319:1 › finish: a second walk under a name the library holds saves over it, and says so first
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:54:08.9286041Z [78/92] [chromium] › e2e/wizard-finish.spec.ts:352:1 › finish: the name reaches the exported package folder
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:54:13.6524013Z [79/92] [chromium] › e2e/wizard-finish.spec.ts:385:1 › export window: a saved graphic exports from the wizard without opening the editor
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:54:18.5593563Z [80/92] [chromium] › e2e/wizard-finish.spec.ts:415:1 › export window: navigating away closes it rather than stranding it over another page
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:54:23.0188477Z [81/92] [chromium] › e2e/wizard-finish.spec.ts:431:1 › finish: both doors are whole and above the fold on a short laptop
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:54:27.2157134Z [82/92] [chromium] › e2e/wizard-finish.spec.ts:448:1 › style step: size and position collapse behind a disclosure
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:54:31.1277003Z [83/92] [chromium] › e2e/wizard-finish.spec.ts:473:1 › browse step: the filter disclosure actually collapses
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:54:34.4987163Z [84/92] [chromium] › e2e/wizard-finish.spec.ts:490:1 › browse step: canvas format stays reachable with the mobile filter drawer shut
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:54:37.7885302Z [85/92] [chromium] › e2e/wizard-finish.spec.ts:567:1 › production door: the library record lands first, and nothing moves until the rundown has
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:54:42.5241922Z [86/92] [chromium] › e2e/wizard-finish.spec.ts:587:1 › production door: a refused rundown write names the retry and leaves the reader on Finish
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:54:48.1347063Z [87/92] [chromium] › e2e/wizard-finish.spec.ts:611:1 › export door: a refused save still opens the export window, over the unsaved graphic
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:54:52.7837420Z [88/92] [chromium] › e2e/wizard-finish.spec.ts:624:1 › production door pressed twice while its save is held: one production (R7)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:54:57.6897736Z [89/92] [chromium] › e2e/wizard-finish.spec.ts:650:1 › after the export door there is nothing to walk back from: Back is an ordinary step
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:02.3137181Z [90/92] [chromium] › e2e/wizard-finish.spec.ts:664:1 › back onto a deep-linked walk restores it, and the link does not start it over (#1220)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:05.6402901Z [91/92] [chromium] › e2e/wizard-finish.spec.ts:685:1 › a plain #/new after the production door discards the finished walk
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:10.6800083Z [92/92] [chromium] › e2e/wizard-finish.spec.ts:709:1 › a kit save held across a close outlives it: the next walk waits for it, then it lands
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:18.6012869Z ##[warning][chromium] › e2e/playout-cues.spec.ts took 2.2m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:18.6016843Z ##[warning][chromium] › e2e/wizard-finish.spec.ts took 1.9m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:18.6019336Z ##[warning][chromium] › e2e/editor-drawing-task.spec.ts took 1.4m
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:18.6022000Z ##[warning][chromium] › e2e/wizard-entry-fit.spec.ts took 45.9s
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:18.6026503Z ##[notice]  1 failed
+E2E 9/15 (subset)	UNKNOWN STEP	    [chromium] › e2e/playout-cues.spec.ts:1159:1 › vMix media browses the selected folder and plays on separate clip and audio players 
+E2E 9/15 (subset)	UNKNOWN STEP	  91 passed (8.4m)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:18.6029138Z   Slow test file: [chromium] › e2e/playout-cues.spec.ts (2.2m)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:18.6030150Z   Slow test file: [chromium] › e2e/wizard-finish.spec.ts (1.9m)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:18.6031207Z   Slow test file: [chromium] › e2e/editor-drawing-task.spec.ts (1.4m)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:18.6032303Z   Slow test file: [chromium] › e2e/wizard-entry-fit.spec.ts (45.9s)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:18.6033479Z   Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:18.6034869Z   1 failed
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:18.6036266Z     [chromium] › e2e/playout-cues.spec.ts:1159:1 › vMix media browses the selected folder and plays on separate clip and audio players 
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:18.6037360Z   91 passed (8.4m)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:19.1987822Z ##[error]Process completed with exit code 1.
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:19.2084892Z ##[group]Run actions/upload-artifact@v4
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:19.2085238Z with:
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:19.2085458Z   name: blob-report-9
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:19.2085708Z   path: blob-report/
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:19.2085949Z   retention-days: 7
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:19.2086188Z   if-no-files-found: error
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:19.2086448Z   compression-level: 6
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:19.2086684Z   overwrite: false
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:19.2086922Z   include-hidden-files: false
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:19.2087178Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:19.3829962Z (node:4537) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:19.3830914Z (Use `node --trace-deprecation ...` to show where the warning was created)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:19.3883715Z With the provided path, there will be 1 file uploaded
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:19.3889034Z Artifact name is valid!
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:19.3891416Z Root directory input is valid!
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:19.8358123Z Beginning upload of artifact content to blob storage
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:20.0611356Z (node:4537) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:20.9070114Z Uploaded bytes 6980849
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.1125217Z Finished uploading artifact content to blob storage!
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.1126934Z SHA256 digest of uploaded artifact zip is d851cc4af0b74e5fbea66604df61579005a532d5e4f4969e05da66ad161ba0eb
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.1128192Z Finalizing artifact upload
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.5246716Z Artifact blob-report-9.zip successfully finalized. Artifact ID 13878118510
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.5248481Z Artifact blob-report-9 has been successfully uploaded! Final size is 6980849 bytes. Artifact ID is 13878118510
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.5256356Z Artifact download URL: https://github.com/NoaCG/NoaCG-Studio/actions/runs/43071254290/artifacts/13878118510
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.5468369Z ##[group]Run actions/upload-artifact@v4
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.5468715Z with:
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.5468934Z   name: test-results-9
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.5469192Z   path: test-results/
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.5469436Z   retention-days: 7
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.5469670Z   if-no-files-found: ignore
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.5469933Z   compression-level: 6
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.5470168Z   overwrite: false
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.5470405Z   include-hidden-files: false
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.5470671Z ##[endgroup]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.7256701Z (node:4549) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.7257539Z (Use `node --trace-deprecation ...` to show where the warning was created)
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.7371324Z With the provided path, there will be 16 files uploaded
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.7377682Z Artifact name is valid!
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:21.7378617Z Root directory input is valid!
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:22.1444109Z Beginning upload of artifact content to blob storage
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:22.4086296Z (node:4549) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.3020063Z Uploaded bytes 7545350
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.3764718Z Finished uploading artifact content to blob storage!
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.3766050Z SHA256 digest of uploaded artifact zip is 7c870d60dc995a4c270ab4498d857e773cb5d0ff91e46ee1e65806dbecbb720a
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.3767304Z Finalizing artifact upload
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.7995850Z Artifact test-results-9.zip successfully finalized. Artifact ID 13879246716
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.7997304Z Artifact test-results-9 has been successfully uploaded! Final size is 7545350 bytes. Artifact ID is 13879246716
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.7998821Z Artifact download URL: https://github.com/NoaCG/NoaCG-Studio/actions/runs/43071254290/artifacts/13879246716
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.8227273Z Post job cleanup.
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.8231048Z ##[start-action display=Cache Playwright browser;id=__afa939f1-434d-4e4b-9417-e4d48ec5a4be.cache]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.8233417Z ##[end-action id=__afa939f1-434d-4e4b-9417-e4d48ec5a4be.cache;outcome=skipped;conclusion=skipped;duration_ms=0]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.8287954Z Post job cleanup.
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.8290981Z ##[start-action display=Cache node_modules;id=__b5bf0c0b-c1ef-49ac-b517-8c79bc70ab03.cache]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.8293279Z ##[end-action id=__b5bf0c0b-c1ef-49ac-b517-8c79bc70ab03.cache;outcome=skipped;conclusion=skipped;duration_ms=0]
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.8364736Z Post job cleanup.
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.9304216Z [command]/usr/bin/git version
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.9358159Z git version 2.56.0
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.9402117Z Temporarily overriding HOME='/home/runner/work/_temp/89ae5f35-2dbf-4c6a-863d-3f71ef1b3227' before making global git config changes
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.9403789Z Adding repository directory to the temporary git global config as a safe directory
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.9409206Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.9458418Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.9501915Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.9843122Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.9879972Z http.https://github.com/.extraheader
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.9890626Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:23.9932711Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:24.0287573Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:24.0326056Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:24.0778226Z Cleaning up orphan processes
+E2E 9/15 (subset)	UNKNOWN STEP	2026-11-11T17:55:24.1237916Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

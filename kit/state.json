@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "session": "/root/v4_evidence_scope_reassessment",
       "step": "build",
-      "note": "Fresh independent review reproduced a pairing switch-back retaining old Take ownership and an uncertain folder remaining displayed. Read-only reassessment active before repair. Local browser job withdrawn before execution.",
-      "head": "5ccb5151c9a0994f51dbeccafe85aca279feca61",
-      "phase": "v4",
-      "pr": 2378
+      "head": "4a4e5dd7f9ce9a614f70d39f513ec2fa3bdcf25e",
+      "note": "Consolidated vMix pairing repair passed 284 focused Windows Node tests, TypeScript and lint. Corrected the previous CI Chromium locator. Fresh independent review, Windows Chromium j-5238 and normal CI 43074214379 are pending.",
+      "session": "/root/v4_final_evidence_review",
+      "pr": 2378,
+      "phase": "v4"
     }
   ],
   "owner": [],
