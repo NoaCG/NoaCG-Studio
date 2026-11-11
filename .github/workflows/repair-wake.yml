@@ -42,8 +42,10 @@ jobs:
       pull-requests: read # open PRs
       issues: write # the alarm issue: open, update, comment, assign, close
     steps:
-      # A whole checkout: the script reads its helpers' own imports (e2e/ among them) at load.
+      # scripts/ alone: the check imports only the alarm helpers (a test runs it from such a copy).
       - uses: actions/checkout@v5
+        with:
+          sparse-checkout: scripts
       - uses: actions/setup-node@v5
         with:
           node-version: 24

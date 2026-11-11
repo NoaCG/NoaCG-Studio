@@ -8,8 +8,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { ownedAlarmTitles } from './alarm-owner.mjs';
-import { makeReader } from './growth-report.mjs';
-import { BOUND_MINUTES, budgetedGh, failureOf, keysIn, MAX_CALLS, nextAlarm, ownerText, raise, readAlarm, RED_ISSUE, sweep } from './repair-wake.mjs';
+import { BOUND_MINUTES, budgetedGh, failureOf, keysIn, MAX_CALLS, nextAlarm, ownerText, raise, RED_ISSUE, runCheck } from './repair-wake.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const plus = (iso, min) => new Date(Date.parse(iso) + min * 60_000).toISOString().replace('.000Z', 'Z');
@@ -88,11 +87,8 @@ const notices = (gh) => gh.state.posted.filter((p) => p[0] !== 'edit').map((p) =
 
 /** One check, as the workflow runs it: sweep within the budget, then raise. */
 function check(gh, now) {
-  const counted = budgetedGh(MAX_CALLS, gh.run);
-  const alarm = readAlarm({ gh: counted, repo: 'NoaCG/NoaCG-Studio' });
-  const { entries, complete } = sweep({ reader: makeReader(MAX_CALLS - 15, counted), now, repo: 'NoaCG/NoaCG-Studio', remembered: alarm.remembered });
-  const did = raise({ entries, complete, now, ceilings: CEILINGS, gh: counted, repo: 'NoaCG/NoaCG-Studio', alarm });
-  return { entries, complete, did, calls: counted.calls, alarm: gh.state.issues.find((i) => i.title === RED_ISSUE && i.state === 'open') };
+  const r = runCheck({ now, ceilings: CEILINGS, issue: true, repo: 'NoaCG/NoaCG-Studio', run: gh.run });
+  return { ...r, alarm: gh.state.issues.find((i) => i.title === RED_ISSUE && i.state === 'open') };
 }
 
 // The four long idle stretches of cf22 section 3.4, each as it stood after its failure.
@@ -298,7 +294,7 @@ test('rule 8: an unchanged list is not rewritten; a CRLF body edited on GitHub k
   check(gh, plus(t, 81));
   check(gh, plus(t, 101));
   assert.equal(gh.state.posted.filter((p) => p[0] === 'edit').length, 0, 'no edit when only the check time would change');
-  const body = ['Owner: x.', '', '- #9: a <!-- key: 9/5/1/2026-11-11T09:00:00Z -->', '', 'Attended to since the alarm, still red (listed so they do not alarm again):', '', '- #8: b <!-- key: 8/4/1/2026-11-11T09:00:00Z -->'].join('\r\n');
+  const body = ['Owner: x.', '', '- #9: a <!-- key: 9/5/1/2026-11-11T09:00:00Z -->', '', 'Attended to since the alarm, still red (listed so they do not alarm again):', '', '- #8: b <!-- key: 8/4/1/2026-11-11T09:00:00Z attended -->'].join('\r\n');
   const next = nextAlarm({ entries: [], complete: false, previousBody: body });
   assert.deepEqual(next.unattended.map((l) => keysIn(l)), [['9/5/1/2026-11-11T09:00:00Z']]);
   assert.deepEqual(next.attended.map((l) => keysIn(l)), [['8/4/1/2026-11-11T09:00:00Z']]);
@@ -328,6 +324,21 @@ test('rule 10: no recorded owner, no alarm and a loud failure', () => {
   assert.throws(() => raise({ entries: [], complete: true, now: 'x', ceilings: { owner: '' }, gh: () => '[]' }), /no owner or ownerLogin/);
 });
 
+test('the script runs from a scripts-only checkout, as the workflow gives it', async () => {
+  const { mkdtempSync, cpSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { execFileSync } = await import('node:child_process');
+  const dir = mkdtempSync(join(tmpdir(), 'repair-wake-'));
+  try {
+    cpSync(new URL('.', import.meta.url), join(dir, 'scripts'), { recursive: true });
+    const out = execFileSync(process.execPath, ['scripts/repair-wake.mjs', 'nope'], { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, env: { ...process.env, PATH: '' } }).toString();
+    assert.fail(`expected the usage exit, got ${out}`);
+  } catch (e) {
+    assert.equal(e.status, 2, `loads and prints its usage, not a load error: ${e.stderr}`);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('rule 11: the weekly owner session lists this alarm with the others', async () => {
   assert.ok((await ownedAlarmTitles()).includes(RED_ISSUE));
 });
@@ -343,5 +354,5 @@ test('the workflow runs the check on main, after a failed CI run and on a schedu
   assert.doesNotMatch(wf, /workflow_run\.head|head_sha|head_branch/, 'never checks out the PR\'s code');
   assert.match(wf, /\n {4}concurrency:\n {6}group: repair-wake\n {6}cancel-in-progress: false/, 'one check at a time, none dropped mid-write, on the job');
   assert.doesNotMatch(wf, /^concurrency:/m, 'not on the workflow, where skipped runs of green CI would displace a waiting check');
-  assert.doesNotMatch(wf, /sparse-checkout/, 'the script\'s imports read e2e/ at load');
+  assert.match(wf, /sparse-checkout: scripts/, 'the script needs only scripts/');
 });
