@@ -716,7 +716,9 @@
       "evidence": "auto tool choice is optional while parser requires named tool_use; installed native SDK0.133.0 documents output_config.format JSON schema and existing native capability metadata supports it, application schemas still require verification",
       "uncertainty": "no raw discarded content/exact parse branch; previous failed recheck usage/cost UNKNOWN, not zero",
       "limit": "explicit replacement rule+fresh Rules-first before code; deterministic schema/parser/accounting tests; exact native route only; no arbitrary prose acceptance, retry, fallback/provider/model/key/default/funding/ceiling change",
-      "coordinatorDisposition": "Existing approved E3 scope/shared loop authorizes final scoped repair. Separate explicit coordinator authorization for exactly ONE final help-out quality verification,1call/1attempt/no fallback, after deterministic checks/pinned source and conservative worst-case cumulative cost including old unknown recheck fits unchangedUSD2. Return bound before call. No successful task reruns. Any later failure STOP same run; no further patch/call."
+      "coordinatorDisposition": "Existing approved E3 scope/shared loop authorizes final scoped repair. Separate explicit coordinator authorization for exactly ONE final help-out quality verification,1call/1attempt/no fallback, after deterministic checks/pinned source and conservative worst-case cumulative cost including old unknown recheck fits unchangedUSD2. Return bound before call. No successful task reruns. Any later failure STOP same run; no further patch/call.",
+      "receipt": "receipts/e3-fresh-diagnose.json",
+      "archive": "native terminal readback and app confirmed"
     }
   }
 }
