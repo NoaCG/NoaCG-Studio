@@ -35,7 +35,7 @@ import {
   type PlayoutSettings,
 } from '../../control/playoutLink';
 import type { LiveCueMap } from '../../control/hostedControl';
-import { casparOffRefusal } from '../../control/takeBlockers';
+import { serverCueOffRefusal } from '../../control/takeBlockers';
 import { serverCueLive, THROUGH_END, type ThroughRole } from '../../control/serverPlayout';
 import type { ServerOwnership, ServerTiming, StorePart } from '../../control/serverPlayoutStore';
 import { namesItem } from '../../control/serverState';
@@ -673,7 +673,7 @@ export default function CueRundown({
           const poolEntry = graphicByPoolId.get(cue.sourceId);
           const playoutItem = playoutItemFor(cue);
           const vmixItem = playoutItem?.adapter === 'vmix';
-          const adapterOff = playoutItem ? casparOffRefusal(cue, casparOn, vmixOn, playoutItem) : null;
+          const adapterOff = playoutItem ? serverCueOffRefusal(cue, casparOn, vmixOn, playoutItem) : null;
           const cueIsLive = liveIds.has(cue.id);
           // ON AIR ONLY WHEN IT IS, as the program monitor says it (studio-day-playout AC-9): a server
           // cue plays through NoaCG Bridge whether or not the production is started (D16), a graphic
@@ -904,7 +904,7 @@ export default function CueRundown({
                   NOT TAKEN
                 </span>
               ) : adapterOff ? (
-                <span className="pd-tag off" title={adapterOff} data-testid={vmixItem ? 'cue-vmix-off' : 'cue-caspar-off'}>
+                <span className="pd-tag off" title={!vmixItem && !vmixOn ? 'Switch CasparCG on in the Playout panel to take this cue.' : adapterOff} data-testid={vmixItem ? 'cue-vmix-off' : 'cue-caspar-off'}>
                   {vmixItem ? 'vMix off' : 'CasparCG off'}
                 </span>
               ) : isPreviewed ? (

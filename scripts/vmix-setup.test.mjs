@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import './lib/tsResolve.mjs';
 
-const { act, actVmix, finishCasparAllOut, PLAYOUT_DEFAULTS, readVmixOverlays, testVmix } = await import('../src/control/playoutLink.ts');
+const { act, actVmix, actVmixMedia, finishCasparAllOut, listVmixMedia, PLAYOUT_DEFAULTS, readVmixOverlays, testVmix, vmixMediaFolder } = await import('../src/control/playoutLink.ts');
 const { changeVmixOutput, readVmixOutput, vmixOverlay } = await import('../src/control/vmixSetup.ts');
 
 const settings = { ...PLAYOUT_DEFAULTS, agentToken: 'fixture-token', vmix: { overlay: 3 } };
@@ -892,4 +892,54 @@ test('accepted All out after navigation reads the original CasparCG slot before 
       assert.deepEqual(paths, ['/health', '/state', ...(change === 'navigation' ? ['/act'] : [])]);
     });
   }
+});
+
+test('vMix media routes use the paired token and a Take requires the current capability and session', async (t) => {
+  const calls = [];
+  const target = { adapter: 'vmix' };
+  const action = { verb: 'take', slot: { adapter: 'vmix', player: 'clips' }, item: { kind: 'media', name: 'Replay/clip.mov' } };
+  let media = false;
+  let allowed = true;
+  let switched = false;
+  let instance = 'fixture.play-1';
+  let malformed = false;
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    const path = new URL(url).pathname;
+    if (path === '/health') {
+      if (switched) allowed = false;
+      return Response.json({ ...health, features: media ? ['vmix-media'] : [] });
+    }
+    assert.equal(options.headers.authorization, 'Bearer fixture-token');
+    calls.push([path, JSON.parse(options.body)]);
+    if (path === '/list') return Response.json({ ...ok, items: [{ name: malformed ? '../clip.mov' : action.item.name, kind: 'movie' }] });
+    if (path === '/studio' || path === '/vmix/choose-folder') {
+      return Response.json({ ...ok, mediaFolder: 'C:\\Videos', ...(path === '/vmix/choose-folder' ? { cancelled: true } : {}) });
+    }
+    assert.equal(path, '/act');
+    return Response.json({ ...acted, instance });
+  });
+  const send = () => actVmixMedia(settings, action, () => allowed);
+  assert.equal((await send()).state, 'outdated');
+  media = true;
+  switched = true;
+  assert.equal(await send(), null);
+  assert.deepEqual(calls, []);
+  switched = false;
+  allowed = true;
+  assert.equal((await send()).instance, instance);
+  instance = 'different.play-1';
+  assert.equal((await send()).playerUncertain, true);
+  assert.deepEqual((await listVmixMedia(settings, 'Replay')).items, [{ name: action.item.name, kind: 'movie' }]);
+  malformed = true;
+  assert.equal((await listVmixMedia(settings, 'Replay')).result.state, 'bridge');
+  assert.equal((await vmixMediaFolder(settings)).folder, 'C:\\Videos');
+  assert.equal((await vmixMediaFolder(settings, true)).cancelled, true);
+  assert.deepEqual(calls, [
+    ['/act', { target, action }],
+    ['/act', { target, action }],
+    ['/list', { target, kind: 'media', path: 'Replay' }],
+    ['/list', { target, kind: 'media', path: 'Replay' }],
+    ['/studio', { target }],
+    ['/vmix/choose-folder', { target }],
+  ]);
 });

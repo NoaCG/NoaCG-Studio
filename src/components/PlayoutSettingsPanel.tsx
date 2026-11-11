@@ -620,8 +620,10 @@ function VmixSettingsForPairing({ agentUrl, agentToken }: Pick<PlayoutSettings, 
       const revision = ++mediaRead.current;
       void vmixMediaFolder(pairing).then(reply => {
         if (mediaRead.current !== revision || vmixPairing(pairing) !== vmixPairing(loadPlayoutSettings())) return;
-        if (reply.folder) setMediaFolder(reply.folder);
-        else setMediaProblem(reply.result.detail);
+        if (reply.folder) {
+          setMediaFolder(reply.folder);
+          setMediaProblem(undefined);
+        } else setMediaProblem(reply.result.detail);
       });
     };
     read();

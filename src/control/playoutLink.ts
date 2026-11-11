@@ -1167,7 +1167,7 @@ function readVmixReply(
     return readReply(settings, call, 'vMix');
   }
   const current = bodyKind === 'object' && body.v === PLAYOUT_V;
-  if (current && body.ok === false && hasOnlyPayloadFields(body) && validVmixError(route, http, body.error, loading)) {
+  if (current && body.ok === false && hasOnlyPayloadFields(body) && validVmixError(route, http, body.error, loading && !player)) {
     const reply = readReply(settings, call, 'vMix');
     if (route !== '/act') return reply;
     const result: VmixActionResult = { ...reply.result };
@@ -1267,13 +1267,14 @@ export async function listVmixMedia(settings: PlayoutSettings, path = ''): Promi
   const { result, body } = await vmixMediaRoute(settings, '/list', { kind: 'media', ...(path ? { path } : {}) });
   if (!body?.items || result.state !== 'ok') return { result };
   const prefix = path ? path + '/' : '';
-  const items = body.items.filter(item => {
+  const valid = body.items.every(item => {
     if (!item || typeof item.name !== 'string' || !item.name.startsWith(prefix)) return false;
     const leaf = item.name.slice(prefix.length);
     return !!leaf.trim() && leaf !== '.' && leaf !== '..' && !/[/\\:*?"<>|]/.test(leaf) &&
-      ['folder', 'movie', 'still', 'audio'].includes(item.kind);
+      ['folder', 'movie', 'still', 'audio'].includes(item.kind) &&
+      (item.frames === undefined && item.fps === undefined || whole(item.frames, 1) && whole(item.fps, 1));
   });
-  return { result, items };
+  return valid ? { result, items: body.items } : { result: { state: 'bridge', detail: 'NoaCG Bridge did not return a valid vMix media list. Try again.' } };
 }
 
 export async function vmixMediaFolder(settings: PlayoutSettings, choose = false): Promise<{

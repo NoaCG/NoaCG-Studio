@@ -90,7 +90,7 @@ import { cueOnAir, folderAir } from '../../control/folderAir';
 import { folderStep, type FolderStep, type StepMember } from '../../control/folderStep';
 import { webLockLead } from '../../control/webLockLead';
 import { serverFilesCheck, serverFilesKey, startBridgeWatch, writeBridge, type BridgeWatch, type BridgeWatchIo } from '../../control/bridgeWatch';
-import { casparOffRefusal as casparOff, directBlocker as directBlockerOf, stepBlocker as stepBlockerOf, takeBlockerFor as takeBlockerOf, type SlotRules, type TakeContext } from '../../control/takeBlockers';
+import { serverCueOffRefusal as serverOff, serverCueAdapterMismatch, directBlocker as directBlockerOf, stepBlocker as stepBlockerOf, takeBlockerFor as takeBlockerOf, type SlotRules, type TakeContext } from '../../control/takeBlockers';
 import { runAndRecord, runVmixAndRecord, type ServerVerbIo } from '../../control/serverVerbs';
 import { createGraphicVerbs, type GraphicPage, type GraphicVerbIo, type VerbSelection, type VerbSender } from '../../control/graphicVerbs';
 import { createPressMarks } from '../../control/pressFeedback';
@@ -1026,7 +1026,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       saveReadyMemory(show.id, { ...loadReadyMemory(show.id), stamp });
     },
     bridge: () => {
-      if (playoutRelevance.bridge) setCheckAgainRev((n) => n + 1);
+      if (playoutRelevance.bridge || vmixOn) setCheckAgainRev((n) => n + 1);
       return gatherBridgeFacts(loadPlayoutSettings(), show ?? {}, playoutRelevance);
     },
     ping: (id) => (hostedSlug ? controlPingSeq(hostedSlug, id) : Promise.resolve({ ok: false, unavailable: true, detail: 'not published' })),
@@ -2747,7 +2747,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       return typed?.status === 'refused' ? typed.reason : null;
     },
   };
-  const casparOffRefusal = (cue: ShowCue): string | null => casparOff(cue, casparOn, vmixOn, playoutItemFor(cue));
+  const cueServerOff = (cue: ShowCue): string | null => serverOff(cue, casparOn, vmixOn, playoutItemFor(cue));
   const takeBlockerFor = (target: ShowCue | ShowFolder | null): string | null => takeBlockerOf(target, takeContext);
   const selectedTakeBlocked = takeBlockerFor(selectedCue);
   const directBlocker = (cue: ShowCue): string | null => directBlockerOf(cue, takeContext, loadPlayoutSettings());
@@ -2789,7 +2789,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     selectedPlayoutLive,
     selectedItemKind: selectedPlayoutItem?.kind ?? null,
     selectedVmix,
-    serverCueOn: selectedCue ? !casparOffRefusal(selectedCue) : true,
+    serverCueOn: selectedCue ? !cueServerOff(selectedCue) : true,
     editTarget,
     previewCueId: previewCue?.id ?? null,
     casparOn,
@@ -2908,6 +2908,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   ): Promise<ServerVerbOutcome | null> => {
     const item = playoutItemFor(cue);
     if (!item) return null;
+    const mismatch = serverCueAdapterMismatch(cue, takeContext);
+    if (mismatch) return { ok: false, note: `${label} was not sent: ${mismatch}`, accepted: [] };
     const vmix = item.adapter === 'vmix';
     const vmixSettings = vmix ? loadPlayoutSettings() : null;
     const binding = vmixSettings && bridgePaired(vmixSettings) ? vmixPairing(vmixSettings) : null;
@@ -3255,7 +3257,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     folderName,
     takeBlocker: takeBlockerFor,
     stepBlocker,
-    together: { items: playoutItems, addressOf: addressOfItem, graphicOf: graphicOfCue, ability: playbackAbility, blockerOf: (c) => (casparOffRefusal(c) ? null : takeBlockerFor(c)) },
+    together: {
+      items: playoutItems, addressOf: addressOfItem, graphicOf: graphicOfCue, ability: playbackAbility,
+      blockerOf: c => cueServerOff(c) ? null : takeBlockerFor(c),
+      serverOff: c => serverCueAdapterMismatch(c, takeContext),
+    },
     ownership: serverPlayout.ownership.get,
     liveCueOf: () => liveCueRef.current,
     setLiveCue,
@@ -3710,7 +3716,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const airingLayers = started ? [...liveLayers, ...livePlayoutLayers] : livePlayoutLayers;
   const upHereLayers = started ? [] : liveLayers;
   const readySummary = readiness.summary.show ? readiness.summary : null;
-  const unsupportedCue = bridgeOk ? cues.filter(c => c.source === 'playout' && !casparOffRefusal(c)).map(c => ({ cue: c, reason: takeBlocker(c, cues, playoutItems, addressOfItem, playbackAbility, folders, graphicOfCue) })).find(c => c.reason) : null;
+  const unsupportedCue = bridgeOk ? cues.filter(c => c.source === 'playout' && !cueServerOff(c)).map(c => ({ cue: c, reason: takeBlocker(c, cues, playoutItems, addressOfItem, playbackAbility, folders, graphicOfCue) })).find(c => c.reason) : null;
   const bridgeFact: StatusFacts['bridge'] = playoutRelevance.bridge
     ? playoutIsConfigured
       ? (bridgeStatus ?? { state: 'pending', detail: '' })
@@ -4490,8 +4496,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             live={editingIsLive}
             cueNo={editingCueNo}
             bridgeStatus={bridgeStatus}
-            adapterActive={!casparOffRefusal(editingCue)}
-            ability={casparOffRefusal(editingCue) ? null : playbackAbility}
+            adapterActive={!cueServerOff(editingCue)}
+            ability={cueServerOff(editingCue) ? null : playbackAbility}
             playoutSettings={playoutSettings}
             takeBlocked={editingCue.id === selectedCue?.id ? selectedTakeBlocked : takeBlockerFor(editingCue)}
             playNext={playNextFor(editingCue)}
