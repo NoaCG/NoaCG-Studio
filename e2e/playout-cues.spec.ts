@@ -34,7 +34,7 @@
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
-// covers: src/components/PlayoutSettingsPanel.tsx
+// covers: src/components/PlayoutSettingsPanel.tsx, src/control/playoutStatus.ts
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor } from './_create';
@@ -1240,6 +1240,7 @@ test('vMix media browses the selected folder and plays on separate clip and audi
   const audioRow = page.getByTestId('cue-' + audio.cueId);
   await clipRow.getByTestId('select-cue').click();
   await expect(page.getByTestId('playout-cue-where')).toContainText('NoaCG Clips');
+  await expect(page.getByTestId('verb-target')).toHaveText('To: NoaCG Clips');
   await expect(page.getByTestId('playout-channel')).toHaveCount(0);
   await expect(page.getByTestId('playout-layer')).toHaveCount(0);
   await expect(page.getByTestId('clip-end-hold')).toBeEnabled();
@@ -1256,6 +1257,7 @@ test('vMix media browses the selected folder and plays on separate clip and audi
 
   await audioRow.getByTestId('select-cue').click();
   await expect(page.getByTestId('playout-cue-where')).toContainText('NoaCG Audio');
+  await expect(page.getByTestId('verb-target')).toHaveText('To: NoaCG Audio');
   await page.getByTestId('verb-take').click();
   await expect(audioRow).toContainText('ON AIR');
   await expect(clipRow).toContainText('ON AIR');
@@ -1334,4 +1336,37 @@ test('vMix media browses the selected folder and plays on separate clip and audi
   await openPicker();
   await expect(page.getByTestId('picker-row')).toHaveText(/New clip\.mov/);
   await page.getByTestId('picker-done').click();
+
+  vmix.state.setup = { hop: 'target', code: 'unreachable', setup: 'not-running', detail: 'Start vMix.' };
+  await clipRow.getByTestId('select-cue').click();
+  await expect(page.getByTestId('playout-cue-status')).toHaveAttribute('data-state', 'server');
+  const mixed = await evaluateInPage(page, async (disabledId: string) => {
+    const { addFolderFromSelection, loadShows, setFolderMode } = await import('/src/model/shows.ts');
+    const show = loadShows().find(s => s.name === 'Evening News')!;
+    const graphic = show.cues!.find(c => c.source !== 'playout')!;
+    const { folderId } = addFolderFromSelection(show.id, [graphic.id, disabledId], 'Mixed rundown');
+    if (!folderId) throw new Error('No folder was saved');
+    setFolderMode(show.id, folderId, 'together');
+    return { folderId, graphicId: graphic.id };
+  }, casparCueId!);
+  const folderRow = page.getByTestId('folder-row-' + mixed.folderId);
+  await folderRow.getByTestId('select-folder').click();
+  await expect(page.getByTestId('verb-take')).toBeEnabled();
+  await expect(page.getByTestId('verb-target')).toHaveText('To: this page only');
+  await parkFocusOffControls(page);
+  await page.keyboard.press('Space');
+  const graphicRow = page.getByTestId('cue-' + mixed.graphicId);
+  await expect(graphicRow.getByTestId('cue-up-here')).toBeVisible();
+  expect(bridge.actions).toEqual([]);
+  expect(media.actions).toHaveLength(6);
+  await page.getByTestId('verb-out').click();
+  await expect(graphicRow.getByTestId('cue-up-here')).toHaveCount(0);
+
+  await evaluateInPage(page, async ({ folderId, cueId }) => {
+    const { loadShows, moveCueIntoFolder } = await import('/src/model/shows.ts');
+    const show = loadShows().find(s => s.name === 'Evening News')!;
+    moveCueIntoFolder(show.id, cueId!, folderId);
+  }, { folderId: mixed.folderId, cueId: clips.cueId });
+  await folderRow.getByTestId('select-folder').click();
+  await expect(page.getByTestId('verb-take')).toBeDisabled();
 });

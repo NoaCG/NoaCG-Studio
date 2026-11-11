@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   PREPARE_WAIT_MS,
   bridgeChecks,
+  finishedBridgeChecks,
   outputChecks,
   outputSettled,
   pingSettled,
@@ -54,6 +55,7 @@ export function usePrepareForLive({
   onStamp,
   bridge,
   vmix = false,
+  requiresVmixFiles,
   ping,
 }: {
   /** The production: another one starts from nothing. */
@@ -77,6 +79,7 @@ export function usePrepareForLive({
   /** Gather what the Bridge and the current playout system say (read-only). */
   bridge: () => Promise<BridgeFacts>;
   vmix?: boolean;
+  requiresVmixFiles?: () => boolean;
   /** Send one ping through the command path (migration 0072). */
   ping: (id: string) => Promise<PingAnswer>;
   /** Additive destination diagnostics, read at completion so one mirror cannot imply both are ready. */
@@ -93,10 +96,12 @@ export function usePrepareForLive({
   const [finalLines, setFinalLines] = useState<CheckLine[] | null>(null);
   const [pingSent, setPingSent] = useState<PingSent | null>(null);
   const busyRun = useRef(false);
+  const runScope = useRef<{ vmixFilesRequired: boolean } | null>(null);
   const currentShow = useRef(showId);
   currentShow.current = showId;
   useEffect(() => {
     busyRun.current = false;
+    runScope.current = null;
     setPhase('idle');
     setFinalLines(null);
     setTarget(null);
@@ -166,11 +171,13 @@ export function usePrepareForLive({
   useEffect(() => {
     if (!finished) return;
     const at = latest.current;
-    if (!at.target) return;
+    const run = runScope.current;
+    if (!at.target || !run) return;
+    runScope.current = null;
     const done = [
       ...(at.publishLine ? [at.publishLine] : []),
       ...withPing(outputChecks(at.lines, at.settled, at.timedOut), at.peers, at.pingSent, at.now),
-      ...(at.bridgeFacts ? bridgeChecks(at.bridgeFacts) : []),
+      ...finishedBridgeChecks(at.bridgeFacts, run.vmixFilesRequired),
     ];
     setFinalLines(done);
     setPhase('done');
@@ -182,7 +189,9 @@ export function usePrepareForLive({
   const run = async ({ publish: mayPublish = true }: { publish?: boolean } = {}) => {
     if (busyRun.current) return;
     busyRun.current = true;
-    const stillCurrent = () => currentShow.current === showId;
+    const scope = { vmixFilesRequired: requiresVmixFiles?.() ?? false };
+    runScope.current = scope;
+    const stillCurrent = () => currentShow.current === showId && runScope.current === scope;
     setPhase('publishing');
     setFinalLines(null);
     setBridgeFacts(null);
@@ -201,7 +210,8 @@ export function usePrepareForLive({
           const facts = await factsPending;
           if (!stillCurrent()) return;
           setPublishLine(failed);
-          setFinalLines([failed, ...(facts ? bridgeChecks(facts) : [])]);
+          setFinalLines([failed, ...finishedBridgeChecks(facts, scope.vmixFilesRequired)]);
+          runScope.current = null;
           setPhase('done');
           busyRun.current = false;
           return;
@@ -211,7 +221,7 @@ export function usePrepareForLive({
       } else if (mayPublish) {
         setPublishLine({ key: 'publish', tone: 'ok', label: 'No unpublished changes' });
       }
-      if (!version) { busyRun.current = false; setPhase('idle'); return; }
+      if (!version) { busyRun.current = false; runScope.current = null; setPhase('idle'); return; }
       setTarget(version);
       setStartedAt(Date.now());
       setNow(Date.now());
@@ -225,6 +235,7 @@ export function usePrepareForLive({
     } catch (e) {
       if (!stillCurrent()) return;
       busyRun.current = false;
+      runScope.current = null;
       const failed: CheckLine = { key: 'publish', tone: 'bad', label: 'Readiness check failed', advice: e instanceof Error ? e.message : String(e) };
       setPublishLine(failed);
       setFinalLines([failed]);

@@ -1095,7 +1095,8 @@ function validVmixError(route: VmixRoute, http: number, error: AgentError | unde
   }
   return error.hop === 'agent' &&
     ((error.code === 'usage' && (route === '/state' || route === '/act')) ||
-      (error.code === 'unsupported' && (route === '/act' || route === '/list')));
+      (error.code === 'unsupported' && (route === '/act' || route === '/list')) ||
+      (error.code === 'uncertain' && route === '/list'));
 }
 
 function vmixOverlayRows(overlays: VmixOverlayState[] | undefined, info: VmixInfo, loadProblem?: string) {
@@ -1311,7 +1312,7 @@ export async function listVmixMedia(settings: PlayoutSettings, path = ''): Promi
   const valid = body.items.every(item => {
     if (!item || typeof item.name !== 'string' || !item.name.startsWith(prefix)) return false;
     const leaf = item.name.slice(prefix.length);
-    return !!leaf.trim() && leaf !== '.' && leaf !== '..' && !/[/\\:*?"<>|]/.test(leaf) &&
+    return !!leaf && leaf !== '.' && leaf !== '..' && !/[/\\:*?"<>|]/.test(leaf) &&
       ['folder', 'movie', 'still', 'audio'].includes(item.kind) &&
       (item.frames === undefined && item.fps === undefined || whole(item.frames, 0) && whole(item.fps, 1));
   });

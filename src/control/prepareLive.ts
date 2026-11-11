@@ -318,19 +318,27 @@ export function answersPing(id: string): boolean {
   return !id.startsWith(HANDOVER_PING);
 }
 
-/**
- * THE BRIDGE AND CASPARCG LINES (AC-10). Nothing configured, nothing said: a production played
- * through a browser source alone has nothing to check here. The output layer holding another
- * production's output is a problem; an empty one is only a note, because the output may run in
- * OBS or vMix instead.
- */
+function unverifiedVmixFiles(advice: string): CheckLine {
+  return { key: 'bridge-vmix-files', tone: 'bad', label: 'vMix media check incomplete', advice };
+}
+
+/** Output preparation may finish while the media request is still pending or refused. */
+export function finishedBridgeChecks(facts: BridgeFacts | null | undefined, vmixFilesRequired: boolean): CheckLine[] {
+  if (vmixFilesRequired && facts?.adapter !== 'vmix') {
+    return [unverifiedVmixFiles('No vMix media reading was available. Check Readiness again.')];
+  }
+  return facts ? bridgeChecks(facts) : [];
+}
+
+/** Checklist for the active playout system. Only managed CasparCG outputs check a layer. */
 export function bridgeChecks(f: BridgeFacts): CheckLine[] {
+  if (f.current && !f.current()) {
+    return [unverifiedVmixFiles('The vMix connection, media folder or rundown files changed. Check Readiness again.')];
+  }
   if (!f.configured && !f.required) return [];
   const where = `${f.channel}-${f.layer}`;
   const vmix = f.adapter === 'vmix';
-  const status = f.current && !f.current()
-    ? { state: 'config' as const, detail: 'The vMix connection or media folder changed. Check Readiness again.' }
-    : f.status;
+  const status = f.status;
   const connected = status?.state === 'ok';
   const lines: CheckLine[] = [connected
     ? { key: 'bridge', tone: 'ok', label: bridgeAnswersLabel(status?.version, f.adapter) }

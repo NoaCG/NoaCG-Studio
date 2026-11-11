@@ -1012,13 +1012,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     refresh();
     return watchVmixMediaFolder(refresh);
   }, [vmixOn]);
-  const vmixConnectionCurrent = (settings: PlayoutSettings, pairing: ReturnType<ServerPlayoutStore['vmixBinding']>) => {
+  const currentVmixShow = (settings: PlayoutSettings, pairing: ReturnType<ServerPlayoutStore['vmixBinding']>) => {
     const key = vmixPairing(settings);
-    return !!show && pageCanDispatch() && serverPlayout.vmixBinding() === pairing
-      && (pairing?.key ?? null) === (bridgePaired(settings) ? key : null)
-      && vmixPairing(loadPlayoutSettings()) === key
-      && !!currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'vmix');
+    if (!show || !pageCanDispatch() || serverPlayout.vmixBinding() !== pairing
+      || (pairing?.key ?? null) !== (bridgePaired(settings) ? key : null)
+      || vmixPairing(loadPlayoutSettings()) !== key) return null;
+    return currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'vmix');
   };
+  const vmixReadinessKey = (record: Show | null | undefined) =>
+    record ? serverFilesKey(record.id, null, record.cues ?? [], record.playoutItems ?? [], true, 0) : null;
   const playoutRelevance = relevantPlayout({ configured: playoutConfigured(relevanceSettings), casparOn });
   /** Prepare for Live's own publish, set once `publishNow` exists below. */
   const preparePublishRef = useRef<() => Promise<HeldVersion | null>>(async () => null);
@@ -1037,15 +1039,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       saveReadyMemory(show.id, { ...loadReadyMemory(show.id), stamp });
     },
     vmix: vmixOn,
+    requiresVmixFiles: () => vmixOn && vmixReadinessKey(show) !== null,
     bridge: () => {
       if (playoutRelevance.bridge || vmixOn) setCheckAgainRev((n) => n + 1);
       const settings = loadPlayoutSettings();
       const pairing = serverPlayout.vmixBinding();
       const revision = vmixMediaFolderRevision();
-      return gatherBridgeFacts(settings, show ?? {}, {
-        ...playoutRelevance,
-        ...(vmixOn ? { vmixCurrent: () => vmixMediaFolderRevision() === revision && vmixConnectionCurrent(settings, pairing) } : {}),
-      });
+      const files = vmixOn ? vmixReadinessKey(show) : null;
+      const vmixCurrent = () => {
+        const saved = currentVmixShow(settings, pairing);
+        return !!saved && vmixMediaFolderRevision() === revision && vmixReadinessKey(saved) === files;
+      };
+      return gatherBridgeFacts(settings, show ?? {}, { ...playoutRelevance, ...(vmixOn ? { vmixCurrent } : {}) });
     },
     ping: (id) => (hostedSlug ? controlPingSeq(hostedSlug, id) : Promise.resolve({ ok: false, unavailable: true, detail: 'not published' })),
   });
@@ -2766,6 +2771,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     },
   };
   const cueServerOff = (cue: ShowCue): string | null => serverOff(cue, casparOn, vmixOn, playoutItemFor(cue));
+  const enabledHeldMembers = heldMembers.filter(cue => !serverCueAdapterMismatch(cue, takeContext));
   const takeBlockerFor = (target: ShowCue | ShowFolder | null): string | null => takeBlockerOf(target, takeContext);
   const selectedTakeBlocked = takeBlockerFor(selectedCue);
   const directBlocker = (cue: ShowCue): string | null => directBlockerOf(cue, takeContext, loadPlayoutSettings());
@@ -2822,7 +2828,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           step: heldStep,
           stepBlocked: heldStepCue ? stepBlocker(heldStepCue) : null,
           takeBlocked: heldStep ? null : takeBlockerFor(selectedFolder),
-          serverMembers: heldMembers.some((c) => c.source === 'playout'),
+          serverMembers: enabledHeldMembers.some((c) => c.source === 'playout'),
           labelOf: (id) => cues.find((c) => c.id === id)?.label ?? 'a cue',
         }
       : null,
@@ -2931,7 +2937,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const vmix = item.adapter === 'vmix';
     const vmixSettings = vmix ? loadPlayoutSettings() : null;
     const pairing = serverPlayout.vmixBinding();
-    const currentVmix = () => !!(vmixSettings && pairing && vmixConnectionCurrent(vmixSettings, pairing));
+    const currentVmix = () => !!(vmixSettings && pairing && currentVmixShow(vmixSettings, pairing));
     if (vmix ? !currentVmix() : !(acceptedAllOut ? casparAllowed() : canSendCaspar())) return null;
     const live = acceptedAllOut ? serverPlayout.ownership.get().onAir[item.id] : undefined;
     const io: ServerVerbIo = {
@@ -3233,7 +3239,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const rehearsing =
     !hostedSlug &&
     (selectedFolder
-      ? (rundown.members.get(selectedFolder.id) ?? []).every((c) => c.source !== 'playout')
+      ? enabledHeldMembers.every((c) => c.source !== 'playout')
       : !selectedPlayoutItem);
   const takeButton = {
     ...view.take,
@@ -3243,13 +3249,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** WHERE TAKE SENDS THE SELECTION (C6): a server cue to its slot, a graphic to the outputs and
    *  the CasparCG slot this production's output is set to, or this page only before Publish. */
   const takeTarget = (() => {
-    const held = selectedFolder ? (rundown.members.get(selectedFolder.id) ?? []) : [];
+    const held = enabledHeldMembers;
     const serverOnly = selectedFolder ? held.length > 0 && held.every((c) => c.source === 'playout') : !!selectedPlayoutItem;
     return takeTargets({
       published: !!hostedSlug,
       outputs: readiness.outputs.filter((line) => line.present).length,
       caspar: casparOn ? `${playoutSettings.channel}-${playoutSettings.layer}` : null,
       casparLoaded: outputSlot?.holds === 'ours',
+      serverAdapter: selectedFolder ? (vmixOn ? 'vmix' : 'casparcg') : selectedPlayoutItem?.adapter,
       server: serverOnly
         ? selectedFolder && folderMode(selectedFolder) === 'through'
           ? folderSlotOf(selectedFolder)
@@ -3768,9 +3775,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** The panel's own lines for what went wrong where no row of its own says it. */
   const problemChecks = [
     ...playoutStatus.checks.filter((c) => (c.key === 'take' || c.key === 'files' || c.key === 'playback') && (c.tone === 'bad' || c.tone === 'warn')),
-    // Of the readiness run's own lines only a failed publish has no row of its own; the Bridge,
-    // the slot and the outputs say their state in their rows.
-    ...(prepareFlow.phase === 'done' ? (prepareFlow.shown ?? []).filter((l) => l.tone === 'bad' && l.key === 'publish').map((l) => ({ key: l.key, tone: 'bad' as const, label: l.label, advice: l.advice })) : []),
+    // A failed publish or an incomplete vMix media check has no dedicated status row.
+    ...(prepareFlow.phase === 'done' ? (prepareFlow.shown ?? []).filter((l) => l.tone === 'bad' && (l.key === 'publish' || l.key === 'bridge-vmix-files')).map((l) => ({ key: l.key, tone: 'bad' as const, label: l.label, advice: l.advice })) : []),
   ];
   const productionNote = note && <p className={note.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="production-note">{note}</p>;
   /** The CasparCG switch (AC-4): display metadata only, nothing airs or stops. */

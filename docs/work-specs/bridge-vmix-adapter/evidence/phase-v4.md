@@ -23,6 +23,12 @@ The full review of `389306ae14a3abb2ef8d7c848e3d9364c97056f0` graded it B. The f
 
 The action reply is also checked at the synchronous ownership fold. The new regression resolves an old Take, switches pairing before the fold and proves that the old cue never becomes actionable on the new connection.
 
+## Reassessment after three review rounds
+
+The third review graded `98bae714744b40bebb20b0bb60e89587a8744696` B. A fresh read-only reassessment confirmed that a required vMix media check must contribute a result even when output preparation times out or the read fails. The stamp checks the same source and active file references captured at the press. Late results belong to their original run. The verb bar and destination line use the same eligible folder members as the Take plan. Studio preserves exact nonempty Bridge names and reports the Bridge's typed uncertainty while the media root is being saved.
+
+Normal [CI run 43004109036](https://github.com/NoaCG/NoaCG-Studio/actions/runs/43004109036) on that earlier head failed Build when the test-protection guard could not list the unchanged exact base. The base and both adjacent candidates have the same `e2e/_keys.ts` blob, and the two candidates have the same E2E tree. The previous Build passed. An isolated Windows control ran the guard's own `listCounts(base, null)` on exact base `e9b0c550082c540c925e2cce25ffdee093d2d7b3` and listed 2,770 tests across 319 specs. The control checkout was removed. The failed run remains in the record, with the guard and CI policy unchanged.
+
 ## Allocation and rollback
 
 Codebase-health #2285 is closed. Editor #2374 and live-publishing #2376 have no overlapping paths, and #1967 records that the cf13 merge hold ended. The current shared Take/verb owners are used for adapter checks and existing CasparCG gates.

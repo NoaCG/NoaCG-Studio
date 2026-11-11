@@ -19,7 +19,7 @@ export async function gatherBridgeFacts(
   const foundIds = new Set(items.map(item => item.id));
   const base: BridgeFacts = {
     configured: vmix ? bridgePaired(settings) : relevance.bridge && playoutConfigured(settings),
-    ...(vmix ? { adapter: 'vmix' as const, current: vmixCurrent } : {}),
+    ...(vmixCurrent ? { adapter: 'vmix' as const, current: vmixCurrent } : {}),
     // `relevance.bridge` is the production's CasparCG switch (playout-workflow-simplification AC-4):
     // switched on, the Bridge is required and Publish loads the output onto its slot.
     required: vmix || relevance.bridge,

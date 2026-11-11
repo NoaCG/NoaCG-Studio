@@ -5,7 +5,7 @@ import './lib/tsResolve.mjs';
 
 const { act, actVmix, actVmixMedia, finishCasparAllOut, listVmixMedia, PLAYOUT_DEFAULTS, readVmixOverlays, testVmix, vmixMediaFolder } = await import('../src/control/playoutLink.ts');
 const { gatherBridgeFacts } = await import('../src/control/prepareBridge.ts');
-const { bridgeChecks, stampOf } = await import('../src/control/prepareLive.ts');
+const { bridgeChecks, finishedBridgeChecks, stampOf } = await import('../src/control/prepareLive.ts');
 const { changeVmixOutput, readVmixOutput, vmixOverlay } = await import('../src/control/vmixSetup.ts');
 
 const settings = { ...PLAYOUT_DEFAULTS, agentToken: 'fixture-token', vmix: { overlay: 3 } };
@@ -1000,7 +1000,7 @@ test('Check Readiness verifies only the active adapter and the exact vMix ancest
   assert.deepEqual(calls.splice(0), [['vmix', '/status', undefined], ['vmix', '/list', undefined], ['vmix', '/list', 'Replay']]);
   assert.equal(stampOf(observed, { n: 1, h: 'prepared' }, 0).problems, 1);
   current = false;
-  assert.match(bridgeChecks(complete)[0].advice, /connection or media folder changed/, 'the final stamp rechecks a completed reading');
+  assert.match(bridgeChecks(complete)[0].advice, /connection, media folder or rundown files changed/, 'the final stamp rechecks a completed reading');
   current = true;
   mixerRunning = false;
   const stopped = bridgeChecks(await mix());
@@ -1018,5 +1018,42 @@ test('Check Readiness verifies only the active adapter and the exact vMix ancest
   const superseded = bridgeChecks(await older);
   assert.equal(stampOf(superseded, { n: 1, h: 'prepared' }, 0).problems, 1);
   assert.equal(superseded.some(line => line.key === 'bridge-media'), false);
-  assert.match(superseded[0].advice, /connection or media folder changed/);
+  assert.match(superseded[0].advice, /connection, media folder or rundown files changed/);
+});
+
+test('required vMix media evidence contributes an incomplete readiness line when it is still pending or refused', () => {
+  const target = { n: 1, h: 'output-ready' };
+  const output = { key: 'output', tone: 'ok', label: 'Output ready' };
+  for (const facts of [null, undefined]) {
+    assert.equal(stampOf([output, ...finishedBridgeChecks(facts, true)], target, 60_000).problems, 1);
+    assert.deepEqual(finishedBridgeChecks(facts, false), []);
+  }
+  let current = true;
+  const facts = { adapter: 'vmix', configured: false, required: false, items: [], current: () => current, status: null, outputSlug: null, channel: 1, layer: 20 };
+  assert.deepEqual(finishedBridgeChecks(facts, false), [], 'no active vMix cues at the press');
+  current = false;
+  const changed = finishedBridgeChecks(facts, false);
+  assert.equal(stampOf([output, ...changed], target, 60_000).problems, 1, 'new references after a publish invalidate the no-file result');
+});
+
+test('vMix lists preserve nonempty exact names and report the Bridge’s unsettled folder choice', async (t) => {
+  const folder = String.fromCodePoint(0xa0);
+  const calls = [];
+  let uncertain = false;
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(new URL(url).pathname, '/list');
+    const { path } = JSON.parse(options.body);
+    calls.push(path);
+    if (uncertain) return Response.json({ ok: false, v: 2, error: { hop: 'agent', code: 'uncertain', detail: 'The folder save is still settling.' } });
+    return Response.json({ ...ok, items: path === folder
+      ? [{ name: folder + '/inside.mov', kind: 'movie' }]
+      : [{ name: folder, kind: 'folder' }, { name: 'opening.mov', kind: 'movie' }] });
+  });
+  assert.deepEqual((await listVmixMedia(settings)).items.map(item => item.name), [folder, 'opening.mov']);
+  assert.deepEqual((await listVmixMedia(settings, folder)).items.map(item => item.name), [folder + '/inside.mov']);
+  uncertain = true;
+  const unavailable = await listVmixMedia(settings, folder);
+  assert.equal(unavailable.items, undefined);
+  assert.match(unavailable.result.detail, /folder save is still settling/);
+  assert.deepEqual(calls, [undefined, folder, folder]);
 });
