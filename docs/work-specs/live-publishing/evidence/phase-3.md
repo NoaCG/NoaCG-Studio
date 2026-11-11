@@ -233,3 +233,78 @@ them separately from the code.
 Revised after the Rules-first `/so` (grade B, 2026-11-11): R1 names every W1 path and the
 keyboard; R1a, R3a and R4a are new; R3, R4 and R6 say what a second save, a failed save and the
 account's request do. R4a needed one guard in `cueDraft.edit`, tested in `scripts/cue-draft.test.mjs`.
+
+### What changed
+
+- `src/control/cueDraft.ts` `blurred`: the save the cue editor's blur owes runs at once, unless a
+  pointer is down on a control marked `data-sends-first`. Then it is held until such presses
+  pause for 300 ms (never during one), with a 2 s cap. An idle save falling due during such a
+  press is held the same way. `edit` starts the save of an owed edit to another cue first (R4a).
+- `ProductionPage.tsx` gives the draft the window's pointer events (`onSendsFirstPress`);
+  `CueEditor.tsx` routes its blur through `blurred`; Take, Re-take, Next, the quick buttons and
+  their picks and the live number steps carry `data-sends-first`.
+
+### AC-1 measured again
+
+Same harness, cases and machine as above (`MEASURE_BUILD=prod`, `MEASURE_STALL=1`, unthrottled),
+against the local Supabase stack. Before: `origin/main` c0bc989 (this phase's build). After: this
+branch at f3b21e5. Milliseconds, own p50 / p95 (samples, failures); "total" includes the kept
+ordering waits. Multi-part paths are merged from the raw samples.
+
+| Path | Fixture | Before, stalled | After, stalled | After, total |
+|---|---|---|---|---|
+| Graphic cue Take | Typical | 16.3 / 216 (50, 0) | 10.8 / 18.8 (50, 0) | 10.8 / 18.8 |
+| Picture cue Take | Typical | 14.9 / 251 (50, 0) | 9.1 / 12.7 (50, 0) | 9.1 / 12.7 |
+| Folder Take (two cues, together) | Typical | not run (12.2 / 17.4 above) | 12.9 / 20.3 (50, 0) | 12.9 / 20.3 |
+| Server cue Take (fake Bridge) | Typical | not run (32.8 to 37.9 / 40 to 48 above) | 37.2 / 48.2 (50, 0) | 37.2 / 48.2 |
+| Quick button (Goal) | Typical | 15.7 / 223 (50, 0) | 8.6 / 13.8 (50, 0) | 8.6 / 13.8 |
+| +1 | Typical | 13.8 / 221 (50, 0) | 8.2 / 12.8 (50, 0) | 8.2 / 12.8 |
+| Next | Typical | 11.1 / 192 (50, 0) | 8.2 / 11.2 (50, 0) | 8.2 / 11.2 |
+| Next, second of two fast | Typical | not run (5.7 / 13.6 above) | 5.9 / 10.7 (50, 0) | 23.5 / 38.7 |
+| Hardware panel Take (scripted) | Typical | not run (2.7 / 6.1 above) | 2.7 / 5.3 (50, 0) | 9.3 / 15.4 |
+| Graphic cue Take | Large | 21.3 / 736 (50, 0) | 15.5 / 26.1 (50, 0) | 15.5 / 26.1 |
+
+Against AC-1 (50 ms p95, own time, save and Bridge health stalled): every path measured meets it
+after this repair. The server Take is the closest (48.2), as it was before it (40 to 48); this
+repair does not change that path, whose editor has no blur save. The "before" column reproduces
+the misses #2388 names (192 to 251 ms typical, 736 ms large).
+
+Not run here, as before and out of #2388's scope: the second of two fast quick buttons or +1s,
+and the other paths on the large fixture with the stall (the 5 minute job cap).
+
+A first version (87ea071) ran the held save on the next task after the press. It met AC-1 on
+every single press but moved the save onto a second fast press: Next, second of two fast, went
+to 13.6 / 78.4 (50, 0). f3b21e5 holds the save until presses pause, which gave the numbers
+above.
+
+### How it was run
+
+The configured suite's stack (`scripts/configured-stack.mjs up`) on this worker, with Docker
+started by hand and the Supabase CLI 2.111.0 from its npm package. Docker Hub refused the image
+pulls with 429 (rate limit) and the default registry's blob host is refused by the proxy, so the
+images came from `mirror.gcr.io` (`SUPABASE_INTERNAL_IMAGE_REGISTRY=mirror.gcr.io`). With that
+registry the CLI asks for every image under `supabase/`, so the four images published under
+other names (`timberio/vector`, `kong`, `axllent/mailpit`, `postgrest/postgrest`) were pulled from
+the mirror and tagged locally. Each case is one queued job under 5 minutes; the settings go in
+the queued command itself, since the queue runner keeps the environment of the shell that started
+it.
+
+### Tests
+
+- `scripts/cue-draft.test.mjs`: seven new cases (R1, R3 to R7, R4a, a second fast press during
+  the wait). Mutations: `blurred` saving at once again turns four red; the held save running
+  during a press turns one red; dropping the R4a guard turns one red.
+- `e2e/playout-air-contract.spec.ts`: "typed then taken at once" reads, in the click's capture
+  phase, that the stored productions do not yet hold the typed text (with `blurred` saving at once
+  it fails: "the Take ran before the save"); "typed then taken, then the page reloads at once"
+  finds the edit kept (R4). The whole file passes 9 of 9 on f3b21e5.
+- `e2e/publish-output-setup.spec.ts:384` failed once in CI on 87ea071 (#2392). It races its own
+  save on `main` too: with the save after a server Take's answer delayed 1 s, it fails 3 of 3
+  with CI's message at `407:268` on c0bc989 and on this branch alike. A server cue's editor has no
+  blur save, so this repair does not reach it. The spec is left as it is.
+
+### For the owner's final check (phase 9)
+
+On a real show, type into a cue's field and press Take (also Next, a quick button, a live number)
+at once: the graphic goes on air with the typed text, without the pause the save used to cause,
+and the text is still there after a reload made straight after the press.
