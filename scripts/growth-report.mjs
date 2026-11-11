@@ -718,16 +718,20 @@ export function gateReport({ gh = withRetries(ghRun), now = new Date().toISOStri
   let newest = null;
   // Every report newer than the judged complete one proves a floor; the gate takes the highest.
   let floor = null;
+  let stops;
   for (const a of all.slice(0, candidates)) {
     let report = null;
     try { report = JSON.parse(downloadReport(a, gh)); } catch { /* unreadable: not complete */ }
     const c = classifyReport(report, bounds);
     if (report && !reportComplete(report)) floor = maxBounds(floor, lowerBounds(report));
-    // The newest report's stops are the current ones whatever its state (E20, E21): it carried
-    // every breach forward, kept what it could not re-measure and cleared only on evidence. An
-    // unreadable newest report has none to give (null), so the judged report's stops stand.
-    newest ??= { run: a.workflow_run.id, generatedAt: report?.generatedAt ?? a.created_at, attempt: report?.attempt ?? 1, firstTryAt: report?.firstTryAt ?? report?.generatedAt ?? null, stops: report ? report.stops ?? {} : null, floor: null, ...(report ? c : { state: 'missing', readFailed: true, why: `the report of run ${a.workflow_run.id} could not be read` }) };
+    // The stops of the newest report that could be read: it carried every breach forward.
+    if (report && stops === undefined) stops = report.stops ?? {};
+    // The stops are those of the newest report that could be read, whatever its state (E20,
+    // E21): it carried every breach forward, kept what it could not re-measure and cleared only
+    // on evidence. An unreadable report is skipped, never taken as having none.
+    newest ??= { run: a.workflow_run.id, generatedAt: report?.generatedAt ?? a.created_at, attempt: report?.attempt ?? 1, firstTryAt: report?.firstTryAt ?? report?.generatedAt ?? null, stops: null, floor: null, ...(report ? c : { state: 'missing', readFailed: true, why: `the report of run ${a.workflow_run.id} could not be read` }) };
     newest.floor = floor;
+    newest.stops = stops ?? null;
     if (reportComplete(report)) return { newest, judged: { run: a.workflow_run.id, generatedAt: report.generatedAt, report } };
   }
   return { newest: newest ?? { run: null, generatedAt: null, attempt: null, state: 'missing', why: 'no live weekly growth report has been published on main' }, judged: null };
@@ -816,6 +820,7 @@ export function rerunStillNeeded(newest, attempt) {
 
 /** Raise, keep or close the report alarm: one notification per bad report, never one per landing. */
 export function reportAlarm(action, login, gh = withRetries(ghRun)) {
+  if (action.kind !== 'alarm' && action.kind !== 'close') return 'no alarm';
   const found = findIssue(REPORT_ISSUE, gh);
   if (action.kind === 'close') {
     if (!found) return 'no report alarm open';

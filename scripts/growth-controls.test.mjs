@@ -1924,3 +1924,15 @@ test('a first week\'s re-run invents no missing week', () => {
   const { report } = buildReport({ ceilings: CEILINGS, runs: [], days: 7, windowEnd: '2026-11-09T08:00:00Z', now: '2026-11-09T08:00:00Z', previous: prev, tableRecordedAt: '2026-11-08', collection: 'fixture' });
   assert.ok(!report.breaches.some((b) => b.key === 'report:missing'));
 });
+
+test('an unreadable newest try never drops the stops of the readable try before it (Rule E21)', () => {
+  const now = '2026-11-10T12:00:00Z';
+  const arts = [artifactOf(13, '2026-11-09T18:00:00Z'), artifactOf(12, '2026-11-09T16:00:00Z'), artifactOf(2, '2026-11-03T19:41:07Z')];
+  const picked = gateReport({ gh: reportsGh(arts, { 13: new Error('HTTP 502'), 12: realReport(42647874522), 2: realReport(41704224273) }), now, ceilings: GATE_CEILINGS });
+  assert.equal(picked.newest.run, 13);
+  assert.equal(picked.newest.readFailed, true);
+  assert.deepEqual(Object.keys(picked.newest.stops).sort(), ['backend', 'overhead'], 'try 1\'s stops, not the judged report\'s none');
+  // Nothing newer read: the judged complete report's own stops.
+  const only = gateReport({ gh: reportsGh([arts[0], arts[2]], { 13: new Error('HTTP 502'), 2: { ...realReport(41704224273), stops: { graphics: 'x' } } }), now, ceilings: GATE_CEILINGS });
+  assert.deepEqual(only.newest.stops, { graphics: 'x' });
+});
