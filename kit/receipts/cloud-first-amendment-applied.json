@@ -1,0 +1,102 @@
+{
+  "at": "2026-11-11T17:37:35.942Z",
+  "run": "plan-editor-r1-5-2026-11-08",
+  "source": "3a56a966c4c03fa47f53b4d1ecb09ed882d12ef0",
+  "pr": 2387,
+  "phaseOrder": [
+    "E1",
+    "E2",
+    "E3",
+    "E4",
+    "E5C",
+    "E6C",
+    "E5",
+    "E6",
+    "OW1",
+    "E7"
+  ],
+  "next": "E4 build in qualified Cloud",
+  "recordedHistorySHA256": "41521a50fb60a96e5f358b39e9b0ed6a3ac5d4e1f4a8e1766666a2d30600e8f2",
+  "originalManifestUnchanged": true,
+  "originalAcceptanceUnchanged": true,
+  "acceptedE1E2E3Unchanged": true,
+  "actionSequence": 6,
+  "pendingNativeAction": false,
+  "admissionEvent": {
+    "commit": "3a56a966c4c03fa47f53b4d1ecb09ed882d12ef0",
+    "receipts": [
+      {
+        "path": "docs/work-specs/editor-r1-5/owner-decision-2026-11-11-cloud-first.md",
+        "sha256": "74a6fc6eb7ed07698fbba9b32c4c7c0678194990907269baae944da542871948"
+      }
+    ],
+    "inserted": [
+      {
+        "id": "E5C",
+        "position": 5
+      },
+      {
+        "id": "E6C",
+        "position": 6
+      }
+    ],
+    "moved": [
+      {
+        "id": "E5",
+        "from": 5,
+        "to": 7
+      },
+      {
+        "id": "E6",
+        "from": 6,
+        "to": 8
+      },
+      {
+        "id": "OW1",
+        "from": 7,
+        "to": 9
+      },
+      {
+        "id": "E7",
+        "from": 8,
+        "to": 10
+      }
+    ],
+    "revised": [
+      {
+        "id": "E4",
+        "before": {
+          "environment": "WL: isolated test account, disposable production and browser rehearsal",
+          "dependsOn": [
+            "E3"
+          ]
+        },
+        "after": {
+          "environment": "BL: qualified Cloud browser/CLI with an isolated authenticated backend on the worker or GitHub Actions",
+          "dependsOn": [
+            "E3"
+          ]
+        },
+        "position": 4
+      },
+      {
+        "id": "E5",
+        "before": {
+          "environment": "WL: real first-time users and moderator, named desktop and laptop, native 125% zoom and pinned reference",
+          "dependsOn": [
+            "E4"
+          ]
+        },
+        "after": {
+          "environment": "WL: real first-time users and moderator, named desktop and laptop, native 125% zoom and pinned reference",
+          "dependsOn": [
+            "E4",
+            "E6C"
+          ]
+        },
+        "position": 7
+      }
+    ]
+  },
+  "postLanding": "Raw CI FAILURE retained; normal retry18/18 and CI gate PASS, source-byte control proof, all other required terminal results SUCCESS; mandatory quarantine2391 actively owned."
+}
