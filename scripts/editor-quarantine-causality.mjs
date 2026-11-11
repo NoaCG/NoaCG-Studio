@@ -122,12 +122,12 @@ async function trial(kind, pair, arm, directory, env, deadline) {
   const ports = json(path.join(directory, '.claude/dev-port.json'));
   await emptyPort(kind === 'clock' ? ports.port : ports.livePort);
   const argv = ['npm', 'run', kind === 'clock' ? 'test:e2e' : 'test:e2e:live', '--', PLAN[kind].spec, '--workers=1', '--retries=0', '--reporter=line,github,blob,./scripts/e2e-run-integrity.mjs,json', `--output=${out}/test-results`];
-  const command = ['env', `PLAYWRIGHT_JSON_OUTPUT_FILE=${out}/report.json`, `PLAYWRIGHT_BLOB_OUTPUT_DIR=${out}/blob`, ...argv].map(quote).join(' ');
+  const command = `env ${quote(`PLAYWRIGHT_JSON_OUTPUT_FILE=${out}/report.json`)} ${quote(`PLAYWRIGHT_BLOB_OUTPUT_DIR=${out}/blob`)} ${argv.join(' ')}`;
   const common = path.resolve(directory, run('git', ['rev-parse', '--git-common-dir'], directory));
   const jobsDirectory = path.join(common, 'noacg-jobs');
   const intent = { kind, pair, arm, source: PLAN[kind][arm], specHash: SPEC_HASH[kind], directory, command, started: new Date().toISOString() };
   save(path.join(out, 'intent.json'), intent);
-  const admitted = spawnSync('node', ['scripts/jobs.mjs', 'add', command, '--cap', '5'], { cwd: directory, env, encoding: 'utf8', timeout: 30_000 });
+  const admitted = spawnSync('node', ['scripts/jobs.mjs', 'add', command, '--kind', 'sweep', '--cap', '5'], { cwd: directory, env, encoding: 'utf8', timeout: 30_000 });
   writeFileSync(path.join(out, 'admission.log'), String(admitted.stdout) + String(admitted.stderr));
   let job = existsSync(jobsDirectory) && matchingJob(directory, command, jobsDirectory);
   assert(job, 'queue admission unresolved; do not resubmit');
@@ -139,6 +139,8 @@ async function trial(kind, pair, arm, directory, env, deadline) {
   }
   save(path.join(out, 'queue-result.json'), job);
   if (job.logPath && existsSync(job.logPath)) cpSync(job.logPath, path.join(out, 'queue.log'));
+  const log = readFileSync(path.join(out, 'queue.log'), 'utf8');
+  assert(!log.includes('stopped and re-queued as browser work'), 'hidden queue replacement attempt');
   assert(existsSync(path.join(out, 'report.json')), 'missing report retained as unresolved');
   const result = { ...intent, job: job.id, ...validateReport(json(path.join(out, 'report.json')), PLAN[kind].expectedCases, job) };
   save(path.join(out, 'trial.json'), result);

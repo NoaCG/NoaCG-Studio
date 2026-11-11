@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { drivesBrowser, watchedForBrowser } from './jobs-store.mjs';
 import { actionShell, batch, validateReport } from './editor-quarantine-causality.mjs';
 
 const report = () => ({ config: { workers: 1 }, stats: { expected: 2, unexpected: 0, skipped: 0, flaky: 0 }, suites: [{ specs: [0, 1].map(i => ({ title: `case${i}`, tests: [{ projectName: 'chromium', results: [{ status: 'passed', retry: 0 }] }] })) }] });
@@ -47,4 +48,12 @@ test('original composite shell is extracted whole, including each schema and aut
   assert(auth.includes('Teammate account authenticates.'));
   assert(!schema.includes('Create the test account'));
   assert.throws(() => actionShell(action, 'nonexistent'));
+});
+
+test('diagnostic queue admission owns the browser slot before any process starts', () => {
+  const source = readFileSync(new URL('./editor-quarantine-causality.mjs', import.meta.url), 'utf8');
+  assert(source.includes("command, '--kind', 'sweep', '--cap', '5'"));
+  const job = { command: "env 'PLAYWRIGHT_JSON_OUTPUT_FILE=/tmp/report.json' npm run test:e2e -- e2e/output-debate-clock.spec.ts --workers=1 --retries=0", kind: 'sweep', state: 'running', pid: 100 };
+  assert.equal(drivesBrowser(job), true);
+  assert.equal(watchedForBrowser(job), false);
 });
