@@ -727,7 +727,6 @@ export function gateReport({ gh = withRetries(ghRun), now = new Date().toISOStri
     try { report = JSON.parse(downloadReport(a, gh)); } catch { /* unreadable: not complete */ }
     const c = classifyReport(report, bounds);
     if (report && !reportComplete(report)) floor = maxBounds(floor, lowerBounds(report));
-    // The stops of the newest report that could be read: it carried every breach forward.
     if (report && stops === undefined) stops = report.stops ?? {};
     // The stops are those of the newest report that could be read, whatever its state (E20,
     // E21): it carried every breach forward, kept what it could not re-measure and cleared only
@@ -831,7 +830,6 @@ export function reportAlarm(action, login, gh = withRetries(ghRun)) {
     gh(['api', '-X', 'PATCH', `repos/${REPO}/issues/${found.number}`, '-f', 'state=closed']);
     return `closed #${found.number}`;
   }
-  if (action.kind !== 'alarm') return 'no alarm';
   // The same bad report already alarmed: nothing new to say, and nobody is notified again.
   if (found && String(found.body ?? '').includes(action.key)) return `#${found.number} already names this report`;
   if (found) {
