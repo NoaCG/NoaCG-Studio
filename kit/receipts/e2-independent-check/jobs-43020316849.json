@@ -1,0 +1,137 @@
+[
+  {
+    "id": 130521588957,
+    "name": "Quarantined specs",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:26:18Z",
+        "completed_at": "2026-11-11T12:26:18Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:26:18Z",
+        "completed_at": "2026-11-11T12:26:22Z"
+      },
+      {
+        "name": "Run echo \"specs=$(node scripts/e2e-quarantine.mjs matrix)\" >> \"$GITHUB_OUTPUT\"",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:26:22Z",
+        "completed_at": "2026-11-11T12:26:22Z"
+      },
+      {
+        "name": "Report entries older than 14 days",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:26:22Z",
+        "completed_at": "2026-11-11T12:26:25Z"
+      },
+      {
+        "name": "Keep the quarantine incidents issue",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:26:25Z",
+        "completed_at": "2026-11-11T12:26:27Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 10,
+        "started_at": "2026-11-11T12:26:27Z",
+        "completed_at": "2026-11-11T12:26:27Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 11,
+        "started_at": "2026-11-11T12:26:27Z",
+        "completed_at": "2026-11-11T12:26:27Z"
+      }
+    ]
+  },
+  {
+    "id": 130521688868,
+    "name": "Quarantine release",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:26:31Z",
+        "completed_at": "2026-11-11T12:26:32Z"
+      },
+      {
+        "name": "Bot token",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:26:32Z",
+        "completed_at": "2026-11-11T12:26:33Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:26:33Z",
+        "completed_at": "2026-11-11T12:26:39Z"
+      },
+      {
+        "name": "Release what has earned it",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:26:39Z",
+        "completed_at": "2026-11-11T12:26:44Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:26:44Z",
+        "completed_at": "2026-11-11T12:26:44Z"
+      },
+      {
+        "name": "Post Bot token",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-11T12:26:44Z",
+        "completed_at": "2026-11-11T12:26:45Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 9,
+        "started_at": "2026-11-11T12:26:45Z",
+        "completed_at": "2026-11-11T12:26:45Z"
+      }
+    ]
+  },
+  {
+    "id": 130521691551,
+    "name": "Quarantine (${{ matrix.spec }})",
+    "status": "completed",
+    "conclusion": "skipped",
+    "steps": []
+  }
+]

@@ -1,0 +1,53 @@
+{
+  "parent": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+  "merge": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+  "route": "output/stage.ts templateFromSpec -> composeDocument({liveControl:true,sound:program,soundQuiet:false})",
+  "templateScript": {
+    "bytes": 127953,
+    "sha256": "f3187312b1a618ca53c1965d2c37be6e3ab68c796136846822d6ab0797cbcf8b",
+    "exactEqual": true
+  },
+  "guards": [
+    {
+      "settle": "undefined",
+      "finiteEnd": "undefined",
+      "steps": 2,
+      "loops": [
+        null,
+        null
+      ],
+      "machineStates": {
+        "groups": {
+          "main": "off"
+        }
+      }
+    },
+    {
+      "settle": "undefined",
+      "finiteEnd": "undefined",
+      "steps": 2,
+      "loops": [
+        null,
+        null
+      ],
+      "machineStates": {
+        "groups": {
+          "main": "off"
+        }
+      }
+    }
+  ],
+  "changedScripts": [
+    "spx-live-control"
+  ],
+  "helperChanges": [
+    {
+      "id": "spx-live-control",
+      "parentSha256": "63aec05c8c7337337ac81cde198b9f0f297611348d3211be3fd8bf8f869d8329",
+      "mergeSha256": "d7a54e7e31a4946dc5e199beb77daf7dc434035b5053db3be2d3cba670fcdaf6",
+      "settleGuard": true,
+      "finiteGuard": false
+    }
+  ],
+  "result": "PASS"
+}

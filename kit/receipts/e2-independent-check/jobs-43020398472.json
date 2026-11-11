@@ -1,0 +1,23 @@
+[
+  {
+    "id": 130521868483,
+    "name": "Drift check (live vs main)",
+    "status": "completed",
+    "conclusion": "skipped",
+    "steps": []
+  },
+  {
+    "id": 130521920220,
+    "name": "Verify production deployment",
+    "status": "completed",
+    "conclusion": "skipped",
+    "steps": []
+  },
+  {
+    "id": 130521938237,
+    "name": "Deep link on the deployed bundle",
+    "status": "completed",
+    "conclusion": "skipped",
+    "steps": []
+  }
+]

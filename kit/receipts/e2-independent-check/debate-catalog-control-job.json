@@ -1,0 +1,19 @@
+{
+ "id": "j-0012",
+ "kind": "sweep",
+ "command": "node /workspace/scratch/e2-check-1111/debate-catalog-control.mjs",
+ "checkout": "/workspace/noacg-editor-r1-5-e2-check",
+ "branch": "codex/plan-editor-r1-5-e2-check",
+ "after": [],
+ "capMinutes": 5,
+ "retryOf": null,
+ "retryCount": 0,
+ "cost": 1,
+ "enqueuedAt": 1794401373552,
+ "state": "done",
+ "startedAt": 1794401377914,
+ "finishedAt": 1794401384747,
+ "exitCode": 0,
+ "pid": 13156,
+ "logPath": "/workspace/NoaCG-Studio/.git/noacg-jobs/logs/j-0012.log"
+}

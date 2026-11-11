@@ -1,0 +1,43 @@
+{
+  "actor": "/root/editor_r15_e2_cloud_check",
+  "session": "6af45f8f-6140-8191-8e0f-97a9d72a705b",
+  "nonce": "e2-c-cloud-1111",
+  "mergeSha": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+  "parent": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+  "branch": "codex/plan-editor-r1-5-e2-check",
+  "worktree": "/workspace/noacg-editor-r1-5-e2-check",
+  "environment": "ccarenv_b64_Y2NhcmVudl9mOGJiMmY0OWI4ZjA4MTkxYjE5YjAzNDFjZjcxMmRiYg",
+  "node": {
+    "command": "node --test scripts/editor-loops.test.mjs scripts/ograf-timed-exit.test.mjs",
+    "result": "33 passed,0failed,0skipped",
+    "output": "Tool invocation result retained; initial ignored log removed by Playwright output-directory cleanup; no test rerun to recreate it."
+  },
+  "browser": {
+    "job": "j-0005",
+    "command": "npm run test:e2e -- e2e/editor-out-step.spec.ts",
+    "result": "14 passed in48s,2workers,5minutecap"
+  },
+  "independent": "j-0008 PASS custom oddfiniteyoyo, UI1920/1366, SPX/CasparCG/OGraf/singleHTML(file://), fixed-root live.5rate, all original expected poses unchanged",
+  "preservedHarnessFailures": [
+    {
+      "job": "j-0006",
+      "class": "faulty clock measurement",
+      "evidence": "receipt-attempt1.json,probe-attempt1.mjs,speed-diagnose.log,speed-diagnose-fixed-root.log"
+    },
+    {
+      "job": "j-0007",
+      "class": "faulty OGraf lifecycle setup",
+      "evidence": "receipt-attempt2.json,probe-attempt2.mjs"
+    },
+    {
+      "job": "j-0011",
+      "class": "scratch immutable-source loader lacked JSON module type",
+      "evidence": "debate-catalog-attempt1.log"
+    }
+  ],
+  "directDesignControl": "j-0009/j-0010 are bounded direct-design controls only; exact catalog route proof is j-0012. Do not substitute the direct design for the failing spec.",
+  "sourceChanges": "none, git status porcelain empty",
+  "reference": "Studio0.17 j-5193 source-specific prior comparison only",
+  "scope": "BL only, E1/October single-device restrictions retained; no receiving-host, actual device/native125zoom, first-user or owner-release acceptance",
+  "at": "2026-11-11T12:51:19.498039+00:00"
+}

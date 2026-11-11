@@ -1,0 +1,2508 @@
+[
+  {
+    "id": 130513428385,
+    "name": "Factory gates",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:09:22Z",
+        "completed_at": "2026-11-11T12:09:23Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:09:23Z",
+        "completed_at": "2026-11-11T12:09:29Z"
+      },
+      {
+        "name": "Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:09:29Z",
+        "completed_at": "2026-11-11T12:09:32Z"
+      },
+      {
+        "name": "Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:09:32Z",
+        "completed_at": "2026-11-11T12:09:38Z"
+      },
+      {
+        "name": "Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:09:38Z",
+        "completed_at": "2026-11-11T12:09:42Z"
+      },
+      {
+        "name": "Factory-tier tests",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:09:42Z",
+        "completed_at": "2026-11-11T12:11:22Z"
+      },
+      {
+        "name": "Run factory gates",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:11:22Z",
+        "completed_at": "2026-11-11T12:11:36Z"
+      },
+      {
+        "name": "Upload factory report",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-11T12:11:36Z",
+        "completed_at": "2026-11-11T12:11:37Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 13,
+        "started_at": "2026-11-11T12:11:37Z",
+        "completed_at": "2026-11-11T12:11:37Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 14,
+        "started_at": "2026-11-11T12:11:37Z",
+        "completed_at": "2026-11-11T12:11:37Z"
+      },
+      {
+        "name": "Post Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-11T12:11:37Z",
+        "completed_at": "2026-11-11T12:11:37Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-11-11T12:11:37Z",
+        "completed_at": "2026-11-11T12:11:38Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17,
+        "started_at": "2026-11-11T12:11:38Z",
+        "completed_at": "2026-11-11T12:11:38Z"
+      }
+    ]
+  },
+  {
+    "id": 130513428610,
+    "name": "Reviewed",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:09:23Z",
+        "completed_at": "2026-11-11T12:09:23Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:09:23Z",
+        "completed_at": "2026-11-11T12:09:29Z"
+      },
+      {
+        "name": "Wait for the review status on the pull request head",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:09:29Z",
+        "completed_at": "2026-11-11T12:09:33Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:09:33Z",
+        "completed_at": "2026-11-11T12:09:34Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:09:34Z",
+        "completed_at": "2026-11-11T12:09:34Z"
+      }
+    ]
+  },
+  {
+    "id": 130513428623,
+    "name": "Build",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:09:22Z",
+        "completed_at": "2026-11-11T12:09:23Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:09:23Z",
+        "completed_at": "2026-11-11T12:09:31Z"
+      },
+      {
+        "name": "Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:09:31Z",
+        "completed_at": "2026-11-11T12:09:33Z"
+      },
+      {
+        "name": "Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:09:33Z",
+        "completed_at": "2026-11-11T12:09:37Z"
+      },
+      {
+        "name": "E2E protection check",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:09:37Z",
+        "completed_at": "2026-11-11T12:09:56Z"
+      },
+      {
+        "name": "Build (typecheck + lint + bundle)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:09:56Z",
+        "completed_at": "2026-11-11T12:15:27Z"
+      },
+      {
+        "name": "CLI package (typecheck + build + offline tests)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:15:27Z",
+        "completed_at": "2026-11-11T12:18:26Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 12,
+        "started_at": "2026-11-11T12:18:26Z",
+        "completed_at": "2026-11-11T12:18:26Z"
+      },
+      {
+        "name": "Post Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 13,
+        "started_at": "2026-11-11T12:18:26Z",
+        "completed_at": "2026-11-11T12:18:26Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 14,
+        "started_at": "2026-11-11T12:18:26Z",
+        "completed_at": "2026-11-11T12:18:26Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-11T12:18:26Z",
+        "completed_at": "2026-11-11T12:18:26Z"
+      }
+    ]
+  },
+  {
+    "id": 130513428851,
+    "name": "E2E plan",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:09:22Z",
+        "completed_at": "2026-11-11T12:09:23Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:09:23Z",
+        "completed_at": "2026-11-11T12:09:31Z"
+      },
+      {
+        "name": "Does this change touch the guided mod?",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:09:31Z",
+        "completed_at": "2026-11-11T12:09:31Z"
+      },
+      {
+        "name": "Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:09:31Z",
+        "completed_at": "2026-11-11T12:09:31Z"
+      },
+      {
+        "name": "Work out what this change can affect",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:09:31Z",
+        "completed_at": "2026-11-11T12:09:33Z"
+      },
+      {
+        "name": "Configured selection",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:09:33Z",
+        "completed_at": "2026-11-11T12:09:33Z"
+      },
+      {
+        "name": "Newest weekly growth report",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:09:33Z",
+        "completed_at": "2026-11-11T12:09:34Z"
+      },
+      {
+        "name": "E2E capacity line (estimate)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-11T12:09:34Z",
+        "completed_at": "2026-11-11T12:09:36Z"
+      },
+      {
+        "name": "Post Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-11T12:09:36Z",
+        "completed_at": "2026-11-11T12:09:36Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-11-11T12:09:36Z",
+        "completed_at": "2026-11-11T12:09:36Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17,
+        "started_at": "2026-11-11T12:09:36Z",
+        "completed_at": "2026-11-11T12:09:36Z"
+      }
+    ]
+  },
+  {
+    "id": 130513431295,
+    "name": "Vercel accepted the commit",
+    "status": "completed",
+    "conclusion": "skipped",
+    "steps": []
+  },
+  {
+    "id": 130513579005,
+    "name": "Catalog calibration gate",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:09:41Z",
+        "completed_at": "2026-11-11T12:09:42Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:09:42Z",
+        "completed_at": "2026-11-11T12:09:47Z"
+      },
+      {
+        "name": "Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:09:47Z",
+        "completed_at": "2026-11-11T12:09:50Z"
+      },
+      {
+        "name": "Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:09:50Z",
+        "completed_at": "2026-11-11T12:09:54Z"
+      },
+      {
+        "name": "Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:09:54Z",
+        "completed_at": "2026-11-11T12:09:58Z"
+      },
+      {
+        "name": "Catalog emit fingerprints",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:09:58Z",
+        "completed_at": "2026-11-11T12:10:09Z"
+      },
+      {
+        "name": "Catalog calibration tripwire",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:10:09Z",
+        "completed_at": "2026-11-11T12:21:07Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 11,
+        "started_at": "2026-11-11T12:21:07Z",
+        "completed_at": "2026-11-11T12:21:07Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 12,
+        "started_at": "2026-11-11T12:21:07Z",
+        "completed_at": "2026-11-11T12:21:07Z"
+      },
+      {
+        "name": "Post Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 13,
+        "started_at": "2026-11-11T12:21:07Z",
+        "completed_at": "2026-11-11T12:21:07Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 14,
+        "started_at": "2026-11-11T12:21:07Z",
+        "completed_at": "2026-11-11T12:21:07Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-11T12:21:07Z",
+        "completed_at": "2026-11-11T12:21:08Z"
+      }
+    ]
+  },
+  {
+    "id": 130513579267,
+    "name": "E2E 10/15 (subset)",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:09:41Z",
+        "completed_at": "2026-11-11T12:09:41Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:09:41Z",
+        "completed_at": "2026-11-11T12:09:48Z"
+      },
+      {
+        "name": "Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:09:48Z",
+        "completed_at": "2026-11-11T12:09:52Z"
+      },
+      {
+        "name": "Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:09:52Z",
+        "completed_at": "2026-11-11T12:09:57Z"
+      },
+      {
+        "name": "Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:09:57Z",
+        "completed_at": "2026-11-11T12:10:00Z"
+      },
+      {
+        "name": "E2E shard",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:10:00Z",
+        "completed_at": "2026-11-11T12:18:34Z"
+      },
+      {
+        "name": "Tests left the tree clean",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:18:34Z",
+        "completed_at": "2026-11-11T12:18:35Z"
+      },
+      {
+        "name": "Upload shard report",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-11T12:18:35Z",
+        "completed_at": "2026-11-11T12:18:36Z"
+      },
+      {
+        "name": "Upload failure evidence",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 9,
+        "started_at": "2026-11-11T12:18:36Z",
+        "completed_at": "2026-11-11T12:18:36Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-11T12:18:36Z",
+        "completed_at": "2026-11-11T12:18:36Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-11-11T12:18:36Z",
+        "completed_at": "2026-11-11T12:18:36Z"
+      },
+      {
+        "name": "Post Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17,
+        "started_at": "2026-11-11T12:18:36Z",
+        "completed_at": "2026-11-11T12:18:36Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 18,
+        "started_at": "2026-11-11T12:18:36Z",
+        "completed_at": "2026-11-11T12:18:36Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 19,
+        "started_at": "2026-11-11T12:18:36Z",
+        "completed_at": "2026-11-11T12:18:36Z"
+      }
+    ]
+  },
+  {
+    "id": 130513579272,
+    "name": "E2E 4/15 (subset)",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:09:41Z",
+        "completed_at": "2026-11-11T12:09:42Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:09:42Z",
+        "completed_at": "2026-11-11T12:09:47Z"
+      },
+      {
+        "name": "Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:09:47Z",
+        "completed_at": "2026-11-11T12:09:53Z"
+      },
+      {
+        "name": "Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:09:53Z",
+        "completed_at": "2026-11-11T12:09:58Z"
+      },
+      {
+        "name": "Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:09:58Z",
+        "completed_at": "2026-11-11T12:10:01Z"
+      },
+      {
+        "name": "E2E shard",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:10:01Z",
+        "completed_at": "2026-11-11T12:25:36Z"
+      },
+      {
+        "name": "Tests left the tree clean",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:25:36Z",
+        "completed_at": "2026-11-11T12:25:36Z"
+      },
+      {
+        "name": "Upload shard report",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-11T12:25:36Z",
+        "completed_at": "2026-11-11T12:25:38Z"
+      },
+      {
+        "name": "Upload failure evidence",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 9,
+        "started_at": "2026-11-11T12:25:38Z",
+        "completed_at": "2026-11-11T12:25:38Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-11T12:25:38Z",
+        "completed_at": "2026-11-11T12:25:38Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-11-11T12:25:38Z",
+        "completed_at": "2026-11-11T12:25:38Z"
+      },
+      {
+        "name": "Post Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17,
+        "started_at": "2026-11-11T12:25:38Z",
+        "completed_at": "2026-11-11T12:25:38Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 18,
+        "started_at": "2026-11-11T12:25:38Z",
+        "completed_at": "2026-11-11T12:25:39Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 19,
+        "started_at": "2026-11-11T12:25:39Z",
+        "completed_at": "2026-11-11T12:25:39Z"
+      }
+    ]
+  },
+  {
+    "id": 130513579296,
+    "name": "E2E 6/15 (subset)",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:09:40Z",
+        "completed_at": "2026-11-11T12:09:41Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:09:41Z",
+        "completed_at": "2026-11-11T12:09:47Z"
+      },
+      {
+        "name": "Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:09:47Z",
+        "completed_at": "2026-11-11T12:09:49Z"
+      },
+      {
+        "name": "Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:09:49Z",
+        "completed_at": "2026-11-11T12:09:52Z"
+      },
+      {
+        "name": "Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:09:52Z",
+        "completed_at": "2026-11-11T12:09:55Z"
+      },
+      {
+        "name": "E2E shard",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:09:55Z",
+        "completed_at": "2026-11-11T12:17:39Z"
+      },
+      {
+        "name": "Tests left the tree clean",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:17:39Z",
+        "completed_at": "2026-11-11T12:17:39Z"
+      },
+      {
+        "name": "Upload shard report",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-11T12:17:39Z",
+        "completed_at": "2026-11-11T12:17:40Z"
+      },
+      {
+        "name": "Upload failure evidence",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 9,
+        "started_at": "2026-11-11T12:17:40Z",
+        "completed_at": "2026-11-11T12:17:40Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-11T12:17:40Z",
+        "completed_at": "2026-11-11T12:17:40Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-11-11T12:17:40Z",
+        "completed_at": "2026-11-11T12:17:40Z"
+      },
+      {
+        "name": "Post Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17,
+        "started_at": "2026-11-11T12:17:40Z",
+        "completed_at": "2026-11-11T12:17:40Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 18,
+        "started_at": "2026-11-11T12:17:40Z",
+        "completed_at": "2026-11-11T12:17:41Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 19,
+        "started_at": "2026-11-11T12:17:41Z",
+        "completed_at": "2026-11-11T12:17:41Z"
+      }
+    ]
+  },
+  {
+    "id": 130513579333,
+    "name": "E2E 11/15 (subset)",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:09:41Z",
+        "completed_at": "2026-11-11T12:09:41Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:09:41Z",
+        "completed_at": "2026-11-11T12:09:47Z"
+      },
+      {
+        "name": "Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:09:47Z",
+        "completed_at": "2026-11-11T12:09:49Z"
+      },
+      {
+        "name": "Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:09:49Z",
+        "completed_at": "2026-11-11T12:09:53Z"
+      },
+      {
+        "name": "Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:09:53Z",
+        "completed_at": "2026-11-11T12:09:56Z"
+      },
+      {
+        "name": "E2E shard",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:09:56Z",
+        "completed_at": "2026-11-11T12:19:35Z"
+      },
+      {
+        "name": "Tests left the tree clean",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:19:35Z",
+        "completed_at": "2026-11-11T12:19:36Z"
+      },
+      {
+        "name": "Upload shard report",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-11T12:19:36Z",
+        "completed_at": "2026-11-11T12:19:37Z"
+      },
+      {
+        "name": "Upload failure evidence",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 9,
+        "started_at": "2026-11-11T12:19:37Z",
+        "completed_at": "2026-11-11T12:19:37Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-11T12:19:37Z",
+        "completed_at": "2026-11-11T12:19:37Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-11-11T12:19:37Z",
+        "completed_at": "2026-11-11T12:19:37Z"
+      },
+      {
+        "name": "Post Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17,
+        "started_at": "2026-11-11T12:19:37Z",
+        "completed_at": "2026-11-11T12:19:37Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 18,
+        "started_at": "2026-11-11T12:19:37Z",
+        "completed_at": "2026-11-11T12:19:37Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 19,
+        "started_at": "2026-11-11T12:19:37Z",
+        "completed_at": "2026-11-11T12:19:37Z"
+      }
+    ]
+  },
+  {
+    "id": 130513579340,
+    "name": "E2E 5/15 (subset)",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:09:41Z",
+        "completed_at": "2026-11-11T12:09:42Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:09:42Z",
+        "completed_at": "2026-11-11T12:09:47Z"
+      },
+      {
+        "name": "Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:09:47Z",
+        "completed_at": "2026-11-11T12:09:50Z"
+      },
+      {
+        "name": "Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:09:50Z",
+        "completed_at": "2026-11-11T12:09:53Z"
+      },
+      {
+        "name": "Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:09:53Z",
+        "completed_at": "2026-11-11T12:09:57Z"
+      },
+      {
+        "name": "E2E shard",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:09:57Z",
+        "completed_at": "2026-11-11T12:23:09Z"
+      },
+      {
+        "name": "Tests left the tree clean",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:23:09Z",
+        "completed_at": "2026-11-11T12:23:09Z"
+      },
+      {
+        "name": "Upload shard report",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-11T12:23:09Z",
+        "completed_at": "2026-11-11T12:23:10Z"
+      },
+      {
+        "name": "Upload failure evidence",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 9,
+        "started_at": "2026-11-11T12:23:10Z",
+        "completed_at": "2026-11-11T12:23:10Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-11T12:23:10Z",
+        "completed_at": "2026-11-11T12:23:10Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-11-11T12:23:10Z",
+        "completed_at": "2026-11-11T12:23:10Z"
+      },
+      {
+        "name": "Post Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17,
+        "started_at": "2026-11-11T12:23:10Z",
+        "completed_at": "2026-11-11T12:23:10Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 18,
+        "started_at": "2026-11-11T12:23:10Z",
+        "completed_at": "2026-11-11T12:23:11Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 19,
+        "started_at": "2026-11-11T12:23:11Z",
+        "completed_at": "2026-11-11T12:23:11Z"
+      }
+    ]
+  },
+  {
+    "id": 130513579363,
+    "name": "E2E 2/15 (subset)",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:09:41Z",
+        "completed_at": "2026-11-11T12:09:42Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:09:42Z",
+        "completed_at": "2026-11-11T12:09:48Z"
+      },
+      {
+        "name": "Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:09:48Z",
+        "completed_at": "2026-11-11T12:09:50Z"
+      },
+      {
+        "name": "Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:09:50Z",
+        "completed_at": "2026-11-11T12:09:55Z"
+      },
+      {
+        "name": "Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:09:55Z",
+        "completed_at": "2026-11-11T12:09:59Z"
+      },
+      {
+        "name": "E2E shard",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:09:59Z",
+        "completed_at": "2026-11-11T12:20:26Z"
+      },
+      {
+        "name": "Tests left the tree clean",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:20:26Z",
+        "completed_at": "2026-11-11T12:20:27Z"
+      },
+      {
+        "name": "Upload shard report",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-11T12:20:27Z",
+        "completed_at": "2026-11-11T12:20:28Z"
+      },
+      {
+        "name": "Upload failure evidence",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 9,
+        "started_at": "2026-11-11T12:20:28Z",
+        "completed_at": "2026-11-11T12:20:28Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-11T12:20:28Z",
+        "completed_at": "2026-11-11T12:20:28Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-11-11T12:20:28Z",
+        "completed_at": "2026-11-11T12:20:29Z"
+      },
+      {
+        "name": "Post Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17,
+        "started_at": "2026-11-11T12:20:29Z",
+        "completed_at": "2026-11-11T12:20:29Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 18,
+        "started_at": "2026-11-11T12:20:29Z",
+        "completed_at": "2026-11-11T12:20:29Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 19,
+        "started_at": "2026-11-11T12:20:29Z",
+        "completed_at": "2026-11-11T12:20:29Z"
+      }
+    ]
+  },
+  {
+    "id": 130513579366,
+    "name": "E2E 12/15 (subset)",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:09:41Z",
+        "completed_at": "2026-11-11T12:09:42Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:09:42Z",
+        "completed_at": "2026-11-11T12:09:47Z"
+      },
+      {
+        "name": "Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:09:47Z",
+        "completed_at": "2026-11-11T12:09:49Z"
+      },
+      {
+        "name": "Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:09:49Z",
+        "completed_at": "2026-11-11T12:09:53Z"
+      },
+      {
+        "name": "Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:09:53Z",
+        "completed_at": "2026-11-11T12:09:56Z"
+      },
+      {
+        "name": "E2E shard",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:09:56Z",
+        "completed_at": "2026-11-11T12:22:00Z"
+      },
+      {
+        "name": "Tests left the tree clean",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:22:00Z",
+        "completed_at": "2026-11-11T12:22:01Z"
+      },
+      {
+        "name": "Upload shard report",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-11T12:22:01Z",
+        "completed_at": "2026-11-11T12:22:02Z"
+      },
+      {
+        "name": "Upload failure evidence",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 9,
+        "started_at": "2026-11-11T12:22:02Z",
+        "completed_at": "2026-11-11T12:22:02Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-11T12:22:02Z",
+        "completed_at": "2026-11-11T12:22:02Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-11-11T12:22:02Z",
+        "completed_at": "2026-11-11T12:22:02Z"
+      },
+      {
+        "name": "Post Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17,
+        "started_at": "2026-11-11T12:22:02Z",
+        "completed_at": "2026-11-11T12:22:02Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 18,
+        "started_at": "2026-11-11T12:22:02Z",
+        "completed_at": "2026-11-11T12:22:02Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 19,
+        "started_at": "2026-11-11T12:22:02Z",
+        "completed_at": "2026-11-11T12:22:02Z"
+      }
+    ]
+  },
+  {
+    "id": 130513579379,
+    "name": "E2E 7/15 (subset)",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:09:42Z",
+        "completed_at": "2026-11-11T12:09:42Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:09:42Z",
+        "completed_at": "2026-11-11T12:09:49Z"
+      },
+      {
+        "name": "Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:09:49Z",
+        "completed_at": "2026-11-11T12:09:52Z"
+      },
+      {
+        "name": "Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:09:52Z",
+        "completed_at": "2026-11-11T12:09:58Z"
+      },
+      {
+        "name": "Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:09:58Z",
+        "completed_at": "2026-11-11T12:10:03Z"
+      },
+      {
+        "name": "E2E shard",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:10:03Z",
+        "completed_at": "2026-11-11T12:24:06Z"
+      },
+      {
+        "name": "Tests left the tree clean",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:24:06Z",
+        "completed_at": "2026-11-11T12:24:07Z"
+      },
+      {
+        "name": "Upload shard report",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-11T12:24:07Z",
+        "completed_at": "2026-11-11T12:24:09Z"
+      },
+      {
+        "name": "Upload failure evidence",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 9,
+        "started_at": "2026-11-11T12:24:09Z",
+        "completed_at": "2026-11-11T12:24:09Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-11T12:24:09Z",
+        "completed_at": "2026-11-11T12:24:09Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-11-11T12:24:09Z",
+        "completed_at": "2026-11-11T12:24:09Z"
+      },
+      {
+        "name": "Post Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17,
+        "started_at": "2026-11-11T12:24:09Z",
+        "completed_at": "2026-11-11T12:24:09Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 18,
+        "started_at": "2026-11-11T12:24:09Z",
+        "completed_at": "2026-11-11T12:24:09Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 19,
+        "started_at": "2026-11-11T12:24:09Z",
+        "completed_at": "2026-11-11T12:24:09Z"
+      }
+    ]
+  },
+  {
+    "id": 130513579400,
+    "name": "E2E 8/15 (subset)",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:09:41Z",
+        "completed_at": "2026-11-11T12:09:43Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:09:43Z",
+        "completed_at": "2026-11-11T12:09:47Z"
+      },
+      {
+        "name": "Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:09:47Z",
+        "completed_at": "2026-11-11T12:09:50Z"
+      },
+      {
+        "name": "Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:09:50Z",
+        "completed_at": "2026-11-11T12:09:54Z"
+      },
+      {
+        "name": "Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:09:54Z",
+        "completed_at": "2026-11-11T12:09:58Z"
+      },
+      {
+        "name": "E2E shard",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:09:58Z",
+        "completed_at": "2026-11-11T12:20:27Z"
+      },
+      {
+        "name": "Tests left the tree clean",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:20:27Z",
+        "completed_at": "2026-11-11T12:20:28Z"
+      },
+      {
+        "name": "Upload shard report",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-11T12:20:28Z",
+        "completed_at": "2026-11-11T12:20:29Z"
+      },
+      {
+        "name": "Upload failure evidence",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 9,
+        "started_at": "2026-11-11T12:20:29Z",
+        "completed_at": "2026-11-11T12:20:29Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-11T12:20:29Z",
+        "completed_at": "2026-11-11T12:20:29Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-11-11T12:20:29Z",
+        "completed_at": "2026-11-11T12:20:30Z"
+      },
+      {
+        "name": "Post Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17,
+        "started_at": "2026-11-11T12:20:30Z",
+        "completed_at": "2026-11-11T12:20:30Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 18,
+        "started_at": "2026-11-11T12:20:30Z",
+        "completed_at": "2026-11-11T12:20:30Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 19,
+        "started_at": "2026-11-11T12:20:30Z",
+        "completed_at": "2026-11-11T12:20:30Z"
+      }
+    ]
+  },
+  {
+    "id": 130513579418,
+    "name": "E2E 13/15 (subset)",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:09:41Z",
+        "completed_at": "2026-11-11T12:09:42Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:09:42Z",
+        "completed_at": "2026-11-11T12:09:48Z"
+      },
+      {
+        "name": "Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:09:48Z",
+        "completed_at": "2026-11-11T12:09:50Z"
+      },
+      {
+        "name": "Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:09:50Z",
+        "completed_at": "2026-11-11T12:09:54Z"
+      },
+      {
+        "name": "Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:09:54Z",
+        "completed_at": "2026-11-11T12:09:57Z"
+      },
+      {
+        "name": "E2E shard",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:09:57Z",
+        "completed_at": "2026-11-11T12:23:48Z"
+      },
+      {
+        "name": "Tests left the tree clean",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:23:48Z",
+        "completed_at": "2026-11-11T12:23:48Z"
+      },
+      {
+        "name": "Upload shard report",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-11T12:23:48Z",
+        "completed_at": "2026-11-11T12:23:50Z"
+      },
+      {
+        "name": "Upload failure evidence",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 9,
+        "started_at": "2026-11-11T12:23:50Z",
+        "completed_at": "2026-11-11T12:23:50Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-11T12:23:50Z",
+        "completed_at": "2026-11-11T12:23:50Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-11-11T12:23:50Z",
+        "completed_at": "2026-11-11T12:23:50Z"
+      },
+      {
+        "name": "Post Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17,
+        "started_at": "2026-11-11T12:23:50Z",
+        "completed_at": "2026-11-11T12:23:50Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 18,
+        "started_at": "2026-11-11T12:23:50Z",
+        "completed_at": "2026-11-11T12:23:50Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 19,
+        "started_at": "2026-11-11T12:23:50Z",
+        "completed_at": "2026-11-11T12:23:50Z"
+      }
+    ]
+  },
+  {
+    "id": 130513579427,
+    "name": "E2E 9/15 (subset)",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:09:41Z",
+        "completed_at": "2026-11-11T12:09:42Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:09:42Z",
+        "completed_at": "2026-11-11T12:09:47Z"
+      },
+      {
+        "name": "Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:09:47Z",
+        "completed_at": "2026-11-11T12:09:51Z"
+      },
+      {
+        "name": "Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:09:51Z",
+        "completed_at": "2026-11-11T12:09:55Z"
+      },
+      {
+        "name": "Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:09:55Z",
+        "completed_at": "2026-11-11T12:09:58Z"
+      },
+      {
+        "name": "E2E shard",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:09:58Z",
+        "completed_at": "2026-11-11T12:22:57Z"
+      },
+      {
+        "name": "Tests left the tree clean",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:22:57Z",
+        "completed_at": "2026-11-11T12:22:58Z"
+      },
+      {
+        "name": "Upload shard report",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-11T12:22:58Z",
+        "completed_at": "2026-11-11T12:22:59Z"
+      },
+      {
+        "name": "Upload failure evidence",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 9,
+        "started_at": "2026-11-11T12:22:59Z",
+        "completed_at": "2026-11-11T12:22:59Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-11T12:22:59Z",
+        "completed_at": "2026-11-11T12:22:59Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-11-11T12:22:59Z",
+        "completed_at": "2026-11-11T12:22:59Z"
+      },
+      {
+        "name": "Post Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17,
+        "started_at": "2026-11-11T12:22:59Z",
+        "completed_at": "2026-11-11T12:22:59Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 18,
+        "started_at": "2026-11-11T12:22:59Z",
+        "completed_at": "2026-11-11T12:23:00Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 19,
+        "started_at": "2026-11-11T12:23:00Z",
+        "completed_at": "2026-11-11T12:23:00Z"
+      }
+    ]
+  },
+  {
+    "id": 130513579430,
+    "name": "E2E 14/15 (subset)",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:09:41Z",
+        "completed_at": "2026-11-11T12:09:42Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:09:42Z",
+        "completed_at": "2026-11-11T12:09:47Z"
+      },
+      {
+        "name": "Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:09:47Z",
+        "completed_at": "2026-11-11T12:09:55Z"
+      },
+      {
+        "name": "Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:09:55Z",
+        "completed_at": "2026-11-11T12:09:59Z"
+      },
+      {
+        "name": "Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:09:59Z",
+        "completed_at": "2026-11-11T12:10:02Z"
+      },
+      {
+        "name": "E2E shard",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:10:02Z",
+        "completed_at": "2026-11-11T12:21:46Z"
+      },
+      {
+        "name": "Tests left the tree clean",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:21:46Z",
+        "completed_at": "2026-11-11T12:21:46Z"
+      },
+      {
+        "name": "Upload shard report",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-11T12:21:46Z",
+        "completed_at": "2026-11-11T12:21:47Z"
+      },
+      {
+        "name": "Upload failure evidence",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 9,
+        "started_at": "2026-11-11T12:21:47Z",
+        "completed_at": "2026-11-11T12:21:47Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-11T12:21:47Z",
+        "completed_at": "2026-11-11T12:21:47Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-11-11T12:21:47Z",
+        "completed_at": "2026-11-11T12:21:48Z"
+      },
+      {
+        "name": "Post Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17,
+        "started_at": "2026-11-11T12:21:48Z",
+        "completed_at": "2026-11-11T12:21:48Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 18,
+        "started_at": "2026-11-11T12:21:48Z",
+        "completed_at": "2026-11-11T12:21:48Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 19,
+        "started_at": "2026-11-11T12:21:48Z",
+        "completed_at": "2026-11-11T12:21:48Z"
+      }
+    ]
+  },
+  {
+    "id": 130513579450,
+    "name": "E2E 15/15 (subset)",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:09:41Z",
+        "completed_at": "2026-11-11T12:09:42Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:09:42Z",
+        "completed_at": "2026-11-11T12:09:48Z"
+      },
+      {
+        "name": "Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:09:48Z",
+        "completed_at": "2026-11-11T12:09:50Z"
+      },
+      {
+        "name": "Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:09:50Z",
+        "completed_at": "2026-11-11T12:09:53Z"
+      },
+      {
+        "name": "Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:09:53Z",
+        "completed_at": "2026-11-11T12:09:56Z"
+      },
+      {
+        "name": "E2E shard",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:09:56Z",
+        "completed_at": "2026-11-11T12:20:55Z"
+      },
+      {
+        "name": "Tests left the tree clean",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:20:55Z",
+        "completed_at": "2026-11-11T12:20:55Z"
+      },
+      {
+        "name": "Upload shard report",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-11T12:20:55Z",
+        "completed_at": "2026-11-11T12:20:56Z"
+      },
+      {
+        "name": "Upload failure evidence",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 9,
+        "started_at": "2026-11-11T12:20:56Z",
+        "completed_at": "2026-11-11T12:20:56Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-11T12:20:56Z",
+        "completed_at": "2026-11-11T12:20:56Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-11-11T12:20:56Z",
+        "completed_at": "2026-11-11T12:20:56Z"
+      },
+      {
+        "name": "Post Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17,
+        "started_at": "2026-11-11T12:20:56Z",
+        "completed_at": "2026-11-11T12:20:56Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 18,
+        "started_at": "2026-11-11T12:20:56Z",
+        "completed_at": "2026-11-11T12:20:57Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 19,
+        "started_at": "2026-11-11T12:20:57Z",
+        "completed_at": "2026-11-11T12:20:57Z"
+      }
+    ]
+  },
+  {
+    "id": 130513579512,
+    "name": "E2E 3/15 (subset)",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:09:41Z",
+        "completed_at": "2026-11-11T12:09:42Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:09:42Z",
+        "completed_at": "2026-11-11T12:09:47Z"
+      },
+      {
+        "name": "Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:09:47Z",
+        "completed_at": "2026-11-11T12:09:50Z"
+      },
+      {
+        "name": "Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:09:50Z",
+        "completed_at": "2026-11-11T12:09:55Z"
+      },
+      {
+        "name": "Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:09:55Z",
+        "completed_at": "2026-11-11T12:09:59Z"
+      },
+      {
+        "name": "E2E shard",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:09:59Z",
+        "completed_at": "2026-11-11T12:22:46Z"
+      },
+      {
+        "name": "Tests left the tree clean",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:22:46Z",
+        "completed_at": "2026-11-11T12:22:46Z"
+      },
+      {
+        "name": "Upload shard report",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-11T12:22:46Z",
+        "completed_at": "2026-11-11T12:22:48Z"
+      },
+      {
+        "name": "Upload failure evidence",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 9,
+        "started_at": "2026-11-11T12:22:48Z",
+        "completed_at": "2026-11-11T12:22:48Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-11T12:22:48Z",
+        "completed_at": "2026-11-11T12:22:48Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-11-11T12:22:48Z",
+        "completed_at": "2026-11-11T12:22:48Z"
+      },
+      {
+        "name": "Post Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17,
+        "started_at": "2026-11-11T12:22:48Z",
+        "completed_at": "2026-11-11T12:22:48Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 18,
+        "started_at": "2026-11-11T12:22:48Z",
+        "completed_at": "2026-11-11T12:22:48Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 19,
+        "started_at": "2026-11-11T12:22:48Z",
+        "completed_at": "2026-11-11T12:22:49Z"
+      }
+    ]
+  },
+  {
+    "id": 130513579604,
+    "name": "E2E 1/15 (subset)",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:09:42Z",
+        "completed_at": "2026-11-11T12:09:43Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:09:43Z",
+        "completed_at": "2026-11-11T12:09:49Z"
+      },
+      {
+        "name": "Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:09:49Z",
+        "completed_at": "2026-11-11T12:09:53Z"
+      },
+      {
+        "name": "Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:09:53Z",
+        "completed_at": "2026-11-11T12:09:59Z"
+      },
+      {
+        "name": "Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:09:59Z",
+        "completed_at": "2026-11-11T12:10:05Z"
+      },
+      {
+        "name": "E2E shard",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:10:05Z",
+        "completed_at": "2026-11-11T12:22:19Z"
+      },
+      {
+        "name": "Tests left the tree clean",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:22:19Z",
+        "completed_at": "2026-11-11T12:22:19Z"
+      },
+      {
+        "name": "Upload shard report",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-11T12:22:19Z",
+        "completed_at": "2026-11-11T12:22:21Z"
+      },
+      {
+        "name": "Upload failure evidence",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 9,
+        "started_at": "2026-11-11T12:22:21Z",
+        "completed_at": "2026-11-11T12:22:21Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/playwright-chromium",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-11T12:22:21Z",
+        "completed_at": "2026-11-11T12:22:21Z"
+      },
+      {
+        "name": "Post Run ./.github/actions/node-modules",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-11-11T12:22:21Z",
+        "completed_at": "2026-11-11T12:22:22Z"
+      },
+      {
+        "name": "Post Run actions/setup-node@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17,
+        "started_at": "2026-11-11T12:22:22Z",
+        "completed_at": "2026-11-11T12:22:22Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 18,
+        "started_at": "2026-11-11T12:22:22Z",
+        "completed_at": "2026-11-11T12:22:22Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 19,
+        "started_at": "2026-11-11T12:22:22Z",
+        "completed_at": "2026-11-11T12:22:22Z"
+      }
+    ]
+  },
+  {
+    "id": 130513580310,
+    "name": "Guided mod (Claude Code ${{ matrix.claude-code }})",
+    "status": "completed",
+    "conclusion": "skipped",
+    "steps": []
+  },
+  {
+    "id": 130513581339,
+    "name": "Configured E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (selected, local Supabase)",
+    "status": "completed",
+    "conclusion": "skipped",
+    "steps": []
+  },
+  {
+    "id": 130513582190,
+    "name": "Configured E2E verdict (selected)",
+    "status": "completed",
+    "conclusion": "skipped",
+    "steps": []
+  },
+  {
+    "id": 130517820366,
+    "name": "Re-run (failed Build or Factory job, same commit)",
+    "status": "completed",
+    "conclusion": "skipped",
+    "steps": []
+  },
+  {
+    "id": 130521312605,
+    "name": "Combined E2E report",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:25:45Z",
+        "completed_at": "2026-11-11T12:25:46Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:25:46Z",
+        "completed_at": "2026-11-11T12:25:55Z"
+      },
+      {
+        "name": "Resolve the Playwright version from the lockfile",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:25:55Z",
+        "completed_at": "2026-11-11T12:25:55Z"
+      },
+      {
+        "name": "Download shard reports",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:25:55Z",
+        "completed_at": "2026-11-11T12:25:57Z"
+      },
+      {
+        "name": "Merge shard reports",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:25:57Z",
+        "completed_at": "2026-11-11T12:26:05Z"
+      },
+      {
+        "name": "Upload combined E2E report",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:26:05Z",
+        "completed_at": "2026-11-11T12:26:07Z"
+      },
+      {
+        "name": "Measure this change against the capacity line",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:26:07Z",
+        "completed_at": "2026-11-11T12:26:14Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 14,
+        "started_at": "2026-11-11T12:26:14Z",
+        "completed_at": "2026-11-11T12:26:14Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-11T12:26:14Z",
+        "completed_at": "2026-11-11T12:26:14Z"
+      }
+    ]
+  },
+  {
+    "id": 130521313104,
+    "name": "CI gate",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:25:45Z",
+        "completed_at": "2026-11-11T12:25:46Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:25:46Z",
+        "completed_at": "2026-11-11T12:25:48Z"
+      },
+      {
+        "name": "Require every gate",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:25:48Z",
+        "completed_at": "2026-11-11T12:25:48Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-11T12:25:48Z",
+        "completed_at": "2026-11-11T12:25:48Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:25:48Z",
+        "completed_at": "2026-11-11T12:25:49Z"
+      }
+    ]
+  },
+  {
+    "id": 130521315532,
+    "name": "E2E retry (failed specs, same commit)",
+    "status": "completed",
+    "conclusion": "skipped",
+    "steps": []
+  },
+  {
+    "id": 130521389886,
+    "name": "After the gate",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:25:54Z",
+        "completed_at": "2026-11-11T12:25:54Z"
+      },
+      {
+        "name": "Bot token",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:25:54Z",
+        "completed_at": "2026-11-11T12:25:55Z"
+      },
+      {
+        "name": "Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:25:55Z",
+        "completed_at": "2026-11-11T12:26:01Z"
+      },
+      {
+        "name": "Quarantine the specs that failed and then passed",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 4,
+        "started_at": "2026-11-11T12:26:01Z",
+        "completed_at": "2026-11-11T12:26:01Z"
+      },
+      {
+        "name": "File / update the red-main issue",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 5,
+        "started_at": "2026-11-11T12:26:01Z",
+        "completed_at": "2026-11-11T12:26:01Z"
+      },
+      {
+        "name": "Close the red-main issue",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 6,
+        "started_at": "2026-11-11T12:26:01Z",
+        "completed_at": "2026-11-11T12:26:01Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v5",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 11,
+        "started_at": "2026-11-11T12:26:01Z",
+        "completed_at": "2026-11-11T12:26:01Z"
+      },
+      {
+        "name": "Post Bot token",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 12,
+        "started_at": "2026-11-11T12:26:01Z",
+        "completed_at": "2026-11-11T12:26:02Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 13,
+        "started_at": "2026-11-11T12:26:02Z",
+        "completed_at": "2026-11-11T12:26:02Z"
+      }
+    ]
+  }
+]

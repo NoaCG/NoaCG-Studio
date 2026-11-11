@@ -1,0 +1,10 @@
+{
+  "at": "2026-11-11T12:53:32.845480+00:00",
+  "mergeSha": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+  "decision": "accept existing CI gate with explicit retained unrelated-flake disposition",
+  "reason": "Accept the existing CI gate result for E2 while preserving the aggregate main CI FAILURE. The only first-red case is output-debate-clock.spec.ts292 in setup helper140, outside changed active behavior: the exact catalog dc01 route emits identical HTML/CSS/JS at parentfb04 and merged8b; actual composed template JS is byte-identical SHA25621e42164d3315b35e21d1146e5954000c5e8ec3d827e7e62ef2ed502f7c79d4c. The sole changed live-control branch is guarded by noacgSettleCue, observed undefined in both actual runtimes, so the identical legacy fallback executes. The current parent control ran the same case and passed200/200. Built-in retry130530591862 passed24/24 on this same SHA, CI gate130531892101 and After-gate130531951186 passed. Existing automated quarantine PR2382 records the fail-then-pass and prior recurrence; incident2238 retains the repair/coverage gap. No manual rerun, assertion/limit/selection edit, exception entry or allowance increase. All independent E2 behavioral probes pass. This is a source-specific unrelated-flake disposition under known-traps A red gate; it is not a green rewrite of the original failure or a repair of that incident.",
+  "comment": "https://github.com/NoaCG/NoaCG-Studio/pull/2374#issuecomment-6796352748",
+  "incident": "https://github.com/NoaCG/NoaCG-Studio/issues/2238#issuecomment-6796353219",
+  "quarantinePr": 2382,
+  "authority": "docs/plan-runs/known-traps.md A red gate and unchanged built-in retry/quarantine procedure"
+}

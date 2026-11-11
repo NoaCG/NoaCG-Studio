@@ -1,0 +1,87 @@
+{
+  "sha": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+  "browser": "149.0.7827.55",
+  "ui": [
+    {
+      "label": "composition .4",
+      "pose": [
+        70,
+        0.5,
+        40
+      ],
+      "composition": "0.4"
+    },
+    {
+      "label": "phase in return pass",
+      "pose": [
+        90,
+        0.8,
+        40
+      ],
+      "composition": "0.4"
+    },
+    {
+      "label": "one frame",
+      "pose": [
+        90,
+        0.74,
+        40
+      ],
+      "composition": "0.4"
+    },
+    {
+      "label": "odd finite terminal",
+      "pose": [
+        90,
+        0.8,
+        40
+      ],
+      "composition": "0.4"
+    },
+    {
+      "label": "reverse back to phase",
+      "pose": [
+        90,
+        0.8,
+        40
+      ],
+      "composition": "0.4"
+    },
+    {
+      "label": "restored composition",
+      "pose": [
+        70,
+        0.5,
+        40
+      ],
+      "composition": "0.4"
+    },
+    {
+      "label": "local smaller viewport",
+      "pose": [
+        90,
+        0.8,
+        40
+      ],
+      "composition": "0.4"
+    },
+    {
+      "label": "close restores composition",
+      "pose": [
+        70,
+        0.5,
+        40
+      ],
+      "composition": "0.4"
+    }
+  ],
+  "outputs": [],
+  "errors": [],
+  "network": [],
+  "verdict": "FAIL",
+  "failure": {
+    "name": "AssertionError",
+    "message": "spx new .5 rate: 25 != 40",
+    "stack": "AssertionError [ERR_ASSERTION]: spx new .5 rate: 25 != 40\n    at near (file:///workspace/scratch/e2-check-1111/probe.mjs:14:32)\n    at file:///workspace/scratch/e2-check-1111/probe.mjs:52:97"
+  }
+}

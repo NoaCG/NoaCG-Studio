@@ -1,0 +1,34 @@
+=== j-0005 npm run test:e2e -- e2e/editor-out-step.spec.ts
+=== cwd /workspace/noacg-editor-r1-5-e2-check
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/editor-out-step.spec.ts
+
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 15620 MB free (machine totals stand in for cgroup limits it could not read)
+[WebServer] (node:8413) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:8426) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 14 tests using 2 workers
+
+(node:8531) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8530) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   2 [chromium] › e2e/editor-out-step.spec.ts:177:31 › Out from each step leaves from what is on screen in simulator (3.5s)
+  ✓   1 [chromium] › e2e/editor-out-step.spec.ts:177:31 › Out from each step leaves from what is on screen in spx (3.8s)
+  ✓   3 [chromium] › e2e/editor-out-step.spec.ts:177:31 › Out from each step leaves from what is on screen in casparcg (3.0s)
+  ✓   4 [chromium] › e2e/editor-out-step.spec.ts:177:31 › Out from each step leaves from what is on screen in ograf (3.2s)
+  ✓   5 [chromium] › e2e/editor-out-step.spec.ts:177:31 › Out from each step leaves from what is on screen in single-file (3.1s)
+  ✓   7 [chromium] › e2e/editor-out-step.spec.ts:280:1 › a last flag a float step short of its cue end still plays the authored exit in the editor (4.7s)
+  ✓   8 [chromium] › e2e/editor-out-step.spec.ts:287:1 › a paused Out preview refuses edits until the playhead moves (3.2s)
+  ✓   9 [chromium] › e2e/editor-out-step.spec.ts:312:1 › a graphic saved with the R1.2a.2 interpreter upgrades once and then leaves from any step (2.3s)
+  ✓   6 [chromium] › e2e/editor-out-step.spec.ts:271:1 › the editor Out button from a flag plays what the simulator plays (14.4s)
+  ✓  10 [chromium] › e2e/editor-out-step.spec.ts:337:1 › a machine graphic parked at its first state keeps its authored exit (2.5s)
+  ✓  12 [chromium] › e2e/editor-out-step.spec.ts:351:1 › SVG loops keep the composition clock and an effective one-frame nudge at speed two (3.3s)
+  ✓  13 [chromium] › e2e/editor-out-step.spec.ts:352:1 › plays, interrupts, settles and replays the same loop in the simulator and browser exports (7.5s)
+  ✓  11 [chromium] › e2e/editor-out-step.spec.ts:350:1 › authors an independent property loop and a synchronized layer loop through save and reopen (12.0s)
+  ✓  14 [chromium] › e2e/editor-out-step.spec.ts:353:1 › a timed browser overlay holds after finite In while its loop moves, then goes Out (8.6s)
+
+  14 passed (48.0s)

@@ -1,0 +1,258 @@
+[
+  {
+    "id": 130521595830,
+    "name": "Analyze (actions)",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:26:19Z",
+        "completed_at": "2026-11-11T12:26:21Z"
+      },
+      {
+        "name": "Checkout repository",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:26:21Z",
+        "completed_at": "2026-11-11T12:26:25Z"
+      },
+      {
+        "name": "Setup proxy for registries",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:26:25Z",
+        "completed_at": "2026-11-11T12:26:25Z"
+      },
+      {
+        "name": "Initialize CodeQL",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:26:25Z",
+        "completed_at": "2026-11-11T12:26:39Z"
+      },
+      {
+        "name": "Perform CodeQL Analysis",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:26:39Z",
+        "completed_at": "2026-11-11T12:27:05Z"
+      },
+      {
+        "name": "Post Perform CodeQL Analysis",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:27:05Z",
+        "completed_at": "2026-11-11T12:27:05Z"
+      },
+      {
+        "name": "Post Initialize CodeQL",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-11T12:27:05Z",
+        "completed_at": "2026-11-11T12:27:06Z"
+      },
+      {
+        "name": "Post Setup proxy for registries",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 9,
+        "started_at": "2026-11-11T12:27:06Z",
+        "completed_at": "2026-11-11T12:27:06Z"
+      },
+      {
+        "name": "Post Checkout repository",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 10,
+        "started_at": "2026-11-11T12:27:06Z",
+        "completed_at": "2026-11-11T12:27:07Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 11,
+        "started_at": "2026-11-11T12:27:07Z",
+        "completed_at": "2026-11-11T12:27:07Z"
+      }
+    ]
+  },
+  {
+    "id": 130521596284,
+    "name": "Analyze (javascript-typescript)",
+    "status": "in_progress",
+    "conclusion": null,
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:26:20Z",
+        "completed_at": "2026-11-11T12:26:21Z"
+      },
+      {
+        "name": "Checkout repository",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:26:21Z",
+        "completed_at": "2026-11-11T12:26:27Z"
+      },
+      {
+        "name": "Setup proxy for registries",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:26:27Z",
+        "completed_at": "2026-11-11T12:26:27Z"
+      },
+      {
+        "name": "Initialize CodeQL",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:26:27Z",
+        "completed_at": "2026-11-11T12:26:40Z"
+      },
+      {
+        "name": "Perform CodeQL Analysis",
+        "status": "in_progress",
+        "conclusion": null,
+        "number": 5,
+        "started_at": "2026-11-11T12:26:40Z",
+        "completed_at": null
+      },
+      {
+        "name": "Post Perform CodeQL Analysis",
+        "status": "pending",
+        "conclusion": null,
+        "number": 7,
+        "started_at": null,
+        "completed_at": null
+      },
+      {
+        "name": "Post Initialize CodeQL",
+        "status": "pending",
+        "conclusion": null,
+        "number": 8,
+        "started_at": null,
+        "completed_at": null
+      },
+      {
+        "name": "Post Setup proxy for registries",
+        "status": "pending",
+        "conclusion": null,
+        "number": 9,
+        "started_at": null,
+        "completed_at": null
+      },
+      {
+        "name": "Post Checkout repository",
+        "status": "pending",
+        "conclusion": null,
+        "number": 10,
+        "started_at": null,
+        "completed_at": null
+      }
+    ]
+  },
+  {
+    "id": 130521596351,
+    "name": "Analyze (python)",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-11T12:26:19Z",
+        "completed_at": "2026-11-11T12:26:20Z"
+      },
+      {
+        "name": "Checkout repository",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-11T12:26:20Z",
+        "completed_at": "2026-11-11T12:26:26Z"
+      },
+      {
+        "name": "Setup proxy for registries",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-11T12:26:26Z",
+        "completed_at": "2026-11-11T12:26:26Z"
+      },
+      {
+        "name": "Initialize CodeQL",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-11T12:26:26Z",
+        "completed_at": "2026-11-11T12:26:34Z"
+      },
+      {
+        "name": "Perform CodeQL Analysis",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-11T12:26:34Z",
+        "completed_at": "2026-11-11T12:27:02Z"
+      },
+      {
+        "name": "Post Perform CodeQL Analysis",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-11T12:27:02Z",
+        "completed_at": "2026-11-11T12:27:02Z"
+      },
+      {
+        "name": "Post Initialize CodeQL",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-11T12:27:02Z",
+        "completed_at": "2026-11-11T12:27:03Z"
+      },
+      {
+        "name": "Post Setup proxy for registries",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 9,
+        "started_at": "2026-11-11T12:27:03Z",
+        "completed_at": "2026-11-11T12:27:03Z"
+      },
+      {
+        "name": "Post Checkout repository",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 10,
+        "started_at": "2026-11-11T12:27:03Z",
+        "completed_at": "2026-11-11T12:27:03Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 11,
+        "started_at": "2026-11-11T12:27:03Z",
+        "completed_at": "2026-11-11T12:27:03Z"
+      }
+    ]
+  }
+]

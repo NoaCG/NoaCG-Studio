@@ -1,0 +1,11 @@
+Checkout:  /workspace/noacg-editor-r1-5-e2-check
+Dev port:  5298 (reservation)
+Serving:   src/ - the dev server
+App:       http://localhost:5298/app
+Sweeps:    --base http://localhost:5298   (e.g. node scripts/svg-import-sweep.mjs --base http://localhost:5298)
+
+
+  VITE v8.3.5  ready in 265 ms
+
+  ➜  Local:   http://localhost:5298/
+  ➜  Network: use --host to expose

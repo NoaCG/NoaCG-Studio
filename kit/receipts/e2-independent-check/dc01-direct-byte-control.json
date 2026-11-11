@@ -1,0 +1,24 @@
+{
+  "parent": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+  "merge": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+  "emittedBy": "dc01.create({}) in Chromium, independently bundled exact Git sources",
+  "panes": {
+    "html": {
+      "bytes": 5409,
+      "sha256": "846808f950d721a6958f3c7516010918173a3f28315a5487de914cf52f9c5440",
+      "exactEqual": true
+    },
+    "css": {
+      "bytes": 13436,
+      "sha256": "ae78c6862cae9ca07d912fe9571db6367cbe1975df3374c1d0cfec8136346d90",
+      "exactEqual": true
+    },
+    "js": {
+      "bytes": 127876,
+      "sha256": "a7eab830025a16381fd144716c9fa15968fd32aba389076b318dd2be6e611347",
+      "exactEqual": true
+    }
+  },
+  "hasRangedLoops": false,
+  "result": "PASS"
+}
