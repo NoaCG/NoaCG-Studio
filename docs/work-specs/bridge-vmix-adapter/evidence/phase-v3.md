@@ -73,3 +73,20 @@ The focused reference checks cover muted, missing and malformed mute state acros
 The compiled 75556c97 baseline reproduced all three observation failures: an appended list let Take send SelectIndex despite unconfirmed readiness, replacement Take returned success after a muted prefix removal, and a muted Resume returned success. The repair applies the shared predicate at every successful observation and stops at the first structurally matching but unready reading. A strictly unreadable mute attribute is unconfirmed readiness while the independently validated ordered list remains readable. Structurally observed cleanup updates the retained identity even when audio readiness makes the action uncertain. An unanswered cleanup keeps the last confirmed identity until a fresh reading shows a different ordered list. No command is replayed.
 
 The repaired CLI build passed. All 107 focused vMix/media file tests and all 70 changed-gate Node tests passed. The existing 76 V2 vMix tests are included. Both earlier reviewed Windows builds and hashes remain in the local evidence folder.
+
+
+### Media root, overlay isolation and player lookup corrections
+
+The full independent review of b326ceb9 graded B+ and found three families. Resume could send Play for the current selected file outside the configured root. Take could change loop or audio settings on that same out-of-root selection before appending its new file. A picker could publish a new root while a player action was still using its earlier root. Separately, a V3 setup read failure could make V2 overlay state fail, and player lookup could claim a reserved raw display title when the identifying shortTitle was absent.
+
+Before any Take or Resume function, Bridge verifies any existing selected file against the current canonical root and the same supported media kind policy used for a requested file on that player. When the selected file fails this check, the action refuses with Clear or Out recovery. Pause, Out and Clear can stop or remove a selection even when its path is outside the current root. Ending still checks its own selected instance and named in-root file. The picker waits without the mixer turn. Only its final durable root publication joins the existing per-port turn so a player action uses one root. Setup field writes still merge atomically.
+
+V2 output-scoped state reads its overlay inputs and ownership without opening the V3 setup. Generic state preserves those fields when it cannot read V3 setup and omits the optional players. Explicit V3 actions and setup requests still report the setup failure. Player lookup keeps a saved GUID. Fallback requires a unique exact shortTitle. A reserved raw display title with missing or contradictory shortTitle is an ownership conflict, never a fallback or an invitation to add another list.
+
+The focused checks exercise outside-root and wrong-kind selections, stopping and clearing them, publication order against a live action, independent overlay state with an unreadable V3 setup, and a display-only name producing zero mixer functions. The published Rules precede the repair. The prior reviewed executable and all its verification are retained.
+
+
+The existing Bridge ownership wire contract binds a stored instance to the response's session prefix. The vMix HTTP Take binds its instance to the same Bridge session used by its action and state replies. Pause and Resume preserve that identity. After a Bridge restart, readable mixer state still names the file and the new process has no prior cue instance.
+
+
+The four focused media/root/ownership probes reproduced the reviewed failures on b326ceb9. The HTTP prefix probe also reproduced a player instance with no session prefix. On the repaired tree all 112 vMix and media tests passed, including 76 V2 tests and the new picker-publication, root recovery, overlay isolation, shortTitle and HTTP session checks. Changed root gates passed 70/70 Node tests, CLI compilation passed and the work-spec status reported no structural or digest problems. The prepared native proof scripts passed syntax checks. No device run was performed on the failed-reviewed candidates.

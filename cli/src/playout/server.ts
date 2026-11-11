@@ -754,7 +754,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
           if (keyedVmixAct && slot.adapter === 'vmix' && 'player' in slot) throw new UsageError('An output-keyed token cannot control a vMix player.');
           if (target.adapter === 'vmix' && slot.adapter === 'vmix' && 'player' in slot && vmix) {
             // The port turn includes fresh identity, ending permission, state and generations.
-            const result = await vmix.act(target, action, { receivedAt, vmixBridgePort: req.socket.localPort });
+            const result = await vmix.act(target, action, { receivedAt, vmixBridgePort: req.socket.localPort, session: memory.session });
             send(200, result.ok ? {
               ok: true, v: PLAYOUT_V, raw: result.raw, session: memory.session,
               generation: result.generation, ...(result.instance ? { instance: result.instance } : {}),

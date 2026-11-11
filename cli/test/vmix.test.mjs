@@ -1709,10 +1709,10 @@ test('one connection serves every reading and every action, with subscription li
 // selected occurrence running, then remove only the prefix. It never derives state from an ACK.
 import { createVmixMedia } from '../dist/playout/vmixMedia.js';
 
-async function playerFixture(t, fakeOptions = {}, adapterOptions = {}) {
+async function playerFixture(t, fakeOptions = {}, adapterOptions = {}, mediaOptions = {}) {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'noacg-vmix-player-')));
   for (const name of ['clip A.mp4', 'clip B.mp4', 'still.png', 'sting.wav']) await writeFile(join(root, name), 'fixture');
-  const media = createVmixMedia({ defaultFolder: async () => root });
+  const media = createVmixMedia({ defaultFolder: async () => root, ...mediaOptions });
   const fake = await startFakeVmix(fakeOptions);
   const adapter = createVmixAdapter({ port: fake.port, media, ...adapterOptions });
   t.after(async () => { adapter.close(); await fake.stop(); await rm(root, { recursive: true, force: true }); });
@@ -2189,4 +2189,165 @@ test('AC-8: Clips need no mute observation and a short held clip may complete du
   assert.equal(state.file, 'clip B.mp4');
   assert.equal(state.position, state.segment.length);
   assert.equal(state.instance, replacement.instance);
+});
+
+
+test('AC-9: Take and Resume refuse an outside-root or wrong-kind selected file before any function', async t => {
+  const outside = await realpath(await mkdtemp(join(tmpdir(), 'noacg-vmix-outside-')));
+  t.after(() => rm(outside, { recursive: true, force: true }));
+  const outsideFile = join(outside, 'outside.mp4');
+  await writeFile(outsideFile, 'outside');
+  for (const selected of ['outside', 'wrong kind']) {
+    const fixture = await playerFixture(t, { inputs: [{ type: 'VideoList', title: 'NoaCG Clips', state: 'Paused' }] });
+    const input = fixture.fake.inputs[0];
+    const file = selected === 'outside' ? outsideFile : join(fixture.root, 'sting.wav');
+    input.list = [file];
+    input.selectedIndex = 1;
+    input.duration = 4000;
+    const slot = fixture.player();
+    const resumed = await fixture.adapter.act(fixture.target, { verb: 'resume', slot });
+    const taken = await fixture.take('clip A.mp4');
+    for (const result of [resumed, taken]) {
+      assert.equal(result.ok, false, selected);
+      assert.equal(result.error.code, 'refused', selected);
+      assert.match(result.error.detail, /Clear or Out/, selected);
+    }
+    assert.equal(fixture.fake.functions.length, 0, selected);
+    assert.equal((await fixture.adapter.act(fixture.target, { verb: 'pause', slot })).ok, true, selected);
+    assert.equal((await fixture.adapter.act(fixture.target, { verb: 'out', slot })).ok, true, selected);
+    input.list = [file];
+    input.selectedIndex = 1;
+    input.state = 'Running';
+    assert.equal((await fixture.adapter.act(fixture.target, { verb: 'clear', slot })).ok, true, selected);
+    assert.deepEqual(fixture.fake.functions.map(fn => fn.name), ['Pause', 'Pause', 'ListRemoveAll', 'Pause', 'ListRemoveAll']);
+    assert.equal(input.list.length, 0);
+  }
+});
+
+test('AC-9: the picker waits without the mixer turn and publishes its choice after an active Take', async t => {
+  const newRoot = await realpath(await mkdtemp(join(tmpdir(), 'noacg-vmix-new-media-')));
+  await writeFile(join(newRoot, 'clip B.mp4'), 'new media');
+  t.after(() => rm(newRoot, { recursive: true, force: true }));
+  let releaseAlpha;
+  let finishPicker;
+  let pickerStarted;
+  let takeStarted;
+  let publishStarted;
+  const inDialog = new Promise(resolve => { pickerStarted = resolve; });
+  const inTake = new Promise(resolve => { takeStarted = resolve; });
+  const publishing = new Promise(resolve => { publishStarted = resolve; });
+  const fixture = await playerFixture(t, {
+    inputs: [{ type: 'VideoList', title: 'NoaCG Clips' }],
+    afterFunction(name, params, socket) {
+      if (name !== 'SetAlpha' || releaseAlpha) return false;
+      releaseAlpha = () => socket.write('FUNCTION OK Completed\r\n');
+      takeStarted();
+      return true;
+    },
+  }, {}, {
+    picker: () => new Promise(resolve => { finishPicker = resolve; pickerStarted(); }),
+  });
+  const choose = fixture.media.chooseFolder;
+  fixture.media.chooseFolder = (port, publish) => choose(port, save => {
+    publishStarted();
+    return publish(save);
+  });
+  const picker = fixture.adapter.chooseFolder(fixture.target);
+  await inDialog;
+  const take = fixture.take('clip A.mp4');
+  await inTake;
+  finishPicker(newRoot);
+  try {
+    await Promise.race([publishing, picker.then(() => { throw Error('The new root published while Take held the mixer turn.'); })]);
+    assert.equal(await fixture.adapter.mediaFolder(fixture.target), fixture.root);
+  } finally {
+    releaseAlpha();
+  }
+  const taken = await take;
+  assert.equal(taken.ok, true, JSON.stringify(taken));
+  assert.equal((await picker).mediaFolder, newRoot);
+  assert.equal(fixture.fake.functions.find(fn => fn.name === 'ListAdd').params.Value, join(fixture.root, 'clip A.mp4'));
+  const count = fixture.fake.functions.length;
+  assert.equal((await fixture.adapter.act(fixture.target, { verb: 'resume', slot: fixture.player() })).ok, false);
+  assert.equal((await fixture.take('clip B.mp4')).ok, false);
+  assert.equal(fixture.fake.functions.length, count);
+  assert.equal((await fixture.adapter.act(fixture.target, { verb: 'clear', slot: fixture.player() })).ok, true);
+  assert.equal((await fixture.take('clip B.mp4')).ok, true);
+  assert.equal(fixture.fake.functions.findLast(fn => fn.name === 'ListAdd').params.Value, join(newRoot, 'clip B.mp4'));
+});
+
+test('AC-9: unreadable vMix setup cannot make V2 overlay state fail', async t => {
+  const dir = await realpath(await mkdtemp(join(tmpdir(), 'noacg-vmix-unreadable-')));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const file = join(dir, 'vmix-setup.json');
+  await writeFile(file, '{invalid json');
+  const outputs = vmixOutputStore();
+  const fixture = await playerFixture(t, {
+    inputs: [{ type: 'Browser', title: 'NoaCG Evening News' }],
+  }, { outputs }, { file });
+  const key = fixture.fake.inputs[0].key;
+  fixture.fake.overlays.set(8, key);
+  await outputs.save(fixture.fake.port, { keys: { [vmixOutputId(OUTPUT)]: key } });
+  await withBridge(fixture.adapter, async post => {
+    const scoped = await post('/state', { target: fixture.target, outputUrl: OUTPUT });
+    assert.equal(scoped.ok, true, JSON.stringify(scoped));
+    assert.equal(scoped.overlays[7].input.key, key);
+    assert.equal(scoped.overlays[7].ownsOutput, true);
+    assert.equal(scoped.players, undefined);
+    const generic = await post('/state', { target: fixture.target });
+    assert.equal(generic.ok, true, JSON.stringify(generic));
+    assert.equal(generic.overlays[7].input.key, key);
+    assert.equal(generic.players, undefined);
+    assert.match((await post('/studio', { target: fixture.target })).error.detail, /vmix-setup\.json/);
+    assert.equal((await fixture.take('clip A.mp4')).ok, false);
+    assert.equal(fixture.fake.functions.length, 0);
+  });
+});
+
+test('AC-8: a reserved display-only title confers no fallback ownership and sends no function', async t => {
+  for (const displayed of ['NoaCG Clips', 'NoaCG Clips - existing.mp4']) {
+    const fixture = await playerFixture(t, {
+      inputs: [{ type: 'VideoList', title: displayed }],
+      transformXml: xml => xml.replace(/ shortTitle="[^"]*"/g, ''),
+    });
+    const result = await fixture.take('clip A.mp4');
+    assert.equal(result.ok, false, displayed);
+    assert.equal(result.error.code, 'refused', displayed);
+    assert.deepEqual(fixture.fake.functions, [], displayed);
+  }
+});
+
+
+test('AC-8: HTTP player instances belong to the Bridge session and disappear on restart', async t => {
+  const fixture = await playerFixture(t);
+  const slot = fixture.player();
+  const request = { target: fixture.target };
+  let session;
+  await withBridge(fixture.adapter, async post => {
+    const taken = await post('/act', {
+      ...request, action: { verb: 'take', slot, item: { kind: 'media', name: 'clip A.mp4' }, cueId: 'wire-cue' },
+    });
+    assert.equal(taken.ok, true, JSON.stringify(taken));
+    session = taken.session;
+    assert.ok(taken.instance.startsWith(session + '.'));
+    for (const verb of ['pause', 'resume']) {
+      const result = await post('/act', { ...request, action: { verb, slot } });
+      assert.equal(result.ok, true);
+      assert.equal(result.session, session);
+      assert.equal(result.instance, taken.instance);
+      const reading = await post('/state', request);
+      assert.equal(reading.session, session);
+      assert.equal(reading.players[0].instance, taken.instance);
+      assert.equal(reading.players[0].cueId, 'wire-cue');
+    }
+  });
+  const restarted = createVmixAdapter({ port: fixture.fake.port, media: fixture.media });
+  await withBridge(restarted, async post => {
+    const reading = await post('/state', request);
+    assert.equal(reading.ok, true);
+    assert.notEqual(reading.session, session);
+    assert.equal(reading.players[0].file, 'clip A.mp4');
+    assert.equal(reading.players[0].instance, undefined);
+    assert.equal(reading.players[0].cueId, undefined);
+  });
 });

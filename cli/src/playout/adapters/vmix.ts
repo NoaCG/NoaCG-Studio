@@ -14,7 +14,7 @@ import { DEFAULT_VMIX_PORT, VmixConnection, parseVmixXml, type VmixXml } from '.
 import { newVmixBrowser, vmixOutputAddress, vmixOutputId, vmixOutputStore, vmixRedirectRequest, type VmixOutputStore } from '../vmixOutputs.js';
 import { createVmixMedia, type VmixMedia } from '../vmixMedia.js';
 import { createVmixPlayers, unsupportedPlayerAction, type VmixActResult } from '../vmixPlayers.js';
-import type { ActResult, AdapterResult, PlayoutAdapter } from './casparcg.js';
+import type { ActContext, ActResult, AdapterResult, PlayoutAdapter } from './casparcg.js';
 
 /** The time ONE verb may take, all its commands together, inside the page's 9 s for `/act`. */
 const VMIX_TIMEOUT_MS = 7_000;
@@ -45,7 +45,7 @@ export interface VmixAdapter extends PlayoutAdapter<VmixTarget> {
   readonly port: number;
   status(target: VmixTarget, receivedAt?: number): Promise<AdapterResult<{ version: string; vmix: VmixInfo }>>;
   overlays(target: VmixTarget, outputUrl?: string, context?: { receivedAt?: number; vmixBridgePort?: number }): Promise<AdapterResult<Pick<VmixStateReply, 'vmix' | 'overlays' | 'loadProblem' | 'players'>>>;
-  act: (target: VmixTarget, action: PlayoutAction, context?: Parameters<PlayoutAdapter<VmixTarget>['act']>[2]) => Promise<VmixActResult>;
+  act: (target: VmixTarget, action: PlayoutAction, context?: ActContext & { session?: string }) => Promise<VmixActResult>;
   mediaFolder(target: VmixTarget): Promise<string>;
   chooseFolder(target: VmixTarget): Promise<{ mediaFolder: string; cancelled?: true }>;
   outputRedirect(host: string | undefined, path: string | undefined, port: number): Promise<string | undefined>;
@@ -280,13 +280,10 @@ export function createVmixAdapter(options: {
           const input = onChannel(s.xml, overlay);
           value.push({ overlay, ...(input ? { input } : {}), ...(id && !ownershipProblem ? { ownsOutput: !!owned && input?.key === owned.key } : {}) });
         }
-        let playerStates;
-        try {
-          playerStates = await players.states(portOf(target), s.xml);
-        } catch {
-          return refused('NoaCG Bridge could not read its vMix player setup. Check vmix-setup.json.');
-        }
-        return { ok: true, value: { vmix, overlays: value, players: playerStates, ...(loadProblem ? { loadProblem } : {}) }, raw: s.raw };
+        const playerStates = outputUrl === undefined
+          ? await players.states(portOf(target), s.xml).catch(() => undefined)
+          : undefined;
+        return { ok: true, value: { vmix, overlays: value, ...(playerStates ? { players: playerStates } : {}), ...(loadProblem ? { loadProblem } : {}) }, raw: s.raw };
       });
     },
 
@@ -300,7 +297,10 @@ export function createVmixAdapter(options: {
     },
 
     mediaFolder(target) { return media.folder(portOf(target)); },
-    chooseFolder(target) { return media.chooseFolder(portOf(target)); },
+    chooseFolder(target) {
+      const port = portOf(target);
+      return media.chooseFolder(port, save => exclusive(port, save));
+    },
 
     async thumbnail() {
       return unsupported('a thumbnail');
@@ -328,7 +328,7 @@ export function createVmixAdapter(options: {
             const s = await begin(target, until, 'diagnostic');
             if (!('conn' in s)) return s;
             return await players.act(portOf(target), slot.player, action, {
-              before: s.xml, until,
+              before: s.xml, until, session: context?.session,
               read: () => read(s.conn, until, 'diagnostic'),
               send: (name, params) => fn(s.conn, name, params, until, true),
             });

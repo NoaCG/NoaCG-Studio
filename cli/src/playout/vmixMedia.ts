@@ -245,7 +245,9 @@ export function createVmixMedia(options: {
       });
     },
 
-    async chooseFolder(port: number): Promise<{ mediaFolder: string; cancelled?: true }> {
+    async chooseFolder(
+      port: number, publish: (save: () => Promise<string>) => Promise<string> = save => save(),
+    ): Promise<{ mediaFolder: string; cancelled?: true }> {
       const problem = ownershipProblem?.();
       if (problem) throw new VmixMediaError(problem);
       if (picking) throw new VmixMediaError('The vMix media folder picker is already open.');
@@ -258,9 +260,14 @@ export function createVmixMedia(options: {
         if (controller.signal.aborted) throw new VmixMediaError('The media folder picker was closed with Bridge.');
         if (chosen === undefined) return { mediaFolder: current, cancelled: true };
         if (!path.isAbsolute(chosen)) throw badPath();
-        const mediaFolder = await fs.realpath(chosen);
-        if (!(await fs.stat(mediaFolder)).isDirectory()) throw badPath();
-        await update(port, previous => ({ ...previous, root: mediaFolder }));
+        // The dialog did not hold the port turn. Join it only to publish the chosen root.
+        const mediaFolder = await publish(async () => {
+          if (controller.signal.aborted) throw new VmixMediaError('The media folder picker was closed with Bridge.');
+          const canonical = await fs.realpath(chosen);
+          if (!(await fs.stat(canonical)).isDirectory()) throw badPath();
+          await update(port, previous => ({ ...previous, root: canonical }));
+          return canonical;
+        });
         return { mediaFolder };
       } catch (error) {
         if (error instanceof VmixMediaError) throw error;

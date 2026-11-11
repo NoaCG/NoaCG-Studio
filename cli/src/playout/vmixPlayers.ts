@@ -11,6 +11,7 @@ type Setup = Awaited<ReturnType<VmixMedia['setup']>>;
 interface Mixer {
   before: VmixXml;
   until: number;
+  session?: string;
   read: () => Promise<AdapterResult<VmixXml>>;
   send: (name: string, params: Record<string, string>) => Promise<AdapterResult<null>>;
 }
@@ -43,6 +44,11 @@ function readyForPlayback(player: VmixPlayer, list: VmixVideoList): boolean {
   return player === 'clips' || list.muted === false;
 }
 
+function playerForMedia(name: string): VmixPlayer | undefined {
+  const kind = vmixMediaKind(name);
+  if (kind) return kind === 'audio' ? 'audio' : 'clips';
+}
+
 export function unsupportedPlayerAction(action: PlayoutAction, player: VmixPlayer): string | undefined {
   if (action.verb === 'update' || action.verb === 'next' || action.verb === 'sequence') return action.verb;
   if ('expectedOverlayInput' in action && action.expectedOverlayInput !== undefined) return 'an overlay expectation on a player';
@@ -58,10 +64,10 @@ export function unsupportedPlayerAction(action: PlayoutAction, player: VmixPlaye
   if (action.verb === 'ending' && (action.then !== undefined || action.playback?.fadeOut !== undefined)) return 'a sequence or fade';
   if ((action.verb === 'take' || action.verb === 'ending') && action.playback?.end === 'clear') return 'Clear at the end';
   if (action.verb === 'take' || action.verb === 'ending') {
-    const kind = vmixMediaKind(action.item.name);
     if (!vmixMediaName(action.item.name)) return 'a path outside the media folder';
-    if (!kind) return 'this media type';
-    if (player !== (kind === 'audio' ? 'audio' : 'clips')) return 'this media type on ' + VMIX_PLAYER_TITLE[player];
+    const expectedPlayer = playerForMedia(action.item.name);
+    if (!expectedPlayer) return 'this media type';
+    if (player !== expectedPlayer) return 'this media type on ' + VMIX_PLAYER_TITLE[player];
   }
 }
 
@@ -71,8 +77,10 @@ function matchPlayer(xml: VmixXml, setup: Setup, player: VmixPlayer): PlayerInpu
   const other = setup.players[otherPlayer(player)]?.key.toLowerCase();
   let input = xml.inputs.find(candidate => candidate.key === saved);
   if (!input) {
-    const names = xml.inputs.filter(candidate => (xml.shortTitles.get(candidate.key) ?? candidate.title).toLowerCase() === label.toLowerCase());
-    if (names.length > 1) return refused('More than one vMix input is named ' + label + '. Check the inputs in vMix.');
+    const names = xml.inputs.filter(candidate => xml.shortTitles.get(candidate.key) === label);
+    const displayConflict = xml.inputs.some(candidate => xml.shortTitles.get(candidate.key) !== label &&
+      (candidate.title === label || candidate.title.startsWith(label + ' - ')));
+    if (names.length > 1 || displayConflict) return refused('vMix did not identify one input as ' + label + '. Check the inputs in vMix.');
     [input] = names;
   }
   if (!input) return;
@@ -153,6 +161,15 @@ export function createVmixPlayers(media: VmixMedia) {
     return saved;
   }
 
+  async function selectionProblem(port: number, player: VmixPlayer, list: VmixVideoList): Promise<Failure | undefined> {
+    const selected = selectedFile(list);
+    if (!selected) return;
+    const relative = await media.relativeFile(port, selected);
+    if (!relative || playerForMedia(relative) !== player) {
+      return refused('The selected file on ' + VMIX_PLAYER_TITLE[player] + ' is unavailable in its media folder. Use Clear or Out before playing another file.');
+    }
+  }
+
   async function states(port: number, xml: VmixXml): Promise<SlotState[]> {
     const setup = await media.setup(port);
     return Promise.all(VMIX_PLAYERS.map(async player => {
@@ -230,6 +247,8 @@ export function createVmixPlayers(media: VmixMedia) {
     const snapshot = await mixer.read();
     const before = snapshot.ok && snapshot.value.lists.get(key);
     if (!before || before.loop !== loop || !readyForPlayback(player, before)) return uncertain('setting up the Take');
+    const currentProblem = await selectionProblem(port, player, before);
+    if (currentProblem) return currentProblem;
     const file = await media.file(port, action.item.name);
     if (!sameVmixPath(initialPath, file)) return refused('The vMix media path changed during Take. Check the folder and try again.');
     const appended = [...before.items, file];
@@ -240,6 +259,8 @@ export function createVmixPlayers(media: VmixMedia) {
       return list && list.loop === loop && sameItems(list.items, appended) ? list : undefined;
     });
     if (!addedList || !readyForPlayback(player, addedList)) return uncertain('adding the file');
+    const appendedProblem = await selectionProblem(port, player, addedList);
+    if (appendedProblem) return appendedProblem;
 
     const index = appended.length;
     const selection = await send('SelectIndex', String(index));
@@ -252,7 +273,7 @@ export function createVmixPlayers(media: VmixMedia) {
         sameItems(list.items, appended) ? list : undefined;
     });
     if (!playing || !readyForPlayback(player, playing)) return uncertain('playing the file');
-    const instance = randomUUID();
+    const instance = (mixer.session ? mixer.session + '.' : '') + randomUUID();
     const started: TakeIdentity = { id: instance, cueId: action.cueId, key, list: playing };
     saved.take = started;
 
@@ -287,6 +308,10 @@ export function createVmixPlayers(media: VmixMedia) {
     const empty = action.verb === 'out' || action.verb === 'clear';
     if (!current && action.verb !== 'take' && !empty) return refused(VMIX_PLAYER_TITLE[player] + ' has no selected file.');
     const selected = current && selectedFile(current.list);
+    if (current && (action.verb === 'take' || action.verb === 'resume')) {
+      const problem = await selectionProblem(port, player, current.list);
+      if (problem) return problem;
+    }
     if (action.verb === 'ending') {
       const expected = await media.file(port, action.item.name);
       if (!saved.take || !selected || !sameVmixPath(selected, expected)) return refused('That file is no longer the clip this Bridge started. Take the cue again.');
