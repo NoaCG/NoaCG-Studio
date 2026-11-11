@@ -36,8 +36,8 @@
  },
  "waitingOn": [
   {
-   "what": "phase 3 builder receipt",
-   "eta": "2026-11-11T18:00:00Z"
+   "what": "PR #2380 merge; then owner answer on AC-1 misses before the phase 3 check",
+   "eta": "owner"
   }
  ],
  "inFlight": [
@@ -47,7 +47,9 @@
    "actor": "builder-3-3-b-3bcc",
    "session": "session_017SdbwMUFxuZM3zn8yuUWTy",
    "branch": "claude/plan-live-publishing-3-build",
-   "launchedAt": "2026-11-11T11:52:22Z"
+   "launchedAt": "2026-11-11T11:52:22Z",
+   "pr": 2380,
+   "lastSeen": "2026-11-11T16:31Z receipt 3-b-3bcc; reviewed head 593afc5d stamped, in merge queue 16:34:22Z"
   }
  ],
  "owner": [
@@ -86,6 +88,10 @@
   "checkerCostUSD": 1.9
  },
  "ownerQuestions": [
+  {
+   "what": "Phase 3 AC-1 misses on the production build (evidence/phase-3.md): stalled typical graphic 225, picture 230, quick 192, +1 189, Next 287 ms p95 (p50 11-18), large stalled graphic 734, caused by the owed edit's draft save rewriting stored productions synchronously before the press handler; second of two fast quick/+1 120-128 typical, 337-354 large; server Take large 118. Options: A land as is and accept; B one scoped repair deferring the blur-triggered save; C B plus tracing the remainders.",
+   "state": "asked 2026-11-11T16:3xZ"
+  },
   {
    "what": "AC-4: Take during a publish 100-200 ms slower at p95 unthrottled (phase 2 receipt). Ask before phase 6.",
    "state": "pending, before phase 6"
