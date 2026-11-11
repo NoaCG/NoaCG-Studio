@@ -13,7 +13,7 @@ import { clearPublishedShows, signIn, wipeMyGraphics } from '../_helpers';
 // asset, shown by a small <img> in its markup, the way an uploaded logo travels in a graphic.
 //
 // Beyond the plain cues, the fixture holds one of each W1 path's subject:
-//   - a stepped lower third ("Next"),
+//   - a stepped lower third of three lines ("Next", and two fast Nexts),
 //   - the House Score board (its Goal button is the quick button, its number stepper the +1),
 //   - a folder of two graphic cues ("folder Take"),
 //   - the production's own picture graphic with one generated picture ("picture cue"),
@@ -135,7 +135,8 @@ export async function buildFixture(page: Page, which: FixtureName): Promise<Buil
       };
 
       // Specials first, then plain graphics up to the count. The picture graphic is one of the count.
-      const stepped = add(withImage(await build('Hairline', 0, true), 0, 'LP2 Stepped'));
+      // Three lines, so a Take leaves two Nexts to press ("two fast Nexts", AC-1).
+      const stepped = add(withImage(await build('Stack Three', 0, true), 0, 'LP2 Stepped'));
       const score = add(withImage(await build('House Score', 0), 1, 'LP2 Score'));
       const pic = png(share);
       imageFileBytes += pic.bytes;

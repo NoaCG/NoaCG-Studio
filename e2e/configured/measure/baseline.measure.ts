@@ -128,8 +128,13 @@ async function pressAndMeasure(op: Page, button: Locator, testId: string, match:
 async function secondOfTwo(op: Page, button: Locator, testId: string, match: RegExp): Promise<Sample> {
   const earlier = sidsOf(await readLpm(op));
   const before = await nowOn(op);
-  await button.click();
-  await button.click();
+  // Two mouse clicks on the spot, the second straight after the first: a locator click would wait
+  // for the button to settle between them (about 500 ms here), which is not a fast press.
+  const box = await button.boundingBox();
+  if (!box) return { failed: `${testId} has no box` };
+  const x = box.x + box.width / 2, y = box.y + box.height / 2;
+  await op.mouse.click(x, y);
+  await op.mouse.click(x, y);
   const pressNo = (sid: string) => Number(sid.slice(sid.lastIndexOf(':') + 1));
   const end = Date.now() + 15_000;
   for (;;) {
