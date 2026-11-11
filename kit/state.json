@@ -44,11 +44,11 @@
   "waitingOn": {},
   "inFlight": [
     {
+      "note": "Capability ordering correction verified in 219 Windows Node tests, TypeScript and lint. Fresh independent review active. Local Chromium j-5236 and normal PR CI 43068505880 pending.",
+      "head": "6fa491f8433341b811fc388cadbe61ab04891ff8",
       "pr": 2378,
+      "session": "/root/v4_final_ordering_review",
       "phase": "v4",
-      "head": "5ae2d18cb549a1b43e40e68488a46f5863901e08",
-      "note": "Review corrections verified in 217 Windows Node tests, TypeScript and lint. Fresh final reviewer active. Required Windows Chromium j-5235 and exact PR CI 43067090115 pending.",
-      "session": "/root/v4_final_chooser_review",
       "step": "build"
     }
   ],
