@@ -114,11 +114,12 @@ Misses it (the numbers the owner decision sends to the coordinator):
   11 to 18 ms. The tail is the press that follows an owed edit: the edit's blur starts the
   draft's save, and that save rewrites the stored productions synchronously before the press's
   handler runs. It is the page's own work, not a wait, and it is the same with the old build
-  (quick 264, +1 199). Traced in this phase's profiling of the stalled runs.
+  (quick 264, +1 199). Inferred from where the stall bites (only presses after an owed edit, p50
+  unchanged); no profile is recorded.
 - Second of two fast quick buttons or +1s: typical 92 / 120 and 97 / 128, large 288 / 337 and
   290 / 354 (before: 96 / 122, 99 / 141, 320 / 410, 318 / 432). The wait for the first press's
-  answer is kept and excluded; the cause of the remainder was not traced. It was there before and
-  is lower now.
+  answer is kept and excluded; the cause of the remainder was not traced. It was there before; it is
+  lower now on the large fixture and the same within noise on the typical one.
 - Server Take, large, without the stall: 96 / 118 (before 129 / 168). The `/health` wait and the
   250 ms head start are gone; the cause of the remainder was not traced.
 
@@ -167,10 +168,12 @@ No product change was made for these, as the owner decision says.
   still runs and a closing page still saves at once (`control/cueDraft.ts`), so typed text is not
   held unsaved for the send's round trip. A Bridge's features are refreshed by every status
   poll, which still asks `/health`.
-- Fixed after the PR review (1bbcc23f): two hinted Takes of one graphic can send the same stale
-  look with different values. The page now applies a measurement only from the newest hinted Take
-  of that graphic that reached the outputs (`placeTaken`'s `latest`), so it holds the place the
-  outputs show. This runs after the send, so the timings below are unchanged by it.
+- Fixed after the PR review and the final delta /so: a later send can carry the same stale look
+  as a hinted Take (a second hinted Take, an unhinted Take, an Update, a look send), so the look
+  alone cannot tell which measurement the outputs show. Every send that sets a graphic's look or
+  takes it off is now counted as it leaves, and a hinted Take's measurement applies only while
+  none followed it (`placeTaken`'s `latest`); a send that sets no look (a figure, a +1) leaves it
+  standing. This runs after the send, so the timings below are unchanged by it.
 
 ## Not checked here
 

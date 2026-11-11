@@ -801,24 +801,32 @@ test('a Take carries the place and size read from memory at the press, with a pl
   r.flushes[1].resolve();
   r.flushes[2].resolve();
   place = undefined;
+  // A send that sets no look (a figure, a +1) leaves the measurement standing.
+  const figure = r.verbs.send([[{ graphic: 'Strap', msg: { t: 'update', data: { f0: 'B' } } }]], 'Update');
+  await settle();
+  r.sends[3].answer.resolve({ ...noneLeft });
+  await figure;
+  assert.equal(latest[1](), true, 'a send that sets no look leaves the measurement standing');
   // An Update is not a Take path: it waits for its save, then reads what is newest.
   const updating = r.verbs.update(sel({ editingCue: cue, selectedGraphic: 'Strap', editingIsLive: true }));
   await settle();
-  assert.equal(r.sends.length, 3, 'nothing goes while the Update waits for its save');
+  assert.equal(r.sends.length, 4, 'nothing goes while the Update waits for its save');
   look = after;
   r.flushes[3].resolve();
   await settle();
-  assert.deepEqual(sentAs(r.sends[3].batches), [[{ graphic: 'Strap', msg: { t: 'update', data: { f0: 'A' }, appearance: after } }]]);
-  r.sends[3].answer.resolve({ ...noneLeft });
+  assert.deepEqual(sentAs(r.sends[4].batches), [[{ graphic: 'Strap', msg: { t: 'update', data: { f0: 'A' }, appearance: after } }]]);
+  // Any later send that sets the graphic's look, hinted or not, stands over a pending measurement.
+  assert.equal(latest[1](), false, 'a later Update that sets the look stands over the measurement');
+  r.sends[4].answer.resolve({ ...noneLeft });
   await updating;
   // A cue the page has nothing for: the update carries no field at all.
   look = undefined;
   place = undefined;
   const plain = r.verbs.take(cue);
   await settle();
-  assert.equal('appearance' in r.sends[4].batches[0][0].msg, false);
-  assert.equal('place' in r.sends[4].batches[0][0].msg, false);
-  r.sends[4].answer.resolve({ ...noneLeft });
+  assert.equal('appearance' in r.sends[5].batches[0][0].msg, false);
+  assert.equal('place' in r.sends[5].batches[0][0].msg, false);
+  r.sends[5].answer.resolve({ ...noneLeft });
   await plain;
 });
 

@@ -159,9 +159,9 @@ export interface GraphicPage {
   takeAppearanceOf?: (cue: ShowCue, graphic: string) => { appearance?: AppliedAppearance; place?: PlaceHint };
   /** A Take that carried a place hint reached the outputs: the page measures the values it sent, as
    *  an output does, and then holds what the outputs resolved, not `sent` (./airState.ts
-   *  `placedLook`, ./cueAdjust.ts `placedAppearance`). `latest` stays true while no later hinted
-   *  Take of the graphic reached the outputs: two can send the same stale look with different
-   *  values, and only the newer one's measurement is what the outputs show. */
+   *  `placedLook`, ./cueAdjust.ts `placedAppearance`). `latest` stays true while no later send set
+   *  the graphic's look or took it off: a later Take, Update or look send can carry the same stale
+   *  look, so the look alone cannot tell which measurement the outputs show. */
   placeTaken?: (cue: ShowCue, graphic: string, sent: AppliedAppearance, values: Record<string, string>, place: PlaceHint, latest: () => boolean) => void;
   /** THE LOOK A SEND TO ON-AIR GRAPHICS CARRIES for the cue on a layer (phase 3,
    *  ./adjustGeometry.ts `lookAppearance`): the style its records and the production look give it
@@ -425,8 +425,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    *  order the save before the send gave it), never inside the press order: the next press on the
    *  graphic waits for this one's send (`afterPress`), not for its save. Nothing is written after
    *  the session's end. */
-  /** Per graphic, the newest hinted Take that reached the outputs (`placeTaken`'s `latest`). */
-  const hinted = new Map<string, number>();
+  /** Per graphic, how many sends that set its look or take it off have left this page
+   *  (`placeTaken`'s `latest`): a hinted Take's measurement stands only while none followed it. */
+  const looksSent = new Map<string, number>();
   const writeAfter = (saved: Promise<unknown> | undefined, write: () => void) =>
     void (saved ?? Promise.resolve()).then(() => {
       if (session.alive()) write();
@@ -528,6 +529,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   /** `moved`: the figures a live event moves on its graphic, which its payload may not carry. */
   const sendWith = async (p: VerbSender, batches: ControlSendItem[][], label: string, allOut = false, moved?: Record<string, string>): Promise<Sent> => {
     const stamp = ++sendSeq;
+    // Counted as the send leaves, so a send pressed later always counts after this one.
+    const looked = new Set(batches.flat().filter((item) => item.msg.t === 'stop' || (item.msg.t === 'update' && item.msg.appearance !== undefined)).map((item) => item.graphic));
+    for (const graphic of looked) looksSent.set(graphic, (looksSent.get(graphic) ?? 0) + 1);
     // Nothing more goes for a closed production (§4.1 R3), except All out's clear: the panic control
     // pressed before the end still takes off what it named, since a clear can air nothing stale.
     if (!allOut && !session.alive()) return { ok: false, note: ENDED_NOTE };
@@ -746,18 +750,16 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     if (peers.length > 0) place = undefined;
     const captured = [{ g: graphic, c: p.selectionAired(graphic, cue.id, selection, true) }, ...peers.map((g) => ({ g, c: p.selectionAired(g, '', { status: 'none' }, true) }))];
     const take = takeCueItems({ id: cue.id, graphic, values, ...envelope, ...(appearance ? { appearance } : {}), ...(place ? { place } : {}), ...(direct ? { direct: true, auto: cue.auto ? markerAuto({ auto: cue.auto, next: null }) : null } : {}) });
-    const sent = await sendWith(s, withPeersOff(peers, take), label);
+    const sending = sendWith(s, withPeersOff(peers, take), label);
+    const mark = looksSent.get(graphic);
+    const sent = await sending;
     if (!sent.ok) {
       for (const { c } of captured) c.undo(sent);
       return { ok: false, note: sent.note };
     }
     // A capture lands only with its press on the output; a later press that overtook it stands.
     for (const { g, c } of captured) if (reachedOutput(sent, g)) c.landed(); else c.undo();
-    if (place && appearance && reachedOutput(sent, graphic)) {
-      const stamp = (hinted.get(graphic) ?? 0) + 1;
-      hinted.set(graphic, stamp);
-      p.placeTaken?.(cue, graphic, appearance, values, place, () => hinted.get(graphic) === stamp);
-    }
+    if (place && appearance && reachedOutput(sent, graphic)) p.placeTaken?.(cue, graphic, appearance, values, place, () => looksSent.get(graphic) === mark);
     p.clearMisses([cue.id]);
     const named = namedOnce(label, cue.label);
     if (p.answersOnOutput?.(graphic)) return { ok: true, unconfirmed: true, note: `${named} sent to the outputs` };
