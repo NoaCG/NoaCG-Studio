@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "head": "98bae714744b40bebb20b0bb60e89587a8744696",
+      "phase": "v4",
       "pr": 2378,
       "step": "build",
+      "note": "Three-round reassessment repair pushed. Exact normal CI 43006843528, fresh review and local j-5233 are pending. Draft stays outside merge queue.",
       "session": "/root/v4_builder",
-      "note": "Reassessed media readiness corrections pushed. Exact CI 43004109036 and fresh review pending; required local browser j-5232 awaits capacity. Draft remains unqueued.",
-      "phase": "v4"
+      "head": "d041c1ca924d6047722631d33808318135510463"
     }
   ],
   "owner": [],
