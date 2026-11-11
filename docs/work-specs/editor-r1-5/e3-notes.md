@@ -87,3 +87,37 @@ route/model identity, key, cost accounting, attempt budget and timeout remain th
 same. A response without the requested valid tool output refuses; it cannot become
 an editor write or an unvalidated answer.** No additional model call or automatic
 fallback is added. Fresh Rules-first review precedes the adapter edit.
+
+## First real-quality finding and bounded correction
+
+The first six served calls at `e2393159a6a73d903cd2189f5f2bf763748b25b0`
+used the same intended Sonnet 5.5 with its native ID. All returned validated tools
+on one attempt; five self-hosted managed calls and one normal sealed-key BYOK call.
+The token-price estimate was USD 0.104124, not an invoice. Their runner's PASS
+means execution/source/history assertions only. Fresh independent assessor
+`/root/editor_r15_e3_builder/e3_model_quality` found **five quality passes and one
+failure**: help-out invented a “Rehearse control” and implied an editor Next button.
+The full original sample and this failure remain retained, not retroactively passed.
+
+This is quality-review round 1, family **grounded control guidance**, class product
+instruction defect. The guide now names actual Layers & Timeline controls and
+supplies a distinct editorControls list, separating cue labels/command IDs from
+buttons. A deterministic assertion checks these names against the visible UI.
+No state or funding rule changes.
+
+Before any further paid call, the coordinator explicitly confirmed the existing
+first bounded quality repair/recheck: **one help-out task only**, using the original
+question and the same selected original Riverlight title, after pinning the corrected
+source. Expected quality: identify the current selection/existing Out accurately;
+use Go to beginning/Play for entrance preview, Out for exit preview, Edit Out for
+inspection and Set Out at playhead with Yes, reverse / No, author manually when
+applicable. Do not invent Rehearse or Next buttons. The answer must leave source,
+samples, view and history unchanged and offer no Apply action.
+
+The original six-call sample cap is unchanged; successful tasks are not rerun.
+This separate recheck has a one-call/one-attempt/no-fallback limit and the same
+cumulative USD 2 conservative ceiling (previous served estimate USD 0.104124).
+Only that verification process sets AI_RETRY_LIMIT=0 to enforce the explicitly
+required one attempt; product/default retries are unchanged. No additional paid
+recheck is authorized if the same guidance family fails again: reassess and stop.
+An independent quality assessment must judge the actual returned answer.

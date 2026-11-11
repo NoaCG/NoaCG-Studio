@@ -208,6 +208,11 @@ test('help is grounded in current controls and selection, read-only and rendered
   const payload = request!.request.messages[0].content;
   const grounding = JSON.parse(payload);
   expect(grounding.guide.join('\n')).toContain('Set Out at playhead');
+  expect(grounding.guideVersion).toBe(2);
+  for (const name of [...grounding.editorControls.transport.filter((name: string) => name !== 'Pause'), ...grounding.editorControls.exit]) {
+    await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
+  }
+  expect(grounding.editorControls.reverseChoices).toEqual(['Yes, reverse', 'No, author manually']);
   expect(grounding.inspection.inspection.view.selectedIds).toEqual(['f0']);
   expect(grounding.inspection.inspection.expected.documentId).toBeTruthy();
   expect(grounding.inspection.catalog.commands).toHaveLength(6);

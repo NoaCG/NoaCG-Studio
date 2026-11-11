@@ -95,6 +95,9 @@ checked. The status column records what remains on that path.
 
 ## Assisted editing, projects, receiving and adoption
 
+Current-source E3 subcriteria and retained model-quality failures are reconciled in
+[the E3 inventory](e3-inventory.md); this original table keeps its historical boundaries.
+
 | Requirement and subcriterion | Phase | Existing receipt/revision | Applicability on pinned main | Remaining check | Env | Status |
 | --- | --- | --- | --- | --- | --- | --- |
 | B17 / E23. Manual and shared UI/CLI operations against selected document | E3 | [Command qualification](../editor-command-qualification/README.md) | Six commands scoped; paired live MCP is R3.2 | Compare UI/CLI source, history and render, with supported external-tool access | M | Scoped |
