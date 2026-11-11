@@ -380,10 +380,10 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
         const durationMs = stateInteger(attribute('duration'));
         const state = attribute('state');
         const loop = stateBoolean(attribute('loop'));
-        const rawMuted = attribute('muted');
-        const muted = stateBoolean(rawMuted);
-        const value = selected !== undefined && positionMs !== undefined && durationMs !== undefined && state && loop !== undefined &&
-          (rawMuted === undefined || muted !== undefined)
+        // An unreadable mute field cannot prove audio readiness. The other list fields still
+        // identify the selected occurrence independently of that setting.
+        const muted = stateBoolean(attribute('muted'));
+        const value = selected !== undefined && positionMs !== undefined && durationMs !== undefined && state && loop !== undefined
           ? { items: [], selected, state, positionMs, durationMs, loop, ...(muted !== undefined ? { muted } : {}) }
           : undefined;
         videoList = { key, value, seen: false, invalid: false, marked: [] };

@@ -39,6 +39,10 @@ const otherPlayer = (player: VmixPlayer): VmixPlayer => player === 'clips' ? 'au
 const poll = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 const POLL_MS = 125;
 
+function readyForPlayback(player: VmixPlayer, list: VmixVideoList): boolean {
+  return player === 'clips' || list.muted === false;
+}
+
 export function unsupportedPlayerAction(action: PlayoutAction, player: VmixPlayer): string | undefined {
   if (action.verb === 'update' || action.verb === 'next' || action.verb === 'sequence') return action.verb;
   if ('expectedOverlayInput' in action && action.expectedOverlayInput !== undefined) return 'an overlay expectation on a player';
@@ -174,9 +178,9 @@ export function createVmixPlayers(media: VmixMedia) {
     const title = VMIX_PLAYER_TITLE[player];
     let input = current?.input;
     const kept = setup.players[player];
-    if (input && kept?.key.toLowerCase() === input.key && kept.ready) {
-      if (player === 'audio' && current?.list.muted !== false) return refused('vMix has not confirmed NoaCG Audio unmuted. Check its audio in vMix before taking the cue.');
-      return input.key;
+    if (current && kept?.key.toLowerCase() === current.input.key && kept.ready) {
+      if (!readyForPlayback(player, current.list)) return refused('vMix has not confirmed NoaCG Audio unmuted. Check its audio in vMix before taking the cue.');
+      return current.input.key;
     }
     if (!input) {
       if (setup.adding[player]) return refused('Bridge could not identify a previous ' + title + ' creation. Check the Video Lists in vMix and name the intended input ' + title + ' before trying again.');
@@ -207,7 +211,7 @@ export function createVmixPlayers(media: VmixMedia) {
     const confirmed = await mixer.read();
     const list = confirmed.ok && confirmed.value.lists.get(key);
     if (!confirmed.ok || confirmed.value.shortTitles.get(key) !== title || !list ||
-        (player === 'audio' && list.muted !== false)) return uncertain('preparing ' + title);
+        !readyForPlayback(player, list)) return uncertain('preparing ' + title);
     await media.keepPlayer(port, player, key, true);
     return key;
   }
@@ -225,16 +229,17 @@ export function createVmixPlayers(media: VmixMedia) {
 
     const snapshot = await mixer.read();
     const before = snapshot.ok && snapshot.value.lists.get(key);
-    if (!before || before.loop !== loop || (player === 'audio' && before.muted !== false)) return uncertain('setting up the Take');
+    if (!before || before.loop !== loop || !readyForPlayback(player, before)) return uncertain('setting up the Take');
     const file = await media.file(port, action.item.name);
     if (!sameVmixPath(initialPath, file)) return refused('The vMix media path changed during Take. Check the folder and try again.');
     const appended = [...before.items, file];
     const added = await send('ListAdd', file);
     if (!added.ok) return added;
-    if (!await observe(mixer, xml => {
+    const addedList = await observe(mixer, xml => {
       const list = xml.lists.get(key);
-      return list && sameItems(list.items, appended) ? list : undefined;
-    })) return uncertain('adding the file');
+      return list && list.loop === loop && sameItems(list.items, appended) ? list : undefined;
+    });
+    if (!addedList || !readyForPlayback(player, addedList)) return uncertain('adding the file');
 
     const index = appended.length;
     const selection = await send('SelectIndex', String(index));
@@ -244,11 +249,12 @@ export function createVmixPlayers(media: VmixMedia) {
     const playing = await observe(mixer, xml => {
       const list = xml.lists.get(key);
       return list && list.state === 'Running' && list.selected === index && list.loop === loop &&
-        (player !== 'audio' || list.muted === false) && sameItems(list.items, appended) ? list : undefined;
+        sameItems(list.items, appended) ? list : undefined;
     });
-    if (!playing) return uncertain('playing the file');
+    if (!playing || !readyForPlayback(player, playing)) return uncertain('playing the file');
     const instance = randomUUID();
-    saved.take = { id: instance, cueId: action.cueId, key, list: playing };
+    const started: TakeIdentity = { id: instance, cueId: action.cueId, key, list: playing };
+    saved.take = started;
 
     // Remove only confirmed prefix entries. Retained entries from a partial Take stay in vMix.
     for (let remove = 1; remove < index; remove += 1) {
@@ -265,7 +271,9 @@ export function createVmixPlayers(media: VmixMedia) {
           sameItems(list.items, expected) ? list : undefined;
       });
       if (!after) return uncertain('removing earlier items after the requested file was seen playing');
-      saved.take.list = after;
+      // Prefix removal can be observed even if the same selected input lost audio readiness.
+      started.list = after;
+      if (!readyForPlayback(player, after)) return uncertain('removing earlier items after the requested file was seen playing');
     }
     return { ...unchanged('vMix confirmed the selected file playing.'), generation: saved.generation, instance };
   }
@@ -284,6 +292,9 @@ export function createVmixPlayers(media: VmixMedia) {
       if (!saved.take || !selected || !sameVmixPath(selected, expected)) return refused('That file is no longer the clip this Bridge started. Take the cue again.');
     }
     if (!empty && action.verb !== 'take' && !selected) return refused(VMIX_PLAYER_TITLE[player] + ' has no selected file.');
+    if (action.verb === 'resume' && current && !readyForPlayback(player, current.list)) {
+      return refused('vMix has not confirmed NoaCG Audio unmuted. Check its audio in vMix before resuming the cue.');
+    }
 
     saved.generation += 1;
     if (action.verb === 'take') return take(port, player, current, setup, mixer, action, saved);
@@ -307,7 +318,9 @@ export function createVmixPlayers(media: VmixMedia) {
       if (action.verb === 'resume') return list.state === 'Running' ? list : undefined;
       return list.state === 'Paused' ? list : undefined;
     });
-    if (!after) return uncertain(empty ? 'emptying the player' : verb);
+    if (!after || (action.verb === 'resume' && !readyForPlayback(player, after))) {
+      return uncertain(empty ? 'emptying the player' : verb);
+    }
     if (empty) delete saved.take;
     else if (saved.take) saved.take.list = after;
     return { ...unchanged(empty ? 'vMix confirmed the player is empty.' : result.raw), generation: saved.generation, instance: saved.take?.id };

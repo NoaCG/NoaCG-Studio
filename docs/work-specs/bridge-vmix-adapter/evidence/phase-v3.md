@@ -57,3 +57,19 @@ An audio player is ready only after fresh XML identifies the same GUID and named
 
 
 The audio defect reproduced on the reviewed candidate, the silent-no-op fake returned success while muted remained true. The repair parses a strict optional mute attribute privately, requires an observed unmuted audio list during setup and Take observation, and refuses a reused muted player before another function. Missing and malformed post-AudioOn observations remain uncertain. The repaired CLI build passed, the complete vMix/media regression passed 102/102, and changed root gates passed with 70/70 Node tests. The first reviewed executable and checksum remain preserved in the local evidence folder.
+
+
+### Reassessment of the audio observation rule
+
+The next independent full review found a second variant of the same audio-observation defect. The cleanup observation after ListRemove could replace the confirmed unmuted Running snapshot with a muted snapshot and still authorize successful Take completion. The candidate and its package remain recorded separately.
+
+The fresh independent reassessment agreed with one bounded correction. One shared readiness predicate applies at every observation that authorizes audio Take progress or success, including setup, reuse, pre-append, appended list, first Running and every prefix cleanup. Clips keep their existing behavior. Audio readiness means a strict observed muted false. Each stage keeps its list order, selected occurrence, loop and liveness requirements. A later cleanup failure preserves the instance established by confirmed Running, preserves a valid ER and partial-effect context, and leaves an unanswered function uncertain without retry.
+
+Resume also needs readiness before any function and in the same-selection Running observation after Play. An initially muted or unconfirmed audio Resume is refused. An unreadable, missing or contradictory observation after its acknowledged Play is uncertain. Bridge does not unmute automatically. Pause, ending, Out and Clear prove their own requested effect. A mute change by itself keeps the selected item's instance and cue identity in state.
+
+The focused reference checks cover muted, missing and malformed mute state across the progress stages, repeated paths with multiple prefix removals, intermediate and final cleanup changes, Resume before and after dispatch, clips with no mute field, natural short-clip completion during cleanup, and identity retained by Pause, ending and state.
+
+
+The compiled 75556c97 baseline reproduced all three observation failures: an appended list let Take send SelectIndex despite unconfirmed readiness, replacement Take returned success after a muted prefix removal, and a muted Resume returned success. The repair applies the shared predicate at every successful observation and stops at the first structurally matching but unready reading. A strictly unreadable mute attribute is unconfirmed readiness while the independently validated ordered list remains readable. Structurally observed cleanup updates the retained identity even when audio readiness makes the action uncertain. An unanswered cleanup keeps the last confirmed identity until a fresh reading shows a different ordered list. No command is replayed.
+
+The repaired CLI build passed. All 107 focused vMix/media file tests and all 70 changed-gate Node tests passed. The existing 76 V2 vMix tests are included. Both earlier reviewed Windows builds and hashes remain in the local evidence folder.

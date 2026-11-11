@@ -2044,13 +2044,149 @@ test('AC-8: missing or malformed mute readback after AudioOn remains uncertain w
   }
 });
 
-test('AC-8: a reused audio player observed muted refuses Take before another function', async t => {
-  const fixture = await playerFixture(t);
-  assert.equal((await fixture.take('sting.wav')).ok, true);
+const muteFaults = [
+  { label: 'muted', value: 'True' },
+  { label: 'missing', value: undefined },
+  { label: 'malformed', value: 'unknown' },
+];
+
+function unreadableMute(xml, fault) {
+  return xml.replace(/ muted="[^"]*"/g, fault.value === undefined ? '' : ' muted="' + fault.value + '"');
+}
+
+test('AC-8: a reused audio player with unconfirmed readiness refuses Take before another function', async t => {
+  for (const fault of muteFaults) {
+    let broken = false;
+    const fixture = await playerFixture(t, {
+      inputs: [{ type: 'VideoList', title: 'NoaCG Audio' }],
+      transformXml: xml => broken ? unreadableMute(xml, fault) : xml,
+    });
+    assert.equal((await fixture.take('sting.wav')).ok, true);
+    broken = true;
+    const before = fixture.fake.functions.length;
+    const reply = await fixture.take('sting.wav');
+    assert.equal(reply.ok, false, fault.label);
+    assert.equal(reply.error.code, 'refused', fault.label);
+    assert.equal(fixture.fake.functions.length, before, fault.label);
+  }
+});
+
+test('AC-8: audio Take stops at the first matching stage with unconfirmed readiness', async t => {
+  for (const [command, absent] of [
+    ['AudioOn', 'SetAlpha'], ['SetAlpha', 'ListAdd'], ['ListAdd', 'SelectIndex'], ['Play', 'ListRemove'],
+  ]) {
+    for (const fault of muteFaults) {
+      let broken = false;
+      const fixture = await playerFixture(t, {
+        inputs: [{ type: 'VideoList', title: 'NoaCG Audio' }],
+        afterFunction(name) { if (name === command) broken = true; return false; },
+        transformXml: xml => broken ? unreadableMute(xml, fault) : xml,
+      }, { timeoutMs: 600 });
+      const reply = await fixture.take('sting.wav');
+      const label = command + ', ' + fault.label;
+      assert.equal(reply.ok, false, label);
+      assert.equal(reply.error.code, 'uncertain', label);
+      assert.equal(fixture.fake.functions.filter(fn => fn.name === command).length, 1, label);
+      assert.equal(fixture.fake.functions.some(fn => fn.name === absent), false, label);
+      assert.equal((await fixture.adapter.overlays(fixture.target)).value.players[1].instance, undefined, label);
+    }
+  }
+});
+
+test('AC-8: a replacement of the same audio path checks each prefix removal and keeps observed identity', async t => {
+  for (const removal of [1, 2]) {
+    for (const fault of muteFaults) {
+      let removed = 0;
+      const fixture = await playerFixture(t, {
+        inputs: [{ type: 'VideoList', title: 'NoaCG Audio', state: 'Running' }],
+        afterFunction(name) { if (name === 'ListRemove') removed += 1; return false; },
+        transformXml: xml => removed >= removal ? unreadableMute(xml, fault) : xml,
+      }, { timeoutMs: 600 });
+      const input = fixture.fake.inputs[0];
+      input.list = [join(fixture.root, 'sting.wav'), join(fixture.root, 'sting.wav')];
+      input.selectedIndex = 2;
+      const reply = await fixture.take('sting.wav');
+      const label = 'removal ' + removal + ', ' + fault.label;
+      assert.equal(reply.ok, false, label);
+      assert.equal(reply.error.code, 'uncertain', label);
+      assert.equal(removed, removal, label);
+      assert.equal(input.list.length, 3 - removal, label);
+      const state = (await fixture.adapter.overlays(fixture.target)).value.players[1];
+      assert.equal(state.file, 'sting.wav', label);
+      assert.equal(state.cueId, 'cue:sting.wav', label);
+      assert.ok(state.instance, label);
+    }
+  }
+});
+
+test('AC-8: audio Resume refuses before Play or stays uncertain afterward when readiness is unconfirmed', async t => {
+  for (const phase of ['before', 'after']) {
+    for (const fault of muteFaults) {
+      let resuming = false;
+      let resumed = false;
+      const fixture = await playerFixture(t, {
+        inputs: [{ type: 'VideoList', title: 'NoaCG Audio' }],
+        afterFunction(name) { if (resuming && name === 'Play') resumed = true; return false; },
+        transformXml: xml => resuming && (phase === 'before' || resumed) ? unreadableMute(xml, fault) : xml,
+      }, { timeoutMs: 600 });
+      const taken = await fixture.take('sting.wav');
+      assert.equal(taken.ok, true);
+      assert.equal((await fixture.adapter.act(fixture.target, { verb: 'pause', slot: fixture.player('audio') })).ok, true);
+      resuming = true;
+      const before = fixture.fake.functions.length;
+      const reply = await fixture.adapter.act(fixture.target, { verb: 'resume', slot: fixture.player('audio') });
+      const label = phase + ' Play, ' + fault.label;
+      assert.equal(reply.ok, false, label);
+      assert.equal(reply.error.code, phase === 'before' ? 'refused' : 'uncertain', label);
+      assert.deepEqual(fixture.fake.functions.slice(before).map(fn => fn.name), phase === 'before' ? [] : ['Play'], label);
+      assert.equal((await fixture.adapter.overlays(fixture.target)).value.players[1].instance, taken.instance, label);
+    }
+  }
+});
+
+test('AC-8: mute-only changes preserve the selected audio instance through state, Pause and ending', async t => {
+  const fixture = await playerFixture(t, { inputs: [{ type: 'VideoList', title: 'NoaCG Audio' }] });
+  const taken = await fixture.take('sting.wav');
+  assert.equal(taken.ok, true);
   fixture.fake.inputs[0].muted = true;
-  const before = fixture.fake.functions.length;
-  const reply = await fixture.take('sting.wav');
-  assert.equal(reply.ok, false);
-  assert.equal(reply.error.code, 'refused');
-  assert.equal(fixture.fake.functions.length, before);
+  const slot = fixture.player('audio');
+  const paused = await fixture.adapter.act(fixture.target, { verb: 'pause', slot });
+  const ending = await fixture.adapter.act(fixture.target, {
+    verb: 'ending', slot, item: { kind: 'media', name: 'sting.wav' }, playback: { end: 'loop' },
+  });
+  const current = (await fixture.adapter.overlays(fixture.target)).value.players[1];
+  for (const result of [paused, ending]) {
+    assert.equal(result.ok, true);
+    assert.equal(result.instance, taken.instance);
+  }
+  assert.equal(current.instance, taken.instance);
+  assert.equal(current.cueId, 'cue:sting.wav');
+  assert.equal(current.paused, true);
+  assert.equal(current.loop, true);
+  assert.equal(fixture.fake.inputs[0].muted, true);
+  assert.equal(fixture.fake.functions.filter(fn => fn.name === 'AudioOn').length, 1);
+});
+
+test('AC-8: Clips need no mute observation and a short held clip may complete during prefix cleanup', async t => {
+  let fake;
+  const fixture = await playerFixture(t, {
+    inputs: [{ type: 'VideoList', title: 'NoaCG Clips' }],
+    transformXml: xml => unreadableMute(xml, { value: undefined }),
+    afterFunction(name) {
+      if (name === 'ListRemove') {
+        const input = fake.inputs[0];
+        input.state = 'Completed';
+        input.position = input.duration;
+      }
+      return false;
+    },
+  });
+  fake = fixture.fake;
+  assert.equal((await fixture.take('clip A.mp4')).ok, true);
+  const replacement = await fixture.take('clip B.mp4');
+  assert.equal(replacement.ok, true, JSON.stringify(replacement));
+  const state = (await fixture.adapter.overlays(fixture.target)).value.players[0];
+  assert.equal(state.file, 'clip B.mp4');
+  assert.equal(state.position, state.segment.length);
+  assert.equal(state.instance, replacement.instance);
 });
