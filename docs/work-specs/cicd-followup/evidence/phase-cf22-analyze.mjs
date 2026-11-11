@@ -498,10 +498,11 @@ function candidates(rec) {
 
   // D (from the data). The capacity line is computed before any test runs and its inputs are on
   // the agent's machine (scripts/e2e-capacity.mjs, as known-traps runs it): checking it before
-  // pushing turns each capacity refusal into an owner question before a CI round. Saved: every
-  // capacity bounce's CI round (the first refusal's CI minutes and every repeat), less C's repeats.
+  // pushing turns each capacity refusal into an owner question before a CI round. Saved: the CI
+  // round of the first capacity refusal on each PR; every later one is a loop (C's, or one an
+  // agent clears itself).
   const cap = allGates.filter((b) => /capacity/.test(b.gate ?? ''));
-  const firstCap = cap.filter((b) => !repeats.includes(b));
+  const firstCap = cap.filter((b, i) => !cap.slice(0, i).some((p0) => p0.pr === b.pr));
   out.push({ id: 'D', name: 'Agents check the capacity line before pushing and ask the owner then', bounces: cap.length,
     saved_min: sum(firstCap.filter((b) => b.lost_min != null), (b) => b.ci_min),
     basis: 'the CI minutes of the first capacity refusal per PR, which a local check replaces; the repeats are C\'s' });
