@@ -1,0 +1,2391 @@
+{
+  "readerRun": 43087009483,
+  "readerJob": 130753925546,
+  "source": "81f782eaebf00e35a41ccec0eba5d2272a629dc0",
+  "results": [
+    {
+      "kind": "clock",
+      "batch": 1,
+      "run": 43081528522,
+      "conclusion": "success",
+      "artifact": 13886611056,
+      "zipSha256": "574c636b4bbff453a5a5c1da25c634c0b04917027213ef2c2504561c43d82fcd",
+      "rows": [
+        {
+          "pair": 1,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0002",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 1,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0001",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 2,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0004",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 2,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0003",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 3,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0006",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 3,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0005",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 4,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0008",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 4,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0007",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 5,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0010",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 5,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0009",
+          "cases": 24,
+          "failures": []
+        }
+      ],
+      "unresolved": []
+    },
+    {
+      "kind": "clock",
+      "batch": 2,
+      "run": 43081764656,
+      "conclusion": "success",
+      "artifact": 13885239302,
+      "zipSha256": "9c5a7b7ed837bc77eb3f8f4b2a52d28ee6c1f551ec876cc5cb032b7c96ae84d4",
+      "rows": [
+        {
+          "pair": 6,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0002",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 6,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0001",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 7,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0004",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 7,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0003",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 8,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0005",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 8,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0006",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 9,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0007",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 9,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0008",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 10,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0009",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 10,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0010",
+          "cases": 24,
+          "failures": []
+        }
+      ],
+      "unresolved": []
+    },
+    {
+      "kind": "clock",
+      "batch": 3,
+      "run": 43081776017,
+      "conclusion": "failure",
+      "artifact": 13885444453,
+      "zipSha256": "8dabfd779c9b9a2af5d92cfdc5aa0623049c81bc86a73db0000881337e614478",
+      "rows": [
+        {
+          "pair": 11,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": true,
+          "job": "j-0001",
+          "cases": 24,
+          "failures": [
+            {
+              "title": "Reset returns both clocks to the allowance on screen, and the cue's older time does not undo it",
+              "status": "failed",
+              "errors": [
+                "Error:  [2mexpect( [22m [31mreceived [39m [2m). [22mtoBeLessThanOrEqual [2m( [22m [32mexpected [39m [2m) [22m  Expected: <=  [32m260 [39m Received:     [31m302 [39m  Call Log: - Timeout 20000ms exceeded while waiting on the predicate    138 |   debate.write({ t: 'event', event: 'switch' }, 40_000);   139 |   await expect(clockA(page)).toHaveText('04:00', { timeout: 20_000 }); > 140 |   await expect.poll(() => read(clockB(page)), { timeout: 20_000 }).toBeLessThanOrEqual(260);       |                                                                    ^   141 | }   142 |   143 | /** \u270e Update with a new round title: the title moves, and the cue's two plain times ride with it. */     at aThenB (/home/runner/work/NoaCG-Studio/causality-clock-parent/e2e/output-debate-clock.spec.ts:140:68)     at /home/runner/work/NoaCG-Studio/causality-clock-parent/e2e/output-debate-clock.spec.ts:578:3"
+              ]
+            }
+          ]
+        },
+        {
+          "pair": 11,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0002",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 12,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0004",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 12,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": true,
+          "job": "j-0003",
+          "cases": 24,
+          "failures": [
+            {
+              "title": "a time retyped mid-debate still applies, on the running clock and the waiting one, and the floor passes as before",
+              "status": "failed",
+              "errors": [
+                "Error:  [2mexpect( [22m [31mlocator [39m [2m). [22mtoHaveText [2m( [22m [32mexpected [39m [2m) [22m failed  Locator:  locator('iframe[title=\"Debate\"]').contentFrame().locator('#f5') Expected:  [32m\"0 [7m4 [27m:00\" [39m Received:  [31m\"0 [7m3 [27m:00\" [39m Timeout:  20000ms  Call log:  [2m  - Expect \"toHaveText\" with timeout 20000ms [22m  [2m  - waiting for locator('iframe[title=\"Debate\"]').contentFrame().locator('#f5') [22m  [2m    - locator resolved to <span id=\"f5\" data-speaking=\"a\" data-stage-room=\"100\" data-stage-fill=\"107\" class=\"scoreboard-time\">05:00</span> [22m  [2m    - unexpected value \"05:00\" [22m  [2m    40 \u00d7 locator resolved to <span id=\"f5\" data-speaking=\"a\" data-stage-room=\"100\" data-stage-fill=\"107\" class=\"scoreboard-time\">03:00</span> [22m  [2m       - unexpected value \"03:00\" [22m     137 |   debate.write({ t: 'event', event: 'switch' }, 100_000);   138 |   debate.write({ t: 'event', event: 'switch' }, 40_000); > 139 |   await expect(clockA(page)).toHaveText('04:00', "
+              ]
+            }
+          ]
+        },
+        {
+          "pair": 13,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0005",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 13,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0006",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 14,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0007",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 14,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0008",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 15,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0009",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 15,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0010",
+          "cases": 24,
+          "failures": []
+        }
+      ],
+      "unresolved": []
+    },
+    {
+      "kind": "clock",
+      "batch": 4,
+      "run": 43081786512,
+      "conclusion": "success",
+      "artifact": 13886456795,
+      "zipSha256": "558384cc1f12b3687b42c385721d832499db0dea622edd1f30556180be2482cf",
+      "rows": [
+        {
+          "pair": 16,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0001",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 16,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0002",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 17,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0003",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 17,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0004",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 18,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0005",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 18,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0006",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 19,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0007",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 19,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0008",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 20,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0009",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 20,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0010",
+          "cases": 24,
+          "failures": []
+        }
+      ],
+      "unresolved": []
+    },
+    {
+      "kind": "clock",
+      "batch": 5,
+      "run": 43081799624,
+      "conclusion": "success",
+      "artifact": 13885868476,
+      "zipSha256": "b71a3b9001aef12d714e3d3d41262d885b4943e2c8ca800217bf158555717308",
+      "rows": [
+        {
+          "pair": 21,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0002",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 21,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0001",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 22,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0003",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 22,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0004",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 23,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0005",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 23,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0006",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 24,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0007",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 24,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0008",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 25,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0010",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 25,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0009",
+          "cases": 24,
+          "failures": []
+        }
+      ],
+      "unresolved": []
+    },
+    {
+      "kind": "clock",
+      "batch": 6,
+      "run": 43082037198,
+      "conclusion": "success",
+      "artifact": 13886157020,
+      "zipSha256": "b2c2a3e20212fd43b96ce5f86af5d04ce8accb3d07f429c7c5d7600cc881d572",
+      "rows": [
+        {
+          "pair": 26,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0002",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 26,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0001",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 27,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0004",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 27,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0003",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 28,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0006",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 28,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0005",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 29,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0008",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 29,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0007",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 30,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0009",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 30,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0010",
+          "cases": 24,
+          "failures": []
+        }
+      ],
+      "unresolved": []
+    },
+    {
+      "kind": "clock",
+      "batch": 7,
+      "run": 43082048035,
+      "conclusion": "success",
+      "artifact": 13886856337,
+      "zipSha256": "45d6cae118819a0a92328d2fccce865d0a1ab46fe70c1a8238d438f99530c439",
+      "rows": [
+        {
+          "pair": 31,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0001",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 31,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0002",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 32,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0003",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 32,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0004",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 33,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0005",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 33,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0006",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 34,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0008",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 34,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0007",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 35,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0010",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 35,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0009",
+          "cases": 24,
+          "failures": []
+        }
+      ],
+      "unresolved": []
+    },
+    {
+      "kind": "clock",
+      "batch": 8,
+      "run": 43082308813,
+      "conclusion": "success",
+      "artifact": 13886342337,
+      "zipSha256": "c9be7a1ba2a97a126e083c58068589424cb378e50e1bc8a524ff159ba8e3b8a7",
+      "rows": [
+        {
+          "pair": 36,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0001",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 36,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0002",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 37,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0003",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 37,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0004",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 38,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0006",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 38,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0005",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 39,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0008",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 39,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0007",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 40,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0010",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 40,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0009",
+          "cases": 24,
+          "failures": []
+        }
+      ],
+      "unresolved": []
+    },
+    {
+      "kind": "clock",
+      "batch": 9,
+      "run": 43082319105,
+      "conclusion": "success",
+      "artifact": 13885704537,
+      "zipSha256": "223e7b8858da8a0e2280782c2394218f3cafb889b501e6ff6fd7cc6ecc1ebc5e",
+      "rows": [
+        {
+          "pair": 41,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0002",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 41,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0001",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 42,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0003",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 42,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0004",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 43,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0005",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 43,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0006",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 44,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0008",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 44,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0007",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 45,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0009",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 45,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0010",
+          "cases": 24,
+          "failures": []
+        }
+      ],
+      "unresolved": []
+    },
+    {
+      "kind": "clock",
+      "batch": 10,
+      "run": 43082329619,
+      "conclusion": "success",
+      "artifact": 13886641449,
+      "zipSha256": "00be26e70010068012a1ade47b6a3bc54098088bbd3a98987dfadfffdf71ef75",
+      "rows": [
+        {
+          "pair": 46,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0002",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 46,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0001",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 47,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0003",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 47,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0004",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 48,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0006",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 48,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0005",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 49,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0008",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 49,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0007",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 50,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0010",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 50,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0009",
+          "cases": 24,
+          "failures": []
+        }
+      ],
+      "unresolved": []
+    },
+    {
+      "kind": "clock",
+      "batch": 11,
+      "run": 43082449812,
+      "conclusion": "failure",
+      "artifact": 13886347711,
+      "zipSha256": "dab17097c6ffd9b20f8f5ab639df8d8188a543f2d9c5dd2757cc02b9461f82c5",
+      "rows": [
+        {
+          "pair": 51,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0001",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 51,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0002",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 52,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0003",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 52,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0004",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 53,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0006",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 53,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0005",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 54,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0008",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 54,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0007",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 55,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0009",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 55,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": true,
+          "job": "j-0010",
+          "cases": 24,
+          "failures": [
+            {
+              "title": "a Switch that reaches a board already down starts nothing, and the Take after it starts over",
+              "status": "failed",
+              "errors": [
+                "Error:  [2mexpect( [22m [31mreceived [39m [2m). [22mtoBeLessThanOrEqual [2m( [22m [32mexpected [39m [2m) [22m  Expected: <=  [32m260 [39m Received:     [31m302 [39m  Call Log: - Timeout 20000ms exceeded while waiting on the predicate    138 |   debate.write({ t: 'event', event: 'switch' }, 40_000);   139 |   await expect(clockA(page)).toHaveText('04:00', { timeout: 20_000 }); > 140 |   await expect.poll(() => read(clockB(page)), { timeout: 20_000 }).toBeLessThanOrEqual(260);       |                                                                    ^   141 | }   142 |   143 | /** \u270e Update with a new round title: the title moves, and the cue's two plain times ride with it. */     at aThenB (/home/runner/work/NoaCG-Studio/causality-clock-landing/e2e/output-debate-clock.spec.ts:140:68)     at /home/runner/work/NoaCG-Studio/causality-clock-landing/e2e/output-debate-clock.spec.ts:385:3"
+              ]
+            }
+          ]
+        }
+      ],
+      "unresolved": []
+    },
+    {
+      "kind": "clock",
+      "batch": 12,
+      "run": 43082461833,
+      "conclusion": "success",
+      "artifact": 13886197445,
+      "zipSha256": "8e982142438b662bff8c7191a11cad6d28f9ab783ec5a78c3d98359ecb51e1d3",
+      "rows": [
+        {
+          "pair": 56,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0002",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 56,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0001",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 57,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0003",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 57,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0004",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 58,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0006",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 58,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0005",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 59,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0008",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 59,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0007",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 60,
+          "arm": "parent",
+          "source": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+          "failed": false,
+          "job": "j-0009",
+          "cases": 24,
+          "failures": []
+        },
+        {
+          "pair": 60,
+          "arm": "landing",
+          "source": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+          "failed": false,
+          "job": "j-0010",
+          "cases": 24,
+          "failures": []
+        }
+      ],
+      "unresolved": []
+    },
+    {
+      "kind": "operator",
+      "batch": 1,
+      "run": 43081541233,
+      "conclusion": "failure",
+      "artifact": 13885673572,
+      "zipSha256": "7603dd5fe72e75221dc2964ea5c7971fe1e4413a77570d66634842956ef59d37",
+      "rows": [
+        {
+          "pair": 1,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0002",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 1,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0001",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 2,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0004",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 2,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": true,
+          "job": "j-0003",
+          "cases": 2,
+          "failures": [
+            {
+              "title": "an old control link opens its production, waits out an outage, and says so only when the link is dead",
+              "status": "failed",
+              "errors": [
+                "Error: page.evaluate: Execution context was destroyed, most likely because of a navigation    162 |   // AC-1: once the server answers, a signed-in member lands on the production's own page.   163 |   outage.down = false; > 164 |   await expect.poll(() => member.evaluate(() => location.hash), { timeout: 60_000 }).toBe(`#/production/${showId}`);       |                                  ^   165 |   expect(await member.evaluate(() => location.search), 'the old query is gone from the address').toBe('');   166 |   await expect(member.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });   167 |   await expect(member.locator('.pd-name')).toHaveText(showName, { timeout: 60_000 });     at expect.poll.timeout (/home/runner/work/NoaCG-Studio/causality-operator-landing/e2e/configured/operator-outage-not-unpublished.spec.ts:164:34)     at /home/runner/work/NoaCG-Studio/causality-operator-landing/e2e/configured/operator-outage-not-unpublished.spec.ts:164:3"
+              ]
+            }
+          ]
+        },
+        {
+          "pair": 3,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0006",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 3,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0005",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 4,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0008",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 4,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0007",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 5,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0010",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 5,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0009",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 6,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0012",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 6,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0011",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 7,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0014",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 7,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0013",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 8,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0015",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 8,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0016",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 9,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0017",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 9,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": true,
+          "job": "j-0018",
+          "cases": 2,
+          "failures": [
+            {
+              "title": "an old control link opens its production, waits out an outage, and says so only when the link is dead",
+              "status": "failed",
+              "errors": [
+                "Error: page.evaluate: Execution context was destroyed, most likely because of a navigation    162 |   // AC-1: once the server answers, a signed-in member lands on the production's own page.   163 |   outage.down = false; > 164 |   await expect.poll(() => member.evaluate(() => location.hash), { timeout: 60_000 }).toBe(`#/production/${showId}`);       |                                  ^   165 |   expect(await member.evaluate(() => location.search), 'the old query is gone from the address').toBe('');   166 |   await expect(member.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });   167 |   await expect(member.locator('.pd-name')).toHaveText(showName, { timeout: 60_000 });     at expect.poll.timeout (/home/runner/work/NoaCG-Studio/causality-operator-landing/e2e/configured/operator-outage-not-unpublished.spec.ts:164:34)     at /home/runner/work/NoaCG-Studio/causality-operator-landing/e2e/configured/operator-outage-not-unpublished.spec.ts:164:3"
+              ]
+            }
+          ]
+        },
+        {
+          "pair": 10,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0019",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 10,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0020",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 11,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0021",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 11,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0022",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 12,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0024",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 12,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0023",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 13,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0025",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 13,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0026",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 14,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0027",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 14,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0028",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 15,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0029",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 15,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0030",
+          "cases": 2,
+          "failures": []
+        }
+      ],
+      "unresolved": []
+    },
+    {
+      "kind": "operator",
+      "batch": 2,
+      "run": 43082471652,
+      "conclusion": "success",
+      "artifact": 13887131327,
+      "zipSha256": "97bf9bd03cca89120d5937e2437a6243278e2e5a7bcbcf875598062534f52c78",
+      "rows": [
+        {
+          "pair": 16,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0001",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 16,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0002",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 17,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0003",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 17,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0004",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 18,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0005",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 18,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0006",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 19,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0007",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 19,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0008",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 20,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0009",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 20,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0010",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 21,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0012",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 21,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0011",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 22,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0013",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 22,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0014",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 23,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0015",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 23,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0016",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 24,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0017",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 24,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0018",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 25,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0020",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 25,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0019",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 26,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0022",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 26,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0021",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 27,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0024",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 27,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0023",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 28,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0026",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 28,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0025",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 29,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0028",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 29,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0027",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 30,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0029",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 30,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0030",
+          "cases": 2,
+          "failures": []
+        }
+      ],
+      "unresolved": []
+    },
+    {
+      "kind": "operator",
+      "batch": 3,
+      "run": 43082481613,
+      "conclusion": "failure",
+      "artifact": 13886132169,
+      "zipSha256": "82ac1718f9bc4f6bda5a7dd2477a8dbdabda26aa6967368fc077236c2bf5c549",
+      "rows": [
+        {
+          "pair": 31,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0001",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 31,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0002",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 32,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0003",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 32,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0004",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 33,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0005",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 33,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0006",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 34,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0008",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 34,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0007",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 35,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0010",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 35,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0009",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 36,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0011",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 36,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0012",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 37,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0013",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 37,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0014",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 38,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0016",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 38,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": true,
+          "job": "j-0015",
+          "cases": 2,
+          "failures": [
+            {
+              "title": "an old control link opens its production, waits out an outage, and says so only when the link is dead",
+              "status": "failed",
+              "errors": [
+                "Error: page.evaluate: Execution context was destroyed, most likely because of a navigation    162 |   // AC-1: once the server answers, a signed-in member lands on the production's own page.   163 |   outage.down = false; > 164 |   await expect.poll(() => member.evaluate(() => location.hash), { timeout: 60_000 }).toBe(`#/production/${showId}`);       |                                  ^   165 |   expect(await member.evaluate(() => location.search), 'the old query is gone from the address').toBe('');   166 |   await expect(member.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });   167 |   await expect(member.locator('.pd-name')).toHaveText(showName, { timeout: 60_000 });     at expect.poll.timeout (/home/runner/work/NoaCG-Studio/causality-operator-landing/e2e/configured/operator-outage-not-unpublished.spec.ts:164:34)     at /home/runner/work/NoaCG-Studio/causality-operator-landing/e2e/configured/operator-outage-not-unpublished.spec.ts:164:3"
+              ]
+            }
+          ]
+        },
+        {
+          "pair": 39,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0018",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 39,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0017",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 40,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0020",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 40,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0019",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 41,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0022",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 41,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0021",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 42,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0023",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 42,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0024",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 43,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0025",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 43,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0026",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 44,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0028",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 44,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0027",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 45,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0029",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 45,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0030",
+          "cases": 2,
+          "failures": []
+        }
+      ],
+      "unresolved": []
+    },
+    {
+      "kind": "operator",
+      "batch": 4,
+      "run": 43082665932,
+      "conclusion": "success",
+      "artifact": 13886951807,
+      "zipSha256": "3b266cc43d92f4221694f03a5be9ba5e49464c4ab343d77b7665010bf6ee6852",
+      "rows": [
+        {
+          "pair": 46,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0002",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 46,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0001",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 47,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0003",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 47,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0004",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 48,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0006",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 48,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0005",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 49,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0008",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 49,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0007",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 50,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0010",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 50,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0009",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 51,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0011",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 51,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0012",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 52,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0013",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 52,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0014",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 53,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0016",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 53,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0015",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 54,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0018",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 54,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0017",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 55,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0019",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 55,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0020",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 56,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0022",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 56,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0021",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 57,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0023",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 57,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0024",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 58,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0026",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 58,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0025",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 59,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0028",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 59,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0027",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 60,
+          "arm": "parent",
+          "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+          "failed": false,
+          "job": "j-0029",
+          "cases": 2,
+          "failures": []
+        },
+        {
+          "pair": 60,
+          "arm": "landing",
+          "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+          "failed": false,
+          "job": "j-0030",
+          "cases": 2,
+          "failures": []
+        }
+      ],
+      "unresolved": []
+    }
+  ]
+}
