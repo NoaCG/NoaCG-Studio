@@ -439,7 +439,7 @@ cue, delay `control_send_seq` by N ms with `page.route`, `fill` a text field, cl
 | 200 ms | lost 4 of 4 (the field reads the old "HOME") | kept 4 of 4 |
 | 800 ms | not run here (the checker: lost 6 of 6) | kept 4 of 4 |
 
-Run on a95b872. The intermediate 310f222, which also removed the record when a draft was dropped,
+Run on a95b872, and again on d5c0b63 (kept 4 of 4 at each delay). The intermediate 310f222, which also removed the record when a draft was dropped,
 lost it 4 of 4 at 200 ms, as the "Rules found after coding" note says.
 
 ### AC-1 measured again
@@ -463,7 +463,9 @@ were not measured again.
   screen, "typed, Take tapped, then the page reloads at once". Mutation: with the record never
   written (`if (false && hiding) io.owed.keep(...)`) both fail 3 of 3 (the field reads the old
   "Alexandra Riva"); the earlier "typed then taken, then the page reloads at once" stays green,
-  as the check said. With the fix the whole file passes 36 of 36 (`--repeat-each 3`, a95b872).
+  as the check said. With the fix the whole file passes 36 of 36 (`--repeat-each 3`, a95b872 and
+  d5c0b63). AC-1 was measured on a95b872; d5c0b63 changes only recovery and a confirmed save's
+  bookkeeping, off the press path.
 - `scripts/cue-draft.test.mjs`: P1 to P3 and P5 cases, and the history's out save. Mutations:
   no record on hide turns three red; no removal on a confirmed save one; `recover` never writing
   two; the page hide not covering an out save one.
