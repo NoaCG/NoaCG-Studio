@@ -36,7 +36,7 @@
 // covers: src/control/cueDraft.ts
 // covers: src/components/PlayoutSettingsPanel.tsx, src/control/playoutStatus.ts
 
-import { test, expect, type Page, type Route } from '@playwright/test';
+import { test, expect, type Page, type Request, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor } from './_create';
 import { settleDurableWrites } from './_durable';
 import { evaluateInPage } from './_evaluate';
@@ -1341,24 +1341,24 @@ test('vMix media browses the selected folder and plays on separate clip and audi
   // Hold an old root response across a successful choice in the other tab. A late list
   // must not replace the newly read root or make its old files addable again.
   const oldRead = Promise.withResolvers<void>();
-  let held = false;
+  let held: Request | undefined;
   await other.route(BRIDGE + '/list', async route => {
     const request = route.request().postDataJSON();
     if (held || request?.target?.adapter !== 'vmix' || request.path) return route.fallback();
-    held = true;
+    held = route.request();
     const snapshot = vmix.reply('/list', request);
     await oldRead.promise;
     await route.fulfill({ json: snapshot, headers: { 'Access-Control-Allow-Origin': '*' } });
   });
   try {
     await otherPicker.getByTestId('picker-refresh').click();
-    await expect.poll(() => held).toBe(true);
+    await expect.poll(() => Boolean(held)).toBe(true);
     media.choice = chosen;
     await choose.click();
     await expect(mediaFolder).toHaveText(chosen);
     const newClip = otherPicker.getByTestId('picker-row').filter({ hasText: 'New clip.mov' });
     await expect(newClip).toBeVisible();
-    const late = other.waitForResponse(response => response.url() === BRIDGE + '/list' && !response.request().postDataJSON()?.path);
+    const late = other.waitForResponse(response => response.request() === held);
     oldRead.resolve();
     await (await late).finished();
     await other.evaluate(() => new Promise(resolve => setTimeout(resolve)));
@@ -1460,12 +1460,18 @@ test('vMix media browses the selected folder and plays on separate clip and audi
   await folderRow.getByTestId('select-folder').click();
   await expect(page.getByTestId('verb-take')).toBeEnabled();
   await expect(page.getByTestId('verb-target')).toHaveText('To: this page only');
+  expect(media.actions.slice(6)).toEqual([
+    player('take', 'clips', movie, clips.cueId),
+    player('take', 'clips', movie, clips.cueId),
+    player('out', 'clips', movie),
+  ]);
+  const actionsBeforeMixedTake = media.actions.length;
   await parkFocusOffControls(page);
   await page.keyboard.press('Space');
   const graphicRow = page.getByTestId('cue-' + mixed.graphicId);
   await expect(graphicRow.getByTestId('cue-up-here')).toBeVisible();
   expect(bridge.actions).toEqual([]);
-  expect(media.actions).toHaveLength(6);
+  expect(media.actions).toHaveLength(actionsBeforeMixedTake);
   await page.getByTestId('verb-out').click();
   await expect(graphicRow.getByTestId('cue-up-here')).toHaveCount(0);
 
