@@ -133,6 +133,7 @@ export const FRAME_LOADS = () => {
 export async function instrument(context: BrowserContext): Promise<void> {
   await context.addInitScript(OPERATOR_STAMPS);
   await context.addInitScript(FRAME_STAMPS);
+  await context.addInitScript(SAVE_STALL);
 }
 
 export type Lpm = { presses: Press[]; sends: Sent[]; frames?: { t: number; data: string }[]; allSids?: string[] };
@@ -287,4 +288,49 @@ export async function switchBuild(page: Page, to: 'dev' | 'prod', ready: () => P
   if ((await answer.text()) !== to) throw new Error(`the build switch did not move to ${to}: is buildSwitch.mjs on the harness's port?`);
   await page.reload();
   await ready();
+}
+
+/** MEASURE_STALL=1 (phase 3, AC-1): "the save and the Bridge health request deliberately stalled".
+ *  Each measured press is made right after an edit of the cue's note, so a save is owed at the
+ *  press; the page's durable save (an IndexedDB write) completes STALL_MS late, and the Bridge's
+ *  `/health` answers STALL_MS late. */
+export const STALL = process.env.MEASURE_STALL === '1';
+export const STALL_MS = 3_000;
+
+/** Hold every IndexedDB write's completion while `window.__lpStallSave` is set (ms). */
+export const SAVE_STALL = () => {
+  if (window.top !== window) return;
+  const desc = Object.getOwnPropertyDescriptor(IDBTransaction.prototype, 'oncomplete');
+  if (!desc?.set || !desc.get) return;
+  Object.defineProperty(IDBTransaction.prototype, 'oncomplete', {
+    configurable: true,
+    get() { return desc.get!.call(this); },
+    set(fn: ((this: IDBTransaction, e: Event) => unknown) | null) {
+      const tx = this as IDBTransaction;
+      desc.set!.call(tx, fn && function (this: IDBTransaction, e: Event) {
+        const ms = (window as unknown as { __lpStallSave?: number }).__lpStallSave ?? 0;
+        if (ms > 0 && tx.mode === 'readwrite') setTimeout(() => fn.call(tx, e), ms);
+        else fn.call(tx, e);
+      });
+    },
+  });
+};
+
+/** Under MEASURE_STALL: stall the page's saves and the fake Bridge's health answer from now on. */
+export async function stallOn(page: Page): Promise<void> {
+  if (!STALL) return;
+  await page.evaluate((ms) => { (window as unknown as { __lpStallSave?: number }).__lpStallSave = ms; }, STALL_MS);
+  await page.route('http://127.0.0.1:8899/health', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, STALL_MS));
+    await route.fallback().catch(() => {});
+  });
+}
+
+/** Under MEASURE_STALL: an edit the press's save is owed for, typed just before the press. */
+export async function owedEdit(page: Page): Promise<void> {
+  if (!STALL) return;
+  const note = page.getByTestId('cue-note');
+  if (!(await note.isVisible().catch(() => false))) return;
+  await note.press('End');
+  await page.keyboard.type('x');
 }

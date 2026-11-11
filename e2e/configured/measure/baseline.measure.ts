@@ -4,7 +4,7 @@ import { readyOf } from '../_helpers';
 import { answerPanel, pairPanel } from '../_panel';
 import { buildFixture, cleanUp, outputSlugOf } from './_fixture';
 import {
-  BUILD, FIXTURE, FRAME_LOADS, NET, SAMPLES, clearLpm, switchBuild, framePlays, instrument, meterBytes, nowOn, readLpm, screencast, summary, throttle, writeResult,
+  BUILD, FIXTURE, FRAME_LOADS, NET, SAMPLES, STALL, clearLpm, owedEdit, stallOn, switchBuild, framePlays, instrument, meterBytes, nowOn, readLpm, screencast, summary, throttle, writeResult,
   type Lpm, type Sent,
 } from './_measure';
 
@@ -27,7 +27,7 @@ import {
 
 test.skip(!process.env.E2E_EMAIL, 'configured measurement: needs the local stack and its account');
 
-const tag = `${FIXTURE}-${NET}${BUILD === 'prod' ? '-prod' : ''}`;
+const tag = `${FIXTURE}-${NET}${BUILD === 'prod' ? '-prod' : ''}${STALL ? '-stall' : ''}`;
 
 // A run that leaves its production behind makes the next sign-in pull it down again.
 test.afterEach(async ({ page }) => {
@@ -122,6 +122,7 @@ const sidsOf = (lpm: Lpm) => new Set(lpm.allSids ?? []);
 
 /** One clicked press, measured: click `button`, find its send. */
 async function pressAndMeasure(op: Page, button: Locator, testId: string, match: RegExp): Promise<Sample> {
+  await owedEdit(op);
   const seen = sidsOf(await readLpm(op));
   const before = await nowOn(op);
   await button.click();
@@ -141,6 +142,7 @@ async function pressAndMeasure(op: Page, button: Locator, testId: string, match:
  * press was still unanswered after the second click.
  */
 async function secondOfTwo(op: Page, button: Locator, testId: string, match: RegExp): Promise<Sample> {
+  await owedEdit(op);
   const earlier = sidsOf(await readLpm(op));
   const before = await nowOn(op);
   // Two mouse clicks on the spot, the second straight after the first: a locator click would wait
@@ -263,6 +265,7 @@ test('takes-a', async ({ page, browser }) => {
   await throttle(page, NET);
   const out = await openOutput(browser, slug);
   await healthyOutput(out, fx.graphics);
+  await stallOn(page);
   const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');
   const samples: Record<string, Sample[]> = { graphic: [], folder: [], picture: [], server: [] };
 
@@ -318,6 +321,7 @@ test('takes-b', async ({ page, browser }) => {
   await throttle(page, NET);
   const out = await openOutput(browser, slug);
   await healthyOutput(out, fx.graphics);
+  await stallOn(page);
   const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');
   const samples: Record<string, Sample[]> = { quick: [], quickSecondOfTwo: [], plusOne: [], plusOneSecondOfTwo: [] };
 
@@ -367,6 +371,7 @@ test('takes-c', async ({ page, browser }) => {
   await throttle(page, NET);
   const out = await openOutput(browser, slug);
   await healthyOutput(out, fx.graphics);
+  await stallOn(page);
   const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');
   const samples: Record<string, Sample[]> = { next: [], nextSecondOfTwo: [], panel: [] };
 
