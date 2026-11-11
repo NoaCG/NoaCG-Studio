@@ -321,7 +321,7 @@ test('P1: a save out through the history is recorded too when the page goes', ()
   void h.draft.flush();
   for (const run of h.listeners.hide) run(true);
   assert.equal(h.owed?.fields.values.f0, 'Out');
-  assert.deepEqual(h.owed?.bases.map((b) => b.values.f0), ['Anna Riva']);
+  assert.deepEqual(h.owed?.bases.map((b) => b.values.f0), ['Anna Riva', 'Out']);
   stop();
 });
 
@@ -369,21 +369,44 @@ test('P3: a save the store confirms removes the record; a refused one keeps it',
   stop();
 });
 
-test('P3: the page shown again after it hid removes the record; a page that never hid removes none', () => {
-  // An undo can only follow a hide the page came back from: the record is gone by then, so the
-  // undone edit never comes back on the next visit.
+test('P3: the record stays when the page comes back; a draft this page recorded and then dropped removes it', () => {
+  // The hide's save may still be committing when the operator comes back, so coming back is no
+  // proof (PR review of 43bcf60). An undo or another cue drops the draft: the record goes then,
+  // so an undone edit never comes back on the next visit.
   const h = harness();
   const stop = h.draft.listen(h.adapters);
   h.draft.edit(OPENER, { values: { f0: 'Hidden' } });
   for (const run of h.listeners.hide) run(true);
-  assert.notEqual(h.owed, null);
-  for (const run of h.listeners.shown) run();
-  assert.equal(h.owed, null, 'shown again');
-  h.owed = { cueId: 'c1', bases: [], fields: {} };
-  for (const run of h.listeners.shown) run();
-  assert.notEqual(h.owed, null, 'shown with no hide of its own: nothing to remove');
   h.draft.cancel();
-  assert.notEqual(h.owed, null, 'a draft dropped at start-up leaves the record for recover');
+  assert.notEqual(h.owed, null, 'dropped while hidden or going (the history resetting): kept');
+  h.draft.edit(OPENER, { values: { f0: 'Hidden again' } });
+  for (const run of h.listeners.hide) run(true);
+  for (const run of h.listeners.shown) run();
+  assert.notEqual(h.owed, null, 'kept while the page is back');
+  h.draft.cancel();
+  assert.equal(h.owed, null, 'dropped by the operator after recording: removed');
+  stop();
+});
+
+test('P3: a page that recorded nothing leaves a record alone when it drops a draft', () => {
+  // A page just opened drops a draft while it starts, before `recover`.
+  const h = harness();
+  h.owed = { cueId: 'c1', bases: [], fields: {} };
+  h.draft.edit(OPENER, { values: { f0: 'x' } });
+  h.draft.cancel();
+  assert.notEqual(h.owed, null);
+});
+
+test('P1: a save handed to the history is listed under the edit before the store confirms it', () => {
+  // PR review of 43bcf60: a team production's outbox holds it before the server answers.
+  const h = harness();
+  const stop = h.draft.listen(h.adapters);
+  h.draft.edit(OPENER, { values: { f0: 'B' } });
+  void h.draft.flush();
+  h.draft.edit(OPENER, { values: { f0: 'C' } });
+  for (const run of h.listeners.hide) run(true);
+  assert.deepEqual(h.owed?.bases.map((b) => b.values.f0), ['Anna Riva', 'B']);
+  assert.equal(h.owed?.fields.values.f0, 'C');
   stop();
 });
 
@@ -405,7 +428,6 @@ test('P1: after a hide the page came back from, typing on is applied over the te
   const stop = h.draft.listen(h.adapters);
   h.draft.edit(OPENER, { values: { f0: 'A' } });
   for (const run of h.listeners.hide) run(true);
-  for (const run of h.listeners.shown) run();
   h.draft.edit(OPENER, { values: { f0: 'AB' } });
   for (const run of h.listeners.hide) run(true);
   assert.deepEqual(h.owed?.bases.map((b) => b.values.f0), ['Anna Riva', 'A']);

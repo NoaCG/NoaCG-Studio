@@ -286,8 +286,7 @@ const DRAFT_ADAPTERS: CueDraftAdapters = {
       document.removeEventListener('visibilitychange', hidden);
     };
   },
-  // Shown again: visible after hidden, or restored from the back-forward cache. Never a fresh
-  // load's own `pageshow`, which would remove the record before the page has applied it.
+  // Shown again: visible after hidden, or restored from the back-forward cache.
   onPageShown: (run) => {
     const shown = () => {
       if (document.visibilityState === 'visible') run();

@@ -214,6 +214,10 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
    *  part of the typing handed to the store (it may or may not have landed when the page goes).
    *  What a recorded edit may be applied over on the next visit, and nothing else. */
   let startedFrom: { cueId: string; texts: CueFields[] } | null = null;
+  /** Whether this page recorded the draft's owed edit when it hid, and whether it is hidden or
+   *  going now (from its hide until it is shown again). */
+  let recorded = false;
+  let leaving = false;
   const copyOf = (d: DraftPart): CueFields => ({ ...fieldsOf(d), values: { ...d.values } });
   const started = (d: DraftPart) => {
     startedFrom = { cueId: d.cueId, texts: [copyOf(d)] };
@@ -270,6 +274,9 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     if (!d || !pending || !io.canWrite()) return Promise.resolve(true);
     pending = false;
     out = d;
+    // The store may hold this text from here on, before the history confirms it (a team
+    // production's local outbox lands before the server answers): typing on may be applied over it.
+    handed(d);
     return io.writeCue(d.cueId, fieldsOf(d)).then((saved) => {
       if (out === d) out = null;
       // Typing went on during the save, or the session ended: the newer draft is still owed.
@@ -278,12 +285,9 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
           set(null);
           // The store holds the latest text: a record of it must never be applied over later work.
           io.owed.forget();
+          recorded = false;
         }
         else pending = true;
-      } else if (saved && session.alive() && part.get()?.cueId === d.cueId) {
-        // Typing went on in this cue: the store now holds this save's text, which the newer draft
-        // may be applied over if the page goes before its own save lands.
-        handed(d);
       }
       return saved;
     });
@@ -297,7 +301,10 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     if (!d || !(pending || (hiding && out === d)) || !io.canWrite()) return;
     // Recorded where a reload cannot drop it: the store's write may still be committing when the
     // page goes, and a reload aborts it.
-    if (hiding && startedFrom && startedFrom.cueId === d.cueId) io.owed.keep({ cueId: d.cueId, bases: startedFrom.texts, fields: fieldsOf(d) });
+    if (hiding && startedFrom && startedFrom.cueId === d.cueId) {
+      io.owed.keep({ cueId: d.cueId, bases: startedFrom.texts, fields: fieldsOf(d) });
+      recorded = true;
+    }
     if (io.retainCue(d.cueId, fieldsOf(d))) {
       pending = false;
       if (out === d) out = null;
@@ -348,6 +355,15 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     cancel: () => {
       stopTimer();
       set(null);
+      // A draft this page recorded is dropped by the operator (an undo, another cue selected): an
+      // undo puts the cue back to a text listed under the edit, so the record must not bring it
+      // back next visit. Not while the page is hidden or going: the history drops the draft then
+      // too, when its queued save finds the cue the hide's save rewrote. A page that recorded
+      // nothing (one just opened, before `recover`) leaves the record alone.
+      if (recorded && !leaving) {
+        io.owed.forget();
+        recorded = false;
+      }
     },
     showing: (cueId, save) => {
       if (cueId === shown) return;
@@ -394,15 +410,14 @@ export function createCueDraft(session: PlayoutSession, io: CueDraftIo): CueDraf
     listen: (adapters) => {
       // Shown again after this page hid: it stayed, so the store's write lands, and the record is
       // for a page that goes. (A page that never hid has applied or kept no record of its own.)
-      let hid = false;
       const offHide = adapters.onPageHide((going) => {
-        if (going) hid = true;
+        if (going) leaving = true;
         retain(going);
       });
+      // Back: the record stays (the hide's save may still be committing), and the operator's own
+      // drops count again.
       const offShown = adapters.onPageShown(() => {
-        if (!hid) return;
-        hid = false;
-        io.owed.forget();
+        leaving = false;
       });
       const offFlush = adapters.onFlushAsked(() => void flush());
       const offPress = adapters.onSendsFirstPress((down) => {
