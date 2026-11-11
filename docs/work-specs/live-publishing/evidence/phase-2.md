@@ -62,8 +62,8 @@ Hardware checks: none in this phase (see "Not measured here").
   noise (incompressible), shown by a small `<img>` in its markup. "Typical": 20 graphics, 3 MB of
   image files. "Large": 60 graphics, 10 MB. 1 MB is 1,048,576 bytes of file; the stored JSON holds
   them as base64. Each fixture holds the W1 subjects: a stepped lower third (Next; "Stack Three", three
-  lines, so a Take leaves two Nexts to press; the render, publish, bytes and output start groups
-  ran before this change, with the two-line "Hairline", a few hundred bytes smaller), the House Score
+  lines, so a Take leaves two Nexts to press; the render, bytes and output start groups and the
+  first publish-overlap jobs ran before this change, with the two-line "Hairline", a few hundred bytes smaller), the House Score
   board (Goal is the quick button, its number stepper the +1), a folder of two cues played together,
   the production's picture graphic, and a CasparCG clip (server cue) on a fake NoaCG Bridge
   (`e2e/_fakeBridge.ts`), with one browser output open.
@@ -179,7 +179,7 @@ Bytes: every request and response of the production page and the output, from th
 
 When the output started preparing (its fetch of the whole published copy), per change, from a separate diagnostic run of the same bytes group with preparation-start stamps (3 or 4 changes per kind and case):
 
-| Change | Case | n | Press to preparation start | Preparation start to prepared | Samples within 15 s of the previous preparation start |
+| Change | Case | n | Press to preparation start | Preparation start to prepared | Presses within 15 s of the previous preparation start |
 |---|---|---|---|---|---|
 | Graphic added | Typical, unthrottled | 4 | 4305 / 4772 | 374 / 496 | 0 |
 | Graphic added | Typical, throttled | 4 | 8277 / 8387 | 3253 / 3271 | 0 |
@@ -255,7 +255,8 @@ None.
   path, in any case: no road discovery and no folder ordering inside any window.
 - **A publish slows Takes on the unthrottled cases.** Press to sent for a graphic cue Take during
   a publish loop, against the same Take with no loop: typical unthrottled 89.1 / 198 ms (p50 /
-  p95, 176 presses, 7 over 500 ms) against 79.6 / 97.6; large unthrottled 168 / 385 (98 presses,
+  p95, 176 presses) against 79.6 / 97.6, with 7 presses (4 %) over 500 ms just past the p95 and
+  the same job's presses between publishes at 88.9 / 134; large unthrottled 168 / 385 (98 presses,
   2 over 500 ms) against 129 / 186. Throttled, where each publish takes longer and loads the page
   less often: 81.2 / 104 against 74.8 / 92.3 (typical) and 141 / 200 against 113 / 201 (large). A
   publish builds and sends a 6 or 20 MB payload from the page and takes 1.5 s (typical,
@@ -274,11 +275,14 @@ None.
   one throttled. Almost all of it is before the output starts: the preparation-start diagnostic
   (the table above) shows 4.3 to 25.2 s from
   the press to the output's fetch of the new copy, then 0.3 to 0.7 s (unthrottled) or 2.9 to 9.5 s
-  (throttled, the whole copy downloading) to prepared. No measured change started within 15 s of
-  the output's previous preparation, so the 15 s spacing (`src/output/prepare.ts`) never added
-  time; the larger p50 for a removal or design update than for an addition on the typical
-  unthrottled fixture (10.6 and 10.4 s against 4.4 s) is in the wait before the output starts,
-  not in loading. A changed or new graphic's own frame loads in 46 to 152 ms.
+  (throttled, the whole copy downloading) to prepared. Every press in that run came 19.6 s or more
+  after the output's previous preparation start, so the output's 15 s spacing
+  (`src/output/prepare.ts`) could not hold any of them; the main run paces its changes the same
+  way (each 15.5 s after the output last reported ready). The larger p50 for a removal or design
+  update than for an addition on the typical unthrottled fixture (10.6 and 10.4 s against 4.4 s)
+  sits before the output starts, not in loading, but the diagnostic reproduces only about 3 s of
+  that 6 s gap (removal and update 7.5 s to the start against 4.3 s for an addition, 3 or 4
+  samples each), so its full size is not explained here. A changed or new graphic's own frame loads in 46 to 152 ms.
 - **Output start, cold cache**: ready in 1.5 s (typical) and 4.3 s (large) unthrottled, 8.9 s and
   17.9 s throttled. Each start downloads the development build's app code (10.6 MB) and the
   whole production (6.2 MB typical, 20.2 MB large): on the typical fixture the app code is the
@@ -297,8 +301,9 @@ None.
    render cost in scope. Owner decision before phase 3.
 2. **AC-4's "press to ran within 50 ms p95 of nothing being published" fails today on the
    unthrottled cases**: a graphic cue Take is 100 ms slower at p95 during a publish on the typical
-   fixture (198 against 97.6 ms) and 199 ms slower on the large one (385 against 186 ms); the
-   throttled cases are within 12 ms. It is reachable only if a publish stops loading the page's
+   fixture (198 against 97.6 ms; 64 ms against the same job's presses between publishes) and
+   199 ms slower on the large one (385 against 186 ms), and 4 % of presses during a typical
+   publish took over 500 ms; the throttled cases are within 12 ms. It is reachable only if a publish stops loading the page's
    main thread; whole publishes (phase 6) keep that cost unless phase 6's design takes the
    publish's own work off the Take's path.
 3. **D1's 5 s ceiling for a Take of a brand-new graphic** is far below today's update time on the
