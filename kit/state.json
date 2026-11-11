@@ -44,11 +44,11 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "note": "V3 accepted. Windows was above the 4 GiB floor, live allocations clear, and a fresh V4 builder was accepted from current main in an isolated worktree.",
-      "head": "e9b0c550082c540c925e2cce25ffdee093d2d7b3",
-      "step": "build",
+      "note": "V4 candidate committed and focused Node tests passed. Required local Chromium job j-5227 waits for the shared Windows memory floor while independent review proceeds. No PR or queue landing yet.",
+      "session": "/root/v4_builder",
       "phase": "v4",
-      "session": "/root/v4_builder"
+      "step": "build",
+      "head": "68ad7e170c662a1bf5dc85126ebad2502890865d"
     }
   ],
   "owner": [],
