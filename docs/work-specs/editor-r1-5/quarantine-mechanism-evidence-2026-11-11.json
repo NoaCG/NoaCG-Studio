@@ -1,0 +1,534 @@
+{
+  "status": "MECHANISM EVIDENCE ONLY; primary60-per-arm CI comparison still in flight; no causal clearance or later phase launch",
+  "clock": {
+    "landing": "d8b18080bfacf2303a1d88e4ca1398fb263d9657",
+    "parent": "fb04bbd9658857318e4b954611b6dd08a4815e9d",
+    "generatedBy": "The exact spec path catalog.variantById(dc01).create({}) in a real browser, one fresh page per arm. Both documents contain main/floor/penalty machine groups.",
+    "catalogDocumentHashes": {
+      "parent": {
+        "html": {
+          "bytes": 5409,
+          "sha256": "846808f950d721a6958f3c7516010918173a3f28315a5487de914cf52f9c5440"
+        },
+        "css": {
+          "bytes": 13436,
+          "sha256": "ae78c6862cae9ca07d912fe9571db6367cbe1975df3374c1d0cfec8136346d90"
+        },
+        "js": {
+          "bytes": 135457,
+          "sha256": "e103ead49e65ffa7672bdfe31abaf151b639d3625f7cef27a535b92df9459b6e"
+        }
+      },
+      "landing": {
+        "html": {
+          "bytes": 5409,
+          "sha256": "846808f950d721a6958f3c7516010918173a3f28315a5487de914cf52f9c5440"
+        },
+        "css": {
+          "bytes": 13436,
+          "sha256": "ae78c6862cae9ca07d912fe9571db6367cbe1975df3374c1d0cfec8136346d90"
+        },
+        "js": {
+          "bytes": 135457,
+          "sha256": "e103ead49e65ffa7672bdfe31abaf151b639d3625f7cef27a535b92df9459b6e"
+        }
+      }
+    },
+    "originalFailureTrace": {
+      "sourceRun": 43083982443,
+      "sourceJob": 130743474295,
+      "originalTrace": {
+        "run": 43020316776,
+        "artifact": 13854769457,
+        "zipSha256": "16fdbd58af457d88da17bfcfb16d2095feb568a00efbf63af5fa25ebe07199ee",
+        "traces": [
+          {
+            "name": "output-debate-clock-a-Snap-e5d6d--the-wire-and-on-the-screen-chromium/trace.zip",
+            "readings": [
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 599674.047,
+                "value": "06:01"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 599810.414,
+                "value": "06:01"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 600099.242,
+                "value": "05:21"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 600634.019,
+                "value": "05:21"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 601668.915,
+                "value": "05:19"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 602703.213,
+                "value": "05:18"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 603736.32,
+                "value": "05:17"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 604769.746,
+                "value": "05:16"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 605803.903,
+                "value": "05:15"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 606838.059,
+                "value": "05:14"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 607870.704,
+                "value": "05:13"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 608903.704,
+                "value": "05:12"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 609936.109,
+                "value": "05:11"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 610970.299,
+                "value": "05:10"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 612004.058,
+                "value": "05:09"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 613036.857,
+                "value": "05:08"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 614070.123,
+                "value": "05:07"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 615104.01,
+                "value": "05:06"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 616137.717,
+                "value": "05:05"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 617174.808,
+                "value": "05:04"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 618207.705,
+                "value": "05:03"
+              },
+              {
+                "selector": "iframe[title=\"Debate\"] >> internal:control=enter-frame >> #f6",
+                "time": 619241.808,
+                "value": "05:02"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "controlledProbe": {
+      "count": "one burst per ordering condition per historical arm; not pooled with natural spec failure rates",
+      "conditions": [
+        "first state-entry callback before second clock update",
+        "first state-entry callback between second clock update and second event",
+        "state-entry callbacks after both events"
+      ],
+      "operations": [
+        "Load unmodified catalog-created graphic, real GSAP and exact historical matchClockWire module",
+        "Seed original graphic field values and play; speakingClocksFromHtml reads the real document",
+        "Calculate and apply the first switch wire effect at now-100000; set noacgEventAt and dispatch switch",
+        "Calculate and apply the second switch wire effect at now-40000, then its event",
+        "Advance the real floor entry timeline to .001 at the declared ordering point; record real clock state and repaint"
+      ],
+      "outcomes": [
+        {
+          "arm": "parent",
+          "condition": "before",
+          "record": [
+            {
+              "label": "after first event",
+              "a": "03:20",
+              "b": "05:00",
+              "active": "a",
+              "deadline": 200000,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "first callback before next wire",
+              "a": "03:20",
+              "b": "05:00",
+              "active": "a",
+              "deadline": 200000,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second wire",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second event",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after final callback",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after repaint",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            }
+          ]
+        },
+        {
+          "arm": "parent",
+          "condition": "between",
+          "record": [
+            {
+              "label": "after first event",
+              "a": "03:20",
+              "b": "05:00",
+              "active": "a",
+              "deadline": 200000,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second wire",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260002,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "first callback between wire and event",
+              "a": "04:00",
+              "b": "06:01",
+              "active": "a",
+              "deadline": 140000,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second event",
+              "a": "04:00",
+              "b": "06:01",
+              "active": "a",
+              "deadline": 140000,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after final callback",
+              "a": "03:00",
+              "b": "06:01",
+              "active": "b",
+              "deadline": 321000,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after repaint",
+              "a": "03:00",
+              "b": "05:21",
+              "active": "b",
+              "deadline": 321000,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            }
+          ]
+        },
+        {
+          "arm": "parent",
+          "condition": "after",
+          "record": [
+            {
+              "label": "after first event",
+              "a": "03:20",
+              "b": "05:00",
+              "active": "a",
+              "deadline": 200001,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second wire",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second event",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after final callback",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after repaint",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            }
+          ]
+        },
+        {
+          "arm": "landing",
+          "condition": "before",
+          "record": [
+            {
+              "label": "after first event",
+              "a": "03:20",
+              "b": "05:00",
+              "active": "a",
+              "deadline": 200001,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "first callback before next wire",
+              "a": "03:20",
+              "b": "05:00",
+              "active": "a",
+              "deadline": 200001,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second wire",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second event",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after final callback",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after repaint",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            }
+          ]
+        },
+        {
+          "arm": "landing",
+          "condition": "between",
+          "record": [
+            {
+              "label": "after first event",
+              "a": "03:20",
+              "b": "05:00",
+              "active": "a",
+              "deadline": 200001,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second wire",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "first callback between wire and event",
+              "a": "04:00",
+              "b": "06:01",
+              "active": "a",
+              "deadline": 140000,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second event",
+              "a": "04:00",
+              "b": "06:01",
+              "active": "a",
+              "deadline": 140000,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after final callback",
+              "a": "03:00",
+              "b": "06:01",
+              "active": "b",
+              "deadline": 321000,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after repaint",
+              "a": "03:00",
+              "b": "05:21",
+              "active": "b",
+              "deadline": 321000,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            }
+          ]
+        },
+        {
+          "arm": "landing",
+          "condition": "after",
+          "record": [
+            {
+              "label": "after first event",
+              "a": "03:20",
+              "b": "05:00",
+              "active": "a",
+              "deadline": 200001,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second wire",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -100000,
+              "machine": "speakerA"
+            },
+            {
+              "label": "after second event",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after final callback",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            },
+            {
+              "label": "after repaint",
+              "a": "04:00",
+              "b": "04:20",
+              "active": "b",
+              "deadline": 260003,
+              "eventAt": -40000,
+              "machine": "speakerB"
+            }
+          ]
+        }
+      ],
+      "interpretation": "Between ordering alone produces B06:01 then05:21 on both commits, matching the original trace. Earlier callback is still using eventA timestamp when clockB already reflects the next wire update; debateHold banks B against that older timestamp. Later entry hands B an inflated balance. Before/after control orderings give04:20. E2 authored-loop changes are absent from this emitted machine runtime."
+    },
+    "retainedInvalidProbes": "An earlier direct dc01-module probe omitted catalog type decoration; its machine floor was undefined. It and its results are retained privately but are not causal evidence. Both factory and machine presence were checked in the corrected probe."
+  },
+  "operator": {
+    "landing": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+    "parent": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+    "originalFailure": "Configured42945843116/job130278438628: member.evaluate(location.hash) at spec164 lost its execution context during navigation; inline retry passed",
+    "documentedBehavior": "docs/work-specs/retire-hosted-control/spec.md AC-1 requires the old link to open its production. OldControlLink.tsx41 uses window.location.replace, removing the old query and replacing the document.",
+    "identicalRedirectBlob": "0a61fb23984f1ae96cfbf338478ecc4a11bcfaec",
+    "identicalSpecBlob": "e5441f2354eeb8a7537b16e1110c59a439d1e5ad",
+    "status": "Suspected navigation-unsafe test observation, not yet a causal verdict; wait for exact paired CI outcomes."
+  }
+}
