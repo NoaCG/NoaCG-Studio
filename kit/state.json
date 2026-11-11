@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "note": "Local and Codex reviews passed. Exact PR CI 42927802583 green, 65 configured specs on 4 stacks. GitHub added #2293 to the merge queue at 00:17:21Z, merge-group CI 42930200593 running. Exact-merge acceptance and Bridge release follow.",
-      "session": "/root/v2_tcp_repair",
-      "step": "build",
       "phase": "v2",
+      "session": "/root/v2_checker",
       "pr": 2293,
-      "head": "72bdca8d6030c2b57f58cdc9b7ab13467f9a8577"
+      "note": "V2 landed at 00:30:40Z; exact merge-group gate passed and reviewed tree matches. Fresh independent exact-merge checker is verifying main CI and Bridge 0.11.0 release and download.",
+      "head": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+      "step": "check"
     }
   ],
   "owner": [],
