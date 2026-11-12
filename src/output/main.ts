@@ -236,11 +236,15 @@ async function boot(): Promise<void> {
   // every publish it takes; `inScope` is what every command, report and bank asks. On the ordinary
   // link it is always true and the payload is the one the server holds. ──
   let sceneKeys = new Set<string>();
+  /** Every graphic of the production, as the last payload read named them: a graphic outside
+   *  this set is one the link has not heard of yet, so it is held and read, never skipped. */
+  let productionKeys = new Set<string>();
   let sceneKnown = false;
   /** The font files of the graphics left out, by path (./sceneScope.ts `faces`). */
   let sceneFaces = new Map<string, string>();
   const scoped = (whole: OutputPayload): OutputPayload => {
     if (scene === null) return whole;
+    productionKeys = new Set(whole.graphics.map((g) => g.key));
     const scope = scopePayload(whole, scene);
     sceneKeys = scope.keys;
     sceneKnown = scope.known;
@@ -249,6 +253,8 @@ async function boot(): Promise<void> {
     return scope.payload;
   };
   const inScope = (graphic: string): boolean => scene === null || sceneKeys.has(graphic);
+  /** Another scene's graphic, as far as this link knows: read past here. */
+  const elsewhere = (graphic: string): boolean => scene !== null && !sceneKeys.has(graphic) && productionKeys.has(graphic);
   const payload = scoped(resolved.output);
   // The whole production's payload is not kept: a closure over `resolved` lives as long as the page,
   // and the other scenes' graphics are megabytes this link never builds.
@@ -1209,13 +1215,16 @@ async function boot(): Promise<void> {
     void (async () => {
       try {
         const answer = await untilAnswered(() => controlOutputResolve(outputSlug), { limit: 3 });
-        const payload = answer.ok && answer.value ? answer.value.output : null;
+        // A scene link keeps its scene's graphics only (R5), from the demand's read too.
+        const knew = sceneKnown;
+        const payload = answer.ok && answer.value && answer.value.output ? scoped(answer.value.output) : null;
+        if (sceneKnown !== knew) readyChanged();
         if (payload) demanded = payload;
         // Not answered: asked again while anything still waits for it; its 20 s deadline still runs.
         else if (Array.from(holds.keys()).some((graphic) => !hosts(graphic))) setTimeout(demand, 2_000);
         holds.forEach((hold, graphic) => {
           const spec = payload ? payload.graphics.find((g) => g.key === graphic) : undefined;
-          const step = demandFor({ hosted: hosts(graphic), covered: covered.has(hold), answered: !!payload, published: !!spec, cancelled: isCancelled(hold.rows) });
+          const step = demandFor({ hosted: hosts(graphic), covered: covered.has(hold), answered: !!payload, published: !!spec, elsewhere: elsewhere(graphic), cancelled: isCancelled(hold.rows) });
           if (step === 'add' && spec && payload) swapper.addNow(spec, payload);
           else if (step === 'settle') settleHold(graphic);
           else if (step === 'fail') fail(graphic, 'unpublished');
@@ -1410,7 +1419,9 @@ async function boot(): Promise<void> {
     }
     // A row for a graphic outside a scene link's scope is read past (R6): the position above has
     // moved, and nothing else does.
-    if (!inScope(row.graphic)) return;
+    // A graphic the link has not heard of yet (published after its last read) goes on to be held
+    // and read (G2 section 3): skipping it would move the position past a Take that never ran.
+    if (!inScope(row.graphic) && (elsewhere(row.graphic) || !following || !seqMode)) return;
     // Already inside the state this graphic was rebuilt from — replaying it would re-air it.
     // The FAST road cannot reach this guard and does not need to: it is only joined once the
     // boot catch-up has finished, so nothing it delivers can predate the snapshot.

@@ -181,8 +181,9 @@ export function afterOutcome(
  *  after the read did, is not its to settle (the next read is); otherwise the published graphic is
  *  added, a cancelled hold settles, and one the payload does not name fails `unpublished`. With no
  *  answer the hold waits for the next read. */
-export function demandFor(f: { hosted: boolean; covered: boolean; answered: boolean; published: boolean; cancelled: boolean }): 'skip' | 'add' | 'settle' | 'fail' {
+export function demandFor(f: { hosted: boolean; covered: boolean; answered: boolean; published: boolean; elsewhere?: boolean; cancelled: boolean }): 'skip' | 'add' | 'settle' | 'fail' {
   if (f.hosted || !f.covered || !f.answered) return 'skip';
   if (f.published) return 'add';
-  return f.cancelled ? 'settle' : 'fail';
+  // Another scene's graphic on a scene link (OS1a R5): not this link's to play, so it settles.
+  return f.cancelled || f.elsewhere ? 'settle' : 'fail';
 }

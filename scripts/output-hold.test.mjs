@@ -230,4 +230,14 @@ test('a graphic published and taken while a demand read is in flight keeps its T
   assert.equal(demandFor({ ...base, cancelled: true }), 'settle');
   assert.equal(demandFor({ ...base, answered: false }), 'skip', 'no answer: the hold waits');
   assert.equal(demandFor({ ...base, hosted: true }), 'skip');
+  // A scene link: the read names the graphic in another scene, so it settles, never fails.
+  assert.equal(demandFor({ ...base, elsewhere: true }), 'settle');
+});
+
+test('a scene link holds a graphic it has not heard of, reads past another scene\'s, and keeps a demand read to its scene', async () => {
+  const { readFileSync } = await import('node:fs');
+  const main = readFileSync(new URL('../src/output/main.ts', import.meta.url), 'utf8');
+  assert.match(main, /if \(!inScope\(row\.graphic\) && \(elsewhere\(row\.graphic\) \|\| !following \|\| !seqMode\)\) return;/);
+  assert.match(main, /const elsewhere = \(graphic: string\): boolean => scene !== null && !sceneKeys\.has\(graphic\) && productionKeys\.has\(graphic\);/);
+  assert.match(main, /const payload = answer\.ok && answer\.value && answer\.value\.output \? scoped\(answer\.value\.output\) : null;/);
 });
