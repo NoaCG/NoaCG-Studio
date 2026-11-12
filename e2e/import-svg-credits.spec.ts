@@ -1155,11 +1155,15 @@ const CARD_LAYOUTS = [
 ];
 const LAYOUT_NAME = (layout: (typeof CARD_LAYOUTS)[number]) => (layout.role === 'Research' ? 'role above' : 'role beside');
 /** One layout built as cards (Next only, or with a card time), on a blank page, with its lists. */
-async function cardsPage(page: Page, layout: (typeof CARD_LAYOUTS)[number], advance?: number) {
+async function cardsPage(page: Page, layout: (typeof CARD_LAYOUTS)[number], advance?: number, clock = false) {
   await page.goto('/app');
   const [build] = await buildRolls(page, layout.source, layout.role, 'styled', false, 'cards', advance);
   expect(build.engine, build.layout).toBe('styled');
   await page.goto('/robots.txt');
+  // A page clock, for a test that would otherwise sit out card times in real time: it flows as
+  // the wall clock does, and runFor moves it on, firing every timer and animation frame on the
+  // way, so GSAP's card holds and changes run exactly as they would, only sooner.
+  if (clock) await page.clock.install();
   await page.setContent(build.html);
   const field = await page.evaluate(() => (window as unknown as { noacgFieldFor(role: string, key: null): string }).noacgFieldFor('credits', null));
   const write = (list: string[]) => page.evaluate(({ field, list }) => (window as unknown as { update(d: Record<string, string>): void }).update({ [field]: list }), { field, list: list.join('\n') });
@@ -1278,13 +1282,20 @@ for (const layout of CARD_LAYOUTS) {
   });
 
   test(`styled credits as cards, ${LAYOUT_NAME(layout)}: the card time, Next during a timed card, and live updates on air`, async ({ page }) => {
-    const { at, field, write, groups, list, expected } = await cardsPage(page, layout, 2);
+    const { at, field, write, groups, list, expected } = await cardsPage(page, layout, 2, true);
+    // Card times are read on the page's clock, which runFor moves on: what a hold measures is the
+    // graphic's time, and a turn is never earlier than its bound (checked just short of it).
+    const now = () => page.evaluate(() => Date.now());
+    // Move the page's time on to 100 ms short of `ms` after `from`.
+    const shortOf = async (from: number, ms: number) => page.clock.runFor(Math.max(0, ms - 100 - ((await now()) - from)));
     // AUTOMATIC ADVANCE: the author's two seconds per card, and Next still skips ahead.
     await write(list);
     await cardsDispatch(page, 'play');
-    const started = Date.now();
+    const started = await now();
+    await shortOf(started, 1900);
+    expect((await cardsState(page)).shown, `${at}: the first card holds short of its two seconds`).toBe(0);
     await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: timed`, timeout: 6000, intervals: [25] }).toBe(1);
-    const held = Date.now() - started;
+    const held = (await now()) - started;
     expect(held, `${at}: the first card held its two seconds`).toBeGreaterThanOrEqual(1900);
     await changeEnded(page, at);
     const pressed = Date.now();
@@ -1301,13 +1312,15 @@ for (const layout of CARD_LAYOUTS) {
     const setTime = (seconds: string) => page.evaluate(({ time, seconds }) => (window as unknown as { update(d: Record<string, string>): void }).update({ [time]: seconds }), { time, seconds });
     await cardsDispatch(page, 'play');
     await expect.poll(async () => (await cardsState(page)).card, `${at}: taken again`).toBe(0);
-    const taken = Date.now();
-    await page.waitForTimeout(1500);
+    const taken = await now();
+    await page.clock.runFor(1500);
     await setTime('8');
-    await page.waitForTimeout(1500);
+    await page.clock.runFor(1500);
     await setTime('4');
+    await shortOf(taken, 3900);
+    expect((await cardsState(page)).shown, `${at}: the changed time has not turned it yet`).toBe(0);
     await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: the changed time`, timeout: 8000 }).toBe(1);
-    const turned = Date.now() - taken;
+    const turned = (await now()) - taken;
     expect(turned, `${at}: turned after the new time, counted from the hold's start`).toBeGreaterThanOrEqual(3900);
     expect(turned, `${at}: not counted from the first change`).toBeLessThan(5000);
 
@@ -1335,23 +1348,25 @@ for (const layout of CARD_LAYOUTS) {
     await write(groups[0]);
     await cardsDispatch(page, 'play');
     await expect.poll(async () => (await cardsState(page)).card, `${at}: one card`).toBe(0);
-    await page.waitForTimeout(2500);
+    await page.clock.runFor(2500);
     expect([(await cardsState(page)).shown, (await cardsState(page)).tween], `${at}: the only card holds`).toEqual([0, false]);
     await write(list);
-    await page.waitForTimeout(2500);
+    await page.clock.runFor(2500);
     const kept = await cardsState(page);
     expect([kept.shown, kept.tween, kept.cards.length, await waiting()], `${at}: written on air, the cards taken stay`).toEqual([0, false, 1, true]);
 
     // A DEAL ON AIR THAT GROWS THE DECK: the only card gains cards, starts its hold and turns.
     await redeal(list);
+    await page.clock.runFor(1900);   // the card's two seconds, mostly on the page clock
     await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: grown, it turns`, timeout: 5000 }).toBe(1);
 
     // SHRUNK TO THE LAST, THEN GROWN: the card on air becomes the last (no hold), its old hold's
     // time passes, and grown again it starts a hold and turns.
     await redeal([...groups[0], '', ...groups[1]]);
-    await page.waitForTimeout(2500);
+    await page.clock.runFor(2500);
     expect([(await cardsState(page)).shown, (await cardsState(page)).tween], `${at}: now the last card`).toEqual([1, false]);
     await redeal(list);
+    await page.clock.runFor(1900);   // the card's two seconds, mostly on the page clock
     await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: grown again, it turns`, timeout: 5000 }).toBe(2);
 
     // WRITTEN DURING A CHANGE: the change lands on the next card the take dealt, as taken.
@@ -1389,9 +1404,10 @@ for (const layout of CARD_LAYOUTS) {
     // A DEAL WITHOUT AN UPDATE: the only card holds with no timer; dealt again into several, it
     // starts its hold and turns.
     await setTime('2');
-    await page.waitForTimeout(2500);
+    await page.clock.runFor(2500);
     expect([(await cardsState(page)).shown, (await cardsState(page)).tween], `${at}: one card, no hold`).toEqual([0, false]);
     await redeal(list);
+    await page.clock.runFor(1900);   // the card's two seconds, mostly on the page clock
     await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: dealt again, it turns`, timeout: 5000 }).toBe(1);
 
     // THE BOUND ON AIR: a Card time of 1 is held to 2 seconds.
@@ -1399,9 +1415,11 @@ for (const layout of CARD_LAYOUTS) {
     await write(list);
     await cardsDispatch(page, 'play');
     await expect.poll(async () => (await cardsState(page)).card, `${at}: taken at 1 s`).toBe(0);
-    const fast = Date.now();
+    const fast = await now();
+    await shortOf(fast, 1900);
+    expect((await cardsState(page)).shown, `${at}: still the first card short of 2 s`).toBe(0);
     await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: held to 2 s`, timeout: 5000 }).toBe(1);
-    expect(Date.now() - fast, `${at}: no faster than 2 s`).toBeGreaterThanOrEqual(1900);
+    expect((await now()) - fast, `${at}: no faster than 2 s`).toBeGreaterThanOrEqual(1900);
   });
 }
 
