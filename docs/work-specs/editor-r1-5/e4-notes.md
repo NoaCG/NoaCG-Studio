@@ -134,3 +134,41 @@ that reported address fixed the diagnostic setup. This is retained as an
 infrastructure failure, not a product pass or a test retry.
 
 Implementation/runtime verification pending.
+
+
+### Added isolated-backend carrier rules (before carrier edits)
+
+The initial new backend walk was never committed or run. It currently sits in the
+configured folder with a credentials skip; that is unsuitable for a mandatory E4
+receipt. Hosted configured runs lack the isolated local stack this walk requires.
+Automatic approval rejected a non-executed proposal to add a configured skip
+allowance and loosen the logo assertion. Neither proposal was executed. Existing
+`expected-run.json`, `allowedSkips`, `minTests`, selection and judges stay intact;
+the logo runtime assertion remains exactly 32 natural pixels.
+
+The authorized existing manual `endurance.yml` carrier will run this one new walk
+at the exact candidate commit, with `local-supabase: true`. Its workflow, stack
+bootstrap/teardown, 90-minute cap and other scripts are unchanged. This is added
+E4 qualification, not a substitute for normal PR configured gates. No previously
+committed test moves or disappears: the new walk moves from its uncommitted
+configured location to its own endurance location. The normal configured set and
+all existing skip allowances remain unchanged; the ten new offline regression
+journeys remain in ordinary automated selection.
+
+The wrapper must obtain identity only from the managed isolated stack's
+`SUPABASE_WORKDIR` and `supabase status -o json`, reject absent/non-loopback URLs,
+and override ambient Supabase credentials with that stack's keys. No hosted URL,
+production data, supplied user account or secret transplant is accepted. The walk
+mints and deletes its own account, signs in through the application, closes the
+first authoring page before a fresh context signs in, and proves source/history,
+project membership and two independent installed copies against actual rows.
+
+There is exactly one expected test, zero skips, zero retries, one browser worker,
+a five-minute whole-run cap and a required sanitized JSON receipt containing the
+exact source SHA and assertions. Missing test, skipped test, missing receipt,
+failed assertion or unsuccessful child exit fails qualification; failures and
+Playwright diagnostics are retained under `endurance-output/`. This run does not
+claim receiving-host/operator or real-device acceptance. Before carrier edits,
+a fresh independent Rules-first challenge must assess this added tooling surface,
+normal selection compatibility and `sideEnds` impact, then the final SO assesses
+the complete final diff and actual Actions receipt.
