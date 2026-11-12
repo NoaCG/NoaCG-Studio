@@ -918,11 +918,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [heardRuns, setHeardRuns] = useState<Record<string, RunReport>>({});
   /** The epoch the run reports are read in (its first 8 characters); null: take the next one heard. */
   const runEpochRef = useRef<string | null>(null);
+  /** Epochs a republish ended: a report still from one of them is about a log that is gone. */
+  const retiredEpochsRef = useRef(new Set<string>());
   /** When this page last learned of a command row: PROGRAM's "ran" is about a send at or before it. */
   const newestOwedRef = useRef(0);
   /** The outputs as last judged, for dropping positions every one of them has confirmed. */
   const confirmOutputsRef = useRef<ConfirmOutput[]>([]);
   const noteRun = useCallback((run: RunReport) => {
+    if (retiredEpochsRef.current.has(run.e)) return;
     if (runEpochRef.current === null) runEpochRef.current = run.e;
     if (run.e !== runEpochRef.current) return;
     setHeardRuns((m) => {
@@ -2166,9 +2169,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       });
     },
     epochReset: () => {
+      if (runEpochRef.current !== null) retiredEpochsRef.current.add(runEpochRef.current);
       runEpochRef.current = null;
       setHeardRuns({});
-      setOwed([]);
+      // The new log's seed: every output owes a report from it before anything reads green.
+      setOwed([{ at: 0, graphic: null, learnedAt: wallClock() }]);
     },
     // THE TREE MOVED SERVER-SIDE: re-read it, rather than subscribing to `control_shows` a second
     // time. Any `src`, not `api` alone: this page's own `withBoundValues` airs the tree on the next
@@ -3902,7 +3907,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // run report from a report row or its Presence entry, judged against every position owed.
   const confirmOutputs: ConfirmOutput[] = expectedOutputs.map((e) => {
     const entry = livePresence.peers.find((p) => p.kind === 'output' && p.id === e.id);
-    const said = entry?.ready?.run && entry.ready.run.e === (runEpochRef.current ?? entry.ready.run.e) ? entry.ready.run : null;
+    const said =
+      entry?.ready?.run && !retiredEpochsRef.current.has(entry.ready.run.e) && entry.ready.run.e === (runEpochRef.current ?? entry.ready.run.e)
+        ? entry.ready.run
+        : null;
     const heard = heardRuns[e.id] ?? null;
     const run = said && heard ? newerRun(heard, said) : (said ?? heard);
     return { id: e.id, name: e.name, run, present: !!entry, speaks: !!entry?.ready?.run || !!heard, oldLog: !!entry && entry.proto !== 2 };

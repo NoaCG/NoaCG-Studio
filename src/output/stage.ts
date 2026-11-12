@@ -77,7 +77,7 @@ export interface OutputStage {
    *  ('cue'/'staged'/'live') are ignored, so a caller can feed rows straight through. `at`, the
    *  row's position, asks for its outcome (`onOutcome`): exactly one per command (live-publishing
    *  G2 section 1). */
-  apply(graphic: string, msg: ControlEventRow['msg'], at?: number): void;
+  apply(graphic: string, msg: ControlEventRow['msg'], at?: number, watch?: boolean): void;
   /** Each command given an `at`: `posted` (it reached the document or the package's Graphic),
    *  `skipped` (nothing to post), or failed with a reason. Once per command. */
   onOutcome(cb: (at: number, graphic: string, outcome: StageOutcome) => void): void;
@@ -439,7 +439,7 @@ export function createOutputStage(
   // exactly one, by that position, never by counting. ──
   const outcomeCbs: ((at: number, graphic: string, outcome: StageOutcome) => void)[] = [];
   /** Positions with no outcome yet: their graphic and when they were handed over. */
-  const unsettled = new Map<number, { graphic: string; since: number }>();
+  const unsettled = new Map<number, { graphic: string; since: number; watch: boolean }>();
   /** The position of the command `applyNow` is handling, for what it queues. */
   let currentAt: number | undefined;
   const settleAt = (at: number, outcome: StageOutcome) => {
@@ -455,7 +455,9 @@ export function createOutputStage(
   const watchdog = setInterval(() => {
     const now = Date.now();
     unsettled.forEach((entry, at) => {
-      if (now - entry.since < OUTCOME_WATCHDOG_MS) return;
+      // History a boot hands a loading frame waits for it, however long: dropping it would bring
+      // the graphic back without its state. Its graphic stays listed as not run meanwhile.
+      if (!entry.watch || now - entry.since < OUTCOME_WATCHDOG_MS) return;
       // Out of every queue that holds it, so a failed command never runs later.
       const frame = frames.get(entry.graphic);
       if (frame) frame.queue = frame.queue.filter((item) => item.at !== at);
@@ -1137,10 +1139,10 @@ export function createOutputStage(
       quiet = on;
       for (const frame of frames.values()) postTo(frame, { cmd: 'sound-quiet', on: on || frame.hidden });
     },
-    apply: (graphic, msg, at) => {
+    apply: (graphic, msg, at, watch = true) => {
       if (at !== undefined) {
         atOf.set(msg, at);
-        unsettled.set(at, { graphic, since: Date.now() });
+        unsettled.set(at, { graphic, since: Date.now(), watch });
       }
       placer.apply(graphic, msg);
     },

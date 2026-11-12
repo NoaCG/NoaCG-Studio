@@ -806,17 +806,25 @@ test('w3', async ({ page, browser }) => {
   // The stream: a second device writing an update to the fed graphic every feedMs.
   const feeder = feedMs > 0 ? await openSecondProductionPage(page, fx.showId) : null;
   if (feeder) {
+    // Plain HTTP with the page's own session: the bundled build serves no source modules.
     await feeder.evaluate(
-      async ({ controlSlug, graphic, every }) => {
-        const { getSupabase } = await import('/src/backend/supabase.ts');
-        const sb = await getSupabase();
+      ({ controlSlug, graphic, every, url, anon }) => {
+        let token = '';
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i) ?? '';
+          if (key.startsWith('sb-') && key.endsWith('-auth-token')) token = (JSON.parse(localStorage.getItem(key) ?? '{}') as { access_token?: string }).access_token ?? '';
+        }
         let n = 0;
         (window as unknown as { __feed: ReturnType<typeof setInterval> }).__feed = setInterval(() => {
           n += 1;
-          void sb!.rpc('control_send_many', { p_slug: controlSlug, p_items: [{ graphic, msg: { t: 'update', data: { f0: `feed ${n}` } } }] });
+          void fetch(`${url}/rest/v1/rpc/control_send_many`, {
+            method: 'POST',
+            headers: { apikey: anon, Authorization: `Bearer ${token || anon}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ p_slug: controlSlug, p_items: [{ graphic, msg: { t: 'update', data: { f0: `feed ${n}` } } }] }),
+          });
         }, every);
       },
-      { controlSlug: facts.slug, graphic: facts.fed, every: feedMs },
+      { controlSlug: facts.slug, graphic: facts.fed, every: feedMs, url: process.env.VITE_SUPABASE_URL ?? '', anon: process.env.VITE_SUPABASE_ANON_KEY ?? '' },
     );
   }
   const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');

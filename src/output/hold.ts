@@ -10,6 +10,8 @@
 // Pure and DOM-free: scripts/output-hold.test.mjs runs it in Node against a reference model, and
 // the output renderer loads it in CasparCG 2.3's Chromium 71 (ES2017: no `?.`, no `??`).
 
+import { supersededAnimations } from '../control/seqFollow.ts';
+
 /** S4: a Take held longer than this appears without its entrance. */
 export const ENTRANCE_MS = 5_000;
 /** At most this many commands wait per graphic, and per output. */
@@ -102,21 +104,9 @@ export function compact<M extends Plain>(rows: readonly HeldRow<M>[], limit: num
     }
     out.push(row);
   }
-  // Superseded entrances: a Take with a later Take or Out of the same queue and no Next, event or
-  // snap between them (seqFollow.ts `supersededAnimations`, the same rule).
-  const kept: HeldRow<M>[] = [];
-  let entrance = -1;
-  for (const row of out) {
-    const t = row.msg.t;
-    if (t === 'play' || t === 'stop') {
-      if (entrance >= 0) kept.splice(entrance, 1, null as unknown as HeldRow<M>);
-      entrance = t === 'play' ? kept.length : -1;
-    } else if (t === 'event' || t === 'next' || t === 'snap') {
-      entrance = -1;
-    }
-    kept.push(row);
-  }
-  const result = kept.filter((row) => row !== null);
+  // Superseded entrances, by the one rule a refill uses (seqFollow.ts `supersededAnimations`).
+  const skip = supersededAnimations(out.map((row) => ({ id: 0, graphic: '', seq: row.at, msg: row.msg })));
+  const result = out.filter((row) => !skip.has(row.at));
   return result.length <= limit ? result : null;
 }
 

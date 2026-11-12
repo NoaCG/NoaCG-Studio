@@ -710,9 +710,12 @@ async function boot(): Promise<void> {
           const state = seqMode ? { ...(withOgraf ?? {}), run: runNow() } : withOgraf;
           // Byte-identical truth needs no second write (the 1 s state poll answers every second),
           // unless the write is due for its baseline.
-          const key = JSON.stringify([data, state]);
+          // The run report is left out of the comparison, so a graphic writes only when it changed or
+          // ran something since its last report; never because another graphic moved the cursor.
+          const key = JSON.stringify([data, withOgraf]);
           const forced = forcedReports.delete(graphic);
-          if (!forced && key === lastReported.get(graphic)) return;
+          const ran = unreportedRun.delete(graphic);
+          if (!forced && !ran && key === lastReported.get(graphic)) return;
           lastReported.set(graphic, key);
           if (seqMode) banked(graphic);
           void (seqMode
@@ -879,7 +882,7 @@ async function boot(): Promise<void> {
       const look = msg.appearance ? { appearance: msg.appearance } : {};
       // A data road's update with no look moves nothing here: an empty update would reach a
       // foreign Graphic as `updateAction({})`.
-      if (animate && (gate.values || msg.appearance)) stage.apply(graphic, gate.values ? { t: 'update', data: {}, typed: msg.typed, ...look } : { t: 'update', data: {}, ...look }, at);
+      if (animate && (gate.values || msg.appearance)) stage.apply(graphic, gate.values ? { t: 'update', data: {}, typed: msg.typed, ...look } : { t: 'update', data: {}, ...look }, at, following);
       if (road) live.applied(road, incoming, receivedAt);
       return;
     }
@@ -965,7 +968,7 @@ async function boot(): Promise<void> {
       // A Take that replaces a graphic with a newer body waiting airs that body (G1): the swap
       // hands it the values held above, and this play is its entrance.
       if (msg.t === 'play') swapper.beforePlay(row.graphic);
-      stage.apply(row.graphic, msg.t === 'event' ? { ...msg, at: rowInstant(row.created_at, Date.now()) } : msg, at);
+      stage.apply(row.graphic, msg.t === 'event' ? { ...msg, at: rowInstant(row.created_at, Date.now()) } : msg, at, following);
       if (msg.t === 'play') countPlay();
     }
     // Cleared: a newer body waiting for it takes over once the exit has finished.
@@ -989,6 +992,11 @@ async function boot(): Promise<void> {
   const typedFrom = new Map<string, number>();
   /** Boot frames hidden by their own flag because they had not loaded when the stage came back. */
   const bootHidden = new Set<string>();
+  /** Graphics whose unsettled work is from before a republish: their `from` reads 0. */
+  const staleFrom = new Set<string>();
+  /** Graphics that ran a command since their last report: their next report is owed even when its
+   *  data and state are unchanged (it carries what ran), and only theirs (G2 section 1). */
+  const unreportedRun = new Set<string>();
   /** Graphics shown late without their entrance in the last minute: the page's panel names them. */
   const lateNotes = new Map<string, { ms: number; until: number }>();
   const heldCount = () => {
@@ -1048,6 +1056,7 @@ async function boot(): Promise<void> {
       for (const row of hold.rows) applyCommand(graphic, row.msg, row.createdAt, undefined, false, undefined, true);
       const values = heldData(graphic);
       if (values && Object.keys(values).length > 0) stage.apply(graphic, { t: 'update', data: values });
+      rebankSoon();
       readyChanged();
       return;
     }
@@ -1099,13 +1108,14 @@ async function boot(): Promise<void> {
         const answer = await untilAnswered(() => controlOutputResolve(outputSlug), { limit: 3 });
         const payload = answer.ok && answer.value ? answer.value.output : null;
         if (payload) demanded = payload;
+        // Not answered: asked again while anything still waits for it; its 20 s deadline still runs.
+        else if (Array.from(holds.keys()).some((graphic) => !hosts(graphic))) setTimeout(demand, 2_000);
         holds.forEach((hold, graphic) => {
           if (hosts(graphic)) return;
           const spec = payload ? payload.graphics.find((g) => g.key === graphic) : undefined;
           if (spec && payload) {
             swapper.addNow(spec, payload);
             hold.addedAt = Date.now();
-            loadDeadline(graphic);
           } else if (payload && isCancelled(hold.rows)) settleHold(graphic);
           else if (payload) fail(graphic, 'unpublished');
         });
@@ -1116,10 +1126,10 @@ async function boot(): Promise<void> {
     })();
   };
   /** A held frame that has not loaded in FRAME_LOAD_MS fails `load`; the frame stays for a later Take. */
-  const loadDeadline = (graphic: string) => {
+  const loadDeadline = (graphic: string, hold: object) => {
     setTimeout(() => {
-      const hold = holds.get(graphic);
-      if (hold && !ready(graphic)) fail(graphic, 'load');
+      // This hold's deadline only: a newer hold of the same graphic has its own.
+      if (holds.get(graphic) === hold && !ready(graphic)) fail(graphic, 'load');
     }, FRAME_LOAD_MS);
   };
 
@@ -1138,16 +1148,20 @@ async function boot(): Promise<void> {
       const entry = { at, msg: row.msg, createdAt: row.created_at, receivedAt: Date.now() };
       if (hold) {
         hold.rows.push(entry);
-        if (hold.rows.length > HELD_PER_GRAPHIC || heldCount() > HELD_PER_OUTPUT) {
-          const room = compact(hold.rows, HELD_PER_GRAPHIC, clockSpecs.has(graphic) || speakingClocks.has(graphic));
+        const excess = heldCount() - HELD_PER_OUTPUT;
+        if (hold.rows.length > HELD_PER_GRAPHIC || excess > 0) {
+          // Within both limits: this graphic's own, and what the output's total leaves it.
+          const limit = excess > 0 ? Math.min(HELD_PER_GRAPHIC, hold.rows.length - excess) : HELD_PER_GRAPHIC;
+          const room = compact(hold.rows, Math.max(0, limit), clockSpecs.has(graphic) || speakingClocks.has(graphic));
           if (room) hold.rows = room;
           else fail(graphic, 'limit');
         }
       } else {
         failures.delete(graphic);
-        holds.set(graphic, { rows: [entry], addedAt: null });
+        const started = { rows: [entry], addedAt: null };
+        holds.set(graphic, started);
         if (!hosts(graphic)) demand();
-        else loadDeadline(graphic);
+        loadDeadline(graphic, started);
       }
       // A cancelled hold of a graphic nobody hosts needs nothing: it settles (R6).
       const now = holds.get(graphic);
@@ -1161,13 +1175,16 @@ async function boot(): Promise<void> {
       rebankSoon();
       return true;
     }
-    if (!ready(graphic) && !isTake(t)) {
-      // R4: nothing to run it on; its values wait for the frame.
+    // R4, for a graphic with nothing to run it on: not hosted, or a frame a publish added that is
+    // still loading and holds nothing. A boot frame still loading, or a package waiting for its base,
+    // already holds the boot's history in the stage: what follows joins it there, in order.
+    if (!ready(graphic) && !isTake(t) && (!hosts(graphic) || (!packages.has(graphic) && stage.waitingFor(graphic) === null))) {
       applyCommand(graphic, row.msg, row.created_at, road, false);
       rebankSoon();
       return true;
     }
-    if (isOut(t) && failures.has(graphic)) failures.delete(graphic);
+    // A Take or Out that runs ends a failure (G2 section 3): what it said is no longer so.
+    if ((isOut(t) || isTake(t)) && failures.has(graphic)) failures.delete(graphic);
     return false;
   };
   // A frame that loads runs what waits for it; a hidden boot frame comes back once it settles.
@@ -1185,10 +1202,17 @@ async function boot(): Promise<void> {
   stage.onOgraf((graphic) => {
     if (holds.has(graphic) && ready(graphic)) releaseHold(graphic);
   });
-  stage.onOutcome((_at, graphic, outcome) => {
+  stage.onOutcome((at, graphic, outcome) => {
     // A command that waited in the stage has run: its graphic may report again.
-    if (outcome === 'posted' && seqMode) scheduleReport(graphic);
-    else presence.touch();
+    if (outcome === 'posted' && seqMode) {
+      unreportedRun.add(graphic);
+      scheduleReport(graphic);
+    } else if (outcome !== 'posted' && outcome !== 'skipped' && !failures.has(graphic)) {
+      // The stage gave up on it: named in `h` until a later Take or Out runs (G2 section 1).
+      failures.set(graphic, { from: at, why: outcome.failed });
+      readyChanged();
+    }
+    presence.touch();
   });
 
   /** What this output has run (G2 section 1): its cursor, and every graphic with work unsettled. */
@@ -1208,6 +1232,11 @@ async function boot(): Promise<void> {
       const waiting = stage.waitingFor(graphic);
       if (waiting !== null && !h[graphic]) h[graphic] = [waiting, 'placing'];
     }
+    // Work owed from before a republish reads from 0 in the new log until it settles (G2 section 4).
+    staleFrom.forEach((graphic) => {
+      if (h[graphic]) h[graphic] = [0, h[graphic][1], h[graphic][2]].filter((x) => x !== undefined) as HeldEntry;
+      else staleFrom.delete(graphic);
+    });
     return { o: identity.id, p: lastAppliedSeq, h, e: epochTag(followEpoch) };
   };
   /** Graphics shown late without their entrance in the last minute (G2 section 6). */
@@ -1300,7 +1329,10 @@ async function boot(): Promise<void> {
     // row again. It costs a re-fired entrance inside the catch-up, which is hidden while it
     // settles, so it is a cost rather than a fault - but it is a real one and not the ordering the
     // paragraph above describes.
-    if (forwarded) scheduleReport(row.graphic);
+    if (forwarded) {
+      unreportedRun.add(row.graphic);
+      scheduleReport(row.graphic);
+    }
     dbg('last row', seqMode ? `${row.seq ?? '?'} (id ${row.id})` : String(row.id));
   };
 
@@ -1684,6 +1716,10 @@ async function boot(): Promise<void> {
         lastReported.clear();
         bankedAt.clear();
         sinceBank.clear();
+        for (const graphic of holds.keys()) staleFrom.add(graphic);
+        for (const graphic of failures.keys()) staleFrom.add(graphic);
+        for (const graphic of typedRefused.keys()) staleFrom.add(graphic);
+        for (const graphic of stage.graphics) if (stage.waitingFor(graphic) !== null) staleFrom.add(graphic);
         for (const graphic of stage.graphics) {
           if (liveGraphics.has(graphic) || mergedData.has(graphic) || typed.airing.has(graphic)) scheduleReport(graphic, true);
         }
