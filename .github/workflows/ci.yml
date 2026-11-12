@@ -1471,6 +1471,7 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read
+      issues: read # the landing hold's state, below
     steps:
       # A verdict and nothing else: this job is the required check, so it holds no write scope and
       # no checkout beyond the one script it reads. Everything that ACTS on the verdict - the
@@ -1620,6 +1621,18 @@ jobs:
             exit 1
           fi
           exit "$status"
+
+      # THE LANDING HOLD (docs/LANDING_HOLD.md). While an open `landing-hold` issue exists, this
+      # fails every pull request and merge group, so a queued pull request leaves the queue and
+      # nothing reaches main. A state it cannot read fails too (fail closed). Read here, in the
+      # last job, so a hold set mid-run still stops a merge group whose gate has not finished. Not
+      # on a push to main: that commit has landed, and a red gate there would start the revert.
+      # `!cancelled()` so it reports beside a failed gate above, not instead of it.
+      - name: Landing hold
+        if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.event_name == 'merge_group' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')) }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/landing-hold.mjs check
 
 
   # AFTER THE GATE: what a verdict on main or in the merge group sets in motion. Fail-loud on main,

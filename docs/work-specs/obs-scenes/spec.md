@@ -365,3 +365,68 @@ connection for all OBS pages, a read-only OBS check through obs-websocket and on
 creation, a live OBS picture under placement, a general JSON mapping screen, live data stingers.
 
 ## Phase notes
+
+Filled in by each phase's pull request.
+
+### OS0: Landing hold
+
+- Rules (written before coding):
+  - R1. The hold is on exactly when at least one open issue (not a pull request) in this
+    repository carries the label `landing-hold`; off when that read succeeds and finds none.
+  - R2. The CI gate reads the hold on every `pull_request` and `merge_group` run, and on a
+    `workflow_dispatch` run of any ref but `main` (the mechanical landings' tips). It does not read
+    it on a push to `main`: that commit has landed, and a red gate there would start the red-main
+    revert machinery for a commit nothing is wrong with.
+  - R3. Hold on: the gate fails with an error annotation that starts "Landing hold" and names who
+    set it, the reason, and the hold issue's link. Every other gate rule is unchanged, so other
+    failures are still reported beside it.
+  - R4. The read fails (no token, a network or API error after three attempts, a timeout, an
+    answer that is not a list of issues): the gate fails with "Landing hold state could not be
+    read" (fail closed).
+  - R5. Hold off: the hold step passes and the gate's verdict is exactly today's.
+  - R6. The gate reads the hold when its own job runs, after every other job. A merge group whose
+    gate is still running when the hold turns on fails and its pull requests leave the queue. A
+    gate that already finished is not read again.
+  - R7. `.github/workflows/landing-hold.yml` is `workflow_dispatch` only, with `state` (on or off)
+    and a required non-empty `reason`. On: with no open hold issue it creates one (and the label
+    if missing) whose body names the account that dispatched it, the run and the reason; with one
+    open it rewrites that body to the new setter and reason and comments. Off: it closes every
+    open hold issue with a comment naming who lifted it and why. Repeating a request changes
+    nothing else. Runs never overlap and a running one is never cancelled.
+  - R8. After writing, the workflow reads the hold back with the gate's own reader and fails
+    unless it matches the request.
+  - R9. Lifting re-runs nothing. A pull request whose gate failed under the hold gets its failed
+    `CI gate` job re-run (it reads the hold again) and is queued again.
+  - R10. Not covered, and the guide says so: a manual production deploy, a migration applied by
+    hand, an administrator bypassing the branch rules, and releases that never touch `main`.
+- Rules found by the Rules-first `/so`, before code (it agreed with corrections):
+  - R11. A gate red only with the hold's error ("Landing hold: set by ...") is not a fault. The
+    red-PR alarm (`scripts/repair-wake.mjs` `heldOnly`) raises nothing for it, and the repair
+    rules (`queue-merge.md`) spend no attempt on it. An unreadable hold, or the hold beside any
+    other failure, is still a fault.
+  - R12. Closing or unlabelling the hold issue by hand is never a repair; only the workflow lifts
+    it with a reason. An issue labelled by hand still holds and names whoever opened it.
+  - R13. The reason is public. Scheduled dispatches use a fixed neutral reason, so no window or
+    date appears anywhere.
+- Rules found after coding (`/check` review): every open hold is rewritten on a repeated `on`;
+  a write is tried once (a retried create could open a second hold), reads three times; a request
+  still waiting when a newer one arrives is cancelled by GitHub, so the newest wins (R7 amended);
+  `heldOnly` needs exactly one failed step, so the gate's own failure beside the hold is a fault,
+  and a held PR keeps an alarm line already listed for it; a pull request that edits the hold's
+  own check is judged by that edited check (the guide lists it as not covered).
+- Previous verified `main`: `3c5bbf9add0692fdc1d8fc42aed558416d331805` (CI run 43229582088). The
+  source, `d8aaca715e8cecbfc2b888f6bb76b2670f32b502`, had its push CI still running at the start.
+- Revert: `git revert -m 1 <this pull request's merge commit>` removes the gate step, the
+  workflow, the alarm exception and the guide. Lift the hold first if it is on: an open hold issue
+  left after the revert holds nothing, but should be closed so it does not mislead.
+- Decisions: the state is an open issue with the `landing-hold` label, because the workflow token
+  can write issues but not repository variables, a ref could be pushed or deleted by any agent,
+  and a file would need a landing, which the hold blocks. The gate reads it in its own last step,
+  beside "Require every gate", with `issues: read` added to that job and nothing else. Three
+  attempts per read, 15 s each, then fail closed. The workflow is dispatch only, so no schedule
+  is in the repository.
+- Traps: the merge queue's held revert and quarantine landings stay held too (D7's "every
+  route"); the guide gives the escape (lift, land the revert, set again), and the owner of the hold
+  decides. A merge group whose gate passed before the hold turned on may still land; the runbook's
+  lead time covers it.
+- Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS0.md`.
