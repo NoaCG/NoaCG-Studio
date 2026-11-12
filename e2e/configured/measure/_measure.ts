@@ -133,6 +133,7 @@ export const FRAME_LOADS = () => {
 export async function instrument(context: BrowserContext): Promise<void> {
   await context.addInitScript(OPERATOR_STAMPS);
   await context.addInitScript(FRAME_STAMPS);
+  await context.addInitScript(SAVE_STALL);
 }
 
 export type Lpm = { presses: Press[]; sends: Sent[]; frames?: { t: number; data: string }[]; allSids?: string[] };
@@ -274,3 +275,61 @@ export function writeResult(name: string, data: unknown): string {
 export const FIXTURE = (process.env.MEASURE_FIXTURE ?? 'typical') as 'typical' | 'large';
 export const NET = (process.env.MEASURE_NET ?? 'fast') as Net;
 export const SAMPLES = Number(process.env.MEASURE_SAMPLES ?? 50);
+
+/** MEASURE_BUILD=prod measures under a production build (phase 3: AC-1 is judged there). The
+ *  fixture is still built through the development server's modules; `buildSwitch.mjs` stands on the
+ *  harness's port and a reload then runs the same storage under the bundled build. */
+export const BUILD = (process.env.MEASURE_BUILD ?? 'dev') as 'dev' | 'prod';
+
+/** Switch the origin to `to` and reload `page` under it (a no-op unless MEASURE_BUILD=prod). */
+export async function switchBuild(page: Page, to: 'dev' | 'prod', ready: () => Promise<void>): Promise<void> {
+  if (BUILD !== 'prod') return;
+  const answer = await page.request.get(`/__measure/build?to=${to}`);
+  if ((await answer.text()) !== to) throw new Error(`the build switch did not move to ${to}: is buildSwitch.mjs on the harness's port?`);
+  await page.reload();
+  await ready();
+}
+
+/** MEASURE_STALL=1 (phase 3, AC-1): "the save and the Bridge health request deliberately stalled".
+ *  Each measured press is made right after an edit of the cue's note, so a save is owed at the
+ *  press; the page's durable save (an IndexedDB write) completes STALL_MS late, and the Bridge's
+ *  `/health` answers STALL_MS late. */
+export const STALL = process.env.MEASURE_STALL === '1';
+export const STALL_MS = 3_000;
+
+/** Hold every IndexedDB write open for `window.__lpStallSave` ms after it is made: a read issued
+ *  from the last one's success keeps the transaction from committing (the hold
+ *  e2e/playout-air-contract.spec.ts uses), so the save is confirmed only that much later. */
+export const SAVE_STALL = () => {
+  if (window.top !== window || typeof IDBObjectStore === 'undefined') return;
+  const w = window as unknown as { __lpStallSave?: number };
+  const realPut = IDBObjectStore.prototype.put;
+  const holdOpen = (store: IDBObjectStore, until: number) => {
+    if (Date.now() < until) store.get('__lp_hold__').onsuccess = () => holdOpen(store, until);
+  };
+  IDBObjectStore.prototype.put = function put(this: IDBObjectStore, ...args: unknown[]) {
+    const request = (realPut as (...a: unknown[]) => IDBRequest).apply(this, args);
+    const ms = w.__lpStallSave ?? 0;
+    if (ms > 0) holdOpen(this, Date.now() + ms);
+    return request;
+  } as typeof IDBObjectStore.prototype.put;
+};
+
+/** Under MEASURE_STALL: stall the page's saves and the fake Bridge's health answer from now on. */
+export async function stallOn(page: Page): Promise<void> {
+  if (!STALL) return;
+  await page.evaluate((ms) => { (window as unknown as { __lpStallSave?: number }).__lpStallSave = ms; }, STALL_MS);
+  await page.route('http://127.0.0.1:8899/health', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, STALL_MS));
+    await route.fallback().catch(() => {});
+  });
+}
+
+/** Under MEASURE_STALL: an edit the press's save is owed for, typed just before the press. */
+export async function owedEdit(page: Page): Promise<void> {
+  if (!STALL) return;
+  const note = page.getByTestId('cue-note');
+  if (!(await note.isVisible().catch(() => false))) return;
+  await note.press('End');
+  await page.keyboard.type('x');
+}

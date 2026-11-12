@@ -4,7 +4,8 @@ import { useAiConsent } from '../AiConsentDialog';
 import { useAuthState } from '../auth/useAuthState';
 import SignInPrompt from '../auth/SignInPrompt';
 import { activeEditorCommands } from './commandAdapter';
-import { proposeEditorEdits, type ReviewedProposal } from './proposals';
+import { askEditorHelp, proposeEditorEdits, type ReviewedProposal } from './proposals';
+import { editorHelpGuide } from '../../ai/editorProposals';
 import type { EditorCommands, EditorProposal } from './commands';
 
 function describeCommand(command: EditorProposal['commands'][number]) {
@@ -23,6 +24,8 @@ function describeCommand(command: EditorProposal['commands'][number]) {
 
 type Receipt = Extract<ReturnType<EditorCommands['apply']>, { ok: true }>;
 export default function ProposalPanel({ close }: { close(): void }) {
+  const [mode, setMode] = useState<'help' | 'edit'>('help');
+  const [answer, setAnswer] = useState('');
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<ReviewedProposal | null>(null);
@@ -61,14 +64,21 @@ export default function ProposalPanel({ close }: { close(): void }) {
     const timer = window.setInterval(() => { if (update()) window.clearInterval(timer); }, 200);
     return () => window.clearInterval(timer);
   }, [receipt]);
-  const cancel = () => { invalidateRequest(); setBusy(false); setPending(null); setError(''); };
+  const cancel = () => { invalidateRequest(); setBusy(false); setPending(null); setAnswer(''); setError(''); };
+  const changeMode = (next: typeof mode) => { cancel(); setReceipt(null); setPreviewStatus(''); setMode(next); };
   const propose = async () => {
     const generation = ++requestGeneration.current;
-    setBusy(true); setPending(null); setReceipt(null); setPreviewStatus(''); setError('');
+    setBusy(true); setPending(null); setReceipt(null); setPreviewStatus(''); setAnswer(''); setError('');
     try {
       if (!(await ensureAiConsent()) || generation !== requestGeneration.current) return;
-      const reviewed = await proposeEditorEdits(activeEditorCommands(), prompt);
-      if (generation === requestGeneration.current) setPending(reviewed);
+      const commands = activeEditorCommands();
+      if (mode === 'help') {
+        const reply = await askEditorHelp(commands, prompt);
+        if (generation === requestGeneration.current) setAnswer(reply);
+      } else {
+        const reviewed = await proposeEditorEdits(commands, prompt);
+        if (generation === requestGeneration.current) setPending(reviewed);
+      }
     } catch (cause) {
       if (generation === requestGeneration.current) setError(cause instanceof Error ? cause.message : 'The proposal could not be loaded.');
     } finally {
@@ -87,13 +97,19 @@ export default function ProposalPanel({ close }: { close(): void }) {
     onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); cancel(); } }}>
     <div className="ef-toolbar"><strong>Assistant</strong><span className="ef-spacer" /><button aria-label="Close assistant" onClick={close}>×</button></div>
     {needsSignIn ? <SignInPrompt feature="Editor assistant" reason="Sign in to use the editor assistant." /> : <div className="ef-inspector-body">
-      <label className="ef-proposal-input">Describe an edit<textarea ref={input} value={prompt} maxLength={4000} rows={3}
-        onChange={event => setPrompt(event.target.value)} placeholder="Change the selected text" /></label>
+      <div className="ef-edit-actions" role="group" aria-label="Assistance mode">
+        <button aria-pressed={mode === 'help'} onClick={() => changeMode('help')}>Help</button>
+        <button aria-pressed={mode === 'edit'} onClick={() => changeMode('edit')}>Edit</button>
+      </div>
+      <label className="ef-proposal-input">{mode === 'help' ? 'Ask about this graphic' : 'Describe an edit'}<textarea ref={input} value={prompt} maxLength={4000} rows={3}
+        onChange={event => setPrompt(event.target.value)} placeholder={mode === 'help' ? 'How do I add an Out?' : 'Change the selected text'} /></label>
       {!configured && <p className="ef-muted">Configure AI in New graphic → AI settings. Manual editing is available.</p>}
-      <div className="ef-edit-actions"><button disabled={busy || !configured || !prompt.trim()} onClick={() => void propose()}>Propose edits</button>
-        {(busy || pending) && <button onClick={cancel}>Cancel</button>}</div>
-      {busy && <p role="status">Preparing proposal…</p>}
+      <div className="ef-edit-actions"><button disabled={busy || !configured || !prompt.trim()} onClick={() => void propose()}>{mode === 'help' ? 'Ask' : 'Propose edits'}</button>
+        {(busy || pending || answer) && <button onClick={cancel}>Cancel</button>}</div>
+      {busy && <p role="status">{mode === 'help' ? 'Preparing answer…' : 'Preparing proposal…'}</p>}
       {error && <p role="alert">{error}</p>}
+      {answer && <section aria-label="Editor help"><p style={{ whiteSpace: 'pre-wrap' }}>{answer}</p></section>}
+      <details><summary>Editing guide</summary>{editorHelpGuide.map(paragraph => <p key={paragraph}>{paragraph}</p>)}</details>
       {pending && <section aria-label="Proposed edits">
         <p>{pending.proposal.summary}</p>
         <ol className="ef-proposal-commands">{pending.proposal.commands.map((command, index) => <li key={index}>

@@ -19,6 +19,7 @@ async function reviewed(page: Page, id: string, args: unknown, commit = true) {
   const handler = async (route: import('@playwright/test').Route) => { writeFileSync(evidence('request-' + id + '.json'), JSON.stringify({ body: route.request().postDataJSON(), source: await source(page), expected: { id, args } }, null, 2)); return route.fulfill({ json: { output: { summary: 'Review ' + id, commands: [{ id, args }] }, provider: 'openai', model: 'deterministic-task', usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 }, attempts: [] } }); };
   await page.route('**/api/ai/generate', handler);
   await page.getByRole('button', { name: 'Assistant', exact: true }).click();
+  await page.getByRole('group', { name: 'Assistance mode' }).getByRole('button', { name: 'Edit', exact: true }).click();
   await page.getByRole('textbox', { name: 'Describe an edit', exact: true }).fill('Apply the qualified ' + id + ' task edit');
   const sent = page.waitForRequest('**/api/ai/generate');
   const accepted = await page.evaluate(async () => (await import('/src/ai/consent.ts')).noticeAcceptedLocally());

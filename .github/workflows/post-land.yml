@@ -145,6 +145,7 @@ jobs:
       contents: read
       pull-requests: read
       statuses: read
+      actions: read # the red-PR check reads CI runs and their jobs
       issues: write
     steps:
       - uses: actions/checkout@v5
@@ -159,3 +160,48 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: node scripts/growth-report.mjs ages --issue
+      # A red PR nobody is repairing (cicd-followup cf22 fix 1): the same kind of owned alarm, run
+      # here rather than on its own schedule, because a new scheduled job does not fit the
+      # overhead tier. It reads open PRs and their CI and writes only its own alarm issue.
+      - name: Red pull requests nobody is repairing
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/repair-wake.mjs check --issue
+
+  # THE WEEKLY GROWTH REPORT'S HEALTH (owner request 2026-11-11). Its own job, because re-running a
+  # partial report dispatches weekly-audit, which needs write access to Actions; the delivery-age and
+  # red-PR alarms keep their read-only job. A partial report is re-run at most twice, within a day
+  # of its first try, and 65 minutes after the try before it so the two never share the token's
+  # hourly API limit; one still partial after that, or a stale or missing report, raises one owner
+  # alarm (scripts/alarm-owner.mjs routing), and a complete one closes it. The capacity line
+  # meanwhile judges pull requests on the newest complete report, never refusing for this.
+  growth-health:
+    name: Weekly growth report health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write # read the weekly growth reports, and re-run a partial one
+      issues: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Weekly growth report health
+        id: growth
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/growth-report.mjs health --issue
+      - name: Re-run a partial growth report
+        if: ${{ steps.growth.outputs.rerun != '' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ATTEMPT: ${{ steps.growth.outputs.rerun }}
+        run: gh api -X POST "repos/$GH_REPO/actions/workflows/weekly-audit.yml/dispatches" -f ref=main -f 'inputs[growth_rerun]=true' -f "inputs[attempt]=$ATTEMPT"

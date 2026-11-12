@@ -939,11 +939,13 @@ test('a page that stops answering runs nothing it was still holding', async (t) 
 });
 
 for (const ends of ['is drawn', 'is drawn and then taken off by the page', 'fails', 'never settles']) {
-  test(`a Take key pressed twice while the first Take still saves an edit takes the cue once, and the next Take after the first ${ends} runs (issue #2144)`, async (t) => {
+  test(`a Take key pressed twice while the first Take is still out takes the cue once, and the next Take after the first ${ends} runs (issue #2144, W1)`, async (t) => {
     t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: Date.now() });
     const hub = relayHub();
     globalThis.__panelBackend = hub.backend;
-    // The real verbs, with the cue's edit still saving (`flush`) well past the draw gap.
+    // The real verbs, with the cue's edit still saving (`flush`) and the Take's send unanswered
+    // well past the draw gap. W1: the Take sends at once and saves after its answer, so what holds
+    // the first press is its send.
     const prod = productionPage();
     const saving = held();
     prod.page.flush = () => saving.promise;
@@ -987,7 +989,7 @@ for (const ends of ['is drawn', 'is drawn and then taken off by the page', 'fail
       const second = deck.press('take', 'b2');
       await drain();
       await drawGap(t);
-      assert.deepEqual(takes, ['b2'], 'the second Take is not run while the first is still saving');
+      assert.deepEqual(takes, ['b2'], 'the second Take is not run while the first is still out');
       const [one, two] = await Promise.all([first, second]);
       assert.equal(one.result.outcome, 'ran');
       assert.deepEqual([two.result.outcome, two.result.note], ['stale', 'what Take does changed']);
@@ -997,15 +999,17 @@ for (const ends of ['is drawn', 'is drawn and then taken off by the page', 'fail
       await drawGap(t);
       assert.equal((await elsewhere).result.outcome, 'not-here');
       const drawn =ends !== 'fails' && ends !== 'never settles';
-      if (drawn) saving.resolve();
-      else if (ends === 'fails') saving.reject(new Error('the edit did not save'));
+      if (drawn) await landNext(prod, 0, false);
+      else if (ends === 'fails') prod.sends[0].answer.reject(new Error('the send did not land'));
       else {
         // Never settles: the guard lets go by its own bound, not by a reload.
         t.mock.timers.tick(TAKE_GUARD_MAX_MS);
         await drain();
       }
       await drain();
-      assert.equal(prod.sends.length, drawn ? 1 : 0, 'the cue is taken once');
+      saving.resolve();
+      await drain();
+      assert.equal(prod.sends.length, 1, 'the cue is taken once');
       // Drawn: the page shows B2 on air while the Take's send is still unanswered, and then maybe
       // off again. Failed: the Take settled a draw gap ago, and the page shows what it showed before.
       answer.changed();
@@ -1019,7 +1023,7 @@ for (const ends of ['is drawn', 'is drawn and then taken off by the page', 'fail
       const third = await deck.press('take', 'b2');
       assert.equal(third.result.outcome, 'ran');
       assert.deepEqual(takes, ['b2', 'b2']);
-      if (drawn) await landNext(prod, 0, false);
+      await landNext(prod, 1, false);
     } finally {
       pagehide();
       void deck.stop();

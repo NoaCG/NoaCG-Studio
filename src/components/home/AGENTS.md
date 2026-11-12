@@ -258,8 +258,10 @@ Phase 1 is built - manual, local, no API.
   **Typing a value never renders the page.** The draft is the `draft` part; `CueEditor`, the
   rundown rows and `PlayoutMonitors` subscribe to it, and the page subscribes only to what it
   draws from it (`useDrawnDraft`, compared by value): whether something is unsent, and the
-  countdown chip's cue label, so renaming a counting cue does render it. A verb awaits `cueDraft.flush` and then reads the
-  part, so a Take pressed between a keystroke and a render airs the keystroke.
+  countdown chip's cue label, so renaming a counting cue does render it. A verb reads the part
+  when it sends, so a Take pressed between a keystroke and a render airs the keystroke. A Take
+  path sends first and saves after (live-publishing W1); an Update or a snap awaits
+  `cueDraft.flush` first.
   `e2e/playout-air-contract.spec.ts` counts the renders.
   The server's verbs and what the page believes is up on the server are `control/serverPlayout.ts`,
   held in `control/serverPlayoutStore.ts`: an OWNERSHIP part the verbs read and a TIMING part they
