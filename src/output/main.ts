@@ -438,6 +438,8 @@ async function boot(): Promise<void> {
     // offline specs with no topic. A playout box's console must not write state the log never saw.
     command: import.meta.env.DEV ? (graphic: string, msg: ControlEventRow['msg']) => applyCommand(graphic, msg, undefined) : undefined,
     ack: () => ack,
+    // The values each graphic's document was last handed, for specs (live-publishing G2 R4).
+    handed: (graphic: string) => stage.handed.get(graphic) ?? null,
   };
   // ── PREPARE A NEWER VERSION (./prepare.ts; R3): the changes are built beside the running
   // graphics and checked, and this page reloads onto the new version only when nothing is on air
@@ -1004,6 +1006,22 @@ async function boot(): Promise<void> {
     holds.forEach((hold) => (n += hold.rows.length));
     return n;
   };
+  /** The look an update carried while its graphic had nothing to run it on (R4): the frame takes it
+   *  with the values when it can run them. */
+  const heldLook = new Map<string, unknown>();
+  /** Hand a frame that can now run what it is sent the values and look its graphic holds: the
+   *  commands that were settled for it before it loaded (R4) never reached it themselves. */
+  const primeFrame = (graphic: string) => {
+    const look = heldLook.get(graphic);
+    heldLook.delete(graphic);
+    const appearance = look === undefined ? {} : { appearance: look };
+    if (typed.airing.has(graphic) && typedEnvelope.has(graphic)) {
+      stage.apply(graphic, { t: 'update', data: {}, typed: typedEnvelope.get(graphic), ...appearance } as ControlEventRow['msg']);
+      return;
+    }
+    const values = mergedData.get(graphic);
+    if ((values && Object.keys(values).length > 0) || look !== undefined) stage.apply(graphic, { t: 'update', data: values ?? {}, ...appearance } as ControlEventRow['msg']);
+  };
   /** A frame (or package layer) that runs what it is sent now. */
   const ready = (graphic: string) => stage.released(graphic);
   const hosts = (graphic: string) => stage.graphics.indexOf(graphic) >= 0 || packages.has(graphic);
@@ -1038,7 +1056,10 @@ async function boot(): Promise<void> {
     const hold = holds.get(graphic);
     if (!hold) return;
     holds.delete(graphic);
-    for (const row of hold.rows) applyCommand(graphic, row.msg, row.createdAt, undefined, false, undefined, true);
+    for (const row of hold.rows) {
+      keepLook({ graphic, msg: row.msg } as ControlEventRow);
+      applyCommand(graphic, row.msg, row.createdAt, undefined, false, undefined, true);
+    }
     rebankSoon();
     readyChanged();
   };
@@ -1054,12 +1075,14 @@ async function boot(): Promise<void> {
     if (mode === 'cancelled') {
       // Nothing is shown: the commands' bookkeeping runs, and the frame gets the values only.
       for (const row of hold.rows) applyCommand(graphic, row.msg, row.createdAt, undefined, false, undefined, true);
-      const values = heldData(graphic);
-      if (values && Object.keys(values).length > 0) stage.apply(graphic, { t: 'update', data: values });
+      primeFrame(graphic);
       rebankSoon();
       readyChanged();
       return;
     }
+    // What came before the Take (its own `update`, a feed's values) and was kept for the frame
+    // reaches it first, so the Take airs the cue's values and look, not the template's defaults.
+    primeFrame(graphic);
     if (mode === 'late') {
       stage.hide(graphic, true);
       bootHidden.add(graphic);
@@ -1130,6 +1153,10 @@ async function boot(): Promise<void> {
     }, FRAME_LOAD_MS);
   };
 
+  const keepLook = (row: ControlEventRow) => {
+    const msg = row.msg as { t: string; appearance?: unknown };
+    if (msg.t === 'update' && msg.appearance !== undefined) heldLook.set(row.graphic, msg.appearance);
+  };
   /** A live command for a graphic this output cannot run yet: held, settled, or neither (false). */
   const holdOrSettle = (row: ControlEventRow, road: LiveRoad | undefined): boolean => {
     const graphic = row.graphic;
@@ -1168,6 +1195,7 @@ async function boot(): Promise<void> {
     }
     if (failures.has(graphic) && !isTake(t) && !isOut(t)) {
       // A failed graphic's other commands keep their values and post nothing (R4).
+      keepLook(row);
       applyCommand(graphic, row.msg, row.created_at, road, false);
       rebankSoon();
       return true;
@@ -1176,6 +1204,7 @@ async function boot(): Promise<void> {
     // still loading and holds nothing. A boot frame still loading, or a package waiting for its base,
     // already holds the boot's history in the stage: what follows joins it there, in order.
     if (!ready(graphic) && !isTake(t) && (!hosts(graphic) || (!packages.has(graphic) && stage.waitingFor(graphic) === null))) {
+      keepLook(row);
       applyCommand(graphic, row.msg, row.created_at, road, false);
       rebankSoon();
       return true;
@@ -1188,10 +1217,7 @@ async function boot(): Promise<void> {
   stage.onLoaded((graphic) => {
     if (holds.has(graphic)) releaseHold(graphic);
     else if (bootHidden.has(graphic)) void showWhenSettled(graphic);
-    else if (following && touched.has(graphic)) {
-      const values = heldData(graphic);
-      if (values && Object.keys(values).length > 0) stage.apply(graphic, { t: 'update', data: values });
-    }
+    else if (following && touched.has(graphic)) primeFrame(graphic);
   });
   stage.onError((graphic) => {
     if (holds.has(graphic) && !ready(graphic)) fail(graphic, 'script');

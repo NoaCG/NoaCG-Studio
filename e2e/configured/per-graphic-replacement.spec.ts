@@ -295,6 +295,11 @@ test('a Take of a graphic still loading plays once loaded, a cancelled one never
     // The strap ran once on each output; the second strap was cancelled while it loaded and was
     // never played at all, so its frame never showed (`data-plays` counts every entrance).
     await expect.poll(() => air.locator('body').getAttribute('data-plays'), { timeout: 60_000, message: name }).toBe('1');
+    // The Take's own values reached the strap's document before its entrance (the update that came
+    // before the play, settled while the frame loaded): it airs the cue, not the template's defaults.
+    const handed = await air.evaluate((g) => (window as unknown as { __noacgLive: { handed(g: string): unknown } }).__noacgLive.handed(g), STRAP);
+    expect(handed, `${name}: the strap's document was handed the cue's values`).toBeTruthy();
+    expect(Object.keys(handed as object).length, `${name}: with the cue's fields`).toBeGreaterThan(0);
     await expect(air.locator(`iframe[title="${LOWER}"]`)).toHaveCount(1, { timeout: 60_000 });
   }
   // Everything pressed has run on both outputs: green, and the panel names the late Take.

@@ -86,6 +86,8 @@ export interface OutputStage {
   /** Hide one graphic's frame (picture and sound) or show it again as the stage itself is. A frame
    *  that has not loaded takes the hide before anything it holds. */
   hide(graphic: string, hidden: boolean): void;
+  /** The values each graphic's document was last handed by an `update` (for specs). */
+  handed: ReadonlyMap<string, unknown>;
   /** The graphic's current frame has loaded (or was released on a fallback face). */
   released(graphic: string): boolean;
   /** Ask a graphic's document for its machine state (answers arrive via onState). */
@@ -963,6 +965,8 @@ export function createOutputStage(
   };
   window.addEventListener('message', onMessage);
 
+  /** The values each graphic's document was last handed by an `update`. */
+  const handed = new Map<string, unknown>();
   /** Graphics whose data on this stage is a typed envelope's (E1.2a). */
   const typedAiring = new Set<string>();
   const route = (graphic: string, msg: ControlEventRow['msg']): StageOutcome | 'queued' => {
@@ -1051,6 +1055,7 @@ export function createOutputStage(
           break;
         }
         post(graphic, { cmd: 'update', data: JSON.stringify(typedData ?? msg.data ?? {}) });
+        handed.set(graphic, typedData ?? msg.data ?? {});
         break;
       }
       case 'play':
@@ -1183,6 +1188,7 @@ export function createOutputStage(
       else for (const cmd of cmds) postTo(frame, cmd);
     },
     // A published package runs what it is sent once its layer is mounted (its calls wait for load()).
+    handed,
     released: (graphic) => !!frames.get(graphic)?.loaded || foreign.has(graphic),
     requestState: (graphic) => {
       // Polls are droppable pre-load — queueing them would just replay stale asks.
