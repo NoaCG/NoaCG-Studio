@@ -259,6 +259,7 @@ import { declaredForeign, graphicControls, panelGraphic, runCapability, type Con
 import { useTeamsAvailable } from '../teams/useTeamsAvailable';
 import { teamShowsStatus } from '../../model/teamShows';
 import { announcedExpected, useExpectedOutputs, useLivePresence, useReadinessView } from '../control/OutputHealth';
+import { useCopyAdoption } from './useCopyAdoption';
 import { usePublishDrift } from './usePublishDrift';
 import { type PayloadVersion } from '../../control/payloadVersion';
 import { clockWords, type HeldVersion, type ReadyStamp } from '../../control/readiness';
@@ -1005,6 +1006,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Changed since the last publish: the record itself, or what the outputs would render (a graphic
    *  edited in the library, which never touches the record) - usePublishDrift. */
   const authoringAllowed = useAccountAuthoring();
+  // ADOPTION (live-publishing O5, designs/G1.md section 5): once the production-copies switch is on.
+  useCopyAdoption(show, authoringAllowed, setShows);
   const { unpublished: unpublishedChanges, requiresPreparation, check: checkUnpublished } = usePublishDrift(show, publishedStamp?.g ?? null);
   // EXPECTED FOR THIS SESSION ONLY (playout-workflow-simplification D4): an output seen since this
   // page opened and then gone is lost, in red; yesterday's OBS is never expected today, so a page

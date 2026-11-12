@@ -2508,3 +2508,14 @@ function readLogRow(payload: unknown): ControlEventRow | null {
   }
   return row as ControlEventRow;
 }
+
+/** The published row's version stamp, read as one field so the payload is not downloaded: what
+ *  adoption matches copies against (designs/G1.md section 5). Null when unreadable, unpublished,
+ *  or published before stamps. */
+export async function readPublishedStamp(showId: string): Promise<PayloadVersion | null> {
+  const sb = await getSupabase();
+  if (!sb) return null;
+  const { data, error } = await sb.from('control_shows').select('ver:output->ver').eq('id', showId).maybeSingle();
+  if (error || !data) return null;
+  return readPayloadVersion((data as { ver?: unknown }).ver);
+}

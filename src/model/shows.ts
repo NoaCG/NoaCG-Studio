@@ -1057,6 +1057,32 @@ export function settleShowCopies(showId: string, base: readonly SavedGraphic[]):
 }
 
 /**
+ * ADOPTION's write (live-publishing O5, designs/G1.md section 5; the plan is control/copyAdoption.ts):
+ * each planned copy, still unstamped and still at the `savedAt` the plan read, takes its planned
+ * design members and is stamped. The pool name stays the template's name. Outside the undo
+ * history; a write only when a copy changes.
+ */
+export function adoptShowCopies(
+  showId: string,
+  plan: Readonly<Record<string, { template: SpxTemplate; savedAt: string; graphicId?: string }>>,
+  read: Readonly<Record<string, string>>,
+): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    let changed = false;
+    show.graphics = show.graphics.map((g) => {
+      const design = plan[g.id];
+      if (!design || (g.designAt !== undefined && g.designAt === g.savedAt) || g.savedAt !== read[g.id]) return g;
+      changed = true;
+      const next: SavedGraphic = { ...g, template: { ...design.template, name: g.name }, savedAt: design.savedAt, designAt: design.savedAt };
+      if (design.graphicId === undefined) delete next.graphicId;
+      else next.graphicId = design.graphicId;
+      return next;
+    });
+    return changed;
+  });
+}
+
+/**
  * UPDATE (live-publishing O4, designs/G1.md section 2): a copy takes its library record's newer
  * design. Only the design members change (`template`, `savedAt` = the record's edit time,
  * `designAt` the same); the id, pool name (the template's own name is set to it), layer, place in
