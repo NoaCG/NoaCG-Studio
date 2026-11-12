@@ -22,7 +22,7 @@ const deferred = () => {
 };
 
 /** Execute the real save controller with a delayed disk and RPC, without an account/server. */
-function harness(pending = true, graphics = [], storage = undefined, settle = { settleGraphics: (graphics) => ({ graphics, changed: false }) }) {
+function harness(pending = true, graphics = [], storage = undefined, settle = { settleGraphics: (graphics) => ({ graphics, changed: false }) }, retainFails = { left: 0 }) {
   const disk = deferred();
   const request = deferred();
   const requests = [];
@@ -42,7 +42,10 @@ function harness(pending = true, graphics = [], storage = undefined, settle = { 
     '../model/copySettle': settle,
     '../model/durableStore': { canAuthorAccount: () => true, libraryInUse: () => 'owner', commitDurableWrites: () => disk.promise },
     '../model/teamOutbox': {
-      retainTeamEdit: (_owner, _id, edit) => { retained = edit.local; },
+      retainTeamEdit: (_owner, _id, edit) => {
+        if (retainFails.left > 0) { retainFails.left -= 1; throw new Error('Browser storage is full.'); }
+        retained = edit.local;
+      },
       acknowledgeTeamEdit: (_owner, _id, sent) => { if (JSON.stringify(retained) === JSON.stringify(sent)) retained = null; },
     },
   };
@@ -274,4 +277,27 @@ test('a flush that storage refused leaves the settle owed, so a team publish sto
   const clean = harness(true, [base], undefined, copySettle);
   clean.controller.seedBaseForTest({ id: 'show', teamId: 'team', version: 2, name: 'First edit', graphics: [base] });
   assert.equal(clean.controller.teamSettleOwed('show'), false, 'nothing pulled, nothing owed');
+});
+
+// A settle whose retained-edit write throws (browser storage full) is a failed save like any other:
+// the edit stays dirty, the save is no longer in flight, and the next flush goes up settled.
+test('a settle whose outbox write throws fails the save and never leaves it in flight', async () => {
+  const tpl = (html) => ({ name: 'Strap', html, css: '', js: '', assets: [], fields: [] });
+  const base = { id: 'g1', name: 'Strap', type: 'lower-third', savedAt: '2026-11-01T00:00:00.000Z', designAt: '2026-11-01T00:00:00.000Z', template: tpl('<p>base</p>'), layer: 20 };
+  const pulled = { ...base, template: tpl('<p>pulled</p>'), savedAt: '2026-11-02T00:00:00.000Z', designAt: '2026-11-01T00:00:00.000Z' };
+  const fails = { left: 1 };
+  const h = harness(true, [pulled], undefined, copySettle, fails);
+  h.controller.seedBaseForTest({ id: 'show', teamId: 'team', version: 2, name: 'First edit', graphics: [base] });
+  const first = h.controller.flushTeamProduction('show');
+  h.disk.resolve(null);
+  assert.match(await first, /Browser storage is full\./);
+  assert.equal(h.requests.length, 0);
+  assert.equal(h.controller.getTeamState().saving.show, 'failed');
+  h.edit('Second edit');
+  const second = h.controller.flushTeamProduction('show');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.requests.length, 1, 'the next save goes out: nothing is left in flight');
+  assert.equal(h.requests[0].p_doc.graphics[0].template.html, '<p>base</p>');
+  h.request.resolve({ data: { saved: true, updated_at: 'confirmed', updated_by: 'owner' }, error: null });
+  assert.equal(await second, null);
 });

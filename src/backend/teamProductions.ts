@@ -612,16 +612,18 @@ async function pushSave(id: string): Promise<void> {
   // THE SEND-TIME SETTLE (live-publishing G1 section 3): a copy no copy-truth build stamped whose
   // design differs from the server's copy this edit started from takes the server's design, so a
   // design an older page pulled from the library is dropped before anything goes up. The settled
-  // record is what this tab shows from now on.
-  const settled = settleGraphics(sent.graphics, base.graphics, new Date().toISOString());
-  if (settled.changed) {
-    sent = { ...sent, graphics: settled.graphics };
-    applyServerTeamShow(sent);
-    retainTeamEdit(owner.userId, id, { token, base, local: sent, updatedBy: known.updatedBy, teamId: known.teamId });
-  }
+  // record is what this tab shows from now on. Inside the save's error handling: a write that throws
+  // (browser storage full) must leave the edit dirty and the save no longer in flight.
   let doc = teamDoc(sent);
   let failure: string | null = null;
   try {
+    const settled = settleGraphics(sent.graphics, base.graphics, new Date().toISOString());
+    if (settled.changed) {
+      sent = { ...sent, graphics: settled.graphics };
+      applyServerTeamShow(sent);
+      retainTeamEdit(owner.userId, id, { token, base, local: sent, updatedBy: known.updatedBy, teamId: known.teamId });
+      doc = teamDoc(sent);
+    }
     for (let attempt = 0; attempt < MAX_SAVE_ATTEMPTS; attempt++) {
       const { answer, error } = await saveTeamProduction(id, token, doc, known.teamId);
       if (running !== owner || owner.userId !== libraryInUse()) return;
