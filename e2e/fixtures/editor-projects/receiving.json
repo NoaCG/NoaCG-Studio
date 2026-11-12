@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "provenance": "NoaCG-authored test artwork and text; shipped catalog registry and bundled OFL font. No third-party reference-editor code or artwork.",
+  "variants": ["lt01", "card26", "bug04"],
+  "fontId": "oswald",
+  "logo": "harbour.svg",
+  "name": "E4 Receiving Steps",
+  "heading": "Harbour bulletin",
+  "operatorHeading": "Live harbour update",
+  "accent": "#16bb99",
+  "expected": {
+    "resolution": [1920, 1080],
+    "fps": 25,
+    "inPress": 1,
+    "nextPress": 2,
+    "outState": "off",
+    "replayPress": 1,
+    "logoNaturalWidth": 32,
+    "targets": ["spx", "casparcg", "ograf", "html-overlay"]
+  }
+}

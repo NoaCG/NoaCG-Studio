@@ -2,6 +2,8 @@
 // re-parses the SPXGCTemplateDefinition so fields stay in sync with the visible code.
 
 import { create } from 'zustand';
+import { workspaceDocument } from '../model/authoringDocument';
+import { uuid } from '../model/id';
 import { canAuthorAccount } from '../model/durableStore';
 import { createDefaultTemplate } from '../templates/defaultTemplate';
 import { parseDefinition } from '../model/spxDefinition';
@@ -19,6 +21,8 @@ import { prepareOutRuntime } from '../blocks/animMigration';
 export type PreviewBg = 'checkerboard' | 'black' | 'video';
 
 interface TemplateState {
+  /** Identity of this authoring instance, independent of a library Save link. */
+  documentId: string;
   template: SpxTemplate;
   previewBg: PreviewBg;
   /** Runtime test values keyed by field id (f0, f1...). Fed to update(). */
@@ -181,7 +185,9 @@ function sameSource(draft: SpxTemplate, record: SpxTemplate): boolean {
 // Restore the last autosaved working project (Era 5.2b) so a reload doesn't lose it; fall back to
 // a fresh blank on first-ever load. Whether the wizard opens on top follows from this: a restored
 // project means a returning user, who lands straight back in their work (galleryOpen below).
-const initialProject = loadProject();
+const initialSlot = loadProject();
+const initialDocument = workspaceDocument(initialSlot?.workspace);
+const initialProject = initialDocument && initialSlot ? { ...initialSlot, ...initialDocument, graphicId: initialDocument.saved.graphicId, dirty: initialDocument.saved.dirty } : initialSlot;
 // A first Save reserves its record's id in the slot before minting it. When the link write that
 // followed was refused, the record exists while the slot still reads unlinked, so the reserved id
 // links it back and the next Save writes into it rather than minting a duplicate (#1383). It
@@ -213,10 +219,11 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
     return next;
   });
   return {
+  documentId: initialDocument?.id ?? uuid(),
   template: initialTemplate,
   baseline: initialBaseline,
   previewBg: 'checkerboard',
-  sampleData: syncSampleData(initialTemplate, {}),
+  sampleData: syncSampleData(initialTemplate, initialDocument?.sampleData ?? {}),
   validation: null,
   previewError: null,
   guides: { safeAreas: false, grid: false },
@@ -228,10 +235,10 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
   pendingDesignId: null,
   pendingProductionId: null,
   pendingProductionExport: null,
-  history: [],
-  future: [],
-  selectedPart: null,
-  selectedParts: [],
+  history: initialDocument?.history ?? [],
+  future: initialDocument?.future ?? [],
+  selectedPart: initialDocument?.view?.selectedParts[0] ?? null,
+  selectedParts: initialDocument?.view?.selectedParts ?? [],
   modalCount: 0,
   saved: {
     graphicId: initialGraphicId,
@@ -256,6 +263,8 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
     set((s) => {
       const synced = withParsedFields(template);
       return {
+        documentId: opts?.resetSampleData ? uuid() : s.documentId,
+        ...(opts?.resetSampleData ? { selectedPart: null, selectedParts: [] } : {}),
         template: synced,
         // A whole-project swap (wizard create, community import, opening a saved graphic)
         // establishes the new pristine baseline that Reset returns to.
@@ -279,7 +288,7 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
         galleryOpen: opts?.keepGalleryOpen ? s.galleryOpen : false,
         // Snapshot the pre-apply template so the action can be undone; a fresh edit
         // discards whatever was undone before it (the redo branch is gone).
-        history: [...s.history, s.template].slice(-30),
+        history: opts?.resetSampleData ? [] : [...s.history, s.template].slice(-30),
         future: [],
       };
     }),
@@ -339,11 +348,9 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
       return { template, sampleData: syncSampleData(template, {}), validation: null };
     }),
 
-  // Restore the pristine baseline through the normal apply path so it is ONE undoable
-  // action; resetSampleData:true also returns the fields to the baseline's defaults. It
-  // does not overwrite the baseline (applyTemplate captures a NEW baseline, but restoring
-  // the same template leaves it unchanged).
-  resetToBaseline: () => get().applyTemplate(get().baseline, { resetSampleData: true }),
+  // Reset edits this document in one history step; it must not mint another document
+  // identity or sever its library link. A whole-document swap has separate ownership.
+  resetToBaseline: () => { get().applyTemplate(get().baseline); get().resetSampleData(); },
 
   setSampleValue: (field, value) => set((s) => ({ sampleData: { ...s.sampleData, [field]: value } })),
   resetSampleData: () => set((s) => ({ sampleData: syncSampleData(s.template, {}) })),
@@ -390,6 +397,15 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
 // document has drifted from its library record. saveActions' open/save paths set the link
 // AFTER their applyTemplate returns, so their state wins over this generic marking.
 let projectSaveTimer: ReturnType<typeof setTimeout> | null = null;
+/** Project view-only drafts share the same debounce and Save transaction flush. */
+export function scheduleProjectAutosave() {
+  if (projectSaveTimer) clearTimeout(projectSaveTimer);
+  projectSaveTimer = setTimeout(() => {
+    projectSaveTimer = null;
+    const s = useTemplateStore.getState();
+    saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread, s.legibility);
+  }, 800);
+}
 export function flushPendingProject() {
   if (!projectSaveTimer) return;
   clearTimeout(projectSaveTimer);
@@ -417,13 +433,8 @@ useTemplateStore.subscribe((state, prev) => {
   // Rehearsal samples are view state, not part of the saved working document.
   if (state.template === prev.template && state.legibility === prev.legibility && state.aiSpec === prev.aiSpec && state.aiThread === prev.aiThread) return;
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-account-edit-pending'));
-  if (!state.saved.dirty) {
+  if (!state.saved.dirty && state.documentId === prev.documentId) {
     useTemplateStore.setState((s) => ({ saved: { ...s.saved, dirty: true } }));
   }
-  if (projectSaveTimer) clearTimeout(projectSaveTimer);
-  projectSaveTimer = setTimeout(() => {
-    projectSaveTimer = null;
-    const s = useTemplateStore.getState();
-    saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread, s.legibility);
-  }, 800);
+  scheduleProjectAutosave();
 });

@@ -1,3 +1,4 @@
+import { currentAuthoringDocument, retainCurrentProjectDraft, useAuthoringProjects } from '../../store/authoringProjects';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTemplateStore } from '../../store/templateStore';
 import { guardNavigation, useRouter } from '../../app/router';
@@ -28,12 +29,17 @@ import { assetBinDirs } from '../../blocks/editorOrganization';
 import { inspectOrganization } from '../../model/editorOrganization';
 import { connectEditorCommands } from './commandAdapter';
 import ProposalPanel from './ProposalPanel';
+import ProjectPanel from './ProjectPanel';
 import './foundation.css';
 
 /** Opt-in composition only. Existing wizard, library, runtime and exporters stay authoritative. */
 export default function EditorFoundation() {
-  useEffect(() => guardNavigation(proceed => useSaveUi.getState().requestSwitch(proceed)), []);
+  useEffect(() => guardNavigation(proceed => {
+    if (currentAuthoringDocument()) void retainCurrentProjectDraft().then(ok => { if (ok) proceed(); });
+    else useSaveUi.getState().requestSwitch(proceed);
+  }), []);
   const template = useTemplateStore(state => state.template);
+  const projectError = useAuthoringProjects(state => state.error);
   // Artwork authoring shows saved defaults; operator rehearsals retain their own samples.
   const sampleData = useMemo(() => Object.fromEntries(template.fields.map(f => [f.field, String(f.value ?? '')])), [template.fields]);
   const selection = useTemplateStore(state => state.selectedParts);
@@ -211,6 +217,7 @@ export default function EditorFoundation() {
       <aside id="ef-project" className="ef-project" aria-label="Project" hidden={!projectOpen}>
         <div className="ef-toolbar"><h2>Project</h2><span className="ef-spacer" /><button onClick={() => setProjectOpen(false)} aria-label="Close Project">×</button></div><span className="ef-section-label">Current graphic</span>
         <p className="ef-current-graphic">{template.name}</p>
+        <ProjectPanel beforeAction={() => { pause(); session.cancel(); }} />
         <span className="ef-section-label">Assets · {template.assets.length}</span>
         <AssetsPanel key={session.instanceId} actions={{
           insertTemplate: () => { pause(); session.cancel(); useInsertTemplateUi.getState().openDialog(); },
@@ -248,6 +255,6 @@ export default function EditorFoundation() {
       canUndo={session.canUndo()} canRedo={session.canRedo()} undo={() => history(false)} redo={() => history(true)}
       isExitPreview={() => preview.current?.isExiting() ?? false} />
     <InsertTemplateDialog key={session.instanceId} insert={(variant, options) => { pause(); session.cancel(); images.execute([{ kind: 'graphic.insert', variant, ...options }]); }} />
-    <footer className="ef-status">{layerError && <span role="alert">{layerError}</span>}<span>Artwork editing · Alpha</span><span>Stopwatch: animate · Diamond: key at playhead</span></footer>
+    <footer className="ef-status">{(layerError || projectError) && <span role="alert" className="ef-project-error" title={layerError || projectError}>{layerError || projectError}</span>}<span>Artwork editing · Alpha</span><span>Stopwatch: animate · Diamond: key at playhead</span></footer>
   </main>;
 }

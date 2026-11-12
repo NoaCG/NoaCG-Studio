@@ -239,6 +239,8 @@ export interface ProductionSounds {
 
 /** The full template — the source of truth edited in the app. */
 export interface SpxTemplate {
+  /** Additive v1 application receipt: travels with source undo/redo, not with the saved brand. */
+  brandApplication?: { v: 1; lookId: string; values: Record<string, string>; logo?: { field: string; value: string; path: string; data: AssetFile['data'] } };
   name: string;
   type: TemplateType;
   resolution: Resolution;

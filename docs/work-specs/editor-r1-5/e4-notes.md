@@ -133,7 +133,52 @@ against 127.0.0.1. The sanctioned dev server reported a localhost binding; using
 that reported address fixed the diagnostic setup. This is retained as an
 infrastructure failure, not a product pass or a test retry.
 
-Implementation/runtime verification pending.
+The implementation keeps the existing account-synced `project` singleton and
+adds a versioned multi-document envelope; no database migration or new backend
+kind is needed. Normal legacy slot writers retain the envelope. Unknown versions
+refuse workspace mutations. Source history and editor view receipts are owned by
+the document UUID, independent of its saved library graphic UUID. Existing Save
+transactions/reservations and the 800ms autosave are reused. Project removal
+removes membership only; retained documents remain on Home. Brand reapplication
+uses last-applied source values and logo bytes as the three-way comparison base.
+Personal rundown installation stores stable IDs and before/after snapshots,
+then conditionally writes the target atomically. Team paths are unchanged.
+
+Later rules found while reproducing (not retroactively claimed Rules-first):
+a closed document port must reject every mutation, including view restoration;
+a whole legacy replacement starts with empty predecessor history/selection;
+Reset edits the same document; view-only changes use the existing autosave
+transaction. Jobs j-0056/j-0057 reproduced the first two defects before their
+repairs. Job j-0059 reproduced a hidden project error when the aside was closed;
+the existing editor status footer now exposes the failure visibly.
+
+Current engineering evidence: j-0060 passed all ten E4 journeys in 39.2s, zero
+skips/retries; j-0055 passed 22 project/brand/wizard journeys before the final
+ownership fixes. The codec's two Node tests pass. The final lint/types pass.
+Changed-path gates ran 85 tests across 12 files, all passed. Final committed-source
+broader/build and exact-candidate Actions results are recorded on the PR; they
+are not inferred from these working-tree results. The actual receiving artifacts
+and supported/unsupported checks are in [the receiving kit](e4-receiving.md).
+Comparable executed reference tasks and applicability are in
+[e4-reference.md](e4-reference.md).
+
+Failures retained: j-0044 exposed a real Home/reload false stale-context error
+(fixed by stable raw-slot parsing/context comparison); j-0046 was a faulty
+Home/wizard expectation; j-0049 incorrectly expected the internal step counter
+to reset on Out (public Off state and finite root-opacity zero are now asserted);
+j-0050 was the documented optional relay probe on the static receiver. The latter
+two were fixture/setup expectations, not weakened required asset checks. All
+jobs remain in the queue log; only the final passed artifacts are staged. The
+prior local Supabase startup exhausted the managed VFS while unpacking before
+readiness; no local authentication/persistence PASS is claimed. Real persistence
+must pass the exact-source isolated Actions walk.
+
+October save/recovery evidence remains scoped as recorded in
+[the scoped closure](../editor-leave-reliability/scoped-closure/README.md) and E1 notes: single active authoring tab/device,
+original source/environment receipts and original failures retained. Those older
+receipts do not prove this envelope. Current failed-save, migration, reservation,
+installed-copy and history checks provide the new-source applicability; no
+cross-device/human/receiving-host acceptance follows.
 
 
 ### Added isolated-backend carrier rules (before carrier edits)
@@ -172,3 +217,21 @@ claim receiving-host/operator or real-device acceptance. Before carrier edits,
 a fresh independent Rules-first challenge must assess this added tooling surface,
 normal selection compatibility and `sideEnds` impact, then the final SO assesses
 the complete final diff and actual Actions receipt.
+
+
+Carrier Rules-first fresh read-only challenge returned **AGREE WITH CORRECTIONS**
+for the added surface. Incorporated before execution: fresh-context `baseURL`,
+managed workdir/status identity, exact candidate SHA (no worker fallback), retained
+run-integrity reporter, strict one-pass/zero-skip/zero-retry report verdict,
+bounded setup/child execution and receipt only after account cleanup. Its
+prospective `sideEnds` was empty. The dedicated configuration lives under
+`e2e/endurance/` to preserve the existing root shape. Adding the npm tool script
+intentionally accepts the normal whole configured selection. A local negative
+probe proved an absent managed stack fails before any ambient credential use,
+with sanitized failure JSON retained; this is guard proof, not backend proof.
+
+Job j-0061 caught a faulty new test expectation: reopening the same still-live
+document binding is idempotent and need not close that binding. The corrected
+assertion verifies it remains usable, while the following different-document
+switch still must close it. A retired binding now also refuses every public port
+mutation even if a replacement context retains the document UUID.

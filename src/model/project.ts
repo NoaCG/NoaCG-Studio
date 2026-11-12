@@ -4,6 +4,7 @@
 // important shows into Packets, which are kept and synced separately). Cloud sync of this single
 // 'project' record lands next, alongside brand, via the singleton mechanism.
 
+import { readableWorkspace, WORKSPACE_REFUSAL, type AuthoringWorkspace } from './authoringDocument';
 import type { SpxTemplate } from './types';
 import type { GenerationSpec } from './generationSpec';
 import type { AiThread } from './aiThread';
@@ -14,6 +15,8 @@ import { graphicIdTaken } from './library';
 import { readDeviceIds, writeDeviceIds, type DeviceIdsRead } from './deviceIds';
 
 export interface SavedProject {
+  /** Additive v1 multi-document envelope; legacy slots have none. */
+  workspace?: AuthoringWorkspace;
   id: string;
   name: string;
   updatedAt: string; // ISO
@@ -58,6 +61,23 @@ export interface SavedProject {
 }
 
 const STORAGE_KEY = 'spx-gfx-project';
+let pendingWorkspace: AuthoringWorkspace | undefined;
+export function authoringWorkspace(): AuthoringWorkspace | undefined {
+  return pendingWorkspace ?? loadProject()?.workspace;
+}
+export function stageAuthoringWorkspace(workspace: AuthoringWorkspace | undefined): void { pendingWorkspace = workspace; }
+export function workspaceRefusal(): string | null {
+  const value = authoringWorkspace();
+  return value !== undefined && !readableWorkspace(value) ? WORKSPACE_REFUSAL : null;
+}
+/** Every slot writer carries this envelope; staging is consumed by the ordinary autosave. */
+export function writeAuthoringWorkspace(workspace: AuthoringWorkspace): void {
+  const p = loadProject();
+  if (!p || workspaceRefusal()) throw new Error(workspaceRefusal() ?? 'Open a graphic first.');
+  durable.setItem(STORAGE_KEY, JSON.stringify({ ...p, workspace, updatedAt: new Date().toISOString() }));
+  notifyDataChanged();
+}
+
 
 /** The record id this document's next first Save / Save As mints (store/saveActions.ts),
  *  carried by EVERY slot write of the document from its first one on. A reservation written only
@@ -137,6 +157,9 @@ export function mintReservedGraphicId(baseline: SpxTemplate | undefined): string
   reservation!.minting = true;
   return id;
 }
+export function documentReservation(baseline: SpxTemplate | undefined) {
+  return { reservedGraphicId: reservedGraphicId(baseline), ...(reservation?.minting ? { mintingReserved: true } : {}) };
+}
 export function endMint(): void {
   if (reservation) reservation.minting = false;
 }
@@ -149,12 +172,15 @@ function notifyDataChanged(): void {
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-data-changed'));
 }
 
+let cachedProject: { raw: string; value: SavedProject } | null = null;
 export function loadProject(): SavedProject | null {
   try {
     const raw = durable.getItem(STORAGE_KEY);
     if (!raw) return null;
+    if (cachedProject?.raw === raw) return cachedProject.value;
     const p = JSON.parse(raw) as SavedProject;
     if (!p.template || !p.id) return null;
+    cachedProject = { raw, value: p };
     return p;
   } catch {
     return null;
@@ -177,8 +203,10 @@ export function saveProject(
 ): void {
   try {
     const existing = loadProject();
+    if (workspaceRefusal()) return;
     const rec: SavedProject = {
       id: existing?.id ?? uuid(),
+      ...(authoringWorkspace() ? { workspace: authoringWorkspace() } : {}),
       name: template.name,
       updatedAt: new Date().toISOString(),
       template,
@@ -207,10 +235,13 @@ export function saveProject(
  *  it, and no pull brings a mint mark, which speaks only for the draft this device was minting.
  *  Another device's reservation can arrive with the draft as data; nothing here honours it. */
 export function upsertProject(project: SavedProject): void {
+  if (workspaceRefusal()) return;
+  const workspace = authoringWorkspace();
+  pendingWorkspace = undefined;
   try {
     const { mintingReserved: _mark, ...pulled } = project;
     const own = loadProject()?.reservedGraphicId;
-    durable.setItem(STORAGE_KEY, JSON.stringify(isOwnReservation(own) ? { ...pulled, reservedGraphicId: own } : pulled));
+    durable.setItem(STORAGE_KEY, JSON.stringify({ ...pulled, ...(pulled.workspace ? {} : workspace ? { workspace } : {}), ...(isOwnReservation(own) ? { reservedGraphicId: own } : {}) }));
     notifyDataChanged();
   } catch {
     // Non-fatal.
@@ -303,10 +334,24 @@ export function isGraphicSuperseded(graphicId: string): boolean {
 export function graphicSuperseded(graphicId: string, copy: ConflictCopy | null = null): boolean {
   rememberDeviceId(SUPERSEDED_KEY, graphicId);
   const p = loadProject();
+  const workspace = authoringWorkspace();
+  let workspaceChanged = false;
+  if (workspace && readableWorkspace(workspace)) {
+    const documents = workspace.documents.map(d => {
+      const linked = !!d.saved.graphicId && lostLinks(graphicId).includes(d.saved.graphicId);
+      if (!linked && d.reservedGraphicId !== graphicId) return d;
+      workspaceChanged = true;
+      const next = { ...d, saved: linked ? linkAfterLoss(d, copy) : d.saved };
+      if (!linked && copy && !d.saved.graphicId && (!linkAfterLoss(d, copy).dirty || d.mintingReserved)) next.saved = linkAfterLoss(d, copy);
+      if (d.reservedGraphicId === graphicId) { delete next.reservedGraphicId; delete next.mintingReserved; }
+      return next;
+    });
+    if (workspaceChanged) pendingWorkspace = { ...workspace, documents };
+  }
   const linked = !!p?.graphicId && lostLinks(graphicId).includes(p.graphicId);
   let rewritten = false;
   if (p && (linked || p.reservedGraphicId === graphicId)) {
-    const rec: SavedProject = { ...p, updatedAt: new Date().toISOString() };
+    const rec: SavedProject = { ...p, ...(authoringWorkspace() ? { workspace: authoringWorkspace() } : {}), updatedAt: new Date().toISOString() };
     const link = linkAfterLoss(p, copy);
     if (linked) Object.assign(rec, link);
     else if (copy && !p.graphicId && (!link.dirty || p.mintingReserved)) Object.assign(rec, link);
@@ -322,6 +367,9 @@ export function graphicSuperseded(graphicId: string, copy: ConflictCopy | null =
       // Non-fatal: the live link below still moves, and the next autosave writes it.
     }
   }
+  if (!rewritten && workspaceChanged && pendingWorkspace && p) {
+    try { writeAuthoringWorkspace(pendingWorkspace); rewritten = true; } catch { /* next autosave retains the repair */ }
+  }
   forgetSuperseded(graphicId, copy);
   try {
     supersededChannel?.postMessage({ graphicId, copy });
@@ -332,6 +380,8 @@ export function graphicSuperseded(graphicId: string, copy: ConflictCopy | null =
 }
 
 export function clearProject(): void {
+  // Removing the legacy current slot must never erase independently retained documents.
+  if (authoringWorkspace()) return;
   try {
     durable.removeItem(STORAGE_KEY);
     notifyDataChanged();

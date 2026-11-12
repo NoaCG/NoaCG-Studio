@@ -1,20 +1,27 @@
+import { currentAuthoringDocument, rememberDocumentView } from '../../store/authoringProjects';
 import { useTemplateStore } from '../../store/templateStore';
 import { EditorSession } from './session';
 import { readTimeline } from './timelineView';
 
-let active: { baseline: object; session: EditorSession; time: number; cue?: number } | null = null;
-/** R1.0 binds the existing working slot. R1.4a replaces this binding with independent
- * GraphicDoc ports; registry, selection and protocol already require document identity. */
+let active: { id: string; baseline: object; session: EditorSession; closed: boolean; time: number; cue?: number } | null = null;
+/** Each retained draft restores its own history; every switch closes the previous session. */
 export function activeEditorSession(): EditorSession {
   const state = useTemplateStore.getState();
-  if (active?.baseline === state.baseline) return active.session;
-  active?.session.dispose();
+  if (active?.id === state.documentId && active?.baseline === state.baseline) return active.session;
+  if (active) { active.closed = true; active.session.dispose(); }
+  const document = currentAuthoringDocument();
   const openingTime = readTimeline(state.template).segments[0]?.duration ?? 0;
-  const binding = { baseline: state.baseline, time: openingTime, cue: undefined as number | undefined, session: null as unknown as EditorSession };
-  const session = new EditorSession(state.saved.graphicId ?? 'draft:' + crypto.randomUUID(), {
-    read: () => useTemplateStore.getState().template,
-    view: () => ({ selectedParts: [...useTemplateStore.getState().selectedParts], time: binding.time, cue: binding.cue, sampleData: { ...useTemplateStore.getState().sampleData } }),
+  const binding = { id: state.documentId, closed: false, baseline: state.baseline, time: document?.view?.time ?? openingTime, cue: document?.view?.cue, session: null as unknown as EditorSession };
+  const read = () => {
+    const next = useTemplateStore.getState();
+    if (binding.closed || next.documentId !== binding.id) throw new Error('This document session is closed.');
+    return next;
+  };
+  const session = new EditorSession(binding.id, {
+    read: () => read().template,
+    view: () => ({ selectedParts: [...read().selectedParts], time: binding.time, cue: binding.cue, sampleData: { ...useTemplateStore.getState().sampleData } }),
     restore: view => {
+      read();
       binding.time = view.time;
       binding.cue = view.cue;
       useTemplateStore.getState().setSelectedParts(view.selectedParts);
@@ -23,7 +30,7 @@ export function activeEditorSession(): EditorSession {
       }
     },
     apply: template => {
-      const before = useTemplateStore.getState();
+      const before = read();
       before.applyTemplate(template);
       // Image replacement is an explicit choice. Asset moves also carry live operator paths.
       for (const field of template.fields.filter(f => f.ftype === 'filelist')) {
@@ -35,12 +42,13 @@ export function activeEditorSession(): EditorSession {
         else if (oldAsset && moved?.data === oldAsset.data && moved.path !== oldAsset.path && !template.assets.some(a => a.path === oldAsset.path)) before.setSampleValue(field.field, moved.path);
       }
     },
-    undo: () => useTemplateStore.getState().undo(),
-    redo: () => useTemplateStore.getState().redo(),
-    subscribe: listener => useTemplateStore.subscribe(listener),
-  });
+    undo: () => read().undo(),
+    redo: () => read().redo(),
+    subscribe: listener => useTemplateStore.subscribe(s => { if (s.documentId === binding.id) listener(); }),
+  }, document ? { past: state.history, future: state.future, views: document.views } : undefined,
+    () => rememberDocumentView(binding.id, session.historyViews(), session.port.view()));
   binding.session = session;
   active = binding;
   return session;
 }
-export function setSessionTime(time: number, cue?: number) { if (active) { active.time = time; active.cue = cue; active.session.observeView(); } }
+export function setSessionTime(time: number, cue?: number) { if (active?.id === useTemplateStore.getState().documentId) { active.time = time; active.cue = cue; active.session.observeView(); rememberDocumentView(active.id, active.session.historyViews(), active.session.port.view()); } }

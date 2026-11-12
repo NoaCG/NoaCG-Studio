@@ -118,7 +118,7 @@ type EditingContext = ReturnType<typeof useTemplateStore.getState>;
  *  it wrote (#1359), and Discard refuses rather than erase the edit (#1147). */
 function changedSince(before: EditingContext): boolean {
   const now = useTemplateStore.getState();
-  return now.template !== before.template || now.baseline !== before.baseline ||
+  return now.documentId !== before.documentId || now.template !== before.template || now.baseline !== before.baseline ||
     now.saved.graphicId !== before.saved.graphicId || now.aiSpec !== before.aiSpec ||
     now.aiThread !== before.aiThread || now.legibility !== before.legibility;
 }
@@ -127,7 +127,7 @@ function changedSince(before: EditingContext): boolean {
  *  link is then not the waiting save's to settle. */
 function replacedSince(before: EditingContext): boolean {
   const now = useTemplateStore.getState();
-  return (now.saved.graphicId !== before.saved.graphicId && !movedToCopy(before, now)) || now.baseline !== before.baseline;
+  return now.documentId !== before.documentId || (now.saved.graphicId !== before.saved.graphicId && !movedToCopy(before, now)) || now.baseline !== before.baseline;
 }
 
 /** A sync pass moved the draft from a record that lost a conflict to the "(conflicted copy)"
