@@ -80,8 +80,18 @@ out.cancelledPushSampled = { n: cancelledPush.length, rmMean: f1(mean(cancelledP
 // Landings' own push and configured runs.
 const pushBySha = new Map(push.map((r) => [r.head_sha, r]));
 const cfgBySha = new Map(cfg.map((r) => [r.head_sha, r]));
-const own = log.map((l) => pushBySha.get(l.sha)?.conclusion ?? 'none');
-out.landingOwnPush = own.reduce((m, c) => ((m[c] = (m[c] || 0) + 1), m), {});
+// A run's conclusion is its LAST attempt's. Its verdicts are read from the CI gate job in every
+// attempt where the jobs were read (every cancelled or re-run push run), else from the conclusion.
+// A run cancelled in one job can still have a green or red gate (43092663612: red, then green).
+const gates = (r) => {
+  const jobs = jobsOf(r.id);
+  if (jobs) return jobs.filter((j) => j.name === 'CI gate' && ['success', 'failure'].includes(j.conclusion))
+    .map((j) => ({ c: j.conclusion, at: j.completed_at })).sort((a, b) => a.at.localeCompare(b.at));
+  return ['success', 'failure'].includes(r.conclusion) ? [{ c: r.conclusion, at: r.updated_at }] : [];
+};
+const label = (r) => { const g = gates(r); return g.length ? g.map((x) => (x.c === 'success' ? 'green' : 'red')).join(' then ') : 'no verdict'; };
+out.landingOwnPush = log.map((l) => (pushBySha.get(l.sha) ? label(pushBySha.get(l.sha)) : 'no push run'))
+  .reduce((m, c) => ((m[c] = (m[c] || 0) + 1), m), {});
 out.landingOwnConfigured = log.map((l) => cfgBySha.get(l.sha)?.conclusion ?? 'none').reduce((m, c) => ((m[c] = (m[c] || 0) + 1), m), {});
 
 // Gap from a landing to the end of the first green full push run on it or a later landing:
@@ -98,29 +108,26 @@ for (let i = 0; i < log.length; i += 1) {
 }
 const lag = log.map((l) => min(l.queuedAt, l.at)).filter((x) => x >= 0);
 out.mergeCommitToMainMinutes = { n: lag.length, median: f1(med(lag)), p95: f1(q(lag, 0.95)) };
-const greens = push.filter((r) => r.conclusion === 'success' && order.has(r.head_sha));
-const gap = log.map((l) => {
-  const i = order.get(l.sha);
-  const c = greens.filter((r) => order.get(r.head_sha) <= i).map((r) => min(l.at, r.updated_at)).filter((x) => x >= 0);
-  return c.length ? Math.min(...c) : null;
-}).filter((x) => x !== null);
-out.pushVerdictMinutes = { n: gap.length, median: f1(med(gap)), p90: f1(q(gap, 0.9)), p95: f1(q(gap, 0.95)), max: f1(Math.max(...gap)) };
-
 // The bad-merge window: from a landing to the end of the first COMPLETED full push run (green or
 // red) on it or a later landing. A red run is the detection, so it ends the window too.
-const verdicts = push.filter((r) => (r.conclusion === 'success' || r.conclusion === 'failure') && order.has(r.head_sha));
-const win = log.map((l) => {
+const verdicts = push.filter((r) => order.has(r.head_sha)).map((r) => ({ sha: r.head_sha, g: gates(r) })).filter((v) => v.g.length);
+const winRows = log.map((l) => {
   const i = order.get(l.sha);
-  const c = verdicts.filter((r) => order.get(r.head_sha) <= i).map((r) => min(l.at, r.updated_at)).filter((x) => x >= 0);
-  return c.length ? Math.min(...c) : null;
-}).filter((x) => x !== null);
+  const c = verdicts.filter((v) => order.get(v.sha) <= i).map((v) => min(l.at, v.g[0].at)).filter((x) => x >= 0);
+  return c.length ? { sha: l.sha, m: Math.min(...c) } : null;
+}).filter(Boolean);
+const win = winRows.map((x) => x.m);
+out.badMergeWindowWorst = winRows.sort((a, b) => b.m - a.m).slice(0, 3).map((x) => `${x.sha.slice(0, 8)} ${f1(x.m)}`);
+// One push run, creation to its first gate verdict: the per-run part of the window.
+const perRun = push.map((r) => { const g = gates(r); return g.length ? min(r.created_at, g[0].at) : null; }).filter((x) => x !== null);
+out.pushRunToFirstVerdict = { n: perRun.length, median: f1(med(perRun)), p95: f1(q(perRun, 0.95)), max: f1(Math.max(...perRun)) };
 out.badMergeWindowToday = { n: win.length, median: f1(med(win)), p90: f1(q(win, 0.9)), p95: f1(q(win, 0.95)), p99: f1(q(win, 0.99)), max: f1(Math.max(...win)) };
 // Was each scheduled nightly's tree already covered by a completed full push run on the same sha
 // (the nightly then repeated it), and by a green one?
 const nsha = nightly.filter((r) => r.event === 'schedule');
 out.nightlyHeadAlreadyFull = { n: nsha.length,
-  green: nsha.filter((r) => push.some((p) => p.head_sha === r.head_sha && p.conclusion === 'success')).length,
-  red: nsha.filter((r) => push.some((p) => p.head_sha === r.head_sha && p.conclusion === 'failure')).length };
+  pushGreenOnSameSha: nsha.filter((r) => push.some((p) => p.head_sha === r.head_sha && gates(p).some((g) => g.c === 'success'))).length,
+  nightlyOwn: nsha.map((r) => `${r.created_at.slice(5, 10)} ${r.conclusion} ${r.head_sha.slice(0, 8)}`) };
 // Per landed pull request: its PR runs (heads, cancelled), its merge-group runs. The runs list
 // carries no PR number for this repository, so a PR's runs are its branch's runs created before
 // it landed and after the same branch's previous landing (branch names are reused rarely).
@@ -155,6 +162,55 @@ for (const b of new Set(pr.map((r) => r.head_branch))) {
 }
 out.nextHeadGapMinutes = { n: gaps.length, median: f1(med(gaps)), p90: f1(q(gaps, 0.9)),
   within15: gaps.filter((g) => g <= 15).length, within30: gaps.filter((g) => g <= 30).length, within60: gaps.filter((g) => g <= 60).length };
+// Why each follow-up head was pushed: while the previous head's run was going (it was cancelled
+// at or after the new head's creation), after a red run, or after a green one.
+const why = { whileRunning: 0, afterRed: 0, afterGreen: 0, other: 0 };
+for (const b of new Set(pr.map((r) => r.head_branch))) {
+  const rs = pr.filter((r) => r.head_branch === b).sort((x, y) => x.created_at.localeCompare(y.created_at));
+  for (let i = 1; i < rs.length; i += 1) {
+    const p = rs[i - 1];
+    if (p.conclusion === 'cancelled' && min(rs[i].created_at, p.updated_at) >= -1) why.whileRunning += 1;
+    else if (p.conclusion === 'failure') why.afterRed += 1;
+    else if (p.conclusion === 'success') why.afterGreen += 1;
+    else why.other += 1;
+  }
+}
+out.followUpHeads = why;
+// Runs created per UTC hour over the window (push, pull request).
+out.runsByUtcHour = Array.from({ length: 24 }, (_, h) => [h,
+  push.filter((r) => new Date(r.created_at).getUTCHours() === h).length,
+  pr.filter((r) => new Date(r.created_at).getUTCHours() === h).length].join(' ')).join(', ');
+
+// Step 5: the suite from one nightly's merged Playwright report (--report <nightly-report.json>).
+if (args.includes('--report')) {
+  const rep = JSON.parse(readFileSync(args[args.indexOf('--report') + 1], 'utf8'));
+  const tests = [];
+  const walk = (s, file) => { file = s.file || file; for (const x of s.suites || []) walk(x, file);
+    for (const sp of s.specs || []) for (const t of sp.tests || []) tests.push({ file: sp.file || file, title: sp.title, ms: (t.results || []).reduce((a, r) => a + (r.duration || 0), 0) }); };
+  for (const s of rep.suites) walk(s);
+  const mins = (xs) => xs.reduce((a, t) => a + t.ms, 0) / 60000;
+  const long = tests.filter((t) => t.ms > 30000);
+  const chrome = tests.filter((t) => t.file.includes('public-chrome-baseline'));
+  // Screen-size repeats: tests whose titles differ only by a size label.
+  const V = /\b(desk(top)?|laptop(-125)?|phone|tablet|mobile|narrow|wide|\d{3,4}(px|x\d+)?)\b/gi;
+  const groups = {};
+  for (const t of tests) { const k = `${t.file}::${t.title.replace(V, '<v>')}`; if (k.includes('<v>')) (groups[k] = groups[k] || []).push(t); }
+  const multi = Object.entries(groups).filter(([, v]) => v.length > 1);
+  const beyondFirst = (v) => v.map((t) => t.ms).sort((a, b) => b - a).slice(1).reduce((a, b) => a + b, 0) / 60000;
+  const EDITOR_JOURNEYS = /^editor-(command-task|drawing-task|cli-round-trip|usability|keys|out|fidelity-trim|layer-property-qualification|transform-qualification)\.spec\.ts::/;
+  // The first cut: each editor journey kept at the smallest size it runs at (1093 wide is
+  // laptop-125), the others dropped.
+  const width = (title) => (/laptop-125|\b1093\b/.test(title) ? 1093 : /\blaptop\b|\b1366\b/.test(title) ? 1366 : /desktop|\b1920\b/.test(title) ? 1920 : 0);
+  const cut = multi.filter(([k]) => EDITOR_JOURNEYS.test(k)).flatMap(([, v]) => {
+    const keep = Math.min(...v.map((t) => width(t.title)));
+    return v.filter((t) => width(t.title) !== keep);
+  });
+  out.suite = { tests: tests.length, files: new Set(tests.map((t) => t.file)).size, testMinutes: f1(mins(tests)),
+    perTestSeconds: { p50: f1(q(tests.map((t) => t.ms / 1000), 0.5)), p90: f1(q(tests.map((t) => t.ms / 1000), 0.9)), p99: f1(q(tests.map((t) => t.ms / 1000), 0.99)) },
+    over30s: { n: long.length, minutes: f1(mins(long)) }, publicChrome: { n: chrome.length, minutes: (mins(chrome)).toFixed(2) },
+    sizeRepeats: { groups: multi.length, tests: multi.reduce((a, [, v]) => a + v.length, 0), minutesBeyondFirst: f1(multi.reduce((a, [, v]) => a + beyondFirst(v), 0)) },
+    firstCut: { tests: cut.length, minutes: f1(mins(cut)) } };
+}
 out.ciRunsPerLanding = f1((pr.length + mg.length + push.length + cfg.length) / log.length);
 out.top = rows.sort((a, b) => b.runs - a.runs).slice(0, 8);
 

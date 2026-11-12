@@ -101,7 +101,11 @@ try {
     ...pick(all('ci.yml', 'push').filter((r) => r.conclusion !== 'cancelled'), SAMPLE),
     ...pick(all('configured-suite.yml', 'push'), SAMPLE),
     ...pick(all('ci.yml', 'merge_group'), SAMPLE),
-    ...pick(all('ci.yml', 'push').filter((r) => r.conclusion === 'cancelled'), 5),
+    // Every push run that was cancelled or re-run: its conclusion is only the LAST attempt's, so
+    // the CI gate's verdict in each attempt is read from the jobs (a run can be red, then green).
+    ...all('ci.yml', 'push').filter((r) => r.conclusion === 'cancelled' || r.run_attempt > 1),
+    // The push runs on each nightly's commit: did their pass need the failed-spec retry?
+    ...all('ci.yml', 'push').filter((r) => all('nightly.yml', null).some((n) => n.head_sha === r.head_sha)),
     // Pull request runs, by outcome: what a superseded head costs before it is cancelled.
     ...pick(days().flatMap((d) => read(`runs-ci.yml-pull_request-${d}-${d}.json`)).filter((r) => r.conclusion === 'cancelled'), SAMPLE),
     ...pick(days().flatMap((d) => read(`runs-ci.yml-pull_request-${d}-${d}.json`)).filter((r) => r.conclusion !== 'cancelled'), SAMPLE),
