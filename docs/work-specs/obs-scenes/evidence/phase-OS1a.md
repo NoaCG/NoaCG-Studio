@@ -35,8 +35,11 @@ spec's phase notes. Simulated checks only: nothing here is OBS hardware proof (t
 - `node --test scripts/obs-scenes.test.mjs scripts/readiness.test.mjs`: pass (10, 15).
 - `npm run gates -- run --changed origin/main`: 354 tests pass.
 - `npx tsc --noEmit -p tsconfig.json`, eslint on every changed file: clean.
-- Queued browser runs: `e2e/output-scene-link.spec.ts` (2 pass), `e2e/output-first-paint.spec.ts -g settled`
-  (3 pass), `e2e/playout-folders.spec.ts -g "OBS scenes"` (pass).
+- Queued browser runs on the final code: `e2e/output-scene-link.spec.ts` (3 pass),
+  `e2e/output-first-paint.spec.ts -g settled` (4 pass), `e2e/playout-folders.spec.ts -g "OBS scenes"` (pass),
+  `e2e/production-persistence.spec.ts` and `e2e/playout-feedback-health.spec.ts` (9 pass, after the
+  switches were let size to their labels: the third switch had pushed the Playout panel past half the
+  window, which CI's `production-persistence` check caught).
 - Regression selection (AC-5), one bounded run: `e2e/output-prepare`, `output-ready`, `output-first-paint`,
   `output-boot-resilience`, `output-typed-recovery`, `output-scene-link`, `playout-folders` and
   `publish-output-setup`: 112 passed in 6.2 min.
