@@ -10,7 +10,9 @@
 //   - OPTIONALLY a second hidden field holds a wall-clock START TIME ("19:30"). When the
 //     operator fills it in it WINS over the duration, which is what "counts down to the
 //     start of the show" actually means: the number on screen agrees with the clock on
-//     the wall, however long the graphic has been up.
+//     the wall, however long the graphic has been up. The same field also takes an absolute
+//     deadline with its offset ("2026-11-14T19:00:00+02:00"): it counts to that instant on
+//     every page, and holds at 0:00 once it has passed.
 //   - a .{prefix}-clock element displays the remaining time (M:SS, or H:MM:SS past an hour)
 //   - when the clock hits zero the root gets a .{prefix}-done class, so the design's CSS
 //     can flash, recolor, or swap text without any extra JS
@@ -38,6 +40,10 @@
  *  `targetFieldId` opts the design into the wall-clock start-time field described above;
  *  omit it and the runtime reads the duration only (what every clock did before). */
 export function clockRuntimeJs(prefix: string, minutesFieldId: string, targetFieldId?: string): string {
+  // Where a count is anchored. A design with the start-time field anchors to the deadline
+  // itself when there is one, so the painted second flips on the deadline's own second on every
+  // page; every other clock emits exactly what it always did.
+  const anchor = targetFieldId ? 'clockAnchor()' : 'Date.now() + clockSecondsLeft * 1000';
   const targetBlock = targetFieldId
     ? `
 // Seconds until the wall-clock start time in #${targetFieldId} ("19:30", 24-hour), or 0 when the
@@ -45,8 +51,7 @@ export function clockRuntimeJs(prefix: string, minutesFieldId: string, targetFie
 // the duration". A time that has already gone past today counts to TOMORROW, so an overnight
 // show holding at 23:50 for a 00:15 start shows 0:25:00 and never a negative number.
 function clockTargetSeconds() {
-  var source = document.getElementById('${targetFieldId}');
-  var text = source ? String(source.textContent).trim() : '';
+  var text = clockFieldText('${targetFieldId}');
   var parts = /^(\\d{1,2})[:.](\\d{2})$/.exec(text);
   if (!parts) return 0;                       // empty or not a time — fall back to the duration
   var hours = parseInt(parts[1], 10);
@@ -59,9 +64,34 @@ function clockTargetSeconds() {
   return seconds;
 }
 
-// How long to count, right now: the start time when there is one, else the duration.
+// An ABSOLUTE DEADLINE in the same field: an ISO 8601 date and time WITH its offset
+// ("2026-11-14T19:00:00+02:00", or "Z"), the form a caller writes for "in 5 minutes" so a write
+// stays absolute (docs/work-specs/obs-scenes/spec.md, Clocks). It is the same instant on every
+// page in every timezone, and a reload re-derives the same number. The ms timestamp, or NaN
+// for anything else: a date with no offset is not a deadline (no zone is guessed), and an
+// impossible date ("11-31") is a typo, read as an empty field like any other.
+function clockDeadlineAt() {
+  var m = /^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2})(?::(\\d{2})(?:\\.\\d+)?)?(Z|[+-]\\d{2}:\\d{2})$/.exec(clockFieldText('${targetFieldId}'));
+  if (!m) return NaN;
+  var y = +m[1], mo = +m[2], d = +m[3], h = +m[4], mi = +m[5], s = m[6] ? +m[6] : 0;
+  var days = new Date(Date.UTC(y, mo, 0)).getUTCDate();    // the month's own length
+  if (mo < 1 || mo > 12 || d < 1 || d > days || h > 23 || mi > 59 || s > 59) return NaN;
+  return Date.parse(m[0]);
+}
+
+// How long to count, right now: a deadline when there is one (0 once it has passed: it holds
+// at 0:00, never the duration and never tomorrow), else the start time, else the duration.
 function clockSeconds() {
+  var at = clockDeadlineAt();
+  if (at === at) return Math.max(0, Math.ceil((at - Date.now()) / 1000));
   return clockTargetSeconds() || clockDurationSeconds();
+}
+
+// The instant a count just derived from clockSeconds() ends: the deadline itself (now, once it
+// has passed), else that many seconds from now.
+function clockAnchor() {
+  var at = clockDeadlineAt();
+  return at === at ? Math.max(at, Date.now()) : Date.now() + clockSecondsLeft * 1000;
 }`
     : `
 // How long to count, right now. (This design has no start-time field, so it is simply the
@@ -144,7 +174,7 @@ function startClock() {
   if (root) root.classList.remove('${prefix}-done');
   clockSecondsLeft = clockSeconds();
   clockArmedFrom = clockFieldSignature();
-  clockDeadline = Date.now() + clockSecondsLeft * 1000;
+  clockDeadline = ${anchor};
   renderClock();
   // Polled four times a second so the painted second flips within a quarter second of the
   // real one; the value itself comes from the deadline, so the poll rate is only smoothness.
@@ -192,7 +222,7 @@ function clockDataUpdated() {
   var root = document.querySelector('.${prefix}');
   if (root) root.classList.remove('${prefix}-done');
   clockSecondsLeft = clockSeconds();
-  clockDeadline = Date.now() + clockSecondsLeft * 1000;
+  clockDeadline = ${anchor};
   renderClock();
 }
 

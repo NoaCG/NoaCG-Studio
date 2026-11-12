@@ -534,23 +534,22 @@ Filled in by each phase's pull request.
     in the same cycle, wherever and whenever it was loaded.
   - R2. Off air, parked or measured (a snap with `timers: false`, a preview, a thumbnail, the
     catalog's load-state fingerprint) nothing changes: the first slot shows from load, as today.
-  - R3. The rotation is live exactly while the machine's own rotation timer is armed: after a
+  - R3. The rotation is live exactly while the machine's rotation group has a timer armed: after a
     Take's entrance has finished, after a snap with timers (a reload's recovery, a scene link's
-    settled Take), and after Resume. While live, the runtime reads the wall clock five times a
-    second and when the page becomes visible. When the cycle at the next crossfade's midpoint is
-    one not yet shown and its logo differs from the one on screen, it cancels the armed timer and
-    makes that timer's own transition at once (the crossfade, whose midpoint swaps the logo), so
-    the swap lands on the cycle boundary within one read. When the logo is the same it records
-    the cycle and plays nothing.
-  - R4. Every crossfade's midpoint shows the wall clock's logo when its cycle has not been shown.
-    A crossfade inside a cycle already shown (Next sponsor, Resume within the same cycle) shows
-    the following slot, as today; the rotation rejoins the wall clock at the next boundary. Hold
-    arms no timer, so nothing fires until Resume, which crossfades at once.
-  - R5. A Take shows the first slot through its entrance, then joins: the first read after the
-    entrance crossfades to the wall clock's logo (unless it is the first slot). A reload and a
-    settled Take join on the first read after their snap. A page whose timers and drawing were
-    throttled while hidden joins on its first read after it runs again: its own late timer is
-    cancelled, never trusted.
+    settled Take), and after Resume's crossfade. While live, the runtime owns the timing: it reads
+    the wall clock five times a second and when the page becomes visible, replaces the machine's
+    armed timer at once with its own wait, and when the next crossfade's midpoint would fall in a
+    new cycle it makes that timer's own transition (the crossfade) at once, so the swap lands on
+    the cycle boundary within one read. A machine timer that would fire early or late, or a page
+    whose timers and drawing were throttled while hidden, therefore never sets the beat. When the
+    new cycle's logo is the one on screen it records the cycle and plays nothing.
+  - R4. A crossfade the runtime started shows its cycle's logo at the midpoint. Any other
+    crossfade (Next sponsor, Resume, a snap into the crossfade state) shows the following slot,
+    as today, and the rotation rejoins the wall clock at the next boundary. Hold arms no timer,
+    so nothing moves until Resume.
+  - R5. Joining never adds a change: a Take, a settled Take and a reload keep the logo they show
+    until the next cycle boundary, which brings them onto the wall clock (AC-7: "within one
+    change"; AC-4: no motion beyond the rotation's own). So copies agree from their first change.
   - R6. The rotation's machine, events, controls, fields, look and load state are unchanged;
     only its design-owned runtime (`src/templates/cornerBug/bugRuntimes.ts`) changes. Without
     an armed-timer signal to read, the runtime keeps today's per-page cycle.
@@ -573,4 +572,16 @@ Filled in by each phase's pull request.
   - R12. Only the start-time field's parse changes; the duration-only clocks (game timers,
     imported designs, the countdown type) emit what they emit today. A production's graphic is
     its own copy: a rotation or countdown made before this lands keeps today's behaviour until
-    Update.
+    its design is refreshed with Update in the production.
+- Rules found by the Rules-first `/so`, before code (it agreed with corrections): R3's ownership
+  of the timing (a machine timer armed at the entrance's phase can fire before the boundary), R4's
+  "crossfade the runtime started" (at the midpoint no timer is armed, so liveness cannot be read
+  there), and R5 joining at the boundary instead of a crossfade after a Take (AC-4). Also:
+  - R13. Reload while held shows the slot a snap leaves, not the one held: the held slot is not
+    persisted, as today.
+  - R14. A logo added or removed on air changes `n`; the logo on screen stays until the next
+    boundary, which picks `k mod n` again. Removing the logo on screen leaves its slot as today.
+  - R15. The speed is read through `motionSpeed()`. Copies agree only as far as their machines'
+    clocks agree (NTP is assumed); the render service's virtual clock is a wall clock too.
+  - R16. A deadline count has no pause: no start-time design carries the pause group (the
+    countdown type's designs count durations), so R9 has no exception today.
