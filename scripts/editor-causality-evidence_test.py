@@ -115,8 +115,12 @@ class ReaderTests(unittest.TestCase):
         step = {'started_at': '2026-11-11T20:13:22Z', 'completed_at': '2026-11-11T20:21:08Z'}
         rows = [{'pair': pair, 'arm': arm, 'job': f'j-{index:04}', 'failed': False, 'stats': {'expected': 2, 'unexpected': 0, 'skipped': 0, 'flaky': 0}} for index, (pair, arm) in enumerate(reader.COMPLETION_ORDER, 1)]
         def encode(records):
-            lines = ['##[group]Run npm run "$SCRIPT" -- --minutes "$MINUTES"', '  SCRIPT: endurance:editor-causality', '  MINUTES: 75'] + [json.dumps(r) for r in records]
-            return ('\n'.join('2026-11-11T20:14:00.0000000Z ' + line for line in lines) + '\n').encode()
+            lines = ['2026-11-11T20:13:22.5606017Z ' + line for line in ['##[group]Run npm run "$SCRIPT" -- --minutes "$MINUTES"', '  SCRIPT: endurance:editor-causality', '  MINUTES: 75']]
+            lines += ['2026-11-11T20:14:00.0000000Z ' + json.dumps(r) for r in records[:-1]]
+            if records:
+                lines.append('2026-11-11T20:21:08.3501917Z ' + json.dumps(records[-1]))
+            lines.append('2026-11-11T20:21:08.3652521Z ##[group]Run [ -n "$NOACG_STACK_PROJECT" ] || exit 0')
+            return ('\n'.join(lines) + '\n').encode()
         return step, rows, encode
 
     def test_completion_log_requires_all_guarded_records_exact_order_types_and_jobs(self):
@@ -133,6 +137,20 @@ class ReaderTests(unittest.TestCase):
             with self.assertRaises((AssertionError, KeyError)): reader.completion_log_records(encode(bad), step)
         with self.assertRaises(AssertionError): reader.completion_log_records(encode(rows).replace(b'endurance:editor-causality', b'other'), step)
         with self.assertRaises(AssertionError): reader.completion_log_records(encode(rows), {'started_at': '2026-11-11T21:00:00Z', 'completed_at': '2026-11-11T21:10:00Z'})
+
+
+    def test_completion_fractional_final_record_is_bounded_by_actual_step_not_next_step(self):
+        import json
+        step, rows, encode = self.completion_log_fixture()
+        data = encode(rows)
+        self.assertEqual(len(reader.completion_log_records(data, step)), 11)
+        # Even a plausible record in the next step's same rounded second cannot fill a gap.
+        extra = ('2026-11-11T20:21:08.3700000Z ' + json.dumps(rows[-1]) + '\n').encode()
+        self.assertEqual(len(reader.completion_log_records(data + extra, step)), 11)
+        with self.assertRaises(AssertionError): reader.completion_log_records(encode(rows[:-1]) + extra, step)
+        with self.assertRaises(AssertionError): reader.completion_log_records(data.replace(b'20:21:08.3501917Z', b'20:21:09.0000000Z'), step)
+        with self.assertRaises(AssertionError): reader.completion_log_records(data.replace(b'##[group]Run [ -n', b'next step [ -n'), step)
+        with self.assertRaises(AssertionError): reader.completion_log_records(data.replace(b'20:21:08.3652521Z', b'20:21:09.3652521Z'), step)
 
     def test_log_recovery_is_exact_completion_only_and_retains_failed_upload_status(self):
         import copy

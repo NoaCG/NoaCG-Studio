@@ -190,16 +190,29 @@ OPERATOR_SOURCES = {'parent': 'a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44', 'landi
 
 
 def completion_log_records(data, step):
-    from datetime import datetime
+    from datetime import datetime, timedelta
     parse_time = lambda value: datetime.fromisoformat(value.replace('Z', '+00:00'))
     start, end = parse_time(step['started_at']), parse_time(step['completed_at'])
-    assert start < end
-    lines = []
+    assert start < end and start.microsecond == end.microsecond == 0
+    entries = []
     for raw in data.decode('utf-8', errors='strict').splitlines():
         match = re.fullmatch(r'(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+Z) (.*)', raw)
-        if match and start <= parse_time(match[1]) <= end:
-            lines.append(match[2])
-    assert lines.count('##[group]Run npm run "$SCRIPT" -- --minutes "$MINUTES"') == 1, 'missing exact Run command'
+        if match:
+            entries.append((parse_time(match[1]), match[2]))
+    marker = '##[group]Run npm run "$SCRIPT" -- --minutes "$MINUTES"'
+    begins = [i for i, (_, text) in enumerate(entries) if text == marker]
+    assert len(begins) == 1, 'missing/ambiguous exact Run command'
+    begin = begins[0]
+    finishes = [i for i in range(begin + 1, len(entries)) if entries[i][1].startswith('##[group]Run ')]
+    assert finishes, 'missing next step boundary'
+    finish = finishes[0]
+    # The API floors step times to seconds; the original log has fractional seconds.
+    # Actual command-group boundaries exclude the following step in that same second.
+    assert start <= entries[begin][0] < start + timedelta(seconds=1)
+    assert end <= entries[finish][0] < end + timedelta(seconds=1)
+    selected = entries[begin:finish]
+    assert all(start <= at < end + timedelta(seconds=1) for at, _ in selected)
+    lines = [text for _, text in selected]
     assert '  SCRIPT: endurance:editor-causality' in lines and '  MINUTES: 75' in lines
     records = []
     for line in lines:
