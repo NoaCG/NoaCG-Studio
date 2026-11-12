@@ -922,8 +922,9 @@ async function boot(): Promise<void> {
     /** Already claimed when it was received: a held command (G2 section 3). */
     claimed = false,
   ) => {
-    // Outside a scene link's scope nothing here applies (R6): no data, no air state, no report.
-    if (!inScope(graphic)) return;
+    // Another scene's graphic: nothing here applies on a scene link (R6): no data, no air state, no
+    // report. One the link has not heard of yet keeps its values until the demand read decides.
+    if (!inScope(graphic) && elsewhere(graphic)) return;
     const receivedAt = Date.now();
     if (road && !claimed) live.received(road, incoming);
     if (!claimed && !applied.claim(incoming)) {

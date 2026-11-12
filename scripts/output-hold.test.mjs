@@ -240,4 +240,6 @@ test('a scene link holds a graphic it has not heard of, reads past another scene
   assert.match(main, /if \(!inScope\(row\.graphic\) && \(elsewhere\(row\.graphic\) \|\| !following \|\| !seqMode\)\) return;/);
   assert.match(main, /const elsewhere = \(graphic: string\): boolean => scene !== null && !sceneKeys\.has\(graphic\) && productionKeys\.has\(graphic\);/);
   assert.match(main, /const payload = answer\.ok && answer\.value && answer\.value\.output \? scoped\(answer\.value\.output\) : null;/);
+  // The pre-Take update of a graphic the link has not heard of keeps its values for the frame.
+  assert.match(main, /if \(!inScope\(graphic\) && elsewhere\(graphic\)\) return;/);
 });
