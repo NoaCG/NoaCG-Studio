@@ -57,14 +57,13 @@ import { outputReadiness, outputStateWords, type ChangePrep, type GraphicCheck, 
 import {
   alreadyInSnapshot,
   heldFirst,
-  mayAirTyped,
   planOutputRecovery,
   reportedSnap,
   reportedTyped,
   seqBaselines,
   stepsAfter,
   unreportedPages,
-  unreportedTypedRows,
+  unreportedRows,
 } from '../control/outputRecovery';
 import { SEQ_TAIL_PAGE, supersededAnimations } from '../control/seqFollow';
 import { airWhenSettled } from './catchUp';
@@ -74,6 +73,9 @@ import { PROBE_MS, reloadWhenClear, within } from './reload';
 import { FRAME_LOAD_MS, createOutputStage, heldLine } from './stage';
 import { reportedLook } from '../control/cueAdjust';
 import { createSwapper } from './swap';
+import { ENTRANCE_MS, HELD_PER_GRAPHIC, HELD_PER_OUTPUT, afterOutcome, compact, demandFor, giveUp, heldLate, isCancelled, isTake, liveStep, quietEntrances, releaseMode, type Failure, type HeldRow, type HoldFailure } from './hold';
+import { epochTag, listed, type HeldEntry, type RunReport } from '../control/runReport';
+import { CATCH_UP_TIMING, readGraphic, stoodStill, wait } from './catchUp';
 import { obsEvent, obsState, sceneParam, scopePayload, type ObsWhere } from './sceneScope';
 import type { OutputPayload } from '../control/hostedControl';
 import type { SceneReport } from '../control/livePath';
@@ -234,11 +236,15 @@ async function boot(): Promise<void> {
   // every publish it takes; `inScope` is what every command, report and bank asks. On the ordinary
   // link it is always true and the payload is the one the server holds. ──
   let sceneKeys = new Set<string>();
+  /** Every graphic of the production, as the last payload read named them: a graphic outside
+   *  this set is one the link has not heard of yet, so it is held and read, never skipped. */
+  let productionKeys = new Set<string>();
   let sceneKnown = false;
   /** The font files of the graphics left out, by path (./sceneScope.ts `faces`). */
   let sceneFaces = new Map<string, string>();
   const scoped = (whole: OutputPayload): OutputPayload => {
     if (scene === null) return whole;
+    productionKeys = new Set(whole.graphics.map((g) => g.key));
     const scope = scopePayload(whole, scene);
     sceneKeys = scope.keys;
     sceneKnown = scope.known;
@@ -247,6 +253,8 @@ async function boot(): Promise<void> {
     return scope.payload;
   };
   const inScope = (graphic: string): boolean => scene === null || sceneKeys.has(graphic);
+  /** Another scene's graphic, as far as this link knows: read past here. */
+  const elsewhere = (graphic: string): boolean => scene !== null && !sceneKeys.has(graphic) && productionKeys.has(graphic);
   const payload = scoped(resolved.output);
   // The whole production's payload is not kept: a closure over `resolved` lives as long as the page,
   // and the other scenes' graphics are megabytes this link never builds.
@@ -434,7 +442,8 @@ async function boot(): Promise<void> {
     liveEntry('output', 'output', { log: logJoined, cmd: cmdJoined }, live.summary(), {
       name: outputName,
       destinationId: readDestinationId(window.location.search),
-      ready: readiness(),
+      // What this output has run (live-publishing G2 section 1), on the numbered log only.
+      ready: seqMode ? { ...readiness(), run: listed(runNow()), lt: lateList() } : readiness(),
       ack,
       proto: identity.protocol,
       // E1.2a: this output reads typed envelopes, so a page may send it one.
@@ -491,6 +500,8 @@ async function boot(): Promise<void> {
     // offline specs with no topic. A playout box's console must not write state the log never saw.
     command: import.meta.env.DEV ? (graphic: string, msg: ControlEventRow['msg']) => applyCommand(graphic, msg, undefined) : undefined,
     ack: () => ack,
+    // The values each graphic's document was last handed, for specs (live-publishing G2 R4).
+    handed: (graphic: string) => stage.handed.get(graphic) ?? null,
   };
   // ── PREPARE A NEWER VERSION (./prepare.ts; R3): the changes are built beside the running
   // graphics and checked, and this page reloads onto the new version only when nothing is on air
@@ -544,8 +555,9 @@ async function boot(): Promise<void> {
     stage,
     held: bootDigests,
     // A graphic that left this link's scene leaves at once, on air or not (OS1a R6, `onAirHere`): a
-    // scene graphic is always on, so waiting for its Out would keep it in the wrong scene.
-    onAir: onAirHere,
+    // scene graphic is always on, so waiting for its Out would keep it in the wrong scene. A held
+    // graphic shows nothing here: its removal is not kept waiting by a Take that never aired.
+    onAir: (graphic) => !holds.has(graphic) && onAirHere(graphic),
     data: (graphic) => heldData(graphic),
     warmData: (graphic, next) => (touched.has(graphic) ? heldData(graphic) : firstCueOf(next.cues, graphic)),
     loadSound: (next) => audio(next).loadSound,
@@ -554,6 +566,9 @@ async function boot(): Promise<void> {
       checks.set(graphic, check);
       released.add(graphic);
       learnClocks(spec);
+      // A held Take whose frame a prepared, loaded one replaced: that frame runs it now (no
+      // onLoaded follows an adopted frame).
+      if (holds.has(graphic) && ready(graphic)) releaseHold(graphic);
       readyChanged();
     },
     onAdded: (spec, next) => {
@@ -567,6 +582,9 @@ async function boot(): Promise<void> {
       readyChanged();
     },
     onRemoved: (graphic) => {
+      // A deletion (G2 section 3, R6): what waited for it settles, with no failure.
+      settleHold(graphic);
+      failures.delete(graphic);
       packages.delete(graphic);
       for (const map of [checks, mergedData, typedData, typedEnvelope, stepsSince, clockSpecs, speakingClocks, lastReported, bankedAt, sinceBank, firstCue, bodies] as Map<string, unknown>[]) map.delete(graphic);
       for (const set of [released, touched, liveGraphics, commanded, forcedReports, changedReports]) set.delete(graphic);
@@ -590,8 +608,14 @@ async function boot(): Promise<void> {
       presence.touch();
       return true;
     },
-    resolve: async () => {
+    resolve: async (prep) => {
       await recovered;
+      // The payload a demand just read, when it is the version asked for: read once, not twice.
+      const fresh = demanded;
+      if (fresh && fresh.ver && prep && fresh.ver.h === prep.h) {
+        demanded = null;
+        return fresh;
+      }
       const answer = await untilAnswered(() => controlOutputResolve(outputSlug), { limit: 3 });
       if (!answer.ok || !answer.value?.output) return null;
       // The scene's graphics only (R5): the swapper adds and removes by the keys it is handed.
@@ -703,21 +727,37 @@ async function boot(): Promise<void> {
    * production's re-banks become a trickle. A change still reports in 800 ms, as it always did.
    */
   const FORCED_SPREAD_MS = 20_000;
-  const scheduleReport = (graphic: string, force = false) => {
+  /** Per graphic, when its oldest unreported change was: a report waits at most REPORT_MAX_WAIT_MS
+   *  after it, so a stream of changes (a feed, a clock) never starves it (G2 section 1). */
+  const firstUnreported = new Map<string, number>();
+  const REPORT_MAX_WAIT_MS = 2_000;
+  const scheduleReport = (graphic: string, force = false, rebank = false) => {
     if (force) {
       forcedReports.add(graphic);
       // A change already on its way carries the bank with it.
       if (changedReports.has(graphic)) return;
     } else {
       changedReports.add(graphic);
+      if (!firstUnreported.has(graphic)) firstUnreported.set(graphic, Date.now());
     }
+    if (rebank) forcedReports.add(graphic);
     clearTimeout(reportTimers.get(graphic));
+    const since = firstUnreported.get(graphic);
+    const delay = force && !rebank ? 1_000 + Math.floor(Math.random() * FORCED_SPREAD_MS) : Math.max(0, Math.min(800, since === undefined ? 800 : since + REPORT_MAX_WAIT_MS - Date.now()));
     reportTimers.set(
       graphic,
       setTimeout(
         () => {
           reportTimers.delete(graphic);
           changedReports.delete(graphic);
+          firstUnreported.delete(graphic);
+          // ONLY A GRAPHIC THAT RAN EVERYTHING IT WAS SENT REPORTS (G2 section 2, R2): one held,
+          // failed, waiting in the stage, not hosted or not loaded writes nothing, so no bank passes
+          // work this output has not run. Asked at the moment of writing.
+          if (seqMode && !reportable(graphic)) {
+            forcedReports.delete(graphic);
+            return;
+          }
           // A HELD GRAPHIC NEVER REPORTS (E1.1, `typedRefused`): its bank stays before the refused
           // command, so a reboot replays that command and is held again, rather than recovering
           // the previous cue's values from a baseline past it. Asked at the moment of writing, so
@@ -741,19 +781,24 @@ async function boot(): Promise<void> {
           // the instance, its last call and where it is. This is the output's word, the only one the
           // production page shows as confirmed.
           const ograf = stage.ografOutcomes.get(graphic);
-          const state = ograf ? { ...(typedState ?? {}), ograf } : typedState;
+          const withOgraf = ograf ? { ...(typedState ?? {}), ograf } : typedState;
+          // WHAT THIS OUTPUT HAS RUN (G2 section 1): every page judges its light from it.
+          const state = seqMode ? { ...(withOgraf ?? {}), run: runNow() } : withOgraf;
           // Byte-identical truth needs no second write (the 1 s state poll answers every second),
           // unless the write is due for its baseline.
-          const key = JSON.stringify([data, state]);
+          // The run report is left out of the comparison, so a graphic writes only when it changed or
+          // ran something since its last report; never because another graphic moved the cursor.
+          const key = JSON.stringify([data, withOgraf]);
           const forced = forcedReports.delete(graphic);
-          if (!forced && key === lastReported.get(graphic)) return;
+          const ran = unreportedRun.delete(graphic);
+          if (!forced && !ran && key === lastReported.get(graphic)) return;
           lastReported.set(graphic, key);
           if (seqMode) banked(graphic);
           void (seqMode
             ? controlOutputReportSeq(outputSlug, graphic, data, state, { seq: lastAppliedSeq, epoch: followEpoch, event: lastAppliedId })
             : controlOutputReport(outputSlug, graphic, data, state, lastAppliedId));
         },
-        force ? 1_000 + Math.floor(Math.random() * FORCED_SPREAD_MS) : 800,
+        delay,
       ),
     );
   };
@@ -875,12 +920,17 @@ async function boot(): Promise<void> {
     createdAt: string | undefined,
     road?: LiveRoad,
     animate = true,
+    /** The row's position, for the stage's outcome (G2 section 1). */
+    at?: number,
+    /** Already claimed when it was received: a held command (G2 section 3). */
+    claimed = false,
   ) => {
-    // Outside a scene link's scope nothing here applies (R6): no data, no air state, no report.
-    if (!inScope(graphic)) return;
+    // Another scene's graphic: nothing here applies on a scene link (R6): no data, no air state, no
+    // report. One the link has not heard of yet keeps its values until the demand read decides.
+    if (!inScope(graphic) && elsewhere(graphic)) return;
     const receivedAt = Date.now();
-    if (road) live.received(road, incoming);
-    if (!applied.claim(incoming)) {
+    if (road && !claimed) live.received(road, incoming);
+    if (!claimed && !applied.claim(incoming)) {
       if (road) live.duplicate(incoming);
       return;
     }
@@ -891,9 +941,12 @@ async function boot(): Promise<void> {
     if (gate.changed) readyChanged();
     if (!gate.apply) {
       if (gate.changed) console.warn(`output: typed data refused for "${graphic}": ${typedRefused.get(graphic)}`);
+      // Where E1.1's hold starts, for the run report's `typed` entry (G2 section 3).
+      if (typedRefused.has(graphic) && !typedFrom.has(graphic) && at !== undefined) typedFrom.set(graphic, at);
       touched.add(graphic);
       return;
     }
+    if (!typedRefused.has(graphic)) typedFrom.delete(graphic);
     // TYPED DATA (E1.2a): the envelope's values go to the stage as they are, never as strings and
     // never into `mergedData` (the native values a report banks): a typed graphic does not report
     // (`scheduleReport`), so a reboot replays its rows from the log. A data road's native update
@@ -908,7 +961,7 @@ async function boot(): Promise<void> {
       const look = msg.appearance ? { appearance: msg.appearance } : {};
       // A data road's update with no look moves nothing here: an empty update would reach a
       // foreign Graphic as `updateAction({})`.
-      if (animate && (gate.values || msg.appearance)) stage.apply(graphic, gate.values ? { t: 'update', data: {}, typed: msg.typed, ...look } : { t: 'update', data: {}, ...look });
+      if (animate && (gate.values || msg.appearance)) stage.apply(graphic, gate.values ? { t: 'update', data: {}, typed: msg.typed, ...look } : { t: 'update', data: {}, ...look }, at);
       if (road) live.applied(road, incoming, receivedAt);
       return;
     }
@@ -994,7 +1047,7 @@ async function boot(): Promise<void> {
       // A Take that replaces a graphic with a newer body waiting airs that body (G1): the swap
       // hands it the values held above, and this play is its entrance.
       if (msg.t === 'play') swapper.beforePlay(row.graphic);
-      stage.apply(row.graphic, msg.t === 'event' ? { ...msg, at: rowInstant(row.created_at, Date.now()) } : msg);
+      stage.apply(row.graphic, msg.t === 'event' ? { ...msg, at: rowInstant(row.created_at, Date.now()) } : msg, at);
       if (msg.t === 'play') countPlay();
     }
     // Cleared: a newer body waiting for it takes over once the exit has finished.
@@ -1003,6 +1056,327 @@ async function boot(): Promise<void> {
     if (clock && effect?.when === 'after') applyClock(row.graphic, { [clock.field]: effect.value });
     if (pairEffect?.when === 'after') applyClock(row.graphic, pairEffect.values);
   };
+
+
+  // ── HELD TAKES (live-publishing G2 section 3; ./hold.ts has the rules). A Take of a graphic this
+  // output cannot run yet starts a hold; every command of that graphic waits behind it, in log
+  // order, until its frame releases. Live rows only, on the numbered log: the boot's catch-up is
+  // history, replayed hidden as it always was. ──
+  /** True once the live follow has started: before it, rows are the boot's catch-up. */
+  let following = false;
+  /** `from`: the position of the hold's first command, kept when making room drops it. */
+  const holds = new Map<string, { rows: HeldRow<ControlEventRow['msg']>[]; from: number }>();
+  /** Graphics whose hold failed, from where and why (cleared by a later Take or Out that runs). */
+  const failures = new Map<string, Failure>();
+  /** Where E1.1's typed hold of each graphic started. */
+  const typedFrom = new Map<string, number>();
+  /** Boot frames hidden by their own flag because they had not loaded when the stage came back. */
+  const bootHidden = new Set<string>();
+  /** Graphics whose unsettled work is from before a republish: their `from` reads 0. */
+  const staleFrom = new Set<string>();
+  /** Graphics that ran a command since their last report: their next report is owed even when its
+   *  data and state are unchanged (it carries what ran), and only theirs (G2 section 1). */
+  const unreportedRun = new Set<string>();
+  /** Graphics shown late without their entrance in the last minute: the page's panel names them. */
+  const lateNotes = new Map<string, { ms: number; until: number }>();
+  const heldCount = () => {
+    let n = 0;
+    holds.forEach((hold) => (n += hold.rows.length));
+    return n;
+  };
+  /** The look (and the place hint that came with it) an update carried while its graphic had
+   *  nothing to run it on (R4): the frame takes it with the values when it can run them. */
+  const heldLook = new Map<string, { appearance: unknown; place?: unknown }>();
+  /** Hand a frame that can now run what it is sent the values and look its graphic holds: the
+   *  commands that were settled for it before it loaded (R4) never reached it themselves. */
+  const primeFrame = (graphic: string) => {
+    const look = heldLook.get(graphic);
+    heldLook.delete(graphic);
+    // The place hint rides with its look, so the placer measures the held values (W1).
+    const appearance = look === undefined ? {} : { appearance: look.appearance, ...(look.place !== undefined ? { place: look.place } : {}) };
+    if (typed.airing.has(graphic) && typedEnvelope.has(graphic)) {
+      stage.apply(graphic, { t: 'update', data: {}, typed: typedEnvelope.get(graphic), ...appearance } as ControlEventRow['msg']);
+      return;
+    }
+    const values = mergedData.get(graphic);
+    if ((values && Object.keys(values).length > 0) || look !== undefined) stage.apply(graphic, { t: 'update', data: values ?? {}, ...appearance } as ControlEventRow['msg']);
+  };
+  /** A frame (or package layer) that runs what it is sent now. */
+  const ready = (graphic: string) => stage.released(graphic);
+  const hosts = (graphic: string) => stage.graphics.indexOf(graphic) >= 0 || packages.has(graphic);
+
+  /** A command settled here with no report of its own: one hosted, settled graphic re-banks at the
+   *  cursor within 2 s, so the page hears the position (G2 section 1). */
+  let rebankTimer: ReturnType<typeof setTimeout> | null = null;
+  const rebankSoon = () => {
+    if (rebankTimer || !seqMode) return;
+    rebankTimer = setTimeout(() => {
+      rebankTimer = null;
+      let best: string | null = null;
+      for (const graphic of stage.graphics) {
+        if (!reportable(graphic)) continue;
+        if (best === null || (bankedAt.get(graphic) ?? -1) < (bankedAt.get(best) ?? -1)) best = graphic;
+      }
+      if (best !== null) scheduleReport(best, false, true);
+    }, 1_200);
+  };
+
+  const fail = (graphic: string, why: HoldFailure) => {
+    const hold = holds.get(graphic);
+    if (!hold) return;
+    holds.delete(graphic);
+    failures.set(graphic, { from: hold.from, why });
+    console.warn(`output: "${graphic}" did not play here (${why}); its held commands are dropped.`);
+    readyChanged();
+  };
+  /** A hold that cannot go on: settled when cancelled (R6), failed otherwise (R8). */
+  const giveUpOn = (graphic: string, why: HoldFailure) => {
+    const hold = holds.get(graphic);
+    if (!hold) return;
+    if (giveUp(hold.rows) === 'settle') settleHold(graphic);
+    else fail(graphic, why);
+  };
+  /** A deletion or a cancelled hold that needs nothing loaded: its commands settle with no failure,
+   *  their data kept as the graphic's held values. */
+  const settleHold = (graphic: string) => {
+    const hold = holds.get(graphic);
+    if (!hold) return;
+    holds.delete(graphic);
+    for (const row of hold.rows) {
+      keepLook({ graphic, msg: row.msg } as ControlEventRow);
+      applyCommand(graphic, row.msg, row.createdAt, undefined, false, undefined, true);
+    }
+    rebankSoon();
+    readyChanged();
+  };
+
+  /** Run a hold's queue now that its graphic's frame has released (G2 section 3, cases 1 to 3). */
+  const releaseHold = (graphic: string) => {
+    const hold = holds.get(graphic);
+    if (!hold) return;
+    holds.delete(graphic);
+    const history = bootHidden.has(graphic);
+    const mode = releaseMode(hold.rows, Date.now(), history);
+    const quiet = quietEntrances(hold.rows);
+    if (mode === 'cancelled') {
+      // Nothing is shown: the commands' bookkeeping runs, and the frame gets the values only.
+      for (const row of hold.rows) applyCommand(graphic, row.msg, row.createdAt, undefined, false, undefined, true);
+      primeFrame(graphic);
+      rebankSoon();
+      readyChanged();
+      return;
+    }
+    // What came before the Take (its own `update`, a feed's values) and was kept for the frame
+    // reaches it first, so the Take airs the cue's values and look, not the template's defaults.
+    primeFrame(graphic);
+    if (mode === 'late') {
+      stage.hide(graphic, true);
+      bootHidden.add(graphic);
+      const take = hold.rows.filter((row) => isTake(row.msg.t)).pop();
+      if (take) lateNotes.set(graphic, { ms: Date.now() - take.receivedAt, until: Date.now() + 60_000 });
+    }
+    hold.rows.forEach((row, i) => applyCommand(graphic, row.msg, row.createdAt, undefined, !quiet.has(i), row.at, true));
+    if (mode === 'late') void showWhenSettled(graphic);
+    readyChanged();
+  };
+
+  /** A frame hidden by its own flag comes back once it stands still, at the latest at the cap. */
+  const showWhenSettled = async (graphic: string) => {
+    const deadline = Date.now() + CATCH_UP_TIMING.capMs;
+    let previous = readGraphic(stage, graphic);
+    let still = 0;
+    try {
+      while (Date.now() < deadline && still < 2) {
+        stage.requestState(graphic);
+        await wait(CATCH_UP_TIMING.pollMs);
+        const reading = readGraphic(stage, graphic);
+        // Work still waiting in the stage (a placement measuring, a queue) has not run yet: a
+        // graphic that has not had its Take cannot have stood still after it.
+        still = stage.waitingFor(graphic) === null && stoodStill(previous, reading) ? still + 1 : 0;
+        previous = reading;
+      }
+    } finally {
+      bootHidden.delete(graphic);
+      stage.hide(graphic, false);
+    }
+  };
+
+  // ── THE DEMAND (G2 section 3): a held graphic the stage does not host is read from the
+  // published payload at once, not on the Presence request's 15 s spacing. ──
+  let demandRunning = false;
+  let demandAgain = false;
+  /** The newest payload a demand read, for the preparation that asks for that same version. */
+  let demanded: NonNullable<typeof resolved.output> | null = null;
+  const demand = () => {
+    if (demandRunning) {
+      demandAgain = true;
+      return;
+    }
+    demandRunning = true;
+    demandAgain = false;
+    // Only the holds this read started after are its to settle: a newer one waits for the next read.
+    const covered = new Set<object>(holds.values());
+    void (async () => {
+      try {
+        const answer = await untilAnswered(() => controlOutputResolve(outputSlug), { limit: 3 });
+        // A scene link keeps its scene's graphics only (R5), from the demand's read too.
+        const knew = sceneKnown;
+        const payload = answer.ok && answer.value && answer.value.output ? scoped(answer.value.output) : null;
+        if (sceneKnown !== knew) readyChanged();
+        if (payload) demanded = payload;
+        // Not answered: asked again while anything still waits for it; its 20 s deadline still runs.
+        else if (Array.from(holds.keys()).some((graphic) => !hosts(graphic))) setTimeout(demand, 2_000);
+        holds.forEach((hold, graphic) => {
+          const spec = payload ? payload.graphics.find((g) => g.key === graphic) : undefined;
+          const step = demandFor({ hosted: hosts(graphic), covered: covered.has(hold), answered: !!payload, published: !!spec, elsewhere: elsewhere(graphic), cancelled: isCancelled(hold.rows) });
+          if (step === 'add' && spec && payload) swapper.addNow(spec, payload);
+          else if (step === 'settle') settleHold(graphic);
+          else if (step === 'fail') fail(graphic, 'unpublished');
+        });
+      } finally {
+        demandRunning = false;
+        if (demandAgain) demand();
+      }
+    })();
+  };
+  /** A held frame that has not loaded in FRAME_LOAD_MS fails `load`; the frame stays for a later Take. */
+  const loadDeadline = (graphic: string, hold: object) => {
+    setTimeout(() => {
+      // This hold's deadline only: a newer hold of the same graphic has its own.
+      if (holds.get(graphic) === hold && !ready(graphic)) giveUpOn(graphic, 'load');
+    }, FRAME_LOAD_MS);
+  };
+
+  const keepLook = (row: ControlEventRow) => {
+    const msg = row.msg as { t: string; appearance?: unknown; place?: unknown };
+    if (msg.t === 'update' && msg.appearance !== undefined) heldLook.set(row.graphic, { appearance: msg.appearance, place: msg.place });
+  };
+  /** A live command for a graphic this output cannot run yet: held, settled, or neither (false). */
+  const holdOrSettle = (row: ControlEventRow, road: LiveRoad | undefined): boolean => {
+    const graphic = row.graphic;
+    const t = row.msg.t;
+    const at = row.seq ?? 0;
+    // A failure only reports (`liveStep`): a Take or Out clears it, and a Take about to run on a
+    // frame able to run it first gives that frame what its graphic kept (R8).
+    const { route, clear, prime } = liveStep(
+      {
+        held: holds.has(graphic),
+        ready: ready(graphic),
+        hosts: hosts(graphic),
+        stageWaits: stage.waitingFor(graphic) !== null,
+        isPackage: packages.has(graphic),
+        failed: failures.has(graphic),
+      },
+      t,
+    );
+    if (clear) failures.delete(graphic);
+    if (prime) primeFrame(graphic);
+    if (route === 'run') return false;
+    if (route === 'settle') {
+      keepLook(row);
+      applyCommand(graphic, row.msg, row.created_at, road, false);
+      rebankSoon();
+      return true;
+    }
+    if (road) live.received(road, row.msg);
+    if (!applied.claim(row.msg)) {
+      if (road) live.duplicate(row.msg);
+      return true;
+    }
+    const entry = { at, msg: row.msg, createdAt: row.created_at, receivedAt: Date.now() };
+    const hold = holds.get(graphic);
+    if (hold) {
+      hold.rows.push(entry);
+      const excess = heldCount() - HELD_PER_OUTPUT;
+      if (hold.rows.length > HELD_PER_GRAPHIC || excess > 0) {
+        // Within both limits: this graphic's own, and what the output's total leaves it.
+        const limit = excess > 0 ? Math.min(HELD_PER_GRAPHIC, hold.rows.length - excess) : HELD_PER_GRAPHIC;
+        const room = compact(hold.rows, Math.max(0, limit), clockSpecs.has(graphic) || speakingClocks.has(graphic));
+        if (room) hold.rows = room;
+        else giveUpOn(graphic, 'limit');
+      }
+    } else {
+      const started = { rows: [entry], from: at };
+      holds.set(graphic, started);
+      if (!hosts(graphic)) demand();
+      loadDeadline(graphic, started);
+    }
+    // S4's 5 s passing is said when it passes (`late`), not at the next report.
+    if (isTake(t)) setTimeout(() => presence.touch(), ENTRANCE_MS + 100);
+    // A cancelled hold of a graphic nobody hosts needs nothing: it settles (R6).
+    const now = holds.get(graphic);
+    if (now && !hosts(graphic) && isCancelled(now.rows)) settleHold(graphic);
+    readyChanged();
+    return true;
+  };
+  // A frame that loads runs what waits for it; a hidden boot frame comes back once it settles.
+  stage.onLoaded((graphic) => {
+    if (holds.has(graphic)) releaseHold(graphic);
+    else if (bootHidden.has(graphic)) void showWhenSettled(graphic);
+    else if (following && touched.has(graphic)) primeFrame(graphic);
+  });
+  stage.onError((graphic) => {
+    if (holds.has(graphic) && !ready(graphic)) giveUpOn(graphic, 'script');
+  });
+  stage.onOgraf((graphic) => {
+    if (holds.has(graphic) && ready(graphic)) releaseHold(graphic);
+  });
+  stage.onOutcome((at, graphic, outcome) => {
+    // The failure line follows D1 and D2 (`afterOutcome`).
+    const before = failures.get(graphic);
+    const after = afterOutcome(before, at, outcome, stage.waitingFor(graphic) === null);
+    if (after !== before) {
+      if (after) {
+        console.warn(`output: "${graphic}" did not play here (stage: ${after.why} at ${at}).`);
+        failures.set(graphic, after);
+      } else failures.delete(graphic);
+      readyChanged();
+    }
+    // A command that waited in the stage has run: its graphic may report again.
+    if (outcome === 'posted' && seqMode) {
+      unreportedRun.add(graphic);
+      scheduleReport(graphic);
+    }
+    presence.touch();
+  });
+
+  /** What this output has run (G2 section 1): its cursor, and every graphic with work unsettled. */
+  const runNow = (): RunReport => {
+    const now = Date.now();
+    const h: Record<string, HeldEntry> = {};
+    holds.forEach((hold, graphic) => {
+      h[graphic] = [hold.from, heldLate(hold.rows, now) ? 'late' : 'loading'];
+    });
+    failures.forEach((failure, graphic) => {
+      h[graphic] = [failure.from, 'failed', failure.why];
+    });
+    typedRefused.forEach((_why, graphic) => {
+      if (!h[graphic]) h[graphic] = [typedFrom.get(graphic) ?? lastAppliedSeq + 1, 'failed', 'typed'];
+    });
+    for (const graphic of stage.graphics.concat([...packages])) {
+      const waiting = stage.waitingFor(graphic);
+      if (waiting !== null && !h[graphic]) h[graphic] = [waiting, 'placing'];
+    }
+    // Work owed from before a republish reads from 0 in the new log until it settles (G2 section 4).
+    staleFrom.forEach((graphic) => {
+      if (h[graphic]) h[graphic] = [0, h[graphic][1], h[graphic][2]].filter((x) => x !== undefined) as HeldEntry;
+      else staleFrom.delete(graphic);
+    });
+    return { o: identity.id, p: lastAppliedSeq, h, e: epochTag(followEpoch) };
+  };
+  /** Graphics shown late without their entrance in the last minute (G2 section 6). */
+  const lateList = () => {
+    const now = Date.now();
+    const out: { g: string; ms: number }[] = [];
+    lateNotes.forEach((note, graphic) => {
+      if (note.until > now) out.push({ g: graphic, ms: note.ms });
+      else lateNotes.delete(graphic);
+    });
+    return out.slice(0, 6);
+  };
+  /** A graphic that may write a report: hosted, released, and nothing of it unsettled (R2). */
+  const reportable = (graphic: string) =>
+    hosts(graphic) && ready(graphic) && !holds.has(graphic) && !failures.has(graphic) && !typedRefused.has(graphic) && stage.waitingFor(graphic) === null;
 
   /** `deliver` false: the row is read past and counted applied, but never reaches the stage (a
    *  custom action on a package in the boot catch-up, which a restart never repeats). */
@@ -1049,7 +1423,9 @@ async function boot(): Promise<void> {
     }
     // A row for a graphic outside a scene link's scope is read past (R6): the position above has
     // moved, and nothing else does.
-    if (!inScope(row.graphic)) return;
+    // A graphic the link has not heard of yet (published after its last read) goes on to be held
+    // and read (G2 section 3): skipping it would move the position past a Take that never ran.
+    if (!inScope(row.graphic) && (elsewhere(row.graphic) || !following || !seqMode)) return;
     // Already inside the state this graphic was rebuilt from — replaying it would re-air it.
     // The FAST road cannot reach this guard and does not need to: it is only joined once the
     // boot catch-up has finished, so nothing it delivers can predate the snapshot.
@@ -1059,7 +1435,18 @@ async function boot(): Promise<void> {
       if (readPastGate(typed, row)) readyChanged();
       return;
     }
-    applyCommand(row.graphic, row.msg, row.created_at, road, animate);
+    const t0 = row.msg.t;
+    const command = t0 === 'update' || t0 === 'play' || t0 === 'stop' || t0 === 'next' || t0 === 'event' || t0 === 'snap';
+    if (following && seqMode && command && holdOrSettle(row, road)) {
+      presence.touch();
+      return;
+    }
+    // Only a renderer command has an outcome to wait for (G2 section 1): a status row carries none.
+    // Only a renderer command of a graphic this output can run has an outcome to wait for (G2
+    // section 1): a status row carries none, and a boot's history for a graphic it does not host
+    // (removed by a republish, never published, fed by a data road) is read past, never failed.
+    applyCommand(row.graphic, row.msg, row.created_at, road, animate, seqMode && command && (following || hosts(row.graphic)) ? row.seq : undefined);
+    presence.touch();
     // Status rows ('cue'/'staged'/'live') are for the operator pages; the stage ignored them
     // and so does the report path.
     const t = row.msg.t;
@@ -1077,7 +1464,10 @@ async function boot(): Promise<void> {
     // row again. It costs a re-fired entrance inside the catch-up, which is hidden while it
     // settles, so it is a cost rather than a fault - but it is a real one and not the ordering the
     // paragraph above describes.
-    if (forwarded) scheduleReport(row.graphic);
+    if (forwarded) {
+      if (seqMode) unreportedRun.add(row.graphic);
+      scheduleReport(row.graphic);
+    }
     dbg('last row', seqMode ? `${row.seq ?? '?'} (id ${row.id})` : String(row.id));
   };
 
@@ -1143,17 +1533,16 @@ async function boot(): Promise<void> {
       break;
     }
   }
-  // A GRAPHIC ON AIR THAT NO REPORT BANKS, AIRING TYPED DATA (issue #1762; control/outputRecovery.ts
-  // `unreportedTypedRows`): its typed Take can be older than `followFrom`, so the log below it is
+  // A GRAPHIC ON AIR THAT NO REPORT BANKS (issue #1762, widened by G2 section 4 to every such
+  // graphic; control/outputRecovery.ts `unreportedRows`): its Take can be older than `followFrom`, so the log below it is
   // read for that graphic alone, every page up to `followFrom` within the catch-up's ceiling
   // (`unreportedPages`; past it, none: dbg says so), and its commands
   // there replay before the rows above. Only the numbered log's head says what is on air, and a
-  // graphic every report banks, one that is not on air, or one whose live cue is a published native
-  // cue (`mayAirTyped`: a typed cue is never published) reads nothing more. A page that cannot be
+  // graphic every report banks, or one that is not on air, reads nothing more. A page that cannot be
   // read leaves the whole read out: half a history could replay an envelope a later Take replaced.
-  const publishedCues = new Set(payload.cues.map((cue) => cue.id));
   const unreported = stage.graphics.filter(
-    (key) => !resolved.live[key] && headOn.get(key) === true && mayAirTyped(headCue.get(key), publishedCues),
+    // Typed or not (G2 section 4): a Take no output ran, then a reload, brings back its values.
+    (key) => !resolved.live[key] && headOn.get(key) === true,
   );
   const unreportedSet = new Set(unreported);
   let below: ControlEventRow[] = [];
@@ -1179,10 +1568,21 @@ async function boot(): Promise<void> {
       cursor = position(rows[rows.length - 1]);
     }
   }
-  const unreportedTyped = unreportedTypedRows(unreported, below);
+  const unreportedTyped = unreportedRows(unreported, below);
   if (unreportedTyped.length > 0) {
-    dbg('catch-up', `typed data no report banks: ${[...new Set(unreportedTyped.map((row) => row.graphic))].join(', ')}`);
+    dbg('catch-up', `on air with no report: ${[...new Set(unreportedTyped.map((row) => row.graphic))].join(', ')}`);
     missed = unreportedTyped.concat(missed);
+  }
+  // Past the read: its head cue's published values, when that cue is published (a typed cue never
+  // is); otherwise it keeps what its next Take sends.
+  for (const key of unreported) {
+    if (!inScope(key) || unreportedTyped.some((row) => row.graphic === key)) continue;
+    const cue = payload.cues.find((c) => c.id === headCue.get(key));
+    if (cue) {
+      mergedData.set(key, { ...cue.values });
+      touched.add(key);
+      stage.apply(key, { t: 'update', data: cue.values });
+    } else dbg('catch-up', `on air with no report and no published cue: ${key} keeps what its next Take sends`);
   }
   // Only what this link holds is replayed (R7); a scene link reads every other row past.
   const replayed = missed.filter((row) => inScope(row.graphic) && !alreadyInSnapshot(snapshotAt, row.graphic, position(row)));
@@ -1335,7 +1735,23 @@ async function boot(): Promise<void> {
   // Everything the boot knows is applied: the READY checks may now warm what nothing touched.
   markRecovered();
   if (animates) {
-    void airWhenSettled(stage)
+    // A frame that has not loaded when the stage comes back stays hidden by its own flag until it
+    // has loaded, run what it holds and stood still (G2 section 4): history never plays on air.
+    const revealing = {
+      ...stage,
+      graphics: stage.graphics,
+      setVisible: (visible: boolean) => {
+        if (visible) {
+          for (const key of stage.graphics) {
+            if (stage.released(key)) continue;
+            bootHidden.add(key);
+            stage.hide(key, true);
+          }
+        }
+        stage.setVisible(visible);
+      },
+    };
+    void airWhenSettled(revealing)
       .then((ending) =>
         dbg(
           'catch-up',
@@ -1346,7 +1762,7 @@ async function boot(): Promise<void> {
       // rest of the show, so whatever went wrong, air comes back and says so where the one
       // surface an operator has on a playout box can show it.
       .catch((error: unknown) => {
-        stage.setVisible(true);
+        revealing.setVisible(true);
         dbg('catch-up', `failed (${String(error)}) — back on air anyway`);
         console.warn('NoaCG output: the boot catch-up failed; the stage is back on air.', error);
       });
@@ -1390,6 +1806,7 @@ async function boot(): Promise<void> {
     dbg('commands', 'numbered log (the fast road is not needed)');
     const CATCH_UP_GRACE_MS = 5_000;
     let catchUpTimer: ReturnType<typeof setTimeout> | null = null;
+    following = true;
     followSeqLog({
       showId: resolved.id,
       from: lastAppliedSeq,
@@ -1450,6 +1867,10 @@ async function boot(): Promise<void> {
         lastReported.clear();
         bankedAt.clear();
         sinceBank.clear();
+        for (const graphic of holds.keys()) staleFrom.add(graphic);
+        for (const graphic of failures.keys()) staleFrom.add(graphic);
+        for (const graphic of typedRefused.keys()) staleFrom.add(graphic);
+        for (const graphic of stage.graphics) if (stage.waitingFor(graphic) !== null) staleFrom.add(graphic);
         for (const graphic of stage.graphics) {
           if (liveGraphics.has(graphic) || mergedData.has(graphic) || typed.airing.has(graphic)) scheduleReport(graphic, true);
         }

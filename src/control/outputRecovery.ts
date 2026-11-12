@@ -304,6 +304,14 @@ export function unreportedTypedRows<R extends { graphic: string; msg: { t: strin
   return typedNow.size ? rows.filter((row) => typedNow.has(row.graphic) && COMMAND_VERBS.has(row.msg.t)) : [];
 }
 
+/** EVERY GRAPHIC ON AIR THAT NO REPORT BANKS, typed or not (live-publishing G2 section 4): its own
+ *  command rows below `followFrom`, in log order, so a reboot brings it back with the values the
+ *  operator sent rather than its template's defaults. */
+export function unreportedRows<R extends { graphic: string; msg: { t: string } }>(graphics: readonly string[], rows: readonly R[]): R[] {
+  const wanted = new Set(graphics);
+  return rows.filter((row) => wanted.has(row.graphic) && COMMAND_VERBS.has(row.msg.t));
+}
+
 /** Whether a graphic on air with no report may be airing typed data, by the cue the log's head says
  *  it last took: not when that is a cue the output's payload publishes, since a cue with typed data
  *  never is (model/productionData.ts `preparedCue`); a direct trigger or a cue not published may. */

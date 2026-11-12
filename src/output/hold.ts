@@ -1,0 +1,197 @@
+// HELD TAKES (live-publishing G2 section 3; W3, S4, O7).
+//
+// A Take of a graphic this output cannot run yet (not hosted, or its frame still loading) is not
+// dropped: it starts a hold, and every command of that graphic waits behind it, in log order, until
+// the graphic can run them. Cancellation is decided first, from the queue's last lifecycle command:
+// a queue that ends in an Out needs nothing loaded and nothing shown. When the graphic releases, the
+// queue runs as live commands (its Take reached the output at most 5 s ago), or hidden and settled
+// without its entrance (later than that, or a boot frame's history in its frame).
+//
+// Pure and DOM-free: scripts/output-hold.test.mjs runs it in Node against a reference model, and
+// the output renderer loads it in CasparCG 2.3's Chromium 71 (ES2017: no `?.`, no `??`).
+
+import { supersededAnimations } from '../control/seqFollow.ts';
+
+/** S4: a Take held longer than this appears without its entrance. */
+export const ENTRANCE_MS = 5_000;
+/** At most this many commands wait per graphic, and per output. */
+export const HELD_PER_GRAPHIC = 200;
+export const HELD_PER_OUTPUT = 1_000;
+
+/** One held command: the log row's position, its message, its server time, and when it reached
+ *  this output on the output's own clock. */
+export interface HeldRow<M extends { t: string } = { t: string }> {
+  at: number;
+  msg: M;
+  createdAt?: string;
+  receivedAt: number;
+}
+
+export const isTake = (t: string) => t === 'play' || t === 'snap';
+export const isOut = (t: string) => t === 'stop';
+
+/** The queue's last lifecycle command: 'take', 'out', or null when it holds none. */
+export function lastLifecycle(rows: readonly HeldRow[]): 'take' | 'out' | null {
+  for (let i = rows.length - 1; i >= 0; i -= 1) {
+    const t = rows[i].msg.t;
+    if (isTake(t)) return 'take';
+    if (isOut(t)) return 'out';
+  }
+  return null;
+}
+
+/** A queue that ends in an Out, or holds no Take, is cancelled: nothing of it is ever shown. */
+export function isCancelled(rows: readonly HeldRow[]): boolean {
+  return lastLifecycle(rows) !== 'take';
+}
+
+/** When the Take that will be seen reached this output: the newest Take, or null. */
+export function surviving(rows: readonly HeldRow[]): number | null {
+  for (let i = rows.length - 1; i >= 0; i -= 1) {
+    const t = rows[i].msg.t;
+    if (isOut(t)) return null;
+    if (isTake(t)) return rows[i].receivedAt;
+  }
+  return null;
+}
+
+export type ReleaseMode = 'cancelled' | 'onTime' | 'late';
+
+/** How a held queue runs when its graphic releases at `now`. `history`: the frame already holds a
+ *  boot's history in its own queue, which never plays on air. */
+export function releaseMode(rows: readonly HeldRow[], now: number, history: boolean): ReleaseMode {
+  // A boot frame's history never plays on air: hidden, whatever the queue ends in (G2 case 1).
+  if (history) return 'late';
+  if (isCancelled(rows)) return 'cancelled';
+  const take = surviving(rows);
+  return take !== null && now - take <= ENTRANCE_MS ? 'onTime' : 'late';
+}
+
+/** Whether a held Take has waited past S4's 5 s (its `h` kind reads `late`). */
+export function heldLate(rows: readonly HeldRow[], now: number): boolean {
+  const take = surviving(rows);
+  return take !== null && now - take > ENTRANCE_MS;
+}
+
+type Plain = { t: string; data?: Record<string, string>; typed?: unknown; appearance?: unknown; place?: unknown; src?: unknown };
+
+/** Two updates that run the same as one: no typed data, look or place hint, the same data road. */
+const mergeable = (a: Plain, b: Plain) =>
+  a.t === 'update' &&
+  b.t === 'update' &&
+  a.typed === undefined &&
+  b.typed === undefined &&
+  a.appearance === undefined &&
+  b.appearance === undefined &&
+  a.place === undefined &&
+  b.place === undefined &&
+  a.src === b.src;
+
+/**
+ * Make room in a held queue: consecutive plain updates become one (the later values win, which is
+ * what applying them in order does for a graphic that runs no clock; `clocks` true keeps them), and
+ * an entrance a later Take or Out replaces is dropped. Returns the shorter queue, or null when it is
+ * still over `limit`: the hold then fails with `limit`.
+ */
+export function compact<M extends Plain>(rows: readonly HeldRow<M>[], limit: number, clocks: boolean): HeldRow<M>[] | null {
+  if (rows.length <= limit) return rows.slice();
+  const out: HeldRow<M>[] = [];
+  for (const row of rows) {
+    const last = out[out.length - 1];
+    if (!clocks && last && mergeable(last.msg, row.msg)) {
+      out[out.length - 1] = { ...row, msg: { ...row.msg, data: { ...(last.msg.data || {}), ...(row.msg.data || {}) } } };
+      continue;
+    }
+    out.push(row);
+  }
+  // Superseded entrances, by the one rule a refill uses (seqFollow.ts `supersededAnimations`),
+  // named by their place in the queue: a hold kept across a republish mixes two logs' positions.
+  const skip = quietEntrances(out);
+  const result = out.filter((_row, i) => !skip.has(i));
+  return result.length <= limit ? result : null;
+}
+
+/** The queue indexes of entrances a later Take or Out supersedes (seqFollow.ts
+ *  `supersededAnimations`), by place in the queue, never by log position: a hold kept across a
+ *  republish holds rows of two logs, whose positions can repeat. */
+export function quietEntrances(rows: readonly HeldRow[]): Set<number> {
+  return supersededAnimations(rows.map((row, i) => ({ id: 0, graphic: '', seq: i, msg: row.msg })));
+}
+
+/** Why a hold failed, as its `h` entry and the page's words carry it. */
+export type HoldFailure = 'unpublished' | 'load' | 'script' | 'limit' | 'typed';
+
+/** Where one live command for a graphic goes (G2 section 3): it joins the graphic's held queue,
+ *  starts a hold, is settled with nothing to run it on (R4), or runs. */
+export type LiveRoute = 'join' | 'hold' | 'settle' | 'run';
+
+export function routeLive(
+  f: { held: boolean; ready: boolean; hosts: boolean; stageWaits: boolean; isPackage: boolean },
+  t: string,
+): LiveRoute {
+  if (f.held) return 'join';
+  if (isTake(t) && !f.ready) return 'hold';
+  // Nothing to run it on: not hosted, or a frame a publish added that is still loading and holds
+  // nothing. A boot frame still loading, or a package waiting for its base, holds history in the
+  // stage: what follows joins it there.
+  if (!f.ready && (!f.hosts || (!f.isPackage && !f.stageWaits))) return 'settle';
+  return 'run';
+}
+
+/** A Take or Out ends a failure: what the failure said is no longer what the operator asked for. */
+export const endsFailure = (t: string) => isTake(t) || isOut(t);
+
+/** ONE LIVE COMMAND, WHOLE (the corrected model after the final review): a failure is a line in `h`
+ *  and never decides where a command goes, so the route reads the hold and the frame alone. A Take
+ *  or Out clears the failure; a Take that runs on a frame able to run it first hands that frame the
+ *  values and look its graphic kept, so it never airs what the frame last had. */
+export function liveStep(
+  f: { held: boolean; ready: boolean; hosts: boolean; stageWaits: boolean; isPackage: boolean; failed: boolean },
+  t: string,
+): { route: LiveRoute; clear: boolean; prime: boolean } {
+  const route = routeLive(f, t);
+  const clear = f.failed && endsFailure(t);
+  return { route, clear, prime: clear && isTake(t) && route === 'run' };
+}
+
+/** A hold that cannot go on (its load deadline, a script error, the limit): a cancelled one only
+ *  settles, it never fails (R6); any other fails (R8). */
+export function giveUp(rows: readonly HeldRow[]): 'settle' | 'fail' {
+  return isCancelled(rows) ? 'settle' : 'fail';
+}
+
+/** A graphic's failure line, as `h` reports it. */
+export interface Failure {
+  from: number;
+  why: HoldFailure;
+  /** D1: only overdue, so its queue running in full clears it. */
+  overdue?: true;
+}
+
+/** A STAGE OUTCOME'S EFFECT ON THE FAILURE LINE (owner decisions D1 and D2, 2026-11-12). An overdue
+ *  command reads red and clears once its graphic's queue has run in full (`drained`); a real
+ *  failure stays until the next Take or Out (`liveStep`), All out or deletion, and replaces an
+ *  overdue line so a later post cannot clear it. */
+export function afterOutcome(
+  current: Failure | undefined,
+  at: number,
+  outcome: 'posted' | 'skipped' | { failed: HoldFailure; overdue?: true },
+  drained: boolean,
+): Failure | undefined {
+  if (outcome === 'posted') return current?.overdue && drained ? undefined : current;
+  if (outcome === 'skipped') return current;
+  if (!current) return outcome.overdue ? { from: at, why: outcome.failed, overdue: true } : { from: at, why: outcome.failed };
+  if (current.overdue && !outcome.overdue) return { from: current.from, why: outcome.failed };
+  return current;
+}
+
+/** WHAT A DEMAND READ DOES WITH ONE HOLD (G2 section 3): a graphic hosted here, or a hold started
+ *  after the read did, is not its to settle (the next read is); otherwise the published graphic is
+ *  added, a cancelled hold settles, and one the payload does not name fails `unpublished`. With no
+ *  answer the hold waits for the next read. */
+export function demandFor(f: { hosted: boolean; covered: boolean; answered: boolean; published: boolean; elsewhere?: boolean; cancelled: boolean }): 'skip' | 'add' | 'settle' | 'fail' {
+  if (f.hosted || !f.covered || !f.answered) return 'skip';
+  if (f.published) return 'add';
+  // Another scene's graphic on a scene link (OS1a R5): not this link's to play, so it settles.
+  return f.cancelled || f.elsewhere ? 'settle' : 'fail';
+}

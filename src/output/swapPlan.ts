@@ -79,12 +79,12 @@ export function swapsNow(pending: readonly string[], onAir: (graphic: string) =>
 /** Where the version stands after the swapper has had its go: undefined when every graphic holds
  *  it, else what still keeps the output from it. `w` names the graphics waiting for clear; a page
  *  built before it reads `waiting` as "Behind", as it read a whole reload waiting. */
-export function swapStatus(input: { version: HeldVersion; of: number; id?: string; waiting: string[]; failed: ReadyIssue[]; holds: boolean }): ChangePrep | undefined {
+export function swapStatus(input: { version: HeldVersion; of: number; id?: string; waiting: string[]; failed: ReadyIssue[]; holds: boolean; building?: string[] }): ChangePrep | undefined {
   const base = { v: input.version, of: input.of, n: input.of, ...(input.id ? { id: input.id } : {}) };
   const w = { w: input.waiting.slice(0, MAX_ISSUES) };
   if (input.failed.length > 0) return { s: 'failed', ...base, is: input.failed.slice(0, MAX_ISSUES), ...w };
   if (input.waiting.length > 0) return { s: 'waiting', ...base, air: input.waiting.length, ...w };
   if (input.holds) return undefined;
   // Built, and taking over in a moment (a frame that just went off air finishing its exit).
-  return { s: 'preparing', ...base };
+  return { s: 'preparing', ...base, ...(input.building && input.building.length ? { b: input.building.slice(0, MAX_ISSUES) } : {}) };
 }

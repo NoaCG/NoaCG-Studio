@@ -91,9 +91,11 @@ test('the read below the reports takes every page up to followFrom within the ca
   assert.equal(pages(0), 0, 'nothing below the start');
   assert.equal(pages(1203, false), 0, 'protocol 1 has no head to say what is on air');
   assert.match(main, /unreportedPages\(followFrom, !!seqMode, CONTROL_TAIL_PAGE, MAX_CATCH_UP_PAGES\)/);
-  // The output asks it only for graphics on air (the head) with no report whose live cue is not a
-  // published native cue, puts their rows first, and leaves a read it could not finish out whole.
-  assert.match(main, /\(key\) => !resolved\.live\[key\] && headOn\.get\(key\) === true && mayAirTyped\(headCue\.get\(key\), publishedCues\),/);
+  // The output asks it for every graphic on air (the head) with no report, typed or not (G2
+  // section 4: a Take no output ran, then a reload, brings back its values), puts their rows first,
+  // and leaves a read it could not finish out whole.
+  assert.match(main, /\(key\) => !resolved\.live\[key\] && headOn\.get\(key\) === true,\n/);
+  assert.match(main, /const unreportedTyped = unreportedRows\(unreported, below\);/);
   assert.match(main, /if \(!tail\.ok \|\| tail\.value\.reset\) \{\n\s+below = \[\];/, 'a failed page or a republish leaves the whole read out');
   assert.match(main, /missed = unreportedTyped\.concat\(missed\);/);
   // A typed cue is never published, so a published cue on air is native: nothing more is read.
@@ -111,7 +113,9 @@ test('the output banks typed data in its report, rebuilds it through the gate, a
   assert.match(main, /const data = airingTyped \? \{\} : \(mergedData\.get\(graphic\) \?\? \{\}\);/);
   assert.match(main, /const typedState = airingTyped \? \{ \.\.\.\(withLook \?\? \{\}\), typed: typedEnvelope\.get\(graphic\), steps: stepsSince\.get\(graphic\) \?\? 0, on: liveGraphics\.has\(graphic\) \} : withLook;/);
   // An imported OGraf package's answers ride beside it (E3.2a), never in place of it.
-  assert.match(main, /const state = ograf \? \{ \.\.\.\(typedState \?\? \{\}\), ograf \} : typedState;/);
+  assert.match(main, /const withOgraf = ograf \? \{ \.\.\.\(typedState \?\? \{\}\), ograf \} : typedState;/);
+  // What the output has run (G2 section 1) rides beside both, by sequence only.
+  assert.match(main, /const state = seqMode \? \{ \.\.\.\(withOgraf \?\? \{\}\), run: runNow\(\) \} : withOgraf;/);
   // By row id there is no head: a typed report's own `on` puts a graphic with no pose back on air.
   assert.match(main, /\(headOn\.get\(key\) === true \|\| \(!seqMode && reportedTyped\(reports\[key\]\)\?\.on === true\)\) &&/);
   // Only a held graphic keeps its bank where it is.

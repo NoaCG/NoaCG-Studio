@@ -74,7 +74,8 @@ export interface ForeignOgrafLayer {
    *  step or Out was sent before it settled, so a play or stop answer still says where it is. */
   onAnswer(cb: (call: OgrafCall, answer: OgrafAnswer, newest: boolean) => void): void;
   /** Route one ControlMessage. Anything with no OGraf meaning (`snap`, `hello`) is dropped. */
-  send(msg: ControlMessage): void;
+  /** `skip`: a Take or step lands at once (`skipAnimation`), as when it replays out of sight. */
+  send(msg: ControlMessage, skip?: boolean): void;
   /** The same, answered: what the Graphic said to this call, or null for a message with no OGraf
    *  meaning, which is sent nowhere. */
   call(msg: ControlMessage): Promise<OgrafAnswer> | null;
@@ -247,9 +248,10 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
     gone = true;
     for (const out of [...pending.values()]) out.settle({ status: 'gone' });
   };
-  const call = (msg: ControlMessage): Promise<OgrafAnswer> | null => {
+  const call = (msg: ControlMessage, skip = false): Promise<OgrafAnswer> | null => {
     const mapped = ografCallFor(msg);
     if (!mapped) return null;
+    if (skip && mapped.call === 'play') return post('play', [{ ...mapped.args[0], skipAnimation: true }]);
     return post(mapped.call, mapped.args);
   };
 
@@ -275,7 +277,7 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
     instance: suffix,
     frame,
     onAnswer: (cb) => void answerCbs.push(cb),
-    send: (msg) => void call(msg),
+    send: (msg, skip) => void call(msg, skip),
     call,
     step: (op) => {
       const judged = ografStepFor(op, { declared: manifest.stepCount, at });

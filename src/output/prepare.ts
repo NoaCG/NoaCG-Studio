@@ -96,7 +96,7 @@ export function createPreparer(opts: {
   /** The stage resolution this page booted with: another one needs a reload. */
   resolution: Resolution;
   /** The published payload as the server holds it now, or null when it did not answer. */
-  resolve: () => Promise<OutputPayload | null>;
+  resolve: (prep?: PrepRequest) => Promise<OutputPayload | null>;
   /** How many graphics are on air on this output now. */
   onAir: () => number;
   /** Takes the published version one graphic at a time. */
@@ -139,7 +139,7 @@ export function createPreparer(opts: {
     if (!taking || running) return;
     const { keys, version, adoptable, of, id } = taking;
     const holds = opts.swapper.holds(version.g, keys);
-    const chg = swapStatus({ version: { n: version.n, h: version.h }, of, id, waiting: opts.swapper.waiting(), failed: opts.swapper.failed(), holds });
+    const chg = swapStatus({ version: { n: version.n, h: version.h }, of, id, waiting: opts.swapper.waiting(), failed: opts.swapper.failed(), holds, building: opts.swapper.building() });
     if (holds) {
       // Already taken when the publish was the version held, with only cue metadata moved.
       if (held === version || opts.adopt(adoptable)) held = version;
@@ -197,7 +197,7 @@ export function createPreparer(opts: {
     try {
       // Asked beside the payload: a renderer deployed since this page loaded is taken by a reload,
       // which boots onto the published version anyway, so with nothing on air it goes first.
-      const [payload, newBuild] = await Promise.all([opts.resolve(), reloadForBuild || opts.newBuild().catch(() => false)]);
+      const [payload, newBuild] = await Promise.all([opts.resolve(prep), reloadForBuild || opts.newBuild().catch(() => false)]);
       if (newBuild) reloadForBuild = true;
       const next = payload ? payload.ver : undefined;
       if (!payload || !next) return;
@@ -216,7 +216,7 @@ export function createPreparer(opts: {
       const version = { n: next.n, h: next.h };
       const record = { keys: payload.graphics.map((g) => g.key), version: same ? held! : next, adoptable: { ...payload, graphics: [] }, of: 0, id: prep.id };
       taking = record;
-      record.of = await opts.swapper.apply(payload, (n, of) => opts.report({ s: 'preparing', v: version, of, n, id: prep.id }));
+      record.of = await opts.swapper.apply(payload, (n, of) => opts.report({ s: 'preparing', v: version, of, n, id: prep.id, b: opts.swapper.building().slice(0, MAX_ISSUES) }));
       if (same) await opts.recheck();
     } catch {
       // The server did not answer as expected: this page keeps its version and says nothing new.

@@ -131,6 +131,9 @@ test('two outputs each swap a changed graphic in place, and hold one on air unti
     await mark(air, SCOREBUG);
     await mark(air, STRAP);
   }
+  // Both outputs reported running it: PROGRAM says "ran", never more (live-publishing G2 section 6).
+  await expect(page.getByTestId('program-air')).toHaveAttribute('data-state', 'ran', { timeout: 15_000 });
+  await expect(page.getByTestId('program-air')).toHaveAttribute('title', /A browser cannot prove the broadcast picture/);
 
   // ── AC-1: the lower third changes while the scorebug is up. Each output swaps it on its own. ──
   await editInLibrary(page, showId, STRAP, 'first change');
@@ -152,11 +155,12 @@ test('two outputs each swap a changed graphic in place, and hold one on air unti
     await expect.poll(async () => (await readyOf(air))?.chg?.w ?? [], { timeout: 120_000 }).toEqual([SCOREBUG]);
     expect(await marked(air, SCOREBUG)).toBe('before');
   }
-  await expect(page.getByTestId('production-status')).toContainText('Waiting for clear', { timeout: 30_000 });
+  // O3 (live-publishing G2 section 5): green, naming the graphic that takes its new design at its next Take.
+  await expect(page.getByTestId('production-status')).toContainText(`${SCOREBUG}: new design at next Take`, { timeout: 30_000 });
   await page.getByTestId('production-status').click();
   const panel = page.getByTestId('production-status-panel');
   for (const name of ['Desk A', 'Desk B']) {
-    await expect(panel.getByTestId('ready-output').filter({ hasText: name })).toContainText(`Waiting for clear: ${SCOREBUG}`, { timeout: 30_000 });
+    await expect(panel.getByTestId('ready-output').filter({ hasText: name })).toContainText(`${SCOREBUG}: new design at next Take`, { timeout: 30_000 });
   }
   await page.screenshot({ path: test.info().outputPath('waiting-for-clear.png') });
   await page.keyboard.press('Escape');
@@ -170,10 +174,138 @@ test('two outputs each swap a changed graphic in place, and hold one on air unti
     expect(await marked(air, SCOREBUG)).toBeNull();
     expect(reloads, 'no output reloaded for a graphic change').toBe(0);
   }
-  await expect(page.getByTestId('production-status')).not.toContainText('Waiting for clear', { timeout: 30_000 });
+  await expect(page.getByTestId('production-status')).not.toContainText('new design at next Take', { timeout: 30_000 });
 
   await unpublishForCleanup(page);
   await clearPublishedShows(page);
   await wipeMyGraphics(page);
   await anon.close();
+});
+
+// ── HELD TAKES AND THE HONEST LIGHT (live-publishing G2, AC-3) ─────────────────────────────────
+// Two graphics are added and published while each output's read of the payload is held back on
+// purpose (Desk A 2 s, Desk B 8 s). A Take of the first reaches both outputs before they hold it:
+// Desk A shows it with its entrance once loaded, Desk B (past 5 s) shows it at its final state
+// without its entrance and says so. The second is taken and taken out while loading: it is never
+// shown. Meanwhile the production page's light is never green, and it is green again once both
+// outputs have run everything pressed.
+const LOWER = 'News Strip';
+
+test('a Take of a graphic still loading plays once loaded, a cancelled one never shows, and the light waits for both outputs', async ({ page, browser }) => {
+  test.setTimeout(300_000);
+  await signIn(page);
+  await page.keyboard.press('Escape');
+  await clearPublishedShows(page);
+  await wipeMyGraphics(page);
+  for (const name of [SCOREBUG, STRAP, LOWER]) await libraryGraphic(page, name);
+  const showId = await page.evaluate(async (showName) => {
+    const { createShowNamedChecked, addGraphicToShow } = await import('/src/model/shows.ts');
+    const { loadGraphics } = await import('/src/model/library.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { useRouter } = await import('/src/app/router.ts');
+    const { show, error: notCreated } = createShowNamedChecked(showName);
+    if (notCreated) throw new Error(notCreated);
+    const doc = loadGraphics().find((g) => g.name === 'House Scorebug');
+    if (!doc) throw new Error('no scorebug');
+    const { error } = addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
+    if (error) throw new Error(error);
+    const failure = await commitDurableWrites();
+    if (failure) throw new Error(failure);
+    useRouter.getState().navigate({ view: 'production', id: show.id });
+    await new Promise((resolve) => setTimeout(resolve));
+    return show.id;
+  }, `Held ${Date.now()}`);
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await publishProduction(page);
+  const outputSlug = await page.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().find((x) => x.id === id)?.outputSlug ?? '';
+  }, showId);
+  const anon = await browser.newContext();
+  const outputs: { page: Page; name: string; delay: number }[] = [];
+  for (const [name, delay] of [['Desk A', 2_000], ['Desk B', 8_000]] as const) {
+    const air = await anon.newPage();
+    // What an output says when it gives up on a held Take: printed, so a failure names its cause.
+    air.on('console', (m) => {
+      if (/did not play here|output stage/.test(m.text())) console.log(`[${name}] ${m.text()}`);
+    });
+    await air.goto(`/output?production=${encodeURIComponent(outputSlug)}&name=${encodeURIComponent(name)}&debug=1`);
+    await expect(air.locator('pre')).toContainText('realtime: following', { timeout: 60_000 });
+    await expect.poll(() => air.evaluate(() => (window as ReadyWindow).__noacgLive!.presence()), { timeout: 30_000 }).not.toBe('joining');
+    const joined = (await air.evaluate(() => (window as ReadyWindow).__noacgLive!.presence())) === 'joined';
+    if (!joined) await anon.close();
+    test.skip(!joined, 'this server has no live topic (migration 0068): outputs report on Presence');
+    await expect.poll(async () => (await readyOf(air))?.n, { timeout: 60_000 }).toBe(1);
+    // From here every read of the published payload is late by `delay`: the loading delayed on purpose.
+    await air.route('**/rest/v1/rpc/control_output_resolve*', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      await route.continue().catch(() => {});
+    });
+    outputs.push({ page: air, name, delay });
+  }
+  const status = page.getByTestId('production-status');
+  await expect(status).toHaveAttribute('data-tone', 'ok', { timeout: 60_000 });
+
+  // Both new graphics join the production and are published.
+  await page.evaluate(async ([id, names]) => {
+    const { addGraphicToShow } = await import('/src/model/shows.ts');
+    const { loadGraphics } = await import('/src/model/library.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    for (const name of names) {
+      const doc = loadGraphics().find((g) => g.name === name);
+      if (!doc) throw new Error(`no ${name}`);
+      const { error } = addGraphicToShow(id, doc.template, { graphicId: doc.id });
+      if (error) throw new Error(error);
+    }
+    const failure = await commitDurableWrites();
+    if (failure) throw new Error(failure);
+  }, [showId, [STRAP, LOWER]] as [string, string[]]);
+  await expect(page.getByTestId('production-publish-changes')).toBeVisible({ timeout: 15_000 });
+  await page.getByTestId('production-publish-changes').click();
+  await expect(status).not.toContainText('Publishing', { timeout: 30_000 });
+
+  // A Take of the strap, then the second strap taken and taken out, while both outputs load them.
+  const tookAt = Date.now();
+  await page.getByTestId('select-cue').filter({ hasText: STRAP }).first().click();
+  await page.getByTestId('verb-take').click();
+  await page.getByTestId('select-cue').filter({ hasText: LOWER }).first().click();
+  await page.getByTestId('verb-take').click();
+  await page.getByTestId('verb-out').click();
+
+  // Never green while an output has not run what was pressed (E1), sampled through the hold.
+  const tones: string[] = [];
+  const b = outputs[1].page;
+  while (Date.now() - tookAt < 30_000) {
+    // What Desk B has run, as its Presence entry says it (live-publishing G2 section 1).
+    const run = await b.evaluate(() => (window as unknown as { __noacgLive: { entry(): { ready?: { run?: { h: Record<string, unknown> } } } } }).__noacgLive.entry().ready?.run);
+    const held = !run || Object.keys(run.h).length > 0;
+    const tone = (await status.getAttribute('data-tone')) ?? '';
+    if (!held && (await b.locator(`iframe[title="${STRAP}"]`).count()) > 0) break;
+    tones.push(tone);
+    await page.waitForTimeout(250);
+  }
+  expect(tones.length, 'the light was sampled while Desk B held the Take').toBeGreaterThan(4);
+  expect(tones.filter((t) => t === 'ok'), 'the light is never green while an output holds a Take').toEqual([]);
+  // Desk B waited past 5 s: its Take appeared without its entrance, and it says so.
+  await expect
+    .poll(() => b.evaluate(() => ((window as unknown as { __noacgLive: { entry(): { ready?: { lt?: { g: string }[] } } } }).__noacgLive.entry().ready?.lt ?? []).map((l) => l.g)), { timeout: 60_000 })
+    .toContain(STRAP);
+
+  for (const { page: air, name } of outputs) {
+    // The strap ran once on each output; the second strap was cancelled while it loaded and was
+    // never played at all, so its frame never showed (`data-plays` counts every entrance).
+    await expect.poll(() => air.locator('body').getAttribute('data-plays'), { timeout: 60_000, message: name }).toBe('1');
+    // The Take's own values reached the strap's document before its entrance (the update that came
+    // before the play, settled while the frame loaded): it airs the cue, not the template's defaults.
+    const handed = await air.evaluate((g) => (window as unknown as { __noacgLive: { handed(g: string): unknown } }).__noacgLive.handed(g), STRAP);
+    expect(handed, `${name}: the strap's document was handed the cue's values`).toBeTruthy();
+    expect(Object.keys(handed as object).length, `${name}: with the cue's fields`).toBeGreaterThan(0);
+    await expect(air.locator(`iframe[title="${LOWER}"]`)).toHaveCount(1, { timeout: 60_000 });
+  }
+  // Everything pressed has run on both outputs: green, and the panel names the late Take.
+  await expect(status).toHaveAttribute('data-tone', 'ok', { timeout: 60_000 });
+  await expect(status).toContainText('Ready');
+  await page.screenshot({ path: test.info().outputPath('held-take-green.png') });
+  await anon.close();
+  await unpublishForCleanup(page);
 });

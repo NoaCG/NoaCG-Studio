@@ -428,3 +428,29 @@ Filled in by each phase's pull request.
   production (G1 section 6).
 - Traps: in the evidence, "Traps met".
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-4.md`.
+
+### Phase 5: The honest light and held Takes
+
+- Design: `designs/G2.md`, graded A+ by an independent `/so` at 13a698c2, landed as #2426.
+- Previous verified `main`: 8b1a55c9 (the build's last merge from `main`).
+- Revert: `git revert -m 1 <this pull request's merge commit>` brings back today's output (a Take
+  for a graphic it does not host is dropped, reports bank whatever was applied) and today's light
+  ("Connected" from READY alone). Nothing persisted changed: `state.run` is one more member of a
+  report row's state, which older readers ignore, so no data step goes with it.
+- Rules: G2 section 8, R1 to R14 (reviewed Rules-first in the design gate).
+- Decisions: holds and run reports live on the numbered log only; the page owes the command rows it
+  follows and the head it resolved, not its own send answers (the answer carries no position, and
+  the Take path's send code was left alone); a mounted OGraf package counts as ready; monitors pass
+  no positions. Rules found while building are in the evidence.
+- Owner decisions (2026-11-12, on #2361, after the final review's repeated family):
+  - D1: a command with no outcome at 20 s (a boot frame or a package base still loading) reads
+    `failed load` in red, and nothing is dropped; when the frame loads its queue runs hidden and
+    the red clears. A held Take still gives up and drops its queue at 20 s (R8).
+  - D2: a single stage failure on a running graphic stays red until that graphic's next Take or
+    Out, All out, or its deletion; later commands still run.
+- G2 wording these change: R1's "answered failed and leaves the queue" becomes D1. Section 1's "a
+  graphic in `h` has settled nothing from `from` on" becomes "has not settled everything from
+  `from` on": `ran = from - 1` stays a lower bound. R4's "or whose hold has failed" applies only
+  while the graphic has no frame able to run it: a failure is a line in `h`, never a gate.
+- Traps: in the evidence, "Traps met".
+- Evidence: `docs/work-specs/live-publishing/evidence/phase-5.md`.

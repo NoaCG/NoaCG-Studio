@@ -270,6 +270,8 @@ import { type PayloadVersion } from '../../control/payloadVersion';
 import { clockWords, type HeldVersion, type ReadyStamp } from '../../control/readiness';
 import { commandPathsOf, type PrepRequest } from '../../control/prepareLive';
 import { casparOutputTarget, describePlayoutStatus, programAir, relevantPlayout, takeTargets, type StatusFacts } from '../../control/playoutStatus';
+import { confirmLines, newerRun, pruneOwed, type ConfirmOutput, type Owed } from '../../control/runConfirm';
+import { epochTag, readRun, withoutRun, type RunReport } from '../../control/runReport';
 import { gatherBridgeFacts } from '../../control/prepareBridge';
 import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
 import { usePrepareForLive } from '../control/PrepareForLive';
@@ -913,6 +915,29 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const airHeldRef = useRef(false);
   useEffect(() => holdReload(() => airHeldRef.current), []);
   const [loggedAt, setLoggedAt] = useState<number | null>(null);
+  /** WHAT THE OUTPUTS OWE AND HAVE RUN (live-publishing G2 section 6): every command position this
+   *  page knows of, and each output's newest run report heard on a report row. */
+  const [owed, setOwed] = useState<Owed[]>([]);
+  const [heardRuns, setHeardRuns] = useState<Record<string, RunReport>>({});
+  /** The epoch the run reports are read in (its first 8 characters); null: take the next one heard. */
+  const runEpochRef = useRef<string | null>(null);
+  /** Epochs a republish ended: a report still from one of them is about a log that is gone. */
+  const retiredEpochsRef = useRef(new Set<string>());
+  /** When this page last learned of a command row: PROGRAM's "ran" is about a send at or before it. */
+  const newestOwedRef = useRef(0);
+  /** When this page's newest graphic send left. */
+  const lastSendRef = useRef(0);
+  /** The outputs as last judged, for dropping positions every one of them has confirmed. */
+  const confirmOutputsRef = useRef<ConfirmOutput[]>([]);
+  const noteRun = useCallback((run: RunReport) => {
+    if (retiredEpochsRef.current.has(run.e)) return;
+    if (runEpochRef.current === null) runEpochRef.current = run.e;
+    if (run.e !== runEpochRef.current) return;
+    setHeardRuns((m) => {
+      const next = newerRun(m[run.o], run);
+      return next === m[run.o] ? m : { ...m, [run.o]: next };
+    });
+  }, []);
   /** The browser has no network: nothing from the server reaches this page. */
   const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && navigator.onLine === false);
   useEffect(() => {
@@ -1015,6 +1040,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     log: follow ? follow.status === 'SUBSCRIBED' : null,
     cmd: commandStatus === null ? null : commandStatus === 'SUBSCRIBED',
   });
+  // Positions every expected output has confirmed are dropped, so the list holds only what is still
+  // unknown (live-publishing G2 section 6).
+  useEffect(() => {
+    setOwed((list) => {
+      const next = pruneOwed(list, confirmOutputsRef.current);
+      return next.length === list.length ? list : next;
+    });
+  }, [heardRuns, livePresence.peers]);
   /** READY (components/control/OutputHealth.tsx): the published version this page knows (its
    *  resolve, then each of its own publishes), and the outputs it expects, remembered per production
    *  in this browser and announced on the live topic so the hosted page and the phone count the
@@ -2082,6 +2115,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       fastEventGraphicsRef.current = new Set();
     },
     resolved: (resolved) => {
+      // The seed: every expected output must have reached the head this page opened on.
+      // A production with no head yet has no epoch: the first report heard names it.
+      runEpochRef.current = resolved.seq && resolved.seq.epoch ? epochTag(resolved.seq.epoch) : null;
+      setHeardRuns({});
+      setOwed(resolved.seq ? [{ at: resolved.seq.from, graphic: null, learnedAt: wallClock() }] : []);
       // Protocol 1 is the whole document's for good (hostedControl.ts `seqRoad`), so the mark is
       // never cleared, not even while a reconnect's resolve waits.
       if (!resolved.seq) setUnordered(true);
@@ -2118,8 +2156,29 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // A 'live' row is the renderer REPORTING what it applied — machine state included, which is
     // what keeps the action buttons' greying honest about air.
     machineState: (graphic, state) => {
-      noteMachineState(graphic, state);
-      noteOutputOgraf(graphic, state);
+      // What the output has run rides its report (G2 section 1); the buttons read the rest.
+      const run = readRun((state as { run?: unknown } | null)?.run);
+      if (run) noteRun(run);
+      const machine = withoutRun(state);
+      noteMachineState(graphic, machine);
+      noteOutputOgraf(graphic, machine);
+    },
+    owe: (at, graphic) => {
+      const learnedAt = wallClock();
+      newestOwedRef.current = learnedAt;
+      setOwed((list) => {
+        if (list.some((o) => o.at === at && o.graphic === graphic)) return list;
+        const next = list.concat({ at, graphic, learnedAt });
+        // Bounded through a long outage: the oldest position decides the age, the newest are kept.
+        return next.length > 1000 ? [next[0]].concat(next.slice(-999)) : next;
+      });
+    },
+    epochReset: () => {
+      if (runEpochRef.current !== null) retiredEpochsRef.current.add(runEpochRef.current);
+      runEpochRef.current = null;
+      setHeardRuns({});
+      // The new log's seed: every output owes a report from it before anything reads green.
+      setOwed([{ at: 0, graphic: null, learnedAt: wallClock() }]);
     },
     // THE TREE MOVED SERVER-SIDE: re-read it, rather than subscribing to `control_shows` a second
     // time. Any `src`, not `api` alone: this page's own `withBoundValues` airs the tree on the next
@@ -2578,7 +2637,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     serverInstant: (item) => needsServerInstant(clockSpecsRef.current.clocks.get(item.graphic), item.msg, session.air.get().clocks[item.graphic]),
     debts: () => sendDebts.current,
     outputUsable: () => usableOutputRef.current,
-    sending: (delta) => setSendingNow((n) => Math.max(0, n + delta)),
+    sending: (delta) => {
+      // When this page's newest send left: its row can arrive before its answer does.
+      if (delta > 0) lastSendRef.current = wallClock();
+      setSendingNow((n) => Math.max(0, n + delta));
+    },
     owed: setSendOwed,
     loggedAt: setLoggedAt,
     noOutput: () => setNoOutputTake(true),
@@ -3849,7 +3912,29 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     : undefined;
   /** Lost, not merely empty: this session saw it there (`slotSeenOurs`). */
   const slotLost = slotSeenOurs && !!outputSlot && (outputSlot.holds === 'empty' || outputSlot.holds === 'other');
+  // WHAT EVERY EXPECTED OUTPUT HAS CONFIRMED RUNNING (live-publishing G2 section 6, E1): its newest
+  // run report from a report row or its Presence entry, judged against every position owed.
+  const confirmOutputs: ConfirmOutput[] = expectedOutputs.map((e) => {
+    const entry = livePresence.peers.find((p) => p.kind === 'output' && p.id === e.id);
+    const said =
+      entry?.ready?.run && !retiredEpochsRef.current.has(entry.ready.run.e) && entry.ready.run.e === (runEpochRef.current ?? entry.ready.run.e)
+        ? entry.ready.run
+        : null;
+    const heard = heardRuns[e.id] ?? null;
+    const run = said && heard ? newerRun(heard, said) : (said ?? heard);
+    return { id: e.id, name: e.name, run, present: !!entry, speaks: !!entry?.ready?.run || !!heard, oldLog: !!entry && entry.proto !== 2 };
+  });
+  confirmOutputsRef.current = confirmOutputs;
+  /** Graphics an output holds for a Take while it loads them (O7's Loading mark). */
+  const loadingGraphics = new Set<string>();
+  for (const out of confirmOutputs) {
+    if (!out.run) continue;
+    for (const graphic of Object.keys(out.run.h)) if (out.run.h[graphic][1] !== 'failed') loadingGraphics.add(graphic);
+  }
+  const confirm = hostedSlug && !offline ? confirmLines({ now, owed, outputs: confirmOutputs, presenceJoined: livePresence.status === 'joined' }) : [];
+  const ranLast = confirm.length === 0 && loggedAt !== null && newestOwedRef.current >= lastSendRef.current && confirmOutputs.length > 0;
   const playoutStatus = describePlayoutStatus({
+    confirm,
     started,
     publishing,
     casparOn,
@@ -4176,7 +4261,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           onWaits={noteProgramWaits}
           onReady={programReady}
           onOverflow={notePreviewOverflow}
-          air={programAir({ published: !!hostedSlug, sending: sendingNow, owed: sendOwed, loggedAt, lost: !!hostedSlug && (offline || resolveWaiting) })}
+          air={programAir({ published: !!hostedSlug, sending: sendingNow, owed: sendOwed, loggedAt, lost: !!hostedSlug && (offline || resolveWaiting), ran: ranLast })}
           serverLost={casparOn && (bridgeStatus?.state === 'bridge' || bridgeStatus?.state === 'server') ? bridgeStatus.state : null}
           programChip={
             chipGraphic ? (
@@ -4651,6 +4736,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       </section>
 
       <CueRundown
+        loadingGraphics={loadingGraphics}
         pinnedGraphics={pinned}
         onPin={writePin}
         candidateValues={(cue) => (cue.selection === undefined ? null : candidateOverlay(cue))}

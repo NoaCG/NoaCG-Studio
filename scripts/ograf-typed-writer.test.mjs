@@ -375,7 +375,8 @@ test('PROGRAM is rebuilt with the typed envelope this page aired, by the output\
   // Every stage, the page's monitors included, applies the same rule as the output's gate.
   const stage = readFileSync(path.join(root, 'src/output/stage.ts'), 'utf8');
   assert.match(stage, /if \(\(msg as \{ src\?: unknown \}\)\.src !== undefined\) dataless = true;/);
-  assert.match(stage, /if \(dataless\) break;/);
+  // A dataless update posts nothing; with no look it is a skipped command (G2 stage outcomes).
+  assert.match(stage, /if \(dataless\) \{\n\s+if \(!look\) return 'skipped';\n\s+break;\n\s+\}\n\s+post\(graphic, \{ cmd: 'update'/);
 });
 
 // ── E2.1: the form's writes ──────────────────────────────────────────────────────────────────

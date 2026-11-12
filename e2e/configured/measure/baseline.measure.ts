@@ -1,6 +1,6 @@
 import { test, expect, type Browser, type Locator, type Page } from '@playwright/test';
 import { fakeBridge, seedSettings } from '../../_fakeBridge';
-import { readyOf } from '../_helpers';
+import { openSecondProductionPage, readyOf } from '../_helpers';
 import { answerPanel, pairPanel } from '../_panel';
 import { buildFixture, cleanUp, outputSlugOf } from './_fixture';
 import {
@@ -775,3 +775,92 @@ test('boot', async ({ page, browser }) => {
   });
 });
 
+
+// ── W3 (live-publishing phase 5, G2 section 9): with outputs reporting what they ran, a graphic
+// cue Take's press to sent against phase 2's figure, and press to the light confirming it (every
+// output's run report reached the page), with MEASURE_OUTPUTS outputs (default 2) and a command
+// stream of MEASURE_FEED_MS (default 200 ms) updates to another graphic from a second device:
+// report rows and re-banks take the head lock a Take needs, and must not slow it.
+test('w3', async ({ page, browser }) => {
+  const outputsWanted = Number(process.env.MEASURE_OUTPUTS ?? 2);
+  const feedMs = Number(process.env.MEASURE_FEED_MS ?? 200);
+  await seedSettings(page);
+  // The fixture's server cue turns CasparCG on: without a Bridge the light is rightly red.
+  await fakeBridge(page);
+  await opPage(page);
+  const fx = await buildFixture(page, FIXTURE);
+  const plainLabels = await page.evaluate(async ({ id, cues }) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const s = loadShows().find((x) => x.id === id)!;
+    return cues.map((c) => s.cues!.find((x) => x.id === c)!.label);
+  }, { id: fx.showId, cues: fx.cues.plain });
+  const facts = await page.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const s = loadShows().find((x) => x.id === id)!;
+    return { slug: s.hostedSlug ?? '', fed: s.graphics[s.graphics.length - 1].name };
+  }, fx.showId);
+  const slug = await outputSlugOf(page, fx.showId);
+  await toProd(page);
+  await throttle(page, NET);
+  const outs: Page[] = [];
+  for (let i = 0; i < outputsWanted; i++) outs.push(await openOutput(browser, slug));
+  for (const out of outs) await healthyOutput(out, fx.graphics);
+  // The stream: a second device writing an update to the fed graphic every feedMs.
+  const feeder = feedMs > 0 ? await openSecondProductionPage(page, fx.showId) : null;
+  if (feeder) {
+    // Plain HTTP with the page's own session: the bundled build serves no source modules.
+    await feeder.evaluate(
+      ({ controlSlug, graphic, every, url, anon }) => {
+        let token = '';
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i) ?? '';
+          if (key.startsWith('sb-') && key.endsWith('-auth-token')) token = (JSON.parse(localStorage.getItem(key) ?? '{}') as { access_token?: string }).access_token ?? '';
+        }
+        let n = 0;
+        (window as unknown as { __feed: ReturnType<typeof setInterval> }).__feed = setInterval(() => {
+          n += 1;
+          void fetch(`${url}/rest/v1/rpc/control_send_many`, {
+            method: 'POST',
+            headers: { apikey: anon, Authorization: `Bearer ${token || anon}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ p_slug: controlSlug, p_items: [{ graphic, msg: { t: 'update', data: { f0: `feed ${n}` }, src: 'api' } }] }),
+          });
+        }, every);
+      },
+      { controlSlug: facts.slug, graphic: facts.fed, every: feedMs, url: process.env.VITE_SUPABASE_URL ?? '', anon: process.env.VITE_SUPABASE_ANON_KEY ?? '' },
+    );
+  }
+  const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');
+  const status = page.getByTestId('production-status');
+  const samples: Sample[] = [];
+  const confirmed: number[] = [];
+  let unconfirmed = 0;
+  for (let i = 0; i < SAMPLES; i++) {
+    await select(page, plainLabels[i % Math.min(5, plainLabels.length - 1)]);
+    await clearLpm(page);
+    const pressedAt = await nowOn(page);
+    samples.push(await pressAndMeasure(page, take, 'verb-take', SEND));
+    // Press to confirmed: PROGRAM's tag reads "ran" once every output has reported running it (E1,
+    // G2 section 6). The light itself also weighs the fixture's server cue, which this harness's
+    // Bridge does not list, so the tag is the reading that is about the outputs alone.
+    const ok = await page
+      .waitForFunction(() => document.querySelector('[data-testid="program-air"]')?.getAttribute('data-state') === 'ran', null, { timeout: 20_000, polling: 25 })
+      .then(() => true, () => false);
+    if (ok) confirmed.push((await nowOn(page)) - pressedAt);
+    else {
+      unconfirmed += 1;
+      log(
+        'not confirmed',
+        await page.getByTestId('program-air').getAttribute('data-state', { timeout: 1_000 }).catch(() => 'none'),
+        await status.getAttribute('data-outputs'),
+        await status.getAttribute('data-ready-label'),
+        await status.getAttribute('title'),
+      );
+    }
+    // Sends only: a feed's rows make the page read its data tree again each time (as any data road).
+    await settle(page, 250, 20_000, SEND);
+    await outBtn.click();
+    await settle(page, 250, 20_000, SEND);
+  }
+  if (feeder) await feeder.close();
+  report('w3', { graphic: samples }, { outputs: outputsWanted, feedMs, pressToConfirmed: summary(confirmed, unconfirmed), fixtureFacts: fx });
+});

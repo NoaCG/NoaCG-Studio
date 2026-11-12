@@ -104,6 +104,10 @@ export interface SessionWirePage {
   hear: (items: { graphic: string; msg: ControlEventRow['msg'] }[]) => void;
   /** A renderer reported a graphic's machine state. */
   machineState: (graphic: string, state: { groups?: Record<string, string> } | null) => void;
+  /** A command row at this position: every expected output owes it (live-publishing G2 section 6). */
+  owe?: (at: number, graphic: string) => void;
+  /** The production was published again: positions start over in a new log. */
+  epochReset?: () => void;
   /** The tree moved server-side: read it again. */
   refreshData: () => void;
   /** A row as the action log names it, or null for a row it does not show. */
@@ -250,7 +254,10 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
       from: resolved.lastEventId,
       tail,
       seq: resolved.seq,
-      onEpochReset: () => arm?.reset(),
+      onEpochReset: () => {
+        arm?.reset();
+        if (live()) page().epochReset?.();
+      },
       onReplay: (now) => (replaying = now),
       onStatus: (s) => {
         if (!live()) return;
@@ -276,6 +283,13 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
         // The same door the broadcast comes through; the second copy is dropped there.
         page().hear([{ graphic: row.graphic, msg }]);
         arm?.row(row);
+        const t = msg.t;
+        // A command PRESSED is owed (E1): a data road's row (`src`, a feed or the data API) is not a
+        // press, and a feed writing every 200 ms would otherwise keep the light grey for good.
+        const pressed = (msg as { src?: unknown }).src === undefined;
+        if (pressed && typeof row.seq === 'number' && row.graphic && (t === 'update' || t === 'play' || t === 'stop' || t === 'next' || t === 'event' || t === 'snap')) {
+          page().owe?.(row.seq, row.graphic);
+        }
         if (msg.t === 'live') {
           page().machineState(row.graphic, msg.state ?? null);
           // A newer report than the boot's: a rebuild reads what this page has seen since.
