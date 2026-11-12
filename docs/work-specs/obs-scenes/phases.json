@@ -1,5 +1,76 @@
 [
   {
+    "id": "OS0",
+    "title": "Landing hold",
+    "acceptance": [
+      "AC-15, as written in docs/work-specs/obs-scenes/spec.md"
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [],
+    "spec": "docs/work-specs/obs-scenes/spec.md",
+    "brief": {
+      "goal": "A landing hold the CI gate reads, set by a workflow, failing closed, with its guide.",
+      "read": [
+        "docs/work-specs/obs-scenes/spec.md",
+        "docs/work-specs/obs-scenes/runbook.md",
+        "docs/plan-runs/known-traps.md",
+        ".agent-workflows/queue-merge.md",
+        ".github/workflows/",
+        "docs/CI_STABILITY.md"
+      ],
+      "touches": [
+        ".github/workflows/",
+        "scripts/",
+        "docs/"
+      ],
+      "checks": [
+        "a script test for the hold reader: on, off, unreadable",
+        "a dry run of the workflow on a branch"
+      ],
+      "notes": "Risky (CI). The hold's schedule is private and never appears in the repository."
+    }
+  },
+  {
+    "id": "OS1a",
+    "title": "The scene link",
+    "acceptance": [
+      "AC-1, as written in docs/work-specs/obs-scenes/spec.md",
+      "AC-4, as written in docs/work-specs/obs-scenes/spec.md",
+      "AC-5, as written in docs/work-specs/obs-scenes/spec.md"
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "OS0"
+    ],
+    "spec": "docs/work-specs/obs-scenes/spec.md",
+    "brief": {
+      "goal": "A folder can be an OBS scene; its link builds only that scene's graphics, settled; the OBS scenes switch.",
+      "read": [
+        "docs/work-specs/obs-scenes/spec.md",
+        "docs/work-specs/obs-scenes/runbook.md",
+        "docs/plan-runs/known-traps.md",
+        "docs/OBS_ON_A_REAL_HOST.md",
+        "docs/CLOUD_PLAYOUT.md",
+        "src/components/home/AGENTS.md",
+        "docs/work-specs/live-publishing/spec.md"
+      ],
+      "touches": [
+        "src/model/shows.ts",
+        "src/control/hostedControl.ts",
+        "src/output/",
+        "src/components/home/",
+        "e2e/",
+        "scripts/"
+      ],
+      "checks": [
+        "Node tests for scene payload filtering and unknown ids",
+        "the playout journey extended for a two-scene production",
+        "the existing output and publish journeys unchanged"
+      ],
+      "notes": "Risky (payload, output, recovery). Follow the spec's contract with the live-publishing run. Leave a placeholder production and the OS2 checklist with its receipt template in evidence/phase-OS1a.md."
+    }
+  },
+  {
     "id": "OS4",
     "title": "Clocks",
     "acceptance": [
@@ -7,10 +78,12 @@
       "AC-8, as written in docs/work-specs/obs-scenes/spec.md"
     ],
     "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
-    "dependsOn": [],
+    "dependsOn": [
+      "OS0"
+    ],
     "spec": "docs/work-specs/obs-scenes/spec.md",
     "brief": {
-      "goal": "Wall-clock sponsor rotation and countdowns to an absolute deadline, with HH:MM unchanged.",
+      "goal": "Wall-clock sponsor rotation and countdowns to an absolute ISO deadline; HH:MM unchanged.",
       "read": [
         "docs/work-specs/obs-scenes/spec.md",
         "docs/work-specs/obs-scenes/runbook.md",
@@ -26,132 +99,25 @@
         "e2e/"
       ],
       "checks": [
-        "Node tests over the clock and rotation runtimes with a fake clock",
-        "the existing clock journeys unchanged"
+        "Node tests over the runtimes with a fake clock, a hidden page and another timezone",
+        "the existing clock journeys"
       ],
-      "notes": "Touches no src/output/ code, so it can start before the live-publishing run's phase 4 lands. Read runs/obs-scenes.md in NoaCG/noacg-private (clone it into docs/private as .agent-workflows/cloud-delegate.md says) for the owner's live windows and the run's private context; copy nothing from it into public text. Nothing that touches playout (src/output/, src/control/, src/components/home/, api/, supabase/) lands inside an owner live window or landing freeze listed there; the coordinator holds the stamp until the window ends. Make no change that risks reliable playout: with the OBS scenes switch off, everything behaves as today (AC-5). Rename nothing persisted (src/model/AGENTS.md). Phases touching src/output/ build on the live-publishing run's landed output changes; merge origin/main right before landing and never work around its design. A migration only when no production is live and no landing freeze holds (supabase/AGENTS.md quiet window). Every check the run can do, it does itself; OBS hardware results come only from the owner phases and are never counted as passed by a builder. A behaviour choice the spec does not settle goes to the owner as one question."
+      "notes": "Risky (reload semantics). A production's graphic is its own template copy: say in the evidence that graphics made before this lands need Update."
     }
   },
   {
-    "id": "OS1",
-    "title": "The scene link",
+    "id": "OS5a",
+    "title": "JSON source",
     "acceptance": [
-      "AC-1, as written in docs/work-specs/obs-scenes/spec.md",
-      "AC-2, as written in docs/work-specs/obs-scenes/spec.md",
-      "AC-3, as written in docs/work-specs/obs-scenes/spec.md",
-      "AC-4, as written in docs/work-specs/obs-scenes/spec.md",
-      "AC-5, as written in docs/work-specs/obs-scenes/spec.md"
+      "AC-9, as written in docs/work-specs/obs-scenes/spec.md"
     ],
     "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
     "dependsOn": [
-      "OS4"
+      "OS0"
     ],
     "spec": "docs/work-specs/obs-scenes/spec.md",
     "brief": {
-      "goal": "A rundown folder can be an OBS scene with its own output link that builds only that scene's graphics, drawn settled, with Take and Out per scene graphic and one pool copy per scene.",
-      "read": [
-        "docs/work-specs/obs-scenes/spec.md",
-        "docs/work-specs/obs-scenes/runbook.md",
-        "docs/plan-runs/known-traps.md",
-        "docs/OBS_ON_A_REAL_HOST.md",
-        "docs/CLOUD_PLAYOUT.md",
-        "src/output/AGENTS.md",
-        "src/control/AGENTS.md",
-        "src/components/home/AGENTS.md"
-      ],
-      "touches": [
-        "src/model/shows.ts",
-        "src/output/",
-        "src/control/",
-        "src/components/home/",
-        "e2e/",
-        "scripts/"
-      ],
-      "checks": [
-        "Node tests for the scene model",
-        "one journey extended for a two-scene production",
-        "the existing playout journeys unchanged"
-      ],
-      "notes": "Starts only after the live-publishing run's phase 4 has landed. Leave a placeholder production and the OS2 checklist (spec AC-13) for the owner in evidence/phase-os1.md. Read runs/obs-scenes.md in NoaCG/noacg-private (clone it into docs/private as .agent-workflows/cloud-delegate.md says) for the owner's live windows and the run's private context; copy nothing from it into public text. Nothing that touches playout (src/output/, src/control/, src/components/home/, api/, supabase/) lands inside an owner live window or landing freeze listed there; the coordinator holds the stamp until the window ends. Make no change that risks reliable playout: with the OBS scenes switch off, everything behaves as today (AC-5). Rename nothing persisted (src/model/AGENTS.md). Phases touching src/output/ build on the live-publishing run's landed output changes; merge origin/main right before landing and never work around its design. A migration only when no production is live and no landing freeze holds (supabase/AGENTS.md quiet window). Every check the run can do, it does itself; OBS hardware results come only from the owner phases and are never counted as passed by a builder. A behaviour choice the spec does not settle goes to the owner as one question."
-    }
-  },
-  {
-    "id": "OS2",
-    "title": "First laptop test",
-    "acceptance": [
-      "AC-13, as written in docs/work-specs/obs-scenes/spec.md"
-    ],
-    "environment": "OW: the owner's Windows laptop with the newest OBS Studio",
-    "dependsOn": [
-      "OS1"
-    ],
-    "spec": "docs/work-specs/obs-scenes/spec.md",
-    "brief": {
-      "goal": "The owner measures load, stinger timing and the stale frame at 60 fps with every scene's source loaded.",
-      "read": [
-        "docs/work-specs/obs-scenes/spec.md",
-        "docs/work-specs/obs-scenes/runbook.md",
-        "docs/plan-runs/known-traps.md",
-        "docs/OBS_ON_A_REAL_HOST.md",
-        "docs/research/obs-real-host-2026-10-02/"
-      ],
-      "touches": [],
-      "checks": [],
-      "notes": "Owner phase. next hands it over with OS1's checklist; his receipt lands as evidence/phase-os2.md. A result that breaks a plan assumption goes to the owner with the plan's fallback (spec, Phases). Read runs/obs-scenes.md in NoaCG/noacg-private (clone it into docs/private as .agent-workflows/cloud-delegate.md says) for the owner's live windows and the run's private context; copy nothing from it into public text. Nothing that touches playout (src/output/, src/control/, src/components/home/, api/, supabase/) lands inside an owner live window or landing freeze listed there; the coordinator holds the stamp until the window ends. Make no change that risks reliable playout: with the OBS scenes switch off, everything behaves as today (AC-5). Rename nothing persisted (src/model/AGENTS.md). Phases touching src/output/ build on the live-publishing run's landed output changes; merge origin/main right before landing and never work around its design. A migration only when no production is live and no landing freeze holds (supabase/AGENTS.md quiet window). Every check the run can do, it does itself; OBS hardware results come only from the owner phases and are never counted as passed by a builder. A behaviour choice the spec does not settle goes to the owner as one question."
-    }
-  },
-  {
-    "id": "OS3",
-    "title": "Monitoring and settings",
-    "acceptance": [
-      "AC-6, as written in docs/work-specs/obs-scenes/spec.md",
-      "AC-12, as written in docs/work-specs/obs-scenes/spec.md"
-    ],
-    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
-    "dependsOn": [
-      "OS2"
-    ],
-    "spec": "docs/work-specs/obs-scenes/spec.md",
-    "brief": {
-      "goal": "Scene rows and the walk-through tick, the OBS scenes settings section, the per-scene fallback export and the OBS scenes guide in docs/.",
-      "read": [
-        "docs/work-specs/obs-scenes/spec.md",
-        "docs/work-specs/obs-scenes/runbook.md",
-        "docs/plan-runs/known-traps.md",
-        "docs/OBS_ON_A_REAL_HOST.md",
-        "docs/CLOUD_PLAYOUT.md",
-        "src/export/AGENTS.md"
-      ],
-      "touches": [
-        "src/components/home/",
-        "src/components/",
-        "src/output/",
-        "src/control/",
-        "src/export/",
-        "docs/",
-        "e2e/"
-      ],
-      "checks": [
-        "the playout panel journey with OBS events simulated in a test page",
-        "the fallback export opened with no network"
-      ],
-      "notes": "Read runs/obs-scenes.md in NoaCG/noacg-private (clone it into docs/private as .agent-workflows/cloud-delegate.md says) for the owner's live windows and the run's private context; copy nothing from it into public text. Nothing that touches playout (src/output/, src/control/, src/components/home/, api/, supabase/) lands inside an owner live window or landing freeze listed there; the coordinator holds the stamp until the window ends. Make no change that risks reliable playout: with the OBS scenes switch off, everything behaves as today (AC-5). Rename nothing persisted (src/model/AGENTS.md). Phases touching src/output/ build on the live-publishing run's landed output changes; merge origin/main right before landing and never work around its design. A migration only when no production is live and no landing freeze holds (supabase/AGENTS.md quiet window). Every check the run can do, it does itself; OBS hardware results come only from the owner phases and are never counted as passed by a builder. A behaviour choice the spec does not settle goes to the owner as one question."
-    }
-  },
-  {
-    "id": "OS5",
-    "title": "JSON source, bracket adapter and current match",
-    "acceptance": [
-      "AC-9, as written in docs/work-specs/obs-scenes/spec.md",
-      "AC-10, as written in docs/work-specs/obs-scenes/spec.md"
-    ],
-    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
-    "dependsOn": [
-      "OS1"
-    ],
-    "spec": "docs/work-specs/obs-scenes/spec.md",
-    "brief": {
-      "goal": "A public JSON address read by NoaCG's server on the source's own interval (floor 10 s), the bracket adapter with synthetic fixtures, and the operator-owned current match.",
+      "goal": "A public JSON address read by NoaCG's server on the source's own interval (floor 10 s), cached once per address, applied as one snapshot.",
       "read": [
         "docs/work-specs/obs-scenes/spec.md",
         "docs/work-specs/obs-scenes/runbook.md",
@@ -166,21 +132,147 @@
         "api/",
         "src/control/",
         "src/model/",
-        "src/components/home/",
         "docs/DATA_API.md",
+        "scripts/"
+      ],
+      "checks": [
+        "Node tests for the reader with a fake fetch and clock, two competing pages and late answers",
+        "the feed route's guard tests extended"
+      ],
+      "notes": "Risky (api, polling). No new Vercel function. Any migration only in a quiet window and never while the landing hold is on."
+    }
+  },
+  {
+    "id": "OS5b",
+    "title": "Bracket adapter and current match",
+    "acceptance": [
+      "AC-10, as written in docs/work-specs/obs-scenes/spec.md"
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "OS5a"
+    ],
+    "spec": "docs/work-specs/obs-scenes/spec.md",
+    "brief": {
+      "goal": "The pure bracket adapter with a field mapping set on the source, the output shape in the spec, and the operator-owned current match.",
+      "read": [
+        "docs/work-specs/obs-scenes/spec.md",
+        "docs/work-specs/obs-scenes/runbook.md",
+        "docs/plan-runs/known-traps.md",
+        "src/control/sourceMapping.ts",
+        "src/templates/competition/results/shared.ts"
+      ],
+      "touches": [
+        "src/control/",
+        "src/model/",
+        "src/components/home/",
         "scripts/",
         "e2e/"
       ],
       "checks": [
-        "Node tests for the adapter and the reader with a fake fetch and clock",
-        "the feed route's guard tests extended"
+        "Node tests with synthetic fixtures for both row shapes, duplicates and missing rows",
+        "the current match held across reads"
       ],
-      "notes": "Includes the docs/DATA_API.md change of decision D4. Fixtures are synthetic: no real names or sites. Read runs/obs-scenes.md in NoaCG/noacg-private (clone it into docs/private as .agent-workflows/cloud-delegate.md says) for the owner's live windows and the run's private context; copy nothing from it into public text. Nothing that touches playout (src/output/, src/control/, src/components/home/, api/, supabase/) lands inside an owner live window or landing freeze listed there; the coordinator holds the stamp until the window ends. Make no change that risks reliable playout: with the OBS scenes switch off, everything behaves as today (AC-5). Rename nothing persisted (src/model/AGENTS.md). Phases touching src/output/ build on the live-publishing run's landed output changes; merge origin/main right before landing and never work around its design. A migration only when no production is live and no landing freeze holds (supabase/AGENTS.md quiet window). Every check the run can do, it does itself; OBS hardware results come only from the owner phases and are never counted as passed by a builder. A behaviour choice the spec does not settle goes to the owner as one question."
+      "notes": "Risky (state rules). Fixtures are synthetic. The checker alone reads the owner's private sample (the run notes name it) and records only pass or fail."
+    }
+  },
+  {
+    "id": "OS2",
+    "title": "First laptop test",
+    "acceptance": [
+      "AC-13, as written in docs/work-specs/obs-scenes/spec.md"
+    ],
+    "environment": "OW: the owner's Windows laptop with the newest OBS Studio",
+    "dependsOn": [
+      "OS1a"
+    ],
+    "spec": "docs/work-specs/obs-scenes/spec.md",
+    "brief": {
+      "goal": "The owner measures load, the stale frame and dock sign-in in OBS, with OS1a's checklist.",
+      "read": [
+        "docs/work-specs/obs-scenes/spec.md",
+        "docs/work-specs/obs-scenes/runbook.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [],
+      "checks": [],
+      "notes": "Owner phase. The hand-over carries OS1a's checklist and receipt template; he may run it as soon as OS1a lands. His receipt lands as evidence/phase-OS2.md (Ordinary). A failed line goes to the owner with the run notes' fallback before OS1b starts."
+    }
+  },
+  {
+    "id": "OS1b",
+    "title": "Take, Out and copies per scene",
+    "acceptance": [
+      "AC-2, as written in docs/work-specs/obs-scenes/spec.md",
+      "AC-3, as written in docs/work-specs/obs-scenes/spec.md"
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "OS1a",
+      "OS2"
+    ],
+    "spec": "docs/work-specs/obs-scenes/spec.md",
+    "brief": {
+      "goal": "Take and Out per scene graphic, pool copies per scene, All out leaving scene graphics as they were.",
+      "read": [
+        "docs/work-specs/obs-scenes/spec.md",
+        "docs/work-specs/obs-scenes/runbook.md",
+        "docs/plan-runs/known-traps.md",
+        "src/components/home/AGENTS.md",
+        "docs/CLOUD_PLAYOUT.md"
+      ],
+      "touches": [
+        "src/model/",
+        "src/control/",
+        "src/components/home/",
+        "e2e/",
+        "scripts/"
+      ],
+      "checks": [
+        "Node tests for copies, names and All out",
+        "the playout journey for Take and Out in one scene only"
+      ],
+      "notes": "Risky (state rules, recovery)."
+    }
+  },
+  {
+    "id": "OS3",
+    "title": "Monitoring and settings",
+    "acceptance": [
+      "AC-6, as written in docs/work-specs/obs-scenes/spec.md"
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "OS1b"
+    ],
+    "spec": "docs/work-specs/obs-scenes/spec.md",
+    "brief": {
+      "goal": "Scene rows, the walk-through tick, the settings section with Copy and Copy all links, the 16-output sentence and the OBS scenes guide with the fallback.",
+      "read": [
+        "docs/work-specs/obs-scenes/spec.md",
+        "docs/work-specs/obs-scenes/runbook.md",
+        "docs/plan-runs/known-traps.md",
+        "docs/OBS_ON_A_REAL_HOST.md",
+        "src/control/livePath.ts",
+        "src/export/targets/htmlOverlay.ts"
+      ],
+      "touches": [
+        "src/components/home/",
+        "src/components/",
+        "src/control/",
+        "src/output/",
+        "docs/",
+        "e2e/"
+      ],
+      "checks": [
+        "the playout panel journey with OBS events sent by a test page"
+      ],
+      "notes": "Risky (presence state). Simulated events are not hardware proof: name the rows the owner must confirm in OS7."
     }
   },
   {
     "id": "OS6",
-    "title": "The Live dock and the Messages dock",
+    "title": "The Live dock",
     "acceptance": [
       "AC-11, as written in docs/work-specs/obs-scenes/spec.md"
     ],
@@ -188,37 +280,37 @@
     "dependsOn": [
       "OS3",
       "OS4",
-      "OS5"
+      "OS5b"
     ],
     "spec": "docs/work-specs/obs-scenes/spec.md",
     "brief": {
-      "goal": "A compact Live dock that runs the production control session and answers Companion, and an optional Messages dock.",
+      "goal": "A 300 px dock that signs in, runs the control session, answers Companion and holds the show's live controls.",
       "read": [
         "docs/work-specs/obs-scenes/spec.md",
         "docs/work-specs/obs-scenes/runbook.md",
         "docs/plan-runs/known-traps.md",
         "companion-module/companion/HELP.md",
-        "docs/HARDWARE_CONTROL_RESEARCH.md",
+        "src/control/panelRelay.ts",
         "src/components/home/AGENTS.md"
       ],
       "touches": [
-        "src/components/home/",
+        "src/components/",
         "src/app/",
         "src/control/",
-        "companion-module/",
         "e2e/"
       ],
       "checks": [
         "a 300 px journey for the dock",
-        "Companion relay tests for scene graphic Take and Out"
+        "the panel relay tests for hand-over and reconnect"
       ],
-      "notes": "Read runs/obs-scenes.md in NoaCG/noacg-private (clone it into docs/private as .agent-workflows/cloud-delegate.md says) for the owner's live windows and the run's private context; copy nothing from it into public text. Nothing that touches playout (src/output/, src/control/, src/components/home/, api/, supabase/) lands inside an owner live window or landing freeze listed there; the coordinator holds the stamp until the window ends. Make no change that risks reliable playout: with the OBS scenes switch off, everything behaves as today (AC-5). Rename nothing persisted (src/model/AGENTS.md). Phases touching src/output/ build on the live-publishing run's landed output changes; merge origin/main right before landing and never work around its design. A migration only when no production is live and no landing freeze holds (supabase/AGENTS.md quiet window). Every check the run can do, it does itself; OBS hardware results come only from the owner phases and are never counted as passed by a builder. A behaviour choice the spec does not settle goes to the owner as one question."
+      "notes": "Risky (a second control session). No companion-module change unless an action is missing. Leave the OS7 checklist with its receipt template in evidence/phase-OS6.md."
     }
   },
   {
     "id": "OS7",
     "title": "Owner rehearsal",
     "acceptance": [
+      "AC-12, as written in docs/work-specs/obs-scenes/spec.md",
       "AC-14, as written in docs/work-specs/obs-scenes/spec.md"
     ],
     "environment": "OW: the owner's Windows laptop with the newest OBS Studio, a Stream Deck and Companion",
@@ -235,7 +327,7 @@
       ],
       "touches": [],
       "checks": [],
-      "notes": "Owner phase. next hands it over with the checklist OS6's builder leaves in evidence/phase-os6.md. Read runs/obs-scenes.md in NoaCG/noacg-private (clone it into docs/private as .agent-workflows/cloud-delegate.md says) for the owner's live windows and the run's private context; copy nothing from it into public text. Nothing that touches playout (src/output/, src/control/, src/components/home/, api/, supabase/) lands inside an owner live window or landing freeze listed there; the coordinator holds the stamp until the window ends. Make no change that risks reliable playout: with the OBS scenes switch off, everything behaves as today (AC-5). Rename nothing persisted (src/model/AGENTS.md). Phases touching src/output/ build on the live-publishing run's landed output changes; merge origin/main right before landing and never work around its design. A migration only when no production is live and no landing freeze holds (supabase/AGENTS.md quiet window). Every check the run can do, it does itself; OBS hardware results come only from the owner phases and are never counted as passed by a builder. A behaviour choice the spec does not settle goes to the owner as one question."
+      "notes": "Owner phase. The hand-over carries OS6's checklist and receipt template, including the AC-6 rows OS3 named. His receipt lands as evidence/phase-OS7.md (Ordinary)."
     }
   }
 ]
