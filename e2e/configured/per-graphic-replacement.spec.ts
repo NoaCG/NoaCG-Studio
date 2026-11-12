@@ -222,6 +222,10 @@ test('a Take of a graphic still loading plays once loaded, a cancelled one never
   const outputs: { page: Page; name: string; delay: number }[] = [];
   for (const [name, delay] of [['Desk A', 2_000], ['Desk B', 8_000]] as const) {
     const air = await anon.newPage();
+    // What an output says when it gives up on a held Take: printed, so a failure names its cause.
+    air.on('console', (m) => {
+      if (/did not play here|output stage/.test(m.text())) console.log(`[${name}] ${m.text()}`);
+    });
     await air.goto(`/output?production=${encodeURIComponent(outputSlug)}&name=${encodeURIComponent(name)}&debug=1`);
     await expect(air.locator('pre')).toContainText('realtime: following', { timeout: 60_000 });
     await expect.poll(() => air.evaluate(() => (window as ReadyWindow).__noacgLive!.presence()), { timeout: 30_000 }).not.toBe('joining');

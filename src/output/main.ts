@@ -1208,6 +1208,7 @@ async function boot(): Promise<void> {
       unreportedRun.add(graphic);
       scheduleReport(graphic);
     } else if (outcome !== 'posted' && outcome !== 'skipped' && !failures.has(graphic)) {
+      console.warn(`output: "${graphic}" did not play here (stage: ${outcome.failed} at ${at}).`);
       // The stage gave up on it: named in `h` until a later Take or Out runs (G2 section 1).
       failures.set(graphic, { from: at, why: outcome.failed });
       readyChanged();
