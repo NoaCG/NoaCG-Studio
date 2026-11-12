@@ -36,8 +36,8 @@
  },
  "waitingOn": [
   {
-   "what": "phase 4 builder: G1 design PR note, then W2 receipt",
-   "eta": "2026-11-12T06:00:00Z"
+   "what": "G1 PR #2404 merge, then the W2 build PR with migration 0115",
+   "eta": "2026-11-12T08:00:00Z"
   }
  ],
  "inFlight": [
@@ -47,7 +47,9 @@
    "actor": "builder-4-4-b-8d6e",
    "session": "session_017SdbwMv6y9nPcsdRwe6TNm",
    "branch": "claude/plan-live-publishing-4-build",
-   "launchedAt": "2026-11-12T00:02:29Z"
+   "launchedAt": "2026-11-12T00:02:29Z",
+   "designPr": 2404,
+   "lastSeen": "2026-11-12T02:09Z G1 design PR #2404 head e32746ea stamped, in merge queue; /so A after B,B,B; W2 build with migration 0115 in progress locally"
   }
  ],
  "owner": [
@@ -149,5 +151,8 @@
   "From fix #2388: on a real show, with a mouse and on a touch screen, type into a cue field and press Take (also Next, a quick button, a live number) at once: it airs with the typed text with no pause, and the text is still there after a reload straight after the press. In air-edit mode, a Take from elsewhere while typing keeps the typed text.",
   "From the phase 3 repair: type, Take, then reload at once, with an output on a slow link: the typed text is kept and airs."
  ],
- "mainChecks": "92e581a7: configured-suite 43092663800 green on re-run (attempt 2); CI 43092663612 re-run cancelled (attempt 2, superseded by main); the next phase 3 checker dispatches ci.yml on claude/check-92e581a per procedure"
+ "mainChecks": "92e581a7: configured-suite 43092663800 green on re-run (attempt 2); CI 43092663612 re-run cancelled (attempt 2, superseded by main); the next phase 3 checker dispatches ci.yml on claude/check-92e581a per procedure",
+ "ownerInfo": [
+  "G1 limit: a retained personal edit to a production another device has since adopted comes back as a (conflicted copy); an existing rule that will show more often."
+ ]
 }
