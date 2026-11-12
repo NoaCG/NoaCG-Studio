@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "4e874213e301fec3a640d5ab69f999a7bb71eaaff5b866f62a2833dcffc820c2",
+  "specSha256": "05e2d070b147b04c52a839844db052163c1c05c3ef009e1e559204a5b6145a43",
   "authority": {
     "status": "agreed",
     "source": "the owner's planning session of 2026-11-11 and 2026-11-12, revised after three independent second opinions: one rundown folder per OBS scene with its own link; graphics always on and settled, entrance animation opt-in later; graphics visible in OBS preview (Studio Mode); the newest OBS on Windows; the bracket read by NoaCG's server with the interval set per source (\"yes\"); Connect to OBS kept for later; on and off is Take and Out with one copy per scene (\"Okay, that sounds good.\"); the Bridge not involved and its OBS spec parked (\"let's not involve the bridge now at all if we don't need it\"); one Live dock plus an optional Messages dock (\"sounds okay\"); tests on the owner's laptop."
