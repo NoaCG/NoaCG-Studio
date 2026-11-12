@@ -57,16 +57,12 @@
  ],
  "owner": [
   {
-   "what": "OS2: laptop test with the checklist in docs/work-specs/obs-scenes/evidence/phase-OS1a.md (replaces the separate probe); can run now",
+   "what": "OS2: laptop test running (owner, 2026-11-12 evening); receipt to the coordinator chat",
    "where": "coordinator chat (prompt given 2026-11-12); receipt lands as evidence/phase-OS2.md"
   },
   {
    "what": "OS7: rehearsal with failure drills",
    "where": "run issue hand-over after OS6"
-  },
-  {
-   "what": "OS5a defaults to confirm or change: a JSON source NoaCG reads is NoaCG's alone (an external agent is refused for it); it pauses with its own Pause, not the Another-system Pause",
-   "where": "coordinator chat"
   }
  ],
  "fixes": [
@@ -109,6 +105,7 @@
  ],
  "decisions": [
   "2026-11-12 owner: switch off asks for confirmation when scene links are loaded (#2454).",
-  "2026-11-12 owner: the landing hold is not a hard wall; the coordinator may lift it for one needed hotfix and set it again at once; nothing unnecessary lands in a window."
+  "2026-11-12 owner: the landing hold is not a hard wall; the coordinator may lift it for one needed hotfix and set it again at once; nothing unnecessary lands in a window.",
+  "2026-11-12 owner: \"Fine.\" to the OS5a defaults (a NoaCG-read JSON source is NoaCG's alone; it follows its own Pause)."
  ]
 }
