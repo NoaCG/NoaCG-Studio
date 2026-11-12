@@ -90,7 +90,11 @@ function lastAction(failure, comments, owner = repairOwner(comments)) {
 export function ownerText(owner) {
   if (!owner) return 'none recorded';
   const line = String(owner.body).split(OWNER_MARK)[1]?.split('\n').map((l) => l.trim()).find((l) => l && l !== '-->') ?? '';
-  const text = line.replace(/^owner:\s*/i, '').replace(/-->.*$/, '').replace(/<[^>]*>/g, '').replace(/[@`<>]/g, '').trim().replace(/\.$/, '');
+  // Plain text only, by allow-list: letters, digits, spaces and ordinary punctuation. No `@` (a
+  // mention), no `<`, `>` or backtick (markup), so nothing quoted can notify or render.
+  const end = line.indexOf('-->');
+  const text = (end < 0 ? line : line.slice(0, end)).replace(/^owner:\s*/i, '')
+    .replace(/[^\p{L}\p{N}\s.,:;()/#_+=-]/gu, '').replace(/\s+/g, ' ').trim().replace(/\.$/, '');
   return (text.length > 120 ? `${text.slice(0, 117).trimEnd()}...` : text) || 'recorded, no text';
 }
 

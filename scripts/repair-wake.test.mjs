@@ -183,7 +183,9 @@ test('rule 4: the newest owner record by a member or bot is quoted, safely; an o
   const body = check(fakeGitHub(fx([ownerRecord(plus(t, -50), 'old session'), ownerRecord(plus(t, -40), 'new session')])), now).alarm.body;
   assert.match(body, /repair owner: new session/);
   assert.doesNotMatch(body, /old session/);
-  assert.equal(ownerText({ body: '<!-- noacg:repair-owner\nowner: `@codex` <b>x</b>\n-->' }), 'codex x', 'no mention, no markup');
+  assert.equal(ownerText({ body: '<!-- noacg:repair-owner\nowner: `@codex` <b>x</b>\n-->' }), 'codex bx/b', 'no mention, no markup');
+  assert.equal(ownerText({ body: '<!-- noacg:repair-owner\nowner: a <script>alert(1)</script> b -->' }), 'a scriptalert(1)/script b', 'no tag can survive');
+  assert.equal(ownerText({ body: '<!-- noacg:repair-owner owner: session x (row L) -->' }), 'session x (row L)', 'a one-line record ends at its marker');
   assert.equal(ownerText({ body: `<!-- noacg:repair-owner\nowner: ${'y'.repeat(200)}\n-->` }).length, 120);
 });
 
