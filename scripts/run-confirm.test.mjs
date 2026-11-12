@@ -111,3 +111,13 @@ test('the newest report wins within an epoch; a stale entry never pulls it back'
   assert.equal(newerRun(fresh, sameP), sameP, 'at an equal position the one heard later wins');
   assert.equal(newerRun(run(90, {}, 'out-a', 'old'), run(3)).p, 3, 'a new epoch starts over');
 });
+
+test('a page opened mid-hold: the seed is reached, and the held work still keeps green away', () => {
+  const r = run(10, { Strap: [9, 'loading'] });
+  const got = lines([owed(10, null, 0)], [out(r)], 1_000);
+  assert.equal(got.length, 1);
+  assert.equal(got[0].short, 'Updating outputs');
+  // W1's capped measurement reads grey, never amber: nothing is wrong, it has not run yet.
+  assert.equal(lines([], [out(run(10, { Strap: [10, 'placing'] }))])[0].tone, 'idle');
+  assert.equal(lines([], [out(run(10, { Strap: [10, 'placing'] }))])[0].short, 'Confirming…');
+});

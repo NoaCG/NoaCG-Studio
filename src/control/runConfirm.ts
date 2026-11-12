@@ -72,6 +72,10 @@ function heldLine(output: string, graphic: string, entry: HeldEntry): ConfirmLin
     const why = REASONS[entry[2] || ''] || 'it did not run';
     return { tone: 'bad', output, graphic, short: `${graphic} did not play`, label: `${graphic} did not play on ${output}: ${why}` };
   }
+  if (kind === 'placing') {
+    // W1's measurement, capped at 2 s: not run yet, nothing wrong.
+    return { tone: 'idle', output, graphic, short: 'Confirming…', label: `${graphic}: placing on ${output}` };
+  }
   if (kind === 'late') {
     return { tone: 'warn', output, graphic, short: 'Updating outputs', label: `${graphic}: loading on ${output}, it will appear without its entrance` };
   }
@@ -111,14 +115,11 @@ export function confirmLines(input: {
       continue;
     }
     const run = out.run;
-    // Each held or failed graphic once, by its own entry.
+    // Each held or failed graphic once, by its own entry: work an output has received and not run
+    // keeps green away whether or not this page saw the command (a page opened mid-hold owes only
+    // its seed).
     if (run) {
-      for (const graphic of Object.keys(run.h)) {
-        const entry = run.h[graphic];
-        if (input.owed.some((o) => o.graphic === graphic && o.at >= entry[0] && o.at <= run.p) || entry[1] === 'failed') {
-          lines.push(heldLine(out.name, graphic, entry));
-        }
-      }
+      for (const graphic of Object.keys(run.h)) lines.push(heldLine(out.name, graphic, run.h[graphic]));
     }
     // The oldest position it has not received decides by its age.
     let oldest: Owed | null = null;

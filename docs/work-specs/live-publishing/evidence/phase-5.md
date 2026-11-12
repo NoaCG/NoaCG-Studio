@@ -69,6 +69,14 @@ building" with its reason.
   output's cursor and are confirmed with it; they only no longer hold green back.
 - **A status row is never a command with an outcome** (the configured run caught it: a `cue` row
   reached the stage with a position and was counted as a command for a graphic with no frame).
+- **Every unsettled entry an output reports keeps green away by itself**, whether or not the page
+  saw the command (PR review: a page opened mid-hold owes only its seed). A `placing` entry (W1's
+  measurement, capped at 2 s) reads grey "Confirming…", not amber (G2's table had it amber), so a
+  preset Take does not flash amber.
+- **A held Take's frame first takes the values and look kept for it** (PR review: the Take's own
+  `update` comes before its `play` and was settled while the frame loaded, so the graphic would have
+  aired its template's defaults). The configured test now checks the strap's document was handed
+  the cue's values on both outputs.
 - **Monitors pass no positions**, so the production page's PROGRAM and PREVIEW stages are unchanged.
 
 ## Verification
