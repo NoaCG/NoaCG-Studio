@@ -1,0 +1,176 @@
+{
+  "nonce": "e4-owner1-20261112",
+  "actor": "/root/editor_e4_owner_repair",
+  "nativeThreadId": "unexposed",
+  "status": "BLOCKED_STOPPED_OWNER_EXCEPTION",
+  "run": "plan-editor-r1-5-2026-11-08",
+  "phase": "E4",
+  "PR": "https://github.com/NoaCG/NoaCG-Studio/pull/2438",
+  "head": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
+  "tree": "2b7490bd5b69452d5a742057d95059e8ea8db671",
+  "worktree": "/workspace/noacg-editor-r1-5-e4-build",
+  "branch": "codex/plan-editor-r1-5-e4-build",
+  "gitStatusPorcelain": "",
+  "at": "2026-11-12T21:22:32.961762+00:00",
+  "migration": "none",
+  "attempts": {
+    "ordinarySpent": 3,
+    "ordinaryLimit": 3,
+    "ownerAdditionalUsed": 1,
+    "ownerAdditionalLimit": 1,
+    "remaining": 0,
+    "priorRoundsPreserved": 5
+  },
+  "stopReasons": [
+    {
+      "kind": "confirmed PR-caused product defect",
+      "finding": 4556338378,
+      "review": 5882011573,
+      "path": "src/model/projectInstallation.ts:62",
+      "reason": "raw legacy destination compared with loadShows-normalized plan.before; supported missing timestamp/old stamp wrongly conflicts"
+    },
+    {
+      "kind": "observed maintained-contract regression",
+      "job": 131488795882,
+      "path": "e2e/new-graphic-guard.spec.ts:455",
+      "contract": "docs/EDITOR_REBUILD_PLAN.md:860-861",
+      "reason": "dirty correction observed where retained contract pins clean replacement; later source/history/navigation assertions unreached; no data-loss proof"
+    }
+  ],
+  "FULL_SO": {
+    "actor": "/root/editor_e4_owner_repair/e4_owner1_final_full_so",
+    "scopePaths": 51,
+    "base": "91a57833c972f214b45fa7357faf4e830c547e21",
+    "head": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
+    "verdict": "AGREE WITH CORRECTIONS",
+    "grade": "B",
+    "landingAllowed": false,
+    "clarificationOriginalPreserved": true,
+    "clarificationCIClassificationAccepted": false,
+    "clarificationReason": "did not reconcile explicit retained October contract860-861"
+  },
+  "CI": {
+    "id": 43305743222,
+    "status": "completed",
+    "conclusion": "failure",
+    "jobs": 33,
+    "failedJobs": [
+      {
+        "id": 131488480173,
+        "name": "Reviewed",
+        "conclusion": "failure"
+      },
+      {
+        "id": 131488795882,
+        "name": "E2E 4/15 (subset)",
+        "conclusion": "failure"
+      },
+      {
+        "id": 131499073251,
+        "name": "CI gate",
+        "conclusion": "failure"
+      }
+    ],
+    "allOtherOfflineShards": "14 success",
+    "automaticRetriesExecuted": 0,
+    "configured": {
+      "mode": "all",
+      "specs": 63,
+      "stacks": 4,
+      "verdictJob": 131497151214,
+      "conclusion": "success",
+      "passed": 148,
+      "failed": 0,
+      "flaky": 0,
+      "existingSkips": 3
+    },
+    "capacity": {
+      "verdict": "REPAY",
+      "minutes": 199.0,
+      "budget": 213.0,
+      "percent": 93.4,
+      "addsMinutes": 1.3,
+      "latestGrowth": 43201149088,
+      "latestState": "partial",
+      "judgedGrowth": 43014542120,
+      "attributionIssue": 2450,
+      "exceptionsChanged": false
+    }
+  },
+  "otherHeadRuns": [
+    {
+      "id": 43305735826,
+      "head": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
+      "conclusion": "success"
+    },
+    {
+      "id": 43305997998,
+      "head": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
+      "conclusion": "success"
+    }
+  ],
+  "isolated": {
+    "run": 43305997998,
+    "job": 131489347411,
+    "tests": 1,
+    "passed": 1,
+    "seconds": 32.8,
+    "caseSeconds": 31.3,
+    "skips": 0,
+    "retries": 0,
+    "accountDeleted": true,
+    "cleanTeardown": true,
+    "artifact": 13982614865,
+    "artifactDigest": "87adcd2a010677966e022186f6e5774a183f997885ce3bb5c377a26fa4623f4c",
+    "JSONArtifactReadInWorkspace": false,
+    "artifactIngress": "403; no bypass/retry"
+  },
+  "CodeQL": {
+    "check": 131488838077,
+    "conclusion": "success"
+  },
+  "Codex": {
+    "requests": 1,
+    "route": "Draft marked ready",
+    "completedAt": "2026-11-12T21:06:12Z",
+    "review": 5882011573,
+    "unresolvedFinding": 4556338378
+  },
+  "local": {
+    "originalMatrix": "j0115 PASS10/10 40.2s",
+    "additionalRules": "j0116 PASS5/5 16.4s",
+    "oracles": "33/33PASS",
+    "changedGates": "120/120PASS across14files",
+    "typesLintDependencyProtection": "PASS",
+    "broader": "j0117 retained FAIL176PASS/1faultyfixtureFAIL9.4min, no repeated broader",
+    "focusedWrongSelection": "j0118 FAIL No tests found",
+    "focusedCorrectedFixture": "j0119 PASS1/1 13.2s",
+    "localPASSStamp": "historical, NOT landing clearance after fullB/CIred",
+    "sourceDiff00aToFinal": "EMPTY",
+    "sideEnds": {
+      "ends": {},
+      "why": []
+    }
+  },
+  "allFailuresPreserved": [
+    "j0113 four original failures",
+    "j0114 six pass/four fail, not retroactively changed",
+    "earlier217 local build failures and isolated43215844696 fixture failure retained in phase history",
+    "earlier blank receiving references remain retained failures",
+    "j0117 faulty post-switch precondition, original failed result retained",
+    "j0118 zero-test selection failure",
+    "raw receiving source byte equality FALSE solely fresh brand UUID; all4 ZIP contents equal",
+    "artifact ingress403, no JSON read claim",
+    "new Codex P2 and fullSO B",
+    "CI Reviewed missing stamp146s/28polls",
+    "CI shard4 documented Discard trace regression",
+    "CIgate failure follows shard4"
+  ],
+  "PRHeld": {
+    "draft": true,
+    "labels": [],
+    "autoMerge": null,
+    "merged": false
+  },
+  "remaining": "No repair allowance. Preserve failed worktree. Root holds sole public repair/queue ownership and records stop/owner disposition. No new run/phase/checker/repair/review request or landing authorized."
+}

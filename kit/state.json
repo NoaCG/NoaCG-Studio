@@ -2130,7 +2130,20 @@
         "classification": "Observed maintained documented-contract regression; not proved userdata loss, final outcome assertions unreached. No fixture edits or weakening authorized."
       },
       "stopAt": "2026-11-12T21:10:53.591Z",
-      "nativeStop": "Worker acknowledged no changes/tests/push/requests and retained exactclean63d7; final terminal BLOCKED receipt awaited. Existing all32 CIjobs only Combinedreport/CIgate pending."
+      "nativeStop": {
+        "status": "FINAL_BLOCKED",
+        "at": "2026-11-12T21:22:32.961762Z",
+        "actor": "/root/editor_e4_owner_repair",
+        "receipt": "e4-owner1-stop-2026-11-12/worker-FINAL_BLOCKED.json",
+        "sha256": "85a57ea4a6a98d6398a60c88650b72e29a54fa17a76e184fc028700b564207cf",
+        "worktree": "Retained exactclean63d7/tree2b7490bd5b69452d5a742057d95059e8ea8db671; rootreadback nativejobsEMPTY and noNodeprocess. Workerconfirmednobrowser/listener5270/5271. No cleanup/removal/furtherlaunch.",
+        "archive": {
+          "path": "/workspace/noacg-editor-r1-5-e4-build/endurance-output/e4-engineering/owner1-stop-63d7.zip",
+          "sha256": "80d68615acb1ad7c6230bb404c9848126f73ebc3a449a9d7272e1acdc4ab6feb",
+          "bytes": 1373781
+        },
+        "manifestSha256": "c7673ab205499f58c8b2ef2a729856d39b07a8933c1eeda248256e00eb4a1138"
+      }
     }
   },
   "coordinatorTools": {
