@@ -1113,7 +1113,9 @@ async function boot(): Promise<void> {
         stage.requestState(graphic);
         await wait(CATCH_UP_TIMING.pollMs);
         const reading = readGraphic(stage, graphic);
-        still = stoodStill(previous, reading) ? still + 1 : 0;
+        // Work still waiting in the stage (a placement measuring, a queue) has not run yet: a
+        // graphic that has not had its Take cannot have stood still after it.
+        still = stage.waitingFor(graphic) === null && stoodStill(previous, reading) ? still + 1 : 0;
         previous = reading;
       }
     } finally {

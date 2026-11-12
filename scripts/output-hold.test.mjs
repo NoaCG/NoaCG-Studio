@@ -181,3 +181,9 @@ test('D1: a command overdue at 20 s is reported failed once and kept; its queue 
   assert.doesNotMatch(main, /, at, following\);/);
   assert.match(main, /if \(failures\.get\(graphic\)\?\.overdue && stage\.waitingFor\(graphic\) === null\) \{\n\s+failures\.delete\(graphic\);/);
 });
+
+test('a late Take stays hidden until its stage work has run: stillness counts only once nothing waits', async () => {
+  const { readFileSync } = await import('node:fs');
+  const main = readFileSync(new URL('../src/output/main.ts', import.meta.url), 'utf8');
+  assert.match(main, /still = stage\.waitingFor\(graphic\) === null && stoodStill\(previous, reading\) \? still \+ 1 : 0;/);
+});
