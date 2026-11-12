@@ -1222,7 +1222,7 @@ test('Rule E18: the weekly report\'s own judgement refuses added cost on unread 
   const offlineEx = { ...ex, tier: 'offline', covers: ['spec:e2e/new.spec.ts'] };
   const ceilings = { ...CEILINGS, exceptions: [offlineEx] };
   const growth = { status: 'ok', reasons: [], stops: {}, unreadable: true, estimates: CEILINGS.estimates, tiers: assessTiers({ ceilings, measurement: null, items: [], today: TODAY }), assessWith: (items) => assessTiers({ ceilings, measurement: null, items, today: TODAY }) };
-  assert.notEqual(applyOfflineStop(growth, { added: 1, details: [{ spec: 'new.spec.ts', delta: 1 }] }, { paths: ['e2e/new.spec.ts'] }).status, 'refuse');
+  assert.notEqual(applyOfflineStop(growth, { added: 1, details: [{ spec: 'new.spec.ts', delta: 1, adds: 1 }] }, { paths: ['e2e/new.spec.ts'] }).status, 'refuse');
 });
 
 test('Rule E19, superseded by land-2 B1: a stale durations table warns and keeps the 95% table line', () => {
@@ -1251,7 +1251,7 @@ test('Rule E21: a growth stop refuses any addition to its tier, waived by an exc
   assert.equal(run([backendItem(1)]), 'refuse', 'fully waived, still refused');
   assert.notEqual(run([]), 'refuse', 'adding nothing lands');
   const offline = { status: 'ok', reasons: [], stops: { offline: 'x' }, estimates: CEILINGS.estimates, assessWith: () => ({ tiers: { offline: { addedLanding: 0, addedDay: 0 } } }) };
-  assert.equal(applyOfflineStop(offline, { added: 1, details: [{ spec: 'new.spec.ts', delta: 1 }] }).status, 'refuse', 'offline: the stop is judged before the waiver');
+  assert.equal(applyOfflineStop(offline, { added: 1, details: [{ spec: 'new.spec.ts', delta: 1, adds: 1 }] }).status, 'refuse', 'offline: the stop is judged before the waiver');
 });
 
 test('Rule E22: the report search reads every artifact page; only a finished listing establishes a first week', () => {
@@ -1404,7 +1404,7 @@ test('Rule X9: a covered addition is waived up to the room left (allowance minus
     const m = measurement({ offline: 500 });
     return { status: 'ok', reasons: [], stops: {}, estimates: CEILINGS.estimates, tiers: assessTiers({ ceilings, measurement: m, items: [], today: TODAY }), assessWith: (items) => assessTiers({ ceilings, measurement: m, items, today: TODAY }) };
   };
-  const added = { added: 5, details: [{ spec: 'new.spec.ts', delta: 5 }] };
+  const added = { added: 5, details: [{ spec: 'new.spec.ts', delta: 5, adds: 5 }] };
   assert.equal(applyOfflineStop(offlineGrowth([]), added, { paths: ['e2e/new.spec.ts'] }).status, 'refuse', '500 + 24.2 crosses 95% of 535');
   assert.equal(applyOfflineStop(offlineGrowth([offlineEx]), added, { paths: ['e2e/new.spec.ts'] }).status, 'ok', 'waived by the approved allowance');
   // No measured figure for an existing job: its room is unknown, so nothing is waived; a new job keeps its allowance.
@@ -1436,7 +1436,7 @@ test('Rule X10: credit never crosses tiers, a job moved into another tier is new
     const m = measurement({ offline: 420 });
     const ceilings = noExceptions;
     const growth = { status: 'ok', reasons: [], stops: {}, estimates: CEILINGS.estimates, items: jobItems, tiers: assessTiers({ ceilings, measurement: m, items: jobItems, today: TODAY }), assessWith: (items) => assessTiers({ ceilings, measurement: m, items, today: TODAY }) };
-    return applyOfflineStop(growth, { added: 5, details: [{ spec: 'new.spec.ts', delta: 5 }] }, { paths: ['e2e/new.spec.ts'] }).status;
+    return applyOfflineStop(growth, { added: 5, details: [{ spec: 'new.spec.ts', delta: 5, adds: 5 }] }, { paths: ['e2e/new.spec.ts'] }).status;
   };
   const job75 = { tier: 'offline', id: 'job:ci.yml/E2E 2/2 (full)', perLanding: 75.02, perDay: 0, how: 'new job at 15.5 runner-min' };
   assert.equal(both([]), 'ok', '420 + 24.2 alone fits');
@@ -1446,7 +1446,7 @@ test('Rule X10: credit never crosses tiers, a job moved into another tier is new
   const m300 = measurement({ offline: 300 });
   const g2 = { status: 'ok', reasons: [], stops: {}, estimates: CEILINGS.estimates, items: [job75], tiers: assessTiers({ ceilings: noExceptions, measurement: m300, items: [job75], today: TODAY, exceptions: [shared] }), assessWith: (items) => assessTiers({ ceilings: noExceptions, measurement: m300, items, today: TODAY, exceptions: [shared] }) };
   assert.equal(Math.round(10 * g2.assessWith([job75, { tier: 'offline', id: 'spec:e2e/new.spec.ts', perLanding: 24.2, perDay: 5 }]).tiers.offline.addedLanding) / 10, 59.2);
-  assert.equal(applyOfflineStop({ ...g2, items: [] }, { added: 5, details: [{ spec: 'new.spec.ts', delta: 5 }] }, { paths: ['e2e/new.spec.ts'] }).status, 'ok', 'the spec alone is waived in full');
+  assert.equal(applyOfflineStop({ ...g2, items: [] }, { added: 5, details: [{ spec: 'new.spec.ts', delta: 5, adds: 5 }] }, { paths: ['e2e/new.spec.ts'] }).status, 'ok', 'the spec alone is waived in full');
   assert.equal(moved?.tier, 'overhead');
   assert.match(moved?.how ?? '', /moved into this tier/);
   // A copy under a new key that repeats an existing job's name is new, not the existing job.

@@ -153,3 +153,15 @@ test('creditGroupRows says a group in the original row vocabulary', () => {
     [{ type: 'heading', text: 'Camera' }],
   );
 });
+
+test("commas separate a role's names, inline or on their own line, but never a loose line", () => {
+  assert.deepEqual(only('Camera: Kim Park, Jo Berg\nLena Fors, Petri Salo'), [
+    { type: 'group', role: 'Camera', names: ['Kim Park', 'Jo Berg', 'Lena Fors', 'Petri Salo'] },
+  ]);
+  assert.deepEqual(only('Sound\tAri Moss, Robin Vale'), [
+    { type: 'group', role: 'Sound', names: ['Ari Moss', 'Robin Vale'] },
+  ]);
+  assert.deepEqual(only('Special thanks to everyone, near and far'), [
+    { type: 'entry', text: 'Special thanks to everyone, near and far' },
+  ]);
+});

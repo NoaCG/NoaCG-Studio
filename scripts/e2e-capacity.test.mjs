@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { EXCEPTION_MAX_DAYS, HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, capacityMinutes, exceptionFor, finalVerdict, ownerKinds, parseExceptions, repoView, summarize } from './e2e-capacity.mjs';
+import { EXCEPTION_MAX_DAYS, HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, capacityMinutes, exceptionFor, finalVerdict, ownerKinds, parseExceptions, repoView, specAssessment, summarize } from './e2e-capacity.mjs';
 import { TIERS, landingDispatched, ledgerChanges, priceAdditions } from './growth-controls.mjs';
 import { OWNER_KIND } from './repair-wake.mjs';
 import CEILINGS from './growth-ceilings.json' with { type: 'json' };
@@ -206,4 +206,75 @@ test('fix 2: the edges: exactly at the line is full; an offline stop with no add
   const quiet = assess({ table: t, suite: suiteOf(t), ...fresh });
   const growth = quietGrowth({ stops: { offline: 'O1' }, tiers: { tiers: { overhead: { status: 'refuse', line: 0.95, share: 0.96 } } } });
   assert.deepEqual(ownerKinds({ result: quiet, growth }), ['full:overhead'], 'refused for the overhead tier alone');
+});
+
+// LANDING OUTRANKS COST (owner, 2026-11-12; cicd-followup land-2a). Phase 4 of live-publishing
+// (#2408, run 43155577709) was refused for 0.4 "added" minutes that were an edit to
+// e2e/production-data.spec.ts, a spec that existed but had no table row yet, while the offline
+// tier read 122% on the week to 2026-11-11. An edit to an existing spec file is never growth.
+test('land-2a: an edit to an existing spec is never refused, over the table line or a full offline tier', () => {
+  const t = table(204); // 96% before anything changes
+  const suite = suiteOf(t, ['production-data.spec.ts']); // on disk, no table row (as on 2026-11-12)
+  const edit = { table: t, suite, changed: ['e2e/production-data.spec.ts'], edited: ['e2e/production-data.spec.ts'], ...fresh };
+  const r = assess(edit);
+  assert.equal(r.status, 'warn', 'over the line it warns, never refuses');
+  assert.equal(r.added, 0, 'an edit adds no minutes to decide on');
+  assert.equal(r.details[0].now, 2.04, 'it is still priced, at the median, so the usage stays visible');
+  assert.match(r.details[0].how, /an edit to an existing spec, never refused/);
+  assert.ok(Math.abs(r.after - r.before) < 1e-9, 'an unmeasured existing spec was already in the suite before the change');
+  const ex = [{ spec: 'e2e/new.spec.ts', minutes: 2, protects: 'x', expires: '2026-10-20', from: 'docs/work-specs/x/spec.md' }];
+  const mixed = assess({ ...edit, suite: suiteOf(t, ['production-data.spec.ts', 'new.spec.ts']), changed: ['e2e/production-data.spec.ts', 'e2e/new.spec.ts'], exceptions: ex });
+  assert.equal(mixed.status, 'warn', 'the new spec has its exception, and the edit needs none');
+  // On the offline tier too, only the new spec is priced: it alone fits under the 95% line, and
+  // the edit's minutes on top would cross it.
+  const sum = (items) => ({ tiers: { offline: { addedLanding: items.reduce((a, i) => a + i.perLanding, 0), addedDay: items.reduce((a, i) => a + i.perDay, 0) } } });
+  const room = { status: 'ok', reasons: [], stops: {}, ledger: [], items: [], assessWith: sum, estimates: { runsPerLanding: { everyRun: 1 }, scheduledRunsPerDay: { offline: 0 } }, tiers: { tiers: { offline: { status: 'ok', evidence: 'complete', line: 0.95, share: 0.92, used: { perLanding: 92, perDay: 0 }, ceiling: { perLanding: 100, perDay: 1000 } } } } };
+  assert.equal(applyOfflineStop(room, mixed, { paths: ['e2e/new.spec.ts', 'e2e/production-data.spec.ts'] }).status, 'ok', `92 + ${mixed.added} new minutes stays under 95; the edit is not priced`);
+  const slower = assess({ ...edit, changed: ['e2e/s1.spec.ts'], edited: ['e2e/s1.spec.ts'], suite: suiteOf(t), measured: { 's1.spec.ts': 9 } });
+  assert.equal(slower.status, 'warn', 'made slower by the edit, still not refused');
+  assert.ok(slower.after > slower.before, 'the slower spec still shows in the usage line');
+  const offline = { status: 'ok', reasons: [], stops: {}, ledger: [], estimates: { runsPerLanding: { everyRun: 4.75 }, scheduledRunsPerDay: { offline: 1 } }, tiers: { tiers: { offline: { status: 'warn', evidence: 'complete', line: 0.95, share: 1.22, used: { perLanding: 654.3, perDay: 191.5 }, ceiling: { perLanding: 535, perDay: 215 } } } } };
+  assert.equal(applyOfflineStop(offline, r).status, 'ok', 'a full offline tier does not refuse an edit');
+  assert.equal(finalVerdict({ result: r, growth: offline }).status, 'warn');
+  // A new spec file is still growth worth a decision.
+  const added = assess({ ...edit, edited: [] });
+  assert.equal(added.status, 'refuse');
+  assert.equal(applyOfflineStop(structuredClone(offline), added).status, 'refuse');
+});
+
+test('land-2a: only an added spec file is new; a modified one, or one renamed from an offline spec, is an edit', async () => {
+  const { specChanges } = await import('./e2e-capacity.mjs');
+  assert.equal(typeof specChanges, 'function');
+  const dir = mkdtempSync(path.join(tmpdir(), 'e2e-capacity-'));
+  try {
+    const git = (...a) => execFileSync('git', a, { cwd: dir, encoding: 'utf8', windowsHide: true });
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.email', 't@example.com');
+    git('config', 'user.name', 't');
+    mkdirSync(path.join(dir, 'e2e', 'configured'), { recursive: true });
+    for (const f of ['e2e/old.spec.ts', 'e2e/moved.spec.ts', 'e2e/configured/back.spec.ts', 'e2e/gone.spec.ts']) writeFileSync(path.join(dir, f), `test('${f}', () => {});\n// ${'x'.repeat(200)}\n`);
+    git('add', '.');
+    git('commit', '-q', '-m', 'base');
+    writeFileSync(path.join(dir, 'e2e', 'old.spec.ts'), 'test("old, edited", () => {});\n');
+    writeFileSync(path.join(dir, 'e2e', 'new.spec.ts'), 'test("new", () => {});\n');
+    git('mv', 'e2e/moved.spec.ts', 'e2e/renamed.spec.ts');
+    git('mv', 'e2e/configured/back.spec.ts', 'e2e/back.spec.ts');
+    git('rm', '-q', 'e2e/gone.spec.ts');
+    git('add', '.');
+    git('commit', '-q', '-m', 'head');
+    const { changed, edited } = specChanges('HEAD~1', dir);
+    assert.deepEqual([...changed].sort(), ['e2e/back.spec.ts', 'e2e/new.spec.ts', 'e2e/old.spec.ts', 'e2e/renamed.spec.ts']);
+    assert.deepEqual([...edited].sort(), ['e2e/old.spec.ts', 'e2e/renamed.spec.ts'], 'a configured spec moved into the offline suite is new offline cost');
+    // The CLI's own path: an edit over a full table warns, the added spec beside it is still judged.
+    const t = table(204);
+    const suite = suiteOf(t, ['old.spec.ts', 'renamed.spec.ts', 'back.spec.ts', 'new.spec.ts']);
+    const ex = (spec) => ({ spec, minutes: 3, protects: 'x', expires: '2026-10-20', from: 'docs/work-specs/x/spec.md' });
+    const cli = specAssessment({ base: 'HEAD~1', cwd: dir, table: t, suite, exceptions: [ex('e2e/new.spec.ts'), ex('e2e/back.spec.ts')], ...fresh });
+    assert.equal(cli.changed.length, 4);
+    assert.equal(cli.result.status, 'warn', cli.result.reason);
+    assert.ok(Math.abs(cli.result.added - 2 * 2.04) < 1e-9, 'only the two new files count');
+    assert.equal(specAssessment({ base: 'HEAD~1', cwd: dir, table: t, suite, exceptions: [ex('e2e/new.spec.ts')], ...fresh }).result.status, 'refuse', 'back.spec.ts is new offline cost');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

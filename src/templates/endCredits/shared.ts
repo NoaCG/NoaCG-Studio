@@ -164,6 +164,7 @@ export const CREDITS_PARSER_JS = `// parseCredits(text): the whole credit list i
 //   Petri Salo           each name with its own repeated role label is not how credits read.
 //
 //   Director: Alex Rivera     the same thing inline, for a role with a single name.
+//   Camera: Kim Park, Jo Berg several names inline: a comma separates a role's names.
 //   Director <TAB> Alex       what a paste out of a Google Doc table or a spreadsheet is.
 //   Director | Alex           the original separator — still read, so older lists still work.
 //   # PRODUCTION              a department heading, above a run of roles. A heading is MARKED
@@ -201,6 +202,14 @@ function parseCredits(text, escape) {
     group = { type: 'group', role: esc(role.trim()), names: [] };
     current.push(group);
   }
+  // addNames(text): a role's names, several to a line when commas separate them
+  // ("Camera: Kim Park, Jo Berg"), each its own name. Only a ROLE's names split: a loose line
+  // such as "Special thanks to everyone, near and far" stays whole.
+  function addNames(text) {
+    text.split(',').forEach(function (name) {
+      if (name.trim()) group.names.push(esc(name.trim()));
+    });
+  }
 
   text.split('\\n').forEach(function (raw) {
     var line = raw.trim();
@@ -218,7 +227,7 @@ function parseCredits(text, escape) {
     var split = line.split(/\\t|\\|/);
     if (split.length >= 2) {
       openGroup(split[0]);
-      group.names.push(esc(split.slice(1).join(' ').trim()));
+      addNames(split.slice(1).join(' '));
       return;
     }
 
@@ -229,7 +238,7 @@ function parseCredits(text, escape) {
     if (mark > 0 && mark <= ROLE_LABEL_MAX) {
       openGroup(line.slice(0, mark));
       var inlineName = line.slice(mark + 1).trim();
-      if (inlineName) group.names.push(esc(inlineName));
+      if (inlineName) addNames(inlineName);
       return;
     }
 
@@ -238,7 +247,7 @@ function parseCredits(text, escape) {
     // that opened a section into that section's heading, which meant the sentence almost every
     // credit roll ends on — "Special thanks to everyone who made this show possible" — was set
     // in accent caps at kicker size. A heading is marked or it is not a heading.
-    if (group) group.names.push(esc(line));
+    if (group) addNames(line);
     else current.push({ type: 'entry', text: esc(line) });
   });
   pushSection();
