@@ -148,7 +148,8 @@ export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, vi
   const moveKeys = (moved: KeyRef[], delta: number, row: string, time: number, expected: Revision, focus: boolean) => {
     try {
       const result = session.execute({ documentId: session.documentId, expected, transactionId: crypto.randomUUID(), operations: [moveOperation(moved, delta)] });
-      moving.current = { keys: movedKeys(readTimeline(result.template).data, moved, delta * speed), focus: focus ? row : null };
+      const current = readTimeline(result.template);
+      moving.current = { keys: movedKeys(current.data, moved, delta * speed, current.loopRuntime), focus: focus ? row : null };
     } catch (cause) { explain(message(cause), row, time + delta); }
   };
   const endKeyDrag = useCallback(() => { keyDrag.current = null; setKeyMove(null); }, []);

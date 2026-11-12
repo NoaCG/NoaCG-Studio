@@ -1,5 +1,5 @@
 import type { AnimData } from '../../blocks/animData';
-import { cueStarts, EPS, landingCue, planKeyEase, type KeyEasePreset, type KeyRef } from '../../blocks/animEdit';
+import { EPS, rulerCueStarts, landingCue, planKeyEase, round, type KeyEasePreset, type KeyRef } from '../../blocks/animEdit';
 
 // Key selection is editor UI state (R1.2a.2, docs/research/editor-r1-2a-2): it names keys by cue,
 // layer, property and stored time, and is never written into the document.
@@ -22,11 +22,11 @@ export function liveKeys(data: AnimData | null, keys: KeyRef[]): KeyRef[] {
 
 /** Where keys are after moving by a stored delta (animEdit.ts moveKeys): each track's key at its new
  *  time on the ruler, in the cue holding that time (on a flag, on the side it came from). */
-export function movedKeys(data: AnimData | null, keys: KeyRef[], delta: number): KeyRef[] {
+export function movedKeys(data: AnimData | null, keys: KeyRef[], delta: number, includeLegacy = false): KeyRef[] {
   if (!data) return [];
-  const last = data.steps.length - 1, starts = cueStarts(data);
+  const last = data.steps.length - 1, starts = rulerCueStarts(data, includeLegacy);
   return addKeys([], keys.flatMap(key => {
-    const at = starts[key.step] + key.time + delta, cue = landingCue(starts, at, key.step);
+    const at = round(round(starts[key.step] + key.time) + round(delta)), cue = landingCue(starts, at, key.step);
     const found = data.steps[cue].layers[key.selector]?.[key.property]?.find(k => Math.abs(k.time - (at - starts[cue])) < EPS);
     if (!found) return [];
     // A key on a flag and the next cue's copy of it are one key on the ruler.

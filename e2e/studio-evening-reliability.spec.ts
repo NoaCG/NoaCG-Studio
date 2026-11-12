@@ -443,8 +443,13 @@ test('expiry commits pending cue and folder text, pauses their editing and leave
   await parkFocusOffControls(page);
   await page.keyboard.press('Space');
   await expect.poll(() => bridge.actions.filter(a => a.verb === 'take' && a.slot.layer === 10).length).toBe(1);
+  // SPACE takes it off once the page holds the Take's answer (the clip on air), as an operator sees
+  // it: the Take now leaves at the press (live-publishing W1), so the Bridge can hear it before the
+  // page has its answer.
+  await expect(page.getByTestId('verb-take')).toContainText('TAKE OFF');
   await page.keyboard.press('Space');
   await expect.poll(() => bridge.actions.filter(a => a.verb === 'out' && a.slot.layer === 10).length).toBe(1);
+  expect(bridge.actions.filter(a => a.verb === 'take' && a.slot.layer === 10).length, 'taken once').toBe(1);
 });
 
 test('rundown admission refuses an oversized draft before adding a cue', async ({ page }) => {

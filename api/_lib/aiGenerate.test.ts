@@ -313,3 +313,46 @@ test('a BYO Pro call is NOT policied - a user key is not ours to route', async (
   const sent = await capturePayload(PRO_CALL, { cookie });
   assert.equal('providerOptions' in sent, false, 'a BYO call must not carry our routing directives');
 });
+
+for (const authorization of [null, 'Bearer stale-or-unverifiable']) test('generic managed editor gateway requires recognised hosted auth: ' + String(authorization), async () => {
+  process.env.SUPABASE_URL = 'https://isolated-auth.test';
+  process.env.SUPABASE_ANON_KEY = 'public-test-key';
+  process.env.ANTHROPIC_API_KEY = 'managed-test-key';
+  const realFetch = globalThis.fetch;
+  const calls: string[] = [];
+  globalThis.fetch = (async input => { calls.push(String(input)); throw Error('No network is allowed in this auth refusal fixture.'); }) as typeof globalThis.fetch;
+  try {
+    const response = await generate.fetch(new Request('https://noacg.test/api/ai/generate', {
+      method: 'POST', headers: { 'x-forwarded-for': uniqueIp(), ...(authorization ? { authorization } : {}) },
+      body: JSON.stringify(LEDGER_BODY),
+    }));
+    assert.equal(response.status, 401);
+    assert.equal((await response.json() as { error: { code: string } }).error.code, 'authentication_required');
+    assert.deepEqual(calls, [], 'unrecognised managed traffic must not reach a provider or ledger');
+  } finally { globalThis.fetch = realFetch; }
+});
+
+test('generic editor BYOK uses the anonymous owners sealed key with hosted backend configured', async () => {
+  // Isolated transport/auth fixture only: no live hosted account or provider is claimed.
+  process.env.SUPABASE_URL = 'https://isolated-auth.test';
+  process.env.SUPABASE_ANON_KEY = 'public-test-key';
+  process.env.ANTHROPIC_API_KEY = 'managed-test-key';
+  process.env.AI_KEY_ENCRYPTION_SECRET = 'b'.repeat(64);
+  const cookie = userAiKeysCookie(new Request('https://noacg.test/api/ai/credentials'), { anthropic: 'caller-owned-test-key' }, null).split(';')[0];
+  const realFetch = globalThis.fetch;
+  const calls: string[] = [];
+  globalThis.fetch = (async (input, init) => {
+    calls.push(String(input));
+    assert.equal(String(input), 'https://api.anthropic.com/v1/messages');
+    assert.equal(new Headers(init?.headers).get('x-api-key'), 'caller-owned-test-key');
+    return Response.json({ content: [{ type: 'text', text: 'A bounded answer' }], stop_reason: 'end_turn', usage: { input_tokens: 2, output_tokens: 3 } });
+  }) as typeof globalThis.fetch;
+  try {
+    const response = await generate.fetch(new Request('https://noacg.test/api/ai/generate', {
+      method: 'POST', headers: { 'x-forwarded-for': uniqueIp(), cookie }, body: JSON.stringify(LEDGER_BODY),
+    }));
+    assert.equal(response.status, 200);
+    assert.equal((await response.json() as { output: string }).output, 'A bounded answer');
+    assert.equal(calls.length, 1, 'BYOK must neither verify an absent account nor spend the managed key');
+  } finally { globalThis.fetch = realFetch; }
+});

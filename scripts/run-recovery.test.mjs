@@ -903,6 +903,90 @@ test('an unadmitted edit of the phase list is still refused by the ledger, the s
   assert.throws(() => publishRun(f.db, f.manifest.id), /Restored project authorization or state differs/);
 });
 
+
+test('owner revision changes only an untouched environment and additive prerequisites, preserving history and restore', (t) => {
+  const f = admissionFixture(t), text = readFileSync(f.wave, 'utf8'), before = readProject(text), steps = readSteps(text);
+  const admission = f.admission({ insert: [{ after: 'b', phases: [phaseOf('b2', ['b'])] }],
+    revise: [{ id: 'c', environment: 'qualified-cloud', dependsOn: ['b', 'b2'] }] });
+  f.admit(admission);
+  const afterText = readFileSync(f.wave, 'utf8'), after = readProject(afterText), phase = after.phases.at(-1);
+  assert.deepEqual(readSteps(afterText), steps);
+  assert.deepEqual(after.authorization, before.authorization);
+  assert.deepEqual(after.block, before.block);
+  assert.deepEqual(after.phases.slice(0, 2), before.phases.slice(0, 2));
+  assert.deepEqual(phase, { ...before.phases[2], environment: 'qualified-cloud', dependsOn: ['b', 'b2'] });
+  const event = JSON.parse(/^- \S+ admitted (.+)$/m.exec(afterText)[1]);
+  assert.deepEqual(event.revised, [{ id: 'c', before: { environment: 'controlled-fixture', dependsOn: ['b'] },
+    after: { environment: 'qualified-cloud', dependsOn: ['b', 'b2'] }, position: 4 }]);
+  assert.equal(ledgerAt(f), afterText);
+  const restored = f.restore(f.at);
+  assert.deepEqual(readProject(readFileSync(restored.config.wave, 'utf8')), after);
+  assert.deepEqual(nextStep(readFileSync(restored.config.wave, 'utf8'), f.at), nextStep(afterText, f.at));
+});
+
+test('revision refuses past/in-flight phases, altered criteria, removed prerequisites, forward edges and no-ops atomically', (t) => {
+  const f = admissionFixture(t), text = readFileSync(f.wave, 'utf8'), remote = ledgerAt(f), doc = docFor(f.db);
+  const cases = [
+    [[{ id: 'a', environment: 'cloud' }], /unrecorded/],
+    [[{ id: 'b', environment: 'cloud' }], /unrecorded/],
+    [[{ id: 'missing', environment: 'cloud' }], /No existing phase/],
+    [[{ id: 'c', environment: '' }], /Preserve phase order/],
+    [[{ id: 'c', acceptance: ['less evidence'] }], /only inserts new phases/],
+    [[{ id: 'c', title: 'Renamed' }], /only inserts new phases/],
+    [[{ id: 'c', brief: { notes: 'skip' } }], /only inserts new phases/],
+    [[{ id: 'c', dependsOn: [] }], /preserve every existing dependency/],
+    [[{ id: 'c', dependsOn: ['b', 'b'] }], /unique prerequisites/],
+    [[{ id: 'c', dependsOn: ['b', 'c'] }], /Preserve phase order/],
+    [[{ id: 'c', dependsOn: ['b', 'unknown'] }], /Preserve phase order/],
+    [[{ id: 'c', environment: 'controlled-fixture' }], /Unchanged/],
+    [[{ id: 'c', environment: 'cloud' }, { id: 'c', environment: 'other' }], /Duplicate phase revision/],
+  ];
+  for (const [revise, why] of cases) {
+    assert.throws(() => f.admit(f.admission({ insert: undefined, revise })), why);
+    assert.equal(readFileSync(f.wave, 'utf8'), text);
+    assert.deepEqual(docFor(f.db), doc);
+    assert.equal(ledgerAt(f), remote);
+  }
+  assert.throws(() => f.admit(f.admission({ insert: undefined, revise: [{ id: 'c', environment: 'cloud' }] }),
+    { ...blockOf(f.wave), epoch: 0 }), /Stale/);
+});
+
+test('future revision still requires main receipts and current unblocked authority', (t) => {
+  const f = admissionFixture(t), change = f.admission({ insert: undefined, revise: [{ id: 'c', environment: 'cloud' }] });
+  assert.throws(() => f.admit({ ...change, receipts: [] }), /receipt paths/);
+  assert.throws(() => f.admit({ ...change, commit: f.manifest.packet.recovery.revision }), /not on main/);
+  updateRun(f.db, f.manifest.id, 'wait', { kind: 'dependency', reason: 'fixture unavailable', until: null }, f.at);
+  const before = readFileSync(f.wave, 'utf8');
+  assert.throws(() => f.admit(change), /refuses work: blocked/);
+  assert.equal(readFileSync(f.wave, 'utf8'), before);
+});
+
+test('failed revision publication rolls back local ledger/control and a confirmed retry applies only once', (t) => {
+  const f = admissionFixture(t), before = readFileSync(f.wave, 'utf8'), doc = docFor(f.db), remote = ledgerAt(f);
+  const change = f.admission({ insert: undefined, revise: [{ id: 'c', environment: 'cloud' }] });
+  f.inject((args, call) => { if (pushes(args)) throw new Error('injected push unavailable'); return call(); });
+  assert.throws(() => f.admit(change), /Recovery publication unresolved/);
+  f.inject(null);
+  assert.equal(readFileSync(f.wave, 'utf8'), before);
+  assert.deepEqual(docFor(f.db), doc);
+  assert.equal(ledgerAt(f), remote);
+  f.admit(change);
+  assert.equal(readProject(ledgerAt(f)).phases[2].environment, 'cloud');
+  assert.equal((ledgerAt(f).match(/^- \S+ admitted /gm) ?? []).length, 1);
+});
+
+test('accepted revision with lost acknowledgement is adopted without applying it again', (t) => {
+  const f = admissionFixture(t), change = f.admission({ insert: undefined, revise: [{ id: 'c', environment: 'cloud' }] });
+  lostPush(f);
+  assert.throws(() => f.admit(change), /Could not resolve host/);
+  f.inject(null);
+  publishCheckpoint(f.db, f.manifest.id);
+  assert.equal(readProject(readFileSync(f.wave, 'utf8')).phases[2].environment, 'cloud');
+  assert.equal((ledgerAt(f).match(/^- \S+ admitted /gm) ?? []).length, 1);
+  assert.throws(() => f.admit(change), /Unchanged phase revision/);
+  assert.equal((ledgerAt(f).match(/^- \S+ admitted /gm) ?? []).length, 1);
+});
+
 test('admit runs from the command line with the block authority file', async (t) => {
   const f = admissionFixture(t), files = path.join(f.root, 'admission.json'), block = path.join(f.root, 'block.json');
   writeFileSync(files, JSON.stringify(f.admission())); writeFileSync(block, JSON.stringify(blockOf(f.wave)));

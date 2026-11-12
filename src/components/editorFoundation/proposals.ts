@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requestEditorProposal } from '../../ai/editorProposals';
+import { requestEditorHelp, requestEditorProposal } from '../../ai/editorProposals';
 import type { ModelResult } from '../../ai/modelTypes';
 import { discoverCommands, editorProposalSchema, type EditorCommands, type EditorProposal } from './commands';
 
@@ -10,6 +10,8 @@ export interface ReviewedProposal {
   transactionId: string;
   changedIds: string[];
 }
+export const editorHelpSchema = z.strictObject({ answer: z.string().trim().min(1).max(5000) });
+export const helpOutputSchema = () => z.toJSONSchema(editorHelpSchema);
 export const proposalOutputSchema = () => z.toJSONSchema(editorProposalSchema);
 export function captureProposalContext(commands: EditorCommands) {
   const inspection = commands.inspect({ limit: 50 });
@@ -39,8 +41,7 @@ export function reviewProposal(commands: EditorCommands, inspection: Inspection,
     if (!prepared.ok) throw new Error(prepared.refusal.message);
     changedIds = prepared.changedIds;
   } else {
-    const current = commands.inspect({ limit: 1 });
-    if (!current.ok || JSON.stringify(current.expected) !== JSON.stringify(inspection.expected)) throw new Error('The editor changed while this proposal was loading. Request it again.');
+    requireCurrentContext(commands, inspection);
   }
   return { proposal, expected: inspection.expected, transactionId, changedIds };
 }
@@ -49,4 +50,22 @@ export async function proposeEditorEdits(commands: EditorCommands, prompt: strin
   const context = captureProposalContext(commands);
   const result = await requestEditorProposal(context, prompt, proposalOutputSchema());
   return reviewProposal(commands, context.inspection, result);
+}
+
+function requireCurrentContext(commands: EditorCommands, inspection: Inspection) {
+  const current = commands.inspect({ limit: 1 });
+  if (!current.ok || JSON.stringify(current.expected) !== JSON.stringify(inspection.expected)) {
+    throw new Error('The editor changed while this answer was loading. Request it again.');
+  }
+  if (commands.session.commandState().gestureActive) throw new Error('Finish or cancel the current gesture, then request again.');
+}
+
+export async function askEditorHelp(commands: EditorCommands, question: string) {
+  if (!question.trim() || question.length > 4000) throw new Error('Ask a question in 1 to 4000 characters.');
+  const context = captureProposalContext(commands);
+  const result = await requestEditorHelp(context, question, helpOutputSchema());
+  const parsed = editorHelpSchema.safeParse(result.output);
+  if (!parsed.success) throw new Error('The model returned an invalid help answer. Request it again.');
+  requireCurrentContext(commands, context.inspection);
+  return parsed.data.answer;
 }

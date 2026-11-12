@@ -5,6 +5,7 @@ import { parse, type DefaultTreeAdapterMap } from 'parse5';
 import { parseDefinition } from '../model/spxDefinition';
 import { ANIM_DECLARATION, animDataFault, animSounds, parseAnimData } from '../blocks/animData';
 import { allTimelines, validateMachine } from '../blocks/animMachine';
+import { usesAuthoredLoops } from '../blocks/animLoopTiming';
 import { labelFields } from '../blocks/controlLabels';
 import {
   dataUsesCutStyle,
@@ -16,6 +17,7 @@ import {
   hasEaseRuntime,
   hasHoldRuntime,
   hasLifecycleStyleRuntime,
+  hasLoopRuntime,
   hasMachineRuntime,
   hasTransitionStyleRuntime,
   writeOutData,
@@ -432,6 +434,13 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
           rule: 'machine',
           message:
             'The entrance or exit edge carries a style, but the interpreter in this template predates the materialised play/stop edges — re-emit the ANIMATION region (replaceRegionWithAnimData) so the styled change can play.',
+        });
+      }
+
+      if (usesAuthoredLoops(data) && !hasLoopRuntime(template.js)) {
+        errors.push({
+          rule: 'animation',
+          message: 'The authored loop range or phase needs its matching animation runtime. Save the graphic to update an owned runtime before exporting.',
         });
       }
 

@@ -1,4 +1,4 @@
-// guards: scripts/alarm-owner.mjs, scripts/growth-report.mjs, scripts/e2e-quarantine.mjs, scripts/growth-ceilings.json
+// guards: scripts/alarm-owner.mjs, scripts/growth-report.mjs, scripts/e2e-quarantine.mjs, scripts/repair-wake.mjs, scripts/growth-ceilings.json
 // The growth, age and quarantine alarms reach their owner (#1951, cicd-followup cf01): every owner
 // string names miwco as primary and the weekly owner session as backup, every raised alarm issue
 // is assigned to miwco, a route GitHub did not take is an error, and the test alarm goes the
@@ -101,7 +101,8 @@ test('(b) the test alarm is labelled, carries no @mention, and is routed like a 
 
 test('the weekly backup review lists exactly the owned alarms and test alarms', async () => {
   const titles = await ownedAlarmTitles();
-  assert.equal(titles.length, 6);
+  assert.equal(titles.length, 7);
+  assert.ok(titles.includes('Red pull requests nobody is repairing'), 'the red-PR alarm (scripts/repair-wake.mjs)');
   assert.ok(titles.includes('Growth report not complete'), 'the report alarm is in the weekly backup review');
   for (const t of titles) assert.ok(isOwnedAlarm(t, titles));
   assert.ok(isOwnedAlarm('Plan phases past their age ceiling: cicd-followup', titles));

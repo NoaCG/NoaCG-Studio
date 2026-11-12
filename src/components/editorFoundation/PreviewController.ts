@@ -4,7 +4,7 @@ import { upgradeFontCss } from '../../model/fonts';
 import { locateAnimData, parseAnimData } from '../../blocks/animData';
 import type { SpxTemplate } from '../../model/types';
 import { foundationRuntime } from './runtime';
-import { acceptsReply, EDITOR_MESSAGE, type Envelope, type PreviewReply } from './protocol';
+import { acceptsReply, EDITOR_MESSAGE, type Envelope, type LoopProbe, type PreviewReply } from './protocol';
 import type { Revision } from './session';
 import { ownerOf, readTimeline, segmentAt } from './timelineView';
 import { artworkLayerNode } from '../../blocks/artworkLayers';
@@ -51,6 +51,7 @@ export class PreviewController {
   private queued = false;
   private queuedInputAt = 0;
   private queuedKind = 'scrub';
+  private loopProbe?: LoopProbe;
   private pendingCss: string | null = null;
   private pendingTemplate: SpxTemplate | null = null;
   private pendingCopies: { source: string; attributes: [string, string][][] }[] = [];
@@ -122,7 +123,7 @@ export class PreviewController {
     if (typeof this.restoring === 'number') this.restoring = null;
     this.report(message, this.restoring !== null);
     // Source update / undo waits for matching readiness, then restores the latest pose.
-    if (!wasReady) this.seek(this.targetTime, 'restore', this.targetCue);
+    if (!wasReady) this.seek(this.targetTime, 'restore', this.targetCue, this.loopProbe);
     else if (this.queued) this.flush();
   };
   private envelope(revision: Revision): Envelope {
@@ -145,6 +146,7 @@ export class PreviewController {
     const canReuseFrame = !this.draftMotion && !this.pendingTemplate;
     this.previewError = null; this.transient = false;
     this.exitMode = null;
+    this.loopProbe = undefined;
     this.restoring = null;
     this.targetCue = cue;
     cancelAnimationFrame(this.pendingFrame);
@@ -252,7 +254,16 @@ export class PreviewController {
   }
   isExiting() { return this.exitMode !== null; }
   stopExit() { this.exitMode = null; }
-  seek(time: number, kind = 'scrub', cue?: number) {
+  previewLoop(probe?: LoopProbe) {
+    if (!probe && !this.loopProbe) return;
+    this.seek(this.targetTime, probe ? 'loop' : 'restore', this.targetCue, probe);
+  }
+  seek(time: number, kind = 'scrub', cue?: number, probe?: LoopProbe) {
+    if (probe || this.loopProbe) {
+      this.restoring = 'queued';
+      this.report(undefined, true);
+    }
+    this.loopProbe = probe;
     this.targetCue = cue;
     this.targetTime = time;
     if (!this.ready || !this.template || !this.expected) return;
@@ -291,12 +302,12 @@ export class PreviewController {
         attributes: Object.fromEntries(['x', 'y', 'cx', 'cy'].map(name => [name, node.getAttribute(name)])) }] : [];
     }) : [];
     this.iframe.contentWindow?.postMessage({ ...this.expected, kind: exitKind ?? (draft ? 'preview-template' : css === null ? 'seek' : 'preview-css'),
-      css: draft ? inlineAssetRefs(upgradeFontCss(draft.css), this.resolvedAssets) : css, ...(draft ? { animation: parseAnimData(draft.js), geometry, copies } : {}), ...position }, '*');
+      css: draft ? inlineAssetRefs(upgradeFontCss(draft.css), this.resolvedAssets) : css, ...(draft ? { animation: parseAnimData(draft.js), geometry, copies } : {}), loop: this.loopProbe, ...position }, '*');
   }
   /** Source acceptance and correlated rendered-pose acknowledgement are separate receipts. */
   receipt(revision: Revision, view: { time: number; cue?: number }) {
     const ack = this.acknowledgement, expected = this.expected;
-    if (!expected || expected.revision.source !== revision.source || expected.revision.assets !== revision.assets || this.transient) return { state: 'pending' as const };
+    if (!expected || expected.revision.source !== revision.source || expected.revision.assets !== revision.assets || this.transient || this.loopProbe) return { state: 'pending' as const };
     if (this.previewError) return { state: 'failed' as const, message: this.previewError };
     if (!ack || !this.ready || this.inFlight || this.queued || this.pendingFrame ||
       ack.kind !== 'pose' || ack.requestId !== expected.requestId || ack.generation !== expected.generation ||
