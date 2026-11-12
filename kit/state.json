@@ -1494,6 +1494,35 @@
         "Real authenticatedActions persistence",
         "Finalchecks/capacity/SO/PRCI/Codex"
       ]
+    },
+    "nativeThreadId": "6af59590-26e0-8191-998d-10c7b1a8b065",
+    "latestWorkingTreeVerification": {
+      "status": "Engineering only; finalreviewedcommit/CIstillpending",
+      "starterUi": "j0047PASS",
+      "failedSavePendingSwitch": "j0048PASS",
+      "crashAndLegacy": "TargetedbrowserchecksPASSbothinstallcrashwindowsandlegacy-slotpreservation",
+      "operatorAndExports": "j0051PASS12.8s: data/In/Next/finiteOff/replay, bundledfont/logobytesandGSAPparity; browser/SPX/Casparexecuted;OGrafstructure/exportgateonly, isolatedrendererE6C",
+      "retainedHarnessFailures": [
+        "j0049expectationusedinternalcountafterpublicOff; correctedpublicboundary",
+        "j0050optionalstatic-serverrelayprobe; retainedlimitation"
+      ],
+      "reference": "Exactpin3142appcodeapplicabilityconfirmedagainstofficial0.17a1e977, differsreleaseworkflowonly; executedtaskinprogress, initialhiddenBrandKitpanelselectorstopretained",
+      "remaining": [
+        "Finishreference",
+        "Wholefocusedregression/boundedsaveintegration",
+        "Lint/types/gates/build/capacity",
+        "CommitandPR",
+        "ActualActionsfresh-authcontextpersistence",
+        "FreshfinalSOA/A+andCodex/CIgate"
+      ]
+    },
+    "runtimeArtifactFacts": {
+      "gsap": "VendoredstandardUMD3.15.0",
+      "sha256": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb",
+      "appVersion": "0.1.0",
+      "cliVersion": "0.12.4",
+      "npmGsapDependency": false,
+      "scope": "Admission-sourceproducerfactsunchanged; output/currentbrowserchunkreceiptsstillpending;ownerGSAPrequestnotsentbyworker"
     }
   }
 }
