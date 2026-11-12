@@ -1555,6 +1555,40 @@
         "failure": "Newtest94-96doesnotawaitgetSupabasePromisefactory; getSupabaseAPIat108returnPromise. FreshcontextearlierstepsreachedbutqualificationFAIL; allassertionsmustremain. Newcoherentcommit/runrequired,nooldworkflowrerun."
       }
     },
-    "nativeModelProvenance": "No explicitmodel/effortoverridepassed. ExactruntimeIDsnotexposedbynativelaunch/appmetadata; inheritedconfigurationonly. Stampoptionalmetadataallowsomissionorhonestunexposedlabels; no inventedmodelversion/gatechange."
+    "nativeModelProvenance": "No explicitmodel/effortoverridepassed. ExactruntimeIDsnotexposedbynativelaunch/appmetadata; inheritedconfigurationonly. Stampoptionalmetadataallowsomissionorhonestunexposedlabels; no inventedmodelversion/gatechange.",
+    "pr": {
+      "number": 2438,
+      "url": "https://github.com/NoaCG/NoaCG-Studio/pull/2438",
+      "head": "03e88fa9d999fc00bb14e690c2a304a6cc80b30b",
+      "ownerComment": 6823534868,
+      "ownerAck": "MinimalpublichiddenACKaccepted; trustedMEMBERmiwcoreadbackverified; soleactiveCodexcoordinatorforrun2295",
+      "ownerPayloadRejection": "EarlierdetailednotecontaininginternalUUIDs/paths/authoritywasauto-reviewrejectedbeforeposting. Noalternatebypass; saferminimalpublicrun-linkedACKaccepted; userinformed. Exactnative/authority/worktree stayinprivatekit.",
+      "postOpenCiRepairCount": 0,
+      "carriedRepairs": {
+        "asyncClientFixtureAwait": 1,
+        "privateWizardCapabilityEdge": 1
+      },
+      "stampAutoMerge": "NOTenabled; awaitallworkergates/fullSOA"
+    },
+    "newHeadQualification": {
+      "source": "03e88fa9d999fc00bb14e690c2a304a6cc80b30b",
+      "isolatedRun": 43217079413,
+      "conclusion": "success",
+      "test": "1PASS24.2s, zero skips/retries, strictsourceguard, accountcleanupbeforevalidatedreceipt",
+      "teardown": "0containers/volumes/networks/process/heldports",
+      "artifact": 13943159620,
+      "artifactName": "endurance-43217079413",
+      "rawIngress": "Rawpersistence.jsonartifactunavailablethroughCloudbyteingress; immutablewrapperstrictlyvalidateditandwholelogSUCCESS/sourcewereindependentlyread. No reconstructedrawreceipt, no newworkflow/permission change."
+    },
+    "normalCi": {
+      "run": 43217043887,
+      "source": "03e88fa9d999fc00bb14e690c2a304a6cc80b30b",
+      "planJob": 131178812556,
+      "plan": "success; modeall62configuredeligiblefiles/4isolatedstacks; local65minus3existingquarantines",
+      "capacity": "ActualCIPLANWARN198.2/213tablemin93%; latestgrowth43201149088partial, unchangedpolicyjudgeslatestcomplete43014542120 throughNov11. Partialbackendstopremainswarning, no exceptions/limits/selectionchanges. Notblanketfreshcompletegrowthclearance.",
+      "status": "Runningbuild/offline/configured; Reviewed131178812758FAILbeforecoordinatorstamp, wholelogunderinspection; no sourceCIgatepassclaimed"
+    },
+    "managedNetworkFollowup": "2439 P2 area:ci related1301, unchanged-pathlocalproxyfixtureevidence/no-bypassboundary; source217fullbuildFAILretained",
+    "finalReview": "Freshfull42-fileSO on03e88fa9 in progress; CodexPRreviewrunning on03 since12:20:54Z, no duplicate request"
   }
 }
