@@ -445,6 +445,7 @@ test('the check runs in the existing post-land alarm job and at each plan-run ch
   assert.match(job, /node scripts\/repair-wake\.mjs check --issue/);
   assert.match(job, /continue-on-error: true\n(?:.*\n){0,4}\s+run: node scripts\/repair-wake\.mjs/, 'a failed check never turns a landing\'s post-land run red');
   assert.match(job, /actions: read/);
+  assert.match(job, /checks: read/, 'the CI gate\'s annotations (fix 2 rule 6)');
   assert.match(job, /issues: write/);
   assert.doesNotMatch(job, /pull-requests: write|contents: write|actions: write/, 'read-only on PRs');
   assert.match(wf, /^on:\n {2}push:\n {4}branches: \[main\]/m, 'main\'s code, after each landing');
@@ -466,6 +467,7 @@ test('fix 2 rule 4: only the fixed kinds are read from the gate, in the fixed fo
   assert.deepEqual(ownerKindsIn(needsOwner('full:overhead,ping @all,full:moon,revision')), ['full:overhead', 'revision'], 'anything else is dropped');
   assert.deepEqual(ownerKindsIn([{ message: 'E2E capacity line refused - full:overhead. Add a budget exception' }]), [], 'an agent-fixable refusal has no kind');
   assert.deepEqual(ownerKindsIn([{ message: 'needs the owner (full:overhead)' }]), [], 'the form is exact');
+  assert.deepEqual(ownerKindsIn([{ message: 'E2E capacity line - exception Needs the owner (full:table) is invalid' }]), [], 'only at the start: branch text inside a reason is not the form');
   assert.deepEqual(ownerKindsIn(undefined), []);
 });
 
@@ -568,7 +570,7 @@ test('fix 2 rule 3: the gate\'s owner-only error says re-pushing will not pass a
   assert.match(owner, /drop what it adds to that tier or table/);
   assert.match(owner, /revision only with a reviewed revision/, 'what moves each kind');
   assert.match(owner, /Any other reason named here is this change's to fix/, 'a verdict holding both kinds says both');
-  assert.match(owner, /node scripts\/repair-wake\.mjs check --issue/);
+  assert.match(owner, /from an up-to-date main checkout: node scripts\/repair-wake\.mjs check --issue/, 'routed on main\'s owner record');
   assert.match(ci, /capacityOwner: \$\{\{ steps\.capacity\.outputs\.capacity_owner \}\}/, 'the plan job outputs the kinds');
   assert.match(ci, /CAPACITY_OWNER: \$\{\{ needs\.plan\.outputs\.capacityOwner \}\}/, 'the gate reads them');
   assert.match(ci, /Add a budget exception/i, 'the agent-fixable message is unchanged');

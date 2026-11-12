@@ -42,7 +42,7 @@ const GROUP_BRANCH = /^gh-readonly-queue\/main\/pr-(\d+)-/;
  * error carries: `Needs the owner (<kinds>)`, as scripts/e2e-capacity.mjs ownerKinds makes them.
  */
 export const OWNER_KIND = /^(?:(?:full|stopped):(?:offline|backend|graphics|overhead|table)|revision)$/;
-const NEEDS_OWNER = /Needs the owner \(([^)]*)\)/;
+const NEEDS_OWNER = /^Needs the owner \(([^)]*)\)/;
 const OWNER_MARK_RE = /<!-- owner-mark: (\S+) -->/g;
 
 /** The owner-only kinds a gate's annotations name, in the fixed form only, sorted. Pure. */

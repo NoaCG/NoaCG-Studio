@@ -146,6 +146,7 @@ jobs:
       pull-requests: read
       statuses: read
       actions: read # the red-PR check reads CI runs and their jobs
+      checks: read # and the CI gate's annotations, for a refusal only the owner can move
       issues: write
     steps:
       - uses: actions/checkout@v5
