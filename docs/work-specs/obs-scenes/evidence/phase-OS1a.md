@@ -13,7 +13,7 @@ spec's phase notes. Simulated checks only: nothing here is OBS hardware proof (t
 | AC-1: an unknown or deleted scene id builds none and reports itself as unknown | `scopePayload` answers `known: false` and no graphics, never the whole production; READY carries a `scene` issue (not ready, worded); Presence carries `scene.known: false` | `scripts/obs-scenes.test.mjs` (unknown, empty, malformed, deleted, switch off); `e2e/output-scene-link.spec.ts` test 2 (nothing built, READY `scene` issue, Presence `known: false`, still nothing after a publish with no scenes, built once a publish names it) |
 | AC-1: the ordinary link builds every graphic, as today | `scene === null` keeps every guard true and the payload untouched (R4) | `e2e/output-scene-link.spec.ts` test 1 (all six); the regression selection below |
 | AC-4: first visible frame is the resting state, no entrance | A scene link's stage posts `play` with `settled`; the composed document plays and snaps to the reached pose in the same task (`src/preview/composeDocument.ts` `settleOnAir`); OGraf gets `skipAnimation` | `e2e/output-first-paint.spec.ts` "a scene link's settled Take": every frame of lt01's document is fingerprinted; after a settled Take the first frame drawn is the resting one, and an ordinary Take of the same design draws entrance frames (the control) |
-| AC-4: a change while hidden, and a re-Take after Out, without entrance | Every Take on a scene link is settled, whatever OBS shows | same file, "a re-Take after Out is drawn settled too" |
+| AC-4: a change while hidden, and a re-Take after Out, without entrance | Every Take on a scene link is settled, whatever OBS shows; the values are restated after the snap, so a size the data owns stays | same file, "a re-Take after Out is drawn settled too" and "st01: a settled Take keeps the size the design fitted a long value to" |
 | AC-4: continuous motion keeps running | The snap arms timers and re-adopts loops, as a restart's snap does | same file, ss21: the playhead and the countdown keep moving after a settled Take. Mutation: pausing GSAP after the snap fails it (readings all 0) |
 | AC-5: switch off, everything as today | No scene control, no payload field, no change to the ordinary link's code path (R4, R10) | `e2e/playout-folders.spec.ts` "OBS scenes" (off: no menu item, no `scenes` in the payload; on: a scene with its graphic, never its server clip; off again: the flag kept and nothing published); the regression selection below; the full suite in CI |
 
@@ -22,6 +22,8 @@ spec's phase notes. Simulated checks only: nothing here is OBS hardware proof (t
 - The `apply` guard removed (`src/output/main.ts`): `e2e/output-scene-link.spec.ts` test 1 fails, another
   scene's graphic `A1` is reported by the scene link. Restored.
 - GSAP paused after the settled snap: the ss21 continuous-motion test fails. Restored.
+- The settled snap without restating the values (the PR review's finding): the st01 fitted-size test fails,
+  the long title loses its fitted size. Restored.
 - `onAirHere` without the scope (the final `/so`'s finding): `e2e/output-scene-link.spec.ts` test 3 fails, the
   reload waits on a graphic that left the scene. Restored.
 - The snap with `timers: false` still passes the ss21 test: the loop and the countdown run without the

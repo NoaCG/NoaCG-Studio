@@ -383,6 +383,9 @@ window.addEventListener('unhandledrejection', function (ev) {
       var state = typeof window.noacgSnap === 'function' && typeof window.noacgMachineState === 'function' ? window.noacgMachineState() : null;
       if (state && state.groups) {
         window.noacgSnap(state.groups, { timers: true });
+        /* The snap clears every inline style under the root, the data's own with them (a value's
+           fitted size): the values go back on, as a restart's recovery restates them after its snap. */
+        if (lastData != null && window.update) window.update(lastData);
         return;
       }
       /* GSAP reports anything holding an endless child at its 1e10 s sentinel (settleGraphic.ts):

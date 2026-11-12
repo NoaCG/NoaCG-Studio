@@ -507,6 +507,26 @@ test.describe('the /output shell, a scene link\'s settled Take', () => {
     expect(again.now).toBe(up);
   });
 
+  // The snap that settles a Take resets every inline style, the data's own with them: a value the
+  // design fitted smaller must keep that size on a scene link, as on an ordinary one.
+  test('st01: a settled Take keeps the size the design fitted a long value to', async ({ page }) => {
+    test.setTimeout(60_000);
+    const fittedAfterTake = async (settled: boolean) => {
+      await page.goto(`/first-paint/output?designs=st01${settled ? '&settled=1' : ''}`);
+      await page.waitForFunction(() => (window as unknown as { __stageReady?: boolean }).__stageReady);
+      const frame = page.frames().find((f) => f !== page.mainFrame())!;
+      await expect.poll(() => frame.evaluate(() => document.readyState).catch(() => ''), { timeout: 10_000 }).toBe('complete');
+      await take(page, 'st01', { t: 'update', data: { f0: 'The Grand Final of the Northern Regional Invitational Championship Series, Second Leg' } });
+      await take(page, 'st01', { t: 'play' });
+      await page.waitForTimeout(3000);
+      // The long value's own field: other lines may be measured mid-entrance on an ordinary Take.
+      return frame.evaluate(() => (document.getElementById('f0') as HTMLElement | null)?.style.fontSize ?? '');
+    };
+    const ordinary = await fittedAfterTake(false);
+    expect(ordinary, 'st01 fits a long title with an inline size').not.toBe('');
+    expect(await fittedAfterTake(true)).toBe(ordinary);
+  });
+
   test('ss21: continuous motion keeps running after a settled Take', async ({ page }) => {
     test.setTimeout(60_000);
     await page.goto('/first-paint/output?designs=ss21&settled=1');
