@@ -492,7 +492,15 @@ Filled in by each phase's pull request.
   Next, events and updates animate as their graphic does today.
 - Rules found after coding: the boot's hidden catch-up counts only rows in scope, so another
   scene's Take never hides a scene link's graphics while it settles; the switch-off default was sent
-  to the owner through the coordinator as one question.
+  to the owner through the coordinator as one question. From the `/check` review: a face the
+  production ships once, with a graphic of another scene, is still found by a scene link's styles;
+  OBS names the scene a source arrives in right after activating it and names the next scene before
+  deactivating it, so only a name within a second of an activation sets "last on program in"; a
+  settled Take of a graphic without a machine finishes repeats and jumps a looping timeline to the
+  end of its finite motion; copying a scene link marks the output as set up, as the plain link does.
+  Not changed, with reasons: a design change to a scene graphic on air waits for its next Take (the
+  contract with the live-publishing run); an operator page built before this one reads an unknown
+  scene's READY as ready, for the life of that page only (deploy skew).
 - Previous verified `main`: `619ebc8358f212410bce16e6cd5ce6682b94d5a7` (CI run 43243087381).
 - Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed: an
   `obsScene` flag or `obsScenes` switch left on a record by this build is ignored by the reverted one,
