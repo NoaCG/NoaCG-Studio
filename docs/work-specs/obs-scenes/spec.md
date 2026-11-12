@@ -625,3 +625,54 @@ Filled in by each phase's pull request.
   loaded while time flows; pause the clock (`pauseAt`) before building frames that must agree.
   Graphics made before this lands need Update in their production (each is its own copy).
 - Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS4.md`.
+
+### OS5a: JSON source
+
+- Rules (written before coding):
+  - R1. A JSON source is a connector source (`kind: 'external'`, `config.v` 1) whose registration
+    also carries `read: { everyMs }` (additive optional). With `read`, NoaCG reads the
+    registration's `endpoint` itself; without it the source is today's agent-only connector. Its
+    paths stay `external.<id>.<leaf>`, and its endpoint, lists, recipe and config revision keep
+    their meaning. `everyMs` is clamped to 10 s at least and an hour at most; a `read` without a
+    finite number is not read by NoaCG.
+  - R2. The connector review offers "Read by NoaCG every N s" (on, 30 s) for an address NoaCG's
+    public reader could read, only while the production's OBS scenes switch is on. A source that
+    already has `read` shows and keeps its interval in the review whatever the switch. Turning the
+    switch off stops nothing that already reads. With the switch off and no such source, nothing
+    new shows and every journey is as today.
+  - R3. One cached server read per address: the existing guarded fetch (public addresses only,
+    every redirect checked, 10 s for the whole read, 256 KiB after decompression), asking for
+    JSON, never sending a credential. The cache is the feed reader's shared row, keyed apart from
+    a feed of the same address. A row read less than 10 s ago is served without fetching; after a
+    failure the publisher's Retry-After is honoured, capped at an hour; its `max-age` does not
+    lengthen the wait (the operator's interval does). One instance holds the claim and fetches;
+    the others serve the row they have, or wait for the first read.
+  - R4. The route is `GET /api/data/json?url=<address>` inside the existing data catch-all: public,
+    with its own per-client limit (60 a minute). It answers `{ok: true, payload, fetchedAt}` or
+    `{ok: false, error, fix, failingSince}` with no payload. Not JSON, over the size, cut off, not
+    2xx, refused by the guard, or not yet read: a failure. No new Vercel function.
+  - R5. Who reads. The production page holding the source's lease (published: the row's lease;
+    unpublished: this browser's) reads at `everyMs` and renews the lease at least every 20 s.
+    Another tab or page shows the holder's status and reads nothing. Published with no page holding
+    the lease, the server tick reads it, at most once a minute and only when the row's last good
+    read is at least `everyMs` less 15 s old. An agent claiming the source takes the same lease, so
+    one of agent, page and tick reads at a time.
+  - R6. A good read is one snapshot: the parsed payload is evaluated once by the shared evaluator
+    (`projectSource`: identity, lists, recipe) for the paths bound at that moment, and every bound
+    path whose value differs from what this source last wrote is written in one write. A path the
+    payload does not carry, a value its fields cannot all hold, a path only typed fields read, or a
+    recipe the build cannot use writes nothing; the line names it and the field keeps its value. An
+    operator's value on a bound path holds until the source's value there changes.
+  - R7. A failed, malformed, refused, oversized or late read (past the reader's timeout) writes
+    nothing and the last good values hold; three missed reads in a row mark the source stale. An
+    answer that arrives after Pause, Disconnect, the page closing or a handover writes nothing.
+  - R8. Pause and Resume as for other sources: paused, neither page nor tick writes; Resume reads at
+    once and writes only paths that changed while paused.
+  - R9. The source's line shows when it was last checked (the last good read) and, separately, when
+    its content last changed (the last good read whose payload differed from the read before, by a
+    fingerprint of its canonical JSON), who reads it, and its interval.
+  - R10. The server tick lists such sources through migration 0116 (`control_data_tick_due` also
+    lists an external source with `config.v` 1 and an object `config.read`; nothing else changes).
+    It is live-path and waits for a quiet window; until it applies, only open pages read them.
+  - R11. The reader is generic: a read hands the parsed payload to one projection hook, so OS5b's
+    adapter turns the payload into its shape before the evaluator, without a second reader.
