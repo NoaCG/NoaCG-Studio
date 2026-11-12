@@ -1043,7 +1043,7 @@ async function boot(): Promise<void> {
     const history = bootHidden.has(graphic);
     const mode = releaseMode(hold.rows, Date.now(), history);
     const quiet = supersededAnimations(hold.rows.map((row) => ({ id: 0, graphic, seq: row.at, msg: row.msg })));
-    if (mode === 'cancelled' && !history) {
+    if (mode === 'cancelled') {
       // Nothing is shown: the commands' bookkeeping runs, and the frame gets the values only.
       for (const row of hold.rows) applyCommand(graphic, row.msg, row.createdAt, undefined, false, undefined, true);
       const values = heldData(graphic);

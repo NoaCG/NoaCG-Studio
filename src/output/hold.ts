@@ -58,8 +58,9 @@ export type ReleaseMode = 'cancelled' | 'onTime' | 'late';
 /** How a held queue runs when its graphic releases at `now`. `history`: the frame already holds a
  *  boot's history in its own queue, which never plays on air. */
 export function releaseMode(rows: readonly HeldRow[], now: number, history: boolean): ReleaseMode {
-  if (isCancelled(rows)) return 'cancelled';
+  // A boot frame's history never plays on air: hidden, whatever the queue ends in (G2 case 1).
   if (history) return 'late';
+  if (isCancelled(rows)) return 'cancelled';
   const take = surviving(rows);
   return take !== null && now - take <= ENTRANCE_MS ? 'onTime' : 'late';
 }
