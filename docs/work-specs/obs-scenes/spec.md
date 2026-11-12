@@ -741,3 +741,77 @@ Filled in by each phase's pull request.
   page of an older build that rewrites a connector's configuration drops `read` (R13). On a ticker,
   a pasted address is still read as a news feed; "Read by NoaCG" is offered on the other graphics.
 - Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS5a.md`.
+
+### OS5b: Bracket adapter and current match
+
+- Rules (written before coding):
+  - B1. The adapter is a setting of a JSON source NoaCG reads: `config.adapter` (additive optional)
+    is `{ v: 1, name: 'bracket', rows, fields }`. `rows` is the dotted path of the rows in the
+    payload (empty: the payload itself). `fields` names, per meaning, the dotted path inside a row
+    that holds it: `bracket`, `bracketTitle`, `stage`, `round`, `roundName`, `match`, `status`, and
+    per side `aName`, `aRace`, `aSeed`, `aScore`, `aLeague` and the same for `b`. `aName` and
+    `bName` are required; anything else may be left out. No site's field names are in the code.
+    An unknown key, a path that is not dotted, or another `name` makes the adapter unusable: the
+    read holds every value and the line says why. A later `v` is held read-only, never applied.
+  - B2. The adapter is kept and offered only with "Read by NoaCG" (OS5a R1): turning `read` off
+    in the review drops `adapter` too, so an agent's report is never read through a mapping it
+    does not know. Every writer of the configuration keeps `adapter` unless the operator changes
+    it, and changing it never moves `configRevision` (as OS5a R13). The review offers it only while
+    the OBS scenes switch is on or the source already has it.
+  - B3. Rows come as a list or as an object keyed by row number. Object keys are taken in numeric
+    order; a key that is not a whole number is reported and left out; a gap between the lowest and
+    the highest number is reported as a missing row, never filled in. In a list, an entry that is
+    not an object is reported as an empty row. Both shapes, in the same order, give the same
+    result.
+  - B4. Output, under the source's prefix `<p>`, in feed order (the order each bracket, stage,
+    round and match first appears): `<p>.brackets.<i>` `{ id, title, stages.<k> }`, a stage
+    `{ id, rounds.<r> }`, a round `{ id, name, matches.<m> }`, a match `{ id, status, a, b }`, a
+    side `{ name, race, seed, score }`; `<p>.players.<j>` `{ name, race, seed, league }`;
+    `<p>.ties.<bracket key>`; `<p>.current`. Indexes are path segments (`brackets.0`), since a
+    bound path is dotted keys. A grouping field left out of the mapping puts every row in one
+    group whose id is `1`; a round with no name field is named by its id; a bracket with no title
+    field is titled by its id.
+  - B5. A match's id is its `match` field as text. With no `match` field mapped it is
+    `<bracket>:<stage>:<round>:<n>`, n counting from 1 within its round, so it is stable while the
+    rows keep their order. A row with a mapped grouping or match field that is empty is reported
+    and left out.
+  - B6. `status` is `pending`, `live` or `done` when the feed's value is that word (any case,
+    trimmed), else `unknown`. `score` is a finite number, or a numeric string as its number, else
+    `null`; never a silent zero. No winner is inferred. Name, race, seed and league are the feed's
+    scalar, else `null`.
+  - B7. Duplicates are reported, not guessed: a second row with an existing match id and the same
+    mapped values is left out; one with other values makes that match keep its values (its slot
+    stays, with its id only, so later indexes do not move) and its bracket's tie lines keep theirs.
+  - B8. `players` lists each named side once, in first appearance, with race, seed and league
+    from the rows; a player given two different values for one of them gets `null` there, reported.
+  - B9. `<p>.ties.<bracket key>`: one line per match in feed order, "Round name | A name A score |
+    B name B score", with "—" for an unknown score, as the Bracket type takes them; a `|` or a line
+    break inside a value becomes a space. The key is the bracket id with every run of characters
+    other than letters, digits, `_` and `-` made one `-` (empty: the bracket's index); a second
+    bracket with the same key is reported and left out of `ties`.
+  - B10. An unknown value (`null`) writes empty text to a bound field, so a field never shows the
+    previous match's value as this one's; a tie line shows "—".
+  - B11. The current match is the operator's: `<p>.currentMatchId` in the production's tree,
+    written by the operator (the source line's picker, or a data write). No read writes it, and a
+    binding to it is never reported missing.
+  - B12. `<p>.current` is `{ matchId, round, a, b, held }` (round: the round's name). The reader
+    remembers, beside its snapshot under a key no path can take, the pick it last resolved and the
+    two side names it resolved with. At each read of an open page:
+    - no pick (absent or empty): nothing under `current` is written, and the memory is cleared;
+    - a pick that differs from the memory, found: every `current` value is written, `held` false,
+      and the memory becomes the pick and its two names;
+    - the same pick, found, with the same names: every `current` value is written, `held` false; a
+      remembered name that was empty takes the match's name (a slot filled later is not a change);
+    - the pick not found (gone, or kept by B7), or found with a remembered non-empty name changed:
+      `held` is written true and nothing else under `current`, so every field keeps its last value;
+      the memory stays; the line says which.
+    So `current` moves only when the operator picks another match. Picking it again after a hold
+    needs another pick first.
+  - B13. The server tick does not know the pick: it writes nothing under `current` and keeps the
+    memory, so `current` holds until a page reads. Brackets, players and ties are written by page
+    and tick alike. (Until 0116 applies the tick reads no JSON source at all.)
+  - B14. A pick on the source's line writes `<p>.currentMatchId` and asks the reader to read at
+    once, so the pick shows within one read. With the OBS scenes switch off and no adapter set,
+    nothing new shows.
+  - B15. The adapter's report goes on the source's line, at most five lines and a count of the
+    rest. The read is still one snapshot (OS5a R6), checked and changed as before.
