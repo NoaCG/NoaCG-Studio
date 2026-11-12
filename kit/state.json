@@ -73,9 +73,9 @@
  ],
  "triggers": [
   {
-   "id": "trig_01S3fBDL2J88mFSX7hEeifpg",
+   "id": "trig_01KqWGJ2QRHwSmWiL4uiePEU",
    "what": "plan-run check-in",
-   "at": "2026-11-12T17:31:00Z"
+   "at": "2026-11-12T17:48:00Z"
   },
   {
    "id": "trig_01TAFy1zGNczhpYNFeoozQLL",
