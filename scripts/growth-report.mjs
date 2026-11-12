@@ -679,7 +679,8 @@ export function classifyReport(report, { now, maxAgeDays, freshnessDays }) {
 
 /**
  * What a report that is not complete still proves: each tier's measured cost is at least what it
- * read (partial cost is a lower bound), so the gate never judges a tier below it. Pure.
+ * read (partial cost is a lower bound). The gate names a floor above the judged cost as a warning
+ * and never refuses on it (land-2 B5: weaker evidence never makes the gate stricter). Pure.
  */
 export function lowerBounds(report) {
   const out = {};
@@ -722,7 +723,7 @@ export function gateReport({ gh = withRetries(ghRun), now = new Date().toISOStri
     return { newest: { run: null, generatedAt: null, attempt: null, state: 'missing', readFailed: true, why: `the report listing failed: ${String(e?.message ?? e).split('\n')[0]}` }, judged: null };
   }
   let newest = null;
-  // Every report newer than the judged complete one proves a floor; the gate takes the highest.
+  // Every report newer than the judged complete one proves a floor; the gate names the highest.
   let floor = null;
   let stops;
   for (const a of all.slice(0, candidates)) {
