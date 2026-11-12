@@ -1756,5 +1756,14 @@
       "requiredProof": "Sourceoracleclean/dirtyadoption/same-unitconflict/refusal/oldcompletion/newstage/unknownmalformed; forcedinstallationintent/autosave andprojectpersist/view-sample-history-link interleavings; realSERIALbrowseradoptionverifiedTHIRDfreshpage, adoptedv99withstalev1stillpresent; directsyncupsert/superseded/inverse retention. Existingrollback/save/backendchecks/capsunchanged.",
       "finalReviewRequirement": "FreshFULLSO onnewcoherenthead afteractualcapacity, oneCodexresult, currentcheck/normalCI/configuredandstrongerisolated; no eligibleA/delta shortcut."
     }
+  },
+  "coordinatorTools": {
+    "worktree": "/workspace/noacg-editor-r1-5-coordinator-tools",
+    "branch": "codex/editor-r1-5-coordinator-tools-20261112",
+    "source": "c1ce4e4e7740768e5dbe8d579e762782d00e61d7",
+    "purpose": "Ownedcurrent-mainCLI/workflowhelpers only; no builds/productedits/maincheckoutuse",
+    "newCanonicalRules": "Read currentmain queue/traps/planrun diffs: one coherentpushperround, neverpushwhileitsCIruns; requiredrepair-wake backstopatcheckin. Existingpushsequencecomplies.",
+    "backstop": "node scripts/repair-wake.mjs check --issue terminal0;16APIreads, onlyolderalready-alarmed2332 outsidecurrentrun, nothingnewtoraise; noownertransfer",
+    "cleanup": "Rootownedauxiliaryworktree; keepuntilcurrentpost-land/checkin usefinishes, then normalownworktreecleanup. Noactivejob."
   }
 }
