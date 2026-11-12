@@ -85,6 +85,17 @@ building" with its reason.
   `endsFailure`, `giveUp`) and are Node-tested. A hold keeps its own `from` when making room drops
   its first command, and the 5 s mark is told to Presence when it passes.
 - **Monitors pass no positions**, so the production page's PROGRAM and PREVIEW stages are unchanged.
+- **A held look keeps its place hint** (second Codex review, P2). A preset's Take sends its look and
+  a place hint together; the hint was dropped while the frame loaded, so the placer could not
+  measure the cue's values and the graphic would air at the earlier measurement's position. The
+  primed update now carries both.
+- **A stage command waits under a key of its own** (second Codex review, P2). A republished log
+  numbers from 1 again, so a new command could share a position with one still waiting from the old
+  log and settle it, or be settled by it. Each command now waits under a unique key; its position
+  goes out only in the outcome. The graphic stays listed from 0 until the old work settles.
+- **Three older source-shape tests read the new code** (`ograf-typed-recovery`, `ograf-typed-writer`):
+  the boot's unreported read is now typed or not (G2 section 4), the report adds `run`, and a
+  dataless update with no look is a skipped command. Each assertion is as strict as before.
 
 ## Verification
 
@@ -95,6 +106,7 @@ building" with its reason.
 | `vite build` and `npm run check:output-reader` (Chromium 71 parse) | pass: 27 output modules parse |
 | `scripts/output-hold.test.mjs` (reference model, 2,000 random queues) | pass |
 | `scripts/run-confirm.test.mjs` | pass |
+| `scripts/ograf-typed-recovery.test.mjs`, `scripts/ograf-typed-writer.test.mjs` | pass (failed in CI on d97cb850 before their update) |
 | `scripts/readiness.test.mjs`, `scripts/playout-status.test.mjs`, `scripts/output-setup.test.mjs`, `scripts/swap-plan.test.mjs`, `scripts/place-on-output.test.mjs`, `scripts/output-reload.test.mjs` | pass |
 | `e2e/output-first-paint.spec.ts` (queued, local) | 14 of 14 pass, the new hidden-frame test included |
 | `e2e/configured/per-graphic-replacement.spec.ts` on the local stack | see "Configured runs" |
