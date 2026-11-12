@@ -78,7 +78,8 @@ async function mountOutput(page: Page, target: string, files: Record<string, str
   return { output, command };
 }
 
-for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'laptop'], [1093, 614, 'laptop-125']] as const) test('agent package visual round-trip ' + label, async ({ page }) => {
+// One size: the smallest, where layouts break first (owner decision 2026-11-12, docs/work-specs/cicd-followup/evidence/land-study.md section 3.4).
+for (const [width, height, label] of [[1093, 614, 'laptop-125']] as const) test('agent package visual round-trip ' + label, async ({ page }) => {
   test.setTimeout(180_000); page.setDefaultTimeout(15_000); const errors: string[] = [], network: string[] = [];
   const watch = (p: Page) => {
     p.on('pageerror', e => errors.push(e.message)); p.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });

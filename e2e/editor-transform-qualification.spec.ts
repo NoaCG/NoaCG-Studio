@@ -70,7 +70,8 @@ test('linked scale preserves unequal axes for typing, corners and sides; Shift i
   b = await base(p, s); expect(b.scaleX / b.scaleY).toBeCloseTo(2, 5); near(await point(p, '[data-edge="3"]'), opposite);
   expect((await source(p)).html).toBe(initial.html); expect((await source(p)).js).toBe(initial.js);
 });
-for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'laptop'], [1093, 614, 'zoom-proxy']] as const) test('text-box side versus corner and rotation reopen ' + label, async ({ page: p }) => {
+// One size: the smallest, where layouts break first (owner decision 2026-11-12, docs/work-specs/cicd-followup/evidence/land-study.md section 3.4).
+for (const [width, height, label] of [[1366, 768, 'laptop'], [1093, 614, 'zoom-proxy']] as const) test('text-box side versus corner and rotation reopen ' + label, async ({ page: p }) => {
   test.setTimeout(120_000); const errors: string[] = []; p.on('pageerror', e => errors.push(e.message));
   await p.setViewportSize({ width, height }); const s = await setup(p, true);
   if (label === 'zoom-proxy') { await p.getByRole('combobox', { name: 'Canvas zoom' }).selectOption('2'); await ready(p); }

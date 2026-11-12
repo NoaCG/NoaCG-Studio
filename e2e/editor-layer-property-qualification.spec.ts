@@ -4,7 +4,8 @@ import { finishIntoNewEditor } from './_create';
 import { writeFileSync } from 'node:fs';
 import { source, selected, inspection, row, number, frame, ready, open, seek, select, undo, redo, scrub, draw, point, capture, saveReopen } from './_layerProperty';
 
-for (const [width, height] of [[1920,1080],[1366,768]]) test(`ordinary layer selection rename eye and history ${width}`, async ({ page }) => {
+// One size: the smallest, where layouts break first (owner decision 2026-11-12, docs/work-specs/cicd-followup/evidence/land-study.md section 3.4).
+for (const [width, height] of [[1366,768]]) test(`ordinary layer selection rename eye and history ${width}`, async ({ page }) => {
   await page.setViewportSize({width,height}); await open(page); const initial = await source(page);
   await select(page,'.graphic'); await row(page,'#f0').locator('.ef-layer').click({modifiers:['Shift']});
   expect(await selected(page)).toEqual(['.graphic','.graphic-box','#f0']); expect(await source(page)).toEqual(initial);

@@ -281,3 +281,17 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
 
 `CA: qualified Claude Code Cloud worker plus GitHub Actions` for every phase. Measurements use
 existing Actions history; drills and trials are bounded standard runs.
+
+## Test maintenance
+
+Deliberate, owner-approved removals; each line names what stays protected and where the decision is.
+
+- e2e/editor-command-task.spec.ts: the shared UI, semantic and proposal authoring journey kept at laptop-125, its smallest size; layout at every size kept by playout-fixed-panes, playout-rail-width and docs; receipt docs/work-specs/cicd-followup/evidence/land-study.md section 3.4 (owner decision 2026-11-12), owner miwco, expires 2026-12-12
+- e2e/editor-drawing-task.spec.ts: the cumulative wizard authoring journey kept at laptop-125; layout at every size kept by playout-fixed-panes, playout-rail-width and docs; receipt docs/work-specs/cicd-followup/evidence/land-study.md section 3.4 (owner decision 2026-11-12), owner miwco, expires 2026-12-12
+- e2e/editor-cli-round-trip.spec.ts: the agent package visual round-trip kept at laptop-125; layout at every size kept by playout-fixed-panes, playout-rail-width and docs; receipt docs/work-specs/cicd-followup/evidence/land-study.md section 3.4 (owner decision 2026-11-12), owner miwco, expires 2026-12-12
+- e2e/editor-usability.spec.ts: both usable-authoring journeys (Hairline, House Quiz) kept at 1093; layout at every size kept by playout-fixed-panes, playout-rail-width and docs; receipt docs/work-specs/cicd-followup/evidence/land-study.md section 3.4 (owner decision 2026-11-12), owner miwco, expires 2026-12-12
+- e2e/editor-keys.spec.ts: the second-keys, cancel, history and reopen journey kept at 1093; layout at every size kept by playout-fixed-panes, playout-rail-width and docs; receipt docs/work-specs/cicd-followup/evidence/land-study.md section 3.4 (owner decision 2026-11-12), owner miwco, expires 2026-12-12
+- e2e/editor-out.spec.ts: the Set Out reverse, cancel, history, hold and save/reopen journey kept at 1093; layout at every size kept by playout-fixed-panes, playout-rail-width and docs; receipt docs/work-specs/cicd-followup/evidence/land-study.md section 3.4 (owner decision 2026-11-12), owner miwco, expires 2026-12-12
+- e2e/editor-fidelity-trim.spec.ts: the wizard nested identity, trim and history journey kept at 1093; layout at every size kept by playout-fixed-panes, playout-rail-width and docs; receipt docs/work-specs/cicd-followup/evidence/land-study.md section 3.4 (owner decision 2026-11-12), owner miwco, expires 2026-12-12
+- e2e/editor-layer-property-qualification.spec.ts: the layer selection, rename, eye and history journey kept at 1366; layout at every size kept by playout-fixed-panes, playout-rail-width and docs; receipt docs/work-specs/cicd-followup/evidence/land-study.md section 3.4 (owner decision 2026-11-12), owner miwco, expires 2026-12-12
+- e2e/editor-transform-qualification.spec.ts: the text-box side versus corner and rotation reopen journey kept at 1366 and 1093; layout at every size kept by playout-fixed-panes, playout-rail-width and docs; receipt docs/work-specs/cicd-followup/evidence/land-study.md section 3.4 (owner decision 2026-11-12), owner miwco, expires 2026-12-12
