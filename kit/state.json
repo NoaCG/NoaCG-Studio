@@ -69,7 +69,7 @@
       "phase": "E4",
       "step": "build / first boot-projection repair after round-four reassessment",
       "pr": 2438,
-      "note": "First projection repair committed2767a30 clean; targeted117/117 and source34/34 pass, original overwrite/new Discard/adoption cases pass. Single bounded162case regression underway beforepush. Quarantine2453 queuegroup43267372416 running; no E4 stamp/auto-merge/acceptance."
+      "note": "First projection repair committed2767a30 clean; targeted117/117 and source34/34 pass, original overwrite/new Discard/adoption cases pass. Single bounded162case regression underway beforepush. Quarantine2453 landed b9f3660 throughsuccessfulqueue; exactmergepost-land checks pending. No E4 stamp/auto-merge/acceptance."
     }
   ],
   "owner": [
@@ -90,7 +90,7 @@
       "pr": 2453,
       "what": "Mandatory separate per-graphic-replacement fail-then-pass quarantine from configured42beCI; no test/runtime/check/limit edit",
       "ownerComment": 6830323298,
-      "status": "QUEUED",
+      "status": "LANDED_POSTLAND_PENDING",
       "head": "95cf964507b4f742b1754f7410b42b2ab90dc43e",
       "branch": "codex/editor-r1-5-per-graphic-quarantine-20261112",
       "worktree": "/workspace/noacg-editor-r1-5-per-graphic-quarantine",
@@ -104,7 +104,19 @@
       "queueGroup": 43267372416,
       "queueGroupSha": "b9f3660e28c5cc339dbfb82d4415ebb492ac2cef",
       "mergePlan": "Actualwholeplan131354465133 SUCCESS; explicitmergegroupexemptconfigured, nooffline/specselection; actualcapacityWARN withcurrentgrowth, noexceptionedit. Buildstillrunning.",
-      "backstop": "17:18 check--issue completed0;19calls; E42438attended; olderunrelated2332alreadyalarmed,nothingnewtoraise."
+      "backstop": "17:18 check--issue completed0;19calls; E42438attended; olderunrelated2332alreadyalarmed,nothingnewtoraise.",
+      "merge": "b9f3660e28c5cc339dbfb82d4415ebb492ac2cef",
+      "parent": "e394954becdbb292c914b3d20339418c9f9172c2",
+      "mergedAt": "2026-11-12T17:23:07Z",
+      "mergeGroupResult": "43267372416 SUCCESS",
+      "postLandingRuns": {
+        "ci": 43268862367,
+        "postLand": 43268862327,
+        "codeql": 43268863302,
+        "quarantine": 43268862291,
+        "configured": 43268862377
+      },
+      "postLandingStatus": "Actual exactmerge mainCIpending; otherfourrunsinprogress; deployment_statusrunsallskipped(metadataonly). Rootstaysactiveuntilterminalresults/incidententry."
     }
   ],
   "triggers": [],
