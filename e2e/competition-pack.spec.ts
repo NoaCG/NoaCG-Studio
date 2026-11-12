@@ -18,6 +18,9 @@ import { toApp } from './_bench';
 // its guard, the reset/reuse path, an empty data source, the derived step counts, save/load,
 // and the export targets.
 
+// PROBE ONLY (never lands): each concurrent walk eight times, to measure flake risk on CI.
+const rep = (title: string, fn: Parameters<typeof test>[2]) => { for (let i = 1; i <= 8; i++) test(`${title} [run ${i}]`, fn); };
+
 const CATEGORIES = ['esports-score', 'matchup', 'results-board', 'reveal'] as const;
 
 /** Mount a template in a hidden iframe (one catalog variant, or any document), and return a handle to drive it. */
@@ -618,7 +621,7 @@ test('Focus row lights a row on its first press, and Back levels the line-up (#2
   }
 });
 
-test('Focus competitor and Spotlight light a row on their first press on every tower and podium board (#2268)', async ({ page }) => {
+rep('Focus competitor and Spotlight light a row on their first press on every tower and podium board (#2268)', async ({ page }) => {
   // The timing tower's Focus competitor and the podium board's Spotlight did nothing on air until
   // a number was typed: their fields started at 0, which names no row. They now start at 1, and a
   // number naming no row lights the row at that end, as the roster's Focus row does (#2200).
@@ -769,7 +772,7 @@ test('Focus competitor and Spotlight light a row on their first press on every t
   }
 });
 
-test('Focus row and Highlight row pressed on an empty list light the named row when the rows arrive (#2271)', async ({ page }) => {
+rep('Focus row and Highlight row pressed on an empty list light the named row when the rows arrive (#2271)', async ({ page }) => {
   // The roster's and standings board's press with no rows typed yet left the board level, so
   // the rows a later update brought in were never lit while the machine said one was. The board
   // is now in focus even with no rows (its CSS dims rows only), as the timing tower is (#2268).
@@ -1020,7 +1023,7 @@ test('Reset lands a winner card on its first step with nothing its result painte
   expect(run.again, 'Reset in place clears a mark a late call left').toEqual({ result: false, celebrating: false });
 });
 
-test('Back to a later step lands on its own look, not the look of the step it left (#2201)', async ({ page }) => {
+rep('Back to a later step lands on its own look, not the look of the step it left (#2201)', async ({ page }) => {
   // « Back snaps to the state before the current one, and a snap fires only the target's own call.
   // The reveal cards' moments are classes, so the board is painted from the state it lands on:
   // nothing the left state added stays, and what the states before the target painted is there.
