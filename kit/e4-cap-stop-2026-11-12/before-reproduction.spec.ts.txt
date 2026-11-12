@@ -1,0 +1,78 @@
+import { test, expect } from '@playwright/test';
+import { seedAuthoringProject, flushAuthoringProject } from '../../../e2e/_authoringProject';
+import { install, arm } from '../../../e2e/_saveMatrix';
+import { awaitDurableReady } from '../../../e2e/_durable';
+test('an active pristine document never inherits another document mint reservation at boot', async ({ page }) => {
+ const ids = await seedAuthoringProject(page);
+ await flushAuthoringProject(page);
+ await install(page); await arm(page, 'K', 'refuse');
+ const before = await page.evaluate(async ids => {
+  const A = await import('/src/store/saveActions.ts'), S = await import('/src/store/templateStore.ts');
+  const P = await import('/src/store/authoringProjects.ts'), M = await import('/src/model/project.ts'), L = await import('/src/model/library.ts');
+  const saved = await A.saveGraphicAs(S.useTemplateStore.getState().template.name, { kind: 'standalone' });
+  const afterRefusal = M.loadProject();
+  const sourceA = L.graphicById(saved.graphicId!)!.template;
+  const switched = await P.openProjectDocument(ids[1]);
+  const slot = M.loadProject()!, b = slot.workspace!.documents.find(d => d.id === ids[1])!;
+  return { saved, afterRefusal, switched, active: slot.workspace!.active, outerReservation: slot.reservedGraphicId,
+   outerMinting: slot.mintingReserved, bReservation: b.reservedGraphicId, bMinting: b.mintingReserved,
+   bSaved: b.saved, bTemplate: b.template, sourceA };
+ }, ids);
+ console.log('BEFORE-RELOAD', JSON.stringify(before));
+ expect(before.saved.ok).toBe(false); expect(before.switched).toBe(true); expect(before.active).toBe(ids[1]);
+ await page.reload(); await awaitDurableReady(page);
+ const after = await page.evaluate(async id => {
+  const S = await import('/src/store/templateStore.ts'), A = await import('/src/store/saveActions.ts'), L = await import('/src/model/library.ts');
+  const state = S.useTemplateStore.getState(); const bootLink = state.saved.graphicId, bootSource = state.template;
+  const saved = await A.saveCurrentGraphic();
+  return { bootLink, bootSource, saved, recordA: L.graphicById(id)!.template };
+ }, before.saved.graphicId!);
+ console.log('AFTER-RELOAD', JSON.stringify(after));
+ expect(after.bootSource).toEqual(before.bTemplate);
+ expect(after.bootLink, 'B must remain unlinked and cannot claim the departing reservation').toBeNull();
+ expect(after.recordA, 'saving B must preserve the departing library source').toEqual(before.sourceA);
+});
+
+for (const route of ['switch', 'autosave', 'home'] as const) test(`selection-only ${route} preserves the current owner selection`, async ({ page }) => {
+ const ids = await seedAuthoringProject(page);
+ await page.evaluate(async () => {
+  const [P,S,A,R] = await Promise.all([import('/src/store/authoringProjects.ts'), import('/src/store/templateStore.ts'),import('/src/store/saveActions.ts'),import('/src/app/router.ts')]);
+  (window as any).selectionProbe = {P,S,A,R,done:false};
+ });
+ await page.evaluate(() => { const h=(window as any).selectionProbe; const s=h.S.useTemplateStore.getState();s.setHtml(s.template.html+'<!-- selection proof -->'); });
+ await flushAuthoringProject(page);
+ const before = await page.evaluate(() => { const h=(window as any).selectionProbe;const s=h.S.useTemplateStore.getState();return{source:JSON.stringify(s.template),history:s.history.length}; });
+ await page.evaluate(() => (window as any).selectionProbe.S.useTemplateStore.getState().setSelectedParts(['#f0']));
+ expect(await page.evaluate(() => (window as any).selectionProbe.S.useTemplateStore.getState().selectedParts)).toEqual(['#f0']);
+ if(route==='switch') {
+  for(const id of [ids[1],ids[0]]) {
+   await page.evaluate(id => {const h=(window as any).selectionProbe;h.done=false;void h.P.openProjectDocument(id).then((ok:boolean)=>{h.ok=ok;h.done=true;});},id);
+   await expect.poll(()=>page.evaluate(()=>(window as any).selectionProbe.done)).toBe(true);
+   expect(await page.evaluate(()=>(window as any).selectionProbe.ok)).toBe(true);
+  }
+ } else {
+  if(route==='home') {
+   await page.evaluate(()=>{const h=(window as any).selectionProbe;h.done=false;void h.P.retainCurrentProjectDraft().then((ok:boolean)=>{h.ok=ok;h.R.useRouter.getState().navigate({view:'home'});h.done=true;});});
+   await expect.poll(()=>page.evaluate(()=>(window as any).selectionProbe.done)).toBe(true);
+  } else await flushAuthoringProject(page);
+  await page.reload(); await awaitDurableReady(page);
+ }
+ const after=await page.evaluate(async()=>{const S=await import('/src/store/templateStore.ts');const s=S.useTemplateStore.getState();return{selection:s.selectedParts,source:JSON.stringify(s.template),history:s.history.length};});
+ console.log('SELECTION-PROOF',JSON.stringify({route,selection:after.selection,sourceKept:after.source===before.source,historyKept:after.history===before.history}));
+ expect(after.source).toBe(before.source);expect(after.history).toBe(before.history);expect(after.selection).toEqual(['#f0']);
+});
+
+test('selection-only during held Discard keeps the current owner and view',async({page})=>{
+ const ids=await seedAuthoringProject(page);await flushAuthoringProject(page);
+ await page.evaluate(async()=>{const[P,S,A]=await Promise.all([import('/src/store/authoringProjects.ts'),import('/src/store/templateStore.ts'),import('/src/store/saveActions.ts')]);(window as any).selectionProbe={P,S,A,done:false};});
+ const before=await page.evaluate(()=>JSON.stringify((window as any).selectionProbe.S.useTemplateStore.getState().template));
+ await install(page);await arm(page,'D','hold');
+ await page.evaluate(()=>{const h=(window as any).selectionProbe;void h.A.discardCurrentGraphic().then((error:string|null)=>{h.error=error;h.done=true;});});
+ await expect.poll(()=>page.evaluate(()=>(window as any).matrix.releases.filter(Boolean).length)).toBe(1);
+ await page.evaluate(()=>(window as any).selectionProbe.S.useTemplateStore.getState().setSelectedParts(['#f0']));
+ await page.evaluate(()=>(window as any).matrix.releases[0]());
+ await expect.poll(()=>page.evaluate(()=>(window as any).selectionProbe.done)).toBe(true);
+ const after=await page.evaluate(()=>{const h=(window as any).selectionProbe,s=h.S.useTemplateStore.getState();return{error:h.error,id:s.documentId,selection:s.selectedParts,source:JSON.stringify(s.template)};});
+ console.log('SELECTION-DISCARD',JSON.stringify({error:after.error,idKept:after.id===ids[0],selection:after.selection,sourceKept:after.source===before}));
+ expect(after.error).toBeTruthy();expect(after.id).toBe(ids[0]);expect(after.source).toBe(before);expect(after.selection).toEqual(['#f0']);
+});

@@ -1,0 +1,8 @@
+import { defineConfig } from '@playwright/test';
+import base from '../../../playwright.config';
+import { fileURLToPath } from 'node:url';
+const root = fileURLToPath(new URL('../../../', import.meta.url));
+export default defineConfig({ ...base, testDir: '.', testMatch: 'reservation.spec.ts', testIgnore: [],
+ globalSetup: root + 'e2e/_offline-guard.ts', reporter: [['list'], [root + 'scripts/e2e-run-integrity.mjs']],
+ outputDir: root + 'endurance-output/e4-engineering/reservation-provenance/results',
+ webServer: { ...base.webServer, cwd: root } });

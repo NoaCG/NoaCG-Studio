@@ -1,0 +1,138 @@
+=== j-0113 npm run test:e2e -- --config=endurance-output/e4-engineering/reservation-provenance/repro.config.ts --grep 'selection-only'
+=== cwd /workspace/noacg-editor-r1-5-e4-build
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test --config=endurance-output/e4-engineering/reservation-provenance/repro.config.ts --grep selection-only
+
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 15334 MB free (machine totals stand in for cgroup limits it could not read)
+[WebServer] (node:113142) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:113155) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 4 tests using 2 workers
+
+(node:113253) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:113252) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+SELECTION-PROOF {"route":"switch","selection":[],"sourceKept":true,"historyKept":true}
+SELECTION-PROOF {"route":"autosave","selection":[],"sourceKept":true,"historyKept":true}
+  ✘  2 [chromium] › endurance-output/e4-engineering/reservation-provenance/reservation.spec.ts:36:62 › selection-only switch preserves the current owner selection (6.5s)
+  ✘  1 [chromium] › endurance-output/e4-engineering/reservation-provenance/reservation.spec.ts:36:62 › selection-only autosave preserves the current owner selection (6.9s)
+(node:113408) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:113416) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+SELECTION-DISCARD {"error":null,"idKept":false,"selection":[],"sourceKept":false}
+SELECTION-PROOF {"route":"home","selection":[],"sourceKept":true,"historyKept":true}
+  ✘  4 [chromium] › endurance-output/e4-engineering/reservation-provenance/reservation.spec.ts:65:1 › selection-only during held Discard keeps the current owner and view (4.7s)
+  ✘  3 [chromium] › endurance-output/e4-engineering/reservation-provenance/reservation.spec.ts:36:62 › selection-only home preserves the current owner selection (4.9s)
+
+
+  1) [chromium] › endurance-output/e4-engineering/reservation-provenance/reservation.spec.ts:36:62 › selection-only switch preserves the current owner selection 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 3
+    + Received  + 1
+
+    - Array [
+    -   "#f0",
+    - ]
+    + Array []
+
+      60 |  const after=await page.evaluate(async()=>{const S=await import('/src/store/templateStore.ts');const s=S.useTemplateStore.getState();return{selection:s.selectedParts,source:JSON.stringify(s.template),history:s.history.length};});
+      61 |  console.log('SELECTION-PROOF',JSON.stringify({route,selection:after.selection,sourceKept:after.source===before.source,historyKept:after.history===before.history}));
+    > 62 |  expect(after.source).toBe(before.source);expect(after.history).toBe(before.history);expect(after.selection).toEqual(['#f0']);
+         |                                                                                                              ^
+      63 | });
+      64 |
+      65 | test('selection-only during held Discard keeps the current owner and view',async({page})=>{
+        at /workspace/noacg-editor-r1-5-e4-build/endurance-output/e4-engineering/reservation-provenance/reservation.spec.ts:62:110
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    endurance-output/e4-engineering/reservation-provenance/results/reservation-selection-only-f3693-the-current-owner-selection-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: endurance-output/e4-engineering/reservation-provenance/results/reservation-selection-only-f3693-the-current-owner-selection-chromium/error-context.md
+
+  2) [chromium] › endurance-output/e4-engineering/reservation-provenance/reservation.spec.ts:36:62 › selection-only autosave preserves the current owner selection 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 3
+    + Received  + 1
+
+    - Array [
+    -   "#f0",
+    - ]
+    + Array []
+
+      60 |  const after=await page.evaluate(async()=>{const S=await import('/src/store/templateStore.ts');const s=S.useTemplateStore.getState();return{selection:s.selectedParts,source:JSON.stringify(s.template),history:s.history.length};});
+      61 |  console.log('SELECTION-PROOF',JSON.stringify({route,selection:after.selection,sourceKept:after.source===before.source,historyKept:after.history===before.history}));
+    > 62 |  expect(after.source).toBe(before.source);expect(after.history).toBe(before.history);expect(after.selection).toEqual(['#f0']);
+         |                                                                                                              ^
+      63 | });
+      64 |
+      65 | test('selection-only during held Discard keeps the current owner and view',async({page})=>{
+        at /workspace/noacg-editor-r1-5-e4-build/endurance-output/e4-engineering/reservation-provenance/reservation.spec.ts:62:110
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    endurance-output/e4-engineering/reservation-provenance/results/reservation-selection-only-a1b07-the-current-owner-selection-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: endurance-output/e4-engineering/reservation-provenance/results/reservation-selection-only-a1b07-the-current-owner-selection-chromium/error-context.md
+
+  3) [chromium] › endurance-output/e4-engineering/reservation-provenance/reservation.spec.ts:36:62 › selection-only home preserves the current owner selection 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 3
+    + Received  + 1
+
+    - Array [
+    -   "#f0",
+    - ]
+    + Array []
+
+      60 |  const after=await page.evaluate(async()=>{const S=await import('/src/store/templateStore.ts');const s=S.useTemplateStore.getState();return{selection:s.selectedParts,source:JSON.stringify(s.template),history:s.history.length};});
+      61 |  console.log('SELECTION-PROOF',JSON.stringify({route,selection:after.selection,sourceKept:after.source===before.source,historyKept:after.history===before.history}));
+    > 62 |  expect(after.source).toBe(before.source);expect(after.history).toBe(before.history);expect(after.selection).toEqual(['#f0']);
+         |                                                                                                              ^
+      63 | });
+      64 |
+      65 | test('selection-only during held Discard keeps the current owner and view',async({page})=>{
+        at /workspace/noacg-editor-r1-5-e4-build/endurance-output/e4-engineering/reservation-provenance/reservation.spec.ts:62:110
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    endurance-output/e4-engineering/reservation-provenance/results/reservation-selection-only-7b879-the-current-owner-selection-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: endurance-output/e4-engineering/reservation-provenance/results/reservation-selection-only-7b879-the-current-owner-selection-chromium/error-context.md
+
+  4) [chromium] › endurance-output/e4-engineering/reservation-provenance/reservation.spec.ts:65:1 › selection-only during held Discard keeps the current owner and view 
+
+    Error: expect(received).toBeTruthy()
+
+    Received: null
+
+      75 |  const after=await page.evaluate(()=>{const h=(window as any).selectionProbe,s=h.S.useTemplateStore.getState();return{error:h.error,id:s.documentId,selection:s.selectedParts,source:JSON.stringify(s.template)};});
+      76 |  console.log('SELECTION-DISCARD',JSON.stringify({error:after.error,idKept:after.id===ids[0],selection:after.selection,sourceKept:after.source===before}));
+    > 77 |  expect(after.error).toBeTruthy();expect(after.id).toBe(ids[0]);expect(after.source).toBe(before);expect(after.selection).toEqual(['#f0']);
+         |                      ^
+      78 | });
+      79 |
+        at /workspace/noacg-editor-r1-5-e4-build/endurance-output/e4-engineering/reservation-provenance/reservation.spec.ts:77:22
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    endurance-output/e4-engineering/reservation-provenance/results/reservation-selection-only-5aa71--the-current-owner-and-view-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: endurance-output/e4-engineering/reservation-provenance/results/reservation-selection-only-5aa71--the-current-owner-and-view-chromium/error-context.md
+
+  4 failed
+    [chromium] › endurance-output/e4-engineering/reservation-provenance/reservation.spec.ts:36:62 › selection-only switch preserves the current owner selection 
+    [chromium] › endurance-output/e4-engineering/reservation-provenance/reservation.spec.ts:36:62 › selection-only autosave preserves the current owner selection 
+    [chromium] › endurance-output/e4-engineering/reservation-provenance/reservation.spec.ts:36:62 › selection-only home preserves the current owner selection 
+    [chromium] › endurance-output/e4-engineering/reservation-provenance/reservation.spec.ts:65:1 › selection-only during held Discard keeps the current owner and view 

@@ -1,0 +1,25 @@
+AGREE WITH CORRECTIONS
+
+The clarified protocol satisfies the main model: actual binding clock, supplied-state capture, synchronous view generations, completed history publication, and protection across all Discard waits. Keep three concrete qualifications before patching.
+
+1. A read-only reservation peek needs exact-owner provenance, beyond matching baseline. The singleton currently records only{id,baseline,minting} (project.ts188). For the no-allocation capture, use it only when the supplied state is still the exact live private owner and baseline, the workspace binding agrees, and the singleton baseline matches. A departing prev capture must fall back to that document's existing reservation fields rather than inspect the next owner's singleton.
+
+Preserve authoritative absence: when a matching peek has minting===false, do not merge an old mintingReserved:true back from the document. When no trusted reservation exists, preserve absence without allocating, releasing, normalizing or remembering device IDs. Keep normal allocating source/Save writers unchanged.
+
+2. Atomic restore must preserve the existing account-authoring gate. Current sample restoration calls guarded setSampleValue; direct useTemplateStore.setState({selectedParts,sampleData}) bypasses the wrapper at templateStore.ts220. Perform the atomic update through a narrow store seam that preserves this authorization behavior. Selection can remain independently allowed as before; paused-account sample writes must remain refused. Clock/cue updates must also leave the published receipt consistent with the state actually accepted.
+
+3. Generation-only fallback is invalidation, not persistence. It is appropriate for legacy/external owners lacking a retained envelope: advance only the existing bound owner's generation, with no envelope/reservation creation. It cannot establish that a no-binding, no-receipt selection was durably saved. The supported editor path is sound because EditorFoundation obtains its session before presenting selection controls; preserve that lifecycle and prove the first selection publishes the binding's actual nonzero opening clock. Without a valid binding or receipt, leave the view absent—never synthesize time zero or borrow another owner's time/history.
+
+The remaining details are sound subject to these implementation constraints:
+- sync() notifies only after completing its observation/source/history work and only for a relevant genuine change outside ownWrite. Constructor fingerprint initialization invokes no callback. Execute/travel retain their final completed-receipt callback.
+- Standalone observeView() updates its fingerprint before notifying. Equal observations, repeated equal seeks and semantically equal selection/sample values do not advance generations. Away-and-back changes do.
+- The adapter publication closure rechecks full ownership immediately before publishing. Removing setSessionTime's unconditional duplicate publication is correct.
+- When a Discard candidate occupies staging, a newer view publication must restore the complete live owner bundle. Updating only its view would splice live history receipts into replacement source.
+- The semantic guard belongs before staging side effects. Do not suppress explicit project intent merely because a cached envelope happens to look equal; compare against the effective workspace under the existing refusal rules.
+- Capture the click-time generation before transaction queueing. Check it before starting; capture the post-preflush generation before the first await; check after every preliminary wait before submitting replacement; then retain submitted-generation and adopted-envelope checks after the replacement await.
+- Early correction must use the current legitimate owner and respect refusal before writing. If ownership changed, it cannot use the old click-time state to refresh the new owner.
+- restoreRefusal should prefer the newest owned receipt. Its previous-view fallback applies only when the exact submitted replacement still occupies staging and no newer live receipt exists. Conditional inverse equality and the removed-active-document guard remain binding.
+
+The bounded proofs should explicitly include shared-baseline departing capture, false/absent mint-mark preservation, paused-account atomic restore, first selection before any seek, equal observation during held Discard, away-and-back selection, queued/preliminary-wait selection, and held/refused replacement. Preserve the original source/history, recovery, adoption, projection and installation checks.
+
+This accepts the clarified approach with those corrections. It is not implementation approval, final-head acceptance or an additional attempt; the third-and-final family cap remains unchanged.

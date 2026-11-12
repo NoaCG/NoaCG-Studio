@@ -1,0 +1,62 @@
+AGREE WITH CORRECTIONS
+
+The missing rule is complete, synchronous freshness of the exact private owner's current view. Selection is already live in templateStore, but persistence can reuse an older view receipt, and selection changes do not reach the workspace generation that protects pending replacements. The checkpoint addresses the right problem; the repair must cover capture, production and refusal recovery together.
+
+I verified frozen HEAD2767a30cb0fccbb9a04f4f2e0ca285b32e4f94d6, with only e4-notes.md modified. I read the checkpoint Rules in full, the SO/repeated-family procedures, relevant contracts, architecture, goals, E4 specification and October boundary. The existing j-0113 log confirms four failures. I ran no tests, builds, edits, mutations or delegation; read-only network preflight passed.
+
+1. Capture must refresh live fields without changing ownership or history.
+
+authoringProjects.ts26 replaces the captured view with cached views.view or previous.view. templateStore.ts396 likewise copies prior.view. Both can therefore serialize stale selection despite receiving the correct state.
+
+The common capture rule should be:
+- Selection and current samples come from the supplied state, including prev when retaining a departing document.
+- Clock/cue come from that private owner's actual binding or existing owned receipt.
+- Historical views.past/future remain historical; refreshing the current view must not rewrite their before/after values.
+- No receipt means no invented clock. The existing opening value is the first timeline segment's duration, not universally zero (documentAdapter.ts15).
+- An external replacement must never obtain departing selection/samples from the new global state.
+
+Overlaying live selection/samples on an owned current receipt is a bounded correction. Merely adding selectedParts to the subscription predicate still copies the stale receipt.
+
+2. A genuine view change needs one synchronous, idempotent producer through the existing lifecycle.
+
+authoringProjects.ts64 ignores selection. The adapter's subscription invokes sync(), but session.ts87 only advances the context fingerprint. Consequently a selection-only action neither stages its view nor schedules its autosave.
+
+Use the existing owned binding, subscription and view-publication seam. Publish selection, samples, clock and cue coherently, with semantic equality checked before staging or scheduling. All three store selection setters and direct port restore/cancel must receive the same behavior; no Canvas/Timeline-only handler repair is sufficient.
+
+Do not call changed() indiscriminately from observeView(). sync() observes before updating its source revision and clearing external history; execute and travel also observe during ownWrite, before final history receipts exist. Their existing final callbacks must continue publishing completed receipts. Constructor initialization must establish the initial fingerprint without invoking the closure that refers to the not-yet-assigned session or binding.session.
+
+A suitable bounded implementation distinguishes a genuine standalone view notification from source/history operations, suppresses premature publication during those operations, and uses their final callback for the completed bundle. Update the observation fingerprint before any notification so reentrant equal observations stay quiet.
+
+Keep the full binding check—private ID, baseline, effective public identity and closed state. rememberDocumentView():43 checks only private ID; new publishers must not let a retired same-private baseline/public-link capability refresh the replacement binding.
+
+Also avoid introducing reservation changes through the new view-only producer: captureProjectDocument() calls documentReservation() (templateStore.ts401), which can mint an ID. Refreshing view state must retain the existing owner bundle's reservation/link fields rather than create new source or reservation work.
+
+3. Replacement protection must cover the entire wait and preserve the freshest live receipt on refusal.
+
+The final generation guard at saveActions.ts433 is necessary, but its expected generation is captured only after the earlier waits at lines403 and406. Staging selection during those earlier waits—or while a Discard is queued—can precede that captured generation. The corrected model must protect the click-time context through those waits as well as protect the submitted replacement afterward. This is a static model obligation; I did not execute a new failure.
+
+saveActions.ts417 explicitly overrides a fresh live capture with previous.views/view. Refusal recovery must retain the newest legitimate live receipt when that owner remains open. Preserve the conditional inverse: recovery cannot overwrite an independently changed/adopted bundle, restore a removed active document, or bypass unknown-format refusal.
+
+The smallest sound boundary remains the existing store capture plus adapter/session publication lifecycle, with the narrow Discard correction above. It needs no new cache, timeline parser, persistence format, provider, UI state system or reverse store-to-component import. Ensure the actual initial binding clock is available when the first genuine view change is published; session construction/rendering alone must not count as a new user view change or trigger recursive staging.
+
+The complete affected caller/reader inventory is:
+- Selection producers: setSelectedPart, setSelectedParts, toggleSelectedPart; Canvas, Timeline, group navigation and command-driven selection.
+- Other view producers: sample setters/reset; setSessionTime; direct port.restore; gesture cancel; execute identity/target changes; undo/redo.
+- Capture callers: project switch/create/adopt, rename/remove, Home retention, external replacement using prev, persistence repair.
+- Slot writers: timer autosave, explicit flush, account flush, Save/Save As reservation/link/trailing flush, Discard submission/refusal/correction.
+- Readers: boot selection/sample restoration, project restore, adapter clock/cue initialization, session history-view restoration.
+- Preserved boundaries: source/history identity, private-owner/public-ID distinction, baseline/link retirement, adopted workspace refusal, complete boot projection, device-local reservation recovery, installation journals and copies.
+
+Current document.view.sampleData can also be stale while document.sampleData is correct. Boot/project restore reads the latter, and the active port reads store samples; this alone does not establish another reproduced sample-loss defect. Refresh the current receipt coherently, while preserving intentionally historical samples inside undo/redo receipts.
+
+Still required before this repair can receive a final verdict:
+- Preserve the original j-0113 expectations and prove selection-only switch/reopen, ordinary autosave/reload, Home/reload, and explicit Save/Save As without a subsequent seek/edit.
+- Cover a document with no prior view receipt and a nonzero opening clock; preserve explicit cue-side choice.
+- Hold/refuse Discard both before replacement submission and during its durable write. New selection must preserve private ID, source, history and current view through reload/Home.
+- Hold project persistence and exercise newer selection; retain the existing refusal/correction behavior.
+- Prove semantic idempotence: equal arrays, equal sample maps, repeated equal seek/observation and ordinary inspection neither restage nor bump generation. Away-and-back genuine selection still invalidates stale context.
+- Compare exact source, assets, baseline, history/future, history-view receipts, links/reservations, membership, journals and installed/on-air copies around view-only actions.
+- Retain existing execute/undo/redo, external replacement, same-private rebind, stale-capability, R/K/F/device recovery, adopted-v99/incompatible-revision and boot-projection proofs.
+- Use fixed expected owner/view/source outcomes in the bounded oracle, then maintained cases in editor-projects.spec.ts, followed by the normal targeted checks and required fresh final full SO.
+
+This remains review round5 and the existing authoring-view ownership/freshness family. I acknowledge the coordinator's classification that the proposed combined repair is its third and final allowed repair. This reassessment grants no attempt, allowance reset, final grade, stamp or landing approval.

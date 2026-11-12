@@ -7,7 +7,8 @@
   "coordinator": {
     "return": "Return native final receipt to /root in active Cloud chat 6af455f4-b1c8-8191-86b2-8bfdfc619075",
     "environment": "ccarenv_b64_Y2NhcmVudl9mOGJiMmY0OWI4ZjA4MTkxYjE5YjAzNDFjZjcxMmRiYg",
-    "session": "6af455f4-b1c8-8191-86b2-8bfdfc619075"
+    "session": "6af455f4-b1c8-8191-86b2-8bfdfc619075",
+    "status": "Stopped for owner disposition; no unattended wake or after-session monitoring claimed. PR #2438 held as draft with no land label or auto-merge."
   },
   "authorization": {
     "line": "Execution mode: I explicitly authorize ACTIVE LOCAL Codex execution. This supersedes the draft's requested unattended mode. Record this later decision in the launch receipt and use execution harness codex, mode active.",
@@ -64,15 +65,9 @@
     "read": "Future phases use the reviewed Cloud-first spec/phases and owner-decision-2026-11-11-cloud-first.md at 3a56a966c4c03fa47f53b4d1ecb09ed882d12ef0 with git show. Product work starts on current main in its own worktree. Completed E1-E3 retain original plan source f0f2e3fe0c2cc14e23b171957b6f8d18905fd434 and their exact tested-source/environment receipts. Read docs/EDITOR_PLAN.md, the acceptance register, October single-device closure and latest relevant issues; historical evidence is reused only with current source/environment applicability.",
     "rules": "CAUSAL HOLD RESOLVED2026-11-12: both E1/E2 quarantines independently settled NOT CAUSED by this run. Clock reportcc3afa857 (1/60parent,2/60E2); operatorreport121d355df (8/301parent,7/301E1), freshcausalSOAGREE/A. Existingincident2371miwcoNov25retained, no release. Preserve all failures/unknowns. Same run resumes E4 after historical E3; no acceptance/history or attempts reset. Run the current worker resource/network preflights and folder rules in an owned absolute feature worktree. E4/E5C/E6C execute in qualified Cloud. Qualify real isolated authentication/persistence on the worker or existing Actions stack; no production data/secrets. Full suites stay in GitHub Actions. Finish Cloud engineering before final E5 real participants/named devices/native 125% and E6 named receiving hosts/operator; Cloud diagnostics/fixtures cannot pass those gates. Respect the October single-device boundaries and the serial phase order. Before product edits reproduce and write the short observable rule or gap. Report every subcriterion and retain original failures and any missing evidence. Inventory the exact GSAP browser, CLI and export artifacts early and send the finished draft back to the coordinator for the owner. State that NoaCG is open source, entirely free, earns no revenue and serves broadcast graphics. The owner superseded the six-month deferral and sends the request. Preserve licence, provenance, notices and redistribution checks. A delayed reply is not an engineering wait before OW1. Stage actual receiving hosts/operator, first-time users/moderator and existing model-access leads in E1 without claiming availability. Do not launch other phases. Do not change provider, funding, licence, engine or release posture. Do not use or modify production data. Respect #1967 and check sideEnds on exact candidate paths, including package versions. The active coordinator acknowledges PR repair duty and owns queue stamping and terminal monitoring. Follow the latest check and queue guidance and obtain fresh independent review under the shared traps. No new paid model round or reset of E3 limits follows from E5C/E6C. OW1 written GSAP disposition and candidate-specific owner approval still gate E7 adoption."
   },
-  "inFlight": [
-    {
-      "phase": "E4",
-      "step": "build / final view-state repair reassessment",
-      "pr": 2438,
-      "note": "Four frozen-source checks confirm selection loss. Fresh model review agreed with corrections; one design clarification is pending before the final view-state repair. Earlier attempts remain recorded. Product CI gates and backend checks passed; editor PR stays held. Quarantine PR #2453 is verified and its temporary worktree removed."
-    }
-  ],
+  "inFlight": [],
   "owner": [
+    "Decide how to handle the stopped E4 checkpoint after its view-state repair cap; preserve the same run and all attempts. Cloud access is sufficient.",
     "Arrange E5 real first-time users/moderator and named desktop/laptop for the final local stage; prepare now without blocking Cloud engineering.",
     "Arrange E6 named receiving hosts/operator and off-air access for the final local stage.",
     "Written GSAP disposition gates OW1; candidate-specific release approval gates E7. Neither is a Cloud preparation wait."
@@ -1484,7 +1479,11 @@
     },
     "currentPublicUpdate": 6831775749
   },
-  "waitingOn": null,
+  "waitingOn": {
+    "kind": "owner",
+    "what": "Owner disposition for the stopped E4 checkpoint: the third and final view-state repair still has two product failures. Exact patch, logs and model receipts are saved; no further editor changes are authorized.",
+    "where": "PR #2438; e4-cap-stop-2026-11-12/STOP.md"
+  },
   "completedCausalityReviews": [
     {
       "id": "6af4b05b-8a1c-8191-b931-182efca3b062",
@@ -1516,7 +1515,7 @@
     "requestSha256": "bcfabef5e1347043b92cde2edc0f69da57df24eda1c49e7415c7ce4bd8281754",
     "brief": "briefs/e4-build-e4-b-cloud-1112.txt",
     "briefSha256": "2c7379c7dc2988405d565f2a2e1d72393a398e1f3cd671cf7bc4744cfd2e9888",
-    "status": "Thirdcomplete repair42be pushedclean; finalsourcepinned150/150PASS; exactheadCI/backend/Codex/freshFULLSO gatespending",
+    "status": "STOPPED at E4 view-family repair cap; no landing or acceptance",
     "rulesFirst": {
       "head": "0515e370d",
       "verdict": "AGREE WITH CORRECTIONS",
@@ -1957,7 +1956,31 @@
       "reassessment": "Freshfork-nonee4_view_freshness_reassessmentrunningbeforeANYproductedit, withall4reproductions/priorrules/cap. Onlynewobservablenotesmodified; productsource2767frozen.",
       "next": "ConsolidatedFULLBhasnootherfamily; finishfreshmodelchallenge BEFOREonecompleteclassrepair. Existingtests/capsintact; allnewheadgates/freshFULLSOA/A+required; no queueapproval/phaseadvance.",
       "reproductionRootReadback": "Rootreadactualselection-j0113-original.txt:fourFAIL;switch/autosave/Home selection[]withsourceKept/historyKepttrue;heldDiscarderrornull/privateowner/sourcechanged. Desiredassertionsretained.",
-      "reassessmentStatus": "FreshmodelcompletedAGREEWITHCORRECTIONSbeforenocode; oneboundedclarificationfromsamereviewerunderway. Fullverdict/clarificationreadbackrequested. Requirescompleteviewproducer/livecapture/refusalrecovery, semanticidempotence,actualinitialclock,noreservationallocation,fullretiredbindingguard, click-time/queued/pre-first-awaitDiscardprotection."
+      "reassessmentStatus": "FreshmodelcompletedAGREEWITHCORRECTIONSbeforenocode; oneboundedclarificationfromsamereviewerunderway. Fullverdict/clarificationreadbackrequested. Requirescompleteviewproducer/livecapture/refusalrecovery, semanticidempotence,actualinitialclock,noreservationallocation,fullretiredbindingguard, click-time/queued/pre-first-awaitDiscardprotection.",
+      "status": "STOPPED_REPAIR_CAP",
+      "attemptsUsed": 3,
+      "attemptLimit": 3,
+      "builderStoppedAt": "2026-11-12T18:21:59Z",
+      "modelRootReadback": "Completeoriginal+clarificationrootreadandSHAverified19130233ec6adadb2a0e54ec6556c81c3abca48345ae2f33629d8e8d4a6f9c6f/a9e48eb5fd840243f99ed8f623a3333dd9141adfb6ea53b05af710186a17191e beforepatch.",
+      "finalVerification": "j0114terminal6PASS4FAIL35.4s,2workers. Twoincorrectnewfixtureexpectations(switchotherdocreservation,legitimateSaveAsfreename)retained;twoconfirmedproductdefectsfailedDreloadloseslatestselection/equivalentmapsadvancegeneration5to6. No inferred8PASS. Rootreadactualoriginalhash33561c2b1cc5ad12cd7ca71399661110268f23bb6ebbb492d587be5dc855a84b andsourcebranches.",
+      "remainingProductDefects": [
+        {
+          "path": "src/store/saveActions.ts",
+          "line": 449,
+          "finding": "FailedDiscardrestoresstagingthenreturnsbeforelatestviewdurableconfirmation;immediatereloadselection[]despitelive#f0. Observedsource/history/privateownerpreserved."
+        },
+        {
+          "path": "src/store/authoringProjects.ts",
+          "line": 77,
+          "finding": "Equalmapreferencechangeenterfullsnapshotretentionaheadsemanticviewguard;againstheldDgen5to6despiteunchangedcontexttoken. FinalDoutcomenotobservedafterearlierassertion."
+        }
+      ],
+      "workingVerification": "WorkerreportsappTSandmaintainedsessionoracle8/8PASS. Nofinalbroader/CI/backend/SOadmittedonknownfailedWIP. Remote2767historicalprooffrozen.",
+      "packet": "e4-cap-stop-2026-11-12/STOP.md",
+      "patchSha256": "674b343a64c616222c4820fee3746a251c788b8167c5a2920a9187657439997d",
+      "sourceState": "HEAD2767remote/local;9trackeduncommittedWIPpathsretained,immutablepatch/sourcehashes+logs/modelreceiptsinrecoverykit. No furtherproductedits/commit/push/stamp/queue.",
+      "nativeWorker": "FinalBLOCKEDreceiptreceived;originalbuilderandmodelhelperscompleted,nomutatingworkerawaited.",
+      "ownerDecision": "Requiredatdocumentedstop. answeredrecordsagenuineownerdispositionbutdoesnotbyitselferasethePRfamilycap. Noadditionalallowanceormodel/worker/newrunresetauthorized."
     }
   },
   "coordinatorTools": {

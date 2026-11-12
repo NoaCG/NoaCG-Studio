@@ -1,0 +1,186 @@
+=== j-0114 npm run test:e2e -- e2e/editor-projects.spec.ts --grep 'selection-only'
+=== cwd /workspace/noacg-editor-r1-5-e4-build
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/editor-projects.spec.ts --grep selection-only
+
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 15353 MB free (machine totals stand in for cgroup limits it could not read)
+[WebServer] (node:116127) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:116140) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 10 tests using 2 workers
+
+(node:116259) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:116260) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   1 [chromium] › e2e/editor-projects.spec.ts:1304:81 › selection-only switch retains the exact owner source history and current view (7.0s)
+  ✓   2 [chromium] › e2e/editor-projects.spec.ts:1304:81 › selection-only autosave retains the exact owner source history and current view (7.2s)
+(node:116410) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   3 [chromium] › e2e/editor-projects.spec.ts:1304:81 › selection-only save retains the exact owner source history and current view (4.7s)
+  ✓   4 [chromium] › e2e/editor-projects.spec.ts:1304:81 › selection-only home retains the exact owner source history and current view (5.2s)
+  ✘   5 [chromium] › e2e/editor-projects.spec.ts:1304:81 › selection-only save-as retains the exact owner source history and current view (5.2s)
+(node:116631) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   6 [chromium] › e2e/editor-projects.spec.ts:1348:107 › selection-only Discard replacement preserves the complete live owner through reload (5.1s)
+  ✓   8 [chromium] › e2e/editor-projects.spec.ts:1348:107 › selection-only Discard preliminary preserves the complete live owner through reload (5.7s)
+  ✘   7 [chromium] › e2e/editor-projects.spec.ts:1348:107 › selection-only Discard failed-replacement preserves the complete live owner through reload (5.6s)
+(node:116762) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   9 [chromium] › e2e/editor-projects.spec.ts:1348:107 › selection-only Discard queued preserves the complete live owner through reload (5.2s)
+  ✘  10 [chromium] › e2e/editor-projects.spec.ts:1348:107 › selection-only Discard equal-view preserves the complete live owner through reload (4.0s)
+
+
+  1) [chromium] › e2e/editor-projects.spec.ts:1304:81 › selection-only switch retains the exact owner source history and current view 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -2314,10 +2314,11 @@
+          },
+          "future": Array [],
+          "history": Array [],
+          "id": "87b615f5-ddeb-45a5-a47b-9852eb0d35b6",
+          "legibility": null,
+    +     "reservedGraphicId": "17e43f0e-5780-4224-acff-ee687f52af78",
+          "sampleData": Object {
+            "f0": "The Story in Numbers",
+            "f1": "Renewables grew 28% this year",
+            "f2": "Coal at its lowest share since 1965",
+            "f3": "",
+
+      1341 |   expect(after.view).toEqual({ ...before.view, selectedParts: ['#f0'] });
+      1342 |   expect(after.workspace.projects).toEqual(before.workspace.projects); expect(after.workspace.installations).toEqual(before.workspace.installations);
+    > 1343 |   expect(after.workspace.documents.filter(d => d.id !== ids[0])).toEqual(before.workspace.documents.filter(d => d.id !== ids[0]));
+           |                                                                  ^
+      1344 |   if (route !== 'save-as') expect(after.document.reservedGraphicId).toBe(before.document.reservedGraphicId);
+      1345 |   if (route !== 'save-as' && route !== 'save') expect(after.document.saved).toEqual(before.document.saved);
+      1346 | });
+        at /workspace/noacg-editor-r1-5-e4-build/e2e/editor-projects.spec.ts:1343:66
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-projects-selection--371ec-ce-history-and-current-view-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-projects-selection--371ec-ce-history-and-current-view-chromium/error-context.md
+
+  2) [chromium] › e2e/editor-projects.spec.ts:1304:81 › selection-only save-as retains the exact owner source history and current view 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+    @@ -1723,11 +1723,11 @@
+            "styles": Object {},
+            "text": "Chief Correspondent",
+            "type": "text",
+          },
+        ],
+    -   "name": "E4 Lower third",
+    +   "name": "E4 Lower third 2",
+        "resolution": Object {
+          "height": 1080,
+          "label": "1080p (1920×1080)",
+          "width": 1920,
+        },
+
+      1336 |   const after = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+      1337 |     const s = h.S.useTemplateStore.getState(); return { document: h.S.captureProjectDocument(s, false), workspace: h.P.workspace(), view: h.E.activeEditorSession().port.view() }; });
+    > 1338 |   expect(after.document.id).toBe(ids[0]); expect(after.document.template).toEqual(before.document.template);
+           |                                                                           ^
+      1339 |   expect(after.document.baseline).toEqual(before.document.baseline); expect(after.document.history).toEqual(before.document.history); expect(after.document.future).toEqual(before.document.future);
+      1340 |   expect(after.document.views).toEqual(before.document.views); expect(after.document.sampleData).toEqual(before.document.sampleData);
+      1341 |   expect(after.view).toEqual({ ...before.view, selectedParts: ['#f0'] });
+        at /workspace/noacg-editor-r1-5-e4-build/e2e/editor-projects.spec.ts:1338:75
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-projects-selection--c02af-ce-history-and-current-view-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-projects-selection--c02af-ce-history-and-current-view-chromium/error-context.md
+
+  3) [chromium] › e2e/editor-projects.spec.ts:1348:107 › selection-only Discard failed-replacement preserves the complete live owner through reload 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 6
+    + Received  + 2
+
+    @@ -1746,13 +1746,11 @@
+            },
+            "type": "lower-third",
+          },
+        ],
+        "id": "1ec17e59-cf5f-441c-a107-4a51eab1fbc8",
+    -   "selected": Array [
+    -     "#f0",
+    -   ],
+    +   "selected": Array [],
+        "source": Object {
+          "assets": Array [],
+          "css": "/* Hairline — generated by NoaCG Studio. Edit freely: this file is yours. */
+
+      /* ── Style contract: change these variables to retint the whole graphic. ── */
+    @@ -3501,11 +3499,9 @@
+          "cue": undefined,
+          "sampleData": Object {
+            "f0": "Alexandra Riva",
+            "f1": "Chief Correspondent",
+          },
+    -     "selectedParts": Array [
+    -       "#f0",
+    -     ],
+    +     "selectedParts": Array [],
+          "time": 1.34,
+        },
+      }
+
+      1396 |     const boot = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+      1397 |       const s = h.S.useTemplateStore.getState(); return { id: s.documentId, source: s.template, history: s.history, selected: s.selectedParts, view: h.E.activeEditorSession().port.view() }; });
+    > 1398 |     expect(boot).toEqual({ id: ids[0], source: before.document.template, history: before.document.history, selected: ['#f0'], view: { ...before.view, selectedParts: ['#f0'] } });
+           |                  ^
+      1399 |   }
+      1400 | });
+      1401 |
+        at /workspace/noacg-editor-r1-5-e4-build/e2e/editor-projects.spec.ts:1398:18
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-projects-selection--e2832-e-live-owner-through-reload-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-projects-selection--e2832-e-live-owner-through-reload-chromium/error-context.md
+
+  4) [chromium] › e2e/editor-projects.spec.ts:1348:107 › selection-only Discard equal-view preserves the complete live owner through reload 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 5
+    Received: 6
+
+      1379 |     } else { s.setSelectedPart('#f0'); s.toggleSelectedPart('#f0'); s.setSelectedParts(['#f0']); }
+      1380 |     return { old, next: session.commandState(), generation, nextGeneration: h.M.workspaceGeneration() }; }, wait);
+    > 1381 |   if (wait === 'equal-view') { expect(changed.next.contextToken).toBe(changed.old.contextToken); expect(changed.nextGeneration).toBe(changed.generation); }
+           |                                                                                                                                 ^
+      1382 |   else { expect(changed.next.contextToken).not.toBe(changed.old.contextToken); expect(changed.nextGeneration).toBeGreaterThan(changed.generation); }
+      1383 |   await releaseHeldWrite(page);
+      1384 |   await expect.poll(() => page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.done)).toBe(true);
+        at /workspace/noacg-editor-r1-5-e4-build/e2e/editor-projects.spec.ts:1381:129
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/editor-projects-selection--8a034-e-live-owner-through-reload-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/editor-projects-selection--8a034-e-live-owner-through-reload-chromium/error-context.md
+
+  4 failed
+    [chromium] › e2e/editor-projects.spec.ts:1304:81 › selection-only switch retains the exact owner source history and current view 
+    [chromium] › e2e/editor-projects.spec.ts:1304:81 › selection-only save-as retains the exact owner source history and current view 
+    [chromium] › e2e/editor-projects.spec.ts:1348:107 › selection-only Discard failed-replacement preserves the complete live owner through reload 
+    [chromium] › e2e/editor-projects.spec.ts:1348:107 › selection-only Discard equal-view preserves the complete live owner through reload 
+  6 passed (35.4s)

@@ -1,0 +1,671 @@
+diff --git a/docs/work-specs/editor-r1-5/e4-notes.md b/docs/work-specs/editor-r1-5/e4-notes.md
+index 7388a2723..77042f6c4 100644
+--- a/docs/work-specs/editor-r1-5/e4-notes.md
++++ b/docs/work-specs/editor-r1-5/e4-notes.md
+@@ -764,3 +764,104 @@ Fresh main e394954becdbb292c914b3d20339418c9f9172c2 reconciles cleanly; the
+ coordinator's separate quarantine2453 is not yet landed at this checkpoint.
+ A source-pinned bounded seven-file save/adoption matrix follows the commit;
+ exact new-head normalCI/configured/backend/Codex and freshFULLSO remain required.
++
++### Fifth review checkpoint: selection-only view freshness (existing view-ownership family)
++
++The fresh FULL50-path SO on2767a30cb gradedB, agreeing with Codex review5879149260,
++inline4554033976: oneP2 view-state preservation family remains. Cached view
++receipts update on edits/undo/redo/seek, while selection-only changes only update
++the session context token. snapshot()/captureProjectDocument() can reuse the old
++selection; the subscription ignores selectedParts. The earlier selection test
++followed selection with setSessionTime and therefore masked the independent path.
++
++Frozen-source j-0113 reproduces all four instances with the original desired
++assertions: switch/reopen, ordinary autosave/reload and Home retention/reload
++restore[] instead of[#f0], with source/history unchanged; selection-only work
++while Discard awaits is not a changed generation, so it reports success, replaces
++the private owner/source and clears that newer selection. Its complete original
++log is selection-j0113-original.txt. Product source remains2767, unedited.
++
++This belongs to the existing private-document view-ownership family, including
++the prior round2 lifetime/view repair; it is not a new family or an allowance
++reset. All earlier checkpoints and per-failure attempts remain. The coordinator
++owns final attempt classification. A fresh repeated-family/model reassessment
++must precede any further patch, and grants no additional attempt.
++
++Observable Rules recorded before that reassessment/repair:
++
++- Every genuine current view change belongs to the exact private owner. A
++  selection-only change must be captured/staged before any await that can switch,
++  retain, save, discard or replace it, and must survive the same reload/Home
++  paths as seek/sample changes. Do not rely on a later edit or seek to flush it.
++- A departing snapshot uses the supplied owner's live selection/sample values,
++  including a captured previous state during external replacement, never the
++  next document's globals or a stale cached selection. Retain its owned clock,
++  cue and history-view receipts; do not invent a zero clock when no clock has
++  been observed or overwrite past undo/redo view receipts.
++- Genuine view-only changes advance the existing generation and stale-context
++  protection without editing source, adding an undo entry or changing links,
++  reservations, membership, receipts or installed/on-air copies. Idempotent
++  observation/repeated equal selection must not cause recursive staging or
++  spuriously advance generations. Retired capabilities cannot refresh a new
++  owner's view, including same-private baseline/public-link changes.
++- Selection-only work during held/failed Discard or project persistence follows
++  the same existing newer-generation refusal/recovery as other newer view work.
++  Preserve complete live/adopted bundles and earlier projection/unknown-format
++  guards. Cover current-view samples/clock/cue coherently, with no event-only
++  UI patch, new cache, guessed timing value, sleep, assertion or limit change.
++
++A bounded fixed oracle and maintained selection-only switch, Home, autosave,
++held/failed replacement and idempotence cases must close the gap. The complete
++2767 full-review result, successful isolated43270504790 and normalCI results
++remain historical; no stamp, rerun, auto-merge or additional allowance follows.
++
++The fresh independent view-freshness reassessment and one bounded clarification
++both say AGREE WITH CORRECTIONS (model only). Full normalized receipts are
++view-freshness-reassessment-original.txt (SHA25619130233ec6adadb2a0e54ec6556c81c3abca48345ae2f33629d8e8d4a6f9c6f)
++and view-freshness-reassessment-clarification.txt
++(SHA256a9e48eb5fd840243f99ed8f623a3333dd9141adfb6ea53b05af710186a17191e).
++The coordinator classifies this as review round5 and the THIRD AND FINAL repair
++of the existing authoring-view family: private view lifetime at4de, view-only
++Discard/refusal at2767, then this complete live-view producer/capture repair.
++The whole-writer adoption repair remains separate; no allowance resets. A
++further confirmed failure of this view family after this repair stops for owner.
++
++Clarified observable rules before product edits: Discard protects its click-time
++context while queued and before its first await, establishes its post-flush
++expected generation synchronously, checks every preliminary wait, and retains
++its submitted-generation/adopted-format guards. A newer view stages the COMPLETE
++live owner, never a view spliced into the pending replacement. Refusal prefers
++its newest owned receipt, with previous-view fallback only for the exact
++unchanged submitted bundle. All publication requires the full private-ID,
++baseline, effective-public-ID and unretired binding; construction never notifies.
++Equal semantic views are quiet, including sample-map key order. Source/history
++operations publish only completed receipts, not intermediate own-write states.
++A read-only reservation peek requires the exact live owner and baseline plus
++workspace binding, and never allocates/writes device IDs; departing snapshots
++use their own fields even for shared baselines, and false mint state clears an
++old true flag. Atomic view restore retains the existing paused-account sample
++gate. Legacy/no-envelope generation invalidation is not a durable view receipt:
++without a real binding/owned clock, capture leaves the view absent.
++
++The first bounded uncommitted repair matrix j-0114 is terminal FAIL:6PASS/4FAIL
++(35.4s), retained in selection-j0114-original.txt. App types pass; maintained
++session oracle8/8 passes, including sample-map insertion-order equality versus
++ordered primary selection, synchronous reentrant publication, completed
++execute/travel history, external-reset ordering and restore/cancel.
++
++Two j-0114 assertions are overbroad new-fixture expectations: the switch route
++visits another document and legitimately allocates that visited owner's existing
++reservation; Save As legitimately chooses the available name E4 Lower third2.
++Their original failures are retained and no assertion has been changed.
++Two failures remain genuine in the existing view family: a failed/aborted D
++retains the new selection in the live staged bundle but immediate reload restores
++an empty selection; semantically equal sample-map key reordering leaves the
++session context token unchanged but advances workspace generation5 to6, because
++the reference-based sample subscription stages the live source over D. The
++selection-only autosave, Home, Save, held replacement, preliminary wait and queued
++Discard cases pass. No inference beyond these exact working-tree cases follows.
++
++Product edits stop at this checkpoint under the coordinator's THIRD AND FINAL
++family repair boundary. The candidate is not ready, not committed/pushed, has
++no new-head CI/backend/fullSO, no A grade and no stamp. The previously pushed
++2767 remains held. No further family split, allowance or worker reset is claimed.
+diff --git a/e2e/editor-projects.spec.ts b/e2e/editor-projects.spec.ts
+index c98753ce7..5b8222b97 100644
+--- a/e2e/editor-projects.spec.ts
++++ b/e2e/editor-projects.spec.ts
+@@ -1299,3 +1299,103 @@ for (const adopted of ['future', 'newer'] as const) test(`an adopted ${adopted}
+   expect(refused.error).toContain(message); expect(refused.refusal).toContain(message);
+   expect(refused.id).toBe(ids[0]); expect(refused.source).toEqual(before); expect(refused.raw).toBe(future.raw);
+ });
++
++// Selection is an independent view action: no later seek or edit may flush it for these cases.
++for (const route of ['switch', 'autosave', 'home', 'save', 'save-as'] as const) test(`selection-only ${route} retains the exact owner source history and current view`, async ({ page }) => {
++  const ids = await seedAuthoringProject(page); await prepareSerialWorkspace(page);
++  if (route === 'save' || route === 'save-as') {
++    const saved = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
++      return h.A.saveGraphicAs(h.S.useTemplateStore.getState().template.name, { kind: 'standalone' }); });
++    expect(saved.ok).toBe(true);
++  }
++  await editProjectText(page, 'Selection-independent history'); await flushAuthoringProject(page);
++  const before = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
++    return { document: h.S.captureProjectDocument(h.S.useTemplateStore.getState(), false), workspace: h.P.workspace(), view: h.E.activeEditorSession().port.view() }; });
++  await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.S.useTemplateStore.getState().setSelectedParts(['#f0']));
++  if (route === 'switch') {
++    for (const id of [ids[1], ids[0]]) {
++      await page.evaluate(id => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace; h.done = false;
++        void h.P.openProjectDocument(id).then(ok => { h.ok = ok; h.done = true; }); }, id);
++      await expect.poll(() => page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.done)).toBe(true);
++      expect(await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.ok)).toBe(true);
++    }
++  } else if (route === 'home') {
++    await parkWorkspaceOnHome(page);
++    await page.getByTestId('home-projects').getByRole('button', { name: /^E4 Lower third/ }).click();
++    await expect(page.getByTestId('editor-foundation')).toBeVisible();
++  } else if (route === 'autosave') {
++    // Observe the ordinary debounce's durable output, rather than manually flushing it.
++    await expect.poll(() => page.evaluate(id => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
++      return h.M.loadProject()?.workspace?.documents.find(d => d.id === id)?.view?.selectedParts; }, ids[0])).toEqual(['#f0']);
++  } else {
++    const saved = await page.evaluate(route => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
++      return route === 'save' ? h.A.saveCurrentGraphic() : h.A.saveGraphicAs(h.S.useTemplateStore.getState().template.name, { kind: 'standalone' }); }, route);
++    if (route === 'save') expect(saved).toBe('saved'); else expect(saved).toMatchObject({ ok: true });
++  }
++  await page.reload(); await awaitDurableReady(page); await prepareSerialWorkspace(page);
++  const after = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
++    const s = h.S.useTemplateStore.getState(); return { document: h.S.captureProjectDocument(s, false), workspace: h.P.workspace(), view: h.E.activeEditorSession().port.view() }; });
++  expect(after.document.id).toBe(ids[0]); expect(after.document.template).toEqual(before.document.template);
++  expect(after.document.baseline).toEqual(before.document.baseline); expect(after.document.history).toEqual(before.document.history); expect(after.document.future).toEqual(before.document.future);
++  expect(after.document.views).toEqual(before.document.views); expect(after.document.sampleData).toEqual(before.document.sampleData);
++  expect(after.view).toEqual({ ...before.view, selectedParts: ['#f0'] });
++  expect(after.workspace.projects).toEqual(before.workspace.projects); expect(after.workspace.installations).toEqual(before.workspace.installations);
++  expect(after.workspace.documents.filter(d => d.id !== ids[0])).toEqual(before.workspace.documents.filter(d => d.id !== ids[0]));
++  if (route !== 'save-as') expect(after.document.reservedGraphicId).toBe(before.document.reservedGraphicId);
++  if (route !== 'save-as' && route !== 'save') expect(after.document.saved).toEqual(before.document.saved);
++});
++
++for (const wait of ['replacement', 'failed-replacement', 'preliminary', 'queued', 'equal-view'] as const) test(`selection-only Discard ${wait} preserves the complete live owner through reload`, async ({ page }) => {
++  const ids = await seedAuthoringProject(page); await prepareSerialWorkspace(page);
++  if (wait === 'queued') {
++    const saved = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
++      return h.A.saveGraphicAs(h.S.useTemplateStore.getState().template.name, { kind: 'standalone' }); });
++    expect(saved.ok).toBe(true);
++  }
++  await editProjectText(page, 'Keep selection while waiting'); await flushAuthoringProject(page);
++  const before = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
++    return { document: h.S.captureProjectDocument(h.S.useTemplateStore.getState(), false), workspace: h.P.workspace(), view: h.E.activeEditorSession().port.view() }; });
++  await installHeldWrite(page);
++  await armHeldWrite(page, wait === 'preliminary' ? 'I' : wait === 'queued' ? 'L' : 'D', wait === 'failed-replacement' ? 'late' : 'hold');
++  if (wait === 'preliminary') {
++    await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
++      const s = h.S.useTemplateStore.getState(); h.M.saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread, s.legibility, h.S.captureProjectDocument(s)); });
++    await heldWriteReady(page);
++  }
++  if (wait === 'queued') {
++    await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
++      void h.A.saveCurrentGraphic().then(result => { h.linkOk = result === 'saved'; }); });
++    await heldWriteReady(page);
++  }
++  await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace; h.done = false;
++    void h.A.discardCurrentGraphic().then(error => { h.error = error ?? undefined; h.done = true; }); });
++  if (wait !== 'preliminary' && wait !== 'queued') await heldWriteReady(page);
++  const changed = await page.evaluate(wait => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
++    const s = h.S.useTemplateStore.getState(), session = h.E.activeEditorSession(), old = session.commandState(), generation = h.M.workspaceGeneration();
++    if (wait === 'equal-view') {
++      s.setSelectedParts([...s.selectedParts]);
++      h.S.useTemplateStore.setState({ sampleData: Object.fromEntries(Object.entries(s.sampleData).reverse()) });
++      h.E.setSessionTime(session.port.view().time, session.port.view().cue); session.observeView(); session.commandState();
++    } else { s.setSelectedPart('#f0'); s.toggleSelectedPart('#f0'); s.setSelectedParts(['#f0']); }
++    return { old, next: session.commandState(), generation, nextGeneration: h.M.workspaceGeneration() }; }, wait);
++  if (wait === 'equal-view') { expect(changed.next.contextToken).toBe(changed.old.contextToken); expect(changed.nextGeneration).toBe(changed.generation); }
++  else { expect(changed.next.contextToken).not.toBe(changed.old.contextToken); expect(changed.nextGeneration).toBeGreaterThan(changed.generation); }
++  await releaseHeldWrite(page);
++  await expect.poll(() => page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.done)).toBe(true);
++  const after = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
++    return { error: h.error, privateId: h.S.useTemplateStore.getState().documentId, document: h.P.workspace().documents[0], workspace: h.P.workspace() }; });
++  if (wait === 'equal-view') { expect(after.error).toBeUndefined(); expect(after.privateId).not.toBe(ids[0]); expect(after.document.history).toEqual([]); }
++  else {
++    expect(after.error).toBeTruthy(); expect(after.privateId).toBe(ids[0]);
++    expect(after.document.template).toEqual(before.document.template); expect(after.document.baseline).toEqual(before.document.baseline);
++    expect(after.document.history).toEqual(before.document.history); expect(after.document.future).toEqual(before.document.future); expect(after.document.views).toEqual(before.document.views);
++    expect(after.document.view).toEqual({ ...before.view, selectedParts: ['#f0'] });
++    expect(after.workspace.projects).toEqual(before.workspace.projects); expect(after.workspace.installations).toEqual(before.workspace.installations);
++    expect(after.workspace.documents.slice(1)).toEqual(before.workspace.documents.slice(1));
++    await page.reload(); await awaitDurableReady(page); await prepareSerialWorkspace(page);
++    const boot = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
++      const s = h.S.useTemplateStore.getState(); return { id: s.documentId, source: s.template, history: s.history, selected: s.selectedParts, view: h.E.activeEditorSession().port.view() }; });
++    expect(boot).toEqual({ id: ids[0], source: before.document.template, history: before.document.history, selected: ['#f0'], view: { ...before.view, selectedParts: ['#f0'] } });
++  }
++});
++
+diff --git a/scripts/editor-project.test.mjs b/scripts/editor-project.test.mjs
+index 5817a47d1..c92839390 100644
+--- a/scripts/editor-project.test.mjs
++++ b/scripts/editor-project.test.mjs
+@@ -81,3 +81,66 @@ test('insertion preserves an authored one-step machine rather than extending its
+   assert.throws(() => applyOperations(original, [{ kind: 'graphic.insert', variant: { create() { assert.fail('Donor build must not run on an unsupported graph'); } }, placement: 'start', steps: false }]), /separate Out step/);
+   assert.deepEqual(original, snapshot);
+ });
++
++
++function observedSession() {
++  let source = fixture(), view = { selectedParts: ['#f0'], time: .75, cue: 0, sampleData: { first: 'A', second: 'B' } };
++  let notify = () => {}, session, calls = [];
++  const stack = [source]; let cursor = 0;
++  const port = { read: () => source, view: () => view,
++    subscribe: listener => { notify = listener; return () => { notify = () => {}; }; },
++    restore: next => { view = structuredClone(next); notify(); },
++    apply: next => { stack.splice(++cursor); stack.push(next); source = next; notify(); },
++    undo: () => { source = stack[--cursor]; notify(); }, redo: () => { source = stack[++cursor]; notify(); } };
++  session = new EditorSession('view-owner', port, undefined, () => {
++    // Reentrant inspection must see a completed bundle, with its fingerprint already observed.
++    calls.push({ state: session.commandState(), history: session.historyViews(), view: structuredClone(view) });
++  });
++  return { session, calls, port, change: next => { view = next; notify(); },
++    replace: next => { source = next; notify(); } };
++}
++
++test('standalone view publication is synchronous, semantic and reentrant; selection order remains meaningful', () => {
++  const h = observedSession(), initial = h.session.commandState();
++  assert.equal(h.calls.length, 0); // Construction and inspection are observation, not user work.
++  h.change({ selectedParts: ['#f0'], time: .75, cue: 0, sampleData: { second: 'B', first: 'A' } });
++  h.session.observeView(); h.session.version();
++  assert.equal(h.calls.length, 0); assert.equal(h.session.commandState().contextToken, initial.contextToken);
++  h.change({ ...h.port.view(), selectedParts: ['#f0', '#f1'] });
++  assert.equal(h.calls.length, 1);
++  const selected = h.session.commandState();
++  h.change({ ...h.port.view(), selectedParts: ['#f1', '#f0'] });
++  assert.equal(h.calls.length, 2); assert.notEqual(h.session.commandState().contextToken, selected.contextToken);
++  h.change({ ...h.port.view(), selectedParts: ['#f0'] });
++  assert.equal(h.calls.length, 3); assert.notEqual(h.session.commandState().contextToken, initial.contextToken);
++  assert.deepEqual(h.calls[2].history, { past: [], future: [] });
++  assert.deepEqual(h.calls[2].view, { selectedParts: ['#f0'], time: .75, cue: 0, sampleData: { second: 'B', first: 'A' } });
++  h.session.dispose(); assert.throws(() => h.session.observeView(), /closed/);
++});
++
++test('execute and travel publish only completed history while external view/source replacement clears old history first', () => {
++  const h = observedSession();
++  h.session.execute({ documentId: h.session.documentId, expected: h.session.version(), transactionId: crypto.randomUUID(), operations: [add] });
++  assert.equal(h.calls.length, 1); assert.deepEqual(h.calls[0].state.history, { undo: 1, redo: 0 });
++  assert.equal(h.calls[0].history.past.length, 1);
++  h.session.undo(); assert.equal(h.calls.length, 2); assert.deepEqual(h.calls[1].state.history, { undo: 0, redo: 1 });
++  h.session.redo(); assert.equal(h.calls.length, 3); assert.deepEqual(h.calls[2].state.history, { undo: 1, redo: 0 });
++  // Change the view without notification, then the source in the same external store notification.
++  const next = { ...h.port.view(), selectedParts: ['#f1'], time: .9 };
++  h.port.view = () => next;
++  h.replace({ ...h.session.port.read(), css: h.session.port.read().css + '\n/* External */' });
++  assert.equal(h.calls.length, 4); assert.deepEqual(h.calls[3].state.history, { undo: 0, redo: 0 });
++  assert.deepEqual(h.calls[3].history, { past: [], future: [] });
++  h.session.dispose();
++});
++
++test('direct restore and gesture cancellation publish the accepted current view without source history work', () => {
++  const h = observedSession();
++  h.session.begin(); h.change({ ...h.port.view(), selectedParts: [], time: .9, cue: undefined });
++  assert.equal(h.calls.length, 1);
++  h.session.cancel(); assert.equal(h.calls.length, 2);
++  assert.equal(h.calls[1].view.time, .75); assert.equal(h.calls[1].view.cue, 0); assert.deepEqual(h.calls[1].view.selectedParts, ['#f0']);
++  assert.deepEqual(h.calls[1].state.history, { undo: 0, redo: 0 });
++  h.port.restore(structuredClone(h.port.view())); assert.equal(h.calls.length, 2);
++  h.session.dispose();
++});
+diff --git a/src/components/editorFoundation/documentAdapter.ts b/src/components/editorFoundation/documentAdapter.ts
+index 6f4146068..f17ea3e1c 100644
+--- a/src/components/editorFoundation/documentAdapter.ts
++++ b/src/components/editorFoundation/documentAdapter.ts
+@@ -30,10 +30,7 @@ export function activeEditorSession(): EditorSession {
+       read();
+       binding.time = view.time;
+       binding.cue = view.cue;
+-      useTemplateStore.getState().setSelectedParts(view.selectedParts);
+-      for (const [field, value] of Object.entries(view.sampleData ?? {})) {
+-        if (field in useTemplateStore.getState().sampleData) useTemplateStore.getState().setSampleValue(field, value);
+-      }
++      useTemplateStore.getState().restoreEditorView(view.selectedParts, view.sampleData);
+     },
+     apply: template => {
+       const before = read();
+@@ -52,7 +49,9 @@ export function activeEditorSession(): EditorSession {
+     redo: () => read().redo(),
+     subscribe: listener => useTemplateStore.subscribe(s => { if (owns(s)) listener(); else { binding.closed = true; binding.session.dispose(); } }),
+   }, { past: state.history, future: state.future, views: document?.views },
+-    () => rememberDocumentView(binding.id, session.historyViews(), session.port.view()));
++    () => {
++      if (owns(useTemplateStore.getState())) rememberDocumentView(binding.id, session.historyViews(), session.port.view());
++    });
+   binding.session = session;
+   active = binding;
+   return session;
+@@ -62,5 +61,4 @@ export function setSessionTime(time: number, cue?: number) {
+   if (!active || active.closed || active.id !== state.documentId || active.baseline !== state.baseline ||
+     active.publicId !== (currentAuthoringDocument()?.id ?? state.saved.graphicId ?? state.documentId)) return;
+   active.time = time; active.cue = cue; active.session.observeView();
+-  rememberDocumentView(active.id, active.session.historyViews(), active.session.port.view());
+ }
+diff --git a/src/components/editorFoundation/session.ts b/src/components/editorFoundation/session.ts
+index af1138aea..52763a195 100644
+--- a/src/components/editorFoundation/session.ts
++++ b/src/components/editorFoundation/session.ts
+@@ -4,6 +4,7 @@ import type { SpxTemplate } from '../../model/types';
+ import { round, type KeyRef } from '../../blocks/animEdit';
+ import { captureKeyClipboard, type ClipboardKey } from '../../blocks/editorAnimation';
+ import { applyOperations, type EditorOperation } from './operations';
++import { sameWorkspaceValue } from '../../model/workspaceStage';
+ 
+ export interface Revision { source: number; assets: number }
+ export type ViewState = DocumentView;
+@@ -45,11 +46,12 @@ export class EditorSession {
+   private disconnect: () => void;
+   private historyHead = 0;
+   private contextSequence = 0;
+-  private viewFingerprint = '';
++  private observedView: ViewState;
+   constructor(readonly documentId: string, readonly port: DocumentPort,
+     restored?: { past: SpxTemplate[]; future: SpxTemplate[]; views?: HistoryViews },
+     private readonly changed?: () => void) {
+     this.current = port.read();
++    this.observedView = structuredClone(port.view());
+     this.disconnect = port.subscribe(() => this.sync());
+     if (restored) {
+       const fallback = () => structuredClone(port.view());
+@@ -71,8 +73,11 @@ export class EditorSession {
+   private sync() {
+     if (this.disposed) throw new Error('This document session is closed.');
+     const next = this.port.read();
+-    this.observeView();
+-    if (next === this.current) return;
++    const viewChanged = this.observeView(false);
++    if (next === this.current) {
++      if (viewChanged && !this.ownWrite) this.changed?.();
++      return;
++    }
+     const assetChanged = !assetEqual(this.current, next);
+     this.current = next;
+     this.revision = { source: this.revision.source + 1, assets: this.revision.assets + Number(assetChanged) };
+@@ -81,13 +86,19 @@ export class EditorSession {
+       this.gesture = null;
+       this.past = [];
+       this.future = [];
++      if (viewChanged) this.changed?.();
+     }
+   }
+   /** Observe even view-only notifications, including away-and-back selection changes. */
+-  observeView() {
++  observeView(publish = true): boolean {
+     if (this.disposed) throw new Error('This document session is closed.');
+-    const fingerprint = JSON.stringify(this.port.view());
+-    if (fingerprint !== this.viewFingerprint) { this.viewFingerprint = fingerprint; this.contextSequence++; }
++    const view = this.port.view();
++    if (sameWorkspaceValue(view, this.observedView)) return false;
++    // Record before notifying: publication can synchronously inspect this session again.
++    this.observedView = structuredClone(view);
++    this.contextSequence++;
++    if (publish && !this.ownWrite) this.changed?.();
++    return true;
+   }
+   commandState() {
+     const revision = this.version();
+@@ -140,7 +151,7 @@ export class EditorSession {
+     if (!this.gesture) return;
+     const view = this.gesture.view;
+     this.gesture = null;
+-    if (restoreView) this.port.restore(view);
++    if (restoreView) { this.port.restore(view); this.observeView(); }
+   }
+   execute(request: OperationRequest) {
+     this.check(request.documentId, request.expected);
+@@ -173,6 +184,7 @@ export class EditorSession {
+     this.historyHead++;
+     this.gesture = null;
+     this.transactions.set(request.transactionId, identity);
++    this.observeView(false);
+     this.changed?.();
+     return { ...patch, revision: this.version() };
+   }
+@@ -195,6 +207,7 @@ export class EditorSession {
+     this.historyHead++;
+     from.pop();
+     (forward ? this.past : this.future).push(receipt);
++    this.observeView(false);
+     this.changed?.();
+   }
+ }
+diff --git a/src/model/project.ts b/src/model/project.ts
+index 8a67fdde9..248e35e60 100644
+--- a/src/model/project.ts
++++ b/src/model/project.ts
+@@ -117,6 +117,11 @@ export function bindWorkspaceDocument(id: string | undefined, loaded?: Authoring
+   } catch { /* An unreadable adopted envelope stays protected, including during boot. */ }
+ }
+ export function workspaceGeneration(): number { return workspaceStage().generation; }
++/** Invalidate pending operations without inventing a workspace for a legacy view. */
++export function markWorkspaceViewChanged(id: string): void {
++  const stage = workspaceStage();
++  if (stage.document === id) stage.generation++;
++}
+ export function workspaceDocumentOwner(): string | undefined { return workspaceStage().document; }
+ /** Undo only an unchanged refused replacement, preserving later drafts and journals. */
+ export function restoreRefusedDocument(submitted: AuthoringDocument, live: AuthoringDocument, active: string | null): void {
+@@ -185,10 +190,10 @@ export function writeAuthoringWorkspace(workspace: AuthoringWorkspace): void {
+  *  from the slot, and once one of them mints it, the other's writes must stop naming it, or a
+  *  reload links the other tab's draft to that record and its Save overwrites it (#1402). So an
+  *  id a record already holds is dropped for a fresh one, unless this tab is minting it now. */
+-let reservation: { id: string; baseline: SpxTemplate | undefined; minting: boolean } | null = null;
++let reservation: { id: string; baseline: SpxTemplate | undefined; minting: boolean; owner?: string } | null = null;
+ export function reservedGraphicId(baseline: SpxTemplate | undefined): string {
+   if (!reservation || reservation.baseline !== baseline || (!reservation.minting && graphicIdTaken(reservation.id))) {
+-    reservation = { id: uuid(), baseline, minting: false };
++    reservation = { id: uuid(), baseline, minting: false, owner: workspaceDocumentOwner() };
+     rememberDeviceId(OWN_RESERVATIONS_KEY, reservation.id);
+     rememberDeviceId(OWN_RESERVATIONS_KEY, reservation.id, true);
+   }
+@@ -243,7 +248,7 @@ export function isOwnReservation(id: string | undefined): boolean {
+  *  reload before its first Save keeps naming the same id. A fresh one here would leave the slot's earlier writes naming an id
+  *  the mint never takes, and a double refusal after the reload could not relink. */
+ export function resumeReservation(id: string, baseline: SpxTemplate | undefined): void {
+-  reservation = { id, baseline, minting: false };
++  reservation = { id, baseline, minting: false, owner: workspaceDocumentOwner() };
+ }
+ /** A first Save / Save As takes the reserved id. Until `endMint`, this tab's slot writes say so
+  *  (`mintingReserved`), so a reload after its link write was refused trusts the record. */
+@@ -252,8 +257,15 @@ export function mintReservedGraphicId(baseline: SpxTemplate | undefined): string
+   reservation!.minting = true;
+   return id;
+ }
++/** Observe an existing exact-owner reservation without allocating or touching device IDs. */
++export function peekDocumentReservation(id: string, baseline: SpxTemplate | undefined) {
++  if (workspaceDocumentOwner() !== id || reservation?.owner !== id || reservation.baseline !== baseline) return undefined;
++  return { reservedGraphicId: reservation.id, mintingReserved: reservation.minting ? true as const : undefined };
++}
+ export function documentReservation(baseline: SpxTemplate | undefined) {
+-  return { reservedGraphicId: reservedGraphicId(baseline), ...(reservation?.minting ? { mintingReserved: true } : {}) };
++  const id = reservedGraphicId(baseline);
++  reservation!.owner = workspaceDocumentOwner();
++  return { reservedGraphicId: id, ...(reservation?.minting ? { mintingReserved: true } : {}) };
+ }
+ export function endMint(): void {
+   if (reservation) reservation.minting = false;
+diff --git a/src/store/authoringProjects.ts b/src/store/authoringProjects.ts
+index 17e5ec1d8..1a12daa11 100644
+--- a/src/store/authoringProjects.ts
++++ b/src/store/authoringProjects.ts
+@@ -1,7 +1,7 @@
+ import { create } from 'zustand';
+ import { useTemplateStore, flushPendingProject, syncSampleData, scheduleProjectAutosave, captureProjectDocument, recoverProjectLink } from './templateStore';
+ import { useSaveUi } from './saveActions';
+-import { authoringWorkspace, stageAuthoringWorkspace, writeAuthoringWorkspace, workspaceRefusal, workspaceGeneration, bindWorkspaceDocument, workspaceDocumentOwner, workspaceDocumentRetained, loadProject, saveProject, resumeReservation, releaseReservation } from '../model/project';
++import { authoringWorkspace, stageAuthoringWorkspace, writeAuthoringWorkspace, workspaceRefusal, workspaceGeneration, markWorkspaceViewChanged, bindWorkspaceDocument, workspaceDocumentOwner, workspaceDocumentRetained, loadProject, saveProject, resumeReservation, releaseReservation } from '../model/project';
+ import { readableWorkspace, type AuthoringWorkspace, type AuthoringDocument, type AuthoringProject, type HistoryViews, type DocumentView } from '../model/authoringDocument';
+ import { captureDurableWrites, commitDurableReceipt, libraryInUse } from '../model/durableStore';
+ import { uuid } from '../model/id';
+@@ -18,19 +18,22 @@ export function workspace(): AuthoringWorkspace {
+   if (value !== undefined && !readableWorkspace(value)) throw new Error(workspaceRefusal()!);
+   return value ?? { v: 1, projects: [], documents: [], active: null };
+ }
+-function stage(value: AuthoringWorkspace) {
++function stage(value: AuthoringWorkspace): boolean {
++  if (sameWorkspaceValue(authoringWorkspace(), value)) return false;
+   stageAuthoringWorkspace(value);
+   useAuthoringProjects.setState(s => ({ revision: s.revision + 1 }));
++  return true;
+ }
+ type State = ReturnType<typeof useTemplateStore.getState>;
+-function snapshot(s: State, previous?: AuthoringDocument): AuthoringDocument {
+-  return { ...captureProjectDocument(s),
++function snapshot(s: State, previous?: AuthoringDocument, allocateReservation = true): AuthoringDocument {
++  const view = views?.id === s.documentId ? views.view : previous?.view;
++  return { ...captureProjectDocument(s, allocateReservation && s === useTemplateStore.getState()),
+     views: views?.id === s.documentId ? views.history : previous?.views,
+-    view: views?.id === s.documentId ? views.view : previous?.view };
++    view: view ? { ...view, selectedParts: [...s.selectedParts], sampleData: { ...s.sampleData } } : undefined };
+ }
+-function retained(s: State, w = workspace()): AuthoringWorkspace {
++function retained(s: State, w = workspace(), allocateReservation = true): AuthoringWorkspace {
+   if (!w.documents.some(d => d.id === s.documentId)) return w;
+-  return { ...w, active: s.documentId, documents: w.documents.map(d => d.id === s.documentId ? snapshot(s, d) : d) };
++  return { ...w, active: s.documentId, documents: w.documents.map(d => d.id === s.documentId ? snapshot(s, d, allocateReservation) : d) };
+ }
+ /** Explicit project replacement retains an external working draft before it can leave. */
+ function departingWorkspace(s: State): AuthoringWorkspace {
+@@ -41,11 +44,16 @@ function departingWorkspace(s: State): AuthoringWorkspace {
+ }
+ /** Session history is source-owned; clipboard/proposals and gestures are never persisted. */
+ export function rememberDocumentView(id: string, history: HistoryViews, view: DocumentView) {
+-  if (useTemplateStore.getState().documentId !== id) return;
+-  views = { id, history, view };
+-  if (authoringWorkspace() === undefined || workspaceRefusal()) return;
++  if (useTemplateStore.getState().documentId !== id || workspaceDocumentOwner() !== id) return;
++  const next = { id, history, view };
++  if (sameWorkspaceValue(views, next)) return;
++  views = next;
++  if (workspaceRefusal()) return;
++  if (authoringWorkspace() === undefined) { markWorkspaceViewChanged(id); return; }
+   const s = useTemplateStore.getState();
+-  if (s.documentId === id && workspace().documents.some(d => d.id === id)) { stage(retained(s)); scheduleProjectAutosave(); }
++  if (workspace().documents.some(d => d.id === id)) {
++    if (stage(retained(s, workspace(), false))) scheduleProjectAutosave();
++  } else markWorkspaceViewChanged(id);
+ }
+ export function currentAuthoringDocument(): AuthoringDocument | undefined {
+   if (workspaceRefusal() || !workspaceDocumentRetained(useTemplateStore.getState().documentId)) return undefined;
+@@ -56,6 +64,11 @@ export function currentAuthoringDocument(): AuthoringDocument | undefined {
+ bindWorkspaceDocument(useTemplateStore.getState().documentId);
+ useTemplateStore.subscribe((s, prev) => {
+   if (restoring) return;
++  if (s.documentId === prev.documentId && s.baseline === prev.baseline &&
++    !sameWorkspaceValue({ selectedParts: s.selectedParts, sampleData: s.sampleData }, { selectedParts: prev.selectedParts, sampleData: prev.sampleData })) {
++    // Also invalidate a queued replacement before an editor binding/clock exists.
++    markWorkspaceViewChanged(s.documentId);
++  }
+   if (authoringWorkspace() === undefined) {
+     if (s.documentId !== prev.documentId) bindWorkspaceDocument(s.documentId);
+     return;
+@@ -70,7 +83,8 @@ useTemplateStore.subscribe((s, prev) => {
+     if (workspaceDocumentOwner() === prev.documentId && w.documents.some(d => d.id === prev.documentId)) stage({ ...retained(prev, w), active: null });
+     bindWorkspaceDocument(s.documentId);
+   } else if (w.documents.some(d => d.id === s.documentId)) {
+-    stage(retained(s, w));
++    const sourceChanged = s.baseline !== prev.baseline || s.template !== prev.template || s.history !== prev.history || s.future !== prev.future || s.saved !== prev.saved || s.aiSpec !== prev.aiSpec || s.aiThread !== prev.aiThread || s.legibility !== prev.legibility;
++    stage(retained(s, w, sourceChanged));
+     if ((s.sampleData !== prev.sampleData || s.baseline !== prev.baseline) && s.template === prev.template) scheduleProjectAutosave();
+   }
+ });
+diff --git a/src/store/saveActions.ts b/src/store/saveActions.ts
+index c57500f56..d61e00d19 100644
+--- a/src/store/saveActions.ts
++++ b/src/store/saveActions.ts
+@@ -393,17 +393,35 @@ export function discardCurrentGraphic(): Promise<string | null> {
+   // edit accepted during a wait (a save ahead of it, or either wait below) must refuse the
+   // discard rather than be erased (#1147).
+   const before = useTemplateStore.getState();
+-  return transaction(() => discardDraft(before));
++  const generation = workspaceGeneration();
++  return transaction(() => discardDraft(before, generation));
++}
++
++async function keepChangedDiscard(): Promise<string> {
++  const refusal = workspaceRefusal();
++  if (refusal) return refusal;
++  // Capture the actual live owner, never the click-time state of a retired binding.
++  const { receipts } = captureDurableWrites(SLOT_KEY, () => persistLink());
++  const failure = receipts.length
++    ? (await Promise.all(receipts.map(commitDurableReceipt))).find(Boolean)
++    : 'Could not save your changes to this browser. They are still open. Save them before leaving.';
++  return failure ?? 'The graphic changed while discarding. Your changes are still open. Try again.';
+ }
+ 
+-async function discardDraft(before: EditingContext): Promise<string | null> {
++async function discardDraft(before: EditingContext, clickGeneration: number): Promise<string | null> {
++  if (changedSince(before) || workspaceGeneration() !== clickGeneration) return keepChangedDiscard();
+   // Drain a pending autosave before staging the replacement, otherwise its timer can
+   // overwrite the discard while its durable confirmation is still pending.
+   flushPendingProject();
++  const preliminaryGeneration = workspaceGeneration();
+   const pendingFailure = await commitDurableWrites();
+   if (pendingFailure) return pendingFailure;
++  if (changedSince(before) || workspaceGeneration() !== preliminaryGeneration) return keepChangedDiscard();
+   const arriving = conflictCopyArriving(before.saved.graphicId);
+   if (arriving) await arriving;
++  if (changedSince(before) || workspaceGeneration() !== preliminaryGeneration) return keepChangedDiscard();
++  const preliminaryRefusal = workspaceRefusal();
++  if (preliminaryRefusal) return preliminaryRefusal;
+   const doc = before.saved.graphicId ? graphicById(before.saved.graphicId) : null;
+   const template = doc?.template ?? createDefaultTemplate();
+   const previous = captureProjectDocument(before), active = authoringWorkspace()?.active ?? null;
+@@ -414,7 +432,8 @@ async function discardDraft(before: EditingContext): Promise<string | null> {
+     reservedGraphicId: undefined, mintingReserved: undefined, views: undefined, view: undefined };
+   const restoreRefusal = () => {
+     const now = useTemplateStore.getState();
+-    const live = now.documentId === before.documentId ? { ...captureProjectDocument(now), views: previous.views, view: previous.view } : previous;
++    const captured = now.documentId === before.documentId ? captureProjectDocument(now, false) : previous;
++    const live = { ...captured, views: captured.views ?? previous.views, view: captured.view ?? previous.view };
+     restoreRefusedDocument(replacement, live, now.documentId === before.documentId ? active : null);
+   };
+   // Changing source or baseline clears the editor's private command history. Persist
+@@ -431,13 +450,8 @@ async function discardDraft(before: EditingContext): Promise<string | null> {
+   const refusal = workspaceRefusal();
+   if (refusal) { restoreRefusal(); return refusal; }
+   if (changedSince(before) || workspaceGeneration() !== generation) {
+-    // The slot now holds the replacement. Refuse only once the newer draft is durable again,
+-    // so a reload straight after the refusal cannot reopen the discarded copy.
+-    const { receipts: restored } = captureDurableWrites(SLOT_KEY, () => persistLink());
+-    const restoreFailure = restored.length
+-      ? (await Promise.all(restored.map(commitDurableReceipt))).find(Boolean)
+-      : 'Could not save your changes to this browser. They are still open. Save them before leaving.';
+-    return restoreFailure ?? 'The graphic changed while discarding. Your changes are still open. Try again.';
++    // Refuse only after the complete newer live owner is durable again.
++    return keepChangedDiscard();
+   }
+   // Retire the confirmed discarded owner before the existing new-instance replacement.
+   bindWorkspaceDocument(undefined);
+diff --git a/src/store/templateStore.ts b/src/store/templateStore.ts
+index ec1290aea..e72b30157 100644
+--- a/src/store/templateStore.ts
++++ b/src/store/templateStore.ts
+@@ -10,7 +10,7 @@ import { parseDefinition } from '../model/spxDefinition';
+ import type { AssetFile, SpxTemplate } from '../model/types';
+ import { DATA_FTYPES } from '../model/types';
+ import type { ValidationResult } from '../validation/validateTemplate';
+-import { authoringWorkspace, documentReservation, isOwnReservation, linkAfterLoss, loadProject, onGraphicSuperseded, resumeReservation, saveProject, type SavedProject } from '../model/project';
++import { authoringWorkspace, documentReservation, peekDocumentReservation, isOwnReservation, linkAfterLoss, loadProject, onGraphicSuperseded, resumeReservation, saveProject, type SavedProject } from '../model/project';
+ import { graphicById } from '../model/library';
+ import type { GenerationSpec } from '../model/generationSpec';
+ import { normalizeThread, type AiThread } from '../model/aiThread';
+@@ -104,6 +104,8 @@ interface TemplateState {
+   setSelectedPart: (selector: string | null) => void;
+   /** Replace the whole selection (the lasso's setter; [] clears). */
+   setSelectedParts: (selectors: string[]) => void;
++  /** Restore one accepted view atomically; paused accounts still refuse sample edits. */
++  restoreEditorView: (selectedParts: string[], sampleData?: Record<string, string>) => void;
+   /** Shift-click: add the selector to the selection, or remove it when present. */
+   toggleSelectedPart: (selector: string) => void;
+   /** Balanced pair — always through useModalGate, never called by hand. */
+@@ -329,6 +331,11 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
+   setSelectedParts: (selectedParts) =>
+     set({ selectedParts, selectedPart: selectedParts[0] ?? null }),
+ 
++  restoreEditorView: (selectedParts, samples) => set(s => ({
++    selectedParts, selectedPart: selectedParts[0] ?? null,
++    ...(samples && canAuthorAccount() ? { sampleData: Object.fromEntries(Object.entries(s.sampleData).map(([field, value]) => [field, samples[field] ?? value])) } : {}),
++  })),
++
+   toggleSelectedPart: (selector) =>
+     set((s) => {
+       const selectedParts = s.selectedParts.includes(selector)
+@@ -393,13 +400,16 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
+ });
+ 
+ /** A full private-owner snapshot; its optional fields never borrow another slot's metadata. */
+-export function captureProjectDocument(s = useTemplateStore.getState()): AuthoringDocument {
++export function captureProjectDocument(s = useTemplateStore.getState(), allocateReservation = true): AuthoringDocument {
+   const w = authoringWorkspace();
+   const prior = readableWorkspace(w) ? w.documents.find(d => d.id === s.documentId) : undefined;
++  const reservation = allocateReservation ? documentReservation(s.baseline)
++    : s === useTemplateStore.getState() ? peekDocumentReservation(s.documentId, s.baseline) : undefined;
+   return { id: s.documentId, template: s.template, baseline: s.baseline, history: s.history, future: s.future,
+     saved: { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, sampleData: s.sampleData,
+-    aiSpec: s.aiSpec, aiThread: s.aiThread, legibility: s.legibility, ...documentReservation(s.baseline),
+-    views: prior?.views, view: prior?.view };
++    aiSpec: s.aiSpec, aiThread: s.aiThread, legibility: s.legibility,
++    ...(reservation ?? { reservedGraphicId: prior?.reservedGraphicId, mintingReserved: prior?.mintingReserved }),
++    views: prior?.views, view: prior?.view ? { ...prior.view, selectedParts: [...s.selectedParts], sampleData: { ...s.sampleData } } : undefined };
+ }
+ 
+ // Autosave the working project (debounced) whenever the template actually changes, so a reload

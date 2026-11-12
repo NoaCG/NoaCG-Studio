@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "run": "plan-editor-r1-5-2026-11-08",
+  "phase": "E4",
+  "status": "STOPPED_REPAIR_CAP",
+  "base": "2767a30cb0fccbb9a04f4f2e0ca285b32e4f94d6",
+  "pr": 2438,
+  "builderStoppedAt": "2026-11-12T18:21:59Z",
+  "productRepairAllowed": false,
+  "paths": [
+    "docs/work-specs/editor-r1-5/e4-notes.md",
+    "e2e/editor-projects.spec.ts",
+    "scripts/editor-project.test.mjs",
+    "src/components/editorFoundation/documentAdapter.ts",
+    "src/components/editorFoundation/session.ts",
+    "src/model/project.ts",
+    "src/store/authoringProjects.ts",
+    "src/store/saveActions.ts",
+    "src/store/templateStore.ts"
+  ],
+  "files": {
+    "final-attempt.patch": {
+      "bytes": 46514,
+      "sha256": "674b343a64c616222c4820fee3746a251c788b8167c5a2920a9187657439997d"
+    },
+    "reproduction-before.log": {
+      "bytes": 11375,
+      "sha256": "c0dd7b628629dab040d16c29b3ca758f493d5b758fae92efe389c7a9ab84eb51"
+    },
+    "verification-final.log": {
+      "bytes": 12931,
+      "sha256": "33561c2b1cc5ad12cd7ca71399661110268f23bb6ebbb492d587be5dc855a84b"
+    },
+    "model-review.txt": {
+      "bytes": 8412,
+      "sha256": "19130233ec6adadb2a0e54ec6556c81c3abca48345ae2f33629d8e8d4a6f9c6f"
+    },
+    "model-clarification.txt": {
+      "bytes": 4764,
+      "sha256": "a9e48eb5fd840243f99ed8f623a3333dd9141adfb6ea53b05af710186a17191e"
+    },
+    "STOP.md": {
+      "bytes": 6123,
+      "sha256": "6b7c989b34b13b61eeceab2f39cd0752db12a400c57b2b397c69eadbbf1ecb9f"
+    },
+    "before-reproduction.spec.ts.txt": {
+      "bytes": 6587,
+      "sha256": "14b19b54d394fb4583468e94941515c0f0525ea7c2b92a8dbcfff49c7d4a3bed"
+    },
+    "before-reproduction.config.ts.txt": {
+      "bytes": 552,
+      "sha256": "334f1a3fa7c4b5d63bbaa38a684f66abba476a274acfd8edf6626730a764d62c"
+    }
+  },
+  "workingFiles": {
+    "docs/work-specs/editor-r1-5/e4-notes.md": {
+      "bytes": 58809,
+      "sha256": "ede6a2ce0f5be8140c9e671d0f2051808862e827a242c44ae93705eac2646726"
+    },
+    "e2e/editor-projects.spec.ts": {
+      "bytes": 123532,
+      "sha256": "22863f8314d8a18912c4d908f3eaa8782cd18103384f04d7ae4fbac350c9263c"
+    },
+    "scripts/editor-project.test.mjs": {
+      "bytes": 9524,
+      "sha256": "d1479996504fb14bcdb96000addee150d8959dde3dcdc96791202e631ec7fc99"
+    },
+    "src/components/editorFoundation/documentAdapter.ts": {
+      "bytes": 4239,
+      "sha256": "75f7649cb70de244eb52b8dd9a72f85a06756f60c60e7d34de46eb985e9c0461"
+    },
+    "src/components/editorFoundation/session.ts": {
+      "bytes": 11234,
+      "sha256": "3155e3d8dda741658d2bae1438733f2821904601a63f2152394170bd31a59cb6"
+    },
+    "src/model/project.ts": {
+      "bytes": 28528,
+      "sha256": "ac3d8d9fb2762467a257466ca101dc41e577ddaa240152941f98de233771fc80"
+    },
+    "src/store/authoringProjects.ts": {
+      "bytes": 14446,
+      "sha256": "7f2af6c506e5a5fa72b5db0b62e44ee5ac60d0556e60d4b6511156f6bfa2505d"
+    },
+    "src/store/saveActions.ts": {
+      "bytes": 33076,
+      "sha256": "8b6de12bd4374a44ae3e47ff8c4b351bee2137645f61ccca1ff5bce1fc08776a"
+    },
+    "src/store/templateStore.ts": {
+      "bytes": 26396,
+      "sha256": "fa594cf96e89a5bc98b6760578a500966ec2590ad37616360803415032e61d35"
+    }
+  }
+}
