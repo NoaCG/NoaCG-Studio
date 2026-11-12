@@ -40,6 +40,7 @@ import { canPickFiles, pickFile, saveFileHandle, loadFileHandle, allowFile } fro
 import { apiOffers, isApiPath } from '../../control/anotherSystem';
 import { columnsFor, connectorPlan, jsonOffers, LIST_CELLS, needsRepair, proposeConnector, readConnectorSample, type ConnectorSource } from '../../control/connectorReview';
 import { collectionReads, JSON_DEFAULT_EVERY_MS, jsonEveryMs } from '../../control/jsonSource';
+import { BRACKET_FIELD_KEYS, bracketReviewSample, bracketRowKeys, bracketRowPaths, readSourceAdapter, type BracketAdapter, type BracketFieldKey } from '../../control/bracketAdapter';
 import { projectSource, type CollectionEntity } from '../../control/sourceMapping';
 import type { SelectionAir } from '../../control/selectionAir';
 import type { StorePart } from '../../control/storePart';
@@ -278,8 +279,33 @@ function CueConnectReview({
   const byKey = new Map(fields.map((d) => [d.key, d]));
   const refuses = (fieldId: string) => preparedMessageField(show, poolGraphic.name, fieldId);
   const holds = (fieldId: string, text: string) => fieldValue(byKey.get(fieldId)!, text) !== null;
+  // A connector's sample is evaluated by the one shared evaluator, recipe and all, exactly as the
+  // route will evaluate the provider's answers once the mapping is saved; nothing is applied.
+  const reusedConnector = reuse?.kind === 'external' ? reuse : null;
+  // Read by NoaCG (obs-scenes OS5a, R2, R12 to R14): offered for an address read the public way,
+  // while the production's OBS scenes switch is on, or already set on the source; never for a source
+  // a collection recipe reads. A new source starts on at 30 s; a reused one keeps what it holds.
+  const storedEvery = reusedConnector?.config.read?.everyMs ?? null;
+  const offersRead = Boolean(json && json.via === 'hosted' && (show.obsScenes || storedEvery !== null) && !collectionReads(show.collections, id));
+  /** The operator's choice for this source (`text`: the seconds box as typed, until it loses focus). */
+  const [readEvery, setReadEvery] = useState<{ for: string; ms: number | null; text?: string } | null>(null);
+  const noacgEvery = !offersRead ? undefined : readEvery?.for === id ? readEvery.ms : reusedConnector ? storedEvery : JSON_DEFAULT_EVERY_MS;
+  // A bracket (obs-scenes OS5b, B1, B2): offered only beside Read by NoaCG; the sample the review
+  // offers and previews is then the adapter's shape, as each read will be.
+  const [bracketSetting, setBracketSetting] = useState<{ for: string; adapter: BracketAdapter | null } | null>(null);
+  const storedAdapter = reusedConnector?.config.adapter ?? null;
+  const bracket = noacgEvery === undefined || noacgEvery === null ? null : bracketSetting?.for === id ? bracketSetting.adapter : storedAdapter;
+  const bracketKey = bracket ? JSON.stringify(bracket) : null;
+  const reviewed = useMemo(() => {
+    if (!json) return null;
+    const read = bracketKey === null ? null : readSourceAdapter(JSON.parse(bracketKey));
+    if (!read || read.status !== 'ok') return { sample: json.sample as unknown, problem: read && read.status !== 'none' ? (read.status === 'invalid' ? read.error : 'a later version') : null };
+    const r = bracketReviewSample(json.sample, read.adapter);
+    return 'problem' in r ? { sample: {} as unknown, problem: r.problem } : { sample: r.sample as unknown, problem: null as string | null };
+  }, [json, bracketKey]);
+  const bracketProblem = bracket ? (reviewed?.problem ?? null) : null;
   // A connector's sample: its values and its lists, a list field matched against the lists.
-  const offers = useMemo(() => (json ? jsonOffers(id, json.sample) : null), [id, json]);
+  const offers = useMemo(() => (reviewed ? jsonOffers(id, reviewed.sample) : null), [id, reviewed]);
   const adapters: Record<string, SourceListAdapter> = {};
   if (json) {
     for (const d of fields) {
@@ -321,17 +347,6 @@ function CueConnectReview({
   // leave them, every field on the path, one form for all of them (sheetSource `pathValue`).
   const proposed = { ...(show.bindings ?? {}), [poolGraphic.name]: { ...bound, ...Object.fromEntries(entries.map((e) => [e.fieldId, e.path ?? ''])) } };
   const drawn = (g: string) => (g === poolGraphic.name ? descriptors : fieldsOf(g));
-  // A connector's sample is evaluated by the one shared evaluator, recipe and all, exactly as the
-  // route will evaluate the provider's answers once the mapping is saved; nothing is applied.
-  const reusedConnector = reuse?.kind === 'external' ? reuse : null;
-  // Read by NoaCG (obs-scenes OS5a, R2, R12 to R14): offered for an address read the public way,
-  // while the production's OBS scenes switch is on, or already set on the source; never for a source
-  // a collection recipe reads. A new source starts on at 30 s; a reused one keeps what it holds.
-  const storedEvery = reusedConnector?.config.read?.everyMs ?? null;
-  const offersRead = Boolean(json && json.via === 'hosted' && (show.obsScenes || storedEvery !== null) && !collectionReads(show.collections, id));
-  /** The operator's choice for this source (`text`: the seconds box as typed, until it loses focus). */
-  const [readEvery, setReadEvery] = useState<{ for: string; ms: number | null; text?: string } | null>(null);
-  const noacgEvery = !offersRead ? undefined : readEvery?.for === id ? readEvery.ms : reusedConnector ? storedEvery : JSON_DEFAULT_EVERY_MS;
   const plan = json
     ? connectorPlan({
         graphic: poolGraphic.name,
@@ -344,11 +359,12 @@ function CueConnectReview({
         columns,
         // Not offered: whatever the source holds stays (R13).
         ...(noacgEvery === undefined ? {} : { read: noacgEvery === null ? null : { everyMs: jsonEveryMs(noacgEvery) } }),
+        ...(bracketSetting?.for === id ? { adapter: bracketSetting.adapter } : {}),
       })
     : null;
   const projection =
     plan && !('error' in plan)
-      ? projectSource({ sourceId: id, payload: json!.sample, bindings: plan.bindings, fieldsOf: drawn, lists: plan.source.config.lists, mapping: plan.source.config.mapping, configRevision: plan.source.config.configRevision })
+      ? projectSource({ sourceId: id, payload: reviewed!.sample, bindings: plan.bindings, fieldsOf: drawn, lists: plan.source.config.lists, mapping: plan.source.config.mapping, configRevision: plan.source.config.configRevision })
       : null;
   const leafOf = (path: string) => path.slice(`external.${id}.`.length);
   /** A field already showing this source's value whose output the review changes: the database
@@ -481,6 +497,7 @@ function CueConnectReview({
     if ('api' in read) return finish(connectApiFields(show.id, entries), null);
     if ('json' in read) {
       if (!plan || 'error' in plan) return setSaveError(plan?.error ?? 'Nothing to connect.');
+      if (bracketProblem) return setSaveError(`The bracket cannot be read: ${bracketProblem}.`);
       return finish(connectConnectorSource(show.id, plan.source, plan.entries, plan.fence), null);
     }
     if (id === '') return;
@@ -740,6 +757,17 @@ function CueConnectReview({
                 s
               </span>
             </label>
+          )}
+          {noacgEvery !== undefined && noacgEvery !== null && json && (
+            <BracketSetting
+              sample={json.sample}
+              adapter={bracket}
+              problem={bracketProblem}
+              onChange={(adapter) => {
+                setBracketSetting({ for: id, adapter });
+                setChoices({});
+              }}
+            />
           )}
           {content && content.preview.length > 0 && (
             <ol className="hint" data-testid="cue-connect-preview">
@@ -1844,5 +1872,88 @@ function DesignUpdate({ update, disabled }: { update: { dropped: string | null; 
         {armed && update.dropped ? `${update.dropped} Update?` : 'Update'}
       </button>
     </div>
+  );
+}
+
+/** What each bracket field means, as the review names it. */
+const BRACKET_FIELD_WORDS: Record<BracketFieldKey, string> = {
+  bracket: 'Bracket',
+  bracketTitle: 'Bracket title',
+  stage: 'Stage',
+  round: 'Round',
+  roundName: 'Round name',
+  match: 'Match id',
+  status: 'Status',
+  aName: 'Player A',
+  aRace: 'A race',
+  aSeed: 'A seed',
+  aScore: 'A score',
+  aLeague: 'A league',
+  bName: 'Player B',
+  bRace: 'B race',
+  bSeed: 'B seed',
+  bScore: 'B score',
+  bLeague: 'B league',
+};
+
+/**
+ * Read as a bracket (obs-scenes OS5b, B1): where the rows are and which field of a row means what,
+ * picked from the sample. The source keeps it as its setting; no site's field names are in code.
+ */
+function BracketSetting({ sample, adapter, problem, onChange }: { sample: unknown; adapter: BracketAdapter | null; problem: string | null; onChange: (adapter: BracketAdapter | null) => void }) {
+  const rowPaths = bracketRowPaths(sample);
+  if (!adapter && rowPaths.length === 0) return null;
+  const keys = adapter ? bracketRowKeys(sample, adapter.rows) : [];
+  const set = (key: BracketFieldKey, path: string) => {
+    if (!adapter) return;
+    const fields = { ...adapter.fields } as Record<string, string>;
+    if (path === '') delete fields[key];
+    else fields[key] = path;
+    onChange({ ...adapter, fields: fields as BracketAdapter['fields'] });
+  };
+  return (
+    <fieldset className="pd-field" data-testid="cue-connect-bracket">
+      <label>
+        <input
+          type="checkbox"
+          checked={adapter !== null}
+          onChange={(e) => onChange(e.target.checked ? ({ v: 1, name: 'bracket', rows: rowPaths[0] ?? '', fields: {} } as unknown as BracketAdapter) : null)}
+          data-testid="cue-connect-bracket-on"
+        />{' '}
+        Read as a bracket
+      </label>
+      {adapter && (
+        <>
+          <label className="row">
+            <span>Rows</span>
+            <select value={adapter.rows} onChange={(e) => onChange({ ...adapter, rows: e.target.value })} data-testid="cue-connect-bracket-rows">
+              {[...new Set([...rowPaths, adapter.rows])].map((p) => (
+                <option key={p} value={p}>
+                  {p === '' ? 'The whole answer' : p}
+                </option>
+              ))}
+            </select>
+          </label>
+          {BRACKET_FIELD_KEYS.map((key) => (
+            <label key={key} className="row">
+              <span>{BRACKET_FIELD_WORDS[key]}</span>
+              <select value={adapter.fields[key] ?? ''} onChange={(e) => set(key, e.target.value)} data-testid={`cue-connect-bracket-${key}`}>
+                <option value="">Not in the rows</option>
+                {[...new Set([...keys, ...(adapter.fields[key] ? [adapter.fields[key]!] : [])])].map((k) => (
+                  <option key={k} value={k}>
+                    {k}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+          {problem && (
+            <p className="status-warn" data-testid="cue-connect-bracket-problem">
+              {problem}
+            </p>
+          )}
+        </>
+      )}
+    </fieldset>
   );
 }

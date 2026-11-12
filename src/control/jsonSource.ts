@@ -106,8 +106,8 @@ function shownCurrent(previous: Readonly<Record<string, string>>, at: string): C
 /** At most this many of an adapter's report lines go on the line (B15). */
 export const ADAPTER_REPORT_LINES = 5;
 
-/** A projected read, with the matches an adapter found for the current match picker. */
-export type JsonProjected = ProjectedRead & { matches?: MatchChoice[] };
+/** At most this many matches are offered to the picker. */
+export const MAX_CHOICES = 200;
 
 /**
  * One payload for a source's bound paths, by the shared evaluator: text only (R14). A path only
@@ -127,14 +127,14 @@ export function projectJson(o: {
   /** Whether a collection recipe of the production reads this source. */
   collections?: boolean;
   current?: { pick: unknown; previous: Readonly<Record<string, string>> };
-}): JsonProjected {
+}): ProjectedRead {
   const fingerprint = jsonFingerprint(o.payload);
   if (!o.registration.ok) return { writes: {}, problems: [`the source cannot be used (${o.registration.error}), so every value holds`], fingerprint };
   const registration: Pick<ExternalRegistration, 'lists' | 'mapping' | 'configRevision' | 'adapter'> = o.registration.registration;
   let payload: unknown = o.payload;
   const said: string[] = [];
-  let memory: JsonProjected['memory'];
-  let matches: MatchChoice[] | undefined;
+  let memory: ProjectedRead['memory'];
+  let choices: MatchChoice[] | undefined;
   const adapter = readSourceAdapter(registration.adapter);
   if (adapter.status === 'invalid' || adapter.status === 'read-only') {
     const why = adapter.status === 'invalid' ? adapter.error : `the adapter is version ${adapter.version}; this build reads version 1, so it is held read-only`;
@@ -145,7 +145,8 @@ export function projectJson(o: {
     const adapted = adaptBracket(o.payload, adapter.adapter, o.current ? { pick: pickOf(o.current.pick), memory: readCurrentMemory(o.current.previous) ?? shownCurrent(o.current.previous, at) } : undefined);
     if ('problem' in adapted) return { writes: {}, problems: [`the bracket cannot be read (${adapted.problem}), so every value holds`], fingerprint };
     payload = forFields(adapted.output);
-    matches = adapted.matches;
+    // A pick needs a match id the rows give (B5 amended).
+    if (adapter.adapter.fields.match) choices = adapted.matches.slice(0, MAX_CHOICES);
     said.push(...adapted.report.slice(0, ADAPTER_REPORT_LINES));
     if (adapted.report.length > ADAPTER_REPORT_LINES) said.push(`and ${adapted.report.length - ADAPTER_REPORT_LINES} more in the rows`);
     if (adapted.current) {
@@ -175,7 +176,7 @@ export function projectJson(o: {
     for (const path of Object.keys(p.typedWrites)) problems.push(`${path.slice(prefix.length)} feeds a field that takes typed values, which only an agent writes, so it keeps its value`);
   }
   if (o.collections) problems.push('its collection cards are filled by an agent only, so they keep their values');
-  return { writes: p.writes, problems, fingerprint, ...(memory ? { memory } : {}), ...(matches ? { matches } : {}) };
+  return { writes: p.writes, problems, fingerprint, ...(memory ? { memory } : {}), ...(choices ? { choices } : {}) };
 }
 
 /** The browser reader of one JSON source: the Sheet reader's machinery with this read and cadence. */

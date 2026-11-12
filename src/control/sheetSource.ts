@@ -116,6 +116,8 @@ export interface ProjectedRead {
    *  keys starting `#`, which no path can take, and written to no field. null forgets a key; a key
    *  left out keeps what the snapshot held. */
   memory?: Record<string, string | null>;
+  /** What the operator can pick from this read (SheetStatus `choices`). */
+  choices?: { id: string; label: string }[];
 }
 
 /** A snapshot key that is a projection's memory, never a path. */
@@ -341,6 +343,9 @@ export interface SheetStatus {
   stale: boolean;
   /** Rows the last good read could not use, or connected rows it no longer carries. */
   problems: string[];
+  /** What the operator can pick from the last good read (obs-scenes OS5b: a bracket's matches),
+   *  shared with every tab through the lease. Absent for every other source. */
+  choices?: { id: string; label: string }[];
   /** Published only: whether the server reads this source once every page is closed. Absent
    *  when unpublished, where nothing reads with the page closed. */
   closedPage?: boolean;
@@ -576,6 +581,7 @@ function projectedState(
     checkedAt: now,
     changedAt: held.content === read.fingerprint ? (held.status.changedAt ?? now) : now,
     problems: read.problems,
+    ...(read.choices ? { choices: read.choices } : {}),
     ...(held.status.closedPage === undefined ? {} : { closedPage: held.status.closedPage }),
   };
   return { next: { snapshot, content: read.fingerprint, status }, writes };

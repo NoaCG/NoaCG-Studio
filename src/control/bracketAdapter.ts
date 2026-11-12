@@ -16,6 +16,7 @@
 // ES2020, no DOM; Node-importable: scripts/bracket-adapter.test.mjs drives it.
 
 import { atPath, isObject, PATH, type JsonValue } from './externalSource.js';
+import { sourcePrefix } from '../model/productionData.js';
 
 export const BRACKET_ADAPTER_VERSION = 1;
 
@@ -412,6 +413,9 @@ export function resolveCurrent(
   };
 }
 
+/** Where the operator's pick lives in the production's tree (B11). */
+export const currentMatchPath = (sourceId: string): string => `${sourcePrefix(sourceId, 'external')}.currentMatchId`;
+
 /** The pick as the tree holds it: text, trimmed; null when absent or empty. */
 export function pickOf(value: unknown): string | null {
   return text(value);
@@ -423,4 +427,58 @@ export function forFields(value: JsonValue): JsonValue {
   if (Array.isArray(value)) return value.map(forFields);
   if (typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, forFields(v)]));
   return value;
+}
+
+// ── The Connect review (B2) ──────────────────────────────────────────────────────────────────
+
+/** Whether a value holds rows: a list of objects, or an object keyed by row number. */
+const holdsRows = (value: unknown): boolean =>
+  Array.isArray(value)
+    ? value.length > 0 && value.some(isObject)
+    : isObject(value) && Object.keys(value).length > 0 && Object.keys(value).every((k) => /^\d+$/.test(k)) && Object.values(value).some(isObject);
+
+/** Where a sample holds rows, nearest first: '' for the sample itself. */
+export function bracketRowPaths(sample: unknown): string[] {
+  const out: string[] = [];
+  if (holdsRows(sample)) out.push('');
+  const walk = (value: unknown, keys: string[]) => {
+    if (!isObject(value) || keys.length >= 4 || out.length >= 20) return;
+    for (const [key, child] of Object.entries(value)) {
+      if (!/^[A-Za-z0-9_-]+$/.test(key)) continue;
+      const at = [...keys, key];
+      if (holdsRows(child)) out.push(at.join('.'));
+      else walk(child, at);
+    }
+  };
+  if (!holdsRows(sample)) walk(sample, []);
+  return out;
+}
+
+/** The dotted paths of the scalars the first rows hold (two levels deep), in first appearance. */
+export function bracketRowKeys(sample: unknown, rows: string): string[] {
+  const at = rows === '' ? sample : isObject(sample) ? atPath(sample as JsonValue, rows) : undefined;
+  const list = Array.isArray(at) ? at : isObject(at) ? Object.values(at) : [];
+  const keys: string[] = [];
+  const walk = (value: unknown, prefix: string[]) => {
+    if (!isObject(value)) return;
+    for (const [key, child] of Object.entries(value)) {
+      if (!/^[A-Za-z0-9_-]+$/.test(key)) continue;
+      const path = [...prefix, key].join('.');
+      if (isObject(child) && prefix.length < 1) walk(child, [...prefix, key]);
+      else if (!isObject(child) && !Array.isArray(child) && !keys.includes(path)) keys.push(path);
+    }
+  };
+  for (const row of list.slice(0, 5)) walk(row, []);
+  return keys;
+}
+
+/** What the review shows for a bracket source: the adapted sample, with the first match as the
+ *  current one so its paths can be connected, every unknown value as empty text. */
+export function bracketReviewSample(sample: unknown, adapter: BracketAdapter): { sample: JsonValue } | { problem: string } {
+  const first = adaptBracket(sample, adapter);
+  if ('problem' in first) return first;
+  const pick = adapter.fields.match ? (first.matches[0]?.id ?? null) : null;
+  const adapted = pick === null ? first : adaptBracket(sample, adapter, { pick, memory: null });
+  if ('problem' in adapted) return adapted;
+  return { sample: forFields(adapted.output) };
 }

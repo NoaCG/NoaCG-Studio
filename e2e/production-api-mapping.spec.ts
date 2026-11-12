@@ -1,6 +1,7 @@
 // covers: src/control/connectorReview.ts, src/components/home/CueEditor.tsx, src/export/spxLeftBehind.ts
 // covers: src/control/sourceMapping.ts, src/model/shows.ts
 // covers: src/control/jsonSource.ts, src/components/home/SourcesLine.tsx
+// covers: src/control/bracketAdapter.ts
 //
 // SAMPLE-BASED API MAPPING IN CONNECT DATA (docs/work-specs/playout-api-mapping/spec.md, E5.2;
 // AC-1, AC-3, AC-4), in the browser with no backend: a JSON endpoint's sample is a stub this spec
@@ -21,6 +22,10 @@
 //   (`/api/data/json`, stubbed here) at that interval and writes the connected fields, the source's
 //   line shows checked and changed apart, Pause reads nothing, Resume reads at once, and a failed
 //   read writes nothing. The route, its cache and guard are scripts/json-fetch.test.mjs.
+// - The fourth (obs-scenes OS5b, AC-10) reads a synthetic bracket: the review's "Read as a bracket"
+//   maps the rows' fields, the graphic follows the current match the operator picks on the
+//   source's line, holds with its last values when the match's players change, and moves only on
+//   another pick. The adapter's rules are scripts/bracket-adapter.test.mjs.
 
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -423,5 +428,79 @@ test('with the OBS scenes switch on, NoaCG reads a public JSON address at its in
   json.body = { ok: false, error: 'the address did not answer JSON', fix: 'Check the address answers JSON.', failingSince: null };
   await expect(line).toContainText('the address did not answer JSON', { timeout: 15_000 });
   await expect(page.getByTestId('cue-bound-f0').locator('input')).toHaveValue('Eero Laine');
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+/** A synthetic bracket, its rows keyed by row number: invented fields, players and ids. */
+const BRACKET = (bInM2: string) => ({
+  data: {
+    rows: {
+      1: { key: 'm1', rnd: 'qf', rndName: 'Quarter-finals', home: { who: 'Aster', pts: 3 }, away: { who: 'Birch', pts: 1 } },
+      2: { key: 'm2', rnd: 'qf', rndName: 'Quarter-finals', home: { who: 'Cedar', pts: 2 }, away: { who: bInM2, pts: null } },
+    },
+  },
+});
+
+test('a bracket read by NoaCG: the field mapping is the source’s setting, the current match follows the operator’s pick, holds when its players change, and moves only on another pick', async ({ page }) => {
+  test.setTimeout(120_000);
+  await stubSample(page, BRACKET('Dahl'));
+  const json = { body: { ok: true, payload: BRACKET('Dahl') } as unknown };
+  await page.context().route(/\/api\/data\/json\?/, async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json.body) });
+  });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const showId = await openProductionWithCurrent(page, 'Bracket Night');
+  await page.evaluate(async (id) => {
+    const { setShowObsScenes } = await import('/src/model/shows.ts');
+    setShowObsScenes(id, true);
+    await new Promise((r) => setTimeout(r));
+  }, showId);
+  await settleDurableWrites(page);
+
+  const review = await readAddress(page);
+  await review.getByTestId('cue-connect-read-every').fill('10');
+  await review.getByTestId('cue-connect-bracket-on').check();
+  await expect(review.getByTestId('cue-connect-bracket-rows')).toHaveValue('data.rows');
+  await expect(review.getByTestId('cue-connect-bracket-problem')).toContainText('both players’ names must be mapped');
+  for (const [key, field] of [['match', 'key'], ['round', 'rnd'], ['roundName', 'rndName'], ['aName', 'home.who'], ['aScore', 'home.pts'], ['bName', 'away.who'], ['bScore', 'away.pts']]) {
+    await review.getByTestId(`cue-connect-bracket-${key}`).selectOption(field);
+  }
+  await expect(review.getByTestId('cue-connect-bracket-problem')).toBeHidden();
+  // The fields connect to the adapter's shape: the current match's two players.
+  for (const [fieldId, leaf] of [['f0', '.current.a.name'], ['f1', '.current.b.name']]) {
+    const pick = review.getByTestId(`cue-connect-pick-${fieldId}`);
+    const value = await pick.locator('option').evaluateAll((os, end) => (os as HTMLOptionElement[]).map((o) => o.value).find((v) => v.endsWith(end)), leaf);
+    await pick.selectOption(value!);
+  }
+  await review.getByTestId('cue-connect-label').fill('Bracket');
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(review).toBeHidden();
+  const saved = await stored(page, showId);
+  const id = saved.sources[0].id;
+  expect(saved.sources[0].config).toMatchObject({
+    read: { everyMs: 10_000 },
+    adapter: { v: 1, name: 'bracket', rows: 'data.rows', fields: { match: 'key', aName: 'home.who', bName: 'away.who', aScore: 'home.pts' } },
+  });
+
+  // The operator picks the current match on the source's line; a read never picks it.
+  await page.getByTestId('data-indicator').click();
+  const line = page.getByTestId(`source-line-${id}`);
+  const picker = line.getByTestId('source-current-match');
+  await expect(picker.locator('option')).toHaveText(['Current match: none', 'Quarter-finals: Aster v Birch', 'Quarter-finals: Cedar v Dahl']);
+  await expect(picker).toHaveValue('');
+  await picker.selectOption('m2');
+  await expect(page.getByTestId('cue-bound-f0').locator('input')).toHaveValue('Cedar');
+  await expect(page.getByTestId('cue-bound-f1').locator('input')).toHaveValue('Dahl');
+
+  // Its players change: it holds its last values, held, and the line says so.
+  json.body = { ok: true, payload: BRACKET('Elm') };
+  await expect(line).toContainText('the current match is held: match m2 now has other players', { timeout: 15_000 });
+  await expect(page.getByTestId('cue-bound-f1').locator('input')).toHaveValue('Dahl');
+  await expect(picker).toHaveValue('m2');
+
+  // Only another pick moves it.
+  await picker.selectOption('m1');
+  await expect(page.getByTestId('cue-bound-f0').locator('input')).toHaveValue('Aster');
+  await expect(page.getByTestId('cue-bound-f1').locator('input')).toHaveValue('Birch');
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
