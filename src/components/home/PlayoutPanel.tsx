@@ -185,12 +185,15 @@ function BridgeSwitch({ label, testId, on, locked, onToggle }: {
   );
 }
 
-export function BridgeSection({ vmixOn, casparOn, locked, onVmix, onCaspar, onSettings, children }: {
+export function BridgeSection({ vmixOn, casparOn, obsScenesOn, locked, onVmix, onCaspar, onObsScenes, onSettings, children }: {
   vmixOn: boolean;
   casparOn: boolean;
+  /** The OBS scenes switch (docs/work-specs/obs-scenes/spec.md D1): folders may be OBS scenes. */
+  obsScenesOn: boolean;
   locked?: boolean;
   onVmix: (on: boolean) => void;
   onCaspar: (on: boolean) => void;
+  onObsScenes: (on: boolean) => void;
   onSettings: () => void;
   children: ReactNode;
 }) {
@@ -199,6 +202,7 @@ export function BridgeSection({ vmixOn, casparOn, locked, onVmix, onCaspar, onSe
       <div className="pd-pp-switches">
         <BridgeSwitch label="vMix via Bridge" testId="vmix-switch" on={vmixOn} locked={locked} onToggle={onVmix} />
         <BridgeSwitch label="CasparCG via Bridge" testId="caspar-switch" on={casparOn} locked={locked} onToggle={onCaspar} />
+        <BridgeSwitch label="OBS scenes" testId="obs-scenes-switch" on={obsScenesOn} locked={locked} onToggle={onObsScenes} />
       </div>
       {children}
       {/* Always available because Playout settings also holds the rundown colours (D9). */}

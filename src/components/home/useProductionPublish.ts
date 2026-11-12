@@ -80,7 +80,7 @@ export function useProductionPublish({ authStatus, signInOpen }: { authStatus: A
   const [busy, setBusy] = useState(false);
   /** A publish is on the wire: the status reads "Publishing…". */
   const [publishing, setPublishing] = useState(false);
-  const [copied, setCopied] = useState<'output' | 'join' | 'presenter' | null>(null);
+  const [copied, setCopied] = useState<'output' | 'join' | 'presenter' | `scene:${string}` | null>(null);
   /** The readable audience name being typed, and what the database said about the last claim. */
   const [nameDraft, setNameDraft] = useState('');
   const [nameNote, setNameNote] = useState<string | null>(null);
@@ -235,7 +235,7 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
     setNote('✓ Template file downloaded');
   };
 
-  const copy = (kind: 'output' | 'join' | 'presenter', text: string) => {
+  const copy = (kind: 'output' | 'join' | 'presenter' | `scene:${string}`, text: string) => {
     void copyLink(text).then((ok) => {
       if (!ok) return;
       // Taking the output URL is what turns "is the output connected?" into a question worth
