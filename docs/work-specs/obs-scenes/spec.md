@@ -905,6 +905,11 @@ Filled in by each phase's pull request.
     offers reach. So the review offers a bracket source's shape 12 keys deep (up to 1000 values),
     and connecting a field to an adapter's leaf writes no recipe output: the read reaches the leaf
     by its own path, at any depth. The recipe's limit is unchanged.
+  - B4 amended (found while adding these). An index segment is `_0`, `_1`, ... and a tie key of
+    digits alone takes a `_` in front: the production tree reads a segment of digits alone as an
+    array index, which no source write can address, so `brackets.0...` could never be written.
+    So `<p>.brackets._i.stages._k.rounds._r.matches._m`, `<p>.players._j`, `<p>.ties.<key>`.
+    Every path the shape gives is checked to be writable.
 - Previous verified `main`: `97ba82596a7fcfcf6a424140648a5f8ad13aab92` (CI 43307568831, configured
   suite 43307568943).
 - Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed and no

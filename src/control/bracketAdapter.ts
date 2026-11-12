@@ -326,7 +326,11 @@ const sideCell = (side: BracketSide): string => tieCell([side.name ?? '', side.s
 /** One tie line as the Bracket type takes it (B9). */
 export const tieLine = (round: string, m: Pick<BracketMatch, 'a' | 'b'>): string => `${tieCell(round)} | ${sideCell(m.a)} | ${sideCell(m.b)}`;
 /** A bracket id as one path segment (B9). */
-export const tieKey = (id: string, index: number): string => id.replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || String(index);
+export const tieKey = (id: string, index: number): string => {
+  const key = id.replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+  // Digits alone would be an array index to the tree (B4 amended).
+  return key === '' ? indexKey(index) : /^\d+$/.test(key) ? `_${key}` : key;
+};
 
 interface Round {
   id: string;
@@ -345,7 +349,10 @@ interface Bracket {
   kept: boolean;
 }
 
-const indexed = <T>(items: T[], each: (item: T) => JsonValue): { [key: string]: JsonValue } => Object.fromEntries(items.map((item, i) => [String(i), each(item)]));
+/** An index as a path segment: `_0`, `_1`, ... A segment of digits alone is an array index to the
+ *  production tree, which no source write can address (B4 amended). */
+export const indexKey = (i: number): string => `_${i}`;
+const indexed = <T>(items: T[], each: (item: T) => JsonValue): { [key: string]: JsonValue } => Object.fromEntries(items.map((item, i) => [indexKey(i), each(item)]));
 const sideJson = (s: BracketSide): JsonValue => ({ name: s.name, race: s.race, seed: s.seed, score: s.score });
 
 type SideL = BracketSide & { league: Scalar };

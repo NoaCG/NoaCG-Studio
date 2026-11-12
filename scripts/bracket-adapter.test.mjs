@@ -80,14 +80,14 @@ test('both row shapes give the same ordered result with stable match ids', () =>
   assert.deepEqual(keyed.output, list.output);
   assert.deepEqual(zero.output, list.output);
   assert.deepEqual(list.report, []);
-  const b = list.output.brackets['0'];
+  const b = list.output.brackets['_0'];
   assert.equal(b.id, 'G-1');
   assert.equal(b.title, 'Main event');
-  const rounds = b.stages['0'].rounds;
+  const rounds = b.stages['_0'].rounds;
   assert.deepEqual(Object.values(rounds).map((r) => r.name), ['Quarter-finals', 'Semi-finals', 'Final']);
   assert.deepEqual(Object.values(rounds).flatMap((r) => Object.values(r.matches).map((m) => m.id)), ['m1', 'm2', 'm3', 'm4']);
-  assert.deepEqual(rounds['0'].matches['1'], { id: 'm2', status: 'done', a: { name: 'Cedar', race: 'Z', seed: 4, score: 2 }, b: { name: 'Dahl', race: 'X', seed: 5, score: 3 } });
-  assert.equal(rounds['1'].matches['0'].status, 'live');
+  assert.deepEqual(rounds['_0'].matches['_1'], { id: 'm2', status: 'done', a: { name: 'Cedar', race: 'Z', seed: 4, score: 2 }, b: { name: 'Dahl', race: 'X', seed: 5, score: 3 } });
+  assert.equal(rounds['_1'].matches['_0'].status, 'live');
   assert.deepEqual(list.matches.map((m) => m.id), ['m1', 'm2', 'm3', 'm4']);
   // Without a match field, ids are the grouping and the place in the round: the same in both shapes.
   const noId = { ...ADAPTER, fields: { ...FIELDS, match: undefined } };
@@ -105,15 +105,16 @@ test('an unknown score is null, never zero; "—" in the tie line; empty text on
   assert.equal(statusOf(' Done '), 'done');
   assert.equal(statusOf('finished'), 'unknown');
   const { output } = adaptBracket(asList(ROWS()), adapter());
-  const sf = output.brackets['0'].stages['0'].rounds['1'].matches['0'];
+  const sf = output.brackets['_0'].stages['_0'].rounds['_1'].matches['_0'];
   assert.equal(sf.b.score, null);
-  const final = output.brackets['0'].stages['0'].rounds['2'].matches['0'];
+  const final = output.brackets['_0'].stages['_0'].rounds['_2'].matches['_0'];
   assert.deepEqual(final.a, { name: null, race: null, seed: null, score: null });
   assert.equal(output.ties['G-1'], ['Quarter-finals | Aster 3 | Birch 1', 'Quarter-finals | Cedar 2 | Dahl 3', 'Semi-finals | Aster 2 | Dahl —', 'Final | — | —'].join('\n'));
-  assert.equal(forFields(output).brackets['0'].stages['0'].rounds['1'].matches['0'].b.score, '');
+  assert.equal(forFields(output).brackets['_0'].stages['_0'].rounds['_1'].matches['_0'].b.score, '');
   assert.equal(tieLine('R|1', { a: { name: 'A\nB', score: 1 }, b: { name: 'C', score: null } }), 'R 1 | A B 1 | C —');
   assert.equal(tieKey('Group A / 1', 0), 'Group-A-1');
-  assert.equal(tieKey('!!', 3), '3');
+  assert.equal(tieKey('!!', 3), '_3');
+  assert.equal(tieKey('12', 0), '_12');
 });
 
 test('missing, empty, unnumbered and duplicated rows are reported, never guessed', () => {
@@ -133,13 +134,13 @@ test('missing, empty, unnumbered and duplicated rows are reported, never guessed
   // The same row twice: left out, said.
   const same = adaptBracket(asList([rows[0], rows[1], structuredClone(rows[0])]), adapter());
   assert.deepEqual(same.report, ['row 3 repeats match m1, so it is left out']);
-  assert.equal(Object.keys(same.output.brackets['0'].stages['0'].rounds['0'].matches).length, 2);
+  assert.equal(Object.keys(same.output.brackets['_0'].stages['_0'].rounds['_0'].matches).length, 2);
   // Two rows that disagree about one match: it keeps its values, its slot stays, its ties hold.
   const clash = adaptBracket(asList([rows[0], rows[1], rows[2], { ...rows[0], home: side('Aster', 'X', 1, 4) }]), adapter());
   assert.deepEqual(clash.report, ['row 1 and row 4 both give match m1 with other values, so it keeps its values']);
-  const qf = clash.output.brackets['0'].stages['0'].rounds['0'].matches;
-  assert.deepEqual(qf['0'], { id: 'm1' });
-  assert.equal(qf['1'].id, 'm2');
+  const qf = clash.output.brackets['_0'].stages['_0'].rounds['_0'].matches;
+  assert.deepEqual(qf['_0'], { id: 'm1' });
+  assert.equal(qf['_1'].id, 'm2');
   assert.equal('G-1' in clash.output.ties, false);
   // Rows not where the mapping says: the whole read holds.
   assert.deepEqual(adaptBracket({ other: [] }, adapter()), { problem: 'data.rows is not in the JSON' });
@@ -149,10 +150,10 @@ test('missing, empty, unnumbered and duplicated rows are reported, never guessed
 test('players: each named side once, in first appearance; two values for one player are null and said', () => {
   const { output, report } = adaptBracket(asList(ROWS()), adapter());
   assert.deepEqual(Object.values(output.players).map((p) => p.name), ['Aster', 'Birch', 'Cedar', 'Dahl']);
-  assert.deepEqual(output.players['0'], { name: 'Aster', race: 'X', seed: 1, league: 'Gold' });
+  assert.deepEqual(output.players['_0'], { name: 'Aster', race: 'X', seed: 1, league: 'Gold' });
   assert.deepEqual(report, []);
   const two = adaptBracket(asList([...ROWS(), row('m5', 'x', 'Extra', side('Birch', 'Q', 8, 1), side('Cedar', 'Z', 4, 0))]), adapter());
-  assert.equal(two.output.players['1'].race, null);
+  assert.equal(two.output.players['_1'].race, null);
   assert.deepEqual(two.report, ['Birch has two values for race, so it is left empty']);
 });
 
@@ -481,7 +482,7 @@ test('side rows: the rows of one match id are side a then side b; a one-row matc
   assert.deepEqual(all[3].b, { name: null, race: null, seed: null, score: null });
   assert.equal(all[3].status, 'unknown');
   assert.ok(r.report.includes('match y9 has one side in the rows'));
-  assert.equal(r.output.ties['2'], ['Round 1 | Elm — | Fir —', 'Final | Elm — | —'].join('\n'));
+  assert.equal(r.output.ties._2, ['Round 1 | Elm — | Fir —', 'Final | Elm — | —'].join('\n'));
 });
 
 test('nested rows are gathered through a list and numbered levels, in feed order, from list and keyed leaves alike', () => {
@@ -497,8 +498,8 @@ test('nested rows are gathered through a list and numbered levels, in feed order
 test('the bracket is the position at the chosen level; a field that repeats across brackets is the stage', () => {
   const r = adaptBracket(NESTED(), sidesAdapter());
   assert.deepEqual(Object.values(r.output.brackets).map((b) => b.id), ['1', '2']);
-  assert.deepEqual(Object.values(r.output.brackets).map((b) => b.stages['0'].id), ['upper', 'upper']);
-  assert.deepEqual(Object.keys(r.output.ties), ['1', '2']);
+  assert.deepEqual(Object.values(r.output.brackets).map((b) => b.stages['_0'].id), ['upper', 'upper']);
+  assert.deepEqual(Object.keys(r.output.ties), ['_1', '_2']);
 });
 
 test('the players section fills seeds (and a race the row lacks) by name in any case; an unmatched name is said; players come from it', () => {
@@ -541,7 +542,7 @@ test('connecting a field to a deep leaf of the bracket shape writes no recipe ou
   const { jsonOffers } = await import('../src/control/connectorReview.ts');
   const { bracketReviewSample } = await import('../src/control/bracketAdapter.ts');
   const sample = bracketReviewSample(NESTED(), sidesAdapter()).sample;
-  const deep = 'external.b1.brackets.1.stages.0.rounds.0.matches.0.b.name';
+  const deep = 'external.b1.brackets._1.stages._0.rounds._0.matches._0.b.name';
   assert.equal(jsonOffers('b1', sample).scalars.some((o) => o.path === deep), false);
   assert.ok(jsonOffers('b1', sample, { depth: 12, max: 1000 }).scalars.some((o) => o.path === deep));
   const stored = { id: 'b1', kind: 'external', label: 'Cups', config: { v: 1, configRevision: 1, endpoint: 'https://x.example/b.json', read: { everyMs: 10_000 }, adapter: SIDES } };
@@ -551,4 +552,15 @@ test('connecting a field to a deep leaf of the bracket shape writes no recipe ou
   const reg = readExternalRegistration({ id: 'b1', kind: 'external', config: plan.source.config });
   const p = projectJson({ sourceId: 'b1', payload: NESTED(), bindings: plan.bindings, fieldsOf: () => [{ key: 'f0', label: 'Player A', kind: 'text', defaultValue: '' }], registration: reg });
   assert.deepEqual(p.writes, { [deep]: 'Fir' });
+});
+
+test('every path the bracket shape gives is one a source write can address: no segment of digits alone', async () => {
+  const { patchForPath } = await import('../src/model/productionData.ts');
+  const leaves = (value, at = []) => (value !== null && typeof value === 'object' ? Object.entries(value).flatMap(([k, v]) => leaves(v, [...at, k])) : [at.join('.')]);
+  for (const [shape, a] of [[asList(ROWS()), adapter()], [NESTED(), sidesAdapter()]]) {
+    const r = adaptBracket(shape, a, { pick: a.fields.match ? (a.rowsAre ? 'x1' : 'm1') : null, memory: null });
+    const paths = leaves(forFields(r.output));
+    assert.ok(paths.length > 20);
+    for (const leaf of paths) assert.notEqual(patchForPath(`external.b1.${leaf}`, 'x'), null, leaf);
+  }
 });

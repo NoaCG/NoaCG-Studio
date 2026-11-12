@@ -19,13 +19,14 @@ amendments, are in the spec's phase notes. Every fixture is synthetic. No OBS ha
 | The bracket from a row's place | `bracketLevel` (B19) | "the bracket is the position at the chosen level": ids `1` and `2`; the repeating field is the stage |
 | A players section fills seeds by name; an unmatched name is reported | `players` (B20) | "the players section fills seeds": any case, race only where the row has none, `Fir is not in the players list`, `players` from the section, a missing section said |
 | A setting made before reads exactly as before | `readSourceAdapter` keeps a setting without the new keys as it was | "the new settings are additive and judged"; every earlier test passes unchanged; e2e fourth test unchanged |
+| Every path of the shape can be written (B4 amended) | index segments `_i`, a digits-only tie key prefixed with `_` | "every path the bracket shape gives is one a source write can address": every leaf of both fixtures passes `patchForPath` |
 | A match's own paths can be connected (B21) | `jsonOffers` bounds for a bracket; `connectorPlan` writes no recipe output for an adapter's leaf | "connecting a field to a deep leaf of the bracket shape writes no recipe output"; e2e fifth test binds `brackets.1....matches.0.b.name` and `.b.seed` |
 | The review offers the new settings | `BracketSetting`: rows through `*`, "Each row is", "Its place in", a players list | e2e fifth test: nested side rows set up in the review, the saved setting, and the graphic showing side b's name and its seed from the roster |
 | Nothing new with the switch off (rule) | "Read as a bracket" shows only beside "Read by NoaCG", which shows only with the OBS scenes switch on (OS5a R2); the picker only for a source whose reads offer matches | e2e first and third tests unchanged and passing |
 
 ## Local runs
 
-- `node --test`: bracket-adapter 24, json-source 15, data-tick 15, sheet-source 44, source-mapping 66,
+- `node --test`: bracket-adapter 25, json-source 15, data-tick 15, sheet-source 44, source-mapping 66,
   connector-review 27, external-data-connector 64, feed-source 10, file-source 16,
   show-fixture-compat 16, json-fetch 13: all pass.
 - `npm run gates -- run --changed origin/main`: every gate ok, 336 tests, 0 failed.

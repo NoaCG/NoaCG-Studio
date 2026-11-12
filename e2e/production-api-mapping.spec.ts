@@ -545,7 +545,7 @@ test('a bracket whose rows are sides, nested under a list: found through *, the 
   await review.getByTestId('cue-connect-bracket-players-seed').selectOption('rank');
   await expect(review.getByTestId('cue-connect-bracket-problem')).toBeHidden();
   // The second bracket's first match, by its place: side b's name and its seed from the roster.
-  for (const [fieldId, leaf] of [['f0', '.brackets.1.stages.0.rounds.0.matches.0.b.name'], ['f1', '.brackets.1.stages.0.rounds.0.matches.0.b.seed']]) {
+  for (const [fieldId, leaf] of [['f0', '.brackets._1.stages._0.rounds._0.matches._0.b.name'], ['f1', '.brackets._1.stages._0.rounds._0.matches._0.b.seed']]) {
     const pick = review.getByTestId(`cue-connect-pick-${fieldId}`);
     const value = await pick.locator('option').evaluateAll((os, end) => (os as HTMLOptionElement[]).map((o) => o.value).find((v) => v.endsWith(end)), leaf);
     await pick.selectOption(value!);
