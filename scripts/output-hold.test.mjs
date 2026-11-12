@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { ENTRANCE_MS, afterOutcome, compact, endsFailure, giveUp, liveStep, heldLate, isCancelled, lastLifecycle, releaseMode, routeLive, surviving } = await import('../src/output/hold.ts');
+const { ENTRANCE_MS, afterOutcome, compact, demandFor, endsFailure, giveUp, liveStep, heldLate, isCancelled, lastLifecycle, releaseMode, routeLive, surviving } = await import('../src/output/hold.ts');
 
 const row = (at, t, receivedAt = 0, extra = {}) => ({ at, msg: { t, ...extra }, receivedAt });
 
@@ -218,5 +218,16 @@ test('a demand read settles only the holds it started after; a newer hold waits 
   const { readFileSync } = await import('node:fs');
   const main = readFileSync(new URL('../src/output/main.ts', import.meta.url), 'utf8');
   assert.match(main, /const covered = new Set<object>\(holds\.values\(\)\);/);
-  assert.match(main, /if \(hosts\(graphic\) \|\| !covered\.has\(hold\)\) return;/);
+  assert.match(main, /covered: covered\.has\(hold\)/);
+});
+
+test('a graphic published and taken while a demand read is in flight keeps its Take for the next read', () => {
+  const base = { hosted: false, covered: true, answered: true, published: false, cancelled: false };
+  // The read started before the second publish: its answer does not name the new graphic.
+  assert.equal(demandFor({ ...base, covered: false }), 'skip', 'a hold started after the read is the next read\'s');
+  assert.equal(demandFor(base), 'fail', 'a hold the read covers and the payload does not name fails unpublished');
+  assert.equal(demandFor({ ...base, published: true }), 'add');
+  assert.equal(demandFor({ ...base, cancelled: true }), 'settle');
+  assert.equal(demandFor({ ...base, answered: false }), 'skip', 'no answer: the hold waits');
+  assert.equal(demandFor({ ...base, hosted: true }), 'skip');
 });

@@ -73,7 +73,7 @@ import { PROBE_MS, reloadWhenClear, within } from './reload';
 import { FRAME_LOAD_MS, createOutputStage, heldLine } from './stage';
 import { reportedLook } from '../control/cueAdjust';
 import { createSwapper } from './swap';
-import { ENTRANCE_MS, HELD_PER_GRAPHIC, HELD_PER_OUTPUT, afterOutcome, compact, giveUp, heldLate, isCancelled, isTake, liveStep, releaseMode, type Failure, type HeldRow, type HoldFailure } from './hold';
+import { ENTRANCE_MS, HELD_PER_GRAPHIC, HELD_PER_OUTPUT, afterOutcome, compact, demandFor, giveUp, heldLate, isCancelled, isTake, liveStep, releaseMode, type Failure, type HeldRow, type HoldFailure } from './hold';
 import { epochTag, listed, type HeldEntry, type RunReport } from '../control/runReport';
 import { CATCH_UP_TIMING, readGraphic, stoodStill, wait } from './catchUp';
 import { obsEvent, obsState, sceneParam, scopePayload, type ObsWhere } from './sceneScope';
@@ -1214,10 +1214,11 @@ async function boot(): Promise<void> {
         // Not answered: asked again while anything still waits for it; its 20 s deadline still runs.
         else if (Array.from(holds.keys()).some((graphic) => !hosts(graphic))) setTimeout(demand, 2_000);
         holds.forEach((hold, graphic) => {
-          if (hosts(graphic) || !covered.has(hold)) return;
           const spec = payload ? payload.graphics.find((g) => g.key === graphic) : undefined;
-          if (spec && payload) swapper.addNow(spec, payload); else if (payload && isCancelled(hold.rows)) settleHold(graphic);
-          else if (payload) fail(graphic, 'unpublished');
+          const step = demandFor({ hosted: hosts(graphic), covered: covered.has(hold), answered: !!payload, published: !!spec, cancelled: isCancelled(hold.rows) });
+          if (step === 'add' && spec && payload) swapper.addNow(spec, payload);
+          else if (step === 'settle') settleHold(graphic);
+          else if (step === 'fail') fail(graphic, 'unpublished');
         });
       } finally {
         demandRunning = false;

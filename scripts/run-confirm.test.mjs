@@ -124,5 +124,10 @@ test('a page opened mid-hold: the seed is reached, and the held work still keeps
 
 test('a page that resolves before any output is expected keeps its seed until an output can confirm it', () => {
   const seed = [{ at: 10, graphic: null, since: 0 }];
-  assert.deepEqual(pruneOwed(seed, []), seed);
+  const kept = pruneOwed(seed, []);
+  assert.deepEqual(kept, seed);
+  // An output joins later behind the head with nothing unsettled: the kept seed keeps it from Ready.
+  const late = out({ o: 'out-a', p: 7, h: {}, e: 'e1' });
+  assert.ok(lines(kept, [late], 1_000).length > 0, 'the joining output is not confirmed');
+  assert.equal(pruneOwed(kept, [late]).length, 1, 'the seed stays until that output reaches it');
 });

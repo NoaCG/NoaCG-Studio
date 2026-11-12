@@ -176,3 +176,13 @@ export function afterOutcome(
   if (current.overdue && !outcome.overdue) return { from: current.from, why: outcome.failed };
   return current;
 }
+
+/** WHAT A DEMAND READ DOES WITH ONE HOLD (G2 section 3): a graphic hosted here, or a hold started
+ *  after the read did, is not its to settle (the next read is); otherwise the published graphic is
+ *  added, a cancelled hold settles, and one the payload does not name fails `unpublished`. With no
+ *  answer the hold waits for the next read. */
+export function demandFor(f: { hosted: boolean; covered: boolean; answered: boolean; published: boolean; cancelled: boolean }): 'skip' | 'add' | 'settle' | 'fail' {
+  if (f.hosted || !f.covered || !f.answered) return 'skip';
+  if (f.published) return 'add';
+  return f.cancelled ? 'settle' : 'fail';
+}
