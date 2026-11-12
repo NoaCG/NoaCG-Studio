@@ -1311,7 +1311,8 @@ async function boot(): Promise<void> {
       presence.touch();
       return;
     }
-    applyCommand(row.graphic, row.msg, row.created_at, road, animate, seqMode ? row.seq : undefined);
+    // Only a renderer command has an outcome to wait for (G2 section 1): a status row carries none.
+    applyCommand(row.graphic, row.msg, row.created_at, road, animate, seqMode && command ? row.seq : undefined);
     presence.touch();
     // Status rows ('cue'/'staged'/'live') are for the operator pages; the stage ignored them
     // and so does the report path.
