@@ -40,6 +40,7 @@ import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, SEQ_HEAD_EVENT, commandT
 import { allOutWaves, BURST_WINDOW_MS } from './allOut';
 import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, isRefusal, rpcFailure, seqRoadVerdict, sendWithResend, unansweredError, type SeqRoadAsker } from './failedSends';
 import { noteSend, withSender } from './livePath';
+import { noteSendStarted } from './sendsInFlight';
 import { obsScenesOf, SCENE_ID, type ObsScene } from '../model/obsScenes';
 import { graphicDigest, olderDesigns, readPayloadVersion, stampPayload, type PayloadVersion } from './payloadVersion';
 import { createSeqFollower, seqJoinRetryDelay, type HeadSummary, type SeqFrame, type SeqHead, type SeqTail } from './seqFollow';
@@ -1902,7 +1903,13 @@ async function sendSeqVerb(
       : sendWithResend(async (signal) => {
           settled = settleAnswer(session, await sendSeqBatch(slug, wire, sender, signal), graphics, sender.id);
         }, resend);
-  await (allOut ? send() : seqQueue.run(graphics, send));
+  // Counted while on the wire, so an automatic publish waits for it (sendsInFlight.ts).
+  const answered = noteSendStarted();
+  try {
+    await (allOut ? send() : seqQueue.run(graphics, send));
+  } finally {
+    answered();
+  }
   return { skipped: settled.skipped, superseded: settled.outcome === 'superseded' };
 }
 

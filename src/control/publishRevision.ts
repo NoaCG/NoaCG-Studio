@@ -27,6 +27,7 @@ import { buildOutputPayload, buildPanelSpec, copyDigest, readPanel, sendJoinBran
 import { digestText, readPayloadVersion, stampFromDigests, type PayloadVersion } from './payloadVersion';
 import { designEditedAt } from '../model/library';
 import type { PublishOutcome } from './autoPublish';
+import { sendsIdle } from './sendsInFlight';
 
 /** Resolves on a later task: a click queued meanwhile runs first. */
 function yieldToInput(): Promise<void> {
@@ -37,29 +38,6 @@ function yieldToInput(): Promise<void> {
       channel.port2.postMessage(null);
     } else setTimeout(resolve, 0);
   });
-}
-
-/** Sends of this page not yet answered (graphic verbs, folders, pictures, server cues, panel
- *  commands): a publish step never starts while one is in flight (G3 section 5, "Takes first"). */
-let sendsInFlight = 0;
-let idleWaiters: (() => void)[] = [];
-export function noteSendStarted(): () => void {
-  sendsInFlight += 1;
-  let done = false;
-  return () => {
-    if (done) return;
-    done = true;
-    sendsInFlight -= 1;
-    if (sendsInFlight <= 0) {
-      sendsInFlight = 0;
-      const waiters = idleWaiters;
-      idleWaiters = [];
-      for (const w of waiters) w();
-    }
-  };
-}
-function sendsIdle(): Promise<void> {
-  return sendsInFlight === 0 ? Promise.resolve() : new Promise((resolve) => idleWaiters.push(resolve));
 }
 
 /** One step's worth of waiting: every send answered, then a later task. */
