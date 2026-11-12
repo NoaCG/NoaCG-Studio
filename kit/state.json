@@ -116,7 +116,7 @@
         "quarantine": 43268862291,
         "configured": 43268862377
       },
-      "postLandingStatus": "Postlanding43268862327SUCCESS; Quarantine43268862291SUCCESS; mainCI43268862367pendingbehindprecedingmainCI43267529038; configured43268862377andCodeQL43268863302inprogress. No pending=PASS claim.",
+      "postLandingStatus": "PostlandSUCCESS,QuarantineSUCCESS; exactmergemainCI43268862367nowinprogress,configured43268862377andCodeQL43268863302running; allpendingexplicit.",
       "incidentReadback": "Actual2371bodyandjob131359676353 confirmnewpergraphicentry:miwco primary/weeklyownerbackup,2026-11-26due. Originalclock/outageentriesstillmiwco2026-11-25. No inventedowner."
     }
   ],
@@ -1904,7 +1904,17 @@
       "head": "2767a30cb0fccbb9a04f4f2e0ca285b32e4f94d6",
       "normalCi": 43270310952,
       "status": "ExactheadPRopen,automergeNULL,noLandlabel; actualCIinprogress. Newcapacity/configuredselection/backend/Codex/freshFULLSOA/A+allrequired.",
-      "reviews": "BuilderownsoneCodexrequest; freshFULLSOonlyafteractualcapacity; allpreviousB/historyretained; no earlierA/deltaeligible."
+      "reviews": "BuilderownsoneCodexrequest; freshFULLSOonlyafteractualcapacity; allpreviousB/historyretained; no earlierA/deltaeligible.",
+      "planJob": 131364768007,
+      "testMerge": "ad0ca09a141d92ec98d4fb6a4f839ac38f0cb564",
+      "configuredSelection": "ActualALL62eligibleconfiguredspecs,fourisolatedstacks; fullplan137509bytesfetched/rootessentialgatesread; no guessed65/63 reuse.",
+      "capacity": "ActualplanSUCCESS,costREPAY:offline91%,backend94%,graphics93%,overhead87%table butmain-onlynightly6/daychargedfromfrozenPR_BASE7e306reaches122%; unchangedcurrentmainland2cost-onlypassingpolicy/attribution2450. Newest43201149088partial judged43014542120complete;nofreshevidenceclaim/limitexceptionedit. RootACKcapacityprerequisiteforfreshFULLSO.",
+      "isolated": 43270504790,
+      "isolatedJob": 131365470309,
+      "isolatedStatus": "Exact2767firstattemptrunning",
+      "codexRequest": 6831033423,
+      "codexRequestAt": "2026-11-12T17:32:01Z",
+      "codexStatus": "Onecompletedrequestpendingresult,no duplicate."
     }
   },
   "coordinatorTools": {
