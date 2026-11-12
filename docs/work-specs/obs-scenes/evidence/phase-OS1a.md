@@ -9,7 +9,7 @@ spec's phase notes. Simulated checks only: nothing here is OBS hardware proof (t
 | --- | --- | --- |
 | AC-1: three scenes of two graphics each build two graphics per scene link | `src/output/sceneScope.ts` `scopePayload`, applied in `src/output/main.ts` at boot and in the preparer's resolve | `scripts/obs-scenes.test.mjs` (each of three scenes builds its two, keeps the production's resolution and version); `e2e/output-scene-link.spec.ts` test 1 (the real `/output` shell builds `B1`, `B2` only, READY 2 of 2) |
 | AC-1: through publish, reconnect and reload | The preparer's resolve scopes every publish it takes; a reload boots through the same scoping; the follow and its refills read past every row outside the scope (R6) | `e2e/output-scene-link.spec.ts` test 1: a publish moves `B2` out of the scene and it leaves though on air; a reload builds `B1` alone. Reconnect: the follow's rows go through the same `apply` guard as the boot catch-up rows the spec feeds; a live topic is configured-suite ground and is not run here (see "Not checked") |
-| AC-1: a graphic removed from a scene disappears from its link | The swapper is told a graphic outside the scope is never on air, so it leaves at the publish, on air or not (R6) | `e2e/output-scene-link.spec.ts` test 1; `scripts/obs-scenes.test.mjs` "removed from the scene" |
+| AC-1: a graphic removed from a scene disappears from its link | A graphic outside the scope is never on air on the link (`onAirHere`), so it leaves at the publish, on air or not, and holds neither a swap nor a whole-page reload (R6) | `e2e/output-scene-link.spec.ts` tests 1 and 3 (a publish that also changes the stage size reloads onto the new scope); `scripts/obs-scenes.test.mjs` "removed from the scene" |
 | AC-1: an unknown or deleted scene id builds none and reports itself as unknown | `scopePayload` answers `known: false` and no graphics, never the whole production; READY carries a `scene` issue (not ready, worded); Presence carries `scene.known: false` | `scripts/obs-scenes.test.mjs` (unknown, empty, malformed, deleted, switch off); `e2e/output-scene-link.spec.ts` test 2 (nothing built, READY `scene` issue, Presence `known: false`, still nothing after a publish with no scenes, built once a publish names it) |
 | AC-1: the ordinary link builds every graphic, as today | `scene === null` keeps every guard true and the payload untouched (R4) | `e2e/output-scene-link.spec.ts` test 1 (all six); the regression selection below |
 | AC-4: first visible frame is the resting state, no entrance | A scene link's stage posts `play` with `settled`; the composed document plays and snaps to the reached pose in the same task (`src/preview/composeDocument.ts` `settleOnAir`); OGraf gets `skipAnimation` | `e2e/output-first-paint.spec.ts` "a scene link's settled Take": every frame of lt01's document is fingerprinted; after a settled Take the first frame drawn is the resting one, and an ordinary Take of the same design draws entrance frames (the control) |
@@ -22,13 +22,15 @@ spec's phase notes. Simulated checks only: nothing here is OBS hardware proof (t
 - The `apply` guard removed (`src/output/main.ts`): `e2e/output-scene-link.spec.ts` test 1 fails, another
   scene's graphic `A1` is reported by the scene link. Restored.
 - GSAP paused after the settled snap: the ss21 continuous-motion test fails. Restored.
+- `onAirHere` without the scope (the final `/so`'s finding): `e2e/output-scene-link.spec.ts` test 3 fails, the
+  reload waits on a graphic that left the scene. Restored.
 - The snap with `timers: false` still passes the ss21 test: the loop and the countdown run without the
   machine's timers, so that test does not pin timers; `timers: true` stays because it is what a
   restart's snap uses.
 
 ## Local runs
 
-- `node --test scripts/obs-scenes.test.mjs scripts/readiness.test.mjs`: pass (9, 15).
+- `node --test scripts/obs-scenes.test.mjs scripts/readiness.test.mjs`: pass (10, 15).
 - `npm run gates -- run --changed origin/main`: 354 tests pass.
 - `npx tsc --noEmit -p tsconfig.json`, eslint on every changed file: clean.
 - Queued browser runs: `e2e/output-scene-link.spec.ts` (2 pass), `e2e/output-first-paint.spec.ts -g settled`
@@ -47,6 +49,10 @@ spec's phase notes. Simulated checks only: nothing here is OBS hardware proof (t
   the OBS events' real order, are the owner's in OS2.
 - Whether an imported OGraf package honours `skipAnimation`: the standard requires it; no package
   fixture was run for it.
+- A hand-written template with no state machine whose one timeline is enter, hold, exit: a settled
+  Take jumps every finite animation to its end (R9), so it would land in its exit pose, and a hide on a
+  timer would fire at once. No catalog design is built that way (every house template has a machine).
+  The owner checks any such event graphic in OS2 (checklist item 6).
 
 ## Placeholder production for OS2
 
@@ -74,6 +80,8 @@ game capture, cameras and encoding running, every scene's source loaded.
    on the output's debug overlay: add `&debug=1` to one scene link for this drill).
 4. Sign in to NoaCG inside a Custom Browser Dock.
 5. A load failure on the laptop: repeat it on the show PC before any decision.
+6. Any event graphic not made from a NoaCG template (hand-written or imported): Take it on its scene
+   link and check it rests on air, not in its exit pose.
 
 ### Receipt template
 
@@ -91,5 +99,6 @@ Scenes loaded (n of n, 1920x1080, 60 fps):
 3. Stinger start / cut point / on-program event, 10 times:       (information)
 4. Sign-in inside a Custom Browser Dock:                          pass/fail
 5. Load failures, and the show PC repeat:
+6. Hand-written or imported graphics rest on air when taken:  pass/fail
 Notes:
 ```

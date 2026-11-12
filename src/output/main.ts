@@ -517,8 +517,10 @@ async function boot(): Promise<void> {
   /** Is `graphic` on air here? What this renderer last applied to it; for a graphic no command has
    *  reached since boot, the log's head (protocol 2, once heard), else whether the boot put it up,
    *  which leans towards "on air" (a report's machine state counts), and so towards waiting. */
+  // A graphic outside a scene link's scope is never on air there (OS1a R6): it leaves at the publish
+  // that took it out, and holds neither a swap nor a reload, whose Out this link reads past.
   const onAirHere = (graphic: string): boolean =>
-    !commanded.has(graphic) && seqMode && headHeard ? headOn.get(graphic) === true : liveGraphics.has(graphic);
+    inScope(graphic) && (!commanded.has(graphic) && seqMode && headHeard ? headOn.get(graphic) === true : liveGraphics.has(graphic));
   const airCount = () => {
     let n = 0;
     for (const graphic of stage.graphics) if (onAirHere(graphic)) n += 1;
@@ -541,9 +543,9 @@ async function boot(): Promise<void> {
   const swapper = createSwapper({
     stage,
     held: bootDigests,
-    // A graphic that left this link's scene leaves at once, on air or not (OS1a R6): a scene
-    // graphic is always on, so waiting for its Out would keep it in the wrong scene.
-    onAir: (graphic) => inScope(graphic) && onAirHere(graphic),
+    // A graphic that left this link's scene leaves at once, on air or not (OS1a R6, `onAirHere`): a
+    // scene graphic is always on, so waiting for its Out would keep it in the wrong scene.
+    onAir: onAirHere,
     data: (graphic) => heldData(graphic),
     warmData: (graphic, next) => (touched.has(graphic) ? heldData(graphic) : firstCueOf(next.cues, graphic)),
     loadSound: (next) => audio(next).loadSound,

@@ -498,6 +498,9 @@ Filled in by each phase's pull request.
   deactivating it, so only a name within a second of an activation sets "last on program in"; a
   settled Take of a graphic without a machine finishes repeats and jumps a looping timeline to the
   end of its finite motion; copying a scene link marks the output as set up, as the plain link does.
+  From the final `/so`: a graphic outside the scope is never on air on the link (`onAirHere`), so it
+  holds no whole-page reload either (a publish that changes the stage size and moves an on-air
+  graphic out of the scene used to wait for an Out the link reads past).
   Not changed, with reasons: a design change to a scene graphic on air waits for its next Take (the
   contract with the live-publishing run); an operator page built before this one reads an unknown
   scene's READY as ready, for the life of that page only (deploy skew).

@@ -48,13 +48,13 @@ const SCENES: Scene[] = [
 ];
 
 /** The production as published at `n`. Scenes are cue metadata: the stamp's `h` does not move. */
-function production(n: number, scenes: Scene[] | undefined) {
+function production(n: number, scenes: Scene[] | undefined, resolution = RESOLUTION) {
   return {
     id: '00000000-0000-4000-8000-0000000000cc',
     title: 'Scene Probe',
     output: {
       v: 1,
-      resolution: RESOLUTION,
+      resolution,
       graphics: KEYS.map(graphic),
       cues: KEYS.map((k) => ({ id: k.toLowerCase(), graphic: k, label: k, values: { f0: k } })),
       ver: { n, at: '2026-11-12T00:00:00.000Z', h: 'same', g: Object.fromEntries(KEYS.map((k) => [k, `d-${k}`])) },
@@ -197,4 +197,25 @@ test('an unknown scene builds nothing and reads not ready, until a publish names
   await expect.poll(async () => (await readyOf(page))?.n, { timeout: 20_000 }).toBe(1);
   expect((await readyOf(page))!.is).toEqual([]);
   expect(await sceneOf(page)).toEqual({ id: 'scD', known: true });
+});
+
+test('a publish that needs a reload is not held by a graphic it moved out of the scene (R6)', async ({ page }) => {
+  let published: unknown = production(1, SCENES);
+  await standInBackend(page, () => published);
+  const documents: string[] = [];
+  page.on('framenavigated', (frame) => {
+    if (frame === page.mainFrame()) documents.push(frame.url());
+  });
+  await page.goto('/output?production=scene-probe&scene=scB');
+  await expect.poll(async () => (await readyOf(page))?.n, { timeout: 20_000 }).toBe(2);
+  await command(page, 'B2', { t: 'play' });
+  await expect.poll(() => stateOf(page, 'B2')).toBe('in');
+  // Another stage size takes a whole reload, which waits for air to clear here. B2 leaves the scene
+  // in the same publish, so it no longer counts as air on this link, and the reload goes ahead onto
+  // the new scope.
+  published = production(2, [SCENES[0], { ...SCENES[1], graphics: ['B1'] }, SCENES[2]], { width: 3840, height: 2160, label: '2160p' });
+  await prepare(page, 'p2', 2);
+  await expect.poll(() => documents.length, { timeout: 30_000 }).toBeGreaterThan(1);
+  await expect.poll(async () => (await readyOf(page))?.n, { timeout: 20_000 }).toBe(1);
+  expect(await built(page)).toEqual(['B1']);
 });
