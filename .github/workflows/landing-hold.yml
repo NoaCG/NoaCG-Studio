@@ -21,7 +21,8 @@ on:
         required: true
         type: string
 
-# One switch at a time, in the order asked; a later request never cancels an earlier one.
+# One switch at a time, and a running switch is never cancelled. GitHub keeps one waiting run per
+# group, so a waiting request is replaced by a newer one: the newest request wins.
 concurrency:
   group: landing-hold
   cancel-in-progress: false

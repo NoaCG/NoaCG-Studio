@@ -392,7 +392,7 @@ Filled in by each phase's pull request.
     if missing) whose body names the account that dispatched it, the run and the reason; with one
     open it rewrites that body to the new setter and reason and comments. Off: it closes every
     open hold issue with a comment naming who lifted it and why. Repeating a request changes
-    nothing else. Runs are serialized, never cancelled.
+    nothing else. Runs never overlap and a running one is never cancelled.
   - R8. After writing, the workflow reads the hold back with the gate's own reader and fails
     unless it matches the request.
   - R9. Lifting re-runs nothing. A pull request whose gate failed under the hold gets its failed
@@ -408,6 +408,12 @@ Filled in by each phase's pull request.
     it with a reason. An issue labelled by hand still holds and names whoever opened it.
   - R13. The reason is public. Scheduled dispatches use a fixed neutral reason, so no window or
     date appears anywhere.
+- Rules found after coding (`/check` review): every open hold is rewritten on a repeated `on`;
+  a write is tried once (a retried create could open a second hold), reads three times; a request
+  still waiting when a newer one arrives is cancelled by GitHub, so the newest wins (R7 amended);
+  `heldOnly` needs exactly one failed step, so the gate's own failure beside the hold is a fault,
+  and a held PR keeps an alarm line already listed for it; a pull request that edits the hold's
+  own check is judged by that edited check (the guide lists it as not covered).
 - Previous verified `main`: `3c5bbf9add0692fdc1d8fc42aed558416d331805` (CI run 43229582088). The
   source, `d8aaca715e8cecbfc2b888f6bb76b2670f32b502`, had its push CI still running at the start.
 - Revert: `git revert -m 1 <this pull request's merge commit>` removes the gate step, the

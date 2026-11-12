@@ -28,7 +28,8 @@ Run the **Landing hold** workflow (`.github/workflows/landing-hold.yml`) from th
 
 In a cloud session, trigger the same workflow with the GitHub tools. Anyone with write access can
 run it. The run reads the hold back and fails unless it took effect, so a green run is the
-confirmation.
+confirmation; a failed run is run again. Runs never overlap. A request that is still waiting when
+a newer one arrives is cancelled by GitHub, so the newest request wins.
 
 The reason is public. Name no event, date, place or person in it. A scheduled set or lift uses a
 fixed neutral reason ("scheduled hold", "scheduled lift"), so the schedule never shows anywhere.
@@ -41,8 +42,10 @@ records no reason, and is never a way to get a red gate green.
 
 - A red gate whose only error is "Landing hold" is not a fault. Do not repair it, push to it or
   spend a repair attempt on it. The red-PR alarm (`scripts/repair-wake.mjs`) ignores it.
-- After the lift, re-run the failed `CI gate` job of each held pull request (re-running the failed
-  jobs re-runs only the gate, which reads the hold again), then queue it again.
+- After the lift, a pull request whose own run went red under the hold needs that run's failed
+  jobs re-run (`gh run rerun <run> --failed`); the gate reads the hold again, and only jobs that
+  failed run again. One that left the queue from a merge group kept its green pull request run:
+  just queue it again.
 - The automatic quarantine and revert landings are held too. If `main` needs a revert during a
   hold, whoever owns the hold decides: lift it, land the revert, set it again.
 
@@ -52,5 +55,8 @@ records no reason, and is never a way to get a red gate green.
 - A migration applied by hand to a database.
 - An administrator bypassing the branch rules to push or merge.
 - Releases that never touch `main` (the CLI, Bridge and Companion releases).
+- A pull request that edits the hold's own check (`scripts/landing-hold.mjs` or the gate's
+  `Landing hold` step) is judged by its edited check. Review is what stops that, so such a change
+  never lands during a hold.
 - A merge group whose gate had already passed when the hold turned on: it may still land. Set the
   hold well before the time it must hold from.

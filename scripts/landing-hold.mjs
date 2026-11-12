@@ -26,6 +26,7 @@ export const GUIDE = 'docs/LANDING_HOLD.md';
 export const ATTEMPTS = 3;
 const TIMEOUT_MS = 15_000;
 const REASON_MAX = 300;
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class HoldUnreadable extends Error {}
 
@@ -35,13 +36,18 @@ export function oneLine(text, max = REASON_MAX) {
   return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
 }
 
-/** A GitHub REST caller with bounded retries. Every failure after the last attempt throws. */
-export function makeApi({ fetch = globalThis.fetch, token, repo, base = 'https://api.github.com', attempts = ATTEMPTS, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) }) {
+/**
+ * A GitHub REST caller. A read is tried `attempts` times; a write once, because a write that timed
+ * out may still have been applied (a retried POST could open a second hold issue). The workflow
+ * reads the state back after writing, and a failed run is simply run again: `set` is idempotent.
+ */
+export function makeApi({ fetch = globalThis.fetch, token, repo, base = 'https://api.github.com', attempts = ATTEMPTS, sleep = pause }) {
   if (!token) throw new HoldUnreadable('no GitHub token in the environment');
   if (!repo || !/^[^/\s]+\/[^/\s]+$/.test(repo)) throw new HoldUnreadable(`no repository in the environment (got '${repo ?? ''}')`);
   return async function api(method, route, body, { accept = [] } = {}) {
     let last;
-    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const tries = method === 'GET' ? attempts : 1;
+    for (let attempt = 1; attempt <= tries; attempt += 1) {
       try {
         const response = await fetch(`${base}/repos/${repo}${route}`, {
           method,
@@ -62,9 +68,9 @@ export function makeApi({ fetch = globalThis.fetch, token, repo, base = 'https:/
       } catch (error) {
         last = error;
       }
-      if (attempt < attempts) await sleep(2000 * attempt);
+      if (attempt < tries) await sleep(2000 * attempt);
     }
-    throw new HoldUnreadable(`${last?.message ?? 'unknown error'} (after ${attempts} attempts)`);
+    throw new HoldUnreadable(`${last?.message ?? 'unknown error'} (after ${tries} attempt${tries === 1 ? '' : 's'})`);
   };
 }
 
@@ -137,10 +143,12 @@ export async function set(api, { state, actor, reason, runUrl }) {
   const current = await readHold(api);
   if (state === 'on') {
     if (current.on) {
-      const [first] = current.holds;
-      await api('PATCH', `/issues/${first.number}`, { body: holdBody({ actor, reason, runUrl }) });
-      await api('POST', `/issues/${first.number}/comments`, { body: `Set again by ${oneLine(actor)}: ${oneLine(reason)} (${oneLine(runUrl)})` });
-      return { changed: false, numbers: [first.number] };
+      // Every open hold gets the new setter and reason, so the gate never shows a stale one.
+      for (const hold of current.holds) {
+        await api('PATCH', `/issues/${hold.number}`, { body: holdBody({ actor, reason, runUrl }) });
+        await api('POST', `/issues/${hold.number}/comments`, { body: `Set again by ${oneLine(actor)}: ${oneLine(reason)} (${oneLine(runUrl)})` });
+      }
+      return { changed: false, numbers: current.holds.map((hold) => hold.number) };
     }
     await api('POST', '/labels', { name: LABEL, color: 'b60205', description: 'While open, the CI gate fails on every pull request and merge group' }, { accept: [422] });
     const { data } = await api('POST', '/issues', { title: TITLE, body: holdBody({ actor, reason, runUrl }), labels: [LABEL] });
@@ -154,7 +162,7 @@ export async function set(api, { state, actor, reason, runUrl }) {
 }
 
 /** R8: read the hold back with the gate's own reader until it matches, or fail. The list can lag a write. */
-export async function confirm(api, state, { tries = 5, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) } = {}) {
+export async function confirm(api, state, { tries = 5, sleep = pause } = {}) {
   for (let i = 1; i <= tries; i += 1) {
     const result = await readHold(api);
     if (result.on === (state === 'on')) return result;

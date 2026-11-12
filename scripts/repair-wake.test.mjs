@@ -628,6 +628,7 @@ test('landing hold: only the hold\'s fixed form, alone, is held', () => {
   assert.equal(heldOnly(held([{ annotation_level: 'failure', message: 'Build finished \'failure\'' }])), false, 'a real failure beside the hold still counts');
   assert.equal(heldOnly([{ annotation_level: 'failure', message: 'Landing hold state could not be read (x)' }]), false, 'an unreadable hold is a fault to re-run');
   assert.equal(heldOnly([{ annotation_level: 'failure', message: 'Process completed with exit code 1.' }]), false);
+  assert.equal(heldOnly(held([{ annotation_level: 'warning', message: 'E2E shards finished \'cancelled\' - no leg reported a fault' }, { annotation_level: 'failure', message: 'Process completed with exit code 1.' }])), false, 'the gate\'s own step failed too, with only a warning');
   assert.equal(heldOnly(undefined), false);
 });
 
@@ -638,4 +639,16 @@ test('landing hold: a held PR with no repair owner raises no alarm, past its bou
   const r = check(gh, plus(t, 3 * BOUND_MINUTES));
   assert.deepEqual(notices(gh), []);
   assert.deepEqual(r.entries, []);
+});
+
+test('landing hold: an owner-only alarm already listed stays listed while the PR is held', () => {
+  const t = '2026-11-12T08:00:00Z';
+  const fx = { prs: [{ number: 7, sha: 's1' }], runs: [refused({ id: 1, sha: 's1', start: plus(t, -15), end: t })], annotations: { 10: needsOwner('full:overhead'), 20: held() } };
+  const gh = fakeGitHub(fx);
+  check(gh, plus(t, 1));
+  fx.prs[0].sha = 's2';
+  fx.runs.push(refused({ id: 2, sha: 's2', start: plus(t, 5), end: plus(t, 20) }));
+  const r = check(gh, plus(t, 21));
+  assert.ok(r.alarm, 'not closed by a held re-push');
+  assert.match(r.alarm.body, /#7: needs the owner: full:overhead/);
 });

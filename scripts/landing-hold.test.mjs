@@ -98,6 +98,13 @@ test('R4: a transient failure inside the attempts still reads the state', async 
   assert.equal((await check(api)).code, 0);
 });
 
+test('R7: a write is tried once, so a timed-out create never opens a second hold', async () => {
+  const { api, store } = github();
+  store.failures = 1;
+  await assert.rejects(api('POST', '/issues', { title: 'x', body: '', labels: [] }), /network down \(after 1 attempt\)/);
+  assert.equal(store.calls, 1);
+});
+
 test('R4: no token or no repository fails closed in the gate', async () => {
   const lines = [];
   assert.equal(await main(['check'], { GITHUB_REPOSITORY: REPO }, { fetch: github().fetch, out: (l) => lines.push(l) }), 1);
@@ -112,8 +119,10 @@ test('R7: on is idempotent and records the latest setter; off closes every hold 
   await set(api, { state: 'on', ...request, actor: 'coordinator-login', reason: 'landing freeze' });
   assert.equal(store.issues.length, 1);
   assert.match((await check(api)).lines[0], /set by coordinator-login, reason: landing freeze/);
-  // A second hold opened by hand is closed by off too.
+  // A second hold opened by hand: on rewrites both, off closes both.
   store.issues.push({ ...store.issues[0], number: 7, body: 'by hand' });
+  await set(api, { state: 'on', ...request, reason: 'still held' });
+  assert.ok((await check(api)).lines.every((line) => /reason: still held/.test(line)));
   const lifted = await set(api, { state: 'off', ...request, reason: 'window over' });
   assert.deepEqual(lifted.numbers, [1, 7]);
   assert.ok(store.issues.every((i) => i.state === 'closed'));
