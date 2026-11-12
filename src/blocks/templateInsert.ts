@@ -66,7 +66,7 @@ const SCAFFOLD_FUNCTIONS = new Set([
   'setFieldValue', 'update', 'play', 'stop', 'next', 'motionSpeed',
   'stageFitBoxes', 'stagedLines', 'stageLineHeight', 'stageFaceHeight', 'stageTextWidth',
   'stageContentWidth', 'stageLayoutHeight', 'fitStagedText', 'fitOneStagedLine', 'stageUnpin',
-  'holdStageHeight', 'holdOneStageBox', 'drawnBoxOf', 'stageIsFigure', 'stageRowCount',
+  'holdStageHeight', 'holdOneStageBox', 'drawnBoxOf',
 ]);
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;

@@ -257,26 +257,6 @@ function holdOneStageBox(box) {
 // A Range over the element's own text nodes measures letters and nothing else, and on a wrapped
 // block its rects are the line boxes - so the widest ROW is what gets compared, which is the
 // number that decides whether anything is actually outside the box.
-// A FIGURE: a value of digits and the marks a score or a clock carries, and no letters.
-function stageIsFigure(value) {
-  var s = String(value == null ? '' : value);
-  return /[0-9]/.test(s) && !/[^0-9\\s:.,'+%\\u2212\\u2013-]/.test(s);
-}
-
-// How many rows the line's text occupies now (distinct line tops of its text).
-function stageRowCount(el) {
-  if (!document.createRange) return 1;
-  var range = document.createRange();
-  range.selectNodeContents(el);
-  var rects = range.getClientRects();
-  var tops = [];
-  for (var i = 0; i < rects.length; i++) {
-    var t = Math.round(rects[i].top);
-    if (rects[i].width > 0 && tops.indexOf(t) < 0) tops.push(t);
-  }
-  return tops.length || 1;
-}
-
 function stageTextWidth(el) {
   if (!document.createRange) return el.scrollWidth;
   var range = document.createRange();
@@ -475,15 +455,8 @@ function fitOneStagedLine(el) {
   // the panel - but "too tall" has to mean taller than the design ever was, never taller than a
   // box the browser was never going to keep the glyphs inside.
   var over = Math.max(room, fill || 0);
-  // A FIGURE ON ONE ROW IS NEVER TOO TALL. A score's glyph box is taller than the line-height-1
-  // row it sits on, so "10" and "100" read as overflowing a reserve measured off one "0" and shrank
-  // to 80% of the drawn size on the scoreboards, while the row and the panel never grew at all.
-  // Digits and score marks cannot wrap without a space, and a figure that is still one row has not
-  // grown the panel, so only its width is judged - a held chip still shrinks a number it cannot
-  // hold (owner, 2026-11-12: numbers keep their drawn size when the digit count changes).
-  var oneRowFigure = stageIsFigure(el.textContent) && stageRowCount(el) <= 1;
   for (var pass = 0; pass < 4; pass++) {
-    var tallBy = oneRowFigure ? 1 : over > 0 ? (el.scrollHeight / over) : 1;
+    var tallBy = over > 0 ? (el.scrollHeight / over) : 1;
     // Sideways too: a line inside a fixed row or a HELD chip cannot reflow, so it runs out of the
     // box's side rather than off its bottom. Same lever, same floor - only the axis differs.
     // Against the BOX when there is one - a line whose own width is free grows with its text, so
