@@ -284,6 +284,9 @@ jobs:
       capacityReason: ${{ steps.capacity.outputs.capacity_reason }}
       # The refusals only the owner can move (cf22 fix 2): comma-separated fixed kinds, or empty.
       capacityOwner: ${{ steps.capacity.outputs.capacity_owner }}
+      # What a 'repay' verdict owes, per tier, as JSON (land-2c): the change lands and post-land
+      # records it as a dated repayment item (scripts/capacity-repay.mjs).
+      capacityRepay: ${{ steps.capacity.outputs.capacity_repay }}
       # THE CONFIGURED SELECTION (cicd-improvement ci06). `configured` is 'true' or 'false', never
       # empty: the gate reads it, and an empty flag fails there. The specs, their shards and the
       # exemption that explains a 'false' come with it.
@@ -1482,22 +1485,28 @@ jobs:
           CONFIGURED_VERDICT: ${{ needs.configured-verdict.result }}
           CAPACITY_REASON: ${{ needs.plan.outputs.capacityReason }}
           CAPACITY_OWNER: ${{ needs.plan.outputs.capacityOwner }}
+          CAPACITY_REPAY: ${{ needs.plan.outputs.capacityRepay }}
         run: |
           status=0
           exhausted=0
           # THE CAPACITY LINE (scripts/e2e-capacity.mjs, docs/work-specs/e2e-suite-budget/spec.md).
-          # A pull request or merge group that adds spec-minutes above 95% of the full run's
-          # envelope without an expiring exception in its work spec is refused here, by the plan
-          # job's estimate. A change that adds nothing is never refused, so no landing is held for
-          # being mechanical; and an empty verdict (main, a dispatch) is no verdict.
-          # A refusal only the owner can move (cf22 fix 2: a tier or the table full before this
-          # change, a growth stop, an unreviewed ceilings revision) says so, and asks the agent to
-          # raise the owner alarm now instead of re-pushing; every other refusal keeps its message.
+          # The plan job's estimate of this change against the line; an empty verdict (main, a
+          # dispatch) is no verdict. A refusal only the owner can move (cf22 fix 2; since land-2c
+          # only an unreviewed ceilings revision) says so, and asks the agent to raise the owner
+          # alarm now instead of re-pushing; every other refusal keeps its message.
+          # A COST CEILING NEVER BLOCKS A LANDING (owner, 2026-11-12; land-2c). Where the line is
+          # still right about cost, the verdict is 'repay': the change passes here, and one fixed
+          # annotation per tier, `Repay (<tier>): <cost>`, is what post-land reads to record a
+          # dated repayment item for the owner. Only refusals of the records or of the change's own
+          # evidence reach 'refuse' below.
+          if [ "${CAPACITY_RESULT:-}" = "repay" ]; then
+            jq -r '.[] | "::warning title=CI gate::Repay (\(.tier)): \(.cost | gsub("[\r\n]"; " "))"' <<<"${CAPACITY_REPAY:-[]}" || echo "::warning title=CI gate::Repay (offline): ${CAPACITY_REASON:-unreadable repayment record}"
+          fi
           if [ "${CAPACITY_RESULT:-}" = "refuse" ]; then
             if [ -n "${CAPACITY_OWNER:-}" ]; then
-              echo "::error title=CI gate::Needs the owner (${CAPACITY_OWNER}): E2E capacity line - ${CAPACITY_REASON:-over the line}. Re-pushing will not pass the owner part. A full tier or table moves only with an owner-approved budget exception, a ceiling revision or the table refresh landing; a stop only with its correction; revision only with a reviewed revision. This change can only drop what it adds to that tier or table, or its ceilings edit. Any other reason named here is this change's to fix: add a budget exception to the work spec or make the change cheaper. Raise the owner alarm now, from an up-to-date main checkout: node scripts/repair-wake.mjs check --issue"
+              echo "::error title=CI gate::Needs the owner (${CAPACITY_OWNER}): E2E capacity line - ${CAPACITY_REASON:-over the line}. Re-pushing will not pass the owner part: a ceilings change lands only with a reviewed revision. This change can only drop its ceilings edit. Any other record named here is this change's to fix. Raise the owner alarm now, from an up-to-date main checkout: node scripts/repair-wake.mjs check --issue"
             else
-              echo "::error title=CI gate::E2E capacity line - ${CAPACITY_REASON:-over the line}. Add a budget exception to the pull request's work spec (format: scripts/e2e-capacity.mjs header) or make the change cheaper."
+              echo "::error title=CI gate::E2E capacity line - ${CAPACITY_REASON:-over the line}. Not a cost refusal (cost lands and owes a repayment): fix the ceilings or exception record named, or update the branch from its base if the diff could not be read."
             fi
             status=1
           fi

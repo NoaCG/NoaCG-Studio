@@ -54,6 +54,13 @@
 //   - e2e/editor-foo.spec.ts: 3.4 min, protects the saved graphic reopening as it was, expires 2026-11-10
 //
 // An automatic repair never writes one (root/auto-fix rule); a reviewer reads it like any claim.
+//
+// A COST CEILING NEVER BLOCKS A LANDING (owner, 2026-11-12; land-2c). Where everything above would
+// refuse a change for its cost (the table line, a tier line, a confirmed stop), the verdict is
+// `repay`: the change lands, the CI gate prints `Repay (<tier>): <cost>`, and post-land records it
+// as one dated repayment item per tier for the owner (scripts/capacity-repay.mjs). Only a refusal
+// of the records (an unreviewed ceilings revision, a ledger or exception-record error) or of the
+// change's own evidence (a diff that cannot be read) still refuses.
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
@@ -295,7 +302,7 @@ export function specAssessment({ base, cwd = ROOT, ...rest }) {
 export function applyOfflineStop(growth, result, { refuseShare = HARD_SHARE, paths = [] } = {}) {
   if (!(result.added > 0)) return growth;
   // A confirmed stop refuses before any waiver (Rules E18, E21).
-  if (growth.stops?.offline) { growth.status = 'refuse'; growth.reasons.push(`offline growth stopped: ${growth.stops.offline}; this change adds ${result.added.toFixed(1)} minute(s)`); return growth; }
+  if (growth.stops?.offline) { growth.status = 'refuse'; growth.offlineRefusal = `offline growth stopped: ${growth.stops.offline}; this change adds ${result.added.toFixed(1)} minute(s)`; growth.reasons.push(growth.offlineRefusal); return growth; }
   const e = growth.estimates ?? {};
   let landing = result.added * (e.runsPerLanding?.everyRun ?? 1);
   let day = result.added * (e.scheduledRunsPerDay?.offline ?? 1);
@@ -327,7 +334,7 @@ export function applyOfflineStop(growth, result, { refuseShare = HARD_SHARE, pat
   if (tier?.ceiling) {
     const after = Math.max((used.perLanding + landing) / tier.ceiling.perLanding, (used.perDay + day) / tier.ceiling.perDay);
     // Already at its line before this change: no cheaper change clears it (cf22 fix 2).
-    if (after >= line) { growth.status = 'refuse'; growth.offlineFull = (tier.share ?? 0) >= line; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s), ${landing.toFixed(1)} runner-minutes per landing and ${day.toFixed(1)} per day, taking the offline tier to ${Math.round(100 * after)}% of its ceiling (the ${Math.round(100 * line)}% line)`); }
+    if (after >= line) { growth.status = 'refuse'; growth.offlineFull = (tier.share ?? 0) >= line; growth.offlineRefusal = `this change adds ${result.added.toFixed(1)} offline minute(s), ${landing.toFixed(1)} runner-minutes per landing and ${day.toFixed(1)} per day, taking the offline tier to ${Math.round(100 * after)}% of its ceiling (the ${Math.round(100 * line)}% line)`; growth.reasons.push(growth.offlineRefusal); }
   }
   return growth;
 }
@@ -485,7 +492,10 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
     '',
   ].join('\n');
   const assessWith = (extra) => assessTiers({ ceilings, measurement, items: extra, today, stops, known, trustEvidence: true });
-  return { status, reasons, markdown, table: fresh, tiers, items, stops, gate, estimates: ceilings.estimates, assessWith, ledger };
+  // The refusals that guard the records and the change's own evidence, not the cost (land-2 C5):
+  // these still refuse; every other refusal is a cost refusal and becomes a repayment.
+  const recordRefusal = ledger.length > 0 || offline.length > 0 || diffFailed;
+  return { status, reasons, markdown, table: fresh, tiers, items, stops, gate, estimates: ceilings.estimates, assessWith, ledger, recordRefusal };
 }
 
 /**
@@ -521,7 +531,25 @@ export function finalVerdict({ result, growth }) {
   const order = { ok: 0, warn: 1, refuse: 2 };
   const status = order[growth.status] > order[result.status] ? growth.status : result.status;
   const reason = growth.status !== 'ok' && growth.reasons.length ? `${result.reason}; ${growth.reasons.join('; ')}` : result.reason;
-  return { status, reason, owner: status === 'refuse' ? ownerKinds({ result, growth }).join(',') : '' };
+  // REPAY, DO NOT BLOCK (owner, 2026-11-12; land-2 C1, C5). A refusal for cost alone lands with
+  // the verdict `repay` and one repayment line per tier, which post-land records as a dated item
+  // (scripts/capacity-repay.mjs). Only a refusal of the records or of the change's own evidence
+  // still refuses, and of the owner-only kinds only `revision` can then remain.
+  if (status === 'refuse' && !(growth.recordRefusal || (growth.ledger ?? []).length > 0)) return { status: 'repay', reason, owner: '', repay: repayments({ result, growth }) };
+  return { status, reason, owner: status === 'refuse' ? ownerKinds({ result, growth }).filter((k) => k === 'revision').join(',') : '', repay: [] };
+}
+
+/**
+ * What a cost refusal owes, one line per tier (land-2 C2): the tiers the growth verdict refused,
+ * the offline line's refusal, and the table line's, which is filed under the offline tier. Pure.
+ */
+export function repayments({ result, growth }) {
+  const owed = new Map();
+  const add = (tier, why) => owed.set(tier, [...(owed.get(tier) ?? []), why]);
+  if (result.status === 'refuse') add('offline', `the table line: ${result.reason}`);
+  if (growth.offlineRefusal) add('offline', growth.offlineRefusal);
+  for (const tier of TIERS) if (growth.tiers?.tiers?.[tier]?.status === 'refuse') add(tier, growth.tiers.tiers[tier].why);
+  return [...owed].map(([tier, why]) => ({ tier, cost: why.join('; ').replace(/\s+/g, ' ').trim() }));
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -555,8 +583,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const summary = value('--summary');
   if (summary) appendFileSync(summary, `${text}\n`);
   if (args.includes('--github-output') && process.env.GITHUB_OUTPUT) {
-    appendFileSync(process.env.GITHUB_OUTPUT, `capacity=${result.status}\ncapacity_reason=${result.reason.replace(/\r?\n/g, ' ')}\ncapacity_owner=${verdict.owner}\n`);
+    appendFileSync(process.env.GITHUB_OUTPUT, `capacity=${result.status}\ncapacity_reason=${result.reason.replace(/\r?\n/g, ' ')}\ncapacity_owner=${verdict.owner}\ncapacity_repay=${JSON.stringify(verdict.repay)}\n`);
   }
   if (result.status === 'refuse') console.log(`::error title=E2E capacity::${result.reason}`);
+  else if (result.status === 'repay') console.log(`::warning title=E2E capacity::lands and owes a repayment (${verdict.repay.map((r) => r.tier).join(', ')}): ${result.reason}`);
   else if (result.status === 'warn') console.log(`::warning title=E2E capacity::${result.reason}`);
 }

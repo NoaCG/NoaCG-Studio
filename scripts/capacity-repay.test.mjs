@@ -89,6 +89,7 @@ test('reading GitHub: the open item by title from a bot or member, its comments,
     [`repos/${R}/commits/s1/check-runs`]: { check_runs: [{ id: 11, name: 'CI gate', conclusion: 'success' }] },
     [`repos/${R}/check-runs/11/annotations`]: [{ message: 'Repay (offline): 2/landing' }],
     [`repos/${R}/commits/s2/check-runs`]: { check_runs: [{ id: 12, name: 'CI gate', conclusion: 'failure' }] },
+    [`repos/${R}/check-runs/12/annotations`]: [{ message: 'Repay (offline): from a red gate, which landed nothing' }],
   });
   const items = openItems(reader, R);
   assert.deepEqual(Object.keys(items).sort(), ['graphics', 'offline'], 'an outsider\'s issue is never taken for the item');
@@ -102,4 +103,79 @@ test('reading GitHub: the open item by title from a bot or member, its comments,
 
 test('an unreadable issue listing records nothing rather than opening a duplicate', () => {
   assert.throws(() => openItems(canned({}), 'NoaCG/NoaCG-Studio'), /could not be read/);
+});
+
+// THE GATE SIDE (C1, C5): a refusal for cost alone is `repay`; records and evidence still refuse.
+const { assess, applyOfflineStop, finalVerdict, repayments } = await import('./e2e-capacity.mjs');
+const overhead = { jobMinutes: 0.42, testFactor: 1.01, medianJobMinutes: 0.3, samples: 10 };
+const flat = (total) => ({ source: {}, minutes: Object.fromEntries(Array.from({ length: 100 }, (_, i) => [`s${i}.spec.ts`, total / 100])), overhead });
+const fullOffline = () => ({ status: 'ok', reasons: [], stops: {}, ledger: [], estimates: { runsPerLanding: { everyRun: 4.75 }, scheduledRunsPerDay: { offline: 1 } }, tiers: { tiers: { offline: { status: 'warn', evidence: 'complete', line: 0.95, share: 1.22, used: { perLanding: 654.3, perDay: 191.5 }, ceiling: { perLanding: 535, perDay: 215 } } } } });
+
+test('C1: #2408\'s shape with a genuinely new spec, the offline tier at 122%: it lands and owes the offline tier', () => {
+  const t = flat(100);
+  const result = assess({ table: t, suite: [...Object.keys(t.minutes), 'new.spec.ts'].sort(), changed: ['e2e/new.spec.ts'], today: '2026-11-12' });
+  const growth = applyOfflineStop(fullOffline(), result);
+  assert.equal(growth.status, 'refuse', 'still a correct refusal for cost');
+  const v = finalVerdict({ result, growth });
+  assert.equal(v.status, 'repay');
+  assert.equal(v.owner, '');
+  assert.deepEqual(v.repay.map((r) => r.tier), ['offline']);
+  assert.match(v.repay[0].cost, /taking the offline tier to \d+% of its ceiling/);
+  assert.doesNotMatch(v.repay[0].cost, /\n/);
+});
+
+test('C1: the table line and every refused tier each owe; a confirmed stop is a cost refusal too', () => {
+  const t = flat(204);
+  const result = assess({ table: t, suite: [...Object.keys(t.minutes), 'new.spec.ts'].sort(), changed: ['e2e/new.spec.ts'], today: '2026-11-12' });
+  assert.equal(result.status, 'refuse');
+  const growth = { status: 'refuse', reasons: ['backend tier refuse: growth stopped: B1'], stops: { backend: 'B1' }, ledger: [], tiers: { tiers: { backend: { status: 'refuse', why: 'growth stopped: B1' }, graphics: { status: 'warn', why: 'w' } } } };
+  const v = finalVerdict({ result, growth });
+  assert.equal(v.status, 'repay');
+  assert.deepEqual(v.repay.map((r) => r.tier).sort(), ['backend', 'offline']);
+  assert.match(v.repay.find((r) => r.tier === 'offline').cost, /^the table line: /);
+  assert.deepEqual(repayments({ result: { ...result, status: 'warn' }, growth: { ...growth, tiers: { tiers: {} } } }), []);
+});
+
+test('C5: refusals of the records or of the change\'s own evidence still refuse, and only `revision` is the owner\'s', () => {
+  const t = flat(204);
+  const result = assess({ table: t, suite: [...Object.keys(t.minutes), 'new.spec.ts'].sort(), changed: ['e2e/new.spec.ts'], today: '2026-11-12' });
+  const records = (o) => ({ status: 'refuse', reasons: ['x'], stops: {}, ledger: [], tiers: { tiers: {} }, ...o });
+  for (const g of [records({ recordRefusal: true }), records({ ledger: ['exception E9 was edited'] })]) {
+    const v = finalVerdict({ result, growth: g });
+    assert.equal(v.status, 'refuse');
+    assert.deepEqual(v.repay, []);
+    assert.doesNotMatch(v.owner, /full:|stopped:/, 'a full table is never the owner\'s refusal now');
+  }
+  const ok = { status: 'ok', reasons: [], stops: {}, ledger: [], tiers: { tiers: {} } };
+  assert.equal(finalVerdict({ result: { ...result, status: 'warn' }, growth: ok }).status, 'warn', 'no refusal, no repayment');
+});
+
+test('C1: the CI gate passes a repay verdict and prints one fixed annotation per tier; a refuse still fails', async () => {
+  const { readFileSync, mkdtempSync, writeFileSync, rmSync } = await import('node:fs');
+  const { spawnSync } = await import('node:child_process');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const lines = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8').split('\n');
+  const at = lines.findIndex((l) => l.trim() === '- name: Require every gate');
+  const runAt = lines.findIndex((l, i) => i > at && l.trim() === 'run: |');
+  const indent = lines[runAt].indexOf('run:');
+  const body = [];
+  for (const l of lines.slice(runAt + 1)) { if (l.trim() !== '' && l.length - l.trimStart().length <= indent) break; body.push(l); }
+  const pad = Math.min(...body.filter((l) => l.trim()).map((l) => l.length - l.trimStart().length));
+  const script = body.map((l) => l.slice(pad)).join('\n');
+  const green = { BUILD_RESULT: 'success', PLAN_RESULT: 'success', E2E_RESULT: 'skipped', RETRY_RESULT: 'skipped', CATALOG_RESULT: 'skipped', FACTORY_RESULT: 'success', GUIDED_MOD_RESULT: 'skipped', EVENT: 'merge_group', CONFIGURED_FLAG: 'false', CONFIGURED_RESULT: 'skipped', CONFIGURED_VERDICT: 'skipped', CAPACITY_REASON: 'r' };
+  const run = (env) => {
+    const dir = mkdtempSync(join(tmpdir(), 'repay-gate-'));
+    try {
+      writeFileSync(join(dir, 'out'), '');
+      const r = spawnSync('bash', ['-c', script], { encoding: 'utf8', env: { PATH: process.env.PATH, HOME: dir, GITHUB_OUTPUT: join(dir, 'out'), GITHUB_STEP_SUMMARY: join(dir, 'out'), ...green, ...env } });
+      return { code: r.status, out: r.stdout + r.stderr };
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  };
+  const repay = run({ CAPACITY_RESULT: 'repay', CAPACITY_REPAY: JSON.stringify([{ tier: 'offline', cost: '1.9/landing, offline at 123%' }, { tier: 'backend', cost: 'growth stopped: B1' }]) });
+  assert.equal(repay.code, 0, repay.out);
+  const annotations = repay.out.split('\n').filter((l) => l.startsWith('::warning title=CI gate::Repay')).map((l) => ({ message: l.replace('::warning title=CI gate::', '') }));
+  assert.deepEqual(repaysIn(annotations), [{ tier: 'offline', cost: '1.9/landing, offline at 123%' }, { tier: 'backend', cost: 'growth stopped: B1' }], 'what the gate prints is what post-land reads');
+  assert.notEqual(run({ CAPACITY_RESULT: 'refuse', CAPACITY_OWNER: '' }).code, 0);
+  assert.match(run({ CAPACITY_RESULT: 'refuse', CAPACITY_OWNER: 'revision' }).out, /Needs the owner \(revision\)/);
 });
