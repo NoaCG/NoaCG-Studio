@@ -13,7 +13,7 @@ arm triggers. This overrides plan-create's automatic handover.
 - `work.json`: the acceptance record, `agreed` with the owner's words.
 - Private run notes in `NoaCG/noacg-private` (the coordinator knows the path): the owner's live
   windows, the landing hold schedule, the run's end, targets and fallbacks. Only the coordinator
-  and the OS5b checker read them. Nothing from them goes into public text, the run issue, a
+  reads them; no worker needs the private repository. Nothing from them goes into public text, the run issue, a
   commit, a receipt or the recovery branch.
 
 ## The owner's answers (2026-11-12, verbatim)
@@ -44,9 +44,9 @@ arm triggers. This overrides plan-create's automatic handover.
    browser sources at 60 fps with OBS Stats open, and Google sign-in inside a Custom Browser Dock.
    His result goes into the private run notes.
 3. Qualification, before any runtime state (`plan-run.md` section 1): the coordinator and one
-   fresh cloud worker run `plan-run-preflight.mjs`; the worker clones `NoaCG/noacg-private` into
-   `docs/private` as `.agent-workflows/cloud-delegate.md` says; a real wake re-enters the
-   coordinator.
+   fresh cloud worker run `plan-run-preflight.mjs`, and a real wake re-enters the coordinator.
+   Workers do not attach the private repository: in auto mode a worker's `add_repo` is refused
+   (qualification, 2026-11-12), and no phase needs it.
 4. The end date goes in `authorization.deadline` as usual (answered above).
 5. The owner says start.
 
