@@ -1,0 +1,19 @@
+{
+  "head": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
+  "clean": true,
+  "ordinarySpent": 3,
+  "ordinaryLimit": 3,
+  "extraGranted": 1,
+  "extraUsed": 1,
+  "remaining": 0,
+  "files": {
+    "STOP.md": "1813b9d778cf87ac42b43100b1441ee262a84bd90909997458be18bd962f84d5",
+    "source-src-control-projectInstallation.ts.txt": "97b1b0d4f94a71ca733b1c31d9fb64ad126e40180eb1e672a69840ecc55e4095",
+    "source-src-model-shows.ts.txt": "2c98ba49f25ab9f727cae73312c756865ca3bf4bb24340fbe9f0915f1ef15b18",
+    "source-src-model-projectInstallation.ts.txt": "5443a0f5fa608b60f2fb644beb3af4fc8c179a0f7ec1f29a5aaf10eb4b82e6a8",
+    "owner1-ci-plan-selection-capacity.log": "bef0043343d3005e4fe2a3c2f4bd4a8f7c8d7076ef9ff4fb69507f9b0c9b4b90",
+    "final-head.patch": "8fbc9f1481690ef550840c7cf51e6243a8fe2d39bdb33b8f74e10584cc892107",
+    "owner1-isolated-receipt.log": "e169e672c5d7db35a7c1ce8791dd766c01a2c1ef5d1d1b95c37be694a3e14d9e",
+    "codex-finding.json": "b4f2bb6278fc70f337431a4d429f52d7fc682c3f4079c62653b7a2fd1eea1ef5"
+  }
+}

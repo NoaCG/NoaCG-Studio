@@ -1,0 +1,9 @@
+{
+  "id": 4556338378,
+  "path": "src/model/projectInstallation.ts",
+  "line": 62,
+  "commit_id": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
+  "body": "**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Normalize legacy productions before comparing snapshots**\n\nFor an existing production stored without `updatedAt` or with an older format stamp, installation always reports a conflict even when nothing changed. `loadShows()` applies `readShape()` in `src/model/shows.ts`, so `plan.before` contains the normalized version and backfilled timestamp, but this comparison reads the unnormalized database record. I reproduced an unchanged production being refused solely because its stored timestamp was absent; retries produce the same refusal. Apply the same read normalization inside the transaction before comparing snapshots, while retaining the comparison against genuine concurrent edits.\n\nAGENTS.md reference: [src/AGENTS.md:L13-L13](https://github.com/NoaCG/NoaCG-Studio/blob/63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf/src/AGENTS.md#L13-L13)\n\nUseful? React with \ud83d\udc4d\u00a0/ \ud83d\udc4e.\n\n<!-- codex-code-review-finding:v1 -->",
+  "html_url": "https://github.com/NoaCG/NoaCG-Studio/pull/2438#discussion_r4556338378",
+  "created_at": "2026-11-12T21:06:12Z"
+}

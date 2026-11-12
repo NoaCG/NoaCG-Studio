@@ -1,0 +1,7 @@
+2026-11-12T21:03:25.0730663Z Local stack noacg-studio-s0 ready: 10 containers running, publishing 54321, 54322, 54324, 54327.
+2026-11-12T21:03:27.8567209Z Running 1 test using 1 worker
+2026-11-12T21:04:00.0027724Z   1 passed (32.8s)
+2026-11-12T21:04:00.0414058Z PASS E4 isolated persistence at 63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf: 1 test, zero skips/retries; account deleted.
+2026-11-12T21:04:12.5448175Z ##[notice]noacg-studio-s0: 0 containers, 0 volumes, 0 networks, no process; ports 54320-54329 not held and each binds; 0 ownerless TIME_WAIT socket(s) left (a new allocation skips a block until they expire); reservation and claim released.
+2026-11-12T21:04:22.5675271Z Artifact endurance-43305997998.zip successfully finalized. Artifact ID 13982614865
+2026-11-12T21:04:22.5676754Z Artifact endurance-43305997998 has been successfully uploaded! Final size is 339258 bytes. Artifact ID is 13982614865

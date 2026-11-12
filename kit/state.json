@@ -68,9 +68,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "owner-approved repair / final verification",
+      "step": "stopped / additional attempt exhausted",
       "pr": 2438,
-      "note": "The single approved additional repair is used. The frozen head passes 15 targeted cases, 33 source oracles and 120 affected gates. Broader run remains 176/177 with a proven missing switch precondition; strengthened original case passes. Actual CI selects all 63 configured specs on four stacks. Awaiting CI, isolated backend, Codex and a fresh full independent review; no phase advance."
+      "note": "Confirmed legacy production snapshot defect on frozen63d7 ends the approved extra1/1. No further code, test or notes edits, pushes, verification launches, queue or phase advance. Existing CI and independent review are being collected to terminal."
     }
   ],
   "owner": [
@@ -1485,7 +1485,9 @@
     },
     "currentPublicUpdate": 6831775749
   },
-  "waitingOn": null,
+  "waitingOn": {
+    "what": "Owner disposition for confirmed remaining E4 legacy installation defect after extra1/1; existing CI/full review observations only"
+  },
   "completedCausalityReviews": [
     {
       "id": "6af4b05b-8a1c-8191-b931-182efca3b062",
@@ -2003,7 +2005,7 @@
       "ordinaryRepairLimit": 3,
       "granted": 1,
       "used": 1,
-      "status": "VERIFYING_FROZEN_FINAL_HEAD",
+      "status": "STOPPED_CONFIRMED_PRODUCT_DEFECT",
       "sourceHead": "2767a30cb0fccbb9a04f4f2e0ca285b32e4f94d6",
       "workingPatchSha256": "674b343a64c616222c4820fee3746a251c788b8167c5a2920a9187657439997d",
       "handoff": {
@@ -2062,10 +2064,19 @@
         "configuredSelection": "Actual plan131488480080 SUCCESS: ALL63 specs/four local stacks at20:59:59Z; root read actual extract.",
         "capacity": "Actual REPAY199.0/213tablemin93.4%, adds1.3min. Newest43201149088 PARTIAL; judged complete43014542120. Current cost-only repayment policy applies; frozenPR_BASE attribution issue2450 retained; no ceilings changed.",
         "isolated": 43305997998,
-        "isolatedStatus": "RUNNING same frozenhead",
-        "codex": "ONE ready-for-review trigger on confirmed frozen head; no duplicate @codex request.",
+        "isolatedStatus": "SUCCESS exacthead,1pass32.8s,zero skips/retries/accountdeleted; fulljob/rootreadback.",
+        "codex": "Completed21:06:12Z exact63d7: unresolved confirmedP2inline4556338378; used extra ends.",
         "fullSo": "Fresh FULL51path assessor after actual capacity; no eligible prior A, no delta shortcut.",
-        "queue": "No public stamp/land/auto-merge; all final gates required."
+        "queue": "HeldDRAFT,nostamp/land/automerge; no E4pass or laterphase."
+      },
+      "stopPacket": "e4-owner1-stop-2026-11-12/STOP.md",
+      "stopFinding": {
+        "review": 5882011573,
+        "inline": 4556338378,
+        "path": "src/model/projectInstallation.ts",
+        "line": 62,
+        "class": "P2 product legacy snapshot identity",
+        "reason": "Raw durable legacy record compared with normalized loadShows snapshot; unchanged old production falsely conflicts. Root independently confirmed actual code path."
       }
     }
   },
