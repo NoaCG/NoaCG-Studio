@@ -18,10 +18,13 @@ figures in PR #2420).
 - R3. It skips its E2E shards only when that run's `CI gate` job concluded `success`, it ran the
   full plan (`E2E n/N (full)` jobs), every one of those shards passed on its first run (a gate made
   green by the same-commit retry does not count: its reports still hold the first failure), every
-  shard's blob report and trace is present, and quarantine.yml's push run on the same commit
-  concluded `success` (ci.yml leaves the quarantined specs to it). Anything else (no run, a run
-  still going after 45 minutes, a red, retried, cancelled or partial run, a missing artifact, a
-  quarantine run that is missing or not green) runs the shards exactly as before.
+  shard's blob report and trace is present, quarantine.yml's push run on the same commit has
+  finished (ci.yml leaves the quarantined specs to it), and every `noacg/quarantine/<spec>` commit
+  status for an offline spec is `success`. That run concludes green whatever its specs do (its spec
+  step is `continue-on-error`), so the statuses are the verdict; `e2e/configured/` specs are left
+  out because the nightly never ran them (playwright.config.ts `testIgnore`). Anything else (no
+  run, a run still going after 45 minutes, a red, retried, cancelled or partial run, a missing
+  artifact, a quarantine run missing or a quarantined spec not green) runs the shards as before.
 - R4. When skipped, the report job merges that run's blob reports and traces, and the time budget,
   triage, traced map pull request and uploads (`nightly-report-json` included, so the next night's
   shard plan and budget comparison keep their input) work as before. The traced map names the push
@@ -54,10 +57,13 @@ figures in PR #2420).
   second sample of an identical tree, which in this window found one flake two days early and no
   defect.
 - Quarantined specs: the push run leaves them out of its shards and `quarantine.yml` runs them on
-  every push to main; the nightly ran them inside its shards. A night is skipped only when that
-  quarantine run is green on the same commit; they are then absent from the night's report and
-  budget. Under the full rule (first-run green shards, green quarantine run, the 45-minute wait)
-  all 16 nights of the window would still have skipped.
+  every push to main; the nightly ran them inside its shards. A night is skipped only when each
+  of them is green on the same commit; they are then absent from the night's report and budget.
+- Under the full rule all 16 nights of the window would still have skipped. Per nightly commit:
+  ci.yml push run conclusion `success` with 15 of 15 `E2E n/15 (full)` jobs `success` (all 16;
+  `gh api .../actions/runs/<id>/jobs`), and offline `noacg/quarantine/*` statuses (0 to 4 per
+  commit) all `success` (`gh api .../commits/<sha>/status`). The one non-green quarantine status
+  in the window, 08467b36's `e2e/configured/command-sequence.spec.ts`, is a configured spec.
 - Bad-merge window today (a landing to the first completed, not cancelled push run on main that
   contains it), 303 landings: median 18.8, p95 43.8, max 229.7 minutes (92e581a7). This change
   does not move it: the nightly is not in that window. The 229.7 case was not a cancelled run with
@@ -88,7 +94,8 @@ remove the new job only by widening another job's limit; the refusal is reported
 Final `/so` on head 9224f4504: AGREE WITH CORRECTIONS, grade B. Answered: `e2e` now runs after a
 failed `covered` job too (its implied `success()` read `covered` as well). The automated code
 review on 9224f4504 raised two P2 findings: a gate made green by the retry, and quarantined specs
-outside ci.yml's shards. Both are now conditions of R3.
+outside ci.yml's shards. Both are now conditions of R3. The delta `/so` on 16ffeac1 (grade B) found the quarantine run's
+conclusion is green whatever its specs do; R3 now reads the per-spec statuses.
 
 ## The capacity gate
 

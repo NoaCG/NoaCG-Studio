@@ -53,8 +53,8 @@ jobs:
   # run was green, at 183 of their 207 runner-minutes (docs/work-specs/cicd-followup/evidence/
   # land-3.md). Then the shards skip and the report job reads that run's blob reports and traces.
   # The catalog jobs always run. Anything short of every shard green on its first run, each with its
-  # report and trace, a green CI gate and a green quarantine run on the same commit (the quarantined
-  # specs are not in ci.yml's shards) runs the shards as before. A push run still going on this commit is waited for,
+  # report and trace, a green CI gate, and quarantine.yml finished on the same commit with every
+  # offline quarantined spec green (they are not in ci.yml's shards) runs the shards as before. A push run still going on this commit is waited for,
   # up to 45 minutes: 4 of those 16 nightlies started before it finished.
   covered:
     name: Covered by main's full run
@@ -81,9 +81,11 @@ jobs:
           DEADLINE=$(( $(date +%s) + 45 * 60 ))
           # ci.yml leaves quarantined specs out of its shards and quarantine.yml runs them on the
           # same push, so both have to finish on this commit before the shards here can be skipped.
+          # That run concludes green whatever its specs do; each spec's verdict is its
+          # `noacg/quarantine/<spec>` commit status, read below.
           while :; do
             read -r RUN STATUS _ <<< "$(runs ci.yml)"
-            read -r QRUN QSTATUS QCONCLUSION <<< "$(runs quarantine.yml)"
+            read -r QRUN QSTATUS _ <<< "$(runs quarantine.yml)"
             if [ -z "${RUN:-}" ] || [ "$RUN" = "null" ]; then echo "No push run on main for ${GITHUB_SHA} - running the shards."; exit 0; fi
             if [ -z "${QRUN:-}" ] || [ "$QRUN" = "null" ]; then echo "No quarantine run for ${GITHUB_SHA} - running the shards."; exit 0; fi
             [ "$STATUS" = "completed" ] && [ "$QSTATUS" = "completed" ] && break
@@ -98,8 +100,11 @@ jobs:
           ARTIFACTS="$(gh api "repos/${GH_REPO}/actions/runs/${RUN}/artifacts?per_page=100" --jq '[.artifacts[] | select(.expired | not) | .name]')"
           BLOBS="$(jq '[.[] | select(startswith("blob-report-"))] | length' <<< "$ARTIFACTS")"
           TRACES="$(jq '[.[] | select(startswith("e2e-trace-"))] | length' <<< "$ARTIFACTS")"
-          echo "Push run $RUN: CI gate '${GATE}', ${SHARDS:-no} full shards, ${GREEN} green, ${BLOBS} blob reports, ${TRACES} traces. Quarantine run $QRUN: ${QCONCLUSION}."
-          if [ "$GATE" = "success" ] && [ -n "$SHARDS" ] && [ "$GREEN" = "$SHARDS" ] && [ "$BLOBS" = "$SHARDS" ] && [ "$TRACES" = "$SHARDS" ] && [ "$QCONCLUSION" = "success" ]; then
+          # The quarantined specs this suite would have run (e2e/configured is not in it) that are not
+          # green on this commit; empty when there are none. An unreadable answer reads as not green.
+          QRED="$(gh api "repos/${GH_REPO}/commits/${GITHUB_SHA}/status?per_page=100" --jq '[.statuses[] | select(.context | startswith("noacg/quarantine/") and (startswith("noacg/quarantine/e2e/configured/") | not)) | select(.state != "success") | .context] | join(" ")' 2>/dev/null || echo "unreadable")"
+          echo "Push run $RUN: CI gate '${GATE}', ${SHARDS:-no} full shards, ${GREEN} green, ${BLOBS} blob reports, ${TRACES} traces. Quarantine run $QRUN; not green: ${QRED:-none}."
+          if [ "$GATE" = "success" ] && [ -n "$SHARDS" ] && [ "$GREEN" = "$SHARDS" ] && [ "$BLOBS" = "$SHARDS" ] && [ "$TRACES" = "$SHARDS" ] && [ -z "$QRED" ]; then
             echo "::notice title=Nightly::main's full push run ${RUN} is green on this commit - the E2E shards are skipped and its reports used."
             echo "run=$RUN" >> "$GITHUB_OUTPUT"
             echo "shards=$SHARDS" >> "$GITHUB_OUTPUT"
