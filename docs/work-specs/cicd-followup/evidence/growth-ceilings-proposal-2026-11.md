@@ -45,7 +45,7 @@ it is refused.
 | backend per day | 79.7 | 78 | **88** | 91% | 3.9 | measured plus 10% |
 | graphics per landing | 36.3 raw, 18.6 net of ci04 | 10 | **20** | 93% net | 0.4 | net of the active exception; see the interaction below |
 | graphics per day | 90.3 | 115 | 115 (no change) | 79% | | in bounds |
-| overhead | 91.8 / 6.2 net | 105 / 10 | no change | 87% / 62% | | in bounds; see the 2026-12-03 note |
+| overhead | 91.8 / 6.2 net | 105 / 10 | no change | 87% / 62%; 93% per landing with #2379's job | about 2 per landing with that job | in bounds; #2379 adds the `growth-health` job to post-land.yml, priced at 6 per landing (its real cost is seconds); see the 2026-12-03 note |
 
 Envelope check: proposed per landing 720 + 235 + 20 + 105 = 1,080, per day 428. At the reference
 17.4 landings a day that is 19,220 runner-minutes a day, and at last week's 21 landings a day
