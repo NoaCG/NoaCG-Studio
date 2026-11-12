@@ -295,14 +295,13 @@ function CueConnectReview({
   const [bracketSetting, setBracketSetting] = useState<{ for: string; adapter: BracketAdapter | null } | null>(null);
   const storedAdapter = reusedConnector?.config.adapter ?? null;
   const bracket = noacgEvery === undefined || noacgEvery === null ? null : bracketSetting?.for === id ? bracketSetting.adapter : storedAdapter;
-  const bracketKey = bracket ? JSON.stringify(bracket) : null;
   const reviewed = useMemo(() => {
     if (!json) return null;
-    const read = bracketKey === null ? null : readSourceAdapter(JSON.parse(bracketKey));
+    const read = bracket === null ? null : readSourceAdapter(bracket);
     if (!read || read.status !== 'ok') return { sample: json.sample as unknown, problem: read && read.status !== 'none' ? (read.status === 'invalid' ? read.error : 'a later version') : null };
     const r = bracketReviewSample(json.sample, read.adapter);
     return 'problem' in r ? { sample: {} as unknown, problem: r.problem } : { sample: r.sample as unknown, problem: null as string | null };
-  }, [json, bracketKey]);
+  }, [json, bracket]);
   const bracketProblem = bracket ? (reviewed?.problem ?? null) : null;
   // A connector's sample: its values and its lists, a list field matched against the lists.
   const offers = useMemo(() => (reviewed ? jsonOffers(id, reviewed.sample) : null), [id, reviewed]);
@@ -1905,7 +1904,9 @@ const BRACKET_FIELD_WORDS: Record<BracketFieldKey, string> = {
  * picked from the sample. The source keeps it as its setting; no site's field names are in code.
  */
 function BracketSetting({ sample, adapter: stored, problem, onChange }: { sample: unknown; adapter: BracketAdapter | null; problem: string | null; onChange: (adapter: BracketAdapter | null) => void }) {
-  const rowPaths = bracketRowPaths(sample);
+  const rowPaths = useMemo(() => bracketRowPaths(sample), [sample]);
+  const rows = stored && typeof stored.rows === 'string' ? stored.rows : null;
+  const rowKeys = useMemo(() => (rows === null ? [] : bracketRowKeys(sample, rows)), [sample, rows]);
   if (!stored && rowPaths.length === 0) return null;
   // A setting this build cannot edit (a later version, or not the shape it writes) is shown with
   // its problem and kept as it is; a later version cannot even be turned off here (B1).
@@ -1913,7 +1914,7 @@ function BracketSetting({ sample, adapter: stored, problem, onChange }: { sample
   const editable = raw !== null && typeof raw.rows === 'string' && typeof raw.fields === 'object' && raw.fields !== null && !Array.isArray(raw.fields);
   const later = stored !== null && readSourceAdapter(stored).status === 'read-only';
   const adapter = editable ? stored : null;
-  const keys = adapter ? bracketRowKeys(sample, adapter.rows) : [];
+
   const set = (key: BracketFieldKey, path: string) => {
     if (!adapter) return;
     const fields = { ...adapter.fields } as Record<string, string>;
@@ -1933,11 +1934,6 @@ function BracketSetting({ sample, adapter: stored, problem, onChange }: { sample
         />{' '}
         Read as a bracket
       </label>
-      {stored && !adapter && problem && (
-        <p className="status-warn" data-testid="cue-connect-bracket-problem">
-          {problem}
-        </p>
-      )}
       {adapter && (
         <>
           <label className="row">
@@ -1955,7 +1951,7 @@ function BracketSetting({ sample, adapter: stored, problem, onChange }: { sample
               <span>{BRACKET_FIELD_WORDS[key]}</span>
               <select value={adapter.fields[key] ?? ''} onChange={(e) => set(key, e.target.value)} data-testid={`cue-connect-bracket-${key}`}>
                 <option value="">Not in the rows</option>
-                {[...new Set([...keys, ...(adapter.fields[key] ? [adapter.fields[key]!] : [])])].map((k) => (
+                {(adapter.fields[key] && !rowKeys.includes(adapter.fields[key]!) ? [...rowKeys, adapter.fields[key]!] : rowKeys).map((k) => (
                   <option key={k} value={k}>
                     {k}
                   </option>
@@ -1963,12 +1959,12 @@ function BracketSetting({ sample, adapter: stored, problem, onChange }: { sample
               </select>
             </label>
           ))}
-          {problem && (
-            <p className="status-warn" data-testid="cue-connect-bracket-problem">
-              {problem}
-            </p>
-          )}
         </>
+      )}
+      {stored && problem && (
+        <p className="status-warn" data-testid="cue-connect-bracket-problem">
+          {problem}
+        </p>
       )}
     </fieldset>
   );

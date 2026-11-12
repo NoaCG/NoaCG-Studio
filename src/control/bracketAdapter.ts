@@ -15,7 +15,8 @@
 //
 // ES2020, no DOM; Node-importable: scripts/bracket-adapter.test.mjs drives it.
 
-import { atPath, isObject, PATH, type JsonValue } from './externalSource.js';
+import { atPath, isObject, PATH, SEGMENT, type JsonValue } from './externalSource.js';
+import { scalarText } from './sourceMapping.js';
 import { sourcePrefix } from '../model/productionData.js';
 
 export const BRACKET_ADAPTER_VERSION = 1;
@@ -112,9 +113,20 @@ export interface CurrentMemory {
   b: string | null;
 }
 
-export function readCurrentMemory(previous: Readonly<Record<string, string>> | undefined): CurrentMemory | null {
+/**
+ * The memory the reader kept with its snapshot. With none (a fresh tree, or an older build held the
+ * lease), what the bound `current` paths last showed stands in for it, when they name a match
+ * (B12 amended).
+ */
+export function readCurrentMemory(previous: Readonly<Record<string, string>> | undefined, sourceId: string): CurrentMemory | null {
   const text = previous?.[CURRENT_MEMORY_KEY];
-  if (typeof text !== 'string') return null;
+  if (typeof text !== 'string') {
+    const at = `${sourcePrefix(sourceId, 'external')}.current.`;
+    const matchId = previous?.[`${at}matchId`];
+    if (!matchId) return null;
+    const name = (side: string) => previous[`${at}${side}.name`] || null;
+    return { matchId, a: name('a'), b: name('b') };
+  }
   try {
     const m = JSON.parse(text) as unknown;
     if (!isObject(m) || typeof m.matchId !== 'string') return null;
@@ -136,7 +148,7 @@ export interface BracketResult {
   /** Absent when the pick is not known (the server tick, B13): nothing under `current`. */
   current?: {
     /** The memory to keep (`matchId` empty: no match). */
-    memory: CurrentMemory | null;
+    memory: CurrentMemory;
     /** Why `current` is held, or null. */
     held: string | null;
   };
@@ -144,20 +156,20 @@ export interface BracketResult {
 
 // ── Reading the rows ─────────────────────────────────────────────────────────────────────────
 
-/** A scalar as text, trimmed; null for anything else or empty. */
-function text(value: unknown): string | null {
-  if (typeof value === 'string') return value.trim() === '' ? null : value.trim();
-  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : null;
-  if (typeof value === 'boolean') return value ? 'true' : 'false';
-  return null;
+/** A scalar as text, trimmed; null for anything else or empty. Also the operator's pick as the
+ *  tree holds it. */
+export function pickOf(value: unknown): string | null {
+  return scalarText(value)?.trim() || null;
 }
+const text = pickOf;
 /** A scalar as the feed gave it (B6), else null. */
 function scalar(value: unknown): Scalar {
-  if (typeof value === 'string') return value.trim() === '' ? null : value.trim();
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  if (typeof value === 'boolean') return value;
-  return null;
+  return typeof value === 'boolean' ? value : text(value);
 }
+const ROW_NUMBER = /^\d+$/;
+/** What a dotted path names in a payload; the empty path is the payload itself. */
+const valueAt = (payload: unknown, path: string): unknown => (path === '' ? payload : isObject(payload) ? atPath(payload as JsonValue, path) : undefined);
 /** A score: a finite number, or a numeric string as its number; never a silent zero (B6). */
 export function scoreOf(value: unknown): number | null {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -171,7 +183,7 @@ export function statusOf(value: unknown): MatchStatus {
 
 /** The rows in order, each with the words that name it, and what was missing (B3). */
 function rowsOf(payload: unknown, path: string): { rows: { label: string; row: Record<string, unknown> }[]; report: string[] } | { problem: string } {
-  const at = path === '' ? payload : isObject(payload) ? atPath(payload as JsonValue, path) : undefined;
+  const at = valueAt(payload, path);
   const where = path === '' ? 'the answer' : path;
   const report: string[] = [];
   const rows: { label: string; row: Record<string, unknown> }[] = [];
@@ -185,7 +197,7 @@ function rowsOf(payload: unknown, path: string): { rows: { label: string; row: R
   if (!isObject(at)) return { problem: at === undefined ? `${where} is not in the JSON` : `${where} holds no rows` };
   const numbered: [number, string, unknown][] = [];
   for (const [key, row] of Object.entries(at)) {
-    if (!/^\d+$/.test(key)) report.push(`row “${key}” has no row number, so it is left out`);
+    if (!ROW_NUMBER.test(key)) report.push(`row “${key}” has no row number, so it is left out`);
     else numbered.push([Number(key), key, row]);
   }
   numbered.sort((x, y) => x[0] - y[0]);
@@ -249,7 +261,7 @@ export function adaptBracket(
   });
 
   const brackets = new Map<string, Bracket>();
-  const byId = new Map<string, { match: BracketMatch | { id: string; kept: true }; round: Round; bracket: Bracket; seen: string; label: string }>();
+  const byId = new Map<string, { match: BracketMatch | { id: string; kept: true }; round: Round; bracket: Bracket; seen: unknown[]; label: string }>();
   const players = new Map<string, { name: string; race: Scalar; seed: Scalar; league: Scalar; clash: Set<string> }>();
   for (const { label, row } of read.rows) {
     const bracketId = group(row, 'bracket');
@@ -281,14 +293,17 @@ export function adaptBracket(
       round = { id: roundId!, name: (f.roundName && text(field(row, 'roundName'))) || roundId!, matches: [] };
       stage.rounds.set(roundId!, round);
     }
-    const a = side(row, 'a');
-    const b = side(row, 'b');
+    const { league: aLeague, ...aSide } = side(row, 'a');
+    const { league: bLeague, ...bSide } = side(row, 'b');
+    const a = { ...aSide, league: aLeague };
+    const b = { ...bSide, league: bLeague };
     const id = explicitId ?? `${bracketId}:${stageId}:${roundId}:${round.matches.length + 1}`;
-    const match: BracketMatch = { id, status: f.status ? statusOf(field(row, 'status')) : 'unknown', a: { name: a.name, race: a.race, seed: a.seed, score: a.score }, b: { name: b.name, race: b.race, seed: b.seed, score: b.score } };
-    const seen = JSON.stringify([bracketId, stageId, roundId, match, a.league, b.league, f.roundName ? text(field(row, 'roundName')) : null, f.bracketTitle ? text(field(row, 'bracketTitle')) : null]);
+    const match: BracketMatch = { id, status: f.status ? statusOf(field(row, 'status')) : 'unknown', a: aSide, b: bSide };
+    // What a row says of its match, compared only when a match id comes again.
+    const seen = [bracketId, stageId, roundId, match, aLeague, bLeague, f.roundName ? text(field(row, 'roundName')) : null, f.bracketTitle ? text(field(row, 'bracketTitle')) : null];
     const before = byId.get(id);
     if (before) {
-      if (before.seen === seen) report.push(`${label} repeats match ${id}, so it is left out`);
+      if (JSON.stringify(before.seen) === JSON.stringify(seen)) report.push(`${label} repeats match ${id}, so it is left out`);
       else {
         report.push(`${before.label} and ${label} both give match ${id} with other values, so it keeps its values`);
         if (!('kept' in before.match)) {
@@ -323,16 +338,16 @@ export function adaptBracket(
 
   const list = [...brackets.values()];
   const ties: { [key: string]: JsonValue } = {};
+  const keys = new Set<string>();
   list.forEach((bracket, i) => {
     const key = tieKey(bracket.id, i);
-    if (key in ties) {
+    if (keys.has(key)) {
       report.push(`bracket ${bracket.id} has the same tie key as another, so it has no tie lines`);
       return;
     }
-    if (bracket.kept) {
-      ties[key] = null;
-      return;
-    }
+    keys.add(key);
+    // A held bracket's ties are left out entirely: its field keeps its lines.
+    if (bracket.kept) return;
     const lines: string[] = [];
     // The Bracket type groups rounds by name: two stages' rounds are told apart by their stage.
     const staged = bracket.stages.size > 1;
@@ -341,8 +356,6 @@ export function adaptBracket(
     }
     ties[key] = lines.join('\n');
   });
-  // A held bracket's ties are left out entirely: its field keeps its lines.
-  for (const key of Object.keys(ties)) if (ties[key] === null) delete ties[key];
 
   const matches: MatchChoice[] = [];
   const bracketsJson = indexed(list, (bracket) => ({
@@ -391,7 +404,7 @@ export function resolveCurrent(
   pick: string | null,
   memory: CurrentMemory | null,
   find: (id: string) => { match: BracketMatch; round: string } | null,
-): { current: { [key: string]: JsonValue } | null; memory: CurrentMemory | null; held: string | null } {
+): { current: { [key: string]: JsonValue } | null; memory: CurrentMemory; held: string | null } {
   // No pick: the memory forgets the match but stays, so a later pick is fresh and never compared
   // with what the fields showed before it (B12).
   if (pick === null) return { current: null, memory: { matchId: '', a: null, b: null }, held: null };
@@ -418,11 +431,6 @@ export function resolveCurrent(
 /** Where the operator's pick lives in the production's tree (B11). */
 export const currentMatchPath = (sourceId: string): string => `${sourcePrefix(sourceId, 'external')}.currentMatchId`;
 
-/** The pick as the tree holds it: text, trimmed; null when absent or empty. */
-export function pickOf(value: unknown): string | null {
-  return text(value);
-}
-
 /** The adapter's output with every unknown value as empty text (B10): what fields are given. */
 export function forFields(value: JsonValue): JsonValue {
   if (value === null) return '';
@@ -431,13 +439,73 @@ export function forFields(value: JsonValue): JsonValue {
   return value;
 }
 
+// ── For the reader (OS5a's `project` hook, R11) ─────────────────────────────────────────────
+
+/** At most this many of an adapter's report lines go on the line (B15). */
+export const ADAPTER_REPORT_LINES = 5;
+/** At most this many matches are offered to the picker (B16). */
+export const MAX_CHOICES = 200;
+
+/** What a source's adapter makes of one payload, for the shared evaluator. */
+export interface ReaderAdapted {
+  /** What the evaluator reads: the adapter's shape as field text, or the payload as it came. */
+  payload: unknown;
+  /** The adapter's lines for the source's line. */
+  said: string[];
+  /** The memory to keep with the snapshot, when the pick was known. */
+  memory?: Record<string, string | null>;
+  /** The picker's matches; null offers none. */
+  choices: MatchChoice[] | null;
+  /** A bound leaf the adapter leaves out on purpose, never reported missing: the operator's pick
+   *  (B11), and `current` while it holds or the pick is not known. */
+  own: (leaf: string) => boolean;
+}
+
+/**
+ * A source's adapter applied to one payload (B1). `setting` is `config.adapter` as stored; with
+ * none the payload passes as it is. `hold`: nothing can be read, every value holds, and why.
+ * Without `current` (the server tick) nothing under `current` is said (B13).
+ */
+export function adaptForReader(
+  sourceId: string,
+  payload: unknown,
+  setting: unknown,
+  current?: { pick: unknown; previous: Readonly<Record<string, string>> },
+): ReaderAdapted | { hold: string } {
+  const read = readSourceAdapter(setting);
+  if (read.status === 'none') return { payload, said: [], choices: null, own: () => false };
+  if (read.status !== 'ok') {
+    const why = read.status === 'invalid' ? read.error : `the adapter is version ${read.version}; this build reads version ${BRACKET_ADAPTER_VERSION}, so it is held read-only`;
+    return { hold: `the adapter cannot be used (${why}), so every value holds` };
+  }
+  const adapted = adaptBracket(payload, read.adapter, current ? { pick: pickOf(current.pick), memory: readCurrentMemory(current.previous, sourceId) } : undefined);
+  if ('problem' in adapted) return { hold: `the bracket cannot be read (${adapted.problem}), so every value holds` };
+  const said: string[] = [];
+  let choices: MatchChoice[] | null = null;
+  // A pick needs a match id the rows give (B5 amended).
+  if (read.adapter.fields.match) {
+    choices = adapted.matches.slice(0, MAX_CHOICES);
+    if (adapted.matches.length > MAX_CHOICES) said.push(`only the first ${MAX_CHOICES} of ${adapted.matches.length} matches can be picked here`);
+  }
+  said.push(...adapted.report.slice(0, ADAPTER_REPORT_LINES));
+  if (adapted.report.length > ADAPTER_REPORT_LINES) said.push(`and ${adapted.report.length - ADAPTER_REPORT_LINES} more in the rows`);
+  if (adapted.current?.held) said.push(`the current match is held: ${adapted.current.held}, so it keeps its values`);
+  return {
+    payload: forFields(adapted.output),
+    said,
+    ...(adapted.current ? { memory: { [CURRENT_MEMORY_KEY]: currentMemoryText(adapted.current.memory) } } : {}),
+    choices,
+    own: (leaf) => leaf === 'currentMatchId' || leaf === 'current' || leaf.startsWith('current.'),
+  };
+}
+
 // ── The Connect review (B2) ──────────────────────────────────────────────────────────────────
 
 /** Whether a value holds rows: a list of objects, or an object keyed by row number. */
 const holdsRows = (value: unknown): boolean =>
   Array.isArray(value)
     ? value.length > 0 && value.some(isObject)
-    : isObject(value) && Object.keys(value).length > 0 && Object.keys(value).every((k) => /^\d+$/.test(k)) && Object.values(value).some(isObject);
+    : isObject(value) && Object.keys(value).length > 0 && Object.keys(value).every((k) => ROW_NUMBER.test(k)) && Object.values(value).some(isObject);
 
 /** Where a sample holds rows, nearest first: '' for the sample itself. */
 export function bracketRowPaths(sample: unknown): string[] {
@@ -446,7 +514,7 @@ export function bracketRowPaths(sample: unknown): string[] {
   const walk = (value: unknown, keys: string[]) => {
     if (!isObject(value) || keys.length >= 4 || out.length >= 20) return;
     for (const [key, child] of Object.entries(value)) {
-      if (!/^[A-Za-z0-9_-]+$/.test(key)) continue;
+      if (!SEGMENT.test(key)) continue;
       const at = [...keys, key];
       if (holdsRows(child)) out.push(at.join('.'));
       else walk(child, at);
@@ -458,13 +526,13 @@ export function bracketRowPaths(sample: unknown): string[] {
 
 /** The dotted paths of the scalars the first rows hold (two levels deep), in first appearance. */
 export function bracketRowKeys(sample: unknown, rows: string): string[] {
-  const at = rows === '' ? sample : isObject(sample) ? atPath(sample as JsonValue, rows) : undefined;
+  const at = valueAt(sample, rows);
   const list = Array.isArray(at) ? at : isObject(at) ? Object.values(at) : [];
   const keys: string[] = [];
   const walk = (value: unknown, prefix: string[]) => {
     if (!isObject(value)) return;
     for (const [key, child] of Object.entries(value)) {
-      if (!/^[A-Za-z0-9_-]+$/.test(key)) continue;
+      if (!SEGMENT.test(key)) continue;
       const path = [...prefix, key].join('.');
       if (isObject(child) && prefix.length < 1) walk(child, [...prefix, key]);
       else if (!isObject(child) && !Array.isArray(child) && !keys.includes(path)) keys.push(path);

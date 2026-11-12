@@ -20,7 +20,7 @@
 import { createSheetReader, leaseOf, type ProjectedRead, type SourceProject, type SheetFetch, type SheetReader, type SheetReaderOptions, type SourceRead } from './sheetSource.js';
 import { canonicalJson, type ExternalRegistration, type JsonValue, type RegistrationRead } from './externalSource.js';
 import { projectSource } from './sourceMapping.js';
-import { adaptBracket, CURRENT_MEMORY_KEY, currentMemoryText, type CurrentMemory, forFields, pickOf, readCurrentMemory, readSourceAdapter, type MatchChoice } from './bracketAdapter.js';
+import { adaptForReader } from './bracketAdapter.js';
 import { sourcePrefix } from '../model/productionData.js';
 import type { FieldDescriptor } from '../model/fieldModel';
 
@@ -94,21 +94,6 @@ export function jsonFingerprint(payload: unknown): string {
   return `json:${(h2 >>> 0).toString(16).padStart(8, '0')}${(h1 >>> 0).toString(16).padStart(8, '0')}`;
 }
 
-/** With no memory (a fresh tree, or an older build held the lease), what the bound `current`
- *  paths last showed stands in for it, when they name a match (B12 amended). */
-function shownCurrent(previous: Readonly<Record<string, string>>, at: string): CurrentMemory | null {
-  const matchId = previous[`${at}matchId`];
-  if (!matchId) return null;
-  const name = (side: string) => (previous[`${at}${side}.name`] ? previous[`${at}${side}.name`] : null);
-  return { matchId, a: name('a'), b: name('b') };
-}
-
-/** At most this many of an adapter's report lines go on the line (B15). */
-export const ADAPTER_REPORT_LINES = 5;
-
-/** At most this many matches are offered to the picker. */
-export const MAX_CHOICES = 200;
-
 /**
  * One payload for a source's bound paths, by the shared evaluator: text only (R14). A path only
  * typed fields read, a collection recipe's leaf and anything the evaluator holds write nothing,
@@ -131,33 +116,10 @@ export function projectJson(o: {
   const fingerprint = jsonFingerprint(o.payload);
   if (!o.registration.ok) return { writes: {}, problems: [`the source cannot be used (${o.registration.error}), so every value holds`], fingerprint };
   const registration: Pick<ExternalRegistration, 'lists' | 'mapping' | 'configRevision' | 'adapter'> = o.registration.registration;
-  let payload: unknown = o.payload;
-  const said: string[] = [];
-  let memory: ProjectedRead['memory'];
-  // null: this source offers no picks; undefined: this read could not say, the last offer stands.
-  let choices: MatchChoice[] | null | undefined = null;
-  const adapter = readSourceAdapter(registration.adapter);
-  if (adapter.status === 'invalid' || adapter.status === 'read-only') {
-    const why = adapter.status === 'invalid' ? adapter.error : `the adapter is version ${adapter.version}; this build reads version 1, so it is held read-only`;
-    return { writes: {}, problems: [`the adapter cannot be used (${why}), so every value holds`], fingerprint };
-  }
-  if (adapter.status === 'ok') {
-    const at = `${sourcePrefix(o.sourceId, 'external')}.current.`;
-    const adapted = adaptBracket(o.payload, adapter.adapter, o.current ? { pick: pickOf(o.current.pick), memory: readCurrentMemory(o.current.previous) ?? shownCurrent(o.current.previous, at) } : undefined);
-    if ('problem' in adapted) return { writes: {}, problems: [`the bracket cannot be read (${adapted.problem}), so every value holds`], fingerprint };
-    payload = forFields(adapted.output);
-    // A pick needs a match id the rows give (B5 amended).
-    if (adapter.adapter.fields.match) {
-      choices = adapted.matches.slice(0, MAX_CHOICES);
-      if (adapted.matches.length > MAX_CHOICES) said.push(`only the first ${MAX_CHOICES} of ${adapted.matches.length} matches can be picked here`);
-    }
-    said.push(...adapted.report.slice(0, ADAPTER_REPORT_LINES));
-    if (adapted.report.length > ADAPTER_REPORT_LINES) said.push(`and ${adapted.report.length - ADAPTER_REPORT_LINES} more in the rows`);
-    if (adapted.current) {
-      if (adapted.current.held) said.push(`the current match is held: ${adapted.current.held}, so it keeps its values`);
-      memory = { [CURRENT_MEMORY_KEY]: adapted.current.memory ? currentMemoryText(adapted.current.memory) : null };
-    }
-  }
+  // An adapter (OS5b) turns the payload into its own shape first; one it cannot use holds every value.
+  const adapted = adaptForReader(o.sourceId, o.payload, registration.adapter, o.current);
+  if ('hold' in adapted) return { writes: {}, problems: [adapted.hold], fingerprint };
+  const { payload, said, memory, choices, own } = adapted;
   const p = projectSource({
     sourceId: o.sourceId,
     payload,
@@ -168,8 +130,6 @@ export function projectJson(o: {
     configRevision: registration.configRevision,
   });
   const prefix = `${sourcePrefix(o.sourceId, 'external')}.`;
-  // The operator's pick is never the source's (B11), and `current` holds by leaving its leaves out.
-  const own = (leaf: string) => adapter.status === 'ok' && (leaf === 'currentMatchId' || leaf === 'current' || leaf.startsWith('current.'));
   const problems: string[] = [...said];
   if (p.held) problems.push(`the mapping cannot be used (${p.held.error}), so every value holds`);
   else {
@@ -180,7 +140,7 @@ export function projectJson(o: {
     for (const path of Object.keys(p.typedWrites)) problems.push(`${path.slice(prefix.length)} feeds a field that takes typed values, which only an agent writes, so it keeps its value`);
   }
   if (o.collections) problems.push('its collection cards are filled by an agent only, so they keep their values');
-  return { writes: p.writes, problems, fingerprint, ...(memory ? { memory } : {}), ...(choices === undefined ? {} : { choices }) };
+  return { writes: p.writes, problems, fingerprint, ...(memory ? { memory } : {}), choices };
 }
 
 /** The browser reader of one JSON source: the Sheet reader's machinery with this read and cadence. */
