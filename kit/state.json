@@ -1563,7 +1563,7 @@
       "ownerComment": 6823534868,
       "ownerAck": "MinimalpublichiddenACKaccepted; trustedMEMBERmiwcoreadbackverified; soleactiveCodexcoordinatorforrun2295",
       "ownerPayloadRejection": "EarlierdetailednotecontaininginternalUUIDs/paths/authoritywasauto-reviewrejectedbeforeposting. Noalternatebypass; saferminimalpublicrun-linkedACKaccepted; userinformed. Exactnative/authority/worktree stayinprivatekit.",
-      "postOpenCiRepairCount": 0,
+      "postOpenCiRepairCount": 1,
       "carriedRepairs": {
         "asyncClientFixtureAwait": 1,
         "privateWizardCapabilityEdge": 1
@@ -1589,6 +1589,18 @@
       "status": "Runningbuild/offline/configured; Reviewed131178812758FAILbeforecoordinatorstamp, wholelogunderinspection; no sourceCIgatepassclaimed"
     },
     "managedNetworkFollowup": "2439 P2 area:ci related1301, unchanged-pathlocalproxyfixtureevidence/no-bypassboundary; source217fullbuildFAILretained",
-    "finalReview": "Freshfull42-fileSO on03e88fa9 in progress; CodexPRreviewrunning on03 since12:20:54Z, no duplicate request"
+    "finalReview": "FirstfullSO03completeB/twoproductclasses+same-IDcase; newcoherentheadrequiresupdatedcheck/CI/CodexrequestandfreshfullSOA; no duplicate03requests.",
+    "firstPostOpenRound": {
+      "source": "03e88fa9d999fc00bb14e690c2a304a6cc80b30b",
+      "review": "Freshfull42-fileSOAGREE WITH CORRECTIONSgradeB; CodexP1inline4550369134; NOAacceptance",
+      "classes": [
+        "External/unretaineddirtycompatibilityslotcanbeoverwrittenbyprojectopen/batch withoutguard/adoption, causingdata loss",
+        "Brandreapplicationmustpreserveeffectiveheadingface, derivednumericfaceandreferencedcustomfontbytes; handlepath/family collisions",
+        "Existingfolder/bin saved-same-IDnew-instancecoverageCI14failed2/128, mustremain; do notdeletepreconditionto green"
+      ],
+      "repairRound": 1,
+      "status": "Headheld; consolidatedmodelrepairbeforeonecoherentpush. No stamp/automerge. Existingidentityassertion279retained; independentreviewerretractedpreliminaryinequalityadvice and acceptedboundedcompatibilitydesign, notA.",
+      "compatibilityDesign": "RetainedEditorSession.publicdocumentId=workspaceUUID; unretainedsavedlibrarysessionpublicidentitystablelibraryidentity. PrivateauthoringUUID/baseline/instanceguardownership. Strengthen savedlink/internal-UUID/instance/stale-form/source/old-handletests."
+    }
   }
 }
