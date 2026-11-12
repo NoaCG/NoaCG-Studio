@@ -15,7 +15,9 @@ import { SupabaseProvider } from './supabaseProvider';
 import { libraryHasArrived, runSync, tombstoneCutoff, type SyncResult } from './sync';
 import type { StoredRecord } from './storage';
 import { purgeOldTombstones } from '../model/packets';
-import { purgeOldShowTombstones } from '../model/shows';
+import { loadShows, purgeOldShowTombstones, settleShowCopies } from '../model/shows';
+import { needsSettle } from '../model/copySettle';
+import type { SavedGraphic } from '../model/packets';
 import { purgeOldVideoTombstones } from '../model/videoProject';
 import { purgeOldGraphicTombstones } from '../model/library';
 
@@ -486,4 +488,27 @@ export function startAutoSync(): void {
       window.dispatchEvent(new CustomEvent('spx-session-expired'));
     }
   });
+}
+
+/**
+ * THE SEND-TIME SETTLE BEFORE A PUBLISH OR AN EXPORT of a personal production (live-publishing G1
+ * section 3): its copies settled against the cloud's record of it, so a design an older page pulled
+ * from the library never reaches an output or a file. Nothing to do when every copy is stamped, the
+ * production is local only, or the cloud has no record of it yet. Answers null, or why it could not
+ * check: the caller then stops, since the record waits until its base can be read.
+ */
+export async function settleProductionForSend(showId: string): Promise<string | null> {
+  const show = loadShows().find((s) => s.id === showId);
+  if (!show || show.teamId || !needsSettle(show.graphics)) return null;
+  if (!(await canSync())) return null;
+  let base: StoredRecord | null;
+  try {
+    base = await remote.get('show', showId);
+  } catch (error) {
+    return `The production could not be checked against the cloud (${cloudFailureWords(error instanceof Error ? error.message : String(error))}). Try again.`;
+  }
+  if (!base || base.deleted) return null;
+  const settled = settleShowCopies(showId, (base.body as { graphics?: SavedGraphic[] }).graphics ?? []);
+  if (settled.error) return settled.error;
+  return settled.changed ? commitDurableWrites() : null;
 }

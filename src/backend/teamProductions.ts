@@ -31,6 +31,7 @@ import {
   setTeamShowsStatus,
 } from '../model/teamShows';
 import { mergeTeamShow } from '../model/teamShowMerge';
+import { settleGraphics } from '../model/copySettle';
 import { canAuthorAccount, commitDurableWrites, libraryInUse } from '../model/durableStore';
 import { acknowledgeTeamEdit, pendingTeamEdits, retainTeamEdit } from '../model/teamOutbox';
 import { replaceRundown, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../model/rundownHistory';
@@ -598,6 +599,16 @@ async function pushSave(id: string): Promise<void> {
   dirty.delete(id);
   let base = known.doc;
   let token = known.token;
+  // THE SEND-TIME SETTLE (live-publishing G1 section 3): a copy no copy-truth build stamped whose
+  // design differs from the server's copy this edit started from takes the server's design, so a
+  // design an older page pulled from the library is dropped before anything goes up. The settled
+  // record is what this tab shows from now on.
+  const settled = settleGraphics(sent.graphics, base.graphics, new Date().toISOString());
+  if (settled.changed) {
+    sent = { ...sent, graphics: settled.graphics };
+    applyServerTeamShow(sent);
+    retainTeamEdit(owner.userId, id, { token, base, local: sent, updatedBy: known.updatedBy, teamId: known.teamId });
+  }
   let doc = teamDoc(sent);
   let failure: string | null = null;
   try {

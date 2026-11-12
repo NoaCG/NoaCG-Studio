@@ -50,6 +50,7 @@ import { fastEventGraphics } from '../../control/matchClockWire';
 import { type CasparFacts } from './PlayoutPanel';
 import { copyLink } from './copyLink';
 import { flushTeamProduction, refreshTeams } from '../../backend/teamProductions';
+import { settleProductionForSend } from '../../backend/syncController';
 import { type PayloadVersion } from '../../control/payloadVersion';
 import { type HeldVersion } from '../../control/readiness';
 import { slotHolds } from '../../control/prepareLive';
@@ -436,6 +437,11 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
           else {
             const failure = await commitDurableWrites();
             if (failure) throw new Error(failure);
+            // A personal production is settled against the cloud's record first, so a design an
+            // older page pulled from the library never publishes (live-publishing G1 section 3).
+            // A team one was settled by its save just above.
+            const unsettled = await settleProductionForSend(show.id);
+            if (unsettled) throw new Error(unsettled);
           }
           const latest = loadShows().find((s) => s.id === show.id);
           if (!latest) return null;

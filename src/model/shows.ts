@@ -39,6 +39,7 @@ import { planResultCue, readResultCues, type ResultPlan, type ResultTargetKey } 
 import { hasLiveData } from './liveDataMark';
 import { ownReaderHolds } from './ownReaderHolds';
 import { loadGraphics, type GraphicDoc } from './library';
+import { settleGraphics } from './copySettle.ts';
 import { poolPlacement } from './poolIdentity.ts';
 import { accentColor, playoutSystem, readOutputSetup, type ProductionOutputSetup, type RundownColors } from './outputSetup';
 import { loadTeamShows, teamShowIds, writeTeamShow } from './teamShows';
@@ -1036,6 +1037,23 @@ export function droppedFields(show: Pick<Show, 'cues' | 'bindings'>, graphic: Sa
   return (graphic.template.fields ?? [])
     .filter((f) => !kept.has(f.field) && (f.field in bound || cues.some((c) => (c.values?.[f.field] ?? '') !== '')))
     .map((f) => f.title || f.field);
+}
+
+/**
+ * THE SEND-TIME SETTLE on a stored production (live-publishing G1 section 3): its copies settled
+ * against `base`, the server's copies of the same production (model/copySettle.ts). A write outside
+ * the undo history, made only when a copy changes. Answers whether one did.
+ */
+export function settleShowCopies(showId: string, base: readonly SavedGraphic[]): { shows: Show[]; error: string | null; changed: boolean } {
+  let changed = false;
+  const result = patchShowChecked(showId, (show, at) => {
+    const settled = settleGraphics(show.graphics, base, at);
+    if (!settled.changed) return false;
+    show.graphics = settled.graphics;
+    changed = true;
+    return true;
+  });
+  return { ...result, changed };
 }
 
 /**
