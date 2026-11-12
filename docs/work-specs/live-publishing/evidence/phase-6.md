@@ -82,7 +82,8 @@ republishes its saved revision whole, back to back, so every output reads the co
 | Large (50 + 50) | 96.9 / 206.5 | 121.7 / 252.3 | +45.8 | 50 of 50 | 0 |
 
 Throttled (20 Mbit/s, 50 ms), typical, 25 + 25: 80 / 142 ms with nothing published, 78 / 104 ms
-publishing (5 publishes of 5.4 s each over the run): no slowdown.
+publishing (5 publishes of 5.4 s each over the run): no slowdown. Large, 25 + 25: 103 / 215 ms
+with nothing published, 101 / 144 ms publishing (2 publishes of 17.2 s): no slowdown.
 
 Press to sent is unchanged by publishing (p95 20 to 28 ms either way), so the page's own publish
 work is off the Take's path; the difference left is the output reading each new version.
@@ -91,7 +92,7 @@ Publish steps (R10): p95 of each publish's longest step 14.2 to 15.5 ms; the lon
 were 41.8 and 67.4 ms on the typical fixture: the first digest of each copy after the page opens
 (memoized after). In use that first publish happens when the page opens.
 
-Not measured yet: the large fixture throttled, and a loop of design updates (owner question Q1).
+Not measured yet: a loop of design updates (owner question Q1).
 
 ## Traps met
 
