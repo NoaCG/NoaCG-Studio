@@ -116,8 +116,10 @@
         "quarantine": 43268862291,
         "configured": 43268862377
       },
-      "postLandingStatus": "PostlandSUCCESS,QuarantineSUCCESS; exactmergemainCI43268862367nowinprogress,configured43268862377andCodeQL43268863302running; allpendingexplicit.",
-      "incidentReadback": "Actual2371bodyandjob131359676353 confirmnewpergraphicentry:miwco primary/weeklyownerbackup,2026-11-26due. Originalclock/outageentriesstillmiwco2026-11-25. No inventedowner."
+      "postLandingStatus": "Postland/configured/quarantineworkflowsSUCCESSwithexplicitpublishincidentFAIL; exactmergemainCI43268862367andCodeQL43268863302stillrunning. Rootremainsactive.",
+      "incidentReadback": "Actual2371bodyandjob131359676353 confirmnewpergraphicentry:miwco primary/weeklyownerbackup,2026-11-26due. Originalclock/outageentriesstillmiwco2026-11-25. No inventedowner.",
+      "configuredResult": "Exactmergerun43268862377SUCCESS,verdict131368749602wholelog:159PASS0FAIL0FLAKY3existingSKIP. All3quarantinedconfiguredspecsincludingpergraphic/outageactuallypassed; statuswriter131369014509SUCCESSandcommitstatusesread.",
+      "quarantineQualification": "Workflow43268862291SUCCESSdoesNOTmeanalltestspassed: existingpublish-output-setup17PASS1FAIL at407 held-editprecondition(expectedpending/receivedlanded), wholejob131359858972read; correctquarantinestatusFAILURE,existingincident2371miwcoNov25retained. Clock/allotherofflinequarantinemonitorspassed. No qmetadata/productcausalityclaim or testedit."
     }
   ],
   "triggers": [],
