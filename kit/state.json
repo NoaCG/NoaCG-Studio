@@ -49,7 +49,7 @@
       "branch": "claude/plan-obs-scenes-os5b-build",
       "launchedAt": "2026-11-12T21:46:34Z",
       "note": "sent brief = saved brief plus one NOTES line (use OS5a's project hook; works with page reads while 0116 is held)",
-      "lastSeen": "2026-11-12T23:30Z receipt at 531ae01b; private sample FAIL (side rows, nested list, bracket by position, players join); builder asked to extend the same PR",
+      "lastSeen": "2026-11-12T23:50Z extension pushed as 9f0d29dc; CI, Codex and a fresh full /so running; builder self check-in 23:59Z",
       "pr": 2472
     }
   ],
