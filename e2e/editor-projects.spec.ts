@@ -7,6 +7,7 @@ import { test, expect } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import JSZip from 'jszip';
+import { decodePng, findPixelsNear } from '../scripts/png-decode.mjs';
 import { seedAuthoringProject, editProjectText, flushAuthoringProject } from './_authoringProject';
 import { awaitDurableReady } from './_durable';
 import { armStorageFailure, fillStorage, freeStorage, durableValue } from './_storage';
@@ -237,6 +238,67 @@ for (const crash of ['target-refused', 'confirmation-refused'] as const) test(`i
   expect(recovered.show.graphics).toHaveLength(1); expect(recovered.show.cues).toHaveLength(1);
 });
 
+for (const crash of ['intent-refused', 'target-refused', 'confirmation-refused'] as const) test(`interrupted rollback ${crash} keeps its direction and exact revision after reload`, async ({ page }) => {
+  const ids = await seedAuthoringProject(page);
+  const installed = await page.evaluate(async id => {
+    const P = await import('/src/store/authoringProjects.ts'); await P.openProjectDocument(id);
+    const saved = await (await import('/src/store/saveActions.ts')).saveGraphicAs('Inverse recovery', { kind: 'standalone' });
+    if (!saved.ok) throw new Error(saved.error!);
+    const show = (await import('/src/model/shows.ts')).createShowNamedChecked('Inverse recovery').show;
+    (await import('/src/store/templateStore.ts')).flushPendingProject();
+    await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+    return (await import('/src/control/projectInstallation.ts')).installProjectGraphics(show.id, [saved.graphicId!]);
+  }, ids[0]);
+  const interrupted = await page.evaluate(async ({ crash, id }) => {
+    const key = crash === 'target-refused' ? 'spx-gfx-shows' : 'spx-gfx-project';
+    const failAt = crash === 'confirmation-refused' ? 2 : 1;
+    const real = IDBObjectStore.prototype.put; let matching = 0, error = '';
+    IDBObjectStore.prototype.put = function(value, storeKey) {
+      if (storeKey === key && ++matching === failAt) { IDBObjectStore.prototype.put = real; throw new DOMException('E4 inverse storage refusal', 'QuotaExceededError'); }
+      return real.call(this, value, storeKey!);
+    };
+    try { await (await import('/src/control/projectInstallation.ts')).retryProjectInstallation(id, true); } catch (e) { error = String(e); }
+    finally { IDBObjectStore.prototype.put = real; }
+    const target = (await import('/src/store/authoringProjects.ts')).workspace().installations!.find(p => p.id === id)!.target;
+    return { error, show: (await import('/src/model/shows.ts')).loadShows().find(s => s.id === target)! };
+  }, { crash, id: installed.id });
+  expect(interrupted.error).not.toBe('');
+  expect(interrupted.show.graphics).toHaveLength(crash === 'confirmation-refused' ? 0 : 1);
+  await page.reload(); await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  const pending = await page.evaluate(async id => (await import('/src/store/authoringProjects.ts')).workspace().installations!.find(p => p.id === id)!, installed.id);
+  expect(pending.status).toBe('confirmed');
+  if (crash === 'intent-refused') expect(pending.rollback).toBeUndefined();
+  else {
+    expect(pending.rollback!.updatedAt > installed.after.updatedAt).toBe(true);
+    expect({ ...pending.rollback, updatedAt: installed.before.updatedAt }).toEqual(installed.before);
+    await page.getByRole('button', { name: /^Project/ }).first().click();
+    await page.getByText('Installations', { exact: true }).click();
+    const row = page.locator(`[data-installation="${installed.id}"]`);
+    await row.getByRole('button', { name: 'Retry rollback', exact: true }).click();
+    await expect(row).toContainText('rolled-back');
+  }
+  const recovered = await page.evaluate(async ({ id, needsIntent }) => {
+    const I = await import('/src/control/projectInstallation.ts');
+    if (needsIntent) await I.retryProjectInstallation(id, true);
+    const first = await I.retryProjectInstallation(id), second = await I.retryProjectInstallation(id);
+    return { first, second, show: (await import('/src/model/shows.ts')).loadShows().find(s => s.id === first.target)! };
+  }, { id: installed.id, needsIntent: crash === 'intent-refused' });
+  expect(recovered.first.status).toBe('rolled-back'); expect(recovered.second).toEqual(recovered.first);
+  expect(recovered.show).toEqual(recovered.first.rollback);
+  if (pending.rollback) expect(recovered.show).toEqual(pending.rollback);
+  expect(recovered.show.graphics).toEqual(installed.before.graphics); expect(recovered.show.cues).toEqual(installed.before.cues);
+  const newer = await page.evaluate(async id => {
+    const S = await import('/src/model/shows.ts'), P = await import('/src/store/authoringProjects.ts');
+    const plan = P.workspace().installations!.find(p => p.id === id)!;
+    S.upsertShow({ ...S.loadShows().find(s => s.id === plan.target)!, name: 'Later operator edit' });
+    await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+    const before = S.loadShows().find(s => s.id === plan.target)!; let error = '';
+    try { await (await import('/src/control/projectInstallation.ts')).retryProjectInstallation(id); } catch (e) { error = String(e); }
+    return { before, after: S.loadShows().find(s => s.id === plan.target)!, error };
+  }, installed.id);
+  expect(newer.error).toContain('newer production edits'); expect(newer.after).toEqual(newer.before);
+});
+
 test('legacy adoption is additive and refusal preserves its source; unknown workspace stays read-only', async ({ page }) => {
   await armStorageFailure(page);
   await page.goto('/app#/home'); await awaitDurableReady(page);
@@ -379,6 +441,8 @@ test('saved project reaches operator data In/Next/Out and exports bundled receiv
     let runtimeReceipt: unknown = null;
     if (output.id === 'casparcg' || output.id === 'spx' || output.id === 'html-overlay') {
       const receiver = await context.newPage();
+      await receiver.setViewportSize({ width: fixture.expected.resolution[0], height: fixture.expected.resolution[1] });
+      await receiver.bringToFront();
       const missing: string[] = [];
       await receiver.route('http://e4-receiver.invalid/**', async route => {
         const file = decodeURIComponent(new URL(route.request().url()).pathname.slice(1));
@@ -410,9 +474,27 @@ test('saved project reaches operator data In/Next/Out and exports bundled receiv
         await expect(receiver.locator('.info-card')).toHaveCSS('opacity', '0');
         await receiver.evaluate(() => (window as unknown as { play(): void }).play());
         await expect.poll(() => receiver.evaluate(() => (window as unknown as { noacgStepsPlayed: number }).noacgStepsPlayed)).toBe(1);
-        await receiver.screenshot({ path: info.outputPath(`${output.id}-replay.png`) });
+        await expect(receiver.locator('.info-card')).toHaveCSS('opacity', '1');
+        await expect(receiver.locator('.info-card-box')).toHaveCSS('opacity', '1');
+        await expect(receiver.locator('.info-card-box')).toHaveCSS('clip-path', 'inset(0px 0% 0px 0px)');
+        await expect(receiver.locator('#f0')).toBeVisible();
+        await expect(receiver.locator('#f0')).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)');
+        await expect(receiver.locator('#f0')).toHaveText(fixture.heading);
+        await expect.poll(() => receiver.locator('img').first().evaluate(img => (img as HTMLImageElement).naturalWidth)).toBe(fixture.expected.logoNaturalWidth);
+        // Existing capture contract: fence composited paint only AFTER visible output settles.
+        const paint = await receiver.addStyleTag({ content: '* { will-change: auto !important; }' });
+        await receiver.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+        await paint.evaluate(el => el.remove());
+        await receiver.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+        writeFileSync(info.outputPath(`${output.id}-paint-state.json`), JSON.stringify(await receiver.evaluate(() => ({ viewport: { width: innerWidth, height: innerHeight }, visibility: document.visibilityState,
+          nodes: ['html', 'body', '.info-card', '.info-card-box', '.info-card-accent', '#f0', '#f5'].map(selector => { const el = document.querySelector(selector)!, css = getComputedStyle(el), rect = el.getBoundingClientRect();
+            return { selector, rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }, opacity: css.opacity, visibility: css.visibility, display: css.display, transform: css.transform, clip: css.clipPath, color: css.color, background: css.backgroundColor }; }) })), null, 2));
+        const paintedFrame = decodePng(await receiver.screenshot({ path: info.outputPath(`${output.id}-replay.png`) }));
+        expect([paintedFrame.width, paintedFrame.height]).toEqual(fixture.expected.resolution);
+        const painted = findPixelsNear(paintedFrame, [22, 187, 153], 0);
+        expect(painted.count, 'the receiving frame paints the authored green artwork').toBeGreaterThan(0);
         expect(missing.filter(path => !path.endsWith('favicon.ico'))).toEqual([]);
-        runtimeReceipt = { optionalRelay: '404; standalone static server', data: fixture.heading, states: [1, 2, 'off', 1], assets, missing };
+        runtimeReceipt = { optionalRelay: '404; standalone static server', data: fixture.heading, states: [1, 2, 'off', 1], assets, missing, painted };
       } finally { await receiver.close(); }
     } else {
       expect(files.some(name => name.endsWith('.ograf.json'))).toBe(true);
@@ -636,6 +718,32 @@ test('old commands refuse Save As and baseline replacement before any caller ref
     try { const i = w.C.activeEditorCommands().inspect(); return i.ok ? i.expected.documentId : 'closed'; } catch { return 'closed'; }
   });
   await expect.poll(commandOwner).toBe(privateId);
+  const group = await page.evaluate(() => {
+    const w = (window as unknown as { ownershipFixture: Fixture }).ownershipFixture, session = w.D.activeEditorSession();
+    const make = (x: number) => session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'layer.create', geometry: { shape: 'rectangle', x, y: 300, width: 80, height: 90 } }] }).changedTargets[0];
+    const members = [make(500), make(600)];
+    const group = session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'group.create', selectors: members, box: { x: 500, y: 300, width: 180, height: 90 } }] }).changedTargets[0];
+    w.S.useTemplateStore.getState().setSelectedParts([group]); return group;
+  });
+  await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
+  await page.getByRole('button', { name: 'Enter group', exact: true }).click();
+  await expect(page.locator('.ef-group-breadcrumbs button')).toHaveCount(2);
+  await page.getByRole('combobox', { name: 'Canvas zoom', exact: true }).selectOption('2');
+  const canvasBox = (await page.getByTestId('foundation-canvas').boundingBox())!;
+  await page.mouse.move(canvasBox.x + canvasBox.width / 2, canvasBox.y + canvasBox.height / 2);
+  await page.mouse.down({ button: 'middle' }); await page.mouse.move(canvasBox.x + canvasBox.width / 2 + 45, canvasBox.y + canvasBox.height / 2 + 25); await page.mouse.up({ button: 'middle' });
+  await page.getByTestId('foundation-ruler').focus(); await page.getByTestId('foundation-ruler').press('ArrowRight');
+  const clock = await page.getByTestId('foundation-ruler').getAttribute('aria-valuenow');
+  const artboard = await page.locator('.ef-artboard').getAttribute('style');
+  await page.evaluate(() => { (window as unknown as { retainedViewFrame: Element | null }).retainedViewFrame = document.querySelector('iframe[title="Foundation graphic preview"]'); });
+  const sameView = async () => {
+    expect(await page.evaluate(() => (window as unknown as { retainedViewFrame: Element | null }).retainedViewFrame === document.querySelector('iframe[title="Foundation graphic preview"]'))).toBe(true);
+    await expect(page.getByRole('combobox', { name: 'Canvas zoom', exact: true })).toHaveValue('2');
+    await expect(page.getByTestId('foundation-ruler')).toHaveAttribute('aria-valuenow', clock!);
+    await expect(page.locator('.ef-group-breadcrumbs button')).toHaveCount(2);
+    expect(await page.locator('.ef-artboard').getAttribute('style')).toBe(artboard);
+    expect(group).not.toBe('');
+  };
   let lastGraphic = '';
   for (const name of ['Command first save', 'Command Save As']) {
     await page.evaluate(name => {
@@ -656,6 +764,7 @@ test('old commands refuse Save As and baseline replacement before any caller ref
     expect(result).toMatchObject({ ok: true, privateId, portClosed: true, commandCode: 'session_closed', sourceKept: true });
     expect(result.graphic).not.toBe(lastGraphic); lastGraphic = result.graphic!;
     await expect.poll(commandOwner).toBe(lastGraphic);
+    await sameView();
     const stale = await page.evaluate(oldSessionId => {
       const w = (window as unknown as { ownershipFixture: Fixture }).ownershipFixture, c = w.C.activeEditorCommands(), i = c.inspect();
       if (!i.ok) throw new Error(i.refusal.message);
@@ -684,4 +793,72 @@ test('old commands refuse Save As and baseline replacement before any caller ref
     return { code: refused.ok ? 'accepted' : refused.refusal.code, sourceKept: before === JSON.stringify(w.S.useTemplateStore.getState().template), receiverChanged: i.expected.sessionId !== oldSessionId };
   }, baseline.oldSessionId);
   expect(staleBaseline).toEqual({ code: 'stale_context', sourceKept: true, receiverChanged: true });
+  await sameView();
+  const reopened = await page.evaluate(id => {
+    const w = (window as unknown as { ownershipFixture: Fixture }).ownershipFixture, old = w.D.activeEditorSession(), instance = old.instanceId;
+    w.A.openGraphicById(id);
+    let closed = false; try { old.port.restore({ selectedParts: [], time: 99 }); } catch { closed = true; }
+    return { closed, instance, privateId: w.S.useTemplateStore.getState().documentId };
+  }, lastGraphic);
+  expect(reopened.closed).toBe(true); expect(reopened.privateId).not.toBe(privateId);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { ownershipFixture: Fixture }).ownershipFixture.C.activeEditorCommands().session.instanceId)).not.toBe(reopened.instance);
+  expect(await page.evaluate(() => (window as unknown as { retainedViewFrame: Element | null }).retainedViewFrame === document.querySelector('iframe[title="Foundation graphic preview"]'))).toBe(false);
+  await expect(page.getByRole('combobox', { name: 'Canvas zoom', exact: true })).toHaveValue('1');
+  await expect(page.locator('.ef-group-breadcrumbs button')).toHaveCount(1);
+  expect(await page.getByTestId('foundation-ruler').getAttribute('aria-valuenow')).not.toBe(clock);
+});
+
+for (const draft of ['pen', 'inline', 'pointer', 'image'] as const) test(`same-private baseline rebind discards pending ${draft} work without changing source`, async ({ page }) => {
+  await seedAuthoringProject(page);
+  await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
+  await page.evaluate(async () => {
+    const [S, D] = await Promise.all([import('/src/store/templateStore.ts'), import('/src/components/editorFoundation/documentAdapter.ts')]);
+    (window as unknown as { transientOwner: { S: typeof S; D: typeof D } }).transientOwner = { S, D };
+  });
+  const canvas = page.getByTestId('foundation-canvas'), box = (await canvas.boundingBox())!;
+  if (draft === 'pen') {
+    await page.getByRole('button', { name: 'pen tool', exact: true }).click();
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await expect(page.locator('[data-pen-point]')).toHaveCount(1);
+  } else if (draft === 'inline') {
+    await page.locator('.ef-track[data-selector="#f0"] .ef-layer').first().click();
+    const text = (await page.locator('.ef-selection rect').first().boundingBox())!;
+    await page.mouse.dblclick(text.x + text.width / 2, text.y + text.height / 2);
+    await expect(page.locator('.ef-inline-text textarea')).toBeVisible();
+    await page.locator('.ef-inline-text textarea').fill('Retired inline draft');
+  } else if (draft === 'pointer') {
+    await page.getByRole('button', { name: 'rectangle tool', exact: true }).click();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2 + 40);
+  } else {
+    const data = await page.evaluate(() => { const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 32; canvas.getContext('2d')!.fillRect(0, 0, 32, 32); return canvas.toDataURL().split(',')[1]; });
+    await page.evaluate(() => {
+      const host = window as unknown as { releaseRead: () => void; readFinished: boolean }; host.readFinished = false;
+      const read = FileReader.prototype.readAsDataURL, decode = HTMLImageElement.prototype.decode;
+      FileReader.prototype.readAsDataURL = function(blob) { FileReader.prototype.readAsDataURL = read; host.releaseRead = read.bind(this, blob); };
+      HTMLImageElement.prototype.decode = async function() { await decode.call(this); host.readFinished = true; HTMLImageElement.prototype.decode = decode; };
+    });
+    await page.getByTestId('image-add-input').setInputFiles({ name: 'retired.png', mimeType: 'image/png', buffer: Buffer.from(data, 'base64') });
+    await expect.poll(() => page.evaluate(() => typeof (window as unknown as { releaseRead?: unknown }).releaseRead)).toBe('function');
+  }
+  const retired = await page.evaluate(() => {
+    const w = (window as unknown as { transientOwner: { S: typeof import('/src/store/templateStore.ts'); D: typeof import('/src/components/editorFoundation/documentAdapter.ts') } }).transientOwner;
+    const old = w.D.activeEditorSession(), state = w.S.useTemplateStore.getState(), before = state.template;
+    w.S.useTemplateStore.setState({ baseline: structuredClone(state.baseline) });
+    let closed = false; try { old.port.restore({ selectedParts: [], time: 99 }); } catch { closed = true; }
+    return { closed, before, privateId: state.documentId, instance: old.instanceId };
+  });
+  expect(retired.closed).toBe(true);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { transientOwner: { D: typeof import('/src/components/editorFoundation/documentAdapter.ts') } }).transientOwner.D.activeEditorSession().instanceId)).not.toBe(retired.instance);
+  await expect(canvas).toHaveAttribute('data-pending', 'false');
+  await expect(page.locator('[data-pen-point]')).toHaveCount(0); await expect(page.locator('.ef-inline-text textarea')).toHaveCount(0);
+  if (draft === 'pointer') await page.mouse.up();
+  if (draft === 'pen') { await canvas.focus(); await page.keyboard.press('Enter'); }
+  if (draft === 'image') {
+    await page.evaluate(() => (window as unknown as { releaseRead: () => void }).releaseRead());
+    await expect.poll(() => page.evaluate(() => (window as unknown as { readFinished: boolean }).readFinished)).toBe(true);
+    await expect(page.getByRole('button', { name: 'Add image file…', exact: true })).toBeEnabled();
+  }
+  const kept = await page.evaluate(() => { const state = (window as unknown as { transientOwner: { S: typeof import('/src/store/templateStore.ts') } }).transientOwner.S.useTemplateStore.getState(); return { id: state.documentId, source: state.template }; });
+  expect(kept.id).toBe(retired.privateId); expect(kept.source).toEqual(retired.before);
 });

@@ -54,13 +54,17 @@ export default function Canvas({ template, sampleData, session, time, selection,
   const [size, setSize] = useState({ width: 800, height: 450 });
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [editing, setEditing] = useState<{ selector: string; text: string; revision: Revision } | null>(null);
+  const [editing, setEditing] = useState<{ instance: string; selector: string; text: string; revision: Revision } | null>(null);
   const [marquee, setMarquee] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const marqueeStart = useRef<{ x: number; y: number; selection: string[]; additive: boolean; revision: Revision; hit?: string; moved: boolean } | null>(null);
+  const marqueeStart = useRef<{ instance: string; x: number; y: number; selection: string[]; additive: boolean; revision: Revision; hit?: string; moved: boolean } | null>(null);
   const clickSelection = useRef<string | null>(null);
   const space = useRef(false);
   const spaceTap = useRef(false);
   const drag = useRef<{ x: number; y: number; pan: typeof pan } | null>(null);
+  useEffect(() => {
+    setEditing(null); setMarquee(null); marqueeStart.current = null;
+    clickSelection.current = null; space.current = false; spaceTap.current = false; drag.current = null;
+  }, [session]);
   const { width, height } = template.resolution;
   const fit = Math.max(0.01, Math.min((size.width - 80) / width, (size.height - 64) / height));
   const scale = fit * zoom;
@@ -298,7 +302,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
         const index = event.altKey ? (hits.findIndex(p => p.selector === selection[0]) + 1) % Math.max(1, hits.length) : 0;
         const hit = hits[0], additive = !event.altKey && (event.shiftKey || event.ctrlKey || event.metaKey);
         if (!hit || (containers.has(hit.selector) && !selection.includes(hit.selector) && !event.altKey)) {
-          marqueeStart.current = { x, y, selection: [...selection], additive, revision: session.version(), hit: hit?.selector, moved: false };
+          marqueeStart.current = { instance: session.instanceId, x, y, selection: [...selection], additive, revision: session.version(), hit: hit?.selector, moved: false };
           if (!additive) setSelection([]);
           return;
         }
@@ -318,13 +322,13 @@ export default function Canvas({ template, sampleData, session, time, selection,
         if (group) { gesture.cancel(); enterGroup(group.selector); return; }
         for (const hit of hits) {
           const text = artworkText(template, hit.selector);
-          if (text) { gesture.cancel(); select(hit.selector, false); setEditing({ selector: hit.selector, text: text.text, revision: session.version() }); break; }
+          if (text) { gesture.cancel(); select(hit.selector, false); setEditing({ instance: session.instanceId, selector: hit.selector, text: text.text, revision: session.version() }); break; }
         }
       }}
       onPointerMove={event => {
         const start = marqueeStart.current;
         if (start) {
-          if (!sameRevision(start.revision, session.version())) { marqueeStart.current = null; setMarquee(null); return; }
+          if (start.instance !== session.instanceId || !sameRevision(start.revision, session.version())) { marqueeStart.current = null; setMarquee(null); return; }
           const p = pointerPoint(event, size, pan, scale, width, height);
           if (!start.moved && Math.hypot(p.x - start.x, p.y - start.y) * scale < 3) return;
           start.moved = true;
@@ -342,7 +346,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
       onPointerUp={() => {
         if (tool === 'pen') pen.end();
         const start = marqueeStart.current;
-        if (start?.hit && !start.moved && sameRevision(start.revision, session.version())) select(start.hit, start.additive);
+        if (start?.instance === session.instanceId && start.hit && !start.moved && sameRevision(start.revision, session.version())) select(start.hit, start.additive);
         marqueeStart.current = null; setMarquee(null); drag.current = null;
         const moved = gesture.end();
         if (moved === false && clickSelection.current) select(clickSelection.current, false);
@@ -376,7 +380,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
             transform={'matrix(' + drawingSpace.join(' ') + ')'} fill="color-mix(in srgb, var(--accent) 20%, transparent)" stroke="var(--accent)" strokeWidth={1 / scale} />}
         </svg>
       </div>
-      {editing && selection[0] === editing.selector && sameRevision(editing.revision, session.version()) && <div className="ef-inline-text">
+      {editing && editing.instance === session.instanceId && selection[0] === editing.selector && sameRevision(editing.revision, session.version()) && <div className="ef-inline-text">
         <ArtworkTextEditor selector={editing.selector} text={editing.text} session={session} close={() => setEditing(null)} autoFocus />
       </div>}
       {(status.pending || status.source !== session.version().source) && <span className="ef-stage-status" role="status">Preparing preview…</span>}

@@ -1,6 +1,6 @@
 {
-  "sourceCanonicalSha256": "f5bac45d41896cd24a975c3512bbf72a181358fea08a88fa044e9e61053dc471",
-  "sourceFileSha256": "5e8ffde74edf0f382d536c151cb5878211ecb7c6555414538acbc438a1cae356",
+  "sourceCanonicalSha256": "5e9713510286e1e0d0b9d4b876dcc8a35297f1d90be4216728b7125b93f488fc",
+  "sourceFileSha256": "c40d6ba5a895b5044b86bf61b07b7f2a3e1c16b2a932a87dd3974c0cd99f096b",
   "fixture": {
     "v": 1,
     "provenance": "NoaCG-authored test artwork and text; shipped catalog registry and bundled OFL font. No third-party reference-editor code or artwork.",
@@ -48,7 +48,7 @@
     {
       "target": "spx",
       "bytes": 395953,
-      "sha256": "97feaf997ead132e63825bac64475892eec3ccdca0f0820fc71538becfcbc8c3",
+      "sha256": "9580a8e2424b01be0f712ad54e5d4879dc8c78459a08de6a94300118865b7b19",
       "files": [
         "e4_receiving_steps/FIELDS.md",
         "e4_receiving_steps/GETTING-ON-AIR.md",
@@ -80,18 +80,29 @@
           "logo": 32,
           "rect": {
             "x": 153,
-            "y": 303.5,
+            "y": 483.5,
             "width": 216.203125,
             "height": 25
           }
         },
-        "missing": []
+        "missing": [],
+        "painted": {
+          "count": 4400,
+          "box": {
+            "minX": 120,
+            "minY": 372,
+            "maxX": 216,
+            "maxY": 707,
+            "width": 97,
+            "height": 336
+          }
+        }
       }
     },
     {
       "target": "html-overlay",
       "bytes": 460006,
-      "sha256": "8f84a25de8d8072be22ef89458d86e65695c612cb1cf5274ad0634ee73df4fe0",
+      "sha256": "ac406670964633ab98e043743023009b336875e55f72dc8bc3858d1e0d8cf383",
       "files": [
         "e4_receiving_steps/FIELDS.md",
         "e4_receiving_steps/GETTING-ON-AIR.md",
@@ -119,18 +130,29 @@
           "logo": 32,
           "rect": {
             "x": 153,
-            "y": 303.5,
+            "y": 483.5,
             "width": 216.203125,
             "height": 25
           }
         },
-        "missing": []
+        "missing": [],
+        "painted": {
+          "count": 4400,
+          "box": {
+            "minX": 120,
+            "minY": 372,
+            "maxX": 216,
+            "maxY": 707,
+            "width": 97,
+            "height": 336
+          }
+        }
       }
     },
     {
       "target": "casparcg",
       "bytes": 427628,
-      "sha256": "5b3cf0bd97c8a33f6dd67b2424c986fbfbc844b3cfc03f15cfdf5b9e4f5d6e6c",
+      "sha256": "d4d4e8f6f6e3e26b9e06b2c891f378e6175ab89b7f7af897fcc2a6fdacf2f461",
       "files": [
         "e4_receiving_steps/FIELDS.md",
         "e4_receiving_steps/GETTING-ON-AIR.md",
@@ -152,18 +174,29 @@
           "logo": 32,
           "rect": {
             "x": 153,
-            "y": 303.5,
+            "y": 483.5,
             "width": 216.203125,
             "height": 25
           }
         },
-        "missing": []
+        "missing": [],
+        "painted": {
+          "count": 4400,
+          "box": {
+            "minX": 120,
+            "minY": 372,
+            "maxX": 216,
+            "maxY": 707,
+            "width": 97,
+            "height": 336
+          }
+        }
       }
     },
     {
       "target": "ograf",
       "bytes": 516677,
-      "sha256": "a74f17ed6b00bf3529d1bb3898a6ea9dbfc70087ec05c3411b1e6f9ffc3194f2",
+      "sha256": "52b7610620979cc9981f634f3e4b0e22e259b7e6a93c005c94e5b1c0ec5173f7",
       "files": [
         "e4_receiving_steps/FIELDS.md",
         "e4_receiving_steps/README.md",

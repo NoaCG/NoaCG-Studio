@@ -106,10 +106,40 @@ test('real isolated auth persists project drafts/history and independent install
       const got = fresh.drafts.find(d => d.id === document.id)!;
       expect(got.template).toEqual(document.template); expect(got.history).toEqual(document.history); expect(got.future).toEqual(document.future);
     }
+    // Rollback is a fresh directed mutation after the installed revision has synced.
+    const inverse = await reopened.evaluate(async target => {
+      const P = await import('/src/store/authoringProjects.ts');
+      const plan = P.workspace().installations!.find(p => p.target === target)!;
+      const result = await (await import('/src/control/projectInstallation.ts')).retryProjectInstallation(plan.id, true);
+      return { plan: result, show: (await import('/src/model/shows.ts')).loadShows().find(s => s.id === target)! };
+    }, prepared.showIds[0]);
+    expect(inverse.plan.status).toBe('rolled-back'); expect(inverse.show).toEqual(inverse.plan.rollback);
+    expect(inverse.show.updatedAt > inverse.plan.after.updatedAt).toBe(true);
+    expect({ ...inverse.show, updatedAt: inverse.plan.before.updatedAt }).toEqual(inverse.plan.before);
+    await reopened.evaluate(async () => { await (await import('/src/backend/syncController.ts')).syncNow(); });
+    await settleSync(reopened);
+    const rolledCloud = await admin.from('documents').select('body').eq('user_id', uid).eq('kind', 'show');
+    expect(rolledCloud.error).toBeNull();
+    expect(rolledCloud.data!.find(r => r.body.id === prepared.showIds[0])!.body).toEqual(inverse.show);
+    expect(rolledCloud.data!.find(r => r.body.id === prepared.showIds[1])!.body).toEqual(prepared.beforeCopies[1]);
+    await second.close();
+    second = await browser.newContext({ baseURL });
+    const afterInverse = await second.newPage();
+    await signInOnHome(afterInverse, email, password);
+    await expect(afterInverse.getByTestId('home-projects')).toContainText('E4 show');
+    const inverseFresh = await afterInverse.evaluate(async ({ target, installation }) => {
+      const I = await import('/src/control/projectInstallation.ts');
+      const before = (await import('/src/model/shows.ts')).loadShows().find(s => s.id === target)!;
+      const retry = await I.retryProjectInstallation(installation);
+      return { before, retry, after: (await import('/src/model/shows.ts')).loadShows().find(s => s.id === target)! };
+    }, { target: prepared.showIds[0], installation: inverse.plan.id });
+    expect(inverseFresh.before).toEqual(inverse.show); expect(inverseFresh.after).toEqual(inverse.show);
+    expect(inverseFresh.retry.rollback).toEqual(inverse.plan.rollback); expect(inverseFresh.retry.status).toBe('rolled-back');
     receipt = {
       source: process.env.E4_PROJECTS_SOURCE, isolated: true, firstPageClosedBeforeFreshContext: true,
       documentIds: ids, graphicIds: prepared.graphicIds, productionIds: prepared.showIds,
       projectRow: projectRow.id, cloudKinds: stored.data!.map(r => r.kind).sort(), historyRestored: true,
+      rollbackSurvivesSyncAndFreshContext: true,
       sourceSha256: createHash('sha256').update(JSON.stringify(fresh.source)).digest('hex'), independentCopies: true,
     };
   } finally {

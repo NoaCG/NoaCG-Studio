@@ -79,8 +79,8 @@ export default function ProjectPanel({ beforeAction = () => {} }: { beforeAction
     {(w.installations ?? []).length > 0 && <details><summary>Installations</summary>{w.installations!.map(p => <div key={p.id} className="project-installation" data-installation={p.id}>
       <span>{p.after.name} · {p.sources.length} · {p.status === 'prepared' ? 'Interrupted or awaiting confirmation' : p.status}</span>
       {p.error && <p role="alert">{p.error}</p>}
-      {p.status !== 'rolled-back' && <><button disabled={locked} onClick={() => void run(async () => { await retryProjectInstallation(p.id); setNote('Installation confirmed.'); })}>Retry installation</button>
-        <button disabled={locked} onClick={() => void run(async () => { await retryProjectInstallation(p.id, true); setNote('Installation rolled back.'); })}>Roll back installation</button></>}
+      {p.status !== 'rolled-back' && <><button disabled={locked} onClick={() => void run(async () => { const result = await retryProjectInstallation(p.id); setNote(result.status === 'rolled-back' ? 'Installation rolled back.' : 'Installation confirmed.'); })}>{p.rollback ? 'Retry rollback' : 'Retry installation'}</button>
+        {!p.rollback && <button disabled={locked} onClick={() => void run(async () => { await retryProjectInstallation(p.id, true); setNote('Installation rolled back.'); })}>Roll back installation</button>}</>}
     </div>)}</details>}
     {(note || projectError) && <p role="status" data-testid="project-note">{note || projectError}</p>}
     {newProject && <Suspense fallback={<p role="status">Loading starters…</p>}><ProjectStarter close={() => setNewProject(false)} /></Suspense>}

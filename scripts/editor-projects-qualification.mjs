@@ -49,7 +49,7 @@ try {
   for (const suite of report.suites ?? []) collect(suite);
   if (report.errors?.length || tests.length !== 1 || report.stats?.expected !== 1 || report.stats?.skipped !== 0 || report.stats?.unexpected !== 0 || report.stats?.flaky !== 0 || tests[0].status !== 'expected' || tests[0].expectedStatus !== 'passed' || tests[0].results?.length !== 1 || tests[0].results[0].status !== 'passed' || tests[0].results[0].retry !== 0) throw new Error('Expected exactly one complete passing test, zero skips/retries/errors.');
   const receipt = JSON.parse(readFileSync(receiptPath, 'utf8'));
-  if (receipt.source !== summary.source || receipt.isolated !== true || receipt.firstPageClosedBeforeFreshContext !== true || receipt.historyRestored !== true || receipt.independentCopies !== true || receipt.accountDeleted !== true) throw new Error('The exact-source persistence and cleanup receipt is missing or incomplete.');
+  if (receipt.source !== summary.source || receipt.isolated !== true || receipt.firstPageClosedBeforeFreshContext !== true || receipt.historyRestored !== true || receipt.independentCopies !== true || receipt.rollbackSurvivesSyncAndFreshContext !== true || receipt.accountDeleted !== true) throw new Error('The exact-source persistence and cleanup receipt is missing or incomplete.');
   summary.status = 'passed';
   console.log(`PASS E4 isolated persistence at ${summary.source}: 1 test, zero skips/retries; account deleted.`);
 } catch (error) {

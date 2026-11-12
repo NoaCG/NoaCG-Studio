@@ -1,6 +1,6 @@
 import { graphicById } from '../model/library';
 import { loadShows } from '../model/shows';
-import { planProjectInstallation, reconcileProjectTarget, type ProjectInstallation } from '../model/projectInstallation';
+import { planProjectInstallation, planProjectRollback, reconcileProjectTarget, type ProjectInstallation } from '../model/projectInstallation';
 import { authoringWorkspace, stageAuthoringWorkspace, workspaceRefusal, writeAuthoringWorkspace } from '../model/project';
 import { readableWorkspace } from '../model/authoringDocument';
 import { captureDurableWrites, commitDurableReceipt } from '../model/durableStore';
@@ -41,7 +41,13 @@ export function installProjectGraphics(target: string, graphicIds: string[]): Pr
   });
 }
 async function apply(plan: ProjectInstallation, rollback = false): Promise<ProjectInstallation> {
+  // Once an inverse is durable, a default retry must never switch back to forward install.
+  rollback = rollback || !!plan.rollback;
   if (plan.status === 'rolled-back' && !rollback) throw new Error('This installation was rolled back. Start a new installation.');
+  if (rollback && !plan.rollback) {
+    plan = planProjectRollback(plan);
+    await retain(plan);
+  }
   const result = await reconcileProjectTarget(plan, rollback);
   if (result.status === 'failed') throw new Error(result.error ?? 'The production write was refused. The installation is retained for retry.');
   const next: ProjectInstallation = { ...plan, status: result.status === 'refused' ? 'conflict' : rollback ? 'rolled-back' : 'confirmed', ...(result.error ? { error: result.error } : { error: undefined }) };

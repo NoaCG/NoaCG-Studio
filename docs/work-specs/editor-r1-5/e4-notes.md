@@ -374,3 +374,114 @@ become a false local override; distinct CSS family names must retain their CSS
 identity rather than bundled-lookup normalization. The eleven source/font cases
 pass; no per-font
 exception was introduced. All original failures remain in their logs/receipts.
+
+### Later rollback and painted-output rules (before the second repair)
+
+Current-head review found an inverse-operation ownership gap. Actual source at
+`a534b14e5` reproduces it: rollback restores an 08:00 production revision after
+its 09:00 installed revision synced; the actual reconciliation rule at a 10:00
+bookmark pulls the installation back. A failed rollback confirmation also leaves
+a forward receipt, so a default retry can reinstall. These are one product
+family: the inverse operation needs its own durable intent and revision.
+
+Before touching the target, rollback must durably prepare one immutable inverse
+snapshot with the original contents and a fresh production revision later than
+both captured revisions. Every retry, including default Retry after reload,
+uses that recorded direction and exact snapshot. A failed intent write leaves
+the target untouched; failed target or final receipt writes retain the same
+inverse intent. A target equal to the recorded inverse confirms without another
+mutation or revision; a target equal to the recorded installed snapshot may be
+replaced only after output/prepared/on-air refusal takes precedence, even
+when that target exactly matches the installed snapshot. Every other target,
+including later edits, refuses and remains byte-for-byte intact. Lost answers
+reconcile the same durable inverse; they never mint another revision. All
+workspace writers must retain that intent until reconciliation. Existing forward stable IDs and exact
+before/after recognition remain required. Rollback cannot turn back into a
+forward installation implicitly.
+
+The three staged export replay PNGs at this head are blank white. Counter=1
+proves an accepted replay, not painted output. Retain those original images and
+receipts. A replacement reference must wait for observable visible source/output
+state, preserve all existing data/font/logo/step/Out assertions, capture each
+actual SPX/CasparCG/HTML Overlay receiver, and be visually inspected. No task-delay
+yield, fixed wait, weakened assertion or host/operator acceptance claim follows.
+
+The independent bounded model challenge agreed with those corrections before
+repair: output refusal precedes installed equality; lost answers and every
+workspace writer retain the recorded inverse. Full review at a534b14e5 remains
+B, with both inverse defects and blank replay references retained.
+
+Current CI also exposed the repeated ownership class before round 2: all three
+unchanged first-save leave-replay cases lose their existing iframe load listener.
+J-0076 reproduced all three failures; its arrangement and ticker cases passed.
+The owned, unchanged admission-source control j-0077 passed all five in 51.9s.
+Neither local pass classifies the two nonreproduced CI failures as flakes.
+
+A fresh independent approach reassessment completed before any ownership patch.
+Private authoring UUID owns the persistent viewport, playhead and group location;
+private UUID + baseline + public identity own short-lived session capabilities;
+public identity remains the command/preview compatibility ID. A same-owner Save
+As must retain its iframe DOM and view while rebinding commands/controller and
+refusing every old capability immediately. A true private-owner switch must not
+inherit view state merely because the library UUID is equal. Numeric revision
+counters alone never authorize transient drafts across new session instances:
+inline edits, marquee/pointers, Pen and artwork gestures are instance-owned and
+must clear/refuse at rebinding. Existing proposal/menu/timeline/dialog instance
+keys and image/keyboard cancellation remain required. Save/leave's held link,
+preview navigation/history event and all final leave/library assertions stay
+unchanged. This model was explicitly challenged for the complete caller class.
+
+The scoped existing capture contract is
+`templates/after-graphic-settles-capture-runner-temporarily`: its will-change
+paint fence is confined to reference capture after visible opacity/data/logo
+assertions. It adds no playback task/time delay or assertion allowance.
+
+
+Round-2 engineering receipts retain the failures as well as the repairs. J-0078
+passed all three unchanged save/leave cases, inverse intent refusal and receiving
+DOM checks, but two new inverse fixtures initially tried a button inside an
+unopened disclosure. Opening that disclosure preserves the intended UI retry;
+j-0079 then passed all three inverse crash windows in 15.8s. The durable inverse
+snapshot has a fresh revision, survives every slot writer and directs default
+retries after reload; newer edits still refuse. The real isolated one-case walk
+now additionally requires synced rollback, another close-before-fresh sign-in
+and idempotent default retry. That stronger backend proof remains pending the
+next exact-head Actions run, with the original 60s/5min limits unchanged.
+
+J-0084 passed five ownership cases in 18.2s: same-private iframe DOM, zoom/pan,
+clock and group continuity through Save As/baseline rebind; same-public/new-private
+view reset; old command/port refusal before refresh; and pending Pen, inline,
+pointer and async-image work discarded without source mutation. Existing numeric
+revision checks gain instance ownership; image busy/error resets on rebind while
+its existing cleanup invalidates pending reads.
+
+J-0078's replacement captures were still blank despite root opacity=1. J-0080/81
+added strict green-artwork pixel proof and exposed the hidden ancestor:
+.info-card-box opacity=0 and a full clip, with valid visible/in-viewport root,
+logo and heading geometry. This was premature capture during the authored
+0.25-0.9s box entrance, not a demonstrated runtime/compositor defect. J-0082
+proved opacity settled but its new clip check used a different zero spelling;
+the actual source declares inset(0 0% 0 0), computed inset(0px 0% 0px 0px).
+J-0083 requires that endpoint and the heading's identity transform before the
+existing capture paint fence. It passed in 23.5s; all three actual receiver PNGs
+were opened and inspected at 1920x1080, with 4,400 authored-green pixels each.
+The original counter-only blanks and failed new captures remain historical;
+`round2-premature-blank-j0078` is explicitly a failed archive. Successful source,
+four exact ZIP hashes, manifest and painted references are staged from j-0083
+and archived separately as `round2-settled-receiving`. No time/task wait, seek,
+engine or sample-output alteration was used to create those reference frames.
+
+A broader local selection was refused before execution while this repair was
+uncommitted; it will run only after the coherent reviewed source is committed.
+Normal a534 CI43231538681 remains FAILED, even though its full build, all four
+configured stacks and ALL63-spec verdict passed. Its three save/leave failures
+are reproduced and addressed above. The arrangement async-evaluate failure and
+ticker pace measurement failure did not reproduce in either local candidate or
+admission-source control; both remain unclassified original CI failures. Their
+existing assertions, timing limits and runtime are unchanged.
+
+Final affected checks before the round-2 checkpoint: changed-path gates 96/96,
+font/codec checks 13/13, affected ESLint/application TypeScript and dependency
+cruise pass. Fresh origin/main c1ce4e4e7 reconciles with a clean merge-tree and
+clear merge-order; no merge is required. Check/simplify review covers the full
+48-path branch scope, including the four Canvas/import gesture lifetime paths.

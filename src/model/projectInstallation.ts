@@ -11,6 +11,8 @@ export interface ProjectInstallation {
   sources: { id: string; updatedAt: string }[];
   before: Show;
   after: Show;
+  /** A directed inverse is prepared durably once, before its target write. */
+  rollback?: Show;
   status: 'prepared' | 'confirmed' | 'rolled-back' | 'conflict';
   error?: string;
 }
@@ -39,16 +41,23 @@ export function planProjectInstallation(before: Show, sources: GraphicDoc[], at 
   return { v: 1, id: uuid(), target: before.id, sources: sources.map(g => ({ id: g.id, updatedAt: g.updatedAt })), before: structuredClone(before), after, status: 'prepared' };
 }
 
+export function planProjectRollback(plan: ProjectInstallation): ProjectInstallation {
+  if (plan.rollback) return plan;
+  const updatedAt = new Date(Math.max(Date.now(), Date.parse(plan.before.updatedAt) + 1, Date.parse(plan.after.updatedAt) + 1)).toISOString();
+  return { ...plan, rollback: { ...structuredClone(plan.before), updatedAt } };
+}
+
 /** Compare the stored production and put its replacement in the same IndexedDB transaction. */
 export async function reconcileProjectTarget(plan: ProjectInstallation, rollback = false) {
-  if (plan.v !== 1 || plan.target !== plan.before.id || plan.target !== plan.after.id) throw new Error('This installation receipt cannot be read safely.');
+  rollback = rollback || !!plan.rollback;
+  if (plan.v !== 1 || plan.target !== plan.before.id || plan.target !== plan.after.id || rollback && (!plan.rollback || plan.rollback.id !== plan.target)) throw new Error('This installation receipt cannot be read safely.');
   return conditionalDurableWrite('spx-gfx-shows', text => {
     const shows = JSON.parse(text ?? '[]') as Show[];
     if (!Array.isArray(shows)) return { refused: 'The productions could not be read safely.' };
     const index = shows.findIndex(s => s.id === plan.target), current = shows[index];
     if (!current || current.deleted || current.teamId || teamShowIds().has(plan.target)) return { refused: 'The production is no longer editable here.' };
     if (rollback && (current.outputSlug || current.hostedSlug || current.publishedAt)) return { refused: 'This production has been prepared for output. Stop and replace its installed copies explicitly in the production.' };
-    const wanted = rollback ? plan.before : plan.after, expected = rollback ? plan.after : plan.before;
+    const wanted = rollback ? plan.rollback! : plan.after, expected = rollback ? plan.after : plan.before;
     if (!sameInstallationTarget(current, wanted)) {
       if (!sameInstallationTarget(current, expected)) return { refused: 'Installation conflict: newer production edits were preserved. Inspect the production before continuing.' };
       shows[index] = structuredClone(wanted);

@@ -43,6 +43,7 @@ export default function EditorFoundation() {
   useTemplateStore(state => state.baseline);
   useTemplateStore(state => state.saved.graphicId);
   useAuthoringProjects(() => currentAuthoringDocument()?.id);
+  const authoringId = useTemplateStore(state => state.documentId);
   const template = useTemplateStore(state => state.template);
   const projectError = useAuthoringProjects(state => state.error);
   // Artwork authoring shows saved defaults; operator rehearsals retain their own samples.
@@ -55,11 +56,11 @@ export default function EditorFoundation() {
   const [drawingSpace, setDrawingSpace] = useState<import('./protocol').PreviewReply['drawingSpace']>(null);
   const images = useImageImport(session, drawingSpace);
   const openAssets = () => setProjectOpen(true);
-  const [clock, setClock] = useState({ documentId: session.documentId, time: session.port.view().time });
-  const [groupLocation, setGroupLocation] = useState<{ document: string; path: string[] }>({ document: session.documentId, path: [] });
+  const [clock, setClock] = useState({ documentId: authoringId, time: session.port.view().time });
+  const [groupLocation, setGroupLocation] = useState<{ document: string; path: string[] }>({ document: authoringId, path: [] });
   const hierarchy = useMemo(() => groupHierarchy(template), [template]);
   const organization = useMemo(() => inspectOrganization(template), [template]);
-  const groupPath = groupLocation.document === session.documentId ? groupLocation.path.filter(selector => hierarchy.groups.has(selector)) : [];
+  const groupPath = groupLocation.document === authoringId ? groupLocation.path.filter(selector => hierarchy.groups.has(selector)) : [];
   const groupScope = groupPath[groupPath.length - 1] ?? null;
   const [projectOpen, setProjectOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
@@ -80,11 +81,11 @@ export default function EditorFoundation() {
   const [playbackRun, setPlaybackRun] = useState(0);
   const playback = useRef<{ from: number; end: number; expected: ReturnType<typeof session.version>; session: typeof session } | null>(null);
   const view = useMemo(() => readTimeline(template), [template]);
-  const time = clock.documentId === session.documentId ? clock.time : session.port.view().time;
+  const time = clock.documentId === authoringId ? clock.time : session.port.view().time;
   const seek = useCallback((to: number, cue?: number) => {
     const next = onFlag(readTimeline(session.port.read()), to);
-    recordFoundationInput('scrub'); setSessionTime(next, cue); setClock({ documentId: session.documentId, time: next });
-  }, [session, setClock]);
+    recordFoundationInput('scrub'); setSessionTime(next, cue); setClock({ documentId: authoringId, time: next });
+  }, [session, authoringId, setClock]);
   const pause = useCallback(() => { playback.current = null; setPlaying(false); }, [setPlaying]);
   const togglePlayback = useCallback(() => {
     if (playing) { pause(); return; }
@@ -149,7 +150,7 @@ export default function EditorFoundation() {
     pause(); session.cancel(); setPathEditing(null); setLayerMenu(null);
     const path: string[] = [];
     for (let current: string | undefined = selector ?? undefined; current; current = hierarchy.parent[current]) path.unshift(current);
-    setGroupLocation({ document: session.documentId, path });
+    setGroupLocation({ document: authoringId, path });
     setSelection(selector ? [] : groupScope ? [groupScope] : []);
   };
   const history = (redo: boolean) => { setLayerMenu(null); pause(); preview.current?.stopExit(); if (redo) session.redo(); else session.undo(); seek(session.port.view().time, session.port.view().cue); };
@@ -253,7 +254,7 @@ export default function EditorFoundation() {
         <LiveDataControls key={'live-data:' + session.instanceId} template={template} execute={operation => { pause(); session.cancel(); images.execute([operation]); }} />
         <p className="ef-muted">Assets and operator fields for this graphic. Select artwork in Layers below the canvas.</p>
       </aside>
-      <Canvas key={session.documentId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} groupScope={groupScope} enterGroup={navigateGroup} setSelection={setSelection} openLayerMenu={(selector, x, y) => setLayerMenu({ selector, x, y, id: crypto.randomUUID(), instance: session.instanceId })} onAppearance={setAppearance} onDrawingSpace={setDrawingSpace} rootSelector={view.parts.find(p => p.kind === 'root')?.selector} connectPreview={connectPreview} togglePlayback={togglePlayback} pause={pause} openAssets={openAssets} pathEditing={pathEditing} onPathEditing={setPathEditing} />
+      <Canvas key={authoringId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} groupScope={groupScope} enterGroup={navigateGroup} setSelection={setSelection} openLayerMenu={(selector, x, y) => setLayerMenu({ selector, x, y, id: crypto.randomUUID(), instance: session.instanceId })} onAppearance={setAppearance} onDrawingSpace={setDrawingSpace} rootSelector={view.parts.find(p => p.kind === 'root')?.selector} connectPreview={connectPreview} togglePlayback={togglePlayback} pause={pause} openAssets={openAssets} pathEditing={pathEditing} onPathEditing={setPathEditing} />
       {assistantOpen ? <ProposalPanel key={session.instanceId} close={() => { setAssistantOpen(false); assistantButton.current?.focus(); }} /> : <Inspector reveal={activeReveal} seek={(time, cue) => { pause(); preview.current?.stopExit(); seek(time, cue); }} time={time} pause={pause} view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} appearance={appearance[selection[0]]} previewCss={previewCss} previewTemplate={previewTemplate} previewLoop={previewLoop} openAssets={openAssets} editPoints={setPathEditing} />}
     </div>
     <Timeline reveal={activeReveal} key={session.instanceId + ':' + (groupScope ?? 'composition')} groupScope={groupScope} enterGroup={navigateGroup} hierarchy={hierarchy} view={view} fps={template.fps} time={time} selection={selection} setSelection={selectors => { setPathEditing(null); setLayerMenu(null); recordFoundationInput('selection'); setSelection(selectors); }} layerMenu={layerMenu?.instance === session.instanceId ? layerMenu : null} seek={next => { pause(); preview.current?.stopExit(); seek(next, next >= view.out && session.port.view().cue === view.segments.length - 1 ? session.port.view().cue : undefined); }} select={select} playing={playing} togglePlayback={togglePlayback} session={session} pause={pause} inspectOut={inspectOut} playOut={playOut} parkOut={parkOut} inspectStep={inspectStep}

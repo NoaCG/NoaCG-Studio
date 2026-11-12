@@ -10,9 +10,10 @@ export function activeEditorSession(): EditorSession {
   const document = currentAuthoringDocument();
   const publicId = document?.id ?? state.saved.graphicId ?? state.documentId;
   if (active && !active.closed && active.id === state.documentId && active.baseline === state.baseline && active.publicId === publicId) return active.session;
+  const previousView = active?.id === state.documentId ? { time: active.time, cue: active.cue } : undefined;
   if (active) { active.closed = true; active.session.dispose(); }
   const openingTime = readTimeline(state.template).segments[0]?.duration ?? 0;
-  const binding = { id: state.documentId, publicId, closed: false, baseline: state.baseline, time: document?.view?.time ?? openingTime, cue: document?.view?.cue, session: null as unknown as EditorSession };
+  const binding = { id: state.documentId, publicId, closed: false, baseline: state.baseline, time: previousView?.time ?? document?.view?.time ?? openingTime, cue: previousView ? previousView.cue : document?.view?.cue, session: null as unknown as EditorSession };
   const owns = (next: ReturnType<typeof useTemplateStore.getState>) => !binding.closed && next.documentId === binding.id && next.baseline === binding.baseline &&
     (currentAuthoringDocument()?.id ?? next.saved.graphicId ?? next.documentId) === binding.publicId;
   const read = () => {

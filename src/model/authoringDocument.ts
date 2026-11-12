@@ -58,7 +58,7 @@ export function readableWorkspace(value: unknown): value is AuthoringWorkspace {
     projects.add(p.id);
   }
   if (w.installations !== undefined && (!Array.isArray(w.installations) || w.installations.some(p => !p || p.v !== 1 || typeof p.id !== 'string' || typeof p.target !== 'string' ||
-    !p.before || !p.after || p.before.id !== p.target || p.after.id !== p.target || !Array.isArray(p.sources) || !['prepared', 'confirmed', 'rolled-back', 'conflict'].includes(p.status)))) return false;
+    !p.before || !p.after || p.before.id !== p.target || p.after.id !== p.target || p.rollback !== undefined && (!p.rollback || p.rollback.id !== p.target || !Number.isFinite(Date.parse(p.rollback.updatedAt))) || !Array.isArray(p.sources) || !['prepared', 'confirmed', 'rolled-back', 'conflict'].includes(p.status)))) return false;
   return w.active === null || ids.has(w.active);
 }
 export function workspaceDocument(value: unknown): AuthoringDocument | undefined {

@@ -1,4 +1,4 @@
-import { useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import type { SpxTemplate } from '../../model/types';
 import { baseValues, type BaseValues, type Creation, type CreationKind } from '../../blocks/baseEdits';
 import { sameRevision, type EditorSession, type Revision } from './session';
@@ -19,7 +19,7 @@ export const inverseDelta = (matrix: number[], point: Point): Point =>
 export type Handle = { kind: 'corner' | 'edge'; index: number } | { kind: 'rotate' } | { kind: 'anchor' };
 type Tool = 'select' | 'anchor' | 'pen' | CreationKind;
 interface Gesture {
-  expected: Revision; start: Point; operations: EditorOperation[]; moved: boolean;
+  instance: string; expected: Revision; start: Point; operations: EditorOperation[]; moved: boolean;
   base?: BaseValues; part?: RenderedPart; handle?: Handle; creation?: Creation;
   members?: { base: BaseValues; part: RenderedPart }[];
   time: number; cue?: number; selection: string;
@@ -39,6 +39,7 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
   const [draft, setDraft] = useState<Creation | null>(null);
   const [error, setError] = useState('');
   const current = useRef<Gesture | null>(null);
+  useEffect(() => { current.current = null; setDraft(null); setError(''); }, [session]);
   /** Preview a move's operations; a move back to where the drag began (a Shift turn snapping to its
    *  start) shows the source again, once. */
   const show = (gesture: Gesture) => {
@@ -47,7 +48,7 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
     else if (gesture.drafted) { preview()?.previewTemplate(template); gesture.drafted = false; }
   };
   const cancel = (restoreView = true) => {
-    const active = !!current.current;
+    const active = current.current?.instance === session.instanceId;
     if (active) { session.cancel(restoreView); preview()?.previewTemplate(session.port.read(), 'cancel'); }
     current.current = null; setDraft(null);
     // Escape during an anchor drag ends the drag; the Anchor tool stays for the next one.
@@ -83,13 +84,13 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
       const local = drawingSpace ? inverseDelta(drawingSpace, { x: point.x - drawingSpace[4], y: point.y - drawingSpace[5] }) : point;
       const creation = !base && tool !== 'select' && tool !== 'anchor' && tool !== 'pen' ? { shape: tool, x: local.x, y: local.y, width: 160, height: 90 } : undefined;
       session.begin(expected);
-      current.current = { expected, start: point, operations: [], moved: false, base, part, handle, creation, members, time, cue, selection: JSON.stringify(session.port.view().selectedParts), duplicate,
+      current.current = { instance: session.instanceId, expected, start: point, operations: [], moved: false, base, part, handle, creation, members, time, cue, selection: JSON.stringify(session.port.view().selectedParts), duplicate,
         turn: handle?.kind === 'rotate' ? { last: point, swept: 0 } : undefined };
     } catch (cause) { setError(String(cause instanceof Error ? cause.message : cause)); }
   };
   const isCurrent = (gesture: Gesture) => {
     const view = session.port.view();
-    if (sameRevision(gesture.expected, session.version()) && view.time === gesture.time && view.cue === gesture.cue && JSON.stringify(view.selectedParts) === gesture.selection) return true;
+    if (gesture.instance === session.instanceId && sameRevision(gesture.expected, session.version()) && view.time === gesture.time && view.cue === gesture.cue && JSON.stringify(view.selectedParts) === gesture.selection) return true;
     cancel(false); setError('The document or selection changed. Start the gesture again.'); return false;
   };
   const move = (point: Point, modifiers: { shiftKey: boolean; altKey: boolean }) => {
