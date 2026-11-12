@@ -1626,7 +1626,7 @@
     "repairCandidate": {
       "head": "a534b14e5af899ad7f93966d175246a3f469fae4",
       "normalCi": 43231538681,
-      "normalCiStatus": "in_progress firstattempt; plan131227828019SUCCESS readindependently byroot",
+      "normalCiStatus": "TerminalFAILURE14:08:34Z attempt1, all33jobs terminal. Build/Factory/catalog/all4configuredstacks+verdict131236511024SUCCESS; offline11/4/8 and Reviewed/CIgateFAIL; no rerun/stamp.",
       "rootPrReadback": "Head matches, mergeable true, auto_merge null, open/unmerged",
       "isolated": 43231643582,
       "review": "One new Codex review, fresh FULL SO only after actual capacity; no prior grade or backend result reused as final proof",
@@ -1649,7 +1649,7 @@
     "secondPostOpenRound": {
       "source": "a534b14e5af899ad7f93966d175246a3f469fae4",
       "round": 2,
-      "status": "Full SO consolidatedB at a534. New discovered Rules written in notes before code, bounded independent model challenge pending; no product patch yet.",
+      "status": "Rollback model independently challenged/corrected; bounded rollback WIP only. Repeated ownership class confirmed locally; fresh read-only reassessment running before view patch. One consolidated round2 remains, no budget reset.",
       "classes": [
         {
           "class": "product",
@@ -1662,7 +1662,33 @@
           "evidence": "Independent SO and root viewed html-overlay/spx/casparcg replayPNGs: blankwhite1280x720; operator screenshot has content. Preserve original captures, distinguish product output from counter-only/capture timing. Stronger observable painted-state proof required, no added wait."
         }
       ],
-      "ruleRequirements": "State discovered rollback Rules separately; prepare durable direction and stable fresh inverse revision before target; retries recognize exactinverse, preserve newer/onair edits; independent model challenge before coding; one combined checkpoint. Existing caps/limits unchanged."
+      "ruleRequirements": "State discovered rollback Rules separately; prepare durable direction and stable fresh inverse revision before target; retries recognize exactinverse, preserve newer/onair edits; independent model challenge before coding; one combined checkpoint. Existing caps/limits unchanged.",
+      "ciFailures": [
+        {
+          "job": 131228074675,
+          "spec": "save-transaction-leave.spec.ts",
+          "failed": 3,
+          "passed": 133,
+          "causeEvidence": "Original39frameLoads>0 held-save preview-history precondition got0 inCI; all3reproduced in j0076; public-ID Canvas remount and broader clock/group/view ownership class under fresh reassessment"
+        },
+        {
+          "job": 131228074703,
+          "spec": "editor-arrangement.spec.ts:164",
+          "failed": 1,
+          "passed": 200,
+          "causeEvidence": "page.evaluate contextdestroyed/navigation; local j0076PASS, not classifiedpreexisting orflake"
+        },
+        {
+          "job": 131228075033,
+          "spec": "ticker-linked-update.spec.ts:163",
+          "failed": 1,
+          "passed": 91,
+          "causeEvidence": "speedonlyframe1094.2px in0.006s >4.13499999999; localj0076PASS, not classifiedpreexisting orflake"
+        }
+      ],
+      "reassessment": "Explicitfresh read-only /root/editor_r15_e4_cloud_builder/e4_ownership_reassessment_a534 fork-none onimmutablea534; public/private clock/group/Canvas ownership model; no test precondition weakening",
+      "control": "Owned /workspace/noacg-editor-r1-5-e4-control feature worktree atunchanged91a57833 createdbeforework; same5maintained cases queued after ownpreflight; results pending",
+      "captureModel": "Existing documented paint-fence onlyforcapture AFTERvisibleopacity/data/logo assertions; no product playbackwait or limit changes. OriginalblankPNGs retained."
     }
   }
 }
