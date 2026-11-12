@@ -67,9 +67,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "build / second review round held",
+      "step": "build / second combined repair verification",
       "pr": 2438,
-      "note": "a534 passed isolated backend; Codex and independent review found rollback durability defects and blank export captures. Head frozen pending consolidated findings and model correction; no queue stamp/auto-merge."
+      "note": "Rollback and private view-ownership repairs passed focused checks after independent model challenges. Actual painted export images verified. Existing tests retained; final affected regressions and new-head CI/backend/reviews remain required."
     }
   ],
   "owner": [
@@ -1458,7 +1458,7 @@
     "requestSha256": "bcfabef5e1347043b92cde2edc0f69da57df24eda1c49e7415c7ce4bd8281754",
     "brief": "briefs/e4-build-e4-b-cloud-1112.txt",
     "briefSha256": "2c7379c7dc2988405d565f2a2e1d72393a398e1f3cd671cf7bc4744cfd2e9888",
-    "status": "a534 head frozen: second confirmed review round, rollback revision/journal product class plus blank receiving evidence; full SO consolidation pending",
+    "status": "Second combined repair in working tree after independent rollback model challenge and required fresh ownership reassessment; new tests/paint proof PASS, affected regression and new candidate gates pending",
     "rulesFirst": {
       "head": "0515e370d",
       "verdict": "AGREE WITH CORRECTIONS",
@@ -1649,7 +1649,7 @@
     "secondPostOpenRound": {
       "source": "a534b14e5af899ad7f93966d175246a3f469fae4",
       "round": 2,
-      "status": "Rollback model independently challenged/corrected; bounded rollback WIP only. Repeated ownership class confirmed locally; fresh read-only reassessment running before view patch. One consolidated round2 remains, no budget reset.",
+      "status": "One uncommitted combined round2. Rollback model challenged/corrected BEFORE its patch; fresh independent ownership approach reassessment completed BEFORE its patch. No budget/history reset, current committed head a534 still unapproved.",
       "classes": [
         {
           "class": "product",
@@ -1688,7 +1688,24 @@
       ],
       "reassessment": "Explicitfresh read-only /root/editor_r15_e4_cloud_builder/e4_ownership_reassessment_a534 fork-none onimmutablea534; public/private clock/group/Canvas ownership model; no test precondition weakening",
       "control": "Owned /workspace/noacg-editor-r1-5-e4-control feature worktree atunchanged91a57833 createdbeforework; same5maintained cases queued after ownpreflight; results pending",
-      "captureModel": "Existing documented paint-fence onlyforcapture AFTERvisibleopacity/data/logo assertions; no product playbackwait or limit changes. OriginalblankPNGs retained."
+      "captureModel": "Existing documented paint-fence onlyforcapture AFTERvisibleopacity/data/logo assertions; no product playbackwait or limit changes. OriginalblankPNGs retained.",
+      "freshReassessmentVerdict": "AGREE WITH CORRECTIONS, scoped model only notfullA; private authoring UUID owns durable view/clock/group/Canvas, binding privateUUID+baseline+publicidentity owns transient capability, publicsessionID compatibility only; transient edits invalidated on sessioninstance",
+      "ownershipProof": "j0078 original3saveleavecases PASS unchanged, then j0084 all5strongview/capabilitycases PASS18.2s: sameprivate iframe/zoom/pan/clock/group through2SaveAs+baseline, samepublic/newprivate reset, pendingPen/inline/pointer/asyncimage cannotmutatesource; oldcommands before-refreshretired",
+      "rollbackProof": "j0079 three crash windows PASS15.8s; initial j0078 newfixture disclosure selectionFAIL retained and corrected by opening existing Installations disclosure only",
+      "controlResult": "j0077 on owned91a57833 control ALL5PASS51.9s,2workers; branchj0076 failedall3saveleave/passfocus+ticker. Mechanism+freshassessmentconfirmsviewownershipregression; focus/ticker remainunreproduced, no preexisting/flakeverdict yet",
+      "captureProof": "j0083 receivingPASS23.5s. Authored child opacity/clip0.25-0.9s +headingtransform0.5-1.2s hadnotsettled atoldcounter/root assertion. Newtest checks declared endpoints beforeexistingpaintfenceandstrictauthored-greenoracle; no sleep/seek/engine/samplechange. Rootindependentlyviewedcurrentstagedoutput andcheckedall3hashes/pixels.",
+      "receivingImages": {
+        "width": 1920,
+        "height": 1080,
+        "sha256AllThree": "994ddb37c51f56eea9bf3a56c3c047fcc0724cdde0423346cc0c2c010bde2318",
+        "colorsEach": 313,
+        "opaqueAuthoredGreenPixelsEach": 4400,
+        "visible": "logo/greenrule/HARBOURBULLETIN",
+        "historyCaution": "Ignored round2-painted-receiving actuallycontainsold1280white3878570...; do not cite ascurrentproof. Successfulcurrentimagesin maintainedstagedreceiving path."
+      },
+      "retainedPaintFailures": "j0080/81 actual0green/hiddenchild; j0082 newlyaddedwrong CSSserialization expectation inset0px versusauthored0% failure; all preserved",
+      "isolatedExtension": "ExistingONEcase strengthened to rollbackaftersync thencloseoriginalpagebeforeanotherfreshsameaccountcontext/defaultretry; original60s/5mincaps/zero skips/retries unchanged; actualnewheadrun stillrequired",
+      "next": "Affected existing Canvas/hooks regression, finaltargetedchecks/coherentcommit/push, actualnormalCIcapacity/configuredselection, exactisolatedqualification, one newCodexrequest, freshFULLSO A/A+."
     }
   }
 }
