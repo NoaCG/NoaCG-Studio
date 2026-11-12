@@ -634,7 +634,7 @@ test('the layer stack reorders and removes; deleting the show keeps nothing behi
   expect(stored.payloads).toEqual([0]);
 });
 
-test('a rundown export ships the LIVE graphic, not the snapshot from when it was added', async ({ page }) => {
+test('a rundown export ships the production\'s copy, and a library edit only after Update', async ({ page }) => {
   // Save the graphic to the library so the rundown copy carries a graphicId, then add it. The
   // save controls sit in the new editor's header, where the old topbar's were.
   await bootstrapGraphic(page, { category: 'lower-third', name: 'Hairline' });
@@ -656,17 +656,26 @@ test('a rundown export ships the LIVE graphic, not the snapshot from when it was
   });
 
   // The export lives on the production page.
-  await page.getByTestId('production-setup').click();
-  await page.getByTestId('export-production').click();
-  const [download] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByTestId('prod-export-download').click(),
-  ]);
-  const zip = await JSZip.loadAsync(readFileSync(await download.path()));
-  const css = await zip.file('live_rundown/anchor_l3/css/template.css')!.async('string');
-  // The export carries the edit made AFTER the graphic was added — the live library template,
-  // not the snapshot embedded at add time.
-  expect(css).toContain('EDITED-AFTER-ADD');
+  const exportedCss = async () => {
+    await page.getByTestId('production-setup').click();
+    await page.getByTestId('export-production').click();
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByTestId('prod-export-download').click(),
+    ]);
+    const zip = await JSZip.loadAsync(readFileSync(await download.path()));
+    const css = await zip.file('live_rundown/anchor_l3/css/template.css')!.async('string');
+    await page.getByTestId('production-export-dialog').locator('.gallery-close').click();
+    await expect(page.getByTestId('production-export-dialog')).toBeHidden();
+    return css;
+  };
+  // The production's copy is the only truth (live-publishing W2, designs/G1.md R1): the export
+  // ships what the monitors show, and the library edit waits for Update.
+  expect(await exportedCss()).not.toContain('EDITED-AFTER-ADD');
+  await expect(page.getByTestId('newer-design')).toContainText('Newer design in library', { timeout: 15_000 });
+  await page.getByTestId('design-update').click();
+  await expect(page.getByTestId('newer-design')).toHaveCount(0, { timeout: 15_000 });
+  expect(await exportedCss()).toContain('EDITED-AFTER-ADD');
 });
 
 test('Home lists productions and the production page exports the package', async ({ page }) => {

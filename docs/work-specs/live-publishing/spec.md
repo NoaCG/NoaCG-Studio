@@ -403,3 +403,28 @@ Filled in by each phase's pull request.
   the page going also records the owed edit in localStorage, and the production page applies it
   once on its next visit unless the production was saved after it. Rules P1 to P5 in the evidence.
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-3.md`.
+
+### Phase 4: The production's copy is the only truth; old pages only play out
+
+- Design: `designs/G1.md`, graded A by an independent `/so` at e32746e, landed as #2404.
+- Previous verified `main`: eee7827892b1936c00acc263655cf6a6e753e4be.
+- Revert: `git revert -m 1 <this pull request's merge commit>` brings back library-first reads and
+  the publish's copy refresh. Migration 0115 stays applied and is inert while the
+  `production_copies` switch is off; turn the switch off first if it was turned on (delete the
+  `system_settings` row or set `"on"` to false). The `designAt` stamps left on copies are additive
+  and ignored by the older code; its record digest reads a `2:` digest as changed until the next
+  publish.
+- Rules: G1 section 7, R1 to R13 (stated before the code, reviewed Rules-first in the design gate).
+- Decisions: the personal sync settle runs inside the sync engine (the settle is pure kernel code,
+  so no registration hook was needed); a team publish or export flushes the team save, which
+  settles; the production page re-reads its library only when the stored library moved, by
+  reference; adding a graphic the production already holds replaces it as before and stamps it
+  (G1 section 2 had it ask the dropped-field question; refusing it broke the wizard's confirmed
+  re-import "Replace anyway"); `production_copies_state()` is for signed-in pages only and recorded
+  in the advisor baseline; the new browser checks extend the publish guard's configured spec, since
+  backend growth is stopped. Found while building: adoption must settle against the server's copy
+  before it stamps, or it keeps an old page's pulled design (caught by the configured walk). The switch is turned on separately, by the owner or the coordinator with the owner's
+  permission, after the app is live and `production_copies_state()` reports the mark on
+  production (G1 section 6).
+- Traps: in the evidence, "Traps met".
+- Evidence: `docs/work-specs/live-publishing/evidence/phase-4.md`.

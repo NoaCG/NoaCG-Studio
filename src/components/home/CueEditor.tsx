@@ -1097,6 +1097,7 @@ export default function CueEditor({
   show,
   setShows,
   poolGraphic,
+  designUpdate = null,
   editingCue,
   draft,
   editingCueNo,
@@ -1158,6 +1159,9 @@ export default function CueEditor({
   show: Show;
   setShows: (shows: Show[]) => void;
   poolGraphic: SavedGraphic;
+  /** The library holds a newer design of this graphic (live-publishing O4): what Update would drop,
+   *  in words, and the Update itself. Null when there is none. */
+  designUpdate?: { dropped: string | null; run: () => Promise<void> } | null;
   editingCue: ShowCue;
   /** The cue being typed, which the editor shows over the record. */
   draft: Pick<CueDraft, 'part'>;
@@ -1690,6 +1694,9 @@ export default function CueEditor({
           cannot be closed: two graphics on one layer replace each other on air, so the
           repair must never be one click away behind a closed disclosure. The rundown's
           clash badge lands here too (`openLayerRepair`). */}
+      {designUpdate && (
+        <DesignUpdate key={poolGraphic.id} update={designUpdate} disabled={!authoringAllowed} />
+      )}
       <div className={`pd-advanced${layerClash ? ' clash' : ''}`} data-testid="cue-advanced">
         <button
           type="button"
@@ -1731,6 +1738,7 @@ export default function CueEditor({
                 data-testid="graphic-layer"
               />
             </label>
+
             {/* THE DATA TEMPLATE (data-sources C1a, AC-13): every value of this graphic as
                 `Field ID,Label,Value`, keyed by id so a reordered row or a renamed label still
                 reaches its field. A spreadsheet coerces "007" and "=1+1" unless told not to. */}
@@ -1763,6 +1771,32 @@ export default function CueEditor({
       </div>
       )}
       {sounds(editingView)}
+    </div>
+  );
+}
+
+/** "Newer design in library" and its Update (live-publishing O4). A design that drops a field cues
+ *  use names it first: the first press arms, the second takes it. */
+function DesignUpdate({ update, disabled }: { update: { dropped: string | null; run: () => Promise<void> }; disabled: boolean }) {
+  const [armed, setArmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="pd-design-update hint" data-testid="newer-design">
+      <span>Newer design in library</span>{' '}
+      <button
+        type="button"
+        className={armed ? 'armed' : undefined}
+        disabled={disabled || busy}
+        onClick={() => {
+          if (update.dropped && !armed) { setArmed(true); return; }
+          setArmed(false);
+          setBusy(true);
+          void update.run().finally(() => setBusy(false));
+        }}
+        data-testid="design-update"
+      >
+        {armed && update.dropped ? `${update.dropped} Update?` : 'Update'}
+      </button>
     </div>
   );
 }

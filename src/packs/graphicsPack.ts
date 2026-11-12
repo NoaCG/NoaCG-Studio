@@ -35,7 +35,7 @@ import {
   setShowBrand,
   type Show,
 } from '../model/shows';
-import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, packStampFor, type GraphicDoc } from '../model/library';
+import { loadGraphics, templateForSavedGraphic, packStampFor, type GraphicDoc } from '../model/library';
 import { applyLookToTemplate, loadLooks } from '../model/packets';
 import type { ProjectBrand } from '../model/brand';
 import { templateFromRecipe, type TemplateRecipe } from '../templates/types/recipeTemplate';
@@ -785,7 +785,8 @@ export async function buildPack(show: Show): Promise<Record<string, unknown>> {
   const graphics: PackGraphicFile[] = [];
   const soundAssets: NonNullable<GraphicsPack['soundAssets']> = [];
   for (const g of show.graphics) {
-    const template = g.soundConfig ? resolveSavedGraphicDoc(g,library)?.template ?? g.template : templateForSavedGraphic(g, library);
+    // The copy (live-publishing G1); with sounds, the pack carries them itself, as before.
+    const template = g.soundConfig ? g.template : templateForSavedGraphic(g, library);
     const entry = await packGraphicEntry(template, { name: g.name, layer: graphicLayer(g) });
     // A graphic installed from the community shelf stays one through Export and Import.
     const stamp = packStampFor(g, library);

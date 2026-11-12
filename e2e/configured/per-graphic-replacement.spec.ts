@@ -35,18 +35,23 @@ async function libraryGraphic(page: Page, name: string): Promise<void> {
   ).toBeFalsy();
 }
 
-/** Edit a production graphic's design in the library, as the editor's save does. */
+/** Edit a production graphic's design in the library, as the editor's save does, then take it
+ *  into the production with Update (live-publishing O4): the copy is what publishes. */
 async function editInLibrary(page: Page, showId: string, graphic: string, note: string): Promise<void> {
   const edited = await page.evaluate(
     async ([id, name, comment]) => {
-      const { loadShows } = await import('/src/model/shows.ts');
-      const { loadGraphics, resolveSavedGraphicDoc, updateGraphic } = await import('/src/model/library.ts');
+      const { loadShows, updateCopyFromLibrary } = await import('/src/model/shows.ts');
+      const { loadGraphics, newerLibraryDesign, resolveSavedGraphicDoc, updateGraphic } = await import('/src/model/library.ts');
       const { commitDurableWrites } = await import('/src/model/durableStore.ts');
       const pooled = loadShows().find((s) => s.id === id)?.graphics.find((g) => g.name === name);
       const doc = pooled ? resolveSavedGraphicDoc(pooled, loadGraphics()) : undefined;
-      if (!doc) return false;
+      if (!pooled || !doc) return false;
       const { error } = updateGraphic(doc.id, { template: { ...doc.template, css: `${doc.template.css}\n/* ${comment} */` } });
-      return !error && !(await commitDurableWrites());
+      if (error) return false;
+      const newer = newerLibraryDesign(pooled, loadGraphics());
+      if (!newer) return false;
+      const updated = updateCopyFromLibrary(id, pooled.id, newer, pooled.savedAt);
+      return !updated.error && !(await commitDurableWrites());
     },
     [showId, graphic, note] as [string, string, string],
   );

@@ -42,15 +42,30 @@ function bodyBytes(body: BodyInit | null | undefined): number {
 }
 
 /**
+ * THE BUILD MARK (live-publishing W2, designs/G1.md section 4): this build treats a production's own
+ * copy of each graphic as the only truth, and says so on every REST API request. Older bundles send
+ * nothing, and once the `production_copies` switch is on the database refuses their production
+ * authoring with "Reload this page to edit" (migration 0115). Auth, Storage and Realtime are sent as
+ * before. A header, because an older bundle cannot echo it back from stored data.
+ */
+export const COPIES_MARK_HEADER = 'x-noacg-production-copies';
+function withCopiesMark(request: Request | null, init: RequestInit | undefined): RequestInit {
+  const headers = new Headers(init?.headers ?? request?.headers);
+  headers.set(COPIES_MARK_HEADER, '1');
+  return { ...init, headers };
+}
+
+/**
  * Every REST, auth and Storage request of the shared client, with that limit on the wait for the
  * answer and on each silence inside it, so a large download still takes as long as it takes while
  * it moves. It fails as an abort because the library retries any other failure of a read. Edge
  * functions keep their own time.
  */
-function answeredFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+function answeredFetch(input: RequestInfo | URL, givenInit?: RequestInit): Promise<Response> {
   const request = input instanceof Request ? input : null;
   const { pathname } = new URL(request ? request.url : input.toString());
-  if (!/^\/(rest|auth|storage)\/v1\//.test(pathname)) return fetch(input, init);
+  if (!/^\/(rest|auth|storage)\/v1\//.test(pathname)) return fetch(input, givenInit);
+  const init = pathname.startsWith('/rest/v1/') ? withCopiesMark(request, givenInit) : givenInit;
   const limit = new AbortController();
   const asked = init?.signal ?? request?.signal;
   if (asked?.aborted) limit.abort(asked.reason);

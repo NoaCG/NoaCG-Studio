@@ -133,7 +133,8 @@ import ProductionAudienceWorkspace, { useMessageSources } from './ProductionAudi
 import { pollFieldMap } from '../../control/resultStaging';
 import { useAudienceInbox, useMessagesBackend } from './useAudienceInbox';
 import { createSheetInbox } from '../../audience/sheetMessages';
-import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
+import { designEditedAt, libraryStoreText, loadGraphics, newerLibraryDesign, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
+import { describeProductionGate, productionGateFailures } from '../../validation/productionGate';
 import { captureLookFromTemplate, loadLooks, type SavedGraphic } from '../../model/packets';
 import { measureId, placedAppearance, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
 import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, takeAppearance, updateAppearance, type MeasureJob } from '../../control/adjustGeometry';
@@ -151,6 +152,7 @@ import { publishedAdjustOf } from '../../control/hostedAdjust';
 import { formerReaders as storedFormerReaders, setFormerReaders as setStoredFormerReaders, setOwnReaderHolds } from '../../model/ownReaderHolds';
 import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/liveData';
 import { canonical } from '../../model/publishedRecord';
+import { droppedFields, updateCopyFromLibrary } from '../../model/shows';
 import { setCueSelection, setCueTyped, setCueTypedArgs, setCueTypedValues, setGraphicSounds } from '../../model/shows';
 import { forgetOwedCueEdit, keepOwedCueEdit, readOwedCueEdit } from '../../model/owedCueEdit';
 import ProductionSounds from './ProductionSounds';
@@ -259,6 +261,7 @@ import { declaredForeign, graphicControls, panelGraphic, runCapability, type Con
 import { useTeamsAvailable } from '../teams/useTeamsAvailable';
 import { teamShowsStatus } from '../../model/teamShows';
 import { announcedExpected, useExpectedOutputs, useLivePresence, useReadinessView } from '../control/OutputHealth';
+import { useCopyAdoption } from './useCopyAdoption';
 import { usePublishDrift } from './usePublishDrift';
 import { type PayloadVersion } from '../../control/payloadVersion';
 import { clockWords, type HeldVersion, type ReadyStamp } from '../../control/readiness';
@@ -610,16 +613,29 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * cannot move what this operator is holding. Re-reading after this tab's OWN write is
    * harmless: it reads back what it just wrote.
    */
+  /** Bumped only by this page's own-reader migration (data-sources C6). `library` feeds the monitors,
+   *  the measurer and the pool machines, so a library edit elsewhere must not move it: a new identity
+   *  rebuilds the program payload and restarts the monitor under the operator. */
+  const [libraryRev, setLibraryRev] = useState(0);
+  /** Bumped when the stored library moves (a library edit here or in another tab, a sync pull), for
+   *  "Newer design in library" and Update only. What plays is the production's copy, never this. */
+  const [designLibraryRev, setDesignLibraryRev] = useState(0);
   useEffect(() => {
-    const onDataChanged = () => setShows(loadShows());
+    // The library is read again only when it moved (by reference, no parse), so a cue save costs
+    // nothing here and a library edit reaches "Newer design in library" (live-publishing O4).
+    let libraryText = libraryStoreText();
+    const onDataChanged = () => {
+      setShows(loadShows());
+      const now = libraryStoreText();
+      if (now !== libraryText) { libraryText = now; setDesignLibraryRev((n) => n + 1); }
+    };
     window.addEventListener('spx-data-changed', onDataChanged);
     return () => window.removeEventListener('spx-data-changed', onDataChanged);
   }, []);
-  /** Bumped when this page changes a library design itself (the own-reader migration, data-sources
-   *  C6), so the monitors rebuild on the design the production now plays. */
-  const [libraryRev, setLibraryRev] = useState(0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read only when this page changed a design
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read only on this page's own-reader migration
   const library = useMemo(() => loadGraphics(), [libraryRev]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read only when the stored library moved
+  const designLibrary = useMemo(() => loadGraphics(), [libraryRev, designLibraryRev]);
   // Fresh picker choices must not replace the library identity held by running monitor frames.
   // eslint-disable-next-line react-hooks/exhaustive-deps -- data-change events refresh shows and the library together
   const pickerLibrary = useMemo(() => loadGraphics(), [shows]);
@@ -1005,6 +1021,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Changed since the last publish: the record itself, or what the outputs would render (a graphic
    *  edited in the library, which never touches the record) - usePublishDrift. */
   const authoringAllowed = useAccountAuthoring();
+  // ADOPTION (live-publishing O5, designs/G1.md section 5): once the production-copies switch is on.
+  useCopyAdoption(show, authoringAllowed, setShows);
   const { unpublished: unpublishedChanges, requiresPreparation, check: checkUnpublished } = usePublishDrift(show, publishedStamp?.g ?? null);
   // EXPECTED FOR THIS SESSION ONLY (playout-workflow-simplification D4): an output seen since this
   // page opened and then gone is lost, in red; yesterday's OBS is never expected today, so a page
@@ -3073,8 +3091,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       remove: async () => {
         if (!show) return 'This production is no longer open.';
         const fresh = resolveSavedGraphicDoc(graphic, loadGraphics());
-        const plan = ownReaderRemoval({ library: !!fresh, published: !!hostedSlug });
-        if (!plan) return `${graphic.name} has no library record here, so Publish could not take the change to the output. Keep its own reader.`;
+        const plan = ownReaderRemoval({ library: !!fresh });
         if (plan.library && fresh && hasLiveData(fresh.template.js)) {
           const saved = updateGraphic(fresh.id, { template: { ...fresh.template, js: stripLiveData(fresh.template.js) } });
           if (saved.error) return saved.error;
@@ -3263,6 +3280,22 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const descriptors = editorTemplate ? fieldDescriptors(editorTemplate.fields) : [];
   /** The edited graphic's layer, and who else is on it when two graphics share it. */
   const editedLayer = poolGraphic ? graphicLayer(poolGraphic) : 0;
+  // NEWER DESIGN IN LIBRARY, AND UPDATE (live-publishing O4, designs/G1.md section 2): the copy is
+  // what plays; a newer library design comes in only here, through the rundown's history (one undo
+  // step), the production gate first, and naming a field it drops before it takes the design.
+  const newerDesign = poolGraphic ? newerLibraryDesign(poolGraphic, designLibrary) : undefined;
+  const designUpdate = show && poolGraphic && newerDesign ? (() => {
+    const dropped = droppedFields(show, poolGraphic, newerDesign.template);
+    const cuesUsing = (show.cues ?? []).filter((c) => c.source !== 'playout' && c.sourceId === poolGraphic.id).length;
+    return {
+      dropped: dropped.length ? `Update drops ${dropped.join(', ')} from ${cuesUsing} cue${cuesUsing === 1 ? '' : 's'}.` : null,
+      run: async () => {
+        const refused = productionGateFailures([{ ...poolGraphic, template: newerDesign.template }], designLibrary);
+        if (refused.length) { setRundownNote(describeProductionGate(refused)); return; }
+        await history.write(() => updateCopyFromLibrary(show.id, poolGraphic.id, newerDesign, poolGraphic.savedAt), `Update ${poolGraphic.name}`);
+      },
+    };
+  })() : null;
   const sharingLayer = poolGraphic ? clashes.get(editedLayer) : undefined;
   const layerClash = !!sharingLayer;
   const advancedOpen = layerClash || (!!poolGraphic && advancedFor === poolGraphic.id);
@@ -4394,6 +4427,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             show={show}
             setShows={setShows}
             poolGraphic={poolGraphic}
+            designUpdate={designUpdate}
             editingCue={editingCue}
             draft={cueDraft}
             editingCueNo={editingCueNo}
@@ -4553,13 +4587,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             sounds={(editingView) => (
               <ProductionSounds
                 key={`${show.id}:${poolGraphic.id}:${poolGraphic.type === 'picture' ? String(editingView.values.f0 ?? '') : 'graphic'}`}
-                template={resolveSavedGraphicDoc(poolGraphic,library)?.template ?? poolGraphic.template}
+                template={poolGraphic.template}
                 config={poolGraphic.soundConfig}
                 assets={show.graphics.flatMap(g=>g.soundConfig?.assets ?? [])}
                 visual={poolGraphic.type === 'picture' ? `picture:${String(editingView.values.f0 ?? '')}` : 'graphic'}
                 onSave={async (config,expected,source)=>{
                   const current = loadShows().find(s=>s.id === show.id)?.graphics.find(g=>g.id === poolGraphic.id);
-                  const template = current && (resolveSavedGraphicDoc(current,loadGraphics())?.template ?? current.template);
+                  const template = current?.template;
                   if (!current || !template || template.js !== source.js || soundTopology(template) !== source.topology) throw new Error('The visual changed while the sound was preparing. Choose the trigger again.');
                   const result = setGraphicSounds(show.id,poolGraphic.id,config,expected);
                   setShows(result.shows);

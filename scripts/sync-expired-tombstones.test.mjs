@@ -19,6 +19,8 @@ function loadSync() {
     './storage': { isPutDenied: () => false, isSingleton: (kind) => kind === 'brand' || kind === 'project' },
     '../model/id': { uuid: () => crypto.randomUUID() },
     '../model/accountScope': { accountKey: (key) => `${key}@owner` },
+    // The send-time settle (live-publishing W2) is copy-settle.test.mjs's; these records hold no production.
+    '../model/copySettle': { needsSettle: () => false, settleGraphics: (graphics) => ({ graphics, changed: false }) },
   };
   vm.runInNewContext(compiled, {
     exports,
