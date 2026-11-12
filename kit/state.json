@@ -67,9 +67,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "build / third repair exact-head gates",
+      "step": "build / first boot-projection repair after round-four reassessment",
       "pr": 2438,
-      "note": "42be82a9 pushed clean, 150 source-pinned regressions passed. Await actual CI capacity/configured suite, backend qualification, Codex result and fresh full independent A/A+ review. No queue stamp/auto-merge."
+      "note": "42be held for confirmed P1 document-reservation boot projection. Fresh model reassessment completed before this new family first repair. WIP maintained42/42 browser cases pass; final oracle edge repair and coherent checkpoint pending. Mandatory separate quarantine2453 is in merge queue; active coordinator owns both."
     }
   ],
   "owner": [
@@ -85,6 +85,22 @@
       "status": "COMPLETE",
       "merge": "30f81e5fded1b5a7faa4ac9687de8270c347eb57",
       "results": "Source/merge-group/main CI, configured,postlanding,quarantine,CodeQL SUCCESS; metadata deployment events inapplicable. Owner closeout6802774510."
+    },
+    {
+      "pr": 2453,
+      "what": "Mandatory separate per-graphic-replacement fail-then-pass quarantine from configured42beCI; no test/runtime/check/limit edit",
+      "ownerComment": 6830323298,
+      "status": "QUEUED",
+      "head": "95cf964507b4f742b1754f7410b42b2ab90dc43e",
+      "branch": "codex/editor-r1-5-per-graphic-quarantine-20261112",
+      "worktree": "/workspace/noacg-editor-r1-5-per-graphic-quarantine",
+      "owner": "Active root Codex coordinator through merge/post-land, no wake",
+      "attempts": 0,
+      "verification": "Ordinary generated one-file entry; actual localPASSstamp16:52:14;17/17quarantine tests and3policy gates pass; exactCI43263803920 nowSUCCESSattempt2 after onlyReviewed recovery. Plan explicituntriggered0configured. Build/Factory/CIgatePASS; Codex6830111786 exactheadclean. Cleanmerge-tree at619eb andmerge-orderclear.",
+      "queue": "CLI statuswriteHTTP403integrationcap; documentedmainhelper43267142462SUCCESS, job131353643945 wholelogrootread stamps/labels exact95 and revivesownReviewed once. Session-ownedauto-merge requested withpre/postexactheadread; actualadded_to_merge_queue17:14:42Z. auto_mergenull after entry is not absence. No directmerge.",
+      "incident": "2371; generated existing policy alarmOwner miwco primary,weeklyownerbackup; repairdate2026-11-26; releaseonly20uniqueconsecutiveMAINpasses inthiscycle. Quarantinedconfiguredspec remainsinmainmonitoring.",
+      "attachment": "Required attach attempt cell300 stalled and was terminated; reconciliation list_artifacts cell315 also pending. No unknown attachment replay.",
+      "sourceEvidence": "43257726630 job131320724824 firstFAIL strictiframe titleHouseScorebug matches retiringold +new; inline retryPASS. Unchangedstage swap publishesnewbefore deferredoldDOMdispose. Source-supported preexisting observationwindow; tracevisibilitynotindependentlyrecovered; no blanketcausalclaim about E2."
     }
   ],
   "triggers": [],
@@ -1821,9 +1837,29 @@
       "isolatedStatus": "TerminalSUCCESSfirstattempt16:25:14Z; rootwholelog+metadataread:1PASS28.6s zero skip/retry/accountdeleted; teardown0containers/volumes/networks/process/heldports/TIME_WAIT; claimsreleased; artifact13962766118 uploaded336870bytes. RawJSONnotdirectlyingressed; immutablewrapperstrictlyvalidatedrequiredexactsource/rollback/freshcontext/cleanupreceipt.",
       "codexRequest": 6829275757,
       "codexReply": 4553148107,
-      "codexStatus": "Pending: rootreadonlyeyesreactionchatgpt-codex-connector16:22:21Z; no completed botreview/cleanresultyet, no duplicate request",
-      "fullSo": "FreshFULL50pathfork-none e4_final_so_42be82a91 runningafteractualcapacityread; inheritedsettings, sourcefrozen. AllpriorBgrades/history given, no earlierA/deltaeligible",
-      "normalCiStatus": "Inprogress; Reviewed131320391379 missingstampFAIL148s perworkerwholelog; no revive/stamp beforeallworker gates. Otheractualjobsstillpending."
+      "codexStatus": "Completed clean exact42be comment6829372771 at16:25:54Z; no duplicate request",
+      "fullSo": "FreshFULL50paths gradeB, public6829676748, new P1 active-document boot projection/reservation inheritance. No other confirmed family/nit. Source held; no queue stamp/auto-merge.",
+      "normalCiStatus": "TerminalFAILURE43257726630 attempt1 at16:35:48Z. Build/Factory/catalog/all15offline/fourconfiguredstacks pass; configured verdict131329323145 FAIL due1flaky/146pass/3existing skips, CIgate131329642625 FAIL. Same-commit inline retry passed per-graphic-replacement; mandatory separate quarantine2453. Reviewed missingstamp only, not recovered for held product head."
+    },
+    "fourthReviewGate": {
+      "round": 4,
+      "family": "complete active-document to compatibility-slot/boot projection and reservation ownership",
+      "class": "product P1",
+      "source": "42be82a91ad3ad32c6208b70cf1239cf7b46d916",
+      "attempt": 1,
+      "limits": "New concrete failure family, templateStore unchanged since initial feature217 and no diff03..42. All earlier rounds/attempts/failures retained. Round cap fresh reassessment completed BEFORE repair; adds no attempt. At most three repairs per failure remains binding.",
+      "reassessment": "e4_boot_projection_reassessment AGREE WITH CORRECTIONS; complete bundle authoritative including absence; caller private owner distinct selected candidate; preserve R/L/K recovery; sync normalization before projection; full Discard refusal/success/changed-context ownership.",
+      "reproduction": "Original actual frozen42 j0102 FAILED: A library L lands/K refused; switch pristineB; reload inherits A mint/reservation; SaveB overwrites A with exactB source. Raw logSHA1b8e6f607c14ec66d20aaf0c81d22894f447f7ccedc71eca5dcc6a205fe3dddb; independently parsed by root.",
+      "workingEvidence": {
+        "j0103": "Original overwrite diagnostic PASS1/1",
+        "j0104": "6 new switch/create/Discard persistence journeys PASS6/6",
+        "j0105": "Held library-answer recovery and legacy absent optional defaults PASS2/2",
+        "j0106": "New view-only Discard interleaving FAILED; original assertion retained, product generation guard corrected",
+        "j0107": "All4 Discard outcomes PASS4/4 19.2s",
+        "j0108": "All42 maintained E4 browser cases PASS42/42 2.2min",
+        "sourceOracle": "34/34 initiallyPASS, final inverse oracle19/20 FAIL discovered prior active pointer to independently removed document; guard now restores old selection only if document remains. Final oracle/gates pending.",
+        "next": "One coherent local checkpoint then one source-pinned159case7spec bounded regression, actualCI/backend/Codex/freshFULLSO A/A+ on new head. No acceptance/next phase."
+      }
     }
   },
   "coordinatorTools": {
