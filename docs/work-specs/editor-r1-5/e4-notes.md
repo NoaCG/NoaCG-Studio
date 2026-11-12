@@ -764,3 +764,202 @@ Fresh main e394954becdbb292c914b3d20339418c9f9172c2 reconciles cleanly; the
 coordinator's separate quarantine2453 is not yet landed at this checkpoint.
 A source-pinned bounded seven-file save/adoption matrix follows the commit;
 exact new-head normalCI/configured/backend/Codex and freshFULLSO remain required.
+
+### Fifth review checkpoint: selection-only view freshness (existing view-ownership family)
+
+The fresh FULL50-path SO on2767a30cb gradedB, agreeing with Codex review5879149260,
+inline4554033976: oneP2 view-state preservation family remains. Cached view
+receipts update on edits/undo/redo/seek, while selection-only changes only update
+the session context token. snapshot()/captureProjectDocument() can reuse the old
+selection; the subscription ignores selectedParts. The earlier selection test
+followed selection with setSessionTime and therefore masked the independent path.
+
+Frozen-source j-0113 reproduces all four instances with the original desired
+assertions: switch/reopen, ordinary autosave/reload and Home retention/reload
+restore[] instead of[#f0], with source/history unchanged; selection-only work
+while Discard awaits is not a changed generation, so it reports success, replaces
+the private owner/source and clears that newer selection. Its complete original
+log is selection-j0113-original.txt. Product source remains2767, unedited.
+
+This belongs to the existing private-document view-ownership family, including
+the prior round2 lifetime/view repair; it is not a new family or an allowance
+reset. All earlier checkpoints and per-failure attempts remain. The coordinator
+owns final attempt classification. A fresh repeated-family/model reassessment
+must precede any further patch, and grants no additional attempt.
+
+Observable Rules recorded before that reassessment/repair:
+
+- Every genuine current view change belongs to the exact private owner. A
+  selection-only change must be captured/staged before any await that can switch,
+  retain, save, discard or replace it, and must survive the same reload/Home
+  paths as seek/sample changes. Do not rely on a later edit or seek to flush it.
+- A departing snapshot uses the supplied owner's live selection/sample values,
+  including a captured previous state during external replacement, never the
+  next document's globals or a stale cached selection. Retain its owned clock,
+  cue and history-view receipts; do not invent a zero clock when no clock has
+  been observed or overwrite past undo/redo view receipts.
+- Genuine view-only changes advance the existing generation and stale-context
+  protection without editing source, adding an undo entry or changing links,
+  reservations, membership, receipts or installed/on-air copies. Idempotent
+  observation/repeated equal selection must not cause recursive staging or
+  spuriously advance generations. Retired capabilities cannot refresh a new
+  owner's view, including same-private baseline/public-link changes.
+- Selection-only work during held/failed Discard or project persistence follows
+  the same existing newer-generation refusal/recovery as other newer view work.
+  Preserve complete live/adopted bundles and earlier projection/unknown-format
+  guards. Cover current-view samples/clock/cue coherently, with no event-only
+  UI patch, new cache, guessed timing value, sleep, assertion or limit change.
+
+A bounded fixed oracle and maintained selection-only switch, Home, autosave,
+held/failed replacement and idempotence cases must close the gap. The complete
+2767 full-review result, successful isolated43270504790 and normalCI results
+remain historical; no stamp, rerun, auto-merge or additional allowance follows.
+
+The fresh independent view-freshness reassessment and one bounded clarification
+both say AGREE WITH CORRECTIONS (model only). Full normalized receipts are
+view-freshness-reassessment-original.txt (SHA25619130233ec6adadb2a0e54ec6556c81c3abca48345ae2f33629d8e8d4a6f9c6f)
+and view-freshness-reassessment-clarification.txt
+(SHA256a9e48eb5fd840243f99ed8f623a3333dd9141adfb6ea53b05af710186a17191e).
+The coordinator classifies this as review round5 and the THIRD AND FINAL repair
+of the existing authoring-view family: private view lifetime at4de, view-only
+Discard/refusal at2767, then this complete live-view producer/capture repair.
+The whole-writer adoption repair remains separate; no allowance resets. A
+further confirmed failure of this view family after this repair stops for owner.
+
+Clarified observable rules before product edits: Discard protects its click-time
+context while queued and before its first await, establishes its post-flush
+expected generation synchronously, checks every preliminary wait, and retains
+its submitted-generation/adopted-format guards. A newer view stages the COMPLETE
+live owner, never a view spliced into the pending replacement. Refusal prefers
+its newest owned receipt, with previous-view fallback only for the exact
+unchanged submitted bundle. All publication requires the full private-ID,
+baseline, effective-public-ID and unretired binding; construction never notifies.
+Equal semantic views are quiet, including sample-map key order. Source/history
+operations publish only completed receipts, not intermediate own-write states.
+A read-only reservation peek requires the exact live owner and baseline plus
+workspace binding, and never allocates/writes device IDs; departing snapshots
+use their own fields even for shared baselines, and false mint state clears an
+old true flag. Atomic view restore retains the existing paused-account sample
+gate. Legacy/no-envelope generation invalidation is not a durable view receipt:
+without a real binding/owned clock, capture leaves the view absent.
+
+The first bounded uncommitted repair matrix j-0114 is terminal FAIL:6PASS/4FAIL
+(35.4s), retained in selection-j0114-original.txt. App types pass; maintained
+session oracle8/8 passes, including sample-map insertion-order equality versus
+ordered primary selection, synchronous reentrant publication, completed
+execute/travel history, external-reset ordering and restore/cancel.
+
+Two j-0114 assertions are overbroad new-fixture expectations: the switch route
+visits another document and legitimately allocates that visited owner's existing
+reservation; Save As legitimately chooses the available name E4 Lower third2.
+Their original failures are retained and no assertion has been changed.
+Two failures remain genuine in the existing view family: a failed/aborted D
+retains the new selection in the live staged bundle but immediate reload restores
+an empty selection; semantically equal sample-map key reordering leaves the
+session context token unchanged but advances workspace generation5 to6, because
+the reference-based sample subscription stages the live source over D. The
+selection-only autosave, Home, Save, held replacement, preliminary wait and queued
+Discard cases pass. No inference beyond these exact working-tree cases follows.
+
+Product edits stop at this checkpoint under the coordinator's THIRD AND FINAL
+family repair boundary. The candidate is not ready, not committed/pushed, has
+no new-head CI/backend/fullSO, no A grade and no stamp. The previously pushed
+2767 remains held. No further family split, allowance or worker reset is claimed.
+
+
+## Owner exception 1: observable Rules before the combined repair (2026-11-12)
+
+Same run and E4, serial resuming builder `/root/editor_e4_owner_repair`, nonce
+`e4-owner1-20261112`. Owner receipt SHA256
+`b15285eeb7b3bb92787bfa3df50c65315ec3e024f1fd5b960e7d904dc70a7839`
+authorizes exactly one additional bounded combined repair. Five review rounds,
+three ordinary family repairs, j-0113 failures and j-0114's six passes/four
+failures remain unchanged. Initial retained source HEAD is
+`2767a30cb0fccbb9a04f4f2e0ca285b32e4f94d6`; its nine-file patch SHA256 is
+`674b343a64c616222c4820fee3746a251c788b8167c5a2920a9187657439997d`.
+This is no new run, family, phase or allowance reset. A remaining confirmed
+product failure after the combined repair ends this exception.
+
+Observable Rules for the fresh repeated-family pre-code reassessment:
+
+- When Discard is refused or its durable replacement aborts, its answer must
+  retain the actual current private owner, source, history and latest legitimate
+  complete view through immediate reload. Restoring optimistic staging alone is
+  insufficient: confirm a real correction receipt before returning. Preserve
+  the original failure and report a correction failure truthfully too. Unknown
+  or independently adopted envelopes remain refused, and conditional recovery
+  never overwrites their owner or restores a removed active document.
+- Equivalent sample maps, including different insertion order, must be filtered
+  before full-owner retention, reservation inspection/allocation, staging or
+  scheduling. Equal selection arrays and equal observations stay idempotent;
+  ordered selection changes and genuine away/back changes remain meaningful.
+  A held Discard candidate remains exactly its submitted bundle after equivalent
+  view notifications. No equivalent view mutates source/history, links,
+  reservations/device IDs, membership, installation journals or on-air copies.
+- Keep supplied-state live selection/samples, true owned binding clock/cue,
+  historical undo/redo view receipts, completed source/history publication,
+  full retired-binding guards, paused-account sample authorization, exact-owner
+  nonallocating reservation capture, queued/pre-first-await/submitted Discard
+  guards and all adopted/unknown-format/boot-projection recovery boundaries.
+- Correct only the two demonstrated new fixture assumptions: ordinary source
+  writing when visiting another document may reserve that owner's ID, and
+  Save As chooses the actual free name `E4 Lower third 2`. Keep all owned
+  source/history/view and durability assertions. Historical six/four stays so
+  until a separately recorded new-source execution proves each case.
+
+Use the existing architecture, protocol, formats and persistence lifecycle;
+introduce no waits/retries/skips, weakened judge, maintenance/budget exception,
+provider/migration/engine/licence change or additional model product round.
+The required focused fresh read-only reassessment precedes product edits; a
+fresh final FULL SO A/A+ and all current-head gates remain due. These notes
+remain in the retained patch until the brief's one coherent final push; this
+narrows the generic Rules-first early-push wording to preserve the explicit
+single-push instruction and the failed source checkpoint.
+
+
+Owner-exception model assessment completed before product edits: fresh actor
+`/root/editor_e4_owner_repair/e4_owner1_model_so`, AGREE WITH CORRECTIONS,
+normalized receipt `owner1-model-so.txt` SHA256
+`025552786ae4a82a3bdabcf99ea073fe458c9b9c00399398263af4bee67ec85b`.
+It verified frozen pre-code diff `d785964db3c7827b3bc13e07fde11cb8417819a8637d1c246d6989226ebed540`
+before and after inspection. No clarification was needed. Root acknowledged
+PATCH_START and charged this single grant used1/1, remaining0 before edits.
+
+The combined repair applies semantic sample equality before subscription effects
+and in asynchronous project continuation checks. It confirms actual current-owner
+correction receipts for aborted/zero-receipt/preliminary failed Discard, preserving
+original and correction errors. Unknown/adopted refusal still precedes writing;
+conditional recovery is unchanged. A changed owner, library or generation during
+correction is reported as unconfirmed, leaving newer staging intact without a
+retry loop. Only the documented visited-owner reservation setup and exact free
+Save As name assumptions were corrected in the original selection matrix.
+
+New-source targeted verification (not retroactive historical passes):
+
+- Original ten-case selection matrix j-0115: 10/10 PASS in40.2s, two Cloud
+  workers, five-minute cap, zero skips/retries. Original failed-replacement
+  immediate reload and equal-view/held-Discard assertions both pass.
+- Added fixed-rule oracles j-0116: 5/5 PASS in16.4s, two workers, five-minute cap,
+  zero skips/retries. Equivalent map ordering during held project switch/Home
+  preserves exact submitted workspace/generation/token and succeeds. Preliminary
+  aborted write confirms the latest view through immediate reload. Refused
+  correction reports both original storage error and quota error. Newer view
+  during held correction keeps its complete live owner and reports unconfirmed.
+- Maintained session/workspace/reservation source oracles:33/33 PASS. Changed-path
+  gates:120/120 PASS across14 files. App TypeScript, affected ESLint and dependency
+  cruise pass (zero violations). Per-test protection passes:60 project cases,
+  unchanged limits and no removed protection.
+- Local pre-review capacity check ran with the standard growth fetch: latest
+  run43201149088 artifact remains unreadable through worker ingress (403), so the
+  normal frozen-seed fallback reports WARN197.7/213 table-minutes93%, added0.42min.
+  This older branch helper is not current-main cost-only REPAY clearance. Actual
+  candidate CI capacity/Configured evidence remains mandatory, with #2450 debt
+  attribution and no ceiling/exception/maintenance edits.
+
+Current-main reconciliation is clean at `077e959b2` (merge-tree and merge-order;
+no merge or rebase needed). The one committed-source broader selection, actual
+new-head normal CI/backend/Codex result and final fresh FULL SO remain pending.
+No production build is repeated locally: the added script/dependency shape is
+unchanged from2767's historical successful CI build, while final-head CI must
+prove the complete build again. No migration, model/product call, provider,
+licence, engine, acceptance or later-phase change is made.

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { useTemplateStore, flushPendingProject, syncSampleData, scheduleProjectAutosave, captureProjectDocument, recoverProjectLink } from './templateStore';
 import { useSaveUi } from './saveActions';
-import { authoringWorkspace, stageAuthoringWorkspace, writeAuthoringWorkspace, workspaceRefusal, workspaceGeneration, bindWorkspaceDocument, workspaceDocumentOwner, workspaceDocumentRetained, loadProject, saveProject, resumeReservation, releaseReservation } from '../model/project';
+import { authoringWorkspace, stageAuthoringWorkspace, writeAuthoringWorkspace, workspaceRefusal, workspaceGeneration, markWorkspaceViewChanged, bindWorkspaceDocument, workspaceDocumentOwner, workspaceDocumentRetained, loadProject, saveProject, resumeReservation, releaseReservation } from '../model/project';
 import { readableWorkspace, type AuthoringWorkspace, type AuthoringDocument, type AuthoringProject, type HistoryViews, type DocumentView } from '../model/authoringDocument';
 import { captureDurableWrites, commitDurableReceipt, libraryInUse } from '../model/durableStore';
 import { uuid } from '../model/id';
@@ -18,19 +18,22 @@ export function workspace(): AuthoringWorkspace {
   if (value !== undefined && !readableWorkspace(value)) throw new Error(workspaceRefusal()!);
   return value ?? { v: 1, projects: [], documents: [], active: null };
 }
-function stage(value: AuthoringWorkspace) {
+function stage(value: AuthoringWorkspace): boolean {
+  if (sameWorkspaceValue(authoringWorkspace(), value)) return false;
   stageAuthoringWorkspace(value);
   useAuthoringProjects.setState(s => ({ revision: s.revision + 1 }));
+  return true;
 }
 type State = ReturnType<typeof useTemplateStore.getState>;
-function snapshot(s: State, previous?: AuthoringDocument): AuthoringDocument {
-  return { ...captureProjectDocument(s),
+function snapshot(s: State, previous?: AuthoringDocument, allocateReservation = true): AuthoringDocument {
+  const view = views?.id === s.documentId ? views.view : previous?.view;
+  return { ...captureProjectDocument(s, allocateReservation && s === useTemplateStore.getState()),
     views: views?.id === s.documentId ? views.history : previous?.views,
-    view: views?.id === s.documentId ? views.view : previous?.view };
+    view: view ? { ...view, selectedParts: [...s.selectedParts], sampleData: { ...s.sampleData } } : undefined };
 }
-function retained(s: State, w = workspace()): AuthoringWorkspace {
+function retained(s: State, w = workspace(), allocateReservation = true): AuthoringWorkspace {
   if (!w.documents.some(d => d.id === s.documentId)) return w;
-  return { ...w, active: s.documentId, documents: w.documents.map(d => d.id === s.documentId ? snapshot(s, d) : d) };
+  return { ...w, active: s.documentId, documents: w.documents.map(d => d.id === s.documentId ? snapshot(s, d, allocateReservation) : d) };
 }
 /** Explicit project replacement retains an external working draft before it can leave. */
 function departingWorkspace(s: State): AuthoringWorkspace {
@@ -41,11 +44,16 @@ function departingWorkspace(s: State): AuthoringWorkspace {
 }
 /** Session history is source-owned; clipboard/proposals and gestures are never persisted. */
 export function rememberDocumentView(id: string, history: HistoryViews, view: DocumentView) {
-  if (useTemplateStore.getState().documentId !== id) return;
-  views = { id, history, view };
-  if (authoringWorkspace() === undefined || workspaceRefusal()) return;
+  if (useTemplateStore.getState().documentId !== id || workspaceDocumentOwner() !== id) return;
+  const next = { id, history, view };
+  if (sameWorkspaceValue(views, next)) return;
+  views = next;
+  if (workspaceRefusal()) return;
+  if (authoringWorkspace() === undefined) { markWorkspaceViewChanged(id); return; }
   const s = useTemplateStore.getState();
-  if (s.documentId === id && workspace().documents.some(d => d.id === id)) { stage(retained(s)); scheduleProjectAutosave(); }
+  if (workspace().documents.some(d => d.id === id)) {
+    if (stage(retained(s, workspace(), false))) scheduleProjectAutosave();
+  } else markWorkspaceViewChanged(id);
 }
 export function currentAuthoringDocument(): AuthoringDocument | undefined {
   if (workspaceRefusal() || !workspaceDocumentRetained(useTemplateStore.getState().documentId)) return undefined;
@@ -56,13 +64,19 @@ export function currentAuthoringDocument(): AuthoringDocument | undefined {
 bindWorkspaceDocument(useTemplateStore.getState().documentId);
 useTemplateStore.subscribe((s, prev) => {
   if (restoring) return;
+  const samplesChanged = !sameWorkspaceValue(s.sampleData, prev.sampleData);
+  if (s.documentId === prev.documentId && s.baseline === prev.baseline &&
+    (samplesChanged || !sameWorkspaceValue(s.selectedParts, prev.selectedParts))) {
+    // Also invalidate a queued replacement before an editor binding/clock exists.
+    markWorkspaceViewChanged(s.documentId);
+  }
   if (authoringWorkspace() === undefined) {
     if (s.documentId !== prev.documentId) bindWorkspaceDocument(s.documentId);
     return;
   }
   if (workspaceRefusal()) return;
   const changed = s.baseline !== prev.baseline || s.template !== prev.template || s.history !== prev.history || s.future !== prev.future ||
-    s.saved !== prev.saved || s.sampleData !== prev.sampleData || s.aiSpec !== prev.aiSpec || s.aiThread !== prev.aiThread || s.legibility !== prev.legibility;
+    s.saved !== prev.saved || samplesChanged || s.aiSpec !== prev.aiSpec || s.aiThread !== prev.aiThread || s.legibility !== prev.legibility;
   if (!changed && s.documentId === prev.documentId) return;
   const w = workspace();
   if (s.documentId !== prev.documentId) {
@@ -70,8 +84,9 @@ useTemplateStore.subscribe((s, prev) => {
     if (workspaceDocumentOwner() === prev.documentId && w.documents.some(d => d.id === prev.documentId)) stage({ ...retained(prev, w), active: null });
     bindWorkspaceDocument(s.documentId);
   } else if (w.documents.some(d => d.id === s.documentId)) {
-    stage(retained(s, w));
-    if ((s.sampleData !== prev.sampleData || s.baseline !== prev.baseline) && s.template === prev.template) scheduleProjectAutosave();
+    const sourceChanged = s.baseline !== prev.baseline || s.template !== prev.template || s.history !== prev.history || s.future !== prev.future || s.saved !== prev.saved || s.aiSpec !== prev.aiSpec || s.aiThread !== prev.aiThread || s.legibility !== prev.legibility;
+    stage(retained(s, w, sourceChanged));
+    if ((samplesChanged || s.baseline !== prev.baseline) && s.template === prev.template) scheduleProjectAutosave();
   }
 });
 
@@ -113,7 +128,7 @@ async function action(run: () => Promise<void>): Promise<boolean> {
 }
 function sameEditingContext(a: State, b: State) {
   return a.documentId === b.documentId && a.template === b.template && a.baseline === b.baseline && a.saved === b.saved &&
-    a.history === b.history && a.future === b.future && a.sampleData === b.sampleData && a.aiSpec === b.aiSpec && a.aiThread === b.aiThread && a.legibility === b.legibility;
+    a.history === b.history && a.future === b.future && sameWorkspaceValue(a.sampleData, b.sampleData) && a.aiSpec === b.aiSpec && a.aiThread === b.aiThread && a.legibility === b.legibility;
 }
 function restore(d: AuthoringDocument) {
   restoring = true;

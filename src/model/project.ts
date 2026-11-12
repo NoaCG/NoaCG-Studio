@@ -117,6 +117,11 @@ export function bindWorkspaceDocument(id: string | undefined, loaded?: Authoring
   } catch { /* An unreadable adopted envelope stays protected, including during boot. */ }
 }
 export function workspaceGeneration(): number { return workspaceStage().generation; }
+/** Invalidate pending operations without inventing a workspace for a legacy view. */
+export function markWorkspaceViewChanged(id: string): void {
+  const stage = workspaceStage();
+  if (stage.document === id) stage.generation++;
+}
 export function workspaceDocumentOwner(): string | undefined { return workspaceStage().document; }
 /** Undo only an unchanged refused replacement, preserving later drafts and journals. */
 export function restoreRefusedDocument(submitted: AuthoringDocument, live: AuthoringDocument, active: string | null): void {
@@ -185,10 +190,10 @@ export function writeAuthoringWorkspace(workspace: AuthoringWorkspace): void {
  *  from the slot, and once one of them mints it, the other's writes must stop naming it, or a
  *  reload links the other tab's draft to that record and its Save overwrites it (#1402). So an
  *  id a record already holds is dropped for a fresh one, unless this tab is minting it now. */
-let reservation: { id: string; baseline: SpxTemplate | undefined; minting: boolean } | null = null;
+let reservation: { id: string; baseline: SpxTemplate | undefined; minting: boolean; owner?: string } | null = null;
 export function reservedGraphicId(baseline: SpxTemplate | undefined): string {
   if (!reservation || reservation.baseline !== baseline || (!reservation.minting && graphicIdTaken(reservation.id))) {
-    reservation = { id: uuid(), baseline, minting: false };
+    reservation = { id: uuid(), baseline, minting: false, owner: workspaceDocumentOwner() };
     rememberDeviceId(OWN_RESERVATIONS_KEY, reservation.id);
     rememberDeviceId(OWN_RESERVATIONS_KEY, reservation.id, true);
   }
@@ -243,7 +248,7 @@ export function isOwnReservation(id: string | undefined): boolean {
  *  reload before its first Save keeps naming the same id. A fresh one here would leave the slot's earlier writes naming an id
  *  the mint never takes, and a double refusal after the reload could not relink. */
 export function resumeReservation(id: string, baseline: SpxTemplate | undefined): void {
-  reservation = { id, baseline, minting: false };
+  reservation = { id, baseline, minting: false, owner: workspaceDocumentOwner() };
 }
 /** A first Save / Save As takes the reserved id. Until `endMint`, this tab's slot writes say so
  *  (`mintingReserved`), so a reload after its link write was refused trusts the record. */
@@ -252,8 +257,15 @@ export function mintReservedGraphicId(baseline: SpxTemplate | undefined): string
   reservation!.minting = true;
   return id;
 }
+/** Observe an existing exact-owner reservation without allocating or touching device IDs. */
+export function peekDocumentReservation(id: string, baseline: SpxTemplate | undefined) {
+  if (workspaceDocumentOwner() !== id || reservation?.owner !== id || reservation.baseline !== baseline) return undefined;
+  return { reservedGraphicId: reservation.id, mintingReserved: reservation.minting ? true as const : undefined };
+}
 export function documentReservation(baseline: SpxTemplate | undefined) {
-  return { reservedGraphicId: reservedGraphicId(baseline), ...(reservation?.minting ? { mintingReserved: true } : {}) };
+  const id = reservedGraphicId(baseline);
+  reservation!.owner = workspaceDocumentOwner();
+  return { reservedGraphicId: id, ...(reservation?.minting ? { mintingReserved: true } : {}) };
 }
 export function endMint(): void {
   if (reservation) reservation.minting = false;

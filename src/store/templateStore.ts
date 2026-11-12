@@ -10,7 +10,7 @@ import { parseDefinition } from '../model/spxDefinition';
 import type { AssetFile, SpxTemplate } from '../model/types';
 import { DATA_FTYPES } from '../model/types';
 import type { ValidationResult } from '../validation/validateTemplate';
-import { authoringWorkspace, documentReservation, isOwnReservation, linkAfterLoss, loadProject, onGraphicSuperseded, resumeReservation, saveProject, type SavedProject } from '../model/project';
+import { authoringWorkspace, documentReservation, peekDocumentReservation, isOwnReservation, linkAfterLoss, loadProject, onGraphicSuperseded, resumeReservation, saveProject, type SavedProject } from '../model/project';
 import { graphicById } from '../model/library';
 import type { GenerationSpec } from '../model/generationSpec';
 import { normalizeThread, type AiThread } from '../model/aiThread';
@@ -104,6 +104,8 @@ interface TemplateState {
   setSelectedPart: (selector: string | null) => void;
   /** Replace the whole selection (the lasso's setter; [] clears). */
   setSelectedParts: (selectors: string[]) => void;
+  /** Restore one accepted view atomically; paused accounts still refuse sample edits. */
+  restoreEditorView: (selectedParts: string[], sampleData?: Record<string, string>) => void;
   /** Shift-click: add the selector to the selection, or remove it when present. */
   toggleSelectedPart: (selector: string) => void;
   /** Balanced pair — always through useModalGate, never called by hand. */
@@ -329,6 +331,11 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
   setSelectedParts: (selectedParts) =>
     set({ selectedParts, selectedPart: selectedParts[0] ?? null }),
 
+  restoreEditorView: (selectedParts, samples) => set(s => ({
+    selectedParts, selectedPart: selectedParts[0] ?? null,
+    ...(samples && canAuthorAccount() ? { sampleData: Object.fromEntries(Object.entries(s.sampleData).map(([field, value]) => [field, samples[field] ?? value])) } : {}),
+  })),
+
   toggleSelectedPart: (selector) =>
     set((s) => {
       const selectedParts = s.selectedParts.includes(selector)
@@ -393,13 +400,16 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
 });
 
 /** A full private-owner snapshot; its optional fields never borrow another slot's metadata. */
-export function captureProjectDocument(s = useTemplateStore.getState()): AuthoringDocument {
+export function captureProjectDocument(s = useTemplateStore.getState(), allocateReservation = true): AuthoringDocument {
   const w = authoringWorkspace();
   const prior = readableWorkspace(w) ? w.documents.find(d => d.id === s.documentId) : undefined;
+  const reservation = allocateReservation ? documentReservation(s.baseline)
+    : s === useTemplateStore.getState() ? peekDocumentReservation(s.documentId, s.baseline) : undefined;
   return { id: s.documentId, template: s.template, baseline: s.baseline, history: s.history, future: s.future,
     saved: { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, sampleData: s.sampleData,
-    aiSpec: s.aiSpec, aiThread: s.aiThread, legibility: s.legibility, ...documentReservation(s.baseline),
-    views: prior?.views, view: prior?.view };
+    aiSpec: s.aiSpec, aiThread: s.aiThread, legibility: s.legibility,
+    ...(reservation ?? { reservedGraphicId: prior?.reservedGraphicId, mintingReserved: prior?.mintingReserved }),
+    views: prior?.views, view: prior?.view ? { ...prior.view, selectedParts: [...s.selectedParts], sampleData: { ...s.sampleData } } : undefined };
 }
 
 // Autosave the working project (debounced) whenever the template actually changes, so a reload

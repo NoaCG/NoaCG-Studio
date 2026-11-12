@@ -30,10 +30,7 @@ export function activeEditorSession(): EditorSession {
       read();
       binding.time = view.time;
       binding.cue = view.cue;
-      useTemplateStore.getState().setSelectedParts(view.selectedParts);
-      for (const [field, value] of Object.entries(view.sampleData ?? {})) {
-        if (field in useTemplateStore.getState().sampleData) useTemplateStore.getState().setSampleValue(field, value);
-      }
+      useTemplateStore.getState().restoreEditorView(view.selectedParts, view.sampleData);
     },
     apply: template => {
       const before = read();
@@ -52,7 +49,9 @@ export function activeEditorSession(): EditorSession {
     redo: () => read().redo(),
     subscribe: listener => useTemplateStore.subscribe(s => { if (owns(s)) listener(); else { binding.closed = true; binding.session.dispose(); } }),
   }, { past: state.history, future: state.future, views: document?.views },
-    () => rememberDocumentView(binding.id, session.historyViews(), session.port.view()));
+    () => {
+      if (owns(useTemplateStore.getState())) rememberDocumentView(binding.id, session.historyViews(), session.port.view());
+    });
   binding.session = session;
   active = binding;
   return session;
@@ -62,5 +61,4 @@ export function setSessionTime(time: number, cue?: number) {
   if (!active || active.closed || active.id !== state.documentId || active.baseline !== state.baseline ||
     active.publicId !== (currentAuthoringDocument()?.id ?? state.saved.graphicId ?? state.documentId)) return;
   active.time = time; active.cue = cue; active.session.observeView();
-  rememberDocumentView(active.id, active.session.historyViews(), active.session.port.view());
 }

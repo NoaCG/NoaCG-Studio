@@ -1299,3 +1299,194 @@ for (const adopted of ['future', 'newer'] as const) test(`an adopted ${adopted} 
   expect(refused.error).toContain(message); expect(refused.refusal).toContain(message);
   expect(refused.id).toBe(ids[0]); expect(refused.source).toEqual(before); expect(refused.raw).toBe(future.raw);
 });
+
+// Selection is an independent view action: no later seek or edit may flush it for these cases.
+for (const route of ['switch', 'autosave', 'home', 'save', 'save-as'] as const) test(`selection-only ${route} retains the exact owner source history and current view`, async ({ page }) => {
+  const ids = await seedAuthoringProject(page); await prepareSerialWorkspace(page);
+  if (route === 'save' || route === 'save-as') {
+    const saved = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+      return h.A.saveGraphicAs(h.S.useTemplateStore.getState().template.name, { kind: 'standalone' }); });
+    expect(saved.ok).toBe(true);
+  }
+  if (route === 'switch') {
+    // Establish the visited owner's ordinary source-writer reservation before the view-only oracle.
+    for (const id of [ids[1], ids[0]]) expect(await page.evaluate(id =>
+      (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.P.openProjectDocument(id), id)).toBe(true);
+  }
+  await editProjectText(page, 'Selection-independent history'); await flushAuthoringProject(page);
+  const before = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    return { document: h.S.captureProjectDocument(h.S.useTemplateStore.getState(), false), workspace: h.P.workspace(), view: h.E.activeEditorSession().port.view() }; });
+  await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.S.useTemplateStore.getState().setSelectedParts(['#f0']));
+  if (route === 'switch') {
+    for (const id of [ids[1], ids[0]]) {
+      await page.evaluate(id => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace; h.done = false;
+        void h.P.openProjectDocument(id).then(ok => { h.ok = ok; h.done = true; }); }, id);
+      await expect.poll(() => page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.done)).toBe(true);
+      expect(await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.ok)).toBe(true);
+    }
+  } else if (route === 'home') {
+    await parkWorkspaceOnHome(page);
+    await page.getByTestId('home-projects').getByRole('button', { name: /^E4 Lower third/ }).click();
+    await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  } else if (route === 'autosave') {
+    // Observe the ordinary debounce's durable output, rather than manually flushing it.
+    await expect.poll(() => page.evaluate(id => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+      return h.M.loadProject()?.workspace?.documents.find(d => d.id === id)?.view?.selectedParts; }, ids[0])).toEqual(['#f0']);
+  } else {
+    const saved = await page.evaluate(route => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+      return route === 'save' ? h.A.saveCurrentGraphic() : h.A.saveGraphicAs(h.S.useTemplateStore.getState().template.name, { kind: 'standalone' }); }, route);
+    if (route === 'save') expect(saved).toBe('saved'); else expect(saved).toMatchObject({ ok: true });
+  }
+  await page.reload(); await awaitDurableReady(page); await prepareSerialWorkspace(page);
+  const after = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    const s = h.S.useTemplateStore.getState(); return { document: h.S.captureProjectDocument(s, false), workspace: h.P.workspace(), view: h.E.activeEditorSession().port.view() }; });
+  expect(after.document.id).toBe(ids[0]);
+  expect(after.document.template).toEqual(route === 'save-as' ? { ...before.document.template, name: 'E4 Lower third 2' } : before.document.template);
+  expect(after.document.baseline).toEqual(before.document.baseline); expect(after.document.history).toEqual(before.document.history); expect(after.document.future).toEqual(before.document.future);
+  expect(after.document.views).toEqual(before.document.views); expect(after.document.sampleData).toEqual(before.document.sampleData);
+  expect(after.view).toEqual({ ...before.view, selectedParts: ['#f0'] });
+  expect(after.workspace.projects).toEqual(before.workspace.projects); expect(after.workspace.installations).toEqual(before.workspace.installations);
+  expect(after.workspace.documents.filter(d => d.id !== ids[0])).toEqual(before.workspace.documents.filter(d => d.id !== ids[0]));
+  if (route !== 'save-as') expect(after.document.reservedGraphicId).toBe(before.document.reservedGraphicId);
+  if (route !== 'save-as' && route !== 'save') expect(after.document.saved).toEqual(before.document.saved);
+});
+
+for (const wait of ['replacement', 'failed-replacement', 'preliminary', 'queued', 'equal-view'] as const) test(`selection-only Discard ${wait} preserves the complete live owner through reload`, async ({ page }) => {
+  const ids = await seedAuthoringProject(page); await prepareSerialWorkspace(page);
+  if (wait === 'queued') {
+    const saved = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+      return h.A.saveGraphicAs(h.S.useTemplateStore.getState().template.name, { kind: 'standalone' }); });
+    expect(saved.ok).toBe(true);
+  }
+  await editProjectText(page, 'Keep selection while waiting'); await flushAuthoringProject(page);
+  const before = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    return { document: h.S.captureProjectDocument(h.S.useTemplateStore.getState(), false), workspace: h.P.workspace(), view: h.E.activeEditorSession().port.view() }; });
+  await installHeldWrite(page);
+  await armHeldWrite(page, wait === 'preliminary' ? 'I' : wait === 'queued' ? 'L' : 'D', wait === 'failed-replacement' ? 'late' : 'hold');
+  if (wait === 'preliminary') {
+    await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+      const s = h.S.useTemplateStore.getState(); h.M.saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread, s.legibility, h.S.captureProjectDocument(s)); });
+    await heldWriteReady(page);
+  }
+  if (wait === 'queued') {
+    await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+      void h.A.saveCurrentGraphic().then(result => { h.linkOk = result === 'saved'; }); });
+    await heldWriteReady(page);
+  }
+  await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace; h.done = false;
+    void h.A.discardCurrentGraphic().then(error => { h.error = error ?? undefined; h.done = true; }); });
+  if (wait !== 'preliminary' && wait !== 'queued') await heldWriteReady(page);
+  const changed = await page.evaluate(wait => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    const s = h.S.useTemplateStore.getState(), session = h.E.activeEditorSession(), old = session.commandState(), generation = h.M.workspaceGeneration();
+    if (wait === 'equal-view') {
+      s.setSelectedParts([...s.selectedParts]);
+      h.S.useTemplateStore.setState({ sampleData: Object.fromEntries(Object.entries(s.sampleData).reverse()) });
+      h.E.setSessionTime(session.port.view().time, session.port.view().cue); session.observeView(); session.commandState();
+    } else { s.setSelectedPart('#f0'); s.toggleSelectedPart('#f0'); s.setSelectedParts(['#f0']); }
+    return { old, next: session.commandState(), generation, nextGeneration: h.M.workspaceGeneration() }; }, wait);
+  if (wait === 'equal-view') { expect(changed.next.contextToken).toBe(changed.old.contextToken); expect(changed.nextGeneration).toBe(changed.generation); }
+  else { expect(changed.next.contextToken).not.toBe(changed.old.contextToken); expect(changed.nextGeneration).toBeGreaterThan(changed.generation); }
+  await releaseHeldWrite(page);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.done)).toBe(true);
+  const after = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    return { error: h.error, privateId: h.S.useTemplateStore.getState().documentId, document: h.P.workspace().documents[0], workspace: h.P.workspace() }; });
+  if (wait === 'equal-view') { expect(after.error).toBeUndefined(); expect(after.privateId).not.toBe(ids[0]); expect(after.document.history).toEqual([]); }
+  else {
+    expect(after.error).toBeTruthy(); expect(after.privateId).toBe(ids[0]);
+    expect(after.document.template).toEqual(before.document.template); expect(after.document.baseline).toEqual(before.document.baseline);
+    expect(after.document.history).toEqual(before.document.history); expect(after.document.future).toEqual(before.document.future); expect(after.document.views).toEqual(before.document.views);
+    expect(after.document.view).toEqual({ ...before.view, selectedParts: ['#f0'] });
+    expect(after.workspace.projects).toEqual(before.workspace.projects); expect(after.workspace.installations).toEqual(before.workspace.installations);
+    expect(after.workspace.documents.slice(1)).toEqual(before.workspace.documents.slice(1));
+    await page.reload(); await awaitDurableReady(page); await prepareSerialWorkspace(page);
+    const boot = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+      const s = h.S.useTemplateStore.getState(); return { id: s.documentId, source: s.template, history: s.history, selected: s.selectedParts, view: h.E.activeEditorSession().port.view() }; });
+    expect(boot).toEqual({ id: ids[0], source: before.document.template, history: before.document.history, selected: ['#f0'], view: { ...before.view, selectedParts: ['#f0'] } });
+  }
+});
+
+
+for (const route of ['switch', 'home'] as const) test(`equivalent samples during held project ${route} preserve the submitted bundle and continuation`, async ({ page }) => {
+  const ids = await seedAuthoringProject(page); await prepareSerialWorkspace(page);
+  await editProjectText(page, 'Equivalent samples keep this source'); await flushAuthoringProject(page);
+  await installHeldWrite(page); await armHeldWrite(page, 'I', 'hold');
+  await page.evaluate(({ route, id }) => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace; h.done = false;
+    void (route === 'switch' ? h.P.openProjectDocument(id) : h.P.retainCurrentProjectDraft()).then(ok => { h.ok = ok; h.done = true; });
+  }, { route, id: ids[1] });
+  await heldWriteReady(page);
+  const observed = await page.evaluate(() => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    const before = h.P.workspace(), generation = h.M.workspaceGeneration(), session = h.E.activeEditorSession(), token = session.commandState().contextToken;
+    const s = h.S.useTemplateStore.getState();
+    h.S.useTemplateStore.setState({ sampleData: Object.fromEntries(Object.entries(s.sampleData).reverse()) });
+    return { before, after: h.P.workspace(), generation, afterGeneration: h.M.workspaceGeneration(), token, afterToken: session.commandState().contextToken, done: h.done };
+  });
+  expect(observed.after).toEqual(observed.before); expect(observed.afterGeneration).toBe(observed.generation);
+  expect(observed.afterToken).toBe(observed.token); expect(observed.done).toBe(false);
+  await releaseHeldWrite(page);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.done)).toBe(true);
+  expect(await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.ok)).toBe(true);
+  const result = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    return { workspace: h.P.workspace(), id: h.S.useTemplateStore.getState().documentId, error: h.P.useAuthoringProjects.getState().error }; });
+  expect(result.workspace).toEqual(observed.before); expect(result.id).toBe(route === 'switch' ? ids[1] : ids[0]); expect(result.error).toBe('');
+});
+
+for (const mode of ['preliminary-failure', 'correction-failure', 'correction-newer'] as const) test(`view correction after ${mode} retains the original failure and current owner`, async ({ page }) => {
+  const ids = await seedAuthoringProject(page); await prepareSerialWorkspace(page);
+  await editProjectText(page, 'Correction keeps this complete source'); await flushAuthoringProject(page);
+  const before = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    return { document: h.S.captureProjectDocument(h.S.useTemplateStore.getState(), false), view: h.E.activeEditorSession().port.view() }; });
+  await installHeldWrite(page); await armHeldWrite(page, mode === 'preliminary-failure' ? 'I' : 'D', 'late');
+  if (mode === 'preliminary-failure') {
+    await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+      const s = h.S.useTemplateStore.getState(); h.M.saveProject(s.template, s.baseline, s.saved, s.aiSpec, s.aiThread, s.legibility, h.S.captureProjectDocument(s)); });
+    await heldWriteReady(page);
+  }
+  await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace; h.done = false;
+    void h.A.discardCurrentGraphic().then(error => { h.error = error ?? undefined; h.done = true; }); });
+  if (mode !== 'preliminary-failure') await heldWriteReady(page);
+  await page.evaluate(mode => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace; h.S.useTemplateStore.getState().setSelectedParts(['#f0']);
+    if (mode === 'preliminary-failure') return;
+    const host = window as unknown as { correctionPut?: boolean; releaseCorrection?: () => void };
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function(value, key) {
+      const limit = Error.stackTraceLimit; Error.stackTraceLimit = 60; const stack = String(new Error().stack); Error.stackTraceLimit = limit;
+      if (String(key) !== 'spx-gfx-project' || !stack.includes('keepChangedDiscard')) return put.call(this, value, key);
+      IDBObjectStore.prototype.put = put; host.correctionPut = true;
+      if (mode === 'correction-failure') throw new DOMException('Correction storage quota', 'QuotaExceededError');
+      const request = put.call(this, value, key), tx = this.transaction;
+      Object.defineProperty(tx, 'oncomplete', { configurable: true, set(handler: (event: Event) => void) {
+        tx.addEventListener('complete', event => { host.releaseCorrection = () => handler.call(tx, event); }, { once: true });
+      } });
+      return request;
+    };
+  }, mode);
+  await releaseHeldWrite(page);
+  if (mode === 'correction-newer') {
+    await expect.poll(() => page.evaluate(() => typeof (window as unknown as { releaseCorrection?: unknown }).releaseCorrection)).toBe('function');
+    expect(await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.done)).toBe(false);
+    await page.evaluate(() => {
+      const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+      h.S.useTemplateStore.getState().setSelectedParts(['#f1']);
+      (window as unknown as { releaseCorrection: () => void }).releaseCorrection();
+    });
+  }
+  await expect.poll(() => page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.done)).toBe(true);
+  const after = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    return { error: h.error, document: h.S.captureProjectDocument(h.S.useTemplateStore.getState(), false), view: h.E.activeEditorSession().port.view(),
+      corrected: (window as unknown as { correctionPut?: boolean }).correctionPut }; });
+  expect(after.error).toContain('Your work could not be saved to browser storage.');
+  if (mode === 'correction-failure') { expect(after.corrected).toBe(true); expect(after.error).toContain('Browser storage is full'); }
+  if (mode === 'correction-newer') expect(after.error).toContain('latest changes are still open and could not be confirmed');
+  const selectedParts = mode === 'correction-newer' ? ['#f1'] : ['#f0'];
+  expect(after.document).toEqual({ ...before.document, view: { ...before.view, selectedParts } });
+  expect(after.view).toEqual({ ...before.view, selectedParts });
+  if (mode === 'preliminary-failure') {
+    await page.reload(); await awaitDurableReady(page); await prepareSerialWorkspace(page);
+    const boot = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+      return { id: h.S.useTemplateStore.getState().documentId, view: h.E.activeEditorSession().port.view() }; });
+    expect(boot).toEqual({ id: ids[0], view: { ...before.view, selectedParts } });
+  }
+});

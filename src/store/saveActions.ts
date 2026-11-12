@@ -18,7 +18,7 @@ import {
 } from '../model/library';
 import { authoringWorkspace, bindWorkspaceDocument, workspaceGeneration, workspaceRefusal, restoreRefusedDocument, conflictCopyOf, endMint, isConflictCopy, isGraphicSuperseded, linkAfterLoss, mintReservedGraphicId, releaseReservation, saveProject } from '../model/project';
 import { designLocked } from '../model/graphicDoc';
-import { captureDurableWrites, commitDurableReceipt, commitDurableWrites, unsettledWrites, type DurableWriteReceipt } from '../model/durableStore';
+import { captureDurableWrites, commitDurableReceipt, commitDurableWrites, unsettledWrites, libraryInUse, type DurableWriteReceipt } from '../model/durableStore';
 import { normalizeThread } from '../model/aiThread';
 import { useDocKindStore } from './docKindStore';
 import { validateProjectFormat } from '../model/projectFormat';
@@ -393,17 +393,43 @@ export function discardCurrentGraphic(): Promise<string | null> {
   // edit accepted during a wait (a save ahead of it, or either wait below) must refuse the
   // discard rather than be erased (#1147).
   const before = useTemplateStore.getState();
-  return transaction(() => discardDraft(before));
+  const generation = workspaceGeneration();
+  return transaction(() => discardDraft(before, generation));
 }
 
-async function discardDraft(before: EditingContext): Promise<string | null> {
+async function keepChangedDiscard(originalFailure?: string): Promise<string> {
+  const report = (correction?: string | null) => originalFailure && correction && originalFailure !== correction
+    ? `${originalFailure} ${correction}` : originalFailure ?? correction ?? 'The graphic changed while discarding. Your changes are still open. Try again.';
+  const refusal = workspaceRefusal();
+  if (refusal) return report(refusal);
+  // Capture the actual live owner, never the click-time state of a retired binding.
+  const current = useTemplateStore.getState(), owner = libraryInUse();
+  const { receipts } = captureDurableWrites(SLOT_KEY, () => persistLink());
+  const generation = workspaceGeneration();
+  const failure = receipts.length
+    ? (await Promise.all(receipts.map(commitDurableReceipt))).find(Boolean)
+    : 'Could not save your changes to this browser. They are still open. Save them before leaving.';
+  if (failure) return report(failure);
+  if (libraryInUse() !== owner || changedSince(current) || workspaceGeneration() !== generation) {
+    return report('The graphic changed again. Its latest changes are still open and could not be confirmed. Save them before leaving.');
+  }
+  return report(workspaceRefusal());
+}
+
+async function discardDraft(before: EditingContext, clickGeneration: number): Promise<string | null> {
+  if (changedSince(before) || workspaceGeneration() !== clickGeneration) return keepChangedDiscard();
   // Drain a pending autosave before staging the replacement, otherwise its timer can
   // overwrite the discard while its durable confirmation is still pending.
   flushPendingProject();
+  const preliminaryGeneration = workspaceGeneration();
   const pendingFailure = await commitDurableWrites();
-  if (pendingFailure) return pendingFailure;
+  if (pendingFailure) return keepChangedDiscard(pendingFailure);
+  if (changedSince(before) || workspaceGeneration() !== preliminaryGeneration) return keepChangedDiscard();
   const arriving = conflictCopyArriving(before.saved.graphicId);
   if (arriving) await arriving;
+  if (changedSince(before) || workspaceGeneration() !== preliminaryGeneration) return keepChangedDiscard();
+  const preliminaryRefusal = workspaceRefusal();
+  if (preliminaryRefusal) return preliminaryRefusal;
   const doc = before.saved.graphicId ? graphicById(before.saved.graphicId) : null;
   const template = doc?.template ?? createDefaultTemplate();
   const previous = captureProjectDocument(before), active = authoringWorkspace()?.active ?? null;
@@ -414,7 +440,8 @@ async function discardDraft(before: EditingContext): Promise<string | null> {
     reservedGraphicId: undefined, mintingReserved: undefined, views: undefined, view: undefined };
   const restoreRefusal = () => {
     const now = useTemplateStore.getState();
-    const live = now.documentId === before.documentId ? { ...captureProjectDocument(now), views: previous.views, view: previous.view } : previous;
+    const captured = now.documentId === before.documentId ? captureProjectDocument(now, false) : previous;
+    const live = { ...captured, views: captured.views ?? previous.views, view: captured.view ?? previous.view };
     restoreRefusedDocument(replacement, live, now.documentId === before.documentId ? active : null);
   };
   // Changing source or baseline clears the editor's private command history. Persist
@@ -424,20 +451,15 @@ async function discardDraft(before: EditingContext): Promise<string | null> {
     doc?.aiSpec ?? null, normalizeThread(doc?.aiThread), doc?.legibility ?? null, replacement, true,
   ));
   const generation = workspaceGeneration();
-  if (!receipts.length) { restoreRefusal(); return 'Could not discard. Your changes are still open. Try again.'; }
+  if (!receipts.length) { restoreRefusal(); return keepChangedDiscard('Could not discard. Your changes are still open. Try again.'); }
   const failures = await Promise.all(receipts.map(commitDurableReceipt));
   const failure = failures.find(Boolean);
-  if (failure) { restoreRefusal(); return failure; }
+  if (failure) { restoreRefusal(); return keepChangedDiscard(failure); }
   const refusal = workspaceRefusal();
-  if (refusal) { restoreRefusal(); return refusal; }
+  if (refusal) { restoreRefusal(); return keepChangedDiscard(refusal); }
   if (changedSince(before) || workspaceGeneration() !== generation) {
-    // The slot now holds the replacement. Refuse only once the newer draft is durable again,
-    // so a reload straight after the refusal cannot reopen the discarded copy.
-    const { receipts: restored } = captureDurableWrites(SLOT_KEY, () => persistLink());
-    const restoreFailure = restored.length
-      ? (await Promise.all(restored.map(commitDurableReceipt))).find(Boolean)
-      : 'Could not save your changes to this browser. They are still open. Save them before leaving.';
-    return restoreFailure ?? 'The graphic changed while discarding. Your changes are still open. Try again.';
+    // Refuse only after the complete newer live owner is durable again.
+    return keepChangedDiscard();
   }
   // Retire the confirmed discarded owner before the existing new-instance replacement.
   bindWorkspaceDocument(undefined);
