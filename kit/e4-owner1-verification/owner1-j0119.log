@@ -1,0 +1,19 @@
+=== j-0119 npm run test:e2e -- e2e/editor-projects.spec.ts --grep 'project documents keep independent'
+=== cwd /workspace/noacg-editor-r1-5-e4-build
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/editor-projects.spec.ts --grep project documents keep independent
+
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 15232 MB free (machine totals stand in for cgroup limits it could not read)
+[WebServer] (node:131227) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:131240) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:131337) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › e2e/editor-projects.spec.ts:18:1 › project documents keep independent draft undo/redo through switching, reload and Home reopen (7.9s)
+
+  1 passed (13.2s)

@@ -1,0 +1,31 @@
+2026-11-12T20:59:43.5664539Z Complete job name: E2E plan
+2026-11-12T20:59:52.4922217Z [36;1m  pull_request) BASE="$PR_BASE" ;;[0m
+2026-11-12T20:59:52.4996764Z   PR_BASE: 7e306913b7bc8e031b42232de6946f51db0c7068
+2026-11-12T20:59:53.1277656Z [36;1m# run simply carries on - a superseded run that completes costs minutes, a plan step[0m
+2026-11-12T20:59:53.1282961Z [36;1mif [ "$EVENT" = "pull_request" ]; then BASE="$PR_BASE"; elif [ "$EVENT" = "merge_group" ]; then BASE="$MERGE_GROUP_BASE"; else BASE=""; fi[0m
+2026-11-12T20:59:53.1307412Z [36;1m# instead of up to a day, on the branch where a regression is already live. It costs[0m
+2026-11-12T20:59:53.1334127Z [36;1m# Shard balance is only as good as the durations table, and a stale one now costs a[0m
+2026-11-12T20:59:53.1345322Z [36;1m  // without it, so the added cost of each run is readable from its annotations.[0m
+2026-11-12T20:59:53.1415005Z   PR_BASE: 7e306913b7bc8e031b42232de6946f51db0c7068
+2026-11-12T20:59:55.5784870Z [36;1m  echo "::notice title=Configured selection::$1"[0m
+2026-11-12T20:59:55.5789664Z [36;1m  *) exempt="event ${EVENT} runs no configured selection" ;;[0m
+2026-11-12T20:59:55.5790631Z [36;1m  printf '### Configured selection\n\nExempt: %s.\n' "$exempt" >> "$GITHUB_STEP_SUMMARY"[0m
+2026-11-12T20:59:55.5792412Z [36;1m  echo "::error title=Configured selection::The plan carried no configured manifest, so this change's configured selection is unknown. Refusing rather than reading that as nothing selected."[0m
+2026-11-12T20:59:55.5794674Z [36;1m  echo '### Configured selection'[0m
+2026-11-12T20:59:55.5799689Z [36;1m  *) echo "::error title=Configured selection::Unknown manifest mode '${MODE}'."; exit 1 ;;[0m
+2026-11-12T20:59:55.5801666Z [36;1m# As configured-suite.yml reads them: up to three of main's completed runs (a red run's[0m
+2026-11-12T20:59:55.5803726Z [36;1mfor id in $(timeout 30 gh run list --workflow configured-suite.yml --branch main --status completed --limit 3 \[0m
+2026-11-12T20:59:55.5807654Z [36;1mecho "::notice title=Configured selection::${MODE}: $(jq -r '.specs | length' <<<"$MANIFEST") configured spec(s) on $(jq -r '.shardSpecs | length' <<<"$SHARDS") local stack(s)."[0m
+2026-11-12T20:59:59.2911612Z ##[notice]all: 63 configured spec(s) on 4 local stack(s).
+2026-11-12T20:59:59.3261422Z ##[group]Run node scripts/growth-report.mjs fetch --out "$RUNNER_TEMP/growth-report.json" || true
+2026-11-12T20:59:59.3262152Z [36;1mnode scripts/growth-report.mjs fetch --out "$RUNNER_TEMP/growth-report.json" || true[0m
+2026-11-12T21:00:03.4483595Z newest growth report: run 43201149088, partial (offline evidence partial: ci.yml|pull_request: 4 run(s) still unfinished (550 API call(s) of 550, 2697 completed run(s) in 30 strata, 165 sampled, 4 still running at the window end)); judged on run 43014542120
+2026-11-12T21:00:03.4487952Z ##[warning]the newest weekly growth report is partial; pull requests are judged against the newest complete report (run 43014542120) and the owner alarm is raised after landing
+2026-11-12T21:00:03.4616238Z ##[group]Run node scripts/e2e-capacity.mjs --changed "${BASE:-}" --growth "$RUNNER_TEMP/growth-report.json" --github-output --summary "$GITHUB_STEP_SUMMARY"
+2026-11-12T21:00:03.4618317Z [36;1mnode scripts/e2e-capacity.mjs --changed "${BASE:-}" --growth "$RUNNER_TEMP/growth-report.json" --github-output --summary "$GITHUB_STEP_SUMMARY"[0m
+2026-11-12T21:00:06.0350735Z ### E2E capacity (estimate): REPAY
+2026-11-12T21:00:06.0351559Z - Execution: 199.0 of 213.0 table-minutes, 93.4% of 13 runners x budget (warn 85%, exception needed 95%).
+2026-11-12T21:00:06.0374847Z #### Growth tiers (D7: each tier alone, no aggregate gate)
+2026-11-12T21:00:06.0381594Z - Newest weekly growth report (run 43201149088) is partial; tiers judged on the newest complete report, run 43014542120, week to 2026-11-11, at the normal line.
+2026-11-12T21:00:06.0392862Z ##[warning]lands and owes a repayment (overhead): 199.0 of 213.0 table-minutes (93%) on 13 runners; above the 85% line, this change adds 1.3 minute(s); backend growth stop carried by partial evidence, a warning only until a complete report confirms it: cost:backend since 2026-11-02, one correction due 2026-11-09 did not bring it back in bounds; offline tier: a newer partial report proves at least 433.3/landing 194.0/day, above the judged 654.3/191.5; shown, never refused on; backend tier: a newer partial report proves at least 267.3/landing 86.3/day, above the judged 219.9/79.7; shown, never refused on; graphics tier: a newer partial report proves at least 25.4/landing 90.8/day, above the judged 36.3/90.3; shown, never refused on; overhead tier: a newer partial report proves at least 119.6/landing 12.0/day, above the judged 91.8/11.4; shown, never refused on; the newest weekly growth report (run 43201149088) is partial: offline evidence partial: ci.yml|pull_request: 4 run(s) still unfinished (550 API call(s) of 550, 2697 completed run(s) in 30 strata, 165 sampled, 4 still running at the window end); judged on the newest complete report, run 43014542120 at the normal line, and the owner (miwco (primary); the weekly owner session (backup coverage)) is alarmed after landing; overhead tier refuse: 91.8/105 per landing, 6.2/10 per day (87%), production-load-watch excepts 0/landing to 2026-12-03; this change adds 0/landing 6/day, reaching 122%, at or over the 95% line
+2026-11-12T21:00:06.4481862Z Set output 'capacityRepay'

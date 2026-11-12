@@ -1,0 +1,15 @@
+=== j-0118 npm run test:e2e -- e2e/editor-projects.spec.ts --grep '^project documents keep independent'
+=== cwd /workspace/noacg-editor-r1-5-e4-build
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/editor-projects.spec.ts --grep ^project documents keep independent
+
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 15233 MB free (machine totals stand in for cgroup limits it could not read)
+[WebServer] (node:130995) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:131008) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+Error: No tests found.
+Make sure that arguments are regular expressions matching test files.
+You may need to escape symbols like "$" or "*" and quote the arguments.
+

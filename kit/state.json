@@ -68,9 +68,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "owner-approved additional repair / implementation",
+      "step": "owner-approved repair / final verification",
       "pr": 2438,
-      "note": "Fresh model review completed and was read by the coordinator. The single owner-approved attempt is charged once; three ordinary repairs remain spent. The worker is making one combined repair of semantic sample filtering and durable Discard recovery, with documented fixture corrections. A remaining product failure stops this exception."
+      "note": "The single approved additional repair is used. The frozen head passes 15 targeted cases, 33 source oracles and 120 affected gates. Broader run remains 176/177 with a proven missing switch precondition; strengthened original case passes. Actual CI selects all 63 configured specs on four stacks. Awaiting CI, isolated backend, Codex and a fresh full independent review; no phase advance."
     }
   ],
   "owner": [
@@ -2003,7 +2003,7 @@
       "ordinaryRepairLimit": 3,
       "granted": 1,
       "used": 1,
-      "status": "ACTIVE_COMBINED_REPAIR",
+      "status": "VERIFYING_FROZEN_FINAL_HEAD",
       "sourceHead": "2767a30cb0fccbb9a04f4f2e0ca285b32e4f94d6",
       "workingPatchSha256": "674b343a64c616222c4820fee3746a251c788b8167c5a2920a9187657439997d",
       "handoff": {
@@ -2034,7 +2034,39 @@
       },
       "remaining": 0,
       "patchStartChargedAt": "2026-11-12T20:39:37.899850+00:00",
-      "patchScope": "One combined repair: semantic sample predicates before staging/continuations; durable current-owner Discard refusal correction across failed/zero/preliminary receipts; two documented fixture assumptions; fixed Rule-derived regressions. No broader source change or extra attempt."
+      "patchScope": "One combined repair: semantic sample predicates before staging/continuations; durable current-owner Discard refusal correction across failed/zero/preliminary receipts; two documented fixture assumptions; fixed Rule-derived regressions. No broader source change or extra attempt.",
+      "finalHead": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
+      "productCommit": "00a063a685fcf676f7adcff124df0383f8e46b23",
+      "fixtureCommit": "bb298ddca0d7154217f033aaf8848a095cd2afc8",
+      "sourceFreeze": "git diff 00a063..63d7 -- src is empty; final notes commit only. One coherent push; no product edits or pushes while CI runs.",
+      "verification": {
+        "originalCases": "j0115 PASS10/10 40.2s, two workers, zero retries/skips; preserved earlier failures.",
+        "addedRules": "j0116 PASS5/5 16.4s zero retries/skips.",
+        "oracles": "33/33 PASS; affected gates120/120 PASS across14files, appTS/affectedlint/dependencycruisePASS.",
+        "boundedBroader": "j0117 TERMINAL176PASS/1FAIL9.4min, two workers, zero retries/skips. No broader rerun.",
+        "fixtureDisposition": "Sole j0117 failure checked a stale port before async document B switch completed. Existing documented private-owner replacement rule and aria-current from actual templateStore documentId prove missing precondition. Added only confirmed aria-current assertions after two document switches; original stale-port and undo assertions unchanged. Product source unchanged. Additional two prior new fixture assumptions remain documented.",
+        "zeroSelection": "j0118 FAILED No tests found; no test executed. Incorrect anchored CLI grep retained, no flake/quarantine credit.",
+        "focusedFixture": "j0119 PASS1/1 13.2s, original single case; corrected CLI selector only. Root read whole actual jobs log.",
+        "canonicalSideEnds": {
+          "head": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
+          "paths": 51,
+          "ends": {},
+          "why": []
+        },
+        "receiving": "All four ZIP filenames/uncompressed bytes match prior qualified staged kit. Raw source JSON inequality retained: fresh fixture lookId UUID also differs at2767; no output regression or rebaseline."
+      },
+      "finalHeadGates": {
+        "ci": 43305743222,
+        "head": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
+        "status": "RUNNING",
+        "configuredSelection": "Actual plan131488480080 SUCCESS: ALL63 specs/four local stacks at20:59:59Z; root read actual extract.",
+        "capacity": "Actual REPAY199.0/213tablemin93.4%, adds1.3min. Newest43201149088 PARTIAL; judged complete43014542120. Current cost-only repayment policy applies; frozenPR_BASE attribution issue2450 retained; no ceilings changed.",
+        "isolated": 43305997998,
+        "isolatedStatus": "RUNNING same frozenhead",
+        "codex": "ONE ready-for-review trigger on confirmed frozen head; no duplicate @codex request.",
+        "fullSo": "Fresh FULL51path assessor after actual capacity; no eligible prior A, no delta shortcut.",
+        "queue": "No public stamp/land/auto-merge; all final gates required."
+      }
     }
   },
   "coordinatorTools": {
