@@ -726,6 +726,10 @@ jobs:
           # Without `--shard` Playwright would write `report.zip` on every runner, and the report
           # job flattens all shard artifacts into one directory - see playwright.config.ts.
           NOACG_BLOB_NAME: report-${{ matrix.shardIndex }}.zip
+          # MAIN'S FULL RUN RECORDS THE TRACED SPEC MAP (scripts/e2e-traced.mjs), so the nightly can
+          # take the map, the report and the triage from this run instead of running the same tree
+          # again (nightly.yml, `covered`). Empty elsewhere, which leaves tracing off.
+          NOACG_E2E_TRACE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && format('{0}/e2e-trace', runner.temp) || '' }}
         # This shard's own file list, as anchored Playwright filters. `specFilterArg` builds them
         # in tested code rather than here, because the anchoring is load-bearing: Playwright's
         # positional args are REGEXES over the file path, so a bare `control.spec.ts` also selects
@@ -783,6 +787,16 @@ jobs:
           path: blob-report/
           retention-days: 7
           if-no-files-found: error
+
+      # The nightly counts these against the shard total before it relies on this run.
+      - name: Upload shard trace
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        with:
+          name: e2e-trace-${{ matrix.shardIndex }}
+          path: ${{ runner.temp }}/e2e-trace/trace.json
+          retention-days: 7
+          if-no-files-found: warn
 
       - name: Upload failure evidence
         uses: actions/upload-artifact@v4

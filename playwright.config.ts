@@ -76,9 +76,9 @@ export default defineConfig({
   // and the github reporter so each failing test lands as an annotation on the commit/PR.
   // The integrity reporter fails a run that cannot be a verdict - a full disk, a truncated run -
   // even when every test it saw passed (scripts/e2e-run-integrity.mjs).
-  // A run that sets NOACG_E2E_TRACE (the nightly) records which source each spec executed: the
-  // tsconfig maps the specs' Playwright import to e2e/_trace.ts, and the reporter gathers what it
-  // wrote (scripts/e2e-traced.mjs).
+  // A run that sets NOACG_E2E_TRACE (main's push run, the nightly) records which source each spec
+  // executed: the tsconfig maps the specs' Playwright import to e2e/_trace.ts, and the reporter
+  // gathers what it wrote (scripts/e2e-traced.mjs).
   ...(process.env.NOACG_E2E_TRACE ? { tsconfig: './e2e/tsconfig.trace.json' } : {}),
   reporter: [
     ...(isCi ? [['line'], ['github'], blobReporter] : [['list']]),
