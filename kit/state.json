@@ -49,8 +49,9 @@
    "branch": "claude/plan-live-publishing-4-build",
    "launchedAt": "2026-11-12T00:02:29Z",
    "designPr": 2404,
-   "lastSeen": "2026-11-12T02:09Z G1 design PR #2404 head e32746ea stamped, in merge queue; /so A after B,B,B; W2 build with migration 0115 in progress locally",
-   "designMerge": "eee7827892b1936c00acc263655cf6a6e753e4be"
+   "lastSeen": "2026-11-12T03:36Z build PR #2408 head aa58ff60; migration 0115 live-path (trigger on control_shows, inert until the production_copies switch); post-land db:push holds it until a quiet window; about 52 USD",
+   "designMerge": "eee7827892b1936c00acc263655cf6a6e753e4be",
+   "buildPr": 2408
   }
  ],
  "owner": [
