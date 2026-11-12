@@ -36,7 +36,7 @@
  },
  "waitingOn": [
   {
-   "what": "PR 2457 stamp and merge queue, then the OS4 check",
+   "what": "PR 2457: stamp run 43283275350 waiting for a runner; once noacg/reviewed is on 0e4e0ef, confirm the head, enable auto-merge, post the repair-owner comment; then merge queue and the OS4 check",
    "eta": "2026-11-12T20:30:00Z"
   }
  ],
