@@ -33,7 +33,7 @@ test('a graphic saved before #2355 gets the live fit through prepareOutRuntime',
   // Every preview, save and export reaches it through prepareOutRuntime (whose module's
   // extensionless imports keep it out of a plain node test): the call is its second statement.
   const migration = readFileSync(new URL('../src/blocks/animMigration.ts', import.meta.url), 'utf8');
-  assert.match(migration, /export function prepareOutRuntime\(js: string\): string \{\n[^\n]*\n  js = upgradeSvgFitRuntime\(js\);/);
+  assert.match(migration, /export function prepareOutRuntime\(js: string\): string \{\n[^\n]*\n {2}js = upgradeSvgFitRuntime\(js\);/);
   assert.equal(upgradeSvgFitRuntime(saved.replace(/\n/g, '\r\n')), live, 'a Windows-saved file too');
 });
 
