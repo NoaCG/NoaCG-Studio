@@ -1112,6 +1112,7 @@ export default function CueEditor({
   editDraft,
   flushDraft,
   rundownHistory,
+  saveOnBlur,
   updateLive,
   hasUnsent,
   unsentFields,
@@ -1176,6 +1177,9 @@ export default function CueEditor({
   flushDraft: () => Promise<unknown>;
   /** The rundown history, whose group closes when focus leaves the editor. */
   rundownHistory: { closeGroup: () => Promise<boolean> };
+  /** Runs the save a blur owes, at once or, when a press that sends first took the focus, after
+   *  that press (control/cueDraft.ts `blurred`). */
+  saveOnBlur: (save: () => void) => void;
   updateLive: () => Promise<void>;
   hasUnsent: boolean;
   unsentFields: string[];
@@ -1341,7 +1345,7 @@ export default function CueEditor({
   };
   return (
     <div className={`pd-editor${editingIsLive ? (rehearsing ? ' up' : ' live') : ''}`} data-testid="cue-editor" data-renders={renders.current} inert={!authoringAllowed || !!candidate?.readOnly}
-      onBlurCapture={() => { void flushDraft(); void rundownHistory.closeGroup(); }}>
+      onBlurCapture={() => saveOnBlur(() => { void flushDraft(); void rundownHistory.closeGroup(); })}>
       <div className="pd-editor-head">
         {/* The cue's POSITION, not just its state. Two cues of the same graphic carry the
             same name and the same tally, so "EDITING ON-AIR CUE" over an editable title

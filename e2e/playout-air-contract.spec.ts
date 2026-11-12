@@ -213,20 +213,125 @@ const textFields = (page: Page) =>
 
 test('typed then taken at once: the typed value airs while its save is still landing, as one entrance', async ({ page }) => {
   // spec §5.3, "type then Take at once": the Take comes inside the 300 ms draft flush. The click
-  // blurs the editor, which starts the save; with the disk held the save is still out when the
-  // Take reads the cue, so what airs must be the draft, once.
+  // blurs the editor, whose save then waits for the Take; with the disk held the save is still out
+  // after it, so what airs must be the draft, once.
   await installWriteHold(page);
   await production(page, 'Type then take');
   await cue(page, 'Hairline').getByTestId('select-cue').click();
   const before = await plays(page);
+  // #2388: the click's pointer-down blurs the editor, and that blur's save rewrites the stored
+  // productions synchronously. It waits until the Take's own handler has run: what is stored when
+  // the click reaches the page is read in the capture phase, before any handler.
+  await evaluateInPage(page, async () => {
+    const m = await import('/src/model/shows.ts');
+    const w = window as unknown as { __storedAtClick?: boolean[] };
+    w.__storedAtClick = [];
+    window.addEventListener('click', (e) => {
+      if ((e.target as Element).closest?.('[data-testid="verb-take"]')) w.__storedAtClick!.push(JSON.stringify(m.loadShows()).includes('Typed then taken'));
+    }, true);
+  });
   await holdWrites(page, true);
   await page.getByTestId('cue-field-f0').fill('Typed then taken');
   await page.getByTestId('verb-take').click();
   await onProgram(page, '#f0', 'Typed then taken');
+  expect(await page.evaluate(() => (window as unknown as { __storedAtClick: boolean[] }).__storedAtClick), 'the Take ran before the save').toEqual([false]);
   await holdWrites(page, false);
   await expect(page.getByTestId('cue-unsent')).toBeEmpty();
   await page.waitForTimeout(500);
   expect(await plays(page), 'one entrance').toBe(before + 1);
+});
+
+test.describe('on a touch screen', () => {
+  test.use({ hasTouch: true });
+  test('typed then tapped Take: the Take runs before the save there too', async ({ page }) => {
+    // #2388 on touch: a tap moves the focus after its pointer is up, with the click it makes, so
+    // the press must not count as over at the pointer's release.
+    await installWriteHold(page);
+    await production(page, 'Type then tap');
+    await cue(page, 'Hairline').getByTestId('select-cue').click();
+    await evaluateInPage(page, async () => {
+      const m = await import('/src/model/shows.ts');
+      const w = window as unknown as { __storedAtClick?: boolean[] };
+      w.__storedAtClick = [];
+      window.addEventListener('click', (e) => {
+        if ((e.target as Element).closest?.('[data-testid="verb-take"]')) w.__storedAtClick!.push(JSON.stringify(m.loadShows()).includes('Typed then tapped'));
+      }, true);
+    });
+    await holdWrites(page, true);
+    await page.getByTestId('cue-field-f0').fill('Typed then tapped');
+    await page.getByTestId('verb-take').tap();
+    await onProgram(page, '#f0', 'Typed then tapped');
+    expect(await page.evaluate(() => (window as unknown as { __storedAtClick: boolean[] }).__storedAtClick), 'the Take ran before the save').toEqual([false]);
+    await holdWrites(page, false);
+    await expect(page.getByTestId('cue-unsent')).toBeEmpty();
+  });
+  test('typed, Take tapped, then the page reloads at once: the edit is kept', async ({ page }) => {
+    // Phase 3 check on 92e581a7: the Take's own save is still committing when the page goes, and a
+    // reload aborts it, so only the record the page keeps as it goes carries the edit.
+    await production(page, 'Tap then reload');
+    await cue(page, 'Hairline').getByTestId('select-cue').click();
+    await page.getByTestId('cue-field-f0').fill('Kept over a tap and a reload');
+    const box = (await page.getByTestId('verb-take').boundingBox())!;
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: box.x + 5, y: box.y + 5 }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.reload();
+    await cue(page, 'Hairline').getByTestId('select-cue').click();
+    await expect(page.getByTestId('cue-field-f0')).toHaveValue('Kept over a tap and a reload');
+  });
+});
+
+test('typed then taken, then the page reloads at once: the edit is kept', async ({ page }) => {
+  // #2388: the blur's save waits for the Take, so the edit is still owed when the page goes; the
+  // page going saves it at once.
+  await production(page, 'Take then reload');
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await page.getByTestId('cue-field-f0').fill('Kept over a reload');
+  await page.getByTestId('verb-take').click();
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Kept over a reload');
+});
+
+test('an unsaved edit is kept when the page reloads inside its save window, pressed or not', async ({ page }) => {
+  // Phase 3 check on 92e581a7: with the pointer still down on Take the blur's save is held, and with
+  // no press the idle save has not run, so only the page-hide save carries the edit. That save's
+  // transaction must commit before the reload ends the document.
+  await installWriteHold(page);
+  await production(page, 'Reload in the window');
+  const field = page.getByTestId('cue-field-f0');
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await field.fill('Kept with the press held');
+  await page.getByTestId('verb-take').hover();
+  await page.mouse.down();
+  await page.reload();
+  await page.mouse.up();
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await expect(field).toHaveValue('Kept with the press held');
+  await field.fill('Kept with no press');
+  await page.reload();
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await expect(field).toHaveValue('Kept with no press');
+  // Away to another tab and back mid-edit (its hide saves the first part), typing on, reload: the
+  // record must be applied over the part that hide saved.
+  await field.fill('Before the tab');
+  await page.evaluate(() => {
+    const flip = (state: string) => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+      document.dispatchEvent(new Event('visibilitychange'));
+    };
+    flip('hidden');
+    flip('visible');
+    delete (document as unknown as { visibilityState?: string }).visibilityState;
+  });
+  // That save lands; every later one is held, so the reload aborts it, as on a slow disk.
+  await settleDurableWrites(page);
+  await holdWrites(page, true);
+  await field.fill('Before the tab and after it');
+  await page.reload();
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await expect(field).toHaveValue('Before the tab and after it');
 });
 
 test('Update sends every field, and u is the same press', async ({ page }) => {

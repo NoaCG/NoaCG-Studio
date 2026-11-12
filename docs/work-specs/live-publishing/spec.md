@@ -398,4 +398,8 @@ Filled in by each phase's pull request.
   releases was refused. A harness page that imports `/src/...` cannot run on a bundled build.
   `preview/` may not import `control/`, so the measuring frame takes its qualification from its
   caller.
+- Repair 2 (check on 92e581a7 failed it): an edit was lost when the page reloaded before its save
+  landed, with no press too. IndexedDB aborts a write still committing when the page reloads, so
+  the page going also records the owed edit in localStorage, and the production page applies it
+  once on its next visit unless the production was saved after it. Rules P1 to P5 in the evidence.
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-3.md`.
