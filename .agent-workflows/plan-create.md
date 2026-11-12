@@ -52,6 +52,8 @@ request. Ask only missing outcome decisions, one at a time, and record each answ
 
 ## 4. The kit
 
+- Open the run issue first (section 5's first item): `plan-kit init` refuses a `state.json`
+  without its number, and a placeholder number is never used.
 - `state.json`: `version: 1`, `project`, `plan`, `spec`, `issue`, `coordinator` (`session`,
   `environment`, `return`: how a worker sends its receipt back), `authorization` (`line` verbatim,
   `deadline` if any, `standing`), `brief` (`read` and `rules` every worker of this plan needs, such as a
