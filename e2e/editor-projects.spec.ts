@@ -30,6 +30,7 @@ test('project documents keep independent draft undo/redo through switching, relo
   await page.getByRole('button', { name: /^Project/ }).first().click();
   await page.evaluate(async () => { (window as unknown as { oldDocumentPort: unknown }).oldDocumentPort = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port; });
   await page.locator(`[data-document="${ids[1]}"]`).click();
+  await expect(page.locator(`[data-document="${ids[1]}"]`)).toHaveAttribute('aria-current', 'page');
   const stalePort = await page.evaluate(async () => {
     let error = '';
     try { (window as unknown as { oldDocumentPort: { restore(view: unknown): void } }).oldDocumentPort.restore({ selectedParts: ['#f0'], time: 99, sampleData: { f0: 'Stale previous document' } }); } catch (e) { error = String(e); }
@@ -39,6 +40,7 @@ test('project documents keep independent draft undo/redo through switching, relo
   expect(stalePort.error).toContain('closed'); expect(stalePort.selected).toEqual([]); expect(stalePort.sample).not.toBe('Stale previous document');
   await editProjectText(page, 'Evening edition');
   await page.locator(`[data-document="${ids[0]}"]`).click();
+  await expect(page.locator(`[data-document="${ids[0]}"]`)).toHaveAttribute('aria-current', 'page');
   const changed = await page.evaluate(async () => {
     const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
     const s = activeEditorSession(), edited = s.port.read(); s.undo(); const undone = s.port.read(); s.redo();

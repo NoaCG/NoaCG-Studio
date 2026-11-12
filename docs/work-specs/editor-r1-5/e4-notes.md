@@ -963,3 +963,41 @@ No production build is repeated locally: the added script/dependency shape is
 unchanged from2767's historical successful CI build, while final-head CI must
 prove the complete build again. No migration, model/product call, provider,
 licence, engine, acceptance or later-phase change is made.
+
+
+The one source-pinned broader selection j-0117 at00a063a685fcf676f7adcff124df0383f8e46b23
+ended FAIL:176 PASS/1 FAIL in9.4minutes under12minutes, zero retries/skips.
+All seven E4/save/held/leave/cross-tab/folder/command specs ran. The maintained
+first project journey asserted that an old port was closed immediately after a
+Switch click, before observing asynchronous durable replacement. Its snapshot
+still showed the original document; old restore does not change private ID or
+source, so its full ownership guard correctly permitted the still-current port.
+`ProjectPanel.tsx` derives aria-current from actual store.documentId; the switch
+awaits persist before restore (`authoringProjects.ts` openProjectDocument).
+The stale-port probe itself could then supersede the pending switch.
+
+Root independently classified this as a faulty post-switch precondition under
+the documented confirmed-replacement rule, not a confirmed product failure. After
+the run terminated, only two target aria-current='page' assertions were added
+before the old-port and undo probes in that maintained test. Every original
+assertion remains; no sleeps, operation retries, timeout changes or product edits.
+A switch that cannot finish fails the new precondition. This ordinary fixture
+synchronization correction uses the existing test-wrong-about-a-documented-rule
+exception; it grants no product attempt. The original failed log/source/snapshot
+are retained in owner1-j0117-original.log and owner1-j0117-fixture-race. No second
+broader run is authorized or planned. The fixture-only focused case is pending;
+new-head normal CI still covers every selected case.
+
+The new-source receiving rehearsal produced all four packages and painted/browser
+operator outputs. Every ZIP file name and file byte matches the staged kit.
+An additional strict raw source.json byte-equality probe FAILED solely because
+the newly created saved brand has a fresh brandApplication.lookId UUID; that
+single-line diff and original raw FALSE result remain disclosed, with no output
+change/rebaseline or product-failure claim. Actual content/applicability is
+qualified at that exact scope, never physical receiver/operator acceptance.
+
+Current canonical sideEnds from the qualified current-main helper ran against
+all51 E4 changed paths at00a063: actual result {ends:{},why:[]}. Full91a57833..00a063
+package/build/version/dependency/lock/CLI inspection shows only the manual
+qualify:editor-projects npm script; no dependency/version/build/lock/CLI changes.
+No source file changed after00a063; fixture correction and notes alone follow.
