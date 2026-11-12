@@ -33,6 +33,12 @@ export interface PayloadVersion {
   g: Record<string, string>;
   /** Per graphic, when its design was last edited, ISO. */
   t?: Record<string, string>;
+  /** The saved revision of the production record this publication was built from (migration
+   *  0116; live-publishing G3 section 2). Absent: an older build, or a revision it did not know. */
+  r?: number;
+  /** A digest of everything the publish wrote, graphic bodies counted by their `g` digests (G3
+   *  section 3): equal means a new publish would change nothing on the outputs. */
+  c?: string;
 }
 
 /** The part of a graphic spec the digest covers: what the output renders, nothing else. */
@@ -115,6 +121,20 @@ export async function stampPayload(
   return { n: (previous?.n ?? 0) + 1, at: now.toISOString(), h, g, ...(edited ? { t: edited } : {}) };
 }
 
+/** The stamp for a payload whose per-graphic digests are already known (they are memoized by copy,
+ *  so no graphic body is stringified again): the same `h` as `stampPayload`. */
+export async function stampFromDigests(
+  g: Record<string, string>,
+  resolution: { width: number; height: number },
+  previous: PayloadVersion | null,
+  now: Date = new Date(),
+  edited?: Record<string, string>,
+): Promise<PayloadVersion> {
+  const keys = Object.keys(g).sort();
+  const h = await digestText(JSON.stringify([resolution.width, resolution.height, keys.map((k) => [k, g[k]])]));
+  return { n: (previous?.n ?? 0) + 1, at: now.toISOString(), h, g: { ...g }, ...(edited ? { t: edited } : {}) };
+}
+
 /** The string values of a wire map, the rest dropped. */
 function strings(value: unknown): Record<string, string> {
   const out: Record<string, string> = {};
@@ -132,7 +152,15 @@ export function readPayloadVersion(value: unknown): PayloadVersion | null {
   const v = value as Partial<PayloadVersion> | null;
   if (!v || typeof v !== 'object') return null;
   if (typeof v.n !== 'number' || !isFinite(v.n) || typeof v.h !== 'string' || !v.h) return null;
-  return { n: v.n, at: typeof v.at === 'string' ? v.at : '', h: v.h, g: strings(v.g), ...(v.t && typeof v.t === 'object' ? { t: strings(v.t) } : {}) };
+  return {
+    n: v.n,
+    at: typeof v.at === 'string' ? v.at : '',
+    h: v.h,
+    g: strings(v.g),
+    ...(v.t && typeof v.t === 'object' ? { t: strings(v.t) } : {}),
+    ...(typeof v.r === 'number' && isFinite(v.r) ? { r: v.r } : {}),
+    ...(typeof v.c === 'string' && v.c ? { c: v.c } : {}),
+  };
 }
 
 /**

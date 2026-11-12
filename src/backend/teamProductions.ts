@@ -452,6 +452,18 @@ export function teamSettleOwed(id: string): boolean {
   return settleGraphics(local.graphics, known.doc.graphics, new Date().toISOString()).changed;
 }
 
+/** The compare-and-swap token of the team record this tab holds, when its local copy is exactly
+ *  that record: no edit waiting, none on its way (live-publishing G3 section 1). Null otherwise. */
+export function teamConfirmedToken(id: string): string | null {
+  if (dirty.has(id) || inflight.has(id) || state.saving[id] === 'pending') return null;
+  return server.get(id)?.token ?? null;
+}
+
+/** Whether this tab holds an edit of the team record not yet confirmed by the server. */
+export function teamEditOwed(id: string): boolean {
+  return dirty.has(id) || inflight.has(id) || state.saving[id] === 'pending';
+}
+
 /** Confirm this production's pending edits before an operator requests a fresh cloud read. */
 export async function flushTeamProduction(id: string): Promise<string | null> {
   const owner = running;
