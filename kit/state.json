@@ -36,8 +36,8 @@
  },
  "waitingOn": [
   {
-   "what": "#2316 merge, then re-run CI on #2408 (capacity) and stamp it",
-   "eta": "2026-11-12T09:30:00Z"
+   "what": "builder merges main into #2408 for a fresh CI with the new durations table, delta /so, receipt",
+   "eta": "2026-11-12T10:30:00Z"
   }
  ],
  "inFlight": [
@@ -91,7 +91,7 @@
   {
    "what": "Land #2316 durations refresh (owner Q1 A)",
    "pr": 2316,
-   "state": "in merge queue 2026-11-12T08:25:38Z"
+   "state": "merged 2c8d3831d8edf048dc5650d3188c75decbe8d318"
   }
  ],
  "triggers": {
