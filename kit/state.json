@@ -36,18 +36,18 @@
  },
  "waitingOn": [
   {
-   "what": "phase 3 second checker verdict",
-   "eta": "2026-11-12T01:00:00Z"
+   "what": "phase 4 builder: G1 design PR note, then W2 receipt",
+   "eta": "2026-11-12T06:00:00Z"
   }
  ],
  "inFlight": [
   {
-   "phase": "3",
-   "step": "check (second)",
-   "actor": "checker-3-3-c-e769",
-   "session": "session_017SdbwPZuLaoAgZLxPw3MTv",
-   "mergeSha": "0e65d859eb7978589b48eb42f2fb45161236d813",
-   "launchedAt": "2026-11-11T23:32:45Z"
+   "phase": "4",
+   "step": "build (G1 design PR, then W2 build PR)",
+   "actor": "builder-4-4-b-8d6e",
+   "session": "session_017SdbwMv6y9nPcsdRwe6TNm",
+   "branch": "claude/plan-live-publishing-4-build",
+   "launchedAt": "2026-11-12T00:02:29Z"
   }
  ],
  "owner": [
