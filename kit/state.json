@@ -68,9 +68,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "owner-approved additional repair / fresh model review",
+      "step": "owner-approved additional repair / implementation",
       "pr": 2438,
-      "note": "Fresh worker startup verified the exact saved source, all nine retained files and the owner grant. One additional repair is reserved; the three spent attempts remain. Focused read-only model review precedes code. All tests, limits and final independent gates remain."
+      "note": "Fresh model review completed and was read by the coordinator. The single owner-approved attempt is charged once; three ordinary repairs remain spent. The worker is making one combined repair of semantic sample filtering and durable Discard recovery, with documented fixture corrections. A remaining product failure stops this exception."
     }
   ],
   "owner": [
@@ -1517,7 +1517,7 @@
     "requestSha256": "bcfabef5e1347043b92cde2edc0f69da57df24eda1c49e7415c7ce4bd8281754",
     "brief": "briefs/e4-build-e4-b-cloud-1112.txt",
     "briefSha256": "2c7379c7dc2988405d565f2a2e1d72393a398e1f3cd671cf7bc4744cfd2e9888",
-    "status": "Owner authorized one additional bounded repair; preparing serial native handoff",
+    "status": "Owner-approved single additional repair active; ordinary three spent attempts preserved",
     "rulesFirst": {
       "head": "0515e370d",
       "verdict": "AGREE WITH CORRECTIONS",
@@ -2002,8 +2002,8 @@
       "ordinaryRepairsSpent": 3,
       "ordinaryRepairLimit": 3,
       "granted": 1,
-      "used": 0,
-      "status": "STARTUP_ACCEPTED_PRECODE_MODEL_PENDING",
+      "used": 1,
+      "status": "ACTIVE_COMBINED_REPAIR",
       "sourceHead": "2767a30cb0fccbb9a04f4f2e0ca285b32e4f94d6",
       "workingPatchSha256": "674b343a64c616222c4820fee3746a251c788b8167c5a2920a9187657439997d",
       "handoff": {
@@ -2026,11 +2026,15 @@
       },
       "modelReview": {
         "actor": "/root/editor_e4_owner_repair/e4_owner1_model_so",
-        "status": "RUNNING_READ_ONLY",
-        "head": "2767a30cb0fccbb9a04f4f2e0ca285b32e4f94d6",
-        "workingDiffSha256": "d785964db3c7827b3bc13e07fde11cb8417819a8637d1c246d6989226ebed540",
-        "evidence": "Only pre-code notes changed since stopped packet; root verified all other eight tracked file hashes still exactly match manifest. Fresh fork-none assessor has source/hash, grant, original failure logs, prior models and complete caller inventory. No tests/writes/delegation allowed. Wait for full verdict and root PATCH_START budget ACK."
-      }
+        "status": "COMPLETE_AGREE_WITH_CORRECTIONS",
+        "receipt": "owner1-model-review.txt",
+        "sha256": "025552786ae4a82a3bdabcf99ea073fe458c9b9c00399398263af4bee67ec85b",
+        "rootReadback": "Full normalized verdict read and exact hash verified before product edit; no additional product decision/clarification needed. Requires semantic subscription+context predicates and all Discard refusal/correction exits, real receipts/error preservation/retired-owner/library/generation truthfulness, no retry loop.",
+        "sourceDiffSha256": "d785964db3c7827b3bc13e07fde11cb8417819a8637d1c246d6989226ebed540"
+      },
+      "remaining": 0,
+      "patchStartChargedAt": "2026-11-12T20:39:37.899850+00:00",
+      "patchScope": "One combined repair: semantic sample predicates before staging/continuations; durable current-owner Discard refusal correction across failed/zero/preliminary receipts; two documented fixture assumptions; fixed Rule-derived regressions. No broader source change or extra attempt."
     }
   },
   "coordinatorTools": {

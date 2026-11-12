@@ -1,0 +1,53 @@
+AGREE WITH CORRECTIONS
+
+The problem is preserving the exact private document’s complete current view across persistence and refusal, while equivalent view notifications remain inert. The proposed combined repair addresses the two retained defects through the existing architecture. It needs the qualifications below before implementation.
+
+1. Semantic sample equality must govern both subscription effects and asynchronous continuation checks.
+
+At src/store/authoringProjects.ts:77–88, reference inequality currently permits an equal sample map to reach retained() before semantic filtering. Against a held Discard candidate, that replaces its submitted source bundle and advances generation. Filter samples semantically before retention, reservation inspection, staging and scheduling. Preserve independent source/history/link changes in the same notification; an equal sample map must not suppress those legitimate changes.
+
+Also correct the sample comparison in sameEditingContext() at line 130. persist() uses that predicate at line 109, and open/create/Home continuations use it afterward. Leaving reference equality there means an equivalent sample notification during a held project write can still refuse the action and initiate corrective persistence despite unchanged generation. This is another instance of the same idempotence rule.
+
+Keep ordered selection equality, genuine away/back invalidation, and explicit project intent. Comparing against an effective workspace must retain its existing adopted-envelope refusal rules.
+
+2. Failed Discard recovery needs a confirmed correction, with original and correction errors both preserved.
+
+At src/store/saveActions.ts:433–449, restoreRefusal() conditionally restores staging, but the failure branch returns without confirming it. The retained j-0114 reload failure demonstrates the consequence.
+
+Keep restoreRefusedDocument()’s exact-submitted-bundle comparison and removed-active-document guard (src/model/project.ts:127–132). Then, where the current workspace remains writable, capture and await the correction through the existing receipt lifecycle. keepChangedDiscard() at saveActions.ts:400 provides that mechanism, but its result must not replace or hide the original Discard failure.
+
+Apply this rule to all refusal exits, including zero replacement receipts and preliminary-write failure at line 418. That preliminary branch currently returns before testing for newer staged work. This is a concrete caller obligation from the existing code; I did not execute another failure.
+
+The correction must capture the actual legitimate current owner, never refresh a replacement owner from before or previous. Check refusal before writing; adopted unknown or incompatible envelopes remain untouched. Claim correction receipts synchronously, treat zero receipts as failure, and retain both errors if correction fails. After awaiting, do not describe a retired owner, changed library, or superseded generation as the confirmed current bundle. Preserve newer staging and report inability to confirm truthfully rather than adding a retry loop.
+
+The smallest correction remains inside the existing subscription/context predicates and Discard recovery path. No new cache, protocol, format or architecture is justified.
+
+I inspected the actual surrounding paths:
+- Canvas, Timeline, group navigation and command selection feed the store selection seam; all three selection setters remain covered.
+- Sample set/reset and atomic restore retain paused-account sample authorization (templateStore.ts:334–336).
+- Clock/cue, direct restore and gesture cancel reach session observation; execute and undo/redo retain their completed-history publication callbacks.
+- Session construction initializes observation without publishing; reentrant observation records its fingerprint before callbacks.
+- Adapter publication retains private ID, baseline, effective public identity and closed-binding checks (documentAdapter.ts:17–18,53).
+- Project switch/create/adopt/rename/remove/Home, external replacement using prev, and persistence repair consume full captures.
+- Timer/explicit/account flush, Save/Save As reservation/link/trailing flush, queued Discard, preliminary waits, submission and recovery share the existing slot lifecycle.
+- Boot projection, project restore, initial clock/cue and historical view restoration remain relevant readers.
+
+The repair must preserve supplied-state selection/samples; the actual owned clock/cue; historical past/future views; complete source/assets/baseline/history; exact-owner nonallocating reservation capture and authoritative false/absence; R/K/F/device recovery; independent documents, membership, installation journals, rollback conflicts and installed/on-air copies.
+
+Still unverified:
+- The original failed-replacement/immediate-reload assertion and equal-map/held-Discard assertion on repaired source.
+- Equal sample maps during held project persistence, including a normal successful switch/Home continuation without spurious correction.
+- Preliminary failure, zero replacement receipts, correction-write failure, and newer work during correction; original and correction errors must remain observable.
+- Genuine selection/sample/clock/cue changes versus equal observations, paused-account restore, first selection before seek, ordered selection and away/back changes.
+- Retired same-private bindings, shared-baseline departing capture, false/absent mint marks, adopted v99/incompatible revisions, removed active documents and complete boot projection.
+- All required affected checks, the maintained oracle and bounded source-pinned regression, current-head CI/configured/backend qualification, Codex result, and fresh final FULL SO A/A+.
+
+Correct only the two demonstrated fixture assumptions: a visited document’s ordinary writer may reserve its ID, and Save As adopts the free name E4 Lower third 2. Keep the remaining assertions intact. Historical j-0113 remains four failures; j-0114 remains six passes/four failures.
+
+Readback matched before and after inspection:
+- HEAD: 2767a30cb0fccbb9a04f4f2e0ca285b32e4f94d6
+- Current binary diff SHA256: d785964db3c7827b3bc13e07fde11cb8417819a8637d1c246d6989226ebed540
+- Preserved failed patch SHA256: 674b343a64c616222c4820fee3746a251c788b8167c5a2920a9187657439997d
+- Owner grant SHA256: b15285eeb7b3bb92787bfa3df50c65315ec3e024f1fd5b960e7d904dc70a7839
+
+This is a pre-code MODEL verdict only. I performed read-only inspection, with no edits, tests, builds, GitHub writes, git mutation or delegation. Five rounds and three ordinary family repairs remain spent. The owner grants one combined additional repair; a remaining confirmed product failure afterward ends that exception. No final implementation grade or landing approval follows.
