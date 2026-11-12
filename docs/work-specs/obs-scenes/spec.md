@@ -705,3 +705,25 @@ Filled in by each phase's pull request.
   - R18. `docs/DATA_API.md` replaces "it never scrapes a site or polls an address for you" with what
     NoaCG now reads (a public JSON address, on the source's interval above 10 s, through the guarded
     fetch and one shared read) and what it still never does (scrape a page, send a credential).
+- Previous verified `main`: `bcb4d10b8773704db04e9ec9148d3782b6df1d2d` (CI run 43287863511, the
+  configured suite 43287863588).
+- Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed: a
+  `read` left on a connector is ignored by the reverted build, so the source is an agent-only
+  connector again and nothing reads it until its agent runs. Migration 0116 stays applied and is
+  harmless without the reader (the tick lists the source, finds no `read` handling, and records
+  `error`); restore 0099's `control_data_tick_due` and 0101's `control_source_registration_refusal`
+  in a new migration only if an agent must read such a source while `read` is still set.
+- Decisions: the source is a connector with `read`, not a new kind, so the existing JSON review,
+  recipe, lists, paths and evaluator serve it and nothing persisted changes shape; the feed kind is
+  headlines only. The cache is the feed reader's row and claim with a JSON key, floor and words
+  (`CachedKind`), so the guard and the one-read-per-address rule are one code path. The reader is
+  the Sheet reader with a `project` hook (R11), so lease, Pause, stale and late answers are the
+  ones every source already has. The tick's due test is in SQL (R10 amended). Owner questions the
+  Rules-first `/so` raised and this phase decided by default: a source with `read` is NoaCG's alone
+  (R12), and it is held by its own Pause, not the "Another system" Pause (R15, the spec's "as for
+  other sources").
+- Traps: until 0116 applies (a live-path migration, held for a quiet window), the tick does not list
+  a JSON source and the line can still say closed-page reading is on; only open pages read it. A
+  page of an older build that rewrites a connector's configuration drops `read` (R13). On a ticker,
+  a pasted address is still read as a news feed; "Read by NoaCG" is offered on the other graphics.
+- Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS5a.md`.
