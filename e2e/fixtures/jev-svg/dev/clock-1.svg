@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<svg xmlns="http://www.w3.org/2000/svg" width="520" height="260" viewBox="0 0 520 260" font-family="sans-serif" fill="#fff">
-  <rect x="0" y="0" width="520" height="260" fill="#122036" />
-  <circle cx="260" cy="130" r="110" fill="#345269" />
-  <text x="260" y="145" font-size="62" id="timer" text-anchor="middle">07:45</text>
-  <text x="260" y="220" font-size="18" text-anchor="middle">STUDIO 12</text>
-</svg>

@@ -1,9 +1,0 @@
-{
-  "version": 2,
-  "specSha256": "8e4befcff123c26db5bc655a1e639a9733cd89fe26d489c8511a23981eb0a2c7",
-  "authority": {
-    "status": "draft",
-    "source": "Task handed over from the team-save-load session, 2026-11-03: reduce production database work per user, starting with the sync list and an evaluation of published shows"
-  },
-  "review": null
-}
