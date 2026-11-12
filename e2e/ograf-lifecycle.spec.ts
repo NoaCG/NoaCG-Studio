@@ -417,8 +417,9 @@ test('imported credits made by the import road roll, take a new list on the next
   expect(await top(), 'the roll moves up').toBeLessThan(early - 10);
   expect(await act(page, 'roll', 'updateAction', { data: { [listField('roll')]: 'Director:\nAlex Rivera\nProducer:\nSam Chen' } })).toMatchObject({ statusCode: 200 });
   await page.clock.runFor(2_000);
-  // A roll on air keeps the list it took (row 24); the new one rolls from the next Take.
-  const taken = ['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss'];
+  // A roll on air keeps the list it took (row 24); the new one rolls from the next Take. The list
+  // it took is the drawn one, which starts with the drawn show title.
+  const taken = ['PRODUCTION', 'Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss'];
   expect(await rows('roll'), 'a list sent on air waits for the next Take').toEqual(taken);
   expect(await act(page, 'roll', 'stopAction')).toMatchObject({ statusCode: 200 });
   await page.clock.runFor(2_000);

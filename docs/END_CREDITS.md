@@ -37,6 +37,7 @@ The complete set:
 |---|---|
 | `Director:` | a role; every line under it is one of its names |
 | `Director: Alex Rivera` | the same, written inline for a role with one person |
+| `Camera: Kim Park, Jo Berg` | a role and several people on one line: a comma separates a role's names |
 | `Director` `<TAB>` `Alex Rivera` | the same - this is what a paste from a Google Doc table or a spreadsheet column looks like |
 | `Director \| Alex Rivera` | the same, using the original separator; older lists keep working |
 | `Alex Rivera` | a name: it joins the role above it, or stands on its own if there is none |
@@ -128,7 +129,15 @@ Imported credits are the same one list. How they are drawn decides whether it st
   role. The operator gets this page's list format in one field, so a paste from a spreadsheet,
   a linked Google Sheet or a last-minute edit on the production page all work, and every row
   copies the drawn role or name look. **Plays as** is a roll, one still page, or cards. A roll or
-  cards on air keep the list they took until the next Take.
+  cards on air keep the list they took until the next Take. **A roll moves everything drawn in the
+  list's column as one text**: a show title above the first role, the rule under it and a closing
+  line travel with the rows (`creditsRiders`). Only what fills most of the window, such as a
+  background, what sits beside the column, such as a corner logo, and a text that is an operator
+  field of its own stay put. **The list's
+  first line is the show title** where a title is drawn above the roles in a look of its own
+  (`DesignSvgCredits.title`): a first line that is not a role is painted in that look, where the
+  title was drawn, and the drawn title is never a field. A list that starts with a role has no
+  title. Cards show the title on the first card.
 - **Fixed artwork.** The text stays part of the artwork: it scrolls as drawn and cannot be
   edited on the production page. It is a deliberate choice (**Show as: Fixed artwork**), and
   then every role and name layer of the block scrolls as one piece. It is also the fallback

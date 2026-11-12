@@ -23,3 +23,7 @@ export const DOWNLOADS_CLI_URL = '/downloads#cli';
 export const SVG_EXAMPLES_URL = '/downloads#svg-examples';
 /** The examples zip itself (scripts/illustrator/pack-svg-examples.mjs writes it). */
 export const SVG_EXAMPLES_ZIP_URL = '/downloads/NoaCG-SVG-examples.zip';
+/** Its SVG templates section: ten styled graphics to restyle in Illustrator and import. */
+export const SVG_TEMPLATES_URL = '/downloads#svg-templates';
+/** The templates zip itself (`pack-svg-examples.mjs --set templates` writes it). */
+export const SVG_TEMPLATES_ZIP_URL = '/downloads/NoaCG-SVG-templates.zip';
