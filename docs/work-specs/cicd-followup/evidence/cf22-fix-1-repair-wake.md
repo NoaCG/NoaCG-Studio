@@ -34,13 +34,23 @@ How a red check reaches each kind of repair owner:
 | Claude Code Cloud session subscribed to the PR (`subscribe_pr_activity`) | the CI event wakes the session (existing) | minutes |
 | Claude app with Auto-fix on | Auto-fix wakes on the red check (existing) | minutes |
 | Plan-run coordinator | its PR subscription, or its check-in for the docs PRs it does not subscribe to (existing) | minutes to its check-in |
-| Codex chat, local session, or a session that has ended | none: nothing in the repository can wake them | the owner alarm after the bound (rule 6) |
-| None recorded, or a bot PR | none | the owner alarm after the bound, or at the next check when no worker can be left (rule 6) |
+| Codex chat, local session, or a session that has ended | none: nothing in the repository can wake them | the owner alarm at the first landing or check-in after the bound (rules 6 and 10) |
+| None recorded, or a bot PR | none | the same, with no bound when no worker can be left (rule 6) |
 
 The gap the owner accepts: for owners in the last two rows, the first person to hear of a red
-check is the owner, through the alarm, up to about 80 minutes after it (rule 6's bound plus rule
-10's schedule). A repository workflow cannot resume a Codex chat or a local session: it has no
-credential or interface to reach them.
+check is the owner, through the alarm. It comes at the first landing or plan-run check-in after
+the bound, not on a timer: with no landing and no check-in (overnight), it waits for the next one.
+A repository workflow cannot resume a Codex chat or a local session: it has no credential or
+interface to reach them.
+
+**Why not a schedule of its own.** The first version ran as its own workflow, every 20 minutes and
+after each failed CI run. The E2E capacity line refused it on #2398: it prices a new overhead job
+at 6 runner-minutes a run, so the workflow added 29 a landing and 432 a day to a tier at 91.8/105 a
+landing and 6.2/10 a day. No new scheduled job fits that tier without an owner-approved exception.
+So the check runs in jobs that already run: the delivery-age alarm's job in `post-land.yml`, after
+every landing, and the plan-run check-in, beside `growth-report.mjs ages`. Nothing new is priced and
+no limit changes. A faster schedule stays possible later, as an owner decision on an overhead
+exception (plan coordinator, 2026-11-12).
 
 ## Rules
 
@@ -100,23 +110,24 @@ required changes, all taken).
    closes nothing and drops no entry, and it warns in its run. It raises a new alarm only for a PR
    whose verdict it established: with the merge-group runs unread, an older red PR run could pass
    for the verdict, so it raises none.
-10. **Bounds.** At most 100 GitHub API calls per check, reads and writes together; merge-group runs
-    are read up to three pages (300 runs in two days; about 55 is usual). It runs every 20 minutes
-    and after each failed `CI` run.
-11. **Trust.** The workflow runs `main`'s code only (`workflow_run` and `schedule` run the default
-    branch). It never checks out, or puts into a shell, the triggering run's head, branch or
-    title; PR data reaches GitHub only as API arguments. Permissions: `contents`, `actions` and
-    `pull-requests` read, `issues` write. One concurrency group on the job for every trigger, never
-    cancelled mid-write; on the job, so the skipped runs that green CI runs start never displace a
-    waiting check.
+10. **When it runs.** After every landing, in `post-land.yml`'s existing "Delivery age alarms" job,
+    and at every plan-run check-in. It has no schedule of its own (see the design note). At most
+    100 GitHub API calls per check, reads and writes together; merge-group runs are read up to
+    three pages (300 runs in two days; about 55 is usual). A failed check never turns a landing's
+    post-land run red.
+11. **Trust.** It runs `main`'s code only (`post-land.yml` runs on pushes to `main`) and puts no PR
+    data into a shell; PR data reaches GitHub only as API arguments. Permissions of that job:
+    `contents`, `actions`, `pull-requests` and `statuses` read, `issues` write. Post-land runs one
+    at a time and is never cancelled mid-write. A coordinator's check-in can run beside a
+    landing's; the rare overlap can at worst send one duplicate notice, never lose one.
 12. **Owner.** The alarm goes to the owner `scripts/growth-ceilings.json` records, read by
     `alarmOwner`. If it names none, the check fails loudly; it never invents one.
 13. **Read-only on PRs.** The check reads PRs, runs and comments and writes only its alarm issue.
     The weekly owner session sees it through `alarm-owner.mjs list`.
 
-Found after the Rules, in `/check`'s review (all fixed, each with a test): a sparse checkout that
-would have crashed the script at load; workflow-level concurrency letting skipped runs displace a
-waiting check; the zero bound ignoring a person's action; a listed merge-group failure dropping
+Found after the Rules, in `/check`'s review (all fixed, each with a test, and the two about the
+since-removed workflow now moot): a sparse checkout that would have crashed the script at load;
+workflow-level concurrency letting skipped runs displace a waiting check; the zero bound ignoring a person's action; a listed merge-group failure dropping
 out after two days; a hand-closed alarm alarming again; more than 100 merge-group runs leaving every
 check incomplete; a body rewritten on every check; CRLF bodies losing their sections. From the
 Codex review and the final `/so` (same class for the first): the closed alarm's memory read only
@@ -130,10 +141,16 @@ nothing new anyway.
 
 ### The four PRs under these rules
 
-- #1840: merge-group failure 06:13, no owner, a bot PR: alarmed at the next check, about 06:33.
-- #2218: PR-run failure 13:50, no owner, no action: alarmed about 14:50.
-- #2227: failure 15:30; the owner commented at 15:33 and 15:39, then waited on main's fix. Alarmed
-  once, about 16:39. The PR's own comment says why; one notification.
-- #2374: failure 05:28, an owner with no PR wake, no action: alarmed about 06:28, about an hour
-  before its next work began.
+Each is alarmed at the first landing on `main` after its bound (read from `main`'s first-parent
+history; a coordinator check-in in between would bring it earlier):
+
+| PR | Failure | Due | First landing after | Idle it had |
+| --- | --- | --- | --- | ---: |
+| #1840 | 10-31 06:13, merge group, no owner, a bot PR | at once | 07:41 | 1,463 min |
+| #2218 | 11-05 13:50, no owner, no action | 14:50 | 15:08 | 1,226 min |
+| #2227 | 11-05 15:30; the owner commented at 15:33 and 15:39, then waited on main's fix | 16:39 | 16:58, once; the PR's own comment says why | 313 min |
+| #2374 | 11-11 05:28, an owner with no PR wake, no action | 06:28 | 06:59, about 35 minutes before its next work began | 261 min |
+
+The alarm came 18, 19, 31 and 88 minutes after each one was due. A schedule of its own would have
+held that to about 20 minutes. A night with no landings and no check-ins would wait longer.
 
