@@ -155,6 +155,12 @@ operation by evidence, not the provider name. No laptop daemon is needed.
    `/check` and `npm run stamp` on the resulting tip. Push only task files and open/reuse its PR
    with `scripts/pr-description.mjs`. Retain the full reviewed SHA. Disposable failure probes
    stay draft with no `land` label, auto-merge or queue entry.
+   **Review on a draft.** Open the PR as a draft: CI then runs only Build, Factory gates and
+   Reviewed. Request the Codex review on the draft head (`@codex review`; it does not start by
+   itself on a draft), fix every finding of a round in one push, and mark the PR ready only when
+   that head is clean. On a draft, `CI gate` fails by design and `Reviewed` until stamped; read
+   Build and Factory gates. Ready for review runs the full selection on the same head, as does
+   every later push; that run is the one the stamp, auto-merge and the coordinator read.
 3. If status writes work, post `noacg/reviewed` on that SHA from the actual passing check and add
    `land`. Otherwise dispatch `.github/workflows/cloud-queue-merge.yml` **on main** with `branch`,
    `sha` and the actual review verdict. Observe existing verification first (verify.md);

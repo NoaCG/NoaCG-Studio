@@ -78,7 +78,9 @@ larger selections and whole suites stay in Actions. Browser-driving work goes th
 
 ## 3. Loop until it holds
 
-Reproduce the failure or the missing behaviour first, change, re-run, look at the result. After
+Reproduce the failure or the missing behaviour first, change, re-run, look at the result.
+A red CI run is read whole before any repair is pushed: wait for every job, collect every failure,
+and fix them in one push, because each push cancels the running run and starts a new one. After
 three attempts on the same failure, stop and report what you tried; do not chase it further.
 
 ## 4. Record the evidence
