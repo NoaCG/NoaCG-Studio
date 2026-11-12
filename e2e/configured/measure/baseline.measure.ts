@@ -839,9 +839,11 @@ test('w3', async ({ page, browser }) => {
     await clearLpm(page);
     const pressedAt = await nowOn(page);
     samples.push(await pressAndMeasure(page, take, 'verb-take', SEND));
-    // Press to the light green again: every output has confirmed running it (E1).
+    // Press to confirmed: PROGRAM's tag reads "ran" once every output has reported running it (E1,
+    // G2 section 6). The light itself also weighs the fixture's server cue, which this harness's
+    // Bridge does not list, so the tag is the reading that is about the outputs alone.
     const ok = await page
-      .waitForFunction(() => document.querySelector('[data-testid="production-status"]')?.getAttribute('data-tone') === 'ok', null, { timeout: 20_000, polling: 25 })
+      .waitForFunction(() => document.querySelector('[data-testid="program-air"]')?.getAttribute('data-state') === 'ran', null, { timeout: 20_000, polling: 25 })
       .then(() => true, () => false);
     if (ok) confirmed.push((await nowOn(page)) - pressedAt);
     else {
@@ -851,7 +853,7 @@ test('w3', async ({ page, browser }) => {
     await settle(page);
     await outBtn.click();
     await settle(page);
-    await expect(status).toHaveAttribute('data-tone', 'ok', { timeout: 20_000 }).catch(() => undefined);
+    await expect(page.getByTestId('program-air')).toHaveAttribute('data-state', 'ran', { timeout: 20_000 }).catch(() => undefined);
   }
   if (feeder) await feeder.close();
   report('w3', { graphic: samples }, { outputs: outputsWanted, feedMs, pressToConfirmed: summary(confirmed, unconfirmed), fixtureFacts: fx });
