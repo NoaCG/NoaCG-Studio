@@ -112,3 +112,29 @@ export function compact<M extends Plain>(rows: readonly HeldRow<M>[], limit: num
 
 /** Why a hold failed, as its `h` entry and the page's words carry it. */
 export type HoldFailure = 'unpublished' | 'load' | 'script' | 'limit' | 'typed';
+
+/** Where one live command for a graphic goes (G2 section 3): it joins the graphic's held queue,
+ *  starts a hold, is settled with nothing to run it on (R4), or runs. */
+export type LiveRoute = 'join' | 'hold' | 'settle' | 'run';
+
+export function routeLive(
+  f: { held: boolean; ready: boolean; hosts: boolean; stageWaits: boolean; isPackage: boolean },
+  t: string,
+): LiveRoute {
+  if (f.held) return 'join';
+  if (isTake(t) && !f.ready) return 'hold';
+  // Nothing to run it on: not hosted, or a frame a publish added that is still loading and holds
+  // nothing. A boot frame still loading, or a package waiting for its base, holds history in the
+  // stage: what follows joins it there.
+  if (!f.ready && (!f.hosts || (!f.isPackage && !f.stageWaits))) return 'settle';
+  return 'run';
+}
+
+/** A Take or Out ends a failure: what the failure said is no longer what the operator asked for. */
+export const endsFailure = (t: string) => isTake(t) || isOut(t);
+
+/** A hold that cannot go on (its load deadline, a script error, the limit): a cancelled one only
+ *  settles, it never fails (R6); any other fails (R8). */
+export function giveUp(rows: readonly HeldRow[]): 'settle' | 'fail' {
+  return isCancelled(rows) ? 'settle' : 'fail';
+}

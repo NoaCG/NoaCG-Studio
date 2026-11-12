@@ -77,6 +77,13 @@ building" with its reason.
   `update` comes before its `play` and was settled while the frame loaded, so the graphic would have
   aired its template's defaults). The configured test now checks the strap's document was handed
   the cue's values on both outputs.
+- **A Take or Out ends a failure before anything else decides, and a hold that cannot go on settles
+  when it is cancelled** (final review, one class: a red the operator could not clear). An Out of a
+  graphic with nothing to run it on now clears its failure; a load deadline, a script error or the
+  limit settles a cancelled hold instead of failing it; a reload's replay of a graphic the output
+  does not host is read past instead of failed. The rules live in `hold.ts` (`routeLive`,
+  `endsFailure`, `giveUp`) and are Node-tested. A hold keeps its own `from` when making room drops
+  its first command, and the 5 s mark is told to Presence when it passes.
 - **Monitors pass no positions**, so the production page's PROGRAM and PREVIEW stages are unchanged.
 
 ## Verification

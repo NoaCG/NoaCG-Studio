@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { ENTRANCE_MS, compact, heldLate, isCancelled, lastLifecycle, releaseMode, surviving } = await import('../src/output/hold.ts');
+const { ENTRANCE_MS, compact, endsFailure, giveUp, heldLate, isCancelled, lastLifecycle, releaseMode, routeLive, surviving } = await import('../src/output/hold.ts');
 
 const row = (at, t, receivedAt = 0, extra = {}) => ({ at, msg: { t, ...extra }, receivedAt });
 
@@ -79,4 +79,28 @@ test('random queues: the release plan agrees with the reference model', () => {
     const got = releaseMode(rows, now, history);
     assert.equal(got, model(rows, now, history), JSON.stringify({ rows: rows.map((r) => `${r.msg.t}@${r.receivedAt}`), now, history }));
   }
+});
+
+test('where a live command goes: join a hold, start one, settle with nothing to run it on, or run (R3, R4)', () => {
+  const f = (o) => ({ held: false, ready: false, hosts: false, stageWaits: false, isPackage: false, ...o });
+  assert.equal(routeLive(f({ held: true, ready: true }), 'update'), 'join', 'a held graphic keeps every command in order');
+  assert.equal(routeLive(f({}), 'play'), 'hold');
+  assert.equal(routeLive(f({ hosts: true }), 'snap'), 'hold', 'a frame still loading');
+  assert.equal(routeLive(f({}), 'update'), 'settle', 'a data feed to a graphic no output hosts');
+  assert.equal(routeLive(f({}), 'stop'), 'settle', 'an Out of a graphic not hosted');
+  assert.equal(routeLive(f({ hosts: true }), 'update'), 'settle', 'a publish-added frame still loading, holding nothing');
+  assert.equal(routeLive(f({ hosts: true, stageWaits: true }), 'update'), 'run', 'a boot frame keeps its history in order');
+  assert.equal(routeLive(f({ hosts: true, isPackage: true }), 'update'), 'run', 'a package waiting for its base');
+  assert.equal(routeLive(f({ ready: true }), 'play'), 'run');
+});
+
+test('a Take or Out ends a failure; a cancelled hold that cannot go on settles, never fails (R6, R8)', () => {
+  assert.equal(endsFailure('play'), true);
+  assert.equal(endsFailure('snap'), true);
+  assert.equal(endsFailure('stop'), true);
+  assert.equal(endsFailure('update'), false);
+  assert.equal(endsFailure('next'), false);
+  assert.equal(giveUp([row(1, 'play'), row(2, 'stop')]), 'settle');
+  assert.equal(giveUp([row(1, 'play'), row(2, 'update')]), 'fail');
+  assert.equal(giveUp([row(1, 'update')]), 'settle');
 });

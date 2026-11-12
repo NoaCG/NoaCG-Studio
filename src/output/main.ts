@@ -73,7 +73,7 @@ import { PROBE_MS, reloadWhenClear, within } from './reload';
 import { FRAME_LOAD_MS, createOutputStage, heldLine } from './stage';
 import { reportedLook } from '../control/cueAdjust';
 import { createSwapper } from './swap';
-import { HELD_PER_GRAPHIC, HELD_PER_OUTPUT, compact, heldLate, isCancelled, isOut, isTake, releaseMode, type HeldRow, type HoldFailure } from './hold';
+import { ENTRANCE_MS, HELD_PER_GRAPHIC, HELD_PER_OUTPUT, compact, endsFailure, giveUp, heldLate, isCancelled, isTake, releaseMode, routeLive, type HeldRow, type HoldFailure } from './hold';
 import { epochTag, listed, type HeldEntry, type RunReport } from '../control/runReport';
 import { CATCH_UP_TIMING, readGraphic, stoodStill, wait } from './catchUp';
 import { TYPED_READER, typedOutputGate, type TypedValues } from '../model/ografTyped';
@@ -987,7 +987,8 @@ async function boot(): Promise<void> {
   // history, replayed hidden as it always was. ──
   /** True once the live follow has started: before it, rows are the boot's catch-up. */
   let following = false;
-  const holds = new Map<string, { rows: HeldRow<ControlEventRow['msg']>[] }>();
+  /** `from`: the position of the hold's first command, kept when making room drops it. */
+  const holds = new Map<string, { rows: HeldRow<ControlEventRow['msg']>[]; from: number }>();
   /** Graphics whose hold failed, from where and why (cleared by a later Take or Out that runs). */
   const failures = new Map<string, { from: number; why: HoldFailure }>();
   /** Where E1.1's typed hold of each graphic started. */
@@ -1046,9 +1047,16 @@ async function boot(): Promise<void> {
     const hold = holds.get(graphic);
     if (!hold) return;
     holds.delete(graphic);
-    failures.set(graphic, { from: hold.rows[0].at, why });
+    failures.set(graphic, { from: hold.from, why });
     console.warn(`output: "${graphic}" did not play here (${why}); its held commands are dropped.`);
     readyChanged();
+  };
+  /** A hold that cannot go on: settled when cancelled (R6), failed otherwise (R8). */
+  const giveUpOn = (graphic: string, why: HoldFailure) => {
+    const hold = holds.get(graphic);
+    if (!hold) return;
+    if (giveUp(hold.rows) === 'settle') settleHold(graphic);
+    else fail(graphic, why);
   };
   /** A deletion or a cancelled hold that needs nothing loaded: its commands settle with no failure,
    *  their data kept as the graphic's held values. */
@@ -1149,7 +1157,7 @@ async function boot(): Promise<void> {
   const loadDeadline = (graphic: string, hold: object) => {
     setTimeout(() => {
       // This hold's deadline only: a newer hold of the same graphic has its own.
-      if (holds.get(graphic) === hold && !ready(graphic)) fail(graphic, 'load');
+      if (holds.get(graphic) === hold && !ready(graphic)) giveUpOn(graphic, 'load');
     }, FRAME_LOAD_MS);
   };
 
@@ -1162,56 +1170,58 @@ async function boot(): Promise<void> {
     const graphic = row.graphic;
     const t = row.msg.t;
     const at = row.seq ?? 0;
-    const hold = holds.get(graphic);
-    if (hold || (isTake(t) && !ready(graphic))) {
-      if (road) live.received(road, row.msg);
-      if (!applied.claim(row.msg)) {
-        if (road) live.duplicate(row.msg);
+    if (failures.has(graphic)) {
+      // A Take or Out ends a failure before anything else decides (R8): an Out of a graphic with
+      // nothing to run it on still clears it. Any other command keeps its values, posts nothing.
+      if (endsFailure(t)) failures.delete(graphic);
+      else {
+        keepLook(row);
+        applyCommand(graphic, row.msg, row.created_at, road, false);
+        rebankSoon();
         return true;
       }
-      const entry = { at, msg: row.msg, createdAt: row.created_at, receivedAt: Date.now() };
-      if (hold) {
-        hold.rows.push(entry);
-        const excess = heldCount() - HELD_PER_OUTPUT;
-        if (hold.rows.length > HELD_PER_GRAPHIC || excess > 0) {
-          // Within both limits: this graphic's own, and what the output's total leaves it.
-          const limit = excess > 0 ? Math.min(HELD_PER_GRAPHIC, hold.rows.length - excess) : HELD_PER_GRAPHIC;
-          const room = compact(hold.rows, Math.max(0, limit), clockSpecs.has(graphic) || speakingClocks.has(graphic));
-          if (room) hold.rows = room;
-          else fail(graphic, 'limit');
-        }
-      } else {
-        failures.delete(graphic);
-        const started = { rows: [entry] };
-        holds.set(graphic, started);
-        if (!hosts(graphic)) demand();
-        loadDeadline(graphic, started);
+    }
+    const route = routeLive(
+      { held: holds.has(graphic), ready: ready(graphic), hosts: hosts(graphic), stageWaits: stage.waitingFor(graphic) !== null, isPackage: packages.has(graphic) },
+      t,
+    );
+    if (route === 'run') return false;
+    if (route === 'settle') {
+      keepLook(row);
+      applyCommand(graphic, row.msg, row.created_at, road, false);
+      rebankSoon();
+      return true;
+    }
+    if (road) live.received(road, row.msg);
+    if (!applied.claim(row.msg)) {
+      if (road) live.duplicate(row.msg);
+      return true;
+    }
+    const entry = { at, msg: row.msg, createdAt: row.created_at, receivedAt: Date.now() };
+    const hold = holds.get(graphic);
+    if (hold) {
+      hold.rows.push(entry);
+      const excess = heldCount() - HELD_PER_OUTPUT;
+      if (hold.rows.length > HELD_PER_GRAPHIC || excess > 0) {
+        // Within both limits: this graphic's own, and what the output's total leaves it.
+        const limit = excess > 0 ? Math.min(HELD_PER_GRAPHIC, hold.rows.length - excess) : HELD_PER_GRAPHIC;
+        const room = compact(hold.rows, Math.max(0, limit), clockSpecs.has(graphic) || speakingClocks.has(graphic));
+        if (room) hold.rows = room;
+        else giveUpOn(graphic, 'limit');
       }
-      // A cancelled hold of a graphic nobody hosts needs nothing: it settles (R6).
-      const now = holds.get(graphic);
-      if (now && !hosts(graphic) && isCancelled(now.rows)) settleHold(graphic);
-      readyChanged();
-      return true;
+    } else {
+      const started = { rows: [entry], from: at };
+      holds.set(graphic, started);
+      if (!hosts(graphic)) demand();
+      loadDeadline(graphic, started);
     }
-    if (failures.has(graphic) && !isTake(t) && !isOut(t)) {
-      // A failed graphic's other commands keep their values and post nothing (R4).
-      keepLook(row);
-      applyCommand(graphic, row.msg, row.created_at, road, false);
-      rebankSoon();
-      return true;
-    }
-    // R4, for a graphic with nothing to run it on: not hosted, or a frame a publish added that is
-    // still loading and holds nothing. A boot frame still loading, or a package waiting for its base,
-    // already holds the boot's history in the stage: what follows joins it there, in order.
-    if (!ready(graphic) && !isTake(t) && (!hosts(graphic) || (!packages.has(graphic) && stage.waitingFor(graphic) === null))) {
-      keepLook(row);
-      applyCommand(graphic, row.msg, row.created_at, road, false);
-      rebankSoon();
-      return true;
-    }
-    // A Take or Out that runs ends a failure (G2 section 3): what it said is no longer so.
-    if ((isOut(t) || isTake(t)) && failures.has(graphic)) failures.delete(graphic);
-    return false;
+    // S4's 5 s passing is said when it passes (`late`), not at the next report.
+    if (isTake(t)) setTimeout(() => presence.touch(), ENTRANCE_MS + 100);
+    // A cancelled hold of a graphic nobody hosts needs nothing: it settles (R6).
+    const now = holds.get(graphic);
+    if (now && !hosts(graphic) && isCancelled(now.rows)) settleHold(graphic);
+    readyChanged();
+    return true;
   };
   // A frame that loads runs what waits for it; a hidden boot frame comes back once it settles.
   stage.onLoaded((graphic) => {
@@ -1220,7 +1230,7 @@ async function boot(): Promise<void> {
     else if (following && touched.has(graphic)) primeFrame(graphic);
   });
   stage.onError((graphic) => {
-    if (holds.has(graphic) && !ready(graphic)) fail(graphic, 'script');
+    if (holds.has(graphic) && !ready(graphic)) giveUpOn(graphic, 'script');
   });
   stage.onOgraf((graphic) => {
     if (holds.has(graphic) && ready(graphic)) releaseHold(graphic);
@@ -1244,7 +1254,7 @@ async function boot(): Promise<void> {
     const now = Date.now();
     const h: Record<string, HeldEntry> = {};
     holds.forEach((hold, graphic) => {
-      h[graphic] = [hold.rows[0].at, heldLate(hold.rows, now) ? 'late' : 'loading'];
+      h[graphic] = [hold.from, heldLate(hold.rows, now) ? 'late' : 'loading'];
     });
     failures.forEach((failure, graphic) => {
       h[graphic] = [failure.from, 'failed', failure.why];
@@ -1335,7 +1345,10 @@ async function boot(): Promise<void> {
       return;
     }
     // Only a renderer command has an outcome to wait for (G2 section 1): a status row carries none.
-    applyCommand(row.graphic, row.msg, row.created_at, road, animate, seqMode && command ? row.seq : undefined);
+    // Only a renderer command of a graphic this output can run has an outcome to wait for (G2
+    // section 1): a status row carries none, and a boot's history for a graphic it does not host
+    // (removed by a republish, never published, fed by a data road) is read past, never failed.
+    applyCommand(row.graphic, row.msg, row.created_at, road, animate, seqMode && command && (following || hosts(row.graphic)) ? row.seq : undefined);
     presence.touch();
     // Status rows ('cue'/'staged'/'live') are for the operator pages; the stage ignored them
     // and so does the report path.
@@ -1355,7 +1368,7 @@ async function boot(): Promise<void> {
     // settles, so it is a cost rather than a fault - but it is a real one and not the ordering the
     // paragraph above describes.
     if (forwarded) {
-      unreportedRun.add(row.graphic);
+      if (seqMode) unreportedRun.add(row.graphic);
       scheduleReport(row.graphic);
     }
     dbg('last row', seqMode ? `${row.seq ?? '?'} (id ${row.id})` : String(row.id));
