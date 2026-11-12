@@ -69,7 +69,7 @@
       "phase": "E4",
       "step": "build / exact-head gates after first projection repair",
       "pr": 2438,
-      "note": "2767a30 pushed clean; j0112 all162PASS9.3min,117/117gates34/34oracles. ActualCI43270310952 inprogress; await currentcapacity/configured/backend/Codex/freshFULLSOA/A+. Quarantine2453 landed, postlandingchecksongoing. No editorqueueapproval/phaseadvancement."
+      "note": "2767 remainsfrozen/held:162/162regressions+backendpassed, newCodexP2selection-onlyviewreceiptreproducing andfullreviewconsolidating. No productpatchbeforefreshmodelreassessment; priorviewfamilyattemptsretained. Quarantine2453 onlymainCIpendingafterCodeQL/Postland/configured/monitorworkflowscomplete."
     }
   ],
   "owner": [
@@ -116,7 +116,7 @@
         "quarantine": 43268862291,
         "configured": 43268862377
       },
-      "postLandingStatus": "Postland/configured/quarantineworkflowsSUCCESSwithexplicitpublishincidentFAIL; exactmergemainCI43268862367andCodeQL43268863302stillrunning. Rootremainsactive.",
+      "postLandingStatus": "ExactmergePostland/configured/quarantineworkflowsandCodeQL43268863302SUCCESS; existingpublishmonitorFAILexplicit. OnlymainCI43268862367stillrunning,latest16/25jobscompleted0fail. Rootremainsactive.",
       "incidentReadback": "Actual2371bodyandjob131359676353 confirmnewpergraphicentry:miwco primary/weeklyownerbackup,2026-11-26due. Originalclock/outageentriesstillmiwco2026-11-25. No inventedowner.",
       "configuredResult": "Exactmergerun43268862377SUCCESS,verdict131368749602wholelog:159PASS0FAIL0FLAKY3existingSKIP. All3quarantinedconfiguredspecsincludingpergraphic/outageactuallypassed; statuswriter131369014509SUCCESSandcommitstatusesread.",
       "quarantineQualification": "Workflow43268862291SUCCESSdoesNOTmeanalltestspassed: existingpublish-output-setup17PASS1FAIL at407 held-editprecondition(expectedpending/receivedlanded), wholejob131359858972read; correctquarantinestatusFAILURE,existingincident2371miwcoNov25retained. Clock/allotherofflinequarantinemonitorspassed. No qmetadata/productcausalityclaim or testedit."
@@ -1916,7 +1916,7 @@
       "isolatedStatus": "TerminalSUCCESSfirstattempt17:35:32Z. Rootcompletejoblog71740bytesfetched:1PASS33.3s;strictwrapperzero skips/retries/accountdeleted;teardown0containers/volumes/networks/process/heldports/TIME_WAIT;claim/reservationreleased. RawJSONnotdirectlyingressed; no assertion of downloadablebyteinspection.",
       "codexRequest": 6831033423,
       "codexRequestAt": "2026-11-12T17:32:01Z",
-      "codexStatus": "One request submitted; actualresultpending, no duplicate.",
+      "codexStatus": "CompletedCOMMENTED17:35:46Z exact2767; NEWP2inline4554033976 selection-only viewreceiptfreshness src/store/authoringProjects.ts:29. Rootreadactualreview+inline, notonlytopcomments. Oldrollback4551363233/answer4551881564merelyreanchored, unchangedalreadyansweredNOTnewround.",
       "capacityExecution": "Actual198.6/213.0tableminutes93.2%;+0.8estimatedminutes(editor-projects+.42andMAIN-onlyoutput-scene-link+.42 throughfrozenoldPR_BASE), notprior198.2.",
       "isolatedArtifact": {
         "id": 13968691503,
@@ -1925,7 +1925,10 @@
         "sha256": "baa6629ad1f1a9a3271db966d2e364ca58b121d2d341616955e1afee9488fd66"
       },
       "fullSo": "FreshFULL50pathfork-none e4_final_so_2767a30cb started afteractualcapacity; alloriginalB/failures/rules+currentbackend/exportproof provided; inheritedsettings, no edits/tests/delegation allowed; resultpending.",
-      "reviewedStatus": "Rootfetchedactualwholemissingstamp-onlyjob131364767458:149s29polls; no revive/stamp beforeallothergates."
+      "reviewedStatus": "Rootfetchedactualwholemissingstamp-onlyjob131364767458:149s29polls; no revive/stamp beforeallothergates.",
+      "codexReview": 5879149260,
+      "newFinding": "Fullreviewerindependentlyconfirmsselectionreceiptfreshness acrosssnapshot/capture/switch/Home/autosave andselection-onlywhileDiscardawaits. Frozen2767ignoredreproductionunderway; noproductedits. ConsolidateFULLSOthenfreshapproachreassessmentbeforepatch. Treatwithinpriorview-ownershipfamily/retainsattempts, no newfamilyorreset.",
+      "normalCiStatus": "Build/FactorySUCCESS;19of28jobscompletedatrootlatestread,onlyReviewedmissingstampfailure;remainingconfigured/offlinesrunning; nosourcepushduringactiveCI."
     }
   },
   "coordinatorTools": {
