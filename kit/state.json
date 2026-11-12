@@ -1458,7 +1458,7 @@
     "requestSha256": "bcfabef5e1347043b92cde2edc0f69da57df24eda1c49e7415c7ce4bd8281754",
     "brief": "briefs/e4-build-e4-b-cloud-1112.txt",
     "briefSha256": "2c7379c7dc2988405d565f2a2e1d72393a398e1f3cd671cf7bc4744cfd2e9888",
-    "status": "BuilderimplementingafterRules-firstreviewandpublishedcorrections; noPR/finalcheck/acceptanceyet",
+    "status": "PR2438 first combined repair remains unpushed; current engineering checks passing, final affected check and new-head gates pending",
     "rulesFirst": {
       "head": "0515e370d",
       "verdict": "AGREE WITH CORRECTIONS",
@@ -1605,9 +1605,14 @@
         "reproduced": "Externaldraftlossj0066and4typographyfailuresbeforefixes",
         "fonts": "8cheap source/real-bytecasesPASS: custom/bundledpath+familycollisions, derivedsiblings, byte-onlyoverrides, unchangedlabels/reapply",
         "externalSafety": "j0067PASSall6external/refusal/cancelcases",
-        "sameId": "j0067reachedoriginalsame-IDequalitysuccess; addedwrongrefusal-codeexpectationcorrectedtoexistingcontract: stale_context onnewbindingusingoldsessionId, session_closed onoldbinding. Bothstrictchecksretained.",
-        "currentJob": "j0068running strengthenedSaveAsbeforeReload/sameprivateUUIDnewbaselineimmediateretirement/sharedlibrarydistinctworkspaceID/renderedfontundo-redocases",
-        "source": "Stilloneunpublishedworking-treerepaircheckpoint;03historynotcurrentcodeproof; no assertiondropped."
+        "sameId": "j0071 all46 focused E4/folder/bin/command cases PASS in2min, original saved public-ID equality retained, private UUID/instance/old-object/new-receiver strengthened",
+        "currentJob": "j0073 affected5cases only after removing yields; no redundant broader/full local build",
+        "source": "One unpushed working-tree combined repair; old03 checks remain historical, fresh final head/CI/Codex/fullSO required",
+        "starterHome": "j0072 cancellation extension PASS10.5s",
+        "sourceAndGates": "Eight font-byte/source cases plus2codec PASS; changed-path gates93/93 across13files, lint/app-types/dependency cruise PASS",
+        "receiving": "Current-source4ZIPs/source/rendered screenshots verified and restaged",
+        "retainedFixtureFailure": "j0068 12PASS/1faulty first-root font-label setupFAIL; corrected metadata location without dropping source/render/font-byte assertions",
+        "noWaits": "Four newly introduced task-delay yields removed; immediate baseline old-port/command refusal before refresh, source read via store; new receiver readiness and exact stale_context tested separately"
       }
     },
     "publicHeartbeatPrivacy": "OptionaldisplayinFlight.sessionomittedafterauto-reviewrejectedinternalworkeridentifier. Exactactor/thread/action remainunchangedine4Checkpoint/wave/launch/observationrecords; no manualheartbeatbodyedit, no runtimeidentity/gatechange."
