@@ -43,8 +43,8 @@
 // bot exemption to grant or abuse. Only a NEW spec file is growth worth that decision: an edit to
 // a spec file that already exists is never refused, however its minutes move (an unmeasured one
 // is still priced and its minutes still show in the usage line and the summary, so real growth
-// stays visible; the weekly refresh and report carry it from there). What it cannot see is a spec made slower without being edited
-// (shared code): that drift arrives in the weekly refresh pull request (e2e-durations.mjs), which
+// stays visible; the weekly refresh and report carry it from there). What it cannot see is a
+// spec made slower without being edited (shared code): that drift arrives in the weekly refresh pull request (e2e-durations.mjs), which
 // prints the same usage line; and a shard that uploaded no report leaves its specs unmeasured,
 // which counts them at the suite's p90 rather than the median so a partial report cannot flatter a
 // change.
@@ -272,6 +272,19 @@ export function specChanges(base, cwd = ROOT) {
     if (/^M/.test(status) || (/^R/.test(status) && offlineSpec(rest[0]))) edited.push(file);
   }
   return { changed, edited };
+}
+
+/**
+ * The table line for this change as the CLI judges it: the spec files it adds or edits against
+ * `base` (none for a missing or all-zero base, or a diff that cannot be read), then `assess`.
+ */
+export function specAssessment({ base, cwd = ROOT, ...rest }) {
+  let changed = [];
+  let edited = [];
+  if (base && !/^0{40}$/.test(base)) {
+    try { ({ changed, edited } = specChanges(base, cwd)); } catch (e) { console.error(`e2e-capacity: cannot diff ${base} (${String(e?.message ?? e).split('\n')[0]}) - assessing the table alone.`); }
+  }
+  return { changed, result: assess({ ...rest, changed, edited }) };
 }
 
 /**
@@ -504,11 +517,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const base = value('--changed');
   const reportPath = value('--report');
   const today = value('--today') ?? new Date().toISOString().slice(0, 10);
-  let changed = [];
-  let edited = [];
-  if (base && !/^0{40}$/.test(base)) {
-    try { ({ changed, edited } = specChanges(base)); } catch (e) { console.error(`e2e-capacity: cannot diff ${base} (${String(e?.message ?? e).split('\n')[0]}) - assessing the table alone.`); }
-  }
   let fromReport = null;
   if (reportPath) fromReport = minutesByFile(JSON.parse(readFileSync(reportPath, 'utf8')));
   const table = readTable();
@@ -520,7 +528,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   // THE GROWTH TIERS (D7, scripts/growth-controls.mjs): the table's age, what this change adds to
   // each tier, and what it does to the frozen ceilings and the exception records.
   const growth = growthAssessment({ base: base && !/^0{40}$/.test(base) ? base : null, reportPath: value('--growth'), table, today });
-  const result = assess({ table, suite, changed, edited, measured: fromReport, exceptions: readExceptions(), today, tableStale: growth.table.stale });
+  const { changed, result } = specAssessment({ base, table, suite, measured: fromReport, exceptions: readExceptions(), today, tableStale: growth.table.stale });
   const runnerMinutes = value('--runner-minutes') !== undefined ? Number(value('--runner-minutes')) : null;
   const wallMinutes = value('--wall-minutes') !== undefined ? Number(value('--wall-minutes')) : null;
   // A growth stop on the offline tier (a cost or pre-merge latency breach whose one correction

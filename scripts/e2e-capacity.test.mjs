@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { EXCEPTION_MAX_DAYS, HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, capacityMinutes, exceptionFor, finalVerdict, ownerKinds, parseExceptions, repoView, summarize } from './e2e-capacity.mjs';
+import { EXCEPTION_MAX_DAYS, HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, capacityMinutes, exceptionFor, finalVerdict, ownerKinds, parseExceptions, repoView, specAssessment, summarize } from './e2e-capacity.mjs';
 import { TIERS, landingDispatched, ledgerChanges, priceAdditions } from './growth-controls.mjs';
 import { OWNER_KIND } from './repair-wake.mjs';
 import CEILINGS from './growth-ceilings.json' with { type: 'json' };
@@ -226,6 +226,11 @@ test('land-2a: an edit to an existing spec is never refused, over the table line
   const ex = [{ spec: 'e2e/new.spec.ts', minutes: 2, protects: 'x', expires: '2026-10-20', from: 'docs/work-specs/x/spec.md' }];
   const mixed = assess({ ...edit, suite: suiteOf(t, ['production-data.spec.ts', 'new.spec.ts']), changed: ['e2e/production-data.spec.ts', 'e2e/new.spec.ts'], exceptions: ex });
   assert.equal(mixed.status, 'warn', 'the new spec has its exception, and the edit needs none');
+  // On the offline tier too, only the new spec is priced: it alone fits under the 95% line, and
+  // the edit's minutes on top would cross it.
+  const sum = (items) => ({ tiers: { offline: { addedLanding: items.reduce((a, i) => a + i.perLanding, 0), addedDay: items.reduce((a, i) => a + i.perDay, 0) } } });
+  const room = { status: 'ok', reasons: [], stops: {}, ledger: [], items: [], assessWith: sum, estimates: { runsPerLanding: { everyRun: 1 }, scheduledRunsPerDay: { offline: 0 } }, tiers: { tiers: { offline: { status: 'ok', evidence: 'complete', line: 0.95, share: 0.92, used: { perLanding: 92, perDay: 0 }, ceiling: { perLanding: 100, perDay: 1000 } } } } };
+  assert.equal(applyOfflineStop(room, mixed, { paths: ['e2e/new.spec.ts', 'e2e/production-data.spec.ts'] }).status, 'ok', `92 + ${mixed.added} new minutes stays under 95; the edit is not priced`);
   const slower = assess({ ...edit, changed: ['e2e/s1.spec.ts'], edited: ['e2e/s1.spec.ts'], suite: suiteOf(t), measured: { 's1.spec.ts': 9 } });
   assert.equal(slower.status, 'warn', 'made slower by the edit, still not refused');
   assert.ok(slower.after > slower.before, 'the slower spec still shows in the usage line');
@@ -261,6 +266,15 @@ test('land-2a: only an added spec file is new; a modified one, or one renamed fr
     const { changed, edited } = specChanges('HEAD~1', dir);
     assert.deepEqual([...changed].sort(), ['e2e/back.spec.ts', 'e2e/new.spec.ts', 'e2e/old.spec.ts', 'e2e/renamed.spec.ts']);
     assert.deepEqual([...edited].sort(), ['e2e/old.spec.ts', 'e2e/renamed.spec.ts'], 'a configured spec moved into the offline suite is new offline cost');
+    // The CLI's own path: an edit over a full table warns, the added spec beside it is still judged.
+    const t = table(204);
+    const suite = suiteOf(t, ['old.spec.ts', 'renamed.spec.ts', 'back.spec.ts', 'new.spec.ts']);
+    const ex = (spec) => ({ spec, minutes: 3, protects: 'x', expires: '2026-10-20', from: 'docs/work-specs/x/spec.md' });
+    const cli = specAssessment({ base: 'HEAD~1', cwd: dir, table: t, suite, exceptions: [ex('e2e/new.spec.ts'), ex('e2e/back.spec.ts')], ...fresh });
+    assert.equal(cli.changed.length, 4);
+    assert.equal(cli.result.status, 'warn', cli.result.reason);
+    assert.ok(Math.abs(cli.result.added - 2 * 2.04) < 1e-9, 'only the two new files count');
+    assert.equal(specAssessment({ base: 'HEAD~1', cwd: dir, table: t, suite, exceptions: [ex('e2e/new.spec.ts')], ...fresh }).result.status, 'refuse', 'back.spec.ts is new offline cost');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
