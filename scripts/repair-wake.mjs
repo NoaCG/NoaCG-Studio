@@ -55,6 +55,18 @@ export function ownerKindsIn(annotations) {
   return [...kinds].sort();
 }
 
+/**
+ * A gate red only because the landing hold is on (scripts/landing-hold.mjs): nothing to repair and
+ * no one to alarm; the PR is re-run and queued again once the hold lifts (docs/LANDING_HOLD.md).
+ * True when a failure annotation is the hold's fixed form and every other failure annotation is
+ * the runner's own exit line. An unreadable hold is not held: that answer is a fault to re-run. Pure.
+ */
+export function heldOnly(annotations) {
+  const failures = (annotations ?? []).filter((a) => (a?.annotation_level ?? 'failure') === 'failure').map((a) => String(a?.message ?? ''));
+  return failures.some((m) => m.startsWith('Landing hold: set by '))
+    && failures.every((m) => m.startsWith('Landing hold: set by ') || /^Process completed with exit code \d+\.?$/.test(m));
+}
+
 /** The owner marks (`<pr>:<kind>,<kind>`) a body lists, as { pr, kinds }. Pure. */
 function marksIn(body) {
   return [...String(body ?? '').matchAll(OWNER_MARK_RE)].map((m) => {
@@ -226,6 +238,7 @@ export function sweep({ reader, now, repo = REPO, remembered = [] }) {
     // unread answer is no verdict on this PR.
     const annotations = reader.get(`repos/${repo}/check-runs/${gate.id}/annotations?per_page=50`);
     if (!Array.isArray(annotations)) { complete = false; continue; }
+    if (heldOnly(annotations)) continue;
     const ownerKinds = ownerKindsIn(annotations);
     const entry = decide({ pr, failure, comments: comments.items, now, ownerKinds });
     if (entry) entries.push({ ...entry, certain });

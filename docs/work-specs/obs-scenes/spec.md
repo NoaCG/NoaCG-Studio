@@ -399,3 +399,28 @@ Filled in by each phase's pull request.
     `CI gate` job re-run (it reads the hold again) and is queued again.
   - R10. Not covered, and the guide says so: a manual production deploy, a migration applied by
     hand, an administrator bypassing the branch rules, and releases that never touch `main`.
+- Rules found by the Rules-first `/so`, before code (it agreed with corrections):
+  - R11. A gate red only with the hold's error ("Landing hold: set by ...") is not a fault. The
+    red-PR alarm (`scripts/repair-wake.mjs` `heldOnly`) raises nothing for it, and the repair
+    rules (`queue-merge.md`) spend no attempt on it. An unreadable hold, or the hold beside any
+    other failure, is still a fault.
+  - R12. Closing or unlabelling the hold issue by hand is never a repair; only the workflow lifts
+    it with a reason. An issue labelled by hand still holds and names whoever opened it.
+  - R13. The reason is public. Scheduled dispatches use a fixed neutral reason, so no window or
+    date appears anywhere.
+- Previous verified `main`: `3c5bbf9add0692fdc1d8fc42aed558416d331805` (CI run 43229582088). The
+  source, `d8aaca715e8cecbfc2b888f6bb76b2670f32b502`, had its push CI still running at the start.
+- Revert: `git revert -m 1 <this pull request's merge commit>` removes the gate step, the
+  workflow, the alarm exception and the guide. Lift the hold first if it is on: an open hold issue
+  left after the revert holds nothing, but should be closed so it does not mislead.
+- Decisions: the state is an open issue with the `landing-hold` label, because the workflow token
+  can write issues but not repository variables, a ref could be pushed or deleted by any agent,
+  and a file would need a landing, which the hold blocks. The gate reads it in its own last step,
+  beside "Require every gate", with `issues: read` added to that job and nothing else. Three
+  attempts per read, 15 s each, then fail closed. The workflow is dispatch only, so no schedule
+  is in the repository.
+- Traps: the merge queue's held revert and quarantine landings stay held too (D7's "every
+  route"); the guide gives the escape (lift, land the revert, set again), and the owner of the hold
+  decides. A merge group whose gate passed before the hold turned on may still land; the runbook's
+  lead time covers it.
+- Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS0.md`.

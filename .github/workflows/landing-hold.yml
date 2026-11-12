@@ -1,0 +1,50 @@
+# THE LANDING HOLD's switch (docs/LANDING_HOLD.md). While the hold is on, ci.yml's `CI gate` fails
+# on every pull request and merge group, so nothing reaches `main`: no landing, no production
+# deploy, no migration. The state is an open issue labelled `landing-hold`; this workflow opens or
+# rewrites it (on) or closes it (off), always with who asked and why, then reads it back with the
+# gate's own reader and fails unless it matches (scripts/landing-hold.mjs).
+#
+# Dispatch only. Nothing here is scheduled: whoever needs a hold at a given time dispatches this
+# workflow then, so no schedule is ever written into the repository.
+name: Landing hold
+
+on:
+  workflow_dispatch:
+    inputs:
+      state:
+        description: 'on stops every landing; off lets them through again'
+        required: true
+        type: choice
+        options: ['on', 'off']
+      reason:
+        description: 'Why, in a few words. Public: name no event, date, site or person.'
+        required: true
+        type: string
+
+# One switch at a time, in the order asked; a later request never cancels an earlier one.
+concurrency:
+  group: landing-hold
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  set:
+    name: Set the landing hold
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: scripts
+
+      - name: Set and read back
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          STATE: ${{ inputs.state }}
+          REASON: ${{ inputs.reason }}
+          ACTOR: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/landing-hold.mjs set "$STATE"
