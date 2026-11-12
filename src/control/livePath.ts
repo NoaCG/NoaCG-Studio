@@ -518,6 +518,7 @@ export function readLiveEntry(meta: unknown): LiveEntry | null {
     ...(prep ? { prep } : {}),
     ...(ack ? { ack } : {}),
     ...(typeof m.typed === 'number' && Number.isInteger(m.typed) && m.typed > 0 ? { typed: m.typed } : {}),
+    ...(m.au === 1 ? { au: 1 } : {}),
     ...(scene ? { scene } : {}),
   };
 }

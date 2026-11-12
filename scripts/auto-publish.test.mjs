@@ -7,6 +7,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import './lib/tsResolve.mjs';
 
 const { createAutoPublisher, OTHERS_GRACE_MS, RED_AFTER_MS, RED_HEADER } = await import('../src/control/autoPublish.ts');
 assert.equal(RED_HEADER, 'Saved, not on the outputs');
@@ -236,4 +237,16 @@ test('R3 and R8: random saves, failures, closes and opens end with the newest sa
     assert.equal(world.published, world.rev, `round ${round}: the newest save is published`);
     for (const p of pages) p.pub.stop();
   }
+});
+
+test('R16: an expected output whose entry has no `au` is named, one that has it is not, once read off the wire', async () => {
+  const { oldOutputNames } = await import('../src/control/autoPublish.ts');
+  const { readLiveEntry } = await import('../src/control/livePath.ts');
+  const peers = [
+    readLiveEntry({ kind: 'output', id: 'new', engine: 'chrome', at: 2, au: 1 }),
+    readLiveEntry({ kind: 'output', id: 'old', engine: 'chrome', at: 2 }),
+  ];
+  assert.equal(peers[0].au, 1, 'the reader keeps the mark');
+  const expected = [{ id: 'new', name: 'Desk A', seen: 0 }, { id: 'old', name: 'Old', seen: 0 }, { id: 'gone', name: 'Gone', seen: 0 }];
+  assert.deepEqual(oldOutputNames(peers, expected), ['Old']);
 });

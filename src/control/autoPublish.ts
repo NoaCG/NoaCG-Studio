@@ -21,6 +21,8 @@
 // A publish never writes the production record, so publishing never causes a save.
 
 import type { PayloadVersion } from './payloadVersion';
+import type { LiveEntry } from './livePath';
+import type { ExpectedOutput } from './readiness';
 
 /** What a publish attempt came to. */
 export type PublishOutcome =
@@ -294,4 +296,16 @@ export function createAutoPublisher(io: AutoPublishIo): AutoPublisher {
       if (graceCancel) graceCancel();
     },
   };
+}
+
+/** The expected outputs whose newest entry is from a build before automatic updates (no `au`):
+ *  they take changes only while a page asks, and switch over by reloading when nothing is on air
+ *  there (G3 section 7). An output not present now says nothing either way. */
+export function oldOutputNames(peers: readonly LiveEntry[], expected: readonly ExpectedOutput[]): string[] {
+  const names: string[] = [];
+  for (const out of expected) {
+    const entry = peers.filter((p) => p.kind === 'output' && p.id === out.id).sort((a, b) => b.at - a.at)[0];
+    if (entry && entry.au !== 1) names.push(out.name);
+  }
+  return names;
 }

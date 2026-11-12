@@ -12,11 +12,10 @@ import { onSyncState, syncNow } from '../../backend/syncController';
 import { refreshTeams, subscribeTeamState, getTeamState } from '../../backend/teamProductions';
 import { loadShows, type Show } from '../../model/shows';
 import { createAutoPublisher, CHECK_EVERY_MS, type AutoPublishView } from '../../control/autoPublish';
+export { oldOutputNames } from '../../control/autoPublish';
 import { publishRevision } from '../../control/publishRevision';
 import type { CuePublished } from '../../control/hostedControl';
 import type { PayloadVersion } from '../../control/payloadVersion';
-import type { LiveEntry } from '../../control/livePath';
-import type { ExpectedOutput } from '../../control/readiness';
 
 /** Whether the server has the guard installed and the switch on; null while unknown. */
 async function readSwitch(): Promise<boolean> {
@@ -140,14 +139,3 @@ export function useAutoPublish(o: {
   return { active, view: active ? view : null };
 }
 
-/** The expected outputs whose newest entry is from a build before automatic updates (no `au`):
- *  they take changes only while a page asks, and switch over by reloading when nothing is on air
- *  there (G3 section 7). An output not present now says nothing either way. */
-export function oldOutputNames(peers: readonly LiveEntry[], expected: readonly ExpectedOutput[]): string[] {
-  const names: string[] = [];
-  for (const out of expected) {
-    const entry = peers.filter((p) => p.kind === 'output' && p.id === out.id).sort((a, b) => b.at - a.at)[0];
-    if (entry && entry.au !== 1) names.push(out.name);
-  }
-  return names;
-}
