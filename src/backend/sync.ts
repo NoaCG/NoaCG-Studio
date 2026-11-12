@@ -452,7 +452,15 @@ export async function runSync(
         const base = await askCloud(() => remote.get(l.kind, l.id));
         const settled = settledForSend(l, base);
         if (settled) {
+          // An edit saved here while the base was read must never be written over with this pass's
+          // older snapshot: the record waits, unsent, and the next pass settles the newer one.
+          const current = await local.get(l.kind, l.id);
           sameWorkspace();
+          if (JSON.stringify(current ?? undefined) !== JSON.stringify(pending)) {
+            pendingPush.add(recordKey(pending));
+            pendingLocal[recordKey(pending)] = [leftInCloud.get(recordKey(pending)) ?? '', pending.updatedAt];
+            continue;
+          }
           await local.put(settled);
           l = settled;
         }

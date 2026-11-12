@@ -118,3 +118,24 @@ test('a losing edit is settled before its conflicted copy is made', async () => 
   assert.equal(copy.body.graphics[0].template.html, '<p>base</p>', 'without the pulled design');
   assert.equal(copy.body.graphics[0].layer, 40, 'with this device\'s placement edit');
 });
+
+test('an edit saved while the base is read is never written over: the record waits for the next pass (PR review)', async () => {
+  const { runSync } = loadSync();
+  const remote = side([production(T0, [graphic()])]);
+  const local = side([production(T0, [graphic()])]);
+  await runSync(local, remote);
+  local.rows.set('p1', production(T2, [graphic({ template: tpl('<p>pulled</p>'), savedAt: T1 })]));
+  // The operator saves a cue edit while the cloud read is out.
+  const edited = production('2026-11-03T11:00:00.000Z', [graphic({ template: tpl('<p>pulled</p>'), savedAt: T1 })], { cues: [{ id: 'c1', label: 'typed meanwhile' }] });
+  const read = remote.get.bind(remote);
+  remote.get = async (kind, id) => { local.rows.set('p1', edited); return read(kind, id); };
+  const result = await runSync(local, remote);
+  assert.equal(result.pushed, 0, 'the older snapshot is not pushed');
+  assert.equal(local.rows.get('p1').body.cues[0].label, 'typed meanwhile', 'the edit stands on this device');
+  assert.equal(remote.rows.get('p1').body.graphics[0].template.html, '<p>base</p>');
+  // The next pass settles the newer record and sends it, edit included.
+  remote.get = read;
+  await runSync(local, remote);
+  assert.equal(remote.rows.get('p1').body.cues[0].label, 'typed meanwhile');
+  assert.equal(remote.rows.get('p1').body.graphics[0].template.html, '<p>base</p>');
+});
