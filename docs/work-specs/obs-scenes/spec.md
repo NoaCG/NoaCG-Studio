@@ -430,3 +430,45 @@ Filled in by each phase's pull request.
   decides. A merge group whose gate passed before the hold turned on may still land; the runbook's
   lead time covers it.
 - Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS0.md`.
+
+### OS1a: The scene link
+
+- Rules (written before coding):
+  - R1. A folder is an OBS scene when it carries `obsScene: true` (additive optional on
+    `ShowFolder`). Its scene id is the folder id, so renaming the folder keeps it. The flag is set
+    and cleared from the folder's menu, which offers it only while the production's OBS scenes
+    switch is on.
+  - R2. The switch is `obsScenes: true` on the production record (additive optional; off is
+    absent), shown beside the vMix and CasparCG switches. Turning it off keeps every folder's flag,
+    so turning it on again finds the scenes as they were.
+  - R3. While the switch is on and at least one folder is a scene, a publish writes `scenes` into
+    the output payload: per scene its id, its name and the names of the graphics its graphic and
+    picture cues use, deduplicated, in rundown order. With the switch off, or no scene, the payload
+    is exactly today's. The version stamp is unchanged by scenes: they are cue metadata, taken by
+    an output on the next publish it prepares, as cue metadata is today.
+  - R4. `/output?production=<slug>` with no `scene` parameter runs exactly today's code path.
+  - R5. `&scene=<id>` builds only the graphics the payload's scene `<id>` names, at boot and at
+    every publish the output takes. The stage keeps the production's resolution. An id that is
+    malformed, absent from the payload (unknown, deleted, switch off) or names no graphic builds
+    nothing; the page keeps running, reports itself, and builds the scene's graphics when a later
+    publish names them. It never falls back to the whole production.
+  - R6. Commands for a graphic outside the scope (not in the scene the link holds now, and not
+    still on its stage) are read past: they move the follow position and change nothing else, no
+    data, no air state, no report, no bank. A graphic that leaves the scene while on air on the
+    link stays, and keeps taking its commands, until it is off air there, then leaves (the
+    per-graphic replacement rule for a removed graphic).
+  - R7. A scene link reports, banks and recovers only the graphics it holds; its boot catch-up
+    starts from the oldest baseline among them.
+  - R8. Readiness on a scene link counts its own graphics only, so a graphic outside the scene is
+    excluded, never missing. Its Presence entry adds `scene`: the id, whether the payload knows it,
+    and from OBS's browser source events whether it is in preview or on program (unknown until the
+    first event) and the OBS scene name it was last on program in.
+  - R9. On a scene link every Take is drawn settled: no frame of an entrance is ever drawn. A
+    graphic with a state machine plays and is snapped to the pose that Take reached in the same
+    task, with its timers armed, so a clock, a loop or a rotation keeps running. A graphic without
+    one plays and has its finite running animations jumped to their end in the same task; endless
+    ones keep running. An imported OGraf package's Take asks it to skip its animation. A re-Take,
+    on air or after Out, is drawn the same way. Out, Next, events and updates are as today. On the
+    ordinary link a Take is as today.
+  - R10. With the switch off no scene control shows, no payload field is written and a scene link
+    builds nothing, so every existing playout, publish and output journey is unchanged.
