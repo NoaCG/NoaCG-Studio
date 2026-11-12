@@ -36,23 +36,21 @@
  },
  "waitingOn": [
   {
-   "what": "PR 2457 merge queue (confirm the queue entry), then the OS4 check",
-   "eta": "2026-11-12T20:30:00Z"
+   "what": "OS4 checker verdict",
+   "eta": "2026-11-12T21:00:00Z"
   }
  ],
  "inFlight": [
   {
    "phase": "OS4",
-   "step": "build",
-   "actor": "builder-os4-os4-b-4e9a",
-   "session": "session_017SdbwNvUKVgfD923SNTiuD",
-   "branch": "claude/plan-obs-scenes-os4-build",
-   "launchedAt": "2026-11-12T17:39:49Z",
-   "note": "sent brief = saved brief plus one NOTES line (keep wall-clock position through the scene-link settle)",
-   "lastSeen": "2026-11-12T18:50Z stamped (noacg/reviewed 18:47Z), auto-merge requested (reply had blank fields; PR clean and labelled land); confirm a queue entry at the next wake",
-   "checkerNote": "Check the two changed expectations: scripts/double-stop.test.mjs re-Take check for bug21-24 now compares outside .corner-bug-media, and any changed existing expectation in e2e/holding-pack.spec.ts (a 1:49 to 1:50 edit was seen during the build); both must follow from AC-7/AC-8, not loosen a test.",
+   "step": "check",
+   "actor": "checker-os4-os4-c-7490",
+   "session": "session_017SdbwR1AAdGNLgRVEZDTgn",
+   "mergeSha": "e9e17837c3dc432426dffa4dcf437857c88841b5",
    "pr": 2457,
-   "reviewedHead": "0e4e0ef63673f56bf17c7b37568b7a63519222d6"
+   "launchedAt": "2026-11-12T19:02:52Z",
+   "builderSession": "session_017SdbwNvUKVgfD923SNTiuD",
+   "note": "sent brief = saved brief plus the changed-expectations note"
   }
  ],
  "owner": [
