@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { ENTRANCE_MS, afterOutcome, compact, demandFor, endsFailure, giveUp, liveStep, heldLate, isCancelled, lastLifecycle, releaseMode, routeLive, surviving } = await import('../src/output/hold.ts');
+const { ENTRANCE_MS, afterOutcome, compact, demandFor, endsFailure, giveUp, liveStep, quietEntrances, heldLate, isCancelled, lastLifecycle, releaseMode, routeLive, surviving } = await import('../src/output/hold.ts');
 
 const row = (at, t, receivedAt = 0, extra = {}) => ({ at, msg: { t, ...extra }, receivedAt });
 
@@ -242,4 +242,25 @@ test('a scene link holds a graphic it has not heard of, reads past another scene
   assert.match(main, /const payload = answer\.ok && answer\.value && answer\.value\.output \? scoped\(answer\.value\.output\) : null;/);
   // The pre-Take update of a graphic the link has not heard of keeps its values for the frame.
   assert.match(main, /if \(!inScope\(graphic\) && elsewhere\(graphic\)\) return;/);
+});
+
+test('a hold kept across a republish keeps its Take\'s entrance: supersession is by place in the queue', () => {
+  // The old log's Take at position 2, then the new log's update at 1 and Take at 2.
+  const rows = [row(2, 'play'), row(1, 'update'), row(2, 'play')];
+  const quiet = quietEntrances(rows);
+  assert.deepEqual([...quiet], [0], 'only the first Take is superseded');
+  assert.equal(quiet.has(2), false, 'the surviving Take plays its entrance');
+  // compact keeps the surviving Take too.
+  const kept = compact(rows, 2, false);
+  assert.ok(kept);
+  assert.equal(kept[kept.length - 1].msg.t, 'play');
+  assert.equal(kept.filter((r) => r.msg.t === 'play').length, 1);
+});
+
+test('a held Take whose loading frame is replaced by a loaded, prepared one is released by the swap', async () => {
+  const { readFileSync } = await import('node:fs');
+  const main = readFileSync(new URL('../src/output/main.ts', import.meta.url), 'utf8');
+  const swapped = main.slice(main.indexOf('onSwapped: (graphic, spec, check) => {'), main.indexOf('onAdded:'));
+  assert.match(swapped, /if \(holds\.has\(graphic\) && ready\(graphic\)\) releaseHold\(graphic\);/);
+  assert.match(main, /hold\.rows\.forEach\(\(row, i\) => applyCommand\(graphic, row\.msg, row\.createdAt, undefined, !quiet\.has\(i\), row\.at, true\)\);/);
 });

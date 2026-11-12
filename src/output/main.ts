@@ -73,7 +73,7 @@ import { PROBE_MS, reloadWhenClear, within } from './reload';
 import { FRAME_LOAD_MS, createOutputStage, heldLine } from './stage';
 import { reportedLook } from '../control/cueAdjust';
 import { createSwapper } from './swap';
-import { ENTRANCE_MS, HELD_PER_GRAPHIC, HELD_PER_OUTPUT, afterOutcome, compact, demandFor, giveUp, heldLate, isCancelled, isTake, liveStep, releaseMode, type Failure, type HeldRow, type HoldFailure } from './hold';
+import { ENTRANCE_MS, HELD_PER_GRAPHIC, HELD_PER_OUTPUT, afterOutcome, compact, demandFor, giveUp, heldLate, isCancelled, isTake, liveStep, quietEntrances, releaseMode, type Failure, type HeldRow, type HoldFailure } from './hold';
 import { epochTag, listed, type HeldEntry, type RunReport } from '../control/runReport';
 import { CATCH_UP_TIMING, readGraphic, stoodStill, wait } from './catchUp';
 import { obsEvent, obsState, sceneParam, scopePayload, type ObsWhere } from './sceneScope';
@@ -566,6 +566,9 @@ async function boot(): Promise<void> {
       checks.set(graphic, check);
       released.add(graphic);
       learnClocks(spec);
+      // A held Take whose frame a prepared, loaded one replaced: that frame runs it now (no
+      // onLoaded follows an adopted frame).
+      if (holds.has(graphic) && ready(graphic)) releaseHold(graphic);
       readyChanged();
     },
     onAdded: (spec, next) => {
@@ -1154,7 +1157,7 @@ async function boot(): Promise<void> {
     holds.delete(graphic);
     const history = bootHidden.has(graphic);
     const mode = releaseMode(hold.rows, Date.now(), history);
-    const quiet = supersededAnimations(hold.rows.map((row) => ({ id: 0, graphic, seq: row.at, msg: row.msg })));
+    const quiet = quietEntrances(hold.rows);
     if (mode === 'cancelled') {
       // Nothing is shown: the commands' bookkeeping runs, and the frame gets the values only.
       for (const row of hold.rows) applyCommand(graphic, row.msg, row.createdAt, undefined, false, undefined, true);
@@ -1172,7 +1175,7 @@ async function boot(): Promise<void> {
       const take = hold.rows.filter((row) => isTake(row.msg.t)).pop();
       if (take) lateNotes.set(graphic, { ms: Date.now() - take.receivedAt, until: Date.now() + 60_000 });
     }
-    for (const row of hold.rows) applyCommand(graphic, row.msg, row.createdAt, undefined, !quiet.has(row.at), row.at, true);
+    hold.rows.forEach((row, i) => applyCommand(graphic, row.msg, row.createdAt, undefined, !quiet.has(i), row.at, true));
     if (mode === 'late') void showWhenSettled(graphic);
     readyChanged();
   };

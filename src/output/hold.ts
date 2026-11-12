@@ -104,10 +104,18 @@ export function compact<M extends Plain>(rows: readonly HeldRow<M>[], limit: num
     }
     out.push(row);
   }
-  // Superseded entrances, by the one rule a refill uses (seqFollow.ts `supersededAnimations`).
-  const skip = supersededAnimations(out.map((row) => ({ id: 0, graphic: '', seq: row.at, msg: row.msg })));
-  const result = out.filter((row) => !skip.has(row.at));
+  // Superseded entrances, by the one rule a refill uses (seqFollow.ts `supersededAnimations`),
+  // named by their place in the queue: a hold kept across a republish mixes two logs' positions.
+  const skip = quietEntrances(out);
+  const result = out.filter((_row, i) => !skip.has(i));
   return result.length <= limit ? result : null;
+}
+
+/** The queue indexes of entrances a later Take or Out supersedes (seqFollow.ts
+ *  `supersededAnimations`), by place in the queue, never by log position: a hold kept across a
+ *  republish holds rows of two logs, whose positions can repeat. */
+export function quietEntrances(rows: readonly HeldRow[]): Set<number> {
+  return supersededAnimations(rows.map((row, i) => ({ id: 0, graphic: '', seq: i, msg: row.msg })));
 }
 
 /** Why a hold failed, as its `h` entry and the page's words carry it. */
