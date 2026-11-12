@@ -42,19 +42,13 @@
   ],
   "inFlight": [
     {
-      "phase": "OS5a",
-      "step": "check",
-      "actor": "checker-os5a-47cf",
-      "session": "session_017SdbwQjcXTGns8ZT6mPzzH",
-      "branch": "claude/plan-obs-scenes-os5a-build",
-      "launchedAt": "2026-11-12T21:00:26Z",
-      "note": "sent brief = saved brief plus one NOTES line (migration 0116 status, R12/R15 defaults)",
-      "lastSeen": "2026-11-12T21:29Z checker active: main CI push run E2E 8/15 hit its time limit, CI retry running; checker waiting on it",
-      "pr": 2468,
-      "reviewedHead": "8d4f59e40b371e0adb86d16f0e035618d83b8703",
-      "migration": "supabase/migrations/0116_json_source_tick.sql (live-path; post-land applies it only in a quiet window, never while the landing hold is on)",
-      "builderSession": "session_017SdbwRMbipJ5otJ19cMy17",
-      "mergeSha": "a2921196da0fd21059ee988bdca3263589f73916"
+      "phase": "OS5b",
+      "step": "build",
+      "actor": "builder-os5b-os5b-b-4201",
+      "session": "session_017SdbwLfFjQ7J6hawcwSs7M",
+      "branch": "claude/plan-obs-scenes-os5b-build",
+      "launchedAt": "2026-11-12T21:46:34Z",
+      "note": "sent brief = saved brief plus one NOTES line (use OS5a's project hook; works with page reads while 0116 is held)"
     }
   ],
   "owner": [
@@ -109,5 +103,11 @@
     "2026-11-12 owner: switch off asks for confirmation when scene links are loaded (#2454).",
     "2026-11-12 owner: the landing hold is not a hard wall; the coordinator may lift it for one needed hotfix and set it again at once; nothing unnecessary lands in a window.",
     "2026-11-12 owner: \"Fine.\" to the OS5a defaults (a NoaCG-read JSON source is NoaCG's alone; it follows its own Pause)."
+  ],
+  "pending": [
+    {
+      "what": "migration 0116_json_source_tick.sql held on production (live-path, productions on air at landing); the next landing's post-land retries it in a quiet window",
+      "since": "2026-11-12T20:59Z"
+    }
   ]
 }
