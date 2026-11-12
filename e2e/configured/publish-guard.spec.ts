@@ -30,6 +30,10 @@
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
+// AUTOMATIC UPDATES (live-publishing designs/G3.md, AC-4): the describe at the end.
+// covers: supabase/migrations/0116_production_revision.sql, supabase/migrations/0117_publication_guard.sql
+// covers: src/control/autoPublish.ts, src/control/publishRevision.ts, src/control/sendsInFlight.ts, src/backend/savedRevision.ts, src/components/home/useAutoPublish.ts
+// covers: src/output/versionCheck.ts, src/output/payloadReader.ts, src/output/prepare.ts, src/output/main.ts, src/control/playoutStatus.ts
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
@@ -37,6 +41,7 @@ import { bootstrapGraphic } from '../_create';
 import { settleDurableWrites } from '../_durable';
 import {
   clearPublishedShows,
+  readyOf,
   E2E_TEAMMATE_EMAIL,
   E2E_TEAMMATE_PASSWORD,
   haveCreds,
@@ -628,5 +633,198 @@ test.describe('production copies (live-publishing W2)', () => {
     await unpublishForCleanup(page);
     await clearPublishedShows(page);
     await wipeMyGraphics(page);
+  });
+});
+
+test.describe('automatic updates (live-publishing W4, AC-4)', () => {
+  test.skip(!SERVICE_ROLE_KEY || !SUPABASE_URL, 'the switch is a service-role write: needs the local stack keys');
+  const service = (path: string, init: { method?: string; body?: unknown; prefer?: string } = {}) =>
+    fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+      method: init.method ?? 'GET',
+      headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}`, 'content-type': 'application/json', ...(init.prefer ? { prefer: init.prefer } : {}) },
+      body: init.body === undefined ? undefined : JSON.stringify(init.body),
+    });
+  async function setAuto(on: boolean): Promise<void> {
+    const r = await service('system_settings?on_conflict=key', { method: 'POST', body: { key: 'auto_publish', value: { on } }, prefer: 'resolution=merge-duplicates' });
+    expect(r.status, await r.text()).toBeLessThan(300);
+  }
+  test.afterEach(async () => {
+    await setAuto(false).catch(() => undefined);
+  });
+
+  /** What the server holds: the record's saved revision, the revision published, the stamp and
+   *  the published cue labels and graphic keys. */
+  async function server(showId: string): Promise<{ rev: number | null; published: number | null; n: number | null; labels: string[]; graphics: string[] }> {
+    const docs = await (await service(`documents?id=eq.${showId}&select=rev`)).json();
+    const rows = await (await service(`control_shows?id=eq.${showId}&select=published_rev,output`)).json();
+    const output = rows[0]?.output as { ver?: { n: number }; cues?: { label: string }[]; graphics?: { key: string }[] } | undefined;
+    return {
+      rev: docs[0]?.rev ?? null,
+      published: rows[0]?.published_rev ?? null,
+      n: output?.ver?.n ?? null,
+      labels: (output?.cues ?? []).map((c) => c.label),
+      graphics: (output?.graphics ?? []).map((g) => g.key),
+    };
+  }
+
+  /** A published production with one graphic and two cues, its page open, automatic updates on. */
+  async function published(page: Page, name: string): Promise<{ showId: string; outputSlug: string; graphicId: string; cues: string[] }> {
+    await signIn(page);
+    await page.keyboard.press('Escape');
+    await clearPublishedShows(page);
+    await wipeMyGraphics(page);
+    await bootstrapGraphic(page, { name: STRAP });
+    const showId = await page.evaluate(async (label) => {
+      const { createGraphic } = await import('/src/model/library.ts');
+      const { useTemplateStore } = await import('/src/store/templateStore.ts');
+      const { createShowNamedChecked, addGraphicToShow, loadShows, setShowCues } = await import('/src/model/shows.ts');
+      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { template } = useTemplateStore.getState();
+      const { doc } = createGraphic(template, { name: template.name });
+      const { show } = createShowNamedChecked(label);
+      const added = addGraphicToShow(show.id, doc!.template, { graphicId: doc!.id });
+      if (added.error) throw new Error(added.error);
+      const graphic = loadShows().find((x) => x.id === show.id)!.graphics[0];
+      const cued = setShowCues(show.id, [{ sourceId: graphic.id, label: 'Cue A' }, { sourceId: graphic.id, label: 'Cue B' }]);
+      if (cued.error) throw new Error(cued.error);
+      await commitDurableWrites();
+      return show.id;
+    }, name);
+    await page.goto(`/app#/production/${showId}`);
+    await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+    await publishProduction(page);
+    await expect.poll(async () => (await server(showId)).n ?? 0, { timeout: 60_000 }).toBeGreaterThan(0);
+    await setAuto(true);
+    // The page reads the switch on open (and every 30 s): open it again to start at once.
+    await page.reload();
+    await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+    return page.evaluate(async (id) => {
+      const { loadShows } = await import('/src/model/shows.ts');
+      const s = loadShows().find((x) => x.id === id)!;
+      return { showId: id, outputSlug: s.outputSlug ?? '', graphicId: s.graphics[0].id, cues: (s.cues ?? []).map((c) => c.id) };
+    }, showId);
+  }
+
+  /** Change the production as an edit on this page does: a model write, landed on disk. */
+  const edit = (page: Page, showId: string, change: string, arg: string) =>
+    page.evaluate(async ({ id, change, arg }) => {
+      const shows = await import('/src/model/shows.ts');
+      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const s = shows.loadShows().find((x) => x.id === id)!;
+      const cues = s.cues ?? [];
+      if (change === 'label') shows.updateShowCue(id, cues[0].id, { label: arg });
+      if (change === 'order') shows.setShowCues(id, [...cues].reverse().map((c) => ({ sourceId: c.sourceId, label: c.label, values: c.values })));
+      if (change === 'remove-graphic') shows.removeShowGraphic(id, s.graphics.find((g) => g.name === arg)!.id);
+      if (change === 'add-graphic') {
+        const added = shows.addGraphicToShow(id, { ...s.graphics[0].template, name: arg });
+        if (added.error) throw new Error(added.error);
+      }
+      const failure = await commitDurableWrites();
+      if (failure) throw new Error(failure);
+    }, { id: showId, change, arg });
+
+  const outputUrl = (slug: string, name: string, extra = '') => `/output?production=${encodeURIComponent(slug)}&destination=browser&name=${encodeURIComponent(name)}&debug=1${extra}`;
+
+  test('every save reaches the outputs with no press, an older output takes them and reads amber, and a new output finds the newest alone', async ({ page, browser }) => {
+    test.setTimeout(300_000);
+    const { showId, outputSlug } = await published(page, `Auto ${Date.now()}`);
+    const viewers = await browser.newContext();
+    const air = await viewers.newPage();
+    await air.goto(outputUrl(outputSlug, 'Desk A'));
+    const old = await viewers.newPage();
+    await old.goto(outputUrl(outputSlug, 'Old', '&oldbuild=1'));
+    const holds = async (out: Page) => (await readyOf(out))?.n ?? 0;
+    await expect.poll(() => holds(air), { timeout: 60_000 }).toBeGreaterThan(0);
+    await expect.poll(() => holds(old), { timeout: 60_000 }).toBeGreaterThan(0);
+
+    // O1: after the first publish there is no Publish changes, and an older output is named.
+    await expect(page.getByTestId('production-publish-changes')).toHaveCount(0);
+    await expect(page.getByTestId('production-status')).toContainText('Reload Old when nothing is on air', { timeout: 30_000 });
+
+    // Cue text, cue order, a graphic added and removed: each reaches both outputs with no press.
+    const steps: [string, string, (s: Awaited<ReturnType<typeof server>>) => boolean][] = [
+      ['label', 'Edited once', (s) => s.labels.includes('Edited once')],
+      ['order', '', (s) => s.labels[0] === 'Cue B'],
+      ['add-graphic', 'Second strap', (s) => s.graphics.includes('Second strap')],
+      ['remove-graphic', 'Second strap', (s) => !s.graphics.includes('Second strap')],
+    ];
+    for (const [change, arg, landed] of steps) {
+      await edit(page, showId, change, arg);
+      await expect.poll(async () => landed(await server(showId)), { timeout: 60_000, message: `${change} published` }).toBe(true);
+      const now = await server(showId);
+      expect(now.published, `${change}: the publication names the newest save`).toBe(now.rev);
+      await expect.poll(() => holds(air), { timeout: 60_000, message: `${change} on the new output` }).toBe(now.n);
+      await expect.poll(() => holds(old), { timeout: 60_000, message: `${change} on the older output` }).toBe(now.n);
+      await expect(page.getByTestId('production-publish-changes')).toHaveCount(0);
+    }
+
+    // With the page's request withheld and the page closed, the new output finds the version alone.
+    await page.evaluate(() => { (window as unknown as { __noacgWithholdPrep?: boolean }).__noacgWithholdPrep = true; });
+    await edit(page, showId, 'label', 'Found alone');
+    await expect.poll(async () => (await server(showId)).labels.includes('Found alone'), { timeout: 60_000 }).toBe(true);
+    const target = (await server(showId)).n;
+    await page.close();
+    const t0 = Date.now();
+    await expect.poll(() => holds(air), { timeout: 90_000, intervals: [1_000] }).toBe(target);
+    test.info().annotations.push({ type: 'found-alone-ms', description: String(Date.now() - t0) });
+    await viewers.close();
+  });
+
+  test('a failed publish keeps the save and reads red, and the next page opened publishes it', async ({ page }) => {
+    test.setTimeout(240_000);
+    const { showId } = await published(page, `Auto fail ${Date.now()}`);
+    await page.route('**/rest/v1/control_shows?**', (route) =>
+      route.request().method() === 'PATCH' ? route.fulfill({ status: 500, contentType: 'application/json', body: '{"message":"made to fail"}' }) : route.continue(),
+    );
+    await edit(page, showId, 'label', 'Kept while failing');
+    const status = page.getByTestId('production-status');
+    await expect(status).toContainText('Updating outputs', { timeout: 30_000 });
+    await expect(status).toContainText('Saved, not on the outputs', { timeout: 40_000 });
+    const saved = await server(showId);
+    expect(saved.rev, 'the save is kept').not.toBeNull();
+    expect(saved.labels).not.toContain('Kept while failing');
+    expect(saved.published ?? 0).toBeLessThan(saved.rev ?? 0);
+    // The page closes; the next page opened on the production publishes the save.
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    const next = await openSecondProductionPage(page, showId);
+    await page.close();
+    await expect.poll(async () => (await server(showId)).labels.includes('Kept while failing'), { timeout: 60_000 }).toBe(true);
+    const after = await server(showId);
+    expect(after.published).toBe(after.rev);
+    await next.close();
+  });
+
+  test('two publishers finishing in reverse order leave the newer save published', async ({ page }) => {
+    test.setTimeout(240_000);
+    const { showId } = await published(page, `Auto race ${Date.now()}`);
+    const second = await openSecondProductionPage(page, showId);
+    // The first page's publish is held on the wire until the second page's newer one has landed.
+    let release: (() => void) | null = null;
+    const held = new Promise<void>((resolve) => {
+      void page.route('**/rest/v1/control_shows?**', async (route) => {
+        if (route.request().method() !== 'PATCH' || release) return route.continue();
+        release = () => void route.continue().catch(() => undefined);
+        resolve();
+      });
+    });
+    await edit(page, showId, 'label', 'Older save');
+    await held;
+    const older = await server(showId);
+    // The second page takes that save in, then saves over it.
+    await second.evaluate(async () => { await (await import('/src/backend/syncController.ts')).syncNow(); });
+    await expect.poll(() => second.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((x) => x.id === id)?.cues?.[0]?.label, showId), { timeout: 30_000 }).toBe('Older save');
+    await edit(second, showId, 'label', 'Newer save');
+    await expect.poll(async () => (await server(showId)).labels.includes('Newer save'), { timeout: 60_000 }).toBe(true);
+    const newer = await server(showId);
+    expect(newer.rev ?? 0).toBeGreaterThan(older.rev ?? 0);
+    release!();
+    // The older publish lands after it, or is told it is behind: the newer save stays published.
+    await page.waitForTimeout(8_000);
+    const end = await server(showId);
+    expect(end.labels).toContain('Newer save');
+    expect(end.labels).not.toContain('Older save');
+    expect(end.published).toBe(newer.rev);
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await second.close();
   });
 });
