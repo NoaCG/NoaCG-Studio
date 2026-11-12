@@ -10,9 +10,9 @@ cover.
 
 | Clause | Changed behaviour | Proof |
 | --- | --- | --- |
-| On: the gate fails with "Landing hold" and who set it | `CI gate` job's last step, `Landing hold`, runs `scripts/landing-hold.mjs check` on `pull_request`, `merge_group` and branch dispatches | `scripts/landing-hold.test.mjs` R1/R3 (workflow body and a hand-labelled issue), R2/R6 (the step, its condition and `issues: read` in ci.yml); the live pull request check below |
+| On: the gate fails with "Landing hold" and who set it | `CI gate` job's last step, `Landing hold`, runs `scripts/landing-hold.mjs check` on `pull_request`, `merge_group` and branch dispatches | `scripts/landing-hold.test.mjs` R1/R3 (workflow body, a hand-labelled issue, the label without case), R2/R6 (the step, its condition and `issues: read` in ci.yml); the live pull request check below |
 | A queued pull request leaves the queue | The same step runs on `merge_group`, the gate the queue waits on | R2/R6 test on the step's condition. A real merge group cannot read the step before it is on `main`; first live proof after landing (below) |
-| Off: as today | The step prints "Landing hold: off." and exits 0; "Require every gate" is untouched; nothing runs on a push to `main` | R1/R5 test; this PR's own green CI gate with the hold off |
+| Off: as today | The step prints "Landing hold: off." and exits 0; "Require every gate" is untouched; nothing runs on a push to `main` | R1/R5 test; live steps 1 and 3 below |
 | Unreadable: fails | No token, no repository, three failed attempts, or an answer that is not a list all fail with "Landing hold state could not be read" | R4 tests (network down, odd answers, transient failure inside the attempts, missing environment) |
 | The workflow sets and lifts it with a reason | `.github/workflows/landing-hold.yml`, dispatch only, `state` and required `reason`, serialized, reads back | R7/R8 tests (idempotent on, off closes every hold with who and why, a reason required, read back fails on mismatch) |
 | The guide says what it does not cover | `docs/LANDING_HOLD.md`, "What it does not cover" | the file; indexed in `docs/README.md` |
@@ -27,8 +27,19 @@ cover.
 
 ## Live check on this pull request
 
-Recorded below once run: a hold issue labelled by hand, this PR's `CI gate` job re-run (expected
-red with "Landing hold: set by ..."), the issue closed, the job re-run again (expected green).
+On head `cc8cb885245bdfbbbd9fec0e1deb721c5dd6a860`, CI run 43235756238 (`pull_request`):
+
+1. Hold off: `CI gate` job 131251674400 green; its log says "Landing hold: off.".
+2. Issue #2449 opened with the `landing-hold` label (a hold set by hand, R1, R12), then that job
+   re-run: job 131252473712 red with exactly two failure annotations, the runner's exit line and
+   "Landing hold: set by os0-builder, reason: live check of the gate's on path.
+   https://github.com/NoaCG/NoaCG-Studio/issues/2449. Nothing lands until it is lifted; then
+   re-run this job and queue again (docs/LANDING_HOLD.md)." That is also the shape
+   `repair-wake.mjs` `heldOnly` reads as held.
+3. Issue #2449 closed, the job re-run: job 131252844904 green.
+
+The same run's configured selection: all, 63 configured specs on 4 local stacks (two quarantined
+specs listed as coverage gaps), verdict green.
 
 ## Not provable before landing
 
