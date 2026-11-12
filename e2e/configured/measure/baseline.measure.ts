@@ -856,9 +856,10 @@ test('w3', async ({ page, browser }) => {
         await status.getAttribute('title'),
       );
     }
-    await settle(page);
+    // Sends only: a feed's rows make the page read its data tree again each time (as any data road).
+    await settle(page, 250, 20_000, SEND);
     await outBtn.click();
-    await settle(page);
+    await settle(page, 250, 20_000, SEND);
   }
   if (feeder) await feeder.close();
   report('w3', { graphic: samples }, { outputs: outputsWanted, feedMs, pressToConfirmed: summary(confirmed, unconfirmed), fixtureFacts: fx });
