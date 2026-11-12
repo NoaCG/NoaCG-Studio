@@ -43,20 +43,20 @@
   "inFlight": [
     {
       "phase": "OS5b",
-      "step": "build",
+      "step": "build (changes requested)",
       "actor": "builder-os5b-os5b-b-4201",
       "session": "session_017SdbwLfFjQ7J6hawcwSs7M",
       "branch": "claude/plan-obs-scenes-os5b-build",
       "launchedAt": "2026-11-12T21:46:34Z",
       "note": "sent brief = saved brief plus one NOTES line (use OS5a's project hook; works with page reads while 0116 is held)",
-      "lastSeen": "2026-11-12T23:19Z builder active (worker restarted once, epoch 2, still running): PR #2472 head 531ae01b",
+      "lastSeen": "2026-11-12T23:30Z receipt at 531ae01b; private sample FAIL (side rows, nested list, bracket by position, players join); builder asked to extend the same PR",
       "pr": 2472
     }
   ],
   "owner": [
     {
-      "what": "OS2: laptop test running (owner, 2026-11-12 evening); receipt to the coordinator chat",
-      "where": "coordinator chat (prompt given 2026-11-12); receipt lands as evidence/phase-OS2.md"
+      "what": "OS2: receipt in (private runs/obs-scenes-os2-receipt.md). Load pass; stale frame via Studio Mode preview pass, plain fade fail; dock sign-in, stinger and item 6 not run. Owner answers needed before OS1b: accept always-preview (D9 fallback), and run the 2-minute dock sign-in test before OS6",
+      "where": "coordinator chat; evidence/phase-OS2.md lands after the answers"
     },
     {
       "what": "OS7: rehearsal with failure drills",
@@ -70,6 +70,16 @@
       "owner": "2026-11-12: as recommended",
       "when": "with or right after OS3 (needs its presence rows)",
       "status": "filed"
+    },
+    {
+      "issue": 2474,
+      "what": "scene link opened before publish stays empty",
+      "when": "with OS3"
+    },
+    {
+      "issue": 2475,
+      "what": "browser source memory over a show-length run",
+      "when": "measured before OS7"
     }
   ],
   "triggers": [
