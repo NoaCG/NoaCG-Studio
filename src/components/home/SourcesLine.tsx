@@ -211,8 +211,9 @@ export interface CurrentMatchControl {
 /** The current match picker on a bracket source's line: the matches its last good read offered. */
 function CurrentMatchPicker({ source, status, control }: { source: ShowSource; status: SheetStatus | undefined; control: CurrentMatchControl }) {
   const choices = status?.choices ?? [];
-  if (choices.length === 0) return null;
   const value = control.get(source.id) ?? '';
+  // A held pick stays shown, with None, even while the feed offers no matches.
+  if (choices.length === 0 && value === '') return null;
   return (
     <select
       value={value}

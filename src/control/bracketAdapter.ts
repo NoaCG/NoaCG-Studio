@@ -197,13 +197,16 @@ function rowsOf(payload: unknown, path: string): { rows: { label: string; row: R
   if (!isObject(at)) return { problem: at === undefined ? `${where} is not in the JSON` : `${where} holds no rows` };
   const numbered: [number, string, unknown][] = [];
   for (const [key, row] of Object.entries(at)) {
-    if (!ROW_NUMBER.test(key)) report.push(`row “${key}” has no row number, so it is left out`);
+    if (!ROW_NUMBER.test(key) || !Number.isSafeInteger(Number(key))) report.push(`row “${key}” has no row number, so it is left out`);
     else numbered.push([Number(key), key, row]);
   }
   numbered.sort((x, y) => x[0] - y[0]);
   for (let i = 0; i < numbered.length; i += 1) {
     const [n, key, row] = numbered[i];
-    if (i > 0) for (let gap = numbered[i - 1][0] + 1; gap < n; gap += 1) report.push(`row ${gap} is missing`);
+    // One line per gap, never one per number: a feed's row numbers can be far apart.
+    const from = i > 0 ? numbered[i - 1][0] + 1 : n;
+    if (n - from === 1) report.push(`row ${from} is missing`);
+    else if (n - from > 1) report.push(`rows ${from} to ${n - 1} are missing`);
     if (isObject(row)) rows.push({ label: `row ${key}`, row });
     else report.push(`row ${key} is empty`);
   }

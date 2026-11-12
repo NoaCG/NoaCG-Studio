@@ -857,6 +857,11 @@ Filled in by each phase's pull request.
     bracket's shape. A stored setting this build cannot edit is shown with its problem and kept;
     a later version cannot be turned off here, and Connect is refused while the bracket cannot
     be read.
+- Rules found after coding (PR review):
+  - B3 after coding. A gap in the row numbers is one line ("rows 4 to 9 are missing"), never one
+    line per number, and a row number beyond a safe whole number counts as no row number.
+  - B16 after coding. While a pick is set, the picker stays on the line with it and "none", even
+    when the last read offers no matches.
 - Previous verified `main`: `97ba82596a7fcfcf6a424140648a5f8ad13aab92` (CI 43307568831, configured
   suite 43307568943).
 - Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed and no

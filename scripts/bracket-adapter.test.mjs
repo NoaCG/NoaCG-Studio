@@ -122,6 +122,9 @@ test('missing, empty, unnumbered and duplicated rows are reported, never guessed
   const r = adaptBracket(keyed, adapter());
   assert.deepEqual(r.report, ['row “note” has no row number, so it is left out', 'row 3 is missing', 'row 5 is empty']);
   assert.deepEqual(r.matches.map((m) => m.id), ['m1', 'm2', 'm3']);
+  // Far-apart or unsafe row numbers: one line per gap, never one per number.
+  const far = adaptBracket({ data: { rows: { 1: rows[0], 3: rows[1], 1000000000: rows[2], '9007199254740993': rows[3] } } }, adapter());
+  assert.deepEqual(far.report, ['row “9007199254740993” has no row number, so it is left out', 'row 2 is missing', 'rows 4 to 999999999 are missing']);
   const list = adaptBracket(asList([rows[0], null, rows[1]]), adapter());
   assert.deepEqual(list.report, ['row 2 is empty']);
   // An empty grouping or match id: left out, said.
