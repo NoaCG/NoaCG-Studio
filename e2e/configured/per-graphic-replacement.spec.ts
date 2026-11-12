@@ -131,6 +131,9 @@ test('two outputs each swap a changed graphic in place, and hold one on air unti
     await mark(air, SCOREBUG);
     await mark(air, STRAP);
   }
+  // Both outputs reported running it: PROGRAM says "ran", never more (live-publishing G2 section 6).
+  await expect(page.getByTestId('program-air')).toHaveAttribute('data-state', 'ran', { timeout: 15_000 });
+  await expect(page.getByTestId('program-air')).toHaveAttribute('title', /A browser cannot prove the broadcast picture/);
 
   // ── AC-1: the lower third changes while the scorebug is up. Each output swaps it on its own. ──
   await editInLibrary(page, showId, STRAP, 'first change');
