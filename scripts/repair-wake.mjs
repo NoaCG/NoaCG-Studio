@@ -37,6 +37,27 @@ const OWNER_MARK = '<!-- noacg:repair-owner';
 const RULES = 'docs/work-specs/cicd-followup/evidence/cf22-fix-1-repair-wake.md';
 const FAILED = new Set(['failure', 'timed_out']);
 const GROUP_BRANCH = /^gh-readonly-queue\/main\/pr-(\d+)-/;
+/**
+ * The refusal kinds only the owner can move (cf22 fix 2, rule 1), in the fixed form the CI gate's
+ * error carries: `Needs the owner (<kinds>)`. Kept here, not in e2e-capacity.mjs, so this check
+ * loads with nothing beyond scripts/; e2e-capacity.mjs imports it.
+ */
+export const OWNER_KIND = /^(?:(?:full|stopped):(?:offline|backend|graphics|overhead|table)|revision)$/;
+const NEEDS_OWNER = /Needs the owner \(([^)]*)\)/;
+const OWNER_MARK_RE = /<!-- owner-mark: (\S+) -->/g;
+
+/** The owner-only kinds a gate's annotations name, in the fixed form only, sorted. Pure. */
+export function ownerKindsIn(annotations) {
+  const kinds = new Set();
+  for (const a of annotations ?? []) {
+    const m = NEEDS_OWNER.exec(String(a?.message ?? ''));
+    for (const k of m ? m[1].split(',') : []) if (OWNER_KIND.test(k.trim())) kinds.add(k.trim());
+  }
+  return [...kinds].sort();
+}
+
+/** The owner marks a body lists. Pure. */
+const marksIn = (body) => [...String(body ?? '').matchAll(OWNER_MARK_RE)].map((m) => m[1]);
 const at = (iso) => Date.parse(iso ?? '');
 /** When a run's newest attempt started: a re-run keeps `created_at`, so recency reads this. */
 const started = (run) => Math.max(at(run?.run_started_at) || 0, at(run?.created_at) || 0);
@@ -105,20 +126,25 @@ export function ownerText(owner) {
  * keep an alarmed failure remembered while it is red (rule 8). `ageMinutes` is the failure's own
  * age, for rule 7, which limits new alarms only.
  */
-function decide({ pr, failure, comments, now }) {
+function decide({ pr, failure, comments, now, ownerKinds = [] }) {
   if (!failure) return null;
   const owner = repairOwner(comments);
+  // An owner-only refusal (fix 2 rule 6): no agent action can clear it, so its bound is 0 and none
+  // defers the alarm.
+  const needsOwner = ownerKinds.length > 0;
   const since = lastAction(failure, comments, owner) ?? failure.at;
   // With no owner, no worker can be left on a merge-group failure or on a bot's PR: the next check
   // alarms, unless a person has acted since, whose action then gets the full bound.
   const noWorker = !owner && (failure.kind === 'merge group' || pr.user?.type === 'Bot');
-  const bound = noWorker && since === failure.at ? 0 : BOUND_MINUTES;
+  const bound = needsOwner || (noWorker && since === failure.at) ? 0 : BOUND_MINUTES;
   const unattended = (at(now) - at(since)) / MINUTE >= bound;
   const key = `${pr.number}/${failure.run}/${failure.attempt}/${failure.at}`;
   const last = since === failure.at ? '' : `, last action ${utc(since)}`;
   // The marker carries the state an incomplete check copies forward (rule 9), not the wording.
-  const line = `- #${pr.number}: CI gate red on the ${failure.kind} since ${utc(failure.at)}${last} (${failure.url}); repair owner: ${ownerText(owner)}. <!-- key: ${key}${unattended ? '' : ' attended'} -->`;
-  return { key, ageMinutes: (at(now) - at(failure.at)) / MINUTE, unattended, line };
+  const ownerMark = needsOwner ? `${pr.number}:${ownerKinds.join(',')}` : null;
+  const what = needsOwner ? `needs the owner: ${ownerKinds.join(', ')}; the capacity line refused the ${failure.kind}` : `CI gate red on the ${failure.kind}`;
+  const line = `- #${pr.number}: ${what} since ${utc(failure.at)}${last} (${failure.url}); repair owner: ${ownerText(owner)}. <!-- key: ${key}${unattended ? '' : ' attended'} -->${ownerMark ? ` <!-- owner-mark: ${ownerMark} -->` : ''}`;
+  return { key, pr: pr.number, ownerMark, ageMinutes: (at(now) - at(failure.at)) / MINUTE, unattended, line };
 }
 
 /** The keys an alarm body lists. Pure. */
@@ -166,6 +192,7 @@ export function sweep({ reader, now, repo = REPO, remembered = [] }) {
     alarmedRuns.set(n, [...(alarmedRuns.get(n) ?? []), run]);
   }
   const entries = [];
+  const inFlight = new Set();
   for (const pr of prs.filter((p) => !p.draft)) {
     const runs = reader.get(`repos/${repo}/actions/workflows/ci.yml/runs?head_sha=${pr.head.sha}&per_page=20`);
     if (!Array.isArray(runs?.workflow_runs)) { complete = false; continue; }
@@ -179,19 +206,27 @@ export function sweep({ reader, now, repo = REPO, remembered = [] }) {
       else if (old.event === 'merge_group' && (!groupRun || started(old) > started(groupRun))) groupRun = old;
     }
     const run = verdictRun({ prRun, groupRun });
+    // A verdict still running keeps an owner-only alarm listed (fix 2 rule 7).
+    if (run && run.status !== 'completed') inFlight.add(pr.number);
     if (run?.status !== 'completed' || !FAILED.has(run.conclusion)) continue;
     const jobs = reader.get(`repos/${repo}/actions/runs/${run.id}/attempts/${run.run_attempt ?? 1}/jobs?per_page=100`);
     if (!Array.isArray(jobs?.jobs) || jobs.jobs.length >= 100) { complete = false; continue; }
-    const failure = failureOf({ run, gate: jobs.jobs.find((j) => j.name === 'CI gate') ?? null });
+    const gate = jobs.jobs.find((j) => j.name === 'CI gate') ?? null;
+    const failure = failureOf({ run, gate });
     if (!failure) continue;
+    // Whether the gate refused for a reason only the owner can move (fix 2 rule 6): one read; an
+    // unread answer is no verdict on this PR.
+    const annotations = reader.get(`repos/${repo}/check-runs/${gate.id}/annotations?per_page=50`);
+    if (!Array.isArray(annotations)) { complete = false; continue; }
+    const ownerKinds = ownerKindsIn(annotations);
     // Unread comments could hold the action that answers the failure: no verdict on this PR.
     const comments = readPages(reader, `repos/${repo}/issues/${pr.number}/comments`);
     if (!comments.complete) { complete = false; continue; }
-    const entry = decide({ pr, failure, comments: comments.items, now });
+    const entry = decide({ pr, failure, comments: comments.items, now, ownerKinds });
     if (entry) entries.push({ ...entry, certain });
   }
   if (reader.exhausted || reader.failures) complete = false;
-  return { entries, complete };
+  return { entries, complete, inFlight };
 }
 
 /**
@@ -201,13 +236,23 @@ export function sweep({ reader, now, repo = REPO, remembered = [] }) {
  * the entries new since the last check, and whether to close the issue. An incomplete check keeps
  * every listed line it could not re-read.
  */
-export function nextAlarm({ entries, complete, previousBody = '', remembered = keysIn(previousBody) }) {
+export function nextAlarm({ entries, complete, previousBody = '', remembered = keysIn(previousBody), inFlight = new Set() }) {
   const listed = new Set(remembered);
+  // An owner-only refusal already in the open alarm is that alarm again, however often the PR is
+  // re-pushed and refused the same way (fix 2 rule 6); it is listed, never a new notice.
+  const openMarks = new Set(marksIn(previousBody));
   // A new alarm needs an established verdict (`certain`); one already listed is kept either way.
-  const fresh = entries.filter((e) => e.unattended && e.certain !== false && !listed.has(e.key) && e.ageMinutes <= WINDOW_HOURS * 60);
-  const kept = entries.filter((e) => listed.has(e.key) || fresh.includes(e));
+  const fresh = entries.filter((e) => e.unattended && e.certain !== false && !listed.has(e.key) && !openMarks.has(e.ownerMark) && e.ageMinutes <= WINDOW_HOURS * 60);
+  const kept = entries.filter((e) => listed.has(e.key) || fresh.includes(e) || openMarks.has(e.ownerMark));
   const unattended = kept.filter((e) => e.unattended).map((e) => e.line);
   const attended = kept.filter((e) => !e.unattended).map((e) => e.line);
+  // An owner-only line stays while its PR's newest verdict is still running (fix 2 rule 7): a
+  // re-push in flight never withdraws it.
+  const keptMarks = new Set(kept.map((e) => e.ownerMark).filter(Boolean));
+  for (const l of String(previousBody).split(/\r?\n/)) {
+    const mark = marksIn(l)[0];
+    if (mark && !keptMarks.has(mark) && inFlight.has(Number(mark.split(':')[0]))) { unattended.push(l); keptMarks.add(mark); }
+  }
   if (!complete) {
     const seen = new Set(entries.map((e) => e.key));
     for (const l of String(previousBody).split(/\r?\n/)) {
@@ -215,7 +260,7 @@ export function nextAlarm({ entries, complete, previousBody = '', remembered = k
       if (k && !seen.has(k)) (/ attended -->/.test(l) ? attended : unattended).push(l);
     }
   }
-  return { unattended, attended, fresh, close: complete && kept.length === 0 };
+  return { unattended, attended, fresh, close: complete && unattended.length + attended.length === 0 };
 }
 
 const ATTENDED_HEADING = 'Attended to since the alarm, still red (listed so they do not alarm again):';
@@ -255,10 +300,10 @@ export function readAlarm({ gh, now, repo = REPO }) {
 const listedPart = (body) => String(body ?? '').split(/\r?\n/).slice(1).map((l) => l.trimEnd()).join('\n');
 
 /** Write the alarm: open it, update it with one comment for new failures, or close it. */
-export function raise({ entries, complete, now, ceilings, gh, repo = REPO, alarm = null }) {
+export function raise({ entries, complete, now, ceilings, gh, repo = REPO, alarm = null, inFlight = new Set() }) {
   const { owner, login } = alarmOwner(ceilings); // rule 12 first: no owner, nothing read or written
   const { found, remembered } = alarm ?? readAlarm({ gh, now, repo });
-  const { unattended, attended, fresh, close } = nextAlarm({ entries, complete, previousBody: found?.body ?? '', remembered });
+  const { unattended, attended, fresh, close } = nextAlarm({ entries, complete, previousBody: found?.body ?? '', remembered, inFlight });
   if (close && found) {
     gh(['api', '-X', 'POST', `repos/${repo}/issues/${found.number}/comments`, '-f', 'body=No listed pull request is red and unattended any more; closing.']);
     gh(['api', '-X', 'PATCH', `repos/${repo}/issues/${found.number}`, '-f', 'state=closed']);
@@ -305,7 +350,7 @@ export function runCheck({ now, ceilings, issue = false, repo = REPO, run }) {
   const complete = swept.complete && alarm.complete;
   // Unread alarm memory could already hold any of these: none raises a new alarm (rule 8).
   const entries = alarm.complete ? swept.entries : swept.entries.map((e) => ({ ...e, certain: false }));
-  const did = issue ? raise({ entries, complete, now, ceilings, gh, repo, alarm }) : null;
+  const did = issue ? raise({ entries, complete, now, ceilings, gh, repo, alarm, inFlight: swept.inFlight }) : null;
   return { entries, complete, did, calls: gh.calls };
 }
 

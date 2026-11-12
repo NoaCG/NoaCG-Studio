@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { EXCEPTION_MAX_DAYS, HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, assess, capacityMinutes, exceptionFor, parseExceptions, repoView, summarize } from './e2e-capacity.mjs';
+import { EXCEPTION_MAX_DAYS, HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, assess, capacityMinutes, exceptionFor, ownerKinds, parseExceptions, repoView, summarize } from './e2e-capacity.mjs';
 import { landingDispatched, priceAdditions } from './growth-controls.mjs';
 import CEILINGS from './growth-ceilings.json' with { type: 'json' };
 
@@ -131,4 +131,32 @@ test('on this repository, the landing procedure starts cloud-queue-merge.yml and
   const started = landingDispatched(repoView('HEAD').head, CEILINGS.estimates);
   assert.ok(started.has('cloud-queue-merge.yml'), 'the landing procedure dispatches cloud-queue-merge.yml');
   assert.equal(started.has('alarm-test.yml'), false, 'alarm-test.yml runs only when a person asks');
+});
+
+// cf22 fix 2 rule 1: which refusals only the owner can move. Each case states its class by hand.
+test('fix 2: a refusal is the owner\'s only when the change itself cannot clear it', () => {
+  const tier = (o) => ({ status: 'refuse', line: 0.95, share: 0.5, why: '10/100 per landing', ...o });
+  const growth = (tiers = {}, extra = {}) => ({ table: { stale: false }, tiers: { tiers }, stops: {}, ledger: [], ...extra });
+  const table = (before, added = 5, capacity = 100) => ({ status: 'refuse', before, added, capacity });
+  const ok = { status: 'ok', before: 10, added: 5, capacity: 100 };
+
+  assert.deepEqual(ownerKinds({ result: ok, growth: growth({ overhead: tier({ share: 0.95 }) }) }), ['full:overhead'], 'tier already at its line');
+  assert.deepEqual(ownerKinds({ result: ok, growth: growth({ overhead: tier({ share: 0.94 }) }) }), [], 'the change\'s own addition crossed it: the agent\'s');
+  assert.deepEqual(ownerKinds({ result: ok, growth: growth({ graphics: tier({ share: 0.99, why: 'x; growth stopped: G2 breach' }) }) }), ['stopped:graphics'], 'a stop, even over the line, is named as a stop');
+  assert.deepEqual(ownerKinds({ result: ok, growth: growth({ backend: tier({ share: null, why: 'x; headroom cannot be established' }) }) }), [], 'no measurement is #2379\'s alarm, not here');
+  assert.deepEqual(ownerKinds({ result: ok, growth: growth({ overhead: { status: 'warn', line: 0.95, share: 0.99 } }) }), [], 'a warning has no kind');
+  assert.deepEqual(ownerKinds({ result: ok, growth: growth({}, { stops: { offline: 'O1' } }) }), ['stopped:offline']);
+  assert.deepEqual(ownerKinds({ result: { ...ok, added: 0 }, growth: growth({}, { stops: { offline: 'O1' } }) }), [], 'no added minute, no offline refusal');
+
+  assert.deepEqual(ownerKinds({ result: table(95), growth: growth() }), ['full:table'], 'table already at 95%');
+  assert.deepEqual(ownerKinds({ result: table(94), growth: growth() }), [], 'crossed by the change\'s own minutes');
+  assert.deepEqual(ownerKinds({ result: table(85), growth: growth({}, { table: { stale: true } }) }), ['full:table'], 'a stale table\'s line is 85%');
+  assert.deepEqual(ownerKinds({ result: table(84), growth: growth({}, { table: { stale: true } }) }), []);
+  assert.deepEqual(ownerKinds({ result: table(99, 0), growth: growth() }), [], 'nothing added, nothing refused for the table');
+
+  assert.deepEqual(ownerKinds({ result: ok, growth: growth({}, { ledger: ['the frozen ceilings, estimates or measurement changed without a new version and a reviewed revision (rationale, authority)'] }) }), ['revision']);
+  assert.deepEqual(ownerKinds({ result: ok, growth: growth({}, { ledger: ['MAIN_RUNNERS rose from 13 to 14: more runners never buy budget without a reviewed revision'] }) }), ['revision']);
+  assert.deepEqual(ownerKinds({ result: ok, growth: growth({}, { ledger: ['exception E9 has no measured repayment receipt'] }) }), [], 'a ledger form error is the agent\'s');
+
+  assert.deepEqual(ownerKinds({ result: table(96), growth: growth({ overhead: tier({ share: 0.96 }), backend: tier({ share: 0.2 }) }) }).sort(), ['full:overhead', 'full:table'], 'both owner kinds; the agent-fixable one is left out');
 });

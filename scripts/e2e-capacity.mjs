@@ -60,6 +60,7 @@ import { planMinutes } from './e2e-affected.mjs';
 import { budgetMinutes, minutesByFile, readTable, specFilesOnDisk } from './e2e-durations.mjs';
 import { TIERS, assessTiers, ceilingsRevision, exceptionStatus, knownCovers, ledgerChanges, priceAdditions, receiptAfter, reportCadence, summarizeTiers, tableFreshness } from './growth-controls.mjs';
 import { measured } from './measured.mjs';
+import { OWNER_KIND } from './repair-wake.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -440,7 +441,28 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
     '',
   ].join('\n');
   const assessWith = (extra) => assessTiers({ ceilings, measurement, items: extra, today, stops, known, trustEvidence: true });
-  return { status, reasons, markdown, table: fresh, tiers, items, stops, gate, estimates: ceilings.estimates, assessWith };
+  return { status, reasons, markdown, table: fresh, tiers, items, stops, gate, estimates: ceilings.estimates, assessWith, ledger };
+}
+
+/**
+ * OWNER-ONLY REFUSALS (cicd-followup cf22 fix 2; rules in
+ * docs/work-specs/cicd-followup/evidence/cf22-fix-2-owner-refusals.md, rule 1). The refusals no
+ * change to the pull request's own cost can clear, short of adding nothing: a tier or the table
+ * already at or over its line before this change (`full:`), a growth stop (`stopped:`), and a
+ * ceilings change without a reviewed revision (`revision`). Every other refusal is the agent's and
+ * keeps its message. Pure; returns the kinds in a fixed order.
+ */
+export function ownerKinds({ result, growth, line = growth?.table?.stale ? WARN_SHARE : HARD_SHARE }) {
+  const kinds = [];
+  if (result?.status === 'refuse' && result.added > 0 && result.capacity > 0 && result.before / result.capacity >= line) kinds.push('full:table');
+  for (const [tier, t] of Object.entries(growth?.tiers?.tiers ?? {})) {
+    if (t?.status !== 'refuse') continue;
+    if (/; growth stopped: /.test(t.why ?? '')) kinds.push(`stopped:${tier}`);
+    else if (t.share !== null && t.share !== undefined && t.share >= t.line) kinds.push(`full:${tier}`);
+  }
+  if (growth?.stops?.offline && result?.added > 0) kinds.push('stopped:offline');
+  if ((growth?.ledger ?? []).some((l) => /without a (?:new version and a )?reviewed revision/.test(l))) kinds.push('revision');
+  return [...new Set(kinds)].filter((k) => OWNER_KIND.test(k));
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -478,7 +500,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const summary = value('--summary');
   if (summary) appendFileSync(summary, `${text}\n`);
   if (args.includes('--github-output') && process.env.GITHUB_OUTPUT) {
-    appendFileSync(process.env.GITHUB_OUTPUT, `capacity=${result.status}\ncapacity_reason=${result.reason.replace(/\r?\n/g, ' ')}\n`);
+    const owner = result.status === 'refuse' ? ownerKinds({ result, growth }).join(',') : '';
+    appendFileSync(process.env.GITHUB_OUTPUT, `capacity=${result.status}\ncapacity_reason=${result.reason.replace(/\r?\n/g, ' ')}\ncapacity_owner=${owner}\n`);
   }
   if (result.status === 'refuse') console.log(`::error title=E2E capacity::${result.reason}`);
   else if (result.status === 'warn') console.log(`::warning title=E2E capacity::${result.reason}`);

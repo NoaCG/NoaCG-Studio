@@ -282,6 +282,8 @@ jobs:
       # or 'refuse' (scripts/e2e-capacity.mjs; docs/work-specs/e2e-suite-budget/spec.md).
       capacity: ${{ steps.capacity.outputs.capacity }}
       capacityReason: ${{ steps.capacity.outputs.capacity_reason }}
+      # The refusals only the owner can move (cf22 fix 2): comma-separated fixed kinds, or empty.
+      capacityOwner: ${{ steps.capacity.outputs.capacity_owner }}
       # THE CONFIGURED SELECTION (cicd-improvement ci06). `configured` is 'true' or 'false', never
       # empty: the gate reads it, and an empty flag fails there. The specs, their shards and the
       # exemption that explains a 'false' come with it.
@@ -1479,6 +1481,7 @@ jobs:
           CONFIGURED_RESULT: ${{ needs.configured.result }}
           CONFIGURED_VERDICT: ${{ needs.configured-verdict.result }}
           CAPACITY_REASON: ${{ needs.plan.outputs.capacityReason }}
+          CAPACITY_OWNER: ${{ needs.plan.outputs.capacityOwner }}
         run: |
           status=0
           exhausted=0
@@ -1487,7 +1490,13 @@ jobs:
           # envelope without an expiring exception in its work spec is refused here, by the plan
           # job's estimate. A change that adds nothing is never refused, so no landing is held for
           # being mechanical; and an empty verdict (main, a dispatch) is no verdict.
-          if [ "${CAPACITY_RESULT:-}" = "refuse" ]; then
+          # A refusal only the owner can move (cf22 fix 2: a tier or the table full before this
+          # change, a growth stop, an unreviewed ceilings revision) says so, and asks the agent to
+          # raise the owner alarm now instead of re-pushing; every other refusal keeps its message.
+          if [ "${CAPACITY_RESULT:-}" = "refuse" ] && [ -n "${CAPACITY_OWNER:-}" ]; then
+            echo "::error title=CI gate::Needs the owner (${CAPACITY_OWNER}): E2E capacity line - ${CAPACITY_REASON:-over the line}. Re-pushing will not pass this: only an owner-approved budget exception, a ceiling revision or the growth stop's correction moves it. The one thing this change can do is add nothing to that tier or table. Raise the owner alarm now: node scripts/repair-wake.mjs check --issue"
+            status=1
+          elif [ "${CAPACITY_RESULT:-}" = "refuse" ]; then
             echo "::error title=CI gate::E2E capacity line - ${CAPACITY_REASON:-over the line}. Add a budget exception to the pull request's work spec (format: scripts/e2e-capacity.mjs header) or make the change cheaper."
             status=1
           fi
