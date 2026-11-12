@@ -39,31 +39,52 @@ runner-minutes per landing and 0.4 per day, taking the offline tier to 123% of i
 - B2. On a pull request every tier's line is 95%, whatever its evidence state (already true).
 - B3. A missing, unreadable or failed-fetch weekly report never refuses. The tiers are judged on
   the newest complete report, or the frozen seed when there is none, and the change warns,
-  naming the report.
+  naming the report. The same holds for an offline tier with no measurement or no verdict
+  (`applyOfflineStop`, today a refusal): it is judged on the change's own cost, as
+  `assessTiers` already does with trusted evidence. The `growth.unreadable` refusal, which
+  nothing sets, is removed.
 - B4. A growth stop refuses only when the newest readable weekly report is complete and within
   its age bound, and records that stop. A stop carried by a partial, stale or missing newest
   report warns and names the stop.
 - B5. A floor from a newer partial report (a proven lower bound) can only warn. Refusals are judged
-  on the newest complete measurement alone, so partial evidence never turns ok into refuse.
-- B6. Unchanged: a diff the gate cannot read is unknown added cost and refuses; that is the
-  change's own evidence, not a report's, and a re-run clears it.
+  on the newest complete measurement alone, so partial evidence never turns ok into refuse. This
+  supersedes #2379's rule that a floor raises the judged cost; `growth-report.mjs` still records
+  the floor and the gate names it. A floor-only breach opens no repayment item (C2): it shows in
+  the warning and the weekly report.
+- B6. Unchanged: a diff the gate cannot read is unknown added cost and refuses. That is the
+  change's own evidence, not a report's; updating the branch from its base clears it (a base
+  that cannot be reached fails again on a plain re-run).
+- B7. Unchanged: a gate that crashes (an unreadable ceilings file in the checkout, an empty suite
+  or table) fails the plan job. That is a broken checkout, not a cost decision.
 
 ## (c) Repay, do not block
 
 - C1. Where a cost refusal is still correct (a new spec or job over the table line or a tier
   line, a confirmed stop), the gate passes with the verdict `repay` and the change lands.
-- C2. After landing, the change gets a repayment item: a GitHub issue assigned to miwco, titled
-  for its tier, with a due date (opened + 14 days), the tier, the cost it added and the pull
-  request. At most one is open per tier.
-- C3. When one is already open for that tier, no second issue opens: the pull request and its
-  cost are added to the open item as a comment, and its due date does not move. The debt
-  accumulates on one dated item, so the pressure stays real; once it is overdue the owner alarm
-  says so. Landings stay unblocked.
+- C2. After landing, the change gets a repayment item: a GitHub issue assigned to the alarm owner
+  (`alarmOwner()`, miwco today), titled for its tier, with a due date (opened + 14 days), the
+  tier, the cost it added and the pull request. At most one is open per tier. A table-line
+  repayment is filed under the offline tier.
+- C2a. How it learns the verdict: the merge group's `CI gate` prints one fixed annotation per
+  tier, `Repay (<tier>): <cost>`. A new step in post-land's existing `ages` job (it already has
+  `checks: read` and `issues: write`; no new job or schedule) reads the `CI gate` annotations of
+  each pull request merged into main in the last 20 first-parent merges, and records each one
+  once, keyed by pull request number in a hidden marker on the item. A cancelled or batched
+  post-land run is caught up by the next one. At most 100 API calls a run.
+- C3. (Decision for the coordinator; proposed.) When one is already open for that tier, no second
+  issue opens: the pull request and its cost are added to the open item as a comment, and its due
+  date does not move. The debt accumulates on one dated item, so the pressure stays real. Once
+  the due date passes, the same step marks the item overdue (title and one comment, routed to
+  the owner). Landings stay unblocked. The other reading, blocking further growth in a tier while
+  its item is open, would let a cost ceiling block a landing again, so it is not proposed.
 - C4. It never writes `scripts/growth-ceilings.json`, a budget exception or a work-spec line, and
   it waives nothing: the tier stays over its line in every later warning and weekly report.
 - C5. The #2411 owner-only kinds `full:*` and `stopped:*` become repayment items instead of
-  refusals. `revision` (an unreviewed ceilings change) and ledger or exception-record errors stay
-  refusals: they guard the records, not the cost.
+  refusals; `ownerKinds` and the CI gate's "Needs the owner" message shrink to `revision`. A
+  `repay` verdict sets no failure. What still refuses after (c), and only this: an unreviewed
+  ceilings revision and other ledger errors, offline exception-record errors, an unreadable
+  diff (B6), and a crashed gate (B7). They guard the records and the change's own evidence, not
+  the cost.
 - C6. An automatic repair still may not write a budget exception (unchanged rule).
 - C7. Real cost growth stays visible: the gate warning, the weekly report, the v3 dated reduction
   plan and the repayment items all still show it.
