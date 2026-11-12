@@ -66,17 +66,17 @@
   {
    "what": "OS7: rehearsal with failure drills",
    "where": "run issue hand-over after OS6"
-  },
-  {
-   "what": "Decide whether automatic reverts and quarantine landings may pass a landing hold (today: held; the guide says lift, land, set again)",
-   "where": "coordinator chat"
-  },
-  {
-   "what": "OS1a builder question: what turning the OBS scenes switch off does to loaded scene links (builder default: off = payload as today, scene links go empty on next publish)",
-   "where": "coordinator chat"
   }
  ],
- "fixes": [],
+ "fixes": [
+  {
+   "issue": 2454,
+   "title": "Confirm before switching OBS scenes off while scene links are loaded",
+   "owner": "2026-11-12: as recommended",
+   "when": "with or right after OS3 (needs its presence rows)",
+   "status": "filed"
+  }
+ ],
  "triggers": [
   {
    "id": "trig_01S3fBDL2J88mFSX7hEeifpg",
@@ -103,5 +103,9 @@
  "heartbeatComment": 6825771186,
  "passed": [
   "OS0 (merge 619ebc8358f212410bce16e6cd5ce6682b94d5a7, PR 2448)"
+ ],
+ "decisions": [
+  "2026-11-12 owner: switch off asks for confirmation when scene links are loaded (#2454).",
+  "2026-11-12 owner: the landing hold is not a hard wall; the coordinator may lift it for one needed hotfix and set it again at once; nothing unnecessary lands in a window."
  ]
 }
