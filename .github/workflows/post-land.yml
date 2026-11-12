@@ -145,6 +145,7 @@ jobs:
       contents: read
       pull-requests: read
       statuses: read
+      actions: read # the red-PR check reads CI runs and their jobs
       issues: write
     steps:
       - uses: actions/checkout@v5
@@ -159,3 +160,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: node scripts/growth-report.mjs ages --issue
+      # A red PR nobody is repairing (cicd-followup cf22 fix 1): the same kind of owned alarm, run
+      # here rather than on its own schedule, because a new scheduled job does not fit the
+      # overhead tier. It reads open PRs and their CI and writes only its own alarm issue.
+      - name: Red pull requests nobody is repairing
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/repair-wake.mjs check --issue

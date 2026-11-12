@@ -9,13 +9,15 @@
 // This check notices them. It reads open PRs, their newest CI verdicts and their comments; when a
 // red one is unattended past its bound it raises one owner alarm per failure, in a rolling issue
 // assigned to the owner scripts/growth-ceilings.json records (scripts/alarm-owner.mjs). It writes
-// nothing else. Rules, numbered as here: docs/work-specs/cicd-followup/evidence/cf22-fix-1-repair-wake.md.
+// nothing else. It runs after each landing (post-land.yml, the delivery-age alarm's job) and at each
+// plan-run check-in, not on a schedule of its own: a new scheduled job does not fit the overhead
+// tier. Rules, numbered as here: docs/work-specs/cicd-followup/evidence/cf22-fix-1-repair-wake.md.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Only the alarm helpers: they load nothing heavy, so the workflow checks out `scripts/` alone.
+// Only the alarm helpers: they load nothing heavy, so the check needs nothing beyond `scripts/`.
 import { alarmOwner, findAlarmIssue, makeReader, MEMBER_ROLES, routeOrWarn, trustedAuthor } from './alarm-owner.mjs';
 
 const REPO = process.env.GH_REPO || process.env.GITHUB_REPOSITORY || 'NoaCG/NoaCG-Studio';

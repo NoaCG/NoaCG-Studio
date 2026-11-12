@@ -1,10 +1,10 @@
-// guards: scripts/repair-wake.mjs, scripts/alarm-owner.mjs, scripts/growth-report.mjs, scripts/growth-ceilings.json, .github/workflows/repair-wake.yml
+// guards: scripts/repair-wake.mjs, scripts/alarm-owner.mjs, scripts/growth-report.mjs, scripts/growth-ceilings.json, .github/workflows/post-land.yml, .agent-workflows/plan-run.md
 // A red PR nobody is repairing reaches the owner alarm (cicd-followup cf22 fix 1). Each case is
 // stated from the Rules in docs/work-specs/cicd-followup/evidence/cf22-fix-1-repair-wake.md, with
 // its expected outcome written by hand, against a fake GitHub; no network. The first cases replay
 // the four long idle stretches cf22 measured (#1840, #2218, #2227, #2374) from their real times.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { ownedAlarmTitles } from './alarm-owner.mjs';
@@ -417,7 +417,7 @@ test('rule 10: no recorded owner, no alarm and a loud failure', () => {
   assert.throws(() => raise({ entries: [], complete: true, now: 'x', ceilings: { owner: '' }, gh: () => '[]' }), /no owner or ownerLogin/);
 });
 
-test('the script runs from a scripts-only checkout, as the workflow gives it', async () => {
+test('the script loads with only scripts/ beside it: it imports nothing heavy', async () => {
   const { mkdtempSync, cpSync, rmSync } = await import('node:fs');
   const { tmpdir } = await import('node:os');
   const { join } = await import('node:path');
@@ -436,16 +436,19 @@ test('rule 11: the weekly owner session lists this alarm with the others', async
   assert.ok((await ownedAlarmTitles()).includes(RED_ISSUE));
 });
 
-test('the workflow runs the check on main, after a failed CI run and on a schedule, writing only issues', () => {
-  const wf = readFileSync(new URL('../.github/workflows/repair-wake.yml', import.meta.url), 'utf8');
-  assert.match(wf, /workflow_run:\s*\n\s*workflows: \[CI\]\s*\n\s*types: \[completed\]/);
-  assert.match(wf, /schedule:\s*\n\s*- cron: '[0-9,]+ \* \* \* \*'/);
-  assert.match(wf, /github\.ref == 'refs\/heads\/main'/);
-  assert.match(wf, /node scripts\/repair-wake\.mjs check --issue/);
-  assert.match(wf, /issues: write/);
-  assert.doesNotMatch(wf, /pull-requests: write|contents: write|actions: write/, 'read-only on PRs');
-  assert.doesNotMatch(wf, /workflow_run\.head|head_sha|head_branch/, 'never checks out the PR\'s code');
-  assert.match(wf, /\n {4}concurrency:\n {6}group: repair-wake\n {6}cancel-in-progress: false/, 'one check at a time, none dropped mid-write, on the job');
-  assert.doesNotMatch(wf, /^concurrency:/m, 'not on the workflow, where skipped runs of green CI would displace a waiting check');
-  assert.match(wf, /sparse-checkout: scripts/, 'the script needs only scripts/');
+test('the check runs in the existing post-land alarm job and at each plan-run check-in, with no workflow of its own', () => {
+  const wf = readFileSync(new URL('../.github/workflows/post-land.yml', import.meta.url), 'utf8');
+  // The same job as the delivery-age alarm: no new job and no new trigger, so no new runs to price.
+  const job = /\n {2}ages:\n([\s\S]*?)(?=\n {2}[A-Za-z0-9_-]+:\n|$)/.exec(wf)?.[1] ?? '';
+  assert.match(job, /growth-report\.mjs ages --issue/, 'the age alarm\'s job');
+  assert.match(job, /node scripts\/repair-wake\.mjs check --issue/);
+  assert.match(job, /continue-on-error: true\n(?:.*\n){0,4}\s+run: node scripts\/repair-wake\.mjs/, 'a failed check never turns a landing\'s post-land run red');
+  assert.match(job, /actions: read/);
+  assert.match(job, /issues: write/);
+  assert.doesNotMatch(job, /pull-requests: write|contents: write|actions: write/, 'read-only on PRs');
+  assert.match(wf, /^on:\n {2}push:\n {4}branches: \[main\]/m, 'main\'s code, after each landing');
+  assert.match(wf, /^concurrency:\n {2}group: post-land\n {2}cancel-in-progress: false/m, 'one landing\'s check at a time, none cancelled mid-write');
+  assert.ok(!existsSync(new URL('../.github/workflows/repair-wake.yml', import.meta.url)), 'no scheduled workflow: the overhead tier has no room for one');
+  const checkIn = readFileSync(new URL('../.agent-workflows/plan-run.md', import.meta.url), 'utf8');
+  assert.match(checkIn, /On every check-in[^\n]*node scripts\/repair-wake\.mjs check --issue/);
 });
