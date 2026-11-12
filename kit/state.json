@@ -153,7 +153,8 @@
  },
  "retro": [
   "Phase 1 used 9 /so sessions (1 full A, then 7 deltas B to B+ chasing stale docs one at a time, about 11 USD) before the final A. Builders should sweep the whole class of stale docs once before the first full /so (the traps file says fix every instance of a class in one checkpoint).",
-  "Phase 3: the owner-approved fix (#2389) passed a full /so A yet lost an edit on reload; the independent checker caught it with a slowed send plus reload probe. Reload-in-the-window probes belong in every save-path brief."
+  "Phase 3: the owner-approved fix (#2389) passed a full /so A yet lost an edit on reload; the independent checker caught it with a slowed send plus reload probe. Reload-in-the-window probes belong in every save-path brief.",
+  "Phase 5: Codex on each new head found four real playout defects after /so grade A (stale demand read dropping a Take, seed pruning, hold not released after swap, lost entrance across republish). Wait for Codex on the final head before the receipt, and ask for behaviour tests, not source checks. Builders read the block deadline as their own deadline; say it is renewed."
  ],
  "archiveOnPass": "At each PASS, archive the builder child sessions too: list them by parent_session_id = the builder session (the /runs helper found 8 phase 1 /so sessions left open).",
  "phase3": {
@@ -195,11 +196,17 @@
   "landed": "1938f262dc6060c225832756b6da91af5f6838bc (PR 2443)",
   "design": "12173c3f (PR 2426)",
   "builder": "session_017SdbwMx1ooTEVQrtu6Losx",
-  "checker": "session_017SdbwMJRci189DWkHMeVwL"
+  "checker": "session_017SdbwMJRci189DWkHMeVwL",
+  "pass": "2026-11-12T19:57Z",
+  "costUSD": "about 106 (builder 88, checker 18) plus /so sessions"
  },
  "block": {
   "epoch": 3,
   "deadline": "2026-11-13T18:50:40Z"
  },
- "nextCheckin": "2026-11-12T20:20:00Z"
+ "nextCheckin": "2026-11-12T20:20:00Z",
+ "traps5": [
+  "the job queue runs two browser jobs on one port and one account",
+  "graphic frames are sandboxed (checker 5-c-b19d)"
+ ]
 }
