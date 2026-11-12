@@ -490,3 +490,23 @@ Filled in by each phase's pull request.
   consequence. Departure recorded: AC-4 asks for no entrance animation; the behaviour section's
   "a change while the scene is not shown is applied without animation" is read as no entrance, so
   Next, events and updates animate as their graphic does today.
+- Rules found after coding: the boot's hidden catch-up counts only rows in scope, so another
+  scene's Take never hides a scene link's graphics while it settles; the switch-off default was sent
+  to the owner through the coordinator as one question.
+- Previous verified `main`: `619ebc8358f212410bce16e6cd5ce6682b94d5a7` (CI run 43243087381).
+- Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed: an
+  `obsScene` flag or `obsScenes` switch left on a record by this build is ignored by the reverted one,
+  and a published `scenes` field is ignored by its outputs, so a scene link then builds the whole
+  production; take scene links out of OBS before reverting.
+- Decisions: the switch lives on the production record, not in `outputSetup`, so the published
+  `outputSetup` and every reader of it stay as they are. The scene id is the folder id. Scenes are cue
+  metadata outside the version stamp. A settled Take is `play()` then `noacgSnap` of the reached pose
+  in one task, the recovery path every graphic already supports, rather than a new entrance-less
+  animation path in the runtime. The unknown-scene state is a READY issue, so today's operator words
+  say "Not ready" without any OS3 surface. A copy of the scene link sits in the folder's menu, the
+  only way to get a link before OS3's settings section.
+- Traps: `__noacgLive.command` (the offline specs' door) reaches `applyCommand` only, never the report
+  path, so a check that a scene link writes no report for another scene's graphic needs log rows
+  (the spec's stood-in tail). A graphic's composed document only knows `settled` through the play
+  command; the editor monitors never send it.
+- Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS1a.md`.
