@@ -28,7 +28,8 @@
 //   another pick. The adapter's rules are scripts/bracket-adapter.test.mjs.
 // - The fifth (OS5b, AC-10 as extended) sets up a feed whose rows are sides nested under a list of
 //   brackets: the rows are found through `*`, each row is one side, the bracket is its place in the
-//   list, and a players list fills the seeds; the saved setting says so and the graphic follows.
+//   list, rounds go highest number first, and a players list fills the seeds; the saved setting
+//   says so and the graphic follows.
 
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -540,6 +541,7 @@ test('a bracket whose rows are sides, nested under a list: found through *, the 
   for (const [key, field] of [['match', 'pair'], ['round', 'step'], ['name', 'who'], ['score', 'pts']]) {
     await review.getByTestId(`cue-connect-bracket-${key}`).selectOption(field);
   }
+  await review.getByTestId('cue-connect-bracket-round-order').selectOption('descending');
   await review.getByTestId('cue-connect-bracket-players').selectOption('roster');
   await review.getByTestId('cue-connect-bracket-players-name').selectOption('handle');
   await review.getByTestId('cue-connect-bracket-players-seed').selectOption('rank');
@@ -555,7 +557,7 @@ test('a bracket whose rows are sides, nested under a list: found through *, the 
   await expect(review).toBeHidden();
   const saved = await stored(page, showId);
   expect(saved.sources[0].config).toMatchObject({
-    adapter: { v: 1, name: 'bracket', rows: 'cups.*.grid.*.*', rowsAre: 'sides', bracketLevel: 1, fields: { match: 'pair', round: 'step', name: 'who', score: 'pts' }, players: { at: 'roster', fields: { name: 'handle', seed: 'rank' } } },
+    adapter: { v: 1, name: 'bracket', rows: 'cups.*.grid.*.*', rowsAre: 'sides', bracketLevel: 1, roundOrder: 'descending', fields: { match: 'pair', round: 'step', name: 'who', score: 'pts' }, players: { at: 'roster', fields: { name: 'handle', seed: 'rank' } } },
   });
   await expect(page.getByTestId('cue-bound-f0').locator('input')).toHaveValue('Dahl');
   await expect(page.getByTestId('cue-bound-f1').locator('input')).toHaveValue('5');

@@ -2026,6 +2026,18 @@ function BracketSetting({ sample, adapter: stored, problem, onChange }: { sample
               </select>
             </label>
           )}
+          <label className="row">
+            <span>Round order</span>
+            <select
+              value={adapter.roundOrder ?? ''}
+              onChange={(e) => onChange(e.target.value ? { ...adapter, roundOrder: e.target.value as 'ascending' | 'descending' } : without(adapter, 'roundOrder'))}
+              data-testid="cue-connect-bracket-round-order"
+            >
+              <option value="">As the feed gives them</option>
+              <option value="descending">Highest round number first</option>
+              <option value="ascending">Lowest round number first</option>
+            </select>
+          </label>
           {FIELDS_FOR[mode]
             .filter((key) => !(key === 'bracket' && adapter.bracketLevel))
             .map((key) => (

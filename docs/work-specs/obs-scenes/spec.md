@@ -176,6 +176,8 @@ break another live production.
     any level, in feed order, down to leaves that are lists or numbered objects of rows.
   - The bracket can be taken from where a row sits (its entry's place at a gathered level) when no
     row field names it; a field that repeats across brackets can then be the stage.
+  - Rounds can be ordered by their number, highest or lowest first, for a feed keyed by round
+    number, whose own order is lost when its JSON is read.
   - A separate players section can be joined to the sides by name, ignoring case, to fill each
     side's seed (and its race where the row has none); `<p>.players` then comes from that section.
     A name the section does not hold is reported, not guessed.
@@ -292,7 +294,8 @@ source setting. The current match holds across reads, keeps its last values with
 its match disappears or changes players, and moves only when the operator picks another. Rows
 that are sides of a match pair by match id, and a one-side match is kept and reported; rows nested
 under lists and numbered levels are gathered in feed order; the bracket can come from a row's place;
-a players section fills seeds by name, ignoring case, and an unmatched name is reported. A setting
+a players section fills seeds by name, ignoring case, and an unmatched name is reported; rounds can
+be ordered by their number, highest or lowest first. A setting
 made before these options reads exactly as before. Covered by synthetic fixtures.
 
 ### AC-11: The Live dock
@@ -930,6 +933,12 @@ Filled in by each phase's pull request.
     - Tie lines are built as own keys, so any bracket id keeps them.
     - Not taken, recorded: side rows pair by match id across the whole answer, as decided
       above.
+  - B22 (coordinator, after the second run on the real feed). `roundOrder: 'ascending' |
+    'descending'` puts each stage's rounds in order of their id as a number; a round whose id is
+    not a number keeps its feed place after the numbered ones. Absent, rounds keep the feed's order
+    as before. A feed keyed by round number ("round of 8, 4, 2") loses its own order when its JSON is
+    read (integer-like keys come first, ascending), so without it the final would draw first.
+    Tie lines, the shape and the picker follow the order. The review offers it as "Round order".
 - Previous verified `main`: `97ba82596a7fcfcf6a424140648a5f8ad13aab92` (CI 43307568831, configured
   suite 43307568943).
 - Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed and no

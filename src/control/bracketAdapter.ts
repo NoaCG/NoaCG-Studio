@@ -1,4 +1,4 @@
-// THE BRACKET ADAPTER (docs/work-specs/obs-scenes/spec.md, OS5b; AC-10, rules B1 to B21 in its
+// THE BRACKET ADAPTER (docs/work-specs/obs-scenes/spec.md, OS5b; AC-10, rules B1 to B22 in its
 // phase notes). A pure module: a JSON source NoaCG reads may name it in `config.adapter`, and each
 // read's payload is turned into one bracket shape before the shared evaluator sees it
 // (./jsonSource.ts `projectJson`, OS5a's `project` hook, R11).
@@ -69,6 +69,9 @@ export interface BracketAdapter {
   rowsAre?: 'sides';
   /** The bracket is the entry's position at this `*` of `rows`, counting from 1 (B19). */
   bracketLevel?: number;
+  /** Rounds by their id as a number, highest or lowest first; absent: as the feed gives them
+   *  (B22). A feed keyed by round number loses its own order when its JSON is read. */
+  roundOrder?: 'ascending' | 'descending';
   /** A section of players beside the rows, joined to the sides by name (B20). */
   players?: { at: string; fields: Partial<Record<PlayerFieldKey, string>> & { name: string } };
 }
@@ -92,7 +95,7 @@ export function readSourceAdapter(raw: unknown): AdapterRead {
   if (typeof raw.v === 'number' && raw.v > BRACKET_ADAPTER_VERSION) return { status: 'read-only', version: raw.v };
   if (raw.v !== BRACKET_ADAPTER_VERSION) return no('the adapter setting has no version');
   if (raw.name !== 'bracket') return no('the only adapter is bracket');
-  for (const key of Object.keys(raw)) if (!['v', 'name', 'rows', 'fields', 'rowsAre', 'bracketLevel', 'players'].includes(key)) return no(`the adapter setting has an unknown key ${key}`);
+  for (const key of Object.keys(raw)) if (!['v', 'name', 'rows', 'fields', 'rowsAre', 'bracketLevel', 'players', 'roundOrder'].includes(key)) return no(`the adapter setting has an unknown key ${key}`);
   const rows = raw.rows ?? '';
   if (typeof rows !== 'string' || !isRowsPath(rows)) return no('the rows must be a dotted path');
   if (raw.rowsAre !== undefined && raw.rowsAre !== 'sides') return no('rows are whole matches, or sides');
@@ -110,6 +113,7 @@ export function readSourceAdapter(raw: unknown): AdapterRead {
   const level = raw.bracketLevel;
   if (level !== undefined && (typeof level !== 'number' || !Number.isInteger(level) || level < 1 || level > stars)) return no('the bracket level must name a * of the rows');
   if (level !== undefined && fields.bracket) return no('the bracket comes from a field or from a level, not both');
+  if (raw.roundOrder !== undefined && raw.roundOrder !== 'ascending' && raw.roundOrder !== 'descending') return no('the round order is ascending or descending');
   let players: BracketAdapter['players'];
   if (raw.players !== undefined) {
     const pl = raw.players;
@@ -134,6 +138,7 @@ export function readSourceAdapter(raw: unknown): AdapterRead {
       ...(sides ? { rowsAre: 'sides' as const } : {}),
       ...(level !== undefined ? { bracketLevel: level as number } : {}),
       ...(players ? { players } : {}),
+      ...(raw.roundOrder ? { roundOrder: raw.roundOrder as 'ascending' | 'descending' } : {}),
     },
   };
 }
@@ -614,6 +619,19 @@ export function adaptBracket(
     }
   }
 
+  // Rounds by their number when the setting asks (B22): a round whose id is not a number keeps
+  // its feed place after the numbered ones.
+  if (adapter.roundOrder) {
+    const sign = adapter.roundOrder === 'ascending' ? 1 : -1;
+    const num = (id: string) => (/^\s*-?\d+(?:\.\d+)?\s*$/.test(id) ? Number(id) : null);
+    for (const bracket of brackets.values()) {
+      for (const stage of bracket.stages.values()) {
+        const rounds = [...stage.rounds.values()];
+        const numbered = rounds.filter((r) => num(r.id) !== null).sort((x, y) => sign * (num(x.id)! - num(y.id)!));
+        stage.rounds = new Map([...numbered, ...rounds.filter((r) => num(r.id) === null)].map((r) => [r.id, r]));
+      }
+    }
+  }
   const list = [...brackets.values()];
   // Built from entries, so a bracket id such as __proto__ is an own key like any other.
   const tieLines: [string, JsonValue][] = [];

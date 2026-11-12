@@ -628,3 +628,19 @@ test('a side row left out takes its match with it, said; a bracket id like __pro
   assert.ok(Object.prototype.hasOwnProperty.call(proto.output.ties, '__proto__'));
   assert.equal(proto.output.ties.__proto__, '1 | A 1 | B 0');
 });
+
+test('a round order by number puts a feed keyed by round number back in playing order; without it rounds keep feed order', () => {
+  // Rounds keyed by "round of N": JSON reading puts 2, 4, 8 first, final first.
+  const side = (pair, n, who, pts) => ({ pair, n: String(n), who, pts });
+  const feed = { rounds: { 2: [side('f', 2, 'A', 1), side('f', 2, 'C', 0)], 4: [side('s1', 4, 'A', 1), side('s1', 4, 'B', 0), side('s2', 4, 'C', 1), side('s2', 4, 'D', 0)], 8: [side('q1', 8, 'A', 2), side('q1', 8, 'E', 0)] } };
+  const base = { v: 1, name: 'bracket', rows: 'rounds.*', rowsAre: 'sides', fields: { match: 'pair', round: 'n', name: 'who', score: 'pts' } };
+  const asIs = adaptBracket(feed, readSourceAdapter(base).adapter);
+  assert.deepEqual(Object.values(asIs.output.brackets._0.stages._0.rounds).map((r) => r.id), ['2', '4', '8']);
+  const played = adaptBracket(feed, readSourceAdapter({ ...base, roundOrder: 'descending' }).adapter);
+  assert.deepEqual(Object.values(played.output.brackets._0.stages._0.rounds).map((r) => r.id), ['8', '4', '2']);
+  assert.equal(played.output.ties._1, ['8 | A 2 | E 0', '4 | A 1 | B 0', '4 | C 1 | D 0', '2 | A 1 | C 0'].join('\n'));
+  assert.deepEqual(played.matches.map((m) => m.id), ['q1', 's1', 's2', 'f']);
+  const up = adaptBracket(feed, readSourceAdapter({ ...base, roundOrder: 'ascending' }).adapter);
+  assert.deepEqual(Object.values(up.output.brackets._0.stages._0.rounds).map((r) => r.id), ['2', '4', '8']);
+  assert.match(readSourceAdapter({ ...base, roundOrder: 'sideways' }).error, /ascending or descending/);
+});
