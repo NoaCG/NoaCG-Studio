@@ -262,6 +262,31 @@ Second candidates, for the audit: the long single-test sweeps (corpus, examples,
 design), where most of the work may be checkable below the browser with one browser walk kept,
 and real waits a fake clock could replace. Each needs reading before it is proposed.
 
+### 3.4 Built: editor authoring journeys at one size
+
+**Owner decision 2026-11-12: approved.**
+
+The 18 tests of section 3.3 no longer run; each journey runs once, at its smallest size. Nine
+spec files, one size list each (`editor-command-task`, `editor-drawing-task` and
+`editor-cli-round-trip` at `laptop-125`; `editor-usability` (both journeys), `editor-keys`,
+`editor-out` and `editor-fidelity-trim` at 1093; `editor-layer-property-qualification` at 1366;
+`editor-transform-qualification` loses its desktop size). The nine files go from 99 tests to 81.
+
+- **Stops protecting:** a fault that shows only in the middle of one of these journeys at a
+  larger window (desktop 1920 or laptop 1366): a control covered or moved at that size after a
+  reopen, a gesture that lands differently, output that differs by window size.
+- **Still protecting it:** every journey at the size where layouts break first; the size-specific
+  layout tests that keep every size (`playout-fixed-panes`, `playout-rail-width`, `docs` deep
+  links); `editor-transform-qualification` still runs at 1366 and at 1093.
+- **Measured saving:** 394 test-seconds (6.6 test-minutes) on every full run, from the nightly of
+  2026-11-11: `editor-command-task` 204, `editor-drawing-task` 54, `editor-usability` 43,
+  `editor-cli-round-trip` 24, `editor-keys` 22, `editor-out` 18, `editor-fidelity-trim` 16,
+  `editor-layer-property-qualification` 7, `editor-transform-qualification` 6. The same share
+  comes off every pull request run that selects these specs. The 11 kept tests pass locally.
+- **Not cut:** `editor-transform-qualification` at 1366. Its smallest size is the 1093
+  `zoom-proxy` test, so "smallest only" would cut a 19th test; the approval named 18.
+- **Revert:** `git revert -m 1 <merge commit of this pull request>`.
+
 ## 4. Notes
 
 - **Calls:** five collector passes (100, 21, 55, 37, 12), one call for PR #2408's runs, one artifact
