@@ -1,10 +1,12 @@
 # Operator quarantine: causal disposition
 
-Proposed final verdict: **not caused by this editor run**. The original failure
+Reviewed verdict: **not caused by this editor run**. The original failure
 mechanism predates E1 and the completed repeated comparison has no observed
-landing increase. This is not proof of equal population failure rates. The
-final independent causal review is still required before the editor gate clears.
-E3 is historical; no E4 has been launched.
+landing increase. This is not proof of equal population failure rates. A fresh
+independent final causal review at5baae0e97 returned AGREE/A after independently
+recounting all33records, qualifying the original11completionrecords, checking
+the source mechanism and censoring sensitivity. This settles the operator
+causal gate. E3 is historical; no E4 had been launched during the investigation.
 
 ## Original failure and quarantine
 
