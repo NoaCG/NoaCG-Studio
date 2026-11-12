@@ -36,8 +36,8 @@
  },
  "waitingOn": [
   {
-   "what": "phase 5 W3 build PR and receipt; owner answer on the production_copies switch",
-   "eta": "2026-11-12T17:00:00Z"
+   "what": "owner answers D1 and D2 for phase 5 (builder stopped before its repair)",
+   "eta": "owner"
   }
  ],
  "inFlight": [
@@ -112,6 +112,10 @@
   "checkerCostUSD": 1.9
  },
  "ownerQuestions": [
+  {
+   "what": "Phase 5 D1: a boot frame or package not loaded after 20 s: (A) report failed load in red but keep its queued commands, run hidden when it loads; (B) drop the queued history. D2: a single stage failure on a running graphic: (A) red until the next Take or Out of that graphic, All out or deletion, later commands still run; (B) clears on the next command of any kind.",
+   "state": "asked 2026-11-12T14:0xZ"
+  },
   {
    "what": "AC-4: Take during a publish 100-200 ms slower at p95 unthrottled (phase 2 receipt). Ask before phase 6.",
    "state": "pending, before phase 6"
