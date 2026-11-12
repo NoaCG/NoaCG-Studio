@@ -26,6 +26,9 @@
 //   maps the rows' fields, the graphic follows the current match the operator picks on the
 //   source's line, holds with its last values when the match's players change, and moves only on
 //   another pick. The adapter's rules are scripts/bracket-adapter.test.mjs.
+// - The fifth (OS5b, AC-10 as extended) sets up a feed whose rows are sides nested under a list of
+//   brackets: the rows are found through `*`, each row is one side, the bracket is its place in the
+//   list, and a players list fills the seeds; the saved setting says so and the graphic follows.
 
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -502,5 +505,59 @@ test('a bracket read by NoaCG: the field mapping is the source’s setting, the 
   await picker.selectOption('m1');
   await expect(page.getByTestId('cue-bound-f0').locator('input')).toHaveValue('Aster');
   await expect(page.getByTestId('cue-bound-f1').locator('input')).toHaveValue('Birch');
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+/** Side rows nested under a list of brackets, with a roster beside them: all invented. */
+const NESTED_FEED = {
+  cups: [
+    { grid: { 1: { 1: [{ pair: 'x1', step: 'r1', who: 'Aster', pts: 2 }, { pair: 'x1', step: 'r1', who: 'Birch', pts: 1 }] } } },
+    { grid: { 1: { 1: { 1: { pair: 'y1', step: 'r1', who: 'Cedar', pts: 0 }, 2: { pair: 'y1', step: 'r1', who: 'Dahl', pts: 3 } } } } },
+  ],
+  roster: { a: { handle: 'aster', rank: 1 }, b: { handle: 'Birch', rank: 8 }, c: { handle: 'Cedar', rank: 4 }, d: { handle: 'Dahl', rank: 5 } },
+};
+
+test('a bracket whose rows are sides, nested under a list: found through *, the bracket by its place, seeds from a players list', async ({ page }) => {
+  test.setTimeout(90_000);
+  await stubSample(page, NESTED_FEED);
+  await page.context().route(/\/api\/data\/json\?/, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, payload: NESTED_FEED }) }));
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const showId = await openProductionWithCurrent(page, 'Nested Night');
+  await page.evaluate(async (id) => {
+    const { setShowObsScenes } = await import('/src/model/shows.ts');
+    setShowObsScenes(id, true);
+    await new Promise((r) => setTimeout(r));
+  }, showId);
+  await settleDurableWrites(page);
+
+  const review = await readAddress(page);
+  await review.getByTestId('cue-connect-read-every').fill('10');
+  await review.getByTestId('cue-connect-bracket-on').check();
+  await review.getByTestId('cue-connect-bracket-rows').selectOption('cups.*.grid.*.*');
+  await review.getByTestId('cue-connect-bracket-rows-are').selectOption('sides');
+  await review.getByTestId('cue-connect-bracket-level').selectOption({ label: 'Its place in cups.*' });
+  await expect(review.getByTestId('cue-connect-bracket-bracket')).toHaveCount(0);
+  for (const [key, field] of [['match', 'pair'], ['round', 'step'], ['name', 'who'], ['score', 'pts']]) {
+    await review.getByTestId(`cue-connect-bracket-${key}`).selectOption(field);
+  }
+  await review.getByTestId('cue-connect-bracket-players').selectOption('roster');
+  await review.getByTestId('cue-connect-bracket-players-name').selectOption('handle');
+  await review.getByTestId('cue-connect-bracket-players-seed').selectOption('rank');
+  await expect(review.getByTestId('cue-connect-bracket-problem')).toBeHidden();
+  // The second bracket's first match, by its place: side b's name and its seed from the roster.
+  for (const [fieldId, leaf] of [['f0', '.brackets.1.stages.0.rounds.0.matches.0.b.name'], ['f1', '.brackets.1.stages.0.rounds.0.matches.0.b.seed']]) {
+    const pick = review.getByTestId(`cue-connect-pick-${fieldId}`);
+    const value = await pick.locator('option').evaluateAll((os, end) => (os as HTMLOptionElement[]).map((o) => o.value).find((v) => v.endsWith(end)), leaf);
+    await pick.selectOption(value!);
+  }
+  await review.getByTestId('cue-connect-label').fill('Cups');
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(review).toBeHidden();
+  const saved = await stored(page, showId);
+  expect(saved.sources[0].config).toMatchObject({
+    adapter: { v: 1, name: 'bracket', rows: 'cups.*.grid.*.*', rowsAre: 'sides', bracketLevel: 1, fields: { match: 'pair', round: 'step', name: 'who', score: 'pts' }, players: { at: 'roster', fields: { name: 'handle', seed: 'rank' } } },
+  });
+  await expect(page.getByTestId('cue-bound-f0').locator('input')).toHaveValue('Dahl');
+  await expect(page.getByTestId('cue-bound-f1').locator('input')).toHaveValue('5');
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 });

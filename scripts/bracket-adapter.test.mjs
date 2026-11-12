@@ -409,3 +409,130 @@ test('a current match two rows disagree about is held, and the line says why', (
   assert.equal(p.writes[`${PREFIX}.current.held`], 'true');
   assert.ok(p.problems.includes('the current match is held: match m3 is given twice with other values, so it keeps its values'));
 });
+
+// ── A feed whose rows are sides, nested under a list of brackets (B17 to B20) ─────────────────
+
+/** One side of one match: invented field names throughout. */
+const sideRow = (pair, step, stepName, who, kind, pts, lane = 'upper') => ({ pair, lane, step, stepName, who, ...(kind === undefined ? {} : { kind }), pts });
+/**
+ * Two brackets in a list. Each holds its rows three numbered levels down; the leaves are a list in
+ * one place and an object keyed by row number in another. `lane` repeats across brackets (it is a
+ * side of the bracket, so it serves as the stage). The roster beside them holds every seed.
+ */
+const NESTED = () => ({
+  cups: [
+    {
+      grid: {
+        1: {
+          1: {
+            1: [sideRow('x1', 'r1', 'Round 1', 'Aster', 'X', 2), sideRow('x1', 'r1', 'Round 1', 'Birch', undefined, 1)],
+            2: { 1: sideRow('x2', 'r1', 'Round 1', 'Cedar', 'Z', 0), 2: sideRow('x2', 'r1', 'Round 1', 'dahl', 'X', 2) },
+          },
+        },
+      },
+    },
+    {
+      grid: {
+        1: { 1: { 1: [sideRow('y1', 'r1', 'Round 1', 'Elm', 'Y', null), sideRow('y1', 'r1', 'Round 1', 'Fir', 'Y', '')], 2: [sideRow('y9', 'f', 'Final', 'Elm', 'Y', null)] } },
+      },
+    },
+  ],
+  roster: {
+    a: { handle: 'ASTER', kind: 'X', rank: 1 },
+    b: { handle: 'birch', kind: 'Q', rank: 8 },
+    c: { handle: 'Cedar', kind: 'Z', rank: 4 },
+    d: { handle: 'Dahl', kind: 'X', rank: 5 },
+    e: { handle: 'Elm', kind: 'Y', rank: 2 },
+  },
+});
+const SIDES = {
+  v: 1,
+  name: 'bracket',
+  rows: 'cups.*.grid.*.*.*',
+  rowsAre: 'sides',
+  bracketLevel: 1,
+  fields: { match: 'pair', stage: 'lane', round: 'step', roundName: 'stepName', name: 'who', race: 'kind', score: 'pts' },
+  players: { at: 'roster', fields: { name: 'handle', race: 'kind', seed: 'rank' } },
+};
+const sidesAdapter = (over = {}) => readSourceAdapter({ ...SIDES, ...over }).adapter;
+const matchesOf = (output) =>
+  Object.values(output.brackets).flatMap((b) => Object.values(b.stages).flatMap((s) => Object.values(s.rounds).flatMap((r) => Object.values(r.matches))));
+
+test('the new settings are additive and judged: side fields only with rowsAre sides, a level that names a *, a players section with a name', () => {
+  assert.equal(readSourceAdapter(SIDES).status, 'ok');
+  assert.match(readSourceAdapter({ ...SIDES, rowsAre: 'teams' }).error, /whole matches, or sides/);
+  assert.match(readSourceAdapter({ ...SIDES, fields: { ...SIDES.fields, aName: 'x' } }).error, /unknown field aName/);
+  assert.match(readSourceAdapter({ ...ADAPTER, fields: { ...FIELDS, name: 'x' } }).error, /unknown field name/);
+  assert.match(readSourceAdapter({ ...SIDES, fields: { name: 'who' } }).error, /name and its match id/);
+  assert.match(readSourceAdapter({ ...SIDES, bracketLevel: 5 }).error, /bracket level must name a \*/);
+  assert.match(readSourceAdapter({ ...SIDES, fields: { ...SIDES.fields, bracket: 'lane' } }).error, /a field or from a level, not both/);
+  assert.match(readSourceAdapter({ ...SIDES, rows: 'cups.**' }).error, /dotted path/);
+  assert.match(readSourceAdapter({ ...SIDES, players: { at: 'roster', fields: { seed: 'rank' } } }).error, /players section needs the name/);
+  // A setting without the new keys reads exactly as before.
+  assert.deepEqual(readSourceAdapter(ADAPTER).adapter, { v: 1, name: 'bracket', rows: 'data.rows', fields: FIELDS });
+});
+
+test('side rows: the rows of one match id are side a then side b; a one-row match stays, with an unknown side, said, and no winner', () => {
+  const r = adaptBracket(NESTED(), sidesAdapter());
+  const all = matchesOf(r.output);
+  assert.deepEqual(all.map((m) => m.id), ['x1', 'x2', 'y1', 'y9']);
+  assert.deepEqual(all[0].a, { name: 'Aster', race: 'X', seed: 1, score: 2 });
+  assert.deepEqual(all[0].b, { name: 'Birch', race: 'Q', seed: 8, score: 1 });
+  assert.deepEqual(all[3].b, { name: null, race: null, seed: null, score: null });
+  assert.equal(all[3].status, 'unknown');
+  assert.ok(r.report.includes('match y9 has one side in the rows'));
+  assert.equal(r.output.ties['2'], ['Round 1 | Elm — | Fir —', 'Final | Elm — | —'].join('\n'));
+});
+
+test('nested rows are gathered through a list and numbered levels, in feed order, from list and keyed leaves alike', () => {
+  const r = adaptBracket(NESTED(), sidesAdapter());
+  assert.deepEqual(r.matches.map((m) => m.label), ['Round 1: Aster v Birch', 'Round 1: Cedar v dahl', 'Round 1: Elm v Fir', 'Final: Elm v ?']);
+  // A branch without the next key is said, never filled in.
+  const odd = NESTED();
+  odd.cups.push({ other: 1 });
+  assert.ok(adaptBracket(odd, sidesAdapter()).report.includes('cups.3 has no grid'));
+  assert.deepEqual(adaptBracket({ cups: [] }, sidesAdapter()), { problem: 'cups.*.grid.*.*.* holds no rows' });
+});
+
+test('the bracket is the position at the chosen level; a field that repeats across brackets is the stage', () => {
+  const r = adaptBracket(NESTED(), sidesAdapter());
+  assert.deepEqual(Object.values(r.output.brackets).map((b) => b.id), ['1', '2']);
+  assert.deepEqual(Object.values(r.output.brackets).map((b) => b.stages['0'].id), ['upper', 'upper']);
+  assert.deepEqual(Object.keys(r.output.ties), ['1', '2']);
+});
+
+test('the players section fills seeds (and a race the row lacks) by name in any case; an unmatched name is said; players come from it', () => {
+  const r = adaptBracket(NESTED(), sidesAdapter());
+  const all = matchesOf(r.output);
+  assert.deepEqual(all[1].b, { name: 'dahl', race: 'X', seed: 5, score: 2 });
+  assert.equal(all[0].a.race, 'X');
+  assert.equal(all[0].b.race, 'Q');
+  assert.equal(all[2].b.seed, null);
+  assert.ok(r.report.includes('Fir is not in the players list'));
+  assert.deepEqual(Object.values(r.output.players).map((p) => [p.name, p.seed]), [['ASTER', 1], ['birch', 8], ['Cedar', 4], ['Dahl', 5], ['Elm', 2]]);
+  // A section that is not there is said; the sides keep what the rows give.
+  const gone = adaptBracket(NESTED(), sidesAdapter({ players: { at: 'nobody', fields: { name: 'handle' } } }));
+  assert.ok(gone.report.includes('the players list (nobody) is not in the JSON'));
+  assert.equal(matchesOf(gone.output)[0].a.seed, null);
+});
+
+test('side rows that cannot form one match keep its values and are said; the current match follows a side-row match', () => {
+  const three = NESTED();
+  three.cups[0].grid[1][1][1].push(sideRow('x1', 'r1', 'Round 1', 'Gum', 'X', 0));
+  const r = adaptBracket(three, sidesAdapter());
+  assert.ok(r.report.includes('match x1 has 3 rows, so it keeps its values'));
+  assert.deepEqual(matchesOf(r.output)[0], { id: 'x1' });
+  const apart = NESTED();
+  apart.cups[0].grid[1][1][2][2].step = 'r2';
+  assert.ok(adaptBracket(apart, sidesAdapter()).report.includes('the two sides of match x2 disagree about where it is, so it keeps its values'));
+  const picked = adaptBracket(NESTED(), sidesAdapter(), { pick: 'x2', memory: null });
+  assert.deepEqual(picked.output.current, { matchId: 'x2', round: 'Round 1', a: { name: 'Cedar', race: 'Z', seed: 4, score: 0 }, b: { name: 'dahl', race: 'X', seed: 5, score: 2 }, held: false });
+});
+
+test('the review finds nested rows through *, a players section, and the keys of each', async () => {
+  const { bracketRowPaths, bracketRowKeys, bracketSectionPaths, bracketSectionKeys } = await import('../src/control/bracketAdapter.ts');
+  assert.ok(bracketRowPaths(NESTED()).includes('cups.*.grid.*.*.*'));
+  assert.deepEqual(bracketRowKeys(NESTED(), 'cups.*.grid.*.*.*'), ['pair', 'lane', 'step', 'stepName', 'who', 'kind', 'pts']);
+  assert.ok(bracketSectionPaths(NESTED()).includes('roster'));
+  assert.deepEqual(bracketSectionKeys(NESTED(), 'roster'), ['handle', 'kind', 'rank']);
+});

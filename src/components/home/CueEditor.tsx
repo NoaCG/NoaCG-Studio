@@ -40,7 +40,7 @@ import { canPickFiles, pickFile, saveFileHandle, loadFileHandle, allowFile } fro
 import { apiOffers, isApiPath } from '../../control/anotherSystem';
 import { columnsFor, connectorPlan, jsonOffers, LIST_CELLS, needsRepair, proposeConnector, readConnectorSample, type ConnectorSource } from '../../control/connectorReview';
 import { collectionReads, JSON_DEFAULT_EVERY_MS, jsonEveryMs } from '../../control/jsonSource';
-import { BRACKET_FIELD_KEYS, bracketReviewSample, bracketRowKeys, bracketRowPaths, readSourceAdapter, type BracketAdapter, type BracketFieldKey } from '../../control/bracketAdapter';
+import { bracketReviewSample, bracketRowKeys, bracketRowPaths, bracketSectionKeys, bracketSectionPaths, FIELDS_FOR, PLAYER_FIELD_KEYS, readSourceAdapter, type BracketAdapter, type BracketFieldKey, type PlayerFieldKey } from '../../control/bracketAdapter';
 import { projectSource, type CollectionEntity } from '../../control/sourceMapping';
 import type { SelectionAir } from '../../control/selectionAir';
 import type { StorePart } from '../../control/storePart';
@@ -1898,16 +1898,47 @@ const BRACKET_FIELD_WORDS: Record<BracketFieldKey, string> = {
   bSeed: 'B seed',
   bScore: 'B score',
   bLeague: 'B league',
+  name: 'Player',
+  race: 'Race',
+  seed: 'Seed',
+  score: 'Score',
+  league: 'League',
 };
 
 /**
  * Read as a bracket (obs-scenes OS5b, B1): where the rows are and which field of a row means what,
  * picked from the sample. The source keeps it as its setting; no site's field names are in code.
  */
+/** A select of a sample's keys, with "not mapped" first and a stored key kept in view. */
+function KeySelect({ value, keys, empty, onChange, label, testId }: { value: string | undefined; keys: string[]; empty: string; onChange: (path: string) => void; label: string; testId: string }) {
+  return (
+    <label className="row">
+      <span>{label}</span>
+      <select value={value ?? ''} onChange={(e) => onChange(e.target.value)} data-testid={testId}>
+        <option value="">{empty}</option>
+        {(value && !keys.includes(value) ? [...keys, value] : keys).map((k) => (
+          <option key={k} value={k}>
+            {k}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/**
+ * Read as a bracket (obs-scenes OS5b, B1, B17 to B20): where the rows are (through `*` for nested
+ * rows), whether a row is a whole match or one side, which field of a row means what, where the
+ * bracket comes from, and a players section to join. All picked from the sample; the source keeps
+ * it as its setting, and no site's field names are in code.
+ */
 function BracketSetting({ sample, adapter: stored, problem, onChange }: { sample: unknown; adapter: BracketAdapter | null; problem: string | null; onChange: (adapter: BracketAdapter | null) => void }) {
   const rowPaths = useMemo(() => bracketRowPaths(sample), [sample]);
+  const sectionPaths = useMemo(() => bracketSectionPaths(sample), [sample]);
   const rows = stored && typeof stored.rows === 'string' ? stored.rows : null;
   const rowKeys = useMemo(() => (rows === null ? [] : bracketRowKeys(sample, rows)), [sample, rows]);
+  const section = stored?.players && typeof stored.players.at === 'string' ? stored.players.at : null;
+  const sectionKeys = useMemo(() => (section === null ? [] : bracketSectionKeys(sample, section)), [sample, section]);
   if (!stored && rowPaths.length === 0) return null;
   // A setting this build cannot edit (a later version, or not the shape it writes) is shown with
   // its problem and kept as it is; a later version cannot even be turned off here (B1).
@@ -1923,6 +1954,13 @@ function BracketSetting({ sample, adapter: stored, problem, onChange }: { sample
     else fields[key] = path;
     onChange({ ...adapter, fields: fields as BracketAdapter['fields'] });
   };
+  const without = <K extends keyof BracketAdapter>(a: BracketAdapter, key: K): BracketAdapter => {
+    const { [key]: _gone, ...rest } = a;
+    return rest as BracketAdapter;
+  };
+  /** Each `*` of the rows path, by the path up to it: a level the bracket can come from (B19). */
+  const levels = adapter ? adapter.rows.split('.').flatMap((seg, i, all) => (seg === '*' ? [all.slice(0, i + 1).join('.')] : [])) : [];
+  const mode = adapter?.rowsAre === 'sides' ? 'sides' : 'matches';
   return (
     <fieldset className="pd-field" data-testid="cue-connect-bracket">
       <label>
@@ -1939,7 +1977,12 @@ function BracketSetting({ sample, adapter: stored, problem, onChange }: { sample
         <>
           <label className="row">
             <span>Rows</span>
-            <select value={adapter.rows} onChange={(e) => onChange({ ...adapter, rows: e.target.value })} data-testid="cue-connect-bracket-rows">
+            <select
+              value={adapter.rows}
+              // Another place for the rows: its levels and its keys are another's too.
+              onChange={(e) => onChange({ ...without(adapter, 'bracketLevel'), rows: e.target.value })}
+              data-testid="cue-connect-bracket-rows"
+            >
               {[...new Set([...rowPaths, adapter.rows])].map((p) => (
                 <option key={p} value={p}>
                   {p === '' ? 'The whole answer' : p}
@@ -1947,19 +1990,80 @@ function BracketSetting({ sample, adapter: stored, problem, onChange }: { sample
               ))}
             </select>
           </label>
-          {BRACKET_FIELD_KEYS.map((key) => (
-            <label key={key} className="row">
-              <span>{BRACKET_FIELD_WORDS[key]}</span>
-              <select value={adapter.fields[key] ?? ''} onChange={(e) => set(key, e.target.value)} data-testid={`cue-connect-bracket-${key}`}>
-                <option value="">Not in the rows</option>
-                {(adapter.fields[key] && !rowKeys.includes(adapter.fields[key]!) ? [...rowKeys, adapter.fields[key]!] : rowKeys).map((k) => (
-                  <option key={k} value={k}>
-                    {k}
+          <label className="row">
+            <span>Each row is</span>
+            <select
+              value={mode}
+              // A row's fields mean other things in the other mode: they start again.
+              onChange={(e) => onChange({ ...without(adapter, 'rowsAre'), ...(e.target.value === 'sides' ? { rowsAre: 'sides' as const } : {}), fields: {} })}
+              data-testid="cue-connect-bracket-rows-are"
+            >
+              <option value="matches">A whole match</option>
+              <option value="sides">One side of a match</option>
+            </select>
+          </label>
+          {levels.length > 0 && (
+            <label className="row">
+              <span>Bracket</span>
+              <select
+                value={adapter.bracketLevel ?? ''}
+                onChange={(e) => {
+                  const level = Number(e.target.value);
+                  if (!e.target.value) return onChange(without(adapter, 'bracketLevel'));
+                  const fields = { ...adapter.fields };
+                  delete fields.bracket;
+                  onChange({ ...adapter, fields, bracketLevel: level });
+                }}
+                data-testid="cue-connect-bracket-level"
+              >
+                <option value="">From a field</option>
+                {levels.map((path, i) => (
+                  <option key={path} value={i + 1}>
+                    Its place in {path}
                   </option>
                 ))}
               </select>
             </label>
-          ))}
+          )}
+          {FIELDS_FOR[mode]
+            .filter((key) => !(key === 'bracket' && adapter.bracketLevel))
+            .map((key) => (
+              <KeySelect key={key} label={BRACKET_FIELD_WORDS[key]} value={adapter.fields[key]} keys={rowKeys} empty="Not in the rows" onChange={(path) => set(key, path)} testId={`cue-connect-bracket-${key}`} />
+            ))}
+          {sectionPaths.length > 0 && (
+            <label className="row">
+              <span>Players list</span>
+              <select
+                value={adapter.players?.at ?? ''}
+                onChange={(e) => (e.target.value ? onChange({ ...adapter, players: { at: e.target.value, fields: {} as { name: string } } }) : onChange(without(adapter, 'players')))}
+                data-testid="cue-connect-bracket-players"
+              >
+                <option value="">None</option>
+                {[...new Set([...sectionPaths, ...(adapter.players ? [adapter.players.at] : [])])].map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {adapter.players &&
+            PLAYER_FIELD_KEYS.map((key: PlayerFieldKey) => (
+              <KeySelect
+                key={key}
+                label={`Players list: ${BRACKET_FIELD_WORDS[key].toLowerCase()}`}
+                value={adapter.players!.fields[key]}
+                keys={sectionKeys}
+                empty="Not in the list"
+                onChange={(path) => {
+                  const fields = { ...adapter.players!.fields } as Record<string, string>;
+                  if (path === '') delete fields[key];
+                  else fields[key] = path;
+                  onChange({ ...adapter, players: { at: adapter.players!.at, fields: fields as { name: string } } });
+                }}
+                testId={`cue-connect-bracket-players-${key}`}
+              />
+            ))}
         </>
       )}
       {stored && problem && (

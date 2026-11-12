@@ -21,7 +21,7 @@ import { sourcePrefix } from '../model/productionData.js';
 
 export const BRACKET_ADAPTER_VERSION = 1;
 
-/** What a row's field may mean (B1). */
+/** What a row's field may mean (B1). The side keys (`name` to `league`) are a side row's (B17). */
 export const BRACKET_FIELD_KEYS = [
   'bracket',
   'bracketTitle',
@@ -40,17 +40,37 @@ export const BRACKET_FIELD_KEYS = [
   'bSeed',
   'bScore',
   'bLeague',
+  'name',
+  'race',
+  'seed',
+  'score',
+  'league',
 ] as const;
 export type BracketFieldKey = (typeof BRACKET_FIELD_KEYS)[number];
-const FIELD_KEYS = new Set<string>(BRACKET_FIELD_KEYS);
+const GROUP_KEYS: readonly BracketFieldKey[] = ['bracket', 'bracketTitle', 'stage', 'round', 'roundName', 'match', 'status'];
+/** The fields a row may map, by what a row is: a whole match (B1), or one side of one (B17). */
+export const FIELDS_FOR: Record<'matches' | 'sides', readonly BracketFieldKey[]> = {
+  matches: [...GROUP_KEYS, 'aName', 'aRace', 'aSeed', 'aScore', 'aLeague', 'bName', 'bRace', 'bSeed', 'bScore', 'bLeague'],
+  sides: [...GROUP_KEYS, 'name', 'race', 'seed', 'score', 'league'],
+};
+/** What a players section's entry may map (B20). */
+export const PLAYER_FIELD_KEYS = ['name', 'race', 'seed', 'league'] as const;
+export type PlayerFieldKey = (typeof PLAYER_FIELD_KEYS)[number];
 
 export interface BracketAdapter {
   v: 1;
   name: 'bracket';
-  /** The dotted path of the rows in the payload; empty: the payload itself. */
+  /** The dotted path of the rows in the payload; empty: the payload itself. A `*` segment gathers
+   *  every entry of a list or of an object keyed by number, in feed order (B18). */
   rows: string;
   /** Meaning -> the dotted path inside a row that holds it. */
-  fields: Partial<Record<BracketFieldKey, string>> & { aName: string; bName: string };
+  fields: Partial<Record<BracketFieldKey, string>>;
+  /** Each row is one side of a match; absent: each row is a whole match (B17). */
+  rowsAre?: 'sides';
+  /** The bracket is the entry's position at this `*` of `rows`, counting from 1 (B19). */
+  bracketLevel?: number;
+  /** A section of players beside the rows, joined to the sides by name (B20). */
+  players?: { at: string; fields: Partial<Record<PlayerFieldKey, string>> & { name: string } };
 }
 
 export type AdapterRead =
@@ -60,7 +80,11 @@ export type AdapterRead =
   /** A later version: kept as it is, never applied. */
   | { status: 'read-only'; version: number };
 
-/** A stored adapter setting, judged (B1). Never throws. */
+/** A rows path: dotted keys, each a segment or `*`; empty for the whole answer. */
+export const isRowsPath = (path: string): boolean => path === '' || path.split('.').every((seg) => seg === '*' || SEGMENT.test(seg));
+
+/** A stored adapter setting, judged (B1, B17 to B20). Never throws. A setting without the later
+ *  keys reads exactly as it always has. */
 export function readSourceAdapter(raw: unknown): AdapterRead {
   if (raw === undefined || raw === null) return { status: 'none' };
   const no = (error: string): AdapterRead => ({ status: 'invalid', error });
@@ -68,18 +92,50 @@ export function readSourceAdapter(raw: unknown): AdapterRead {
   if (typeof raw.v === 'number' && raw.v > BRACKET_ADAPTER_VERSION) return { status: 'read-only', version: raw.v };
   if (raw.v !== BRACKET_ADAPTER_VERSION) return no('the adapter setting has no version');
   if (raw.name !== 'bracket') return no('the only adapter is bracket');
-  for (const key of Object.keys(raw)) if (!['v', 'name', 'rows', 'fields'].includes(key)) return no(`the adapter setting has an unknown key ${key}`);
+  for (const key of Object.keys(raw)) if (!['v', 'name', 'rows', 'fields', 'rowsAre', 'bracketLevel', 'players'].includes(key)) return no(`the adapter setting has an unknown key ${key}`);
   const rows = raw.rows ?? '';
-  if (typeof rows !== 'string' || (rows !== '' && !PATH.test(rows))) return no('the rows must be a dotted path');
+  if (typeof rows !== 'string' || !isRowsPath(rows)) return no('the rows must be a dotted path');
+  if (raw.rowsAre !== undefined && raw.rowsAre !== 'sides') return no('rows are whole matches, or sides');
+  const sides = raw.rowsAre === 'sides';
   if (!isObject(raw.fields)) return no('the adapter has no fields');
+  const allowed = new Set<string>(FIELDS_FOR[sides ? 'sides' : 'matches']);
   const fields: Partial<Record<BracketFieldKey, string>> = {};
   for (const [key, path] of Object.entries(raw.fields)) {
-    if (!FIELD_KEYS.has(key)) return no(`the adapter has an unknown field ${key}`);
+    if (!allowed.has(key)) return no(`the adapter has an unknown field ${key}`);
     if (typeof path !== 'string' || !PATH.test(path)) return no(`the field ${key} must be a dotted path`);
     fields[key as BracketFieldKey] = path;
   }
-  if (!fields.aName || !fields.bName) return no('both players’ names must be mapped');
-  return { status: 'ok', adapter: { v: 1, name: 'bracket', rows, fields: fields as BracketAdapter['fields'] } };
+  if (sides ? !fields.name || !fields.match : !fields.aName || !fields.bName) return no(sides ? 'a side row needs its name and its match id mapped' : 'both players’ names must be mapped');
+  const stars = rows === '' ? 0 : rows.split('.').filter((seg) => seg === '*').length;
+  const level = raw.bracketLevel;
+  if (level !== undefined && (typeof level !== 'number' || !Number.isInteger(level) || level < 1 || level > stars)) return no('the bracket level must name a * of the rows');
+  if (level !== undefined && fields.bracket) return no('the bracket comes from a field or from a level, not both');
+  let players: BracketAdapter['players'];
+  if (raw.players !== undefined) {
+    const pl = raw.players;
+    if (!isObject(pl) || typeof pl.at !== 'string' || !(pl.at === '' || PATH.test(pl.at)) || !isObject(pl.fields)) return no('the players section needs a dotted path and fields');
+    const pf: Partial<Record<PlayerFieldKey, string>> = {};
+    for (const [key, path] of Object.entries(pl.fields)) {
+      if (!(PLAYER_FIELD_KEYS as readonly string[]).includes(key)) return no(`the players section has an unknown field ${key}`);
+      if (typeof path !== 'string' || !PATH.test(path)) return no(`the players field ${key} must be a dotted path`);
+      pf[key as PlayerFieldKey] = path;
+    }
+    if (!pf.name) return no('the players section needs the name mapped');
+    for (const key of Object.keys(pl)) if (key !== 'at' && key !== 'fields') return no(`the players section has an unknown key ${key}`);
+    players = { at: pl.at, fields: pf as NonNullable<BracketAdapter['players']>['fields'] };
+  }
+  return {
+    status: 'ok',
+    adapter: {
+      v: 1,
+      name: 'bracket',
+      rows,
+      fields,
+      ...(sides ? { rowsAre: 'sides' as const } : {}),
+      ...(level !== undefined ? { bracketLevel: level as number } : {}),
+      ...(players ? { players } : {}),
+    },
+  };
 }
 
 // ── The shape ────────────────────────────────────────────────────────────────────────────────
@@ -181,35 +237,87 @@ export function statusOf(value: unknown): MatchStatus {
   return t === 'pending' || t === 'live' || t === 'done' ? t : 'unknown';
 }
 
-/** The rows in order, each with the words that name it, and what was missing (B3). */
-function rowsOf(payload: unknown, path: string): { rows: { label: string; row: Record<string, unknown> }[]; report: string[] } | { problem: string } {
-  const at = valueAt(payload, path);
-  const where = path === '' ? 'the answer' : path;
+interface Gathered {
+  label: string;
+  row: Record<string, unknown>;
+  /** The entry's position at each `*` of the rows path: a list's from 1, an object's key. */
+  at: string[];
+}
+
+/** One container's rows in order, each named, and what was missing (B3). `where` names the
+ *  container in a nested gather; empty for the plain path, whose words are as they always were. */
+function rowsIn(at: unknown, where: string, positions: string[]): { rows: Gathered[]; report: string[] } | null {
+  const name = (n: string | number) => (where === '' ? `row ${n}` : `row ${where}.${n}`);
   const report: string[] = [];
-  const rows: { label: string; row: Record<string, unknown> }[] = [];
+  const rows: Gathered[] = [];
   if (Array.isArray(at)) {
     at.forEach((row, i) => {
-      if (isObject(row)) rows.push({ label: `row ${i + 1}`, row });
-      else report.push(`row ${i + 1} is empty`);
+      if (isObject(row)) rows.push({ label: name(i + 1), row, at: positions });
+      else report.push(`${name(i + 1)} is empty`);
     });
     return { rows, report };
   }
-  if (!isObject(at)) return { problem: at === undefined ? `${where} is not in the JSON` : `${where} holds no rows` };
-  const numbered: [number, string, unknown][] = [];
-  for (const [key, row] of Object.entries(at)) {
-    if (!ROW_NUMBER.test(key) || !Number.isSafeInteger(Number(key))) report.push(`row “${key}” has no row number, so it is left out`);
-    else numbered.push([Number(key), key, row]);
-  }
-  numbered.sort((x, y) => x[0] - y[0]);
+  if (!isObject(at)) return null;
+  const numbered = numberedEntries(at, (key) => report.push(`${name(`“${key}”`)} has no row number, so it is left out`));
   for (let i = 0; i < numbered.length; i += 1) {
     const [n, key, row] = numbered[i];
     // One line per gap, never one per number: a feed's row numbers can be far apart.
     const from = i > 0 ? numbered[i - 1][0] + 1 : n;
-    if (n - from === 1) report.push(`row ${from} is missing`);
-    else if (n - from > 1) report.push(`rows ${from} to ${n - 1} are missing`);
-    if (isObject(row)) rows.push({ label: `row ${key}`, row });
-    else report.push(`row ${key} is empty`);
+    if (n - from === 1) report.push(`${name(from)} is missing`);
+    else if (n - from > 1) report.push(`${where === '' ? 'rows' : `rows ${where}.`}${where === '' ? ` ${from}` : from} to ${n - 1} are missing`);
+    if (isObject(row)) rows.push({ label: name(key), row, at: positions });
+    else report.push(`${name(key)} is empty`);
   }
+  return { rows, report };
+}
+
+/** An object's entries keyed by a whole number, in numeric order; any other key is told. */
+function numberedEntries(at: Record<string, unknown>, other: (key: string) => void): [number, string, unknown][] {
+  const numbered: [number, string, unknown][] = [];
+  for (const [key, row] of Object.entries(at)) {
+    if (!ROW_NUMBER.test(key) || !Number.isSafeInteger(Number(key))) other(key);
+    else numbered.push([Number(key), key, row]);
+  }
+  return numbered.sort((x, y) => x[0] - y[0]);
+}
+
+/**
+ * Every row the rows path names, in feed order (B3, B18). A `*` gathers each entry of a list (its
+ * position counted from 1) or of an object keyed by number (its key), and each entry's position is
+ * kept for the bracket level (B19). A branch without the next key is said, never filled in.
+ */
+function gatherRows(payload: unknown, path: string): { rows: Gathered[]; report: string[] } | { problem: string } {
+  const segs = path === '' ? [] : path.split('.');
+  if (!segs.includes('*')) {
+    const at = valueAt(payload, path);
+    const where = path === '' ? 'the answer' : path;
+    const read = rowsIn(at, '', []);
+    return read ?? { problem: at === undefined ? `${where} is not in the JSON` : `${where} holds no rows` };
+  }
+  const rows: Gathered[] = [];
+  const report: string[] = [];
+  let containers = 0;
+  const walk = (value: unknown, i: number, positions: string[], where: string[]) => {
+    const here = where.join('.') || 'the answer';
+    if (i === segs.length) {
+      const read = rowsIn(value, here, positions);
+      if (!read) return report.push(`${here} holds no rows`);
+      containers += 1;
+      rows.push(...read.rows);
+      report.push(...read.report);
+      return;
+    }
+    const seg = segs[i];
+    if (seg !== '*') {
+      if (!isObject(value) || !Object.prototype.hasOwnProperty.call(value, seg)) return report.push(`${here} has no ${seg}`);
+      return walk(value[seg], i + 1, positions, [...where, seg]);
+    }
+    if (Array.isArray(value)) return value.forEach((entry, n) => walk(entry, i + 1, [...positions, String(n + 1)], [...where, String(n + 1)]));
+    if (!isObject(value)) return report.push(`${here} holds no entries`);
+    for (const [, key, entry] of numberedEntries(value, (key) => report.push(`${here}.“${key}” has no number, so it is left out`))) walk(entry, i + 1, [...positions, key], [...where, key]);
+  };
+  walk(payload, 0, [], []);
+  if (containers === 0) return { problem: report[0] ?? `${path} holds no rows` };
   return { rows, report };
 }
 
@@ -240,6 +348,39 @@ interface Bracket {
 const indexed = <T>(items: T[], each: (item: T) => JsonValue): { [key: string]: JsonValue } => Object.fromEntries(items.map((item, i) => [String(i), each(item)]));
 const sideJson = (s: BracketSide): JsonValue => ({ name: s.name, race: s.race, seed: s.seed, score: s.score });
 
+type SideL = BracketSide & { league: Scalar };
+/** One match as the rows give it, before it is placed. `kept`: its rows disagree (B7, B17). */
+interface Entry {
+  label: string;
+  bracketId: string;
+  stageId: string;
+  roundId: string;
+  roundName: string | null;
+  title: string | null;
+  explicitId: string | undefined;
+  status: MatchStatus;
+  a: SideL;
+  b: SideL;
+  kept?: true;
+}
+
+/** The players section's entries in order (B20): a list, or an object of entries by any key. */
+function playersIn(payload: unknown, setting: NonNullable<BracketAdapter['players']>): { players: { name: string; race: Scalar; seed: Scalar; league: Scalar }[] } | { problem: string } {
+  const at = valueAt(payload, setting.at);
+  const where = setting.at === '' ? 'the answer' : setting.at;
+  const list = Array.isArray(at) ? at : isObject(at) ? Object.values(at) : null;
+  if (!list) return { problem: at === undefined ? `the players list (${where}) is not in the JSON` : `the players list (${where}) holds no players` };
+  const pick = (entry: Record<string, unknown>, key: PlayerFieldKey) => (setting.fields[key] ? atPath(entry as JsonValue, setting.fields[key]!) : undefined);
+  const players: { name: string; race: Scalar; seed: Scalar; league: Scalar }[] = [];
+  for (const entry of list) {
+    if (!isObject(entry)) continue;
+    const name = text(pick(entry, 'name'));
+    if (name === null) continue;
+    players.push({ name, race: scalar(pick(entry, 'race')), seed: scalar(pick(entry, 'seed')), league: scalar(pick(entry, 'league')) });
+  }
+  return { players };
+}
+
 /**
  * Turn one payload into the bracket shape (B3 to B12). `current` is the operator's pick and the
  * reader's memory; without it (the server tick) nothing is said under `current`. Pure.
@@ -249,66 +390,128 @@ export function adaptBracket(
   adapter: BracketAdapter,
   current?: { pick: string | null; memory: CurrentMemory | null },
 ): BracketResult | { problem: string } {
-  const read = rowsOf(payload, adapter.rows);
+  const read = gatherRows(payload, adapter.rows);
   if ('problem' in read) return read;
   const report = [...read.report];
   const f = adapter.fields;
   const field = (row: Record<string, unknown>, key: BracketFieldKey): unknown => (f[key] ? atPath(row as JsonValue, f[key]!) : undefined);
-  const group = (row: Record<string, unknown>, key: BracketFieldKey): string | null => (f[key] ? text(field(row, key)) : '1');
-  const side = (row: Record<string, unknown>, s: 'a' | 'b'): BracketSide & { league: Scalar } => ({
-    name: text(field(row, `${s}Name`)),
-    race: scalar(field(row, `${s}Race`)),
-    seed: scalar(field(row, `${s}Seed`)),
-    score: scoreOf(field(row, `${s}Score`)),
-    league: scalar(field(row, `${s}League`)),
+  const groupOf = (g: Gathered, key: 'bracket' | 'stage' | 'round'): string | null =>
+    key === 'bracket' && adapter.bracketLevel ? g.at[adapter.bracketLevel - 1] : f[key] ? text(field(g.row, key)) : '1';
+  const sideOf = (row: Record<string, unknown>, keys: { name: BracketFieldKey; race: BracketFieldKey; seed: BracketFieldKey; score: BracketFieldKey; league: BracketFieldKey }): SideL => ({
+    name: text(field(row, keys.name)),
+    race: scalar(field(row, keys.race)),
+    seed: scalar(field(row, keys.seed)),
+    score: scoreOf(field(row, keys.score)),
+    league: scalar(field(row, keys.league)),
   });
+  const A = { name: 'aName', race: 'aRace', seed: 'aSeed', score: 'aScore', league: 'aLeague' } as const;
+  const B = { name: 'bName', race: 'bRace', seed: 'bSeed', score: 'bScore', league: 'bLeague' } as const;
+  const ONE = { name: 'name', race: 'race', seed: 'seed', score: 'score', league: 'league' } as const;
+  const EMPTY: SideL = { name: null, race: null, seed: null, score: null, league: null };
+
+  /** One match as the rows give it, before it is placed. */
+  const entryOf = (g: Gathered, a: SideL, b: SideL): Entry | null => {
+    const bracketId = groupOf(g, 'bracket');
+    const stageId = groupOf(g, 'stage');
+    const roundId = groupOf(g, 'round');
+    const missing = [...(bracketId === null ? ['bracket'] : []), ...(stageId === null ? ['stage'] : []), ...(roundId === null ? ['round'] : [])];
+    const explicitId = f.match ? text(field(g.row, 'match')) : undefined;
+    if (explicitId === null) missing.push('match id');
+    if (missing.length > 0) {
+      report.push(`${g.label} has no ${missing.join(', ')}, so it is left out`);
+      return null;
+    }
+    return {
+      label: g.label,
+      bracketId: bracketId!,
+      stageId: stageId!,
+      roundId: roundId!,
+      roundName: f.roundName ? text(field(g.row, 'roundName')) : null,
+      title: f.bracketTitle ? text(field(g.row, 'bracketTitle')) : null,
+      explicitId: explicitId ?? undefined,
+      status: f.status ? statusOf(field(g.row, 'status')) : 'unknown',
+      a,
+      b,
+    };
+  };
+
+  const entries: Entry[] = [];
+  if (adapter.rowsAre !== 'sides') {
+    for (const g of read.rows) {
+      const e = entryOf(g, sideOf(g.row, A), sideOf(g.row, B));
+      if (e) entries.push(e);
+    }
+  } else {
+    // One row is one side (B17): the rows of one match id, in feed order, are side a then side b.
+    const byMatch = new Map<string, Gathered[]>();
+    for (const g of read.rows) {
+      const id = text(field(g.row, 'match'));
+      if (id === null) {
+        report.push(`${g.label} has no match id, so it is left out`);
+        continue;
+      }
+      byMatch.set(id, [...(byMatch.get(id) ?? []), g]);
+    }
+    for (const [id, rows] of byMatch) {
+      const placed = rows.map((g) => entryOf(g, EMPTY, EMPTY));
+      if (placed.some((e) => e === null)) continue;
+      const first = placed[0]!;
+      const where = (e: Entry) => JSON.stringify([e.bracketId, e.stageId, e.roundId, e.roundName, e.title, e.status]);
+      if (rows.length > 2) {
+        report.push(`match ${id} has ${rows.length} rows, so it keeps its values`);
+        entries.push({ ...first, kept: true });
+        continue;
+      }
+      if (placed.some((e) => where(e!) !== where(first))) {
+        report.push(`the two sides of match ${id} disagree about where it is, so it keeps its values`);
+        entries.push({ ...first, kept: true });
+        continue;
+      }
+      // A match with one known side is real (a bye, a slot not yet filled): never a winner (B17).
+      if (rows.length === 1) report.push(`match ${id} has one side in the rows`);
+      entries.push({ ...first, a: sideOf(rows[0].row, ONE), b: rows[1] ? sideOf(rows[1].row, ONE) : EMPTY });
+    }
+  }
 
   const brackets = new Map<string, Bracket>();
   const byId = new Map<string, { match: BracketMatch | { id: string; kept: true }; round: Round; bracket: Bracket; seen: unknown[]; label: string }>();
   const players = new Map<string, { name: string; race: Scalar; seed: Scalar; league: Scalar; clash: Set<string> }>();
-  for (const { label, row } of read.rows) {
-    const bracketId = group(row, 'bracket');
-    const stageId = group(row, 'stage');
-    const roundId = group(row, 'round');
-    const missing = [
-      ...(bracketId === null ? ['bracket'] : []),
-      ...(stageId === null ? ['stage'] : []),
-      ...(roundId === null ? ['round'] : []),
-    ];
-    const explicitId = f.match ? text(field(row, 'match')) : undefined;
-    if (explicitId === null) missing.push('match id');
-    if (missing.length > 0) {
-      report.push(`${label} has no ${missing.join(', ')}, so it is left out`);
+  /** Each side as placed, for the players section's join (B20). */
+  const placedSides: { side: BracketSide; league: Scalar }[] = [];
+  for (const e of entries) {
+    let bracket = brackets.get(e.bracketId);
+    if (!bracket) {
+      bracket = { id: e.bracketId, title: e.title || e.bracketId, stages: new Map(), kept: false };
+      brackets.set(e.bracketId, bracket);
+    }
+    let stage = bracket.stages.get(e.stageId);
+    if (!stage) {
+      stage = { id: e.stageId, rounds: new Map() };
+      bracket.stages.set(e.stageId, stage);
+    }
+    let round = stage.rounds.get(e.roundId);
+    if (!round) {
+      round = { id: e.roundId, name: e.roundName || e.roundId, matches: [] };
+      stage.rounds.set(e.roundId, round);
+    }
+    const id = e.explicitId ?? `${e.bracketId}:${e.stageId}:${e.roundId}:${round.matches.length + 1}`;
+    if (e.kept) {
+      const kept = { id, kept: true as const };
+      round.matches.push(kept);
+      bracket.kept = true;
+      byId.set(id, { match: kept, round, bracket, seen: [], label: e.label });
       continue;
     }
-    let bracket = brackets.get(bracketId!);
-    if (!bracket) {
-      bracket = { id: bracketId!, title: (f.bracketTitle && text(field(row, 'bracketTitle'))) || bracketId!, stages: new Map(), kept: false };
-      brackets.set(bracketId!, bracket);
-    }
-    let stage = bracket.stages.get(stageId!);
-    if (!stage) {
-      stage = { id: stageId!, rounds: new Map() };
-      bracket.stages.set(stageId!, stage);
-    }
-    let round = stage.rounds.get(roundId!);
-    if (!round) {
-      round = { id: roundId!, name: (f.roundName && text(field(row, 'roundName'))) || roundId!, matches: [] };
-      stage.rounds.set(roundId!, round);
-    }
-    const { league: aLeague, ...aSide } = side(row, 'a');
-    const { league: bLeague, ...bSide } = side(row, 'b');
-    const a = { ...aSide, league: aLeague };
-    const b = { ...bSide, league: bLeague };
-    const id = explicitId ?? `${bracketId}:${stageId}:${roundId}:${round.matches.length + 1}`;
-    const match: BracketMatch = { id, status: f.status ? statusOf(field(row, 'status')) : 'unknown', a: aSide, b: bSide };
+    const { league: aLeague, ...aSide } = e.a;
+    const { league: bLeague, ...bSide } = e.b;
+    const match: BracketMatch = { id, status: e.status, a: aSide, b: bSide };
     // What a row says of its match, compared only when a match id comes again.
-    const seen = [bracketId, stageId, roundId, match, aLeague, bLeague, f.roundName ? text(field(row, 'roundName')) : null, f.bracketTitle ? text(field(row, 'bracketTitle')) : null];
+    const seen = [e.bracketId, e.stageId, e.roundId, match, aLeague, bLeague, e.roundName, e.title];
     const before = byId.get(id);
     if (before) {
-      if (JSON.stringify(before.seen) === JSON.stringify(seen)) report.push(`${label} repeats match ${id}, so it is left out`);
+      if (JSON.stringify(before.seen) === JSON.stringify(seen)) report.push(`${e.label} repeats match ${id}, so it is left out`);
       else {
-        report.push(`${before.label} and ${label} both give match ${id} with other values, so it keeps its values`);
+        report.push(`${before.label} and ${e.label} both give match ${id} with other values, so it keeps its values`);
         if (!('kept' in before.match)) {
           const slot = before.round.matches.indexOf(before.match);
           const kept = { id, kept: true as const };
@@ -320,8 +523,9 @@ export function adaptBracket(
       continue;
     }
     round.matches.push(match);
-    byId.set(id, { match, round, bracket, seen, label });
-    for (const s of [a, b]) {
+    byId.set(id, { match, round, bracket, seen, label: e.label });
+    placedSides.push({ side: aSide, league: aLeague }, { side: bSide, league: bLeague });
+    for (const s of [e.a, e.b]) {
       if (s.name === null) continue;
       const p = players.get(s.name);
       if (!p) {
@@ -335,6 +539,31 @@ export function adaptBracket(
           p.clash.add(key);
           p[key] = null;
         }
+      }
+    }
+  }
+
+  // The players section (B20): joined to every side by name, any case; it fills a seed, and a race
+  // a side does not give, and it is `players` when mapped. A name it does not hold is said.
+  let section: { name: string; race: Scalar; seed: Scalar; league: Scalar }[] | null = null;
+  if (adapter.players) {
+    const read = playersIn(payload, adapter.players);
+    if ('problem' in read) report.push(read.problem);
+    else {
+      section = read.players;
+      const byName = new Map<string, (typeof read.players)[number]>();
+      for (const p of read.players) if (!byName.has(p.name.toLowerCase())) byName.set(p.name.toLowerCase(), p);
+      const unknown = new Set<string>();
+      for (const { side } of placedSides) {
+        if (side.name === null) continue;
+        const p = byName.get(side.name.toLowerCase());
+        if (!p) {
+          if (!unknown.has(side.name)) report.push(`${side.name} is not in the players list`);
+          unknown.add(side.name);
+          continue;
+        }
+        if (side.seed === null) side.seed = p.seed;
+        if (side.race === null) side.race = p.race;
       }
     }
   }
@@ -382,7 +611,7 @@ export function adaptBracket(
   }));
 
   // Positional ids move when a row is inserted: no current match without a match field (B5).
-  if (!f.match && read.rows.length > 0) report.unshift('no match id is mapped, so matches are known by their place and there is no current match');
+  if (!f.match && entries.length > 0) report.unshift('no match id is mapped, so matches are known by their place and there is no current match');
   const output: { [key: string]: JsonValue } = {};
   let resolved: BracketResult['current'];
   if (current && f.match) {
@@ -396,7 +625,7 @@ export function adaptBracket(
   }
   output.ties = ties;
   output.brackets = bracketsJson;
-  output.players = indexed([...players.values()], (p) => ({ name: p.name, race: p.race, seed: p.seed, league: p.league }));
+  output.players = indexed(section ?? [...players.values()], (p) => ({ name: p.name, race: p.race, seed: p.seed, league: p.league }));
   return { output, report, matches, ...(resolved ? { current: resolved } : {}) };
 }
 
@@ -509,33 +738,58 @@ export function adaptForReader(
 
 // ── The Connect review (B2) ──────────────────────────────────────────────────────────────────
 
-/** Whether a value holds rows: a list of objects, or an object keyed by row number. */
-const holdsRows = (value: unknown): boolean =>
-  Array.isArray(value)
-    ? value.length > 0 && value.some(isObject)
-    : isObject(value) && Object.keys(value).length > 0 && Object.keys(value).every((k) => ROW_NUMBER.test(k)) && Object.values(value).some(isObject);
+/** A list's entries, or an object's keyed by number: what a `*` steps through. */
+const entriesOf = (value: unknown): unknown[] | null =>
+  Array.isArray(value) ? value : isObject(value) && Object.keys(value).length > 0 && Object.keys(value).every((k) => ROW_NUMBER.test(k)) ? Object.values(value) : null;
+/** An entry that can be a row: an object with at least one scalar. */
+const rowLike = (value: unknown): boolean => isObject(value) && Object.values(value).some((v) => scalarText(v) !== null);
 
-/** Where a sample holds rows, nearest first: '' for the sample itself. */
+/**
+ * Where a sample holds rows, nearest first: '' for the sample itself. A list, or an object keyed by
+ * number, whose entries hold values is offered; and its entries are looked into through `*`, so
+ * rows nested under such levels are found too (B18).
+ */
 export function bracketRowPaths(sample: unknown): string[] {
   const out: string[] = [];
-  if (holdsRows(sample)) out.push('');
+  let visits = 0;
+  const walk = (value: unknown, keys: string[]) => {
+    if (keys.length > 8 || out.length >= 20 || (visits += 1) > 5_000) return;
+    const entries = entriesOf(value);
+    if (entries) {
+      if (entries.some(rowLike)) out.push(keys.join('.'));
+      // Through `*`: the first entries show what lies below.
+      for (const entry of entries.slice(0, 3)) walk(entry, [...keys, '*']);
+      return;
+    }
+    if (!isObject(value)) return;
+    for (const [key, child] of Object.entries(value)) {
+      if (!SEGMENT.test(key)) continue;
+      if (isObject(child) || Array.isArray(child)) walk(child, [...keys, key]);
+    }
+  };
+  walk(sample, []);
+  return [...new Set(out)];
+}
+
+/** Where a sample holds a section of entries by any key, such as a players list (B20). */
+export function bracketSectionPaths(sample: unknown): string[] {
+  const out: string[] = [];
   const walk = (value: unknown, keys: string[]) => {
     if (!isObject(value) || keys.length >= 4 || out.length >= 20) return;
     for (const [key, child] of Object.entries(value)) {
       if (!SEGMENT.test(key)) continue;
       const at = [...keys, key];
-      if (holdsRows(child)) out.push(at.join('.'));
+      const list = Array.isArray(child) ? child : isObject(child) ? Object.values(child) : [];
+      if (list.length > 0 && list.slice(0, 3).every(rowLike)) out.push(at.join('.'));
       else walk(child, at);
     }
   };
-  if (!holdsRows(sample)) walk(sample, []);
+  walk(sample, []);
   return out;
 }
 
-/** The dotted paths of the scalars the first rows hold (two levels deep), in first appearance. */
-export function bracketRowKeys(sample: unknown, rows: string): string[] {
-  const at = valueAt(sample, rows);
-  const list = Array.isArray(at) ? at : isObject(at) ? Object.values(at) : [];
+/** The dotted paths of the scalars the first entries hold (two levels deep), in first appearance. */
+function keysOf(list: unknown[]): string[] {
   const keys: string[] = [];
   const walk = (value: unknown, prefix: string[]) => {
     if (!isObject(value)) return;
@@ -548,6 +802,18 @@ export function bracketRowKeys(sample: unknown, rows: string): string[] {
   };
   for (const row of list.slice(0, 5)) walk(row, []);
   return keys;
+}
+
+/** The keys the first rows at a rows path hold. */
+export function bracketRowKeys(sample: unknown, rows: string): string[] {
+  const read = gatherRows(sample, rows);
+  return 'problem' in read ? [] : keysOf(read.rows.map((g) => g.row));
+}
+
+/** The keys the first entries of a players section hold. */
+export function bracketSectionKeys(sample: unknown, at: string): string[] {
+  const value = valueAt(sample, at);
+  return keysOf(Array.isArray(value) ? value : isObject(value) ? Object.values(value) : []);
 }
 
 /** What the review shows for a bracket source: the adapted sample, with the first match as the
