@@ -36,21 +36,20 @@
  },
  "waitingOn": [
   {
-   "what": "PR 2448 in the merge queue, then the OS0 check",
-   "eta": "2026-11-12T16:30:00Z"
+   "what": "OS0 checker verdict (exact-merge checks, live hold on/off)",
+   "eta": "2026-11-12T17:00:00Z"
   }
  ],
  "inFlight": [
   {
    "phase": "OS0",
-   "step": "build",
-   "actor": "builder-os0-b-5518",
-   "session": "session_017SdbwM9GCeoSZfBjmLZ5Wj",
-   "branch": "claude/plan-obs-scenes-os0-build",
-   "launchedAt": "2026-11-12T14:05:30Z",
-   "lastSeen": "2026-11-12T14:51Z receipt os0-b-5518; stamped, auto-merge on",
+   "step": "check",
+   "actor": "checker-os0-os0-c-4178",
+   "session": "session_017SdbwPbEiJRDx9gA7sAf7D",
+   "mergeSha": "619ebc8358f212410bce16e6cd5ce6682b94d5a7",
    "pr": 2448,
-   "reviewedHead": "a81a58bf77add132cba31c5b6a1ee7085b11d64f"
+   "launchedAt": "2026-11-12T15:01:31Z",
+   "builderSession": "session_017SdbwM9GCeoSZfBjmLZ5Wj"
   }
  ],
  "owner": [
