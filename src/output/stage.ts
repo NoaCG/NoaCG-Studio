@@ -460,6 +460,11 @@ export function createOutputStage(
       if (!entry.watch || now - entry.since < OUTCOME_WATCHDOG_MS) return;
       // Out of every queue that holds it, so a failed command never runs later.
       const frame = frames.get(entry.graphic);
+      console.warn(
+        `output stage: "${entry.graphic}" command ${at} had no outcome after ${OUTCOME_WATCHDOG_MS} ms ` +
+          `(frame ${frame ? (frame.loaded ? 'loaded' : 'loading') : 'none'}, queued here ${frame ? frame.queue.some((item) => item.at === at) : false}, ` +
+          `placing ${placer.placing(entry.graphic)}, package ${waitingOgraf.has(entry.graphic)}).`,
+      );
       if (frame) frame.queue = frame.queue.filter((item) => item.at !== at);
       const list = waitingOgraf.get(entry.graphic);
       if (list) {
