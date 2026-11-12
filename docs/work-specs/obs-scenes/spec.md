@@ -842,3 +842,25 @@ Filled in by each phase's pull request.
     `current`, `held` included).
   - Decided by default: after a hold, picking the same match again needs another pick, or the
     picker's "None", first (the pick must change for `current` to move).
+- Previous verified `main`: `97ba82596a7fcfcf6a424140648a5f8ad13aab92` (CI 43307568831, configured
+  suite 43307568943).
+- Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed and no
+  migration: an `adapter` left on a source is ignored by the reverted build, which then reads the
+  raw payload, so its bracket paths say "not in the JSON" and keep their values; turn "Read as a
+  bracket" off or reconnect first. A `#bracket.current` key left in a source's snapshot is ignored.
+  `currentMatchId` stays in the tree as an unbound value.
+- Decisions: the adapter is a setting on the connector (`config.adapter`) beside `read`, not a new
+  source kind, so the review, recipe, lease and evaluator are OS5a's. Its output uses index
+  segments (`brackets.0`), since bound paths are dotted keys. The reader's memory of the current
+  match rides in the snapshot under a `#` key, so the published row carries it with no migration.
+  The picker is on the source's line in the data panel, from the matches of the last good read
+  (the reader's status, shared by every tab); the Live dock (OS6) can reuse it. Defaults decided
+  here, not by the spec: no current match without a mapped match id (B5 amended); after a hold,
+  the pick must change (another match, or "none") before `current` moves again; a status word other
+  than pending, live or done is `unknown`, with no mapping of the feed's own words.
+- Traps: the server tick holds `current` (B13) and passes no snapshot to the projection, because its
+  hook is built in `api/_lib/dataTick.ts`; `held` therefore updates only while a page reads. Until
+  0116 applies the tick reads no JSON source anyway. A pick from a tab that does not hold the lease
+  shows at the holder's next read, up to the interval. A pick is an owner write to the tree
+  (`setLiveData`), the same road as editing a value on the Data tab.
+- Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS5b.md`.
