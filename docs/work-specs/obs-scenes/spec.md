@@ -365,3 +365,37 @@ connection for all OBS pages, a read-only OBS check through obs-websocket and on
 creation, a live OBS picture under placement, a general JSON mapping screen, live data stingers.
 
 ## Phase notes
+
+Filled in by each phase's pull request.
+
+### OS0: Landing hold
+
+- Rules (written before coding):
+  - R1. The hold is on exactly when at least one open issue (not a pull request) in this
+    repository carries the label `landing-hold`; off when that read succeeds and finds none.
+  - R2. The CI gate reads the hold on every `pull_request` and `merge_group` run, and on a
+    `workflow_dispatch` run of any ref but `main` (the mechanical landings' tips). It does not read
+    it on a push to `main`: that commit has landed, and a red gate there would start the red-main
+    revert machinery for a commit nothing is wrong with.
+  - R3. Hold on: the gate fails with an error annotation that starts "Landing hold" and names who
+    set it, the reason, and the hold issue's link. Every other gate rule is unchanged, so other
+    failures are still reported beside it.
+  - R4. The read fails (no token, a network or API error after three attempts, a timeout, an
+    answer that is not a list of issues): the gate fails with "Landing hold state could not be
+    read" (fail closed).
+  - R5. Hold off: the hold step passes and the gate's verdict is exactly today's.
+  - R6. The gate reads the hold when its own job runs, after every other job. A merge group whose
+    gate is still running when the hold turns on fails and its pull requests leave the queue. A
+    gate that already finished is not read again.
+  - R7. `.github/workflows/landing-hold.yml` is `workflow_dispatch` only, with `state` (on or off)
+    and a required non-empty `reason`. On: with no open hold issue it creates one (and the label
+    if missing) whose body names the account that dispatched it, the run and the reason; with one
+    open it rewrites that body to the new setter and reason and comments. Off: it closes every
+    open hold issue with a comment naming who lifted it and why. Repeating a request changes
+    nothing else. Runs are serialized, never cancelled.
+  - R8. After writing, the workflow reads the hold back with the gate's own reader and fails
+    unless it matches the request.
+  - R9. Lifting re-runs nothing. A pull request whose gate failed under the hold gets its failed
+    `CI gate` job re-run (it reads the hold again) and is queued again.
+  - R10. Not covered, and the guide says so: a manual production deploy, a migration applied by
+    hand, an administrator bypassing the branch rules, and releases that never touch `main`.
