@@ -38,7 +38,7 @@ import { scrubHiddenWords } from './wordCues';
 import { planResultCue, readResultCues, type ResultPlan, type ResultTargetKey } from './resultCues';
 import { hasLiveData } from './liveDataMark';
 import { ownReaderHolds } from './ownReaderHolds';
-import { loadGraphics, resolveSavedGraphicDoc, type GraphicDoc } from './library';
+import { loadGraphics, type GraphicDoc } from './library';
 import { poolPlacement } from './poolIdentity.ts';
 import { accentColor, playoutSystem, readOutputSetup, type ProductionOutputSetup, type RundownColors } from './outputSetup';
 import { loadTeamShows, teamShowIds, writeTeamShow } from './teamShows';
@@ -825,13 +825,22 @@ export function addGraphicToShow(
   }
   const template = place.name === added.name ? added : { ...added, name: place.name };
   const existing = place.replace;
+  // ADDING AGAIN IS AN UPDATE BY ANOTHER DOOR (live-publishing G1 section 2): a design that drops a
+  // field a cue of this graphic uses, or a binding names, is named first. These doors have no
+  // question to ask, so they refuse and send the operator to Update, which asks.
+  if (existing >= 0) {
+    const dropped = droppedFields(show, show.graphics[existing], template);
+    if (dropped.length) return { shows: all.filter((s) => !s.deleted), error: `${template.name}'s new design drops ${dropped.join(', ')}, which cues use. Use Update on the graphic in the production to confirm.` };
+  }
+  const at = nowIso();
   const graphic: SavedGraphic = {
     // Replacing by name KEEPS the pool entry's id — cues reference it (ShowCue.sourceId), so
     // updating a graphic must never orphan the cues prepared against it.
     id: existing >= 0 ? show.graphics[existing].id : uuid(),
     name: template.name,
     type: template.type,
-    savedAt: nowIso(),
+    savedAt: at,
+    designAt: at,
     template,
     ...(existing >= 0 && show.graphics[existing].soundConfig ? { soundConfig: show.graphics[existing].soundConfig } : {}),
     // Its place and size in this production stay with it, as its layer does (playout adjustments).
@@ -994,44 +1003,62 @@ function writeAdjust(target: { adjust?: unknown }, patch: AdjustPatch | null): b
 }
 
 /**
- * PUBLISH REFRESHES THE PRODUCTION'S COPIES (docs/work-specs/publish-guard/spec.md G1). A pool
- * graphic whose library record this browser holds a NEWER edit of than the copy embedded here
- * takes that design, so a teammate's page, which builds from the copy, publishes it too rather
- * than reverting it. Name, id, layer and sounds stay: they are the production's. The copy takes
- * the record's edit time, never now, so the two read as the same edit. Only Publish calls it: an
- * edit reaches the production only through Publish.
+ * A PUBLISH RECORDS ITS STOPPED SHEET READERS (data-sources C6), in the write before it. A
+ * published graphic that this publish takes its own Sheet reader from (the payload the caller saw
+ * published, `publishedReaders`, has it and the copy no longer does) joins `ownReaderStops`: the
+ * output keeps an on-air graphic's old frame, reader included, until it is cleared, so no browser
+ * may bind its fields before then.
  *
- * A published graphic that this publish takes its own Sheet reader from (its copy loses it here,
- * the design's reader having been stopped in this production or another sharing it; or the payload
- * the caller saw published, `publishedReaders`, has it and the copy no longer does) is recorded in
- * `ownReaderStops` in the same write (data-sources C6): the output keeps an on-air graphic's old
- * frame, reader included, until it is cleared, so no browser may bind its fields before then.
+ * This was the second half of the publish's copy refresh. The first half, copying newer library
+ * designs into the copies, is gone: the production's copy is the only truth (live-publishing W2,
+ * designs/G1.md section 1), and a library design arrives only through Update.
  */
-export function refreshGraphicCopies(
+export function recordOwnReaderStops(
   showId: string,
-  newer: (graphic: SavedGraphic) => { template: SpxTemplate; updatedAt: string } | undefined,
   publishedReaders: ReadonlySet<string> = new Set(),
 ): { shows: Show[]; error: string | null } {
   return patchShowChecked(showId, show => {
-    let changed = false;
-    const dropped: string[] = [];
-    for (const graphic of show.graphics) {
-      const doc = newer(graphic);
-      const fresh = !!doc && Date.parse(doc.updatedAt) > Date.parse(graphic.savedAt);
-      const read = publishedReaders.has(graphic.name) || hasLiveData(graphic.template.js ?? '');
-      if (fresh) {
-        graphic.template = doc.template;
-        graphic.savedAt = doc.updatedAt;
-        changed = true;
-      }
-      if (read && !hasLiveData(graphic.template.js ?? '')) dropped.push(graphic.name);
-    }
-    const stops = show.hostedSlug ? [...new Set([...(show.ownReaderStops ?? []), ...dropped])] : [];
-    if (stops.length > (show.ownReaderStops ?? []).length) {
-      show.ownReaderStops = stops;
-      changed = true;
-    }
-    return changed;
+    if (!show.hostedSlug) return false;
+    const dropped = show.graphics.filter((g) => publishedReaders.has(g.name) && !hasLiveData(g.template.js ?? '')).map((g) => g.name);
+    const stops = [...new Set([...(show.ownReaderStops ?? []), ...dropped])];
+    if (stops.length <= (show.ownReaderStops ?? []).length) return false;
+    show.ownReaderStops = stops;
+    return true;
+  });
+}
+
+/** The fields a copy has, that `next` lacks, and that a cue of this graphic holds a value for or a
+ *  binding names: what an Update would stop showing. Their labels, in the copy's order. */
+export function droppedFields(show: Pick<Show, 'cues' | 'bindings'>, graphic: SavedGraphic, next: SpxTemplate): string[] {
+  const kept = new Set((next.fields ?? []).map((f) => f.field));
+  const cues = (show.cues ?? []).filter((c) => c.source !== 'playout' && c.sourceId === graphic.id);
+  const bound = show.bindings?.[graphic.name] ?? {};
+  return (graphic.template.fields ?? [])
+    .filter((f) => !kept.has(f.field) && (f.field in bound || cues.some((c) => (c.values?.[f.field] ?? '') !== '')))
+    .map((f) => f.title || f.field);
+}
+
+/**
+ * UPDATE (live-publishing O4, designs/G1.md section 2): a copy takes its library record's newer
+ * design. Only the design members change (`template`, `savedAt` = the record's edit time,
+ * `designAt` the same); the id, pool name (the template's own name is set to it), layer, place in
+ * the pool, sounds, adjustments and link stay, and no cue is touched. Refused when the copy is no
+ * longer the one the caller saw (`expectedSavedAt`), so a teammate's change is never written over.
+ */
+export function updateCopyFromLibrary(
+  showId: string,
+  graphicId: string,
+  design: { template: SpxTemplate; updatedAt: string },
+  expectedSavedAt: string,
+): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const graphic = show.graphics.find((g) => g.id === graphicId);
+    if (!graphic) return 'This graphic is no longer in the production.';
+    if (graphic.savedAt !== expectedSavedAt) return 'The graphic changed elsewhere. Look again before you update.';
+    graphic.template = { ...design.template, name: graphic.name };
+    graphic.savedAt = design.updatedAt;
+    graphic.designAt = design.updatedAt;
+    return true;
   });
 }
 
@@ -1049,6 +1076,7 @@ export function setGraphicCopyScript(showId: string, graphicId: string, from: st
     graphic.template = { ...graphic.template, js: to };
     // A changed design: the monitors rebuild on it (ProgramStage's pool signature).
     graphic.savedAt = at;
+    graphic.designAt = at;
     return true;
   });
 }
@@ -2271,10 +2299,11 @@ function applyBindings(show: Show, entries: BindingEntry[]): { changed: boolean;
  * holds back for the published output (model/ownReaderHolds.ts): a frame that may still run the
  * reader after Publish.
  */
-export function ownSheetGraphics(show: Pick<Show, 'graphics' | 'hostedSlug' | 'ownReaderStops'>, library: GraphicDoc[]): Set<string> {
+export function ownSheetGraphics(show: Pick<Show, 'graphics' | 'hostedSlug' | 'ownReaderStops'>, _library?: GraphicDoc[]): Set<string> {
   const out = new Set<string>(publishedReaderStops(show));
+  // The copy is what plays (live-publishing G1 section 1), so only its script counts.
   for (const g of show.graphics) {
-    if (hasLiveData(g.template.js ?? '') || hasLiveData(resolveSavedGraphicDoc(g, library)?.template.js ?? '')) out.add(g.name);
+    if (hasLiveData(g.template.js ?? '')) out.add(g.name);
   }
   return out;
 }

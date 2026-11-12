@@ -21,7 +21,7 @@ import {
   setShowHostedSlug,
   setShowOutputSlug,
   setShowOutputSetup,
-  refreshGraphicCopies,
+  recordOwnReaderStops,
   type Show,
 } from '../../model/shows';
 import { commitDurableWrites } from '../../model/durableStore';
@@ -43,7 +43,7 @@ import { changeVmixOutput, type VmixOutputCommand, type VmixReplace } from '../.
 import type { Resolution } from '../../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../../model/projectFormat';
 import { outputEmbedFileName, outputEmbedHtml } from '../../export/outputEmbed';
-import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc } from '../../model/library';
+import { loadGraphics, templateForSavedGraphic } from '../../model/library';
 import { hasLiveData } from '../../control/liveData';
 import { claimJoinName, outputPageUrl, publishControlShow, PublishBehind, type CuePublished, type LiveCueMap } from '../../control/hostedControl';
 import { fastEventGraphics } from '../../control/matchClockWire';
@@ -420,16 +420,15 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
       // Started before this press: then this is a re-publish, and open outputs are asked to prepare.
       const wasStarted = !!current?.hostedSlug;
       // THE PUBLISH GUARD (docs/work-specs/publish-guard/spec.md): a team production is pulled to
-      // its latest record, this page's newer designs are copied into the record and saved, and the
-      // payload is built from that. A published version ahead of it (a teammate who published in
-      // between, or a newer design than this page's copy) is pulled in once more.
+      // its latest record, the stopped Sheet readers are recorded and saved, and the payload is
+      // built from that record's copies, never the library (live-publishing G1 section 1). A
+      // published version ahead of it (a teammate who published in between) is pulled in once more.
       const publishLatest = async () => {
         for (let attempt = 0; ; attempt += 1) {
           const team = !!loadShows().find((s) => s.id === show.id)?.teamId;
           if (team) await refreshTeams();
-          const library = loadGraphics();
           // The payload's readers as this page saw them: one this publish drops is recorded (C6).
-          const refreshed = refreshGraphicCopies(show.id, (g) => resolveSavedGraphicDoc(g, library), publishedReaders);
+          const refreshed = recordOwnReaderStops(show.id, publishedReaders);
           setShows(refreshed.shows);
           if (refreshed.error) throw new Error(refreshed.error);
           // A team save that fails does not stop the publish (G2): an older design is still refused.

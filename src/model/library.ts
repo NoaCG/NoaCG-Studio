@@ -13,6 +13,7 @@
 
 import type { SpxTemplate } from './types';
 import { withProductionSounds } from '../assets/productionSounds';
+import { canonical } from './publishedRecord.ts';
 import type { GenerationSpec } from './generationSpec';
 import type { AiThread } from './aiThread';
 import type { ProjectLegibility } from './designRules';
@@ -456,21 +457,39 @@ export function entriesForSavedGraphic(graphic: SavedGraphic, library: GraphicDo
 }
 
 /**
- * A show/packet graphic's live TEMPLATE. A SavedGraphic embeds a snapshot of the template from
- * when it was added, but the graphic keeps being EDITED in the library afterwards - so a
- * published or exported show that shipped the snapshot would air a stale design. Resolve the
- * current template out of the library (the same record entriesForSavedGraphic uses); the
- * embedded copy is the fallback ONLY when the record is gone (deleted, another profile) or was
- * never a library graphic (added from an unsaved working document). One authored source, re-read
- * wherever the graphic runs - the entries seam, now for the template too.
+ * A production graphic's TEMPLATE: its own copy, with the production's sounds. THE PRODUCTION'S
+ * COPY IS THE ONLY TRUTH (live-publishing W2, designs/G1.md section 1): what plays, publishes,
+ * exports and fills the monitors is the copy, never the library record it came from. A newer
+ * library design reaches a production only through Update (`updateCopyFromLibrary` in
+ * model/shows.ts). `library` stays in the signature so every caller moved at once.
  */
-export function templateForSavedGraphic(graphic: SavedGraphic, library: GraphicDoc[]): SpxTemplate {
-  return withProductionSounds(resolveSavedGraphicDoc(graphic, library)?.template ?? graphic.template, graphic.soundConfig);
+export function templateForSavedGraphic(graphic: SavedGraphic, _library?: GraphicDoc[]): SpxTemplate {
+  return withProductionSounds(graphic.template, graphic.soundConfig);
 }
 
-/** When the design `templateForSavedGraphic` resolves was last edited: the library record's save
- *  time, else the embedded copy's. A publish never puts an older one over a newer one
- *  (docs/work-specs/publish-guard/spec.md G3). */
-export function designEditedAt(graphic: SavedGraphic, library: GraphicDoc[]): string {
-  return resolveSavedGraphicDoc(graphic, library)?.updatedAt ?? graphic.savedAt;
+/** When the copy's design was last set: its `savedAt`. A publish never puts an older design over a
+ *  newer one (docs/work-specs/publish-guard/spec.md G3). */
+export function designEditedAt(graphic: SavedGraphic, _library?: GraphicDoc[]): string {
+  return graphic.savedAt;
+}
+
+/** A copy whose design a copy-truth build set: `designAt` present and equal to `savedAt`. */
+export function isStamped(graphic: Pick<SavedGraphic, 'savedAt' | 'designAt'>): boolean {
+  return graphic.designAt !== undefined && graphic.designAt === graphic.savedAt;
+}
+
+/** The library record that is newer than a copy and differs from it, the one Update would take:
+ *  linked by `graphicId` only (a name match never offers it), edited after the copy's design was
+ *  set, and different apart from the template's own name, which is the pool's. */
+export function newerLibraryDesign(graphic: SavedGraphic, library: GraphicDoc[]): GraphicDoc | undefined {
+  if (!graphic.graphicId) return undefined;
+  const doc = library.find((d) => d.id === graphic.graphicId);
+  if (!doc || !(Date.parse(doc.updatedAt) > Date.parse(graphic.savedAt))) return undefined;
+  return sameDesign(doc.template, graphic.template) ? undefined : doc;
+}
+
+/** Two templates are the same design when they are equal apart from their `name`, which is
+ *  placement: always the pool name inside a production (designs/G1.md, Terms). */
+export function sameDesign(a: SpxTemplate, b: SpxTemplate): boolean {
+  return a === b || canonical({ ...a, name: '' }) === canonical({ ...b, name: '' });
 }

@@ -3073,8 +3073,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       remove: async () => {
         if (!show) return 'This production is no longer open.';
         const fresh = resolveSavedGraphicDoc(graphic, loadGraphics());
-        const plan = ownReaderRemoval({ library: !!fresh, published: !!hostedSlug });
-        if (!plan) return `${graphic.name} has no library record here, so Publish could not take the change to the output. Keep its own reader.`;
+        const plan = ownReaderRemoval({ library: !!fresh });
         if (plan.library && fresh && hasLiveData(fresh.template.js)) {
           const saved = updateGraphic(fresh.id, { template: { ...fresh.template, js: stripLiveData(fresh.template.js) } });
           if (saved.error) return saved.error;
@@ -4553,13 +4552,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             sounds={(editingView) => (
               <ProductionSounds
                 key={`${show.id}:${poolGraphic.id}:${poolGraphic.type === 'picture' ? String(editingView.values.f0 ?? '') : 'graphic'}`}
-                template={resolveSavedGraphicDoc(poolGraphic,library)?.template ?? poolGraphic.template}
+                template={poolGraphic.template}
                 config={poolGraphic.soundConfig}
                 assets={show.graphics.flatMap(g=>g.soundConfig?.assets ?? [])}
                 visual={poolGraphic.type === 'picture' ? `picture:${String(editingView.values.f0 ?? '')}` : 'graphic'}
                 onSave={async (config,expected,source)=>{
                   const current = loadShows().find(s=>s.id === show.id)?.graphics.find(g=>g.id === poolGraphic.id);
-                  const template = current && (resolveSavedGraphicDoc(current,loadGraphics())?.template ?? current.template);
+                  const template = current?.template;
                   if (!current || !template || template.js !== source.js || soundTopology(template) !== source.topology) throw new Error('The visual changed while the sound was preparing. Choose the trigger again.');
                   const result = setGraphicSounds(show.id,poolGraphic.id,config,expected);
                   setShows(result.shows);

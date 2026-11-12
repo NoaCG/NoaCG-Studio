@@ -126,12 +126,11 @@ test('Connect data… waits while the graphic\'s own reader can still run where 
   assert.equal(ownReaderGate({ copyJs: plain, resolvedJs: plain, published: false, stopRecorded: true }), 'none');
 });
 
-test('"Stop its own reader" removes it from the design, and from the copy only before Publish', () => {
-  assert.deepEqual(ownReaderRemoval({ library: true, published: false }), { library: true, copy: true });
-  assert.deepEqual(ownReaderRemoval({ library: true, published: true }), { library: true, copy: false });
-  assert.deepEqual(ownReaderRemoval({ library: false, published: false }), { library: false, copy: true });
-  // Published with no library record, nothing could carry the removal to the output.
-  assert.equal(ownReaderRemoval({ library: false, published: true }), null);
+test('"Stop its own reader" removes it from the copy always, and from the library record when held', () => {
+  // live-publishing G1: the copy is what plays and publishes, so it always goes, published or not.
+  assert.deepEqual(ownReaderRemoval({ library: true }), { library: true, copy: true });
+  assert.deepEqual(ownReaderRemoval({ library: false }), { library: false, copy: true });
+  // A published graphic with no library record is no longer refused: its copy is what publishes.
 });
 
 test('what the Playout page holds back reaches the other binding doors, per production, and clears (C6)', async () => {
