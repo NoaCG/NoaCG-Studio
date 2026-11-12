@@ -36,8 +36,8 @@
  },
  "waitingOn": [
   {
-   "what": "#2464 (main revert) to land; then OS5a builder merges main, CI, fresh receipt",
-   "eta": "2026-11-12T22:00:00Z"
+   "what": "OS5a builder merges origin/main (fix-forward #2466 at 077e959b2), CI, fresh receipt",
+   "eta": "2026-11-12T21:30:00Z"
   }
  ],
  "inFlight": [
@@ -82,7 +82,7 @@
   {
    "id": "trig_01KqWGJ2QRHwSmWiL4uiePEU",
    "what": "plan-run check-in",
-   "at": "2026-11-12T20:27:00Z"
+   "at": "2026-11-12T20:59:00Z"
   },
   {
    "id": "trig_01TAFy1zGNczhpYNFeoozQLL",
