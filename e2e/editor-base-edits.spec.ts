@@ -12,6 +12,7 @@ import { settleDurableWrites } from './_durable';
 import type { SpxTemplate } from '../src/model/types';
 import { dropSvg, boxGrow } from './_svg-import';
 import { fileURLToPath } from 'node:url';
+import { upgradeSvgFitRuntime } from '../src/assets/svgFitUpgrade';
 
 const fixture = (name: string) => JSON.parse(readFileSync(new URL('../docs/research/editor-r1-foundation/fixture-' + name + '.json', import.meta.url), 'utf8')) as SpxTemplate;
 async function source(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template); }
@@ -471,8 +472,9 @@ for (const name of ['catalog', 'svg']) test('B04 edited ' + name + ' survives sa
   await settleDurableWrites(page); await page.reload(); await ready(page);
   const reopened = await source(page);
   expect(reopened.html).toBe(edited.html); expect(reopened.css).toBe(edited.css);
-  // Saving upgrades a known legacy interpreter. Artwork edits, animation data and
-  // source outside that owned region must still round-trip without changes.
+  // Saving upgrades a known legacy interpreter, and the SVG fit an older import carried (this
+  // fixture predates #2355). Artwork edits, animation data and all other source must still
+  // round-trip without changes.
   const preserved = await page.evaluate(async ({ before, after }) => {
     const { losslessAnimData } = await import('/src/blocks/animData.ts');
     const { ANIMATION_MARK_OPEN: open, ANIMATION_MARK_CLOSE: close } = await import('/src/templates/lowerThirds/animPresets.ts');
@@ -483,7 +485,7 @@ for (const name of ['catalog', 'svg']) test('B04 edited ' + name + ' survives sa
       surroundingBefore: surrounding(before), surroundingAfter: surrounding(after),
       current: after.replace(/\r\n/g, '\n').includes(ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n')),
     };
-  }, { before: initial.js, after: reopened.js });
+  }, { before: upgradeSvgFitRuntime(initial.js), after: reopened.js });
   expect(preserved.before).not.toBeNull();
   expect(preserved.after).toEqual(preserved.before);
   expect(preserved.surroundingAfter).toEqual(preserved.surroundingBefore);
