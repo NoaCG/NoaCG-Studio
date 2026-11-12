@@ -20,9 +20,11 @@
 //
 // A publish never writes the production record, so publishing never causes a save.
 
+import type { PayloadVersion } from './payloadVersion';
+
 /** What a publish attempt came to. */
 export type PublishOutcome =
-  | { kind: 'published'; rev: number }
+  | { kind: 'published'; rev: number; ver?: PayloadVersion }
   /** A revision at least as new is already published: nothing to do. */
   | { kind: 'superseded' }
   /** No answer, a server error, a lost connection: tried again later. */
@@ -102,6 +104,8 @@ export function createAutoPublisher(io: AutoPublishIo): AutoPublisher {
    *  page's own save (no grace). */
   let pendingSince: number | null = null;
   let pendingOwn = false;
+  /** This page's own save was just confirmed: a revision behind is its own (no grace). */
+  let ownHint = false;
   /** The newest record revision seen, and the newest known published. */
   let newest: number | null = null;
   let published: number | null = null;
@@ -117,7 +121,7 @@ export function createAutoPublisher(io: AutoPublishIo): AutoPublisher {
   const view = (): AutoPublishView => {
     let tone: AutoPublishTone = 'idle';
     let line: string | null = null;
-    if (pending() || running) {
+    if (pending()) {
       const waited = pendingSince === null ? 0 : io.now() - pendingSince;
       const red = refusedAt !== null || transientFailures >= 2 || waited >= RED_AFTER_MS;
       tone = red ? 'red' : 'amber';
@@ -197,7 +201,9 @@ export function createAutoPublisher(io: AutoPublishIo): AutoPublisher {
       return;
     }
     if (refusedAt && refusedAt.rev !== null && rev <= refusedAt.rev) return;
-    markPending(pendingOwn);
+    markPending(ownHint);
+    ownHint = false;
+    emit();
     const outcome = await io.publish(rev);
     if (stopped) return;
     switch (outcome.kind) {
@@ -269,7 +275,7 @@ export function createAutoPublisher(io: AutoPublishIo): AutoPublisher {
   return {
     saved() {
       if (stopped) return;
-      markPending(true);
+      ownHint = true;
       if (refusedAt && refusedAt.refusal !== 'denied') refusedAt = null;
       transientFailures = 0;
       run();

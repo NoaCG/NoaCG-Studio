@@ -212,6 +212,7 @@ import {
   type ControlEventRow,
   type ControlFollowStatus,
   type ControlSendItem,
+  type CuePublished,
   type LiveCueMap,
 } from '../../control/hostedControl';
 import type { ReplayItem } from '../../control/outputRecovery';
@@ -268,7 +269,8 @@ import { useCopyAdoption } from './useCopyAdoption';
 import { usePublishDrift } from './usePublishDrift';
 import { type PayloadVersion } from '../../control/payloadVersion';
 import { clockWords, type HeldVersion, type ReadyStamp } from '../../control/readiness';
-import { commandPathsOf, type PrepRequest } from '../../control/prepareLive';
+import { commandPathsOf, requestId, type PrepRequest } from '../../control/prepareLive';
+import { oldOutputNames, useAutoPublish } from './useAutoPublish';
 import { casparOutputTarget, describePlayoutStatus, programAir, relevantPlayout, takeTargets, type StatusFacts } from '../../control/playoutStatus';
 import { confirmLines, newerRun, pruneOwed, type ConfirmOutput, type Owed } from '../../control/runConfirm';
 import { epochTag, readRun, withoutRun, type RunReport } from '../../control/runReport';
@@ -1079,6 +1081,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Take out request `id`, and only that one: Prepare for Live and every publish each put one in,
    *  and the newer stays when the older one's time is up. */
   const dropPrep = useCallback((id: string) => setPrepRequest((cur) => (cur?.id === id ? null : cur)), []);
+  // AUTOMATIC UPDATES (live-publishing designs/G3.md): once the server's guard is installed and its
+  // switch is on, every save of this published production is published with no press, and each
+  // publish asks every output to prepare at once, old ones included.
+  const appearanceForRef = useRef<((s: Show) => Promise<CuePublished | undefined>) | undefined>(undefined);
+  const autoPublish = useAutoPublish({
+    show,
+    mayPublish: backendConfigured && authStatus === 'signed-in' && authoringAllowed,
+    appearanceFor: appearanceForRef,
+    onPublished: (ver) => {
+      setPublishedStamp(ver);
+      setPrepRequest({ id: requestId(), n: ver.n, h: ver.h });
+    },
+  });
   const relevanceSettings = loadPlayoutSettings();
   const casparTarget = casparOutputTarget(relevanceSettings);
   const onAirChanged = (what: 'air' | 'stop', result: PlayoutResult, target: string) => {
@@ -2803,7 +2818,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // Every graphic cue carries its records (none, for a graphic nobody adjusted) and the box this
       // page measured (one cue of an unadjusted graphic is measured here for it), so the hosted page's Adjust block can start from any of them; only an
       // adjusted cue carries an appearance.
-      appearanceFor: async (latest) => {
+      appearanceFor: appearanceForRef.current = async (latest) => {
         const lib = loadGraphics();
         await Promise.all(measureJobs(latest, lib, true).map((job) => measurer.now(job, PUBLISH_MEASURE_CAP_MS)));
         const templates = latest.graphics.map((g) => templateForSavedGraphic(g, lib));
@@ -3945,12 +3960,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     ready: readySummary,
     noOutputTake,
     fileCheck: needsServerFiles && bridgeOk ? serverFiles?.key === serverFileKey ? serverFiles.check : { key: 'files', tone: 'warn', short: 'Checking server files…', label: 'Checking referenced CasparCG files…' } : null,
+    autoPublish: autoPublish.view && autoPublish.view.tone !== 'idle' ? { tone: autoPublish.view.tone, line: autoPublish.view.line } : null,
+    oldOutputs: autoPublish.active ? oldOutputNames(livePresence.peers, expectedOutputs) : null,
     playbackCheck: unsupportedCue ? { key: 'playback', tone: 'bad', short: 'Cue settings unavailable', label: `${unsupportedCue.cue.label}: cannot Take`, advice: unsupportedCue.reason! } : null,
   });
   const flowBusy = prepareFlow.phase === 'publishing' || prepareFlow.phase === 'preparing';
   const { headerAction, casparFacts } = publishFacts(publishState, {
     started, casparOn, playoutIsConfigured, bridgeOk, outputSlot, cues, backendConfigured, needsSignIn, slotWhere,
-    outputUrl, requiresPreparation, authoringAllowed, playoutStatus, playoutSettings, casparOutputMemory, casparTarget,
+    outputUrl, requiresPreparation: requiresPreparation && !autoPublish.active, authoringAllowed, playoutStatus, playoutSettings, casparOutputMemory, casparTarget,
     flowBusy, publish, loadOnSlot,
   });
   /** The panel's own lines for what went wrong where no row of its own says it. */

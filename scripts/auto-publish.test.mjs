@@ -173,15 +173,35 @@ test('R8: an open page publishes another page\'s save after the grace, not befor
   watcher.pub.stop();
 });
 
-test('R18: a revision waiting 20 s reads red', async () => {
+test('R18: a saved revision whose publish has not landed in 20 s reads red', async () => {
+  const c = clock();
+  const world = server();
+  const p = createAutoPublisher({
+    now: c.now, setTimer: c.setTimer,
+    confirmed: async () => ({ rev: world.rev }),
+    stored: async () => ({ rev: world.rev, published: world.published }),
+    catchUp: async () => {},
+    publish: () => new Promise(() => {}), // never answered
+    changed: () => {},
+  });
+  world.save(); p.saved(); await settle();
+  assert.equal(p.view().tone, 'amber');
+  await c.advance(RED_AFTER_MS - 1);
+  assert.equal(p.view().tone, 'amber');
+  await c.advance(1);
+  assert.equal(p.view().tone, 'red');
+  p.stop();
+});
+
+test('a sync of another record does not light the publisher', async () => {
   const c = clock();
   const world = server();
   const p = page(world, c);
-  p.held = world.rev + 1; // a save of this page still on its way
+  p.pub.check(true); await settle();
+  assert.equal(world.published, world.rev);
+  const seen = p.views.length;
   p.pub.saved(); await settle();
-  assert.equal(p.pub.view().tone, 'amber');
-  await c.advance(RED_AFTER_MS);
-  assert.equal(p.pub.view().tone, 'red');
+  assert.ok(p.views.slice(seen).every((v) => v.tone === 'idle'), 'no amber for a revision already published');
   p.pub.stop();
 });
 

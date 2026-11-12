@@ -212,10 +212,11 @@ export async function publishRevision(show: Show, rev: number, publishedOf?: Cue
     const body = await bodyPartsFor(built, columns, panel, g, rev, c, edited);
     for (let tries = 0; ; tries++) {
       const filter = stored.ver ? `published_ver->>n=eq.${stored.ver.n}` : 'published_ver=is.null';
-      const landed = await patchRow(show.id, filter, await body(stored.ver));
+      const made = await body(stored.ver);
+      const landed = await patchRow(show.id, filter, made.body);
       if (landed > 0) {
         await afterFullPublish(sb, show);
-        return { kind: 'published', rev };
+        return { kind: 'published', rev, ver: made.ver };
       }
       stored = await readStamp(sb, show.id);
       if (!stored.exists) return { kind: 'gone' };
@@ -235,8 +236,8 @@ async function afterFullPublish(sb: NonNullable<Awaited<ReturnType<typeof getSup
   if (show.hostedSlug && show.joinSlug) await sendJoinBrand(show, show.hostedSlug).catch(() => {});
 }
 
-/** The body for a full publish over `previous`: the parts are built once; only the stamp, which is
- *  in the first part, changes from try to try. */
+/** The body for a full publish over `previous`, with the stamp it carries; built again only when
+ *  the stamp it goes over changed (another publish landed first). */
 async function bodyPartsFor(
   built: OutputPayload,
   columns: Record<string, unknown>,
@@ -245,14 +246,13 @@ async function bodyPartsFor(
   rev: number,
   c: string,
   edited: Record<string, string>,
-): Promise<(previous: PayloadVersion | null) => Promise<Blob>> {
-  let cached: { n: number | null; body: Blob } | null = null;
+): Promise<(previous: PayloadVersion | null) => Promise<{ body: Blob; ver: PayloadVersion }>> {
+  let cached: { n: number | null; body: Blob; ver: PayloadVersion } | null = null;
   return async (previous) => {
     const n = previous ? previous.n : null;
-    if (cached && cached.n === n) return cached.body;
+    if (cached && cached.n === n) return cached;
     const ver: PayloadVersion = { ...(await stampFromDigests(g, built.resolution, previous, new Date(), edited)), r: rev, c };
-    const body = await bodyParts({ ...built, ver }, columns, panel);
-    cached = { n, body };
-    return body;
+    cached = { n, body: await bodyParts({ ...built, ver }, columns, panel), ver };
+    return cached;
   };
 }

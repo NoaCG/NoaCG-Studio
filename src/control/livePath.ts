@@ -416,6 +416,9 @@ export interface LiveEntry {
    *  values and actions (E2.1). Absent from an output built before it: a page sends such an output
    *  no envelope. */
   typed?: number;
+  /** An output that checks the published version by itself (live-publishing G3 section 6): 1.
+   *  Absent from an output built before it, which a page asks to reload when nothing is on air. */
+  au?: number;
   /** A scene link's own word (docs/work-specs/obs-scenes/spec.md OS1a R8). Absent on every other
    *  output. */
   scene?: SceneReport;
@@ -451,7 +454,7 @@ export function liveEntry(
   surface: string,
   roads: { log: boolean | null; cmd: boolean | null },
   stats?: LiveEntry['stats'],
-  extra?: Partial<Pick<LiveEntry, 'proto'>> & Pick<LiveEntry, 'destinationId' | 'name' | 'ready' | 'pub' | 'exp' | 'stamp' | 'prep' | 'ack' | 'typed' | 'scene'>,
+  extra?: Partial<Pick<LiveEntry, 'proto'>> & Pick<LiveEntry, 'destinationId' | 'name' | 'ready' | 'pub' | 'exp' | 'stamp' | 'prep' | 'ack' | 'typed' | 'scene' | 'au'>,
 ): LiveEntry {
   return {
     kind,
