@@ -13,7 +13,7 @@ themselves, and NoaCG must show the operator that every scene is in place.
 
 OBS is the most common tool for the small productions NoaCG serves (`docs/GOALS.md`, North Star),
 so this fits NoaCG to the scene model in general. A live production on one Windows PC with the
-newest OBS, in December 2026, is the first production proof.
+newest OBS is the first production proof.
 
 **What must hold.** Air never depends on a fragile link. A graphic never appears in the wrong
 scene. The operator recovers alone from anything recoverable, and the docs say plainly what is
