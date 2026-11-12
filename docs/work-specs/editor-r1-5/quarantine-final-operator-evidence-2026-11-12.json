@@ -1,0 +1,368 @@
+{
+  "sourceParent": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+  "sourceLanding": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+  "workers": 1,
+  "retries": 0,
+  "initialCountPerCommit": 60,
+  "extensionPlannedCountPerCommit": 300,
+  "completionQualifiedTargetPerCommit": 301,
+  "summary": {
+    "clock": {
+      "arms": {
+        "parent": {
+          "qualified": 60,
+          "failed": 1
+        },
+        "landing": {
+          "qualified": 60,
+          "failed": 2
+        }
+      },
+      "completeWithinWorkerPairs": 60,
+      "unpairedObservationIds": [],
+      "discordance": {
+        "parentOnlyFailure": 1,
+        "landingOnlyFailure": 2,
+        "bothFailed": 0
+      }
+    },
+    "operator": {
+      "arms": {
+        "parent": {
+          "qualified": 301,
+          "failed": 8
+        },
+        "landing": {
+          "qualified": 301,
+          "failed": 7
+        }
+      },
+      "completeWithinWorkerPairs": 300,
+      "unpairedObservationIds": [
+        "43088222961:41:landing",
+        "43094048053:46:parent"
+      ],
+      "discordance": {
+        "parentOnlyFailure": 8,
+        "landingOnlyFailure": 7,
+        "bothFailed": 0
+      }
+    },
+    "originalUnqualifiedAttempts": 1,
+    "originalUnadmittedSlots": 8,
+    "completionUnqualifiedAttempts": 0,
+    "completionUnadmittedSlots": 0,
+    "note": "Qualified observations only; original missing terminal receipts stay unqualified. No causal verdict; a failed original workflow is not turned green."
+  },
+  "completion": {
+    "kind": "operator",
+    "cohort": 4,
+    "batch": 3,
+    "condition": "completion-01",
+    "run": 43094048053,
+    "job": 130778205104,
+    "status": "completed",
+    "conclusion": "failure",
+    "jobStatus": "completed",
+    "jobConclusion": "failure",
+    "uploadConclusion": "failure",
+    "qualification": "guarded-producer-log",
+    "jobLogSha256": "f25e8bbbcb010a3abe38bf25890d8c4d4103a6da2ded3f9ce06825f942f3d460",
+    "metadataSha256": "86c2cedb57c4984196952c7f5aa6212e709e893a71b8b71cd091cc9d89bd2441",
+    "unresolved": [],
+    "limitation": "Raw completion artifacts unavailable; pinned producer guarded records qualify observations, not recreated raw reports. Native workflow/upload status is preserved."
+  },
+  "completionRows": [
+    {
+      "pair": 41,
+      "arm": "landing",
+      "job": "j-0001",
+      "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+      "failed": false,
+      "cases": 2,
+      "failures": [],
+      "cohort": 4,
+      "condition": "completion-01",
+      "plannedPair": 221,
+      "observationId": "43094048053:41:landing",
+      "pairId": "43094048053:41",
+      "qualification": "guarded-producer-log"
+    },
+    {
+      "pair": 41,
+      "arm": "parent",
+      "job": "j-0002",
+      "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+      "failed": false,
+      "cases": 2,
+      "failures": [],
+      "cohort": 4,
+      "condition": "completion-01",
+      "plannedPair": 221,
+      "observationId": "43094048053:41:parent",
+      "pairId": "43094048053:41",
+      "qualification": "guarded-producer-log"
+    },
+    {
+      "pair": 42,
+      "arm": "parent",
+      "job": "j-0003",
+      "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+      "failed": false,
+      "cases": 2,
+      "failures": [],
+      "cohort": 4,
+      "condition": "completion-01",
+      "plannedPair": 222,
+      "observationId": "43094048053:42:parent",
+      "pairId": "43094048053:42",
+      "qualification": "guarded-producer-log"
+    },
+    {
+      "pair": 42,
+      "arm": "landing",
+      "job": "j-0004",
+      "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+      "failed": false,
+      "cases": 2,
+      "failures": [],
+      "cohort": 4,
+      "condition": "completion-01",
+      "plannedPair": 222,
+      "observationId": "43094048053:42:landing",
+      "pairId": "43094048053:42",
+      "qualification": "guarded-producer-log"
+    },
+    {
+      "pair": 43,
+      "arm": "parent",
+      "job": "j-0005",
+      "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+      "failed": false,
+      "cases": 2,
+      "failures": [],
+      "cohort": 4,
+      "condition": "completion-01",
+      "plannedPair": 223,
+      "observationId": "43094048053:43:parent",
+      "pairId": "43094048053:43",
+      "qualification": "guarded-producer-log"
+    },
+    {
+      "pair": 43,
+      "arm": "landing",
+      "job": "j-0006",
+      "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+      "failed": false,
+      "cases": 2,
+      "failures": [],
+      "cohort": 4,
+      "condition": "completion-01",
+      "plannedPair": 223,
+      "observationId": "43094048053:43:landing",
+      "pairId": "43094048053:43",
+      "qualification": "guarded-producer-log"
+    },
+    {
+      "pair": 44,
+      "arm": "landing",
+      "job": "j-0007",
+      "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+      "failed": false,
+      "cases": 2,
+      "failures": [],
+      "cohort": 4,
+      "condition": "completion-01",
+      "plannedPair": 224,
+      "observationId": "43094048053:44:landing",
+      "pairId": "43094048053:44",
+      "qualification": "guarded-producer-log"
+    },
+    {
+      "pair": 44,
+      "arm": "parent",
+      "job": "j-0008",
+      "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+      "failed": false,
+      "cases": 2,
+      "failures": [],
+      "cohort": 4,
+      "condition": "completion-01",
+      "plannedPair": 224,
+      "observationId": "43094048053:44:parent",
+      "pairId": "43094048053:44",
+      "qualification": "guarded-producer-log"
+    },
+    {
+      "pair": 45,
+      "arm": "parent",
+      "job": "j-0009",
+      "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+      "failed": false,
+      "cases": 2,
+      "failures": [],
+      "cohort": 4,
+      "condition": "completion-01",
+      "plannedPair": 225,
+      "observationId": "43094048053:45:parent",
+      "pairId": "43094048053:45",
+      "qualification": "guarded-producer-log"
+    },
+    {
+      "pair": 45,
+      "arm": "landing",
+      "job": "j-0010",
+      "source": "8c9f2684bc419242f79f4d36e5f61fe7e5e41d1f",
+      "failed": false,
+      "cases": 2,
+      "failures": [],
+      "cohort": 4,
+      "condition": "completion-01",
+      "plannedPair": 225,
+      "observationId": "43094048053:45:landing",
+      "pairId": "43094048053:45",
+      "qualification": "guarded-producer-log"
+    },
+    {
+      "pair": 46,
+      "arm": "parent",
+      "job": "j-0011",
+      "source": "a3f3e13caacb7bc8cbe4f00f8ffd5d694e489a44",
+      "failed": false,
+      "cases": 2,
+      "failures": [],
+      "cohort": 4,
+      "condition": "completion-01",
+      "plannedPair": 226,
+      "observationId": "43094048053:46:parent",
+      "pairId": "43094048053:46",
+      "qualification": "guarded-producer-log"
+    }
+  ],
+  "failedInvocations": [
+    {
+      "run": 43081541233,
+      "cohort": 1,
+      "pair": 2,
+      "arm": "landing",
+      "assertionLine": 164
+    },
+    {
+      "run": 43081541233,
+      "cohort": 1,
+      "pair": 9,
+      "arm": "landing",
+      "assertionLine": 164
+    },
+    {
+      "run": 43082481613,
+      "cohort": 1,
+      "pair": 38,
+      "arm": "landing",
+      "assertionLine": 164
+    },
+    {
+      "run": 43088183885,
+      "cohort": 2,
+      "pair": 24,
+      "arm": "landing",
+      "assertionLine": 164
+    },
+    {
+      "run": 43088183885,
+      "cohort": 2,
+      "pair": 29,
+      "arm": "parent",
+      "assertionLine": 164
+    },
+    {
+      "run": 43088183885,
+      "cohort": 2,
+      "pair": 30,
+      "arm": "parent",
+      "assertionLine": 164
+    },
+    {
+      "run": 43088192620,
+      "cohort": 2,
+      "pair": 49,
+      "arm": "parent",
+      "assertionLine": 164
+    },
+    {
+      "run": 43088192620,
+      "cohort": 2,
+      "pair": 54,
+      "arm": "landing",
+      "assertionLine": 164
+    },
+    {
+      "run": 43088192620,
+      "cohort": 2,
+      "pair": 56,
+      "arm": "parent",
+      "assertionLine": 164
+    },
+    {
+      "run": 43088192620,
+      "cohort": 2,
+      "pair": 59,
+      "arm": "parent",
+      "assertionLine": 164
+    },
+    {
+      "run": 43088192620,
+      "cohort": 2,
+      "pair": 60,
+      "arm": "landing",
+      "assertionLine": 164
+    },
+    {
+      "run": 43088200566,
+      "cohort": 3,
+      "pair": 22,
+      "arm": "parent",
+      "assertionLine": 164
+    },
+    {
+      "run": 43088226528,
+      "cohort": 4,
+      "pair": 47,
+      "arm": "parent",
+      "assertionLine": 164
+    },
+    {
+      "run": 43088226528,
+      "cohort": 4,
+      "pair": 49,
+      "arm": "landing",
+      "assertionLine": 176
+    },
+    {
+      "run": 43088226528,
+      "cohort": 4,
+      "pair": 54,
+      "arm": "parent",
+      "assertionLine": 164
+    }
+  ],
+  "originalUnknownSensitivity": {
+    "assumedPass": {
+      "parentFailures": 8,
+      "parentInvocations": 302,
+      "rate": 0.026490066225165563
+    },
+    "assumedFailure": {
+      "parentFailures": 9,
+      "parentInvocations": 302,
+      "rate": 0.029801324503311258
+    },
+    "landing": {
+      "failures": 7,
+      "invocations": 301,
+      "rate": 0.023255813953488372
+    },
+    "note": "Sensitivity only; originalunknownnotqualifiedorconvertedtopass."
+  },
+  "qualificationReview": "Fresh methodAGREE/A c699a7cf6; implementationAGREE/A04ad66c1e; fractionalstepboundarydeltaAGREE/A78ea5b5e3, independentreviewerrecoveredall11recordsandsamehash.13unitPASS. Finalcausaldispositionreviewpending."
+}

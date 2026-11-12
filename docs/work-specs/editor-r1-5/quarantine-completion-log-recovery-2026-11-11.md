@@ -70,3 +70,15 @@ No new test dispatch is permitted by this recovery. Once the service exposes the
 original log/artifact, use the independently reviewed reader and retain this
 failed reader run as well. Until then the operator verdict and editor gate remain
 unresolved; the same run is durably checkpointed, not restarted.
+
+## Recovery observed on2026-11-12
+
+The original native log became available through the connected GitHub tool.
+Authoritative CLI metadata now reports the original run/job FAILURE and no
+artifacts. The original decoded log and metadata were saved privately; reader
+78ea5b5e3 (fresh delta AGREE/A,13unitPASS) corrected API seconds precision with
+actual command-group boundaries. Importing its approved read_batch against
+exactly those four authentic saved API responses qualified all11records. No
+GITHUB_ACTIONS or runner identity was spoofed and no new tests/workflows ran.
+Original workflow failures and unknown attempts remain unchanged. The final
+operator report and selected evidence JSON record counts, hashes and limits.

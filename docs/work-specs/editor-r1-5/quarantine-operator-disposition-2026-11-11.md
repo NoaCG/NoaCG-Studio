@@ -1,9 +1,10 @@
-# Operator quarantine: causal investigation (completion evidence pending)
+# Operator quarantine: causal disposition
 
-**No final operator disposition yet.** The approved recovery reader must qualify
-the original eleven completion records after GitHub service recovery before the
-prewritten target and final causal review can close. Reader43097924632 failed
-at startup and retrieved no observations. The editor gate remains closed. E3 is historical; no E4 was launched.
+Proposed final verdict: **not caused by this editor run**. The original failure
+mechanism predates E1 and the completed repeated comparison has no observed
+landing increase. This is not proof of equal population failure rates. The
+final independent causal review is still required before the editor gate clears.
+E3 is historical; no E4 has been launched.
 
 ## Original failure and quarantine
 
@@ -39,7 +40,9 @@ Before completion:
 | 3 | 1/60 | 0/60 |
 | 4 (incomplete) | 2/55 | 1/56 |
 | 5 | 0/60 | 0/60 |
-| Total qualified before completion | 8/295 | 7/296 |
+| Qualified primary observations | 8/295 | 7/296 |
+| New completion (separate native worker) | 0/6 | 0/5 |
+| Final qualified total | **8/301 (2.66%)** | **7/301 (2.33%)** |
 
 All15 qualified failures are the original navigation-context class:14 at the
 member assertion164 and one at visitor assertion176. All eight parent failures
@@ -68,8 +71,44 @@ A narrow read-only guarded-log recovery method atc699a7cf6 and implementation
 dispatched. Recovery requires all eleven exact guarded successful records,
 retains/hash-checks original native log and metadata, preserves upload/overall
 status and distinguishes log qualification from raw-artifact qualification.
-Actual completion records, final rates and original-unknown sensitivity are
-still pending. There is no additional producer dispatch.
+On2026-11-12 the connected GitHub tool returned the complete original native
+job log. The same Cloud environment recovered authoritative run/job/artifact
+metadata through GitHub CLI. No producer or new reader workflow was dispatched.
+The approved reader was imported offline with exactly four authentic saved API
+responses; no Cloud identity or GITHUB_ACTIONS value was fabricated.
+
+GitHub step metadata floors timestamps to seconds: completed_at20:21:08Z versus
+last record20:21:08.3501917Z. Reader78ea5b5e3 corrects that evidence-parser boundary
+using the exact Run command group and the next step at20:21:08.3652521Z. It keeps
+all original qualification guards and rejects next-step records even in that
+same second. Thirteen lightweight tests pass; fresh delta review AGREE/A also
+independently qualified all11records and confirmed the same log hash before
+recovery output was persisted.
+
+All eleven records are successful two-case invocations: six parent and five
+landing, exact seeded sequence, distinct queue identities, zero skipped/flaky/
+retried/global-error cases under the immutable producer guards. These are
+log-qualified observations, not reconstructed raw artifacts. Original decoded
+job-log SHA256: f25e8bbbcb010a3abe38bf25890d8c4d4103a6da2ded3f9ce06825f942f3d460.
+The native run/job remain FAILURE because receipt upload failed; neither is
+rewritten as green. Raw completion artifacts remain unavailable.
+
+Final totals are parent8/301 and E1landing7/301, with300 complete within-worker
+pairs (eight parent-only failures, seven landing-only, zero both). The original
+landing41 pass and new parent46 pass remain unmatched across workers and are
+included only in arm rates. All602 qualified invocations retain both cases:1,204
+case attempts. The original unknown parent41 and eight unadmitted slots remain
+separate, never converted to a qualified pass.
+
+Worst-case sensitivity for the one original unknown parent: treating it only
+for sensitivity as a pass gives8/302 (2.65%), as a failure9/302 (2.98%). E1stays
+7/301 (2.33%) in either case; this uncertainty does not reverse the observed
+comparison. Adaptive sampling and the finite sample still prevent a claim of
+exact population equality or a guarantee against every small timing effect.
+The causal disposition combines these rates with the pre-existing source and
+exact parent failure mechanism below. Public selected evidence, all failure
+identities and the pairing/censoring summary are in
+quarantine-final-operator-evidence-2026-11-12.json.
 
 ## Source and observed mechanism
 
@@ -101,28 +140,22 @@ Historical configured runs42931921379 at the E1 parent and42908271266 at the
 retirement merge each passed both cases. They are retained as context, not pooled
 with the repeated experiment and not proof of absence of a race.
 
-## Pending disposition and incident
+## Quarantine disposition
 
-Leave quarantine and incident2371 intact with its existing owner `miwco` and
-repair date2026-11-25. No fix or release PR is claimed. Experimental passes do not
-earn the automatic20-consecutive-main-pass quarantine release. Final completion
-qualification, rate/sensitivity report and a fresh independent causal review are
-required before replacing this pending disposition or clearing the editor gate.
+The reproduced defect is a pre-existing test-observation race around the
+documented full navigation, introduced by retirement PR2362 before E1. The
+completed comparison supplies no evidence that E1 increased its failure rate.
+No product correction or quarantine release is claimed by this investigation.
+Leave quarantine and incident2371 with its existing owner `miwco`, repair due
+2026-11-25. No fix or release PR is claimed. Experimental passes do not earn the
+automatic20-consecutive-main-pass quarantine release.
 
-## GitHub Actions recovery blocker
+## Retained infrastructure failures
 
-Reader43097924632 ended with startup_failure before any job was created.
-GitHub's public run annotation says an unexpected internal error occurred and
-that GitHub was automatically notified (request3f42ceac-de11-11f1-8c46-7ccd4a9cdbeb).
-The CLI's generic suggestion of a workflow-file issue is not the server's actual
-diagnostic; endurance.yml is unchanged from the last executed reader0c16ec82d.
-No product test or evidence retrieval ran in this failed startup.
-
-The original completion job still reports in_progress although its steps are
-finished. Its job-log endpoint returns502 (connectorReadTimeout), whole-run log
-archive returns404, and artifact listing is empty. Public job UI requires sign-in
-to view logs. These are evidence-access failures, not eleven inferred passes.
-No new test dispatch is permitted by this recovery. Once the service exposes the
-original log/artifact, use the independently reviewed reader and retain this
-failed reader run as well. Until then the operator verdict and editor gate remain
-unresolved; the same run is durably checkpointed, not restarted.
+Reader43097924632 ended with startup_failure before any job was created:
+GitHub reported an unexpected internal error and automatic notification. It
+retrieved zero observations and remains failed. The original completion's
+receipt-upload failure, empty artifact inventory, initially unavailable logs
+and original partial batch remain in the recovery record. The2026-11-12
+recovery uses the original log after it became available; no failed native run,
+unknown attempt, unadmitted slot or earlier result was replaced or discarded.
