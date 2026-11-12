@@ -492,7 +492,13 @@ test('nested rows are gathered through a list and numbered levels, in feed order
   const odd = NESTED();
   odd.cups.push({ other: 1 });
   assert.ok(adaptBracket(odd, sidesAdapter()).report.includes('cups.3 has no grid'));
-  assert.deepEqual(adaptBracket({ cups: [] }, sidesAdapter()), { problem: 'cups.*.grid.*.*.* holds no rows' });
+  assert.deepEqual(adaptBracket({ cups: [] }, sidesAdapter()), { problem: 'cups has no entries' });
+  // An empty level inside is said too, and the rest is read.
+  const hollow = NESTED();
+  hollow.cups[1].grid = {};
+  const h = adaptBracket(hollow, sidesAdapter());
+  assert.ok(h.report.includes('cups.2.grid has no entries'));
+  assert.deepEqual(h.matches.map((m) => m.id), ['x1', 'x2']);
 });
 
 test('the bracket is the position at the chosen level; a field that repeats across brackets is the stage', () => {
@@ -563,4 +569,18 @@ test('every path the bracket shape gives is one a source write can address: no s
     assert.ok(paths.length > 20);
     for (const leaf of paths) assert.notEqual(patchForPath(`external.b1.${leaf}`, 'x'), null, leaf);
   }
+});
+
+test('side rows: a repeated side is said and left out; a round name on one side only does not hold the match', () => {
+  const twice = NESTED();
+  twice.cups[0].grid[1][1][1] = [sideRow('x1', 'r1', 'Round 1', 'Aster', 'X', 2), sideRow('x1', 'r1', 'Round 1', 'Aster', 'X', 2)];
+  const r = adaptBracket(twice, sidesAdapter());
+  assert.ok(r.report.includes('row cups.1.grid.1.1.1.2 repeats a side of match x1, so it is left out'));
+  assert.ok(r.report.includes('match x1 has one side in the rows'));
+  assert.equal(matchesOf(r.output)[0].b.name, null);
+  const named = NESTED();
+  named.cups[0].grid[1][1][2][1].stepName = '';
+  const n = adaptBracket(named, sidesAdapter());
+  assert.deepEqual(matchesOf(n.output)[1].a.name, 'Cedar');
+  assert.equal(n.report.some((l) => l.includes('disagree')), false);
 });

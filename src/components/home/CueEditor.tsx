@@ -322,7 +322,8 @@ function CueConnectReview({
       : [];
   // A bound leaf needs repair when the input the saved recipe reads for it is gone from the sample.
   const savedOutputs = reuse?.kind === 'external' ? (reuse.config.mapping?.outputs ?? {}) : {};
-  const repairs = offers ? needsRepair(bound, id, offers, savedOutputs) : new Set<string>();
+  // A bracket's paths are made by its adapter, not found in the answer: none is "gone" from it.
+  const repairs = offers && !bracket ? needsRepair(bound, id, offers, savedOutputs) : new Set<string>();
   /** What a row may pick: a list field the sample's lists, any other its values. */
   const optionsFor = (fieldId: string) => (offers && adapters[fieldId] ? offers.collections.map((c) => ({ path: c.path, label: c.label })) : offered);
   const chosen = (row: MappingRow): string | null => chosenPath(row, choices);
@@ -1909,10 +1910,6 @@ const BRACKET_FIELD_WORDS: Record<BracketFieldKey, string> = {
   league: 'League',
 };
 
-/**
- * Read as a bracket (obs-scenes OS5b, B1): where the rows are and which field of a row means what,
- * picked from the sample. The source keeps it as its setting; no site's field names are in code.
- */
 /** A select of a sample's keys, with "not mapped" first and a stored key kept in view. */
 function KeySelect({ value, keys, empty, onChange, label, testId }: { value: string | undefined; keys: string[]; empty: string; onChange: (path: string) => void; label: string; testId: string }) {
   return (
@@ -2034,7 +2031,7 @@ function BracketSetting({ sample, adapter: stored, problem, onChange }: { sample
             .map((key) => (
               <KeySelect key={key} label={BRACKET_FIELD_WORDS[key]} value={adapter.fields[key]} keys={rowKeys} empty="Not in the rows" onChange={(path) => set(key, path)} testId={`cue-connect-bracket-${key}`} />
             ))}
-          {sectionPaths.length > 0 && (
+          {(sectionPaths.length > 0 || adapter.players) && (
             <label className="row">
               <span>Players list</span>
               <select

@@ -312,9 +312,14 @@ function gatherRows(payload: unknown, path: string): { rows: Gathered[]; report:
       if (!isObject(value) || !Object.prototype.hasOwnProperty.call(value, seg)) return report.push(`${here} has no ${seg}`);
       return walk(value[seg], i + 1, positions, [...where, seg]);
     }
-    if (Array.isArray(value)) return value.forEach((entry, n) => walk(entry, i + 1, [...positions, String(n + 1)], [...where, String(n + 1)]));
+    if (Array.isArray(value)) {
+      if (value.length === 0) return report.push(`${here} has no entries`);
+      return value.forEach((entry, n) => walk(entry, i + 1, [...positions, String(n + 1)], [...where, String(n + 1)]));
+    }
     if (!isObject(value)) return report.push(`${here} holds no entries`);
-    for (const [, key, entry] of numberedEntries(value, (key) => report.push(`${here}.“${key}” has no number, so it is left out`))) walk(entry, i + 1, [...positions, key], [...where, key]);
+    const numbered = numberedEntries(value, (key) => report.push(`${here}.“${key}” has no number, so it is left out`));
+    if (numbered.length === 0) return report.push(`${here} has no entries`);
+    for (const [, key, entry] of numbered) walk(entry, i + 1, [...positions, key], [...where, key]);
   };
   walk(payload, 0, [], []);
   if (containers === 0) return { problem: report[0] ?? `${path} holds no rows` };
@@ -371,11 +376,14 @@ interface Entry {
   kept?: true;
 }
 
+/** A section's entries in order: a list, or an object's values by any key; null for anything else. */
+const valuesOf = (value: unknown): unknown[] | null => (Array.isArray(value) ? value : isObject(value) ? Object.values(value) : null);
+
 /** The players section's entries in order (B20): a list, or an object of entries by any key. */
 function playersIn(payload: unknown, setting: NonNullable<BracketAdapter['players']>): { players: { name: string; race: Scalar; seed: Scalar; league: Scalar }[] } | { problem: string } {
   const at = valueAt(payload, setting.at);
   const where = setting.at === '' ? 'the answer' : setting.at;
-  const list = Array.isArray(at) ? at : isObject(at) ? Object.values(at) : null;
+  const list = valuesOf(at);
   if (!list) return { problem: at === undefined ? `the players list (${where}) is not in the JSON` : `the players list (${where}) holds no players` };
   const pick = (entry: Record<string, unknown>, key: PlayerFieldKey) => (setting.fields[key] ? atPath(entry as JsonValue, setting.fields[key]!) : undefined);
   const players: { name: string; race: Scalar; seed: Scalar; league: Scalar }[] = [];
@@ -459,11 +467,20 @@ export function adaptBracket(
       }
       byMatch.set(id, [...(byMatch.get(id) ?? []), g]);
     }
-    for (const [id, rows] of byMatch) {
+    for (const [id, all] of byMatch) {
+      // The same side row twice is one side, said (B7, B17): never a match against itself.
+      const said = new Set<string>();
+      const rows = all.filter((g) => {
+        const key = JSON.stringify(FIELDS_FOR.sides.map((k) => field(g.row, k) ?? null));
+        if (!said.has(key)) return said.add(key);
+        report.push(`${g.label} repeats a side of match ${id}, so it is left out`);
+        return false;
+      });
       const placed = rows.map((g) => entryOf(g, EMPTY, EMPTY));
       if (placed.some((e) => e === null)) continue;
-      const first = placed[0]!;
-      const where = (e: Entry) => JSON.stringify([e.bracketId, e.stageId, e.roundId, e.roundName, e.title, e.status]);
+      // Names and titles may be on one side only: the first given is the match's.
+      const first = { ...placed[0]!, roundName: placed.find((e) => e!.roundName)?.roundName ?? null, title: placed.find((e) => e!.title)?.title ?? null };
+      const where = (e: Entry) => JSON.stringify([e.bracketId, e.stageId, e.roundId, e.status]);
       if (rows.length > 2) {
         report.push(`match ${id} has ${rows.length} rows, so it keeps its values`);
         entries.push({ ...first, kept: true });
@@ -745,9 +762,14 @@ export function adaptForReader(
 
 // ── The Connect review (B2) ──────────────────────────────────────────────────────────────────
 
-/** A list's entries, or an object's keyed by number: what a `*` steps through. */
-const entriesOf = (value: unknown): unknown[] | null =>
-  Array.isArray(value) ? value : isObject(value) && Object.keys(value).length > 0 && Object.keys(value).every((k) => ROW_NUMBER.test(k)) ? Object.values(value) : null;
+/** A list's entries, or an object's keyed by number, as the reader takes them: what a `*` steps
+ *  through. */
+const entriesOf = (value: unknown): unknown[] | null => {
+  if (Array.isArray(value)) return value;
+  if (!isObject(value)) return null;
+  const numbered = numberedEntries(value, () => {});
+  return numbered.length > 0 ? numbered.map(([, , entry]) => entry) : null;
+};
 /** An entry that can be a row: an object with at least one scalar. */
 const rowLike = (value: unknown): boolean => isObject(value) && Object.values(value).some((v) => scalarText(v) !== null);
 
@@ -786,7 +808,7 @@ export function bracketSectionPaths(sample: unknown): string[] {
     for (const [key, child] of Object.entries(value)) {
       if (!SEGMENT.test(key)) continue;
       const at = [...keys, key];
-      const list = Array.isArray(child) ? child : isObject(child) ? Object.values(child) : [];
+      const list = valuesOf(child) ?? [];
       if (list.length > 0 && list.slice(0, 3).every(rowLike)) out.push(at.join('.'));
       else walk(child, at);
     }
@@ -819,8 +841,7 @@ export function bracketRowKeys(sample: unknown, rows: string): string[] {
 
 /** The keys the first entries of a players section hold. */
 export function bracketSectionKeys(sample: unknown, at: string): string[] {
-  const value = valueAt(sample, at);
-  return keysOf(Array.isArray(value) ? value : isObject(value) ? Object.values(value) : []);
+  return keysOf(valuesOf(valueAt(sample, at)) ?? []);
 }
 
 /** What the review shows for a bracket source: the adapted sample, with the first match as the

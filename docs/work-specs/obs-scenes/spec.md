@@ -910,6 +910,13 @@ Filled in by each phase's pull request.
     array index, which no source write can address, so `brackets.0...` could never be written.
     So `<p>.brackets._i.stages._k.rounds._r.matches._m`, `<p>.players._j`, `<p>.ties.<key>`.
     Every path the shape gives is checked to be writable.
+  - Found by the `/check` review of these: the same side row twice is one side, said and left out
+    (never a match against itself); a round name or title given on one side only is the match's,
+    and does not hold it (B17 compares bracket, stage, round and status); an empty level at a `*`
+    is said (B18); the review steps through a level as the reader does (numbered keys, others said)
+    and keeps a stored players list editable when the sample offers none; a bracket source is never
+    marked "needs repair" for paths its adapter makes. Side rows pair by match id across the whole
+    answer, since match ids are unique across it and the current match is picked by id.
 - Previous verified `main`: `97ba82596a7fcfcf6a424140648a5f8ad13aab92` (CI 43307568831, configured
   suite 43307568943).
 - Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed and no
