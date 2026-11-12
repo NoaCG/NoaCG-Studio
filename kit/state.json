@@ -36,7 +36,7 @@
  },
  "waitingOn": [
   {
-   "what": "G1 PR #2404 merge, then the W2 build PR with migration 0115",
+   "what": "phase 4 W2 build PR (migration 0115) and receipt",
    "eta": "2026-11-12T08:00:00Z"
   }
  ],
@@ -49,7 +49,8 @@
    "branch": "claude/plan-live-publishing-4-build",
    "launchedAt": "2026-11-12T00:02:29Z",
    "designPr": 2404,
-   "lastSeen": "2026-11-12T02:09Z G1 design PR #2404 head e32746ea stamped, in merge queue; /so A after B,B,B; W2 build with migration 0115 in progress locally"
+   "lastSeen": "2026-11-12T02:09Z G1 design PR #2404 head e32746ea stamped, in merge queue; /so A after B,B,B; W2 build with migration 0115 in progress locally",
+   "designMerge": "eee7827892b1936c00acc263655cf6a6e753e4be"
   }
  ],
  "owner": [
