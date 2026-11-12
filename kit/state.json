@@ -36,8 +36,8 @@
  },
  "waitingOn": [
   {
-   "what": "OS0 builder receipt and PR",
-   "eta": "2026-11-12T18:00:00Z"
+   "what": "PR 2448 in the merge queue, then the OS0 check",
+   "eta": "2026-11-12T16:30:00Z"
   }
  ],
  "inFlight": [
@@ -48,7 +48,9 @@
    "session": "session_017SdbwM9GCeoSZfBjmLZ5Wj",
    "branch": "claude/plan-obs-scenes-os0-build",
    "launchedAt": "2026-11-12T14:05:30Z",
-   "lastSeen": "2026-11-12T14:37Z: final /so delta A, Codex clean, waiting on CI for a81a58b"
+   "lastSeen": "2026-11-12T14:51Z receipt os0-b-5518; stamped, auto-merge on",
+   "pr": 2448,
+   "reviewedHead": "a81a58bf77add132cba31c5b6a1ee7085b11d64f"
   }
  ],
  "owner": [
@@ -63,6 +65,10 @@
   {
    "what": "OS7: rehearsal with failure drills",
    "where": "run issue hand-over after OS6"
+  },
+  {
+   "what": "Decide whether automatic reverts and quarantine landings may pass a landing hold (today: held; the guide says lift, land, set again)",
+   "where": "coordinator chat"
   }
  ],
  "fixes": [],
