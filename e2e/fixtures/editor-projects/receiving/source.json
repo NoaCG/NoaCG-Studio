@@ -111,7 +111,7 @@
   ],
   "brandApplication": {
     "v": 1,
-    "lookId": "8255ac50-42cc-45e6-8502-ac4e1d20703e",
+    "lookId": "f6fb596c-df78-469b-84a0-6f156f5316c7",
     "values": {
       "accent": "#16bb99",
       "text-color": "#ffffff",
@@ -125,6 +125,24 @@
       "label-tracking": "0.16em",
       "label-color": "var(--text-dim)"
     },
+    "fonts": [
+      {
+        "family": "Oswald",
+        "css": [
+          "/* Bundled open-source font (the file ships with the export — no internet at playout). */\n@font-face {\n  font-family: \"Oswald\";\n  src: url(\"fonts/oswald.woff2\") format(\"woff2\");\n  font-weight: 400 700;  /* variable font: covers this weight range */\n  font-display: swap;          /* show fallback text until the font loads */\n}",
+          "@font-face {\n  font-family: \"Oswald\";\n  src: url(\"fonts/oswald-latin-ext.woff2\") format(\"woff2\");\n  font-weight: 400 700;  /* variable font: covers this weight range */\n  font-display: swap;\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;  /* latin-ext: Š Ž Ł ő ğ and the rest of Latin Extended */\n}"
+        ],
+        "assets": []
+      },
+      {
+        "family": "Saira",
+        "css": [
+          "@font-face {\n  font-family: \"Saira\";\n  src: url(\"fonts/saira.woff2\") format(\"woff2\");\n  font-weight: 400 900;  /* variable font: covers this weight range */\n  font-display: swap;          /* show fallback text until the font loads */\n}",
+          "@font-face {\n  font-family: \"Saira\";\n  src: url(\"fonts/saira-latin-ext.woff2\") format(\"woff2\");\n  font-weight: 400 900;  /* variable font: covers this weight range */\n  font-display: swap;\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;  /* latin-ext: Š Ž Ł ő ğ and the rest of Latin Extended */\n}"
+        ],
+        "assets": []
+      }
+    ],
     "logo": {
       "field": "f5",
       "value": "images/harbour.svg",

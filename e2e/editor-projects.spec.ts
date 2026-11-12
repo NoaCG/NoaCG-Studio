@@ -421,3 +421,267 @@ test('saved project reaches operator data In/Next/Out and exports bundled receiv
   }
   writeFileSync(info.outputPath('receiving-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 });
+
+
+for (const door of ['api', 'document', 'brand', 'save', 'create'] as const) test(`external draft is durably retained through project ${door}`, async ({ page }) => {
+  const ids = await seedAuthoringProject(page);
+  const external = await page.evaluate(async () => {
+    const S = (await import('/src/store/templateStore.ts')).useTemplateStore;
+    const s = S.getState(); s.applyTemplate({ ...s.template, name: 'External harbour draft' }, { resetSampleData: true });
+    const look = (await import('/src/model/packets.ts')).createLook('Batch brand', { styleTag: 'minimal', fontId: 'inter', customFont: null,
+      palette: { id: 'custom', name: 'Harbour', styleTags: ['minimal'], accent: '#16bb99', text: '#ffffff', textDim: '#aaaabb', panel: '#112233' } });
+    return { id: S.getState().documentId, look: look.id };
+  });
+  await editProjectText(page, 'External source must survive');
+  await flushAuthoringProject(page);
+  const before = await page.evaluate(async () => {
+    const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    return { template: s.template, history: s.history, saved: { graphicId: s.saved.graphicId, dirty: s.saved.dirty } };
+  });
+  if (door === 'api' || door === 'create') await page.evaluate(async ({ id, door }) => {
+    const P = await import('/src/store/authoringProjects.ts');
+    const ok = door === 'api' ? await P.openProjectDocument(id) : await P.createAuthoringProject('Second project', [P.workspace().documents[0].template]);
+    if (!ok) throw new Error(P.useAuthoringProjects.getState().error);
+  }, { id: ids[1], door });
+  else {
+    await page.getByRole('button', { name: /^Project/ }).first().click();
+    if (door === 'document') await page.locator(`[data-document="${ids[1]}"]`).click();
+    else {
+      await page.locator(`[data-document="${ids[1]}"]`).locator('..').getByRole('checkbox').check();
+      if (door === 'brand') { await page.getByLabel('Brand for selected graphics').selectOption(external.look); await page.getByRole('button', { name: 'Apply brand', exact: true }).click(); }
+      else await page.getByRole('button', { name: 'Save selected', exact: true }).click();
+      await expect(page.getByTestId('project-note')).toContainText(door === 'brand' ? 'Brand applied' : 'graphics saved');
+      expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().documentId)).toBe(external.id);
+    }
+  }
+  await flushAuthoringProject(page);
+  const kept = await page.evaluate(async id => (await import('/src/store/authoringProjects.ts')).workspace().documents.find(d => d.id === id), external.id);
+  expect(kept).toBeDefined(); expect(kept!.template).toEqual(before.template); expect(kept!.history).toEqual(before.history); expect(kept!.saved).toEqual(before.saved);
+  await page.reload(); await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  const reopened = await page.evaluate(async id => {
+    const P = await import('/src/store/authoringProjects.ts');
+    if (!await P.openProjectDocument(id)) throw new Error(P.useAuthoringProjects.getState().error);
+    const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const draft = s.port.read(); s.undo(); const undo = s.port.read(); s.redo();
+    return { draft, undo, redo: s.port.read() };
+  }, external.id);
+  expect(reopened.draft).toEqual(before.template); expect(reopened.undo.html).not.toContain('External source must survive'); expect(reopened.redo).toEqual(before.template);
+});
+
+test('refused external retention and cancelled Home/starter switches keep the unfiled working source', async ({ page }) => {
+  await armStorageFailure(page);
+  const ids = await seedAuthoringProject(page);
+  const externalId = await page.evaluate(async () => {
+    const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    s.applyTemplate({ ...s.template, name: 'External refusal' }, { resetSampleData: true });
+    return (await import('/src/store/templateStore.ts')).useTemplateStore.getState().documentId;
+  });
+  await editProjectText(page, 'Refused external must stay open'); await flushAuthoringProject(page);
+  await fillStorage(page);
+  const result = await page.evaluate(async id => {
+    const P = await import('/src/store/authoringProjects.ts'); const ok = await P.openProjectDocument(id);
+    const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    return { ok, id: s.documentId, html: s.template.html };
+  }, ids[0]);
+  expect(result.ok).toBe(false); expect(result.id).toBe(externalId); expect(result.html).toContain('Refused external must stay open');
+  await freeStorage(page);
+  await page.getByTestId('open-home').click();
+  await expect(page.getByTestId('confirm-switch')).toBeVisible();
+  await page.getByTestId('switch-cancel').click();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().documentId)).toBe(externalId);
+  await page.getByRole('button', { name: /^Project/ }).first().click();
+  await page.getByRole('button', { name: 'New project', exact: true }).click();
+  await expect(page.getByTestId('project-starter')).toBeVisible();
+  await page.getByTestId('project-starter').getByRole('button', { name: /^Create project/ }).click();
+  await expect(page.getByTestId('confirm-switch')).toBeVisible();
+  await page.getByTestId('switch-cancel').click();
+  const cancelled = await page.evaluate(async () => {
+    const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    return { id: s.documentId, html: s.template.html, projects: (await import('/src/store/authoringProjects.ts')).workspace().projects.length };
+  });
+  expect(cancelled.id).toBe(externalId); expect(cancelled.html).toContain('Refused external must stay open'); expect(cancelled.projects).toBe(1);
+  await page.getByRole('button', { name: 'Close new project', exact: true }).click();
+});
+
+test('library Save As and same-private-id baseline changes retire old ports before binding refresh', async ({ page }) => {
+  await seedAuthoringProject(page);
+  const result = await page.evaluate(async () => {
+    const S = (await import('/src/store/templateStore.ts')).useTemplateStore;
+    const D = await import('/src/components/editorFoundation/documentAdapter.ts');
+    const A = await import('/src/store/saveActions.ts');
+    const s = S.getState(); s.applyTemplate({ ...s.template, name: 'External ownership' }, { resetSampleData: true });
+    const privateId = S.getState().documentId, initial = D.activeEditorSession();
+    const closed = (port: typeof initial.port) => { try { port.restore({ selectedParts: [], time: 99 }); return ''; } catch (e) { return String(e); } };
+    const first = await A.saveGraphicAs('Ownership first', { kind: 'standalone' });
+    if (!first.ok) throw new Error(first.error!);
+    const initialClosed = closed(initial.port), firstSession = D.activeEditorSession();
+    const firstOwner = { public: firstSession.documentId, instance: firstSession.instanceId, private: S.getState().documentId, graphic: S.getState().saved.graphicId };
+    const second = await A.saveGraphicAs('Ownership second', { kind: 'standalone' });
+    if (!second.ok) throw new Error(second.error!);
+    const firstClosed = closed(firstSession.port), secondSession = D.activeEditorSession();
+    const secondOwner = { public: secondSession.documentId, instance: secondSession.instanceId, private: S.getState().documentId, graphic: S.getState().saved.graphicId };
+    const source = secondSession.port.read();
+    S.setState({ baseline: structuredClone(S.getState().baseline) });
+    const baselineClosed = closed(secondSession.port); // No call to activeEditorSession yet.
+    const refreshed = D.activeEditorSession();
+    const baselineOwner = { public: refreshed.documentId, instance: refreshed.instanceId, private: S.getState().documentId, graphic: S.getState().saved.graphicId };
+    return { privateId, initialClosed, firstClosed, baselineClosed, first: first.graphicId, second: second.graphicId,
+      firstOwner, secondOwner, baselineOwner, sourceKept: JSON.stringify(refreshed.port.read()) === JSON.stringify(source) };
+  });
+  for (const closed of [result.initialClosed, result.firstClosed, result.baselineClosed]) expect(closed).toContain('closed');
+  expect(result.firstOwner.public).toBe(result.first); expect(result.secondOwner.public).toBe(result.second); expect(result.first).not.toBe(result.second);
+  expect(result.firstOwner.private).toBe(result.privateId); expect(result.secondOwner.private).toBe(result.privateId); expect(result.baselineOwner.private).toBe(result.privateId);
+  expect(result.firstOwner.instance).not.toBe(result.secondOwner.instance); expect(result.secondOwner.instance).not.toBe(result.baselineOwner.instance);
+  expect(result.baselineOwner.public).toBe(result.second); expect(result.baselineOwner.graphic).toBe(result.second); expect(result.sourceKept).toBe(true);
+});
+
+test('two retained drafts sharing a saved library link keep distinct public workspace ownership', async ({ page }) => {
+  const ids = await seedAuthoringProject(page);
+  const result = await page.evaluate(async firstId => {
+    const P = await import('/src/store/authoringProjects.ts'), A = await import('/src/store/saveActions.ts');
+    const D = await import('/src/components/editorFoundation/documentAdapter.ts');
+    const saved = await A.saveGraphicAs('Shared master identity', { kind: 'standalone' }); if (!saved.ok) throw new Error(saved.error!);
+    A.openGraphicById(saved.graphicId!);
+    const secondId = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().documentId;
+    if (!await P.keepCurrentInProject(P.workspace().projects[0].id)) throw new Error(P.useAuthoringProjects.getState().error);
+    const secondPublic = D.activeEditorSession().documentId;
+    if (!await P.openProjectDocument(firstId)) throw new Error(P.useAuthoringProjects.getState().error);
+    const firstPublic = D.activeEditorSession().documentId;
+    const links = P.workspace().documents.filter(d => d.id === firstId || d.id === secondId).map(d => d.saved.graphicId);
+    return { firstId, secondId, firstPublic, secondPublic, links, graphic: saved.graphicId };
+  }, ids[0]);
+  expect(result.firstPublic).toBe(result.firstId); expect(result.secondPublic).toBe(result.secondId); expect(result.firstPublic).not.toBe(result.secondPublic);
+  expect(result.links).toEqual([result.graphic, result.graphic]);
+});
+
+test('brand reapplication renders retained numeric and custom font bytes through undo redo and repeated application', async ({ page }) => {
+  await seedAuthoringProject(page);
+  const saira = 'data:font/woff2;base64,' + readFileSync('public/fonts/saira.woff2').toString('base64');
+  const inter = 'data:font/woff2;base64,' + readFileSync('public/fonts/inter.woff2').toString('base64');
+  const numeric = await page.evaluate(async () => {
+    const D = await import('/src/components/editorFoundation/documentAdapter.ts'), F = await import('/src/model/fonts.ts'), C = await import('/src/model/cssVars.ts');
+    const S = (await import('/src/store/templateStore.ts')).useTemplateStore;
+    const palette = { id: 'custom', name: 'Harbour', styleTags: ['minimal' as const], accent: '#16bb99', text: '#ffffff', textDim: '#aaaabb', panel: '#112233' };
+    const a = { id: 'render-a', name: 'A', updatedAt: '2026-11-12T00:00:00Z', brand: { styleTag: 'minimal' as const, palette, fontId: 'oswald', customFont: null } };
+    const apply = (look: typeof a) => { const s = D.activeEditorSession(); s.execute({ documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'brand.apply', look }] }); };
+    apply(a); const source = S.getState().template, anton = F.fontById('anton');
+    const probe = '<span id="e4-number" style="position:absolute;left:40px;top:40px;display:inline-block;width:auto;font-family:var(--font-numeric);font-size:60px;font-weight:400;font-variant-numeric:tabular-nums;letter-spacing:0">0</span><span id="e4-heading" style="position:absolute;left:40px;top:140px;display:inline-block;width:auto;font-family:var(--font-heading);font-size:60px;font-weight:400;letter-spacing:0">HarbourWWW111</span><span id="e4-label" style="position:absolute;left:40px;top:240px;display:inline-block;width:auto;font-family:var(--font-label);font-size:60px;font-weight:400;letter-spacing:0">HarbourWWW111</span>';
+    let css = F.ensureFontFace(C.setCssVariable(C.setCssVariable(source.css, 'font-heading', F.fontStack(anton)), 'font-numeric', F.numericFontStack(anton)), anton);
+    if (C.getCssVariable(css, 'font-label') === null) css = css.replace(/:root\s*\{/, ':root { --font-label: "Inter", Arial, sans-serif;');
+    const local = { ...source, css, html: source.html + probe }; S.getState().applyTemplate(local);
+    const b = { ...a, id: 'render-b', brand: { ...a.brand, fontId: 'inter' } }; apply(b);
+    const session = D.activeEditorSession(), next = session.port.read(); session.undo(); const undo = JSON.stringify(session.port.read()) === JSON.stringify(local); session.redo();
+    const redo = JSON.stringify(session.port.read()) === JSON.stringify(next); apply(b);
+    const repeated = JSON.stringify(session.port.read()) === JSON.stringify(next);
+    return { undo, redo, repeated, numeric: C.getCssVariable(next.css, 'font-numeric'), expected: F.numericFontStack(anton) };
+  });
+  expect(numeric).toMatchObject({ undo: true, redo: true, repeated: true }); expect(numeric.numeric).toBe(numeric.expected);
+  const frame = page.frameLocator('iframe[title="Foundation graphic preview"]');
+  await expect(frame.locator('#e4-number')).toBeVisible(); await expect(frame.locator('#e4-number')).toHaveCSS('font-family', /Saira/);
+  const widths = await frame.locator('#e4-number').evaluate(async (el, data) => {
+    const face = await new FontFace('E4 expected Saira', `url(${data})`, { weight: '100 900' }).load(); document.fonts.add(face); await document.fonts.ready;
+    const expected = el.cloneNode(true) as HTMLElement; expected.removeAttribute('id'); expected.style.fontFamily = 'E4 expected Saira'; el.after(expected);
+    const got = [], want = [];
+    for (let d = 0; d <= 9; d++) { el.textContent = expected.textContent = String(d); got.push(el.getBoundingClientRect().width); want.push(expected.getBoundingClientRect().width); }
+    expected.remove(); return { got, want };
+  }, saira);
+  expect(Math.max(...widths.got) - Math.min(...widths.got)).toBeLessThanOrEqual(.5);
+  widths.got.forEach((value, i) => expect(Math.abs(value - widths.want[i])).toBeLessThanOrEqual(.5));
+  const custom = await page.evaluate(async ({ saira, inter }) => {
+    const D = await import('/src/components/editorFoundation/documentAdapter.ts'), F = await import('/src/model/fonts.ts'), C = await import('/src/model/cssVars.ts');
+    const S = (await import('/src/store/templateStore.ts')).useTemplateStore, source = S.getState().template;
+    const localFont = { family: 'Harbour Face', format: 'woff2' as const, asset: { path: 'fonts/brand.woff2', data: saira } };
+    const local = { ...source, css: C.setCssVariable(C.setCssVariable(F.customFontFaceCss(localFont) + '\n' + source.css, 'font-heading', F.customFontStack(localFont)), 'font-numeric', F.numericFontStack(localFont)), assets: [...source.assets, localFont.asset] };
+    S.getState().applyTemplate(local);
+    const look = { id: 'render-c', name: 'C', updatedAt: '2026-11-12T00:00:00Z', brand: { styleTag: 'minimal' as const, fontId: null,
+      palette: { id: 'custom', name: 'Harbour', styleTags: ['minimal' as const], accent: '#16bb99', text: '#ffffff', textDim: '#aaaabb', panel: '#112233' },
+      customFont: { ...localFont, asset: { ...localFont.asset, data: inter } }, tokens: { 'font-label': F.customFontStack(localFont) } } };
+    const apply = () => { const s = D.activeEditorSession(); s.execute({ documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'brand.apply', look }] }); };
+    apply(); const session = D.activeEditorSession(), next = session.port.read(); session.undo(); const undo = JSON.stringify(session.port.read()) === JSON.stringify(local); session.redo();
+    const redo = JSON.stringify(session.port.read()) === JSON.stringify(next); apply();
+    return { undo, redo, repeated: JSON.stringify(session.port.read()) === JSON.stringify(next), kept: next.assets.some(a => a.path === localFont.asset.path && a.data === saira),
+      incoming: next.assets.some(a => a.path !== localFont.asset.path && a.data === inter), heading: C.getCssVariable(next.css, 'font-heading'), label: C.getCssVariable(next.css, 'font-label') };
+  }, { saira, inter });
+  expect(custom).toMatchObject({ undo: true, redo: true, repeated: true, kept: true, incoming: true }); expect(custom.heading).toContain('Harbour Face'); expect(custom.label).toContain('Harbour Face Brand');
+  await expect(frame.locator('#e4-heading')).toHaveCSS('font-family', /Harbour Face/); await expect(frame.locator('#e4-label')).toHaveCSS('font-family', /Harbour Face Brand/);
+  for (const [id, data, family] of [['e4-heading', saira, 'E4 expected local'], ['e4-label', inter, 'E4 expected incoming']]) {
+    const delta = await frame.locator('#' + id).evaluate(async (el, { data, family }) => {
+      const face = await new FontFace(family, `url(${data})`, { weight: '100 900' }).load(); document.fonts.add(face); await document.fonts.ready;
+      const expected = el.cloneNode(true) as HTMLElement; expected.removeAttribute('id'); expected.style.fontFamily = family; el.after(expected);
+      const delta = Math.abs(el.getBoundingClientRect().width - expected.getBoundingClientRect().width); expected.remove(); return delta;
+    }, { data, family });
+    expect(delta).toBeLessThanOrEqual(.5);
+  }
+});
+
+test('old commands refuse Save As and baseline replacement before any caller refreshes the binding', async ({ page }) => {
+  type Fixture = {
+    S: typeof import('/src/store/templateStore.ts'); D: typeof import('/src/components/editorFoundation/documentAdapter.ts');
+    A: typeof import('/src/store/saveActions.ts'); C: typeof import('/src/components/editorFoundation/commandAdapter.ts');
+    outcome?: { done: boolean; ok: boolean; graphic: string | null; privateId: string; portClosed: boolean; commandCode: string; oldSessionId: string; sourceKept: boolean; error?: string };
+  };
+  await seedAuthoringProject(page);
+  await page.evaluate(async () => {
+    const [S, D, A, C] = await Promise.all([import('/src/store/templateStore.ts'), import('/src/components/editorFoundation/documentAdapter.ts'), import('/src/store/saveActions.ts'), import('/src/components/editorFoundation/commandAdapter.ts')]);
+    (window as unknown as { ownershipFixture: Fixture }).ownershipFixture = { S, D, A, C };
+  });
+  const privateId = await page.evaluate(() => {
+    const w = (window as unknown as { ownershipFixture: Fixture }).ownershipFixture, s = w.S.useTemplateStore.getState();
+    s.applyTemplate({ ...s.template, name: 'Command ownership' }, { resetSampleData: true });
+    return w.S.useTemplateStore.getState().documentId;
+  });
+  const commandOwner = () => page.evaluate(() => {
+    const w = (window as unknown as { ownershipFixture: Fixture }).ownershipFixture;
+    try { const i = w.C.activeEditorCommands().inspect(); return i.ok ? i.expected.documentId : 'closed'; } catch { return 'closed'; }
+  });
+  await expect.poll(commandOwner).toBe(privateId);
+  let lastGraphic = '';
+  for (const name of ['Command first save', 'Command Save As']) {
+    await page.evaluate(name => {
+      const w = (window as unknown as { ownershipFixture: Fixture }).ownershipFixture, c = w.C.activeEditorCommands(), i = c.inspect();
+      if (!i.ok) throw new Error(i.refusal.message);
+      const old = c.session.port, source = old.read(), artwork = (s: typeof source) => JSON.stringify({ html: s.html, css: s.css, js: s.js, assets: s.assets });
+      w.outcome = undefined;
+      void w.A.saveGraphicAs(name, { kind: 'standalone' }).then(saved => {
+        let portClosed = false; try { old.restore({ selectedParts: [], time: 99 }); } catch { portClosed = true; }
+        const refused = c.apply({ expected: i.expected, transactionId: crypto.randomUUID(), commands: [{ id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 40, y: 20, width: 80, height: 90 } } }] });
+        const state = w.S.useTemplateStore.getState();
+        w.outcome = { done: true, ok: saved.ok, graphic: saved.graphicId ?? null, privateId: state.documentId,
+          portClosed, commandCode: refused.ok ? 'accepted' : refused.refusal.code, oldSessionId: i.expected.sessionId, sourceKept: artwork(state.template) === artwork(source), error: saved.error };
+      }).catch(error => { w.outcome = { done: true, ok: false, graphic: null, privateId: '', portClosed: false, commandCode: '', oldSessionId: '', sourceKept: false, error: String(error) }; });
+    }, name);
+    await expect.poll(() => page.evaluate(() => (window as unknown as { ownershipFixture: Fixture }).ownershipFixture.outcome?.done ?? false)).toBe(true);
+    const result = await page.evaluate(() => (window as unknown as { ownershipFixture: Fixture }).ownershipFixture.outcome!);
+    expect(result).toMatchObject({ ok: true, privateId, portClosed: true, commandCode: 'session_closed', sourceKept: true });
+    expect(result.graphic).not.toBe(lastGraphic); lastGraphic = result.graphic!;
+    await expect.poll(commandOwner).toBe(lastGraphic);
+    const stale = await page.evaluate(oldSessionId => {
+      const w = (window as unknown as { ownershipFixture: Fixture }).ownershipFixture, c = w.C.activeEditorCommands(), i = c.inspect();
+      if (!i.ok) throw new Error(i.refusal.message);
+      const before = JSON.stringify(w.S.useTemplateStore.getState().template);
+      const refused = c.apply({ expected: { ...i.expected, sessionId: oldSessionId }, transactionId: crypto.randomUUID(), commands: [{ id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 40, y: 20, width: 80, height: 90 } } }] });
+      return { code: refused.ok ? 'accepted' : refused.refusal.code, sourceKept: before === JSON.stringify(w.S.useTemplateStore.getState().template), receiverChanged: i.expected.sessionId !== oldSessionId };
+    }, result.oldSessionId);
+    expect(stale).toEqual({ code: 'stale_context', sourceKept: true, receiverChanged: true });
+  }
+  const baseline = await page.evaluate(() => {
+    const w = (window as unknown as { ownershipFixture: Fixture }).ownershipFixture, c = w.C.activeEditorCommands(), i = c.inspect();
+    if (!i.ok) throw new Error(i.refusal.message);
+    const old = c.session.port, before = JSON.stringify(old.read()), state = w.S.useTemplateStore.getState();
+    w.S.useTemplateStore.setState({ baseline: structuredClone(state.baseline) });
+    let closed = false; try { old.restore({ selectedParts: [], time: 99 }); } catch { closed = true; }
+    const refused = c.apply({ expected: i.expected, transactionId: crypto.randomUUID(), commands: [{ id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 40, y: 20, width: 80, height: 90 } } }] });
+    return { closed, code: refused.ok ? 'accepted' : refused.refusal.code, sourceKept: JSON.stringify(w.S.useTemplateStore.getState().template) === before, privateId: w.S.useTemplateStore.getState().documentId, oldSessionId: i.expected.sessionId };
+  });
+  expect(baseline).toMatchObject({ closed: true, code: 'session_closed', sourceKept: true, privateId });
+  await expect.poll(commandOwner).toBe(lastGraphic);
+  const staleBaseline = await page.evaluate(oldSessionId => {
+    const w = (window as unknown as { ownershipFixture: Fixture }).ownershipFixture, c = w.C.activeEditorCommands(), i = c.inspect();
+    if (!i.ok) throw new Error(i.refusal.message);
+    const before = JSON.stringify(w.S.useTemplateStore.getState().template);
+    const refused = c.apply({ expected: { ...i.expected, sessionId: oldSessionId }, transactionId: crypto.randomUUID(), commands: [{ id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 40, y: 20, width: 80, height: 90 } } }] });
+    return { code: refused.ok ? 'accepted' : refused.refusal.code, sourceKept: before === JSON.stringify(w.S.useTemplateStore.getState().template), receiverChanged: i.expected.sessionId !== oldSessionId };
+  }, baseline.oldSessionId);
+  expect(staleBaseline).toEqual({ code: 'stale_context', sourceKept: true, receiverChanged: true });
+});

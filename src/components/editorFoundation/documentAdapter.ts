@@ -3,21 +3,26 @@ import { useTemplateStore } from '../../store/templateStore';
 import { EditorSession } from './session';
 import { readTimeline } from './timelineView';
 
-let active: { id: string; baseline: object; session: EditorSession; closed: boolean; time: number; cue?: number } | null = null;
+let active: { id: string; baseline: object; session: EditorSession; publicId: string; closed: boolean; time: number; cue?: number } | null = null;
 /** Each retained draft restores its own history; every switch closes the previous session. */
 export function activeEditorSession(): EditorSession {
   const state = useTemplateStore.getState();
-  if (active?.id === state.documentId && active?.baseline === state.baseline) return active.session;
-  if (active) { active.closed = true; active.session.dispose(); }
   const document = currentAuthoringDocument();
+  const publicId = document?.id ?? state.saved.graphicId ?? state.documentId;
+  if (active && !active.closed && active.id === state.documentId && active.baseline === state.baseline && active.publicId === publicId) return active.session;
+  if (active) { active.closed = true; active.session.dispose(); }
   const openingTime = readTimeline(state.template).segments[0]?.duration ?? 0;
-  const binding = { id: state.documentId, closed: false, baseline: state.baseline, time: document?.view?.time ?? openingTime, cue: document?.view?.cue, session: null as unknown as EditorSession };
+  const binding = { id: state.documentId, publicId, closed: false, baseline: state.baseline, time: document?.view?.time ?? openingTime, cue: document?.view?.cue, session: null as unknown as EditorSession };
+  const owns = (next: ReturnType<typeof useTemplateStore.getState>) => !binding.closed && next.documentId === binding.id && next.baseline === binding.baseline &&
+    (currentAuthoringDocument()?.id ?? next.saved.graphicId ?? next.documentId) === binding.publicId;
   const read = () => {
     const next = useTemplateStore.getState();
-    if (binding.closed || next.documentId !== binding.id) throw new Error('This document session is closed.');
+    if (!owns(next)) { binding.closed = true; throw new Error('This document session is closed.'); }
     return next;
   };
-  const session = new EditorSession(binding.id, {
+  // Keep the public library identity compatible outside a retained authoring draft.
+  // Binding ownership remains the independent authoring UUID, even for a same-ID reopen.
+  const session = new EditorSession(publicId, {
     read: () => read().template,
     view: () => ({ selectedParts: [...read().selectedParts], time: binding.time, cue: binding.cue, sampleData: { ...useTemplateStore.getState().sampleData } }),
     restore: view => {
@@ -44,11 +49,17 @@ export function activeEditorSession(): EditorSession {
     },
     undo: () => read().undo(),
     redo: () => read().redo(),
-    subscribe: listener => useTemplateStore.subscribe(s => { if (s.documentId === binding.id) listener(); }),
-  }, document ? { past: state.history, future: state.future, views: document.views } : undefined,
+    subscribe: listener => useTemplateStore.subscribe(s => { if (owns(s)) listener(); else { binding.closed = true; binding.session.dispose(); } }),
+  }, { past: state.history, future: state.future, views: document?.views },
     () => rememberDocumentView(binding.id, session.historyViews(), session.port.view()));
   binding.session = session;
   active = binding;
   return session;
 }
-export function setSessionTime(time: number, cue?: number) { if (active?.id === useTemplateStore.getState().documentId) { active.time = time; active.cue = cue; active.session.observeView(); rememberDocumentView(active.id, active.session.historyViews(), active.session.port.view()); } }
+export function setSessionTime(time: number, cue?: number) {
+  const state = useTemplateStore.getState();
+  if (!active || active.closed || active.id !== state.documentId || active.baseline !== state.baseline ||
+    active.publicId !== (currentAuthoringDocument()?.id ?? state.saved.graphicId ?? state.documentId)) return;
+  active.time = time; active.cue = cue; active.session.observeView();
+  rememberDocumentView(active.id, active.session.historyViews(), active.session.port.view());
+}

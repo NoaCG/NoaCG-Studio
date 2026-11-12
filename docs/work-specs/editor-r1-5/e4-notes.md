@@ -280,3 +280,97 @@ Its version command reports 0.12.4; no GSAP runtime or font payload was found in
 that archive. This is artifact inventory, not a new legal conclusion. The owner
 sends the [GSAP request](gsap.md); NoaCG is open source, entirely free, earns no
 revenue and serves broadcast graphics. Written disposition still gates OW1.
+
+
+### First post-open review round: B, corrections required
+
+The fresh full SO of all 42 paths at03e88fa9 returned AGREE WITH CORRECTIONS,
+grade B, not A. Codex independently reported the same external draft ownership
+class. No acceptance or queue approval follows even though isolated43217079413
+passed and normal CI's Build/Factory/catalog passed. That source/receipt stays
+historical after repair. Normal CI43217043887 also failed two saved folder/bin
+cases in shard14/15, with126other cases passing.
+
+The external-to-project boundary must preserve the entire departing source,
+history, view, library link and reservation, including batch brand/save callers.
+The central replacement API will durably adopt an external draft as unfiled
+before replacement; failed adoption keeps it open. This makes the transition
+lossless without depending on a particular UI caller. Existing Home/starter
+external guards and their cancellation behavior remain required.
+
+Typeface preservation is one effective package: chosen family, derived numeric
+face, matching font declarations and referenced bytes. Incoming brand path OR
+family-name collisions must not rebind a retained face. Repeated explicit
+application, undo/redo and rendered digit stability must preserve that package.
+No font-specific exception or weakened numerical assertion is allowed.
+
+The original saved folder/bin test deliberately exercises SAME public document
+identity with a NEW session instance. Its equality assertion is retained. The
+compatible public identity is the workspace document UUID for retained drafts,
+and the existing library graphic UUID for unretained saved-library editing;
+private authoring UUID/baseline, instance identity and closed-port guards still
+own history/view/commands. Stable public/library identity must not revive old
+forms or handles. Independent focused review agreed and retracted its initial
+suggestion to replace that equality; the regression gains positive internal
+instance and stable library-link checks instead.
+
+
+First-round correction evidence (one coherent checkpoint): j-0066
+reproduced the missing external draft before repair. The central replacement API
+now durably retains external drafts as unfiled, including direct open, document
+button, brand/save batches and creating another project; refusal keeps the draft
+open. Home/starter cancellations keep their existing guard. The public library
+identity remains compatible while private UUID/baseline/public-link changes
+immediately retire old ports, sessions and commands, before a caller refreshes.
+The editor subscribes to those ownership changes even if source bytes are equal.
+Retained drafts sharing one library link still expose different workspace IDs.
+
+Four valid source/byte probes reproduced the font class before repair. Eleven
+cheap Node cases now pass: shared numeric fallback, custom path/family collisions,
+byte-only overrides, fixed bundled paths, retained numeric siblings and an
+unmodified label receiving the incoming face. The v1 brand receipt keeps immutable
+applied font packages (declarations plus referenced bytes), as it already did for
+logo identity. Collision handling preserves imported-face markers and uses stable
+incoming aliases; bundled file names remain valid. Retained font bytes and
+unchanged typography roles survive, while eligible incoming roles still apply.
+
+J-0071 passed46 E4/folder/bin/command cases in 2.0 minutes. J-0072 also proved both
+Home and starter cancellation. The new strict rendered fixture initially placed
+its font-label declaration in a second :root (j-0068: 12 pass/1 fail); putting it in
+the documented first root fixed the fixture, without weakening font/byte/width
+assertions. J-0069 then passed the rendered source/undo/redo/repeated-application
+check: all ten digit widths stay within 0.5px and local/incoming custom headings
+match separate real Saira/Inter-byte reference faces. J-0067's four added command
+checks initially expected session_closed for old packets on the NEW receiver;
+the established contract is stale_context there, and session_closed on the OLD
+object. Both exact refusals are now required, with source equality retained.
+The original same-public-ID folder/bin equality is unchanged and passes.
+
+A proposed addition of zero-delay yields was rejected before execution. All four
+new post-review task-delay yields were removed from the WIP tests. J-0073 reran only the five affected cases and passed
+in 16.7s. Immediate old-object refusal precedes any session refresh/readiness
+observation; only afterward do observable receiver readiness and old-packet
+stale_context checks run. Source is inspected through the store in the immediate
+probe. Lint/app-types/dependency cruise pass; changed-path gates 95/95 pass across
+13 files; the final focused source/font and document-codec check passes 13/13. Current-source receiving artifacts were regenerated in j-0071 and their
+source/canonical hashes and four ZIP sizes/hashes independently verified.
+
+Current origin/main b5908e67e reconciles by clean merge-tree and merge-order; no
+merge was needed. No whole local production build was repeated. The next coherent
+candidate's full CI, configured selection, isolated backend and fresh full SO
+remain mandatory; historical green receipts do not pass that new head.
+
+
+The maintained numeric instrument `scripts/numerals.mjs --only sb05` passed in
+j-0075 (one relevant live-number variant of360, 0.5px invariant). J-0074 failed
+before any browser/instrument run because the temporary harness resolved the
+inherited offline guard relative to /tmp; absolute inherited paths fixed that
+setup without changing the guard. This narrow catalog baseline is separate from
+the actual reapplied-source rendered/byte checks, not whole-catalog proof.
+Three more cheap instances of the same font-identity class were reproduced and
+corrected before this checkpoint: an incoming uploaded file cannot shadow an
+unchanged bundled font URL, and serialization-only asset-key order must not
+become a false local override; distinct CSS family names must retain their CSS
+identity rather than bundled-lookup normalization. The eleven source/font cases
+pass; no per-font
+exception was introduced. All original failures remain in their logs/receipts.

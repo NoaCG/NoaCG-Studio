@@ -31,6 +31,13 @@ function retained(s: State, w = workspace()): AuthoringWorkspace {
   if (w.active !== s.documentId) return w;
   return { ...w, documents: w.documents.map(d => d.id === s.documentId ? snapshot(s, d) : d) };
 }
+/** Explicit project replacement retains an external working draft before it can leave. */
+function departingWorkspace(s: State): AuthoringWorkspace {
+  const w = retained(s);
+  if (w.active === s.documentId) return w;
+  const prior = w.documents.find(d => d.id === s.documentId), document = snapshot(s, prior);
+  return { ...w, active: s.documentId, documents: prior ? w.documents.map(d => d.id === s.documentId ? document : d) : [...w.documents, document] };
+}
 /** Session history is source-owned; clipboard/proposals and gestures are never persisted. */
 export function rememberDocumentView(id: string, history: HistoryViews, view: DocumentView) {
   if (useTemplateStore.getState().documentId !== id) return;
@@ -47,7 +54,7 @@ export function currentAuthoringDocument(): AuthoringDocument | undefined {
 
 useTemplateStore.subscribe((s, prev) => {
   if (restoring || authoringWorkspace() === undefined || workspaceRefusal()) return;
-  const changed = s.template !== prev.template || s.history !== prev.history || s.future !== prev.future ||
+  const changed = s.baseline !== prev.baseline || s.template !== prev.template || s.history !== prev.history || s.future !== prev.future ||
     s.saved !== prev.saved || s.sampleData !== prev.sampleData || s.aiSpec !== prev.aiSpec || s.aiThread !== prev.aiThread || s.legibility !== prev.legibility;
   if (!changed && s.documentId === prev.documentId) return;
   const w = workspace();
@@ -56,7 +63,7 @@ useTemplateStore.subscribe((s, prev) => {
     stage({ ...retained(prev, w), active: null });
   } else if (w.active === s.documentId) {
     stage(retained(s, w));
-    if (s.sampleData !== prev.sampleData && s.template === prev.template) scheduleProjectAutosave();
+    if ((s.sampleData !== prev.sampleData || s.baseline !== prev.baseline) && s.template === prev.template) scheduleProjectAutosave();
   }
 });
 
@@ -110,7 +117,7 @@ function restore(d: AuthoringDocument) {
 }
 export function openProjectDocument(id: string): Promise<boolean> {
   return action(async () => {
-    const before = useTemplateStore.getState(), w = retained(before), d = w.documents.find(d => d.id === id);
+    const before = useTemplateStore.getState(), w = departingWorkspace(before), d = w.documents.find(d => d.id === id);
     if (!d) throw new Error('That graphic is no longer in this project.');
     // Internal switches lose no work: the departing draft and history are confirmed before
     // replacement. The ordinary unsaved-work guard remains for every external replacement.
@@ -122,10 +129,8 @@ export function openProjectDocument(id: string): Promise<boolean> {
 export function createAuthoringProject(name: string, templates: SpxTemplate[]): Promise<boolean> {
   return action(async () => {
     const before = useTemplateStore.getState();
-    let w = retained(before);
-    // Adoption preserves the legacy slot as an unfiled document, even when a new
-    // starter project is the first workspace action. It is never silently replaced.
-    if (loadProject() && !w.documents.some(d => d.id === before.documentId)) w = { ...w, documents: [...w.documents, snapshot(before)] };
+    // A legacy/external slot becomes an unfiled draft only after this write confirms.
+    const w = loadProject() ? departingWorkspace(before) : retained(before);
     if (!name.trim() || !templates.length) throw new Error('Name the project and select at least one graphic.');
     const docs: AuthoringDocument[] = templates.map(template => ({ id: uuid(), template, baseline: template, history: [], future: [],
       saved: { graphicId: null, dirty: true }, sampleData: syncSampleData(template, {}), aiSpec: null, aiThread: null, legibility: null }));

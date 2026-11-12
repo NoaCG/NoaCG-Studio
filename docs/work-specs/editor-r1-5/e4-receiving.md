@@ -5,7 +5,7 @@ built by the shipped exporters from [this saved source](../../../e2e/fixtures/ed
 The [manifest](../../../e2e/fixtures/editor-projects/receiving/receiving-manifest.json)
 records source-file and canonical-source SHA256 separately, each ZIP's SHA256,
 contents, expected values and browser runtime observations. Recreate with the
-`e2e/editor-projects.spec.ts` receiving journey. The staged instance is job j-0060
+`e2e/editor-projects.spec.ts` receiving journey. The staged instance is job j-0071
 on the E4 implementation; it is a browser rehearsal, not real-host acceptance.
 
 | Package | Verified here | Still required at E6 |

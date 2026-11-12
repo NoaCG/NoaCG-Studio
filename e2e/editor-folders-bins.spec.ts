@@ -263,6 +263,15 @@ for (const saved of [false, true]) for (const kind of ['folder', 'bin'] as const
   }
   const fixture = await source(page);
   const openingId = await evaluateInPage(page, async () => (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().documentId);
+  const openingOwner = await evaluateInPage(page, async () => {
+    const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const bound = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands();
+    (window as unknown as { closedFolderCommands: typeof bound }).closedFolderCommands = bound;
+    const commands = bound.inspect();
+    (window as unknown as { closedFolderPort: typeof session.port }).closedFolderPort = session.port;
+    const state = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    return { authoring: state.documentId, graphic: state.saved.graphicId, instance: session.instanceId, expected: commands.ok ? commands.expected : null };
+  });
   const swap = async () => {
     await evaluateInPage(page, async ({ t, saved }) => {
       const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
@@ -277,6 +286,21 @@ for (const saved of [false, true]) for (const kind of ['folder', 'bin'] as const
   await page.getByRole('textbox', { name }).fill('Old document'); await swap();
   const nextId = await evaluateInPage(page, async () => (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().documentId);
   if (saved) expect(nextId).toBe(openingId); else expect(nextId).not.toBe(openingId);
+  const nextOwner = await evaluateInPage(page, async prior => {
+    const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const state = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    let closed = '';
+    try { (window as unknown as { closedFolderPort: typeof session.port }).closedFolderPort.restore({ selectedParts: [], time: 99 }); } catch (e) { closed = String(e); }
+    const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(), current = c.inspect();
+    if (!current.ok || !prior) throw new Error('Command ownership unavailable.');
+    const stale = c.apply({ expected: { ...current.expected, sessionId: prior.sessionId }, transactionId: crypto.randomUUID(), commands: [{ id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 40, y: 20, width: 80, height: 90 } } }] });
+    const retired = (window as unknown as { closedFolderCommands: typeof c }).closedFolderCommands.apply({ expected: prior, transactionId: crypto.randomUUID(), commands: [{ id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 40, y: 20, width: 80, height: 90 } } }] });
+    return { authoring: state.documentId, graphic: state.saved.graphicId, instance: session.instanceId, closed, stale, retired };
+  }, openingOwner.expected);
+  expect(nextOwner.authoring).not.toBe(openingOwner.authoring); expect(nextOwner.instance).not.toBe(openingOwner.instance);
+  expect(nextOwner.graphic).toBe(openingOwner.graphic); expect(nextOwner.closed).toContain('closed');
+  expect(nextOwner.stale.ok).toBe(false); if (!nextOwner.stale.ok) expect(nextOwner.stale.refusal.code).toBe('stale_context');
+  expect(nextOwner.retired.ok).toBe(false); if (!nextOwner.retired.ok) expect(nextOwner.retired.refusal.code).toBe('session_closed');
   await expect(page.getByRole('textbox', { name })).toHaveCount(0);
   expect(await source(page)).toEqual(fixture);
 });

@@ -1,6 +1,6 @@
 {
-  "sourceCanonicalSha256": "7ef4fa71a972e605b14186c9410ad6d5a6b1efcd5cfc006f75b701ca79cbc7d3",
-  "sourceFileSha256": "44e2851a8012b34a8c407f217bf1b89773f2b7f28f0271770f5f5773aa7473e8",
+  "sourceCanonicalSha256": "f5bac45d41896cd24a975c3512bbf72a181358fea08a88fa044e9e61053dc471",
+  "sourceFileSha256": "5e8ffde74edf0f382d536c151cb5878211ecb7c6555414538acbc438a1cae356",
   "fixture": {
     "v": 1,
     "provenance": "NoaCG-authored test artwork and text; shipped catalog registry and bundled OFL font. No third-party reference-editor code or artwork.",
@@ -48,7 +48,7 @@
     {
       "target": "spx",
       "bytes": 395953,
-      "sha256": "b4e1bc9a4c671d1c589411c4959e9f376dd6e60c131d042dd61218ecd0baecdd",
+      "sha256": "97feaf997ead132e63825bac64475892eec3ccdca0f0820fc71538becfcbc8c3",
       "files": [
         "e4_receiving_steps/FIELDS.md",
         "e4_receiving_steps/GETTING-ON-AIR.md",
@@ -91,7 +91,7 @@
     {
       "target": "html-overlay",
       "bytes": 460006,
-      "sha256": "b75e5168804d72eb1768a4c0726e3f9f542a3544b6054a8269c9ebdd53df3e65",
+      "sha256": "8f84a25de8d8072be22ef89458d86e65695c612cb1cf5274ad0634ee73df4fe0",
       "files": [
         "e4_receiving_steps/FIELDS.md",
         "e4_receiving_steps/GETTING-ON-AIR.md",
@@ -130,7 +130,7 @@
     {
       "target": "casparcg",
       "bytes": 427628,
-      "sha256": "bfb969c93d788edf4f2828e0f7556dc479ec54a8a0569358a366c6570d7ba8ca",
+      "sha256": "5b3cf0bd97c8a33f6dd67b2424c986fbfbc844b3cfc03f15cfdf5b9e4f5d6e6c",
       "files": [
         "e4_receiving_steps/FIELDS.md",
         "e4_receiving_steps/GETTING-ON-AIR.md",
@@ -163,7 +163,7 @@
     {
       "target": "ograf",
       "bytes": 516677,
-      "sha256": "91f07d9ed908d90d03cbb82158b03472cb54dffc9af93b7f54f9fd22085aa6d5",
+      "sha256": "a74f17ed6b00bf3529d1bb3898a6ea9dbfc70087ec05c3411b1e6f9ffc3194f2",
       "files": [
         "e4_receiving_steps/FIELDS.md",
         "e4_receiving_steps/README.md",

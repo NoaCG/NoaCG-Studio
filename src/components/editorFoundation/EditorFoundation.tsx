@@ -38,6 +38,11 @@ export default function EditorFoundation() {
     if (currentAuthoringDocument()) void retainCurrentProjectDraft().then(ok => { if (ok) proceed(); });
     else useSaveUi.getState().requestSwitch(proceed);
   }), []);
+  // Ownership can change with identical source: Save As, baseline refresh or adoption.
+  useTemplateStore(state => state.documentId);
+  useTemplateStore(state => state.baseline);
+  useTemplateStore(state => state.saved.graphicId);
+  useAuthoringProjects(() => currentAuthoringDocument()?.id);
   const template = useTemplateStore(state => state.template);
   const projectError = useAuthoringProjects(state => state.error);
   // Artwork authoring shows saved defaults; operator rehearsals retain their own samples.
