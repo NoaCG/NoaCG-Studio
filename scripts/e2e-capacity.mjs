@@ -274,9 +274,6 @@ export function specChanges(base, cwd = ROOT) {
   return { changed, edited };
 }
 
-/** Spec files this change added or modified (not deleted), repo-relative. */
-export const changedSpecs = (base, cwd = ROOT) => specChanges(base, cwd).changed;
-
 /**
  * The weekly report's offline stop reaches the table line: a stop on the offline tier, or a report
  * that could not be read (so no stop can be ruled out), refuses a change that adds offline minutes.
