@@ -2057,9 +2057,16 @@ test('land-2b: a stop carried by a partial, stale or unreadable newest report wa
     return applyOfflineStop(growthAssessment({ base: null, reportPath: out, table: { source: { recordedAt: today } }, today }), { added: 0.1 });
   };
   assert.equal(bare('2026-11-09T06:00:00Z', '2026-11-10').status, 'refuse', 'one day old');
-  const old = bare('2026-10-20T06:00:00Z', '2026-11-10');
-  assert.notEqual(old.status, 'refuse', 'three weeks old: stale, so carried');
-  assert.match(old.reasons.join('; '), /an owned failure/, 'the overdue report is still named beside the carried stop');
+  assert.notEqual(bare('2026-10-20T06:00:00Z', '2026-11-10').status, 'refuse', 'three weeks old: stale, so carried');
+  // With every tier far under its line (so nothing else warns), the overdue report is still named beside the carried stop.
+  const quiet = clone(stopped);
+  for (const t of Object.values(quiet.measurement.tiers)) Object.assign(t, { perLanding: 1, perDay: 1 });
+  const out = path.join(mkdtempSync(path.join(os.tmpdir(), 'gate-bare-')), 'growth.json');
+  writeFileSync(out, JSON.stringify({ ...quiet, generatedAt: '2026-10-20T06:00:00Z' }));
+  const old = growthAssessment({ base: null, reportPath: out, table: { source: { recordedAt: '2026-11-10' } }, today: '2026-11-10' });
+  assert.equal(old.status, 'warn');
+  assert.match(old.reasons.join('; '), /an owned failure/);
+  assert.match(old.reasons.join('; '), /offline growth stop carried by old evidence/);
 });
 
 test('land-2b: an unreadable report never refuses', () => {
