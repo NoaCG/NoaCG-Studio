@@ -36,8 +36,8 @@
  },
  "waitingOn": [
   {
-   "what": "OS1a builder receipt and PR",
-   "eta": "2026-11-13T12:00:00Z"
+   "what": "PR 2452 in the merge queue, then the OS1a check",
+   "eta": "2026-11-12T19:00:00Z"
   }
  ],
  "inFlight": [
@@ -49,7 +49,9 @@
    "branch": "claude/plan-obs-scenes-os1a-build",
    "launchedAt": "2026-11-12T15:22:34Z",
    "note": "sent brief = saved brief plus two NOTES lines (live-publishing overlap, landing hold)",
-   "lastSeen": "2026-11-12T16:49Z: CI running on e3a3ccd4 (progressing)"
+   "lastSeen": "2026-11-12T17:02Z receipt os1a-b-da6f; stamped, auto-merge on",
+   "pr": 2452,
+   "reviewedHead": "e3a3ccd46d80033839d6a1c62d7fea093f44aa94"
   }
  ],
  "owner": [
