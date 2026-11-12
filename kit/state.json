@@ -62,15 +62,6 @@
    "session": "session_017SdbwNq7cFBvsVc3RQYNXs",
    "nonce": "repair-fix-1/repair-fix-2",
    "launchedAt": "2026-11-11T20:03:08Z"
-  },
-  {
-   "phase": "cf22",
-   "step": "re-check",
-   "session": "session_017SdbwMhf7QqsMzRWd19DhL",
-   "nonce": "cf22-c-a86f",
-   "launchedAt": "2026-11-12T04:41:13Z",
-   "mergeSha": "41e9480b73181f3fd8fdfa0fa0aca98512ed2601",
-   "pr": 2396
   }
  ],
  "owner": [],
@@ -304,6 +295,11 @@
   {
    "at": "2026-11-12T04:42Z",
    "note": "cf22 repair #2396 merged 41e9480b (D 117.6 incl. open PRs; order unchanged F,C,D,E,A1,A2,B). Re-check launched. #2398 fix 1 landed 417e7a05; first alarm #2407 (#2364). Quarantines #2402 (#2401) and #2406 (#2405) landed."
+  },
+  {
+   "phase": "cf22",
+   "verdict": "PASS (after repair #2396)",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2396#issuecomment-6815121095"
   }
  ],
  "decisions": [
