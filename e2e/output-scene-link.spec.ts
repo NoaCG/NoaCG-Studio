@@ -67,7 +67,7 @@ function production(n: number, scenes: Scene[] | undefined) {
 
 /** The stood-in backend; `current()` is what the resolve answers when asked. Every graphic a
  *  report is written for is recorded. */
-async function standInBackend(page: Page, current: () => unknown): Promise<{ reported: string[] }> {
+async function standInBackend(page: Page, current: () => unknown, tail: unknown[] = []): Promise<{ reported: string[] }> {
   const seen = { reported: [] as string[] };
   await page.route('**/src/backend/config.ts*', (route) => route.fulfill({ contentType: 'text/javascript', body: CONFIG_MODULE }));
   await page.route(`${BACKEND}/**`, async (route: Route) => {
@@ -83,6 +83,7 @@ async function standInBackend(page: Page, current: () => unknown): Promise<{ rep
     }
     let body: unknown = [];
     if (path.endsWith('/rpc/control_output_by_slug')) body = [current()];
+    if (path.endsWith('/rpc/control_output_tail')) body = tail;
     if (path.endsWith('/rpc/control_output_report')) {
       const graphic = (req.postDataJSON() as { p_graphic?: string } | null)?.p_graphic;
       if (graphic) seen.reported.push(graphic);
@@ -116,7 +117,15 @@ const stateOf = async (page: Page, key: string) => {
 
 test('a scene link builds its scene alone, through a publish and a reload; the ordinary link builds all (AC-1)', async ({ page, browser }) => {
   let published: unknown = production(1, SCENES);
-  const backend = await standInBackend(page, () => published);
+  // The log the boot catches up on: another scene's Take, and this one's. Only this one's is
+  // applied and reported here (R6, R7).
+  const row = (id: number, graphic: string, msg: Msg) => ({ id, graphic, msg, created_at: '2026-11-12T00:00:00.000Z' });
+  const backend = await standInBackend(page, () => published, [
+    row(1, 'A1', { t: 'update', data: { f0: 'elsewhere' } }),
+    row(2, 'A1', { t: 'play' }),
+    row(3, 'B1', { t: 'update', data: { f0: '3-1' } }),
+    row(4, 'B1', { t: 'play' }),
+  ]);
   await page.goto('/output?production=scene-probe&scene=scB');
   await expect.poll(async () => (await readyOf(page))?.n, { timeout: 20_000 }).toBe(2);
   expect(await built(page)).toEqual(['B1', 'B2']);
@@ -124,8 +133,7 @@ test('a scene link builds its scene alone, through a publish and a reload; the o
   expect(await sceneOf(page)).toEqual({ id: 'scB', known: true });
 
   // Its own graphics take their commands; another scene's change nothing here and are never reported.
-  await command(page, 'B1', { t: 'update', data: { f0: '3-1' } });
-  await command(page, 'B1', { t: 'play' });
+  await expect.poll(() => stateOf(page, 'B1'), { timeout: 15_000 }).toBe('in');
   await command(page, 'B2', { t: 'play' });
   await command(page, 'A1', { t: 'update', data: { f0: 'elsewhere' } });
   await command(page, 'A1', { t: 'play' });
