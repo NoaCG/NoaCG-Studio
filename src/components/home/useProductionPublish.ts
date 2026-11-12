@@ -51,6 +51,7 @@ import { type CasparFacts } from './PlayoutPanel';
 import { copyLink } from './copyLink';
 import { flushTeamProduction, refreshTeams, teamSettleOwed } from '../../backend/teamProductions';
 import { settleProductionForSend } from '../../backend/syncController';
+import { confirmedRevision } from '../../backend/savedRevision';
 import { type PayloadVersion } from '../../control/payloadVersion';
 import { type HeldVersion } from '../../control/readiness';
 import { slotHolds } from '../../control/prepareLive';
@@ -452,7 +453,10 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
           const latest = loadShows().find((s) => s.id === show.id);
           if (!latest) return null;
           try {
-            return await publishControlShow(latest, await io.appearanceFor?.(latest));
+            // The saved revision this record is, when the server can say (designs/G3.md section 2).
+            const confirmed = await confirmedRevision(latest).catch(() => null);
+            const rev = confirmed && 'rev' in confirmed ? confirmed.rev : undefined;
+            return await publishControlShow(latest, await io.appearanceFor?.(latest), rev);
           } catch (e) {
             if (!(e instanceof PublishBehind) || attempt > 0) throw e;
           }

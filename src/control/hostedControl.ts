@@ -385,7 +385,7 @@ export function buildPanelSpec(show: Show, library: GraphicDoc[] = loadGraphics(
 }
 
 /** Normalize a stored panel row to the current shape (additive fields defaulted, never a crash). */
-function readPanel(panel: unknown): PanelGraphicSpec[] {
+export function readPanel(panel: unknown): PanelGraphicSpec[] {
   if (!Array.isArray(panel)) return [];
   return (panel as PanelGraphicSpec[]).map((g) => ({
     ...g,
@@ -619,7 +619,7 @@ export async function copyDigest(show: Show, index: number, template: GraphicDoc
  *  the two surfaces must agree on the cue list). Prunes log rows older than 7 days (the 0029
  *  owner DELETE policy) so a 24/7 output URL never grows the log without bound.
  *  Returns every capability slug, or null offline. */
-export async function publishControlShow(show: Show, publishedOf?: CuePublished): Promise<PublishedCapabilities | null> {
+export async function publishControlShow(show: Show, publishedOf?: CuePublished, rev?: number): Promise<PublishedCapabilities | null> {
   // THE LIBRARY->AIR GATE, before anything else - including the backend check: an invalid
   // graphic cannot publish, and that is true of this function whoever calls it and wherever it
   // runs (validation/productionGate.ts - the same publishGate the community door runs). A
@@ -644,10 +644,14 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
   const held = readPayloadVersion((previous.data as { ver?: unknown } | null)?.ver);
   const heldPanel = readPanel((previous.data as { panel?: unknown } | null)?.panel);
   const edited = Object.fromEntries(show.graphics.map((g) => [g.name, designEditedAt(g, library)]));
-  const version = await stampPayload(built, held, undefined, edited);
-  // NEVER AN OLDER DESIGN (G3): this page's copy of a graphic is older than the one on air - a
-  // second device not yet synced, or a teammate whose production has not received the newer copy.
-  const older = olderDesigns(version, held);
+  const stamped = await stampPayload(built, held, undefined, edited);
+  // THE SAVED REVISION (live-publishing designs/G3.md section 2): a publish built from a record this
+  // page knows is saved revision `rev` names it, so the server keeps publications in save order.
+  const version: PayloadVersion = rev === undefined ? stamped : { ...stamped, r: rev };
+  // NEVER AN OLDER DESIGN (publish-guard G3): this page's copy of a graphic is older than the one on
+  // air - a second device not yet synced, or a teammate whose production has not received the newer
+  // copy. A publish that names its revision is ordered by the server instead (designs/G3.md section 3).
+  const older = rev === undefined ? olderDesigns(version, held) : [];
   if (older.length) {
     const one = older.length === 1;
     // The copy is the only truth (live-publishing G1 section 1): a reload cannot bring a newer design
@@ -763,27 +767,7 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
   // P5 (control/joinPageSync.ts): the page goes through the same one-at-a-time queue as
   // Interaction's sync, which reads the production as saved when this turn runs, so a title
   // changed during a long publish (or a slow logo upload) is what phones end on.
-  if (row.audience_state) {
-    // A failed read throws, so it is never mistaken for "phones have no page yet" (P4).
-    const read = async () => {
-      const { data, error } = await sb.rpc('audience_set_join', { p_slug: row.slug, p_patch: {} });
-      if (error) throw new Error(error.message);
-      return ((data ?? null) as { brand?: AudienceBrand } | null)?.brand ?? null;
-    };
-    await syncJoinPage(
-      show.id,
-      {
-        readShow: () => loadShows().find((s) => s.id === show.id) ?? show,
-        readBrand: read,
-        publishLogo: (current, known) => publishJoinLogo(current.id, current.look, known),
-        send: async (brand) => {
-          const { error } = await sb.rpc('audience_set_join', { p_slug: row.slug, p_patch: { brand } });
-          if (error) throw new Error(error.message);
-        },
-      },
-      0,
-    );
-  }
+  if (row.audience_state) await sendJoinBrand(show, row.slug);
   // A production that has never had an audience slug gets a READABLE one derived from its name,
   // here, on its first publish - so a link an operator can read out exists without anyone typing
   // an ending. Only on the first publish: after that the name is a shared URL, and republishing
@@ -800,6 +784,34 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
     version,
     record: publishedRecordDigest(show),
   };
+}
+
+/** The production's brand to its join page, merged into the audience state by the server (P4, P5;
+ *  see the comment at its use in `publishControlShow`). Also after an automatic publish
+ *  (control/publishRevision.ts). */
+export async function sendJoinBrand(show: Show, slug: string): Promise<void> {
+  const sb = await getSupabase();
+  if (!sb) return;
+  const row = { slug };
+  // A failed read throws, so it is never mistaken for "phones have no page yet" (P4).
+  const read = async () => {
+    const { data, error } = await sb.rpc('audience_set_join', { p_slug: row.slug, p_patch: {} });
+    if (error) throw new Error(error.message);
+    return ((data ?? null) as { brand?: AudienceBrand } | null)?.brand ?? null;
+  };
+  await syncJoinPage(
+    show.id,
+    {
+      readShow: () => loadShows().find((s) => s.id === show.id) ?? show,
+      readBrand: read,
+      publishLogo: (current, known) => publishJoinLogo(current.id, current.look, known),
+      send: async (brand) => {
+        const { error } = await sb.rpc('audience_set_join', { p_slug: row.slug, p_patch: { brand } });
+        if (error) throw new Error(error.message);
+      },
+    },
+    0,
+  );
 }
 
 /**
