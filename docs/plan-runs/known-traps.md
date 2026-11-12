@@ -44,8 +44,9 @@ and the exact base and head SHAs. It picks its own probes.
   on its replacement once linked there.
   Never ask `@codex review` or start another `/so` on that head and scope while one is outstanding.
   Fix related confirmed findings together, run the focused checks, push one coherent checkpoint,
-  then make one request for the new head. Keep committing and pushing your branch as backup, but
-  skip the full configured dispatch on a head you know needs another repair. A new head voids a
+  then make one request for the new head. Commit locally between rounds and push once per round
+  (queue-merge.md, one push per review round); skip the full configured dispatch on a head you
+  know needs another repair. A new head voids a
   clean verdict on an older one; Delta re-review below is the one narrower re-review.
 - **Spend a review only on a head that will stand.** Before a `/so` on a diff that adds an E2E spec
   or edits `scripts/growth-ceilings.json`, run the capacity check as CI does:

@@ -486,6 +486,11 @@ test('a hosted graphic whose channel never delivers a row still catches up from 
     route.fulfill({ status: 200, contentType: 'text/html', body: html }),
   );
 
+  // The poll's own interval, read from the block this receiver runs, and a page clock so the test
+  // moves time across it instead of waiting the 30 seconds out (the clock flows in real time
+  // until runFor below; the boot fill, the socket and its retries run as they would).
+  const pollMs = Number(html.match(/var POLL_MS = (\d+);/)![1]);
+  await graphic.clock.install();
   await graphic.goto('http://hosted-silent.local/board.html', { waitUntil: 'load' });
   // The boot fill has run and found an empty log - so whatever appears below arrived through
   // the poll, not through that one read.
@@ -498,8 +503,10 @@ test('a hosted graphic whose channel never delivers a row still catches up from 
     { id: 2, graphic: 'Board', msg: { t: 'play' } },
   );
 
+  // Move the page's time across one poll interval; the socket still says nothing.
+  await graphic.clock.runFor(pollMs);
   await expect
-    .poll(() => appliedIn(graphic), { timeout: 90_000 })
+    .poll(() => appliedIn(graphic), { timeout: 15_000 })
     .toEqual(['update:LATE', 'play']);
 
   await graphic.close();

@@ -159,14 +159,17 @@ function painted(a: Buffer): number {
 }
 
 /** The root's frames against the frame transform's, net of the frame's own mount-to-mount
- *  difference, per sample. */
+ *  difference, per sample. The noise is only ever subtracted, so a design whose raw difference is
+ *  within RESIDUAL_BOUND at every sample passes whatever the noise is: the second framed mount
+ *  that measures it is taken only when a sample is over the bound (`noise` is null otherwise). */
 async function residuals(page: Page, framed: string, rooted: string, look: AppliedAppearance, start: Start, samples: number[]) {
   const ref = await framesOf(page, framed, look, start, samples);
-  const again = await framesOf(page, framed, look, start, samples);
   const root = await framesOf(page, rooted, null, start, samples);
+  const raw = samples.map((_, i) => differing(ref[i], root[i]));
+  const again = raw.some((d) => d > RESIDUAL_BOUND) ? await framesOf(page, framed, look, start, samples) : null;
   return samples.map((ms, i) => {
-    const noise = differing(ref[i], again[i]);
-    return { ms, painted: painted(ref[i]), noise, residual: differing(ref[i], root[i]) - noise };
+    const noise = again ? differing(ref[i], again[i]) : null;
+    return { ms, painted: painted(ref[i]), noise, residual: raw[i] - (noise ?? 0) };
   });
 }
 
@@ -210,11 +213,19 @@ function differingShifted(a: Buffer, b: Buffer): number {
   return Math.max(one(pa, pb), one(pb, pa));
 }
 
+/** Baked files against the same target's file framed by the stage, once landed: one mount of the
+ *  framed file, compared with each baked one. */
+async function landedAll(page: Page, framed: string, rooted: string[], look: AppliedAppearance | null, start: Start) {
+  const ref = (await framesOf(page, framed, look, start, [4_000]))[0];
+  const aparts: number[] = [];
+  for (const file of rooted) aparts.push(differingShifted(ref, (await framesOf(page, file, null, start, [4_000]))[0]));
+  return { painted: painted(ref), aparts };
+}
+
 /** A baked file against the same target's file framed by the stage, once landed. */
 async function landed(page: Page, framed: string, rooted: string, look: AppliedAppearance | null, start: Start) {
-  const ref = (await framesOf(page, framed, look, start, [4_000]))[0];
-  const root = (await framesOf(page, rooted, null, start, [4_000]))[0];
-  return { painted: painted(ref), apart: differingShifted(ref, root) };
+  const { painted: count, aparts } = await landedAll(page, framed, [rooted], look, start);
+  return { painted: count, apart: aparts[0] };
 }
 
 test('the sweep: every viewport-unit design paints the same with the transform on its root as in a transformed frame', async ({ page, browser }) => {
@@ -249,7 +260,7 @@ test('the sweep: every viewport-unit design paints the same with the transform o
   const rows: string[] = [];
   for (const d of swept.docs) {
     const r = await residuals(renderer, `doc/${d.id}-framed`, `doc/${d.id}-rooted`, SWEEP_LOOK, 'play', [400, 1_500, 4_000]);
-    rows.push(`${d.id}: ${r.map((s) => `${s.ms}ms painted ${s.painted} noise ${s.noise} residual ${s.residual}`).join(' | ')}`);
+    rows.push(`${d.id}: ${r.map((s) => `${s.ms}ms painted ${s.painted} noise ${s.noise ?? 'not measured'} residual ${s.residual}`).join(' | ')}`);
     expect(Math.max(...r.map((s) => s.painted)), `${d.id} painted nothing at any sample`).toBeGreaterThan(1_000);
     for (const s of r) expect(s.residual, `${d.id} at ${s.ms} ms:\n${rows.join('\n')}`).toBeLessThanOrEqual(RESIDUAL_BOUND);
   }
@@ -452,9 +463,11 @@ test('each target bakes the graphic\'s type and colour, painting what the design
       };
       const [baked, restyled, plain] = [fileIn(target), fileIn(`restyled-${target}`), fileIn(`plain-${target}`)];
       const start = target === 'html-overlay' ? 'autoplay' : 'play';
-      const r = await landed(renderer, restyled, baked, null, start);
-      // The comparison can see the style at all: the unstyled file is far from the restyled one.
-      const unstyled = await landed(renderer, restyled, plain, null, start);
+      // One landed frame of the restyled file, against the baked one and, so the comparison can be
+      // seen to see the style at all, against the unstyled one.
+      const both = await landedAll(renderer, restyled, [baked, plain], null, start);
+      const r = { painted: both.painted, apart: both.aparts[0] };
+      const unstyled = { apart: both.aparts[1] };
       rows.push(`${target} ${g.name}: painted ${r.painted} apart ${r.apart} (unstyled ${unstyled.apart})`);
       expect(r.painted, `${target} ${g.name} shows something`).toBeGreaterThan(1_000);
       expect(unstyled.apart, `${target} ${g.name}: the style shows`).toBeGreaterThan(RESIDUAL_BOUND);
