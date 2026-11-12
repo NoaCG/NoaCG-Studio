@@ -68,6 +68,7 @@ const FIELDS = {
   ],
 };
 const fieldsOf = (g) => FIELDS[g] ?? null;
+const REG = { ok: true, registration: { v: 1, configRevision: 1, endpoint: 'https://scores.example/live.json' } };
 const BINDINGS = { Board: { f0: 'external.j1.home', f1: 'external.j1.score' } };
 
 /** One browser: its lease storage and the route, whose answer the test sets. */
@@ -104,7 +105,7 @@ function tab(b, name, { everyMs = 30 * S, bindings = BINDINGS } = {}) {
     io: b.io,
     connected: () => new Set(Object.values(t.bindings).flatMap((f) => Object.values(f))),
     paused: () => t.paused,
-    project: (payload) => projectJson({ sourceId: 'j1', payload, bindings: t.bindings, fieldsOf, registration: { configRevision: 1 } }),
+    project: (payload) => projectJson({ sourceId: 'j1', payload, bindings: t.bindings, fieldsOf, registration: REG }),
     write: async (patch) => {
       t.writes.push(patch);
       return true;
@@ -325,7 +326,7 @@ test('paused, nothing is read or written; Resume reads at once and writes only w
 test('a missing leaf, a value its fields cannot hold, a typed field and a collection are said and never written', () => {
   const bindings = { Board: { f0: 'external.j1.home', f1: 'external.j1.score', f2: 'external.j1.result' } };
   const fields = { Board: [...FIELDS.Board, { key: 'f2', label: 'Result', kind: 'text', defaultValue: '', typed: true }] };
-  const read = projectJson({ sourceId: 'j1', payload: { score: 'many', result: { a: 1 } }, bindings, fieldsOf: (g) => fields[g] ?? null, registration: { configRevision: 1 }, collections: true });
+  const read = projectJson({ sourceId: 'j1', payload: { score: 'many', result: { a: 1 } }, bindings, fieldsOf: (g) => fields[g] ?? null, registration: REG, collections: true });
   assert.deepEqual(read.writes, {});
   assert.ok(read.problems.some((p) => p.startsWith('home is not in the JSON')));
   assert.ok(read.problems.some((p) => p.startsWith('score holds a value not every field')));
@@ -334,6 +335,10 @@ test('a missing leaf, a value its fields cannot hold, a typed field and a collec
   assert.equal(collectionReads([{ sourceId: 'j1' }], 'j1'), true);
   assert.equal(collectionReads([{ sourceId: 'other' }], 'j1'), false);
   assert.equal(collectionReads(undefined, 'j1'), false);
+  // A registration the reader cannot use writes nothing and says why.
+  const unusable = projectJson({ sourceId: 'j1', payload: { home: 'Ada' }, bindings: BINDINGS, fieldsOf, registration: { ok: false, readOnly: false, error: 'configRevision must be a whole number from 1' } });
+  assert.deepEqual(unusable.writes, {});
+  assert.deepEqual(unusable.problems, ['the source cannot be used (configRevision must be a whole number from 1), so every value holds']);
 });
 
 test('a list leaf goes through the list adapter its registration names, as an agent’s report does', () => {
@@ -343,7 +348,7 @@ test('a list leaf goes through the list adapter its registration names, as an ag
     payload: { games: [{ a: 'Ada', b: 'Bo' }, { a: 'Cy', b: 'Di' }] },
     bindings,
     fieldsOf: () => [{ key: 'f0', label: 'Lines', kind: 'lines', defaultValue: '' }],
-    registration: { configRevision: 1, lists: { games: 'lines' } },
+    registration: { ok: true, registration: { v: 1, configRevision: 1, endpoint: URL_, lists: { games: 'lines' } } },
   });
   assert.equal(read.writes['external.j1.games'].split('\n').length, 2);
 });

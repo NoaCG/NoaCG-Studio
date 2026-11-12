@@ -119,12 +119,14 @@ export function readerWords(paused: boolean | undefined, status: SheetStatus | u
   if (paused) return 'Paused: not read until Resume';
   if (!status) return 'Waiting for the first read';
   const every = everyMs !== undefined ? everyWords(jsonEveryMs(everyMs)) : kind === 'feed' ? `about every ${FEED_READ_MS / 60_000} min` : `about every ${SHEET_READ_MS / 1000} s`;
-  if (status.reader === 'server') return 'Read by the server about once a minute, while every page is closed';
+  // The server ticks once a minute, and reads a JSON source only once its own interval has passed.
+  const server = everyMs !== undefined && jsonEveryMs(everyMs) > 60_000 ? everyWords(jsonEveryMs(everyMs)) : 'about once a minute';
+  if (status.reader === 'server') return `Read by the server ${server}, while every page is closed`;
   const page = status.reader === 'other' ? `Read by another tab of this production, ${every}` : `Read by this page, ${every}`;
   // The server cannot reach a file on this computer: it is read only while a page here is open.
   if (kind === 'file') return `${page}; only while a production page is open on this computer`;
   if (status.closedPage === undefined) return page;
-  return status.closedPage ? `${page}; about once a minute by the server once every page is closed` : `${page}; closed-page reading is off`;
+  return status.closedPage ? `${page}; ${server} by the server once every page is closed` : `${page}; closed-page reading is off`;
 }
 
 /**

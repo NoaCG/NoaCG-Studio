@@ -1980,8 +1980,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         };
         if (source.kind === 'external') {
           // The registration as the route reads it: its lists and recipe evaluate each payload.
-          const read = readExternalRegistration({ id: sourceId, kind: 'external', config: source.config });
-          const registration = read.ok ? read.registration : { configRevision: source.config.configRevision };
+          const registration = readExternalRegistration({ id: sourceId, kind: 'external', config: source.config });
           return [
             sourceId,
             createJsonReader({

@@ -219,7 +219,7 @@ test('a JSON source NoaCG reads is read through its shared cache and written as 
     fields: { Board: [{ field: 'f0', ftype: 'textfield' }, { field: 'f1', ftype: 'number' }, { field: 'f2', ftype: 'textfield' }] },
   });
   const w = world({
-    due: [entry('j1', { everyMs: 30_000 }), entry('j2', { everyMs: 30_000 }), entry('j3', null)],
+    due: [{ ...entry('j1', { everyMs: 30_000 }), collections: [{ sourceId: 'j1' }] }, entry('j2', { everyMs: 30_000 }), entry('j3', null)],
     sheets: {},
     // j1 last wrote home "Ada": only the score changed since.
     rows: { j1: { snapshot: { 'external.j1.home': 'Ada' }, content: 'json:old', status: { state: 'ok', changedAt: 5 } } },
@@ -242,6 +242,7 @@ test('a JSON source NoaCG reads is read through its shared cache and written as 
   assert.ok(j1.state.status.changedAt > 5, 'the payload changed');
   assert.match(j1.state.content, /^json:[0-9a-f]{16}$/);
   assert.ok(j1.state.status.problems.some((p) => p.startsWith('missing is not in the JSON')));
+  assert.ok(j1.state.status.problems.some((p) => p.startsWith('its collection cards')), 'the tick says what the page says');
   const j2 = w.calls.commits.find((c) => c.source === 'j2');
   assert.deepEqual(j2.writes, {});
   assert.equal(j2.state.status.state, 'failing');

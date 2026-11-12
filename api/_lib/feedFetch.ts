@@ -695,6 +695,11 @@ export interface CachedKind {
   honourMaxAge: boolean;
   /** A failure's words for this kind. */
   words: (text: string) => string;
+  /** The wait is counted from when the reader's request arrived rather than from the end of the
+   *  fetch, less this much (ms): a page asking at exactly the floor then finds the row due, however
+   *  long the fetch and the database took, and network jitter cannot make it skip a read. Absent:
+   *  from the end of the fetch (a feed). */
+  arrivalSlackMs?: number;
 }
 
 export const FEED_KIND: CachedKind = {
@@ -714,8 +719,20 @@ export const JSON_CACHE_FLOOR_MS = 10_000;
 /** The largest JSON body read, after decompression: the source route's own 256 KiB. */
 export const JSON_MAX_BYTES = 256 * 1024;
 
-/** A failure said of an address rather than a feed. */
-export const addressWords = (text: string): string => text.replace(/\bthe feed\b/g, 'the address').replace(/\bfeed’s\b/g, 'address’s').replace(/\ba feed\b/g, 'an address');
+/** A failure said of an address rather than a feed: every sentence the guard and the reader say
+ *  (scripts/json-fetch.test.mjs walks them), most specific first. */
+export const addressWords = (text: string): string =>
+  text
+    .replace(/Paste the feed’s address\./g, 'Paste the address that answers JSON.')
+    .replace(/Use the feed’s public address on the internet\./g, 'Use a public address on the internet.')
+    .replace(/Use the address the feed finally lands on\./g, 'Use the address it finally lands on.')
+    .replace(/Use a smaller feed, such as one for a single category\./g, 'Use an address that answers only what the graphics use.')
+    .replace(/\bfeed addresses\b/g, 'addresses')
+    .replace(/\b([Aa]) feed address\b/g, (_m, a: string) => `${a}n address`)
+    .replace(/\bfeed address\b/g, 'address')
+    .replace(/\b([Aa]) feed\b/g, (_m, a: string) => `${a}n address`)
+    .replace(/\b([Tt])he feed\b/g, '$1he address')
+    .replace(/\bfeed’s\b/g, 'address’s');
 
 export const JSON_KIND: CachedKind = {
   key: (url) => sha256(`json ${url}`),
@@ -735,10 +752,14 @@ export const JSON_KIND: CachedKind = {
   },
   honourMaxAge: false,
   words: addressWords,
+  // The floor is the source's own (10 s); 1 s of it is room for the time between the page's read
+  // and the fetch, so a source read every 10 s gets a fresh read each time. The address itself is
+  // therefore fetched at most once every 9 s, whatever its readers.
+  arrivalSlackMs: 1_000,
 };
 
 /** Fetch under the claim, and keep what came of it on the row. */
-async function fetchHeld(row: FeedRow, io: FeedIo, outer: AbortSignal | undefined, kind: CachedKind): Promise<FeedAnswer> {
+async function fetchHeld(row: FeedRow, io: FeedIo, outer: AbortSignal | undefined, kind: CachedKind, arrivedAt: number): Promise<FeedAnswer> {
   const abort = new AbortController();
   let timedOut = false;
   const timer = setTimeout(() => {
@@ -764,12 +785,14 @@ async function fetchHeld(row: FeedRow, io: FeedIo, outer: AbortSignal | undefine
     return { ok: false, status: 503, error: 'the read was cut short', fix: RETRY_FIX, failingSince: row.failing_since };
   }
   const now = io.now();
+  // A good read's wait counts from here: the fetch's end, or the request's arrival less the slack.
+  const from = kind.arrivalSlackMs === undefined ? now : Math.min(now, arrivedAt - kind.arrivalSlackMs);
   const good = (etag: string | null, lastModified: string | null, waitMs: number, items?: unknown[], feedWaitMs?: number | null): Partial<FeedRow> => ({
     ...(items ? { items, feed_wait_ms: feedWaitMs ?? null } : {}),
     etag,
     last_modified: lastModified,
     fetched_at: iso(now),
-    next_allowed_at: iso(now + waitMs),
+    next_allowed_at: iso(from + waitMs),
     error: null,
     fix: null,
     failing_since: null,
@@ -779,6 +802,7 @@ async function fetchHeld(row: FeedRow, io: FeedIo, outer: AbortSignal | undefine
     error: kind.words(problem.error),
     fix: kind.words(problem.fix),
     failing_since: row.failing_since ?? iso(now),
+    // A failure waits from the fetch's end, so a Retry-After is honoured in full.
     next_allowed_at: iso(now + nextWait([problem.retryMs], kind.floorMs)),
     refused: problem.refused === true,
   });
@@ -836,9 +860,9 @@ export async function readFeed(text: string, io: FeedIo, { wait, cut }: { wait?:
       refused: false,
       feed_wait_ms: null,
     };
-    if (await io.store.create(fresh)) return fetchHeld(fresh, io, cut, kind);
+    if (await io.store.create(fresh)) return fetchHeld(fresh, io, cut, kind, now);
   } else if (await io.store.claim(key, iso(now), until)) {
-    return fetchHeld({ ...row, claimed_until: until }, io, cut, kind);
+    return fetchHeld({ ...row, claimed_until: until }, io, cut, kind, now);
   }
   // Another instance holds the claim. Headlines in hand are served with their age; before the
   // first read, wait for that read to settle rather than fetching a second time, looking at the

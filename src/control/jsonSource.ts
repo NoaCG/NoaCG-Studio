@@ -17,7 +17,7 @@
 // Pure and Node-importable: scripts/json-source.test.mjs drives it with a fake fetch and clock.
 
 import { createSheetReader, leaseOf, type ProjectedRead, type SheetFetch, type SheetReader, type SheetReaderOptions, type SourceRead } from './sheetSource.js';
-import { canonicalJson, type ExternalRegistration, type JsonValue } from './externalSource.js';
+import { canonicalJson, type ExternalRegistration, type JsonValue, type RegistrationRead } from './externalSource.js';
 import { projectSource } from './sourceMapping.js';
 import { sourcePrefix } from '../model/productionData.js';
 import type { FieldDescriptor } from '../model/fieldModel';
@@ -102,18 +102,23 @@ export function projectJson(o: {
   payload: unknown;
   bindings: Record<string, Record<string, string>> | undefined;
   fieldsOf: (graphic: string) => FieldDescriptor[] | null;
-  registration: Pick<ExternalRegistration, 'lists' | 'mapping' | 'configRevision'>;
+  /** The registration as `readExternalRegistration` reads it: one it cannot use writes nothing and
+   *  says why, on the page and the tick alike. */
+  registration: RegistrationRead;
   /** Whether a collection recipe of the production reads this source. */
   collections?: boolean;
 }): ProjectedRead {
+  const fingerprint = jsonFingerprint(o.payload);
+  if (!o.registration.ok) return { writes: {}, problems: [`the source cannot be used (${o.registration.error}), so every value holds`], fingerprint };
+  const registration: Pick<ExternalRegistration, 'lists' | 'mapping' | 'configRevision'> = o.registration.registration;
   const p = projectSource({
     sourceId: o.sourceId,
     payload: o.payload,
     bindings: o.bindings,
     fieldsOf: o.fieldsOf,
-    lists: o.registration.lists,
-    mapping: o.registration.mapping,
-    configRevision: o.registration.configRevision,
+    lists: registration.lists,
+    mapping: registration.mapping,
+    configRevision: registration.configRevision,
   });
   const prefix = `${sourcePrefix(o.sourceId, 'external')}.`;
   const problems: string[] = [];
@@ -126,7 +131,7 @@ export function projectJson(o: {
     for (const path of Object.keys(p.typedWrites)) problems.push(`${path.slice(prefix.length)} feeds a field that takes typed values, which only an agent writes, so it keeps its value`);
   }
   if (o.collections) problems.push('its collection cards are filled by an agent only, so they keep their values');
-  return { writes: p.writes, problems, fingerprint: jsonFingerprint(o.payload) };
+  return { writes: p.writes, problems, fingerprint };
 }
 
 /** The browser reader of one JSON source: the Sheet reader's machinery with this read and cadence. */

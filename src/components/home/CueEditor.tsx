@@ -329,7 +329,8 @@ function CueConnectReview({
   // a collection recipe reads. A new source starts on at 30 s; a reused one keeps what it holds.
   const storedEvery = reusedConnector?.config.read?.everyMs ?? null;
   const offersRead = Boolean(json && json.via === 'hosted' && (show.obsScenes || storedEvery !== null) && !collectionReads(show.collections, id));
-  const [readEvery, setReadEvery] = useState<{ for: string; ms: number | null } | null>(null);
+  /** The operator's choice for this source (`text`: the seconds box as typed, until it loses focus). */
+  const [readEvery, setReadEvery] = useState<{ for: string; ms: number | null; text?: string } | null>(null);
   const noacgEvery = !offersRead ? undefined : readEvery?.for === id ? readEvery.ms : reusedConnector ? storedEvery : JSON_DEFAULT_EVERY_MS;
   const plan = json
     ? connectorPlan({
@@ -723,12 +724,16 @@ function CueConnectReview({
                   max={3600}
                   step={1}
                   disabled={noacgEvery === null}
-                  value={Math.round((noacgEvery ?? JSON_DEFAULT_EVERY_MS) / 1000)}
+                  value={readEvery?.for === id && readEvery.text !== undefined ? readEvery.text : String(jsonEveryMs(noacgEvery ?? JSON_DEFAULT_EVERY_MS) / 1000)}
                   onChange={(e) => {
-                    const seconds = Number(e.target.value);
-                    // Kept as typed; the save clamps it to 10 s at least and an hour at most.
-                    if (Number.isFinite(seconds) && seconds > 0) setReadEvery({ for: id, ms: seconds * 1000 });
+                    // The box keeps what is typed (an empty box too); a number in it is the interval.
+                    const text = e.target.value;
+                    const seconds = Number(text);
+                    const ms = text.trim() !== '' && Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : (noacgEvery ?? JSON_DEFAULT_EVERY_MS);
+                    setReadEvery({ for: id, ms, text });
                   }}
+                  // Leaving it shows what is saved: 10 s at least and an hour at most.
+                  onBlur={() => setReadEvery((r) => (r && r.for === id ? { for: id, ms: r.ms } : r))}
                   aria-label="Seconds between reads"
                   data-testid="cue-connect-read-every"
                 />{' '}

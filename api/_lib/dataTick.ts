@@ -37,7 +37,7 @@ import {
   type SheetStatus,
 } from '../../src/control/sheetSource.js';
 import { feedRead, type FeedRouteAnswer } from '../../src/control/feedSource.js';
-import { projectJson } from '../../src/control/jsonSource.js';
+import { collectionReads, projectJson } from '../../src/control/jsonSource.js';
 import { readExternalRegistration } from '../../src/control/externalSource.js';
 import type { SourceRead } from '../../src/control/sheetSource.js';
 import type { FieldDescriptor, FieldKind } from '../../src/model/fieldModel.js';
@@ -66,6 +66,9 @@ export interface DueSource {
     | { id: string; kind: 'feed'; config: { url: string } }
     /** A connector source NoaCG reads (its registration, judged by `readExternalRegistration`). */
     | { id: string; kind: 'external'; config: unknown };
+  /** A connector source's production's collection recipes (0116), so its line can say their cards
+   *  are not filled by a NoaCG read. */
+  collections?: unknown[] | null;
   bindings: Record<string, Record<string, string>>;
   /** Pool graphic name -> its published fields (the panel's `fields`). */
   fields: Record<string, PanelField[]>;
@@ -194,15 +197,18 @@ async function readOne(io: TickIo, due: DueSource, startedAt: number): Promise<T
     // Paused on the row since the list was read.
     if (answer.paused) return { ...base, outcome: 'moved' };
     const held = rowState(answer);
-    // A connector only when NoaCG reads it (0116 lists no other): its registration as the reader takes it.
+    // A connector only when NoaCG reads it (0116 lists no other): its registration as the reader takes
+    // it. One the reader cannot use is read and holds every value, saying why, as on the page.
     const registration = due.source.kind === 'external' ? readExternalRegistration(due.source) : null;
-    if (registration && (!registration.ok || !registration.registration.read)) return { ...base, outcome: 'error' };
+    const config = due.source.kind === 'external' ? (due.source.config as { endpoint?: unknown; read?: { everyMs?: unknown } } | null) : null;
+    const endpoint = config?.endpoint;
+    if (registration && (typeof endpoint !== 'string' || typeof config?.read?.everyMs !== 'number')) return { ...base, outcome: 'error' };
     const abort = new AbortController();
     const cut = io.setTimer(() => abort.abort(), Math.max(0, Math.min(SHEET_TIMEOUT_MS, startedAt + READS_END_MS - io.now())));
     let result: SourceRead;
     try {
-      if (registration?.ok) {
-        const answer = await io.json(registration.registration.endpoint, abort.signal);
+      if (registration) {
+        const answer = await io.json(endpoint as string, abort.signal);
         result = answer.ok ? { ok: true, payload: answer.payload } : { ok: false, error: answer.error, fix: answer.fix };
       } else if (due.source.kind === 'feed') {
         result = feedRead(await io.feed(due.source.config.url, abort.signal));
@@ -223,8 +229,8 @@ async function readOne(io: TickIo, due: DueSource, startedAt: number): Promise<T
     const accept = (path: string, text: string) => pathValue(connectedFields(due.bindings, path, fieldsOf), text);
     const shape = due.source.kind === 'sheet' ? due.source.config.shape : due.source.kind === 'feed' ? 'lines' : 'values';
     const sourceId = due.source.id;
-    const project = registration?.ok
-      ? (payload: unknown) => projectJson({ sourceId, payload, bindings: due.bindings, fieldsOf, registration: registration.registration })
+    const project = registration
+      ? (payload: unknown) => projectJson({ sourceId, payload, bindings: due.bindings, fieldsOf, registration, collections: collectionReads(due.collections ?? undefined, sourceId) })
       : undefined;
     const { next, writes } = nextReadState(held, result, { sourceId, shape, connected, accept, project }, io.now(), 'server');
     const kept = await io.commit(due.slug, due.source.id, claim, writes, next);

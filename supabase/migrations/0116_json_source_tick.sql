@@ -9,9 +9,12 @@
 --    due, so a source waiting out its interval never takes one of the tick's places from a Sheet or
 --    a feed. Due: its row has no good read yet (`status.checkedAt` is not a number), or that read is
 --    at least its interval less 15 s old (the tick runs once a minute; the interval is clamped to
---    10 s at least and an hour at most, as the reader clamps it).
+--    10 s at least and an hour at most, as the reader clamps it). A good read stamped more than a
+--    minute ahead of the database's clock counts as never read. Each listed JSON source carries the
+--    production's collection recipes, so its line can say their cards are not filled.
 -- 2. `control_source_registration_refusal` is 0101's, with one more refusal: an agent's claim or
---    report for a source NoaCG reads is refused `read_by_noacg`, so NoaCG's read and an agent's never
+--    report for a source NoaCG reads (its `config.read.everyMs` is a number, the test the tick's
+--    list and the page's reader use too) is refused `read_by_noacg`, so NoaCG's read and an agent's never
 --    take turns on one source (R12). Removing `read` gives the source back to its agent.
 --
 -- Additive and live-safe: two function bodies widened, signatures and grants unchanged. Nothing
@@ -30,6 +33,8 @@ returns jsonb language sql stable security definer set search_path = '' as $$
              'slug', s.slug,
              'source', e.value,
              'bindings', coalesce(s.bindings, '{}'::jsonb),
+             -- A JSON source says when a collection recipe reads it (its cards are an agent's only).
+             'collections', case when e.value->>'kind' = 'external' then coalesce(s.collections, '[]'::jsonb) end,
              'fields', (select coalesce(jsonb_object_agg(g.value->>'name', coalesce(g.value->'fields', '[]'::jsonb)), '{}'::jsonb)
                           from jsonb_array_elements(case jsonb_typeof(s.panel) when 'array' then s.panel else '[]'::jsonb end) g
                          where g.value->>'name' is not null)) as item,
@@ -43,7 +48,10 @@ returns jsonb language sql stable security definer set search_path = '' as $$
             or (e.value->>'kind' = 'external'
                 and (e.value->'config'->'v') = '1'::jsonb
                 and jsonb_typeof(e.value->'config'->'read'->'everyMs') = 'number'
+                -- A checkedAt more than a minute ahead of this clock (a page whose clock runs fast
+                -- wrote it) reads as never read, so a skewed page cannot park the source.
                 and case when jsonb_typeof(r.status->'checkedAt') = 'number'
+                              and (r.status->>'checkedAt')::numeric <= extract(epoch from now()) * 1000 + 60000
                          then (r.status->>'checkedAt')::numeric
                               + least(greatest((e.value->'config'->'read'->>'everyMs')::numeric, 10000), 3600000) - 15000
                               <= extract(epoch from now()) * 1000
@@ -78,7 +86,8 @@ returns text language sql immutable set search_path = '' as $$
                          where l.key !~ '^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$'
                             or l.value not in ('"lines"'::jsonb, '"schedule"'::jsonb, '"credits"'::jsonb)))) then 'registration'
     -- NoaCG reads it itself (obs-scenes OS5a, R12): never an agent at the same time.
-    when jsonb_typeof(p_entry->'config'->'read') = 'object' then 'read_by_noacg'
+    -- The same test as the tick's list and the page's reader: an interval that is a number.
+    when jsonb_typeof(p_entry->'config'->'read'->'everyMs') = 'number' then 'read_by_noacg'
     when jsonb_typeof(p_entry->'config'->'configRevision') is distinct from 'number'
          or (p_entry->'config'->'configRevision') is distinct from to_jsonb(p_config_revision) then 'config'
     else null
@@ -113,6 +122,10 @@ begin
   -- (b) The refusal: a source NoaCG reads is refused to an agent; one without `read` is as before.
   if public.control_source_registration_refusal(v_read, 1) is distinct from 'read_by_noacg' then
     raise exception '0116 self-check failed: an agent may claim a source NoaCG reads';
+  end if;
+  if public.control_source_registration_refusal(jsonb_set(v_read, '{config,read}', '{}'::jsonb), 1) is not null
+     or public.control_source_registration_refusal(jsonb_set(v_read, '{config,read}', '{"everyMs":"30000"}'::jsonb), 1) is not null then
+    raise exception '0116 self-check failed: an agent is refused a source no reader of NoaCG reads';
   end if;
   if public.control_source_registration_refusal(v_read #- '{config,read}', 1) is not null
      or public.control_source_registration_refusal(v_read #- '{config,read}', 2) is distinct from 'config' then
@@ -161,10 +174,16 @@ begin
     if not exists (select 1 from jsonb_array_elements(public.control_data_tick_due(200)) d where d.value->'source'->>'id' = 'j1') then
       raise exception '0116 self-check failed: the tick does not list a JSON source once due';
     end if;
-    -- A status that is not a number reads as never read; a paused source is never listed.
+    -- A status that is not a number, or stamped an hour ahead, reads as never read; a paused source
+    -- is never listed.
     update public.control_source_reads set status = '{"checkedAt":"soon"}'::jsonb where show_id = v_show and source_id = 'j1';
     if not exists (select 1 from jsonb_array_elements(public.control_data_tick_due(200)) d where d.value->'source'->>'id' = 'j1') then
       raise exception '0116 self-check failed: an unreadable status hides a JSON source';
+    end if;
+    update public.control_source_reads set status = jsonb_build_object('state', 'ok', 'checkedAt', v_now + 3600000)
+      where show_id = v_show and source_id = 'j1';
+    if not exists (select 1 from jsonb_array_elements(public.control_data_tick_due(200)) d where d.value->'source'->>'id' = 'j1') then
+      raise exception '0116 self-check failed: a page clock an hour fast parks a JSON source';
     end if;
     update public.control_shows set sources = jsonb_build_array(v_read || '{"paused":true}'::jsonb) where id = v_show;
     if exists (select 1 from jsonb_array_elements(public.control_data_tick_due(200)) d where d.value->'source'->>'id' = 'j1') then

@@ -7,7 +7,8 @@
 // What is pinned. The feed reader's guard holds for JSON too: a private answer is refused before
 // any request, a redirect to a private address is refused, and the body stops at 256 KiB (counted
 // after decompression). One read per address serves every reader through the shared cache row,
-// keyed apart from a feed of the same address, fetched no more often than every 10 s; the address's
+// keyed apart from a feed of the same address, fetched no more often than every 9 s counted from the
+// read that asked (so a source read every 10 s never skips a read); the address's
 // `max-age` does not lengthen that, its Retry-After after a failure does (up to an hour). A body
 // that is not JSON, or is cut off, is a failure that keeps the last good payload in the row and
 // answers no payload; the next good read clears it. Two readers at once on a new address make one
@@ -131,27 +132,70 @@ test('a body of 256 KiB is read, and one byte more is refused and keeps nothing'
 
 // ── One read per address ──────────────────────────────────────────────────────
 
-test('one read serves every reader for 10 s: nothing is fetched before, and the read at 10 s fetches', async () => {
+test('one read serves every reader: the address is fetched at most every 9 s from the read that asked, so a 10 s source never skips a read', async () => {
   const s = server();
   const env = io(s.net);
   const first = await readCachedJson(ADDRESS, env);
   assert.deepEqual(first, { ok: true, payload: { home: 'Ada', score: 1 }, fetchedAt: new Date(T0).toISOString() });
-  env.clock.t = T0 + 10 * S - 1;
+  env.clock.t = T0 + 9 * S - 1;
   assert.deepEqual(await readCachedJson(ADDRESS, env), first);
-  assert.equal(s.net.requests.length, 1, 'one millisecond before the floor');
-  env.clock.t = T0 + 10 * S;
+  assert.equal(s.net.requests.length, 1, 'one millisecond before 9 s');
+  env.clock.t = T0 + 9 * S;
   s.body = { home: 'Ada', score: 2 };
   assert.deepEqual((await readCachedJson(ADDRESS, env)).payload, { home: 'Ada', score: 2 });
-  assert.equal(s.net.requests.length, 2, 'at the floor');
+  assert.equal(s.net.requests.length, 2, 'at 9 s');
   // The payload is the row's one item (R17).
   assert.deepEqual(env.store.rows.get(JSON_KIND.key(ADDRESS)).items, [{ home: 'Ada', score: 2 }]);
+});
+
+test('a slow fetch does not push the next read back: the wait counts from when the read asked', async () => {
+  const clock = { t: T0 };
+  let n = 0;
+  const net = fakeNet({ 'scores.example': [PUBLIC] }, () => {
+    n += 1;
+    // The fetch takes 4 s.
+    clock.t += 4 * S;
+    return reply(200, JSON.stringify({ n }));
+  });
+  const env = io(net, fakeStore(), clock);
+  await readCachedJson(ADDRESS, env);
+  // The page asks again 10 s after it asked the first time.
+  clock.t = T0 + 10 * S;
+  assert.deepEqual((await readCachedJson(ADDRESS, env)).payload, { n: 2 });
+});
+
+test('every refusal and failure is said of an address, never of a feed', async () => {
+  const sentences = [
+    'that is not a feed address',
+    'Paste the feed’s address.',
+    'Only http and https feed addresses can be read',
+    'a feed address cannot carry a user name or password',
+    'A feed is read on its ordinary port only',
+    'Use the feed’s public address on the internet.',
+    'Use the address the feed finally lands on.',
+    'the feed is not there',
+    'the feed answered 500',
+    'the feed did not answer in 10 seconds',
+    'the feed could not be reached',
+  ];
+  for (const text of sentences) {
+    const said = JSON_KIND.words(text);
+    assert.doesNotMatch(said, /feed/, said);
+    assert.doesNotMatch(said, /address address|an an /, said);
+  }
+  assert.equal(JSON_KIND.words('that is not a feed address'), 'that is not an address');
+  assert.equal(JSON_KIND.words('A feed is read on its ordinary port only'), 'An address is read on its ordinary port only');
+  assert.equal(JSON_KIND.words('the feed answered 500'), 'the address answered 500');
+  const refused = await readCachedJson('https://user:pw@scores.example/live.json', io(server().net));
+  assert.equal(refused.error, 'an address cannot carry a user name or password');
+  assert.equal(refused.fix, 'Paste the address that answers JSON.');
 });
 
 test('the address’s max-age does not lengthen the wait; a JSON read and a feed read of one address keep two rows', async () => {
   const s = server({ a: 1 }, { 'content-type': 'application/json', 'cache-control': 'max-age=900' });
   const env = io(s.net);
   await readCachedJson(ADDRESS, env);
-  env.clock.t = T0 + 10 * S;
+  env.clock.t = T0 + 9 * S;
   await readCachedJson(ADDRESS, env);
   assert.equal(s.net.requests.length, 2);
   assert.notEqual(JSON_KIND.key(ADDRESS), feedKey(ADDRESS));
