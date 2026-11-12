@@ -171,10 +171,15 @@ export async function dropSvg(page: Page, fixture: string): Promise<void> {
   // first version of this helper did exactly that and opened a second wizard on every offline
   // run, where `+ New graphic` then matched both the topbar's and the wizard's own copy:
   // "strict mode violation: resolved to 2 elements" (CI run 32807175809).
-  const autoOpened = await modal
-    .waitFor({ state: 'visible', timeout: 10_000 })
-    .then(() => true)
-    .catch(() => false);
+  //
+  // What to wait FOR is the app's first frame, not the wizard. Whether the wizard opens by itself
+  // is decided when the app loads, from whether a project was autosaved (`galleryOpen`'s initial
+  // value, src/store/templateStore.ts), and the wizard renders in the same frame as the rest of the
+  // app (AccountAuthoringGate only marks it inert). So once the wizard or the door every surface
+  // mounts is visible, the answer is fixed. Waiting for the wizard alone cost every import after a
+  // test's first (a project is saved by then) the whole 10 s timeout.
+  await expect(modal.or(page.locator('[data-door="new-graphic"]')).first()).toBeVisible({ timeout: 10_000 });
+  const autoOpened = await modal.isVisible();
   if (!autoOpened) await startNewProject(page);
   await expect(modal).toBeVisible();
   await tutorialShot(page, 'step-1-import-door');
