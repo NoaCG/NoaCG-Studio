@@ -2015,7 +2015,9 @@
         "workingPatchSha256": "674b343a64c616222c4820fee3746a251c788b8167c5a2920a9187657439997d",
         "previousActor": "/root/editor_r15_e4_cloud_builder",
         "previousFinalReceipt": "BLOCKED2026-11-12T18:21:59Z, native acknowledged stop; current live agent tree root only",
-        "method": "Supported existing-phase resume actor receipt; no new phase/build/repair admission. Source/worktree ownership handoff preserves failed WIP. Optional plan-worker pending launch only supports build/repair/check, so not misused for resume."
+        "method": "Supported existing-phase resume actor receipt; no new phase/build/repair admission. Source/worktree ownership handoff preserves failed WIP. Optional plan-worker pending launch only supports build/repair/check, so not misused for resume.",
+        "dispatchRequest": "/workspace/noacg-editor-r1-5-state/17e47924/wave.kit/briefs/e4-owner1-native-request.txt",
+        "dispatchRequestSha256": "35fa92b55f86434ce65a5be448a191f96e7c152a2c9d393f3d2831bc1d37076d"
       }
     }
   },
