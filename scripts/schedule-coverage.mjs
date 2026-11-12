@@ -70,6 +70,14 @@ export const CONTRACTS = {
 const FINISHED = new Set(['success', 'failure']);
 
 /**
+ * The nightly job that finds main's green full push run on the night's commit. When it found one,
+ * the plan and the shards are skipped and that push run carried the E2E suite on the same tree
+ * (nightly.yml, `covered`), so the skipped plan and shards are complete, not missing.
+ */
+export const COVERED_JOB = "Covered by main's full run";
+const CARRIED_BY_PUSH_RUN = new Set(['Nightly shard plan', E2E_SHARDS]);
+
+/**
  * pending | incomplete | green | red, with the reasons. `run` is { status, conclusion, jobs:
  * [{ name, conclusion }], required?, scope? }. The verdict is read from the REQUIRED jobs only, so
  * one contract (the catalog battery, say) can be judged on a run another contract failed. A run
@@ -84,7 +92,10 @@ export function runVerdict(run) {
   const reasons = [];
   if (run.scope !== undefined && run.scope !== 'full') reasons.push(`scope ${run.scope}, not the whole catalog`);
   let failed = false;
+  const covered = jobs.some((j) => j.name === COVERED_JOB && j.conclusion === 'success')
+    && jobs.some((j) => j.name === 'Nightly shard plan' && j.conclusion === 'skipped');
   for (const prefix of required) {
+    if (covered && CARRIED_BY_PUSH_RUN.has(prefix)) continue;
     const matching = jobs.filter((j) => j.name.startsWith(prefix));
     if (matching.length === 0) reasons.push(`no "${prefix.trim()}" job`);
     for (const j of matching) {
