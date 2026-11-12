@@ -48,7 +48,8 @@
       "session": "session_017SdbwLfFjQ7J6hawcwSs7M",
       "branch": "claude/plan-obs-scenes-os5b-build",
       "launchedAt": "2026-11-12T21:46:34Z",
-      "note": "sent brief = saved brief plus one NOTES line (use OS5a's project hook; works with page reads while 0116 is held)"
+      "note": "sent brief = saved brief plus one NOTES line (use OS5a's project hook; works with page reads while 0116 is held)",
+      "lastSeen": "2026-11-12T22:17Z builder active: adapter built, e2e journey and unit suites running"
     }
   ],
   "owner": [
