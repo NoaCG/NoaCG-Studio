@@ -92,7 +92,7 @@ test('real isolated auth persists project drafts/history and independent install
         copies: showIds.map(id => S.loadShows().find(s => s.id === id)!) };
     }, { ids, showIds: prepared.showIds });
     const permission = await reopened.evaluate(async () => {
-      const sb = (await import('/src/backend/supabase.ts')).getSupabase()!;
+      const sb = (await (await import('/src/backend/supabase.ts')).getSupabase())!;
       const user = await sb.auth.getUser();
       const other = await sb.from('documents').select('id').neq('user_id', user.data.user!.id);
       return { user: user.data.user!.id, otherRows: other.data, error: other.error?.message ?? null };

@@ -2,8 +2,8 @@ import './projects.css';
 import { useMemo, useState } from 'react';
 import { PACKS } from '../../templates/packs';
 import { kitItems, kitSelection } from '../../templates/kit';
-import { buildKit } from '../wizard/template/kitPlan';
-import { initialDraft, brandPatch } from '../wizard/draft';
+import { initialDraft, brandPatch, mergeDraft, buildDraftTemplate } from '../wizard/draft';
+import { paletteById } from '../../model/wizard';
 import { loadLooks } from '../../model/packets';
 import { applyDocumentBrand } from '../../model/brandApplication';
 import { createAuthoringProject, useAuthoringProjects } from '../../store/authoringProjects';
@@ -23,7 +23,12 @@ export default function ProjectStarter({ close }: { close: () => void }) {
   const busy = useAuthoringProjects(s => s.busy), error = useAuthoringProjects(s => s.error);
   const create = () => {
     const look = looks.find(l => l.id === brand);
-    const templates = buildKit(pack, kitSelection(pack, selected), initialDraft(), look ? brandPatch(look.brand) : null).built;
+    const templates = kitSelection(pack, selected).map(({ variant }) => {
+      const paletteId = pack.paletteId && paletteById(pack.paletteId).styleTags.includes(variant.styleTag) ? pack.paletteId : null;
+      const draft = mergeDraft(initialDraft(), { category: variant.category, variantId: variant.id,
+        lines: variant.suggestedLines.map(line => ({ ...line })), paletteId, ...(look ? brandPatch(look.brand) : {}) });
+      return buildDraftTemplate(variant, draft);
+    });
     useSaveUi.getState().requestSwitch(() => {
       void createAuthoringProject(name.trim() || pack.name, look ? templates.map(t => applyDocumentBrand(t, look)) : templates).then(ok => {
         if (ok) { close(); openNewEditor(); }

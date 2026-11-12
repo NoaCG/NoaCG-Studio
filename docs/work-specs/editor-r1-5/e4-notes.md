@@ -235,3 +235,48 @@ document binding is idempotent and need not close that binding. The corrected
 assertion verifies it remains usable, while the following different-document
 switch still must close it. A retired binding now also refuses every public port
 mutation even if a replacement context retains the document UUID.
+
+
+### Committed-source checks and first isolated attempt
+
+At `217c6c4854a22e3759830baaacb346654dcb00ea`, broader job j-0063 passed
+110/110 editor command/foundation, library and save-transaction/held-write cases
+in 6.7 minutes. Build j-0064 failed within the unchanged five-minute cap (283s):
+5,596 Node tests passed, three unchanged networking fixtures failed, and 27
+existing skips remained. The failures at `external-data-connector.test.mjs:812`
+and `feed-fetch.test.mjs:754,785` route pinned local fixture hostnames through the
+managed proxy, which returns 403. Both test files and all `api/` source are
+byte-identical to admission source 91a57833c. No proxy bypass, test change or
+whole-build rerun was used. Actual candidate CI must prove the complete build.
+
+That build's other lane also found this branch's private wizard-capability import
+in ProjectStarter. The narrow correction uses the existing public draft builder
+with the chosen catalog variant and collection palette; it leaves private kit
+logic and dependency rules untouched. Dependency cruise now reports zero
+violations; affected starter UI job j-0065 passes. This is a branch architecture
+defect, separate from the three environment-bound fixture failures.
+
+[Isolated attempt 43215844696](https://github.com/NoaCG/NoaCG-Studio/actions/runs/43215844696)
+ran source 217c6c485, started the real stack, authenticated, persisted three
+graphics/two productions and reached the fresh signed-in browser. It then failed
+a new fixture's client use: the existing async `getSupabase()` factory was not
+awaited before `auth.getUser()`. The correction awaits that factory and retains
+all UID/RLS/source/history/copy assertions, one required case, zero retries/skips
+and the original timeout. That failed run stays failed; its stack teardown and
+artifact upload passed. It is partial diagnostic evidence, never E4 acceptance.
+
+Current-source `sideEnds` for all 42 committed paths (including package.json's
+added tool script and unchanged dependency/build versions) was empty at 217c6c485.
+The local capacity estimate was WARN, 92.8%, with the new spec estimated at 0.42
+table-minutes. Newest growth artifact 13936121332 / run 43201149088 was unreadable
+through normal worker ingress (403 on redirected artifact download), so this is
+provisional stale-seed evidence. The actual candidate CI capacity verdict is
+required before final acceptance; no ceiling/exception/selection entry changes.
+
+Exact browser/export GSAP source remains 3.15.0 with the receiving kit's hash.
+A fresh `@noacg/cli@0.12.4` npm archive was inventoried (63 files), SHA256
+`c212397f29ec00a2c7e257260dd153baab18328ec3742f99622f381a4483b130`.
+Its version command reports 0.12.4; no GSAP runtime or font payload was found in
+that archive. This is artifact inventory, not a new legal conclusion. The owner
+sends the [GSAP request](gsap.md); NoaCG is open source, entirely free, earns no
+revenue and serves broadcast graphics. Written disposition still gates OW1.
