@@ -55,14 +55,18 @@ review (grade C, five required changes, all taken).
 6. **How the check reads it.** When a red PR run's failure is its `CI gate`, the check reads that
    job's annotations (one call; a failed read makes the check incomplete). If the fixed form is
    there:
-   - the bound is 0: the alarm is raised at that check unless a person has acted since the failure
-     (fix 1 rule 6's rule for no worker left), whether or not the PR has a repair owner;
+   - the bound is 0 and nothing defers it: no comment, owner-record edit or re-run counts as
+     attending an owner-only refusal, because no agent action can clear one (agents post under
+     member accounts). The alarm is raised at that check, whether or not the PR has a repair owner;
    - the line says `needs the owner: <kinds>` and names the refusal by its kinds only; no text from
      the branch's run is quoted beyond the fixed kinds;
    - its key keeps fix 1's form (PR, run, attempt, failure time), and it also carries an owner mark
-     of PR and kinds. A failure whose owner mark is already remembered (listed, or in an alarm closed
-     in the last two days) raises no new notice: a re-push refused the same way is the same alarm.
-     A different kind is a new alarm. At most the fixed kinds exist (four tiers, the table, revision,
+     of PR and kinds. A failure whose owner mark is listed in the open alarm raises no new notice: a
+     re-push refused the same way is the same alarm. A mark leaves the open alarm only as rule 7
+     says, so a refusal of the same kind after the PR was cleared (for example after an approved
+     exception) is a new alarm. If the owner closes the alarm by hand while the PR stays refused, the
+     same failure is not raised again (fix 1's memory of keys), and only a further refused re-push
+     raises one notice. A different kind is a new alarm. At most the fixed kinds exist (four tiers, the table, revision,
      each `full` or `stopped`), so the marks per PR are bounded.
 7. **Kept while refused.** A line with an owner mark stays listed while the PR's newest verdict is
    still running (a re-push in flight), and leaves only when a finished verdict on the PR no longer
@@ -70,7 +74,10 @@ review (grade C, five required changes, all taken).
    alarm, and the issue never closes while the PR is still refused.
 8. **Nothing loosened, nothing new.** No line, ceiling, budget, exception or test changes, and a
    refused PR stays refused. No workflow, job, trigger or schedule is added (the overhead tier has
-   no room, coordinator 2026-11-12). The merge group's `after-gate` job is left as it is: a PR is
-   refused at its own run first.
+   no room, coordinator 2026-11-12). The merge group's `after-gate` job is left as it is. A tier can
+   fill or a stop land between a PR's green run and its merge-group run, and the check reads
+   merge-group verdicts the same way (fix 1 rule 1), so such a refusal is alarmed at the next check
+   too. The message of rule 3 reaches the agent that queued the PR only if it reads the merge-group
+   run's error, which queue-merge's repair paragraph already has it do.
 9. **Its one job beside the weekly report.** Stops and tier breaches already appear as owner items
    in the weekly growth report. This alarm adds only which pull request is blocked by one, and when.
