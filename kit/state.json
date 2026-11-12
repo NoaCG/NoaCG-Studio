@@ -48,7 +48,8 @@
    "session": "session_017SdbwRMbipJ5otJ19cMy17",
    "branch": "claude/plan-obs-scenes-os5a-build",
    "launchedAt": "2026-11-12T19:24:51Z",
-   "note": "sent brief = saved brief plus one NOTES line (keep the reader generic for OS5b)"
+   "note": "sent brief = saved brief plus one NOTES line (keep the reader generic for OS5b)",
+   "lastSeen": "2026-11-12T19:56Z: writing evidence and phase notes"
   }
  ],
  "owner": [
@@ -74,7 +75,7 @@
   {
    "id": "trig_01KqWGJ2QRHwSmWiL4uiePEU",
    "what": "plan-run check-in",
-   "at": "2026-11-12T19:15:00Z"
+   "at": "2026-11-12T20:27:00Z"
   },
   {
    "id": "trig_01TAFy1zGNczhpYNFeoozQLL",
