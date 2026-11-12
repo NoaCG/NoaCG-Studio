@@ -21,7 +21,10 @@
 //   3. Evidence: complete, partial, stale (older than the freshness bound) or missing. Missing
 //      is never zero: additive growth into a tier with no measurement is refused. Partial or
 //      stale evidence cannot establish the last 10 points of headroom, so additive growth is
-//      refused from the 85% line instead of the 95% line.
+//      refused from the 85% line instead of the 95% line. That is the weekly report's own
+//      judgement. At the capacity line on a pull request weaker evidence never makes the gate
+//      stricter (owner, 2026-11-12, land-2 rules B1-B5): every line is 95%, missing or unreadable
+//      evidence warns, and only a stop confirmed by a complete, in-bound report refuses.
 //   4. A new case is priced conservatively (growth-ceilings.json `estimates`), including the
 //      setup it brings (a stack per ten configured test-minutes, a runner per new job).
 //   5. Exceptions: separately reviewed, owned, at most 30 days. An expired or invalid exception

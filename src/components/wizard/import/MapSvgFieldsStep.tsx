@@ -201,7 +201,7 @@ export default function MapSvgFieldsStep({
   // Credits drawn as separate role and name layers: each layer other than the Credits field sets
   // the look of every role or name in the list, and is not a field of its own.
   const creditsSources = useMemo(
-    () => (draft.svgBehaviour?.kind === 'recipe' ? creditsSourceLayers(draft.svgBehaviour) : new Map<string, 'role' | 'name'>()),
+    () => (draft.svgBehaviour?.kind === 'recipe' ? creditsSourceLayers(draft.svgBehaviour) : new Map<string, 'role' | 'name' | 'title'>()),
     [draft.svgBehaviour],
   );
   const stageRef = useRef<HTMLDivElement>(null);
@@ -1893,6 +1893,7 @@ export default function MapSvgFieldsStep({
 }
 
 /** A drawn credits role or name layer: its look is what every role or name in Credits takes. */
-function creditsSourceLine(kind: 'role' | 'name' | undefined): string {
+function creditsSourceLine(kind: 'role' | 'name' | 'title' | undefined): string {
+  if (kind === 'title') return 'sets the look of the show title, the first line of Credits';
   return `sets the look of every ${kind === 'role' ? 'role' : 'name'} in Credits`;
 }

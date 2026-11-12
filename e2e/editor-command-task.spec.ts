@@ -73,7 +73,8 @@ async function numeric(page: Page, label: string, value: string) {
   await input.fill(value); await input.press('Enter'); await ready(page);
   await expect(page.locator('.ef-animation-properties [role=alert]')).toHaveCount(0);
 }
-for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'laptop'], [1093, 614, 'laptop-125']] as const) test('shared UI, semantic and reviewed-proposal authoring, reopen and output task ' + label, async ({ browser }, testInfo) => {
+// One size: the smallest, where layouts break first (owner decision 2026-11-12, docs/work-specs/cicd-followup/evidence/land-study.md section 3.4).
+for (const [width, height, label] of [[1093, 614, 'laptop-125']] as const) test('shared UI, semantic and reviewed-proposal authoring, reopen and output task ' + label, async ({ browser }, testInfo) => {
   const compared: unknown[] = []; const creations: unknown[] = [];
   for (const mode of ['ui', 'semantic', 'proposal']) {
   semantic = mode !== 'ui'; proposal = mode === 'proposal';

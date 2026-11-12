@@ -88,7 +88,8 @@ const BUILT = await withBundledPage(
             const show = (markup, words, choice) => {
               const imp = R.importSvgMarkup(markup);
               const out = P.creditsPreview(laid(imp), ids(imp), idOf(imp, words), choice);
-              return { ...out, ...(out.anchors ? { anchors: out.anchors.map((a) => `${imp.candidates.find((c) => c.id === a.candidateId).sample}:${a.kind}`) } : {}) };
+              const sample = (id) => imp.candidates.find((c) => c.id === id).sample;
+              return { ...out, ...(out.anchors ? { anchors: out.anchors.map((a) => `${sample(a.candidateId)}:${a.kind}`) } : {}), ...(out.title ? { title: sample(out.title) } : {}) };
             };
             // One list for every layout and playback: a styled binding of each, its list field
             // found by the Sheet the same way, every binding valid against its drawing.
@@ -276,11 +277,15 @@ test('preview: the Sheet\'s list reads as headings, roles and zero, one or sever
   assert.deepEqual(PREVIEW.list, parseCredits(TAB_TEXT), 'the preview reads exactly what the roll parses');
 });
 
-test('preview: role above and role beside read off the drawing, the one list kept, a title drawn above left as artwork', () => {
+test('preview: role above and role beside read off the drawing, the one list kept, a title drawn above as its first line', () => {
   assert.equal(PREVIEW.above.styled, true);
   assert.equal(PREVIEW.above.layout, 'role-above');
   assert.equal(PREVIEW.above.ambiguous, false, 'above, the order says which look is the role');
+  // The title drawn above the roles, in a look of its own, is the show title: the list starts
+  // with it (owner walk 2026-11-10: the first line of the list is the show's name).
+  assert.equal(PREVIEW.above.title, 'PRODUCTION');
   assert.deepEqual(PREVIEW.above.list, [[
+    { type: 'entry', text: 'PRODUCTION' },
     { type: 'group', role: 'Research', names: ['Nia Vale', 'Tomas Fen'] },
     { type: 'group', role: 'Sound', names: ['Ari Moss'] },
   ]]);
@@ -288,7 +293,9 @@ test('preview: role above and role beside read off the drawing, the one list kep
 
   assert.equal(PREVIEW.beside.styled, true);
   assert.equal(PREVIEW.beside.layout, 'role-beside');
+  assert.equal(PREVIEW.beside.title, 'ÉQUIPE');
   assert.deepEqual(PREVIEW.beside.list, [[
+    { type: 'entry', text: 'ÉQUIPE' },
     { type: 'group', role: 'Réalisation', names: ['Léa Orme'] },
     { type: 'group', role: 'Image', names: ['Noé Rivage', 'Émilie Lac'] },
   ]]);

@@ -567,13 +567,14 @@ test('fix 2 rule 3: the gate\'s owner-only error says re-pushing will not pass a
   const ci = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
   const owner = /::error title=CI gate::Needs the owner \(\$\{CAPACITY_OWNER\}\): [^\n]*/.exec(ci)?.[0] ?? '';
   assert.match(owner, /Re-pushing will not pass/);
-  assert.match(owner, /drop what it adds to that tier or table/);
-  assert.match(owner, /revision only with a reviewed revision/, 'what moves each kind');
-  assert.match(owner, /Any other reason named here is this change's to fix/, 'a verdict holding both kinds says both');
+  // Since land-2c a full tier, table or stop lands and owes a repayment, so only `revision` is left (C5).
+  assert.match(owner, /can only drop its ceilings edit/);
+  assert.match(owner, /a ceilings change lands only with a reviewed revision/, 'what moves the kind');
+  assert.match(owner, /Any other record named here is this change's to fix/, 'a verdict holding both kinds says both');
   assert.match(owner, /from an up-to-date main checkout: node scripts\/repair-wake\.mjs check --issue/, 'routed on main\'s owner record');
   assert.match(ci, /capacityOwner: \$\{\{ steps\.capacity\.outputs\.capacity_owner \}\}/, 'the plan job outputs the kinds');
   assert.match(ci, /CAPACITY_OWNER: \$\{\{ needs\.plan\.outputs\.capacityOwner \}\}/, 'the gate reads them');
-  assert.match(ci, /Add a budget exception/i, 'the agent-fixable message is unchanged');
+  assert.match(ci, /Not a cost refusal \(cost lands and owes a repayment\): fix the ceilings or exception record named/, 'the agent-fixable message names what is left to fix');
 });
 
 test('fix 2 rule 6: a re-push refused for fewer of the listed kinds is the same alarm', () => {

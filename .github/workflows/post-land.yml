@@ -150,6 +150,9 @@ jobs:
       issues: write
     steps:
       - uses: actions/checkout@v5
+        with:
+          # capacity-repay reads the last 20 first-parent merges into main.
+          fetch-depth: 25
       - uses: actions/setup-node@v5
         with:
           node-version: 24
@@ -170,6 +173,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: node scripts/repair-wake.mjs check --issue
+      # A cost refusal lands and owes a repayment (owner, 2026-11-12; land-2c): one dated item per
+      # tier, assigned to the owner, from the `Repay (<tier>):` lines of the merged pull requests'
+      # CI gate. Here, not on a schedule of its own, for the same overhead reason. It reads the last
+      # 20 merges, so a cancelled run is caught up by the next, and writes only its own issues.
+      - name: Repayment items for landings that went over a line
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/capacity-repay.mjs --issue
 
   # THE WEEKLY GROWTH REPORT'S HEALTH (owner request 2026-11-11). Its own job, because re-running a
   # partial report dispatches weekly-audit, which needs write access to Actions; the delivery-age and
