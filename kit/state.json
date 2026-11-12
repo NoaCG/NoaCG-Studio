@@ -67,9 +67,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "build / first PR repair round",
+      "step": "build / first combined PR repair verification",
       "pr": 2438,
-      "note": "PR held: independent review found draft-ownership and font-preservation defects. Existing same-ID regression coverage retained and strengthened. Exact-source isolated qualification passed; repaired-head verification/review still required."
+      "note": "Combined repair a534b14e pushed clean. Focused/source/gates passed; await exact-head CI/backend, Codex and fresh full independent review. Existing same-ID tests retained; no queue stamp/auto-merge."
     }
   ],
   "owner": [
@@ -1458,7 +1458,7 @@
     "requestSha256": "bcfabef5e1347043b92cde2edc0f69da57df24eda1c49e7415c7ce4bd8281754",
     "brief": "briefs/e4-build-e4-b-cloud-1112.txt",
     "briefSha256": "2c7379c7dc2988405d565f2a2e1d72393a398e1f3cd671cf7bc4744cfd2e9888",
-    "status": "PR2438 first combined repair remains unpushed; current engineering checks passing, final affected check and new-head gates pending",
+    "status": "First combined repair committed/pushed a534b14e; clean worktree; new exact-head CI/backend/reviews pending",
     "rulesFirst": {
       "head": "0515e370d",
       "verdict": "AGREE WITH CORRECTIONS",
@@ -1559,9 +1559,9 @@
     "pr": {
       "number": 2438,
       "url": "https://github.com/NoaCG/NoaCG-Studio/pull/2438",
-      "head": "03e88fa9d999fc00bb14e690c2a304a6cc80b30b",
+      "head": "a534b14e5af899ad7f93966d175246a3f469fae4",
       "ownerComment": 6823534868,
-      "ownerAck": "MinimalpublichiddenACKaccepted; trustedMEMBERmiwcoreadbackverified; soleactiveCodexcoordinatorforrun2295",
+      "ownerAck": "Sole active coordinator acknowledgement6823534868 updated for combined round1/new head; no internal identifiers published",
       "ownerPayloadRejection": "EarlierdetailednotecontaininginternalUUIDs/paths/authoritywasauto-reviewrejectedbeforeposting. Noalternatebypass; saferminimalpublicrun-linkedACKaccepted; userinformed. Exactnative/authority/worktree retained in the existing run kit; checkpoint scope unchanged.",
       "postOpenCiRepairCount": 1,
       "carriedRepairs": {
@@ -1599,7 +1599,7 @@
         "Existingfolder/bin saved-same-IDnew-instancecoverageCI14failed2/128, mustremain; do notdeletepreconditionto green"
       ],
       "repairRound": 1,
-      "status": "Headheld; consolidatedmodelrepairbeforeonecoherentpush. No stamp/automerge. Existingidentityassertion279retained; independentreviewerretractedpreliminaryinequalityadvice and acceptedboundedcompatibilitydesign, notA.",
+      "status": "One combined repair committed/pushed a534b14e; no stamp/auto-merge; fresh full SO required after actual candidate capacity",
       "compatibilityDesign": "RetainedEditorSession.publicdocumentId=workspaceUUID; unretainedsavedlibrarysessionpublicidentitystablelibraryidentity. PrivateauthoringUUID/baseline/instanceguardownership. Strengthen savedlink/internal-UUID/instance/stale-form/source/old-handletests.",
       "workingEvidence": {
         "reproduced": "Externaldraftlossj0066and4typographyfailuresbeforefixes",
@@ -1607,14 +1607,29 @@
         "externalSafety": "j0067PASSall6external/refusal/cancelcases",
         "sameId": "j0071 all46 focused E4/folder/bin/command cases PASS in2min, original saved public-ID equality retained, private UUID/instance/old-object/new-receiver strengthened",
         "currentJob": "j0073 affected5cases only after removing yields; no redundant broader/full local build",
-        "source": "One unpushed working-tree combined repair; old03 checks remain historical, fresh final head/CI/Codex/fullSO required",
+        "source": "a534b14e5af899ad7f93966d175246a3f469fae4; clean builder worktree; all old failures retained",
         "starterHome": "j0072 cancellation extension PASS10.5s",
         "sourceAndGates": "Eight font-byte/source cases plus2codec PASS; changed-path gates93/93 across13files, lint/app-types/dependency cruise PASS",
         "receiving": "Current-source4ZIPs/source/rendered screenshots verified and restaged",
         "retainedFixtureFailure": "j0068 12PASS/1faulty first-root font-label setupFAIL; corrected metadata location without dropping source/render/font-byte assertions",
-        "noWaits": "Four newly introduced task-delay yields removed; immediate baseline old-port/command refusal before refresh, source read via store; new receiver readiness and exact stale_context tested separately"
+        "noWaits": "Four newly introduced task-delay yields removed; immediate baseline old-port/command refusal before refresh, source read via store; new receiver readiness and exact stale_context tested separately",
+        "finalAffected": "j0073 five no-delay affected cases PASS16.7s",
+        "fontAndCodec": "13/13 final source/font+codec PASS, generic font path/family/identity checks; no per-font exception",
+        "gates": "95/95 changed-path gates PASS, targeted lint/app tsc PASS, dependency cruise0violations",
+        "maintainedNumerals": "j0075 PASS1/1 scoped1/360 on sb05 at unchanged0.5px bound; j0074 relative-config offline-guard setupFAIL retained",
+        "checkStamp": "Builder reports actual PASS inline review9/9, simplify/verify inline, inherited/unexposed model metadata",
+        "reconciliation": "Worker fetched mainb5908e67e, merge-tree clean, merge-order clean, sideEnds empty;44paths versus91a admission base",
+        "retainedTypeInvocation": "Nonexistent tsconfig.app.json invocation failed; actual app tsc then PASS; no type/gate limit change"
       }
     },
-    "publicHeartbeatPrivacy": "OptionaldisplayinFlight.sessionomittedafterauto-reviewrejectedinternalworkeridentifier. Exactactor/thread/action remainunchangedine4Checkpoint/wave/launch/observationrecords; no manualheartbeatbodyedit, no runtimeidentity/gatechange."
+    "publicHeartbeatPrivacy": "OptionaldisplayinFlight.sessionomittedafterauto-reviewrejectedinternalworkeridentifier. Exactactor/thread/action remainunchangedine4Checkpoint/wave/launch/observationrecords; no manualheartbeatbodyedit, no runtimeidentity/gatechange.",
+    "repairCandidate": {
+      "head": "a534b14e5af899ad7f93966d175246a3f469fae4",
+      "normalCi": 43231538681,
+      "normalCiStatus": "queued at initial exact-head readback",
+      "rootPrReadback": "Head matches, mergeable true, auto_merge null, open/unmerged",
+      "isolated": "New exact-head qualification being requested by existing builder",
+      "review": "One new Codex review, fresh FULL SO only after actual capacity; no prior grade or backend result reused as final proof"
+    }
   }
 }
