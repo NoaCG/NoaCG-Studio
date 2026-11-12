@@ -1172,7 +1172,8 @@ export function createOutputStage(
       if (!frame.loaded && hidden) frame.queue.unshift(...cmds.map((cmd) => ({ cmd })));
       else for (const cmd of cmds) postTo(frame, cmd);
     },
-    released: (graphic) => !!frames.get(graphic)?.loaded,
+    // A published package runs what it is sent once its layer is mounted (its calls wait for load()).
+    released: (graphic) => !!frames.get(graphic)?.loaded || foreign.has(graphic),
     requestState: (graphic) => {
       // Polls are droppable pre-load — queueing them would just replay stale asks.
       if (frames.get(graphic)?.loaded) post(graphic, { cmd: 'state' });

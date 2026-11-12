@@ -528,6 +528,8 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
     };
   }
   detail.push(`${ready.v ? `Holds v${ready.v.n} · ` : ''}${engine}.`);
+  // S4, after the fact: a Take that waited past 5 s appeared without its entrance (G2 section 6).
+  for (const late of ready.lt ?? []) detail.unshift(`${late.g} appeared without its entrance (loaded after ${Math.round(late.ms / 1000)} s).`);
   if (ready.sounds) detail.push(`Sounds prepared: ${ready.sounds.n} of ${ready.sounds.of} · ${(ready.sounds.bytes / 1048576).toFixed(1)} MiB decoded.${ready.sounds.bytes > 134217728 ? ' Large audio load. Reduce sound lengths or the number of assets before rehearsal.' : ''}`);
   const warn = (state: string, extra: string[] = []): OutputLine => ({ ...base, tone: 'warn', state, detail: extra.concat(detail) });
 

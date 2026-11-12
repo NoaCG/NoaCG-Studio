@@ -2,7 +2,7 @@
 // host document it loads, the ControlMessage -> OGraf call mapping, and the benign and hostile
 // fixtures. The one spec that proves the boundary, and output-first-paint because the stage
 // module is what the published graphics load through as well.
-// covers: {src/preview/composeDocument.ts,src/output/{stage.ts,foreignOgraf.ts},src/control/ograf{Host.ts,Contract.ts},e2e/fixtures/foreign-ograf/**}
+// covers: {src/preview/composeDocument.ts,src/output/{stage.ts,foreignOgraf.ts,placeOnOutput.ts},src/control/ograf{Host.ts,Contract.ts},e2e/fixtures/foreign-ograf/**}
 
 import { test, expect, type Page } from '@playwright/test';
 
@@ -60,6 +60,13 @@ await new Promise((r) => setTimeout(r, Number(q.get('delay') || 250)));
 const stage = createOutputStage(document.body, { v: 1, resolution: design.resolution, graphics, cues: [] });
 window.__stage = stage;
 window.__airWhenSettled = airWhenSettled;
+// ?hide=lt0: hidden by its own flag before its document loads, and taken (live-publishing G2 R9).
+window.__outcomes = [];
+stage.onOutcome((at, graphic, outcome) => window.__outcomes.push({ at, graphic, outcome }));
+if (q.get('hide')) {
+  stage.hide(q.get('hide'), true);
+  stage.apply(q.get('hide'), { t: 'play' }, 1);
+}
 // Read HERE, in the same turn the stage was built, because a frame's own load can fire before
 // anything outside this page gets to look at it.
 window.__visibilityAtBirth = getComputedStyle(document.querySelector('iframe')).visibility;
@@ -221,6 +228,36 @@ test.describe('the /output shell on load', () => {
       const shot = await painted(page, await page.screenshot({ omitBackground: true, animations: 'allow' }));
       expect(shot, `frame ${i} after coming back on air`).toEqual({ covered: 0, maxAlpha: 0 });
     }
+  });
+
+  test('a frame hidden by its own flag runs what it holds out of sight, whatever the stage does, and shows when it clears', async ({ page }) => {
+    // live-publishing G2 R7, R9: a late Take's frame, or a boot frame that had not loaded when the
+    // stage came back, is hidden before anything it holds runs; the stage coming back on air does
+    // not show it; clearing the flag does, and the Take it held answers `posted` once it ran.
+    await page.goto('/first-paint/output?n=1&hide=lt0');
+    await page.waitForFunction(() => (window as unknown as { __stageReady?: boolean }).__stageReady);
+    type Stage = { setVisible(v: boolean): void; hide(g: string, h: boolean): void; released(g: string): boolean };
+    await page.waitForFunction(() => (window as unknown as { __stage: Stage }).__stage.released('lt0'));
+    const outcomes = await page.evaluate(() => (window as unknown as { __outcomes: unknown[] }).__outcomes);
+    expect(outcomes, 'the held Take ran in its document, once').toEqual([{ at: 1, graphic: 'lt0', outcome: 'posted' }]);
+    const blank = async (when: string) => {
+      for (let i = 0; i < 4; i++) {
+        const shot = await painted(page, await page.screenshot({ omitBackground: true, animations: 'allow' }));
+        expect(shot, `${when}, frame ${i}`).toEqual({ covered: 0, maxAlpha: 0 });
+      }
+    };
+    await blank('taken while hidden');
+    // The stage going off and back on air leaves a frame hidden by its own flag hidden.
+    await page.evaluate(() => {
+      const stage = (window as unknown as { __stage: Stage }).__stage;
+      stage.setVisible(false);
+      stage.setVisible(true);
+    });
+    await blank('after the stage came back on air');
+    await page.evaluate(() => (window as unknown as { __stage: Stage }).__stage.hide('lt0', false));
+    await expect
+      .poll(async () => (await painted(page, await page.screenshot({ omitBackground: true }))).covered, { timeout: 5_000 })
+      .toBeGreaterThan(0);
   });
 
   test('a graphic frame is invisible until its own document has loaded', async ({ page }) => {
