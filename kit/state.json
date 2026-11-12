@@ -40,20 +40,11 @@
    "eta": "2026-11-13T00:00:00Z"
   }
  ],
- "inFlight": [
-  {
-   "phase": "5",
-   "step": "build (G2 design PR, then W3 build PR)",
-   "actor": "builder-5-5-b-a331",
-   "session": "session_017SdbwMx1ooTEVQrtu6Losx",
-   "branch": "claude/plan-live-publishing-5-build",
-   "launchedAt": "2026-11-12T09:55:01Z",
-   "designPr": 2426,
-   "designMerge": "12173c3ff3e65220016d11d0ffdd4c1ce0f16408",
-   "lastSeen": "2026-11-12T13:51Z #2443 head 412f1e8a; full /so B on d97cb850 (new high finding in the failure/hold family: a failed graphic whose frame loaded drops every command but Take and Out); 4 rounds in one family, so a read-only Repeated-family reassessment (session_017SdbwLqkFuiZntw6BccMX2) runs before one corrected repair; about 54 USD",
-   "buildPr": 2443
-  }
- ],
+ "inFlight": {
+  "phase": 5,
+  "step": "build: builder session_017SdbwMx1ooTEVQrtu6Losx merging main into claude/plan-live-publishing-5-build (PR 2443), then fresh full /so and CI on merged head; nonce 5-b-a332",
+  "asOf": "2026-11-12T18:20Z"
+ },
  "owner": [
   {
    "what": "Phase 9: the final check in the studio, CasparCG 2.5 and 2.3 with a browser output, with the checklist phase 8 prepares",
@@ -194,5 +185,10 @@
  "standing": {
   "productionCopiesSwitch": "\"production_copies: A. Turn it on now; the coordinator may do it with my permission. Once on, it stays as it is. If anything looks wrong, turn it off and tell me.\" (owner 2026-11-12, after the 11:31Z switch-on)",
   "capacityGate": "\"yes, I discussed in the runs session that I want sessions landing and not failing\" (owner 2026-11-12)"
+ },
+ "phase5": {
+  "followups": [
+   "ProductionPage.tsx confirmation-lifetime glue (Codex P1 at 90bf214d), recorded on #2361 comment 6832121182"
+  ]
  }
 }
