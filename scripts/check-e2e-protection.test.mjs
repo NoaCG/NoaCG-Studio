@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { CONFIGS, ENTRY_MAX_DAYS, TIMEOUT_CEILING_MS, broadens, configFor, parseList, deletedSpecs, entryProblem, findings, parseMaintenance, readDiff, refusalMessage, renamedSpecs, verdict } from './check-e2e-protection.mjs';
+import { CONFIGS, listingEnv, ENTRY_MAX_DAYS, TIMEOUT_CEILING_MS, broadens, configFor, parseList, deletedSpecs, entryProblem, findings, parseMaintenance, readDiff, refusalMessage, renamedSpecs, verdict } from './check-e2e-protection.mjs';
 
 const TODAY = '2026-11-04';
 const OWNER = { today: TODAY, ownerLogin: 'miwco' };
@@ -115,4 +115,12 @@ test('an expired entry fails with a message naming the entry, its expiry and wha
   assert.match(message, /The entry for it in docs\/work-specs\/x\/spec\.md does not count: it expired on 2026-11-01\./);
   assert.match(message, /Restore the protection, or/);
   assert.match(message, /"- e2e\/lapsed\.spec\.ts: <what stays protected and by what; receipt>, owner miwco, expires <a date from 2026-11-04 to 2026-12-04>"/);
+});
+
+test('each listing compiles into its own Playwright cache, inside its own temporary directory', () => {
+  const a = listingEnv({ PATH: '/bin', PWTEST_CACHE_DIR: '/tmp/shared' }, '/tmp/list-a');
+  const b = listingEnv({ PATH: '/bin' }, '/tmp/list-b');
+  assert.equal(a.PWTEST_CACHE_DIR, '/tmp/list-a/playwright-cache');
+  assert.equal(b.PWTEST_CACHE_DIR, '/tmp/list-b/playwright-cache');
+  assert.equal(a.PATH, '/bin');
 });
