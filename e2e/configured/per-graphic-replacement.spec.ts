@@ -186,7 +186,7 @@ test('two outputs each swap a changed graphic in place, and hold one on air unti
 // without its entrance and says so. The second is taken and taken out while loading: it is never
 // shown. Meanwhile the production page's light is never green, and it is green again once both
 // outputs have run everything pressed.
-const LOWER = 'Second Strap';
+const LOWER = 'News Strip';
 
 test('a Take of a graphic still loading plays once loaded, a cancelled one never shows, and the light waits for both outputs', async ({ page, browser }) => {
   test.setTimeout(300_000);

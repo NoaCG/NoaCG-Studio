@@ -2108,7 +2108,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     },
     resolved: (resolved) => {
       // The seed: every expected output must have reached the head this page opened on.
-      runEpochRef.current = resolved.seq ? epochTag(resolved.seq.epoch) : null;
+      // A production with no head yet has no epoch: the first report heard names it.
+      runEpochRef.current = resolved.seq && resolved.seq.epoch ? epochTag(resolved.seq.epoch) : null;
       setHeardRuns({});
       setOwed(resolved.seq ? [{ at: resolved.seq.from, graphic: null, learnedAt: wallClock() }] : []);
       // Protocol 1 is the whole document's for good (hostedControl.ts `seqRoad`), so the mark is
