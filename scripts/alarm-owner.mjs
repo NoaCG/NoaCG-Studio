@@ -5,7 +5,7 @@
 //   node scripts/alarm-owner.mjs list                     # the open owned alarm issues (weekly backup review)
 //
 // Each of those alarms keeps one rolling issue (scripts/growth-report.mjs for the weekly growth,
-// delivery age and plan phase alarms; scripts/e2e-quarantine.mjs for the stale list and the
+// report health, delivery age and plan phase alarms; scripts/e2e-quarantine.mjs for the stale list and the
 // incident list). The owner decided on #1951: `miwco` is the primary owner and the weekly owner
 // session (/orchestrator-week) reviews the open ones each week as backup coverage. Both halves are
 // recorded in scripts/growth-ceilings.json: `owner` is the text every alarm prints, `ownerLogin`
@@ -142,10 +142,10 @@ export function pastDate(body) {
 
 /** The owned alarm titles, read from the scripts that keep the issues so the list cannot drift. */
 export async function ownedAlarmTitles() {
-  const { AGE_ISSUE, PHASE_AGE_ISSUE, WEEKLY_ISSUE } = await import('./growth-report.mjs');
+  const { AGE_ISSUE, PHASE_AGE_ISSUE, REPORT_ISSUE, WEEKLY_ISSUE } = await import('./growth-report.mjs');
   const { STALE_ISSUE_TITLE, INCIDENT_ISSUE_TITLE } = await import('./e2e-quarantine.mjs');
   const { RED_ISSUE } = await import('./repair-wake.mjs');
-  return [WEEKLY_ISSUE, AGE_ISSUE, PHASE_AGE_ISSUE, STALE_ISSUE_TITLE, INCIDENT_ISSUE_TITLE, RED_ISSUE];
+  return [WEEKLY_ISSUE, AGE_ISSUE, PHASE_AGE_ISSUE, REPORT_ISSUE, STALE_ISSUE_TITLE, INCIDENT_ISSUE_TITLE, RED_ISSUE];
 }
 
 // The CLI runs after this module has finished evaluating (no top-level await): `list` imports

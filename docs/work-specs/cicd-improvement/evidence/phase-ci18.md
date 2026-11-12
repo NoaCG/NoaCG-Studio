@@ -322,6 +322,12 @@ What each state lets the controls do. A change that adds nothing is never refuse
 - E17. Missing: any added cost is refused.
 - E18. A weekly report that was asked for and could not be read: any added cost is refused, offline
   included.
+- Amended 2026-11-11 (owner request, run issue #1967): at the pull request gate, E16, E17 and E18
+  no longer tighten the line. The gate judges each change against the newest complete weekly
+  report, or the frozen seed when none exists, at the 95% line, so a change is refused only for
+  its own cost; a tier nothing measured is judged on the change alone. The bad report raises one
+  owner alarm (`growth-report.mjs health`). E16 and E17 still hold in the weekly report's own
+  assessment, and exceptions still waive only on complete, fresh evidence (X9).
 - E19. A stale durations table: the offline table line refuses from 85% instead of 95%.
 - E20. A breach clears only on evidence that judges it, and is otherwise kept with its stop: cost
   when the tier is complete and at or under 100%; latency when the timing read is complete,

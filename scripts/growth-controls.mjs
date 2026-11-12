@@ -586,7 +586,7 @@ export function ledgerChanges({ base, head, mainRunners = null, shardCap = null 
  * the latest weekly report's (or the frozen seed's); `stops` maps a tier to the breach that
  * stopped its growth.
  */
-export function assessTiers({ ceilings, measurement, items = [], today, stops = {}, exceptions = ceilings.exceptions ?? [], known = null, jobsOf = coverJobs(measurement) }) {
+export function assessTiers({ ceilings, measurement, items = [], today, stops = {}, exceptions = ceilings.exceptions ?? [], known = null, jobsOf = coverJobs(measurement), trustEvidence = false }) {
   const { active, invalid } = exceptionStatus(exceptions, today, ceilings.exceptionMaxDays, known);
   const jobCost = measurement?.jobs ?? {};
   const jobsIn = (covers) => [...new Set(covers.flatMap(jobsOf))];
@@ -595,7 +595,14 @@ export function assessTiers({ ceilings, measurement, items = [], today, stops = 
   for (const tier of TIERS) {
     const ceiling = ceilings.tiers[tier];
     const ev = evidenceOf(measurement, tier, today, ceilings.freshnessDays);
-    const m = measurement?.tiers?.[tier];
+    // `trustEvidence` (the capacity line on a pull request): the measurement is the newest
+    // complete report, or the frozen seed when none exists, and its age or a missing tier never
+    // tightens the line. A tier nothing measured is judged on this change's own cost alone. An
+    // exception still waives only against complete, fresh evidence (Rule X9): partial cost is a
+    // lower bound, and old cost may since have grown into the room it would give.
+    const unmeasured = trustEvidence && ev.state === 'missing';
+    const m = unmeasured ? { perLanding: 0, perDay: 0 } : measurement?.tiers?.[tier];
+    const waives = ev.state === 'complete';
     // Credit (Rule X8): the allowance, capped at the measured cost of the jobs its covers match in
     // this tier. A cover nothing measured earns nothing; one active exception per tier (X4), so
     // credit is never pooled or summed across exceptions.
@@ -615,7 +622,7 @@ export function assessTiers({ ceilings, measurement, items = [], today, stops = 
       // stale evidence reads a job's cost only as a lower bound), or for an existing job no
       // measurement prices, the room is unknown, so nothing is waived. A spec, or
       // a job new in this change, keeps its full allowance.
-      if (ev.state !== 'complete') return i;
+      if (!waives) return i;
       if (/^job:/.test(i.id) && jobsOf(i.id).length === 0 && !/^new job/.test(i.how ?? '')) return i;
       const e = covered(i);
       if (!e) return i;
@@ -635,18 +642,18 @@ export function assessTiers({ ceilings, measurement, items = [], today, stops = 
     const usedDay = m ? Math.max(0, (m.perDay ?? 0) - exDay) : null;
     const share = m ? Math.max(usedLanding / ceiling.perLanding, usedDay / ceiling.perDay) : null;
     const after = m ? Math.max((usedLanding + addedLanding) / ceiling.perLanding, (usedDay + addedDay) / ceiling.perDay) : null;
-    const line = ev.state === 'complete' ? ceilings.refuseShare : ceilings.warnShare;
+    const line = ev.state === 'complete' || trustEvidence ? ceilings.refuseShare : ceilings.warnShare;
     let status = 'ok';
-    let why = m ? `${round1(usedLanding)}/${ceiling.perLanding} per landing, ${round1(usedDay)}/${ceiling.perDay} per day (${Math.round(100 * share)}%)` : 'not measured';
+    let why = unmeasured ? 'not measured; judged on this change\'s own cost' : m ? `${round1(usedLanding)}/${ceiling.perLanding} per landing, ${round1(usedDay)}/${ceiling.perDay} per day (${Math.round(100 * share)}%)` : 'not measured';
     if (mine.length) why += `, ${mine.map((e) => `${e.id} excepts ${round1(e.perLanding)}/landing${e.perLanding < e.claimed.perLanding ? ` (claims ${e.claimed.perLanding}, capped at what it covers)` : ''} to ${e.expires}`).join('; ')}`;
     if (ev.state !== 'complete') why += `; evidence ${ev.state}: ${ev.why}`;
     // A growth stop refuses any addition to its tier, waived by an exception or not (Rule E21).
     const raw = tierItems.some((i) => i.perLanding > 0 || i.perDay > 0);
     if (raw && stops[tier]) { status = 'refuse'; why += `; growth stopped: ${stops[tier]}`; }
-    else if (added && ev.state === 'missing') { status = 'refuse'; why += '; headroom cannot be established, so added cost is refused'; }
-    else if (added && after >= line) { status = 'refuse'; why += `; this change adds ${round1(addedLanding)}/landing ${round1(addedDay)}/day, reaching ${Math.round(100 * after)}%, at or over the ${Math.round(100 * line)}% line${ev.state === 'complete' ? '' : ' that partial or stale evidence sets'}`; }
+    else if (added && ev.state === 'missing' && !unmeasured) { status = 'refuse'; why += '; headroom cannot be established, so added cost is refused'; }
+    else if (added && after >= line) { status = 'refuse'; why += `; this change adds ${round1(addedLanding)}/landing ${round1(addedDay)}/day, reaching ${Math.round(100 * after)}%, at or over the ${Math.round(100 * line)}% line${line === ceilings.refuseShare ? '' : ' that partial or stale evidence sets'}`; }
     else if ((after ?? 0) >= ceilings.warnShare || (added && ev.state !== 'complete') || stops[tier]) { status = 'warn'; if (added) why += `; this change adds ${round1(addedLanding)}/landing ${round1(addedDay)}/day`; }
-    tiers[tier] = { status, why, evidence: ev.state, share, after, used: m ? { perLanding: usedLanding, perDay: usedDay } : null, ceiling, addedLanding, addedDay, items: tierItems.map((i) => ({ ...i, exception: covered(i)?.id ?? null })) };
+    tiers[tier] = { status, why, evidence: ev.state, line, share, after, used: m ? { perLanding: usedLanding, perDay: usedDay } : null, ceiling, addedLanding, addedDay, items: tierItems.map((i) => ({ ...i, exception: covered(i)?.id ?? null })) };
   }
   const order = { ok: 0, warn: 1, refuse: 2 };
   const status = Object.values(tiers).reduce((s, t) => (order[t.status] > order[s] ? t.status : s), 'ok');

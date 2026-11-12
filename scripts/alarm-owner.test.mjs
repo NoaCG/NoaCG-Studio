@@ -101,8 +101,9 @@ test('(b) the test alarm is labelled, carries no @mention, and is routed like a 
 
 test('the weekly backup review lists exactly the owned alarms and test alarms', async () => {
   const titles = await ownedAlarmTitles();
-  assert.equal(titles.length, 6);
+  assert.equal(titles.length, 7);
   assert.ok(titles.includes('Red pull requests nobody is repairing'), 'the red-PR alarm (scripts/repair-wake.mjs)');
+  assert.ok(titles.includes('Growth report not complete'), 'the report alarm is in the weekly backup review');
   for (const t of titles) assert.ok(isOwnedAlarm(t, titles));
   assert.ok(isOwnedAlarm('Plan phases past their age ceiling: cicd-followup', titles));
   assert.ok(isOwnedAlarm(`${TEST_ALARM_PREFIX} 2026-11-02 12:00 UTC`, titles));
