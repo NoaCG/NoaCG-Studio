@@ -1810,9 +1810,20 @@
       "head": "42be82a91ad3ad32c6208b70cf1239cf7b46d916",
       "normalCi": 43257726630,
       "initialReadback": "ExactPRhead/open/mergeabletrue/auto_mergenull; normalCIinprogress, sourcefrozen/clean",
-      "isolated": "Existingbuilderdispatchinprogress; reconcileactualrunID, no duplicatedispatch or absenceinference",
+      "isolated": 43257955547,
       "reviews": "OneCodexrequestpernewhead byexistingbuilder; freshFULL50pathSOonlyafteractualcapacity; no earlierAeligible",
-      "approval": "Nostamp/automerge; allcurrentheadworker gatesrequired; noE4acceptance/nextphase"
+      "approval": "Nostamp/automerge; allcurrentheadworker gatesrequired; noE4acceptance/nextphase",
+      "planJob": 131320391046,
+      "configuredSelection": "ACTUALALL63eligibleconfiguredspecs/fourisolatedstacks, notprospective65; entireplanrootread",
+      "capacity": "ActualSUCCESSplan/PASSINGCOSTREPAY:198.2/213tablemin93%;overhead122%0landing6daymain-onlynightly viafrozenPR_BASE7e306, currentmaincost-onlyrepaypolicy applies. Newest43201149088partial judged43014542120complete, nored-record/evidenceerror; no limit/exception edits, attribution2450 retained",
+      "testMerge": "8ace3b1a07093fc0338232a0ac6816ddc6ef16db =42be into619eb",
+      "isolatedJob": 131321229977,
+      "isolatedStatus": "TerminalSUCCESSfirstattempt16:25:14Z; rootwholelog+metadataread:1PASS28.6s zero skip/retry/accountdeleted; teardown0containers/volumes/networks/process/heldports/TIME_WAIT; claimsreleased; artifact13962766118 uploaded336870bytes. RawJSONnotdirectlyingressed; immutablewrapperstrictlyvalidatedrequiredexactsource/rollback/freshcontext/cleanupreceipt.",
+      "codexRequest": 6829275757,
+      "codexReply": 4553148107,
+      "codexStatus": "Pending: rootreadonlyeyesreactionchatgpt-codex-connector16:22:21Z; no completed botreview/cleanresultyet, no duplicate request",
+      "fullSo": "FreshFULL50pathfork-none e4_final_so_42be82a91 runningafteractualcapacityread; inheritedsettings, sourcefrozen. AllpriorBgrades/history given, no earlierA/deltaeligible",
+      "normalCiStatus": "Inprogress; Reviewed131320391379 missingstampFAIL148s perworkerwholelog; no revive/stamp beforeallworker gates. Otheractualjobsstillpending."
     }
   },
   "coordinatorTools": {
