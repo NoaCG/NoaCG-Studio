@@ -36,22 +36,18 @@
  },
  "waitingOn": [
   {
-   "what": "#2408 merge, post-land result for 0115, then phase 4 check",
-   "eta": "2026-11-12T10:30:00Z"
+   "what": "phase 4 checker verdict; owner answer on the production switch",
+   "eta": "2026-11-12T11:00:00Z"
   }
  ],
  "inFlight": [
   {
    "phase": "4",
-   "step": "build (G1 design PR, then W2 build PR)",
-   "actor": "builder-4-4-b-8d6e",
-   "session": "session_017SdbwMv6y9nPcsdRwe6TNm",
-   "branch": "claude/plan-live-publishing-4-build",
-   "launchedAt": "2026-11-12T00:02:29Z",
-   "designPr": 2404,
-   "lastSeen": "2026-11-12T09:08Z #2408 head bb6fbbeb stamped, in merge queue; R13 gateway preflight passed (coordinator)",
-   "designMerge": "eee7827892b1936c00acc263655cf6a6e753e4be",
-   "buildPr": 2408
+   "step": "check",
+   "actor": "checker-4-4-c-533b",
+   "session": "session_017SdbwQ7DGVCPaGuXVzMT5e",
+   "mergeSha": "9960a904ea2366f94fc875515a20f979d22765c2",
+   "launchedAt": "2026-11-12T09:25:46Z"
   }
  ],
  "owner": [
@@ -113,6 +109,10 @@
  },
  "ownerQuestions": [
   {
+   "what": "Phase 4 rollout: may the coordinator turn on the production_copies switch (G1 section 6 step 3) once a signed-in new-build page on production reports the mark through production_copies_state()? Effect: old open pages get Reload this page to edit on saves; their Takes keep working. Back out: switch off, instant.",
+   "state": "asked 2026-11-12T09:2xZ"
+  },
+  {
    "what": "AC-4: Take during a publish 100-200 ms slower at p95 unthrottled (phase 2 receipt). Ask before phase 6.",
    "state": "pending, before phase 6"
   },
@@ -167,5 +167,10 @@
  "mainChecks": "92e581a7: configured-suite 43092663800 green on re-run (attempt 2); CI 43092663612 re-run cancelled (attempt 2, superseded by main); the next phase 3 checker dispatches ci.yml on claude/check-92e581a per procedure",
  "ownerInfo": [
   "G1 limit: a retained personal edit to a production another device has since adopted comes back as a (conflicted copy); an existing rule that will show more often."
- ]
+ ],
+ "phase4": {
+  "landed": "9960a904",
+  "design": "eee78278 (#2404)",
+  "migration": "0115 applied to production by post-land 43191069302 in a quiet window; switch production_copies OFF"
+ }
 }
