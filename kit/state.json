@@ -1473,7 +1473,14 @@
       "status": "LANDED_BY_EXISTING_AUTOMATION",
       "merge": "4e973672c28d40fb46ec62d7271d0c1738293461",
       "mergedAt": "2026-11-12T17:45:40Z",
-      "readback": "ActualPR2455andone-filediffread:onlygeneratedquarantineentrymovedtohistory;20MAINpasses earnedbyexistingpolicyroute. Rootdidnotrelease/stamporownbackgroundPR. No productcausefixorcausalverdictchange. Current2371bodyremovedclockbyautomatedpolicy;outageentryremainsmiwcoNov25,pergraphicmiwcoNov26. Originalclockincident/causalreportsretainhistory."
+      "readback": "ActualPR2455andone-filediffread:onlygeneratedquarantineentrymovedtohistory;20MAINpasses earnedbyexistingpolicyroute. Rootdidnotrelease/stamporownbackgroundPR. No productcausefixorcausalverdictchange. Current2371bodyremovedclockbyautomatedpolicy;outageentryremainsmiwcoNov25,pergraphicmiwcoNov26. Originalclockincident/causalreportsretainhistory.",
+      "causeFollowup": {
+        "issue": 2456,
+        "owner": "miwco",
+        "repairDue": "2026-11-25",
+        "reason": "Standardpolicyrelease2455removedclockfromrolling2371withoutproductcausefix. Preservetheconfirmedpre-E1/E2deferredcallback/eventtimecauseindurableissue;actualsourcepathsunchangedfromE2parentthroughmain4e973.",
+        "evidence": "Duplicate searchread2182/2175andclock/debate/race/noacgEventAtqueries;2182differentoldsavedenginecase. NewP2area:playoutissue2456created,actualassigneemiwcoanddateverified. Existingowner/dateauthorizedbyuser,notinvented. Incidentcomment6831636852linksfollowupandretainsoutagequarantine."
+      }
     }
   },
   "waitingOn": null,
