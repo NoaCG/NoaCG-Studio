@@ -73,7 +73,7 @@ import { PROBE_MS, reloadWhenClear, within } from './reload';
 import { FRAME_LOAD_MS, createOutputStage, heldLine } from './stage';
 import { reportedLook } from '../control/cueAdjust';
 import { createSwapper } from './swap';
-import { ENTRANCE_MS, HELD_PER_GRAPHIC, HELD_PER_OUTPUT, compact, giveUp, heldLate, isCancelled, isTake, liveStep, releaseMode, type HeldRow, type HoldFailure } from './hold';
+import { ENTRANCE_MS, HELD_PER_GRAPHIC, HELD_PER_OUTPUT, afterOutcome, compact, giveUp, heldLate, isCancelled, isTake, liveStep, releaseMode, type Failure, type HeldRow, type HoldFailure } from './hold';
 import { epochTag, listed, type HeldEntry, type RunReport } from '../control/runReport';
 import { CATCH_UP_TIMING, readGraphic, stoodStill, wait } from './catchUp';
 import { TYPED_READER, typedOutputGate, type TypedValues } from '../model/ografTyped';
@@ -990,7 +990,7 @@ async function boot(): Promise<void> {
   /** `from`: the position of the hold's first command, kept when making room drops it. */
   const holds = new Map<string, { rows: HeldRow<ControlEventRow['msg']>[]; from: number }>();
   /** Graphics whose hold failed, from where and why (cleared by a later Take or Out that runs). */
-  const failures = new Map<string, { from: number; why: HoldFailure; overdue?: true }>();
+  const failures = new Map<string, Failure>();
   /** Where E1.1's typed hold of each graphic started. */
   const typedFrom = new Map<string, number>();
   /** Boot frames hidden by their own flag because they had not loaded when the stage came back. */
@@ -1239,22 +1239,20 @@ async function boot(): Promise<void> {
     if (holds.has(graphic) && ready(graphic)) releaseHold(graphic);
   });
   stage.onOutcome((at, graphic, outcome) => {
-    // A command that waited in the stage has run: its graphic may report again.
-    if (outcome === 'posted') {
-      // D1: an overdue queue that has run in full clears its red.
-      if (failures.get(graphic)?.overdue && stage.waitingFor(graphic) === null) {
-        failures.delete(graphic);
-        readyChanged();
-      }
-      if (seqMode) {
-        unreportedRun.add(graphic);
-        scheduleReport(graphic);
-      }
-    } else if (outcome !== 'skipped' && !failures.has(graphic)) {
-      console.warn(`output: "${graphic}" did not play here (stage: ${outcome.failed} at ${at}).`);
-      // The stage gave up on it: named in `h` until a later Take or Out runs (G2 section 1).
-      failures.set(graphic, outcome.overdue ? { from: at, why: outcome.failed, overdue: true } : { from: at, why: outcome.failed });
+    // The failure line follows D1 and D2 (`afterOutcome`).
+    const before = failures.get(graphic);
+    const after = afterOutcome(before, at, outcome, stage.waitingFor(graphic) === null);
+    if (after !== before) {
+      if (after) {
+        console.warn(`output: "${graphic}" did not play here (stage: ${after.why} at ${at}).`);
+        failures.set(graphic, after);
+      } else failures.delete(graphic);
       readyChanged();
+    }
+    // A command that waited in the stage has run: its graphic may report again.
+    if (outcome === 'posted' && seqMode) {
+      unreportedRun.add(graphic);
+      scheduleReport(graphic);
     }
     presence.touch();
   });

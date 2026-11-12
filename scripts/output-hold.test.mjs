@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { ENTRANCE_MS, compact, endsFailure, giveUp, liveStep, heldLate, isCancelled, lastLifecycle, releaseMode, routeLive, surviving } = await import('../src/output/hold.ts');
+const { ENTRANCE_MS, afterOutcome, compact, endsFailure, giveUp, liveStep, heldLate, isCancelled, lastLifecycle, releaseMode, routeLive, surviving } = await import('../src/output/hold.ts');
 
 const row = (at, t, receivedAt = 0, extra = {}) => ({ at, msg: { t, ...extra }, receivedAt });
 
@@ -179,7 +179,33 @@ test('D1: a command overdue at 20 s is reported failed once and kept; its queue 
   assert.doesNotMatch(stage, /frame\.queue = frame\.queue\.filter\(\(item\) => item\.at !== at\)/, 'nothing is dropped from a queue');
   // Boot history is watched like any other command.
   assert.doesNotMatch(main, /, at, following\);/);
-  assert.match(main, /if \(failures\.get\(graphic\)\?\.overdue && stage\.waitingFor\(graphic\) === null\) \{\n\s+failures\.delete\(graphic\);/);
+  assert.match(main, /const after = afterOutcome\(before, at, outcome, stage\.waitingFor\(graphic\) === null\);/);
+});
+
+test('D1 and D2 driven through outcomes: overdue clears when drained, a real failure stays until a Take or Out', () => {
+  const overdue = { failed: 'load', overdue: true };
+  // Overdue, then the queue runs: still waiting keeps red, drained clears it.
+  let f = afterOutcome(undefined, 10, overdue, false);
+  assert.deepEqual(f, { from: 10, why: 'load', overdue: true });
+  assert.equal(afterOutcome(f, 10, overdue, false), f, 'reported once');
+  assert.equal(afterOutcome(f, 10, 'posted', false), f, 'not drained yet');
+  assert.equal(afterOutcome(f, 11, 'posted', true), undefined, 'the queue ran in full');
+  // Overdue, then a real failure, then posts: the red stays (D2).
+  f = afterOutcome(undefined, 10, overdue, false);
+  f = afterOutcome(f, 12, { failed: 'typed' }, false);
+  assert.deepEqual(f, { from: 10, why: 'typed' });
+  assert.equal(afterOutcome(f, 13, 'posted', true), f);
+  assert.equal(afterOutcome(f, 13, 'skipped', true), f);
+  // A real failure first: an overdue one never softens it, a post never clears it.
+  f = afterOutcome(undefined, 5, { failed: 'limit' }, true);
+  assert.equal(afterOutcome(f, 6, overdue, false), f);
+  assert.equal(afterOutcome(f, 7, 'posted', true), f);
+  // Only a Take or Out clears it (liveStep).
+  const step = liveStep({ held: false, ready: true, hosts: true, stageWaits: false, isPackage: false, failed: true }, 'play');
+  assert.equal(step.clear, true);
+  // An overdue queue that ends skipped stays red until a Take or Out: the safe direction.
+  f = afterOutcome(undefined, 10, overdue, false);
+  assert.equal(afterOutcome(f, 10, 'skipped', true), f);
 });
 
 test('a late Take stays hidden until its stage work has run: stillness counts only once nothing waits', async () => {

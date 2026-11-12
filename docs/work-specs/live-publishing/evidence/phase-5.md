@@ -103,9 +103,30 @@ building" with its reason.
   live feed froze. Now routing reads the hold and the frame alone (`liveStep` in `hold.ts`); a Take
   or Out clears the failure, and a Take on a ready frame first gets the graphic's kept values.
   Node-tested with every input combination and a 2,000-walk reference model.
+- **A real stage failure replaces an overdue one** (final review at 90bf214d, B): `afterOutcome`
+  in `hold.ts`, behaviour-tested, so a later post cannot clear a D2 red. A hidden late Take now
+  counts stillness only once its stage work has drained (second Codex review at 90bf214d).
+- **Open: the page's confirmation lifetime lives in `ProductionPage.tsx`** (Codex at 90bf214d, P1):
+  the owed-command history, pruning and epoch transitions are page refs, against the folder rule
+  that puts playout lifetimes in `src/control/`. Left for the repair owner.
 - **D1 and D2** (owner, 2026-11-12): an overdue command is reported once and kept, boot history is
   watched too (no more grey "Confirming..." forever), and the queue running in full clears the red.
   See the spec's Phase 5 notes for the G2 wording these change.
+
+## Not built (G2 section 9), and what covers each case
+
+| G2 section 9 case | Covered by | Status |
+|---|---|---|
+| All out or a deletion while the graphic loads | `output-hold.test.mjs` (cancelled queues, R6; `giveUp`); deletion settles in `onRemoved` | Node only; no configured walk. Phase 9 owner check |
+| Updates, an event and Nexts pressed while it loads | `output-hold.test.mjs` reference model (2,000 random queues of Take, update, event, Next, Out) | Node only; no configured walk |
+| A restart during the hold | none beyond `unreportedRows` in `output-reload.test.mjs` | Not built. Phase 9 owner check |
+| A delayed report row reads grey then amber | `run-confirm.test.mjs` "ages oldest first: grey, amber at 5 s, red at 15 s" | Node only |
+| Dropped reports read red at 15 s | same test; "never turns red while Presence is down" | Node only |
+| A second page opened while an output holds | `run-confirm.test.mjs` "a page opened mid-hold" | Node only |
+| "Reload <output> when nothing is on air" | `run-confirm.test.mjs` "an output that cannot confirm: an older build, or the old log" | Node only |
+| A feed never turns the light amber | the page owes pressed command rows only (`sessionWire.ts`); the `w3` measurement ran a 5 Hz feed with no amber | No dedicated test. Phase 9 owner check |
+| A Take failed on one output leaves later Takes confirmed | `run-confirm.test.mjs` "confirmed per graphic (R12)" | Node only |
+| The throttled measurement | not run: the `w3` group ran unthrottled only | Not built. Phase 9 owner check |
 
 ## Verification
 

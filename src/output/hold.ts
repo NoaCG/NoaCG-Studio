@@ -151,3 +151,28 @@ export function liveStep(
 export function giveUp(rows: readonly HeldRow[]): 'settle' | 'fail' {
   return isCancelled(rows) ? 'settle' : 'fail';
 }
+
+/** A graphic's failure line, as `h` reports it. */
+export interface Failure {
+  from: number;
+  why: HoldFailure;
+  /** D1: only overdue, so its queue running in full clears it. */
+  overdue?: true;
+}
+
+/** A STAGE OUTCOME'S EFFECT ON THE FAILURE LINE (owner decisions D1 and D2, 2026-11-12). An overdue
+ *  command reads red and clears once its graphic's queue has run in full (`drained`); a real
+ *  failure stays until the next Take or Out (`liveStep`), All out or deletion, and replaces an
+ *  overdue line so a later post cannot clear it. */
+export function afterOutcome(
+  current: Failure | undefined,
+  at: number,
+  outcome: 'posted' | 'skipped' | { failed: HoldFailure; overdue?: true },
+  drained: boolean,
+): Failure | undefined {
+  if (outcome === 'posted') return current?.overdue && drained ? undefined : current;
+  if (outcome === 'skipped') return current;
+  if (!current) return outcome.overdue ? { from: at, why: outcome.failed, overdue: true } : { from: at, why: outcome.failed };
+  if (current.overdue && !outcome.overdue) return { from: current.from, why: outcome.failed };
+  return current;
+}
