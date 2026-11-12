@@ -58,7 +58,7 @@ import { fileURLToPath } from 'node:url';
 
 import { planMinutes } from './e2e-affected.mjs';
 import { budgetMinutes, minutesByFile, readTable, specFilesOnDisk } from './e2e-durations.mjs';
-import { TIERS, assessTiers, ceilingsRevision, exceptionStatus, knownCovers, ledgerChanges, priceAdditions, receiptAfter, reportCadence, summarizeTiers, tableFreshness } from './growth-controls.mjs';
+import { TIERS, assessTiers, ceilingsRevision, exceptionStatus, knownCovers, ledgerChanges, needsRevision, priceAdditions, receiptAfter, reportCadence, summarizeTiers, tableFreshness } from './growth-controls.mjs';
 import { measured } from './measured.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -226,7 +226,7 @@ export function assess({ table = readTable(), suite = specFilesOnDisk(), changed
     status = 'warn';
     reason = `${reason}; above the ${Math.round(100 * WARN_SHARE)}% line${added > 0 ? `, this change adds ${added.toFixed(1)} minute(s)` : ''}`;
   }
-  return { capacity, before, after, share, added, status, reason, details, median, p90 };
+  return { capacity, before, after, share, added, status, reason, details, median, p90, line };
 }
 
 /** Markdown for the step summary: the three costs kept apart. */
@@ -292,7 +292,8 @@ export function applyOfflineStop(growth, result, { warnShare = WARN_SHARE, refus
   // its line (95%, or 85% on partial or stale evidence). The table line prices them separately.
   else if (tier?.used && tier?.ceiling) {
     const after = Math.max((tier.used.perLanding + landing) / tier.ceiling.perLanding, (tier.used.perDay + day) / tier.ceiling.perDay);
-    if (after >= line) { growth.status = 'refuse'; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s), ${landing.toFixed(1)} runner-minutes per landing and ${day.toFixed(1)} per day, taking the offline tier to ${Math.round(100 * after)}% of its ceiling (the ${Math.round(100 * line)}% line)`); }
+    // Already at its line before this change: no cheaper change clears it (cf22 fix 2).
+    if (after >= line) { growth.status = 'refuse'; growth.offlineFull = tier.share >= line; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s), ${landing.toFixed(1)} runner-minutes per landing and ${day.toFixed(1)} per day, taking the offline tier to ${Math.round(100 * after)}% of its ceiling (the ${Math.round(100 * line)}% line)`); }
   }
   return growth;
 }
@@ -440,7 +441,43 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
     '',
   ].join('\n');
   const assessWith = (extra) => assessTiers({ ceilings, measurement, items: extra, today, stops, known, trustEvidence: true });
-  return { status, reasons, markdown, table: fresh, tiers, items, stops, gate, estimates: ceilings.estimates, assessWith };
+  return { status, reasons, markdown, table: fresh, tiers, items, stops, gate, estimates: ceilings.estimates, assessWith, ledger };
+}
+
+/**
+ * OWNER-ONLY REFUSALS (cicd-followup cf22 fix 2; rules in
+ * docs/work-specs/cicd-followup/evidence/cf22-fix-2-owner-refusals.md, rule 1). The refusals no
+ * change to the pull request's own cost can clear, short of adding nothing: a tier or the table
+ * already at or over its line before this change (`full:`), a growth stop (`stopped:`), and a
+ * ceilings change without a reviewed revision (`revision`). Every other refusal is the agent's and
+ * keeps its message. `result` is the table's own verdict, before the growth verdict is merged into
+ * it. Pure; returns the kinds in a fixed order.
+ */
+export function ownerKinds({ result, growth }) {
+  const kinds = [];
+  if (result.status === 'refuse' && result.before / result.capacity >= result.line) kinds.push('full:table');
+  for (const tier of TIERS) {
+    const t = growth.tiers?.tiers?.[tier];
+    if (t?.status !== 'refuse') continue;
+    if (growth.stops?.[tier]) kinds.push(`stopped:${tier}`);
+    else if (t.share != null && t.share >= t.line) kinds.push(`full:${tier}`);
+  }
+  // applyOfflineStop refuses added offline spec minutes outside the tier verdict.
+  if (growth.stops?.offline && result.added > 0) kinds.push('stopped:offline');
+  if (growth.offlineFull) kinds.push('full:offline');
+  if ((growth.ledger ?? []).some(needsRevision)) kinds.push('revision');
+  return [...new Set(kinds)];
+}
+
+/**
+ * The gate's verdict: the table's and the growth tiers' together, the worse one winning, with the
+ * owner-only kinds of a refusal classed on the table's own verdict (fix 2 rule 1). Pure.
+ */
+export function finalVerdict({ result, growth }) {
+  const order = { ok: 0, warn: 1, refuse: 2 };
+  const status = order[growth.status] > order[result.status] ? growth.status : result.status;
+  const reason = growth.status !== 'ok' && growth.reasons.length ? `${result.reason}; ${growth.reasons.join('; ')}` : result.reason;
+  return { status, reason, owner: status === 'refuse' ? ownerKinds({ result, growth }).join(',') : '' };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -470,15 +507,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   // A growth stop on the offline tier (a cost or pre-merge latency breach whose one correction
   // failed) refuses added offline minutes too, whatever the table line says.
   applyOfflineStop(growth, result, { paths: changed });
-  const order = { ok: 0, warn: 1, refuse: 2 };
-  if (order[growth.status] > order[result.status]) result.status = growth.status;
-  if (growth.status !== 'ok' && growth.reasons.length) result.reason = `${result.reason}; ${growth.reasons.join('; ')}`;
+  const verdict = finalVerdict({ result, growth });
+  result.status = verdict.status;
+  result.reason = verdict.reason;
   const text = `${summarize(result, { runnerMinutes, wallMinutes, label: fromReport ? 'measured' : 'estimate' })}${growth.markdown}`;
   console.log(text);
   const summary = value('--summary');
   if (summary) appendFileSync(summary, `${text}\n`);
   if (args.includes('--github-output') && process.env.GITHUB_OUTPUT) {
-    appendFileSync(process.env.GITHUB_OUTPUT, `capacity=${result.status}\ncapacity_reason=${result.reason.replace(/\r?\n/g, ' ')}\n`);
+    appendFileSync(process.env.GITHUB_OUTPUT, `capacity=${result.status}\ncapacity_reason=${result.reason.replace(/\r?\n/g, ' ')}\ncapacity_owner=${verdict.owner}\n`);
   }
   if (result.status === 'refuse') console.log(`::error title=E2E capacity::${result.reason}`);
   else if (result.status === 'warn') console.log(`::warning title=E2E capacity::${result.reason}`);

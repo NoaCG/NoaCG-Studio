@@ -1,4 +1,4 @@
-// guards: scripts/repair-wake.mjs, scripts/alarm-owner.mjs, scripts/growth-report.mjs, scripts/growth-ceilings.json, .github/workflows/post-land.yml, .agent-workflows/plan-run.md
+// guards: scripts/repair-wake.mjs, scripts/e2e-capacity.mjs, .github/workflows/ci.yml, scripts/alarm-owner.mjs, scripts/growth-report.mjs, scripts/growth-ceilings.json, .github/workflows/post-land.yml, .agent-workflows/plan-run.md
 // A red PR nobody is repairing reaches the owner alarm (cicd-followup cf22 fix 1). Each case is
 // stated from the Rules in docs/work-specs/cicd-followup/evidence/cf22-fix-1-repair-wake.md, with
 // its expected outcome written by hand, against a fake GitHub; no network. The first cases replay
@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { ownedAlarmTitles } from './alarm-owner.mjs';
-import { BOUND_MINUTES, budgetedGh, failureOf, keysIn, MAX_CALLS, nextAlarm, ownerText, raise, RED_ISSUE, runCheck } from './repair-wake.mjs';
+import { BOUND_MINUTES, budgetedGh, failureOf, keysIn, MAX_CALLS, nextAlarm, ownerKindsIn, ownerText, raise, RED_ISSUE, runCheck } from './repair-wake.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const plus = (iso, min) => new Date(Date.parse(iso) + min * 60_000).toISOString().replace('.000Z', 'Z');
@@ -51,6 +51,7 @@ function fakeGitHub(world = {}) {
     }
     let m;
     if (method === 'GET' && (m = /\/actions\/runs\/(\d+)\/attempts\/\d+\/jobs$/.exec(p))) return JSON.stringify({ jobs: (runs.find((r) => r.run.id === Number(m[1])) ?? groups.find((g) => g.id === Number(m[1]))).jobs });
+    if (method === 'GET' && (m = /\/check-runs\/([^/]+)\/annotations$/.exec(p))) return JSON.stringify(world.annotations?.[m[1]] ?? []);
     if (method === 'GET' && (m = /\/actions\/runs\/(\d+)$/.exec(p))) {
       const found = runs.find((r) => r.run.id === Number(m[1]))?.run ?? groups.find((g) => g.id === Number(m[1]));
       if (!found) throw new Error('HTTP 404');
@@ -444,6 +445,7 @@ test('the check runs in the existing post-land alarm job and at each plan-run ch
   assert.match(job, /node scripts\/repair-wake\.mjs check --issue/);
   assert.match(job, /continue-on-error: true\n(?:.*\n){0,4}\s+run: node scripts\/repair-wake\.mjs/, 'a failed check never turns a landing\'s post-land run red');
   assert.match(job, /actions: read/);
+  assert.match(job, /checks: read/, 'the CI gate\'s annotations (fix 2 rule 6)');
   assert.match(job, /issues: write/);
   assert.doesNotMatch(job, /pull-requests: write|contents: write|actions: write/, 'read-only on PRs');
   assert.match(wf, /^on:\n {2}push:\n {4}branches: \[main\]/m, 'main\'s code, after each landing');
@@ -451,4 +453,167 @@ test('the check runs in the existing post-land alarm job and at each plan-run ch
   assert.ok(!existsSync(new URL('../.github/workflows/repair-wake.yml', import.meta.url)), 'no scheduled workflow: the overhead tier has no room for one');
   const checkIn = readFileSync(new URL('../.agent-workflows/plan-run.md', import.meta.url), 'utf8');
   assert.match(checkIn, /On every check-in[^\n]*node scripts\/repair-wake\.mjs check --issue/);
+});
+
+// cf22 fix 2: a refusal only the owner can move goes to the owner at once, not round the loop.
+// Stated from docs/work-specs/cicd-followup/evidence/cf22-fix-2-owner-refusals.md, rules 3 to 7.
+
+/** A red PR run whose `CI gate` job is `gateId`; `annotations[gateId]` is what the gate said. */
+const refused = (o) => { const r = prRun(o); r.jobs[2].id = o.id * 10; return r; };
+const needsOwner = (kinds, tail = '') => [{ annotation_level: 'failure', message: `Needs the owner (${kinds}): E2E capacity line - ${tail}` }];
+
+test('fix 2 rule 4: only the fixed kinds are read from the gate, in the fixed form', () => {
+  assert.deepEqual(ownerKindsIn(needsOwner('full:overhead,stopped:offline')), ['full:overhead', 'stopped:offline']);
+  assert.deepEqual(ownerKindsIn(needsOwner('full:overhead,ping @all,full:moon,revision')), ['full:overhead', 'revision'], 'anything else is dropped');
+  assert.deepEqual(ownerKindsIn([{ message: 'E2E capacity line refused - full:overhead. Add a budget exception' }]), [], 'an agent-fixable refusal has no kind');
+  assert.deepEqual(ownerKindsIn([{ message: 'needs the owner (full:overhead)' }]), [], 'the form is exact');
+  assert.deepEqual(ownerKindsIn([{ message: 'E2E capacity line - exception Needs the owner (full:table) is invalid' }]), [], 'only at the start: branch text inside a reason is not the form');
+  assert.deepEqual(ownerKindsIn(undefined), []);
+});
+
+test('fix 2 rule 6: an owner-only refusal alarms at the next check, whatever any agent posts, and quotes no branch text', () => {
+  const t = '2026-11-12T08:00:00Z';
+  const fx = {
+    prs: [{ number: 7, sha: 's' }], runs: [refused({ id: 1, sha: 's', start: plus(t, -15), end: t })],
+    annotations: { 10: needsOwner('full:overhead', '<img src=x> @everyone') },
+    comments: { 7: [ownerRecord(plus(t, 1), 'session_x'), person(plus(t, 2), 're-pushing')] },
+  };
+  const gh = fakeGitHub(fx);
+  const r = check(gh, plus(t, 3));
+  assert.deepEqual(notices(gh), ['open'], 'bound 0: a comment and an owner record defer nothing');
+  assert.equal(r.entries[0].unattended, true);
+  assert.match(r.alarm.body, /#7: needs the owner: full:overhead;/);
+  assert.match(r.alarm.body, /<!-- key: 7\/1\/1\/2026-11-12T08:00:00Z --> <!-- owner-mark: 7:full:overhead -->/, 'fix 1\'s key form, plus the mark');
+  assert.doesNotMatch(r.alarm.body, /img|everyone/, 'nothing from the branch run beyond the kinds');
+  assert.deepEqual(keysIn(r.alarm.body), ['7/1/1/2026-11-12T08:00:00Z'], 'fix 1\'s memory still reads it');
+});
+
+test('fix 2 rule 6: an agent-fixable refusal keeps fix 1\'s bound', () => {
+  const t = '2026-11-12T08:00:00Z';
+  const fx = { prs: [{ number: 7, sha: 's' }], runs: [refused({ id: 1, sha: 's', start: plus(t, -15), end: t })], annotations: { 10: [{ message: 'E2E capacity line refused - over the line' }] }, comments: { 7: [ownerRecord(plus(t, 1), 'session_x')] } };
+  const gh = fakeGitHub(fx);
+  check(gh, plus(t, 30));
+  assert.deepEqual(notices(gh), [], 'within 60 minutes of its owner\'s action');
+  check(gh, plus(t, 1 + BOUND_MINUTES + 1));
+  assert.deepEqual(notices(gh), ['open']);
+});
+
+test('fix 2 rules 6 and 7: re-pushes refused the same way are the same alarm, kept while one is in flight, withdrawn when cleared', () => {
+  const t = '2026-11-12T08:00:00Z';
+  const fx = { prs: [{ number: 7, sha: 's1' }], runs: [refused({ id: 1, sha: 's1', start: plus(t, -15), end: t })], annotations: { 10: needsOwner('full:overhead'), 20: needsOwner('full:overhead') } };
+  const gh = fakeGitHub(fx);
+  check(gh, plus(t, 1));
+  // The agent re-pushes; the new run is in flight.
+  fx.prs[0].sha = 's2';
+  fx.runs.push(refused({ id: 2, sha: 's2', start: plus(t, 5), end: plus(t, 5), status: 'in_progress' }));
+  let r = check(gh, plus(t, 6));
+  assert.ok(r.alarm, 'an in-flight re-push never withdraws it');
+  assert.match(r.alarm.body, /owner-mark: 7:full:overhead/);
+  // It is refused the same way: listed, no new notice.
+  fx.runs[1] = refused({ id: 2, sha: 's2', start: plus(t, 5), end: plus(t, 20) });
+  r = check(gh, plus(t, 21));
+  assert.deepEqual(notices(gh), ['open'], 'the same alarm, not a new notice');
+  assert.match(r.alarm.body, /key: 7\/2\/1\//);
+  // An approved exception lands; the next push passes. Withdrawn.
+  fx.prs[0].sha = 's3';
+  fx.runs.push(prRun({ id: 3, sha: 's3', start: plus(t, 30), end: plus(t, 45), gate: 'success' }));
+  r = check(gh, plus(t, 46));
+  assert.equal(r.alarm, undefined, 'closed once a finished verdict no longer carries the kind');
+});
+
+test('fix 2 rule 7: a PR that turns draft takes its owner-only line with it', () => {
+  const t = '2026-11-12T08:00:00Z';
+  const fx = { prs: [{ number: 7, sha: 's' }], runs: [refused({ id: 1, sha: 's', start: plus(t, -15), end: t })], annotations: { 10: needsOwner('full:table') } };
+  const gh = fakeGitHub(fx);
+  assert.ok(check(gh, plus(t, 1)).alarm);
+  fx.prs[0].draft = true;
+  assert.equal(check(gh, plus(t, 2)).alarm, undefined);
+});
+
+test('fix 2 rule 6: a different kind is a new alarm; after a closing by hand only a further refused re-push notifies', () => {
+  const t = '2026-11-12T08:00:00Z';
+  const fx = { prs: [{ number: 7, sha: 's1' }], runs: [refused({ id: 1, sha: 's1', start: plus(t, -15), end: t })], annotations: { 10: needsOwner('full:overhead'), 20: needsOwner('full:overhead,full:table'), 30: needsOwner('full:overhead,full:table') } };
+  const gh = fakeGitHub(fx);
+  check(gh, plus(t, 1));
+  fx.prs[0].sha = 's2';
+  fx.runs.push(refused({ id: 2, sha: 's2', start: plus(t, 5), end: plus(t, 20) }));
+  check(gh, plus(t, 21));
+  assert.deepEqual(notices(gh), ['open', 'comment'], 'a new kind notifies once');
+  gh.state.issues[0].state = 'closed';
+  check(gh, plus(t, 22));
+  check(gh, plus(t, 23));
+  assert.deepEqual(notices(gh), ['open', 'comment'], 'the same failure is remembered from the closed alarm');
+  fx.prs[0].sha = 's3';
+  fx.runs.push(refused({ id: 3, sha: 's3', start: plus(t, 25), end: plus(t, 40) }));
+  check(gh, plus(t, 41));
+  check(gh, plus(t, 42));
+  assert.deepEqual(notices(gh), ['open', 'comment', 'open'], 'one notice for the further refused re-push');
+});
+
+test('fix 2 rule 6: an unread gate answer is no verdict, and the check is incomplete', () => {
+  const t = '2026-11-12T08:00:00Z';
+  const fx = { prs: [{ number: 7, sha: 's' }], runs: [refused({ id: 1, sha: 's', start: plus(t, -15), end: t })], annotations: { 10: needsOwner('full:overhead') }, fail: (route) => /annotations/.test(route) };
+  const gh = fakeGitHub(fx);
+  const r = check(gh, plus(t, 120));
+  assert.equal(r.complete, false);
+  assert.deepEqual(notices(gh), []);
+  // An answer that is not a list (an error body) is unread too.
+  const odd = fakeGitHub({ ...fx, fail: () => false, annotations: { 10: { message: 'Not Found' } } });
+  assert.equal(check(odd, plus(t, 120)).complete, false);
+  assert.deepEqual(notices(odd), []);
+});
+
+test('fix 2 rule 3: the gate\'s owner-only error says re-pushing will not pass and how to raise the alarm; the agent message stays', () => {
+  const ci = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
+  const owner = /::error title=CI gate::Needs the owner \(\$\{CAPACITY_OWNER\}\): [^\n]*/.exec(ci)?.[0] ?? '';
+  assert.match(owner, /Re-pushing will not pass/);
+  assert.match(owner, /drop what it adds to that tier or table/);
+  assert.match(owner, /revision only with a reviewed revision/, 'what moves each kind');
+  assert.match(owner, /Any other reason named here is this change's to fix/, 'a verdict holding both kinds says both');
+  assert.match(owner, /from an up-to-date main checkout: node scripts\/repair-wake\.mjs check --issue/, 'routed on main\'s owner record');
+  assert.match(ci, /capacityOwner: \$\{\{ steps\.capacity\.outputs\.capacity_owner \}\}/, 'the plan job outputs the kinds');
+  assert.match(ci, /CAPACITY_OWNER: \$\{\{ needs\.plan\.outputs\.capacityOwner \}\}/, 'the gate reads them');
+  assert.match(ci, /Add a budget exception/i, 'the agent-fixable message is unchanged');
+});
+
+test('fix 2 rule 6: a re-push refused for fewer of the listed kinds is the same alarm', () => {
+  const t = '2026-11-12T08:00:00Z';
+  const fx = { prs: [{ number: 7, sha: 's1' }], runs: [refused({ id: 1, sha: 's1', start: plus(t, -15), end: t })], annotations: { 10: needsOwner('full:overhead,full:table'), 20: needsOwner('full:overhead') } };
+  const gh = fakeGitHub(fx);
+  check(gh, plus(t, 1));
+  fx.prs[0].sha = 's2';
+  fx.runs.push(refused({ id: 2, sha: 's2', start: plus(t, 5), end: plus(t, 20) }));
+  const r = check(gh, plus(t, 21));
+  assert.deepEqual(notices(gh), ['open'], 'no new notice');
+  assert.match(r.alarm.body, /owner-mark: 7:full:overhead -->/);
+});
+
+test('fix 2 rule 7: a cancelled re-push, or one whose run is not created yet, keeps the line', () => {
+  const t = '2026-11-12T08:00:00Z';
+  const fx = { prs: [{ number: 7, sha: 's1' }], runs: [refused({ id: 1, sha: 's1', start: plus(t, -15), end: t })], annotations: { 10: needsOwner('full:overhead') } };
+  const gh = fakeGitHub(fx);
+  check(gh, plus(t, 1));
+  fx.prs[0].sha = 's2';
+  assert.ok(check(gh, plus(t, 2)).alarm, 'no run yet for the new head');
+  fx.runs.push(refused({ id: 2, sha: 's2', start: plus(t, 3), end: plus(t, 4), conclusion: 'cancelled', gate: 'cancelled' }));
+  const r = check(gh, plus(t, 5));
+  assert.ok(r.alarm, 'a cancelled run is no verdict');
+  assert.match(r.alarm.body, /owner-mark: 7:full:overhead/);
+});
+
+test('fix 2 rule 7: an incomplete check with a re-push in flight lists the line once', () => {
+  const line = '- #7: needs the owner: full:overhead; x <!-- key: 7/1/1/2026-11-12T08:00:00Z --> <!-- owner-mark: 7:full:overhead -->';
+  const previousBody = `Header\n\n${line}`;
+  const r = nextAlarm({ entries: [], complete: false, previousBody, inFlight: new Set([7]) });
+  assert.deepEqual(r.unattended, [line]);
+  assert.equal(r.close, false);
+  const again = nextAlarm({ entries: [], complete: false, previousBody: `Header\n\n${r.unattended.join('\n')}`, inFlight: new Set([7]) });
+  assert.deepEqual(again.unattended, [line], 'not growing check by check');
+});
+
+test('fix 2 rule 7: a line this check judged again is not also carried', () => {
+  const line = '- #7: needs the owner: full:overhead; x <!-- key: 7/1/1/2026-11-12T08:00:00Z --> <!-- owner-mark: 7:full:overhead -->';
+  const entry = { key: '7/1/1/2026-11-12T08:00:00Z', pr: 7, ownerKinds: ['full:overhead'], ageMinutes: 5, unattended: true, line };
+  const r = nextAlarm({ entries: [entry], complete: false, previousBody: `Header\n\n${line}`, inFlight: new Set([7]) });
+  assert.deepEqual(r.unattended, [line]);
 });
