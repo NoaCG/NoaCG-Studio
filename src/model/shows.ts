@@ -826,13 +826,9 @@ export function addGraphicToShow(
   }
   const template = place.name === added.name ? added : { ...added, name: place.name };
   const existing = place.replace;
-  // ADDING AGAIN IS AN UPDATE BY ANOTHER DOOR (live-publishing G1 section 2): a design that drops a
-  // field a cue of this graphic uses, or a binding names, is named first. These doors have no
-  // question to ask, so they refuse and send the operator to Update, which asks.
-  if (existing >= 0) {
-    const dropped = droppedFields(show, show.graphics[existing], template);
-    if (dropped.length) return { shows: all.filter((s) => !s.deleted), error: `${template.name}'s new design drops ${dropped.join(', ')}, which cues use. Use Update on the graphic in the production to confirm.` };
-  }
+  // Adding again replaces the copy's design as it always has (an explicit act; the wizard's re-import
+  // review names what a new version does not carry over). It is a copy-truth design write, so it
+  // stamps (live-publishing G1, Terms). Update is the production page's door, which asks first.
   const at = nowIso();
   const graphic: SavedGraphic = {
     // Replacing by name KEEPS the pool entry's id — cues reference it (ShowCue.sourceId), so

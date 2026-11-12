@@ -116,7 +116,7 @@ test('the newer library design shows, and Update takes it keeping everything els
   });
 });
 
-test('a design that drops a field a cue uses is named first; adding again refuses and points to Update (R2)', async () => {
+test('a design that drops a field a cue uses is named first (R2)', async () => {
   await withStore(async (store) => {
     const two = [{ field: 'f0', ftype: 'textfield', title: 'Name', value: '' }, { field: 'f1', ftype: 'textfield', title: 'Role', value: '' }];
     const { doc } = store.createGraphic(template('Strap', '<p>v1</p>', two), { name: 'Strap' });
@@ -126,12 +126,14 @@ test('a design that drops a field a cue uses is named first; adding again refuse
     store.updateShowCue(show.id, record.cues[0].id, { values: { f0: 'Ada', f1: 'Host' } });
     const onlyName = template('Strap', '<p>v2</p>', [two[0]]);
     assert.deepEqual(store.droppedFields(read(store, show.id), record.graphics[0], onlyName), ['Role']);
-    const refused = store.addGraphicToShow(show.id, onlyName, { graphicId: doc.id });
-    assert.match(refused.error, /drops Role, which cues use\. Use Update on the graphic in the production to confirm\./);
-    assert.equal(read(store, show.id).graphics[0].template.html, '<p>v1</p>', 'nothing written');
     // A field nobody uses is no question.
     store.updateShowCue(show.id, record.cues[0].id, { values: { f0: 'Ada', f1: '' } });
     assert.deepEqual(store.droppedFields(read(store, show.id), record.graphics[0], onlyName), []);
+    // Adding again replaces as it always has, and stamps.
+    assert.equal(store.addGraphicToShow(show.id, onlyName, { graphicId: doc.id }).error, null);
+    const g = read(store, show.id).graphics[0];
+    assert.equal(g.template.html, '<p>v2</p>');
+    assert.equal(g.designAt, g.savedAt);
   });
 });
 
