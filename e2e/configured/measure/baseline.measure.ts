@@ -1,6 +1,6 @@
 import { test, expect, type Browser, type Locator, type Page } from '@playwright/test';
 import { fakeBridge, seedSettings } from '../../_fakeBridge';
-import { readyOf } from '../_helpers';
+import { openSecondProductionPage, readyOf } from '../_helpers';
 import { answerPanel, pairPanel } from '../_panel';
 import { buildFixture, cleanUp, outputSlugOf } from './_fixture';
 import {
@@ -775,3 +775,71 @@ test('boot', async ({ page, browser }) => {
   });
 });
 
+
+// ── W3 (live-publishing phase 5, G2 section 9): with outputs reporting what they ran, a graphic
+// cue Take's press to sent against phase 2's figure, and press to the light confirming it (every
+// output's run report reached the page), with MEASURE_OUTPUTS outputs (default 2) and a command
+// stream of MEASURE_FEED_MS (default 200 ms) updates to another graphic from a second device:
+// report rows and re-banks take the head lock a Take needs, and must not slow it.
+test('w3', async ({ page, browser }) => {
+  const outputsWanted = Number(process.env.MEASURE_OUTPUTS ?? 2);
+  const feedMs = Number(process.env.MEASURE_FEED_MS ?? 200);
+  await seedSettings(page);
+  await opPage(page);
+  const fx = await buildFixture(page, FIXTURE);
+  const plainLabels = await page.evaluate(async ({ id, cues }) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const s = loadShows().find((x) => x.id === id)!;
+    return cues.map((c) => s.cues!.find((x) => x.id === c)!.label);
+  }, { id: fx.showId, cues: fx.cues.plain });
+  const facts = await page.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const s = loadShows().find((x) => x.id === id)!;
+    return { slug: s.hostedSlug ?? '', fed: s.graphics[s.graphics.length - 1].name };
+  }, fx.showId);
+  const slug = await outputSlugOf(page, fx.showId);
+  await toProd(page);
+  await throttle(page, NET);
+  const outs: Page[] = [];
+  for (let i = 0; i < outputsWanted; i++) outs.push(await openOutput(browser, slug));
+  for (const out of outs) await healthyOutput(out, fx.graphics);
+  // The stream: a second device writing an update to the fed graphic every feedMs.
+  const feeder = feedMs > 0 ? await openSecondProductionPage(page, fx.showId) : null;
+  if (feeder) {
+    await feeder.evaluate(
+      async ({ controlSlug, graphic, every }) => {
+        const { getSupabase } = await import('/src/backend/supabase.ts');
+        const sb = await getSupabase();
+        let n = 0;
+        (window as unknown as { __feed: ReturnType<typeof setInterval> }).__feed = setInterval(() => {
+          n += 1;
+          void sb!.rpc('control_send_many', { p_slug: controlSlug, p_items: [{ graphic, msg: { t: 'update', data: { f0: `feed ${n}` } } }] });
+        }, every);
+      },
+      { controlSlug: facts.slug, graphic: facts.fed, every: feedMs },
+    );
+  }
+  const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');
+  const status = page.getByTestId('production-status');
+  const samples: Sample[] = [];
+  const confirmed: number[] = [];
+  let unconfirmed = 0;
+  for (let i = 0; i < SAMPLES; i++) {
+    await select(page, plainLabels[i % Math.min(5, plainLabels.length - 1)]);
+    await clearLpm(page);
+    const pressedAt = await nowOn(page);
+    samples.push(await pressAndMeasure(page, take, 'verb-take', SEND));
+    // Press to the light green again: every output has confirmed running it (E1).
+    const ok = await page
+      .waitForFunction(() => document.querySelector('[data-testid="production-status"]')?.getAttribute('data-tone') === 'ok', null, { timeout: 20_000, polling: 25 })
+      .then(() => true, () => false);
+    if (ok) confirmed.push((await nowOn(page)) - pressedAt);
+    else unconfirmed += 1;
+    await settle(page);
+    await outBtn.click();
+    await settle(page);
+    await expect(status).toHaveAttribute('data-tone', 'ok', { timeout: 20_000 }).catch(() => undefined);
+  }
+  if (feeder) await feeder.close();
+  report('w3', { graphic: samples }, { outputs: outputsWanted, feedMs, pressToConfirmed: summary(confirmed, unconfirmed), fixtureFacts: fx });
+});
