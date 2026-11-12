@@ -69,7 +69,6 @@
       "phase": "E4",
       "step": "build / first PR repair round",
       "pr": 2438,
-      "session": "/root/editor_r15_e4_cloud_builder",
       "note": "PR held: independent review found draft-ownership and font-preservation defects. Existing same-ID regression coverage retained and strengthened. Exact-source isolated qualification passed; repaired-head verification/review still required."
     }
   ],
@@ -1587,7 +1586,7 @@
       "planJob": 131178812556,
       "plan": "success; modeall62configuredeligiblefiles/4isolatedstacks; local65minus3existingquarantines",
       "capacity": "ActualCIPLANWARN198.2/213tablemin93%; latestgrowth43201149088partial, unchangedpolicyjudgeslatestcomplete43014542120 throughNov11. Partialbackendstopremainswarning, no exceptions/limits/selectionchanges. Notblanketfreshcompletegrowthclearance.",
-      "status": "Runningbuild/offline/configured; Reviewed131178812758FAILbeforecoordinatorstamp, wholelogunderinspection; no sourceCIgatepassclaimed"
+      "status": "TERMINALFAILURE03: BuildSUCCESS, all4configuredstacks+configuredverdictSUCCESS; offline14FAIL2/128 (126PASS), ReviewedmissingstampFAIL, CIgateFAIL. Allotherjobsterminalsuccess/skipped. Thisisoldheadhistory, not currentrepairproof."
     },
     "managedNetworkFollowup": "2439 P2 area:ci related1301, unchanged-pathlocalproxyfixtureevidence/no-bypassboundary; source217fullbuildFAILretained",
     "finalReview": "FirstfullSO03completeB/twoproductclasses+same-IDcase; newcoherentheadrequiresupdatedcheck/CI/CodexrequestandfreshfullSOA; no duplicate03requests.",
@@ -1602,6 +1601,7 @@
       "repairRound": 1,
       "status": "Headheld; consolidatedmodelrepairbeforeonecoherentpush. No stamp/automerge. Existingidentityassertion279retained; independentreviewerretractedpreliminaryinequalityadvice and acceptedboundedcompatibilitydesign, notA.",
       "compatibilityDesign": "RetainedEditorSession.publicdocumentId=workspaceUUID; unretainedsavedlibrarysessionpublicidentitystablelibraryidentity. PrivateauthoringUUID/baseline/instanceguardownership. Strengthen savedlink/internal-UUID/instance/stale-form/source/old-handletests."
-    }
+    },
+    "publicHeartbeatPrivacy": "OptionaldisplayinFlight.sessionomittedafterauto-reviewrejectedinternalworkeridentifier. Exactactor/thread/action remainunchangedine4Checkpoint/wave/launch/observationrecords; no manualheartbeatbodyedit, no runtimeidentity/gatechange."
   }
 }
