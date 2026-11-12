@@ -523,3 +523,54 @@ Filled in by each phase's pull request.
   (the spec's stood-in tail). A graphic's composed document only knows `settled` through the play
   command; the editor monitors never send it.
 - Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS1a.md`.
+
+### OS4: Clocks
+
+- Rules (written before coding):
+  - R1. The sponsor rotation's cycle is the wall clock. Its length P is the machine's own: the
+    rotating state's hold (its timer's `after`) plus its crossfade, divided by the motion speed
+    (6.5 s at speed 1). Cycle k is `floor(Date.now() / P)`; its logo is filled slot `k mod n`
+    (every slot while none is filled, as today). So every copy of a graphic shows the same logo
+    in the same cycle, wherever and whenever it was loaded.
+  - R2. Off air, parked or measured (a snap with `timers: false`, a preview, a thumbnail, the
+    catalog's load-state fingerprint) nothing changes: the first slot shows from load, as today.
+  - R3. The rotation is live exactly while the machine's own rotation timer is armed: after a
+    Take's entrance has finished, after a snap with timers (a reload's recovery, a scene link's
+    settled Take), and after Resume. While live, the runtime reads the wall clock five times a
+    second and when the page becomes visible. When the cycle at the next crossfade's midpoint is
+    one not yet shown and its logo differs from the one on screen, it cancels the armed timer and
+    makes that timer's own transition at once (the crossfade, whose midpoint swaps the logo), so
+    the swap lands on the cycle boundary within one read. When the logo is the same it records
+    the cycle and plays nothing.
+  - R4. Every crossfade's midpoint shows the wall clock's logo when its cycle has not been shown.
+    A crossfade inside a cycle already shown (Next sponsor, Resume within the same cycle) shows
+    the following slot, as today; the rotation rejoins the wall clock at the next boundary. Hold
+    arms no timer, so nothing fires until Resume, which crossfades at once.
+  - R5. A Take shows the first slot through its entrance, then joins: the first read after the
+    entrance crossfades to the wall clock's logo (unless it is the first slot). A reload and a
+    settled Take join on the first read after their snap. A page whose timers and drawing were
+    throttled while hidden joins on its first read after it runs again: its own late timer is
+    cancelled, never trusted.
+  - R6. The rotation's machine, events, controls, fields, look and load state are unchanged;
+    only its design-owned runtime (`src/templates/cornerBug/bugRuntimes.ts`) changes. Without
+    an armed-timer signal to read, the runtime keeps today's per-page cycle.
+  - R7. The starting-soon start-time field also takes an absolute deadline: an ISO 8601 date
+    and time, seconds and fractions optional, with an offset (`Z` or `+HH:MM`/`-HH:MM`), for
+    example `2026-11-14T19:00:00+02:00`. The time left is `ceil((deadline - now) / 1 s)`,
+    the same in every timezone. A date and time without an offset is not a deadline: no zone
+    is guessed.
+  - R8. A deadline already past at start, or reached while counting, shows 0:00 and holds there
+    with the design's finished class (`<prefix>-done`, the hook a design's CSS uses for a short
+    text); never the duration, never tomorrow. The clock never takes the graphic out.
+  - R9. Every start and every tick derives the time left from the deadline, so a reload, a snap
+    and a page throttled while hidden show the right time on their next tick. An Update that
+    keeps the same deadline leaves the count alone; a new deadline re-arms it (today's
+    signature rule).
+  - R10. An invalid value (neither `HH:MM` nor a whole deadline with an offset, or an impossible
+    date such as the 31st of November) is treated as an empty field: the duration counts. That
+    is the template's empty state, as a typo is today.
+  - R11. `HH:MM` is unchanged: today's parse, and a time already past counts to tomorrow.
+  - R12. Only the start-time field's parse changes; the duration-only clocks (game timers,
+    imported designs, the countdown type) emit what they emit today. A production's graphic is
+    its own copy: a rotation or countdown made before this lands keeps today's behaviour until
+    Update.
