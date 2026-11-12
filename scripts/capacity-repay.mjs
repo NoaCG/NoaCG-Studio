@@ -172,6 +172,7 @@ export function repaymentItems(reader, { repo = REPO, today }) {
   const q = `repo:${repo} is:issue is:closed in:title "${TITLE_PREFIX}" closed:>=${since}`;
   const found = reader.get(`search/issues?q=${encodeURIComponent(q)}&per_page=100`);
   if (!Array.isArray(found?.items)) throw new Error('the closed repayment items could not be searched: nothing is recorded rather than a repaid debt opened again');
+  if (found.incomplete_results) throw new Error('the closed repayment search timed out with partial results: nothing is recorded rather than a repaid debt opened again');
   if (found.total_count > found.items.length) throw new Error(`${found.total_count} closed repayment items in ${CLOSED_DAYS} days, more than one search page: nothing is recorded`);
   for (const i of found.items) take(i, false);
   return { items, recorded };

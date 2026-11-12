@@ -131,7 +131,10 @@ test('an unreadable or overfull issue listing, or a failed search, records nothi
   const R = 'NoaCG/NoaCG-Studio';
   assert.throws(() => repaymentItems(canned({}), { repo: R, today: '2026-11-20' }), /could not be read/);
   const full = Array.from({ length: 100 }, (_, i) => ({ number: 9000 + i, title: 'x', user: { type: 'Bot' } }));
-  assert.throws(() => repaymentItems(canned({ [`repos/${R}/issues?state=open`]: full }), { repo: R, today: '2026-11-20' }), /more than 500 open issues/);
+  // Full pages only up to page 6, so a missing stop fails here instead of looping.
+  const pages = Object.fromEntries([1, 2, 3, 4, 5, 6].map((n) => [`repos/${R}/issues?state=open&per_page=100&page=${n}`, full]));
+  assert.throws(() => repaymentItems(canned(pages), { repo: R, today: '2026-11-20' }), /more than 500 open issues/);
+  assert.throws(() => repaymentItems(canned({ [`repos/${R}/issues?state=open`]: [], 'search/issues?q=': { total_count: 0, incomplete_results: true, items: [] } }), { repo: R, today: '2026-11-20' }), /timed out/);
   assert.throws(() => repaymentItems(canned({ [`repos/${R}/issues?state=open`]: [] }), { repo: R, today: '2026-11-20' }), /could not be searched/);
   assert.throws(() => repaymentItems(canned({ [`repos/${R}/issues?state=open`]: [], 'search/issues?q=': { total_count: 101, items: [] } }), { repo: R, today: '2026-11-20' }), /more than one search page/);
 });
