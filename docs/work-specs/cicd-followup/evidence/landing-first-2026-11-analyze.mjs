@@ -68,14 +68,23 @@ out.pushRuns = { n: push.length, conclusion: by(push, 'conclusion') };
 out.configuredRuns = { n: cfg.length, conclusion: by(cfg, 'conclusion') };
 out.mergeGroupRuns = { n: mg.length, conclusion: by(mg, 'conclusion') };
 out.prRuns = { n: pr.length, conclusion: by(pr, 'conclusion') };
-summarise('pushFull', push.filter((r) => r.conclusion === 'success'));
+// The unit cost of a full push run comes from the collector's even sample only (the same pick),
+// single-attempt and green: runs read for other reasons (re-runs, nightly shas) would bias it, and
+// a re-run's jobs hold every attempt.
+const pick = (runs, n) => {
+  const done = runs.filter((r) => r.status === 'completed').sort((x, y) => x.created_at.localeCompare(y.created_at));
+  return done.length <= n ? done : Array.from({ length: n }, (_, i) => done[Math.floor((i * done.length) / n)]);
+};
+summarise('pushFull', pick(push.filter((r) => r.conclusion !== 'cancelled'), 25).filter((r) => r.conclusion === 'success' && r.run_attempt === 1));
 summarise('configured', cfg.filter((r) => r.conclusion === 'success'));
 summarise('mergeGroup', mg.filter((r) => r.conclusion === 'success'));
 summarise('nightly', nightly.filter((r) => r.event === 'schedule' && r.conclusion === 'success'));
 out.nightlyStarts = nightly.filter((r) => r.event === 'schedule').map((r) => r.run_started_at.slice(5, 16));
-// A cancelled push run: the superseded exit stops at the plan job, so its cost is the plan job.
+// A cancelled push run: most were cancelled while pending, by main's concurrency group (a newer
+// pending run replaces an older one), so they ran no job; the rest stopped at the plan job's
+// superseded exit, or in one case had a re-run whose last attempt was cancelled.
 const cancelledPush = push.filter((r) => r.conclusion === 'cancelled').map((r) => jobsOf(r.id)).filter(Boolean).map(jobStats);
-out.cancelledPushSampled = { n: cancelledPush.length, rmMean: f1(mean(cancelledPush.map((s) => s.rm))) };
+out.cancelledPushSampled = { n: cancelledPush.length, noJobs: cancelledPush.filter((s) => s.rm === 0).length, rmMean: f1(mean(cancelledPush.map((s) => s.rm))) };
 
 // Landings' own push and configured runs.
 const pushBySha = new Map(push.map((r) => [r.head_sha, r]));
@@ -209,7 +218,8 @@ if (args.includes('--report')) {
     perTestSeconds: { p50: f1(q(tests.map((t) => t.ms / 1000), 0.5)), p90: f1(q(tests.map((t) => t.ms / 1000), 0.9)), p99: f1(q(tests.map((t) => t.ms / 1000), 0.99)) },
     over30s: { n: long.length, minutes: f1(mins(long)) }, publicChrome: { n: chrome.length, minutes: (mins(chrome)).toFixed(2) },
     sizeRepeats: { groups: multi.length, tests: multi.reduce((a, [, v]) => a + v.length, 0), minutesBeyondFirst: f1(multi.reduce((a, [, v]) => a + beyondFirst(v), 0)) },
-    firstCut: { tests: cut.length, minutes: f1(mins(cut)) } };
+    firstCut: { tests: cut.length, minutes: f1(mins(cut)), commandTask: f1(mins(cut.filter((t) => t.file.startsWith('editor-command-task')))),
+      alsoOver30s: f1(mins(cut.filter((t) => t.ms > 30000))) } };
 }
 out.ciRunsPerLanding = f1((pr.length + mg.length + push.length + cfg.length) / log.length);
 out.top = rows.sort((a, b) => b.runs - a.runs).slice(0, 8);

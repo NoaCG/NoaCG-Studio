@@ -22,9 +22,9 @@ The collector made five passes (100, 21, 55, 37 and 12 calls). Only the PR #2408
 
 | Step | Answer |
 | --- | --- |
-| 3 | **Recommend:** the push run stays the one full-suite carrier. The nightly skips its E2E shards when `main`'s head already has a push run with a full-suite verdict, and keeps its catalog jobs. Saves about 182 runner-minutes a day and a 12 to 15 job burst every morning. Gives up a daily run of the whole suite with no retry: in 14 nights it caught one flaky test the push run had passed. Bad-merge window unchanged: median 19 minutes, p95 44, measured maximum 74; each run is capped at about 75 minutes of job time plus waiting for runners. **Fallback:** the nightly runs its E2E shards once a week instead of every day. Saves about 156 a day and keeps a weekly no-retry sample. |
-| 4 | Per landed pull request (n = 313): CI runs median 1, p90 7, mean 3.0, max 45; heads the same (one run per head). 46% of pull request runs were cancelled. 450 of 671 follow-up heads (67%) were pushed while the previous head's run was still going. **Proposal:** the review loop pushes once per round. Up to 2,310 runner-minutes a day (103 per landing), about 1,620 if 70% of those heads are absorbed, with no coverage or latency cost. A draft-only CI rule is a second step, only if the first falls short, because it adds latency. |
-| 5 | The full suite is 2,550 tests, 247 files, 185.7 test-minutes (nightly of 2026-11-11). **Target:** at most 150 test-minutes by 2026-12-15 (minus 19%); 18.6 of the 35.7 are identified so far. **First cut:** the editor authoring journeys at their smallest screen size only, 6.6 test-minutes on every full run. The 68 header and footer pictures cost 0.11 minutes a run: cutting them saves nothing. |
+| 3 | **Recommend:** the push run stays the one full-suite carrier. The nightly skips its E2E shards when `main`'s head already has a push run with a full-suite verdict, and keeps its catalog jobs. Saves about 182 runner-minutes a day and a 12 to 15 job burst every morning. Gives up a daily run of the whole suite with no retry: in 14 nights it caught one flaky test the push run had passed. Bad-merge window unchanged: median 19 minutes, p95 44, measured maximum 74; by the job caps, at most about two runs' job time (one in progress ahead of it, then its own, about 75 minutes each) plus waiting for runners. **Fallback:** the nightly runs its E2E shards once a week instead of every day. Saves about 156 a day and keeps a weekly no-retry sample. |
+| 4 | Per landed pull request (n = 313): CI runs median 1, p90 7, mean 3.0, max 45; heads the same (one run per head). 46% of pull request runs were cancelled. 450 of 671 follow-up heads (67%) were pushed while the previous head's run was still going. **Proposal:** the review loop collects a round's findings and pushes them as one head. Up to 2,310 runner-minutes a day (103 per landing), about 1,620 if 70% of those heads are absorbed, with no coverage cost and no ready fix held back. A draft-only CI rule is a second step, only if the first falls short, because it adds latency. |
+| 5 | The full suite is 2,550 tests, 247 files, 185.7 test-minutes (nightly of 2026-11-11). **Target:** at most 150 test-minutes by 2026-12-15 (minus 19%); 6.6 of the 35.7 are measured as a cut and about 10 more estimated. **First cut:** the editor authoring journeys at their smallest screen size only, 6.6 test-minutes on every full run. The 68 header and footer pictures cost 0.11 minutes a run: cutting them saves nothing. |
 
 ## 0. What the owner's background says, checked
 
@@ -32,7 +32,7 @@ The collector made five passes (100, 21, 55, 37 and 12 calls). Only the PR #2408
 | --- | --- | --- |
 | Full offline suite 171 minutes | Push run E2E jobs 179.2 runner-minutes (n = 24, 15 shards); nightly test time 185.7 minutes | close; slightly larger |
 | 240 specs, 1 worker per shard | 247 spec files; `playwright.config.ts` `workers: isCi ? 1` | true |
-| About 220 runner-minutes per landing on the push, a third of the total | 205 (full push run 196.0 on 250 of 289 push runs, configured suite 52.9 on all 289; a superseded push run costs about 0) = **28%** of all CI in the window | close |
+| About 220 runner-minutes per landing on the push, a third of the total | 206 (full push run 196.0 on 250 of 289 push runs, 13.1 on the 39 cancelled, of which 29 never started a job; configured suite 52.9 on all 289) = **29%** of all CI in the window | close |
 | Nightly 216.6 runner-minutes a day | 206.2 mean (n = 13 green scheduled runs), 182.4 of it E2E | close |
 | Nightly fills 90% of the offline per-day ceiling | not re-derived: no file in the repo carries the figure | unverified |
 | Cron 00:20 UTC, last ten started 06:03 to 07:23 | last ten scheduled: 06:03 to 07:23; all fourteen: 05:49 to 07:23 | true |
@@ -49,9 +49,10 @@ Where all CI went in the window (runner-minutes, job start to end; sampled unit 
 | Pull request, cancelled | 451 | 71.8 (n = 24) | 32,400 | 14% |
 | Merge group | 322 | 62.0 (n = 25) | 20,000 | 9% |
 | Push, full suite | 250 | 196.0 (n = 24) | 49,000 | 22% |
+| Push, cancelled | 39 | 13.1 (n = 39) | 500 | 0% |
 | Configured suite on push | 289 | 52.9 (n = 25) | 15,300 | 7% |
 | Nightly | 15 | 206.2 (n = 13) | 3,100 | 1% |
-| **All** | | | **226,200** | 16,200 a day, 720 per landing |
+| **All** | | | **226,700** | 16,200 a day, 722 per landing |
 
 Pull request units are sampled from 25 runs each, so their totals carry the most error. The
 nightly is 1% of all CI; the cancelled pull request runs are 14%.
@@ -73,12 +74,15 @@ nightly is 1% of all CI; the cancelled pull request runs are 14%.
 - **Bad-merge window today**, from the moment `main` moved (the push run's creation) to the first
   full-suite verdict, green or red, on that landing or a later one: median 18.9, p90 33.0, p95
   44.3, p99 65.5, **max 74.0 minutes** (n = 314; 8beeab7c, covered by 53e10b66's 73.1-minute run).
-- **Why it is bounded.** A push run cancels itself only when `main` has already moved past it
-  (`ci.yml` plan step, the superseded exit), so a newer run always exists. Each run's jobs are
-  capped: plan 5, E2E shards 20, the failed-spec retry 45, the gate 5, so about 75 minutes of job
-  time, plus waiting for runners, which no cap bounds. The window can only grow past that when
-  supersedes chain during a burst, and the last push of a burst always runs. If GitHub drops
-  push events (2026-08-06), nothing runs until the next push or the nightly.
+- **Why it is bounded.** Push runs on `main` share one concurrency group that never cancels a
+  run in progress (`ci.yml` concurrency): one runs, one waits, and a newer push replaces the
+  waiting run, which is then cancelled before it starts (29 of the 39 cancelled push runs never
+  started a job). The rest cancelled themselves at the plan step because `main` had moved on. So
+  a newer run always covers a cancelled one, but a landing's run can wait behind the run in
+  progress. Each run's jobs are capped: plan 5, E2E shards 20, the failed-spec retry 45, the gate
+  5, about 75 minutes. A landing's verdict therefore comes within about two runs' job time, about
+  150 minutes, plus waiting for runners, which no cap bounds; the measured maximum is 74. If
+  GitHub drops push events (2026-08-06), nothing runs until the next push or the nightly.
 - **The nightly re-tested a tree that already had a green full push run on all 14 nights** (same
   sha, and none of those push runs needed the failed-spec retry). The nightly itself was green on
   13 and red on 2026-11-04: `imported-credits-live-data.spec.ts` failed (issue #2048, closed) on
@@ -110,12 +114,12 @@ One scheme. Two changes, each its own pull request:
 
 | | Today | Recommended |
 | --- | ---: | ---: |
-| Runner-minutes per landing (push and configured) | 205 | 205 |
+| Runner-minutes per landing (push and configured) | 206 | 206 |
 | Nightly runner-minutes a day | 206 | about 24 (catalog jobs, plan, report) |
-| **Landing-related runner-minutes a day** | **4,800** | **about 4,618** (minus 182) |
+| **Landing-related runner-minutes a day** | **4,830** | **about 4,650** (minus 182) |
 | Peak jobs per landing (full push run plus configured) | 22 | 22 |
 | Nightly burst at 06:00 to 07:30 UTC | 12 to 15 jobs for 18 minutes | none on a normal day |
-| Bad-merge window | median 19, p95 44, measured max 74; about 75 per run by the caps, plus runner wait | the same |
+| Bad-merge window | median 19, p95 44, measured max 74; about 150 by the caps, plus runner wait | the same |
 | Window when GitHub drops push events | up to the next nightly, about 31 hours | the same |
 
 **What it gives up:** the daily run of the whole suite with no retry. In 14 nights it found one
@@ -144,8 +148,9 @@ night, with change 1 above unchanged.
   #2048 depending on the day chosen.
 
 Moving the cron alone does not work as a fallback: GitHub started this schedule 5.5 to 7 hours
-late in the window, but 1 to 3.5 hours late at other hours in August (`nightly.yml` header), so a
-new cron's start hour is unknown until measured.
+late in the window, while the `nightly.yml` header measured 1 to 3.5 hours at other hours in
+August and up to 5 hours 59 minutes for another workflow, so a new cron's start hour is unknown
+until measured.
 
 ## 2. Step 4: fewer runs per pull request
 
@@ -179,13 +184,15 @@ CI runs, so CI starts again on each.
 
 1. **First, the review loop pushes once per round** (`plan-run.md`, `check.md`, the brief
    templates). Collect every finding of a round (`/check`, Codex, `/so`), apply them in one
-   commit, run the targeted local checks, push once. Do not push while your head's CI is running
-   unless the push fixes that run's failure. A repair after red CI collects every failure of the
-   run before pushing. CI still runs on every pushed head, so no coverage or latency is lost.
+   commit, run the targeted local checks, push once. A fix that is ready is pushed at once, as
+   today; what changes is that a round's findings go out together instead of one by one. A
+   repair after red CI collects every failure of the run before pushing. CI still runs on every
+   pushed head, so no coverage is lost and no ready fix waits.
    - Saving: each absorbed head saves one cancelled run, 71.8 runner-minutes. Upper bound, all
      451 cancelled pull request runs: 32,400 in the window, **2,310 a day, 103 per landing**, 14% of
      all CI. If 70% are absorbed: about 1,620 a day. Concurrency: a cancelled run starts about 21
-     jobs, 32 times a day, most at 12:00 to 14:00 UTC (108 pull request runs an hour there).
+     jobs, 32 times a day, most at 12:00 to 14:00 UTC (108 pull request runs in each of those two
+     hours over the window, about 7.7 an hour on an average day).
    - Measure after two weeks with this study's script (`followUpHeads`, `perLandedPr`).
 2. **Only if the first change does not halve the mid-run heads: CI on a draft runs only the cheap
    gates.** `ci.yml` adds `ready_for_review` and, on a draft, runs Build, factory gates and
@@ -227,8 +234,8 @@ one per red run, 3 at best.
 **At most 150 test-minutes for the full suite by 2026-12-15** (from 185.7, minus 35.7 or 19%). At
 one worker per shard that is about 36 runner-minutes off every full push run and every nightly
 that still runs, and less on every pull request run that selects the cut tests. The basis is
-partial: measured candidates so far add up to about 18.6 (6.6 below, and about half of the long
-tests' 24.2). The rest needs an audit, per product area, of which specs prove the same thing.
+partial: 6.6 is measured as a cut (below); halving the other long tests (24.2, less the 3.4 of
+this cut that are among them) is an estimate of about 10.4 more, about 17 in all. The rest needs an audit, per product area, of which specs prove the same thing.
 That audit is the next study; candidates that keep coverage are reported apart from those that
 drop it, and each drop goes to the owner on its own.
 
@@ -275,7 +282,10 @@ and real waits a fake clock could replace. Each needs reading before it is propo
   measured maximum and the caps), the nightly's 2026-11-04 red (named, with what the recommendation
   gives up), the step 4 saving and latency (split into a rule first and the draft change second),
   the skipped-checks question, the trace cost on push shards, and figures the script did not
-  produce (it now does).
+  produce (it now does). A delta `/so` on b707287b graded B+ and found four more, fixed here: the
+  full-push unit cost read from a biased sample (now the even sample only), the bound's mechanism
+  (main's concurrency group, not supersede chains), a push rule that held ready fixes back (now
+  it only batches a round), and a per-hour figure that was a 14-day total.
 - **Limits:** pull request run costs are from 25-run samples. The Actions data does not show
   review sessions, so the owner's "8 review sessions" is not checked.
 - **Revert:** `git revert -m 1 <merge commit>` removes these three files; nothing depends on them.
