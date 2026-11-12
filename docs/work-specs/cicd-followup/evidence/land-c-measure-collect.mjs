@@ -87,12 +87,15 @@ function runs() {
           conclusion: r.conclusion, created_at: r.created_at, run_started_at: r.run_started_at, updated_at: r.updated_at,
           pr: (r.pull_requests ?? []).map((p) => p.number),
         };
-        if (r.status !== 'completed') d.open += 1;
+        if (r.status !== 'completed' && r.created_at < UNTIL) d.open += 1;
       }
       d.page += 1;
       if (res.workflow_runs.length < 100 || (d.page - 1) * 100 >= res.total_count) {
-        const ended = new Date(`${day}T23:59:59Z`).getTime() + 600000 < Date.now();
-        if (ended && d.open === 0) d.done = true;
+        // A day is over at its end or at UNTIL, whichever is first; runs created after UNTIL do not count.
+        const ended = Math.min(new Date(`${day}T23:59:59Z`).getTime(), Date.parse(UNTIL)) + 600000 < Date.now();
+        // cf22's rule: a run still queued after three listings of an ended day is recorded as stuck.
+        d.listings = (d.listings ?? 0) + 1;
+        if (ended && (d.open === 0 || d.listings >= 3)) { d.done = true; if (d.open) d.stuck = d.open; }
         else { Object.assign(d, { page: 1, open: 0 }); unsettled += 1; }
         state.ranges[day] = d;
         save('runs.json', state);

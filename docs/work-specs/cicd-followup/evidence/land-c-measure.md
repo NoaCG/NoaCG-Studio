@@ -11,14 +11,14 @@ round trip and the measured bounce cost (cf22: median 30.4 minutes lost per boun
 
 | Measure | Result |
 | --- | --- |
-| Window | PRs merged 2026-10-29T00:00Z to 2026-11-12T19:00Z: 356 PRs, 1,055 completed `ci.yml` pull_request runs |
+| Window | PRs merged 2026-10-29T00:00Z to 2026-11-12T19:00Z: 356 PRs, 1,051 completed `ci.yml` pull_request runs |
 | Failed PR browser jobs (offline E2E shards and configured suite, failure or timeout, not cancelled) | 39 jobs, 40 records (one per failing spec, or one per job when no spec failed) |
 | Of those, the PR's own failures | **22 spec failures in 19 runs on 12 PRs** (5% of landings had one) |
 | Not the PR's own | 8 infrastructure (7 `configured-stack` setup, 1 shard that stopped without a test verdict), 5 flakes (green again on the same commit), 3 `production-controls.spec.ts` failures shared by 4 PRs, 2 failures (one run, two attempts) fixed only by merging main |
 | Own failures caught by the direct set | **19 of 19 runs (100%)**; 20 of 22 spec failures. The 2 misses sat in runs that another direct-set spec already failed |
 | Direct set at the failing heads | median 99 specs, p90 193; full selection median 192 (offline plus configured) |
 | Direct-set wall time at the failing heads (2 workers, this 4-CPU cloud machine) | **median 70.8 minutes, p90 118.6** |
-| CI round trip of those runs (run created to its last job finished, first attempts) | median 16.1 minutes (all failures 15.9), p90 18.7 |
+| CI round trip of those runs (run created to its last job finished, first attempts) | median 16.1 minutes, p90 19.4 (all 39 failing jobs' runs: 15.9 and 18.7) |
 | Own-failure runs whose direct set fits verify.md's 5-minute cap | 3 of 19 (all on PR #2173, one spec, 2.5 minutes); 12-minute cap: the same 3 |
 | Best rule | **Keep the 5-minute cap; run the direct set before a push only when it fits.** Net saving about 0.1 minute per landing at a 3-minute cap and roughly zero at 5. No larger cap pays: at 12 minutes the net is minus 0.7 (first push) or minus 2.4 (every push) minutes per landing |
 
@@ -43,9 +43,10 @@ Run from a clone with `main` history back to 2026-10-15
   the jobs (every attempt) of each failed or re-run run of a merged PR, and the log of each failed
   browser job. Of a log only lines naming a spec or a runner error are kept, without timestamps or
   signed URLs. Changed files come from local git, not the API. Passes: 100, 100, 100, 100, 71
-  calls, then four short passes (5, 4, 4, 4) that only re-list the unfinished current day.
-  427 runs read, 39 failed browser job logs. The final "again" is that current day, which holds
-  no run of the window's failing jobs.
+  calls, then short passes (2 to 5 calls) that only re-list unsettled days, until `complete`.
+  426 runs read, 39 failed browser job logs. Four runs of 2026-11-11 stayed `queued` for over 22
+  hours; as in cf22, a day still open after three listings is settled with them recorded as stuck
+  (none is a failed browser job).
 - **Changed files**: a failing run's head against its merge base with `main` as `main` stood when
   the run was created (first parent: landings are merge commits, so a PR commit is itself on
   `main` afterwards). A landed head (the cost sample) against the first parent of its landing
@@ -143,7 +144,7 @@ API calls beside it, so it is indicative, not exact.
 | Direct set at the 19 own-failure heads | 70.8 min | 118.6 min |
 | Direct set at a landed head (sample of 75: every fifth PR number) | 0 (39 of 75 select nothing) | 44.5 min |
 | Landed heads with a non-empty direct set | 36 of 75; of those, 6 fit 5 minutes and 13 fit 12 | |
-| CI round trip of a failing run | 15.9 min | 18.7 min |
+| CI round trip of an own-failure run (all failing runs) | 16.1 min (15.9) | 19.4 min (18.7) |
 | Bounce cost (cf22) | 30.4 min | 123.5 min |
 | Pushes per landing (distinct PR heads with a run) | median 1, mean 3.0 | |
 

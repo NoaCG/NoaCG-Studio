@@ -3,9 +3,10 @@
 // the PR CI browser failures of the PRs merged in the window? Reads the collector's and the
 // planner's cache; no API calls.
 //
-//   node docs/work-specs/cicd-followup/evidence/land-c-measure-analyze.mjs --cache <dir> [--speed <factor>]
+//   node docs/work-specs/cicd-followup/evidence/land-c-measure-analyze.mjs --cache <dir> --report <nightly-report.json> [--speed 0.70] [--boot 1]
 //
-// --speed: measured cloud wall minutes per CI table minute at 2 workers (section 4 of the evidence).
+// --speed: measured cloud wall minutes per nightly test-minute at 2 workers, --boot: minutes added
+// per run for the dev server and Playwright start (section 4 of the evidence).
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -155,12 +156,20 @@ const own = failures.filter((f) => f.cause === 'defect');
 const ownRunSet = new Set(own.map(ownRuns));
 const caughtRuns = new Set(own.filter((f) => f.where === 'direct').map(ownRuns));
 const first = failures.filter((f) => f.attempt === 1);
+// One record per own-failure run (a run with two failing specs is one bounce).
+const ownByRun = [...new Map(own.map((f) => [ownRuns(f), f])).values()];
 const out = {
   window: { FROM, UNTIL, merged: merged.length, pr_runs: runs.length, speed: SPEED, boot_min: BOOT, table: table.source },
   failures_n: failures.length,
   by_cause: failures.reduce((h, f) => ({ ...h, [f.cause]: (h[f.cause] ?? 0) + 1 }), {}),
   own_failures: { specs: own.length, runs: ownRunSet.size, by_where: own.reduce((h, f) => ({ ...h, [f.where]: (h[f.where] ?? 0) + 1 }), {}), runs_caught_by_direct: caughtRuns.size },
-  failing_heads_direct_wall_min: { median: r1(q(own.map((f) => f.direct_wall_min), 0.5)), p90: r1(q(own.map((f) => f.direct_wall_min), 0.9)) },
+  own_runs: {
+    direct_n: { median: q(ownByRun.map((f) => f.direct_n), 0.5), p90: q(ownByRun.map((f) => f.direct_n), 0.9) },
+    full_n_median: q(ownByRun.map((f) => f.full_n), 0.5),
+    direct_wall_min: { median: r1(q(ownByRun.map((f) => f.direct_wall_min), 0.5)), p90: r1(q(ownByRun.map((f) => f.direct_wall_min), 0.9)) },
+    round_trip_min: { median: r1(q(ownByRun.map((f) => f.round_trip_min), 0.5)), p90: r1(q(ownByRun.map((f) => f.round_trip_min), 0.9)) },
+    prs: new Set(ownByRun.map((f) => f.pr)).size,
+  },
   // Push to the failed verdict, first attempts only (a re-run attempt is not a push).
   round_trip_min: { median: r1(q(first.map((f) => f.round_trip_min), 0.5)), p90: r1(q(first.map((f) => f.round_trip_min), 0.9)) },
   pushes_per_landing: { mean: r1(merged.reduce((t, p) => t + heads(p.number), 0) / merged.length), median: q(merged.map((p) => heads(p.number)), 0.5) },
