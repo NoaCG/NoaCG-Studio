@@ -36,32 +36,26 @@
  },
  "waitingOn": [
   {
-   "what": "PR 2452 in the merge queue, then the OS1a check",
-   "eta": "2026-11-12T19:00:00Z"
+   "what": "OS1a checker verdict",
+   "eta": "2026-11-12T19:30:00Z"
   }
  ],
  "inFlight": [
   {
    "phase": "OS1a",
-   "step": "build",
-   "actor": "builder-os1a-os1a-b-da6f",
-   "session": "session_017SdbwMcfURGqXoc62qSHit",
-   "branch": "claude/plan-obs-scenes-os1a-build",
-   "launchedAt": "2026-11-12T15:22:34Z",
-   "note": "sent brief = saved brief plus two NOTES lines (live-publishing overlap, landing hold)",
-   "lastSeen": "2026-11-12T17:02Z receipt os1a-b-da6f; stamped, auto-merge on",
+   "step": "check",
+   "actor": "checker-os1a-os1a-c-7909",
+   "session": "session_017SdbwLswxgAc3HTWQU2WYC",
+   "mergeSha": "e394954becdbb292c914b3d20339418c9f9172c2",
    "pr": 2452,
-   "reviewedHead": "e3a3ccd46d80033839d6a1c62d7fea093f44aa94"
+   "launchedAt": "2026-11-12T17:16:39Z",
+   "builderSession": "session_017SdbwMcfURGqXoc62qSHit"
   }
  ],
  "owner": [
   {
-   "what": "Laptop probe (today's output link in twelve OBS sources, dock sign-in)",
-   "where": "coordinator chat; report lands in the private run notes"
-  },
-  {
-   "what": "OS2: first laptop test with OS1a's checklist",
-   "where": "run issue hand-over once OS1a lands"
+   "what": "OS2: laptop test with the checklist in docs/work-specs/obs-scenes/evidence/phase-OS1a.md (replaces the separate probe); can run now",
+   "where": "coordinator chat (prompt given 2026-11-12); receipt lands as evidence/phase-OS2.md"
   },
   {
    "what": "OS7: rehearsal with failure drills",
