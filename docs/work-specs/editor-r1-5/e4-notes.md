@@ -1001,3 +1001,24 @@ all51 E4 changed paths at00a063: actual result {ends:{},why:[]}. Full91a57833..0
 package/build/version/dependency/lock/CLI inspection shows only the manual
 qualify:editor-projects npm script; no dependency/version/build/lock/CLI changes.
 No source file changed after00a063; fixture correction and notes alone follow.
+
+
+Fixture-only focused execution atbb298ddca0d7154217f033aaf8848a095cd2afc8:
+first command j-0118 selected zero tests because its anchored grep matched no
+full Playwright title; terminal FAIL/No tests found remains recorded separately.
+Correcting only the command selector selected one case: j-0119 PASS1/1 in13.2s
+(case7.9s), zero skips/retries, unchanged five-minute cap. The new actual-owner
+preconditions and all original stale-port/source/history/reload/Home assertions
+pass. The broader j-0117 remains176PASS/1fixtureFAIL, never177PASS. No repeated
+broader selection, build, product patch, assertion relaxation or allowance reset
+followed. Product src diff00a063..bb298 is empty.
+
+Final local /check: review inline with no remaining confirmed defect in the
+51-path E4 scope; simplify inline found no behavior-preserving change needed;
+verify inline uses the above exact-product targeted/source oracles, the retained
+bounded broader result and focused fixture correction. New notes alone follow
+bb298, so these code/test receipts remain applicable without rerunning unchanged
+checks. The public noacg/reviewed stamp and queue remain root's responsibility.
+Actual final-head CI/build/configured/capacity, isolated qualification, one Codex
+result and fresh FULL SO remain due before worker gates. No final A, PASS, public
+stamp, queue entry, receiving-host/device acceptance or next phase is claimed.
