@@ -67,9 +67,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "build / first combined PR repair verification",
+      "step": "build / second review round held",
       "pr": 2438,
-      "note": "Combined repair a534b14e pushed clean. Focused/source/gates passed; await exact-head CI/backend, Codex and fresh full independent review. Existing same-ID tests retained; no queue stamp/auto-merge."
+      "note": "a534 passed isolated backend; Codex and independent review found rollback durability defects and blank export captures. Head frozen pending consolidated findings and model correction; no queue stamp/auto-merge."
     }
   ],
   "owner": [
@@ -1458,7 +1458,7 @@
     "requestSha256": "bcfabef5e1347043b92cde2edc0f69da57df24eda1c49e7415c7ce4bd8281754",
     "brief": "briefs/e4-build-e4-b-cloud-1112.txt",
     "briefSha256": "2c7379c7dc2988405d565f2a2e1d72393a398e1f3cd671cf7bc4744cfd2e9888",
-    "status": "First combined repair committed/pushed a534b14e; clean worktree; new exact-head CI/backend/reviews pending",
+    "status": "a534 head frozen: second confirmed review round, rollback revision/journal product class plus blank receiving evidence; full SO consolidation pending",
     "rulesFirst": {
       "head": "0515e370d",
       "verdict": "AGREE WITH CORRECTIONS",
@@ -1563,7 +1563,7 @@
       "ownerComment": 6823534868,
       "ownerAck": "Sole active coordinator acknowledgement6823534868 updated for combined round1/new head; no internal identifiers published",
       "ownerPayloadRejection": "EarlierdetailednotecontaininginternalUUIDs/paths/authoritywasauto-reviewrejectedbeforeposting. Noalternatebypass; saferminimalpublicrun-linkedACKaccepted; userinformed. Exactnative/authority/worktree retained in the existing run kit; checkpoint scope unchanged.",
-      "postOpenCiRepairCount": 1,
+      "postOpenCiRepairCount": 2,
       "carriedRepairs": {
         "asyncClientFixtureAwait": 1,
         "privateWizardCapabilityEdge": 1
@@ -1632,12 +1632,37 @@
       "review": "One new Codex review, fresh FULL SO only after actual capacity; no prior grade or backend result reused as final proof",
       "configuredSelection": "ALL63eligible specs /4isolatedstacks; actual candidate plan notice, currentmain gainedone",
       "capacity": "WARN198.2/213tablemin93.0%; unchangedpolicyjudgeslatestcomplete43014542120, newest43201149088partial/owneralarmafterlanding. No ceilings/allowances/selection changes; not blanket fresh-complete clearance.",
-      "isolatedStatus": "in_progress exacthead firstattempt readback",
+      "isolatedStatus": "TerminalSUCCESS firstattempt at13:56:35Z, job131228206952; root wholelog confirms1PASS19.6s, zero skips/retries, exactSHA, accountdeleted, teardown0resources, artifactupload13949838026SUCCESS; rawJSONingress403 remains, no bypass",
       "codexRequest": 6825499870,
       "codexReply": 4551322345,
       "fullSo": "Fresh full44-path review startsafteractualcandidatecapacity, prior03Bnoteligiblefordelta",
       "rootCheckStamp": "Independently read PASS a534 at13:52:35Z;44files, inline9/9review, simplify/verifyinline, stampGap null; model/effort inherited/unexposed",
-      "reviewedJob": "131227827580 FAILURE onlymissingnoacg/reviewed after148s. Wholelogread; standardcurrent-headlate-stamprecoveryonlyafterallworker gates, no testjobrerun."
+      "reviewedJob": "131227827580 FAILURE onlymissingnoacg/reviewed after148s. Wholelogread; standardcurrent-headlate-stamprecoveryonlyafterallworker gates, no testjobrerun.",
+      "codexResult": {
+        "review": 5875652742,
+        "head": "a534b14e5af899ad7f93966d175246a3f469fae4",
+        "state": "COMMENTED completed13:56:58Z",
+        "finding": 4551363233,
+        "class": "Product: rollback restores old updatedAt and cloud reconciliation pulls installed version back"
+      }
+    },
+    "secondPostOpenRound": {
+      "source": "a534b14e5af899ad7f93966d175246a3f469fae4",
+      "round": 2,
+      "status": "Frozen; no product/evidence edits before completed full SO consolidation",
+      "classes": [
+        {
+          "class": "product",
+          "family": "rollback inverse revision and durable operation direction",
+          "evidence": "Actual reconcileProjectTarget(true) restores08:00; remoteinstalled09:00/lastsync10:00; actual sync.reconcile selects remote toLocal. FullSO also finds targetrollback before durable direction: failed finalprojectreceipt+reload/defaultretry may reapply after."
+        },
+        {
+          "class": "receiving evidence gap",
+          "family": "Capture must prove rendered replay output",
+          "evidence": "Independent SO and root viewed html-overlay/spx/casparcg replayPNGs: blankwhite1280x720; operator screenshot has content. Preserve original captures, distinguish product output from counter-only/capture timing. Stronger observable painted-state proof required, no added wait."
+        }
+      ],
+      "ruleRequirements": "State discovered rollback Rules separately; prepare durable direction and stable fresh inverse revision before target; retries recognize exactinverse, preserve newer/onair edits; independent model challenge before coding; one combined checkpoint. Existing caps/limits unchanged."
     }
   }
 }
