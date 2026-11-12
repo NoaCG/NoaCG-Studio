@@ -1,3 +1,4 @@
+import { sameDesign, stamped } from './copySettle.ts';
 import type { Show, ShowCue, ShowFolder, PlayoutItem } from './shows';
 import type { SavedGraphic } from './packets';
 import { foldersContiguous, throughRefusal } from './showFolders.ts';
@@ -95,6 +96,7 @@ export function replaceRundown(show: Show, expected: RundownSlice, replacement: 
   };
   // W11 (interaction phase 6): an undo or redo that brings a cue back brings no hidden word with it.
   scrubHiddenWords(next);
+  next.graphics = stampRestoredDesigns(show, next.graphics);
   // An undo is a write like any other, except that a cue it brings back keeps the selection the
   // record had: history copies are the record's own bytes. So does a cue whose live candidate the
   // writer moved (E7.2a): undone or redone, it goes back to the selection it had, a cue of a later
@@ -124,7 +126,20 @@ export function replaceRundown(show: Show, expected: RundownSlice, replacement: 
 export function landedReplacement(show: Show, replacement: RundownSlice): RundownSlice {
   const next = { ...show, ...structuredClone(replacement) } as Show;
   scrubHiddenWords(next);
+  next.graphics = stampRestoredDesigns(show, next.graphics);
   return rundownSlice(next);
+}
+
+/** AN UNDO OR REDO OF A DESIGN IS THIS PAGE'S OWN DESIGN WRITE (live-publishing G1, Terms): a
+ *  restored copy whose design differs from the one stored now is stamped, or the next send's settle
+ *  would read it as an older page's pull and put the stored design back. The write
+ *  (`replaceRundown`) and what the history records (`landedReplacement`) stamp alike, so the next
+ *  step is not refused. */
+function stampRestoredDesigns(show: Show, graphics: SavedGraphic[]): SavedGraphic[] {
+  return graphics.map((g) => {
+    const now = show.graphics.find((c) => c.id === g.id);
+    return now && !sameDesign(now, g) && !stamped(g) ? { ...g, designAt: g.savedAt } : g;
+  });
 }
 
 export interface RundownHistoryEntry { before: RundownSlice; after: RundownSlice; label: string }
