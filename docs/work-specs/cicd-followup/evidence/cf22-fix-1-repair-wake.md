@@ -37,9 +37,13 @@ How a red check reaches each kind of repair owner:
 | Codex chat, local session, or a session that has ended | none: nothing in the repository can wake them | the owner alarm at the first landing or check-in after the bound (rules 6 and 10) |
 | None recorded, or a bot PR | none | the same, with no bound when no worker can be left (rule 6) |
 
-The gap the owner accepts: for owners in the last two rows, the first person to hear of a red
-check is the owner, through the alarm. It comes at the first landing or plan-run check-in after
-the bound, not on a timer: with no landing and no check-in (overnight), it waits for the next one.
+The gap, for owners in the last two rows: the first person to hear of a red check is the owner,
+through the alarm. It comes at the first landing or plan-run check-in after the bound, not on a
+timer, so the delay has no upper bound of its own. With no landing and no check-in it waits for the
+next one. In the 30 days to 2026-11-12, `main` had 16 gaps of more than 6 hours between landings,
+the longest 15.3 hours, and quiet stretches are when a lone red PR is likeliest. The plan
+coordinator chose this trade on 2026-11-12 (option A below) over a budget exception, and put the
+choice to the owner: accept it, or approve an overhead exception for a schedule of its own.
 A repository workflow cannot resume a Codex chat or a local session: it has no credential or
 interface to reach them.
 
@@ -49,8 +53,8 @@ at 6 runner-minutes a run, so the workflow added 29 a landing and 432 a day to a
 landing and 6.2/10 a day. No new scheduled job fits that tier without an owner-approved exception.
 So the check runs in jobs that already run: the delivery-age alarm's job in `post-land.yml`, after
 every landing, and the plan-run check-in, beside `growth-report.mjs ages`. Nothing new is priced and
-no limit changes. A faster schedule stays possible later, as an owner decision on an overhead
-exception (plan coordinator, 2026-11-12).
+no limit changes (option A). A schedule of its own (option B) stays possible later, as an owner
+decision on an overhead exception.
 
 ## Rules
 
@@ -111,7 +115,9 @@ required changes, all taken).
    whose verdict it established: with the merge-group runs unread, an older red PR run could pass
    for the verdict, so it raises none.
 10. **When it runs.** After every landing, in `post-land.yml`'s existing "Delivery age alarms" job,
-    and at every plan-run check-in. It has no schedule of its own (see the design note). At most
+    and at every plan-run check-in. It has no schedule of its own (see the design note), so its delay
+    after the bound is the wait for the next landing or check-in: up to 15.3 hours in the last 30
+    days of landings, less where a check-in comes sooner. At most
     100 GitHub API calls per check, reads and writes together; merge-group runs are read up to
     three pages (300 runs in two days; about 55 is usual). A failed check never turns a landing's
     post-land run red.
@@ -119,7 +125,8 @@ required changes, all taken).
     data into a shell; PR data reaches GitHub only as API arguments. Permissions of that job:
     `contents`, `actions`, `pull-requests` and `statuses` read, `issues` write. Post-land runs one
     at a time and is never cancelled mid-write. A coordinator's check-in can run beside a
-    landing's; the rare overlap can at worst send one duplicate notice, never lose one.
+    landing's; the rare overlap can at worst send a duplicate notice or open a duplicate alarm issue
+    (a later check closes both), never lose one.
 12. **Owner.** The alarm goes to the owner `scripts/growth-ceilings.json` records, read by
     `alarmOwner`. If it names none, the check fails loudly; it never invents one.
 13. **Read-only on PRs.** The check reads PRs, runs and comments and writes only its alarm issue.
@@ -151,6 +158,6 @@ history; a coordinator check-in in between would bring it earlier):
 | #2227 | 11-05 15:30; the owner commented at 15:33 and 15:39, then waited on main's fix | 16:39 | 16:58, once; the PR's own comment says why | 313 min |
 | #2374 | 11-11 05:28, an owner with no PR wake, no action | 06:28 | 06:59, about 35 minutes before its next work began | 261 min |
 
-The alarm came 18, 19, 31 and 88 minutes after each one was due. A schedule of its own would have
+In table order, the alarm came 88, 18, 19 and 31 minutes after each one was due. A schedule of its own would have
 held that to about 20 minutes. A night with no landings and no check-ins would wait longer.
 
