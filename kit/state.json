@@ -48,7 +48,8 @@
    "session": "session_017SdbwMcfURGqXoc62qSHit",
    "branch": "claude/plan-obs-scenes-os1a-build",
    "launchedAt": "2026-11-12T15:22:34Z",
-   "note": "sent brief = saved brief plus two NOTES lines (live-publishing overlap, landing hold)"
+   "note": "sent brief = saved brief plus two NOTES lines (live-publishing overlap, landing hold)",
+   "lastSeen": "2026-11-12T15:54Z: /check code review running"
   }
  ],
  "owner": [
@@ -67,13 +68,18 @@
   {
    "what": "Decide whether automatic reverts and quarantine landings may pass a landing hold (today: held; the guide says lift, land, set again)",
    "where": "coordinator chat"
+  },
+  {
+   "what": "OS1a builder question: what turning the OBS scenes switch off does to loaded scene links (builder default: off = payload as today, scene links go empty on next publish)",
+   "where": "coordinator chat"
   }
  ],
  "fixes": [],
  "triggers": [
   {
-   "id": "trig_01PG9QNobv5su7jpVhbx2Pds",
-   "what": "plan-run check-in"
+   "id": "trig_018RnuYxsdVGxp7K54S9EpRN",
+   "what": "plan-run check-in",
+   "at": "2026-11-12T16:27:00Z"
   },
   {
    "id": "trig_01TAFy1zGNczhpYNFeoozQLL",
