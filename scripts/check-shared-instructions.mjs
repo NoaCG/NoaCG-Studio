@@ -244,11 +244,17 @@ function checkThinWrapper(file, mustContain, label) {
   }
 }
 
+/** A nested repository's files belong to it, not here, so the walk stops at its root. */
+function isNestedRepository(dir) {
+  return dir !== ROOT && existsSync(path.join(dir, '.git'));
+}
+
 function findFilesNamed(dir, filename, found = []) {
   if (!existsSync(dir)) return found;
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
       if (SKIP_DIR_NAMES.has(entry.name)) continue;
+      if (isNestedRepository(path.join(dir, entry.name))) continue;
       findFilesNamed(path.join(dir, entry.name), filename, found);
     } else if (entry.name === filename) {
       found.push(path.join(dir, entry.name));
