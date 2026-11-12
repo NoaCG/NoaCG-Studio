@@ -67,9 +67,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "build / second combined repair candidate gates",
+      "step": "build / new workspace-adoption review finding held",
       "pr": 2438,
-      "note": "4de8259f pushed clean; 162 affected regressions passed, repaired rollback/view ownership and painted export proof. Await exact-head CI/backend, Codex and fresh full independent review; no queue stamp/auto-merge."
+      "note": "4de passed stronger rollback backend proof; new Codex P1 can lose newer adopted workspace records. Head frozen for reproduction/full-review consolidation and required fresh reassessment if confirmed. No queue stamp/auto-merge."
     }
   ],
   "owner": [
@@ -1458,7 +1458,7 @@
     "requestSha256": "bcfabef5e1347043b92cde2edc0f69da57df24eda1c49e7415c7ce4bd8281754",
     "brief": "briefs/e4-build-e4-b-cloud-1112.txt",
     "briefSha256": "2c7379c7dc2988405d565f2a2e1d72393a398e1f3cd671cf7bc4744cfd2e9888",
-    "status": "Second combined repair4de8259f pushedclean; source-pinnedbroader162PASS; exact-head CI/backend/reviews pending",
+    "status": "4de head frozen on new Codex P1 staged-workspace/adopted-mirror data-loss finding; reproduction/fullSO consolidation pending, no patch or queue approval",
     "rulesFirst": {
       "head": "0515e370d",
       "verdict": "AGREE WITH CORRECTIONS",
@@ -1716,7 +1716,19 @@
       "normalCi": 43239502125,
       "isolated": 43239590134,
       "initialNativeReadback": "Both exacthead in_progress firstattempt; PRopen/mergeabletrue/auto_mergenull; localclean",
-      "gates": "ActualCIcapacity/configuredselection, strongerisolatedrollback, oneCodexresult andfreshFULLSO A/A+ required; nopriorB/review/sourcequalification reusedasfinalproof"
+      "gates": "ActualCIcapacity/configuredselection, strongerisolatedrollback, oneCodexresult andfreshFULLSO A/A+ required; nopriorB/review/sourcequalification reusedasfinalproof",
+      "capacity": "Actualplan131255769292SUCCESS, verdictREPAY notoldWARN. Execution198.2/21393%; overheadREFUSE122% main-onlynightlyjob6/day via frozenPR_BASE7e306 versusCItestmergead87/currentmainc1ce4. Currentmain32e5629f8 land-2C1-C7 makescost-onlyREPAYpassing/debt afterlanding; record/evidence errorsstillrefuse. No PRworkflows/capacity/ceilings changes. Do not use oldheadempty-sideEnds tooverrideactualCI or claimfreshcompletegrowth.",
+      "capacityDecision": "Rootindependentlyreadwholeplan/currentmainpolicy and ACKfreshFULLSOmaystartwithexactREPAY+attributioncaveat. Existingissue/search for stale-base misattribution; observeactualmergegroup/postland annotations/item, nohandmade/inventeddebt/owner.",
+      "isolatedStatus": "TerminalSUCCESS attempt1 14:42:52Z, job131256096430, wholelogrootread1PASS25.5s, zero skip/retry/accountdeleted, teardown0resources/ports, artifact13952344884 uploaded337010bytes. Exactcode wrapperrequiresrollbackSurvivesSyncAndFreshContext; rootreadreal serverinverse row assertion, originalpageclosed beforefreshsignin/defaultretry assertions. RawJSON ingresslimitationunchanged.",
+      "fullSo": "Fresh independentFULL48-path e4_final_so_4de8259f fork-none runningaftercapacityACK; no earlierAeligible; consolidatebeforepatch",
+      "codexResult": {
+        "review": 5876369790,
+        "head": "4de8259f9cbdcd85409afeeda50ff103d3386ba8",
+        "finding": 4551914786,
+        "path": "src/model/project.ts:68",
+        "class": "NEW P1 pendingWorkspace shadows adopted durablemirror; stale subsequentautosavecan drop newerprojects/docs/installationreceipts",
+        "status": "Rootreadcompletedreview+inline; workerreproduction/scopeclassificationpending, headfrozen. Serialtabreturn relevant despiteone-activeauthoring scope. Oldrollbackfinding merelyreanchored, notnewround."
+      }
     },
     "tickerPriorE4Evidence": {
       "quarantineCommit": "3a6a94bebf252e4b69cad45d67c83e220d2bbbb7",
@@ -1728,6 +1740,12 @@
       "failure": "01:28:19ZNov12, exactsame speedonly/neverahead class, frame1066.16px/0.009s>5.290;1failed131passed",
       "retry": "3/3PASS2.1min underexistingpolicy, originalsource runFAIL preserved",
       "scope": "This establishes failurefamily before E4PR, notblanketNo forwholeeditorrun/E2; actualdeepercauseunsettled. No newquarantine/rerun/limit changes."
+    },
+    "thirdReviewGate": {
+      "status": "P1 underreproduction; do not patch beforecompletedFULLSOconsolidation; ifconfirmed incrementround3andfreshapproachreassessmentBEFOREpatch by roundcap/repeatedfamily",
+      "scope": "Wholeworkspacewriter/adoption/cachemodel, serialtabreturn/remoteadoption, genuinependinglocaledits andunknownfutureworkspaceadoptedwhileoldv1stageexists; originalsingleactiveauthoringscope retained, no inventedconcurrentmergepolicy.",
+      "newhead": "4de8259f9cbdcd85409afeeda50ff103d3386ba8",
+      "approval": "Nostamp/automerge, no nextphase"
     }
   }
 }
