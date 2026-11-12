@@ -16,6 +16,7 @@
 // Pure: no DOM, no storage. The write itself is model/shows.ts `connectConnectorSource`, which
 // fences it on the configuration this review read. scripts/connector-review.test.mjs drives it.
 
+import type { BracketAdapter } from './bracketAdapter.js';
 import { mappingEntries, proposeMapping, sourcePaths, sourcePrefix, withBindings, type BindingEntry, type MappingRow, type OfferedValue, type ProductionBindings, type RecipeList, type RecipeValue, type SourceRecipe } from '../model/productionData.ts';
 import { isObject, readExternalRegistration, SEGMENT, type SourceListAdapter } from './externalSource.ts';
 import { MAX_SEGMENTS, readSourceRecipe, scalarText } from './sourceMapping.ts';
@@ -189,7 +190,7 @@ export interface ConnectorSource {
   id: string;
   kind: 'external';
   label: string;
-  config: { v: 1; configRevision: number; endpoint: string; lists?: Record<string, SourceListAdapter>; mapping?: SourceRecipe; read?: { everyMs: number } };
+  config: { v: 1; configRevision: number; endpoint: string; lists?: Record<string, SourceListAdapter>; mapping?: SourceRecipe; read?: { everyMs: number }; adapter?: BracketAdapter };
   paused?: boolean;
 }
 
@@ -226,6 +227,9 @@ export function connectorPlan(o: {
   /** Whether NoaCG reads the endpoint itself (obs-scenes OS5a): an interval, null for its agent
    *  only, or absent to keep what the source holds (R13). Never moves the config revision. */
   read?: { everyMs: number } | null;
+  /** The adapter a NoaCG read goes through (obs-scenes OS5b, B2): a setting, null for none, or
+   *  absent to keep what the source holds. Kept only beside `read`; never moves the revision. */
+  adapter?: BracketAdapter | null;
 }): ConnectorPlan {
   const { id } = o.source;
   // A reused source is read the way the route reads it; a new one starts at config revision 1.
@@ -278,6 +282,8 @@ export function connectorPlan(o: {
   };
   const noacg = o.read === undefined ? stored?.read : (o.read ?? undefined);
   if (noacg) config.read = { everyMs: noacg.everyMs };
+  const kept = o.adapter === undefined ? stored?.adapter : (o.adapter ?? undefined);
+  if (noacg && kept !== undefined) config.adapter = kept as BracketAdapter;
   return {
     source: { id, kind: 'external', label: o.source.label, config, ...(o.source.paused ? { paused: true } : {}) },
     entries,

@@ -815,3 +815,30 @@ Filled in by each phase's pull request.
     nothing new shows.
   - B15. The adapter's report goes on the source's line, at most five lines and a count of the
     rest. The read is still one snapshot (OS5a R6), checked and changed as before.
+- Rules found by the Rules-first `/so` (agreed with corrections), before code:
+  - B1 amended. The adapter is applied inside `projectJson`, reading `config.adapter` through
+    `readExternalRegistration`, so the page and the tick share it with no change under `api/`.
+  - B3/B5 amended. An empty, unnumbered, missing or left-out row takes no place in a round's count.
+  - B5 amended. With no `match` field mapped, ids are positional: the line says so, and there is no
+    current match (the picker is not offered and `current` is not written), since an inserted row
+    would move a pick onto another match.
+  - B7 amended. A conflicting match writes only its id; its other paths write nothing (a field keeps
+    what it showed, or its default on a first read); its bracket's tie lines write nothing.
+  - B9 amended. In a bracket with more than one stage, each tie line's round is prefixed with its
+    stage's id, since the Bracket type groups rounds by name.
+  - B12 amended. The memory is carried by the reader with the snapshot (`project(payload,
+    previous)`; `projectedState` keeps keys starting `#`), so a handover and the published row pass
+    it on. With a pick and no memory (a fresh tree, or an older build held the lease), the
+    snapshot's `current.matchId`, `current.a.name` and `current.b.name` stand in when they are
+    bound and name the pick; otherwise the match is adopted.
+  - B14 amended. A pick in any tab only writes `currentMatchId`; the tab holding the lease applies it
+    at once, any other reader on its next read. A read computed before a pick lands as if read just
+    before it; the next read applies the pick. A pick written as data waits for a page.
+  - Not taken: blanking a bound bracket, player or tie path the new shape no longer has. OS5a R6
+    and `docs/DATA_API.md` keep the last good value of a path a read does not carry, so a cut-off
+    feed never blanks air; the line names each such path.
+  - Not taken: the tick resolving `current` from the memory. Its projection hook is built in
+    `api/_lib/dataTick.ts`, outside this phase, and passes no snapshot; B13 stands (the tick holds
+    `current`, `held` included).
+  - Decided by default: after a hold, picking the same match again needs another pick, or the
+    picker's "None", first (the pick must change for `current` to move).

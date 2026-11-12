@@ -414,6 +414,9 @@ export interface ExternalRegistration {
    *  names a finite interval, dropped otherwise. Migration 0116 refuses the agent such a source;
    *  this reader keeps it, so the review and NoaCG's own reader can read the registration. */
   read?: { everyMs: number };
+  /** The adapter a NoaCG read turns the payload through first (obs-scenes OS5b, ./bracketAdapter.ts
+   *  `readSourceAdapter`), as stored. Kept only beside `read`: an agent's report never goes through it. */
+  adapter?: unknown;
 }
 
 export type RegistrationRead =
@@ -447,6 +450,7 @@ export function readExternalRegistration(entry: unknown): RegistrationRead {
       ...(lists ? { lists: lists as ExternalRegistration['lists'] } : {}),
       ...(config.mapping !== undefined ? { mapping: config.mapping } : {}),
       ...(isObject(config.read) && typeof config.read.everyMs === 'number' && Number.isFinite(config.read.everyMs) ? { read: { everyMs: config.read.everyMs } } : {}),
+      ...(config.adapter !== undefined ? { adapter: config.adapter } : {}),
     },
   };
 }

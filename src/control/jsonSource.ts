@@ -17,9 +17,10 @@
 //
 // Pure and Node-importable: scripts/json-source.test.mjs drives it with a fake fetch and clock.
 
-import { createSheetReader, leaseOf, type ProjectedRead, type SheetFetch, type SheetReader, type SheetReaderOptions, type SourceRead } from './sheetSource.js';
+import { createSheetReader, leaseOf, type ProjectedRead, type SourceProject, type SheetFetch, type SheetReader, type SheetReaderOptions, type SourceRead } from './sheetSource.js';
 import { canonicalJson, type ExternalRegistration, type JsonValue, type RegistrationRead } from './externalSource.js';
 import { projectSource } from './sourceMapping.js';
+import { adaptBracket, CURRENT_MEMORY_KEY, currentMemoryText, type CurrentMemory, forFields, pickOf, readCurrentMemory, readSourceAdapter, type MatchChoice } from './bracketAdapter.js';
 import { sourcePrefix } from '../model/productionData.js';
 import type { FieldDescriptor } from '../model/fieldModel';
 
@@ -93,10 +94,27 @@ export function jsonFingerprint(payload: unknown): string {
   return `json:${(h2 >>> 0).toString(16).padStart(8, '0')}${(h1 >>> 0).toString(16).padStart(8, '0')}`;
 }
 
+/** With no memory (a fresh tree, or an older build held the lease), what the bound `current`
+ *  paths last showed stands in for it, when they name a match (B12 amended). */
+function shownCurrent(previous: Readonly<Record<string, string>>, at: string): CurrentMemory | null {
+  const matchId = previous[`${at}matchId`];
+  if (!matchId) return null;
+  const name = (side: string) => (previous[`${at}${side}.name`] ? previous[`${at}${side}.name`] : null);
+  return { matchId, a: name('a'), b: name('b') };
+}
+
+/** At most this many of an adapter's report lines go on the line (B15). */
+export const ADAPTER_REPORT_LINES = 5;
+
+/** A projected read, with the matches an adapter found for the current match picker. */
+export type JsonProjected = ProjectedRead & { matches?: MatchChoice[] };
+
 /**
  * One payload for a source's bound paths, by the shared evaluator: text only (R14). A path only
  * typed fields read, a collection recipe's leaf and anything the evaluator holds write nothing,
- * and each is said plainly.
+ * and each is said plainly. A source with an adapter (OS5b) turns the payload through it first;
+ * `current` is the operator's pick and what this source last wrote (its memory with it), given by
+ * an open page only: without it nothing under `current` is said (B13).
  */
 export function projectJson(o: {
   sourceId: string;
@@ -108,13 +126,36 @@ export function projectJson(o: {
   registration: RegistrationRead;
   /** Whether a collection recipe of the production reads this source. */
   collections?: boolean;
-}): ProjectedRead {
+  current?: { pick: unknown; previous: Readonly<Record<string, string>> };
+}): JsonProjected {
   const fingerprint = jsonFingerprint(o.payload);
   if (!o.registration.ok) return { writes: {}, problems: [`the source cannot be used (${o.registration.error}), so every value holds`], fingerprint };
-  const registration: Pick<ExternalRegistration, 'lists' | 'mapping' | 'configRevision'> = o.registration.registration;
+  const registration: Pick<ExternalRegistration, 'lists' | 'mapping' | 'configRevision' | 'adapter'> = o.registration.registration;
+  let payload: unknown = o.payload;
+  const said: string[] = [];
+  let memory: JsonProjected['memory'];
+  let matches: MatchChoice[] | undefined;
+  const adapter = readSourceAdapter(registration.adapter);
+  if (adapter.status === 'invalid' || adapter.status === 'read-only') {
+    const why = adapter.status === 'invalid' ? adapter.error : `the adapter is version ${adapter.version}; this build reads version 1, so it is held read-only`;
+    return { writes: {}, problems: [`the adapter cannot be used (${why}), so every value holds`], fingerprint };
+  }
+  if (adapter.status === 'ok') {
+    const at = `${sourcePrefix(o.sourceId, 'external')}.current.`;
+    const adapted = adaptBracket(o.payload, adapter.adapter, o.current ? { pick: pickOf(o.current.pick), memory: readCurrentMemory(o.current.previous) ?? shownCurrent(o.current.previous, at) } : undefined);
+    if ('problem' in adapted) return { writes: {}, problems: [`the bracket cannot be read (${adapted.problem}), so every value holds`], fingerprint };
+    payload = forFields(adapted.output);
+    matches = adapted.matches;
+    said.push(...adapted.report.slice(0, ADAPTER_REPORT_LINES));
+    if (adapted.report.length > ADAPTER_REPORT_LINES) said.push(`and ${adapted.report.length - ADAPTER_REPORT_LINES} more in the rows`);
+    if (adapted.current) {
+      if (adapted.current.held) said.push(`the current match is held: ${adapted.current.held}, so it keeps its values`);
+      memory = { [CURRENT_MEMORY_KEY]: adapted.current.memory ? currentMemoryText(adapted.current.memory) : null };
+    }
+  }
   const p = projectSource({
     sourceId: o.sourceId,
-    payload: o.payload,
+    payload,
     bindings: o.bindings,
     fieldsOf: o.fieldsOf,
     lists: registration.lists,
@@ -122,17 +163,19 @@ export function projectJson(o: {
     configRevision: registration.configRevision,
   });
   const prefix = `${sourcePrefix(o.sourceId, 'external')}.`;
-  const problems: string[] = [];
+  // The operator's pick is never the source's (B11), and `current` holds by leaving its leaves out.
+  const own = (leaf: string) => adapter.status === 'ok' && (leaf === 'currentMatchId' || leaf === 'current' || leaf.startsWith('current.'));
+  const problems: string[] = [...said];
   if (p.held) problems.push(`the mapping cannot be used (${p.held.error}), so every value holds`);
   else {
-    for (const leaf of p.missing) problems.push(`${leaf} is not in the JSON, so it keeps its value`);
+    for (const leaf of p.missing) if (!own(leaf)) problems.push(`${leaf} is not in the JSON, so it keeps its value`);
     for (const leaf of p.unfit) {
       problems.push(p.problems[leaf] ? `${leaf}: ${p.problems[leaf]}, so it keeps its value` : `${leaf} holds a value not every field connected to it can show, so it keeps its value`);
     }
     for (const path of Object.keys(p.typedWrites)) problems.push(`${path.slice(prefix.length)} feeds a field that takes typed values, which only an agent writes, so it keeps its value`);
   }
   if (o.collections) problems.push('its collection cards are filled by an agent only, so they keep their values');
-  return { writes: p.writes, problems, fingerprint };
+  return { writes: p.writes, problems, fingerprint, ...(memory ? { memory } : {}), ...(matches ? { matches } : {}) };
 }
 
 /** The browser reader of one JSON source: the Sheet reader's machinery with this read and cadence. */
@@ -140,7 +183,7 @@ export function createJsonReader(
   o: Omit<SheetReaderOptions, 'link' | 'read' | 'everyMs' | 'renewMs' | 'timeoutMs' | 'shape' | 'project' | 'inbox'> & {
     url: string;
     everyMs: number;
-    project: (payload: unknown) => ProjectedRead;
+    project: SourceProject;
   },
 ): SheetReader {
   return createSheetReader({
