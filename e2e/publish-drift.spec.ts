@@ -5,22 +5,20 @@
 // covers: src/control/cueDraft.ts
 //
 // WHAT A PUBLISH WOULD CHANGE IN WHAT THE OUTPUTS RENDER (docs/work-specs/studio-day-playout AC-5).
-// A publish reads each graphic's design from the publisher's own library, so the production page
-// compares, graphic by graphic, the digest a publish would write now with the published one. Only
-// for the graphics this browser reads from ITS OWN library: in a team production a member who does
-// not hold the publisher's record must never read the publisher's newer design as a change of their
-// own, or their Prepare for Live republishes the older copy over it. The whole flow against a real
-// backend (edit in the library, Prepare for Live publishes it, the output moves) is
+// The production page compares, graphic by graphic, the digest a publish would write now with the
+// published one. A publish reads each graphic from the production's own copy (live-publishing W2:
+// the copy is the only truth), so every copy is compared, a teammate's included, and a library edit
+// is no change until Update takes it into the copy. The whole flow against a real backend is
 // e2e/configured/live-prepare.spec.ts; this pins the rule underneath it offline.
 
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic } from './_create';
 
-test("only graphics read from this browser's own library are compared, and a library edit moves exactly that one", async ({ page }) => {
+test('every copy is compared; a library edit moves nothing, and Update moves exactly that copy', async ({ page }) => {
   await bootstrapGraphic(page, { name: 'Hairline' });
   const result = await page.evaluate(async () => {
-    const { createGraphic, updateGraphic, graphicById, loadGraphics } = await import('/src/model/library.ts');
-    const { createShowNamedChecked, addGraphicToShow, loadShows } = await import('/src/model/shows.ts');
+    const { createGraphic, updateGraphic, graphicById, loadGraphics, newerLibraryDesign } = await import('/src/model/library.ts');
+    const { createShowNamedChecked, addGraphicToShow, loadShows, updateCopyFromLibrary } = await import('/src/model/shows.ts');
     const { libraryGraphicDigests } = await import('/src/control/hostedControl.ts');
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const { commitDurableWrites } = await import('/src/model/durableStore.ts');
@@ -31,18 +29,29 @@ test("only graphics read from this browser's own library are compared, and a lib
     // A teammate's graphic: in the production, held in nobody's library on this machine.
     addGraphicToShow(show.id, { ...template, name: 'Theirs' }, { graphicId: 'held-in-another-library' });
     await commitDurableWrites();
-    const read = () => libraryGraphicDigests(loadShows().find((s) => s.id === show.id)!, loadGraphics());
+    const record = () => loadShows().find((s) => s.id === show.id)!;
+    const read = () => libraryGraphicDigests(record(), loadGraphics());
     const before = await read();
     // An edit is a save at a later moment, as every editor save is.
     await new Promise((r) => setTimeout(r, 5));
     const mine = graphicById(doc.id)!;
     updateGraphic(doc.id, { template: { ...mine.template, css: `${mine.template.css}\n/* edited in the library */` } });
     await commitDurableWrites();
-    const after = await read();
-    const again = await read();
-    return { keys: Object.keys(before).sort(), moved: before.Mine !== after.Mine, settled: after.Mine === again.Mine };
+    const afterEdit = await read();
+    const pooled = record().graphics.find((g) => g.name === 'Mine')!;
+    const newer = newerLibraryDesign(pooled, loadGraphics());
+    const updated = newer ? updateCopyFromLibrary(show.id, pooled.id, newer, pooled.savedAt).error : 'no newer design';
+    await commitDurableWrites();
+    const afterUpdate = await read();
+    return {
+      keys: Object.keys(before).sort(),
+      editMoved: before.Mine !== afterEdit.Mine,
+      updated,
+      updateMoved: afterEdit.Mine !== afterUpdate.Mine,
+      theirsStill: before.Theirs === afterUpdate.Theirs,
+    };
   });
-  expect(result).toEqual({ keys: ['Mine'], moved: true, settled: true });
+  expect(result).toEqual({ keys: ['Mine', 'Theirs'], editMoved: false, updated: null, updateMoved: true, theirsStill: true });
 });
 
 // THE LOOK'S IMPORTED FACE (playout adjustments, phase 3): Publish carries it with the first graphic,

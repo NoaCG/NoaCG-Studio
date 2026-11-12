@@ -2,7 +2,8 @@
 // (scripts/e2e-lists.mjs). Only a real backend holds a published version to guard.
 //
 // THE PUBLISH GUARD (docs/work-specs/publish-guard/spec.md). Two members: Anna edits a graphic in
-// her library and publishes; Ben, whose page built its copy when the graphic was added, changes a
+// her library, takes it into the production with Update (live-publishing W2: the production's copy
+// is the only truth) and publishes; Ben, whose page built its copy when the graphic was added, changes a
 // cue and then a layer and publishes each time. Air keeps Anna's design, with Ben's cue and layer
 // (AC-1, AC-3). One member, three states forced on the server row: a payload from before stamps is
 // published over (AC-6), a newer design on air than the page holds stops the publish with nothing
@@ -75,18 +76,23 @@ async function productionWith(page: Page, name: string, graphic: string): Promis
   return showId;
 }
 
-/** Edit the graphic's design in the library, as the editor's save does. */
+/** Edit the graphic's design in the library, as the editor's save does, then take it into the
+ *  production with Update (live-publishing O4): the copy is what publishes. */
 async function editInLibrary(page: Page, showId: string, graphic: string, note: string): Promise<void> {
   const edited = await page.evaluate(
     async ([id, name, comment]) => {
-      const { loadShows } = await import('/src/model/shows.ts');
-      const { loadGraphics, resolveSavedGraphicDoc, updateGraphic } = await import('/src/model/library.ts');
+      const { loadShows, updateCopyFromLibrary } = await import('/src/model/shows.ts');
+      const { loadGraphics, newerLibraryDesign, resolveSavedGraphicDoc, updateGraphic } = await import('/src/model/library.ts');
       const { commitDurableWrites } = await import('/src/model/durableStore.ts');
       const pooled = loadShows().find((s) => s.id === id)?.graphics.find((g) => g.name === name);
       const doc = pooled ? resolveSavedGraphicDoc(pooled, loadGraphics()) : undefined;
-      if (!doc) return false;
+      if (!pooled || !doc) return false;
       const { error } = updateGraphic(doc.id, { template: { ...doc.template, css: `${doc.template.css}\n/* ${comment} */` } });
-      return !error && !(await commitDurableWrites());
+      if (error) return false;
+      const newer = newerLibraryDesign(pooled, loadGraphics());
+      if (!newer) return false;
+      const updated = updateCopyFromLibrary(id, pooled.id, newer, pooled.savedAt);
+      return !updated.error && !(await commitDurableWrites());
     },
     [showId, graphic, note] as [string, string, string],
   );
@@ -315,7 +321,7 @@ test('a newer design on air stops the publish, and a publish landing in between 
   await forge({ later: true });
   await typeCue(page, showId, 'stale page');
   await pressPublishChanges(page);
-  await expect(page.getByTestId('production-note')).toContainText(`${STRAP} on air is newer than this page's copy. Reload this page to get it.`, { timeout: 30_000 });
+  await expect(page.getByTestId('production-note')).toContainText(`${STRAP} on air is newer than this production's copy.`, { timeout: 30_000 });
   const refused = (await published(page, showId, STRAP))!;
   expect(refused.n, 'nothing was written').toBe(stamped.n);
   expect(refused.values).not.toContain('stale page');

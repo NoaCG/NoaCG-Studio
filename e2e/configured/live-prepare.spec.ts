@@ -125,9 +125,11 @@ test('the readiness run publishes what changed, checks every output and ends in 
   await expect.poll(async () => (await readyOf(air))?.v?.n, { timeout: 30_000 }).toBe(2);
   expect(reloads, 'cue metadata must not reload the output').toBe(metadataReloads);
 
-  // ── docs/work-specs/studio-day-playout AC-5: the graphic edited in the LIBRARY, as the editor's
-  //    save does, with the production record untouched. It is a change the outputs draw, so the
-  //    header offers Publish changes, and the output moves onto it. ──
+  // ── The graphic edited in the LIBRARY, as the editor's save does. The production's copy is the
+  //    only truth (live-publishing W2): nothing changes for the outputs and the header asks for no
+  //    publish; the cue editor says "Newer design in library", and its Update takes the design into
+  //    the copy, which is a change the outputs draw, so Publish changes moves the output onto it
+  //    (docs/work-specs/studio-day-playout AC-5). ──
   const readUpdatedAt = () =>
     page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.updatedAt ?? '', showId);
   const recordBefore = await readUpdatedAt();
@@ -136,15 +138,19 @@ test('the readiness run publishes what changed, checks every output and ends in 
     const { loadGraphics, resolveSavedGraphicDoc, updateGraphic } = await import('/src/model/library.ts');
     const { commitDurableWrites } = await import('/src/model/durableStore.ts');
     const pooled = loadShows().find((s) => s.id === id)?.graphics[0];
-    // The record a publish reads this graphic from (hostedControl.ts, templateForSavedGraphic).
     const doc = pooled ? resolveSavedGraphicDoc(pooled, loadGraphics()) : undefined;
     if (!doc) return false;
     const { error } = updateGraphic(doc.id, { template: { ...doc.template, css: `${doc.template.css}\n/* edited in the library */` } });
     return !error && !(await commitDurableWrites());
   }, showId);
   expect(edited, 'the production names its graphic in the library').toBe(true);
-  await expect(page.getByTestId('production-publish-changes')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('newer-design')).toContainText('Newer design in library', { timeout: 15_000 });
+  await expect(page.getByTestId('production-publish-changes')).toHaveCount(0);
   expect(await readUpdatedAt()).toBe(recordBefore);
+  expect((await stampOf())?.v.n, 'a library edit publishes nothing').toBe(2);
+  await page.getByTestId('design-update').click();
+  await expect(page.getByTestId('newer-design')).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.getByTestId('production-publish-changes')).toBeVisible({ timeout: 15_000 });
   await page.getByTestId('production-publish-changes').click();
   await expect.poll(async () => (await readyOf(air))?.v?.n ?? 0, { timeout: 90_000 }).toBe(3);
   await expect(page.getByTestId('production-publish-changes')).toHaveCount(0, { timeout: 30_000 });
