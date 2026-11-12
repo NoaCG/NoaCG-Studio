@@ -49,7 +49,7 @@
    "branch": "claude/plan-obs-scenes-os1a-build",
    "launchedAt": "2026-11-12T15:22:34Z",
    "note": "sent brief = saved brief plus two NOTES lines (live-publishing overlap, landing hold)",
-   "lastSeen": "2026-11-12T16:23Z: PR open, waiting on CI for 23d3471a"
+   "lastSeen": "2026-11-12T16:49Z: CI running on e3a3ccd4 (progressing)"
   }
  ],
  "owner": [
@@ -77,9 +77,9 @@
  "fixes": [],
  "triggers": [
   {
-   "id": "trig_01V7qBNeXEGW3qSkYe67Q85U",
+   "id": "trig_01S3fBDL2J88mFSX7hEeifpg",
    "what": "plan-run check-in",
-   "at": "2026-11-12T16:59:00Z"
+   "at": "2026-11-12T17:31:00Z"
   },
   {
    "id": "trig_01TAFy1zGNczhpYNFeoozQLL",
