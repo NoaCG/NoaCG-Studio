@@ -705,6 +705,19 @@ Filled in by each phase's pull request.
   - R18. `docs/DATA_API.md` replaces "it never scrapes a site or polls an address for you" with what
     NoaCG now reads (a public JSON address, on the source's interval above 10 s, through the guarded
     fetch and one shared read) and what it still never does (scrape a page, send a credential).
+- Rules found after coding (`/check` review):
+  - R3 amended. A good read's wait counts from when the reader's request arrived, less 1 s, not
+    from the end of the fetch: the address is fetched at most every 9 s, and a source read every
+    10 s gets a fresh read each time however long the fetch and the database took. A failure still
+    waits from the fetch's end, so a Retry-After is honoured in full.
+  - R12 amended. The agent is refused exactly when `config.read.everyMs` is a number, the test the
+    tick's list and the page's reader use; a malformed `read` leaves the source its agent's.
+  - R19. A registration NoaCG's reader cannot use is still read and holds every value, and the line
+    says why, on the page and the tick alike; the tick's list carries the production's collection
+    recipes so its line says what the page's says.
+  - R20. A good read stamped more than a minute ahead of the database's clock (a page whose clock
+    runs fast) counts as never read in the tick's due test.
+  - Every refusal and failure of a JSON read is said of an address, never of a feed.
 - Previous verified `main`: `bcb4d10b8773704db04e9ec9148d3782b6df1d2d` (CI run 43287863511, the
   configured suite 43287863588).
 - Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed: a

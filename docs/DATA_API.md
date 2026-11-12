@@ -208,8 +208,9 @@ OBS scenes switch is on, and kept on the source afterwards. The registration the
 - **One read per address.** NoaCG's server fetches the address through the same guard as a news
   feed: public addresses only (a name that answers a private, loopback or link-local address is
   refused), every redirect checked, at most 5 redirects, 10 seconds and 256 KiB. One cached read
-  per address serves every reader, fetched at most every 10 s; the address's `Retry-After` after a
-  failure is honoured, up to an hour. No credential is ever sent: an address that needs one is
+  per address serves every reader: the address is fetched at most every 9 s, counted from the read
+  that asked, so a source read every 10 s gets a fresh answer each time. The address's
+  `Retry-After` after a failure is honoured, up to an hour. No credential is ever sent: an address that needs one is
   read by its agent.
 - **One snapshot.** Each good read is evaluated once, with the same rules as an agent's report
   (`src/control/sourceMapping.ts`), and every connected path that changed is written in one write.

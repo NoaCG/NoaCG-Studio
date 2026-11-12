@@ -21,7 +21,7 @@
 // `/api/data/source` is the trusted JSON agent's door (docs/work-specs/playout-external-connectors,
 // E4.2): the data key, a versioned envelope, C2's lease and the fenced apply of migration 0101.
 // `/api/data/json` is NoaCG's own reader of a public JSON address (obs-scenes OS5a): public, the
-// feed reader's guard and shared cache, one read per address at most every 10 s.
+// feed reader's guard and shared cache, one read per address at most every 9 s from the read that asked.
 
 import { apiError, bearerToken, json, methodGuard, readJson } from '../_lib/http.js';
 import { checkDataIngestBudget, checkDataIpRateLimit, checkFeedIpRateLimit, checkJsonReadIpRateLimit } from '../_lib/rateLimit.js';
@@ -309,7 +309,7 @@ async function feed(req: Request): Promise<Response> {
  * NOACG'S JSON READER: GET `/api/data/json?url=<address>`, public (obs-scenes OS5a, R3 and R4). The
  * last good payload of a public JSON address from the shared cache, or one guarded read of it
  * (api/_lib/feedFetch.ts `readCachedJson`: public addresses only, every redirect checked, 10 seconds,
- * 256 KiB, never more often than every 10 s for every reader, never a credential), or the failure
+ * 256 KiB, at most every 9 s from the read that asked, for every reader, never a credential), or the failure
  * with its fix and no payload.
  */
 async function jsonRead(req: Request): Promise<Response> {

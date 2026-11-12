@@ -714,7 +714,8 @@ export const FEED_KIND: CachedKind = {
   words: (text) => text,
 };
 
-/** No JSON address is fetched more often than this, whatever its readers (obs-scenes D4). */
+/** A JSON source's floor (obs-scenes D4): a good read is served this long from the read that asked,
+ *  less `arrivalSlackMs`; a failure waits this long from the fetch's end. */
 export const JSON_CACHE_FLOOR_MS = 10_000;
 /** The largest JSON body read, after decompression: the source route's own 256 KiB. */
 export const JSON_MAX_BYTES = 256 * 1024;

@@ -35,11 +35,11 @@ import {
   type SheetReadState,
   type SheetShape,
   type SheetStatus,
+  type SourceRead,
 } from '../../src/control/sheetSource.js';
 import { feedRead, type FeedRouteAnswer } from '../../src/control/feedSource.js';
 import { collectionReads, projectJson } from '../../src/control/jsonSource.js';
 import { readExternalRegistration } from '../../src/control/externalSource.js';
-import type { SourceRead } from '../../src/control/sheetSource.js';
 import type { FieldDescriptor, FieldKind } from '../../src/model/fieldModel.js';
 
 /** No read starts this long after the tick began (the record: 10 s reads, a 30 s function). */

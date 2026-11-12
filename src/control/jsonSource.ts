@@ -2,7 +2,8 @@
 // R18 in its phase notes): a connector source whose registration carries `read: { everyMs }`.
 //
 // NoaCG's server reads the address through the guarded fetch and keeps one shared read per address
-// (api/_lib/feedFetch.ts `readCachedJson`, never more often than every 10 s for every reader); the
+// (api/_lib/feedFetch.ts `readCachedJson`, fetched at most every 9 s from the read that asked, for
+// every reader); the
 // page asks it through `/api/data/json` at the source's own interval while it holds the source's
 // lease, and the server tick reads it when no page does (api/_lib/dataTick.ts). Everything else is
 // the Sheet reader's (./sheetSource.ts): the lease, Pause, the diff against what the source last
