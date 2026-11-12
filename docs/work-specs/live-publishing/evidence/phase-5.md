@@ -86,9 +86,37 @@ building" with its reason.
 | `node scripts/check-e2e-protection.mjs --changed origin/main` | pass |
 | `node scripts/e2e-capacity.mjs` | WARN (not refused): 93 % of the table; one backend test added |
 
-### Configured runs
+### Configured runs (local stack, CLI 2.111.0, cloud worker)
 
-Recorded below as each ran.
+- `e2e/configured/per-graphic-replacement.spec.ts`, both tests pass (job j-0011, and j-0018 for
+  the PROGRAM "ran" check on the first): two outputs swap a changed graphic in place and the light
+  is green with "House Scorebug: new design at next Take" while it is on air (O3); PROGRAM reads
+  "ran" once both outputs report the Take. The held-Take test: the payload read held back 2 s on
+  Desk A and 8 s on Desk B; a Take of a new strap and a Take and Out of a second while both load.
+  The light was sampled every 250 ms through the hold and never read green; Desk B reported the
+  strap as shown late without its entrance; each output played exactly one entrance
+  (`data-plays` 1), so the cancelled strap never played; then green, "Ready".
+- Found on the way (in "Rules found while building"): an empty epoch on a page opened before the
+  first head; a `cue` status row reaching the stage as a command.
+
+### Measured (phase 2 harness, `MEASURE_BUILD=prod`, typical fixture, unthrottled, warm cache)
+
+Graphic cue Take, press to sent, with each output reporting what it ran and a second device writing
+a data-road update to another graphic every 200 ms, against phase 3's figure on one output with no
+stream (11.7 / 17.2 ms, p50 / p95):
+
+| Outputs | n | Press to sent p50 / p95 (ms) | Failures | Press to confirmed by every output p50 / p95 (ms) |
+|---|---|---|---|---|
+| 2 | 50 (two runs of 25) | 11.2 / 16.9 and 11.6 / 18.2 | 0 | 397 / 463 and 398 / 945 |
+| 4 | 50 (two runs of 25) | 13.0 / 25.3 and 14.8 / 21.3 | 0 | 424 / 1,169 and 439 / 1,075 |
+
+So the report rows and re-banks do not slow a Take with two outputs; with four the p95 is 4 to 8 ms
+higher, within AC-1's own-time target. "Confirmed" is press to PROGRAM's "ran" (every output's run
+report has reached the page), which the 5 s grey window covers at p95. Results in
+`/tmp/noacg-measure`-style files on the worker (`w3-typical-fast-prod-parto{2a,2b,4a,4b}.json`).
+Not measured here: the large fixture, throttled networks, and the demand read's bytes (it is the
+whole published payload, phase 2's "Output start" figures), left to the phase 6 and 7 runs that
+change what is read.
 
 ## Not checked by the run (for the owner's final check, phase 9)
 

@@ -163,11 +163,6 @@ export function pruneOwed(owed: readonly Owed[], outputs: readonly ConfirmOutput
   );
 }
 
-/** Whether every expected output has confirmed `at` of `graphic`: PROGRAM's "ran". */
-export function confirmedBy(outputs: readonly ConfirmOutput[], at: number, graphic: string): boolean {
-  return outputs.length > 0 && outputs.every((out) => !!out.run && out.run.p >= at && ranFor(out.run, graphic) >= at);
-}
-
 /** The newest of two run reports from one output within one epoch: a lower `p` is older; at an
  *  equal `p` the later one heard wins. */
 export function newerRun(held: RunReport | null | undefined, heard: RunReport): RunReport {

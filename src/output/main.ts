@@ -985,7 +985,7 @@ async function boot(): Promise<void> {
   // history, replayed hidden as it always was. ──
   /** True once the live follow has started: before it, rows are the boot's catch-up. */
   let following = false;
-  const holds = new Map<string, { rows: HeldRow<ControlEventRow['msg']>[]; addedAt: number | null }>();
+  const holds = new Map<string, { rows: HeldRow<ControlEventRow['msg']>[] }>();
   /** Graphics whose hold failed, from where and why (cleared by a later Take or Out that runs). */
   const failures = new Map<string, { from: number; why: HoldFailure }>();
   /** Where E1.1's typed hold of each graphic started. */
@@ -1113,10 +1113,7 @@ async function boot(): Promise<void> {
         holds.forEach((hold, graphic) => {
           if (hosts(graphic)) return;
           const spec = payload ? payload.graphics.find((g) => g.key === graphic) : undefined;
-          if (spec && payload) {
-            swapper.addNow(spec, payload);
-            hold.addedAt = Date.now();
-          } else if (payload && isCancelled(hold.rows)) settleHold(graphic);
+          if (spec && payload) swapper.addNow(spec, payload); else if (payload && isCancelled(hold.rows)) settleHold(graphic);
           else if (payload) fail(graphic, 'unpublished');
         });
       } finally {
@@ -1158,7 +1155,7 @@ async function boot(): Promise<void> {
         }
       } else {
         failures.delete(graphic);
-        const started = { rows: [entry], addedAt: null };
+        const started = { rows: [entry] };
         holds.set(graphic, started);
         if (!hosts(graphic)) demand();
         loadDeadline(graphic, started);

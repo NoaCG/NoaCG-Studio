@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { confirmLines, confirmedBy, newerRun, pruneOwed } = await import('../src/control/runConfirm.ts');
+const { confirmLines, newerRun, pruneOwed } = await import('../src/control/runConfirm.ts');
 const { listed, ranFor, readRun, withoutRun } = await import('../src/control/runReport.ts');
 
 const run = (p, h = {}, o = 'out-a', e = 'ep1') => ({ o, p, h, e });
@@ -46,8 +46,8 @@ test('confirmed per graphic: a held graphic never blocks another graphic\'s comm
   assert.equal(got.length, 1, 'only the failure is said');
   assert.equal(got[0].tone, 'bad');
   assert.equal(got[0].short, 'Scorebug did not play');
-  assert.equal(confirmedBy([out(r)], 55, 'Clock'), true);
-  assert.equal(confirmedBy([out(r)], 45, 'Scorebug'), false);
+  assert.equal(ranFor(r, 'Clock'), 60);
+  assert.ok(ranFor(r, 'Scorebug') < 45);
 });
 
 test('a received position its h entry covers is judged by the entry, never by its age (R12)', () => {
@@ -99,8 +99,6 @@ test('an output with no report yet is unconfirmed, worst tone first across outpu
 test('an All out batch: each position its graphic, each confirmed on its own', () => {
   const r = run(103, { C: [103, 'loading'] });
   const batch = [owed(101, 'A'), owed(102, 'B'), owed(103, 'C')];
-  assert.equal(confirmedBy([out(r)], 101, 'A'), true);
-  assert.equal(confirmedBy([out(r)], 103, 'C'), false);
   assert.deepEqual(pruneOwed(batch, [out(r)]).map((o) => o.graphic), ['C']);
 });
 
