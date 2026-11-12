@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { useTemplateStore, flushPendingProject, syncSampleData, scheduleProjectAutosave } from './templateStore';
+import { useTemplateStore, flushPendingProject, syncSampleData, scheduleProjectAutosave, captureProjectDocument, recoverProjectLink } from './templateStore';
 import { useSaveUi } from './saveActions';
-import { authoringWorkspace, stageAuthoringWorkspace, writeAuthoringWorkspace, workspaceRefusal, workspaceGeneration, bindWorkspaceDocument, workspaceDocumentRetained, loadProject, saveProject, documentReservation, resumeReservation, releaseReservation, isOwnReservation } from '../model/project';
+import { authoringWorkspace, stageAuthoringWorkspace, writeAuthoringWorkspace, workspaceRefusal, workspaceGeneration, bindWorkspaceDocument, workspaceDocumentOwner, workspaceDocumentRetained, loadProject, saveProject, resumeReservation, releaseReservation } from '../model/project';
 import { readableWorkspace, type AuthoringWorkspace, type AuthoringDocument, type AuthoringProject, type HistoryViews, type DocumentView } from '../model/authoringDocument';
 import { captureDurableWrites, commitDurableReceipt, libraryInUse } from '../model/durableStore';
 import { uuid } from '../model/id';
@@ -24,9 +24,7 @@ function stage(value: AuthoringWorkspace) {
 }
 type State = ReturnType<typeof useTemplateStore.getState>;
 function snapshot(s: State, previous?: AuthoringDocument): AuthoringDocument {
-  return { id: s.documentId, template: s.template, baseline: s.baseline, history: s.history, future: s.future,
-    sampleData: s.sampleData, saved: { graphicId: s.saved.graphicId, dirty: s.saved.dirty },
-    aiSpec: s.aiSpec, aiThread: s.aiThread, legibility: s.legibility, ...documentReservation(s.baseline),
+  return { ...captureProjectDocument(s),
     views: views?.id === s.documentId ? views.history : previous?.views,
     view: views?.id === s.documentId ? views.view : previous?.view };
 }
@@ -57,14 +55,19 @@ export function currentAuthoringDocument(): AuthoringDocument | undefined {
 
 bindWorkspaceDocument(useTemplateStore.getState().documentId);
 useTemplateStore.subscribe((s, prev) => {
-  if (restoring || authoringWorkspace() === undefined || workspaceRefusal()) return;
+  if (restoring) return;
+  if (authoringWorkspace() === undefined) {
+    if (s.documentId !== prev.documentId) bindWorkspaceDocument(s.documentId);
+    return;
+  }
+  if (workspaceRefusal()) return;
   const changed = s.baseline !== prev.baseline || s.template !== prev.template || s.history !== prev.history || s.future !== prev.future ||
     s.saved !== prev.saved || s.sampleData !== prev.sampleData || s.aiSpec !== prev.aiSpec || s.aiThread !== prev.aiThread || s.legibility !== prev.legibility;
   if (!changed && s.documentId === prev.documentId) return;
   const w = workspace();
-  if (s.documentId !== prev.documentId && w.documents.some(d => d.id === prev.documentId)) {
-    // Wizard/open-saved replacements leave the former project draft intact and detach.
-    stage({ ...retained(prev, w), active: null });
+  if (s.documentId !== prev.documentId) {
+    // A confirmed Discard explicitly retired prev; ordinary replacements still retain it.
+    if (workspaceDocumentOwner() === prev.documentId && w.documents.some(d => d.id === prev.documentId)) stage({ ...retained(prev, w), active: null });
     bindWorkspaceDocument(s.documentId);
   } else if (w.documents.some(d => d.id === s.documentId)) {
     stage(retained(s, w));
@@ -78,7 +81,7 @@ async function persist(value: AuthoringWorkspace): Promise<void> {
   // Establish a compatibility slot for a first-ever project without destroying a legacy one.
   if (!loadProject()) {
     const s = useTemplateStore.getState();
-    saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread, s.legibility);
+    saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread, s.legibility, captureProjectDocument(s));
   }
   stage(value); // Intent is visible to every slot writer before the first await.
   const captured = captureDurableWrites('spx-gfx-project', () => { flushPendingProject(); writeAuthoringWorkspace(workspace()); });
@@ -117,11 +120,12 @@ function restore(d: AuthoringDocument) {
   bindWorkspaceDocument(d.id, d);
   try {
     releaseReservation();
-    if (isOwnReservation(d.reservedGraphicId)) resumeReservation(d.reservedGraphicId!, d.baseline);
+    const recovered = recoverProjectLink({ template: d.template, ...d.saved, reservedGraphicId: d.reservedGraphicId, mintingReserved: d.mintingReserved });
+    if (recovered.reservedId && !recovered.relinked) resumeReservation(recovered.reservedId, d.baseline);
     views = d.views && d.view ? { id: d.id, history: d.views, view: d.view } : null;
     useTemplateStore.setState({ documentId: d.id, template: d.template, baseline: d.baseline, history: d.history, future: d.future,
       sampleData: d.sampleData, selectedParts: d.view?.selectedParts ?? [], selectedPart: d.view?.selectedParts[0] ?? null,
-      saved: { ...d.saved, status: 'idle' }, aiSpec: d.aiSpec ?? null, aiThread: d.aiThread ?? null,
+      saved: { graphicId: recovered.graphicId, dirty: recovered.dirty, status: 'idle' }, aiSpec: d.aiSpec ?? null, aiThread: d.aiThread ?? null,
       legibility: d.legibility ?? null, validation: null, previewError: null, galleryOpen: false });
   } finally { restoring = false; }
 }

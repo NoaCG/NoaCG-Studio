@@ -4,7 +4,7 @@
 // important shows into Packets, which are kept and synced separately). Cloud sync of this single
 // 'project' record lands next, alongside brand, via the singleton mechanism.
 
-import { readableWorkspace, WORKSPACE_REFUSAL, type AuthoringWorkspace, type AuthoringDocument } from './authoringDocument';
+import { readableWorkspace, workspaceDocument, projectFromDocument, WORKSPACE_REFUSAL, type AuthoringWorkspace, type AuthoringDocument } from './authoringDocument';
 import type { SpxTemplate } from './types';
 import type { GenerationSpec } from './generationSpec';
 import type { AiThread } from './aiThread';
@@ -117,6 +117,15 @@ export function bindWorkspaceDocument(id: string | undefined, loaded?: Authoring
   } catch { /* An unreadable adopted envelope stays protected, including during boot. */ }
 }
 export function workspaceGeneration(): number { return workspaceStage().generation; }
+export function workspaceDocumentOwner(): string | undefined { return workspaceStage().document; }
+/** Undo only an unchanged refused replacement, preserving later drafts and journals. */
+export function restoreRefusedDocument(submitted: AuthoringDocument, live: AuthoringDocument, active: string | null): void {
+  const w = authoringWorkspace();
+  if (!readableWorkspace(w) || !sameWorkspaceValue(w.documents.find(d => d.id === submitted.id), submitted)) return;
+  const priorActive = active === null || w.documents.some(d => d.id === active) ? active : null;
+  stageAuthoringWorkspace({ ...w, active: w.active === null ? priorActive : w.active,
+    documents: w.documents.map(d => d.id === submitted.id ? live : d) });
+}
 /** A submitted retention is not ownership until its complete snapshot is confirmed. */
 export function workspaceDocumentRetained(id: string): boolean {
   const stage = workspaceStage();
@@ -138,7 +147,9 @@ function writeLocalProject(project: SavedProject): void {
   const stage = workspaceStage(), owner = libraryInUse(), workspace = resolvedWorkspace(stage);
   // A rebased candidate must be visible before another slot writer can read our optimistic raw.
   if (!sameWorkspaceValue(stage.value, workspace)) { stage.value = workspace; stage.generation++; }
-  const generation = stage.generation, raw = JSON.stringify({ ...project, ...(workspace !== undefined ? { workspace } : {}) });
+  const selected = workspaceDocument(workspace);
+  const projected = selected ? projectFromDocument(project, selected) : project;
+  const generation = stage.generation, raw = JSON.stringify({ ...projected, ...(workspace !== undefined ? { workspace } : {}) });
   const previous = lastDurableWrite(STORAGE_KEY);
   durable.setItem(STORAGE_KEY, raw);
   const receipt = lastDurableWrite(STORAGE_KEY);
@@ -284,6 +295,8 @@ export function saveProject(
   aiSpec?: GenerationSpec | null,
   aiThread?: AiThread | null,
   legibility?: ProjectLegibility | null,
+  owner?: AuthoringDocument,
+  detach = false,
 ): void {
   try {
     const existing = loadProject();
@@ -304,10 +317,17 @@ export function saveProject(
       aiThread: aiThread === undefined ? existing?.aiThread ?? null : aiThread,
       // Same rule again; an explicit null (the default state) drops the key entirely.
       legibility: (legibility === undefined ? existing?.legibility : legibility) ?? undefined,
-      reservedGraphicId: reservedGraphicId(baseline),
-      ...(reservation?.minting ? { mintingReserved: true } : {}),
+      ...(owner ? { reservedGraphicId: owner.reservedGraphicId, mintingReserved: owner.mintingReserved } : documentReservation(baseline)),
     };
-    writeLocalProject(rec);
+    const w = authoringWorkspace();
+    if (owner && readableWorkspace(w)) {
+      if (workspaceDocumentOwner() !== owner.id) return;
+      if (w.documents.some(d => d.id === owner.id)) {
+        const next = { ...w, active: detach ? null : w.active, documents: w.documents.map(d => d.id === owner.id ? owner : d) };
+        if (!sameWorkspaceValue(w, next)) stageAuthoringWorkspace(next);
+      } else if (w.active !== null) return; // A selected destination cannot claim an unretained caller.
+    }
+    writeLocalProject(owner ? projectFromDocument(rec, owner) : rec);
     notifyDataChanged();
   } catch {
     // Storage full or unavailable — non-fatal.
@@ -323,8 +343,14 @@ export function upsertProject(project: SavedProject): void {
   if (workspace !== undefined && !readableWorkspace(workspace)) return;
   try {
     const { mintingReserved: _mark, ...pulled } = project;
+    // A pull brings no trusted mint mark, including marks nested in dormant documents.
+    const incoming = readableWorkspace(pulled.workspace) ? { ...pulled.workspace,
+      documents: pulled.workspace.documents.map(({ mintingReserved: _mint, ...d }) => d) } : pulled.workspace;
+    const effective = incoming !== undefined ? incoming : workspace;
     const own = loadProject()?.reservedGraphicId;
-    durable.setItem(STORAGE_KEY, JSON.stringify({ ...pulled, ...(pulled.workspace !== undefined ? {} : workspace !== undefined ? { workspace } : {}), ...(isOwnReservation(own) ? { reservedGraphicId: own } : {}) }));
+    const next = { ...pulled, ...(effective !== undefined ? { workspace: effective } : {}), ...(isOwnReservation(own) ? { reservedGraphicId: own } : {}) };
+    const selected = workspaceDocument(effective);
+    durable.setItem(STORAGE_KEY, JSON.stringify(selected ? projectFromDocument(next, selected) : next));
     notifyDataChanged();
   } catch {
     // Non-fatal.

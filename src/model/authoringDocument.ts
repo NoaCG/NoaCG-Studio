@@ -1,3 +1,4 @@
+import type { SavedProject } from './project';
 import type { SpxTemplate } from './types';
 import type { GenerationSpec } from './generationSpec';
 import type { AiThread } from './aiThread';
@@ -63,4 +64,12 @@ export function readableWorkspace(value: unknown): value is AuthoringWorkspace {
 }
 export function workspaceDocument(value: unknown): AuthoringDocument | undefined {
   return readableWorkspace(value) ? value.documents.find(d => d.id === value.active) : undefined;
+}
+
+/** The active bundle is authoritative, including absent optional source metadata. */
+export function projectFromDocument(slot: SavedProject, d: AuthoringDocument): SavedProject {
+  return { ...slot, name: d.template.name, template: d.template, baseline: d.baseline,
+    graphicId: d.saved.graphicId, dirty: d.saved.dirty, aiSpec: d.aiSpec ?? null,
+    aiThread: d.aiThread ?? null, legibility: d.legibility ?? undefined,
+    reservedGraphicId: d.reservedGraphicId, mintingReserved: d.mintingReserved };
 }

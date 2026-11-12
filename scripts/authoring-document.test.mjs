@@ -27,3 +27,21 @@ test('unknown versions, duplicate ownership, orphan membership and malformed his
     assert.equal(JSON.stringify(value), exact);
   }
 });
+
+test('complete active projection clears absent metadata and preserves administrative identity', async () => {
+  const { projectFromDocument } = await import('../src/model/authoringDocument.ts');
+  const outer = { id: 'singleton', name: 'Departing', updatedAt: '2026-11-12T10:00:00Z', deleted: false,
+    template: { ...source, name: 'Departing' }, baseline: source, graphicId: 'master-a', dirty: false,
+    aiSpec: { old: 'spec' }, aiThread: { old: 'thread' }, legibility: { old: 'legibility' },
+    reservedGraphicId: 'reservation-a', mintingReserved: true, workspace: legacyAdopted };
+  const chosen = { ...draft, template: { ...source, name: 'Chosen' } };
+  const raw = JSON.parse(JSON.stringify(projectFromDocument(outer, chosen)));
+  assert.deepEqual(raw, { id: 'singleton', name: 'Chosen', updatedAt: outer.updatedAt, deleted: false,
+    template: chosen.template, baseline: source, graphicId: null, dirty: true, aiSpec: null, aiThread: null, workspace: legacyAdopted });
+  const owned = { ...chosen, aiSpec: { own: 'spec' }, aiThread: { own: 'thread' }, legibility: { own: 'legibility' },
+    reservedGraphicId: 'reservation-b', mintingReserved: false, saved: { graphicId: 'master-b', dirty: false } };
+  const projected = projectFromDocument(outer, owned);
+  for (const key of ['template', 'baseline', 'aiSpec', 'aiThread', 'legibility', 'reservedGraphicId', 'mintingReserved']) assert.equal(projected[key], owned[key]);
+  assert.equal(projected.graphicId, 'master-b'); assert.equal(projected.dirty, false);
+  assert.equal(outer.reservedGraphicId, 'reservation-a'); assert.equal(outer.mintingReserved, true);
+});

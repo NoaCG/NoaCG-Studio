@@ -1099,3 +1099,203 @@ test('same-private adopted revision refuses an old writer until explicit reload 
   expect(loaded.privateId).toBe(old.privateId); expect(loaded.publicId).toBe(old.expected.documentId); expect(loaded.instance).not.toBe(old.expected.sessionId);
   expect(loaded.source).toContain('B adopted newer same UUID'); expect(loaded.code).toBe('stale_context'); expect(loaded.unchanged).toBe(true);
 });
+
+for (const destination of ['pristine', 'reserved', 'new-project'] as const) test(`refused mint link cannot cross into ${destination} destination on reload or Save`, async ({ page }) => {
+  const ids = await seedAuthoringProject(page); await flushAuthoringProject(page); await prepareSerialWorkspace(page);
+  const before = await page.evaluate(async ({ ids, destination }) => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    if (destination === 'reserved') {
+      if (!await h.P.openProjectDocument(ids[1])) throw new Error(h.P.useAuthoringProjects.getState().error);
+      h.S.flushPendingProject(); await h.D.commitDurableWrites();
+      if (!await h.P.openProjectDocument(ids[0])) throw new Error(h.P.useAuthoringProjects.getState().error);
+    }
+    h.S.flushPendingProject(); await h.D.commitDurableWrites();
+    const b = h.P.workspace().documents.find(d => d.id === ids[1])!;
+    return { b, source: h.S.useTemplateStore.getState().template };
+  }, { ids, destination });
+  await installHeldWrite(page); await armHeldWrite(page, 'K', 'refuse');
+  const departing = await page.evaluate(async () => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    const saved = await h.A.saveGraphicAs(h.S.useTemplateStore.getState().template.name, { kind: 'standalone' });
+    const L = await import('/src/model/library.ts');
+    return { saved, record: L.graphicById(saved.graphicId!)!.template };
+  });
+  expect(departing.saved.ok).toBe(false);
+  await page.evaluate(({ ids, destination }) => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    h.done = false;
+    const operation = destination === 'new-project' ? h.P.createAuthoringProject('Following show', [h.P.workspace().documents.find(d => d.id === ids[1])!.template]) : h.P.openProjectDocument(ids[1]);
+    void operation.then(ok => { h.ok = ok; h.error = h.P.useAuthoringProjects.getState().error; h.done = true; });
+  }, { ids, destination });
+  await expect.poll(() => page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.done)).toBe(true);
+  const selected = await page.evaluate(() => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace, slot = h.M.loadProject()!;
+    return { ok: h.ok, error: h.error, active: slot.workspace!.active!, document: slot.workspace!.documents.find(d => d.id === slot.workspace!.active)!,
+      outer: { template: slot.template, graphicId: slot.graphicId, reservedGraphicId: slot.reservedGraphicId, mintingReserved: slot.mintingReserved } };
+  });
+  expect(selected.ok, selected.error).toBe(true); expect(selected.document.saved.graphicId).toBeNull();
+  expect(selected.outer.template).toEqual(before.b.template); expect(selected.outer.graphicId).toBeNull();
+  expect(selected.outer.reservedGraphicId).toBe(selected.document.reservedGraphicId); expect(selected.outer.mintingReserved).toBe(selected.document.mintingReserved);
+  expect(selected.outer.reservedGraphicId).not.toBe(departing.saved.graphicId);
+  if (destination === 'reserved') expect(selected.document.reservedGraphicId).toBe(before.b.reservedGraphicId);
+  await page.reload(); await awaitDurableReady(page); await prepareSerialWorkspace(page);
+  const boot = await page.evaluate(() => { const s = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.S.useTemplateStore.getState(); return { id: s.documentId, template: s.template, saved: s.saved }; });
+  expect(boot.id).toBe(selected.active); expect(boot.template).toEqual(before.b.template); expect(boot.saved.graphicId).toBeNull();
+  const ownSave = await page.evaluate(async () => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    const saved = await h.A.saveGraphicAs(h.S.useTemplateStore.getState().template.name, { kind: 'standalone' });
+    return saved;
+  });
+  expect(ownSave.ok, ownSave.error ?? '').toBe(true); expect(ownSave.graphicId).not.toBe(departing.saved.graphicId);
+  if (destination === 'reserved') expect(ownSave.graphicId).toBe(before.b.reservedGraphicId);
+  const returned = await page.evaluate(async ({ id, graphic }) => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace, L = await import('/src/model/library.ts');
+    if (!await h.P.openProjectDocument(id)) throw new Error(h.P.useAuthoringProjects.getState().error);
+    const link = h.S.useTemplateStore.getState().saved.graphicId, saved = await h.A.saveCurrentGraphic();
+    return { link, saved, record: L.graphicById(graphic)!.template, count: L.loadGraphics().length };
+  }, { id: ids[0], graphic: departing.saved.graphicId! });
+  expect(returned).toEqual({ link: departing.saved.graphicId, saved: 'saved', record: departing.record, count: 2 });
+});
+
+for (const outcome of ['confirmed', 'refused', 'changed', 'view', 'late-view'] as const) test(`project Discard ${outcome} keeps complete owner bundles through reload and Home reopen`, async ({ page }) => {
+  const ids = await seedAuthoringProject(page); await flushAuthoringProject(page); await prepareSerialWorkspace(page);
+  const master = await page.evaluate(async () => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    const saved = await h.A.saveGraphicAs(h.S.useTemplateStore.getState().template.name, { kind: 'standalone' });
+    if (!saved.ok) throw new Error(saved.error!);
+    const show = h.Sh.createShowNamedChecked('Discard preservation rehearsal').show; await h.D.commitDurableWrites();
+    const installation = await h.I.installProjectGraphics(show.id, [saved.graphicId!]);
+    return { id: saved.graphicId!, template: h.S.useTemplateStore.getState().template, installation: installation.id };
+  });
+  await editProjectText(page, 'Draft to discard'); await flushAuthoringProject(page);
+  const before = await page.evaluate(id => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.P.workspace().documents.find(d => d.id === id)!, ids[0]);
+  await installHeldWrite(page);
+  if (outcome !== 'confirmed') await armHeldWrite(page, 'D', outcome === 'refused' ? 'refuse' : outcome === 'late-view' ? 'late' : 'hold');
+  await page.evaluate(() => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace; h.done = false;
+    void h.A.discardCurrentGraphic().then(error => { h.error = error ?? undefined; h.done = true; });
+  });
+  if (outcome === 'changed' || outcome === 'view' || outcome === 'late-view') {
+    await heldWriteReady(page);
+    if (outcome === 'changed') await editProjectText(page, 'Later edit during discard');
+    else await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.E.setSessionTime(.42, 0));
+    await releaseHeldWrite(page);
+  }
+  await expect.poll(() => page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.done)).toBe(true);
+  const after = await page.evaluate(async ({ id, outcome, installation }) => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    // A real unrelated installation receipt must not revive a refused staged replacement.
+    await h.I.retryProjectInstallation(installation);
+    await h.D.commitDurableWrites();
+    const s = h.S.useTemplateStore.getState();
+    return { error: h.error, privateId: s.documentId, source: s.template, bundle: h.P.workspace().documents.find(d => d.id === id)!,
+      other: h.P.workspace().documents.find(d => d.id !== id)!, active: h.P.workspace().active, outcome };
+  }, { id: ids[0], outcome, installation: master.installation });
+  if (outcome === 'confirmed') {
+    expect(after.error).toBeUndefined(); expect(after.privateId).not.toBe(ids[0]); expect(after.active).toBeNull();
+    expect(after.bundle.template).toEqual(master.template); expect(after.bundle.history).toEqual([]); expect(after.bundle.future).toEqual([]);
+    expect(after.bundle.saved).toEqual({ graphicId: master.id, dirty: false }); expect(after.bundle.view).toBeUndefined(); expect(after.bundle.views).toBeUndefined();
+  } else {
+    expect(after.error).toBeTruthy(); expect(after.privateId).toBe(ids[0]);
+    if (outcome === 'refused') expect(after.bundle).toEqual(before);
+    else if (outcome === 'view' || outcome === 'late-view') { expect(after.bundle.template).toEqual(before.template); expect(after.bundle.history).toEqual(before.history); expect(after.bundle.view?.time).toBe(.42); }
+    else { expect(after.bundle.template.html).toContain('Later edit during discard'); expect(after.bundle.history.length).toBeGreaterThan(before.history.length); }
+  }
+  await page.reload(); await awaitDurableReady(page); await prepareSerialWorkspace(page);
+  await page.evaluate(() => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    h.R.useRouter.getState().navigate({ view: 'home' });
+  });
+  await page.getByTestId('home-projects').getByRole('button', { name: /^E4 Lower third/ }).click();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  const reopened = await page.evaluate(() => { const s = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.S.useTemplateStore.getState(); return { template: s.template, history: s.history, future: s.future, link: s.saved.graphicId, time: (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.E.activeEditorSession().port.view().time }; });
+  if (outcome === 'view' || outcome === 'late-view') expect(reopened.time).toBe(.42);
+  expect(reopened.template).toEqual(after.bundle.template); expect(reopened.history).toEqual(after.bundle.history); expect(reopened.future).toEqual(after.bundle.future); expect(reopened.link).toBe(master.id);
+});
+
+test('a landed mint stays with its dormant private owner across a different selected document and reopen', async ({ page }) => {
+  const ids = await seedAuthoringProject(page); await flushAuthoringProject(page); await prepareSerialWorkspace(page);
+  await installHeldWrite(page); await armHeldWrite(page, 'L', 'hold');
+  await page.evaluate(() => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    void h.A.saveGraphicAs(h.S.useTemplateStore.getState().template.name, { kind: 'standalone' });
+  });
+  await heldWriteReady(page);
+  const selected = await page.evaluate(async ids => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace, L = await import('/src/model/library.ts');
+    const before = h.P.workspace(), a = before.documents.find(d => d.id === ids[0])!, b = before.documents.find(d => d.id === ids[1])!;
+    const writes = h.D.captureDurableWrites('spx-gfx-project', () => {
+      h.M.writeAuthoringWorkspace({ ...before, active: ids[1] });
+      const s = h.S.useTemplateStore.getState();
+      h.M.saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread, s.legibility, h.S.captureProjectDocument(s));
+    });
+    const errors = await Promise.all(writes.receipts.map(h.D.commitDurableReceipt));
+    const slot = h.M.loadProject()!;
+    return { a, b, receipts: writes.receipts.length, errors, record: L.graphicById(a.reservedGraphicId!)!.template,
+      active: slot.workspace!.active, storedA: slot.workspace!.documents.find(d => d.id === ids[0])!, outerReservation: slot.reservedGraphicId, outerSource: slot.template };
+  }, ids);
+  expect(selected.receipts).toBe(2); expect(selected.errors).toEqual([null, null]); expect(selected.active).toBe(ids[1]);
+  expect(selected.a.saved.graphicId).toBeNull(); expect(selected.a.mintingReserved).toBe(true); expect(selected.storedA).toEqual(selected.a);
+  expect(selected.outerSource).toEqual(selected.b.template); expect(selected.outerReservation).toBe(selected.b.reservedGraphicId);
+  // The library transaction landed; only its answer was held. Reload simulates the lost answer.
+  await page.reload(); await awaitDurableReady(page); await prepareSerialWorkspace(page);
+  expect(await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.S.useTemplateStore.getState().saved.graphicId)).toBeNull();
+  const recovered = await page.evaluate(async id => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace, L = await import('/src/model/library.ts');
+    if (!await h.P.openProjectDocument(id)) throw new Error(h.P.useAuthoringProjects.getState().error);
+    const s = h.S.useTemplateStore.getState(), link = s.saved.graphicId, source = s.template;
+    const saved = await h.A.saveCurrentGraphic();
+    return { link, source, saved, count: L.loadGraphics().length, record: L.graphicById(link!)!.template };
+  }, ids[0]);
+  expect(recovered.link).toBe(selected.a.reservedGraphicId); expect(recovered.source).toEqual(selected.a.template);
+  expect(recovered.saved).toBe('saved'); expect(recovered.count).toBe(1); expect(recovered.record).toEqual(selected.record);
+});
+
+test('boot of an older readable workspace clears every absent active optional field rather than borrowing the outer slot', async ({ page }) => {
+  const ids = await seedAuthoringProject(page); await flushAuthoringProject(page); await prepareSerialWorkspace(page);
+  const expected = await page.evaluate(async ids => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace, slot = h.M.loadProject()!;
+    const w = slot.workspace!, b = w.documents.find(d => d.id === ids[1])!;
+    const { aiSpec: _spec, aiThread: _thread, legibility: _legibility, reservedGraphicId: _reservation, mintingReserved: _mint, ...absent } = b;
+    // Replay a supported older-v1 envelope from before coherent projection; no model calls.
+    h.D.durable.setItem('spx-gfx-project', JSON.stringify({ ...slot, aiSpec: { version: 1, category: 'title', fields: [], styleNotes: 'Departing source' },
+      aiThread: { version: 1, messages: [{ role: 'user', text: 'Departing source' }] }, legibility: { viewing: { profile: 'custom', note: 'Departing viewing' }, floors: 'safe' },
+      mintingReserved: true, workspace: { ...w, active: ids[1], documents: w.documents.map(d => d.id === ids[1] ? absent : d) } }));
+    await h.D.commitDurableWrites(); return absent;
+  }, ids);
+  await page.reload(); await awaitDurableReady(page); await prepareSerialWorkspace(page);
+  const boot = await page.evaluate(() => { const s = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.S.useTemplateStore.getState();
+    return { id: s.documentId, template: s.template, baseline: s.baseline, history: s.history, future: s.future, aiSpec: s.aiSpec, aiThread: s.aiThread, legibility: s.legibility, saved: s.saved.graphicId }; });
+  expect(boot).toEqual({ id: ids[1], template: expected.template, baseline: expected.baseline, history: expected.history, future: expected.future,
+    aiSpec: null, aiThread: null, legibility: null, saved: null });
+});
+
+for (const adopted of ['future', 'newer'] as const) test(`an adopted ${adopted} envelope while Discard waits keeps the live owner and exact adopted bytes`, async ({ page }) => {
+  const ids = await seedAuthoringProject(page); await editProjectText(page, 'Keep this draft for export'); await flushAuthoringProject(page); await prepareSerialWorkspace(page);
+  const before = await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.S.useTemplateStore.getState().template);
+  await installHeldWrite(page); await armHeldWrite(page, 'D', 'hold');
+  await page.evaluate(() => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace; h.done = false;
+    void h.A.discardCurrentGraphic().then(error => { h.error = error ?? undefined; h.done = true; });
+  });
+  await heldWriteReady(page);
+  const future = await page.evaluate(async adopted => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace, slot = h.M.loadProject()!;
+    const w = slot.workspace!;
+    const workspace = adopted === 'future' ? { v: 99, future: 'Keep these exact adopted bytes' } : { ...w,
+      documents: w.documents.map(d => d.id === h.S.useTemplateStore.getState().documentId ? { ...d, template: { ...d.template, css: d.template.css + '\n/* Newer adopted source */' } } : d) };
+    const raw = JSON.stringify({ ...slot, workspace });
+    const captured = h.D.captureDurableWrites('spx-gfx-project', () => h.D.durable.setItem('spx-gfx-project', raw));
+    const errors = await Promise.all(captured.receipts.map(h.D.commitDurableReceipt));
+    return { raw, errors };
+  }, adopted);
+  expect(future.errors).toEqual([null]); await releaseHeldWrite(page);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.done)).toBe(true);
+  const refused = await page.evaluate(() => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace, s = h.S.useTemplateStore.getState();
+    return { error: h.error, source: s.template, id: s.documentId, raw: h.D.durable.getItem('spx-gfx-project'), refusal: h.M.workspaceRefusal() };
+  });
+  const message = adopted === 'future' ? 'newer or unreadable' : 'changed in another tab';
+  expect(refused.error).toContain(message); expect(refused.refusal).toContain(message);
+  expect(refused.id).toBe(ids[0]); expect(refused.source).toEqual(before); expect(refused.raw).toBe(future.raw);
+});

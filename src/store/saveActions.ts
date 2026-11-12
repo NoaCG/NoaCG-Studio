@@ -8,7 +8,7 @@
 // proceeding. Other surfaces do not ask merely because a working document exists.
 
 import { create } from 'zustand';
-import { flushPendingProject, useTemplateStore } from './templateStore';
+import { flushPendingProject, useTemplateStore, captureProjectDocument, syncSampleData } from './templateStore';
 import {
   createGraphic,
   freeGraphicName,
@@ -16,7 +16,7 @@ import {
   updateGraphic,
   type GraphicDoc,
 } from '../model/library';
-import { conflictCopyOf, endMint, isConflictCopy, isGraphicSuperseded, linkAfterLoss, mintReservedGraphicId, releaseReservation, saveProject } from '../model/project';
+import { authoringWorkspace, bindWorkspaceDocument, workspaceGeneration, workspaceRefusal, restoreRefusedDocument, conflictCopyOf, endMint, isConflictCopy, isGraphicSuperseded, linkAfterLoss, mintReservedGraphicId, releaseReservation, saveProject } from '../model/project';
 import { designLocked } from '../model/graphicDoc';
 import { captureDurableWrites, commitDurableReceipt, commitDurableWrites, unsettledWrites, type DurableWriteReceipt } from '../model/durableStore';
 import { normalizeThread } from '../model/aiThread';
@@ -35,7 +35,7 @@ function prepareEmptyOut() {
  *  template change, and a Save that changes nothing else must still survive a reload. */
 function persistLink(): void {
   const s = useTemplateStore.getState();
-  saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread, s.legibility);
+  saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread, s.legibility, captureProjectDocument(s));
 }
 
 const LIBRARY_KEY = 'spx-gfx-graphics' as const;
@@ -406,17 +406,31 @@ async function discardDraft(before: EditingContext): Promise<string | null> {
   if (arriving) await arriving;
   const doc = before.saved.graphicId ? graphicById(before.saved.graphicId) : null;
   const template = doc?.template ?? createDefaultTemplate();
+  const previous = captureProjectDocument(before), active = authoringWorkspace()?.active ?? null;
+  const entry = doc?.activeEntryId ? doc.entries.find(e => e.id === doc.activeEntryId) : null;
+  const replacement = { ...previous, template, baseline: doc?.baseline ?? template, history: [], future: [],
+    sampleData: { ...syncSampleData(template, {}), ...entry?.values }, saved: { graphicId: doc?.id ?? null, dirty: false },
+    aiSpec: doc?.aiSpec ?? null, aiThread: normalizeThread(doc?.aiThread), legibility: doc?.legibility ?? null,
+    reservedGraphicId: undefined, mintingReserved: undefined, views: undefined, view: undefined };
+  const restoreRefusal = () => {
+    const now = useTemplateStore.getState();
+    const live = now.documentId === before.documentId ? { ...captureProjectDocument(now), views: previous.views, view: previous.view } : previous;
+    restoreRefusedDocument(replacement, live, now.documentId === before.documentId ? active : null);
+  };
   // Changing source or baseline clears the editor's private command history. Persist
   // first: rolling back the visible store cannot roll back a disposed editor session.
   const { receipts } = captureDurableWrites(SLOT_KEY, () => saveProject(
     template, doc?.baseline ?? template, { graphicId: doc?.id ?? null, dirty: false },
-    doc?.aiSpec ?? null, normalizeThread(doc?.aiThread), doc?.legibility ?? null,
+    doc?.aiSpec ?? null, normalizeThread(doc?.aiThread), doc?.legibility ?? null, replacement, true,
   ));
-  if (!receipts.length) return 'Could not discard. Your changes are still open. Try again.';
+  const generation = workspaceGeneration();
+  if (!receipts.length) { restoreRefusal(); return 'Could not discard. Your changes are still open. Try again.'; }
   const failures = await Promise.all(receipts.map(commitDurableReceipt));
   const failure = failures.find(Boolean);
-  if (failure) return failure;
-  if (changedSince(before)) {
+  if (failure) { restoreRefusal(); return failure; }
+  const refusal = workspaceRefusal();
+  if (refusal) { restoreRefusal(); return refusal; }
+  if (changedSince(before) || workspaceGeneration() !== generation) {
     // The slot now holds the replacement. Refuse only once the newer draft is durable again,
     // so a reload straight after the refusal cannot reopen the discarded copy.
     const { receipts: restored } = captureDurableWrites(SLOT_KEY, () => persistLink());
@@ -425,6 +439,9 @@ async function discardDraft(before: EditingContext): Promise<string | null> {
       : 'Could not save your changes to this browser. They are still open. Save them before leaving.';
     return restoreFailure ?? 'The graphic changed while discarding. Your changes are still open. Try again.';
   }
+  // Retire the confirmed discarded owner before the existing new-instance replacement.
+  bindWorkspaceDocument(undefined);
+  releaseReservation();
   // The pending continuation owns navigation. Keep a wizard open until it runs.
   if (doc) applyGraphicDoc(doc, { keepGalleryOpen: true });
   else {

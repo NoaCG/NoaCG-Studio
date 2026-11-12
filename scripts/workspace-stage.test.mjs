@@ -154,3 +154,45 @@ test('a submitted nonconflicting rebase is visible to the next slot writer befor
   h.writes[0].release(); await h.writes[0].receipt.settled; same(p.authoringWorkspace(), expected);
   h.writes[1].release(); await h.settle(); same(h.stored().workspace, expected);
 });
+
+test('an explicit caller updates its complete bundle while a different active candidate owns the outer projection', async () => {
+  const h = harness(), p = h.model, base = original(); h.held = true;
+  p.writeAuthoringWorkspace({ ...base, active: 'd2' });
+  const owner = { ...localEdit(base).documents[0], reservedGraphicId: 'minted-by-d1', mintingReserved: true };
+  p.saveProject(owner.template, owner.baseline, owner.saved, owner.aiSpec, owner.aiThread, owner.legibility, owner);
+  const written = JSON.parse(h.writes[1].receipt.value);
+  same(written.workspace.documents[0], owner); same(written.workspace.documents[1], base.documents[1]);
+  assert.equal(written.workspace.active, 'd2'); same(written.template, base.documents[1].template);
+  assert.equal(written.graphicId, null); assert.equal(written.reservedGraphicId, undefined); assert.equal(written.mintingReserved, undefined);
+  for (const w of h.writes) w.release(); await h.settle(); same(h.stored().workspace.documents[0], owner);
+});
+test('sync strips pulled nested mint authority before projection and projects an effective preserved local workspace', async () => {
+  const h = harness(), p = h.model, base = original();
+  const pulled = { ...base, active: 'd2', documents: [base.documents[0], { ...base.documents[1], reservedGraphicId: 'pulled-b', mintingReserved: true }] };
+  p.upsertProject(h.record(pulled)); await h.settle();
+  const raw = h.stored(); assert.equal(raw.mintingReserved, undefined); assert.equal(raw.workspace.documents[1].mintingReserved, undefined);
+  assert.equal(raw.reservedGraphicId, 'pulled-b'); same(raw.template, base.documents[1].template);
+  const preserved = harness({ ...base, documents: [{ ...base.documents[0], reservedGraphicId: 'own-a', mintingReserved: true }, base.documents[1]] });
+  const legacy = preserved.record(undefined); delete legacy.workspace;
+  preserved.model.upsertProject(legacy); await preserved.settle();
+  assert.equal(preserved.stored().reservedGraphicId, 'own-a'); assert.equal(preserved.stored().mintingReserved, true);
+  same(preserved.stored().template, base.documents[0].template);
+});
+test('a refused complete replacement restores only its unchanged owner and keeps later journals', async () => {
+  const h = harness(), p = h.model, base = localEdit(original()), previous = base.documents[0]; h.seed(base);
+  const replacement = { ...document('d1'), template: template('Saved master'), baseline: template('Saved baseline') };
+  h.held = true;
+  p.saveProject(replacement.template, replacement.baseline, replacement.saved, null, null, null, replacement, true);
+  h.writes[0].release('discard refused'); await h.settle();
+  const latest = { ...p.authoringWorkspace(), installations: [journal('newer-journal')] }; p.stageAuthoringWorkspace(latest);
+  p.restoreRefusedDocument(replacement, previous, 'd1');
+  same(p.authoringWorkspace().documents[0], previous); same(p.authoringWorkspace().installations, latest.installations);
+  assert.equal(p.authoringWorkspace().active, 'd1');
+  const newer = { ...previous, template: template('Later live edit') };
+  p.stageAuthoringWorkspace({ ...p.authoringWorkspace(), documents: [newer, base.documents[1]] });
+  p.restoreRefusedDocument(replacement, previous, 'd1'); same(p.authoringWorkspace().documents[0], newer);
+  p.stageAuthoringWorkspace({ v: 1, projects: [{ id: 'p1', name: 'First', documents: ['d1'] }], documents: [replacement], active: null, installations: latest.installations });
+  p.restoreRefusedDocument(replacement, previous, 'd2');
+  assert.equal(p.authoringWorkspace().active, null, 'a removed former selection must stay removed');
+  assert.equal(codec.readableWorkspace(p.authoringWorkspace()), true);
+});

@@ -623,3 +623,144 @@ Final affected lint/app TypeScript and diff checks pass. Explicit fresh main
 fetch remains619ebc835; merge-tree is clean and merge-order has no dependency.
 One committed-source bounded save/adoption matrix follows this checkpoint;
 normal Actions full build/configured/backend and a fresh full SO remain required.
+
+### Fourth review checkpoint: active-document boot projection (discovered after coding)
+
+The fresh FULL50-path SO on42be82a91 gradedB with oneP1; Codex's exact-head
+clean receipt6829372771 did not detect it. The reviewer statically traced an
+active-document/compatibility-slot projection defect. Actual frozen-source
+browser diagnostic j-0102 confirms it: A's library record lands while its K/link
+put is refused; opening pristineB succeeds, with workspace.active=B and B's
+saved link null/reservation fields absent, but the outer slot still has A's
+reservation and mintingReserved=true. Reload boots B's source linked to A's
+record; Save B returns saved and changes A's existing record to B's source.
+The original failing assertion and full before/after evidence are retained in
+reservation-provenance/j0102-original.txt and reproduction-summary.json.
+J-0101 was setup-only: a quote in the new diagnostic's assertion label caused
+parse failure before any case; it is retained separately. Neither diagnostic
+changes product, maintained tests, normal selection, limits or workflows.
+
+This is the complete active-document-to-compatibility/boot projection family,
+not a relabel or reset of earlier transition/view/adoption attempts. The boot
+reader at templateStore.ts190 last changed at217c6c485 and has no diff from03e
+through42be. PR review round4 is retained; this distinct failure's first repair
+attempt remains governed by the existing per-failure cap. The round cap requires
+a fresh approach reassessment before any patch and grants no additional attempt.
+
+Observable Rules for that reassessment, recorded before its repair:
+
+- An active document owns its complete source-correlated bundle at boot. Its
+  absent optional reservation, minting, AI and legibility fields mean absent or
+  default metadata; they never inherit from a preceding compatibility slot.
+  The legacy slot is the source only when no readable active document exists.
+- Every active-pointer writer publishes a compatibility projection from that
+  selected document, including explicit clearing of absent optional fields.
+  The outer slot and active document cannot describe different reservation
+  provenance. Keep independent documents, membership and journals intact.
+- A first-save reservation/mint mark is recorded in the exact private document
+  that minted it before its library record can land. Ordinary autosave/Save/link
+  writes update that owner's bundle even when another active-pointer candidate
+  is awaiting confirmation. A caller's save cannot transplant metadata into the
+  selected destination. Preserve the existing baseline/generation/refusal guard.
+- A refused link followed by switch or project creation and immediate reload
+  preserves A's saved master and B's independent link/reservation. Cover a
+  pristine destination and a destination with its own reservation. Returning to
+  A must still recover/retry its own mint without duplicates. Existing R/K/F,
+  lost-answer, unknown-version, account, undo/history and installed/on-air-copy
+  invariants remain binding. No sleep, autosave delay or weakened source judge
+  may substitute for the ownership rule.
+
+The model challenge precedes implementation.42be source and all receipts remain
+historical: isolated43257955547 SUCCESS1case28.6s/zero skips or retries/account
+deleted, teardown0 and artifact13962766118 uploaded; normalCI43257726630 was
+in progress at that checkpoint. No acceptance stamp, auto-merge or known-bad rerun is authorized.
+
+The fresh independent projection reassessment returned AGREE WITH CORRECTIONS
+before product edits. It requires caller ownership independent of active,
+synchronous R metadata in that owner's bundle without a mandatory successful-R
+gate, recovery on both boot and restore, effective-envelope sync normalization
+before projection, and complete Discard replacement rather than mixed history.
+A bounded follow-up accepted preserving Discard's existing new-private-instance
+flow with explicit retirement after confirmation, subject to three corrections:
+refused Discard conditionally restores its submitted staging to the live owner's
+complete bundle; pulled nested mint marks are stripped before projection while
+legacy pull semantics remain; and an explicit full replacement snapshot bypasses
+legacy reservation inheritance, including cleared views and optional fields.
+There is no new cache, migration, format version, UI, winner policy or allowance.
+
+The implementation uses the existing model serialization lifecycle and explicit
+full snapshots from store callers. A pure projection enumerates name/template/
+baseline/link/dirty/AI/thread/legibility/reservation/mint fields, preserving slot
+identity/time/tombstone/workspace administration. Confirmed unchanged Discard
+retires the old binding synchronously before its existing new-instance load;
+normal external replacements still retain the departing project draft. Failure
+or changed context preserves the appropriate live bundle and unrelated journals.
+These NoaCG reservation/recovery semantics have no equivalent in the pinned
+reference editor; no additional reference-editor parity claim is made.
+
+Within the same unpushed first projection repair, j-0106 exposed the model's
+view-only Discard interleaving: a newer staged view could retain the old source
+while the answer claimed Discard succeeded. The original source/error assertion
+is retained. Discard now also checks the captured workspace generation, reusing
+the existing changed-context refusal/correction path for any newer staged work;
+its view, source and history must survive reload/Home reopen. No assertion or
+time allowance changed, and no review round/attempt was reset.
+
+A final fixed-oracle edge within that same unpushed replacement inverse initially
+failed19/20: restoring a refused owner could resurrect a former active pointer
+whose document had independently been removed. Conditional staging recovery must
+preserve that removal and keep a valid selection; it may restore the prior
+selection only while that document still exists. The exact null/valid-envelope
+assertions and original failure log are retained; no counter or judge changed.
+
+The same model's unknown-envelope boundary was then fault-injected during the
+Discard await (j-0109): adopted v99 bytes stayed durable, but the answer still
+claimed success and replaced the live owner. Its original failure remains.
+Before retiring/replacing a confirmed owner, Discard must re-check the shared
+workspace refusal against the actual adopted envelope, just as project actions
+do; a future format or incompatible newer revision preserves the live draft and
+adopted bytes. Conditional staging recovery cannot overwrite a newer unit.
+
+First projection-repair engineering receipts (all pre-push working-source proof):
+j-0103 passes the unchanged original overwrite reproduction1/1 (9.1s).
+Maintained j-0104 passes six switch/create/reservation and Discard cases24.4s;
+j-0105 passes actual landed-L/lost-answer dormant recovery plus older-v1 absent
+AI/thread/legibility boot2/2 (11.5s). J-0107 passes all four Discard outcomes,
+including view-only generation refusal,4/4 (19.2s). J-0108 passes all42 then-current
+E4 journeys in2.2min, including old ownership/history/rollback/font and painted
+operator/export Next assertions. The final j-0110 passes adopted-v99 and
+incompatible readable-revision arrival during Discard2/2 (10.4s), preserving the
+live draft and exact adopted bytes. Maintained fixed source/font/codec oracles
+pass34/34, including the independently removed selection inverse. Gates117/117
+across14 files, affected lint/app types and dependency cruise0 violations
+(1471modules/7030dependencies) pass; final source checks/committed-source bounded
+save matrix and exact-head Actions/fullSO still follow.
+
+Historical42be CI43257726630 is terminal FAILURE16:35:48Z, all33 jobs terminal.
+Build/Factory/catalog/all15 offline shards and all four configured stacks pass.
+The merged configured verdict131329323145 fails146PASS/0failed/1flaky,3existing
+skips: per-graphic-replacement.spec.ts failed then passed its unchanged built-in
+retry on the same test merge. Its first failure was strict locator cardinality:
+after readyv3, marked() at64/call170 matched an old probed iframe and the new
+unmarked iframe. CI gate131329642625 fails that verdict; Reviewed is separately
+missingstamp only. Cause/closure classification belongs to the documented
+quarantine route, not a test edit or same-head rerun. The coordinator owns the
+mandatory separate quarantine PR2453; this E4 diff edits no quarantine or judge.
+No landing or non-causality is inferred here. Isolated42be persistence success
+and Codex's clean receipt remain historical; its fullSO gradeB remains blocking.
+
+The coordinator's failed-receipt/view audit is covered by maintained j-0111,
+PASS1/1 (11.3s): D is held then actually aborted after view-only work. The
+private owner, exact source/history and newer.42 view survive an unrelated real
+installation receipt and reload/Home. The fallback's previous views apply only
+while the complete latest unit still equals the submitted replacement; a newer
+view makes that comparison fail, so no product change was needed. The original
+j-0102/j-0106/j-0109 and fixed-oracle failures remain retained.
+
+The coherent first projection checkpoint contains45 maintained E4 cases. Its
+final affected gates pass117/117, source/font/codec oracles34/34, lint/app types
+pass and dependency cruise remains0 (no additional graph edges after that check).
+Fresh main e394954becdbb292c914b3d20339418c9f9172c2 reconciles cleanly; the
+coordinator's separate quarantine2453 is not yet landed at this checkpoint.
+A source-pinned bounded seven-file save/adoption matrix follows the commit;
+exact new-head normalCI/configured/backend/Codex and freshFULLSO remain required.

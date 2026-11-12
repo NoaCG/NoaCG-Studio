@@ -2,7 +2,7 @@
 // re-parses the SPXGCTemplateDefinition so fields stay in sync with the visible code.
 
 import { create } from 'zustand';
-import { workspaceDocument } from '../model/authoringDocument';
+import { workspaceDocument, projectFromDocument, readableWorkspace, type AuthoringDocument } from '../model/authoringDocument';
 import { uuid } from '../model/id';
 import { canAuthorAccount } from '../model/durableStore';
 import { createDefaultTemplate } from '../templates/defaultTemplate';
@@ -10,7 +10,7 @@ import { parseDefinition } from '../model/spxDefinition';
 import type { AssetFile, SpxTemplate } from '../model/types';
 import { DATA_FTYPES } from '../model/types';
 import type { ValidationResult } from '../validation/validateTemplate';
-import { isOwnReservation, linkAfterLoss, loadProject, onGraphicSuperseded, resumeReservation, saveProject } from '../model/project';
+import { authoringWorkspace, documentReservation, isOwnReservation, linkAfterLoss, loadProject, onGraphicSuperseded, resumeReservation, saveProject, type SavedProject } from '../model/project';
 import { graphicById } from '../model/library';
 import type { GenerationSpec } from '../model/generationSpec';
 import { normalizeThread, type AiThread } from '../model/aiThread';
@@ -187,7 +187,7 @@ function sameSource(draft: SpxTemplate, record: SpxTemplate): boolean {
 // project means a returning user, who lands straight back in their work (galleryOpen below).
 const initialSlot = loadProject();
 const initialDocument = workspaceDocument(initialSlot?.workspace);
-const initialProject = initialDocument && initialSlot ? { ...initialSlot, ...initialDocument, graphicId: initialDocument.saved.graphicId, dirty: initialDocument.saved.dirty } : initialSlot;
+const initialProject = initialDocument && initialSlot ? projectFromDocument(initialSlot, initialDocument) : initialSlot;
 // A first Save reserves its record's id in the slot before minting it. When the link write that
 // followed was refused, the record exists while the slot still reads unlinked, so the reserved id
 // links it back and the next Save writes into it rather than minting a duplicate (#1383). It
@@ -199,11 +199,15 @@ const initialProject = initialDocument && initialSlot ? { ...initialSlot, ...ini
 // Only THIS device's reservation counts at all. The slot syncs, so it can name a reservation
 // another device made, whose record this device has not learnt of yet; resumed, this device's
 // Save minted that record's id too (#1443). Not resumed, the first write takes a fresh one.
-const slotReservation = initialProject?.reservedGraphicId;
-const reservedId = isOwnReservation(slotReservation) ? slotReservation : undefined;
-const reservedRecord = reservedId && reservedId !== initialProject?.graphicId ? graphicById(reservedId) : null;
-const relinked = !!reservedRecord && (initialProject?.mintingReserved === true || sameSource(initialProject!.template, reservedRecord.template));
-const initialGraphicId = relinked ? reservedId! : initialProject?.graphicId ?? null;
+/** Boot and project reopen share the existing device/source-based mint recovery rule. */
+export function recoverProjectLink(project: Pick<SavedProject, 'template' | 'graphicId' | 'dirty' | 'reservedGraphicId' | 'mintingReserved'> | null | undefined) {
+  const reservedId = isOwnReservation(project?.reservedGraphicId) ? project?.reservedGraphicId : undefined;
+  const record = reservedId && reservedId !== project?.graphicId ? graphicById(reservedId) : null;
+  const relinked = !!record && (project?.mintingReserved === true || sameSource(project!.template, record.template));
+  return { reservedId, relinked, graphicId: relinked ? reservedId! : project?.graphicId ?? null,
+    dirty: relinked || (project?.dirty ?? false) };
+}
+const { reservedId, relinked, graphicId: initialGraphicId, dirty: initialDirty } = recoverProjectLink(initialProject);
 const initialTemplate = initialProject?.template ?? createDefaultTemplate();
 // The pristine state Reset returns to: the saved baseline if we have one, else the loaded
 // template (so Reset on a pre-baseline project at least returns to how it opened).
@@ -242,7 +246,7 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
   modalCount: 0,
   saved: {
     graphicId: initialGraphicId,
-    dirty: relinked || (initialProject?.dirty ?? false),
+    dirty: initialDirty,
     status: 'idle',
   },
   aiSpec: initialProject?.aiSpec ?? null,
@@ -388,6 +392,16 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
   };
 });
 
+/** A full private-owner snapshot; its optional fields never borrow another slot's metadata. */
+export function captureProjectDocument(s = useTemplateStore.getState()): AuthoringDocument {
+  const w = authoringWorkspace();
+  const prior = readableWorkspace(w) ? w.documents.find(d => d.id === s.documentId) : undefined;
+  return { id: s.documentId, template: s.template, baseline: s.baseline, history: s.history, future: s.future,
+    saved: { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, sampleData: s.sampleData,
+    aiSpec: s.aiSpec, aiThread: s.aiThread, legibility: s.legibility, ...documentReservation(s.baseline),
+    views: prior?.views, view: prior?.view };
+}
+
 // Autosave the working project (debounced) whenever the template actually changes, so a reload
 // restores it instead of a blank default. Covers every mutation that touches the template — panels,
 // AI, wizard, and manual edits — in one place. The durable project slot also participates
@@ -403,7 +417,7 @@ export function scheduleProjectAutosave() {
   projectSaveTimer = setTimeout(() => {
     projectSaveTimer = null;
     const s = useTemplateStore.getState();
-    saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread, s.legibility);
+    saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread, s.legibility, captureProjectDocument(s));
   }, 800);
 }
 export function flushPendingProject() {
@@ -411,7 +425,7 @@ export function flushPendingProject() {
   clearTimeout(projectSaveTimer);
   projectSaveTimer = null;
   const s = useTemplateStore.getState();
-  saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread, s.legibility);
+  saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread, s.legibility, captureProjectDocument(s));
 }
 if (typeof window !== 'undefined') {
   window.addEventListener('noacg-account-authoring-pausing', flushPendingProject);
