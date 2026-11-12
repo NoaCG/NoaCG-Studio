@@ -36,8 +36,8 @@
  },
  "waitingOn": [
   {
-   "what": "OS4 builder receipt and PR",
-   "eta": "2026-11-13T10:00:00Z"
+   "what": "PR 2457 stamp and merge queue, then the OS4 check",
+   "eta": "2026-11-12T20:30:00Z"
   }
  ],
  "inFlight": [
@@ -49,8 +49,10 @@
    "branch": "claude/plan-obs-scenes-os4-build",
    "launchedAt": "2026-11-12T17:39:49Z",
    "note": "sent brief = saved brief plus one NOTES line (keep wall-clock position through the scene-link settle)",
-   "lastSeen": "2026-11-12T18:38Z: Codex clean on 0e4e0ef; waiting on CI run 43280752858",
-   "checkerNote": "Check that every changed expectation in an existing spec (e2e/holding-pack.spec.ts clock 1:49 to 1:50) follows from an intended, spec-backed behaviour change and does not loosen the test."
+   "lastSeen": "2026-11-12T18:46Z receipt os4-b-4e9a; stamp dispatched (run 43283275350)",
+   "checkerNote": "Check the two changed expectations: scripts/double-stop.test.mjs re-Take check for bug21-24 now compares outside .corner-bug-media, and any changed existing expectation in e2e/holding-pack.spec.ts (a 1:49 to 1:50 edit was seen during the build); both must follow from AC-7/AC-8, not loosen a test.",
+   "pr": 2457,
+   "reviewedHead": "0e4e0ef63673f56bf17c7b37568b7a63519222d6"
   }
  ],
  "owner": [
