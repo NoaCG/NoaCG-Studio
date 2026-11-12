@@ -43,16 +43,18 @@
   "inFlight": [
     {
       "phase": "OS5a",
-      "step": "queued",
-      "actor": "builder-os5a-os5a-b-cd39",
-      "session": "session_017SdbwRMbipJ5otJ19cMy17",
+      "step": "check",
+      "actor": "checker-os5a-47cf",
+      "session": "session_017SdbwQjcXTGns8ZT6mPzzH",
       "branch": "claude/plan-obs-scenes-os5a-build",
-      "launchedAt": "2026-11-12T19:24:51Z",
+      "launchedAt": "2026-11-12T21:00:26Z",
       "note": "sent brief = saved brief plus one NOTES line (keep the reader generic for OS5b)",
-      "lastSeen": "2026-11-12T20:47Z fresh receipt; CI 43300809397 gate green (only Reviewed red); stamped via cloud-queue-merge on main; subscribed to PR",
+      "lastSeen": "2026-11-12T20:59Z merged as a292119; checker launched with a NOTES line on migration 0116 and the R12/R15 defaults",
       "pr": 2468,
       "reviewedHead": "8d4f59e40b371e0adb86d16f0e035618d83b8703",
-      "migration": "supabase/migrations/0116_json_source_tick.sql (live-path; post-land applies it only in a quiet window, never while the landing hold is on)"
+      "migration": "supabase/migrations/0116_json_source_tick.sql (live-path; post-land applies it only in a quiet window, never while the landing hold is on)",
+      "builderSession": "session_017SdbwRMbipJ5otJ19cMy17",
+      "mergeSha": "a2921196da0fd21059ee988bdca3263589f73916"
     }
   ],
   "owner": [
