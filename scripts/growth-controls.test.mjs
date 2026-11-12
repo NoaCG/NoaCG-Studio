@@ -2057,7 +2057,9 @@ test('land-2b: a stop carried by a partial, stale or unreadable newest report wa
     return applyOfflineStop(growthAssessment({ base: null, reportPath: out, table: { source: { recordedAt: today } }, today }), { added: 0.1 });
   };
   assert.equal(bare('2026-11-09T06:00:00Z', '2026-11-10').status, 'refuse', 'one day old');
-  assert.notEqual(bare('2026-10-20T06:00:00Z', '2026-11-10').status, 'refuse', 'three weeks old: stale, so carried');
+  const old = bare('2026-10-20T06:00:00Z', '2026-11-10');
+  assert.notEqual(old.status, 'refuse', 'three weeks old: stale, so carried');
+  assert.match(old.reasons.join('; '), /an owned failure/, 'the overdue report is still named beside the carried stop');
 });
 
 test('land-2b: an unreadable report never refuses', () => {

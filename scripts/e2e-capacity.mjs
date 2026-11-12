@@ -471,7 +471,8 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
   if (ledger.length || offline.length || diffFailed) { status = 'refuse'; reasons.push(...ledger, ...offline); }
   if (revisionNote) { reasons.push(revisionNote); if (status === 'ok') status = 'warn'; }
   if (newExceptions.length) { reasons.push(`this change adds budget exception(s) ${newExceptions.join(', ')}: each needs a separate, recorded review before it lands`); if (status === 'ok') status = 'warn'; }
-  if (((newest && newest.state !== 'complete') || Object.keys(named).length > Object.keys(stops).length) && status === 'ok') status = 'warn';
+  if (Object.keys(named).length > Object.keys(stops).length && status === 'ok') status = 'warn';
+  if (newest && newest.state !== 'complete' && status === 'ok') status = 'warn';
   else if (!newest && cadence.overdue) { reasons.push(`${cadence.reason} - an owned failure (${ceilings.owner}); tier evidence is the frozen seed until it runs`); if (status === 'ok') status = 'warn'; }
   if (fresh.stale) { reasons.push(fresh.reason); if (status === 'ok') status = 'warn'; }
   const markdown = [
