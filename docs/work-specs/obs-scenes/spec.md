@@ -58,8 +58,10 @@ not. Nothing new appears for users who do not switch OBS scenes on.
   sources with these guards.
 - **D5. One Live dock** (runs the production control session and answers Companion) plus an
   optional Messages dock.
-- **D6. Event graphics are made outside this plan**, through Claude Code with the NoaCG plugin, as
-  a user would.
+- **D6. Event graphics are made outside this plan's phases**, in this repository with the local
+  graphic skill, because the owner takes no risks with time. A retrospective afterwards compares
+  each step with what a user of the published NoaCG plugin and connector would have met, so the
+  owner knows whether anyone could have done the same.
 
 ## Behaviour
 
@@ -197,20 +199,22 @@ Owner phase, on the owner's laptop. The full rehearsal: every scene walked throu
 
 ## Phases
 
-Each phase is one pull request, runs `/check` and lands with `/queue-merge`. Phases that touch
+Each phase is one pull request, runs `/check` and lands with `/queue-merge`. They run in the order
+below: OS4 touches no output code and can start before the live-publishing run's phase 4 lands; OS1
+starts after it. Phases that touch
 `src/output/` build on the live-publishing run's landed changes to the output page; they rebase on
 it rather than working around it. Evidence files are `evidence/phase-osN.md`.
 
-1. **OS1. The scene link** (AC-1, AC-2, AC-3, AC-4, AC-5). Mark a folder as an OBS scene, the scene
+1. **OS4. Clocks** (AC-7, AC-8). Wall-clock sponsor rotation and absolute deadlines.
+2. **OS1. The scene link** (AC-1, AC-2, AC-3, AC-4, AC-5). Mark a folder as an OBS scene, the scene
    link that builds only its scene's graphics, settled drawing, Take and Out per scene graphic,
    pool copies per scene, All out skipping scene graphics, the OBS scenes switch with no other UI.
    Node tests for the scene model; one journey extending the playout journey for a two-scene
    production.
-2. **OS2. First laptop test** (AC-13). Owner phase, `OW:` the owner's laptop with OBS. The builder
+3. **OS2. First laptop test** (AC-13). Owner phase, `OW:` the owner's laptop with OBS. The builder
    of OS1 leaves a placeholder production and a test checklist.
-3. **OS3. Monitoring and settings** (AC-6, AC-12). Scene rows, the walk-through tick, the settings
+4. **OS3. Monitoring and settings** (AC-6, AC-12). Scene rows, the walk-through tick, the settings
    section, the fallback export and the OBS scenes guide in `docs/`.
-4. **OS4. Clocks** (AC-7, AC-8). Wall-clock sponsor rotation and absolute deadlines.
 5. **OS5. JSON source, bracket adapter and current match** (AC-9, AC-10). Includes the
    `docs/DATA_API.md` change of D4.
 6. **OS6. The Live dock and the Messages dock** (AC-11). Includes Companion keys for scene
