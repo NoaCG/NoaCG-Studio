@@ -18,11 +18,13 @@ figures in PR #2420).
 - R3. It skips its E2E shards only when that run's `CI gate` job concluded `success`, it ran the
   full plan (`E2E n/N (full)` jobs), every one of those shards passed on its first run (a gate made
   green by the same-commit retry does not count: its reports still hold the first failure), every
-  shard's blob report and trace is present, quarantine.yml's push run on the same commit has
-  finished (ci.yml leaves the quarantined specs to it), and every `noacg/quarantine/<spec>` commit
-  status for an offline spec is `success`. That run concludes green whatever its specs do (its spec
-  step is `continue-on-error`), so the statuses are the verdict; `e2e/configured/` specs are left
-  out because the nightly never ran them (playwright.config.ts `testIgnore`). Anything else (no
+  shard's blob report and trace is present, quarantine.yml's push run on the same commit concluded
+  `success` (ci.yml leaves the quarantined specs to it), and every offline spec listed in
+  `e2e/quarantine.json` at that commit has a `success` `noacg/quarantine/<spec>` commit status (a
+  missing status is not green). That run concludes green whatever its specs do (its spec step is
+  `continue-on-error`), so the statuses are the verdict, and the run's own conclusion catches a
+  run that never reached its specs. `e2e/configured/` specs are left out because the nightly never
+  ran them (playwright.config.ts `testIgnore`). Anything else (no
   run, a run still going after 45 minutes, a red, retried, cancelled or partial run, a missing
   artifact, a quarantine run missing or a quarantined spec not green) runs the shards as before.
 - R4. When skipped, the report job merges that run's blob reports and traces, and the time budget,
@@ -61,9 +63,11 @@ figures in PR #2420).
   of them is green on the same commit; they are then absent from the night's report and budget.
 - Under the full rule all 16 nights of the window would still have skipped. Per nightly commit:
   ci.yml push run conclusion `success` with 15 of 15 `E2E n/15 (full)` jobs `success` (all 16;
-  `gh api .../actions/runs/<id>/jobs`), and offline `noacg/quarantine/*` statuses (0 to 4 per
-  commit) all `success` (`gh api .../commits/<sha>/status`). The one non-green quarantine status
-  in the window, 08467b36's `e2e/configured/command-sequence.spec.ts`, is a configured spec.
+  `gh api .../actions/runs/<id>/jobs`), quarantine.yml's push run `success`, and every offline
+  spec in that commit's `e2e/quarantine.json` (0 to 3 per commit) with a `success` status
+  (`gh api .../contents/e2e/quarantine.json?ref=<sha>` and `.../commits/<sha>/status`, the
+  step's own query replayed). The one non-green quarantine status in the window, 08467b36's
+  `e2e/configured/command-sequence.spec.ts`, is a configured spec.
 - Bad-merge window today (a landing to the first completed, not cancelled push run on main that
   contains it), 303 landings: median 18.8, p95 43.8, max 229.7 minutes (92e581a7). This change
   does not move it: the nightly is not in that window. The 229.7 case was not a cancelled run with
@@ -95,7 +99,9 @@ Final `/so` on head 9224f4504: AGREE WITH CORRECTIONS, grade B. Answered: `e2e` 
 failed `covered` job too (its implied `success()` read `covered` as well). The automated code
 review on 9224f4504 raised two P2 findings: a gate made green by the retry, and quarantined specs
 outside ci.yml's shards. Both are now conditions of R3. The delta `/so` on 16ffeac1 (grade B) found the quarantine run's
-conclusion is green whatever its specs do; R3 now reads the per-spec statuses.
+conclusion is green whatever its specs do; R3 now reads the per-spec statuses. The next delta
+(84797941, B): a spec that never posted a status passed; R3 now requires one green status per
+listed offline spec, and keeps the run's conclusion.
 
 ## The capacity gate
 

@@ -85,7 +85,7 @@ jobs:
           # `noacg/quarantine/<spec>` commit status, read below.
           while :; do
             read -r RUN STATUS _ <<< "$(runs ci.yml)"
-            read -r QRUN QSTATUS _ <<< "$(runs quarantine.yml)"
+            read -r QRUN QSTATUS QCONCLUSION <<< "$(runs quarantine.yml)"
             if [ -z "${RUN:-}" ] || [ "$RUN" = "null" ]; then echo "No push run on main for ${GITHUB_SHA} - running the shards."; exit 0; fi
             if [ -z "${QRUN:-}" ] || [ "$QRUN" = "null" ]; then echo "No quarantine run for ${GITHUB_SHA} - running the shards."; exit 0; fi
             [ "$STATUS" = "completed" ] && [ "$QSTATUS" = "completed" ] && break
@@ -100,11 +100,16 @@ jobs:
           ARTIFACTS="$(gh api "repos/${GH_REPO}/actions/runs/${RUN}/artifacts?per_page=100" --jq '[.artifacts[] | select(.expired | not) | .name]')"
           BLOBS="$(jq '[.[] | select(startswith("blob-report-"))] | length' <<< "$ARTIFACTS")"
           TRACES="$(jq '[.[] | select(startswith("e2e-trace-"))] | length' <<< "$ARTIFACTS")"
-          # The quarantined specs this suite would have run (e2e/configured is not in it) that are not
-          # green on this commit; empty when there are none. An unreadable answer reads as not green.
-          QRED="$(gh api "repos/${GH_REPO}/commits/${GITHUB_SHA}/status?per_page=100" --jq '[.statuses[] | select(.context | startswith("noacg/quarantine/") and (startswith("noacg/quarantine/e2e/configured/") | not)) | select(.state != "success") | .context] | join(" ")' 2>/dev/null || echo "unreadable")"
-          echo "Push run $RUN: CI gate '${GATE}', ${SHARDS:-no} full shards, ${GREEN} green, ${BLOBS} blob reports, ${TRACES} traces. Quarantine run $QRUN; not green: ${QRED:-none}."
-          if [ "$GATE" = "success" ] && [ -n "$SHARDS" ] && [ "$GREEN" = "$SHARDS" ] && [ "$BLOBS" = "$SHARDS" ] && [ "$TRACES" = "$SHARDS" ] && [ -z "$QRED" ]; then
+          # Every quarantined spec this suite would have run (e2e/quarantine.json at this commit,
+          # e2e/configured left out as the nightly never ran it) needs a green status here; a missing
+          # status is not green. QRED lists the ones that are not; an unreadable answer is not empty.
+          QSPECS="$(gh api "repos/${GH_REPO}/contents/e2e/quarantine.json?ref=${GITHUB_SHA}" --jq '.content' 2>/dev/null | base64 -d 2>/dev/null \
+            | jq -c '[.specs | keys[] | select(startswith("e2e/configured/") | not)]' 2>/dev/null || echo unreadable)"
+          QGREEN="$(gh api "repos/${GH_REPO}/commits/${GITHUB_SHA}/status?per_page=100" \
+            --jq 'if .total_count > 100 then "unreadable" else [.statuses[] | select(.state == "success") | .context] end' 2>/dev/null || echo unreadable)"
+          QRED="$(jq -nr --argjson specs "$QSPECS" --argjson green "$QGREEN" '[$specs[] | select(("noacg/quarantine/" + .) as $c | $green | index($c) | not)] | join(" ")' 2>/dev/null || echo unreadable)"
+          echo "Push run $RUN: CI gate '${GATE}', ${SHARDS:-no} full shards, ${GREEN} green, ${BLOBS} blob reports, ${TRACES} traces. Quarantine run $QRUN ${QCONCLUSION}; not green: ${QRED:-none}."
+          if [ "$GATE" = "success" ] && [ -n "$SHARDS" ] && [ "$GREEN" = "$SHARDS" ] && [ "$BLOBS" = "$SHARDS" ] && [ "$TRACES" = "$SHARDS" ] && [ "$QCONCLUSION" = "success" ] && [ -z "$QRED" ]; then
             echo "::notice title=Nightly::main's full push run ${RUN} is green on this commit - the E2E shards are skipped and its reports used."
             echo "run=$RUN" >> "$GITHUB_OUTPUT"
             echo "shards=$SHARDS" >> "$GITHUB_OUTPUT"
