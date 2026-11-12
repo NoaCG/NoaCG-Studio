@@ -47,7 +47,8 @@
    "actor": "builder-os0-b-5518",
    "session": "session_017SdbwM9GCeoSZfBjmLZ5Wj",
    "branch": "claude/plan-obs-scenes-os0-build",
-   "launchedAt": "2026-11-12T14:05:30Z"
+   "launchedAt": "2026-11-12T14:05:30Z",
+   "lastSeen": "2026-11-12T14:37Z: final /so delta A, Codex clean, waiting on CI for a81a58b"
   }
  ],
  "owner": [
@@ -67,9 +68,9 @@
  "fixes": [],
  "triggers": [
   {
-   "id": "trig_01DitzC9baq45MG97V5R1Pui",
-   "what": "plan-run check-in plan-obs-scenes-2026-11-12",
-   "at": "2026-11-12T14:36:00Z"
+   "id": "trig_01PG9QNobv5su7jpVhbx2Pds",
+   "what": "plan-run check-in",
+   "at": "2026-11-12T15:09:00Z"
   }
  ],
  "heartbeatComment": 6825771186
