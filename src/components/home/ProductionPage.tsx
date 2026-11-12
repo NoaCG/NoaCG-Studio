@@ -152,6 +152,7 @@ import { formerReaders as storedFormerReaders, setFormerReaders as setStoredForm
 import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/liveData';
 import { canonical } from '../../model/publishedRecord';
 import { setCueSelection, setCueTyped, setCueTypedArgs, setCueTypedValues, setGraphicSounds } from '../../model/shows';
+import { forgetOwedCueEdit, keepOwedCueEdit, readOwedCueEdit } from '../../model/owedCueEdit';
 import ProductionSounds from './ProductionSounds';
 import { soundTopology } from '../../assets/productionSounds';
 import {
@@ -272,15 +273,32 @@ import { usePrepareForLive } from '../control/PrepareForLive';
 const DRAFT_ADAPTERS: CueDraftAdapters = {
   onPageHide: (run) => {
     const hidden = () => {
-      if (document.visibilityState === 'hidden') run();
+      if (document.visibilityState === 'hidden') run(true);
     };
-    window.addEventListener('noacg-account-authoring-pausing', run);
-    window.addEventListener('pagehide', run);
+    const going = () => run(true);
+    const pausing = () => run(false);
+    window.addEventListener('noacg-account-authoring-pausing', pausing);
+    window.addEventListener('pagehide', going);
     document.addEventListener('visibilitychange', hidden);
     return () => {
-      window.removeEventListener('noacg-account-authoring-pausing', run);
-      window.removeEventListener('pagehide', run);
+      window.removeEventListener('noacg-account-authoring-pausing', pausing);
+      window.removeEventListener('pagehide', going);
       document.removeEventListener('visibilitychange', hidden);
+    };
+  },
+  // Shown again: visible after hidden, or restored from the back-forward cache.
+  onPageShown: (run) => {
+    const shown = () => {
+      if (document.visibilityState === 'visible') run();
+    };
+    const restored = (e: PageTransitionEvent) => {
+      if (e.persisted) run();
+    };
+    window.addEventListener('pageshow', restored);
+    document.addEventListener('visibilitychange', shown);
+    return () => {
+      window.removeEventListener('pageshow', restored);
+      document.removeEventListener('visibilitychange', shown);
     };
   },
   onFlushAsked: (run) => {
@@ -1437,6 +1455,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           draftOwner.current === session.key ? historyRef.current!.writeDraft(() => updateShowCueChecked(session.key, cueId, fields)) : Promise.resolve(false),
         retainCue: (cueId, fields) => !updateShowCueChecked(session.key, cueId, fields).error,
         record: (cueId) => cuesRef.current.find((c) => c.id === cueId),
+        owed: {
+          keep: (edit) => keepOwedCueEdit(session.key, edit),
+          read: () => readOwedCueEdit(session.key),
+          forget: () => forgetOwedCueEdit(session.key),
+        },
         setTimeout: (run, ms) => setTimeout(run, ms),
         clearTimeout: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
       }),
@@ -1465,6 +1488,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const history = useRundownHistory(show ?? null, setShows, setRundownNote, (a, b) => historySafety.current(a, b), cancelDraft);
   historyRef.current = history;
   useEffect(() => cueDraft.listen(DRAFT_ADAPTERS), [cueDraft]);
+  // An edit recorded when a page of this production last went (control/cueDraft.ts `recover`),
+  // once its cues are here (a team production arrives a moment after the page), against the
+  // production as first loaded: the effect runs after the render that has them.
+  const showHere = !!show;
+  useEffect(() => {
+    if (!showHere) return;
+    cueDraft.recover();
+    // An account's page can open before its session lets it write: the record waits for that.
+    const again = () => cueDraft.recover();
+    window.addEventListener('noacg-account-authoring', again);
+    return () => window.removeEventListener('noacg-account-authoring', again);
+  }, [cueDraft, showHere]);
   useEffect(() => { void flushDraft(); void historyRef.current?.closeGroup(); }, [sub, flushDraft]);
 
   // ── PRODUCTION DATA: the tree, and what it resolves to (docs/PRODUCTION_DATA_PLAN.md) ────
