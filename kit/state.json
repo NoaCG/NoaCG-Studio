@@ -50,7 +50,8 @@
    "launchedAt": "2026-11-12T09:55:01Z",
    "designPr": 2426,
    "designMerge": "12173c3ff3e65220016d11d0ffdd4c1ce0f16408",
-   "lastSeen": "2026-11-12T11:2xZ G2 merged; W3 build next"
+   "lastSeen": "2026-11-12T13:51Z #2443 head 412f1e8a; full /so B on d97cb850 (new high finding in the failure/hold family: a failed graphic whose frame loaded drops every command but Take and Out); 4 rounds in one family, so a read-only Repeated-family reassessment (session_017SdbwLqkFuiZntw6BccMX2) runs before one corrected repair; about 54 USD",
+   "buildPr": 2443
   }
  ],
  "owner": [
