@@ -9,7 +9,10 @@ so treat it as a straightforward win."
 - R1. A `pull_request` run on a draft runs Build, Factory gates and Reviewed. The E2E plan and every
   job that needs it (E2E shards, catalog gate, guided mod, configured E2E and its verdict, the
   combined report) are skipped. The CI gate runs and fails with "Draft pull request", so a draft
-  head never carries a passing or skipped gate.
+  head never carries a passing or skipped gate. The gate and Reviewed are `continue-on-error` on a
+  draft only: their checks stay red and still block the queue, while the run concludes green, so
+  `scripts/ci-repeat-failures.mjs` (one page of `status=failure` runs) and the failure mail see no
+  draft (final review finding).
 - R2. Marking the pull request ready (`ready_for_review`) starts a run on the same head with the
   full selection, exactly as a non-draft run today. Every later push to a ready pull request does
   the same.
@@ -59,6 +62,11 @@ Independent `/so` on head 0dd26ac88: AGREE WITH CORRECTIONS, grade B. Answered: 
 gate (now fails, R4); red `Reviewed` and `CI gate` on a draft are named as expected in
 queue-merge.md so no one repairs them; the draft-run cost is measured. `Reviewed` stays on drafts
 as the brief specifies.
+
+Final `/so` on head 8e627f664: AGREE WITH CORRECTIONS, grade B. Answered: every draft run would
+have concluded `failure` (the draft gate, and `Reviewed` before a stamp) and filled the weekly
+repeat-failure report's one page; both jobs are now `continue-on-error` on a draft. The probe line
+in queue-merge.md now says a draft runs no E2E.
 
 ## What it gives up
 

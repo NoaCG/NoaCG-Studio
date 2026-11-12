@@ -237,6 +237,9 @@ jobs:
   reviewed:
     name: Reviewed
     if: github.event_name == 'pull_request' || github.event_name == 'merge_group' || (github.event_name == 'workflow_dispatch' && inputs.require_review && github.ref != 'refs/heads/main')
+    # On a draft its check still fails until the head is stamped, and still blocks the queue, but
+    # the run does not: a draft run is not a red run (see `gate`).
+    continue-on-error: ${{ github.event.pull_request.draft == true }}
     runs-on: ubuntu-latest
     # The wait is 150 s, so the cap has to sit above it with room for the checkout.
     timeout-minutes: 5
@@ -1444,6 +1447,9 @@ jobs:
   gate:
     name: CI gate
     if: ${{ !cancelled() }}
+    # On a draft the check fails (the first step below) and the run stays green, so the reports
+    # that read failed runs (scripts/ci-repeat-failures.mjs) and the failure mail see no draft.
+    continue-on-error: ${{ github.event.pull_request.draft == true }}
     # `e2e-report` is deliberately NOT here. Everything else in this list runs the repository's
     # code and can therefore be wrong about it; the report job merges artifacts and runs no
     # test, so its failure says only that nobody gets a browsable HTML report. It adds no
