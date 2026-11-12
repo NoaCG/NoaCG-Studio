@@ -3,7 +3,7 @@
 // covers: src/model/{project,authoringDocument,brandApplication,projectInstallation}.ts
 // covers: src/store/{authoringProjects,templateStore,saveActions}.ts, src/control/projectInstallation.ts
 // focus
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page, type Locator } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import JSZip from 'jszip';
@@ -11,6 +11,7 @@ import { decodePng, findPixelsNear } from '../scripts/png-decode.mjs';
 import { seedAuthoringProject, editProjectText, flushAuthoringProject } from './_authoringProject';
 import { awaitDurableReady } from './_durable';
 import { armStorageFailure, fillStorage, freeStorage, durableValue } from './_storage';
+import { install as installHeldWrite, arm as armHeldWrite, releasable as heldWriteReady, release as releaseHeldWrite } from './_saveMatrix';
 
 // These are distinct user flows: ownership/history, explicit brand revision, and safe installation.
 // The transition oracle is the stated E4 Rules, with fixed expected sources and record counts.
@@ -370,6 +371,28 @@ test('a refused explicit save keeps the library and draft; pending save cannot s
   expect(retried.library[0].template.html).toContain('Newer unsaved edition');
 });
 
+async function paintedNextRow(row: Locator, path: string, preview = false) {
+  await expect(row).toHaveText('Post your question in the chat');
+  await expect(row).toBeVisible();
+  await expect(row).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)');
+  await expect(row).toHaveCSS('color', 'rgb(255, 255, 255)');
+  const image = decodePng(await row.screenshot({ path, omitBackground: true }));
+  let painted = findPixelsNear(image, [255, 255, 255], 0);
+  if (preview) {
+    // The scaled operator stage antialiases white glyphs over its dark background.
+    // Compare opaque neutral glyphs with this capture's dark background; exports demand exact white.
+    const background = image.pixel(0, 0);
+    let count = 0;
+    for (let y = 0; y < image.height; y++) for (let x = 0; x < image.width; x++) {
+      const [r, g, b, a] = image.pixel(x, y);
+      if (a === 255 && r === g && g === b && r > Math.max(...background.slice(0, 3))) count++;
+    }
+    painted = { ...painted, count };
+  }
+  expect(painted.count, 'Next paints the newly revealed authored row').toBeGreaterThan(0);
+  return painted;
+}
+
 test('saved project reaches operator data In/Next/Out and exports bundled receiving fixtures', async ({ page, context }, info) => {
   const fixture = JSON.parse(readFileSync('e2e/fixtures/editor-projects/receiving.json', 'utf8'));
   const logo = readFileSync('e2e/fixtures/editor-projects/harbour.svg').toString('base64');
@@ -408,6 +431,9 @@ test('saved project reaches operator data In/Next/Out and exports bundled receiv
   await expect.poll(() => program.locator('body').evaluate(() => (window as unknown as { noacgStepsPlayed: number }).noacgStepsPlayed)).toBe(1);
   await page.getByTestId('verb-next').click();
   await expect.poll(() => program.locator('body').evaluate(() => (window as unknown as { noacgStepsPlayed: number }).noacgStepsPlayed)).toBe(2);
+  await expect(program.locator('.info-card-box')).toHaveCSS('opacity', '1');
+  await expect(program.locator('.info-card-box')).toHaveCSS('clip-path', 'inset(0px 0% 0px 0px)');
+  const operatorNext = await paintedNextRow(program.locator('#f1'), info.outputPath('operator-next-row.png'), true);
   await page.getByTestId('verb-out').click();
   await expect.poll(() => program.locator('body').evaluate(() => (window as unknown as { noacgMachineState(): { groups: { main: string } } }).noacgMachineState().groups.main)).toBe('off');
   await expect(program.locator('.info-card')).toHaveCSS('opacity', '0');
@@ -424,7 +450,7 @@ test('saved project reaches operator data In/Next/Out and exports bundled receiv
   expect(await program.locator('html').evaluate(el => getComputedStyle(el).getPropertyValue('--accent').trim())).toBe(fixture.accent);
   await page.screenshot({ path: info.outputPath('operator-rehearsal.png') });
   const manifest: Record<string, unknown> = { sourceCanonicalSha256: createHash('sha256').update(JSON.stringify(prepared.source)).digest('hex'), sourceFileSha256: createHash('sha256').update(JSON.stringify(prepared.source, null, 2) + '\n').digest('hex'),
-    fixture, operator: { data: fixture.operatorHeading, states: [1, 2, 'off', 1], entrances: 2 }, packages: [], browserOnly: true };
+    fixture, operator: { data: fixture.operatorHeading, states: [1, 2, 'off', 1], entrances: 2, paintedNext: operatorNext }, packages: [], browserOnly: true };
   writeFileSync(info.outputPath('source.json'), JSON.stringify(prepared.source, null, 2) + '\n');
   const gsap = readFileSync('src/assets/gsap.min.js');
   for (const output of prepared.outputs) {
@@ -469,6 +495,9 @@ test('saved project reaches operator data In/Next/Out and exports bundled receiv
         expect(assets.font).toContain('Oswald'); expect(assets.logo).toBe(fixture.expected.logoNaturalWidth);
         await receiver.evaluate(() => (window as unknown as { next(): void }).next());
         await expect.poll(() => receiver.evaluate(() => (window as unknown as { noacgStepsPlayed: number }).noacgStepsPlayed)).toBe(2);
+        await expect(receiver.locator('.info-card-box')).toHaveCSS('opacity', '1');
+        await expect(receiver.locator('.info-card-box')).toHaveCSS('clip-path', 'inset(0px 0% 0px 0px)');
+        const paintedNext = await paintedNextRow(receiver.locator('#f1'), info.outputPath(`${output.id}-next-row.png`));
         await receiver.evaluate(() => (window as unknown as { stop(): void }).stop());
         await expect.poll(() => receiver.evaluate(() => (window as unknown as { noacgMachineState(): { groups: { main: string } } }).noacgMachineState().groups.main)).toBe('off');
         await expect(receiver.locator('.info-card')).toHaveCSS('opacity', '0');
@@ -494,7 +523,7 @@ test('saved project reaches operator data In/Next/Out and exports bundled receiv
         const painted = findPixelsNear(paintedFrame, [22, 187, 153], 0);
         expect(painted.count, 'the receiving frame paints the authored green artwork').toBeGreaterThan(0);
         expect(missing.filter(path => !path.endsWith('favicon.ico'))).toEqual([]);
-        runtimeReceipt = { optionalRelay: '404; standalone static server', data: fixture.heading, states: [1, 2, 'off', 1], assets, missing, painted };
+        runtimeReceipt = { optionalRelay: '404; standalone static server', data: fixture.heading, states: [1, 2, 'off', 1], assets, missing, painted, paintedNext };
       } finally { await receiver.close(); }
     } else {
       expect(files.some(name => name.endsWith('.ograf.json'))).toBe(true);
@@ -861,4 +890,212 @@ for (const draft of ['pen', 'inline', 'pointer', 'image'] as const) test(`same-p
   }
   const kept = await page.evaluate(() => { const state = (window as unknown as { transientOwner: { S: typeof import('/src/store/templateStore.ts') } }).transientOwner.S.useTemplateStore.getState(); return { id: state.documentId, source: state.template }; });
   expect(kept.id).toBe(retired.privateId); expect(kept.source).toEqual(retired.before);
+});
+
+type SerialWorkspace = {
+  P: typeof import('/src/store/authoringProjects.ts'); M: typeof import('/src/model/project.ts');
+  D: typeof import('/src/model/durableStore.ts'); S: typeof import('/src/store/templateStore.ts');
+  A: typeof import('/src/store/saveActions.ts'); I: typeof import('/src/control/projectInstallation.ts');
+  Sh: typeof import('/src/model/shows.ts'); R: typeof import('/src/app/router.ts'); E: typeof import('/src/components/editorFoundation/documentAdapter.ts'); done?: boolean; ok?: boolean; error?: string; linkDone?: boolean; linkOk?: boolean; linkError?: string | null;
+};
+async function prepareSerialWorkspace(page: Page) {
+  await page.evaluate(async () => {
+    const [P, M, D, S, A, I, Sh, R, E] = await Promise.all([import('/src/store/authoringProjects.ts'), import('/src/model/project.ts'),
+      import('/src/model/durableStore.ts'), import('/src/store/templateStore.ts'), import('/src/store/saveActions.ts'),
+      import('/src/control/projectInstallation.ts'), import('/src/model/shows.ts'), import('/src/app/router.ts'), import('/src/components/editorFoundation/documentAdapter.ts')]);
+    (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace = { P, M, D, S, A, I, Sh, R, E };
+  });
+}
+async function parkWorkspaceOnHome(page: Page) {
+  await page.evaluate(() => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    h.done = false; h.error = undefined;
+    void h.P.retainCurrentProjectDraft().then(ok => {
+      if (!ok) throw new Error(h.P.useAuthoringProjects.getState().error);
+      h.R.useRouter.getState().navigate({ view: 'home' }); h.done = true;
+    }).catch(error => { h.error = String(error); h.done = true; });
+  });
+  await expect.poll(() => page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.done)).toBe(true);
+  expect(await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.error)).toBeUndefined();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+}
+
+test('serial tab return preserves adopted projects document bundles and journal in a third fresh page', async ({ page, context }) => {
+  const ids = await seedAuthoringProject(page); await editProjectText(page, 'A first retained source'); await flushAuthoringProject(page);
+  await prepareSerialWorkspace(page); await parkWorkspaceOnHome(page);
+  const b = await context.newPage(); await b.goto('/app#/home'); await awaitDurableReady(b); await prepareSerialWorkspace(b);
+  await b.getByTestId('home-projects').getByRole('button', { name: /^E4 Intro/ }).click();
+  await expect(b.getByTestId('editor-foundation')).toBeVisible(); await editProjectText(b, 'B retained second source');
+  await b.evaluate(() => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace; h.done = false;
+    void (async () => {
+      const saved = await h.A.saveGraphicAs('B saved intro', { kind: 'standalone' }); if (!saved.ok) throw new Error(saved.error!);
+      const show = h.Sh.createShowNamedChecked('B serial installation').show; await h.D.commitDurableWrites();
+      await h.I.installProjectGraphics(show.id, [saved.graphicId!]);
+      if (!await h.P.createAuthoringProject('B adopted project', [{ ...h.S.useTemplateStore.getState().template, name: 'B additional source' }])) throw new Error(h.P.useAuthoringProjects.getState().error);
+      h.S.flushPendingProject(); await h.D.commitDurableWrites();
+    })().then(() => { h.done = true; }).catch(error => { h.error = String(error); h.done = true; });
+  });
+  await expect.poll(() => b.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.done)).toBe(true);
+  expect(await b.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.error)).toBeUndefined();
+  await parkWorkspaceOnHome(b); // Exactly one authoring editor was active at a time.
+  const adopted = await b.evaluate(() => JSON.parse(JSON.stringify((window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.P.workspace())) as import('../src/model/authoringDocument').AuthoringWorkspace);
+  expect(adopted.projects).toHaveLength(2); expect(adopted.installations).toHaveLength(1);
+  await expect.poll(() => page.evaluate(() => {
+    const w = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.M.loadProject()?.workspace;
+    return { projects: w?.projects.length, receipts: w?.installations?.length, changed: w?.documents.some(d => d.template.html.includes('B retained second source')) };
+  }), { message: 'A must adopt the actual durable mirror before it resumes' }).toEqual({ projects: 2, receipts: 1, changed: true });
+  await page.bringToFront();
+  await page.getByTestId('home-projects').getByRole('button', { name: /^E4 Lower third/ }).click();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible(); await editProjectText(page, 'A resumed source'); await flushAuthoringProject(page);
+  await parkWorkspaceOnHome(page);
+  const authored = await page.evaluate(id => JSON.parse(JSON.stringify((window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.P.workspace().documents.find(d => d.id === id))), ids[0]);
+  const c = await context.newPage(); await c.goto('/app#/home'); await awaitDurableReady(c); await prepareSerialWorkspace(c);
+  const persisted = await c.evaluate(() => JSON.parse(JSON.stringify((window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.M.loadProject()!.workspace)) as import('../src/model/authoringDocument').AuthoringWorkspace);
+  expect(persisted.projects).toEqual(adopted.projects); expect(persisted.installations).toEqual(adopted.installations);
+  expect(persisted.documents.find(d => d.id === ids[0])).toEqual(authored);
+  expect(authored.template.html).toContain('A resumed source'); expect(authored.history.some((t: { html: string }) => t.html.includes('A first retained source'))).toBe(true);
+  for (const document of adopted.documents.filter(d => d.id !== ids[0])) expect(persisted.documents.find(d => d.id === document.id)).toEqual(document);
+});
+
+test('adopted v99 remains byte-identical despite a populated older staged workspace and all slot writers', async ({ page, context }) => {
+  await seedAuthoringProject(page); await flushAuthoringProject(page); await prepareSerialWorkspace(page); await parkWorkspaceOnHome(page);
+  const previous = await page.evaluate(() => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace, w = h.P.workspace();
+    h.M.stageAuthoringWorkspace(w); return h.M.loadProject()!;
+  });
+  const b = await context.newPage(); await b.goto('/app#/home'); await awaitDurableReady(b); await prepareSerialWorkspace(b);
+  await b.evaluate(() => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace; h.done = false;
+    h.D.durable.setItem('spx-gfx-project', JSON.stringify({ ...h.M.loadProject()!, workspace: { v: 99, opaque: 'Future documents and receipts' } }));
+    void h.D.commitDurableWrites().then(error => { if (error) h.error = error; h.done = true; });
+  });
+  await expect.poll(() => b.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.done)).toBe(true);
+  expect(await b.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.error)).toBeUndefined();
+  const exact = await b.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.D.durable.getItem('spx-gfx-project'));
+  await expect.poll(() => page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.M.loadProject()?.workspace?.v)).toBe(99);
+  const refused = await page.evaluate(previous => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    const staged = h.M.authoringWorkspace()?.v; h.M.saveProject(previous.template); h.M.upsertProject(previous); h.M.clearProject();
+    let explicit = ''; try { h.M.writeAuthoringWorkspace(previous.workspace!); } catch (error) { explicit = String(error); }
+    const superseded = h.M.graphicSuperseded('not-authorized');
+    return { staged, explicit, superseded, refusal: h.M.workspaceRefusal(), raw: h.D.durable.getItem('spx-gfx-project') };
+  }, previous);
+  expect(refused.staged).toBe(1); expect(refused.explicit).toContain('newer'); expect(refused.refusal).toContain('newer'); expect(refused.superseded).toBe(false); expect(refused.raw).toBe(exact);
+  await expect(page.getByTestId('home-projects').getByRole('alert')).toContainText('newer');
+  const c = await context.newPage(); await c.goto('/app#/home'); await awaitDurableReady(c); await prepareSerialWorkspace(c);
+  expect(await c.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.D.durable.getItem('spx-gfx-project'))).toBe(exact);
+  await expect(c.getByTestId('home-projects').getByRole('alert')).toContainText('newer');
+});
+
+for (const operation of ['project', 'install', 'rollback'] as const) test(`held ${operation} receipt preserves later view sample history and source through an ordinary slot write`, async ({ page }) => {
+  const ids = await seedAuthoringProject(page); await prepareSerialWorkspace(page);
+  const prepared = await page.evaluate(async operation => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    const saved = await h.A.saveGraphicAs('Interleaving master', { kind: 'standalone' }); if (!saved.ok) throw new Error(saved.error!);
+    const show = h.Sh.createShowNamedChecked('Interleaving target').show; await h.D.commitDurableWrites();
+    const installed = operation === 'rollback' ? await h.I.installProjectGraphics(show.id, [saved.graphicId!]) : undefined;
+    h.S.flushPendingProject(); await h.D.commitDurableWrites();
+    return { graphic: saved.graphicId!, show: show.id, project: h.P.workspace().projects[0].id, installation: installed?.id };
+  }, operation);
+  await installHeldWrite(page); await armHeldWrite(page, 'I', 'hold');
+  await page.evaluate(({ operation, prepared }) => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace; h.done = false; h.ok = undefined; h.error = undefined;
+    const writing = operation === 'project' ? h.P.renameAuthoringProject(prepared.project, 'Held project rename') : operation === 'install'
+      ? h.I.installProjectGraphics(prepared.show, [prepared.graphic]) : h.I.retryProjectInstallation(prepared.installation!, true);
+    void writing.then(result => { h.ok = typeof result === 'boolean' ? result : true; h.done = true; }).catch(error => { h.error = String(error); h.done = true; });
+  }, { operation, prepared });
+  await heldWriteReady(page);
+  const intent = await page.evaluate(({ operation, id }) => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    const receipt = h.P.workspace().installations?.find(p => p.target === id);
+    return { receipt, count: h.Sh.loadShows().find(s => s.id === id)!.graphics.length, name: operation === 'project' ? h.P.workspace().projects[0].name : undefined };
+  }, { operation, id: prepared.show });
+  if (operation === 'project') expect(intent.name).toBe('Held project rename');
+  else { expect(intent.receipt).toBeDefined(); expect(intent.count).toBe(operation === 'install' ? 0 : 1); if (operation === 'rollback') expect(intent.receipt!.rollback).toBeDefined(); }
+  const expected = await page.evaluate(() => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace, session = h.E.activeEditorSession();
+    session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'text.set', selector: '#f0', text: 'Later source during held receipt' }] });
+    session.undo(); session.redo(); h.S.useTemplateStore.getState().setSampleValue('f0', 'Later sample during held receipt'); h.E.setSessionTime(.37, 0);
+    h.S.flushPendingProject();
+    const doc = h.P.workspace().documents.find(d => d.id === h.S.useTemplateStore.getState().documentId)!;
+    const newest = h.D.lastDurableWrite('spx-gfx-project')!;
+    return { doc: JSON.parse(JSON.stringify(doc)), submitted: JSON.parse(newest.value!).workspace, generation: h.M.workspaceGeneration() };
+  });
+  expect(expected.doc.template.html).toContain('Later source during held receipt'); expect(expected.doc.sampleData.f0).toBe('Later sample during held receipt');
+  expect(expected.doc.view.time).toBe(.37); expect(expected.doc.view.cue).toBe(0); expect(expected.doc.history.length).toBeGreaterThan(0);
+  if (intent.receipt) expect(expected.submitted.installations.find((p: { id: string }) => p.id === intent.receipt!.id)).toEqual(intent.receipt);
+  await page.evaluate(() => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace; h.linkDone = false;
+    void h.A.saveGraphicAs('Interleaving final link', { kind: 'standalone' }).then(saved => { h.linkOk = saved.ok; h.linkError = saved.error; h.linkDone = true; });
+  });
+  await expect.poll(() => page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.A.useSaveUi.getState().inFlight)).toBe(true);
+  expect(await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.linkDone)).toBe(false);
+  expect(await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.S.useTemplateStore.getState().saved.graphicId)).toBe(prepared.graphic);
+  await releaseHeldWrite(page);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.done)).toBe(true);
+  if (operation === 'project') {
+    expect(await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.ok)).toBe(false);
+    await expect(page.getByTestId('project-note')).toContainText('changed while saving');
+  } else {
+    expect(await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.error)).toBeUndefined();
+    expect(await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.ok)).toBe(true);
+  }
+  await flushAuthoringProject(page);
+  const after = await page.evaluate(() => JSON.parse(JSON.stringify((window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.P.workspace())) as import('../src/model/authoringDocument').AuthoringWorkspace);
+  const kept = after.documents.find(d => d.id === ids[0])!;
+  expect(kept.template.html).toBe(expected.doc.template.html); expect(kept.history).toEqual(expected.doc.history);
+  expect(kept.sampleData).toEqual(expected.doc.sampleData); expect(kept.view?.time).toBe(.37); expect(kept.view?.cue).toBe(0);
+  if (operation === 'project') expect(after.projects[0].name).toBe('Held project rename');
+  else {
+    const receipt = after.installations!.find(p => p.id === intent.receipt!.id)!;
+    expect(receipt.status).toBe(operation === 'install' ? 'confirmed' : 'rolled-back'); expect(receipt.before).toEqual(intent.receipt!.before); expect(receipt.after).toEqual(intent.receipt!.after);
+    if (operation === 'rollback') expect(receipt.rollback).toEqual(intent.receipt!.rollback);
+  }
+  await expect.poll(() => page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.linkDone)).toBe(true);
+  expect(await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.linkError)).toBeNull();
+  expect(await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.linkOk)).toBe(true);
+  await flushAuthoringProject(page);
+  const linked = await page.evaluate(() => JSON.parse(JSON.stringify((window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.P.workspace())) as import('../src/model/authoringDocument').AuthoringWorkspace);
+  expect(linked.documents.find(d => d.id === ids[0])!.saved.graphicId).not.toBe(prepared.graphic);
+  expect(linked.installations).toEqual(after.installations);
+  await page.reload(); await expect(page.getByTestId('editor-foundation')).toBeVisible(); await prepareSerialWorkspace(page);
+  const reloaded = await page.evaluate(() => JSON.parse(JSON.stringify((window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.M.loadProject()!.workspace)) as import('../src/model/authoringDocument').AuthoringWorkspace);
+  expect(reloaded.documents).toEqual(linked.documents); expect(reloaded.projects).toEqual(linked.projects); expect(reloaded.installations).toEqual(linked.installations);
+});
+
+test('same-private adopted revision refuses an old writer until explicit reload and rejects old packets', async ({ page, context }) => {
+  const ids = await seedAuthoringProject(page); await editProjectText(page, 'A confirmed older revision'); await flushAuthoringProject(page); await prepareSerialWorkspace(page);
+  const old = await page.evaluate(async () => {
+    const C = await import('/src/components/editorFoundation/commandAdapter.ts'), c = C.activeEditorCommands(), inspected = c.inspect();
+    if (!inspected.ok) throw new Error(inspected.refusal.message);
+    return { expected: inspected.expected, privateId: (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.S.useTemplateStore.getState().documentId };
+  });
+  await parkWorkspaceOnHome(page);
+  const b = await context.newPage(); await b.goto('/app#/home'); await awaitDurableReady(b); await prepareSerialWorkspace(b);
+  await b.getByTestId('home-projects').getByRole('button', { name: /^E4 Lower third/ }).click();
+  await expect(b.getByTestId('editor-foundation')).toBeVisible(); await editProjectText(b, 'B adopted newer same UUID'); await flushAuthoringProject(b); await parkWorkspaceOnHome(b); await flushAuthoringProject(b);
+  await expect.poll(() => page.evaluate(id => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.M.loadProject()?.workspace?.documents.find(d => d.id === id)?.template.html, ids[0])).toContain('B adopted newer same UUID');
+  const refused = await page.evaluate(async id => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace, raw = h.D.durable.getItem('spx-gfx-project');
+    const ok = await h.P.openProjectDocument(id);
+    return { ok, error: h.P.useAuthoringProjects.getState().error, source: h.S.useTemplateStore.getState().template.html,
+      privateId: h.S.useTemplateStore.getState().documentId, unchanged: raw === h.D.durable.getItem('spx-gfx-project') };
+  }, ids[0]);
+  expect(refused).toMatchObject({ ok: false, privateId: old.privateId, unchanged: true });
+  expect(refused.error).toContain('changed in another tab'); expect(refused.source).toContain('A confirmed older revision');
+  await expect(page.getByTestId('home-projects').getByRole('alert')).toContainText('changed in another tab');
+  await page.reload(); await awaitDurableReady(page); await prepareSerialWorkspace(page);
+  await page.getByTestId('home-projects').getByRole('button', { name: /^E4 Lower third/ }).click();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  const loaded = await page.evaluate(async oldSession => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace, C = await import('/src/components/editorFoundation/commandAdapter.ts');
+    const c = C.activeEditorCommands(), inspected = c.inspect(); if (!inspected.ok) throw new Error(inspected.refusal.message);
+    const before = JSON.stringify(h.S.useTemplateStore.getState().template);
+    const reply = c.apply({ expected: { ...inspected.expected, sessionId: oldSession }, transactionId: crypto.randomUUID(), commands: [{ id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 20, y: 20, width: 40, height: 40 } } }] });
+    return { privateId: h.S.useTemplateStore.getState().documentId, publicId: c.session.documentId, instance: inspected.expected.sessionId,
+      source: h.S.useTemplateStore.getState().template.html, code: reply.ok ? 'accepted' : reply.refusal.code, unchanged: before === JSON.stringify(h.S.useTemplateStore.getState().template) };
+  }, old.expected.sessionId);
+  expect(loaded.privateId).toBe(old.privateId); expect(loaded.publicId).toBe(old.expected.documentId); expect(loaded.instance).not.toBe(old.expected.sessionId);
+  expect(loaded.source).toContain('B adopted newer same UUID'); expect(loaded.code).toBe('stale_context'); expect(loaded.unchanged).toBe(true);
 });

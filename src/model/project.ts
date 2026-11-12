@@ -4,12 +4,13 @@
 // important shows into Packets, which are kept and synced separately). Cloud sync of this single
 // 'project' record lands next, alongside brand, via the singleton mechanism.
 
-import { readableWorkspace, WORKSPACE_REFUSAL, type AuthoringWorkspace } from './authoringDocument';
+import { readableWorkspace, WORKSPACE_REFUSAL, type AuthoringWorkspace, type AuthoringDocument } from './authoringDocument';
 import type { SpxTemplate } from './types';
 import type { GenerationSpec } from './generationSpec';
 import type { AiThread } from './aiThread';
 import type { ProjectLegibility } from './designRules';
-import { durable } from './durableStore';
+import { durable, lastDurableWrite, libraryInUse } from './durableStore';
+import { reconcileWorkspace, sameWorkspaceValue, WORKSPACE_CHANGED } from './workspaceStage';
 import { uuid } from './id';
 import { graphicIdTaken } from './library';
 import { readDeviceIds, writeDeviceIds, type DeviceIdsRead } from './deviceIds';
@@ -61,20 +62,103 @@ export interface SavedProject {
 }
 
 const STORAGE_KEY = 'spx-gfx-project';
-let pendingWorkspace: AuthoringWorkspace | undefined;
+interface WorkspaceStage {
+  base: AuthoringWorkspace | undefined;
+  value: AuthoringWorkspace | undefined;
+  generation: number;
+  dirty: boolean;
+  document?: string;
+  acceptedRaw?: string;
+  acceptedSequence: number;
+  writes: Map<number, string>;
+}
+const workspaceStages = new Map<string | null, WorkspaceStage>();
+function workspaceStage(): WorkspaceStage {
+  const owner = libraryInUse();
+  let stage = workspaceStages.get(owner);
+  if (!stage) {
+    const value = loadProject()?.workspace;
+    stage = { base: value && structuredClone(value), value, generation: 0, dirty: false,
+      document: readableWorkspace(value) ? value.active ?? undefined : undefined, acceptedSequence: 0, writes: new Map() };
+    workspaceStages.set(owner, stage);
+  }
+  return stage;
+}
+function ownWorkspaceWrite(stage: WorkspaceStage): boolean {
+  const raw = durable.getItem(STORAGE_KEY);
+  return raw !== null && (raw === stage.acceptedRaw || [...stage.writes.values()].includes(raw));
+}
+function resolvedWorkspace(stage = workspaceStage()): AuthoringWorkspace | undefined {
+  const adopted = loadProject()?.workspace;
+  if (adopted !== undefined && !readableWorkspace(adopted) || stage.value !== undefined && !readableWorkspace(stage.value)) throw new Error(WORKSPACE_REFUSAL);
+  if (!stage.dirty || !stage.value) return adopted;
+  return ownWorkspaceWrite(stage) ? stage.value : reconcileWorkspace(stage.base, stage.value, adopted);
+}
 export function authoringWorkspace(): AuthoringWorkspace | undefined {
-  return pendingWorkspace ?? loadProject()?.workspace;
+  try { return resolvedWorkspace(); }
+  catch { return workspaceStage().value ?? loadProject()?.workspace; } // Keep pending work readable for recovery; writers use the refusal below.
 }
-export function stageAuthoringWorkspace(workspace: AuthoringWorkspace | undefined): void { pendingWorkspace = workspace; }
+export function stageAuthoringWorkspace(value: AuthoringWorkspace | undefined): void {
+  if (value === undefined) { workspaceStages.delete(libraryInUse()); return; }
+  const stage = workspaceStage();
+  stage.value = value; stage.dirty = true; stage.generation++;
+}
+/** The private document actually loaded in this tab, independent of an adopted active pointer. */
+export function bindWorkspaceDocument(id: string | undefined, loaded?: AuthoringDocument): void {
+  const stage = workspaceStage();
+  stage.document = id;
+  if (stage.dirty || !loaded) return;
+  try {
+    const value = resolvedWorkspace(stage);
+    // Only an explicit load of that exact adopted bundle can refresh its authority.
+    if (readableWorkspace(value) && sameWorkspaceValue(value.documents.find(d => d.id === id), loaded)) {
+      stage.base = value; stage.value = value;
+    }
+  } catch { /* An unreadable adopted envelope stays protected, including during boot. */ }
+}
+export function workspaceGeneration(): number { return workspaceStage().generation; }
+/** A submitted retention is not ownership until its complete snapshot is confirmed. */
+export function workspaceDocumentRetained(id: string): boolean {
+  const stage = workspaceStage();
+  return !workspaceRefusal() && readableWorkspace(stage.base) && stage.base.documents.some(d => d.id === id);
+}
 export function workspaceRefusal(): string | null {
-  const value = authoringWorkspace();
-  return value !== undefined && !readableWorkspace(value) ? WORKSPACE_REFUSAL : null;
+  try {
+    const stage = workspaceStage(), adopted = loadProject()?.workspace;
+    resolvedWorkspace(stage); // Unknown durable formats are checked even when old staging exists.
+    if (!ownWorkspaceWrite(stage) && stage.document && readableWorkspace(stage.base) && readableWorkspace(adopted) &&
+      !sameWorkspaceValue(stage.base.documents.find(d => d.id === stage.document), adopted.documents.find(d => d.id === stage.document))) return WORKSPACE_CHANGED;
+    return null;
+  } catch (error) { return error instanceof Error ? error.message : WORKSPACE_REFUSAL; }
 }
-/** Every slot writer carries this envelope; staging is consumed by the ordinary autosave. */
+/** One lifecycle for every ordinary slot writer. Optimistic mirror receipt is not confirmation. */
+function writeLocalProject(project: SavedProject): void {
+  const refusal = workspaceRefusal();
+  if (refusal) throw new Error(refusal);
+  const stage = workspaceStage(), owner = libraryInUse(), workspace = resolvedWorkspace(stage);
+  // A rebased candidate must be visible before another slot writer can read our optimistic raw.
+  if (!sameWorkspaceValue(stage.value, workspace)) { stage.value = workspace; stage.generation++; }
+  const generation = stage.generation, raw = JSON.stringify({ ...project, ...(workspace !== undefined ? { workspace } : {}) });
+  const previous = lastDurableWrite(STORAGE_KEY);
+  durable.setItem(STORAGE_KEY, raw);
+  const receipt = lastDurableWrite(STORAGE_KEY);
+  if (!receipt || receipt === previous || receipt.account !== owner) return;
+  stage.writes.set(receipt.sequence, raw);
+  void receipt.settled.then(error => {
+    stage.writes.delete(receipt.sequence);
+    if (error || receipt.sequence < stage.acceptedSequence) return;
+    stage.acceptedSequence = receipt.sequence; stage.acceptedRaw = raw;
+    // Advancing the baseline keeps later deltas. Never reinstall the older captured value.
+    stage.base = workspace;
+    if (stage.generation === generation) { stage.value = workspace; stage.dirty = false; }
+  });
+}
+/** Publish the candidate before any local writer or await can read its predecessor. */
 export function writeAuthoringWorkspace(workspace: AuthoringWorkspace): void {
   const p = loadProject();
   if (!p || workspaceRefusal()) throw new Error(workspaceRefusal() ?? 'Open a graphic first.');
-  durable.setItem(STORAGE_KEY, JSON.stringify({ ...p, workspace, updatedAt: new Date().toISOString() }));
+  stageAuthoringWorkspace(workspace);
+  writeLocalProject({ ...p, updatedAt: new Date().toISOString() });
   notifyDataChanged();
 }
 
@@ -223,7 +307,7 @@ export function saveProject(
       reservedGraphicId: reservedGraphicId(baseline),
       ...(reservation?.minting ? { mintingReserved: true } : {}),
     };
-    durable.setItem(STORAGE_KEY, JSON.stringify(rec));
+    writeLocalProject(rec);
     notifyDataChanged();
   } catch {
     // Storage full or unavailable — non-fatal.
@@ -235,13 +319,12 @@ export function saveProject(
  *  it, and no pull brings a mint mark, which speaks only for the draft this device was minting.
  *  Another device's reservation can arrive with the draft as data; nothing here honours it. */
 export function upsertProject(project: SavedProject): void {
-  if (workspaceRefusal()) return;
-  const workspace = authoringWorkspace();
-  pendingWorkspace = undefined;
+  const workspace = loadProject()?.workspace;
+  if (workspace !== undefined && !readableWorkspace(workspace)) return;
   try {
     const { mintingReserved: _mark, ...pulled } = project;
     const own = loadProject()?.reservedGraphicId;
-    durable.setItem(STORAGE_KEY, JSON.stringify({ ...pulled, ...(pulled.workspace ? {} : workspace ? { workspace } : {}), ...(isOwnReservation(own) ? { reservedGraphicId: own } : {}) }));
+    durable.setItem(STORAGE_KEY, JSON.stringify({ ...pulled, ...(pulled.workspace !== undefined ? {} : workspace !== undefined ? { workspace } : {}), ...(isOwnReservation(own) ? { reservedGraphicId: own } : {}) }));
     notifyDataChanged();
   } catch {
     // Non-fatal.
@@ -333,6 +416,7 @@ export function isGraphicSuperseded(graphicId: string): boolean {
  *  slot was rewritten. */
 export function graphicSuperseded(graphicId: string, copy: ConflictCopy | null = null): boolean {
   rememberDeviceId(SUPERSEDED_KEY, graphicId);
+  if (workspaceRefusal()) return false;
   const p = loadProject();
   const workspace = authoringWorkspace();
   let workspaceChanged = false;
@@ -346,7 +430,7 @@ export function graphicSuperseded(graphicId: string, copy: ConflictCopy | null =
       if (d.reservedGraphicId === graphicId) { delete next.reservedGraphicId; delete next.mintingReserved; }
       return next;
     });
-    if (workspaceChanged) pendingWorkspace = { ...workspace, documents };
+    if (workspaceChanged) stageAuthoringWorkspace({ ...workspace, documents });
   }
   const linked = !!p?.graphicId && lostLinks(graphicId).includes(p.graphicId);
   let rewritten = false;
@@ -360,15 +444,15 @@ export function graphicSuperseded(graphicId: string, copy: ConflictCopy | null =
       delete rec.mintingReserved;
     }
     try {
-      durable.setItem(STORAGE_KEY, JSON.stringify(rec));
+      writeLocalProject(rec);
       notifyDataChanged();
       rewritten = true;
     } catch {
       // Non-fatal: the live link below still moves, and the next autosave writes it.
     }
   }
-  if (!rewritten && workspaceChanged && pendingWorkspace && p) {
-    try { writeAuthoringWorkspace(pendingWorkspace); rewritten = true; } catch { /* next autosave retains the repair */ }
+  if (!rewritten && workspaceChanged && authoringWorkspace() && p) {
+    try { writeAuthoringWorkspace(authoringWorkspace()!); rewritten = true; } catch { /* next autosave retains the repair */ }
   }
   forgetSuperseded(graphicId, copy);
   try {
@@ -381,7 +465,7 @@ export function graphicSuperseded(graphicId: string, copy: ConflictCopy | null =
 
 export function clearProject(): void {
   // Removing the legacy current slot must never erase independently retained documents.
-  if (authoringWorkspace()) return;
+  if (authoringWorkspace() !== undefined || workspaceRefusal()) return;
   try {
     durable.removeItem(STORAGE_KEY);
     notifyDataChanged();

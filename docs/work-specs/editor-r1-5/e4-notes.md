@@ -485,3 +485,141 @@ font/codec checks 13/13, affected ESLint/application TypeScript and dependency
 cruise pass. Fresh origin/main c1ce4e4e7 reconciles with a clean merge-tree and
 clear merge-order; no merge is required. Check/simplify review covers the full
 48-path branch scope, including the four Canvas/import gesture lifetime paths.
+
+### Later workspace-authority rules (before the third repair)
+
+The fresh full 48-path review at 4de8259f9 is B, with one P1 family: unbound
+staging can overwrite adopted durable data. The actual-module reproduction
+preserves both losses: two projects/documents plus a journal become one with
+no journal; an adopted v99 envelope is silently replaced by cached v1. This
+requires only serial tab return, not simultaneous authoring. Public verdict
+6826989625 and Codex finding 4551914786 remain failed evidence.
+
+A mandatory fresh whole-writer approach reassessment completed before patching.
+The existing account-scoped singleton and persisted v1 format stay. In-memory
+staging belongs to the loaded library, its exact observed workspace baseline,
+and a local generation. Clean cached reads yield to adopted data. Only proven
+nonconflicting changes to whole owned units may carry forward: a document's
+source/baseline/history/view/link/reservation stay one bundle; projects and
+installation receipts keep their identities. Incompatible overlap refuses
+persistence and retains the local pending draft plus adopted record. An adopted
+change to the loaded document cannot authorize an old live store to snapshot
+that document merely because its UUID is equal. No winner policy or concurrent
+editing feature is added.
+
+Actual durable format checks run independently of staging. Unknown or malformed
+adopted envelopes block destructive slot writes even with an older readable
+pending v1. Account/library changes cannot expose or acknowledge another
+library's staged value. Sync adoption does not clear pending work before its put
+succeeds. Every local intent is staged before another writer can observe the
+old envelope or await its receipt; only the captured generation is acknowledged.
+Older completion cannot replace later source, view, sample, history, link or
+journal staging. Refused/lost answers preserve the pending generation and
+immutable installation/inverse identity without claiming success.
+
+These rules cover every slot and workspace writer, including autosave/Save,
+explicit project/document operations, sync upsert, dormant superseded links,
+view-only staging and installation prepare/confirm/rollback retention. Proof
+will include the fixed small state oracle, local held-write interleavings,
+serial browser mirror adoption followed by a third fresh page, and adopted v99
+while v1 staging remains populated. Existing October one-active-authoring scope,
+limits, test allowances and all prior failures remain unchanged.
+
+Historical 4de CI43239502125 completed overall FAILURE solely on missing Reviewed;
+CI gate131264604152, all 15 offline shards, full build, Factory/catalog and ALL63
+configured specs/four stacks/verdict131264352458 succeeded. No stamp or rerun
+followed the known P1. Its stronger isolated43239590134 passed one case in25.5s,
+with zero skips/retries, synced rollback/fresh sign-in, account deletion, clean
+teardown and artifact13952344884. Its actual passing COST verdict is REPAY,
+198.2/213 table-minutes93%, overhead122% including main-side nightly work counted
+through frozen PR_BASE7e306913; #2450 tracks attribution. Newest growth remains
+partial, judged on complete43014542120. No debt, exception or owner is invented.
+
+Third-repair engineering follows that model in the shared project boundary: loaded
+library, observed workspace baseline, local generation and exact receipt lineage.
+Whole document bundles, project membership and journals use three-way unit
+comparison; incompatible overlap refuses instead of selecting a winner. A
+rebased candidate is published before its optimistic mirror can be read by the
+next local writer. Completion advances its baseline without reinstalling an
+older generation. Every loaded private ID is tracked, including an external
+source before retention; an explicit load refreshes authority only for the exact
+adopted bundle. Same-live-document reopen preserves its existing binding, while
+adopted different revisions refuse until explicit reload. Pending external
+retention does not count as confirmed ownership for Home/Starter guards.
+
+The maintained actual-module oracle now has 17 cases (30 total with font/codec),
+all passing: clean/dirty nonconflicting adoption, same-document conflict, exact
+bundle/link/history/view preservation, unknown/malformed formats with populated
+staging, old/refused completion, before-await intent, sync upsert, loaded-library
+isolation, membership deletion/overlap, inverse identity, exact same-UUID load,
+formerly external ownership and a rebased write overlapping another slot write.
+No test compares against a reimplementation of the production algorithm.
+
+Maintained browser j-0089 passed real serial adoption and the v99 boundary in
+16.9s: one authoring editor at a time, adoption observed from the actual mirror,
+then exact documents/membership/journal read from a third fresh page. J-0090
+passed three forced project/install/rollback receipt interleavings. The stronger
+j-0092 also requested a real Save As before releasing the held receipt: the link
+remained unchanged while held, then the new link, later source/history/sample/
+view and immutable journal survived completion/reload (3/3,18.8s). J-0091's
+new fixture expected undefined rather than saveGraphicAs's documented null
+success error; that initial failure is retained and the strict null assertion
+matches the existing API. No allowance changed.
+
+Other original failures remain: j-0086 found an optimistic confirmed status after
+a refused journal confirmation; the correction restores only the unchanged
+submitted unit to its accepted status, retaining immutable intent and later
+work. J-0087 found duplicate creation proposals after a refused legacy adoption;
+identical in-session retry now keeps the same creation IDs, and j-0088 passed
+both the unchanged two-document legacy assertion and independent history.
+J-0093 passed31/32 but exposed unconfirmed retention bypassing the existing
+cancel guard. J-0094 passed that guard/serial/held paths but exposed a baseline
+object replacement on idempotent reopen. Both product corrections retain their
+original assertions. J-0095 passed all four affected lifecycle cases; j-0096
+passed the original idempotence/cancel/unknown cases plus an adopted same-private
+revision: old persistence refused, old source stayed open, explicit reload used
+the exact newer bundle and old packets received stale_context. No new conflict
+resolution UI or concurrent-authoring feature was introduced.
+
+The staged receiving source, four ZIPs and painted references remain those
+verified at j-0083/4de8259f9. This repair changes workspace retention, not the
+brand/export/runtime/font/artwork closure; the next exact-source browser/CI run
+still exercises the receiving journey and its strict painted-pixel oracle.
+Fresh origin/main619ebc835 reconciles by clean merge-tree and clear merge-order;
+no merge/rebase, whole local build or test-policy change is needed.
+
+Final third-repair checks passed113/113 gate tests across14 files, source-oracles
+30/30, affected lint, app TypeScript and dependency cruise (0 violations,1471
+modules/7029 dependencies). The initial VM oracle failure came from testing an
+Error across different VM realms; sharing the harness Error constructor retained
+the exact production refusal assertion. The original failure log remains.
+
+The receiving oracle previously painted the replay entrance but established Next
+only through its counter. Before this checkpoint it now additionally requires
+the authored first row, settled identity transform, visible/unclipped parent,
+and opaque white row pixels in transparent captures, for operator and all three
+browser-replayed exports. Source/runtime/package bytes and all old assertions
+remain unchanged. This is an acceptance-evidence correction; no playback wait,
+seek or sample change was introduced.
+
+J-0097 retained the initial new Next-oracle failure: the operator row's60x7
+preview visibly painted (opened image), but antialiasing over its dark stage
+produced maximum RGB224 rather than exact255. The preview oracle now requires
+exact computed white plus opaque neutral glyph pixels contrasting with the captured dark background; full-resolution
+exports still require exact opaque white. Existing green artwork, source,
+geometry, timing and counter assertions remain unchanged.
+
+J-0098 passed the strengthened receiving journey1/1 (25.9s total). All four
+new row captures were opened: operator preview and HTML/SPX/Caspar each paint
+“Post your question in the chat”. The initial midpoint-brightness proposal for
+the preview was replaced before commit by exact neutral opaque glyph contrast
+against the actual crop background; no guessed brightness allowance is retained.
+
+The final background-relative Next oracle passed j-0099,1/1 in26.4s. All
+four actual new crops were opened and archived at round3-next-row-j0099; the
+three exports paint exact opaque white glyphs, while the scaled operator
+requires opaque neutral glyphs lighter than the captured dark background.
+Final affected lint/app TypeScript and diff checks pass. Explicit fresh main
+fetch remains619ebc835; merge-tree is clean and merge-order has no dependency.
+One committed-source bounded save/adoption matrix follows this checkpoint;
+normal Actions full build/configured/backend and a fresh full SO remain required.

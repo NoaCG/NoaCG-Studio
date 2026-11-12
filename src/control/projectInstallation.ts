@@ -1,22 +1,34 @@
 import { graphicById } from '../model/library';
 import { loadShows } from '../model/shows';
 import { planProjectInstallation, planProjectRollback, reconcileProjectTarget, type ProjectInstallation } from '../model/projectInstallation';
-import { authoringWorkspace, stageAuthoringWorkspace, workspaceRefusal, writeAuthoringWorkspace } from '../model/project';
+import { authoringWorkspace, workspaceRefusal, writeAuthoringWorkspace, stageAuthoringWorkspace, loadProject } from '../model/project';
 import { readableWorkspace } from '../model/authoringDocument';
-import { captureDurableWrites, commitDurableReceipt } from '../model/durableStore';
+import { sameWorkspaceValue } from '../model/workspaceStage';
+import { captureDurableWrites, commitDurableReceipt, libraryInUse } from '../model/durableStore';
 import { validateProductionTemplate } from '../validation/productionGate';
 
 let running = false;
 async function retain(receipt: ProjectInstallation) {
-  const w = authoringWorkspace();
+  const w = authoringWorkspace(), owner = libraryInUse();
   if (!readableWorkspace(w) || workspaceRefusal()) throw new Error(workspaceRefusal() ?? 'Keep these graphics in a project first.');
   const next = { ...w, installations: [...(w.installations ?? []).filter(p => p.id !== receipt.id), receipt] };
   const captured = captureDurableWrites('spx-gfx-project', () => writeAuthoringWorkspace(next));
   const errors = await Promise.all(captured.receipts.map(commitDurableReceipt));
-  if (!captured.receipts.length || errors.some(Boolean)) throw new Error(`${errors.find(Boolean) ?? ''} The installation receipt was not saved. Its outcome is unknown; retry this installation to reconcile it.`.trim());
-  // Preserve a newer live draft staged while this receipt was writing.
-  const latest = authoringWorkspace();
-  stageAuthoringWorkspace(latest === w ? next : readableWorkspace(latest) ? { ...latest, installations: next.installations } : next);
+  if (libraryInUse() !== owner) throw new Error('The library changed while saving. The installation was not submitted.');
+  if (!captured.receipts.length || errors.some(Boolean)) {
+    const latest = authoringWorkspace(), accepted = loadProject()?.workspace;
+    // An unconfirmed status must not survive a refused receipt. Keep every later draft and
+    // operation identity; restore only this unchanged submitted unit to its accepted state.
+    if (readableWorkspace(latest) && readableWorkspace(accepted) && sameWorkspaceValue(latest.installations?.find(p => p.id === receipt.id), receipt)) {
+      const identity = ({ status: _status, error: _error, ...intent }: ProjectInstallation) => intent;
+      const acceptedUnit = accepted.installations?.find(p => p.id === receipt.id), prior = w.installations?.find(p => p.id === receipt.id);
+      const known = acceptedUnit && sameWorkspaceValue(identity(acceptedUnit), identity(receipt)) ? acceptedUnit
+        : prior && sameWorkspaceValue(identity(prior), identity(receipt)) ? prior : receipt;
+      stageAuthoringWorkspace({ ...latest, installations: (latest.installations ?? []).map(p => p.id === receipt.id ? known : p) });
+    }
+    throw new Error(`${errors.find(Boolean) ?? ''} The installation receipt was not saved. Its outcome is unknown; retry this installation to reconcile it.`.trim());
+  }
+  if (workspaceRefusal()) throw new Error(workspaceRefusal()!);
   window.dispatchEvent(new CustomEvent('spx-data-changed'));
 }
 async function exclusive<T>(run: () => Promise<T>): Promise<T> {
@@ -36,7 +48,6 @@ export function installProjectGraphics(target: string, graphicIds: string[]): Pr
       return doc;
     });
     const plan = planProjectInstallation(before, sources);
-    await retain(plan);
     return apply(plan);
   });
 }
@@ -46,8 +57,8 @@ async function apply(plan: ProjectInstallation, rollback = false): Promise<Proje
   if (plan.status === 'rolled-back' && !rollback) throw new Error('This installation was rolled back. Start a new installation.');
   if (rollback && !plan.rollback) {
     plan = planProjectRollback(plan);
-    await retain(plan);
   }
+  await retain(plan); // Retry also confirms any previously refused/lost intent before target submission.
   const result = await reconcileProjectTarget(plan, rollback);
   if (result.status === 'failed') throw new Error(result.error ?? 'The production write was refused. The installation is retained for retry.');
   const next: ProjectInstallation = { ...plan, status: result.status === 'refused' ? 'conflict' : rollback ? 'rolled-back' : 'confirmed', ...(result.error ? { error: result.error } : { error: undefined }) };
