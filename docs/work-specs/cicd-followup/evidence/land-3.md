@@ -103,6 +103,13 @@ conclusion is green whatever its specs do; R3 now reads the per-spec statuses. T
 (84797941, B): a spec that never posted a status passed; R3 now requires one green status per
 listed offline spec, and keeps the run's conclusion.
 
+## Unexplained
+
+Build failed once, on head 9224f4504 (run 43205358671): the E2E protection check could not list
+the catalog specs at `HEAD^1` (an import error at `scripts/e2e-workers.mjs:36`). It did not
+reproduce locally on an exact merge with that main, passed on every later head, and was not
+re-run.
+
 ## The capacity gate
 
 `node scripts/e2e-capacity.mjs --changed origin/main` refuses this change in its overhead tier: it
