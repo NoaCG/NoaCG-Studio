@@ -628,6 +628,11 @@
       "level": "WARN",
       "detail": "Function `public.panel_revoke(p_slug text, p_key_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/panel_revoke`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "authenticated_security_definer_function_executable_public_production_copies_state_": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.production_copies_state()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/production_copies_state`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "authenticated_security_definer_function_executable_public_public_system_notice_": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",

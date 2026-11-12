@@ -58,14 +58,15 @@ end $$;
 revoke all on function public.production_copies_marked() from public, anon, authenticated;
 
 -- What a page and the rollout read: does this request carry the mark, and is the switch on. Two
--- booleans and nothing else.
+-- booleans and nothing else. Recorded in supabase/advisor-baseline.json as a meant definer grant.
 create or replace function public.production_copies_state()
 returns jsonb
 language sql security definer set search_path = '' stable as $$
   select jsonb_build_object('mark', public.production_copies_marked(), 'on', public.production_copies_on());
 $$;
 revoke all on function public.production_copies_state() from public, anon, authenticated;
-grant execute on function public.production_copies_state() to anon, authenticated;
+-- Signed-in pages only: the rollout check and adoption run signed in.
+grant execute on function public.production_copies_state() to authenticated;
 
 -- A sources list with every source's `paused` member taken out: what Connect and Disconnect change
 -- and Pause and Resume do not.
