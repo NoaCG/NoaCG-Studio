@@ -1646,6 +1646,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** The tree as this page holds it: a JSON reader reads the operator's current match from it. */
   const liveDataRef = useRef(liveData);
   liveDataRef.current = liveData;
+  /** Sources the operator picked a current match on since this page's last read of them: that
+   *  read takes the pick as new, so "None" then the held match recovers whatever the timing. */
+  const freshPicks = useRef(new Set<string>());
   /** The operator's current match of a bracket source (OS5b, B11, B14): written to the tree, and
    *  this page's reader reads at once (another tab's at its next read). */
   const currentMatch = useMemo(
@@ -1659,6 +1662,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           setNote('The current match was not picked: this page cannot write the production’s data yet.');
           return;
         }
+        freshPicks.current.add(sourceId);
         // Onto the newest tree, so a write that landed since the last render keeps its value.
         setLiveData(setPath(data.liveData, currentMatchPath(sourceId), matchId ?? ''));
         sourceStatus.poke(sourceId);
@@ -2020,7 +2024,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   fieldsOf,
                   registration,
                   collections: collectionReads(collectionsRef.current, sourceId),
-                  current: { pick: getPath(liveDataRef.current, currentMatchPath(sourceId)), previous },
+                  current: { pick: getPath(liveDataRef.current, currentMatchPath(sourceId)), previous, fresh: freshPicks.current.delete(sourceId) },
                 }),
             }),
           ] as const;

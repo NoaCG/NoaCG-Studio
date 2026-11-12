@@ -390,3 +390,14 @@ test('with no memory (a fresh tree, or an older build held the lease), the bound
   assert.equal(fresh.writes[`${PREFIX}.current.b.name`], 'Elm');
   assert.equal(fresh.writes[`${PREFIX}.current.held`], 'false');
 });
+
+test('a pick taken on this page is new at its next read, so None then the held match recovers whatever the timing', () => {
+  const later = ROWS();
+  later[2].away.who = 'Elm';
+  const previous = { [CURRENT_MEMORY_KEY]: JSON.stringify({ matchId: 'm3', a: 'Aster', b: 'Dahl' }) };
+  const project = (fresh) => projectJson({ sourceId: 'b1', payload: asList(later), bindings: BINDINGS, fieldsOf: (g) => FIELD_LIST[g] ?? null, registration, current: { pick: 'm3', previous, fresh } });
+  assert.equal(project(false).writes[`${PREFIX}.current.held`], 'true');
+  const picked = project(true);
+  assert.equal(picked.writes[`${PREFIX}.current.b.name`], 'Elm');
+  assert.equal(picked.writes[`${PREFIX}.current.held`], 'false');
+});

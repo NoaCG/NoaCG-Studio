@@ -473,7 +473,9 @@ export function adaptForReader(
   sourceId: string,
   payload: unknown,
   setting: unknown,
-  current?: { pick: unknown; previous: Readonly<Record<string, string>> },
+  /** `fresh`: the operator picked since the last read here, so the pick is taken as new whatever
+   *  the memory says (B14 after review). */
+  current?: { pick: unknown; previous: Readonly<Record<string, string>>; fresh?: boolean },
 ): ReaderAdapted | { hold: string } {
   const read = readSourceAdapter(setting);
   if (read.status === 'none') return { payload, said: [], choices: null, own: () => false };
@@ -481,7 +483,7 @@ export function adaptForReader(
     const why = read.status === 'invalid' ? read.error : `the adapter is version ${read.version}; this build reads version ${BRACKET_ADAPTER_VERSION}, so it is held read-only`;
     return { hold: `the adapter cannot be used (${why}), so every value holds` };
   }
-  const adapted = adaptBracket(payload, read.adapter, current ? { pick: pickOf(current.pick), memory: readCurrentMemory(current.previous, sourceId) } : undefined);
+  const adapted = adaptBracket(payload, read.adapter, current ? { pick: pickOf(current.pick), memory: current.fresh ? null : readCurrentMemory(current.previous, sourceId) } : undefined);
   if ('problem' in adapted) return { hold: `the bracket cannot be read (${adapted.problem}), so every value holds` };
   const said: string[] = [];
   let choices: MatchChoice[] | null = null;

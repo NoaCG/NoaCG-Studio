@@ -111,7 +111,7 @@ export function projectJson(o: {
   registration: RegistrationRead;
   /** Whether a collection recipe of the production reads this source. */
   collections?: boolean;
-  current?: { pick: unknown; previous: Readonly<Record<string, string>> };
+  current?: { pick: unknown; previous: Readonly<Record<string, string>>; fresh?: boolean };
 }): ProjectedRead {
   const fingerprint = jsonFingerprint(o.payload);
   if (!o.registration.ok) return { writes: {}, problems: [`the source cannot be used (${o.registration.error}), so every value holds`], fingerprint };
