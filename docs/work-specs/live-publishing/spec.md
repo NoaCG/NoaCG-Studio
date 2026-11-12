@@ -432,7 +432,7 @@ Filled in by each phase's pull request.
 ### Phase 5: The honest light and held Takes
 
 - Design: `designs/G2.md`, graded A+ by an independent `/so` at 13a698c2, landed as #2426.
-- Previous verified `main`: 7e54120d (recorded at the build's last merge from `main`).
+- Previous verified `main`: 8b1a55c9 (the build's last merge from `main`).
 - Revert: `git revert -m 1 <this pull request's merge commit>` brings back today's output (a Take
   for a graphic it does not host is dropped, reports bank whatever was applied) and today's light
   ("Connected" from READY alone). Nothing persisted changed: `state.run` is one more member of a
