@@ -13,7 +13,7 @@
 
 import type { SpxTemplate } from './types';
 import { withProductionSounds } from '../assets/productionSounds';
-import { canonical } from './publishedRecord.ts';
+import { sameTemplate } from './copySettle.ts';
 import type { GenerationSpec } from './generationSpec';
 import type { AiThread } from './aiThread';
 import type { ProjectLegibility } from './designRules';
@@ -473,11 +473,6 @@ export function designEditedAt(graphic: SavedGraphic, _library?: GraphicDoc[]): 
   return graphic.savedAt;
 }
 
-/** A copy whose design a copy-truth build set: `designAt` present and equal to `savedAt`. */
-export function isStamped(graphic: Pick<SavedGraphic, 'savedAt' | 'designAt'>): boolean {
-  return graphic.designAt !== undefined && graphic.designAt === graphic.savedAt;
-}
-
 /** The library record that is newer than a copy and differs from it, the one Update would take:
  *  linked by `graphicId` only (a name match never offers it), edited after the copy's design was
  *  set, and different apart from the template's own name, which is the pool's. */
@@ -485,11 +480,5 @@ export function newerLibraryDesign(graphic: SavedGraphic, library: GraphicDoc[])
   if (!graphic.graphicId) return undefined;
   const doc = library.find((d) => d.id === graphic.graphicId);
   if (!doc || !(Date.parse(doc.updatedAt) > Date.parse(graphic.savedAt))) return undefined;
-  return sameDesign(doc.template, graphic.template) ? undefined : doc;
-}
-
-/** Two templates are the same design when they are equal apart from their `name`, which is
- *  placement: always the pool name inside a production (designs/G1.md, Terms). */
-export function sameDesign(a: SpxTemplate, b: SpxTemplate): boolean {
-  return a === b || canonical({ ...a, name: '' }) === canonical({ ...b, name: '' });
+  return sameTemplate(doc.template, graphic.template) ? undefined : doc;
 }
