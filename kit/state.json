@@ -132,12 +132,18 @@
   "pass": "2026-11-11T11:51Z"
  },
  "retro": [
-  "Phase 1 used 9 /so sessions (1 full A, then 7 deltas B to B+ chasing stale docs one at a time, about 11 USD) before the final A. Builders should sweep the whole class of stale docs once before the first full /so (the traps file says fix every instance of a class in one checkpoint)."
+  "Phase 1 used 9 /so sessions (1 full A, then 7 deltas B to B+ chasing stale docs one at a time, about 11 USD) before the final A. Builders should sweep the whole class of stale docs once before the first full /so (the traps file says fix every instance of a class in one checkpoint).",
+  "Phase 3: the owner-approved fix (#2389) passed a full /so A yet lost an edit on reload; the independent checker caught it with a slowed send plus reload probe. Reload-in-the-window probes belong in every save-path brief."
  ],
  "archiveOnPass": "At each PASS, archive the builder child sessions too: list them by parent_session_id = the builder session (the /runs helper found 8 phase 1 /so sessions left open).",
  "phase3": {
-  "landed": "c0bc989f77bb6523fbe718bd2299f1518d749305",
-  "builderCostUSD": "about 70"
+  "pass": "2026-11-12T00:00Z",
+  "landed": [
+   "c0bc989f",
+   "92e581a7",
+   "0e65d859"
+  ],
+  "costUSD": "about 175 (builder 75, fix 27, repair 40, /so about 20, checkers about 12)"
  },
  "phase9Checklist": [
   "From fix #2388: on a real show, with a mouse and on a touch screen, type into a cue field and press Take (also Next, a quick button, a live number) at once: it airs with the typed text with no pause, and the text is still there after a reload straight after the press. In air-edit mode, a Take from elsewhere while typing keeps the typed text.",
