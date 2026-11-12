@@ -35,10 +35,18 @@ failed full VFS image pull is not repeated with unchanged capacity.
    legibility, sample values, undo/redo and view receipts. Switching first
    confirms the departing snapshot; a refused write leaves that document open.
    Reload and Home reopen select that document's own draft and history.
+   Every slot writer (autosave, Save/Save As, discard, external replacement and
+   sync pull) preserves the workspace envelope. Unknown workspace versions block
+   destructive slot rewrites. Singleton last-write-wins retains the October
+   single-active-tab/device boundary; no concurrent/cross-device history claim.
 2. The current source and its history are one revision identity. Restoring a
    document closes the previous session and invalidates pending gestures,
    clipboard and proposals. A command for an old instance cannot edit the next
-   document. Undo/redo never crosses document identities. External whole-document
+   document. An in-flight Save must settle against its original document/session
+   before switching; a pending answer never belongs to another document. Save
+   reservations and retry links belong to their document, including dormant
+   documents. Conflict recovery repairs affected dormant links too.
+   Undo/redo never crosses document identities. External whole-document
    replacement cannot silently attach to an existing project document.
 3. Draft persistence never reports an explicit library Save. Existing Save/Save
    As, refused-save recovery and minted-record reservations retain their existing
@@ -58,7 +66,10 @@ failed full VFS image pull is not repeated with unchanged capacity.
    prior source/assets; redo restores the branded source. Reapplication compares
    current values with that document's previous brand application: local role,
    typeface and logo overrides survive. Unselected documents and library/air
-   copies do not change. Unsupported brand metadata is refused, not guessed.
+   copies do not change. Source, assets and previous-applied brand values move
+   together through undo, redo, reload and switching. Logo identity includes its
+   bytes and slot state as well as its path. Unsupported brand metadata is
+   refused, not guessed.
 6. Installing selected saved documents into a personal production snapshots
    their approved library sources through the existing production gate. Stable
    operation identity and source/target snapshots are durable before target
@@ -71,7 +82,16 @@ failed full VFS image pull is not repeated with unchanged capacity.
    absence of an answer is never success. Rollback applies only while the
    production still equals the operation's confirmed after-snapshot. Newer edits
    produce a visible conflict and remain intact. Refused writes retain a
-   retryable receipt and last confirmed production. Team productions retain
+   retryable receipt and last confirmed production. Prepared/accepted means the
+   before/after snapshots and fixed graphic/cue IDs are stored before target
+   submission; confirmed means the exact target after-state was observed. A
+   refused target write leaves before-state; missing target or receipt answers
+   stay unknown/interrupted. After reload, exact before-state permits retry with
+   those same IDs; exact after-state permits confirmation without replay; any
+   other state is a conflict. Failure of the confirmation receipt after a landed
+   target write remains unknown. Retry and rollback compare-and-write atomically
+   against stored production state while preserving other productions.
+   Team productions retain
    their existing path and are not silently treated as personal records.
 8. Export fixtures are built by the shipped exporters from the verified saved
    source, with bundled font/logo, hashes, expected output and receiving steps.
@@ -96,4 +116,21 @@ receiving-system leads remain those in [E1](e1-notes.md); none is claimed availa
 
 ## Verification and later rules
 
-Pending. No implementation or acceptance PASS is claimed by this rules checkpoint.
+Rules-first fresh reviewer `/root/editor_r15_e4_cloud_builder/e4_rules_first_so`
+reviewed base `91a57833c972f214b45fa7357faf4e830c547e21` and checkpoint
+`0515e370d5c58185430ea08066d0c0b10e7e9996`: **AGREE WITH CORRECTIONS**.
+All three corrections are incorporated above before product edits: every slot
+writer and dormant save ownership; undoable brand receipts including logo bytes;
+atomic before/after reconciliation across the target/receipt crash window.
+The reviewer independently recommends keeping the existing account singleton.
+No implementation or acceptance PASS follows from that Rules-first judgment.
+
+Cloud queued baseline probe `j-0043` reproduced the missing project controls on
+the admission source: Project lists only House Strap, assets and operator fields;
+its only buttons are Close, Import files, Template graphic, Bin and Upload sound.
+The preceding probe `j-0042` failed before navigation with `ERR_CONNECTION_REFUSED`
+against 127.0.0.1. The sanctioned dev server reported a localhost binding; using
+that reported address fixed the diagnostic setup. This is retained as an
+infrastructure failure, not a product pass or a test retry.
+
+Implementation/runtime verification pending.
