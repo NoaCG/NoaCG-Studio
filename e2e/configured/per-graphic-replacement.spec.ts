@@ -269,7 +269,8 @@ test('a Take of a graphic still loading plays once loaded, a cancelled one never
   const tones: string[] = [];
   const b = outputs[1].page;
   while (Date.now() - tookAt < 30_000) {
-    const run = (await readyOf(b))?.run as { h: Record<string, unknown> } | undefined;
+    // What Desk B has run, as its Presence entry says it (live-publishing G2 section 1).
+    const run = await b.evaluate(() => (window as unknown as { __noacgLive: { entry(): { ready?: { run?: { h: Record<string, unknown> } } } } }).__noacgLive.entry().ready?.run);
     const held = !run || Object.keys(run.h).length > 0;
     const tone = (await status.getAttribute('data-tone')) ?? '';
     if (!held && (await b.locator(`iframe[title="${STRAP}"]`).count()) > 0) break;
@@ -279,7 +280,9 @@ test('a Take of a graphic still loading plays once loaded, a cancelled one never
   expect(tones.length, 'the light was sampled while Desk B held the Take').toBeGreaterThan(4);
   expect(tones.filter((t) => t === 'ok'), 'the light is never green while an output holds a Take').toEqual([]);
   // Desk B waited past 5 s: its Take appeared without its entrance, and it says so.
-  await expect.poll(async () => ((await readyOf(b))?.lt ?? []).map((l: { g: string }) => l.g), { timeout: 60_000 }).toContain(STRAP);
+  await expect
+    .poll(() => b.evaluate(() => ((window as unknown as { __noacgLive: { entry(): { ready?: { lt?: { g: string }[] } } } }).__noacgLive.entry().ready?.lt ?? []).map((l) => l.g)), { timeout: 60_000 })
+    .toContain(STRAP);
 
   for (const { page: air, name } of outputs) {
     // The strap ran once on each output; the second strap was cancelled while it loaded and was
