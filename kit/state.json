@@ -36,8 +36,8 @@
  },
  "waitingOn": [
   {
-   "what": "owner answers Q1-Q3 for phase 4 build #2408",
-   "eta": "owner"
+   "what": "#2316 merge, then re-run CI on #2408 (capacity) and stamp it",
+   "eta": "2026-11-12T09:30:00Z"
   }
  ],
  "inFlight": [
@@ -64,7 +64,7 @@
    "where": "backlog, not run scope"
   },
   {
-   "what": "Follow-ups filed by the phase 3 fix: #2392, #2394, #2400",
+   "what": "Follow-ups filed by the phase 3 fix: #2392, #2394, #2400, #2412, #2413 (phase 4 owner A answers)",
    "where": "backlog, not run scope"
   }
  ],
@@ -87,6 +87,11 @@
    "pr": 2389,
    "head": "09fd191950227b0c8e9ed9265cf75dacb6a2dffc",
    "ac1After": "production build, stalled, p95: graphic 18.8, picture 12.7, quick 13.8, +1 12.8, Next 11.2, large graphic 26.1, folder 20.3, server 48.2 ms; met on every path measured"
+  },
+  {
+   "what": "Land #2316 durations refresh (owner Q1 A)",
+   "pr": 2316,
+   "state": "in merge queue 2026-11-12T08:25:38Z"
   }
  ],
  "triggers": {
