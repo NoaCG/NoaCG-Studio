@@ -443,6 +443,16 @@ export function refreshTeams(asked = true): Promise<void> {
 }
 
 /** Confirm this production's pending edits before an operator requests a fresh cloud read. */
+/** Whether this tab's team record still holds a copy the send-time settle would change against the
+ *  server's copy (live-publishing G1 section 3). A publish or export whose flush failed stops on it:
+ *  the save returns before settling when storage refuses, and the record must not leave unsettled. */
+export function teamSettleOwed(id: string): boolean {
+  const known = server.get(id);
+  const local = loadTeamShows().find((s) => s.id === id);
+  if (!known || !local) return false;
+  return settleGraphics(local.graphics, known.doc.graphics, new Date().toISOString()).changed;
+}
+
 export async function flushTeamProduction(id: string): Promise<string | null> {
   const owner = running;
   if (!owner || !canAuthorAccount() || owner.userId !== libraryInUse()) return 'Sign in to refresh this team production. Pending work is preserved.';

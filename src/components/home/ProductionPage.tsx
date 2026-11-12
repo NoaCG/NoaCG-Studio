@@ -613,10 +613,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * cannot move what this operator is holding. Re-reading after this tab's OWN write is
    * harmless: it reads back what it just wrote.
    */
-  /** Bumped when the stored library moves (a library edit here or in another tab, or this page's own
-   *  own-reader migration, data-sources C6), so "Newer design in library" and the Sheet-reader
-   *  gates read it as it now is. What plays is the production's copy, never this. */
+  /** Bumped only by this page's own-reader migration (data-sources C6). `library` feeds the monitors,
+   *  the measurer and the pool machines, so a library edit elsewhere must not move it: a new identity
+   *  rebuilds the program payload and restarts the monitor under the operator. */
   const [libraryRev, setLibraryRev] = useState(0);
+  /** Bumped when the stored library moves (a library edit here or in another tab, a sync pull), for
+   *  "Newer design in library" and Update only. What plays is the production's copy, never this. */
+  const [designLibraryRev, setDesignLibraryRev] = useState(0);
   useEffect(() => {
     // The library is read again only when it moved (by reference, no parse), so a cue save costs
     // nothing here and a library edit reaches "Newer design in library" (live-publishing O4).
@@ -624,13 +627,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const onDataChanged = () => {
       setShows(loadShows());
       const now = libraryStoreText();
-      if (now !== libraryText) { libraryText = now; setLibraryRev((n) => n + 1); }
+      if (now !== libraryText) { libraryText = now; setDesignLibraryRev((n) => n + 1); }
     };
     window.addEventListener('spx-data-changed', onDataChanged);
     return () => window.removeEventListener('spx-data-changed', onDataChanged);
   }, []);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read only when the stored library moved
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read only on this page's own-reader migration
   const library = useMemo(() => loadGraphics(), [libraryRev]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read only when the stored library moved
+  const designLibrary = useMemo(() => loadGraphics(), [libraryRev, designLibraryRev]);
   // Fresh picker choices must not replace the library identity held by running monitor frames.
   // eslint-disable-next-line react-hooks/exhaustive-deps -- data-change events refresh shows and the library together
   const pickerLibrary = useMemo(() => loadGraphics(), [shows]);
@@ -3278,14 +3283,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // NEWER DESIGN IN LIBRARY, AND UPDATE (live-publishing O4, designs/G1.md section 2): the copy is
   // what plays; a newer library design comes in only here, through the rundown's history (one undo
   // step), the production gate first, and naming a field it drops before it takes the design.
-  const newerDesign = poolGraphic ? newerLibraryDesign(poolGraphic, library) : undefined;
+  const newerDesign = poolGraphic ? newerLibraryDesign(poolGraphic, designLibrary) : undefined;
   const designUpdate = show && poolGraphic && newerDesign ? (() => {
     const dropped = droppedFields(show, poolGraphic, newerDesign.template);
     const cuesUsing = (show.cues ?? []).filter((c) => c.source !== 'playout' && c.sourceId === poolGraphic.id).length;
     return {
       dropped: dropped.length ? `Update drops ${dropped.join(', ')} from ${cuesUsing} cue${cuesUsing === 1 ? '' : 's'}.` : null,
       run: async () => {
-        const refused = productionGateFailures([{ ...poolGraphic, template: newerDesign.template }], library);
+        const refused = productionGateFailures([{ ...poolGraphic, template: newerDesign.template }], designLibrary);
         if (refused.length) { setRundownNote(describeProductionGate(refused)); return; }
         await history.write(() => updateCopyFromLibrary(show.id, poolGraphic.id, newerDesign, poolGraphic.savedAt), `Update ${poolGraphic.name}`);
       },

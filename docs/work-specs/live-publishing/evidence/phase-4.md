@@ -52,6 +52,14 @@ changes).
   section 2 said that door would ask the dropped-field question too; the build first refused such
   an add, which broke the wizard's re-import "Replace anyway", a replacement it had already
   confirmed after naming what the new version drops. Cue values are never deleted by either door.
+  Four other doors add by name and replace the same way without asking, as they did before this
+  build: the rundown's add (`CueRundown.tsx`), a library row and the Graphics section's
+  "+ Production" (`GraphicRow.tsx`, `GraphicsSection.tsx`) and the control page's
+  (`GraphicControlPage.tsx`). Whether they should ask the dropped-field question is an owner choice
+  left open; this build does not change them.
+- A community pack built from a personal production (`community/packSources.ts`) reads the copies
+  and is not settled. It is not a send of the production: it carries only the maker's own graphics
+  to the shelf, never to an output, and settling would need a cloud read inside a synchronous list.
 
 - The personal sync settle is called by the sync engine directly, not through a hook the app
   registers (G1 section 3 said a registration). `backend/` may import the kernel, and
@@ -60,7 +68,14 @@ changes).
 - A team publish or export flushes the team save first (`flushTeamProduction`), which settles; with
   nothing pending the team record is the stored document, which needs no settle.
 - The production page re-reads its library only when the stored library moved, compared by
-  reference (`libraryStoreText`), so a cue save on a live page parses nothing extra.
+  reference (`libraryStoreText`), so a cue save on a live page parses nothing extra. That re-read
+  feeds only "Newer design in library" and Update (`designLibrary`); the library the monitors,
+  measurer and pool machines read still moves only on the page's own-reader removal, so a library
+  edit mid-show never rebuilds the program monitor (the final /so's finding 1, now held by the
+  publish guard walk's frame check).
+- A move to a team settles first (`ShareWithTeamDialog.tsx`), and a team publish or export whose
+  flush failed stops while a settle is still owed (`teamSettleOwed`): the save returns before
+  settling when browser storage refuses.
 - The new browser checks live in the publish guard's maintained configured spec
   (`e2e/configured/publish-guard.spec.ts`, describe "production copies"), not a new file: the
   capacity gate refuses a new backend-tier file while backend growth is stopped, and the repo's own
@@ -91,6 +106,22 @@ changes).
   next push carried the pulled design. The configured walk caught it (job j-0002, the assertion
   "not 'pulled by an old page'" failed on both attempts). Fixed by settling against the server's
   copy before adopting (`useCopyAdoption.ts`); the same walk passes after (j-0003, j-0004).
+
+- CI on aa58ff6 failed `shared-lab-computer.spec.ts` twice and the AC-2 walk once. Cause: the
+  guard-route test posted a `look` with an empty body to the test account and left it. A look body
+  without its id is posted again as a new row by every sync pass (existing behaviour on `main`, not
+  this build's), so the account grew by one look per pass, the sync never read Synced, and an old
+  page's passes went to the conflict branch. The test now writes a well-formed look and deletes it
+  at once. The multiplying sync of an id-less look is left as found, out of this phase's scope.
+- Adoption could be lost until the next reload: the hook marked a production tried before its
+  async run, and a re-render with new inputs cancelled that run, so the next run found it tried
+  and stopped. Hidden while the polluted account above made every pass slow; once cleaned, the
+  AC-2 walk failed 4 of 4 at the adoption step (j-0028). A run cut short now clears the mark
+  (`useCopyAdoption.ts`); the same walk then passed 3 of 3 (j-0030). The walk also waits for the
+  production's record to reach the cloud before reading it.
+- `e2e/shows.spec.ts` "a rundown export ships the LIVE graphic" encoded the library-first export
+  that R1 reverses. It now checks both sides: the export ships the copy, and after Update it ships
+  the library edit.
 
 ## Verification
 

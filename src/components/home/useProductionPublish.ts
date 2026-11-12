@@ -49,7 +49,7 @@ import { claimJoinName, outputPageUrl, publishControlShow, PublishBehind, type C
 import { fastEventGraphics } from '../../control/matchClockWire';
 import { type CasparFacts } from './PlayoutPanel';
 import { copyLink } from './copyLink';
-import { flushTeamProduction, refreshTeams } from '../../backend/teamProductions';
+import { flushTeamProduction, refreshTeams, teamSettleOwed } from '../../backend/teamProductions';
 import { settleProductionForSend } from '../../backend/syncController';
 import { type PayloadVersion } from '../../control/payloadVersion';
 import { type HeldVersion } from '../../control/readiness';
@@ -433,8 +433,11 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
           setShows(refreshed.shows);
           if (refreshed.error) throw new Error(refreshed.error);
           // A team save that fails does not stop the publish (G2): an older design is still refused.
-          if (team) await flushTeamProduction(show.id);
-          else {
+          // It does stop it while a settle is still owed, so a pulled design never publishes.
+          if (team) {
+            const flushError = await flushTeamProduction(show.id);
+            if (flushError && teamSettleOwed(show.id)) throw new Error(flushError);
+          } else {
             const failure = await commitDurableWrites();
             if (failure) throw new Error(failure);
             // A personal production is settled against the cloud's record first, so a design an

@@ -7,7 +7,7 @@ import { buildPack, packFileName } from '../../packs/graphicsPack';
 import { productionGateFailures } from '../../validation/productionGate';
 import { loadShows, type Show } from '../../model/shows';
 import { settleProductionForSend } from '../../backend/syncController';
-import { flushTeamProduction } from '../../backend/teamProductions';
+import { flushTeamProduction, teamSettleOwed } from '../../backend/teamProductions';
 import { useModalGate } from '../spaceKey';
 import { measureExportAppearances } from './exportAppearances';
 import { cueAdjusted } from '../../control/exportAppearance';
@@ -67,8 +67,10 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
   // settles it, and a personal one is settled against the cloud's record. Offline, the copies go
   // as stored, which is what this browser's monitors show.
   const settledForExport = async (): Promise<Show> => {
-    if (show.teamId) await flushTeamProduction(show.id);
-    else {
+    if (show.teamId) {
+      const flushError = await flushTeamProduction(show.id);
+      if (flushError && teamSettleOwed(show.id)) throw new Error(flushError);
+    } else {
       const unsettled = await settleProductionForSend(show.id);
       if (unsettled) throw new Error(unsettled);
     }

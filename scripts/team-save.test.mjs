@@ -255,3 +255,23 @@ test('a team save drops a design an older page pulled from the library, before t
   assert.equal(await saving, null);
   assert.equal(h.retained(), null);
 });
+
+// A publish or export stops when its flush failed before settling (storage refused): the record still
+// owes the settle, and teamSettleOwed says so. Once settled, or with nothing pulled, nothing is owed.
+test('a flush that storage refused leaves the settle owed, so a team publish stops on it', async () => {
+  const tpl = (html) => ({ name: 'Strap', html, css: '', js: '', assets: [], fields: [] });
+  const base = { id: 'g1', name: 'Strap', type: 'lower-third', savedAt: '2026-11-01T00:00:00.000Z', designAt: '2026-11-01T00:00:00.000Z', template: tpl('<p>base</p>'), layer: 20 };
+  const pulled = { ...base, template: tpl('<p>pulled</p>'), savedAt: '2026-11-02T00:00:00.000Z', designAt: '2026-11-01T00:00:00.000Z' };
+  const h = harness(true, [pulled], undefined, copySettle);
+  h.controller.seedBaseForTest({ id: 'show', teamId: 'team', version: 2, name: 'First edit', graphics: [base] });
+  assert.equal(h.controller.teamSettleOwed('show'), true);
+  const saving = h.controller.flushTeamProduction('show');
+  h.disk.resolve('Browser storage is full.');
+  assert.equal(await saving, 'Browser storage is full.');
+  assert.equal(h.requests.length, 0);
+  assert.equal(h.controller.teamSettleOwed('show'), true, 'the failed flush did not settle');
+
+  const clean = harness(true, [base], undefined, copySettle);
+  clean.controller.seedBaseForTest({ id: 'show', teamId: 'team', version: 2, name: 'First edit', graphics: [base] });
+  assert.equal(clean.controller.teamSettleOwed('show'), false, 'nothing pulled, nothing owed');
+});

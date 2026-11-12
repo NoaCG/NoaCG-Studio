@@ -454,7 +454,10 @@ test.describe('production copies (live-publishing W2)', () => {
       expect(await refused(await rest(`control_shows?id=eq.${id}`, { method: 'DELETE' })), 'an unpublish').toBe(true);
       expect((await rest(`control_shows?id=eq.${id}`, { method: 'PATCH', body: { sources: source({ paused: true }) } })).status, 'a Pause passes').toBeLessThan(300);
       expect((await rest(`control_shows?id=eq.${id}`, { method: 'PATCH', body: { output_seen_at: new Date().toISOString() } })).status, 'a heartbeat passes').toBeLessThan(300);
-      expect((await rest('documents', { method: 'POST', body: { id: crypto.randomUUID(), user_id: user, kind: 'look', name: 'Look', body: {} } })).status, 'another kind passes').toBeLessThan(300);
+      // Another kind passes. Deleted at once: the test account's sync pulls every look it holds.
+      const look = crypto.randomUUID();
+      expect((await rest('documents', { method: 'POST', body: { id: look, user_id: user, kind: 'look', name: 'Look', body: { id: look, updatedAt: new Date().toISOString() } } })).status, 'another kind passes').toBeLessThan(300);
+      await service(`documents?id=eq.${look}`, { method: 'DELETE' });
       expect((await save(3, true)).status, 'a marked save passes').toBeLessThan(300);
       const kept = await (await service(`documents?id=eq.${id}&select=body`)).json();
       expect(kept[0].body.updatedAt, 'the refused save stored nothing').toBe('2026-11-12T00:00:03.000Z');
@@ -506,6 +509,21 @@ test.describe('production copies (live-publishing W2)', () => {
 
     // A library edit, then a broken library record: nothing a publish carries changes, no publish is
     // asked for, and the cue editor offers the newer design.
+    // The program monitor's frames carry a mark and count their loads; a library edit must neither
+    // replace nor reload one (G1 R1: a library change reaches no monitor).
+    const markFrames = () => page.evaluate(() => {
+      const frames = [...document.querySelectorAll<HTMLIFrameElement>('[data-testid="program-stage"] iframe')];
+      for (const f of frames) {
+        if (f.dataset.kept) continue;
+        f.dataset.kept = '0';
+        f.addEventListener('load', () => { f.dataset.kept = String(Number(f.dataset.kept) + 1); });
+      }
+      return frames.length;
+    });
+    const keptFrames = () => page.evaluate(() => [...document.querySelectorAll<HTMLIFrameElement>('[data-testid="program-stage"] iframe')]
+      .filter((f) => f.dataset.kept === '0').length);
+    await expect.poll(markFrames, { timeout: 30_000 }).toBeGreaterThan(0);
+    const framesBefore = await markFrames();
     await page.evaluate(async (name) => {
       const { loadGraphics, updateGraphic } = await import('/src/model/library.ts');
       const { commitDurableWrites } = await import('/src/model/durableStore.ts');
@@ -516,6 +534,7 @@ test.describe('production copies (live-publishing W2)', () => {
     await expect(page.getByTestId('newer-design')).toContainText('Newer design in library', { timeout: 15_000 });
     await expect(page.getByTestId('production-publish-changes')).toHaveCount(0);
     expect((await stored(showId)).css, 'the published row is as it was').toBe(first.css);
+    expect(await keptFrames(), 'a library edit reloads no program monitor frame').toBe(framesBefore);
 
     // Update takes it in, keeping the cue, its values, the layer and the link.
     const before = await page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)!, showId);
@@ -542,6 +561,8 @@ test.describe('production copies (live-publishing W2)', () => {
 
     // The switch goes on. Adoption: a stored copy from before copy truth (no stamp) is stamped once on
     // the next visit, and the production still reads as published.
+    // The production's own record goes up through the personal sync; wait for it to carry Update's design.
+    await expect.poll(async () => (await stored(showId)).body?.graphics?.[0]?.template.css ?? '', { timeout: 60_000 }).toContain('library v2');
     await setSwitch(true);
     const legacy = (await stored(showId)).body!;
     const unstamped = { ...legacy, updatedAt: new Date().toISOString(), graphics: legacy.graphics.map((g) => { const c = { ...g }; delete c.designAt; return c; }) };

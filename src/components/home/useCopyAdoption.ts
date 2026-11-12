@@ -22,6 +22,7 @@ export function useCopyAdoption(show: Show | null, canWrite: boolean, setShows: 
     if (!id || !canWrite || !owes || tried.current === id) return;
     tried.current = id;
     let alive = true;
+    let finished = false;
     void (async () => {
       const state = await readCopiesState();
       if (!alive || !state?.on) return;
@@ -43,7 +44,12 @@ export function useCopyAdoption(show: Show | null, canWrite: boolean, setShows: 
       setShows(result.shows);
       // A background write that reports nothing: the app-level dialog announces an unclaimed failure.
       if (!result.error) void commitDurableWrites();
-    })();
-    return () => { alive = false; };
+    })().finally(() => { finished = true; });
+    // A run cut short (the page re-rendered with new inputs) is tried again by the next one; every
+    // step is safe to repeat. Only a run that ended keeps this production from being tried twice.
+    return () => {
+      alive = false;
+      if (!finished && tried.current === id) tried.current = null;
+    };
   }, [id, canWrite, owes, setShows]);
 }
