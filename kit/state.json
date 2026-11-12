@@ -67,9 +67,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "build / third combined repair after reassessment",
+      "step": "build / third committed repair bounded regression",
       "pr": 2438,
-      "note": "Confirmed workspace-adoption data loss and unknown-version downgrade. Full review B and fresh whole-writer reassessment completed; one complete third repair under existing limits. No queue stamp/auto-merge."
+      "note": "42be82a9 committed clean locally; adoption/unknown guards, pending-write generation and confirmed-retention fixes verified. 113 gates/30 oracles and actual painted Next proof passed. Await bounded regression, then one push and fresh CI/backend/reviews."
     }
   ],
   "owner": [
@@ -1458,7 +1458,7 @@
     "requestSha256": "bcfabef5e1347043b92cde2edc0f69da57df24eda1c49e7415c7ce4bd8281754",
     "brief": "briefs/e4-build-e4-b-cloud-1112.txt",
     "briefSha256": "2c7379c7dc2988405d565f2a2e1d72393a398e1f3cd671cf7bc4744cfd2e9888",
-    "status": "Third complete repair authorized underexistinglimits after completedB and mandatory fresh model reassessment; no newscope orallowance",
+    "status": "Thirdrepairlocalcommit42be clean, alltargetedgates/sourceoracle/actualNextpaint PASS; boundedsource-pinnedregression pending beforeonepush/exactheadgates",
     "rulesFirst": {
       "head": "0515e370d",
       "verdict": "AGREE WITH CORRECTIONS",
@@ -1763,7 +1763,44 @@
         "j0088": "Legacyadoption+independentdoc historiesPASS2/2 12.6s afterproductcorrection",
         "j0089": "Maintainedbrowser serialtabreturn/actualadoptedmembership+bundles+journal verifiedfromTHIRDfreshpage, plusv99byteidentitywithpopulatedoldstage/allwriters:2/2PASS16.9s; rootreadlogs",
         "j0090": "Heldproject/install/rollback receipt interleavings keep later view/sample/history/source throughordinaryslotwrite:3/3PASS18.5s; rootreadlogs",
-        "limits": "Samecombinedthirdrepair, allpriorfailures/assertions retained; no sleeps/retries/skips/selection/limits/exception changes"
+        "limits": "Samecombinedthirdrepair, alloriginalfailures/assertions/capsretained; no sleeps/retries/skips/selection/limits/exceptionchange. NewwrongtestrepresentationcorrectedtoactualAAcompositingmodel, no productalteration.",
+        "j0091": "NewheldSaveAsfixturefailedwrongundefinedexpectation; existingAPIreturnsnull. Correctedstrictnull, nolowerassertion",
+        "j0092": "3/3PASS18.8s withactualSaveAsBEFOREheldreceiptrelease, oldlinkunchangedwhilepending, finalnewlink/source/reloadchecked",
+        "j0093": "31/32E4casesPASS; productfailurefailedstagedexternalretentioncountedasconfirmed,bypassingunchangedHomecancelguard",
+        "acceptedVersusStagedFix": "CentralcurrentAuthoringDocument usesconfirmedsnapshotmembership, pendingdraftsretainedforrecovery/retry; open/create/keep awaitpersistence; intentreconfirmedbeforetarget; exactunchangedsubmittedunitrestoredonrefusedfinalstatus, laterworkpreserved",
+        "j0094": "5PASS includingcancel/serial/heldwrites; productrefinementresetbaselineonidempotentsameprivate reopen, originalidempotenceassertionunchanged",
+        "j0095": "4/4PASS21.7s independentdraft/cancel/baselineSaveAs/oldcommandimmediate-refusal; genuineotherdocument loads latestconfirmedbundle",
+        "j0096": "4/4PASS21.5s includesexplicit SAMEprivate adoptedrevisionrefusal\u2192reloadexactbundle\u2192newbindingrejectsoldpackets; rootread",
+        "j0097": "NewNextoperatorpixeloracleFAIL wronglyrequiredexact255at60x7subpixeltext; actualglyphspa inted224. Wrongrepresentationretained, no product/sample/layout/timingchange",
+        "j0098": "ReceivingstrongerNextproof1/1PASS25.9s; rootread",
+        "j0099": "Finalreceiving1/1PASS26.4s afterremovingguessedcutoff: exactauthoredwhite/text/geometry/ancestorclip +actualopaqueglyphcontrast, fullresexportsstillrequireexactopaque255. Rootviewedoperator+HTMLNextrows andanalyzedall4stablearchivedPNGs",
+        "nextPixels": {
+          "archive": "endurance-output/e4-engineering/round3-next-row-j0099",
+          "operator": {
+            "size": [
+              60,
+              7
+            ],
+            "opaqueNeutralGlyphPixels": 49,
+            "maxNeutral": 224,
+            "exactWhitePixels": 0
+          },
+          "allThreeExportsEach": {
+            "size": [
+              368,
+              37
+            ],
+            "exactOpaqueWhitePixels": 1786
+          }
+        }
+      },
+      "localCandidate": {
+        "head": "42be82a91ad3ad32c6208b70cf1239cf7b46d916",
+        "status": "Committedclean, NOTpushed; source-pinnedbounded7files/12min matrix inprogress/admission, no wholebuild",
+        "main": "619ebc8358f212410bce16e6cd5ce6682b94d5a7",
+        "reconciliation": "Workerexplicitfetch/merge-treeclean/orderclear",
+        "targeted": "113/113gates,30/30maintainedsourceoracle(17workspace+13fontcodec),lint/appTS/dependency0PASS",
+        "scope": "7fileschangedvs4de; newpure34lineworkspaceStage plusactualproject/store/installlifecyclecallers, maintainednodeoracle/browsercases/notes; no workflow/limits/schema/license change"
       }
     }
   },
