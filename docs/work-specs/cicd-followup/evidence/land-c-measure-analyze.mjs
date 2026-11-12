@@ -142,7 +142,7 @@ const firstHead = (pr) => (runsOf.get(pr) ?? [])[0]?.head_sha;
 const thresholds = [3, 5, 8, 12, 20, 30, 45, 60, 120].map((cap) => {
   const fits = (x) => { const w = wall(x.plan.direct.specs); return w > 0 && w <= cap ? w : 0; };
   const caughtEvery = new Set(failures.filter((f) => f.cause === 'defect' && f.where === 'direct' && f.direct_wall_min <= cap).map(ownRuns));
-  const caughtFirst = new Set(failures.filter((f) => f.cause === 'defect' && f.where === 'direct' && f.direct_wall_min <= cap && runsOf.get(f.pr)?.[0] && f.sha === firstHead(f.pr).slice(0, 12)).map(ownRuns));
+  const caughtFirst = new Set(failures.filter((f) => f.cause === 'defect' && f.where === 'direct' && f.direct_wall_min <= cap && f.sha === firstHead(f.pr)?.slice(0, 12)).map(ownRuns));
   const costFirst = sample.reduce((t, x) => t + fits(x), 0) / sample.length;
   const costEvery = sample.reduce((t, x) => t + fits(x) * heads(x.pr), 0) / sample.length;
   const per = (n) => (n * BOUNCE.median) / merged.length;

@@ -90,7 +90,6 @@ for (const [k, name] of readdirSync(join(CACHE, 'changed')).sort().entries()) {
       for (const s of conf) directConfigured.add(s);
       if (mine.length || conf.length) perFile[f] = { specs: mine, configured: conf };
     }
-    writeFileSync(traced, text);
     const fullSpecs = full.mode === 'full' ? suite : (full.specs ?? []).map(bare);
     writeFileSync(target, JSON.stringify({
       sha, files: files.length, broadSwitch: hasSwitch,
