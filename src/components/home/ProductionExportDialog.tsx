@@ -5,7 +5,9 @@ import { loadGraphics } from '../../model/library';
 import { loadPrefs, savePrefs } from '../../model/prefs';
 import { buildPack, packFileName } from '../../packs/graphicsPack';
 import { productionGateFailures } from '../../validation/productionGate';
-import type { Show } from '../../model/shows';
+import { loadShows, type Show } from '../../model/shows';
+import { settleProductionForSend } from '../../backend/syncController';
+import { flushTeamProduction } from '../../backend/teamProductions';
 import { useModalGate } from '../spaceKey';
 import { measureExportAppearances } from './exportAppearances';
 import { cueAdjusted } from '../../control/exportAppearance';
@@ -50,7 +52,8 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
     try {
       savePrefs({ defaultExportTarget: targetId });
       // Place and size are measured as the package will load each graphic, then baked.
-      await downloadShowZipFor(show, targetId, { appearances: await measureExportAppearances(show, targetId) });
+      const sent = await settledForExport();
+      await downloadShowZipFor(sent, targetId, { appearances: await measureExportAppearances(sent, targetId) });
       const label = EXPORT_TARGETS.find((t) => t.id === targetId)?.label ?? targetId;
       setNote(`✓ Exported the production as ${label}.`);
     } catch (e) {
@@ -60,13 +63,25 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
     }
   };
 
+  // A file leaves like a send (live-publishing G1 section 3): a team production goes up first, which
+  // settles it, and a personal one is settled against the cloud's record. Offline, the copies go
+  // as stored, which is what this browser's monitors show.
+  const settledForExport = async (): Promise<Show> => {
+    if (show.teamId) await flushTeamProduction(show.id);
+    else {
+      const unsettled = await settleProductionForSend(show.id);
+      if (unsettled) throw new Error(unsettled);
+    }
+    return loadShows().find((s) => s.id === show.id) ?? show;
+  };
+
   // The ROUND-TRIP file (src/packs/graphicsPack.ts): not a playout package - the whole
   // production as one re-importable .noacgpack.json graphics pack, rundown included.
   const downloadPack = async () => {
     setBusy(true);
     setNote(null);
     try {
-      const pack = await buildPack(show);
+      const pack = await buildPack(await settledForExport());
       const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

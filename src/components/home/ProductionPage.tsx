@@ -133,7 +133,8 @@ import ProductionAudienceWorkspace, { useMessageSources } from './ProductionAudi
 import { pollFieldMap } from '../../control/resultStaging';
 import { useAudienceInbox, useMessagesBackend } from './useAudienceInbox';
 import { createSheetInbox } from '../../audience/sheetMessages';
-import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
+import { designEditedAt, loadGraphics, newerLibraryDesign, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
+import { describeProductionGate, productionGateFailures } from '../../validation/productionGate';
 import { captureLookFromTemplate, loadLooks, type SavedGraphic } from '../../model/packets';
 import { measureId, placedAppearance, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
 import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, takeAppearance, updateAppearance, type MeasureJob } from '../../control/adjustGeometry';
@@ -151,6 +152,7 @@ import { publishedAdjustOf } from '../../control/hostedAdjust';
 import { formerReaders as storedFormerReaders, setFormerReaders as setStoredFormerReaders, setOwnReaderHolds } from '../../model/ownReaderHolds';
 import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/liveData';
 import { canonical } from '../../model/publishedRecord';
+import { droppedFields, updateCopyFromLibrary } from '../../model/shows';
 import { setCueSelection, setCueTyped, setCueTypedArgs, setCueTypedValues, setGraphicSounds } from '../../model/shows';
 import { forgetOwedCueEdit, keepOwedCueEdit, readOwedCueEdit } from '../../model/owedCueEdit';
 import ProductionSounds from './ProductionSounds';
@@ -3265,6 +3267,22 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const descriptors = editorTemplate ? fieldDescriptors(editorTemplate.fields) : [];
   /** The edited graphic's layer, and who else is on it when two graphics share it. */
   const editedLayer = poolGraphic ? graphicLayer(poolGraphic) : 0;
+  // NEWER DESIGN IN LIBRARY, AND UPDATE (live-publishing O4, designs/G1.md section 2): the copy is
+  // what plays; a newer library design comes in only here, through the rundown's history (one undo
+  // step), the production gate first, and naming a field it drops before it takes the design.
+  const newerDesign = poolGraphic ? newerLibraryDesign(poolGraphic, library) : undefined;
+  const designUpdate = show && poolGraphic && newerDesign ? (() => {
+    const dropped = droppedFields(show, poolGraphic, newerDesign.template);
+    const cuesUsing = (show.cues ?? []).filter((c) => c.source !== 'playout' && c.sourceId === poolGraphic.id).length;
+    return {
+      dropped: dropped.length ? `Update drops ${dropped.join(', ')} from ${cuesUsing} cue${cuesUsing === 1 ? '' : 's'}.` : null,
+      run: async () => {
+        const refused = productionGateFailures([{ ...poolGraphic, template: newerDesign.template }], library);
+        if (refused.length) { setRundownNote(describeProductionGate(refused)); return; }
+        await history.write(() => updateCopyFromLibrary(show.id, poolGraphic.id, newerDesign, poolGraphic.savedAt), `Update ${poolGraphic.name}`);
+      },
+    };
+  })() : null;
   const sharingLayer = poolGraphic ? clashes.get(editedLayer) : undefined;
   const layerClash = !!sharingLayer;
   const advancedOpen = layerClash || (!!poolGraphic && advancedFor === poolGraphic.id);
@@ -4396,6 +4414,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             show={show}
             setShows={setShows}
             poolGraphic={poolGraphic}
+            designUpdate={designUpdate}
             editingCue={editingCue}
             draft={cueDraft}
             editingCueNo={editingCueNo}
