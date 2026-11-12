@@ -45,3 +45,4 @@ Project: {"version":1,"id":"plan-live-publishing-2026-11-10","ownership":"local-
 - Infrastructure cost time, not budget: worker container restarts (up to 11 per builder), a GitHub artifact outage that turned main red, and a 10-day-old durations table (#2316) that held phase 4 until the owner let it land.
 - Keep asking the owner early with numbers (AC-1 targets, the switch); still owed before phase 6: AC-4 and D1 targets, and the production_copies switch-on.
 - 2026-11-12T09:54:29.245Z phase 5 build {"actor":"builder-5-5-b-a331","nonce":"5-b-a331","evidence":"create_session from c90317d8a36ad9929d78059aeab52ecd1d2e4226, brief saved in kit 5-build-5-b-a331.txt"}
+- 2026-11-12T19:13:27.858Z phase 5 landed {"mergeSha":"1938f262dc6060c225832756b6da91af5f6838bc","pr":2443,"design":"12173c3f (PR #2426, G2)"}

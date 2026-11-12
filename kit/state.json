@@ -42,8 +42,8 @@
  ],
  "inFlight": {
   "phase": 5,
-  "step": "build: builder session_017SdbwMx1ooTEVQrtu6Losx merging main into claude/plan-live-publishing-5-build (PR 2443), then fresh full /so and CI on merged head; nonce 5-b-a332",
-  "asOf": "2026-11-12T18:20Z"
+  "step": "build: builder session_017SdbwMx1ooTEVQrtu6Losx fixing Codex P2s on aad310c9 (main.ts:560 hold release after swap; main.ts:1157 supersession ids), then delta /so and CI; nonce 5-b-a333",
+  "asOf": "2026-11-12T18:51Z"
  },
  "owner": [
   {
@@ -190,5 +190,10 @@
   "followups": [
    "ProductionPage.tsx confirmation-lifetime glue (Codex P1 at 90bf214d), recorded on #2361 comment 6832121182"
   ]
- }
+ },
+ "block": {
+  "epoch": 3,
+  "deadline": "2026-11-13T18:50:40Z"
+ },
+ "nextCheckin": "2026-11-12T20:20:00Z"
 }
