@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// WHO THE GROWTH, AGE AND QUARANTINE ALARMS GO TO, and the proof that they get there.
+// WHO THE GROWTH, AGE, QUARANTINE AND RED-PR ALARMS GO TO, and the proof that they get there.
 //
 //   node scripts/alarm-owner.mjs test-alarm --run <url>   # one labelled test alarm, routed like a real one
 //   node scripts/alarm-owner.mjs list                     # the open owned alarm issues (weekly backup review)
@@ -25,6 +25,17 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = process.env.GH_REPO || process.env.GITHUB_REPOSITORY || 'NoaCG/NoaCG-Studio';
 const ghText = (args) => execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 16 << 20, windowsHide: true });
 
+/** A bounded reader over `gh api`: it counts calls and refuses past its budget. */
+export function makeReader(budget, run = (args) => execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 64 << 20, windowsHide: true })) {
+  const reader = { calls: 0, failures: 0, exhausted: false };
+  reader.get = (route) => {
+    if (reader.calls >= budget) { reader.exhausted = true; return null; }
+    reader.calls += 1;
+    try { return JSON.parse(run(['api', '-X', 'GET', route])); } catch { reader.failures += 1; return null; }
+  };
+  return reader;
+}
+
 /** The title prefix of a deliberate test alarm; `list` shows these too, so a test is never lost. */
 export const TEST_ALARM_PREFIX = 'Test alarm: owner routing check';
 
@@ -47,8 +58,11 @@ export function issueNumber(answer) {
   return n;
 }
 
+/** The author associations of people with write access to the repository. */
+export const MEMBER_ROLES = ['OWNER', 'MEMBER', 'COLLABORATOR'];
+
 /** Who may have opened an alarm issue: a bot or a repository member, never an outsider. */
-export const trustedAuthor = (i) => i.user?.type === 'Bot' || ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(i.author_association);
+export const trustedAuthor = (i) => i.user?.type === 'Bot' || MEMBER_ROLES.includes(i.author_association);
 
 /**
  * An open alarm issue by exact title. It may have been opened by the workflow token, an app, or
@@ -130,7 +144,8 @@ export function pastDate(body) {
 export async function ownedAlarmTitles() {
   const { AGE_ISSUE, PHASE_AGE_ISSUE, WEEKLY_ISSUE } = await import('./growth-report.mjs');
   const { STALE_ISSUE_TITLE, INCIDENT_ISSUE_TITLE } = await import('./e2e-quarantine.mjs');
-  return [WEEKLY_ISSUE, AGE_ISSUE, PHASE_AGE_ISSUE, STALE_ISSUE_TITLE, INCIDENT_ISSUE_TITLE];
+  const { RED_ISSUE } = await import('./repair-wake.mjs');
+  return [WEEKLY_ISSUE, AGE_ISSUE, PHASE_AGE_ISSUE, STALE_ISSUE_TITLE, INCIDENT_ISSUE_TITLE, RED_ISSUE];
 }
 
 // The CLI runs after this module has finished evaluating (no top-level await): `list` imports

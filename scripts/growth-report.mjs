@@ -39,22 +39,16 @@ import { knownCoversOnDisk } from './e2e-capacity.mjs';
 import { CONFIGURED_HEADERS, SPEC_HEADERS } from './e2e-lists.mjs';
 import { quarantineIncidents, readStore, STORE_PATH as QUARANTINE_STORE } from './e2e-quarantine.mjs';
 import { measured } from './measured.mjs';
-import { alarmOwner, findAlarmIssue, routeOrWarn } from './alarm-owner.mjs';
+import { alarmOwner, findAlarmIssue, makeReader, routeOrWarn } from './alarm-owner.mjs';
+
+// The bounded reader lives with the alarm helpers, which load nothing heavy (scripts/repair-wake.mjs
+// runs from a scripts-only checkout); it is re-exported here for this file's callers.
+export { makeReader };
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = process.env.GH_REPO || process.env.GITHUB_REPOSITORY || 'NoaCG/NoaCG-Studio';
 const DAY = 86_400_000;
 
-/** A bounded reader over `gh api`: it counts calls and refuses past its budget. */
-export function makeReader(budget, run = (args) => execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 64 << 20, windowsHide: true })) {
-  const reader = { calls: 0, failures: 0, exhausted: false };
-  reader.get = (route) => {
-    if (reader.calls >= budget) { reader.exhausted = true; return null; }
-    reader.calls += 1;
-    try { return JSON.parse(run(['api', '-X', 'GET', route])); } catch { reader.failures += 1; return null; }
-  };
-  return reader;
-}
 
 const minutes = (j) => (j.started_at && j.completed_at ? Math.max(0, (Date.parse(j.completed_at) - Date.parse(j.started_at)) / 60_000) : 0);
 
