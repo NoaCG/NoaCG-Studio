@@ -848,7 +848,7 @@ test('w3', async ({ page, browser }) => {
     if (ok) confirmed.push((await nowOn(page)) - pressedAt);
     else {
       unconfirmed += 1;
-      log('not confirmed', await status.getAttribute('data-tone'), await status.getAttribute('title'));
+      log('not confirmed', await page.getByTestId('program-air').getAttribute('data-state').catch(() => 'none'), await status.getAttribute('title'));
     }
     await settle(page);
     await outBtn.click();

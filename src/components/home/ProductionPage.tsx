@@ -922,6 +922,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const retiredEpochsRef = useRef(new Set<string>());
   /** When this page last learned of a command row: PROGRAM's "ran" is about a send at or before it. */
   const newestOwedRef = useRef(0);
+  /** When this page's newest graphic send left. */
+  const lastSendRef = useRef(0);
   /** The outputs as last judged, for dropping positions every one of them has confirmed. */
   const confirmOutputsRef = useRef<ConfirmOutput[]>([]);
   const noteRun = useCallback((run: RunReport) => {
@@ -2632,7 +2634,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     serverInstant: (item) => needsServerInstant(clockSpecsRef.current.clocks.get(item.graphic), item.msg, session.air.get().clocks[item.graphic]),
     debts: () => sendDebts.current,
     outputUsable: () => usableOutputRef.current,
-    sending: (delta) => setSendingNow((n) => Math.max(0, n + delta)),
+    sending: (delta) => {
+      // When this page's newest send left: its row can arrive before its answer does.
+      if (delta > 0) lastSendRef.current = wallClock();
+      setSendingNow((n) => Math.max(0, n + delta));
+    },
     owed: setSendOwed,
     loggedAt: setLoggedAt,
     noOutput: () => setNoOutputTake(true),
@@ -3923,7 +3929,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     for (const graphic of Object.keys(out.run.h)) if (out.run.h[graphic][1] !== 'failed') loadingGraphics.add(graphic);
   }
   const confirm = hostedSlug && !offline ? confirmLines({ now, owed, outputs: confirmOutputs, presenceJoined: livePresence.status === 'joined' }) : [];
-  const ranLast = confirm.length === 0 && loggedAt !== null && newestOwedRef.current >= loggedAt && confirmOutputs.length > 0;
+  const ranLast = confirm.length === 0 && loggedAt !== null && newestOwedRef.current >= lastSendRef.current && confirmOutputs.length > 0;
   const playoutStatus = describePlayoutStatus({
     confirm,
     started,
