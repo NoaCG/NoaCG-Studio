@@ -1473,6 +1473,27 @@
       "executed": "Cloudqueuedj0043confirmsCurrentgraphic/assets/fieldsonly; nomultidocumentcontrols",
       "retainedInfraFailure": "j0042ERR_CONNECTION_REFUSED; Vite localhost/IPv4addressqualificationcorrected, notproductfix"
     },
-    "backend": "ExistingActionsisolatedstack; no repeatedfullmanagedVFSpull. CurrentmainCI43199296731/configured43199297499SUCCESS provesrouteavailabilityonly."
+    "backend": "ExistingActionsisolatedstack; no repeatedfullmanagedVFSpull. CurrentmainCI43199296731/configured43199297499SUCCESS provesrouteavailabilityonly.",
+    "firstWorkingTreeVerification": {
+      "status": "Engineering only; not finalcommit/acceptance",
+      "browserJob": "j0045",
+      "passedJourneys": 4,
+      "durationSeconds": 15.2,
+      "retries": 0,
+      "coverage": [
+        "Independentdraftundo/redo/reload/Home",
+        "BrandAtoBundo/reapplyincludingactualchangedlogobytes",
+        "Refusedswitch/rename/removal",
+        "Tworundownsubsetinstall/retry/rollbackconflictandunchangedmastercopies"
+      ],
+      "retainedFailure": "j0044realreloadtoHomerefusalfromreparsedreferenceidentity; fixedlivecontextcomparison/cachedparsedslot",
+      "remaining": [
+        "UIstarter/brandjourney",
+        "Deterministiccrash/refused-save/legacychecks",
+        "Actualoperatorrehearsal/exportfixtures",
+        "Real authenticatedActions persistence",
+        "Finalchecks/capacity/SO/PRCI/Codex"
+      ]
+    }
   }
 }
