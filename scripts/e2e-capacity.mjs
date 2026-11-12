@@ -40,7 +40,10 @@
 // needs an exception line in a work spec (format below), with the spec file, the minutes, what it
 // protects and an expiry at most 30 days out. Below WARN_SHARE it says nothing; between the two
 // it warns. A change that adds no spec minutes is never refused, whoever made it, so there is no
-// bot exemption to grant or abuse. What it cannot see is a spec made slower without being edited
+// bot exemption to grant or abuse. Only a NEW spec file is growth worth that decision: an edit to
+// a spec file that already exists is never refused, however its minutes move (an unmeasured one
+// is still priced and its minutes still show in the usage line and the summary, so real growth
+// stays visible; the weekly refresh and report carry it from there). What it cannot see is a spec made slower without being edited
 // (shared code): that drift arrives in the weekly refresh pull request (e2e-durations.mjs), which
 // prints the same usage line; and a shard that uploaded no report leaves its specs unmeasured,
 // which counts them at the suite's p90 rather than the median so a partial report cannot flatter a
@@ -182,21 +185,24 @@ export function exceptionFor(exceptions, spec, today) {
 /**
  * The assessment. Pure.
  *
- * `changed` are the spec files (basenames) this change adds or edits; `measured` is a basename ->
- * minutes map from the run's own report, when there is one. A changed spec with no table entry
+ * `changed` are the spec files (basenames) this change adds or edits; `edited` are those of them
+ * that already existed at the base, which are priced and shown but never counted as added minutes,
+ * so never refused; `measured` is a basename -> minutes map from the run's own report, when there
+ * is one. A changed spec with no table entry
  * and no measurement counts at the median before a run and at the p90 once a report exists but
  * omits it (the shard that carried it died).
  */
-export function assess({ table = readTable(), suite = specFilesOnDisk(), changed = [], measured = null, exceptions = [], today = new Date().toISOString().slice(0, 10), tableStale = false } = {}) {
+export function assess({ table = readTable(), suite = specFilesOnDisk(), changed = [], edited = [], measured = null, exceptions = [], today = new Date().toISOString().slice(0, 10), tableStale = false } = {}) {
   const minutes = { ...table.minutes };
   const values = Object.values(table.minutes);
   const median = percentile(values, 0.5);
   const p90 = percentile(values, 0.9);
   const capacity = capacityMinutes(table);
   const changedSet = new Set(changed.map((f) => f.split('/').pop()));
+  const editedSet = new Set(edited.map((f) => f.split('/').pop()));
   // Before = the suite as the table knows it: a changed spec the table has measured counts at
   // its table value, a spec this change adds is not there yet.
-  const before = planMinutes({ mode: 'full', specs: [] }, table, suite.filter((f) => !(changedSet.has(f) && table.minutes[f] === undefined)));
+  const before = planMinutes({ mode: 'full', specs: [] }, table, suite.filter((f) => !(changedSet.has(f) && !editedSet.has(f) && table.minutes[f] === undefined)));
   const details = [];
   for (const name of changedSet) {
     if (!suite.includes(name)) continue; // deleted by this change
@@ -208,12 +214,16 @@ export function assess({ table = readTable(), suite = specFilesOnDisk(), changed
     else if (was !== undefined) { now = was; how = 'table'; }
     else { now = median; how = 'unmeasured - estimated at the median until the run reports'; }
     minutes[name] = now;
-    details.push({ spec: name, was: was ?? null, now, delta: now - (was ?? 0), how, exception: exceptionFor(exceptions, name, today) ?? null });
+    const delta = now - (was ?? 0);
+    // An edit to a spec that already exists is never growth worth a refusal (owner, 2026-11-12):
+    // its minutes are priced and shown, and count as added nothing.
+    const edit = editedSet.has(name);
+    details.push({ spec: name, was: was ?? null, now, delta, adds: edit ? 0 : Math.max(0, delta), how: edit ? `${how}; an edit to an existing spec, never refused` : how, exception: exceptionFor(exceptions, name, today) ?? null });
   }
   const after = planMinutes({ mode: 'full', specs: [] }, { ...table, minutes }, suite);
-  const added = details.reduce((a, d) => a + Math.max(0, d.delta), 0);
+  const added = details.reduce((a, d) => a + d.adds, 0);
   const share = after / capacity;
-  const uncovered = details.filter((d) => d.delta > 0 && !d.exception);
+  const uncovered = details.filter((d) => d.adds > 0 && !d.exception);
   let status = 'ok';
   let reason = `${after.toFixed(1)} of ${capacity.toFixed(1)} table-minutes (${(100 * share).toFixed(0)}%) on ${MAIN_RUNNERS} runners`;
   // A stale table cannot establish the last ten points of headroom (growth-controls.mjs rule 3),
@@ -243,18 +253,29 @@ export function summarize(result, { runnerMinutes = null, wallMinutes = null, la
   ].join('\n');
 }
 
-/** Spec files this change added or modified (not deleted), repo-relative, from a diff against `base`. */
-export function changedSpecs(base, cwd = ROOT) {
+/**
+ * Spec files this change added or modified (not deleted), repo-relative, from a diff against
+ * `base`: `changed` all of them, `edited` those that already existed there (modified, or renamed
+ * from an offline spec), which are never growth.
+ */
+export function specChanges(base, cwd = ROOT) {
   const out = execFileSync('git', ['diff', '--name-status', `${base}...HEAD`], { cwd, encoding: 'utf8', windowsHide: true });
-  const specs = [];
+  const offlineSpec = (f) => /^e2e\/[^/]+\.spec\.ts$/.test(f ?? '');
+  const changed = [];
+  const edited = [];
   for (const line of out.split('\n')) {
     const [status, ...rest] = line.trim().split(/\s+/);
     if (!status) continue;
     const file = rest.at(-1); // a rename lists old then new
-    if (/^[AMR]/.test(status) && /^e2e\/[^/]+\.spec\.ts$/.test(file)) specs.push(file);
+    if (!/^[AMR]/.test(status) || !offlineSpec(file)) continue;
+    changed.push(file);
+    if (/^M/.test(status) || (/^R/.test(status) && offlineSpec(rest[0]))) edited.push(file);
   }
-  return specs;
+  return { changed, edited };
 }
+
+/** Spec files this change added or modified (not deleted), repo-relative. */
+export const changedSpecs = (base, cwd = ROOT) => specChanges(base, cwd).changed;
 
 /**
  * The weekly report's offline stop reaches the table line: a stop on the offline tier, or a report
@@ -273,7 +294,7 @@ export function applyOfflineStop(growth, result, { warnShare = WARN_SHARE, refus
   // judged below.
   if (growth.assessWith && Array.isArray(result.details)) {
     const pathOf = (name) => paths.find((p) => p.split('/').pop() === name) ?? `e2e/${name}`;
-    const specs = result.details.filter((d) => d.delta > 0).map((d) => ({ tier: 'offline', id: `spec:${pathOf(d.spec)}`, perLanding: d.delta * (e.runsPerLanding?.everyRun ?? 1), perDay: d.delta * (e.scheduledRunsPerDay?.offline ?? 1) }));
+    const specs = result.details.filter((d) => d.adds > 0).map((d) => ({ tier: 'offline', id: `spec:${pathOf(d.spec)}`, perLanding: d.adds * (e.runsPerLanding?.everyRun ?? 1), perDay: d.adds * (e.scheduledRunsPerDay?.offline ?? 1) }));
     // The offline jobs this change adds are judged in the same sum as its spec minutes (Rule X10),
     // so the two never each fit under the line that together they cross.
     const jobs = (growth.items ?? []).filter((i) => i.tier === 'offline');
@@ -487,8 +508,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const reportPath = value('--report');
   const today = value('--today') ?? new Date().toISOString().slice(0, 10);
   let changed = [];
+  let edited = [];
   if (base && !/^0{40}$/.test(base)) {
-    try { changed = changedSpecs(base); } catch (e) { console.error(`e2e-capacity: cannot diff ${base} (${String(e?.message ?? e).split('\n')[0]}) - assessing the table alone.`); }
+    try { ({ changed, edited } = specChanges(base)); } catch (e) { console.error(`e2e-capacity: cannot diff ${base} (${String(e?.message ?? e).split('\n')[0]}) - assessing the table alone.`); }
   }
   let fromReport = null;
   if (reportPath) fromReport = minutesByFile(JSON.parse(readFileSync(reportPath, 'utf8')));
@@ -501,7 +523,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   // THE GROWTH TIERS (D7, scripts/growth-controls.mjs): the table's age, what this change adds to
   // each tier, and what it does to the frozen ceilings and the exception records.
   const growth = growthAssessment({ base: base && !/^0{40}$/.test(base) ? base : null, reportPath: value('--growth'), table, today });
-  const result = assess({ table, suite, changed, measured: fromReport, exceptions: readExceptions(), today, tableStale: growth.table.stale });
+  const result = assess({ table, suite, changed, edited, measured: fromReport, exceptions: readExceptions(), today, tableStale: growth.table.stale });
   const runnerMinutes = value('--runner-minutes') !== undefined ? Number(value('--runner-minutes')) : null;
   const wallMinutes = value('--wall-minutes') !== undefined ? Number(value('--wall-minutes')) : null;
   // A growth stop on the offline tier (a cost or pre-merge latency breach whose one correction
