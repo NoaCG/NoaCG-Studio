@@ -3,7 +3,9 @@
 Local implementation, review and targeted verification are always allowed without asking.
 Use qualified cloud workers when useful for implementation, review, verification or unattended phases;
 cloud availability is not a prerequisite for local work. Keep existing local resource and check limits.
-Keep device, installed-program, private-local-file and local-browser-state tasks local.
+Keep device, installed-program, private-local-file and local-browser-state tasks local. A
+private-local file exists only on this machine, such as a gitignored secret; the private context
+repository is not one, and a cloud worker may clone it (see Private context in a cloud worker).
 Use the existing wave/plan/job and landing records; this procedure creates no new scheduler.
 Native subagents share one VM; they are not separate cloud resources.
 Each provider launches its own workers in its existing environment/subscription.
