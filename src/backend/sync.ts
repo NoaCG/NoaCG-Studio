@@ -53,6 +53,8 @@ import { hasStorageSentinel } from './assets';
 import { isPutDenied, isSingleton, type StorageProvider, type StoredRecord, type SyncKind } from './storage';
 import { uuid } from '../model/id';
 import { accountKey } from '../model/accountScope';
+import { needsSettle, settleGraphics } from '../model/copySettle';
+import type { SavedGraphic } from '../model/packets';
 
 // 'packet' is retired (packages removed): the kind is gone from SyncKind, so those cloud rows
 // are simply never fetched or pushed again - they stay inert, nothing is destroyed.
@@ -358,7 +360,10 @@ export async function runSync(
   //    failure (or a crash) mid-pass can never lose the only copy of a user's work.
   for (const loser of plan.conflicts) {
     if (skipPull.has(recordKey(loser))) continue;
-    const copy = makeConflictCopy(loser);
+    // A production's losing edit is settled against the server's record first, so its copy never
+    // carries a design an older page pulled from the library (live-publishing G1 section 3).
+    const winner = restored.get(recordKey(loser)) ?? plan.toLocal.find((r) => recordKey(r) === recordKey(loser)) ?? null;
+    const copy = makeConflictCopy(settledForSend(loser, winner) ?? loser);
     try {
       sameWorkspace();
       await local.put(copy);
@@ -435,9 +440,23 @@ export async function runSync(
   // 4. Push. A denied put (RLS) can never succeed by retrying. A denied tombstone deletes nothing
   //    of ours, so it is dropped; a denied live record stays local and is reported in words that
   //    say it was NOT copied anywhere (see the header for why it is never re-minted).
-  for (const l of plan.toRemote) {
+  for (const pending of plan.toRemote) {
+    let l = pending;
     try {
       sameWorkspace();
+      // THE SEND-TIME SETTLE (live-publishing G1 section 3): a production holding a copy no
+      // copy-truth build stamped is settled against the server's record before it goes up, and the
+      // settled record is written here first, so this device and the cloud agree. A base that
+      // cannot be read keeps the record here, unsent, until the next pass.
+      if (l.kind === 'show' && !l.deleted && needsSettle(((l.body as { graphics?: SavedGraphic[] }).graphics ?? []))) {
+        const base = await askCloud(() => remote.get(l.kind, l.id));
+        const settled = settledForSend(l, base);
+        if (settled) {
+          sameWorkspace();
+          await local.put(settled);
+          l = settled;
+        }
+      }
       await askCloud(() => remote.put(l));
       leftInCloud.set(recordKey(l), l.updatedAt);
       pushed += 1;
@@ -482,6 +501,20 @@ export async function runSync(
 }
 
 /** Duplicate a conflict loser under a fresh id + name so both edits survive. */
+/**
+ * A production record settled against `base`, the server's record of the same production, or null
+ * when nothing changes (no base, or every copy already agrees or is stamped). The settled record is
+ * a new revision: a fresh `updatedAt`, so this device's store, its monitors and the cloud agree.
+ */
+function settledForSend(r: StoredRecord, base: StoredRecord | null): StoredRecord | null {
+  if (r.kind !== 'show' || !base || base.deleted) return null;
+  const body = r.body as { graphics?: SavedGraphic[] } & Record<string, unknown>;
+  const now = new Date().toISOString();
+  const { graphics, changed } = settleGraphics(body.graphics ?? [], (base.body as { graphics?: SavedGraphic[] }).graphics ?? [], now);
+  if (!changed) return null;
+  return { ...r, updatedAt: now, body: { ...body, graphics, updatedAt: now } };
+}
+
 function makeConflictCopy(r: StoredRecord): StoredRecord {
   const id = uuid();
   const now = new Date().toISOString();
