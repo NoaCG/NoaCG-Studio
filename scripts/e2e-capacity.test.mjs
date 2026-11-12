@@ -249,7 +249,7 @@ test('land-2a: only an added spec file is new; a modified one, or one renamed fr
   assert.equal(typeof specChanges, 'function');
   const dir = mkdtempSync(path.join(tmpdir(), 'e2e-capacity-'));
   try {
-    const git = (...a) => execFileSync('git', a, { cwd: dir, encoding: 'utf8' });
+    const git = (...a) => execFileSync('git', a, { cwd: dir, encoding: 'utf8', windowsHide: true });
     git('init', '-q', '-b', 'main');
     git('config', 'user.email', 't@example.com');
     git('config', 'user.name', 't');
