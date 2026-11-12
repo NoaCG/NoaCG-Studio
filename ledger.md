@@ -46,3 +46,4 @@ Project: {"version":1,"id":"plan-live-publishing-2026-11-10","ownership":"local-
 - Keep asking the owner early with numbers (AC-1 targets, the switch); still owed before phase 6: AC-4 and D1 targets, and the production_copies switch-on.
 - 2026-11-12T09:54:29.245Z phase 5 build {"actor":"builder-5-5-b-a331","nonce":"5-b-a331","evidence":"create_session from c90317d8a36ad9929d78059aeab52ecd1d2e4226, brief saved in kit 5-build-5-b-a331.txt"}
 - 2026-11-12T19:13:27.858Z phase 5 landed {"mergeSha":"1938f262dc6060c225832756b6da91af5f6838bc","pr":2443,"design":"12173c3f (PR #2426, G2)"}
+- 2026-11-12T19:13:43.608Z phase 5 check {"actor":"checker-5-5-c-b19d","nonce":"5-c-b19d","evidence":"create_session on 1938f262, brief saved in kit 5-check-5-c-b19d.txt"}
