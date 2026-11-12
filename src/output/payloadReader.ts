@@ -50,7 +50,7 @@ function start(): Worker | null {
       waiting.forEach((done) => done(undefined));
       waiting.clear();
     };
-  } catch (e) {
+  } catch {
     broken = true;
     worker = null;
   }

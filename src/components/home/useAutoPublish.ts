@@ -117,12 +117,13 @@ export function useAutoPublish(o: {
     // THE MEASURE HARNESS ONLY (designs/G3.md section 13): with this session flag set, the page
     // publishes its current saved revision again and again, whole, so press-to-ran can be measured
     // during a publish on a production build. Nothing sets the flag but the harness.
-    let measuring = false;
-    try {
-      measuring = window.sessionStorage.getItem('noacg-measure-publish-loop') === '1';
-    } catch {
-      measuring = false;
-    }
+    const measuring = (() => {
+      try {
+        return window.sessionStorage.getItem('noacg-measure-publish-loop') === '1';
+      } catch {
+        return false;
+      }
+    })();
     let looping = measuring;
     if (measuring) {
       void (async () => {
