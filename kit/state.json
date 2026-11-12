@@ -1561,9 +1561,9 @@
       "url": "https://github.com/NoaCG/NoaCG-Studio/pull/2438",
       "head": "4de8259f9cbdcd85409afeeda50ff103d3386ba8",
       "ownerComment": 6823534868,
-      "ownerAck": "Sole active coordinator comment6823534868 updated to round2/4de, minimalpublicrunbinding unchanged",
+      "ownerAck": "Existingsoleowner6823534868updatedconfirmedround3/frozenhead/reassessmentbeforepatch; noreset ornewallowance",
       "ownerPayloadRejection": "EarlierdetailednotecontaininginternalUUIDs/paths/authoritywasauto-reviewrejectedbeforeposting. Noalternatebypass; saferminimalpublicrun-linkedACKaccepted; userinformed. Exactnative/authority/worktree retained in the existing run kit; checkpoint scope unchanged.",
-      "postOpenCiRepairCount": 2,
+      "postOpenCiRepairCount": 3,
       "carriedRepairs": {
         "asyncClientFixtureAwait": 1,
         "privateWizardCapabilityEdge": 1
@@ -1742,10 +1742,14 @@
       "scope": "This establishes failurefamily before E4PR, notblanketNo forwholeeditorrun/E2; actualdeepercauseunsettled. No newquarantine/rerun/limit changes."
     },
     "thirdReviewGate": {
-      "status": "P1 underreproduction; do not patch beforecompletedFULLSOconsolidation; ifconfirmed incrementround3andfreshapproachreassessmentBEFOREpatch by roundcap/repeatedfamily",
+      "status": "CONFIRMEDactualmodel at4de: pendingv1 shadows adopted2projects/2docs/receipt then saveProject writesold1/1anddropsreceipt; adoptedv99+pendingv1 workspaceRefusalnull andsaveProjectdowngradesv1. No simultaneouseditsneeded.",
       "scope": "Wholeworkspacewriter/adoption/cachemodel, serialtabreturn/remoteadoption, genuinependinglocaledits andunknownfutureworkspaceadoptedwhileoldv1stageexists; originalsingleactiveauthoringscope retained, no inventedconcurrentmergepolicy.",
       "newhead": "4de8259f9cbdcd85409afeeda50ff103d3386ba8",
-      "approval": "Nostamp/automerge, no nextphase"
+      "approval": "Nostamp/automerge, no nextphase",
+      "round": 3,
+      "reproduction": "Builderignoredworkspace-adoption-4de-reproduction.txt, actualimports/saveProject/durablemirror, notcopiedalgorithm",
+      "reassessment": "Freshfork-none e4_workspace_ownership_reassessment launchedbeforeanyproductedit, covers ALLwriters/adoption/accountscope/genuinelypendinglocaledits/unknownversion; fullSOstillmustconsolidatebeforepatch",
+      "limits": "Priorrounds1/2retained; thirdcombinedrepaironlyunderexistingper-failure3attemptcap. Freshassessmentaddsnoallowance; no per-symptomoragentreset."
     }
   }
 }
