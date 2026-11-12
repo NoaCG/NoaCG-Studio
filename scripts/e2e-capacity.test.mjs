@@ -1,4 +1,4 @@
-// guards: scripts/e2e-capacity.mjs, docs/work-specs/e2e-suite-budget/spec.md
+// guards: scripts/e2e-capacity.mjs, scripts/repair-wake.mjs, docs/work-specs/e2e-suite-budget/spec.md
 // The capacity line: what counts as usage, when a change is warned or refused, how an exception
 // covers it, and that an unmeasured spec in a partial report counts at the p90, never the median.
 import assert from 'node:assert/strict';
@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { EXCEPTION_MAX_DAYS, HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, assess, capacityMinutes, exceptionFor, ownerKinds, parseExceptions, repoView, summarize } from './e2e-capacity.mjs';
+import { EXCEPTION_MAX_DAYS, HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, assess, capacityMinutes, exceptionFor, finalVerdict, ownerKinds, parseExceptions, repoView, summarize } from './e2e-capacity.mjs';
 import { landingDispatched, priceAdditions } from './growth-controls.mjs';
 import CEILINGS from './growth-ceilings.json' with { type: 'json' };
 
@@ -159,4 +159,19 @@ test('fix 2: a refusal is the owner\'s only when the change itself cannot clear 
   assert.deepEqual(ownerKinds({ result: ok, growth: growth({}, { ledger: ['exception E9 has no measured repayment receipt'] }) }), [], 'a ledger form error is the agent\'s');
 
   assert.deepEqual(ownerKinds({ result: table(96), growth: growth({ overhead: tier({ share: 0.96 }), backend: tier({ share: 0.2 }) }) }).sort(), ['full:overhead', 'full:table'], 'both owner kinds; the agent-fixable one is left out');
+});
+
+test('fix 2: the table is classed on its own verdict, and an offline tier already full is the owner\'s', () => {
+  const growth = (o) => ({ status: 'ok', reasons: [], table: { stale: false }, tiers: { tiers: {} }, stops: {}, ledger: [], ...o });
+  // The table is at 96%, but the addition is covered by an exception; only a ledger error refuses.
+  const covered = { status: 'ok', reason: 'covered by E7', before: 96, added: 5, capacity: 100 };
+  const ledgerError = growth({ status: 'refuse', reasons: ['exception E9 was edited'], ledger: ['exception E9 was edited'] });
+  assert.deepEqual(finalVerdict({ result: covered, growth: ledgerError }), { status: 'refuse', reason: 'covered by E7; exception E9 was edited', owner: '' }, 'the agent\'s to fix');
+  assert.equal(finalVerdict({ result: { ...covered, status: 'refuse' }, growth: growth() }).owner, 'full:table');
+  assert.equal(finalVerdict({ result: { ...covered, status: 'warn' }, growth: growth({ status: 'warn', reasons: ['x'] }) }).owner, '', 'no refusal, no kind');
+
+  const offline = (share) => growth({ status: 'refuse', reasons: ['this change adds 2.0 offline minute(s), 2.0 runner-minutes per landing and 2.0 per day, taking the offline tier to 98% of its ceiling (the 95% line)'], tiers: { tiers: { offline: { status: 'warn', line: 0.95, share } } } });
+  const ok = { status: 'ok', reason: 'ok', before: 10, added: 2, capacity: 100 };
+  assert.equal(finalVerdict({ result: ok, growth: offline(0.97) }).owner, 'full:offline', 'already at its line before the change');
+  assert.equal(finalVerdict({ result: ok, growth: offline(0.9) }).owner, '', 'crossed by the change\'s own minutes');
 });

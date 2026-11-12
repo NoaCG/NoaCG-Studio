@@ -1494,7 +1494,7 @@ jobs:
           # change, a growth stop, an unreviewed ceilings revision) says so, and asks the agent to
           # raise the owner alarm now instead of re-pushing; every other refusal keeps its message.
           if [ "${CAPACITY_RESULT:-}" = "refuse" ] && [ -n "${CAPACITY_OWNER:-}" ]; then
-            echo "::error title=CI gate::Needs the owner (${CAPACITY_OWNER}): E2E capacity line - ${CAPACITY_REASON:-over the line}. Re-pushing will not pass this: only an owner-approved budget exception, a ceiling revision or the growth stop's correction moves it. The one thing this change can do is add nothing to that tier or table. Raise the owner alarm now: node scripts/repair-wake.mjs check --issue"
+            echo "::error title=CI gate::Needs the owner (${CAPACITY_OWNER}): E2E capacity line - ${CAPACITY_REASON:-over the line}. Re-pushing will not pass the owner part. A full tier or table moves only with an owner-approved budget exception, a ceiling revision or the table refresh landing; a stop only with its correction; revision only with a reviewed revision. This change can only drop what it adds to that tier or table, or its ceilings edit. Any other reason named here is this change's to fix: add a budget exception to the work spec or make the change cheaper. Raise the owner alarm now: node scripts/repair-wake.mjs check --issue"
             status=1
           elif [ "${CAPACITY_RESULT:-}" = "refuse" ]; then
             echo "::error title=CI gate::E2E capacity line - ${CAPACITY_REASON:-over the line}. Add a budget exception to the pull request's work spec (format: scripts/e2e-capacity.mjs header) or make the change cheaper."

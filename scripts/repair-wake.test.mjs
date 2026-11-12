@@ -565,9 +565,46 @@ test('fix 2 rule 3: the gate\'s owner-only error says re-pushing will not pass a
   const ci = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
   const owner = /::error title=CI gate::Needs the owner \(\$\{CAPACITY_OWNER\}\): [^\n]*/.exec(ci)?.[0] ?? '';
   assert.match(owner, /Re-pushing will not pass/);
-  assert.match(owner, /add nothing to that tier or table/);
+  assert.match(owner, /drop what it adds to that tier or table/);
+  assert.match(owner, /revision only with a reviewed revision/, 'what moves each kind');
+  assert.match(owner, /Any other reason named here is this change's to fix/, 'a verdict holding both kinds says both');
   assert.match(owner, /node scripts\/repair-wake\.mjs check --issue/);
   assert.match(ci, /capacityOwner: \$\{\{ steps\.capacity\.outputs\.capacity_owner \}\}/, 'the plan job outputs the kinds');
   assert.match(ci, /CAPACITY_OWNER: \$\{\{ needs\.plan\.outputs\.capacityOwner \}\}/, 'the gate reads them');
   assert.match(ci, /Add a budget exception/i, 'the agent-fixable message is unchanged');
+});
+
+test('fix 2 rule 6: a re-push refused for fewer of the listed kinds is the same alarm', () => {
+  const t = '2026-11-12T08:00:00Z';
+  const fx = { prs: [{ number: 7, sha: 's1' }], runs: [refused({ id: 1, sha: 's1', start: plus(t, -15), end: t })], annotations: { 10: needsOwner('full:overhead,full:table'), 20: needsOwner('full:overhead') } };
+  const gh = fakeGitHub(fx);
+  check(gh, plus(t, 1));
+  fx.prs[0].sha = 's2';
+  fx.runs.push(refused({ id: 2, sha: 's2', start: plus(t, 5), end: plus(t, 20) }));
+  const r = check(gh, plus(t, 21));
+  assert.deepEqual(notices(gh), ['open'], 'no new notice');
+  assert.match(r.alarm.body, /owner-mark: 7:full:overhead -->/);
+});
+
+test('fix 2 rule 7: a cancelled re-push, or one whose run is not created yet, keeps the line', () => {
+  const t = '2026-11-12T08:00:00Z';
+  const fx = { prs: [{ number: 7, sha: 's1' }], runs: [refused({ id: 1, sha: 's1', start: plus(t, -15), end: t })], annotations: { 10: needsOwner('full:overhead') } };
+  const gh = fakeGitHub(fx);
+  check(gh, plus(t, 1));
+  fx.prs[0].sha = 's2';
+  assert.ok(check(gh, plus(t, 2)).alarm, 'no run yet for the new head');
+  fx.runs.push(refused({ id: 2, sha: 's2', start: plus(t, 3), end: plus(t, 4), conclusion: 'cancelled', gate: 'cancelled' }));
+  const r = check(gh, plus(t, 5));
+  assert.ok(r.alarm, 'a cancelled run is no verdict');
+  assert.match(r.alarm.body, /owner-mark: 7:full:overhead/);
+});
+
+test('fix 2 rule 7: an incomplete check with a re-push in flight lists the line once', () => {
+  const line = '- #7: needs the owner: full:overhead; x <!-- key: 7/1/1/2026-11-12T08:00:00Z --> <!-- owner-mark: 7:full:overhead -->';
+  const previousBody = `Header\n\n${line}`;
+  const r = nextAlarm({ entries: [], complete: false, previousBody, inFlight: new Set([7]) });
+  assert.deepEqual(r.unattended, [line]);
+  assert.equal(r.close, false);
+  const again = nextAlarm({ entries: [], complete: false, previousBody: `Header\n\n${r.unattended.join('\n')}`, inFlight: new Set([7]) });
+  assert.deepEqual(again.unattended, [line], 'not growing check by check');
 });

@@ -450,7 +450,8 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
  * change to the pull request's own cost can clear, short of adding nothing: a tier or the table
  * already at or over its line before this change (`full:`), a growth stop (`stopped:`), and a
  * ceilings change without a reviewed revision (`revision`). Every other refusal is the agent's and
- * keeps its message. Pure; returns the kinds in a fixed order.
+ * keeps its message. `result` is the table's own verdict, before the growth verdict is merged into
+ * it. Pure; returns the kinds in a fixed order.
  */
 export function ownerKinds({ result, growth, line = growth?.table?.stale ? WARN_SHARE : HARD_SHARE }) {
   const kinds = [];
@@ -461,8 +462,23 @@ export function ownerKinds({ result, growth, line = growth?.table?.stale ? WARN_
     else if (t.share !== null && t.share !== undefined && t.share >= t.line) kinds.push(`full:${tier}`);
   }
   if (growth?.stops?.offline && result?.added > 0) kinds.push('stopped:offline');
+  // applyOfflineStop refuses added offline spec minutes outside the tier verdict: the owner's when
+  // the offline tier was already at its line before them.
+  const offline = growth?.tiers?.tiers?.offline;
+  if ((growth?.reasons ?? []).some((r) => /offline minute\(s\), .* taking the offline tier to /.test(r)) && offline?.share >= offline?.line) kinds.push('full:offline');
   if ((growth?.ledger ?? []).some((l) => /without a (?:new version and a )?reviewed revision/.test(l))) kinds.push('revision');
   return [...new Set(kinds)].filter((k) => OWNER_KIND.test(k));
+}
+
+/**
+ * The gate's verdict: the table's and the growth tiers' together, the worse one winning, with the
+ * owner-only kinds of a refusal classed on the table's own verdict (fix 2 rule 1). Pure.
+ */
+export function finalVerdict({ result, growth }) {
+  const order = { ok: 0, warn: 1, refuse: 2 };
+  const status = order[growth.status] > order[result.status] ? growth.status : result.status;
+  const reason = growth.status !== 'ok' && growth.reasons.length ? `${result.reason}; ${growth.reasons.join('; ')}` : result.reason;
+  return { status, reason, owner: status === 'refuse' ? ownerKinds({ result, growth }).join(',') : '' };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -492,16 +508,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   // A growth stop on the offline tier (a cost or pre-merge latency breach whose one correction
   // failed) refuses added offline minutes too, whatever the table line says.
   applyOfflineStop(growth, result, { paths: changed });
-  const order = { ok: 0, warn: 1, refuse: 2 };
-  if (order[growth.status] > order[result.status]) result.status = growth.status;
-  if (growth.status !== 'ok' && growth.reasons.length) result.reason = `${result.reason}; ${growth.reasons.join('; ')}`;
+  const verdict = finalVerdict({ result, growth });
+  result.status = verdict.status;
+  result.reason = verdict.reason;
   const text = `${summarize(result, { runnerMinutes, wallMinutes, label: fromReport ? 'measured' : 'estimate' })}${growth.markdown}`;
   console.log(text);
   const summary = value('--summary');
   if (summary) appendFileSync(summary, `${text}\n`);
   if (args.includes('--github-output') && process.env.GITHUB_OUTPUT) {
-    const owner = result.status === 'refuse' ? ownerKinds({ result, growth }).join(',') : '';
-    appendFileSync(process.env.GITHUB_OUTPUT, `capacity=${result.status}\ncapacity_reason=${result.reason.replace(/\r?\n/g, ' ')}\ncapacity_owner=${owner}\n`);
+    appendFileSync(process.env.GITHUB_OUTPUT, `capacity=${result.status}\ncapacity_reason=${result.reason.replace(/\r?\n/g, ' ')}\ncapacity_owner=${verdict.owner}\n`);
   }
   if (result.status === 'refuse') console.log(`::error title=E2E capacity::${result.reason}`);
   else if (result.status === 'warn') console.log(`::warning title=E2E capacity::${result.reason}`);

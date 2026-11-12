@@ -58,6 +58,17 @@ export function ownerKindsIn(annotations) {
 
 /** The owner marks a body lists. Pure. */
 const marksIn = (body) => [...String(body ?? '').matchAll(OWNER_MARK_RE)].map((m) => m[1]);
+/** The owner-only kinds a body lists, by PR number. Pure. */
+const kindsOf = (e) => e.ownerMark.split(':').slice(1).join(':').split(',');
+function kindsByPr(body) {
+  const by = new Map();
+  for (const mark of marksIn(body)) {
+    const [pr, ...rest] = mark.split(':');
+    const kinds = rest.join(':').split(',');
+    by.set(Number(pr), new Set([...(by.get(Number(pr)) ?? []), ...kinds]));
+  }
+  return by;
+}
 const at = (iso) => Date.parse(iso ?? '');
 /** When a run's newest attempt started: a re-run keeps `created_at`, so recency reads this. */
 const started = (run) => Math.max(at(run?.run_started_at) || 0, at(run?.created_at) || 0);
@@ -206,22 +217,23 @@ export function sweep({ reader, now, repo = REPO, remembered = [] }) {
       else if (old.event === 'merge_group' && (!groupRun || started(old) > started(groupRun))) groupRun = old;
     }
     const run = verdictRun({ prRun, groupRun });
-    // A verdict still running keeps an owner-only alarm listed (fix 2 rule 7).
-    if (run && run.status !== 'completed') inFlight.add(pr.number);
+    // No finished verdict yet (a run still going, cancelled, or not yet created for a new head)
+    // keeps an owner-only alarm listed (fix 2 rule 7).
+    if (run?.status !== 'completed' || !(run.conclusion === 'success' || FAILED.has(run.conclusion))) inFlight.add(pr.number);
     if (run?.status !== 'completed' || !FAILED.has(run.conclusion)) continue;
     const jobs = reader.get(`repos/${repo}/actions/runs/${run.id}/attempts/${run.run_attempt ?? 1}/jobs?per_page=100`);
     if (!Array.isArray(jobs?.jobs) || jobs.jobs.length >= 100) { complete = false; continue; }
     const gate = jobs.jobs.find((j) => j.name === 'CI gate') ?? null;
     const failure = failureOf({ run, gate });
     if (!failure) continue;
+    // Unread comments could hold the action that answers the failure: no verdict on this PR.
+    const comments = readPages(reader, `repos/${repo}/issues/${pr.number}/comments`);
+    if (!comments.complete) { complete = false; continue; }
     // Whether the gate refused for a reason only the owner can move (fix 2 rule 6): one read; an
     // unread answer is no verdict on this PR.
     const annotations = reader.get(`repos/${repo}/check-runs/${gate.id}/annotations?per_page=50`);
     if (!Array.isArray(annotations)) { complete = false; continue; }
     const ownerKinds = ownerKindsIn(annotations);
-    // Unread comments could hold the action that answers the failure: no verdict on this PR.
-    const comments = readPages(reader, `repos/${repo}/issues/${pr.number}/comments`);
-    if (!comments.complete) { complete = false; continue; }
     const entry = decide({ pr, failure, comments: comments.items, now, ownerKinds });
     if (entry) entries.push({ ...entry, certain });
   }
@@ -240,21 +252,23 @@ export function nextAlarm({ entries, complete, previousBody = '', remembered = k
   const listed = new Set(remembered);
   // An owner-only refusal already in the open alarm is that alarm again, however often the PR is
   // re-pushed and refused the same way (fix 2 rule 6); it is listed, never a new notice.
-  const openMarks = new Set(marksIn(previousBody));
+  // Matched kind by kind, so a re-push refused for fewer of the listed kinds is the same alarm too.
+  const open = kindsByPr(previousBody);
+  const inOpen = (e) => Boolean(e.ownerMark) && kindsOf(e).every((k) => open.get(e.pr)?.has(k));
   // A new alarm needs an established verdict (`certain`); one already listed is kept either way.
-  const fresh = entries.filter((e) => e.unattended && e.certain !== false && !listed.has(e.key) && !openMarks.has(e.ownerMark) && e.ageMinutes <= WINDOW_HOURS * 60);
-  const kept = entries.filter((e) => listed.has(e.key) || fresh.includes(e) || openMarks.has(e.ownerMark));
+  const fresh = entries.filter((e) => e.unattended && e.certain !== false && !listed.has(e.key) && !inOpen(e) && e.ageMinutes <= WINDOW_HOURS * 60);
+  const kept = entries.filter((e) => listed.has(e.key) || fresh.includes(e) || inOpen(e));
   const unattended = kept.filter((e) => e.unattended).map((e) => e.line);
   const attended = kept.filter((e) => !e.unattended).map((e) => e.line);
   // An owner-only line stays while its PR's newest verdict is still running (fix 2 rule 7): a
   // re-push in flight never withdraws it.
-  const keptMarks = new Set(kept.map((e) => e.ownerMark).filter(Boolean));
+  const carried = new Set(kept.map((e) => e.key));
   for (const l of String(previousBody).split(/\r?\n/)) {
-    const mark = marksIn(l)[0];
-    if (mark && !keptMarks.has(mark) && inFlight.has(Number(mark.split(':')[0]))) { unattended.push(l); keptMarks.add(mark); }
+    const mark = marksIn(l)[0], key = keysIn(l)[0];
+    if (mark && key && !carried.has(key) && inFlight.has(Number(mark.split(':')[0]))) { unattended.push(l); carried.add(key); }
   }
   if (!complete) {
-    const seen = new Set(entries.map((e) => e.key));
+    const seen = new Set([...entries.map((e) => e.key), ...carried]);
     for (const l of String(previousBody).split(/\r?\n/)) {
       const k = keysIn(l)[0];
       if (k && !seen.has(k)) (/ attended -->/.test(l) ? attended : unattended).push(l);
