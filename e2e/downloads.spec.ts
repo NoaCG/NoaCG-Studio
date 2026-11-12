@@ -9,6 +9,7 @@
 // imports their SVG/ files, so the ignore in scripts/e2e-affected.mjs carves the folder out, and
 // downloads.spec.ts rides along because it checks the committed zip still holds these files.
 // covers: docs/tutorials/svg-examples/**
+// covers: docs/tutorials/svg-templates/**
 //
 // THE LANDING PAGE (index.html + src/landing/) carries the ways into this page - its nav, the
 // per-section download links, the footer - and the tests below assert them. Without this line a
@@ -23,7 +24,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import JSZip from 'jszip';
-import { SVG_EXAMPLES_URL, SVG_EXAMPLES_ZIP_URL } from '../src/downloads/links';
+import { SVG_EXAMPLES_URL, SVG_EXAMPLES_ZIP_URL, SVG_TEMPLATES_URL, SVG_TEMPLATES_ZIP_URL } from '../src/downloads/links';
 import { AGENT_PROMPT } from '../scripts/agent-prompt.mjs';
 
 /** The inventory is also checked against the live behavior registry and real source assets. */
@@ -324,6 +325,34 @@ test('the SVG examples sit under the tools and their zip is served from /downloa
     await expect(gallery.locator(`a[href="/docs/examples/svg-examples/${name}.svg"]`)).toHaveCount(1);
     const response = await request.get(`/docs/examples/svg-examples/${name}.svg`);
     expect(response.status(), `${name} public SVG`).toBe(200);
+  }
+});
+
+test('the SVG templates have their own card and a zip that matches the repo', async ({ page, request }) => {
+  await fakeChannels(page, 'down');
+  await page.goto('/downloads#svg-templates');
+  const card = page.getByTestId('download-svg-templates');
+  await expect(card).toBeVisible();
+  await expect(page.locator('h1')).toHaveText('Three tools you can install');
+  await expect(card.getByTestId('svg-templates-download')).toHaveAttribute('href', SVG_TEMPLATES_ZIP_URL);
+  expect(SVG_TEMPLATES_URL).toBe('/downloads#svg-templates');
+  const zip = await request.get(SVG_TEMPLATES_ZIP_URL);
+  expect(zip.status()).toBe(200);
+  const bytes = await zip.body();
+  expect(bytes.subarray(0, 2).toString('latin1')).toBe('PK');
+  // Committed, so it can go stale: every text file and picture in it is the repo's own.
+  const zipped = await JSZip.loadAsync(bytes);
+  const root = 'docs/tutorials/svg-templates';
+  const inventory = JSON.parse(readFileSync(new URL(`../${root}/templates.json`, import.meta.url), 'utf8')) as { slug: string; preview: string }[];
+  for (const file of ['README.md', 'templates.json', ...inventory.map((t) => `SVG/${t.slug}.svg`)]) {
+    const inZip = await zipped.file(`NoaCG-SVG-templates/${file}`)?.async('string');
+    const inRepo = readFileSync(new URL(`../${root}/${file}`, import.meta.url), 'utf8');
+    expect(inZip?.replace(/\r\n/g, '\n'), `${file} in the zip - repack with pack-svg-examples.mjs --set templates`).toBe(inRepo.replace(/\r\n/g, '\n'));
+  }
+  for (const file of ['README.pdf', ...inventory.map((t) => `Previews/${t.preview}.png`)]) {
+    const native = zipped.file(`NoaCG-SVG-templates/${file}`);
+    expect(native, `${file} in the zip`).not.toBeNull();
+    expect(await native!.async('nodebuffer'), `${file} is the repo's own`).toEqual(readFileSync(new URL(`../${root}/${file}`, import.meta.url)));
   }
 });
 

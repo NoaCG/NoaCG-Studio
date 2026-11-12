@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Scoreboard, 4 players</title>
+  <desc>NoaCG Clean Studio template. Team 1 to Team 4 with Score 1 to Score 4 along the top; hidden Flash 1 to Flash 4. Copy or delete a row to change the number of players.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Team_box_1" inkscape:label="Team box 1" x="279" y="44" width="230" height="68" rx="14" fill="#FFFFFF"/>
+    <rect id="Score_box_1" inkscape:label="Score box 1" x="509" y="44" width="100" height="68" rx="14" fill="#2E5BFF"/>
+    <rect id="Team_box_2" inkscape:label="Team box 2" x="623" y="44" width="230" height="68" rx="14" fill="#FFFFFF"/>
+    <rect id="Score_box_2" inkscape:label="Score box 2" x="853" y="44" width="100" height="68" rx="14" fill="#2E5BFF"/>
+    <rect id="Team_box_3" inkscape:label="Team box 3" x="967" y="44" width="230" height="68" rx="14" fill="#FFFFFF"/>
+    <rect id="Score_box_3" inkscape:label="Score box 3" x="1197" y="44" width="100" height="68" rx="14" fill="#2E5BFF"/>
+    <rect id="Team_box_4" inkscape:label="Team box 4" x="1311" y="44" width="230" height="68" rx="14" fill="#FFFFFF"/>
+    <rect id="Score_box_4" inkscape:label="Score box 4" x="1541" y="44" width="100" height="68" rx="14" fill="#2E5BFF"/>
+  </g>
+  <g id="Moments" inkscape:groupmode="layer" inkscape:label="Moments">
+    <g id="Flash_1" inkscape:label="Flash 1" style="display:none">
+      <rect x="303" y="120" width="282" height="8" rx="4" fill="#2E5BFF"/>
+    </g>
+    <g id="Flash_2" inkscape:label="Flash 2" style="display:none">
+      <rect x="647" y="120" width="282" height="8" rx="4" fill="#2E5BFF"/>
+    </g>
+    <g id="Flash_3" inkscape:label="Flash 3" style="display:none">
+      <rect x="991" y="120" width="282" height="8" rx="4" fill="#2E5BFF"/>
+    </g>
+    <g id="Flash_4" inkscape:label="Flash 4" style="display:none">
+      <rect x="1335" y="120" width="282" height="8" rx="4" fill="#2E5BFF"/>
+    </g>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Team_1" inkscape:label="Team 1" x="303" y="88" font-size="28" font-weight="800" fill="#0F1729" letter-spacing="1">AVA</text>
+    <text id="Score_1" inkscape:label="Score 1" x="559" y="92" text-anchor="middle" font-size="40" font-weight="800" fill="#FFFFFF" style="font-variant-numeric: tabular-nums">0</text>
+    <text id="Team_2" inkscape:label="Team 2" x="647" y="88" font-size="28" font-weight="800" fill="#0F1729" letter-spacing="1">BEN</text>
+    <text id="Score_2" inkscape:label="Score 2" x="903" y="92" text-anchor="middle" font-size="40" font-weight="800" fill="#FFFFFF" style="font-variant-numeric: tabular-nums">0</text>
+    <text id="Team_3" inkscape:label="Team 3" x="991" y="88" font-size="28" font-weight="800" fill="#0F1729" letter-spacing="1">CHLOE</text>
+    <text id="Score_3" inkscape:label="Score 3" x="1247" y="92" text-anchor="middle" font-size="40" font-weight="800" fill="#FFFFFF" style="font-variant-numeric: tabular-nums">0</text>
+    <text id="Team_4" inkscape:label="Team 4" x="1335" y="88" font-size="28" font-weight="800" fill="#0F1729" letter-spacing="1">DANI</text>
+    <text id="Score_4" inkscape:label="Score 4" x="1591" y="92" text-anchor="middle" font-size="40" font-weight="800" fill="#FFFFFF" style="font-variant-numeric: tabular-nums">0</text>
+  </g>
+</svg>

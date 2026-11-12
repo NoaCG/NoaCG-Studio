@@ -338,7 +338,7 @@ test('the Credits preview reads roles and names off a role-beside drawing', asyn
   await dropSvg(page, BESIDE_CREDITS_SVG);
   await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
   const picker = page.getByTestId('map-svg-recipe-credits');
-  // The first role layer, Réalisation: the title drawn above it is not part of the list.
+  // The first role layer, Réalisation: the title drawn above it is the list's first line.
   const role = await picker.locator('option').evaluateAll((options) =>
     (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean)[1]);
   await picker.selectOption(role);
@@ -346,6 +346,7 @@ test('the Credits preview reads roles and names off a role-beside drawing', asyn
   await expect(preview).toHaveAttribute('data-layout', 'role-beside');
   await expect(preview.locator('[data-credit="role"]')).toHaveText(['Réalisation', 'Image']);
   await expect(preview.locator('[data-credit="name"]')).toHaveText(['Léa Orme', 'Noé Rivage', 'Émilie Lac']);
+  await expect(preview.locator('[data-credit="title"]')).toHaveText(['ÉQUIPE']);
   // Beside: a role shares its line with its first name; a second name stays in the name column.
   const top = (text: string) => preview.getByText(text, { exact: true }).evaluate((el) => Math.round(el.getBoundingClientRect().top));
   expect(await top('Image')).toBe(await top('Noé Rivage'));
@@ -360,6 +361,7 @@ test('the Credits preview reads roles and names off a role-beside drawing', asyn
   await expect(page.getByTestId('map-svg-credits-roles').locator('option:checked')).toHaveText('Left');
   // Role beside renders in its own styling (row 20): the other drawn layers set the looks.
   await expect(page.locator('[data-testid^="map-svg-driven-"]')).toHaveText([
+    /, sets the look of the show title, the first line of Credits$/,
     /, sets the look of every name in Credits$/,
     /, sets the look of every role in Credits$/,
     /, sets the look of every name in Credits$/,
@@ -406,22 +408,22 @@ test('role-beside credits roll in their two drawn columns, from a name layer pic
   await intoProduction(page, 'Équipe credits', 'Équipe night');
   await settleDurableWrites(page);
 
-  const credits = page.getByTestId('cue-field-f1');
-  await expect(credits).toHaveValue('Réalisation:\nLéa Orme\nImage:\nNoé Rivage\nÉmilie Lac');
-  await expect(page.getByTestId('cue-field-f0')).toHaveValue('ÉQUIPE');
-  await expect(page.getByTestId('cue-field-f3')).toHaveCount(0);
+  // The drawn title is the list's first line, never a field of its own.
+  const credits = page.getByTestId('cue-field-f0');
+  await expect(credits).toHaveValue('ÉQUIPE\nRéalisation:\nLéa Orme\nImage:\nNoé Rivage\nÉmilie Lac');
+  await expect(page.getByTestId('cue-field-f2')).toHaveCount(0);
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
   const rows = air.locator('.imported-design-credits-row');
-  await expect(rows).toHaveText(['Réalisation', 'Léa Orme', 'Image', 'Noé Rivage', 'Émilie Lac']);
+  await expect(rows).toHaveText(['ÉQUIPE', 'Réalisation', 'Léa Orme', 'Image', 'Noé Rivage', 'Émilie Lac']);
   await expect(air.locator('[data-noacg-credit]')).toHaveText(['Réalisation', 'Léa Orme', 'Image', 'Noé Rivage', 'Émilie Lac']);
   await expect.poll(() => air.locator('.imported-design-credits-roll').evaluate(() =>
     !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween)).toBe(true);
   // Where and how credits-2 draws them: roles from 90 in pale green 26, names from 440 in white 32.
   const role = ['rgb(191, 228, 206)', '26px'];
   const nm = ['rgb(255, 255, 255)', '32px'];
-  expect((await creditRowsAtRest(air)).map((r) => [r.kind, r.x, r.y, r.fill, r.size])).toEqual([
+  expect((await creditRowsAtRest(air)).filter((r) => r.kind !== 'title').map((r) => [r.kind, r.x, r.y, r.fill, r.size])).toEqual([
     ['role', 90, 195, ...role], ['name', 440, 195, ...nm], ['role', 90, 365, ...role], ['name', 440, 365, ...nm], ['name', 440, 420, ...nm],
   ]);
 
@@ -429,7 +431,8 @@ test('role-beside credits roll in their two drawn columns, from a name layer pic
   // new one - several names per role, a role with none, the drawn steps kept.
   await credits.fill('Son:\nAri Moss\nIda Lake\nJun Harbor\nMontage:\nMusique:\nSol Reed');
   await page.getByTestId('verb-update').click();
-  await expect(rows).toHaveText(['Réalisation', 'Léa Orme', 'Image', 'Noé Rivage', 'Émilie Lac']);
+  await expect(rows).toHaveText(['ÉQUIPE', 'Réalisation', 'Léa Orme', 'Image', 'Noé Rivage', 'Émilie Lac']);
+  // A list that starts with a role has no title line, so no title is painted.
   await page.getByTestId('verb-retake').click();
   await expect(rows).toHaveText(['Son', 'Ari Moss', 'Ida Lake', 'Jun Harbor', 'Montage', 'Musique', 'Sol Reed']);
   expect((await creditRowsAtRest(air)).map((r) => [r.kind, r.x, r.y])).toEqual([
@@ -491,7 +494,7 @@ test('credits that cannot be styled say why they stay fixed artwork, in one line
   const values = await picker.locator('option').evaluateAll((options) => (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean));
   await picker.selectOption(values[1]);
   const fallback = page.getByTestId('map-svg-credits-fallback');
-  await expect(page.locator('[data-testid^="map-svg-driven-"]').first()).toHaveText(/, sets the look of every name in Credits$/);
+  await expect(page.locator('[data-testid^="map-svg-driven-"]').first()).toHaveText(/, sets the look of the show title, the first line of Credits$/);
   await expect(fallback).toHaveCount(0);
   // The title is a look of its own, so picking it gives no roles and names: it says so, and its
   // row scrolls as artwork.
@@ -563,7 +566,7 @@ test('role-above credits drawn as separate layers roll in those layers\' own sty
   await dropSvg(page, ABOVE_CREDITS_SVG);
   await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
   const picker = page.getByTestId('map-svg-recipe-credits');
-  // The first role layer, Research: PRODUCTION drawn above it stays artwork.
+  // The first role layer, Research: PRODUCTION drawn above it is the show title, the list's first line.
   const role = await picker.locator('option').evaluateAll((options) =>
     (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean)[1]);
   await picker.selectOption(role);
@@ -575,27 +578,27 @@ test('role-above credits drawn as separate layers roll in those layers\' own sty
   // The other drawn layers are not fields of their own: their rows say what they become.
   const sourceRows = page.locator('[data-testid^="map-svg-driven-"]');
   await expect(sourceRows).toHaveText([
+    /, sets the look of the show title, the first line of Credits$/,
     /, sets the look of every name in Credits$/,
     /, sets the look of every name in Credits$/,
     /, sets the look of every role in Credits$/,
     /, sets the look of every name in Credits$/,
   ]);
-  await expect(page.locator('[data-testid^="map-svg-row-"] input[type="checkbox"]:disabled')).toHaveCount(4);
+  await expect(page.locator('[data-testid^="map-svg-row-"] input[type="checkbox"]:disabled')).toHaveCount(5);
   await intoProduction(page, 'Research credits', 'Research night');
   await settleDurableWrites(page);
 
-  // ONE list field holding the drawn list, the title, Scroll speed: never a field per name.
-  const credits = page.getByTestId('cue-field-f1');
-  await expect(credits).toHaveValue('Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
-  await expect(page.getByTestId('cue-field-f0')).toHaveValue('PRODUCTION');
-  await expect(page.getByTestId('cue-field-f2')).toHaveValue('100');
-  await expect(page.getByTestId('cue-field-f3')).toHaveCount(0);
+  // ONE list field holding the drawn list, its title first, and Scroll speed: never a field per name.
+  const credits = page.getByTestId('cue-field-f0');
+  await expect(credits).toHaveValue('PRODUCTION\nResearch:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
+  await expect(page.getByTestId('cue-field-f1')).toHaveValue('100');
+  await expect(page.getByTestId('cue-field-f2')).toHaveCount(0);
 
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
   const rows = air.locator('.imported-design-credits-row');
-  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  await expect(rows).toHaveText(['PRODUCTION', 'Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
   // The drawn layers are the source: kept, laid out, never painted.
   const sources = air.locator('[data-noacg-credit]');
   await expect(sources).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
@@ -603,7 +606,7 @@ test('role-above credits drawn as separate layers roll in those layers\' own sty
   await expect(air.locator('#role0')).toHaveText('Research');
   // Each row is drawn in its source's look, where its source was drawn: read in the roll's own
   // group, so the roll's travel is set aside and the drawing's units remain.
-  const atRest = () => rows.evaluateAll((els) => els.map((el) => {
+  const atRest = () => rows.evaluateAll((els) => els.filter((el) => el.getAttribute('data-noacg-credits') !== 'title').map((el) => {
     const roll = el.closest('.imported-design-credits-roll') as SVGGElement;
     const m = roll.getScreenCTM()!.inverse().multiply((el as SVGTextElement).getScreenCTM()!);
     const p = (el as SVGTextElement).getStartPositionOfChar(0);
@@ -623,13 +626,13 @@ test('role-above credits drawn as separate layers roll in those layers\' own sty
   ]);
   const roll = await air.locator('.imported-design-credits-roll').evaluate(() => (window as unknown as { noacgCreditsLast: { step: number; rows: number } }).noacgCreditsLast);
   expect(roll.step).toBe(55);
-  expect(roll.rows).toBe(5);
+  expect(roll.rows).toBe(6);        // the five drawn rows and the title
 
   // A new list on Update: the roll on air keeps the list it took (row 24), and Re-take airs the
   // new one - repeated roles, several names, the drawn spacing kept.
   await credits.fill('Research:\nIda Lake\nSol Reed\nJun Harbor\nSound:\nMia Holt\nResearch:\nOla Berg');
   await page.getByTestId('verb-update').click();
-  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  await expect(rows).toHaveText(['PRODUCTION', 'Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
   await page.getByTestId('verb-retake').click();
   await expect(rows).toHaveText(['Research', 'Ida Lake', 'Sol Reed', 'Jun Harbor', 'Sound', 'Mia Holt', 'Research', 'Ola Berg']);
   const again = await atRest();
@@ -659,17 +662,16 @@ test('role-above credits chosen to hold still air as one still page, and a list 
   await intoProduction(page, 'Research page', 'Research still');
   await settleDurableWrites(page);
 
-  // One list field and the drawn title; a still page has no Scroll speed.
-  const credits = page.getByTestId('cue-field-f1');
-  await expect(credits).toHaveValue('Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
-  await expect(page.getByTestId('cue-field-f0')).toHaveValue('PRODUCTION');
-  await expect(page.getByTestId('cue-field-f2')).toHaveCount(0);
+  // One list field, the drawn title its first line; a still page has no Scroll speed.
+  const credits = page.getByTestId('cue-field-f0');
+  await expect(credits).toHaveValue('PRODUCTION\nResearch:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
+  await expect(page.getByTestId('cue-field-f1')).toHaveCount(0);
 
   // Two hundred names cannot stand on one page even at the floor: before any take, the field
   // says so in words.
   const tooLong = ['Research:', ...Array.from({ length: 200 }, (_, i) => `Name Number ${i + 1}`)].join('\n');
   await credits.fill(tooLong);
-  await expect(page.getByTestId('cue-field-over-f1')).toBeVisible();
+  await expect(page.getByTestId('cue-field-over-f0')).toBeVisible();
   await expect(page.getByTestId('cue-overflow')).toContainText('too long for the design');
   // On Take the page is not shown: nothing clipped, nothing rolling.
   await page.getByTestId('verb-take').click();
@@ -681,7 +683,7 @@ test('role-above credits chosen to hold still air as one still page, and a list 
   });
   await expect.poll(async () => (await state()).last).toEqual({ still: true, rows: 201, scale: 0.3, refused: true });
   expect(await state()).toMatchObject({ tween: null, moved: 'none', shown: 'hidden' });
-  await expect(page.getByTestId('cue-field-over-f1')).toBeVisible();
+  await expect(page.getByTestId('cue-field-over-f0')).toBeVisible();
 
   // The drawn list again, on Update: the page shows, still, where the rows were drawn.
   await credits.fill('Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
@@ -691,7 +693,7 @@ test('role-above credits chosen to hold still air as one still page, and a list 
   await expect.poll(async () => (await state()).shown).toBe('visible');
   expect(await state()).toMatchObject({ tween: null, moved: 'none' });
   expect((await creditRowsAtRest(air)).map((r) => [r.kind, r.y])).toEqual([['role', 175], ['name', 240], ['name', 295], ['role', 445], ['name', 510]]);
-  await expect(page.getByTestId('cue-field-over-f1')).toHaveCount(0);
+  await expect(page.getByTestId('cue-field-over-f0')).toHaveCount(0);
 });
 
 test('role-above credits chosen to play as cards change on Next card, and a card too long says so before the take', async ({ page }) => {
@@ -721,26 +723,27 @@ test('role-above credits chosen to play as cards change on Next card, and a card
   await intoProduction(page, 'Research cards', 'Research cards');
   await settleDurableWrites(page);
 
-  // One list field, the drawn title and a blank Card time; no Scroll speed.
-  const credits = page.getByTestId('cue-field-f1');
-  await expect(credits).toHaveValue('Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
-  await expect(page.getByTestId('cue-field-f2')).toHaveValue('');
-  await expect(page.getByText('F2 · Card time (s)')).toBeVisible();
+  // One list field, the drawn title its first line, and a blank Card time; no Scroll speed.
+  const credits = page.getByTestId('cue-field-f0');
+  await expect(credits).toHaveValue('PRODUCTION\nResearch:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
+  await expect(page.getByTestId('cue-field-f1')).toHaveValue('');
+  await expect(page.getByText('F1 · Card time (s)')).toBeVisible();
   await expect(page.getByText('Scroll speed (%)')).toHaveCount(0);
 
   // A second card too long even at the floor: the field says so before any take.
   await credits.fill(['Research:', 'Nia Vale', '', 'Cast:', ...Array.from({ length: 200 }, (_, i) => `Name Number ${i + 1}`)].join('\n'));
-  await expect(page.getByTestId('cue-field-over-f1')).toBeVisible();
+  await expect(page.getByTestId('cue-field-over-f0')).toBeVisible();
   await expect(page.getByTestId('cue-overflow')).toContainText('too long for the design');
 
-  // Two cards that fit: Take shows the first, Next card the second.
-  await credits.fill('Research:\nNia Vale\nTomas Fen\n\nSound:\nAri Moss');
-  await expect(page.getByTestId('cue-field-over-f1')).toHaveCount(0);
+  // Two cards that fit, the list starting with its show title: Take shows the first card with the
+  // title above it, Next card the second without it. The title is no row of either card's count.
+  await credits.fill('PRODUCTION\nResearch:\nNia Vale\nTomas Fen\n\nSound:\nAri Moss');
+  await expect(page.getByTestId('cue-field-over-f0')).toHaveCount(0);
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
   const rows = air.locator('.imported-design-credits-row');
-  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen']);
+  await expect(rows).toHaveText(['PRODUCTION', 'Research', 'Nia Vale', 'Tomas Fen']);
   await page.getByTestId('cue-actions').getByRole('button', { name: /Next card$/ }).click();
   await expect(rows).toHaveText(['Sound', 'Ari Moss']);
   expect((await creditRowsAtRest(air)).map((r) => [r.kind, r.y])).toEqual([['role', 175], ['name', 240]]);
@@ -798,11 +801,12 @@ function buildRolls(page: Page, source: string, roleWord: string, as: 'styled' |
 }
 
 /** Where the moving credits stand on screen at the start and at the end of the take, against the
- *  artwork's frame: the styled rows as one group, or every layer of the fixed block. */
+ *  artwork's frame: the styled roll as one group - its rows and the title drawn above them, which
+ *  travels with them (creditsRiders) - or every layer of the fixed block. */
 function rollPoses(page: Page) {
   return page.evaluate(() => {
     const w = window as unknown as { noacgCreditsTween: { pause(): void; progress(value?: number): number }; noacgCreditsLast: { distance: number } };
-    const rows = document.querySelector('.imported-design-credits-rows');
+    const rows = document.querySelector('.imported-design-credits-roll');
     const moving = rows ? [rows] : [...document.querySelectorAll('.imported-design-credits')];
     const extent = () => {
       const boxes = moving.map((el) => el.getBoundingClientRect());

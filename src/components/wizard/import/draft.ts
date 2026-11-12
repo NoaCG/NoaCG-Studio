@@ -493,15 +493,21 @@ export function styledCreditsOf(behaviour: SvgRecipeDraft): DesignSvgCredits | u
   return credits && picked && readFor === picked && credits.anchors.some((a) => a.candidateId === picked) ? credits : undefined;
 }
 
-/** The drawn role and name layers a styled credits binding copies, other than the Credits field
- *  itself, with what each sets the look of. They are kept out of the field list (`pollDrivenLayers`)
- *  and the Text step says what each becomes. */
-export function creditsSourceLayers(behaviour: SvgRecipeDraft): Map<string, 'role' | 'name'> {
+/** The drawn role, name and show-title layers a styled credits binding copies, other than the
+ *  Credits field itself, with what each sets the look of. They are kept out of the field list
+ *  (`pollDrivenLayers`) and the Text step says what each becomes. */
+export function creditsSourceLayers(behaviour: SvgRecipeDraft): Map<string, CreditsSourceKind> {
   // Kept as fixed artwork, the layers are part of the artwork that scrolls, never copied.
   if (behaviour.creditsArtwork) return new Map();
-  const anchors = styledCreditsOf(behaviour)?.anchors ?? [];
-  return new Map(anchors.filter((a) => a.candidateId !== behaviour.fields?.credits).map((a) => [a.candidateId, a.kind]));
+  const credits = styledCreditsOf(behaviour);
+  const anchors = credits?.anchors ?? [];
+  const out = new Map<string, CreditsSourceKind>(anchors.filter((a) => a.candidateId !== behaviour.fields?.credits).map((a) => [a.candidateId, a.kind]));
+  if (credits?.title) out.set(credits.title, 'title');
+  return out;
 }
+
+/** What a drawn credits source layer sets the look of. */
+export type CreditsSourceKind = 'role' | 'name' | 'title';
 
 /**
  * The TEXT layers a bound poll writes into — the ones that must not also be operator fields.
