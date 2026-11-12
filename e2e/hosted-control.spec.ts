@@ -1,5 +1,5 @@
 // covers: src/control/**
-// covers: src/components/{fields/**,HostedControlPage.tsx}
+// covers: src/components/fields/**
 // covers: src/components/playoutKeys.ts, src/components/{home,save}/**
 // focus
 
@@ -10,14 +10,19 @@ import { importProofCase, PROOF_TOTALS, PROOF_VOTES } from './_proofCase';
 import { appliedIn, receiverHost } from './_receiverHost';
 import { frameCss, type AppliedAppearance } from '../src/control/cueAdjust';
 
-// Hosted control ENTRIES (docs/CONTROL_LAYER.md + docs/SAVED_CONTENT_MODEL.md §4): a show's
-// published `panel` spec carries every graphic's saved entries, so the hosted ?control= page
-// can offer them as a read-only switcher.
+// PUBLISHED CONTROL (docs/CONTROL_LAYER.md + docs/SAVED_CONTENT_MODEL.md §4): what a production
+// publishes for its operators and outputs, pinned offline. A show's published `panel` spec carries
+// every graphic's saved entries and dataset rows (the data API and panels read it); the receiver
+// block keeps an exported graphic on air from the shared log; the published payload carries the
+// cues an output plays.
 //
 // Publishing and operating need a real backend, which this suite deliberately does not have
-// (offline-pinned) — the hosted page itself is covered by the maintainer's live checklist.
-// What is pinned here is the half that runs locally and decides whether an operator sees
-// their rundown rows at all: which library record a show graphic's entries come from.
+// (offline-pinned). What is pinned here is the half that runs locally: which library record a show
+// graphic's entries come from, what the payload and panel spec say, and how the receiver behaves.
+//
+// The file keeps its name after the hosted control page's retirement
+// (docs/work-specs/retire-hosted-control/spec.md): "hosted" here is the hosted-control log and the
+// published payload, which every production still has.
 
 test('a saved graphic carries its entries into the show it is added to', async ({ page }) => {
   await bootstrapGraphic(page, 'Hairline');
@@ -682,7 +687,7 @@ test('a production carries its control profile canonically, and deleting it leav
 // docs/CONTROL_LAYER.md: `publishControlShow` returns before its upsert when there is no Supabase,
 // so no offline spec can see the column being written.
 
-test('the hosted page arranges from the PUBLISHED bytes, by the one rule the in-app page uses', async ({ page }) => {
+test('the published panel spec arranges from the PUBLISHED bytes, by the one rule the production page uses', async ({ page }) => {
   // AC-5's hosted deployment, pinned as far as an OFFLINE spec honestly can.
   //
   // WHAT THIS PROVES AND WHAT IT DOES NOT. The hosted page renders from two published things
@@ -775,7 +780,7 @@ test('the hosted page arranges from the PUBLISHED bytes, by the one rule the in-
   expect(arranged.newerSections).toEqual(arranged.generatedSections);
 });
 
-test('a bound field on the hosted page reads the tree, and a press moves the value rather than the field', async ({
+test('a bound field in the published panel reads the tree, and a press moves the value rather than the field', async ({
   page,
 }) => {
   // AC-7's hosted half. This page cannot be mounted by an offline spec (it needs a configured
@@ -852,16 +857,13 @@ test('a bound field on the hosted page reads the tree, and a press moves the val
   expect(measured.takeStaged).toBe('Katri');
 });
 
-test('the hosted page reads the SPACE mode the in-app page stores: one key per browser, the default when unset', async ({
+test('the SPACE mode is one device preference: one key per browser, the default when unset', async ({
   page,
 }) => {
-  // The two SPACE modes (docs/PLAYOUT_DASHBOARD.md §2f) are one setting on one machine: the
-  // hosted page and the in-app page share the browser's prefs, so an operator who ticked the box
-  // on one finds it ticked when the other next opens. This page cannot be mounted offline, so
-  // what the merge gate holds is the CONTRACT it reads - a device-level preference beside the
-  // other workflow defaults, the two words, and that an unknown value is the default rather than
-  // a crash. The hosted page's own keys in both modes are walked with a real backend in
-  // e2e/configured/hosted-space-modes.spec.ts.
+  // The two SPACE modes (docs/PLAYOUT_DASHBOARD.md §2f) are one setting on one machine: every
+  // production page in the browser reads the same prefs. Pinned here: a device-level preference
+  // beside the other workflow defaults, the two words, and that an unknown value is the default
+  // rather than a crash.
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const read = await page.evaluate(async () => {
@@ -879,44 +881,10 @@ test('the hosted page reads the SPACE mode the in-app page stores: one key per b
   expect(read).toEqual({ unset: 'take', set: 'preview-then-take', unknown: 'take' });
 });
 
-// ── » NEXT GREYS AND ✎ UPDATE NAMES WHAT IT KEEPS, on the hosted page too (g2 handoff, "Left,
-// and why": "HostedControlPage has the same Next and Update verbs... so the hosted page does not
-// grey Next or name kept states yet"). `canAdvance` and `movedStateNames` (controlModel.ts) are
-// the ONE answer both dashboards read for these two questions; the hosted page could not be left
-// asking a different one without an operator reading a different truth depending which device
-// they picked up.
-//
-// The page itself cannot be mounted offline (it needs a configured backend, docs/CONTROL_LAYER.md
-// step 9), so this spec pins the two things an offline run can: that the page's OWN SOURCE calls
-// both functions on the Next button's `disabled` and the Update button's title exactly as
-// ProductionPage does, and that the two functions themselves grey the right waypoint and name the
-// right state — over a small hand-authored machine, so the answer is unambiguous rather than
-// depending on a real SVG's exact state ids.
-
-test('HostedControlPage wires » Next and ✎ Update to canAdvance and movedStateNames, like the dashboard', async () => {
-  const { readFileSync } = await import('node:fs');
-  const src = readFileSync(new URL('../src/components/HostedControlPage.tsx', import.meta.url), 'utf8');
-  // The Next button greys on `!nextMoves` too, not on `layerLive` alone - that bare condition is
-  // exactly what let a press log "Next step" while a quiz's Reveal sat still.
-  expect(src).toContain('disabled={!layerLive || !nextMoves}');
-  expect(src).toContain('const nextMoves = !!selectedGraphic && canAdvance(');
-  // Update's title names what it would keep, the same sentence ProductionPage's verb bar uses.
-  expect(src).toContain('keptStates ? `Sends the values. Stays on ${keptStates}.`');
-  expect(src).toContain('movedStateNames(');
-});
-
-test('HostedControlPage carries « Back and ⟲ Reset off the same answers as the dashboard (#2181)', async () => {
-  // The page cannot be mounted offline (above), so its wiring is pinned from its source, as the
-  // Next and Update wiring is; what the two presses do on air is e2e/production-controls.spec.ts.
-  const { readFileSync } = await import('node:fs');
-  const src = readFileSync(new URL('../src/components/HostedControlPage.tsx', import.meta.url), 'utf8');
-  expect(src).toContain('backTarget(spec.js, machineState[selectedGraphic] ?? null)');
-  expect(src).toContain('onBack={backTo ? () => snapTo(backTo) : null}');
-  expect(src).toContain('data-testid="hosted-back-cue"');
-  expect(src).toContain('resetTarget(spec.js)');
-  expect(src).toContain('onClick={() => onSnap(resetTo)}');
-  expect(src).not.toContain('hosted-snap');
-});
+// ── » NEXT GREYS AND ✎ UPDATE NAMES WHAT IT KEEPS. `canAdvance` and `movedStateNames`
+// (controlModel.ts) are the ONE answer the production page's verb bar reads for these two
+// questions. Pinned here over a small hand-authored machine, so the answer is unambiguous rather
+// than depending on a real SVG's exact state ids.
 
 test('canAdvance greys past the last waypoint, and movedStateNames names only a state Update would actually keep', async ({
   page,
@@ -989,20 +957,14 @@ test('canAdvance greys past the last waypoint, and movedStateNames names only a 
   expect(measured.nothingReportedAdvances).toBe(true);
 });
 
-// ── THE HOSTED PAGE'S SERVER CUES, frozen (docs/CLIP_PLAYBACK_PLAN.md §8) ──
+// ── SERVER CUES IN THE PUBLISHED PAYLOAD (docs/CLIP_PLAYBACK_PLAN.md §8) ──
 //
-// The clip playback work gives the production page folders and per-cue playback settings, and
-// gives this page nothing new: it must keep doing exactly what it does today. For a server cue
-// that is LISTING it, with its CasparCG address, under "On the playout server", and offering no
-// way to take it, because a phone cannot reach the operator's own Bridge.
-//
-// WHAT THIS PROVES AND WHAT IT DOES NOT. The page cannot be mounted offline (it needs a configured
-// backend, the same ceiling as the cases above), so its DOM is the live checklist's. What an
-// offline run can pin is everything the page reads and how it draws it: the published payload a
-// production with server cues on two channels writes, read back through the reader the page
-// uses, and the page's own source for that list - rows with an address and no button in them.
+// A production with server cues on two channels publishes them apart from its graphic cues, each
+// with its CasparCG address, and without the production page's own clip playback settings. Pinned
+// through `buildOutputPayload` and read back through `readOutputPayload`, the shared serialiser
+// and reader the production page and its outputs use.
 
-test('the hosted page lists server cues by their address, apart from the graphic cues, and offers no way to take them', async ({ page }) => {
+test('a published production lists server cues by their address, apart from the graphic cues, with no clip playback settings', async ({ page }) => {
   // The studio's two named channels, in place before the app boots.
   await page.addInitScript(() => {
     localStorage.setItem(
@@ -1028,12 +990,12 @@ test('the hosted page lists server cues by their address, apart from the graphic
     const { createShowNamed, addGraphicToShow, addPlayoutItem, loadShows, setCuePlayback } = await import('/src/model/shows.ts');
     const { buildOutputPayload, readOutputPayload } = await import('/src/control/hostedControl.ts');
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const show = createShowNamed('Frozen Hosted');
+    const show = createShowNamed('Frozen Server Cues');
     addGraphicToShow(show.id, useTemplateStore.getState().template);
     const clip = addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'media', name: 'GIORNO', channel: 2, mediaKind: 'movie', frames: 1500, fps: 25 });
     addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'template', name: 'HOUSE_STRAP/HOUSE_STRAP' });
     // Phase 3's settings on a clip cue, and an audio file on its own layer: the production page's,
-    // and none of them this page's to show or play.
+    // and none of them the published payload's.
     setCuePlayback(show.id, clip.cueId!, { end: 'clear', fadeIn: 'short', fadeOut: 'long', levelDb: -12, trimIn: 2, trimOut: 30 });
     addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'media', name: 'STING', channel: 2, mediaKind: 'audio', frames: 75, fps: 25 });
     const record = loadShows().find((s) => s.id === show.id)!;
@@ -1054,8 +1016,8 @@ test('the hosted page lists server cues by their address, apart from the graphic
       })),
     };
   });
-  // The graphic cue is the one the page can take; the server cues are listed apart, each with the
-  // channel and layer its row prints as `2-10`.
+  // The graphic cue is listed on its own; the server cues are listed apart, each with the channel
+  // and layer a row prints as `2-10`.
   expect(published.graphicCues).toHaveLength(1);
   expect(published.playoutCues).toEqual([
     { label: 'GIORNO', kind: 'media', name: 'GIORNO', channel: 2, channelName: 'Inserts', layer: 10 },
@@ -1066,20 +1028,6 @@ test('the hosted page lists server cues by their address, apart from the graphic
   expect(published.carriesPlayback).toBe(false);
   expect(published.mediaKinds).toEqual(['movie', undefined, 'audio']);
 
-  // How the page draws them: under their own heading, the address through the shared
-  // `slotAddress`, and not one button in a row - nothing there selects, previews or takes.
-  const { readFileSync } = await import('node:fs');
-  const src = readFileSync(new URL('../src/components/HostedControlPage.tsx', import.meta.url), 'utf8');
-  const start = src.indexOf('data-testid="hosted-playout-cues"');
-  // The block runs to the hint under the rows, which says why nothing here can take them.
-  const end = src.indexOf('This page cannot reach it.', start);
-  expect(start, 'the hosted page lists server cues').toBeGreaterThan(0);
-  expect(end, 'the list still says why it cannot take them').toBeGreaterThan(start);
-  const block = src.slice(start, end);
-  expect(block).toContain('On the playout server');
-  expect(block).toContain('hosted-playout-cue-');
-  expect(block).toContain('slotAddress(');
-  expect(block).not.toMatch(/<button|role="button"|onClick|onPointer|onKey/);
 });
 
 // THE PRODUCTION LOOK SENT TO A HOSTED GRAPHIC (playout adjustments, phase 3): "Send to on-air

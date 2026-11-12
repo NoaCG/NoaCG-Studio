@@ -28,9 +28,10 @@ function autoplayScript(baked: Record<string, string>, outMs: number | null): st
       ? `
     // The template's out setting is ${outMs} ms: hold that long AFTER the entrance
     // settles, then leave by itself (a Stop from controlpanel.html still works sooner).
-    // The entrance length is measured from a paused throwaway timeline.
     var entranceMs = 0;
-    if (typeof window.buildInTimeline === 'function') {
+    if (typeof window.noacgLiveFiniteEnd === 'function') {
+      entranceMs = window.noacgLiveFiniteEnd() * 1000;
+    } else if (typeof window.buildInTimeline === 'function') {
       var probe = window.buildInTimeline();
       probe.pause();
       entranceMs = probe.duration() * 1000;

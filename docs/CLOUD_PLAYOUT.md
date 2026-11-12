@@ -23,9 +23,11 @@ Reused verbatim (the audit that chose this is summarized in §9):
 - **The durable command log** — `control_events` + `control_send`/`control_tail` (0008): the
   INSERT is the send, DB order is the truth, gap-fill + hole detection recover a reconnect.
 - **The capability model** — an unguessable slug in the URL is the authorization; SECURITY
-  DEFINER RPCs are the gate; owning/publishing needs sign-in (RLS), operating does not.
-- **Staged-vs-take** — `control_stage` + the shared `staged` buffer: nothing airs because it
-  was typed; airing is an explicit Take.
+  DEFINER RPCs are the gate; owning/publishing needs sign-in (RLS), operating does not at the
+  server function level. The one operator surface, the production page, needs sign-in.
+- **Staged-vs-take** - nothing airs because it was typed; airing is an explicit Take. The
+  production page keeps an edit as a draft on the page (the retired hosted page staged through
+  `control_stage` and the shared `staged` buffer).
 - **Recovery doctrine** — reset is two operations, recovery is both: the data half (update),
   then the visual half (snap — timers arm). The renderer rebuilds from its own last
   `control_report`.
@@ -52,7 +54,7 @@ New:
 
 A **production** is the user-facing name for the `Show` record (the UI word "Rundown" is
 retired; the model file keeps its name — renaming `shows.ts` would churn sync kind `'show'`
-for nothing). One production = one output URL + one control page + one cue rundown.
+for nothing). One production = one output URL + one cue rundown.
 
 ## 2. The data model
 
@@ -94,8 +96,8 @@ interface Show {
 `control_shows` grows two columns:
 
 - **`output_slug text unique`** — a second, independent capability: holding it authorizes
-  RENDERING the production, nothing else. It never appears in `control_show_by_slug`, so a
-  control-page operator cannot derive it, and the output URL cannot operate the show beyond
+  RENDERING the production, nothing else. It never appears in `control_show_by_slug`, so an
+  operator holding the production's slug cannot derive it, and the output URL cannot operate the show beyond
   what rendering requires (`control_report`). **It does resolve the show's uuid**, because a
   renderer needs it to follow the log — so the id is an ADDRESS and never an authority, and
   anything keyed on it (a realtime topic, most of all) has to be able to refuse a writer on its
@@ -175,8 +177,8 @@ only on the stamp it read, so a publish landing in between is pulled in and publ
 6. **Owner pruning** — a DELETE policy on `control_events` for the show's owner; the publish
    path deletes rows older than 7 days. Keeps the append-only log from growing without bound
    under a 24/7 output URL (the 0008 schema has no retention at all).
-7. `control_show_by_slug` grows `output` in its return — the hosted operator page uses the
-   published templates for its local PREVIEW iframes (§4).
+7. `control_show_by_slug` grows `output` in its return. It was added for the hosted control
+   page's PREVIEW, and that page was retired 2026-11.
 
 Entitlement: the whole surface rides **`control.hosted`** — publishing writes `control_shows`
 (already gated by the 0022 restrictive policy), and every operator write already passes the
@@ -188,7 +190,7 @@ A separate `playout.*` key can split the two features later without schema chang
 
 A 4th MPA entry (`output.html` → `src/output/`), following the `/admin` build shape (own
 entry module, own CSS, no `styles.css`, no `trackPageVisit()`) with the OPPOSITE access
-model (the `?chat=`/`?control=` capability pattern: the slug in the query IS the auth).
+model (the `?chat=` capability pattern: the slug in the query IS the auth).
 
 The page:
 
@@ -454,9 +456,7 @@ The page:
   forwards the merged value instead: a stamped value is time-relative, so re-sending it is always
   safe, and a genuine correction has already replaced it in `mergedData` by then. Both PROGRAM
   monitors fold every command through `programItems` in `control/airState.ts`, and a stage rebuilt
-  after boot takes the clocks the monitor held: the production page's, and the hosted page's since
-  #2176, whose stage rebuilt from a report took the next Update's plain time as a correction while
-  air held the banked one.
+  after boot takes the clocks the monitor held: the production page's.
 - **Snap resets the graphic first, and the reset is blunt** (`clearProps: 'all'` over the root's
   subtree). It clears inline styles the DATA layer owns, not just the motion's: an image field
   with no picture hides itself inline, so recovery used to put a broken-image box on air beside
@@ -487,7 +487,7 @@ The page:
   for good after a deploy, so after three failures in a row the page reloads itself, but only
   when its own URL answers: a reload during an outage would put the browser's error page on air
   (`e2e/output-boot-resilience.spec.ts`).
-- A studio or control page (`/app`) left open across a deploy asks for the old deploy's code
+- A studio page (`/app`) left open across a deploy asks for the old deploy's code
   files when it opens something new, and they answer 404. It reloads itself
   (`src/app/deploySkew.ts`, issue #758), but only with nothing on air or on its way from that page
   and no unfinished wizard draft or brand edit, once its own URL answers and saved work is on disk (a failed save
@@ -548,12 +548,14 @@ follow-up that closed the two functions' EXECUTE grants is migration 0042.
 
 ## 4. The operator surfaces
 
-Two clients of the same log — the four-renderers doctrine of `docs/CONTROL_LAYER.md` extended
-by a cue vocabulary. Preview is LOCAL on both; program is only ever changed by an explicit
-send.
+One operator surface: **the production page** (`#/production/<id>`, in-app, the owner's
+cockpit, §5). Several signed-in operators can open the same production, and each page is a
+client of the same log: the four-renderers doctrine of `docs/CONTROL_LAYER.md` extended by a cue
+vocabulary. Preview is LOCAL; program is only ever changed by an explicit send. An old
+`?control=<slug>` link (the hosted control page, retired 2026-11) only resolves its slug and
+opens `#/production/<id>` (`components/OldControlLink.tsx`).
 
-**The production page** (`#/production/<id>`, in-app, the owner's cockpit — §5) and the
-**hosted control page** (`?control=<slug>`, no login, phone-capable) both present:
+The production page presents:
 
 - **The cue rundown** — ordered cues with label, graphic, note; every LIVE cue marked (from the
   `cue` status rows + `live` reports). Selecting a cue stages nothing by itself. There is no
@@ -562,30 +564,22 @@ send.
   render; the wire is never touched, so editing or previewing can never modify program. The
   PRODUCTION page deliberately previews the LOCAL (to-be-published) template — it is the
   authoring cockpit, and the "changes not yet published" hint names any divergence from what
-  the renderer runs. The hosted page ships no visual preview in the MVP (cue strip + fields +
-  live status); the published payload already carries the templates, so adding one there is
-  UI work, not schema work.
+  the renderer runs.
 - **Field editing** — the selected cue's values through the shared `FieldDescriptor`
-  controls; edits stage via `control_stage` (shared across operator pages, the 0008 model).
-  The server keys that buffer by graphic, so the hosted page stages each edit under its CUE
-  inside it (`control/cueStaging.ts`): an edit to one guest's lower third is part of that cue as
-  prepared, and never shows in or airs with another cue of the same graphic (#1036). A ⚡ press
-  or a snap acts on the cue on air, so it reads and stages that cue's values even with a sibling
-  selected, as on the production page. A figure that has to follow every cue of a graphic (a
-  running score) is a bound field. A value staged by an older build carries no cue and counts
-  only on a graphic with one cue.
+  controls. An edit changes that cue only and never airs by itself: Take and Update send it. A
+  figure that has to follow every cue of a graphic (a running score) is a bound field. The
+  hosted control page (retired 2026-11) staged its edits through `control_stage`, scoped per cue
+  (`control/cueStaging.ts`, #1036); the function stays on the server.
 - **The verbs, and the layer each one addresses.** Every verb below Take acts on ONE LAYER —
-  the layer of the SELECTED cue on the production page, the layer of the row the button sits on
-  in the hosted page. There is no longer a "the live graphic" for a header button to mean, so
+  the layer of the SELECTED cue. There is no longer a "the live graphic" for a header button to mean, so
   the surface has to name which layer it is about, and the operator's own selection is the
   least ambiguous answer.
-  - **Take** — air the selected cue AS PREPARED: `update` (the cue's values — on the
-    production page including its unsaved draft edits) + `play` + the `cue` status row to its
+  - **Take** — air the selected cue AS PREPARED: `update` (the cue's values, including its
+    unsaved draft edits) + `play` + the `cue` status row to its
     OWN graphic — one atomic batch (`control_send_many`). It stops nothing. Taking a second
     cue on the SAME graphic re-airs that one instance, which is what makes two cues over one
     lower third replace each other rather than stack; taking a cue on ANOTHER graphic leaves
-    the first up, because that is another layer. Staged edits do NOT ride a cue Take; they air
-    through the graphic card's own ⟳ Take, which exists for exactly that. The send RPCs mirror
+    the first up, because that is another layer. The send RPCs mirror
     each cue marker onto `control_shows.live_cue` (0031, per-layer since 0034), so a reloading
     surface recovers what is on air from the row rather than scanning a log window that global
     event ids can defeat.
@@ -603,19 +597,18 @@ send.
     production when neither knows of any. It reads Clearing… until the heads say each is off,
     and names one that is not.
   - **Preview** — no verb on the wire; the local iframe above.
-- **Status** — on the production page, the playout status (§4a), whose panel lists the outputs;
-  on the hosted page, the READY line (`components/control/OutputHealth.tsx`, words from
-  `control/readiness.ts`). Both read the same `useReadinessView`, so on a phone too: each output's
+- **Status** — the playout status (§4a), whose panel lists the outputs
+  (`components/control/OutputHealth.tsx`, words from `control/readiness.ts`, read through
+  `useReadinessView`), on a phone too: each output's
   own READY answer in the plan's words ("Preparing 18 of 24", "Ready for
   playout", "Not ready: Frost Quiz (script error)", "Waiting for clear: Scorebug", "Change failed:
   Frost Quiz", "Commands may arrive up to 30 s late"), and an output that was connected and is gone as "CasparCG 1-20 not answering
   (40 s)", red after 15 s. It is a button; its panel lists every output and what to do. The
   production page remembers the outputs it has seen per production in the browser and announces
-  them, its published version and its stamp in its own Presence entry, so the hosted page counts
-  the same outputs. READY is a status, never permission: no verb waits for it. With no output
+  them, its published version and its stamp in its own Presence entry. READY is a status, never permission: no verb waits for it. With no output
   reporting READY (a server without the live topic, or outputs loaded before it) the line is the
   health line underneath: the outputs' Presence entries, or `output_seen_at` (the production page
-  polls it every 30 s, the signed-out hosted page shows the value it resolved with and says so).
+  polls it every 30 s).
   Every live layer with its cue + machine state + applied values (from `live` reports), publish
   freshness.
 - **Prepare for Live** — production page only, in the Playout panel
@@ -630,7 +623,7 @@ send.
   amber "· commands did not reach it in 15 s"; a server without migration 0072 gets one note
   instead), and ends in a checklist and a stamp: "Ready for Live, checked 14:02
   (v12)", or the warnings and problems counted. The stamp is kept per production in the browser,
-  announced for the hosted page and the phone, and after a later change reads "Checked 14:02 on
+  announced in the page's Presence entry, and after a later change reads "Checked 14:02 on
   v12, 1 change since". Editing goes on during and after it.
 - **Every publish also prepares** (owner, 2026-10-01; docs/work-specs/studio-day-playout AC-10).
   ⟳ Publish changes on a started production sets the same prepare request Prepare for Live sets,
@@ -638,8 +631,7 @@ send.
   at it. The request is cleared after the same 60 s, and the status reads "Preparing N of M" in
   amber until the outputs report the new version, then green.
 
-Mobile: the hosted page keeps its single-column layout; the cue strip, field editor, and the
-verb row are the priority content (the preview collapses first).
+Mobile: a phone opens the same production page, in its phone layout (`docs/PLAYOUT_DASHBOARD.md`).
 
 ## 4a. Two states, and no Rehearse mode
 
@@ -691,8 +683,8 @@ question the system could answer and did not. The production page's **Activity**
 answer: the log read back in the words an operator would use, newest first.
 
 - **It shows COMMANDS — what somebody asked the production to do.** The two meta rows are
-  deliberately absent. `staged` is typing (debounced, one row per few keystrokes, per operator)
-  and would drown everything else; `live` is the RENDERER reporting back, a different fact with
+  deliberately absent. `staged` rows were the retired hosted page's typing (nothing writes them
+  now, and old ones stay hidden); `live` is the RENDERER reporting back, a different fact with
   its own surfaces (the live chips, the renderer-connected indicator). A feed carrying all three
   is unreadable, which is the usual failure of an event log.
 - **A verb is several rows and the log says so.** A Take is `update` + `play` + `cue`, and it
@@ -706,10 +698,8 @@ answer: the log read back in the words an operator would use, newest first.
 - **An unpublished production keeps its own log**, built from the same `ControlSendItem`s
   through the same `describeLogRow`. That is what makes the panel identical published or not,
   and it is the only reason any of this is provable without a backend.
-- **The HOSTED control page carries the same panel** (2026-08-19). It is the multi-operator
-  surface, so it is where "did that take go, or was that somebody else?" is actually asked - and
-  it was already reading every one of these rows to drive its PROGRAM monitor and discarding
-  them. Same `describeLogRow`, same cap, same history seed.
+- The hosted control page (retired 2026-11) carried the same panel from 2026-08-19, with the
+  same `describeLogRow`, cap and history seed.
 - Opening a published production seeds the panel with recent history (one tail read behind the
   log head — `followControlLog` starts AT the head by design, being recovery rather than a
   history reader). Global event ids mean that window is a ceiling on rows READ, not on rows
@@ -722,9 +712,8 @@ answer: the log read back in the words an operator would use, newest first.
 ## 5. Where it lives in the app
 
 - **Home rail**: the `rundowns` section becomes **Productions** (`#/home/productions`) —
-  create, list, open; shows the output + control links and renderer status per production.
-- **`#/production/<id>`**: the production page — name, status, links (copy output URL / copy
-  control URL), publish ("Start production" = publish + verify the renderer connects; it
+  create, list, open; shows the output link and renderer status per production.
+- **`#/production/<id>`**: the production page — name, status, links (copy output URL), publish ("Start production" = publish + verify the renderer connects; it
   never airs anything), the cue rundown editor (add from library or pool, edit values/notes,
   reorder, delete), the **layer stack** (the pool, listed FRONT TO BACK like every layer panel,
   with ↑/↓ moving a graphic forward and back, its layer number, and an on-air mark), the
@@ -844,12 +833,13 @@ last-known-good). Choose concrete providers only after licensing/cost review.
    graphic is one layer and one renderer instance.
 5. Kill the output tab, reload → it snaps back to the pre-kill on-air state (data, then
    snap). Kill the network briefly → commands sent meanwhile apply on reconnect, in order.
-6. Open `?control=<slug>` on a phone (signed out): cue strip + fields + verbs usable; a Take
-   from the phone airs on the output tab; the live chip agrees on both surfaces.
+6. Sign in on a phone and open the same production (`#/production/<id>`): cue strip + fields +
+   verbs usable; a Take from the phone airs on the output tab; the live chip agrees on both
+   screens. An old `?control=<slug>` link lands on that page.
 7. OBS Browser Source and CasparCG HTML producer (`CG 1-20 ADD 1 "<url>" 1` — channel-layer
    BEFORE `ADD`, as in the generated CasparCG export README): transparent, correct scale at
    1920×1080, survives a CasparCG channel restart.
-8. Unpublish → output URL and control URL both go dead honestly; re-publish → same record,
+8. Unpublish → the output URL goes dead and an old control link says "This link no longer works"; re-publish → same record,
    new session, output URL unchanged only if the row was updated rather than deleted.
 9. **The Data API (migration 0047 + `/api/data/update`) — NOT YET RUN LIVE.** A green build
    proves the function compiles, NOT that the platform routes it (the hosted-Pro lesson):
@@ -868,11 +858,11 @@ last-known-good). Choose concrete providers only after licensing/cost review.
    - Hammer the endpoint (a loop without sleep) → 429 with `Retry-After`, and the operator
      page keeps working while the feed is refused.
    - Unpublish + re-publish → the old data key answers 401, the new one works (rotation);
-     the output and control URLs are unchanged (0040 identity).
+     the output URL and the production's slug are unchanged (0040 identity).
 10. **Pictures — NOT YET RUN.** The picture graphic (§ pool list, `src/templates/picture.ts`)
    ships covered by `e2e/productions.spec.ts`, which is the LOCAL half: it never publishes,
-   so the one thing pictures add to the wire — a multi-megabyte base64 payload in the
-   published `output` row, read whole by the renderer AND by every hosted operator page — has
+   so the one thing pictures add to the wire, a multi-megabyte base64 payload in the published
+   `output` row read whole by the renderer AND by every operator resolve (`control_show_by_slug`), has
    never been carried by a real backend. Needs a real Supabase, so it cannot be run from a
    spec: add two pictures to a production, publish, load `/output?production=<slug>`, take
    picture 1 (it airs full-frame), take picture 2 (it REPLACES picture 1 on the same layer
@@ -897,10 +887,10 @@ last-known-good). Choose concrete providers only after licensing/cost review.
 - **Templates in the panel spec instead of a second payload?** The panel spec is deliberately
   live-resolved and light (operator pages re-publish cheaply); the output payload is
   deliberately pinned and heavy. Different lifecycles, different columns.
-- **The production's DATASETS on the output payload, so the hosted page could match rows
-  itself?** No: the output payload is what the OUTPUT capability URL serves, and a dataset is
+- **The production's DATASETS on the output payload, so the hosted control page (retired
+  2026-11) could match rows itself?** No: the output payload is what the OUTPUT capability URL serves, and a dataset is
   operator material - a question bank holds the answers. Publishing the matched ROWS onto the
-  `panel` spec instead (`dataRows`, 2026-08-19) keeps them behind the control link, ships less,
+  `panel` spec instead (`dataRows`, 2026-08-19) keeps them behind the control slug, ships less,
   and needs no migration: `panel` is jsonb with no version, so an older row simply carries none
   and normalizes to `[]` on read.
 - **`hello`/`graphic-online` on the wire?** The hosted path's boot recovery is self-service
@@ -918,7 +908,7 @@ What holds a connection, per live production:
 | surface | transport | cost |
 |---|---|---|
 | `/output` renderer | Realtime WebSocket on `control-<showId>` + `control_output_tail` gap-fill + a 30 s tail poll (`CONTROL_POLL_MS`, §3) + `control_output_seen` every 60 s | 1 Realtime connection; 1 request per 30 s |
-| operator control page | same Realtime channel, same 30 s poll | 1 Realtime connection; 1 request per 30 s |
+| production page (each operator) | same Realtime channel, same 30 s poll | 1 Realtime connection; 1 request per 30 s |
 | `/join` audience pages | **HTTP polling, never Realtime** (`src/audience/audienceData.ts` - an authorization decision, not a performance one: the capability model cannot be expressed to Realtime row filters) | 0 Realtime connections; 1 request per 5 s per viewer (inbox 4 s, tally 2 s, jittered, paused while hidden) |
 
 That split is what makes the audience cheap on Realtime and expensive on PostgREST. At **100
@@ -962,7 +952,7 @@ cost rather than a round number, so this is what was measured on production that
 What one publication costs **while nobody has it open**: its one row, nothing else. Publishing
 uploads nothing to Storage, runs no Vercel function, and holds no connection; the output page is a
 static file. The costs in "Concurrency budget" above (a Realtime connection, a 30 s poll, the 60 s
-heartbeat, the boot payload's egress) exist only while an output, control or production page is
+heartbeat, the boot payload's egress) exist only while an output or production page is
 OPEN - which is somebody using the production, and exactly what an expiry must never stop. An
 expiry would save a few hundred kilobytes per production and would break the one promise the
 output URL makes: load it once in OBS or vMix, and it keeps working for next month's show.
@@ -1005,17 +995,18 @@ cost more in broken presets than it saves in disk.
   live layer, so it is the one verb whose price grows with the production — a twelve-layer
   clear is 24 of the 50, which is affordable but not free.
 - **Payload size**: `output` inlines assets as data URLs; a production heavy on large images
-  makes a heavy row (read once per renderer load, so tolerable, but not free). The HOSTED
-  OPERATOR page pays the same row on every load while using only the cue list from it — a
-  deliberate MVP trade (the templates are already there for a future preview); splitting the
-  cues out of the operator resolve is the fix if a metered phone connection makes it bite.
+  makes a heavy row (read once per renderer load, so tolerable, but not free). The operator
+  resolve (`control_show_by_slug`) carries the same row on every load of a published production
+  page; splitting the output out of that resolve is the fix if a metered phone connection makes
+  it bite.
   Asset externalization to a public bucket is the known next step if the renderer side bites.
 - **One report authority**: two open output tabs both write `control_report`; last write
   wins. Harmless for state (they converge on the same log) but `output_seen_at` cannot tell
   two renderers apart. Presence on `live-<show id>` can (one entry per renderer instance), once
   the server has migration 0068.
 - **Graphic identity is still the pool NAME** (the 0008 key). Renaming a pool graphic
-  between publishes orphans the old key's `live`/`staged` rows until the next publish.
+  between publishes orphans the old key's `live` entry (and any `staged` entry left from before 2026-11) until
+  the next publish.
 - **`control_events.id` is a GLOBAL identity**, so per-show id sequences have legitimate gaps
   whenever other shows are active on the instance. A consumer cannot tell a benign gap from a
   missed row, so every suspected hole answers with a tail round-trip (correct either way; the

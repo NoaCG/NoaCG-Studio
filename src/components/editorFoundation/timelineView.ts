@@ -1,5 +1,7 @@
 import { parseAnimData, type AnimData } from '../../blocks/animData';
 import { shownWithoutBars } from '../../blocks/animEdit';
+import { stepSeconds } from '../../blocks/animEval';
+import { hasLoopRuntime } from '../../templates/shared/animRuntime';
 import { trackOwners } from '../../blocks/editorAnimation';
 import { getTemplateParts, type TemplatePart } from '../../model/structure';
 import type { SpxTemplate } from '../../model/types';
@@ -12,6 +14,7 @@ export interface TimelineView {
   /** The data selector each layer's motion lives under (R1.2a.6): its own, or another naming only
    *  it. A layer whose owner is ambiguous shows its own selector's tracks; its edits refuse. */
   owners: Record<string, string>;
+  loopRuntime: boolean;
   /** Half a stored unit on the ruler. A flag is stored at 3 decimals, so at 30 or 60 fps it sits
    *  a fraction of a millisecond off the frame it was set on, and a frame this near is the flag's. */
   near: number;
@@ -21,11 +24,12 @@ export function readTimeline(template: SpxTemplate): TimelineView {
   const cached = views.get(template);
   if (cached) return cached;
   const data = parseAnimData(template.js);
+  const loopRuntime = hasLoopRuntime(template.js);
   const parts = getTemplateParts(template.html, template.fields, true);
   let cursor = 0;
   const segments = (data?.steps ?? []).map((step, index) => {
     const segment = { index, name: index === 0 ? 'In' : index === data!.steps.length - 1 ? 'Out' : step.name,
-      start: cursor, duration: step.duration / data!.speed, out: index > 0 && index === data!.steps.length - 1 };
+      start: cursor, duration: stepSeconds(data!, index, loopRuntime), out: index > 0 && index === data!.steps.length - 1 };
     cursor += segment.duration;
     return segment;
   });
@@ -35,24 +39,44 @@ export function readTimeline(template: SpxTemplate): TimelineView {
   const bars = parts.flatMap(part => {
     const owner = owners[part.selector] ?? part.selector;
     return segments.flatMap(segment => {
-      const spans = data!.steps[segment.index]?.spans?.[owner];
+      const step = data!.steps[segment.index], spans = step?.spans?.[owner];
       if (spans) return spans.map((span, interval) => ({ selector: part.selector, step: segment.index, interval, cueStart: segment.start,
-        start: segment.start + span.start / data!.speed, end: segment.start + span.end / data!.speed }));
+        start: segment.start + span.start / data!.speed,
+        end: segment.start + (span.end === step.duration ? segment.duration : span.end / data!.speed) }));
       // A cue without bars shows the layer as the runtime plays it.
       if (!shownWithoutBars(data!, owner, segment.index)) return [];
-      return [{ selector: part.selector, step: segment.index, interval: 0, cueStart: segment.start, start: segment.start, end: segment.start + segment.duration }];
+      const duration = step?.hides?.includes(owner) ? step.duration / data!.speed : segment.duration;
+      return [{ selector: part.selector, step: segment.index, interval: 0, cueStart: segment.start, start: segment.start, end: segment.start + duration }];
     });
   });
   const reason = !data ? 'This source has no supported timeline. Its artwork and code are preserved.'
-    : data.steps.some(s => s.dynamics?.length || Object.keys(s.loops ?? {}).length)
-      ? 'Measured motion and local loops remain in the existing editor. Scrubbing is unavailable here.'
+    : data.steps.some(s => s.dynamics?.length) ? 'Measured motion is source controlled. Scrubbing is unavailable.'
+    : data.steps.some(s => Object.keys(s.loops ?? {}).length) && !loopRuntime
+      ? 'This source uses the earlier loop runtime. Apply an Edit Loop change to enable scrubbing.'
       : null;
-  const view = { data, parts, segments, bars, owners, duration: cursor, out, reason, near: 0.0005 / (data?.speed ?? 1) + 1e-9 };
+  const view = { data, parts, segments, bars, owners, duration: cursor, out, reason, loopRuntime, near: 0.0005 / (data?.speed ?? 1) + 1e-9 };
   views.set(template, view);
   return view;
 }
 /** The data selector a layer's motion lives under (R1.2a.6). */
 export const ownerOf = (view: TimelineView, selector: string) => view.owners[selector] ?? selector;
+/** A label stays at its marker and has at least 24 CSS pixels to read and click. */
+export function flagLayouts(segments: Segment[], extent: number, width: number) {
+  const minWidth = 24, rowHeight = 20;
+  const lanes: { at: number; index: number }[] = [];
+  const labels: { minWidth: number; maxWidth: number; marginBottom: number }[] = [];
+  for (const { index, start } of segments) {
+    const at = start / extent * width;
+    const free = lanes.findIndex(previous => at - previous.at >= minWidth);
+    const lane = free < 0 ? lanes.length : free;
+    const previous = lanes[lane];
+    if (previous) labels[previous.index].maxWidth = at - previous.at;
+    lanes[lane] = { at, index };
+    // The ruler reserves a right margin wider than the minimum label width.
+    labels.push({ minWidth, maxWidth: Math.max(minWidth, width - at), marginBottom: lane * rowHeight });
+  }
+  return { extraHeight: Math.max(0, lanes.length - 1) * rowHeight, labels };
+}
 /** A flag is a sum of cue lengths, a float step off the time it was set on: read it within this. */
 export const FLOAT_STEP = 1e-6;
 /** A cue boundary belongs to its arriving segment; the finite clock contains no fake hold. */

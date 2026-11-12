@@ -39,6 +39,7 @@ import {
   type TeamMember,
 } from '../../backend/teams';
 import { moveProductionToTeam, refreshTeams } from '../../backend/teamProductions';
+import { settleProductionForSend } from '../../backend/syncController';
 import { loadShows } from '../../model/shows';
 import { useTeamsUi } from './teamsUi';
 import { useTeamsAvailable } from './useTeamsAvailable';
@@ -299,6 +300,14 @@ function Dialog() {
     if (!selected || !production) return;
     setBusy(true);
     setError(null);
+    // A move is a send (live-publishing G1 section 3): the record is settled against the cloud's
+    // first, so a design an older page pulled from the library never becomes the team's base.
+    const unsettled = await settleProductionForSend(production.id);
+    if (unsettled) {
+      setBusy(false);
+      setError(unsettled);
+      return;
+    }
     // Re-read at the moment of the move: the page behind this dialog may have saved an edit since
     // it opened, and the team must receive the production as it is now.
     const current = loadShows().find((s) => s.id === production.id) ?? production;

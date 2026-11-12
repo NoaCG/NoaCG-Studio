@@ -1,4 +1,5 @@
 // covers: src/export/targets/ograf.ts, src/templates/importedDesign/{stretch,svg}.ts, src/assets/svgImport.ts
+// covers: src/templates/shared/animRuntime.ts, src/blocks/editorGroups.ts
 //
 // TWO GRAPHICS, ONE RENDERER (issue #789). An OGraf renderer mounts every layer as a Web Component
 // in ONE document, so anything a graphic carries that is document-wide reaches the graphic beside
@@ -68,8 +69,8 @@ async function serveRenderer(page: Page, packages: Record<string, Files>, rules 
  * Put one package on the stage, load it and land its entrance. `key` names the layer when one
  * package is placed twice (it defaults to the folder), and `left` moves that layer sideways.
  */
-async function place(page: Page, folder: string, tag: string, opts: { key?: string; left?: number } = {}) {
-  await page.evaluate(async ({ origin, folder, tag, key, left }) => {
+async function place(page: Page, folder: string, tag: string, opts: { key?: string; left?: number; skipAnimation?: boolean } = {}) {
+  await page.evaluate(async ({ origin, folder, tag, key, left, skipAnimation }) => {
     const mod = await import(`${origin}/${folder}/graphic.mjs`);
     if (!customElements.get(tag)) customElements.define(tag, mod.default);
     type Driver = HTMLElement & { load(p: unknown): Promise<{ statusCode: number }>; playAction(p: unknown): Promise<unknown> };
@@ -79,10 +80,10 @@ async function place(page: Page, folder: string, tag: string, opts: { key?: stri
     document.getElementById('stage')!.appendChild(el);
     const loaded = await el.load({ data: {}, renderType: 'realtime', renderCharacteristics: {} });
     if (loaded.statusCode !== 200) throw new Error(`load() answered ${JSON.stringify(loaded)}`);
-    await el.playAction({ skipAnimation: true });
+    await el.playAction({ skipAnimation });
     await document.fonts.ready;
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-  }, { origin: ORIGIN, folder, tag, key: opts.key ?? null, left: opts.left ?? null });
+  }, { origin: ORIGIN, folder, tag, key: opts.key ?? null, left: opts.left ?? null, skipAnimation: opts.skipAnimation ?? true });
 }
 
 /** Dispose one mounted graphic and take it off the stage, as a renderer clears a layer. */
@@ -168,6 +169,147 @@ test('two imported SVG designs on one renderer keep their own colours, gradients
   await unmount(page, 'a');
   expect(await pixels(page, { bClass: points.bClass, bGradient: points.bGradient, bShown: points.bShown }))
     .toEqual({ bClass: own.bClass, bGradient: own.bGradient, bShown: own.bShown });
+});
+
+test('two keyed SVG groups keep independent pivots through interrupted Out and remount', async ({ page }) => {
+  await page.goto('/app');
+  const draft = await graphicTemplate(page, { kind: 'probe', name: 'Shared renderer pivots', css: '',
+    html: '<svg id="pivot-art" width="960" height="270"><rect id="part-a" data-gfx width="100" height="50"/><rect id="part-b" data-gfx x="200" width="100" height="50"/></svg>' });
+  const make = async (opening: number, inTime: number, outTime: number) => {
+    const source = await page.evaluate(async ({ draft, opening, inTime, outTime }) => {
+      const { parseAnimData } = await import('/src/blocks/animData.ts');
+      const { replaceRegionWithAnimData } = await import('/src/templates/shared/animRuntime.ts');
+      const { applyOperations } = await import('/src/components/editorFoundation/operations.ts');
+      const template = draft as Parameters<typeof applyOperations>[0], data = parseAnimData(template.js)!;
+      data.steps = [{ name: 'In', duration: inTime, ease: 'none', layers: {} }, { name: 'Out', duration: outTime, ease: 'none', layers: {} }];
+      const selector = '#group-1';
+      const key = (step: number, time: number, value: number) => ({ kind: 'animation.key' as const, selector, step, time, value, property: '--base-anchor-x' as const, action: 'set' as const });
+      return applyOperations({ ...template, js: replaceRegionWithAnimData(template.js, data)! }, [
+        { kind: 'group.create', selectors: ['#part-a', '#part-b'], box: { x: 0, y: 0, width: 300, height: 50 } },
+        { kind: 'base.set', selector, values: { scaleX: 2, anchorX: 10, anchorY: 25 } },
+        key(0, 0, opening), key(0, inTime, opening + 20), key(1, 0, opening + 20), key(1, outTime, opening + 40),
+      ]).template;
+    }, { draft, opening, inTime, outTime });
+    const files = await ografFiles(page, source);
+    if (typeof files === 'string') throw new Error(files);
+    return files;
+  };
+  const a = await make(20, .8, .52), b = await make(35, .92, .68);
+  await serveRenderer(page, { a, b });
+  const tagA = 'ograf-isolation-pivot-a', tagB = 'ograf-isolation-pivot-b';
+  const matrix = (key: string, seek?: { duration: number; at: number }) => page.evaluate(({ key, seek }) => {
+    if (seek) {
+      type Timeline = { duration(): number; pause(): Timeline; time(at: number, suppress: boolean): void };
+      const gsap = (window as unknown as { gsap: { globalTimeline: { getChildren(nested: boolean, tweens: boolean, timelines: boolean): Timeline[] } } }).gsap;
+      const timeline = gsap.globalTimeline.getChildren(false, false, true).find(t => Math.abs(t.duration() - seek.duration) < .0001);
+      if (!timeline) throw new Error(`No ${seek.duration} timeline`);
+      timeline.pause().time(seek.at, true);
+    }
+    const body = graphicBody(document.querySelector(`[data-folder="${key}"]`)!);
+    const parent = body.querySelector<SVGGraphicsElement>('#pivot-art')!, group = body.querySelector<SVGGraphicsElement>('#group-1')!;
+    return parent.getScreenCTM()!.inverse().multiply(group.getScreenCTM()!).e;
+  }, { key, seek });
+  await place(page, 'a', tagA, { skipAnimation: false });
+  expect(await matrix('a', { duration: .8, at: .4 })).toBeCloseTo(-30, 3);
+  await place(page, 'b', tagB, { skipAnimation: false });
+  expect.soft(await matrix('b', { duration: .92, at: .46 })).toBeCloseTo(-45, 3);
+  expect(await matrix('a')).toBeCloseTo(-30, 3);
+  await page.evaluate(async () => {
+    const elements = Array.from(document.querySelectorAll('#stage > *')) as (HTMLElement & { stopAction(p: unknown): Promise<unknown> })[];
+    await Promise.all(elements.map(el => el.stopAction({})));
+  });
+  expect.soft(await matrix('a', { duration: .52, at: .26 })).toBeCloseTo(-45, 3);
+  expect.soft(await matrix('b', { duration: .68, at: .34 })).toBeCloseTo(-60, 3);
+  await unmount(page, 'a');
+  expect.soft(await matrix('b')).toBeCloseTo(-60, 3);
+  await place(page, 'a', tagA, { skipAnimation: false });
+  expect.soft(await matrix('a', { duration: .8, at: .4 })).toBeCloseTo(-30, 3);
+  expect.soft(await matrix('b')).toBeCloseTo(-60, 3);
+});
+
+test('owned pivots leave raw same-name GSAP tracks alone in a shared OGraf renderer', async ({ page }) => {
+  await page.goto('/app');
+  const draft = await graphicTemplate(page, { kind: 'probe', name: 'Mixed renderer pivots',
+    css: '#pivot-box {position:absolute;left:20px;top:20px;width:320px;height:100px}',
+    html: '<div id="pivot-box" data-gfx></div><svg width="960" height="270"><rect id="pivot-a" data-gfx width="90" height="60"/><rect id="pivot-b" data-gfx x="180" width="90" height="60"/></svg>' });
+  const folders = ['raw', 'ordinary', 'group'] as const;
+  const durations = { raw: [.74, .42], ordinary: [.82, .5], group: [.9, .58] };
+  const packages: Record<string, Files> = {};
+  for (const folder of folders) {
+    const source = await page.evaluate(async ({ draft, folder, durations: [inTime, outTime] }) => {
+      const { parseAnimData } = await import('/src/blocks/animData.ts');
+      const { replaceRegionWithAnimData } = await import('/src/templates/shared/animRuntime.ts');
+      const { applyOperations } = await import('/src/components/editorFoundation/operations.ts');
+      const template = draft as Parameters<typeof applyOperations>[0], data = parseAnimData(template.js)!;
+      data.speed = 1;
+      data.steps = [{ name: 'In', duration: inTime, ease: 'none', layers: {} }, { name: 'Out', duration: outTime, ease: 'none', layers: {} }];
+      if (folder === 'raw') {
+        for (const [step, a, b] of [[0, 70, 210], [1, 90, 230]]) {
+          data.steps[step].layers['#pivot-box'] = {
+            noacgAnchorX: [{ time: 0, value: a }, { time: data.steps[step].duration, value: a + 20 }],
+            noacgSvgGroupPivotX: [{ time: 0, value: b }, { time: data.steps[step].duration, value: b + 20 }],
+          };
+        }
+        const init = "var probe = document.getElementById('pivot-box'); probe.noacgAnchorX = 1; probe.noacgSvgGroupPivotX = 2;";
+        return { ...template, js: replaceRegionWithAnimData(template.js, data) + '\n' + init,
+          css: template.css + '\n#pivot-box {--base-anchor-x: 40px; transform-origin:var(--base-anchor-x) 20px}' };
+      }
+      const selector = folder === 'group' ? '#group-1' : '#pivot-box';
+      const property = folder === 'group' ? '--base-anchor-x' : 'noacgAnchorX';
+      const key = (step: number, time: number, value: number) => ({ kind: 'animation.key' as const, selector, property,
+        step, time, value, action: 'set' as const, baseValues: { anchorX: 160, anchorY: 50 } });
+      const start = folder === 'group' ? 135 : 160;
+      const keyed = [key(0, 0, start), key(0, inTime, start + 20), key(1, 0, start + 20), key(1, outTime, start + 40)];
+      if (folder === 'ordinary') {
+        data.steps[0].layers[selector] = { __noacgPivot_0: [{ time: 0, value: 5 }, { time: inTime, value: 9 }] };
+        data.steps[1].layers[selector] = { __noacgPivot_0: [{ time: 0, value: 9 }, { time: outTime, value: 13 }] };
+      }
+      const js = replaceRegionWithAnimData(template.js, data)! + (folder === 'ordinary' ? "\ndocument.getElementById('pivot-box').__noacgPivot_0 = 5;" : '');
+      return applyOperations({ ...template, js }, folder === 'group'
+        ? [{ kind: 'group.create', selectors: ['#pivot-a', '#pivot-b'], box: { x: 0, y: 0, width: 270, height: 60 } }, ...keyed]
+        : keyed).template;
+    }, { draft, folder, durations: durations[folder] });
+    const files = await ografFiles(page, source);
+    if (typeof files === 'string') throw new Error(files);
+    packages[folder] = files;
+  }
+  await serveRenderer(page, packages);
+  const sample = (folder: typeof folders[number], cue: 0 | 1) => page.evaluate(({ folder, duration, cue }) => {
+    type Timeline = { duration(): number; pause(): Timeline; time(at: number, suppress: boolean): void };
+    type Gsap = { plugins: Record<string, unknown>; getProperty(el: Element, name: string): number;
+      globalTimeline: { getChildren(nested: boolean, tweens: boolean, timelines: boolean): Timeline[] } };
+    const gsap = (window as unknown as { gsap: Gsap }).gsap;
+    const timeline = gsap.globalTimeline.getChildren(false, false, true).find(t => Math.abs(t.duration() - duration) < .0001);
+    if (!timeline) throw new Error('No ' + duration + ' timeline');
+    timeline.pause().time(duration / 2, true);
+    const body = graphicBody(document.querySelector('[data-folder="' + folder + '"]')!);
+    const node = body.querySelector(folder === 'group' ? '#group-1' : '#pivot-box')!;
+    const pivot = getComputedStyle(node).getPropertyValue('--base-anchor-x');
+    if (folder === 'ordinary' && Number(gsap.getProperty(node, '__noacgPivot_0')) !== (cue === 0 ? 7 : 10)) throw new Error('The private accessor replaced a raw property');
+    return folder === 'raw'
+      ? [pivot, gsap.getProperty(node, 'noacgAnchorX'), gsap.getProperty(node, 'noacgSvgGroupPivotX'),
+        'noacgAnchorX' in gsap.plugins, 'noacgSvgGroupPivotX' in gsap.plugins]
+      : pivot;
+  }, { folder, duration: durations[folder][cue], cue });
+  const mount = (folder: typeof folders[number]) => place(page, folder, 'ograf-isolation-mix-' + folder, { skipAnimation: false });
+  for (const order of [folders, ['ordinary', 'group', 'raw'] as const]) {
+    for (const folder of order) {
+      await mount(folder);
+      expect.soft(await sample(folder, 0)).toEqual(folder === 'raw' ? ['40px', 80, 220, false, false] : folder === 'ordinary' ? '170px' : '145px');
+    }
+    expect.soft(await sample('raw', 0)).toEqual(['40px', 80, 220, false, false]);
+    await page.evaluate(async () => {
+      const graphics = [...document.querySelectorAll('#stage > *')] as (HTMLElement & { stopAction(p: unknown): Promise<unknown> })[];
+      await Promise.all(graphics.map(el => el.stopAction({})));
+    });
+    expect.soft(await sample('raw', 1)).toEqual(['40px', 95, 235, false, false]);
+    expect.soft(await sample('ordinary', 1)).toBe('185px');
+    expect.soft(await sample('group', 1)).toBe('160px');
+    await unmount(page, 'ordinary'); await mount('ordinary');
+    expect.soft(await sample('ordinary', 0)).toBe('170px');
+    expect.soft(await sample('raw', 1)).toEqual(['40px', 95, 235, false, false]);
+    await page.reload();
+  }
 });
 
 test("a child-combinator rule off `body` matches the design's own top-level elements, and `body.children` lists them", async ({ page }) => {

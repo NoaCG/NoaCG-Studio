@@ -1,6 +1,8 @@
 import { losslessAnimData } from './animData';
 import { STOP_AGAIN_GUARD_JS, writeOutData } from '../templates/shared/animRuntime';
 
+export { hasLoopRuntime } from '../templates/shared/animRuntime';
+
 /**
  * The raster stretch runtime's edge walk as a design imported before #924 carries it, and as it is
  * now. The old walk summed offsets past the canvas into the renderer's page, so on an OGraf

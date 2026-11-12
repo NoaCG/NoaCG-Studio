@@ -51,6 +51,13 @@ export interface SavedGraphic {
    */
   graphicId?: string;
   /**
+   * THE DESIGN STAMP (live-publishing G1): equal to `savedAt` when a build that treats the copy as
+   * the only truth set this copy's design (Update, add, own-reader removal, settle, adoption, an
+   * Undo or Redo of a design). An older build never writes it, so its design writes leave a copy
+   * unstamped. Additive and optional.
+   */
+  designAt?: string;
+  /**
    * The PLAYOUT LAYER this graphic airs on, inside a production pool (docs/PLAYOUT_DASHBOARD.md
    * §5). A number the operator types - CasparCG offers 1-100 - defaulting to `DEFAULT_PLAYOUT_LAYER`.
    * It is both the SPX/CasparCG playout layer an export declares and the browser output's paint

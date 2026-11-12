@@ -217,7 +217,8 @@ keeping today's numbers; fixing behaviour inside an extraction (§1.3).
   green. Refuted: the test records today's behaviour.
 - **S2 Graphic Take waits on the draft save without the 250 ms head start a native cue has**
   (`takeGraphicCue` 2963 against `serverVerb` 2878-2879). Characterised (a test records the wait)
-  and retained as existing behaviour; not changed by this plan.
+  and retained as existing behaviour; not changed by this plan. (Superseded by
+  docs/work-specs/live-publishing/spec.md W1: no Take path waits on the save now.)
 - **S3 Two folder Take (or step) presses inside the save wait both run.** The `folderRuns.has`
   check (3549, 3637) precedes `await flushDraft(); await history.closeGroup()` (3550, 3651), and
   the run registers only after (3551, 3652). Reproduce offline with the fake Bridge holding the

@@ -430,18 +430,16 @@ function stepForState(data: AnimData, group: AnimGroup, stateId: string): AnimSt
  * Can this state's timeline be relied on to END? A timer arms with a call scheduled at the
  * timeline's end, so a state whose timeline never gets there never advances — silently.
  *
- * Two things make an end unreachable. A `repeat: -1` loop track obviously never finishes. And
- * MEASURED motion (a `dynamics` builder) returns a segment whose length is read off the DOM at
- * play time — the marquee and roll builders return endless ones — so its duration is simply
- * not knowable when the machine is authored. Both are rejected: a timer on either would be a
- * promise the runtime cannot keep.
+ * Legacy indefinite loops have no finite cue clock. Measured motion may also be indefinite
+ * and its length is only known at play time. An authored loop has a finite cue endpoint
+ * even if it keeps moving during Hold, so that endpoint can arm a timer.
  */
 function hasEndlessMotion(data: AnimData, group: AnimGroup, stateId: string): boolean {
   const step = stepForState(data, group, stateId);
   if (!step) return false;
   if ((step.dynamics ?? []).length > 0) return true;
   for (const perProp of Object.values(step.loops ?? {})) {
-    for (const loop of Object.values(perProp)) if (loop.repeat < 0) return true;
+    for (const loop of Object.values(perProp)) if (loop.repeat < 0 && !loop.range) return true;
   }
   return false;
 }

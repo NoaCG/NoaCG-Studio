@@ -21,7 +21,7 @@
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
-import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
+import { bootstrapGraphic } from '../_create';
 import { clearPublishedShows, haveCreds, readyOf, signIn, wipeMyGraphics, unpublishForCleanup, type ReadyWindow } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
@@ -45,27 +45,36 @@ test('the readiness run publishes what changed, checks every output and ends in 
   // name match below ambiguous, and the AC-5 step would fail for a reason that is not the product.
   await wipeMyGraphics(page);
   await bootstrapGraphic(page, { name: 'House Scorebug' });
-  // In the LIBRARY too, as a graphic saved and added from Home is: a publish then reads its design
-  // from the library record (by its name, `resolveSavedGraphicDoc`), which the AC-5 step edits.
-  expect(
-    await page.evaluate(async () => {
-      const { createGraphic } = await import('/src/model/library.ts');
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-      const { template } = useTemplateStore.getState();
-      const { error } = createGraphic(template, { name: template.name });
-      return error ?? (await commitDurableWrites());
-    }),
-  ).toBeFalsy();
-  const showId = await openProductionWithCurrent(page, `Prepare ${Date.now()}`);
+  // In the LIBRARY too, and added from its record, as a graphic saved and added from Home is: the
+  // production's copy links to it, so the AC-5 step's library edit is offered as Update
+  // (live-publishing W2: the copy is the only truth).
+  const showId = await page.evaluate(async (name) => {
+    const { createGraphic } = await import('/src/model/library.ts');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { createShowNamedChecked, addGraphicToShow } = await import('/src/model/shows.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { useRouter } = await import('/src/app/router.ts');
+    const { template } = useTemplateStore.getState();
+    const { doc, error: notSaved } = createGraphic(template, { name: template.name });
+    if (notSaved || !doc) throw new Error(notSaved ?? 'not saved');
+    const { show, error: notCreated } = createShowNamedChecked(name);
+    if (notCreated) throw new Error(notCreated);
+    const { error } = addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
+    const failure = error ?? (await commitDurableWrites());
+    if (failure) throw new Error(failure);
+    useRouter.getState().navigate({ view: 'production', id: show.id });
+    await new Promise((resolve) => setTimeout(resolve));
+    return show.id;
+  }, `Prepare ${Date.now()}`);
+  await expect(page.getByTestId('production-page')).toBeVisible();
   await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   await page.getByTestId('production-status').click();
-  const { outputSlug, hostedSlug } = (await page.evaluate(async (id) => {
+  const { outputSlug } = (await page.evaluate(async (id) => {
     const { loadShows } = await import('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === id);
-    return { outputSlug: s?.outputSlug ?? '', hostedSlug: s?.hostedSlug ?? '' };
-  }, showId)) as { outputSlug: string; hostedSlug: string };
+    return { outputSlug: s?.outputSlug ?? '' };
+  }, showId)) as { outputSlug: string };
 
   const anon = await browser.newContext();
   const air = await anon.newPage();
@@ -100,13 +109,6 @@ test('the readiness run publishes what changed, checks every output and ends in 
   test.info().annotations.push({ type: 'stamp', description: JSON.stringify(first) });
   await page.screenshot({ path: shot('desk-1920-checked') });
 
-  // ── AC-11: the phone shows the same check, from the production page's Presence entry. ──
-  const hosted = await anon.newPage();
-  await hosted.setViewportSize({ width: 390, height: 844 });
-  await hosted.goto(`/app?control=${encodeURIComponent(hostedSlug)}`);
-  await openPanel(hosted, 'hosted-output-health');
-  await expect(hosted.getByTestId('ready-stamp')).toContainText(/checked \d\d:\d\d/i, { timeout: 30_000 });
-  await hosted.screenshot({ path: shot('phone-390-stamp') });
 
   // Cue fields change metadata, not prepared assets: no header action, the panel offers Publish
   // changes, and the output adopts the new version without navigating.
@@ -132,9 +134,11 @@ test('the readiness run publishes what changed, checks every output and ends in 
   await expect.poll(async () => (await readyOf(air))?.v?.n, { timeout: 30_000 }).toBe(2);
   expect(reloads, 'cue metadata must not reload the output').toBe(metadataReloads);
 
-  // ── docs/work-specs/studio-day-playout AC-5: the graphic edited in the LIBRARY, as the editor's
-  //    save does, with the production record untouched. It is a change the outputs draw, so the
-  //    header offers Publish changes, and the output moves onto it. ──
+  // ── The graphic edited in the LIBRARY, as the editor's save does. The production's copy is the
+  //    only truth (live-publishing W2): nothing changes for the outputs and the header asks for no
+  //    publish; the cue editor says "Newer design in library", and its Update takes the design into
+  //    the copy, which is a change the outputs draw, so Publish changes moves the output onto it
+  //    (docs/work-specs/studio-day-playout AC-5). ──
   const readUpdatedAt = () =>
     page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.updatedAt ?? '', showId);
   const recordBefore = await readUpdatedAt();
@@ -143,15 +147,19 @@ test('the readiness run publishes what changed, checks every output and ends in 
     const { loadGraphics, resolveSavedGraphicDoc, updateGraphic } = await import('/src/model/library.ts');
     const { commitDurableWrites } = await import('/src/model/durableStore.ts');
     const pooled = loadShows().find((s) => s.id === id)?.graphics[0];
-    // The record a publish reads this graphic from (hostedControl.ts, templateForSavedGraphic).
     const doc = pooled ? resolveSavedGraphicDoc(pooled, loadGraphics()) : undefined;
     if (!doc) return false;
     const { error } = updateGraphic(doc.id, { template: { ...doc.template, css: `${doc.template.css}\n/* edited in the library */` } });
     return !error && !(await commitDurableWrites());
   }, showId);
   expect(edited, 'the production names its graphic in the library').toBe(true);
-  await expect(page.getByTestId('production-publish-changes')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('newer-design')).toContainText('Newer design in library', { timeout: 15_000 });
+  await expect(page.getByTestId('production-publish-changes')).toHaveCount(0);
   expect(await readUpdatedAt()).toBe(recordBefore);
+  expect((await stampOf())?.v.n, 'a library edit publishes nothing').toBe(2);
+  await page.getByTestId('design-update').click();
+  await expect(page.getByTestId('newer-design')).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.getByTestId('production-publish-changes')).toBeVisible({ timeout: 15_000 });
   await page.getByTestId('production-publish-changes').click();
   await expect.poll(async () => (await readyOf(air))?.v?.n ?? 0, { timeout: 90_000 }).toBe(3);
   await expect(page.getByTestId('production-publish-changes')).toHaveCount(0, { timeout: 30_000 });

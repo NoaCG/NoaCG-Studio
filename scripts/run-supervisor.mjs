@@ -249,7 +249,7 @@ export function observePlanLaunch(db, id, observation, { now = Date.now() } = {}
   });
 }
 
-/** Admit owner-receipted phases into an active project: the phase list, `## Phases`, both
+/** Admit owner-receipted insertions/future environment changes: the phase list, `## Phases`, both
  * project digests and one `admitted` ledger line change together, then the checkpoint publishes. */
 export function admitRun(db, id, admission, { now = Date.now(), authority } = {}) {
   checkAdmission(admission);

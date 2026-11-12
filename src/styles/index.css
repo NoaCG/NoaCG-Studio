@@ -26,7 +26,6 @@
 @import './brand-mark.css';         /* the brand mark + lockup (Brand Manual §2) */
 @import './editor.css';             /* the code editor and the preview stage */
 @import './field-controls.css';     /* the shared field control (Data, Rehearse, video Content) */
-@import './control-page.css';       /* the hosted control page (?control=<slug>) */
 @import './wizard-describe.css';    /* category grouping, the video engine picker, Describe-it, borrower sheets */
 @import './panels.css';             /* shared field, style and viewing controls */
 @import './wizard-and-dialogs.css'; /* the SHARED DIALOG ANATOMY (every dialog in the app), Settings, and the whole creation wizard */

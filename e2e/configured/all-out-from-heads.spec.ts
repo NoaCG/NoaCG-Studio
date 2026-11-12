@@ -1,4 +1,4 @@
-// covers: src/control/{allOut,seqSend}.ts, src/components/home/ProductionPage.tsx, src/components/HostedControlPage.tsx
+// covers: src/control/{allOut,seqSend}.ts, src/components/home/ProductionPage.tsx
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/ProductionShell.tsx
 // covers: src/components/home/useProductionPublish.ts
@@ -11,8 +11,8 @@
 // and with an empty list it sent nothing at all: a graphic put on air with no marker (an older
 // build, a stale client, a marker lost on the way) stayed on every output while the panic control
 // did nothing. The server's heads (migration 0069, 0071) know what is on, so All out clears those
-// too, reads "Clearing…" until the heads say each is off, and names any that is not. The hosted
-// control page follows the same rule (owner, 2026-10-08).
+// too, reads "Clearing…" until the heads say each is off, and names any that is not. A second
+// production page on the same production follows the same rule.
 //
 // It lives in the configured suite because the heads are the database's: offline there is no head
 // to read and no stop for the server to record.
@@ -21,7 +21,7 @@ import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { SERVICE_ROLE_KEY, SUPABASE_URL, clearPublishedShows, haveCreds, signIn, unpublishForCleanup, wipeMyGraphics } from './_helpers';
+import { SERVICE_ROLE_KEY, SUPABASE_URL, clearPublishedShows, haveCreds, openSecondProductionPage, signIn, unpublishForCleanup, wipeMyGraphics } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -56,7 +56,7 @@ test('All out clears a graphic the server says is on that this page holds no cue
       await sendControlVerb({ slug: show.hostedSlug!, showId: show.id, items: [{ graphic: name, msg: { t: 'play' } }] });
       return { graphic: name, slug: show.hostedSlug! };
     }, showId);
-  const { graphic, slug } = await playBare();
+  const { graphic } = await playBare();
   await expect.poll(() => headOn(graphic), { timeout: 20_000 }).toBe(true);
   await expect(page.getByTestId('cue-list').locator('.pd-tag.air')).toHaveCount(0);
 
@@ -66,19 +66,17 @@ test('All out clears a graphic the server says is on that this page holds no cue
   await expect(page.getByTestId('verb-out-all')).toHaveText('■ All out', { timeout: 10_000 });
   await expect(page.getByTestId('production-note').filter({ hasText: 'did not clear' })).toHaveCount(0);
 
-  // THE HOSTED CONTROL PAGE: pressable with nothing it knows of up, and the same graphic, put on
-  // air bare again, comes off from there too.
+  // A SECOND PRODUCTION PAGE on the same production: pressable with nothing it knows of up, and
+  // the same graphic, put on air bare again, comes off from there too.
   await playBare();
   await expect.poll(() => headOn(graphic), { timeout: 20_000 }).toBe(true);
-  const hosted = await page.context().newPage();
-  await hosted.goto(`/app?control=${encodeURIComponent(slug)}`);
-  await expect(hosted.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
-  await expect(hosted.getByTestId('hosted-live-chip')).toContainText('nothing on air');
-  await expect(hosted.getByTestId('hosted-out-all')).toBeEnabled();
-  await hosted.getByTestId('hosted-out-all').click();
+  const other = await openSecondProductionPage(page, showId);
+  await expect(other.getByTestId('cue-list').locator('.pd-tag.air')).toHaveCount(0);
+  await expect(other.getByTestId('verb-out-all')).toBeEnabled();
+  await other.getByTestId('verb-out-all').click();
   await expect.poll(() => headOn(graphic), { timeout: 20_000 }).toBe(false);
-  await expect(hosted.getByTestId('hosted-out-all')).toHaveText('■ All out', { timeout: 10_000 });
-  await hosted.close();
+  await expect(other.getByTestId('verb-out-all')).toHaveText('■ All out', { timeout: 10_000 });
+  await other.close();
 
   await unpublishForCleanup(page);
   await clearPublishedShows(page);

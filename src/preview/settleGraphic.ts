@@ -79,6 +79,7 @@ export interface SettleWindow {
   update?: (json: string) => void;
   play?: () => void;
   buildInTimeline?: () => SettleTimeline;
+  noacgSettleCue?: (tl: SettleTimeline) => void;
 }
 
 /**
@@ -115,7 +116,9 @@ export function settleGraphic(win: SettleWindow | null | undefined, data: string
     tl.pause();
     // `time`, not `progress`: an endless child makes `progress(1)` seek to 1e10 seconds,
     // which is a phase of the loop rather than the end of the entrance.
-    if (typeof tl.getChildren === 'function' && typeof tl.time === 'function') {
+    if (typeof win.noacgSettleCue === 'function') {
+      win.noacgSettleCue(tl);
+    } else if (typeof tl.getChildren === 'function' && typeof tl.time === 'function') {
       tl.time(finiteEnd(tl), true);
     } else {
       tl.progress(1, true);

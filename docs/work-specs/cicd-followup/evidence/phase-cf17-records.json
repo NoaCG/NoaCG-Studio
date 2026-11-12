@@ -1,0 +1,236 @@
+{
+  "window": {
+    "since": "2026-11-10T19:38:54Z",
+    "until": "2026-11-11T17:17:33Z"
+  },
+  "complete": true,
+  "calls": 9,
+  "trialPrs": [
+    {
+      "number": 2378,
+      "plan": "vmix",
+      "phase": "v4",
+      "kind": "build",
+      "state": "open",
+      "createdAt": "2026-11-11T09:52:21Z",
+      "mergedAt": null,
+      "queueEntries": 0,
+      "queueRemovals": 0,
+      "queueMinutes": null,
+      "m3": 1100.5,
+      "failThenPass": false,
+      "flaky": [],
+      "reruns": 0,
+      "reviewWaitMinutes": 13.2,
+      "postLandingFailure": false
+    },
+    {
+      "number": 2380,
+      "plan": "live-publishing",
+      "phase": "3",
+      "kind": "build",
+      "state": "closed",
+      "createdAt": "2026-11-11T12:37:20Z",
+      "mergedAt": "2026-11-11T16:49:02Z",
+      "queueEntries": 1,
+      "queueRemovals": 0,
+      "queueMinutes": 14.666666666666666,
+      "m3": 2688.3,
+      "failThenPass": false,
+      "flaky": [],
+      "reruns": 1,
+      "reviewWaitMinutes": 44.2,
+      "postLandingFailure": false
+    },
+    {
+      "number": 2386,
+      "plan": "editor-r1-5",
+      "phase": "e3",
+      "kind": "build",
+      "state": "closed",
+      "createdAt": "2026-11-11T14:20:55Z",
+      "mergedAt": "2026-11-11T14:54:39Z",
+      "queueEntries": 1,
+      "queueRemovals": 0,
+      "queueMinutes": 12.016666666666667,
+      "m3": 587.9,
+      "failThenPass": false,
+      "flaky": [],
+      "reruns": 0,
+      "reviewWaitMinutes": 2.7,
+      "postLandingFailure": false
+    },
+    {
+      "number": 2374,
+      "plan": "editor-r1-5",
+      "phase": "e2",
+      "kind": "build",
+      "state": "closed",
+      "createdAt": "2026-11-11T04:49:55Z",
+      "mergedAt": "2026-11-11T12:26:14Z",
+      "queueEntries": 1,
+      "queueRemovals": 0,
+      "queueMinutes": 17.216666666666665,
+      "m3": 1741,
+      "failThenPass": false,
+      "flaky": [],
+      "reruns": 0,
+      "reviewWaitMinutes": 15.8,
+      "postLandingFailure": true
+    },
+    {
+      "number": 2376,
+      "plan": "live-publishing",
+      "phase": "2",
+      "kind": "build",
+      "state": "closed",
+      "createdAt": "2026-11-11T08:24:41Z",
+      "mergedAt": "2026-11-11T11:28:30Z",
+      "queueEntries": 1,
+      "queueRemovals": 0,
+      "queueMinutes": 8.766666666666667,
+      "m3": 602.8,
+      "failThenPass": false,
+      "flaky": [],
+      "reruns": 0,
+      "reviewWaitMinutes": 20.8,
+      "postLandingFailure": false
+    },
+    {
+      "number": 2368,
+      "plan": "vmix",
+      "phase": "v3",
+      "kind": "build",
+      "state": "closed",
+      "createdAt": "2026-11-11T01:00:17Z",
+      "mergedAt": "2026-11-11T08:24:38Z",
+      "queueEntries": 1,
+      "queueRemovals": 0,
+      "queueMinutes": 13.816666666666666,
+      "m3": 634,
+      "failThenPass": false,
+      "flaky": [],
+      "reruns": 0,
+      "reviewWaitMinutes": 5.2,
+      "postLandingFailure": false
+    },
+    {
+      "number": 2369,
+      "plan": "editor-r1-5",
+      "phase": "e1",
+      "kind": "build",
+      "state": "closed",
+      "createdAt": "2026-11-11T01:25:39Z",
+      "mergedAt": "2026-11-11T02:24:42Z",
+      "queueEntries": 1,
+      "queueRemovals": 0,
+      "queueMinutes": 18.15,
+      "m3": 978,
+      "failThenPass": false,
+      "flaky": [],
+      "reruns": 0,
+      "reviewWaitMinutes": 5.3,
+      "postLandingFailure": false
+    },
+    {
+      "number": 2293,
+      "plan": "vmix",
+      "phase": "v2",
+      "kind": "build",
+      "state": "closed",
+      "createdAt": "2026-11-08T15:26:12Z",
+      "mergedAt": "2026-11-11T00:30:40Z",
+      "queueEntries": 1,
+      "queueRemovals": 0,
+      "queueMinutes": 13.316666666666666,
+      "m3": 599.9,
+      "failThenPass": false,
+      "flaky": [],
+      "reruns": 0,
+      "reviewWaitMinutes": 2.7,
+      "postLandingFailure": false
+    },
+    {
+      "number": 2362,
+      "plan": "live-publishing",
+      "phase": "1",
+      "kind": "build",
+      "state": "closed",
+      "createdAt": "2026-11-10T19:19:14Z",
+      "mergedAt": "2026-11-10T21:46:26Z",
+      "queueEntries": 1,
+      "queueRemovals": 0,
+      "queueMinutes": 14.316666666666666,
+      "m3": 2206.3,
+      "failThenPass": false,
+      "flaky": [],
+      "reruns": 0,
+      "reviewWaitMinutes": 33.1,
+      "postLandingFailure": false
+    }
+  ],
+  "W": {
+    "live-publishing": 3,
+    "vmix": 2,
+    "editor-r1-5": 3
+  },
+  "Q": {
+    "n": 8,
+    "p50": 13.816666666666666,
+    "p90": 18.15,
+    "max": 18.15,
+    "openOver30": []
+  },
+  "C": {
+    "queueRemovals": 0,
+    "maxRunnerWaitMinutes": 2,
+    "repoPeakConcurrentJobs": 60,
+    "peakAt": "2026-11-11T12:38:00Z",
+    "runsInWindow": 375,
+    "runsWithJobsRead": 375,
+    "peakIsLowerBound": false
+  },
+  "quarantines": [
+    {
+      "spec": "e2e/output-debate-clock.spec.ts",
+      "at": "2026-11-11T12:47:48Z",
+      "commit": "2e254476",
+      "run": 43020316776,
+      "trialPr": 2374,
+      "plan": "editor-r1-5"
+    },
+    {
+      "spec": "e2e/configured/operator-outage-not-unpublished.spec.ts",
+      "at": "2026-11-11T02:40:17Z",
+      "commit": "d3777803",
+      "run": 42945843116,
+      "trialPr": 2369,
+      "plan": "editor-r1-5"
+    }
+  ],
+  "R": {
+    "landings": 8,
+    "failThenPass": 0,
+    "share": 0,
+    "postLandingFailures": 1,
+    "reruns": 1
+  },
+  "K": {
+    "landings": 8,
+    "tierMinutesPerLanding": {
+      "offline": 854.5,
+      "backend": 258.2,
+      "graphics": 51.1,
+      "overhead": 91
+    },
+    "trialRunsUnread": 0
+  },
+  "stop": {
+    "contention": [
+      "repository-wide peak reached 57 concurrent jobs"
+    ],
+    "failureRate": [
+      "a quarantine added from a trial landing's run (check whether the landing caused the flake)"
+    ]
+  }
+}

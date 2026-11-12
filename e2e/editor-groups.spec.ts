@@ -83,6 +83,12 @@ test('group editing exposes parent bar, local ruler and breadcrumb without hidin
   await expect(page.getByTestId('foundation-canvas')).toBeVisible();
   await expect(page.locator(`.ef-track[data-selector="${ids[2]}"]`)).toHaveCount(0);
   await expect(page.locator(`.ef-track[data-selector="${ids[0]}"]`)).toBeVisible();
+  const local = page.getByRole('slider', { name: 'Group local playhead' });
+  await local.press('Home');
+  const start = Number(await local.getAttribute('aria-valuenow'));
+  const outLabel = page.getByTestId('foundation-local-ruler').locator('span.ef-flag[title="Out"]');
+  await outLabel.click();
+  expect(Number(await local.getAttribute('aria-valuenow'))).toBeGreaterThan(start);
   await page.getByRole('button', { name: 'Composition', exact: true }).click();
   await expect(page.getByTestId('foundation-local-ruler')).toHaveCount(0); expect(await source(page)).toEqual(before);
 });
@@ -375,10 +381,63 @@ test('ungroup refuses a group-owned outline without losing source or selection',
   expect(await evaluateInPage(page, async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts)).toEqual([id]);
 });
 
+test('new SVG grouping refuses CSS that would take ownership of its paint', async ({ page }) => {
+  await open(page, 'svg');
+  const initial = await evaluateInPage(page, async () => {
+    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { replaceRegionWithAnimData } = await import('/src/templates/shared/animRuntime.ts');
+    return { ...t, js: replaceRegionWithAnimData(t.js, parseAnimData(t.js)!)!,
+      html: t.html.replace('</svg>', '<rect id="candidate-a" x="180" y="90" width="90" height="60" fill="orange"/><rect id="candidate-b" x="330" y="100" width="80" height="50" fill="red"/><rect id="candidate-c" x="450" y="110" width="80" height="50" fill="blue"/></svg>') };
+  });
+  const ids = ['#candidate-a', '#candidate-b'];
+  const state = () => evaluateInPage(page, async () => {
+    const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    return { selection: s.selectedParts, history: s.history.length };
+  });
+  const apply = async (rule: string) => {
+    await evaluateInPage(page, async t => { (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t); },
+      { ...initial, css: initial.css + '\n' + rule });
+    await ready(page);
+    await select(page, ids);
+  };
+  for (const [rule, reason] of [
+    ['svg { & > [data-noacg-group-pivot] { transform: scale(2) !important; } }', 'would style the new group'],
+    ['svg { & > #candidate-a, rect { fill: purple; } }', 'structural selector'],
+    ['@PROPERTY /* authored */ --base-anchor-x { syntax: "<number>"; inherits: false; initial-value: 0; }', 'conflicting pivot owner'],
+    ['#candidate-a { opacity: var(--base-scale-x, .25); }', 'inherits a group transform property'],
+    ['#candidate-b { --opacity: var(--base-\\73 cale-x, .25); opacity: var(--opacity); }', 'inherits a group transform property'],
+  ]) {
+    await apply(rule);
+    const before = await source(page), selection = await state(), painted = await rects(page, ids);
+    const memberOpacity = () => Promise.all(ids.map(id => page.frameLocator('iframe[title="Foundation graphic preview"]').locator(id).evaluate(el => getComputedStyle(el).opacity)));
+    const opacity = await memberOpacity();
+    await page.getByRole('button', { name: 'Group selection', exact: true }).click();
+    await ready(page);
+    expect.soft((await source(page)).html === before.html, rule).toBe(true);
+    expect.soft((await source(page)).css === before.css, rule).toBe(true);
+    expect.soft((await source(page)).js === before.js, rule).toBe(true);
+    expect.soft(await state()).toEqual(selection);
+    expect.soft(await rects(page, ids)).toEqual(painted);
+    expect.soft(await memberOpacity()).toEqual(opacity);
+    await expect.soft(page.locator('.ef-group-error')).toContainText(reason, { timeout: 1000 });
+  }
+  await apply('svg { & > .unrelated { fill: purple; } }\n#candidate-a { --base-scale-x: .25; opacity: var(--base-scale-x); }\n#f0 { opacity: var(--base-scale-x, .3); }');
+  const id = await group(page, ids);
+  expect((await source(page)).html).toContain('id="' + id.slice(1) + '" data-gfx data-noacg-group data-noacg-group-pivot="frame-v1"');
+  const outer = await group(page, [id, '#candidate-c']);
+  expect(outer).not.toBe(id);
+  const preview = page.frameLocator('iframe[title="Foundation graphic preview"]');
+  await expect(preview.locator(outer).locator(id)).toHaveCount(1);
+  await expect(preview.locator('#candidate-a')).toHaveCSS('opacity', '0.25');
+});
+
 test('SVG group pivot is centered and remains static during child and group motion',async({page})=>{
   await open(page,'svg');
   await evaluateInPage(page, async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<rect id="pivot-a" x="180" y="90" width="90" height="60" fill="orange"/><path id="pivot-b" d="M370 170 L450 170 L420 230 Z" fill="red"/></svg>')});});await ready(page);
   const ids=['#pivot-a','#pivot-b'],id=await group(page,ids),f=(await(await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!;
+  await expect(page.locator('.ef-anchor')).toContainText('This older SVG group keeps its saved pivot');
+  await expect(page.getByRole('button', { name: 'Enable Anchor X animation', exact: true })).toHaveCount(0);
   expect((await f.locator(id).getAttribute('data-svg-origin'))!.split(' ').map(Number)).toEqual([315,160]);
   const before=await source(page),pose=await rects(page,ids);
   const input=page.getByRole('textbox',{name:'Anchor X',exact:true});await input.fill('100');await input.press('Enter');await ready(page);
@@ -390,6 +449,171 @@ test('SVG group pivot is centered and remains static during child and group moti
   }
   await select(page,[id]);await page.getByRole('button',{name:'Ungroup selection',exact:true}).click();await ready(page);
   for(const[i,time]of [0,.2,.4,0].entries()){await seek(page,time);nearRects(await rects(page,ids),poses[i]);}
+});
+
+test('SVG group anchor keys keep their stored frame while a member moves', async ({ page }) => {
+  await open(page, 'svg');
+  await evaluateInPage(page, async () => {
+    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { replaceRegionWithAnimData } = await import('/src/templates/shared/animRuntime.ts');
+    const data = parseAnimData(store.template.js)!;
+    data.steps[0].ease = 'none';
+    const members = '<g id="pivot-parent" transform="translate(100 80) rotate(30) scale(2 1.5)"><rect id="pivot-a" x="180" y="90" width="90" height="60" fill="orange"/><path id="pivot-b" d="M370 170 L450 170 L420 230 Z" fill="red"/></g>';
+    const html = store.template.html.replace('viewBox="0 0 960 270"', 'viewBox="35 24 960 270"').replace('</svg>', members + '</svg>');
+    store.applyTemplate({ ...store.template, js: replaceRegionWithAnimData(store.template.js, data)!, html });
+  });
+  await ready(page);
+  const members = ['#pivot-a', '#pivot-b'];
+  const painted = async () => {
+    await expect.poll(() => evaluateInPage(page, async () => {
+      const controller = (await import('/src/components/editorFoundation/Canvas.tsx')).foundationDiagnostics();
+      const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+      return controller?.receipt(session.version(), session.port.view()).state;
+    })).toBe('ready');
+  };
+  const scrub = async (time: number) => { await seek(page, time); await painted(); };
+  await painted();
+  const beforeGroup = await rects(page, members), id = await group(page, members);
+  await painted();
+  nearRects(await rects(page, members), beforeGroup);
+  const iframe = page.frameLocator('iframe[title="Foundation graphic preview"]');
+  const matrix = async (selector: string) => iframe.locator(selector).evaluate(el => {
+    const node = el as SVGGraphicsElement;
+    const ancestor = document.getElementById('pivot-parent') as unknown as SVGGraphicsElement;
+    const m = ancestor.getScreenCTM()!.inverse().multiply(node.getScreenCTM()!);
+    return [m.a, m.b, m.c, m.d, m.e, m.f];
+  });
+  const poses = () => Promise.all(members.map(matrix));
+  const samePose = (actual: number[][], expected: number[][], stage: string) => {
+    actual.forEach((m, layer) => m.forEach((value, component) => expect(value, `${stage}, member ${layer}`).toBeCloseTo(expected[layer][component], 3)));
+  };
+  await expect(iframe.locator(id)).toHaveAttribute('data-noacg-group-pivot', 'frame-v1');
+  await evaluateInPage(page, async selector => {
+    const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    s.execute({ documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(),
+      operations: [{ kind: 'base.set', selector, values: { anchorX: 135.00049, anchorY: 70 } }] });
+  }, id);
+  await ready(page);
+  await key(page, members[0], 'x', 0, 0);
+  await key(page, members[0], 'x', .4, -80);
+  await key(page, id, 'x', 0, 17.375);
+  await key(page, id, 'y', 0, -9.25);
+  for (const [property, first, last] of [['rotation', 0, 35], ['scaleX', 1, 1.4], ['scaleY', 1, .8]] as const) {
+    await key(page, id, property, 0, first);
+    await key(page, id, property, .4, last);
+  }
+  await key(page, id, 'scaleX', .2, 3);
+  await select(page, [id]);
+  await scrub(.2);
+  const first = await poses(), original = await source(page);
+  expect(await iframe.locator(id).getAttribute('transform')).toBeNull();
+  const history = () => evaluateInPage(page, async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().history.length);
+  const entries = await history();
+  await page.getByRole('button', { name: 'Enable Anchor X animation', exact: true }).click();
+  await ready(page);
+  await painted();
+  samePose(await poses(), first, 'fractional first enable');
+  expect(await iframe.locator(id).getAttribute('transform')).toBeNull();
+  expect(await history()).toBe(entries + 1);
+  const put = async (axis: 'X' | 'Y', value: number) => {
+    const field = page.getByRole('textbox', { name: 'Anchor ' + axis, exact: true });
+    await field.fill(String(value));
+    await field.press('Enter');
+    await ready(page);
+    await expect(page.locator('.ef-anchor').getByRole('alert')).toHaveCount(0);
+    await expect(field).toHaveValue(String(value));
+    await expect(page.getByRole('button', { name: 'Remove Anchor ' + axis + ' key', exact: true })).toBeVisible();
+  };
+  await scrub(.4);
+  await put('X', 95);
+  await page.getByRole('button', { name: 'Enable Anchor Y animation', exact: true }).click();
+  await ready(page);
+  await scrub(.6);
+  await put('Y', 95);
+  const authored = await source(page);
+  expect(authored.html).toBe(original.html);
+  expect(authored.css).toBe(original.css);
+  expect(authored.fields).toEqual(original.fields);
+  const data = await evaluateInPage(page, async ({ prior, edited, id }) => {
+    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { SVG_GROUP_PIVOT_UNITS } = await import('/src/model/svgGroupTransform.ts');
+    const before = parseAnimData(prior)!, after = parseAnimData(edited)!;
+    const axes = ['--base-anchor-x', '--base-anchor-y'];
+    const pivot = Object.fromEntries(axes.map(axis => [axis, after.steps[0].layers[id][axis].map(key => ({ ...key, value: Number(key.value) / SVG_GROUP_PIVOT_UNITS }))]));
+    for (const step of after.steps) if (step.layers[id]) for (const axis of axes) delete step.layers[id][axis];
+    return { before, after, pivot };
+  }, { prior: original.js, edited: authored.js, id });
+  expect(data.after).toEqual(data.before);
+  expect(data.pivot).toEqual({ '--base-anchor-x': [{ time: .2, value: 135.00049 }, { time: .4, value: 95 }], '--base-anchor-y': [{ time: .4, value: 70 }, { time: .6, value: 95 }] });
+  expect(data.before.steps[0].layers[id].scaleX).toEqual([{ time: 0, value: 1 }, { time: .2, value: 3 }, { time: .4, value: 1.4 }]);
+  let lastTime: number | undefined;
+  for (const [time, pivotX, pivotY, moved, degrees, scaleX, scaleY] of [
+    [0, 315, 160, 0, 0, 1, 1], [0, 315, 160, 0, 0, 1, 1],
+    [.4, 275, 160, -80, 35, 1.4, .8], [.6, 275, 185, -80, 35, 1.4, .8],
+    [.4, 275, 160, -80, 35, 1.4, .8], [0, 315, 160, 0, 0, 1, 1],
+  ]) {
+    if (time === 0 && lastTime === 0) {
+      const prior = await evaluateInPage(page, async () => {
+        const controller = (await import('/src/components/editorFoundation/Canvas.tsx')).foundationDiagnostics()!;
+        const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+        const view = session.port.view(), receipt = controller.receipt(session.version(), view);
+        if (receipt.state !== 'ready') throw new Error('The first zero pose is not ready.');
+        controller.seek(0, 'scrub', view.cue);
+        return receipt.requestId;
+      });
+      await expect.poll(() => evaluateInPage(page, async () => {
+        const controller = (await import('/src/components/editorFoundation/Canvas.tsx')).foundationDiagnostics()!;
+        const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+        const receipt = controller.receipt(session.version(), session.port.view());
+        return receipt.state === 'ready' ? receipt.requestId : 0;
+      })).toBeGreaterThan(prior);
+    } else await scrub(time);
+    lastTime = time;
+    const style = await iframe.locator(id).evaluate(el => ({ inline: el.getAttribute('style'), scale: getComputedStyle(el).getPropertyValue('--noacg-group-scale-x') }));
+    const angle = degrees * Math.PI / 180;
+    const a = Math.cos(angle) * scaleX, b = Math.sin(angle) * scaleX;
+    const c = -Math.sin(angle) * scaleY, d = Math.cos(angle) * scaleY;
+    const e = 17.375 + pivotX - a * pivotX - c * pivotY, f = -9.25 + pivotY - b * pivotX - d * pivotY;
+    for (const [selector, expected] of [[id, [a, b, c, d, e, f]], [members[0], [a, b, c, d, e + a * moved, f + b * moved]], [members[1], [a, b, c, d, e, f]]] as const) {
+      for (const [index, value] of (await matrix(selector)).entries()) expect(value, `${selector} at ${time}: ${JSON.stringify(style)}`).toBeCloseTo(expected[index], 3);
+    }
+    const marker = (await page.locator('.ef-selection [data-anchor]').getAttribute('transform'))!.match(/-?[\d.]+/g)!.map(Number);
+    const projected = await iframe.locator(id).evaluate((el, p) => {
+      const point = new DOMPoint(p[0], p[1]).matrixTransform((el as SVGGraphicsElement).getScreenCTM()!);
+      return [point.x, point.y];
+    }, [time === 0 ? 315.00049 : pivotX, pivotY]);
+    marker.forEach((value, index) => expect(Math.abs(value - projected[index])).toBeLessThan(.01));
+  }
+  const beforeRefusal = await history();
+  await page.getByRole('button', { name: 'Ungroup selection', exact: true }).click();
+  await expect(page.locator('.ef-group-error')).toContainText('animates its pivot');
+  expect(await source(page)).toEqual(authored);
+  expect(await history()).toBe(beforeRefusal);
+  expect(await evaluateInPage(page, async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts)).toEqual([id]);
+
+  for (const [axis, time] of [['X', .32], ['Y', .52]] as const) {
+    await scrub(time);
+    const prior = await poses();
+    await page.getByRole('button', { name: 'Disable Anchor ' + axis + ' animation', exact: true }).click();
+    await ready(page); await painted();
+    samePose(await poses(), prior, 'baked Anchor ' + axis);
+  }
+  const baked = await poses(), bakedSource = await source(page);
+  await page.getByTestId('save-graphic').click();
+  await page.getByTestId('save-name').fill('Baked SVG group');
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  await settleDurableWrites(page);
+  await page.reload(); await ready(page);
+  const reopened = await source(page);
+  expect([reopened.html, reopened.css, reopened.js]).toEqual([bakedSource.html, bakedSource.css, bakedSource.js]);
+  await select(page, [id]); await scrub(.52);
+  samePose(await poses(), baked, 'reopened without anchor keys');
+  await page.getByRole('button', { name: 'Ungroup selection', exact: true }).click();
+  await ready(page); await painted();
+  samePose(await poses(), baked, 'ungroup after bake');
+  await expect(iframe.locator('g[data-noacg-carrier][data-noacg-group-pivot="frame-v1"]')).toHaveCount(1);
 });
 
 test('local parent trim keeps child motion and navigation cancels timeline drafts',async({page})=>{

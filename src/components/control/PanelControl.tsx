@@ -242,26 +242,6 @@ export function panelToneWords(tone: PanelTone, holder: string | null = null): s
   return tone === 'ok' ? 'Answering here' : tone === 'idle' ? 'Connecting…' : 'Off';
 }
 
-/** The header door, beside Playout: "Panel" and a dot saying whether this page answers. */
-export function PanelButton({ answer, onClick }: { answer: PanelAnswerState; onClick: () => void }) {
-  const tone = panelTone(answer);
-  const words = panelToneWords(tone, answer.holder);
-  return (
-    <button
-      className={`pd-target pd-target-${tone}`}
-      onClick={onClick}
-      title={`Hardware panels (Stream Deck through Companion). ${words}.`}
-      aria-label={`Hardware panels (${words})`}
-      data-testid="panel-open"
-      data-state={tone}
-    >
-      Panel
-      <span className="pd-target-dot" aria-hidden="true" />
-      <span className="pd-target-state">{words}</span>
-    </button>
-  );
-}
-
 function ago(iso: string | null, now: number): string {
   if (!iso) return 'never used';
   const s = Math.max(0, Math.round((now - Date.parse(iso)) / 1000));

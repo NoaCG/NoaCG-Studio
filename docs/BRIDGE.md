@@ -253,6 +253,27 @@ that needs no browser at all (`noacg caspar play`, §4).
 
 ---
 
+### vMix on this computer
+
+Start vMix and NoaCG Bridge 0.11.0 or newer on the same Windows computer. After you pair, the
+page shows the version of vMix it reached. In **Settings > Playout**, the vMix section shows the
+edition and available overlays. If vMix is closed or the port answers as something else, the
+section says why and offers **Try again**. **NoaCG output** starts at the highest available
+overlay and keeps your choice in this browser. If vMix offers fewer channels later, NoaCG uses
+the highest one it has. A Browser already on an overlay stays there until you Unload it.
+
+In the production's Playout panel, switch on **vMix via Bridge**. First Publish loads the output
+when the switch is on. For an already published production press **Load**. The panel asks before
+replacing another input. A matched Browser on the overlay shows **Source unverified** because
+Bridge can see which input is there but cannot read its current page. **Unload** takes the
+Browser off with the overlay transition. To use Load again, check the Browser in vMix, unload
+it if needed, and remove it when safe. Program and Preview stay under the vMix operator's
+control. A Bridge that needs updating offers **Update** in the panel.
+
+If you save a vMix preset with the NoaCG Browser input, start Bridge on the same computer
+and port before opening the preset. If Bridge starts late, reload that Browser input in vMix.
+Starting Bridge leaves every input and overlay as it is.
+
 ## 3. The Bridge (`noacg bridge`, `cli/src/playout/`)
 
 It lives in the existing `noacg` CLI rather than as a second local process, for the reason
@@ -270,7 +291,7 @@ packaged (§6). In code it is the playout agent (`cli/src/playout/`); to a perso
 | No DNS rebinding | The `Host` header must itself be loopback. A name that resolves to `127.0.0.1` from a page's own domain does not get in. |
 | One-time pairing | `/pair` spends a code the Bridge minted: the one it printed and carried in the link it opened, or one a paired page asked for with `/pair-link` or Enter in its window printed (0.8.0). Two minutes, first use only, origin-checked; at most eight open at once. |
 | No AMCP of unknown shape from the page | The page never composes AMCP text. It sends a target, an item, a slot and a verb (§3a); the adapter writes the one line. `/amcp` takes one raw line for the terminal route and refuses an embedded CR or LF; every quoted argument is escaped the way the server's tokenizer reads it, and a reply is capped at 8 MB. |
-| Nearly stateless | Each request names its target; a connection is opened per command. The Bridge keeps its token, the servers the page connected to (`%APPDATA%\noacg\caspar-servers.json`, 0.7.0, with the studio's setup for each since 0.8.0; read back to the page, never contacted by the Bridge itself; from 0.8.0 on a field a newer Bridge wrote survives a rewrite, while 0.7.0 rewrites host and port only and so forgets every setup), the open pairing codes in memory, and, per slot and also only in memory, a counter, the id of what it last started there, what it queued behind it, and the sequence it runs there (below). The one thing it ever sends by itself is the next file of a sequence the page started. |
+| Nearly stateless | Each request names its target. The Bridge keeps its token, the vMix Browser input keys it made per output address, the servers the page connected to (`%APPDATA%\noacg\caspar-servers.json`, 0.7.0, with the studio's setup for each since 0.8.0; read back to the page, never contacted by the Bridge itself; from 0.8.0 on a field a newer Bridge wrote survives a rewrite, while 0.7.0 rewrites host and port only and so forgets every setup), the open pairing codes in memory, and, per slot and also only in memory, a counter, the id of what it last started there, what it queued behind it, and the sequence it runs there (below). The one thing it ever sends by itself is the next file of a sequence the page started. |
 
 **What it remembers per slot, and why** (`cli/src/playout/slots.ts`, since 0.4.2; the runner
 since 0.5.0). Reading the server's state honestly, and playing one clip after another with the page
@@ -498,6 +519,39 @@ refused this route by origin would therefore make the panel say *"start NoaCG Br
 somebody whose Bridge is already running, and merely started for a different deployment. The
 reply carries presence and a protocol version - no token, no studio, no word about the playout
 server - and any local page could learn as much from how fast a refused connection comes back.
+
+**The vMix adapter** (`adapters/vmix.ts`) uses the TCP API on 127.0.0.1, port 8099 unless
+`--vmix-port` overrides it. The target is `{ adapter: 'vmix', port? }` and the slot is
+`{ adapter: 'vmix', overlay }`. It keeps one connection per port. `/status` and `/connect` read
+the version and edition. `/state` lists the overlays and the input each holds. A state request
+with `outputUrl` also reports `ownsOutput` for each overlay. It means the overlay holds the
+Browser with the kept key for that address. It cannot verify the current page. A `take` may
+carry `expectedOverlayInput`, the observed key or `null` for an empty channel. The Bridge
+checks it again before `OverlayInput<N>In`. The panel includes the displayed key and overlay
+in an `out` request. Bridge checks both again before `OverlayInput<N>Out`.
+
+The `vmix-output-key` feature marks Bridges that can make these checks. The studio sends
+the usual paired token with the `vmix-output-key:` prefix on vMix `/act` requests, so a
+Bridge that predates keyed actions rejects the request even if it replaced the current one
+between `/health` and `/act`.
+
+One Bridge instance per Windows data folder keeps its vMix Browser keys in
+`%APPDATA%\noacg\vmix-outputs.json`, beside the token and the CasparCG setup. Each key is
+kept by vMix port and a digest of the output URL without its display name. A new input
+uses a unique local Bridge address. The Bridge confirms its exact marker in vMix before it
+keeps the input key, names the input, or puts it on air. The local address redirects to the
+original output page and is saved with the vMix preset. The store keeps a digest of that
+address's destination and the Bridge HTTP port associated with the kept input. Keep the
+Bridge's data folder and use the same port when reopening presets. On another port,
+the Bridge reports the original port. A present kept key blocks Load even on the original port.
+Unload still uses the key when the selected overlay holds the matched Browser.
+
+If another Bridge already owns the vMix data folder, the second can still detect vMix and
+run CasparCG or OGraf. To control vMix, pair with the first Bridge or close it and start
+the second again. vMix output control runs on the same Windows computer as vMix.
+
+If vMix did not confirm the addition, the Bridge leaves the overlay alone. Check vMix for an
+unused Browser input before pressing Load again. A new Load uses a fresh local address.
 
 ### 3b. The CasparCG adapter, one line per verb
 
@@ -854,6 +908,11 @@ with each other and most of them are the user's to fix:
 | `server` | the server answered with a `4xx` | CasparCG refused the command, quoting its status line (`404 PLAY FAILED` reads "no such file"). |
 | `scanner` | a list came back `501` | The server answered, but its media scanner is not running. |
 | `ok` | AMCP `201 VERSION OK` | Shows the server's own version string. |
+
+Every request asks `/health` first, with one exception: a server action (`/act`) to an address this
+page load has already heard answer as a current Bridge goes at once, so a Take never waits on a
+health request (docs/work-specs/live-publishing/spec.md W1). When that action cannot reach the
+Bridge, `/health` is asked then, and the table above says why.
 
 `config` is one more state for settings that are not filled in yet, and it is why **Test
 connection** is disabled rather than offering a call that must fail. `permission` is only ever

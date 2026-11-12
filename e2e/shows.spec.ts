@@ -1,5 +1,5 @@
 // covers: src/export/**, src/control/**
-// covers: src/components/{fields/**,HostedControlPage.tsx}
+// covers: src/components/fields/**, src/components/OldControlLink.tsx
 // covers: src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
 // covers: src/components/home/ProductionShell.tsx
 // focus
@@ -116,12 +116,17 @@ test('a show collects graphics in rundown order and exports one aggregated panel
   await third.close();
 });
 
-test('offline: the hosted control route answers honestly', async ({ page }) => {
-  // The e2e server pins offline mode (no Supabase env): the capability route must say so
-  // rather than spin (auth-posture rule). The editor's Productions block this case also read
-  // is retired; Home's Productions section is productions.spec.ts's.
+test('offline: an old control link says it no longer works, with a way home', async ({ page }) => {
+  // The hosted control page is retired (docs/work-specs/retire-hosted-control AC-2). The e2e
+  // server pins offline mode (no Supabase env), where no production is published, so an old
+  // `?control=` link answers at once rather than spinning. The configured half (a published slug
+  // opens its production, an outage keeps asking) is e2e/configured/operator-outage-not-unpublished.spec.ts.
   await page.goto('/app?control=some-slug');
-  await expect(page.locator('.sendin-card')).toContainText('Hosted control needs the cloud backend');
+  const card = page.getByTestId('old-control-link');
+  await expect(card).toHaveAttribute('data-state', 'gone');
+  await expect(card).toContainText('This link no longer works');
+  await card.getByRole('link', { name: 'Go to NoaCG Studio' }).click();
+  await expect(page.getByTestId('home-page')).toBeVisible();
 });
 
 test('shows and videos ride the storage seam (the sync engine sees and writes both kinds)', async ({ page }) => {
@@ -396,8 +401,7 @@ test('the SPX package says what it leaves behind, and the SPX rule for the votes
   // fallback, and it carries no bindings and no tree (§6f, by design). What was wrong is that it
   // said nothing about it, and that an SPX Update after Continue hands the votes board its stored
   // Shown = votes back and clears the reveal. The package now says both, in the SPX operator's own
-  // actions. The bindings are the hosted walk's (e2e/configured/hosted-control-profile.spec.ts),
-  // written through the model's own doors.
+  // actions. The bindings are written through the model's own doors.
   await importProofCase(page);
   const texts = await page.evaluate(async () => {
     const { loadShows, setFieldBindings, setShowSeedData } = await import('/src/model/shows.ts');
@@ -630,7 +634,7 @@ test('the layer stack reorders and removes; deleting the show keeps nothing behi
   expect(stored.payloads).toEqual([0]);
 });
 
-test('a rundown export ships the LIVE graphic, not the snapshot from when it was added', async ({ page }) => {
+test('a rundown export ships the production\'s copy, and a library edit only after Update', async ({ page }) => {
   // Save the graphic to the library so the rundown copy carries a graphicId, then add it. The
   // save controls sit in the new editor's header, where the old topbar's were.
   await bootstrapGraphic(page, { category: 'lower-third', name: 'Hairline' });
@@ -652,17 +656,26 @@ test('a rundown export ships the LIVE graphic, not the snapshot from when it was
   });
 
   // The export lives on the production page.
-  await page.getByTestId('production-setup').click();
-  await page.getByTestId('export-production').click();
-  const [download] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByTestId('prod-export-download').click(),
-  ]);
-  const zip = await JSZip.loadAsync(readFileSync(await download.path()));
-  const css = await zip.file('live_rundown/anchor_l3/css/template.css')!.async('string');
-  // The export carries the edit made AFTER the graphic was added — the live library template,
-  // not the snapshot embedded at add time.
-  expect(css).toContain('EDITED-AFTER-ADD');
+  const exportedCss = async () => {
+    await page.getByTestId('production-setup').click();
+    await page.getByTestId('export-production').click();
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByTestId('prod-export-download').click(),
+    ]);
+    const zip = await JSZip.loadAsync(readFileSync(await download.path()));
+    const css = await zip.file('live_rundown/anchor_l3/css/template.css')!.async('string');
+    await page.getByTestId('production-export-dialog').locator('.gallery-close').click();
+    await expect(page.getByTestId('production-export-dialog')).toBeHidden();
+    return css;
+  };
+  // The production's copy is the only truth (live-publishing W2, designs/G1.md R1): the export
+  // ships what the monitors show, and the library edit waits for Update.
+  expect(await exportedCss()).not.toContain('EDITED-AFTER-ADD');
+  await expect(page.getByTestId('newer-design')).toContainText('Newer design in library', { timeout: 15_000 });
+  await page.getByTestId('design-update').click();
+  await expect(page.getByTestId('newer-design')).toHaveCount(0, { timeout: 15_000 });
+  expect(await exportedCss()).toContain('EDITED-AFTER-ADD');
 });
 
 test('Home lists productions and the production page exports the package', async ({ page }) => {

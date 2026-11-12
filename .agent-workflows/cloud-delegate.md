@@ -3,7 +3,9 @@
 Local implementation, review and targeted verification are always allowed without asking.
 Use qualified cloud workers when useful for implementation, review, verification or unattended phases;
 cloud availability is not a prerequisite for local work. Keep existing local resource and check limits.
-Keep device, installed-program, private-local-file and local-browser-state tasks local.
+Keep device, installed-program, private-local-file and local-browser-state tasks local. A
+private-local file exists only on this machine, such as a gitignored secret; the private context
+repository is not one, and a cloud worker may clone it (see Private context in a cloud worker).
 Use the existing wave/plan/job and landing records; this procedure creates no new scheduler.
 Native subagents share one VM; they are not separate cloud resources.
 Each provider launches its own workers in its existing environment/subscription.
@@ -75,6 +77,29 @@ queue-merge's separate probes when those operations are needed.
 Tool approval can remain pending before the subprocess starts, outside its timeout.
 Yield long tool calls promptly and report pending approval separately from an
 executed command's failure. A pending call is no evidence that GitHub is unavailable.
+
+## Private context in a cloud worker
+
+Private NoaCG context lives in `NoaCG/noacg-private`, a separate private repository. The
+public repository gitignores `docs/private`, so a cloud worker starts without it. Clone it
+only when the task needs it, and read only the part the task needs:
+
+```bash
+gh repo clone NoaCG/noacg-private docs/private
+```
+
+The clone needs the shell network permission above and the provider's GitHub grant to cover
+that repository. An authentication failure here usually means the grant is missing rather
+than the account being disconnected: report it and stop.
+
+Read `docs/private/AGENTS.md` before using the content. Nothing from that repository reaches
+public work: no names, dates, partners, sponsors, prices, people or event details in code,
+docs, tests, commit messages, branch names, pull requests or issue text. Use neutral
+examples instead.
+
+Its secrets are ignored local files that exist only on the owner's machine. A cloud worker
+does not have them and must not recreate or substitute them. A clone into `docs/private`
+leaves the public repository clean, so `git status` there must still show nothing new.
 
 ## Before submission
 

@@ -1,7 +1,8 @@
 import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownColors } from '../model/outputSetup';
 // Hosted control (Phase 5): the client side of migration 0008. A local SHOW publishes as a
-// control_shows row (id = the local Show.id); operating it is capability-addressed — the
-// unguessable slug opens the hosted page at ?control=<slug>, no account needed. Commands
+// control_shows row (id = the local Show.id); operating it is capability-addressed by its
+// unguessable slug, which the production page sends with (an old ?control=<slug> link now only
+// opens that page: components/OldControlLink.tsx). Commands
 // are INSERTS into the control_events log (DB-ordered, recoverable); staging and the
 // graphics' applied-state reports ride the same log as meta rows.
 //
@@ -17,7 +18,7 @@ import { publishAudio } from '../backend/productionAudio';
 import { graphicLayer, loadShows, type CueAuto, type CueEnd, type Show, type ShowCue } from '../model/shows';
 import { channelName, channelOf, loadPlayoutSettings } from './playoutLink';
 import { profileForPublish, readPublishedProfile, type ShowProfile } from '../model/profile';
-import { designEditedAt, loadGraphics, entriesForSavedGraphic, resolveSavedGraphicDoc, templateForSavedGraphic, type GraphicDoc } from '../model/library';
+import { designEditedAt, loadGraphics, entriesForSavedGraphic, newerLibraryDesign, resolveSavedGraphicDoc, templateForSavedGraphic, type GraphicDoc } from '../model/library';
 import { publishedRecordDigest } from '../model/publishedRecord';
 import { monitorReplay, planOutputRecovery, type ReplayItem } from './outputRecovery';
 import type { Resolution, SpxField, SpxTemplate, SoundAssetRef } from '../model/types';
@@ -65,11 +66,6 @@ import { readLiveCue, type LiveCueMap, type VerbSent } from './liveCue';
 
 // The live map's folds live in ./liveCue.ts, which Node can import; re-exported for every caller.
 export { leftAlone, readLiveCue, withLiveCue, type LiveCueMap, type VerbSent } from './liveCue';
-
-/** The operator page's URL for a control slug — the one shape every surface mints. */
-export function controlPageUrl(slug: string): string {
-  return `${window.location.origin}/app?control=${encodeURIComponent(slug)}`;
-}
 
 /** The browser-output URL for an output slug (docs/CLOUD_PLAYOUT.md §3). */
 export function outputPageUrl(outputSlug: string): string {
@@ -560,37 +556,41 @@ const libraryDigestMemo = new Map<string, string>();
  * says whether publishing would change what the outputs render - which is how a graphic edited in
  * the library, never touching the production record, still counts as an unpublished change.
  *
- * A graphic that falls back to the snapshot embedded in the production record is left out: that
- * copy changes only with the record, whose own digest says so (model/publishedRecord.ts). In a
- * team production a member without the publisher's library record therefore never reads the
- * publisher's newer design as a change of their own to publish over it
- * (https://github.com/NoaCG/NoaCG-Studio/issues/779).
+ * Every copy counts: the production's copy is what publishes (live-publishing G1 section 1), so a
+ * library edit is no change here and the copy's own save time names its content.
  */
-export async function libraryGraphicDigests(show: Show, library: GraphicDoc[] = loadGraphics()): Promise<Record<string, string>> {
+export async function libraryGraphicDigests(show: Show, _library?: GraphicDoc[]): Promise<Record<string, string>> {
   const digests: Record<string, string> = {};
-  // The first graphic carries the look's imported face when Publish does (buildOutputPayload), so
-  // its digest is read as Publish would write it, never memoised: the face is not the graphic's.
-  const lookFace = lookImportedFace(show);
-  for (const [i, g] of show.graphics.entries()) {
-    const doc = resolveSavedGraphicDoc(g, library);
-    if (!doc && g.graphicId) continue;
-    if (i === 0 && lookFace) {
-      const [carrier] = withLookFaceIn([await graphicSpec(g, templateForSavedGraphic(g, library))], lookFace.asset);
-      digests[g.name] = await graphicDigest(carrier);
-      continue;
-    }
-    const memoKey = doc
-      ? `${doc.id}|${doc.updatedAt}|${graphicLayer(g)}|${g.name}|${JSON.stringify(g.soundConfig)}`
-      : JSON.stringify(g);
-    let digest = libraryDigestMemo.get(memoKey);
-    if (digest === undefined) {
-      digest = await graphicDigest(await graphicSpec(g, templateForSavedGraphic(g, library)));
+  for (const [i, g] of show.graphics.entries()) digests[g.name] = await copyDigest(show, i, g.template);
+  return digests;
+}
+
+/**
+ * The stamp digest (payloadVersion.ts `g`) a publish would write for pool graphic `index` of `show`
+ * carrying `template` as its design: the copy's own by default, or a candidate's when adoption asks
+ * which design is the one on air (designs/G1.md section 5). Its name, layer and sounds are the
+ * copy's, and the first graphic carries the look's imported face as Publish adds it.
+ */
+export async function copyDigest(show: Show, index: number, template: GraphicDoc['template']): Promise<string> {
+  const g = show.graphics[index];
+  const placed = { ...g, template: { ...template, name: g.name } };
+  const lookFace = index === 0 ? lookImportedFace(show) : null;
+  if (lookFace) {
+    const [carrier] = withLookFaceIn([await graphicSpec(placed, templateForSavedGraphic(placed))], lookFace.asset);
+    return graphicDigest(carrier);
+  }
+  const memoKey = template === g.template
+    ? `${g.id}|${g.savedAt}|${g.name}|${graphicLayer(g)}|${JSON.stringify(g.soundConfig)}`
+    : null;
+  let digest = memoKey ? libraryDigestMemo.get(memoKey) : undefined;
+  if (digest === undefined) {
+    digest = await graphicDigest(await graphicSpec(placed, templateForSavedGraphic(placed)));
+    if (memoKey) {
       if (libraryDigestMemo.size > 200) libraryDigestMemo.clear();
       libraryDigestMemo.set(memoKey, digest);
     }
-    digests[g.name] = digest;
   }
-  return digests;
+  return digest;
 }
 
 /** Publish (or update) a production's hosted pages: the operator panel spec (live-resolved,
@@ -629,7 +629,10 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
   const older = olderDesigns(version, held);
   if (older.length) {
     const one = older.length === 1;
-    throw new PublishBehind(`${older.join(', ')} on air ${one ? 'is' : 'are'} newer than this page's copy. Reload this page to get ${one ? 'it' : 'them'}.`);
+    // The copy is the only truth (live-publishing G1 section 1): a reload cannot bring a newer design
+    // in, only Update can, and only when this browser's library holds it.
+    const updatable = show.graphics.some((g) => older.includes(g.name) && newerLibraryDesign(g, library));
+    throw new PublishBehind(`${older.join(', ')} on air ${one ? 'is' : 'are'} newer than this production's copy.${updatable ? ' Update it from the library first.' : ''}`);
   }
   const expected: ExpectedVersion = { exists: !!previous.data, n: held?.n ?? null };
   const output: OutputPayload = { ...built, ver: version };
@@ -2321,16 +2324,6 @@ async function openSeqTopic(showId: string, state: SeqTopicState): Promise<void>
   });
 }
 
-/** Stage PREPARED data — shared with every operator page on this slug. A refusal THROWS: the
- *  RPC answers an error rather than rejecting, and the page keeps an edit on screen until the
- *  write either comes back round the log or is refused (components/control/ownStaged.ts). */
-export async function stageHostedData(slug: string, graphic: string, data: Record<string, string>): Promise<void> {
-  const sb = await getSupabase();
-  if (!sb) return;
-  const { error, status } = await sb.rpc('control_stage', { p_slug: slug, p_graphic: graphic, p_data: data });
-  if (error) throw rpcFailure('control_stage', error, status);
-}
-
 /** The command tail after a known id — a reconnecting side fills its gap from here. */
 export async function hostedControlTail(slug: string, afterId: number, graphic?: string): Promise<ControlEventRow[]> {
   const sb = await getSupabase();
@@ -2343,8 +2336,8 @@ export async function hostedControlTail(slug: string, afterId: number, graphic?:
 /**
  * The rows a PROGRAM monitor replays over the reports when its page opens (control/outputRecovery.ts
  * `monitorReplay`): the log after the oldest on-air report baseline, read once. A read that does
- * not reach the head replays nothing, and the reports stand. The hosted control page and the
- * in-app production page both boot through this.
+ * not reach the head replays nothing, and the reports stand. The production page boots through
+ * this.
  */
 export async function bootMonitorReplay(slug: string, resolved: Pick<ResolvedControlShow, 'liveCue' | 'live' | 'lastEventId'>): Promise<ReplayItem[]> {
   const onAir = Object.keys(resolved.liveCue).filter((graphic) => resolved.liveCue[graphic]);
@@ -2514,4 +2507,15 @@ function readLogRow(payload: unknown): ControlEventRow | null {
     return null;
   }
   return row as ControlEventRow;
+}
+
+/** The published row's version stamp, read as one field so the payload is not downloaded: what
+ *  adoption matches copies against (designs/G1.md section 5). Null when unreadable, unpublished,
+ *  or published before stamps. */
+export async function readPublishedStamp(showId: string): Promise<PayloadVersion | null> {
+  const sb = await getSupabase();
+  if (!sb) return null;
+  const { data, error } = await sb.from('control_shows').select('ver:output->ver').eq('id', showId).maybeSingle();
+  if (error || !data) return null;
+  return readPayloadVersion((data as { ver?: unknown }).ver);
 }

@@ -7,7 +7,7 @@ import { fileAsk } from '../../control/fileSource';
 import { allowFile, canPickFiles, pickFile, saveFileHandle } from '../../control/fileHandles';
 import { useNow } from './ClipClock';
 import { liveDataUrl, ownReaderGate, type OwnReaderGate } from '../../control/liveData';
-import { resolveSavedGraphicDoc, type GraphicDoc } from '../../model/library';
+import type { GraphicDoc } from '../../model/library';
 import type { SavedGraphic } from '../../model/packets';
 import { sourcePaths } from '../../model/productionData';
 import { heldListOnAir, heldListsWaiting } from '../../control/contentFormats';
@@ -33,8 +33,9 @@ export interface OutputObservations {
 
 /** One graphic's own Sheet reader where it plays (control/liveData.ts `ownReaderGate`): the design
  *  it plays, the copy, and what the published output was seen to run. */
-export function ownSheetReader(graphic: SavedGraphic, library: GraphicDoc[], published: boolean, output?: OutputObservations): OwnSheetReader {
-  const design = resolveSavedGraphicDoc(graphic, library)?.template.js ?? graphic.template.js;
+export function ownSheetReader(graphic: SavedGraphic, _library: GraphicDoc[], published: boolean, output?: OutputObservations): OwnSheetReader {
+  // The copy is what plays and publishes (live-publishing G1 section 1).
+  const design = graphic.template.js;
   return {
     graphic: graphic.name,
     url: liveDataUrl(design) ?? liveDataUrl(graphic.template.js),

@@ -7,8 +7,10 @@ import { addStep, layerPress, setKeyframe, setLayerActivation } from '../../bloc
 import { createArtwork, editBase, type BasePatch, type Creation } from '../../blocks/baseEdits';
 import { editArtworkText, editArtworkStyle, editArtworkMetadata, type ArtworkStyle } from '../../blocks/artworkEdits';
 import { changeArtworkLayer, reorderArtwork } from '../../blocks/artworkLayers';
-import { applyAnimation, applyKeyEase, applyKeyMove, type AnimationOperation, type KeyEaseOperation, type KeyMoveOperation } from '../../blocks/editorAnimation';
+import { applyAnimation, applyKeyEase, applyKeyMove, applyKeyPaste, type AnimationOperation, type KeyEaseOperation, type KeyMoveOperation, type KeyPasteOperation } from '../../blocks/editorAnimation';
 import { applyOut, type OutOperation } from '../../blocks/editorOut';
+import { applyEditorLoop, type LoopOperation } from '../../blocks/editorLoops';
+import { usesAuthoredLoops } from '../../blocks/animLoopTiming';
 import { applyStep, type StepOperation } from '../../blocks/editorSteps';
 import { commitSvgIdentity } from '../../blocks/svgIdentity';
 import { importAssets, placeGraphicImage, removeUnusedAsset, renameGraphicAsset, replaceGraphicImage } from '../../blocks/editorImages';
@@ -38,7 +40,9 @@ export type EditorOperation =
   | AnimationOperation
   | KeyEaseOperation
   | KeyMoveOperation
+  | KeyPasteOperation
   | OutOperation
+  | LoopOperation
   | StepOperation
   | { kind: 'path.create'; geometry: PathGeometry; time: number }
   | { kind: 'path.edit'; selector: string; geometry: PathGeometry }
@@ -104,6 +108,8 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
     }
     if (operation.kind === 'look.entrance') {
       next = setLookEntrance(next, operation.selector, operation.entrance); targets.add(operation.selector);
+    } else if (operation.kind === 'loop.set') {
+      next = applyEditorLoop(next, operation); targets.add(operation.selector);
     } else if (operation.kind === 'graphic.insert') {
       if (!losslessAnimData(next.js)) throw new Error('This animation has unsupported data. Its source is preserved.');
       const result = insertTemplateGraphic(next, operation.variant, operation);
@@ -197,6 +203,8 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
       next = applyKeyEase(next, operation); operation.keys.forEach(key => targets.add(key.selector));
     } else if (operation.kind === 'key.move') {
       next = applyKeyMove(next, operation); operation.keys.forEach(key => targets.add(key.selector));
+    } else if (operation.kind === 'key.paste') {
+      next = applyKeyPaste(next, operation); operation.keys.forEach(key => targets.add(key.artwork));
     } else if (operation.kind === 'base.set') {
       next = editBase(next, operation.selector, operation.values); targets.add(operation.selector);
     } else if (operation.kind === 'layer.create') {
@@ -250,7 +258,7 @@ function applyKeyOperations(template: SpxTemplate, operations: Extract<EditorOpe
     data = setKeyframe(data, step, selector, property, time, value);
     changedTargets.add(selector);
   }
-  const js = spliceAnimData(template.js, data);
+  const js = usesAuthoredLoops(data) ? writeAnimData(template.js, data) : spliceAnimData(template.js, data);
   if (js === null) throw new Error('The animation region changed. Inspect the source again.');
   return { template: { ...template, js }, changedTargets: [...changedTargets],
     diff: js === template.js ? [] : [{ file: 'js', before: template.js, after: js }] };

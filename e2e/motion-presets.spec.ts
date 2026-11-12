@@ -162,6 +162,7 @@ test('engine: a motion rewrite keeps lifecycle calls, ambient loops and layers o
     const { parseAnimData } = await import('/src/blocks/animData.ts');
     const { applyMotionPreset, currentMotionPreset, motionTargets, MOTION_PRESETS } = await import('/src/blocks/motionPresets.ts');
     const { deriveMachine } = await import('/src/blocks/animMachine.ts');
+    const { emitAnimRegion, writeAnimData } = await import('/src/templates/shared/animRuntime.ts');
 
     // A clock: its entrance fires startClock and breathes an ambient layer; both are behaviour,
     // not the entrance motion, so they ride through a Fade untouched.
@@ -170,6 +171,29 @@ test('engine: a motion rewrite keeps lifecycle calls, ambient loops and layers o
     const clockNext = applyMotionPreset(clock, clockData, { in: 'fade', out: 'fade' })!;
     const loopsBefore = Object.keys(clockData.steps[0].loops ?? {}).sort();
     const loopsAfter = Object.keys(clockNext.steps[0].loops ?? {}).sort();
+
+    const x = [{ time: 0.2, value: 20 }, { time: 0.6, value: 100 }];
+    const loop = { repeat: 1, yoyo: true, repeatDelay: 0.25, range: [0.1, 1.1] as [number, number], phase: 0.25 };
+    const js = emitAnimRegion({
+      version: 2, root: '#unit', speed: 1, steps: [
+        { name: 'In', duration: 1.3, ease: 'none', layers: { '#part': { x } }, loops: { '#part': { x: loop } } },
+        { name: 'Out', duration: 0.5, ease: 'none', layers: {} },
+      ],
+    });
+    const unit = { ...clock, html: '<div id="unit"><div id="part"></div></div>', js };
+    const apply = (inPreset: 'fade' | 'slide-left') => {
+      const next = applyMotionPreset(unit, parseAnimData(js)!, { in: inPreset })!;
+      const written = writeAnimData(js, next);
+      const data = written && parseAnimData(written);
+      if (!data) return null;
+      const step = data.steps[0];
+      return {
+        readback: currentMotionPreset(unit, data, 'in'), duration: step.duration,
+        loop: step.loops?.['#part']?.x ?? null, x: step.layers['#part'].x,
+      };
+    };
+    const faded = apply('fade');
+    const slid = apply('slide-left');
 
     // A styled lifecycle arrow would play INSTEAD of the step's keyframes: the rewrite clears it.
     // The strap, with one element parked OUTSIDE its root - where an inserted graphic lives -
@@ -211,6 +235,7 @@ test('engine: a motion rewrite keeps lifecycle calls, ambient loops and layers o
       clockDuration: [clockData.steps[0].duration, clockNext.steps[0].duration],
       loopsBefore,
       loopsAfter,
+      faded, slid,
       playStyle: playAfter.style ?? null,
       stopStyle: stopAfter.style ?? null,
       outsideKept: strapNext.steps[0].layers['#outside-part'],
@@ -223,6 +248,15 @@ test('engine: a motion rewrite keeps lifecycle calls, ambient loops and layers o
   expect(r.clockDuration[1]).toBe(r.clockDuration[0]);
   expect(r.loopsAfter).toEqual(r.loopsBefore);
   expect(r.loopsBefore.length).toBeGreaterThan(0);
+  expect(r.faded).toEqual({
+    readback: 'fade', duration: 1.1,
+    loop: { repeat: 1, yoyo: true, repeatDelay: 0.25, range: [0.1, 1.1], phase: 0.25 },
+    x: [{ time: 0.2, value: 20 }, { time: 0.6, value: 100 }],
+  });
+  expect(r.slid).toEqual({
+    readback: 'slide-left', duration: 0.8, loop: null,
+    x: [{ time: 0, value: 170 }, { time: 0.8, value: 0, ease: 'power3.out' }],
+  });
   expect(r.playStyle).toBeNull();
   expect(r.outsideKept).toEqual({ opacity: [{ time: 0, value: 0 }, { time: 1.2, value: 1 }] });
   // The step stretches to the kept motion's reach (1.2 s) rather than the preset's 0.8 s.

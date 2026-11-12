@@ -127,6 +127,11 @@ they work; drop it and the graphic still PLAYS but the studio cannot edit it.
   the studio timeline edits. After that, change motion by editing the DATA (keyframes, durations,
   eases), never the interpreter functions below it. A graphic scaffolded from a type already
   carries the data form (and the type's state machine inside it).
+  In the data form, the destination key's `ease` shapes the segment into that key. Without one,
+  the segment uses the cue's default. To ease out of a key, set the following key's `ease`.
+  In this form, use a supported name such as `power2.out` or `cubic-bezier(x1,y1,x2,y2)`
+  with both x values from 0 to 1. Set the following key's `ease` to `hold` to keep the previous value until that key.
+  `jump` is its time reverse and takes the destination value at the start of the segment.
 - Text boxes hug their content (`width: fit-content`) with a `max-width` cap so long text wraps
   instead of escaping - the stress frame doubles every text.
 

@@ -6,11 +6,12 @@
 // a reload" is a question with no second page to ask it of: the rules are scripts/cue-auto.test.mjs,
 // the server's compare-and-set is 0075's self-check, and this walks both pages against a real one.
 // covers: src/control/cueArmWire.ts, src/control/cueArmRpc.ts, src/control/cueArmEngine.ts
+// covers: src/components/home/ProductionPage.tsx, src/components/home/CueTiming.tsx
 // covers: supabase/migrations/0075_cue_arms.sql
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
-import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { haveCreds, openSecondProductionPage, signIn, wipeMyGraphics } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -75,7 +76,7 @@ async function logRows(page: Page, slug: string) {
   }, slug);
 }
 
-test('a timed cue counts the same second on two pages and a reload, ends once, holds from a phone, and stays missed', async ({ page, context }) => {
+test('a timed cue counts the same second on two pages and a reload, ends once, holds from the other page, and stays missed', async ({ page, context }) => {
   test.setTimeout(360_000);
   await signIn(page);
   await page.keyboard.press('Escape');
@@ -106,7 +107,7 @@ test('a timed cue counts the same second on two pages and a reload, ends once, h
   await page.getByTestId('cue-ends-after').fill('12');
   await page.getByTestId('cue-ends-then').selectOption('out-next');
   await expect(deskChip()).toHaveText('0:12 → Out + next');
-  // The hosted page reads the cue's end off the payload, which a publish writes.
+  // A publish carries the cue's end to the server, where the other page and air read it.
   await page.getByTestId('production-status').click();
   await expect(links).toBeVisible();
   await expect(links.getByTestId('panel-publish-changes')).toBeVisible({ timeout: 30_000 });
@@ -115,14 +116,12 @@ test('a timed cue counts the same second on two pages and a reload, ends once, h
   await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
 
-  // ── The other seats: air, and the capability URL on a phone. ────────────────────────────────
+  // ── The other seats: air, and a second signed-in production page. ───────────────────────────
   const air = await context.newPage();
   await air.goto(`/output?production=${encodeURIComponent(slugs.output)}&debug=1`);
   await expect(air.locator('pre')).toContainText('realtime:', { timeout: 60_000 });
-  const op = await context.newPage();
-  await op.goto(`/app?control=${encodeURIComponent(slugs.hosted)}`);
-  await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
-  const opChip = () => op.getByTestId(`hosted-cue-${s.a}`).getByTestId('cue-auto');
+  const op = await openSecondProductionPage(page, s.id);
+  const opChip = () => row(op, s.a).getByTestId('cue-auto');
   const airPlays = () => air.evaluate(() => Number(document.body.getAttribute('data-plays') ?? '0'));
 
   // ── 1. Taken on the desk: both pages count the same second, from when air had it. ─────────────
@@ -133,7 +132,7 @@ test('a timed cue counts the same second on two pages and a reload, ends once, h
   await expect(row(page, s.b).getByTestId('cue-armed')).toBeVisible();
   const desk1 = seconds(await deskChip().textContent());
   const op1 = seconds(await opChip().textContent());
-  expect(Math.abs(desk1 - op1), `desk ${desk1} s, phone ${op1} s`).toBeLessThanOrEqual(1);
+  expect(Math.abs(desk1 - op1), `desk ${desk1} s, other page ${op1} s`).toBeLessThanOrEqual(1);
   await expect.poll(airPlays, { timeout: 30_000 }).toBeGreaterThan(0);
   const playsBefore = await airPlays();
 
@@ -143,11 +142,11 @@ test('a timed cue counts the same second on two pages and a reload, ends once, h
   await expect(deskChip()).toHaveAttribute('data-phase', 'running', { timeout: 30_000 });
   const afterReload = seconds(await deskChip().textContent());
   const opNow = seconds(await opChip().textContent());
-  expect(Math.abs(afterReload - opNow), `reloaded desk ${afterReload} s, phone ${opNow} s`).toBeLessThanOrEqual(1);
+  expect(Math.abs(afterReload - opNow), `reloaded desk ${afterReload} s, other page ${opNow} s`).toBeLessThanOrEqual(1);
 
   // ── 3. At zero, with both pages open to race: one fire, one Out, one Take. ──────────────────────
   await expect(row(page, s.b).locator('.pd-tag.air')).toBeVisible({ timeout: 30_000 });
-  await expect(op.getByTestId(`hosted-cue-${s.b}`).locator('.pd-tag.air')).toBeVisible({ timeout: 30_000 });
+  await expect(row(op, s.b).locator('.pd-tag.air')).toBeVisible({ timeout: 30_000 });
   await expect(row(page, s.a).locator('.pd-tag.air')).toHaveCount(0);
   await page.waitForTimeout(3_000); // anything that would fire twice has had its chance
   const rows = await logRows(page, slugs.hosted);
@@ -161,7 +160,7 @@ test('a timed cue counts the same second on two pages and a reload, ends once, h
   await expect.poll(airPlays, { timeout: 30_000 }).toBe(playsBefore + 1);
   await expect(page.getByTestId('action-log-row').filter({ hasText: 'Auto Out and next cue sent' })).toHaveCount(1);
 
-  // ── 4. A hold pressed on the phone freezes the count on the desk; resume counts on. ─────────────
+  // ── 4. A hold pressed on the other page freezes the count on the desk; resume counts on. ─────────────
   await row(page, s.a).getByTestId('select-cue').click();
   await page.getByTestId('verb-take').click();
   await expect(deskChip()).toHaveAttribute('data-phase', 'running', { timeout: 10_000 });

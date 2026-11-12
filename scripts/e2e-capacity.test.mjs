@@ -1,4 +1,4 @@
-// guards: scripts/e2e-capacity.mjs, docs/work-specs/e2e-suite-budget/spec.md
+// guards: scripts/e2e-capacity.mjs, scripts/repair-wake.mjs, docs/work-specs/e2e-suite-budget/spec.md
 // The capacity line: what counts as usage, when a change is warned or refused, how an exception
 // covers it, and that an unmeasured spec in a partial report counts at the p90, never the median.
 import assert from 'node:assert/strict';
@@ -8,8 +8,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { EXCEPTION_MAX_DAYS, HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, assess, capacityMinutes, exceptionFor, parseExceptions, repoView, summarize } from './e2e-capacity.mjs';
-import { landingDispatched, priceAdditions } from './growth-controls.mjs';
+import { EXCEPTION_MAX_DAYS, HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, capacityMinutes, exceptionFor, finalVerdict, ownerKinds, parseExceptions, repoView, summarize } from './e2e-capacity.mjs';
+import { TIERS, landingDispatched, ledgerChanges, priceAdditions } from './growth-controls.mjs';
+import { OWNER_KIND } from './repair-wake.mjs';
 import CEILINGS from './growth-ceilings.json' with { type: 'json' };
 
 // A table whose budget is easy to reason about: jobMinutes 0.42 and testFactor 1.01 give
@@ -131,4 +132,79 @@ test('on this repository, the landing procedure starts cloud-queue-merge.yml and
   const started = landingDispatched(repoView('HEAD').head, CEILINGS.estimates);
   assert.ok(started.has('cloud-queue-merge.yml'), 'the landing procedure dispatches cloud-queue-merge.yml');
   assert.equal(started.has('alarm-test.yml'), false, 'alarm-test.yml runs only when a person asks');
+});
+
+// cf22 fix 2 rule 1: which refusals only the owner can move. Each case states its class by hand,
+// on the real producers' output, so a reworded refusal cannot quietly change its class.
+const fresh = { today: '2026-10-12' };
+const adding = (total, o = {}) => { const t = table(total); return assess({ table: t, suite: suiteOf(t, ['new.spec.ts']), changed: ['e2e/new.spec.ts'], ...fresh, ...o }); };
+const quietGrowth = (o = {}) => ({ status: 'ok', reasons: [], tiers: { tiers: {} }, stops: {}, ledger: [], ...o });
+
+test('fix 2: the table is the owner\'s only when it was at its line before the change', () => {
+  assert.deepEqual(ownerKinds({ result: adding(204), growth: quietGrowth() }), ['full:table'], 'already at 95%');
+  const crossing = adding(202);
+  assert.equal(crossing.status, 'refuse');
+  assert.deepEqual(ownerKinds({ result: crossing, growth: quietGrowth() }), [], 'crossed by the change\'s own minutes: the agent\'s');
+  assert.deepEqual(ownerKinds({ result: adding(182, { tableStale: true }), growth: quietGrowth() }), ['full:table'], 'a stale table\'s line is 85%');
+  const staleCrossing = adding(180, { tableStale: true });
+  assert.equal(staleCrossing.status, 'refuse');
+  assert.deepEqual(ownerKinds({ result: staleCrossing, growth: quietGrowth() }), []);
+});
+
+test('fix 2: a tier is the owner\'s when full before the change or stopped; the agent\'s when the change crosses it', () => {
+  const ok = adding(10);
+  const tier = (o) => ({ status: 'refuse', line: 0.95, share: 0.5, ...o });
+  assert.deepEqual(ownerKinds({ result: ok, growth: quietGrowth({ tiers: { tiers: { overhead: tier({ share: 0.95 }) } } }) }), ['full:overhead']);
+  assert.deepEqual(ownerKinds({ result: ok, growth: quietGrowth({ tiers: { tiers: { overhead: tier({ share: 0.94 }) } } }) }), []);
+  assert.deepEqual(ownerKinds({ result: ok, growth: quietGrowth({ tiers: { tiers: { graphics: tier({ share: 0.99 }) } }, stops: { graphics: 'G2' } }) }), ['stopped:graphics'], 'a stop, even over the line, is named as a stop');
+  assert.deepEqual(ownerKinds({ result: ok, growth: quietGrowth({ tiers: { tiers: { backend: tier({ share: null }) } } }) }), [], 'no measurement is #2379\'s alarm, not here');
+  assert.deepEqual(ownerKinds({ result: ok, growth: quietGrowth({ tiers: { tiers: { overhead: { status: 'warn', line: 0.95, share: 0.99 } } } }) }), [], 'a warning has no kind');
+});
+
+test('fix 2: added offline minutes are the owner\'s when the offline tier is stopped or already full', () => {
+  const offline = (share) => quietGrowth({ tiers: { tiers: { offline: { status: 'warn', evidence: 'complete', line: 0.95, share, used: { perLanding: 100 * share, perDay: 100 * share }, ceiling: { perLanding: 100, perDay: 100 } } } } });
+  const result = adding(100); // one added minute
+  const full = applyOfflineStop(offline(0.97), result);
+  assert.equal(full.status, 'refuse');
+  assert.deepEqual(ownerKinds({ result, growth: full }), ['full:offline'], 'already at its line before the change');
+  const crossed = applyOfflineStop(offline(0.945), result);
+  assert.equal(crossed.status, 'refuse');
+  assert.deepEqual(ownerKinds({ result, growth: crossed }), [], 'crossed by the change\'s own minutes');
+  const stopped = applyOfflineStop({ ...offline(0.1), stops: { offline: 'O1' } }, result);
+  assert.deepEqual(ownerKinds({ result, growth: stopped }), ['stopped:offline']);
+});
+
+test('fix 2: an unreviewed ceilings revision is the owner\'s; a ledger form error is the agent\'s', () => {
+  const ok = adding(10);
+  const base = JSON.parse(JSON.stringify(CEILINGS));
+  const revision = (head, o) => ownerKinds({ result: ok, growth: quietGrowth({ ledger: ledgerChanges({ base, head, ...o }) }) });
+  assert.deepEqual(revision({ ...base, revisions: [], estimates: { ...base.estimates, extra: 1 } }), ['revision'], 'the ceilings changed');
+  assert.deepEqual(revision(base, { mainRunners: { base: 13, head: 14 } }), ['revision'], 'MAIN_RUNNERS raised');
+  assert.deepEqual(revision(base, { shardCap: { base: 30, head: 40 } }), ['revision'], 'SHARD_CAP_MINUTES raised');
+  const withEx = { ...base, exceptions: [{ id: 'E1', tier: 'overhead' }] };
+  assert.notEqual(ledgerChanges({ base: withEx, head: base }).length, 0);
+  assert.deepEqual(ownerKinds({ result: ok, growth: quietGrowth({ ledger: ledgerChanges({ base: withEx, head: base }) }) }), [], 'a removed entry is its author\'s to restore');
+});
+
+test('fix 2: the table is classed on its own verdict, before the growth verdict is merged in', () => {
+  const covered = { ...adding(204), status: 'ok' }; // its addition covered by an exception
+  const ledgerError = quietGrowth({ status: 'refuse', reasons: ['exception E9 was edited'], ledger: ['exception E9 was edited'] });
+  const v = finalVerdict({ result: covered, growth: ledgerError });
+  assert.equal(v.status, 'refuse');
+  assert.equal(v.owner, '', 'the agent\'s to fix');
+  assert.equal(finalVerdict({ result: adding(204), growth: quietGrowth() }).owner, 'full:table');
+  assert.equal(finalVerdict({ result: { ...adding(204), status: 'warn' }, growth: quietGrowth({ status: 'warn', reasons: ['x'] }) }).owner, '', 'no refusal, no kind');
+});
+
+test('fix 2: every kind ownerKinds can name is one the repair check reads', () => {
+  for (const t of TIERS) for (const k of [`full:${t}`, `stopped:${t}`]) assert.match(k, OWNER_KIND);
+  for (const k of ['full:table', 'revision']) assert.match(k, OWNER_KIND);
+});
+
+test('fix 2: the edges: exactly at the line is full; an offline stop with no added minute is not this refusal', () => {
+  assert.deepEqual(ownerKinds({ result: { status: 'refuse', before: 95, capacity: 100, line: 0.95, added: 1 }, growth: quietGrowth() }), ['full:table']);
+  const t = table(10);
+  const quiet = assess({ table: t, suite: suiteOf(t), ...fresh });
+  const growth = quietGrowth({ stops: { offline: 'O1' }, tiers: { tiers: { overhead: { status: 'refuse', line: 0.95, share: 0.96 } } } });
+  assert.deepEqual(ownerKinds({ result: quiet, growth }), ['full:overhead'], 'refused for the overhead tier alone');
 });

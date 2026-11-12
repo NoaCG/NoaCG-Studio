@@ -58,7 +58,7 @@ import { fileURLToPath } from 'node:url';
 
 import { planMinutes } from './e2e-affected.mjs';
 import { budgetMinutes, minutesByFile, readTable, specFilesOnDisk } from './e2e-durations.mjs';
-import { TIERS, assessTiers, ceilingsRevision, exceptionStatus, knownCovers, ledgerChanges, priceAdditions, receiptAfter, reportCadence, summarizeTiers, tableFreshness } from './growth-controls.mjs';
+import { TIERS, assessTiers, ceilingsRevision, exceptionStatus, knownCovers, ledgerChanges, needsRevision, priceAdditions, receiptAfter, reportCadence, summarizeTiers, tableFreshness } from './growth-controls.mjs';
 import { measured } from './measured.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -226,7 +226,7 @@ export function assess({ table = readTable(), suite = specFilesOnDisk(), changed
     status = 'warn';
     reason = `${reason}; above the ${Math.round(100 * WARN_SHARE)}% line${added > 0 ? `, this change adds ${added.toFixed(1)} minute(s)` : ''}`;
   }
-  return { capacity, before, after, share, added, status, reason, details, median, p90 };
+  return { capacity, before, after, share, added, status, reason, details, median, p90, line };
 }
 
 /** Markdown for the step summary: the three costs kept apart. */
@@ -283,15 +283,17 @@ export function applyOfflineStop(growth, result, { warnShare = WARN_SHARE, refus
     if (!(landing > 0) && !(day > 0)) return growth;
   }
   const tier = growth.tiers?.tiers?.offline;
-  const line = tier?.evidence === 'complete' ? refuseShare : warnShare;
-  if (!tier || tier.evidence === 'missing') { growth.status = 'refuse'; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s) and the offline tier has no measurement, so its headroom cannot be established`); }
+  // The tier's own line (assessTiers): the capacity line on a pull request judges at the normal line.
+  const line = tier?.line ?? (tier?.evidence === 'complete' ? refuseShare : warnShare);
+  if (!tier || (tier.evidence === 'missing' && !tier.used)) { growth.status = 'refuse'; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s) and the offline tier has no measurement, so its headroom cannot be established`); }
   // The offline tier's measured runner-minutes, including any slowdown the weekly report
   // attributed, judge an offline addition too, as in every other tier: the added spec minutes run
   // in every CI run of a landing and in each nightly run, and the tier with them must stay under
   // its line (95%, or 85% on partial or stale evidence). The table line prices them separately.
   else if (tier?.used && tier?.ceiling) {
     const after = Math.max((tier.used.perLanding + landing) / tier.ceiling.perLanding, (tier.used.perDay + day) / tier.ceiling.perDay);
-    if (after >= line) { growth.status = 'refuse'; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s), ${landing.toFixed(1)} runner-minutes per landing and ${day.toFixed(1)} per day, taking the offline tier to ${Math.round(100 * after)}% of its ceiling (the ${Math.round(100 * line)}% line)`); }
+    // Already at its line before this change: no cheaper change clears it (cf22 fix 2).
+    if (after >= line) { growth.status = 'refuse'; growth.offlineFull = tier.share >= line; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s), ${landing.toFixed(1)} runner-minutes per landing and ${day.toFixed(1)} per day, taking the offline tier to ${Math.round(100 * after)}% of its ceiling (the ${Math.round(100 * line)}% line)`); }
   }
   return growth;
 }
@@ -343,15 +345,26 @@ const runnersIn = (text) => Number(/export const MAIN_RUNNERS = (\d+);/.exec(tex
 export function growthAssessment({ base, reportPath, table, today, root = ROOT }) {
   const ceilings = JSON.parse(readFileSync(path.join(root, 'scripts', 'growth-ceilings.json'), 'utf8'));
   const reasons = [];
-  // Asked for a report and none could be read (the fetch failed): the tiers have no evidence and
-  // no stops can be known, so additive growth is refused. A fetch that found no report at all
-  // writes `{ none: true }`, and the frozen seed stands in until the first weekly run.
+  // The newest COMPLETE weekly report (`growth-report.mjs fetch` picks it and records the newest
+  // report's state in `gate`). A missing, stale or partial newest report never tightens the line:
+  // the tiers are judged on that complete report at the normal line, or on the frozen seed when no
+  // complete report exists or the fetch wrote nothing, so a change is refused only for its own
+  // cost. The bad report is named here and alarmed once after landing (`growth-report.mjs health`).
   let report = null;
-  let unreadable = false;
-  if (reportPath) { try { report = JSON.parse(readFileSync(reportPath, 'utf8')); } catch { unreadable = true; } }
+  if (reportPath) { try { report = JSON.parse(readFileSync(reportPath, 'utf8')); } catch { report = { none: true, gate: { newest: { state: 'missing', why: 'the report fetch wrote nothing readable' }, judgedOn: null } }; } }
+  const gate = report?.gate ?? null;
   if (report?.none) report = null;
-  const measurement = unreadable ? null : report?.measurement ?? ceilings.measurement;
-  if (unreadable) reasons.push('the newest weekly growth report could not be read, so no tier can establish headroom');
+  // A newer report that is not complete still proves a floor: each tier is judged on the larger
+  // of the complete cost and that lower bound, so a bad week never makes a tier look cheaper.
+  const floor = gate?.newest?.floor ?? null;
+  const judged = report?.measurement ?? ceilings.measurement;
+  const measurement = floor ? { ...judged, tiers: Object.fromEntries(Object.entries(judged.tiers ?? {}).map(([t, m]) => [t, floor[t] ? { ...m, perLanding: Math.max(m.perLanding, floor[t].perLanding), perDay: Math.max(m.perDay ?? 0, floor[t].perDay) } : m])) } : judged;
+  // The stops of the newest report that could be read (Rule E21): it carried every breach forward
+  // and cleared only on evidence, so an older report's stop it cleared does not return. With no
+  // record (an older gate file), the judged report's stand.
+  const stops = gate?.newest?.stops ?? report?.stops ?? {};
+  const newest = gate?.newest;
+  if (newest && newest.state !== 'complete') reasons.push(`the newest weekly growth report${newest.run ? ` (run ${newest.run})` : ''} is ${newest.state}${newest.why ? `: ${newest.why}` : ''}; judged on ${gate.judgedOn ? `the newest complete report, run ${gate.judgedOn.run}` : `the frozen seed measured to ${ceilings.measurement.windowEnd}`} at the normal line, and the owner (${ceilings.owner}) is alarmed after landing`);
   const cadence = reportCadence({ generatedAt: report?.generatedAt ?? null, today, maxAgeDays: ceilings.reportMaxAgeDays });
   const fresh = tableFreshness({ recordedAt: table.source?.recordedAt, today, boundDays: ceilings.freshnessDays, pending: report?.table?.pending ?? [] });
   const added = [];
@@ -408,24 +421,63 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
   const repo = base && !diffFailed ? repoView(base, root) : undefined;
   const items = priceAdditions({ added, workflows, estimates: ceilings.estimates, repo });
   const known = knownCoversOnDisk(root);
-  const tiers = assessTiers({ ceilings, measurement, items, today, stops: report?.stops ?? {}, known });
+  const tiers = assessTiers({ ceilings, measurement, items, today, stops, known, trustEvidence: true });
   let status = tiers.status;
   for (const t of TIERS) if (tiers.tiers[t].status !== 'ok' && tiers.tiers[t].items.length) reasons.push(`${t} tier ${tiers.tiers[t].status}: ${tiers.tiers[t].why}`);
   if (ledger.length || offline.length || diffFailed) { status = 'refuse'; reasons.push(...ledger, ...offline); }
   if (revisionNote) { reasons.push(revisionNote); if (status === 'ok') status = 'warn'; }
   if (newExceptions.length) { reasons.push(`this change adds budget exception(s) ${newExceptions.join(', ')}: each needs a separate, recorded review before it lands`); if (status === 'ok') status = 'warn'; }
-  if (cadence.overdue && !unreadable) { reasons.push(`${cadence.reason} - an owned failure (${ceilings.owner}); tier evidence is the frozen seed until it runs`); if (status === 'ok') status = 'warn'; }
+  if (newest && newest.state !== 'complete' && status === 'ok') status = 'warn';
+  else if (!newest && cadence.overdue) { reasons.push(`${cadence.reason} - an owned failure (${ceilings.owner}); tier evidence is the frozen seed until it runs`); if (status === 'ok') status = 'warn'; }
   if (fresh.stale) { reasons.push(fresh.reason); if (status === 'ok') status = 'warn'; }
   const markdown = [
     ...summarizeTiers(tiers),
     `- ${fresh.reason}.`,
-    unreadable ? '- The newest weekly growth report could not be read: no tier evidence, additions refused.' : `- ${cadence.reason}${report ? ` (week to ${report.measurement?.windowEnd})` : `; tiers judged on the frozen seed measured to ${ceilings.measurement.windowEnd}`}.`,
+    newest && newest.state !== 'complete'
+      ? `- Newest weekly growth report${newest.run ? ` (run ${newest.run})` : ''} is ${newest.state}; tiers judged on ${gate.judgedOn ? `the newest complete report, run ${gate.judgedOn.run}, week to ${report.measurement?.windowEnd}` : `the frozen seed measured to ${ceilings.measurement.windowEnd}`}, at the normal line.`
+      : `- ${cadence.reason}${report ? ` (week to ${report.measurement?.windowEnd})` : `; tiers judged on the frozen seed measured to ${ceilings.measurement.windowEnd}`}.`,
     ...ledger.map((p) => `- Ceilings file: ${p}.`),
     ...offline.map((p) => `- Budget exceptions: ${p}.`),
     '',
   ].join('\n');
-  const assessWith = (extra) => assessTiers({ ceilings, measurement, items: extra, today, stops: report?.stops ?? {}, known });
-  return { status, reasons, markdown, table: fresh, tiers, items, stops: report?.stops ?? {}, unreadable, estimates: ceilings.estimates, assessWith };
+  const assessWith = (extra) => assessTiers({ ceilings, measurement, items: extra, today, stops, known, trustEvidence: true });
+  return { status, reasons, markdown, table: fresh, tiers, items, stops, gate, estimates: ceilings.estimates, assessWith, ledger };
+}
+
+/**
+ * OWNER-ONLY REFUSALS (cicd-followup cf22 fix 2; rules in
+ * docs/work-specs/cicd-followup/evidence/cf22-fix-2-owner-refusals.md, rule 1). The refusals no
+ * change to the pull request's own cost can clear, short of adding nothing: a tier or the table
+ * already at or over its line before this change (`full:`), a growth stop (`stopped:`), and a
+ * ceilings change without a reviewed revision (`revision`). Every other refusal is the agent's and
+ * keeps its message. `result` is the table's own verdict, before the growth verdict is merged into
+ * it. Pure; returns the kinds in a fixed order.
+ */
+export function ownerKinds({ result, growth }) {
+  const kinds = [];
+  if (result.status === 'refuse' && result.before / result.capacity >= result.line) kinds.push('full:table');
+  for (const tier of TIERS) {
+    const t = growth.tiers?.tiers?.[tier];
+    if (t?.status !== 'refuse') continue;
+    if (growth.stops?.[tier]) kinds.push(`stopped:${tier}`);
+    else if (t.share != null && t.share >= t.line) kinds.push(`full:${tier}`);
+  }
+  // applyOfflineStop refuses added offline spec minutes outside the tier verdict.
+  if (growth.stops?.offline && result.added > 0) kinds.push('stopped:offline');
+  if (growth.offlineFull) kinds.push('full:offline');
+  if ((growth.ledger ?? []).some(needsRevision)) kinds.push('revision');
+  return [...new Set(kinds)];
+}
+
+/**
+ * The gate's verdict: the table's and the growth tiers' together, the worse one winning, with the
+ * owner-only kinds of a refusal classed on the table's own verdict (fix 2 rule 1). Pure.
+ */
+export function finalVerdict({ result, growth }) {
+  const order = { ok: 0, warn: 1, refuse: 2 };
+  const status = order[growth.status] > order[result.status] ? growth.status : result.status;
+  const reason = growth.status !== 'ok' && growth.reasons.length ? `${result.reason}; ${growth.reasons.join('; ')}` : result.reason;
+  return { status, reason, owner: status === 'refuse' ? ownerKinds({ result, growth }).join(',') : '' };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -455,15 +507,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   // A growth stop on the offline tier (a cost or pre-merge latency breach whose one correction
   // failed) refuses added offline minutes too, whatever the table line says.
   applyOfflineStop(growth, result, { paths: changed });
-  const order = { ok: 0, warn: 1, refuse: 2 };
-  if (order[growth.status] > order[result.status]) result.status = growth.status;
-  if (growth.status !== 'ok' && growth.reasons.length) result.reason = `${result.reason}; ${growth.reasons.join('; ')}`;
+  const verdict = finalVerdict({ result, growth });
+  result.status = verdict.status;
+  result.reason = verdict.reason;
   const text = `${summarize(result, { runnerMinutes, wallMinutes, label: fromReport ? 'measured' : 'estimate' })}${growth.markdown}`;
   console.log(text);
   const summary = value('--summary');
   if (summary) appendFileSync(summary, `${text}\n`);
   if (args.includes('--github-output') && process.env.GITHUB_OUTPUT) {
-    appendFileSync(process.env.GITHUB_OUTPUT, `capacity=${result.status}\ncapacity_reason=${result.reason.replace(/\r?\n/g, ' ')}\n`);
+    appendFileSync(process.env.GITHUB_OUTPUT, `capacity=${result.status}\ncapacity_reason=${result.reason.replace(/\r?\n/g, ' ')}\ncapacity_owner=${verdict.owner}\n`);
   }
   if (result.status === 'refuse') console.log(`::error title=E2E capacity::${result.reason}`);
   else if (result.status === 'warn') console.log(`::warning title=E2E capacity::${result.reason}`);

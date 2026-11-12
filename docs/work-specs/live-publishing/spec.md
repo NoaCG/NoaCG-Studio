@@ -291,3 +291,140 @@ not decided stops and asks.
 ## Phase notes
 
 Filled in by each phase's pull request.
+
+### Phase 1: Retire the hosted control page
+
+- Previous verified `main`: e6be4cf3dcbcb103a7ea0372d30d0505845a8ba8.
+- Revert: `git revert -m 1 <this pull request's merge commit>` restores the page, its CSS, its
+  tests and the retired rules; nothing persisted changed, so no data step goes with it.
+- Decisions: the old link resolves with `control_show_by_slug` selecting only `id`, retries every
+  2 s doubling to 15 s while unanswered, and offline (no backend) answers "This link no longer
+  works" at once. The redirect's backend test lives in
+  `e2e/configured/operator-outage-not-unpublished.spec.ts` (the configured suite is the layer that
+  can resolve a slug; the offline half is `e2e/shows.spec.ts`). `e2e/hosted-control.spec.ts` keeps
+  its name and its shared-code tests (receiver, panel spec, payload): almost all of it guards shared
+  code, and the capacity gate prices a renamed offline spec as a new one.
+  Retargeted specs open the other operator as a second device: a fresh browser signed in to
+  the same account (`openSecondProductionPage`), so it holds no local copy, as the hosted seat did not.
+  `PanelGraphicSpec` stays exported: it is the return type of the shared `buildPanelSpec`.
+- Traps: `npm run learn` refuses while any active rule scopes a deleted file, so the page was put
+  back, untracked from the deletion, for the three `--supersedes` calls and removed again. The
+  local configured stack could not start in the cloud worker (its image host is blocked by the
+  proxy), so the configured evidence is the CI selection on the PR head.
+- Rules (the old link's; written after coding, so the Rules-first review came after the code):
+  R1 a server answer naming a production replaces the address with `/app#/production/<id>`, the
+  query gone and no history entry added; R2 an answer with no production shows "This link no longer
+  works" with a link home and never the waiting card; R3 no answer (an error, no client, a thrown
+  request) shows "Waiting for the server" and asks again after 2, 4, 8 then every 15 s, and never
+  says the link is dead; R4 an offline build says the link no longer works at once and asks
+  nothing; R5 the production page's own behaviour and every persisted value are unchanged.
+- Evidence: `docs/work-specs/live-publishing/evidence/phase-1.md`.
+
+### Phase 2: Measure
+
+- Previous verified `main`: 78ce3f35063386fdc7217d0542e3df871fc32b8d.
+- Revert: `git revert -m 1 <this pull request's merge commit>` removes the harness and the
+  receipt; no product file and nothing persisted changed, so no data step goes with it.
+- Decisions: measured with the configured suite's own ground (its local Supabase stack, its Vite
+  development server, headless Chromium) on the cloud worker, so later phases can rerun the same
+  harness against the same baseline; these are numbers for this harness, not studio numbers.
+  "Press" is the `click` event, since every measured button acts on click. "Page's own" is press to
+  sent minus the overlap of a kept ordering wait, read from the page's own requests; a send is tied
+  to its press by the sender id and press number in its body. A cue text
+  edit needs no publish today, so its bytes are the save alone. Update rounds add, remove and
+  update one graphic, so the production keeps its size, and stay clear of the output's 15 s
+  preparation spacing. Throttling starts once the fixture is built. "Second of two fast" is two
+  mouse clicks back to back; the first press still unanswered counts as a kept wait. The stepped
+  graphic is a three-line lower third, so two fast Nexts have steps to take. The harness lives in
+  `e2e/configured/measure/` as `*.measure.ts`, which the configured suite never runs.
+- Targets the numbers show wrong or unproven, for the owner before the phase that uses them: AC-1's
+  50 ms p95 (Next, which W1 changes nothing in, already takes 77 to 144 ms p95 here), AC-4's 50 ms
+  margin during a publish (198 against 98 ms p95 typical, 385 against 186 large, unthrottled),
+  and D1's 5 s ceiling against a 30 to 33 s whole
+  update on the large fixture throttled. Details in the evidence.
+- Traps: in the evidence, "Traps met" (the local stack does start on a cloud worker from Docker
+  Hub; one 12-minute queue job per commit; Playwright empties `test-results/`; Realtime frames are
+  binary).
+- Evidence: `docs/work-specs/live-publishing/evidence/phase-2.md`.
+
+### Phase 3: A Take never waits on the page's own work
+
+- Previous verified `main`: fb04bbd9658857318e4b954611b6dd08a4815e9d.
+- Revert: `git revert -m 1 <this pull request's merge commit>` puts the waits back: the draft save
+  and history close before a Take, the server cue's 250 ms save head start, the Adjust write and
+  box measurement wait, and `/health` before every `/act`. Nothing persisted changed: the place
+  hint is an optional member of a command an older output ignores, so no data step goes with it.
+- Rules (written beside the code, so the Rules-first review came after it, as in phase 1):
+  R1 every W1 Take path (graphic cue, folder Take and step, picture, server cue, quick button,
+  +1, Next, a panel's Take) sends before it saves: the draft's save and the history group's close
+  start once the send is answered, whatever it came to, and never hold the send;
+  R2 the values sent are those on screen at the press, the draft over the newest record, read
+  from memory; R3 a cue whose typed OGraf data is its source still saves first, since its values
+  are read from the stored record; R4 a Take's place and size come from memory (the newest
+  rendered record, the last box measured) and never wait for an Adjust write or a measurement;
+  R5 when that box is for other values and a preset or size resolves against it, the Take also
+  carries the preset (`place`), a new output measures the values itself and first shows the
+  graphic at the preset (2 s cap, then the place sent), and an older output applies the place
+  sent; R6 a server action to a Bridge this page load already heard as current sends `/act`
+  without `/health`, and a failure to reach it asks `/health` why; an address never heard is
+  asked first, as before; R7 kept as ordering: road discovery, one send in flight per graphic, a
+  quick button or +1 waiting for its previous press, a folder's Outs before its next Take;
+  R8 D2's refusals (invalid typed data, a stale view of air) still refuse; R9 a +1 or quick
+  button writes its accepted figure into the cue only after its own save has landed, and counts a
+  field typed and not yet saved as the text on screen.
+- Rules found after coding (review): R10 a press waits for the press before it on its graphic
+  until that press is answered, never for its save or its figure's write; R11 after a hinted Take
+  the page measures the values the Take sent, as an output does, and holds what that resolves as
+  the graphic's look, unless a later send set its look or took it off (any Take, Update or look
+  send that carries a look, or an Out; a figure, a +1 or a snap does not count). An output whose own measurement ran past its
+  cap shows the place sent meanwhile; the next look sent to on-air graphics moves it to the
+  preset. R12 a Take that takes another graphic off its layer (an imported package sharing it)
+  carries no hint, so the layer is never blank while an output measures (PR review); R13 an Out
+  never waits on an output's measurement: what waits goes at once at the place sent, then the
+  Out.
+- Decisions: Update and snap are not Take paths and keep their waits. A typed OGraf cue keeps its
+  save first (R3). The page's own PROGRAM monitor resolves a hint too, starting its measurement
+  after the press's task, so the send leaves first. An output resolves a hint only while on air
+  (a restart's catch-up applies the place sent), and a hint is never read for typed data or a
+  package. The Bridge's "heard as current" lives in memory per page load. A Take reads typed data
+  from the stored record only for a cue that has some, so a Take no longer parses the whole store.
+  AC-1 is judged on a production build (owner, 2026-11-11, run issue #2361): the phase 2 harness
+  gained `MEASURE_BUILD=prod` (one origin, the fixture built through the development modules, the
+  page reloaded under `vite preview`) and `MEASURE_STALL=1` (an owed edit before each press, the
+  save and `/health` held 3 s).
+- Traps: Docker Hub refused anonymous pulls (429) for most of the stack's images; the default
+  registry (public.ecr.aws) answered, so `SUPABASE_INTERNAL_IMAGE_REGISTRY` was not needed this
+  time. The Supabase CLI came from npm (`supabase@2.111.0`), since a download from GitHub
+  releases was refused. A harness page that imports `/src/...` cannot run on a bundled build.
+  `preview/` may not import `control/`, so the measuring frame takes its qualification from its
+  caller.
+- Repair 2 (check on 92e581a7 failed it): an edit was lost when the page reloaded before its save
+  landed, with no press too. IndexedDB aborts a write still committing when the page reloads, so
+  the page going also records the owed edit in localStorage, and the production page applies it
+  once on its next visit unless the production was saved after it. Rules P1 to P5 in the evidence.
+- Evidence: `docs/work-specs/live-publishing/evidence/phase-3.md`.
+
+### Phase 4: The production's copy is the only truth; old pages only play out
+
+- Design: `designs/G1.md`, graded A by an independent `/so` at e32746e, landed as #2404.
+- Previous verified `main`: eee7827892b1936c00acc263655cf6a6e753e4be.
+- Revert: `git revert -m 1 <this pull request's merge commit>` brings back library-first reads and
+  the publish's copy refresh. Migration 0115 stays applied and is inert while the
+  `production_copies` switch is off; turn the switch off first if it was turned on (delete the
+  `system_settings` row or set `"on"` to false). The `designAt` stamps left on copies are additive
+  and ignored by the older code; its record digest reads a `2:` digest as changed until the next
+  publish.
+- Rules: G1 section 7, R1 to R13 (stated before the code, reviewed Rules-first in the design gate).
+- Decisions: the personal sync settle runs inside the sync engine (the settle is pure kernel code,
+  so no registration hook was needed); a team publish or export flushes the team save, which
+  settles; the production page re-reads its library only when the stored library moved, by
+  reference; adding a graphic the production already holds replaces it as before and stamps it
+  (G1 section 2 had it ask the dropped-field question; refusing it broke the wizard's confirmed
+  re-import "Replace anyway"); `production_copies_state()` is for signed-in pages only and recorded
+  in the advisor baseline; the new browser checks extend the publish guard's configured spec, since
+  backend growth is stopped. Found while building: adoption must settle against the server's copy
+  before it stamps, or it keeps an old page's pulled design (caught by the configured walk). The switch is turned on separately, by the owner or the coordinator with the owner's
+  permission, after the app is live and `production_copies_state()` reports the mark on
+  production (G1 section 6).
+- Traps: in the evidence, "Traps met".
+- Evidence: `docs/work-specs/live-publishing/evidence/phase-4.md`.

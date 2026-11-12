@@ -1,4 +1,5 @@
 // guards: src/backend/supabase.ts, src/backend/sync.ts
+// Also: the build mark (live-publishing W2, designs/G1.md section 4) rides REST API requests only.
 // A cloud request with no answer has no end of its own, and a sync pass or a team save waiting on
 // one keeps the sync chip amber with nothing able to run behind it (#2090). The shared client ends
 // it, without touching the requests that are allowed to take long, and a pass stops at the first.
@@ -31,7 +32,7 @@ async function clientFetch() {
       assert.ok(name in stubs, `unexpected dependency: ${name}`);
       return stubs[name];
     },
-    URL, Request, Response, TransformStream, AbortController, DOMException, Blob, FormData,
+    URL, Request, Response, Headers, TransformStream, AbortController, DOMException, Blob, FormData,
     setTimeout: (fn, ms) => { timers.set(++nextTimer, { fn, ms }); return nextTimer; },
     clearTimeout: (id) => timers.delete(id),
     fetch: (input, init) => new Promise((resolve, reject) => {
@@ -135,6 +136,8 @@ function syncEngine() {
     './storage': { isPutDenied: () => false, isSingleton: () => false },
     '../model/id': { uuid: () => crypto.randomUUID() },
     '../model/accountScope': { accountKey: (key) => key },
+    // The send-time settle (live-publishing W2) is copy-settle.test.mjs's; these records hold no production.
+    '../model/copySettle': { needsSettle: () => false, settleGraphics: (graphics) => ({ graphics, changed: false }) },
   };
   vm.runInNewContext(compiled, {
     exports, Date, JSON, Error,
@@ -298,4 +301,14 @@ test('the caller\'s own abort still ends the request, with the caller\'s reason'
   assert.equal(await failure(answer), reason);
   const late = fetch('https://cloud.invalid/rest/v1/teams', { signal: caller.signal });
   assert.equal(await failure(late), reason);
+});
+
+test('the build mark rides every REST API request, and no auth or Storage request (live-publishing G1)', async () => {
+  for (const [path, marked] of [['/rest/v1/documents?kind=eq.show', true], ['/rest/v1/rpc/team_production_save', true], ['/auth/v1/user', false], ['/storage/v1/object/user-assets/a.png', false]]) {
+    const { fetch, asked } = await clientFetch();
+    void fetch(`https://cloud.invalid${path}`, { method: 'GET', headers: { apikey: 'key' } });
+    const sent = new Headers(asked[0].init?.headers);
+    assert.equal(sent.get('x-noacg-production-copies'), marked ? '1' : null, path);
+    assert.equal(sent.get('apikey'), 'key', `${path}: the caller's own headers stay`);
+  }
 });

@@ -126,12 +126,11 @@ test('Connect data… waits while the graphic\'s own reader can still run where 
   assert.equal(ownReaderGate({ copyJs: plain, resolvedJs: plain, published: false, stopRecorded: true }), 'none');
 });
 
-test('"Stop its own reader" removes it from the design, and from the copy only before Publish', () => {
-  assert.deepEqual(ownReaderRemoval({ library: true, published: false }), { library: true, copy: true });
-  assert.deepEqual(ownReaderRemoval({ library: true, published: true }), { library: true, copy: false });
-  assert.deepEqual(ownReaderRemoval({ library: false, published: false }), { library: false, copy: true });
-  // Published with no library record, nothing could carry the removal to the output.
-  assert.equal(ownReaderRemoval({ library: false, published: true }), null);
+test('"Stop its own reader" removes it from the copy always, and from the library record when held', () => {
+  // live-publishing G1: the copy is what plays and publishes, so it always goes, published or not.
+  assert.deepEqual(ownReaderRemoval({ library: true }), { library: true, copy: true });
+  assert.deepEqual(ownReaderRemoval({ library: false }), { library: false, copy: true });
+  // A published graphic with no library record is no longer refused: its copy is what publishes.
 });
 
 test('what the Playout page holds back reaches the other binding doors, per production, and clears (C6)', async () => {
@@ -232,32 +231,39 @@ test('the binding write refuses a held graphic and a recorded stop, whichever br
     assert.equal(read(quiet).ownReaderStops, undefined, 'unpublishing drops the stops: no output follows it again');
     assert.equal(bind(quiet, 'Hairline'), 'guest.name');
 
-    // Publish records the stop itself, in every production whose copy loses its reader to the
-    // refreshed design (the one where Stop was pressed or another sharing it), in the same write.
+    // Publish records the stop itself, in the write before it, for a published graphic whose copy
+    // lost the reader the payload still carries (live-publishing G1: copies are the only truth, so
+    // the copy loses it through the own-reader removal, never through a library refresh).
     const reader = { ...hairline.template };
-    const design = { template: plain, updatedAt: '2999-01-01T00:00:00.000Z' };
     const shared = shows.createShowNamed('shared');
     shows.addGraphicToShow(shared.id, reader);
     shows.setShowHostedSlug(shared.id, 'shared-slug');
-    assert.equal(shows.refreshGraphicCopies(shared.id, () => design).error, null);
+    const pooled = read(shared.id).graphics[0];
+    assert.equal(shows.setGraphicCopyScript(shared.id, pooled.id, pooled.template.js, plain.js).error, null);
+    assert.equal(shows.recordOwnReaderStops(shared.id, new Set(['Hairline'])).error, null);
     assert.deepEqual(read(shared.id).ownReaderStops, ['Hairline']);
     const copy = shows.duplicateShowChecked(shared.id).show;
     assert.equal(copy.ownReaderStops, undefined, 'a rehearsal copy has no output, and no stops');
     assert.equal(bind(shared.id, 'Hairline'), null, 'held whichever browser binds');
     // Before the first Publish no output runs it: nothing to record.
     const fresh = shows.createShowNamed('fresh');
-    shows.addGraphicToShow(fresh.id, reader);
-    shows.refreshGraphicCopies(fresh.id, () => design);
+    shows.addGraphicToShow(fresh.id, plain);
+    shows.recordOwnReaderStops(fresh.id, new Set(['Hairline']));
     assert.equal(read(fresh.id).ownReaderStops, undefined);
-    // A copy that lost its reader outside Publish (its own write is newer than the design, so the
-    // refresh takes nothing) while the payload the caller saw published still has it: recorded too.
+    // Published, but the payload the caller saw carried no reader: nothing recorded.
     const outside = shows.createShowNamed('outside');
     shows.addGraphicToShow(outside.id, plain);
     shows.setShowHostedSlug(outside.id, 'outside-slug');
-    shows.refreshGraphicCopies(outside.id, () => undefined);
+    shows.recordOwnReaderStops(outside.id);
     assert.equal(read(outside.id).ownReaderStops, undefined, 'nothing read, nothing recorded');
-    shows.refreshGraphicCopies(outside.id, () => undefined, new Set(['Hairline']));
+    shows.recordOwnReaderStops(outside.id, new Set(['Hairline']));
     assert.deepEqual(read(outside.id).ownReaderStops, ['Hairline']);
+    // A copy that still reads its Sheet is not recorded: its reader is still the design.
+    const still = shows.createShowNamed('still');
+    shows.addGraphicToShow(still.id, reader);
+    shows.setShowHostedSlug(still.id, 'still-slug');
+    shows.recordOwnReaderStops(still.id, new Set(['Hairline']));
+    assert.equal(read(still.id).ownReaderStops, undefined);
   } finally {
     globalThis.localStorage = previous;
   }

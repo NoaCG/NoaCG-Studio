@@ -141,6 +141,7 @@ export default function CueRundown({
   liveCue,
   started,
   casparOn,
+  vmixOn,
   unsentOnAir,
   serverOwnership,
   serverTiming,
@@ -211,6 +212,7 @@ export default function CueRundown({
    *  badge names the slot they ride on and the CasparCG add items show; off, a native cue reads
    *  "CasparCG off" and cannot be taken. */
   casparOn: boolean;
+  vmixOn?: boolean;
   /** The ON-AIR cues edited since they were sent (the editor's "not on air yet", said on the row). */
   unsentOnAir: ReadonlySet<string>;
   /** What this page put up on the playout server, and what the server says besides. Read-only. */
@@ -891,7 +893,7 @@ export default function CueRundown({
                   NOT TAKEN
                 </span>
               ) : playoutItem && !casparOn ? (
-                <span className="pd-tag off" title="Switch CasparCG on in the Playout panel to take this cue." data-testid="cue-caspar-off">
+                <span className="pd-tag off" title={vmixOn ? 'This cue plays on CasparCG. This production uses vMix.' : 'Switch CasparCG on in the Playout panel to take this cue.'} data-testid="cue-caspar-off">
                   CasparCG off
                 </span>
               ) : isPreviewed ? (
