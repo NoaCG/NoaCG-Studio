@@ -1,0 +1,9 @@
+This CI failure demonstrates a faulty intermediate-write expectation, not another confirmed product failure.
+
+The fixture accepts a newer command edit at e2e/new-graphic-guard.spec.ts:445 before releasing the preliminary autosave confirmation. The documented pre-code rule requires Discard to recheck that preliminary wait (e4-notes.md:829). Accordingly, saveActions.ts:427 detects the changed source and calls keepChangedDiscard, which persists the actual current draft. That draft correctly remains dirty. The fixture’s assertion at line455 incorrectly assumes the second write must be a clean discard replacement.
+
+The helper holds completion notifications of real IndexedDB writes; the failure occurs before releasing the second notification and before the final source, history, refusal-message and navigation assertions. Consequently, this run does not establish final preservation, successful refusal, or data loss.
+
+Retain the raw result unchanged: shard job131488795882 FAIL,162PASS/1FAIL, log SHA256825a73e7f95943b19ec1407e41326385c59cf05feb29b4ee8df18231889ecbe0. No assertion change or further attempt is recommended here.
+
+The full-review disposition remains B/Do not land. The independently confirmed legacy-production installation defect still ends the owner exception.

@@ -1,0 +1,42 @@
+{
+  "at": "2026-11-12T21:20:08.586Z",
+  "checkout": "/workspace/noacg-editor-r1-5-e4-build",
+  "live": [],
+  "latest": [
+    {
+      "id": "j-0115",
+      "state": "done",
+      "pid": 123138,
+      "exitCode": 0,
+      "command": "npm run test:e2e -- e2e/editor-projects.spec.ts --grep selection-only"
+    },
+    {
+      "id": "j-0116",
+      "state": "done",
+      "pid": 124473,
+      "exitCode": 0,
+      "command": "npm run test:e2e -- e2e/editor-projects.spec.ts --grep 'equivalent samples|view correction'"
+    },
+    {
+      "id": "j-0117",
+      "state": "failed",
+      "pid": 125889,
+      "exitCode": 1,
+      "command": "npm run test:e2e -- e2e/editor-projects.spec.ts e2e/save-transaction.spec.ts e2e/save-transaction-holds.spec.ts e2e/save-transaction-leave.spec.ts e2e/cross-tab.spec.ts e2e/editor-folders-bins.spec.ts e2e/editor-commands.spec.ts"
+    },
+    {
+      "id": "j-0118",
+      "state": "failed",
+      "pid": 130962,
+      "exitCode": 1,
+      "command": "npm run test:e2e -- e2e/editor-projects.spec.ts --grep '^project documents keep independent'"
+    },
+    {
+      "id": "j-0119",
+      "state": "done",
+      "pid": 131200,
+      "exitCode": 0,
+      "command": "npm run test:e2e -- e2e/editor-projects.spec.ts --grep 'project documents keep independent'"
+    }
+  ]
+}

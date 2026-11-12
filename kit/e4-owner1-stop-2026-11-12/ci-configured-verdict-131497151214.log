@@ -1,0 +1,362 @@
+﻿2026-11-12T21:14:24.0799945Z Current runner version: '2.338.2'
+2026-11-12T21:14:24.0823986Z ##[group]Runner Image Provisioner
+2026-11-12T21:14:24.0824851Z Hosted Compute Agent
+2026-11-12T21:14:24.0825555Z Version: 20261103.629
+2026-11-12T21:14:24.0826251Z Commit: 15dbd9ccb5dbf34fae002b6ed1a2670f52df37bc
+2026-11-12T21:14:24.0826990Z Build Date: 2026-11-03T17:26:59Z
+2026-11-12T21:14:24.0827986Z Worker ID: {30031f7c-5d77-42ce-b5d2-bbdac79d322e}
+2026-11-12T21:14:24.0828719Z Region: westus
+2026-11-12T21:14:24.0829243Z Cloud: Azure
+2026-11-12T21:14:24.0829875Z ##[endgroup]
+2026-11-12T21:14:24.0831348Z ##[group]Operating System
+2026-11-12T21:14:24.0832057Z Ubuntu
+2026-11-12T21:14:24.0832588Z 26.04.1
+2026-11-12T21:14:24.0833109Z LTS
+2026-11-12T21:14:24.0833709Z ##[endgroup]
+2026-11-12T21:14:24.0834256Z ##[group]Runner Image
+2026-11-12T21:14:24.0834884Z Image: ubuntu-26.04
+2026-11-12T21:14:24.0835458Z Version: 20261111.196.1
+2026-11-12T21:14:24.0836779Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261111.196/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-12T21:14:24.0838546Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261111.196
+2026-11-12T21:14:24.0839540Z ##[endgroup]
+2026-11-12T21:14:24.0840644Z ##[group]GITHUB_TOKEN Permissions
+2026-11-12T21:14:24.0842596Z Contents: read
+2026-11-12T21:14:24.0843219Z Metadata: read
+2026-11-12T21:14:24.0843769Z ##[endgroup]
+2026-11-12T21:14:24.0845836Z Secret source: Actions
+2026-11-12T21:14:24.0846858Z Cache mode: write
+2026-11-12T21:14:24.0848064Z Prepare workflow directory
+2026-11-12T21:14:24.1234974Z Prepare all required actions
+2026-11-12T21:14:24.1284501Z Getting action download info
+2026-11-12T21:14:24.5067814Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+2026-11-12T21:14:24.6122224Z Download action repository 'actions/setup-node@v5' (SHA:a0853c24544627f65ddf259abe73b1d18a591444)
+2026-11-12T21:14:24.6860639Z Download action repository 'actions/download-artifact@v4' (SHA:d3f86a106a0bac45b974a628896c90dbdf5c8093)
+2026-11-12T21:14:25.0412913Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-11-12T21:14:25.2236601Z Complete job name: Configured E2E verdict (selected)
+2026-11-12T21:14:25.3210891Z ##[group]Run actions/checkout@v5
+2026-11-12T21:14:25.3211784Z with:
+2026-11-12T21:14:25.3212245Z   repository: NoaCG/NoaCG-Studio
+2026-11-12T21:14:25.3215895Z   token: ***
+2026-11-12T21:14:25.3216330Z   ssh-strict: true
+2026-11-12T21:14:25.3216772Z   ssh-user: git
+2026-11-12T21:14:25.3217217Z   persist-credentials: true
+2026-11-12T21:14:25.3217868Z   clean: true
+2026-11-12T21:14:25.3218319Z   sparse-checkout-cone-mode: true
+2026-11-12T21:14:25.3218848Z   fetch-depth: 1
+2026-11-12T21:14:25.3219274Z   fetch-tags: false
+2026-11-12T21:14:25.3219717Z   show-progress: true
+2026-11-12T21:14:25.3220161Z   lfs: false
+2026-11-12T21:14:25.3220581Z   submodules: false
+2026-11-12T21:14:25.3221031Z   set-safe-directory: true
+2026-11-12T21:14:25.3221536Z   allow-unsafe-pr-checkout: false
+2026-11-12T21:14:25.3222322Z ##[endgroup]
+2026-11-12T21:14:25.5772010Z Syncing repository: NoaCG/NoaCG-Studio
+2026-11-12T21:14:25.5773965Z ##[group]Getting Git version info
+2026-11-12T21:14:25.5774819Z Working directory is '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+2026-11-12T21:14:25.5775911Z [command]/usr/bin/git version
+2026-11-12T21:14:25.5776438Z git version 2.56.1
+2026-11-12T21:14:25.5778399Z ##[endgroup]
+2026-11-12T21:14:25.5782591Z Temporarily overriding HOME='/home/runner/work/_temp/b3c9ebf6-6cf9-41c1-a072-20c3e91c3d4a' before making global git config changes
+2026-11-12T21:14:25.5783955Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-12T21:14:25.5785126Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-12T21:14:25.5812121Z Deleting the contents of '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+2026-11-12T21:14:25.5817041Z ##[group]Initializing the repository
+2026-11-12T21:14:25.5824423Z [command]/usr/bin/git init /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-12T21:14:25.5922345Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-12T21:14:25.5924322Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-12T21:14:25.5926055Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-12T21:14:25.5927647Z hint: call:
+2026-11-12T21:14:25.5928516Z hint:
+2026-11-12T21:14:25.5929535Z hint: 	git config --global init.defaultBranch <name>
+2026-11-12T21:14:25.5930695Z hint:
+2026-11-12T21:14:25.5931785Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-12T21:14:25.5933478Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-12T21:14:25.5934950Z hint:
+2026-11-12T21:14:25.5935783Z hint: 	git branch -m <name>
+2026-11-12T21:14:25.5936699Z hint:
+2026-11-12T21:14:25.5938055Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-12T21:14:25.5939973Z Initialized empty Git repository in /home/runner/work/NoaCG-Studio/NoaCG-Studio/.git/
+2026-11-12T21:14:25.5943574Z [command]/usr/bin/git remote add origin https://github.com/NoaCG/NoaCG-Studio
+2026-11-12T21:14:25.5995413Z ##[endgroup]
+2026-11-12T21:14:25.5996934Z ##[group]Disabling automatic garbage collection
+2026-11-12T21:14:25.6001700Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-12T21:14:25.6038270Z ##[endgroup]
+2026-11-12T21:14:25.6039683Z ##[group]Setting up auth
+2026-11-12T21:14:25.6046514Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-12T21:14:25.6086724Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-12T21:14:25.6527316Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-12T21:14:25.6571164Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-12T21:14:25.6846512Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-12T21:14:25.6880682Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-12T21:14:25.7161422Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-12T21:14:25.7207845Z ##[endgroup]
+2026-11-12T21:14:25.7221040Z ##[group]Fetching the repository
+2026-11-12T21:14:25.7230709Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +a4bb59c92fbcda0a67bc936e0f0a4ca14ca18f3d:refs/remotes/pull/2438/merge
+2026-11-12T21:14:32.6823496Z From https://github.com/NoaCG/NoaCG-Studio
+2026-11-12T21:14:32.6824595Z  * [new ref]         a4bb59c92fbcda0a67bc936e0f0a4ca14ca18f3d -> pull/2438/merge
+2026-11-12T21:14:32.6841714Z ##[endgroup]
+2026-11-12T21:14:32.6842709Z ##[group]Determining the checkout info
+2026-11-12T21:14:32.6843636Z ##[endgroup]
+2026-11-12T21:14:32.6847739Z [command]/usr/bin/git sparse-checkout disable
+2026-11-12T21:14:32.6901064Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-12T21:14:32.6931877Z ##[group]Checking out the ref
+2026-11-12T21:14:32.6935642Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/2438/merge
+2026-11-12T21:14:33.4891333Z Note: switching to 'refs/remotes/pull/2438/merge'.
+2026-11-12T21:14:33.4893095Z 
+2026-11-12T21:14:33.4893586Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-12T21:14:33.4894567Z changes and commit them, and you can discard any commits you make in this
+2026-11-12T21:14:33.4895473Z state without impacting any branches by switching back to a branch.
+2026-11-12T21:14:33.4896400Z 
+2026-11-12T21:14:33.4896794Z If you want to create a new branch to retain commits you create, you may
+2026-11-12T21:14:33.4897899Z do so (now or later) by using -c with the switch command. Example:
+2026-11-12T21:14:33.4898421Z 
+2026-11-12T21:14:33.4898652Z   git switch -c <new-branch-name>
+2026-11-12T21:14:33.4899020Z 
+2026-11-12T21:14:33.4899242Z Or undo this operation with:
+2026-11-12T21:14:33.4899560Z 
+2026-11-12T21:14:33.4899762Z   git switch -
+2026-11-12T21:14:33.4900030Z 
+2026-11-12T21:14:33.4900465Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-12T21:14:33.4902134Z 
+2026-11-12T21:14:33.4903008Z HEAD is now at a4bb59c Merge 63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf into a2921196da0fd21059ee988bdca3263589f73916
+2026-11-12T21:14:33.4931020Z ##[endgroup]
+2026-11-12T21:14:33.4990008Z [command]/usr/bin/git log -1 --format=%H
+2026-11-12T21:14:33.5016991Z a4bb59c92fbcda0a67bc936e0f0a4ca14ca18f3d
+2026-11-12T21:14:33.5313177Z ##[group]Run actions/setup-node@v5
+2026-11-12T21:14:33.5313574Z with:
+2026-11-12T21:14:33.5313822Z   node-version: 24
+2026-11-12T21:14:33.5314099Z   cache: npm
+2026-11-12T21:14:33.5314346Z   always-auth: false
+2026-11-12T21:14:33.5314612Z   check-latest: false
+2026-11-12T21:14:33.5317127Z   token: ***
+2026-11-12T21:14:33.5317638Z   package-manager-cache: true
+2026-11-12T21:14:33.5318055Z ##[endgroup]
+2026-11-12T21:14:33.6844516Z (node:2406) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-12T21:14:33.6845350Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-12T21:14:33.6848317Z Found in cache @ /opt/hostedtoolcache/node/24.22.2/x64
+2026-11-12T21:14:33.6848893Z ##[group]Environment details
+2026-11-12T21:14:34.0635912Z node: v24.22.2
+2026-11-12T21:14:34.0636392Z npm: 11.19.1
+2026-11-12T21:14:34.0636835Z yarn: 1.22.22
+2026-11-12T21:14:34.0638204Z ##[endgroup]
+2026-11-12T21:14:34.0662041Z [command]/opt/hostedtoolcache/node/24.22.2/x64/bin/npm config get cache
+2026-11-12T21:14:34.2554837Z /home/runner/.npm
+2026-11-12T21:14:34.5287610Z Cache hit for: node-cache-Linux-x64-npm-f6534e8efbcb185272d21504ced33f1ba33b656490018118e5beb65abcf01961
+2026-11-12T21:14:34.5404715Z (node:2406) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-12T21:14:35.8201253Z Received 20971520 of 124649611 (16.8%), 20.0 MBs/sec
+2026-11-12T21:14:36.4960891Z Received 124649611 of 124649611 (100.0%), 70.9 MBs/sec
+2026-11-12T21:14:36.4961828Z Cache Size: ~119 MB (124649611 B)
+2026-11-12T21:14:36.5015274Z [command]/usr/bin/tar -xf /home/runner/work/_temp/e09ab298-b112-4eca-a6d1-e63c178d88db/cache.tzst -P -C /home/runner/work/NoaCG-Studio/NoaCG-Studio --use-compress-program unzstd
+2026-11-12T21:14:36.7418888Z Cache restored successfully
+2026-11-12T21:14:36.7471918Z Cache restored from key: node-cache-Linux-x64-npm-f6534e8efbcb185272d21504ced33f1ba33b656490018118e5beb65abcf01961
+2026-11-12T21:14:36.7863403Z Prepare all required actions
+2026-11-12T21:14:36.7864000Z Getting action download info
+2026-11-12T21:14:36.9329419Z Download action repository 'actions/cache@v4' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-11-12T21:14:37.0186494Z ##[group]Run ./.github/actions/node-modules
+2026-11-12T21:14:37.0186829Z ##[endgroup]
+2026-11-12T21:14:37.0243626Z ##[start-action display=Resolve Node version;id=__self.node]
+2026-11-12T21:14:37.0285155Z ##[group]Run echo "major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"
+2026-11-12T21:14:37.0285839Z [36;1mecho "major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"[0m
+2026-11-12T21:14:37.0347212Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-12T21:14:37.0347752Z ##[endgroup]
+2026-11-12T21:14:37.0778325Z ##[end-action id=__self.node;outcome=success;conclusion=success;duration_ms=53]
+2026-11-12T21:14:37.0782945Z ##[start-action display=Cache node_modules;id=__self.cache]
+2026-11-12T21:14:37.1560131Z ##[group]Run actions/cache@v4
+2026-11-12T21:14:37.1560453Z with:
+2026-11-12T21:14:37.1560721Z   path: node_modules
+player-host/node_modules
+
+2026-11-12T21:14:37.1561397Z   key: node-modules-Linux-X64-node24-f1dfe0bfed7230bd92eb2b1be24317a071fb0858feb2f2be283bb7b0c6487acc
+2026-11-12T21:14:37.1562044Z   enableCrossOsArchive: false
+2026-11-12T21:14:37.1562335Z   fail-on-cache-miss: false
+2026-11-12T21:14:37.1562607Z   lookup-only: false
+2026-11-12T21:14:37.1562857Z   save-always: false
+2026-11-12T21:14:37.1563097Z ##[endgroup]
+2026-11-12T21:14:37.2612238Z (node:2479) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-12T21:14:37.2613793Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-12T21:14:37.5005960Z Cache hit for: node-modules-Linux-X64-node24-f1dfe0bfed7230bd92eb2b1be24317a071fb0858feb2f2be283bb7b0c6487acc
+2026-11-12T21:14:37.5117719Z (node:2479) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-12T21:14:38.7832471Z Received 25165824 of 132998032 (18.9%), 24.0 MBs/sec
+2026-11-12T21:14:39.5699583Z Received 132998032 of 132998032 (100.0%), 70.9 MBs/sec
+2026-11-12T21:14:39.5703633Z Cache Size: ~127 MB (132998032 B)
+2026-11-12T21:14:39.5768260Z [command]/usr/bin/tar -xf /home/runner/work/_temp/b90b5192-a363-43b5-8b2e-026f9a84b653/cache.tzst -P -C /home/runner/work/NoaCG-Studio/NoaCG-Studio --use-compress-program unzstd
+2026-11-12T21:14:41.1306296Z Cache restored successfully
+2026-11-12T21:14:41.1522059Z Cache restored from key: node-modules-Linux-X64-node24-f1dfe0bfed7230bd92eb2b1be24317a071fb0858feb2f2be283bb7b0c6487acc
+2026-11-12T21:14:41.1715537Z ##[end-action id=__self.cache;outcome=success;conclusion=success;duration_ms=4093]
+2026-11-12T21:14:41.1718808Z ##[start-action display=npm ci;id=__self.__run]
+2026-11-12T21:14:41.1729697Z ##[end-action id=__self.__run;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-12T21:14:41.1731728Z ##[start-action display=Regenerate install-time artifacts;id=__self.__run_2]
+2026-11-12T21:14:41.1754618Z ##[group]Run npm run postinstall
+2026-11-12T21:14:41.1754930Z [36;1mnpm run postinstall[0m
+2026-11-12T21:14:41.1806305Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-12T21:14:41.1806666Z ##[endgroup]
+2026-11-12T21:14:41.3121513Z 
+2026-11-12T21:14:41.3122211Z > noacg-studio@0.1.0 postinstall
+2026-11-12T21:14:41.3123004Z > node scripts/dev-port.mjs && node scripts/gen-video-font-css.mjs && node scripts/build-player-host.mjs
+2026-11-12T21:14:41.3123450Z 
+2026-11-12T21:14:41.3568811Z 5174
+2026-11-12T21:14:41.4521192Z [video-fonts] wrote 521370 chars of @font-face CSS -> render-worker/remotion/videoFontFaces.generated.ts
+2026-11-12T21:14:41.5430979Z [player-host] npm run build
+2026-11-12T21:14:41.6527944Z 
+2026-11-12T21:14:41.6528516Z > noacg-player-host@0.1.0 build
+2026-11-12T21:14:41.6529296Z > vite build
+2026-11-12T21:14:41.6529545Z 
+2026-11-12T21:14:41.8865637Z [36mvite v8.3.4 [32mbuilding client environment for production...[36m[39m
+2026-11-12T21:14:41.8959830Z transforming...
+2026-11-12T21:14:41.9630112Z ✓ 21 modules transformed.
+2026-11-12T21:14:41.9831146Z rendering chunks...
+2026-11-12T21:14:42.0316541Z computing gzip size...
+2026-11-12T21:14:42.0388440Z ../public/player-host/index.html                  0.69 kB │ gzip:   0.43 kB
+2026-11-12T21:14:42.0389672Z ../public/player-host/assets/index-BRpXzI9k.js  460.89 kB │ gzip: 145.29 kB
+2026-11-12T21:14:42.0390228Z 
+2026-11-12T21:14:42.0402192Z [32m✓ built in 153ms[39m
+2026-11-12T21:14:42.0692161Z [player-host] built into public/player-host/ (single self-contained page)
+2026-11-12T21:14:42.0842648Z ##[end-action id=__self.__run_2;outcome=success;conclusion=success;duration_ms=911]
+2026-11-12T21:14:42.0902566Z ##[group]Run actions/download-artifact@v4
+2026-11-12T21:14:42.0903060Z with:
+2026-11-12T21:14:42.0903269Z   path: all-blob-reports
+2026-11-12T21:14:42.0903535Z   pattern: configured-selected-blob-*
+2026-11-12T21:14:42.0903829Z   merge-multiple: true
+2026-11-12T21:14:42.0904067Z   repository: NoaCG/NoaCG-Studio
+2026-11-12T21:14:42.0904317Z   run-id: 43305743222
+2026-11-12T21:14:42.0904525Z ##[endgroup]
+2026-11-12T21:14:42.2604910Z (node:2566) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-12T21:14:42.2605817Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-12T21:14:42.5413790Z Found 24 artifact(s)
+2026-11-12T21:14:42.5414924Z Filtering artifacts by pattern 'configured-selected-blob-*'
+2026-11-12T21:14:42.5437383Z Preparing to download the following artifacts:
+2026-11-12T21:14:42.5439060Z - configured-selected-blob-2 (ID: 13984956330, Size: 220675, Expected Digest: sha256:5f8b3cd1978e9a19c8d9649e2b637a1f666335748c3e4cdc32ff613649decb02)
+2026-11-12T21:14:42.5440382Z - configured-selected-blob-4 (ID: 13984871602, Size: 264015, Expected Digest: sha256:e05915ddf74f07b61f35612711154e2cb190ae1df0c83ceefffa75dbcf5e464e)
+2026-11-12T21:14:42.5441649Z - configured-selected-blob-1 (ID: 13983943759, Size: 1060861, Expected Digest: sha256:ba63f040c3eed5391cc31786c3e3503a62ea83beff7ac3069f880e9ab8792ea3)
+2026-11-12T21:14:42.5442922Z - configured-selected-blob-3 (ID: 13983039745, Size: 501359, Expected Digest: sha256:56f2798130c4f0ae70bb0373790d2d018a966581f394af81f30e7a84748301ac)
+2026-11-12T21:14:42.8099696Z Redirecting to blob download url: https://productionresultssa12.blob.core.windows.net/actions-results/5d30a2a1-36ad-8d01-bce4-6404eaa0759e/workflow-job-run-5b7f575f-a287-5726-b661-bd5e491e03ef/artifacts/fde3caa6bb746ce8c5a920bd14a4d852d22b69a2285753fcaddbd577cf22fe29.zip
+2026-11-12T21:14:42.8101990Z Starting download of artifact to: /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:14:42.9318826Z Redirecting to blob download url: https://productionresultssa12.blob.core.windows.net/actions-results/5d30a2a1-36ad-8d01-bce4-6404eaa0759e/workflow-job-run-cc7e6bf0-ad49-5a5a-a4c9-0675166c9e7c/artifacts/4a9176b372e78b0e3457849646795efc0edc5468fe91f51d131ff4c07a774d46.zip
+2026-11-12T21:14:42.9321743Z Starting download of artifact to: /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:14:42.9348004Z Redirecting to blob download url: https://productionresultssa12.blob.core.windows.net/actions-results/5d30a2a1-36ad-8d01-bce4-6404eaa0759e/workflow-job-run-43df7951-2b5f-5bf4-b126-7f9218c5a4d8/artifacts/65486f09e9a504baec7c0bb217793d4a641781017d43c3e08b99f863bcd06fc4.zip
+2026-11-12T21:14:42.9350824Z Starting download of artifact to: /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:14:42.9427077Z Redirecting to blob download url: https://productionresultssa12.blob.core.windows.net/actions-results/5d30a2a1-36ad-8d01-bce4-6404eaa0759e/workflow-job-run-5afcc060-7757-5ada-a9a9-f494b528881e/artifacts/03524da7c63fea8170516779b2e2b59ecbdfad182f6681a2d905caeca6997f19.zip
+2026-11-12T21:14:42.9429972Z Starting download of artifact to: /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:14:43.0930062Z (node:2566) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+2026-11-12T21:14:43.2826999Z SHA256 digest of downloaded artifact is 5f8b3cd1978e9a19c8d9649e2b637a1f666335748c3e4cdc32ff613649decb02
+2026-11-12T21:14:43.2828106Z Artifact download completed successfully.
+2026-11-12T21:14:43.5038369Z SHA256 digest of downloaded artifact is e05915ddf74f07b61f35612711154e2cb190ae1df0c83ceefffa75dbcf5e464e
+2026-11-12T21:14:43.5039077Z Artifact download completed successfully.
+2026-11-12T21:14:43.5412311Z SHA256 digest of downloaded artifact is 56f2798130c4f0ae70bb0373790d2d018a966581f394af81f30e7a84748301ac
+2026-11-12T21:14:43.5413272Z Artifact download completed successfully.
+2026-11-12T21:14:43.7080428Z SHA256 digest of downloaded artifact is ba63f040c3eed5391cc31786c3e3503a62ea83beff7ac3069f880e9ab8792ea3
+2026-11-12T21:14:43.7081202Z Artifact download completed successfully.
+2026-11-12T21:14:43.7081641Z Total of 4 artifact(s) downloaded
+2026-11-12T21:14:43.7087666Z Download artifact has finished successfully
+2026-11-12T21:14:43.7234161Z ##[group]Run missing="$(node --input-type=module -e '
+2026-11-12T21:14:43.7234659Z [36;1mmissing="$(node --input-type=module -e '[0m
+2026-11-12T21:14:43.7235071Z [36;1m  import { existsSync, readdirSync } from "node:fs";[0m
+2026-11-12T21:14:43.7235538Z [36;1m  import { missingShards } from "./scripts/nightly-triage.mjs";[0m
+2026-11-12T21:14:43.7236100Z [36;1m  const names = existsSync("all-blob-reports") ? readdirSync("all-blob-reports") : [];[0m
+2026-11-12T21:14:43.7236716Z [36;1m  const shards = JSON.parse(process.env.MATRIX || "{}").shardTotal?.[0] ?? 0;[0m
+2026-11-12T21:14:43.7237221Z [36;1m  console.log(missingShards(names, shards).join(" "));[0m
+2026-11-12T21:14:43.7237946Z [36;1m')"[0m
+2026-11-12T21:14:43.7238189Z [36;1mif [ -n "$missing" ]; then[0m
+2026-11-12T21:14:43.7238776Z [36;1m  echo "::error title=A shard sent no report::Shard(s) ${missing} uploaded no blob report, so their tests are not in this verdict."[0m
+2026-11-12T21:14:43.7239436Z [36;1m  echo "missing=${missing}" >> "$GITHUB_OUTPUT"[0m
+2026-11-12T21:14:43.7239759Z [36;1mfi[0m
+2026-11-12T21:14:43.7240046Z [36;1mif ls all-blob-reports/*.zip > /dev/null 2>&1; then[0m
+2026-11-12T21:14:43.7240545Z [36;1m  npx --no-install playwright merge-reports --reporter=json all-blob-reports[0m
+2026-11-12T21:14:43.7240982Z [36;1melse[0m
+2026-11-12T21:14:43.7241329Z [36;1m  echo "::error title=No shard reported::No shard uploaded a blob report."[0m
+2026-11-12T21:14:43.7241724Z [36;1mfi[0m
+2026-11-12T21:14:43.7242112Z [36;1m# The manifest's cases: every test the selected files hold under the same config, listed[0m
+2026-11-12T21:14:43.7242661Z [36;1m# from this checkout. The run must report exactly these.[0m
+2026-11-12T21:14:43.7243075Z [36;1mFILTERS="$(node --input-type=module -e '[0m
+2026-11-12T21:14:43.7243506Z [36;1m  import { specFilterArg } from "./scripts/e2e-affected.mjs";[0m
+2026-11-12T21:14:43.7244003Z [36;1m  console.log(process.argv.slice(1).map(specFilterArg).join(" "));[0m
+2026-11-12T21:14:43.7244420Z [36;1m' $SELECTED)"[0m
+2026-11-12T21:14:43.7244864Z [36;1m# Its own JSON file: the step's PLAYWRIGHT_JSON_OUTPUT_NAME would otherwise send the listing[0m
+2026-11-12T21:14:43.7245357Z [36;1m# over the merged report.[0m
+2026-11-12T21:14:43.7245737Z [36;1mCI=1 PLAYWRIGHT_JSON_OUTPUT_NAME=configured-manifest.json \[0m
+2026-11-12T21:14:43.7246381Z [36;1m  npx --no-install playwright test -c playwright.live.config.ts --list --reporter=json $FILTERS > /dev/null[0m
+2026-11-12T21:14:43.7247264Z [36;1m[ -s configured-manifest.json ] || echo "::error title=No selected manifest::Listing the selected files wrote no configured-manifest.json."[0m
+2026-11-12T21:14:43.7248223Z [36;1mecho "Selected $(echo "$SELECTED" | wc -w) spec file(s): ${SELECTED}"[0m
+2026-11-12T21:14:43.7299106Z shell: /usr/bin/bash -e {0}
+2026-11-12T21:14:43.7299431Z env:
+2026-11-12T21:14:43.7299715Z   PLAYWRIGHT_JSON_OUTPUT_NAME: configured-report.json
+2026-11-12T21:14:43.7300117Z   MATRIX: {"shardIndex":[1,2,3,4],"shardTotal":[4]}
+2026-11-12T21:14:43.7306207Z   SELECTED: account.spec.ts agent-access.spec.ts all-out-from-heads.spec.ts analytics.spec.ts anonymous.spec.ts audience-live.spec.ts bridge-real-server.spec.ts community-authed.spec.ts community-pack-review.spec.ts connector-grants.spec.ts connector-oauth.spec.ts connector-send.spec.ts connector-tools.spec.ts control-link-guard.spec.ts deep-link-boot.spec.ts election-selection.spec.ts external-data-connector.spec.ts feed-route.spec.ts feedback.spec.ts follow-status-is-visible.spec.ts homebase.spec.ts imported-quiz-output.spec.ts late-commit-notice.spec.ts late-send-abandoned.spec.ts library-arrival.spec.ts live-health.spec.ts live-prepare.spec.ts live-presence-steady.spec.ts live-ready.spec.ts ograf-rundown.spec.ts ograf-typed-data.spec.ts output-cold-boot.spec.ts output-realtime-floor.spec.ts output-url-cannot-push.spec.ts panel-graphic-actions.spec.ts panel-lease.spec.ts panel-page.spec.ts panel-production-page.spec.ts panel-relay.spec.ts per-graphic-replacement.spec.ts playout-adjust-race.spec.ts playout-both-roads.spec.ts playout-resolve-race.spec.ts playout-status.spec.ts playout-switch-mid-flight.spec.ts pro-wizard.spec.ts production-data-key-dispatch.spec.ts production-data-key-sheet.spec.ts production-data-key-tick.spec.ts production-data-key.spec.ts production-links.spec.ts publish-guard.spec.ts publish-output-default.spec.ts quiz-output.spec.ts relay-cold-boot.spec.ts rundown-timing-recovery.spec.ts scorebug-output.spec.ts shared-lab-computer.spec.ts signed-in-ux.spec.ts svg-import-journey.spec.ts sync-one-pass-per-edit.spec.ts take-behind-out.spec.ts teams.spec.ts
+2026-11-12T21:14:43.7312530Z ##[endgroup]
+2026-11-12T21:14:45.5213872Z merging reports from /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:14:45.5258313Z extracting: all-blob-reports/report-1.zip
+2026-11-12T21:14:45.5814177Z extracting: all-blob-reports/report-2.zip
+2026-11-12T21:14:45.5955764Z extracting: all-blob-reports/report-3.zip
+2026-11-12T21:14:45.6132173Z extracting: all-blob-reports/report-4.zip
+2026-11-12T21:14:45.6298176Z merging events
+2026-11-12T21:14:45.6305202Z processing test events
+2026-11-12T21:14:45.7659258Z building final report
+2026-11-12T21:14:45.7798491Z finished building report
+2026-11-12T21:14:49.8807827Z Selected 63 spec file(s): account.spec.ts agent-access.spec.ts all-out-from-heads.spec.ts analytics.spec.ts anonymous.spec.ts audience-live.spec.ts bridge-real-server.spec.ts community-authed.spec.ts community-pack-review.spec.ts connector-grants.spec.ts connector-oauth.spec.ts connector-send.spec.ts connector-tools.spec.ts control-link-guard.spec.ts deep-link-boot.spec.ts election-selection.spec.ts external-data-connector.spec.ts feed-route.spec.ts feedback.spec.ts follow-status-is-visible.spec.ts homebase.spec.ts imported-quiz-output.spec.ts late-commit-notice.spec.ts late-send-abandoned.spec.ts library-arrival.spec.ts live-health.spec.ts live-prepare.spec.ts live-presence-steady.spec.ts live-ready.spec.ts ograf-rundown.spec.ts ograf-typed-data.spec.ts output-cold-boot.spec.ts output-realtime-floor.spec.ts output-url-cannot-push.spec.ts panel-graphic-actions.spec.ts panel-lease.spec.ts panel-page.spec.ts panel-production-page.spec.ts panel-relay.spec.ts per-graphic-replacement.spec.ts playout-adjust-race.spec.ts playout-both-roads.spec.ts playout-resolve-race.spec.ts playout-status.spec.ts playout-switch-mid-flight.spec.ts pro-wizard.spec.ts production-data-key-dispatch.spec.ts production-data-key-sheet.spec.ts production-data-key-tick.spec.ts production-data-key.spec.ts production-links.spec.ts publish-guard.spec.ts publish-output-default.spec.ts quiz-output.spec.ts relay-cold-boot.spec.ts rundown-timing-recovery.spec.ts scorebug-output.spec.ts shared-lab-computer.spec.ts signed-in-ux.spec.ts svg-import-journey.spec.ts sync-one-pass-per-edit.spec.ts take-behind-out.spec.ts teams.spec.ts
+2026-11-12T21:14:49.8870556Z ##[group]Run node scripts/configured-verdict.mjs configured-report.json --expect e2e/configured/expected-run.json --manifest configured-manifest.json --selected "$SELECTED" --label "Configured E2E (selected)"
+2026-11-12T21:14:49.8872237Z [36;1mnode scripts/configured-verdict.mjs configured-report.json --expect e2e/configured/expected-run.json --manifest configured-manifest.json --selected "$SELECTED" --label "Configured E2E (selected)"[0m
+2026-11-12T21:14:49.8921491Z shell: /usr/bin/bash -e {0}
+2026-11-12T21:14:49.8921769Z env:
+2026-11-12T21:14:49.8927789Z   SELECTED: account.spec.ts agent-access.spec.ts all-out-from-heads.spec.ts analytics.spec.ts anonymous.spec.ts audience-live.spec.ts bridge-real-server.spec.ts community-authed.spec.ts community-pack-review.spec.ts connector-grants.spec.ts connector-oauth.spec.ts connector-send.spec.ts connector-tools.spec.ts control-link-guard.spec.ts deep-link-boot.spec.ts election-selection.spec.ts external-data-connector.spec.ts feed-route.spec.ts feedback.spec.ts follow-status-is-visible.spec.ts homebase.spec.ts imported-quiz-output.spec.ts late-commit-notice.spec.ts late-send-abandoned.spec.ts library-arrival.spec.ts live-health.spec.ts live-prepare.spec.ts live-presence-steady.spec.ts live-ready.spec.ts ograf-rundown.spec.ts ograf-typed-data.spec.ts output-cold-boot.spec.ts output-realtime-floor.spec.ts output-url-cannot-push.spec.ts panel-graphic-actions.spec.ts panel-lease.spec.ts panel-page.spec.ts panel-production-page.spec.ts panel-relay.spec.ts per-graphic-replacement.spec.ts playout-adjust-race.spec.ts playout-both-roads.spec.ts playout-resolve-race.spec.ts playout-status.spec.ts playout-switch-mid-flight.spec.ts pro-wizard.spec.ts production-data-key-dispatch.spec.ts production-data-key-sheet.spec.ts production-data-key-tick.spec.ts production-data-key.spec.ts production-links.spec.ts publish-guard.spec.ts publish-output-default.spec.ts quiz-output.spec.ts relay-cold-boot.spec.ts rundown-timing-recovery.spec.ts scorebug-output.spec.ts shared-lab-computer.spec.ts signed-in-ux.spec.ts svg-import-journey.spec.ts sync-one-pass-per-edit.spec.ts take-behind-out.spec.ts teams.spec.ts
+2026-11-12T21:14:49.8934043Z ##[endgroup]
+2026-11-12T21:14:50.0311224Z Ran 148 tests (148 passed, 0 failed, 0 flaky), 3 skipped.
+2026-11-12T21:14:50.0313484Z failure set (f3c84d09985f):
+2026-11-12T21:14:50.0315084Z   bridge-real-server.spec.ts::one rundown airs a server template on channel 1 and a clip on channel 2, moves a cue across, and All out clears both and nothing else
+2026-11-12T21:14:50.0317599Z   bridge-real-server.spec.ts::the Bridge airs the production, the dashboard reveals and scores it in CasparCG, and the server's own library is cued beside it
+2026-11-12T21:14:50.0319691Z   connector-grants.spec.ts::a deployment whose Auth runs no OAuth server answers 503 connector_disabled on every connector path
+2026-11-12T21:14:50.0321131Z failing specs:
+2026-11-12T21:14:50.0589289Z ##[group]Run actions/upload-artifact@v4
+2026-11-12T21:14:50.0589830Z with:
+2026-11-12T21:14:50.0590234Z   name: configured-selected-report
+2026-11-12T21:14:50.0590870Z   path: configured-report.json
+configured-manifest.json
+
+2026-11-12T21:14:50.0591498Z   retention-days: 14
+2026-11-12T21:14:50.0591924Z   if-no-files-found: ignore
+2026-11-12T21:14:50.0592379Z   compression-level: 6
+2026-11-12T21:14:50.0592797Z   overwrite: false
+2026-11-12T21:14:50.0593214Z   include-hidden-files: false
+2026-11-12T21:14:50.0593679Z ##[endgroup]
+2026-11-12T21:14:50.2397330Z (node:2660) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-12T21:14:50.2399377Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-12T21:14:50.2515056Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-11-12T21:14:50.2519839Z The least common ancestor is /home/runner/work/NoaCG-Studio/NoaCG-Studio. This will be the root directory of the artifact
+2026-11-12T21:14:50.2522302Z With the provided path, there will be 2 files uploaded
+2026-11-12T21:14:50.2524452Z Artifact name is valid!
+2026-11-12T21:14:50.2525452Z Root directory input is valid!
+2026-11-12T21:14:50.6500198Z Beginning upload of artifact content to blob storage
+2026-11-12T21:14:50.7120089Z (node:2660) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-12T21:14:51.3572584Z Uploaded bytes 486861
+2026-11-12T21:14:51.4349819Z Finished uploading artifact content to blob storage!
+2026-11-12T21:14:51.4351369Z SHA256 digest of uploaded artifact zip is 6773b775e065e5951b7449cd39d1f087d48d6a7be756448eb289ddae6620ba90
+2026-11-12T21:14:51.4353708Z Finalizing artifact upload
+2026-11-12T21:14:51.8116227Z Artifact configured-selected-report.zip successfully finalized. Artifact ID 13984188434
+2026-11-12T21:14:51.8118712Z Artifact configured-selected-report has been successfully uploaded! Final size is 486861 bytes. Artifact ID is 13984188434
+2026-11-12T21:14:51.8128912Z Artifact download URL: https://github.com/NoaCG/NoaCG-Studio/actions/runs/43305743222/artifacts/13984188434
+2026-11-12T21:14:51.8437322Z Post job cleanup.
+2026-11-12T21:14:51.8442819Z ##[start-action display=Cache node_modules;id=__499bfdef-beb2-4745-bafc-9ce12baebc3e.cache]
+2026-11-12T21:14:51.9283973Z Post job cleanup.
+2026-11-12T21:14:52.0454113Z Cache hit occurred on the primary key node-modules-Linux-X64-node24-f1dfe0bfed7230bd92eb2b1be24317a071fb0858feb2f2be283bb7b0c6487acc, not saving cache.
+2026-11-12T21:14:52.0456418Z (node:2685) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-12T21:14:52.0458198Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-12T21:14:52.0516827Z ##[end-action id=__499bfdef-beb2-4745-bafc-9ce12baebc3e.cache;outcome=success;conclusion=success;duration_ms=207]
+2026-11-12T21:14:52.0579709Z Post job cleanup.
+2026-11-12T21:14:52.2135650Z (node:2693) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-12T21:14:52.2137547Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-12T21:14:52.2141165Z Cache hit occurred on the primary key node-cache-Linux-x64-npm-f6534e8efbcb185272d21504ced33f1ba33b656490018118e5beb65abcf01961, not saving cache.
+2026-11-12T21:14:52.2357012Z Post job cleanup.
+2026-11-12T21:14:52.3362690Z [command]/usr/bin/git version
+2026-11-12T21:14:52.3409949Z git version 2.56.1
+2026-11-12T21:14:52.3454429Z Temporarily overriding HOME='/home/runner/work/_temp/50015fbf-41d6-4fd0-9916-13503de8c289' before making global git config changes
+2026-11-12T21:14:52.3456039Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-12T21:14:52.3460307Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-12T21:14:52.3501741Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-12T21:14:52.3539760Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-12T21:14:52.3886442Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-12T21:14:52.3913553Z http.https://github.com/.extraheader
+2026-11-12T21:14:52.3926797Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-12T21:14:52.3974415Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-12T21:14:52.4294941Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-12T21:14:52.4332925Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-12T21:14:52.4790552Z Cleaning up orphan processes
+2026-11-12T21:14:52.5198180Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@v4, actions/download-artifact@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

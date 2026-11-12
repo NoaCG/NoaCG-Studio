@@ -68,9 +68,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "stopped / additional attempt exhausted",
+      "step": "stopped / owner disposition required",
       "pr": 2438,
-      "note": "Confirmed legacy production snapshot defect on frozen63d7 ends the approved extra1/1. No further code, test or notes edits, pushes, verification launches, queue or phase advance. Existing CI and independent review are being collected to terminal."
+      "note": "The approved extra attempt is spent 1/1, ordinary 3/3 retained. Final review grade B confirms legacy production installation defect; terminal CI also fails the retained Discard write contract. All existing head runs are terminal. Frozen63d7 remains draft with no queue entry, stamp or auto-merge. No further launch or edit; local work stays last."
     }
   ],
   "owner": [
@@ -1486,7 +1486,7 @@
     "currentPublicUpdate": 6831775749
   },
   "waitingOn": {
-    "what": "Owner disposition for confirmed remaining E4 legacy installation defect after extra1/1; existing CI/full review observations only"
+    "what": "Owner disposition: further bounded correction of legacy snapshot comparison and retained Discard contract, or leave E4 stopped. No automatic allowance/reset."
   },
   "completedCausalityReviews": [
     {
@@ -2060,14 +2060,55 @@
       "finalHeadGates": {
         "ci": 43305743222,
         "head": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
-        "status": "RUNNING",
+        "status": "TERMINAL_FAILURE",
         "configuredSelection": "Actual plan131488480080 SUCCESS: ALL63 specs/four local stacks at20:59:59Z; root read actual extract.",
         "capacity": "Actual REPAY199.0/213tablemin93.4%, adds1.3min. Newest43201149088 PARTIAL; judged complete43014542120. Current cost-only repayment policy applies; frozenPR_BASE attribution issue2450 retained; no ceilings changed.",
         "isolated": 43305997998,
         "isolatedStatus": "SUCCESS exacthead,1pass32.8s,zero skips/retries/accountdeleted; fulljob/rootreadback.",
         "codex": "Completed21:06:12Z exact63d7: unresolved confirmedP2inline4556338378; used extra ends.",
-        "fullSo": "Fresh FULL51path assessor after actual capacity; no eligible prior A, no delta shortcut.",
-        "queue": "HeldDRAFT,nostamp/land/automerge; no E4pass or laterphase."
+        "fullSo": {
+          "verdict": "AGREE WITH CORRECTIONS",
+          "grade": "B",
+          "scope": "FULL51paths91a\u219263d7",
+          "receipt": "e4-owner1-stop-2026-11-12/final-full-so.txt",
+          "sha256": "e538d1f3c3ea5a7bc2c9d303a5b8a783055d8b4f802fb4caab8eb599fffc9dd9",
+          "rootReadback": "Entire verdict read and full source-manifest inspected; no A/A+ and do not land. Same-assessor clarification on later CI result pending.",
+          "clarification": "Raw same-assessor response preserved SHAeaa80190d4b85743b361f92cf5f2b665fd3cc8d37db9a31c8a55656b963b2cc8; calls intermediatewrite faulty basedon newnotes829 but does not reconcile retainedexplicitplan860-861. Root/builder do not accept as resolving documentedtraceCIregression; no assertionchange/noadditionalreview."
+        },
+        "queue": "HeldDRAFT,nostamp/land/automerge; no E4pass or laterphase.",
+        "configuredVerdict": "131497151214SUCCESS148PASS0FAIL0FLAKY3existingSKIP; all4stackjobsSUCCESS/ALL63. Root read actual whole decoded verdict log.",
+        "normalCi": "43305743222 FAILUREattempt1;all33jobsreadterminal. SoleleafFAILoffline4/15;ReviewedmissingstampFAIL;CIgatepropagatesE2Efailure. Other14offline,Build,Factory,Catalog,bothGuidedMod,fourconfigured+verdict,CombinedSUCCESS. Rerun/retryjobsSKIPPED; no new retry.",
+        "codeql": "Dynamic43305735826SUCCESS exact63d7",
+        "allRuns": [
+          {
+            "id": 43305997998,
+            "name": "endurance",
+            "event": "workflow_dispatch",
+            "head_sha": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
+            "status": "completed",
+            "conclusion": "success",
+            "run_attempt": 1
+          },
+          {
+            "id": 43305743222,
+            "name": "CI",
+            "event": "pull_request",
+            "head_sha": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
+            "status": "completed",
+            "conclusion": "failure",
+            "run_attempt": 1
+          },
+          {
+            "id": 43305735826,
+            "name": "PR #2438",
+            "event": "dynamic",
+            "head_sha": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
+            "status": "completed",
+            "conclusion": "success",
+            "run_attempt": 1
+          }
+        ],
+        "localStamp": "Historical exact-head localPASS preserved, invalid as landing clearance after unresolvedCodex/FULLB/maintainedCIfailure. No publicstamp ornewlocalstamp."
       },
       "stopPacket": "e4-owner1-stop-2026-11-12/STOP.md",
       "stopFinding": {
@@ -2077,7 +2118,19 @@
         "line": 62,
         "class": "P2 product legacy snapshot identity",
         "reason": "Raw durable legacy record compared with normalized loadShows snapshot; unchanged old production falsely conflicts. Root independently confirmed actual code path."
-      }
+      },
+      "additionalCiFailure": {
+        "run": 43305743222,
+        "job": 131488795882,
+        "spec": "e2e/new-graphic-guard.spec.ts",
+        "line": 455,
+        "result": "162PASS/1FAIL9.5min",
+        "assertion": "Second held write dirty expectedfalse/observedtrue",
+        "documentedRule": "docs/EDITOR_REBUILD_PLAN.md860-861 preserves clean replacement during pending drain and durable newer restoration before refusal",
+        "classification": "Observed maintained documented-contract regression; not proved userdata loss, final outcome assertions unreached. No fixture edits or weakening authorized."
+      },
+      "stopAt": "2026-11-12T21:10:53.591Z",
+      "nativeStop": "Worker acknowledged no changes/tests/push/requests and retained exactclean63d7; final terminal BLOCKED receipt awaited. Existing all32 CIjobs only Combinedreport/CIgate pending."
     }
   },
   "coordinatorTools": {

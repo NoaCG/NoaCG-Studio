@@ -1,0 +1,467 @@
+﻿2026-11-12T21:17:40.3393948Z Current runner version: '2.338.2'
+2026-11-12T21:17:40.3409811Z ##[group]Runner Image Provisioner
+2026-11-12T21:17:40.3410490Z Hosted Compute Agent
+2026-11-12T21:17:40.3410891Z Version: 20261028.624
+2026-11-12T21:17:40.3411271Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-12T21:17:40.3411685Z Build Date: 2026-10-28T21:51:42Z
+2026-11-12T21:17:40.3412083Z Worker ID: {36f318ae-c7bf-465d-adc9-ac778aad1d00}
+2026-11-12T21:17:40.3412548Z Region: centralus
+2026-11-12T21:17:40.3412867Z Cloud: Azure
+2026-11-12T21:17:40.3413174Z ##[endgroup]
+2026-11-12T21:17:40.3413934Z ##[group]Operating System
+2026-11-12T21:17:40.3414280Z Ubuntu
+2026-11-12T21:17:40.3414608Z 26.04.1
+2026-11-12T21:17:40.3414972Z LTS
+2026-11-12T21:17:40.3415260Z ##[endgroup]
+2026-11-12T21:17:40.3415613Z ##[group]Runner Image
+2026-11-12T21:17:40.3415950Z Image: ubuntu-26.04
+2026-11-12T21:17:40.3416503Z Version: 20261101.186.1
+2026-11-12T21:17:40.3417245Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-12T21:17:40.3418093Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261101.186
+2026-11-12T21:17:40.3418616Z ##[endgroup]
+2026-11-12T21:17:40.3419348Z ##[group]GITHUB_TOKEN Permissions
+2026-11-12T21:17:40.3420621Z Actions: read
+2026-11-12T21:17:40.3420983Z Contents: read
+2026-11-12T21:17:40.3421329Z Metadata: read
+2026-11-12T21:17:40.3421645Z ##[endgroup]
+2026-11-12T21:17:40.3422910Z Secret source: Actions
+2026-11-12T21:17:40.3423435Z Cache mode: write
+2026-11-12T21:17:40.3423880Z Prepare workflow directory
+2026-11-12T21:17:40.3619833Z Prepare all required actions
+2026-11-12T21:17:40.3651140Z Getting action download info
+2026-11-12T21:17:40.6382821Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+2026-11-12T21:17:40.7297119Z Download action repository 'actions/download-artifact@v5' (SHA:634f93cb2916e3fdff6788551b99b062d0335ce0)
+2026-11-12T21:17:41.0745494Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-11-12T21:17:41.2288810Z Complete job name: Combined E2E report
+2026-11-12T21:17:41.2786868Z ##[group]Run actions/checkout@v5
+2026-11-12T21:17:41.2787307Z with:
+2026-11-12T21:17:41.2787532Z   fetch-depth: 0
+2026-11-12T21:17:41.2787783Z   repository: NoaCG/NoaCG-Studio
+2026-11-12T21:17:41.2789707Z   token: ***
+2026-11-12T21:17:41.2789939Z   ssh-strict: true
+2026-11-12T21:17:41.2790177Z   ssh-user: git
+2026-11-12T21:17:41.2790413Z   persist-credentials: true
+2026-11-12T21:17:41.2790671Z   clean: true
+2026-11-12T21:17:41.2790910Z   sparse-checkout-cone-mode: true
+2026-11-12T21:17:41.2791186Z   fetch-tags: false
+2026-11-12T21:17:41.2791427Z   show-progress: true
+2026-11-12T21:17:41.2791670Z   lfs: false
+2026-11-12T21:17:41.2791895Z   submodules: false
+2026-11-12T21:17:41.2792142Z   set-safe-directory: true
+2026-11-12T21:17:41.2792416Z   allow-unsafe-pr-checkout: false
+2026-11-12T21:17:41.2792754Z ##[endgroup]
+2026-11-12T21:17:41.5602240Z Syncing repository: NoaCG/NoaCG-Studio
+2026-11-12T21:17:41.5603582Z ##[group]Getting Git version info
+2026-11-12T21:17:41.5604069Z Working directory is '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+2026-11-12T21:17:41.5604611Z [command]/usr/bin/git version
+2026-11-12T21:17:41.5604881Z git version 2.56.0
+2026-11-12T21:17:41.5618009Z ##[endgroup]
+2026-11-12T21:17:41.5627647Z Temporarily overriding HOME='/home/runner/work/_temp/c4f783bb-9def-4b3f-8fe4-8337fde6119f' before making global git config changes
+2026-11-12T21:17:41.5629137Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-12T21:17:41.5630333Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-12T21:17:41.5690332Z Deleting the contents of '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+2026-11-12T21:17:41.5692155Z ##[group]Initializing the repository
+2026-11-12T21:17:41.5695295Z [command]/usr/bin/git init /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-12T21:17:41.5793503Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-12T21:17:41.5794074Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-12T21:17:41.5794751Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-12T21:17:41.5795164Z hint: call:
+2026-11-12T21:17:41.5795380Z hint:
+2026-11-12T21:17:41.5795674Z hint: 	git config --global init.defaultBranch <name>
+2026-11-12T21:17:41.5795997Z hint:
+2026-11-12T21:17:41.5796475Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-12T21:17:41.5796952Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-12T21:17:41.5797369Z hint:
+2026-11-12T21:17:41.5797685Z hint: 	git branch -m <name>
+2026-11-12T21:17:41.5797937Z hint:
+2026-11-12T21:17:41.5798263Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-12T21:17:41.5807480Z Initialized empty Git repository in /home/runner/work/NoaCG-Studio/NoaCG-Studio/.git/
+2026-11-12T21:17:41.5816618Z [command]/usr/bin/git remote add origin https://github.com/NoaCG/NoaCG-Studio
+2026-11-12T21:17:41.5859875Z ##[endgroup]
+2026-11-12T21:17:41.5860285Z ##[group]Disabling automatic garbage collection
+2026-11-12T21:17:41.5863163Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-12T21:17:41.5907887Z ##[endgroup]
+2026-11-12T21:17:41.5908375Z ##[group]Setting up auth
+2026-11-12T21:17:41.5913841Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-12T21:17:41.5941703Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-12T21:17:41.6301645Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-12T21:17:41.6328044Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-12T21:17:41.6529923Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-12T21:17:41.6555323Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-12T21:17:41.6756259Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-12T21:17:41.6786508Z ##[endgroup]
+2026-11-12T21:17:41.6787024Z ##[group]Fetching the repository
+2026-11-12T21:17:41.6792696Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/* +a4bb59c92fbcda0a67bc936e0f0a4ca14ca18f3d:refs/remotes/pull/2438/merge
+2026-11-12T21:17:48.3071107Z From https://github.com/NoaCG/NoaCG-Studio
+2026-11-12T21:17:48.3071946Z  * [new branch]          agent-toolkit-dist      -> origin/agent-toolkit-dist
+2026-11-12T21:17:48.3073058Z  * [new branch]          ci-draft-batching-land-4 -> origin/ci-draft-batching-land-4
+2026-11-12T21:17:48.3073976Z  * [new branch]          claude/e-diag-1915      -> origin/claude/e-diag-1915
+2026-11-12T21:17:48.3074836Z  * [new branch]          claude/f-clock-replay   -> origin/claude/f-clock-replay
+2026-11-12T21:17:48.3075796Z  * [new branch]          claude/jev-ready-wfpush-probe -> origin/claude/jev-ready-wfpush-probe
+2026-11-12T21:17:48.3077279Z  * [new branch]          claude/noacg-recovery/plan-cicd-followup-2026-11-02 -> origin/claude/noacg-recovery/plan-cicd-followup-2026-11-02
+2026-11-12T21:17:48.3078801Z  * [new branch]          claude/noacg-recovery/plan-cicd-improvement-2026-10-31 -> origin/claude/noacg-recovery/plan-cicd-improvement-2026-10-31
+2026-11-12T21:17:48.3080040Z  * [new branch]          claude/noacg-recovery/plan-codebase-health-2026-11-08 -> origin/claude/noacg-recovery/plan-codebase-health-2026-11-08
+2026-11-12T21:17:48.3081256Z  * [new branch]          claude/noacg-recovery/plan-editor-r1-5-2026-11-08 -> origin/claude/noacg-recovery/plan-editor-r1-5-2026-11-08
+2026-11-12T21:17:48.3082170Z  * [new branch]          claude/noacg-recovery/plan-interaction-2026-11-09 -> origin/claude/noacg-recovery/plan-interaction-2026-11-09
+2026-11-12T21:17:48.3083110Z  * [new branch]          claude/noacg-recovery/plan-jev-svg-import-2026-10-31 -> origin/claude/noacg-recovery/plan-jev-svg-import-2026-10-31
+2026-11-12T21:17:48.3084092Z  * [new branch]          claude/noacg-recovery/plan-live-publishing-2026-11-10 -> origin/claude/noacg-recovery/plan-live-publishing-2026-11-10
+2026-11-12T21:17:48.3085030Z  * [new branch]          claude/noacg-recovery/plan-obs-scenes-2026-11-12 -> origin/claude/noacg-recovery/plan-obs-scenes-2026-11-12
+2026-11-12T21:17:48.3086060Z  * [new branch]          claude/noacg-recovery/plan-production-page-2026-10-21 -> origin/claude/noacg-recovery/plan-production-page-2026-10-21
+2026-11-12T21:17:48.3087194Z  * [new branch]          claude/noacg-recovery/plan-vmix-2026-11-08 -> origin/claude/noacg-recovery/plan-vmix-2026-11-08
+2026-11-12T21:17:48.3087988Z  * [new branch]          claude/plan-jev-svg-import-33-config -> origin/claude/plan-jev-svg-import-33-config
+2026-11-12T21:17:48.3088724Z  * [new branch]          claude/plan-live-publishing-6-build -> origin/claude/plan-live-publishing-6-build
+2026-11-12T21:17:48.3089669Z  * [new branch]          claude/plan-production-page-p32d-build-wip -> origin/claude/plan-production-page-p32d-build-wip
+2026-11-12T21:17:48.3090379Z  * [new branch]          claude/pp-fix-1798-after -> origin/claude/pp-fix-1798-after
+2026-11-12T21:17:48.3090954Z  * [new branch]          claude/pp-fix-1798-agentmem -> origin/claude/pp-fix-1798-agentmem
+2026-11-12T21:17:48.3091537Z  * [new branch]          claude/pp-fix-1798-diag -> origin/claude/pp-fix-1798-diag
+2026-11-12T21:17:48.3092144Z  * [new branch]          claude/probe-competition-flake -> origin/claude/probe-competition-flake
+2026-11-12T21:17:48.3092824Z  * [new branch]          claude/saved-graphic-engine-spec -> origin/claude/saved-graphic-engine-spec
+2026-11-12T21:17:48.3093651Z  * [new branch]          codex/c-canvas-guide-dimensions -> origin/codex/c-canvas-guide-dimensions
+2026-11-12T21:17:48.3094381Z  * [new branch]          codex/editor-causality-20261111-clock-01 -> origin/codex/editor-causality-20261111-clock-01
+2026-11-12T21:17:48.3095230Z  * [new branch]          codex/editor-causality-20261111-clock-02 -> origin/codex/editor-causality-20261111-clock-02
+2026-11-12T21:17:48.3096938Z  * [new branch]          codex/editor-causality-20261111-clock-03 -> origin/codex/editor-causality-20261111-clock-03
+2026-11-12T21:17:48.3098120Z  * [new branch]          codex/editor-causality-20261111-clock-04 -> origin/codex/editor-causality-20261111-clock-04
+2026-11-12T21:17:48.3099561Z  * [new branch]          codex/editor-causality-20261111-clock-05 -> origin/codex/editor-causality-20261111-clock-05
+2026-11-12T21:17:48.3100487Z  * [new branch]          codex/editor-causality-20261111-clock-06 -> origin/codex/editor-causality-20261111-clock-06
+2026-11-12T21:17:48.3101299Z  * [new branch]          codex/editor-causality-20261111-clock-07 -> origin/codex/editor-causality-20261111-clock-07
+2026-11-12T21:17:48.3102191Z  * [new branch]          codex/editor-causality-20261111-clock-08 -> origin/codex/editor-causality-20261111-clock-08
+2026-11-12T21:17:48.3102981Z  * [new branch]          codex/editor-causality-20261111-clock-09 -> origin/codex/editor-causality-20261111-clock-09
+2026-11-12T21:17:48.3103765Z  * [new branch]          codex/editor-causality-20261111-clock-10 -> origin/codex/editor-causality-20261111-clock-10
+2026-11-12T21:17:48.3104559Z  * [new branch]          codex/editor-causality-20261111-clock-11 -> origin/codex/editor-causality-20261111-clock-11
+2026-11-12T21:17:48.3105339Z  * [new branch]          codex/editor-causality-20261111-clock-12 -> origin/codex/editor-causality-20261111-clock-12
+2026-11-12T21:17:48.3106320Z  * [new branch]          codex/editor-causality-20261111-operator-01 -> origin/codex/editor-causality-20261111-operator-01
+2026-11-12T21:17:48.3107578Z  * [new branch]          codex/editor-causality-20261111-operator-02 -> origin/codex/editor-causality-20261111-operator-02
+2026-11-12T21:17:48.3108417Z  * [new branch]          codex/editor-causality-20261111-operator-03 -> origin/codex/editor-causality-20261111-operator-03
+2026-11-12T21:17:48.3109247Z  * [new branch]          codex/editor-causality-20261111-operator-04 -> origin/codex/editor-causality-20261111-operator-04
+2026-11-12T21:17:48.3110110Z  * [new branch]          codex/editor-causality-20261111-operator-c2-01 -> origin/codex/editor-causality-20261111-operator-c2-01
+2026-11-12T21:17:48.3110991Z  * [new branch]          codex/editor-causality-20261111-operator-c2-02 -> origin/codex/editor-causality-20261111-operator-c2-02
+2026-11-12T21:17:48.3111859Z  * [new branch]          codex/editor-causality-20261111-operator-c2-03 -> origin/codex/editor-causality-20261111-operator-c2-03
+2026-11-12T21:17:48.3112738Z  * [new branch]          codex/editor-causality-20261111-operator-c2-04 -> origin/codex/editor-causality-20261111-operator-c2-04
+2026-11-12T21:17:48.3113607Z  * [new branch]          codex/editor-causality-20261111-operator-c3-01 -> origin/codex/editor-causality-20261111-operator-c3-01
+2026-11-12T21:17:48.3114486Z  * [new branch]          codex/editor-causality-20261111-operator-c3-02 -> origin/codex/editor-causality-20261111-operator-c3-02
+2026-11-12T21:17:48.3115353Z  * [new branch]          codex/editor-causality-20261111-operator-c3-03 -> origin/codex/editor-causality-20261111-operator-c3-03
+2026-11-12T21:17:48.3116437Z  * [new branch]          codex/editor-causality-20261111-operator-c3-04 -> origin/codex/editor-causality-20261111-operator-c3-04
+2026-11-12T21:17:48.3117302Z  * [new branch]          codex/editor-causality-20261111-operator-c4-01 -> origin/codex/editor-causality-20261111-operator-c4-01
+2026-11-12T21:17:48.3118170Z  * [new branch]          codex/editor-causality-20261111-operator-c4-02 -> origin/codex/editor-causality-20261111-operator-c4-02
+2026-11-12T21:17:48.3119223Z  * [new branch]          codex/editor-causality-20261111-operator-c4-03 -> origin/codex/editor-causality-20261111-operator-c4-03
+2026-11-12T21:17:48.3120215Z  * [new branch]          codex/editor-causality-20261111-operator-c4-03-completion-01 -> origin/codex/editor-causality-20261111-operator-c4-03-completion-01
+2026-11-12T21:17:48.3121212Z  * [new branch]          codex/editor-causality-20261111-operator-c4-04 -> origin/codex/editor-causality-20261111-operator-c4-04
+2026-11-12T21:17:48.3122099Z  * [new branch]          codex/editor-causality-20261111-operator-c5-01 -> origin/codex/editor-causality-20261111-operator-c5-01
+2026-11-12T21:17:48.3122967Z  * [new branch]          codex/editor-causality-20261111-operator-c5-02 -> origin/codex/editor-causality-20261111-operator-c5-02
+2026-11-12T21:17:48.3123846Z  * [new branch]          codex/editor-causality-20261111-operator-c5-03 -> origin/codex/editor-causality-20261111-operator-c5-03
+2026-11-12T21:17:48.3124723Z  * [new branch]          codex/editor-causality-20261111-operator-c5-04 -> origin/codex/editor-causality-20261111-operator-c5-04
+2026-11-12T21:17:48.3125611Z  * [new branch]          codex/editor-causality-evidence-reader-20261111 -> origin/codex/editor-causality-evidence-reader-20261111
+2026-11-12T21:17:48.3126741Z  * [new branch]          codex/editor-r1-5-quarantine-causality-20261111 -> origin/codex/editor-r1-5-quarantine-causality-20261111
+2026-11-12T21:17:48.3127628Z  * [new branch]          codex/plan-editor-r1-5-coordinator-2026-11-08 -> origin/codex/plan-editor-r1-5-coordinator-2026-11-08
+2026-11-12T21:17:48.3128381Z  * [new branch]          codex/plan-editor-r1-5-e4-build -> origin/codex/plan-editor-r1-5-e4-build
+2026-11-12T21:17:48.3129094Z  * [new branch]          codex/plan-vmix-coordinator-2026-11-08 -> origin/codex/plan-vmix-coordinator-2026-11-08
+2026-11-12T21:17:48.3129761Z  * [new branch]          codex/plan-vmix-v4-build -> origin/codex/plan-vmix-v4-build
+2026-11-12T21:17:48.3130419Z  * [new branch]          main                    -> origin/main
+2026-11-12T21:17:48.3130988Z  * [new branch]          noacg/determined-einstein-2o0d0s -> origin/noacg/determined-einstein-2o0d0s
+2026-11-12T21:17:48.3131674Z  * [new branch]          noacg/peaceful-faraday-cp5pfe -> origin/noacg/peaceful-faraday-cp5pfe
+2026-11-12T21:17:48.3132311Z  * [new branch]          noacg/svg-fit-upgrade-editor -> origin/noacg/svg-fit-upgrade-editor
+2026-11-12T21:17:48.3132979Z  * [new branch]          quarantine/enter-2026-10-30-20ab0166 -> origin/quarantine/enter-2026-10-30-20ab0166
+2026-11-12T21:17:48.3133578Z  * [new branch]          revert/18e488f          -> origin/revert/18e488f
+2026-11-12T21:17:48.3134058Z  * [new branch]          revert/e76e101          -> origin/revert/e76e101
+2026-11-12T21:17:48.3134599Z  * [new branch]          security/backlog-2026-10-30 -> origin/security/backlog-2026-10-30
+2026-11-12T21:17:48.3135343Z  * [new branch]          vercel/install-and-configure-vercel-s-hcxirs -> origin/vercel/install-and-configure-vercel-s-hcxirs
+2026-11-12T21:17:48.3136360Z  * [new branch]          vercel/install-vercel-web-analytics-vy57wy -> origin/vercel/install-vercel-web-analytics-vy57wy
+2026-11-12T21:17:48.3137002Z  * [new tag]             bridge-v0.10.0          -> bridge-v0.10.0
+2026-11-12T21:17:48.3137435Z  * [new tag]             bridge-v0.10.1          -> bridge-v0.10.1
+2026-11-12T21:17:48.3137869Z  * [new tag]             bridge-v0.10.2          -> bridge-v0.10.2
+2026-11-12T21:17:48.3138301Z  * [new tag]             bridge-v0.11.0          -> bridge-v0.11.0
+2026-11-12T21:17:48.3138731Z  * [new tag]             bridge-v0.4.0           -> bridge-v0.4.0
+2026-11-12T21:17:48.3139185Z  * [new tag]             bridge-v0.4.0-preview   -> bridge-v0.4.0-preview
+2026-11-12T21:17:48.3139644Z  * [new tag]             bridge-v0.4.1           -> bridge-v0.4.1
+2026-11-12T21:17:48.3140075Z  * [new tag]             bridge-v0.4.2           -> bridge-v0.4.2
+2026-11-12T21:17:48.3140504Z  * [new tag]             bridge-v0.5.0           -> bridge-v0.5.0
+2026-11-12T21:17:48.3141022Z  * [new tag]             bridge-v0.6.0           -> bridge-v0.6.0
+2026-11-12T21:17:48.3141455Z  * [new tag]             bridge-v0.7.0           -> bridge-v0.7.0
+2026-11-12T21:17:48.3141877Z  * [new tag]             bridge-v0.8.0           -> bridge-v0.8.0
+2026-11-12T21:17:48.3142302Z  * [new tag]             bridge-v0.8.1           -> bridge-v0.8.1
+2026-11-12T21:17:48.3142725Z  * [new tag]             bridge-v0.9.0           -> bridge-v0.9.0
+2026-11-12T21:17:48.3143146Z  * [new tag]             cli-v0.10.1             -> cli-v0.10.1
+2026-11-12T21:17:48.3143560Z  * [new tag]             cli-v0.11.0             -> cli-v0.11.0
+2026-11-12T21:17:48.3143978Z  * [new tag]             cli-v0.12.0             -> cli-v0.12.0
+2026-11-12T21:17:48.3144388Z  * [new tag]             cli-v0.12.1             -> cli-v0.12.1
+2026-11-12T21:17:48.3144799Z  * [new tag]             cli-v0.12.2             -> cli-v0.12.2
+2026-11-12T21:17:48.3145218Z  * [new tag]             cli-v0.12.3             -> cli-v0.12.3
+2026-11-12T21:17:48.3145631Z  * [new tag]             cli-v0.12.4             -> cli-v0.12.4
+2026-11-12T21:17:48.3146041Z  * [new tag]             cli-v0.3.0              -> cli-v0.3.0
+2026-11-12T21:17:48.3146614Z  * [new tag]             cli-v0.3.1              -> cli-v0.3.1
+2026-11-12T21:17:48.3147042Z  * [new tag]             cli-v0.3.2              -> cli-v0.3.2
+2026-11-12T21:17:48.3147453Z  * [new tag]             cli-v0.3.3              -> cli-v0.3.3
+2026-11-12T21:17:48.3147861Z  * [new tag]             cli-v0.3.4              -> cli-v0.3.4
+2026-11-12T21:17:48.3148274Z  * [new tag]             cli-v0.7.0              -> cli-v0.7.0
+2026-11-12T21:17:48.3148679Z  * [new tag]             cli-v0.7.1              -> cli-v0.7.1
+2026-11-12T21:17:48.3149085Z  * [new tag]             cli-v0.7.2              -> cli-v0.7.2
+2026-11-12T21:17:48.3149494Z  * [new tag]             cli-v0.8.0              -> cli-v0.8.0
+2026-11-12T21:17:48.3150124Z  * [new tag]             cli-v0.8.1              -> cli-v0.8.1
+2026-11-12T21:17:48.3151081Z  * [new tag]             cli-v0.9.0              -> cli-v0.9.0
+2026-11-12T21:17:48.3151763Z  * [new tag]             companion-v0.2.0        -> companion-v0.2.0
+2026-11-12T21:17:48.3152466Z  * [new tag]             companion-v0.3.0        -> companion-v0.3.0
+2026-11-12T21:17:48.3153258Z  * [new ref]             a4bb59c92fbcda0a67bc936e0f0a4ca14ca18f3d -> pull/2438/merge
+2026-11-12T21:17:48.3154842Z ##[endgroup]
+2026-11-12T21:17:48.3155295Z ##[group]Determining the checkout info
+2026-11-12T21:17:48.3155787Z ##[endgroup]
+2026-11-12T21:17:48.3156080Z [command]/usr/bin/git sparse-checkout disable
+2026-11-12T21:17:48.3171492Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-12T21:17:48.3226938Z ##[group]Checking out the ref
+2026-11-12T21:17:48.3230348Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/2438/merge
+2026-11-12T21:17:48.9411563Z Note: switching to 'refs/remotes/pull/2438/merge'.
+2026-11-12T21:17:48.9412974Z 
+2026-11-12T21:17:48.9413540Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-12T21:17:48.9414849Z changes and commit them, and you can discard any commits you make in this
+2026-11-12T21:17:48.9416057Z state without impacting any branches by switching back to a branch.
+2026-11-12T21:17:48.9416883Z 
+2026-11-12T21:17:48.9417305Z If you want to create a new branch to retain commits you create, you may
+2026-11-12T21:17:48.9418330Z do so (now or later) by using -c with the switch command. Example:
+2026-11-12T21:17:48.9418920Z 
+2026-11-12T21:17:48.9419150Z   git switch -c <new-branch-name>
+2026-11-12T21:17:48.9419526Z 
+2026-11-12T21:17:48.9419775Z Or undo this operation with:
+2026-11-12T21:17:48.9420123Z 
+2026-11-12T21:17:48.9420311Z   git switch -
+2026-11-12T21:17:48.9420585Z 
+2026-11-12T21:17:48.9421129Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-12T21:17:48.9421835Z 
+2026-11-12T21:17:48.9422988Z HEAD is now at a4bb59c92 Merge 63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf into a2921196da0fd21059ee988bdca3263589f73916
+2026-11-12T21:17:48.9482269Z ##[endgroup]
+2026-11-12T21:17:48.9527521Z [command]/usr/bin/git log -1 --format=%H
+2026-11-12T21:17:48.9547898Z a4bb59c92fbcda0a67bc936e0f0a4ca14ca18f3d
+2026-11-12T21:17:48.9747757Z ##[group]Run set -euo pipefail
+2026-11-12T21:17:48.9748499Z [36;1mset -euo pipefail[0m
+2026-11-12T21:17:48.9749707Z [36;1mVERSION="$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")"[0m
+2026-11-12T21:17:48.9751080Z [36;1mecho "Merging with @playwright/test@${VERSION}"[0m
+2026-11-12T21:17:48.9751964Z [36;1mecho "version=$VERSION" >> "$GITHUB_OUTPUT"[0m
+2026-11-12T21:17:48.9796479Z shell: /usr/bin/bash -e {0}
+2026-11-12T21:17:48.9797111Z ##[endgroup]
+2026-11-12T21:17:49.1406865Z Merging with @playwright/test@1.61.1
+2026-11-12T21:17:49.1551157Z ##[group]Run actions/download-artifact@v5
+2026-11-12T21:17:49.1551841Z with:
+2026-11-12T21:17:49.1552308Z   path: all-blob-reports
+2026-11-12T21:17:49.1552851Z   pattern: blob-report-*
+2026-11-12T21:17:49.1553392Z   merge-multiple: true
+2026-11-12T21:17:49.1553935Z   repository: NoaCG/NoaCG-Studio
+2026-11-12T21:17:49.1554514Z   run-id: 43305743222
+2026-11-12T21:17:49.1554994Z ##[endgroup]
+2026-11-12T21:17:49.2641251Z (node:2197) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-12T21:17:49.2643253Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-12T21:17:49.4324767Z Found 26 artifact(s)
+2026-11-12T21:17:49.4325194Z Filtering artifacts by pattern 'blob-report-*'
+2026-11-12T21:17:49.4345287Z Preparing to download the following artifacts:
+2026-11-12T21:17:49.4346029Z - blob-report-11 (ID: 13985060419, Size: 346505, Expected Digest: sha256:558de58d7c5ce8392ef59e5739f80a9a06995c0bffe9bc0f64af16559d8edc6c)
+2026-11-12T21:17:49.4347366Z - blob-report-14 (ID: 13985015760, Size: 622750, Expected Digest: sha256:8e7ffea6bd5174980855a1b601b21294bc6cf9df277fd38bc3907803ac05c2ef)
+2026-11-12T21:17:49.4348785Z - blob-report-3 (ID: 13984781353, Size: 393282, Expected Digest: sha256:a14048e87724c07f3cd92fd09f05cce691845450dfdc8fa667391ad2e97e5957)
+2026-11-12T21:17:49.4349791Z - blob-report-13 (ID: 13984726722, Size: 621001, Expected Digest: sha256:615b0ec41ad2e3930d0b7d7b014e614008584f19b5e775e540f66c4655fd5b1a)
+2026-11-12T21:17:49.4350777Z - blob-report-5 (ID: 13984538101, Size: 668193, Expected Digest: sha256:9ddf8dd0bf894612581b5b27d42955a78f3a55f68348f04a8718bed21caf713e)
+2026-11-12T21:17:49.4351827Z - blob-report-15 (ID: 13984527031, Size: 1062867, Expected Digest: sha256:37aee8a3c8ba2a3ca3bdf93d8b2950fe5a55659388d816d9871206f9e7056239)
+2026-11-12T21:17:49.4352878Z - blob-report-8 (ID: 13984368425, Size: 501826, Expected Digest: sha256:3ecc5e1fb7cfb327f0734094e61a12a0c7e2adb79014268140fa8377472ad285)
+2026-11-12T21:17:49.4353885Z - blob-report-7 (ID: 13984287524, Size: 508406, Expected Digest: sha256:1e435cdf9c11d52401d434ca5ee0fd2556b26bfb9a4a9612af36676e612f5d98)
+2026-11-12T21:17:49.4354887Z - blob-report-4 (ID: 13984232717, Size: 3290651, Expected Digest: sha256:fcc95c2c8f70b5bbabaf3053eec5e95c9d2f80547f812d139b41b83fd447e309)
+2026-11-12T21:17:49.4355975Z - blob-report-6 (ID: 13984068257, Size: 608356, Expected Digest: sha256:c5432886a31aad741c5cffa3399392e1c3f782b8ed949250977f9b86d545f7ab)
+2026-11-12T21:17:49.4357496Z - blob-report-10 (ID: 13983579382, Size: 352540, Expected Digest: sha256:359f100cfd5dce0a8a4fc2c107e82171f03b755b30128ffbae82d13a6c5de140)
+2026-11-12T21:17:49.4358856Z - blob-report-9 (ID: 13983559143, Size: 520570, Expected Digest: sha256:6a808f4111d84b86cac8f7102eac8eac25c8319f0414d40a1411f2c6ce4fd084)
+2026-11-12T21:17:49.4360156Z - blob-report-1 (ID: 13983504434, Size: 464591, Expected Digest: sha256:72e907eebeecd32ee79e21fdb029243c03543a321563e5bbbcb064d8853a4d82)
+2026-11-12T21:17:49.4361563Z - blob-report-12 (ID: 13983109971, Size: 714395, Expected Digest: sha256:6da45aff51873264ca31b67223df2d23958100e911815413b0c95983441f1bc2)
+2026-11-12T21:17:49.4362704Z - blob-report-2 (ID: 13982909808, Size: 568126, Expected Digest: sha256:3d9e12d6beeac73f89442c3f112e6847e4ef8adf8cc65820d3118328d2f46d6a)
+2026-11-12T21:17:49.6021894Z Redirecting to blob download url: https://productionresultssa12.blob.core.windows.net/actions-results/5d30a2a1-36ad-8d01-bce4-6404eaa0759e/workflow-job-run-8dcdc73f-5d87-5fc2-8862-b0075531bd06/artifacts/7b0ec7ba681bcae20887c0cb58309efb65b5afc0ec402fd1b07396a9383a17ba.zip
+2026-11-12T21:17:49.6022633Z Starting download of artifact to: /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:17:49.6784799Z Redirecting to blob download url: https://productionresultssa12.blob.core.windows.net/actions-results/5d30a2a1-36ad-8d01-bce4-6404eaa0759e/workflow-job-run-f97ca67a-6900-5af7-8217-167027f6eea8/artifacts/58be216f4912e722023618bc3c7ee4533d2a6d7fe9bf23b03dff4e2b0cc5d053.zip
+2026-11-12T21:17:49.6785568Z Starting download of artifact to: /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:17:49.6797559Z Redirecting to blob download url: https://productionresultssa12.blob.core.windows.net/actions-results/5d30a2a1-36ad-8d01-bce4-6404eaa0759e/workflow-job-run-aaf1658e-b2bf-5085-b9d0-6b32ea7565f2/artifacts/1011f546bdd0cf8ba68db318c53e85e6783bdb8cd13d99d90a0c0e0096c013d8.zip
+2026-11-12T21:17:49.6798630Z Starting download of artifact to: /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:17:49.6808199Z Redirecting to blob download url: https://productionresultssa12.blob.core.windows.net/actions-results/5d30a2a1-36ad-8d01-bce4-6404eaa0759e/workflow-job-run-d3bb4475-9b6e-50ce-84f9-40bdecb26130/artifacts/58257f2072dca11612d7399fe29a8a16498fcb45f5c82823aa06726f7c7d2e24.zip
+2026-11-12T21:17:49.6808913Z Starting download of artifact to: /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:17:49.6854944Z Redirecting to blob download url: https://productionresultssa12.blob.core.windows.net/actions-results/5d30a2a1-36ad-8d01-bce4-6404eaa0759e/workflow-job-run-b06e10d6-bb85-5a8b-aa0e-2e6c0dcff207/artifacts/f1a45017f759e4e1a363d8a3d0909f3fd678eba90d4dc001c27882aab26ffb42.zip
+2026-11-12T21:17:49.6855836Z Starting download of artifact to: /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:17:49.6886323Z Redirecting to blob download url: https://productionresultssa12.blob.core.windows.net/actions-results/5d30a2a1-36ad-8d01-bce4-6404eaa0759e/workflow-job-run-68fae118-595f-56a1-b6c2-8e286155b5d6/artifacts/e8597b7965ad4ff265d7102a77bfb52efbd55e4b112a5311a31fe3e6d19ce46f.zip
+2026-11-12T21:17:49.6887084Z Starting download of artifact to: /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:17:49.6903597Z Redirecting to blob download url: https://productionresultssa12.blob.core.windows.net/actions-results/5d30a2a1-36ad-8d01-bce4-6404eaa0759e/workflow-job-run-6d45f78d-4492-55bf-8972-7069b33c9aa7/artifacts/02fd0f1acf2c54de34021e2a143c6dec6758f4e656a101c0ce06e92fcbd5e949.zip
+2026-11-12T21:17:49.6904587Z Starting download of artifact to: /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:17:49.6911192Z Redirecting to blob download url: https://productionresultssa12.blob.core.windows.net/actions-results/5d30a2a1-36ad-8d01-bce4-6404eaa0759e/workflow-job-run-e51cc4c2-56e9-5100-8bca-d22daadd5001/artifacts/8297f70d44944dbedf8281b29b183474c701428f65b4b6643a9064aa73a2ede7.zip
+2026-11-12T21:17:49.6912435Z Starting download of artifact to: /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:17:49.6961542Z Redirecting to blob download url: https://productionresultssa12.blob.core.windows.net/actions-results/5d30a2a1-36ad-8d01-bce4-6404eaa0759e/workflow-job-run-2f407a1f-8e2c-56a8-b2c4-8272e4c7c444/artifacts/84b6938a8ec4c49597c76e4f6efe12705bab35606af419b5d9bc9357d4c3d690.zip
+2026-11-12T21:17:49.6962301Z Starting download of artifact to: /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:17:49.6969080Z Redirecting to blob download url: https://productionresultssa12.blob.core.windows.net/actions-results/5d30a2a1-36ad-8d01-bce4-6404eaa0759e/workflow-job-run-8a37a29b-4b31-5426-9781-c83d2b42effc/artifacts/21b9c77e9c53153808e86a38e587911f673dd5d4e8f95ef6af15c7786950ec09.zip
+2026-11-12T21:17:49.6969835Z Starting download of artifact to: /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:17:49.6997806Z Redirecting to blob download url: https://productionresultssa12.blob.core.windows.net/actions-results/5d30a2a1-36ad-8d01-bce4-6404eaa0759e/workflow-job-run-60429be7-8c7b-5574-9d05-ac1ed1d21451/artifacts/7eadc1e5ea9f59502158f831879bf682adfd784e5b7cb784fe798a230b1c3df6.zip
+2026-11-12T21:17:49.6998545Z Starting download of artifact to: /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:17:49.7005230Z Redirecting to blob download url: https://productionresultssa12.blob.core.windows.net/actions-results/5d30a2a1-36ad-8d01-bce4-6404eaa0759e/workflow-job-run-2be89d8a-2e78-5f82-9c19-f944ecec8ef7/artifacts/1ef8c9591001a36d35c1f554a0a9243b1287be95d67c836a2eebaa6c45a3c80b.zip
+2026-11-12T21:17:49.7005973Z Starting download of artifact to: /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:17:49.7075360Z Redirecting to blob download url: https://productionresultssa12.blob.core.windows.net/actions-results/5d30a2a1-36ad-8d01-bce4-6404eaa0759e/workflow-job-run-997f21e2-d653-521c-9ca1-848e09d54c50/artifacts/7ad095a93739a0f45e897c3223205760d7f433911cf758dbef961fd82e46df40.zip
+2026-11-12T21:17:49.7076257Z Starting download of artifact to: /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:17:49.7207221Z Redirecting to blob download url: https://productionresultssa12.blob.core.windows.net/actions-results/5d30a2a1-36ad-8d01-bce4-6404eaa0759e/workflow-job-run-19be4df7-7311-53e7-9f03-24ee049029ab/artifacts/5b9d7448d74a455696d8271329fb237495ad17930a29339c3db95d11dff15a0b.zip
+2026-11-12T21:17:49.7207985Z Starting download of artifact to: /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:17:49.7259320Z Redirecting to blob download url: https://productionresultssa12.blob.core.windows.net/actions-results/5d30a2a1-36ad-8d01-bce4-6404eaa0759e/workflow-job-run-834eb202-27ba-5f73-8a64-7bc7ca0ee455/artifacts/20b40f3bd217acc87abf8dd9936d2314a5f0bfd6ae4df942d551e84b9e6110ec.zip
+2026-11-12T21:17:49.7278638Z Starting download of artifact to: /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:17:49.7832255Z (node:2197) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+2026-11-12T21:17:49.9012597Z SHA256 digest of downloaded artifact is 558de58d7c5ce8392ef59e5739f80a9a06995c0bffe9bc0f64af16559d8edc6c
+2026-11-12T21:17:49.9013045Z Artifact download completed successfully.
+2026-11-12T21:17:49.9765936Z SHA256 digest of downloaded artifact is c5432886a31aad741c5cffa3399392e1c3f782b8ed949250977f9b86d545f7ab
+2026-11-12T21:17:49.9766804Z Artifact download completed successfully.
+2026-11-12T21:17:49.9878264Z SHA256 digest of downloaded artifact is 3ecc5e1fb7cfb327f0734094e61a12a0c7e2adb79014268140fa8377472ad285
+2026-11-12T21:17:49.9879406Z Artifact download completed successfully.
+2026-11-12T21:17:49.9939308Z SHA256 digest of downloaded artifact is 359f100cfd5dce0a8a4fc2c107e82171f03b755b30128ffbae82d13a6c5de140
+2026-11-12T21:17:49.9941037Z Artifact download completed successfully.
+2026-11-12T21:17:49.9956995Z SHA256 digest of downloaded artifact is 8e7ffea6bd5174980855a1b601b21294bc6cf9df277fd38bc3907803ac05c2ef
+2026-11-12T21:17:49.9957563Z Artifact download completed successfully.
+2026-11-12T21:17:49.9957951Z SHA256 digest of downloaded artifact is 72e907eebeecd32ee79e21fdb029243c03543a321563e5bbbcb064d8853a4d82
+2026-11-12T21:17:49.9958276Z Artifact download completed successfully.
+2026-11-12T21:17:49.9958627Z SHA256 digest of downloaded artifact is 6da45aff51873264ca31b67223df2d23958100e911815413b0c95983441f1bc2
+2026-11-12T21:17:49.9958962Z Artifact download completed successfully.
+2026-11-12T21:17:50.0011744Z SHA256 digest of downloaded artifact is 615b0ec41ad2e3930d0b7d7b014e614008584f19b5e775e540f66c4655fd5b1a
+2026-11-12T21:17:50.0012500Z Artifact download completed successfully.
+2026-11-12T21:17:50.0043370Z SHA256 digest of downloaded artifact is 37aee8a3c8ba2a3ca3bdf93d8b2950fe5a55659388d816d9871206f9e7056239
+2026-11-12T21:17:50.0043736Z Artifact download completed successfully.
+2026-11-12T21:17:50.0112054Z SHA256 digest of downloaded artifact is 6a808f4111d84b86cac8f7102eac8eac25c8319f0414d40a1411f2c6ce4fd084
+2026-11-12T21:17:50.0112693Z Artifact download completed successfully.
+2026-11-12T21:17:50.0235646Z SHA256 digest of downloaded artifact is 9ddf8dd0bf894612581b5b27d42955a78f3a55f68348f04a8718bed21caf713e
+2026-11-12T21:17:50.0236251Z Artifact download completed successfully.
+2026-11-12T21:17:50.0884121Z SHA256 digest of downloaded artifact is a14048e87724c07f3cd92fd09f05cce691845450dfdc8fa667391ad2e97e5957
+2026-11-12T21:17:50.0884504Z Artifact download completed successfully.
+2026-11-12T21:17:50.0931005Z SHA256 digest of downloaded artifact is 3d9e12d6beeac73f89442c3f112e6847e4ef8adf8cc65820d3118328d2f46d6a
+2026-11-12T21:17:50.0931492Z Artifact download completed successfully.
+2026-11-12T21:17:50.1072438Z SHA256 digest of downloaded artifact is fcc95c2c8f70b5bbabaf3053eec5e95c9d2f80547f812d139b41b83fd447e309
+2026-11-12T21:17:50.1072803Z Artifact download completed successfully.
+2026-11-12T21:17:50.1281329Z SHA256 digest of downloaded artifact is 1e435cdf9c11d52401d434ca5ee0fd2556b26bfb9a4a9612af36676e612f5d98
+2026-11-12T21:17:50.1281837Z Artifact download completed successfully.
+2026-11-12T21:17:50.1282058Z Total of 15 artifact(s) downloaded
+2026-11-12T21:17:50.1287102Z Download artifact has finished successfully
+2026-11-12T21:17:50.1457005Z ##[group]Run set -uo pipefail
+2026-11-12T21:17:50.1457253Z [36;1mset -uo pipefail[0m
+2026-11-12T21:17:50.1457524Z [36;1m# Three tries, because the fetch is the flaky half and the merge is deterministic.[0m
+2026-11-12T21:17:50.1457944Z [36;1mfor attempt in 1 2 3; do[0m
+2026-11-12T21:17:50.1458278Z [36;1m  if npx --yes "@playwright/test@${PLAYWRIGHT_VERSION}" merge-reports --reporter=html ./all-blob-reports; then[0m
+2026-11-12T21:17:50.1458596Z [36;1m    exit 0[0m
+2026-11-12T21:17:50.1458763Z [36;1m  fi[0m
+2026-11-12T21:17:50.1458998Z [36;1m  echo "merge-reports attempt ${attempt} failed - retrying in 20 s"[0m
+2026-11-12T21:17:50.1459250Z [36;1m  sleep 20[0m
+2026-11-12T21:17:50.1459415Z [36;1mdone[0m
+2026-11-12T21:17:50.1459765Z [36;1mecho "::error title=Combined report::merge-reports failed three times - registry fetch or a real merge fault; read the attempts above."[0m
+2026-11-12T21:17:50.1460125Z [36;1mexit 1[0m
+2026-11-12T21:17:50.1501107Z shell: /usr/bin/bash -e {0}
+2026-11-12T21:17:50.1501291Z env:
+2026-11-12T21:17:50.1501456Z   PLAYWRIGHT_VERSION: 1.61.1
+2026-11-12T21:17:50.1501641Z ##[endgroup]
+2026-11-12T21:17:52.7018723Z merging reports from /home/runner/work/NoaCG-Studio/NoaCG-Studio/all-blob-reports
+2026-11-12T21:17:52.7077019Z extracting: all-blob-reports/report-1.zip
+2026-11-12T21:17:52.7507832Z extracting: all-blob-reports/report-10.zip
+2026-11-12T21:17:52.7677848Z extracting: all-blob-reports/report-11.zip
+2026-11-12T21:17:52.7849095Z extracting: all-blob-reports/report-12.zip
+2026-11-12T21:17:52.8169035Z extracting: all-blob-reports/report-13.zip
+2026-11-12T21:17:52.8462560Z extracting: all-blob-reports/report-14.zip
+2026-11-12T21:17:52.8916046Z extracting: all-blob-reports/report-15.zip
+2026-11-12T21:17:52.9189744Z extracting: all-blob-reports/report-2.zip
+2026-11-12T21:17:52.9406852Z extracting: all-blob-reports/report-3.zip
+2026-11-12T21:17:52.9559526Z extracting: all-blob-reports/report-4.zip
+2026-11-12T21:17:52.9867093Z extracting: all-blob-reports/report-5.zip
+2026-11-12T21:17:53.0402698Z extracting: all-blob-reports/report-6.zip
+2026-11-12T21:17:53.0641703Z extracting: all-blob-reports/report-7.zip
+2026-11-12T21:17:53.0809001Z extracting: all-blob-reports/report-8.zip
+2026-11-12T21:17:53.0976722Z extracting: all-blob-reports/report-9.zip
+2026-11-12T21:17:53.1229468Z merging events
+2026-11-12T21:17:53.1248300Z processing test events
+2026-11-12T21:17:53.8248399Z building final report
+2026-11-12T21:17:55.7262624Z finished building report
+2026-11-12T21:17:55.8350474Z ##[group]Run actions/upload-artifact@v4
+2026-11-12T21:17:55.8350725Z with:
+2026-11-12T21:17:55.8350917Z   name: playwright-report
+2026-11-12T21:17:55.8351138Z   path: playwright-report/
+2026-11-12T21:17:55.8351348Z   retention-days: 14
+2026-11-12T21:17:55.8351549Z   if-no-files-found: error
+2026-11-12T21:17:55.8352346Z   compression-level: 6
+2026-11-12T21:17:55.8352536Z   overwrite: false
+2026-11-12T21:17:55.8352739Z   include-hidden-files: false
+2026-11-12T21:17:55.8352959Z ##[endgroup]
+2026-11-12T21:17:55.9489105Z (node:2242) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-12T21:17:55.9489724Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-12T21:17:55.9538836Z With the provided path, there will be 27 files uploaded
+2026-11-12T21:17:55.9546749Z Artifact name is valid!
+2026-11-12T21:17:55.9547274Z Root directory input is valid!
+2026-11-12T21:17:56.2120485Z Beginning upload of artifact content to blob storage
+2026-11-12T21:17:56.4543247Z (node:2242) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-12T21:17:56.8638226Z Uploaded bytes 8388608
+2026-11-12T21:17:56.9740427Z Uploaded bytes 10628197
+2026-11-12T21:17:57.0102222Z Finished uploading artifact content to blob storage!
+2026-11-12T21:17:57.0102891Z SHA256 digest of uploaded artifact zip is 272925e70bb0bc144e03646a409b1d18450b344b8e74c095ceacf094da068242
+2026-11-12T21:17:57.0103723Z Finalizing artifact upload
+2026-11-12T21:17:57.3821388Z Artifact playwright-report.zip successfully finalized. Artifact ID 13985675430
+2026-11-12T21:17:57.3822483Z Artifact playwright-report has been successfully uploaded! Final size is 10628197 bytes. Artifact ID is 13985675430
+2026-11-12T21:17:57.3827747Z Artifact download URL: https://github.com/NoaCG/NoaCG-Studio/actions/runs/43305743222/artifacts/13985675430
+2026-11-12T21:17:57.3983309Z ##[group]Run set -uo pipefail
+2026-11-12T21:17:57.3983572Z [36;1mset -uo pipefail[0m
+2026-11-12T21:17:57.3984106Z [36;1mnpx --yes "@playwright/test@${PLAYWRIGHT_VERSION}" merge-reports --reporter=json ./all-blob-reports > /dev/null || { echo "::notice title=E2E capacity::no merged JSON report - skipping the measured line"; exit 0; }[0m
+2026-11-12T21:17:57.3985102Z [36;1mRUNNER_MIN="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs?per_page=100" --jq '[.jobs[] | select(.completed_at != null and .started_at != null) | ((.completed_at | fromdate) - (.started_at | fromdate)) / 60] | add // 0' 2>/dev/null | paste -sd+ - | bc 2>/dev/null || true)"[0m
+2026-11-12T21:17:57.3985921Z [36;1mWALL_MIN="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" --jq '(now - (.created_at | fromdate)) / 60' 2>/dev/null || true)"[0m
+2026-11-12T21:17:57.3986937Z [36;1mnode scripts/e2e-capacity.mjs --changed "${BASE:-}" --report merged-report.json ${RUNNER_MIN:+--runner-minutes "$RUNNER_MIN"} ${WALL_MIN:+--wall-minutes "$WALL_MIN"} --summary "$GITHUB_STEP_SUMMARY" || true[0m
+2026-11-12T21:17:57.4028558Z shell: /usr/bin/bash -e {0}
+2026-11-12T21:17:57.4028965Z env:
+2026-11-12T21:17:57.4029321Z   PLAYWRIGHT_VERSION: 1.61.1
+2026-11-12T21:17:57.4029666Z   PLAYWRIGHT_JSON_OUTPUT_FILE: merged-report.json
+2026-11-12T21:17:57.4030095Z   BASE: 7e306913b7bc8e031b42232de6946f51db0c7068
+2026-11-12T21:17:57.4031930Z   GH_TOKEN: ***
+2026-11-12T21:17:57.4032200Z   RUN_ID: 43305743222
+2026-11-12T21:17:57.4032528Z ##[endgroup]
+2026-11-12T21:18:01.1055263Z [measured] 251 e2e spec files on disk
+2026-11-12T21:18:01.1056325Z [measured] 247 measured spec durations
+2026-11-12T21:18:03.0975717Z ### E2E capacity (measured): REPAY
+2026-11-12T21:18:03.0975978Z 
+2026-11-12T21:18:03.0976564Z - Execution: 189.7 of 213.0 table-minutes, 89.0% of 13 runners x budget (warn 85%, exception needed 95%).
+2026-11-12T21:18:03.0977115Z - Runner minutes of this run: 253.8.
+2026-11-12T21:18:03.0977762Z - Wall clock of this run so far: 18.4 min (queue entry to landed is the weekly figure in docs/work-specs/e2e-suite-budget/).
+2026-11-12T21:18:03.0978216Z 
+2026-11-12T21:18:03.0978378Z | Changed spec | Table | Now | Delta | How |
+2026-11-12T21:18:03.0978746Z |---|---|---|---|---|
+2026-11-12T21:18:03.0979389Z | `competition-pack.spec.ts` | 4.21 | 2.92 | -1.30 | measured in this run; an edit to an existing spec, never refused (exception until 2026-11-16) |
+2026-11-12T21:18:03.0980243Z | `counting-settle.spec.ts` | 3.00 | 1.22 | -1.78 | measured in this run; an edit to an existing spec, never refused (exception until 2026-11-16) |
+2026-11-12T21:18:03.0980801Z | `editor-base-edits.spec.ts` | 2.22 | 1.61 | -0.61 | measured in this run; an edit to an existing spec, never refused |
+2026-11-12T21:18:03.0981321Z | `editor-cli-round-trip.spec.ts` | 0.96 | 0.39 | -0.57 | measured in this run; an edit to an existing spec, never refused |
+2026-11-12T21:18:03.0981829Z | `editor-command-task.spec.ts` | 4.38 | 1.51 | -2.87 | measured in this run; an edit to an existing spec, never refused |
+2026-11-12T21:18:03.0982331Z | `editor-drawing-task.spec.ts` | 1.30 | 0.45 | -0.85 | measured in this run; an edit to an existing spec, never refused |
+2026-11-12T21:18:03.0982836Z | `editor-fidelity-trim.spec.ts` | 1.98 | 1.85 | -0.13 | measured in this run; an edit to an existing spec, never refused |
+2026-11-12T21:18:03.0983337Z | `editor-folders-bins.spec.ts` | 1.24 | 0.88 | -0.36 | measured in this run; an edit to an existing spec, never refused |
+2026-11-12T21:18:03.0983821Z | `editor-groups.spec.ts` | 2.00 | 1.80 | -0.20 | measured in this run; an edit to an existing spec, never refused |
+2026-11-12T21:18:03.0984286Z | `editor-keys.spec.ts` | 1.28 | 0.76 | -0.52 | measured in this run; an edit to an existing spec, never refused |
+2026-11-12T21:18:03.0985218Z | `editor-layer-property-qualification.spec.ts` | 1.23 | 0.78 | -0.45 | measured in this run; an edit to an existing spec, never refused |
+2026-11-12T21:18:03.0985945Z | `editor-out.spec.ts` | 2.19 | 1.49 | -0.70 | measured in this run; an edit to an existing spec, never refused |
+2026-11-12T21:18:03.0986592Z | `editor-projects.spec.ts` | - | 4.74 | +4.74 | measured in this run |
+2026-11-12T21:18:03.0987048Z | `editor-transform-qualification.spec.ts` | 0.51 | 0.32 | -0.19 | measured in this run; an edit to an existing spec, never refused |
+2026-11-12T21:18:03.0987568Z | `editor-usability.spec.ts` | 1.85 | 0.75 | -1.10 | measured in this run; an edit to an existing spec, never refused |
+2026-11-12T21:18:03.0988101Z | `holding-pack.spec.ts` | 0.67 | 1.06 | +0.39 | measured in this run; an edit to an existing spec, never refused (exception until 2026-11-16) |
+2026-11-12T21:18:03.0988670Z | `import-svg-credits.spec.ts` | 3.23 | 2.25 | -0.98 | measured in this run; an edit to an existing spec, never refused |
+2026-11-12T21:18:03.0989193Z | `output-first-paint.spec.ts` | 1.26 | 1.69 | +0.43 | measured in this run; an edit to an existing spec, never refused |
+2026-11-12T21:18:03.0989681Z | `output-scene-link.spec.ts` | - | 0.34 | +0.34 | measured in this run |
+2026-11-12T21:18:03.0990140Z | `playout-folders.spec.ts` | 3.29 | 2.51 | -0.77 | measured in this run; an edit to an existing spec, never refused |
+2026-11-12T21:18:03.0990681Z | `production-api-mapping.spec.ts` | 0.32 | 0.65 | +0.34 | measured in this run; an edit to an existing spec, never refused |
+2026-11-12T21:18:03.0991262Z | `production-data.spec.ts` | 6.08 | 4.79 | -1.30 | measured in this run; an edit to an existing spec, never refused (exception until 2026-11-16) |
+2026-11-12T21:18:03.0991776Z | `sponsor-rotation.spec.ts` | - | 0.37 | +0.37 | measured in this run |
+2026-11-12T21:18:03.0992150Z #### Growth tiers (D7: each tier alone, no aggregate gate)
+2026-11-12T21:18:03.0992355Z 
+2026-11-12T21:18:03.0992443Z | Tier | Verdict | Detail |
+2026-11-12T21:18:03.0992677Z |---|---|---|
+2026-11-12T21:18:03.0993048Z | offline | OK | 410/720 per landing, 166/215 per day (77%); evidence stale: measured to 2026-10-30, 13 days ago (bound 8) |
+2026-11-12T21:18:03.0993828Z | backend | OK | 107.4/235 per landing, 62/88 per day (70%), jev-svg-import-journey excepts 0/landing (claims 6.85, capped at what it covers) to 2026-12-03; evidence stale: measured to 2026-10-30, 13 days ago (bound 8) |
+2026-11-12T21:18:03.0994671Z | graphics | OK | 7.8/20 per landing, 92/115 per day (80%), ci04-catalog-gate excepts 17.7/landing to 2026-11-30; evidence stale: measured to 2026-10-30, 13 days ago (bound 8) |
+2026-11-12T21:18:03.0995648Z | overhead | REFUSE | 84/105 per landing, 8/10 per day (80%), production-load-watch excepts 0/landing to 2026-12-03; evidence stale: measured to 2026-10-30, 13 days ago (bound 8); this change adds 0/landing 6/day, reaching 140%, at or over the 95% line; adds `job:nightly.yml/Covered by main's full run` 0/landing 6/day |
+2026-11-12T21:18:03.0996648Z 
+2026-11-12T21:18:03.0996855Z - durations table recorded 2026-11-09, 3 days old (bound 8).
+2026-11-12T21:18:03.0997273Z - no weekly growth report has been published; tiers judged on the frozen seed measured to 2026-10-30.
+2026-11-12T21:18:03.0997532Z 
+2026-11-12T21:18:03.1014472Z ##[warning]lands and owes a repayment (overhead): 189.7 of 213.0 table-minutes (89%) on 13 runners; above the 85% line, this change adds 5.5 minute(s); overhead tier refuse: 84/105 per landing, 8/10 per day (80%), production-load-watch excepts 0/landing to 2026-12-03; evidence stale: measured to 2026-10-30, 13 days ago (bound 8); this change adds 0/landing 6/day, reaching 140%, at or over the 95% line; no weekly growth report has been published - an owned failure (miwco (primary); the weekly owner session (backup coverage)); tier evidence is the frozen seed until it runs
+2026-11-12T21:18:03.1273218Z Post job cleanup.
+2026-11-12T21:18:03.1878430Z [command]/usr/bin/git version
+2026-11-12T21:18:03.1915216Z git version 2.56.0
+2026-11-12T21:18:03.1941366Z Temporarily overriding HOME='/home/runner/work/_temp/a1211282-e0ff-43b5-b7a2-2d98d9f82937' before making global git config changes
+2026-11-12T21:18:03.1942454Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-12T21:18:03.1945317Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-12T21:18:03.1980989Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-12T21:18:03.2014400Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-12T21:18:03.2318892Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-12T21:18:03.2349275Z http.https://github.com/.extraheader
+2026-11-12T21:18:03.2359728Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-12T21:18:03.2398023Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-12T21:18:03.2675218Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-12T21:18:03.2707913Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-12T21:18:03.3093833Z Cleaning up orphan processes
+2026-11-12T21:18:03.3410644Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/download-artifact@v5, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

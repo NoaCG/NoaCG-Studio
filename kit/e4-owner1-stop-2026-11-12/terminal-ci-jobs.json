@@ -1,0 +1,269 @@
+{
+  "total_count": 33,
+  "jobs": [
+    {
+      "id": 131488479765,
+      "name": "Build",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T20:59:37Z",
+      "completed_at": "2026-11-12T21:08:45Z"
+    },
+    {
+      "id": 131488480061,
+      "name": "Factory gates",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T20:59:37Z",
+      "completed_at": "2026-11-12T21:01:47Z"
+    },
+    {
+      "id": 131488480080,
+      "name": "E2E plan",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T20:59:42Z",
+      "completed_at": "2026-11-12T21:00:08Z"
+    },
+    {
+      "id": 131488480173,
+      "name": "Reviewed",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-12T20:59:36Z",
+      "completed_at": "2026-11-12T21:02:11Z"
+    },
+    {
+      "id": 131488481830,
+      "name": "Vercel accepted the commit",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-11-12T20:59:35Z",
+      "completed_at": "2026-11-12T20:59:35Z"
+    },
+    {
+      "id": 131488795258,
+      "name": "Configured E2E 1/4 (selected, local Supabase)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:10Z",
+      "completed_at": "2026-11-12T21:12:57Z"
+    },
+    {
+      "id": 131488795296,
+      "name": "Guided mod (Claude Code 2.1.287)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:10Z",
+      "completed_at": "2026-11-12T21:00:34Z"
+    },
+    {
+      "id": 131488795360,
+      "name": "Catalog calibration gate",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:11Z",
+      "completed_at": "2026-11-12T21:09:47Z"
+    },
+    {
+      "id": 131488795368,
+      "name": "Configured E2E 3/4 (selected, local Supabase)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:10Z",
+      "completed_at": "2026-11-12T21:12:31Z"
+    },
+    {
+      "id": 131488795451,
+      "name": "Configured E2E 2/4 (selected, local Supabase)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:11Z",
+      "completed_at": "2026-11-12T21:14:20Z"
+    },
+    {
+      "id": 131488795615,
+      "name": "Guided mod (Claude Code 2.1.295)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:10Z",
+      "completed_at": "2026-11-12T21:00:27Z"
+    },
+    {
+      "id": 131488795725,
+      "name": "E2E 1/15 (subset)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:10Z",
+      "completed_at": "2026-11-12T21:12:36Z"
+    },
+    {
+      "id": 131488795798,
+      "name": "Configured E2E 4/4 (selected, local Supabase)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:10Z",
+      "completed_at": "2026-11-12T21:14:11Z"
+    },
+    {
+      "id": 131488795825,
+      "name": "E2E 7/15 (subset)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:10Z",
+      "completed_at": "2026-11-12T21:10:24Z"
+    },
+    {
+      "id": 131488795834,
+      "name": "E2E 9/15 (subset)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:10Z",
+      "completed_at": "2026-11-12T21:11:12Z"
+    },
+    {
+      "id": 131488795848,
+      "name": "E2E 14/15 (subset)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:10Z",
+      "completed_at": "2026-11-12T21:11:34Z"
+    },
+    {
+      "id": 131488795852,
+      "name": "E2E 6/15 (subset)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:10Z",
+      "completed_at": "2026-11-12T21:12:21Z"
+    },
+    {
+      "id": 131488795878,
+      "name": "E2E 12/15 (subset)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:10Z",
+      "completed_at": "2026-11-12T21:10:41Z"
+    },
+    {
+      "id": 131488795882,
+      "name": "E2E 4/15 (subset)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-12T21:00:10Z",
+      "completed_at": "2026-11-12T21:10:06Z"
+    },
+    {
+      "id": 131488795900,
+      "name": "E2E 11/15 (subset)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:10Z",
+      "completed_at": "2026-11-12T21:09:44Z"
+    },
+    {
+      "id": 131488795914,
+      "name": "E2E 10/15 (subset)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:10Z",
+      "completed_at": "2026-11-12T21:09:49Z"
+    },
+    {
+      "id": 131488795933,
+      "name": "E2E 3/15 (subset)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:10Z",
+      "completed_at": "2026-11-12T21:11:04Z"
+    },
+    {
+      "id": 131488795934,
+      "name": "E2E 2/15 (subset)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:11Z",
+      "completed_at": "2026-11-12T21:13:16Z"
+    },
+    {
+      "id": 131488795942,
+      "name": "E2E 5/15 (subset)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:11Z",
+      "completed_at": "2026-11-12T21:17:37Z"
+    },
+    {
+      "id": 131488795948,
+      "name": "E2E 15/15 (subset)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:10Z",
+      "completed_at": "2026-11-12T21:10:08Z"
+    },
+    {
+      "id": 131488796569,
+      "name": "E2E 8/15 (subset)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:13Z",
+      "completed_at": "2026-11-12T21:14:08Z"
+    },
+    {
+      "id": 131488796711,
+      "name": "E2E 13/15 (subset)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:00:12Z",
+      "completed_at": "2026-11-12T21:13:10Z"
+    },
+    {
+      "id": 131493866713,
+      "name": "Re-run (failed Build or Factory job, same commit)",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-11-12T21:08:46Z",
+      "completed_at": "2026-11-12T21:08:45Z"
+    },
+    {
+      "id": 131497151214,
+      "name": "Configured E2E verdict (selected)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:14:22Z",
+      "completed_at": "2026-11-12T21:14:55Z"
+    },
+    {
+      "id": 131499072597,
+      "name": "Combined E2E report",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T21:17:39Z",
+      "completed_at": "2026-11-12T21:18:05Z"
+    },
+    {
+      "id": 131499073251,
+      "name": "CI gate",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-12T21:17:40Z",
+      "completed_at": "2026-11-12T21:17:52Z"
+    },
+    {
+      "id": 131499076313,
+      "name": "E2E retry (failed specs, same commit)",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-11-12T21:17:38Z",
+      "completed_at": "2026-11-12T21:17:38Z"
+    },
+    {
+      "id": 131499216894,
+      "name": "After the gate",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-11-12T21:17:53Z",
+      "completed_at": "2026-11-12T21:17:52Z"
+    }
+  ]
+}

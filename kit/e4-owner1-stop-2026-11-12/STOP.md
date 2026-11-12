@@ -21,3 +21,17 @@ Exact-head isolated run43305997998/job131489347411 PASS1case32.8s, zero skips/re
 Actual normal CI43305743222 is still in progress. Reviewed131488480173 failed solely for missing coordinator stamp after146s/28polls; no stamp/revival is appropriate with a known defect. Actual plan selectsALL63/fourstacks, capacityREPAY199.0/213(93.4%),adds1.3minutes; no limit changed. Existing CI and fresh FULLSO observations may finish; no new verification run or repair is admitted.
 
 PR returned to draft, no land label/auto-merge/public coordinator stamp. E4 has neither landed nor passed; no E5C or later phase admission. Local/device work remains last. Owner disposition is required by the recorded grant and same-run stop/answered procedure.
+
+## Subsequent collected evidence
+
+Fresh FULL51path/base91a→63d7 independent review: AGREE WITH CORRECTIONS, gradeB/Do not land; exact finalreceipt hash e538d1f3c3ea5a7bc2c9d303a5b8a783055d8b4f802fb4caab8eb599fffc9dd9 read completely by root. One confirmed legacy snapshot defect at review completion; no other then.
+
+Existing CI offline shard4/job131488795882 failed:162PASS/1FAIL9.5min. `e2e/new-graphic-guard.spec.ts:436`, line455 expected writes[1].dirty=false, gottrue, before later final-source/history assertions. Current saveActions preliminary changed check supplies a dirtylivecorrection. This is NOT proved data loss. It is NOT an established faulty fixture: `docs/EDITOR_REBUILD_PLAN.md:860-861` explicitly preserves the carried checker assertions and says the clean replacement remains written during the drain before the newer draft is durably restored. Therefore this documented-contract mismatch remains a real gate failure; no test change is authorized merely to pass. Same assessor clarification is collecting this existing evidence, with no new tests/reviewer/repair.
+
+The supervisor stop was accepted2026-11-12T21:10:53.591Z and next explicitlySTOPPED. Initial stop publication rejected packet folder depth; its transaction rolled back, verified nextstillwait before retry. Packet flattened to supported text-only two-level format; no ledger duplication or source change.
+
+## Terminal exact-head verification
+
+CI43305743222 attempt1 TERMINALFAILURE: all33jobs terminal/read. Three red jobs: Reviewed131488480173 (missing publicstamp only); offline shard4/15131488795882 (documented Discard trace); CIgate131499073251 (propagated E2Efailure). All14otheroffline shards, Build, Factory, Catalog, both GuidedMod, all4configured stacks, configuredverdict131497151214 and Combinedreport131499072597 PASS. Configured148PASS0FAIL0FLAKY3existingSKIP acrossALL63. AutomaticBuildretry/E2Eretry and AftergateSKIPPED: no actual rerun. CapacityREPAY accepted by policy; LandingholdOFF.
+
+All three headruns terminal: normalCI43305743222FAILURE, isolatedendurance43305997998SUCCESS, dynamicCodeQL43305735826SUCCESS, each attempt1/exact63d7. Draft63d7 read back, mergedfalse/automergeNULL/labelsEMPTY. Historical localPASS stamp retained as historical, not current landing clearance. E4stop persists; no phaseadvance or hiddenmonitor.

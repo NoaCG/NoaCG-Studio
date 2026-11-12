@@ -1,0 +1,20 @@
+AGREE WITH CORRECTIONS
+
+Grade: B. Do not land.
+
+Full review of all 51 changed paths, base 91a57833c972f214b45fa7357faf4e830c547e21 through HEAD 63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf. The frozen worktree remains clean. No edits, tests, builds, GitHub writes or delegation were performed.
+
+The work addresses E4’s underlying problem: independent authoring drafts and history, explicit branding, durable selected-set installation and recovery, while preserving library and production copies. Its architecture is appropriate, but one confirmed compatibility defect prevents complete acceptance.
+
+P2 — Supported legacy productions falsely conflict during installation. src/model/projectInstallation.ts:62 compares the raw stored production with a normalized snapshot. src/control/projectInstallation.ts:41 obtains that snapshot through loadShows(), whose existing src/model/shows.ts:642 readShape supplies version: 2 and a missing updatedAt timestamp. An otherwise unchanged legacy production lacking either field therefore equals neither plan.before nor plan.after. Installation reports “newer production edits,” and retry repeats the conflict. This breaks installation into an existing supported production. It is PR-caused, not pre-existing, fixture-related or infrastructure-related.
+
+The smallest correction would reuse the production model’s canonical read-shape normalization for the transactional target before comparison, retaining atomic comparison, genuine newer-edit refusal, stable operation IDs and unrelated productions. Regression coverage should seed raw legacy productions before any other writer normalizes them, then verify install and idempotent retry. This recommendation grants no repair authority: the owner exception’s remaining-confirmed-product-failure stop condition now applies.
+
+I found no additional confirmed defect after reviewing the complete ownership/save/view/discard caller paths, branding, installation/inverse journals, maintained tests and receiving artifacts. Independently inspected evidence confirms:
+- All four staged ZIP hashes and contents match their manifest; fresh receiving ZIP filenames and file bytes match the staged kit.
+- Fresh source differs only in the saved brand UUID; remaining source content is equal. Replay references visibly contain authored artwork.
+- Exact-head isolated qualification 43305997998 reports one passing case, zero skips/retries, account deletion and clean teardown.
+- Actual CI planning selects all 63 configured specs across four stacks; capacity reports REPAY, 199.0/213 table-minutes.
+- The broader local result remains 176 PASS / 1 fixture FAIL, with its separately recorded focused correction pass.
+
+Still outstanding: terminal exact-head normal CI/configured results and resolution of the confirmed finding under owner direction. Codex’s exact-head result contains that finding; it is not clean. This review does not meet the required A/A+ landing bar. E5/E6 human/device/host evidence and OW1 release approval remain separate later gates.
