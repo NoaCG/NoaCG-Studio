@@ -1423,7 +1423,8 @@
       "owner": "miwco",
       "repairDue": "2026-11-25",
       "fixOrReleasePr": null
-    }
+    },
+    "runIssueResolutionComment": 6821512207
   },
   "waitingOn": null,
   "completedCausalityReviews": [
@@ -1457,6 +1458,21 @@
     "requestSha256": "bcfabef5e1347043b92cde2edc0f69da57df24eda1c49e7415c7ce4bd8281754",
     "brief": "briefs/e4-build-e4-b-cloud-1112.txt",
     "briefSha256": "2c7379c7dc2988405d565f2a2e1d72393a398e1f3cd671cf7bc4744cfd2e9888",
-    "status": "Nativeaccepted+startuppreflightPASS; builderresearch/rulesfirstbeforeproductstatechanges. Coordinatorretainsrepair/stamp/terminalduty."
+    "status": "BuilderimplementingafterRules-firstreviewandpublishedcorrections; noPR/finalcheck/acceptanceyet",
+    "rulesFirst": {
+      "head": "0515e370d",
+      "verdict": "AGREE WITH CORRECTIONS",
+      "correctedBeforeProductEdits": "97ae1adbf",
+      "families": [
+        "EverySavedProjectwriterpreservesworkspace/unknownversionanddocumentownedreservations",
+        "Brandreceipttravelswithsourceundo/redoincludinglogobytes",
+        "FixedIDsandatomicexact-before/exact-after/other-stateinstallationcrashreconciliation"
+      ]
+    },
+    "baseline": {
+      "executed": "Cloudqueuedj0043confirmsCurrentgraphic/assets/fieldsonly; nomultidocumentcontrols",
+      "retainedInfraFailure": "j0042ERR_CONNECTION_REFUSED; Vite localhost/IPv4addressqualificationcorrected, notproductfix"
+    },
+    "backend": "ExistingActionsisolatedstack; no repeatedfullmanagedVFSpull. CurrentmainCI43199296731/configured43199297499SUCCESS provesrouteavailabilityonly."
   }
 }
