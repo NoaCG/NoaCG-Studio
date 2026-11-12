@@ -67,9 +67,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "build / third committed repair bounded regression",
+      "step": "build / third repair exact-head gates",
       "pr": 2438,
-      "note": "42be82a9 committed clean locally; adoption/unknown guards, pending-write generation and confirmed-retention fixes verified. 113 gates/30 oracles and actual painted Next proof passed. Await bounded regression, then one push and fresh CI/backend/reviews."
+      "note": "42be82a9 pushed clean, 150 source-pinned regressions passed. Await actual CI capacity/configured suite, backend qualification, Codex result and fresh full independent A/A+ review. No queue stamp/auto-merge."
     }
   ],
   "owner": [
@@ -1458,7 +1458,7 @@
     "requestSha256": "bcfabef5e1347043b92cde2edc0f69da57df24eda1c49e7415c7ce4bd8281754",
     "brief": "briefs/e4-build-e4-b-cloud-1112.txt",
     "briefSha256": "2c7379c7dc2988405d565f2a2e1d72393a398e1f3cd671cf7bc4744cfd2e9888",
-    "status": "Thirdrepairlocalcommit42be clean, alltargetedgates/sourceoracle/actualNextpaint PASS; boundedsource-pinnedregression pending beforeonepush/exactheadgates",
+    "status": "Thirdcomplete repair42be pushedclean; finalsourcepinned150/150PASS; exactheadCI/backend/Codex/freshFULLSO gatespending",
     "rulesFirst": {
       "head": "0515e370d",
       "verdict": "AGREE WITH CORRECTIONS",
@@ -1559,9 +1559,9 @@
     "pr": {
       "number": 2438,
       "url": "https://github.com/NoaCG/NoaCG-Studio/pull/2438",
-      "head": "4de8259f9cbdcd85409afeeda50ff103d3386ba8",
+      "head": "42be82a91ad3ad32c6208b70cf1239cf7b46d916",
       "ownerComment": 6823534868,
-      "ownerAck": "Existingsoleowner6823534868updatedconfirmedround3/frozenhead/reassessmentbeforepatch; noreset ornewallowance",
+      "ownerAck": "Soleactivecoord6823534868updatedround3/newhead42be; noreset/scopechange/unattendedclaim",
       "ownerPayloadRejection": "EarlierdetailednotecontaininginternalUUIDs/paths/authoritywasauto-reviewrejectedbeforeposting. Noalternatebypass; saferminimalpublicrun-linkedACKaccepted; userinformed. Exactnative/authority/worktree retained in the existing run kit; checkpoint scope unchanged.",
       "postOpenCiRepairCount": 3,
       "carriedRepairs": {
@@ -1796,12 +1796,23 @@
       },
       "localCandidate": {
         "head": "42be82a91ad3ad32c6208b70cf1239cf7b46d916",
-        "status": "Committedclean, NOTpushed; source-pinnedbounded7files/12min matrix inprogress/admission, no wholebuild",
+        "status": "PUSHEDexact42be,50pathscope, cleanfrozen afterj0100PASS; sourceunchangedsincelocalcommit",
         "main": "619ebc8358f212410bce16e6cd5ce6682b94d5a7",
         "reconciliation": "Workerexplicitfetch/merge-treeclean/orderclear",
         "targeted": "113/113gates,30/30maintainedsourceoracle(17workspace+13fontcodec),lint/appTS/dependency0PASS",
-        "scope": "7fileschangedvs4de; newpure34lineworkspaceStage plusactualproject/store/installlifecyclecallers, maintainednodeoracle/browsercases/notes; no workflow/limits/schema/license change"
+        "scope": "7fileschangedvs4de; newpure34lineworkspaceStage plusactualproject/store/installlifecyclecallers, maintainednodeoracle/browsercases/notes; no workflow/limits/schema/license change",
+        "broader": "j0100 source-pinned150/150PASS8.6min across7affectedmaintainedspecs,2workers, within12min. All33E4casesincludingactualNext/newadoption/heldSaveAsPASS.",
+        "checkStamp": "Rootindependentlyreadactual42bePASS16:21:08Z,50files, inline13/13review+simplify/verifyinline, stampGapnull, inherited/unexposed model/effort metadata",
+        "capacity": "Localfreshfetch403/frozenOct30seedWARN92.8%provisionalonly; doesnotclearactualCIcapacity; newest43201149088partialunreadablelocally; actualnewplanrequiredbeforefreshFULLSO"
       }
+    },
+    "thirdCandidate": {
+      "head": "42be82a91ad3ad32c6208b70cf1239cf7b46d916",
+      "normalCi": 43257726630,
+      "initialReadback": "ExactPRhead/open/mergeabletrue/auto_mergenull; normalCIinprogress, sourcefrozen/clean",
+      "isolated": "Existingbuilderdispatchinprogress; reconcileactualrunID, no duplicatedispatch or absenceinference",
+      "reviews": "OneCodexrequestpernewhead byexistingbuilder; freshFULL50pathSOonlyafteractualcapacity; no earlierAeligible",
+      "approval": "Nostamp/automerge; allcurrentheadworker gatesrequired; noE4acceptance/nextphase"
     }
   },
   "coordinatorTools": {
