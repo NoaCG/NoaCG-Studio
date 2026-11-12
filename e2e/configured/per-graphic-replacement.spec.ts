@@ -225,10 +225,9 @@ test('a Take of a graphic still loading plays once loaded, a cancelled one never
     await air.goto(`/output?production=${encodeURIComponent(outputSlug)}&name=${encodeURIComponent(name)}&debug=1`);
     await expect(air.locator('pre')).toContainText('realtime: following', { timeout: 60_000 });
     await expect.poll(() => air.evaluate(() => (window as ReadyWindow).__noacgLive!.presence()), { timeout: 30_000 }).not.toBe('joining');
-    if ((await air.evaluate(() => (window as ReadyWindow).__noacgLive!.presence())) !== 'joined') {
-      await anon.close();
-      test.skip(true, 'this server has no live topic (migration 0068)');
-    }
+    const joined = (await air.evaluate(() => (window as ReadyWindow).__noacgLive!.presence())) === 'joined';
+    if (!joined) await anon.close();
+    test.skip(!joined, 'this server has no live topic (migration 0068): outputs report on Presence');
     await expect.poll(async () => (await readyOf(air))?.n, { timeout: 60_000 }).toBe(1);
     // From here every read of the published payload is late by `delay`: the loading delayed on purpose.
     await air.route('**/rest/v1/rpc/control_output_resolve*', async (route) => {
