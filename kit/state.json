@@ -1531,6 +1531,30 @@
       "autoReviewRejection": "Combined editforloaded-onlylogoexpectationandnewhosted-latencyallowedSkipsentryREJECTEDbeforeexecution; noneexecuted; userinformed",
       "preserved": "Exact32pxassertionstrengthenedbyexplicitSVGdimensions; expected-run.json/allowedSkips/minTestsunchanged; no workflow/guard/limit changes or productpermissionbypass",
       "requirements": "Beforecarriereditswriteobservableexactsource/localbackend/zero-skip-retry/expectedcount/failure-retention/normal-coveragerules; freshread-onlyRules-firstchallenge; exactpackage-script sideEndsandtestselectionscopefinalreview"
-    }
+    },
+    "candidate217": {
+      "sha": "217c6c4854a22e3759830baaacb346654dcb00ea",
+      "changedFiles": 42,
+      "broaderJob": "j0063PASS110/1106.7min",
+      "localBuildJob": "j0064FAILat283swithin5min;5596unitPASS/3unchangedproxyfixtureFAIL/27existingSKIP, plusseparate dependency-cruiselane branch-edgefailure",
+      "unchangedProxyFailures": [
+        "external-data-connector812 pinned.noacg.invalidHTTPS403",
+        "feed-fetch754 pinned.invalidgzip403",
+        "feed-fetch785 expectedbodyabortproxy403first"
+      ],
+      "realBranchDefect": "ProjectStarter importsprivatewizard/template/kitPlan.ts, violatesexistingcapabilityboundary; repairviaexistingpublicwizarddraftAPI, no boundary/rulechange",
+      "capacity": "Provisionalstale-seedWARN92.8<95; newestgrowth43201149088artifact13936121332verifiedmetadata/downloadreference,butfileingressunavailable. ActualcandidateCIcapacityfreshverdictrequiredbeforeclearance; no ceilings/exceptions/selectionrelaxation",
+      "firstIsolatedRun": {
+        "run": 43215844696,
+        "job": 131174764053,
+        "source": "217c6c4854a22e3759830baaacb346654dcb00ea",
+        "conclusion": "failure",
+        "bootstrap": "success",
+        "teardown": "success",
+        "upload": "success",
+        "failure": "Newtest94-96doesnotawaitgetSupabasePromisefactory; getSupabaseAPIat108returnPromise. FreshcontextearlierstepsreachedbutqualificationFAIL; allassertionsmustremain. Newcoherentcommit/runrequired,nooldworkflowrerun."
+      }
+    },
+    "nativeModelProvenance": "No explicitmodel/effortoverridepassed. ExactruntimeIDsnotexposedbynativelaunch/appmetadata; inheritedconfigurationonly. Stampoptionalmetadataallowsomissionorhonestunexposedlabels; no inventedmodelversion/gatechange."
   }
 }
