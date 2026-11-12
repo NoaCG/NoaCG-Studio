@@ -842,7 +842,10 @@ test('w3', async ({ page, browser }) => {
       .waitForFunction(() => document.querySelector('[data-testid="production-status"]')?.getAttribute('data-tone') === 'ok', null, { timeout: 20_000, polling: 25 })
       .then(() => true, () => false);
     if (ok) confirmed.push((await nowOn(page)) - pressedAt);
-    else unconfirmed += 1;
+    else {
+      unconfirmed += 1;
+      log('not confirmed', await status.getAttribute('data-tone'), await status.getAttribute('title'));
+    }
     await settle(page);
     await outBtn.click();
     await settle(page);
