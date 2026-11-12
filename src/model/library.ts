@@ -486,5 +486,15 @@ export function newerLibraryDesign(graphic: SavedGraphic, library: GraphicDoc[])
   if (!graphic.graphicId) return undefined;
   const doc = library.find((d) => d.id === graphic.graphicId);
   if (!doc || !(Date.parse(doc.updatedAt) > Date.parse(graphic.savedAt))) return undefined;
-  return sameTemplate(doc.template, graphic.template) ? undefined : doc;
+  // Compared once per pair of edits, not per render: two templates can carry pictures, and a live
+  // page renders often. A copy's design moves only with its `savedAt`, a record's with `updatedAt`.
+  const key = `${graphic.id}|${graphic.savedAt}|${doc.id}|${doc.updatedAt}`;
+  let same = sameDesignMemo.get(key);
+  if (same === undefined) {
+    same = sameTemplate(doc.template, graphic.template);
+    if (sameDesignMemo.size > 200) sameDesignMemo.clear();
+    sameDesignMemo.set(key, same);
+  }
+  return same ? undefined : doc;
 }
+const sameDesignMemo = new Map<string, boolean>();

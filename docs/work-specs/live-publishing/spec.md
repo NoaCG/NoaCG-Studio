@@ -418,7 +418,12 @@ Filled in by each phase's pull request.
 - Decisions: the personal sync settle runs inside the sync engine (the settle is pure kernel code,
   so no registration hook was needed); a team publish or export flushes the team save, which
   settles; the production page re-reads its library only when the stored library moved, by
-  reference. The switch is turned on separately, by the owner or the coordinator with the owner's
+  reference; adding a graphic the production already holds replaces it as before and stamps it
+  (G1 section 2 had it ask the dropped-field question; refusing it broke the wizard's confirmed
+  re-import "Replace anyway"); `production_copies_state()` is for signed-in pages only and recorded
+  in the advisor baseline; the new browser checks extend the publish guard's configured spec, since
+  backend growth is stopped. Found while building: adoption must settle against the server's copy
+  before it stamps, or it keeps an old page's pulled design (caught by the configured walk). The switch is turned on separately, by the owner or the coordinator with the owner's
   permission, after the app is live and `production_copies_state()` reports the mark on
   production (G1 section 6).
 - Traps: in the evidence, "Traps met".
