@@ -121,3 +121,4 @@ Project: {"version":1,"id":"plan-cicd-followup-2026-11-02","ownership":"local-si
 - 2026-11-11T18:53:43.489Z phase 19 build {"actor":"builder-cf22-cf22-b-2dd0","session":"session_017SdbwMcvMZqQq4rrzkBWrJ","nonce":"cf22-b-2dd0","evidence":"create_session at 2026-11-11T18:31:20Z from ada1c781 on owner decision to start cf22 at once (#1967 6804043344); recorded after cf17 closed"}
 - 2026-11-11T19:40:31.780Z phase 19 landed {"mergeSha":"283e974ceeda243b953119043a088548f10290a2","pr":2395}
 - 2026-11-11T19:41:19.600Z phase 19 check {"actor":"checker-cf22-cf22-c-ada6","session":"session_017SdbwPs1zQPYk6cS1i4s3v","nonce":"cf22-c-ada6","evidence":"create_session at 2026-11-11T19:41:09Z on merge 283e974c"}
+- 2026-11-12T05:03:08.649Z phase 19 fail product: (b) candidate D summed the later green attempt (107.9), not its stated basis (refused round); checker-cf22-cf22-c-ada6, https://github.com/NoaCG/NoaCG-Studio/pull/2395#issuecomment-6805894706
