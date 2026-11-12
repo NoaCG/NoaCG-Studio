@@ -104,3 +104,17 @@ test('a Take or Out ends a failure; a cancelled hold that cannot go on settles, 
   assert.equal(giveUp([row(1, 'play'), row(2, 'update')]), 'fail');
   assert.equal(giveUp([row(1, 'update')]), 'settle');
 });
+
+test('a primed frame gets the place hint its held look came with, and a republished log never settles old work by position', async () => {
+  const { readFileSync } = await import('node:fs');
+  const main = readFileSync(new URL('../src/output/main.ts', import.meta.url), 'utf8');
+  const stage = readFileSync(new URL('../src/output/stage.ts', import.meta.url), 'utf8');
+  // The look an update carried keeps its place hint, and the primed update carries both (W1 placer).
+  assert.match(main, /heldLook\.set\(row\.graphic, \{ appearance: msg\.appearance, place: msg\.place \}\);/);
+  assert.match(main, /\{ appearance: look\.appearance, \.\.\.\(look\.place !== undefined \? \{ place: look\.place \} : \{\}\) \}/);
+  // Each command waits under a key of its own; its log position goes out only in the outcome.
+  assert.match(stage, /const key = \+\+lastKey;\n\s+atOf\.set\(msg, key\);\n\s+unsettled\.set\(key, \{ at, graphic, since: Date\.now\(\), watch \}\);/);
+  assert.match(stage, /for \(const cb of outcomeCbs\) cb\(entry\.at, entry\.graphic, outcome\);/);
+  assert.match(stage, /if \(entry\.graphic === graphic && \(oldest === null \|\| entry\.at < oldest\)\) oldest = entry\.at;/);
+  assert.doesNotMatch(stage, /unsettled\.set\(at,/);
+});

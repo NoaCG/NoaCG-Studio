@@ -1007,15 +1007,16 @@ async function boot(): Promise<void> {
     holds.forEach((hold) => (n += hold.rows.length));
     return n;
   };
-  /** The look an update carried while its graphic had nothing to run it on (R4): the frame takes it
-   *  with the values when it can run them. */
-  const heldLook = new Map<string, unknown>();
+  /** The look (and the place hint that came with it) an update carried while its graphic had
+   *  nothing to run it on (R4): the frame takes it with the values when it can run them. */
+  const heldLook = new Map<string, { appearance: unknown; place?: unknown }>();
   /** Hand a frame that can now run what it is sent the values and look its graphic holds: the
    *  commands that were settled for it before it loaded (R4) never reached it themselves. */
   const primeFrame = (graphic: string) => {
     const look = heldLook.get(graphic);
     heldLook.delete(graphic);
-    const appearance = look === undefined ? {} : { appearance: look };
+    // The place hint rides with its look, so the placer measures the held values (W1).
+    const appearance = look === undefined ? {} : { appearance: look.appearance, ...(look.place !== undefined ? { place: look.place } : {}) };
     if (typed.airing.has(graphic) && typedEnvelope.has(graphic)) {
       stage.apply(graphic, { t: 'update', data: {}, typed: typedEnvelope.get(graphic), ...appearance } as ControlEventRow['msg']);
       return;
@@ -1162,8 +1163,8 @@ async function boot(): Promise<void> {
   };
 
   const keepLook = (row: ControlEventRow) => {
-    const msg = row.msg as { t: string; appearance?: unknown };
-    if (msg.t === 'update' && msg.appearance !== undefined) heldLook.set(row.graphic, msg.appearance);
+    const msg = row.msg as { t: string; appearance?: unknown; place?: unknown };
+    if (msg.t === 'update' && msg.appearance !== undefined) heldLook.set(row.graphic, { appearance: msg.appearance, place: msg.place });
   };
   /** A live command for a graphic this output cannot run yet: held, settled, or neither (false). */
   const holdOrSettle = (row: ControlEventRow, road: LiveRoad | undefined): boolean => {

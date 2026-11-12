@@ -440,15 +440,19 @@ export function createOutputStage(
   // ── OUTCOMES (live-publishing G2 section 1): every command handed over with its position gets
   // exactly one, by that position, never by counting. ──
   const outcomeCbs: ((at: number, graphic: string, outcome: StageOutcome) => void)[] = [];
-  /** Positions with no outcome yet: their graphic and when they were handed over. */
-  const unsettled = new Map<number, { graphic: string; since: number; watch: boolean }>();
-  /** The position of the command `applyNow` is handling, for what it queues. */
+  /** Commands with no outcome yet, each under a key of its own (a republished log numbers from 1
+   *  again, so a position alone could name two commands): its position, graphic and when it was
+   *  handed over. Every `at` inside the stage below is such a key; the position goes out only in
+   *  the outcome. */
+  const unsettled = new Map<number, { at: number; graphic: string; since: number; watch: boolean }>();
+  let lastKey = 0;
+  /** The key of the command `applyNow` is handling, for what it queues. */
   let currentAt: number | undefined;
-  const settleAt = (at: number, outcome: StageOutcome) => {
-    const entry = unsettled.get(at);
+  const settleAt = (key: number, outcome: StageOutcome) => {
+    const entry = unsettled.get(key);
     if (!entry) return;
-    unsettled.delete(at);
-    for (const cb of outcomeCbs) cb(at, entry.graphic, outcome);
+    unsettled.delete(key);
+    for (const cb of outcomeCbs) cb(entry.at, entry.graphic, outcome);
   };
   /** A frame that goes with commands still queued: each is answered `skipped`. */
   const skipQueued = (frame: Frame) => {
@@ -463,7 +467,7 @@ export function createOutputStage(
       // Out of every queue that holds it, so a failed command never runs later.
       const frame = frames.get(entry.graphic);
       console.warn(
-        `output stage: "${entry.graphic}" command ${at} had no outcome after ${OUTCOME_WATCHDOG_MS} ms ` +
+        `output stage: "${entry.graphic}" command ${entry.at} had no outcome after ${OUTCOME_WATCHDOG_MS} ms ` +
           `(frame ${frame ? (frame.loaded ? 'loaded' : 'loading') : 'none'}, queued here ${frame ? frame.queue.some((item) => item.at === at) : false}, ` +
           `placing ${placer.placing(entry.graphic)}, package ${waitingOgraf.has(entry.graphic)}).`,
       );
@@ -476,7 +480,7 @@ export function createOutputStage(
       settleAt(at, { failed: 'load' });
     });
   }, 1_000);
-  /** Which position a message answers for, across the placer's and the packages' waits. */
+  /** Which command (its key) a message answers for, across the placer's and the packages' waits. */
   const atOf = new WeakMap<object, number>();
   // Commands QUEUE until the iframe's document has loaded its command listener — a
   // postMessage into an unloaded srcdoc is silently lost, which is exactly what ate the boot
@@ -1154,16 +1158,17 @@ export function createOutputStage(
     },
     apply: (graphic, msg, at, watch = true) => {
       if (at !== undefined) {
-        atOf.set(msg, at);
-        unsettled.set(at, { graphic, since: Date.now(), watch });
+        const key = ++lastKey;
+        atOf.set(msg, key);
+        unsettled.set(key, { at, graphic, since: Date.now(), watch });
       }
       placer.apply(graphic, msg);
     },
     onOutcome: (cb) => void outcomeCbs.push(cb),
     waitingFor: (graphic) => {
       let oldest: number | null = null;
-      unsettled.forEach((entry, at) => {
-        if (entry.graphic === graphic && (oldest === null || at < oldest)) oldest = at;
+      unsettled.forEach((entry) => {
+        if (entry.graphic === graphic && (oldest === null || entry.at < oldest)) oldest = entry.at;
       });
       return oldest;
     },
