@@ -67,9 +67,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "build / first boot-projection repair after round-four reassessment",
+      "step": "build / exact-head gates after first projection repair",
       "pr": 2438,
-      "note": "First projection repair committed2767a30 clean; targeted117/117 and source34/34 pass, original overwrite/new Discard/adoption cases pass. Single bounded162case regression underway beforepush. Quarantine2453 landed b9f3660 throughsuccessfulqueue; exactmergepost-land checks pending. No E4 stamp/auto-merge/acceptance."
+      "note": "2767a30 pushed clean; j0112 all162PASS9.3min,117/117gates34/34oracles. ActualCI43270310952 inprogress; await currentcapacity/configured/backend/Codex/freshFULLSOA/A+. Quarantine2453 landed, postlandingchecksongoing. No editorqueueapproval/phaseadvancement."
     }
   ],
   "owner": [
@@ -116,7 +116,8 @@
         "quarantine": 43268862291,
         "configured": 43268862377
       },
-      "postLandingStatus": "Actual exactmerge mainCIpending; otherfourrunsinprogress; deployment_statusrunsallskipped(metadataonly). Rootstaysactiveuntilterminalresults/incidententry."
+      "postLandingStatus": "Postlanding43268862327SUCCESS; Quarantine43268862291SUCCESS; mainCI43268862367pendingbehindprecedingmainCI43267529038; configured43268862377andCodeQL43268863302inprogress. No pending=PASS claim.",
+      "incidentReadback": "Actual2371bodyandjob131359676353 confirmnewpergraphicentry:miwco primary/weeklyownerbackup,2026-11-26due. Originalclock/outageentriesstillmiwco2026-11-25. No inventedowner."
     }
   ],
   "triggers": [],
@@ -1456,7 +1457,15 @@
       "repairDue": "2026-11-25",
       "fixOrReleasePr": null
     },
-    "runIssueResolutionComment": 6821512207
+    "runIssueResolutionComment": 6821512207,
+    "backgroundPolicyRelease": {
+      "pr": 2455,
+      "head": "64a4a57e5b89806e7d3ff4b20bc07846d919d6a5",
+      "spec": "e2e/output-debate-clock.spec.ts",
+      "sourceRun": 43268862291,
+      "job": 131362135401,
+      "receipt": "Standardautomationreports20consecutiveMAINpassesandopenedbotland/auto-mergePR2455. Rootdidnotrelease/stampit, no productcausefixorcausaldecisionrevision. Currentmainstillquarantineduntilactualrelease. Backgroundpolicyprocessnotclaimedasrunfix/ownedPR."
+    }
   },
   "waitingOn": null,
   "completedCausalityReviews": [
@@ -1881,13 +1890,21 @@
       },
       "localCandidate": {
         "head": "2767a30cb0fccbb9a04f4f2e0ca285b32e4f94d6",
-        "status": "COMMITTEDclean NOTpushed",
+        "status": "PUSHEDexact2767cleanfrozen",
         "scope": "9filedelta,full50paths,45maintainedE4cases",
         "targeted": "117/117gates34/34oracleslint/appTS/dependency0PASS",
         "main": "e394954becdbb292c914b3d20339418c9f9172c2",
         "mergeTree": "98815ae1 clean/orderclear",
-        "broader": "Single source-pinned162case7spec12min admission underway; resultpending"
+        "broader": "j0112 source-pinned162/162PASS9.3min exit0, all45E4cases and unchangedR/K/F/device/sync/leave matrices; one7spec12minadmission",
+        "checkStamp": "RootreadactualPASS2767at17:31:09Z,full50paths,inline14/14review+simplify/verifyinline,inheritedunexposedmetadata",
+        "exportApplicability": "Actual2767j0112 archive projection-receiving-2767a30. RootindependentlycomparedALL4ZIPnames/everyuncompressedentrybytewithstagedfixtures:identical;regularfiles15/11/5/12,includingdirs20/12/6/16. RootopenedactualHTMLreplay+operatorNext; paintedoutputvisible. Newmanifesthashescheckedbybuilder; sourceJSONonlyrandombrandApplication.lookIddiff."
       }
+    },
+    "fourthCandidate": {
+      "head": "2767a30cb0fccbb9a04f4f2e0ca285b32e4f94d6",
+      "normalCi": 43270310952,
+      "status": "ExactheadPRopen,automergeNULL,noLandlabel; actualCIinprogress. Newcapacity/configuredselection/backend/Codex/freshFULLSOA/A+allrequired.",
+      "reviews": "BuilderownsoneCodexrequest; freshFULLSOonlyafteractualcapacity; allpreviousB/historyretained; no earlierA/deltaeligible."
     }
   },
   "coordinatorTools": {
