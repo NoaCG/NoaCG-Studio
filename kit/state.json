@@ -36,8 +36,8 @@
  },
  "waitingOn": [
   {
-   "what": "phase 5 builder (G2 note then receipt); owner answer on the production_copies switch",
-   "eta": "2026-11-12T16:00:00Z"
+   "what": "phase 5 W3 build PR and receipt; owner answer on the production_copies switch",
+   "eta": "2026-11-12T17:00:00Z"
   }
  ],
  "inFlight": [
@@ -47,7 +47,10 @@
    "actor": "builder-5-5-b-a331",
    "session": "session_017SdbwMx1ooTEVQrtu6Losx",
    "branch": "claude/plan-live-publishing-5-build",
-   "launchedAt": "2026-11-12T09:55:01Z"
+   "launchedAt": "2026-11-12T09:55:01Z",
+   "designPr": 2426,
+   "designMerge": "12173c3ff3e65220016d11d0ffdd4c1ce0f16408",
+   "lastSeen": "2026-11-12T11:2xZ G2 merged; W3 build next"
   }
  ],
  "owner": [
