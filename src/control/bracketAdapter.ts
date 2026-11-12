@@ -471,7 +471,8 @@ export function adaptBracket(
       // The same side row twice is one side, said (B7, B17): never a match against itself.
       const said = new Set<string>();
       const rows = all.filter((g) => {
-        const key = JSON.stringify(FIELDS_FOR.sides.map((k) => field(g.row, k) ?? null));
+        // A bracket taken from a row's place is part of what the row says (B19).
+        const key = JSON.stringify([adapter.bracketLevel ? g.at[adapter.bracketLevel - 1] : null, ...FIELDS_FOR.sides.map((k) => field(g.row, k) ?? null)]);
         if (!said.has(key)) return said.add(key);
         report.push(`${g.label} repeats a side of match ${id}, so it is left out`);
         return false;

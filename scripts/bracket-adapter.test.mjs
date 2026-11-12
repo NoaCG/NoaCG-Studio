@@ -584,3 +584,12 @@ test('side rows: a repeated side is said and left out; a round name on one side 
   assert.deepEqual(matchesOf(n.output)[1].a.name, 'Cedar');
   assert.equal(n.report.some((l) => l.includes('disagree')), false);
 });
+
+test('the same side rows under two brackets are not repeats: the match is placed in two brackets, so it keeps its values', () => {
+  const rows = [sideRow('m1', 'r1', 'Round 1', 'Aster', 'X', 1), sideRow('m1', 'r1', 'Round 1', 'Birch', 'X', 0)];
+  const feed = { cups: [{ rows: structuredClone(rows) }, { rows: structuredClone(rows) }] };
+  const r = adaptBracket(feed, readSourceAdapter({ v: 1, name: 'bracket', rows: 'cups.*.rows', rowsAre: 'sides', bracketLevel: 1, fields: { match: 'pair', name: 'who' } }).adapter);
+  assert.ok(r.report.includes('match m1 has 4 rows, so it keeps its values'));
+  assert.equal(r.report.some((l) => l.includes('repeats')), false);
+  assert.deepEqual(matchesOf(r.output)[0], { id: 'm1' });
+});

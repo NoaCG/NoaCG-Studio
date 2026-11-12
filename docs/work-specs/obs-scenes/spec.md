@@ -917,6 +917,9 @@ Filled in by each phase's pull request.
     and keeps a stored players list editable when the sample offers none; a bracket source is never
     marked "needs repair" for paths its adapter makes. Side rows pair by match id across the whole
     answer, since match ids are unique across it and the current match is picked by id.
+  - Found by the PR review on 80345806: a side row's place (B19) is part of what it says, so the
+    same side rows under two brackets are not repeats; the match has four rows and keeps its
+    values (B17).
 - Previous verified `main`: `97ba82596a7fcfcf6a424140648a5f8ad13aab92` (CI 43307568831, configured
   suite 43307568943).
 - Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed and no

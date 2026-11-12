@@ -26,7 +26,7 @@ amendments, are in the spec's phase notes. Every fixture is synthetic. No OBS ha
 
 ## Local runs
 
-- `node --test`: bracket-adapter 26, json-source 15, data-tick 15, sheet-source 44, source-mapping 66,
+- `node --test`: bracket-adapter 27, json-source 15, data-tick 15, sheet-source 44, source-mapping 66,
   connector-review 27, external-data-connector 64, feed-source 10, file-source 16,
   show-fixture-compat 16, json-fetch 13: all pass.
 - `npm run gates -- run --changed origin/main`: every gate ok, 336 tests, 0 failed.
