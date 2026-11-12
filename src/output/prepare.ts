@@ -17,7 +17,9 @@
 // boot recovery a manual reload uses and once its own URL answers (a reload during an outage would
 // put the browser's error page on air).
 //
-// An output only ever moves onto what the server holds, at most once every PREPARE_EVERY_MS.
+// An output only ever moves onto what the server holds. A version other than the one it holds is
+// taken at once, one preparation at a time, the newest request winning; a re-check of the version
+// it holds runs at most once every PREPARE_EVERY_MS.
 //
 // Old CEF: CasparCG 2.3 runs this in Chromium 71.
 
@@ -63,6 +65,9 @@ export interface Preparer {
   request(prep: PrepRequest): void;
   /** Something the swapper reports has changed: say where the version stands again. */
   refresh(): void;
+  /** The version asked for, being taken, or held: what a check compares the published one with
+   *  (./versionCheck.ts). */
+  version(): { n: number; h: string } | null;
 }
 
 /** What one hidden frame found, in a stage of its own (the whole-reload path only). */
@@ -127,6 +132,8 @@ export function createPreparer(opts: {
    *  the payload without them (it may stay here for a whole show while a scorebug waits, and the
    *  graphics' bodies and assets are megabytes the stage already holds). */
   let taking: { keys: string[]; version: PayloadVersion; adoptable: OutputPayload; of: number; id: string } | null = null;
+  /** The request being run now. */
+  let current: PrepRequest | null = null;
   /** A new renderer build is served: reload once nothing is on air, no more than every PREPARE_EVERY_MS. */
   let reloadForBuild = false;
   let lastBuildReload = -Infinity;
@@ -189,6 +196,7 @@ export function createPreparer(opts: {
 
   const run = async (prep: PrepRequest) => {
     running = true;
+    current = prep;
     // A retry of a reload that waits stays waiting until the server answers: on the network that
     // kept it from reloading, that answer may not come either.
     if (waiting !== prep) waiting = null;
@@ -223,14 +231,23 @@ export function createPreparer(opts: {
       if (!taking) opts.report(undefined);
     } finally {
       running = false;
+      current = null;
       refresh();
       pump();
     }
   };
 
   const pump = () => {
-    if (running || !queued || timer) return;
-    const wait = lastStart + PREPARE_EVERY_MS - now();
+    if (running || !queued) return;
+    // A version other than the one held starts at once (live-publishing G3 section 6, owner
+    // 2026-11-12 for D1): only a re-check of the version held keeps the spacing.
+    const fresh = !held || queued.n !== held.n || queued.h !== held.h;
+    if (fresh && timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    if (timer) return;
+    const wait = fresh ? 0 : lastStart + PREPARE_EVERY_MS - now();
     if (wait > 0) {
       timer = setTimeout(() => {
         timer = null;
@@ -265,5 +282,11 @@ export function createPreparer(opts: {
       pump();
     },
     refresh,
+    version() {
+      const asked = queued || current;
+      if (asked) return { n: asked.n, h: asked.h };
+      if (taking) return { n: taking.version.n, h: taking.version.h };
+      return held ? { n: held.n, h: held.h } : null;
+    },
   };
 }
