@@ -126,6 +126,8 @@ export function planRepayments({ landed, items, today, owner, recorded = new Set
 
 /** Days back a closed repayment item still counts as having recorded its landings (past MERGES). */
 export const CLOSED_DAYS = 30;
+/** Pages of open issues read to find the open items; past them the run records nothing. */
+export const OPEN_PAGES = 5;
 const tierOf = (title) => TIERS.find((t) => title === titleFor(t) || String(title).startsWith(`${titleFor(t)} (`));
 
 /** An item's own texts: its body, then its comments by a bot or member (an outsider's marker counts for nothing). */
@@ -148,21 +150,30 @@ function itemTexts(reader, repo, issue) {
 export function repaymentItems(reader, { repo = REPO, today }) {
   const items = {};
   const recorded = new Set();
-  const since = new Date(Date.parse(`${today}T00:00:00Z`) - CLOSED_DAYS * DAY).toISOString();
-  for (const state of ['open', 'closed']) {
-    for (let page = 1; page <= 5; page++) {
-      const list = reader.get(`repos/${repo}/issues?state=${state}&per_page=100&page=${page}${state === 'closed' ? `&since=${since}` : ''}`);
-      if (!Array.isArray(list)) throw new Error(`the ${state} issue listing could not be read: nothing is recorded rather than a duplicate opened`);
-      for (const i of list) {
-        const tier = i.pull_request || !trustedAuthor(i) ? null : tierOf(i.title);
-        if (!tier) continue;
-        const texts = itemTexts(reader, repo, i);
-        for (const pr of recordedIn(texts)) recorded.add(pr);
-        if (state === 'open' && !items[tier]) items[tier] = { number: i.number, title: i.title, texts };
-      }
-      if (list.length < 100) break;
-    }
+  const take = (i, open) => {
+    const tier = i.pull_request || !trustedAuthor(i) ? null : tierOf(i.title);
+    if (!tier) return;
+    const texts = itemTexts(reader, repo, i);
+    for (const pr of recordedIn(texts)) recorded.add(pr);
+    if (open && !items[tier]) items[tier] = { number: i.number, title: i.title, texts };
+  };
+  // Open items: the exact issue listing (a search index can lag a just-opened item). A listing
+  // that runs past its pages, or cannot be read, records nothing rather than open a duplicate.
+  for (let page = 1; ; page++) {
+    const list = reader.get(`repos/${repo}/issues?state=open&per_page=100&page=${page}`);
+    if (!Array.isArray(list)) throw new Error('the open issue listing could not be read: nothing is recorded rather than a duplicate opened');
+    for (const i of list) take(i, true);
+    if (list.length < 100) break;
+    if (page === OPEN_PAGES) throw new Error(`more than ${OPEN_PAGES * 100} open issues: cannot tell whether a repayment item is open, so nothing is recorded`);
   }
+  // Closed items: one search by title, so a repaid item is found however many other issues and
+  // pull requests closed since (the issue listing would bury it behind them).
+  const since = new Date(Date.parse(`${today}T00:00:00Z`) - CLOSED_DAYS * DAY).toISOString().slice(0, 10);
+  const q = `repo:${repo} is:issue is:closed in:title "${TITLE_PREFIX}" closed:>=${since}`;
+  const found = reader.get(`search/issues?q=${encodeURIComponent(q)}&per_page=100`);
+  if (!Array.isArray(found?.items)) throw new Error('the closed repayment items could not be searched: nothing is recorded rather than a repaid debt opened again');
+  if (found.total_count > found.items.length) throw new Error(`${found.total_count} closed repayment items in ${CLOSED_DAYS} days, more than one search page: nothing is recorded`);
+  for (const i of found.items) take(i, false);
   return { items, recorded };
 }
 
@@ -175,9 +186,15 @@ export function repaymentItems(reader, { repo = REPO, today }) {
 export function repaysOf(reader, landed, skip, repo = REPO) {
   return landed.map((l) => {
     if (skip.has(l.pr)) return { ...l, repays: [] };
+    // A read that fails is not "nothing owed": the run stops and the next one catches up.
     const runs = reader.get(`repos/${repo}/commits/${l.sha}/check-runs?check_name=${encodeURIComponent('CI gate')}&per_page=10`);
-    const gates = (runs?.check_runs ?? []).filter((r) => r.name === 'CI gate' && r.conclusion === 'success');
-    return { ...l, repays: repaysIn(gates.flatMap((g) => reader.get(`repos/${repo}/check-runs/${g.id}/annotations?per_page=50`) ?? [])) };
+    if (!Array.isArray(runs?.check_runs)) throw new Error(`the CI gate of #${l.pr} (${l.sha.slice(0, 8)}) could not be read: nothing is recorded this run`);
+    const gates = runs.check_runs.filter((r) => r.name === 'CI gate' && r.conclusion === 'success');
+    return { ...l, repays: repaysIn(gates.flatMap((g) => {
+      const annotations = reader.get(`repos/${repo}/check-runs/${g.id}/annotations?per_page=50`);
+      if (!Array.isArray(annotations)) throw new Error(`the CI gate annotations of #${l.pr} could not be read: nothing is recorded this run`);
+      return annotations;
+    })) };
   });
 }
 

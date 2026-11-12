@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { DUE_DAYS, MERGES, CALLS, itemBody, landedPrs, planRepayments, recordedIn, repaymentItems, repaysIn, repaysOf, titleFor } from './capacity-repay.mjs';
+import { DUE_DAYS, MERGES, CALLS, OPEN_PAGES, itemBody, landedPrs, planRepayments, recordedIn, repaymentItems, repaysIn, repaysOf, titleFor } from './capacity-repay.mjs';
 
 const OWNER = 'miwco (primary); the weekly owner session (backup coverage)';
 const landing = (pr, repays, sha = `${String(pr).padStart(4, '0')}${'a'.repeat(36)}`) => ({ pr, sha, repays });
@@ -89,11 +89,12 @@ function canned(routes) {
 test('reading GitHub: the open item by title from a bot or member, its comments, and each landing\'s green CI gate annotations', () => {
   const R = 'NoaCG/NoaCG-Studio';
   const reader = canned({
-    [`repos/${R}/issues?state=closed`]: [
+    'search/issues?q=': { total_count: 2, items: [
       { number: 5, title: titleFor('offline'), body: '<!-- capacity-repay: #2405 -->', user: { type: 'Bot' } },
       { number: 6, title: 'Something else', body: '<!-- capacity-repay: #2406 -->', user: { type: 'Bot' } },
-    ],
-    [`repos/${R}/issues/5/comments`]: [],
+    ] },
+    [`repos/${R}/issues/5/comments?per_page=100&page=1`]: Array.from({ length: 100 }, () => ({ body: 'progress', user: { type: 'Bot' } })),
+    [`repos/${R}/issues/5/comments?per_page=100&page=2`]: [{ body: '<!-- capacity-repay: #2404 -->', user: { type: 'Bot' } }],
     [`repos/${R}/issues?state=open`]: [
       { number: 7, title: titleFor('offline'), body: 'x <!-- capacity-repay: #2408 -->', user: { type: 'Bot' } },
       { number: 8, title: titleFor('backend'), body: '', user: { type: 'User' }, author_association: 'NONE' },
@@ -105,6 +106,7 @@ test('reading GitHub: the open item by title from a bot or member, its comments,
     [`repos/${R}/commits/s1/check-runs`]: { check_runs: [{ id: 10, name: 'CI gate', conclusion: 'success' }, { id: 11, name: 'CI gate', conclusion: 'success' }] },
     [`repos/${R}/check-runs/10/annotations`]: [{ message: 'All gates passed' }],
     [`repos/${R}/check-runs/11/annotations`]: [{ message: 'Repay (offline): 2/landing' }],
+    [`repos/${R}/commits/s4/check-runs`]: { check_runs: [] },
     [`repos/${R}/commits/s2/check-runs`]: { check_runs: [{ id: 12, name: 'CI gate', conclusion: 'failure' }] },
     [`repos/${R}/check-runs/12/annotations`]: [{ message: 'Repay (offline): from a red gate, which landed nothing' }],
   });
@@ -112,17 +114,26 @@ test('reading GitHub: the open item by title from a bot or member, its comments,
   assert.deepEqual(Object.keys(items).sort(), ['graphics', 'offline'], 'an outsider\'s issue is never taken for the item');
   assert.deepEqual([...recordedIn(items.offline.texts)].sort(), [2408, 2410], 'an outsider\'s comment marks nothing recorded');
   assert.ok(!items.offline.texts.some((t) => t.includes('overdue')), 'nor overdue');
-  assert.deepEqual([...recorded].sort(), [2405, 2408, 2410], 'a closed repayment item\'s landings count as recorded');
-  assert.ok(reader.seen.some((r) => r.startsWith(`repos/${R}/issues?state=closed`) && r.includes('&since=2026-10-21')), 'closed items of the last 30 days');
-  const landed = repaysOf(reader, [{ sha: 's1', pr: 2412 }, { sha: 's2', pr: 2413 }, { sha: 's3', pr: 2408 }], new Set([2408]), R);
-  assert.deepEqual(landed.map((l) => l.repays), [[{ tier: 'offline', cost: '2/landing' }], [], []], 'the merge group\'s line is found behind the push run; a red gate landed nothing; a recorded PR is not read');
+  assert.deepEqual([...recorded].sort(), [2404, 2405, 2408, 2410], 'a closed repayment item\'s landings count as recorded, its second comment page too');
+  const search = decodeURIComponent(reader.seen.find((r) => r.startsWith('search/issues?q=')));
+  assert.match(search, /repo:NoaCG\/NoaCG-Studio is:issue is:closed in:title "Capacity repayment:" closed:>=2026-10-21/, 'one search for closed items of the last 30 days');
+  const landed = repaysOf(reader, [{ sha: 's1', pr: 2412 }, { sha: 's2', pr: 2413 }, { sha: 's4', pr: 2414 }, { sha: 's3', pr: 2408 }], new Set([2408]), R);
+  assert.deepEqual(landed.map((l) => l.repays), [[{ tier: 'offline', cost: '2/landing' }], [], [], []], 'the merge group\'s line is found behind the push run; a red gate landed nothing; a recorded PR is not read');
   assert.ok(!reader.seen.some((r) => r.includes('/commits/s3/')), 'no call for a PR already recorded');
-  // Bounded: issues (1) + comments (2) + two landings at most two calls each, well inside the budget.
-  assert.ok(reader.calls <= 1 + 2 + 2 * MERGES && 1 + 5 + 2 + 2 * MERGES <= CALLS);
+  // A failed read of a landing's CI gate stops the run instead of reading as nothing owed.
+  assert.throws(() => repaysOf(reader, [{ sha: 'gone', pr: 2420 }], new Set(), R), /could not be read/);
+  // The budget: open pages, one search, per landing one check-run read and two gates' annotations,
+  // and what is left for comment pages (3 per item) still covers four open and four closed items.
+  assert.ok(OPEN_PAGES + 1 + 3 * MERGES + 3 * 8 <= CALLS, `${OPEN_PAGES + 1 + 3 * MERGES + 3 * 8} calls in the worst case`);
 });
 
-test('an unreadable issue listing records nothing rather than opening a duplicate', () => {
-  assert.throws(() => repaymentItems(canned({}), { repo: 'NoaCG/NoaCG-Studio', today: '2026-11-20' }), /could not be read/);
+test('an unreadable or overfull issue listing, or a failed search, records nothing rather than opening a duplicate', () => {
+  const R = 'NoaCG/NoaCG-Studio';
+  assert.throws(() => repaymentItems(canned({}), { repo: R, today: '2026-11-20' }), /could not be read/);
+  const full = Array.from({ length: 100 }, (_, i) => ({ number: 9000 + i, title: 'x', user: { type: 'Bot' } }));
+  assert.throws(() => repaymentItems(canned({ [`repos/${R}/issues?state=open`]: full }), { repo: R, today: '2026-11-20' }), /more than 500 open issues/);
+  assert.throws(() => repaymentItems(canned({ [`repos/${R}/issues?state=open`]: [] }), { repo: R, today: '2026-11-20' }), /could not be searched/);
+  assert.throws(() => repaymentItems(canned({ [`repos/${R}/issues?state=open`]: [], 'search/issues?q=': { total_count: 101, items: [] } }), { repo: R, today: '2026-11-20' }), /more than one search page/);
 });
 
 // THE GATE SIDE (C1, C5): a refusal for cost alone is `repay`; records and evidence still refuse.
