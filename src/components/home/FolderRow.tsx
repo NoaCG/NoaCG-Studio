@@ -36,6 +36,7 @@ export default function FolderRow({
   onMenu,
   onCloseMenu,
   onRemove,
+  scene,
   onDragStart,
   onDragEnd,
 }: {
@@ -66,6 +67,9 @@ export default function FolderRow({
   onMenu: () => void;
   onCloseMenu: () => void;
   onRemove: () => void;
+  /** With OBS scenes on (obs-scenes OS1a R1): whether this folder is a scene, and its menu items.
+   *  `onCopy` is null until the production is published (it has no link yet). */
+  scene: { on: boolean; copied: boolean; onToggle: () => void; onCopy: (() => void) | null } | null;
   onDragStart: (e: DragEvent<HTMLDivElement>) => void;
   onDragEnd: () => void;
 }) {
@@ -138,6 +142,11 @@ export default function FolderRow({
           </span>
         )}
         <span className="pd-cue-sum">{MODE_WORDS[mode]}</span>
+        {scene?.on && (
+          <span className="pd-cue-mark" title="OBS scene: its graphics play in their own link" data-testid="folder-obs-scene">
+            OBS
+          </span>
+        )}
         {inRange && <span className="pd-sr">in the selection</span>}
       </button>
       {replaced && (
@@ -173,6 +182,16 @@ export default function FolderRow({
           ⋯
         </button>
         <LibMenu open={menuOpen} onClose={onCloseMenu} testid="folder-actions-menu">
+          {scene && (
+            <button role="menuitemcheckbox" aria-checked={scene.on} onClick={scene.onToggle} data-testid="folder-obs-scene-toggle">
+              {scene.on ? '✓ ' : ''}OBS scene
+            </button>
+          )}
+          {scene?.on && scene.onCopy && (
+            <button role="menuitem" onClick={scene.onCopy} title="The browser source link for this OBS scene" data-testid="folder-obs-scene-copy">
+              {scene.copied ? 'Copied ✓' : 'Copy scene link'}
+            </button>
+          )}
           <button role="menuitem" onClick={onRemove} title={`Remove the folder. Its ${cues(total)} stay in the rundown where they are.`} data-testid="remove-folder">
             Remove folder (keeps its {cues(total)})
           </button>

@@ -196,6 +196,9 @@ export interface StagedFrame {
 }
 
 export interface OutputStageOptions {
+  /** Every Take drawn settled (obs-scenes OS1a R9): a scene link's stage, where no entrance frame
+   *  may reach OBS preview or program. Absent: a Take plays its entrance, as always. */
+  settled?: boolean;
   sound?: 'program';
   soundQuiet?: boolean;
   soundBudget?: ReturnType<typeof createSoundBudget>;
@@ -889,7 +892,8 @@ export function createOutputStage(
 
   /** Graphics whose data on this stage is a typed envelope's (E1.2a). */
   const typedAiring = new Set<string>();
-  const applyNow = (graphic: string, msg: ControlEventRow['msg']) => {
+  const applyNow = (graphic: string, incoming: ControlEventRow['msg']) => {
+    const msg: ControlEventRow['msg'] = options.settled && incoming.t === 'play' ? { ...incoming, settled: true } : incoming;
     // A status row has no OGraf meaning either; ografCallFor drops whatever it cannot map.
     // TYPED DATA (E1.2a): an update's envelope values are the graphic's data as they are, never
     // strings; one this build cannot read sends no data at all (the output's gate refused it first).
@@ -964,7 +968,7 @@ export function createOutputStage(
         break;
       }
       case 'play':
-        post(graphic, { cmd: 'play' });
+        post(graphic, msg.settled ? { cmd: 'play', settled: true } : { cmd: 'play' });
         break;
       case 'stop':
         post(graphic, { cmd: 'stop', sound: msg.sound });

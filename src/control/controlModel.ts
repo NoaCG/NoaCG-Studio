@@ -856,7 +856,9 @@ export type ControlMessage =
   // page's last box gives (control/cueAdjust.ts `PlaceHint`); a receiver that does not know it
   // applies `appearance` as it is.
   | { t: 'update'; data: Record<string, string>; appearance?: AppliedAppearance; place?: PlaceHint; typed?: TypedValues }
-  | { t: 'play' }
+  // `settled` (obs-scenes OS1a R9) is the output stage's own, never on the wire: a scene link's
+  // stage draws its Take settled.
+  | { t: 'play'; settled?: true }
   | { t: 'stop'; sound?: false }
   | { t: 'next' }
   // `at` is WHEN this event happened, in epoch ms — the log row's own server time, which every

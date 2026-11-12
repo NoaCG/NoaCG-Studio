@@ -74,6 +74,9 @@ import { PROBE_MS, reloadWhenClear, within } from './reload';
 import { FRAME_LOAD_MS, createOutputStage, heldLine } from './stage';
 import { reportedLook } from '../control/cueAdjust';
 import { createSwapper } from './swap';
+import { obsEvent, obsState, sceneParam, scopePayload, type ObsWhere } from './sceneScope';
+import type { OutputPayload } from '../control/hostedControl';
+import type { SceneReport } from '../control/livePath';
 import { TYPED_READER, typedOutputGate, type TypedValues } from '../model/ografTyped';
 import type { ControlMessage } from '../control/controlModel';
 import { createSoundBudget } from '../assets/soundBudget';
@@ -90,6 +93,9 @@ const outputSlug = params.get('production');
 const debug = params.get('debug') === '1';
 /** What the operator calls this output on READY (`&name=CasparCG 1-20`), else its engine. */
 const outputName = outputNameParam(window.location.search);
+/** A SCENE LINK (docs/work-specs/obs-scenes/spec.md OS1a): `&scene=<id>` builds only that scene's
+ *  graphics (./sceneScope.ts). null: the ordinary link, which runs exactly as before (R4). */
+const scene = sceneParam(window.location.search);
 
 /** The module scripts this page was served with, read before anything else runs: another set at
  *  its own URL is another build of the renderer (./prepare.ts reloads onto it when air is clear). */
@@ -215,16 +221,46 @@ async function boot(): Promise<void> {
     return;
   }
   dbg('production', resolved.title);
-  if (!resolved.output || resolved.output.graphics.length === 0) {
+  // A scene link keeps running with nothing in scope (R5): it says so, and a later publish may name
+  // its scene. Only the ordinary link stops at an empty production, as before.
+  if (!resolved.output || (scene === null && resolved.output.graphics.length === 0)) {
     // Published before the payload existed (an older build) or an empty rundown: stay
     // transparent and honest — the operator page will say "re-publish".
     dbg('payload', 'none — re-publish the production');
     return;
   }
 
+  // ── THE SCENE'S SCOPE (OS1a R5, R6): the graphics this link holds are the scene's, at boot and at
+  // every publish it takes; `inScope` is what every command, report and bank asks. On the ordinary
+  // link it is always true and the payload is the one the server holds. ──
+  let sceneKeys = new Set<string>();
+  let sceneKnown = false;
+  /** The font files of the graphics left out, by path (./sceneScope.ts `faces`). */
+  let sceneFaces = new Map<string, string>();
+  const scoped = (whole: OutputPayload): OutputPayload => {
+    if (scene === null) return whole;
+    const scope = scopePayload(whole, scene);
+    sceneKeys = scope.keys;
+    sceneKnown = scope.known;
+    sceneFaces = scope.faces;
+    dbg('scene', sceneKnown ? `${scene}: ${[...sceneKeys].join(', ') || 'no graphics'}` : `${scene} is not a scene of this production`);
+    return scope.payload;
+  };
+  const inScope = (graphic: string): boolean => scene === null || sceneKeys.has(graphic);
+  const payload = scoped(resolved.output);
+  // The whole production's payload is not kept: a closure over `resolved` lives as long as the page,
+  // and the other scenes' graphics are megabytes this link never builds.
+  if (scene !== null) resolved.output = payload;
+  /** Where OBS has this browser source (R8), from its own events; unknown until the first. */
+  let obsWhere: ObsWhere = {};
+  /** What the Presence entry says of this scene link (R8). */
+  const sceneReport = (id: string): SceneReport => {
+    const obs = obsState(obsWhere);
+    return { id: id.slice(0, 80), known: sceneKnown, ...(obs ? { obs } : {}), ...(obsWhere.last !== undefined ? { last: obsWhere.last } : {}) };
+  };
   const soundBudget = createSoundBudget();
-  let programAudioVersion = resolved.output.ver?.h ?? '';
-  const audio = (payload: typeof resolved.output) => ({ soundBudget, loadSound: publishedSoundLoader(outputSlug,payload.ver?.h ?? '') });
+  let programAudioVersion = payload.ver?.h ?? '';
+  const audio = (payload: OutputPayload) => ({ soundBudget, loadSound: publishedSoundLoader(outputSlug,payload.ver?.h ?? '') });
   // THE INSTANCES THIS TAB'S PREVIOUS DOCUMENT HAD MOUNTED (E3.2b, AC-3): a package mounted again
   // here names the one it replaced, so a report that old instance still had on its way when the
   // output reloaded is refused by the pages (control/ografOutcome.ts `acceptOutcome`).
@@ -238,8 +274,11 @@ async function boot(): Promise<void> {
   } catch {
     // No session storage (a locked-down browser source): nothing is named, and nothing breaks.
   }
-  const stage = createOutputStage(document.body, resolved.output, {
+  const stage = createOutputStage(document.body, payload, {
     ografReplaced,
+    // A scene link draws every Take settled (OS1a R9): no entrance frame on OBS preview or program.
+    // …and finds a face the production ships with a graphic of another scene.
+    ...(scene !== null ? { settled: true, faceAsset: (src: string) => sceneFaces.get(src) ?? null } : {}),
     sound: 'program',
     soundBudget,
     loadSound: asset => publishedSoundLoader(outputSlug, programAudioVersion)(asset),
@@ -257,7 +296,6 @@ async function boot(): Promise<void> {
   // graphic's first cue values) is only for a graphic nothing has touched since boot - one on air,
   // or rebuilt from its report, already holds its own values and must keep them. Registered before
   // any await, so no document can load unobserved. ──
-  const payload = resolved.output;
   let heldVersion: HeldVersion | null = payload.ver ? { n: payload.ver.n, h: payload.ver.h } : null;
   const checks = new Map<string, GraphicCheck>();
   /** Graphics a command or the recovery has reached since boot: never warmed. */
@@ -310,7 +348,8 @@ async function boot(): Promise<void> {
   /** The imported OGraf packages this output holds (E3.2a): READY counts them beside the composed
    *  graphics, each prepared once its `load()` answered, or failed in its own words. */
   const packages = new Set(payload.graphics.filter((g) => g.ograf).map((g) => g.key));
-  const readiness = () => outputReadiness({ graphics: [...stage.graphics, ...packages], checks: withRefusals(), held: stage.held, version: heldVersion, catchingUp, chg });
+  const readiness = () =>
+    outputReadiness({ graphics: [...stage.graphics, ...packages], checks: withRefusals(), held: stage.held, version: heldVersion, catchingUp, chg, ...(scene !== null && !sceneKnown ? { unknownScene: scene } : {}) });
   // `presence` is joined below; nothing here runs before it exists.
   const readyChanged = () => {
     // Worded only where it is shown: a playout box's main thread is the one that must not miss frames.
@@ -400,6 +439,7 @@ async function boot(): Promise<void> {
       proto: identity.protocol,
       // E1.2a: this output reads typed envelopes, so a page may send it one.
       typed: TYPED_READER,
+      ...(scene !== null ? { scene: sceneReport(scene) } : {}),
     });
   const presence = joinLivePresence({
     showId: resolved.id,
@@ -421,6 +461,22 @@ async function boot(): Promise<void> {
       );
     },
   });
+  // OBS'S OWN EVENTS (R8; docs/OBS_ON_A_REAL_HOST.md §3): where the browser source is, reported
+  // only. Nothing here changes what airs: a scene graphic is drawn settled whether or not it shows.
+  if (scene !== null) {
+    const heard = (event: Parameters<typeof obsEvent>[1]) => {
+      obsWhere = obsEvent(obsWhere, event, Date.now());
+      dbg('obs', `${obsState(obsWhere) ?? 'unknown'}${obsWhere.last !== undefined ? ` · last on program in ${obsWhere.last}` : ''}`);
+      presence.touch();
+    };
+    const detail = (e: Event) => ((e as CustomEvent).detail ?? {}) as { visible?: unknown; active?: unknown; name?: unknown };
+    window.addEventListener('obsSourceVisibleChanged', (e) => heard({ type: 'visible', on: detail(e).visible === true }));
+    window.addEventListener('obsSourceActiveChanged', (e) => heard({ type: 'active', on: detail(e).active === true }));
+    window.addEventListener('obsSceneChanged', (e) => {
+      const name = detail(e).name;
+      if (typeof name === 'string') heard({ type: 'scene', name });
+    });
+  }
   // For specs and for whoever opens the console on a playout box.
   (window as unknown as { __noacgLive?: unknown }).__noacgLive = {
     identity,
@@ -461,8 +517,10 @@ async function boot(): Promise<void> {
   /** Is `graphic` on air here? What this renderer last applied to it; for a graphic no command has
    *  reached since boot, the log's head (protocol 2, once heard), else whether the boot put it up,
    *  which leans towards "on air" (a report's machine state counts), and so towards waiting. */
+  // A graphic outside a scene link's scope is never on air there (OS1a R6): it leaves at the publish
+  // that took it out, and holds neither a swap nor a reload, whose Out this link reads past.
   const onAirHere = (graphic: string): boolean =>
-    !commanded.has(graphic) && seqMode && headHeard ? headOn.get(graphic) === true : liveGraphics.has(graphic);
+    inScope(graphic) && (!commanded.has(graphic) && seqMode && headHeard ? headOn.get(graphic) === true : liveGraphics.has(graphic));
   const airCount = () => {
     let n = 0;
     for (const graphic of stage.graphics) if (onAirHere(graphic)) n += 1;
@@ -485,6 +543,8 @@ async function boot(): Promise<void> {
   const swapper = createSwapper({
     stage,
     held: bootDigests,
+    // A graphic that left this link's scene leaves at once, on air or not (OS1a R6, `onAirHere`): a
+    // scene graphic is always on, so waiting for its Out would keep it in the wrong scene.
     onAir: onAirHere,
     data: (graphic) => heldData(graphic),
     warmData: (graphic, next) => (touched.has(graphic) ? heldData(graphic) : firstCueOf(next.cues, graphic)),
@@ -533,7 +593,12 @@ async function boot(): Promise<void> {
     resolve: async () => {
       await recovered;
       const answer = await untilAnswered(() => controlOutputResolve(outputSlug), { limit: 3 });
-      return answer.ok && answer.value ? answer.value.output : null;
+      if (!answer.ok || !answer.value?.output) return null;
+      // The scene's graphics only (R5): the swapper adds and removes by the keys it is handed.
+      const knew = sceneKnown;
+      const next = scoped(answer.value.output);
+      if (sceneKnown !== knew) readyChanged();
+      return next;
     },
     onAir: airCount,
     // Bounded like the reload's probe: Prepare for Live waits on it (./reload.ts).
@@ -775,7 +840,7 @@ async function boot(): Promise<void> {
     if (speaking) speakingClocks.set(spec.key, speaking);
     else speakingClocks.delete(spec.key);
   }
-  for (const spec of resolved.output.graphics) learnClocks(spec);
+  for (const spec of payload.graphics) learnClocks(spec);
   // WHICH row moves the clock, to what, and in which order is `clockRowEffect` — pure, in
   // control/matchClockWire.ts, so an offline spec can drive it. This page only ever runs against
   // a live backend, and a decision left in this closure could be verified nowhere.
@@ -811,6 +876,8 @@ async function boot(): Promise<void> {
     road?: LiveRoad,
     animate = true,
   ) => {
+    // Outside a scene link's scope nothing here applies (R6): no data, no air state, no report.
+    if (!inScope(graphic)) return;
     const receivedAt = Date.now();
     if (road) live.received(road, incoming);
     if (!applied.claim(incoming)) {
@@ -948,8 +1015,9 @@ async function boot(): Promise<void> {
       lastAppliedSeq = Math.max(lastAppliedSeq, seq);
       if (row.msg.t === 'live') {
         // A renderer's report of this graphic, this one's or another's, is its bank; a forced
-        // report of it still waiting here is no longer needed (a change still reports).
-        banked(row.graphic, seq);
+        // report of it still waiting here is no longer needed (a change still reports). A scene
+        // link banks only the graphics it holds (R7).
+        if (inScope(row.graphic)) banked(row.graphic, seq);
         if (forcedReports.has(row.graphic) && !changedReports.has(row.graphic)) {
           clearTimeout(reportTimers.get(row.graphic));
           reportTimers.delete(row.graphic);
@@ -979,6 +1047,9 @@ async function boot(): Promise<void> {
       presence.touch();
       return;
     }
+    // A row for a graphic outside a scene link's scope is read past (R6): the position above has
+    // moved, and nothing else does.
+    if (!inScope(row.graphic)) return;
     // Already inside the state this graphic was rebuilt from — replaying it would re-air it.
     // The FAST road cannot reach this guard and does not need to: it is only joined once the
     // boot catch-up has finished, so nothing it delivers can predate the snapshot.
@@ -1041,7 +1112,23 @@ async function boot(): Promise<void> {
    *  follow's first refill then brings history, and a package's action in it is read past as the
    *  catch-up would have (E3.2b, control/ografRecovery.ts `bootGap`). */
   let bootGapOpen = true;
-  for (let page = 0; page < MAX_CATCH_UP_PAGES; page += 1) {
+  // A SCENE LINK WITH NOTHING IN SCOPE follows from the log's head, never its start (R7): every row
+  // before it would be read past. The id road's head came with the resolve; the numbered road's
+  // comes with one tail read, whose rows are not kept.
+  const fromHead = scene !== null && recoverable.length === 0;
+  if (fromHead) {
+    bootGapOpen = false;
+    lastAppliedId = Math.max(lastAppliedId, resolved.lastEventId);
+    if (seqMode) {
+      const head = await untilAnswered(() => controlOutputTailSeq(outputSlug, followFrom, followEpoch), { limit: 3 });
+      if (head.ok && !head.value.reset) {
+        followEpoch ??= head.value.epoch;
+        if (typeof head.value.head?.seq === 'number') lastAppliedSeq = Math.max(lastAppliedSeq, head.value.head.seq);
+      }
+      if (lastAppliedSeq === followFrom) dbg('catch-up', "the log's head was not read: the follow reads its history past");
+    }
+  }
+  for (let page = 0; !fromHead && page < MAX_CATCH_UP_PAGES; page += 1) {
     const tail = await untilAnswered(
       () => readTail(missed.length > 0 ? position(missed[missed.length - 1]) : followFrom),
       { limit: 6, onRetry: (attempts, error) => dbg('catch-up', `log read failed (${attempts}): ${error}`) },
@@ -1097,7 +1184,8 @@ async function boot(): Promise<void> {
     dbg('catch-up', `typed data no report banks: ${[...new Set(unreportedTyped.map((row) => row.graphic))].join(', ')}`);
     missed = unreportedTyped.concat(missed);
   }
-  const replayed = missed.filter((row) => !alreadyInSnapshot(snapshotAt, row.graphic, position(row)));
+  // Only what this link holds is replayed (R7); a scene link reads every other row past.
+  const replayed = missed.filter((row) => inScope(row.graphic) && !alreadyInSnapshot(snapshotAt, row.graphic, position(row)));
   // ON AIR WITH NO POSE TO PUT BACK. A graphic with no state machine (a picture, a hand-written
   // template) reports no pose, so its report says nothing about whether it was up, and the Take
   // that put it up is older than the report, so it is not replayed either: an output that reloaded

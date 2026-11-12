@@ -430,3 +430,96 @@ Filled in by each phase's pull request.
   decides. A merge group whose gate passed before the hold turned on may still land; the runbook's
   lead time covers it.
 - Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS0.md`.
+
+### OS1a: The scene link
+
+- Rules (written before coding):
+  - R1. A folder is an OBS scene when it carries `obsScene: true` (additive optional on
+    `ShowFolder`). Its scene id is the folder id, so renaming the folder keeps it. The flag is set
+    and cleared from the folder's menu, which offers it only while the production's OBS scenes
+    switch is on.
+  - R2. The switch is `obsScenes: true` on the production record (`Show`, additive optional; off
+    is absent; not in `outputSetup`, so the payload's `outputSetup` never changes), shown beside the vMix and CasparCG switches. Turning it off keeps every folder's flag,
+    so turning it on again finds the scenes as they were.
+  - R3. While the switch is on and at least one folder is a scene, a publish writes `scenes` into
+    the output payload: per scene its id, its name and the names of the graphics its graphic and
+    picture cues use, deduplicated, in rundown order. With the switch off, or no scene, the payload
+    is exactly today's. The version stamp is unchanged by scenes: they are cue metadata, taken by
+    an output on the next publish it prepares, as cue metadata is today.
+  - R4. `/output?production=<slug>` with no `scene` parameter runs exactly today's code path.
+  - R5. `&scene=<id>` builds only the graphics the payload's scene `<id>` names, at boot and at
+    every publish the output takes. The stage keeps the production's resolution. An id that is
+    malformed, absent from the payload (unknown, deleted, switch off) or names no graphic builds
+    nothing; the page keeps running, reports itself, and builds the scene's graphics when a later
+    publish names them. It never falls back to the whole production.
+  - R6. Commands for a graphic outside the scope (not in the scene of the publish the link holds
+    now) are read past: they move the follow position and change nothing else, no
+    data, no air state, no report, no bank. A graphic that leaves the scene leaves the link at the
+    next publish the link takes, on air there or not, with no Out animation, and its commands are
+    read past from then on. This departs from per-graphic replacement G1 (a removed graphic waits
+    for its Out) on scene links only: a scene graphic is always on, so waiting would keep it in the
+    wrong scene.
+  - R7. A scene link reports, banks and recovers only the graphics it holds; its boot catch-up
+    starts from the oldest baseline among them. With no graphic in scope it follows from the log's
+    head, never from its start.
+  - R8. Readiness on a scene link counts its own graphics only, so a graphic outside the scene is
+    excluded, never missing. A link whose scene the payload does not know carries a `scene` issue
+    in READY, so every operator surface reads it not ready, never green. Its Presence entry adds
+    `scene`: the id, whether the payload knows it, and from OBS's browser source events whether it
+    is in preview or on program (unknown until the first event) and the OBS scene name it was last
+    on program in; `readLiveEntry` reads it back.
+  - R9. On a scene link every Take is drawn settled: no frame of an entrance is ever drawn. A
+    graphic with a state machine plays and is snapped to the pose that Take reached in the same
+    task, with its timers armed, so a clock, a loop or a rotation keeps running. A graphic without
+    one plays and has its finite running animations jumped to their end in the same task; endless
+    ones keep running. An imported OGraf package's Take asks it to skip its animation. A re-Take,
+    on air or after Out, is drawn the same way. Out, Next, events and updates are as today. On the
+    ordinary link a Take is as today.
+  - R11. A graphic that joins the scope on a publish joins off air with its first cue's values, as a
+    newly published graphic does; its next Take airs it there, settled, and a reload recovers it
+    from its report and the log. Joining on air is OS1b's ("adding a graphic to one takes it").
+  - R12. Until OS1b makes a pool copy per scene, one graphic in two scenes is built by both links
+    and shares one air state; this phase's fixtures and the placeholder production use a graphic
+    in one scene only.
+  - R10. With the switch off no scene control shows, no payload field is written and a scene link
+    builds nothing, so every existing playout, publish and output journey is unchanged. Turning the
+    switch off on a running production therefore empties every scene link at the next publish
+    (asked of the owner through the coordinator; this is the default until answered).
+- Rules found by the Rules-first `/so`, before code (it agreed with corrections): R6's removal at
+  the next publish, R7's empty scope, R8's `scene` issue and parsing, R11, R12, and R10's switch-off
+  consequence. Departure recorded: AC-4 asks for no entrance animation; the behaviour section's
+  "a change while the scene is not shown is applied without animation" is read as no entrance, so
+  Next, events and updates animate as their graphic does today.
+- Rules found after coding: the boot's hidden catch-up counts only rows in scope, so another
+  scene's Take never hides a scene link's graphics while it settles; the switch-off default was sent
+  to the owner through the coordinator as one question. From the `/check` review: a face the
+  production ships once, with a graphic of another scene, is still found by a scene link's styles;
+  OBS names the scene a source arrives in right after activating it and names the next scene before
+  deactivating it, so only a name within a second of an activation sets "last on program in"; a
+  settled Take of a graphic without a machine finishes repeats and jumps a looping timeline to the
+  end of its finite motion; copying a scene link marks the output as set up, as the plain link does.
+  From the final `/so`: a graphic outside the scope is never on air on the link (`onAirHere`), so it
+  holds no whole-page reload either (a publish that changes the stage size and moves an on-air
+  graphic out of the scope used to wait for an Out the link reads past). From the PR review: the
+  settled snap clears inline styles the data owns (a fitted size), so the values are restated after
+  it, as a restart's recovery does.
+  Not changed, with reasons: a design change to a scene graphic on air waits for its next Take (the
+  contract with the live-publishing run); an operator page built before this one reads an unknown
+  scene's READY as ready, for the life of that page only (deploy skew).
+- Previous verified `main`: `619ebc8358f212410bce16e6cd5ce6682b94d5a7` (CI run 43243087381).
+- Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed: an
+  `obsScene` flag or `obsScenes` switch left on a record by this build is ignored by the reverted one,
+  and a published `scenes` field is ignored by its outputs, so a scene link then builds the whole
+  production; take scene links out of OBS before reverting.
+- Decisions: the switch lives on the production record, not in `outputSetup`, so the published
+  `outputSetup` and every reader of it stay as they are. The scene id is the folder id. Scenes are cue
+  metadata outside the version stamp. A settled Take is `play()` then `noacgSnap` of the reached pose
+  in one task, the recovery path every graphic already supports, rather than a new entrance-less
+  animation path in the runtime. The unknown-scene state is a READY issue, so today's operator words
+  say "Not ready" without any OS3 surface. A copy of the scene link sits in the folder's menu, the
+  only way to get a link before OS3's settings section.
+- Traps: `__noacgLive.command` (the offline specs' door) reaches `applyCommand` only, never the report
+  path, so a check that a scene link writes no report for another scene's graphic needs log rows
+  (the spec's stood-in tail). A graphic's composed document only knows `settled` through the play
+  command; the editor monitors never send it.
+- Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS1a.md`.

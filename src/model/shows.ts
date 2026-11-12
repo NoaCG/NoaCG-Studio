@@ -176,6 +176,10 @@ export interface ShowFolder {
   slot?: { channel?: number; layer?: number };
   /** Its cues are hidden in the rundown. */
   collapsed?: boolean;
+  /** ADDITIVE OPTIONAL (docs/work-specs/obs-scenes/spec.md D1, OS1a R1): this folder is an OBS
+   *  scene, with its own output link `&scene=<folder id>`. Kept while the production's OBS scenes
+   *  switch (`Show.obsScenes`) is off, and read only while it is on. Absent = not a scene. */
+  obsScene?: true;
 }
 
 /** A fade's length as the operator picks it. Short is half a second and Long one second
@@ -453,6 +457,10 @@ export interface Show {
   /** The rundown's FOLDERS (ShowFolder). ADDITIVE OPTIONAL: an older build keeps the flat order and
    *  rewrites them untouched, and the published page, the export and a pack never carry them. */
   folders?: ShowFolder[];
+  /** THE OBS SCENES SWITCH (docs/work-specs/obs-scenes/spec.md D1, OS1a R2): folders may be OBS
+   *  scenes, and a publish carries them (control/hostedControl.ts `OutputPayload.scenes`).
+   *  ADDITIVE OPTIONAL: absent = off, and nothing about scenes shows or publishes. */
+  obsScenes?: true;
   /** The production's DATA TABLES (the Data workspace — docs/INTERACTIVE_PLAYOUT_PLAN.md D3).
    *  ADDITIVE OPTIONAL like cues; absent = none authored. */
   datasets?: ShowDataset[];
@@ -3010,6 +3018,27 @@ export function purgeOldShowTombstones(beforeIso: string): void {
   const all = loadAllShows();
   const kept = all.filter((s) => !s.deleted || s.updatedAt >= beforeIso);
   if (kept.length !== all.length) saveAll(kept);
+}
+
+/** The OBS scenes switch (OS1a R2). Turning it off keeps every folder's scene flag. */
+export function setShowObsScenes(showId: string, on: boolean): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    if (!!show.obsScenes === on) return false;
+    if (on) show.obsScenes = true;
+    else delete show.obsScenes;
+    return true;
+  });
+}
+
+/** Make a folder an OBS scene, or a plain folder again (OS1a R1). Its id is the scene id. */
+export function setFolderObsScene(showId: string, folderId: string, on: boolean): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const folder = folderOf(show, folderId);
+    if (!folder || !!folder.obsScene === on) return false;
+    if (on) folder.obsScene = true;
+    else delete folder.obsScene;
+    return true;
+  });
 }
 
 /** Display metadata only. Callers reporting success await commitDurableWrites. */

@@ -40,6 +40,7 @@ import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, SEQ_HEAD_EVENT, commandT
 import { allOutWaves, BURST_WINDOW_MS } from './allOut';
 import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, isRefusal, rpcFailure, seqRoadVerdict, sendWithResend, unansweredError, type SeqRoadAsker } from './failedSends';
 import { noteSend, withSender } from './livePath';
+import { obsScenesOf, SCENE_ID, type ObsScene } from '../model/obsScenes';
 import { graphicDigest, olderDesigns, readPayloadVersion, stampPayload, type PayloadVersion } from './payloadVersion';
 import { createSeqFollower, seqJoinRetryDelay, type HeadSummary, type SeqFrame, type SeqHead, type SeqTail } from './seqFollow';
 import { uuid } from '../model/id';
@@ -213,6 +214,11 @@ export interface OutputPayload {
   graphics: OutputGraphicSpec[];
   cues: OutputCue[];
   playoutCues?: OutputPlayoutCue[];
+  /** ADDITIVE OPTIONAL (docs/work-specs/obs-scenes/spec.md OS1a R3): the production's OBS scenes,
+   *  written only while its OBS scenes switch is on and a folder is a scene. A link with
+   *  `&scene=<id>` builds only the graphics its scene names (output/sceneScope.ts). Cue metadata:
+   *  the version stamp does not cover it. An output built before it ignores the field. */
+  scenes?: ObsScene[];
   /** THE VERSION THIS PAYLOAD IS (control/payloadVersion.ts; Phase 6 Step 3 R2): written by every
    *  publish from 2026-10 on. ADDITIVE OPTIONAL: a payload published before it has none, and is
    *  then never called behind. */
@@ -395,6 +401,7 @@ export function readOutputPayload(output: unknown): OutputPayload | null {
   const o = output as OutputPayload;
   if ((o.v !== 1 && o.v !== 2) || !Array.isArray(o.graphics)) return null;
   const ver = readPayloadVersion(o.ver);
+  const scenes = readScenes(o.scenes);
   return {
     v: o.v,
     ...(readOutputSetup(o.outputSetup) ? { outputSetup: readOutputSetup(o.outputSetup)! } : {}),
@@ -406,9 +413,21 @@ export function readOutputPayload(output: unknown): OutputPayload | null {
     // Carried through, not dropped: the hosted page lists these beside the graphics' cues.
     // Before 2026-09-23 this reader left them out and the list was never shown.
     ...(Array.isArray(o.playoutCues) && o.playoutCues.length ? { playoutCues: o.playoutCues } : {}),
+    ...(scenes ? { scenes } : {}),
     // The version stamp, when the publish wrote one (READY's guarantee 2).
     ...(ver ? { ver } : {}),
   };
+}
+
+/** A payload's scenes off the wire, or null when it carries none: each kept only when it is one. */
+function readScenes(value: unknown): ObsScene[] | null {
+  if (!Array.isArray(value)) return null;
+  const scenes = value.filter(
+    (s): s is ObsScene =>
+      !!s && typeof s === 'object' && typeof s.id === 'string' && SCENE_ID.test(s.id) && typeof s.name === 'string' &&
+      Array.isArray(s.graphics) && s.graphics.every((g: unknown) => typeof g === 'string'),
+  );
+  return scenes.length ? scenes.map((s) => ({ id: s.id, name: s.name, graphics: [...s.graphics] })) : null;
 }
 
 /** Serialize one template's assets for the JSON payload (Blob bytes become data URLs). */
@@ -529,7 +548,9 @@ export async function buildOutputPayload(
       };
     });
   const soundAssets = [...new Map(graphics.flatMap(g => g.assets.flatMap(a => a.audio ? [a.audio] : [])).map(a => [a.hash,a])).values()];
-  return { ...(show.outputSetup ? { outputSetup: show.outputSetup } : {}), ...(show.rundownColors ? { rundownColors: show.rundownColors } : {}), v: soundAssets.length ? 2 : 1, ...(soundAssets.length ? { soundAssets } : {}), resolution, graphics, cues, ...(playoutCues.length ? { playoutCues } : {}) };
+  // OBS scenes only while the switch is on and a folder is one (OS1a R3): otherwise today's payload.
+  const scenes = obsScenesOf(show);
+  return { ...(show.outputSetup ? { outputSetup: show.outputSetup } : {}), ...(show.rundownColors ? { rundownColors: show.rundownColors } : {}), v: soundAssets.length ? 2 : 1, ...(soundAssets.length ? { soundAssets } : {}), resolution, graphics, cues, ...(playoutCues.length ? { playoutCues } : {}), ...(scenes.length ? { scenes } : {}) };
 }
 
 /** Every capability a publish hands back. The audience pair is nullable on purpose: a server
