@@ -34,8 +34,22 @@
   "github": "cloud-queue-merge.yml dispatches stamp Reviewed (used for PRs 2416, 2417, 2429, 2442, 2444); auto-merge via the GitHub tools",
   "open": "wake delivery during a usage-limit stop"
  },
- "waitingOn": [],
- "inFlight": [],
+ "waitingOn": [
+  {
+   "what": "OS0 builder receipt and PR",
+   "eta": "2026-11-12T18:00:00Z"
+  }
+ ],
+ "inFlight": [
+  {
+   "phase": "OS0",
+   "step": "build",
+   "actor": "builder-os0-b-5518",
+   "session": "session_017SdbwM9GCeoSZfBjmLZ5Wj",
+   "branch": "claude/plan-obs-scenes-os0-build",
+   "launchedAt": "2026-11-12T14:05:30Z"
+  }
+ ],
  "owner": [
   {
    "what": "Laptop probe (today's output link in twelve OBS sources, dock sign-in)",
