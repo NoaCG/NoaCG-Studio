@@ -49,7 +49,7 @@
    "branch": "claude/plan-obs-scenes-os4-build",
    "launchedAt": "2026-11-12T17:39:49Z",
    "note": "sent brief = saved brief plus one NOTES line (keep wall-clock position through the scene-link settle)",
-   "lastSeen": "2026-11-12T18:11Z: running sponsor-rotation and holding-pack e2e; changed an existing expectation in e2e/holding-pack.spec.ts (1:49 to 1:50)",
+   "lastSeen": "2026-11-12T18:38Z: Codex clean on 0e4e0ef; waiting on CI run 43280752858",
    "checkerNote": "Check that every changed expectation in an existing spec (e2e/holding-pack.spec.ts clock 1:49 to 1:50) follows from an intended, spec-backed behaviour change and does not loosen the test."
   }
  ],
@@ -76,7 +76,7 @@
   {
    "id": "trig_01KqWGJ2QRHwSmWiL4uiePEU",
    "what": "plan-run check-in",
-   "at": "2026-11-12T18:43:00Z"
+   "at": "2026-11-12T19:15:00Z"
   },
   {
    "id": "trig_01TAFy1zGNczhpYNFeoozQLL",
