@@ -79,7 +79,7 @@ republishes its saved revision whole, back to back, so every output reads the co
 | Fixture | Nothing published p50 / p95 (ms) | Publishing in a loop p50 / p95 (ms) | p95 difference | Presses during a publish | Failures |
 |---|---|---|---|---|---|
 | Typical (50 + 50) | 72.6 / 113.8 | 96.7 / 131.4 | +17.6 | 49 of 50 | 0 |
-| Large (25 + 25, more pending) | 85.2 / 206.5 | 122.4 / 252.3 | +45.8 | 25 of 25 | 0 |
+| Large (50 + 50) | 96.9 / 206.5 | 121.7 / 252.3 | +45.8 | 50 of 50 | 0 |
 
 Press to sent is unchanged by publishing (p95 20 to 28 ms either way), so the page's own publish
 work is off the Take's path; the difference left is the output reading each new version.
