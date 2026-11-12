@@ -22,7 +22,7 @@
 // requests lose the mark on the wire) cannot save, sync or publish, still Takes, and, reopened as a
 // new page, its cue edit goes up while a design it pulled from the library is dropped. Its Node half
 // is scripts/copy-settle.test.mjs, scripts/production-copies.test.mjs, scripts/sync-copy-settle.test.mjs.
-// covers: supabase/migrations/0115_production_copies_guard.sql, src/backend/supabase.ts, src/backend/productionCopies.ts, src/backend/sync.ts, src/backend/syncController.ts, src/backend/teamProductions.ts
+// covers: supabase/migrations/0115_production_copies_guard.sql, src/backend/productionCopies.ts, src/backend/sync.ts, src/backend/syncController.ts, src/backend/teamProductions.ts
 // covers: src/model/copySettle.ts, src/model/library.ts, src/control/copyAdoption.ts, src/components/home/useCopyAdoption.ts, src/components/home/CueEditor.tsx
 // covers: src/control/payloadVersion.ts, src/control/hostedControl.ts, src/model/shows.ts, src/components/home/ProductionPage.tsx
 // covers: src/control/liveCue.ts, src/control/cueItems.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
