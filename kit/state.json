@@ -36,8 +36,8 @@
  },
  "waitingOn": [
   {
-   "what": "phase 4 W2 build PR (migration 0115) and receipt",
-   "eta": "2026-11-12T08:00:00Z"
+   "what": "owner answers Q1-Q3 for phase 4 build #2408",
+   "eta": "owner"
   }
  ],
  "inFlight": [
@@ -49,7 +49,7 @@
    "branch": "claude/plan-live-publishing-4-build",
    "launchedAt": "2026-11-12T00:02:29Z",
    "designPr": 2404,
-   "lastSeen": "2026-11-12T03:36Z build PR #2408 head aa58ff60; migration 0115 live-path (trigger on control_shows, inert until the production_copies switch); post-land db:push holds it until a quiet window; about 52 USD",
+   "lastSeen": "2026-11-12T05:00Z receipt 4-b-8d6e on #2408 head 046a7078; CI gate red: E2E 14/15 timeout (re-running) and capacity refuse (durations table stale, #2316 pending); R13 gateway preflight checked by coordinator: REST accepts the header, header sent on /rest/v1 only",
    "designMerge": "eee7827892b1936c00acc263655cf6a6e753e4be",
    "buildPr": 2408
   }
@@ -107,6 +107,10 @@
   "checkerCostUSD": 1.9
  },
  "ownerQuestions": [
+  {
+   "what": "Q1 capacity refuse: land #2316 (A) or owner budget exception (B); Q2 add doors replace without dropped-field question: keep (A) or add in phase 4 (B); Q3 community pack not settled: leave (A) or settle on submit (B)",
+   "state": "asked 2026-11-12T05:1xZ on #2361 and in chat"
+  },
   {
    "what": "AC-4: Take during a publish 100-200 ms slower at p95 unthrottled (phase 2 receipt). Ask before phase 6.",
    "state": "pending, before phase 6"
