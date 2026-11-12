@@ -48,6 +48,15 @@ function bugStatusStandby() { setBugStatus('${ids.standby}', 'standby'); }`;
  * EMPTY SLOTS ARE SKIPPED. A sponsor bug is usually filled in one at a time, and rotating
  * onto an unfilled slot would blank the strip for a beat. Until any file is picked, the
  * rotation runs over all slots so the design still demonstrates itself in the editor.
+ *
+ * THE CYCLE IS THE WALL CLOCK (docs/work-specs/obs-scenes/spec.md, OS4 R1-R6). Cycle k of the
+ * machine's own length (hold plus crossfade, at the motion speed) shows slot k, so every copy of
+ * the graphic shows the same partner at the same moment, however late it was loaded. The machine
+ * is unchanged: while its rotation timer is ARMED (on air, entrance done, not held, not parked)
+ * the runtime owns the timing - it swaps that timer for its own wait and, at a cycle boundary,
+ * makes the timer's own transition, so the crossfade's midpoint lands on the boundary. A Take or
+ * a reload keeps its logo until the next boundary (no extra change); a page throttled while
+ * hidden rejoins on its first read.
  */
 export const SPONSOR_ROTATION_JS = `// ── Sponsor rotation ────────────────────────────────────────────────────────
 // The slots that actually carry a logo, in document order. setFieldValue puts .has-image on
@@ -64,6 +73,8 @@ function sponsorSlots() {
 }
 
 var sponsorIndex = 0;              // which slot is on screen
+var sponsorCycle = null;           // the wall-clock cycle the live rotation is in
+var sponsorBeatFor = null;         // the cycle a crossfade the runtime started is bringing in
 
 // Show exactly one slot. The index wraps, so the rotation is endless by construction.
 function sponsorShow(index) {
@@ -75,13 +86,86 @@ function sponsorShow(index) {
   slots[sponsorIndex].classList.add('is-showing');
 }
 
-// The machine's beat: advance one sponsor. Called at the midpoint of the crossfade.
+// The cycle's length and the crossfade's midpoint, in ms: the machine's own hold (its rotating
+// state's timer) plus its crossfade, at the motion speed, read from the machine so an edited hold
+// is the cycle every copy agrees on. 6 s + 0.5 s when there is no machine to read.
+var sponsorTimingCache = null;     // the machine and its speed never change in a page: read once
+function sponsorTiming() {
+  if (sponsorTimingCache) return sponsorTimingCache;
+  var hold = 6, beat = 0.5;
+  try {
+    var group = noacgMachine.groups[0];
+    for (var i = 0; i < group.states.length; i++) {
+      if (group.states[i].id === 'advance' && group.states[i].timeline) beat = group.states[i].timeline.duration;
+    }
+    for (var j = 0; j < group.transitions.length; j++) {
+      var t = group.transitions[j];
+      if (t.from === 'advance' && t.trigger === 'timer') hold = t.after;
+    }
+  } catch (e) {}
+  var speed = (typeof motionSpeed === 'function' ? motionSpeed() : 1) || 1;
+  sponsorTimingCache = { period: Math.max(0.5, hold + beat) * 1000 / speed, mid: beat * 500 / speed };
+  return sponsorTimingCache;
+}
+
+// The machine's beat, at the midpoint of the crossfade. A crossfade the runtime started shows the
+// wall clock's partner: its cycle's, or a later one's when the crossfade stalled across boundaries
+// (drawing stopped in a hidden page while reads went on). Any other crossfade (Next sponsor,
+// Resume, a snap into it) advances one, as it always did, and the next boundary rejoins the wall.
 function sponsorShowNext() {
-  sponsorShow(sponsorIndex + 1);
+  if (sponsorBeatFor !== null) {
+    sponsorShow(Math.max(sponsorBeatFor, Math.floor(Date.now() / sponsorTiming().period)));
+    sponsorBeatFor = null;
+  } else {
+    sponsorShow(sponsorIndex + 1);
+  }
+}
+
+// Five times a second. Only while the rotation's group has
+// a timer armed - on air, entrance done, not held, not parked - and then the wall clock owns the
+// beat: the machine's own timer (armed at whatever phase the Take had) is swapped for a wait that
+// only this read ends, and a new cycle at the next crossfade's midpoint fires the timer's
+// transition now. A late or throttled timer therefore never sets the beat.
+function sponsorFollowWallClock() {
+  if (typeof noacgTimers === 'undefined' || typeof noacgMachine === 'undefined' || typeof noacgDispatch !== 'function') return;
+  var group = noacgMachine.groups[0];
+  if (!group) return;
+  var armed = noacgTimers[group.id];
+  if (!armed) {
+    if (noacgCurrent[group.id] !== 'advance') sponsorBeatFor = null;   // no crossfade of ours in flight
+    return;
+  }
+  var timing = sponsorTiming();
+  var cycle = Math.floor((Date.now() + timing.mid) / timing.period);
+  if (!armed.noacgSponsorWait) {
+    // Joining (a Take's entrance ended, a snap, a crossfade ended): this cycle is the one on screen.
+    // The stand-in never fires by itself; anything that cancels timers (a transition, Hold, Out, a
+    // snap) kills it like the timer it replaces, which is what ends "live".
+    armed.kill();
+    noacgTimers[group.id] = { noacgSponsorWait: true, kill: function () {} };
+    // The cycle ON SCREEN, not the one the next crossfade would open: a join in the last moment
+    // before a boundary must still fire that boundary's change.
+    sponsorCycle = Math.floor(Date.now() / timing.period);
+    return;
+  }
+  if (cycle === sponsorCycle) return;
+  sponsorCycle = cycle;
+  var slots = sponsorSlots();
+  // Compared by element, not index: a logo picked on air reorders the filled slots.
+  if (slots.length === 0 || slots[((cycle % slots.length) + slots.length) % slots.length].classList.contains('is-showing')) return;
+  armed.kill();
+  noacgTimers[group.id] = null;
+  sponsorBeatFor = cycle;
+  if (!noacgDispatch({ timerGroup: group.id, from: noacgCurrent[group.id] })) sponsorBeatFor = null;
 }
 
 // Show the first sponsor as soon as the DOM exists (template.js loads in <head> in exports).
-function startSponsorRotation() { sponsorShow(0); }
+function startSponsorRotation() {
+  sponsorShow(0);
+  // No document listener: in an OGraf renderer the document is the host page's. A page that was
+  // hidden runs this read again within 200 ms of running at all.
+  setInterval(sponsorFollowWallClock, 200);
+}
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', startSponsorRotation);
 } else {
