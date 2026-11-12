@@ -785,6 +785,8 @@ test('w3', async ({ page, browser }) => {
   const outputsWanted = Number(process.env.MEASURE_OUTPUTS ?? 2);
   const feedMs = Number(process.env.MEASURE_FEED_MS ?? 200);
   await seedSettings(page);
+  // The fixture's server cue turns CasparCG on: without a Bridge the light is rightly red.
+  await fakeBridge(page);
   await opPage(page);
   const fx = await buildFixture(page, FIXTURE);
   const plainLabels = await page.evaluate(async ({ id, cues }) => {
