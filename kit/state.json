@@ -36,21 +36,19 @@
  },
  "waitingOn": [
   {
-   "what": "OS4 checker verdict",
-   "eta": "2026-11-12T21:00:00Z"
+   "what": "OS5a builder receipt and PR",
+   "eta": "2026-11-13T10:00:00Z"
   }
  ],
  "inFlight": [
   {
-   "phase": "OS4",
-   "step": "check",
-   "actor": "checker-os4-os4-c-7490",
-   "session": "session_017SdbwR1AAdGNLgRVEZDTgn",
-   "mergeSha": "e9e17837c3dc432426dffa4dcf437857c88841b5",
-   "pr": 2457,
-   "launchedAt": "2026-11-12T19:02:52Z",
-   "builderSession": "session_017SdbwNvUKVgfD923SNTiuD",
-   "note": "sent brief = saved brief plus the changed-expectations note"
+   "phase": "OS5a",
+   "step": "build",
+   "actor": "builder-os5a-os5a-b-cd39",
+   "session": "session_017SdbwRMbipJ5otJ19cMy17",
+   "branch": "claude/plan-obs-scenes-os5a-build",
+   "launchedAt": "2026-11-12T19:24:51Z",
+   "note": "sent brief = saved brief plus one NOTES line (keep the reader generic for OS5b)"
   }
  ],
  "owner": [
@@ -98,7 +96,8 @@
  "heartbeatComment": 6825771186,
  "passed": [
   "OS0 (merge 619ebc8358f212410bce16e6cd5ce6682b94d5a7, PR 2448)",
-  "OS1a (merge e394954becdbb292c914b3d20339418c9f9172c2, PR 2452)"
+  "OS1a (merge e394954becdbb292c914b3d20339418c9f9172c2, PR 2452)",
+  "OS4 (merge e9e17837c3dc432426dffa4dcf437857c88841b5, PR 2457)"
  ],
  "decisions": [
   "2026-11-12 owner: switch off asks for confirmation when scene links are loaded (#2454).",
