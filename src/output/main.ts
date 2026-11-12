@@ -1420,13 +1420,12 @@ async function boot(): Promise<void> {
       break;
     }
   }
-  // A GRAPHIC ON AIR THAT NO REPORT BANKS, AIRING TYPED DATA (issue #1762; control/outputRecovery.ts
-  // `unreportedTypedRows`): its typed Take can be older than `followFrom`, so the log below it is
+  // A GRAPHIC ON AIR THAT NO REPORT BANKS (issue #1762, widened by G2 section 4 to every such
+  // graphic; control/outputRecovery.ts `unreportedRows`): its Take can be older than `followFrom`, so the log below it is
   // read for that graphic alone, every page up to `followFrom` within the catch-up's ceiling
   // (`unreportedPages`; past it, none: dbg says so), and its commands
   // there replay before the rows above. Only the numbered log's head says what is on air, and a
-  // graphic every report banks, one that is not on air, or one whose live cue is a published native
-  // cue (`mayAirTyped`: a typed cue is never published) reads nothing more. A page that cannot be
+  // graphic every report banks, or one that is not on air, reads nothing more. A page that cannot be
   // read leaves the whole read out: half a history could replay an envelope a later Take replaced.
   const unreported = stage.graphics.filter(
     // Typed or not (G2 section 4): a Take no output ran, then a reload, brings back its values.
