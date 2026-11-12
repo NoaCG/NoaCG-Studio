@@ -6,6 +6,8 @@
 
 import { useEffect, useRef } from 'react';
 import { readCopiesState } from '../../backend/productionCopies';
+import { settleProductionForSend } from '../../backend/syncController';
+import { flushTeamProduction } from '../../backend/teamProductions';
 import { copyDigest, readPublishedStamp } from '../../control/hostedControl';
 import { adoptionPlan, owesAdoption } from '../../control/copyAdoption';
 import { commitDurableWrites } from '../../model/durableStore';
@@ -23,6 +25,13 @@ export function useCopyAdoption(show: Show | null, canWrite: boolean, setShows: 
     void (async () => {
       const state = await readCopiesState();
       if (!alive || !state?.on) return;
+      // Settled first (designs/G1.md section 5 lists the server's copy as a candidate): a design an
+      // older page pulled into this device's record must be dropped before adoption stamps
+      // anything, or adoption would keep and stamp it. A team record settles through its save; a
+      // personal one against the cloud's record. Unreadable, adoption waits for the next visit.
+      const before = loadShows().find((s) => s.id === id);
+      const unsettled = before?.teamId ? await flushTeamProduction(id) : await settleProductionForSend(id);
+      if (!alive || unsettled) return;
       const current = loadShows().find((s) => s.id === id);
       if (!current || !owesAdoption(current.graphics)) return;
       const stamp = current.hostedSlug ? await readPublishedStamp(id) : null;

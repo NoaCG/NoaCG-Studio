@@ -644,8 +644,10 @@ test('the doors: graphic default, cue exception, promotion in one write, reset, 
     // Re-adding the graphic by name keeps its record, as it keeps its layer.
     shows.addGraphicToShow(show.id, { ...template, html: '<div>new</div>' });
     assert.deepEqual(read().graphics[0].adjust, { v: 1, place: 'br', anchor: 'bl' });
-    // Publish's refresh replaces the template and keeps the record.
-    shows.refreshGraphicCopies(show.id, () => ({ template: { ...template, html: '<div>pub</div>' }, updatedAt: '2099-01-01T00:00:00.000Z' }));
+    // Update replaces the design and keeps the record (live-publishing W2: a publish no longer
+    // refreshes copies from the library; Update is how a newer design comes in).
+    shows.updateCopyFromLibrary(show.id, read().graphics[0].id, { template: { ...template, html: '<div>pub</div>' }, updatedAt: '2099-01-01T00:00:00.000Z' }, read().graphics[0].savedAt);
+    assert.equal(read().graphics[0].template.html, '<div>pub</div>');
     assert.deepEqual(read().graphics[0].adjust, { v: 1, place: 'br', anchor: 'bl' });
     // A duplicate carries every record.
     shows.setCueAdjust(show.id, c1.id, { y: -20 });
