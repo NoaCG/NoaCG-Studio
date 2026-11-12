@@ -1911,10 +1911,19 @@
       "capacity": "ActualplanSUCCESS,costREPAY:offline91%,backend94%,graphics93%,overhead87%table butmain-onlynightly6/daychargedfromfrozenPR_BASE7e306reaches122%; unchangedcurrentmainland2cost-onlypassingpolicy/attribution2450. Newest43201149088partial judged43014542120complete;nofreshevidenceclaim/limitexceptionedit. RootACKcapacityprerequisiteforfreshFULLSO.",
       "isolated": 43270504790,
       "isolatedJob": 131365470309,
-      "isolatedStatus": "Exact2767firstattemptrunning",
+      "isolatedStatus": "TerminalSUCCESSfirstattempt17:35:32Z. Rootcompletejoblog71740bytesfetched:1PASS33.3s;strictwrapperzero skips/retries/accountdeleted;teardown0containers/volumes/networks/process/heldports/TIME_WAIT;claim/reservationreleased. RawJSONnotdirectlyingressed; no assertion of downloadablebyteinspection.",
       "codexRequest": 6831033423,
       "codexRequestAt": "2026-11-12T17:32:01Z",
-      "codexStatus": "Onecompletedrequestpendingresult,no duplicate."
+      "codexStatus": "One request submitted; actualresultpending, no duplicate.",
+      "capacityExecution": "Actual198.6/213.0tableminutes93.2%;+0.8estimatedminutes(editor-projects+.42andMAIN-onlyoutput-scene-link+.42 throughfrozenoldPR_BASE), notprior198.2.",
+      "isolatedArtifact": {
+        "id": 13968691503,
+        "name": "endurance-43270504790",
+        "bytes": 339125,
+        "sha256": "baa6629ad1f1a9a3271db966d2e364ca58b121d2d341616955e1afee9488fd66"
+      },
+      "fullSo": "FreshFULL50pathfork-none e4_final_so_2767a30cb started afteractualcapacity; alloriginalB/failures/rules+currentbackend/exportproof provided; inheritedsettings, no edits/tests/delegation allowed; resultpending.",
+      "reviewedStatus": "Rootfetchedactualwholemissingstamp-onlyjob131364767458:149s29polls; no revive/stamp beforeallothergates."
     }
   },
   "coordinatorTools": {
