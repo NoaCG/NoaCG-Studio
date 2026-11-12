@@ -121,7 +121,7 @@ function sponsorShowNext() {
   }
 }
 
-// Five times a second, and when the page comes back into view. Only while the rotation's group has
+// Five times a second. Only while the rotation's group has
 // a timer armed - on air, entrance done, not held, not parked - and then the wall clock owns the
 // beat: the machine's own timer (armed at whatever phase the Take had) is swapped for a wait that
 // only this read ends, and a new cycle at the next crossfade's midpoint fires the timer's
@@ -143,7 +143,9 @@ function sponsorFollowWallClock() {
     // snap) kills it like the timer it replaces, which is what ends "live".
     armed.kill();
     noacgTimers[group.id] = { noacgSponsorWait: true, kill: function () {} };
-    sponsorCycle = cycle;
+    // The cycle ON SCREEN, not the one the next crossfade would open: a join in the last moment
+    // before a boundary must still fire that boundary's change.
+    sponsorCycle = Math.floor(Date.now() / timing.period);
     return;
   }
   if (cycle === sponsorCycle) return;
@@ -160,8 +162,9 @@ function sponsorFollowWallClock() {
 // Show the first sponsor as soon as the DOM exists (template.js loads in <head> in exports).
 function startSponsorRotation() {
   sponsorShow(0);
+  // No document listener: in an OGraf renderer the document is the host page's. A page that was
+  // hidden runs this read again within 200 ms of running at all.
   setInterval(sponsorFollowWallClock, 200);
-  document.addEventListener('visibilitychange', sponsorFollowWallClock);
 }
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', startSponsorRotation);

@@ -103,6 +103,13 @@ const PLAY_AND_STOP = async ({ id, repeatsMs, onAirMs, exitMs, savedBeforeFix })
       return opacityOf(el) > 0.01;
     }).map(label);
   };
+  // A sponsor rotation shows the wall clock's partner (docs/work-specs/obs-scenes/spec.md, OS4), so
+  // which slot shows a Take later is a different partner by design; everything around the slots
+  // is still held to the first Take.
+  const besidePartner = (w) => {
+    const all = elements(w);
+    return pose(w).filter((_, i) => !all[i].closest('.corner-bug-media'));
+  };
   const rootOpacity = (w) => {
     const sel = w.NOACG_ANIM && w.NOACG_ANIM.root;
     const el = sel && w.document.querySelector(sel);
@@ -114,7 +121,7 @@ const PLAY_AND_STOP = async ({ id, repeatsMs, onAirMs, exitMs, savedBeforeFix })
     w.play();
     w.__advance(onAirMs);
     // The on-air reading is the single Stop's; a repeat only needs where it ends.
-    const before = repeatMs === null ? { onAir: pose(w), seenOnAir: visible(w) } : {};
+    const before = repeatMs === null ? { onAir: pose(w), seenOnAir: visible(w), onAirBesidePartner: besidePartner(w) } : {};
     w.stop();
     w.__advance(repeatMs ?? 0);
     if (repeatMs !== null) w.stop();
@@ -124,7 +131,7 @@ const PLAY_AND_STOP = async ({ id, repeatsMs, onAirMs, exitMs, savedBeforeFix })
     // Taken again in the same loaded document, the way CasparCG, SPX and OGraf hosts call it.
     w.play();
     w.__advance(onAirMs);
-    return { ...ended, again: pose(w) };
+    return { ...ended, again: pose(w), againBesidePartner: besidePartner(w) };
   };
 
   const single = await session(null);
@@ -134,7 +141,8 @@ const PLAY_AND_STOP = async ({ id, repeatsMs, onAirMs, exitMs, savedBeforeFix })
   // A rotating ticker takes its rotation up at the next story on a new Take (tickerIndex is data,
   // never a state), so its picture a moment into the second Take is a different story by design.
   const rotates = /var TICKER_ROTATE = true;/.test(template.js);
-  return { id, single, repeats, unguarded, rotates };
+  const followsWallClock = /function sponsorFollowWallClock\(/.test(template.js);
+  return { id, single, repeats, unguarded, rotates, followsWallClock };
 };
 
 /** A graphic no catalog design is like: its Out fades a panel the entrance never animates, and
@@ -224,7 +232,9 @@ test('a second Stop, in the same instant or during the exit, ends where a single
 test('a Take after the Out looks as the first Take did (#1795)', () => {
   const differ = [];
   for (const r of results.filter((x) => !x.rotates)) {
-    const diff = firstDifference(r.single.onAir, r.single.again);
+    const diff = r.followsWallClock
+      ? firstDifference(r.single.onAirBesidePartner, r.single.againBesidePartner)
+      : firstDifference(r.single.onAir, r.single.again);
     if (diff) differ.push(`${r.id}: ${diff}`);
   }
   assert.deepEqual(differ, [], `${differ.length} design(s) came back different after Out and Take:\n${differ.join('\n')}`);

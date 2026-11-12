@@ -537,7 +537,7 @@ Filled in by each phase's pull request.
   - R3. The rotation is live exactly while the machine's rotation group has a timer armed: after a
     Take's entrance has finished, after a snap with timers (a reload's recovery, a scene link's
     settled Take), and after Resume's crossfade. While live, the runtime owns the timing: it reads
-    the wall clock five times a second and when the page becomes visible, replaces the machine's
+    the wall clock five times a second, replaces the machine's
     armed timer at once with its own wait, and when the next crossfade's midpoint would fall in a
     new cycle it makes that timer's own transition (the crossfade) at once, so the swap lands on
     the cycle boundary within one read. A machine timer that would fire early or late, or a page
@@ -564,7 +564,8 @@ Filled in by each phase's pull request.
   - R9. Every start and every tick derives the time left from the deadline, so a reload, a snap
     and a page throttled while hidden show the right time on their next tick. An Update that
     keeps the same deadline leaves the count alone; a new deadline re-arms it (today's
-    signature rule), also once it has held at 0:00 on air.
+    signature rule), also once it has held at 0:00 on air (a finished duration or `HH:MM` count
+    given a deadline counts to it too).
   - R10. An invalid value (neither `HH:MM` nor a whole deadline with an offset, or an impossible
     date such as the 31st of November) is treated as an empty field: the duration counts. That
     is the template's empty state, as a typo is today.
@@ -600,7 +601,13 @@ Filled in by each phase's pull request.
   interpreter's timer table rather than a new wall-aligned timer edge in the shared interpreter,
   because that would change every template's interpreter and the frozen copies in saved ones; it
   only acts while a machine timer is armed, so GSAP's callback suppression (a scrub, a settle, a
-  parked snap) still keeps it idle.
+  parked snap) still keeps it idle. From the final `/so` (grade B, one defect): a join records the cycle on screen,
+  not the one the next crossfade would open, so a join in the last 250 ms before a boundary still
+  makes that boundary's change. From CI: no `visibilitychange` listener (in an OGraf renderer the
+  document is the host's; the 200 ms read resumes as soon as the page runs), and the factory's
+  "a Take after the Out looks as the first Take did" check holds a rotation to its first Take on
+  everything except its partner slots, which follow the wall clock by design (the same reason it
+  already exempts the rotating ticker).
 - Previous verified `main`: `b9f3660e28c5cc339dbfb82d4415ebb492ac2cef` (CI run 43268862367, the
   configured suite 43268862377).
 - Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted changes: the

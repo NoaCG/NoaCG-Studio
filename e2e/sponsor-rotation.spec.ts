@@ -1,5 +1,5 @@
-// covers: src/templates/cornerBug/bugRuntimes.ts, src/templates/cornerBug/{bug21,bug22,bug23,bug24}.ts
-// covers: src/templates/types/identityBugs.ts
+// It imports the catalog, so any template change selects it.
+// covers: src/templates/**
 //
 // THE SPONSOR ROTATION FOLLOWS THE WALL CLOCK (docs/work-specs/obs-scenes/spec.md, AC-7 and the
 // OS4 rules R1-R6). Every copy of a rotating sponsor bug shows the same partner at the same moment:
@@ -111,11 +111,10 @@ test('a page throttled for a minute, and a reloaded one, rejoin the cycle within
   await page.clock.runFor(1500);
   await toMidCycle(page);
 
-  // Hidden and throttled: a minute of wall time with no timer and no frame run, then visible.
+  // Hidden and throttled: a minute of wall time with no timer and no frame run, then it runs again.
   const { period, now } = await wall(page, 'a');
   const later = now + 60_000;
   await page.clock.setSystemTime(later - (later % period) + period / 2);
-  await call(page, 'a', 'w.document.dispatchEvent(new w.Event("visibilitychange"));');
   await page.clock.runFor(700);
   expect(await showing(page, 'a'), 'joined at its first read').toBe((await wall(page, 'a')).slot);
   // Its own timer, armed before the jump, is never trusted: the copy stays on the wall clock.
@@ -135,7 +134,14 @@ test('a page throttled for a minute, and a reloaded one, rejoin the cycle within
 
   // A reload recovers by snapping on air with timers (docs/CLOUD_PLAYOUT.md section 3), as a scene
   // link's settled Take does.
+  // Snapped 240 ms before a boundary, so it joins inside the crossfade's lead: it must still make
+  // that boundary's change, not skip a cycle. The boundary is one whose partner is not the slot a
+  // fresh copy shows (0), so a skipped change is visible.
   await boot(page, 'a2');
+  const at = await wall(page, 'a');
+  let next = Math.floor(at.now / at.period) + 2;
+  while (next % 3 === 0) next++;
+  await page.clock.runFor(Math.round(next * at.period - 240 - at.now));
   await call(page, 'a2', 'const g = w.noacgMachine.groups[0]; w.noacgSnap({ [g.id]: g.defaultPath[0] }, { timers: true });');
   for (let i = 0; i < 2; i++) {
     const slot = await toMidCycle(page);
