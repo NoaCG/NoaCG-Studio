@@ -730,8 +730,9 @@ function CueConnectReview({
                   checked={noacgEvery !== null}
                   onChange={(e) => {
                     setReadEvery({ for: id, ms: e.target.checked ? (storedEvery ?? JSON_DEFAULT_EVERY_MS) : null });
-                    // The picks were made against the bracket's shape, which goes with Read by NoaCG (B2).
-                    if (bracket) setChoices({});
+                    // The bracket's shape comes and goes with Read by NoaCG (B2): picks made against
+                    // one shape never carry over to the other.
+                    if (bracket || storedAdapter || bracketSetting?.adapter) setChoices({});
                   }}
                   data-testid="cue-connect-read-on"
                 />{' '}

@@ -1,4 +1,4 @@
-// THE BRACKET ADAPTER (docs/work-specs/obs-scenes/spec.md, OS5b; AC-10, rules B1 to B15 in its
+// THE BRACKET ADAPTER (docs/work-specs/obs-scenes/spec.md, OS5b; AC-10, rules B1 to B16 in its
 // phase notes). A pure module: a JSON source NoaCG reads may name it in `config.adapter`, and each
 // read's payload is turned into one bracket shape before the shared evaluator sees it
 // (./jsonSource.ts `projectJson`, OS5a's `project` hook, R11).
@@ -388,7 +388,8 @@ export function adaptBracket(
   if (current && f.match) {
     const r = resolveCurrent(current.pick, current.memory, (id) => {
       const at = byId.get(id);
-      return at && !('kept' in at.match) ? { match: at.match, round: at.round.name } : null;
+      if (!at) return null;
+      return 'kept' in at.match ? { kept: true as const } : { match: at.match, round: at.round.name };
     });
     resolved = { memory: r.memory, held: r.held };
     if (r.current) output.current = r.current;
@@ -406,15 +407,17 @@ export function adaptBracket(
 export function resolveCurrent(
   pick: string | null,
   memory: CurrentMemory | null,
-  find: (id: string) => { match: BracketMatch; round: string } | null,
+  /** `kept`: two rows disagree about it (B7). */
+  find: (id: string) => { match: BracketMatch; round: string } | { kept: true } | null,
 ): { current: { [key: string]: JsonValue } | null; memory: CurrentMemory; held: string | null } {
   // No pick: the memory forgets the match but stays, so a later pick is fresh and never compared
   // with what the fields showed before it (B12).
   if (pick === null) return { current: null, memory: { matchId: '', a: null, b: null }, held: null };
   const found = find(pick);
   const fresh = memory === null || memory.matchId !== pick;
-  if (!found) {
-    return { current: { held: true }, memory: fresh ? { matchId: pick, a: null, b: null } : memory, held: `match ${pick} is not in the feed` };
+  if (!found || 'kept' in found) {
+    const why = found ? `match ${pick} is given twice with other values` : `match ${pick} is not in the feed`;
+    return { current: { held: true }, memory: fresh ? { matchId: pick, a: null, b: null } : memory, held: why };
   }
   const { match, round } = found;
   if (!fresh) {

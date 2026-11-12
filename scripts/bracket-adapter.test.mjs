@@ -401,3 +401,11 @@ test('a pick taken on this page is new at its next read, so None then the held m
   assert.equal(picked.writes[`${PREFIX}.current.b.name`], 'Elm');
   assert.equal(picked.writes[`${PREFIX}.current.held`], 'false');
 });
+
+test('a current match two rows disagree about is held, and the line says why', () => {
+  const rows = ROWS();
+  const clash = asList([...rows, { ...rows[2], home: side('Aster', 'X', 1, 9) }]);
+  const p = projectJson({ sourceId: 'b1', payload: clash, bindings: BINDINGS, fieldsOf: (g) => FIELD_LIST[g] ?? null, registration, current: { pick: 'm3', previous: {} } });
+  assert.equal(p.writes[`${PREFIX}.current.held`], 'true');
+  assert.ok(p.problems.includes('the current match is held: match m3 is given twice with other values, so it keeps its values'));
+});

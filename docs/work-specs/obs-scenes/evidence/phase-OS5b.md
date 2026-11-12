@@ -1,6 +1,6 @@
 # OS5b: Bracket adapter and current match, evidence
 
-Acceptance AC-10 (`docs/work-specs/obs-scenes/spec.md`). Rules B1 to B15, with the Rules-first `/so`
+Acceptance AC-10 (`docs/work-specs/obs-scenes/spec.md`). Rules B1 to B16, with the Rules-first `/so`
 amendments, are in the spec's phase notes. Every fixture is synthetic. No OBS hardware is involved.
 
 ## Per clause
@@ -18,7 +18,7 @@ amendments, are in the spec's phase notes. Every fixture is synthetic. No OBS ha
 
 ## Local runs
 
-- `node --test`: bracket-adapter 12, json-source 15, data-tick 15, sheet-source 44, source-mapping 66,
+- `node --test`: bracket-adapter 16, json-source 15, data-tick 15, sheet-source 44, source-mapping 66,
   connector-review 27, external-data-connector 64, feed-source 10, file-source 16,
   show-fixture-compat 16, json-fetch 13: all pass.
 - `npm run gates -- run --changed origin/main`: every gate ok, 336 tests, 0 failed.
