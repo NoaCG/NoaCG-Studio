@@ -36,14 +36,14 @@
  },
  "waitingOn": [
   {
-   "what": "phase 5 repair against the corrected model, fresh full /so, receipt",
-   "eta": "2026-11-13T00:00:00Z"
+   "what": "phase 5 checker verdict",
+   "eta": "2026-11-12T22:00:00Z"
   }
  ],
  "inFlight": {
   "phase": 5,
-  "step": "build: builder session_017SdbwMx1ooTEVQrtu6Losx fixing Codex P2s on aad310c9 (main.ts:560 hold release after swap; main.ts:1157 supersession ids), then delta /so and CI; nonce 5-b-a333",
-  "asOf": "2026-11-12T18:51Z"
+  "step": "check: checker session_017SdbwMJRci189DWkHMeVwL nonce 5-c-b19d on merge 1938f262",
+  "asOf": "2026-11-12T19:14Z"
  },
  "owner": [
   {
@@ -105,11 +105,11 @@
  "ownerQuestions": [
   {
    "what": "AC-4: Take during a publish 100-200 ms slower at p95 unthrottled (phase 2 receipt). Ask before phase 6.",
-   "state": "pending, before phase 6"
+   "state": "answered 2026-11-12: A"
   },
   {
    "what": "D1: 5 s ceiling vs 30-33 s large-fixture update over 20 Mbit/s (phase 2 receipt). Ask before phase 6/7.",
-   "state": "pending, before phase 6"
+   "state": "answered 2026-11-12: A"
   }
  ],
  "ownerDecisions": [
@@ -142,7 +142,9 @@
    "question": "Phase 5 D1: a boot frame or package not loaded after 20 s: (A) report failed load in red but keep its queued commands, run hidden when it loads; (B) drop the queued history. D2: a single stage failure on a running graphic: (A) red until the next Take or Out of that graphic, All out or deletion, later commands still run; (B) clears on the next command of any kind.",
    "answer": "A A",
    "meaning": "D1: failed load reported red at 20 s, queued commands kept and run hidden on load, held Take still gives up at 20 s. D2: a stage failure stays red until the next Take or Out of that graphic, All out or deletion; later commands still run."
-  }
+  },
+  "AC-4 A (2026-11-12): keep 50 ms p95 during a publish; G3 must take the publish work off the Take path; judged on a production build.",
+  "D1 A (2026-11-12): keep 5 s ceiling; phase 6 starts the output preparing at once; ceiling judged at end of phase 7 once only changed graphics are sent."
  ],
  "phase2": {
   "builderCostUSD": "about 50",
@@ -189,7 +191,11 @@
  "phase5": {
   "followups": [
    "ProductionPage.tsx confirmation-lifetime glue (Codex P1 at 90bf214d), recorded on #2361 comment 6832121182"
-  ]
+  ],
+  "landed": "1938f262dc6060c225832756b6da91af5f6838bc (PR 2443)",
+  "design": "12173c3f (PR 2426)",
+  "builder": "session_017SdbwMx1ooTEVQrtu6Losx",
+  "checker": "session_017SdbwMJRci189DWkHMeVwL"
  },
  "block": {
   "epoch": 3,
