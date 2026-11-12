@@ -21,7 +21,7 @@
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
-import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
+import { bootstrapGraphic } from '../_create';
 import { clearPublishedShows, haveCreds, readyOf, signIn, wipeMyGraphics, unpublishForCleanup, type ReadyWindow } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
@@ -45,19 +45,28 @@ test('the readiness run publishes what changed, checks every output and ends in 
   // name match below ambiguous, and the AC-5 step would fail for a reason that is not the product.
   await wipeMyGraphics(page);
   await bootstrapGraphic(page, { name: 'House Scorebug' });
-  // In the LIBRARY too, as a graphic saved and added from Home is: a publish then reads its design
-  // from the library record (by its name, `resolveSavedGraphicDoc`), which the AC-5 step edits.
-  expect(
-    await page.evaluate(async () => {
-      const { createGraphic } = await import('/src/model/library.ts');
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-      const { template } = useTemplateStore.getState();
-      const { error } = createGraphic(template, { name: template.name });
-      return error ?? (await commitDurableWrites());
-    }),
-  ).toBeFalsy();
-  const showId = await openProductionWithCurrent(page, `Prepare ${Date.now()}`);
+  // In the LIBRARY too, and added from its record, as a graphic saved and added from Home is: the
+  // production's copy links to it, so the AC-5 step's library edit is offered as Update
+  // (live-publishing W2: the copy is the only truth).
+  const showId = await page.evaluate(async (name) => {
+    const { createGraphic } = await import('/src/model/library.ts');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { createShowNamedChecked, addGraphicToShow } = await import('/src/model/shows.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { useRouter } = await import('/src/app/router.ts');
+    const { template } = useTemplateStore.getState();
+    const { doc, error: notSaved } = createGraphic(template, { name: template.name });
+    if (notSaved || !doc) throw new Error(notSaved ?? 'not saved');
+    const { show, error: notCreated } = createShowNamedChecked(name);
+    if (notCreated) throw new Error(notCreated);
+    const { error } = addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
+    const failure = error ?? (await commitDurableWrites());
+    if (failure) throw new Error(failure);
+    useRouter.getState().navigate({ view: 'production', id: show.id });
+    await new Promise((resolve) => setTimeout(resolve));
+    return show.id;
+  }, `Prepare ${Date.now()}`);
+  await expect(page.getByTestId('production-page')).toBeVisible();
   await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   await page.getByTestId('production-status').click();
