@@ -8,8 +8,9 @@ so treat it as a straightforward win."
 
 - R1. A worker fixes every finding of a review round, from every reviewer, in one push
   (`.agent-workflows/queue-merge.md`, cloud step 2).
-- R2. A worker does not push while its head's CI is running, unless the push fixes a failure of
-  that run.
+- R2. A worker does not push while its head's CI is running; after it finishes red, one push fixes
+  every failure it reported. The plan-run review loop (`docs/plan-runs/known-traps.md`, Review
+  checkpoints) commits locally between rounds instead of pushing each fix as a backup.
 - R3. A red run is read whole before a repair is pushed: every job finished, every failure
   collected, one push (`.agent-workflows/verify.md`, section 3).
 - R4. CI still runs on every head pushed, with the same selection. No workflow, test, check, limit
@@ -23,8 +24,14 @@ so treat it as a straightforward win."
 | Follow-up heads pushed while the previous run was still going | 467 of 698 (66.9%), 320 branches, 3.18 heads per branch |
 | Cost of a cancelled run | 77.5 runner-minutes, 19.8 jobs started (random sample of 60) |
 
-Run lists from `gh api repos/noacg/noacg-studio/actions/workflows/ci.yml/runs?event=pull_request&created=<day>`
-per day, grouped by head branch; job minutes from `.../actions/runs/<id>/jobs`.
+How it is measured, so the two-week check compares the same thing: every `pull_request` run of
+ci.yml, fetched per day with
+`gh api "repos/noacg/noacg-studio/actions/workflows/ci.yml/runs?event=pull_request&created=<day>&per_page=100&page=<n>"`
+until a page is empty; runs grouped by `head_branch` and ordered by `created_at`; a follow-up head
+is a run whose `head_sha` differs from the previous run's on that branch; it was pushed mid-run
+when the previous run's `updated_at` is no earlier than 5 s before the follow-up's `created_at`.
+Job minutes from `.../actions/runs/<id>/jobs` (completed_at minus started_at). Pushes the rule does
+not govern (Auto-fix, a merge of main) are counted too; the check names them if they dominate.
 
 ## Why a rule first, and the fallback
 
@@ -42,3 +49,10 @@ Nothing: CI runs on every head as before.
 ## Revert
 
     git revert <merge commit of this pull request>
+
+## Review
+
+Independent `/so` on head 1834b0df: AGREE WITH CORRECTIONS, grade B. Answered: the plan-run review
+loop told builders to keep pushing each fix as a backup (known-traps.md, now one push per round);
+the push exception in queue-merge.md now matches verify.md (wait for the run to finish); the
+measurement is defined above so the 2026-11-26 check repeats it.
