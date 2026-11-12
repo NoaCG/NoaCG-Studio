@@ -13,7 +13,7 @@ import { refreshTeams, subscribeTeamState, getTeamState } from '../../backend/te
 import { loadShows, type Show } from '../../model/shows';
 import { createAutoPublisher, CHECK_EVERY_MS, type AutoPublishView } from '../../control/autoPublish';
 export { oldOutputNames } from '../../control/autoPublish';
-import { publishRevision } from '../../control/publishRevision';
+import { publishRevision, publishStepMs } from '../../control/publishRevision';
 import type { CuePublished } from '../../control/hostedControl';
 import type { PayloadVersion } from '../../control/payloadVersion';
 
@@ -114,6 +114,35 @@ export function useAutoPublish(o: {
       changed: (next) => setView(next),
     });
     publisher.check(true);
+    // THE MEASURE HARNESS ONLY (designs/G3.md section 13): with this session flag set, the page
+    // publishes its current saved revision again and again, whole, so press-to-ran can be measured
+    // during a publish on a production build. Nothing sets the flag but the harness.
+    let measuring = false;
+    try {
+      measuring = window.sessionStorage.getItem('noacg-measure-publish-loop') === '1';
+    } catch {
+      measuring = false;
+    }
+    let looping = measuring;
+    if (measuring) {
+      void (async () => {
+        while (looping) {
+          const show = current();
+          const answer = show ? await confirmedRevision(show) : null;
+          if (show && answer && 'rev' in answer) {
+            const w = window as unknown as { __noacgPublishWindows?: [number, number, string, number][]; __noacgPublishRunning?: number | null };
+            const t0 = performance.timeOrigin + performance.now();
+            const from = publishStepMs.length;
+            w.__noacgPublishRunning = t0;
+            const outcome = await publishRevision(show, answer.rev, await latest.current.appearanceFor.current?.(show), true);
+            w.__noacgPublishRunning = null;
+            const longest = Math.max(0, ...publishStepMs.slice(from));
+            (w.__noacgPublishWindows ??= []).push([t0, performance.timeOrigin + performance.now(), outcome.kind, longest]);
+          }
+          await new Promise((r) => setTimeout(r, 20));
+        }
+      })();
+    }
     // A save of this page confirmed: a personal one when a sync pass ends synced, a team one when its
     // save is no longer pending.
     let wasSaving = false;
@@ -131,6 +160,7 @@ export function useAutoPublish(o: {
           }
         });
     return () => {
+      looping = false;
       offSync();
       publisher.stop();
     };

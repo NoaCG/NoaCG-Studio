@@ -1,6 +1,6 @@
 import { test, expect, type Browser, type Locator, type Page } from '@playwright/test';
 import { fakeBridge, seedSettings } from '../../_fakeBridge';
-import { openSecondProductionPage, readyOf } from '../_helpers';
+import { openSecondProductionPage, readyOf, SERVICE_ROLE_KEY, SUPABASE_URL } from '../_helpers';
 import { answerPanel, pairPanel } from '../_panel';
 import { buildFixture, cleanUp, outputSlugOf } from './_fixture';
 import {
@@ -863,4 +863,75 @@ test('w3', async ({ page, browser }) => {
   }
   if (feeder) await feeder.close();
   report('w3', { graphic: samples }, { outputs: outputsWanted, feedMs, pressToConfirmed: summary(confirmed, unconfirmed), fixtureFacts: fx });
+});
+
+// PRESS TO RAN DURING AUTOMATIC PUBLISHING (live-publishing designs/G3.md section 13, AC-4). With
+// MEASURE_LOOP=1 the page publishes its saved revision again and again, whole (a session flag only
+// this harness sets), so every output reads the published copy each time; without it, nothing is
+// published. "Ran" is the output's graphic running the Take: its play() call, on the one time origin.
+test('autopublish', async ({ page, browser }) => {
+  const loop = process.env.MEASURE_LOOP === '1';
+  const setAuto = (on: boolean) =>
+    fetch(`${SUPABASE_URL}/rest/v1/system_settings?on_conflict=key`, {
+      method: 'POST',
+      headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}`, 'content-type': 'application/json', prefer: 'resolution=merge-duplicates' },
+      body: JSON.stringify({ key: 'auto_publish', value: { on } }),
+    });
+  await opPage(page);
+  const fx = await buildFixture(page, FIXTURE);
+  const labels = await page.evaluate(async ({ id, cues }) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const s = loadShows().find((x) => x.id === id)!;
+    return cues.map((c) => s.cues!.find((x) => x.id === c)!.label);
+  }, { id: fx.showId, cues: fx.cues.plain.slice(0, 5) });
+  const slug = await outputSlugOf(page, fx.showId);
+  await setAuto(true);
+  try {
+    await page.evaluate((on) => (on ? sessionStorage.setItem('noacg-measure-publish-loop', '1') : sessionStorage.removeItem('noacg-measure-publish-loop')), loop);
+    await toProd(page);
+    await throttle(page, NET);
+    const out = await openOutput(browser, slug);
+    await healthyOutput(out, fx.graphics);
+    type W = { __noacgPublishWindows?: [number, number, string, number][]; __noacgPublishRunning?: number | null };
+    if (loop) await expect.poll(() => page.evaluate(() => ((window as unknown as W).__noacgPublishWindows ?? []).length), { timeout: 120_000 }).toBeGreaterThan(0);
+    const toRan: number[] = [];
+    const sentRows: Sample[] = [];
+    const failures: string[] = [];
+    let during = 0;
+    for (let i = 0; i < SAMPLES; i++) {
+      await select(page, labels[i % labels.length]);
+      await clearLpm(page);
+      const pressedAt = await nowOn(page);
+      sentRows.push(await pressAndMeasure(page, page.getByTestId('verb-take'), 'verb-take', SEND));
+      let ran: number | null = null;
+      const end = Date.now() + 15_000;
+      while (Date.now() < end && ran === null) {
+        const plays = (await framePlays(out)).flatMap((f) => f.plays).filter((p) => p.playAt > pressedAt).sort((a, b) => a.playAt - b.playAt);
+        if (plays.length) ran = plays[0].playAt;
+        else await page.waitForTimeout(25);
+      }
+      if (ran === null) failures.push('no run');
+      else toRan.push(ran - pressedAt);
+      if (loop) {
+        const w = await page.evaluate(() => ({ windows: (window as unknown as W).__noacgPublishWindows ?? [], running: (window as unknown as W).__noacgPublishRunning ?? null }));
+        if (w.windows.some(([a, b]) => pressedAt >= a && pressedAt <= b) || (w.running !== null && pressedAt >= w.running)) during += 1;
+      }
+      await settle(page, 150, 20_000, SEND);
+      await page.getByTestId('verb-out').click();
+      await settle(page, 150, 20_000, SEND);
+      await page.waitForTimeout(300);
+    }
+    const windows = loop ? await page.evaluate(() => (window as unknown as W).__noacgPublishWindows ?? []) : [];
+    report(`autopublish-${loop ? 'loop' : 'none'}`, { take: sentRows }, {
+      fixtureFacts: fx,
+      pressToRan: summary(toRan, failures.length),
+      pressToRanSamples: toRan,
+      failures: failures.slice(0, 5),
+      pressesDuringAPublish: during,
+      publishes: { n: windows.length, ms: summary(windows.map(([a, b]) => b - a)), longestStepMs: summary(windows.map((x) => x[3])), kinds: [...new Set(windows.map((x) => x[2]))] },
+    });
+  } finally {
+    await page.evaluate(() => sessionStorage.removeItem('noacg-measure-publish-loop')).catch(() => undefined);
+    await setAuto(false).catch(() => undefined);
+  }
 });

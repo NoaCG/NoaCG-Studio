@@ -153,7 +153,13 @@ async function patchRow(id: string, filter: string, body: Blob | string): Promis
  * Publish `show`, which is saved revision `rev`. `publishedOf`: each cue's appearance and adjust
  * records as the page measured them for this record.
  */
-export async function publishRevision(show: Show, rev: number, publishedOf?: CuePublished): Promise<PublishOutcome> {
+export async function publishRevision(
+  show: Show,
+  rev: number,
+  publishedOf?: CuePublished,
+  /** The measure harness only (G3 section 13): write the whole payload again even when nothing changed. */
+  force = false,
+): Promise<PublishOutcome> {
   try {
     const sb = await getSupabase();
     if (!sb) return { kind: 'gone' };
@@ -161,7 +167,7 @@ export async function publishRevision(show: Show, rev: number, publishedOf?: Cue
     for (const g of show.graphics) await timed(() => assertProductionGate([g], library, 'publish'));
     let stored = await readStamp(sb, show.id);
     if (!stored.exists) return { kind: 'gone' };
-    if (stored.rev !== null && stored.rev >= rev) return { kind: 'superseded' };
+    if (!force && stored.rev !== null && stored.rev >= rev) return { kind: 'superseded' };
     const heldPanel = await heldPanelIfNeeded(sb, show, library);
     const raw = await timed(() => buildOutputPayload(show, library, publishedOf));
     const built = raw.soundAssets?.length ? await publishAudio(raw) : raw;
@@ -179,7 +185,7 @@ export async function publishRevision(show: Show, rev: number, publishedOf?: Cue
     const c = await timed(() =>
       digestText(JSON.stringify([g, meta, columns, panel.map(({ js: _js, ...entry }) => entry)])),
     );
-    if (stored.ver?.c === c) {
+    if (!force && stored.ver?.c === c) {
       // Nothing on the outputs would change: the row learns the revision only.
       const landed = await patchRow(show.id, `published_ver->>c=eq.${encodeURIComponent(c)}`, JSON.stringify({ published_rev: rev }));
       if (landed > 0) return { kind: 'published', rev };
@@ -198,7 +204,7 @@ export async function publishRevision(show: Show, rev: number, publishedOf?: Cue
       }
       stored = await readStamp(sb, show.id);
       if (!stored.exists) return { kind: 'gone' };
-      if (stored.rev !== null && stored.rev >= rev) return { kind: 'superseded' };
+      if (!force && stored.rev !== null && stored.rev >= rev) return { kind: 'superseded' };
       if (tries >= 2) return { kind: 'transient', reason: 'other pages published at the same moment' };
     }
   } catch (e) {
