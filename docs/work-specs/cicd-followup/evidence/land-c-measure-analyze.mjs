@@ -18,7 +18,19 @@ const CACHE = opt('--cache');
 const SPEED = Number(opt('--speed', '0.5'));
 const BOOT = Number(opt('--boot', '1'));
 const load = (name, dflt) => (existsSync(join(CACHE, name)) ? JSON.parse(readFileSync(join(CACHE, name), 'utf8')) : dflt);
-const table = JSON.parse(readFileSync(new URL('../../../../scripts/e2e-durations.json', import.meta.url), 'utf8'));
+// Per-spec minutes: the summed test durations per file of one nightly's merged Playwright report
+// (--report <nightly-report.json>), else the CI duration table (p80 of recent full main runs).
+const table = args.includes('--report') ? (() => {
+  const rep = JSON.parse(readFileSync(opt('--report'), 'utf8'));
+  const minutes = {};
+  const walk = (s, file) => { file = s.file || file; for (const x of s.suites || []) walk(x, file);
+    for (const sp of s.specs || []) for (const t of sp.tests || []) {
+      const k = (sp.file || file).replace(/^.*\//, '');
+      minutes[k] = (minutes[k] ?? 0) + (t.results || []).reduce((a, r) => a + (r.duration || 0), 0) / 60000;
+    } };
+  for (const s of rep.suites) walk(s);
+  return { source: { report: opt('--report').replace(/^.*\//, '') }, minutes };
+})() : JSON.parse(readFileSync(new URL('../../../../scripts/e2e-durations.json', import.meta.url), 'utf8'));
 const tableValues = Object.values(table.minutes).sort((a, b) => a - b);
 const median = tableValues[Math.floor(tableValues.length / 2)];
 const minutes = (specs) => specs.reduce((s, x) => s + (table.minutes[x] ?? median), 0);

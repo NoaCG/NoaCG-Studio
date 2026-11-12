@@ -55,7 +55,7 @@ for (const [k, name] of readdirSync(join(CACHE, 'changed')).sort().entries()) {
   if (existsSync(target)) continue;
   const { files } = JSON.parse(readFileSync(join(CACHE, 'changed', name), 'utf8'));
   const dir = join(WORK, sha.slice(0, 12));
-  if (!existsSync(dir)) git(REPO, 'worktree', 'add', '-q', '--detach', dir, sha);
+  if (!existsSync(dir)) git(REPO, 'worktree', 'add', '-f', '-q', '--detach', dir, sha);
   if (!existsSync(join(dir, 'node_modules'))) symlinkSync(join(REPO, 'node_modules'), join(dir, 'node_modules'));
   try {
     const full = cli(dir, files);
