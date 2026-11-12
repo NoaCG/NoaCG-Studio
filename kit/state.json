@@ -36,8 +36,8 @@
  },
  "waitingOn": [
   {
-   "what": "OS5a builder receipt and PR",
-   "eta": "2026-11-13T10:00:00Z"
+   "what": "#2464 (main revert) to land; then OS5a builder merges main, CI, fresh receipt",
+   "eta": "2026-11-12T22:00:00Z"
   }
  ],
  "inFlight": [
@@ -49,7 +49,10 @@
    "branch": "claude/plan-obs-scenes-os5a-build",
    "launchedAt": "2026-11-12T19:24:51Z",
    "note": "sent brief = saved brief plus one NOTES line (keep the reader generic for OS5b)",
-   "lastSeen": "2026-11-12T19:56Z: writing evidence and phase notes"
+   "lastSeen": "2026-11-12T20:23Z receipt os5a-b-cd39; CI gate red only from main (E2E 13/15 editor-base-edits, #2465); asked builder to merge main after revert #2464 lands and re-report",
+   "pr": 2468,
+   "reviewedHead": "5e8c0ee2f23be7ab28f5126a01f7d303acf08d94",
+   "migration": "supabase/migrations/0116_json_source_tick.sql (live-path; post-land applies it only in a quiet window, never while the landing hold is on)"
   }
  ],
  "owner": [
@@ -60,6 +63,10 @@
   {
    "what": "OS7: rehearsal with failure drills",
    "where": "run issue hand-over after OS6"
+  },
+  {
+   "what": "OS5a defaults to confirm or change: a JSON source NoaCG reads is NoaCG's alone (an external agent is refused for it); it pauses with its own Pause, not the Another-system Pause",
+   "where": "coordinator chat"
   }
  ],
  "fixes": [
