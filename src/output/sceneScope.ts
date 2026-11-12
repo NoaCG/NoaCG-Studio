@@ -17,11 +17,28 @@ export function sceneParam(search: string): string | null {
   return params.has('scene') ? (params.get('scene') ?? '') : null;
 }
 
-/** The payload a scene link builds, and whether the payload knows its scene. */
-export function scopePayload(payload: OutputPayload, scene: string): { payload: OutputPayload; keys: Set<string>; known: boolean } {
+/** A font file, by its path: what a production ships once and every graphic's style may name. */
+const FACE_FILE = /\.(woff2?|ttf|otf)$/i;
+
+/**
+ * The payload a scene link builds, whether the payload knows its scene, and the font files of the
+ * graphics it leaves out (`faces`): a production holds an imported face once, with one graphic
+ * (control/productionLook.ts `withLookFaceIn`), and a style may name it for any graphic, so the
+ * stage must still find it when that graphic is in another scene.
+ */
+export function scopePayload(
+  payload: OutputPayload,
+  scene: string,
+): { payload: OutputPayload; keys: Set<string>; known: boolean; faces: Map<string, string> } {
   const found = SCENE_ID.test(scene) ? payload.scenes?.find((s) => s.id === scene) : undefined;
   const keys = new Set(found ? found.graphics : []);
+  const faces = new Map<string, string>();
+  for (const g of payload.graphics) {
+    if (keys.has(g.key) || g.ograf) continue;
+    for (const a of g.assets) if (FACE_FILE.test(a.path) && !faces.has(a.path)) faces.set(a.path, a.data);
+  }
   return {
+    faces,
     payload: {
       ...payload,
       graphics: payload.graphics.filter((g) => keys.has(g.key)),
@@ -42,15 +59,41 @@ export interface ObsWhere {
   current?: string;
   /** The program scene this source was last on program in. */
   last?: string;
+  /** When it last came onto program, while OBS has not named a scene since (ms). */
+  arriving?: number;
 }
 
-/** One OBS event folded in. A source on program while OBS names a scene was on program in it. */
-export function obsEvent(where: ObsWhere, event: { type: 'visible'; on: boolean } | { type: 'active'; on: boolean } | { type: 'scene'; name: string }): ObsWhere {
+/** OBS names the scene a source arrives in right after activating it, in the same burst; a name
+ *  heard later while it is on program is a cut away. */
+export const OBS_ARRIVAL_MS = 1000;
+
+/**
+ * One OBS event folded in. OBS's own order (docs/OBS_ON_A_REAL_HOST.md §5): coming onto program the
+ * source hears visible, active, then the new scene's name; leaving it hears the new scene's name
+ * first, then visible and active false. So the name that follows an activation is the scene the
+ * source went on program in, and a name heard while it was already on program is the scene it is
+ * leaving for, which says nothing about it. So a name counts only within OBS_ARRIVAL_MS of the
+ * activation. Activated with no name following (shown inside the scene already on program), the
+ * scene OBS last named is the one.
+ */
+export function obsEvent(
+  where: ObsWhere,
+  event: { type: 'visible'; on: boolean } | { type: 'active'; on: boolean } | { type: 'scene'; name: string },
+  now: number,
+): ObsWhere {
   const next: ObsWhere = { ...where };
   if (event.type === 'visible') next.visible = event.on;
-  else if (event.type === 'active') next.active = event.on;
-  else next.current = event.name.slice(0, 80);
-  if (next.active && next.current !== undefined) next.last = next.current;
+  else if (event.type === 'active') {
+    next.active = event.on;
+    if (event.on) {
+      next.arriving = now;
+      if (next.current !== undefined) next.last = next.current;
+    } else delete next.arriving;
+  } else {
+    next.current = event.name.slice(0, 80);
+    if (next.active && next.arriving !== undefined && now - next.arriving <= OBS_ARRIVAL_MS) next.last = next.current;
+    delete next.arriving;
+  }
   return next;
 }
 

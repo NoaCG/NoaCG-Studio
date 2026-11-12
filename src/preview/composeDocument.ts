@@ -385,12 +385,26 @@ window.addEventListener('unhandledrejection', function (ev) {
         window.noacgSnap(state.groups, { timers: true });
         return;
       }
+      /* GSAP reports anything holding an endless child at its 1e10 s sentinel (settleGraphic.ts):
+         such a timeline goes to the end of its finite motion and keeps playing its loops there;
+         everything else, repeats included, goes to its very end. */
       var gsap = window.gsap;
       if (gsap && gsap.globalTimeline && gsap.globalTimeline.getChildren) {
         var kids = gsap.globalTimeline.getChildren(false, true, true);
         for (var i = 0; i < kids.length; i++) {
-          var total = kids[i].totalDuration();
-          if (isFinite(total) && total < 1e9) kids[i].progress(1);
+          var kid = kids[i];
+          var total = kid.totalDuration();
+          if (isFinite(total) && total < 1e9) {
+            kid.totalProgress(1);
+          } else if (kid.getChildren) {
+            var end = 0;
+            var parts = kid.getChildren(false, true, true);
+            for (var j = 0; j < parts.length; j++) {
+              var part = parts[j].totalDuration();
+              if (isFinite(part) && part < 1e9) end = Math.max(end, parts[j].startTime() + part);
+            }
+            if (kid.time() < end) kid.time(end);
+          }
         }
       }
       if (document.getAnimations) {

@@ -240,7 +240,7 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
       if (!ok) return;
       // Taking the output URL is what turns "is the output connected?" into a question worth
       // asking on this header - see the heartbeat readout in ProductionShell.
-      if (kind === 'output') setShows(noteShowOutputOpened(show.id));
+      if (kind === 'output' || kind.startsWith('scene:')) setShows(noteShowOutputOpened(show.id));
       setCopied(kind);
       setTimeout(() => setCopied((c) => (c === kind ? null : c)), 2000);
     });

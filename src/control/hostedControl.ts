@@ -401,6 +401,7 @@ export function readOutputPayload(output: unknown): OutputPayload | null {
   const o = output as OutputPayload;
   if ((o.v !== 1 && o.v !== 2) || !Array.isArray(o.graphics)) return null;
   const ver = readPayloadVersion(o.ver);
+  const scenes = readScenes(o.scenes);
   return {
     v: o.v,
     ...(readOutputSetup(o.outputSetup) ? { outputSetup: readOutputSetup(o.outputSetup)! } : {}),
@@ -412,7 +413,7 @@ export function readOutputPayload(output: unknown): OutputPayload | null {
     // Carried through, not dropped: the hosted page lists these beside the graphics' cues.
     // Before 2026-09-23 this reader left them out and the list was never shown.
     ...(Array.isArray(o.playoutCues) && o.playoutCues.length ? { playoutCues: o.playoutCues } : {}),
-    ...(readScenes(o.scenes) ? { scenes: readScenes(o.scenes)! } : {}),
+    ...(scenes ? { scenes } : {}),
     // The version stamp, when the publish wrote one (READY's guarantee 2).
     ...(ver ? { ver } : {}),
   };

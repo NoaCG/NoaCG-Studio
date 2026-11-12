@@ -234,18 +234,18 @@ async function boot(): Promise<void> {
   // link it is always true and the payload is the one the server holds. ──
   let sceneKeys = new Set<string>();
   let sceneKnown = false;
+  /** The font files of the graphics left out, by path (./sceneScope.ts `faces`). */
+  let sceneFaces = new Map<string, string>();
   const scoped = (whole: OutputPayload): OutputPayload => {
     if (scene === null) return whole;
     const scope = scopePayload(whole, scene);
     sceneKeys = scope.keys;
-    if (scope.known !== sceneKnown) {
-      sceneKnown = scope.known;
-      dbg('scene', `${scene} ${sceneKnown ? `: ${[...sceneKeys].join(', ') || 'no graphics'}` : 'is not a scene of this production'}`);
-    }
+    sceneKnown = scope.known;
+    sceneFaces = scope.faces;
+    dbg('scene', sceneKnown ? `${scene}: ${[...sceneKeys].join(', ') || 'no graphics'}` : `${scene} is not a scene of this production`);
     return scope.payload;
   };
   const inScope = (graphic: string): boolean => scene === null || sceneKeys.has(graphic);
-  if (scene !== null) dbg('scene', `${scene} is not a scene of this production`);
   const payload = scoped(resolved.output);
   /** Where OBS has this browser source (R8), from its own events; unknown until the first. */
   let obsWhere: ObsWhere = {};
@@ -268,7 +268,8 @@ async function boot(): Promise<void> {
   const stage = createOutputStage(document.body, payload, {
     ografReplaced,
     // A scene link draws every Take settled (OS1a R9): no entrance frame on OBS preview or program.
-    ...(scene !== null ? { settled: true } : {}),
+    // …and finds a face the production ships with a graphic of another scene.
+    ...(scene !== null ? { settled: true, faceAsset: (src: string) => sceneFaces.get(src) ?? null } : {}),
     sound: 'program',
     soundBudget,
     loadSound: asset => publishedSoundLoader(outputSlug, programAudioVersion)(asset),
@@ -457,7 +458,7 @@ async function boot(): Promise<void> {
   // only. Nothing here changes what airs: a scene graphic is drawn settled whether or not it shows.
   if (scene !== null) {
     const heard = (event: Parameters<typeof obsEvent>[1]) => {
-      obsWhere = obsEvent(obsWhere, event);
+      obsWhere = obsEvent(obsWhere, event, Date.now());
       dbg('obs', `${obsState(obsWhere) ?? 'unknown'}${obsWhere.last !== undefined ? ` · last on program in ${obsWhere.last}` : ''}`);
       presence.touch();
     };
@@ -1114,6 +1115,7 @@ async function boot(): Promise<void> {
         followEpoch ??= head.value.epoch;
         if (typeof head.value.head?.seq === 'number') lastAppliedSeq = Math.max(lastAppliedSeq, head.value.head.seq);
       }
+      if (lastAppliedSeq === followFrom) dbg('catch-up', "the log's head was not read: the follow reads its history past");
     }
   }
   for (let page = 0; !fromHead && page < MAX_CATCH_UP_PAGES; page += 1) {

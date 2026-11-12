@@ -91,6 +91,7 @@ test('AC-1, R5: a scene link builds two graphics of its scene; the ordinary link
     assert.deepEqual(scope.payload.graphics.map((g) => g.key), keys);
     assert.deepEqual(scope.payload.cues.map((c) => c.graphic), keys);
     assert.deepEqual([...scope.keys], keys);
+    assert.equal(scope.faces.size, 0);
     // The stage keeps the production's resolution and the one version stamp.
     assert.deepEqual(scope.payload.resolution, payload().resolution);
     assert.deepEqual(scope.payload.ver, payload().ver);
@@ -113,6 +114,15 @@ test('AC-1, R5: an unknown, deleted, malformed or switched-off scene builds noth
   }
 });
 
+test('a production face shipped with a graphic of another scene is still found by the scene link', () => {
+  const p = payload();
+  p.graphics[0] = { ...p.graphics[0], assets: [{ path: 'fonts/house.woff2', data: 'data:font/woff2;base64,AA' }, { path: 'img/logo.png', data: 'data:image/png;base64,AA' }] };
+  const scope = scopePayload(p, 'scB');
+  assert.deepEqual([...scope.faces], [['fonts/house.woff2', 'data:font/woff2;base64,AA']]);
+  // The scene's own graphics keep their own files; nothing else of another graphic is held.
+  assert.equal(scopePayload(p, 'scA').faces.size, 0);
+});
+
 test('AC-1, R6: a graphic removed from the scene leaves its scope at the next publish', () => {
   const before = scopePayload(payload(), 'scA');
   const moved = production();
@@ -133,25 +143,40 @@ test('R8: READY of a link whose scene is unknown is not ready, in words, and sur
 });
 
 test('R8: OBS events say where the source is; unknown before the first; the last program scene', () => {
+  // OBS's own order (docs/OBS_ON_A_REAL_HOST.md §5), each event at a time in ms.
+  let t = 0;
   let where = {};
+  const hear = (event, after = 50) => {
+    t += after;
+    where = obsEvent(where, event, t);
+  };
   assert.equal(obsState(where), undefined);
-  where = obsEvent(where, { type: 'scene', name: 'Gameplay' });
-  assert.equal(obsState(where), undefined);
-  where = obsEvent(where, { type: 'visible', on: true });
+  // Onto program: visible, active, then the scene's name.
+  hear({ type: 'visible', on: true });
   assert.equal(obsState(where), 'preview');
-  assert.equal(where.last, undefined);
-  where = obsEvent(where, { type: 'active', on: true });
+  hear({ type: 'active', on: true });
+  hear({ type: 'scene', name: 'Gameplay' });
   assert.equal(obsState(where), 'program');
   assert.equal(where.last, 'Gameplay');
-  // OBS cuts away: hidden, and the last program scene stays.
-  where = obsEvent(where, { type: 'scene', name: 'Desk' });
-  where = obsEvent(where, { type: 'visible', on: false });
-  where = obsEvent(where, { type: 'active', on: false });
-  assert.equal(obsState(where), 'hidden');
-  assert.equal(where.last, 'Desk');
-  // OBS's own order on the way back: visible, active, then the scene's name.
-  where = obsEvent(obsEvent(obsEvent(where, { type: 'visible', on: true }), { type: 'active', on: true }), { type: 'scene', name: 'Gameplay' });
+  // A cut away, much later: the new scene's name first, then visible and active false. The source
+  // never aired in Desk, so its last program scene stays Gameplay.
+  hear({ type: 'scene', name: 'Desk' }, 60_000);
   assert.equal(where.last, 'Gameplay');
+  hear({ type: 'visible', on: false });
+  hear({ type: 'active', on: false });
+  assert.equal(obsState(where), 'hidden');
+  assert.equal(where.last, 'Gameplay');
+  // Back on program in another scene holding it.
+  hear({ type: 'visible', on: true }, 5000);
+  hear({ type: 'active', on: true });
+  hear({ type: 'scene', name: 'Replay' });
+  assert.equal(where.last, 'Replay');
+  // Shown inside the scene already on program, no name following, then cut away later.
+  hear({ type: 'active', on: false }, 5000);
+  hear({ type: 'active', on: true }, 5000);
+  assert.equal(where.last, 'Replay');
+  hear({ type: 'scene', name: 'Break' }, 30_000);
+  assert.equal(where.last, 'Replay');
 });
 
 test('R8: a Presence entry carries the scene report, read back like any other input', () => {

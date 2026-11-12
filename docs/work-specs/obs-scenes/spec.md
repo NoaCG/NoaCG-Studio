@@ -452,8 +452,8 @@ Filled in by each phase's pull request.
     malformed, absent from the payload (unknown, deleted, switch off) or names no graphic builds
     nothing; the page keeps running, reports itself, and builds the scene's graphics when a later
     publish names them. It never falls back to the whole production.
-  - R6. Commands for a graphic outside the scope (not in the scene the link holds now, and not
-    still on its stage) are read past: they move the follow position and change nothing else, no
+  - R6. Commands for a graphic outside the scope (not in the scene of the publish the link holds
+    now) are read past: they move the follow position and change nothing else, no
     data, no air state, no report, no bank. A graphic that leaves the scene leaves the link at the
     next publish the link takes, on air there or not, with no Out animation, and its commands are
     read past from then on. This departs from per-graphic replacement G1 (a removed graphic waits
