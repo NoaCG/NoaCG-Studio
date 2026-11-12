@@ -36,8 +36,8 @@
  },
  "waitingOn": [
   {
-   "what": "owner answers D1 and D2 for phase 5 (builder stopped before its repair)",
-   "eta": "owner"
+   "what": "phase 5 repair against the corrected model, fresh full /so, receipt",
+   "eta": "2026-11-13T00:00:00Z"
   }
  ],
  "inFlight": [
@@ -113,10 +113,6 @@
  },
  "ownerQuestions": [
   {
-   "what": "Phase 5 D1: a boot frame or package not loaded after 20 s: (A) report failed load in red but keep its queued commands, run hidden when it loads; (B) drop the queued history. D2: a single stage failure on a running graphic: (A) red until the next Take or Out of that graphic, All out or deletion, later commands still run; (B) clears on the next command of any kind.",
-   "state": "asked 2026-11-12T14:0xZ"
-  },
-  {
    "what": "AC-4: Take during a publish 100-200 ms slower at p95 unthrottled (phase 2 receipt). Ask before phase 6.",
    "state": "pending, before phase 6"
   },
@@ -149,6 +145,12 @@
    "question": "Phase 4 rollout: may the coordinator turn on the production_copies switch (G1 section 6 step 3) once a signed-in new-build page on production reports the mark through production_copies_state()? Effect: old open pages get Reload this page to edit on saves; their Takes keep working. Back out: switch off, instant.",
    "answer": "A and yes, I discussed in the runs session that I want sessions landing and not failing",
    "meaning": "Switch: the coordinator turns production_copies on in a quiet window after a new-build page reports the mark. Budget: the /runs guidance is the owner instruction: never hold a phase or write a budget exception for the capacity gate; name #2381 and carry on."
+  },
+  {
+   "at": "2026-11-12",
+   "question": "Phase 5 D1: a boot frame or package not loaded after 20 s: (A) report failed load in red but keep its queued commands, run hidden when it loads; (B) drop the queued history. D2: a single stage failure on a running graphic: (A) red until the next Take or Out of that graphic, All out or deletion, later commands still run; (B) clears on the next command of any kind.",
+   "answer": "A A",
+   "meaning": "D1: failed load reported red at 20 s, queued commands kept and run hidden on load, held Take still gives up at 20 s. D2: a stage failure stays red until the next Take or Out of that graphic, All out or deletion; later commands still run."
   }
  ],
  "phase2": {
