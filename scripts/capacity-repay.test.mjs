@@ -194,7 +194,7 @@ test('C1: the CI gate passes a repay verdict and prints one fixed annotation per
     const dir = mkdtempSync(join(tmpdir(), 'repay-gate-'));
     try {
       writeFileSync(join(dir, 'out'), '');
-      const r = spawnSync('bash', ['-c', script], { encoding: 'utf8', env: { PATH: process.env.PATH, HOME: dir, GITHUB_OUTPUT: join(dir, 'out'), GITHUB_STEP_SUMMARY: join(dir, 'out'), ...green, ...env } });
+      const r = spawnSync('bash', ['-c', script], { encoding: 'utf8', windowsHide: true, env: { PATH: process.env.PATH, HOME: dir, GITHUB_OUTPUT: join(dir, 'out'), GITHUB_STEP_SUMMARY: join(dir, 'out'), ...green, ...env } });
       return { code: r.status, out: r.stdout + r.stderr };
     } finally { rmSync(dir, { recursive: true, force: true }); }
   };
