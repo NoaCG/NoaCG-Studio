@@ -189,7 +189,7 @@ export interface ConnectorSource {
   id: string;
   kind: 'external';
   label: string;
-  config: { v: 1; configRevision: number; endpoint: string; lists?: Record<string, SourceListAdapter>; mapping?: SourceRecipe };
+  config: { v: 1; configRevision: number; endpoint: string; lists?: Record<string, SourceListAdapter>; mapping?: SourceRecipe; read?: { everyMs: number } };
   paused?: boolean;
 }
 
@@ -223,6 +223,9 @@ export function connectorPlan(o: {
   collections: JsonCollection[];
   adapters: Record<string, SourceListAdapter>;
   columns: Record<string, string[]>;
+  /** Whether NoaCG reads the endpoint itself (obs-scenes OS5a): an interval, null for its agent
+   *  only, or absent to keep what the source holds (R13). Never moves the config revision. */
+  read?: { everyMs: number } | null;
 }): ConnectorPlan {
   const { id } = o.source;
   // A reused source is read the way the route reads it; a new one starts at config revision 1.
@@ -273,6 +276,8 @@ export function connectorPlan(o: {
     ...(Object.keys(lists).length > 0 ? { lists } : {}),
     ...(recipe ? { mapping: recipe } : {}),
   };
+  const noacg = o.read === undefined ? stored?.read : (o.read ?? undefined);
+  if (noacg) config.read = { everyMs: noacg.everyMs };
   return {
     source: { id, kind: 'external', label: o.source.label, config, ...(o.source.paused ? { paused: true } : {}) },
     entries,

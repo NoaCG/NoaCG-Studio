@@ -20,10 +20,12 @@
 // api/_lib/feedFetch.ts): no key, guarded by address, size, time and a per-client limit.
 // `/api/data/source` is the trusted JSON agent's door (docs/work-specs/playout-external-connectors,
 // E4.2): the data key, a versioned envelope, C2's lease and the fenced apply of migration 0101.
+// `/api/data/json` is NoaCG's own reader of a public JSON address (obs-scenes OS5a): public, the
+// feed reader's guard and shared cache, one read per address at most every 10 s.
 
 import { apiError, bearerToken, json, methodGuard, readJson } from '../_lib/http.js';
-import { checkDataIngestBudget, checkDataIpRateLimit, checkFeedIpRateLimit } from '../_lib/rateLimit.js';
-import { FEED_TIMEOUT_MS, feedNetwork, guardedFetch, normalizeFeedAddress, readFeed, supabaseFeedStore, type FeedIo, type GuardedRead } from '../_lib/feedFetch.js';
+import { checkDataIngestBudget, checkDataIpRateLimit, checkFeedIpRateLimit, checkJsonReadIpRateLimit } from '../_lib/rateLimit.js';
+import { FEED_TIMEOUT_MS, feedNetwork, guardedFetch, normalizeFeedAddress, readCachedJson, readFeed, supabaseFeedStore, type FeedIo, type GuardedRead } from '../_lib/feedFetch.js';
 import {
   dataApiConfigured,
   mapLabelsToFields,
@@ -257,6 +259,7 @@ async function tick(req: Request): Promise<Response> {
         rpc('control_data_tick_record', { p_started: new Date(startedAt).toISOString(), p_duration_ms: durationMs, p_sources: sources }),
       fetch: cappedFetch(fetch),
       feed: async (address, signal) => readFeed(address, await feedIo(), { wait: signal, cut: signal }),
+      json: async (address, signal) => readCachedJson(address, await feedIo(), { wait: signal, cut: signal }),
       setTimer: (run, ms) => setTimeout(run, ms),
       clearTimer: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
     });
@@ -299,6 +302,32 @@ async function feed(req: Request): Promise<Response> {
   } catch (error) {
     console.error('Feed read failed:', error instanceof Error ? error.message : error);
     return json({ ok: false, error: 'the feed reader could not read its cache', fix: 'Reading carries on by itself.', failingSince: null }, 500);
+  }
+}
+
+/**
+ * NOACG'S JSON READER: GET `/api/data/json?url=<address>`, public (obs-scenes OS5a, R3 and R4). The
+ * last good payload of a public JSON address from the shared cache, or one guarded read of it
+ * (api/_lib/feedFetch.ts `readCachedJson`: public addresses only, every redirect checked, 10 seconds,
+ * 256 KiB, never more often than every 10 s for every reader, never a credential), or the failure
+ * with its fix and no payload.
+ */
+async function jsonRead(req: Request): Promise<Response> {
+  const guard = methodGuard(req, 'GET');
+  if (guard) return guard;
+  const gate = checkJsonReadIpRateLimit(req);
+  if (gate) return apiError('rate_limited', 'Too many reads - slow down.', 429, {}, retryAfter(gate.retryAfterSec));
+  const address = new URL(req.url).searchParams.get('url');
+  if (!address) return json({ ok: false, error: 'no address', fix: 'Paste the address that answers JSON.', failingSince: null }, 400);
+  if (!adminConfigured()) return apiError('unavailable', 'The JSON reader is not configured on this deployment.', 503);
+  try {
+    const answer = await readCachedJson(address, await feedIo(), { wait: req.signal });
+    if (answer.ok) return json(answer);
+    const { status, ...body } = answer;
+    return json(body, status);
+  } catch (error) {
+    console.error('JSON read failed:', error instanceof Error ? error.message : error);
+    return json({ ok: false, error: 'NoaCG’s reader could not read its cache', fix: 'Reading carries on by itself.', failingSince: null }, 500);
   }
 }
 
@@ -360,6 +389,7 @@ const SOURCE_REFUSALS: Record<string, { status: number; message: string }> = {
   too_large: { status: 413, message: 'The payload is over 256 KiB. Send only the fields the graphics use.' },
   row_too_large: { status: 413, message: 'One graphic\'s update would be over 64 KiB, so the revision is refused.' },
   budget: { status: 429, message: "This production's data budget cannot take this revision now - the operator keeps priority." },
+  read_by_noacg: { status: 409, message: 'NoaCG reads this source itself (Read by NoaCG). Turn that off in the production for its agent to read it.' },
 };
 
 /**
@@ -618,6 +648,7 @@ const ROUTES: Record<string, Handler> = {
   state: { fetch: state },
   tick: { fetch: tick },
   feed: { fetch: feed },
+  json: { fetch: jsonRead },
   source: { fetch: source },
 };
 

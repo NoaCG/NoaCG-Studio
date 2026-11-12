@@ -676,3 +676,32 @@ Filled in by each phase's pull request.
     It is live-path and waits for a quiet window; until it applies, only open pages read them.
   - R11. The reader is generic: a read hands the parsed payload to one projection hook, so OS5b's
     adapter turns the payload into its shape before the evaluator, without a second reader.
+- Rules found by the Rules-first `/so`, before code (it agreed with corrections):
+  - R10 amended. The due test is in 0116's SQL, not in the tick's code: an external source is
+    listed only when its `config.read.everyMs` is a number and the row's last good read
+    (`status.checkedAt`) is absent or at least the clamped interval less 15 s old. A source not
+    yet due is not listed, so it never takes a place in the tick's 50 from a Sheet or a feed.
+  - R12. A source with `read` is NoaCG's alone: 0116 adds one refusal to
+    `control_source_registration_refusal`, so an agent's claim or report for it is refused with
+    `read_by_noacg` and nothing it sends is applied. The route says why. Removing `read` gives the
+    source back to an agent. The review offers `read` only for a sample read the public way, never
+    one an agent posted.
+  - R13. Every writer of a connector configuration keeps `read`: the review keeps the stored value
+    unless the operator changes it, and changing it never moves `configRevision`. A page of an
+    older build that rewrites the configuration drops `read`; NoaCG then stops reading it and the
+    source leaves the data indicator, which shows the change.
+  - R14. A NoaCG read writes only bound paths, as text. A collection recipe's leaf (0102, written
+    only by the agent's report) is not written: the review does not offer `read` for a source a
+    collection recipe of the production reads, and if one is added later the line says its cards
+    keep their values. A path only typed fields read is not written and the line says so (R6).
+  - R15. The line reads the source's lease row (`control_source_reads`, published) or this
+    browser's lease (unpublished), as for a Sheet; the agent's `production_source_snapshots` is
+    not used. A NoaCG-read source is held by its own Pause, like a Sheet, not by the production's
+    "Another system" Pause (spec: "as for other sources").
+  - R16. The JSON route's per-client limit is 120 a minute, room for 20 sources read at the floor
+    from one computer.
+  - R17. The cache keeps the parsed payload as the one item of the row's `items` array (`[payload]`),
+    so `feed_cache` needs no new column.
+  - R18. `docs/DATA_API.md` replaces "it never scrapes a site or polls an address for you" with what
+    NoaCG now reads (a public JSON address, on the source's interval above 10 s, through the guarded
+    fetch and one shared read) and what it still never does (scrape a page, send a credential).

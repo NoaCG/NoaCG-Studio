@@ -176,7 +176,8 @@ tested behaviour (`supabase/migrations/0100_data_api_pause.sql`; its self-check 
 
 `scripts/data-sample-sender.mjs` is a prepared collector, to copy from. It shows the boundary
 the API keeps: an outside source -> a collector you run -> `/patch` -> the connected fields.
-NoaCG receives normalized values; it never scrapes a site or polls an address for you.
+NoaCG receives normalized values from it. NoaCG never scrapes a web page; the one address it
+reads for you is a public JSON address set to "Read by NoaCG" (below).
 
 ```bash
 export NOACG_DATA_KEY=<the key from the card>
@@ -193,6 +194,36 @@ node scripts/data-sample-sender.mjs --example another-system.json --input script
   show rather than being replaced by half a report.
 - `--dry-run` prints the body and sends nothing. The key is read from `NOACG_DATA_KEY` and never
   printed. Point `--address` elsewhere for a local stack.
+
+## A public JSON address read by NoaCG: `GET /api/data/json`
+
+A connector source whose address is public can be read by NoaCG itself instead of by an agent.
+In the Connect review its option is "Read by NoaCG every N s", offered while the production's
+OBS scenes switch is on, and kept on the source afterwards. The registration then carries
+`read: {everyMs}` beside `endpoint`, `lists` and `mapping`, which keep their meaning.
+
+- **How often.** At the source's interval, never more often than every 10 s and at least once an
+  hour. The production page holding the source's lease reads it; with every page closed, the
+  server tick reads it once a minute at most, and only once its interval has passed.
+- **One read per address.** NoaCG's server fetches the address through the same guard as a news
+  feed: public addresses only (a name that answers a private, loopback or link-local address is
+  refused), every redirect checked, at most 5 redirects, 10 seconds and 256 KiB. One cached read
+  per address serves every reader, fetched at most every 10 s; the address's `Retry-After` after a
+  failure is honoured, up to an hour. No credential is ever sent: an address that needs one is
+  read by its agent.
+- **One snapshot.** Each good read is evaluated once, with the same rules as an agent's report
+  (`src/control/sourceMapping.ts`), and every connected path that changed is written in one write.
+  A failed, malformed, oversized or late read writes nothing: the last good values stay, and three
+  missed reads in a row mark the source stale. Pause holds it like a Sheet; the source's line
+  shows when it was last checked and, separately, when its content last changed.
+- **Not an agent's.** While `read` is set, an agent's claim or report for the source is refused
+  with `read_by_noacg` (`409`). Turn the option off to give the source back to its agent.
+- **Text only.** A field that takes typed values, and a live candidates' collection, are written
+  by an agent only; with "Read by NoaCG" they keep their values and the line says so.
+
+The route answers `{ "ok": true, "payload": ..., "fetchedAt": "..." }`, or `{ "ok": false,
+"error", "fix", "failingSince" }` with no payload. It is public and allows 120 reads a minute per
+client.
 
 ## A trusted JSON agent: `POST /api/data/source`
 
@@ -501,8 +532,10 @@ host answers with a `308`, and clients commonly drop POST bodies on redirect.
 
 ## What this API deliberately is not
 
-- **Not a fetcher for you.** NoaCG reads no provider itself: the trusted agent above runs on your
-  machine, with your provider's credential, and only hands over what it read.
+- **Not a fetcher for you.** NoaCG reads no provider that needs a credential: the trusted agent
+  above runs on your machine, with your provider's credential, and only hands over what it read.
+  The one address NoaCG reads itself is a public JSON address set to "Read by NoaCG", under the
+  guard and the 10-second floor above. It never scrapes a web page.
 - **Not an operator.** No play, stop, next, take, or state jumps - airing is a human decision
   on an operator surface. A feed that could clear the frame would be a second operator with
   no face.

@@ -39,6 +39,7 @@ import { fileRead, type FileFormat, type FileHandleLike } from '../../control/fi
 import { canPickFiles, pickFile, saveFileHandle, loadFileHandle, allowFile } from '../../control/fileHandles';
 import { apiOffers, isApiPath } from '../../control/anotherSystem';
 import { columnsFor, connectorPlan, jsonOffers, LIST_CELLS, needsRepair, proposeConnector, readConnectorSample, type ConnectorSource } from '../../control/connectorReview';
+import { collectionReads, JSON_DEFAULT_EVERY_MS, jsonEveryMs } from '../../control/jsonSource';
 import { projectSource, type CollectionEntity } from '../../control/sourceMapping';
 import type { SelectionAir } from '../../control/selectionAir';
 import type { StorePart } from '../../control/storePart';
@@ -199,7 +200,7 @@ type ConnectRead =
   | { feed: string; rows: string[][] }
   | { file: { name: string; format: FileFormat; handle: FileHandleLike }; rows: string[][] }
   | { api: true }
-  | { json: string; sample: unknown }
+  | { json: string; sample: unknown; via?: 'agent' | 'hosted' }
   | { error: string; fix: string };
 
 /** A connector sample is waited on in steps of this (control/connectorReview `readConnectorSample`). */
@@ -323,6 +324,13 @@ function CueConnectReview({
   // A connector's sample is evaluated by the one shared evaluator, recipe and all, exactly as the
   // route will evaluate the provider's answers once the mapping is saved; nothing is applied.
   const reusedConnector = reuse?.kind === 'external' ? reuse : null;
+  // Read by NoaCG (obs-scenes OS5a, R2, R12 to R14): offered for an address read the public way,
+  // while the production's OBS scenes switch is on, or already set on the source; never for a source
+  // a collection recipe reads. A new source starts on at 30 s; a reused one keeps what it holds.
+  const storedEvery = reusedConnector?.config.read?.everyMs ?? null;
+  const offersRead = Boolean(json && json.via === 'hosted' && (show.obsScenes || storedEvery !== null) && !collectionReads(show.collections, id));
+  const [readEvery, setReadEvery] = useState<{ for: string; ms: number | null } | null>(null);
+  const noacgEvery = !offersRead ? undefined : readEvery?.for === id ? readEvery.ms : reusedConnector ? storedEvery : JSON_DEFAULT_EVERY_MS;
   const plan = json
     ? connectorPlan({
         graphic: poolGraphic.name,
@@ -333,6 +341,8 @@ function CueConnectReview({
         collections: offers!.collections,
         adapters,
         columns,
+        // Not offered: whatever the source holds stays (R13).
+        ...(noacgEvery === undefined ? {} : { read: noacgEvery === null ? null : { everyMs: jsonEveryMs(noacgEvery) } }),
       })
     : null;
   const projection =
@@ -461,7 +471,7 @@ function CueConnectReview({
     const answer = await readConnectorSample({ fetcher: (u, init) => fetch(u, init), endpoint, key, sourceId: registered, wait: waitMs, now: Date.now, signal: stop.signal });
     if (no !== readNo.current) return;
     setReading(false);
-    setRead(answer.ok ? { json: endpoint, sample: answer.sample } : { error: answer.error, fix: answer.fix });
+    setRead(answer.ok ? { json: endpoint, sample: answer.sample, via: answer.via } : { error: answer.error, fix: answer.fix });
   };
   /** Connect: one write, and the review closes only once storage has agreed to it, so a
    *  refused save leaves the review here to try again (components AGENTS.md, the save rule). */
@@ -694,6 +704,37 @@ function CueConnectReview({
             <span>Name</span>
             <input value={label} onChange={(e) => setLabel(e.target.value)} data-testid="cue-connect-label" />
           </label>
+          )}
+          {noacgEvery !== undefined && (
+            <label className="pd-field" data-testid="cue-connect-read-by-noacg">
+              <span>
+                <input
+                  type="checkbox"
+                  checked={noacgEvery !== null}
+                  onChange={(e) => setReadEvery({ for: id, ms: e.target.checked ? (storedEvery ?? JSON_DEFAULT_EVERY_MS) : null })}
+                  data-testid="cue-connect-read-on"
+                />{' '}
+                Read by NoaCG every
+              </span>
+              <span className="row">
+                <input
+                  type="number"
+                  min={10}
+                  max={3600}
+                  step={1}
+                  disabled={noacgEvery === null}
+                  value={Math.round((noacgEvery ?? JSON_DEFAULT_EVERY_MS) / 1000)}
+                  onChange={(e) => {
+                    const seconds = Number(e.target.value);
+                    // Kept as typed; the save clamps it to 10 s at least and an hour at most.
+                    if (Number.isFinite(seconds) && seconds > 0) setReadEvery({ for: id, ms: seconds * 1000 });
+                  }}
+                  aria-label="Seconds between reads"
+                  data-testid="cue-connect-read-every"
+                />{' '}
+                s
+              </span>
+            </label>
           )}
           {content && content.preview.length > 0 && (
             <ol className="hint" data-testid="cue-connect-preview">

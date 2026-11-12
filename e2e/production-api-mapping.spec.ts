@@ -1,5 +1,6 @@
 // covers: src/control/connectorReview.ts, src/components/home/CueEditor.tsx, src/export/spxLeftBehind.ts
 // covers: src/control/sourceMapping.ts, src/model/shows.ts
+// covers: src/control/jsonSource.ts, src/components/home/SourcesLine.tsx
 //
 // SAMPLE-BASED API MAPPING IN CONNECT DATA (docs/work-specs/playout-api-mapping/spec.md, E5.2;
 // AC-1, AC-3, AC-4), in the browser with no backend: a JSON endpoint's sample is a stub this spec
@@ -15,6 +16,11 @@
 //   changed schema marks the field for repair and keeps it connected until a pick; a replace made
 //   on a stale review is refused; a later recipe version is read-only; the export carries the
 //   non-secret recipe and no credential.
+// - The third (obs-scenes OS5a, AC-9) turns the production's OBS scenes switch on, where the review
+//   offers "Read by NoaCG every N s": the page then reads the address through NoaCG's JSON route
+//   (`/api/data/json`, stubbed here) at that interval and writes the connected fields, the source's
+//   line shows checked and changed apart, Pause reads nothing, Resume reads at once, and a failed
+//   read writes nothing. The route, its cache and guard are scripts/json-fetch.test.mjs.
 
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -101,6 +107,8 @@ test('two graphics connect from one nested sample with no path syntax; repair, c
   // ── Hairline: the address is read, every field proposed under the sample's own words. ──
   let review = await readAddress(page);
   expect(hosted.asked).toEqual([{ url: ENDPOINT, auth: undefined }]);
+  // The OBS scenes switch is off: NoaCG reading the address itself is not offered (obs-scenes OS5a).
+  await expect(review.getByTestId('cue-connect-read-by-noacg')).toHaveCount(0);
   await expect(review.getByTestId('cue-connect-row-f0')).toHaveAttribute('data-status', 'name');
   await expect(review.getByTestId('cue-connect-row-f1')).toHaveAttribute('data-status', 'unmatched');
   await expect(review.getByTestId('cue-connect-row-f0')).toContainText('Aino Virtanen');
@@ -352,4 +360,68 @@ test('a ticker reads the sample\'s list: the record key kept, a column picked by
   await review.getByTestId('cue-connect-column-f0-0').selectOption('name');
   await expect(review.getByTestId('cue-connect-next-change-f0')).toHaveText(' · on air at the provider’s next change');
   await review.getByTestId('cue-connect-cancel').click();
+});
+
+test('with the OBS scenes switch on, NoaCG reads a public JSON address at its interval: one snapshot, checked and changed, Pause and Resume, a failure writes nothing', async ({ page }) => {
+  test.setTimeout(120_000);
+  await stubSample(page, GUESTS('Aino Virtanen', 'Mayor of Espoo'));
+  const json = { status: 200, body: { ok: true, payload: GUESTS('Aino Virtanen', 'Mayor of Espoo') } as unknown, asked: [] as string[] };
+  await page.context().route(/\/api\/data\/json\?/, async (route) => {
+    json.asked.push(new URL(route.request().url()).searchParams.get('url') ?? '');
+    await route.fulfill({ status: json.status, contentType: 'application/json', body: JSON.stringify(json.body) });
+  });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const showId = await openProductionWithCurrent(page, 'Score Night');
+  await page.evaluate(async (id) => {
+    const { setShowObsScenes } = await import('/src/model/shows.ts');
+    setShowObsScenes(id, true);
+    await new Promise((r) => setTimeout(r));
+  }, showId);
+  await settleDurableWrites(page);
+
+  const review = await readAddress(page);
+  const option = review.getByTestId('cue-connect-read-by-noacg');
+  await expect(option).toBeVisible();
+  await expect(review.getByTestId('cue-connect-read-on')).toBeChecked();
+  await expect(review.getByTestId('cue-connect-read-every')).toHaveValue('30');
+  await review.getByTestId('cue-connect-read-every').fill('10');
+  await review.getByTestId('cue-connect-pick-f1').selectOption({ label: 'position' });
+  await review.getByTestId('cue-connect-label').fill('Guests');
+  expect(json.asked, 'nothing is read before Connect').toEqual([]);
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(review).toBeHidden();
+
+  const saved = await stored(page, showId);
+  const id = saved.sources[0].id;
+  expect(saved.sources[0].config).toMatchObject({ v: 1, configRevision: 1, endpoint: ENDPOINT, read: { everyMs: 10_000 } });
+  // The page reads it through NoaCG's route, and both connected fields follow in one read.
+  await expect.poll(() => json.asked.length).toBeGreaterThan(0);
+  expect(json.asked[0]).toBe(ENDPOINT);
+  await expect(page.getByTestId('cue-bound-f0').locator('input')).toHaveValue('Aino Virtanen');
+  await expect(page.getByTestId('cue-bound-f1').locator('input')).toHaveValue('Mayor of Espoo');
+
+  // The data indicator lists it, with checked and changed apart.
+  await page.getByTestId('data-indicator').click();
+  const line = page.getByTestId(`source-line-${id}`);
+  await expect(line).toContainText(/JSON: Guests · checked \d+ s ago · changed \d+ s ago/);
+  await expect(line).toHaveAttribute('title', /Read by this page, every 10 s/);
+
+  // Paused: nothing is read, whatever the address says now; Resume reads at once.
+  await line.getByTestId('source-pause').click();
+  await expect(line).toHaveAttribute('data-state', 'paused');
+  const asked = json.asked.length;
+  json.body = { ok: true, payload: GUESTS('Eero Laine', 'Mayor of Espoo') };
+  await page.waitForTimeout(11_000);
+  expect(json.asked.length, 'no read while paused').toBe(asked);
+  await expect(page.getByTestId('cue-bound-f0').locator('input')).toHaveValue('Aino Virtanen');
+  await line.getByTestId('source-pause').click();
+  await expect(page.getByTestId('cue-bound-f0').locator('input')).toHaveValue('Eero Laine');
+  await expect(line).toContainText(/changed \d+ s ago/);
+
+  // A failed read writes nothing: the values hold and the line says why.
+  json.status = 502;
+  json.body = { ok: false, error: 'the address did not answer JSON', fix: 'Check the address answers JSON.', failingSince: null };
+  await expect(line).toContainText('the address did not answer JSON', { timeout: 15_000 });
+  await expect(page.getByTestId('cue-bound-f0').locator('input')).toHaveValue('Eero Laine');
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
 });

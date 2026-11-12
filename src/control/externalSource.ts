@@ -410,6 +410,10 @@ export interface ExternalRegistration {
   /** E5.1's recipe as stored, judged by ./sourceMapping.ts `readSourceRecipe` (the database never
    *  reads it: it changes what is written, not whether the agent may report). */
   mapping?: unknown;
+  /** NoaCG reads the endpoint itself (obs-scenes OS5a, ./jsonSource.ts): kept as stored when it
+   *  names a finite interval, dropped otherwise. Migration 0116 refuses the agent such a source;
+   *  this reader keeps it, so the review and NoaCG's own reader can read the registration. */
+  read?: { everyMs: number };
 }
 
 export type RegistrationRead =
@@ -442,6 +446,7 @@ export function readExternalRegistration(entry: unknown): RegistrationRead {
       endpoint,
       ...(lists ? { lists: lists as ExternalRegistration['lists'] } : {}),
       ...(config.mapping !== undefined ? { mapping: config.mapping } : {}),
+      ...(isObject(config.read) && typeof config.read.everyMs === 'number' && Number.isFinite(config.read.everyMs) ? { read: { everyMs: config.read.everyMs } } : {}),
     },
   };
 }
