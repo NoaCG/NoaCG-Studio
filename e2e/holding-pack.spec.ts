@@ -304,7 +304,16 @@ test.describe('a countdown to an absolute deadline', () => {
     await page.clock.runFor(60_000);
     expect(await read(page, 'a')).toEqual({ clock: '0:00', done: true });
 
+    // On air at zero, a new deadline (the break extended) counts at once.
+    await page.evaluate(() => {
+      const f = (window as unknown as { __dl: Record<string, HTMLIFrameElement> }).__dl.a;
+      (f.contentWindow as unknown as { update: (d: string) => void }).update(JSON.stringify({ f3: '2026-11-14T10:05:00+02:00' }));
+    });
+    await page.clock.runFor(60_000);
+    expect(await read(page, 'a')).toEqual({ clock: '1:50', done: false });
+
     expect(await start(page, 'past', '2026-11-14T09:59:00+02:00')).toBe('0:00');
+    expect((await read(page, 'past')).done, 'finished from its start').toBe(true);
     expect(await start(page, 'z', '2026-11-14T07:00:00Z')).toBe('0:00');
     await page.clock.runFor(1000);
     expect(await read(page, 'past')).toEqual({ clock: '0:00', done: true });

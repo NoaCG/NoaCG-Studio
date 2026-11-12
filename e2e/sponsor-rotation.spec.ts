@@ -96,7 +96,7 @@ test('two copies loaded at different times show the same partner, the wall clock
   for (let i = 0; i < 4; i++) {
     const slot = await toMidCycle(page);
     expect(await showing(page, 'a'), `cycle ${i}: the first copy`).toBe(slot);
-    expect(await showing(page, 'b'), `cycle ${i}: the copy loaded 2.3 s later`).toBe(slot);
+    expect(await showing(page, 'b'), `cycle ${i}: the copy taken a cycle and more later`).toBe(slot);
     // Same MOMENT, not only same cycle: neither changes before the boundary (a timer armed at a
     // copy's own Take would).
     const before = await toJustBefore(page);
@@ -123,6 +123,15 @@ test('a page throttled for a minute, and a reloaded one, rejoin the cycle within
     const slot = await toMidCycle(page);
     expect(await showing(page, 'a')).toBe(slot);
   }
+
+  // Hidden the way a browser really throttles: reads go on, drawing stops, so the crossfade fired
+  // at a boundary stalls across later ones. When drawing resumes it lands on the wall's partner,
+  // not the stalled cycle's.
+  await call(page, 'a', 'w.gsap.globalTimeline.pause();');
+  await page.clock.runFor(Math.round(period * 2.25));
+  await call(page, 'a', 'w.gsap.globalTimeline.resume();');
+  await page.clock.runFor(700);
+  expect(await showing(page, 'a'), 'a stalled crossfade lands on the current cycle').toBe((await wall(page, 'a')).slot);
 
   // A reload recovers by snapping on air with timers (docs/CLOUD_PLAYOUT.md section 3), as a scene
   // link's settled Take does.

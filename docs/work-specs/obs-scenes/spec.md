@@ -564,7 +564,7 @@ Filled in by each phase's pull request.
   - R9. Every start and every tick derives the time left from the deadline, so a reload, a snap
     and a page throttled while hidden show the right time on their next tick. An Update that
     keeps the same deadline leaves the count alone; a new deadline re-arms it (today's
-    signature rule).
+    signature rule), also once it has held at 0:00 on air.
   - R10. An invalid value (neither `HH:MM` nor a whole deadline with an offset, or an impossible
     date such as the 31st of November) is treated as an empty field: the duration counts. That
     is the template's empty state, as a typo is today.
@@ -590,7 +590,17 @@ Filled in by each phase's pull request.
   change the logo up to a hold early). The machine's rotating state is named `advance` and its
   first waypoint `enter`; the runtime reads only the group's armed timer and the `advance` hold.
   A deadline is anchored to its own instant (`clockAnchor`), not to "now plus the rounded seconds",
-  so every page flips on the deadline's second.
+  so every page flips on the deadline's second. From the `/check` review: a crossfade that stalled across
+  boundaries (drawing stopped in a hidden page while reads went on) lands on the current cycle's
+  partner, not the one it was fired for; the stand-in for the machine's timer never fires by
+  itself (a real one-day timer would have dipped a one-sponsor bug once a day); "already on
+  screen" is compared by element, since a logo picked on air reorders the filled slots; a deadline
+  that held at 0:00 on air counts to a new one at once (R9 amended), and one already past is
+  finished from its start, not a tick later. Kept with a reason: the runtime reads the
+  interpreter's timer table rather than a new wall-aligned timer edge in the shared interpreter,
+  because that would change every template's interpreter and the frozen copies in saved ones; it
+  only acts while a machine timer is armed, so GSAP's callback suppression (a scrub, a settle, a
+  parked snap) still keeps it idle.
 - Previous verified `main`: `b9f3660e28c5cc339dbfb82d4415ebb492ac2cef` (CI run 43268862367, the
   configured suite 43268862377).
 - Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted changes: the

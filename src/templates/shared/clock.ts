@@ -178,7 +178,8 @@ function startClock() {
   renderClock();
   // Polled four times a second so the painted second flips within a quarter second of the
   // real one; the value itself comes from the deadline, so the poll rate is only smoothness.
-  clockTimer = setInterval(tickClock, 250);
+  clockTimer = setInterval(tickClock, 250);${targetFieldId ? `
+  if (clockSecondsLeft <= 0) tickClock();      // a deadline already past: finished from the start` : ''}
 }
 
 function stopClock() {
@@ -199,7 +200,10 @@ function clockDataUpdated() {
   var changed = signature !== clockArmedFrom;
   clockArmedFrom = signature;
 
-  if (!clockTimer) {
+  if (!clockTimer) {${targetFieldId ? `
+    // A deadline that held at 0:00 on air and is given a new one counts to it: the count is a
+    // function of the wall clock, and the screen is still on air.
+    if (clockFinished && changed && clockDeadlineAt() === clockDeadlineAt()) { startClock(); return; }` : ''}
     // Not counting. A PAUSED clock is holding a remaining time the operator chose to freeze, and
     // a FINISHED one holds 0:00 until it is taken out, so both re-derive only when the operator
     // changes the length; an idle one previews it either way. (A finished clock is neither

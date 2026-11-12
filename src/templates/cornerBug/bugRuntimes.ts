@@ -89,7 +89,9 @@ function sponsorShow(index) {
 // The cycle's length and the crossfade's midpoint, in ms: the machine's own hold (its rotating
 // state's timer) plus its crossfade, at the motion speed, read from the machine so an edited hold
 // is the cycle every copy agrees on. 6 s + 0.5 s when there is no machine to read.
+var sponsorTimingCache = null;     // the machine and its speed never change in a page: read once
 function sponsorTiming() {
+  if (sponsorTimingCache) return sponsorTimingCache;
   var hold = 6, beat = 0.5;
   try {
     var group = noacgMachine.groups[0];
@@ -102,15 +104,17 @@ function sponsorTiming() {
     }
   } catch (e) {}
   var speed = (typeof motionSpeed === 'function' ? motionSpeed() : 1) || 1;
-  return { period: Math.max(0.5, hold + beat) * 1000 / speed, mid: beat * 500 / speed };
+  sponsorTimingCache = { period: Math.max(0.5, hold + beat) * 1000 / speed, mid: beat * 500 / speed };
+  return sponsorTimingCache;
 }
 
-// The machine's beat, at the midpoint of the crossfade. A crossfade the runtime started for a new
-// cycle shows that cycle's partner, the wall clock's; any other (Next sponsor, Resume, a snap into
-// the crossfade) advances one, as it always did, and the next boundary rejoins the wall clock.
+// The machine's beat, at the midpoint of the crossfade. A crossfade the runtime started shows the
+// wall clock's partner: its cycle's, or a later one's when the crossfade stalled across boundaries
+// (drawing stopped in a hidden page while reads went on). Any other crossfade (Next sponsor,
+// Resume, a snap into it) advances one, as it always did, and the next boundary rejoins the wall.
 function sponsorShowNext() {
   if (sponsorBeatFor !== null) {
-    sponsorShow(sponsorBeatFor);
+    sponsorShow(Math.max(sponsorBeatFor, Math.floor(Date.now() / sponsorTiming().period)));
     sponsorBeatFor = null;
   } else {
     sponsorShow(sponsorIndex + 1);
@@ -123,7 +127,7 @@ function sponsorShowNext() {
 // only this read ends, and a new cycle at the next crossfade's midpoint fires the timer's
 // transition now. A late or throttled timer therefore never sets the beat.
 function sponsorFollowWallClock() {
-  if (typeof noacgTimers === 'undefined' || typeof noacgMachine === 'undefined' || typeof noacgDispatch !== 'function' || typeof gsap === 'undefined') return;
+  if (typeof noacgTimers === 'undefined' || typeof noacgMachine === 'undefined' || typeof noacgDispatch !== 'function') return;
   var group = noacgMachine.groups[0];
   if (!group) return;
   var armed = noacgTimers[group.id];
@@ -135,20 +139,18 @@ function sponsorFollowWallClock() {
   var cycle = Math.floor((Date.now() + timing.mid) / timing.period);
   if (!armed.noacgSponsorWait) {
     // Joining (a Take's entrance ended, a snap, a crossfade ended): this cycle is the one on screen.
+    // The stand-in never fires by itself; anything that cancels timers (a transition, Hold, Out, a
+    // snap) kills it like the timer it replaces, which is what ends "live".
     armed.kill();
-    var wait = gsap.delayedCall(86400, function () {
-      noacgTimers[group.id] = null;
-      noacgDispatch({ timerGroup: group.id, from: noacgCurrent[group.id] });
-    });
-    wait.noacgSponsorWait = true;
-    noacgTimers[group.id] = wait;
+    noacgTimers[group.id] = { noacgSponsorWait: true, kill: function () {} };
     sponsorCycle = cycle;
     return;
   }
   if (cycle === sponsorCycle) return;
   sponsorCycle = cycle;
   var slots = sponsorSlots();
-  if (slots.length === 0 || ((cycle % slots.length) + slots.length) % slots.length === sponsorIndex) return;
+  // Compared by element, not index: a logo picked on air reorders the filled slots.
+  if (slots.length === 0 || slots[((cycle % slots.length) + slots.length) % slots.length].classList.contains('is-showing')) return;
   armed.kill();
   noacgTimers[group.id] = null;
   sponsorBeatFor = cycle;
