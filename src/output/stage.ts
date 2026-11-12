@@ -1028,7 +1028,10 @@ export function createOutputStage(
       return deliver(msg as ControlMessage);
     }
     const frame = frames.get(graphic);
-    if (!frame) return { failed: 'load' };
+    if (!frame) {
+      if (currentAt !== undefined) console.warn(`output stage: "${graphic}" has no frame for ${msg.t} ${currentAt}: ${String(new Error().stack).split('\n').slice(1, 7).join(' | ')}`);
+      return { failed: 'load' };
+    }
     switch (msg.t) {
       case 'update': {
         // Rule 1: an update without an appearance keeps the one applied; rule 3: one that carries
