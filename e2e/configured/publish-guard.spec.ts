@@ -733,7 +733,8 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
     await air.goto(outputUrl(outputSlug, 'Desk A'));
     const old = await viewers.newPage();
     await old.goto(outputUrl(outputSlug, 'Old', '&oldbuild=1'));
-    const holds = async (out: Page) => (await readyOf(out))?.n ?? 0;
+    /** The version an output holds (its READY answer's `v`). */
+    const holds = async (out: Page) => ((await readyOf(out)) as { v?: { n: number } } | null)?.v?.n ?? 0;
     await expect.poll(() => holds(air), { timeout: 60_000 }).toBeGreaterThan(0);
     await expect.poll(() => holds(old), { timeout: 60_000 }).toBeGreaterThan(0);
 
