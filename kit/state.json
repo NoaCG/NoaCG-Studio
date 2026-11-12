@@ -65,6 +65,12 @@
   }
  ],
  "fixes": [],
- "triggers": [],
+ "triggers": [
+  {
+   "id": "trig_01DitzC9baq45MG97V5R1Pui",
+   "what": "plan-run check-in plan-obs-scenes-2026-11-12",
+   "at": "2026-11-12T14:36:00Z"
+  }
+ ],
  "heartbeatComment": 6825771186
 }
