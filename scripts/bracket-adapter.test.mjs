@@ -561,13 +561,20 @@ test('connecting a field to a deep leaf of the bracket shape writes no recipe ou
 });
 
 test('every path the bracket shape gives is one a source write can address: no segment of digits alone', async () => {
-  const { patchForPath } = await import('../src/model/productionData.ts');
+  const { patchForPath, mergePatch, getPath } = await import('../src/model/productionData.ts');
   const leaves = (value, at = []) => (value !== null && typeof value === 'object' ? Object.entries(value).flatMap(([k, v]) => leaves(v, [...at, k])) : [at.join('.')]);
   for (const [shape, a] of [[asList(ROWS()), adapter()], [NESTED(), sidesAdapter()]]) {
     const r = adaptBracket(shape, a, { pick: a.fields.match ? (a.rowsAre ? 'x1' : 'm1') : null, memory: null });
     const paths = leaves(forFields(r.output));
     assert.ok(paths.length > 20);
-    for (const leaf of paths) assert.notEqual(patchForPath(`external.b1.${leaf}`, 'x'), null, leaf);
+    // Folded through the merge a source write takes, every path lands where it says.
+    let tree = {};
+    for (const leaf of paths) {
+      const one = patchForPath(`external.b1.${leaf}`, `v:${leaf}`);
+      assert.notEqual(one, null, leaf);
+      tree = mergePatch(tree, one);
+    }
+    for (const leaf of paths) assert.equal(getPath(tree, `external.b1.${leaf}`), `v:${leaf}`, leaf);
   }
 });
 
@@ -618,15 +625,15 @@ test('a mapped players list a read cannot give leaves players out, so its fields
   assert.equal(matchesOf(o.output)[0].a.seed, null);
 });
 
-test('a side row left out takes its match with it, said; a bracket id like __proto__ keeps its tie lines', () => {
+test('a side row left out takes its match with it, said; a bracket id of __proto__ is said, never silently lost', () => {
   const cut = NESTED();
   cut.cups[0].grid[1][1][1][1].step = '';
   const r = adaptBracket(cut, sidesAdapter());
   assert.ok(r.report.includes('row cups.1.grid.1.1.1.2 has no round, so it is left out'));
   assert.ok(r.report.includes('match x1 is left out with that row'));
   const proto = adaptBracket({ rows: [{ pair: 'p1', g: '__proto__', who: 'A', pts: 1 }, { pair: 'p1', g: '__proto__', who: 'B', pts: 0 }] }, readSourceAdapter({ v: 1, name: 'bracket', rows: 'rows', rowsAre: 'sides', fields: { match: 'pair', bracket: 'g', name: 'who', score: 'pts' } }).adapter);
-  assert.ok(Object.prototype.hasOwnProperty.call(proto.output.ties, '__proto__'));
-  assert.equal(proto.output.ties.__proto__, '1 | A 1 | B 0');
+  assert.equal(Object.prototype.hasOwnProperty.call(proto.output.ties, '__proto__'), false);
+  assert.ok(proto.report.includes('bracket __proto__ has a tie key the data cannot hold, so it has no tie lines'));
 });
 
 test('a round order by number puts a feed keyed by round number back in playing order; without it rounds keep feed order', () => {

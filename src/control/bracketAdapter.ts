@@ -633,13 +633,17 @@ export function adaptBracket(
     }
   }
   const list = [...brackets.values()];
-  // Built from entries, so a bracket id such as __proto__ is an own key like any other.
   const tieLines: [string, JsonValue][] = [];
   const keys = new Set<string>();
   list.forEach((bracket, i) => {
     const key = tieKey(bracket.id, i);
     if (keys.has(key)) {
       report.push(`bracket ${bracket.id} has the same tie key as another, so it has no tie lines`);
+      return;
+    }
+    // A merge into the tree drops this key without a word: said here instead.
+    if (key === '__proto__') {
+      report.push(`bracket ${bracket.id} has a tie key the data cannot hold, so it has no tie lines`);
       return;
     }
     keys.add(key);

@@ -930,7 +930,9 @@ Filled in by each phase's pull request.
     - An entry of the section with no name keeps its place, said. A name given twice in another
       case with other values fills nothing for that name, said (as B8).
     - A side row left out takes its match's other rows with it, said.
-    - Tie lines are built as own keys, so any bracket id keeps them.
+    - Tie lines are built as own keys. A bracket whose tie key is `__proto__` is said and has
+      no tie lines: the tree's merge drops that key without a word (found by the full `/so` on
+      9f0d29dc, graded A). Every path the shape gives is now checked through that merge.
     - Not taken, recorded: side rows pair by match id across the whole answer, as decided
       above.
   - B22 (coordinator, after the second run on the real feed). `roundOrder: 'ascending' |
