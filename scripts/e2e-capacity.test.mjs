@@ -145,10 +145,9 @@ test('fix 2: the table is the owner\'s only when it was at its line before the c
   const crossing = adding(202);
   assert.equal(crossing.status, 'refuse');
   assert.deepEqual(ownerKinds({ result: crossing, growth: quietGrowth() }), [], 'crossed by the change\'s own minutes: the agent\'s');
-  assert.deepEqual(ownerKinds({ result: adding(182, { tableStale: true }), growth: quietGrowth() }), ['full:table'], 'a stale table\'s line is 85%');
-  const staleCrossing = adding(180, { tableStale: true });
-  assert.equal(staleCrossing.status, 'refuse');
-  assert.deepEqual(ownerKinds({ result: staleCrossing, growth: quietGrowth() }), []);
+  // A stale table no longer has an 85% line (land-2 B1): at 85-95% nothing refuses, so no kind.
+  assert.deepEqual(ownerKinds({ result: adding(182, { tableStale: true }), growth: quietGrowth() }), [], 'a stale table\'s line is 95%, like any other');
+  assert.equal(adding(182, { tableStale: true }).status, 'warn');
 });
 
 test('fix 2: a tier is the owner\'s when full before the change or stopped; the agent\'s when the change crosses it', () => {
