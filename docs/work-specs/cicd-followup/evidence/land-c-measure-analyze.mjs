@@ -118,16 +118,41 @@ const sample = merged.filter((p) => p.number % 5 === 0).map((p) => ({ pr: p.numb
 const sampleWall = sample.map((x) => wall(x.plan.direct.specs));
 const sampleFull = sample.map((x) => x.plan.full.specs.length + x.plan.full.configured.length);
 
+// Pushes: the distinct heads a PR's runs tested. Each would pay its own pre-push run.
+const heads = (pr) => new Set((runsOf.get(pr) ?? []).map((r) => r.head_sha)).size;
+const BOUNCE = { median: 30.4, p90: 123.5 }; // cf22: minutes to landing lost per bounce
+const ownRuns = (f) => `${f.run}/${f.attempt}`;
+// The PR's first pushed head: the head of its first PR run.
+const firstHead = (pr) => (runsOf.get(pr) ?? [])[0]?.head_sha;
+// Two policies per cap: the direct set before the FIRST push only (cost once per landing, catches
+// only failures of that head), and before EVERY push (cost per pushed head, catches all).
+const thresholds = [3, 5, 8, 12, 20, 30, 45, 60, 120].map((cap) => {
+  const fits = (x) => { const w = wall(x.plan.direct.specs); return w > 0 && w <= cap ? w : 0; };
+  const caughtEvery = new Set(failures.filter((f) => f.cause === 'defect' && f.where === 'direct' && f.direct_wall_min <= cap).map(ownRuns));
+  const caughtFirst = new Set(failures.filter((f) => f.cause === 'defect' && f.where === 'direct' && f.direct_wall_min <= cap && runsOf.get(f.pr)?.[0] && f.sha === firstHead(f.pr).slice(0, 12)).map(ownRuns));
+  const costFirst = sample.reduce((t, x) => t + fits(x), 0) / sample.length;
+  const costEvery = sample.reduce((t, x) => t + fits(x) * heads(x.pr), 0) / sample.length;
+  const per = (n) => (n * BOUNCE.median) / merged.length;
+  return {
+    cap_min: cap, landings_that_run_it: `${sample.filter((x) => fits(x) > 0).length}/${sample.length}`,
+    first_push: { cost: r1(costFirst), caught: caughtFirst.size, saved: r1(per(caughtFirst.size)), net: r1(per(caughtFirst.size) - costFirst) },
+    every_push: { cost: r1(costEvery), caught: caughtEvery.size, saved: r1(per(caughtEvery.size)), net: r1(per(caughtEvery.size) - costEvery) },
+  };
+});
 const own = failures.filter((f) => f.cause === 'defect');
-const ownRuns = new Set(own.map((f) => `${f.run}/${f.attempt}`));
-const caughtRuns = new Set(own.filter((f) => f.where === 'direct').map((f) => `${f.run}/${f.attempt}`));
+const ownRunSet = new Set(own.map(ownRuns));
+const caughtRuns = new Set(own.filter((f) => f.where === 'direct').map(ownRuns));
+const first = failures.filter((f) => f.attempt === 1);
 const out = {
   window: { FROM, UNTIL, merged: merged.length, pr_runs: runs.length, speed: SPEED, boot_min: BOOT, table: table.source },
   failures_n: failures.length,
   by_cause: failures.reduce((h, f) => ({ ...h, [f.cause]: (h[f.cause] ?? 0) + 1 }), {}),
-  own_failures: { specs: own.length, runs: ownRuns.size, by_where: own.reduce((h, f) => ({ ...h, [f.where]: (h[f.where] ?? 0) + 1 }), {}), runs_caught_by_direct: caughtRuns.size },
+  own_failures: { specs: own.length, runs: ownRunSet.size, by_where: own.reduce((h, f) => ({ ...h, [f.where]: (h[f.where] ?? 0) + 1 }), {}), runs_caught_by_direct: caughtRuns.size },
   failing_heads_direct_wall_min: { median: r1(q(own.map((f) => f.direct_wall_min), 0.5)), p90: r1(q(own.map((f) => f.direct_wall_min), 0.9)) },
-  round_trip_min: { median: r1(q(failures.map((f) => f.round_trip_min), 0.5)), p90: r1(q(failures.map((f) => f.round_trip_min), 0.9)) },
+  // Push to the failed verdict, first attempts only (a re-run attempt is not a push).
+  round_trip_min: { median: r1(q(first.map((f) => f.round_trip_min), 0.5)), p90: r1(q(first.map((f) => f.round_trip_min), 0.9)) },
+  pushes_per_landing: { mean: r1(merged.reduce((t, p) => t + heads(p.number), 0) / merged.length), median: q(merged.map((p) => heads(p.number)), 0.5) },
+  thresholds,
   sample: { n: sample.length, direct_n_median: q(sample.map((x) => x.plan.direct.specs.length), 0.5), direct_wall_median: r1(q(sampleWall, 0.5)), direct_wall_p90: r1(q(sampleWall, 0.9)), full_n_median: q(sampleFull, 0.5), walls: sampleWall.map(r1).sort((a, b) => a - b) },
   failures,
 };
