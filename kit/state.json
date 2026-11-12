@@ -112,10 +112,6 @@
  },
  "ownerQuestions": [
   {
-   "what": "Phase 4 rollout: may the coordinator turn on the production_copies switch (G1 section 6 step 3) once a signed-in new-build page on production reports the mark through production_copies_state()? Effect: old open pages get Reload this page to edit on saves; their Takes keep working. Back out: switch off, instant.",
-   "state": "asked 2026-11-12T09:2xZ"
-  },
-  {
    "what": "AC-4: Take during a publish 100-200 ms slower at p95 unthrottled (phase 2 receipt). Ask before phase 6.",
    "state": "pending, before phase 6"
   },
@@ -142,6 +138,12 @@
    "question": "Q1 capacity refuse: land #2316 (A) or owner budget exception (B); Q2 add doors replace without dropped-field question: keep (A) or add in phase 4 (B); Q3 community pack not settled: leave (A) or settle on submit (B)",
    "answer": "A A A",
    "meaning": "Q1: the coordinator lands #2316 (durations refresh). Q2: add doors keep replacing as today, issue filed. Q3: community pack stays unsettled, issue filed."
+  },
+  {
+   "at": "2026-11-12",
+   "question": "Phase 4 rollout: may the coordinator turn on the production_copies switch (G1 section 6 step 3) once a signed-in new-build page on production reports the mark through production_copies_state()? Effect: old open pages get Reload this page to edit on saves; their Takes keep working. Back out: switch off, instant.",
+   "answer": "A and yes, I discussed in the runs session that I want sessions landing and not failing",
+   "meaning": "Switch: the coordinator turns production_copies on in a quiet window after a new-build page reports the mark. Budget: the /runs guidance is the owner instruction: never hold a phase or write a budget exception for the capacity gate; name #2381 and carry on."
   }
  ],
  "phase2": {
@@ -180,5 +182,9 @@
  },
  "guidance": [
   "2026-11-12T10:10Z via the /runs helper (session_017SdbwQsEQZLcAS97wCtYTB), at the owner request, not yet confirmed by the owner here: if the E2E capacity gate refuses a later phase, write no budget exception and do not hold the phase for an owner budget answer; say so on #2361, name #2381 (growth ceilings v3, owner-approved 2026-11-11, cicd-followup run), and carry on with what does not depend on it. The cicd-followup run is changing the gate so an edit to an existing spec is never refused."
- ]
+ ],
+ "standing": {
+  "productionCopiesSwitch": "\"A\" (owner 2026-11-12): coordinator turns on production_copies after confirming the mark, when no production is on air",
+  "capacityGate": "\"yes, I discussed in the runs session that I want sessions landing and not failing\" (owner 2026-11-12)"
+ }
 }
