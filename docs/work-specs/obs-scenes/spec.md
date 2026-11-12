@@ -348,8 +348,8 @@ marked **Risky** take the Rules-first `/so` (`docs/plan-runs/known-traps.md`). E
    deadlines.
 4. **OS5a. JSON source** (AC-9; **Risky**: api, polling). Includes the `docs/DATA_API.md`
    change of D4.
-5. **OS5b. Bracket adapter and current match** (AC-10; **Risky**: state rules). Its checker also
-   runs the adapter on the owner's private sample and reports only pass or fail.
+5. **OS5b. Bracket adapter and current match** (AC-10; **Risky**: state rules). The coordinator
+   also runs the adapter on the owner's private sample and records only pass or fail, privately.
 6. **OS2. First laptop test** (AC-13). Owner phase.
 7. **OS1b. Take, Out and copies per scene** (AC-2, AC-3; **Risky**: state rules, recovery).
 8. **OS3. Monitoring, settings and the settled export** (AC-6, and the settled export and guide

@@ -173,7 +173,7 @@
         "Node tests with synthetic fixtures for both row shapes, duplicates and missing rows",
         "the current match held across reads"
       ],
-      "notes": "Risky (state rules). Fixtures are synthetic. The checker alone reads the owner's private sample (the run notes name it) and records only pass or fail."
+      "notes": "Risky (state rules). Fixtures are synthetic. No worker reads the private repository; the coordinator runs the adapter on the owner's private sample and records only pass or fail in the private notes."
     }
   },
   {
