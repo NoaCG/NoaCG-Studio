@@ -428,3 +428,19 @@ Filled in by each phase's pull request.
   production (G1 section 6).
 - Traps: in the evidence, "Traps met".
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-4.md`.
+
+### Phase 5: The honest light and held Takes
+
+- Design: `designs/G2.md`, graded A+ by an independent `/so` at 13a698c2, landed as #2426.
+- Previous verified `main`: 7e54120d (recorded at the build's last merge from `main`).
+- Revert: `git revert -m 1 <this pull request's merge commit>` brings back today's output (a Take
+  for a graphic it does not host is dropped, reports bank whatever was applied) and today's light
+  ("Connected" from READY alone). Nothing persisted changed: `state.run` is one more member of a
+  report row's state, which older readers ignore, so no data step goes with it.
+- Rules: G2 section 8, R1 to R14 (reviewed Rules-first in the design gate).
+- Decisions: holds and run reports live on the numbered log only; the page owes the command rows it
+  follows and the head it resolved, not its own send answers (the answer carries no position, and
+  the Take path's send code was left alone); a mounted OGraf package counts as ready; monitors pass
+  no positions. Rules found while building are in the evidence.
+- Traps: in the evidence, "Traps met".
+- Evidence: `docs/work-specs/live-publishing/evidence/phase-5.md`.
