@@ -30,8 +30,11 @@ amendments, are in the spec's phase notes. Every fixture is synthetic. No OBS ha
   connector-review 27, external-data-connector 64, feed-source 10, file-source 16,
   show-fixture-compat 16, json-fetch 13: all pass.
 - `npm run gates -- run --changed origin/main`: every gate ok, 336 tests, 0 failed.
-- `e2e/production-api-mapping.spec.ts` (5, the new bracket journey included) and
-  `e2e/production-data.spec.ts`, through the job queue (`j-0001`).
+- `e2e/production-api-mapping.spec.ts` (6, both bracket journeys included) passed through the job
+  queue on the final head (`j-0009`). With `e2e/production-data.spec.ts` the pair passed 50 of 50
+  one commit earlier (`j-0007`); the rerun on the final head (`j-0008`) was cut off by a worker
+  restart after every test it reached had passed, and the queue refuses a second broad run of
+  one source state, so CI's selection covers it.
 - `npx tsc --noEmit` (root and api configs) and eslint on the changed files: clean.
 
 ## Not checked here
