@@ -2,7 +2,9 @@
 // cicd-followup land-c-measure planner: for each failing run's head, the full selection and the
 // "direct set" the selector of THAT commit gives for that head's changed files. No API calls.
 //
-//   node docs/work-specs/cicd-followup/evidence/land-c-measure-plan.mjs --cache <dir> --work <dir>
+//   node docs/work-specs/cicd-followup/evidence/land-c-measure-plan.mjs --cache <dir> --work <dir> [--shard i/n]
+//
+// --shard i/n plans every n-th head from the i-th (1-based), so n copies can run side by side.
 //
 // Reads <cache>/changed/<sha>.json (the collector) and writes <cache>/plans/<sha>.json.
 //
@@ -45,7 +47,9 @@ function cli(dir, files) {
 }
 const bare = (s) => s.replace(/^e2e\//, '');
 
-for (const name of readdirSync(join(CACHE, 'changed'))) {
+const [shardI, shardN] = (opt('--shard') ?? '1/1').split('/').map(Number);
+for (const [k, name] of readdirSync(join(CACHE, 'changed')).sort().entries()) {
+  if (k % shardN !== shardI - 1) continue;
   const sha = name.replace('.json', '');
   const target = join(CACHE, 'plans', name);
   if (existsSync(target)) continue;

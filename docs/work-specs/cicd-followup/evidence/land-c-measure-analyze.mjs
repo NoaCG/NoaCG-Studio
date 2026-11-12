@@ -7,7 +7,8 @@
 //
 // --speed: measured cloud wall minutes per CI table minute at 2 workers (section 4 of the evidence).
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BROWSER_JOB, FROM, UNTIL, failed, prOf } from './land-c-measure-collect.mjs';
 
@@ -25,6 +26,14 @@ const wall = (specs) => (specs.length ? minutes(specs) * SPEED + BOOT : 0);
 const q = (xs, p) => { const s = [...xs].sort((a, b) => a - b); return s.length ? s[Math.min(s.length - 1, Math.floor(p * s.length))] : null; };
 const r1 = (x) => (x == null ? null : Math.round(x * 10) / 10);
 const bare = (s) => s.replace(/^.*\//, '');
+const git = (...a) => execFileSync('git', a, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+// The files the PR's own commits changed between a failing head and the next green head: first
+// parent, merges skipped, so main merged in does not count (cf22: a repair that only merged main
+// is not the PR's own fix).
+function repairFiles(from, to) {
+  for (const sha of [from, to]) { try { git('cat-file', '-e', `${sha}^{commit}`); } catch { git('fetch', '-q', 'origin', sha); } }
+  return [...new Set(git('log', '--first-parent', '--no-merges', '--format=', '--name-only', `${from}..${to}`).split('\n').filter(Boolean))];
+}
 
 const pulls = load('pulls.json').items;
 const merged = Object.values(pulls).filter((p) => p.merged_at && p.merged_at >= FROM && p.merged_at < UNTIL);
@@ -57,6 +66,7 @@ function attempts(run) {
   return [...by.entries()].sort((a, b) => a[0] - b[0]).map(([attempt, jobs]) => ({
     attempt, jobs, ok: !jobs.some(failed),
     browserFailed: jobs.filter((j) => BROWSER_JOB.test(j.name) && failed(j)),
+    start: jobs.map((j) => j.started_at).filter(Boolean).sort()[0] ?? run.created_at,
     end: jobs.map((j) => j.completed_at).filter(Boolean).sort().pop() ?? run.updated_at,
   }));
 }
@@ -69,7 +79,7 @@ for (const [pr, list] of runsOf) {
         const plan = load(`plans/${run.head_sha}.json`);
         const step = (job.steps ?? []).find((s) => failed(s));
         const specs = failingSpecs(job);
-        const base = { pr, run: run.id, attempt: a.attempt, sha: run.head_sha.slice(0, 12), job: job.name.replace(/ \(.*\)$/, ''), round_trip_min: r1((Date.parse(a.end) - Date.parse(run.created_at)) / 60000) };
+        const base = { pr, run: run.id, attempt: a.attempt, sha: run.head_sha.slice(0, 12), job: job.name.replace(/ \(.*\)$/, ''), round_trip_min: r1((Date.parse(a.end) - Date.parse(a.attempt === 1 ? run.created_at : a.start)) / 60000) };
         if (!step || SETUP.test(step.name) || !specs?.length) {
           failures.push({ ...base, spec: null, cause: 'infra', why: !step ? 'no failed step (runner lost)' : SETUP.test(step.name) ? `setup step: ${step.name}` : specs ? `no failing test named (step ${step.name}: hang, timeout or crash)` : 'log not read' });
           continue;
@@ -84,10 +94,9 @@ for (const [pr, list] of runsOf) {
           if (quarantined.has(spec)) { cause = 'flake'; why = 'quarantined at the head'; }
           else if (sameShaGreen) { cause = 'flake'; why = 'green again on the same commit'; }
           else if (next) {
-            const a1 = load(`changed/${run.head_sha}.json`)?.files ?? [];
-            const a2 = load(`changed/${next.head_sha}.json`)?.files;
-            cause = 'defect'; why = `next green at ${next.head_sha.slice(0, 12)}${a2 ? '' : ' (repair diff not read)'}`;
-            if (a2 && a2.length === a1.length && a2.every((f) => a1.includes(f))) why += ', same file set';
+            const fix = repairFiles(run.head_sha, next.head_sha);
+            if (!fix.length) { cause = 'main'; why = `next green at ${next.head_sha.slice(0, 12)} after only merging main`; }
+            else { cause = 'defect'; why = `next green at ${next.head_sha.slice(0, 12)}; the PR's own commits changed ${fix.length} file(s)${fix.includes(`e2e/${spec}`) ? ', the failing spec among them' : ''}`; }
           } else { cause = 'unresolved'; why = 'no later green PR run'; }
           const inDirect = plan && (plan.direct.specs.includes(spec) || plan.direct.configured.includes(spec));
           const inFull = plan && (plan.full.specs.includes(spec) || plan.full.configured.includes(spec));
