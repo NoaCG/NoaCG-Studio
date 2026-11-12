@@ -178,7 +178,8 @@
   "design": "eee78278 (#2404)",
   "migration": "0115 applied to production by post-land 43191069302 in a quiet window; switch production_copies OFF",
   "pass": "2026-11-12T09:53Z",
-  "costUSD": "about 100 (builder 72, /so about 22, checker 6)"
+  "costUSD": "about 100 (builder 72, /so about 22, checker 6)",
+  "switch": "production_copies turned ON 2026-11-12T11:31:06Z by the coordinator under owner answer A: live bundle assets/supabase-B3Ty3xm9.js carries the header; production_copies_state() through the gateway reported mark true with the header and false without; quiet window empty (no production on air); system_settings row written with the service role; re-read on true. Back out: set value {\"on\": false} (instant)."
  },
  "guidance": [
   "2026-11-12T10:10Z via the /runs helper (session_017SdbwQsEQZLcAS97wCtYTB), at the owner request, not yet confirmed by the owner here: if the E2E capacity gate refuses a later phase, write no budget exception and do not hold the phase for an owner budget answer; say so on #2361, name #2381 (growth ceilings v3, owner-approved 2026-11-11, cicd-followup run), and carry on with what does not depend on it. The cicd-followup run is changing the gate so an edit to an existing spec is never refused."
