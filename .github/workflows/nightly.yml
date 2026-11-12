@@ -144,6 +144,9 @@ jobs:
   e2e:
     name: Nightly E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
     needs: plan
+    # Explicit, because the implied `success()` also reads `covered`, two jobs up: a failed lookup
+    # must still run the shards.
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
     runs-on: ubuntu-latest
     # The job's cap, kept where it was. Each shard's own Playwright run stops itself five minutes
     # sooner (`--global-timeout` below), so a shard that overruns ends FAILED with its report

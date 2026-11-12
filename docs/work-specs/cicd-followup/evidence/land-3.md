@@ -27,7 +27,8 @@ figures in PR #2420).
 - R6. The verdict counts skipped shards as a pass only when R3 held, and so does the landing
   coverage measurement (`scripts/schedule-coverage.mjs`, read by nightly-drift.yml): a night whose
   `covered` job succeeded with the plan skipped is complete. A `covered` job that fails or hits its
-  cap falls back to running the shards. No test, spec, check, limit or retry policy changes.
+  cap falls back to running the shards: `plan` and `e2e` carry `!cancelled()`, because the implied
+  `success()` reads every job upstream. No test, spec, check, limit or retry policy changes.
 
 ## Measured basis (2026-10-29..11-12, Actions API, re-verified by this builder)
 
@@ -79,6 +80,8 @@ coverage measurement now accepts a covered night (R6, with a test), and `plan` r
 fails. Not changed: `e2e/_trace.ts` still says its map is "the nightly's" (a comment). The review's
 alternative to the capacity refusal, folding the lookup into `plan` with a 50-minute cap, would
 remove the new job only by widening another job's limit; the refusal is reported instead (below).
+Final `/so` on head 9224f4504: AGREE WITH CORRECTIONS, grade B. Answered: `e2e` now runs after a
+failed `covered` job too (its implied `success()` read `covered` as well).
 
 ## The capacity gate
 
