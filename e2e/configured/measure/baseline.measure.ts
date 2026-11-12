@@ -859,7 +859,6 @@ test('w3', async ({ page, browser }) => {
     await settle(page);
     await outBtn.click();
     await settle(page);
-    await expect(page.getByTestId('program-air')).toHaveAttribute('data-state', 'ran', { timeout: 20_000 }).catch(() => undefined);
   }
   if (feeder) await feeder.close();
   report('w3', { graphic: samples }, { outputs: outputsWanted, feedMs, pressToConfirmed: summary(confirmed, unconfirmed), fixtureFacts: fx });
