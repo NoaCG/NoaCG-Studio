@@ -70,8 +70,13 @@ test('R1/R3: on names who set it, why and the issue; the gate fails', async () =
 });
 
 test('R1: a pull request carrying the label, or a closed issue, is not a hold', async () => {
-  const { api } = github({ answer: [{ number: 9, state: 'open', pull_request: {}, labels: [{ name: LABEL }] }] });
+  const { api } = github({ answer: [{ number: 9, state: 'open', pull_request: {}, labels: [{ name: LABEL }] }, { number: 8, state: 'closed', labels: [{ name: LABEL }] }] });
   assert.equal((await readHold(api)).on, false);
+});
+
+test('R1: the label matches without case, as GitHub matches it', async () => {
+  const { api } = github({ answer: [{ number: 4, state: 'open', labels: [{ name: 'Landing-Hold' }] }] });
+  assert.equal((await readHold(api)).on, true);
 });
 
 test('R1/R3: an issue labelled by hand holds, and names whoever opened it', async () => {

@@ -1,7 +1,7 @@
 # Landing hold
 
 The landing hold stops every landing on `main` for as long as it is on. Use it when nothing may
-change in production, for example while a live production depends on it.
+change in production.
 
 While it is on, the `CI gate` check fails on every pull request and every merge group, with an
 error that starts "Landing hold" and names who set it, why, and the hold issue. Because the merge
@@ -15,7 +15,7 @@ GitHub answers again.
 ## The state
 
 The hold is on while any open issue carries the `landing-hold` label. The Landing hold workflow
-opens and closes that issue, and records who did it and why. Rules R1 to R10 under "OS0" in
+opens and closes that issue, and records who did it and why. Rules R1 to R13 under "OS0" in
 `docs/work-specs/obs-scenes/spec.md` are the exact behaviour; `scripts/landing-hold.mjs` reads and
 writes the state.
 

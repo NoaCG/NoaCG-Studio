@@ -6,7 +6,7 @@
 //
 // While the hold is on, the CI gate fails on every pull request and merge group, so nothing
 // reaches `main`: no landing, so no production deploy and no migration (post-land.yml runs on a
-// push to main). docs/LANDING_HOLD.md is the guide; the rules are R1 to R10 under "OS0" in
+// push to main). docs/LANDING_HOLD.md is the guide; the rules are R1 to R13 under "OS0" in
 // docs/work-specs/obs-scenes/spec.md.
 //
 // THE STATE IS AN OPEN ISSUE WITH THE `landing-hold` LABEL. The workflow token can write issues
@@ -90,10 +90,12 @@ export function describe(issue) {
 
 /** R1: on exactly when an open issue (not a pull request) carries the label. Throws when unreadable. */
 export async function readHold(api) {
+  // GitHub matches label names without case, so the filter below does too. One page of 100: more
+  // than 100 open labelled items is not a state this repository reaches, and any one holds.
   const { data } = await api('GET', `/issues?state=open&labels=${LABEL}&per_page=100`);
   if (!Array.isArray(data)) throw new HoldUnreadable('the issue list was not a list');
   const holds = data.filter((item) => item && typeof item === 'object' && !item.pull_request && item.state === 'open'
-    && Array.isArray(item.labels) && item.labels.some((label) => (typeof label === 'string' ? label : label?.name) === LABEL));
+    && Array.isArray(item.labels) && item.labels.some((label) => String(typeof label === 'string' ? label : label?.name).toLowerCase() === LABEL));
   return { on: holds.length > 0, holds: holds.map(describe) };
 }
 
