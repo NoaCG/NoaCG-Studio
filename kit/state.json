@@ -36,18 +36,18 @@
  },
  "waitingOn": [
   {
-   "what": "phase 4 checker verdict; owner answer on the production switch",
-   "eta": "2026-11-12T11:00:00Z"
+   "what": "phase 5 builder (G2 note then receipt); owner answer on the production_copies switch",
+   "eta": "2026-11-12T16:00:00Z"
   }
  ],
  "inFlight": [
   {
-   "phase": "4",
-   "step": "check",
-   "actor": "checker-4-4-c-533b",
-   "session": "session_017SdbwQ7DGVCPaGuXVzMT5e",
-   "mergeSha": "9960a904ea2366f94fc875515a20f979d22765c2",
-   "launchedAt": "2026-11-12T09:25:46Z"
+   "phase": "5",
+   "step": "build (G2 design PR, then W3 build PR)",
+   "actor": "builder-5-5-b-a331",
+   "session": "session_017SdbwMx1ooTEVQrtu6Losx",
+   "branch": "claude/plan-live-publishing-5-build",
+   "launchedAt": "2026-11-12T09:55:01Z"
   }
  ],
  "owner": [
@@ -171,6 +171,8 @@
  "phase4": {
   "landed": "9960a904",
   "design": "eee78278 (#2404)",
-  "migration": "0115 applied to production by post-land 43191069302 in a quiet window; switch production_copies OFF"
+  "migration": "0115 applied to production by post-land 43191069302 in a quiet window; switch production_copies OFF",
+  "pass": "2026-11-12T09:53Z",
+  "costUSD": "about 100 (builder 72, /so about 22, checker 6)"
  }
 }
