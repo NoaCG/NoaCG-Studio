@@ -121,26 +121,6 @@ const nsha = nightly.filter((r) => r.event === 'schedule');
 out.nightlyHeadAlreadyFull = { n: nsha.length,
   green: nsha.filter((r) => push.some((p) => p.head_sha === r.head_sha && p.conclusion === 'success')).length,
   red: nsha.filter((r) => push.some((p) => p.head_sha === r.head_sha && p.conclusion === 'failure')).length };
-// Fallback model: one full push run at a time plus at most one pending (a concurrency group with
-// cancel-in-progress false). Replays the push events with each run's wall time at the measured
-// median, and reports the full runs it needs and the bad-merge window it gives.
-{
-  const WALL = Number(out.pushFull.wallMedian);
-  const ev = [...push].sort((a, b) => a.created_at.localeCompare(b.created_at)).map((r) => ({ t: new Date(r.created_at) / 60000, sha: r.head_sha }));
-  let busyUntil = -Infinity, pending = null, runs = 0; const ends = [];
-  const start = (t, sha) => { runs += 1; busyUntil = t + WALL; ends.push({ end: busyUntil, sha }); };
-  for (const e of ev) {
-    while (pending && busyUntil <= e.t) { const p = pending; pending = null; start(Math.max(busyUntil, p.t), p.sha); }
-    if (busyUntil <= e.t) start(e.t, e.sha); else pending = e;
-  }
-  while (pending) { const p = pending; pending = null; start(Math.max(busyUntil, p.t), p.sha); }
-  const w = log.map((l) => { const i = order.get(l.sha); const t = new Date(l.at) / 60000;
-    const c = ends.filter((x) => order.has(x.sha) && order.get(x.sha) <= i && x.end >= t).map((x) => x.end - t);
-    return c.length ? Math.min(...c) : null; }).filter((x) => x !== null);
-  out.coalesced = { fullRuns: runs, todayFullRuns: verdicts.length, window: { n: w.length, median: f1(med(w)), p90: f1(q(w, 0.9)), p95: f1(q(w, 0.95)), max: f1(Math.max(...w)) },
-    landingsWithOwnRun: new Set(ends.map((x) => x.sha)).size };
-}
-
 // Per landed pull request: its PR runs (heads, cancelled), its merge-group runs. The runs list
 // carries no PR number for this repository, so a PR's runs are its branch's runs created before
 // it landed and after the same branch's previous landing (branch names are reused rarely).

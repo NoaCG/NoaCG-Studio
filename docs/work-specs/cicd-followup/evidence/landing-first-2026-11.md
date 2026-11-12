@@ -7,7 +7,7 @@ its own revertible pull request, and every coverage change in it is a separate o
 Window: 14 days, 2026-10-29T00:00Z to 2026-11-12T00:00Z, from `main` at `b645889f9`. Data:
 GitHub Actions run lists (`ci.yml` push, merge group and pull request; `configured-suite.yml`
 push; `nightly.yml`), jobs for a sample of runs, and one nightly's merged Playwright report.
-Rebuild: `node landing-first-2026-11-collect.mjs --cache <dir>` until it prints `complete` (three
+Rebuild: `node landing-first-2026-11-collect.mjs --cache <dir> --jobs-sample 25` until it prints `complete` (three
 passes of at most 100 calls), then `node landing-first-2026-11-analyze.mjs --cache <dir>`. Both
 need a full clone; a shallow one lists too few landings.
 
