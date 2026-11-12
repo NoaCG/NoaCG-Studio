@@ -69,14 +69,16 @@ function recordKey(items: Record<string, unknown>[], keys: string[]): string | n
  * MAX_OFFERS values and MAX_COLLECTIONS lists, as deep as a recipe path reads (MAX_SEGMENTS keys), and a walk of at most MAX_VISITS
  * values, so a hostile sample costs a bounded walk.
  */
-export function jsonOffers(sourceId: string, sample: unknown): JsonOffers {
+export function jsonOffers(sourceId: string, sample: unknown, bounds: { depth?: number; max?: number } = {}): JsonOffers {
+  const depth = bounds.depth ?? MAX_SEGMENTS;
+  const max = bounds.max ?? MAX_OFFERS;
   const prefix = sourcePrefix(sourceId, 'external');
   const scalars: OfferedValue[] = [];
   const collections: JsonCollection[] = [];
   let visits = 0;
   const walk = (value: Record<string, unknown>, keys: string[]) => {
     for (const [key, child] of Object.entries(value)) {
-      if ((visits += 1) > MAX_VISITS || scalars.length >= MAX_OFFERS) return;
+      if ((visits += 1) > MAX_VISITS || scalars.length >= max) return;
       if (!SEGMENT.test(key)) continue;
       const at = [...keys, key];
       const from = at.join('.');
@@ -89,7 +91,7 @@ export function jsonOffers(sourceId: string, sample: unknown): JsonOffers {
         const items = child as Record<string, unknown>[];
         const fields = Object.keys(items[0]).filter((k) => SEGMENT.test(k) && scalarText(items[0][k]) !== null);
         if (fields.length > 0) collections.push({ path: `${prefix}.${from}`, from, label: words(at), keys: fields, id: recordKey(items, fields) });
-      } else if (isObject(child) && at.length < MAX_SEGMENTS) {
+      } else if (isObject(child) && at.length < depth) {
         walk(child, at);
       }
     }
@@ -254,6 +256,11 @@ export function connectorPlan(o: {
   // a leaf the source already reads keeps its output (a format, fallback, filter or sort made
   // through the API, a field the graphic no longer has, another graphic's reading of a shared
   // leaf), a list's columns follow a pick that fits it, and a leaf it does not read yet is added.
+  // NoaCG's read, and an adapter beside it (OS5b, B2). A leaf of an adapter's shape is read by its
+  // own path, at any depth: it gets no recipe output, whose paths take at most MAX_SEGMENTS keys.
+  const noacg = o.read === undefined ? stored?.read : (o.read ?? undefined);
+  const kept = o.adapter === undefined ? stored?.adapter : (o.adapter ?? undefined);
+  const shaped = Boolean(noacg && kept !== undefined);
   const reviewed = new Set(o.rows.map((r) => r.fieldId));
   const mine = sourcePaths(after, id).filter((p) => p.graphic === o.graphic && reviewed.has(p.fieldId));
   for (const { fieldId, path } of mine) {
@@ -264,7 +271,7 @@ export function connectorPlan(o: {
     if (adapter && collection) {
       outputs[leaf] = listOutput(collection, adapter, o.columns[fieldId], stored);
       lists[leaf] = adapter;
-    } else if (!adapter && !stored) {
+    } else if (!adapter && !stored && !shaped) {
       outputs[leaf] = { from: leaf };
       delete lists[leaf];
     }
@@ -280,10 +287,8 @@ export function connectorPlan(o: {
     ...(Object.keys(lists).length > 0 ? { lists } : {}),
     ...(recipe ? { mapping: recipe } : {}),
   };
-  const noacg = o.read === undefined ? stored?.read : (o.read ?? undefined);
   if (noacg) config.read = { everyMs: noacg.everyMs };
-  const kept = o.adapter === undefined ? stored?.adapter : (o.adapter ?? undefined);
-  if (noacg && kept !== undefined) config.adapter = kept as BracketAdapter;
+  if (shaped) config.adapter = kept as BracketAdapter;
   return {
     source: { id, kind: 'external', label: o.source.label, config, ...(o.source.paused ? { paused: true } : {}) },
     entries,

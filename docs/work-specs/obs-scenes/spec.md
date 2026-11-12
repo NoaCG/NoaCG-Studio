@@ -168,6 +168,17 @@ break another live production.
 - The adapter's field mapping (which input field means name, score, race, round and so on) is a
   setting of the source, not code, so no site's field names are written into the product.
   Fixtures are synthetic.
+- The mapping also covers feeds shaped differently (added after the first run on a real feed):
+  - A row can be one side of a match: rows that share a match id form the match, side a then side
+    b in row order. A match with one side in the rows is kept, with an unknown other side, and
+    reported; no winner is invented.
+  - Rows can be nested: the rows path can gather every entry of a list or of a numbered object at
+    any level, in feed order, down to leaves that are lists or numbered objects of rows.
+  - The bracket can be taken from where a row sits (its entry's place at a gathered level) when no
+    row field names it; a field that repeats across brackets can then be the stage.
+  - A separate players section can be joined to the sides by name, ignoring case, to fill each
+    side's seed (and its race where the row has none); `<p>.players` then comes from that section.
+    A name the section does not hold is reported, not guessed.
 - The current match is chosen by the operator. A read never changes it. If its match disappears
   or its players change, `current` keeps the last values and `held` is true.
 
@@ -278,8 +289,11 @@ limit). No new Vercel function.
 Both row shapes produce the same ordered result with stable match ids. Unknown scores stay `null`
 and "—" in tie lines. Duplicated or missing rows are reported, not guessed. The field mapping is a
 source setting. The current match holds across reads, keeps its last values with `held` true when
-its match disappears or changes players, and moves only when the operator picks another. Covered
-by synthetic fixtures.
+its match disappears or changes players, and moves only when the operator picks another. Rows
+that are sides of a match pair by match id, and a one-side match is kept and reported; rows nested
+under lists and numbered levels are gathered in feed order; the bracket can come from a row's place;
+a players section fills seeds by name, ignoring case, and an unmatched name is reported. A setting
+made before these options reads exactly as before. Covered by synthetic fixtures.
 
 ### AC-11: The Live dock
 
@@ -866,6 +880,31 @@ Filled in by each phase's pull request.
     still needs a read between the two.
   - B16 after coding. While a pick is set, the picker stays on the line with it and "none", even
     when the last read offers no matches.
+- Rules added after the first run on a real feed (coordinator, 2026-11-12; additive, so a setting
+  without the new keys reads exactly as before and no field changes meaning):
+  - B17. `rowsAre: 'sides'`: a row is one side of a match, with its own `name`, `race`, `seed`,
+    `score` and `league` fields beside the grouping ones; `match` and `name` are required. Rows
+    sharing a match id, in feed order, are side a then side b. One row: side b is unknown, and the
+    line says "match X has one side in the rows". Three or more rows, or two sides that disagree
+    about bracket, stage, round or status: the match keeps its values (as B7) and the line says so.
+  - B18. A `*` segment in `rows` gathers every entry of a list (by position, from 1) or of an
+    object keyed by number (in numeric order), at any level, in feed order. The leaves are read as
+    B3 says. A branch without the next key, or with no entries, is said, never filled in. Rows
+    found nowhere: the read holds every value (as a missing rows path does).
+  - B19. `bracketLevel: k` takes the bracket id from the entry's place at the k-th `*` of `rows`;
+    it and a `bracket` field are never set together.
+  - B20. `players: { at, fields: { name, race?, seed?, league? } }` reads a section (a list, or an
+    object of entries by any key) beside the rows and joins it to each side by name, ignoring case.
+    It fills `seed` where the side has none, and `race` where the side has none. A side name it
+    does not hold is said once. `<p>.players` is the section's entries in order, when it is
+    mapped. A section that is not there is said, and the sides keep what the rows give.
+  - The review offers each of these from the sample: rows found through `*`, "Each row is", the
+    bracket from "Its place in" a gathered level, and a players list with its fields.
+  - B21 (found while adding these). A match's own paths are 10 keys deep
+    (`brackets.i.stages.k.rounds.r.matches.m.a.name`), past the 8 a recipe path or the review's
+    offers reach. So the review offers a bracket source's shape 12 keys deep (up to 1000 values),
+    and connecting a field to an adapter's leaf writes no recipe output: the read reaches the leaf
+    by its own path, at any depth. The recipe's limit is unchanged.
 - Previous verified `main`: `97ba82596a7fcfcf6a424140648a5f8ad13aab92` (CI 43307568831, configured
   suite 43307568943).
 - Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed and no

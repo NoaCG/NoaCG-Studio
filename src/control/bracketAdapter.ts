@@ -1,4 +1,4 @@
-// THE BRACKET ADAPTER (docs/work-specs/obs-scenes/spec.md, OS5b; AC-10, rules B1 to B16 in its
+// THE BRACKET ADAPTER (docs/work-specs/obs-scenes/spec.md, OS5b; AC-10, rules B1 to B21 in its
 // phase notes). A pure module: a JSON source NoaCG reads may name it in `config.adapter`, and each
 // read's payload is turned into one bracket shape before the shared evaluator sees it
 // (./jsonSource.ts `projectJson`, OS5a's `project` hook, R11).

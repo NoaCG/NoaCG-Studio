@@ -1,6 +1,6 @@
 # OS5b: Bracket adapter and current match, evidence
 
-Acceptance AC-10 (`docs/work-specs/obs-scenes/spec.md`). Rules B1 to B16, with the Rules-first `/so`
+Acceptance AC-10 (`docs/work-specs/obs-scenes/spec.md`). Rules B1 to B21, with the Rules-first `/so`
 amendments, are in the spec's phase notes. Every fixture is synthetic. No OBS hardware is involved.
 
 ## Per clause
@@ -14,11 +14,18 @@ amendments, are in the spec's phase notes. Every fixture is synthetic. No OBS ha
 | The current match holds across reads, keeps its last values with `held` true when its match disappears or changes players | `resolveCurrent` (B12), the memory in the snapshot (`projectedState` keeps `#` keys), the bound `current` paths standing in when there is no memory | "the current match follows the operator's pick only", against a model written from B12 (14 steps); "through the reader": held true and nothing else written, the tick never moves it and keeps the memory; "with no memory, the bound current paths stand in"; e2e: players change, the field keeps `Dahl`, the line says held |
 | Moves only when the operator picks another | The pick is `<p>.currentMatchId` in the tree, read by an open page; the source line's picker writes it and pokes the reader (B11, B14) | model test; e2e: picking m2 then m1 moves both fields, a read does not |
 | Covered by synthetic fixtures | Invented field names, players and ids | the test and the e2e fixtures |
+| Side rows pair by match id; a one-side match is kept and reported (added after the first real feed) | `rowsAre: 'sides'` (B17) | "side rows: the rows of one match id are side a then side b": x1 paired, y9 kept with an unknown side b, `unknown` status, the line says so; "side rows that cannot form one match": three rows, or sides that disagree, keep the match's values |
+| Nested rows gathered in feed order | `*` in `rows` (B18) | "nested rows are gathered through a list and numbered levels": list and keyed leaves, order kept, a missing branch said, nothing found holds every value |
+| The bracket from a row's place | `bracketLevel` (B19) | "the bracket is the position at the chosen level": ids `1` and `2`; the repeating field is the stage |
+| A players section fills seeds by name; an unmatched name is reported | `players` (B20) | "the players section fills seeds": any case, race only where the row has none, `Fir is not in the players list`, `players` from the section, a missing section said |
+| A setting made before reads exactly as before | `readSourceAdapter` keeps a setting without the new keys as it was | "the new settings are additive and judged"; every earlier test passes unchanged; e2e fourth test unchanged |
+| A match's own paths can be connected (B21) | `jsonOffers` bounds for a bracket; `connectorPlan` writes no recipe output for an adapter's leaf | "connecting a field to a deep leaf of the bracket shape writes no recipe output"; e2e fifth test binds `brackets.1....matches.0.b.name` and `.b.seed` |
+| The review offers the new settings | `BracketSetting`: rows through `*`, "Each row is", "Its place in", a players list | e2e fifth test: nested side rows set up in the review, the saved setting, and the graphic showing side b's name and its seed from the roster |
 | Nothing new with the switch off (rule) | "Read as a bracket" shows only beside "Read by NoaCG", which shows only with the OBS scenes switch on (OS5a R2); the picker only for a source whose reads offer matches | e2e first and third tests unchanged and passing |
 
 ## Local runs
 
-- `node --test`: bracket-adapter 16, json-source 15, data-tick 15, sheet-source 44, source-mapping 66,
+- `node --test`: bracket-adapter 24, json-source 15, data-tick 15, sheet-source 44, source-mapping 66,
   connector-review 27, external-data-connector 64, feed-source 10, file-source 16,
   show-fixture-compat 16, json-fetch 13: all pass.
 - `npm run gates -- run --changed origin/main`: every gate ok, 336 tests, 0 failed.

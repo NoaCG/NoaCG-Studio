@@ -304,7 +304,8 @@ function CueConnectReview({
   }, [json, bracket]);
   const bracketProblem = bracket ? (reviewed?.problem ?? null) : null;
   // A connector's sample: its values and its lists, a list field matched against the lists.
-  const offers = useMemo(() => (reviewed ? jsonOffers(id, reviewed.sample) : null), [id, reviewed]);
+  // A bracket's shape is deeper and wider than a plain answer: its matches are offered in full.
+  const offers = useMemo(() => (reviewed ? jsonOffers(id, reviewed.sample, bracket ? BRACKET_OFFER_BOUNDS : {}) : null), [id, reviewed, bracket]);
   const adapters: Record<string, SourceListAdapter> = {};
   if (json) {
     for (const d of fields) {
@@ -1878,6 +1879,9 @@ function DesignUpdate({ update, disabled }: { update: { dropped: string | null; 
     </div>
   );
 }
+
+/** How deep and how many of a bracket's paths the review offers (OS5b, B21). */
+const BRACKET_OFFER_BOUNDS = { depth: 12, max: 1000 };
 
 /** What each bracket field means, as the review names it. */
 const BRACKET_FIELD_WORDS: Record<BracketFieldKey, string> = {

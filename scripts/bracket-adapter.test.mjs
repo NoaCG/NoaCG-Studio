@@ -536,3 +536,19 @@ test('the review finds nested rows through *, a players section, and the keys of
   assert.ok(bracketSectionPaths(NESTED()).includes('roster'));
   assert.deepEqual(bracketSectionKeys(NESTED(), 'roster'), ['handle', 'kind', 'rank']);
 });
+
+test('connecting a field to a deep leaf of the bracket shape writes no recipe output, and the read reaches it by its own path', async () => {
+  const { jsonOffers } = await import('../src/control/connectorReview.ts');
+  const { bracketReviewSample } = await import('../src/control/bracketAdapter.ts');
+  const sample = bracketReviewSample(NESTED(), sidesAdapter()).sample;
+  const deep = 'external.b1.brackets.1.stages.0.rounds.0.matches.0.b.name';
+  assert.equal(jsonOffers('b1', sample).scalars.some((o) => o.path === deep), false);
+  assert.ok(jsonOffers('b1', sample, { depth: 12, max: 1000 }).scalars.some((o) => o.path === deep));
+  const stored = { id: 'b1', kind: 'external', label: 'Cups', config: { v: 1, configRevision: 1, endpoint: 'https://x.example/b.json', read: { everyMs: 10_000 }, adapter: SIDES } };
+  const plan = connectorPlan({ graphic: 'Card', bindings: {}, source: stored, rows: [{ fieldId: 'f0', label: 'Player A', status: 'matched', path: deep, current: null }], choices: {}, collections: [], adapters: {}, columns: {} });
+  assert.equal(plan.bindings.Card.f0, deep);
+  assert.equal(plan.source.config.mapping, undefined);
+  const reg = readExternalRegistration({ id: 'b1', kind: 'external', config: plan.source.config });
+  const p = projectJson({ sourceId: 'b1', payload: NESTED(), bindings: plan.bindings, fieldsOf: () => [{ key: 'f0', label: 'Player A', kind: 'text', defaultValue: '' }], registration: reg });
+  assert.deepEqual(p.writes, { [deep]: 'Fir' });
+});
