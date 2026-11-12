@@ -71,12 +71,17 @@ runner-minutes per landing and 0.4 per day, taking the offline tier to 123% of i
   each pull request merged into main in the last 20 first-parent merges, and records each one
   once, keyed by pull request number in a hidden marker on the item. A cancelled or batched
   post-land run is caught up by the next one. At most 100 API calls a run.
-- C3. (Decision for the coordinator; proposed.) When one is already open for that tier, no second
+- C3. (Coordinator's decision, 2026-11-12, as proposed; basis: the owner's "a cost ceiling must
+  never block a landing" and "at most one open per tier"; blocking the tier would break the first.)
+  When one is already open for that tier, no second
   issue opens: the pull request and its cost are added to the open item as a comment, and its due
   date does not move. The debt accumulates on one dated item, so the pressure stays real. Once
   the due date passes, the same step marks the item overdue (title and one comment, routed to
   the owner). Landings stay unblocked. The other reading, blocking further growth in a tier while
-  its item is open, would let a cost ceiling block a landing again, so it is not proposed.
+  its item is open, would let a cost ceiling block a landing again, so it was not chosen.
+- C3a. A landing already recorded on a repayment item closed in the last 30 days is never
+  recorded again (the debt was repaid). Only the item's body sets its due date, and only a bot's or
+  member's comment counts as a record or an overdue mark.
 - C4. It never writes `scripts/growth-ceilings.json`, a budget exception or a work-spec line, and
   it waives nothing: the tier stays over its line in every later warning and weekly report.
 - C5. The #2411 owner-only kinds `full:*` and `stopped:*` become repayment items instead of

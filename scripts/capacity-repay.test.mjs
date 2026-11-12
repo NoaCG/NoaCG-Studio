@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { DUE_DAYS, MERGES, CALLS, itemBody, landedPrs, openItems, planRepayments, recordedIn, repaysIn, repaysOf, titleFor } from './capacity-repay.mjs';
+import { DUE_DAYS, MERGES, CALLS, itemBody, landedPrs, planRepayments, recordedIn, repaymentItems, repaysIn, repaysOf, titleFor } from './capacity-repay.mjs';
 
 const OWNER = 'miwco (primary); the weekly owner session (backup coverage)';
 const landing = (pr, repays, sha = `${String(pr).padStart(4, '0')}${'a'.repeat(36)}`) => ({ pr, sha, repays });
@@ -60,6 +60,16 @@ test('C3: past its due date an open item is marked overdue once, routed to the o
   const late = planRepayments({ landed: [], items: { graphics: item }, today: '2026-11-27', owner: OWNER });
   assert.deepEqual(late.map((a) => [a.kind, a.number, a.title]), [['overdue', 3002, 'Capacity repayment: graphics tier (overdue since 2026-11-26)']]);
   assert.deepEqual(planRepayments({ landed: [], items: { graphics: { ...item, texts: [body, late[0].body] } }, today: '2026-12-10', owner: OWNER }), [], 'once');
+  // The due date is the body's: a later text naming another date cannot move it.
+  const moved = { ...item, texts: [body, '<!-- capacity-repay-due: 2027-01-31 -->'] };
+  assert.equal(planRepayments({ landed: [], items: { graphics: moved }, today: '2026-11-27', owner: OWNER })[0]?.kind, 'overdue');
+});
+
+test('C2: a landing recorded on an item already closed (repaid) is never opened again', () => {
+  const actions = planRepayments({ landed: [landing(2405, [offline('paid')]), landing(2412, [offline('new')])], items: {}, today: '2026-11-20', owner: OWNER, recorded: new Set([2405]) });
+  assert.equal(actions.length, 1);
+  assert.match(actions[0].body, /#2412/);
+  assert.doesNotMatch(actions[0].body, /#2405/);
 });
 
 test('C4: it writes only issues and comments, never the ceilings, an exception or a spec line', async () => {
@@ -79,34 +89,44 @@ function canned(routes) {
 test('reading GitHub: the open item by title from a bot or member, its comments, and each landing\'s green CI gate annotations', () => {
   const R = 'NoaCG/NoaCG-Studio';
   const reader = canned({
+    [`repos/${R}/issues?state=closed`]: [
+      { number: 5, title: titleFor('offline'), body: '<!-- capacity-repay: #2405 -->', user: { type: 'Bot' } },
+      { number: 6, title: 'Something else', body: '<!-- capacity-repay: #2406 -->', user: { type: 'Bot' } },
+    ],
+    [`repos/${R}/issues/5/comments`]: [],
     [`repos/${R}/issues?state=open`]: [
       { number: 7, title: titleFor('offline'), body: 'x <!-- capacity-repay: #2408 -->', user: { type: 'Bot' } },
       { number: 8, title: titleFor('backend'), body: '', user: { type: 'User' }, author_association: 'NONE' },
       { number: 9, title: `${titleFor('graphics')} (overdue since 2026-11-01)`, body: '', user: { type: 'User' }, author_association: 'OWNER' },
     ],
-    [`repos/${R}/issues/7/comments`]: [{ body: '<!-- capacity-repay: #2410 -->' }],
+    [`repos/${R}/issues/7/comments`]: [{ body: '<!-- capacity-repay: #2410 -->', user: { type: 'Bot' } }, { body: '<!-- capacity-repay: #2412 --> <!-- capacity-repay-overdue -->', user: { type: 'User' }, author_association: 'NONE' }],
     [`repos/${R}/issues/9/comments`]: [],
-    [`repos/${R}/commits/s1/check-runs`]: { check_runs: [{ id: 11, name: 'CI gate', conclusion: 'success' }] },
+    // Main's own push run is listed first and has no Repay line; the merge group's run has it.
+    [`repos/${R}/commits/s1/check-runs`]: { check_runs: [{ id: 10, name: 'CI gate', conclusion: 'success' }, { id: 11, name: 'CI gate', conclusion: 'success' }] },
+    [`repos/${R}/check-runs/10/annotations`]: [{ message: 'All gates passed' }],
     [`repos/${R}/check-runs/11/annotations`]: [{ message: 'Repay (offline): 2/landing' }],
     [`repos/${R}/commits/s2/check-runs`]: { check_runs: [{ id: 12, name: 'CI gate', conclusion: 'failure' }] },
     [`repos/${R}/check-runs/12/annotations`]: [{ message: 'Repay (offline): from a red gate, which landed nothing' }],
   });
-  const items = openItems(reader, R);
+  const { items, recorded } = repaymentItems(reader, { repo: R, today: '2026-11-20' });
   assert.deepEqual(Object.keys(items).sort(), ['graphics', 'offline'], 'an outsider\'s issue is never taken for the item');
-  assert.deepEqual([...recordedIn(items.offline.texts)].sort(), [2408, 2410]);
+  assert.deepEqual([...recordedIn(items.offline.texts)].sort(), [2408, 2410], 'an outsider\'s comment marks nothing recorded');
+  assert.ok(!items.offline.texts.some((t) => t.includes('overdue')), 'nor overdue');
+  assert.deepEqual([...recorded].sort(), [2405, 2408, 2410], 'a closed repayment item\'s landings count as recorded');
+  assert.ok(reader.seen.some((r) => r.startsWith(`repos/${R}/issues?state=closed`) && r.includes('&since=2026-10-21')), 'closed items of the last 30 days');
   const landed = repaysOf(reader, [{ sha: 's1', pr: 2412 }, { sha: 's2', pr: 2413 }, { sha: 's3', pr: 2408 }], new Set([2408]), R);
-  assert.deepEqual(landed.map((l) => l.repays), [[{ tier: 'offline', cost: '2/landing' }], [], []], 'a red gate landed nothing; a recorded PR is not read');
+  assert.deepEqual(landed.map((l) => l.repays), [[{ tier: 'offline', cost: '2/landing' }], [], []], 'the merge group\'s line is found behind the push run; a red gate landed nothing; a recorded PR is not read');
   assert.ok(!reader.seen.some((r) => r.includes('/commits/s3/')), 'no call for a PR already recorded');
   // Bounded: issues (1) + comments (2) + two landings at most two calls each, well inside the budget.
   assert.ok(reader.calls <= 1 + 2 + 2 * MERGES && 1 + 5 + 2 + 2 * MERGES <= CALLS);
 });
 
 test('an unreadable issue listing records nothing rather than opening a duplicate', () => {
-  assert.throws(() => openItems(canned({}), 'NoaCG/NoaCG-Studio'), /could not be read/);
+  assert.throws(() => repaymentItems(canned({}), { repo: 'NoaCG/NoaCG-Studio', today: '2026-11-20' }), /could not be read/);
 });
 
 // THE GATE SIDE (C1, C5): a refusal for cost alone is `repay`; records and evidence still refuse.
-const { assess, applyOfflineStop, finalVerdict, repayments } = await import('./e2e-capacity.mjs');
+const { assess, applyOfflineStop, finalVerdict, growthAssessment, recordRefusalOf, repayments } = await import('./e2e-capacity.mjs');
 const overhead = { jobMinutes: 0.42, testFactor: 1.01, medianJobMinutes: 0.3, samples: 10 };
 const flat = (total) => ({ source: {}, minutes: Object.fromEntries(Array.from({ length: 100 }, (_, i) => [`s${i}.spec.ts`, total / 100])), overhead });
 const fullOffline = () => ({ status: 'ok', reasons: [], stops: {}, ledger: [], estimates: { runsPerLanding: { everyRun: 4.75 }, scheduledRunsPerDay: { offline: 1 } }, tiers: { tiers: { offline: { status: 'warn', evidence: 'complete', line: 0.95, share: 1.22, used: { perLanding: 654.3, perDay: 191.5 }, ceiling: { perLanding: 535, perDay: 215 } } } } });
@@ -146,6 +166,12 @@ test('C5: refusals of the records or of the change\'s own evidence still refuse,
     assert.deepEqual(v.repay, []);
     assert.doesNotMatch(v.owner, /full:|stopped:/, 'a full table is never the owner\'s refusal now');
   }
+  // What counts as a record refusal, each part on its own; and an unreadable diff, end to end.
+  assert.equal(recordRefusalOf({}), false);
+  for (const part of [{ ledger: ['x'] }, { offline: ['an exception line was removed'] }, { diffFailed: true }]) assert.equal(recordRefusalOf(part), true, JSON.stringify(part));
+  const unreadable = growthAssessment({ base: 'no-such-base-land-2c', reportPath: null, table: { source: { recordedAt: '2026-11-12' } }, today: '2026-11-12' });
+  assert.equal(unreadable.recordRefusal, true);
+  assert.equal(finalVerdict({ result, growth: unreadable }).status, 'refuse', 'an unreadable diff is refused, never landed as a repayment (B6)');
   const ok = { status: 'ok', reasons: [], stops: {}, ledger: [], tiers: { tiers: {} } };
   assert.equal(finalVerdict({ result: { ...result, status: 'warn' }, growth: ok }).status, 'warn', 'no refusal, no repayment');
 });

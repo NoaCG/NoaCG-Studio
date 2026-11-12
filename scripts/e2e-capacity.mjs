@@ -494,8 +494,13 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
   const assessWith = (extra) => assessTiers({ ceilings, measurement, items: extra, today, stops, known, trustEvidence: true });
   // The refusals that guard the records and the change's own evidence, not the cost (land-2 C5):
   // these still refuse; every other refusal is a cost refusal and becomes a repayment.
-  const recordRefusal = ledger.length > 0 || offline.length > 0 || diffFailed;
+  const recordRefusal = recordRefusalOf({ ledger, offline, diffFailed });
   return { status, reasons, markdown, table: fresh, tiers, items, stops, gate, estimates: ceilings.estimates, assessWith, ledger, recordRefusal };
+}
+
+/** Whether a refusal guards the records or the change's own evidence, which still refuse (land-2 C5, B6). Pure. */
+export function recordRefusalOf({ ledger = [], offline = [], diffFailed = false }) {
+  return ledger.length > 0 || offline.length > 0 || Boolean(diffFailed);
 }
 
 /**

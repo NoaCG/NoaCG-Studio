@@ -97,7 +97,7 @@ export function itemBody({ tier, due, owner, repays }) {
  * repayment is recorded once, oldest landing first; a tier with no open item gets one; an open
  * item past its due date is marked overdue once. Pure.
  */
-export function planRepayments({ landed, items, today, owner }) {
+export function planRepayments({ landed, items, today, owner, recorded = new Set() }) {
   const actions = [];
   const byTier = new Map();
   for (const l of [...landed].reverse()) for (const r of l.repays) {
@@ -107,14 +107,16 @@ export function planRepayments({ landed, items, today, owner }) {
   }
   for (const tier of TIERS) {
     const item = items[tier] ?? null;
-    const seen = item ? recordedIn(item.texts) : new Set();
+    // Recorded on the open item, or on an item already closed (repaid): never recorded again.
+    const seen = new Set([...recorded, ...(item ? recordedIn(item.texts) : [])]);
     const fresh = (byTier.get(tier) ?? []).filter((r) => !seen.has(r.pr) && (seen.add(r.pr), true));
     if (!item) {
       if (fresh.length) actions.push({ kind: 'open', tier, title: titleFor(tier), body: itemBody({ tier, due: addDays(today, DUE_DAYS), owner, repays: fresh }) });
       continue;
     }
     if (fresh.length) actions.push({ kind: 'comment', tier, number: item.number, body: [`Also owed on this item (its due date does not move):`, '', ...fresh.map(entry)].join('\n') });
-    const due = item.texts.map((t) => DUE.exec(String(t ?? ''))?.[1]).find(Boolean);
+    // The due date is the one the item opened with, in its body; no later text can move it.
+    const due = DUE.exec(String(item.texts[0] ?? ''))?.[1];
     if (due && today > due && !item.texts.some((t) => String(t ?? '').includes(OVERDUE))) {
       actions.push({ kind: 'overdue', tier, number: item.number, title: `${titleFor(tier)} (overdue since ${due})`, body: `This repayment was due ${due} and is still open. ${owner}: please cut the ${tier} tier back under its line or record a reviewed ceilings revision, then close this issue. ${OVERDUE}` });
     }
@@ -122,35 +124,60 @@ export function planRepayments({ landed, items, today, owner }) {
   return actions;
 }
 
-/** The open repayment item of each tier: an issue whose title starts with its title, by a bot or member. */
-export function openItems(reader, repo = REPO) {
-  const items = {};
-  for (let page = 1; page <= 5; page++) {
-    const list = reader.get(`repos/${repo}/issues?state=open&per_page=100&page=${page}`);
-    if (!Array.isArray(list)) throw new Error('the open issue listing could not be read: nothing is recorded rather than a duplicate opened');
-    for (const i of list) {
-      if (i.pull_request || !trustedAuthor(i)) continue;
-      const tier = TIERS.find((t) => i.title === titleFor(t) || i.title.startsWith(`${titleFor(t)} (`));
-      if (tier && !items[tier]) items[tier] = { number: i.number, title: i.title, texts: [i.body ?? ''] };
-    }
-    if (list.length < 100) break;
+/** Days back a closed repayment item still counts as having recorded its landings (past MERGES). */
+export const CLOSED_DAYS = 30;
+const tierOf = (title) => TIERS.find((t) => title === titleFor(t) || String(title).startsWith(`${titleFor(t)} (`));
+
+/** An item's own texts: its body, then its comments by a bot or member (an outsider's marker counts for nothing). */
+function itemTexts(reader, repo, issue) {
+  const texts = [issue.body ?? ''];
+  for (let page = 1; page <= 3; page++) {
+    const comments = reader.get(`repos/${repo}/issues/${issue.number}/comments?per_page=100&page=${page}`);
+    if (!Array.isArray(comments)) throw new Error(`the comments of #${issue.number} could not be read: nothing is recorded rather than a duplicate written`);
+    texts.push(...comments.filter(trustedAuthor).map((c) => c.body ?? ''));
+    if (comments.length < 100) break;
   }
-  for (const item of Object.values(items)) {
-    const comments = reader.get(`repos/${repo}/issues/${item.number}/comments?per_page=100`);
-    if (!Array.isArray(comments)) throw new Error(`the comments of #${item.number} could not be read: nothing is recorded rather than a duplicate written`);
-    item.texts.push(...comments.map((c) => c.body ?? ''));
-  }
-  return items;
+  return texts;
 }
 
-/** The repayments each landed pull request's CI gate named; a commit with no CI gate check names none. */
+/**
+ * The open repayment item of each tier (an issue titled for it, by a bot or member), and every
+ * pull request already recorded on any repayment item, open or closed in the last CLOSED_DAYS, so
+ * a repaid and closed debt is never opened again.
+ */
+export function repaymentItems(reader, { repo = REPO, today }) {
+  const items = {};
+  const recorded = new Set();
+  const since = new Date(Date.parse(`${today}T00:00:00Z`) - CLOSED_DAYS * DAY).toISOString();
+  for (const state of ['open', 'closed']) {
+    for (let page = 1; page <= 5; page++) {
+      const list = reader.get(`repos/${repo}/issues?state=${state}&per_page=100&page=${page}${state === 'closed' ? `&since=${since}` : ''}`);
+      if (!Array.isArray(list)) throw new Error(`the ${state} issue listing could not be read: nothing is recorded rather than a duplicate opened`);
+      for (const i of list) {
+        const tier = i.pull_request || !trustedAuthor(i) ? null : tierOf(i.title);
+        if (!tier) continue;
+        const texts = itemTexts(reader, repo, i);
+        for (const pr of recordedIn(texts)) recorded.add(pr);
+        if (state === 'open' && !items[tier]) items[tier] = { number: i.number, title: i.title, texts };
+      }
+      if (list.length < 100) break;
+    }
+  }
+  return { items, recorded };
+}
+
+/**
+ * The repayments each landed pull request's CI gate named. A landed commit has two green `CI gate`
+ * runs, the merge group's (which judged the change and printed any `Repay` line) and main's own
+ * push run (which has no capacity verdict), listed in either order, so every green one is read.
+ * A commit with no green CI gate names none.
+ */
 export function repaysOf(reader, landed, skip, repo = REPO) {
   return landed.map((l) => {
     if (skip.has(l.pr)) return { ...l, repays: [] };
     const runs = reader.get(`repos/${repo}/commits/${l.sha}/check-runs?check_name=${encodeURIComponent('CI gate')}&per_page=10`);
-    const gate = (runs?.check_runs ?? []).find((r) => r.name === 'CI gate' && r.conclusion === 'success');
-    const annotations = gate ? reader.get(`repos/${repo}/check-runs/${gate.id}/annotations?per_page=50`) : [];
-    return { ...l, repays: repaysIn(annotations) };
+    const gates = (runs?.check_runs ?? []).filter((r) => r.name === 'CI gate' && r.conclusion === 'success');
+    return { ...l, repays: repaysIn(gates.flatMap((g) => reader.get(`repos/${repo}/check-runs/${g.id}/annotations?per_page=50`) ?? [])) };
   });
 }
 
@@ -162,11 +189,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const { owner, login } = alarmOwner(ceilings);
   const reader = makeReader(CALLS);
   const log = execFileSync('git', ['log', '--first-parent', `-${MERGES}`, '--format=%H%x09%s', 'HEAD'], { cwd: ROOT, encoding: 'utf8', windowsHide: true });
-  const items = openItems(reader);
-  const known = new Set(Object.values(items).flatMap((i) => [...recordedIn(i.texts)]));
-  const landed = repaysOf(reader, landedPrs(log), known);
+  const { items, recorded } = repaymentItems(reader, { today });
+  const landed = repaysOf(reader, landedPrs(log), recorded);
   if (reader.exhausted) throw new Error(`more than ${CALLS} API calls needed: nothing is recorded rather than part of it`);
-  const actions = planRepayments({ landed, items, today, owner });
+  const actions = planRepayments({ landed, items, today, owner, recorded });
   for (const a of actions) console.log(`${a.kind} ${a.tier}${a.number ? ` #${a.number}` : ''}`);
   if (!actions.length) console.log('no repayment to record');
   if (args.includes('--issue')) {
