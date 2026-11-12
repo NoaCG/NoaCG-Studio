@@ -26,8 +26,7 @@ changes).
   (shows.ts); the cue editor shows "Newer design in library" with Update above Advanced
   (`CueEditor.tsx` `DesignUpdate`), the press goes through the production gate and the rundown
   history (one undo step), and a dropped field a cue uses or a binding names arms the button with
-  "Update drops <field> from <n> cues." first. Adding a held graphic again with such a design is
-  refused with a note pointing to Update.
+  "Update drops <field> from <n> cues." first.
 - R3, the stamp. `SavedGraphic.designAt` (packets.ts), set by add, Update, the own-reader removal,
   the settle, adoption and an Undo or Redo of a design (`rundownHistory.ts`
   `stampRestoredDesigns`, in both the write and what the history records).
@@ -48,6 +47,11 @@ changes).
   requests only.
 
 ## Decisions (build)
+
+- Adding a graphic the production already holds replaces its design as before, and stamps it. G1
+  section 2 said that door would ask the dropped-field question too; the build first refused such
+  an add, which broke the wizard's re-import "Replace anyway", a replacement it had already
+  confirmed after naming what the new version drops. Cue values are never deleted by either door.
 
 - The personal sync settle is called by the sync engine directly, not through a hook the app
   registers (G1 section 3 said a registration). `backend/` may import the kernel, and
@@ -115,3 +119,30 @@ All on one Claude cloud worker (4 CPUs) against the configured suite's local Sup
 - Configured (`e2e/configured/publish-guard.spec.ts`, queued job j-0004): 3 passed, 1 skipped (the
   two-member walk needs teammate credentials, which this worker's stack did not have; CI has
   them).
+- The real old bundle (current `main`, eee7827, the code an old page runs) on the same stack with
+  the switch on, driven once by a scratch spec that was not committed (queued job j-0014). What
+  that bundle shows: personal sync "Cloud put(show) failed: Reload this page to edit"; publish
+  "Reload this page to edit" (its page note prefixes "Publish failed: "); Connect of a data source
+  "Reload this page to edit"; the team save note "Reload this page to edit", state failed. The
+  stored production kept its cue label (the old page's edit did not land). A Take pressed on it
+  showed no note. Not established there: a command-row count before and after that Take (the
+  count was read after only); a Take's route (`control_send`, `control_events`, `control_heads`)
+  names no guarded table or column, and the committed configured test presses one on an old page.
+  The run ended red in its own cleanup (deleting the test team hung) after recording.
+- Offline browser specs (queued j-0006): `e2e/import-svg-reimport.spec.ts` and
+  `e2e/publish-drift.spec.ts`, 21 passed. The first run (j-0005) failed "Replace anyway": a
+  refusal this build had added to adding a graphic again broke a replacement the wizard had
+  already confirmed; the refusal was removed (Decisions above), and the run passed.
+- Configured: `live-prepare.spec.ts` (j-0009) passed, now taking its library edit in through the
+  Update button; `per-graphic-replacement.spec.ts` with `publish-guard.spec.ts` (j-0007): 4 passed,
+  the two-member walk skipped on this worker (no teammate account in the queue runner's
+  environment); CI runs it.
+- Capacity: `node scripts/e2e-capacity.mjs --changed origin/main` exits 0 (backend tier WARN, no
+  new file); `node scripts/check-e2e-protection.mjs --changed origin/main` OK.
+
+## Not checked here
+
+- The production gateway's preflight for the header and `production_copies_state()` on
+  production: G1 section 6 steps 1 and 3, the owner's or coordinator's steps around release and
+  switch-on; this run never reaches production.
+- Hardware: none in this phase.
