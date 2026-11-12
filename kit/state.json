@@ -36,7 +36,7 @@
  },
  "waitingOn": [
   {
-   "what": "PR 2457: stamp run 43283275350 waiting for a runner; once noacg/reviewed is on 0e4e0ef, confirm the head, enable auto-merge, post the repair-owner comment; then merge queue and the OS4 check",
+   "what": "PR 2457 merge queue (confirm the queue entry), then the OS4 check",
    "eta": "2026-11-12T20:30:00Z"
   }
  ],
@@ -49,7 +49,7 @@
    "branch": "claude/plan-obs-scenes-os4-build",
    "launchedAt": "2026-11-12T17:39:49Z",
    "note": "sent brief = saved brief plus one NOTES line (keep wall-clock position through the scene-link settle)",
-   "lastSeen": "2026-11-12T18:46Z receipt os4-b-4e9a; stamp dispatched (run 43283275350)",
+   "lastSeen": "2026-11-12T18:50Z stamped (noacg/reviewed 18:47Z), auto-merge requested (reply had blank fields; PR clean and labelled land); confirm a queue entry at the next wake",
    "checkerNote": "Check the two changed expectations: scripts/double-stop.test.mjs re-Take check for bug21-24 now compares outside .corner-bug-media, and any changed existing expectation in e2e/holding-pack.spec.ts (a 1:49 to 1:50 edit was seen during the build); both must follow from AC-7/AC-8, not loosen a test.",
    "pr": 2457,
    "reviewedHead": "0e4e0ef63673f56bf17c7b37568b7a63519222d6"
