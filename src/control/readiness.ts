@@ -618,9 +618,12 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
     });
   }
   for (const d of degraded) problems.push({ line: d.line, short: d.short, advice: [d.advice] });
+  // A prepared design waiting on air beside a problem is said after it, never as one.
+  const waitsToo = pubChg && pubChg.w && pubChg.w.length > 0 && published ? `${graphicNames(pubChg.w)}: new design at next Take` : null;
   if (problems.length > 0) {
     // What to do first, then what else is wrong, then who it is.
-    const also = problems.length > 1 ? [`Also: ${problems.slice(1).map((p) => p.line).join('; ')}.`] : [];
+    const others = problems.slice(1).map((p) => p.line).concat(waitsToo ? [waitsToo] : []);
+    const also = others.length > 0 ? [`Also: ${others.join('; ')}.`] : [];
     const line = warn(problems[0].line, problems[0].advice.concat(also, ...problems.slice(1).map((p) => p.advice)));
     return { ...line, ...(brokenShort ? { broken: brokenShort } : {}), ...(problems[0].short ? { short: problems[0].short } : {}) };
   }

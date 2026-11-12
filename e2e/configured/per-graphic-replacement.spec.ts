@@ -152,11 +152,12 @@ test('two outputs each swap a changed graphic in place, and hold one on air unti
     await expect.poll(async () => (await readyOf(air))?.chg?.w ?? [], { timeout: 120_000 }).toEqual([SCOREBUG]);
     expect(await marked(air, SCOREBUG)).toBe('before');
   }
-  await expect(page.getByTestId('production-status')).toContainText('Waiting for clear', { timeout: 30_000 });
+  // O3 (live-publishing G2 section 5): green, naming the graphic that takes its new design at its next Take.
+  await expect(page.getByTestId('production-status')).toContainText(`${SCOREBUG}: new design at next Take`, { timeout: 30_000 });
   await page.getByTestId('production-status').click();
   const panel = page.getByTestId('production-status-panel');
   for (const name of ['Desk A', 'Desk B']) {
-    await expect(panel.getByTestId('ready-output').filter({ hasText: name })).toContainText(`Waiting for clear: ${SCOREBUG}`, { timeout: 30_000 });
+    await expect(panel.getByTestId('ready-output').filter({ hasText: name })).toContainText(`${SCOREBUG}: new design at next Take`, { timeout: 30_000 });
   }
   await page.screenshot({ path: test.info().outputPath('waiting-for-clear.png') });
   await page.keyboard.press('Escape');
@@ -170,7 +171,7 @@ test('two outputs each swap a changed graphic in place, and hold one on air unti
     expect(await marked(air, SCOREBUG)).toBeNull();
     expect(reloads, 'no output reloaded for a graphic change').toBe(0);
   }
-  await expect(page.getByTestId('production-status')).not.toContainText('Waiting for clear', { timeout: 30_000 });
+  await expect(page.getByTestId('production-status')).not.toContainText('new design at next Take', { timeout: 30_000 });
 
   await unpublishForCleanup(page);
   await clearPublishedShows(page);
