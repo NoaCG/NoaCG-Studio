@@ -147,6 +147,15 @@ All on one Claude cloud worker (4 CPUs) against the configured suite's local Sup
 - Mutation checks: breaking the settle (skip an unstamped base) fails 5 copy-settle tests; dropping
   the conflict-copy settle fails the sync test; disabling the team save's settle fails the
   team-save test; the configured walk failed on the adoption defect above.
+- Mutation check of the monitor frame check (final /so finding 1): with the store change bumping
+  `libraryRev` again, the AC-2 walk failed at "a library edit reloads no program monitor frame"
+  (expected 1 kept frame, received 0, j-0016); restored, the same walk passed (j-0030, j-0031).
+- The team save's settle write failing (storage full) is a failed save, not one left in flight:
+  `team-save.test.mjs` fails on 7c1cbbf and passes at 41b20e6.
+- `e2e/production-data.spec.ts` C6 walks: Stop now takes the reader out of the copy at once (R1,
+  the own-reader removal edits the copy) and Publish records the stop through
+  `recordOwnReaderStops`; the walk expects the clean copy right after Stop and still holds the
+  graphic until positive evidence, as before.
 - Configured (`e2e/configured/publish-guard.spec.ts`, queued job j-0004): 3 passed, 1 skipped (the
   two-member walk needs teammate credentials, which this worker's stack did not have; CI has
   them).

@@ -2238,21 +2238,17 @@ async function seedPublishedLegacy(page: Page, wire: LegacyWire): Promise<{ docI
   return { docId: seeded.docId, showId: seeded.fixture.id, cueId: seeded.cueId };
 }
 
-/** What Publish does after Stop (refresh the copy from the design through the app's own
- *  `refreshGraphicCopies`, which records the stop, then publish a payload without the reader, a
- *  new version), with the graphic still on air: the output keeps its old frame. */
+/** What Publish does after Stop (record the stop through the app's own `recordOwnReaderStops`,
+ *  then publish a payload without the reader, a new version), with the graphic still on air: the
+ *  output keeps its old frame. */
 async function publishWithoutReader(page: Page, wire: LegacyWire, ids: { showId: string; cueId: string }): Promise<{ n: number; h: string }> {
   const fixture = wire.fixture as { output: { ver: unknown } };
   const published = await page.evaluate(async ({ showId, previous }) => {
-    const { loadShows, refreshGraphicCopies } = await import('/src/model/shows.ts');
-    const { loadGraphics, resolveSavedGraphicDoc } = await import('/src/model/library.ts');
+    const { loadShows, recordOwnReaderStops } = await import('/src/model/shows.ts');
     const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
     const { stampPayload } = await import('/src/control/payloadVersion.ts');
-    const library = loadGraphics();
-    refreshGraphicCopies(showId, (g) => {
-      const doc = resolveSavedGraphicDoc(g, library);
-      return doc ? { template: doc.template, updatedAt: doc.updatedAt } : undefined;
-    });
+    // The published payload ran the reader; this publish drops it, so the stop is recorded.
+    recordOwnReaderStops(showId, new Set(['Library Card']));
     const output = await buildOutputPayload(loadShows().find((s) => s.id === showId)!);
     output.ver = await stampPayload(output, previous as never);
     return output;
@@ -2313,8 +2309,9 @@ test('a library graphic with its own reader on a published production: Stop remo
   await expect(page.getByTestId('own-reader-line')).toContainText('Sheet in Library Card’s own code');
   const design = await page.evaluate(async (docId) => (await import('/src/model/library.ts')).loadGraphics().find((d) => d.id === docId)!.template.js.includes('== LIVE DATA'), ids.docId);
   expect(design).toBe(false);
-  // The copy keeps it (synced, so every browser refuses on it) until Publish.
-  await expect.poll(() => ownReaderState(page, ids.showId)).toEqual({ stops: [], copy: true, former: ['Library Card'], holds: ['Library Card'] });
+  // The copy loses it too (the production's copy is the only truth, live-publishing W2); the output
+  // runs the published payload, which keeps it until Publish, so the graphic stays held.
+  await expect.poll(() => ownReaderState(page, ids.showId)).toEqual({ stops: [], copy: false, former: ['Library Card'], holds: ['Library Card'] });
 
   // ── Published without the reader, still on air: the output keeps the old frame until the clear. ──
   const ver = await publishWithoutReader(page, wire, ids);
