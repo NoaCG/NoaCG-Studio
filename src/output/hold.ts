@@ -133,6 +133,19 @@ export function routeLive(
 /** A Take or Out ends a failure: what the failure said is no longer what the operator asked for. */
 export const endsFailure = (t: string) => isTake(t) || isOut(t);
 
+/** ONE LIVE COMMAND, WHOLE (the corrected model after the final review): a failure is a line in `h`
+ *  and never decides where a command goes, so the route reads the hold and the frame alone. A Take
+ *  or Out clears the failure; a Take that runs on a frame able to run it first hands that frame the
+ *  values and look its graphic kept, so it never airs what the frame last had. */
+export function liveStep(
+  f: { held: boolean; ready: boolean; hosts: boolean; stageWaits: boolean; isPackage: boolean; failed: boolean },
+  t: string,
+): { route: LiveRoute; clear: boolean; prime: boolean } {
+  const route = routeLive(f, t);
+  const clear = f.failed && endsFailure(t);
+  return { route, clear, prime: clear && isTake(t) && route === 'run' };
+}
+
 /** A hold that cannot go on (its load deadline, a script error, the limit): a cancelled one only
  *  settles, it never fails (R6); any other fails (R8). */
 export function giveUp(rows: readonly HeldRow[]): 'settle' | 'fail' {

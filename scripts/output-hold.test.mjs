@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { ENTRANCE_MS, compact, endsFailure, giveUp, heldLate, isCancelled, lastLifecycle, releaseMode, routeLive, surviving } = await import('../src/output/hold.ts');
+const { ENTRANCE_MS, compact, endsFailure, giveUp, liveStep, heldLate, isCancelled, lastLifecycle, releaseMode, routeLive, surviving } = await import('../src/output/hold.ts');
 
 const row = (at, t, receivedAt = 0, extra = {}) => ({ at, msg: { t, ...extra }, receivedAt });
 
@@ -117,4 +117,55 @@ test('a primed frame gets the place hint its held look came with, and a republis
   assert.match(stage, /for \(const cb of outcomeCbs\) cb\(entry\.at, entry\.graphic, outcome\);/);
   assert.match(stage, /if \(entry\.graphic === graphic && \(oldest === null \|\| entry\.at < oldest\)\) oldest = entry\.at;/);
   assert.doesNotMatch(stage, /unsettled\.set\(at,/);
+});
+
+test('a failure only reports: it never decides where a command goes, a Take or Out clears it, and a Take on a ready frame primes it first', () => {
+  const bools = [false, true];
+  for (const held of bools) for (const ready of bools) for (const hosts of bools) for (const stageWaits of bools) for (const isPackage of bools) {
+    for (const t of ['play', 'snap', 'update', 'next', 'event', 'stop']) {
+      const base = { held, ready, hosts, stageWaits, isPackage };
+      const ok = liveStep({ ...base, failed: false }, t);
+      const failed = liveStep({ ...base, failed: true }, t);
+      assert.equal(failed.route, ok.route, `failed never reroutes ${t} (${JSON.stringify(base)})`);
+      assert.equal(ok.clear, false);
+      assert.equal(ok.prime, false, 'nothing to prime without a failure');
+      assert.equal(failed.clear, t === 'play' || t === 'snap' || t === 'stop');
+      assert.equal(failed.prime, (t === 'play' || t === 'snap') && failed.route === 'run');
+      if (ready && !held) assert.equal(failed.route, 'run', 'a ready frame with no hold runs every command, failed or not');
+    }
+  }
+});
+
+test('reference walk: on a ready frame a failed graphic keeps taking commands, and every Take airs the values sent so far', () => {
+  // The model, from the corrected rule's words: values sent to a graphic are what it should show;
+  // a ready frame with no hold gets every command; a failure (from a stage that lost a command) is
+  // a report; a Take that clears it first hands the frame everything kept.
+  let seed = 7;
+  const rand = (n) => ((seed = (seed * 1103515245 + 12345) % 2 ** 31), seed % n);
+  for (let walk = 0; walk < 2_000; walk++) {
+    const sent = {};
+    const doc = {};
+    let failed = false;
+    for (let i = 0; i < 30; i++) {
+      const roll = rand(10);
+      if (roll < 2) {
+        // The stage loses one update (a watchdog or a limit): its values never reach the document.
+        const key = `f${rand(3)}`;
+        sent[key] = `lost${i}`;
+        failed = true;
+        continue;
+      }
+      const t = roll < 6 ? 'update' : roll < 8 ? 'play' : roll < 9 ? 'next' : 'stop';
+      const step = liveStep({ held: false, ready: true, hosts: true, stageWaits: false, isPackage: false, failed }, t);
+      assert.equal(step.route, 'run');
+      if (step.clear) failed = false;
+      if (step.prime) Object.assign(doc, sent);
+      if (t === 'update') {
+        const key = `f${rand(3)}`;
+        sent[key] = `v${i}`;
+        doc[key] = sent[key];
+      }
+      if (t === 'play') assert.deepEqual(doc, sent, `walk ${walk}: a Take airs every value sent so far`);
+    }
+  }
 });

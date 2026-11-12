@@ -73,7 +73,7 @@ import { PROBE_MS, reloadWhenClear, within } from './reload';
 import { FRAME_LOAD_MS, createOutputStage, heldLine } from './stage';
 import { reportedLook } from '../control/cueAdjust';
 import { createSwapper } from './swap';
-import { ENTRANCE_MS, HELD_PER_GRAPHIC, HELD_PER_OUTPUT, compact, endsFailure, giveUp, heldLate, isCancelled, isTake, releaseMode, routeLive, type HeldRow, type HoldFailure } from './hold';
+import { ENTRANCE_MS, HELD_PER_GRAPHIC, HELD_PER_OUTPUT, compact, giveUp, heldLate, isCancelled, isTake, liveStep, releaseMode, type HeldRow, type HoldFailure } from './hold';
 import { epochTag, listed, type HeldEntry, type RunReport } from '../control/runReport';
 import { CATCH_UP_TIMING, readGraphic, stoodStill, wait } from './catchUp';
 import { TYPED_READER, typedOutputGate, type TypedValues } from '../model/ografTyped';
@@ -1171,21 +1171,21 @@ async function boot(): Promise<void> {
     const graphic = row.graphic;
     const t = row.msg.t;
     const at = row.seq ?? 0;
-    if (failures.has(graphic)) {
-      // A Take or Out ends a failure before anything else decides (R8): an Out of a graphic with
-      // nothing to run it on still clears it. Any other command keeps its values, posts nothing.
-      if (endsFailure(t)) failures.delete(graphic);
-      else {
-        keepLook(row);
-        applyCommand(graphic, row.msg, row.created_at, road, false);
-        rebankSoon();
-        return true;
-      }
-    }
-    const route = routeLive(
-      { held: holds.has(graphic), ready: ready(graphic), hosts: hosts(graphic), stageWaits: stage.waitingFor(graphic) !== null, isPackage: packages.has(graphic) },
+    // A failure only reports (`liveStep`): a Take or Out clears it, and a Take about to run on a
+    // frame able to run it first gives that frame what its graphic kept (R8).
+    const { route, clear, prime } = liveStep(
+      {
+        held: holds.has(graphic),
+        ready: ready(graphic),
+        hosts: hosts(graphic),
+        stageWaits: stage.waitingFor(graphic) !== null,
+        isPackage: packages.has(graphic),
+        failed: failures.has(graphic),
+      },
       t,
     );
+    if (clear) failures.delete(graphic);
+    if (prime) primeFrame(graphic);
     if (route === 'run') return false;
     if (route === 'settle') {
       keepLook(row);
