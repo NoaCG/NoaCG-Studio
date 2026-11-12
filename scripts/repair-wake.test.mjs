@@ -608,3 +608,10 @@ test('fix 2 rule 7: an incomplete check with a re-push in flight lists the line 
   const again = nextAlarm({ entries: [], complete: false, previousBody: `Header\n\n${r.unattended.join('\n')}`, inFlight: new Set([7]) });
   assert.deepEqual(again.unattended, [line], 'not growing check by check');
 });
+
+test('fix 2 rule 7: a line this check judged again is not also carried', () => {
+  const line = '- #7: needs the owner: full:overhead; x <!-- key: 7/1/1/2026-11-12T08:00:00Z --> <!-- owner-mark: 7:full:overhead -->';
+  const entry = { key: '7/1/1/2026-11-12T08:00:00Z', pr: 7, ownerKinds: ['full:overhead'], ageMinutes: 5, unattended: true, line };
+  const r = nextAlarm({ entries: [entry], complete: false, previousBody: `Header\n\n${line}`, inFlight: new Set([7]) });
+  assert.deepEqual(r.unattended, [line]);
+});

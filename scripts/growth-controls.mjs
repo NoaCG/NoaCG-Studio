@@ -555,6 +555,9 @@ export function ceilingsRevision(base, head) {
   return (head.revisions ?? []).find((r) => r.version === head.version) ?? { version: head.version };
 }
 
+/** Whether a ledgerChanges problem is one only an owner-reviewed revision passes (cf22 fix 2). */
+export const needsRevision = (problem) => /without a (?:new version and a )?reviewed revision/.test(problem);
+
 export function ledgerChanges({ base, head, mainRunners = null, shardCap = null }) {
   const problems = [];
   if (!base || !head) return problems;

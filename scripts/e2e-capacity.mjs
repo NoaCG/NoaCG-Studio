@@ -58,9 +58,8 @@ import { fileURLToPath } from 'node:url';
 
 import { planMinutes } from './e2e-affected.mjs';
 import { budgetMinutes, minutesByFile, readTable, specFilesOnDisk } from './e2e-durations.mjs';
-import { TIERS, assessTiers, ceilingsRevision, exceptionStatus, knownCovers, ledgerChanges, priceAdditions, receiptAfter, reportCadence, summarizeTiers, tableFreshness } from './growth-controls.mjs';
+import { TIERS, assessTiers, ceilingsRevision, exceptionStatus, knownCovers, ledgerChanges, needsRevision, priceAdditions, receiptAfter, reportCadence, summarizeTiers, tableFreshness } from './growth-controls.mjs';
 import { measured } from './measured.mjs';
-import { OWNER_KIND } from './repair-wake.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -227,7 +226,7 @@ export function assess({ table = readTable(), suite = specFilesOnDisk(), changed
     status = 'warn';
     reason = `${reason}; above the ${Math.round(100 * WARN_SHARE)}% line${added > 0 ? `, this change adds ${added.toFixed(1)} minute(s)` : ''}`;
   }
-  return { capacity, before, after, share, added, status, reason, details, median, p90 };
+  return { capacity, before, after, share, added, status, reason, details, median, p90, line };
 }
 
 /** Markdown for the step summary: the three costs kept apart. */
@@ -293,7 +292,8 @@ export function applyOfflineStop(growth, result, { warnShare = WARN_SHARE, refus
   // its line (95%, or 85% on partial or stale evidence). The table line prices them separately.
   else if (tier?.used && tier?.ceiling) {
     const after = Math.max((tier.used.perLanding + landing) / tier.ceiling.perLanding, (tier.used.perDay + day) / tier.ceiling.perDay);
-    if (after >= line) { growth.status = 'refuse'; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s), ${landing.toFixed(1)} runner-minutes per landing and ${day.toFixed(1)} per day, taking the offline tier to ${Math.round(100 * after)}% of its ceiling (the ${Math.round(100 * line)}% line)`); }
+    // Already at its line before this change: no cheaper change clears it (cf22 fix 2).
+    if (after >= line) { growth.status = 'refuse'; growth.offlineFull = tier.share >= line; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s), ${landing.toFixed(1)} runner-minutes per landing and ${day.toFixed(1)} per day, taking the offline tier to ${Math.round(100 * after)}% of its ceiling (the ${Math.round(100 * line)}% line)`); }
   }
   return growth;
 }
@@ -453,21 +453,20 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
  * keeps its message. `result` is the table's own verdict, before the growth verdict is merged into
  * it. Pure; returns the kinds in a fixed order.
  */
-export function ownerKinds({ result, growth, line = growth?.table?.stale ? WARN_SHARE : HARD_SHARE }) {
+export function ownerKinds({ result, growth }) {
   const kinds = [];
-  if (result?.status === 'refuse' && result.added > 0 && result.capacity > 0 && result.before / result.capacity >= line) kinds.push('full:table');
-  for (const [tier, t] of Object.entries(growth?.tiers?.tiers ?? {})) {
+  if (result.status === 'refuse' && result.before / result.capacity >= result.line) kinds.push('full:table');
+  for (const tier of TIERS) {
+    const t = growth.tiers?.tiers?.[tier];
     if (t?.status !== 'refuse') continue;
-    if (/; growth stopped: /.test(t.why ?? '')) kinds.push(`stopped:${tier}`);
-    else if (t.share !== null && t.share !== undefined && t.share >= t.line) kinds.push(`full:${tier}`);
+    if (growth.stops?.[tier]) kinds.push(`stopped:${tier}`);
+    else if (t.share != null && t.share >= t.line) kinds.push(`full:${tier}`);
   }
-  if (growth?.stops?.offline && result?.added > 0) kinds.push('stopped:offline');
-  // applyOfflineStop refuses added offline spec minutes outside the tier verdict: the owner's when
-  // the offline tier was already at its line before them.
-  const offline = growth?.tiers?.tiers?.offline;
-  if ((growth?.reasons ?? []).some((r) => /offline minute\(s\), .* taking the offline tier to /.test(r)) && offline?.share >= offline?.line) kinds.push('full:offline');
-  if ((growth?.ledger ?? []).some((l) => /without a (?:new version and a )?reviewed revision/.test(l))) kinds.push('revision');
-  return [...new Set(kinds)].filter((k) => OWNER_KIND.test(k));
+  // applyOfflineStop refuses added offline spec minutes outside the tier verdict.
+  if (growth.stops?.offline && result.added > 0) kinds.push('stopped:offline');
+  if (growth.offlineFull) kinds.push('full:offline');
+  if ((growth.ledger ?? []).some(needsRevision)) kinds.push('revision');
+  return [...new Set(kinds)];
 }
 
 /**

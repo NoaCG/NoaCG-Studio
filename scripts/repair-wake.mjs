@@ -39,8 +39,7 @@ const FAILED = new Set(['failure', 'timed_out']);
 const GROUP_BRANCH = /^gh-readonly-queue\/main\/pr-(\d+)-/;
 /**
  * The refusal kinds only the owner can move (cf22 fix 2, rule 1), in the fixed form the CI gate's
- * error carries: `Needs the owner (<kinds>)`. Kept here, not in e2e-capacity.mjs, so this check
- * loads with nothing beyond scripts/; e2e-capacity.mjs imports it.
+ * error carries: `Needs the owner (<kinds>)`, as scripts/e2e-capacity.mjs ownerKinds makes them.
  */
 export const OWNER_KIND = /^(?:(?:full|stopped):(?:offline|backend|graphics|overhead|table)|revision)$/;
 const NEEDS_OWNER = /Needs the owner \(([^)]*)\)/;
@@ -56,18 +55,12 @@ export function ownerKindsIn(annotations) {
   return [...kinds].sort();
 }
 
-/** The owner marks a body lists. Pure. */
-const marksIn = (body) => [...String(body ?? '').matchAll(OWNER_MARK_RE)].map((m) => m[1]);
-/** The owner-only kinds a body lists, by PR number. Pure. */
-const kindsOf = (e) => e.ownerMark.split(':').slice(1).join(':').split(',');
-function kindsByPr(body) {
-  const by = new Map();
-  for (const mark of marksIn(body)) {
-    const [pr, ...rest] = mark.split(':');
-    const kinds = rest.join(':').split(',');
-    by.set(Number(pr), new Set([...(by.get(Number(pr)) ?? []), ...kinds]));
-  }
-  return by;
+/** The owner marks (`<pr>:<kind>,<kind>`) a body lists, as { pr, kinds }. Pure. */
+function marksIn(body) {
+  return [...String(body ?? '').matchAll(OWNER_MARK_RE)].map((m) => {
+    const i = m[1].indexOf(':');
+    return { pr: Number(m[1].slice(0, i)), kinds: m[1].slice(i + 1).split(',') };
+  });
 }
 const at = (iso) => Date.parse(iso ?? '');
 /** When a run's newest attempt started: a re-run keeps `created_at`, so recency reads this. */
@@ -152,10 +145,9 @@ function decide({ pr, failure, comments, now, ownerKinds = [] }) {
   const key = `${pr.number}/${failure.run}/${failure.attempt}/${failure.at}`;
   const last = since === failure.at ? '' : `, last action ${utc(since)}`;
   // The marker carries the state an incomplete check copies forward (rule 9), not the wording.
-  const ownerMark = needsOwner ? `${pr.number}:${ownerKinds.join(',')}` : null;
   const what = needsOwner ? `needs the owner: ${ownerKinds.join(', ')}; the capacity line refused the ${failure.kind}` : `CI gate red on the ${failure.kind}`;
-  const line = `- #${pr.number}: ${what} since ${utc(failure.at)}${last} (${failure.url}); repair owner: ${ownerText(owner)}. <!-- key: ${key}${unattended ? '' : ' attended'} -->${ownerMark ? ` <!-- owner-mark: ${ownerMark} -->` : ''}`;
-  return { key, pr: pr.number, ownerMark, ageMinutes: (at(now) - at(failure.at)) / MINUTE, unattended, line };
+  const line = `- #${pr.number}: ${what} since ${utc(failure.at)}${last} (${failure.url}); repair owner: ${ownerText(owner)}. <!-- key: ${key}${unattended ? '' : ' attended'} -->${needsOwner ? ` <!-- owner-mark: ${pr.number}:${ownerKinds.join(',')} -->` : ''}`;
+  return { key, pr: pr.number, ownerKinds, ageMinutes: (at(now) - at(failure.at)) / MINUTE, unattended, line };
 }
 
 /** The keys an alarm body lists. Pure. */
@@ -219,8 +211,9 @@ export function sweep({ reader, now, repo = REPO, remembered = [] }) {
     const run = verdictRun({ prRun, groupRun });
     // No finished verdict yet (a run still going, cancelled, or not yet created for a new head)
     // keeps an owner-only alarm listed (fix 2 rule 7).
-    if (run?.status !== 'completed' || !(run.conclusion === 'success' || FAILED.has(run.conclusion))) inFlight.add(pr.number);
-    if (run?.status !== 'completed' || !FAILED.has(run.conclusion)) continue;
+    const red = run?.status === 'completed' && FAILED.has(run.conclusion);
+    if (!red && !(run?.status === 'completed' && run.conclusion === 'success')) inFlight.add(pr.number);
+    if (!red) continue;
     const jobs = reader.get(`repos/${repo}/actions/runs/${run.id}/attempts/${run.run_attempt ?? 1}/jobs?per_page=100`);
     if (!Array.isArray(jobs?.jobs) || jobs.jobs.length >= 100) { complete = false; continue; }
     const gate = jobs.jobs.find((j) => j.name === 'CI gate') ?? null;
@@ -253,26 +246,22 @@ export function nextAlarm({ entries, complete, previousBody = '', remembered = k
   // An owner-only refusal already in the open alarm is that alarm again, however often the PR is
   // re-pushed and refused the same way (fix 2 rule 6); it is listed, never a new notice.
   // Matched kind by kind, so a re-push refused for fewer of the listed kinds is the same alarm too.
-  const open = kindsByPr(previousBody);
-  const inOpen = (e) => Boolean(e.ownerMark) && kindsOf(e).every((k) => open.get(e.pr)?.has(k));
+  const open = new Map();
+  for (const { pr, kinds } of marksIn(previousBody)) open.set(pr, new Set([...(open.get(pr) ?? []), ...kinds]));
+  const inOpen = (e) => e.ownerKinds.length > 0 && e.ownerKinds.every((k) => open.get(e.pr)?.has(k));
   // A new alarm needs an established verdict (`certain`); one already listed is kept either way.
   const fresh = entries.filter((e) => e.unattended && e.certain !== false && !listed.has(e.key) && !inOpen(e) && e.ageMinutes <= WINDOW_HOURS * 60);
   const kept = entries.filter((e) => listed.has(e.key) || fresh.includes(e) || inOpen(e));
   const unattended = kept.filter((e) => e.unattended).map((e) => e.line);
   const attended = kept.filter((e) => !e.unattended).map((e) => e.line);
-  // An owner-only line stays while its PR's newest verdict is still running (fix 2 rule 7): a
-  // re-push in flight never withdraws it.
-  const carried = new Set(kept.map((e) => e.key));
+  // A listed line this check did not judge is carried forward: every one when the check is
+  // incomplete (rule 9), and an owner-only one while its PR has no finished verdict, so a re-push
+  // in flight never withdraws it (fix 2 rule 7).
+  const seen = new Set(entries.map((e) => e.key));
   for (const l of String(previousBody).split(/\r?\n/)) {
-    const mark = marksIn(l)[0], key = keysIn(l)[0];
-    if (mark && key && !carried.has(key) && inFlight.has(Number(mark.split(':')[0]))) { unattended.push(l); carried.add(key); }
-  }
-  if (!complete) {
-    const seen = new Set([...entries.map((e) => e.key), ...carried]);
-    for (const l of String(previousBody).split(/\r?\n/)) {
-      const k = keysIn(l)[0];
-      if (k && !seen.has(k)) (/ attended -->/.test(l) ? attended : unattended).push(l);
-    }
+    const k = keysIn(l)[0];
+    if (!k || seen.has(k)) continue;
+    if (!complete || marksIn(l).some((m) => inFlight.has(m.pr))) (/ attended -->/.test(l) ? attended : unattended).push(l);
   }
   return { unattended, attended, fresh, close: complete && unattended.length + attended.length === 0 };
 }
