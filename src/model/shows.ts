@@ -375,6 +375,9 @@ export interface ExternalShowSource {
         lists?: Record<string, 'lines' | 'schedule' | 'credits'>;
         /** E5.1's recipe (productionData `SourceRecipe`); a later recipe `v` is kept, never evaluated. */
         mapping?: SourceRecipe | { v: number; [later: string]: unknown };
+        /** NoaCG reads the endpoint itself, every `everyMs` (obs-scenes OS5a, control/jsonSource.ts):
+         *  a public JSON address, read through the guarded fetch. Absent: only its agent reads it. */
+        read?: { everyMs: number };
       }
     | { v: number; [later: string]: unknown };
   /** Paused: the route applies nothing; the agent keeps its latest revision for Resume. */
@@ -391,9 +394,21 @@ export type ShowSource = SheetShowSource | YouTubeShowSource | FeedShowSource | 
 export type FieldShowSource = SheetShowSource | FeedShowSource | FileShowSource;
 export const fillsFields = (s: ShowSource): s is FieldShowSource => s.kind === 'sheet' || s.kind === 'feed' || s.kind === 'file';
 
+/** A connector source NoaCG reads itself (obs-scenes OS5a): a version 1 registration whose `read`
+ *  names an interval. Its agent never reads it (migration 0116). */
+export type NoacgReadSource = ExternalShowSource & { config: { v: 1; endpoint: string; configRevision: number; read: { everyMs: number } } };
+export const noacgReads = (s: ShowSource): s is NoacgReadSource => {
+  if (s.kind !== 'external' || s.config.v !== 1) return false;
+  const read = (s.config as { read?: unknown }).read;
+  return typeof read === 'object' && read !== null && typeof (read as { everyMs?: unknown }).everyMs === 'number' && Number.isFinite((read as { everyMs: number }).everyMs);
+};
+
+/** A source with a reader line in the data indicator: one a browser reader fills fields from. */
+export const hasReaderLine = (s: ShowSource): s is FieldShowSource | NoacgReadSource => fillsFields(s) || noacgReads(s);
+
 /** What a source is called on the surface. */
 export const sourceKindWord = (s: ShowSource): string =>
-  s.kind === 'feed' ? 'News feed' : s.kind === 'sheet' ? 'Sheet' : s.kind === 'file' ? 'File' : s.kind === 'external' ? 'Connector' : 'YouTube';
+  s.kind === 'feed' ? 'News feed' : s.kind === 'sheet' ? 'Sheet' : s.kind === 'file' ? 'File' : noacgReads(s) ? 'JSON' : s.kind === 'external' ? 'Connector' : 'YouTube';
 
 /**
  * A production-owned DATA TABLE (docs/INTERACTIVE_PLAYOUT_PLAN.md, D3): a quiz's question

@@ -1,8 +1,9 @@
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import LibMenu from './LibMenu';
-import { fillsFields, setShowSourcePaused, sourceKindWord, type Show, type ShowSource } from '../../model/shows';
+import { hasReaderLine, noacgReads, setShowSourcePaused, sourceKindWord, type Show, type ShowSource } from '../../model/shows';
 import { SHEET_READ_MS, type SheetStatus, type SourceStatusStore } from '../../control/sheetSource';
 import { FEED_READ_MS } from '../../control/feedSource';
+import { jsonEveryMs } from '../../control/jsonSource';
 import { fileAsk } from '../../control/fileSource';
 import { allowFile, canPickFiles, pickFile, saveFileHandle } from '../../control/fileHandles';
 import { useNow } from './ClipClock';
@@ -109,17 +110,23 @@ export function statusWords(paused: boolean | undefined, status: SheetStatus | u
   return `${where}${status.state === 'empty' ? 'empty · ' : ''}${checked}${changed}${closed}`;
 }
 
-/** Who reads a source and how often (data-sources AC-9's source details). */
-export function readerWords(paused: boolean | undefined, status: SheetStatus | undefined, kind: ShowSource['kind']): string {
+/** "every 30 s", "every 5 min". */
+const everyWords = (ms: number): string => (ms % 60_000 === 0 ? `every ${ms / 60_000} min` : `every ${Math.round(ms / 1000)} s`);
+
+/** Who reads a source and how often (data-sources AC-9's source details). `everyMs` is a JSON
+ *  source's own interval (obs-scenes OS5a). */
+export function readerWords(paused: boolean | undefined, status: SheetStatus | undefined, kind: ShowSource['kind'], everyMs?: number): string {
   if (paused) return 'Paused: not read until Resume';
   if (!status) return 'Waiting for the first read';
-  const every = kind === 'feed' ? `about every ${FEED_READ_MS / 60_000} min` : `about every ${SHEET_READ_MS / 1000} s`;
-  if (status.reader === 'server') return 'Read by the server about once a minute, while every page is closed';
+  const every = everyMs !== undefined ? everyWords(jsonEveryMs(everyMs)) : kind === 'feed' ? `about every ${FEED_READ_MS / 60_000} min` : `about every ${SHEET_READ_MS / 1000} s`;
+  // The server ticks once a minute, and reads a JSON source only once its own interval has passed.
+  const server = everyMs !== undefined && jsonEveryMs(everyMs) > 60_000 ? everyWords(jsonEveryMs(everyMs)) : 'about once a minute';
+  if (status.reader === 'server') return `Read by the server ${server}, while every page is closed`;
   const page = status.reader === 'other' ? `Read by another tab of this production, ${every}` : `Read by this page, ${every}`;
   // The server cannot reach a file on this computer: it is read only while a page here is open.
   if (kind === 'file') return `${page}; only while a production page is open on this computer`;
   if (status.closedPage === undefined) return page;
-  return status.closedPage ? `${page}; about once a minute by the server once every page is closed` : `${page}; closed-page reading is off`;
+  return status.closedPage ? `${page}; ${server} by the server once every page is closed` : `${page}; closed-page reading is off`;
 }
 
 /**
@@ -200,7 +207,7 @@ function SourceLine({ show, setShows, source, store }: { show: Show; setShows: (
   return (
     <div
       className="pd-source-line hint"
-      title={readerWords(source.paused, status, source.kind)}
+      title={readerWords(source.paused, status, source.kind, noacgReads(source) ? source.config.read.everyMs : undefined)}
       data-testid={`source-line-${source.id}`}
       data-state={source.paused ? 'paused' : (status?.state ?? 'waiting')}
       data-stale={status?.stale && !source.paused ? 'true' : undefined}
@@ -249,7 +256,7 @@ export function sourceHasProblem(paused: boolean | undefined, status: SheetStatu
 export function useDataProblems(show: Pick<Show, 'sources' | 'bindings'>, store: SourceStatusStore): ReadonlyMap<string, string[]> {
   const key = useSyncExternalStore(store.subscribe, () => {
     const byGraphic = new Map<string, string[]>();
-    for (const source of (show.sources ?? []).filter(fillsFields)) {
+    for (const source of (show.sources ?? []).filter(hasReaderLine)) {
       if (!sourceHasProblem(source.paused, store.get(source.id))) continue;
       for (const graphic of new Set(sourcePaths(show.bindings, source.id).map((p) => p.graphic))) {
         byGraphic.set(graphic, [...(byGraphic.get(graphic) ?? []), source.label]);
@@ -293,7 +300,7 @@ export function DataIndicator({
 }) {
   const [open, setOpen] = useState(false);
   // A Sheet's or a feed's line; a YouTube source is read and shown in Messages only.
-  const sources = (show.sources ?? []).filter(fillsFields);
+  const sources = (show.sources ?? []).filter(hasReaderLine);
   // One string per reading, so a status that moves without changing a tone renders nothing here.
   const tones = useSyncExternalStore(store.subscribe, () => sources.map((s) => sourceTone(s.paused, store.get(s.id))).join(' '));
   // A graphic's own reader reads by itself and nothing here sees its reads: it counts as reading,
@@ -340,7 +347,7 @@ export function DataIndicator({
  * asks the operator for a press, so it shows under the monitors, and only while it is true.
  */
 export function DataWaitingNote({ show, onAir }: { show: Show; onAir: OnAir }) {
-  const waiting = [...new Set((show.sources ?? []).filter(fillsFields).flatMap((s) => listsWaiting(show, s, onAir)))];
+  const waiting = [...new Set((show.sources ?? []).filter(hasReaderLine).flatMap((s) => listsWaiting(show, s, onAir)))];
   if (waiting.length === 0) return null;
   return (
     <div className="pd-data-waiting hint" data-testid="source-waiting" title={`On air: ${waiting.join(', ')}`}>

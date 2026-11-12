@@ -1,4 +1,4 @@
-// guards: api/_lib/dataTick.ts, src/control/feedSource.ts, api/_lib/systemSettings.ts, api/data/[...path].ts, vercel.json
+// guards: api/_lib/dataTick.ts, src/control/feedSource.ts, src/control/jsonSource.ts, api/_lib/systemSettings.ts, api/data/[...path].ts, vercel.json
 //
 // THE SERVER TICK (docs/work-specs/data-sources/spec.md, phase C2; sheet-data-flow AC-4, AC-5),
 // run in Node against the JavaScript tree Vercel emits for the data function (api-runtime-build
@@ -211,6 +211,46 @@ test('a published feed is read through the feed reader, never fetched here: its 
   assert.equal(f2.state.status.state, 'failing');
 });
 
+test('a JSON source NoaCG reads is read through its shared cache and written as one snapshot; a failure writes nothing (obs-scenes OS5a)', async () => {
+  const entry = (id, read) => ({
+    slug: 'slug-1',
+    source: { id, kind: 'external', label: 'Scores', config: { v: 1, configRevision: 2, endpoint: `https://scores.example/${id}.json`, ...(read ? { read } : {}) } },
+    bindings: { Board: { f0: `external.${id}.home`, f1: `external.${id}.score`, f2: `external.${id}.missing` } },
+    fields: { Board: [{ field: 'f0', ftype: 'textfield' }, { field: 'f1', ftype: 'number' }, { field: 'f2', ftype: 'textfield' }] },
+  });
+  const w = world({
+    due: [{ ...entry('j1', { everyMs: 30_000 }), collections: [{ sourceId: 'j1' }] }, entry('j2', { everyMs: 30_000 }), entry('j3', null)],
+    sheets: {},
+    // j1 last wrote home "Ada": only the score changed since.
+    rows: { j1: { snapshot: { 'external.j1.home': 'Ada' }, content: 'json:old', status: { state: 'ok', changedAt: 5 } } },
+  });
+  const asked = [];
+  w.io.json = async (url, signal) => {
+    asked.push(url);
+    assert.ok(signal instanceof AbortSignal, 'the read carries the tick’s cut-off');
+    return url.includes('j1') ? { ok: true, payload: { home: 'Ada', score: 3 } } : { ok: false, error: 'the address did not answer JSON', fix: 'Check the address answers JSON.' };
+  };
+  w.io.feed = async () => assert.fail('a JSON source is not a feed');
+  const run = await tick.runDataTick(w.io);
+  // A connector its agent reads (no `read`) is never read here, even if listed.
+  assert.deepEqual(Object.fromEntries(run.sources.map((s) => [s.source, s.outcome])), { j1: 'read', j2: 'failed', j3: 'error' });
+  assert.deepEqual(asked.sort(), ['https://scores.example/j1.json', 'https://scores.example/j2.json']);
+  assert.deepEqual(w.calls.fetched, [], 'no fetch of its own');
+  const j1 = w.calls.commits.find((c) => c.source === 'j1');
+  assert.deepEqual(j1.writes, { 'external.j1.score': '3' }, 'only the changed path, in its field’s form');
+  assert.equal(j1.state.status.reader, 'server');
+  assert.ok(j1.state.status.changedAt > 5, 'the payload changed');
+  assert.match(j1.state.content, /^json:[0-9a-f]{16}$/);
+  assert.ok(j1.state.status.problems.some((p) => p.startsWith('missing is not in the JSON')));
+  assert.ok(j1.state.status.problems.some((p) => p.startsWith('its collection cards')), 'the tick says what the page says');
+  const j2 = w.calls.commits.find((c) => c.source === 'j2');
+  assert.deepEqual(j2.writes, {});
+  assert.equal(j2.state.status.state, 'failing');
+  assert.equal(w.calls.commits.some((c) => c.source === 'j3'), false);
+  // Every lease taken is let go.
+  assert.deepEqual(w.calls.leases.filter((l) => l.ttlMs === 0).map((l) => l.source).sort(), ['j1', 'j2', 'j3']);
+});
+
 test('a read that never answers is cut at 10 s and counts as a miss; three misses are stale', async () => {
   const hang = (url, init) => new Promise((resolve, reject) => init.signal.addEventListener('abort', () => reject(new Error('aborted'))));
   const w = world({ due: [ticker('s1')], sheets: { 'sheet-s1': hang }, rows: { s1: { status: { state: 'failing', missed: 2, failingSince: 7 } } } });
@@ -357,6 +397,7 @@ function publishedRow(server) {
       return through(url, init);
     },
     feed: async () => assert.fail('no feed is published here'),
+    json: async () => assert.fail('no JSON source is published here'),
     // The 10-second cut, shortened: a hanging read is cut by the tick's own timer.
     setTimer: (run, ms) => setTimeout(run, Math.min(ms, 250)),
     clearTimer: (t) => clearTimeout(t),

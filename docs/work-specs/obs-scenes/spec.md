@@ -625,3 +625,119 @@ Filled in by each phase's pull request.
   loaded while time flows; pause the clock (`pauseAt`) before building frames that must agree.
   Graphics made before this lands need Update in their production (each is its own copy).
 - Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS4.md`.
+
+### OS5a: JSON source
+
+- Rules (written before coding):
+  - R1. A JSON source is a connector source (`kind: 'external'`, `config.v` 1) whose registration
+    also carries `read: { everyMs }` (additive optional). With `read`, NoaCG reads the
+    registration's `endpoint` itself; without it the source is today's agent-only connector. Its
+    paths stay `external.<id>.<leaf>`, and its endpoint, lists, recipe and config revision keep
+    their meaning. `everyMs` is clamped to 10 s at least and an hour at most; a `read` without a
+    finite number is not read by NoaCG.
+  - R2. The connector review offers "Read by NoaCG every N s" (on, 30 s) for an address NoaCG's
+    public reader could read, only while the production's OBS scenes switch is on. A source that
+    already has `read` shows and keeps its interval in the review whatever the switch. Turning the
+    switch off stops nothing that already reads. With the switch off and no such source, nothing
+    new shows and every journey is as today.
+  - R3. One cached server read per address: the existing guarded fetch (public addresses only,
+    every redirect checked, 10 s for the whole read, 256 KiB after decompression), asking for
+    JSON, never sending a credential. The cache is the feed reader's shared row, keyed apart from
+    a feed of the same address. A row read less than 10 s ago is served without fetching; after a
+    failure the publisher's Retry-After is honoured, capped at an hour; its `max-age` does not
+    lengthen the wait (the operator's interval does). One instance holds the claim and fetches;
+    the others serve the row they have, or wait for the first read.
+  - R4. The route is `GET /api/data/json?url=<address>` inside the existing data catch-all: public,
+    with its own per-client limit (60 a minute). It answers `{ok: true, payload, fetchedAt}` or
+    `{ok: false, error, fix, failingSince}` with no payload. Not JSON, over the size, cut off, not
+    2xx, refused by the guard, or not yet read: a failure. No new Vercel function.
+  - R5. Who reads. The production page holding the source's lease (published: the row's lease;
+    unpublished: this browser's) reads at `everyMs` and renews the lease at least every 20 s.
+    Another tab or page shows the holder's status and reads nothing. Published with no page holding
+    the lease, the server tick reads it, at most once a minute and only when the row's last good
+    read is at least `everyMs` less 15 s old. An agent claiming the source takes the same lease, so
+    one of agent, page and tick reads at a time.
+  - R6. A good read is one snapshot: the parsed payload is evaluated once by the shared evaluator
+    (`projectSource`: identity, lists, recipe) for the paths bound at that moment, and every bound
+    path whose value differs from what this source last wrote is written in one write. A path the
+    payload does not carry, a value its fields cannot all hold, a path only typed fields read, or a
+    recipe the build cannot use writes nothing; the line names it and the field keeps its value. An
+    operator's value on a bound path holds until the source's value there changes.
+  - R7. A failed, malformed, refused, oversized or late read (past the reader's timeout) writes
+    nothing and the last good values hold; three missed reads in a row mark the source stale. An
+    answer that arrives after Pause, Disconnect, the page closing or a handover writes nothing.
+  - R8. Pause and Resume as for other sources: paused, neither page nor tick writes; Resume reads at
+    once and writes only paths that changed while paused.
+  - R9. The source's line shows when it was last checked (the last good read) and, separately, when
+    its content last changed (the last good read whose payload differed from the read before, by a
+    fingerprint of its canonical JSON), who reads it, and its interval.
+  - R10. The server tick lists such sources through migration 0116 (`control_data_tick_due` also
+    lists an external source with `config.v` 1 and an object `config.read`; nothing else changes).
+    It is live-path and waits for a quiet window; until it applies, only open pages read them.
+  - R11. The reader is generic: a read hands the parsed payload to one projection hook, so OS5b's
+    adapter turns the payload into its shape before the evaluator, without a second reader.
+- Rules found by the Rules-first `/so`, before code (it agreed with corrections):
+  - R10 amended. The due test is in 0116's SQL, not in the tick's code: an external source is
+    listed only when its `config.read.everyMs` is a number and the row's last good read
+    (`status.checkedAt`) is absent or at least the clamped interval less 15 s old. A source not
+    yet due is not listed, so it never takes a place in the tick's 50 from a Sheet or a feed.
+  - R12. A source with `read` is NoaCG's alone: 0116 adds one refusal to
+    `control_source_registration_refusal`, so an agent's claim or report for it is refused with
+    `read_by_noacg` and nothing it sends is applied. The route says why. Removing `read` gives the
+    source back to an agent. The review offers `read` only for a sample read the public way, never
+    one an agent posted.
+  - R13. Every writer of a connector configuration keeps `read`: the review keeps the stored value
+    unless the operator changes it, and changing it never moves `configRevision`. A page of an
+    older build that rewrites the configuration drops `read`; NoaCG then stops reading it and the
+    source leaves the data indicator, which shows the change.
+  - R14. A NoaCG read writes only bound paths, as text. A collection recipe's leaf (0102, written
+    only by the agent's report) is not written: the review does not offer `read` for a source a
+    collection recipe of the production reads, and if one is added later the line says its cards
+    keep their values. A path only typed fields read is not written and the line says so (R6).
+  - R15. The line reads the source's lease row (`control_source_reads`, published) or this
+    browser's lease (unpublished), as for a Sheet; the agent's `production_source_snapshots` is
+    not used. A NoaCG-read source is held by its own Pause, like a Sheet, not by the production's
+    "Another system" Pause (spec: "as for other sources").
+  - R16. The JSON route's per-client limit is 120 a minute, room for 20 sources read at the floor
+    from one computer.
+  - R17. The cache keeps the parsed payload as the one item of the row's `items` array (`[payload]`),
+    so `feed_cache` needs no new column.
+  - R18. `docs/DATA_API.md` replaces "it never scrapes a site or polls an address for you" with what
+    NoaCG now reads (a public JSON address, on the source's interval above 10 s, through the guarded
+    fetch and one shared read) and what it still never does (scrape a page, send a credential).
+- Rules found after coding (`/check` review):
+  - R3 amended. A good read's wait counts from when the reader's request arrived, less 1 s, not
+    from the end of the fetch: the address is fetched at most every 9 s, and a source read every
+    10 s gets a fresh read each time however long the fetch and the database took. A failure still
+    waits from the fetch's end, so a Retry-After is honoured in full.
+  - R12 amended. The agent is refused exactly when `config.read.everyMs` is a number, the test the
+    tick's list and the page's reader use; a malformed `read` leaves the source its agent's.
+  - R19. A registration NoaCG's reader cannot use is still read and holds every value, and the line
+    says why, on the page and the tick alike; the tick's list carries the production's collection
+    recipes so its line says what the page's says.
+  - R20. A good read stamped more than a minute ahead of the database's clock (a page whose clock
+    runs fast) counts as never read in the tick's due test.
+  - Every refusal and failure of a JSON read is said of an address, never of a feed.
+- Previous verified `main`: `bcb4d10b8773704db04e9ec9148d3782b6df1d2d` (CI run 43287863511, the
+  configured suite 43287863588).
+- Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed: a
+  `read` left on a connector is ignored by the reverted build, so the source is an agent-only
+  connector again for the page. Migration 0116 stays applied: its tick list still names such a
+  source, and the reverted tick, which knows only Sheets and feeds, tries it as a Sheet every minute
+  and fails, writing nothing but the source's failing line, and an agent is still refused it. So
+  turn "Read by NoaCG" off on those sources first, or restore 0099's `control_data_tick_due` and
+  0101's `control_source_registration_refusal` in a new migration.
+- Decisions: the source is a connector with `read`, not a new kind, so the existing JSON review,
+  recipe, lists, paths and evaluator serve it and nothing persisted changes shape; the feed kind is
+  headlines only. The cache is the feed reader's row and claim with a JSON key, floor and words
+  (`CachedKind`), so the guard and the one-read-per-address rule are one code path. The reader is
+  the Sheet reader with a `project` hook (R11), so lease, Pause, stale and late answers are the
+  ones every source already has. The tick's due test is in SQL (R10 amended). Owner questions the
+  Rules-first `/so` raised and this phase decided by default: a source with `read` is NoaCG's alone
+  (R12), and it is held by its own Pause, not the "Another system" Pause (R15, the spec's "as for
+  other sources").
+- Traps: until 0116 applies (a live-path migration, held for a quiet window), the tick does not list
+  a JSON source and the line can still say closed-page reading is on; only open pages read it. A
+  page of an older build that rewrites a connector's configuration drops `read` (R13). On a ticker,
+  a pasted address is still read as a news feed; "Read by NoaCG" is offered on the other graphics.
+- Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS5a.md`.
