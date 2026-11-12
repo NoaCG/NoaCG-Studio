@@ -709,10 +709,11 @@ Filled in by each phase's pull request.
   configured suite 43287863588).
 - Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed: a
   `read` left on a connector is ignored by the reverted build, so the source is an agent-only
-  connector again and nothing reads it until its agent runs. Migration 0116 stays applied and is
-  harmless without the reader (the tick lists the source, finds no `read` handling, and records
-  `error`); restore 0099's `control_data_tick_due` and 0101's `control_source_registration_refusal`
-  in a new migration only if an agent must read such a source while `read` is still set.
+  connector again for the page. Migration 0116 stays applied: its tick list still names such a
+  source, and the reverted tick, which knows only Sheets and feeds, tries it as a Sheet every minute
+  and fails, writing nothing but the source's failing line, and an agent is still refused it. So
+  turn "Read by NoaCG" off on those sources first, or restore 0099's `control_data_tick_due` and
+  0101's `control_source_registration_refusal` in a new migration.
 - Decisions: the source is a connector with `read`, not a new kind, so the existing JSON review,
   recipe, lists, paths and evaluator serve it and nothing persisted changes shape; the feed kind is
   headlines only. The cache is the feed reader's row and claim with a JSON key, floor and words
