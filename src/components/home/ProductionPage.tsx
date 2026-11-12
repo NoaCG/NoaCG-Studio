@@ -133,7 +133,7 @@ import ProductionAudienceWorkspace, { useMessageSources } from './ProductionAudi
 import { pollFieldMap } from '../../control/resultStaging';
 import { useAudienceInbox, useMessagesBackend } from './useAudienceInbox';
 import { createSheetInbox } from '../../audience/sheetMessages';
-import { designEditedAt, loadGraphics, newerLibraryDesign, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
+import { designEditedAt, libraryStoreText, loadGraphics, newerLibraryDesign, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
 import { describeProductionGate, productionGateFailures } from '../../validation/productionGate';
 import { captureLookFromTemplate, loadLooks, type SavedGraphic } from '../../model/packets';
 import { measureId, placedAppearance, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
@@ -613,15 +613,23 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * cannot move what this operator is holding. Re-reading after this tab's OWN write is
    * harmless: it reads back what it just wrote.
    */
+  /** Bumped when the stored library moves (a library edit here or in another tab, or this page's own
+   *  own-reader migration, data-sources C6), so "Newer design in library" and the Sheet-reader
+   *  gates read it as it now is. What plays is the production's copy, never this. */
+  const [libraryRev, setLibraryRev] = useState(0);
   useEffect(() => {
-    const onDataChanged = () => setShows(loadShows());
+    // The library is read again only when it moved (by reference, no parse), so a cue save costs
+    // nothing here and a library edit reaches "Newer design in library" (live-publishing O4).
+    let libraryText = libraryStoreText();
+    const onDataChanged = () => {
+      setShows(loadShows());
+      const now = libraryStoreText();
+      if (now !== libraryText) { libraryText = now; setLibraryRev((n) => n + 1); }
+    };
     window.addEventListener('spx-data-changed', onDataChanged);
     return () => window.removeEventListener('spx-data-changed', onDataChanged);
   }, []);
-  /** Bumped when this page changes a library design itself (the own-reader migration, data-sources
-   *  C6), so the monitors rebuild on the design the production now plays. */
-  const [libraryRev, setLibraryRev] = useState(0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read only when this page changed a design
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read only when the stored library moved
   const library = useMemo(() => loadGraphics(), [libraryRev]);
   // Fresh picker choices must not replace the library identity held by running monitor frames.
   // eslint-disable-next-line react-hooks/exhaustive-deps -- data-change events refresh shows and the library together

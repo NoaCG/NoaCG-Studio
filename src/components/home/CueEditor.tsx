@@ -1694,6 +1694,9 @@ export default function CueEditor({
           cannot be closed: two graphics on one layer replace each other on air, so the
           repair must never be one click away behind a closed disclosure. The rundown's
           clash badge lands here too (`openLayerRepair`). */}
+      {designUpdate && (
+        <DesignUpdate key={poolGraphic.id} update={designUpdate} disabled={!authoringAllowed} />
+      )}
       <div className={`pd-advanced${layerClash ? ' clash' : ''}`} data-testid="cue-advanced">
         <button
           type="button"
@@ -1735,9 +1738,7 @@ export default function CueEditor({
                 data-testid="graphic-layer"
               />
             </label>
-            {designUpdate && (
-              <DesignUpdate key={poolGraphic.id} update={designUpdate} disabled={!authoringAllowed} />
-            )}
+
             {/* THE DATA TEMPLATE (data-sources C1a, AC-13): every value of this graphic as
                 `Field ID,Label,Value`, keyed by id so a reordered row or a renamed label still
                 reaches its field. A spreadsheet coerces "007" and "=1+1" unless told not to. */}

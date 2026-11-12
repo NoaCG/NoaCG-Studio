@@ -66,6 +66,12 @@ function normalize(doc: GraphicDoc): GraphicDoc {
   };
 }
 
+/** The stored library as it stands, compared by reference: a reader that keeps the last one it saw
+ *  knows the library moved without parsing it (the production page's "Newer design in library"). */
+export function libraryStoreText(): string | null {
+  return durable.getItem(GRAPHICS_KEY);
+}
+
 /** All graphics INCLUDING tombstones — for the sync engine. Runs the packet migration first. */
 export function loadAllGraphics(): GraphicDoc[] {
   migrateEmbeddedGraphics();
