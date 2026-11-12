@@ -76,6 +76,29 @@ Tool approval can remain pending before the subprocess starts, outside its timeo
 Yield long tool calls promptly and report pending approval separately from an
 executed command's failure. A pending call is no evidence that GitHub is unavailable.
 
+## Private context in a cloud worker
+
+Private NoaCG context lives in `NoaCG/noacg-private`, a separate private repository. The
+public repository gitignores `docs/private`, so a cloud worker starts without it. Clone it
+only when the task needs it, and read only the part the task needs:
+
+```bash
+gh repo clone NoaCG/noacg-private docs/private
+```
+
+The clone needs the shell network permission above and the provider's GitHub grant to cover
+that repository. An authentication failure here usually means the grant is missing rather
+than the account being disconnected: report it and stop.
+
+Read `docs/private/AGENTS.md` before using the content. Nothing from that repository reaches
+public work: no names, dates, partners, sponsors, prices, people or event details in code,
+docs, tests, commit messages, branch names, pull requests or issue text. Use neutral
+examples instead.
+
+Its secrets are ignored local files that exist only on the owner's machine. A cloud worker
+does not have them and must not recreate or substitute them. A clone into `docs/private`
+leaves the public repository clean, so `git status` there must still show nothing new.
+
 ## Before submission
 
 Read `AGENTS.md`, the relevant spec and the current owner receipts in issue #1301.
