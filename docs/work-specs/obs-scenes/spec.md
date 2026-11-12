@@ -76,6 +76,11 @@ break another live production.
   does not claim an ordinary user could have reproduced the work.
 - **D7. Landings stop during the owner's live windows.** A landing hold covers every route to
   `main` (and with it production deploys and migrations). Its schedule is private.
+- **D8. Scores typed in the Sheet are the baseline;** the JSON source and bracket adapter are a
+  bonus and the first scope cut if the run slips.
+- **D9. The operator takes scenes through OBS Studio Mode preview, with a short fade (100 ms or
+  more) as the default transition,** so a changed graphic is drawn in preview before it reaches
+  program.
 
 ## Behaviour
 
@@ -116,7 +121,10 @@ break another live production.
   and what each failure needs).
 - More than 16 expected outputs are refused with a sentence that says so.
 - The fallback is the existing offline HTML overlay export (`src/export/targets/htmlOverlay.ts`),
-  one file per scene graphic, placed by the owner in a hidden OBS group per scene. No new export.
+  one file per scene graphic, placed by the owner in a hidden OBS group per scene. The exporter
+  gains a settled option: the graphic is drawn at rest from load, with no entrance, no automatic
+  Out timer, and OBS's show and hide events ignored. Without it the export plays its entrance on
+  program and can take the graphic off again.
 
 ### Clocks (OS4)
 
@@ -283,7 +291,9 @@ the owner in OS2.
 
 ### AC-12: Offline fallback
 
-The OBS scenes guide explains the fallback group. In OS7 the owner starts OBS with the network
+The HTML overlay export's settled option draws the graphic at rest from load, with no entrance,
+no automatic Out, and no reaction to OBS's show and hide events, checked in a browser page that
+sends those events. The OBS scenes guide explains the fallback group. In OS7 the owner starts OBS with the network
 off and empty browser caches, shows each scene's fallback group, and sees its graphics placed and
 settled with their fonts and images.
 
@@ -294,9 +304,8 @@ template in the OS2 hand-over. With placeholder graphics, every scene's source l
 1920×1080 and 60 fps, the game capture, cameras and encoding running, Stats counters reset, 20
 minutes of cutting:
 
-- Pass: frames skipped due to encoding lag 0; frames missed due to rendering lag at most the
-  number the owner set before the test (proposed 0.1%); average render time at most his number
-  (proposed 8 ms).
+- Pass (owner, 2026-11-12): frames skipped due to encoding lag 0; frames missed due to rendering
+  lag at most 0.1%; average render time at most 8 ms.
 - Stale frame: change a value while its scene is hidden, then take it ten times through Studio
   Mode preview, ten times with the default transition, and ten times with a direct Cut. Pass: no
   old frame on the first two. The direct Cut is recorded for information.
@@ -343,7 +352,8 @@ marked **Risky** take the Rules-first `/so` (`docs/plan-runs/known-traps.md`). E
    runs the adapter on the owner's private sample and reports only pass or fail.
 6. **OS2. First laptop test** (AC-13). Owner phase.
 7. **OS1b. Take, Out and copies per scene** (AC-2, AC-3; **Risky**: state rules, recovery).
-8. **OS3. Monitoring and settings** (AC-6, and the guide of AC-12; **Risky**: presence state).
+8. **OS3. Monitoring, settings and the settled export** (AC-6, and the settled export and guide
+   of AC-12; **Risky**: presence state).
 9. **OS6. The Live dock** (AC-11; **Risky**: a second control session). Leaves the OS7 checklist
    with receipt template.
 10. **OS7. Owner rehearsal** (AC-12, AC-14). Owner phase.

@@ -28,13 +28,18 @@ arm triggers. This overrides plan-create's automatic handover.
 - Live windows: "there won't be anything landing on those three days in the playout system on
   noaCG because we are doing live streams."
 - Not granted: `untilComplete`. The end is binding.
+- "all as recommended" (2026-11-12), to the planning session's six questions: the bare end date
+  may appear in public run state (`authorization.deadline`, heartbeat, recovery branch) with no
+  event named; scenes are taken through Studio Mode preview with a short fade as the default (D9);
+  the Sheet is the score baseline and the JSON source a bonus (D8); the live-publishing run's
+  `production_copies` switch is fixed before the feature freeze and not changed after; the AC-13
+  numbers; the landing hold from 24 hours before each live window to its end and through the
+  landing freeze, the live-publishing run paused during the live windows, and its owner studio
+  check after the event.
 
 ## Before start
 
-1. The owner answers the open questions (the planning session lists them): the end date in public
-   run state, the default transition, the Sheet as the bracket baseline, `production_copies` for
-   the event, the AC-13 numbers, and the window rules below, including pausing the live-publishing
-   run.
+1. Done 2026-11-12: the owner's answers above.
 2. The owner's 30-minute laptop probe, with no new code: today's cloud output link as twelve
    browser sources at 60 fps with OBS Stats open, and Google sign-in inside a Custom Browser Dock.
    His result goes into the private run notes.
@@ -42,11 +47,8 @@ arm triggers. This overrides plan-create's automatic handover.
    fresh cloud worker run `plan-run-preflight.mjs`; the worker clones `NoaCG/noacg-private` into
    `docs/private` as `.agent-workflows/cloud-delegate.md` says; a real wake re-enters the
    coordinator.
-4. Only the end-date answer decides how the run's end is held. If the owner allows the bare date
-   in public run state, it goes in `authorization.deadline` as usual. If not, the run does not
-   start until the private-state option is built and reviewed (`plan-kit` prints the deadline in
-   the heartbeat, and `run-recovery` pushes the kit to a public branch). The deadline is never
-   dropped and `untilComplete` is never invented to hide it.
+4. The end date goes in `authorization.deadline` as usual (answered above).
+5. The owner says start.
 
 ## Start
 

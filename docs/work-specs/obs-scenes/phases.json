@@ -139,7 +139,7 @@
         "Node tests for the reader with a fake fetch and clock, two competing pages and late answers",
         "the feed route's guard tests extended"
       ],
-      "notes": "Risky (api, polling). No new Vercel function. Any migration only in a quiet window and never while the landing hold is on."
+      "notes": "Bonus scope (D8): the first cut if the run slips. Risky (api, polling). No new Vercel function. Any migration only in a quiet window and never while the landing hold is on."
     }
   },
   {
@@ -237,9 +237,10 @@
   },
   {
     "id": "OS3",
-    "title": "Monitoring and settings",
+    "title": "Monitoring, settings and the settled export",
     "acceptance": [
-      "AC-6, as written in docs/work-specs/obs-scenes/spec.md"
+      "AC-6, as written in docs/work-specs/obs-scenes/spec.md",
+      "AC-12's settled export and guide, as written in docs/work-specs/obs-scenes/spec.md"
     ],
     "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
     "dependsOn": [
@@ -247,7 +248,7 @@
     ],
     "spec": "docs/work-specs/obs-scenes/spec.md",
     "brief": {
-      "goal": "Scene rows, the walk-through tick, the settings section with Copy and Copy all links, the 16-output sentence and the OBS scenes guide with the fallback.",
+      "goal": "Scene rows, the walk-through tick, the settings section with Copy and Copy all links, the 16-output sentence and the OBS scenes guide with the fallback. The settled option on the HTML overlay export.",
       "read": [
         "docs/work-specs/obs-scenes/spec.md",
         "docs/work-specs/obs-scenes/runbook.md",
@@ -262,10 +263,12 @@
         "src/control/",
         "src/output/",
         "docs/",
-        "e2e/"
+        "e2e/",
+        "src/export/"
       ],
       "checks": [
-        "the playout panel journey with OBS events sent by a test page"
+        "the playout panel journey with OBS events sent by a test page",
+        "a browser test of the settled export with OBS show and hide events"
       ],
       "notes": "Risky (presence state). Simulated events are not hardware proof: name the rows the owner must confirm in OS7."
     }
