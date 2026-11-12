@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
+import { sceneLink } from '../../model/obsScenes';
 import { useTemplateStore } from '../../store/templateStore';
 import {
   deleteShowProfile,
@@ -20,6 +21,8 @@ import {
   fillPlayoutItemFacts,
   renameFolderChecked,
   setFolderMode,
+  setFolderObsScene,
+  setShowObsScenes,
   setFolderPlayback,
   setCueAuto,
   type PlayoutItem,
@@ -3967,6 +3970,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (!on) setReplaceAsk(false);
     if (on) setVmixReplace(undefined);
   };
+  /** The OBS scenes switch (obs-scenes OS1a R2): folders may be OBS scenes, each with its own link. */
+  const setObsScenes = async (on: boolean) => {
+    const result = setShowObsScenes(show.id, on);
+    setShows(result.shows);
+    const failure = result.error ?? (await commitDurableWrites());
+    if (failure) setNote(`The OBS scenes switch was not saved: ${failure}`);
+  };
   const setVmix = async (on: boolean) => {
     const result = setShowOutputSetup(show.id, withPlayoutSystem(show.outputSetup, on ? 'vmix' : null));
     setShows(result.shows);
@@ -4035,6 +4045,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               locked={casparFacts.locked}
               onVmix={on => void setVmix(on)}
               onCaspar={on => void setCaspar(on)}
+              obsScenesOn={!!show.obsScenes}
+              onObsScenes={on => void setObsScenes(on)}
               onSettings={() => {
                 setStatusOpen(false);
                 setPlayoutSettingsOpen(true);
@@ -4778,6 +4790,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         duplicateCues={duplicateCues}
         takeOutOfFolders={takeOutOfFolders}
         removeFolder={removeFolderOf}
+        obsScenes={
+          show.obsScenes
+            ? {
+                setScene: (folderId, on) => void writeRundown(() => setFolderObsScene(show.id, folderId, on), on ? 'Make OBS scene' : 'Not an OBS scene', 'The folder was not saved'),
+                copyLink: outputUrl ? (folderId) => void copy(`scene:${folderId}`, sceneLink(outputUrl, folderId)) : null,
+                copied: copied?.startsWith('scene:') ? copied.slice(6) : null,
+              }
+            : null
+        }
         moveRundown={moveRundown}
         toggleFolder={toggleFolder}
         setRundownNote={setRundownNote}
@@ -4793,7 +4814,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           joinUrl={joinUrl}
           interactionHref={routeHash({ view: 'production', id: show.id, sub: 'audience' })}
           presenterUrl={presenterUrl}
-          copied={copied}
+          copied={copied === 'output' || copied === 'join' || copied === 'presenter' ? copied : null}
           onCopy={copy}
           onClose={() => setLinksOpen(false)}
         />

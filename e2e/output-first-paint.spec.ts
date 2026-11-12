@@ -3,6 +3,7 @@
 // fixtures. The one spec that proves the boundary, and output-first-paint because the stage
 // module is what the published graphics load through as well.
 // covers: {src/preview/composeDocument.ts,src/output/{stage.ts,foreignOgraf.ts,placeOnOutput.ts},src/control/ograf{Host.ts,Contract.ts},e2e/fixtures/foreign-ograf/**}
+// AC-4 of docs/work-specs/obs-scenes/spec.md (a scene link's settled Take) is the last describe.
 
 import { test, expect, type Page } from '@playwright/test';
 
@@ -57,7 +58,8 @@ keys.forEach((id, i) => {
 });
 // A moment of nothing first, the way the real boot waits on its resolve.
 await new Promise((r) => setTimeout(r, Number(q.get('delay') || 250)));
-const stage = createOutputStage(document.body, { v: 1, resolution: design.resolution, graphics, cues: [] });
+// ?settled=1 is a scene link's stage (obs-scenes OS1a R9): every Take drawn settled.
+const stage = createOutputStage(document.body, { v: 1, resolution: design.resolution, graphics, cues: [] }, { settled: q.get('settled') === '1' });
 window.__stage = stage;
 window.__airWhenSettled = airWhenSettled;
 // ?hide=lt0: hidden by its own flag before its document loads, and taken (live-publishing G2 R9).
@@ -440,4 +442,146 @@ test.describe('the /output shell, a graphic taken again', () => {
       expect((await rowsShown(page)).minOpacity, `${board}: the rows stay drawn`).toBe(1);
     });
   }
+});
+
+/**
+ * A SCENE LINK'S TAKE IS DRAWN SETTLED (docs/work-specs/obs-scenes/spec.md AC-4, OS1a R9): the stage
+ * of an `&scene=` link posts its Take settled, and the graphic's first visible frame is its resting
+ * state. Every frame the document draws is fingerprinted (each element's opacity, transform, clip and
+ * visibility, kept when it changes), so "no entrance frame" is a fact about frames, not a screenshot
+ * that might fall between them. The same Take on an ordinary stage is the control: it draws frames in
+ * between, so the check can tell the two apart. Continuous motion keeps running after a settled Take.
+ */
+test.describe('the /output shell, a scene link\'s settled Take', () => {
+  let harness: { swapped: boolean };
+
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 480, height: 270 });
+    harness = await mountHarness(page);
+  });
+
+  test.afterEach(() => {
+    expect(harness.swapped, 'the /output shell still loads its boot module the way this spec swaps').toBe(true);
+  });
+
+  /** Start fingerprinting every frame the graphic's document draws. */
+  async function recordFrames(page: Page) {
+    const frame = page.frames().find((f) => f !== page.mainFrame())!;
+    await expect.poll(() => frame.evaluate(() => document.readyState).catch(() => ''), { timeout: 10_000 }).toBe('complete');
+    await frame.evaluate(() => {
+      const w = window as unknown as { __prints: string[]; __print: () => string };
+      w.__print = () =>
+        Array.from(document.body.querySelectorAll('*'))
+          .map((el) => {
+            const cs = getComputedStyle(el);
+            return `${cs.opacity}|${cs.transform}|${cs.clipPath}|${cs.visibility}`;
+          })
+          .join(';');
+      w.__prints = [w.__print()];
+      const tick = () => {
+        const now = w.__print();
+        if (now !== w.__prints[w.__prints.length - 1]) w.__prints.push(now);
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+    return frame;
+  }
+
+  /** The frames drawn since recording began, and the graphic as it stands now. */
+  const drawn = (frame: Awaited<ReturnType<typeof recordFrames>>) =>
+    frame.evaluate(() => {
+      const w = window as unknown as { __prints: string[]; __print: () => string };
+      return { prints: w.__prints, now: w.__print() };
+    });
+
+  const take = (page: Page, key: string, msg: unknown) =>
+    page.evaluate(([k, m]) => (window as unknown as { __stage: { apply(g: string, m: unknown): void } }).__stage.apply(k as string, m), [key, msg] as const);
+
+  test('lt01: the first frame after a settled Take is its resting state, unlike an ordinary Take', async ({ page }) => {
+    test.setTimeout(60_000);
+    const firstAfterTake = async (settled: boolean) => {
+      await page.goto(`/first-paint/output?designs=lt01${settled ? '&settled=1' : ''}`);
+      await page.waitForFunction(() => (window as unknown as { __stageReady?: boolean }).__stageReady);
+      const frame = await recordFrames(page);
+      await take(page, 'lt01', { t: 'update', data: { f0: 'Ada Lovelace', f1: 'Analyst' } });
+      await take(page, 'lt01', { t: 'play' });
+      // Long past any entrance: what it rests at.
+      await page.waitForTimeout(3000);
+      return drawn(frame);
+    };
+    const settled = await firstAfterTake(true);
+    expect(settled.prints.length, 'the settled Take drew the graphic').toBeGreaterThan(1);
+    expect(settled.prints[1], 'the first frame drawn after the Take is the resting one').toBe(settled.now);
+    expect(settled.prints.slice(1).every((p) => p === settled.now), `frames after the settled Take: ${settled.prints.length - 1}`).toBe(true);
+
+    // The control: an ordinary stage plays the entrance, frames between rest and rest.
+    const ordinary = await firstAfterTake(false);
+    expect(ordinary.prints.length, 'the ordinary Take drew frames of its entrance').toBeGreaterThan(2);
+    expect(ordinary.prints[1]).not.toBe(ordinary.now);
+  });
+
+  test('lt01: a re-Take after Out is drawn settled too', async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.goto('/first-paint/output?designs=lt01&settled=1');
+    await page.waitForFunction(() => (window as unknown as { __stageReady?: boolean }).__stageReady);
+    const frame = await recordFrames(page);
+    await take(page, 'lt01', { t: 'play' });
+    await page.waitForTimeout(1500);
+    const up = (await drawn(frame)).now;
+    await take(page, 'lt01', { t: 'stop' });
+    await page.waitForTimeout(3000);
+    // Recording again from the graphic at rest off air.
+    await frame.evaluate(() => {
+      const w = window as unknown as { __prints: string[]; __print: () => string };
+      w.__prints = [w.__print()];
+    });
+    await take(page, 'lt01', { t: 'update', data: { f0: 'Grace Hopper' } });
+    await take(page, 'lt01', { t: 'play' });
+    await page.waitForTimeout(3000);
+    const again = await drawn(frame);
+    expect(again.prints[1], 'the first frame after the re-Take is the resting one').toBe(again.now);
+    expect(again.now).toBe(up);
+  });
+
+  // The snap that settles a Take resets every inline style, the data's own with them: a value the
+  // design fitted smaller must keep that size on a scene link, as on an ordinary one.
+  test('st01: a settled Take keeps the size the design fitted a long value to', async ({ page }) => {
+    test.setTimeout(60_000);
+    const fittedAfterTake = async (settled: boolean) => {
+      await page.goto(`/first-paint/output?designs=st01${settled ? '&settled=1' : ''}`);
+      await page.waitForFunction(() => (window as unknown as { __stageReady?: boolean }).__stageReady);
+      const frame = page.frames().find((f) => f !== page.mainFrame())!;
+      await expect.poll(() => frame.evaluate(() => document.readyState).catch(() => ''), { timeout: 10_000 }).toBe('complete');
+      await take(page, 'st01', { t: 'update', data: { f0: 'The Grand Final of the Northern Regional Invitational Championship Series, Second Leg' } });
+      await take(page, 'st01', { t: 'play' });
+      await page.waitForTimeout(3000);
+      // The long value's own field: other lines may be measured mid-entrance on an ordinary Take.
+      return frame.evaluate(() => (document.getElementById('f0') as HTMLElement | null)?.style.fontSize ?? '');
+    };
+    const ordinary = await fittedAfterTake(false);
+    expect(ordinary, 'st01 fits a long title with an inline size').not.toBe('');
+    expect(await fittedAfterTake(true)).toBe(ordinary);
+  });
+
+  test('ss21: continuous motion keeps running after a settled Take', async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.goto('/first-paint/output?designs=ss21&settled=1');
+    await page.waitForFunction(() => (window as unknown as { __stageReady?: boolean }).__stageReady);
+    const frame = page.frames().find((f) => f !== page.mainFrame())!;
+    await take(page, 'ss21', { t: 'play' });
+    const root = () => frame.evaluate(() => Number(getComputedStyle(document.querySelector('.starting-soon')!).opacity)).catch(() => -1);
+    await expect.poll(root, { timeout: 8_000 }).toBe(1);
+    // Its loop and its countdown go on: the playhead moves, and so does what the clock shows.
+    const clock = () => frame.evaluate(() => document.querySelector('.starting-soon')!.textContent ?? '');
+    const readings = [await motionOf(page, 'ss21')];
+    const shown = [await clock()];
+    for (let i = 0; i < 6; i++) {
+      await page.waitForTimeout(400);
+      readings.push(await motionOf(page, 'ss21'));
+      shown.push(await clock());
+    }
+    expect(new Set(readings).size, `playhead readings: ${readings.join(', ')}`).toBeGreaterThan(1);
+    expect(new Set(shown).size, 'the countdown moves').toBeGreaterThan(1);
+  });
 });

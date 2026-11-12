@@ -107,6 +107,10 @@ refuses GraphQL, drop `--queue`, enter it on its own branch from `origin/main`, 
 land that branch through the cloud path below). Ask the owner only when the
 fix needs a product decision or a change well outside the pull request's scope.
 
+**A gate red only with "Landing hold" is not a failure to repair.** Spend no attempt and push
+nothing for it; after the hold lifts, re-run the failed `CI gate` job and queue again
+(`docs/LANDING_HOLD.md`). Never close or unlabel the hold issue to get a gate green.
+
 ## 4. When a landing is refused, reconcile and queue again
 
 - **A red check on the pull request:** fix it on the branch, run `/check`, queue again.

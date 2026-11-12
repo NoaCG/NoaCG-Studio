@@ -326,7 +326,7 @@
 }
 /* Both adapter switches fit in one row on a desktop. They wrap as whole labels on narrow panels. */
 .pd-pp-switches { display: flex; flex-wrap: wrap; gap: 4px 16px; }
-.pd-pp-switches > .pd-pp-switch-row { flex: 1 1 180px; }
+.pd-pp-switches > .pd-pp-switch-row { flex: 1 1 auto; }
 .pd-pp-switch-row { display: flex; align-items: center; gap: 10px; min-height: 28px; font-size: 13px; color: var(--text); cursor: pointer; }
 .pd-pp-switch-label { flex: 1; }
 /* `input.` for the specificity to beat base.css's one-size checkbox: a switch is the one checkbox

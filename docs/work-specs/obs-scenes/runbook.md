@@ -13,7 +13,7 @@ arm triggers. This overrides plan-create's automatic handover.
 - `work.json`: the acceptance record, `agreed` with the owner's words.
 - Private run notes in `NoaCG/noacg-private` (the coordinator knows the path): the owner's live
   windows, the landing hold schedule, the run's end, targets and fallbacks. Only the coordinator
-  and the OS5b checker read them. Nothing from them goes into public text, the run issue, a
+  reads them; no worker needs the private repository. Nothing from them goes into public text, the run issue, a
   commit, a receipt or the recovery branch.
 
 ## The owner's answers (2026-11-12, verbatim)
@@ -28,25 +28,27 @@ arm triggers. This overrides plan-create's automatic handover.
 - Live windows: "there won't be anything landing on those three days in the playout system on
   noaCG because we are doing live streams."
 - Not granted: `untilComplete`. The end is binding.
+- "all as recommended" (2026-11-12), to the planning session's six questions: the bare end date
+  may appear in public run state (`authorization.deadline`, heartbeat, recovery branch) with no
+  event named; scenes are taken through Studio Mode preview with a short fade as the default (D9);
+  the Sheet is the score baseline and the JSON source a bonus (D8); the live-publishing run's
+  `production_copies` switch is fixed before the feature freeze and not changed after; the AC-13
+  numbers; the landing hold from 24 hours before each live window to its end and through the
+  landing freeze, the live-publishing run paused during the live windows, and its owner studio
+  check after the event.
 
 ## Before start
 
-1. The owner answers the open questions (the planning session lists them): the end date in public
-   run state, the default transition, the Sheet as the bracket baseline, `production_copies` for
-   the event, the AC-13 numbers, and the window rules below, including pausing the live-publishing
-   run.
+1. Done 2026-11-12: the owner's answers above.
 2. The owner's 30-minute laptop probe, with no new code: today's cloud output link as twelve
    browser sources at 60 fps with OBS Stats open, and Google sign-in inside a Custom Browser Dock.
    His result goes into the private run notes.
 3. Qualification, before any runtime state (`plan-run.md` section 1): the coordinator and one
-   fresh cloud worker run `plan-run-preflight.mjs`; the worker clones `NoaCG/noacg-private` into
-   `docs/private` as `.agent-workflows/cloud-delegate.md` says; a real wake re-enters the
-   coordinator.
-4. Only the end-date answer decides how the run's end is held. If the owner allows the bare date
-   in public run state, it goes in `authorization.deadline` as usual. If not, the run does not
-   start until the private-state option is built and reviewed (`plan-kit` prints the deadline in
-   the heartbeat, and `run-recovery` pushes the kit to a public branch). The deadline is never
-   dropped and `untilComplete` is never invented to hide it.
+   fresh cloud worker run `plan-run-preflight.mjs`, and a real wake re-enters the coordinator.
+   Workers do not attach the private repository: in auto mode a worker's `add_repo` is refused
+   (qualification, 2026-11-12), and no phase needs it.
+4. The end date goes in `authorization.deadline` as usual (answered above).
+5. The owner says start.
 
 ## Start
 

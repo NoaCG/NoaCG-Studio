@@ -416,6 +416,31 @@ export interface LiveEntry {
    *  values and actions (E2.1). Absent from an output built before it: a page sends such an output
    *  no envelope. */
   typed?: number;
+  /** A scene link's own word (docs/work-specs/obs-scenes/spec.md OS1a R8). Absent on every other
+   *  output. */
+  scene?: SceneReport;
+}
+
+/** What a scene link says about itself: its scene id, whether the payload it holds knows that
+ *  scene, and from OBS's browser source events where the source is (`obs`, absent until the first
+ *  event: unknown) and the OBS scene it was last on program in. */
+export interface SceneReport {
+  id: string;
+  known: boolean;
+  obs?: 'program' | 'preview' | 'hidden';
+  last?: string;
+}
+
+/** A scene report off the wire, or undefined. */
+export function readSceneReport(value: unknown): SceneReport | undefined {
+  const r = value as Partial<SceneReport> | null;
+  if (!r || typeof r !== 'object' || typeof r.id !== 'string' || typeof r.known !== 'boolean') return undefined;
+  return {
+    id: r.id.slice(0, 80),
+    known: r.known,
+    ...(r.obs === 'program' || r.obs === 'preview' || r.obs === 'hidden' ? { obs: r.obs } : {}),
+    ...(typeof r.last === 'string' ? { last: r.last.slice(0, 80) } : {}),
+  };
 }
 
 /** This page's entry as it stands now: who it is, filled in here, and what only the caller knows
@@ -426,7 +451,7 @@ export function liveEntry(
   surface: string,
   roads: { log: boolean | null; cmd: boolean | null },
   stats?: LiveEntry['stats'],
-  extra?: Partial<Pick<LiveEntry, 'proto'>> & Pick<LiveEntry, 'destinationId' | 'name' | 'ready' | 'pub' | 'exp' | 'stamp' | 'prep' | 'ack' | 'typed'>,
+  extra?: Partial<Pick<LiveEntry, 'proto'>> & Pick<LiveEntry, 'destinationId' | 'name' | 'ready' | 'pub' | 'exp' | 'stamp' | 'prep' | 'ack' | 'typed' | 'scene'>,
 ): LiveEntry {
   return {
     kind,
@@ -469,6 +494,7 @@ export function readLiveEntry(meta: unknown): LiveEntry | null {
   const stamp = readReadyStamp(m.stamp);
   const prep = readPrepRequest(m.prep);
   const ack = readPingAck(m.ack);
+  const scene = readSceneReport(m.scene);
   return {
     kind: m.kind,
     id: m.id.slice(0, 40),
@@ -489,6 +515,7 @@ export function readLiveEntry(meta: unknown): LiveEntry | null {
     ...(prep ? { prep } : {}),
     ...(ack ? { ack } : {}),
     ...(typeof m.typed === 'number' && Number.isInteger(m.typed) && m.typed > 0 ? { typed: m.typed } : {}),
+    ...(scene ? { scene } : {}),
   };
 }
 

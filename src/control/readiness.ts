@@ -38,8 +38,10 @@ export interface ReadyIssue {
    * `font`: a typeface fell back (`d` is the typeface).
    * `image`: an image did not load (`d` is its file).
    * `sync`: the output is still reading commands it missed.
+   * `scene`: a scene link whose scene the payload does not know (`d` is the id; obs-scenes OS1a
+   *  R8). It builds nothing, so it is not ready, never green.
    */
-  k: 'script' | 'silent' | 'font' | 'image' | 'sync' | 'audio';
+  k: 'script' | 'silent' | 'font' | 'image' | 'sync' | 'audio' | 'scene';
   /** The graphic, when the issue is one graphic's. */
   g?: string;
   d?: string;
@@ -150,6 +152,8 @@ export function outputReadiness(input: {
   /** The follower is still reading commands it missed (R8). */
   catchingUp?: boolean;
   chg?: ChangePrep;
+  /** A scene link's scene the payload does not know (obs-scenes OS1a R8), or undefined. */
+  unknownScene?: string;
 }): OutputReady {
   const scripts: ReadyIssue[] = [];
   const audio: ReadyIssue[] = [], sounds = { n: 0, of: 0, bytes: 0 };
@@ -184,7 +188,8 @@ export function outputReadiness(input: {
     });
   }
   const sync: ReadyIssue[] = input.catchingUp ? [{ k: 'sync' }] : [];
-  const is = scripts.concat(audio, quiet, fonts, images, sync).slice(0, MAX_ISSUES);
+  const scene: ReadyIssue[] = input.unknownScene !== undefined ? [{ k: 'scene', g: 'Scene link', d: input.unknownScene.slice(0, 80) }] : [];
+  const is = scene.concat(scripts,audio, quiet, fonts, images, sync).slice(0, MAX_ISSUES);
   return { n: done, of: input.graphics.length, v: input.version, is, ...(sounds.of ? { sounds } : {}), ...(input.chg ? { chg: input.chg } : {}) };
 }
 
@@ -217,7 +222,7 @@ export function readHeld(value: unknown): HeldVersion | null {
 
 function readIssues(value: unknown): ReadyIssue[] {
   if (!Array.isArray(value)) return [];
-  const kinds = ['script', 'silent', 'font', 'image', 'sync', 'audio'];
+  const kinds = ['script', 'silent', 'font', 'image', 'sync', 'audio', 'scene'];
   const out: ReadyIssue[] = [];
   for (const item of value.slice(0, MAX_ISSUES)) {
     const i = item as Partial<ReadyIssue> | null;
@@ -264,6 +269,9 @@ function readChange(value: unknown): ChangePrep | undefined {
 
 export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
+/** An issue that keeps its output from playing: named, amber, never green. */
+const isBroken = (i: ReadyIssue): boolean => i.k === 'script' || i.k === 'silent' || i.k === 'audio' || i.k === 'scene';
+
 /** "(script error)", the reason a graphic did not prepare, as the plan words it. */
 function reasonOf(issue: ReadyIssue): string {
   if (issue.k === 'audio') return 'sound not prepared';
@@ -271,6 +279,7 @@ function reasonOf(issue: ReadyIssue): string {
   if (issue.k === 'silent') return 'did not answer';
   if (issue.k === 'image') return 'image not loaded';
   if (issue.k === 'font') return 'font not loaded';
+  if (issue.k === 'scene') return 'no such OBS scene';
   return 'not prepared';
 }
 
@@ -289,6 +298,9 @@ function adviceOf(issue: ReadyIssue): string {
   if (issue.k === 'audio') return `${issue.g ?? 'A graphic'}: ${issue.d ?? 'Sound is not prepared'}. Check Sounds and the receiving browser audio, then Prepare again. Visual commands remain available.`;
   if (issue.k === 'script') {
     return `${issue.g ?? 'A graphic'} threw an error while loading${issue.d ? `: ${issue.d}` : ''}. It will not play on this output. Fix it in the editor and publish again.`;
+  }
+  if (issue.k === 'scene') {
+    return `This link names no OBS scene of the production${issue.d ? ` (${issue.d})` : ''}, so it shows nothing. Copy the scene's link again from its folder's menu, with OBS scenes on.`;
   }
   return `${issue.g ?? 'A graphic'} did not answer its check. Reload this output.`;
 }
@@ -327,7 +339,7 @@ function degradedLines(issues: readonly ReadyIssue[]): { line: string; advice: s
 export function outputStateWords(ready: OutputReady): string {
   const version = ready.v ? ` (v${ready.v.n})` : '';
   if (ready.n < ready.of) return `Preparing ${ready.n} of ${ready.of}${version}`;
-  const broken = ready.is.filter((i) => i.k === 'script' || i.k === 'silent' || i.k === 'audio');
+  const broken = ready.is.filter((i) => isBroken(i));
   if (broken.length > 0) return `Not ready: ${broken.map((i) => `${i.g ?? 'a graphic'} (${reasonOf(i)})`).join(', ')}${version}`;
   const degraded = degradedLines(ready.is).map((d) => d.line);
   return `${degraded.length > 0 ? degraded.join('; ') : 'Ready for playout'}${version}`;
@@ -541,7 +553,7 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
   // the others follow it in the panel ("Also: ..."), each with what to do.
   const problems: { line: string; advice: string[]; short?: string }[] = [];
   // A graphic that cannot play: named, amber, never green.
-  const broken = ready.is.filter((i) => i.k === 'script' || i.k === 'silent' || i.k === 'audio');
+  const broken = ready.is.filter((i) => isBroken(i));
   let brokenShort: string | undefined;
   if (broken.length > 0) {
     const first = broken[0];

@@ -76,6 +76,11 @@ break another live production.
   does not claim an ordinary user could have reproduced the work.
 - **D7. Landings stop during the owner's live windows.** A landing hold covers every route to
   `main` (and with it production deploys and migrations). Its schedule is private.
+- **D8. Scores typed in the Sheet are the baseline;** the JSON source and bracket adapter are a
+  bonus and the first scope cut if the run slips.
+- **D9. The operator takes scenes through OBS Studio Mode preview, with a short fade (100 ms or
+  more) as the default transition,** so a changed graphic is drawn in preview before it reaches
+  program.
 
 ## Behaviour
 
@@ -116,7 +121,10 @@ break another live production.
   and what each failure needs).
 - More than 16 expected outputs are refused with a sentence that says so.
 - The fallback is the existing offline HTML overlay export (`src/export/targets/htmlOverlay.ts`),
-  one file per scene graphic, placed by the owner in a hidden OBS group per scene. No new export.
+  one file per scene graphic, placed by the owner in a hidden OBS group per scene. The exporter
+  gains a settled option: the graphic is drawn at rest from load, with no entrance, no automatic
+  Out timer, and OBS's show and hide events ignored. Without it the export plays its entrance on
+  program and can take the graphic off again.
 
 ### Clocks (OS4)
 
@@ -283,7 +291,9 @@ the owner in OS2.
 
 ### AC-12: Offline fallback
 
-The OBS scenes guide explains the fallback group. In OS7 the owner starts OBS with the network
+The HTML overlay export's settled option draws the graphic at rest from load, with no entrance,
+no automatic Out, and no reaction to OBS's show and hide events, checked in a browser page that
+sends those events. The OBS scenes guide explains the fallback group. In OS7 the owner starts OBS with the network
 off and empty browser caches, shows each scene's fallback group, and sees its graphics placed and
 settled with their fonts and images.
 
@@ -294,9 +304,8 @@ template in the OS2 hand-over. With placeholder graphics, every scene's source l
 1920×1080 and 60 fps, the game capture, cameras and encoding running, Stats counters reset, 20
 minutes of cutting:
 
-- Pass: frames skipped due to encoding lag 0; frames missed due to rendering lag at most the
-  number the owner set before the test (proposed 0.1%); average render time at most his number
-  (proposed 8 ms).
+- Pass (owner, 2026-11-12): frames skipped due to encoding lag 0; frames missed due to rendering
+  lag at most 0.1%; average render time at most 8 ms.
 - Stale frame: change a value while its scene is hidden, then take it ten times through Studio
   Mode preview, ten times with the default transition, and ten times with a direct Cut. Pass: no
   old frame on the first two. The direct Cut is recorded for information.
@@ -339,11 +348,12 @@ marked **Risky** take the Rules-first `/so` (`docs/plan-runs/known-traps.md`). E
    deadlines.
 4. **OS5a. JSON source** (AC-9; **Risky**: api, polling). Includes the `docs/DATA_API.md`
    change of D4.
-5. **OS5b. Bracket adapter and current match** (AC-10; **Risky**: state rules). Its checker also
-   runs the adapter on the owner's private sample and reports only pass or fail.
+5. **OS5b. Bracket adapter and current match** (AC-10; **Risky**: state rules). The coordinator
+   also runs the adapter on the owner's private sample and records only pass or fail, privately.
 6. **OS2. First laptop test** (AC-13). Owner phase.
 7. **OS1b. Take, Out and copies per scene** (AC-2, AC-3; **Risky**: state rules, recovery).
-8. **OS3. Monitoring and settings** (AC-6, and the guide of AC-12; **Risky**: presence state).
+8. **OS3. Monitoring, settings and the settled export** (AC-6, and the settled export and guide
+   of AC-12; **Risky**: presence state).
 9. **OS6. The Live dock** (AC-11; **Risky**: a second control session). Leaves the OS7 checklist
    with receipt template.
 10. **OS7. Owner rehearsal** (AC-12, AC-14). Owner phase.
@@ -355,3 +365,161 @@ connection for all OBS pages, a read-only OBS check through obs-websocket and on
 creation, a live OBS picture under placement, a general JSON mapping screen, live data stingers.
 
 ## Phase notes
+
+Filled in by each phase's pull request.
+
+### OS0: Landing hold
+
+- Rules (written before coding):
+  - R1. The hold is on exactly when at least one open issue (not a pull request) in this
+    repository carries the label `landing-hold`; off when that read succeeds and finds none.
+  - R2. The CI gate reads the hold on every `pull_request` and `merge_group` run, and on a
+    `workflow_dispatch` run of any ref but `main` (the mechanical landings' tips). It does not read
+    it on a push to `main`: that commit has landed, and a red gate there would start the red-main
+    revert machinery for a commit nothing is wrong with.
+  - R3. Hold on: the gate fails with an error annotation that starts "Landing hold" and names who
+    set it, the reason, and the hold issue's link. Every other gate rule is unchanged, so other
+    failures are still reported beside it.
+  - R4. The read fails (no token, a network or API error after three attempts, a timeout, an
+    answer that is not a list of issues): the gate fails with "Landing hold state could not be
+    read" (fail closed).
+  - R5. Hold off: the hold step passes and the gate's verdict is exactly today's.
+  - R6. The gate reads the hold when its own job runs, after every other job. A merge group whose
+    gate is still running when the hold turns on fails and its pull requests leave the queue. A
+    gate that already finished is not read again.
+  - R7. `.github/workflows/landing-hold.yml` is `workflow_dispatch` only, with `state` (on or off)
+    and a required non-empty `reason`. On: with no open hold issue it creates one (and the label
+    if missing) whose body names the account that dispatched it, the run and the reason; with one
+    open it rewrites that body to the new setter and reason and comments. Off: it closes every
+    open hold issue with a comment naming who lifted it and why. Repeating a request changes
+    nothing else. Runs never overlap and a running one is never cancelled.
+  - R8. After writing, the workflow reads the hold back with the gate's own reader and fails
+    unless it matches the request.
+  - R9. Lifting re-runs nothing. A pull request whose gate failed under the hold gets its failed
+    `CI gate` job re-run (it reads the hold again) and is queued again.
+  - R10. Not covered, and the guide says so: a manual production deploy, a migration applied by
+    hand, an administrator bypassing the branch rules, and releases that never touch `main`.
+- Rules found by the Rules-first `/so`, before code (it agreed with corrections):
+  - R11. A gate red only with the hold's error ("Landing hold: set by ...") is not a fault. The
+    red-PR alarm (`scripts/repair-wake.mjs` `heldOnly`) raises nothing for it, and the repair
+    rules (`queue-merge.md`) spend no attempt on it. An unreadable hold, or the hold beside any
+    other failure, is still a fault.
+  - R12. Closing or unlabelling the hold issue by hand is never a repair; only the workflow lifts
+    it with a reason. An issue labelled by hand still holds and names whoever opened it.
+  - R13. The reason is public. Scheduled dispatches use a fixed neutral reason, so no window or
+    date appears anywhere.
+- Rules found after coding (`/check` review): every open hold is rewritten on a repeated `on`;
+  a write is tried once (a retried create could open a second hold), reads three times; a request
+  still waiting when a newer one arrives is cancelled by GitHub, so the newest wins (R7 amended);
+  `heldOnly` needs exactly one failed step, so the gate's own failure beside the hold is a fault,
+  and a held PR keeps an alarm line already listed for it; a pull request that edits the hold's
+  own check is judged by that edited check (the guide lists it as not covered).
+- Previous verified `main`: `3c5bbf9add0692fdc1d8fc42aed558416d331805` (CI run 43229582088). The
+  source, `d8aaca715e8cecbfc2b888f6bb76b2670f32b502`, had its push CI still running at the start.
+- Revert: `git revert -m 1 <this pull request's merge commit>` removes the gate step, the
+  workflow, the alarm exception and the guide. Lift the hold first if it is on: an open hold issue
+  left after the revert holds nothing, but should be closed so it does not mislead.
+- Decisions: the state is an open issue with the `landing-hold` label, because the workflow token
+  can write issues but not repository variables, a ref could be pushed or deleted by any agent,
+  and a file would need a landing, which the hold blocks. The gate reads it in its own last step,
+  beside "Require every gate", with `issues: read` added to that job and nothing else. Three
+  attempts per read, 15 s each, then fail closed. The workflow is dispatch only, so no schedule
+  is in the repository.
+- Traps: the merge queue's held revert and quarantine landings stay held too (D7's "every
+  route"); the guide gives the escape (lift, land the revert, set again), and the owner of the hold
+  decides. A merge group whose gate passed before the hold turned on may still land; the runbook's
+  lead time covers it.
+- Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS0.md`.
+
+### OS1a: The scene link
+
+- Rules (written before coding):
+  - R1. A folder is an OBS scene when it carries `obsScene: true` (additive optional on
+    `ShowFolder`). Its scene id is the folder id, so renaming the folder keeps it. The flag is set
+    and cleared from the folder's menu, which offers it only while the production's OBS scenes
+    switch is on.
+  - R2. The switch is `obsScenes: true` on the production record (`Show`, additive optional; off
+    is absent; not in `outputSetup`, so the payload's `outputSetup` never changes), shown beside the vMix and CasparCG switches. Turning it off keeps every folder's flag,
+    so turning it on again finds the scenes as they were.
+  - R3. While the switch is on and at least one folder is a scene, a publish writes `scenes` into
+    the output payload: per scene its id, its name and the names of the graphics its graphic and
+    picture cues use, deduplicated, in rundown order. With the switch off, or no scene, the payload
+    is exactly today's. The version stamp is unchanged by scenes: they are cue metadata, taken by
+    an output on the next publish it prepares, as cue metadata is today.
+  - R4. `/output?production=<slug>` with no `scene` parameter runs exactly today's code path.
+  - R5. `&scene=<id>` builds only the graphics the payload's scene `<id>` names, at boot and at
+    every publish the output takes. The stage keeps the production's resolution. An id that is
+    malformed, absent from the payload (unknown, deleted, switch off) or names no graphic builds
+    nothing; the page keeps running, reports itself, and builds the scene's graphics when a later
+    publish names them. It never falls back to the whole production.
+  - R6. Commands for a graphic outside the scope (not in the scene of the publish the link holds
+    now) are read past: they move the follow position and change nothing else, no
+    data, no air state, no report, no bank. A graphic that leaves the scene leaves the link at the
+    next publish the link takes, on air there or not, with no Out animation, and its commands are
+    read past from then on. This departs from per-graphic replacement G1 (a removed graphic waits
+    for its Out) on scene links only: a scene graphic is always on, so waiting would keep it in the
+    wrong scene.
+  - R7. A scene link reports, banks and recovers only the graphics it holds; its boot catch-up
+    starts from the oldest baseline among them. With no graphic in scope it follows from the log's
+    head, never from its start.
+  - R8. Readiness on a scene link counts its own graphics only, so a graphic outside the scene is
+    excluded, never missing. A link whose scene the payload does not know carries a `scene` issue
+    in READY, so every operator surface reads it not ready, never green. Its Presence entry adds
+    `scene`: the id, whether the payload knows it, and from OBS's browser source events whether it
+    is in preview or on program (unknown until the first event) and the OBS scene name it was last
+    on program in; `readLiveEntry` reads it back.
+  - R9. On a scene link every Take is drawn settled: no frame of an entrance is ever drawn. A
+    graphic with a state machine plays and is snapped to the pose that Take reached in the same
+    task, with its timers armed, so a clock, a loop or a rotation keeps running. A graphic without
+    one plays and has its finite running animations jumped to their end in the same task; endless
+    ones keep running. An imported OGraf package's Take asks it to skip its animation. A re-Take,
+    on air or after Out, is drawn the same way. Out, Next, events and updates are as today. On the
+    ordinary link a Take is as today.
+  - R11. A graphic that joins the scope on a publish joins off air with its first cue's values, as a
+    newly published graphic does; its next Take airs it there, settled, and a reload recovers it
+    from its report and the log. Joining on air is OS1b's ("adding a graphic to one takes it").
+  - R12. Until OS1b makes a pool copy per scene, one graphic in two scenes is built by both links
+    and shares one air state; this phase's fixtures and the placeholder production use a graphic
+    in one scene only.
+  - R10. With the switch off no scene control shows, no payload field is written and a scene link
+    builds nothing, so every existing playout, publish and output journey is unchanged. Turning the
+    switch off on a running production therefore empties every scene link at the next publish
+    (asked of the owner through the coordinator; this is the default until answered).
+- Rules found by the Rules-first `/so`, before code (it agreed with corrections): R6's removal at
+  the next publish, R7's empty scope, R8's `scene` issue and parsing, R11, R12, and R10's switch-off
+  consequence. Departure recorded: AC-4 asks for no entrance animation; the behaviour section's
+  "a change while the scene is not shown is applied without animation" is read as no entrance, so
+  Next, events and updates animate as their graphic does today.
+- Rules found after coding: the boot's hidden catch-up counts only rows in scope, so another
+  scene's Take never hides a scene link's graphics while it settles; the switch-off default was sent
+  to the owner through the coordinator as one question. From the `/check` review: a face the
+  production ships once, with a graphic of another scene, is still found by a scene link's styles;
+  OBS names the scene a source arrives in right after activating it and names the next scene before
+  deactivating it, so only a name within a second of an activation sets "last on program in"; a
+  settled Take of a graphic without a machine finishes repeats and jumps a looping timeline to the
+  end of its finite motion; copying a scene link marks the output as set up, as the plain link does.
+  From the final `/so`: a graphic outside the scope is never on air on the link (`onAirHere`), so it
+  holds no whole-page reload either (a publish that changes the stage size and moves an on-air
+  graphic out of the scope used to wait for an Out the link reads past). From the PR review: the
+  settled snap clears inline styles the data owns (a fitted size), so the values are restated after
+  it, as a restart's recovery does.
+  Not changed, with reasons: a design change to a scene graphic on air waits for its next Take (the
+  contract with the live-publishing run); an operator page built before this one reads an unknown
+  scene's READY as ready, for the life of that page only (deploy skew).
+- Previous verified `main`: `619ebc8358f212410bce16e6cd5ce6682b94d5a7` (CI run 43243087381).
+- Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed: an
+  `obsScene` flag or `obsScenes` switch left on a record by this build is ignored by the reverted one,
+  and a published `scenes` field is ignored by its outputs, so a scene link then builds the whole
+  production; take scene links out of OBS before reverting.
+- Decisions: the switch lives on the production record, not in `outputSetup`, so the published
+  `outputSetup` and every reader of it stay as they are. The scene id is the folder id. Scenes are cue
+  metadata outside the version stamp. A settled Take is `play()` then `noacgSnap` of the reached pose
+  in one task, the recovery path every graphic already supports, rather than a new entrance-less
+  animation path in the runtime. The unknown-scene state is a READY issue, so today's operator words
+  say "Not ready" without any OS3 surface. A copy of the scene link sits in the folder's menu, the
+  only way to get a link before OS3's settings section.
+- Traps: `__noacgLive.command` (the offline specs' door) reaches `applyCommand` only, never the report
+  path, so a check that a scene link writes no report for another scene's graphic needs log rows
+  (the spec's stood-in tail). A graphic's composed document only knows `settled` through the play
+  command; the editor monitors never send it.
+- Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS1a.md`.

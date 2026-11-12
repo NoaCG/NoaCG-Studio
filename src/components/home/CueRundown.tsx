@@ -179,6 +179,7 @@ export default function CueRundown({
   duplicateCues,
   takeOutOfFolders,
   removeFolder,
+  obsScenes,
   moveRundown,
   toggleFolder,
   setRundownNote,
@@ -288,6 +289,9 @@ export default function CueRundown({
   /** Take the selected cues out of their folders. */
   takeOutOfFolders: (cueIds: readonly string[]) => Promise<void>;
   removeFolder: (folderId: string) => Promise<unknown>;
+  /** The OBS scenes switch is on (obs-scenes OS1a R1): a folder can be made a scene and its link
+   *  copied. Null while it is off, and no folder offers either. */
+  obsScenes: { setScene: (folderId: string, on: boolean) => void; copyLink: ((folderId: string) => void) | null; copied: string | null } | null;
   moveRundown: (what: Movable, place: Place) => Promise<unknown>;
   toggleFolder: (folderId: string) => void;
   setRundownNote: (note: string | null) => void;
@@ -657,6 +661,19 @@ export default function CueRundown({
                   setMenuRowId(null);
                   void removeFolder(folder.id);
                 }}
+                scene={
+                  obsScenes
+                    ? {
+                        on: folder.obsScene === true,
+                        copied: obsScenes.copied === folder.id,
+                        onToggle: () => {
+                          setMenuRowId(null);
+                          obsScenes.setScene(folder.id, folder.obsScene !== true);
+                        },
+                        onCopy: obsScenes.copyLink ? () => obsScenes.copyLink!(folder.id) : null,
+                      }
+                    : null
+                }
                 onDragStart={(e) => startDrag(row, e)}
                 onDragEnd={endDrag}
               />

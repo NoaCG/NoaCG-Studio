@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { ownedAlarmTitles } from './alarm-owner.mjs';
-import { BOUND_MINUTES, budgetedGh, failureOf, keysIn, MAX_CALLS, nextAlarm, ownerKindsIn, ownerText, raise, RED_ISSUE, runCheck } from './repair-wake.mjs';
+import { BOUND_MINUTES, budgetedGh, failureOf, heldOnly, keysIn, MAX_CALLS, nextAlarm, ownerKindsIn, ownerText, raise, RED_ISSUE, runCheck } from './repair-wake.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const plus = (iso, min) => new Date(Date.parse(iso) + min * 60_000).toISOString().replace('.000Z', 'Z');
@@ -617,4 +617,38 @@ test('fix 2 rule 7: a line this check judged again is not also carried', () => {
   const entry = { key: '7/1/1/2026-11-12T08:00:00Z', pr: 7, ownerKinds: ['full:overhead'], ageMinutes: 5, unattended: true, line };
   const r = nextAlarm({ entries: [entry], complete: false, previousBody: `Header\n\n${line}`, inFlight: new Set([7]) });
   assert.deepEqual(r.unattended, [line]);
+});
+
+// obs-scenes OS0: a gate red only because the landing hold is on is not a fault to repair or alarm.
+const held = (extra = []) => [{ annotation_level: 'failure', message: 'Landing hold: set by someone, reason: x. https://example.invalid/1. Nothing lands until it is lifted.' }, { annotation_level: 'failure', message: 'Process completed with exit code 1.' }, ...extra];
+
+test('landing hold: only the hold\'s fixed form, alone, is held', () => {
+  assert.equal(heldOnly(held()), true);
+  assert.equal(heldOnly(held([{ annotation_level: 'warning', message: 'Repay (offline): cost' }])), true, 'a warning is not a failure');
+  assert.equal(heldOnly(held([{ annotation_level: 'failure', message: 'Build finished \'failure\'' }])), false, 'a real failure beside the hold still counts');
+  assert.equal(heldOnly([{ annotation_level: 'failure', message: 'Landing hold state could not be read (x)' }]), false, 'an unreadable hold is a fault to re-run');
+  assert.equal(heldOnly([{ annotation_level: 'failure', message: 'Process completed with exit code 1.' }]), false);
+  assert.equal(heldOnly(held([{ annotation_level: 'warning', message: 'E2E shards finished \'cancelled\' - no leg reported a fault' }, { annotation_level: 'failure', message: 'Process completed with exit code 1.' }])), false, 'the gate\'s own step failed too, with only a warning');
+  assert.equal(heldOnly(undefined), false);
+});
+
+test('landing hold: a held PR with no repair owner raises no alarm, past its bound', () => {
+  const t = '2026-11-12T08:00:00Z';
+  const fx = { prs: [{ number: 7, sha: 's' }], runs: [refused({ id: 1, sha: 's', start: plus(t, -15), end: t })], annotations: { 10: held() } };
+  const gh = fakeGitHub(fx);
+  const r = check(gh, plus(t, 3 * BOUND_MINUTES));
+  assert.deepEqual(notices(gh), []);
+  assert.deepEqual(r.entries, []);
+});
+
+test('landing hold: an owner-only alarm already listed stays listed while the PR is held', () => {
+  const t = '2026-11-12T08:00:00Z';
+  const fx = { prs: [{ number: 7, sha: 's1' }], runs: [refused({ id: 1, sha: 's1', start: plus(t, -15), end: t })], annotations: { 10: needsOwner('full:overhead'), 20: held() } };
+  const gh = fakeGitHub(fx);
+  check(gh, plus(t, 1));
+  fx.prs[0].sha = 's2';
+  fx.runs.push(refused({ id: 2, sha: 's2', start: plus(t, 5), end: plus(t, 20) }));
+  const r = check(gh, plus(t, 21));
+  assert.ok(r.alarm, 'not closed by a held re-push');
+  assert.match(r.alarm.body, /#7: needs the owner: full:overhead/);
 });

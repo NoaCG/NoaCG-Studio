@@ -12,15 +12,15 @@
       "count": 2,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/42945843116"
     },
+    "e2e/configured/per-graphic-replacement.spec.ts": {
+      "since": "2026-11-12",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43257726630"
+    },
     "e2e/import-svg-corpus.spec.ts": {
       "since": "2026-11-12",
       "count": 2,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43214485518"
-    },
-    "e2e/output-debate-clock.spec.ts": {
-      "since": "2026-11-11",
-      "count": 2,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43020316776"
     },
     "e2e/pack-import.spec.ts": {
       "since": "2026-11-12",
@@ -186,6 +186,10 @@
     "e2e/layout.spec.ts": {
       "count": 1,
       "last": "2026-10-03"
+    },
+    "e2e/output-debate-clock.spec.ts": {
+      "count": 2,
+      "last": "2026-11-12"
     },
     "e2e/playout-cues.spec.ts": {
       "count": 1,

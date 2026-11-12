@@ -80,7 +80,8 @@ export interface PreviewReadyMessage {
 
 export type PreviewCmd =
   | { cmd: 'sound-quiet'; on: boolean }
-  | { cmd: 'play'; data?: string }
+  // `settled` (obs-scenes OS1a R9): the Take is drawn at the pose it reaches, with no entrance frame.
+  | { cmd: 'play'; data?: string; settled?: true }
   | { cmd: 'stop'; sound?: false }
   | { cmd: 'next' }
   | { cmd: 'update'; data: string }
