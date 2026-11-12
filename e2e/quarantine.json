@@ -26,11 +26,6 @@
       "since": "2026-11-11",
       "count": 3,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43062390990"
-    },
-    "e2e/ticker-linked-update.spec.ts": {
-      "since": "2026-11-12",
-      "count": 1,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43133336010"
     }
   },
   "released": {
@@ -201,6 +196,10 @@
     "e2e/rundown-history.spec.ts": {
       "count": 3,
       "last": "2026-10-30"
+    },
+    "e2e/ticker-linked-update.spec.ts": {
+      "count": 1,
+      "last": "2026-11-12"
     },
     "e2e/wizard-shell.spec.ts": {
       "count": 5,
