@@ -36,20 +36,19 @@
  },
  "waitingOn": [
   {
-   "what": "OS0 checker verdict (exact-merge checks, live hold on/off)",
-   "eta": "2026-11-12T17:00:00Z"
+   "what": "OS1a builder receipt and PR",
+   "eta": "2026-11-13T12:00:00Z"
   }
  ],
  "inFlight": [
   {
-   "phase": "OS0",
-   "step": "check",
-   "actor": "checker-os0-os0-c-4178",
-   "session": "session_017SdbwPbEiJRDx9gA7sAf7D",
-   "mergeSha": "619ebc8358f212410bce16e6cd5ce6682b94d5a7",
-   "pr": 2448,
-   "launchedAt": "2026-11-12T15:01:31Z",
-   "builderSession": "session_017SdbwM9GCeoSZfBjmLZ5Wj"
+   "phase": "OS1a",
+   "step": "build",
+   "actor": "builder-os1a-os1a-b-da6f",
+   "session": "session_017SdbwMcfURGqXoc62qSHit",
+   "branch": "claude/plan-obs-scenes-os1a-build",
+   "launchedAt": "2026-11-12T15:22:34Z",
+   "note": "sent brief = saved brief plus two NOTES lines (live-publishing overlap, landing hold)"
   }
  ],
  "owner": [
@@ -74,9 +73,27 @@
  "triggers": [
   {
    "id": "trig_01PG9QNobv5su7jpVhbx2Pds",
-   "what": "plan-run check-in",
-   "at": "2026-11-12T15:09:00Z"
+   "what": "plan-run check-in"
+  },
+  {
+   "id": "trig_01TAFy1zGNczhpYNFeoozQLL",
+   "what": "landing hold on (1)"
+  },
+  {
+   "id": "trig_011jxJS5GuH5BrtFPjRUqzMo",
+   "what": "landing hold off (1)"
+  },
+  {
+   "id": "trig_011d5F47avS8Hp888ymgXLzN",
+   "what": "landing hold on (2)"
+  },
+  {
+   "id": "trig_01UiZ75mGPBWSW5kgwKp5Gmk",
+   "what": "landing hold off (2)"
   }
  ],
- "heartbeatComment": 6825771186
+ "heartbeatComment": 6825771186,
+ "passed": [
+  "OS0 (merge 619ebc8358f212410bce16e6cd5ce6682b94d5a7, PR 2448)"
+ ]
 }
