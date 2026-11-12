@@ -116,8 +116,9 @@ export interface ProjectedRead {
    *  keys starting `#`, which no path can take, and written to no field. null forgets a key; a key
    *  left out keeps what the snapshot held. */
   memory?: Record<string, string | null>;
-  /** What the operator can pick from this read (SheetStatus `choices`). */
-  choices?: { id: string; label: string }[];
+  /** What the operator can pick from this read (SheetStatus `choices`): null offers nothing,
+   *  absent keeps what the last read offered. */
+  choices?: { id: string; label: string }[] | null;
 }
 
 /** A snapshot key that is a projection's memory, never a path. */
@@ -581,7 +582,7 @@ function projectedState(
     checkedAt: now,
     changedAt: held.content === read.fingerprint ? (held.status.changedAt ?? now) : now,
     problems: read.problems,
-    ...(read.choices ? { choices: read.choices } : {}),
+    ...(read.choices ? { choices: read.choices } : read.choices === undefined && held.status.choices ? { choices: held.status.choices } : {}),
     ...(held.status.closedPage === undefined ? {} : { closedPage: held.status.closedPage }),
   };
   return { next: { snapshot, content: read.fingerprint, status }, writes };

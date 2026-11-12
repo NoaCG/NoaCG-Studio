@@ -797,7 +797,8 @@ Filled in by each phase's pull request.
   - B12. `<p>.current` is `{ matchId, round, a, b, held }` (round: the round's name). The reader
     remembers, beside its snapshot under a key no path can take, the pick it last resolved and the
     two side names it resolved with. At each read of an open page:
-    - no pick (absent or empty): nothing under `current` is written, and the memory is cleared;
+    - no pick (absent or empty): nothing under `current` is written, and the memory forgets the
+      match (B12 after coding);
     - a pick that differs from the memory, found: every `current` value is written, `held` false,
       and the memory becomes the pick and its two names;
     - the same pick, found, with the same names: every `current` value is written, `held` false; a
@@ -842,6 +843,20 @@ Filled in by each phase's pull request.
     `current`, `held` included).
   - Decided by default: after a hold, picking the same match again needs another pick, or the
     picker's "None", first (the pick must change for `current` to move).
+- Rules found after coding (`/check` review):
+  - B12 after coding. With no pick, the memory keeps an empty match id instead of going, so the
+    bound `current` paths never stand in for it: picking "None" and then the held match again
+    takes the match as it is now.
+  - B14 after coding. A pick is written onto the newest tree, so a value written since the last
+    render keeps it. Published, a page that cannot write the production's data (no data key yet)
+    refuses the pick and says so, rather than keeping it in this browser.
+  - B16. The picker offers the matches of the last read that could say (at most 200, and the line
+    says when there are more); a read the adapter cannot use keeps the last offer, and a source
+    without a match id or an adapter offers none.
+  - B2 after coding. Turning "Read by NoaCG" off in the review clears the picks made against the
+    bracket's shape. A stored setting this build cannot edit is shown with its problem and kept;
+    a later version cannot be turned off here, and Connect is refused while the bracket cannot
+    be read.
 - Previous verified `main`: `97ba82596a7fcfcf6a424140648a5f8ad13aab92` (CI 43307568831, configured
   suite 43307568943).
 - Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed and no

@@ -292,10 +292,44 @@ test('through the reader: current is written on a pick, held with its last value
   assert.deepEqual(r.writes, { [`${PREFIX}.current.a.name`]: 'Cedar', [`${PREFIX}.current.held`]: 'false' });
   assert.equal(r.next.snapshot[`${PREFIX}.current.b.name`], 'Dahl');
   held = r.next;
-  // The pick cleared: nothing under current written, the memory forgotten.
+  // The pick cleared: nothing under current written, the memory forgets the match.
   r = readOnce(held, asList(later.slice(0, 2)), '');
   assert.deepEqual(r.writes, {});
-  assert.equal(CURRENT_MEMORY_KEY in r.next.snapshot, false);
+  assert.equal(JSON.parse(r.next.snapshot[CURRENT_MEMORY_KEY]).matchId, '');
+});
+
+test('after a hold, None then the same match again takes the match as it is now, even with its paths bound', () => {
+  const bound = { ...BINDINGS, Card: { ...BINDINGS.Card, f4: `${PREFIX}.current.matchId` } };
+  const step = (held, payload, pick) =>
+    nextReadState(held, { ok: true, payload }, { sourceId: 'b1', shape: 'values', connected: new Set(Object.values(bound).flatMap((f) => Object.values(f))), project: (p, previous) => projectJson({ sourceId: 'b1', payload: p, bindings: bound, fieldsOf: (g) => FIELD_LIST[g] ?? null, registration, current: { pick, previous } }) }, 1_000, 'this');
+  let held = { snapshot: {}, content: null, status: initialStatus('this') };
+  held = step(held, asList(ROWS()), 'm3').next;
+  const later = ROWS();
+  later[2].away.who = 'Elm';
+  let r = step(held, asList(later), 'm3');
+  assert.equal(r.writes[`${PREFIX}.current.held`], 'true');
+  r = step(r.next, asList(later), '');
+  r = step(r.next, asList(later), 'm3');
+  assert.deepEqual(r.writes, { [`${PREFIX}.current.b.name`]: 'Elm', [`${PREFIX}.current.held`]: 'false' });
+});
+
+test('the picker’s matches: offered with a match id, kept through a read that cannot say, none without an adapter', () => {
+  const page = (payload, previous = {}, reg = registration) => projectJson({ sourceId: 'b1', payload, bindings: BINDINGS, fieldsOf: (g) => FIELD_LIST[g] ?? null, registration: reg, current: { pick: '', previous } });
+  assert.deepEqual(page(asList(ROWS())).choices.map((c) => c.label), ['Quarter-finals: Aster v Birch', 'Quarter-finals: Cedar v Dahl', 'Semi-finals: Aster v Dahl', 'Final: ? v ?']);
+  assert.equal(page({ x: 1 }).choices, undefined);
+  const plain = readExternalRegistration({ id: 'b1', kind: 'external', config: { v: 1, configRevision: 1, endpoint: 'https://x.example/b.json', read: { everyMs: 10_000 } } });
+  assert.equal(page({ x: 1 }, {}, plain).choices, null);
+  // A read that cannot say keeps the last offer on the line.
+  let held = { snapshot: {}, content: null, status: initialStatus('this') };
+  const project = (p, previous) => page(p, previous);
+  held = nextReadState(held, { ok: true, payload: asList(ROWS()) }, { sourceId: 'b1', shape: 'values', connected, project }, 1_000, 'this').next;
+  held = nextReadState(held, { ok: true, payload: { x: 1 } }, { sourceId: 'b1', shape: 'values', connected, project }, 2_000, 'this').next;
+  assert.equal(held.status.choices.length, 4);
+  // More matches than the picker takes: said.
+  const many = Array.from({ length: 201 }, (_, i) => row(`k${i}`, 'r', 'R', side(`A${i}`, 'X', 1, 1), side(`B${i}`, 'X', 2, 0)));
+  const big = page(asList(many));
+  assert.equal(big.choices.length, 200);
+  assert.ok(big.problems.includes('only the first 200 of 201 matches can be picked here'));
 });
 
 test('an adapter that cannot be used, or rows not where it says, hold every value and say why', () => {
@@ -334,7 +368,7 @@ test('Rules-first amendments: positional ids give no current match; stages prefi
   assert.equal('current' in r.output, false);
   assert.equal(r.current, undefined);
   assert.deepEqual(r.matches.map((m) => m.id), ['G-1:P1:qf:1', 'G-1:P1:qf:2']);
-  assert.deepEqual(r.report, ['row 2 is empty', 'no match id is mapped, so matches are known by their place and there is no current match']);
+  assert.deepEqual(r.report, ['no match id is mapped, so matches are known by their place and there is no current match', 'row 2 is empty']);
   const two = adaptBracket(asList([row('g1', 'r1', 'Round 1', side('A', 'X', 1, 1), side('B', 'X', 2, 0), 'done', 'G-1', 'Groups'), row('p1', 'r1', 'Round 1', side('A', 'X', 1, 2), side('C', 'X', 3, 1), 'done', 'G-1', 'Playoffs')]), adapter());
   assert.equal(two.output.ties['G-1'], 'Groups Round 1 | A 1 | B 0\nPlayoffs Round 1 | A 2 | C 1');
 });

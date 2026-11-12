@@ -134,7 +134,8 @@ export function projectJson(o: {
   let payload: unknown = o.payload;
   const said: string[] = [];
   let memory: ProjectedRead['memory'];
-  let choices: MatchChoice[] | undefined;
+  // null: this source offers no picks; undefined: this read could not say, the last offer stands.
+  let choices: MatchChoice[] | null | undefined = null;
   const adapter = readSourceAdapter(registration.adapter);
   if (adapter.status === 'invalid' || adapter.status === 'read-only') {
     const why = adapter.status === 'invalid' ? adapter.error : `the adapter is version ${adapter.version}; this build reads version 1, so it is held read-only`;
@@ -146,7 +147,10 @@ export function projectJson(o: {
     if ('problem' in adapted) return { writes: {}, problems: [`the bracket cannot be read (${adapted.problem}), so every value holds`], fingerprint };
     payload = forFields(adapted.output);
     // A pick needs a match id the rows give (B5 amended).
-    if (adapter.adapter.fields.match) choices = adapted.matches.slice(0, MAX_CHOICES);
+    if (adapter.adapter.fields.match) {
+      choices = adapted.matches.slice(0, MAX_CHOICES);
+      if (adapted.matches.length > MAX_CHOICES) said.push(`only the first ${MAX_CHOICES} of ${adapted.matches.length} matches can be picked here`);
+    }
     said.push(...adapted.report.slice(0, ADAPTER_REPORT_LINES));
     if (adapted.report.length > ADAPTER_REPORT_LINES) said.push(`and ${adapted.report.length - ADAPTER_REPORT_LINES} more in the rows`);
     if (adapted.current) {
@@ -176,7 +180,7 @@ export function projectJson(o: {
     for (const path of Object.keys(p.typedWrites)) problems.push(`${path.slice(prefix.length)} feeds a field that takes typed values, which only an agent writes, so it keeps its value`);
   }
   if (o.collections) problems.push('its collection cards are filled by an agent only, so they keep their values');
-  return { writes: p.writes, problems, fingerprint, ...(memory ? { memory } : {}), ...(choices ? { choices } : {}) };
+  return { writes: p.writes, problems, fingerprint, ...(memory ? { memory } : {}), ...(choices === undefined ? {} : { choices }) };
 }
 
 /** The browser reader of one JSON source: the Sheet reader's machinery with this read and cadence. */

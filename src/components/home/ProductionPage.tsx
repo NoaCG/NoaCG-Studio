@@ -1650,13 +1650,21 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  this page's reader reads at once (another tab's at its next read). */
   const currentMatch = useMemo(
     () => ({
-      get: (sourceId: string) => pickOf(getPath(liveData, currentMatchPath(sourceId))),
+      get: (sourceId: string) => pickOf(getPath(liveDataRef.current, currentMatchPath(sourceId))),
       pick: (sourceId: string, matchId: string | null) => {
-        setLiveData(setPath(liveDataRef.current, currentMatchPath(sourceId), matchId ?? ''));
+        const data = session.data.get();
+        // Published, the tree is written with the production's data key; without it a pick would
+        // stay in this browser, so it is refused and said.
+        if (hostedSlug && !data.dataKey) {
+          setNote('The current match was not picked: this page cannot write the production’s data yet.');
+          return;
+        }
+        // Onto the newest tree, so a write that landed since the last render keeps its value.
+        setLiveData(setPath(data.liveData, currentMatchPath(sourceId), matchId ?? ''));
         sourceStatus.poke(sourceId);
       },
     }),
-    [liveData, setLiveData, sourceStatus],
+    [session, hostedSlug, setLiveData, sourceStatus],
   );
   const graphicsRef = useRef(show?.graphics);
   graphicsRef.current = show?.graphics;

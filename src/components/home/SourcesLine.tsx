@@ -201,7 +201,6 @@ function listsWaiting(show: Show, source: ShowSource, onAir: OnAir): string[] {
   return heldListsWaiting(sourcePaths(show.bindings, source.id), heldMain, onAir.live, onAir.waits);
 }
 
-/** One source's line in the data panel: name, status, stale, the fix when it fails, and Pause. */
 /** The operator's current match of a bracket source (obs-scenes OS5b): read from the tree and
  *  written there, never by a read. */
 export interface CurrentMatchControl {
@@ -223,7 +222,7 @@ function CurrentMatchPicker({ source, status, control }: { source: ShowSource; s
     >
       <option value="">Current match: none</option>
       {/* A pick the feed no longer has stays shown, so the select never moves by itself. */}
-      {value !== '' && !choices.some((c) => c.id === value) && <option value={value}>{value} (not in the feed)</option>}
+      {value !== '' && !choices.some((c) => c.id === value) && <option value={value}>{value}</option>}
       {choices.map((c) => (
         <option key={c.id} value={c.id}>
           {c.label}
@@ -233,6 +232,7 @@ function CurrentMatchPicker({ source, status, control }: { source: ShowSource; s
   );
 }
 
+/** One source's line in the data panel: name, status, stale, the fix when it fails, and Pause. */
 function SourceLine({ show, setShows, source, store, currentMatch }: { show: Show; setShows: (shows: Show[]) => void; source: ShowSource; store: SourceStatusStore; currentMatch?: CurrentMatchControl }) {
   const { status, now } = useSourceStatus(store, source.id);
   return (

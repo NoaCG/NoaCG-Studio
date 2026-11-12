@@ -729,7 +729,11 @@ function CueConnectReview({
                 <input
                   type="checkbox"
                   checked={noacgEvery !== null}
-                  onChange={(e) => setReadEvery({ for: id, ms: e.target.checked ? (storedEvery ?? JSON_DEFAULT_EVERY_MS) : null })}
+                  onChange={(e) => {
+                    setReadEvery({ for: id, ms: e.target.checked ? (storedEvery ?? JSON_DEFAULT_EVERY_MS) : null });
+                    // The picks were made against the bracket's shape, which goes with Read by NoaCG (B2).
+                    if (bracket) setChoices({});
+                  }}
                   data-testid="cue-connect-read-on"
                 />{' '}
                 Read by NoaCG every
@@ -1900,9 +1904,15 @@ const BRACKET_FIELD_WORDS: Record<BracketFieldKey, string> = {
  * Read as a bracket (obs-scenes OS5b, B1): where the rows are and which field of a row means what,
  * picked from the sample. The source keeps it as its setting; no site's field names are in code.
  */
-function BracketSetting({ sample, adapter, problem, onChange }: { sample: unknown; adapter: BracketAdapter | null; problem: string | null; onChange: (adapter: BracketAdapter | null) => void }) {
+function BracketSetting({ sample, adapter: stored, problem, onChange }: { sample: unknown; adapter: BracketAdapter | null; problem: string | null; onChange: (adapter: BracketAdapter | null) => void }) {
   const rowPaths = bracketRowPaths(sample);
-  if (!adapter && rowPaths.length === 0) return null;
+  if (!stored && rowPaths.length === 0) return null;
+  // A setting this build cannot edit (a later version, or not the shape it writes) is shown with
+  // its problem and kept as it is; a later version cannot even be turned off here (B1).
+  const raw = stored as unknown as { rows?: unknown; fields?: unknown } | null;
+  const editable = raw !== null && typeof raw.rows === 'string' && typeof raw.fields === 'object' && raw.fields !== null && !Array.isArray(raw.fields);
+  const later = stored !== null && readSourceAdapter(stored).status === 'read-only';
+  const adapter = editable ? stored : null;
   const keys = adapter ? bracketRowKeys(sample, adapter.rows) : [];
   const set = (key: BracketFieldKey, path: string) => {
     if (!adapter) return;
@@ -1916,12 +1926,18 @@ function BracketSetting({ sample, adapter, problem, onChange }: { sample: unknow
       <label>
         <input
           type="checkbox"
-          checked={adapter !== null}
+          checked={stored !== null}
+          disabled={later}
           onChange={(e) => onChange(e.target.checked ? ({ v: 1, name: 'bracket', rows: rowPaths[0] ?? '', fields: {} } as unknown as BracketAdapter) : null)}
           data-testid="cue-connect-bracket-on"
         />{' '}
         Read as a bracket
       </label>
+      {stored && !adapter && problem && (
+        <p className="status-warn" data-testid="cue-connect-bracket-problem">
+          {problem}
+        </p>
+      )}
       {adapter && (
         <>
           <label className="row">

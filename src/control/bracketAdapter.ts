@@ -135,7 +135,7 @@ export interface BracketResult {
   matches: MatchChoice[];
   /** Absent when the pick is not known (the server tick, B13): nothing under `current`. */
   current?: {
-    /** The memory to keep: null clears it. */
+    /** The memory to keep (`matchId` empty: no match). */
     memory: CurrentMemory | null;
     /** Why `current` is held, or null. */
     held: string | null;
@@ -366,7 +366,7 @@ export function adaptBracket(
   }));
 
   // Positional ids move when a row is inserted: no current match without a match field (B5).
-  if (!f.match && read.rows.length > 0) report.push('no match id is mapped, so matches are known by their place and there is no current match');
+  if (!f.match && read.rows.length > 0) report.unshift('no match id is mapped, so matches are known by their place and there is no current match');
   const output: { [key: string]: JsonValue } = {};
   let resolved: BracketResult['current'];
   if (current && f.match) {
@@ -392,7 +392,9 @@ export function resolveCurrent(
   memory: CurrentMemory | null,
   find: (id: string) => { match: BracketMatch; round: string } | null,
 ): { current: { [key: string]: JsonValue } | null; memory: CurrentMemory | null; held: string | null } {
-  if (pick === null) return { current: null, memory: null, held: null };
+  // No pick: the memory forgets the match but stays, so a later pick is fresh and never compared
+  // with what the fields showed before it (B12).
+  if (pick === null) return { current: null, memory: { matchId: '', a: null, b: null }, held: null };
   const found = find(pick);
   const fresh = memory === null || memory.matchId !== pick;
   if (!found) {
