@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "id": "e4-owner-exception-2026-11-12-1",
+  "run": "plan-editor-r1-5-2026-11-08",
+  "phase": "E4",
+  "source": "Owner reply in this existing chat after the explicit recommendation for one bounded additional repair",
+  "ownerWords": "Let's do as you suggest.",
+  "recordedAt": "2026-11-12T20:26:17.604358+00:00",
+  "ordinaryRepairLimit": 3,
+  "ordinaryRepairsSpent": 3,
+  "additionalRepairsGranted": 1,
+  "additionalRepairsUsed": 0,
+  "scope": [
+    "Preserve and durably confirm the latest legitimate complete view on failed Discard recovery before returning",
+    "Filter semantically equivalent sample-map notifications before any workspace staging side effect",
+    "Correct only the two new fixture assumptions according to existing switch/reservation and Save As free-name rules"
+  ],
+  "verification": [
+    "Original failing cases and unchanged product assertions",
+    "Executing worker resource/network preflights and current folder rules",
+    "Fresh focused pre-code model reassessment",
+    "Affected gates/types/lint/maintained oracle; one bounded source-pinned regression",
+    "Current-head normal CI/configured evidence and isolated backend qualification",
+    "One Codex result per head and fresh independent FULL SO A/A+ before queue",
+    "Normal merge queue, exact-merge post-land checks and independent acceptance before next phase"
+  ],
+  "stopCondition": "Any remaining confirmed product failure after the combined additional repair ends this exception. No automatic further repair, allowance reset, new worker/head/run escape, test/check relaxation or verification-limit increase.",
+  "preservedWorkingSource": {
+    "head": "2767a30cb0fccbb9a04f4f2e0ca285b32e4f94d6",
+    "patchSha256": "674b343a64c616222c4820fee3746a251c788b8167c5a2920a9187657439997d",
+    "packet": "e4-cap-stop-2026-11-12/STOP.md"
+  },
+  "execution": "Same active Cloud run; inherited model/effort; serial E4 writer; local E5/E6 remain after Cloud E4/E5C/E6C"
+}
