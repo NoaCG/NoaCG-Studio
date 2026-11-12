@@ -52,8 +52,9 @@ jobs:
   # would test the same tree twice: in 2026-10-29..11-12 all 16 nightlies tested a commit whose push
   # run was green, at 183 of their 207 runner-minutes (docs/work-specs/cicd-followup/evidence/
   # land-3.md). Then the shards skip and the report job reads that run's blob reports and traces.
-  # The catalog jobs always run. Anything short of a green CI gate with every shard's report and
-  # trace uploaded runs the shards as before. A push run still going on this commit is waited for,
+  # The catalog jobs always run. Anything short of every shard green on its first run, each with its
+  # report and trace, a green CI gate and a green quarantine run on the same commit (the quarantined
+  # specs are not in ci.yml's shards) runs the shards as before. A push run still going on this commit is waited for,
   # up to 45 minutes: 4 of those 16 nightlies started before it finished.
   covered:
     name: Covered by main's full run
@@ -74,23 +75,31 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -uo pipefail
-          runs() { gh api "repos/${GH_REPO}/actions/workflows/ci.yml/runs?branch=main&event=push&head_sha=${GITHUB_SHA}&per_page=10" \
-            --jq '.workflow_runs | sort_by(.created_at) | reverse | .[0] | "\(.id) \(.status)"' 2>/dev/null; }
+          # The newest push run of a workflow on this commit, as "<id> <status> <conclusion>".
+          runs() { gh api "repos/${GH_REPO}/actions/workflows/$1/runs?branch=main&event=push&head_sha=${GITHUB_SHA}&per_page=10" \
+            --jq '.workflow_runs | sort_by(.created_at) | reverse | .[0] | "\(.id) \(.status) \(.conclusion)"' 2>/dev/null; }
           DEADLINE=$(( $(date +%s) + 45 * 60 ))
+          # ci.yml leaves quarantined specs out of its shards and quarantine.yml runs them on the
+          # same push, so both have to finish on this commit before the shards here can be skipped.
           while :; do
-            read -r RUN STATUS <<< "$(runs)"
+            read -r RUN STATUS _ <<< "$(runs ci.yml)"
+            read -r QRUN QSTATUS QCONCLUSION <<< "$(runs quarantine.yml)"
             if [ -z "${RUN:-}" ] || [ "$RUN" = "null" ]; then echo "No push run on main for ${GITHUB_SHA} - running the shards."; exit 0; fi
-            [ "$STATUS" = "completed" ] && break
-            if [ "$(date +%s)" -ge "$DEADLINE" ]; then echo "Push run $RUN still ${STATUS} after 45 minutes - running the shards."; exit 0; fi
+            if [ -z "${QRUN:-}" ] || [ "$QRUN" = "null" ]; then echo "No quarantine run for ${GITHUB_SHA} - running the shards."; exit 0; fi
+            [ "$STATUS" = "completed" ] && [ "$QSTATUS" = "completed" ] && break
+            if [ "$(date +%s)" -ge "$DEADLINE" ]; then echo "Push run $RUN ${STATUS}, quarantine run $QRUN ${QSTATUS} after 45 minutes - running the shards."; exit 0; fi
             sleep 60
           done
           GATE="$(gh api "repos/${GH_REPO}/actions/runs/${RUN}/jobs?per_page=100" --jq '[.jobs[] | select(.name == "CI gate") | .conclusion][0] // ""')"
           SHARDS="$(gh api "repos/${GH_REPO}/actions/runs/${RUN}/jobs?per_page=100" --jq '[.jobs[] | .name | capture("^E2E [0-9]+/(?<n>[0-9]+) \\(full\\)$")? | .n][0] // ""')"
+          # Every shard green on its first run: a gate made green by the same-commit retry still has
+          # the first attempt's failures in these reports, and this run would report them as green.
+          GREEN="$(gh api "repos/${GH_REPO}/actions/runs/${RUN}/jobs?per_page=100" --jq '[.jobs[] | select(.name | test("^E2E [0-9]+/[0-9]+ \\(full\\)$")) | select(.conclusion == "success")] | length')"
           ARTIFACTS="$(gh api "repos/${GH_REPO}/actions/runs/${RUN}/artifacts?per_page=100" --jq '[.artifacts[] | select(.expired | not) | .name]')"
           BLOBS="$(jq '[.[] | select(startswith("blob-report-"))] | length' <<< "$ARTIFACTS")"
           TRACES="$(jq '[.[] | select(startswith("e2e-trace-"))] | length' <<< "$ARTIFACTS")"
-          echo "Push run $RUN: CI gate '${GATE}', ${SHARDS:-no} full shards, ${BLOBS} blob reports, ${TRACES} traces."
-          if [ "$GATE" = "success" ] && [ -n "$SHARDS" ] && [ "$BLOBS" = "$SHARDS" ] && [ "$TRACES" = "$SHARDS" ]; then
+          echo "Push run $RUN: CI gate '${GATE}', ${SHARDS:-no} full shards, ${GREEN} green, ${BLOBS} blob reports, ${TRACES} traces. Quarantine run $QRUN: ${QCONCLUSION}."
+          if [ "$GATE" = "success" ] && [ -n "$SHARDS" ] && [ "$GREEN" = "$SHARDS" ] && [ "$BLOBS" = "$SHARDS" ] && [ "$TRACES" = "$SHARDS" ] && [ "$QCONCLUSION" = "success" ]; then
             echo "::notice title=Nightly::main's full push run ${RUN} is green on this commit - the E2E shards are skipped and its reports used."
             echo "run=$RUN" >> "$GITHUB_OUTPUT"
             echo "shards=$SHARDS" >> "$GITHUB_OUTPUT"

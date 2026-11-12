@@ -16,9 +16,12 @@ figures in PR #2420).
 - R2. A scheduled nightly, or a dispatch on main without `full_e2e`, looks for ci.yml's push run on
   main at its own commit. If that run is still going, it waits, up to 45 minutes.
 - R3. It skips its E2E shards only when that run's `CI gate` job concluded `success`, it ran the
-  full plan (`E2E n/N (full)` jobs), and every shard's blob report and trace is present. Anything
-  else (no run, a run still going after 45 minutes, a red, cancelled or partial run, a missing
-  artifact) runs the shards exactly as before.
+  full plan (`E2E n/N (full)` jobs), every one of those shards passed on its first run (a gate made
+  green by the same-commit retry does not count: its reports still hold the first failure), every
+  shard's blob report and trace is present, and quarantine.yml's push run on the same commit
+  concluded `success` (ci.yml leaves the quarantined specs to it). Anything else (no run, a run
+  still going after 45 minutes, a red, retried, cancelled or partial run, a missing artifact, a
+  quarantine run that is missing or not green) runs the shards exactly as before.
 - R4. When skipped, the report job merges that run's blob reports and traces, and the time budget,
   triage, traced map pull request and uploads (`nightly-report-json` included, so the next night's
   shard plan and budget comparison keep their input) work as before. The traced map names the push
@@ -51,8 +54,10 @@ figures in PR #2420).
   second sample of an identical tree, which in this window found one flake two days early and no
   defect.
 - Quarantined specs: the push run leaves them out of its shards and `quarantine.yml` runs them on
-  every push to main; the nightly ran them inside its shards. On a skipped night they are covered by
-  `quarantine.yml` on that same landing, and they are absent from the night's report and budget.
+  every push to main; the nightly ran them inside its shards. A night is skipped only when that
+  quarantine run is green on the same commit; they are then absent from the night's report and
+  budget. Under the full rule (first-run green shards, green quarantine run, the 45-minute wait)
+  all 16 nights of the window would still have skipped.
 - Bad-merge window today (a landing to the first completed, not cancelled push run on main that
   contains it), 303 landings: median 18.8, p95 43.8, max 229.7 minutes (92e581a7). This change
   does not move it: the nightly is not in that window. The 229.7 case was not a cancelled run with
@@ -81,7 +86,9 @@ fails. Not changed: `e2e/_trace.ts` still says its map is "the nightly's" (a com
 alternative to the capacity refusal, folding the lookup into `plan` with a 50-minute cap, would
 remove the new job only by widening another job's limit; the refusal is reported instead (below).
 Final `/so` on head 9224f4504: AGREE WITH CORRECTIONS, grade B. Answered: `e2e` now runs after a
-failed `covered` job too (its implied `success()` read `covered` as well).
+failed `covered` job too (its implied `success()` read `covered` as well). The automated code
+review on 9224f4504 raised two P2 findings: a gate made green by the retry, and quarantined specs
+outside ci.yml's shards. Both are now conditions of R3.
 
 ## The capacity gate
 
