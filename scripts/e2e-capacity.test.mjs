@@ -191,7 +191,9 @@ test('fix 2: the table is classed on its own verdict, before the growth verdict 
   const v = finalVerdict({ result: covered, growth: ledgerError });
   assert.equal(v.status, 'refuse');
   assert.equal(v.owner, '', 'the agent\'s to fix');
-  assert.equal(finalVerdict({ result: adding(204), growth: quietGrowth() }).owner, 'full:table');
+  // The table full before the change was the owner's refusal; since land-2c it lands and owes a repayment (C5).
+  const full = finalVerdict({ result: adding(204), growth: quietGrowth() });
+  assert.deepEqual([full.status, full.owner, full.repay.map((r) => r.tier)], ['repay', '', ['offline']]);
   assert.equal(finalVerdict({ result: { ...adding(204), status: 'warn' }, growth: quietGrowth({ status: 'warn', reasons: ['x'] }) }).owner, '', 'no refusal, no kind');
 });
 
