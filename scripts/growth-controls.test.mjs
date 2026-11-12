@@ -2006,3 +2006,48 @@ test('a due reduction step is an owned action, met or not, until its line is low
   // The next step replaces it when due, never beside it.
   assert.deepEqual(carry(CEILINGS_FILE, '2027-01-11T06:00:00Z'), ['plan:offline:perLanding:2027-01-11']);
 });
+
+// WEAKER EVIDENCE NEVER MAKES THE GATE STRICTER (owner, 2026-11-12; cicd-followup land-2b, Rules
+// B1-B5 in docs/work-specs/cicd-followup/evidence/land-2-rules.md). Partial, stale, missing or
+// unreadable evidence warns and names itself; only complete, in-bound evidence refuses.
+test('land-2b: a stale durations table keeps the 95% line and warns', () => {
+  const overhead = { jobMinutes: 0.42, testFactor: 1.01, medianJobMinutes: 0.3, samples: 10 };
+  const minutes = Object.fromEntries(Array.from({ length: 100 }, (_, i) => [`s${i}.spec.ts`, 1.92])); // 90% of 213.4
+  const t = { source: {}, minutes, overhead };
+  const suite = [...Object.keys(minutes), 'new.spec.ts'].sort();
+  const stale = assess({ table: t, suite, changed: ['e2e/new.spec.ts'], today: '2026-11-12', tableStale: true });
+  assert.equal(stale.line, HARD_SHARE, 'a stale table never moves the line to 85%');
+  assert.equal(stale.status, 'warn', stale.reason);
+  const over = { source: {}, minutes: Object.fromEntries(Object.keys(minutes).map((k) => [k, 2.04])), overhead }; // 96%
+  assert.equal(assess({ table: over, suite, changed: ['e2e/new.spec.ts'], today: '2026-11-12', tableStale: true }).status, 'refuse', 'its own cost over 95% is still judged (land-2c makes that a repayment)');
+});
+
+test('land-2b: a stop carried by a partial, stale or unreadable newest report warns; a complete newest report\'s stop still refuses', async () => {
+  const complete = realReport(41704224273);
+  const stopped = { ...complete, stops: { offline: 'cost:offline since 2026-11-02' } };
+  for (const state of ['partial', 'stale', 'missing']) {
+    const g = await gateOn(pick(9, state, stopped), { added: 0.1 });
+    assert.notEqual(g.status, 'refuse', `${state}: ${g.reasons.join('; ')}`);
+    assert.match(g.reasons.join('; '), /cost:offline since 2026-11-02/, 'the carried stop is still named');
+    const backend = await gateOn(pick(9, state, { ...complete, stops: { backend: 'cost:backend since 2026-11-02' } }));
+    assert.notEqual(backend.assessWith([backendItem(0.1)]).tiers.backend.status, 'refuse', state);
+  }
+  // The newest report's own record of the stop, when that report was partial, is carried evidence too.
+  const carried = await gateOn({ newest: { run: 9, state: 'partial', why: 'x', attempt: 3, stops: { offline: 'cost:offline since 2026-11-02' } }, judged: { run: 7, generatedAt: complete.generatedAt, report: complete } }, { added: 0.1 });
+  assert.notEqual(carried.status, 'refuse');
+  // Complete and in bounds: the stop binds.
+  assert.equal((await gateOn(pick(7, 'complete', stopped), { added: 0.1 })).status, 'refuse');
+});
+
+test('land-2b: an unreadable report never refuses', () => {
+  assert.notEqual(applyOfflineStop({ status: 'warn', reasons: [], stops: {}, unreadable: true }, { added: 0.5 }).status, 'refuse');
+  assert.notEqual(applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers: { tiers: {} } }, { added: 0.5 }).status, 'refuse', 'no offline tier verdict at all');
+});
+
+test('land-2b: a floor from a newer partial report can only warn, never refuse', async () => {
+  const complete = realReport(41704224273); // offline 173.3/215 per day, 81%
+  const floor = { offline: { perLanding: 0, perDay: 210 } }; // the partial week proves at least 98%
+  const g = await gateOn({ newest: { run: 9, state: 'partial', why: 'x', attempt: 3, floor }, judged: { run: 7, generatedAt: complete.generatedAt, report: complete } }, { added: 1 });
+  assert.notEqual(g.status, 'refuse', g.reasons.join('; '));
+  assert.equal(g.status, 'warn');
+});
