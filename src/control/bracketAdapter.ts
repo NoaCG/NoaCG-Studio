@@ -380,20 +380,22 @@ interface Entry {
 const valuesOf = (value: unknown): unknown[] | null => (Array.isArray(value) ? value : isObject(value) ? Object.values(value) : null);
 
 /** The players section's entries in order (B20): a list, or an object of entries by any key. */
-function playersIn(payload: unknown, setting: NonNullable<BracketAdapter['players']>): { players: { name: string; race: Scalar; seed: Scalar; league: Scalar }[] } | { problem: string } {
+function playersIn(payload: unknown, setting: NonNullable<BracketAdapter['players']>): { players: { name: string | null; race: Scalar; seed: Scalar; league: Scalar }[]; report: string[] } | { problem: string } {
   const at = valueAt(payload, setting.at);
   const where = setting.at === '' ? 'the answer' : setting.at;
   const list = valuesOf(at);
   if (!list) return { problem: at === undefined ? `the players list (${where}) is not in the JSON` : `the players list (${where}) holds no players` };
   const pick = (entry: Record<string, unknown>, key: PlayerFieldKey) => (setting.fields[key] ? atPath(entry as JsonValue, setting.fields[key]!) : undefined);
-  const players: { name: string; race: Scalar; seed: Scalar; league: Scalar }[] = [];
-  for (const entry of list) {
-    if (!isObject(entry)) continue;
-    const name = text(pick(entry, 'name'));
-    if (name === null) continue;
-    players.push({ name, race: scalar(pick(entry, 'race')), seed: scalar(pick(entry, 'seed')), league: scalar(pick(entry, 'league')) });
-  }
-  return { players };
+  const players: { name: string | null; race: Scalar; seed: Scalar; league: Scalar }[] = [];
+  const report: string[] = [];
+  list.forEach((entry, i) => {
+    // An entry with no name keeps its place, so the entries after it keep theirs.
+    const name = isObject(entry) ? text(pick(entry, 'name')) : null;
+    if (name === null) report.push(`entry ${i + 1} of the players list has no name`);
+    const at = isObject(entry) ? entry : {};
+    players.push({ name, race: scalar(pick(at, 'race')), seed: scalar(pick(at, 'seed')), league: scalar(pick(at, 'league')) });
+  });
+  return { players, report };
 }
 
 /**
@@ -478,7 +480,10 @@ export function adaptBracket(
         return false;
       });
       const placed = rows.map((g) => entryOf(g, EMPTY, EMPTY));
-      if (placed.some((e) => e === null)) continue;
+      if (placed.some((e) => e === null)) {
+        if (rows.length > 1) report.push(`match ${id} is left out with that row`);
+        continue;
+      }
       // Names and titles may be on one side only: the first given is the match's.
       const first = { ...placed[0]!, roundName: placed.find((e) => e!.roundName)?.roundName ?? null, title: placed.find((e) => e!.title)?.title ?? null };
       const where = (e: Entry) => JSON.stringify([e.bracketId, e.stageId, e.roundId, e.status]);
@@ -570,18 +575,34 @@ export function adaptBracket(
 
   // The players section (B20): joined to every side by name, any case; it fills a seed, and a race
   // a side does not give, and it is `players` when mapped. A name it does not hold is said.
-  let section: { name: string; race: Scalar; seed: Scalar; league: Scalar }[] | null = null;
+  let section: { name: string | null; race: Scalar; seed: Scalar; league: Scalar }[] | null = null;
+  /** A mapped section this read cannot give: `players` is left out, so its paths keep their values. */
+  let sectionGone = false;
   if (adapter.players) {
     const read = playersIn(payload, adapter.players);
-    if ('problem' in read) report.push(read.problem);
-    else {
+    if ('problem' in read) {
+      report.push(read.problem);
+      sectionGone = true;
+    } else {
       section = read.players;
-      const byName = new Map<string, (typeof read.players)[number]>();
-      for (const p of read.players) if (!byName.has(p.name.toLowerCase())) byName.set(p.name.toLowerCase(), p);
+      report.push(...read.report);
+      // Names that differ only in case and say different things: neither is guessed (as B8).
+      const byName = new Map<string, (typeof read.players)[number] | 'clash'>();
+      for (const p of read.players) {
+        if (p.name === null) continue;
+        const key = p.name.toLowerCase();
+        const before = byName.get(key);
+        if (before === undefined) byName.set(key, p);
+        else if (before !== 'clash' && JSON.stringify([before.race, before.seed, before.league]) !== JSON.stringify([p.race, p.seed, p.league])) {
+          report.push(`the players list gives ${p.name} twice with other values, so it fills nothing for that name`);
+          byName.set(key, 'clash');
+        }
+      }
       const unknown = new Set<string>();
       for (const { side } of placedSides) {
         if (side.name === null) continue;
         const p = byName.get(side.name.toLowerCase());
+        if (p === 'clash') continue;
         if (!p) {
           if (!unknown.has(side.name)) report.push(`${side.name} is not in the players list`);
           unknown.add(side.name);
@@ -594,7 +615,8 @@ export function adaptBracket(
   }
 
   const list = [...brackets.values()];
-  const ties: { [key: string]: JsonValue } = {};
+  // Built from entries, so a bracket id such as __proto__ is an own key like any other.
+  const tieLines: [string, JsonValue][] = [];
   const keys = new Set<string>();
   list.forEach((bracket, i) => {
     const key = tieKey(bracket.id, i);
@@ -611,7 +633,7 @@ export function adaptBracket(
     for (const stage of bracket.stages.values()) {
       for (const round of stage.rounds.values()) for (const m of round.matches) if (!('kept' in m)) lines.push(tieLine(staged ? `${stage.id} ${round.name}` : round.name, m));
     }
-    ties[key] = lines.join('\n');
+    tieLines.push([key, lines.join('\n')]);
   });
 
   const matches: MatchChoice[] = [];
@@ -648,9 +670,9 @@ export function adaptBracket(
     resolved = { memory: r.memory, held: r.held };
     if (r.current) output.current = r.current;
   }
-  output.ties = ties;
+  output.ties = Object.fromEntries(tieLines);
   output.brackets = bracketsJson;
-  output.players = indexed(section ?? [...players.values()], (p) => ({ name: p.name, race: p.race, seed: p.seed, league: p.league }));
+  if (!sectionGone) output.players = indexed(section ?? [...players.values()], (p) => ({ name: p.name, race: p.race, seed: p.seed, league: p.league }));
   return { output, report, matches, ...(resolved ? { current: resolved } : {}) };
 }
 

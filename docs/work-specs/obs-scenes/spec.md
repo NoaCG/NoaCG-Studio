@@ -920,6 +920,16 @@ Filled in by each phase's pull request.
   - Found by the PR review on 80345806: a side row's place (B19) is part of what it says, so the
     same side rows under two brackets are not repeats; the match has four rows and keeps its
     values (B17).
+  - Found by the full `/so` on 80345806 (graded B, one blocking finding):
+    - B20 amended. A mapped players section that a read cannot give leaves `<p>.players` out of
+      the output, so its bound paths keep their values (OS5a R6). Before, it fell back to the
+      players found in the rows, and a bound `players._j` could show someone else.
+    - An entry of the section with no name keeps its place, said. A name given twice in another
+      case with other values fills nothing for that name, said (as B8).
+    - A side row left out takes its match's other rows with it, said.
+    - Tie lines are built as own keys, so any bracket id keeps them.
+    - Not taken, recorded: side rows pair by match id across the whole answer, as decided
+      above.
 - Previous verified `main`: `97ba82596a7fcfcf6a424140648a5f8ad13aab92` (CI 43307568831, configured
   suite 43307568943).
 - Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed and no

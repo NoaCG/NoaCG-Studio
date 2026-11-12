@@ -593,3 +593,38 @@ test('the same side rows under two brackets are not repeats: the match is placed
   assert.equal(r.report.some((l) => l.includes('repeats')), false);
   assert.deepEqual(matchesOf(r.output)[0], { id: 'm1' });
 });
+
+test('a mapped players list a read cannot give leaves players out, so its fields keep their values; its gaps and clashes are said', () => {
+  const gone = NESTED();
+  delete gone.roster;
+  const r = adaptBracket(gone, sidesAdapter());
+  assert.equal('players' in r.output, false);
+  assert.ok(r.report.includes('the players list (roster) is not in the JSON'));
+  const p = projectJson({
+    sourceId: 'b1',
+    payload: gone,
+    bindings: { Card: { f0: 'external.b1.players._0.name' } },
+    fieldsOf: () => [{ key: 'f0', label: 'Player', kind: 'text', defaultValue: '' }],
+    registration: readExternalRegistration({ id: 'b1', kind: 'external', config: { v: 1, configRevision: 1, endpoint: 'https://x.example/b.json', read: { everyMs: 10_000 }, adapter: SIDES } }),
+  });
+  assert.deepEqual(p.writes, {});
+  // A nameless entry keeps its place; a name given twice in other case with other values fills nothing.
+  const odd = NESTED();
+  odd.roster = { a: { rank: 3 }, b: { handle: 'Aster', kind: 'X', rank: 1 }, c: { handle: 'ASTER', kind: 'X', rank: 9 } };
+  const o = adaptBracket(odd, sidesAdapter());
+  assert.ok(o.report.includes('entry 1 of the players list has no name'));
+  assert.ok(o.report.includes('the players list gives ASTER twice with other values, so it fills nothing for that name'));
+  assert.deepEqual(Object.values(o.output.players).map((x) => x.name), [null, 'Aster', 'ASTER']);
+  assert.equal(matchesOf(o.output)[0].a.seed, null);
+});
+
+test('a side row left out takes its match with it, said; a bracket id like __proto__ keeps its tie lines', () => {
+  const cut = NESTED();
+  cut.cups[0].grid[1][1][1][1].step = '';
+  const r = adaptBracket(cut, sidesAdapter());
+  assert.ok(r.report.includes('row cups.1.grid.1.1.1.2 has no round, so it is left out'));
+  assert.ok(r.report.includes('match x1 is left out with that row'));
+  const proto = adaptBracket({ rows: [{ pair: 'p1', g: '__proto__', who: 'A', pts: 1 }, { pair: 'p1', g: '__proto__', who: 'B', pts: 0 }] }, readSourceAdapter({ v: 1, name: 'bracket', rows: 'rows', rowsAre: 'sides', fields: { match: 'pair', bracket: 'g', name: 'who', score: 'pts' } }).adapter);
+  assert.ok(Object.prototype.hasOwnProperty.call(proto.output.ties, '__proto__'));
+  assert.equal(proto.output.ties.__proto__, '1 | A 1 | B 0');
+});
