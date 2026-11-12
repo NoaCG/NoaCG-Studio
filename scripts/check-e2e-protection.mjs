@@ -78,6 +78,18 @@ const SLOW = /\btest\.slow\(\)/;
 const DAY_MS = 86_400_000;
 
 /**
+ * The environment of one listing: its own Playwright compile cache, inside the listing's own
+ * temporary `dir`. The listings run in parallel, and with one shared cache a process could read a
+ * module another was still writing (Playwright writes the file in place), so a cut-off module
+ * failed its importer with a missing export: CI runs 43205358671 and 43221277323. Reproduced on
+ * main 8b1a55c9 by listing every config at once with one cold cache, 1 of 12 and 1 of 20 rounds;
+ * with a cache per listing, 0 of 20 (docs/work-specs/cicd-followup/evidence/protection-cache.md).
+ */
+export function listingEnv(env, dir) {
+  return { ...env, PWTEST_CACHE_DIR: path.join(dir, 'playwright-cache') };
+}
+
+/**
  * Run a command with its stdout written to a file, and resolve with that text. Not through a pipe:
  * Playwright exits as soon as it has listed, and a piped stdout of a few hundred kilobytes then
  * arrives cut off (reproduced: 52,881 and 63,881 of 271,933 bytes, two runs of three).
@@ -88,7 +100,7 @@ function runToFile(command, args, { cwd, env }) {
   const fd = openSync(file, 'w');
   return new Promise((resolve, reject) => {
     let stderr = '';
-    const child = spawn(command, args, { cwd, env, stdio: ['ignore', fd, 'pipe'], windowsHide: true });
+    const child = spawn(command, args, { cwd, env: listingEnv(env, dir), stdio: ['ignore', fd, 'pipe'], windowsHide: true });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('error', reject);
     child.on('close', (code) => {
