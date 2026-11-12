@@ -57,8 +57,17 @@ changes).
   nothing pending the team record is the stored document, which needs no settle.
 - The production page re-reads its library only when the stored library moved, compared by
   reference (`libraryStoreText`), so a cue save on a live page parses nothing extra.
-- The new browser checks live in a new configured spec file at first; see "Capacity" below for
-  where they ended.
+- The new browser checks live in the publish guard's maintained configured spec
+  (`e2e/configured/publish-guard.spec.ts`, describe "production copies"), not a new file: the
+  capacity gate refuses a new backend-tier file while backend growth is stopped, and the repo's own
+  rule extends a flow's maintained spec. They add about 32 s to that spec on the local stack.
+- `production_copies_state()` is granted to `authenticated` only (signed-in pages read it), and
+  recorded in `supabase/advisor-baseline.json` as a meant definer grant, as
+  `scripts/advisor-baseline-grants.test.mjs` requires.
+- Existing tests whose expectations encoded library-first reads now take a library edit in through
+  Update (`publish-guard`, `live-prepare`, `per-graphic-replacement`, `publish-drift`,
+  `cue-adjust.test.mjs`, `legacy-sheet-block.test.mjs`); each still checks what it checked
+  (publish carries the design, outputs swap, stopped readers are recorded), and none was loosened.
 
 ## Traps met
 
@@ -71,6 +80,38 @@ changes).
   `LIVE_PATH_FUNCTIONS`: `production_authoring_guard` was added there and in `supabase/AGENTS.md`.
 - Sync tests that load `sync.ts` through explicit stubs needed the new dependency stubbed.
 
+## Rules found while building
+
+- R10 as built missed G1's own candidate list: page adoption had no base candidate, so on a reopened
+  old page with a retained pulled design it found no match, kept the copy and stamped it, and the
+  next push carried the pulled design. The configured walk caught it (job j-0002, the assertion
+  "not 'pulled by an old page'" failed on both attempts). Fixed by settling against the server's
+  copy before adopting (`useCopyAdoption.ts`); the same walk passes after (j-0003, j-0004).
+
 ## Verification
 
-Results are filled in below as each ran.
+All on one Claude cloud worker (4 CPUs) against the configured suite's local Supabase stack
+(CLI 2.111.0, every migration including 0115 applied on a fresh volume).
+
+- Migration 0115: applied by `supabase start` on a fresh volume; its self-check skipped there (no
+  account) and was then run by hand against a real account: passed, and left no switch row and no
+  throwaway rows.
+- The guard through the REST gateway, as a browser calls it (scratch probe, then the committed
+  configured test): 21 of 21 checks passed, including `request.headers` and the JWT role seen
+  inside `team_production_save`, a refused save storing nothing, a Pause passing and a Connect
+  refused, the service role passing, and the switch off restoring every write.
+- Node: the 44 test files the changed paths reach, through `npm run gates -- run --changed
+  origin/main`: 689 of 689 passed, with every cheap check of the gates. New:
+  `copy-settle.test.mjs` (14, the settle against a reference written from R4, the split merge, an
+  Undo's stamp, the owed edit beside a pulled design), `production-copies.test.mjs` (5: R1 with an
+  edited, broken and deleted record; Update's keeps; the dropped-field rule; adoption against real
+  `stampPayload` digests; never-published adoption), `sync-copy-settle.test.mjs` (4: push,
+  stamped, unreadable base, conflict copy), a team-save test running the real settle, the mark on
+  REST only (`cloud-answer-limit.test.mjs`), and the versioned record digest
+  (`published-record.test.mjs`, the rename test digesting before the rename).
+- Mutation checks: breaking the settle (skip an unstamped base) fails 5 copy-settle tests; dropping
+  the conflict-copy settle fails the sync test; disabling the team save's settle fails the
+  team-save test; the configured walk failed on the adoption defect above.
+- Configured (`e2e/configured/publish-guard.spec.ts`, queued job j-0004): 3 passed, 1 skipped (the
+  two-member walk needs teammate credentials, which this worker's stack did not have; CI has
+  them).
