@@ -1514,7 +1514,8 @@
         "CommitandPR",
         "ActualActionsfresh-authcontextpersistence",
         "FreshfinalSOA/A+andCodex/CIgate"
-      ]
+      ],
+      "offlineJourneys": "10PASS beforefinalvisible-error/footerandexplicitSVG32pxfixes; finalrerunrequired"
     },
     "runtimeArtifactFacts": {
       "gsap": "VendoredstandardUMD3.15.0",
@@ -1523,6 +1524,13 @@
       "cliVersion": "0.12.4",
       "npmGsapDependency": false,
       "scope": "Admission-sourceproducerfactsunchanged; output/currentbrowserchunkreceiptsstillpending;ownerGSAPrequestnotsentbyworker"
+    },
+    "verificationCarrierReview": {
+      "status": "FreshRules-first challengependingbeforeadditionalCI/toolingedits",
+      "why": "New isolated real-backend walk remainsunrun; useexistingenduranceworkflow/configured-stackwithzero skips",
+      "autoReviewRejection": "Combined editforloaded-onlylogoexpectationandnewhosted-latencyallowedSkipsentryREJECTEDbeforeexecution; noneexecuted; userinformed",
+      "preserved": "Exact32pxassertionstrengthenedbyexplicitSVGdimensions; expected-run.json/allowedSkips/minTestsunchanged; no workflow/guard/limit changes or productpermissionbypass",
+      "requirements": "Beforecarriereditswriteobservableexactsource/localbackend/zero-skip-retry/expectedcount/failure-retention/normal-coveragerules; freshread-onlyRules-firstchallenge; exactpackage-script sideEndsandtestselectionscopefinalreview"
     }
   }
 }
