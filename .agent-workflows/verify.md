@@ -78,8 +78,9 @@ larger selections and whole suites stay in Actions. Browser-driving work goes th
 
 ## 3. Loop until it holds
 
-Reproduce the failure or the missing behaviour first, change, re-run, look at the result. After
-three attempts on the same failure, stop and report what you tried; do not chase it further.
+Reproduce the failure or the missing behaviour first, change, re-run, look at the result.
+Read a red CI run whole before pushing a repair: wait for every job, collect every failure, and fix
+them in one push (queue-merge.md, one push per review round). After three attempts on the same failure, stop and report what you tried; do not chase it further.
 
 ## 4. Record the evidence
 
