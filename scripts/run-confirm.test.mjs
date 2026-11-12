@@ -121,3 +121,8 @@ test('a page opened mid-hold: the seed is reached, and the held work still keeps
   assert.equal(lines([], [out(run(10, { Strap: [10, 'placing'] }))])[0].tone, 'idle');
   assert.equal(lines([], [out(run(10, { Strap: [10, 'placing'] }))])[0].short, 'Confirming…');
 });
+
+test('a page that resolves before any output is expected keeps its seed until an output can confirm it', () => {
+  const seed = [{ at: 10, graphic: null, since: 0 }];
+  assert.deepEqual(pruneOwed(seed, []), seed);
+});

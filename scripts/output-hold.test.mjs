@@ -213,3 +213,10 @@ test('a late Take stays hidden until its stage work has run: stillness counts on
   const main = readFileSync(new URL('../src/output/main.ts', import.meta.url), 'utf8');
   assert.match(main, /still = stage\.waitingFor\(graphic\) === null && stoodStill\(previous, reading\) \? still \+ 1 : 0;/);
 });
+
+test('a demand read settles only the holds it started after; a newer hold waits for the next read', async () => {
+  const { readFileSync } = await import('node:fs');
+  const main = readFileSync(new URL('../src/output/main.ts', import.meta.url), 'utf8');
+  assert.match(main, /const covered = new Set<object>\(holds\.values\(\)\);/);
+  assert.match(main, /if \(hosts\(graphic\) \|\| !covered\.has\(hold\)\) return;/);
+});

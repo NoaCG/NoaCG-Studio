@@ -1204,6 +1204,8 @@ async function boot(): Promise<void> {
     }
     demandRunning = true;
     demandAgain = false;
+    // Only the holds this read started after are its to settle: a newer one waits for the next read.
+    const covered = new Set<object>(holds.values());
     void (async () => {
       try {
         const answer = await untilAnswered(() => controlOutputResolve(outputSlug), { limit: 3 });
@@ -1212,7 +1214,7 @@ async function boot(): Promise<void> {
         // Not answered: asked again while anything still waits for it; its 20 s deadline still runs.
         else if (Array.from(holds.keys()).some((graphic) => !hosts(graphic))) setTimeout(demand, 2_000);
         holds.forEach((hold, graphic) => {
-          if (hosts(graphic)) return;
+          if (hosts(graphic) || !covered.has(hold)) return;
           const spec = payload ? payload.graphics.find((g) => g.key === graphic) : undefined;
           if (spec && payload) swapper.addNow(spec, payload); else if (payload && isCancelled(hold.rows)) settleHold(graphic);
           else if (payload) fail(graphic, 'unpublished');

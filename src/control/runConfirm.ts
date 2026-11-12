@@ -155,6 +155,8 @@ export function confirmLines(input: {
 /** Owed positions with everything every expected output has confirmed dropped, so the list stays
  *  as short as what is still unknown. */
 export function pruneOwed(owed: readonly Owed[], outputs: readonly ConfirmOutput[]): Owed[] {
+  // No output known yet: nothing has confirmed anything, so the seed and every owed row stay.
+  if (outputs.length === 0) return [...owed];
   return owed.filter((o) =>
     outputs.some((out) => {
       const run = out.run;
