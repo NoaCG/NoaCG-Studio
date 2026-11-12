@@ -144,10 +144,14 @@ function log(job) {
 // itself reachable from main). Needs history back to LIST_FROM (`git fetch --shallow-since=2026-10-15 origin main`).
 function changed(run) {
   const name = `changed/${run.head_sha}.json`;
-  if (existsSync(file(name))) return;
+  if (existsSync(file(name)) && load(name).files.length) return;
   const git = (...a) => execFileSync('git', a, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   try { git('cat-file', '-e', `${run.head_sha}^{commit}`); } catch { git('fetch', '-q', 'origin', run.head_sha); }
-  const mainThen = git('rev-list', '-1', '--first-parent', `--before=${run.created_at}`, 'origin/main');
+  // A landed head: main just before its landing merge commit (the merge-queue commit is made
+  // before merged_at, so a time cut would already contain the head and diff to nothing).
+  const landing = run.landed && git('log', '--first-parent', '--merges', '--format=%H %P', 'origin/main', `--since=${LIST_FROM}`)
+    .split('\n').map((l) => l.split(' ')).find((c) => c.slice(2).includes(run.head_sha));
+  const mainThen = landing ? landing[1] : git('rev-list', '-1', '--first-parent', `--before=${run.created_at}`, 'origin/main');
   const base = git('merge-base', mainThen, run.head_sha);
   const files = git('diff', '--name-only', '--no-renames', base, run.head_sha).split('\n').filter(Boolean);
   save(name, { base, mainThen, files });
@@ -162,7 +166,7 @@ if (MAIN) try {
   // A fixed sample of merged PRs' final heads too (local git only): the cost side, a direct set per
   // landing. Every fifth PR number, so the sample is the same on every pass and on a re-run.
   for (const p of merged.filter((x) => x.number % 5 === 0)) {
-    try { changed({ head_sha: p.head_sha, created_at: p.merged_at }); } catch { errors += 1; }
+    try { changed({ head_sha: p.head_sha, created_at: p.merged_at, landed: true }); } catch { errors += 1; }
   }
   const prRuns = list.filter((r) => r.status === 'completed' && mergedSet.has(prOf(r, byRef)));
   // A run whose listed conclusion is success can still hide a failed first attempt: read re-run ones too.
