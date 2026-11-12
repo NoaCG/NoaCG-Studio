@@ -585,3 +585,26 @@ Filled in by each phase's pull request.
     clocks agree (NTP is assumed); the render service's virtual clock is a wall clock too.
   - R16. A deadline count has no pause: no start-time design carries the pause group (the
     countdown type's designs count durations), so R9 has no exception today.
+- Rules found after coding: the joining read records the cycle on screen and replaces the machine's
+  timer in the same read, so a timer armed at a Take's own phase never fires (it would otherwise
+  change the logo up to a hold early). The machine's rotating state is named `advance` and its
+  first waypoint `enter`; the runtime reads only the group's armed timer and the `advance` hold.
+  A deadline is anchored to its own instant (`clockAnchor`), not to "now plus the rounded seconds",
+  so every page flips on the deadline's second.
+- Previous verified `main`: `b9f3660e28c5cc339dbfb82d4415ebb492ac2cef` (CI run 43268862367, the
+  configured suite 43268862377).
+- Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted changes: the
+  rotation and the start-time field keep their fields, ids and machine. A graphic refreshed with
+  Update while this was on main keeps the wall-clock runtime until it is refreshed again after the
+  revert; a deadline written into a start-time field then reads as invalid and the duration counts.
+- Decisions: the machine is unchanged and the runtime owns the beat while the machine's own timer
+  is armed, because that timer already means "on air, entrance done, not held, not parked", and
+  a machine change would reach every control surface. A Take keeps its logo until the next
+  boundary (AC-4) rather than crossfading at once. A new cycle whose logo is already on screen
+  plays no crossfade, so a one-sponsor bug no longer dips every 6.5 s. Only the start-time
+  designs' clock changes; the duration clocks emit byte-identical code (the catalog emit gate
+  moved 10 designs, js only: bug21 to bug24, ss05, ss07, ss10, ss11, ss13, ss18).
+- Traps: Playwright's fake clock gives each srcdoc frame its own clock, offset by when the frame
+  loaded while time flows; pause the clock (`pauseAt`) before building frames that must agree.
+  Graphics made before this lands need Update in their production (each is its own copy).
+- Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS4.md`.
