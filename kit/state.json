@@ -67,9 +67,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "build / second combined repair verification",
+      "step": "build / second combined repair candidate gates",
       "pr": 2438,
-      "note": "Rollback and private view-ownership repairs passed focused checks after independent model challenges. Actual painted export images verified. Existing tests retained; final affected regressions and new-head CI/backend/reviews remain required."
+      "note": "4de8259f pushed clean; 162 affected regressions passed, repaired rollback/view ownership and painted export proof. Await exact-head CI/backend, Codex and fresh full independent review; no queue stamp/auto-merge."
     }
   ],
   "owner": [
@@ -1458,7 +1458,7 @@
     "requestSha256": "bcfabef5e1347043b92cde2edc0f69da57df24eda1c49e7415c7ce4bd8281754",
     "brief": "briefs/e4-build-e4-b-cloud-1112.txt",
     "briefSha256": "2c7379c7dc2988405d565f2a2e1d72393a398e1f3cd671cf7bc4744cfd2e9888",
-    "status": "Second combined repair in working tree after independent rollback model challenge and required fresh ownership reassessment; new tests/paint proof PASS, affected regression and new candidate gates pending",
+    "status": "Second combined repair4de8259f pushedclean; source-pinnedbroader162PASS; exact-head CI/backend/reviews pending",
     "rulesFirst": {
       "head": "0515e370d",
       "verdict": "AGREE WITH CORRECTIONS",
@@ -1559,9 +1559,9 @@
     "pr": {
       "number": 2438,
       "url": "https://github.com/NoaCG/NoaCG-Studio/pull/2438",
-      "head": "a534b14e5af899ad7f93966d175246a3f469fae4",
+      "head": "4de8259f9cbdcd85409afeeda50ff103d3386ba8",
       "ownerComment": 6823534868,
-      "ownerAck": "Sole active coordinator acknowledgement6823534868 updated for combined round1/new head; no internal identifiers published",
+      "ownerAck": "Sole active coordinator comment6823534868 updated to round2/4de, minimalpublicrunbinding unchanged",
       "ownerPayloadRejection": "EarlierdetailednotecontaininginternalUUIDs/paths/authoritywasauto-reviewrejectedbeforeposting. Noalternatebypass; saferminimalpublicrun-linkedACKaccepted; userinformed. Exactnative/authority/worktree retained in the existing run kit; checkpoint scope unchanged.",
       "postOpenCiRepairCount": 2,
       "carriedRepairs": {
@@ -1649,7 +1649,7 @@
     "secondPostOpenRound": {
       "source": "a534b14e5af899ad7f93966d175246a3f469fae4",
       "round": 2,
-      "status": "One uncommitted combined round2. Rollback model challenged/corrected BEFORE its patch; fresh independent ownership approach reassessment completed BEFORE its patch. No budget/history reset, current committed head a534 still unapproved.",
+      "status": "One combined round2 committed/pushed4de8259f9cbdcd85409afeeda50ff103d3386ba8, clean48pathscope/base91a; no finalacceptanceyet",
       "classes": [
         {
           "class": "product",
@@ -1705,7 +1705,29 @@
       },
       "retainedPaintFailures": "j0080/81 actual0green/hiddenchild; j0082 newlyaddedwrong CSSserialization expectation inset0px versusauthored0% failure; all preserved",
       "isolatedExtension": "ExistingONEcase strengthened to rollbackaftersync thencloseoriginalpagebeforeanotherfreshsameaccountcontext/defaultretry; original60s/5mincaps/zero skips/retries unchanged; actualnewheadrun stillrequired",
-      "next": "Affected existing Canvas/hooks regression, finaltargetedchecks/coherentcommit/push, actualnormalCIcapacity/configuredselection, exactisolatedqualification, one newCodexrequest, freshFULLSO A/A+."
+      "next": "Affected existing Canvas/hooks regression, finaltargetedchecks/coherentcommit/push, actualnormalCIcapacity/configuredselection, exactisolatedqualification, one newCodexrequest, freshFULLSO A/A+.",
+      "broader": "j0085 source-pinned162/162PASS7.3min across9affectedmaintainedspecs; uncommittedproposal refusedBEFOREexecution, thenadmittedonceaftercommit",
+      "finalTargeted": "96/96gates,13/13fontcodec, affectedlint/app types/dependencycruisePASS; exactsideEnds empty; mainc1ce4e4 cleanmerge-tree/order",
+      "checkStamp": "Root independently read actualPASS4de at14:39:32Z,48files, inline12/12review+simplify/verifyinline, stampGapnull, inherited/unexposedmodel metadata",
+      "archiveCorrection": "Successfulcurrent archive round2-settled-receiving; oldmisnamedarchive renamedround2-premature-blank-j0078; original blank/historyretained"
+    },
+    "round2Candidate": {
+      "head": "4de8259f9cbdcd85409afeeda50ff103d3386ba8",
+      "normalCi": 43239502125,
+      "isolated": 43239590134,
+      "initialNativeReadback": "Both exacthead in_progress firstattempt; PRopen/mergeabletrue/auto_mergenull; localclean",
+      "gates": "ActualCIcapacity/configuredselection, strongerisolatedrollback, oneCodexresult andfreshFULLSO A/A+ required; nopriorB/review/sourcequalification reusedasfinalproof"
+    },
+    "tickerPriorE4Evidence": {
+      "quarantineCommit": "3a6a94bebf252e4b69cad45d67c83e220d2bbbb7",
+      "releasedCommit": "f4cdf8d97",
+      "source": "b789eb49d9951a508b13518959fbaff7e2797d5c",
+      "run": 43133336010,
+      "failedJob": 130902646592,
+      "sameCommitBuiltInRetryJob": 130909195833,
+      "failure": "01:28:19ZNov12, exactsame speedonly/neverahead class, frame1066.16px/0.009s>5.290;1failed131passed",
+      "retry": "3/3PASS2.1min underexistingpolicy, originalsource runFAIL preserved",
+      "scope": "This establishes failurefamily before E4PR, notblanketNo forwholeeditorrun/E2; actualdeepercauseunsettled. No newquarantine/rerun/limit changes."
     }
   }
 }
