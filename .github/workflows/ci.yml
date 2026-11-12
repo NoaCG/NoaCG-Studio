@@ -30,7 +30,14 @@ on:
   # The merge queue's temporary `gh-readonly-queue/**` branches get their run from `merge_group`.
   push:
     branches: [main]
+  # A DRAFT pull request runs Build, Factory gates and Reviewed only: the plan and everything after
+  # it wait for `ready_for_review`, which runs the full selection on the same head, as does every
+  # later push to a ready pull request. The CI gate on a draft fails on purpose (see `gate`).
+  # Drafts are where the review loop iterates: 46% of pull request runs in 2026-10-29..11-12 were
+  # cancelled by the next push, each after about 75 runner-minutes
+  # (docs/work-specs/cicd-followup/evidence/land-4.md). Merge group and main runs are unchanged.
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   # The merge queue (docs/WORKFLOW_ARCHITECTURE.md §5): GitHub builds a temporary merge of the
   # queued pull requests on top of main and runs this workflow on it; `CI gate` on that commit is
   # what lets the group merge. The plan below measures from the group's base, which is main.
@@ -230,6 +237,9 @@ jobs:
   reviewed:
     name: Reviewed
     if: github.event_name == 'pull_request' || github.event_name == 'merge_group' || (github.event_name == 'workflow_dispatch' && inputs.require_review && github.ref != 'refs/heads/main')
+    # On a draft its check still fails until the head is stamped, and still blocks the queue, but
+    # the run does not: a draft run is not a red run (see `gate`).
+    continue-on-error: ${{ github.event.pull_request.draft == true }}
     runs-on: ubuntu-latest
     # The wait is 150 s, so the cap has to sit above it with room for the checkout.
     timeout-minutes: 5
@@ -252,6 +262,8 @@ jobs:
 
   plan:
     name: E2E plan
+    # Not on a draft (see `pull_request` above); every job that needs this one skips with it.
+    if: ${{ github.event.pull_request.draft != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     # `actions: write` is for one thing: a main run that finds main already past its own commit
@@ -1151,7 +1163,7 @@ jobs:
     name: Combined E2E report
     # Nothing to merge when the plan ran no specs: there are no blob reports, and the merge
     # would fail on an empty input rather than say "there was nothing to report".
-    if: ${{ !cancelled() && needs.plan.outputs.mode != 'none' }}
+    if: ${{ !cancelled() && needs.plan.result != 'skipped' && needs.plan.outputs.mode != 'none' }}
     needs: [plan, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -1435,6 +1447,9 @@ jobs:
   gate:
     name: CI gate
     if: ${{ !cancelled() }}
+    # On a draft the check fails (the first step below) and the run stays green, so the reports
+    # that read failed runs (scripts/ci-repeat-failures.mjs) and the failure mail see no draft.
+    continue-on-error: ${{ github.event.pull_request.draft == true }}
     # `e2e-report` is deliberately NOT here. Everything else in this list runs the repository's
     # code and can therefore be wrong about it; the report job merges artifacts and runs no
     # test, so its failure says only that nobody gets a browsable HTML report. It adds no
@@ -1459,6 +1474,15 @@ jobs:
       # no checkout beyond the one script it reads. Everything that ACTS on the verdict - the
       # rolling issue, the quarantine entry, the revert - is the `after-gate` job below, which
       # carries the write scopes and runs only on main and in the merge group.
+      # A DRAFT HAS NO VERDICT, so its gate fails rather than skips: a skipped required check counts
+      # as passed, and the ready run on the same head creates its own gate only after its needs
+      # finish, so a skipped one could stand for that head in the meantime.
+      - name: Not on a draft
+        if: ${{ github.event.pull_request.draft == true }}
+        run: |
+          echo "::error title=CI gate::Draft pull request: only Build, Factory gates and Reviewed ran. Mark it ready for review to run the full selection on this head."
+          exit 1
+
       - uses: actions/checkout@v5
         with:
           sparse-checkout: scripts
