@@ -97,6 +97,16 @@ building" with its reason.
   the boot's unreported read is now typed or not (G2 section 4), the report adds `run`, and a
   dataless update with no look is a skipped command. Each assertion is as strict as before.
 
+- **A failure only reports** (final review at d97cb850, B; then a read-only reassessment of the
+  rule model, because two rounds found variants of one missing rule). A graphic marked failed whose
+  frame had loaded dropped every command but Take and Out, so the next Take aired old values and a
+  live feed froze. Now routing reads the hold and the frame alone (`liveStep` in `hold.ts`); a Take
+  or Out clears the failure, and a Take on a ready frame first gets the graphic's kept values.
+  Node-tested with every input combination and a 2,000-walk reference model.
+- **D1 and D2** (owner, 2026-11-12): an overdue command is reported once and kept, boot history is
+  watched too (no more grey "Confirming..." forever), and the queue running in full clears the red.
+  See the spec's Phase 5 notes for the G2 wording these change.
+
 ## Verification
 
 | Check | Result |

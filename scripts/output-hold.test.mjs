@@ -169,3 +169,15 @@ test('reference walk: on a ready frame a failed graphic keeps taking commands, a
     }
   }
 });
+
+test('D1: a command overdue at 20 s is reported failed once and kept; its queue running in full clears the red', async () => {
+  const { readFileSync } = await import('node:fs');
+  const main = readFileSync(new URL('../src/output/main.ts', import.meta.url), 'utf8');
+  const stage = readFileSync(new URL('../src/output/stage.ts', import.meta.url), 'utf8');
+  assert.match(stage, /if \(!entry\.watch \|\| entry\.overdue \|\| now - entry\.since < OUTCOME_WATCHDOG_MS\) return;/);
+  assert.match(stage, /entry\.overdue = true;\n\s+for \(const cb of outcomeCbs\) cb\(entry\.at, entry\.graphic, \{ failed: 'load', overdue: true \}\);/);
+  assert.doesNotMatch(stage, /frame\.queue = frame\.queue\.filter\(\(item\) => item\.at !== at\)/, 'nothing is dropped from a queue');
+  // Boot history is watched like any other command.
+  assert.doesNotMatch(main, /, at, following\);/);
+  assert.match(main, /if \(failures\.get\(graphic\)\?\.overdue && stage\.waitingFor\(graphic\) === null\) \{\n\s+failures\.delete\(graphic\);/);
+});

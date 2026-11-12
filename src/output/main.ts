@@ -884,7 +884,7 @@ async function boot(): Promise<void> {
       const look = msg.appearance ? { appearance: msg.appearance } : {};
       // A data road's update with no look moves nothing here: an empty update would reach a
       // foreign Graphic as `updateAction({})`.
-      if (animate && (gate.values || msg.appearance)) stage.apply(graphic, gate.values ? { t: 'update', data: {}, typed: msg.typed, ...look } : { t: 'update', data: {}, ...look }, at, following);
+      if (animate && (gate.values || msg.appearance)) stage.apply(graphic, gate.values ? { t: 'update', data: {}, typed: msg.typed, ...look } : { t: 'update', data: {}, ...look }, at);
       if (road) live.applied(road, incoming, receivedAt);
       return;
     }
@@ -970,7 +970,7 @@ async function boot(): Promise<void> {
       // A Take that replaces a graphic with a newer body waiting airs that body (G1): the swap
       // hands it the values held above, and this play is its entrance.
       if (msg.t === 'play') swapper.beforePlay(row.graphic);
-      stage.apply(row.graphic, msg.t === 'event' ? { ...msg, at: rowInstant(row.created_at, Date.now()) } : msg, at, following);
+      stage.apply(row.graphic, msg.t === 'event' ? { ...msg, at: rowInstant(row.created_at, Date.now()) } : msg, at);
       if (msg.t === 'play') countPlay();
     }
     // Cleared: a newer body waiting for it takes over once the exit has finished.
@@ -990,7 +990,7 @@ async function boot(): Promise<void> {
   /** `from`: the position of the hold's first command, kept when making room drops it. */
   const holds = new Map<string, { rows: HeldRow<ControlEventRow['msg']>[]; from: number }>();
   /** Graphics whose hold failed, from where and why (cleared by a later Take or Out that runs). */
-  const failures = new Map<string, { from: number; why: HoldFailure }>();
+  const failures = new Map<string, { from: number; why: HoldFailure; overdue?: true }>();
   /** Where E1.1's typed hold of each graphic started. */
   const typedFrom = new Map<string, number>();
   /** Boot frames hidden by their own flag because they had not loaded when the stage came back. */
@@ -1238,13 +1238,20 @@ async function boot(): Promise<void> {
   });
   stage.onOutcome((at, graphic, outcome) => {
     // A command that waited in the stage has run: its graphic may report again.
-    if (outcome === 'posted' && seqMode) {
-      unreportedRun.add(graphic);
-      scheduleReport(graphic);
-    } else if (outcome !== 'posted' && outcome !== 'skipped' && !failures.has(graphic)) {
+    if (outcome === 'posted') {
+      // D1: an overdue queue that has run in full clears its red.
+      if (failures.get(graphic)?.overdue && stage.waitingFor(graphic) === null) {
+        failures.delete(graphic);
+        readyChanged();
+      }
+      if (seqMode) {
+        unreportedRun.add(graphic);
+        scheduleReport(graphic);
+      }
+    } else if (outcome !== 'skipped' && !failures.has(graphic)) {
       console.warn(`output: "${graphic}" did not play here (stage: ${outcome.failed} at ${at}).`);
       // The stage gave up on it: named in `h` until a later Take or Out runs (G2 section 1).
-      failures.set(graphic, { from: at, why: outcome.failed });
+      failures.set(graphic, outcome.overdue ? { from: at, why: outcome.failed, overdue: true } : { from: at, why: outcome.failed });
       readyChanged();
     }
     presence.touch();

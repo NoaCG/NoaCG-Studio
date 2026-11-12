@@ -194,7 +194,7 @@ export interface OutputStage {
 }
 
 /** What became of one command handed to the stage with its position. */
-export type StageOutcome = 'posted' | 'skipped' | { failed: 'load' | 'limit' | 'typed' };
+export type StageOutcome = 'posted' | 'skipped' | { failed: 'load' | 'limit' | 'typed'; overdue?: true };
 
 /** A command with no outcome this long after it was handed over fails with `load`. */
 export const OUTCOME_WATCHDOG_MS = 20_000;
@@ -444,7 +444,7 @@ export function createOutputStage(
    *  again, so a position alone could name two commands): its position, graphic and when it was
    *  handed over. Every `at` inside the stage below is such a key; the position goes out only in
    *  the outcome. */
-  const unsettled = new Map<number, { at: number; graphic: string; since: number; watch: boolean }>();
+  const unsettled = new Map<number, { at: number; graphic: string; since: number; watch: boolean; overdue?: true }>();
   let lastKey = 0;
   /** The key of the command `applyNow` is handling, for what it queues. */
   let currentAt: number | undefined;
@@ -461,23 +461,18 @@ export function createOutputStage(
   const watchdog = setInterval(() => {
     const now = Date.now();
     unsettled.forEach((entry, at) => {
-      // History a boot hands a loading frame waits for it, however long: dropping it would bring
-      // the graphic back without its state. Its graphic stays listed as not run meanwhile.
-      if (!entry.watch || now - entry.since < OUTCOME_WATCHDOG_MS) return;
-      // Out of every queue that holds it, so a failed command never runs later.
+      // OVERDUE (the owner's D1, 2026-11-12): a command with no outcome after 20 s is reported
+      // failed once, and nothing is dropped. A late frame or package still runs its whole queue,
+      // history first and hidden, and its final `posted` clears the red.
+      if (!entry.watch || entry.overdue || now - entry.since < OUTCOME_WATCHDOG_MS) return;
       const frame = frames.get(entry.graphic);
       console.warn(
         `output stage: "${entry.graphic}" command ${entry.at} had no outcome after ${OUTCOME_WATCHDOG_MS} ms ` +
           `(frame ${frame ? (frame.loaded ? 'loaded' : 'loading') : 'none'}, queued here ${frame ? frame.queue.some((item) => item.at === at) : false}, ` +
           `placing ${placer.placing(entry.graphic)}, package ${waitingOgraf.has(entry.graphic)}).`,
       );
-      if (frame) frame.queue = frame.queue.filter((item) => item.at !== at);
-      const list = waitingOgraf.get(entry.graphic);
-      if (list) {
-        const keep = list.filter((m) => atOf.get(m) !== at);
-        list.splice(0, list.length, ...keep);
-      }
-      settleAt(at, { failed: 'load' });
+      entry.overdue = true;
+      for (const cb of outcomeCbs) cb(entry.at, entry.graphic, { failed: 'load', overdue: true });
     });
   }, 1_000);
   /** Which command (its key) a message answers for, across the placer's and the packages' waits. */

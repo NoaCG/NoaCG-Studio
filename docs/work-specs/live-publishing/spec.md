@@ -442,5 +442,15 @@ Filled in by each phase's pull request.
   follows and the head it resolved, not its own send answers (the answer carries no position, and
   the Take path's send code was left alone); a mounted OGraf package counts as ready; monitors pass
   no positions. Rules found while building are in the evidence.
+- Owner decisions (2026-11-12, on #2361, after the final review's repeated family):
+  - D1: a command with no outcome at 20 s (a boot frame or a package base still loading) reads
+    `failed load` in red, and nothing is dropped; when the frame loads its queue runs hidden and
+    the red clears. A held Take still gives up and drops its queue at 20 s (R8).
+  - D2: a single stage failure on a running graphic stays red until that graphic's next Take or
+    Out, All out, or its deletion; later commands still run.
+- G2 wording these change: R1's "answered failed and leaves the queue" becomes D1. Section 1's "a
+  graphic in `h` has settled nothing from `from` on" becomes "has not settled everything from
+  `from` on": `ran = from - 1` stays a lower bound. R4's "or whose hold has failed" applies only
+  while the graphic has no frame able to run it: a failure is a line in `h`, never a gate.
 - Traps: in the evidence, "Traps met".
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-5.md`.
