@@ -1,0 +1,105 @@
+// guards: scripts/capacity-repay.mjs, scripts/alarm-owner.mjs, docs/work-specs/cicd-followup/evidence/land-2-rules.md
+// Land-2c (rules C1-C7): a cost refusal becomes one dated repayment item per tier after landing,
+// never a blocked landing; later landings add to the open item without moving its due date.
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import { DUE_DAYS, MERGES, CALLS, itemBody, landedPrs, openItems, planRepayments, recordedIn, repaysIn, repaysOf, titleFor } from './capacity-repay.mjs';
+
+const OWNER = 'miwco (primary); the weekly owner session (backup coverage)';
+const landing = (pr, repays, sha = `${String(pr).padStart(4, '0')}${'a'.repeat(36)}`) => ({ pr, sha, repays });
+const offline = (cost = '1.9 runner-minutes per landing and 0.4 per day, the offline tier at 123% of its ceiling') => ({ tier: 'offline', cost });
+
+test('only the fixed annotation names a repayment, one per tier', () => {
+  const got = repaysIn([
+    { message: 'Repay (offline): 1.9/landing 0.4/day, offline at 123%' },
+    { message: 'Repay (offline): a second line for the same tier' },
+    { message: 'Repay (backend): 6.9/landing' },
+    { message: 'E2E capacity line - refuse' },
+    { message: 'Repay (table): not a tier' },
+    { message: 'Needs the owner (full:offline): ...' },
+  ]);
+  assert.deepEqual(got, [{ tier: 'offline', cost: '1.9/landing 0.4/day, offline at 123%' }, { tier: 'backend', cost: '6.9/landing' }]);
+  assert.deepEqual(repaysIn(null), []);
+});
+
+test('the landed pull requests come from main\'s first-parent merge subjects', () => {
+  const log = ['91a57833c\tMerge pull request #2381 from NoaCG/claude/growth-ceilings-v3', 'deadbeef\tA direct commit', '9960a904e\tMerge pull request #2408 from NoaCG/claude/plan-live-publishing-4-build', ''].join('\n');
+  assert.deepEqual(landedPrs(log), [{ sha: '91a57833c', pr: 2381 }, { sha: '9960a904e', pr: 2408 }]);
+});
+
+test('C2: with no open item, one is opened per tier, dated, owned, with each landing\'s cost', () => {
+  const actions = planRepayments({ landed: [landing(2410, [offline('second')]), landing(2408, [offline('first'), { tier: 'backend', cost: 'b' }])], items: {}, today: '2026-11-12', owner: OWNER });
+  assert.deepEqual(actions.map((a) => [a.kind, a.tier]), [['open', 'offline'], ['open', 'backend']]);
+  const o = actions[0];
+  assert.equal(o.title, titleFor('offline'));
+  assert.match(o.body, /\*\*Due 2026-11-26\.\*\* Owner: miwco/);
+  assert.equal(DUE_DAYS, 14);
+  assert.ok(o.body.indexOf('#2408') < o.body.indexOf('#2410'), 'oldest landing first');
+  assert.deepEqual([...recordedIn([o.body])].sort(), [2408, 2410]);
+  assert.match(o.body, /waives nothing/);
+});
+
+test('C3: an open item gets later landings as a comment, its due date does not move, and nothing is recorded twice', () => {
+  const body = itemBody({ tier: 'offline', due: '2026-11-26', owner: OWNER, repays: [{ ...offline('first'), pr: 2408, sha: 'a'.repeat(40) }] });
+  const items = { offline: { number: 3001, title: titleFor('offline'), texts: [body] } };
+  const actions = planRepayments({ landed: [landing(2412, [offline('later')]), landing(2408, [offline('first')])], items, today: '2026-11-20', owner: OWNER });
+  assert.deepEqual(actions.map((a) => [a.kind, a.number]), [['comment', 3001]]);
+  assert.match(actions[0].body, /#2412.*later/);
+  assert.doesNotMatch(actions[0].body, /#2408/, 'already recorded');
+  assert.doesNotMatch(actions[0].body, /Due /, 'no new due date');
+  assert.ok(!actions.some((a) => a.kind === 'open'), 'never a second item for the tier');
+  // Run again after the comment landed: nothing more.
+  assert.deepEqual(planRepayments({ landed: [landing(2412, [offline('later')])], items: { offline: { ...items.offline, texts: [body, actions[0].body] } }, today: '2026-11-20', owner: OWNER }), []);
+});
+
+test('C3: past its due date an open item is marked overdue once, routed to the owner', () => {
+  const body = itemBody({ tier: 'graphics', due: '2026-11-26', owner: OWNER, repays: [{ tier: 'graphics', cost: 'g', pr: 1, sha: 'b'.repeat(40) }] });
+  const item = { number: 3002, title: titleFor('graphics'), texts: [body] };
+  assert.deepEqual(planRepayments({ landed: [], items: { graphics: item }, today: '2026-11-26', owner: OWNER }), [], 'the due day itself is not overdue');
+  const late = planRepayments({ landed: [], items: { graphics: item }, today: '2026-11-27', owner: OWNER });
+  assert.deepEqual(late.map((a) => [a.kind, a.number, a.title]), [['overdue', 3002, 'Capacity repayment: graphics tier (overdue since 2026-11-26)']]);
+  assert.deepEqual(planRepayments({ landed: [], items: { graphics: { ...item, texts: [body, late[0].body] } }, today: '2026-12-10', owner: OWNER }), [], 'once');
+});
+
+test('C4: it writes only issues and comments, never the ceilings, an exception or a spec line', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('./capacity-repay.mjs', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /writeFileSync|appendFileSync|growth-ceilings\.json['"`]\s*,\s*['"`]w/);
+  assert.equal((src.match(/'-X', '(?:POST|PATCH|PUT|DELETE)'/g) ?? []).length, 4, 'issue create, comment, title, comment');
+});
+
+/** A reader over canned GitHub answers, counting calls like makeReader. */
+function canned(routes) {
+  const reader = { calls: 0, exhausted: false, seen: [] };
+  reader.get = (route) => { reader.calls += 1; reader.seen.push(route); const hit = Object.entries(routes).find(([k]) => route.startsWith(k)); return hit ? hit[1] : null; };
+  return reader;
+}
+
+test('reading GitHub: the open item by title from a bot or member, its comments, and each landing\'s green CI gate annotations', () => {
+  const R = 'NoaCG/NoaCG-Studio';
+  const reader = canned({
+    [`repos/${R}/issues?state=open`]: [
+      { number: 7, title: titleFor('offline'), body: 'x <!-- capacity-repay: #2408 -->', user: { type: 'Bot' } },
+      { number: 8, title: titleFor('backend'), body: '', user: { type: 'User' }, author_association: 'NONE' },
+      { number: 9, title: `${titleFor('graphics')} (overdue since 2026-11-01)`, body: '', user: { type: 'User' }, author_association: 'OWNER' },
+    ],
+    [`repos/${R}/issues/7/comments`]: [{ body: '<!-- capacity-repay: #2410 -->' }],
+    [`repos/${R}/issues/9/comments`]: [],
+    [`repos/${R}/commits/s1/check-runs`]: { check_runs: [{ id: 11, name: 'CI gate', conclusion: 'success' }] },
+    [`repos/${R}/check-runs/11/annotations`]: [{ message: 'Repay (offline): 2/landing' }],
+    [`repos/${R}/commits/s2/check-runs`]: { check_runs: [{ id: 12, name: 'CI gate', conclusion: 'failure' }] },
+  });
+  const items = openItems(reader, R);
+  assert.deepEqual(Object.keys(items).sort(), ['graphics', 'offline'], 'an outsider\'s issue is never taken for the item');
+  assert.deepEqual([...recordedIn(items.offline.texts)].sort(), [2408, 2410]);
+  const landed = repaysOf(reader, [{ sha: 's1', pr: 2412 }, { sha: 's2', pr: 2413 }, { sha: 's3', pr: 2408 }], new Set([2408]), R);
+  assert.deepEqual(landed.map((l) => l.repays), [[{ tier: 'offline', cost: '2/landing' }], [], []], 'a red gate landed nothing; a recorded PR is not read');
+  assert.ok(!reader.seen.some((r) => r.includes('/commits/s3/')), 'no call for a PR already recorded');
+  // Bounded: issues (1) + comments (2) + two landings at most two calls each, well inside the budget.
+  assert.ok(reader.calls <= 1 + 2 + 2 * MERGES && 1 + 5 + 2 + 2 * MERGES <= CALLS);
+});
+
+test('an unreadable issue listing records nothing rather than opening a duplicate', () => {
+  assert.throws(() => openItems(canned({}), 'NoaCG/NoaCG-Studio'), /could not be read/);
+});
