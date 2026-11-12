@@ -62,6 +62,13 @@ building" with its reason.
   judged not worth the risk to that path ("Let's avoid any risky changes"); the command row, which
   arrives with the numbered frame, owes the position instead, so the light reads grey a moment
   later rather than at the answer. PROGRAM's "ran" uses the newest row learned at or after the send.
+- **The page owes pressed commands, not a data road's rows** (G2 section 6 said "whoever wrote it").
+  E1's words are "each command pressed"; a feed's or the data API's row carries `src`, and the
+  harness showed a feed writing every 200 ms keeps one row always younger than a report, so the
+  light would read grey "Confirming…" for the whole of a live feed. Data rows still move each
+  output's cursor and are confirmed with it; they only no longer hold green back.
+- **A status row is never a command with an outcome** (the configured run caught it: a `cue` row
+  reached the stage with a position and was counted as a command for a graphic with no frame).
 - **Monitors pass no positions**, so the production page's PROGRAM and PREVIEW stages are unchanged.
 
 ## Verification

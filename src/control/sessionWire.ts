@@ -284,7 +284,10 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
         page().hear([{ graphic: row.graphic, msg }]);
         arm?.row(row);
         const t = msg.t;
-        if (typeof row.seq === 'number' && row.graphic && (t === 'update' || t === 'play' || t === 'stop' || t === 'next' || t === 'event' || t === 'snap')) {
+        // A command PRESSED is owed (E1): a data road's row (`src`, a feed or the data API) is not a
+        // press, and a feed writing every 200 ms would otherwise keep the light grey for good.
+        const pressed = (msg as { src?: unknown }).src === undefined;
+        if (pressed && typeof row.seq === 'number' && row.graphic && (t === 'update' || t === 'play' || t === 'stop' || t === 'next' || t === 'event' || t === 'snap')) {
           page().owe?.(row.seq, row.graphic);
         }
         if (msg.t === 'live') {

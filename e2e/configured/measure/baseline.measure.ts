@@ -820,7 +820,7 @@ test('w3', async ({ page, browser }) => {
           void fetch(`${url}/rest/v1/rpc/control_send_many`, {
             method: 'POST',
             headers: { apikey: anon, Authorization: `Bearer ${token || anon}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ p_slug: controlSlug, p_items: [{ graphic, msg: { t: 'update', data: { f0: `feed ${n}` } } }] }),
+            body: JSON.stringify({ p_slug: controlSlug, p_items: [{ graphic, msg: { t: 'update', data: { f0: `feed ${n}` }, src: 'api' } }] }),
           });
         }, every);
       },
