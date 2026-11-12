@@ -1091,6 +1091,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     appearanceFor: appearanceForRef,
     onPublished: (ver) => {
       setPublishedStamp(ver);
+      // A development build lets a spec withhold the request, to prove outputs find it alone.
+      if (import.meta.env.DEV && (window as unknown as { __noacgWithholdPrep?: boolean }).__noacgWithholdPrep) return;
       setPrepRequest({ id: requestId(), n: ver.n, h: ver.h });
     },
   });
