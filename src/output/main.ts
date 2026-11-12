@@ -76,6 +76,7 @@ import { reportedLook } from '../control/cueAdjust';
 import { createSwapper } from './swap';
 import { obsEvent, obsState, sceneParam, scopePayload, type ObsWhere } from './sceneScope';
 import type { OutputPayload } from '../control/hostedControl';
+import type { SceneReport } from '../control/livePath';
 import { TYPED_READER, typedOutputGate, type TypedValues } from '../model/ografTyped';
 import type { ControlMessage } from '../control/controlModel';
 import { createSoundBudget } from '../assets/soundBudget';
@@ -247,8 +248,16 @@ async function boot(): Promise<void> {
   };
   const inScope = (graphic: string): boolean => scene === null || sceneKeys.has(graphic);
   const payload = scoped(resolved.output);
+  // The whole production's payload is not kept: a closure over `resolved` lives as long as the page,
+  // and the other scenes' graphics are megabytes this link never builds.
+  if (scene !== null) resolved.output = payload;
   /** Where OBS has this browser source (R8), from its own events; unknown until the first. */
   let obsWhere: ObsWhere = {};
+  /** What the Presence entry says of this scene link (R8). */
+  const sceneReport = (id: string): SceneReport => {
+    const obs = obsState(obsWhere);
+    return { id: id.slice(0, 80), known: sceneKnown, ...(obs ? { obs } : {}), ...(obsWhere.last !== undefined ? { last: obsWhere.last } : {}) };
+  };
   const soundBudget = createSoundBudget();
   let programAudioVersion = payload.ver?.h ?? '';
   const audio = (payload: OutputPayload) => ({ soundBudget, loadSound: publishedSoundLoader(outputSlug,payload.ver?.h ?? '') });
@@ -430,9 +439,7 @@ async function boot(): Promise<void> {
       proto: identity.protocol,
       // E1.2a: this output reads typed envelopes, so a page may send it one.
       typed: TYPED_READER,
-      ...(scene !== null
-        ? { scene: { id: scene.slice(0, 80), known: sceneKnown, ...(obsState(obsWhere) ? { obs: obsState(obsWhere) } : {}), ...(obsWhere.last !== undefined ? { last: obsWhere.last } : {}) } }
-        : {}),
+      ...(scene !== null ? { scene: sceneReport(scene) } : {}),
     });
   const presence = joinLivePresence({
     showId: resolved.id,
@@ -586,8 +593,9 @@ async function boot(): Promise<void> {
       const answer = await untilAnswered(() => controlOutputResolve(outputSlug), { limit: 3 });
       if (!answer.ok || !answer.value?.output) return null;
       // The scene's graphics only (R5): the swapper adds and removes by the keys it is handed.
+      const knew = sceneKnown;
       const next = scoped(answer.value.output);
-      if (scene !== null) readyChanged();
+      if (sceneKnown !== knew) readyChanged();
       return next;
     },
     onAir: airCount,

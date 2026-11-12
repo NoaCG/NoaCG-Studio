@@ -9,6 +9,7 @@
 
 import type { OutputPayload } from '../control/hostedControl';
 import { SCENE_ID } from '../model/obsScenes.ts';
+import { isFontAsset } from '../assets/assetUtils.ts';
 
 /** The scene a link names: absent (null, the ordinary link), or the id as written. A malformed id
  *  is still a scene link (`known` is then false): it must never read as the whole production. */
@@ -16,9 +17,6 @@ export function sceneParam(search: string): string | null {
   const params = new URLSearchParams(search);
   return params.has('scene') ? (params.get('scene') ?? '') : null;
 }
-
-/** A font file, by its path: what a production ships once and every graphic's style may name. */
-const FACE_FILE = /\.(woff2?|ttf|otf)$/i;
 
 /**
  * The payload a scene link builds, whether the payload knows its scene, and the font files of the
@@ -35,7 +33,7 @@ export function scopePayload(
   const faces = new Map<string, string>();
   for (const g of payload.graphics) {
     if (keys.has(g.key) || g.ograf) continue;
-    for (const a of g.assets) if (FACE_FILE.test(a.path) && !faces.has(a.path)) faces.set(a.path, a.data);
+    for (const a of g.assets) if (isFontAsset(a.path) && !faces.has(a.path)) faces.set(a.path, a.data);
   }
   return {
     faces,

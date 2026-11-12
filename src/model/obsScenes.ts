@@ -4,6 +4,7 @@
 // page. Pure: scripts/obs-scenes.test.mjs runs it in Node.
 
 import type { Show } from './shows';
+import { membersByFolder } from './showFolders.ts';
 
 /** One scene as a publish carries it: the graphics are pool graphic names (the wire key). */
 export interface ObsScene {
@@ -23,20 +24,20 @@ export const SCENE_ID = /^[A-Za-z0-9_-]{1,80}$/;
 export function obsScenesOf(show: Pick<Show, 'obsScenes' | 'folders' | 'cues' | 'graphics'>): ObsScene[] {
   if (!show.obsScenes) return [];
   const names = new Map(show.graphics.map((g) => [g.id, g.name] as const));
-  const scenes = new Map<string, ObsScene>();
+  const scenes: ObsScene[] = [];
   const flagged = new Map((show.folders ?? []).filter((f) => f.obsScene && SCENE_ID.test(f.id)).map((f) => [f.id, f] as const));
-  for (const cue of show.cues ?? []) {
-    const folder = cue.folderId ? flagged.get(cue.folderId) : undefined;
+  // In rundown order: the first cue of a folder places it (./showFolders.ts).
+  for (const [id, cues] of membersByFolder(show.cues ?? [], show.folders)) {
+    const folder = flagged.get(id);
     if (!folder) continue;
-    let scene = scenes.get(folder.id);
-    if (!scene) {
-      scene = { id: folder.id, name: folder.name, graphics: [] };
-      scenes.set(folder.id, scene);
+    const graphics: string[] = [];
+    for (const cue of cues) {
+      const name = cue.source === 'playout' ? undefined : names.get(cue.sourceId);
+      if (name !== undefined && graphics.indexOf(name) < 0) graphics.push(name);
     }
-    const name = cue.source === 'playout' ? undefined : names.get(cue.sourceId);
-    if (name !== undefined && scene.graphics.indexOf(name) < 0) scene.graphics.push(name);
+    scenes.push({ id, name: folder.name, graphics });
   }
-  return [...scenes.values()];
+  return scenes;
 }
 
 /** A scene's own output link: the production's output link with `&scene=<id>` (OS1a R5). */

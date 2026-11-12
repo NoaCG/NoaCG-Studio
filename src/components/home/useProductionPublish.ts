@@ -71,6 +71,9 @@ const CLAIM_NEEDS_ACCOUNT =
   'Changing the audience link needs the account that published this production. Sign in first.';
 
 /** The publish, slot and links state, and the sign-in follow-through of a Publish. */
+/** What a copy button copied: a production link, or one OBS scene's link by its scene id. */
+export type CopyKind = 'output' | 'join' | 'presenter' | `scene:${string}`;
+
 export function useProductionPublish({ authStatus, signInOpen }: { authStatus: AuthUiState['status']; signInOpen: boolean }) {
   /** The Playout panel under the playout status (home/PlayoutStatusControl.tsx): opened by a press,
    *  and by itself right after a publish, where the next step is. */
@@ -80,7 +83,7 @@ export function useProductionPublish({ authStatus, signInOpen }: { authStatus: A
   const [busy, setBusy] = useState(false);
   /** A publish is on the wire: the status reads "Publishing…". */
   const [publishing, setPublishing] = useState(false);
-  const [copied, setCopied] = useState<'output' | 'join' | 'presenter' | `scene:${string}` | null>(null);
+  const [copied, setCopied] = useState<CopyKind | null>(null);
   /** The readable audience name being typed, and what the database said about the last claim. */
   const [nameDraft, setNameDraft] = useState('');
   const [nameNote, setNameNote] = useState<string | null>(null);
@@ -235,7 +238,7 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
     setNote('✓ Template file downloaded');
   };
 
-  const copy = (kind: 'output' | 'join' | 'presenter' | `scene:${string}`, text: string) => {
+  const copy = (kind: CopyKind, text: string) => {
     void copyLink(text).then((ok) => {
       if (!ok) return;
       // Taking the output URL is what turns "is the output connected?" into a question worth

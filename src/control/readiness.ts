@@ -255,6 +255,9 @@ function readChange(value: unknown): ChangePrep | undefined {
 
 export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
+/** An issue that keeps its output from playing: named, amber, never green. */
+const isBroken = (i: ReadyIssue): boolean => i.k === 'script' || i.k === 'silent' || i.k === 'audio' || i.k === 'scene';
+
 /** "(script error)", the reason a graphic did not prepare, as the plan words it. */
 function reasonOf(issue: ReadyIssue): string {
   if (issue.k === 'audio') return 'sound not prepared';
@@ -322,7 +325,7 @@ function degradedLines(issues: readonly ReadyIssue[]): { line: string; advice: s
 export function outputStateWords(ready: OutputReady): string {
   const version = ready.v ? ` (v${ready.v.n})` : '';
   if (ready.n < ready.of) return `Preparing ${ready.n} of ${ready.of}${version}`;
-  const broken = ready.is.filter((i) => i.k === 'script' || i.k === 'silent' || i.k === 'audio' || i.k === 'scene');
+  const broken = ready.is.filter((i) => isBroken(i));
   if (broken.length > 0) return `Not ready: ${broken.map((i) => `${i.g ?? 'a graphic'} (${reasonOf(i)})`).join(', ')}${version}`;
   const degraded = degradedLines(ready.is).map((d) => d.line);
   return `${degraded.length > 0 ? degraded.join('; ') : 'Ready for playout'}${version}`;
@@ -534,7 +537,7 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
   // the others follow it in the panel ("Also: ..."), each with what to do.
   const problems: { line: string; advice: string[]; short?: string }[] = [];
   // A graphic that cannot play: named, amber, never green.
-  const broken = ready.is.filter((i) => i.k === 'script' || i.k === 'silent' || i.k === 'audio' || i.k === 'scene');
+  const broken = ready.is.filter((i) => isBroken(i));
   let brokenShort: string | undefined;
   if (broken.length > 0) {
     const first = broken[0];
