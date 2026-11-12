@@ -66,10 +66,17 @@ test('C3: past its due date an open item is marked overdue once, routed to the o
 });
 
 test('C2: a landing recorded on an item already closed (repaid) is never opened again', () => {
-  const actions = planRepayments({ landed: [landing(2405, [offline('paid')]), landing(2412, [offline('new')])], items: {}, today: '2026-11-20', owner: OWNER, recorded: new Set([2405]) });
+  const actions = planRepayments({ landed: [landing(2405, [offline('paid')]), landing(2412, [offline('new')])], items: {}, today: '2026-11-20', owner: OWNER, recorded: new Set(['offline#2405']) });
   assert.equal(actions.length, 1);
   assert.match(actions[0].body, /#2412/);
   assert.doesNotMatch(actions[0].body, /#2405/);
+});
+
+test('C2: a landing that owes two tiers is recorded per tier, so a run stopped between them retries only the missing one', () => {
+  const both = [landing(2412, [offline('o'), { tier: 'backend', cost: 'b' }])];
+  const actions = planRepayments({ landed: both, items: {}, today: '2026-11-20', owner: OWNER, recorded: new Set(['offline#2412']) });
+  assert.deepEqual(actions.map((a) => [a.kind, a.tier]), [['open', 'backend']]);
+  assert.match(actions[0].body, /#2412/);
 });
 
 test('C4: it writes only issues and comments, never the ceilings, an exception or a spec line', async () => {
@@ -89,10 +96,12 @@ function canned(routes) {
 test('reading GitHub: the open item by title from a bot or member, its comments, and each landing\'s green CI gate annotations', () => {
   const R = 'NoaCG/NoaCG-Studio';
   const reader = canned({
-    'search/issues?q=': { total_count: 2, items: [
+    'search/issues?q=': { total_count: 3, items: [
+      { number: 4, title: titleFor('backend'), body: '<!-- capacity-repay: #2403 -->', user: { type: 'Bot' } },
       { number: 5, title: titleFor('offline'), body: '<!-- capacity-repay: #2405 -->', user: { type: 'Bot' } },
       { number: 6, title: 'Something else', body: '<!-- capacity-repay: #2406 -->', user: { type: 'Bot' } },
     ] },
+    [`repos/${R}/issues/4/comments`]: [],
     [`repos/${R}/issues/5/comments?per_page=100&page=1`]: Array.from({ length: 100 }, () => ({ body: 'progress', user: { type: 'Bot' } })),
     [`repos/${R}/issues/5/comments?per_page=100&page=2`]: [{ body: '<!-- capacity-repay: #2404 -->', user: { type: 'Bot' } }],
     [`repos/${R}/issues?state=open`]: [
@@ -114,17 +123,34 @@ test('reading GitHub: the open item by title from a bot or member, its comments,
   assert.deepEqual(Object.keys(items).sort(), ['graphics', 'offline'], 'an outsider\'s issue is never taken for the item');
   assert.deepEqual([...recordedIn(items.offline.texts)].sort(), [2408, 2410], 'an outsider\'s comment marks nothing recorded');
   assert.ok(!items.offline.texts.some((t) => t.includes('overdue')), 'nor overdue');
-  assert.deepEqual([...recorded].sort(), [2404, 2405, 2408, 2410], 'a closed repayment item\'s landings count as recorded, its second comment page too');
+  // A tier with only a closed item has no open item: its next debt opens a new one.
+  assert.equal(items.backend, undefined);
+  assert.deepEqual(planRepayments({ landed: [landing(2415, [{ tier: 'backend', cost: 'b' }])], items, today: '2026-11-20', owner: OWNER, recorded }).map((a) => [a.kind, a.tier]), [['open', 'backend']]);
+  assert.deepEqual([...recorded].sort(), ['backend#2403', 'offline#2404', 'offline#2405', 'offline#2408', 'offline#2410'], 'a closed repayment item\'s landings count as recorded, per tier, its second comment page too');
   const search = decodeURIComponent(reader.seen.find((r) => r.startsWith('search/issues?q=')));
   assert.match(search, /repo:NoaCG\/NoaCG-Studio is:issue is:closed in:title "Capacity repayment:" closed:>=2026-10-21/, 'one search for closed items of the last 30 days');
-  const landed = repaysOf(reader, [{ sha: 's1', pr: 2412 }, { sha: 's2', pr: 2413 }, { sha: 's4', pr: 2414 }, { sha: 's3', pr: 2408 }], new Set([2408]), R);
-  assert.deepEqual(landed.map((l) => l.repays), [[{ tier: 'offline', cost: '2/landing' }], [], [], []], 'the merge group\'s line is found behind the push run; a red gate landed nothing; a recorded PR is not read');
-  assert.ok(!reader.seen.some((r) => r.includes('/commits/s3/')), 'no call for a PR already recorded');
+  const landed = repaysOf(reader, [{ sha: 's1', pr: 2412 }, { sha: 's2', pr: 2413 }, { sha: 's4', pr: 2414 }], R);
+  assert.deepEqual(landed.map((l) => l.repays), [[{ tier: 'offline', cost: '2/landing' }], [], []], 'the merge group\'s line is found behind the push run; a red gate landed nothing');
   // A failed read of a landing's CI gate stops the run instead of reading as nothing owed.
-  assert.throws(() => repaysOf(reader, [{ sha: 'gone', pr: 2420 }], new Set(), R), /could not be read/);
+  assert.throws(() => repaysOf(reader, [{ sha: 'gone', pr: 2420 }], R), /could not be read/);
   // The budget: open pages, one search, per landing one check-run read and two gates' annotations,
   // and what is left for comment pages (3 per item) still covers four open and four closed items.
   assert.ok(OPEN_PAGES + 1 + 3 * MERGES + 3 * 8 <= CALLS, `${OPEN_PAGES + 1 + 3 * MERGES + 3 * 8} calls in the worst case`);
+});
+
+test('an item\'s whole comment history is read, past three pages; a page that cannot be read stops the run', () => {
+  const R = 'NoaCG/NoaCG-Studio';
+  const full = Array.from({ length: 100 }, () => ({ body: 'progress', user: { type: 'Bot' } }));
+  const routes = {
+    [`repos/${R}/issues?state=open`]: [{ number: 7, title: titleFor('offline'), body: '', user: { type: 'Bot' } }],
+    'search/issues?q=': { total_count: 0, items: [] },
+    ...Object.fromEntries([1, 2, 3, 4].map((n) => [`repos/${R}/issues/7/comments?per_page=100&page=${n}`, full])),
+    [`repos/${R}/issues/7/comments?per_page=100&page=5`]: [{ body: '<!-- capacity-repay: #2499 -->', user: { type: 'Bot' } }],
+  };
+  assert.deepEqual([...repaymentItems(canned(routes), { repo: R, today: '2026-11-20' }).recorded], ['offline#2499']);
+  delete routes[`repos/${R}/issues/7/comments?per_page=100&page=5`];
+  routes[`repos/${R}/issues/7/comments?per_page=100&page=6`] = [];
+  assert.throws(() => repaymentItems(canned(routes), { repo: R, today: '2026-11-20' }), /comments of #7 could not be read/);
 });
 
 test('an unreadable or overfull issue listing, or a failed search, records nothing rather than opening a duplicate', () => {

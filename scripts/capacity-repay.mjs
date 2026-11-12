@@ -35,7 +35,7 @@ export const TIERS = ['offline', 'backend', 'graphics', 'overhead'];
 export const DUE_DAYS = 14;
 /** First-parent merges into main read on each run, so a cancelled post-land run is caught up. */
 export const MERGES = 20;
-/** GitHub API calls per run, reads and writes together. */
+/** GitHub API reads per run; past it the run stops before writing. Writes come on top: at most three per tier (an item or a comment, and an overdue title and comment). */
 export const CALLS = 100;
 export const TITLE_PREFIX = 'Capacity repayment:';
 export const titleFor = (tier) => `${TITLE_PREFIX} ${tier} tier`;
@@ -107,8 +107,10 @@ export function planRepayments({ landed, items, today, owner, recorded = new Set
   }
   for (const tier of TIERS) {
     const item = items[tier] ?? null;
-    // Recorded on the open item, or on an item already closed (repaid): never recorded again.
-    const seen = new Set([...recorded, ...(item ? recordedIn(item.texts) : [])]);
+    // Recorded on this tier's open item, or on one of its items already closed (repaid): never
+    // recorded again. Per tier, so a landing that owes two tiers is retried for the one not yet
+    // written when a run stops between them.
+    const seen = new Set([...[...recorded].filter((k) => k.startsWith(`${tier}#`)).map((k) => Number(k.slice(tier.length + 1))), ...(item ? recordedIn(item.texts) : [])]);
     const fresh = (byTier.get(tier) ?? []).filter((r) => !seen.has(r.pr) && (seen.add(r.pr), true));
     if (!item) {
       if (fresh.length) actions.push({ kind: 'open', tier, title: titleFor(tier), body: itemBody({ tier, due: addDays(today, DUE_DAYS), owner, repays: fresh }) });
@@ -133,7 +135,9 @@ const tierOf = (title) => TIERS.find((t) => title === titleFor(t) || String(titl
 /** An item's own texts: its body, then its comments by a bot or member (an outsider's marker counts for nothing). */
 function itemTexts(reader, repo, issue) {
   const texts = [issue.body ?? ''];
-  for (let page = 1; page <= 3; page++) {
+  // Every page, however long the item's history: a partial one would record entries again. The
+  // run's API budget bounds it, and an exhausted reader stops the run.
+  for (let page = 1; ; page++) {
     const comments = reader.get(`repos/${repo}/issues/${issue.number}/comments?per_page=100&page=${page}`);
     if (!Array.isArray(comments)) throw new Error(`the comments of #${issue.number} could not be read: nothing is recorded rather than a duplicate written`);
     texts.push(...comments.filter(trustedAuthor).map((c) => c.body ?? ''));
@@ -154,7 +158,7 @@ export function repaymentItems(reader, { repo = REPO, today }) {
     const tier = i.pull_request || !trustedAuthor(i) ? null : tierOf(i.title);
     if (!tier) return;
     const texts = itemTexts(reader, repo, i);
-    for (const pr of recordedIn(texts)) recorded.add(pr);
+    for (const pr of recordedIn(texts)) recorded.add(`${tier}#${pr}`);
     if (open && !items[tier]) items[tier] = { number: i.number, title: i.title, texts };
   };
   // Open items: the exact issue listing (a search index can lag a just-opened item). A listing
@@ -184,9 +188,8 @@ export function repaymentItems(reader, { repo = REPO, today }) {
  * push run (which has no capacity verdict), listed in either order, so every green one is read.
  * A commit with no green CI gate names none.
  */
-export function repaysOf(reader, landed, skip, repo = REPO) {
+export function repaysOf(reader, landed, repo = REPO) {
   return landed.map((l) => {
-    if (skip.has(l.pr)) return { ...l, repays: [] };
     // A read that fails is not "nothing owed": the run stops and the next one catches up.
     const runs = reader.get(`repos/${repo}/commits/${l.sha}/check-runs?check_name=${encodeURIComponent('CI gate')}&per_page=10`);
     if (!Array.isArray(runs?.check_runs)) throw new Error(`the CI gate of #${l.pr} (${l.sha.slice(0, 8)}) could not be read: nothing is recorded this run`);
@@ -208,7 +211,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const reader = makeReader(CALLS);
   const log = execFileSync('git', ['log', '--first-parent', `-${MERGES}`, '--format=%H%x09%s', 'HEAD'], { cwd: ROOT, encoding: 'utf8', windowsHide: true });
   const { items, recorded } = repaymentItems(reader, { today });
-  const landed = repaysOf(reader, landedPrs(log), recorded);
+  const landed = repaysOf(reader, landedPrs(log));
   if (reader.exhausted) throw new Error(`more than ${CALLS} API calls needed: nothing is recorded rather than part of it`);
   const actions = planRepayments({ landed, items, today, owner, recorded });
   for (const a of actions) console.log(`${a.kind} ${a.tier}${a.number ? ` #${a.number}` : ''}`);

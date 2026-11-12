@@ -70,7 +70,8 @@ runner-minutes per landing and 0.4 per day, taking the offline tier to 123% of i
   `checks: read` and `issues: write`; no new job or schedule) reads the `CI gate` annotations of
   each pull request merged into main in the last 20 first-parent merges, and records each one
   once, keyed by pull request number in a hidden marker on the item. A cancelled or batched
-  post-land run is caught up by the next one. At most 100 API calls a run.
+  post-land run is caught up by the next one. At most 100 API reads a run (past them it
+  stops before writing), and at most three writes per tier.
 - C3. (Coordinator's decision, 2026-11-12, as proposed; basis: the owner's "a cost ceiling must
   never block a landing" and "at most one open per tier"; blocking the tier would break the first.)
   When one is already open for that tier, no second
