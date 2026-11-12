@@ -67,9 +67,10 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "build",
+      "step": "build / first PR repair round",
+      "pr": 2438,
       "session": "/root/editor_r15_e4_cloud_builder",
-      "note": "Native action7 accepted once at91a57833c972f214b45fa7357faf4e830c547e21; clean ownedworktree/source+savedbriefhash+IO/network/profileverified. Projectmulti-document/installgaps underreproduction; no newphase."
+      "note": "PR held: independent review found draft-ownership and font-preservation defects. Existing same-ID regression coverage retained and strengthened. Exact-source isolated qualification passed; repaired-head verification/review still required."
     }
   ],
   "owner": [
@@ -1562,7 +1563,7 @@
       "head": "03e88fa9d999fc00bb14e690c2a304a6cc80b30b",
       "ownerComment": 6823534868,
       "ownerAck": "MinimalpublichiddenACKaccepted; trustedMEMBERmiwcoreadbackverified; soleactiveCodexcoordinatorforrun2295",
-      "ownerPayloadRejection": "EarlierdetailednotecontaininginternalUUIDs/paths/authoritywasauto-reviewrejectedbeforeposting. Noalternatebypass; saferminimalpublicrun-linkedACKaccepted; userinformed. Exactnative/authority/worktree stayinprivatekit.",
+      "ownerPayloadRejection": "EarlierdetailednotecontaininginternalUUIDs/paths/authoritywasauto-reviewrejectedbeforeposting. Noalternatebypass; saferminimalpublicrun-linkedACKaccepted; userinformed. Exactnative/authority/worktree retained in the existing run kit; checkpoint scope unchanged.",
       "postOpenCiRepairCount": 1,
       "carriedRepairs": {
         "asyncClientFixtureAwait": 1,
