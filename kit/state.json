@@ -1626,10 +1626,18 @@
     "repairCandidate": {
       "head": "a534b14e5af899ad7f93966d175246a3f469fae4",
       "normalCi": 43231538681,
-      "normalCiStatus": "queued at initial exact-head readback",
+      "normalCiStatus": "in_progress firstattempt; plan131227828019SUCCESS readindependently byroot",
       "rootPrReadback": "Head matches, mergeable true, auto_merge null, open/unmerged",
-      "isolated": "New exact-head qualification being requested by existing builder",
-      "review": "One new Codex review, fresh FULL SO only after actual capacity; no prior grade or backend result reused as final proof"
+      "isolated": 43231643582,
+      "review": "One new Codex review, fresh FULL SO only after actual capacity; no prior grade or backend result reused as final proof",
+      "configuredSelection": "ALL63eligible specs /4isolatedstacks; actual candidate plan notice, currentmain gainedone",
+      "capacity": "WARN198.2/213tablemin93.0%; unchangedpolicyjudgeslatestcomplete43014542120, newest43201149088partial/owneralarmafterlanding. No ceilings/allowances/selection changes; not blanket fresh-complete clearance.",
+      "isolatedStatus": "in_progress exacthead firstattempt readback",
+      "codexRequest": 6825499870,
+      "codexReply": 4551322345,
+      "fullSo": "Fresh full44-path review startsafteractualcandidatecapacity, prior03Bnoteligiblefordelta",
+      "rootCheckStamp": "Independently read PASS a534 at13:52:35Z;44files, inline9/9review, simplify/verifyinline, stampGap null; model/effort inherited/unexposed",
+      "reviewedJob": "131227827580 FAILURE onlymissingnoacg/reviewed after148s. Wholelogread; standardcurrent-headlate-stamprecoveryonlyafterallworker gates, no testjobrerun."
     }
   }
 }
