@@ -1539,9 +1539,8 @@ test('Connect data previews the whole graphic, connects it in one confirmation a
   await line.getByTestId('source-pause').click();
   await expect(line).toContainText('paused');
   tab.csv = 'Name,Value\nName,Cy Dale\nRole,Chief Editor\n';
-  const reads = tab.reads;
-  await page.waitForTimeout(7_000);
-  expect(tab.reads, 'paused: nothing is read').toBe(reads);
+  // That a paused source reads nothing is held for its time in "the header Data indicator" below,
+  // across a reload too (owner decision 2026-11-12, land-study.md section 5).
   await expect(program.locator('#f0')).toHaveText('Bo Chen');
   await line.getByTestId('source-pause').click();
   await expect(program.locator('#f0')).toHaveText('Cy Dale', { timeout: 10_000 });

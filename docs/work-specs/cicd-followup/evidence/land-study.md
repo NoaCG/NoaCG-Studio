@@ -314,3 +314,31 @@ spec files, one size list each (`editor-command-task`, `editor-drawing-task` and
 - **Limits:** pull request run costs are from 25-run samples. The Actions data does not show
   review sessions, so the owner's "8 review sessions" is not checked.
 - **Revert:** `git revert -m 1 <merge commit>` removes these three files; nothing depends on them.
+
+## 5. Built after the study
+
+### 5.1 production-data: the 7-second "Pause reads nothing" wait
+
+**Owner decision 2026-11-12: approved.**
+
+`Connect data previews the whole graphic, ...` (`e2e/production-data.spec.ts`) paused a Sheet
+source, changed the Sheet, waited 7 seconds and checked that nothing had been read. The wait and
+that check are removed; the rest of the walk is unchanged (paused shows, the value on air holds,
+Resume brings the change).
+
+- **Stops protecting, in this test:** that a source paused from the cue's own connect flow reads
+  nothing for a read interval and more.
+- **Still protecting it:** `the header Data indicator stays whichever cue is selected, ...` in the
+  same spec pauses a source and checks that nothing is read for 6 seconds, then again for 6
+  seconds after a reload; the Node test of the Pause snapshot (`scripts/sheet-source.test.mjs`).
+  Both pass on this branch.
+- **Measured saving:** the test took 38.3 s before and 31.0 s after (one local run each, one
+  worker), about 7 s on every full run and every pull request run that selects the spec.
+- **Revert:** `git revert -m 1 <merge commit of this pull request>`.
+
+### 5.2 Measured and not built: spx-operator's duplicate app boot
+
+The audit expected about 1.5 s from skipping the second boot in `an imported clock and imported
+cards made by the import road run on SPX's calls ...`. Measured over three runs each (one worker),
+the test took 32.0 s on average after the change and 32.1 s before: no saving, within run-to-run
+spread. Not built.

@@ -523,3 +523,105 @@ Filled in by each phase's pull request.
   (the spec's stood-in tail). A graphic's composed document only knows `settled` through the play
   command; the editor monitors never send it.
 - Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS1a.md`.
+
+### OS4: Clocks
+
+- Rules (written before coding):
+  - R1. The sponsor rotation's cycle is the wall clock. Its length P is the machine's own: the
+    rotating state's hold (its timer's `after`) plus its crossfade, divided by the motion speed
+    (6.5 s at speed 1). Cycle k is `floor(Date.now() / P)`; its logo is filled slot `k mod n`
+    (every slot while none is filled, as today). So every copy of a graphic shows the same logo
+    in the same cycle, wherever and whenever it was loaded.
+  - R2. Off air, parked or measured (a snap with `timers: false`, a preview, a thumbnail, the
+    catalog's load-state fingerprint) nothing changes: the first slot shows from load, as today.
+  - R3. The rotation is live exactly while the machine's rotation group has a timer armed: after a
+    Take's entrance has finished, after a snap with timers (a reload's recovery, a scene link's
+    settled Take), and after Resume's crossfade. While live, the runtime owns the timing: it reads
+    the wall clock five times a second, replaces the machine's
+    armed timer at once with its own wait, and when the next crossfade's midpoint would fall in a
+    new cycle it makes that timer's own transition (the crossfade) at once, so the swap lands on
+    the cycle boundary within one read. A machine timer that would fire early or late, or a page
+    whose timers and drawing were throttled while hidden, therefore never sets the beat. When the
+    new cycle's logo is the one on screen it records the cycle and plays nothing.
+  - R4. A crossfade the runtime started shows its cycle's logo at the midpoint. Any other
+    crossfade (Next sponsor, Resume, a snap into the crossfade state) shows the following slot,
+    as today, and the rotation rejoins the wall clock at the next boundary. Hold arms no timer,
+    so nothing moves until Resume.
+  - R5. Joining never adds a change: a Take, a settled Take and a reload keep the logo they show
+    until the next cycle boundary, which brings them onto the wall clock (AC-7: "within one
+    change"; AC-4: no motion beyond the rotation's own). So copies agree from their first change.
+  - R6. The rotation's machine, events, controls, fields, look and load state are unchanged;
+    only its design-owned runtime (`src/templates/cornerBug/bugRuntimes.ts`) changes. Without
+    an armed-timer signal to read, the runtime keeps today's per-page cycle.
+  - R7. The starting-soon start-time field also takes an absolute deadline: an ISO 8601 date
+    and time, seconds and fractions optional, with an offset (`Z` or `+HH:MM`/`-HH:MM`), for
+    example `2026-11-14T19:00:00+02:00`. The time left is `ceil((deadline - now) / 1 s)`,
+    the same in every timezone. A date and time without an offset is not a deadline: no zone
+    is guessed.
+  - R8. A deadline already past at start, or reached while counting, shows 0:00 and holds there
+    with the design's finished class (`<prefix>-done`, the hook a design's CSS uses for a short
+    text); never the duration, never tomorrow. The clock never takes the graphic out.
+  - R9. Every start and every tick derives the time left from the deadline, so a reload, a snap
+    and a page throttled while hidden show the right time on their next tick. An Update that
+    keeps the same deadline leaves the count alone; a new deadline re-arms it (today's
+    signature rule), also once it has held at 0:00 on air (a finished duration or `HH:MM` count
+    given a deadline counts to it too).
+  - R10. An invalid value (neither `HH:MM` nor a whole deadline with an offset, or an impossible
+    date such as the 31st of November) is treated as an empty field: the duration counts. That
+    is the template's empty state, as a typo is today.
+  - R11. `HH:MM` is unchanged: today's parse, and a time already past counts to tomorrow.
+  - R12. Only the start-time field's parse changes; the duration-only clocks (game timers,
+    imported designs, the countdown type) emit what they emit today. A production's graphic is
+    its own copy: a rotation or countdown made before this lands keeps today's behaviour until
+    its design is refreshed with Update in the production.
+- Rules found by the Rules-first `/so`, before code (it agreed with corrections): R3's ownership
+  of the timing (a machine timer armed at the entrance's phase can fire before the boundary), R4's
+  "crossfade the runtime started" (at the midpoint no timer is armed, so liveness cannot be read
+  there), and R5 joining at the boundary instead of a crossfade after a Take (AC-4). Also:
+  - R13. Reload while held shows the slot a snap leaves, not the one held: the held slot is not
+    persisted, as today.
+  - R14. A logo added or removed on air changes `n`; the logo on screen stays until the next
+    boundary, which picks `k mod n` again. Removing the logo on screen leaves its slot as today.
+  - R15. The speed is read through `motionSpeed()`. Copies agree only as far as their machines'
+    clocks agree (NTP is assumed); the render service's virtual clock is a wall clock too.
+  - R16. A deadline count has no pause: no start-time design carries the pause group (the
+    countdown type's designs count durations), so R9 has no exception today.
+- Rules found after coding: the joining read records the cycle on screen and replaces the machine's
+  timer in the same read, so a timer armed at a Take's own phase never fires (it would otherwise
+  change the logo up to a hold early). The machine's rotating state is named `advance` and its
+  first waypoint `enter`; the runtime reads only the group's armed timer and the `advance` hold.
+  A deadline is anchored to its own instant (`clockAnchor`), not to "now plus the rounded seconds",
+  so every page flips on the deadline's second. From the `/check` review: a crossfade that stalled across
+  boundaries (drawing stopped in a hidden page while reads went on) lands on the current cycle's
+  partner, not the one it was fired for; the stand-in for the machine's timer never fires by
+  itself (a real one-day timer would have dipped a one-sponsor bug once a day); "already on
+  screen" is compared by element, since a logo picked on air reorders the filled slots; a deadline
+  that held at 0:00 on air counts to a new one at once (R9 amended), and one already past is
+  finished from its start, not a tick later. Kept with a reason: the runtime reads the
+  interpreter's timer table rather than a new wall-aligned timer edge in the shared interpreter,
+  because that would change every template's interpreter and the frozen copies in saved ones; it
+  only acts while a machine timer is armed, so GSAP's callback suppression (a scrub, a settle, a
+  parked snap) still keeps it idle. From the final `/so` (grade B, one defect): a join records the cycle on screen,
+  not the one the next crossfade would open, so a join in the last 250 ms before a boundary still
+  makes that boundary's change. From CI: no `visibilitychange` listener (in an OGraf renderer the
+  document is the host's; the 200 ms read resumes as soon as the page runs), and the factory's
+  "a Take after the Out looks as the first Take did" check holds a rotation to its first Take on
+  everything except its partner slots, which follow the wall clock by design (the same reason it
+  already exempts the rotating ticker).
+- Previous verified `main`: `b9f3660e28c5cc339dbfb82d4415ebb492ac2cef` (CI run 43268862367, the
+  configured suite 43268862377).
+- Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted changes: the
+  rotation and the start-time field keep their fields, ids and machine. A graphic refreshed with
+  Update while this was on main keeps the wall-clock runtime until it is refreshed again after the
+  revert; a deadline written into a start-time field then reads as invalid and the duration counts.
+- Decisions: the machine is unchanged and the runtime owns the beat while the machine's own timer
+  is armed, because that timer already means "on air, entrance done, not held, not parked", and
+  a machine change would reach every control surface. A Take keeps its logo until the next
+  boundary (AC-4) rather than crossfading at once. A new cycle whose logo is already on screen
+  plays no crossfade, so a one-sponsor bug no longer dips every 6.5 s. Only the start-time
+  designs' clock changes; the duration clocks emit byte-identical code (the catalog emit gate
+  moved 10 designs, js only: bug21 to bug24, ss05, ss07, ss10, ss11, ss13, ss18).
+- Traps: Playwright's fake clock gives each srcdoc frame its own clock, offset by when the frame
+  loaded while time flows; pause the clock (`pauseAt`) before building frames that must agree.
+  Graphics made before this lands need Update in their production (each is its own copy).
+- Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS4.md`.
