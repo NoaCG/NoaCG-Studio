@@ -516,12 +516,68 @@ function creditsWindow(sample) {
 }`;
 }
 
+/** WHAT IS DRAWN IN THE COLUMN ROLLS WITH THE LIST (owner walk 2026-11-10: "It should be just one
+ *  text that scrolls"). Emitted into the styled ROLL only: a still page and cards keep everything
+ *  where it was drawn, because nothing moves there. */
+const CREDITS_RIDERS_JS = `
+// creditsRiders(roll, win, rows): everything else drawn in the list's column inside the window -
+// a show title above the first role, the rule under it, a closing line below the last name - is
+// part of the one text that scrolls, so the take moves it into the roll group once, where it was
+// drawn, and it travels with the rows. What fills most of the window (a background) stays put, and
+// so does anything beside the column, such as a corner logo, and so does an operator's field: the
+// entrance moves a field line by itself, and a line posed by its entrance would move the roll's
+// measure with it. The show title the list starts with is no field (creditsTitle). The look a
+// moved layer inherited from its old group is copied on.
+var CREDITS_RIDER_KEEP = ['font-family', 'font-size', 'font-weight', 'font-style', 'letter-spacing',
+  'word-spacing', 'text-anchor', 'fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'opacity'];
+function creditsRiders(roll, win, rows) {
+  var art = typeof noacgArt === 'function' ? noacgArt() : null;
+  if (!art || !roll.getScreenCTM) return 0;
+  var area = (win.right - win.left) * (win.bottom - win.top);
+  var box = typeof noacgRoleEls === 'function' ? noacgRoleEls('${CREDITS_BOX_ROLE}', null)[0] : null;
+  var found = art.querySelectorAll('text, rect, path, polygon, polyline, line, ellipse, circle, image, use');
+  var riders = [];
+  for (var i = 0; i < found.length; i++) {
+    var el = found[i];
+    if (el === box || roll.contains(el) || (el.parentNode && el.parentNode.closest && el.parentNode.closest('text'))) continue;
+    if (/^f\\d+$/.test(el.id) || Array.prototype.some.call(el.querySelectorAll('[id]'), function (n) { return /^f\\d+$/.test(n.id); })) continue;
+    var shown = el.getBoundingClientRect();
+    if (!(shown.width > 0 || shown.height > 0) || getComputedStyle(el).visibility === 'hidden') continue;
+    var m = creditsFrom(el, roll);
+    var b = null;
+    try { b = el.getBBox(); } catch (e) { b = null; }
+    if (!m || !b) continue;
+    var a = creditsAt(m, b.x, b.y), z = creditsAt(m, b.x + b.width, b.y + b.height);
+    var l = Math.min(a.x, z.x), r = Math.max(a.x, z.x), t = Math.min(a.y, z.y), u = Math.max(a.y, z.y);
+    if ((r - l) * (u - t) > area / 2) continue;                       // a background
+    if (r < rows.x || l > rows.x + rows.width) continue;              // beside the column
+    if (u < win.top || t > win.bottom) continue;                       // outside the window
+    riders.push(el);
+  }
+  for (var j = 0; j < riders.length; j++) {
+    var rider = riders[j];
+    var parent = rider.parentNode;
+    var into = creditsFrom(parent, roll);
+    if (!into) continue;
+    var look = getComputedStyle(parent);
+    var wrap = document.createElementNS(rider.namespaceURI, 'g');
+    wrap.setAttribute('data-noacg-rider', '');
+    wrap.setAttribute('transform', 'matrix(' + [into.a, into.b, into.c, into.d, into.e, into.f].join(' ') + ')');
+    var keep = '';
+    for (var k = 0; k < CREDITS_RIDER_KEEP.length; k++) keep += CREDITS_RIDER_KEEP[k] + ':' + look.getPropertyValue(CREDITS_RIDER_KEEP[k]) + ';';
+    wrap.setAttribute('style', keep);
+    roll.insertBefore(wrap, roll.lastChild);         // in drawing order, under the rows (the last child)
+    wrap.appendChild(rider);
+  }
+  return riders.length;
+}`;
+
 /** THE TAKE, shared by the editable roll and the styled one: the window, the travel, the pace and
  *  a live speed change. Each engine supplies `creditsSample()` (the layer whose parent the rows
  *  sit in) and `creditsRender()` (the rows and the name step they were built with). */
-function creditsTakeJs(settle = false, held = false): string {
+function creditsTakeJs(settle = false, held = false, riders = false): string {
   return `${creditsWindowJs()}
-
+${riders ? CREDITS_RIDERS_JS : ''}
 var noacgCreditsTween = null;
 var noacgCreditsBuiltAt = 1;       // the speed the running take was built at (creditsDataUpdated)
 // What the last take measured, for a reader (and for the spec that pins the pace): where the
@@ -574,7 +630,23 @@ function creditsTake() {
   // all, and leaves the group's own travel out - so it reads the same mid-roll as at rest.
   var bb = null;
   try { bb = roll.getBBox(); } catch (e) { bb = null; }
-  if (!win || !bb || !(bb.height > 0)) return null;
+  if (!win || !bb || !(bb.height > 0)) return null;${riders ? `
+  // The rows alone, as the take has always measured them: what rides with them (creditsRiders,
+  // already in the group from an earlier take) is set aside for this one read, so the pace and the
+  // column are the rows' own, and a second take measures exactly what the first did.
+  var riding = roll.querySelectorAll('[data-noacg-rider]');
+  if (riding.length) {
+    for (var h = 0; h < riding.length; h++) riding[h].style.display = 'none';
+    try { bb = roll.getBBox(); } catch (e) { bb = null; }
+    for (var g = 0; g < riding.length; g++) riding[g].style.display = '';
+    if (!bb || !(bb.height > 0)) return null;
+  }
+  var rowsBox = bb;
+  // Measured again with them only when something rides: the travel then carries it too.
+  if (creditsRiders(roll, win, rowsBox) > 0 || riding.length) {
+    try { bb = roll.getBBox(); } catch (e) { bb = null; }
+    if (!bb || !(bb.height > 0)) return null;
+  }` : ''}
   frame.setAttribute('x', String(win.left));
   frame.setAttribute('y', String(win.top));
   frame.setAttribute('width', String(win.right - win.left));
@@ -589,7 +661,7 @@ function creditsTake() {
   // The pace rides the sample's name-to-name step, scaled the way the text's own transform
   // scales it: the step is read in the text's units and the travel in the window's.
   var textHeight = rows.getBBox().height;
-  var step = built.looks.afterName * (textHeight > 0 ? bb.height / textHeight : 1);
+  var step = built.looks.afterName * (textHeight > 0 ? ${riders ? 'rowsBox' : 'bb'}.height / textHeight : 1);
   var speed = creditsLiveSpeed();
   var perSecond = step * NOACG_CREDITS_LINES_PER_SECOND * speed;
   var duration = distance / perSecond;
@@ -806,6 +878,7 @@ function creditsCardTime() {
 // whole list laid out once at its drawn size (the probe), so nothing is laid out twice to deal it.
 function creditsCardsOf(probe) {
   var sections = parseCredits(creditsHeldList(), function (s) { return s; });
+  creditsTitleWords(sections);          // the title is no row of any card's count (creditsTitle)
   var units = [];
   var at = 0;
   var glued = null;
@@ -1026,7 +1099,15 @@ export function creditsMarkAnchors(svg: DesignSvg, root: Element, prefix: string
     text.setAttribute(CREDITS_ANCHOR_ATTR, `${i} ${a.kind}`);
     addCreditsClass(text, prefix);
   });
+  const title = style.title ? root.querySelector(`[${SVG_CANDIDATE_ATTR}="${style.title}"]`)?.closest('text') : null;
+  if (title) {
+    title.setAttribute(CREDITS_TITLE_ATTR, '');
+    addCreditsClass(title, prefix);
+  }
 }
+
+/** The attribute that marks the drawn show title of a styled binding: a source, hidden on air. */
+export const CREDITS_TITLE_ATTR = 'data-noacg-credit-title';
 
 function addCreditsClass(text: Element, prefix: string): void {
   const own = (text.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
@@ -1156,6 +1237,41 @@ function creditsSample() {
 
 ${creditsFieldJs()}
 ${held('', creditsHeldJs())}
+// creditsTitle(sections, rows, ref, container, shown): THE SHOW TITLE. A list whose first line is not
+// a role starts with the show's name (owner walk 2026-11-10). Where a title is drawn above the roles
+// (DesignSvgCredits.title), that line is taken out of the list and painted as a copy of the drawn
+// title - its look, and where it was drawn - inside the rows, so it travels with them. Without a
+// drawn title, or when the list starts with a role, every line reads as before. Cards show it on
+// the first card only (SHOWN false on the others). Returns the copy, for the width fit, or null.
+function creditsTitle(sections, rows, ref, container, shown) {
+  var source = document.querySelector('[${CREDITS_TITLE_ATTR}]');
+  var words = creditsTitleWords(sections);
+  var at = words === null || shown === false ? null : creditsFrom(source.parentNode, ref);
+  if (!at) return null;
+  // A copy that keeps where the title was drawn: its own x, y and transform, in its parent's frame.
+  var copy = creditsCopy(source, words, true);
+  var row = copy.row;
+  row.setAttribute('data-noacg-credits', 'title');
+  // What the drawn title inherits from its own groups, which the copy no longer sits in.
+  var look = creditsLookOf(source, container);
+  var wrap = document.createElementNS(source.namespaceURI, 'g');
+  wrap.setAttribute('transform', 'matrix(' + [at.a, at.b, at.c, at.d, at.e, at.f].join(' ') + ')');
+  wrap.setAttribute('style', look.paint + ';' + look.whole + ';text-anchor:' + getComputedStyle(source).textAnchor);
+  wrap.appendChild(row);
+  rows.appendChild(wrap);
+  return copy;
+}
+
+// creditsTitleWords(sections): the show title the list starts with, taken out of the list, or null
+// where no title is drawn or the list starts with a role. The painter and the card dealer both ask
+// it, so the rows they count agree.
+function creditsTitleWords(sections) {
+  if (!document.querySelector('[${CREDITS_TITLE_ATTR}]') || !sections.length || !sections[0].length || sections[0][0].type !== 'entry') return null;
+  var words = sections[0].shift().text;
+  if (!sections[0].length) sections.shift();
+  return words;
+}
+
 // creditsFrom(a, b): the matrix taking a's own units into b's, through the screen, so any two
 // elements of the drawing answer in one frame.
 function creditsFrom(a, b) {
@@ -1199,17 +1315,18 @@ function creditsFirstText(el) {
   return null;
 }
 
-// creditsCopy(source, words): a row - a copy of the drawn layer with its words replaced. Its id,
-// its marks, the hiding class and every position attribute come off; the run that painted the
-// first character keeps the new words and every other run is emptied, so the look is that run's.
-function creditsCopy(source, words) {
+// creditsCopy(source, words, keepPlace): a row - a copy of the drawn layer with its words replaced.
+// Its id, its marks, the hiding class and (unless KEEPPLACE, for the show title) every position
+// attribute come off; the run that painted the first character keeps the new words and every other
+// run is emptied, so the look is that run's.
+function creditsCopy(source, words, keepPlace) {
   var row = source.cloneNode(true);
   var all = [row].concat(Array.prototype.slice.call(row.getElementsByTagName('*')));
   for (var i = 0; i < all.length; i++) {
     var names = [];
     for (var a = 0; a < all[i].attributes.length; a++) {
       var n = all[i].attributes[a].name;
-      if (n === 'id' || n.indexOf('data-noacg') === 0 || /^(x|y|dx|dy|rotate|textLength|lengthAdjust|transform)$/.test(n)) names.push(n);
+      if (n === 'id' || n.indexOf('data-noacg') === 0 || (!keepPlace && /^(x|y|dx|dy|rotate|textLength|lengthAdjust|transform)$/.test(n))) names.push(n);
     }
     for (var r = 0; r < names.length; r++) all[i].removeAttribute(names[r]);
   }
@@ -1353,6 +1470,7 @@ ${beside(`  // THE SHARED EDGE, the mean over every drawn layer in the first rol
   // Written as textContent, so nothing here is escaped: the identity is the escape.
   var sections = parseCredits(text, function (s) { return s; });
   while (rows.firstChild) rows.removeChild(rows.firstChild);
+  var title = creditsTitle(sections, rows, ref, container${cards('', ', !card || card.from === 0')});
   var S = NOACG_CREDITS_STYLE;
   // One look rule per kind, and the shared edge every row is anchored on.
   var sel = '.${cls}-rows > .${cls}-row';
@@ -1495,6 +1613,27 @@ ${still(`      var width = box.width * scale;
     if (fit.reported) over = true;
     noacgCreditsFit.push(fit);
   }
+  // The show title fits the window's whole width, from where it is anchored, as a row does: it
+  // shrinks to its room, is reported past 55% and stops at the 30% floor.
+  var titleBox = null;
+  if (title && lo !== null) try { titleBox = title.row.getBBox(); } catch (err) { titleBox = null; }
+  var titleM = titleBox && titleBox.width > 0 ? creditsFrom(title.row, ref) : null;
+  if (titleM) {
+    var tl = creditsAt(titleM, titleBox.x, titleBox.y).x, tr = creditsAt(titleM, titleBox.x + titleBox.width, titleBox.y).x;
+    var tLeft = Math.min(tl, tr), tRight = Math.max(tl, tr);
+    var tPx = parseFloat(getComputedStyle(title.run).fontSize) || 16;
+    var tMargin = 0.5 * tPx * (Math.sqrt(Math.abs(titleM.a * titleM.d - titleM.b * titleM.c)) || 1);
+    var tAnchor = getComputedStyle(title.row).textAnchor;
+    var tAt = tAnchor === 'middle' ? (tLeft + tRight) / 2 : tAnchor === 'end' ? tRight : tLeft;
+    var tRoom = tAnchor === 'middle' ? 2 * Math.min(tAt - lo, hi - tAt) - 2 * tMargin : tAnchor === 'end' ? tAt - lo - tMargin : hi - tAt - tMargin;
+    var tScale = tRight - tLeft > tRoom ? Math.max(NOACG_CREDITS_FLOOR, tRoom / (tRight - tLeft)) : 1;${still('', `
+    if (K < tScale) tScale = K;`)}
+    if (tScale < 1) {
+      title.row.style.fontSize = (tPx * tScale) + 'px';
+      if (title.run !== title.row) title.run.style.fontSize = (tPx * tScale) + 'px';
+      if (tScale < NOACG_CREDITS_REPORT) over = true;
+    }
+  }
   if (sizes) noacgCreditsSheet.textContent = base + sizes;${still('', `
   // THIRD PASS, TOO TALL (a still page): the page holds in the window (the Credits box, else the
   // frame), from where the first role is drawn down to half a drawn line above the window's
@@ -1605,7 +1744,7 @@ if (typeof noacgSnap === 'function') {
   };
 }
 `)}
-${still(creditsTakeJs(faces === true, true), cards(creditsHoldJs(), creditsCardsJs()))}
+${still(creditsTakeJs(faces === true, true, true), cards(creditsHoldJs(), creditsCardsJs()))}
 
 // Render once on load, so a preview shows the list before the first update(); again when the
 // real typeface arrives, because the drawn widths decide where an aligned row starts.
@@ -1675,6 +1814,8 @@ export interface CreditsStyle {
   list: string;
   /** What the drawn roles end with (`:` or nothing), so a rendered role reads as drawn. */
   roleSuffix: string;
+  /** The drawn show-title layer (`DesignSvgCredits.title`), where the binding names one. */
+  title?: string;
 }
 
 export type CreditsAnalysis =
@@ -2047,7 +2188,7 @@ export function readCreditsList(text: string): CreditsListItem[][] {
 
 /** What the wizard previews for the layer picked as Credits. */
 export type CreditsPreview =
-  | { styled: true; layout: CreditsLayout; rtl: boolean; ambiguous: boolean; anchors: DesignSvgCreditsAnchor[]; list: CreditsListItem[][] }
+  | { styled: true; layout: CreditsLayout; rtl: boolean; ambiguous: boolean; anchors: DesignSvgCreditsAnchor[]; title?: string; list: CreditsListItem[][] }
   | { styled: false; list: CreditsListItem[][]; reason: string; ambiguous: boolean; rtl: boolean };
 
 /**
@@ -2130,14 +2271,38 @@ export function creditsPreview(root: Element, candidateIds: readonly string[], c
   }
   if (!analysis.ok) return own(analysis.message);
   if (!analysis.style.anchors.some((x) => x.candidateId === creditsId)) return own('This layer is not part of the roles and names drawn below it.');
+  const title = creditsTitleOf(all, analysis.style.anchors, down, across);
   return {
     styled: true,
     layout: analysis.style.layout,
     rtl,
     ambiguous,
     anchors: analysis.style.anchors,
-    list: readCreditsList(analysis.style.list),
+    ...(title ? { title: title.candidateId } : {}),
+    list: readCreditsList(title ? `${title.text}\n${analysis.style.list}` : analysis.style.list),
   };
+}
+
+/** THE SHOW TITLE a styled block may have drawn above it: the nearest single-line text layer above
+ *  the block's first line, in a look neither the roles nor the names use, standing over the block's
+ *  own column. The list's first line, when it is not a role, takes its look (`DesignSvgCredits.title`). */
+function creditsTitleOf(
+  all: readonly (CreditsReading | null)[],
+  anchors: readonly DesignSvgCreditsAnchor[],
+  down: (r: CreditsReading) => number,
+  across: (r: CreditsReading) => number,
+): CreditsReading | null {
+  const ids = new Set(anchors.map((a) => a.candidateId));
+  const block = all.filter((r): r is CreditsReading => !!r && ids.has(r.candidateId));
+  if (block.length === 0) return null;
+  const looks = new Set(block.map((r) => r.look));
+  const first = block.reduce((p, q) => (down(q) < down(p) ? q : p));
+  const lo = Math.min(...block.map((r) => across(r) - (r.width ?? r.size)));
+  const hi = Math.max(...block.map((r) => across(r) + (r.width ?? r.size)));
+  return all
+    .filter((r): r is CreditsReading => !!r && !ids.has(r.candidateId) && r.lines === 1 && !looks.has(r.look))
+    .filter((r) => down(r) < down(first) - 0.25 * Math.min(r.size, first.size) && across(r) >= lo && across(r) <= hi)
+    .sort((p, q) => down(q) - down(p))[0] ?? null;
 }
 
 /** A text layer's drawn lines, one per baseline with section gaps as blank lines (the editable
@@ -2275,6 +2440,17 @@ function readBinding(svg: DesignSvg, root?: Element): CreditsBindingRead {
     const chosen = swapped?.ok && sameAnchors(swapped.style.anchors, model.anchors) ? swapped : read;
     analyseInto(errors, model, chosen);
     if (chosen.ok) style = chosen.style;
+    // The show title: a text layer of its own, never a field, never one of the roles and names.
+    if (model.title !== undefined) {
+      const title = textOf(model.title);
+      if (!title) errors.push('unknown-title: the show title is not a text layer of this artwork.');
+      else if (texts.includes(title)) errors.push('duplicate-anchor: the show title is also a role or a name.');
+      else if (svg.fields.some((f) => textOf(f.candidateId) === title)) errors.push(`field-per-name: ${model.title} would be a field.`);
+      else if (style) {
+        const words = readCreditsAnchors(scope, [model.title])[0]?.text ?? '';
+        style = { ...style, title: model.title, list: words ? `${words}\n${style.list}` : style.list };
+      }
+    }
   } finally {
     laid?.done();
   }

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Be back soon</title>
+  <desc>NoaCG Clean Studio template. A full-screen break card: Title and Subtitle. Retype it for technical difficulties.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" width="1920" height="1080" fill="#0F1729"/>
+    <rect id="Accent" x="900" y="408" width="120" height="8" rx="4" fill="#2E5BFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Title" x="960" y="560" text-anchor="middle" font-size="120" font-weight="800" fill="#FFFFFF">Be right back</text>
+    <text id="Subtitle" x="960" y="650" text-anchor="middle" font-size="40" font-weight="600" fill="#A9B3C7">The show continues in a moment</text>
+  </g>
+</svg>

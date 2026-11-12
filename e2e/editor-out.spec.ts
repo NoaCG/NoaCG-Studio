@@ -87,7 +87,8 @@ test('one-step Out is an instant cut rather than another entrance', async ({ pag
   expect(duration).toBe(0);
 });
 
-for (const width of [1920, 1366, 1093]) test('Set Out reverse, cancel, history, hold and save/reopen ' + width, async ({ page }) => {
+// One size: the smallest, where layouts break first (owner decision 2026-11-12, docs/work-specs/cicd-followup/evidence/land-study.md section 3.4).
+for (const width of [1093]) test('Set Out reverse, cancel, history, hold and save/reopen ' + width, async ({ page }) => {
   await page.setViewportSize({ width, height: width === 1920 ? 1080 : width === 1366 ? 768 : 614 });
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await fixture(page, true); const original = await source(page);

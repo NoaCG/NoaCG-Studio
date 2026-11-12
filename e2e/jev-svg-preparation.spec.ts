@@ -244,7 +244,8 @@ test('credits are one choice: the list is picked, previewed and editable', async
   await page.getByTestId('map-svg-credits-playback').selectOption('roll');
   await finishInto(page, 'Crew');
   await expect.poll(() => page.locator('textarea').evaluateAll((boxes) => (boxes as HTMLTextAreaElement[]).map((b) => b.value)))
-    .toContainEqual('Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
+    // The title drawn above the roles is the list's first line (the binding's show title).
+    .toContainEqual('PRODUCTION\nResearch:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
 });
 
 test('a clock is one choice: unanswered the time stays as typed, answered it counts', async ({ page }) => {

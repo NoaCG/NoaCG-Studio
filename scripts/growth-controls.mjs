@@ -21,7 +21,10 @@
 //   3. Evidence: complete, partial, stale (older than the freshness bound) or missing. Missing
 //      is never zero: additive growth into a tier with no measurement is refused. Partial or
 //      stale evidence cannot establish the last 10 points of headroom, so additive growth is
-//      refused from the 85% line instead of the 95% line.
+//      refused from the 85% line instead of the 95% line. That is the weekly report's own
+//      judgement. At the capacity line on a pull request weaker evidence never makes the gate
+//      stricter (owner, 2026-11-12, land-2 rules B1-B5): every line is 95%, missing or unreadable
+//      evidence warns, and only a stop confirmed by a complete, in-bound report refuses.
 //   4. A new case is priced conservatively (growth-ceilings.json `estimates`), including the
 //      setup it brings (a stack per ten configured test-minutes, a runner per new job).
 //   5. Exceptions: separately reviewed, owned, at most 30 days. An expired or invalid exception
@@ -865,6 +868,42 @@ export function carryBreaches({ previous = [], current = [], today, owner, corre
   for (const b of out) if (b.state === 'stopped') for (const t of affectedTiers(b.key)) stops[t] ??= `${b.key} since ${b.since}, one correction due ${b.due} did not bring it back in bounds`;
   const cleared = previous.filter((b) => !current.some((c) => c.key === b.key)).map((b) => b.key);
   return { breaches: out, stops, cleared };
+}
+
+/**
+ * The reduction plan's due steps as owned actions (growth-ceilings.json `reductionPlan`): for
+ * each tier and measure, the latest step whose date has come, while the line is still above its
+ * target. Met on complete evidence, the action is to land the reviewed version that lowers the
+ * line; not met, it is to bring the cost down or take the figure back to the owner. Raw measured
+ * cost is judged, so an exception cannot meet a step. A step never moves a line or stops growth:
+ * each lower line is its own reviewed version. Pure.
+ */
+export function planBreaches(ceilings, measurement, today) {
+  const latest = new Map();
+  for (const step of ceilings.reductionPlan?.steps ?? []) {
+    if (dayMs(today) < dayMs(step.by)) continue;
+    const key = `${step.tier}:${step.measure}`;
+    if (!latest.has(key) || step.by > latest.get(key).by) latest.set(key, step);
+  }
+  const out = [];
+  for (const step of latest.values()) {
+    const line = ceilings.tiers?.[step.tier]?.[step.measure];
+    if (Number.isFinite(line) && line <= step.target) continue;
+    const measured = measurement?.tiers?.[step.tier]?.[step.measure];
+    const shown = Number.isFinite(measured) ? `measured ${Math.round(measured * 10) / 10}` : 'not measured';
+    // Met only on complete evidence: a partial week's lower bound under the target proves nothing.
+    const what = planStepMet(step, measurement)
+      ? `met: land the reviewed version that lowers the line from ${line} to ${step.target}`
+      : `not met: bring the cost down (${step.work}), or take the figure back to the owner; the line stays at ${line}`;
+    out.push({ key: `plan:${step.tier}:${step.measure}:${step.by}`, kind: 'plan', subject: step.tier, step, detail: `reduction step due ${step.by}: ${step.tier} ${step.measure} ${shown}, target ${step.target}, ${what} (owner ${ceilings.reductionPlan.owner})` });
+  }
+  return out;
+}
+
+/** Whether a due plan step is now met by complete evidence. Pure. */
+export function planStepMet(step, measurement) {
+  const t = measurement?.tiers?.[step.tier];
+  return t?.evidence === 'complete' && Number.isFinite(t?.[step.measure]) && t[step.measure] <= step.target;
 }
 
 /** Cost breaches: a tier whose measured cost, net of active exceptions, is over its ceiling. */

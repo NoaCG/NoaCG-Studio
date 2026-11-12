@@ -307,7 +307,8 @@ test('wizard group transforms compose with child keys and preserve source and ex
   await expectFidelityExports(page, samples, ['spx', 'casparcg', 'ograf']);
 });
 
-for (const width of [1920, 1366, 1093]) test('wizard nested identity, trim and history ' + width, async ({ page }) => {
+// One size: the smallest, where layouts break first (owner decision 2026-11-12, docs/work-specs/cicd-followup/evidence/land-study.md section 3.4).
+for (const width of [1093]) test('wizard nested identity, trim and history ' + width, async ({ page }) => {
   await page.setViewportSize({ width, height: width === 1920 ? 1080 : width === 1366 ? 768 : 614 });
   await imported(page); await seek(page, .8);
   const original = await source(page);

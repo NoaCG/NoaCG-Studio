@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // PACKS THE NOACG SVG EXAMPLES: the README as a four-page PDF, then the whole folder as a zip.
 //
-//   node scripts/illustrator/pack-svg-examples.mjs [--copy-to <file.zip>]...
+//   node scripts/illustrator/pack-svg-examples.mjs [--set templates] [--copy-to <file.zip>]...
 //
 // Run after updating an editable source set (Illustrator or directly authored SVG), or the guides.
 //
@@ -27,13 +27,22 @@ import { chromium } from '@playwright/test';
 import { escapeHtml } from '../behaviour-docs.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const PACKAGE = path.join(ROOT, 'docs', 'tutorials', 'svg-examples');
-const ZIP_NAME = 'NoaCG-SVG-examples';
+// TWO PACKAGES share this packer: the behaviour EXAMPLES (the default) and the Clean Studio
+// TEMPLATES (`--set templates`, docs/tutorials/svg-templates), whose SVGs are their own sources.
+const SETS = {
+  examples: { dir: 'svg-examples', zip: 'NoaCG-SVG-examples', pages: 4, inventory: 'examples.json', extra: ['Illustrator'] },
+  templates: { dir: 'svg-templates', zip: 'NoaCG-SVG-templates', pages: 2, inventory: 'templates.json', extra: [] },
+};
+const argv = process.argv.slice(2);
+const SET = argv.includes('--set') ? SETS[argv[argv.indexOf('--set') + 1]] : SETS.examples;
+if (!SET) throw new Error('--set takes examples or templates');
+const PACKAGE = path.join(ROOT, 'docs', 'tutorials', SET.dir);
+const ZIP_NAME = SET.zip;
 const ZIP_OUT = path.join(ROOT, 'public', 'downloads', `${ZIP_NAME}.zip`);
-/** The expanded example set has four authored pages; overflow is still refused. */
-const PAGES = 4;
+/** The README's authored page count; overflow is still refused. */
+const PAGES = SET.pages;
 /** What goes in the zip, in this order. Anything else in the folder stays out. */
-const CONTENTS = ['README.pdf', 'README.md', 'examples.json', 'Illustrator', 'SVG', 'Previews',
+const CONTENTS = ['README.pdf', 'README.md', SET.inventory, ...SET.extra, 'SVG', 'Previews',
   ...readdirSync(PACKAGE).filter((name) => name.endsWith('.md') && name !== 'README.md').sort()];
 
 // ── README.md -> HTML ────────────────────────────────────────────────────────────────────────

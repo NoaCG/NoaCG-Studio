@@ -12,25 +12,30 @@
       "count": 2,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/42945843116"
     },
-    "e2e/configured/production-data-key-tick.spec.ts": {
+    "e2e/import-svg-corpus.spec.ts": {
       "since": "2026-11-12",
-      "count": 3,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43136049556/job/130916942599"
+      "count": 2,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43214485518"
     },
     "e2e/output-debate-clock.spec.ts": {
       "since": "2026-11-11",
       "count": 2,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43020316776"
     },
+    "e2e/pack-import.spec.ts": {
+      "since": "2026-11-12",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43214485518"
+    },
+    "e2e/production-audience.spec.ts": {
+      "since": "2026-11-12",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43214485518"
+    },
     "e2e/publish-output-setup.spec.ts": {
       "since": "2026-11-11",
       "count": 3,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43062390990"
-    },
-    "e2e/ticker-linked-update.spec.ts": {
-      "since": "2026-11-12",
-      "count": 1,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43133336010"
     }
   },
   "released": {
@@ -85,6 +90,10 @@
     "e2e/configured/playout-switch-mid-flight.spec.ts": {
       "count": 1,
       "last": "2026-10-22"
+    },
+    "e2e/configured/production-data-key-tick.spec.ts": {
+      "count": 3,
+      "last": "2026-11-12"
     },
     "e2e/configured/production-data-key.spec.ts": {
       "count": 5,
@@ -162,10 +171,6 @@
       "count": 1,
       "last": "2026-10-21"
     },
-    "e2e/import-svg-corpus.spec.ts": {
-      "count": 1,
-      "last": "2026-10-18"
-    },
     "e2e/import-svg-credits.spec.ts": {
       "count": 1,
       "last": "2026-11-04"
@@ -201,6 +206,10 @@
     "e2e/rundown-history.spec.ts": {
       "count": 3,
       "last": "2026-10-30"
+    },
+    "e2e/ticker-linked-update.spec.ts": {
+      "count": 1,
+      "last": "2026-11-12"
     },
     "e2e/wizard-shell.spec.ts": {
       "count": 5,

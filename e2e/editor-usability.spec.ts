@@ -37,7 +37,8 @@ async function saveReopen(page: Page) {
   for (const key of ['html', 'css', 'js', 'fields', 'layers'] as const) expect(after[key]).toEqual(before[key]);
 }
 
-for (const name of ['Hairline', 'House Quiz']) for (const width of [1920, 1366, 1093]) {
+// One size: the smallest, where layouts break first (owner decision 2026-11-12, docs/work-specs/cicd-followup/evidence/land-study.md section 3.4).
+for (const name of ['Hairline', 'House Quiz']) for (const width of [1093]) {
   test('B02 B04 B13 usable authoring ' + name + ' ' + width, async ({ page }, info) => {
     await page.setViewportSize({ width, height: width === 1920 ? 1080 : width === 1366 ? 768 : 614 });
     const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));

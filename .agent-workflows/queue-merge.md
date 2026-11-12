@@ -155,6 +155,9 @@ operation by evidence, not the provider name. No laptop daemon is needed.
    `/check` and `npm run stamp` on the resulting tip. Push only task files and open/reuse its PR
    with `scripts/pr-description.mjs`. Retain the full reviewed SHA. Disposable failure probes
    stay draft with no `land` label, auto-merge or queue entry.
+   **One push per review round.** Fix every finding of a round, from every reviewer, in one push.
+   Do not push while your head's CI is running; once it has finished red, push one fix for every
+   failure it reported (verify.md section 3). Each push cancels the running run and starts anew.
 3. If status writes work, post `noacg/reviewed` on that SHA from the actual passing check and add
    `land`. Otherwise dispatch `.github/workflows/cloud-queue-merge.yml` **on main** with `branch`,
    `sha` and the actual review verdict. Observe existing verification first (verify.md);
