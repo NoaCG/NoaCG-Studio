@@ -234,7 +234,17 @@ test('a run that writes from its first step needs a local stack, not merely no r
     () => requireLocalStack({ VITE_SUPABASE_URL: `https://${DEFAULT_STAGING_REF}.supabase.co`, [DECLARATION]: HOSTED_STAGING }, 'the endurance walk'),
     /needs a local Supabase stack/,
   );
-  assert.equal(requireLocalStack(LOCAL_STACK, 'the endurance walk').kind, 'local');
+  // A half-named environment is the same fault in either direction: each half of the run reads
+  // its own variable, and the one left unset is filled from the environment file by the Vite
+  // server. LOCAL_STACK names only the browser's, so it is refused here although the configured
+  // suite would admit it.
+  assert.throws(() => requireLocalStack(LOCAL_STACK, 'the endurance walk'), /SUPABASE_URL must name the local stack too/);
+  assert.throws(
+    () => requireLocalStack({ SUPABASE_URL: 'http://127.0.0.1:54321', E2E_EMAIL: 'a@b.c', E2E_PASSWORD: 'x' }, 'the endurance walk'),
+    /VITE_SUPABASE_URL must name the local stack too/,
+  );
+  const whole = { ...LOCAL_STACK, ...localStackEnv({ API_URL: 'http://127.0.0.1:54321', ANON_KEY: 'fake-anon', SERVICE_ROLE_KEY: 'fake-service-role' }) };
+  assert.equal(requireLocalStack(whole, 'the endurance walk').kind, 'local');
   // And it is what both endurance configs ask for.
   for (const config of ['playwright.endurance.config.ts', 'e2e/endurance/editor-projects.config.ts']) {
     assert.match(file(config), /requireLocalStack\(process\.env/, config);
