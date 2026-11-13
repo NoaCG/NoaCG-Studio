@@ -68,8 +68,10 @@
   "inFlight": [
     {
       "phase": "E6C",
-      "step": "Fresh Cloud export/receiving builder active",
-      "note": "E6CfinalFULLSO runningONEfreshactor on569aac/base1178. Currentnativec456buildPASS5844tests/12helpers/cleanuptrue; all8ZIPs/source/notices/kit and23committedartifacthashes verified. Originalj148/j150/nativeFAIL retained; broader1/1/E5C3/3/E4spent unchanged. Finalreviewgrade thenPR/currentCI/Codex/queue/freshexactmergeacceptance required; realE5/E6/OW1 gates remain."
+      "step": "PR source CI/currenthead gates pending",
+      "pr": "2506",
+      "session": "/root/editor_e6c_cloud_builder",
+      "note": "Reviewed569FULLAandlocalcheckPASS; Codexactualcompletedclean, rootsoleownerACK6858505858/attached. CI43460781286 on569 owedall64configured/4stacks+181offline/15shards/catalog, CodeQL43460774127pending. main7451cleanintegrationmaterialwholeappdelta; nativec456source-specific. Rootnormalqueueafteractualgates; freshactualmergeacceptance remains. Allfailures/attempts preserved."
     }
   ],
   "owner": [
@@ -3129,13 +3131,58 @@
     },
     "technicalNoticesRootReadback": "Roothashedall8stagedZIPs total1831904byteactualj151matches; exact72927byteGSAPraw SHA92bb... present8/8; folderwoff2+fullSILlicense and inlineSILlicenseinsingleHTML verified; Caspar/OGraf Incapturesviewed. No legalclearance. Actualfullvendorterms inaccessibleONECONNECT403/status000; pinnedupstreamtreeNOlicensetext; no retainedfullsnapshotfound, preservefulltermsarchive+writtenvendor disposition as unmetOW1/G07prerequisite; no reconstruction/allowlistbypass.",
     "finalReview": {
-      "status": "ONE_FULL_SO_OUTSTANDING",
+      "status": "ACTUAL_COMPLETED_AGREE_A_ROOT_NATIVE_FULLREAD",
       "actor": "/root/editor_e6c_cloud_builder/final_full_review",
       "head": "569aaceb523ccdfbbbe4cf3cad2238667aeeea73",
       "base": "1178ac8e8b1c3cabef036e57a1a50c74576ebf93",
       "mode": "freshforknone/read-only/inheritedmodel-effort/nooverrides; noheavytests/build/browser/delegation",
-      "brief": "Exact3criteria+precodeRules/A+percriterioncode/artifact/sourcepins+alloriginalfailures/currentcaps/gaps; no acceptance selfaward."
+      "brief": "Exact3criteria+precodeRules/A+percriterioncode/artifact/sourcepins+alloriginalfailures/currentcaps/gaps; no acceptance selfaward.",
+      "receipt": "e6c-publication/final-full-so-569aace.md",
+      "sha256": "fc33cedb5c7a7afd4a6a5d28af67a0c4e5d73962964763768888142b3600e54b",
+      "prComment": 6858501092,
+      "evidence": "ActualnativeverbatimAindependentlyreadbyroot; no confirmeddefect/correction; reviewer23artifacthashes/8ZIPs/5toolkits/CLIintegrity/54independentquantizedcases+24capturehashes. Laterphysical/terms/consumerlimitskept."
     },
-    "finalKitRootReadback": "Rootreadfinalhandoff+verification/G07notes; independentlyreadactualcommitted23artifactblobs at569aac,2145856bytes,0size/hashmismatches. 8ZIPrawbytes/exactGSAPfontnotices verified; docsresourceobservations beforeload/held/Out/disposal andsourcepinseparationpresent. c456\u2192569docs/evidenceonly; no app/runtime/helper/lock change. Finaldocs5cheapgates/treeguardactualPASS; no furtherbuild/broadneeded."
+    "finalKitRootReadback": "Rootreadfinalhandoff+verification/G07notes; independentlyreadactualcommitted23artifactblobs at569aac,2145856bytes,0size/hashmismatches. 8ZIPrawbytes/exactGSAPfontnotices verified; docsresourceobservations beforeload/held/Out/disposal andsourcepinseparationpresent. c456\u2192569docs/evidenceonly; no app/runtime/helper/lock change. Finaldocs5cheapgates/treeguardactualPASS; no furtherbuild/broadneeded.",
+    "pr": 2506,
+    "prUrl": "https://github.com/NoaCG/NoaCG-Studio/pull/2506",
+    "attachment": "AttachedactualPR2506viaCodexartifacttool",
+    "repairOwner": {
+      "comment": 6858505858,
+      "sole": "active root6af455f4-b1c8-8191-86b2-8bfdfc619075 acknowledgedbeforebuilderends",
+      "attempts": "0PRrepairs; prePRannotationrepair+2manualadmissionsretained",
+      "wake": "no durablewake; rootstaysacceptance/postlanding"
+    },
+    "sourceCI": {
+      "run": 43460781286,
+      "head": "569aaceb523ccdfbbbe4cf3cad2238667aeeea73",
+      "attempt": 1,
+      "status": "software/configuredpending",
+      "planJob": 132006813178,
+      "rootPlan": "Qualifiedconnectoractualwholelog96075chars610lines; materializedMANIFEST parsed:all64configuredspecs/4stacks, quarantinecommand-sequenceexcludedsource. Whole reasons frozenfixture,blocks/animMigration,preview/composeDocument. Offline181specs/15shards+catalogtrue. No stamp/autoqueueyet.",
+      "codex": {
+        "comment": 6858490895,
+        "state": "Rootactualsummarycompletedexact569/has_any_findingsfalse/has_unresolved_findingsfalse",
+        "completedAt": "2026-11-13T16:16:58.788922Z"
+      },
+      "codeql": {
+        "run": 43460774127,
+        "status": "inprogress"
+      }
+    },
+    "mainReconciliation": {
+      "main": "7451fbbacf03a1c763b4e9939b7ed800c8faf5de",
+      "pr": 2488,
+      "delta": "33paths3207+/106-, materialbackendmigrations/productionautopublish/hostedoutputversion. No43pathoverlap. merge-treeclean0d44c49914d7381948862d3cfdf53a3f59ceb4c8; reviewed569unchanged/no merge/rebase. NormalPR/mergegroupcombinedsourcechecks/freshexactmergeacceptanceowed.",
+      "applicability": "DirectZIP exporter/preview/render/templates/fonts/lockpaths unchanged; existing ProductionPage and outputstagecomposeDocumentcallsremain; newpublishRevisionstagebuildOutputPayload notreceivingZIPbuilder. Currentc456nativeapp is source-specific, NOT wholemergedappidentity/currenthostedpublishacceptance. No thirdmanualbundleadmission."
+    },
+    "canonicalSideEnds": {
+      "head": "569aaceb523ccdfbbbe4cf3cad2238667aeeea73",
+      "files": 43,
+      "result": {
+        "ends": {},
+        "why": []
+      },
+      "rootActual": "Executedcanonicalphase-cf03-baseline.sideEnds inactualfeaturecwd onfullbase1178\u219256943paths."
+    }
   }
 }
