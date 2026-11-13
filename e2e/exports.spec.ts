@@ -306,6 +306,76 @@ Object.defineProperty(document, 'visibilityState', { configurable: true, get: fu
   await plain.close();
 });
 
+test('html overlay, settled (OBS scene fallback): at rest from load, no entrance, no automatic Out, deaf to OBS (obs-scenes OS3 AC-12)', async ({ page }) => {
+  await page.goto('/app');
+  const build = (settled: boolean) =>
+    page.evaluate(async (settled) => {
+      const { variantById } = await import('/src/templates/catalog.ts');
+      const { htmlOverlayTarget } = await import('/src/export/targets/htmlOverlay.ts');
+      const template = variantById('lt01')!.create({});
+      // An automatic Out after half a second: a settled file never takes it.
+      template.settings = { ...template.settings, out: '500' };
+      const zip = await htmlOverlayTarget.build(template, { settled, sampleData: { f0: 'SETTLED NAME' } });
+      return zip.file('hairline/hairline.html')!.async('string');
+    }, settled);
+  // Every frame's opacity of the graphic from the first, and every play, under a stand-in for
+  // obs-browser that loads the page in a scene not on air.
+  const harness = (html: string) =>
+    html.replace(
+      /<head>/i,
+      `<head><script>window.obsstudio = { pluginVersion: '2.26.9' };
+Object.defineProperty(document, 'visibilityState', { configurable: true, get: function () { return 'hidden'; } });
+window.frames_ = [];
+(function sample() {
+  var el = document.querySelector('.lower-third');
+  if (el) window.frames_.push(getComputedStyle(el).opacity);
+  requestAnimationFrame(sample);
+})();</script>`,
+    );
+  const frames = (view: Page) => view.evaluate(() => (window as unknown as { frames_: string[] }).frames_);
+  const opacity = (view: Page) => view.locator('.lower-third').evaluate((el) => getComputedStyle(el).opacity);
+  const obs = (view: Page, type: string, detail: Record<string, boolean>) =>
+    view.evaluate(([type, detail]) => window.dispatchEvent(new CustomEvent(type as string, { detail })), [type, detail] as const);
+
+  // Today's file, for contrast: under OBS, loaded off air, it waits for program; on program it enters,
+  // and the frames show it, which is what makes the frame check below mean something.
+  const plain = await page.context().newPage();
+  await plain.setContent(harness(await build(false)), { waitUntil: 'load' });
+  await plain.waitForTimeout(400);
+  expect(await opacity(plain)).not.toBe('1');
+  await obs(plain, 'obsSourceActiveChanged', { active: true });
+  await expect.poll(() => opacity(plain)).toBe('1');
+  expect((await frames(plain)).filter((o) => o !== '0' && o !== '1').length, 'an entrance is seen frame by frame').toBeGreaterThan(0);
+  await plain.close();
+
+  const settled = await build(true);
+  expect(settled).toContain('Settled autoplay for an OBS scene fallback');
+  const view = await page.context().newPage();
+  await view.setContent(harness(settled), { waitUntil: 'load' });
+  // On air from load, though OBS has said nothing, with the exported value.
+  await expect.poll(() => opacity(view)).toBe('1');
+  await expect(view.locator('body')).toContainText('SETTLED NAME');
+  // No frame of an entrance: before it is drawn at rest, it is not drawn at all.
+  const seen = await frames(view);
+  expect(seen.filter((o) => o !== '0' && o !== '1'), 'no frame between rest and nothing').toEqual([]);
+  // OBS hiding it, showing it, taking it off program: nothing moves. No automatic Out either.
+  await obs(view, 'obsSourceActiveChanged', { active: false });
+  await obs(view, 'obsSourceVisibleChanged', { visible: false });
+  await obs(view, 'obsSourceActiveChanged', { active: true });
+  await view.waitForTimeout(1500);
+  expect(await opacity(view)).toBe('1');
+  // A Stop and a Play from the panel: the play is settled too, with no frame of an entrance.
+  await view.evaluate(() => (window as unknown as { stop(): void }).stop());
+  await expect.poll(() => opacity(view)).toBe('0');
+  await view.evaluate(() => {
+    (window as unknown as { frames_: string[] }).frames_ = [];
+    (window as unknown as { play(): void }).play();
+  });
+  await expect.poll(() => opacity(view)).toBe('1');
+  expect((await frames(view)).filter((o) => o !== '0' && o !== '1')).toEqual([]);
+  await view.close();
+});
+
 test('casparcg: one self-contained html that speaks JSON and CasparCG XML', async ({ page }) => {
   await createHairline(page);
   const zip = await downloadTarget(page, 'CasparCG export');
