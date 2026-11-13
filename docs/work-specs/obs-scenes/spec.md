@@ -1292,3 +1292,32 @@ Filled in by each phase's pull request.
   - K3 departure, stated in the pull request: the spec says "while OBS state is unknown"; K3 also
     falls back to the pick while OBS state is known but no scene is on program (all hidden, or
     OBS on a scene with no NoaCG link), since there is no program scene to show then either.
+- Rules found after coding, by the `/check` review: the selection line reads the page's own
+  selection, its first cue until one is picked, since that is what a Take key airs (K2); the
+  health line stays one line and the note sits below every control, so neither moves one (K5);
+  "Set" resolves the time through `clockTarget.ts` (T1, T4): a time the clocks skip that day writes
+  nothing and says so; a held value reads back only as the clock reads it (an impossible date or
+  hour is no deadline) (K7); the dock lists the graphics that read a Sheet in their own code, as
+  the data panel does (K8); the analytics consent banner does not show over the dock.
+- Previous verified `main`: `a71607a977fa4b57db908a5a63fa589b977f551d` (CI run 43475994487,
+  configured suite 43475994875).
+- Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed and no
+  migration. A `#/dock/<id>` link left in an OBS dock then opens Home; a deadline the dock wrote stays
+  in the tree as an ordinary value, still counted by the countdown bound to it.
+- Decisions: the dock is the production page with a different render (`ProductionPage` `dock`), so
+  Companion, Take and Out, the sources and the tree have one implementation, and two pages on one
+  production behave as a production page in a second browser always has. Its address is a route of
+  the app (`/app#/dock/<id>`), not a new `/dock` page: same boot, same sign-in, no new entry page,
+  no Vercel rewrite. The dock mounts no monitors, so the OBS process draws no second copy of the
+  graphics. Its link is in Playout settings' OBS scenes section. The deadline target is found from
+  the countdown's own emitted clock (`clockTargetSeconds`), so no field id or title is written into
+  the product. `sceneCueMap` in `model/obsScenes.ts` is C1's one reading of a scene's cues, shared
+  with the scene links. Not taken from the simplify pass: a shared header panel-status component
+  (it would change `ProductionShell.tsx`), the clock's regex as a shared constant (it is emitted
+  template code), and an earlier return for the dock (the panel feed after it must run for
+  Companion).
+- Traps: Companion's selection keys act on the dock's own selection, not the browser page's: two
+  pages, two cursors, as two production pages always were; the dock shows its own. A production
+  saved only in the browser's local storage does not exist in OBS's browser: the dock needs an
+  account production. The dock's link carries the production id, not its slug.
+- Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS6.md`.
