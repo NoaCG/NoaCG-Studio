@@ -43,14 +43,15 @@
   "inFlight": [
     {
       "phase": "OS3",
-      "step": "build",
+      "step": "queued",
       "actor": "builder-os3-os3-b-93dc",
       "session": "session_017SdbwPT8nwgrvw769ME9gG",
       "branch": "claude/plan-obs-scenes-os3-build",
       "launchedAt": "2026-11-13T13:33:11Z",
       "note": "sent brief = saved brief plus one NOTES line (#2474 and #2454 folded in; amended D9; #2493 landing alongside)",
       "pr": 2500,
-      "lastSeen": "2026-11-13T16:26Z builder running, head f89eeb80 pushed 16:11, CI starting"
+      "lastSeen": "2026-11-13T16:50Z receipt; CI 43463527661 green (64 specs); full /so A on f89eeb80, notes-only delta read by coordinator; stamped, auto-merge on. OS7 items from builder: rows and tick in real OBS, shared source on a direct Cut, settled fallback offline.",
+      "reviewedHead": "277008ad36d49a333d37924b65489156c8f209e5"
     }
   ],
   "owner": [
@@ -129,6 +130,10 @@
     {
       "what": "OS2 checker nit: AC-13's stinger line is not marked as moved to AC-14; fix the wording with the next docs change (OS7 hand-over)",
       "since": "2026-11-13T10:39Z"
+    },
+    {
+      "what": "OS7 hand-over must include OS3's owner rows: scene rows and the walk-through tick in real OBS, a shared source on a direct Cut, the settled fallback group offline",
+      "since": "2026-11-13T16:49Z"
     }
   ]
 }
