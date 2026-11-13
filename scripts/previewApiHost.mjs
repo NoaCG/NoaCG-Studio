@@ -3,12 +3,12 @@
 // The dev plugins (aiDevPlugin, renderDevPlugin, eventsDevPlugin, meDevPlugin, dataDevPlugin) mount
 // the REAL api/ handlers and load them with the dev server's `ssrLoadModule`, so the offline
 // browser suite talks to the same code production runs. A preview server serves a built app and has
-// no module loader of its own, so a suite run against the e2e build (`npm run build:e2e`) would meet
-// a 404 on every /api route. This gives each plugin the three things it uses from a dev server -
+// no module loader of its own, so a suite run against a built app would meet a 404 on every /api
+// route. This gives each plugin the three things it uses from a dev server -
 // `middlewares`, `config` and `ssrLoadModule` - on a preview server. The loader is ONE middleware-mode
 // Vite server per preview server, made on the first api request and closed with the preview.
-// `configFile: false` keeps the app's plugins out of it: it only transforms api/ modules, and the
-// app's own plugins would reserve a dev port and mount these routes a second time.
+// `configFile: false` keeps the app's config out of it: it only transforms api/ modules, which read
+// process.env and need none of the app's plugins (React, the generated pages, skew protection).
 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -30,9 +30,11 @@ export function previewApiHost(preview) {
       logLevel: 'error',
       server: { middlewareMode: true, hmr: false, watch: null },
     }));
+    // A loader that failed to start is not kept: the next request tries again.
+    loader.catch(() => { loader = null; });
     return loader;
   };
-  preview.httpServer.once('close', () => { if (loader) void loader.then((server) => server.close()); });
+  preview.httpServer.once('close', () => { if (loader) loader.then((server) => server.close(), () => {}); });
   host = {
     middlewares: preview.middlewares,
     config: preview.config,
