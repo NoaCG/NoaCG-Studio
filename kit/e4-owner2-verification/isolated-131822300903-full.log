@@ -1,0 +1,1125 @@
+﻿2026-11-13T10:06:40.6184222Z Current runner version: '2.338.2'
+2026-11-13T10:06:40.6211285Z ##[group]Runner Image Provisioner
+2026-11-13T10:06:40.6212334Z Hosted Compute Agent
+2026-11-13T10:06:40.6212941Z Version: 20261028.624
+2026-11-13T10:06:40.6213696Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-13T10:06:40.6214454Z Build Date: 2026-10-28T21:51:42Z
+2026-11-13T10:06:40.6215208Z Worker ID: {b5a2c263-517c-440f-afde-efff57b331df}
+2026-11-13T10:06:40.6216035Z Region: northcentralus
+2026-11-13T10:06:40.6216657Z Cloud: Azure
+2026-11-13T10:06:40.6217322Z ##[endgroup]
+2026-11-13T10:06:40.6219300Z ##[group]Operating System
+2026-11-13T10:06:40.6220090Z Ubuntu
+2026-11-13T10:06:40.6220760Z 26.04.1
+2026-11-13T10:06:40.6221312Z LTS
+2026-11-13T10:06:40.6222638Z ##[endgroup]
+2026-11-13T10:06:40.6223248Z ##[group]Runner Image
+2026-11-13T10:06:40.6223878Z Image: ubuntu-26.04
+2026-11-13T10:06:40.6224594Z Version: 20261101.186.1
+2026-11-13T10:06:40.6226132Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-13T10:06:40.6228120Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261101.186
+2026-11-13T10:06:40.6229148Z ##[endgroup]
+2026-11-13T10:06:40.6230438Z ##[group]GITHUB_TOKEN Permissions
+2026-11-13T10:06:40.6232773Z Contents: read
+2026-11-13T10:06:40.6233582Z Metadata: read
+2026-11-13T10:06:40.6234216Z ##[endgroup]
+2026-11-13T10:06:40.6236807Z Secret source: Actions
+2026-11-13T10:06:40.6238108Z Cache mode: write
+2026-11-13T10:06:40.6239148Z Prepare workflow directory
+2026-11-13T10:06:40.6603800Z Prepare all required actions
+2026-11-13T10:06:40.6653706Z Getting action download info
+2026-11-13T10:06:40.8928999Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+2026-11-13T10:06:41.0146439Z Download action repository 'actions/setup-node@v5' (SHA:a0853c24544627f65ddf259abe73b1d18a591444)
+2026-11-13T10:06:41.2506542Z Download action repository 'supabase/setup-cli@v1' (SHA:1dedf2c611547ede7232d26866dd3c56ab903bbb)
+2026-11-13T10:06:41.5212088Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-11-13T10:06:41.7198927Z Complete job name: qualify:editor-projects for 5 min
+2026-11-13T10:06:41.8054511Z ##[group]Run case "$SCRIPT" in
+2026-11-13T10:06:41.8055205Z [36;1mcase "$SCRIPT" in[0m
+2026-11-13T10:06:41.8056136Z [36;1m  ''|*[!A-Za-z0-9:._-]*) echo "::error title=Bad script::the script input is not an npm script name"; exit 1 ;;[0m
+2026-11-13T10:06:41.8057045Z [36;1mesac[0m
+2026-11-13T10:06:41.8058090Z [36;1m# A pattern, not arithmetic: a long digit string would overflow `[ -lt ]`, which then[0m
+2026-11-13T10:06:41.8059050Z [36;1m# fails as a condition instead of stopping the step.[0m
+2026-11-13T10:06:41.8059708Z [36;1mcase "$MINUTES" in[0m
+2026-11-13T10:06:41.8060226Z [36;1m  [1-9]|[1-6][0-9]|7[0-5]) ;;[0m
+2026-11-13T10:06:41.8061249Z [36;1m  *) echo "::error title=Bad minutes::minutes must be a whole number from 1 to 75, so the run ends inside the 90-minute job"; exit 1 ;;[0m
+2026-11-13T10:06:41.8062265Z [36;1mesac[0m
+2026-11-13T10:06:41.8124629Z shell: /usr/bin/bash -e {0}
+2026-11-13T10:06:41.8125542Z env:
+2026-11-13T10:06:41.8126129Z   SCRIPT: qualify:editor-projects
+2026-11-13T10:06:41.8126666Z   MINUTES: 5
+2026-11-13T10:06:41.8127093Z ##[endgroup]
+2026-11-13T10:06:41.8499895Z ##[group]Run actions/checkout@v5
+2026-11-13T10:06:41.8500513Z with:
+2026-11-13T10:06:41.8500963Z   repository: NoaCG/NoaCG-Studio
+2026-11-13T10:06:41.8505235Z   token: ***
+2026-11-13T10:06:41.8505691Z   ssh-strict: true
+2026-11-13T10:06:41.8506149Z   ssh-user: git
+2026-11-13T10:06:41.8506692Z   persist-credentials: true
+2026-11-13T10:06:41.8507227Z   clean: true
+2026-11-13T10:06:41.8507870Z   sparse-checkout-cone-mode: true
+2026-11-13T10:06:41.8508401Z   fetch-depth: 1
+2026-11-13T10:06:41.8508841Z   fetch-tags: false
+2026-11-13T10:06:41.8509291Z   show-progress: true
+2026-11-13T10:06:41.8509742Z   lfs: false
+2026-11-13T10:06:41.8510168Z   submodules: false
+2026-11-13T10:06:41.8510951Z   set-safe-directory: true
+2026-11-13T10:06:41.8511479Z   allow-unsafe-pr-checkout: false
+2026-11-13T10:06:41.8512012Z ##[endgroup]
+2026-11-13T10:06:42.0849044Z Syncing repository: NoaCG/NoaCG-Studio
+2026-11-13T10:06:42.0852309Z ##[group]Getting Git version info
+2026-11-13T10:06:42.0853750Z Working directory is '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+2026-11-13T10:06:42.0855638Z [command]/usr/bin/git version
+2026-11-13T10:06:42.0872786Z git version 2.56.0
+2026-11-13T10:06:42.0898556Z ##[endgroup]
+2026-11-13T10:06:42.0916745Z Temporarily overriding HOME='/home/runner/work/_temp/fd7e8c5c-14a4-4b30-9334-98aab4f6765e' before making global git config changes
+2026-11-13T10:06:42.0919345Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-13T10:06:42.0923723Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-13T10:06:42.0998708Z Deleting the contents of '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+2026-11-13T10:06:42.1004457Z ##[group]Initializing the repository
+2026-11-13T10:06:42.1012079Z [command]/usr/bin/git init /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-13T10:06:42.1110748Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-13T10:06:42.1112892Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-13T10:06:42.1114575Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-13T10:06:42.1115981Z hint: call:
+2026-11-13T10:06:42.1117028Z hint:
+2026-11-13T10:06:42.1118192Z hint: 	git config --global init.defaultBranch <name>
+2026-11-13T10:06:42.1119279Z hint:
+2026-11-13T10:06:42.1120345Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-13T10:06:42.1121810Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-13T10:06:42.1123108Z hint:
+2026-11-13T10:06:42.1123823Z hint: 	git branch -m <name>
+2026-11-13T10:06:42.1124687Z hint:
+2026-11-13T10:06:42.1125773Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-13T10:06:42.1127132Z Initialized empty Git repository in /home/runner/work/NoaCG-Studio/NoaCG-Studio/.git/
+2026-11-13T10:06:42.1242445Z [command]/usr/bin/git remote add origin https://github.com/NoaCG/NoaCG-Studio
+2026-11-13T10:06:42.1247151Z ##[endgroup]
+2026-11-13T10:06:42.1249106Z ##[group]Disabling automatic garbage collection
+2026-11-13T10:06:42.1250571Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-13T10:06:42.1259894Z ##[endgroup]
+2026-11-13T10:06:42.1261182Z ##[group]Setting up auth
+2026-11-13T10:06:42.1270320Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-13T10:06:42.1314567Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-13T10:06:42.1806518Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-13T10:06:42.1859355Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-13T10:06:42.2180849Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-13T10:06:42.2222330Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-13T10:06:42.2541668Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-13T10:06:42.2586763Z ##[endgroup]
+2026-11-13T10:06:42.2588556Z ##[group]Fetching the repository
+2026-11-13T10:06:42.2599819Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +33380c2ffafc005b07cde8ca0e5cc17f7329de39:refs/remotes/origin/codex/plan-editor-r1-5-e4-build
+2026-11-13T10:06:46.7754187Z From https://github.com/NoaCG/NoaCG-Studio
+2026-11-13T10:06:46.7755565Z  * [new ref]         33380c2ffafc005b07cde8ca0e5cc17f7329de39 -> origin/codex/plan-editor-r1-5-e4-build
+2026-11-13T10:06:46.7758136Z ##[endgroup]
+2026-11-13T10:06:46.7758693Z ##[group]Determining the checkout info
+2026-11-13T10:06:46.7759444Z ##[endgroup]
+2026-11-13T10:06:46.7760767Z [command]/usr/bin/git sparse-checkout disable
+2026-11-13T10:06:46.7819878Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-13T10:06:46.7855827Z ##[group]Checking out the ref
+2026-11-13T10:06:46.7863019Z [command]/usr/bin/git checkout --progress --force -B codex/plan-editor-r1-5-e4-build refs/remotes/origin/codex/plan-editor-r1-5-e4-build
+2026-11-13T10:06:47.6112586Z Switched to a new branch 'codex/plan-editor-r1-5-e4-build'
+2026-11-13T10:06:47.6115585Z branch 'codex/plan-editor-r1-5-e4-build' set up to track 'origin/codex/plan-editor-r1-5-e4-build'.
+2026-11-13T10:06:47.6152463Z ##[endgroup]
+2026-11-13T10:06:47.6210385Z [command]/usr/bin/git log -1 --format=%H
+2026-11-13T10:06:47.6245407Z 33380c2ffafc005b07cde8ca0e5cc17f7329de39
+2026-11-13T10:06:47.6489695Z ##[group]Run actions/setup-node@v5
+2026-11-13T10:06:47.6490042Z with:
+2026-11-13T10:06:47.6490260Z   node-version: 24
+2026-11-13T10:06:47.6490479Z   cache: npm
+2026-11-13T10:06:47.6490696Z   always-auth: false
+2026-11-13T10:06:47.6490939Z   check-latest: false
+2026-11-13T10:06:47.6493820Z   token: ***
+2026-11-13T10:06:47.6494052Z   package-manager-cache: true
+2026-11-13T10:06:47.6494326Z ##[endgroup]
+2026-11-13T10:06:47.8067635Z (node:2406) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-13T10:06:47.8068799Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-13T10:06:47.8070798Z Found in cache @ /opt/hostedtoolcache/node/24.22.2/x64
+2026-11-13T10:06:47.8071662Z ##[group]Environment details
+2026-11-13T10:06:48.1811709Z node: v24.22.2
+2026-11-13T10:06:48.1812176Z npm: 11.19.1
+2026-11-13T10:06:48.1812552Z yarn: 1.22.22
+2026-11-13T10:06:48.1813261Z ##[endgroup]
+2026-11-13T10:06:48.1837861Z [command]/opt/hostedtoolcache/node/24.22.2/x64/bin/npm config get cache
+2026-11-13T10:06:48.3413288Z /home/runner/.npm
+2026-11-13T10:06:48.4797667Z Cache hit for: node-cache-Linux-x64-npm-f6534e8efbcb185272d21504ced33f1ba33b656490018118e5beb65abcf01961
+2026-11-13T10:06:48.4911634Z (node:2406) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-13T10:06:49.6099751Z Received 120455307 of 124649611 (96.6%), 114.8 MBs/sec
+2026-11-13T10:06:50.5419512Z Received 124649611 of 124649611 (100.0%), 61.6 MBs/sec
+2026-11-13T10:06:50.5448869Z Cache Size: ~119 MB (124649611 B)
+2026-11-13T10:06:50.5508167Z [command]/usr/bin/tar -xf /home/runner/work/_temp/554e79ae-73cb-4997-95da-eeb7a59a7129/cache.tzst -P -C /home/runner/work/NoaCG-Studio/NoaCG-Studio --use-compress-program unzstd
+2026-11-13T10:06:50.8300491Z Cache restored successfully
+2026-11-13T10:06:50.8361490Z Cache restored from key: node-cache-Linux-x64-npm-f6534e8efbcb185272d21504ced33f1ba33b656490018118e5beb65abcf01961
+2026-11-13T10:06:50.8792854Z Prepare all required actions
+2026-11-13T10:06:50.8793452Z Getting action download info
+2026-11-13T10:06:50.9830136Z Download action repository 'actions/cache@v4' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-11-13T10:06:51.0651940Z ##[group]Run ./.github/actions/node-modules
+2026-11-13T10:06:51.0652260Z ##[endgroup]
+2026-11-13T10:06:51.0713569Z ##[start-action display=Resolve Node version;id=__self.node]
+2026-11-13T10:06:51.0744981Z ##[group]Run echo "major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"
+2026-11-13T10:06:51.0745662Z [36;1mecho "major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"[0m
+2026-11-13T10:06:51.0809212Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-13T10:06:51.0809837Z ##[endgroup]
+2026-11-13T10:06:51.1264785Z ##[end-action id=__self.node;outcome=success;conclusion=success;duration_ms=55]
+2026-11-13T10:06:51.1270010Z ##[start-action display=Cache node_modules;id=__self.cache]
+2026-11-13T10:06:51.2031423Z ##[group]Run actions/cache@v4
+2026-11-13T10:06:51.2031743Z with:
+2026-11-13T10:06:51.2032029Z   path: node_modules
+player-host/node_modules
+
+2026-11-13T10:06:51.2032648Z   key: node-modules-Linux-X64-node24-f1dfe0bfed7230bd92eb2b1be24317a071fb0858feb2f2be283bb7b0c6487acc
+2026-11-13T10:06:51.2033245Z   enableCrossOsArchive: false
+2026-11-13T10:06:51.2033593Z   fail-on-cache-miss: false
+2026-11-13T10:06:51.2033843Z   lookup-only: false
+2026-11-13T10:06:51.2034064Z   save-always: false
+2026-11-13T10:06:51.2034293Z ##[endgroup]
+2026-11-13T10:06:51.3225030Z (node:2477) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-13T10:06:51.3225921Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-13T10:06:51.4394353Z Cache hit for: node-modules-Linux-X64-node24-f1dfe0bfed7230bd92eb2b1be24317a071fb0858feb2f2be283bb7b0c6487acc
+2026-11-13T10:06:51.4526618Z (node:2477) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-13T10:06:52.5837978Z Received 117440512 of 132996532 (88.3%), 111.8 MBs/sec
+2026-11-13T10:06:52.7377146Z Received 132996532 of 132996532 (100.0%), 109.2 MBs/sec
+2026-11-13T10:06:52.7379795Z Cache Size: ~127 MB (132996532 B)
+2026-11-13T10:06:52.7492978Z [command]/usr/bin/tar -xf /home/runner/work/_temp/c91348cd-cdce-4cfd-b368-bd499d90d49e/cache.tzst -P -C /home/runner/work/NoaCG-Studio/NoaCG-Studio --use-compress-program unzstd
+2026-11-13T10:06:54.2143060Z Cache restored successfully
+2026-11-13T10:06:54.2370746Z Cache restored from key: node-modules-Linux-X64-node24-f1dfe0bfed7230bd92eb2b1be24317a071fb0858feb2f2be283bb7b0c6487acc
+2026-11-13T10:06:54.2507720Z ##[end-action id=__self.cache;outcome=success;conclusion=success;duration_ms=3123]
+2026-11-13T10:06:54.2510538Z ##[start-action display=npm ci;id=__self.__run]
+2026-11-13T10:06:54.2522187Z ##[end-action id=__self.__run;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-13T10:06:54.2524555Z ##[start-action display=Regenerate install-time artifacts;id=__self.__run_2]
+2026-11-13T10:06:54.2548210Z ##[group]Run npm run postinstall
+2026-11-13T10:06:54.2548536Z [36;1mnpm run postinstall[0m
+2026-11-13T10:06:54.2606308Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-13T10:06:54.2606698Z ##[endgroup]
+2026-11-13T10:06:54.3741240Z 
+2026-11-13T10:06:54.3742045Z > noacg-studio@0.1.0 postinstall
+2026-11-13T10:06:54.3742884Z > node scripts/dev-port.mjs && node scripts/gen-video-font-css.mjs && node scripts/build-player-host.mjs
+2026-11-13T10:06:54.3743346Z 
+2026-11-13T10:06:54.4230305Z 5174
+2026-11-13T10:06:54.5184404Z [video-fonts] wrote 521370 chars of @font-face CSS -> render-worker/remotion/videoFontFaces.generated.ts
+2026-11-13T10:06:54.6101915Z [player-host] npm run build
+2026-11-13T10:06:54.7191383Z 
+2026-11-13T10:06:54.7192672Z > noacg-player-host@0.1.0 build
+2026-11-13T10:06:54.7193063Z > vite build
+2026-11-13T10:06:54.7193209Z 
+2026-11-13T10:06:54.9609724Z [36mvite v8.3.4 [32mbuilding client environment for production...[36m[39m
+2026-11-13T10:06:54.9699536Z transforming...
+2026-11-13T10:06:55.0279274Z ✓ 21 modules transformed.
+2026-11-13T10:06:55.0515899Z rendering chunks...
+2026-11-13T10:06:55.1143007Z computing gzip size...
+2026-11-13T10:06:55.1224350Z ../public/player-host/index.html                  0.69 kB │ gzip:   0.43 kB
+2026-11-13T10:06:55.1225176Z ../public/player-host/assets/index-BRpXzI9k.js  460.89 kB │ gzip: 145.29 kB
+2026-11-13T10:06:55.1225530Z 
+2026-11-13T10:06:55.1241090Z [32m✓ built in 162ms[39m
+2026-11-13T10:06:55.1563297Z [player-host] built into public/player-host/ (single self-contained page)
+2026-11-13T10:06:55.1730434Z ##[end-action id=__self.__run_2;outcome=success;conclusion=success;duration_ms=920]
+2026-11-13T10:06:55.1788501Z Prepare all required actions
+2026-11-13T10:06:55.1789082Z Getting action download info
+2026-11-13T10:06:55.3035297Z ##[group]Run ./.github/actions/playwright-chromium
+2026-11-13T10:06:55.3035643Z ##[endgroup]
+2026-11-13T10:06:55.3040901Z ##[start-action display=Resolve Playwright version;id=__self_2.version]
+2026-11-13T10:06:55.3058458Z ##[group]Run echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+2026-11-13T10:06:55.3059218Z [36;1mecho "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"[0m
+2026-11-13T10:06:55.3114796Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-13T10:06:55.3115183Z ##[endgroup]
+2026-11-13T10:06:55.3552385Z ##[end-action id=__self_2.version;outcome=success;conclusion=success;duration_ms=51]
+2026-11-13T10:06:55.3554921Z ##[start-action display=Cache Playwright browser;id=__self_2.cache]
+2026-11-13T10:06:55.3598263Z ##[group]Run actions/cache@v4
+2026-11-13T10:06:55.3598618Z with:
+2026-11-13T10:06:55.3598857Z   path: ~/.cache/ms-playwright
+2026-11-13T10:06:55.3599151Z   key: playwright-Linux-1.61.1
+2026-11-13T10:06:55.3599424Z   enableCrossOsArchive: false
+2026-11-13T10:06:55.3599693Z   fail-on-cache-miss: false
+2026-11-13T10:06:55.3599955Z   lookup-only: false
+2026-11-13T10:06:55.3600188Z   save-always: false
+2026-11-13T10:06:55.3600414Z ##[endgroup]
+2026-11-13T10:06:55.4709085Z (node:2575) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-13T10:06:55.4710037Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-13T10:06:55.5986334Z Cache hit for: playwright-Linux-1.61.1
+2026-11-13T10:06:55.6110905Z (node:2575) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-13T10:06:56.7212783Z Received 134217728 of 274154549 (49.0%), 128.0 MBs/sec
+2026-11-13T10:06:57.5113000Z Received 274154549 of 274154549 (100.0%), 146.0 MBs/sec
+2026-11-13T10:06:57.5114775Z Cache Size: ~261 MB (274154549 B)
+2026-11-13T10:06:57.5230603Z [command]/usr/bin/tar -xf /home/runner/work/_temp/00250408-4742-4df2-8916-520168c9eb57/cache.tzst -P -C /home/runner/work/NoaCG-Studio/NoaCG-Studio --use-compress-program unzstd
+2026-11-13T10:06:58.6692871Z Cache restored successfully
+2026-11-13T10:06:58.6905501Z Cache restored from key: playwright-Linux-1.61.1
+2026-11-13T10:06:58.7037271Z ##[end-action id=__self_2.cache;outcome=success;conclusion=success;duration_ms=3348]
+2026-11-13T10:06:58.7041543Z ##[start-action display=Install Playwright browser;id=__self_2.__run]
+2026-11-13T10:06:58.7051483Z ##[end-action id=__self_2.__run;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-13T10:06:58.7054478Z ##[start-action display=Install Playwright system dependencies (bounded);id=__self_2.__run_2]
+2026-11-13T10:06:58.7061911Z ##[end-action id=__self_2.__run_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-13T10:06:58.7102185Z ##[group]Run node -e 'const name = process.argv[1]; if (!(require("./package.json").scripts ?? {})[name]) { console.log(`::error title=No such script::package.json has no script "${name}"`); process.exit(1); }' "$SCRIPT"
+2026-11-13T10:06:58.7103566Z [36;1mnode -e 'const name = process.argv[1]; if (!(require("./package.json").scripts ?? {})[name]) { console.log(`::error title=No such script::package.json has no script "${name}"`); process.exit(1); }' "$SCRIPT"[0m
+2026-11-13T10:06:58.7157951Z shell: /usr/bin/bash -e {0}
+2026-11-13T10:06:58.7158248Z env:
+2026-11-13T10:06:58.7158490Z   SCRIPT: qualify:editor-projects
+2026-11-13T10:06:58.7158798Z ##[endgroup]
+2026-11-13T10:06:58.7581889Z ##[group]Run supabase/setup-cli@v1
+2026-11-13T10:06:58.7582205Z with:
+2026-11-13T10:06:58.7582626Z   version: 2.111.0
+2026-11-13T10:06:58.7582874Z ##[endgroup]
+2026-11-13T10:06:59.4066931Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/6ef3e71f-2d55-41d2-a5ba-5725ccf842b7 -f /home/runner/work/_temp/f88ad40c-85ae-4e81-bf76-0e92ffe094c2
+2026-11-13T10:07:00.8841240Z ##[group]Run node scripts/configured-stack.mjs up --exclude studio,edge-runtime
+2026-11-13T10:07:00.8842077Z [36;1mnode scripts/configured-stack.mjs up --exclude studio,edge-runtime[0m
+2026-11-13T10:07:00.8903273Z shell: /usr/bin/bash -e {0}
+2026-11-13T10:07:00.8903732Z ##[endgroup]
+2026-11-13T10:07:00.9328161Z ephemeral range (ip_local_port_range): 32768	60999
+2026-11-13T10:07:01.3904960Z SUPABASE_WORKDIR=/tmp/noacg-configured-stacks/slot-0
+2026-11-13T10:07:01.3905805Z NOACG_STACK_PROJECT=noacg-studio-s0
+2026-11-13T10:07:01.3906346Z NOACG_STACK_SLOT=0
+2026-11-13T10:07:01.3942363Z ##[notice]project noacg-studio-s0, ports 54320-54329 reserved and free, owner GitHub Actions 1000126483:43406588586:1:run
+2026-11-13T10:07:01.8974114Z WARN: config section [inbucket] is deprecated. Please use [local_smtp] instead.
+2026-11-13T10:07:02.5493249Z 2.8.1: Pulling from supabase/kong
+2026-11-13T10:07:02.5957238Z v1.30.2: Pulling from supabase/mailpit
+2026-11-13T10:07:02.6136403Z 15.8.1.085: Pulling from supabase/postgres
+2026-11-13T10:07:02.6425531Z v0.96.6: Pulling from supabase/postgres-meta
+2026-11-13T10:07:02.7151337Z v2.147.1: Pulling from supabase/realtime
+2026-11-13T10:07:02.7268063Z b87ddba4145f: Pulling fs layer
+2026-11-13T10:07:02.7269202Z 4e5b5a409361: Pulling fs layer
+2026-11-13T10:07:02.7269754Z 4f4fb700ef54: Pulling fs layer
+2026-11-13T10:07:02.7270450Z ab6d1e52f2bb: v2.194.0: Pulling from supabase/gotrue
+2026-11-13T10:07:02.7270999Z Pulling fs layer
+2026-11-13T10:07:02.7271448Z bec4cd2d8288: Pulling fs layer
+2026-11-13T10:07:02.7271916Z 848b1c5912e5: Pulling fs layer
+2026-11-13T10:07:02.7272402Z 4f4fb700ef54: Pulling fs layer
+2026-11-13T10:07:02.7272861Z 814dd06d26c7: Pulling fs layer
+2026-11-13T10:07:02.7273358Z 213ec9aee27d: Pulling fs layer
+2026-11-13T10:07:02.7273819Z a70653f7a2d5: Pulling fs layer
+2026-11-13T10:07:02.7274276Z 531e3bd93090: Pulling fs layer
+2026-11-13T10:07:02.7274736Z e12ac39a69ef: Pulling fs layer
+2026-11-13T10:07:02.7275202Z 2d3eb0cf3634: Pulling fs layer
+2026-11-13T10:07:02.7275689Z 14c7c40f264e: Pulling fs layer
+2026-11-13T10:07:02.7276163Z 7e1afeac9515: Pulling fs layer
+2026-11-13T10:07:02.7283908Z 44bd6c2c1e25: Pulling fs layer
+2026-11-13T10:07:02.7284542Z cb6a11cda9f8: Pulling fs layer
+2026-11-13T10:07:02.7285055Z 7dd51689e5de: Pulling fs layer
+2026-11-13T10:07:02.7285556Z addf9dc09fca: Pulling fs layer
+2026-11-13T10:07:02.7286045Z 5d4d12d40ee2: Pulling fs layer
+2026-11-13T10:07:02.7286536Z 04364d336696: Pulling fs layer
+2026-11-13T10:07:02.7290847Z e68f98342a0d: Pulling fs layer
+2026-11-13T10:07:02.7291380Z 484e22708485: Pulling fs layer
+2026-11-13T10:07:02.7291895Z 4f4fb700ef54: Pulling fs layer
+2026-11-13T10:07:02.7292371Z 5904fe0a8541: Pulling fs layer
+2026-11-13T10:07:02.7292867Z 826b8d755762: Pulling fs layer
+2026-11-13T10:07:02.7293379Z 13b7e930469f: Pulling fs layer
+2026-11-13T10:07:02.7293862Z 1f04457496a9: Pulling fs layer
+2026-11-13T10:07:02.7294336Z 2a75afedac1e: Pulling fs layer
+2026-11-13T10:07:02.7294822Z 5bd4dd8b80e3: Pulling fs layer
+2026-11-13T10:07:02.7306426Z c61d94d80b8d: Pulling fs layer
+2026-11-13T10:07:02.7307077Z cef3e4219e2d: Pulling fs layer
+2026-11-13T10:07:02.7307881Z a00ab32c0cad: Pulling fs layer
+2026-11-13T10:07:02.7308492Z 95553dc9aee4: Pulling fs layer
+2026-11-13T10:07:02.7309082Z 7df60113bd5f: Pulling fs layer
+2026-11-13T10:07:02.7309767Z fff1a581b40e: Pulling fs layer
+2026-11-13T10:07:02.7310460Z 1f87a4556ee4: Pulling fs layer
+2026-11-13T10:07:02.7311013Z 586e7e55dc38: Pulling fs layer
+2026-11-13T10:07:02.7311637Z 58c2f4245eec: Pulling fs layer
+2026-11-13T10:07:02.7312315Z 18e11daf70d2: Pulling fs layer
+2026-11-13T10:07:02.7312973Z 9ace01da70a3: Pulling fs layer
+2026-11-13T10:07:02.7313610Z f54c636bbcd3: Pulling fs layer
+2026-11-13T10:07:02.7316830Z 669f792103a4: Pulling fs layer
+2026-11-13T10:07:02.7327780Z f80d99bfabdb: Pulling fs layer
+2026-11-13T10:07:02.7330164Z d0ebd75bb4ef: Pulling fs layer
+2026-11-13T10:07:02.7332388Z a1028bd6f848: Pulling fs layer
+2026-11-13T10:07:02.7333340Z 73d5273f17e0: Pulling fs layer
+2026-11-13T10:07:02.7337704Z daa7c753cf32: Pulling fs layer
+2026-11-13T10:07:02.7338255Z 1e3ae6415742: Pulling fs layer
+2026-11-13T10:07:02.7338771Z 0f819c04149e: Pulling fs layer
+2026-11-13T10:07:02.7339237Z f2c897740b67: Pulling fs layer
+2026-11-13T10:07:02.7339708Z 83a5975346e8: Pulling fs layer
+2026-11-13T10:07:02.8408422Z 4f4fb700ef54: Already exists
+2026-11-13T10:07:02.8840794Z 1.47.1: Pulling from supabase/logflare
+2026-11-13T10:07:02.9088369Z 814dd06d26c7: Download complete
+2026-11-13T10:07:02.9096084Z 0.53.0-alpine: Pulling from supabase/vector
+2026-11-13T10:07:02.9109004Z v1.67.20: Pulling from supabase/storage-api
+2026-11-13T10:07:02.9109706Z a70653f7a2d5: Download complete
+2026-11-13T10:07:02.9214895Z v14.15: Pulling from supabase/postgrest
+2026-11-13T10:07:02.9249840Z cef3e4219e2d: Download complete
+2026-11-13T10:07:02.9263678Z 44bd6c2c1e25: Download complete
+2026-11-13T10:07:02.9284881Z e326d083c2c9: Pulling fs layer
+2026-11-13T10:07:02.9288002Z bec4cd2d8288: Download complete
+2026-11-13T10:07:02.9289020Z 55afa1ecc21d: Pulling fs layer
+2026-11-13T10:07:02.9292552Z 95403727e7d4: Pulling fs layer
+2026-11-13T10:07:02.9295755Z e12ac39a69ef: Download complete
+2026-11-13T10:07:02.9325220Z 1f04457496a9: Download complete
+2026-11-13T10:07:02.9325949Z 669f792103a4: Download complete
+2026-11-13T10:07:02.9368515Z 2d3eb0cf3634: Download complete
+2026-11-13T10:07:02.9370582Z 5904fe0a8541: Download complete
+2026-11-13T10:07:02.9434593Z 9ace01da70a3: Download complete
+2026-11-13T10:07:02.9462526Z 04364d336696: Download complete
+2026-11-13T10:07:02.9562029Z ab6d1e52f2bb: Download complete
+2026-11-13T10:07:02.9592861Z e68f98342a0d: Download complete
+2026-11-13T10:07:02.9694580Z 2a75afedac1e: Download complete
+2026-11-13T10:07:02.9715001Z 7df60113bd5f: Download complete
+2026-11-13T10:07:02.9770304Z 1f87a4556ee4: Download complete
+2026-11-13T10:07:02.9771225Z 95553dc9aee4: Download complete
+2026-11-13T10:07:02.9792150Z b87ddba4145f: Download complete
+2026-11-13T10:07:02.9815727Z 826b8d755762: Download complete
+2026-11-13T10:07:02.9831374Z 586e7e55dc38: Download complete
+2026-11-13T10:07:02.9857580Z a00ab32c0cad: Download complete
+2026-11-13T10:07:03.0819553Z 3c02fd806613: Pulling fs layer
+2026-11-13T10:07:03.0820220Z 90e6409bba99: Pulling fs layer
+2026-11-13T10:07:03.0820738Z 6b291c391b0f: Pulling fs layer
+2026-11-13T10:07:03.0821224Z 1cc42fcade0e: Pulling fs layer
+2026-11-13T10:07:03.0821710Z cae77ffb92d9: Pulling fs layer
+2026-11-13T10:07:03.0822195Z 666018dcd023: Pulling fs layer
+2026-11-13T10:07:03.0822663Z ff86ea2e5edc: Pulling fs layer
+2026-11-13T10:07:03.0823146Z e54aec64c365: Pulling fs layer
+2026-11-13T10:07:03.0823618Z 804d4d68057c: Pulling fs layer
+2026-11-13T10:07:03.0824086Z 64cfb949317c: Pulling fs layer
+2026-11-13T10:07:03.1047073Z 213ec9aee27d: Download complete
+2026-11-13T10:07:03.1047825Z 14c7c40f264e: Download complete
+2026-11-13T10:07:03.1048340Z 83a5975346e8: Download complete
+2026-11-13T10:07:03.1048798Z 7dd51689e5de: Download complete
+2026-11-13T10:07:03.1058105Z a1028bd6f848: Download complete
+2026-11-13T10:07:03.1123486Z addf9dc09fca: Download complete
+2026-11-13T10:07:03.1232630Z 848b1c5912e5: Download complete
+2026-11-13T10:07:03.1236670Z cb6a11cda9f8: Download complete
+2026-11-13T10:07:03.1294485Z 484e22708485: Download complete
+2026-11-13T10:07:03.1367895Z 18e11daf70d2: Download complete
+2026-11-13T10:07:03.1368807Z f54c636bbcd3: Download complete
+2026-11-13T10:07:03.1374624Z f80d99bfabdb: Download complete
+2026-11-13T10:07:03.1449538Z c61d94d80b8d: Download complete
+2026-11-13T10:07:03.1521197Z 0f819c04149e: Download complete
+2026-11-13T10:07:03.1604365Z f2c897740b67: Download complete
+2026-11-13T10:07:03.1709745Z 58c2f4245eec: Download complete
+2026-11-13T10:07:03.1712617Z 73d5273f17e0: Download complete
+2026-11-13T10:07:03.1901062Z 4f4fb700ef54: Pulling fs layer
+2026-11-13T10:07:03.1902854Z 565df2d910df: Pulling fs layer
+2026-11-13T10:07:03.1904575Z 2a8ba8ff1218: Pulling fs layer
+2026-11-13T10:07:03.1905284Z 55afa1ecc21d: Pulling fs layer
+2026-11-13T10:07:03.1906025Z 90c8ace70fc4: Pulling fs layer
+2026-11-13T10:07:03.1907128Z dc286a8aa197: Pulling fs layer
+2026-11-13T10:07:03.1908040Z ba68bd15f292: Pulling fs layer
+2026-11-13T10:07:03.1908776Z 062e450697fa: Pulling fs layer
+2026-11-13T10:07:03.1909439Z aadc1df55248: Pulling fs layer
+2026-11-13T10:07:03.1910077Z b470f3a22f61: Pulling fs layer
+2026-11-13T10:07:03.1910711Z 2f95f9f41a30: Pulling fs layer
+2026-11-13T10:07:03.1911367Z 7b69c108b62c: Pulling fs layer
+2026-11-13T10:07:03.1912062Z 2f8dc9fd16f0: Pulling fs layer
+2026-11-13T10:07:03.1912712Z e7e8db2397d8: Pulling fs layer
+2026-11-13T10:07:03.1913349Z 115059bab117: Pulling fs layer
+2026-11-13T10:07:03.1916330Z 32b7ef0c5fea: Pulling fs layer
+2026-11-13T10:07:03.1916772Z 489e9bd155fb: Pulling fs layer
+2026-11-13T10:07:03.1917376Z 87005268df2e: Pulling fs layer
+2026-11-13T10:07:03.2322574Z e326d083c2c9: Download complete
+2026-11-13T10:07:03.2359332Z 55afa1ecc21d: Download complete
+2026-11-13T10:07:03.2359962Z 55afa1ecc21d: Download complete
+2026-11-13T10:07:03.2554839Z 666018dcd023: Download complete
+2026-11-13T10:07:03.2590788Z 3c02fd806613: Download complete
+2026-11-13T10:07:03.2705630Z 4f4fb700ef54: Already exists
+2026-11-13T10:07:03.3355872Z 9e229077fbfa: Download complete
+2026-11-13T10:07:03.3541672Z 90e6409bba99: Download complete
+2026-11-13T10:07:03.3609100Z e54aec64c365: Download complete
+2026-11-13T10:07:03.3824297Z 1cc42fcade0e: Download complete
+2026-11-13T10:07:03.3859046Z error from registry: Rate exceeded
+2026-11-13T10:07:03.4170169Z error from registry: Rate exceeded
+2026-11-13T10:07:03.4336073Z 90c8ace70fc4: Download complete
+2026-11-13T10:07:03.4390010Z 4f4fb700ef54: Pulling fs layer
+2026-11-13T10:07:03.4391692Z 7b95344fc011: Pulling fs layer
+2026-11-13T10:07:03.4394672Z 1074353eec0d: Pulling fs layer
+2026-11-13T10:07:03.4395642Z 0179246107e3: Pulling fs layer
+2026-11-13T10:07:03.4397579Z 565df2d910df: Download complete
+2026-11-13T10:07:03.4398416Z error from registry: Rate exceeded
+2026-11-13T10:07:03.4401324Z cbf2f7f0a3ba: Pulling fs layer
+2026-11-13T10:07:03.4402125Z c8a04bee2d5a: Pulling fs layer
+2026-11-13T10:07:03.4466318Z dc286a8aa197: Download complete
+2026-11-13T10:07:03.4483148Z 2a8ba8ff1218: Download complete
+2026-11-13T10:07:03.4483971Z 115059bab117: Download complete
+2026-11-13T10:07:03.4484665Z 32b7ef0c5fea: Download complete
+2026-11-13T10:07:03.4485039Z 213ec9aee27d: Pull complete
+2026-11-13T10:07:03.4529441Z d0ebd75bb4ef: Download complete
+2026-11-13T10:07:03.4758237Z 64cfb949317c: Download complete
+2026-11-13T10:07:03.4976335Z 4f4fb700ef54: Already exists
+2026-11-13T10:07:03.5330780Z a70653f7a2d5: 7b69c108b62c: Download complete
+2026-11-13T10:07:03.5331662Z Pull complete
+2026-11-13T10:07:03.5367354Z e7e8db2397d8: Download complete
+2026-11-13T10:07:03.5420037Z 87005268df2e: Download complete
+2026-11-13T10:07:03.5478579Z 2f8dc9fd16f0: Download complete
+2026-11-13T10:07:03.5480036Z 73a3716cfa9b: Download complete
+2026-11-13T10:07:03.5493965Z 2f95f9f41a30: Download complete
+2026-11-13T10:07:03.5968623Z c8a04bee2d5a: Download complete
+2026-11-13T10:07:03.6039155Z 0179246107e3: Download complete
+2026-11-13T10:07:03.6271836Z 55afa1ecc21d: Pull complete
+2026-11-13T10:07:03.6389989Z 565df2d910df: Pull complete
+2026-11-13T10:07:03.6434225Z 6b291c391b0f: Download complete
+2026-11-13T10:07:03.6914734Z cbf2f7f0a3ba: Download complete
+2026-11-13T10:07:03.7391113Z dc286a8aa197: Pull complete
+2026-11-13T10:07:03.7876877Z 3b73a8ed8ed9: Download complete
+2026-11-13T10:07:03.7889951Z 1074353eec0d: Download complete
+2026-11-13T10:07:03.8289383Z 95403727e7d4: Download complete
+2026-11-13T10:07:03.8821332Z 5bd4dd8b80e3: Download complete
+2026-11-13T10:07:03.8837077Z 4e5b5a409361: Download complete
+2026-11-13T10:07:04.1138551Z 1074353eec0d: Pull complete
+2026-11-13T10:07:04.1403894Z 5d4d12d40ee2: Download complete
+2026-11-13T10:07:04.2260645Z 489e9bd155fb: Download complete
+2026-11-13T10:07:04.4125177Z 13b7e930469f: Download complete
+2026-11-13T10:07:04.4149216Z cbf2f7f0a3ba: Pull complete
+2026-11-13T10:07:04.4348481Z 95403727e7d4: Pull complete
+2026-11-13T10:07:04.5437793Z cae77ffb92d9: Download complete
+2026-11-13T10:07:04.6301442Z e326d083c2c9: Pull complete
+2026-11-13T10:07:04.6313412Z ba68bd15f292: Download complete
+2026-11-13T10:07:04.6315023Z b470f3a22f61: Download complete
+2026-11-13T10:07:04.6486373Z Digest: sha256:37a38e48e9338cd7e89dfeb487f37b02ebfcd9cb23111bed2d345e79d37d6dd6
+2026-11-13T10:07:04.6488552Z Status: Downloaded newer image for public.ecr.aws/supabase/mailpit:v1.30.2
+2026-11-13T10:07:04.6543911Z public.ecr.aws/supabase/mailpit:v1.30.2
+2026-11-13T10:07:04.7511429Z ff86ea2e5edc: Download complete
+2026-11-13T10:07:04.8371679Z 062e450697fa: Download complete
+2026-11-13T10:07:05.0134682Z 531e3bd93090: Download complete
+2026-11-13T10:07:05.1475837Z 804d4d68057c: Download complete
+2026-11-13T10:07:05.5433046Z aadc1df55248: Download complete
+2026-11-13T10:07:05.5941018Z 7b95344fc011: Download complete
+2026-11-13T10:07:06.0105379Z 1e3ae6415742: Download complete
+2026-11-13T10:07:06.0152860Z 7e1afeac9515: Download complete
+2026-11-13T10:07:06.1320048Z ba68bd15f292: Pull complete
+2026-11-13T10:07:06.2130259Z 90c8ace70fc4: Pull complete
+2026-11-13T10:07:06.2179154Z 2a8ba8ff1218: Pull complete
+2026-11-13T10:07:06.2188253Z error from registry: Rate exceeded
+2026-11-13T10:07:06.3074260Z fff1a581b40e: Download complete
+2026-11-13T10:07:07.1920012Z 13b7e930469f: Pull complete
+2026-11-13T10:07:07.8842138Z 1.47.1: Pulling from supabase/logflare
+2026-11-13T10:07:07.8862653Z v14.15: Pulling from supabase/postgrest
+2026-11-13T10:07:07.8890793Z ff86ea2e5edc: Pull complete
+2026-11-13T10:07:07.8891702Z v1.67.20: Pulling from supabase/storage-api
+2026-11-13T10:07:07.9729163Z e54aec64c365: Pull complete
+2026-11-13T10:07:07.9882680Z 062e450697fa: Pull complete
+2026-11-13T10:07:08.1148507Z b59be34ddc83: Pulling fs layer
+2026-11-13T10:07:08.1413023Z d69dc2dd4153: Pulling fs layer
+2026-11-13T10:07:08.1414011Z 817adb17c389: Pulling fs layer
+2026-11-13T10:07:08.1414706Z 119d43eec815: Pulling fs layer
+2026-11-13T10:07:08.1415400Z 5df73f635884: Pulling fs layer
+2026-11-13T10:07:08.1416039Z 7e3e8b4622a8: Pulling fs layer
+2026-11-13T10:07:08.1416555Z 47e22359add8: Pulling fs layer
+2026-11-13T10:07:08.1417607Z ea6fd1f3bb74: Pulling fs layer
+2026-11-13T10:07:08.1419855Z 7c2fb9c7469e: Pulling fs layer
+2026-11-13T10:07:08.1428070Z d6d4e0c6ce1a: Pulling fs layer
+2026-11-13T10:07:08.1428976Z 4f4fb700ef54: Pulling fs layer
+2026-11-13T10:07:08.2199421Z 4f4fb700ef54: Already exists
+2026-11-13T10:07:08.2740061Z 378f4ac6aef8: Pulling fs layer
+2026-11-13T10:07:08.2741506Z e6f31ffc071e: Pulling fs layer
+2026-11-13T10:07:08.2742199Z 16733d1099a5: Pulling fs layer
+2026-11-13T10:07:08.2742685Z 09ddda476dba: Pulling fs layer
+2026-11-13T10:07:08.2743146Z 0d8aa8e026f1: Pulling fs layer
+2026-11-13T10:07:08.2743602Z d2f04496a183: Pulling fs layer
+2026-11-13T10:07:08.2744092Z 52cd27cac02e: Pulling fs layer
+2026-11-13T10:07:08.2748716Z e1972bc3878f: Pulling fs layer
+2026-11-13T10:07:08.2749513Z 7788af31fb5f: Pulling fs layer
+2026-11-13T10:07:08.2750662Z 8b04f0977347: Pulling fs layer
+2026-11-13T10:07:08.2751353Z a93abad2648d: Pulling fs layer
+2026-11-13T10:07:08.2752016Z a7657e15dcb9: Pulling fs layer
+2026-11-13T10:07:08.2752688Z e2c5e8073fbb: Pulling fs layer
+2026-11-13T10:07:08.2753344Z a08337e8761c: Pulling fs layer
+2026-11-13T10:07:08.3185335Z 817adb17c389: Download complete
+2026-11-13T10:07:08.3319578Z d69dc2dd4153: Download complete
+2026-11-13T10:07:08.4228205Z d6d4e0c6ce1a: Download complete
+2026-11-13T10:07:08.4364895Z 7e3e8b4622a8: Download complete
+2026-11-13T10:07:08.5039571Z 0d8aa8e026f1: Download complete
+2026-11-13T10:07:08.5170152Z b59be34ddc83: Download complete
+2026-11-13T10:07:08.5678591Z 7788af31fb5f: Download complete
+2026-11-13T10:07:08.5872547Z a08337e8761c: Download complete
+2026-11-13T10:07:08.6060019Z 378f4ac6aef8: Download complete
+2026-11-13T10:07:08.6229671Z 52cd27cac02e: Download complete
+2026-11-13T10:07:08.6290342Z e1972bc3878f: Download complete
+2026-11-13T10:07:08.6332117Z a93abad2648d: Download complete
+2026-11-13T10:07:08.6398187Z 09ddda476dba: Download complete
+2026-11-13T10:07:08.6827702Z 384caf4d19b4: Download complete
+2026-11-13T10:07:08.7683406Z e2c5e8073fbb: Download complete
+2026-11-13T10:07:08.8485532Z e6f31ffc071e: Download complete
+2026-11-13T10:07:08.9939299Z 6c6b1bb9b83f: Download complete
+2026-11-13T10:07:09.3000371Z 8b04f0977347: Download complete
+2026-11-13T10:07:09.4282772Z b59be34ddc83: Pull complete
+2026-11-13T10:07:09.5333327Z Digest: sha256:2f8e7b656f09db697a8875177694b417b35cb76c21370de07fc54e711e902326
+2026-11-13T10:07:09.5335292Z Status: Downloaded newer image for public.ecr.aws/supabase/postgrest:v14.15
+2026-11-13T10:07:09.5472762Z public.ecr.aws/supabase/postgrest:v14.15
+2026-11-13T10:07:09.5763301Z e6f31ffc071e: Pull complete
+2026-11-13T10:07:09.6081183Z 5df73f635884: Download complete
+2026-11-13T10:07:09.6233673Z 7b95344fc011: Pull complete
+2026-11-13T10:07:09.7331291Z c8a04bee2d5a: Pull complete
+2026-11-13T10:07:09.7483938Z 0179246107e3: Pull complete
+2026-11-13T10:07:09.7635669Z 4f4fb700ef54: Pull complete
+2026-11-13T10:07:09.8062080Z 4f4fb700ef54: Pull complete
+2026-11-13T10:07:09.8187769Z 119d43eec815: Download complete
+2026-11-13T10:07:10.0236667Z Digest: sha256:ca92d617e905953c3f852e7e88061f7039460e733522e3f0c21bc6ae946b2558
+2026-11-13T10:07:10.0239492Z Status: Downloaded newer image for public.ecr.aws/supabase/vector:0.53.0-alpine
+2026-11-13T10:07:10.0430761Z public.ecr.aws/supabase/vector:0.53.0-alpine
+2026-11-13T10:07:10.5873547Z ea6fd1f3bb74: Download complete
+2026-11-13T10:07:10.6933720Z daa7c753cf32: Download complete
+2026-11-13T10:07:10.6934704Z 7c2fb9c7469e: Download complete
+2026-11-13T10:07:10.7793296Z 16733d1099a5: Download complete
+2026-11-13T10:07:10.9109602Z 531e3bd93090: Pull complete
+2026-11-13T10:07:10.9677614Z v2.194.0: Pulling from supabase/gotrue
+2026-11-13T10:07:11.0058059Z 814dd06d26c7: Pull complete
+2026-11-13T10:07:11.0254977Z a7657e15dcb9: Download complete
+2026-11-13T10:07:11.1130549Z Digest: sha256:1b53405d8680a09d6f44494b7990bf7da2ea43f84a258c59717d4539abf09f6d
+2026-11-13T10:07:11.1131670Z Status: Downloaded newer image for public.ecr.aws/supabase/kong:2.8.1
+2026-11-13T10:07:11.1206568Z public.ecr.aws/supabase/kong:2.8.1
+2026-11-13T10:07:11.1973930Z 90c8ace70fc4: Pulling fs layer
+2026-11-13T10:07:11.1974677Z ba68bd15f292: Pulling fs layer
+2026-11-13T10:07:11.1975193Z 2a8ba8ff1218: Pulling fs layer
+2026-11-13T10:07:11.1975702Z dc286a8aa197: Pulling fs layer
+2026-11-13T10:07:11.1976259Z 565df2d910df: Pulling fs layer
+2026-11-13T10:07:11.3293749Z 2a8ba8ff1218: Download complete
+2026-11-13T10:07:11.3362892Z dc286a8aa197: Download complete
+2026-11-13T10:07:11.3391100Z 565df2d910df: Download complete
+2026-11-13T10:07:11.3718930Z 565df2d910df: Pull complete
+2026-11-13T10:07:11.4389113Z 90c8ace70fc4: Download complete
+2026-11-13T10:07:11.5311681Z fc67fcff04e0: Download complete
+2026-11-13T10:07:11.6309004Z dc286a8aa197: Pull complete
+2026-11-13T10:07:11.8299156Z d2f04496a183: Download complete
+2026-11-13T10:07:11.8334015Z ba68bd15f292: Download complete
+2026-11-13T10:07:12.1028787Z 47e22359add8: Download complete
+2026-11-13T10:07:13.0546391Z ba68bd15f292: Pull complete
+2026-11-13T10:07:13.0940755Z 804d4d68057c: Pull complete
+2026-11-13T10:07:13.1291765Z 2a8ba8ff1218: Pull complete
+2026-11-13T10:07:13.1394641Z 90c8ace70fc4: Pull complete
+2026-11-13T10:07:13.2678721Z Digest: sha256:2b352c02adf11a2025cd5993c246ef85db73743553c39194d2b1862d1cc4d1fd
+2026-11-13T10:07:13.2702449Z Status: Downloaded newer image for public.ecr.aws/supabase/gotrue:v2.194.0
+2026-11-13T10:07:13.2788788Z public.ecr.aws/supabase/gotrue:v2.194.0
+2026-11-13T10:07:13.2827378Z 64cfb949317c: Pull complete
+2026-11-13T10:07:13.3659187Z 3c02fd806613: Pull complete
+2026-11-13T10:07:13.4323766Z 119d43eec815: Pull complete
+2026-11-13T10:07:13.6598183Z 6b291c391b0f: Pull complete
+2026-11-13T10:07:13.7515419Z 1cc42fcade0e: Pull complete
+2026-11-13T10:07:15.3320545Z 5df73f635884: Pull complete
+2026-11-13T10:07:15.4658854Z 16733d1099a5: Pull complete
+2026-11-13T10:07:15.5143476Z 7e3e8b4622a8: Pull complete
+2026-11-13T10:07:15.6309628Z 09ddda476dba: Pull complete
+2026-11-13T10:07:15.8123489Z 0d8aa8e026f1: Pull complete
+2026-11-13T10:07:15.9898101Z fff1a581b40e: Pull complete
+2026-11-13T10:07:16.0887054Z b87ddba4145f: Pull complete
+2026-11-13T10:07:16.1088468Z 14c7c40f264e: Pull complete
+2026-11-13T10:07:17.9904979Z aadc1df55248: Pull complete
+2026-11-13T10:07:18.4390559Z 7b69c108b62c: Pull complete
+2026-11-13T10:07:18.4657586Z b470f3a22f61: Pull complete
+2026-11-13T10:07:18.5397937Z 2f8dc9fd16f0: Pull complete
+2026-11-13T10:07:18.6445233Z e7e8db2397d8: Pull complete
+2026-11-13T10:07:18.8272930Z 115059bab117: Pull complete
+2026-11-13T10:07:18.8299858Z 32b7ef0c5fea: Pull complete
+2026-11-13T10:07:18.8383311Z 2f95f9f41a30: Pull complete
+2026-11-13T10:07:19.1580846Z cae77ffb92d9: Pull complete
+2026-11-13T10:07:19.2509465Z 666018dcd023: Pull complete
+2026-11-13T10:07:19.3454964Z 90e6409bba99: Pull complete
+2026-11-13T10:07:19.3647659Z Digest: sha256:a84cc713585eea7b401e4a2561ec4a1e48c87083d1c7ecb4502f204bb4391300
+2026-11-13T10:07:19.3649251Z Status: Downloaded newer image for public.ecr.aws/supabase/postgres-meta:v0.96.6
+2026-11-13T10:07:19.3671521Z public.ecr.aws/supabase/postgres-meta:v0.96.6
+2026-11-13T10:07:20.1246241Z 7e1afeac9515: Pull complete
+2026-11-13T10:07:20.3909347Z 87005268df2e: Pull complete
+2026-11-13T10:07:20.3955470Z 489e9bd155fb: Pull complete
+2026-11-13T10:07:20.4014911Z error from registry: Rate exceeded
+2026-11-13T10:07:20.7143072Z 7dd51689e5de: Pull complete
+2026-11-13T10:07:20.7659239Z 4f4fb700ef54: Pull complete
+2026-11-13T10:07:22.2213079Z 52cd27cac02e: Pull complete
+2026-11-13T10:07:22.2442203Z d2f04496a183: Pull complete
+2026-11-13T10:07:22.3093317Z 7788af31fb5f: Pull complete
+2026-11-13T10:07:22.3197019Z e1972bc3878f: Pull complete
+2026-11-13T10:07:23.5243826Z a93abad2648d: Pull complete
+2026-11-13T10:07:23.5272885Z 8b04f0977347: Pull complete
+2026-11-13T10:07:24.2080794Z 817adb17c389: Pull complete
+2026-11-13T10:07:24.2270936Z 47e22359add8: Pull complete
+2026-11-13T10:07:24.7772888Z v2.147.1: Pulling from supabase/realtime
+2026-11-13T10:07:24.9655299Z 4f4fb700ef54: Pulling fs layer
+2026-11-13T10:07:24.9659133Z 062e450697fa: Pulling fs layer
+2026-11-13T10:07:24.9659811Z aadc1df55248: Pulling fs layer
+2026-11-13T10:07:24.9660443Z b470f3a22f61: Pulling fs layer
+2026-11-13T10:07:24.9661025Z 7b69c108b62c: Pulling fs layer
+2026-11-13T10:07:24.9661538Z 2f8dc9fd16f0: Pulling fs layer
+2026-11-13T10:07:24.9662592Z e7e8db2397d8: Pulling fs layer
+2026-11-13T10:07:24.9663141Z 2f95f9f41a30: Pulling fs layer
+2026-11-13T10:07:24.9663829Z 32b7ef0c5fea: Pulling fs layer
+2026-11-13T10:07:24.9664507Z 115059bab117: Pulling fs layer
+2026-11-13T10:07:24.9665170Z 489e9bd155fb: Pulling fs layer
+2026-11-13T10:07:24.9665987Z 87005268df2e: Pulling fs layer
+2026-11-13T10:07:25.0373103Z 87005268df2e: Download complete
+2026-11-13T10:07:25.0381285Z 4f4fb700ef54: Already exists
+2026-11-13T10:07:25.0494099Z 4f4fb700ef54: Pull complete
+2026-11-13T10:07:25.1394430Z e7e8db2397d8: Download complete
+2026-11-13T10:07:25.1447848Z 2f95f9f41a30: Download complete
+2026-11-13T10:07:25.1452118Z 32b7ef0c5fea: Download complete
+2026-11-13T10:07:25.1479722Z 7b69c108b62c: Download complete
+2026-11-13T10:07:25.1501818Z 2f8dc9fd16f0: Download complete
+2026-11-13T10:07:25.1551022Z 115059bab117: Download complete
+2026-11-13T10:07:25.2416923Z f96f709b2bef: Download complete
+2026-11-13T10:07:25.3313801Z 7c2fb9c7469e: Pull complete
+2026-11-13T10:07:25.3417275Z 489e9bd155fb: Download complete
+2026-11-13T10:07:25.4386779Z 062e450697fa: Download complete
+2026-11-13T10:07:25.4459366Z b470f3a22f61: Download complete
+2026-11-13T10:07:25.7373151Z aadc1df55248: Download complete
+2026-11-13T10:07:26.5295579Z ea6fd1f3bb74: Pull complete
+2026-11-13T10:07:26.6002246Z 4f4fb700ef54: Pull complete
+2026-11-13T10:07:26.6030478Z d69dc2dd4153: Pull complete
+2026-11-13T10:07:26.6068137Z d6d4e0c6ce1a: Pull complete
+2026-11-13T10:07:26.6424224Z Digest: sha256:72b19f0256c7ea627b3b29e785e9cb19e914f7afd3b9a1ea484405099917b387
+2026-11-13T10:07:26.6425284Z Status: Downloaded newer image for public.ecr.aws/supabase/logflare:1.47.1
+2026-11-13T10:07:26.6434616Z public.ecr.aws/supabase/logflare:1.47.1
+2026-11-13T10:07:27.2651116Z 062e450697fa: Pull complete
+2026-11-13T10:07:32.7605454Z aadc1df55248: Pull complete
+2026-11-13T10:07:33.1639380Z 7b69c108b62c: Pull complete
+2026-11-13T10:07:33.1666039Z 2f8dc9fd16f0: Pull complete
+2026-11-13T10:07:33.1818875Z b470f3a22f61: Pull complete
+2026-11-13T10:07:33.2433341Z e7e8db2397d8: Pull complete
+2026-11-13T10:07:33.3371876Z 2f95f9f41a30: Pull complete
+2026-11-13T10:07:33.4399431Z 32b7ef0c5fea: Pull complete
+2026-11-13T10:07:33.4529512Z 115059bab117: Pull complete
+2026-11-13T10:07:34.8100549Z 87005268df2e: Pull complete
+2026-11-13T10:07:34.8113654Z 489e9bd155fb: Pull complete
+2026-11-13T10:07:34.8115980Z Digest: sha256:b7b0ef84b69d80b9b9c2280c9e9ae0a901175d3035b6b0c3ae22fa6c48bfb272
+2026-11-13T10:07:34.8117911Z Status: Downloaded newer image for public.ecr.aws/supabase/realtime:v2.147.1
+2026-11-13T10:07:34.8132267Z public.ecr.aws/supabase/realtime:v2.147.1
+2026-11-13T10:07:44.8073922Z a7657e15dcb9: Pull complete
+2026-11-13T10:07:44.9819403Z a08337e8761c: Pull complete
+2026-11-13T10:07:44.9837298Z 378f4ac6aef8: Pull complete
+2026-11-13T10:07:44.9852483Z e2c5e8073fbb: Pull complete
+2026-11-13T10:07:44.9854601Z Digest: sha256:a4846b3329f3afd52cd2ae31b89a0c1ae841221e9d3a22d55db65f9dca2a72b6
+2026-11-13T10:07:44.9855935Z Status: Downloaded newer image for public.ecr.aws/supabase/storage-api:v1.67.20
+2026-11-13T10:07:44.9859784Z public.ecr.aws/supabase/storage-api:v1.67.20
+2026-11-13T10:07:55.8151508Z daa7c753cf32: Pull complete
+2026-11-13T10:07:55.8719332Z c61d94d80b8d: Pull complete
+2026-11-13T10:07:55.8804565Z 73d5273f17e0: Pull complete
+2026-11-13T10:07:56.1873955Z 5d4d12d40ee2: Pull complete
+2026-11-13T10:07:56.2167936Z cef3e4219e2d: Pull complete
+2026-11-13T10:07:56.2211740Z bec4cd2d8288: Pull complete
+2026-11-13T10:07:56.2496916Z 95553dc9aee4: Pull complete
+2026-11-13T10:07:56.2584984Z 83a5975346e8: Pull complete
+2026-11-13T10:07:56.2638233Z 848b1c5912e5: Pull complete
+2026-11-13T10:07:56.2793895Z 0f819c04149e: Pull complete
+2026-11-13T10:07:56.2805245Z f2c897740b67: Pull complete
+2026-11-13T10:07:56.4557049Z addf9dc09fca: Pull complete
+2026-11-13T10:07:56.4770142Z 4e5b5a409361: Pull complete
+2026-11-13T10:07:58.6630242Z 1e3ae6415742: Pull complete
+2026-11-13T10:07:58.7306091Z 2d3eb0cf3634: Pull complete
+2026-11-13T10:07:58.7314066Z 5904fe0a8541: Pull complete
+2026-11-13T10:07:58.7575849Z cb6a11cda9f8: Pull complete
+2026-11-13T10:07:58.7590666Z 484e22708485: Pull complete
+2026-11-13T10:07:59.0367824Z 7df60113bd5f: Pull complete
+2026-11-13T10:07:59.0389646Z 1f87a4556ee4: Pull complete
+2026-11-13T10:07:59.0410892Z 826b8d755762: Pull complete
+2026-11-13T10:07:59.0428576Z 586e7e55dc38: Pull complete
+2026-11-13T10:07:59.0458973Z a00ab32c0cad: Pull complete
+2026-11-13T10:07:59.0499534Z 18e11daf70d2: Pull complete
+2026-11-13T10:07:59.0575083Z 58c2f4245eec: Pull complete
+2026-11-13T10:07:59.0627886Z 5bd4dd8b80e3: Pull complete
+2026-11-13T10:07:59.1189611Z e12ac39a69ef: Pull complete
+2026-11-13T10:07:59.1212269Z 1f04457496a9: Pull complete
+2026-11-13T10:07:59.1235259Z 669f792103a4: Pull complete
+2026-11-13T10:07:59.1280168Z 9ace01da70a3: Pull complete
+2026-11-13T10:07:59.1301733Z 04364d336696: Pull complete
+2026-11-13T10:07:59.1323548Z ab6d1e52f2bb: Pull complete
+2026-11-13T10:07:59.1345538Z e68f98342a0d: Pull complete
+2026-11-13T10:07:59.1388057Z 2a75afedac1e: Pull complete
+2026-11-13T10:07:59.1445864Z f54c636bbcd3: Pull complete
+2026-11-13T10:07:59.1495204Z f80d99bfabdb: Pull complete
+2026-11-13T10:07:59.3178206Z 44bd6c2c1e25: Pull complete
+2026-11-13T10:07:59.3209145Z a1028bd6f848: Pull complete
+2026-11-13T10:07:59.3224235Z d0ebd75bb4ef: Pull complete
+2026-11-13T10:07:59.3235773Z error from registry: Rate exceeded
+2026-11-13T10:08:03.7511852Z 15.8.1.085: Pulling from supabase/postgres
+2026-11-13T10:08:03.9698965Z 14c7c40f264e: Pulling fs layer
+2026-11-13T10:08:03.9705082Z 5d4d12d40ee2: Pulling fs layer
+2026-11-13T10:08:03.9705600Z 13b7e930469f: Pulling fs layer
+2026-11-13T10:08:03.9705963Z 44bd6c2c1e25: Pulling fs layer
+2026-11-13T10:08:03.9706307Z 83a5975346e8: Pulling fs layer
+2026-11-13T10:08:03.9707021Z b87ddba4145f: Pulling fs layer
+2026-11-13T10:08:03.9708265Z bec4cd2d8288: Pulling fs layer
+2026-11-13T10:08:03.9711082Z cef3e4219e2d: Pulling fs layer
+2026-11-13T10:08:03.9711970Z 848b1c5912e5: Pulling fs layer
+2026-11-13T10:08:03.9712340Z f2c897740b67: Pulling fs layer
+2026-11-13T10:08:03.9712740Z 0f819c04149e: Pulling fs layer
+2026-11-13T10:08:03.9713156Z 4e5b5a409361: Pulling fs layer
+2026-11-13T10:08:03.9713590Z addf9dc09fca: Pulling fs layer
+2026-11-13T10:08:03.9713972Z 73d5273f17e0: Pulling fs layer
+2026-11-13T10:08:03.9714277Z 1e3ae6415742: Pulling fs layer
+2026-11-13T10:08:03.9714649Z cb6a11cda9f8: Pulling fs layer
+2026-11-13T10:08:03.9715120Z 18e11daf70d2: Pulling fs layer
+2026-11-13T10:08:03.9715605Z 5904fe0a8541: Pulling fs layer
+2026-11-13T10:08:03.9716045Z 04364d336696: Pulling fs layer
+2026-11-13T10:08:03.9716546Z 95553dc9aee4: Pulling fs layer
+2026-11-13T10:08:03.9716998Z 484e22708485: Pulling fs layer
+2026-11-13T10:08:03.9717972Z 7e1afeac9515: Pulling fs layer
+2026-11-13T10:08:03.9718541Z 9ace01da70a3: Pulling fs layer
+2026-11-13T10:08:03.9719011Z 4f4fb700ef54: Pulling fs layer
+2026-11-13T10:08:03.9719484Z 7dd51689e5de: Pulling fs layer
+2026-11-13T10:08:03.9719956Z 1f04457496a9: Pulling fs layer
+2026-11-13T10:08:03.9720416Z 5bd4dd8b80e3: Pulling fs layer
+2026-11-13T10:08:03.9720904Z 2a75afedac1e: Pulling fs layer
+2026-11-13T10:08:03.9721354Z 4f4fb700ef54: Pulling fs layer
+2026-11-13T10:08:03.9721834Z a00ab32c0cad: Pulling fs layer
+2026-11-13T10:08:03.9722310Z e12ac39a69ef: Pulling fs layer
+2026-11-13T10:08:03.9722856Z 7df60113bd5f: Pulling fs layer
+2026-11-13T10:08:03.9723331Z a1028bd6f848: Pulling fs layer
+2026-11-13T10:08:03.9723743Z daa7c753cf32: Pulling fs layer
+2026-11-13T10:08:03.9724187Z 1f87a4556ee4: Pulling fs layer
+2026-11-13T10:08:03.9724580Z 58c2f4245eec: Pulling fs layer
+2026-11-13T10:08:03.9725059Z c61d94d80b8d: Pulling fs layer
+2026-11-13T10:08:03.9725543Z 826b8d755762: Pulling fs layer
+2026-11-13T10:08:03.9726000Z 586e7e55dc38: Pulling fs layer
+2026-11-13T10:08:03.9726481Z 2d3eb0cf3634: Pulling fs layer
+2026-11-13T10:08:03.9726973Z f54c636bbcd3: Pulling fs layer
+2026-11-13T10:08:03.9728029Z fff1a581b40e: Pulling fs layer
+2026-11-13T10:08:03.9728455Z e68f98342a0d: Pulling fs layer
+2026-11-13T10:08:03.9728953Z ab6d1e52f2bb: Pulling fs layer
+2026-11-13T10:08:03.9729252Z 4f4fb700ef54: Pulling fs layer
+2026-11-13T10:08:03.9729641Z 669f792103a4: Pulling fs layer
+2026-11-13T10:08:03.9730109Z f80d99bfabdb: Pulling fs layer
+2026-11-13T10:08:03.9730519Z d0ebd75bb4ef: Pulling fs layer
+2026-11-13T10:08:04.1512257Z 4f4fb700ef54: Already exists
+2026-11-13T10:08:04.2662250Z b87ddba4145f: Download complete
+2026-11-13T10:08:04.2678376Z 18e11daf70d2: Download complete
+2026-11-13T10:08:04.2737959Z 44bd6c2c1e25: Download complete
+2026-11-13T10:08:04.2778486Z addf9dc09fca: Download complete
+2026-11-13T10:08:04.2810738Z 9ace01da70a3: Download complete
+2026-11-13T10:08:04.2841746Z 2a75afedac1e: Download complete
+2026-11-13T10:08:04.2901477Z 73d5273f17e0: Download complete
+2026-11-13T10:08:04.2913144Z bec4cd2d8288: Download complete
+2026-11-13T10:08:04.3020921Z cef3e4219e2d: Download complete
+2026-11-13T10:08:04.3088234Z 04364d336696: Download complete
+2026-11-13T10:08:04.3099651Z 14c7c40f264e: Download complete
+2026-11-13T10:08:04.3111531Z 0f819c04149e: Download complete
+2026-11-13T10:08:04.3176594Z f2c897740b67: Download complete
+2026-11-13T10:08:04.3185306Z 83a5975346e8: Download complete
+2026-11-13T10:08:04.3200233Z 5904fe0a8541: Download complete
+2026-11-13T10:08:04.3222284Z 95553dc9aee4: Download complete
+2026-11-13T10:08:04.4283969Z 669f792103a4: Download complete
+2026-11-13T10:08:04.4326326Z d0ebd75bb4ef: Download complete
+2026-11-13T10:08:04.4371953Z f54c636bbcd3: Download complete
+2026-11-13T10:08:04.4388949Z 7df60113bd5f: Download complete
+2026-11-13T10:08:04.4400326Z c61d94d80b8d: Download complete
+2026-11-13T10:08:04.4495637Z f80d99bfabdb: Download complete
+2026-11-13T10:08:04.4496269Z 848b1c5912e5: Download complete
+2026-11-13T10:08:04.4496779Z a00ab32c0cad: Download complete
+2026-11-13T10:08:04.4502774Z 826b8d755762: Download complete
+2026-11-13T10:08:04.4515079Z cb6a11cda9f8: Download complete
+2026-11-13T10:08:04.4525461Z 1f87a4556ee4: Download complete
+2026-11-13T10:08:04.4601101Z e68f98342a0d: Download complete
+2026-11-13T10:08:04.4604103Z 484e22708485: Download complete
+2026-11-13T10:08:04.4607633Z e12ac39a69ef: Download complete
+2026-11-13T10:08:04.4668283Z 58c2f4245eec: Download complete
+2026-11-13T10:08:04.4689065Z ab6d1e52f2bb: Download complete
+2026-11-13T10:08:04.4709277Z 4e5b5a409361: Download complete
+2026-11-13T10:08:04.4730528Z 7dd51689e5de: Download complete
+2026-11-13T10:08:04.4732603Z a1028bd6f848: Download complete
+2026-11-13T10:08:04.4770515Z 1f04457496a9: Download complete
+2026-11-13T10:08:04.4801895Z 2d3eb0cf3634: Download complete
+2026-11-13T10:08:04.4819496Z 586e7e55dc38: Download complete
+2026-11-13T10:08:04.6692413Z eb3335600bd5: Download complete
+2026-11-13T10:08:04.6747261Z 5bd4dd8b80e3: Download complete
+2026-11-13T10:08:04.6768303Z 5d4d12d40ee2: Download complete
+2026-11-13T10:08:04.6792776Z 13b7e930469f: Download complete
+2026-11-13T10:08:05.3069578Z 7e1afeac9515: Download complete
+2026-11-13T10:08:05.3078401Z 1e3ae6415742: Download complete
+2026-11-13T10:08:05.5769059Z fff1a581b40e: Download complete
+2026-11-13T10:08:06.1656057Z 13b7e930469f: Pull complete
+2026-11-13T10:08:07.4043264Z daa7c753cf32: Download complete
+2026-11-13T10:08:09.0904020Z fff1a581b40e: Pull complete
+2026-11-13T10:08:09.0971863Z b87ddba4145f: Pull complete
+2026-11-13T10:08:09.1224183Z 14c7c40f264e: Pull complete
+2026-11-13T10:08:10.6293184Z 7e1afeac9515: Pull complete
+2026-11-13T10:08:10.9169438Z 7dd51689e5de: Pull complete
+2026-11-13T10:08:36.8200346Z daa7c753cf32: Pull complete
+2026-11-13T10:08:36.8713400Z 73d5273f17e0: Pull complete
+2026-11-13T10:08:36.8963057Z c61d94d80b8d: Pull complete
+2026-11-13T10:08:37.2337656Z 5d4d12d40ee2: Pull complete
+2026-11-13T10:08:37.2705651Z bec4cd2d8288: Pull complete
+2026-11-13T10:08:37.2720477Z cef3e4219e2d: Pull complete
+2026-11-13T10:08:37.2781530Z 0f819c04149e: Pull complete
+2026-11-13T10:08:37.2799687Z f2c897740b67: Pull complete
+2026-11-13T10:08:37.2816382Z 83a5975346e8: Pull complete
+2026-11-13T10:08:37.2860423Z 95553dc9aee4: Pull complete
+2026-11-13T10:08:37.2994209Z 848b1c5912e5: Pull complete
+2026-11-13T10:08:37.4662612Z addf9dc09fca: Pull complete
+2026-11-13T10:08:37.5118147Z 4e5b5a409361: Pull complete
+2026-11-13T10:08:39.7733220Z 5904fe0a8541: Pull complete
+2026-11-13T10:08:39.7913508Z cb6a11cda9f8: Pull complete
+2026-11-13T10:08:39.8000048Z 484e22708485: Pull complete
+2026-11-13T10:08:39.8131649Z 2d3eb0cf3634: Pull complete
+2026-11-13T10:08:39.8197130Z 1e3ae6415742: Pull complete
+2026-11-13T10:08:39.8582460Z 4f4fb700ef54: Pull complete
+2026-11-13T10:08:40.0790608Z a00ab32c0cad: Pull complete
+2026-11-13T10:08:40.0991808Z 586e7e55dc38: Pull complete
+2026-11-13T10:08:40.1026102Z 5bd4dd8b80e3: Pull complete
+2026-11-13T10:08:40.1586542Z 18e11daf70d2: Pull complete
+2026-11-13T10:08:40.1645152Z 9ace01da70a3: Pull complete
+2026-11-13T10:08:40.1662355Z 2a75afedac1e: Pull complete
+2026-11-13T10:08:40.1698953Z 04364d336696: Pull complete
+2026-11-13T10:08:40.1764017Z f54c636bbcd3: Pull complete
+2026-11-13T10:08:40.1791165Z 7df60113bd5f: Pull complete
+2026-11-13T10:08:40.1926743Z 826b8d755762: Pull complete
+2026-11-13T10:08:40.1959400Z 1f87a4556ee4: Pull complete
+2026-11-13T10:08:40.1986890Z e68f98342a0d: Pull complete
+2026-11-13T10:08:40.2003792Z e12ac39a69ef: Pull complete
+2026-11-13T10:08:40.2021591Z 58c2f4245eec: Pull complete
+2026-11-13T10:08:40.2057973Z ab6d1e52f2bb: Pull complete
+2026-11-13T10:08:40.2096473Z 1f04457496a9: Pull complete
+2026-11-13T10:08:40.2615933Z 669f792103a4: Pull complete
+2026-11-13T10:08:40.2659650Z f80d99bfabdb: Pull complete
+2026-11-13T10:08:40.4269977Z 44bd6c2c1e25: Pull complete
+2026-11-13T10:08:40.4292877Z d0ebd75bb4ef: Pull complete
+2026-11-13T10:08:40.4318935Z a1028bd6f848: Pull complete
+2026-11-13T10:08:40.4319767Z Digest: sha256:af083ef64d0408c8f098ee6f5c364a59b26f36fbc0f3a334a62c5c1d57362e9b
+2026-11-13T10:08:40.4321491Z Status: Downloaded newer image for public.ecr.aws/supabase/postgres:15.8.1.085
+2026-11-13T10:08:40.4327969Z public.ecr.aws/supabase/postgres:15.8.1.085
+2026-11-13T10:08:40.5373190Z Starting database...
+2026-11-13T10:08:54.1741396Z Initialising schema...
+2026-11-13T10:09:00.6467650Z Seeding globals from roles.sql...
+2026-11-13T10:09:00.6595241Z Applying migration 0001_documents.sql...
+2026-11-13T10:09:00.7182796Z Applying migration 0002_auth_allowlist.sql...
+2026-11-13T10:09:00.7355045Z Applying migration 0003_show_chat.sql...
+2026-11-13T10:09:00.7849692Z Applying migration 0004_community_templates.sql...
+2026-11-13T10:09:00.8479604Z Applying migration 0005_community_moderator_read.sql...
+2026-11-13T10:09:00.8579939Z Applying migration 0006_open_signup.sql...
+2026-11-13T10:09:00.8659498Z Applying migration 0007_render_jobs.sql...
+2026-11-13T10:09:00.8888987Z Applying migration 0008_hosted_control.sql...
+2026-11-13T10:09:00.9248887Z Applying migration 0009_graphic_kind.sql...
+2026-11-13T10:09:00.9308874Z Applying migration 0010_ai_generations.sql...
+2026-11-13T10:09:00.9630820Z Applying migration 0011_ai_lite_quality_feedback.sql...
+2026-11-13T10:09:00.9774652Z Applying migration 0012_ai_gateway_requests.sql...
+2026-11-13T10:09:00.9945985Z Applying migration 0013_ai_lite_judge_admission.sql...
+2026-11-13T10:09:01.0109159Z Applying migration 0014_ai_consent.sql...
+2026-11-13T10:09:01.0236059Z Applying migration 0015_ai_import_analysis.sql...
+2026-11-13T10:09:01.0456992Z Applying migration 0016_funnel_events.sql...
+2026-11-13T10:09:01.0623651Z Applying migration 0017_admin_roles.sql...
+2026-11-13T10:09:01.0892659Z Applying migration 0018_entitlements.sql...
+2026-11-13T10:09:01.1369055Z Applying migration 0019_system_and_templates.sql...
+2026-11-13T10:09:01.1586532Z Applying migration 0020_self_scoped_predicates.sql...
+2026-11-13T10:09:01.1967139Z Applying migration 0021_one_active_grant.sql...
+2026-11-13T10:09:01.2070666Z Applying migration 0022_entitlement_absolutes.sql...
+2026-11-13T10:09:01.2614440Z Applying migration 0023_temporary_deny_absolute.sql...
+2026-11-13T10:09:01.2885000Z Applying migration 0024_admin_overview.sql...
+2026-11-13T10:09:01.3605257Z Applying migration 0025_ai_gateway_pro_task.sql...
+2026-11-13T10:09:01.3659116Z Applying migration 0026_overview_outcome_metrics.sql...
+2026-11-13T10:09:01.4029526Z Applying migration 0027_internal_activity_scope.sql...
+2026-11-13T10:09:01.4893861Z Applying migration 0028_user_feedback.sql...
+2026-11-13T10:09:01.5113825Z Applying migration 0029_cloud_playout.sql...
+2026-11-13T10:09:01.5494741Z Applying migration 0030_audit_log_append_only.sql...
+2026-11-13T10:09:01.5604218Z Applying migration 0031_live_cue_on_row.sql...
+2026-11-13T10:09:01.5784307Z Applying migration 0032_variant_quality_external_only.sql...
+2026-11-13T10:09:01.5920113Z Applying migration 0033_output_recovery_baseline.sql...
+2026-11-13T10:09:01.6042536Z Applying migration 0034_live_cue_layers.sql...
+2026-11-13T10:09:01.6219659Z Applying migration 0035_audience_participation.sql...
+2026-11-13T10:09:01.7297826Z Applying migration 0036_audience_open_round_fix.sql...
+2026-11-13T10:09:01.7447742Z Applying migration 0037_funnel_opt_in_retention.sql...
+2026-11-13T10:09:01.7785515Z Applying migration 0038_release_lite_fleet_capacity.sql...
+2026-11-13T10:09:01.7879034Z Applying migration 0039_storage_quota_and_retention.sql...
+2026-11-13T10:09:01.8179527Z Applying migration 0040_production_url_identity.sql...
+2026-11-13T10:09:01.8450753Z Applying migration 0041_storage_quota_anon_revoke.sql...
+2026-11-13T10:09:01.8500972Z Applying migration 0042_identity_trigger_grants.sql...
+2026-11-13T10:09:01.8637939Z Applying migration 0043_ai_generations_adjustments.sql...
+2026-11-13T10:09:01.8688841Z Applying migration 0044_ai_pro_generations.sql...
+2026-11-13T10:09:01.8898251Z Applying migration 0045_plan_email_domains.sql...
+2026-11-13T10:09:01.9152709Z Applying migration 0046_pro_call_renews_lease.sql...
+2026-11-13T10:09:01.9265879Z Applying migration 0047_production_data_key.sql...
+2026-11-13T10:09:01.9575527Z Applying migration 0048_production_data_tree.sql...
+2026-11-13T10:09:02.0080851Z Applying migration 0049_release_unspent_pro_reservations.sql...
+2026-11-13T10:09:02.0230871Z Applying migration 0050_agent_keys.sql...
+2026-11-13T10:09:02.0541883Z Applying migration 0051_client_table_grants.sql...
+2026-11-13T10:09:02.0732929Z Applying migration 0052_inherited_grants_tightened.sql...
+2026-11-13T10:09:02.1039097Z Applying migration 0053_teams_and_membership.sql...
+2026-11-13T10:09:02.1992815Z Applying migration 0054_team_productions.sql...
+2026-11-13T10:09:02.3275585Z Applying migration 0055_render_tier_granted.sql...
+2026-11-13T10:09:02.3424306Z Applying migration 0056_private_command_topic.sql...
+2026-11-13T10:09:02.3603112Z Applying migration 0057_command_topic_keeps_live_cue.sql...
+2026-11-13T10:09:02.3795338Z Applying migration 0058_control_profile.sql...
+2026-11-13T10:09:02.3925015Z Applying migration 0059_control_show_by_slug_profile.sql...
+2026-11-13T10:09:02.4083560Z Applying migration 0060_operator_data_patch.sql...
+2026-11-13T10:09:02.4698617Z Applying migration 0061_unpublish_deleted_productions.sql...
+2026-11-13T10:09:02.4855325Z Applying migration 0062_production_identity_owner_check.sql...
+2026-11-13T10:09:02.4970400Z Applying migration 0063_current_members_and_self_quota.sql...
+2026-11-13T10:09:02.5098582Z Applying migration 0064_command_log_broadcast.sql...
+2026-11-13T10:09:02.5243834Z Applying migration 0065_agent_packages.sql...
+2026-11-13T10:09:02.5399990Z Applying migration 0066_command_log_private_read.sql...
+2026-11-13T10:09:02.5511140Z Applying migration 0067_sweep_spares_team_productions.sql...
+2026-11-13T10:09:02.5612646Z Applying migration 0068_live_topic_presence.sql...
+2026-11-13T10:09:02.5752697Z Applying migration 0069_control_heads.sql...
+2026-11-13T10:09:02.5918248Z Applying migration 0070_seq_topic.sql...
+2026-11-13T10:09:02.6041590Z Applying migration 0071_command_sequence.sql...
+2026-11-13T10:09:02.8320001Z Applying migration 0072_command_ping.sql...
+2026-11-13T10:09:02.8487112Z Applying migration 0073_panel_relay.sql...
+2026-11-13T10:09:02.9273388Z Applying migration 0074_seq_log_index.sql...
+2026-11-13T10:09:02.9462541Z Applying migration 0075_cue_arms.sql...
+2026-11-13T10:09:03.0396747Z Applying migration 0076_production_sound_assets.sql...
+2026-11-13T10:09:03.0534334Z Applying migration 0077_direct_cue_trigger.sql...
+2026-11-13T10:09:03.0665498Z Applying migration 0078_community_gallery_closed.sql...
+2026-11-13T10:09:03.0813505Z Applying migration 0079_community_packs.sql...
+2026-11-13T10:09:03.1190492Z Applying migration 0080_community_pack_update.sql...
+2026-11-13T10:09:03.1538832Z Applying migration 0081_panel_lease.sql...
+2026-11-13T10:09:03.2094139Z Applying migration 0082_community_pack_submit_open.sql...
+2026-11-13T10:09:03.2402835Z Applying migration 0085_community_gallery_retired.sql...
+2026-11-13T10:09:03.2653750Z Applying migration 0086_community_pack_reports.sql...
+2026-11-13T10:09:03.2987317Z Applying migration 0087_community_pack_submit_for.sql...
+2026-11-13T10:09:03.3174517Z Applying migration 0088_control_link_and_suspension_guards.sql...
+2026-11-13T10:09:03.4017770Z Applying migration 0089_connector_token_role.sql...
+2026-11-13T10:09:03.4176880Z Applying migration 0090_connector_grants.sql...
+2026-11-13T10:09:03.4338534Z Applying migration 0091_connector_token_account_lock.sql...
+2026-11-13T10:09:03.4466111Z Applying migration 0092_agent_deliveries.sql...
+2026-11-13T10:09:03.4691729Z Applying migration 0093_agent_graphic_sets.sql...
+2026-11-13T10:09:03.4936374Z Applying migration 0094_agent_production_delivery.sql...
+2026-11-13T10:09:03.5089916Z Applying migration 0095_audience_operator_add.sql...
+2026-11-13T10:09:03.5386731Z Applying migration 0096_merge_patch_empty_list.sql...
+2026-11-13T10:09:03.5442081Z Applying migration 0097_published_sources.sql...
+2026-11-13T10:09:03.6522421Z Applying migration 0098_audience_imported_identity.sql...
+2026-11-13T10:09:03.6839221Z Applying migration 0099_feed_cache.sql...
+2026-11-13T10:09:03.7068460Z Applying migration 0100_data_api_pause.sql...
+2026-11-13T10:09:03.8749767Z Applying migration 0101_production_source_snapshots.sql...
+2026-11-13T10:09:04.1054208Z Applying migration 0102_source_collections.sql...
+2026-11-13T10:09:04.2321870Z Applying migration 0103_panel_graphic_actions.sql...
+2026-11-13T10:09:04.2636093Z Applying migration 0104_typed_source_values.sql...
+2026-11-13T10:09:04.3407130Z Applying migration 0105_output_ograf_files.sql...
+2026-11-13T10:09:04.3628709Z Applying migration 0106_team_assets.sql...
+2026-11-13T10:09:04.3786256Z Applying migration 0107_documents_body_updated_at.sql...
+2026-11-13T10:09:04.3944446Z Applying migration 0108_audio_owner_stamp_on_publish.sql...
+2026-11-13T10:09:04.4148780Z Applying migration 0109_seq_head_announce.sql...
+2026-11-13T10:09:04.4463420Z Applying migration 0110_panel_last_press.sql...
+2026-11-13T10:09:04.5121176Z Applying migration 0111_audience_questions.sql...
+2026-11-13T10:09:04.6188248Z Applying migration 0112_join_logos.sql...
+2026-11-13T10:09:04.6315614Z Applying migration 0113_audience_chat_votes.sql...
+2026-11-13T10:09:04.6595270Z Applying migration 0114_audience_word_questions.sql...
+2026-11-13T10:09:04.7050606Z Applying migration 0115_production_copies_guard.sql...
+2026-11-13T10:09:04.7429268Z Seeding data from supabase/seed.sql...
+2026-11-13T10:09:04.7487818Z Starting containers...
+2026-11-13T10:09:07.6026752Z Waiting for health checks...
+2026-11-13T10:09:25.4087680Z Started [36msupabase[39m local development setup.
+2026-11-13T10:09:25.4088046Z 
+2026-11-13T10:09:25.4101724Z ╭──────────────────────────────────╮
+2026-11-13T10:09:25.4102301Z │ [1m🔧 Development Tools            [22m │
+2026-11-13T10:09:25.4102748Z ├─────────┬────────────────────────┤
+2026-11-13T10:09:25.4103271Z │ [32mMailpit[39m │ [36mhttp://127.0.0.1:54324[39m │
+2026-11-13T10:09:25.4103788Z ╰─────────┴────────────────────────╯
+2026-11-13T10:09:25.4103990Z 
+2026-11-13T10:09:25.4104241Z ╭─────────────────────────────────────────────────╮
+2026-11-13T10:09:25.4104757Z │ [1m🌐 APIs                                        [22m │
+2026-11-13T10:09:25.4105239Z ├─────────────┬───────────────────────────────────┤
+2026-11-13T10:09:25.4106016Z │ [32mProject URL[39m │ [36mhttp://127.0.0.1:54321           [39m │
+2026-11-13T10:09:25.4106915Z │ [32mREST       [39m │ [36mhttp://127.0.0.1:54321/rest/v1   [39m │
+2026-11-13T10:09:25.4107835Z │ [32mGraphQL    [39m │ [36mhttp://127.0.0.1:54321/graphql/v1[39m │
+2026-11-13T10:09:25.4108719Z ╰─────────────┴───────────────────────────────────╯
+2026-11-13T10:09:25.4109067Z 
+2026-11-13T10:09:25.4109552Z ╭───────────────────────────────────────────────────────────────╮
+2026-11-13T10:09:25.4110458Z │ [1m⛁ Database                                                   [22m │
+2026-11-13T10:09:25.4111388Z ├─────┬─────────────────────────────────────────────────────────┤
+2026-11-13T10:09:25.4113563Z │ [32mURL[39m │ [36***127.0.0.1:54322/postgres[39m │
+2026-11-13T10:09:25.4114423Z ╰─────┴─────────────────────────────────────────────────────────╯
+2026-11-13T10:09:25.4114674Z 
+2026-11-13T10:09:25.4114993Z ╭──────────────────────────────────────────────────────────────╮
+2026-11-13T10:09:25.4117348Z │ [1m🔑 Authentication Keys                                      [22m │
+2026-11-13T10:09:25.4118440Z ├─────────────┬────────────────────────────────────────────────┤
+2026-11-13T10:09:25.4119526Z │ [32mPublishable[39m │ [33msb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH[39m │
+2026-11-13T10:09:25.4120610Z │ [32mSecret     [39m │ [33msb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz     [39m │
+2026-11-13T10:09:25.4121595Z ╰─────────────┴────────────────────────────────────────────────╯
+2026-11-13T10:09:25.4122074Z 
+2026-11-13T10:09:25.4122657Z ╭───────────────────────────────────────────────────────────────────────────────╮
+2026-11-13T10:09:25.4124175Z │ [1m📦 Storage (S3)                                                              [22m │
+2026-11-13T10:09:25.4125150Z ├────────────┬──────────────────────────────────────────────────────────────────┤
+2026-11-13T10:09:25.4126602Z │ [32mURL       [39m │ [36mhttp://127.0.0.1:54321/storage/v1/s3                            [39m │
+2026-11-13T10:09:25.4128184Z │ [32mAccess Key[39m │ [33m625729a08b95bf1b7ff351a663f3a23c                                [39m │
+2026-11-13T10:09:25.4129553Z │ [32mSecret Key[39m │ [33m850181e4652dd023b7a98c58ae0d2d34bd487ee0cc3254aed6eda37307425907[39m │
+2026-11-13T10:09:25.4130694Z │ [32mRegion    [39m │ local                                                            │
+2026-11-13T10:09:25.4131788Z ╰────────────┴──────────────────────────────────────────────────────────────────╯
+2026-11-13T10:09:25.4132591Z [33mLocal dev security notice[39m
+2026-11-13T10:09:25.4133372Z All services bind to 0.0.0.0 (network-accessible, not just localhost)
+2026-11-13T10:09:25.4134033Z API keys and JWT secrets are shared defaults. Do not use in production
+2026-11-13T10:09:25.4134584Z Studio, pgMeta (/pg/*), and analytics have no authentication
+2026-11-13T10:09:25.4134860Z 
+2026-11-13T10:09:27.0902294Z Local stack noacg-studio-s0 ready: 10 containers running, publishing 54321, 54322, 54324, 54327.
+2026-11-13T10:09:27.1539754Z ##[group]Run npm run "$SCRIPT" -- --minutes "$MINUTES"
+2026-11-13T10:09:27.1540192Z [36;1mnpm run "$SCRIPT" -- --minutes "$MINUTES"[0m
+2026-11-13T10:09:27.1595316Z shell: /usr/bin/bash -e {0}
+2026-11-13T10:09:27.1595615Z env:
+2026-11-13T10:09:27.1595917Z   SUPABASE_WORKDIR: /tmp/noacg-configured-stacks/slot-0
+2026-11-13T10:09:27.1596312Z   NOACG_STACK_PROJECT: noacg-studio-s0
+2026-11-13T10:09:27.1596619Z   NOACG_STACK_SLOT: 0
+2026-11-13T10:09:27.1596915Z   SCRIPT: qualify:editor-projects
+2026-11-13T10:09:27.1597197Z   MINUTES: 5
+2026-11-13T10:09:27.1597591Z ##[endgroup]
+2026-11-13T10:09:27.2629648Z 
+2026-11-13T10:09:27.2630494Z > noacg-studio@0.1.0 qualify:editor-projects
+2026-11-13T10:09:27.2631386Z > node scripts/editor-projects-qualification.mjs --minutes 5
+2026-11-13T10:09:27.2631863Z 
+2026-11-13T10:09:29.9029507Z 
+2026-11-13T10:09:29.9030104Z Running 1 test using 1 worker
+2026-11-13T10:09:29.9049827Z 
+2026-11-13T10:10:04.0790678Z   ✓  1 [isolated-projects] › e2e/endurance/editor-projects.ts:14:1 › real isolated auth persists project drafts/history and independent installed copies into a fresh browser (33.5s)
+2026-11-13T10:10:04.1992239Z 
+2026-11-13T10:10:04.2005801Z   1 passed (34.9s)
+2026-11-13T10:10:04.2363179Z PASS E4 isolated persistence at 33380c2ffafc005b07cde8ca0e5cc17f7329de39: 1 test, zero skips/retries; account deleted.
+2026-11-13T10:10:04.2567202Z ##[group]Run [ -n "$NOACG_STACK_PROJECT" ] || exit 0
+2026-11-13T10:10:04.2567928Z [36;1m[ -n "$NOACG_STACK_PROJECT" ] || exit 0[0m
+2026-11-13T10:10:04.2568305Z [36;1mmkdir -p endurance-output/stack-logs[0m
+2026-11-13T10:10:04.2569222Z [36;1mfor c in $(docker ps -a --filter "label=com.supabase.cli.project=$NOACG_STACK_PROJECT" --format '{{.Names}}' | grep -E 'realtime|_db_'); do[0m
+2026-11-13T10:10:04.2570255Z [36;1m  docker logs --timestamps "$c" > "endurance-output/stack-logs/$c.log" 2>&1 || true[0m
+2026-11-13T10:10:04.2570699Z [36;1mdone[0m
+2026-11-13T10:10:04.2632281Z shell: /usr/bin/bash -e {0}
+2026-11-13T10:10:04.2632713Z env:
+2026-11-13T10:10:04.2633173Z   SUPABASE_WORKDIR: /tmp/noacg-configured-stacks/slot-0
+2026-11-13T10:10:04.2633792Z   NOACG_STACK_PROJECT: noacg-studio-s0
+2026-11-13T10:10:04.2634246Z   NOACG_STACK_SLOT: 0
+2026-11-13T10:10:04.2634623Z ##[endgroup]
+2026-11-13T10:10:04.4771218Z ##[group]Run [ ! -f scripts/configured-stack.mjs ] || node scripts/configured-stack.mjs down
+2026-11-13T10:10:04.4771890Z [36;1m[ ! -f scripts/configured-stack.mjs ] || node scripts/configured-stack.mjs down[0m
+2026-11-13T10:10:04.4828851Z shell: /usr/bin/bash -e {0}
+2026-11-13T10:10:04.4829157Z env:
+2026-11-13T10:10:04.4829468Z   SUPABASE_WORKDIR: /tmp/noacg-configured-stacks/slot-0
+2026-11-13T10:10:04.4829875Z   NOACG_STACK_PROJECT: noacg-studio-s0
+2026-11-13T10:10:04.4830173Z   NOACG_STACK_SLOT: 0
+2026-11-13T10:10:04.4830420Z ##[endgroup]
+2026-11-13T10:10:16.4675768Z Stopping containers...
+2026-11-13T10:10:16.4676950Z Stopped [36msupabase[39m local development setup. WARN: config section [inbucket] is deprecated. Please use [local_smtp] instead.
+2026-11-13T10:10:16.6924052Z ##[notice]noacg-studio-s0: 0 containers, 0 volumes, 0 networks, no process; ports 54320-54329 not held and each binds; 0 ownerless TIME_WAIT socket(s) left (a new allocation skips a block until they expire); reservation and claim released.
+2026-11-13T10:10:16.7052652Z ##[group]Run actions/upload-artifact@v4
+2026-11-13T10:10:16.7053168Z with:
+2026-11-13T10:10:16.7053491Z   name: endurance-43406588586
+2026-11-13T10:10:16.7053933Z   path: endurance-output/
+2026-11-13T10:10:16.7054319Z   if-no-files-found: ignore
+2026-11-13T10:10:16.7054714Z   retention-days: 30
+2026-11-13T10:10:16.7055069Z   compression-level: 6
+2026-11-13T10:10:16.7055471Z   overwrite: false
+2026-11-13T10:10:16.7055840Z   include-hidden-files: false
+2026-11-13T10:10:16.7056245Z env:
+2026-11-13T10:10:16.7056674Z   SUPABASE_WORKDIR: /tmp/noacg-configured-stacks/slot-0
+2026-11-13T10:10:16.7057258Z   NOACG_STACK_PROJECT: noacg-studio-s0
+2026-11-13T10:10:16.7057943Z   NOACG_STACK_SLOT: 0
+2026-11-13T10:10:16.7058317Z ##[endgroup]
+2026-11-13T10:10:16.8831340Z (node:10422) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-13T10:10:16.8832246Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-13T10:10:16.8928865Z With the provided path, there will be 5 files uploaded
+2026-11-13T10:10:16.8936287Z Artifact name is valid!
+2026-11-13T10:10:16.8936868Z Root directory input is valid!
+2026-11-13T10:10:17.1530160Z Beginning upload of artifact content to blob storage
+2026-11-13T10:10:17.2169838Z (node:10422) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-13T10:10:17.4183677Z Uploaded bytes 339002
+2026-11-13T10:10:17.4509068Z Finished uploading artifact content to blob storage!
+2026-11-13T10:10:17.4510296Z SHA256 digest of uploaded artifact zip is c9e2b13a455776250a5048d97eb7562e4aad6d09a7bae3fc88d80080b8c7206d
+2026-11-13T10:10:17.4511496Z Finalizing artifact upload
+2026-11-13T10:10:17.8268885Z Artifact endurance-43406588586.zip successfully finalized. Artifact ID 14026994771
+2026-11-13T10:10:17.8270333Z Artifact endurance-43406588586 has been successfully uploaded! Final size is 339002 bytes. Artifact ID is 14026994771
+2026-11-13T10:10:17.8277190Z Artifact download URL: https://github.com/NoaCG/NoaCG-Studio/actions/runs/43406588586/artifacts/14026994771
+2026-11-13T10:10:17.8504712Z Post job cleanup.
+2026-11-13T10:10:17.8508702Z ##[start-action display=Cache Playwright browser;id=__9bf204a7-2bae-4f48-ac37-c2673d88f972.cache]
+2026-11-13T10:10:17.8544392Z Post job cleanup.
+2026-11-13T10:10:17.9756400Z Cache hit occurred on the primary key playwright-Linux-1.61.1, not saving cache.
+2026-11-13T10:10:17.9758172Z (node:10434) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-13T10:10:17.9759010Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-13T10:10:17.9836253Z ##[end-action id=__9bf204a7-2bae-4f48-ac37-c2673d88f972.cache;outcome=success;conclusion=success;duration_ms=132]
+2026-11-13T10:10:17.9916414Z Post job cleanup.
+2026-11-13T10:10:17.9920349Z ##[start-action display=Cache node_modules;id=__16c67562-2477-4f58-970f-10e560c1053e.cache]
+2026-11-13T10:10:18.0609447Z Post job cleanup.
+2026-11-13T10:10:18.1784870Z Cache hit occurred on the primary key node-modules-Linux-X64-node24-f1dfe0bfed7230bd92eb2b1be24317a071fb0858feb2f2be283bb7b0c6487acc, not saving cache.
+2026-11-13T10:10:18.1786954Z (node:10455) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-13T10:10:18.1789008Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-13T10:10:18.1871796Z ##[end-action id=__16c67562-2477-4f58-970f-10e560c1053e.cache;outcome=success;conclusion=success;duration_ms=195]
+2026-11-13T10:10:18.1960635Z Post job cleanup.
+2026-11-13T10:10:18.3280133Z (node:10463) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-13T10:10:18.3281002Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-13T10:10:18.3284384Z Cache hit occurred on the primary key node-cache-Linux-x64-npm-f6534e8efbcb185272d21504ced33f1ba33b656490018118e5beb65abcf01961, not saving cache.
+2026-11-13T10:10:18.3428184Z Post job cleanup.
+2026-11-13T10:10:18.4350706Z [command]/usr/bin/git version
+2026-11-13T10:10:18.4400569Z git version 2.56.0
+2026-11-13T10:10:18.4444718Z Temporarily overriding HOME='/home/runner/work/_temp/ede53c37-29eb-417a-a866-4fc9d819041a' before making global git config changes
+2026-11-13T10:10:18.4446086Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-13T10:10:18.4451391Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-13T10:10:18.4501969Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-13T10:10:18.4543272Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-13T10:10:18.4920102Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-13T10:10:18.4957951Z http.https://github.com/.extraheader
+2026-11-13T10:10:18.4974067Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-13T10:10:18.5031305Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-13T10:10:18.5402975Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-13T10:10:18.5450629Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-13T10:10:18.5956100Z Cleaning up orphan processes
+2026-11-13T10:10:18.6404888Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@v4, actions/upload-artifact@v4, supabase/setup-cli@v1. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

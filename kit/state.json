@@ -68,9 +68,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "owner-approved narrow correction / final CI and independent review",
+      "step": "owner-approved correction / Grade A, awaiting final CI",
       "pr": 2438,
-      "note": "Frozen pushed33380 exactly matches the product/tests that passed36focused and158broadercases. Currenthead CI plan selectsALL63configuredspecs/fourstacks and passescapacity underexistingpolicy. Awaiting remaining CI/backend/Codex/freshFULLreview and exactheadstamp reconciliation; no queue or phase advance. All spent attempts retained; local work last."
+      "note": "Full52path independent review gradesA and Codex is clean on frozen33380. Focused36/broader158/affectedgates323 and exactheadisolatedbackend pass. CurrentCI has oneoffline shard pending; onlycompletedredReviewed deliberatelyawaitscoordinatorstamp. No queue/phase advance untilrequiredgatescomplete. All spent attempts preserved; local work last."
     }
   ],
   "owner": [
@@ -2260,19 +2260,51 @@
       "finalGates": {
         "ci": 43405602818,
         "head": "33380c2ffafc005b07cde8ca0e5cc17f7329de39",
-        "status": "IN_PROGRESS",
+        "status": "AWAITING_LAST_OFFLINE_SHARD_AND_FINAL_CI_VERDICT",
         "planJob": 131819086123,
         "planStatus": "SUCCESS",
         "testMerge": "107a60b54 (33380 into455ee104)",
         "configuredSelection": "Actual runtimeALL63/fourisolatedstacks09:59:37Z; rootfetchedwhole190550charplanlog and read actualnotices.",
         "capacity": "ActualREPAY199.4/213tablemin93.6%,adds1.7min,09:59:41Z. Newest43201149088PARTIAL/judgedcomplete43014542120; frozenPR_BASE7e3069 attributionissue2450 preserved; no limits/exceptionchanges.",
         "metadata": 43405595106,
-        "backend": "Worker observing existing-carrier exacthead dispatch, no rootduplicate",
-        "codex": "ONEready-for-review route succeeded on exact33380; no @codex duplicate, awaitingactualresult.",
+        "backend": {
+          "run": 43406588586,
+          "job": 131822300903,
+          "status": "SUCCESS",
+          "head": "33380c2ffafc005b07cde8ca0e5cc17f7329de39",
+          "cases": 1,
+          "caseSeconds": 33.5,
+          "totalSeconds": 34.9,
+          "skips": 0,
+          "retries": 0,
+          "accountDeleted": true,
+          "teardown": "0containers/volumes/networks/process;ports54320-29bind/0ownerlessTIME_WAIT/reservation+claimreleased",
+          "artifact": {
+            "id": 14026994771,
+            "bytes": 339002,
+            "sha256": "c9e2b13a455776250a5048d97eb7562e4aad6d09a7bae3fc88d80080b8c7206d"
+          },
+          "receipt": "e4-owner2-verification/isolated-131822300903-full.log",
+          "artifactReadLimit": "FileServiceconnectorresult downloaded, workspaceblobingress403 once; no retry/bypass/allowlistchange/no directJSONreadclaim. Strictwrapperrequiredreceipt/source/freshcontext flags pluswholejoblog inspected."
+        },
+        "codex": {
+          "summary": 6823456351,
+          "status": "COMPLETED_CLEAN",
+          "at": "2026-11-13T10:05:04.036951Z",
+          "head": "33380c2ffafc005b07cde8ca0e5cc17f7329de39",
+          "hasFindings": false,
+          "hasUnresolvedFindings": false,
+          "route": "DraftmarkedreadyONCE,no@codex",
+          "rootReadback": "Actualexactheadsummary state read independently; formalreviewssubmissionempty is clean-resultformat, notmissingverdict."
+        },
         "fullSo": {
           "actor": "/root/editor_e4_narrow_correction/e4_owner2_final_full_so",
-          "status": "RUNNING_FRESH_FULL52PATH",
-          "prerequisite": "ActualnewheadCIcapacity/configuredselection and exactheadlocalstamp confirmed; readonly no tests/writes"
+          "status": "COMPLETE_AGREE_GRADE_A",
+          "head": "33380c2ffafc005b07cde8ca0e5cc17f7329de39",
+          "scope": 52,
+          "receipt": "e4-owner2-verification/final-full-so.txt",
+          "sha256": "af76c805a7ecbcc06b3e421c2bcbddb9711a448407d990ac7bad544ae5c55445",
+          "rootReadback": "EntirefreshFULLverdict/all52pathmanifest read/hashverified. No remainingproductdefect or requiredcorrection; independentcopies/singleuser/noarchitecturechange. Actualsource/treeclean matches33380; runtimeartifactandreceivingchecks scopehonest. CurrentCodexclean laterindependentlyconfirmed byroot; normalCIterminal/queue/postland stilldue."
         },
         "localStamp": {
           "sha": "33380c2ffafc005b07cde8ca0e5cc17f7329de39",
@@ -2310,6 +2342,13 @@
         "ciPlanReceipt": {
           "path": "e4-owner2-verification/ci-plan-131819086123-full.log",
           "sha256": "491aadfc9109b247b7155aa11e229865e706a84dff3e54a59e81bfa575f26b20"
+        },
+        "reviewedTimeout": {
+          "job": 131819086112,
+          "seconds": 150,
+          "polls": 29,
+          "reason": "Onlymissingpubliccoordinatorstamp; source333 matched; no rerunbeforeallothergates",
+          "sha256": "44cf8deb2fb5b9d676bd171859dbe2d4d1efcdd456107f77d09dc3e727b8fca4"
         }
       }
     }

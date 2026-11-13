@@ -1,0 +1,95 @@
+AGREE
+
+**Grade A — fresh FULL review of all 52 paths. No remaining product defect or required correction found.** This is the implementation verdict; outstanding landing gates remain separate.
+
+The problem is to preserve independent authored graphics and their complete recovery state while taking selected saved copies into productions. The implementation solves it within the existing single-user snapshot model and architecture.
+
+- Starter selection, brand application, undo/redo and explicit reapplication preserve local typography/logo overrides and untouched graphics.
+- Independent document identities retain source, assets, baseline, drafts, history and legitimate views through switching, reload and Home reopen.
+- Selective installation uses validated saved sources, durable operation identities and atomic complete-target comparison. Retry preserves copy/cue IDs; rollback retains its direction and fresh revision, refuses newer edits and preserves output safeguards.
+- Failed saves and project operations preserve documents. Removal leaves unfiled drafts. Supported legacy rows normalize only for comparison; unsupported stamps and changed metadata refuse without rewriting unrelated rows.
+- Discard preserves October’s binding clean-write sequence during a successful same-owner drain, then confirms the complete newer draft before refusal. Queued work, retired ownership, account changes, removed documents and adopted/unknown envelopes retain their guards. The original line-455 failure remains historical; its later assertions were originally unexecuted.
+- The receiving kit remains browser evidence. All four ZIP hashes/names match their manifest; all **43 uncompressed files** equal the fresh receiving outputs. The source differs only at the fresh `brandApplication.lookId`. Painted replay and Next-row evidence was inspected. No physical-host, native-device or E5/E6 acceptance follows.
+
+I independently inspected the recorded **36/36 targeted**, **158/158 broader** and **323/323 changed-gate** results. Product/test/script bytes at final HEAD equal verified product `721c8d4746e0078671a4886e2abdc254df8a8d33`; only notes follow.
+
+Current GitHub evidence independently read:
+
+- CI `43405602818`: Build, Factory, Catalog, both Guided Mod jobs and E2E plan pass on test merge `107a60b54e78c01361485389667a26bbc8dbdc15`. Remaining offline/configured results were still pending at my observation.
+- Actual capacity: **REPAY 199.4/213 table-minutes, 93.6%, +1.7 minutes**. This replaces neither repayment ownership nor existing debt.
+- Isolated qualification `43406588586`, job `131822300903`: **PASS**, exact final HEAD, one test in 34.9 seconds, zero skips/retries, account deleted. Teardown confirms zero containers/volumes/networks/process, available ports, zero ownerless TIME_WAIT sockets and released claims. Artifact `14026994771` uploaded.
+- CodeQL `43405595106`: all three analyses pass.
+- Reviewed `131819086112`: failure solely because `noacg/reviewed` was missing after 150 seconds/29 polls. The coordinator stamp remains deliberately separate.
+- The current-head Codex outcome, complete normal-CI verdict, queue and post-landing verification remain for root to establish. No additional review request or dispatch was made.
+
+The canonical full-scope `sideEnds` receipt reports no ends. Independent base-to-HEAD package/build/version/dependency/lock/CLI inspection finds only the manual qualification-script addition to `package.json`.
+
+Before and after inspection:
+
+```text
+Base: 91a57833c972f214b45fa7357faf4e830c547e21
+HEAD: 33380c2ffafc005b07cde8ca0e5cc17f7329de39
+Tree: 328a4b8183326796dfb0824134f6d8b9c011d5fc
+Status: clean
+```
+
+The manifest matches the actual base-to-HEAD changed set exactly. All 52 scoped paths inspected:
+
+```text
+docs/work-specs/editor-r1-5/e4-notes.md
+docs/work-specs/editor-r1-5/e4-receiving.md
+docs/work-specs/editor-r1-5/e4-reference-receipt.json
+docs/work-specs/editor-r1-5/e4-reference.md
+e2e/_authoringProject.ts
+e2e/editor-folders-bins.spec.ts
+e2e/editor-projects.spec.ts
+e2e/endurance/editor-projects.config.ts
+e2e/endurance/editor-projects.ts
+e2e/fixtures/editor-projects/harbour.svg
+e2e/fixtures/editor-projects/receiving.json
+e2e/fixtures/editor-projects/receiving/casparcg-replay.png
+e2e/fixtures/editor-projects/receiving/casparcg.zip
+e2e/fixtures/editor-projects/receiving/html-overlay-replay.png
+e2e/fixtures/editor-projects/receiving/html-overlay.zip
+e2e/fixtures/editor-projects/receiving/ograf.zip
+e2e/fixtures/editor-projects/receiving/operator-rehearsal.png
+e2e/fixtures/editor-projects/receiving/receiving-manifest.json
+e2e/fixtures/editor-projects/receiving/source.json
+e2e/fixtures/editor-projects/receiving/spx-replay.png
+e2e/fixtures/editor-projects/receiving/spx.zip
+package.json
+scripts/authoring-document.test.mjs
+scripts/brand-application.test.mjs
+scripts/editor-project.test.mjs
+scripts/editor-projects-qualification.mjs
+scripts/workspace-stage.test.mjs
+src/components/editorFoundation/Canvas.tsx
+src/components/editorFoundation/EditorFoundation.tsx
+src/components/editorFoundation/ProjectPanel.tsx
+src/components/editorFoundation/ProjectStarter.tsx
+src/components/editorFoundation/documentAdapter.ts
+src/components/editorFoundation/operations.ts
+src/components/editorFoundation/projects.css
+src/components/editorFoundation/session.ts
+src/components/editorFoundation/useArtworkGesture.ts
+src/components/editorFoundation/useImageImport.ts
+src/components/editorFoundation/usePenGesture.ts
+src/components/home/HomePage.tsx
+src/components/home/sections/LooksSection.tsx
+src/components/home/sections/ProjectsSection.tsx
+src/control/projectInstallation.ts
+src/model/authoringDocument.ts
+src/model/brandApplication.ts
+src/model/project.ts
+src/model/projectInstallation.ts
+src/model/shows.ts
+src/model/types.ts
+src/model/workspaceStage.ts
+src/store/authoringProjects.ts
+src/store/saveActions.ts
+src/store/templateStore.ts
+```
+
+Supporting inspection covered applicable root/folder contracts, architecture, goals, `/so`, known traps, the E4 specification, October repair contract and maintained discard assertions; shared durable-write/backend/navigation callers; original failed receipts, model assessment and clarification; current verification logs, manifests and receiving artifacts.
+
+Reviewer: `/root/editor_e4_narrow_correction/e4_owner2_final_full_so`. Inherited model/effort; native model/session ID unexposed. No files, tests, builds, commits, GitHub writes or delegation performed. No repair allowance granted.
