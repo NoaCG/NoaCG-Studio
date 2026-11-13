@@ -100,7 +100,7 @@ export function deadlineText(at: number, offset: number): string {
 }
 
 /** This computer's offset at an instant, in minutes east of UTC. */
-export const localOffset = (at: number): number => -new Date(at).getTimezoneOffset();
+const localOffset = (at: number): number => -new Date(at).getTimezoneOffset();
 
 /** "In N min": now plus N minutes, to the whole second, so a second press is a new value from now. */
 export function deadlineIn(now: number, minutes: number): string {

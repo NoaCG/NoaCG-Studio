@@ -1,5 +1,6 @@
 import { obsScenesOf, sceneLink } from '../../model/obsScenes';
 import { MAX_EXPECTED_OUTPUTS } from '../../control/readiness';
+import { routeHash } from '../../app/router';
 import type { Show } from '../../model/shows';
 import type { CopyKind } from './useProductionPublish';
 
@@ -18,7 +19,7 @@ export function allSceneLinks(scenes: readonly { id: string; name: string }[], o
 /** The Live dock's address (obs-scenes OS6 K1): this app's page with the dock route, for an OBS
  *  Custom Browser Dock. */
 export function dockLink(showId: string, location: Pick<Location, 'origin' | 'pathname'> = window.location): string {
-  return `${location.origin}${location.pathname}#/dock/${encodeURIComponent(showId)}`;
+  return `${location.origin}${location.pathname}${routeHash({ view: 'dock', id: showId })}`;
 }
 
 /**

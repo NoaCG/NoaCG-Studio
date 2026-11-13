@@ -19,8 +19,8 @@
 /* One line whatever the worst row says, so nothing under it moves (K5); every row is in its tooltip. */
 .live-dock-health { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .live-dock-tone--ok { color: #4ade80; }
-.live-dock-tone--warn { color: var(--amber); }
-.live-dock-tone--bad { color: var(--danger); }
+.live-dock-tone--warn { color: #f59e0b; }
+.live-dock-tone--bad { color: #ef4444; }
 .live-dock-tone--idle { color: var(--text-dim); }
 .live-dock-section { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border); }
 .live-dock-section .pd-source-line { overflow-wrap: anywhere; }

@@ -1,23 +1,16 @@
-import { useState } from 'react';
-import type { Show } from '../../model/shows';
+import { useMemo, useState } from 'react';
+import type { Show, ShowCue } from '../../model/shows';
 import { hasReaderLine } from '../../model/shows';
+import { sceneCueMap } from '../../model/obsScenes';
 import type { SourceStatusStore } from '../../control/sheetSource';
-import { TONE_DOT, type ReadyTone } from '../../control/readiness';
-import { deadlineAtLocal, deadlineIn, deadlineOf, type DeadlinePath, type DockScenes } from '../../control/liveDock';
+import { TONE_DOT } from '../../control/readiness';
+import type { SceneRow } from '../../control/obsSceneRows';
+import { hms } from '../../control/playoutStatus';
+import { deadlineAtLocal, deadlineIn, deadlineOf, deadlinePaths, dockScenes, sceneHealth, type DeadlinePath } from '../../control/liveDock';
 import { panelTone, type PanelAnswerState } from '../control/PanelControl';
 import { clockText } from '../../control/serverState';
 import { OwnReaderLine, SourceLine, type CurrentMatchControl, type OwnSheetReader } from './SourcesLine';
-import { useNow } from './ClipClock';
 import './LiveDock.css';
-
-/** One cue of a shown scene, as the dock draws it (K4). */
-export interface DockCue {
-  id: string;
-  label: string;
-  onAir: boolean;
-  /** Why its Take would be refused, or null. */
-  refused: string | null;
-}
 
 /**
  * THE LIVE DOCK (docs/work-specs/obs-scenes/spec.md OS6): the production page drawn as a 300 px
@@ -35,14 +28,13 @@ export default function LiveDock({
   published,
   selected,
   note,
-  health,
+  now,
+  rows,
   scenes,
-  choice,
-  onPick,
-  cuesOf,
-  onTake,
-  onOut,
-  deadline,
+  cueState,
+  onPress,
+  deadlineValue,
+  writeDeadline,
 }: {
   show: Show;
   setShows: (shows: Show[]) => void;
@@ -56,15 +48,25 @@ export default function LiveDock({
   /** What the page's own selection holds, which Companion's selection keys act on (K2). */
   selected: string | null;
   note: string | null;
-  health: { tone: ReadyTone; words: string; title: string } | null;
+  /** The page's own clock, ticking every second. */
+  now: number;
+  /** The OS3 scene rows, while the switch is on; null otherwise. */
+  rows: readonly SceneRow[] | null;
   scenes: readonly { id: string; name: string }[];
-  choice: DockScenes | null;
-  onPick: (sceneId: string) => void;
-  cuesOf: (sceneId: string) => DockCue[];
-  onTake: (cueId: string) => void;
-  onOut: (cueId: string) => void;
-  deadline: { paths: readonly DeadlinePath[]; value: (path: string) => unknown; write: (path: string, value: string) => void };
+  /** Whether a cue is on air, and why its Take would be refused (or null). */
+  cueState: (cue: ShowCue) => { onAir: boolean; refused: string | null };
+  /** Take (`onAir` false) or Out (`onAir` true) of a cue, run only while the cue is in that state. */
+  onPress: (cueId: string, onAir: boolean) => void;
+  deadlineValue: (path: string) => unknown;
+  writeDeadline: (path: string, value: string) => void;
 }) {
+  /** The picked scene, while no scene is on program (K3): this dock's session only. */
+  const [pick, setPick] = useState<string | null>(null);
+  // Each scene's cues (K4) and the deadline paths (K7), read again only when what they read changes.
+  const sceneCues = useMemo(() => sceneCueMap(show), [show]);
+  const paths = useMemo(() => deadlinePaths(show.graphics, show.bindings, (show.sources ?? []).map((s) => s.id)), [show.graphics, show.bindings, show.sources]);
+  const health = rows ? sceneHealth(rows) : null;
+  const choice = rows ? dockScenes(scenes, rows, pick) : null;
   const tone = panelTone(panel);
   const sources = (show.sources ?? []).filter(hasReaderLine);
   const nameOf = (id: string) => scenes.find((s) => s.id === id)?.name ?? '';
@@ -105,7 +107,7 @@ export default function LiveDock({
           <span aria-hidden="true">{TONE_DOT[health.tone]}</span> {health.words}
         </div>
       )}
-      <DeadlineSection {...deadline} />
+      <DeadlineSection paths={paths} value={deadlineValue} write={writeDeadline} now={now} />
       {sources.length + ownReaders.length > 0 && (
         <section className="live-dock-section" data-testid="dock-sources">
           {sources.map((source) => (
@@ -122,7 +124,7 @@ export default function LiveDock({
             <span className="live-dock-label">{choice.mode === 'program' ? 'Program' : 'Picked'}</span>
             <select
               value={choice.picked}
-              onChange={(e) => onPick(e.target.value)}
+              onChange={(e) => setPick(e.target.value)}
               disabled={choice.mode === 'program'}
               title={choice.mode === 'program' ? 'Following the OBS program scene' : 'OBS has not said which scene is on program'}
               data-testid="dock-scene-pick"
@@ -137,17 +139,20 @@ export default function LiveDock({
           {choice.ids.map((id) => (
             <div key={id} className="live-dock-scene" data-testid="dock-scene" data-scene={id}>
               {choice.ids.length > 1 && <div className="live-dock-scene-name">{nameOf(id)}</div>}
-              {cuesOf(id).map((cue) => (
-                <div key={cue.id} className={`live-dock-cue${cue.onAir ? ' live-dock-cue--on' : ''}`} data-testid="dock-cue" data-cue={cue.id} data-on={cue.onAir ? 'true' : 'false'}>
-                  <span className="live-dock-cue-name" title={cue.refused ?? cue.label}>{cue.label}</span>
-                  <button type="button" className="primary" onClick={() => onTake(cue.id)} disabled={cue.onAir || !!cue.refused} title={cue.refused ?? undefined} data-testid="dock-take">
-                    Take
-                  </button>
-                  <button type="button" onClick={() => onOut(cue.id)} disabled={!cue.onAir} data-testid="dock-out">
-                    Out
-                  </button>
-                </div>
-              ))}
+              {(sceneCues.get(id) ?? []).map((cue) => {
+                const { onAir, refused } = cueState(cue);
+                return (
+                  <div key={cue.id} className={`live-dock-cue${onAir ? ' live-dock-cue--on' : ''}`} data-testid="dock-cue" data-cue={cue.id} data-on={onAir ? 'true' : 'false'}>
+                    <span className="live-dock-cue-name" title={refused ?? cue.label}>{cue.label}</span>
+                    <button type="button" className="primary" onClick={() => onPress(cue.id, false)} disabled={onAir || !!refused} title={refused ?? undefined} data-testid="dock-take">
+                      Take
+                    </button>
+                    <button type="button" onClick={() => onPress(cue.id, true)} disabled={!onAir} data-testid="dock-out">
+                      Out
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           ))}
         </section>
@@ -162,15 +167,13 @@ export default function LiveDock({
   );
 }
 
-const timeWords = (at: number) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
 /** The break deadline (K7): In 2 min, In 5 min and Set, each a whole time written to the path. */
-function DeadlineSection({ paths, value, write }: { paths: readonly DeadlinePath[]; value: (path: string) => unknown; write: (path: string, value: string) => void }) {
+function DeadlineSection({ paths, value, write, now }: { paths: readonly DeadlinePath[]; value: (path: string) => unknown; write: (path: string, value: string) => void; now: number }) {
   const [chosen, setChosen] = useState<string | null>(null);
   const [typed, setTyped] = useState('');
+  const [skipped, setSkipped] = useState(false);
   const path = paths.find((p) => p.path === chosen)?.path ?? paths[0]?.path ?? null;
   const held = path ? deadlineOf(value(path)) : null;
-  const now = useNow(held !== null, 1000, Date.now);
   if (!path) {
     return (
       <section className="live-dock-section hint" data-testid="dock-deadline-none">
@@ -182,6 +185,8 @@ function DeadlineSection({ paths, value, write }: { paths: readonly DeadlinePath
   const set = () => {
     const at = deadlineAtLocal(typed, Date.now());
     if (at) write(path, at);
+    // A time the clocks skip that day (summer time) has no instant: nothing is written, and it says so.
+    setSkipped(!at);
   };
   return (
     <section className="live-dock-section" data-testid="dock-deadline">
@@ -200,7 +205,7 @@ function DeadlineSection({ paths, value, write }: { paths: readonly DeadlinePath
         )}
       </div>
       <div className="live-dock-row live-dock-held" data-testid="dock-deadline-value" data-value={held === null ? undefined : String(value(path))}>
-        {held === null ? 'No deadline set' : `Until ${timeWords(held)} · ${left === 0 ? 'reached' : `${clockText(left!)} left`}`}
+        {held === null ? 'No deadline set' : `Until ${hms(held)} · ${left === 0 ? 'reached' : `${clockText(left!)} left`}`}
       </div>
       <div className="live-dock-row">
         <button type="button" onClick={() => write(path, deadlineIn(Date.now(), 2))} data-testid="dock-deadline-2">
@@ -209,11 +214,15 @@ function DeadlineSection({ paths, value, write }: { paths: readonly DeadlinePath
         <button type="button" onClick={() => write(path, deadlineIn(Date.now(), 5))} data-testid="dock-deadline-5">
           In 5 min
         </button>
-        <input type="time" value={typed} onChange={(e) => setTyped(e.target.value)} aria-label="Deadline time" data-testid="dock-deadline-time" />
-        <button type="button" onClick={set} disabled={deadlineAtLocal(typed, 0) === null} data-testid="dock-deadline-set">
+        <input type="time" value={typed} onChange={(e) => {
+            setTyped(e.target.value);
+            setSkipped(false);
+          }} aria-label="Deadline time" data-testid="dock-deadline-time" />
+        <button type="button" onClick={set} disabled={!/^\d{1,2}:\d{2}$/.test(typed)} data-testid="dock-deadline-set">
           Set
         </button>
       </div>
+      {skipped && <div className="status-warn" data-testid="dock-deadline-skipped">The clocks skip {typed} that day.</div>}
     </section>
   );
 }

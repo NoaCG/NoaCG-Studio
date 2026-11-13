@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
-import { joinedScenes, obsScenesOf, sceneCueMap, sceneFolderIds, sceneGraphicNames, sceneLink, type ObsScene } from '../../model/obsScenes';
-import { dockScenes, deadlinePaths, sceneHealth } from '../../control/liveDock';
+import { joinedScenes, obsScenesOf, sceneFolderIds, sceneGraphicNames, sceneLink, type ObsScene } from '../../model/obsScenes';
 import { EMPTY_WATCH, forgetScene, loadedScenes, sceneRows, watchScenes, type SceneWatch } from '../../control/obsSceneRows';
 import { airMark, takeJoined } from '../../control/sceneJoin';
 import { useTemplateStore } from '../../store/templateStore';
@@ -1713,8 +1712,6 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   /** Sources the operator picked a current match on since this page's last read of them: that
    *  read takes the pick as new, so "None" then the held match recovers whatever the timing. */
   const freshPicks = useRef(new Set<string>());
-  /** The operator's current match of a bracket source (OS5b, B11, B14): written to the tree, and
-   *  this page's reader reads at once (another tab's at its next read). */
   /** An operator's write of one value to the tree: the current match's pick, and the Live dock's
    *  break deadline (OS6 K7). Published, the tree is written with the production's data key; without
    *  it the value would stay in this browser, so it is refused and said. Onto the newest tree, so a
@@ -1731,6 +1728,8 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
     },
     [session, hostedSlug, setLiveData],
   );
+  /** The operator's current match of a bracket source (OS5b, B11, B14): written to the tree, and
+   *  this page's reader reads at once (another tab's at its next read). */
   const currentMatch = useMemo(
     () => ({
       get: (sourceId: string) => pickOf(getPath(liveDataRef.current, currentMatchPath(sourceId))),
@@ -2827,15 +2826,6 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
   // shows. A server clip's clock moves in its store without re-rendering this page, so the answer
   // hears that part directly; it publishes only when a key would show a difference.
   const panel = usePanelAnswer({ slug: hostedSlug, where: 'production', label: dock ? 'Live dock' : 'Production page', runs: PRODUCTION_PANEL_VERBS, auto: true });
-  /** The Live dock's picked scene, while no scene is on program (OS6 K3): this dock's session only. */
-  const [dockPick, setDockPick] = useState<string | null>(null);
-  /** The Live dock's break deadline paths (OS6 K7) and each scene's cues (K4), read again only when
-   *  the record changes. */
-  const dockDeadlines = useMemo(
-    () => (dock && show ? deadlinePaths(show.graphics, show.bindings, (show.sources ?? []).map((s) => s.id)) : []),
-    [dock, show],
-  );
-  const dockSceneCues = useMemo(() => (dock && show ? sceneCueMap(show) : new Map<string, ShowCue[]>()), [dock, show]);
   const [panelOpen, setPanelOpen] = useState(false);
   const audienceInbox = useAudienceInbox(show);
   // While answering, the panel also hears the timing part, after the whole fold: a reading moves
@@ -4206,26 +4196,19 @@ export default function ProductionPage({ id, sub, dock = false }: { id: string; 
         // What the selection keys act on: the page's own selection, its first cue until one is picked.
         selected={selectedFolder ? folderName(selectedFolder) : (selectedCue?.label ?? null)}
         note={note}
-        health={scenePanel ? sceneHealth(scenePanel.rows) : null}
+        now={now}
+        rows={scenePanel?.rows ?? null}
         scenes={obsSceneList}
-        choice={show.obsScenes ? dockScenes(obsSceneList, scenePanel?.rows ?? [], dockPick) : null}
-        onPick={setDockPick}
-        cuesOf={(sceneId) => (dockSceneCues.get(sceneId) ?? []).map((c) => ({ id: c.id, label: c.label, onAir: cueOnAirNow(c), refused: stepBlocker(c) }))}
-        // K4: the press a Companion cue key makes, run only in the state its button says.
-        onTake={(cueId) => {
+        cueState={(cue) => ({ onAir: cueOnAirNow(cue), refused: stepBlocker(cue) })}
+        // K4: the press a Companion cue key makes, run only in the state its button says (Take off
+        // air, Out on air).
+        onPress={(cueId, onAir) => {
           const cue = cues.find((c) => c.id === cueId);
-          if (cue && !cueOnAirNow(cue)) return onVerb('take-cue', { repeat: false, cue: cueId });
+          if (cue && cueOnAirNow(cue) === onAir) return onVerb('take-cue', { repeat: false, cue: cueId });
         }}
-        onOut={(cueId) => {
-          const cue = cues.find((c) => c.id === cueId);
-          if (cue && cueOnAirNow(cue)) return onVerb('take-cue', { repeat: false, cue: cueId });
-        }}
-        deadline={{
-          paths: dockDeadlines,
-          value: (path) => getPath(liveData, path),
-          // K7: the current match's road.
-          write: (path, value) => writeTree(path, value, 'The break deadline was not set'),
-        }}
+        // K7: read from the tree, written through the current match's road.
+        deadlineValue={(path) => getPath(liveData, path)}
+        writeDeadline={(path, value) => writeTree(path, value, 'The break deadline was not set')}
       />
     );
   }
