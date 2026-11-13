@@ -16,7 +16,7 @@
 //
 // It never writes the production record. Answers what the attempt came to (control/autoPublish.ts).
 
-import { answeredFetch, getSupabase } from '../backend/supabase';
+import { answeredFetch, COPIES_MARK_HEADER, getSupabase } from '../backend/supabase';
 import { loadBackendConfig } from '../backend/config';
 import { loadGraphics, resolveSavedGraphicDoc, type GraphicDoc } from '../model/library';
 import type { Show } from '../model/shows';
@@ -132,7 +132,9 @@ async function patchRow(id: string, filter: string, body: Blob | string): Promis
   const send = async (token: string) =>
     answeredFetch(`${cfg.url}/rest/v1/control_shows?id=eq.${encodeURIComponent(id)}&${filter}&select=id`, {
       method: 'PATCH',
-      headers: { apikey: cfg.anonKey, authorization: `Bearer ${token}`, 'content-type': 'application/json', prefer: 'return=representation' },
+      // THE BUILD MARK (production copies, migration 0115): production has the switch on, so an
+      // unmarked production-authoring write is refused. The shared client adds it; this raw fetch must too.
+      headers: { apikey: cfg.anonKey, authorization: `Bearer ${token}`, 'content-type': 'application/json', prefer: 'return=representation', [COPIES_MARK_HEADER]: '1' },
       body,
     });
   const session = (await sb.auth.getSession()).data.session;
@@ -174,20 +176,27 @@ export async function publishRevision(
     const g: Record<string, string> = {};
     for (const [i, graphic] of show.graphics.entries()) g[graphic.name] = await timed(() => copyDigest(show, i, graphic.template));
     const panel = buildPanelSpec(show, library, heldPanel);
-    const columns = {
-      title: show.name,
+    // The DATA SOURCES (bindings, sources, collections) are left OUT of the content digest `c`:
+    // Connect, Disconnect and Pause write them to the row with no publish (`writePublishedSources`),
+    // so the stored `c` cannot speak for them (review on #2469). They ride every publish, full or
+    // revision-only, so the row's source configuration is always the revision's.
+    const dataSources = {
       bindings: show.bindings ?? {},
       sources: show.sources ?? [],
       collections: show.collections ?? [],
+    };
+    const columns = {
+      title: show.name,
+      ...dataSources,
       profile: profileForPublish(show.profile),
     };
     const { graphics: _bodies, ...meta } = built;
     const c = await timed(() =>
-      digestText(JSON.stringify([g, meta, columns, panel.map(({ js: _js, ...entry }) => entry)])),
+      digestText(JSON.stringify([g, meta, { title: show.name, profile: columns.profile }, panel.map(({ js: _js, ...entry }) => entry)])),
     );
     if (!force && stored.ver?.c === c) {
-      // Nothing on the outputs would change: the row learns the revision only.
-      const landed = await patchRow(show.id, `published_ver->>c=eq.${encodeURIComponent(c)}`, JSON.stringify({ published_rev: rev }));
+      // Nothing on the outputs would change: the row learns the revision, with the source columns.
+      const landed = await patchRow(show.id, `published_ver->>c=eq.${encodeURIComponent(c)}`, JSON.stringify({ published_rev: rev, ...dataSources }));
       if (landed > 0) return { kind: 'published', rev };
       stored = await readStamp(sb, show.id);
       if (stored.rev !== null && stored.rev >= rev) return { kind: 'superseded' };

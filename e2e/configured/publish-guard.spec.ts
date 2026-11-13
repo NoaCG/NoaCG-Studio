@@ -644,12 +644,19 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
       headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}`, 'content-type': 'application/json', ...(init.prefer ? { prefer: init.prefer } : {}) },
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
     });
-  async function setAuto(on: boolean): Promise<void> {
-    const r = await service('system_settings?on_conflict=key', { method: 'POST', body: { key: 'auto_publish', value: { on } }, prefer: 'resolution=merge-duplicates' });
+  const setSwitch = async (key: string, on: boolean): Promise<void> => {
+    const r = await service('system_settings?on_conflict=key', { method: 'POST', body: { key, value: { on } }, prefer: 'resolution=merge-duplicates' });
     expect(r.status, await r.text()).toBeLessThan(300);
-  }
+  };
+  const setAuto = (on: boolean) => setSwitch('auto_publish', on);
+  test.beforeEach(async () => {
+    // Production has the production_copies switch ON and keeps it on (run brief): an automatic
+    // publish's writes must carry the build mark, or this guard refuses them.
+    await setSwitch('production_copies', true);
+  });
   test.afterEach(async () => {
     await setAuto(false).catch(() => undefined);
+    await setSwitch('production_copies', false).catch(() => undefined);
   });
 
   /** What the server holds: the record's saved revision, the revision published, the stamp and
