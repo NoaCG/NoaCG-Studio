@@ -47,3 +47,4 @@ Project: {"version":1,"id":"plan-obs-scenes-2026-11-12","ownership":"local-singl
 - The owner's laptop test found two product defects no checker could: links opened before publish stay empty (#2474) and browser memory growth (#2475). Owner hardware phases earn their place.
 - Next: OS1b waits on the owner's two OS2 answers; live-path migration 0116 still held (a production is on air).
 - 2026-11-13T00:49:11.278Z phase 6 build {"actor":"owner","launch":"owner ran the OS1a checklist on the laptop on 2026-11-12 (agent-assisted); receipt held privately, lands as evidence/phase-OS2.md after the owner answers the failed and untested lines"}
+- 2026-11-13T09:56:37.692Z phase 6 landed {"mergeSha":"455ee104bb04a33ed94378e2b1472d65e0226677"}
