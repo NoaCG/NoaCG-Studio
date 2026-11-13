@@ -318,8 +318,9 @@ test('html overlay, settled (OBS scene fallback): at rest from load, no entrance
       const zip = await htmlOverlayTarget.build(template, { settled, sampleData: { f0: 'SETTLED NAME' } });
       return zip.file('hairline/hairline.html')!.async('string');
     }, settled);
-  // Every frame's opacity of the graphic from the first, and every play, under a stand-in for
-  // obs-browser that loads the page in a scene not on air.
+  // Every frame from the first: whether the graphic shows, and whether an animation with an end (an
+  // entrance) is running then, under a stand-in for obs-browser that loads the page in a scene not
+  // on air.
   const harness = (html: string) =>
     html.replace(
       /<head>/i,
@@ -328,11 +329,15 @@ Object.defineProperty(document, 'visibilityState', { configurable: true, get: fu
 window.frames_ = [];
 (function sample() {
   var el = document.querySelector('.lower-third');
-  if (el) window.frames_.push(getComputedStyle(el).opacity);
+  var running = 0;
+  var kids = window.gsap ? window.gsap.globalTimeline.getChildren(true, true, false) : [];
+  for (var i = 0; i < kids.length; i++) if (kids[i].isActive() && kids[i].totalDuration() < 1e9) running++;
+  if (el && getComputedStyle(el).opacity !== '0') window.frames_.push(running);
   requestAnimationFrame(sample);
 })();</script>`,
     );
-  const frames = (view: Page) => view.evaluate(() => (window as unknown as { frames_: string[] }).frames_);
+  /** Frames drawn while the graphic showed with an animation that has an end still running. */
+  const entranceFrames = (view: Page) => view.evaluate(() => (window as unknown as { frames_: number[] }).frames_.filter((n) => n > 0).length);
   const opacity = (view: Page) => view.locator('.lower-third').evaluate((el) => getComputedStyle(el).opacity);
   const obs = (view: Page, type: string, detail: Record<string, boolean>) =>
     view.evaluate(([type, detail]) => window.dispatchEvent(new CustomEvent(type as string, { detail })), [type, detail] as const);
@@ -345,7 +350,7 @@ window.frames_ = [];
   expect(await opacity(plain)).not.toBe('1');
   await obs(plain, 'obsSourceActiveChanged', { active: true });
   await expect.poll(() => opacity(plain)).toBe('1');
-  expect((await frames(plain)).filter((o) => o !== '0' && o !== '1').length, 'an entrance is seen frame by frame').toBeGreaterThan(0);
+  await expect.poll(() => entranceFrames(plain), { message: 'an entrance is seen frame by frame' }).toBeGreaterThan(0);
   await plain.close();
 
   const settled = await build(true);
@@ -355,9 +360,9 @@ window.frames_ = [];
   // On air from load, though OBS has said nothing, with the exported value.
   await expect.poll(() => opacity(view)).toBe('1');
   await expect(view.locator('body')).toContainText('SETTLED NAME');
-  // No frame of an entrance: before it is drawn at rest, it is not drawn at all.
-  const seen = await frames(view);
-  expect(seen.filter((o) => o !== '0' && o !== '1'), 'no frame between rest and nothing').toEqual([]);
+  // No frame of an entrance: whenever it shows, nothing with an end is still running.
+  await view.waitForTimeout(500);
+  expect(await entranceFrames(view), 'no frame of an entrance').toBe(0);
   // OBS hiding it, showing it, taking it off program: nothing moves. No automatic Out either.
   await obs(view, 'obsSourceActiveChanged', { active: false });
   await obs(view, 'obsSourceVisibleChanged', { visible: false });
@@ -368,11 +373,12 @@ window.frames_ = [];
   await view.evaluate(() => (window as unknown as { stop(): void }).stop());
   await expect.poll(() => opacity(view)).toBe('0');
   await view.evaluate(() => {
-    (window as unknown as { frames_: string[] }).frames_ = [];
+    (window as unknown as { frames_: number[] }).frames_ = [];
     (window as unknown as { play(): void }).play();
   });
   await expect.poll(() => opacity(view)).toBe('1');
-  expect((await frames(view)).filter((o) => o !== '0' && o !== '1')).toEqual([]);
+  await view.waitForTimeout(500);
+  expect(await entranceFrames(view)).toBe(0);
   await view.close();
 });
 
