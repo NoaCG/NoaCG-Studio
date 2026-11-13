@@ -470,7 +470,7 @@ export async function buildShowZipFor(show: Show, targetId: string, opts?: ShowE
       })),
       // Only the CasparCG flavour gets the CLIENT walkthrough: on the others the fields appear
       // by name in the host's own UI and nobody types an id, so the steps would be noise.
-      { usage: FIELD_USAGE_NOTES[targetId], clientSteps: targetId === 'casparcg' },
+      { usage: FIELD_USAGE_NOTES[targetId], clientSteps: targetId === 'casparcg', inlineAssets: ['casparcg', 'html-overlay', 'h2r'].includes(targetId) },
     ),
   );
   // The CasparCG client's rule for a hidden field Next writes. Each graphic's own README carries

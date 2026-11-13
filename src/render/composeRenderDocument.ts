@@ -20,7 +20,7 @@ import lottieSource from '../assets/lottie.min.js?raw';
 import { inlineAssetRefs, isDataUrl } from '../assets/assetUtils';
 import { templateUsesLottie } from '../assets/lottieSupport';
 import { flexGapShimTag } from '../assets/flexGapSupport';
-import { stripLocalAssetTags } from '../preview/composeDocument';
+import { stripLocalAssetTags, preparePlacedTextOutput } from '../preview/composeDocument';
 import { stripLiveData } from '../control/liveData';
 import { stripChatGraphic } from '../showchat/chatGraphicBlock';
 import { stripRealtimeControl } from '../control/realtimeControl';
@@ -106,7 +106,7 @@ export async function composeRenderDocument(
   const colorScheme = opts.colorScheme ?? 'light';
 
   // Polling blocks are for live operation, not rendering — remove them whole.
-  const js = stripRealtimeControl(stripChatGraphic(stripLiveData(template.js)));
+  const js = stripRealtimeControl(stripChatGraphic(stripLiveData(preparePlacedTextOutput(template.js))));
 
   let html = stripLocalAssetTags(inlineAssetRefs(template.html, template.assets));
   const css = await inlineBundledFonts(inlineAssetRefs(upgradeFontCss(template.css), template.assets));

@@ -235,6 +235,7 @@ export const htmlOverlayTarget: ExportTarget = {
         template,
         'The bundled control panel shows these by name, so you never type an id here — the table ' +
           'is for anything that drives the graphic from outside (a CasparCG client, your own script).',
+        { inlineAssets: true },
       ),
     );
     // This flavour DOES bundle the relay + launchers below, so the guide may describe them.

@@ -106,7 +106,7 @@ export const casparTarget: ExportTarget = {
     // command cannot turn `CG 1-20 ADD …` into "which box do I type the name in".
     root.file(
       'FIELDS.md',
-      fieldReferenceMd(template, casparClientStepsMd(name, layer, dataFields(template))),
+      fieldReferenceMd(template, casparClientStepsMd(name, layer, dataFields(template)), { inlineAssets: true }),
     );
     // This package is ONE graphic file: there is no images/ folder beside the panel, so its
     // picker sends the embedded bytes rather than a path that resolves at neither end — the
