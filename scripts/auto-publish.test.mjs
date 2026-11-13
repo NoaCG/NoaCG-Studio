@@ -250,3 +250,17 @@ test('R16: an expected output whose entry has no `au` is named, one that has it 
   const expected = [{ id: 'new', name: 'Desk A', seen: 0 }, { id: 'old', name: 'Old', seen: 0 }, { id: 'gone', name: 'Gone', seen: 0 }];
   assert.deepEqual(oldOutputNames(peers, expected), ['Old']);
 });
+
+test('R7: "not allowed" is not retried on later saves either; another account starts a fresh publisher', async () => {
+  const c = clock();
+  const world = server();
+  const p = page(world, c, { fail: () => ({ kind: 'refused', refusal: 'denied', reason: 'This account cannot publish this production. Open it on a device that can.' }) });
+  p.save(); await settle();
+  assert.equal(p.calls, 1);
+  assert.equal(p.pub.view().tone, 'red');
+  p.save(); await settle();
+  p.save(); await settle();
+  await c.advance(120_000);
+  assert.equal(p.calls, 1, 'no publish is tried again for this account');
+  p.pub.stop();
+});

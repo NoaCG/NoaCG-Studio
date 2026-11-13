@@ -86,7 +86,11 @@ async function heldPanelIfNeeded(sb: NonNullable<Awaited<ReturnType<typeof getSu
 
 /** A failure, in the publisher's classes (G3 section 3). */
 function classify(e: unknown): PublishOutcome {
-  if (e instanceof ProductionGateError) return { kind: 'refused', refusal: 'gate', reason: `${e.message} Fix it and the next save publishes.` };
+  if (e instanceof ProductionGateError) {
+    const first = e.failures[0];
+    const why = first?.errors[0]?.message.replace(/\.$/, '') ?? 'it does not pass the checks';
+    return { kind: 'refused', refusal: 'gate', reason: `${first?.name ?? 'A graphic'} cannot go on air: ${why}. Fix it and the next save publishes.` };
+  }
   const err = e as { message?: string; code?: string; status?: number };
   const message = String(err?.message ?? e);
   if (message === 'This publication names a save that does not exist') return { kind: 'refused', refusal: 'guard', reason: 'This save could not be published. The next save tries again.' };
@@ -96,32 +100,39 @@ function classify(e: unknown): PublishOutcome {
   return { kind: 'transient', reason: 'the server did not answer' };
 }
 
+/** The account's write matched nothing although the stored stamp is the one it named: the row
+ *  policy refused it (row-level security filters an update to no rows, with no error). */
+const DENIED: PublishOutcome = { kind: 'refused', refusal: 'denied', reason: 'This account cannot publish this production. Open it on a device that can.' };
+
 /** A part of the body: one string turned into a Blob in its own step. */
 const part = (text: string) => new Blob([text]);
 
 /**
- * The request body for the published columns, as `Blob` parts, each built in its own step: the
- * output without its graphics, each graphic without its assets, each asset, each panel entry.
+ * The request body for the published columns, built from `Blob` parts, each made in its own step:
+ * the head (every column but the graphics and the panel, the stamp included), each graphic without
+ * its assets, each asset, each panel entry. Only the head depends on the stamp, so a retry over a
+ * newer stamp builds the head again and keeps every other part (G3 section 3, step 5).
  */
-async function bodyParts(output: OutputPayload, columns: Record<string, unknown>, panel: PanelGraphicSpec[]): Promise<Blob> {
-  const parts: Blob[] = [];
-  const { graphics, ...rest } = output;
-  const head = JSON.stringify({ ...columns, output: { ...rest, graphics: [] } });
-  // `..."graphics":[]}}` : the graphics go inside that array, then the panel after the output.
-  const at = head.lastIndexOf('"graphics":[]') + '"graphics":['.length;
-  parts.push(await timed(() => part(head.slice(0, at))));
-  for (const [i, g] of graphics.entries()) {
+async function bodyBuilder(output: OutputPayload, columns: Record<string, unknown>, panel: PanelGraphicSpec[]): Promise<(ver: PayloadVersion) => Promise<Blob>> {
+  const middle: Blob[] = [];
+  for (const [i, g] of output.graphics.entries()) {
     const { assets, ...spec } = g;
     const specText = JSON.stringify({ ...spec, assets: [] });
     const cut = specText.lastIndexOf('"assets":[]') + '"assets":['.length;
-    parts.push(await timed(() => part(`${i ? ',' : ''}${specText.slice(0, cut)}`)));
-    for (const [j, a] of assets.entries()) parts.push(await timed(() => part(`${j ? ',' : ''}${JSON.stringify(a)}`)));
-    parts.push(part(specText.slice(cut)));
+    middle.push(await timed(() => part(`${i ? ',' : ''}${specText.slice(0, cut)}`)));
+    for (const [j, a] of assets.entries()) middle.push(await timed(() => part(`${j ? ',' : ''}${JSON.stringify(a)}`)));
+    middle.push(part(specText.slice(cut)));
   }
-  parts.push(part(`${head.slice(at, -1)},"panel":[`));
-  for (const [i, entry] of panel.entries()) parts.push(await timed(() => part(`${i ? ',' : ''}${JSON.stringify(entry)}`)));
-  parts.push(part(']}'));
-  return new Blob(parts, { type: 'application/json' });
+  const panelParts: Blob[] = [];
+  for (const [i, entry] of panel.entries()) panelParts.push(await timed(() => part(`${i ? ',' : ''}${JSON.stringify(entry)}`)));
+  const { graphics: _graphics, ...rest } = output;
+  return async (ver) => {
+    const head = JSON.stringify({ ...columns, output: { ...rest, ver, graphics: [] } });
+    // `..."graphics":[]}}`: the graphics go inside that array, then the panel after the output.
+    const at = head.lastIndexOf('"graphics":[]') + '"graphics":['.length;
+    const first = await timed(() => part(head.slice(0, at)));
+    return new Blob([first, ...middle, part(`${head.slice(at, -1)},"panel":[`), ...panelParts, part(']}')], { type: 'application/json' });
+  };
 }
 
 /** The PATCH by id with a filter, the body a Blob; answers the rows it matched or throws. */
@@ -158,7 +169,8 @@ async function patchRow(id: string, filter: string, body: Blob | string): Promis
 export async function publishRevision(
   show: Show,
   rev: number,
-  publishedOf?: CuePublished,
+  /** Each cue's appearance and adjust records, measured for this record: run as a step of its own. */
+  measure?: () => Promise<CuePublished | undefined>,
   /** The measure harness only (G3 section 13): write the whole payload again even when nothing changed. */
   force = false,
 ): Promise<PublishOutcome> {
@@ -171,11 +183,12 @@ export async function publishRevision(
     if (!stored.exists) return { kind: 'gone' };
     if (!force && stored.rev !== null && stored.rev >= rev) return { kind: 'superseded' };
     const heldPanel = await heldPanelIfNeeded(sb, show, library);
+    const publishedOf = measure ? await timed(measure) : undefined;
     const raw = await timed(() => buildOutputPayload(show, library, publishedOf));
     const built = raw.soundAssets?.length ? await publishAudio(raw) : raw;
     const g: Record<string, string> = {};
     for (const [i, graphic] of show.graphics.entries()) g[graphic.name] = await timed(() => copyDigest(show, i, graphic.template));
-    const panel = buildPanelSpec(show, library, heldPanel);
+    const panel = await timed(() => buildPanelSpec(show, library, heldPanel));
     // The DATA SOURCES (bindings, sources, collections) are left OUT of the content digest `c`:
     // Connect, Disconnect and Pause write them to the row with no publish (`writePublishedSources`),
     // so the stored `c` cannot speak for them (review on #2469). They ride every publish, full or
@@ -200,20 +213,25 @@ export async function publishRevision(
       if (landed > 0) return { kind: 'published', rev };
       stored = await readStamp(sb, show.id);
       if (stored.rev !== null && stored.rev >= rev) return { kind: 'superseded' };
+      // The content is still the one named and the revision is behind, yet nothing matched.
+      if (stored.ver?.c === c) return DENIED;
     }
     const edited = Object.fromEntries(show.graphics.map((x) => [x.name, designEditedAt(x, library)]));
-    const body = await bodyPartsFor(built, columns, panel, g, rev, c, edited);
+    const body = await bodyBuilder(built, columns, panel);
     for (let tries = 0; ; tries++) {
-      const filter = stored.ver ? `published_ver->>n=eq.${stored.ver.n}` : 'published_ver=is.null';
-      const made = await body(stored.ver);
-      const landed = await patchRow(show.id, filter, made.body);
+      const named = stored.ver ? stored.ver.n : null;
+      const filter = named !== null ? `published_ver->>n=eq.${named}` : 'published_ver=is.null';
+      const ver: PayloadVersion = { ...(await stampFromDigests(g, built.resolution, stored.ver, new Date(), edited)), r: rev, c };
+      const landed = await patchRow(show.id, filter, await body(ver));
       if (landed > 0) {
         await afterFullPublish(sb, show);
-        return { kind: 'published', rev, ver: made.ver };
+        return { kind: 'published', rev, ver };
       }
       stored = await readStamp(sb, show.id);
       if (!stored.exists) return { kind: 'gone' };
       if (!force && stored.rev !== null && stored.rev >= rev) return { kind: 'superseded' };
+      // The stamp is still the one named and the revision is behind, yet nothing matched: not a race.
+      if ((stored.ver ? stored.ver.n : null) === named) return DENIED;
       if (tries >= 2) return { kind: 'transient', reason: 'other pages published at the same moment' };
     }
   } catch (e) {
@@ -227,25 +245,4 @@ async function afterFullPublish(sb: NonNullable<Awaited<ReturnType<typeof getSup
   const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
   await sb.from('control_events').delete().eq('show_id', show.id).lt('created_at', cutoff).then(() => {}, () => {});
   if (show.hostedSlug && show.joinSlug) await sendJoinBrand(show, show.hostedSlug).catch(() => {});
-}
-
-/** The body for a full publish over `previous`, with the stamp it carries; built again only when
- *  the stamp it goes over changed (another publish landed first). */
-async function bodyPartsFor(
-  built: OutputPayload,
-  columns: Record<string, unknown>,
-  panel: PanelGraphicSpec[],
-  g: Record<string, string>,
-  rev: number,
-  c: string,
-  edited: Record<string, string>,
-): Promise<(previous: PayloadVersion | null) => Promise<{ body: Blob; ver: PayloadVersion }>> {
-  let cached: { n: number | null; body: Blob; ver: PayloadVersion } | null = null;
-  return async (previous) => {
-    const n = previous ? previous.n : null;
-    if (cached && cached.n === n) return cached;
-    const ver: PayloadVersion = { ...(await stampFromDigests(g, built.resolution, previous, new Date(), edited)), r: rev, c };
-    cached = { n, body: await bodyParts({ ...built, ver }, columns, panel), ver };
-    return cached;
-  };
 }

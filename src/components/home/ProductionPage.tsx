@@ -1096,6 +1096,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const autoPublish = useAutoPublish({
     show,
     mayPublish: backendConfigured && authStatus === 'signed-in' && authoringAllowed,
+    account: user?.id ?? null,
     appearanceFor: appearanceForRef,
     onPublished: (ver) => {
       setPublishedStamp(ver);

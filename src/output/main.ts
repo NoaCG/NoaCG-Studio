@@ -607,7 +607,9 @@ async function boot(): Promise<void> {
         const check = () => {
           const waiting = Array.from(holds.keys()).some((held) => held !== graphic);
           if (!waiting) resolve();
-          else setTimeout(check, 50);
+          // A Map scan every 200 ms while a Take waits (at most 20 s): a frame that starts a little
+          // later costs nothing; the scan costs less than one command.
+          else setTimeout(check, 200);
         };
         check();
       }),

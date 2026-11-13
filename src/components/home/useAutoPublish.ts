@@ -37,6 +37,9 @@ export function useAutoPublish(o: {
   show: Show | null;
   /** Signed in with an account that may author (the Publish gate). */
   mayPublish: boolean;
+  /** The signed-in account: another account starts a fresh publisher (a refusal for the old one no
+   *  longer holds). */
+  account: string | null;
   appearanceFor: { readonly current: ((show: Show) => Promise<CuePublished | undefined>) | undefined };
   /** A publish landed: the stamp it wrote. */
   onPublished: (ver: PayloadVersion) => void;
@@ -74,6 +77,8 @@ export function useAutoPublish(o: {
     const current = () => loadShows().find((s) => s.id === showId) ?? null;
     /** The record a confirmed revision was read from: the publish builds from that very object. */
     let confirmedRecord: { rev: number; show: Show } | null = null;
+    /** This page's own catch-up pass is running: its sync is not a save of this page. */
+    let catchingUp = false;
     const publisher = createAutoPublisher({
       now: () => Date.now(),
       setTimer: (ms, run) => {
@@ -101,13 +106,19 @@ export function useAutoPublish(o: {
         return { rev: record.rev, published: typeof rev === 'number' ? rev : null };
       },
       catchUp: async () => {
-        if (teamId) await refreshTeams(false);
-        else await syncNow();
+        catchingUp = true;
+        try {
+          if (teamId) await refreshTeams(false);
+          else await syncNow();
+        } finally {
+          catchingUp = false;
+        }
       },
       publish: async (rev) => {
         const held = confirmedRecord && confirmedRecord.rev === rev ? confirmedRecord.show : null;
         if (!held) return { kind: 'transient', reason: 'the saved production changed while it was being published' };
-        const outcome = await publishRevision(held, rev, await latest.current.appearanceFor.current?.(held));
+        const measure = latest.current.appearanceFor.current;
+        const outcome = await publishRevision(held, rev, measure ? () => measure(held) : undefined);
         if (outcome.kind === 'published' && outcome.ver) latest.current.onPublished(outcome.ver);
         return outcome;
       },
@@ -135,7 +146,8 @@ export function useAutoPublish(o: {
             const t0 = performance.timeOrigin + performance.now();
             const from = publishStepMs.length;
             w.__noacgPublishRunning = t0;
-            const outcome = await publishRevision(show, answer.rev, await latest.current.appearanceFor.current?.(show), true);
+            const measure = latest.current.appearanceFor.current;
+            const outcome = await publishRevision(show, answer.rev, measure ? () => measure(show) : undefined, true);
             w.__noacgPublishRunning = null;
             const longest = Math.max(0, ...publishStepMs.slice(from));
             (w.__noacgPublishWindows ??= []).push([t0, performance.timeOrigin + performance.now(), outcome.kind, longest]);
@@ -150,11 +162,11 @@ export function useAutoPublish(o: {
     const offSync = teamId
       ? subscribeTeamState(() => {
           const saving = getTeamState().saving[showId] === 'pending';
-          if (wasSaving && !saving) publisher.saved();
+          if (wasSaving && !saving && !catchingUp) publisher.saved();
           wasSaving = saving;
         })
       : onSyncState((s) => {
-          if (s.phase === 'syncing' || s.phase === 'pending') wasSaving = true;
+          if (s.phase === 'syncing' || s.phase === 'pending') wasSaving = !catchingUp;
           else if (s.phase === 'synced' && wasSaving) {
             wasSaving = false;
             publisher.saved();
@@ -165,7 +177,7 @@ export function useAutoPublish(o: {
       offSync();
       publisher.stop();
     };
-  }, [active, showId, teamId]);
+  }, [active, showId, teamId, o.account]);
 
   return { active, view: active ? view : null };
 }

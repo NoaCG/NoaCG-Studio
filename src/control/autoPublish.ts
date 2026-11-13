@@ -88,8 +88,6 @@ export interface AutoPublisher {
   /** Ask the server now (on open, after a reconnect). `opened`: the page has just opened, so a
    *  revision behind is published at once. */
   check(opened?: boolean): void;
-  /** The account changed: a refusal for the old one no longer holds. */
-  accountChanged(): void;
   view(): AutoPublishView;
   stop(): void;
 }
@@ -202,7 +200,9 @@ export function createAutoPublisher(io: AutoPublishIo): AutoPublisher {
       markPublished(published);
       return;
     }
-    if (refusedAt && refusedAt.rev !== null && rev <= refusedAt.rev) return;
+    // A refusal holds: "not allowed" until another account (a fresh publisher), the others until a
+    // newer save.
+    if (refusedAt && (refusedAt.refusal === 'denied' || (refusedAt.rev !== null && rev <= refusedAt.rev))) return;
     markPending(ownHint);
     ownHint = false;
     emit();
@@ -284,10 +284,6 @@ export function createAutoPublisher(io: AutoPublishIo): AutoPublisher {
     },
     check(opened = false) {
       void check(opened);
-    },
-    accountChanged() {
-      if (refusedAt?.refusal === 'denied') refusedAt = null;
-      void check(true);
     },
     view: () => current,
     stop() {

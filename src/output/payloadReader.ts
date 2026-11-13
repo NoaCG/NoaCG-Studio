@@ -46,7 +46,10 @@ function start(): Worker | null {
       if (done) done(answer.ok ? answer.output : undefined);
     };
     worker.onerror = () => {
+      // A worker that failed is never asked again: the next read goes to the main thread at once.
       broken = true;
+      if (worker) worker.terminate();
+      worker = null;
       waiting.forEach((done) => done(undefined));
       waiting.clear();
     };

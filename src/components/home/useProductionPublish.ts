@@ -50,7 +50,7 @@ import { fastEventGraphics } from '../../control/matchClockWire';
 import { type CasparFacts } from './PlayoutPanel';
 import { copyLink } from './copyLink';
 import { flushTeamProduction, refreshTeams, teamSettleOwed } from '../../backend/teamProductions';
-import { settleProductionForSend } from '../../backend/syncController';
+import { settleProductionForSend, syncNow } from '../../backend/syncController';
 import { confirmedRevision } from '../../backend/savedRevision';
 import { type PayloadVersion } from '../../control/payloadVersion';
 import { type HeldVersion } from '../../control/readiness';
@@ -453,8 +453,20 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
           const latest = loadShows().find((s) => s.id === show.id);
           if (!latest) return null;
           try {
-            // The saved revision this record is, when the server can say (designs/G3.md section 2).
-            const confirmed = await confirmedRevision(latest).catch(() => null);
+            // The saved revision this record is, when the server can say (designs/G3.md section 2). A
+            // save still on its way is pushed now; a newer save on the server is brought in. A server
+            // that numbers revisions but cannot say which this is gets no unversioned publish: the
+            // guard would refuse it with words meant for a page from an older build.
+            let confirmed = await confirmedRevision(latest).catch(() => null);
+            if (confirmed && 'wait' in confirmed) {
+              if (latest.teamId) await refreshTeams();
+              else await syncNow();
+              const again = loadShows().find((s) => s.id === show.id);
+              if (!again) return null;
+              confirmed = await confirmedRevision(again).catch(() => null);
+              if (confirmed && 'wait' in confirmed) throw new Error('Your latest change is still saving. Publish again in a moment.');
+              return await publishControlShow(again, await io.appearanceFor?.(again), confirmed && 'rev' in confirmed ? confirmed.rev : undefined);
+            }
             const rev = confirmed && 'rev' in confirmed ? confirmed.rev : undefined;
             return await publishControlShow(latest, await io.appearanceFor?.(latest), rev);
           } catch (e) {

@@ -1611,7 +1611,7 @@ type WireItem = ControlSendItem & { fast?: true };
  * cannot be un-played, so the honest ending is to SAY so - this throws exactly as the plain send
  * always did, with `aired` telling the surfaces which sentence to use.
  */
-export async function sendControlVerb(opts: {
+async function sendControlVerbOnce(opts: {
   slug: string;
   /** The production's show id — the key the hold-back and the recovery stand-down are scoped by.
    *  Null when it is not known yet, which means no fast road for this verb: with no id there is
@@ -1793,8 +1793,29 @@ function pressSender(slug: string, session: SeqSession, items: readonly ControlS
  * screen did in the meantime (review ordering:F1). The error thrown carries `landed`: how many
  * batches landed before it. Protocol 1 numbers nothing and sends exactly as one call per batch.
  */
-export async function sendControlVerbs(
-  opts: Omit<Parameters<typeof sendControlVerb>[0], 'items' | 'sender' | 'pressedAt'> & { batches: ControlSendItem[][] },
+/** One press's send, counted while it is on the wire, whichever road it takes and including the
+ *  wait for the road: an automatic publish never runs a step beside it (sendsInFlight.ts, G3 R10). */
+export async function sendControlVerb(opts: Parameters<typeof sendControlVerbOnce>[0]): ReturnType<typeof sendControlVerbOnce> {
+  const answered = noteSendStarted();
+  try {
+    return await sendControlVerbOnce(opts);
+  } finally {
+    answered();
+  }
+}
+
+/** Several batches of one press, counted the same way. */
+export async function sendControlVerbs(opts: Parameters<typeof sendControlVerbsOnce>[0]): Promise<VerbSent> {
+  const answered = noteSendStarted();
+  try {
+    return await sendControlVerbsOnce(opts);
+  } finally {
+    answered();
+  }
+}
+
+async function sendControlVerbsOnce(
+  opts: Omit<Parameters<typeof sendControlVerbOnce>[0], 'items' | 'sender' | 'pressedAt'> & { batches: ControlSendItem[][] },
 ): Promise<VerbSent> {
   const { batches, ...one } = opts;
   // Every batch is numbered here, so the wait for the road comes first, as for one batch. The first
@@ -1903,13 +1924,7 @@ async function sendSeqVerb(
       : sendWithResend(async (signal) => {
           settled = settleAnswer(session, await sendSeqBatch(slug, wire, sender, signal), graphics, sender.id);
         }, resend);
-  // Counted while on the wire, so an automatic publish waits for it (sendsInFlight.ts).
-  const answered = noteSendStarted();
-  try {
-    await (allOut ? send() : seqQueue.run(graphics, send));
-  } finally {
-    answered();
-  }
+  await (allOut ? send() : seqQueue.run(graphics, send));
   return { skipped: settled.skipped, superseded: settled.outcome === 'superseded' };
 }
 
