@@ -68,9 +68,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "Independent exact-merge check admitted; native startup qualification pending",
+      "step": "Fresh independent exact-merge acceptance active",
       "pr": 2438,
-      "note": "Actual queue merge5f6c landed10:41:37Z; supervisor check action8 ready reserved once10:50Z; native /root/editor_e4_independent_check launched fresh and startup-fenced. Mergegroup43408993923 terminalSUCCESS; mainpush workflows observed at immediately following53b8, not yet exact5f6. Checker reconciles exact-source coverage before any supported dispatch. No E4PASS/nextphase; all spent allowances and prior failures retained."
+      "note": "Action8 delivered by supervisor; nativechecker /root/editor_e4_independent_check startupqualified and ACKed. Exactmerge5f6 remainspinned. Mergegroup43408993923 SUCCESS; mainpushcarriers are atnextmerge53b8. Checker owns evidence and reconciliation before any supported exactsource dispatch. E4notPASS; rootsole activeowner, all spentattempts retained."
     }
   ],
   "owner": [
@@ -2435,9 +2435,18 @@
         "briefSha256": "b9c0f6bc433a4a5ff674ea36c7a2267e666f0b9a5da218e8d2ef1c2112949216",
         "source": "5f6c362f6ce22b820e867648ab11dca97c854480",
         "worktree": "/workspace/noacg-editor-r1-5-e4-check",
-        "status": "NATIVE_STARTUP_PENDING",
+        "status": "NATIVE_ACCEPTED_CHECK_ACTIVE",
         "fresh": true,
-        "modelEffort": "Inherited; no overrides, exact runtime IDs unexposed"
+        "modelEffort": "Inherited; no overrides, exact runtime IDs unexposed",
+        "acceptedAt": "2026-11-13T10:53Z",
+        "profile": {
+          "effectiveCpus": 4,
+          "memoryGiB": 16,
+          "workers": 2,
+          "known": false,
+          "limitation": "hidden cgroup ancestors unreadable; machine totals used"
+        },
+        "startup": "Worker final startup receipt10:52:22.870Z; exactsource/worktree/branch/request/brief/env, clean, no tests before acceptedACK. Native threadUUIDunexposed."
       }
     }
   },
