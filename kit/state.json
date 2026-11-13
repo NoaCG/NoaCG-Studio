@@ -48,7 +48,8 @@
       "session": "session_017SdbwNLJWX5HS9u9nYeUvG",
       "branch": "claude/plan-obs-scenes-os6-build",
       "launchedAt": "2026-11-13T17:56:59Z",
-      "note": "sent brief = saved brief plus one NOTES line (dock sign-in known; OS7 checklist must carry OS3 rows, #2489, bracket round order, #2475 soak; AC-13 stinger wording)"
+      "note": "sent brief = saved brief plus one NOTES line (dock sign-in known; OS7 checklist must carry OS3 rows, #2489, bracket round order, #2475 soak; AC-13 stinger wording)",
+      "lastSeen": "2026-11-13T18:28Z builder running: simplify reviewers, writing evidence; no PR yet"
     }
   ],
   "owner": [
