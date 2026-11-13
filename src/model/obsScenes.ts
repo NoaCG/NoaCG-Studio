@@ -5,7 +5,7 @@
 
 import type { Show } from './shows';
 import { membersByFolder } from './showFolders.ts';
-import { freeName } from './poolIdentity.ts';
+import { freeName, isOwnPictureGraphic } from './poolIdentity.ts';
 import { readShowProfile, serializeShowProfile } from './profile.ts';
 
 /** One scene as a publish carries it: the graphics are pool graphic names (the wire key). */
@@ -80,18 +80,38 @@ export function sceneGraphicNames(show: SceneRecord): Set<string> {
   return new Set(obsScenesOf(show).flatMap((s) => s.graphics));
 }
 
+/** What a write may not do to a cue (C10, C11): a sentence when the cue must not move to a copy. */
+export type SceneCopyGuard = (cue: NonNullable<Show['cues']>[number]) => string | null;
+
+/** C3: the pool id of a scene's `n`th copy of a graphic, the same on every pass and every device
+ *  that makes it, so the rebased pass and a team merge meet one copy. UUID-shaped (version 8). */
+export function sceneCopyId(sourceId: string, sceneId: string, n: number): string {
+  const text = `${sourceId}|${sceneId}|${n}`;
+  let hex = '';
+  for (let seed = 0; seed < 4; seed += 1) {
+    let h = (0x811c9dc5 ^ (seed * 0x9e3779b9)) >>> 0;
+    for (let i = 0; i < text.length; i += 1) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
+    hex += h.toString(16).padStart(8, '0');
+  }
+  const v = ((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-8${hex.slice(13, 16)}-${v}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
 /**
- * C2 to C5 on a record a write just changed, in place: each pool graphic ends used by one scene at
- * most. `before` is `sceneOwners` of the record as it was before the write. Every other scene's
- * cues of a graphic move to that scene's copy of it, made here when it has none. Answers whether
- * anything changed. Never runs with the switch off, and never touches a cue outside a scene.
+ * C2 to C5 and C10, C11 on a record a write just changed, in place: each pool graphic ends used by
+ * one scene at most, except the production's own picture graphic, which is never copied. `before`
+ * is `sceneOwners` of the record before the write. Every other scene's cues of a graphic move to
+ * that scene's copy of it, made here when it has none. Answers whether anything changed, or the
+ * guard's sentence for a cue that may not move, and then changes nothing. Never runs with the
+ * switch off, and never touches a cue outside a scene.
  */
 export function separateSceneGraphics(
   show: SceneRecord,
   before: ReadonlyMap<string, string>,
-  deps: { mint: () => string; freeLayer: (graphics: Show['graphics']) => number },
-): boolean {
+  deps: { freeLayer: (graphics: Show['graphics']) => number; guard?: SceneCopyGuard },
+): boolean | string {
   const members = sceneMembers(show);
+  const own = new Set(show.graphics.filter((g) => isOwnPictureGraphic(g)).map((g) => g.id));
   const users = new Map<string, string[]>();
   for (const [scene, cues] of members) {
     for (const c of cues) {
@@ -105,43 +125,57 @@ export function separateSceneGraphics(
     const was = before.get(id);
     owner.set(id, was !== undefined && scenes.includes(was) ? was : scenes[0]);
   }
-  if ([...users.values()].every((scenes) => scenes.length < 2)) return false;
+  const moving = members.flatMap(([scene, cues]) => cues.filter((c) => owner.get(c.sourceId) !== scene && !own.has(c.sourceId)).map((c) => [scene, c] as const));
+  if (moving.length === 0) return false;
+  for (const [, c] of moving) {
+    const refused = deps.guard?.(c);
+    if (refused) return refused;
+  }
 
   const names = new Map((show.folders ?? []).map((f) => [f.id, f.name] as const));
   const repoint = new Map<string, string>();
-  for (const [scene, cues] of members) {
-    // The copies this scene already has, by the graphic each was copied from (C3).
-    const copyOf = new Map<string, string>();
-    for (const c of cues) {
-      const g = show.graphics.find((x) => x.id === c.sourceId);
-      if (g?.sceneCopyOf && owner.get(g.id) === scene && !copyOf.has(g.sceneCopyOf)) copyOf.set(g.sceneCopyOf, g.id);
-    }
-    for (const c of cues) {
-      if (owner.get(c.sourceId) === scene) continue;
-      let copy = copyOf.get(c.sourceId);
-      if (!copy) {
-        copy = addSceneCopy(show, c.sourceId, names.get(scene) ?? scene, deps);
-        copyOf.set(c.sourceId, copy);
+  const chosen = new Map<string, string>();
+  for (const [scene, c] of moving) {
+    const key = `${c.sourceId}|${scene}`;
+    let copy = chosen.get(key);
+    if (!copy) {
+      // The scene's copy: the first of its stable ids that is free, or held by a copy of this
+      // graphic that no other scene uses (one left behind under C6 is taken up again).
+      for (let n = 0; ; n += 1) {
+        const id = sceneCopyId(c.sourceId, scene, n);
+        const held = show.graphics.find((g) => g.id === id);
+        if (!held) {
+          addSceneCopy(show, c.sourceId, id, names.get(scene) ?? scene, deps);
+          copy = id;
+          break;
+        }
+        const heldBy = owner.get(id);
+        if (held.sceneCopyOf === c.sourceId && (heldBy === undefined || heldBy === scene)) {
+          copy = id;
+          break;
+        }
       }
-      repoint.set(c.id, copy);
+      chosen.set(key, copy);
     }
+    repoint.set(c.id, copy);
   }
   show.cues = (show.cues ?? []).map((c) => (repoint.has(c.id) ? { ...c, sourceId: repoint.get(c.id)! } : c));
   return true;
 }
 
-/** C4: a scene's own copy of a pool graphic, placed after it in the pool. Answers its id. */
+/** C4: a scene's own copy of a pool graphic, placed after it in the pool. */
 function addSceneCopy(
   show: SceneRecord,
   sourceId: string,
+  id: string,
   sceneName: string,
-  deps: { mint: () => string; freeLayer: (graphics: Show['graphics']) => number },
-): string {
+  deps: { freeLayer: (graphics: Show['graphics']) => number },
+): void {
   const at = show.graphics.findIndex((g) => g.id === sourceId);
   const source = show.graphics[at];
   const name = freeName(show.graphics.map((g) => g.name), `${source.name} · ${sceneName}`);
   const copy = structuredClone(source);
-  copy.id = deps.mint();
+  copy.id = id;
   copy.name = name;
   copy.template = { ...copy.template, name };
   copy.layer = deps.freeLayer(show.graphics);
@@ -154,5 +188,4 @@ function addSceneCopy(
   if (profile.status === 'ok' && arranged) {
     show.profile = serializeShowProfile({ ...profile.profile, arrange: { ...profile.profile.arrange, [name]: structuredClone(arranged) } });
   }
-  return copy.id;
 }

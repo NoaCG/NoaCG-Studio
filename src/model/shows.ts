@@ -32,7 +32,7 @@ import type { JsonValue } from './productionData';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
-import { sceneOwners, separateSceneGraphics } from './obsScenes';
+import { sceneOwners, separateSceneGraphics, type SceneCopyGuard } from './obsScenes';
 import { JOIN_PAGE_LIMITS } from './joinPage';
 import { readQuestions, setWordHidden, type ShowQuestion } from './questions';
 import { scrubHiddenWords } from './wordCues';
@@ -1156,15 +1156,45 @@ export function setGraphicCopyScript(showId: string, graphicId: string, from: st
  *  or binding neither passes the rule on its old copy nor writes that copy back. `mutate` must then
  *  give the same answer for the same record (no fresh ids inside it). A team production is not in
  *  this database and keeps the ordinary write; its merge keeps the rule (teamShowMerge.ts). */
+/** The cues a production page has on air (obs-scenes OS1b C10): a write never moves one of them to
+ *  an OBS scene's copy. The page that holds air sets it; none is the empty answer. */
+let sceneAirCues: () => ReadonlySet<string> = () => new Set();
+export function setSceneAirCues(read: (() => ReadonlySet<string>) | null): void {
+  sceneAirCues = read ?? (() => new Set());
+}
+
+/** C10, C11: why a cue may not move to an OBS scene's copy, in the operator's words. */
+function sceneCopyGuard(show: Show): SceneCopyGuard {
+  const air = sceneAirCues();
+  return (cue) => {
+    if (air.has(cue.id)) return `Take "${cue.label}" off air before you put its graphic in a second OBS scene.`;
+    if (selectionReadOnly(cue, show.collections) || (cue.typed !== undefined && typedReadOnly(cue))) {
+      return `"${cue.label}" was saved by a newer version, so its graphic cannot be put in a second OBS scene here.`;
+    }
+    return null;
+  };
+}
+
 /** OS1b C2 (docs/work-specs/obs-scenes/spec.md): a write that changed the record leaves every pool
  *  graphic in one OBS scene at most, inside the same write, so the local and the rebased pass each
- *  separate the record they changed. With the switch off it is the write as it was. */
-function withSceneCopies(mutate: (show: Show, at: string) => boolean | string): (show: Show, at: string) => boolean | string {
-  return (show, at) => {
-    const before = sceneOwners(show);
-    const result = mutate(show, at);
-    if (result === true) separateSceneGraphics(show, before, { mint: uuid, freeLayer: nextFreeLayer });
-    return result;
+ *  separate the record they changed, to the same ids. With the switch off it is the write as it
+ *  was. A refusal (C10, C11) comes after the write's own change, so `refusedAfter` says to read
+ *  the stored productions again. */
+function withSceneCopies(mutate: (show: Show, at: string) => boolean | string): { run: (show: Show, at: string) => boolean | string; refusedAfter: () => boolean } {
+  let refused = false;
+  return {
+    run: (show, at) => {
+      const before = sceneOwners(show);
+      const result = mutate(show, at);
+      if (result !== true) return result;
+      const separated = separateSceneGraphics(show, before, { freeLayer: nextFreeLayer, guard: sceneCopyGuard(show) });
+      if (typeof separated === 'string') {
+        refused = true;
+        return separated;
+      }
+      return true;
+    },
+    refusedAfter: () => refused,
   };
 }
 
@@ -1177,7 +1207,8 @@ function patchShowChecked(
   /** The typed writer's allowance (`setCueTyped`): cue id to the envelope bytes it writes. */
   typedWrite?: ReadonlyMap<string, string | null>,
 ): { shows: Show[]; error: string | null } {
-  mutate = withSceneCopies(mutate);
+  const scenes = withSceneCopies(mutate);
+  mutate = scenes.run;
   const all = readEditable();
   const visible = () => all.filter((s) => !s.deleted);
   if (!canAuthorAccount()) return { shows: visible(), error: 'Account editing is paused. Sign in again; pending work is preserved.' };
@@ -1187,7 +1218,7 @@ function patchShowChecked(
   const kept = selectionKeep(show);
   const typed = typedKeep(show);
   const result = mutate(show, at);
-  if (typeof result === 'string') return { shows: visible(), error: result };
+  if (typeof result === 'string') return { shows: scenes.refusedAfter() ? loadShows() : visible(), error: result };
   if (!result) return { shows: visible(), error: null };
   // The mutation ran on this read only: refused, the stored productions are read again.
   const frozen = selectionFrozen(kept, show, undefined, write) ?? typedFrozen(typed, show, undefined, typedWrite);

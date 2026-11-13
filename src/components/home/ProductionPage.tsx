@@ -159,7 +159,7 @@ import { publishedAdjustOf } from '../../control/hostedAdjust';
 import { formerReaders as storedFormerReaders, setFormerReaders as setStoredFormerReaders, setOwnReaderHolds } from '../../model/ownReaderHolds';
 import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/liveData';
 import { canonical } from '../../model/publishedRecord';
-import { droppedFields, updateCopyFromLibrary } from '../../model/shows';
+import { droppedFields, setSceneAirCues, updateCopyFromLibrary } from '../../model/shows';
 import { setCueSelection, setCueTyped, setCueTypedArgs, setCueTypedValues, setGraphicSounds } from '../../model/shows';
 import { forgetOwedCueEdit, keepOwedCueEdit, readOwedCueEdit } from '../../model/owedCueEdit';
 import ProductionSounds from './ProductionSounds';
@@ -799,6 +799,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // A getter, so the publish flow and the modules hold one stable `{ current }` (the compiler lint
   // reads a plain ref handed to the render-time publish call as read during render).
   const liveCueRef = useMemo(() => ({ get current() { return drawnLiveCue.current; } }), []);
+  // OBS scenes OS1b C10: a write never moves a cue this page has on air to a scene's copy.
+  useEffect(() => {
+    setSceneAirCues(() => new Set(Object.values(liveCueRef.current).filter((cue): cue is string => !!cue)));
+    return () => setSceneAirCues(null);
+  }, [liveCueRef]);
   /** Each ⚡ button's last press and what it came to (control/pressFeedback.ts), dropped as soon as
    *  the session's `air` part puts another instance on its layer, an Out and a Take of the same cue
    *  included. */

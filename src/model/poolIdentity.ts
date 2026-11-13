@@ -20,6 +20,8 @@ interface PoolGraphicIdentity {
   name: string;
   type: string;
   graphicId?: string | null;
+  /** An OBS scene's copy of another pool graphic (obs-scenes OS1b C3). */
+  sceneCopyOf?: string;
 }
 
 /** The production's own picture graphic: a picture graphic with no library link. */
@@ -55,7 +57,9 @@ export function poolPlacement(
   incoming: PoolGraphicIdentity,
 ): { replace: number; name: string; rename: { index: number; name: string } | null } {
   if (incoming.graphicId) {
-    const linked = pool.findIndex((g) => g.graphicId === incoming.graphicId);
+    // The original before an OBS scene's copy of it, which shares its link (obs-scenes OS1b).
+    const originals = pool.findIndex((g) => g.graphicId === incoming.graphicId && !g.sceneCopyOf);
+    const linked = originals >= 0 ? originals : pool.findIndex((g) => g.graphicId === incoming.graphicId);
     if (linked >= 0) return { replace: linked, name: pool[linked].name, rename: null };
   }
   const own = isOwnPictureGraphic(incoming);

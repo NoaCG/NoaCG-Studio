@@ -374,36 +374,46 @@ test('OBS scenes: a graphic added to a second scene becomes its copy, Take and O
 
   // Hairline into the second scene: a duplicate of its cue, dragged under Score, drives the Desk's
   // own copy, on a layer of its own; the Gameplay cue keeps the graphic (C2 to C4).
-  await cue(page, 'Hairline').getByTestId('cue-menu').click();
+  // A row by its whole name: "Hairline" is also the start of "Hairline copy".
+  const row = (label: string) => list(page).locator('.pd-cue').filter({ has: page.locator('.pd-cue-label strong', { hasText: new RegExp(`^${label}$`) }) });
+  // A cue on air is not moved to a copy: its graphic would stay on air with no cue (C10).
+  const take = async (label: string) => {
+    await row(label).getByTestId('select-cue').click();
+    await page.getByTestId('verb-take').click();
+    await expect(row(label)).toContainText('ON AIR');
+  };
+  await row('Hairline').getByTestId('cue-menu').click();
   await page.getByRole('menuitem', { name: 'Duplicate' }).click();
-  await drag(page, cue(page, 'Hairline copy'), cue(page, 'Score'), 'bottom');
+  await take('Hairline copy');
+  await drag(page, row('Hairline copy'), row('Score'), 'bottom');
+  await expect(page.getByTestId('rundown-note')).toContainText('Take "Hairline copy" off air before you put its graphic in a second OBS scene.');
+  await expect.poll(() => drawn(page)).toEqual(['[Gameplay]', '  Hairline', '  Hairline copy', '[Desk]', '  Score', 'Hand']);
+  await page.getByTestId('verb-out').click();
+  await expect(row('Hairline copy')).not.toContainText('ON AIR');
+  await drag(page, row('Hairline copy'), row('Score'), 'bottom');
   await expect.poll(() => drawn(page)).toEqual(['[Gameplay]', '  Hairline', '[Desk]', '  Score', '  Hairline copy', 'Hand']);
   await settleDurableWrites(page);
   const copied = await record();
   expect(copied.cues).toEqual({ Hairline: 'Hairline', Score: 'Score', Hand: 'Hand', 'Hairline copy': 'Hairline · Desk' });
+  await expect(page.getByTestId('rundown-note')).toHaveCount(0);
   expect(copied.pool.map((g) => g.split(' @')[0])).toEqual(['Hairline', 'Hairline · Desk', 'Score', 'Hand']);
   expect(new Set(copied.pool.map((g) => g.split(' @')[1])).size, 'every graphic on its own layer').toBe(4);
 
   // Take and Out in one scene leave the other scene's graphic as it is (C7).
-  const take = async (label: string) => {
-    await selectCue(page, label);
-    await page.getByTestId('verb-take').click();
-    await expect(cue(page, label)).toContainText('ON AIR');
-  };
   await take('Hairline');
   await take('Hairline copy');
-  await expect(cue(page, 'Hairline')).toContainText('ON AIR');
+  await expect(row('Hairline')).toContainText('ON AIR');
   await page.getByTestId('verb-out').click();
-  await expect(cue(page, 'Hairline copy')).not.toContainText('ON AIR');
-  await expect(cue(page, 'Hairline')).toContainText('ON AIR');
+  await expect(row('Hairline copy')).not.toContainText('ON AIR');
+  await expect(row('Hairline')).toContainText('ON AIR');
 
   // All out clears the hand-taken cue only: on stays on, out stays out (C9).
   await take('Hand');
   await page.getByTestId('verb-out-all').click();
-  await expect(cue(page, 'Hand')).not.toContainText('ON AIR');
-  await expect(cue(page, 'Hairline')).toContainText('ON AIR');
-  await expect(cue(page, 'Hairline copy')).not.toContainText('ON AIR');
-  await expect(cue(page, 'Score')).not.toContainText('ON AIR');
+  await expect(row('Hand')).not.toContainText('ON AIR');
+  await expect(row('Hairline')).toContainText('ON AIR');
+  await expect(row('Hairline copy')).not.toContainText('ON AIR');
+  await expect(row('Score')).not.toContainText('ON AIR');
 
   // The copy publishes as the Desk's graphic, exports, and reads back the same after a reload (AC-3).
   const shipped = () =>
@@ -422,7 +432,7 @@ test('OBS scenes: a graphic added to a second scene becomes its copy, Take and O
     }, id);
   expect(await shipped()).toEqual({ scenes: ['Gameplay: Hairline', 'Desk: Score, Hairline · Desk'], built: true, exported: true });
   await page.reload();
-  await expect(cue(page, 'Hairline copy')).toBeVisible();
+  await expect(row('Hairline copy')).toBeVisible();
   expect(await record()).toEqual(copied);
 });
 

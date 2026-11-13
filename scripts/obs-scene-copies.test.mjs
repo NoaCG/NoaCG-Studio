@@ -9,22 +9,25 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import './lib/tsResolve.mjs';
 
-const { obsScenesOf, sceneOwners, separateSceneGraphics, sceneGraphicNames } = await import('../src/model/obsScenes.ts');
+const { obsScenesOf, sceneOwners, separateSceneGraphics, sceneGraphicNames, sceneCopyId } = await import('../src/model/obsScenes.ts');
+const { poolPlacement } = await import('../src/model/poolIdentity.ts');
 
 const pool = (id, name, layer, extra = {}) => ({ id, name, type: 'lowerThird', savedAt: 't0', template: { name, fields: [] }, layer, ...extra });
 const cue = (id, sourceId, folderId) => ({ id, sourceId, label: id, values: { f0: id }, ...(folderId ? { folderId } : {}) });
 const folder = (id, name, scene = true) => ({ id, name, mode: 'manual', ...(scene ? { obsScene: true } : {}) });
 
-function deps() {
-  let n = 0;
-  return { mint: () => `copy${++n}`, freeLayer: (graphics) => Math.max(19, ...graphics.map((g) => g.layer ?? 20)) + 1 };
+function deps(guard) {
+  return { freeLayer: (graphics) => Math.max(19, ...graphics.map((g) => g.layer ?? 20)) + 1, ...(guard ? { guard } : {}) };
 }
+/** The id of a scene's first copy of a graphic, and its next. */
+const copyId = (source, scene, n = 0) => sceneCopyId(source, scene, n);
 
 /** One write as shows.ts patchShowChecked runs it: owners read before, separation after. */
 function write(show, mutate, d = deps()) {
   const before = sceneOwners(show);
   mutate(show);
-  separateSceneGraphics(show, before, d);
+  const result = separateSceneGraphics(show, before, d);
+  if (typeof result === 'string') throw new Error(result);
   return show;
 }
 
@@ -44,7 +47,7 @@ function production() {
 
 test('AC-3, C2, C4: adding a graphic to a second scene makes a named copy with its bindings and placement', () => {
   const show = write(production(), (s) => s.cues.push(cue('g2', 'lt', 'game')));
-  const copy = show.graphics.find((g) => g.id === 'copy1');
+  const copy = show.graphics.find((g) => g.id === copyId('lt', 'game'));
   assert.equal(copy.name, 'Lower third · Gameplay');
   assert.equal(copy.template.name, 'Lower third · Gameplay');
   assert.equal(copy.sceneCopyOf, 'lt');
@@ -52,8 +55,8 @@ test('AC-3, C2, C4: adding a graphic to a second scene makes a named copy with i
   assert.equal(copy.layer, 22, 'the next free layer: it never replaces another graphic on air');
   assert.deepEqual(show.bindings['Lower third · Gameplay'], { name: 'player.name' }, 'same bindings, under its own name');
   assert.deepEqual(show.profile.arrange['Lower third · Gameplay'], { show: { name: 'Show' } });
-  assert.deepEqual(show.graphics.map((g) => g.id), ['lt', 'copy1', 'bug'], 'placed after its source');
-  assert.equal(show.cues.find((c) => c.id === 'g2').sourceId, 'copy1');
+  assert.deepEqual(show.graphics.map((g) => g.id), ['lt', copyId('lt', 'game'), 'bug'], 'placed after its source');
+  assert.equal(show.cues.find((c) => c.id === 'g2').sourceId, copyId('lt', 'game'));
   assert.equal(show.cues.find((c) => c.id === 'd1').sourceId, 'lt', 'the scene that had it keeps it');
   assert.deepEqual(show.cues.find((c) => c.id === 'g2').values, { f0: 'g2' }, 'the cue keeps its values');
   // Its own placement: a change to one moves nothing in the other.
@@ -66,10 +69,10 @@ test('C4: a name already taken gets a number; a second cue of the graphic in the
   const show = production();
   show.graphics.push(pool('x', 'Lower third · Gameplay', 30));
   write(show, (s) => s.cues.push(cue('g2', 'lt', 'game')));
-  assert.equal(show.graphics.find((g) => g.id === 'copy1').name, 'Lower third · Gameplay 2');
+  assert.equal(show.graphics.find((g) => g.id === copyId('lt', 'game')).name, 'Lower third · Gameplay 2');
   // Later, in another write: the scene's copy is found again (C3).
   write(show, (s) => s.cues.push(cue('g3', 'lt', 'game')));
-  assert.equal(show.cues.find((c) => c.id === 'g3').sourceId, 'copy1');
+  assert.equal(show.cues.find((c) => c.id === 'g3').sourceId, copyId('lt', 'game'));
   assert.equal(show.graphics.length, 4, 'no second copy');
 });
 
@@ -91,15 +94,15 @@ test('C2: the scene that used it before keeps it, whatever the rundown order; th
   show.cues.unshift(cue('g0', 'bug', 'plain'));
   write(show, (s) => { s.folders.find((f) => f.id === 'plain').obsScene = true; });
   assert.equal(show.cues.find((c) => c.id === 'g1').sourceId, 'bug', 'Gameplay had Bug before');
-  assert.equal(show.cues.find((c) => c.id === 'g0').sourceId, 'copy1');
-  assert.equal(show.graphics.find((g) => g.id === 'copy1').name, 'Bug · Plain');
+  assert.equal(show.cues.find((c) => c.id === 'g0').sourceId, copyId('bug', 'plain'));
+  assert.equal(show.graphics.find((g) => g.id === copyId('bug', 'plain')).name, 'Bug · Plain');
   // Turning the switch on finds two scenes sharing a graphic, with no owner before: the first keeps it.
   const off = production();
   off.obsScenes = undefined;
   off.cues.push(cue('g2', 'lt', 'game'));
   write(off, (s) => { s.obsScenes = true; });
   assert.equal(off.cues.find((c) => c.id === 'd1').sourceId, 'lt');
-  assert.equal(off.cues.find((c) => c.id === 'g2').sourceId, 'copy1');
+  assert.equal(off.cues.find((c) => c.id === 'g2').sourceId, copyId('lt', 'game'));
 });
 
 test('C1, C6: with the switch off nothing is copied; turning it off keeps copies and pointers', () => {
@@ -113,7 +116,7 @@ test('C1, C6: with the switch off nothing is copied; turning it off keeps copies
   write(on, (s) => { s.obsScenes = undefined; });
   write(on, (s) => { delete s.folders[1].obsScene; });
   assert.equal(on.graphics.length, 3);
-  assert.equal(on.cues.find((c) => c.id === 'g2').sourceId, 'copy1');
+  assert.equal(on.cues.find((c) => c.id === 'g2').sourceId, copyId('lt', 'game'));
   assert.deepEqual([...sceneGraphicNames(on)], [], 'no scene graphics with the switch off');
 });
 
@@ -149,6 +152,8 @@ test('the walk: after every random edit each graphic is in one scene at most, an
     const show = production();
     show.graphics.push(pool('logo', 'Logo', 23));
     show.folders.push(folder('break', 'Break'));
+    // The production's own picture graphic: never copied (C12), so the walk lets it share scenes.
+    show.graphics.push({ ...pool('pics', 'Pictures', 24), type: 'picture' });
     const d = deps();
     let next = 0;
     for (let step = 0; step < 25; step += 1) {
@@ -166,12 +171,15 @@ test('the walk: after every random edit each graphic is in one scene at most, an
       // The record as the edit alone leaves it: what the separation then works on.
       const edited = structuredClone(before);
       mutate(edited);
+      for (const key of Object.keys(show)) delete show[key];
       Object.assign(show, structuredClone(edited));
-      separateSceneGraphics(show, sceneOwners(before), d);
+      const result = separateSceneGraphics(show, sceneOwners(before), d);
+      assert.notEqual(typeof result, 'string');
       const where = `seed ${seed} step ${step} op ${op}`;
       const users = usersOf(show);
-      if (show.obsScenes) for (const [g, scenes] of users) assert.ok(scenes.size <= 1, `${where}: ${g} in ${[...scenes]}`);
-      else assert.deepEqual(show, edited, `${where}: switch off changes nothing`);
+      if (show.obsScenes) {
+        for (const [g, scenes] of users) if (g !== 'pics') assert.ok(scenes.size <= 1, `${where}: ${g} in ${[...scenes]}`);
+      } else assert.deepEqual(show, edited, `${where}: switch off changes nothing`);
       // No graphic is ever removed, and names stay unique.
       for (const g of edited.graphics) assert.ok(show.graphics.some((x) => x.id === g.id), where);
       assert.equal(new Set(show.graphics.map((g) => g.name)).size, show.graphics.length, where);
@@ -184,6 +192,7 @@ test('the walk: after every random edit each graphic is in one scene at most, an
         assert.equal(copy.sceneCopyOf, was.sourceId, where);
         assert.ok(edited.obsScenes && show.folders.find((f) => f.id === c.folderId)?.obsScene, where);
         // C2: the scene that held the source before, if it still uses it, never loses it.
+        assert.notEqual(was.sourceId, 'pics', `${where}: the own picture graphic is never copied`);
         const owner = [...users0].find(([g]) => g === was.sourceId)?.[1];
         const stillThere = owner && [...owner].find((s) => editedUsers.get(was.sourceId)?.has(s));
         if (stillThere && users0.get(was.sourceId).size === 1) assert.notEqual(c.folderId, stillThere, `${where}: the owner scene moved`);
@@ -197,4 +206,60 @@ test('the walk: after every random edit each graphic is in one scene at most, an
       }
     }
   }
+});
+
+test('C3: the same write on the same record makes the same copy, so a rebased pass and two devices meet one copy', () => {
+  const a = write(production(), (s) => s.cues.push(cue('g2', 'lt', 'game')));
+  const b = write(production(), (s) => s.cues.push(cue('g2', 'lt', 'game')));
+  assert.deepEqual(a, b);
+  assert.match(copyId('lt', 'game'), /^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.notEqual(copyId('lt', 'game'), copyId('lt', 'desk'));
+  assert.notEqual(copyId('lt', 'game'), copyId('lt', 'game', 1));
+});
+
+test('C3, C6: a copy left behind is taken up again by its scene; one another scene now uses is not', () => {
+  const show = write(production(), (s) => s.cues.push(cue('g2', 'lt', 'game')));
+  write(show, (s) => { s.cues = s.cues.filter((c) => c.id !== 'g2'); });
+  assert.equal(show.graphics.length, 3, 'the copy stays in the pool');
+  write(show, (s) => s.cues.push(cue('g3', 'lt', 'game')));
+  assert.equal(show.cues.find((c) => c.id === 'g3').sourceId, copyId('lt', 'game'));
+  assert.equal(show.graphics.length, 3, 'no second copy');
+  // The Gameplay copy's cue moves to Break: Break takes the copy along; a new Hairline cue in
+  // Gameplay then needs a copy of its own, the next stable id.
+  const moved = write(production(), (s) => s.cues.push(cue('g2', 'lt', 'game')));
+  moved.folders.push(folder('break', 'Break'));
+  write(moved, (s) => { s.cues.find((c) => c.id === 'g2').folderId = 'break'; });
+  assert.equal(moved.cues.find((c) => c.id === 'g2').sourceId, copyId('lt', 'game'));
+  write(moved, (s) => s.cues.push(cue('g4', 'lt', 'game')));
+  assert.equal(moved.cues.find((c) => c.id === 'g4').sourceId, copyId('lt', 'game', 1));
+});
+
+test('C10, C11: a cue the guard holds stops the whole separation, and nothing changes', () => {
+  const show = production();
+  const before = sceneOwners(show);
+  show.cues.push(cue('g2', 'lt', 'game'));
+  const snapshot = JSON.stringify(show);
+  const refused = separateSceneGraphics(show, before, deps((c) => (c.id === 'g2' ? 'Take "g2" off air first.' : null)));
+  assert.equal(refused, 'Take "g2" off air first.');
+  assert.equal(JSON.stringify(show), snapshot);
+  // The guard is asked only about cues that would move: a cue staying with its graphic is not.
+  const asked = [];
+  write(production(), (s) => s.cues.push(cue('g2', 'lt', 'game')), deps((c) => (asked.push(c.id), null)));
+  assert.deepEqual(asked, ['g2']);
+});
+
+test('C12: the production\'s own picture graphic is never copied; a library picture graphic is', () => {
+  const show = production();
+  show.graphics.push({ ...pool('pics', 'Pictures', 24), type: 'picture' }, { ...pool('libpic', 'Sponsor', 25), type: 'picture', graphicId: 'lib-sp' });
+  write(show, (s) => s.cues.push(cue('dp', 'pics', 'desk'), cue('gp', 'pics', 'game'), cue('ds', 'libpic', 'desk'), cue('gs', 'libpic', 'game')));
+  assert.equal(show.cues.find((c) => c.id === 'gp').sourceId, 'pics');
+  assert.equal(show.cues.find((c) => c.id === 'gs').sourceId, copyId('libpic', 'game'));
+});
+
+test('re-adding a library graphic replaces the original, never a scene copy that shares its link', () => {
+  const pool2 = [
+    { name: 'Lower third · Gameplay', type: 'lowerThird', graphicId: 'lib-lt', sceneCopyOf: 'lt' },
+    { name: 'Lower third', type: 'lowerThird', graphicId: 'lib-lt' },
+  ];
+  assert.equal(poolPlacement(pool2, { name: 'Lower third', type: 'lowerThird', graphicId: 'lib-lt' }).replace, 1);
 });
