@@ -48,14 +48,16 @@ Nothing in this phase turns the `auto_publish` switch on.
 
 ### Node tests
 
-- `scripts/auto-publish.test.mjs` (11): single flight and newest wins (mutation: dropping the owed
+- `scripts/auto-publish.test.mjs` (12): single flight and newest wins (mutation: dropping the owed
   re-run fails it), transient retries 2, 4, 8 s and red after the second, a refusal not retried
   until a newer save, the next page opened publishes a closed page's save, the 20 s grace for
   another page's save, red after 20 s, no light for a revision already published, 200 random
   rounds of saves, failures, closes and opens ending with the newest save published and never going
   down, the `au` mark read off the wire, a "not allowed" refusal not retried on later saves, and the
   failure classes (a 401 that outlived one session refresh is transient; 403, 42501 and a row-policy
-  message are "not allowed"; the guard's "names a save that does not exist" is a guard refusal).
+  message are "not allowed"; the guard's "names a save that does not exist" is a guard refusal), and
+  a sync that brings no newer save neither lifts a refusal nor restarts the failure count (R7; it
+  fails on the code before the fix, where any sync of a personal production cleared both).
 - `scripts/output-version-check.test.mjs` (4): boot and every 30 s, a poke at once, retries
   2, 4, 8 s and within 90 s once answered, an instance without the function stops.
 - `scripts/output-reload.test.mjs` (9, one new): a version other than the one held is prepared at
@@ -84,8 +86,9 @@ The new-output step of the first walk also asserts the output read the published
 not on the main thread (R12), through a `window.__noacgWorkerReads` counter the reader bumps on each
 answer.
 
-The walk runs with both switches on (`production_copies` and `auto_publish`), as production has
-them; all six pass on that setting (jobs j-0025, j-0026 after the review fixes, j-0029 after the
+The walk runs with both switches on (`production_copies` and `auto_publish`), the setting automatic
+updates will run on. Production today has only `production_copies` on; `auto_publish` stays off there
+until the end of phase 7 (owner decision (b)). All six pass on that setting (jobs j-0025, j-0026 after the review fixes, j-0029 after the
 cleanups, and j-0033 with the review steps added). The
 automatic publish's `fetch` goes through `answeredFetch`, which adds the production-copies build
 mark to every REST request, so the 0115 guard accepts it.
@@ -101,8 +104,8 @@ Found while building:
   `teamProductions` module state, neither injectable, so a Node test cannot drive the token across the
   revision read without refactoring the function for a test, which the "avoid risky changes" brief
   discourages here; the configured walk covers only personal productions. The before-and-after read
-  is three visible lines and the Codex P1 it answers is resolved by inspection. A team configured walk
-  step is the place for it and is deferred.
+  is three visible lines and the Codex P1 it answers is resolved by inspection. The team Node test and
+  a team step in the configured walk are follow-up #2502 (P2), to pass before `auto_publish` goes on.
 - A revision-only update left the row's source columns as a Connect had written them (review on
   #2469): they leave the content digest and ride every revision-only update.
 
@@ -113,18 +116,13 @@ waits to run on the output, and start once it has; removing the wait fails the t
 
 ### Press to ran (AC-4), production build
 
-Phase 2 harness, test `autopublish`, `MEASURE_BUILD=prod`, unthrottled, warm cache, one output.
-"Ran" is the output's graphic `play()` call, on the one time origin. With `MEASURE_LOOP=1` the page
-republishes its saved revision whole, back to back, so every output reads the copy each time.
-
-| Fixture | Nothing published p50 / p95 (ms) | Publishing in a loop p50 / p95 (ms) | p95 difference | Presses during a publish | Failures |
-|---|---|---|---|---|---|
-| Typical (50 + 50) | 72.6 / 113.8 | 96.7 / 131.4 | +17.6 | 49 of 50 | 0 |
-| Large (50 + 50) | 96.9 / 206.5 | 121.7 / 252.3 | +45.8 | 50 of 50 | 0 |
-
-Throttled (20 Mbit/s, 50 ms), typical, 25 + 25: 80 / 142 ms with nothing published, 78 / 104 ms
-publishing (5 publishes of 5.4 s each over the run): no slowdown. Large, 25 + 25: 103 / 215 ms
-with nothing published, 101 / 144 ms publishing (2 publishes of 17.2 s): no slowdown.
+Phase 2 harness, test `autopublish`, `MEASURE_BUILD=prod`, unthrottled unless stated, warm cache,
+one output. "Ran" is the output's graphic `play()` call, on the one time origin. The harness's loops
+and counters exist only in a build made with `VITE_MEASURE_HOOKS=1`: the measure config sets it on
+its dev server and refuses a `MEASURE_DIST` built without it, and an ordinary `vite build` carries
+none of them (checked: the six harness strings, `noacg-measure-edit-loop`,
+`noacg-measure-publish-loop`, `Loop strap`, `__noacgPublisherTally`, `__noacgEdits` and
+`__noacgPublishWindows`, are in 0 bundle files of a plain build and in 1 of a hooked build).
 
 Press to sent is unchanged by publishing (p95 20 to 28 ms either way), so the page's own publish
 work is off the Take's path; the difference left is the output reading each new version.
@@ -192,12 +190,16 @@ loop's warm-up take most of it; 25, 15, 10 and 8 samples were each stopped at th
 cap needs a queue admission not taken here. The 3 s cue loop above is the controlled measurement that
 replaces it and shows the same large result.
 
-R10 (no publish step over 16 ms): press to sent is flat, so no publish step holds a Take. The step
-timer wraps each awaited build or write, so its largest value on the large fixture, 7 to 8 s, is the
-multi-megabyte `PATCH` waiting on the network. The longest main-thread steps were 41.8 and 67.4 ms on
-the typical fixture, the first content digest of a copy after the page opens, memoized after.
-Reporting the maximum rather than the p95 of maxima is a recorded departure from R10's wording; its
-intent, a Take never waiting on a publish, is met.
+R10 (no publish step over 16 ms) is not measured here: a recorded departure. The step timer in
+`publishRevision.ts` wraps the gate checks, the cue measuring (`timed(measure)`, which waits on
+frames), the payload build, the digests and the body parts, and each value includes the time the step
+spends waiting, not only the time it holds the main thread; the `PATCH` itself is outside it. So its
+largest value on the large fixture, 7 to 8 s, is a wait (it covers the measuring), and the 41.8 and
+67.4 ms on the typical fixture (the first digest of a copy after the page opens) are upper bounds,
+not main-thread blocks. What the evidence does show is R10's intent, a Take never waiting on a
+publish: press to sent is unchanged by publishing (p95 under 51 ms either way, above), so no publish
+step holds a Take. Measuring the main-thread time itself (the browser's Long Tasks API) is left for
+phase 7, where the publish path changes.
 
 ## Traps met
 

@@ -39,9 +39,13 @@ async function readRevisions(show: Pick<Show, 'id' | 'teamId'>): Promise<{ rev: 
   return { rev: record.rev, published: typeof rev === 'number' ? rev : null };
 }
 
-/** G3 section 9: what a page that may not publish says while a save waits for one that can. */
+/** BUILD-TIME: only a build made for the measure harness (`VITE_MEASURE_HOOKS=1`) carries its loops
+ *  and counters; every other build compiles them out (e2e/configured/measure/measure.config.ts). */
+const MEASURE_HOOKS = import.meta.env.VITE_MEASURE_HOOKS === '1';
+
 /** The measure harness's edit loop is on (a session flag only that harness sets). */
 function editLoopMeasured(): boolean {
+  if (!MEASURE_HOOKS) return false;
   try {
     return window.sessionStorage.getItem('noacg-measure-edit-loop') !== null;
   } catch {
@@ -56,6 +60,7 @@ function tally(name: string): void {
   t[name] = (t[name] ?? 0) + 1;
 }
 
+/** G3 section 9: what a page that may not publish says while a save waits for one that can. */
 export const ELSEWHERE_LINE = 'Open it on a device that can publish';
 
 export interface AutoPublishState {
@@ -117,15 +122,16 @@ export function useAutoPublish(o: {
   // harness sets makes this page edit the production every 3 s, with automatic updates on or off:
   // past the sync's 2.5 s debounce, so each edit is its own save (and, on, its own publish).
   // `cues`: the last cue's text, then its field values. `add`: a graphic added, then removed.
+  // `design`: the last graphic's stylesheet changed (a design update).
   useEffect(() => {
-    if (!enabled || !showId) return;
+    if (!MEASURE_HOOKS || !enabled || !showId) return;
     let mode: string | null = null;
     try {
       mode = window.sessionStorage.getItem('noacg-measure-edit-loop');
     } catch {
       mode = null;
     }
-    if (mode !== 'cues' && mode !== 'add') return;
+    if (mode !== 'cues' && mode !== 'add' && mode !== 'design') return;
     let tick = 0;
     const timer = setInterval(() => {
       const show = loadShows().find((s) => s.id === showId);
@@ -138,6 +144,13 @@ export function useAutoPublish(o: {
         if (!cue) return;
         if (tick % 2) updateShowCue(showId, cue.id, { label: `Edited ${tick}` });
         else updateShowCue(showId, cue.id, { values: Object.fromEntries(Object.keys(cue.values ?? {}).map((k) => [k, `Value ${tick}`])) });
+        return;
+      }
+      if (mode === 'design') {
+        // A design update: the pool's last graphic replaced by name (the entry keeps its id) with a
+        // changed stylesheet, so its copy and its digest change.
+        const g = show.graphics[show.graphics.length - 1];
+        if (g) addGraphicToShow(showId, { ...g.template, name: g.name, css: `${g.template.css}\n/* loop ${tick} */` });
         return;
       }
       const added = show.graphics.find((g) => g.name === 'Loop strap');
@@ -166,7 +179,7 @@ export function useAutoPublish(o: {
         const show = current();
         if (!show) return null;
         const answer = await confirmedRevision(show);
-        if (editLoopMeasured()) tally(answer === null ? 'confirmed:null' : 'rev' in answer ? 'confirmed:rev' : `confirmed:${answer.wait}`);
+        if (MEASURE_HOOKS && editLoopMeasured()) tally(answer === null ? 'confirmed:null' : 'rev' in answer ? 'confirmed:rev' : `confirmed:${answer.wait}`);
         if (answer && 'rev' in answer) confirmedRecord = { rev: answer.rev, show };
         return answer;
       },
@@ -175,7 +188,7 @@ export function useAutoPublish(o: {
         return show ? readRevisions(show) : null;
       },
       catchUp: async () => {
-        if (editLoopMeasured()) tally('catchUp');
+        if (MEASURE_HOOKS && editLoopMeasured()) tally('catchUp');
         catchingUp = true;
         try {
           await catchUpRecord(teamId, false);
@@ -192,7 +205,7 @@ export function useAutoPublish(o: {
         const outcome = await publishRevision(held, rev, measure ? () => measure(held) : undefined);
         if (outcome.kind === 'published' && outcome.ver) latest.current.onPublished(outcome.ver);
         // THE MEASURE HARNESS ONLY: with its edit loop on, each automatic publish's window and steps.
-        if (editLoopMeasured()) {
+        if (MEASURE_HOOKS && editLoopMeasured()) {
           const w = window as unknown as { __noacgPublishWindows?: [number, number, string, number, number[]][] };
           const steps = publishStepMs.slice(from);
           (w.__noacgPublishWindows ??= []).push([t0, performance.timeOrigin + performance.now(), outcome.kind, Math.max(0, ...steps), steps]);
@@ -205,7 +218,7 @@ export function useAutoPublish(o: {
     // THE MEASURE HARNESS ONLY (designs/G3.md section 13): with this session flag set, the page
     // publishes its current saved revision again and again, whole, so press-to-ran can be measured
     // during a publish on a production build. Nothing sets the flag but the harness.
-    const measuring = (() => {
+    const measuring = MEASURE_HOOKS && (() => {
       try {
         return window.sessionStorage.getItem('noacg-measure-publish-loop') === '1';
       } catch {
@@ -236,6 +249,9 @@ export function useAutoPublish(o: {
     // A save of this page confirmed: a personal one when a sync pass ends synced, a team one when its
     // save is no longer pending.
     let wasSaving = false;
+    /** This production's own `updatedAt` at its last confirmed save: a sync pass that confirms only
+     *  other records is not a save of this one. */
+    let savedAt = current()?.updatedAt ?? null;
     const offSync = teamId
       ? subscribeTeamState(() => {
           const saving = getTeamState().saving[showId] === 'pending';
@@ -246,7 +262,10 @@ export function useAutoPublish(o: {
           if (s.phase === 'syncing' || s.phase === 'pending') wasSaving = !catchingUp;
           else if (s.phase === 'synced' && wasSaving) {
             wasSaving = false;
-            if (editLoopMeasured()) tally('saved');
+            const now = current()?.updatedAt ?? null;
+            if (now === savedAt) return;
+            savedAt = now;
+            if (MEASURE_HOOKS && editLoopMeasured()) tally('saved');
             publisher.saved();
           }
         });

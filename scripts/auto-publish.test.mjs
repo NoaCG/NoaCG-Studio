@@ -276,3 +276,28 @@ test('R7 classes: a lasting 401 is transient; a policy refusal is "not allowed"'
   }
   assert.equal(classify({ message: 'This publication names a save that does not exist' }).refusal, 'guard');
 });
+
+test('R7: a sync with no newer save neither lifts a refusal nor restarts the failure count', async () => {
+  const c = clock();
+  const world = server();
+  // A refusal: the same revision is not tried again when a sync of another record arrives.
+  const refused = page(world, c, { fail: () => ({ kind: 'refused', refusal: 'gate', reason: 'Scorebug cannot go on air: it has a script error. Fix it and the next save publishes.' }) });
+  refused.save(); await settle();
+  assert.equal(refused.calls, 1);
+  assert.equal(refused.pub.view().tone, 'red');
+  refused.pub.saved(); await settle(); // a sync that brings no newer revision
+  assert.equal(refused.calls, 1, 'the refused revision is not tried again');
+  assert.equal(refused.pub.view().tone, 'red', 'the light stays red');
+  refused.pub.stop();
+
+  // Two transient failures read red; a sync with no newer save keeps them counted.
+  const world2 = server();
+  const failing = page(world2, c, { fail: () => ({ kind: 'transient', reason: 'the server did not answer' }) });
+  failing.save(); await settle();
+  await c.advance(2_000);
+  assert.equal(failing.calls, 2);
+  assert.equal(failing.pub.view().tone, 'red');
+  failing.pub.saved(); await settle();
+  assert.equal(failing.pub.view().tone, 'red', 'two failures are not forgotten by a sync with no newer save');
+  failing.pub.stop();
+});

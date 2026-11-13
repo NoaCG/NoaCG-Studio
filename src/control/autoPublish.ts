@@ -127,6 +127,8 @@ export function createAutoPublisher(io: AutoPublishIo): AutoPublisher {
   let newest: number | null = null;
   let published: number | null = null;
   let transientFailures = 0;
+  /** The revision the counted transient failures were for: a newer one starts the count again. */
+  let failedRev: number | null = null;
   let lastReason: string | null = null;
   /** A refusal holds until a revision newer than this one (or a new account, for `denied`). */
   let refusedAt: { rev: number | null; refusal: 'gate' | 'denied' | 'guard'; reason: string } | null = null;
@@ -171,6 +173,7 @@ export function createAutoPublisher(io: AutoPublishIo): AutoPublisher {
       pendingSince = null;
       pendingOwn = false;
       transientFailures = 0;
+      failedRev = null;
       lastReason = null;
       refusedAt = null;
     }
@@ -220,6 +223,13 @@ export function createAutoPublisher(io: AutoPublishIo): AutoPublisher {
     // A refusal holds: "not allowed" until another account (a fresh publisher), the others until a
     // newer save.
     if (refusedAt && (refusedAt.refusal === 'denied' || (refusedAt.rev !== null && rev <= refusedAt.rev))) return;
+    // Only a newer save lifts a refusal or restarts the failure count (R7). A sync that brings no
+    // newer revision (another record's, or a catch-up) changes neither, so the light holds.
+    if (refusedAt) refusedAt = null;
+    if (failedRev !== null && rev > failedRev) {
+      transientFailures = 0;
+      failedRev = null;
+    }
     markPending(ownHint);
     ownHint = false;
     emit();
@@ -242,6 +252,7 @@ export function createAutoPublisher(io: AutoPublishIo): AutoPublisher {
         return;
       case 'transient':
         transientFailures += 1;
+        failedRev = rev;
         lastReason = outcome.reason;
         schedule(retryDelay(transientFailures));
         return;
@@ -295,8 +306,6 @@ export function createAutoPublisher(io: AutoPublishIo): AutoPublisher {
     saved() {
       if (stopped) return;
       ownHint = true;
-      if (refusedAt && refusedAt.refusal !== 'denied') refusedAt = null;
-      transientFailures = 0;
       run();
     },
     check(opened = false) {

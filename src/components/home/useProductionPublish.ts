@@ -454,9 +454,11 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
           if (!latest) return null;
           try {
             // The saved revision this record is, when the server can say (designs/G3.md section 2). A
-            // save still on its way is pushed now; a newer save on the server is brought in. A server
-            // that numbers revisions but cannot say which this is gets no unversioned publish: the
-            // guard would refuse it with words meant for a page from an older build.
+            // save still on its way is pushed now; a newer save on the server is brought in. When the
+            // revision cannot be read (an instance without 0117, or a read that failed), the publish
+            // goes out unversioned, as before this phase. With automatic updates on, the guard refuses
+            // that one with its old-page words ("Reload this page to edit") and nothing stored changes;
+            // the next press, once the revision reads, publishes versioned.
             let record = latest;
             let confirmed = await confirmedRevision(record).catch(() => null);
             if (confirmed && 'wait' in confirmed) {

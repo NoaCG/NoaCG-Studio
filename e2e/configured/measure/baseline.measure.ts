@@ -869,13 +869,13 @@ test('w3', async ({ page, browser }) => {
 // MEASURE_LOOP=1 the page publishes its saved revision again and again, whole (a session flag only
 // this harness sets), so every output reads the published copy each time; without it, nothing is
 // published. "Ran" is the output's graphic running the Take: its play() call, on the one time origin.
-// MEASURE_EDIT=cues|add makes the page edit the production every 3 s (the last cue's text and
+// MEASURE_EDIT=cues|add|design makes the page edit the production every 3 s (the last cue's text and
 // values, or a graphic added and removed); MEASURE_AUTO=0 runs that with automatic updates off.
 test('autopublish', async ({ page, browser }) => {
   // The switch is a service-role write: only ever against a local stack.
   if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(SUPABASE_URL)) throw new Error('autopublish writes a switch: run it only against a local stack');
   const loop = process.env.MEASURE_LOOP === '1';
-  const editMode = process.env.MEASURE_EDIT === 'cues' || process.env.MEASURE_EDIT === 'add' ? process.env.MEASURE_EDIT : null;
+  const editMode = ['cues', 'add', 'design'].includes(process.env.MEASURE_EDIT ?? '') ? process.env.MEASURE_EDIT! : null;
   const autoOn = process.env.MEASURE_AUTO !== '0';
   const setAuto = (on: boolean) =>
     fetch(`${SUPABASE_URL}/rest/v1/system_settings?on_conflict=key`, {
