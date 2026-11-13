@@ -219,3 +219,50 @@ test('a publish that needs a reload is not held by a graphic it moved out of the
   await expect.poll(async () => (await readyOf(page))?.n, { timeout: 20_000 }).toBe(1);
   expect(await built(page)).toEqual(['B1']);
 });
+
+test('Take and Out of one scene graphic change only its scene link, and a reload restores each as on or off (obs-scenes OS1b AC-2, C7, C8)', async ({ browser }) => {
+  // A1 is Gameplay's graphic and B1 the Desk's own copy of the same design (OS1b C3): two names on
+  // the wire. The log: A1 taken; B1 taken and taken out again; B2 taken.
+  const row = (id: number, graphic: string, msg: Msg) => ({ id, graphic, msg, created_at: '2026-11-13T00:00:00.000Z' });
+  const tail = [
+    row(1, 'A1', { t: 'update', data: { f0: 'on' } }),
+    row(2, 'A1', { t: 'play' }),
+    row(3, 'B1', { t: 'play' }),
+    row(4, 'B1', { t: 'stop' }),
+    row(5, 'B2', { t: 'play' }),
+  ];
+  const open = async (scene: string) => {
+    const page = await browser.newPage();
+    const backend = await standInBackend(page, () => production(1, SCENES), tail);
+    await page.goto(`/output?production=scene-probe&scene=${scene}`);
+    await expect.poll(async () => (await readyOf(page))?.n, { timeout: 20_000 }).toBe(2);
+    return { page, backend };
+  };
+  const states = (page: Page, keys: string[]) => Promise.all(keys.map((k) => stateOf(page, k)));
+  const game = await open('scA');
+  const desk = await open('scB');
+  await expect.poll(() => states(game.page, ['A1', 'A2']), { timeout: 15_000 }).toEqual(['in', 'off']);
+  await expect.poll(() => states(desk.page, ['B1', 'B2']), { timeout: 15_000 }).toEqual(['off', 'in']);
+
+  // Out of Gameplay's graphic, and a Take of the Desk's copy, each reach their own link alone.
+  await command(game.page, 'A1', { t: 'stop' });
+  await command(desk.page, 'A1', { t: 'stop' });
+  await command(game.page, 'B1', { t: 'play' });
+  await command(desk.page, 'B1', { t: 'play' });
+  await expect.poll(() => states(game.page, ['A1', 'A2'])).toEqual(['off', 'off']);
+  await expect.poll(() => states(desk.page, ['B1', 'B2'])).toEqual(['in', 'in']);
+  expect(await built(game.page)).toEqual(['A1', 'A2']);
+  expect(desk.backend.reported).not.toContain('A1');
+  expect(game.backend.reported).not.toContain('B1');
+
+  // A reload restores what the log says of each, on or off, link by link.
+  tail.push(row(6, 'A1', { t: 'stop' }), row(7, 'B1', { t: 'play' }));
+  await game.page.reload();
+  await desk.page.reload();
+  await expect.poll(async () => (await readyOf(game.page))?.n, { timeout: 20_000 }).toBe(2);
+  await expect.poll(async () => (await readyOf(desk.page))?.n, { timeout: 20_000 }).toBe(2);
+  await expect.poll(() => states(game.page, ['A1', 'A2']), { timeout: 15_000 }).toEqual(['off', 'off']);
+  await expect.poll(() => states(desk.page, ['B1', 'B2']), { timeout: 15_000 }).toEqual(['in', 'in']);
+  await game.page.close();
+  await desk.page.close();
+});

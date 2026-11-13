@@ -52,3 +52,12 @@ test('an All out within one window leaves at once', () => {
   assert.deepEqual(allOutWaves(batchRows(20)), [0, 0, 0, 0, 0]);
   assert.deepEqual(allOutWaves([]), []);
 });
+
+test('OBS scenes C9: All out leaves scene graphics as they are, whoever names them', () => {
+  const keep = new Set(['S1', 'S2']);
+  assert.deepEqual(allOutTargets({ local: ['S1', 'H'], heads: heads({ S2: true, H: true, G: true }), all: ['S1', 'S2', 'H', 'G'], published: true, keep }), ['H', 'G']);
+  assert.deepEqual(allOutTargets({ local: ['S1'], heads: heads({ S2: true }), all: ['S1', 'S2', 'H'], published: true, keep }), [], 'only scene graphics are up: nothing is cleared, and no fallback to every graphic');
+  assert.deepEqual(allOutTargets({ local: [], heads: heads({}), all: ['S1', 'H', 'S2'], published: true, keep }), ['H'], 'the fallback leaves them too');
+  assert.deepEqual(allOutTargets({ local: ['S1'], heads: null, all: ['S1'], published: false, keep }), []);
+  assert.deepEqual(allOutTargets({ local: ['S1', 'H'], heads: null, all: [], published: false, keep: new Set() }), ['S1', 'H'], 'switch off: today');
+});

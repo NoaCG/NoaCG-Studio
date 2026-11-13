@@ -107,7 +107,9 @@ export interface FolderPlayout {
   /** Take cues off for a step; false, with the note said, when one did not go off. */
   off: (cues: readonly ShowCue[]) => Promise<boolean>;
   /** Stop every folder still being sent. All out also sends every One-by-one folder to the top. */
-  stopAll: (reason: 'all-out' | 'ended') => void;
+  /** `keep`: folders whose One-by-one step All out leaves where it is, the production's OBS
+   *  scenes (obs-scenes OS1b C9). Their runs still stop. */
+  stopAll: (reason: 'all-out' | 'ended', keep?: ReadonlySet<string>) => void;
   /** A folder's Take or step is still being sent. */
   running: (folderId: string) => boolean;
   /** Forget why these cues' last folder Take missed them: they were taken since, or taken off. */
@@ -325,16 +327,17 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
     }));
   };
 
-  const stopAll = (reason: 'all-out' | 'ended') => {
+  const stopAll = (reason: 'all-out' | 'ended', keep?: ReadonlySet<string>) => {
     // A folder's Take still being sent sends nothing more, and what of it lands after is cut too:
-    // nothing airs after the panic control.
+    // nothing airs after the panic control. A scene's too: what had not landed was not on air, so
+    // cutting it leaves "out" out, and its server cues must never start after All out.
     for (const run of runs.values()) run.stop = reason;
     if (reason === 'ended') {
       runs.clear();
       return;
     }
-    // Every One-by-one folder starts again from its first cue.
-    steps((m) => Object.fromEntries(Object.keys(m).map((id) => [id, null])));
+    // Every One-by-one folder starts again from its first cue, but an OBS scene keeps its place.
+    steps((m) => Object.fromEntries(Object.keys(m).map((id) => [id, keep?.has(id) ? m[id] : null])));
   };
 
   session.onDispose(() => stopAll('ended'));
