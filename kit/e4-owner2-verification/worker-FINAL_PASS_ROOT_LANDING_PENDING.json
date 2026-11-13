@@ -1,0 +1,325 @@
+{
+  "version": 1,
+  "nonce": "e4-owner2-narrow-20261113",
+  "actor": "/root/editor_e4_narrow_correction",
+  "nativeThreadId": "unexposed",
+  "status": "WORKER_GATES_PASS_ROOT_LANDING_PENDING",
+  "at": "2026-11-13T10:25:22.728161+00:00",
+  "run": "plan-editor-r1-5-2026-11-08",
+  "phase": "E4",
+  "PR": "https://github.com/NoaCG/NoaCG-Studio/pull/2438",
+  "worktree": "/workspace/noacg-editor-r1-5-e4-build",
+  "branch": "codex/plan-editor-r1-5-e4-build",
+  "head": "33380c2ffafc005b07cde8ca0e5cc17f7329de39",
+  "tree": "328a4b8183326796dfb0824134f6d8b9c011d5fc",
+  "gitStatusPorcelain": "",
+  "actualEnvironment": "ccarenv_b64_Y2NhcmVudl9mOGJiMmY0OWI4ZjA4MTkxYjE5YjAzNDFjZjcxMmRiYg",
+  "originalOwnerBindingPreserved": "ccarenv_b64_Y2NhcmVudl8xNmNlODA4YjUyMzQ4MTkxYWE1ZmI1ZDQ0OGU1NGIzNA",
+  "blockReadback": {
+    "id": "0e4b6611-ff9c-49e3-ae46-e10841072030",
+    "owner": "codex:6af455f4-b1c8-8191-86b2-8bfdfc619075",
+    "epoch": 10,
+    "startedAt": "2026-11-13T10:19:57.291Z",
+    "deadline": "2026-11-14T10:19:57.291Z"
+  },
+  "attempts": {
+    "ordinarySpent": 3,
+    "ordinaryLimit": 3,
+    "previousOwnerExtraSpent": 1,
+    "previousOwnerExtraLimit": 1,
+    "newNarrowGranted": 1,
+    "newNarrowUsed": 1,
+    "remaining": 0,
+    "chargedAt": "2026-11-13T09:33:26.437197Z",
+    "rootChargeCheckpoint": "a5953ff85490036faf0dded2ede3f8bcd93dc6ae",
+    "noReset": true
+  },
+  "changes": {
+    "productFiles": [
+      "src/model/shows.ts",
+      "src/model/projectInstallation.ts",
+      "src/store/saveActions.ts"
+    ],
+    "maintainedRegressionCasesAdded": 7,
+    "originalAssertionsUnchanged": true,
+    "productCommit": "721c8d4746e0078671a4886e2abdc254df8a8d33",
+    "finalNotesOnlyCommit": "33380c2ffafc005b07cde8ca0e5cc17f7329de39",
+    "srcTestsScriptsEqualProductCommit": true,
+    "migration": "none",
+    "automaticFallbackImplemented": false,
+    "newSyncCollaborationEligibilityProtocol": false
+  },
+  "resources": {
+    "effectiveCpus": 4,
+    "memoryLimitGiB": 16,
+    "workers": 2,
+    "profileKnown": false,
+    "limitation": "hidden cgroup ancestors; executing-worker profile retained",
+    "smallCapMinutes": 5,
+    "broaderCapMinutes": 12,
+    "buildCapMinutes": 5
+  },
+  "startup": {
+    "savedBriefSha256": "3fccf25473149191f97e9adc072040a4000be4b0a8bee15454fffb397c57462b",
+    "authorityReceiptSha256": "3a3098e38afa866700e52fd61478311e06311649428b2e1d9f69bfb31517ae8c",
+    "priorStopSha256": "85a57ea4a6a98d6398a60c88650b72e29a54fa17a76e184fc028700b564207cf",
+    "networkGitAndActions": "PASS",
+    "workerDisposableIO": "PASS",
+    "actorInventory": "serial worker; prior actor stopped"
+  },
+  "preCodeModel": {
+    "actor": "/root/editor_e4_narrow_correction/e4_owner2_model_so",
+    "verdict": "AGREE WITH CORRECTIONS",
+    "boundedClarifications": 1,
+    "originalSha256": "76e5d78bd7289a72e31284d65490b5802422f3336fba2c1f12941c12438bd1cc",
+    "clarificationSha256": "df844cf3f8587d14d54a3d52ae324c49eccf130d799ebcfc09538b715c6560cf",
+    "rootReadEntireBeforePatch": true
+  },
+  "originalReproductions": {
+    "frozenHead": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
+    "j0120": "FAIL1 case4.1s original455 expected dirtyfalse receivedtrue; later assertions unexecuted, no data-loss inference",
+    "j0121": "FAIL1 case3.1s unchanged rawmissingversion/stamp falsely conflicted; read did not rewrite raw rows",
+    "runsEach": 1,
+    "retries": 0,
+    "capsMinutes": 5,
+    "discardScreenshotContext": "overwritten before archival by next Playwright startup; whole log/source retained, no rerun"
+  },
+  "local": {
+    "j0122": {
+      "passed": 36,
+      "failed": 0,
+      "skips": 0,
+      "retries": 0,
+      "minutes": 1.5,
+      "capMinutes": 5
+    },
+    "j0123": {
+      "passed": 158,
+      "failed": 0,
+      "skips": 0,
+      "retries": 0,
+      "minutes": 10.2,
+      "capMinutes": 12,
+      "source": "721c8d4746e0078671a4886e2abdc254df8a8d33",
+      "broaderAdmissions": 1
+    },
+    "changedGates": {
+      "passed": 323,
+      "failed": 0,
+      "testFiles": 25
+    },
+    "types": "PASS",
+    "lint": "PASS",
+    "dependency": "PASS0violations1471modules7033dependencies",
+    "protection": "PASS67projectcases320specscounted; no assertion/protection removed",
+    "finalDocsChecks": "PASS",
+    "localProductionBuild": "not repeated; no dependency/entrypoint/packaging change; actualCI BuildPASS"
+  },
+  "reconciliation": {
+    "mainAtPush": "455ee104bb04a33ed94378e2b1472d65e0226677",
+    "mergeTree": "CLEAN5ce67b7b6a3dd4864c41cfdc4bbf5c4a7719c7fc",
+    "mergeOrder": "clear",
+    "sourceMergeOrRebase": false,
+    "fullPaths": 52,
+    "canonicalSideEnds": {
+      "ends": {},
+      "why": []
+    },
+    "fullBasePackageBuildVersionDependencyLockCliAudit": "only manualqualification npm script addition; no dependency/version/build/CLI change",
+    "lastPRSnapshot": {
+      "autoMergeEnabled": false,
+      "base": "7e306913b7bc8e031b42232de6946f51db0c7068",
+      "draft": false,
+      "head": "33380c2ffafc005b07cde8ca0e5cc17f7329de39",
+      "labels": [],
+      "merged": false,
+      "state": "open"
+    }
+  },
+  "checkStamp": {
+    "path": "/workspace/NoaCG-Studio/.git/noacg-jobs/checks/codex-plan-editor-r1-5-e4-build.json",
+    "sha256": "e5aaaace205b4eff4355d9ade0ff9edf507c2adb6cf873586bf03dfb1f2fb5e0",
+    "reviewedSha": "33380c2ffafc005b07cde8ca0e5cc17f7329de39",
+    "review": "inline2/2",
+    "simplify": "inline",
+    "verify": "inline",
+    "verdict": "PASS",
+    "nativeModelAndEffort": "inherited/unexposed recorded truthfully"
+  },
+  "CI": {
+    "run": 43405602818,
+    "attempt": 1,
+    "head": "33380c2ffafc005b07cde8ca0e5cc17f7329de39",
+    "testMerge": "107a60b54e78c01361485389667a26bbc8dbdc15",
+    "allJobsTerminal": 33,
+    "CIgate": {
+      "job": 131827074604,
+      "conclusion": "success"
+    },
+    "overallOriginalAttempt": "failure solely missing public Reviewed stamp",
+    "Reviewed": {
+      "job": 131819086112,
+      "conclusion": "failure",
+      "reason": "missing noacg/reviewed150s29polls"
+    },
+    "offlineShards": "15/15 success",
+    "configured": {
+      "mode": "all",
+      "specs": 63,
+      "stacks": 4,
+      "verdictJob": 131825735619,
+      "conclusion": "success",
+      "passed": 148,
+      "failed": 0,
+      "flaky": 0,
+      "existingSkips": 3
+    },
+    "BuildFactoryCatalogGuidedMod": "all success",
+    "Combined": {
+      "job": 131827074514,
+      "conclusion": "success"
+    },
+    "automaticRetriesExecuted": 0,
+    "skippedJobs": [
+      "Vercel accepted the commit",
+      "Re-run failed Build or Factory",
+      "E2E retry",
+      "After the gate"
+    ]
+  },
+  "capacity": {
+    "actualPlan": {
+      "job": 131819086123,
+      "verdict": "REPAY",
+      "tableMinutes": 199.4,
+      "budget": 213,
+      "percent": 93.6,
+      "addsMinutes": 1.7,
+      "newestReport": 43201149088,
+      "newestState": "partial",
+      "judgedCompleteReport": 43014542120
+    },
+    "combinedReportSeparateMeasuredContext": {
+      "tableMinutes": 192.7,
+      "budget": 213,
+      "addsMinutes": 5.1,
+      "verdict": "REPAY",
+      "growth": "frozen seed; retained as distinct from authoritative actual plan"
+    },
+    "localProvisional": "WARN197.7/213 frozen seed; not actualCI clearance",
+    "debtAttributionIssue": 2450,
+    "limitsExceptionsMaintenanceChanged": false
+  },
+  "isolated": {
+    "run": 43406588586,
+    "job": 131822300903,
+    "source": "33380c2ffafc005b07cde8ca0e5cc17f7329de39",
+    "conclusion": "success",
+    "tests": 1,
+    "passed": 1,
+    "caseSeconds": 33.5,
+    "reportSeconds": 34.9,
+    "skips": 0,
+    "retries": 0,
+    "wrapperCapMinutes": 5,
+    "caseCapSeconds": 60,
+    "accountDeleted": true,
+    "cleanTeardown": true,
+    "containersVolumesNetworksProcesses": 0,
+    "ownerlessTimeWait": 0,
+    "ports54320to54329Bind": true,
+    "reservationClaimReleased": true,
+    "artifact": 14026994771,
+    "artifactBytes": 339002,
+    "artifactSha256": "c9e2b13a455776250a5048d97eb7562e4aad6d09a7bae3fc88d80080b8c7206d",
+    "wholeJobLogRead": true,
+    "directArtifactJsonRead": false,
+    "artifactIngress": "Native GitHub download returned FileService reference; one workspace blob fetch403; no retry/bypass/allowlist change, forbidden FileService-ID download_file not used",
+    "dispatchObservation": "UNRESOLVED inputs/defaults retained; existing dispatch executed once"
+  },
+  "Codex": {
+    "route": "native draft marked ready",
+    "requests": 1,
+    "summaryComment": 6823456351,
+    "commit": "33380c2ffafc005b07cde8ca0e5cc17f7329de39",
+    "completedAt": "2026-11-13T10:05:04.036951Z",
+    "status": "completed",
+    "hasAnyFindings": false,
+    "hasUnresolvedFindings": false,
+    "newOriginalInlineComments": 0,
+    "formalReviewsOnHead": 0,
+    "cleanSummaryIsActualOutcome": true,
+    "noDuplicateAtCodex": true
+  },
+  "CodeQL": {
+    "run": 43405595106,
+    "conclusion": "success",
+    "allThreeAnalyses": "PASS independently read by full reviewer"
+  },
+  "FULL_SO": {
+    "actor": "/root/editor_e4_narrow_correction/e4_owner2_final_full_so",
+    "nativeThreadId": "unexposed",
+    "base": "91a57833c972f214b45fa7357faf4e830c547e21",
+    "head": "33380c2ffafc005b07cde8ca0e5cc17f7329de39",
+    "scopePaths": 52,
+    "scope": "FULL every path; no Delta shortcut",
+    "verdict": "AGREE",
+    "grade": "A",
+    "confirmedProductFindings": 0,
+    "receipt": "/workspace/noacg-editor-r1-5-e4-build/owner2.local/final-full-so.txt",
+    "sha256": "af76c805a7ecbcc06b3e421c2bcbddb9711a448407d990ac7bad544ae5c55445",
+    "rootReadEntireAccepted": true,
+    "rootPublication": "4542acac267c6e3fb6e3412bf1249611f0667e55"
+  },
+  "receiving": {
+    "newSourceBrowserJourneySeconds": 20.7,
+    "fourZipNamesAndUncompressedContentsEqual": true,
+    "filesCompared": 43,
+    "sourceDifferences": [
+      "brandApplication.lookId"
+    ],
+    "producerFixtureClosureUnchanged63d7ToFinal": true,
+    "rebaseline": false,
+    "physicalHostDeviceAcceptance": false
+  },
+  "retainedFailures": [
+    "all prior STOP/archive failures, five earlier full-review rounds and B grades retained",
+    "j0113 original failures and j0114 sixpass/fourfail remain historical",
+    "j0117 176PASS/1fixtureFAIL, j0118 zero-testfailure and separately j0119 focusedPASS remain historical",
+    "prior217 localbuildnetwork403 and priorisolatedfixturefailure retained",
+    "priorblankreceiving/rawsourceUUIDinequality/artifact403 retained without retroactivePASS",
+    "frozen63d7 normalCI Discardfailure/Codexlegacyfinding/fullB retained",
+    "new frozenj0120/j0121 failures retained",
+    "initial prefer-const lint failure fixed before browser verification, original log retained",
+    "scoped metadata/index/disposableworktree permission failures retained; supported escalations qualified",
+    "new artifactworkspaceingress403 retained; no directJSONread"
+  ],
+  "ownership": {
+    "publicStampByBuilder": false,
+    "queueByBuilder": false,
+    "rootSoleRepairQueueOwner": true,
+    "nativeWakeAfterSessionClaim": false,
+    "localJobsLive": [],
+    "ownedBrowserDevServerListeners": [],
+    "worktreeRetained": true
+  },
+  "remaining": "Root posts public stamp/normal merge queue and handles missing-Reviewed metadata revival, terminal exact-merge/post-land checks and fresh independent E4 acceptance. E4 not yet landed/PASS. No E5C/E6C or local/device phase launched; OW1/release gates unchanged.",
+  "receiptHashes": {
+    "model-so-original.txt": "76e5d78bd7289a72e31284d65490b5802422f3336fba2c1f12941c12438bd1cc",
+    "model-so-clarification.txt": "df844cf3f8587d14d54a3d52ae324c49eccf130d799ebcfc09538b715c6560cf",
+    "original-discard-j0120.log": "980e7cc3d32b7d12704da460554288150c51416c4bce2556771fd0efc3cbc6c9",
+    "original-legacy-j0121.log": "4d3079aa0c9f24c73e80c0231a4becc504f36e20053739c23ec07510d4a76fa8",
+    "original-legacy.json": "46ebaf4fe894949d45f658b0d56fefe3e4de88b839802dfed4139c13435bfe6e",
+    "combined-small-j0122.log": "ccbea34c350c01167c16105798f5bd7bb4dffc3dac578d057f07b30d7d89f17d",
+    "combined-broader-j0123.log": "557ff8d26a449e7335abf391327f8c1b534a5eee30e047d3fbd772e2f0315062",
+    "ci-plan-131819086123-full.log": "491aadfc9109b247b7155aa11e229865e706a84dff3e54a59e81bfa575f26b20",
+    "configured-verdict-131825735619-full.log": "cb9229f1b7f444bb8f3ea7b5cc79904bba8665cd6d9e7222ef80918301bd0f5f",
+    "ci-reviewed-131819086112-full.log": "44cf8deb2fb5b9d676bd171859dbe2d4d1efcdd456107f77d09dc3e727b8fca4",
+    "ci-gate-131827074604-full.log": "ec70e066011d79ca65d81df7a216d70c1cd5dee09a4198ae110ea88703b078cb",
+    "combined-report-131827074514-full.log": "44c1eef7a55a4ce1d90cfcee29df07be9f002440cf4361e8b858633a7bef4417",
+    "ci-terminal-attempt1-all33.json": "ad96c428b77ba0b520b71c89379aafd419d76b546f64f996967fe5b4eed8d0f1",
+    "isolated-131822300903-full.log": "d8cb75e1565f283afd8b99383fe8dedcc4bab52503265c4755fa2c8e95bbf5a9",
+    "codex-summary-6823456351.json": "66b70d686f15162d3dc86892448e1a802681e3855db4b0532a077a66d56124db",
+    "final-full-so.txt": "af76c805a7ecbcc06b3e421c2bcbddb9711a448407d990ac7bad544ae5c55445"
+  }
+}

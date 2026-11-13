@@ -68,9 +68,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "coordinator queue preparation",
+      "step": "merge queue / active coordinator ownership",
       "pr": 2438,
-      "note": "All productgates green on frozen33380: GradeA FULL52,Codexclean,CIgate+15offline+4configured,isolated. ActualrawPRmergeabletrue/currentmainmerge-treeclean. Coordinatorpreparingnormalstamp/queue; onlyReviewedapprovaltimeoutneedsdocumentedrecovery. Sameattempts preserved; activeblockrenewedbyexistingstandingpermission."
+      "note": "Actualqueueentry10:25:32Z on frozen33380. All worker gates green, normalCI recovered onlyapprovaljob toSUCCESS. Coordinator owns merge-group, actualmerge/postland and fresh independentacceptance; no phasePASS yet. Historicalspends/failures intact, localworklast."
     }
   ],
   "owner": [
@@ -2260,7 +2260,7 @@
       "finalGates": {
         "ci": 43405602818,
         "head": "33380c2ffafc005b07cde8ca0e5cc17f7329de39",
-        "status": "AWAITING_LAST_OFFLINE_SHARD_AND_FINAL_CI_VERDICT",
+        "status": "ALL_WORKER_GATES_GREEN_COORDINATOR_QUEUED",
         "planJob": 131819086123,
         "planStatus": "SUCCESS",
         "testMerge": "107a60b54 (33380 into455ee104)",
@@ -2371,10 +2371,17 @@
           "onlyRedJob": 131819086112,
           "retriesExecuted": 0,
           "rootReadback": "All33actualjobrows read independently, total_count==33, nopending/cancelled/productfail; normalrunhead333 exact."
+        },
+        "normalCiRecovered": {
+          "run": 43405602818,
+          "head": "33380c2ffafc005b07cde8ca0e5cc17f7329de39",
+          "attempt": 2,
+          "status": "SUCCESS",
+          "recovery": "OnlyReviewedjob rerun after realcoordinatorstamp; all producttestjobs remainoriginalPASS, no testretry. Attempt1onlyapprovalfailurepreserved."
         }
       },
       "queue": {
-        "status": "PREPARED_NOT_DISPATCHED",
+        "status": "ADDED_TO_MERGE_QUEUE",
         "at": "2026-11-13T10:23:09.488228+00:00",
         "branch": "codex/plan-editor-r1-5-e4-build",
         "sha": "33380c2ffafc005b07cde8ca0e5cc17f7329de39",
@@ -2383,8 +2390,33 @@
         "currentMain": "f528683c8",
         "mergeTree": "774c44fdd1ca53d9b1ab717feff4067e4c61b305",
         "headGuard": "RawRESTexact333/draftfalse/mergedfalse/mergeabletrue/stateblocked/automergeNULL/labelsEMPTY; providerbrieflyreportedfalse then rawreconciledtrue.",
-        "reviewedRecovery": "OriginalPRownterminalReviewedmissingstamp150s29polls; helperrevivesonlythatjob, no testrepeat."
-      }
+        "reviewedRecovery": "OriginalPRownterminalReviewedmissingstamp150s29polls; helperrevivesonlythatjob, no testrepeat.",
+        "helperRun": 43408719241,
+        "helperJob": 131829452407,
+        "helperConclusion": "SUCCESS",
+        "helperEvidence": "Actualwholelog shows mainf528 checkout, exact333 input, stamp+land success, ownPRReviewedrevived. ObservationUNRESOLVED/schema thenONEdispatch, ACKandactualrunreconciled.",
+        "publicStamp": "noacg/reviewedSUCCESS333 withactualpassingcheck/FULLAverdict",
+        "autoMerge": "SupportedpluginenableSUCCESS; immediatelybefore/afterhead333 exact. Rawauto_mergenull afterenqueue isconsumedqueueconfig, notabsence; actualtimeline confirmsentry.",
+        "queueEntryAt": "2026-11-13T10:25:32Z",
+        "mergeGroup": {
+          "run": 43408993923,
+          "head": "5f6c362f6ce22b820e867648ab11dca97c854480",
+          "branch": "gh-readonly-queue/main/pr-2438-f528683c8a950ac935679241be4860d643bf8487",
+          "status": "IN_PROGRESS",
+          "event": "merge_group"
+        },
+        "helperLog": "e4-owner2-verification/queue-helper-131829452407.log",
+        "helperLogSha256": "c7c0bba02d642db107fe37191711e29ca14be06ad6cbeb15753607fe18159f3b"
+      },
+      "nativeFinal": {
+        "actor": "/root/editor_e4_narrow_correction",
+        "status": "WORKER_PASS_ROOT_LANDING_PENDING",
+        "receipt": "e4-owner2-verification/worker-FINAL_PASS_ROOT_LANDING_PENDING.json",
+        "sha256": "c87c3fdea0c993be36ae99b71f9be659cc24cb9f8b6f20e6ba9864959424707d",
+        "source": "33380c2ffafc005b07cde8ca0e5cc17f7329de39",
+        "worktree": "Clean retained; no livejobs/listeners; source/test/script bytes equal721c; rootsolequeue/postland/checkerowner"
+      },
+      "workerFinalReadback": "Wholec87c3fdea0 finalJSON read/hashverified; actualattempt1all33 notonlydefault30; alloldandnewfailedreceipts preserved. Workerendedwithno livebrowser/jobs/listeners, no phasePASS selfaward."
     }
   },
   "coordinatorTools": {

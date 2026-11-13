@@ -1,0 +1,387 @@
+﻿2026-11-13T10:17:19.7317389Z Current runner version: '2.338.2'
+2026-11-13T10:17:19.7344801Z ##[group]Runner Image Provisioner
+2026-11-13T10:17:19.7345826Z Hosted Compute Agent
+2026-11-13T10:17:19.7346685Z Version: 20261028.624
+2026-11-13T10:17:19.7347472Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-13T10:17:19.7348350Z Build Date: 2026-10-28T21:51:42Z
+2026-11-13T10:17:19.7349150Z Worker ID: {fac7e8af-b993-4098-8f7a-5b089971622e}
+2026-11-13T10:17:19.7350107Z Region: eastus
+2026-11-13T10:17:19.7350759Z Cloud: Azure
+2026-11-13T10:17:19.7351444Z ##[endgroup]
+2026-11-13T10:17:19.7353182Z ##[group]Operating System
+2026-11-13T10:17:19.7353998Z Ubuntu
+2026-11-13T10:17:19.7354659Z 26.04.1
+2026-11-13T10:17:19.7355314Z LTS
+2026-11-13T10:17:19.7355957Z ##[endgroup]
+2026-11-13T10:17:19.7356832Z ##[group]Runner Image
+2026-11-13T10:17:19.7357598Z Image: ubuntu-26.04
+2026-11-13T10:17:19.7358316Z Version: 20261101.186.1
+2026-11-13T10:17:19.7359849Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-13T10:17:19.7361872Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261101.186
+2026-11-13T10:17:19.7363106Z ##[endgroup]
+2026-11-13T10:17:19.7364581Z ##[group]GITHUB_TOKEN Permissions
+2026-11-13T10:17:19.7366807Z Contents: read
+2026-11-13T10:17:19.7367603Z Issues: read
+2026-11-13T10:17:19.7368287Z Metadata: read
+2026-11-13T10:17:19.7369024Z ##[endgroup]
+2026-11-13T10:17:19.7371394Z Secret source: Actions
+2026-11-13T10:17:19.7372570Z Cache mode: write
+2026-11-13T10:17:19.7373393Z Prepare workflow directory
+2026-11-13T10:17:19.7655079Z Prepare all required actions
+2026-11-13T10:17:19.7693217Z Getting action download info
+2026-11-13T10:17:19.9197146Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+2026-11-13T10:17:20.0866619Z Complete job name: CI gate
+2026-11-13T10:17:20.1629762Z ##[group]Run actions/checkout@v5
+2026-11-13T10:17:20.1630428Z with:
+2026-11-13T10:17:20.1630788Z   sparse-checkout: scripts
+2026-11-13T10:17:20.1631232Z   repository: NoaCG/NoaCG-Studio
+2026-11-13T10:17:20.1634292Z   token: ***
+2026-11-13T10:17:20.1634661Z   ssh-strict: true
+2026-11-13T10:17:20.1635023Z   ssh-user: git
+2026-11-13T10:17:20.1635394Z   persist-credentials: true
+2026-11-13T10:17:20.1635795Z   clean: true
+2026-11-13T10:17:20.1636363Z   sparse-checkout-cone-mode: true
+2026-11-13T10:17:20.1636796Z   fetch-depth: 1
+2026-11-13T10:17:20.1637148Z   fetch-tags: false
+2026-11-13T10:17:20.1637510Z   show-progress: true
+2026-11-13T10:17:20.1637874Z   lfs: false
+2026-11-13T10:17:20.1638213Z   submodules: false
+2026-11-13T10:17:20.1638572Z   set-safe-directory: true
+2026-11-13T10:17:20.1638977Z   allow-unsafe-pr-checkout: false
+2026-11-13T10:17:20.1639605Z ##[endgroup]
+2026-11-13T10:17:20.4008456Z Syncing repository: NoaCG/NoaCG-Studio
+2026-11-13T10:17:20.4010021Z ##[group]Getting Git version info
+2026-11-13T10:17:20.4010618Z Working directory is '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+2026-11-13T10:17:20.4011908Z [command]/usr/bin/git version
+2026-11-13T10:17:20.4027549Z git version 2.56.0
+2026-11-13T10:17:20.4042546Z ##[endgroup]
+2026-11-13T10:17:20.4054767Z Temporarily overriding HOME='/home/runner/work/_temp/32fb421e-eea8-4918-8ca5-61b95c19bd11' before making global git config changes
+2026-11-13T10:17:20.4056675Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-13T10:17:20.4059076Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-13T10:17:20.4117164Z Deleting the contents of '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+2026-11-13T10:17:20.4119940Z ##[group]Initializing the repository
+2026-11-13T10:17:20.4123871Z [command]/usr/bin/git init /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-13T10:17:20.4218221Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-13T10:17:20.4219728Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-13T10:17:20.4220963Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-13T10:17:20.4221723Z hint: call:
+2026-11-13T10:17:20.4222059Z hint:
+2026-11-13T10:17:20.4222473Z hint: 	git config --global init.defaultBranch <name>
+2026-11-13T10:17:20.4223091Z hint:
+2026-11-13T10:17:20.4223571Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-13T10:17:20.4224412Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-13T10:17:20.4225007Z hint:
+2026-11-13T10:17:20.4225345Z hint: 	git branch -m <name>
+2026-11-13T10:17:20.4225893Z hint:
+2026-11-13T10:17:20.4227957Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-13T10:17:20.4229207Z Initialized empty Git repository in /home/runner/work/NoaCG-Studio/NoaCG-Studio/.git/
+2026-11-13T10:17:20.4237717Z [command]/usr/bin/git remote add origin https://github.com/NoaCG/NoaCG-Studio
+2026-11-13T10:17:20.4284090Z ##[endgroup]
+2026-11-13T10:17:20.4284746Z ##[group]Disabling automatic garbage collection
+2026-11-13T10:17:20.4288211Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-13T10:17:20.4319320Z ##[endgroup]
+2026-11-13T10:17:20.4319928Z ##[group]Setting up auth
+2026-11-13T10:17:20.4326032Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-13T10:17:20.4356416Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-13T10:17:20.4749273Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-13T10:17:20.4778490Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-13T10:17:20.5014068Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-13T10:17:20.5044903Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-13T10:17:20.5275243Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-13T10:17:20.5309631Z ##[endgroup]
+2026-11-13T10:17:20.5310285Z ##[group]Fetching the repository
+2026-11-13T10:17:20.5317026Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --filter=blob:none --depth=1 origin +107a60b54e78c01361485389667a26bbc8dbdc15:refs/remotes/pull/2438/merge
+2026-11-13T10:17:20.8633971Z From https://github.com/NoaCG/NoaCG-Studio
+2026-11-13T10:17:20.8634901Z  * [new ref]         107a60b54e78c01361485389667a26bbc8dbdc15 -> pull/2438/merge
+2026-11-13T10:17:20.8639365Z ##[endgroup]
+2026-11-13T10:17:20.8640210Z ##[group]Determining the checkout info
+2026-11-13T10:17:20.8641642Z ##[endgroup]
+2026-11-13T10:17:20.8642469Z ##[group]Setting up sparse checkout
+2026-11-13T10:17:20.8646614Z [command]/usr/bin/git sparse-checkout set scripts
+2026-11-13T10:17:20.8699390Z ##[endgroup]
+2026-11-13T10:17:20.8700487Z ##[group]Checking out the ref
+2026-11-13T10:17:20.8702366Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/2438/merge
+2026-11-13T10:17:22.4604509Z Updating files:   0% (1/961)
+2026-11-13T10:17:22.4617260Z Updating files:   1% (10/961)
+2026-11-13T10:17:22.4627958Z Updating files:   2% (20/961)
+2026-11-13T10:17:22.4636253Z Updating files:   3% (29/961)
+2026-11-13T10:17:22.4644340Z Updating files:   4% (39/961)
+2026-11-13T10:17:22.4653302Z Updating files:   5% (49/961)
+2026-11-13T10:17:22.4659953Z Updating files:   6% (58/961)
+2026-11-13T10:17:22.4666824Z Updating files:   7% (68/961)
+2026-11-13T10:17:22.4673091Z Updating files:   8% (77/961)
+2026-11-13T10:17:22.4681390Z Updating files:   9% (87/961)
+2026-11-13T10:17:22.4685776Z Updating files:  10% (97/961)
+2026-11-13T10:17:22.4690802Z Updating files:  11% (106/961)
+2026-11-13T10:17:22.4699216Z Updating files:  12% (116/961)
+2026-11-13T10:17:22.4708275Z Updating files:  13% (125/961)
+2026-11-13T10:17:22.4716795Z Updating files:  14% (135/961)
+2026-11-13T10:17:22.4723464Z Updating files:  15% (145/961)
+2026-11-13T10:17:22.4729832Z Updating files:  16% (154/961)
+2026-11-13T10:17:22.4738133Z Updating files:  17% (164/961)
+2026-11-13T10:17:22.4743268Z Updating files:  18% (173/961)
+2026-11-13T10:17:22.4751499Z Updating files:  19% (183/961)
+2026-11-13T10:17:22.4756435Z Updating files:  20% (193/961)
+2026-11-13T10:17:22.4763968Z Updating files:  21% (202/961)
+2026-11-13T10:17:22.4773101Z Updating files:  22% (212/961)
+2026-11-13T10:17:22.4779526Z Updating files:  23% (222/961)
+2026-11-13T10:17:22.4791351Z Updating files:  24% (231/961)
+2026-11-13T10:17:22.4796664Z Updating files:  25% (241/961)
+2026-11-13T10:17:22.4805028Z Updating files:  26% (250/961)
+2026-11-13T10:17:22.4814217Z Updating files:  27% (260/961)
+2026-11-13T10:17:22.4821274Z Updating files:  28% (270/961)
+2026-11-13T10:17:22.4829081Z Updating files:  29% (279/961)
+2026-11-13T10:17:22.4838422Z Updating files:  30% (289/961)
+2026-11-13T10:17:22.4848384Z Updating files:  31% (298/961)
+2026-11-13T10:17:22.4856698Z Updating files:  32% (308/961)
+2026-11-13T10:17:22.4863802Z Updating files:  33% (318/961)
+2026-11-13T10:17:22.4883885Z Updating files:  34% (327/961)
+2026-11-13T10:17:22.4891043Z Updating files:  35% (337/961)
+2026-11-13T10:17:22.4940711Z Updating files:  36% (346/961)
+2026-11-13T10:17:22.4949008Z Updating files:  37% (356/961)
+2026-11-13T10:17:22.4955413Z Updating files:  38% (366/961)
+2026-11-13T10:17:22.4965824Z Updating files:  39% (375/961)
+2026-11-13T10:17:22.4975001Z Updating files:  40% (385/961)
+2026-11-13T10:17:22.4980402Z Updating files:  41% (395/961)
+2026-11-13T10:17:22.4992386Z Updating files:  42% (404/961)
+2026-11-13T10:17:22.5012951Z Updating files:  43% (414/961)
+2026-11-13T10:17:22.5020120Z Updating files:  44% (423/961)
+2026-11-13T10:17:22.5027790Z Updating files:  45% (433/961)
+2026-11-13T10:17:22.5047101Z Updating files:  46% (443/961)
+2026-11-13T10:17:22.5063719Z Updating files:  47% (452/961)
+2026-11-13T10:17:22.5071556Z Updating files:  48% (462/961)
+2026-11-13T10:17:22.5076555Z Updating files:  49% (471/961)
+2026-11-13T10:17:22.5080624Z Updating files:  50% (481/961)
+2026-11-13T10:17:22.5086351Z Updating files:  51% (491/961)
+2026-11-13T10:17:22.5095644Z Updating files:  52% (500/961)
+2026-11-13T10:17:22.5107529Z Updating files:  53% (510/961)
+2026-11-13T10:17:22.5114633Z Updating files:  54% (519/961)
+2026-11-13T10:17:22.5135573Z Updating files:  55% (529/961)
+2026-11-13T10:17:22.5147005Z Updating files:  56% (539/961)
+2026-11-13T10:17:22.5153228Z Updating files:  57% (548/961)
+2026-11-13T10:17:22.5159504Z Updating files:  58% (558/961)
+2026-11-13T10:17:22.5165165Z Updating files:  59% (567/961)
+2026-11-13T10:17:22.5170840Z Updating files:  60% (577/961)
+2026-11-13T10:17:22.5177891Z Updating files:  61% (587/961)
+2026-11-13T10:17:22.5185163Z Updating files:  62% (596/961)
+2026-11-13T10:17:22.5192769Z Updating files:  63% (606/961)
+2026-11-13T10:17:22.5201372Z Updating files:  64% (616/961)
+2026-11-13T10:17:22.5212605Z Updating files:  65% (625/961)
+2026-11-13T10:17:22.5220077Z Updating files:  66% (635/961)
+2026-11-13T10:17:22.5227184Z Updating files:  67% (644/961)
+2026-11-13T10:17:22.5235597Z Updating files:  68% (654/961)
+2026-11-13T10:17:22.5243568Z Updating files:  69% (664/961)
+2026-11-13T10:17:22.5251563Z Updating files:  70% (673/961)
+2026-11-13T10:17:22.5258063Z Updating files:  71% (683/961)
+2026-11-13T10:17:22.5269265Z Updating files:  72% (692/961)
+2026-11-13T10:17:22.5281312Z Updating files:  73% (702/961)
+2026-11-13T10:17:22.5286784Z Updating files:  74% (712/961)
+2026-11-13T10:17:22.5293156Z Updating files:  75% (721/961)
+2026-11-13T10:17:22.5299929Z Updating files:  76% (731/961)
+2026-11-13T10:17:22.5309352Z Updating files:  77% (740/961)
+2026-11-13T10:17:22.5317149Z Updating files:  78% (750/961)
+2026-11-13T10:17:22.5322314Z Updating files:  79% (760/961)
+2026-11-13T10:17:22.5332775Z Updating files:  80% (769/961)
+2026-11-13T10:17:22.5342542Z Updating files:  81% (779/961)
+2026-11-13T10:17:22.5350895Z Updating files:  82% (789/961)
+2026-11-13T10:17:22.5358912Z Updating files:  83% (798/961)
+2026-11-13T10:17:22.5365370Z Updating files:  84% (808/961)
+2026-11-13T10:17:22.5371774Z Updating files:  85% (817/961)
+2026-11-13T10:17:22.5377640Z Updating files:  86% (827/961)
+2026-11-13T10:17:22.5385833Z Updating files:  87% (837/961)
+2026-11-13T10:17:22.5392334Z Updating files:  88% (846/961)
+2026-11-13T10:17:22.5401821Z Updating files:  89% (856/961)
+2026-11-13T10:17:22.5408635Z Updating files:  90% (865/961)
+2026-11-13T10:17:22.5415807Z Updating files:  91% (875/961)
+2026-11-13T10:17:22.5422375Z Updating files:  92% (885/961)
+2026-11-13T10:17:22.5431028Z Updating files:  93% (894/961)
+2026-11-13T10:17:22.5436407Z Updating files:  94% (904/961)
+2026-11-13T10:17:22.5445892Z Updating files:  95% (913/961)
+2026-11-13T10:17:22.5453598Z Updating files:  96% (923/961)
+2026-11-13T10:17:22.5461102Z Updating files:  97% (933/961)
+2026-11-13T10:17:22.5470622Z Updating files:  98% (942/961)
+2026-11-13T10:17:22.5475030Z Updating files:  99% (952/961)
+2026-11-13T10:17:22.5476261Z Updating files: 100% (961/961)
+2026-11-13T10:17:22.5477208Z Updating files: 100% (961/961), done.
+2026-11-13T10:17:22.5538072Z Note: switching to 'refs/remotes/pull/2438/merge'.
+2026-11-13T10:17:22.5538950Z 
+2026-11-13T10:17:22.5539737Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-13T10:17:22.5541488Z changes and commit them, and you can discard any commits you make in this
+2026-11-13T10:17:22.5543263Z state without impacting any branches by switching back to a branch.
+2026-11-13T10:17:22.5544288Z 
+2026-11-13T10:17:22.5544970Z If you want to create a new branch to retain commits you create, you may
+2026-11-13T10:17:22.5547146Z do so (now or later) by using -c with the switch command. Example:
+2026-11-13T10:17:22.5548129Z 
+2026-11-13T10:17:22.5548518Z   git switch -c <new-branch-name>
+2026-11-13T10:17:22.5549184Z 
+2026-11-13T10:17:22.5549655Z Or undo this operation with:
+2026-11-13T10:17:22.5550425Z 
+2026-11-13T10:17:22.5550856Z   git switch -
+2026-11-13T10:17:22.5551463Z 
+2026-11-13T10:17:22.5552435Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-13T10:17:22.5553706Z 
+2026-11-13T10:17:22.5555055Z HEAD is now at 107a60b Merge 33380c2ffafc005b07cde8ca0e5cc17f7329de39 into 455ee104bb04a33ed94378e2b1472d65e0226677
+2026-11-13T10:17:22.5559571Z ##[endgroup]
+2026-11-13T10:17:22.5596530Z [command]/usr/bin/git log -1 --format=%H
+2026-11-13T10:17:22.5621482Z 107a60b54e78c01361485389667a26bbc8dbdc15
+2026-11-13T10:17:22.5933308Z ##[group]Run status=0
+2026-11-13T10:17:22.5934306Z [36;1mstatus=0[0m
+2026-11-13T10:17:22.5935092Z [36;1mexhausted=0[0m
+2026-11-13T10:17:22.5936804Z [36;1m# THE CAPACITY LINE (scripts/e2e-capacity.mjs, docs/work-specs/e2e-suite-budget/spec.md).[0m
+2026-11-13T10:17:22.5938961Z [36;1m# The plan job's estimate of this change against the line; an empty verdict (main, a[0m
+2026-11-13T10:17:22.5941068Z [36;1m# dispatch) is no verdict. A refusal only the owner can move (cf22 fix 2; since land-2c[0m
+2026-11-13T10:17:22.5943176Z [36;1m# only an unreviewed ceilings revision) says so, and asks the agent to raise the owner[0m
+2026-11-13T10:17:22.5945148Z [36;1m# alarm now instead of re-pushing; every other refusal keeps its message.[0m
+2026-11-13T10:17:22.5947242Z [36;1m# A COST CEILING NEVER BLOCKS A LANDING (owner, 2026-11-12; land-2c). Where the line is[0m
+2026-11-13T10:17:22.5949296Z [36;1m# still right about cost, the verdict is 'repay': the change passes here, and one fixed[0m
+2026-11-13T10:17:22.5951308Z [36;1m# annotation per tier, `Repay (<tier>): <cost>`, is what post-land reads to record a[0m
+2026-11-13T10:17:22.5953359Z [36;1m# dated repayment item for the owner. Only refusals of the records or of the change's own[0m
+2026-11-13T10:17:22.5955019Z [36;1m# evidence reach 'refuse' below.[0m
+2026-11-13T10:17:22.5956265Z [36;1mif [ "${CAPACITY_RESULT:-}" = "repay" ]; then[0m
+2026-11-13T10:17:22.5959065Z [36;1m  jq -r '.[] | "::warning title=CI gate::Repay (\(.tier)): \(.cost | gsub("[\r\n]"; " "))"' <<<"${CAPACITY_REPAY:-[]}" || echo "::warning title=CI gate::Repay (offline): ${CAPACITY_REASON:-unreadable repayment record}"[0m
+2026-11-13T10:17:22.5961569Z [36;1mfi[0m
+2026-11-13T10:17:22.5962451Z [36;1mif [ "${CAPACITY_RESULT:-}" = "refuse" ]; then[0m
+2026-11-13T10:17:22.5963660Z [36;1m  if [ -n "${CAPACITY_OWNER:-}" ]; then[0m
+2026-11-13T10:17:22.5968957Z [36;1m    echo "::error title=CI gate::Needs the owner (${CAPACITY_OWNER}): E2E capacity line - ${CAPACITY_REASON:-over the line}. Re-pushing will not pass the owner part: a ceilings change lands only with a reviewed revision. This change can only drop its ceilings edit. Any other record named here is this change's to fix. Raise the owner alarm now, from an up-to-date main checkout: node scripts/repair-wake.mjs check --issue"[0m
+2026-11-13T10:17:22.5974075Z [36;1m  else[0m
+2026-11-13T10:17:22.5977228Z [36;1m    echo "::error title=CI gate::E2E capacity line - ${CAPACITY_REASON:-over the line}. Not a cost refusal (cost lands and owes a repayment): fix the ceilings or exception record named, or update the branch from its base if the diff could not be read."[0m
+2026-11-13T10:17:22.5980561Z [36;1m  fi[0m
+2026-11-13T10:17:22.5981329Z [36;1m  status=1[0m
+2026-11-13T10:17:22.5982129Z [36;1mfi[0m
+2026-11-13T10:17:22.5983423Z [36;1m# FAIL-THEN-PASS IS A FLAKE, NOT A RED. The shards failed and the retry job ran exactly[0m
+2026-11-13T10:17:22.5985528Z [36;1m# the failed specs again on this same commit and they passed. The gate passes on that[0m
+2026-11-13T10:17:22.5987773Z [36;1m# second answer, and the step after this one writes those specs into the quarantine[0m
+2026-11-13T10:17:22.5989852Z [36;1m# through the merge queue, so the flake is on the record and out of the blocking plan[0m
+2026-11-13T10:17:22.5991909Z [36;1m# from the next landing on. A retry that failed, or never ran, changes nothing below:[0m
+2026-11-13T10:17:22.5993509Z [36;1m# the shards' verdict stands.[0m
+2026-11-13T10:17:22.5994848Z [36;1mif [ "$E2E_RESULT" = "failure" ] && [ "$RETRY_RESULT" = "success" ]; then[0m
+2026-11-13T10:17:22.5998099Z [36;1m  echo "::warning title=CI gate::E2E shards failed and the failed specs passed on a second run of this same commit - a flake, not a regression. Those specs are being quarantined (e2e/quarantine.json)."[0m
+2026-11-13T10:17:22.6000948Z [36;1m  E2E_RESULT=success[0m
+2026-11-13T10:17:22.6002237Z [36;1melif [ "$E2E_RESULT" = "cancelled" ] && [ "$RETRY_RESULT" = "success" ]; then[0m
+2026-11-13T10:17:22.6004383Z [36;1m  # The planner refuses multiple missing reports and replays the one missing shard's[0m
+2026-11-13T10:17:22.6006663Z [36;1m  # assigned files. Its completed verdict supplies the answer the matrix never reached -[0m
+2026-11-13T10:17:22.6008791Z [36;1m  # or, when every report was in and green and the shard was cancelled only after its[0m
+2026-11-13T10:17:22.6010798Z [36;1m  # upload, the retry ran nothing because the matrix had reached it after all.[0m
+2026-11-13T10:17:22.6014717Z [36;1m  echo "::notice title=CI gate::The E2E matrix was cancelled and the bounded retry answered for it: it re-ran what had no verdict, or found every shard's report complete and green. Any failed specs are recorded separately by the retry and quarantine steps."[0m
+2026-11-13T10:17:22.6018409Z [36;1m  E2E_RESULT=success[0m
+2026-11-13T10:17:22.6019306Z [36;1mfi[0m
+2026-11-13T10:17:22.6020030Z [36;1mfail() {[0m
+2026-11-13T10:17:22.6021750Z [36;1m  echo "::error title=CI gate::$1 finished '$2' - open that job's log; the failing command and test names are annotated there."[0m
+2026-11-13T10:17:22.6023688Z [36;1m  status=1[0m
+2026-11-13T10:17:22.6024468Z [36;1m}[0m
+2026-11-13T10:17:22.6025712Z [36;1m# RAN OUT OF CLOCK IS NOT FOUND A FAULT. A job killed by its own `timeout-minutes` is[0m
+2026-11-13T10:17:22.6028128Z [36;1m# recorded by GitHub as 'cancelled', and this gate used to call that a failure - so on[0m
+2026-11-13T10:17:22.6030326Z [36;1m# 2026-09-04 run 33829325663, where four E2E shards hit the 20-minute cap and every[0m
+2026-11-13T10:17:22.6032332Z [36;1m# other job was green, the gate went red and the alarm below filed issue #52 saying it[0m
+2026-11-13T10:17:22.6034172Z [36;1m# could not name what failed. It could not, because nothing had.[0m
+2026-11-13T10:17:22.6035453Z [36;1m#[0m
+2026-11-13T10:17:22.6036833Z [36;1m# The run is still NOT A PASS - no verdict was reached, and a gate that exits 0 here[0m
+2026-11-13T10:17:22.6038855Z [36;1m# would close the red-main issue and paint the commit green on the strength of tests[0m
+2026-11-13T10:17:22.6040878Z [36;1m# that never finished. So this still exits non-zero. What changes is what it SAYS.[0m
+2026-11-13T10:17:22.6042936Z [36;1m# (A cancelled matrix reaches here only when the retry did not succeed; one whose shard[0m
+2026-11-13T10:17:22.6045027Z [36;1m# was cancelled after its verdict was in is turned to success above, by the retry.)[0m
+2026-11-13T10:17:22.6046625Z [36;1m#[0m
+2026-11-13T10:17:22.6047859Z [36;1m# WHAT THIS STEP CANNOT SEE, and why it does not decide: `needs.e2e.result` collapses[0m
+2026-11-13T10:17:22.6049901Z [36;1m# nine matrix legs into one word, so a run where one shard FAILED a spec and another was[0m
+2026-11-13T10:17:22.6051950Z [36;1m# killed at the cap can reach here as 'cancelled'. Naming a fault is therefore left to[0m
+2026-11-13T10:17:22.6053824Z [36;1m# the alarm step below, which reads the run's own per-job conclusions[0m
+2026-11-13T10:17:22.6055718Z [36;1m# (`failureSet`/`anyFailed`) and can tell those two apart. This wording says what the[0m
+2026-11-13T10:17:22.6057566Z [36;1m# aggregate suggests; that script says what is true.[0m
+2026-11-13T10:17:22.6058753Z [36;1mexhaust() {[0m
+2026-11-13T10:17:22.6062151Z [36;1m  echo "::warning title=CI gate::$1 finished '$2' - no leg reported a fault, so this looks like running out of time rather than finding one. No verdict either way, so the run is not a pass. The red-main step below reads the per-job conclusions and decides whether anything is actually broken."[0m
+2026-11-13T10:17:22.6065731Z [36;1m  exhausted=1[0m
+2026-11-13T10:17:22.6066628Z [36;1m}[0m
+2026-11-13T10:17:22.6067827Z [36;1m# Always runs, so anything but success is a fault. The plan belongs here: if it[0m
+2026-11-13T10:17:22.6069687Z [36;1m# cannot decide what to test, no downstream skip may be read as approval.[0m
+2026-11-13T10:17:22.6071091Z [36;1mrequire() {[0m
+2026-11-13T10:17:22.6071972Z [36;1m  [ "$2" = "success" ] || fail "$1" "$2"[0m
+2026-11-13T10:17:22.6073153Z [36;1m}[0m
+2026-11-13T10:17:22.6074370Z [36;1m# Runs only when the plan asked for it. 'skipped' here is the plan being believed -[0m
+2026-11-13T10:17:22.6076369Z [36;1m# and the plan is itself required above, so a skip can never be covering for a[0m
+2026-11-13T10:17:22.6077840Z [36;1m# crashed planner.[0m
+2026-11-13T10:17:22.6078730Z [36;1moptional() {[0m
+2026-11-13T10:17:22.6079548Z [36;1m  case "$2" in[0m
+2026-11-13T10:17:22.6080430Z [36;1m    success|skipped) ;;[0m
+2026-11-13T10:17:22.6081423Z [36;1m    cancelled) exhaust "$1" "$2" ;;[0m
+2026-11-13T10:17:22.6082431Z [36;1m    *) fail "$1" "$2" ;;[0m
+2026-11-13T10:17:22.6083324Z [36;1m  esac[0m
+2026-11-13T10:17:22.6084058Z [36;1m}[0m
+2026-11-13T10:17:22.6085072Z [36;1mrequire "Build (typecheck + lint + bundle)" "$BUILD_RESULT"[0m
+2026-11-13T10:17:22.6086468Z [36;1mrequire "E2E plan" "$PLAN_RESULT"[0m
+2026-11-13T10:17:22.6087586Z [36;1mrequire "Factory gates" "$FACTORY_RESULT"[0m
+2026-11-13T10:17:22.6088744Z [36;1moptional "E2E shards" "$E2E_RESULT"[0m
+2026-11-13T10:17:22.6090008Z [36;1moptional "Catalog calibration gate" "$CATALOG_RESULT"[0m
+2026-11-13T10:17:22.6091336Z [36;1moptional "Guided mod" "$GUIDED_MOD_RESULT"[0m
+2026-11-13T10:17:22.6093021Z [36;1m# THE SELECTED CONFIGURED CHECK (cicd-improvement ci06), read off the plan's flag. 'true':[0m
+2026-11-13T10:17:22.6095143Z [36;1m# the shards and the manifest verdict must both pass; a cap reads as no verdict, which is[0m
+2026-11-13T10:17:22.6097427Z [36;1m# still not a pass. 'false': both must be skipped, and a merge group must say 'false' (its[0m
+2026-11-13T10:17:22.6099464Z [36;1m# exemption). Anything else - an empty flag from a plan that never decided - is a fault,[0m
+2026-11-13T10:17:22.6101043Z [36;1m# never a skip read as approval.[0m
+2026-11-13T10:17:22.6102365Z [36;1mif [ "$EVENT" = "merge_group" ] && [ "$CONFIGURED_FLAG" != "false" ]; then[0m
+2026-11-13T10:17:22.6104721Z [36;1m  echo "::error title=CI gate::The merge group's plan gave configured flag '${CONFIGURED_FLAG}'; a merge group is exempt and must say 'false'."[0m
+2026-11-13T10:17:22.6106820Z [36;1m  status=1[0m
+2026-11-13T10:17:22.6107601Z [36;1mfi[0m
+2026-11-13T10:17:22.6108366Z [36;1mcase "$CONFIGURED_FLAG" in[0m
+2026-11-13T10:17:22.6109290Z [36;1m  true)[0m
+2026-11-13T10:17:22.6110983Z [36;1m    for pair in "Configured E2E shards (selected)=$CONFIGURED_RESULT" "Configured E2E verdict (selected)=$CONFIGURED_VERDICT"; do[0m
+2026-11-13T10:17:22.6112940Z [36;1m      case "${pair#*=}" in[0m
+2026-11-13T10:17:22.6113882Z [36;1m        success) ;;[0m
+2026-11-13T10:17:22.6114913Z [36;1m        cancelled) exhaust "${pair%%=*}" cancelled ;;[0m
+2026-11-13T10:17:22.6116199Z [36;1m        *) fail "${pair%%=*}" "${pair#*=}" ;;[0m
+2026-11-13T10:17:22.6117236Z [36;1m      esac[0m
+2026-11-13T10:17:22.6118006Z [36;1m    done ;;[0m
+2026-11-13T10:17:22.6118783Z [36;1m  false)[0m
+2026-11-13T10:17:22.6120057Z [36;1m    if [ "$CONFIGURED_RESULT" != "skipped" ] || [ "$CONFIGURED_VERDICT" != "skipped" ]; then[0m
+2026-11-13T10:17:22.6122664Z [36;1m      echo "::error title=CI gate::The plan selected no configured spec, yet the configured jobs ended '${CONFIGURED_RESULT}' / '${CONFIGURED_VERDICT}'."[0m
+2026-11-13T10:17:22.6124778Z [36;1m      status=1[0m
+2026-11-13T10:17:22.6125591Z [36;1m    fi ;;[0m
+2026-11-13T10:17:22.6126426Z [36;1m  *)[0m
+2026-11-13T10:17:22.6128291Z [36;1m    echo "::error title=CI gate::The E2E plan gave no configured flag ('${CONFIGURED_FLAG}'), so whether this change owes a configured check is unknown."[0m
+2026-11-13T10:17:22.6130372Z [36;1m    status=1 ;;[0m
+2026-11-13T10:17:22.6131198Z [36;1mesac[0m
+2026-11-13T10:17:22.6132446Z [36;1m# Exhausted with nothing failed is still a non-zero exit: no verdict is not a pass.[0m
+2026-11-13T10:17:22.6134082Z [36;1mif [ "$status" = "0" ] && [ "$exhausted" = "1" ]; then[0m
+2026-11-13T10:17:22.6135190Z [36;1m  exit 1[0m
+2026-11-13T10:17:22.6135931Z [36;1mfi[0m
+2026-11-13T10:17:22.6136862Z [36;1mexit "$status"[0m
+2026-11-13T10:17:22.6191460Z shell: /usr/bin/bash -e {0}
+2026-11-13T10:17:22.6192348Z env:
+2026-11-13T10:17:22.6193058Z   BUILD_RESULT: success
+2026-11-13T10:17:22.6193989Z   PLAN_RESULT: success
+2026-11-13T10:17:22.6194822Z   E2E_RESULT: success
+2026-11-13T10:17:22.6195617Z   RETRY_RESULT: skipped
+2026-11-13T10:17:22.6196606Z   CATALOG_RESULT: success
+2026-11-13T10:17:22.6197477Z   FACTORY_RESULT: success
+2026-11-13T10:17:22.6198321Z   GUIDED_MOD_RESULT: success
+2026-11-13T10:17:22.6199213Z   CAPACITY_RESULT: repay
+2026-11-13T10:17:22.6200060Z   EVENT: pull_request
+2026-11-13T10:17:22.6200859Z   CONFIGURED_FLAG: true
+2026-11-13T10:17:22.6201679Z   CONFIGURED_RESULT: success
+2026-11-13T10:17:22.6202575Z   CONFIGURED_VERDICT: success
+2026-11-13T10:17:22.6216968Z   CAPACITY_REASON: 199.4 of 213.0 table-minutes (94%) on 13 runners; above the 85% line, this change adds 1.7 minute(s); backend growth stop carried by partial evidence, a warning only until a complete report confirms it: cost:backend since 2026-11-02, one correction due 2026-11-09 did not bring it back in bounds; offline tier: a newer partial report proves at least 433.3/landing 194.0/day, above the judged 654.3/191.5; shown, never refused on; backend tier: a newer partial report proves at least 267.3/landing 86.3/day, above the judged 219.9/79.7; shown, never refused on; graphics tier: a newer partial report proves at least 25.4/landing 90.8/day, above the judged 36.3/90.3; shown, never refused on; overhead tier: a newer partial report proves at least 119.6/landing 12.0/day, above the judged 91.8/11.4; shown, never refused on; the newest weekly growth report (run 43201149088) is partial: offline evidence partial: ci.yml|pull_request: 4 run(s) still unfinished (550 API call(s) of 550, 2697 completed run(s) in 30 strata, 165 sampled, 4 still running at the window end); judged on the newest complete report, run 43014542120 at the normal line, and the owner (miwco (primary); the weekly owner session (backup coverage)) is alarmed after landing; overhead tier refuse: 91.8/105 per landing, 6.2/10 per day (87%), production-load-watch excepts 0/landing to 2026-12-03; this change adds 0/landing 6/day, reaching 122%, at or over the 95% line
+2026-11-13T10:17:22.6231928Z   CAPACITY_OWNER: 
+2026-11-13T10:17:22.6234315Z   CAPACITY_REPAY: [{"tier":"overhead","cost":"91.8/105 per landing, 6.2/10 per day (87%), production-load-watch excepts 0/landing to 2026-12-03; this change adds 0/landing 6/day, reaching 122%, at or over the 95% line"}]
+2026-11-13T10:17:22.6236966Z ##[endgroup]
+2026-11-13T10:17:22.6372287Z ##[warning]Repay (overhead): 91.8/105 per landing, 6.2/10 per day (87%), production-load-watch excepts 0/landing to 2026-12-03; this change adds 0/landing 6/day, reaching 122%, at or over the 95% line
+2026-11-13T10:17:22.6492065Z ##[group]Run node scripts/landing-hold.mjs check
+2026-11-13T10:17:22.6493221Z [36;1mnode scripts/landing-hold.mjs check[0m
+2026-11-13T10:17:22.6539411Z shell: /usr/bin/bash -e {0}
+2026-11-13T10:17:22.6540234Z env:
+2026-11-13T10:17:22.6547580Z   GITHUB_TOKEN: ***
+2026-11-13T10:17:22.6548346Z ##[endgroup]
+2026-11-13T10:17:23.1534934Z Landing hold: off.
+2026-11-13T10:17:23.2330818Z Post job cleanup.
+2026-11-13T10:17:23.3024194Z [command]/usr/bin/git version
+2026-11-13T10:17:23.3060724Z git version 2.56.0
+2026-11-13T10:17:23.3761124Z Temporarily overriding HOME='/home/runner/work/_temp/40f19c98-aef5-4c9c-a64f-2d9a38f87f52' before making global git config changes
+2026-11-13T10:17:23.3762464Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-13T10:17:23.3766341Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-13T10:17:23.3804949Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-13T10:17:23.3837303Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-13T10:17:23.4094125Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-13T10:17:23.4116692Z http.https://github.com/.extraheader
+2026-11-13T10:17:23.4126685Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-13T10:17:23.4160854Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-13T10:17:23.4422933Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-13T10:17:23.4456859Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-13T10:17:23.4848144Z Cleaning up orphan processes

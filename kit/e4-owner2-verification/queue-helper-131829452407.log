@@ -1,0 +1,138 @@
+﻿2026-11-13T10:23:39.9616101Z Current runner version: '2.338.2'
+2026-11-13T10:23:39.9641192Z ##[group]Runner Image Provisioner
+2026-11-13T10:23:39.9642105Z Hosted Compute Agent
+2026-11-13T10:23:39.9642771Z Version: 20261028.624
+2026-11-13T10:23:39.9643438Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-13T10:23:39.9644167Z Build Date: 2026-10-28T21:51:42Z
+2026-11-13T10:23:39.9644908Z Worker ID: {a0f9b9c8-0542-4386-af4e-b88fcbcc9d63}
+2026-11-13T10:23:39.9645692Z Region: westus3
+2026-11-13T10:23:39.9646322Z Cloud: Azure
+2026-11-13T10:23:39.9646889Z ##[endgroup]
+2026-11-13T10:23:39.9648894Z ##[group]Operating System
+2026-11-13T10:23:39.9649673Z Ubuntu
+2026-11-13T10:23:39.9650251Z 26.04.1
+2026-11-13T10:23:39.9650753Z LTS
+2026-11-13T10:23:39.9651334Z ##[endgroup]
+2026-11-13T10:23:39.9651894Z ##[group]Runner Image
+2026-11-13T10:23:39.9652535Z Image: ubuntu-26.04
+2026-11-13T10:23:39.9653199Z Version: 20261101.186.1
+2026-11-13T10:23:39.9654463Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-13T10:23:39.9656064Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261101.186
+2026-11-13T10:23:39.9657343Z ##[endgroup]
+2026-11-13T10:23:39.9658846Z ##[group]GITHUB_TOKEN Permissions
+2026-11-13T10:23:39.9661020Z Actions: write
+2026-11-13T10:23:39.9661655Z Contents: read
+2026-11-13T10:23:39.9662190Z Issues: write
+2026-11-13T10:23:39.9663230Z Metadata: read
+2026-11-13T10:23:39.9663838Z PullRequests: write
+2026-11-13T10:23:39.9664449Z Statuses: write
+2026-11-13T10:23:39.9665011Z ##[endgroup]
+2026-11-13T10:23:39.9667327Z Secret source: Actions
+2026-11-13T10:23:39.9668530Z Cache mode: write
+2026-11-13T10:23:39.9669465Z Prepare workflow directory
+2026-11-13T10:23:40.0014653Z Prepare all required actions
+2026-11-13T10:23:40.0064910Z Getting action download info
+2026-11-13T10:23:40.3106652Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+2026-11-13T10:23:40.5141537Z Complete job name: Stamp, label and queue
+2026-11-13T10:23:40.6177868Z ##[group]Run actions/checkout@v5
+2026-11-13T10:23:40.6178933Z with:
+2026-11-13T10:23:40.6179369Z   ref: main
+2026-11-13T10:23:40.6179818Z   repository: NoaCG/NoaCG-Studio
+2026-11-13T10:23:40.6183849Z   token: ***
+2026-11-13T10:23:40.6184303Z   ssh-strict: true
+2026-11-13T10:23:40.6184758Z   ssh-user: git
+2026-11-13T10:23:40.6185217Z   persist-credentials: true
+2026-11-13T10:23:40.6185727Z   clean: true
+2026-11-13T10:23:40.6186191Z   sparse-checkout-cone-mode: true
+2026-11-13T10:23:40.6186738Z   fetch-depth: 1
+2026-11-13T10:23:40.6187342Z   fetch-tags: false
+2026-11-13T10:23:40.6187814Z   show-progress: true
+2026-11-13T10:23:40.6188287Z   lfs: false
+2026-11-13T10:23:40.6188712Z   submodules: false
+2026-11-13T10:23:40.6189174Z   set-safe-directory: true
+2026-11-13T10:23:40.6189697Z   allow-unsafe-pr-checkout: false
+2026-11-13T10:23:40.6190487Z ##[endgroup]
+2026-11-13T10:23:40.8826021Z Syncing repository: NoaCG/NoaCG-Studio
+2026-11-13T10:23:40.8828803Z ##[group]Getting Git version info
+2026-11-13T10:23:40.8830104Z Working directory is '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+2026-11-13T10:23:40.8831895Z [command]/usr/bin/git version
+2026-11-13T10:23:40.8853947Z git version 2.56.0
+2026-11-13T10:23:40.8876479Z ##[endgroup]
+2026-11-13T10:23:40.8891210Z Temporarily overriding HOME='/home/runner/work/_temp/862fbb7a-d768-4448-a3be-8378ee8bdc3f' before making global git config changes
+2026-11-13T10:23:40.8894036Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-13T10:23:40.8896061Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-13T10:23:40.8977442Z Deleting the contents of '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+2026-11-13T10:23:40.8980689Z ##[group]Initializing the repository
+2026-11-13T10:23:40.8986069Z [command]/usr/bin/git init /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-13T10:23:40.9119979Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-13T10:23:40.9121983Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-13T10:23:40.9123047Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-13T10:23:40.9124018Z hint: call:
+2026-11-13T10:23:40.9124613Z hint:
+2026-11-13T10:23:40.9125226Z hint: 	git config --global init.defaultBranch <name>
+2026-11-13T10:23:40.9125935Z hint:
+2026-11-13T10:23:40.9126647Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-13T10:23:40.9128145Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-13T10:23:40.9128987Z hint:
+2026-11-13T10:23:40.9129738Z hint: 	git branch -m <name>
+2026-11-13T10:23:40.9130323Z hint:
+2026-11-13T10:23:40.9131027Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-13T10:23:40.9135006Z Initialized empty Git repository in /home/runner/work/NoaCG-Studio/NoaCG-Studio/.git/
+2026-11-13T10:23:40.9148214Z [command]/usr/bin/git remote add origin https://github.com/NoaCG/NoaCG-Studio
+2026-11-13T10:23:40.9202675Z ##[endgroup]
+2026-11-13T10:23:40.9204038Z ##[group]Disabling automatic garbage collection
+2026-11-13T10:23:40.9206280Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-13T10:23:40.9241927Z ##[endgroup]
+2026-11-13T10:23:40.9243062Z ##[group]Setting up auth
+2026-11-13T10:23:40.9250012Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-13T10:23:40.9293200Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-13T10:23:40.9790072Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-13T10:23:40.9835269Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-13T10:23:41.0128664Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-13T10:23:41.0168537Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-13T10:23:41.0461891Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-13T10:23:41.0505432Z ##[endgroup]
+2026-11-13T10:23:41.0506880Z ##[group]Fetching the repository
+2026-11-13T10:23:41.0518822Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +refs/heads/main*:refs/remotes/origin/main* +refs/tags/main*:refs/tags/main*
+2026-11-13T10:23:42.8053896Z From https://github.com/NoaCG/NoaCG-Studio
+2026-11-13T10:23:42.8055376Z  * [new branch]      main       -> origin/main
+2026-11-13T10:23:42.8067783Z ##[endgroup]
+2026-11-13T10:23:42.8075893Z ##[group]Determining the checkout info
+2026-11-13T10:23:42.8077454Z [command]/usr/bin/git branch --list --remote origin/main
+2026-11-13T10:23:42.8095126Z   origin/main
+2026-11-13T10:23:42.8101645Z ##[endgroup]
+2026-11-13T10:23:42.8106415Z [command]/usr/bin/git sparse-checkout disable
+2026-11-13T10:23:42.8161978Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-13T10:23:42.8202924Z ##[group]Checking out the ref
+2026-11-13T10:23:42.8205841Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-11-13T10:23:43.6179851Z Switched to a new branch 'main'
+2026-11-13T10:23:43.6208832Z branch 'main' set up to track 'origin/main'.
+2026-11-13T10:23:43.6212587Z ##[endgroup]
+2026-11-13T10:23:43.6259129Z [command]/usr/bin/git log -1 --format=%H
+2026-11-13T10:23:43.6283544Z f528683c8a950ac935679241be4860d643bf8487
+2026-11-13T10:23:43.6511441Z ##[group]Run node scripts/cloud-queue.mjs
+2026-11-13T10:23:43.6511918Z [36;1mnode scripts/cloud-queue.mjs[0m
+2026-11-13T10:23:43.6565378Z shell: /usr/bin/bash -e {0}
+2026-11-13T10:23:43.6565939Z env:
+2026-11-13T10:23:43.6569139Z   GH_TOKEN: ***
+2026-11-13T10:23:43.6569453Z   BRANCH: codex/plan-editor-r1-5-e4-build
+2026-11-13T10:23:43.6569825Z   SHA: 33380c2ffafc005b07cde8ca0e5cc17f7329de39
+2026-11-13T10:23:43.6570395Z   REVIEW: PASS check; 36 focused,158 broader,323 gates; CI/configured,isolated,Codex clean; FULL52 Grade A
+2026-11-13T10:23:43.6570914Z ##[endgroup]
+2026-11-13T10:23:52.5147978Z Pull request #2438 (https://github.com/NoaCG/NoaCG-Studio/pull/2438): stamped and labelled `land`. Turn auto-merge on from the session to queue it.
+2026-11-13T10:23:52.5150166Z Reviewed had failed before the stamp existed; re-ran it on run 43405602818.
+2026-11-13T10:23:52.5353132Z Post job cleanup.
+2026-11-13T10:23:52.6206216Z [command]/usr/bin/git version
+2026-11-13T10:23:52.6252354Z git version 2.56.0
+2026-11-13T10:23:52.6292776Z Temporarily overriding HOME='/home/runner/work/_temp/7412d383-dd92-473c-8c63-d803b60579fe' before making global git config changes
+2026-11-13T10:23:52.6294378Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-13T10:23:52.6298422Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-13T10:23:52.6342161Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-13T10:23:52.6382932Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-13T10:23:52.6718018Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-13T10:23:52.6758617Z http.https://github.com/.extraheader
+2026-11-13T10:23:52.6770580Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-13T10:23:52.6807765Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-13T10:23:52.7125002Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-13T10:23:52.7160904Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-13T10:23:52.7678901Z Cleaning up orphan processes
