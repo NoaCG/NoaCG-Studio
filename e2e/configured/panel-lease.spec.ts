@@ -250,7 +250,7 @@ test('the Live dock beside a production page takes nothing, takes the panel with
   const [anna, ben] = (await deck.rows()).map((r) => r.id);
   expect((await deck.press('select-cue', ben, onDock.ver as number)).outcome).toBe('ran');
   await expect(dock.getByTestId('dock-selected')).toHaveText('Selected: Ben');
-  const onBen = await deck.state((s) => s.selected === ben, 'Ben selected on the dock');
+  await deck.state((s) => s.selected === ben, 'Ben selected on the dock');
 
   // A reconnect: its network and sockets cut for less than the lease, then back. It still answers,
   // under the same page and claim, and the production page took nothing meanwhile.
@@ -258,10 +258,26 @@ test('the Live dock beside a production page takes nothing, takes the panel with
   await obs.setOffline(true);
   for (const ws of sockets.splice(0)) await ws.close();
   await dock.waitForTimeout(8_000);
+  // The lease held through the cut: still answering at the server, and no page took the panel.
+  expect((await deck.hello()).answering, 'the lease outlives a cut shorter than it').toBe(true);
   cut = false;
   await obs.setOffline(false);
   await expect(dock.getByTestId('panel-header-status')).toHaveText('Panel ✓', { timeout: 30_000 });
-  expect((await deck.press('select-cue', anna, onBen.ver as number)).outcome).toBe('ran');
+  // Its sockets come back on the Realtime client's own backoff (up to about 10 s after the network),
+  // and a press broadcast before the dock has rejoined reaches no page, as for any production page.
+  // So the deck presses, as an operator would, until the rejoined dock runs one.
+  await expect
+    .poll(
+      async () => {
+        try {
+          return (await deck.press('select-cue', anna, (await deck.state()).ver as number)).outcome;
+        } catch {
+          return 'no answer yet';
+        }
+      },
+      { timeout: 60_000, intervals: [1_000] },
+    )
+    .toBe('ran');
   await expect(dock.getByTestId('dock-selected')).toHaveText('Selected: Anna', { timeout: 15_000 });
   const back = await deck.state((s) => s.selected === anna, 'Anna selected on the dock after the reconnect');
   expect(back.page).toBe(onDock.page);

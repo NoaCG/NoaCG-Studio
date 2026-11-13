@@ -1306,6 +1306,12 @@ Filled in by each phase's pull request.
   In 5 min wrote a deadline but the row still said the time was skipped. The delta review found the
   wider class: a write from elsewhere (a key, another page) left it up too. The line now shows only
   while the path still holds the value it held when Set was refused, so any write ends it.
+- Found by CI on 0d3f027d (configured walk, failed then failed): the dock's press right after an 8 s
+  cut got no answer. The dock rejoins its topics and republishes once its socket is back, but the
+  Realtime client reconnects on its own backoff, up to about 10 s after the network, and a press
+  broadcast before the rejoin reaches no page, as for any production page. Class: faulty test
+  expectation. The walk now checks the lease held through the cut, then presses until the rejoined
+  dock runs one (bounded at 60 s), and still requires the same page and claim.
 - Previous verified `main`: `a71607a977fa4b57db908a5a63fa589b977f551d` (CI run 43475994487,
   configured suite 43475994875).
 - Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed and no
