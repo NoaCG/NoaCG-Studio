@@ -473,8 +473,17 @@ Filled in by each phase's pull request.
   in `publish-guard.spec.ts` (it holds the service-role switch helpers, and backend growth is
   stopped); the press-to-ran harness republishes through a session flag only the harness sets.
 - Found while building, fixed: the Presence reader dropped `au`; a revision-only update now
-  carries the source columns (review on #2469). The configured walk runs with both switches on
+  carries the source columns (review on #2469); and, on the #2488 review, a team confirmation now
+  holds its record across the revision read, automatic mode needs a known revision before it hides
+  Publish changes, a 401 that outlives one session refresh is transient, and a page that may not
+  publish reads red while a save waits. The configured walk runs with both switches on
   (`production_copies` and `auto_publish`), as production has them.
+- AC-4 open point: whole publishes meet the 50 ms p95 on the typical fixture but not on the large one
+  under continuous editing (about +334 ms p95, the output re-reading each whole copy; phase 7 sends
+  only what changed). Owner or coordinator decides: fix the output read here, record a known gap, or
+  keep automatic updates off for large productions until phase 7. Separately, editing faster than one
+  sync pass on a large production makes the sync engine re-run without pause (issue #2494, not this
+  phase).
 - Migrations: `0117_production_revision.sql` (ordinary), `0118_publication_guard.sql` (live-path,
   renumbered from 0116 and 0117 when `main` took 0116 for the JSON source tick;
   applies in a quiet window). Turning `auto_publish` on is a separate step, after the app is live
