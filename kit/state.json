@@ -105,7 +105,15 @@
    },
    "2495": {
     "builder": "session_017SdbwPgzV8gKLZty4DAZn4",
-    "nonce": "fix-2495-f-c5a9"
+    "nonce": "fix-2495-f-c5a9",
+    "landed": "1b2821e943ffa278baf8d395a81edbd42cc925e1 (PR 2498)",
+    "followups": [
+     "#2503",
+     "#2504",
+     "#2508",
+     "#2511"
+    ],
+    "pending": "quarantine PR for operator-outage-not-unpublished and output-debate-clock flakes"
    }
   }
  ],
@@ -149,7 +157,7 @@
   },
   {
    "what": "Phase 6 after #2497: auto updates publish only after editing pauses (~3 s). A accept, measure AC-4 at 5 s pace; B publish during continuous edits (Risky change); C record as gap to phase 7. Recommended A.",
-   "state": "pending, asked 2026-11-13T18:05Z"
+   "state": "answered 2026-11-13: A"
   }
  ],
  "ownerDecisions": [
@@ -187,7 +195,9 @@
   "D1 A (2026-11-12): keep 5 s ceiling; phase 6 starts the output preparing at once; ceiling judged at end of phase 7 once only changed graphics are sent.",
   "G3 Q1 A, Q2 A (2026-11-13): AC-4 judged on publishing itself, design update/add loops reported only; newest save publishes even with an older design.",
   "#2392 fix taken into the run: owner yes 2026-11-13.",
-  "2026-11-13 B A A B: phase 6 AC-4 large gap judged at end of phase 7, auto updates off in production until then; #2494 fixed in run before phase 8; #2495 guard fixed in run; leftovers stay."
+  "2026-11-13 B A A B: phase 6 AC-4 large gap judged at end of phase 7, auto updates off in production until then; #2494 fixed in run before phase 8; #2495 guard fixed in run; leftovers stay.",
+  "2026-11-13 phase 6: A, auto updates publish after editing pauses; AC-4 measured at 5 s pace, 10 pairs.",
+  "Coordinator (delegated) 2026-11-13T20:46Z: phase 6 AC-4 typical judged on pooled p95 difference over 20 interleaved pairs at 5 s edits, pass at <= 50 ms; bootstrap range and per-pair values reported. First 10 pairs: +38 ms (90% +24..+56)."
  ],
  "phase2": {
   "builderCostUSD": "about 50",
@@ -198,7 +208,8 @@
   "Phase 1 used 9 /so sessions (1 full A, then 7 deltas B to B+ chasing stale docs one at a time, about 11 USD) before the final A. Builders should sweep the whole class of stale docs once before the first full /so (the traps file says fix every instance of a class in one checkpoint).",
   "Phase 3: the owner-approved fix (#2389) passed a full /so A yet lost an edit on reload; the independent checker caught it with a slowed send plus reload probe. Reload-in-the-window probes belong in every save-path brief.",
   "Phase 5: Codex on each new head found four real playout defects after /so grade A (stale demand read dropping a Take, seed pruning, hold not released after swap, lost entrance across republish). Wait for Codex on the final head before the receipt, and ask for behaviour tests, not source checks. Builders read the block deadline as their own deadline; say it is renewed.",
-  "Phase 6: builder's single-pair AC-4 measurement (+1.9 ms) did not reproduce for the checker (+260 pooled, bimodal). Briefs for timing criteria must require several interleaved on/off pairs and report the spread."
+  "Phase 6: builder's single-pair AC-4 measurement (+1.9 ms) did not reproduce for the checker (+260 pooled, bimodal). Briefs for timing criteria must require several interleaved on/off pairs and report the spread.",
+  "Fix #2495 (test guard) cost about 473 USD over nine /so rounds (1.36M output tokens): a small guard grew through review rounds until the round cap forced a smaller scope. Briefs for tooling fixes should cap scope up front and split follow-ups early."
  ],
  "archiveOnPass": "At each PASS, archive the builder child sessions too: list them by parent_session_id = the builder session (the /runs helper found 8 phase 1 /so sessions left open).",
  "phase3": {
@@ -232,7 +243,8 @@
  ],
  "standing": {
   "productionCopiesSwitch": "\"production_copies: A. Turn it on now; the coordinator may do it with my permission. Once on, it stays as it is. If anything looks wrong, turn it off and tell me.\" (owner 2026-11-12, after the 11:31Z switch-on)",
-  "capacityGate": "\"yes, I discussed in the runs session that I want sessions landing and not failing\" (owner 2026-11-12)"
+  "capacityGate": "\"yes, I discussed in the runs session that I want sessions landing and not failing\" (owner 2026-11-12)",
+  "decisionDelegation": "Owner 2026-11-13: coordinator decides remaining behaviour choices by its recommendation and records each on #2361. Still ask before: turning a feature on in production, deleting or rewriting production data, loosening a spec target beyond what is recorded, or work outside the nine phases and fixes they need."
  },
  "phase5": {
   "followups": [
@@ -246,8 +258,8 @@
   "costUSD": "about 106 (builder 88, checker 18) plus /so sessions"
  },
  "block": {
-  "epoch": 3,
-  "deadline": "2026-11-13T18:50:40.751Z"
+  "epoch": 4,
+  "deadline": "2026-11-14T18:51:05.037Z"
  },
  "nextCheckin": "2026-11-14T06:20:00Z",
  "traps5": [
@@ -277,6 +289,12 @@
    "what": "phase 6 builder ran configured walk (jobs j-0027, j-0028) without local-stack env; cloud shell env points at production with service key; publish-guard.spec afterEach set production_copies off and created system_settings auto_publish {on:false}; E2E account test productions written on production",
    "fix": "coordinator restored production_copies ON at ~10:53Z (verified with production_copies_state); auto_publish row and test productions left, reported to owner",
    "trap": "Cloud worker env VITE_SUPABASE_URL is production and SUPABASE_SERVICE_ROLE_KEY is an admin key: configured/e2e jobs must load local-stack settings and check 127.0.0.1 first. Add to known-traps at end of run; consider a guard in the configured suite refusing a non-local URL."
+  },
+  {
+   "at": "2026-11-13 ~18:05-18:08Z (queue time)",
+   "what": "repair 6-r-4907 built a measurement bundle after a failed local check; the bundle pointed at production with the anon key; one run j-0043 loaded it with a local-stack JWT (rejected by production), output page read-only by slug",
+   "impact": "none found: production switches checked 20:10Z, production_copies on, auto_publish off",
+   "fix": "bundle rebuilt under set -e with local check first; #2508 tracks the harness check of MEASURE_DIST's backend"
   }
  ],
  "notes": [
