@@ -1022,3 +1022,125 @@ checks. The public noacg/reviewed stamp and queue remain root's responsibility.
 Actual final-head CI/build/configured/capacity, isolated qualification, one Codex
 result and fresh FULL SO remain due before worker gates. No final A, PASS, public
 stamp, queue entry, receiving-host/device acceptance or next phase is claimed.
+
+
+## Owner narrow combined correction: observable Rules before product edits (2026-11-13)
+
+Same E4 run, PR #2438, serial builder `/root/editor_e4_narrow_correction`, nonce
+`e4-owner2-narrow-20261113`. Frozen product source is
+`63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf`, tree
+`2b7490bd5b69452d5a742057d95059e8ea8db671`. Authority receipt SHA256
+`3a3098e38afa866700e52fd61478311e06311649428b2e1d9f69bfb31517ae8c`
+grants one narrow combined correction, not a new run or attempt reset. Ordinary
+3/3 and prior owner additional 1/1 remain spent. Root must charge the new grant
+and acknowledge PATCH_START before product changes. A confirmed remaining product
+failure after the combined patch stops this attempt for owner reassessment; no
+automatic refinement, fallback or new allowance. All prior failures remain.
+
+Observable Rules for the fresh independent repeated-family model assessment:
+
+- Installation compares the real target inside the same database transaction
+  using the existing supported production read normalization. An unchanged raw
+  legacy production missing version/updatedAt is the same snapshot that the
+  ordinary read supplied to planning. Reading does not write it or unrelated
+  productions. Genuine newer source, data, output or metadata changes still
+  conflict; prepared/confirmed identity, stable clone IDs, retry and directed
+  rollback preserve later work. Team, removed and output-protected targets keep
+  their existing safeguards. Installed graphics are independent copies; the
+  source link is provenance, and reinstall never implicitly updates a copy.
+- Discard captures its click-time context and protects queued work before its
+  first await. Retained October acceptance in EDITOR_REBUILD_PLAN.md:860-861
+  requires that newer same-owner work during a successful autosave drain still
+  permits the clean replacement write. It does not permit a visible reset or
+  successful navigation: the entire newer source/assets/history/selection,
+  samples, clock and cue must be durably restored before refusal is reported.
+  A refused correction reports its storage error instead of a false preservation
+  claim; original and correction errors remain truthful together.
+- That retained ordering applies only while the exact private document binding,
+  baseline/public identity and account remain owned. Real document/account
+  retirement, removal or independently adopted/unknown workspace cannot write a
+  click-time replacement into a new owner. Keep current owner/generation guards
+  after submission, conditional refused-document recovery and the prior durable
+  failed-Discard correction. Capture is nonallocating; equal semantic sample
+  maps remain quiet. No sync service, collaboration/merge protocol, retry loop,
+  waits/skips or format/migration change is introduced.
+
+Prewritten reproduction/admission bounds, before execution: one deterministic
+queued small selection of the unchanged maintained case at
+`e2e/new-graphic-guard.spec.ts:436`, and one minimal ignored raw-legacy diagnostic.
+Each runs once with zero retries, at most two derived browser workers and a
+five-minute whole-job cap; no whole/broader suite or build is admitted. The
+maintained case must fail at its original clean-write assertion (line455,
+expected dirty=false, observed dirty=true); later assertions remain unexecuted.
+The diagnostic seeds a raw missing-version/missing-updatedAt personal production
+in real IndexedDB before any production writer normalizes it, confirms the
+ordinary read is normalized without rewriting disk, then expects installation
+success and therefore should expose the current false newer-edit conflict.
+Contradictory results require investigation before any product patch. No failed
+run is rerun or relabeled. Product and maintained-test bytes stay frozen during
+model review and reproduction. Notes stay uncommitted until the explicitly
+required single coherent push, as in the prior Rules-first notes exception.
+
+
+The fresh model actor `/root/editor_e4_narrow_correction/e4_owner2_model_so`
+returned AGREE WITH CORRECTIONS (Risky model only). Complete original receipt
+SHA256 `76e5d78bd7289a72e31284d65490b5802422f3336fba2c1f12941c12438bd1cc`
+and its single bounded clarification SHA256
+`df844cf3f8587d14d54a3d52ae324c49eccf130d799ebcfc09538b715c6560cf`
+were read entirely by root before PATCH_START. The clarification establishes
+only absent/current numeric Show version2 as supported: Show stamping began
+with optional2 at78fd0e39e, not a Show-v1 migration. Missing updatedAt receives
+the existing epoch; explicit unsupported versions or malformed present stamps
+must refuse before either wanted/idempotent or expected comparison. Unknown
+additive fields stay intact and changes to them still conflict. No global
+production-reader behavior or format is changed.
+
+Frozen63d7 one-shot reproductions: j-0120 FAIL1case4.1s at original maintained
+new-graphic-guard455 (expected dirty=false, received true); later assertions
+unexecuted, with no data-loss inference. J-0121 FAIL1case3.1s: a raw missing-version/
+timestamp production remained unchanged on disk after normalized reading, but
+installation falsely refused it as newer edits. Unrelated raw rows stayed intact.
+Both whole logs, diagnostic source and legacy JSON/context/screenshot are archived.
+J-0120's new local screenshot/context were overwritten by the second Playwright
+startup before archival; its whole log and exact source remain, without a rerun.
+All historical failures and receipts above remain unchanged.
+
+Root charged this grant exactly once used1/remaining0 at
+2026-11-13T09:33:26.437197Z and acknowledged PATCH_START before product edits.
+The combined patch reuses the existing readShape only for the supported selected
+transaction row, leaving unrelated raw rows untouched. Discard keeps its queued
+check and an operation-local retirement latch; successful same-owner drain changes
+remain stale while the retained clean replacement is written. A nonallocating
+complete live snapshot supplies a view fallback only for its exact unchanged
+bundle; newer complete owned receipts take precedence. Correction is durably
+confirmed before refusal, retaining failed/aborted/zero-receipt recovery and
+truthful original/correction errors. No retry loop or persistent ownership system
+is added. These state rules have no equivalent in the pinned reference editor;
+this focused correction makes no new usability/reference parity claim.
+
+Before browser execution, app TypeScript and affected ESLint passed; dependency
+cruise found0violations (1471modules/7033dependencies). Initial ESLint prefer-const
+failure is retained separately; explicit immutable capture parameters resolved
+that implementation-style issue before browser verification. Changed-path gates
+passed323/323 across25files, including all maintained session/workspace/reservation/
+codec oracles plus production compatibility and copy checks. No original test
+assertion was removed or changed.
+
+The frozen complete product/test diff SHA256
+`6a27908ccef462fa2a0b5fef302957307c687e31e9ac84ccfb6dd98a8dacc0e0`
+passed j-0122:36/36 in1.5minutes, two Cloud workers, cap5minutes, zero skips/retries.
+This includes the unchanged original Discard case through its final assertions,
+both waits and confirmed/refused restoring writes; all previous15 selection/sample/
+correction cases; project Discard and adopted envelopes. Seven new maintained
+cases prove four supported raw representations and14 format/timestamp/metadata
+refusals with exact stored-row preservation; clean same-owner drain followed by
+held complete correction and immediate reload; and no Discard submission after
+private/baseline/public away-back, account-namespace or document-removal retirement.
+Whole log SHA256 `ccbea34c350c01167c16105798f5bd7bb4dffc3dac578d057f07b30d7d89f17d`.
+
+One committed-source relevant seven-spec broader selection remains admitted under
+the unchanged12minute cap. No local production build is needed: no dependency,
+entrypoint, packaging or build input changes follow63d7, whose actual CI Build
+passed; new-head Actions still owes its full Build. Current-head capacity,
+configured/backend/Codex, fresh final FULL SO A/A+ and root's normal queue remain
+required. No stamp, landing, E4 PASS or later phase is claimed here.

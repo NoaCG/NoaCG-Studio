@@ -167,6 +167,55 @@ test('selected graphics install independently into two rundowns, retry once and 
   expect(result.bRolledBack.graphics).toEqual([]); expect(result.bRolledBack.cues ?? []).toEqual([]);
 });
 
+
+test('legacy installation normalizes only supported selected rows and refuses genuine format or metadata changes', async ({ page }) => {
+  await seedAuthoringProject(page, ['lt01']);
+  const result = await page.evaluate(async () => {
+    const A = await import('/src/store/saveActions.ts'), D = await import('/src/model/durableStore.ts');
+    const S = await import('/src/model/shows.ts'), I = await import('/src/control/projectInstallation.ts');
+    const M = await import('/src/model/projectInstallation.ts'), L = await import('/src/model/library.ts');
+    const saved = await A.saveGraphicAs('Legacy installation source', { kind: 'standalone' });
+    if (!saved.ok) throw new Error(saved.error!);
+    (await import('/src/store/templateStore.ts')).flushPendingProject(); await D.commitDurableWrites();
+    const unrelated = [{ id: 'unrelated-legacy', name: 'Keep raw legacy', graphics: [] },
+      { id: 'unrelated-future', name: 'Keep future bytes', version: 99, graphics: [], metadata: { future: true } }];
+    const disk = () => new Promise<string>((resolve, reject) => {
+      const open = indexedDB.open('noacg-studio', 1);
+      open.onerror = () => reject(open.error);
+      open.onsuccess = () => { const db = open.result, get = db.transaction('kv', 'readonly').objectStore('kv').get('spx-gfx-shows');
+        get.onsuccess = () => { resolve(get.result as string); db.close(); }; get.onerror = () => { reject(get.error); db.close(); }; };
+    });
+    const seed = async (row: unknown) => { const raw = JSON.stringify([row, ...unrelated]); D.durable.setItem('spx-gfx-shows', raw); await D.commitDurableWrites(); return raw; };
+    let installed = 0, refused = 0;
+    for (const version of [undefined, 2]) for (const updatedAt of [undefined, '2026-01-01T00:00:00.000Z']) {
+      const row = { id: 'legacy-target', name: 'Legacy target', graphics: [], version, updatedAt, metadata: { preserve: ['unknown', 'nested'] } };
+      const raw = await seed(row), normalized = S.loadShows().find(s => s.id === row.id)!;
+      if (await disk() !== raw || normalized.version !== 2 || normalized.updatedAt !== (updatedAt ?? '1970-01-01T00:00:00.000Z')) throw new Error('Supported read normalization changed storage or identity.');
+      const plan = await I.installProjectGraphics(row.id, [saved.graphicId!]);
+      const after = await disk(); await I.retryProjectInstallation(plan.id);
+      if (plan.status !== 'confirmed' || await disk() !== after) throw new Error('Legacy installation/retry changed its stable target.');
+      const rows = JSON.parse(after);
+      if (JSON.stringify(rows.slice(1)) !== JSON.stringify(unrelated) || JSON.stringify(rows[0].metadata) !== JSON.stringify(row.metadata) || rows[0].graphics.length !== 1 || rows[0].cues.length !== 1) throw new Error('Installation changed unrelated rows, metadata or copy count.');
+      installed++;
+    }
+    const raw = { id: 'legacy-target', name: 'Target', version: 2 as const, updatedAt: '2026-01-01T00:00:00.000Z', graphics: [], metadata: { preserve: true } };
+    await seed(raw);
+    const plan = M.planProjectInstallation(S.loadShows().find(s => s.id === raw.id)!, [L.graphicById(saved.graphicId!)!]);
+    const reject = async (row: unknown, rollback = false) => {
+      const before = await seed(row), answer = await M.reconcileProjectTarget(rollback ? M.planProjectRollback(plan) : plan, rollback);
+      if (answer.status !== 'refused' || await disk() !== before) throw new Error('An unsupported or genuinely changed target was accepted or overwritten.');
+      refused++;
+    };
+    for (const version of [1, 99, '2', null]) await reject({ ...plan.before, version });
+    for (const updatedAt of [null, false, 0, '', '2026-02-01T00:00:00.000Z']) await reject({ ...plan.before, updatedAt });
+    for (const row of [{ ...plan.before, metadata: { preserve: false } }, { ...plan.before, metadata: undefined }, { ...plan.before, added: { future: true } }]) await reject(row);
+    await reject({ ...plan.after, version: 99 });
+    await reject({ ...plan.after, version: 99 }, true);
+    return { installed, refused };
+  });
+  expect(result).toEqual({ installed: 4, refused: 14 });
+});
+
 test('Home starts three chosen registry graphics and a created brand without code', async ({ page }, info) => {
   await page.goto('/app#/home');
   const wizard = page.getByTestId('creation-wizard');
@@ -1491,4 +1540,88 @@ for (const mode of ['preliminary-failure', 'correction-failure', 'correction-new
       return { id: h.S.useTemplateStore.getState().documentId, view: h.E.activeEditorSession().port.view() }; });
     expect(boot).toEqual({ id: ids[0], view: { ...before.view, selectedParts } });
   }
+});
+
+
+// Same-owner drain ordering is retained from October; this additionally pins the whole
+// newer bundle and the confirmation boundary of its restoring write.
+test('same-owner Discard drain writes clean then confirms the complete newer draft before refusing', async ({ page }) => {
+  const ids = await seedAuthoringProject(page); await prepareSerialWorkspace(page);
+  await editProjectText(page, 'Click-time draft'); await flushAuthoringProject(page);
+  await installHeldWrite(page); await armHeldWrite(page, 'I', 'hold');
+  await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    const s = h.S.useTemplateStore.getState(); h.M.saveProject(s.template, s.baseline, s.saved, s.aiSpec, s.aiThread, s.legibility, h.S.captureProjectDocument(s)); });
+  await heldWriteReady(page);
+  await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace; h.done = false;
+    void h.A.discardCurrentGraphic().then(error => { h.error = error ?? undefined; h.done = true; }); });
+  await editProjectText(page, 'Newer source during drain');
+  const newer = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    h.S.useTemplateStore.getState().addAsset({ path: 'images/newer.svg', data: 'data:image/svg+xml;base64,PHN2Zy8+' });
+    h.S.useTemplateStore.getState().setSelectedParts(['#f0']); h.S.useTemplateStore.getState().setSampleValue('f0', 'Newer operator sample'); h.E.setSessionTime(.42, 0);
+    return { document: h.S.captureProjectDocument(h.S.useTemplateStore.getState(), false), view: h.E.activeEditorSession().port.view(), workspace: h.P.workspace() }; });
+  await armHeldWrite(page, 'D', 'hold'); await releaseHeldWrite(page);
+  await expect.poll(() => page.evaluate(() => window.matrix.releases.filter(Boolean).length)).toBe(2);
+  const clean = JSON.parse((await durableValue(page, 'spx-gfx-project'))!);
+  expect(clean.dirty).toBe(false); expect(clean.workspace.documents.find((d: { id: string }) => d.id === ids[0]).history).toEqual([]);
+  expect(await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.S.useTemplateStore.getState().template)).toEqual(newer.document.template);
+  await page.evaluate(() => {
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function(value, key) {
+      const limit = Error.stackTraceLimit; Error.stackTraceLimit = 60; const stack = String(new Error().stack); Error.stackTraceLimit = limit;
+      if (String(key) !== 'spx-gfx-project' || !stack.includes('keepChangedDiscard')) return put.call(this, value, key);
+      IDBObjectStore.prototype.put = put;
+      const host = window as unknown as { correction: unknown; releaseCorrection?: () => void }; host.correction = JSON.parse(String(value));
+      const request = put.call(this, value, key), tx = this.transaction;
+      Object.defineProperty(tx, 'oncomplete', { configurable: true, set(handler: (event: Event) => void) {
+        tx.addEventListener('complete', event => { host.releaseCorrection = () => handler.call(tx, event); }, { once: true });
+      } }); return request;
+    };
+  });
+  await page.evaluate(() => window.matrix.releases[1]());
+  await expect.poll(() => page.evaluate(() => typeof (window as unknown as { releaseCorrection?: unknown }).releaseCorrection)).toBe('function');
+  expect(await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.done)).toBe(false);
+  const correcting = await page.evaluate(() => (window as unknown as { correction: { dirty: boolean; workspace: { documents: unknown[] } } }).correction);
+  expect(correcting.dirty).toBe(true); expect(correcting.workspace.documents[0]).toEqual(newer.document);
+  await page.evaluate(() => (window as unknown as { releaseCorrection: () => void }).releaseCorrection());
+  await expect.poll(() => page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.done)).toBe(true);
+  expect(await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.error)).toContain('changed while discarding');
+  await expect(page.getByTestId('editor-foundation')).toBeVisible(); await expect(page.getByTestId('home-page')).toHaveCount(0);
+  await page.reload(); await awaitDurableReady(page); await prepareSerialWorkspace(page);
+  const boot = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    return { document: h.S.captureProjectDocument(h.S.useTemplateStore.getState(), false), view: h.E.activeEditorSession().port.view(), workspace: h.P.workspace() }; });
+  expect(boot.document).toEqual(newer.document); expect(boot.view).toEqual(newer.view);
+  expect(boot.workspace.projects).toEqual(newer.workspace.projects); expect(boot.workspace.documents.slice(1)).toEqual(newer.workspace.documents.slice(1));
+});
+
+for (const retirement of ['private-away-back', 'baseline-away-back', 'public-away-back', 'account', 'removed'] as const) test(`Discard drain refuses retired ${retirement} authority without submitting a replacement`, async ({ page }) => {
+  const ids = await seedAuthoringProject(page); await prepareSerialWorkspace(page);
+  await editProjectText(page, 'Retirement must preserve source'); await flushAuthoringProject(page);
+  await installHeldWrite(page); await armHeldWrite(page, 'I', 'hold');
+  await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    const s = h.S.useTemplateStore.getState(); h.M.saveProject(s.template, s.baseline, s.saved, s.aiSpec, s.aiThread, s.legibility, h.S.captureProjectDocument(s)); });
+  await heldWriteReady(page);
+  await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace; h.done = false;
+    void h.A.discardCurrentGraphic().then(error => { h.error = error ?? undefined; h.done = true; }); });
+  const before = await page.evaluate(async ({ retirement, id }) => {
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace, state = h.S.useTemplateStore.getState();
+    const host = window as unknown as { discardSubmissions: number }; host.discardSubmissions = 0;
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function(value, key) {
+      const limit = Error.stackTraceLimit; Error.stackTraceLimit = 60; const stack = String(new Error().stack); Error.stackTraceLimit = limit;
+      if (String(key).startsWith('spx-gfx-project') && (stack.includes('discardDraft') || stack.includes('keepChangedDiscard'))) host.discardSubmissions++;
+      return put.call(this, value, key);
+    };
+    if (retirement === 'private-away-back') { h.S.useTemplateStore.setState({ documentId: crypto.randomUUID() }); h.S.useTemplateStore.setState({ documentId: state.documentId }); }
+    if (retirement === 'baseline-away-back') { h.S.useTemplateStore.setState({ baseline: structuredClone(state.baseline) }); h.S.useTemplateStore.setState({ baseline: state.baseline }); }
+    if (retirement === 'public-away-back') { h.S.useTemplateStore.setState({ saved: { ...state.saved, graphicId: 'retired-public-id' } }); h.S.useTemplateStore.setState({ saved: state.saved }); }
+    if (retirement === 'account' && !await h.D.adoptSignedOutLibrary(crypto.randomUUID())) throw new Error('Isolated browser account adoption failed.');
+    if (retirement === 'removed') { const w = h.P.workspace(); h.M.stageAuthoringWorkspace({ ...w, active: null, documents: w.documents.filter(d => d.id !== id), projects: w.projects.map(p => ({ ...p, documents: p.documents.filter(d => d !== id) })) }); }
+    return { id: h.S.useTemplateStore.getState().documentId, template: h.S.useTemplateStore.getState().template };
+  }, { retirement, id: ids[0] });
+  await releaseHeldWrite(page);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.done)).toBe(true);
+  const after = await page.evaluate(() => { const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
+    return { error: h.error, id: h.S.useTemplateStore.getState().documentId, template: h.S.useTemplateStore.getState().template,
+      submissions: (window as unknown as { discardSubmissions: number }).discardSubmissions }; });
+  expect(after.error).toBeTruthy(); expect(after.submissions).toBe(0); expect(after.id).toBe(before.id); expect(after.template).toEqual(before.template);
 });

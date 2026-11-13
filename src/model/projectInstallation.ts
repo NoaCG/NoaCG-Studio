@@ -1,4 +1,4 @@
-import { nextFreeLayer, seedValues, type Show } from './shows';
+import { nextFreeLayer, readShape, seedValues, type Show } from './shows';
 import type { GraphicDoc } from './library';
 import { uuid } from './id';
 import { conditionalDurableWrite } from './durableStore';
@@ -54,7 +54,10 @@ export async function reconcileProjectTarget(plan: ProjectInstallation, rollback
   return conditionalDurableWrite('spx-gfx-shows', text => {
     const shows = JSON.parse(text ?? '[]') as Show[];
     if (!Array.isArray(shows)) return { refused: 'The productions could not be read safely.' };
-    const index = shows.findIndex(s => s.id === plan.target), current = shows[index];
+    const index = shows.findIndex(s => s.id === plan.target), stored = shows[index];
+    if (stored && (stored.version !== undefined && stored.version !== 2 || stored.updatedAt !== undefined && (typeof stored.updatedAt !== 'string' || !stored.updatedAt))) return { refused: 'The production format could not be read safely.' };
+    // Normalize only supported selected-row representation differences, never unrelated rows.
+    const current = stored && readShape([stored])[0];
     if (!current || current.deleted || current.teamId || teamShowIds().has(plan.target)) return { refused: 'The production is no longer editable here.' };
     if (rollback && (current.outputSlug || current.hostedSlug || current.publishedAt)) return { refused: 'This production has been prepared for output. Stop and replace its installed copies explicitly in the production.' };
     const wanted = rollback ? plan.rollback! : plan.after, expected = rollback ? plan.after : plan.before;

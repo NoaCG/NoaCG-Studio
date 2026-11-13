@@ -638,7 +638,7 @@ function saveAll(list: Show[]): string | null {
 }
 
 /** The read shape every stored list takes: the format stamp, and a stable sync timestamp. */
-function readShape(list: Show[]): Show[] {
+export function readShape(list: Show[]): Show[] {
   return list.map((s) => ({ ...s, version: 2 as const, updatedAt: s.updatedAt || BACKFILL_TS }));
 }
 
