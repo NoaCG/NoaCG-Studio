@@ -1,0 +1,56 @@
+{
+  "source": "b08128e05e4506fbb900f8ec37fa39bf5bea306d",
+  "status": "j0140 functionalPASS/paintLIMITED; j0142 FAILED scratchcolororacle, actualglyphvisible, Out/replayNOTRUNinthat slice",
+  "files": [
+    {
+      "sourcePath": "/workspace/noacg-editor-r1-5-e5c-build/e5c.local/merged-starter/starter-three.png",
+      "file": "starter-three.png",
+      "bytes": 76547,
+      "sha256": "ccb4d5ca88f7146f6c894e83b8df1cee99a78b4eca9979df72bcbb93910076ab"
+    },
+    {
+      "sourcePath": "/workspace/noacg-editor-r1-5-e5c-build/e5c.local/merged-starter/starter-brand-override-redo.png",
+      "file": "starter-brand-override-redo.png",
+      "bytes": 113592,
+      "sha256": "0c1bd22cb441cad7b553ddcc97acb5e43d86ab2fe69ffdbe7376088ca2c2eb5a"
+    },
+    {
+      "sourcePath": "/workspace/noacg-editor-r1-5-e5c-build/e5c.local/merged-starter/starter-rundown-take.png",
+      "file": "starter-rundown-take.png",
+      "bytes": 89057,
+      "sha256": "07bae639687bfa60a8b31d1e2a2e3a014d89592aebf8edff7f6cbc9f32bfdc60"
+    },
+    {
+      "sourcePath": "/workspace/noacg-editor-r1-5-e5c-build/e5c.local/program-paint/take-glyph.png",
+      "file": "take-glyph.png",
+      "bytes": 547,
+      "sha256": "c9a9bf0329b07587fae61ed0f262fd3f13ae531431ee5199b48d976964c6d110"
+    },
+    {
+      "sourcePath": "/workspace/noacg-editor-r1-5-e5c-build/e5c.local/program-paint/program-paint-result.json",
+      "file": "program-paint-result.json",
+      "bytes": 557,
+      "sha256": "d74d7e6eb7cbb38aec2caf381f674126334d65eecdb560e15225bb81cd808504"
+    },
+    {
+      "sourcePath": "/workspace/noacg-editor-r1-5-e5c-build/e5c.local/program-paint.tmp.mjs",
+      "file": "program-paint.tmp.mjs",
+      "bytes": 3928,
+      "sha256": "879f50bc1dd46428c66759bd85407d970feb9fad91c1f048c0676ea7c82e7200"
+    },
+    {
+      "sourcePath": "/workspace/noacg-editor-r1-5-e5c-build/e5c.local/starter-merged.tmp.mjs",
+      "file": "starter-merged.tmp.mjs",
+      "bytes": 9530,
+      "sha256": "c943e31e9b70a7c37aa620484e0aeab34810a2d3bc3c3878a5b6d3a88d141ffb"
+    },
+    {
+      "sourcePath": "/workspace/noacg-editor-r1-5-e5c-build/e5c.local/merged-starter/starter-result.json",
+      "file": "starter-result.json.gz",
+      "bytes": 659956,
+      "sha256": "92d65e004e9d50adaee2e41bace9400e871d4f790e9a2efb9e83f7caaf35c610",
+      "uncompressedBytes": 2188025,
+      "uncompressedSha256": "ba26441af0c619d6b12851d5ecd317605384a48c317e851534a4ce182818a15e"
+    }
+  ]
+}
