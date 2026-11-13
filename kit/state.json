@@ -69,7 +69,7 @@
     {
       "phase": "E6C",
       "step": "Fresh Cloud export/receiving builder active",
-      "note": "E6C productde563 PASSNode6/6,fit2/2,output7/7,ONEbroader48/48. Packagingattempt1FAILcoverageheader retained; verifiedonly1line repairc456 passesactual472gatecoverage+5pathselection. RootprospectivelyauthorizedONEcorrectedsource currentcandidate attempt2 viaunchanged10minuteActions route beforedispatch; no thirdautomaticadmission/E4orE5Creset. Evidencekit/finalreview/CI/acceptance remain."
+      "note": "E6C product+targeted/broaderverificationPASS. Correctedcandidate c456 run43455609799SUCCESS: normal5844tests5814PASS0FAIL30existingSKIP,gateway533PASS;12helperasserts/cleanuptrue, currentcandidateZIP/version/hash849files produced. Originalde563failedcoverageheader retained. 8receivingZIPs/notices stagedexactbytes; finalG07/currentCLIclosure/local kit/fullreview/CI/queue/freshacceptance remain. Fullvendorlicensearchive+writtenreply unresolvedOW1, no legalclearance."
     }
   ],
   "owner": [
@@ -3102,7 +3102,7 @@
     "coverageMetadataRepairCommit": "c456f647eb8a30839473fd93467f447a181f2dc1",
     "manualCandidateRepairAdmission": {
       "at": "2026-11-13T15:43:23.251334+00:00",
-      "status": "OBSERVED_CORRECTEDSOURCE_RUN43455609799_ATTEMPT1_IN_PROGRESS",
+      "status": "TERMINAL_SUCCESS_43455609799_ATTEMPT1",
       "source": "c456f647eb8a30839473fd93467f447a181f2dc1",
       "sequence": "E6Ccurrentcandidate secondadmission, AFTERoneconcreteverifiedmetadatarepair; previousde563attempt1FAILretained unchanged, no samecommitrerun/no E5C3/3orE4reset",
       "rootEvidence": "Root actualgitdiff EXACToneheaderline1+/1- expands3fullpaths/keepsother2; cleanworktree. ExistinggatecoveragePASS472gates/48checks424tests, actualgateplanfield-reference rowhittrueand5validpaths. NO app/runtime/helper/workflow/lock/assertion/parser/limitdelta de563\u2192c456.",
@@ -3115,8 +3115,18 @@
         "head": "c456f647eb8a30839473fd93467f447a181f2dc1",
         "attempt": 1,
         "createdAt": "2026-11-13T15:44:21Z",
-        "rootObservation": "Actualphasebranchcount2 incloriginalFAILED43454322514; onlyonecurrentcorrectedsourceexecution; originalnotrerun."
+        "rootObservation": "Actualphasebranchcount2 incloriginalFAILED43454322514; onlyonecurrentcorrectedsourceexecution; originalnotrerun.",
+        "job": 131988816839
+      },
+      "result": {
+        "rootReadback": "SupportedconnectorfetchedWHOLEjoblog2552870UTF16chars/37054lines; actualterminalsuccess exactc456. Normalbuild5844tests/5814PASS0FAIL30existingSKIP; separatelygateway533PASS0FAIL0SKIP. Gatecoverage472/48checks424testsPASS; staticlane97.4sPASS. Originalfailedde563 preserved.",
+        "producerReceipt": "receipts/e6c-current-candidate-43455609799.json",
+        "helper": "12/12actualassertions;0retry/skip;cleanuptrue+errors[];pageErrors/external/productionSourceRequests[];22EXPLICITLYHISTORICALcaptures exported; elapsed269775ms",
+        "bundle": "candidate.zip17895722bytes SHA256fce4859bbae202c51a171d2923124d2a5ee93ca33b8211f4c347b052c9324cb9; manifestSHAf95fa287efd5597c49f4904669968f7c6465f5a07ec57ddf35da1bdcc4913703; versionc456;849files",
+        "artifact": "14054076623/endurance-43455609799/19441206bytes/SHA256dbbe058aa62a0bd26bda41477b709cca9c19ee6e30c70c8746d7800f4f2132fd",
+        "scope": "PRODUCERactualverified; rawconsumerartifactreadback notclaimed. Fullreview/CI/queue/exactmergeacceptance remain."
       }
-    }
+    },
+    "technicalNoticesRootReadback": "Roothashedall8stagedZIPs total1831904byteactualj151matches; exact72927byteGSAPraw SHA92bb... present8/8; folderwoff2+fullSILlicense and inlineSILlicenseinsingleHTML verified; Caspar/OGraf Incapturesviewed. No legalclearance. Actualfullvendorterms inaccessibleONECONNECT403/status000; pinnedupstreamtreeNOlicensetext; no retainedfullsnapshotfound, preservefulltermsarchive+writtenvendor disposition as unmetOW1/G07prerequisite; no reconstruction/allowlistbypass."
   }
 }
