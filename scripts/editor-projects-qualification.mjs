@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // E4's real isolated backend proof. Existing endurance.yml supplies the managed stack and
 // always retains this directory, even when setup, the test, cleanup or this verdict fails.
-import { localStackEnv } from './configured-target.mjs';
+import { isLocalStackUrl, localStackEnv } from './configured-target.mjs';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -33,7 +33,7 @@ try {
   const status = command('supabase', ['status', '-o', 'json'], { env: { ...process.env, SUPABASE_WORKDIR: workdir } });
   if (status.status !== 0) throw new Error('Managed isolated Supabase status failed; no hosted fallback is allowed.');
   const stack = JSON.parse(status.stdout.slice(status.stdout.indexOf('{')));
-  if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(stack.API_URL ?? '') || !stack.ANON_KEY || !stack.SERVICE_ROLE_KEY) throw new Error('The isolated stack returned no valid loopback identity.');
+  if (!isLocalStackUrl(stack.API_URL) || !stack.ANON_KEY || !stack.SERVICE_ROLE_KEY) throw new Error('The isolated stack returned no valid loopback identity.');
   const receiptPath = path.join(out, 'persistence.json');
   // Every backend variable through the one helper: this pinned five of the six and left
   // SUPABASE_SECRET_KEY, which api/_lib prefers over the service-role key set here (issue #2495).

@@ -33,9 +33,13 @@
 // that drifts. It is `.mjs` so a Playwright config, a TypeScript spec and `node --test` can all
 // import it.
 //
-// This does NOT cover the offline suite (`playwright.config.ts`): it pins the Supabase pair EMPTY
-// in `webServer.env` and `e2e/_offline-guard.ts` refuses a server that does not serve those empty
-// values, so an offline run cannot reach any backend whatever its shell holds. It also does not
+// This does NOT cover the offline suite (`playwright.config.ts`), which holds its own line: it
+// pins the Supabase variables EMPTY in `webServer.env` - the browser's pair and, since this
+// change, the server-side spellings the api/ handlers prefer, because Playwright MERGES that
+// environment over the shell rather than replacing it - and `e2e/_offline-guard.ts` refuses a
+// server that does not serve the empty values it can see. What it cannot see is the server-side
+// half of a server the suite ADOPTS: no probe inside a page can read `SUPABASE_URL` out of the
+// server process. That remainder is #2511. It also does not
 // cover `playwright.production.config.ts`, whose whole point is the deployed site: that suite is
 // anonymous, writes nothing, and runs with no Supabase variables set (`deploy-verify.yml`) - but
 // a shell that has exported a production `.env` wholesale is refused there too, through
@@ -108,10 +112,12 @@ function host(url) {
 
 /**
  * Is this URL a Supabase stack on this machine? Exported because the same question is asked by
- * every run that mints a local stack of its own - `playwright.endurance.config.ts` and
- * `e2e/endurance/editor-projects.config.ts` asked it with a weaker pattern of their own, which
- * accepted a bare `http://localhost:` with no port and knew nothing of `[::1]` or letter case.
- * One pattern means tightening it once tightens it everywhere.
+ * every run that mints a local stack of its own, and each asked it with a pattern of its own:
+ * `playwright.endurance.config.ts` accepted a bare `http://localhost:` with no port,
+ * `scripts/editor-projects-qualification.mjs` rejected a trailing slash, and none of them knew
+ * `[::1]` or letter case. The wrappers call this now; the endurance configs ask the whole rule
+ * (`requireLocalStack`), which asks this. One pattern means tightening it once tightens it
+ * everywhere.
  */
 export const isLocalStackUrl = (url) => LOCAL.test((url ?? '').trim().toLowerCase());
 

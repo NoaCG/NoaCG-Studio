@@ -34,6 +34,12 @@ test('offline pins remain identical and configured mode inherits its own environ
   assert.equal(offline.webServer.env.VITE_SUPABASE_URL, '');
   assert.equal(offline.webServer.env.VITE_SUPABASE_ANON_KEY, '');
   assert.equal(offline.webServer.env.VITE_RENDER_API, '1');
+  // The server's own half as well (issue #2495): the api/ handlers this dev server mounts read
+  // these, not the VITE_ pair, and Playwright MERGES webServer.env over the shell. Pinned empty,
+  // an offline run cannot hand its own server a backend whatever the shell holds.
+  for (const name of ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SECRET_KEY', 'SUPABASE_SERVICE_ROLE_KEY']) {
+    assert.equal(offline.webServer.env[name], '', name);
+  }
   // Only the no-watch switch (#2094): no Supabase or AI pin, so configured mode keeps its own .env.
   assert.deepEqual(live.webServer.env, { NOACG_E2E_SERVER: '1' });
   assert.match(live.webServer.command, new RegExp(`--port ${livePort()} --strictPort$`));
