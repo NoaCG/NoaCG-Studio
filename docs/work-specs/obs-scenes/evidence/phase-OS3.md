@@ -54,9 +54,13 @@ Simulated events are not hardware proof. In OBS, confirm:
   `e2e/playout-folders.spec.ts` whole (95 pass); `e2e/output-scene-link.spec.ts` whole (6 pass).
 - `npm run gates -- run --changed origin/main`, `tsc --noEmit` and ESLint on the changed files: clean.
 - E2E capacity: warns (backend tier at 94%), does not refuse.
+- After merging `main` at `7451fbba` (live publishing W4), on f89eeb80: Node `obs-scene-rows` (8),
+  `obs-scenes`, `scene-join`, `readiness`, `obs-scene-copies` and W4's `output-version-check` (4),
+  all pass; the browser specs `output-scene-link`, `playout-folders`, `exports` and
+  `playout-feedback-health` (83 pass); CI run 43460464028 green, its configured selection the whole
+  set (64 specs), `live-ready` with this phase's walk and W4's `publish-guard` among them.
 
 ## Not checked here
 
-- The configured walk in `e2e/configured/live-ready.spec.ts`: CI's configured selection.
 - `check-e2e-protection`: its base copy has no dependencies on this machine; CI runs it.
 - OBS itself: OS7.
