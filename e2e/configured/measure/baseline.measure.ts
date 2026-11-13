@@ -869,10 +869,10 @@ test('w3', async ({ page, browser }) => {
 // MEASURE_LOOP=1 the page publishes its saved revision again and again, whole (a session flag only
 // this harness sets), so every output reads the published copy each time; without it, nothing is
 // published. "Ran" is the output's graphic running the Take: its play() call, on the one time origin.
-// MEASURE_EDIT=cues|add|design makes the page edit the production every MEASURE_EDIT_MS (default
-// 5000: a publish follows a sync pass that ends synced, so AC-4 is judged at a pace where each pass
-// ends before the next edit, owner 2026-11-13) (the last cue's text and values, or a graphic added
-// and removed); MEASURE_AUTO=0 runs that with automatic updates off.
+// MEASURE_EDIT=cues|add|design makes the page edit the production (the last cue's text and values,
+// or a graphic added and removed) every MEASURE_EDIT_MS, default 5000; MEASURE_AUTO=0 runs that with
+// automatic updates off. A publish follows a sync pass that ends synced, so AC-4 is judged at a pace
+// where each pass ends before the next edit (owner, 2026-11-13).
 test('autopublish', async ({ page, browser }) => {
   // The switch is a service-role write: only ever against a local stack.
   if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(SUPABASE_URL)) throw new Error('autopublish writes a switch: run it only against a local stack');
