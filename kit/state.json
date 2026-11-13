@@ -43,15 +43,22 @@
   "inFlight": [
     {
       "phase": "OS1b",
-      "step": "queued",
-      "actor": "builder-os1b-os1b-b-d08c",
-      "session": "session_017SdbwRB3UHDGXLPJdo1zxb",
-      "branch": "claude/plan-obs-scenes-os1b-build",
-      "launchedAt": "2026-11-13T10:40:15Z",
-      "note": "sent brief = saved brief plus one NOTES line (amended D9: one link may be in several OBS scenes; #2474 and #2454 stay with OS3)",
-      "lastSeen": "2026-11-13T12:10Z receipt; CI 43419045486 gate green (all 63 specs); stamped, auto-merge on, repair owner posted",
+      "step": "check",
+      "actor": "checker-os1b-7641",
+      "session": "session_017SdbwMGDARNyqxsBPyZFMq",
       "pr": 2490,
-      "reviewedHead": "c022d697ed1a5ea5323fc72227c505d59916ff15"
+      "mergeSha": "b0c8060d5027b1cb56374a878acf1c0f73c51b72",
+      "launchedAt": "2026-11-13T12:26:05Z",
+      "note": "sent brief = saved brief plus one NOTES line (amended D9, Pictures default, #2489 separate)"
+    },
+    {
+      "phase": "fix-2489",
+      "step": "build",
+      "actor": "builder-fix-2489-f-d048",
+      "session": "session_017SdbwPFRMVW25Z5BWMcmWQ",
+      "branch": "claude/plan-obs-scenes-fix-2489",
+      "launchedAt": "2026-11-13T12:26:06Z",
+      "note": "sent brief = saved fix brief plus one NOTES line (owner intent: adding takes it; defaults are the builder's)"
     }
   ],
   "owner": [
@@ -85,7 +92,7 @@
     {
       "issue": 2489,
       "what": "adding a graphic to a scene takes it (spec Scenes behaviour, deferred by OS1a to OS1b, not in AC-2/AC-3)",
-      "when": "fix right after OS1b, before OS3"
+      "when": "building since 2026-11-13T12:26Z, before OS3"
     }
   ],
   "triggers": [
