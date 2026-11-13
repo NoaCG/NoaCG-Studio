@@ -96,6 +96,12 @@ Found while building:
   adopted meanwhile could be confirmed as the newer revision; the token is now read before and
   after, and a change means wait. A record with no revision yet entered automatic mode and hid
   Publish changes; automatic mode now needs the revision known.
+  Test gap: `confirmedRevision`'s team branch has no dedicated test. It reads `getSupabase` and the
+  `teamProductions` module state, neither injectable, so a Node test cannot drive the token across the
+  revision read without refactoring the function for a test, which the "avoid risky changes" brief
+  discourages here; the configured walk covers only personal productions. The before-and-after read
+  is three visible lines and the Codex P1 it answers is resolved by inspection. A team configured walk
+  step is the place for it and is deferred.
 - A revision-only update left the row's source columns as a Connect had written them (review on
   #2469): they leave the content digest and ride every revision-only update.
 
