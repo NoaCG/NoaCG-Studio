@@ -224,6 +224,42 @@ test('a held confirmation does not cover an adoption that came after it', async 
   assert.equal(a.api.getSyncState().phase, 'pending');
 });
 
+const debounceOf = (h) => h.timers.filter((fn) => fn.ms === 2500 && !fn.cleared && !fn.fired);
+
+test('own edit pushed, adopted change behind it: the writer\'s later confirmation settles the tab', async () => {
+  const browser = browserTabs(), a = browser.tab(), b = browser.tab();
+  a.edit(); debounceOf(a)[0](); await tick();     // a's own edit, its debounced pass running
+  a.adopt();                                      // b's change reaches a during that pass
+  a.passes[0].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'pending', 'b has not confirmed its change yet');
+  assert.equal(a.passes.length, 1);
+  void b.api.syncNow(); await tick(); b.passes[0].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'synced', 'b\'s confirmation is accepted: nothing of a\'s is unsent');
+  assert.equal(a.passes.length, 1);
+});
+
+test('own edit pushed, adopted change confirmed during the pass: the pass ends synced', async () => {
+  const browser = browserTabs(), a = browser.tab(), b = browser.tab();
+  a.edit(); debounceOf(a)[0](); await tick();
+  a.adopt();
+  void b.api.syncNow(); await tick(); b.passes[0].resolve(result()); await settle();
+  a.passes[0].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'synced');
+  assert.equal(a.passes.length, 1);
+});
+
+test('an own edit made during the pass is not covered by a held confirmation', async () => {
+  const browser = browserTabs(), a = browser.tab(), b = browser.tab();
+  void a.api.syncNow(); await tick();
+  a.adopt(); a.edit();                            // b's change and a's own, both during the pass
+  void b.api.syncNow(); await tick(); b.passes[0].resolve(result()); await settle();
+  a.passes[0].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'pending');
+  assert.equal(debounceOf(a).length, 1, 'a\'s own edit still owes its debounced pass');
+  debounceOf(a)[0](); await tick(); a.passes[1].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'synced');
+});
+
 test('only one tab of a browser retries against a silent cloud; the others follow its answer', async () => {
   const browser = browserTabs(), a = browser.tab(), b = browser.tab();
   void a.api.syncNow(); void b.api.syncNow();

@@ -290,19 +290,26 @@ export async function syncNow(): Promise<SyncPassReceipt> {
       });
     } else {
       checkedThisPage = true;
-      if (startedRevision !== revision && !ownChangePending && confirmedElsewhereAt === revision) {
-        // Only adopted changes moved the revision, and the tab that made them confirmed them while
-        // this pass ran (followOtherTabsConfirmations held that until now): take it as our own.
-        confirmedRevision = revision;
-        setState({ phase: 'synced', last: result, verifiedAt: new Date().toISOString() });
-      } else if (startedRevision !== revision) {
-        queued = true;
-        setState({ phase: 'pending', last: result, detail: 'The current revision has not been confirmed in the cloud.' });
-      } else {
-        ownChangePending = false;
+      // This pass pushed every own edit made before it started; one made since keeps its debounce.
+      const ownPushed = ownChangePending && ownRevision <= startedRevision;
+      if (ownPushed) ownChangePending = false;
+      if (startedRevision === revision) {
         confirmedRevision = startedRevision;
         setState({ phase: 'synced', last: result, verifiedAt: new Date().toISOString() });
         confirmedChannel?.postMessage({ account: libraryInUse() });
+      } else {
+        if (!ownChangePending && confirmedElsewhereAt === revision) {
+          // Only adopted changes are left, and the tab that made them confirmed them while this
+          // pass ran (followOtherTabsConfirmations held that until now): take it as our own.
+          confirmedRevision = revision;
+          setState({ phase: 'synced', last: result, verifiedAt: new Date().toISOString() });
+        } else {
+          // An own edit made during the pass has its debounce armed; adopted changes alone wait for
+          // their writer's confirmation, which the handler now accepts (nothing of ours is unsent).
+          queued = true;
+          setState({ phase: 'pending', last: result, detail: 'The current revision has not been confirmed in the cloud.' });
+        }
+        if (ownPushed) confirmedChannel?.postMessage({ account: libraryInUse() });
       }
     }
   } catch (e) {
@@ -356,7 +363,10 @@ let debounce: ReturnType<typeof setTimeout> | null = null;
 function scheduleSync(event?: Event): void {
   revision++;
   const elsewhere = !!event && changeSyncedElsewhere(event);
-  if (!elsewhere) ownChangePending = true;
+  if (!elsewhere) {
+    ownChangePending = true;
+    ownRevision = revision;
+  }
   if (libraryInUse()) setState({ phase: 'pending', firstPass: !checkedThisPage, detail: 'Not saved to cloud. Changes on this device are awaiting confirmation.' });
   if (elsewhere) return;
   if (debounce) clearTimeout(debounce);
@@ -399,6 +409,8 @@ function handOverOnClose(): void {
  *  confirmed pass is announced; a tab with nothing unsent of its own takes it as its own,
  *  in place of any retry a pass the cloud did not answer left it. */
 let ownChangePending = false;
+/** The revision of this tab's latest own edit: a pass that started at or after it pushed it. */
+let ownRevision = 0;
 let confirmedChannel: BroadcastChannel | null = null;
 /** The revision at which another tab's confirmation arrived while this tab's own pass was running.
  *  That pass settles on it when it ends with only adopted changes behind it: since #2494 such a pass
@@ -408,11 +420,13 @@ function followOtherTabsConfirmations(): void {
   if (typeof BroadcastChannel === 'undefined') return;
   confirmedChannel = new BroadcastChannel('noacg-sync-confirmed');
   confirmedChannel.onmessage = (event: MessageEvent<{ account?: unknown }>) => {
-    if (event.data?.account !== libraryInUse() || ownChangePending || debounce) return;
+    if (event.data?.account !== libraryInUse()) return;
+    // During a pass, keep it whatever this tab has unsent: the pass decides when it ends.
     if (running) {
       confirmedElsewhereAt = revision;
       return;
     }
+    if (ownChangePending || debounce) return;
     const unansweredHere = state.phase === 'error' && unansweredPasses > 0;
     if (state.phase !== 'pending' && state.phase !== 'syncing' && !unansweredHere) return;
     stopRetrying();
