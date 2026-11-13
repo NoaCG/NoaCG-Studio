@@ -2519,7 +2519,7 @@
     },
     "acceptedAt": "2026-11-13T11:31:36.118029+00:00",
     "latestProgress": {
-      "observedAt": "2026-11-13T13:35:21.847414+00:00",
+      "observedAt": "2026-11-13T13:38:46.944128+00:00",
       "status": "Worker reported, root finalreadback pending",
       "j0128": "PRETEST_INFRAFAIL EROFS Vite shared node_modules/.vite-temp; retainedlog, no productexecution/attempt. Existingapprovedrequire_escalatedcommand reranoriginalsmallselection; no persistentpolicychange.",
       "j0129": "PASS1/1 importedSVG cumulative UI/semantic/reviewed deterministic source+historyparity and3browseroutputs,1.7min,zero modelcalls.",
@@ -2724,14 +2724,18 @@
         },
         "codex": {
           "summaryComment": 6854419409,
-          "status": "running",
+          "status": "completed",
           "startedAt": "2026-11-13T13:32:16.853696Z",
           "head": "fdfa33e63e3c2cd3e9a5cc7c87454ca9692ae5b8",
-          "trigger": "PRopened; noextrarequest"
+          "trigger": "PRopened; noextrarequest",
+          "hasAnyFindings": false,
+          "hasUnresolvedFindings": false,
+          "actualSummaryFile": "e5c-publication/codex-summary-6854419409.json"
         },
-        "reviewedStatus": "Notstamped; awaitallactualgates",
+        "reviewedStatus": "OriginalReviewed131915960933FAILED149s/29pollsawaitingrootstamp, wholelogretained. No productfinding/attempt/retry; documentedReviewed-onlyrecovery afteractualallothergates+terminalCI.",
         "autoMerge": false,
-        "mergeable": true
+        "mergeable": true,
+        "rootMonitor": "BoundedreadonlyCIstatusmonitor45451active, no dispatch/wake."
       }
     }
   }
