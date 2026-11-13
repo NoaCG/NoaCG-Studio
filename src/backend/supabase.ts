@@ -61,7 +61,7 @@ function withCopiesMark(request: Request | null, init: RequestInit | undefined):
  * it moves. It fails as an abort because the library retries any other failure of a read. Edge
  * functions keep their own time.
  */
-function answeredFetch(input: RequestInfo | URL, givenInit?: RequestInit): Promise<Response> {
+export function answeredFetch(input: RequestInfo | URL, givenInit?: RequestInit): Promise<Response> {
   const request = input instanceof Request ? input : null;
   const { pathname } = new URL(request ? request.url : input.toString());
   if (!/^\/(rest|auth|storage)\/v1\//.test(pathname)) return fetch(input, givenInit);
