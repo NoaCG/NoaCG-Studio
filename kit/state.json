@@ -68,9 +68,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "landed / independent exact-merge acceptance preparation",
+      "step": "Independent exact-merge check admitted; native startup qualification pending",
       "pr": 2438,
-      "note": "ActualGitHubqueue merged5f6c at10:41:37Z; rootrecordedlanded, notPASS. Freshownedcheckerworktree createdclean atactualmerge, dependencylockmatched; nativecheckbrief/admission next. Postlandingruns remainpending, laterphases unadmitted. All earlierfailedattempts retained; no fallbackimplemented."
+      "note": "Actual queue merge5f6c landed10:41:37Z; supervisor check action8 ready reserved once10:50Z; native /root/editor_e4_independent_check launched fresh and startup-fenced. Mergegroup43408993923 terminalSUCCESS; mainpush workflows observed at immediately following53b8, not yet exact5f6. Checker reconciles exact-source coverage before any supported dispatch. No E4PASS/nextphase; all spent allowances and prior failures retained."
     }
   ],
   "owner": [
@@ -2426,6 +2426,18 @@
         "supervisorLandedAt": "2026-11-13T10:42:55.450Z",
         "acceptance": "PENDING_FRESH_CHECK",
         "sourceReconciliation": "RawAPIactualmergedtrue andparents/tree independentlyread; exactqueuecandidate/tree matchescurrent-mainmerge-tree. Latestmain advanced53b8 afterthismerge; checker stayspinned5f6."
+      },
+      "independentCheck": {
+        "actor": "/root/editor_e4_independent_check",
+        "actionId": "plan-editor-r1-5-2026-11-08:8",
+        "requestSha256": "fc829dbcc7b702c7ee8700ba0343773f3aa83deb12e2992912b414f05c9862af",
+        "brief": "briefs/e4-check-e4-c-cloud-1113.txt",
+        "briefSha256": "b9c0f6bc433a4a5ff674ea36c7a2267e666f0b9a5da218e8d2ef1c2112949216",
+        "source": "5f6c362f6ce22b820e867648ab11dca97c854480",
+        "worktree": "/workspace/noacg-editor-r1-5-e4-check",
+        "status": "NATIVE_STARTUP_PENDING",
+        "fresh": true,
+        "modelEffort": "Inherited; no overrides, exact runtime IDs unexposed"
       }
     }
   },
