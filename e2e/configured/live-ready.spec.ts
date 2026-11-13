@@ -228,8 +228,10 @@ test('OBS scene rows: loaded, connected, unknown, preview, program, seen, loaded
   expect(outputSlug).toBeTruthy();
   const link = (scene: string) => `/output?production=${encodeURIComponent(outputSlug)}&scene=${encodeURIComponent(scene)}`;
 
-  await page.getByTestId('production-status').click();
+  // Open the Playout panel, whatever the publish left it as (e2e/_publish.ts `setCasparSwitch`).
   const panel = page.getByTestId('production-status-panel');
+  if (!(await panel.isVisible())) await page.getByTestId('production-status').click();
+  await expect(panel).toBeVisible();
   const row = (scene: string) => panel.locator(`[data-testid="obs-scene-row"][data-scene="${scene}"]`);
   const state = (scene: string) => row(scene).getByTestId('obs-scene-state');
   // Nothing loaded: grey, and nothing ticked (which is not an error).
