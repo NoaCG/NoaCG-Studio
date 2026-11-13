@@ -23,10 +23,11 @@ import type { Show } from '../model/shows';
 import { assertProductionGate, ProductionGateError } from '../validation/productionGate';
 import { publishAudio } from '../backend/productionAudio';
 import { profileForPublish } from '../model/profile';
-import { buildOutputPayload, buildPanelSpec, copyDigest, pruneControlEvents, readPanel, sendJoinBrand, type CuePublished, type OutputPayload, type PanelGraphicSpec } from './hostedControl';
+import { buildOutputPayload, buildPanelSpec, copyDigest, pruneControlEvents, readPanel, readScenes, sendJoinBrand, type CuePublished, type OutputPayload, type PanelGraphicSpec } from './hostedControl';
 import { digestText, readPayloadVersion, stampFromDigests, type PayloadVersion } from './payloadVersion';
 import { designEditedAt } from '../model/library';
 import { classifyFailure, DENIED, type PublishOutcome } from './autoPublish';
+import type { ObsScene } from '../model/obsScenes';
 import { sendsIdle } from './sendsInFlight';
 
 /** Resolves on a later task: a click queued meanwhile runs first. */
@@ -68,14 +69,17 @@ interface StoredStamp {
   exists: boolean;
   ver: PayloadVersion | null;
   rev: number | null;
+  /** The OBS scenes the published row holds: what a full publish replaces, so the page can take a
+   *  graphic that joins a scene (obs-scenes #2489), as a press's publish does. */
+  scenes: ObsScene[];
 }
 
 export async function readStamp(sb: Sb, id: string): Promise<StoredStamp> {
-  const { data, error } = await sb.from('control_shows').select('published_ver, published_rev').eq('id', id).maybeSingle();
+  const { data, error } = await sb.from('control_shows').select('published_ver, published_rev, scenes:output->scenes').eq('id', id).maybeSingle();
   if (error) throw Object.assign(new Error(error.message), { code: error.code });
-  if (!data) return { exists: false, ver: null, rev: null };
-  const row = data as { published_ver?: unknown; published_rev?: unknown };
-  return { exists: true, ver: readPayloadVersion(row.published_ver), rev: typeof row.published_rev === 'number' ? row.published_rev : null };
+  if (!data) return { exists: false, ver: null, rev: null, scenes: [] };
+  const row = data as { published_ver?: unknown; published_rev?: unknown; scenes?: unknown };
+  return { exists: true, ver: readPayloadVersion(row.published_ver), rev: typeof row.published_rev === 'number' ? row.published_rev : null, scenes: readScenes(row.scenes) ?? [] };
 }
 
 /** The panel entries as published, read only when this publisher's library lacks a graphic's record
@@ -220,7 +224,7 @@ export async function publishRevision(
       const landed = await patchRow(show.id, filter, await body(ver));
       if (landed > 0) {
         afterFullPublish(sb, show);
-        return { kind: 'published', rev, ver };
+        return { kind: 'published', rev, ver, scenes: { before: stored.scenes, after: built.scenes ?? [] } };
       }
       stored = await readStamp(sb, show.id);
       if (!stored.exists) return { kind: 'gone' };

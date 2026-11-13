@@ -421,7 +421,7 @@ export function readOutputPayload(output: unknown): OutputPayload | null {
 }
 
 /** A payload's scenes off the wire, or null when it carries none: each kept only when it is one. */
-function readScenes(value: unknown): ObsScene[] | null {
+export function readScenes(value: unknown): ObsScene[] | null {
   if (!Array.isArray(value)) return null;
   const scenes = value.filter(
     (s): s is ObsScene =>

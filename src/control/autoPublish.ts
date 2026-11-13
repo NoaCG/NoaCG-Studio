@@ -21,13 +21,15 @@
 // A publish never writes the production record, so publishing never causes a save.
 
 import type { ConfirmedRevision } from '../backend/savedRevision';
+import type { ObsScene } from '../model/obsScenes';
 import type { PayloadVersion } from './payloadVersion';
 import type { LiveEntry } from './livePath';
 import type { ExpectedOutput } from './readiness';
 
 /** What a publish attempt came to. */
 export type PublishOutcome =
-  | { kind: 'published'; rev: number; ver?: PayloadVersion }
+  /** `ver` and `scenes` only for a full publish: a revision-only update changes neither. */
+  | { kind: 'published'; rev: number; ver?: PayloadVersion; scenes?: { before: ObsScene[]; after: ObsScene[] } }
   /** A revision at least as new is already published: nothing to do. */
   | { kind: 'superseded' }
   /** No answer, a server error, a lost connection: tried again later. */

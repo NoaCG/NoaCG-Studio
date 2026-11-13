@@ -869,6 +869,45 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
     });
   });
 
+  test('a graphic that joins an OBS scene is taken there after an automatic publish (#2489)', async ({ page, browser }) => {
+    test.setTimeout(240_000);
+    const { showId, outputSlug } = await published(page, `Auto scene ${Date.now()}`);
+    // A folder holding the first cue, and the OBS scenes switch on; no folder a scene yet.
+    const { folderId, graphic } = await page.evaluate(async (id) => {
+      const m = await import('/src/model/shows.ts');
+      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const s = m.loadShows().find((x) => x.id === id)!;
+      const made = m.addFolderFromSelection(id, [s.cues![0].id], 'Gameplay');
+      if (!made.folderId) throw new Error(`folder not made: ${made.error}`);
+      m.setShowObsScenes(id, true);
+      const failure = await commitDurableWrites();
+      if (failure) throw new Error(failure);
+      return { folderId: made.folderId, graphic: s.graphics[0].name };
+    }, showId);
+    await expect.poll(async () => { const s = await server(showId); return s.published !== null && s.published === s.rev; }, { timeout: 60_000 }).toBe(true);
+    // Gameplay's link is open in OBS before its folder is a scene.
+    const viewers = await browser.newContext();
+    const air = await viewers.newPage();
+    await air.goto(`${outputUrl(outputSlug, 'Gameplay link')}&scene=${encodeURIComponent(folderId)}`);
+    await expect.poll(async () => (await readyOf(air)) !== null, { timeout: 60_000 }).toBe(true);
+    // Making Gameplay a scene is a save; the automatic publish carries it, and the graphic that joined
+    // goes on air in the link with no press of any kind.
+    const folderRow = page.getByTestId('cue-list').locator('.pd-folder', { hasText: 'Gameplay' });
+    await folderRow.getByTestId('folder-menu').click();
+    await page.getByTestId('folder-obs-scene-toggle').click();
+    await expect(folderRow.getByTestId('folder-obs-scene')).toBeVisible();
+    const stateOn = async (key: string): Promise<string | null> => {
+      const handle = await air.locator(`iframe[title="${key}"]:not([data-prepared])`).elementHandle().catch(() => null);
+      const doc = await handle?.contentFrame();
+      if (!doc) return null;
+      return doc.evaluate(() => (window as unknown as { noacgMachineState?: () => { groups: Record<string, string> } }).noacgMachineState?.().groups.main ?? null).catch(() => null);
+    };
+    await expect.poll(() => stateOn(graphic), { timeout: 90_000, message: 'the joined graphic is built in its scene link' }).not.toBeNull();
+    await expect.poll(() => stateOn(graphic), { timeout: 30_000, message: 'the joined graphic is on air in its scene link' }).not.toBe('off');
+    await expect(page.getByTestId('production-publish-changes')).toHaveCount(0);
+    await viewers.close();
+  });
+
   test('two publishers finishing in reverse order leave the newer save published', async ({ page }) => {
     test.setTimeout(240_000);
     const { showId } = await published(page, `Auto race ${Date.now()}`);

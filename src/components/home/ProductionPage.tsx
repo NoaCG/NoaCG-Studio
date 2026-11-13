@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
-import { joinedScenes, sceneFolderIds, sceneGraphicNames, sceneLink } from '../../model/obsScenes';
+import { joinedScenes, sceneFolderIds, sceneGraphicNames, sceneLink, type ObsScene } from '../../model/obsScenes';
 import { airMark, takeJoined } from '../../control/sceneJoin';
 import { useTemplateStore } from '../../store/templateStore';
 import {
@@ -261,7 +261,7 @@ import ServerCueEditor from './ServerCueEditor';
 import FolderEditor from './FolderEditor';
 import { isImageAsset } from '../../assets/assetUtils';
 import BrandLogo from '../BrandLogo';
-import { publishActions, publishFacts, useProductionPublish } from './useProductionPublish';
+import { publishActions, publishFacts, publishedFacts, useProductionPublish } from './useProductionPublish';
 import { rundownActions, useRundownAuthoring } from './useRundownAuthoring';
 import PlayoutSettingsDialog from '../PlayoutSettingsDialog';
 import { PanelDialog, usePanelAnswer } from '../control/PanelControl';
@@ -1109,13 +1109,23 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // switch is on, every save of this published production is published with no press, and each
   // publish asks every output to prepare at once, old ones included.
   const appearanceForRef = useRef<((s: Show) => Promise<CuePublished | undefined>) | undefined>(undefined);
+  /** The scene-join step after any publish, a press's or an automatic one (set below, once the
+   *  verbs it takes with exist). */
+  const sceneJoinRef = useRef<((published: { version: PayloadVersion; scenes: { before: ObsScene[]; after: ObsScene[] } }) => void) | null>(null);
   const autoPublish = useAutoPublish({
     show,
     mayPublish: backendConfigured && authStatus === 'signed-in' && authoringAllowed,
     account: user?.id ?? null,
     appearanceFor: appearanceForRef,
-    onPublished: (ver) => {
+    // The same after-publish steps a press's publish runs (useProductionPublish): the stamp, which
+    // graphics' events need the server's time and which still read a Sheet, and a graphic that
+    // joined an OBS scene taken there. Then the outputs are asked to prepare the new version.
+    onPublished: ({ version: ver, scenes, record }) => {
       setPublishedStamp(ver);
+      const facts = publishedFacts(record.graphics);
+      fastEventGraphicsRef.current = facts.fast;
+      setPublishedReaders(facts.readers);
+      if (scenes) sceneJoinRef.current?.({ version: ver, scenes });
       // A development build lets a spec withhold the request, to prove outputs find it alone.
       if (import.meta.env.DEV && (window as unknown as { __noacgWithholdPrep?: boolean }).__noacgWithholdPrep) return;
       setPrepRequest({ id: requestId(), n: ver.n, h: ver.h });
@@ -2914,38 +2924,41 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         applyProgram(clearAllCueBatches(rehearsed).flat());
         setLiveCue({});
       },
-      // #2489: a graphic this publish put in an OBS scene goes on air there, as the operator's own
-      // Take, once the scene's open links have read the publish (control/sceneJoin.ts).
       onPublished: (published) => {
-        if (!published.version || !published.scenes) return;
-        const showId = show.id;
-        void takeJoined(
-          {
-            published: () => !!verbSender.current?.published,
-            entries: () => livePresenceRef.current.peers,
-            record: () => loadShows().find((s) => s.id === showId),
-            // The Take a press sends, answering why it did not go, so one note names every join
-            // that failed; its folder step moves as a press's does.
-            take: async (cue) => {
-              const taken = await verbs.takeGraphic(cue, 'Take');
-              if (!taken) return 'its graphic is gone';
-              if (!taken.ok) return taken.note;
-              noteStep(cue);
-              return null;
-            },
-            airOf: (graphic) => airMark(session.air.get(), graphic),
-            failed: (failures) => {
-              const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
-              setNote(`Not on air in their OBS scenes: ${failures.map((f) => `${f.join.graphic} (${why(f.error)})`).join(', ')}`);
-            },
-            live: () => pageLiveRef.current,
-          },
-          joinedScenes(published.scenes.before, published.scenes.after),
-          published.version.n,
-        );
+        if (published.version && published.scenes) sceneJoinRef.current?.({ version: published.version, scenes: published.scenes });
       },
     },
   );
+  // #2489: a graphic a publish put in an OBS scene goes on air there, as the operator's own Take,
+  // once the scene's open links have read the publish (control/sceneJoin.ts). A press's publish and
+  // an automatic one both run it.
+  sceneJoinRef.current = (published) => {
+    const showId = show.id;
+    void takeJoined(
+      {
+        published: () => !!verbSender.current?.published,
+        entries: () => livePresenceRef.current.peers,
+        record: () => loadShows().find((s) => s.id === showId),
+        // The Take a press sends, answering why it did not go, so one note names every join
+        // that failed; its folder step moves as a press's does.
+        take: async (cue) => {
+          const taken = await verbs.takeGraphic(cue, 'Take');
+          if (!taken) return 'its graphic is gone';
+          if (!taken.ok) return taken.note;
+          noteStep(cue);
+          return null;
+        },
+        airOf: (graphic) => airMark(session.air.get(), graphic),
+        failed: (failures) => {
+          const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
+          setNote(`Not on air in their OBS scenes: ${failures.map((f) => `${f.join.graphic} (${why(f.error)})`).join(', ')}`);
+        },
+        live: () => pageLiveRef.current,
+      },
+      joinedScenes(published.scenes.before, published.scenes.after),
+      published.version.n,
+    );
+  };
 
   preparePublishRef.current = () => publishNow();
   reloadRef.current = async () => (outputUrl ? reloadOnSlot(outputUrl) : null);

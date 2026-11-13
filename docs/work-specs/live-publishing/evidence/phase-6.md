@@ -81,6 +81,7 @@ All three pass on the local stack (jobs j-0001 and j-0004):
 | A record whose revision is not known (not saved since 0117) keeps Publish changes and is not published; once its revision is known, automatic mode starts and publishes it (G3 section 8, review on #2488) | Pass (job j-0031); with the check removed it fails (j-0032) |
 | A save that changes only a binding moves `published_rev` and the row's source columns, not the version `n` (R5, review on #2488) | Pass; with the digest gate removed it fails (j-0034) |
 | A page that may not publish reads red "Saved, not on the outputs" while another save waits (G3 section 9, review on #2488) | Pass; with the row removed it fails (j-0034) |
+| A graphic that joins an OBS scene is taken there after an automatic publish, with no press (obs-scenes #2489, Codex on #2488) | Pass (j-0124); with the automatic path's scene join removed it fails (j-0125) |
 
 The new-output step of the first walk also asserts the output read the published copy in its worker,
 not on the main thread (R12), through a `window.__noacgWorkerReads` counter the reader bumps on each
@@ -88,8 +89,8 @@ answer.
 
 The walk runs with both switches on (`production_copies` and `auto_publish`), the setting automatic
 updates will run on. Production today has only `production_copies` on; `auto_publish` stays off there
-until the end of phase 7 (owner decision (b)). All six pass on that setting (jobs j-0025, j-0026 after the review fixes, j-0029 after the
-cleanups, and j-0033 with the review steps added). The
+until the end of phase 7 (owner decision (b)). All pass on that setting (jobs j-0025, j-0026 after the review fixes, j-0029 after the
+cleanups, j-0033 with the review steps added, and j-0126 with all seven steps on the final code). The
 automatic publish's `fetch` goes through `answeredFetch`, which adds the production-copies build
 mark to every REST request, so the 0115 guard accepts it.
 
@@ -106,6 +107,15 @@ Found while building:
   discourages here; the configured walk covers only personal productions. The before-and-after read
   is three visible lines and the Codex P1 it answers is resolved by inspection. The team Node test and
   a team step in the configured walk are follow-up #2502 (P2), to pass before `auto_publish` goes on.
+- Codex on 16c3fa89: an automatic publish skipped the steps a press's publish runs after it lands.
+  It did not recompute which graphics' events need the server's time (so a design update that gave a
+  graphic a clock could keep its events on the fast road, without `created_at`), which graphics still
+  read a Sheet, or take a graphic that joined an OBS scene (the scenes feature landed on `main` during
+  this phase). Both paths now share the steps: `publishedFacts` in `useProductionPublish.ts` and one
+  scene-join function on the page, with `publishRevision` returning the scenes it replaced. The scene
+  join has a walk step that fails without it. The event-road recompute has no test of its own: no
+  test observes the road even for a press's publish, and the automatic path now runs the same
+  function the press's path does.
 - A revision-only update left the row's source columns as a Connect had written them (review on
   #2469): they leave the content digest and ride every revision-only update.
 

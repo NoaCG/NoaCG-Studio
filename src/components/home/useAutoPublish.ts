@@ -15,6 +15,7 @@ import { createAutoPublisher, CHECK_EVERY_MS, type AutoPublishView } from '../..
 import { publishRevision, publishStepMs } from '../../control/publishRevision';
 import type { CuePublished } from '../../control/hostedControl';
 import type { PayloadVersion } from '../../control/payloadVersion';
+import type { ObsScene } from '../../model/obsScenes';
 
 /** Whether the server has the guard installed and the switch on; null while unknown. */
 async function readSwitch(): Promise<boolean> {
@@ -63,6 +64,13 @@ function tally(name: string): void {
 /** G3 section 9: what a page that may not publish says while a save waits for one that can. */
 export const ELSEWHERE_LINE = 'Open it on a device that can publish';
 
+/** What a full automatic publish hands the page once it has landed. */
+export interface AutoPublished {
+  version: PayloadVersion;
+  scenes?: { before: ObsScene[]; after: ObsScene[] };
+  record: Show;
+}
+
 export interface AutoPublishState {
   /** The publisher runs for this production: no Publish changes. */
   active: boolean;
@@ -77,8 +85,9 @@ export function useAutoPublish(o: {
    *  longer holds). */
   account: string | null;
   appearanceFor: { readonly current: ((show: Show) => Promise<CuePublished | undefined>) | undefined };
-  /** A publish landed: the stamp it wrote. */
-  onPublished: (ver: PayloadVersion) => void;
+  /** A full publish landed: the stamp it wrote, the OBS scenes it replaced and now holds, and the
+   *  record it was built from, for the page's after-publish steps (the same a press's publish runs). */
+  onPublished: (published: AutoPublished) => void;
 }): AutoPublishState {
   const [switchOn, setSwitchOn] = useState(false);
   const [view, setView] = useState<AutoPublishView | null>(null);
@@ -203,7 +212,7 @@ export function useAutoPublish(o: {
         const t0 = performance.timeOrigin + performance.now();
         const from = publishStepMs.length;
         const outcome = await publishRevision(held, rev, measure ? () => measure(held) : undefined);
-        if (outcome.kind === 'published' && outcome.ver) latest.current.onPublished(outcome.ver);
+        if (outcome.kind === 'published' && outcome.ver) latest.current.onPublished({ version: outcome.ver, scenes: outcome.scenes, record: held });
         // THE MEASURE HARNESS ONLY: with its edit loop on, each automatic publish's window and steps.
         if (MEASURE_HOOKS && editLoopMeasured()) {
           const w = window as unknown as { __noacgPublishWindows?: [number, number, string, number, number[]][] };

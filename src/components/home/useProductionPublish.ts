@@ -44,6 +44,7 @@ import type { Resolution } from '../../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../../model/projectFormat';
 import { outputEmbedFileName, outputEmbedHtml } from '../../export/outputEmbed';
 import { loadGraphics, templateForSavedGraphic } from '../../model/library';
+import type { SavedGraphic } from '../../model/packets';
 import { hasLiveData } from '../../control/liveData';
 import { claimJoinName, outputPageUrl, publishControlShow, PublishBehind, type CuePublished, type LiveCueMap, type PublishedCapabilities } from '../../control/hostedControl';
 import { fastEventGraphics } from '../../control/matchClockWire';
@@ -74,6 +75,17 @@ const CLAIM_NEEDS_ACCOUNT =
 /** The publish, slot and links state, and the sign-in follow-through of a Publish. */
 /** What a copy button copied: a production link, or one OBS scene's link by its scene id. */
 export type CopyKind = 'output' | 'join' | 'presenter' | `scene:${string}`;
+
+/** What a publish of these graphics pins, from the library as it is now: the graphics whose events
+ *  need the server's timestamp (a clock, so they leave the fast road) and those whose payload still
+ *  reads a Sheet in its own code. Every publish recomputes both, a press's and an automatic one. */
+export function publishedFacts(graphics: readonly SavedGraphic[]): { fast: Set<string>; readers: Set<string> } {
+  const pinned = loadGraphics();
+  return {
+    fast: fastEventGraphics(graphics.map((g) => ({ key: g.name, ...templateForSavedGraphic(g, pinned) }))),
+    readers: new Set(graphics.filter((g) => hasLiveData(templateForSavedGraphic(g, pinned).js)).map((g) => g.name)),
+  };
+}
 
 export function useProductionPublish({ authStatus, signInOpen }: { authStatus: AuthUiState['status']; signInOpen: boolean }) {
   /** The Playout panel under the playout status (home/PlayoutStatusControl.tsx): opened by a press,
@@ -494,14 +506,10 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
         // slug is deliberately the same one). A graphic that has just gained a clock would
         // otherwise keep its events on the fast road for the rest of the session, so the answer
         // is recomputed here from the library this publish pinned.
-        const pinned = loadGraphics();
-        fastEventGraphicsRef.current = fastEventGraphics(
-          (current?.graphics ?? []).map((g) => ({ key: g.name, ...templateForSavedGraphic(g, pinned) })),
-        );
+        fastEventGraphicsRef.current = publishedFacts(current?.graphics ?? []).fast;
         // What this publish carried, read from the record as it now stands (a retry may have taken a
         // teammate's change in): the graphics whose payload still reads a Sheet in its own code.
-        const carried = loadShows().find((s) => s.id === show.id)?.graphics ?? [];
-        setPublishedReaders(new Set(carried.filter((g) => hasLiveData(templateForSavedGraphic(g, pinned).js)).map((g) => g.name)));
+        setPublishedReaders(publishedFacts(loadShows().find((s) => s.id === show.id)?.graphics ?? []).readers);
         // REHEARSAL ENDS AT THE FIRST PUBLISH (AC-7): what a Take put up before it played on this
         // page only, so it leaves PROGRAM rather than be mistaken for air.
         if (!wasStarted) {
