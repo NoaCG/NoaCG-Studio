@@ -188,7 +188,10 @@ Actual worker: Codex Cloud Linux, 4 effective CPUs, 16GiB memory, two derived
 browser workers (one browser here), hidden cgroup ancestors unreadable; machine
 totals substitute for those limits. Exact measured free memory/browser version
 are in each raw receipt. Both 1366x768 and 1920x1080 have DPR=1, visual scale=1,
-100% default headless zoom, Fit canvas, production preview debounce 350ms. Cold
+100% default headless zoom, Fit canvas, production preview debounce 350ms.
+The Cloud server is Vite **development mode** (React development/StrictMode),
+not a production bundle; that is a further diagnostic limit. Pinning debounce
+does not remove development-runtime overhead or establish shipped-app timing. Cold
 startup is separate. This is a virtual worker, not named desktop/laptop hardware.
 
 J-0132 completed once at both viewports: 30 selections, 10 continuous drags,
@@ -304,3 +307,55 @@ bounds and UNKNOWN rules. These helpers are syntax-checked preparation only;
 no additional Cloud benchmark, performance PASS, software repair or allowance
 was added. Native capture still needs the named-device calibration inherent in
 E5; no software implementation or purchase is delegated to participants.
+
+## Native candidate packaging Rules, before carrier/build-entry code
+
+The corrected whole-diff opinion on `6e5a0783c1517898aa33f438c847caa6956d6948`
+was AGREE WITH CORRECTIONS / B: dev-worktree's documented DEV/StrictMode overhead
+invalidates its use for shipped-app latency, and a /src-import loader cannot run
+in production preview. Original Cloud observations remain DEV-instrumented
+MISS/LIMITED/INVALID, unqualified for production latency; their bytes are unchanged.
+Coordinator review separately found count validation after mutation in the new
+setup loader. Its correction must reject wrong count/properties before any store
+write, even when the supplied test manifest hash matches. These are qualification
+helper defects, not E4 product repairs or fresh phase allowances.
+
+This added executable/build-entry scope is Risky for qualification integrity.
+Before implementing the carrier command, a fresh read-only Rules-first opinion
+must challenge these observable Rules:
+
+1. One registered `qualify:editor-native-kit` command runs through the existing
+   endurance Actions carrier, with no workflow change. It requires exact
+   checked-out HEAD equal to GITHUB_SHA and records that full source. No moving
+   branch or unknown source can produce a passing receipt.
+2. The entire build, fixture preparation, helper smoke, packaging and cleanup is
+   self-bounded to five minutes, zero retries/skips. It uses normal full
+   `npm run build` in Actions, without disabling any gate or changing its judge.
+   No local product build, benchmark campaign, inference or live write is implied.
+3. Build and served local setup use explicitly empty hosted/model configuration.
+   Inherited fake hosted/provider settings cannot activate backend or inference.
+   No production credentials/data or new external account is used or printed.
+4. The emitted production bundle must contain the existing real
+   `dist/version.json.commit` equal to exact source. A missing/mismatched marker
+   refuses. Retain the complete bundle, its SHA256 and file-hash receipt under
+   endurance-output; use that existing marker instead of another provenance system.
+5. The smoke proves correct-source setup and 30 rendered layers/300 X+opacity
+   keys, plus wrong ref and wrong fixture/hash/count refusal with source/history/
+   sample/selection unchanged. Validation precedes every fixture store mutation.
+   It checks setup/observer behavior, never performance targets.
+6. DEV is only functional fixture preparation. Stage F4 through the existing
+   editable package exporter and normal built-app import; production timing uses
+   existing `dev-worktree --preview` with the exact bundle. The observer's DOM/
+   input marker path must work without /src imports. No new serving framework.
+7. Stop only owned local browser/server resources and verify cleanup. A failed
+   build, helper assertion, packaging, missing artifact or cleanup produces a
+   failed receipt. There is no green summary for an absent/partial bundle.
+8. Before the one manual carrier dispatch, use verification-dispatch observation
+   and reconcile any existing exact-source attempt/acknowledgement. Unknown is
+   not absence. Preserve every failed/partial run and artifact. No dispatch retry,
+   performance admission, target change, allowance reset or later-phase launch
+   follows automatically.
+
+Final independent review must judge whether E5C's Cloud measurement criterion
+needs qualified production measurements beyond the retained DEV diagnostics;
+the later hardware gate is not a substitute for qualified Cloud evidence.
