@@ -3102,14 +3102,21 @@
     "coverageMetadataRepairCommit": "c456f647eb8a30839473fd93467f447a181f2dc1",
     "manualCandidateRepairAdmission": {
       "at": "2026-11-13T15:43:23.251334+00:00",
-      "status": "PROSPECTIVE_ONE_CORRECTED_SOURCE_ADMISSION_BEFORE_DISPATCH",
+      "status": "OBSERVED_CORRECTEDSOURCE_RUN43455609799_ATTEMPT1_IN_PROGRESS",
       "source": "c456f647eb8a30839473fd93467f447a181f2dc1",
       "sequence": "E6Ccurrentcandidate secondadmission, AFTERoneconcreteverifiedmetadatarepair; previousde563attempt1FAILretained unchanged, no samecommitrerun/no E5C3/3orE4reset",
       "rootEvidence": "Root actualgitdiff EXACToneheaderline1+/1- expands3fullpaths/keepsother2; cleanworktree. ExistinggatecoveragePASS472gates/48checks424tests, actualgateplanfield-reference rowhittrueand5validpaths. NO app/runtime/helper/workflow/lock/assertion/parser/limitdelta de563\u2192c456.",
       "need": "Firstattemptstoppedbeforebuildtests/nativehelper/bundle, so no usablecurrentcandidateexists. Correctedmetadata permitsunchangedrequirednormalbuild toreachremaininggates andqualifynewversion/sourcec456.",
       "route": "UNCHANGED endurance.yml scriptqualify:editor-native-kit minutes10 local-supabasefalse; exactsourcepush+observeexisting first;ONEdispatch only; reconcileoriginalonunknownack; fullnormalbuild/helper/captures/ZIP/mandatorycleanupinsideexisting10 envelope.",
       "limits": "No thirdadmission or automaticrepair authorized; any failure/incomplete reportBEFOREfurtheredits. Previouslyfullreadfailedsource/log/receipt retained. Broader1/1spent48/48PASS appliesunchangedproduct/no repeat. E4allspent/confirmedE4effectSTOP.",
-      "holdDisposition": "Narrowmetadatarepairverified; generalholdliftedforpreviouslyauthorized E6C evidenceZIP/manifest/docs staging on existingordinaryevidenceroute afterrules/normalguards, no app/buildinput changesor extraadmission. FinalFULLSO/check/CI/queue/exactmergefreshacceptance required."
+      "holdDisposition": "Narrowmetadatarepairverified; generalholdliftedforpreviouslyauthorized E6C evidenceZIP/manifest/docs staging on existingordinaryevidenceroute afterrules/normalguards, no app/buildinput changesor extraadmission. FinalFULLSO/check/CI/queue/exactmergefreshacceptance required.",
+      "run": {
+        "id": 43455609799,
+        "head": "c456f647eb8a30839473fd93467f447a181f2dc1",
+        "attempt": 1,
+        "createdAt": "2026-11-13T15:44:21Z",
+        "rootObservation": "Actualphasebranchcount2 incloriginalFAILED43454322514; onlyonecurrentcorrectedsourceexecution; originalnotrerun."
+      }
     }
   }
 }
