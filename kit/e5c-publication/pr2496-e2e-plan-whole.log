@@ -1,0 +1,605 @@
+﻿2026-11-13T13:32:14.8801349Z Current runner version: '2.338.2'
+2026-11-13T13:32:14.8825321Z ##[group]Runner Image Provisioner
+2026-11-13T13:32:14.8826289Z Hosted Compute Agent
+2026-11-13T13:32:14.8826918Z Version: 20261103.629
+2026-11-13T13:32:14.8827591Z Commit: 15dbd9ccb5dbf34fae002b6ed1a2670f52df37bc
+2026-11-13T13:32:14.8828384Z Build Date: 2026-11-03T17:26:59Z
+2026-11-13T13:32:14.8829073Z Worker ID: {a9eaeb11-d208-4e12-b885-41f352b6c3be}
+2026-11-13T13:32:14.8829771Z Region: westus2
+2026-11-13T13:32:14.8830371Z Cloud: Azure
+2026-11-13T13:32:14.8831122Z ##[endgroup]
+2026-11-13T13:32:14.8832755Z ##[group]Operating System
+2026-11-13T13:32:14.8833489Z Ubuntu
+2026-11-13T13:32:14.8833997Z 26.04.1
+2026-11-13T13:32:14.8834578Z LTS
+2026-11-13T13:32:14.8835130Z ##[endgroup]
+2026-11-13T13:32:14.8835701Z ##[group]Runner Image
+2026-11-13T13:32:14.8836355Z Image: ubuntu-26.04
+2026-11-13T13:32:14.8836970Z Version: 20261111.196.1
+2026-11-13T13:32:14.8838268Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261111.196/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-13T13:32:14.8839921Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261111.196
+2026-11-13T13:32:14.8841129Z ##[endgroup]
+2026-11-13T13:32:14.8842369Z ##[group]GITHUB_TOKEN Permissions
+2026-11-13T13:32:14.8844253Z Actions: write
+2026-11-13T13:32:14.8844917Z Contents: read
+2026-11-13T13:32:14.8845570Z Metadata: read
+2026-11-13T13:32:14.8846127Z ##[endgroup]
+2026-11-13T13:32:14.8848227Z Secret source: Actions
+2026-11-13T13:32:14.8849224Z Cache mode: write
+2026-11-13T13:32:14.8849878Z Prepare workflow directory
+2026-11-13T13:32:14.9212067Z Prepare all required actions
+2026-11-13T13:32:14.9283983Z Getting action download info
+2026-11-13T13:32:15.2549169Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+2026-11-13T13:32:15.4068108Z Download action repository 'actions/setup-node@v5' (SHA:a0853c24544627f65ddf259abe73b1d18a591444)
+2026-11-13T13:32:15.6096726Z Complete job name: E2E plan
+2026-11-13T13:32:15.7006813Z ##[group]Run actions/checkout@v5
+2026-11-13T13:32:15.7007734Z with:
+2026-11-13T13:32:15.7008216Z   fetch-depth: 0
+2026-11-13T13:32:15.7008730Z   repository: NoaCG/NoaCG-Studio
+2026-11-13T13:32:15.7012824Z   token: ***
+2026-11-13T13:32:15.7013315Z   ssh-strict: true
+2026-11-13T13:32:15.7013792Z   ssh-user: git
+2026-11-13T13:32:15.7014279Z   persist-credentials: true
+2026-11-13T13:32:15.7014803Z   clean: true
+2026-11-13T13:32:15.7015286Z   sparse-checkout-cone-mode: true
+2026-11-13T13:32:15.7015848Z   fetch-tags: false
+2026-11-13T13:32:15.7016332Z   show-progress: true
+2026-11-13T13:32:15.7016816Z   lfs: false
+2026-11-13T13:32:15.7017282Z   submodules: false
+2026-11-13T13:32:15.7017765Z   set-safe-directory: true
+2026-11-13T13:32:15.7018311Z   allow-unsafe-pr-checkout: false
+2026-11-13T13:32:15.7019119Z ##[endgroup]
+2026-11-13T13:32:15.9729689Z Syncing repository: NoaCG/NoaCG-Studio
+2026-11-13T13:32:15.9732642Z ##[group]Getting Git version info
+2026-11-13T13:32:15.9734122Z Working directory is '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+2026-11-13T13:32:15.9736154Z [command]/usr/bin/git version
+2026-11-13T13:32:15.9740399Z git version 2.56.1
+2026-11-13T13:32:15.9769926Z ##[endgroup]
+2026-11-13T13:32:15.9786869Z Temporarily overriding HOME='/home/runner/work/_temp/3f707d25-e5de-4670-8ab9-1e601f65b692' before making global git config changes
+2026-11-13T13:32:15.9802215Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-13T13:32:15.9804190Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-13T13:32:15.9871700Z Deleting the contents of '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+2026-11-13T13:32:15.9888070Z ##[group]Initializing the repository
+2026-11-13T13:32:15.9902124Z [command]/usr/bin/git init /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-13T13:32:16.0051256Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-13T13:32:16.0056571Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-13T13:32:16.0059543Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-13T13:32:16.0061722Z hint: call:
+2026-11-13T13:32:16.0063195Z hint:
+2026-11-13T13:32:16.0069446Z hint: 	git config --global init.defaultBranch <name>
+2026-11-13T13:32:16.0071720Z hint:
+2026-11-13T13:32:16.0073885Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-13T13:32:16.0076541Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-13T13:32:16.0078463Z hint:
+2026-11-13T13:32:16.0079981Z hint: 	git branch -m <name>
+2026-11-13T13:32:16.0081998Z hint:
+2026-11-13T13:32:16.0084413Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-13T13:32:16.0087014Z Initialized empty Git repository in /home/runner/work/NoaCG-Studio/NoaCG-Studio/.git/
+2026-11-13T13:32:16.0091969Z [command]/usr/bin/git remote add origin https://github.com/NoaCG/NoaCG-Studio
+2026-11-13T13:32:16.0143284Z ##[endgroup]
+2026-11-13T13:32:16.0144823Z ##[group]Disabling automatic garbage collection
+2026-11-13T13:32:16.0146906Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-13T13:32:16.0203362Z ##[endgroup]
+2026-11-13T13:32:16.0204639Z ##[group]Setting up auth
+2026-11-13T13:32:16.0224502Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-13T13:32:16.0231590Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-13T13:32:16.0670033Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-13T13:32:16.0705406Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-13T13:32:16.0981407Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-13T13:32:16.1016869Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-13T13:32:16.1289147Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-13T13:32:16.1328325Z ##[endgroup]
+2026-11-13T13:32:16.1338315Z ##[group]Fetching the repository
+2026-11-13T13:32:16.1340289Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/* +d0ca19c67943f5c950a3677dc06f10b51002dd3e:refs/remotes/pull/2496/merge
+2026-11-13T13:32:24.8712443Z From https://github.com/NoaCG/NoaCG-Studio
+2026-11-13T13:32:24.8717896Z  * [new branch]          agent-toolkit-dist      -> origin/agent-toolkit-dist
+2026-11-13T13:32:24.8719155Z  * [new branch]          ci-draft-batching-land-4 -> origin/ci-draft-batching-land-4
+2026-11-13T13:32:24.8720288Z  * [new branch]          claude/check-455ee10    -> origin/claude/check-455ee10
+2026-11-13T13:32:24.8721603Z  * [new branch]          claude/e-diag-1915      -> origin/claude/e-diag-1915
+2026-11-13T13:32:24.8722627Z  * [new branch]          claude/f-clock-replay   -> origin/claude/f-clock-replay
+2026-11-13T13:32:24.8723810Z  * [new branch]          claude/jev-ready-wfpush-probe -> origin/claude/jev-ready-wfpush-probe
+2026-11-13T13:32:24.8725432Z  * [new branch]          claude/noacg-recovery/plan-cicd-followup-2026-11-02 -> origin/claude/noacg-recovery/plan-cicd-followup-2026-11-02
+2026-11-13T13:32:24.8727327Z  * [new branch]          claude/noacg-recovery/plan-cicd-improvement-2026-10-31 -> origin/claude/noacg-recovery/plan-cicd-improvement-2026-10-31
+2026-11-13T13:32:24.8729024Z  * [new branch]          claude/noacg-recovery/plan-codebase-health-2026-11-08 -> origin/claude/noacg-recovery/plan-codebase-health-2026-11-08
+2026-11-13T13:32:24.8730863Z  * [new branch]          claude/noacg-recovery/plan-editor-r1-5-2026-11-08 -> origin/claude/noacg-recovery/plan-editor-r1-5-2026-11-08
+2026-11-13T13:32:24.8732801Z  * [new branch]          claude/noacg-recovery/plan-interaction-2026-11-09 -> origin/claude/noacg-recovery/plan-interaction-2026-11-09
+2026-11-13T13:32:24.8734403Z  * [new branch]          claude/noacg-recovery/plan-jev-svg-import-2026-10-31 -> origin/claude/noacg-recovery/plan-jev-svg-import-2026-10-31
+2026-11-13T13:32:24.8736044Z  * [new branch]          claude/noacg-recovery/plan-live-publishing-2026-11-10 -> origin/claude/noacg-recovery/plan-live-publishing-2026-11-10
+2026-11-13T13:32:24.8737709Z  * [new branch]          claude/noacg-recovery/plan-obs-scenes-2026-11-12 -> origin/claude/noacg-recovery/plan-obs-scenes-2026-11-12
+2026-11-13T13:32:24.8739395Z  * [new branch]          claude/noacg-recovery/plan-production-page-2026-10-21 -> origin/claude/noacg-recovery/plan-production-page-2026-10-21
+2026-11-13T13:32:24.8741060Z  * [new branch]          claude/noacg-recovery/plan-vmix-2026-11-08 -> origin/claude/noacg-recovery/plan-vmix-2026-11-08
+2026-11-13T13:32:24.8742403Z  * [new branch]          claude/plan-jev-svg-import-33-config -> origin/claude/plan-jev-svg-import-33-config
+2026-11-13T13:32:24.8743659Z  * [new branch]          claude/plan-live-publishing-6-build -> origin/claude/plan-live-publishing-6-build
+2026-11-13T13:32:24.8744956Z  * [new branch]          claude/plan-live-publishing-6-build-wip -> origin/claude/plan-live-publishing-6-build-wip
+2026-11-13T13:32:24.8746197Z  * [new branch]          claude/plan-obs-scenes-fix-2489 -> origin/claude/plan-obs-scenes-fix-2489
+2026-11-13T13:32:24.8747540Z  * [new branch]          claude/plan-production-page-p32d-build-wip -> origin/claude/plan-production-page-p32d-build-wip
+2026-11-13T13:32:24.8748731Z  * [new branch]          claude/pp-fix-1798-after -> origin/claude/pp-fix-1798-after
+2026-11-13T13:32:24.8749722Z  * [new branch]          claude/pp-fix-1798-agentmem -> origin/claude/pp-fix-1798-agentmem
+2026-11-13T13:32:24.8750958Z  * [new branch]          claude/pp-fix-1798-diag -> origin/claude/pp-fix-1798-diag
+2026-11-13T13:32:24.8752074Z  * [new branch]          claude/probe-competition-flake -> origin/claude/probe-competition-flake
+2026-11-13T13:32:24.8753472Z  * [new branch]          claude/saved-graphic-engine-spec -> origin/claude/saved-graphic-engine-spec
+2026-11-13T13:32:24.8755251Z  * [new branch]          codex/editor-causality-20261111-clock-01 -> origin/codex/editor-causality-20261111-clock-01
+2026-11-13T13:32:24.8756630Z  * [new branch]          codex/editor-causality-20261111-clock-02 -> origin/codex/editor-causality-20261111-clock-02
+2026-11-13T13:32:24.8758592Z  * [new branch]          codex/editor-causality-20261111-clock-03 -> origin/codex/editor-causality-20261111-clock-03
+2026-11-13T13:32:24.8760956Z  * [new branch]          codex/editor-causality-20261111-clock-04 -> origin/codex/editor-causality-20261111-clock-04
+2026-11-13T13:32:24.8762457Z  * [new branch]          codex/editor-causality-20261111-clock-05 -> origin/codex/editor-causality-20261111-clock-05
+2026-11-13T13:32:24.8763843Z  * [new branch]          codex/editor-causality-20261111-clock-06 -> origin/codex/editor-causality-20261111-clock-06
+2026-11-13T13:32:24.8765342Z  * [new branch]          codex/editor-causality-20261111-clock-07 -> origin/codex/editor-causality-20261111-clock-07
+2026-11-13T13:32:24.8766911Z  * [new branch]          codex/editor-causality-20261111-clock-08 -> origin/codex/editor-causality-20261111-clock-08
+2026-11-13T13:32:24.8768650Z  * [new branch]          codex/editor-causality-20261111-clock-09 -> origin/codex/editor-causality-20261111-clock-09
+2026-11-13T13:32:24.8771085Z  * [new branch]          codex/editor-causality-20261111-clock-10 -> origin/codex/editor-causality-20261111-clock-10
+2026-11-13T13:32:24.8773143Z  * [new branch]          codex/editor-causality-20261111-clock-11 -> origin/codex/editor-causality-20261111-clock-11
+2026-11-13T13:32:24.8775506Z  * [new branch]          codex/editor-causality-20261111-clock-12 -> origin/codex/editor-causality-20261111-clock-12
+2026-11-13T13:32:24.8778296Z  * [new branch]          codex/editor-causality-20261111-operator-01 -> origin/codex/editor-causality-20261111-operator-01
+2026-11-13T13:32:24.8780971Z  * [new branch]          codex/editor-causality-20261111-operator-02 -> origin/codex/editor-causality-20261111-operator-02
+2026-11-13T13:32:24.8782469Z  * [new branch]          codex/editor-causality-20261111-operator-03 -> origin/codex/editor-causality-20261111-operator-03
+2026-11-13T13:32:24.8783882Z  * [new branch]          codex/editor-causality-20261111-operator-04 -> origin/codex/editor-causality-20261111-operator-04
+2026-11-13T13:32:24.8785330Z  * [new branch]          codex/editor-causality-20261111-operator-c2-01 -> origin/codex/editor-causality-20261111-operator-c2-01
+2026-11-13T13:32:24.8786812Z  * [new branch]          codex/editor-causality-20261111-operator-c2-02 -> origin/codex/editor-causality-20261111-operator-c2-02
+2026-11-13T13:32:24.8788291Z  * [new branch]          codex/editor-causality-20261111-operator-c2-03 -> origin/codex/editor-causality-20261111-operator-c2-03
+2026-11-13T13:32:24.8789759Z  * [new branch]          codex/editor-causality-20261111-operator-c2-04 -> origin/codex/editor-causality-20261111-operator-c2-04
+2026-11-13T13:32:24.8792068Z  * [new branch]          codex/editor-causality-20261111-operator-c3-01 -> origin/codex/editor-causality-20261111-operator-c3-01
+2026-11-13T13:32:24.8794499Z  * [new branch]          codex/editor-causality-20261111-operator-c3-02 -> origin/codex/editor-causality-20261111-operator-c3-02
+2026-11-13T13:32:24.8796855Z  * [new branch]          codex/editor-causality-20261111-operator-c3-03 -> origin/codex/editor-causality-20261111-operator-c3-03
+2026-11-13T13:32:24.8799498Z  * [new branch]          codex/editor-causality-20261111-operator-c3-04 -> origin/codex/editor-causality-20261111-operator-c3-04
+2026-11-13T13:32:24.8802858Z  * [new branch]          codex/editor-causality-20261111-operator-c4-01 -> origin/codex/editor-causality-20261111-operator-c4-01
+2026-11-13T13:32:24.8805532Z  * [new branch]          codex/editor-causality-20261111-operator-c4-02 -> origin/codex/editor-causality-20261111-operator-c4-02
+2026-11-13T13:32:24.8808234Z  * [new branch]          codex/editor-causality-20261111-operator-c4-03 -> origin/codex/editor-causality-20261111-operator-c4-03
+2026-11-13T13:32:24.8811413Z  * [new branch]          codex/editor-causality-20261111-operator-c4-03-completion-01 -> origin/codex/editor-causality-20261111-operator-c4-03-completion-01
+2026-11-13T13:32:24.8814472Z  * [new branch]          codex/editor-causality-20261111-operator-c4-04 -> origin/codex/editor-causality-20261111-operator-c4-04
+2026-11-13T13:32:24.8905770Z  * [new branch]          codex/editor-causality-20261111-operator-c5-01 -> origin/codex/editor-causality-20261111-operator-c5-01
+2026-11-13T13:32:24.8908764Z  * [new branch]          codex/editor-causality-20261111-operator-c5-02 -> origin/codex/editor-causality-20261111-operator-c5-02
+2026-11-13T13:32:24.8911994Z  * [new branch]          codex/editor-causality-20261111-operator-c5-03 -> origin/codex/editor-causality-20261111-operator-c5-03
+2026-11-13T13:32:24.8914938Z  * [new branch]          codex/editor-causality-20261111-operator-c5-04 -> origin/codex/editor-causality-20261111-operator-c5-04
+2026-11-13T13:32:24.8917876Z  * [new branch]          codex/editor-causality-evidence-reader-20261111 -> origin/codex/editor-causality-evidence-reader-20261111
+2026-11-13T13:32:24.8921442Z  * [new branch]          codex/editor-r1-5-quarantine-causality-20261111 -> origin/codex/editor-r1-5-quarantine-causality-20261111
+2026-11-13T13:32:24.8923645Z  * [new branch]          codex/plan-editor-r1-5-coordinator-2026-11-08 -> origin/codex/plan-editor-r1-5-coordinator-2026-11-08
+2026-11-13T13:32:24.8925504Z  * [new branch]          codex/plan-editor-r1-5-e4-check -> origin/codex/plan-editor-r1-5-e4-check
+2026-11-13T13:32:24.8927062Z  * [new branch]          codex/plan-editor-r1-5-e5c-build -> origin/codex/plan-editor-r1-5-e5c-build
+2026-11-13T13:32:24.8928947Z  * [new branch]          codex/plan-vmix-coordinator-2026-11-08 -> origin/codex/plan-vmix-coordinator-2026-11-08
+2026-11-13T13:32:24.8930415Z  * [new branch]          codex/plan-vmix-v4-build -> origin/codex/plan-vmix-v4-build
+2026-11-13T13:32:24.8933160Z  * [new branch]          dependabot/npm_and_yarn/cli/hono/node-server-2.1.8 -> origin/dependabot/npm_and_yarn/cli/hono/node-server-2.1.8
+2026-11-13T13:32:24.8935368Z  * [new branch]          dependabot/npm_and_yarn/cli/plugin-preview/hono-4.13.18 -> origin/dependabot/npm_and_yarn/cli/plugin-preview/hono-4.13.18
+2026-11-13T13:32:24.8937779Z  * [new branch]          dependabot/npm_and_yarn/cli/plugin-preview/hono/node-server-2.1.8 -> origin/dependabot/npm_and_yarn/cli/plugin-preview/hono/node-server-2.1.8
+2026-11-13T13:32:24.8940014Z  * [new branch]          dependabot/npm_and_yarn/hono/node-server-2.1.8 -> origin/dependabot/npm_and_yarn/hono/node-server-2.1.8
+2026-11-13T13:32:24.8941639Z  * [new branch]          main                    -> origin/main
+2026-11-13T13:32:24.8942798Z  * [new branch]          noacg/determined-einstein-2o0d0s -> origin/noacg/determined-einstein-2o0d0s
+2026-11-13T13:32:24.8944181Z  * [new branch]          noacg/peaceful-faraday-cp5pfe -> origin/noacg/peaceful-faraday-cp5pfe
+2026-11-13T13:32:24.8945491Z  * [new branch]          noacg/svg-fit-upgrade-editor -> origin/noacg/svg-fit-upgrade-editor
+2026-11-13T13:32:24.8946880Z  * [new branch]          quarantine/enter-2026-10-30-20ab0166 -> origin/quarantine/enter-2026-10-30-20ab0166
+2026-11-13T13:32:24.8948103Z  * [new branch]          revert/18e488f          -> origin/revert/18e488f
+2026-11-13T13:32:24.8949030Z  * [new branch]          revert/e76e101          -> origin/revert/e76e101
+2026-11-13T13:32:24.8950096Z  * [new branch]          security/backlog-2026-10-30 -> origin/security/backlog-2026-10-30
+2026-11-13T13:32:24.8952049Z  * [new branch]          vercel/install-and-configure-vercel-s-hcxirs -> origin/vercel/install-and-configure-vercel-s-hcxirs
+2026-11-13T13:32:24.8953906Z  * [new branch]          vercel/install-vercel-web-analytics-vy57wy -> origin/vercel/install-vercel-web-analytics-vy57wy
+2026-11-13T13:32:24.8955221Z  * [new tag]             bridge-v0.10.0          -> bridge-v0.10.0
+2026-11-13T13:32:24.8956053Z  * [new tag]             bridge-v0.10.1          -> bridge-v0.10.1
+2026-11-13T13:32:24.8956880Z  * [new tag]             bridge-v0.10.2          -> bridge-v0.10.2
+2026-11-13T13:32:24.8957703Z  * [new tag]             bridge-v0.11.0          -> bridge-v0.11.0
+2026-11-13T13:32:24.8958518Z  * [new tag]             bridge-v0.4.0           -> bridge-v0.4.0
+2026-11-13T13:32:24.8959385Z  * [new tag]             bridge-v0.4.0-preview   -> bridge-v0.4.0-preview
+2026-11-13T13:32:24.8960245Z  * [new tag]             bridge-v0.4.1           -> bridge-v0.4.1
+2026-11-13T13:32:24.8961191Z  * [new tag]             bridge-v0.4.2           -> bridge-v0.4.2
+2026-11-13T13:32:24.8962001Z  * [new tag]             bridge-v0.5.0           -> bridge-v0.5.0
+2026-11-13T13:32:24.8962816Z  * [new tag]             bridge-v0.6.0           -> bridge-v0.6.0
+2026-11-13T13:32:24.8963616Z  * [new tag]             bridge-v0.7.0           -> bridge-v0.7.0
+2026-11-13T13:32:24.8964415Z  * [new tag]             bridge-v0.8.0           -> bridge-v0.8.0
+2026-11-13T13:32:24.8965212Z  * [new tag]             bridge-v0.8.1           -> bridge-v0.8.1
+2026-11-13T13:32:24.8966006Z  * [new tag]             bridge-v0.9.0           -> bridge-v0.9.0
+2026-11-13T13:32:24.8966804Z  * [new tag]             cli-v0.10.1             -> cli-v0.10.1
+2026-11-13T13:32:24.8967583Z  * [new tag]             cli-v0.11.0             -> cli-v0.11.0
+2026-11-13T13:32:24.8968368Z  * [new tag]             cli-v0.12.0             -> cli-v0.12.0
+2026-11-13T13:32:24.8969138Z  * [new tag]             cli-v0.12.1             -> cli-v0.12.1
+2026-11-13T13:32:24.8969913Z  * [new tag]             cli-v0.12.2             -> cli-v0.12.2
+2026-11-13T13:32:24.8970784Z  * [new tag]             cli-v0.12.3             -> cli-v0.12.3
+2026-11-13T13:32:24.8971716Z  * [new tag]             cli-v0.12.4             -> cli-v0.12.4
+2026-11-13T13:32:24.8972487Z  * [new tag]             cli-v0.3.0              -> cli-v0.3.0
+2026-11-13T13:32:24.8973244Z  * [new tag]             cli-v0.3.1              -> cli-v0.3.1
+2026-11-13T13:32:24.8973991Z  * [new tag]             cli-v0.3.2              -> cli-v0.3.2
+2026-11-13T13:32:24.8974733Z  * [new tag]             cli-v0.3.3              -> cli-v0.3.3
+2026-11-13T13:32:24.8975468Z  * [new tag]             cli-v0.3.4              -> cli-v0.3.4
+2026-11-13T13:32:24.8976209Z  * [new tag]             cli-v0.7.0              -> cli-v0.7.0
+2026-11-13T13:32:24.8976965Z  * [new tag]             cli-v0.7.1              -> cli-v0.7.1
+2026-11-13T13:32:24.8977709Z  * [new tag]             cli-v0.7.2              -> cli-v0.7.2
+2026-11-13T13:32:24.8978453Z  * [new tag]             cli-v0.8.0              -> cli-v0.8.0
+2026-11-13T13:32:24.8979193Z  * [new tag]             cli-v0.8.1              -> cli-v0.8.1
+2026-11-13T13:32:24.8979961Z  * [new tag]             cli-v0.9.0              -> cli-v0.9.0
+2026-11-13T13:32:24.8980962Z  * [new tag]             companion-v0.2.0        -> companion-v0.2.0
+2026-11-13T13:32:24.8981821Z  * [new tag]             companion-v0.3.0        -> companion-v0.3.0
+2026-11-13T13:32:24.8982769Z  * [new ref]             d0ca19c67943f5c950a3677dc06f10b51002dd3e -> pull/2496/merge
+2026-11-13T13:32:24.8984729Z ##[endgroup]
+2026-11-13T13:32:24.8985485Z ##[group]Determining the checkout info
+2026-11-13T13:32:24.8986331Z ##[endgroup]
+2026-11-13T13:32:24.8986917Z [command]/usr/bin/git sparse-checkout disable
+2026-11-13T13:32:24.8988463Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-13T13:32:24.8990231Z ##[group]Checking out the ref
+2026-11-13T13:32:24.8991158Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/2496/merge
+2026-11-13T13:32:25.7905680Z Note: switching to 'refs/remotes/pull/2496/merge'.
+2026-11-13T13:32:25.7907005Z 
+2026-11-13T13:32:25.7908472Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-13T13:32:25.7911026Z changes and commit them, and you can discard any commits you make in this
+2026-11-13T13:32:25.7913341Z state without impacting any branches by switching back to a branch.
+2026-11-13T13:32:25.7914664Z 
+2026-11-13T13:32:25.7915568Z If you want to create a new branch to retain commits you create, you may
+2026-11-13T13:32:25.7917835Z do so (now or later) by using -c with the switch command. Example:
+2026-11-13T13:32:25.7919161Z 
+2026-11-13T13:32:25.7919749Z   git switch -c <new-branch-name>
+2026-11-13T13:32:25.7920807Z 
+2026-11-13T13:32:25.7921381Z Or undo this operation with:
+2026-11-13T13:32:25.7922229Z 
+2026-11-13T13:32:25.7922771Z   git switch -
+2026-11-13T13:32:25.7923439Z 
+2026-11-13T13:32:25.7924696Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-13T13:32:25.7926390Z 
+2026-11-13T13:32:25.7928456Z HEAD is now at d0ca19c67 Merge fdfa33e63e3c2cd3e9a5cc7c87454ca9692ae5b8 into b2e91ba4a5df23c1cec4a95ea213c9d070b5c7f5
+2026-11-13T13:32:25.7998927Z ##[endgroup]
+2026-11-13T13:32:25.8054020Z [command]/usr/bin/git log -1 --format=%H
+2026-11-13T13:32:25.8079067Z d0ca19c67943f5c950a3677dc06f10b51002dd3e
+2026-11-13T13:32:25.8368098Z ##[group]Run set -euo pipefail
+2026-11-13T13:32:25.8369372Z [36;1mset -euo pipefail[0m
+2026-11-13T13:32:25.8370486Z [36;1mcase "$EVENT" in[0m
+2026-11-13T13:32:25.8372001Z [36;1m  pull_request) BASE="$PR_BASE" ;;[0m
+2026-11-13T13:32:25.8373432Z [36;1m  merge_group) BASE="$MERGE_GROUP_BASE" ;;[0m
+2026-11-13T13:32:25.8374864Z [36;1m  push) BASE="$PUSH_BASE" ;;[0m
+2026-11-13T13:32:25.8376251Z [36;1m  workflow_dispatch) BASE="${DISPATCH_BASE:-}" ;;[0m
+2026-11-13T13:32:25.8377702Z [36;1m  *) BASE="" ;;[0m
+2026-11-13T13:32:25.8378714Z [36;1mesac[0m
+2026-11-13T13:32:25.8379580Z [36;1mRUN=true[0m
+2026-11-13T13:32:25.8381158Z [36;1mif [ -n "$BASE" ] && git cat-file -e "${BASE}^{commit}" 2>/dev/null \[0m
+2026-11-13T13:32:25.8383502Z [36;1m  && git diff --quiet "$BASE" HEAD -- cli/plugin-guide .github/workflows/ci.yml; then[0m
+2026-11-13T13:32:25.8385664Z [36;1m  RUN=false[0m
+2026-11-13T13:32:25.8386595Z [36;1mfi[0m
+2026-11-13T13:32:25.8387704Z [36;1mecho "Guided mod checks: $RUN (base '${BASE}')"[0m
+2026-11-13T13:32:25.8389214Z [36;1mecho "run=$RUN" >> "$GITHUB_OUTPUT"[0m
+2026-11-13T13:32:25.8443650Z shell: /usr/bin/bash -e {0}
+2026-11-13T13:32:25.8444727Z env:
+2026-11-13T13:32:25.8445555Z   EVENT: pull_request
+2026-11-13T13:32:25.8446694Z   PR_BASE: b2e91ba4a5df23c1cec4a95ea213c9d070b5c7f5
+2026-11-13T13:32:25.8448082Z   MERGE_GROUP_BASE: 
+2026-11-13T13:32:25.8449019Z   PUSH_BASE: 
+2026-11-13T13:32:25.8449875Z   DISPATCH_BASE: 
+2026-11-13T13:32:25.8450922Z ##[endgroup]
+2026-11-13T13:32:25.8586792Z Guided mod checks: false (base 'b2e91ba4a5df23c1cec4a95ea213c9d070b5c7f5')
+2026-11-13T13:32:25.8819007Z ##[group]Run actions/setup-node@v5
+2026-11-13T13:32:25.8820122Z with:
+2026-11-13T13:32:25.8821037Z   node-version: 24
+2026-11-13T13:32:25.8821923Z   always-auth: false
+2026-11-13T13:32:25.8822821Z   check-latest: false
+2026-11-13T13:32:25.8832852Z   token: ***
+2026-11-13T13:32:25.8833725Z   package-manager-cache: true
+2026-11-13T13:32:25.8834737Z ##[endgroup]
+2026-11-13T13:32:26.0364113Z (node:2892) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-13T13:32:26.0366996Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-13T13:32:26.0413887Z Found in cache @ /opt/hostedtoolcache/node/24.22.2/x64
+2026-11-13T13:32:26.0415942Z ##[group]Environment details
+2026-11-13T13:32:26.4249778Z node: v24.22.2
+2026-11-13T13:32:26.4250794Z npm: 11.19.1
+2026-11-13T13:32:26.4251243Z yarn: 1.22.22
+2026-11-13T13:32:26.4252338Z ##[endgroup]
+2026-11-13T13:32:26.4396559Z ##[group]Run set -euo pipefail
+2026-11-13T13:32:26.4397233Z [36;1mset -euo pipefail[0m
+2026-11-13T13:32:26.4397671Z [36;1m# SUPERSEDED MAIN RUNS STOP HERE. main runs the full suite (below), and with landings[0m
+2026-11-13T13:32:26.4398300Z [36;1m# arriving every few minutes the full runs used to queue up behind each other: 496 of[0m
+2026-11-13T13:32:26.4398883Z [36;1m# 512 main runs in the 30 days to 2026-09-06 re-tested a commit that was already green[0m
+2026-11-13T13:32:26.4399455Z [36;1m# on its branch, 42% of all runner minutes. A run whose commit main has already moved[0m
+2026-11-13T13:32:26.4400063Z [36;1m# past answers a question nobody is asking - the newer run covers it - so it cancels[0m
+2026-11-13T13:32:26.4401091Z [36;1m# itself. Cancelled, not skipped-as-success: red-main-issue skips a cancelled run rather[0m
+2026-11-13T13:32:26.4401662Z [36;1m# than reading it as a verdict about that commit.[0m
+2026-11-13T13:32:26.4402181Z [36;1m# Both a push to main and a dispatch on main count. The dispatch arm is history now that[0m
+2026-11-13T13:32:26.4402767Z [36;1m# the merge queue pushes main, and it is kept because a run that arrives either way must[0m
+2026-11-13T13:32:26.4403281Z [36;1m# answer the same question. If the cancel itself fails, the[0m
+2026-11-13T13:32:26.4403797Z [36;1m# run simply carries on - a superseded run that completes costs minutes, a plan step[0m
+2026-11-13T13:32:26.4404256Z [36;1m# that fails would read as red main.[0m
+2026-11-13T13:32:26.4404731Z [36;1mif [ "$REF" = "refs/heads/main" ] && { [ "$EVENT" = "push" ] || [ "$EVENT" = "workflow_dispatch" ]; }; then[0m
+2026-11-13T13:32:26.4405405Z [36;1m  LATEST="$(gh api "repos/${GITHUB_REPOSITORY}/branches/main" --jq .commit.sha 2>/dev/null || true)"[0m
+2026-11-13T13:32:26.4405957Z [36;1m  if [ -n "$LATEST" ] && [ "$LATEST" != "$GITHUB_SHA" ]; then[0m
+2026-11-13T13:32:26.4406579Z [36;1m    echo "::notice title=E2E plan::main is already at ${LATEST} - this run for ${GITHUB_SHA} is superseded and cancels itself."[0m
+2026-11-13T13:32:26.4407162Z [36;1m    if gh run cancel "$GITHUB_RUN_ID"; then[0m
+2026-11-13T13:32:26.4407473Z [36;1m      sleep 30[0m
+2026-11-13T13:32:26.4407707Z [36;1m      exit 1[0m
+2026-11-13T13:32:26.4408107Z [36;1m    fi[0m
+2026-11-13T13:32:26.4408298Z [36;1m  fi[0m
+2026-11-13T13:32:26.4408485Z [36;1mfi[0m
+2026-11-13T13:32:26.4408972Z [36;1mif [ "$EVENT" = "pull_request" ]; then BASE="$PR_BASE"; elif [ "$EVENT" = "merge_group" ]; then BASE="$MERGE_GROUP_BASE"; else BASE=""; fi[0m
+2026-11-13T13:32:26.4409704Z [36;1m# `--integration` below asks "is this merge's second parent contained in main?",[0m
+2026-11-13T13:32:26.4410311Z [36;1m# which needs a main ref to ask it OF. `fetch-depth: 0` above brings the remote branches[0m
+2026-11-13T13:32:26.4411295Z [36;1m# with it, but a missing `origin/main` would make that question answer "no merge here"[0m
+2026-11-13T13:32:26.4411925Z [36;1m# and quietly hand back the narrow base - a silent hole where a loud one belongs. So[0m
+2026-11-13T13:32:26.4412485Z [36;1m# fetch it if it is absent, and if it still cannot be had, run everything.[0m
+2026-11-13T13:32:26.4412998Z [36;1mif ! git rev-parse --verify --quiet origin/main >/dev/null; then[0m
+2026-11-13T13:32:26.4413575Z [36;1m  git fetch --no-tags --quiet origin '+refs/heads/main:refs/remotes/origin/main' || true[0m
+2026-11-13T13:32:26.4414021Z [36;1mfi[0m
+2026-11-13T13:32:26.4414327Z [36;1mif ! git rev-parse --verify --quiet origin/main >/dev/null; then[0m
+2026-11-13T13:32:26.4414937Z [36;1m  echo "::warning title=E2E plan::No origin/main to measure a merge against - running the FULL suite."[0m
+2026-11-13T13:32:26.4415438Z [36;1m  BASE=""[0m
+2026-11-13T13:32:26.4415648Z [36;1mfi[0m
+2026-11-13T13:32:26.4416018Z [36;1m# A DISPATCH THAT WAS TOLD WHAT TO MEASURE FROM. Nothing passes one today; the laptop[0m
+2026-11-13T13:32:26.4416615Z [36;1m# lander did, because its dispatch stood in for a push run the webhook was late[0m
+2026-11-13T13:32:26.4417417Z [36;1m# delivering, and planning the full suite there asked for about three times the work with[0m
+2026-11-13T13:32:26.4418035Z [36;1m# minutes left on the landing's clock - which is how j-0438 and j-0445 died on[0m
+2026-11-13T13:32:26.4418619Z [36;1m# 2026-09-03. The base it passed was the main sha it had integrated, so `--integration`[0m
+2026-11-13T13:32:26.4419351Z [36;1m# below moved to the fork point and planned the branch's change. A base that is empty or unreachable falls through to the[0m
+2026-11-13T13:32:26.4419938Z [36;1m# escalation below, unchanged: this[0m
+2026-11-13T13:32:26.4420355Z [36;1m# can only ever make a dispatch narrower ON PURPOSE, never by accident.[0m
+2026-11-13T13:32:26.4421093Z [36;1m#[0m
+2026-11-13T13:32:26.4421443Z [36;1m# It carries the same `origin/main` condition as `--integration` below, and for[0m
+2026-11-13T13:32:26.4422035Z [36;1m# the same reason: `--integration` asks whether this commit merged something main does[0m
+2026-11-13T13:32:26.4422647Z [36;1m# not have, and without a main ref that question answers "no merge here" and quietly[0m
+2026-11-13T13:32:26.4423235Z [36;1m# hands back a narrow base. A run that has already given up on finding main runs[0m
+2026-11-13T13:32:26.4423689Z [36;1m# everything, whatever it was told.[0m
+2026-11-13T13:32:26.4424094Z [36;1mif [ "$EVENT" = "workflow_dispatch" ] && [ -n "${DISPATCH_BASE:-}" ] \[0m
+2026-11-13T13:32:26.4424567Z [36;1m  && git rev-parse --verify --quiet origin/main >/dev/null \[0m
+2026-11-13T13:32:26.4425018Z [36;1m  && git cat-file -e "${DISPATCH_BASE}^{commit}" 2>/dev/null; then[0m
+2026-11-13T13:32:26.4425749Z [36;1m  echo "::notice title=E2E plan::Dispatched with diff_base ${DISPATCH_BASE} - planning what changed since it rather than running everything."[0m
+2026-11-13T13:32:26.4426423Z [36;1m  BASE="$DISPATCH_BASE"[0m
+2026-11-13T13:32:26.4426674Z [36;1mfi[0m
+2026-11-13T13:32:26.4427036Z [36;1m# A PULL REQUEST measures from its base, today's main, and the commit under test is[0m
+2026-11-13T13:32:26.4427645Z [36;1m# GitHub's merge of the branch onto it - so every run plans the branch's whole change[0m
+2026-11-13T13:32:26.4428184Z [36;1m# against main, never only the delta since the previous push.[0m
+2026-11-13T13:32:26.4428690Z [36;1m#[0m
+2026-11-13T13:32:26.4429057Z [36;1m# MAIN RUNS EVERYTHING. Every other run tests what THIS change can affect, which is[0m
+2026-11-13T13:32:26.4429671Z [36;1m# the right economics for a branch and the wrong one for the branch production ships[0m
+2026-11-13T13:32:26.4430273Z [36;1m# from: a spec no change maps to is never selected, so it can break and stay green[0m
+2026-11-13T13:32:26.4431041Z [36;1m# for as long as nobody escalates. That is not hypothetical - on 2026-08-07[0m
+2026-11-13T13:32:26.4431620Z [36;1m# e2e/public-service.spec.ts was red on main through eight consecutive green main[0m
+2026-11-13T13:32:26.4432218Z [36;1m# runs, and what finally surfaced it was an unrelated branch touching package.json[0m
+2026-11-13T13:32:26.4432710Z [36;1m# and escalating to the full suite by accident.[0m
+2026-11-13T13:32:26.4433019Z [36;1m#[0m
+2026-11-13T13:32:26.4433369Z [36;1m# The nightly already runs everything, so this buys LATENCY, not coverage: minutes[0m
+2026-11-13T13:32:26.4433965Z [36;1m# instead of up to a day, on the branch where a regression is already live. It costs[0m
+2026-11-13T13:32:26.4434561Z [36;1m# about two minutes of wall clock (the eight shards run in parallel) and no money -[0m
+2026-11-13T13:32:26.4435171Z [36;1m# the repo is public. The sprint's focus collapse is skipped here on purpose; focus[0m
+2026-11-13T13:32:26.4435765Z [36;1m# is a device for keeping BRANCH runs cheap, and main is where the paused areas are[0m
+2026-11-13T13:32:26.4436223Z [36;1m# supposed to be watched.[0m
+2026-11-13T13:32:26.4436661Z [36;1m# THE CATALOG GATE FOLLOWS THE PUSH'S OWN DIFF. Every full run used to carry it (--all[0m
+2026-11-13T13:32:26.4437430Z [36;1m# assumed the catalog could have moved), 4.5 minutes on about 140 landings a week, most of[0m
+2026-11-13T13:32:26.4438054Z [36;1m# which touched no template; the pull request and the merge group had already run it[0m
+2026-11-13T13:32:26.4438648Z [36;1m# wherever the change could move a design. --catalog-since asks the planner's own[0m
+2026-11-13T13:32:26.4439271Z [36;1m# catalog rule about before..sha; an unusable before raises the gate, as --all always did.[0m
+2026-11-13T13:32:26.4439830Z [36;1mif [ "$EVENT" = "push" ] && [ "$REF" = "refs/heads/main" ]; then[0m
+2026-11-13T13:32:26.4440351Z [36;1m  echo "::notice title=E2E plan::main - running the FULL suite regardless of the diff."[0m
+2026-11-13T13:32:26.4441189Z [36;1m  PLAN="$(node scripts/e2e-affected.mjs --json --all "--catalog-since=${PUSH_BASE:-}")"[0m
+2026-11-13T13:32:26.4441772Z [36;1m# An absent or garbage-collected base means we cannot know what changed.[0m
+2026-11-13T13:32:26.4442324Z [36;1m# Then we do not guess: the fallback is the whole suite, because the one thing a[0m
+2026-11-13T13:32:26.4442897Z [36;1m# fallback must never do is run LESS than the truth. It is the LAST resort - what a[0m
+2026-11-13T13:32:26.4443441Z [36;1m# dispatched run, or a run with no reachable `origin/main`, lands on.[0m
+2026-11-13T13:32:26.4443837Z [36;1melif [ -z "$BASE" ] \[0m
+2026-11-13T13:32:26.4444164Z [36;1m  || ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then[0m
+2026-11-13T13:32:26.4444682Z [36;1m  echo "::notice title=E2E plan::No usable diff base ('${BASE}') - running the FULL suite."[0m
+2026-11-13T13:32:26.4445210Z [36;1m  PLAN="$(node scripts/e2e-affected.mjs --json --all)"[0m
+2026-11-13T13:32:26.4445539Z [36;1melse[0m
+2026-11-13T13:32:26.4445893Z [36;1m  # `--integration` is what makes a MERGE COMMIT honest. Without it the base is the[0m
+2026-11-13T13:32:26.4446470Z [36;1m  # pre-merge branch tip, so the diff is only what `main` brought in and the branch's[0m
+2026-11-13T13:32:26.4447049Z [36;1m  # own work - the half that has never been tested against this tree - is invisible.[0m
+2026-11-13T13:32:26.4447625Z [36;1m  # Replayed over the last 120 merge-of-main commits here, 71 (59%) would have been[0m
+2026-11-13T13:32:26.4448214Z [36;1m  # planned differently: 17 skipped the catalog calibration gate the combined tree[0m
+2026-11-13T13:32:26.4448916Z [36;1m  # needed, and 8 skipped E2E entirely with `mode: none`, reporting green on a[0m
+2026-11-13T13:32:26.4449484Z [36;1m  # combination nothing had run. The flag moves the base to the FORK POINT, which is[0m
+2026-11-13T13:32:26.4450058Z [36;1m  # always an ancestor of this one, so it can only ever plan MORE. On a branch that[0m
+2026-11-13T13:32:26.4450788Z [36;1m  # merged nothing it does nothing at all, and `$BASE` is used exactly as before.[0m
+2026-11-13T13:32:26.4451336Z [36;1m  PLAN="$(node scripts/e2e-affected.mjs --json --integration "$BASE")"[0m
+2026-11-13T13:32:26.4451730Z [36;1mfi[0m
+2026-11-13T13:32:26.4451936Z [36;1mecho "plan: $PLAN"[0m
+2026-11-13T13:32:26.4452365Z [36;1m# COVERAGE GAPS (cicd-improvement ci07). A spec this change selects that is quarantined[0m
+2026-11-13T13:32:26.4452995Z [36;1m# left the blocking shards above; say so on this run, with its incident, rather than let[0m
+2026-11-13T13:32:26.4453561Z [36;1m# the run on main stand in for it silently. Nothing is retried here.[0m
+2026-11-13T13:32:26.4454043Z [36;1mnode scripts/e2e-quarantine.mjs incidents --plan "$PLAN"[0m
+2026-11-13T13:32:26.4454438Z [36;1mecho "base=${BASE:-}" >> "$GITHUB_OUTPUT"[0m
+2026-11-13T13:32:26.4454913Z [36;1m# The shard count comes WITH the plan (scripts/e2e-affected.mjs `shardsFor`), sized from[0m
+2026-11-13T13:32:26.4455553Z [36;1m# measured minutes per spec file rather than from a file count. It used to be computed[0m
+2026-11-13T13:32:26.4456142Z [36;1m# here, as `full ? 9 : min(4, floor(files / 4))`, and the cap was expensive: a "subset"[0m
+2026-11-13T13:32:26.4456714Z [36;1m# under sprint focus is routinely 70-100 of the 128 spec files, so run 32174589727 put[0m
+2026-11-13T13:32:26.4457423Z [36;1m# 58.3 minutes of tests on four runners - 14.6 min a shard, against 7.4 on the full run[0m
+2026-11-13T13:32:26.4458025Z [36;1m# beside it. Arithmetic that decides how long everyone waits belongs in the tested[0m
+2026-11-13T13:32:26.4458531Z [36;1m# module, not in a YAML string nothing can exercise.[0m
+2026-11-13T13:32:26.4459042Z [36;1m# `shardspecs` is the per-runner file list and `matrix` is sized from its length, so a[0m
+2026-11-13T13:32:26.4459648Z [36;1m# shard index always has work: an EMPTY Playwright filter list is not "no tests", it is[0m
+2026-11-13T13:32:26.4460271Z [36;1m# every test, and a matrix wider than the assignment would hand some runner exactly that.[0m
+2026-11-13T13:32:26.4461063Z [36;1m# Shard balance is only as good as the durations table, and a stale one now costs a[0m
+2026-11-13T13:32:26.4461645Z [36;1m# cancelled run rather than only wall clock. Its own command, NOT redirected into[0m
+2026-11-13T13:32:26.4462252Z [36;1m# $GITHUB_OUTPUT - a workflow command written there would corrupt the step's outputs[0m
+2026-11-13T13:32:26.4462721Z [36;1m# instead of annotating the run.[0m
+2026-11-13T13:32:26.4463006Z [36;1mnode -e '[0m
+2026-11-13T13:32:26.4463269Z [36;1m  const plan = JSON.parse(process.argv[1]);[0m
+2026-11-13T13:32:26.4463770Z [36;1m  // A traced spec map the plan could not trust (scripts/e2e-traced.mjs) escalated these[0m
+2026-11-13T13:32:26.4464438Z [36;1m  // files rather than being skipped; say why, so a run that grew has its reason on it.[0m
+2026-11-13T13:32:26.4464926Z [36;1m  if (plan.traced && plan.traced.problem) {[0m
+2026-11-13T13:32:26.4465413Z [36;1m    console.log("::warning title=E2E plan::" + plan.traced.problem + " - escalated " +[0m
+2026-11-13T13:32:26.4466119Z [36;1m      plan.traced.escalated.length + " file(s) instead of trusting it. The nightly refreshes it (bot/e2e-traced).");[0m
+2026-11-13T13:32:26.4466657Z [36;1m  }[0m
+2026-11-13T13:32:26.4466924Z [36;1m  if (plan.unmeasured && plan.unmeasured.length) {[0m
+2026-11-13T13:32:26.4467383Z [36;1m    console.log("::warning title=E2E plan::" + plan.unmeasured.length +[0m
+2026-11-13T13:32:26.4467926Z [36;1m      " spec file(s) have no measured duration and were packed at the median: " +[0m
+2026-11-13T13:32:26.4468478Z [36;1m      plan.unmeasured.join(", ") + ". Refresh with: npm run record:e2e-durations");[0m
+2026-11-13T13:32:26.4469030Z [36;1m  }[0m
+2026-11-13T13:32:26.4469394Z [36;1m  // The plan now states the WALL CLOCK it expects of each runner - measured tests plus[0m
+2026-11-13T13:32:26.4470008Z [36;1m  // the measured per-job overhead - so a run that cannot fit its own cap says so before[0m
+2026-11-13T13:32:26.4470834Z [36;1m  // it starts rather than arriving as a cancelled shard nobody can read a verdict from.[0m
+2026-11-13T13:32:26.4471472Z [36;1m  // The critical journeys a product change runs beside its own selection (cicd-followup[0m
+2026-11-13T13:32:26.4472091Z [36;1m  // cf12, #1895): what the rule added, its measured test-minutes and the shard count[0m
+2026-11-13T13:32:26.4472662Z [36;1m  // without it, so the added cost of each run is readable from its annotations.[0m
+2026-11-13T13:32:26.4473140Z [36;1m  if (plan.critical && plan.critical.product) {[0m
+2026-11-13T13:32:26.4473478Z [36;1m    const c = plan.critical;[0m
+2026-11-13T13:32:26.4473925Z [36;1m    console.log("::notice title=Critical journeys::product change: " + (c.added.length[0m
+2026-11-13T13:32:26.4474632Z [36;1m      ? "added " + c.added.length + " critical spec(s) (" + c.addedMinutes + " of " + c.planMinutes + " table-min; shards " +[0m
+2026-11-13T13:32:26.4475376Z [36;1m        c.shardsWithout + " -> " + (plan.mode === "none" ? 0 : plan.shards) + "): " + c.added.join(", ")[0m
+2026-11-13T13:32:26.4475971Z [36;1m      : "all critical specs already planned or quarantined, nothing added"));[0m
+2026-11-13T13:32:26.4476383Z [36;1m  }[0m
+2026-11-13T13:32:26.4476603Z [36;1m  if (plan.overCap) {[0m
+2026-11-13T13:32:26.4477172Z [36;1m    console.log("::warning title=E2E plan::" + plan.overCap + " of " + plan.predicted.length +[0m
+2026-11-13T13:32:26.4477856Z [36;1m      " shard(s) predicted too close to the 20-minute job cap (minutes: " + plan.predicted.join(", ") +[0m
+2026-11-13T13:32:26.4478563Z [36;1m      "). Re-measure with: npm run record:e2e-durations, or narrow the plan (docs/TEST_SELECTION.md).");[0m
+2026-11-13T13:32:26.4479059Z [36;1m  }[0m
+2026-11-13T13:32:26.4479253Z [36;1m' "$PLAN"[0m
+2026-11-13T13:32:26.4479461Z [36;1m[0m
+2026-11-13T13:32:26.4479649Z [36;1mnode -e '[0m
+2026-11-13T13:32:26.4479911Z [36;1m  const plan = JSON.parse(process.argv[1]);[0m
+2026-11-13T13:32:26.4480277Z [36;1m  const shards = plan.shardSpecs.length || 1;[0m
+2026-11-13T13:32:26.4480799Z [36;1m  console.log([[0m
+2026-11-13T13:32:26.4481053Z [36;1m    `mode=${plan.mode}`,[0m
+2026-11-13T13:32:26.4481345Z [36;1m    `specs=${plan.specs.join(" ")}`,[0m
+2026-11-13T13:32:26.4481662Z [36;1m    `catalog=${plan.catalog}`,[0m
+2026-11-13T13:32:26.4482010Z [36;1m    `shardspecs=${JSON.stringify(plan.shardSpecs)}`,[0m
+2026-11-13T13:32:26.4482436Z [36;1m    `quarantined=${JSON.stringify(plan.quarantined ?? [])}`,[0m
+2026-11-13T13:32:26.4482913Z [36;1m    `configuredmanifest=${JSON.stringify(plan.configured ?? null)}`,[0m
+2026-11-13T13:32:26.4483568Z [36;1m    `matrix=${JSON.stringify({ shardIndex: Array.from({ length: shards }, (_, i) => i + 1), shardTotal: [shards] })}`,[0m
+2026-11-13T13:32:26.4484102Z [36;1m  ].join("\n"));[0m
+2026-11-13T13:32:26.4484351Z [36;1m' "$PLAN" >> "$GITHUB_OUTPUT"[0m
+2026-11-13T13:32:26.4542625Z shell: /usr/bin/bash -e {0}
+2026-11-13T13:32:26.4542893Z env:
+2026-11-13T13:32:26.4543102Z   EVENT: pull_request
+2026-11-13T13:32:26.4543342Z   REF: refs/pull/2496/merge
+2026-11-13T13:32:26.4543627Z   PR_BASE: b2e91ba4a5df23c1cec4a95ea213c9d070b5c7f5
+2026-11-13T13:32:26.4543948Z   DISPATCH_BASE: 
+2026-11-13T13:32:26.4544170Z   MERGE_GROUP_BASE: 
+2026-11-13T13:32:26.4544384Z   PUSH_BASE: 
+2026-11-13T13:32:26.4546954Z   GH_TOKEN: ***
+2026-11-13T13:32:26.4547184Z ##[endgroup]
+2026-11-13T13:32:26.5850437Z [measured] 252 e2e spec files on disk
+2026-11-13T13:32:27.9770790Z e2e-affected: 1 spec file(s) have no measured duration and were packed at the median - shard balance is a guess for them. Refresh with `npm run record:e2e-durations`.
+2026-11-13T13:32:27.9772833Z   editor-projects.spec.ts
+2026-11-13T13:32:27.9969698Z plan: {"mode":"subset","specs":["account-library.spec.ts","agent-access.spec.ts","agent-made-graphics.spec.ts","analytics.spec.ts","auth.spec.ts","bridge-connect.spec.ts","bridge-ograf.spec.ts","control.spec.ts","cross-tab.spec.ts","data-api.spec.ts","design-rules-product.spec.ts","docs.spec.ts","editor-cli-round-trip.spec.ts","editor-projects.spec.ts","exports.spec.ts","feedback.spec.ts","flows.spec.ts","format.spec.ts","graphic-sound-controls.spec.ts","graphic-sound.spec.ts","hosted-control.spec.ts","import-name-collision.spec.ts","import-svg-corpus.spec.ts","landing.spec.ts","layout.spec.ts","library-bulk.spec.ts","library-productions.spec.ts","library.spec.ts","live-actions-first.spec.ts","local-relay.spec.ts","motion-presets.spec.ts","network-resilience.spec.ts","no-old-editor.spec.ts","offline.spec.ts","ograf-conformance.spec.ts","ograf-lifecycle.spec.ts","ograf-starters.spec.ts","output-font-hold.spec.ts","overlay-layers.spec.ts","package.spec.ts","playout-baseline.spec.ts","playout-clock.spec.ts","playout-cues.spec.ts","playout-drills.spec.ts","playout-feedback-health.spec.ts","playout-fixed-panes.spec.ts","playout-folders.spec.ts","playout-rail-width.spec.ts","playout-rundown-feedback.spec.ts","playout-sequence.spec.ts","production-audience.spec.ts","production-chat-intake.spec.ts","production-controls.spec.ts","production-data.spec.ts","production-gate.spec.ts","production-pack.spec.ts","production-persistence.spec.ts","production-sounds.spec.ts","productions.spec.ts","project-format.spec.ts","project.spec.ts","quiz-live-consistency.spec.ts","quiz-pilot.spec.ts","quiz-show.spec.ts","route-transition-flash.spec.ts","shows.spec.ts","snap-recovery.spec.ts","spx-operator.spec.ts","storage-full.spec.ts","student-rehearsal.spec.ts","sync.spec.ts","template-deep-link.spec.ts","wizard-brand.spec.ts","wizard-entry-fit.spec.ts","wizard-filters.spec.ts","wizard-finish.spec.ts","wizard-kit.spec.ts","wizard-logo.spec.ts","wizard-preview.spec.ts","wizard-shell.spec.ts"],"catalog":true,"shards":15,"shardSpecs":[["production-data.spec.ts"],["cross-tab.spec.ts","hosted-control.spec.ts","production-audience.spec.ts","production-persistence.spec.ts","snap-recovery.spec.ts","wizard-logo.spec.ts"],["control.spec.ts","editor-cli-round-trip.spec.ts","graphic-sound.spec.ts","import-name-collision.spec.ts","playout-cues.spec.ts","quiz-pilot.spec.ts"],["bridge-connect.spec.ts","design-rules-product.spec.ts","docs.spec.ts","ograf-starters.spec.ts","storage-full.spec.ts"],["account-library.spec.ts","analytics.spec.ts","graphic-sound-controls.spec.ts","library-bulk.spec.ts","playout-folders.spec.ts"],["ograf-lifecycle.spec.ts","playout-clock.spec.ts","playout-sequence.spec.ts","production-gate.spec.ts","production-pack.spec.ts","project.spec.ts"],["auth.spec.ts","offline.spec.ts","playout-baseline.spec.ts","production-chat-intake.spec.ts","project-format.spec.ts","wizard-kit.spec.ts"],["bridge-ograf.spec.ts","feedback.spec.ts","landing.spec.ts","motion-presets.spec.ts","quiz-live-consistency.spec.ts","quiz-show.spec.ts","spx-operator.spec.ts"],["flows.spec.ts","format.spec.ts","import-svg-corpus.spec.ts","student-rehearsal.spec.ts"],["exports.spec.ts","library.spec.ts","network-resilience.spec.ts","ograf-conformance.spec.ts","overlay-layers.spec.ts","wizard-brand.spec.ts"],["agent-access.spec.ts","production-controls.spec.ts"],["library-productions.spec.ts","playout-feedback-health.spec.ts","production-sounds.spec.ts","sync.spec.ts","template-deep-link.spec.ts","wizard-filters.spec.ts","wizard-preview.spec.ts"],["agent-made-graphics.spec.ts","editor-projects.spec.ts","playout-drills.spec.ts","playout-rundown-feedback.spec.ts","shows.spec.ts","wizard-finish.spec.ts"],["data-api.spec.ts","local-relay.spec.ts","no-old-editor.spec.ts","output-font-hold.spec.ts","route-transition-flash.spec.ts","wizard-entry-fit.spec.ts","wizard-shell.spec.ts"],["layout.spec.ts","live-actions-first.spec.ts","package.spec.ts","playout-fixed-panes.spec.ts","playout-rail-width.spec.ts","productions.spec.ts"]],"predicted":[6.6,4.7,4.7,4.7,4.7,4.7,4.7,4.7,4.7,4.7,4.7,4.7,4.7,4.7,4.7],"overCap":0,"unmeasured":["editor-projects.spec.ts"],"quarantined":[],"base":"b2e91ba4a5df23c1cec4a95ea213c9d070b5c7f5","changed":74,"traced":{"added":[],"problem":null,"escalated":[],"broad":[]},"critical":{"product":true,"added":[],"addedMinutes":0,"planMinutes":65.06,"shardsWithout":15},"configured":{"mode":"all","specs":["account.spec.ts","agent-access.spec.ts","all-out-from-heads.spec.ts","analytics.spec.ts","anonymous.spec.ts","audience-live.spec.ts","bridge-real-server.spec.ts","community-authed.spec.ts","community-pack-review.spec.ts","connector-grants.spec.ts","connector-oauth.spec.ts","connector-send.spec.ts","connector-tools.spec.ts","control-link-guard.spec.ts","deep-link-boot.spec.ts","election-selection.spec.ts","external-data-connector.spec.ts","feed-route.spec.ts","feedback.spec.ts","follow-status-is-visible.spec.ts","homebase.spec.ts","imported-quiz-output.spec.ts","late-commit-notice.spec.ts","late-send-abandoned.spec.ts","library-arrival.spec.ts","live-health.spec.ts","live-prepare.spec.ts","live-presence-steady.spec.ts","live-ready.spec.ts","ograf-rundown.spec.ts","ograf-typed-data.spec.ts","operator-outage-not-unpublished.spec.ts","output-cold-boot.spec.ts","output-realtime-floor.spec.ts","output-url-cannot-push.spec.ts","panel-graphic-actions.spec.ts","panel-lease.spec.ts","panel-page.spec.ts","panel-production-page.spec.ts","panel-relay.spec.ts","per-graphic-replacement.spec.ts","playout-adjust-race.spec.ts","playout-both-roads.spec.ts","playout-resolve-race.spec.ts","playout-status.spec.ts","playout-switch-mid-flight.spec.ts","pro-wizard.spec.ts","production-data-key-dispatch.spec.ts","production-data-key-sheet.spec.ts","production-data-key-tick.spec.ts","production-data-key.spec.ts","production-links.spec.ts","publish-guard.spec.ts","publish-output-default.spec.ts","quiz-output.spec.ts","relay-cold-boot.spec.ts","rundown-timing-recovery.spec.ts","scorebug-output.spec.ts","shared-lab-computer.spec.ts","signed-in-ux.spec.ts","svg-import-journey.spec.ts","sync-one-pass-per-edit.spec.ts","take-behind-out.spec.ts","teams.spec.ts"],"quarantined":["e2e/configured/command-sequence.spec.ts"],"reasons":{"whole":["package.json"],"files":{}}}}
+2026-11-13T13:32:28.1032417Z ##[warning]e2e/configured/command-sequence.spec.ts is quarantined (affected incident, repair due 2026-11-26): this change selects it and this run does not block on it.
+2026-11-13T13:32:28.1320491Z ##[warning]1 spec file(s) have no measured duration and were packed at the median: editor-projects.spec.ts. Refresh with: npm run record:e2e-durations
+2026-11-13T13:32:28.1325044Z ##[notice]product change: all critical specs already planned or quarantined, nothing added
+2026-11-13T13:32:28.1668587Z ##[group]Run set -euo pipefail
+2026-11-13T13:32:28.1668959Z [36;1mset -euo pipefail[0m
+2026-11-13T13:32:28.1669294Z [36;1m# Nothing to run: the flag is 'false', said with its reason.[0m
+2026-11-13T13:32:28.1669652Z [36;1moff() {[0m
+2026-11-13T13:32:28.1669934Z [36;1m  echo "::notice title=Configured selection::$1"[0m
+2026-11-13T13:32:28.1670504Z [36;1m  printf 'flag=false\nspecs=\nshardspecs=[]\nmatrix={"shardIndex":[1],"shardTotal":[1]}\n' >> "$GITHUB_OUTPUT"[0m
+2026-11-13T13:32:28.1671283Z [36;1m  exit 0[0m
+2026-11-13T13:32:28.1671487Z [36;1m}[0m
+2026-11-13T13:32:28.1671681Z [36;1mexempt=""[0m
+2026-11-13T13:32:28.1671897Z [36;1mcase "$EVENT" in[0m
+2026-11-13T13:32:28.1672455Z [36;1m  merge_group) exempt="merge group: the combined tree's backend is checked per landing by configured-suite.yml, not before merge" ;;[0m
+2026-11-13T13:32:28.1673274Z [36;1m  push) exempt="push to main: configured-suite.yml runs the full configured suite on this commit" ;;[0m
+2026-11-13T13:32:28.1674114Z [36;1m  workflow_dispatch) [ "$REF" = "refs/heads/main" ] && exempt="dispatch on main: configured-suite.yml owns main's configured verdict" ;;[0m
+2026-11-13T13:32:28.1674719Z [36;1m  pull_request) ;;[0m
+2026-11-13T13:32:28.1675234Z [36;1m  *) exempt="event ${EVENT} runs no configured selection" ;;[0m
+2026-11-13T13:32:28.1675579Z [36;1mesac[0m
+2026-11-13T13:32:28.1675789Z [36;1mif [ -n "$exempt" ]; then[0m
+2026-11-13T13:32:28.1676218Z [36;1m  printf '### Configured selection\n\nExempt: %s.\n' "$exempt" >> "$GITHUB_STEP_SUMMARY"[0m
+2026-11-13T13:32:28.1676672Z [36;1m  off "Exempt - ${exempt}."[0m
+2026-11-13T13:32:28.1676928Z [36;1mfi[0m
+2026-11-13T13:32:28.1677188Z [36;1mif [ -z "$MANIFEST" ] || [ "$MANIFEST" = "null" ]; then[0m
+2026-11-13T13:32:28.1678025Z [36;1m  echo "::error title=Configured selection::The plan carried no configured manifest, so this change's configured selection is unknown. Refusing rather than reading that as nothing selected."[0m
+2026-11-13T13:32:28.1678802Z [36;1m  exit 1[0m
+2026-11-13T13:32:28.1679002Z [36;1mfi[0m
+2026-11-13T13:32:28.1679220Z [36;1mMODE="$(jq -r '.mode' <<<"$MANIFEST")"[0m
+2026-11-13T13:32:28.1679535Z [36;1mSPECS="$(jq -c '.specs' <<<"$MANIFEST")"[0m
+2026-11-13T13:32:28.1679821Z [36;1m{[0m
+2026-11-13T13:32:28.1680043Z [36;1m  echo '### Configured selection'[0m
+2026-11-13T13:32:28.1680312Z [36;1m  echo[0m
+2026-11-13T13:32:28.1680685Z [36;1m  jq -r '"Mode: \(.mode), \(.specs | length) spec(s).",[0m
+2026-11-13T13:32:28.1681233Z [36;1m    (if .reasons.whole | length > 0 then "Whole set, for: \(.reasons.whole | join(", "))." else empty end),[0m
+2026-11-13T13:32:28.1681835Z [36;1m    (.reasons.files | to_entries[] | "- `\(.key)` selects \(.value | join(", "))"),[0m
+2026-11-13T13:32:28.1682493Z [36;1m    (if .quarantined | length > 0 then "Quarantined (run per landing): \(.quarantined | join(", "))." else empty end),[0m
+2026-11-13T13:32:28.1683192Z [36;1m    "", (.specs[] | "- e2e/configured/\(.)")' <<<"$MANIFEST"[0m
+2026-11-13T13:32:28.1683632Z [36;1m} >> "$GITHUB_STEP_SUMMARY"[0m
+2026-11-13T13:32:28.1683893Z [36;1mcase "$MODE" in[0m
+2026-11-13T13:32:28.1684455Z [36;1m  none) off "Untriggered - this change selects no configured spec ($(jq -r '.quarantined | length' <<<"$MANIFEST") quarantined left out)." ;;[0m
+2026-11-13T13:32:28.1685059Z [36;1m  subset|all) ;;[0m
+2026-11-13T13:32:28.1685465Z [36;1m  *) echo "::error title=Configured selection::Unknown manifest mode '${MODE}'."; exit 1 ;;[0m
+2026-11-13T13:32:28.1685908Z [36;1mesac[0m
+2026-11-13T13:32:28.1686282Z [36;1m# Shard weights from the newest main report that has one, best effort: without it every[0m
+2026-11-13T13:32:28.1686782Z [36;1m# file weighs the same and the split is by count.[0m
+2026-11-13T13:32:28.1687107Z [36;1mREPORTS=""[0m
+2026-11-13T13:32:28.1687493Z [36;1m# As configured-suite.yml reads them: up to three of main's completed runs (a red run's[0m
+2026-11-13T13:32:28.1688280Z [36;1m# report still weighs the files it finished), each download bounded so a slow artifact[0m
+2026-11-13T13:32:28.1688771Z [36;1m# service cannot spend the plan job's budget.[0m
+2026-11-13T13:32:28.1689349Z [36;1mfor id in $(timeout 30 gh run list --workflow configured-suite.yml --branch main --status completed --limit 3 \[0m
+2026-11-13T13:32:28.1689995Z [36;1m  --json databaseId --jq '.[].databaseId' 2>/dev/null || true); do[0m
+2026-11-13T13:32:28.1690700Z [36;1m  if timeout 45 gh run download "$id" --name configured-report --dir "previous/$id" >/dev/null 2>&1 \[0m
+2026-11-13T13:32:28.1691262Z [36;1m    && [ -f "previous/$id/configured-report.json" ]; then[0m
+2026-11-13T13:32:28.1691693Z [36;1m    REPORTS="$REPORTS previous/$id/configured-report.json"[0m
+2026-11-13T13:32:28.1692028Z [36;1m  fi[0m
+2026-11-13T13:32:28.1692219Z [36;1mdone[0m
+2026-11-13T13:32:28.1692552Z [36;1mSHARDS="$(node scripts/configured-shards.mjs --specs "$SPECS" $REPORTS)"[0m
+2026-11-13T13:32:28.1693392Z [36;1mecho "::notice title=Configured selection::${MODE}: $(jq -r '.specs | length' <<<"$MANIFEST") configured spec(s) on $(jq -r '.shardSpecs | length' <<<"$SHARDS") local stack(s)."[0m
+2026-11-13T13:32:28.1694076Z [36;1m{[0m
+2026-11-13T13:32:28.1694272Z [36;1m  echo "flag=true"[0m
+2026-11-13T13:32:28.1694725Z [36;1m  echo "specs=$(jq -r '.specs | join(" ")' <<<"$MANIFEST")"[0m
+2026-11-13T13:32:28.1695130Z [36;1m  echo "shardspecs=$(jq -c '.shardSpecs' <<<"$SHARDS")"[0m
+2026-11-13T13:32:28.1695499Z [36;1m  echo "matrix=$(jq -c '.matrix' <<<"$SHARDS")"[0m
+2026-11-13T13:32:28.1695810Z [36;1m} >> "$GITHUB_OUTPUT"[0m
+2026-11-13T13:32:28.1744929Z shell: /usr/bin/bash -e {0}
+2026-11-13T13:32:28.1745180Z env:
+2026-11-13T13:32:28.1745378Z   EVENT: pull_request
+2026-11-13T13:32:28.1745608Z   REF: refs/pull/2496/merge
+2026-11-13T13:32:28.1752396Z   MANIFEST: {"mode":"all","specs":["account.spec.ts","agent-access.spec.ts","all-out-from-heads.spec.ts","analytics.spec.ts","anonymous.spec.ts","audience-live.spec.ts","bridge-real-server.spec.ts","community-authed.spec.ts","community-pack-review.spec.ts","connector-grants.spec.ts","connector-oauth.spec.ts","connector-send.spec.ts","connector-tools.spec.ts","control-link-guard.spec.ts","deep-link-boot.spec.ts","election-selection.spec.ts","external-data-connector.spec.ts","feed-route.spec.ts","feedback.spec.ts","follow-status-is-visible.spec.ts","homebase.spec.ts","imported-quiz-output.spec.ts","late-commit-notice.spec.ts","late-send-abandoned.spec.ts","library-arrival.spec.ts","live-health.spec.ts","live-prepare.spec.ts","live-presence-steady.spec.ts","live-ready.spec.ts","ograf-rundown.spec.ts","ograf-typed-data.spec.ts","operator-outage-not-unpublished.spec.ts","output-cold-boot.spec.ts","output-realtime-floor.spec.ts","output-url-cannot-push.spec.ts","panel-graphic-actions.spec.ts","panel-lease.spec.ts","panel-page.spec.ts","panel-production-page.spec.ts","panel-relay.spec.ts","per-graphic-replacement.spec.ts","playout-adjust-race.spec.ts","playout-both-roads.spec.ts","playout-resolve-race.spec.ts","playout-status.spec.ts","playout-switch-mid-flight.spec.ts","pro-wizard.spec.ts","production-data-key-dispatch.spec.ts","production-data-key-sheet.spec.ts","production-data-key-tick.spec.ts","production-data-key.spec.ts","production-links.spec.ts","publish-guard.spec.ts","publish-output-default.spec.ts","quiz-output.spec.ts","relay-cold-boot.spec.ts","rundown-timing-recovery.spec.ts","scorebug-output.spec.ts","shared-lab-computer.spec.ts","signed-in-ux.spec.ts","svg-import-journey.spec.ts","sync-one-pass-per-edit.spec.ts","take-behind-out.spec.ts","teams.spec.ts"],"quarantined":["e2e/configured/command-sequence.spec.ts"],"reasons":{"whole":["package.json"],"files":{}}}
+2026-11-13T13:32:28.1765639Z   GH_TOKEN: ***
+2026-11-13T13:32:28.1765869Z ##[endgroup]
+2026-11-13T13:32:32.3180887Z configured-shards: 4 shards, predicted 10.8, 10.8, 10.7, 10.7 test-minutes; weights from 3 earlier report(s) for 64 files, the median for 0.
+2026-11-13T13:32:32.3347414Z ##[notice]all: 64 configured spec(s) on 4 local stack(s).
+2026-11-13T13:32:32.3491380Z ##[group]Run node scripts/growth-report.mjs fetch --out "$RUNNER_TEMP/growth-report.json" || true
+2026-11-13T13:32:32.3492106Z [36;1mnode scripts/growth-report.mjs fetch --out "$RUNNER_TEMP/growth-report.json" || true[0m
+2026-11-13T13:32:32.3541601Z shell: /usr/bin/bash -e {0}
+2026-11-13T13:32:32.3541858Z env:
+2026-11-13T13:32:32.3544372Z   GH_TOKEN: ***
+2026-11-13T13:32:32.3544606Z   GH_REPO: NoaCG/NoaCG-Studio
+2026-11-13T13:32:32.3544859Z ##[endgroup]
+2026-11-13T13:32:36.2745932Z newest growth report: run 43201149088, partial (offline evidence partial: ci.yml|pull_request: 4 run(s) still unfinished (550 API call(s) of 550, 2697 completed run(s) in 30 strata, 165 sampled, 4 still running at the window end)); judged on run 43014542120
+2026-11-13T13:32:36.2750166Z ##[warning]the newest weekly growth report is partial; pull requests are judged against the newest complete report (run 43014542120) and the owner alarm is raised after landing
+2026-11-13T13:32:36.2857560Z ##[group]Run node scripts/e2e-capacity.mjs --changed "${BASE:-}" --growth "$RUNNER_TEMP/growth-report.json" --github-output --summary "$GITHUB_STEP_SUMMARY"
+2026-11-13T13:32:36.2858637Z [36;1mnode scripts/e2e-capacity.mjs --changed "${BASE:-}" --growth "$RUNNER_TEMP/growth-report.json" --github-output --summary "$GITHUB_STEP_SUMMARY"[0m
+2026-11-13T13:32:36.2906942Z shell: /usr/bin/bash -e {0}
+2026-11-13T13:32:36.2907189Z env:
+2026-11-13T13:32:36.2907427Z   BASE: b2e91ba4a5df23c1cec4a95ea213c9d070b5c7f5
+2026-11-13T13:32:36.2907722Z ##[endgroup]
+2026-11-13T13:32:36.4184694Z [measured] 252 e2e spec files on disk
+2026-11-13T13:32:36.4187413Z [measured] 247 measured spec durations
+2026-11-13T13:32:38.8819297Z ### E2E capacity (estimate): WARN
+2026-11-13T13:32:38.8819604Z 
+2026-11-13T13:32:38.8820087Z - Execution: 199.4 of 213.0 table-minutes, 93.6% of 13 runners x budget (warn 85%, exception needed 95%).
+2026-11-13T13:32:38.8821021Z - Runner minutes of this run: not read here.
+2026-11-13T13:32:38.8822403Z - Wall clock of this run so far: not read here (queue entry to landed is the weekly figure in docs/work-specs/e2e-suite-budget/).
+2026-11-13T13:32:38.8822897Z 
+2026-11-13T13:32:38.8823089Z No spec file added or edited by this change.
+2026-11-13T13:32:38.8823522Z #### Growth tiers (D7: each tier alone, no aggregate gate)
+2026-11-13T13:32:38.8823782Z 
+2026-11-13T13:32:38.8823900Z | Tier | Verdict | Detail |
+2026-11-13T13:32:38.8824169Z |---|---|---|
+2026-11-13T13:32:38.8824541Z | offline | WARN | 654.3/720 per landing, 191.5/215 per day (91%) |
+2026-11-13T13:32:38.8825447Z | backend | WARN | 219.9/235 per landing, 79.7/88 per day (94%), jev-svg-import-journey excepts 0/landing (claims 6.85, capped at what it covers) to 2026-12-03 |
+2026-11-13T13:32:38.8826447Z | graphics | WARN | 18.6/20 per landing, 90.3/115 per day (93%), ci04-catalog-gate excepts 17.7/landing to 2026-11-30 |
+2026-11-13T13:32:38.8827336Z | overhead | WARN | 91.8/105 per landing, 6.2/10 per day (87%), production-load-watch excepts 0/landing to 2026-12-03 |
+2026-11-13T13:32:38.8827774Z 
+2026-11-13T13:32:38.8828131Z - durations table recorded 2026-11-09, 4 days old (bound 8); pending, not accepted: #2316.
+2026-11-13T13:32:38.8829146Z - Newest weekly growth report (run 43201149088) is partial; tiers judged on the newest complete report, run 43014542120, week to 2026-11-11, at the normal line.
+2026-11-13T13:32:38.8829736Z 
+2026-11-13T13:32:38.8838697Z ##[warning]199.4 of 213.0 table-minutes (94%) on 13 runners; above the 85% line; backend growth stop carried by partial evidence, a warning only until a complete report confirms it: cost:backend since 2026-11-02, one correction due 2026-11-09 did not bring it back in bounds; offline tier: a newer partial report proves at least 433.3/landing 194.0/day, above the judged 654.3/191.5; shown, never refused on; backend tier: a newer partial report proves at least 267.3/landing 86.3/day, above the judged 219.9/79.7; shown, never refused on; graphics tier: a newer partial report proves at least 25.4/landing 90.8/day, above the judged 36.3/90.3; shown, never refused on; overhead tier: a newer partial report proves at least 119.6/landing 12.0/day, above the judged 91.8/11.4; shown, never refused on; the newest weekly growth report (run 43201149088) is partial: offline evidence partial: ci.yml|pull_request: 4 run(s) still unfinished (550 API call(s) of 550, 2697 completed run(s) in 30 strata, 165 sampled, 4 still running at the window end); judged on the newest complete report, run 43014542120 at the normal line, and the owner (miwco (primary); the weekly owner session (backup coverage)) is alarmed after landing
+2026-11-13T13:32:38.9078050Z Post job cleanup.
+2026-11-13T13:32:39.0331591Z (node:3447) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-13T13:32:39.0332562Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-13T13:32:39.0573214Z Post job cleanup.
+2026-11-13T13:32:39.1482329Z [command]/usr/bin/git version
+2026-11-13T13:32:39.1527348Z git version 2.56.1
+2026-11-13T13:32:39.1581560Z Temporarily overriding HOME='/home/runner/work/_temp/3cf57be4-7418-4fe3-8148-a498b6f7187d' before making global git config changes
+2026-11-13T13:32:39.1583524Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-13T13:32:39.1601872Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-13T13:32:39.1632543Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-13T13:32:39.1673985Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-13T13:32:39.2009121Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-13T13:32:39.2037675Z http.https://github.com/.extraheader
+2026-11-13T13:32:39.2050048Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-13T13:32:39.2091376Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-13T13:32:39.2434861Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-13T13:32:39.2475250Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-13T13:32:39.2900303Z Evaluate and set job outputs
+2026-11-13T13:32:39.2909006Z Set output 'mode'
+2026-11-13T13:32:39.2917343Z Set output 'specs'
+2026-11-13T13:32:39.2917943Z Set output 'catalog'
+2026-11-13T13:32:39.2918340Z Set output 'matrix'
+2026-11-13T13:32:39.2925445Z Set output 'shardSpecs'
+2026-11-13T13:32:39.2925768Z Set output 'quarantined'
+2026-11-13T13:32:39.2926085Z Set output 'guidedMod'
+2026-11-13T13:32:39.2926411Z Set output 'base'
+2026-11-13T13:32:39.2926705Z Set output 'capacity'
+2026-11-13T13:32:39.2930865Z Set output 'capacityReason'
+2026-11-13T13:32:39.2931196Z Set output 'capacityRepay'
+2026-11-13T13:32:39.2931521Z Set output 'configured'
+2026-11-13T13:32:39.2937900Z Set output 'configuredSpecs'
+2026-11-13T13:32:39.2944361Z Set output 'configuredShardSpecs'
+2026-11-13T13:32:39.2944749Z Set output 'configuredMatrix'
+2026-11-13T13:32:39.2945520Z Cleaning up orphan processes

@@ -1,0 +1,25 @@
+{
+  "run": 43434486680,
+  "head": "fdfa33e63e3c2cd3e9a5cc7c87454ca9692ae5b8",
+  "job": 131915960952,
+  "configured": {
+    "mode": "all",
+    "specCount": 64,
+    "quarantined": [
+      "e2e/configured/command-sequence.spec.ts"
+    ],
+    "reasons": {
+      "whole": [
+        "package.json"
+      ],
+      "files": {}
+    },
+    "stacks": 4
+  },
+  "offline": {
+    "mode": "subset",
+    "specCount": 80,
+    "shards": 15
+  },
+  "wholePlanLogSha256": "5d6bf5f7f175d6e3a0f8490714955dc78a769042736d5714574da9e1db3298ba"
+}

@@ -69,7 +69,7 @@
     {
       "phase": "E5C",
       "step": "Fresh Cloud builder active",
-      "note": "FULLAGREE/Aall74ccbee confirmedactualverbatim+Riskyaddendum; precodeRules-first6eaaeA retained. Notes-onlydirectchildfdfa awaitingfreshDelta; no product/helper/packagechanges. FinalpackagingPASSsourceb081, allfailures/limitsretained. PR/checkstamp/CI/Codex/queue/actualmergechecker stilldue."
+      "note": "PR2496attached,soleactivecoordinatorowner6854426227attempts0. Exactfinalfdfa/fullA+deltaA+RiskyRulesA+actualcheckstampPASS. CI43434486680inprogress: configuredall64/4stacks,offline80/15shards; Codexrunning6854419409. No stamp/autoqueueuntilactualgates. Allfailedattempts/limitsremain."
     }
   ],
   "owner": [
@@ -2519,7 +2519,7 @@
     },
     "acceptedAt": "2026-11-13T11:31:36.118029+00:00",
     "latestProgress": {
-      "observedAt": "2026-11-13T13:32:10.313263+00:00",
+      "observedAt": "2026-11-13T13:35:21.847414+00:00",
       "status": "Worker reported, root finalreadback pending",
       "j0128": "PRETEST_INFRAFAIL EROFS Vite shared node_modules/.vite-temp; retainedlog, no productexecution/attempt. Existingapprovedrequire_escalatedcommand reranoriginalsmallselection; no persistentpolicychange.",
       "j0129": "PASS1/1 importedSVG cumulative UI/semantic/reviewed deterministic source+historyparity and3browseroutputs,1.7min,zero modelcalls.",
@@ -2558,9 +2558,10 @@
           "rootReadback": "ActualnativeclassificationaddendumandbothverbatimFULL/addendumfiles readcompletely; bothhashesverified anddurablycopiedkit. All3E5CcriteriaMETboundedCloudscope; norequiredcorrection; nativeproductiontiming/causality/rawarchiveconsumerreadback/realusers/hosts/GSAP/approvalremainunverified."
         },
         "fdfa33e63e3c2cd3e9a5cc7c87454ca9692ae5b8": {
-          "status": "OUTSTANDING qualifiedDelta",
+          "status": "COMPLETED DELTA AGREE/A",
           "actor": "/root/editor_e5c_cloud_builder/e5c_final_notes_delta_so",
-          "scope": "DirectchildofFULLA,1notesfile22+/7- sourcepaths/Riskyclass/E4STOPwording, no product/helper/packagechange; actualdeltareadbyroot."
+          "scope": "DirectchildofFULLA,1notesfile22+/7- sourcepaths/Riskyclass/E4STOPwording, no product/helper/packagechange; actualdeltareadbyroot.",
+          "rootReadback": "ActualverbatimDeltareadfully: qualified1file/directchild/nocodepackagehelperchange/allcitedsourcepathsvalid/noeffectsoutsideclarifications."
         }
       },
       "correctEnvironmentDisposition": "Originalperformance runs were DEV/StrictMode. Keep raw andearlierinstrumentedMISSreport, but explicitlyUNQUALIFIEDforproductionlatency; no producttargetPASS/FAIL inferred. ExistingpureDOM/protocol/screencastconfounds andhighratepointerupINVALID remain. No E5Cacceptance/waiver.",
@@ -2673,7 +2674,65 @@
         "kitBytes": 7631623,
         "note": "Actual3starterPNGs+actualglyphPNG+rawfailedreceipt+scratchsources+losslesslygzippedraw2.1MBStarterresult nowinexistingGitbackedkit, originalownedfilesretained. Notaddedtoappdocs/tree-policyexceptions."
       },
-      "readOnlyCurrentSourceApplicability": "RootconfirmedsceneMembersfalseflagreturns[]; individualOutunchanged,graphicVerbsdeltaonlyAllout.keep,folderPlayoutdeltaonlystopAll.keep,poolIdentityonlysceneCopyOf. Unscenedofflinepayloadhasnone. ActualProgramStage/PayloadStage/PlayoutMonitors/outputstage/export/preview/installation unchangedsincej0138. DoesnotclaimnewfiniteOutexecution/OBSacceptance. Notesmodel/controlpathnitknown; leaveoutstandingFULLundisturbed,coherentnotesdeltaafterresult."
+      "readOnlyCurrentSourceApplicability": "RootconfirmedsceneMembersfalseflagreturns[]; individualOutunchanged,graphicVerbsdeltaonlyAllout.keep,folderPlayoutdeltaonlystopAll.keep,poolIdentityonlysceneCopyOf. Unscenedofflinepayloadhasnone. ActualProgramStage/PayloadStage/PlayoutMonitors/outputstage/export/preview/installation unchangedsincej0138. DoesnotclaimnewfiniteOutexecution/OBSacceptance. Notesmodel/controlpathnitknown; leaveoutstandingFULLundisturbed,coherentnotesdeltaafterresult.",
+      "publication": {
+        "pr": 2496,
+        "url": "https://github.com/NoaCG/NoaCG-Studio/pull/2496",
+        "head": "fdfa33e63e3c2cd3e9a5cc7c87454ca9692ae5b8",
+        "base": "b2e91ba4a5df23c1cec4a95ea213c9d070b5c7f5",
+        "class": "Risky",
+        "attachment": "Nativecodex_appattach_artifactSUCCESS",
+        "repairOwnerComment": 6854426227,
+        "repairOwner": "Soleactive/root6af455f4-b1c8-8191-86b2-8bfdfc619075; remainsthroughmerge/postlanding/independentacceptance; noqualifiedwake",
+        "repairAttempts": 0,
+        "localCheck": {
+          "verdict": "pass",
+          "at": "2026-11-13T13:31:33.145Z",
+          "files": 74,
+          "legs": {
+            "review": {
+              "mode": "inline",
+              "findings": 1,
+              "fixed": 1
+            },
+            "simplify": {
+              "mode": "inline",
+              "findings": 0,
+              "fixed": 0
+            },
+            "verify": {
+              "mode": "inline",
+              "findings": 0,
+              "fixed": 0
+            }
+          }
+        },
+        "ci": 43434486680,
+        "ciHeadIndependentlyVerified": true,
+        "ciStatus": "in_progress",
+        "codeqlDynamic": 43434481288,
+        "configured": {
+          "mode": "all",
+          "specs": 64,
+          "stacks": 4,
+          "wholeReason": "package.json",
+          "quarantined": [
+            "e2e/configured/command-sequence.spec.ts"
+          ],
+          "planJob": 131915960952,
+          "rootReadback": "Actual67KBcompleteplanretained; configuredmanifest+executedall64/4notice read, offline80specs/15shards, capacityWARN93.6%/noownspecchanges/noexception."
+        },
+        "codex": {
+          "summaryComment": 6854419409,
+          "status": "running",
+          "startedAt": "2026-11-13T13:32:16.853696Z",
+          "head": "fdfa33e63e3c2cd3e9a5cc7c87454ca9692ae5b8",
+          "trigger": "PRopened; noextrarequest"
+        },
+        "reviewedStatus": "Notstamped; awaitallactualgates",
+        "autoMerge": false,
+        "mergeable": true
+      }
     }
   }
 }
