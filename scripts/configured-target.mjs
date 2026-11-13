@@ -43,9 +43,11 @@
 //
 // ONE PLACE THE PROBE READS LESS THAN IT LOOKS. `e2e/configured/measure/measure.config.ts` with
 // MEASURE_BUILD=prod puts a switch in front of two servers, and the served-backend probe reads the
-// development one. A bundled build's backend was fixed when `vite build` ran, out of whatever
-// environment file was there then, so nothing at run time can read it back; what holds that half
-// is this process's own environment, which is judged first and by the same rule.
+// development one: the switch starts in `dev`, and only a spec flips it. A bundled build's backend
+// was fixed when `vite build` ran, out of whatever environment was there then, so nothing at run
+// time can read it back - and `measure.config.ts` checks only that MEASURE_DIST is set, not what
+// it was built against. By convention that is this process's environment, which IS judged, but a
+// dist built earlier against another one would be served by neither leg's rule.
 
 import { stagingRef } from './supabase-projects.mjs';
 
