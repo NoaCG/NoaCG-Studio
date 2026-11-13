@@ -335,8 +335,8 @@ minutes of cutting:
   old frame through Studio Mode preview. The default transition and the direct Cut are recorded
   for information, and D9's shared source covers graphics that change off air (amended after
   OS2, owner 2026-11-13).
-- The stinger's start, cut point and the source's "on program" event are logged ten times, for
-  information.
+- The stinger's start, cut point and the source's "on program" event logged ten times: moved to
+  AC-14 after OS2.
 - Sign-in to NoaCG inside a Custom Browser Dock works.
 - A load failure on the laptop is repeated on the show PC before any decision, because that PC is
   stronger.
@@ -1221,3 +1221,56 @@ Filled in by each phase's pull request.
   stated in the pull request. A headless page shows an entrance in the running GSAP tweens, not in
   the graphic's opacity: a frame probe on opacity alone passed for a file that entered.
 - Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS3.md`.
+
+
+### OS6: The Live dock
+
+- Rules (written before coding):
+  - K1. The dock is a layout of the production page, not a second page
+    (`components/run-every-show-production-page-operator`): `/app#/dock/<productionId>` mounts
+    the same `ProductionPage` with the same control session, presence, sources and panel answer,
+    and draws them in a 300 px column. It opens, signs in and refuses exactly as the production
+    page does (an account production signed out shows the sign-in prompt in place). `#/dock` with
+    no id lands on the productions list, as `#/production` does. `/app#/production/<id>` is
+    unchanged.
+  - K2. Companion: the dock is a production page to the panel lease (`where: production`,
+    labelled "Live dock"). It takes a free panel by itself (P1); with the panel answered elsewhere
+    it takes nothing, says who answers and offers Use here; Use here moves the panel to it, and the
+    page that had it then says "Live dock" answers. A reload of the dock keeps the lease (L4); a
+    network drop shorter than the lease keeps it, and a longer one lets it go, as for any
+    production page. The server's lease keeps exactly one page answering. Presses run through the
+    page's own dispatcher, as on the production page.
+  - K3. Which scenes it shows: the scenes whose link has an instance on program (OS3 M4), in
+    rundown order, labelled "Program". While none does (no OBS event yet, OBS hidden, or no link
+    loaded), the scene the operator picked, labelled "Picked"; the pick is the first scene until
+    changed, is kept for the dock's session only, and the picker is enabled only while no scene is
+    on program. A pick of a scene no longer flagged falls back to the first scene. With the switch
+    off, or no scene, the section is absent.
+  - K4. Each shown scene lists its graphic and picture cues (C1's reading, rundown order), each
+    with its on-air state, Take and Out. Take runs the press a Companion cue key makes
+    (`take-cue`) on a cue off air; Out runs that press on a cue on air (the cue taken off as a
+    step). Take is disabled while the cue is on air or its Take would be refused; Out while it is
+    off air. Nothing else airs: no scene-wide Take, no All out.
+  - K5. Its controls do not move when the program scene changes: the scene list is the dock's
+    last section, so only it changes length.
+  - K6. The scene health line, while the switch is on with scenes: the OS3 rows folded into one
+    line, toned as the worst row: "All n scenes ready" when every row is green, else
+    "k of n ready" and the first worst row's name and words. Its tooltip lists every row.
+  - K7. The break deadline: written to the data paths bound to a countdown's start-time field (a
+    field the design's clock reads as its start time, `clockTargetSeconds`). "In 2 min" and
+    "In 5 min" write now plus that time, to the whole second; "Set" writes the next time the
+    typed local HH:MM comes round (today if still ahead, else tomorrow). Each writes an ISO date
+    and time with this computer's offset (OS4 R7), so a repeated press writes a new absolute
+    value from now and never adds time. The write is the current match's road (`setLiveData`),
+    refused in words when published without the data key. It shows the value it holds as a local
+    time. Several paths: a select; none: one line saying no countdown start time is bound to
+    data.
+  - K8. Source freshness and the current match: each reader source's line as the data panel
+    draws it (`SourceLine`: status, checked and changed, stale, Pause or Resume, the bracket
+    source's current match picker), from the same store and the same pick road.
+  - K9. The dock mounts no monitors and no keyboard verbs. Companion's graphic actions are
+    offered with no machine state, so a key is not greyed by state and the graphic's own guard
+    decides, as on the production page before its PROGRAM monitor first answers. A note the page
+    writes (a refused Take) shows on the dock.
+  - K10. With the switch off nothing new shows on the production page. Playout settings' OBS
+    scenes section (switch on) gains the dock's link with Copy.
