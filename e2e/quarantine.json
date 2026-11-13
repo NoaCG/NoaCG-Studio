@@ -6,6 +6,11 @@
       "since": "2026-11-12",
       "count": 2,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43128537544/job/130892801524"
+    },
+    "e2e/editor-projects.spec.ts": {
+      "since": "2026-11-13",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43473841954"
     }
   },
   "released": {
