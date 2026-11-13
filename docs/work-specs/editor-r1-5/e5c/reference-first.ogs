@@ -1,0 +1,659 @@
+{
+  "documentVersion": 31,
+  "id": "project-27d10314-70fd-486a-a81a-d47936f93916",
+  "name": "Untitled Template",
+  "description": "",
+  "version": "0.1.0",
+  "author": {
+    "name": ""
+  },
+  "supportsRealTime": true,
+  "supportsNonRealTime": true,
+  "mainCompositionId": "comp-5b79f565-185e-426c-a66f-1bd80ace5fe4",
+  "compositions": [
+    {
+      "id": "comp-5b79f565-185e-426c-a66f-1bd80ace5fe4",
+      "name": "Main",
+      "width": 1920,
+      "height": 1080,
+      "backgroundColor": "#000000",
+      "frameRate": 25,
+      "updateTransitionFrames": 6,
+      "layout": {
+        "showRulers": true,
+        "showActionSafe": false,
+        "showTitleSafe": false,
+        "showCenterMarker": false,
+        "dimOutsideCanvas": true,
+        "presentationBackground": "none",
+        "presentationBackgroundImageSource": "",
+        "presentationBackgroundImageName": "",
+        "snappingEnabled": true,
+        "snapToGrid": false,
+        "snapToGuides": true,
+        "snapToLayers": true,
+        "gridSize": 10,
+        "snapThreshold": 6,
+        "boundsMode": "allow",
+        "overflowPreview": "visible",
+        "guides": [],
+        "timelineFolders": []
+      },
+      "layers": [
+        {
+          "id": "layer-62965ab3-ced8-45a2-9f78-82342f1e7c56",
+          "name": "Text",
+          "isVisible": true,
+          "isGuide": false,
+          "blendMode": "normal",
+          "isLocked": false,
+          "groupId": null,
+          "parentId": null,
+          "clipChildren": false,
+          "isMaskOnly": false,
+          "mask": null,
+          "constraints": {
+            "horizontal": "left",
+            "vertical": "top"
+          },
+          "keyframes": [
+            {
+              "id": "layer-keyframe-634f001a-5a67-4ae3-97d7-dd48b078d6c6",
+              "frame": 0,
+              "easing": "linear",
+              "transform": {
+                "x": 100,
+                "y": 100,
+                "width": 370,
+                "height": 58,
+                "rotation": 0,
+                "opacity": 1,
+                "transformOriginX": 0.5,
+                "transformOriginY": 0.5
+              }
+            },
+            {
+              "id": "layer-keyframe-c11fdb6a-f387-442e-98c7-02e218d7d42e",
+              "frame": 12,
+              "easing": "linear",
+              "transform": {
+                "x": 100,
+                "y": 100,
+                "width": 370,
+                "height": 58,
+                "rotation": 0,
+                "opacity": 1,
+                "transformOriginX": 0.5,
+                "transformOriginY": 0.5
+              }
+            },
+            {
+              "id": "layer-keyframe-c6a4eb43-c803-4ef3-a008-4f9ebf5d2a46",
+              "frame": 24,
+              "easing": "linear",
+              "transform": {
+                "x": 100,
+                "y": 100,
+                "width": 370,
+                "height": 58,
+                "rotation": 0,
+                "opacity": 1,
+                "transformOriginX": 0.5,
+                "transformOriginY": 0.5
+              }
+            }
+          ],
+          "animationTracks": {
+            "x": [
+              {
+                "id": "layer-keyframe-634f001a-5a67-4ae3-97d7-dd48b078d6c6:x",
+                "frame": 0,
+                "value": 100,
+                "easing": "linear"
+              },
+              {
+                "id": "layer-keyframe-c11fdb6a-f387-442e-98c7-02e218d7d42e:x",
+                "frame": 12,
+                "value": 100,
+                "easing": "linear"
+              },
+              {
+                "id": "layer-keyframe-c6a4eb43-c803-4ef3-a008-4f9ebf5d2a46:x",
+                "frame": 24,
+                "value": 100,
+                "easing": "linear"
+              }
+            ],
+            "y": [
+              {
+                "id": "layer-keyframe-634f001a-5a67-4ae3-97d7-dd48b078d6c6:y",
+                "frame": 0,
+                "value": 100,
+                "easing": "linear"
+              },
+              {
+                "id": "layer-keyframe-c11fdb6a-f387-442e-98c7-02e218d7d42e:y",
+                "frame": 12,
+                "value": 100,
+                "easing": "linear"
+              },
+              {
+                "id": "layer-keyframe-c6a4eb43-c803-4ef3-a008-4f9ebf5d2a46:y",
+                "frame": 24,
+                "value": 100,
+                "easing": "linear"
+              }
+            ],
+            "width": [
+              {
+                "id": "layer-keyframe-634f001a-5a67-4ae3-97d7-dd48b078d6c6:width",
+                "frame": 0,
+                "value": 370,
+                "easing": "linear"
+              },
+              {
+                "id": "layer-keyframe-c11fdb6a-f387-442e-98c7-02e218d7d42e:width",
+                "frame": 12,
+                "value": 370,
+                "easing": "linear"
+              },
+              {
+                "id": "layer-keyframe-c6a4eb43-c803-4ef3-a008-4f9ebf5d2a46:width",
+                "frame": 24,
+                "value": 370,
+                "easing": "linear"
+              }
+            ],
+            "height": [
+              {
+                "id": "layer-keyframe-634f001a-5a67-4ae3-97d7-dd48b078d6c6:height",
+                "frame": 0,
+                "value": 58,
+                "easing": "linear"
+              },
+              {
+                "id": "layer-keyframe-c11fdb6a-f387-442e-98c7-02e218d7d42e:height",
+                "frame": 12,
+                "value": 58,
+                "easing": "linear"
+              },
+              {
+                "id": "layer-keyframe-c6a4eb43-c803-4ef3-a008-4f9ebf5d2a46:height",
+                "frame": 24,
+                "value": 58,
+                "easing": "linear"
+              }
+            ],
+            "rotation": [
+              {
+                "id": "layer-keyframe-634f001a-5a67-4ae3-97d7-dd48b078d6c6:rotation",
+                "frame": 0,
+                "value": 0,
+                "easing": "linear"
+              },
+              {
+                "id": "layer-keyframe-c11fdb6a-f387-442e-98c7-02e218d7d42e:rotation",
+                "frame": 12,
+                "value": 0,
+                "easing": "linear"
+              },
+              {
+                "id": "layer-keyframe-c6a4eb43-c803-4ef3-a008-4f9ebf5d2a46:rotation",
+                "frame": 24,
+                "value": 0,
+                "easing": "linear"
+              }
+            ],
+            "opacity": [
+              {
+                "id": "layer-keyframe-634f001a-5a67-4ae3-97d7-dd48b078d6c6:opacity",
+                "frame": 0,
+                "value": 1,
+                "easing": "linear"
+              },
+              {
+                "id": "layer-keyframe-c11fdb6a-f387-442e-98c7-02e218d7d42e:opacity",
+                "frame": 12,
+                "value": 1,
+                "easing": "linear"
+              },
+              {
+                "id": "layer-keyframe-c6a4eb43-c803-4ef3-a008-4f9ebf5d2a46:opacity",
+                "frame": 24,
+                "value": 1,
+                "easing": "linear"
+              }
+            ],
+            "transformOriginX": [
+              {
+                "id": "layer-keyframe-634f001a-5a67-4ae3-97d7-dd48b078d6c6:transformOriginX",
+                "frame": 0,
+                "value": 0.5,
+                "easing": "linear"
+              },
+              {
+                "id": "layer-keyframe-c11fdb6a-f387-442e-98c7-02e218d7d42e:transformOriginX",
+                "frame": 12,
+                "value": 0.5,
+                "easing": "linear"
+              },
+              {
+                "id": "layer-keyframe-c6a4eb43-c803-4ef3-a008-4f9ebf5d2a46:transformOriginX",
+                "frame": 24,
+                "value": 0.5,
+                "easing": "linear"
+              }
+            ],
+            "transformOriginY": [
+              {
+                "id": "layer-keyframe-634f001a-5a67-4ae3-97d7-dd48b078d6c6:transformOriginY",
+                "frame": 0,
+                "value": 0.5,
+                "easing": "linear"
+              },
+              {
+                "id": "layer-keyframe-c11fdb6a-f387-442e-98c7-02e218d7d42e:transformOriginY",
+                "frame": 12,
+                "value": 0.5,
+                "easing": "linear"
+              },
+              {
+                "id": "layer-keyframe-c6a4eb43-c803-4ef3-a008-4f9ebf5d2a46:transformOriginY",
+                "frame": 24,
+                "value": 0.5,
+                "easing": "linear"
+              }
+            ],
+            "strokeWidth": [
+              {
+                "id": "layer-62965ab3-ced8-45a2-9f78-82342f1e7c56:strokeWidth:0",
+                "frame": 0,
+                "value": 0,
+                "easing": "linear"
+              }
+            ],
+            "blur": [
+              {
+                "id": "layer-62965ab3-ced8-45a2-9f78-82342f1e7c56:blur:0",
+                "frame": 0,
+                "value": 0,
+                "easing": "linear"
+              }
+            ],
+            "dropShadowOpacity": [
+              {
+                "id": "layer-62965ab3-ced8-45a2-9f78-82342f1e7c56:dropShadowOpacity:0",
+                "frame": 0,
+                "value": 0.65,
+                "easing": "linear"
+              }
+            ],
+            "dropShadowOffsetX": [
+              {
+                "id": "layer-62965ab3-ced8-45a2-9f78-82342f1e7c56:dropShadowOffsetX:0",
+                "frame": 0,
+                "value": 8,
+                "easing": "linear"
+              }
+            ],
+            "dropShadowOffsetY": [
+              {
+                "id": "layer-62965ab3-ced8-45a2-9f78-82342f1e7c56:dropShadowOffsetY:0",
+                "frame": 0,
+                "value": 8,
+                "easing": "linear"
+              }
+            ],
+            "dropShadowBlur": [
+              {
+                "id": "layer-62965ab3-ced8-45a2-9f78-82342f1e7c56:dropShadowBlur:0",
+                "frame": 0,
+                "value": 12,
+                "easing": "linear"
+              }
+            ]
+          },
+          "loop": null,
+          "element": {
+            "type": "text",
+            "content": "Morning report",
+            "color": "#FFFFFF",
+            "strokeColor": "transparent",
+            "strokeWidth": 0,
+            "fontFamily": "Arial, Helvetica, sans-serif",
+            "fontWeight": 500,
+            "textAlign": "left",
+            "lineHeight": 1.2,
+            "letterSpacing": 0,
+            "textTransform": "none",
+            "verticalAlign": "top",
+            "baselineShift": 0,
+            "minFontSize": 13,
+            "overflowPolicy": "visible",
+            "autoFit": "auto-size",
+            "fontSize": 26
+          },
+          "effects": {
+            "blur": 0,
+            "dropShadowEnabled": false,
+            "dropShadowColor": "#000000",
+            "dropShadowOpacity": 0.65,
+            "dropShadowOffsetX": 8,
+            "dropShadowOffsetY": 8,
+            "dropShadowBlur": 12
+          },
+          "semantics": {
+            "role": "none",
+            "description": "",
+            "tags": []
+          },
+          "designTokenBindings": [
+            {
+              "tokenId": "design-token-style-brand-font-family",
+              "targetProperty": "fontFamily"
+            },
+            {
+              "tokenId": "design-token-style-brand-type-label",
+              "targetProperty": "fontSize"
+            },
+            {
+              "tokenId": "design-token-style-brand-weight-body",
+              "targetProperty": "fontWeight"
+            },
+            {
+              "tokenId": "design-token-style-brand-color-text-primary",
+              "targetProperty": "color"
+            }
+          ],
+          "componentLink": null,
+          "bindings": []
+        }
+      ],
+      "dataFields": [],
+      "runtimeCollections": [],
+      "patterns": [],
+      "customActions": [],
+      "assets": [],
+      "designSystem": {
+        "name": "Harbour TV",
+        "tokens": [
+          {
+            "id": "design-token-style-brand-pack-id",
+            "key": "brand.pack.id",
+            "name": "Style pack",
+            "type": "text",
+            "value": "news",
+            "description": "Applied broadcast style-pack ID."
+          },
+          {
+            "id": "design-token-style-brand-color-background",
+            "key": "brand.color.background",
+            "name": "Background",
+            "type": "color",
+            "value": "#081A33",
+            "description": "Deep background."
+          },
+          {
+            "id": "design-token-style-brand-color-surface",
+            "key": "brand.color.surface",
+            "name": "Surface",
+            "type": "color",
+            "value": "#123A63",
+            "description": "Primary graphic surface."
+          },
+          {
+            "id": "design-token-style-brand-color-accent",
+            "key": "brand.color.accent",
+            "name": "Accent",
+            "type": "color",
+            "value": "#E11D2E",
+            "description": "Editorial accent colour."
+          },
+          {
+            "id": "design-token-style-brand-color-text-primary",
+            "key": "brand.color.text.primary",
+            "name": "Primary text",
+            "type": "color",
+            "value": "#FFFFFF",
+            "description": "Primary on-air text."
+          },
+          {
+            "id": "design-token-style-brand-color-text-secondary",
+            "key": "brand.color.text.secondary",
+            "name": "Secondary text",
+            "type": "color",
+            "value": "#C7D5EA",
+            "description": "Secondary on-air text."
+          },
+          {
+            "id": "design-token-style-brand-color-text-outline",
+            "key": "brand.color.text.outline",
+            "name": "Text outline",
+            "type": "color",
+            "value": "#020617",
+            "description": "Outline behind score/value glyphs."
+          },
+          {
+            "id": "design-token-style-brand-font-family",
+            "key": "brand.font.family",
+            "name": "Font family",
+            "type": "font-family",
+            "value": "Arial, Helvetica, sans-serif",
+            "description": "Portable font-family stack."
+          },
+          {
+            "id": "design-token-style-brand-type-display",
+            "key": "brand.type.display",
+            "name": "Display size",
+            "type": "number",
+            "value": 96,
+            "description": "Display type size at 1080 lines."
+          },
+          {
+            "id": "design-token-style-brand-type-headline",
+            "key": "brand.type.headline",
+            "name": "Headline size",
+            "type": "number",
+            "value": 64,
+            "description": "Headline type size at 1080 lines."
+          },
+          {
+            "id": "design-token-style-brand-type-subheadline",
+            "key": "brand.type.subheadline",
+            "name": "Subheadline size",
+            "type": "number",
+            "value": 38,
+            "description": "Subheadline type size at 1080 lines."
+          },
+          {
+            "id": "design-token-style-brand-type-label",
+            "key": "brand.type.label",
+            "name": "Label size",
+            "type": "number",
+            "value": 26,
+            "description": "Label type size at 1080 lines."
+          },
+          {
+            "id": "design-token-style-brand-type-value",
+            "key": "brand.type.value",
+            "name": "Value size",
+            "type": "number",
+            "value": 72,
+            "description": "Score/value type size at 1080 lines."
+          },
+          {
+            "id": "design-token-style-brand-weight-display",
+            "key": "brand.weight.display",
+            "name": "Display weight",
+            "type": "font-weight",
+            "value": 800,
+            "description": "Display/value font weight."
+          },
+          {
+            "id": "design-token-style-brand-weight-headline",
+            "key": "brand.weight.headline",
+            "name": "Headline weight",
+            "type": "font-weight",
+            "value": 700,
+            "description": "Headline font weight."
+          },
+          {
+            "id": "design-token-style-brand-weight-body",
+            "key": "brand.weight.body",
+            "name": "Body weight",
+            "type": "font-weight",
+            "value": 500,
+            "description": "Secondary/label font weight."
+          },
+          {
+            "id": "design-token-style-brand-shape-radius",
+            "key": "brand.shape.radius",
+            "name": "Corner radius",
+            "type": "number",
+            "value": 10,
+            "description": "Panel radius at 1080 lines."
+          },
+          {
+            "id": "design-token-style-brand-text-strokeWidth",
+            "key": "brand.text.strokeWidth",
+            "name": "Text stroke width",
+            "type": "number",
+            "value": 3,
+            "description": "Score/value outline width at 1080 lines."
+          },
+          {
+            "id": "design-token-style-motion-entrance-frames",
+            "key": "motion.entrance.frames",
+            "name": "Entrance frames",
+            "type": "number",
+            "value": 10,
+            "description": "Recommended entrance duration."
+          },
+          {
+            "id": "design-token-style-motion-exit-frames",
+            "key": "motion.exit.frames",
+            "name": "Exit frames",
+            "type": "number",
+            "value": 8,
+            "description": "Recommended exit duration."
+          },
+          {
+            "id": "design-token-style-motion-update-frames",
+            "key": "motion.update.frames",
+            "name": "Update frames",
+            "type": "number",
+            "value": 6,
+            "description": "Recommended data-update crossfade."
+          },
+          {
+            "id": "design-token-style-motion-stagger-frames",
+            "key": "motion.stagger.frames",
+            "name": "Stagger frames",
+            "type": "number",
+            "value": 2,
+            "description": "Recommended layer stagger."
+          },
+          {
+            "id": "design-token-style-motion-entrance-easing",
+            "key": "motion.entrance.easing",
+            "name": "Entrance easing",
+            "type": "text",
+            "value": "cubic-out",
+            "description": "Recommended incoming easing."
+          },
+          {
+            "id": "design-token-style-motion-exit-easing",
+            "key": "motion.exit.easing",
+            "name": "Exit easing",
+            "type": "text",
+            "value": "cubic-in",
+            "description": "Recommended outgoing easing."
+          }
+        ],
+        "stylePackRestore": {
+          "name": "Brand Kit",
+          "updateTransitionFrames": 0,
+          "tokens": [],
+          "layers": [
+            {
+              "layerId": "layer-62965ab3-ced8-45a2-9f78-82342f1e7c56",
+              "elementType": "text",
+              "properties": [
+                {
+                  "property": "color",
+                  "value": "#ffffff",
+                  "bindings": []
+                },
+                {
+                  "property": "fontFamily",
+                  "value": "system-ui, sans-serif",
+                  "bindings": []
+                },
+                {
+                  "property": "fontSize",
+                  "value": 48,
+                  "minFontSize": 24,
+                  "bindings": []
+                },
+                {
+                  "property": "fontWeight",
+                  "value": 600,
+                  "bindings": []
+                }
+              ],
+              "bindingOrder": []
+            }
+          ],
+          "fields": []
+        },
+        "stylePackColors": [
+          {
+            "factor": 1,
+            "alpha": 1,
+            "targets": [
+              {
+                "layerId": "layer-62965ab3-ced8-45a2-9f78-82342f1e7c56",
+                "property": "color"
+              }
+            ],
+            "sourceTokenId": "design-token-style-brand-color-text-primary"
+          }
+        ]
+      },
+      "components": [],
+      "keyframes": [
+        {
+          "id": "keyframe-0291a66d-64b0-4a98-8c70-5cba0b3b2193",
+          "name": "Start",
+          "role": "start"
+        },
+        {
+          "id": "keyframe-09b814a3-bbc8-4ec7-a380-a803c423c12e",
+          "name": "Step 1",
+          "role": "step"
+        },
+        {
+          "id": "keyframe-29db2956-f3b5-4fa6-8ce0-4dd4602540a1",
+          "name": "End",
+          "role": "end"
+        }
+      ],
+      "transitions": [
+        {
+          "id": "transition-9aba9b7f-bf80-4ace-9a70-808c63b11143",
+          "fromKeyframeId": "keyframe-0291a66d-64b0-4a98-8c70-5cba0b3b2193",
+          "toKeyframeId": "keyframe-09b814a3-bbc8-4ec7-a380-a803c423c12e",
+          "durationFrames": 12,
+          "easing": "linear"
+        },
+        {
+          "id": "transition-315972ff-1c9a-480b-b64c-f8673799d0a3",
+          "fromKeyframeId": "keyframe-09b814a3-bbc8-4ec7-a380-a803c423c12e",
+          "toKeyframeId": "keyframe-29db2956-f3b5-4fa6-8ce0-4dd4602540a1",
+          "durationFrames": 12,
+          "easing": "linear"
+        }
+      ]
+    }
+  ]
+}
