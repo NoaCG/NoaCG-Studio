@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "vite",
     "dev:worktree": "node scripts/dev-worktree.mjs",
+    "qualify:editor-native-kit": "node docs/work-specs/editor-r1-5/e5c/package-native-candidate.mjs",
     "qualify:editor-projects": "node scripts/editor-projects-qualification.mjs",
     "endurance:election": "node scripts/endurance-election.mjs",
     "endurance:replay-smoke": "node scripts/replay-smoke.mjs",

@@ -1,0 +1,10 @@
+{
+  "at": "2026-11-13T11:48:49.141Z",
+  "tasks": [
+    "Authored nested SVG import completes; saved native graph and painted result retained; inspect before equivalence claim"
+  ],
+  "errors": [],
+  "historyPauseMs": 550,
+  "historyPauseReason": "Reference combines edits within its documented 500ms history burst; deliberate action separation, never comparison timing or NoaCG wait/repair",
+  "result": "PASS"
+}

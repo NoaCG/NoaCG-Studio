@@ -1,0 +1,11 @@
+=== j-0139 node e5c.local/starter-merged.tmp.mjs
+=== cwd /workspace/noacg-editor-r1-5-e5c-build
+file:///workspace/noacg-editor-r1-5-e5c-build/e5c.local/common-merged.tmp.mjs:13
+ for(let i=0;i<100;i++){if(server.exitCode!==null)throw Error('Owned offline server exited '+server.exitCode);try{if((await fetch(base+'/app')).ok)return async()=>{try{process.kill(-server.pid,'SIGTERM');}catch{}await log.close();};}catch{}await new Promise(r=>setTimeout(r,100));}
+                                                        ^
+
+Error: Owned offline server exited 1
+    at start (file:///workspace/noacg-editor-r1-5-e5c-build/e5c.local/common-merged.tmp.mjs:13:57)
+    at async file:///workspace/noacg-editor-r1-5-e5c-build/e5c.local/starter-merged.tmp.mjs:5:315
+
+Node.js v24.19.0

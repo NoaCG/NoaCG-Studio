@@ -1,0 +1,25 @@
+=== j-0138 npm run test:e2e -- e2e/editor-projects.spec.ts e2e/editor-out-step.spec.ts --grep 'saved project reaches operator|independent property loop|SVG loops keep|same loop in the simulator|timed browser overlay holds' --output=e5c.local/receiving-loop-results
+=== cwd <owned-worktree>
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/editor-projects.spec.ts e2e/editor-out-step.spec.ts --grep saved project reaches operator|independent property loop|SVG loops keep|same loop in the simulator|timed browser overlay holds --output=e5c.local/receiving-loop-results
+
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 13544 MB free (machine totals stand in for cgroup limits it could not read)
+[WebServer] (node:168427) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:168440) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 5 tests using 2 workers
+
+(node:168534) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:168535) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 [chromium] › e2e/editor-out-step.spec.ts:351:1 › SVG loops keep the composition clock and an effective one-frame nudge at speed two (4.6s)
+  ✓  3 [chromium] › e2e/editor-out-step.spec.ts:352:1 › plays, interrupts, settles and replays the same loop in the simulator and browser exports (7.4s)
+  ✓  1 [chromium] › e2e/editor-out-step.spec.ts:350:1 › authors an independent property loop and a synchronized layer loop through save and reopen (14.4s)
+  ✓  4 [chromium] › e2e/editor-out-step.spec.ts:353:1 › a timed browser overlay holds after finite In while its loop moves, then goes Out (10.2s)
+  ✓  5 [chromium] › e2e/editor-projects.spec.ts:447:1 › saved project reaches operator data In/Next/Out and exports bundled receiving fixtures (21.4s)
+
+  5 passed (41.4s)

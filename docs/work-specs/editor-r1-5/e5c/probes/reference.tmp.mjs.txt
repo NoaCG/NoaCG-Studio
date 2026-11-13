@@ -1,0 +1,29 @@
+import { chromium, expect, out, json } from './common.tmp.mjs';
+import { spawn } from 'node:child_process';
+import { open, readFile, writeFile, mkdir } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+const dir=out+'reference/';await mkdir(dir,{recursive:true});const binary='/workspace/scratch/ograf-studio-reference-017/OGrafStudioServer-linux-x64';
+const binaryHash=createHash('sha256').update(await readFile(binary)).digest('hex');if(binaryHash!=='9ba1de317cdc8380c38a694f1d201964d7b805833597419111dab9eea9a02681')throw Error('Reference binary differs');
+const log=await open(dir+'server.log','w'),port=5427,base='http://127.0.0.1:'+port;
+const server=spawn(binary,['--port',String(port),'--workspace',dir+'workspace','--no-open'],{cwd:dir,stdio:['ignore',log.fd,log.fd],detached:true});
+let browser;const result={at:new Date().toISOString(),binarySha256:binaryHash,requestedPin:'3142fc7d02934494931eb14e7dc255393e4110d0',manifestSource:'a1e9776120fa19d9f3f9d40ab4b10ae1be034347',version:'0.17.0',tasks:[],errors:[]};
+try{
+ for(let i=0;i<100;i++){if(server.exitCode!==null)throw Error('Reference exited');try{if((await fetch(base)).ok)break;}catch{}await new Promise(r=>setTimeout(r,100));}
+ browser=await chromium.launch();const page=await browser.newPage({viewport:{width:1366,height:768}});page.setDefaultTimeout(10000);page.on('pageerror',e=>result.errors.push(e.message));page.on('dialog',d=>d.accept());
+ await page.addInitScript(()=>{Object.defineProperty(window,'showSaveFilePicker',{value:undefined,configurable:true});Object.defineProperty(window,'showOpenFilePicker',{value:undefined,configurable:true});});await page.goto(base);
+ await writeFile(dir+'initial-dom.txt',await page.locator('body').innerText());await writeFile(dir+'input-inventory.json',JSON.stringify(await page.locator('input,button,textarea,select').evaluateAll(ns=>ns.map(n=>({tag:n.tagName,type:n.type,text:n.textContent?.trim(),title:n.title,aria:n.getAttribute('aria-label')}))),null,2));
+ await page.getByRole('button',{name:'Add Text',exact:true}).click();
+ const content=page.locator('.inspector-row').filter({has:page.locator('span',{hasText:/^Content$/})}).locator('textarea');await expect(content).toBeVisible();await content.fill('Morning report');await content.press('Tab');await expect(content).toHaveValue('Morning report');
+ const history=async verb=>{await page.getByRole('button',{name:'Edit',exact:true}).click();await page.getByRole('menuitem',{name:new RegExp('^'+verb)}).first().click();};
+ // Reference history deliberately batches changes for 500ms. Observe history availability
+ // and save exact source after each stage; do not infer timing parity from polling.
+ await page.screenshot({path:dir+'text-created.png'});
+ await page.getByRole('tab',{name:/Brand Kit/}).click();await page.getByLabel('Broadcast style pack',{exact:true}).selectOption('news');await page.getByRole('button',{name:'Apply Pack',exact:true}).click();await expect(page.locator('.brand-kit-panel')).toContainText('Applied: News');
+ await history('Undo');await expect(page.locator('.brand-kit-panel')).toContainText('No pack applied');await history('Redo');await expect(page.locator('.brand-kit-panel')).toContainText('Applied: News');
+ await page.getByLabel('Brand kit name',{exact:true}).fill('Harbour TV');await page.getByLabel('Brand kit name',{exact:true}).press('Tab');await page.screenshot({path:dir+'brand-redone.png'});result.tasks.push('Create authored text; apply News style pack; explicit Undo/Redo; name Harbour TV Brand Kit');
+ const save=async name=>{const wait=page.waitForEvent('download');await page.getByRole('button',{name:'Save Project',exact:true}).click();const d=await wait;await d.saveAs(dir+name);return d.suggestedFilename();};await save('first.ogs');
+ await page.getByRole('button',{name:'New',exact:true}).click();await page.getByRole('button',{name:'Add Text',exact:true}).click();await page.getByRole('tab',{name:/Properties/}).click();await expect(content).toBeVisible();await content.fill('Evening edition');await content.press('Tab');await save('second.ogs');
+ const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open',exact:true}).click();await(await chooser).setFiles(dir+'first.ogs');await page.getByRole('tab',{name:/Properties/}).click();await page.getByText('Text',{exact:true}).first().click();await expect(content).toHaveValue('Morning report');await page.screenshot({path:dir+'first-reopened.png'});result.tasks.push('Save two native documents; reopen first authored text and style pack');
+ await writeFile(dir+'after-reopen-dom.txt',await page.locator('body').innerText());
+ result.result='PASS';result.settings=await page.evaluate(()=>({innerWidth,innerHeight,dpr:devicePixelRatio,scale:visualViewport.scale}));await json('reference-result.json',result);console.log('PASS executed reference text, pack Undo/Redo, two native files and reopen');
+}catch(e){result.result='FAIL';result.error=String(e);const p=browser?.contexts()[0]?.pages()[0];if(p){await p.screenshot({path:dir+'failed.png'});await writeFile(dir+'failed-dom.txt',await p.locator('body').innerText());}await json('reference-result.json',result);throw e;}finally{await browser?.close();try{process.kill(-server.pid,'SIGTERM');}catch{}await log.close();}
