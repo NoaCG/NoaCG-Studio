@@ -1090,3 +1090,50 @@ Filled in by each phase's pull request.
   export names a copy's folder by its slug (`hairline_desk`).
 - Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS1b.md`.
 
+
+### OS3: Monitoring, settings and the settled export
+
+- Rules (written before coding):
+  - M1. With the OBS scenes switch off nothing new shows: no scene rows, no settings section, no
+    export option, no question. Outputs and the playout status read as today, except M9's limit.
+  - M2. The playout panel shows one row per scene of `obsScenesOf` under the switch, in rundown
+    order. A row reads the Presence entries of outputs whose `scene.id` is that scene's, one per
+    instance (`oneEntryPerOutput`).
+  - M3. A row's load state, the first that holds: this page's Presence is not joined: "Not known"
+    (grey). No entry, and none seen since this page opened: "Not loaded" (grey). No entry, but one
+    was seen: "Not answering (age)", grey for its first 15 s, then red (stale presence). Two or more
+    instances: "Loaded twice" or "Loaded n times" (amber). One instance whose payload does not know
+    the scene: "Publish to load" (amber). Otherwise the output's own READY line, with its tone:
+    connected but not reporting READY, preparing, not ready, commands slow, or "Ready" (green).
+  - M4. Its OBS position from the entry's `obs`: "Program", "Preview", "Hidden", and "OBS: unknown"
+    until the first OBS event. With several instances the one furthest on air is shown.
+  - M5. The walk-through: the OBS scene names the link went on program in (OS1a R8's rule, an
+    activation followed by the scene's name), from the link's own list and what this page heard
+    since it opened. None: "Not yet seen", which is not an error and changes no tone. One scene
+    link may be seen in several OBS scenes (D9's shared source): every name is listed, and no row
+    assumes one OBS scene per link. Nothing persists it: a reload of both the page and the link
+    starts it again.
+  - M6. A scene link this page has seen leaves the generic Outputs list, since its scene row says
+    the same; the playout status counts it as today.
+  - M7. Playout settings has an OBS scenes section while the switch is on: each scene with its
+    graphics, its link with Copy, "Copy all links" (one line per scene, "<scene>: <link>"), and a
+    link to the OBS scenes guide (`docs/OBS_SCENES.md`). Before the first publish the links read
+    "Available after publishing".
+  - M8. (#2454) Switching OBS scenes off while at least one scene link is loaded asks first, in the
+    panel: how many OBS scenes go empty at the next publish, with Cancel (the switch stays on) and
+    Switch off. With none loaded it switches at once.
+  - M9. Expected outputs are capped at 16, as Presence and the stored list already are: a 17th new
+    output is not remembered (a new instance taking a gone one's name still replaces it). While a
+    present output is left out by the cap, the Outputs section says so in a sentence. The settings
+    section says so when there are more than 16 scenes.
+  - M10. (#2474) An output link whose production does not resolve stays transparent and asks again,
+    2 s doubling to 30 s, until it resolves; then it boots as a fresh load would, and
+    `data-unavailable` is cleared. A link opened before its production is published then draws
+    after Publish and Take without a refresh.
+  - M11. The production export's HTML overlay target offers "Settled" while the switch is on,
+    ticked by default. A settled file fills its fields on load and, in the same task, plays and
+    settles: a machine is snapped to the pose it reached, timers armed; without one, finite
+    animations jump to their end and endless ones keep running. No automatic Out timer, OBS's show
+    and hide events change nothing, and a `?stream=` instance waits for commands as today. The
+    control panel and relay still play and stop it. Unticked, or with the switch off, the file is
+    exactly today's. The package README lists each scene's files.
