@@ -69,7 +69,7 @@
     {
       "phase": "E6C",
       "step": "Fresh Cloud export/receiving builder active",
-      "note": "Action11/requesta06c/briefb8c31f native/root/editor_e6c_cloud_builder exact1178, startup+twofreshscopedpreflightsPASS/profile4CPU16GiB2workers hiddenancestorunknown. ObservedbindingACKandSAMEactorresumed. E5C/E4PASS, exhaustedallowancesunchanged; no localE5/E6yet. NoE6CPRreported; rootownsqueue/repairwhencreated."
+      "note": "E6Cworkeractive:18-caseLinuxprobe3knownpreE4raster-fitoverflows1\u20132pxabove55%floor; source/runtimehashidenticalat745c/1178. Precode63edfRiskyRules-firstAverified; broadsave/importseamrejected, narrowpureoutputhelper5sites+boundedmeasuredsolverapprovedONEcoherentimplementation. j0147PRETESTtmpcachefailurepreserved/resolved. No E4budgetreset,newmanualbundleorF4campaign;#775realhost5%stillunproven."
     }
   ],
   "owner": [
@@ -2983,6 +2983,41 @@
     "modelEffort": "inherited/nooverrides; exactvaluesunexposed",
     "policy": "Actualcurrentenvconnected/running/current/enforced; originalownerbindingseparate.9ddnativebindinganddd7128rawnetworkcomponentunchanged/distinct; noCLIaliasinvented.",
     "ack": "Supervisorobserve-launchdelivered; rootfollowup_taskSTARTUPACKresumedSAMEoriginalnativeactorafterstartupfinalended, no secondspawn.",
-    "latestProgress": "SubstantiveE6Cnowauthorized; no PR/productfindingyetreported. ExistingE4stop/newpaidmodel/F4/packagingboundsretained."
+    "latestProgress": {
+      "at": "2026-11-13T15:14:21.075131+00:00",
+      "j0147": "PRETESTFAILED <1s/no browser/productassertions: initialstaticlistfailedonread-onlyPlaywright/tmptransformcache; non-failfastmultilineshellaccidentallycontinuedtoaddsmalljob. Originalrecord/logretained; ownedtmp+failfaststaticvalidationresolvedbeforej0148. No broader/buildspent/reset.",
+      "j0148": {
+        "status": "REPRODUCED_REACHABLE_VARIANT",
+        "cases": 18,
+        "overflowAboveFloor": 3,
+        "observed": "Oswald4001044/1043px;Oswald7001045/1043;Saira7001091/1090",
+        "browser": "Chromium149.0.7827.55Linux",
+        "fonts": "ActualbundledInter/Oswald/Saira weights400/700,48px; slots800/1043/1090",
+        "retries": 0,
+        "scope": "1\u20132pxvariant,NOTproofoforiginal5%namedhostissue775; floor55%retained"
+      },
+      "preE4Evidence": {
+        "oldCommit": "745c6f2dcd9ce5e82cc6655c652e08f0568800fd",
+        "baseline": "1178ac8e8b1c3cabef036e57a1a50c74576ebf93",
+        "file": "src/templates/shared/textFit.ts",
+        "identicalFileSha256": "969cc8e85bd73add168516b95db5faea950b700bc38d7dfdb17dfd821308af9f",
+        "identicalEmittedRuntimeBytes": 2483,
+        "runtimeSha256": "e98eadc644f079d5287996ffacf8fff8cca8a871ce0ecb1488623d1d19314592",
+        "matchesBrowserProbe": true,
+        "conclusion": "ThisreachablefontdefectexistswithoutE4changes; notblanketE4/F4causalclearance."
+      },
+      "precodeHead": "63edf29ed2119ed6256d396d6303c02b296b75bf",
+      "class": "Risky outputpreparation/source-to-outputidentity",
+      "initialApproach": "BroadprepareOutRuntimeintegrationREJECTEDprecodebecauseusedbysave/import/sourceequivalence; no productpatchmadeonthatapproach.",
+      "approvedModel": {
+        "actor": "/root/editor_e6c_cloud_builder/rules_first_review",
+        "status": "COMPLETED_AGREE_A_RulesFirstOnly",
+        "assessedHead": "63edf29ed2119ed6256d396d6303c02b296b75bf",
+        "rootReadback": "ActualnativeverbatimAandentirepublishedRules1\u20136/callsiteauditread. ReviewerindependentlyverifiedpreE4file/runtimehashes+18metrics. NoRulescorrection; implementationandgatesunverified.",
+        "rules": "Existing3proportionalpasses+max12measuredbisections,<=18geometryreads; observedfitlower/overflowupper/finalbracket<=original/4096,55%floor/maxauthoredtype; no wait/actionretry/test-threshold/capchange. ExactknownoldfullblockonceLF/CRLFonly; custom/newer/unknown/duplicate/partial/SVG/source/history/production/onairuntouched; idempotentpurehelperonlyderivedoutput5sites.",
+        "architecture": "ExistingpermittedanimMigrationnamedpureexport/previewfacade; prepareOutRuntime/save/import/equivalenceunchanged; no architectureguardrelaxation."
+      },
+      "rootImplementationAck": "ONEcoherentimplementationcheckpointauthorizedafteractualfreshmodelA+source/callsiteevidence. Same18strictfeasiblecases+separatefloorimpossiblecases/oldruntimecontrol/deterministicrefit/workbound/preservation/all5consumers; tightenexistingtypographyallowance; preserve/reportpostpatchfailurebeforefollowup. AnyconfirmedE4defectSTOP. No newmanualappbundleadmissionyet."
+    }
   }
 }
