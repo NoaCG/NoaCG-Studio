@@ -48,7 +48,8 @@
       "session": "session_017SdbwRB3UHDGXLPJdo1zxb",
       "branch": "claude/plan-obs-scenes-os1b-build",
       "launchedAt": "2026-11-13T10:40:15Z",
-      "note": "sent brief = saved brief plus one NOTES line (amended D9: one link may be in several OBS scenes; #2474 and #2454 stay with OS3)"
+      "note": "sent brief = saved brief plus one NOTES line (amended D9: one link may be in several OBS scenes; #2474 and #2454 stay with OS3)",
+      "lastSeen": "2026-11-13T11:11Z builder running: both specs pass (59 tests), mutation-testing All out; no PR yet"
     }
   ],
   "owner": [
