@@ -1099,9 +1099,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const obsSceneList = useMemo(() => (show?.obsScenes ? obsScenesOf(show) : []), [show]);
   useEffect(() => setSceneWatch(EMPTY_WATCH), [show?.id]);
   const sceneWatchJoined = livePresence.status === 'joined' && livePresence.showId === (show?.id ?? null);
+  // Only while the switch is on (M1): a production without OBS scenes reads nothing new.
+  const watchingScenes = sceneWatchJoined && !!show?.obsScenes;
   useEffect(() => {
-    if (sceneWatchJoined) setSceneWatch((w) => watchScenes(w, livePresence.peers, Date.now()));
-  }, [sceneWatchJoined, livePresence.peers]);
+    if (watchingScenes) setSceneWatch((w) => watchScenes(w, livePresence.peers, Date.now()));
+  }, [watchingScenes, livePresence.peers]);
   /** PREPARE FOR LIVE (components/control/PrepareForLive.tsx): the last stamp, kept per production
    *  in this browser, and the request to the outputs while a run is out. Both are announced. */
   const [readyStamp, setReadyStamp] = useState<ReadyStamp | null>(null);

@@ -1186,6 +1186,10 @@ Filled in by each phase's pull request.
   when the outputs' key changed (`components/control/OutputHealth.tsx` `outputsKey`), and the key
   left out the scene report, so a row never showed Preview, Program or a new tick. The key now
   includes it; with the switch off no entry carries one, so nothing else re-renders.
+- Found by the PR review on c96cb3e0: the watch was a plain object keyed by scene ids off the
+  wire, so a link opened with `&scene=constructor` or `__proto__` made the production page throw,
+  even with the switch off. The watch now uses maps, and the page watches only while the switch is
+  on (M1).
 - Integration with fix #2489 (PR #2493, merged in before landing): its join waits for the scene
   links that report the publish, by `scene.id` (`control/sceneJoin.ts`), so this phase's additions
   to the scene report (`seen`) and the link's default name change nothing there. The only conflict
