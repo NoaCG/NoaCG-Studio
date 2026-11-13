@@ -2,7 +2,7 @@
 // gate: build
 // guards: e2e/**, src/e2eRegistry.ts
 //
-// THE E2E BUILD'S MODULE REGISTRY LISTS EVERY SOURCE MODULE A BROWSER SPEC IMPORTS.
+// THE E2E BUILD'S MODULE REGISTRY LISTS EVERY SOURCE MODULE A BROWSER SPEC IMPORTS BY A LITERAL PATH.
 //
 //   npm run check:e2e-registry                     # check: fails when the file is stale
 //   node scripts/e2e-module-registry.mjs --write   # regenerate src/e2eRegistry.ts
@@ -11,7 +11,9 @@
 // (src/app/e2eModules.ts) answers those from src/e2eRegistry.ts, one lazily loaded chunk
 // that imports each listed module statically, so the registry hands back the app's own instance.
 // A spec that imports a module the registry does not list fails on the e2e build only, so the
-// list is generated from the specs and this check keeps it current.
+// list is generated from the specs and this check keeps it current. An import built at run time
+// (`'/src/x.ts' + bust`, a relative `../src/` path) is not read here; the change that moves the
+// specs onto `__noacgImport` has to rewrite or refuse those.
 //
 // ONE CHUNK, NOT ONE CHUNK PER MODULE. Measured on run #1967's probe: a lazy `import.meta.glob`
 // over the same paths split the app into 491 files and doubled the boot (926 ms against 488).

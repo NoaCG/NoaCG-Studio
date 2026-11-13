@@ -188,6 +188,8 @@ export default defineConfig(({ command, mode }) => {
       // above: the identifiers themselves keep their source spelling, so call sites and `.name`
       // agree. The suite's fault injectors pick a write out by the function names on its stack
       // (e2e/_saveMatrix.ts, e2e/editor-projects.spec.ts); minified names would match nothing.
+      // File names do not survive: a match on one (`saveActions.ts` in e2e/_saveMatrix.ts) must
+      // move to a function name before the suite runs on this build.
       rollupOptions: {
         ...(e2e ? { output: { minify: { mangle: { keepNames: KEEP_NAMES }, compress: { keepNames: KEEP_NAMES } } } } : {}),
         input: {

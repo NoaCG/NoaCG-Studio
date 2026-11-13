@@ -7,8 +7,8 @@
 // boots in under a third of the dev server's time (run #1967: 488 ms against 1,592 ms to Home).
 //
 // `window.__noacgImport('/src/x.ts')` is the one door that works on both:
-// - the e2e build (`npm run build:e2e`) answers from src/e2eRegistry.ts, generated from the specs
-//   (scripts/e2e-module-registry.mjs). It is one chunk loaded on the first call, importing each
+// - the e2e build (`npm run build:e2e`) answers from src/e2eRegistry.ts, generated from the specs'
+//   literal imports (scripts/e2e-module-registry.mjs). It is one chunk loaded on the first call, importing each
 //   module statically, and the bundle holds each module once, so a spec gets the instance the
 //   app imported, never a second copy.
 // - the dev server answers with the browser's own `import()` of the same URL, which is what the
@@ -21,9 +21,11 @@ declare global {
   }
 }
 
-const registry = import.meta.env.VITE_E2E_MODULES === '1' ? () => import('../e2eRegistry') : null;
+type Registry = () => Promise<{ MODULES: Record<string, unknown>; LAZY: Record<string, () => Promise<unknown>> }>;
 
-export function installE2eModules(): void {
+/** `registry` is src/e2eRegistry.ts's loader on the e2e build and null otherwise. main.tsx passes
+ *  it, because the registry reaches components/ and only the UI region may import that. */
+export function installE2eModules(registry: Registry | null): void {
   if (registry) {
     window.__noacgImport = async (path) => {
       const { MODULES, LAZY } = await registry();
