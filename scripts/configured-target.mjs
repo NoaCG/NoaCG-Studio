@@ -78,6 +78,23 @@ const LOCAL = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\]):\d+(\/|$)/;
 const read = (env, name) => (env[name] ?? '').trim().toLowerCase();
 
 /**
+ * What a message may say about a URL: its host, never the whole value.
+ *
+ * A hostname is public - every visitor's browser already sends it. The rest of a URL is not
+ * necessarily: a URL can carry a password (`https://user:pw@host`), and in `hosted-latency.yml`
+ * the value itself comes from a GitHub secret, which is masked in a log only when it matches
+ * EXACTLY - a folded or trimmed copy prints in the clear. The host answers the only question a
+ * refusal has to answer: which database was this about.
+ */
+function host(url) {
+  try {
+    return new URL(url).host || '(no host)';
+  } catch {
+    return '(unreadable URL)';
+  }
+}
+
+/**
  * Is this URL a Supabase stack on this machine? Exported because the same question is asked by
  * every run that mints a local stack of its own - `playwright.endurance.config.ts` and
  * `e2e/endurance/editor-projects.config.ts` asked it with a weaker pattern of their own, which
@@ -128,14 +145,14 @@ export function configuredTarget(env = process.env) {
   if (declared === HOSTED_STAGING) return { kind: HOSTED_STAGING, urls };
 
   return refuse(
-    `${nonLocal.map(([name]) => name).join(' and ')} is not a local Supabase stack: ${nonLocal.map(([, value]) => value).join(', ')}.${held} A configured run may only reach a stack it owns - start one (supabase start) and take its settings from \`supabase status\`, as .github/actions/configured-stack and scripts/configured-trial.mjs do. The hosted staging project is the one exception and must say so: ${DECLARATION}=${HOSTED_STAGING} (.github/workflows/hosted-latency.yml).`,
+    `${nonLocal.map(([name]) => name).join(' and ')} is not a local Supabase stack: ${nonLocal.map(([, value]) => host(value)).join(', ')}.${held} A configured run may only reach a stack it owns - start one (supabase start) and take its settings from \`supabase status\`, as .github/actions/configured-stack and scripts/configured-trial.mjs do. The hosted staging project is the one exception and must say so: ${DECLARATION}=${HOSTED_STAGING} (.github/workflows/hosted-latency.yml).`,
   );
 }
 
-/** A one-line description for a run's log; never prints a key, and a URL is a host, not a secret. */
+/** A one-line description for a run's log. Names each variable and its HOST; see `host` above. */
 export function describeTarget(target) {
   if (target.kind === 'unconfigured') return 'no backend configured - the configured specs will skip themselves';
-  return `${target.kind}: ${target.urls.map(([name, value]) => `${name}=${value}`).join(' ')}`;
+  return `${target.kind}: ${target.urls.map(([name, value]) => `${name}=${host(value)}`).join(' ')}`;
 }
 
 /**

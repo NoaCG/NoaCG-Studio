@@ -87,5 +87,5 @@ export default async function configuredGuard(): Promise<void> {
     );
   }
 
-  console.log(`Configured backend - ${describeTarget(target)}; served by ${base}: ${served || 'nothing'}`);
+  console.log(`Configured backend - ${describeTarget(target)}; ${base} serves ${describeTarget(page)}`);
 }

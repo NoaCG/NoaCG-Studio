@@ -11,7 +11,8 @@
 // way to test a guard whose failure mode is reaching one.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, globSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertConfiguredTarget, configuredTarget, DECLARATION, describeTarget, HOSTED_STAGING, isLocalStackUrl, KEY_VARS, URL_VARS } from './configured-target.mjs';
@@ -108,9 +109,16 @@ test('no backend at all is allowed, because a run with none skips itself and is 
   assert.equal(configuredTarget({ [DECLARATION]: HOSTED_STAGING }).kind, 'refused');
 });
 
-test('the description names the target and prints no key', () => {
-  assert.equal(describeTarget(configuredTarget(LOCAL_STACK)), 'local: VITE_SUPABASE_URL=http://127.0.0.1:54321');
+test('a message names the variable and the HOST, never the whole value', () => {
+  // A hostname is public. The rest of a URL is not necessarily: it can carry a password, and the
+  // staging URL is a GitHub secret, which a log masks only on an exact match - so a folded or
+  // trimmed copy of it would print in the clear.
+  assert.equal(describeTarget(configuredTarget(LOCAL_STACK)), 'local: VITE_SUPABASE_URL=127.0.0.1:54321');
   assert.doesNotMatch(describeTarget(configuredTarget(LOCAL_STACK)), /fake-service-role/);
+  const withPassword = configuredTarget({ VITE_SUPABASE_URL: 'https://someone:hunter2@db.example.com/rest' });
+  assert.equal(withPassword.kind, 'refused');
+  assert.doesNotMatch(withPassword.reason, /hunter2|someone/);
+  assert.match(withPassword.reason, /db\.example\.com/);
 });
 
 test('a capital letter is not a disguise: hostnames fold before they are judged', () => {
@@ -148,6 +156,21 @@ test('the served backend is judged too, not only this process (a reused dev serv
   assert.match(guard, /reuseExistingServer/);
 });
 
+test('a configured spec reads the backend through the guarded helper, not around it', () => {
+  // _helpers.ts is where the check sits, so a spec that reads a backend variable of its own would
+  // walk past it. (analytics.spec.ts reads VITE_SUPABASE_URL to gate itself and imports no
+  // helper; it stubs its network and writes nothing, so it is listed here rather than silently
+  // allowed.) The globalSetup covers every RUN; this keeps the second line honest.
+  const allowed = new Set(['analytics.spec.ts']);
+  const offenders = globSync('*.spec.ts', { cwd: path.join(ROOT, 'e2e/configured') })
+    .filter((name) => !allowed.has(name))
+    .filter((name) => {
+      const text = file(path.join('e2e/configured', name));
+      return /process\.env\.(VITE_)?SUPABASE_URL/.test(text) && !/from '\.\/_helpers'/.test(text);
+    });
+  assert.deepEqual(offenders, [], 'these specs read a backend URL without importing the guarded helper');
+});
+
 test('the one local-stack test is the one every local-stack run uses', () => {
   assert.equal(isLocalStackUrl('http://127.0.0.1:54321'), true);
   assert.equal(isLocalStackUrl('HTTP://LOCALHOST:54321'), true);
@@ -167,15 +190,48 @@ test('the live config carries the file keys the guard reads, not only the ones a
   // spellings of the URL before the guard runs.
   const config = file('playwright.live.config.ts');
   const backfilled = config.slice(config.indexOf('for (const key of ['), config.indexOf('if (!process.env[key]'));
-  for (const name of ['VITE_SUPABASE_URL', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SECRET_KEY']) {
+  for (const name of ['VITE_SUPABASE_URL', 'SUPABASE_URL']) {
     assert.ok(backfilled.includes(`'${name}'`), `${name} is checked by the guard but not loaded from the environment file`);
+  }
+  // And no key is loaded for the guard's sake: no key changes the verdict, only the wording of a
+  // refusal, so loading one would put an admin credential in the runner to buy a better sentence.
+  assert.ok(!backfilled.includes("'SUPABASE_SECRET_KEY'"), 'the config must not load an admin key for the guard');
+});
+
+test('every config that spreads the live one still loads, and finds the guard', () => {
+  // THE FAULT THIS REPLACES A SPELLING-MATCH WITH. Playwright resolves `globalSetup` against the
+  // directory of the config file it loaded, so a repo-relative string travels into a config that
+  // lives in another folder and resolves against THAT folder: e2e/configured/measure/
+  // measure.config.ts died at load with "Cannot find module ./e2e/_configured-guard.ts", before
+  // reading a file, and nothing in CI loads it to say so. An absolute path is the fix, and this
+  // is the check that notices either way - including for a config added later.
+  const spreading = globSync('**/*.config.ts', { cwd: ROOT, exclude: ['node_modules/**', 'dist/**'] })
+    .filter((name) => /playwright\.live\.config/.test(file(name)));
+  // The live config itself, the instrument config, the measurement harness: if this list ever
+  // shrinks, the filter above stopped finding configs rather than the configs going away.
+  assert.ok(spreading.length >= 2, `expected configs spreading the live config, found ${spreading.join(', ') || 'none'}`);
+
+  for (const name of [...spreading, 'playwright.live.config.ts']) {
+    const listed = spawnSync('npx', ['playwright', 'test', '--config', name, '--list'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      // A local stack's URL: the guard admits it, so a refusal cannot be mistaken for a config
+      // that will not load. `--list` runs no test and starts no server.
+      env: { ...process.env, VITE_SUPABASE_URL: 'http://127.0.0.1:54321', SUPABASE_URL: '', SUPABASE_SERVICE_ROLE_KEY: '', SUPABASE_SECRET_KEY: '' },
+      windowsHide: true,
+    });
+    const output = `${listed.stdout}${listed.stderr}`;
+    assert.doesNotMatch(output, /Cannot find module/, `${name} does not load: ${output.slice(0, 400)}`);
+    assert.doesNotMatch(output, /Refusing to start/, `${name} refused a local stack: ${output.slice(0, 400)}`);
   }
 });
 
 test('the guard is wired to every configured run and to the specs themselves', () => {
   // A guard nothing calls is the failure this test exists for.
   const config = file('playwright.live.config.ts');
-  assert.match(config, /globalSetup: '\.\/e2e\/_configured-guard\.ts'/);
+  // Absolute, because the path travels into configs in other folders - see the test above.
+  assert.match(config, /globalSetup: fileURLToPath\(new URL\('\.\/e2e\/_configured-guard\.ts', import\.meta\.url\)\)/);
+  assert.ok(existsSync(path.join(ROOT, 'e2e/_configured-guard.ts')), 'the guard the config names must exist');
   assert.match(file('e2e/_configured-guard.ts'), /assertConfiguredTarget\(process\.env/);
   // playwright.instrument.config.ts spreads the live config, so it inherits that globalSetup.
   assert.match(file('playwright.instrument.config.ts'), /\.\.\.live,/);

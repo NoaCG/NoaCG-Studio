@@ -1,5 +1,6 @@
 import { validateCloudWorkerRequest } from './scripts/e2e-workers.mjs';
 import { defineConfig, devices } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
 import { livePort } from './scripts/dev-port.mjs';
 
@@ -18,14 +19,18 @@ for (const key of [
   'SUPABASE_SERVICE_ROLE_KEY',
   'VITE_SUPABASE_URL',
   'VITE_SUPABASE_ANON_KEY',
-  // The last two are here for the GUARD rather than for a spec. The Vite server this config
-  // starts copies every missing file key into its own environment (vite.config.ts) and mounts the
-  // real api/ handlers, which read SUPABASE_URL in preference to VITE_SUPABASE_URL (api/_lib/*),
-  // and two specs drive that server-side half in process. A value left only in the file would
+  // SUPABASE_URL is here for the GUARD rather than for a spec. The Vite server this config starts
+  // copies every missing file key into its own environment (vite.config.ts) and mounts the real
+  // api/ handlers, which read SUPABASE_URL in preference to VITE_SUPABASE_URL (api/_lib/*), and
+  // two specs drive that server-side half in process. A value left only in the file would
   // therefore be live for the api half and invisible to e2e/_configured-guard.ts, which reads
-  // process.env.
+  // process.env. It is a hostname, and it changes the guard's verdict.
+  //
+  // SUPABASE_SECRET_KEY is deliberately NOT here. No key changes the verdict - the guard names one
+  // only in the wording of a refusal - so loading it from the file would put an admin credential
+  // into the runner and every worker to buy a better sentence, which is the material issue #2495
+  // is about.
   'SUPABASE_URL',
-  'SUPABASE_SECRET_KEY',
 ]) {
   if (!process.env[key] && fileEnv[key]) process.env[key] = fileEnv[key];
 }
@@ -52,7 +57,13 @@ export default defineConfig({
   // choosing the project was whatever `VITE_SUPABASE_URL` the shell happened to carry - which on
   // a cloud worker is PRODUCTION. e2e/_configured-guard.ts refuses anything but a stack the run
   // owns; scripts/configured-target.mjs holds the rule and the incident that bought it.
-  globalSetup: './e2e/_configured-guard.ts',
+  //
+  // ABSOLUTE, and it has to be. Playwright resolves `globalSetup` against the directory of the
+  // CONFIG FILE it loaded, and configs in other folders spread this one - e2e/configured/measure/
+  // measure.config.ts is the live-publishing measurement harness. A repo-relative string travels
+  // into those and resolves against their folder, so the config dies at load with "Cannot find
+  // module" before it reads a single file, and nothing in CI loads them to say so.
+  globalSetup: fileURLToPath(new URL('./e2e/_configured-guard.ts', import.meta.url)),
   timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,

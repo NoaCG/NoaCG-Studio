@@ -120,10 +120,20 @@ surface, such as `openWorkingGraphicInEditor`. Creation journeys drive the wizar
 specs importing `CATALOG`, `TYPES`, `KITS` or `PACKS` and fails the build if one of them does not
 cover `src/templates/**`. Six were missing until 2026-08-08, which is how `competition-pack.spec.ts` sat stale.
 
-**Backend behavior has a separate configured suite.** `e2e/configured/` runs against an
-explicitly configured backend and a throwaway account. Every configured spec declares `covers:`
-or `none - <why>`, and the build refuses one that declares neither. The offline planner never
-starts it against the local production `.env`.
+**Backend behavior has a separate configured suite.** `e2e/configured/` runs against a LOCAL
+Supabase stack and a throwaway account on it. Every configured spec declares `covers:` or
+`none - <why>`, and the build refuses one that declares neither. The offline planner never starts
+it against the local production `.env`.
+
+**A configured run refuses a backend it does not own** (issue #2495). It writes rows, deletes them
+and holds an admin key, so the backend is a checked precondition, not a convention: the run starts
+only against `127.0.0.1`, `localhost` or `[::1]` with a port - and the dev server it drives must
+serve that same stack, which `e2e/_configured-guard.ts` reads from the page, so a server left
+running on the live port cannot smuggle another backend in. `supabase start`, then take the
+settings from `supabase status` (`scripts/configured-trial.mjs` does exactly that, and
+`.github/actions/configured-stack` is CI's copy). The one hosted exception is the staging project
+`hosted-latency.yml` measures against, which says so with `NOACG_CONFIGURED_TARGET=hosted-staging`.
+The rule is `scripts/configured-target.mjs`.
 
 **On a pull request, the selected configured specs are a required check** (cicd-improvement
 ci06). The plan emits a manifest (`configured` in `e2e-affected.mjs --json`): an edited
