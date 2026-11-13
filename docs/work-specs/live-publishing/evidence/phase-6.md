@@ -5,11 +5,12 @@ Design: `../designs/G3.md`. Acceptance: AC-4. Everything here ran on the cloud w
 `e2e-s1@noacg.local` and its teammate), with migrations 0117 and 0118 applied on top of `main`.
 
 **AC-4 status.** The correctness half (every save reaches the outputs, no "Publish changes", the
-failure and reverse-order cases) passes. The timing half passes on the typical fixture and does not
-on the large one under continuous editing: publishing a whole copy per save adds about 334 ms p95 to
-press-to-ran there (see "Editing while publishing"). Phase 7 sends only what changed. How to treat
-the large fixture, fix the output read in this phase, record it as a known gap until phase 7, or keep
-automatic updates off for large productions until then, is an owner or coordinator decision.
+failure and reverse-order cases) passes. The timing half passes on the typical fixture and not on the
+large one under continuous editing: publishing a whole copy per save adds about 334 ms p95 there
+(see "Editing while publishing"). **Owner decision (b), recorded on #2361, 2026-11-13:** phase 6
+lands with the typical fixture passing; the large fixture is a recorded gap judged at the end of phase
+7 with D1 (phase 7 sends only what changed); automatic updates stay off in production until then.
+Nothing in this phase turns the `auto_publish` switch on.
 
 ## What was built
 
@@ -130,43 +131,73 @@ work is off the Take's path; the difference left is the output reading each new 
 
 #### Editing while publishing (owner decision Q1, G3 section 13)
 
-The design asks for the loop that pays the save on both sides: the page edits the production
-continuously, once with automatic updates on (each save publishes) and once off (each save does not),
-so the difference is only the publishing. The harness edits the last cue every 3 s, past the sync
-engine's 2.5 s debounce, so each edit is its own save and, on, its own publish. Press to ran at the
-output, 50 samples each, production build, unthrottled.
+The design's judged loop pays the save on both sides: the page edits the production continuously,
+once with automatic updates on (each save publishes) and once off (each save only saves), so the
+difference is the publishing. Harness: test `autopublish` with `MEASURE_EDIT`, production build,
+local stack, unthrottled, press to ran at the output.
 
-| Cue edits every 3 s | Updates on p50 / p95 (ms) | Updates off p50 / p95 (ms) | p95 difference |
-|---|---|---|---|
-| Typical (50) | 67 / 150 | 61 / 148 | +2: within AC-4 |
-| Large (50) | 101 / 1502 | 69 / 1168 | +334: **over AC-4's 50 ms** |
+**At a 3 s edit pace (judged).** Past the sync engine's 2.5 s debounce, so each edit is its own save
+and, with updates on, its own publish.
 
-On the typical fixture, publishing every save adds nothing a Take feels. On the large fixture it does
-not meet AC-4: each save is a new version `n`, and every output re-reads the whole published copy
-(6 to 20 MB; phase 7 sends only what changed). The off column is already high on the large fixture,
-because each large save is itself expensive; publishing adds 334 ms on top.
+| Loop | Fixture | Samples | On p50 / p95 (ms) | Off p50 / p95 (ms) | p95 difference |
+|---|---|---|---|---|---|
+| Cue text and values | Typical | 50 + 50 | 67 / 150 | 61 / 148 | +2: within AC-4 |
+| Cue text and values | Large | 50 + 50 | 101 / 1502 | 69 / 1168 | +334: recorded gap (owner decision b) |
+| Graphic added and removed (reported, not judged) | Typical | 25 + 25 | 66 / 182 | 69 / 661 | publishing is not the cost |
 
-Design-update loop (a graphic added and removed every 3 s, reported not judged, Q1): typical p95
-182 ms on, 661 ms off; publishing is not the cost there.
+With updates on, every save was a new version: 9 to 10 publishes per typical run, 5 to 6 per large
+half. Press to sent stays under 51 ms p95 either way, so the extra time on the large fixture is the
+output re-reading each whole copy (6 to 20 MB), which phase 7 removes.
 
-At a 1 s edit pace (faster than one sync pass), the result stops being about publishing: the sync
-engine re-runs its pass without pause and slows Takes to 1 to 2 s with the switch off too (issue
-#2494, not this phase). Measured: typical p95 98 ms on, 88 ms off; large p95 1847 ms on, but the
-off runs that did not fall into the chain read 129 ms, so the large 1 s number swings on the chain,
-not on the switch. The 3 s pace above avoids it and is the fair AC-4 measure.
+**At a 1 s edit pace (reported, not judged).** Faster than one sync pass, so the result depends on the
+sync engine rather than on publishing.
 
-R10 (no publish step over 16 ms): press to sent is unchanged (above), so no publish step blocks a
-Take. The step timer wraps each awaited build or write; its longest single value on the large fixture
-is the multi-megabyte `PATCH`, about 7 to 8 s, which awaits the network and does not block; the
-longest main-thread step (a content digest) was 41.8 and 67.4 ms on the typical fixture, the first
-digest of a copy after the page opens, memoized after. Reporting the maximum, not the p95 of maxima,
-is a recorded departure from R10's wording: the rule's intent, a Take never waiting on a publish, is
-met by press-to-sent being flat.
+| Loop | Fixture | Samples | On p50 / p95 (ms) | Off p50 / p95 (ms) |
+|---|---|---|---|---|
+| Cue text and values | Typical | 300 / 250 | 63 / 98 | 64 / 88 |
+| Cue text and values | Large | 50 / 50 | 1346 / 1847 | 73 / 129 |
 
-The large republish-vs-nothing repeat the review asked for could not finish at full samples on this
-worker: the large fixture build plus the loop warm-up exceeds the 5 minute job cap, and a wider cap
-needs a queue admission not taken here. The cue-edit on-vs-off comparison above is the controlled
-replacement (both sides pay the save) and shows the same large result.
+At this pace the debounce never fires, so a run saves only if a sync pass overlaps the edits. On the
+large fixture such a pass sets off the sync engine's queued re-run, which then never stops: 28 to 74
+saves per run, Takes at 1 to 2 s. It happens with the switch off too (2 of 3 probe runs, 28 and 29
+extra saves, a stack probe through source maps showing every pass from the `queued` branch of
+`syncNow`) and with it on (4 of 6 runs; the publisher itself made 2 to 4 revision checks and no
+catch-up). The large 1 s off runs in the table happened not to fall into it. Filed as #2494, P1,
+fixed separately before phase 8; not touched here. Two earlier typical on-runs (256 and 1279 ms p95)
+are left out of the 1 s pool: during the second the shared revision sequence rose by 328 against 4 to
+8 in every other run, a second writer on the stack (a killed job's browser still editing).
+
+**Why the large off baseline reads about 1.1 s, not the 206 ms of the republish runs.** Different
+loops: the republish runs below make no edits, so the large record is never saved; the 3 s off runs
+save it 16 to 19 times each. Every run with no save has no Take over 500 ms (republish "nothing
+published": p95 206 and 195; 1 s off, where the debounce never fires: 112 and 416). The 3 s off runs
+have 2 and 3 Takes of 25 over 500 ms, each landing on a save of the large record, and with 25
+samples the p95 is the second highest. Same build family, same machine, load average under 2: the
+drift is the per-save cost of the large record, not a regression.
+
+#### Republishing, nothing edited
+
+With `MEASURE_LOOP=1` the page republishes its saved revision whole, back to back; each republish is a
+new version `n`, so every output re-reads the copy each time.
+
+| Fixture | Nothing published p50 / p95 (ms) | Publishing in a loop p50 / p95 (ms) | p95 difference | Presses during a publish | Failures |
+|---|---|---|---|---|---|
+| Typical (50 + 50) | 72.6 / 113.8 | 96.7 / 131.4 | +17.6 | 49 of 50 | 0 |
+| Large (50 + 50) | 96.9 / 206.5 | 121.7 / 252.3 | +45.8 | 50 of 50 | 0 |
+
+Throttled (20 Mbit/s, 50 ms), typical, 25 + 25: 80 / 142 ms nothing published, 78 / 104 ms
+publishing; large, 25 + 25: 103 / 215 ms and 101 / 144 ms. The review asked for the large row again:
+it no longer finishes on this worker inside the 5 minute job cap (the large fixture build and the
+loop's warm-up take most of it; 25, 15, 10 and 8 samples were each stopped at the cap), and a wider
+cap needs a queue admission not taken here. The 3 s cue loop above is the controlled measurement that
+replaces it and shows the same large result.
+
+R10 (no publish step over 16 ms): press to sent is flat, so no publish step holds a Take. The step
+timer wraps each awaited build or write, so its largest value on the large fixture, 7 to 8 s, is the
+multi-megabyte `PATCH` waiting on the network. The longest main-thread steps were 41.8 and 67.4 ms on
+the typical fixture, the first content digest of a copy after the page opens, memoized after.
+Reporting the maximum rather than the p95 of maxima is a recorded departure from R10's wording; its
+intent, a Take never waiting on a publish, is met.
 
 ## Traps met
 

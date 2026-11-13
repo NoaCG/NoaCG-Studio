@@ -478,12 +478,11 @@ Filled in by each phase's pull request.
   Publish changes, a 401 that outlives one session refresh is transient, and a page that may not
   publish reads red while a save waits. The configured walk runs with both switches on
   (`production_copies` and `auto_publish`), as production has them.
-- AC-4 open point: whole publishes meet the 50 ms p95 on the typical fixture but not on the large one
-  under continuous editing (about +334 ms p95, the output re-reading each whole copy; phase 7 sends
-  only what changed). Owner or coordinator decides: fix the output read here, record a known gap, or
-  keep automatic updates off for large productions until phase 7. Separately, editing faster than one
-  sync pass on a large production makes the sync engine re-run without pause (issue #2494, not this
-  phase).
+- AC-4: the typical fixture passes; the large fixture under continuous editing does not (about +334 ms
+  p95, the output re-reading each whole copy). Owner decision (b), recorded on #2361, 2026-11-13: land
+  with the typical fixture passing, judge the large fixture at the end of phase 7 with D1, and keep
+  automatic updates off in production until then. Separately, editing faster than one sync pass on a
+  large production makes the sync engine re-run without pause (#2494, fixed before phase 8, not here).
 - Migrations: `0117_production_revision.sql` (ordinary), `0118_publication_guard.sql` (live-path,
   renumbered from 0116 and 0117 when `main` took 0116 for the JSON source tick;
   applies in a quiet window). Turning `auto_publish` on is a separate step, after the app is live
