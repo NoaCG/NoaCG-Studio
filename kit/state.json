@@ -68,8 +68,8 @@
   "inFlight": [
     {
       "phase": "E5C",
-      "step": "Native fresh builder admitted, startup qualification pending",
-      "note": "Action9 recorded/readyreservedonce, /root/editor_e5c_cloud_builder launchedforknone atsourcee1c6. No substantiveworkuntilstartupreceiptobserved+ACK. E4independentPASS/source5f6allterminal retained; same exhaustedE4familymuststopifrediscovered."
+      "step": "Fresh Cloud builder active",
+      "note": "Action9 delivered; qualifiedstartupnonce/source/hash/env/locks/resourcecaps independentlyreconciled andACKed. Builderowns onlyE5C: cumulativejourneys/reference/F4 diagnostics/localqualificationkit. NoPRyet. Rootsolecoordinator, exactE4PASSandallspentlimits preserved."
     }
   ],
   "owner": [
@@ -2493,7 +2493,7 @@
     "source": "e1c6fc4f5faf933be930cdf30f7acfa4e2b9ab22",
     "worktree": "/workspace/noacg-editor-r1-5-e5c-build",
     "branch": "codex/plan-editor-r1-5-e5c-build",
-    "status": "NATIVE_STARTUP_PENDING",
+    "status": "NATIVE_ACCEPTED_BUILD_ACTIVE",
     "predecessor": "E4 accepted2026-11-13T11:21:26.775Z exact5f6; independentcomment6851283088",
     "sourceApplicability": "5f6\u2192e1c6 only e2e/import-svg-corpus.spec.ts, e2e/publish-output-setup.spec.ts andquarantine.json changed, no app/runtime/deps/workflowinputs; freshE5C acceptance stillrequired.",
     "resourceSetup": "Ownedcleanbranch/worktree createdbeforework, rootpackage-lockSHA62dd0fe872965d011d1b30433f28ee547475dd08bf1309bbd569b0733214df4c equals shared dependencylock; onlynode_moduleslinked, no compiledoutput reuse.",
@@ -2503,6 +2503,20 @@
     "brief": "briefs/e5c-build-e5c-b-cloud-1113.txt",
     "briefSha256": "6d2dc990cde1ca96bc194e6d73ccc1d38c17b156ca8a8a018f2706417cc181d0",
     "nativeThreadUuid": "unexposed",
-    "modelEffort": "inherited; no overrides"
+    "modelEffort": "inherited; no overrides",
+    "startupAt": "2026-11-13T11:30:09Z",
+    "profile": {
+      "effectiveCpus": 4,
+      "memoryGiB": 16,
+      "workers": 2,
+      "capsMinutes": [
+        5,
+        12,
+        5
+      ],
+      "known": false,
+      "limitation": "Hidden cgroupCPU/memoryancestors unreadable; machinetotals substituted."
+    },
+    "acceptedAt": "2026-11-13T11:31:36.118029+00:00"
   }
 }
