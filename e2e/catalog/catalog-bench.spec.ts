@@ -54,10 +54,10 @@ test.describe('catalog calibration tripwire', () => {
         // same units. Only the ones nobody asked for are dropped.
         const rows = await page.evaluate(`(async (category, slice, slices, only) => { ${HELPERS}
           const artwork = window.__benchArtwork;
-          const { CATALOG } = await import('/src/templates/catalog.ts');
+          const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
           async function made(v) {
             if (!artwork[v.id]) return v.create();
-            const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+            const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
             const svg = importSvgMarkup(artwork[v.id]);
             // Untyped (page text), so tsc does not hold this object to DesignSvg: a field DesignSvg
             // comes to need arrives here missing. Keep it in step with the same builder in

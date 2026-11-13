@@ -70,8 +70,8 @@ test(`a mark never makes a lower third taller${SCOPE_NOTE}`, async ({ page }) =>
   await toApp(page);
 
   const rows: Row[] = await page.evaluate(async ({ marks, only }: { marks: typeof MARKS; only: string[] | null }) => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
 
     // The calibrated probe: the two lines every spacing and clearance reading in this catalog is
     // measured on. A design drawn for more lines renders fewer, which is a supported state - and

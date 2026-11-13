@@ -20,7 +20,7 @@ test('every bundled face draws the whole name itself, Š and Ž included', async
     route.fulfill({ contentType: 'text/html', body: '<!doctype html><meta charset="utf-8"><body></body>' }));
   await page.goto('/bundled-font-glyphs-probe');
   const families = await page.evaluate(async ({ name, decomposed }) => {
-    const { FONTS, fontFaceCss } = await import('/src/model/fonts.ts');
+    const { FONTS, fontFaceCss } = await __noacgImport('/src/model/fonts.ts');
     const style = document.createElement('style');
     style.textContent = FONTS.map((f: { family: string }) => fontFaceCss(f as never)).join('\n\n');
     document.head.append(style);
@@ -78,7 +78,7 @@ test('a graphic saved before the latin-ext fix sets Š and Ž in its own face on
     route.fulfill({ contentType: 'text/html', body: '<!doctype html><meta charset="utf-8"><body></body>' }));
   await page.goto('/saved-font-probe');
   const html = await page.evaluate(async ({ css, name }) => {
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     return composeDocument({
       name: 'saved', html: `<div id="name">${name}</div>`, css, js: '', assets: [], fields: [], settings: {},
       resolution: { width: 1920, height: 1080 },

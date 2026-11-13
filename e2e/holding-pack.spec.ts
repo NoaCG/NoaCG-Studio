@@ -35,8 +35,8 @@ async function toTemplateStep(page: Page, category: string) {
 async function inTemplate<T>(page: Page, variantId: string, probe: string): Promise<T> {
   return page.evaluate(
     async ([id, body]) => {
-      const { CATALOG } = await import('/src/templates/catalog.ts');
-      const { composeDocument } = await import('/src/preview/composeDocument.ts');
+      const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+      const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
       const variant = Object.values(CATALOG).flat().find((v) => v.id === id);
       if (!variant) throw new Error(`no catalog variant ${id}`);
       const frame = document.createElement('iframe');
@@ -72,7 +72,7 @@ test('the three families are browsable and every design in them is offered', asy
     // and one wizard category can spread across several of them (an info-card that carries a
     // type browses under Titles / Topics / Notices, not under Information cards).
     const expected = await page.evaluate(async (cat) => {
-      const { allTemplateMeta } = await import('/src/templates/templateMeta.ts');
+      const { allTemplateMeta } = await __noacgImport('/src/templates/templateMeta.ts');
       return allTemplateMeta().filter(({ meta }) => meta.category === cat).length;
     }, category);
     // Derived from the live catalog on purpose: the assertion is "every design is reachable",
@@ -102,7 +102,7 @@ test('a ceremony card creates from the wizard and lands in the editor', async ({
   await page.locator('.wz-next').click();
   await finishIntoNewEditor(page);
   const fields = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     return { name: t.name, fields: t.fields.map((f) => f.title), type: t.type };
   });
@@ -244,8 +244,8 @@ test.describe('a countdown to an absolute deadline', () => {
   const start = (page: Page, name: string, f3: string) =>
     page.evaluate(
       async ([n, value]) => {
-        const { CATALOG } = await import('/src/templates/catalog.ts');
-        const { composeDocument } = await import('/src/preview/composeDocument.ts');
+        const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+        const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
         const variant = Object.values(CATALOG).flat().find((v) => v.id === 'ss11')!;
         const store = ((window as unknown as { __dl?: Record<string, HTMLIFrameElement> }).__dl ??= {});
         store[n]?.remove();
@@ -332,7 +332,7 @@ test.describe('a countdown to an absolute deadline', () => {
 test('a clock-less holding screen carries no countdown at all', async ({ page }) => {
   await toApp(page);
   const emitted = await page.evaluate(async () => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
     const t = CATALOG['starting-soon']!.find((v) => v.id === 'ss08')!.create({});
     return {
       definesClock: /function startClock/.test(t.js),
@@ -418,8 +418,8 @@ test('a looping reel survives create, save and reopen with its motion intact', a
   await bootstrapGraphic(page, { name: 'Credit Reel' });
 
   const before = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const t = useTemplateStore.getState().template;
     const data = parseAnimData(t.js);
     return {
@@ -433,8 +433,8 @@ test('a looping reel survives create, save and reopen with its motion intact', a
 
   // Save into the library, reload the app, reopen: the document must come back byte-identical.
   const id = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
     const t = useTemplateStore.getState().template;
     const { doc, error } = createGraphic(t, { name: 'Reel round trip', baseline: t });
     if (error) throw new Error(error);
@@ -447,7 +447,7 @@ test('a looping reel survives create, save and reopen with its motion intact', a
   await page.reload();
   await expect(page.locator('.topbar')).toBeVisible();
   const after = await page.evaluate(async (graphicId) => {
-    const { loadAllGraphics } = await import('/src/model/library.ts');
+    const { loadAllGraphics } = await __noacgImport('/src/model/library.ts');
     const doc = loadAllGraphics().find((g) => g.id === graphicId);
     return doc?.template.js ?? null;
   }, id);

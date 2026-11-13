@@ -140,8 +140,8 @@ test('import graphic: the imported design animates — whole unit in, whole unit
   // field must not be touched on its own — that is exactly what would tear a flat design away
   // from artwork drawn around it — and the whole graphic leaves together on stop.
   const hasData = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     return !!parseAnimData(useTemplateStore.getState().template.js);
   });
   expect(hasData).toBe(true);
@@ -198,8 +198,8 @@ test('import graphic: a new field is born with a slot, so a long value cannot ru
   // The Text step's field emits the whole fit contract: the wrapper's slot, the shrink marker
   // on the line, and the design-owned runtime (with the shared update()'s hook calling it).
   const state = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { lineFit } = await import('/src/blocks/designLayout.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { lineFit } = await __noacgImport('/src/blocks/designLayout.ts');
     const t = useTemplateStore.getState().template;
     return {
       fit: lineFit(t.html, t.css, 'f0'),
@@ -416,7 +416,7 @@ test('import graphic: the imported template exports as the code that was dropped
   // The export door saves first, so the working project IS the imported file — its own markup,
   // its own fields, under the name that slugs the package.
   const built = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     return { name: t.name, fields: t.fields.map((f) => f.title), root: t.html.includes('id="root"') };
   });
@@ -451,7 +451,7 @@ test('the Text step places a picture slot the operator fills from the control pa
 
   // A real SPX image field (filelist), a real <img> in the design, and a placed, sized box.
   const built = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     const logo = t.fields.find((f) => f.title === 'Logo');
     // Built with concatenation, not a template literal: `\s` and `\{` are NOT escapes inside

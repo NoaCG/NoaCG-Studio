@@ -306,12 +306,12 @@ type Built = { js: string; html: string; layout: string };
 /** `first` is the sample of the layer picked as Credits: the first role, as the wizard offers it. */
 function buildCredits(page: Page, source: string, playback: 'roll' | 'static' | 'cards', face: boolean, advance?: number, first = 'Research', liveControl = false): Promise<Built> {
   return page.evaluate(async ({ source, playback, face, advance, first, liveControl }) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
-    const C = await import('/src/templates/importedDesign/creditsRoll.ts');
-    const { initialDraft, mergeDraft } = await import('/src/components/wizard/draft/core.ts');
-    const { withUniversalMotion } = await import('/src/components/wizard/draft/template.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const { IMPORTED_SVG } = await __noacgImport('/src/templates/importedDesign/svg.ts');
+    const C = await __noacgImport('/src/templates/importedDesign/creditsRoll.ts');
+    const { initialDraft, mergeDraft } = await __noacgImport('/src/components/wizard/draft/core.ts');
+    const { withUniversalMotion } = await __noacgImport('/src/components/wizard/draft/template.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const imp = importSvgMarkup(source);
     const content = imp.candidates.find((c) => c.sample === first)!.id;
     const host = document.createElement('div');
@@ -624,7 +624,7 @@ for (const playback of ['roll', 'cards'] as const) {
     // pose, then the newest data.
     await page.setContent(built.html);
     const rebuilt = await page.evaluate(async ({ newest, state }) => {
-      const { heldFirst } = await import('/src/control/outputRecovery.ts');
+      const { heldFirst } = await __noacgImport('/src/control/outputRecovery.ts');
       const w = window as unknown as { update(d: Record<string, string>): void; noacgSnap(s: unknown): void; noacgCreditsHeld: string | null; noacgCreditsWaiting: boolean };
       w.update(heldFirst(newest, state));
       w.noacgSnap((state as { groups: unknown }).groups);

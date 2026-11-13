@@ -8,12 +8,12 @@ import type { SpxTemplate } from '../src/model/types';
 import { settleDurableWrites } from './_durable';
 
 async function ready(page: Page) { await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false'); }
-async function source(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template); }
+async function source(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template); }
 async function open(page: Page, fixture?: string) {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto('/app?editor=foundation#/editor-foundation');
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
-  if (fixture) await page.evaluate(async t => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t, { resetSampleData: true }), JSON.parse(readFileSync(`docs/research/editor-r1-foundation/fixture-${fixture}.json`, 'utf8')) as SpxTemplate);
+  if (fixture) await page.evaluate(async t => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t, { resetSampleData: true }), JSON.parse(readFileSync(`docs/research/editor-r1-foundation/fixture-${fixture}.json`, 'utf8')) as SpxTemplate);
   await ready(page);
 }
 async function picture(page: Page, name = 'logo.png', color = 'red', w = 240, h = 120) {
@@ -68,7 +68,7 @@ for (const kind of ['catalog', 'svg', 'f4']) test(`${kind}: file chooser creates
   await page.getByTestId('image-add-input').setInputFiles(await picture(page));
   await ready(page);
   await expect.poll(async () => (await source(page)).assets.length).toBe(original.assets.length + 1);
-  const selector = await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts[0]);
+  const selector = await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts[0]);
   await select(page, selector);
   const added = await source(page);
   const frame = await preview(page);
@@ -163,14 +163,14 @@ test('OS drop and chooser produce the same source; asset drag and a drop over an
 for (const kind of ['catalog-logo', 'svg', 'raster']) test(`${kind}: replace existing artwork with aspect-preserving fit`, async ({ page }) => {
   await open(page, kind === 'svg' ? 'svg' : 'catalog');
   if (kind !== 'svg') await page.evaluate(async kind => {
-    const catalog = await import('/src/templates/catalog.ts');
+    const catalog = await __noacgImport('/src/templates/catalog.ts');
     const template = kind === 'catalog-logo' ? catalog.variantsFor('corner-bug').find(v => v.logo !== 'none')!.create({}) : catalog.variantById('imp01')!.create({ designArt: { path: 'images/art.png', width: 960, height: 270 } });
-    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(template, { resetSampleData: true });
+    (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(template, { resetSampleData: true });
   }, kind);
   const selector = kind === 'svg' ? '#Crest' : kind === 'raster' ? '.imported-design-art' : '#f1';
   if (kind === 'raster') {
     const file = await picture(page, 'art.png', 'red', 960, 270);
-    await page.evaluate(async data => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, assets: [{ path: 'images/art.png', data: 'data:image/png;base64,' + data }] }); }, file.buffer.toString('base64'));
+    await page.evaluate(async data => { const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, assets: [{ path: 'images/art.png', data: 'data:image/png;base64,' + data }] }); }, file.buffer.toString('base64'));
   }
   await ready(page); await select(page, selector);
   const before = await source(page), frame = await preview(page);
@@ -186,10 +186,10 @@ for (const kind of ['catalog-logo', 'svg', 'raster']) test(`${kind}: replace exi
 test('guards refuse unsupported sources, invalid geometry, missing assets and preserve unknown motion', async ({ page }) => {
   await open(page, 'catalog');
   const result = await page.evaluate(async () => {
-    const { applyOperations } = await import('/src/components/editorFoundation/operations.ts');
-    const { placeGraphicImage, imageCapability } = await import('/src/blocks/editorImages.ts');
-    const { locateAnimData } = await import('/src/blocks/animData.ts');
-    const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const { applyOperations } = await __noacgImport('/src/components/editorFoundation/operations.ts');
+    const { placeGraphicImage, imageCapability } = await __noacgImport('/src/blocks/editorImages.ts');
+    const { locateAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
     const t = { ...s.template, assets: [{ path: 'images/a.png', data: 'data:image/png;base64,AA==' }] };
     const errors: Record<string, string> = {}; let name = '';
     const check = (fn: () => unknown) => { try { fn(); errors[name] = 'DID NOT REFUSE'; } catch (e) { errors[name] = String(e); } };
@@ -229,7 +229,7 @@ test('Escape, failed reads and stale revisions discard a whole file batch', asyn
     await page.getByTestId('image-add-input').setInputFiles(file);
     await expect.poll(() => page.evaluate(() => typeof (window as unknown as { releaseRead?: unknown }).releaseRead)).toBe('function');
     if (mode === 'escape') await page.keyboard.press('Escape');
-    if (mode === 'stale') await page.evaluate(async () => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, css: s.template.css + '\n/* another edit */' }); });
+    if (mode === 'stale') await page.evaluate(async () => { const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, css: s.template.css + '\n/* another edit */' }); });
     const expected = await source(page);
     if (mode === 'failed') {
       await page.evaluate(() => { const host = window as unknown as { releaseRead: () => void }; host.releaseRead = () => {}; });
@@ -250,7 +250,7 @@ test('Escape, failed reads and stale revisions discard a whole file batch', asyn
 test('file validation guards refuse invalid resource batches and failed reads', async ({ page }) => {
   await open(page, 'catalog');
   const errors = await page.evaluate(async () => {
-    const { readAssetFiles, imageSize } = await import('/src/assets/fileImport.ts');
+    const { readAssetFiles, imageSize } = await __noacgImport('/src/assets/fileImport.ts');
     const resolution = { width: 1920, height: 1080 }, errors: Record<string, string> = {};
     const check = async (name: string, fn: () => Promise<unknown>) => { try { await fn(); errors[name] = 'DID NOT REFUSE'; } catch (error) { errors[name] = String(error); } };
     const file = new File(['{"v":"1","layers":[],"w":100,"h":100}'], 'art.json');
@@ -331,7 +331,7 @@ test('Escape also cancels existing-asset placement and replacement after decode 
 test('a canvas drop waits for pending drawing-space measurement instead of discarding the gesture', async ({ page }) => {
   await open(page, 'catalog'); const file = await picture(page);
   await page.evaluate(async () => {
-    const { PreviewController } = await import('/src/components/editorFoundation/PreviewController.ts');
+    const { PreviewController } = await __noacgImport('/src/components/editorFoundation/PreviewController.ts');
     const original = PreviewController.prototype.load;
     PreviewController.prototype.load = function (...args) {
       PreviewController.prototype.load = original;
@@ -339,7 +339,7 @@ test('a canvas drop waits for pending drawing-space measurement instead of disca
         (window as unknown as { releasePreview: () => void }).releasePreview = () => { void original.apply(this, args).then(resolve, reject); };
       });
     };
-    const state = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const state = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
     state.applyTemplate({ ...state.template, css: state.template.css + '\n/* held preview measurement */' });
   });
   await expect.poll(() => page.evaluate(() => typeof (window as unknown as { releasePreview: unknown }).releasePreview)).toBe('function');
@@ -366,8 +366,8 @@ test('saved image and its binding reopen and execute in SPX, CasparCG and OGraf'
   expect(reopened.html).toBe(edited.html); expect(reopened.css).toBe(edited.css); expect(reopened.assets).toEqual(edited.assets); expect(reopened.fields).toEqual(edited.fields);
   for (const target of ['spx', 'casparcg', 'ograf']) {
     const files = await page.evaluate(async target => {
-      const template = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-      const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(template);
+      const template = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+      const zip = await (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(template);
       return Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n => !zip.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('base64')])));
     }, target);
     // CasparCG is a single-file package, embedding the bytes instead of external assets.

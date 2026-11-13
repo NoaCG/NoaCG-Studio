@@ -63,8 +63,8 @@ test(`a staged graphic keeps its width whatever the operator types${SCOPE_NOTE}`
   await toApp(page);
 
   const rows: Row[] = await page.evaluate(async (only: string[] | null) => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
 
     // The two ends of one rundown, derived from each field's OWN sample so the field keeps its
     // role. Same derivation as scripts/footprint-stability-sweep.mjs, so the gate and the

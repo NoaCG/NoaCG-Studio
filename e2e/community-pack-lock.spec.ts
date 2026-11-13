@@ -33,9 +33,9 @@ test('an installed pack has no edit door, says where it came from once, and its 
 
   // No edit door: the graphic's own page offers none, and the store refuses to open it.
   const ids = await page.evaluate(async () => {
-    const { loadGraphics, createGraphic } = await import('/src/model/library.ts');
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { openGraphicById } = await import('/src/store/saveActions.ts');
+    const { loadGraphics, createGraphic } = await __noacgImport('/src/model/library.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { openGraphicById } = await __noacgImport('/src/store/saveActions.ts');
     const pack = loadGraphics().find((g) => g.name === 'Pub Quiz')!;
     // The same lower third twice, one of them stamped: only the stamp tells their pages apart.
     const third = variantsFor('lower-third')[0].create({});
@@ -70,12 +70,12 @@ test('the stamp survives Duplicate, Save As and a production export then import,
   await expect(page.getByTestId('home-page')).toBeVisible();
   const stamp = { id: 'community:lineage-1', version: 2, author: 'Someone', name: 'Two thirds' };
   const result = await page.evaluate(async (stamp) => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { loadGraphics, duplicateGraphic, graphicById, graphicNameIndex, librarySaveEffect } = await import('/src/model/library.ts');
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { parsePack, installPack, buildPack } = await import('/src/packs/graphicsPack.ts');
-    const { openGraphicDoc, saveGraphicAs } = await import('/src/store/saveActions.ts');
-    const { packCredit, productionCredits } = await import('/src/community/packStamp.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { loadGraphics, duplicateGraphic, graphicById, graphicNameIndex, librarySaveEffect } = await __noacgImport('/src/model/library.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { parsePack, installPack, buildPack } = await __noacgImport('/src/packs/graphicsPack.ts');
+    const { openGraphicDoc, saveGraphicAs } = await __noacgImport('/src/store/saveActions.ts');
+    const { packCredit, productionCredits } = await __noacgImport('/src/community/packStamp.ts');
     const [first, second] = variantsFor('lower-third');
     const pack = {
       name: 'Two thirds',

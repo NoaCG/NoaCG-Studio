@@ -20,7 +20,7 @@ const NAME = 'ŠIMON ŽÁKOVÁ JAKE';
 
 async function pictures(page: Page, kind: 'bundled' | 'imported', fontId: string, word = WORD) {
   return page.evaluate(async ({ kind, fontId, word }) => {
-    const { fontById, fontFaceCss, customFontFaceCss } = await import('/src/model/fonts.ts');
+    const { fontById, fontFaceCss, customFontFaceCss } = await __noacgImport('/src/model/fonts.ts');
     const face = fontById(fontId);
     const family = kind === 'bundled' ? face.family : 'Brand Import';
     const css =

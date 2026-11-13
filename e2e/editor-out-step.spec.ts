@@ -40,10 +40,10 @@ async function open(page: Page) {
 /** A complete template around one animation literal, built from the running app's modules. */
 async function template(page: Page, data: Data) {
   return page.evaluate(async ({ data, html, css }) => {
-    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
-    const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
-    const { runtimeJs } = await import('/src/templates/shared/base.ts');
-    const { spxSteps } = await import('/src/blocks/animMachine.ts');
+    const store = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const { emitAnimRegion } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { runtimeJs } = await __noacgImport('/src/templates/shared/base.ts');
+    const { spxSteps } = await __noacgImport('/src/blocks/animMachine.ts');
     // The step count a playout host (OGraf's playAction) walks, as every step writer sets it.
     return { ...store.template, settings: { ...store.template.settings, steps: String(spxSteps(data as never)) },
       fps: 25, fields: [], layers: [], html, css, js: runtimeJs('Out step fixture', emitAnimRegion(data as never)) };
@@ -53,9 +53,9 @@ async function template(page: Page, data: Data) {
 /** What `target` serves for a template: the simulator or single-file document, or a package's files. */
 async function build(page: Page, t: unknown, target: string) {
   return page.evaluate(async ({ t, target }) => {
-    if (target === 'simulator') return { html: (await import('/src/preview/composeDocument.ts')).composeDocument(t as never, { simulate: true }) };
-    if (target === 'single-file') return { html: await (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(t as never) };
-    const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(x => x.id === target)!.build(t as never);
+    if (target === 'simulator') return { html: (await __noacgImport('/src/preview/composeDocument.ts')).composeDocument(t as never, { simulate: true }) };
+    if (target === 'single-file') return { html: await (await __noacgImport('/src/export/selfContained.ts')).composeSelfContainedHtml(t as never) };
+    const zip = await (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(x => x.id === target)!.build(t as never);
     return { files: Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n => !zip.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('base64')]))) as Record<string, string> };
   }, { t, target });
 }
@@ -138,8 +138,8 @@ async function execute(page: Page, built: Awaited<ReturnType<typeof build>>, tar
  *  the root that Out does not animate fades over 0.3 units on GSAP's default ease. */
 function model(page: Page, data: Data, held: Pose, visible: string[], times: number[], kind: 'interrupted' | 'authored') {
   return page.evaluate(async ({ data, held, visible, times, kind, layers, props }) => {
-    const { easeCurve, parseEase } = await import('/src/templates/shared/easeRuntime.ts');
-    const { resolveValue } = await import('/src/blocks/animEval.ts');
+    const { easeCurve, parseEase } = await __noacgImport('/src/templates/shared/easeRuntime.ts');
+    const { resolveValue } = await __noacgImport('/src/blocks/animEval.ts');
     const exit = data.steps[data.steps.length - 1], index = data.steps.length - 1;
     return times.map(t => layers.flatMap((s, l) => props.map((p, i) => {
       const u = t * data.speed, live = held[l * props.length + i], keys = exit.layers[s]?.[p];
@@ -213,7 +213,7 @@ async function editorWith(page: Page, data: Data) {
   await page.clock.install(); await open(page);
   const t = await template(page, data);
   await evaluateInPage(page, async (t: unknown) => {
-    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t as never, { resetSampleData: true });
+    (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t as never, { resetSampleData: true });
   }, t);
   await ready(page);
   return t;
@@ -228,7 +228,7 @@ async function seekFrames(page: Page, frames: number) {
 async function ready(page: Page) {
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false'); await expect(page.locator('.ef-stage-error')).toHaveCount(0);
   await expect.poll(() => page.evaluate(async () => {
-    const view = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
+    const view = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
     const canvas = document.querySelector('[data-testid=foundation-canvas]')!;
     // Edit Out moves only the cue, so the pose must answer for the cue as well as the time.
     return Math.abs(Number(canvas.getAttribute('data-pose-time')) - view.time) < .00001 && canvas.getAttribute('data-pose-cue') === String(view.cue ?? 'arriving');
@@ -249,8 +249,8 @@ async function editorOut(page: Page, frames: number, editOut = false) {
     await page.getByRole('button', { name: 'Pause', exact: true }).click();
     await page.clock.runFor(100); await ready(page);
     times.push(await page.evaluate(async () => {
-      const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
-      const { readTimeline } = await import('/src/components/editorFoundation/timelineView.ts');
+      const { activeEditorSession } = await __noacgImport('/src/components/editorFoundation/documentAdapter.ts');
+      const { readTimeline } = await __noacgImport('/src/components/editorFoundation/timelineView.ts');
       const session = activeEditorSession();
       return session.port.view().time - readTimeline(session.port.read()).out;
     }));
@@ -295,7 +295,7 @@ test('a paused Out preview refuses edits until the playhead moves', async ({ pag
   await page.clock.runFor(250);
   await page.getByRole('button', { name: 'Pause', exact: true }).click();
   await page.clock.runFor(100); await ready(page);
-  const state = () => page.evaluate(async () => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); return { js: s.template.js, history: s.history.length }; });
+  const state = () => page.evaluate(async () => { const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); return { js: s.template.js, history: s.history.length }; });
   const before = await state();
   const key = page.getByRole('button', { name: /^(Add|Remove) Position X key$/ });
   await key.click();
@@ -313,7 +313,7 @@ test('a graphic saved with the R1.2a.2 interpreter upgrades once and then leaves
   await open(page);
   const before = readFileSync(new URL('./fixtures/interpreter-hold-v1.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const data = steps(), t = await template(page, data);
-  const saved = await page.evaluate(async ({ js, before }) => js.replace((await import('/src/templates/shared/animRuntime.ts')).ANIM_INTERPRETER_JS, () => before), { js: t.js, before });
+  const saved = await page.evaluate(async ({ js, before }) => js.replace((await __noacgImport('/src/templates/shared/animRuntime.ts')).ANIM_INTERPRETER_JS, () => before), { js: t.js, before });
   expect(saved).toContain('Capability: shared-ease-v2.');
   expect(saved).not.toBe(t.js);
   for (const target of ['simulator', 'spx', 'ograf']) {
@@ -322,11 +322,11 @@ test('a graphic saved with the R1.2a.2 interpreter upgrades once and then leaves
     near(run.leaving, await model(page, data, run.held, run.visible, TIMES, 'interrupted'), `R1.2a.2 source in ${target}: the interrupted exit`);
   }
   const result = await page.evaluate(async ({ js, saved, before }) => {
-    const { ANIM_INTERPRETER_JS, writeOutData } = await import('/src/templates/shared/animRuntime.ts');
-    const { ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH } = await import('/src/templates/shared/animRuntimeLegacy.ts') as Record<string, string>;
-    const { prepareOutRuntime } = await import('/src/blocks/animMigration.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { contentHash } = await import('/src/model/contentHash.ts');
+    const { ANIM_INTERPRETER_JS, writeOutData } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH } = await __noacgImport('/src/templates/shared/animRuntimeLegacy.ts') as Record<string, string>;
+    const { prepareOutRuntime } = await __noacgImport('/src/blocks/animMigration.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { contentHash } = await __noacgImport('/src/model/contentHash.ts');
     const upgraded = prepareOutRuntime(saved);
     return { known: contentHash(before.trim()) === ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, upgraded: upgraded === js, once: prepareOutRuntime(upgraded) === upgraded,
       written: writeOutData(saved, parseAnimData(saved)!) === js, current: upgraded.includes(ANIM_INTERPRETER_JS) };
@@ -337,7 +337,7 @@ test('a graphic saved with the R1.2a.2 interpreter upgrades once and then leaves
 test('a machine graphic parked at its first state keeps its authored exit', async ({ page }) => {
   await open(page);
   const data = steps();
-  data.machine = await page.evaluate(async d => (await import('/src/blocks/animMachine.ts')).deriveMachine(d as never), data);
+  data.machine = await page.evaluate(async d => (await __noacgImport('/src/blocks/animMachine.ts')).deriveMachine(d as never), data);
   const t = await template(page, data);
   for (const target of ['simulator', 'ograf']) {
     const run = await execute(page, await build(page, t, target), target, 0, TIMES);

@@ -81,8 +81,8 @@ interface Snapshot {
 
 async function snapshot(page: Page): Promise<Snapshot> {
   return (await page.evaluate(async () => {
-    const { loadGraphics, resolveSavedGraphicDoc } = await import('/src/model/library.ts');
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadGraphics, resolveSavedGraphicDoc } = await __noacgImport('/src/model/library.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const library = loadGraphics();
     const show = loadShows()[0];
     const copy = show?.graphics[0];
@@ -259,12 +259,12 @@ test('a re-import into a DIFFERENT production still says it saves over the libra
   expect(said).toContain('is saved over the version in your library');
 
   const names = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     return loadGraphics().map((g) => g.name);
   });
   expect(names).toEqual(['Match Score']);
   const shows = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().map((s) => ({ name: s.name, pooled: s.graphics.map((g) => g.graphicId ?? null) }));
   });
   // BOTH productions pool the same record, so both air the version the student just imported.
@@ -361,8 +361,8 @@ test('a name taken while Finish is open is still disclosed before the door write
 
   // Somewhere else, "Away Team" becomes a graphic.
   await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
     const { doc, error } = createGraphic(variantsFor('lower-third')[0].create({}), { name: 'Away Team' });
     if (error || !doc) throw new Error(error ?? 'seed failed');
   });

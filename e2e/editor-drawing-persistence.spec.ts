@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs';
 import type { SpxTemplate } from '../src/model/types';
 
 const canvas = (page: Page) => page.getByTestId('foundation-canvas');
-const source = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
-const selection = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts);
+const source = (page: Page) => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+const selection = (page: Page) => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts);
 const tool = (page: Page, name: string) => page.getByRole('button', { name: name + ' tool', exact: true });
 async function frame(page: Page) { return (await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!; }
 async function ready(page: Page) {
@@ -17,7 +17,7 @@ async function open(page: Page) {
   await page.goto('/app?editor=foundation#/editor-foundation');
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
   await page.evaluate(async t => {
-    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t, { resetSampleData: true });
+    (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t, { resetSampleData: true });
     await new Promise(resolve => setTimeout(resolve));
   }, JSON.parse(readFileSync('docs/research/editor-r1-foundation/fixture-catalog.json', 'utf8')) as SpxTemplate);
   await ready(page);
@@ -137,7 +137,7 @@ test('group entry cancels Pen and switches to Select; returning to Composition s
   const ids: string[] = [];
   for (const x of [600, 900]) { await point(page, x, 300, 120, 90); await ready(page); ids.push((await selection(page))[0]); }
   const group = await page.evaluate(async ids => {
-    const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const s = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
     const result = s.execute({ documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'group.create', selectors: ids, box: { x: 600, y: 300, width: 420, height: 90 } }] });
     await new Promise(resolve => setTimeout(resolve)); return result.changedTargets[0];
   }, ids);
@@ -157,7 +157,7 @@ for (const change of ['source', 'assets', 'playhead', 'document']) test('Pen dra
   await tool(page, 'pen').click(); await point(page, 600, 300); await point(page, 800, 500);
   if (change === 'playhead') { await page.getByTestId('foundation-ruler').focus(); await page.keyboard.press('ArrowLeft'); }
   else await page.evaluate(async change => {
-    const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(), t = s.template;
+    const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(), t = s.template;
     s.applyTemplate(change === 'assets' ? { ...t, assets: [...t.assets, { path: 'guard.txt', data: new Blob(['guard']) }] } : { ...t, css: t.css + '\n/* external ' + change + ' */' }, { resetSampleData: change === 'document' });
     await new Promise(resolve => setTimeout(resolve));
   }, change);

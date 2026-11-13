@@ -92,8 +92,8 @@ test(`a lower third keeps its text on the frame when the operator types a long n
   await toApp(page);
 
   const rows: Row[] = await page.evaluate(async ({ longName, only }: { longName: string; only: string[] | null }) => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
 
     const host = document.createElement('div');
     host.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#000;overflow:hidden';

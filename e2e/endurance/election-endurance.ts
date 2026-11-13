@@ -126,9 +126,9 @@ test('the election data path holds for the minutes asked', async ({ page, browse
       return (await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })).toString('base64');
     };
     const showId = await page.evaluate(async ({ rundown, scoreboard }) => {
-      const { importForeignOgraf } = await import('/src/export/targets/ografForeign.ts');
-      const m = await import('/src/model/shows.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { importForeignOgraf } = await __noacgImport('/src/export/targets/ografForeign.ts');
+      const m = await __noacgImport('/src/model/shows.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const show = m.loadShows().find((s) => s.name === 'Election night rehearsal')!;
       const bytes = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
       const read = await importForeignOgraf('rundown.zip', bytes(rundown));
@@ -157,7 +157,7 @@ test('the election data path holds for the minutes asked', async ({ page, browse
     // The source, registered as the rehearsal runbook does, pointing at this run's replay server.
     const registration = readJson('docs/work-specs/playout-election-package/replay-source.json');
     const refused = await page.evaluate(
-      async ({ id, source }) => (await import('/src/model/shows.ts')).connectConnectorSource(id, source as never, [], null).error,
+      async ({ id, source }) => (await __noacgImport('/src/model/shows.ts')).connectConnectorSource(id, source as never, [], null).error,
       { id: showId, source: { ...registration, config: { ...registration.config, endpoint: replay.url } } },
     );
     expect(refused).toBeNull();
@@ -226,7 +226,7 @@ test('the election data path holds for the minutes asked', async ({ page, browse
     const firstCue = async (graphic: string) =>
       page.evaluate(
         async ({ id, graphic }) => {
-          const show = (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)!;
+          const show = (await __noacgImport('/src/model/shows.ts')).loadShows().find((s) => s.id === id)!;
           const g = show.graphics.find((x) => x.name === graphic)!;
           return show.cues!.find((c) => c.sourceId === g.id)!.label;
         },
@@ -314,7 +314,7 @@ test('the election data path holds for the minutes asked', async ({ page, browse
           for (const k of ['JSHeapUsedSize', 'Nodes', 'JSEventListeners', 'Documents']) m[k] += own[k] ?? 0;
         }
         for (const f of [...frameCdp.keys()]) if (f.isDetached()) frameCdp.delete(f);
-        const channels = await p.evaluate(async () => (await (await import('/src/backend/supabase.ts')).getSupabase())?.getChannels().length ?? null).catch(() => null);
+        const channels = await p.evaluate(async () => (await (await __noacgImport('/src/backend/supabase.ts')).getSupabase())?.getChannels().length ?? null).catch(() => null);
         return { heap: m.JSHeapUsedSize, nodes: m.Nodes, listeners: m.JSEventListeners, documents: m.Documents, frames: m.Frames, separate, channels, gc };
       } catch (e) {
         return { failed: String((e as Error).message ?? e) };
@@ -372,7 +372,7 @@ test('the election data path holds for the minutes asked', async ({ page, browse
 
     // ── The scheduled faults ──
     const pause = async (ms: number) => {
-      const paused = (on: boolean) => page.evaluate(async ({ s, on }) => (await import('/src/control/productionDataApi.ts')).setAnotherSystemPaused(s, on), { s: slug, on });
+      const paused = (on: boolean) => page.evaluate(async ({ s, on }) => (await __noacgImport('/src/control/productionDataApi.ts')).setAnotherSystemPaused(s, on), { s: slug, on });
       const fault: Json = { kind: 'pause', at: Date.now() };
       record.faults.push(fault);
       fault.answer = await paused(true);

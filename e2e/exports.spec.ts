@@ -48,8 +48,8 @@ test("a saved graphic's control entries ride into its own export, not just the s
   // up named rows downloads a panel with an empty switcher.
   await createHairline(page);
   await page.evaluate(async () => {
-    const { createGraphic, newEntry } = await import('/src/model/library.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { createGraphic, newEntry } = await __noacgImport('/src/model/library.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const store = useTemplateStore.getState();
     const field = store.template.fields[0]?.field ?? 'f0';
     const { doc } = createGraphic(store.template, {
@@ -127,11 +127,11 @@ test('a single file imported and exported again carries its target scripts once'
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const files = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { importHtmlTemplate } = await import('/src/model/importTemplate.ts');
-    const { casparTarget } = await import('/src/export/targets/casparcg.ts');
-    const { h2rTarget } = await import('/src/export/targets/h2r.ts');
-    const { htmlOverlayTarget } = await import('/src/export/targets/htmlOverlay.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { importHtmlTemplate } = await __noacgImport('/src/model/importTemplate.ts');
+    const { casparTarget } = await __noacgImport('/src/export/targets/casparcg.ts');
+    const { h2rTarget } = await __noacgImport('/src/export/targets/h2r.ts');
+    const { htmlOverlayTarget } = await __noacgImport('/src/export/targets/htmlOverlay.ts');
     const graphicFile = async (zip: Awaited<ReturnType<typeof casparTarget.build>>) =>
       zip.file('hairline/hairline.html')!.async('string');
     const out: Record<string, { imported: string; again: string }> = {};
@@ -177,7 +177,7 @@ test('export target choice is remembered as the default across reloads', async (
   await expect
     .poll(() =>
       page.evaluate(async () => {
-        const { loadProject } = await import('/src/model/project.ts');
+        const { loadProject } = await __noacgImport('/src/model/project.ts');
         return loadProject()?.template.name ?? null;
       }),
     )
@@ -194,7 +194,7 @@ test('html overlay: self-contained, autoplays with the Data panel values, contro
   // A custom value typed for the graphic: the store's sample data, which is what the old Data
   // panel wrote and what every field control writes - the export must bake it in.
   await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     useTemplateStore.getState().setSampleValue('f0', 'Overlay Works');
   });
   const zip = await downloadTarget(page, 'HTML overlay (OBS / vMix)');
@@ -234,8 +234,8 @@ test('html overlay under OBS: the entrance waits for program and plays again on 
   // OBS sends no event for the state a page loads in, so it starts from document.visibilityState.
   await page.goto('/app');
   const html = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { htmlOverlayTarget } = await import('/src/export/targets/htmlOverlay.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { htmlOverlayTarget } = await __noacgImport('/src/export/targets/htmlOverlay.ts');
     const zip = await htmlOverlayTarget.build(variantById('lt01')!.create({}));
     return zip.file('hairline/hairline.html')!.async('string');
   });
@@ -310,8 +310,8 @@ test('html overlay, settled (OBS scene fallback): at rest from load, no entrance
   await page.goto('/app');
   const build = (settled: boolean) =>
     page.evaluate(async (settled) => {
-      const { variantById } = await import('/src/templates/catalog.ts');
-      const { htmlOverlayTarget } = await import('/src/export/targets/htmlOverlay.ts');
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+      const { htmlOverlayTarget } = await __noacgImport('/src/export/targets/htmlOverlay.ts');
       const template = variantById('lt01')!.create({});
       // An automatic Out after half a second: a settled file never takes it.
       template.settings = { ...template.settings, out: '500' };
@@ -593,8 +593,8 @@ test('ograf: a valid v1 Graphic whose Web Component passes the action contract',
 test('ograf: non-real-time schedule seeks are deterministic in shuffled order', async ({ page }) => {
   await createHairline(page);
   const capabilities = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { buildOgrafManifest } = await import('/src/export/targets/ograf.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { buildOgrafManifest } = await __noacgImport('/src/export/targets/ograf.ts');
     const template = useTemplateStore.getState().template;
     return (['live', 'post-production', 'both'] as const).map((usage) => {
       const manifest = buildOgrafManifest(template, usage);
@@ -685,7 +685,7 @@ test('ograf: non-real-time schedule seeks are deterministic in shuffled order', 
 test('ograf: post-production intent is blocked for non-deterministic code', async ({ page }) => {
   await createHairline(page);
   await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const store = useTemplateStore.getState();
     store.applyTemplate({ ...store.template, js: `${store.template.js}\nMath.random();\n` });
   });
@@ -851,8 +851,8 @@ test('ograf: the machine\'s operator events are custom actions, guarded like eve
 // no console error: a broken <img alt=""> over transparent video looks like an empty slot.
 // Measured before the fix on cr01 — naturalWidth 0 and a failed file:// request.
 const IMAGE_ROUNDTRIP = `(async () => {
-  const { CATALOG } = await import('/src/templates/catalog.ts');
-  const { EXPORT_TARGETS } = await import('/src/export/registry.ts');
+  const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+  const { EXPORT_TARGETS } = await __noacgImport('/src/export/registry.ts');
   const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII=';
   let tpl = null, field = null;
   for (const variant of Object.values(CATALOG).flat().filter(Boolean)) {

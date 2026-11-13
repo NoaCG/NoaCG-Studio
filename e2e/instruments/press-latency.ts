@@ -117,7 +117,7 @@ for (const graphic of ['Hairline', 'League Table', 'Arena Quiz']) {
     const op = page;
     await shutStatusPanel(op);
     const outputSlug = await op.evaluate(async (n) => {
-      const { loadShows } = await import('/src/model/shows.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
       return loadShows().find((x) => x.name === n)?.outputSlug ?? null;
     }, name);
     expect(outputSlug, 'publishing must mint an output slug').toBeTruthy();

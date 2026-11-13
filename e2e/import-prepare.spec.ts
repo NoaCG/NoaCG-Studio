@@ -59,7 +59,7 @@ async function drawRect(page: Page, fx0: number, fy0: number, fx1: number, fy1: 
 async function assetPixel(page: Page, fx: number, fy: number) {
   return page.evaluate(
     async ({ fx, fy }) => {
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
+      const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
       const asset = useTemplateStore.getState().template.assets[0];
       const img = new Image();
       await new Promise((res, rej) => {
@@ -207,8 +207,8 @@ test('erase: the erased region seeds the first text field, placed and sized from
   // source px here (the artwork is smaller than the frame). Everything through the same
   // reader modules the app uses.
   const state = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { placedLines, lineFit, lineFontSize, lineTextStyle } = await import('/src/blocks/designLayout.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { placedLines, lineFit, lineFontSize, lineTextStyle } = await __noacgImport('/src/blocks/designLayout.ts');
     const s = useTemplateStore.getState();
     return {
       placed: placedLines(s.template.html, s.template.css)['#f0'],
@@ -256,8 +256,8 @@ test('erase: on a 2x export the seeded field maps to design pixels', async ({ pa
   // frame-sized at 1920, so every placed number is HALVED — the erase and its measurement
   // stay in source px, the field lands in design px.
   const state = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { placedLines, lineFontSize } = await import('/src/blocks/designLayout.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { placedLines, lineFontSize } = await __noacgImport('/src/blocks/designLayout.ts');
     const s = useTemplateStore.getState();
     return {
       placed: placedLines(s.template.html, s.template.css)['#f0'],

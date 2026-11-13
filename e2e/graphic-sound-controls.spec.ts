@@ -21,12 +21,12 @@ function wave(bits = 16, channels = 1, seconds = .5) {
 async function seed(page: Page, editor = false) {
   await page.goto(editor ? '/app?editor=foundation#/home' : '/app#/home'); await awaitDurableReady(page);
   const id = await page.evaluate(async editor => {
-    const { createBlankTemplate } = await import('/src/templates/blank.ts');
-    const { runtimeJs } = await import('/src/templates/shared/base.ts');
-    const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
-    const { replaceDefinitionInHtml } = await import('/src/model/spxDefinition.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { createBlankTemplate } = await __noacgImport('/src/templates/blank.ts');
+    const { runtimeJs } = await __noacgImport('/src/templates/shared/base.ts');
+    const { emitAnimRegion } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { replaceDefinitionInHtml } = await __noacgImport('/src/model/spxDefinition.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     const t = createBlankTemplate(); t.name = 'Sound controls proof';
     t.html = replaceDefinitionInHtml('<!doctype html><html><head></head><body><div id="box" data-gfx="Box">SOUND</div></body></html>', t.settings, []);
     t.css = '#box { opacity: 0; width: 400px; height: 150px; font-size: 48px; color: white; background: #333; }';
@@ -36,12 +36,12 @@ async function seed(page: Page, editor = false) {
         transitions: [{ from: 'question', to: 'answer', trigger: 'operator', event: 'correct' }, { from: 'question', to: 'running', trigger: 'operator', event: 'start' }, { from: 'running', to: 'paused', trigger: 'operator', event: 'pause' }] }] } }));
     const made = createGraphic(t, { name: t.name }); if (!made.doc || made.error) throw Error(made.error);
     if (editor) {
-      const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+      const store = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
       store.applyTemplate(t, { resetSampleData: true }); store.setSaved({ graphicId: made.doc.id, dirty: false, status: 'idle' });
     }
     const failure = await commitDurableWrites(); if (failure) throw Error(failure);
     (window as unknown as { soundGraphicId: string }).soundGraphicId = made.doc.id;
-    (await import('/src/app/router.ts')).useRouter.getState().navigate(editor ? { view: 'editor-foundation' } : { view: 'control', id: made.doc.id });
+    (await __noacgImport('/src/app/router.ts')).useRouter.getState().navigate(editor ? { view: 'editor-foundation' } : { view: 'control', id: made.doc.id });
     // The surface mounts behind `navigate`: answer from a later task (_create.ts openProductionWithCurrent).
     await new Promise((resolve) => setTimeout(resolve));
     return made.doc.id;
@@ -52,14 +52,14 @@ async function seed(page: Page, editor = false) {
 }
 async function saved(page: Page, id: string) {
   return page.evaluate(async id => {
-    const { graphicById } = await import('/src/model/library.ts'), { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { graphicById } = await __noacgImport('/src/model/library.ts'), { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const template = graphicById(id)!.template; return { template, data: parseAnimData(template.js)! };
   }, id);
 }
 async function working(page: Page) {
   return page.evaluate(async () => {
-    const template = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-    return { template, data: (await import('/src/blocks/animData.ts')).parseAnimData(template.js)! };
+    const template = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    return { template, data: (await __noacgImport('/src/blocks/animData.ts')).parseAnimData(template.js)! };
   });
 }
 test('saved controls attach disabled, persist enable and level, audition explicitly and keep preview silent', async ({ page }) => {
@@ -86,10 +86,10 @@ test('saved controls attach disabled, persist enable and level, audition explici
   await expect(controls.getByLabel('Enabled', { exact: true })).toBeChecked(); await expect(controls.getByLabel('Sound level')).toHaveValue('-12');
   expect((await saved(page, id)).data.steps[0].sound!.id).toBe(attachment.id);
   await page.evaluate(async id => {
-    const { graphicById } = await import('/src/model/library.ts');
-    const { createShowNamed, addGraphicToShow } = await import('/src/model/shows.ts');
-    const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
-    const { createOutputStage } = await import('/src/output/stage.ts');
+    const { graphicById } = await __noacgImport('/src/model/library.ts');
+    const { createShowNamed, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
+    const { buildOutputPayload } = await __noacgImport('/src/control/hostedControl.ts');
+    const { createOutputStage } = await __noacgImport('/src/output/stage.ts');
     const graphic = graphicById(id)!, show = createShowNamed('Sound stage proof');
     const added = addGraphicToShow(show.id, graphic.template, { graphicId: id });
     const payload = await buildOutputPayload(added.shows.find(s => s.id === show.id)!);
@@ -135,7 +135,7 @@ test('editor attachment and bytes undo together; rename retains binding; quiz ed
   await page.getByRole('button', { name: 'Redo', exact: true }).click();
   expect((await working(page)).template.assets).toHaveLength(1);
   await page.evaluate(async () => {
-    const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const session = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
     session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'asset.move', from: 'sounds/tick.wav', to: 'sounds/renamed.wav' }] });
   });
   expect((await working(page)).data.steps[0].sound!.asset).toBe('sounds/renamed.wav');
@@ -166,7 +166,7 @@ test('professional 24-bit stereo WAV above the former size limit decodes and att
   await expect(controls.getByLabel('Enabled', { exact: true })).toBeVisible();
   await expect(controls.getByRole('alert')).toHaveCount(0);
   const decoded = await page.evaluate(async id => {
-    const { graphicById } = await import('/src/model/library.ts'), { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { graphicById } = await __noacgImport('/src/model/library.ts'), { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const template = graphicById(id)!.template, sound = parseAnimData(template.js)!.steps[0].sound!;
     const asset = template.assets.find(a => a.path === sound.asset)!;
     const context = new AudioContext({ sampleRate: 48000 });
@@ -205,7 +205,7 @@ test('audition cancellation during decode and leaving the controls close audio w
   await controls.getByRole('button', { name: 'Audition sound' }).click();
   await expect.poll(() => page.evaluate(() => (window as unknown as { soundStarts: number }).soundStarts)).toBe(1);
   await page.evaluate(async () => {
-    (await import('/src/app/router.ts')).useRouter.getState().navigate({ view: 'home', section: 'graphics' });
+    (await __noacgImport('/src/app/router.ts')).useRouter.getState().navigate({ view: 'home', section: 'graphics' });
     await new Promise((resolve) => setTimeout(resolve));
   });
   await expect.poll(() => page.evaluate(() => (window as unknown as { soundContexts: AudioContext[] }).soundContexts.every(c => c.state === 'closed'))).toBe(true);

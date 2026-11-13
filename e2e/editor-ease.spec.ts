@@ -43,9 +43,9 @@ async function open(page: Page) {
 /** A complete template around one animation literal, built from the running app's modules. */
 async function template(page: Page, data: Data, title = false) {
   return page.evaluate(async ({ data, title }) => {
-    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
-    const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
-    const { runtimeJs } = await import('/src/templates/shared/base.ts');
+    const store = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const { emitAnimRegion } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { runtimeJs } = await __noacgImport('/src/templates/shared/base.ts');
     return { ...store.template, fps: 25, fields: [], layers: [],
       html: `<!doctype html><html><head><link rel="stylesheet" href="css/template.css"><script src="js/gsap.min.js"></script><script src="js/template.js"></script></head><body><div class="fixture"><div id="box" data-gfx></div>${title ? '<div id="title" data-gfx>Text and box</div>' : ''}</div></body></html>`,
       css: 'body{margin:0}.fixture{opacity:0}#box{position:absolute;left:500px;top:400px;width:320px;height:100px;background:#eeb844}#title{position:absolute;left:500px;top:420px;width:320px;height:100px;font:40px Arial;color:#111}',
@@ -60,12 +60,12 @@ async function execute(page: Page, t: unknown, target: string, times: number[], 
   await output.setViewportSize({ width: 1920, height: 1080 });
   if (target === 'simulator' || target === 'single-file') {
     const html = await page.evaluate(async ({ t, target }) => target === 'simulator'
-      ? (await import('/src/preview/composeDocument.ts')).composeDocument(t as never, { simulate: true })
-      : (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(t as never), { t, target });
+      ? (await __noacgImport('/src/preview/composeDocument.ts')).composeDocument(t as never, { simulate: true })
+      : (await __noacgImport('/src/export/selfContained.ts')).composeSelfContainedHtml(t as never), { t, target });
     await output.setContent(html);
   } else {
     const files = await page.evaluate(async ({ t, target }) => {
-      const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(x => x.id === target)!.build(t as never);
+      const zip = await (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(x => x.id === target)!.build(t as never);
       return Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n => !zip.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('base64')])));
     }, { t, target });
     await output.route('http://ease-package.local/**', route => {
@@ -132,7 +132,7 @@ for (const target of TARGETS) test('editor sampling equals the executed runtime 
   const times = grid(2);
   const data = entrance();
   const reference = await page.evaluate(async ({ data, times }) => {
-    const { resolveValue } = await import('/src/blocks/animEval.ts');
+    const { resolveValue } = await __noacgImport('/src/blocks/animEval.ts');
     return times.map(t => ['x', 'y', 'rotation', 'scaleX', 'opacity'].map(p => Number(resolveValue(data as never, '#box', p, 0, t))));
   }, { data, times });
   const run = await execute(page, await template(page, data), target, times, [0], [2, 1]);
@@ -147,7 +147,7 @@ test('a stepped entrance never reverses into a wrong mirror', async ({ page }) =
   data.steps[0].duration = 1;
   data.steps[0].layers['#box'] = { x: [{ time: 0, value: -900 }, { time: 1, value: 0, ease: 'steps(1)' }] };
   const reversed = await page.evaluate(async t => {
-    try { return (await import('/src/blocks/editorOut.ts')).applyOut(t as never, { kind: 'out.reverse' }).js; } catch (e) { return String((e as Error).message); }
+    try { return (await __noacgImport('/src/blocks/editorOut.ts')).applyOut(t as never, { kind: 'out.reverse' }).js; } catch (e) { return String((e as Error).message); }
   }, await template(page, data));
   if (!reversed.includes('NOACG_ANIM')) { expect(reversed).toContain('cannot yet be reversed exactly'); return; }
   // Written anyway: then the exit must play the entrance backwards.
@@ -163,7 +163,7 @@ for (const target of TARGETS) test('split at 40 percent keeps samples, endpoints
   const times = [...new Set([...grid(2), ...points.flatMap(t => [t - h, t, t + h])])].sort((a, b) => a - b);
   const data = entrance();
   const split = await page.evaluate(async ({ data, splits }) => {
-    const { splitKeyframeSegment } = await import('/src/blocks/animEdit.ts');
+    const { splitKeyframeSegment } = await __noacgImport('/src/blocks/animEdit.ts');
     return splits.reduce((d, [prop, t]) => splitKeyframeSegment(d, 0, '#box', prop, t), data as never) as unknown as Data;
   }, { data, splits });
   // Endpoints: the original keys are untouched and every split writes one sampled key.
@@ -198,8 +198,8 @@ for (const target of TARGETS) test('exact reversal plays the entrance backwards 
     opacity: [{ time: 0, value: 0 }, { time: 1, value: 1, ease: 'sine.out' }],
   };
   const reversed = await page.evaluate(async t => {
-    const { applyOut } = await import('/src/blocks/editorOut.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { applyOut } = await __noacgImport('/src/blocks/editorOut.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const js = applyOut(t as never, { kind: 'out.reverse' }).js;
     return { js, data: parseAnimData(js) as unknown as Data };
   }, await template(page, data));
@@ -225,7 +225,7 @@ function textAndBox(): Data {
 
 /** Set Out at `time` through the editor's own operation. */
 const setOut = (page: Page, t: Awaited<ReturnType<typeof template>>, time: number) =>
-  page.evaluate(async ({ t, time }) => (await import('/src/blocks/editorOut.ts')).applyOut(t as never, { kind: 'out.set', time }), { t, time });
+  page.evaluate(async ({ t, time }) => (await __noacgImport('/src/blocks/editorOut.ts')).applyOut(t as never, { kind: 'out.set', time }), { t, time });
 
 for (const target of TARGETS) test('Set Out before the last In key plays In then Out as the original in ' + target, async ({ page }) => {
   await open(page);
@@ -260,8 +260,8 @@ for (const target of TARGETS) test('Out interrupting an In shortened across its 
   // Then each exit track tweens from that pose to its last key over its span. A sliced last ease
   // plays as the whole curve it was cut from; stretched as a slice it would swing far past its end.
   const expected = await page.evaluate(async ({ js, held, times, props }) => {
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { easeCurve, parseEase } = await import('/src/templates/shared/easeRuntime.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { easeCurve, parseEase } = await __noacgImport('/src/templates/shared/easeRuntime.ts');
     const exit = parseAnimData(js)!.steps[1];
     return times.map(t => ['#box', '#title'].flatMap((selector, layer) => props.map((prop, i) => {
       const keys = exit.layers[selector]?.[prop], live = held[layer * props.length + i];
@@ -279,10 +279,10 @@ test('reversal and split refuse atomically where no exact form exists', async ({
   await open(page);
   const base = entrance();
   const result = await page.evaluate(async (base: Data) => {
-    const { splitKeyframeSegment } = await import('/src/blocks/animEdit.ts');
-    const { applyOut } = await import('/src/blocks/editorOut.ts');
-    const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
-    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const { splitKeyframeSegment } = await __noacgImport('/src/blocks/animEdit.ts');
+    const { applyOut } = await __noacgImport('/src/blocks/editorOut.ts');
+    const { emitAnimRegion } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const store = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
     const clone = () => JSON.parse(JSON.stringify(base)) as Data;
     const refuse = (make: (d: Data) => Data, split: [string, number]) => {
       const d = make(clone()), before = JSON.stringify(d);
@@ -323,17 +323,17 @@ test('a saved pre-G01 interpreter upgrades to play exact eases; a custom one blo
   // it on the way out and play the cubic-bezier and every other key as the editor samples them.
   const times = grid(2, .05);
   const reference = await page.evaluate(async ({ data, times }) => {
-    const { resolveValue } = await import('/src/blocks/animEval.ts');
+    const { resolveValue } = await __noacgImport('/src/blocks/animEval.ts');
     return times.map(t => ['x', 'y', 'rotation', 'scaleX', 'opacity'].map(p => Number(resolveValue(data as never, '#box', p, 0, t))));
   }, { data, times });
-  const saved = await page.evaluate(async ({ js, legacy }) => js.replace((await import('/src/templates/shared/animRuntime.ts')).ANIM_INTERPRETER_JS, () => legacy), { js: t.js, legacy });
+  const saved = await page.evaluate(async ({ js, legacy }) => js.replace((await __noacgImport('/src/templates/shared/animRuntime.ts')).ANIM_INTERPRETER_JS, () => legacy), { js: t.js, legacy });
   expect(saved).not.toContain('function noacgEase(');
   for (const target of ['simulator', 'spx']) near((await execute(page, { ...t, js: saved }, target, times, [0], [2, 1])).entering, reference, 'pre-G01 source in ' + target);
   const result = await page.evaluate(async ({ t, legacy }) => {
-    const { ANIM_INTERPRETER_JS, writeAnimData } = await import('/src/templates/shared/animRuntime.ts');
-    const { prepareOutRuntime } = await import('/src/blocks/animMigration.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+    const { ANIM_INTERPRETER_JS, writeAnimData } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { prepareOutRuntime } = await __noacgImport('/src/blocks/animMigration.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
     const old = t.js.replace(ANIM_INTERPRETER_JS, () => legacy);
     const custom = old.replace('var noacgStepsPlayed = 0;', 'var noacgStepsPlayed = 0; window.customTail = true;');
     const data = parseAnimData(old)!;
@@ -357,9 +357,9 @@ test('Set Out reverse in the editor writes mirrored destination eases as one und
     opacity: [{ time: 0, value: 0 }, { time: 1, value: 1, ease: 'cubic-bezier(0.2,0.6,0.4,1)' }],
   } } }] });
   // Ends on a store mutation, the evaluate that failed the nightly as a false navigation (#465).
-  await evaluateInPage(page, async t => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t as never, { resetSampleData: true }), t);
+  await evaluateInPage(page, async t => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t as never, { resetSampleData: true }), t);
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
-  const read = () => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js);
+  const read = () => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.js);
   const ruler = page.getByRole('slider', { name: 'Playhead' });
   await ruler.focus(); await ruler.press('Home'); for (let i = 0; i < 25; i++) await ruler.press('ArrowRight');
   await expect(ruler).toHaveAttribute('aria-valuenow', '1');
@@ -368,7 +368,7 @@ test('Set Out reverse in the editor writes mirrored destination eases as one und
   const moved = await read();
   await page.getByRole('button', { name: 'Yes, reverse' }).click();
   await expect.poll(async () => (await read()) !== moved).toBe(true);
-  const keys = await page.evaluate(async () => (await import('/src/blocks/animData.ts')).parseAnimData((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)!.steps[1].layers['#box']);
+  const keys = await page.evaluate(async () => (await __noacgImport('/src/blocks/animData.ts')).parseAnimData((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)!.steps[1].layers['#box']);
   expect(keys.x.map(k => k.ease)).toEqual([undefined, 'bounce.in', 'back.in(1.6)']);
   expect(keys.opacity.map(k => k.ease)).toEqual([undefined, 'cubic-bezier(0.6,0,0.8,0.4)']);
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
@@ -403,7 +403,7 @@ function sided(): { data: Data; keys: KeyRef[] } {
 
 /** Editor sampling of both layers at effective times, through the stored clock. */
 const sampled = (page: Page, data: Data, times: number[]) => page.evaluate(async ({ data, times }) => {
-  const { resolveValue } = await import('/src/blocks/animEval.ts');
+  const { resolveValue } = await __noacgImport('/src/blocks/animEval.ts');
   return times.map(t => ['#box', '#title'].flatMap(s => ['x', 'y', 'rotation', 'scaleX', 'opacity'].map(p => {
     const value = resolveValue(data as never, s, p, 0, t * data.speed);
     return value === null ? (p === 'scaleX' || p === 'opacity' ? 1 : 0) : Number(value);
@@ -414,7 +414,7 @@ for (const target of TARGETS) test('every key-side preset plays as the editor sa
   await open(page);
   const { data, keys } = sided();
   const eased = await page.evaluate(async ({ data, keys, presets }) => {
-    const { easeKeys } = await import('/src/blocks/animEdit.ts');
+    const { easeKeys } = await __noacgImport('/src/blocks/animEdit.ts');
     return presets.map(preset => easeKeys(data as never, keys as never, preset as never) as unknown as Data);
   }, { data, keys, presets: [...PRESETS] });
   // Every key time on the grid, where a Hold must land on its arriving value.
@@ -434,7 +434,7 @@ for (const target of TARGETS) test('an outgoing Hold on the first X key holds un
     { name: 'In', duration: 1, ease: 'power1.inOut', layers: { '#box': { x: [{ time: 0, value: -80 }, { time: 1, value: 0 }], opacity: [{ time: 0, value: 0 }, { time: .3, value: 1 }] } } },
     { name: 'Out', duration: 1, ease: 'none', layers: {} },
   ] };
-  const held = await page.evaluate(async data => (await import('/src/blocks/animEdit.ts')).easeKeys(data as never, [{ step: 0, selector: '#box', property: 'x', time: 0 }] as never, 'hold' as never) as unknown as Data, data);
+  const held = await page.evaluate(async data => (await __noacgImport('/src/blocks/animEdit.ts')).easeKeys(data as never, [{ step: 0, selector: '#box', property: 'x', time: 0 }] as never, 'hold' as never) as unknown as Data, data);
   expect(held.steps[0].layers['#box']).toEqual({ x: [{ time: 0, value: -80 }, { time: 1, value: 0, ease: 'hold' }], opacity: data.steps[0].layers['#box'].opacity });
   const frame = 1 / 25, times = [0, .2, .5, 1 - frame, 1 - .001, 1];
   const plain = await execute(page, await template(page, data), target, times, [0], [1, 1]);
@@ -444,7 +444,7 @@ for (const target of TARGETS) test('an outgoing Hold on the first X key holds un
   expect(Math.abs(x[5]), `x is 0 at the key: ${x[5]}`).toBeLessThan(1e-6);
   expect(run.entering.map(p => p[4]), 'opacity unchanged').toEqual(plain.entering.map(p => p[4]));
   near(run.entering, await page.evaluate(async ({ held, times }) => {
-    const { resolveValue } = await import('/src/blocks/animEval.ts');
+    const { resolveValue } = await __noacgImport('/src/blocks/animEval.ts');
     return times.map(t => ['x', 'y', 'rotation', 'scaleX', 'opacity'].map(p => Number(resolveValue(held as never, '#box', p, 0, t) ?? (p === 'scaleX' || p === 'opacity' ? 1 : 0))));
   }, { held, times }), 'editor sampling in ' + target);
 });
@@ -460,7 +460,7 @@ for (const target of TARGETS) test('a Hold splits, crosses Set Out and reverses 
   ] };
   const original = await template(page, data, true), h = .01;
   // Split inside a held segment: two held halves, the same playback.
-  const split = await page.evaluate(async data => (await import('/src/blocks/animEdit.ts')).splitKeyframeSegment(data as never, 0, '#box', 'x', .32) as unknown as Data, data);
+  const split = await page.evaluate(async data => (await __noacgImport('/src/blocks/animEdit.ts')).splitKeyframeSegment(data as never, 0, '#box', 'x', .32) as unknown as Data, data);
   expect(split.steps[0].layers['#box'].x).toEqual([{ time: 0, value: -900 }, { time: .32, value: -900, ease: 'hold' }, { time: .8, value: -200, ease: 'hold' }, { time: 2, value: 0, ease: 'power2.out' }]);
   const times = [...new Set([...grid(2), .8 - h, 1 - h, 1.6 - h])].sort((a, b) => a - b);
   const plain = await execute(page, original, target, times, [0], [2, 1], { layers: ['#box', '#title'] });
@@ -472,8 +472,8 @@ for (const target of TARGETS) test('a Hold splits, crosses Set Out and reverses 
   const whole = await execute(page, original, target, absolute, [0], [2, 1], { layers: ['#box', '#title'] });
   near([...run.entering, ...run.leaving], whole.entering, 'Set Out across holds in ' + target, [1e-3 + 1e-6]);
   // Reverse: a Hold mirrors to its jump, so Out at u plays In at 2 - u, the jump instants included.
-  const reversed = await page.evaluate(async t => (await import('/src/blocks/editorOut.ts')).applyOut(t as never, { kind: 'out.reverse' }), original);
-  const exit = await page.evaluate(async js => (await import('/src/blocks/animData.ts')).parseAnimData(js)!.steps[1].layers, reversed.js);
+  const reversed = await page.evaluate(async t => (await __noacgImport('/src/blocks/editorOut.ts')).applyOut(t as never, { kind: 'out.reverse' }), original);
+  const exit = await page.evaluate(async js => (await __noacgImport('/src/blocks/animData.ts')).parseAnimData(js)!.steps[1].layers, reversed.js);
   expect(exit['#box'].x.map(k => k.ease)).toEqual([undefined, 'power2.in', 'jump']);
   const back = grid(2, .025);
   const mirrored = await execute(page, reversed, target, back, back.map(u => Math.round((2 - u) * 1000) / 1000), [2, 2], { layers: ['#box', '#title'] });
@@ -486,8 +486,8 @@ for (const target of TARGETS) test('an interrupted Out ending on a reversed Hold
     { name: 'In', duration: 2, ease: 'none', layers: { '#box': { x: [{ time: 0, value: -900 }, { time: .8, value: -200, ease: 'hold' }, { time: 2, value: 0, ease: 'power2.out' }] } } },
     { name: 'Out', duration: 0, ease: 'none', layers: {} },
   ] };
-  const reversed = await page.evaluate(async t => (await import('/src/blocks/editorOut.ts')).applyOut(t as never, { kind: 'out.reverse' }), await template(page, data));
-  const exit = await page.evaluate(async js => (await import('/src/blocks/animData.ts')).parseAnimData(js)!.steps[1].layers['#box'].x, reversed.js);
+  const reversed = await page.evaluate(async t => (await __noacgImport('/src/blocks/editorOut.ts')).applyOut(t as never, { kind: 'out.reverse' }), await template(page, data));
+  const exit = await page.evaluate(async js => (await __noacgImport('/src/blocks/animData.ts')).parseAnimData(js)!.steps[1].layers['#box'].x, reversed.js);
   expect(exit).toEqual([{ time: 0, value: 0 }, { time: 1.2, value: -200, ease: 'power2.in' }, { time: 2, value: -900, ease: 'jump' }]);
   const times = [0, .01, .4, .8, 1.19, 1.2, 1.21, 1.6, 2];
   const run = await execute(page, reversed, target, [1.5], times, [2, 2], { interruptAt: 1.5 });
@@ -504,18 +504,18 @@ test('a graphic saved with the R1.2a.1 interpreter upgrades once and then plays 
   data.steps[0].layers['#box'].x[1].ease = 'hold';
   const t = await template(page, data), times = grid(2, .05);
   const reference = await page.evaluate(async ({ data, times }) => {
-    const { resolveValue } = await import('/src/blocks/animEval.ts');
+    const { resolveValue } = await __noacgImport('/src/blocks/animEval.ts');
     return times.map(t => ['x', 'y', 'rotation', 'scaleX', 'opacity'].map(p => Number(resolveValue(data as never, '#box', p, 0, t))));
   }, { data, times });
-  const saved = await page.evaluate(async ({ js, before }) => js.replace((await import('/src/templates/shared/animRuntime.ts')).ANIM_INTERPRETER_JS, () => before), { js: t.js, before });
+  const saved = await page.evaluate(async ({ js, before }) => js.replace((await __noacgImport('/src/templates/shared/animRuntime.ts')).ANIM_INTERPRETER_JS, () => before), { js: t.js, before });
   expect(saved).toContain('function noacgWholeEase(');
   expect(saved).not.toBe(t.js);
   for (const target of ['simulator', 'spx', 'ograf']) near((await execute(page, { ...t, js: saved }, target, times, [0], [2, 1])).entering, reference, 'R1.2a.1 source in ' + target);
   const result = await page.evaluate(async ({ t, before }) => {
-    const { ANIM_INTERPRETER_JS, writeAnimData } = await import('/src/templates/shared/animRuntime.ts');
-    const { prepareOutRuntime } = await import('/src/blocks/animMigration.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+    const { ANIM_INTERPRETER_JS, writeAnimData } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { prepareOutRuntime } = await __noacgImport('/src/blocks/animMigration.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
     const old = t.js.replace(ANIM_INTERPRETER_JS, () => before);
     const custom = old.replace('var noacgStepsPlayed = 0;', 'var noacgStepsPlayed = 0; window.customTail = true;');
     const upgraded = prepareOutRuntime(old), written = writeAnimData(old, parseAnimData(old)!);

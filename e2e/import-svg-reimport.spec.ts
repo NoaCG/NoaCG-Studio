@@ -40,11 +40,11 @@ const V4 = V1.replace('</svg>', '  <text x="70" y="166" font-size="22" id="role"
  *  edited label, then reimport the second over it. */
 async function reimport(page: Page, first: string, second: string) {
   return page.evaluate(async ([a, b]) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-    const D = await import('/src/components/wizard/import/draft.ts');
-    const A = await import('/src/blocks/animData.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+    const D = await __noacgImport('/src/components/wizard/import/draft.ts');
+    const A = await __noacgImport('/src/blocks/animData.ts');
     const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
     const build = (markup: string) => {
       const patch = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
@@ -122,13 +122,13 @@ test('a removed layer and look-alike layers are named, never guessed', async ({ 
 test('a key on an edited artwork layer follows that layer; a changed layer leaves it named', async ({ page }) => {
   await page.goto('/app');
   const r = await page.evaluate(async ([a, b]) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-    const D = await import('/src/components/wizard/import/draft.ts');
-    const A = await import('/src/blocks/animData.ts');
-    const { commitSvgIdentity } = await import('/src/blocks/svgIdentity.ts');
-    const { getTemplateParts } = await import('/src/model/structure.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+    const D = await __noacgImport('/src/components/wizard/import/draft.ts');
+    const A = await __noacgImport('/src/blocks/animData.ts');
+    const { commitSvgIdentity } = await __noacgImport('/src/blocks/svgIdentity.ts');
+    const { getTemplateParts } = await __noacgImport('/src/model/structure.ts');
     const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
     const build = (markup: string) => {
       const patch = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
@@ -171,13 +171,13 @@ test('an edited identity on one of two look-alike layers is not moved onto the s
   // Two identical marks in two unnamed groups; version two drops the second.
   const marks = (both: boolean) => V1.replace('</svg>', `  <g transform="translate(900 20)"><rect width="40" height="40" fill="#fff"/></g>\n${both ? '  <g transform="translate(960 20)"><rect width="40" height="40" fill="#fff"/></g>\n' : ''}</svg>`);
   const r = await page.evaluate(async ([a, b]) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-    const D = await import('/src/components/wizard/import/draft.ts');
-    const A = await import('/src/blocks/animData.ts');
-    const { commitSvgIdentity } = await import('/src/blocks/svgIdentity.ts');
-    const { getTemplateParts } = await import('/src/model/structure.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+    const D = await __noacgImport('/src/components/wizard/import/draft.ts');
+    const A = await __noacgImport('/src/blocks/animData.ts');
+    const { commitSvgIdentity } = await __noacgImport('/src/blocks/svgIdentity.ts');
+    const { getTemplateParts } = await __noacgImport('/src/model/structure.ts');
     const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
     const build = (markup: string) => {
       const patch = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
@@ -206,10 +206,10 @@ test('an earlier id another node of the new artwork holds is not given back', as
   // designer's rectangle in version two is already called f1.
   const b = V3.replace(/\s*<text[^>]*id="name">Guest name<\/text>/, '').replace('</svg>', '  <rect id="f1" x="1200" y="10" width="20" height="20" fill="#fff"/>\n</svg>');
   const r = await page.evaluate(async ([first, second]) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-    const D = await import('/src/components/wizard/import/draft.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+    const D = await __noacgImport('/src/components/wizard/import/draft.ts');
     const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
     const build = (markup: string) => {
       const patch = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
@@ -228,13 +228,13 @@ test('an earlier id another node of the new artwork holds is not given back', as
 test('an edited identity a designer node of the new artwork happens to wear is not trusted', async ({ page }) => {
   await page.goto('/app');
   const r = await page.evaluate(async ([a, b]) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-    const D = await import('/src/components/wizard/import/draft.ts');
-    const A = await import('/src/blocks/animData.ts');
-    const { commitSvgIdentity } = await import('/src/blocks/svgIdentity.ts');
-    const { getTemplateParts } = await import('/src/model/structure.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+    const D = await __noacgImport('/src/components/wizard/import/draft.ts');
+    const A = await __noacgImport('/src/blocks/animData.ts');
+    const { commitSvgIdentity } = await __noacgImport('/src/blocks/svgIdentity.ts');
+    const { getTemplateParts } = await __noacgImport('/src/model/structure.ts');
     const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
     const build = (markup: string) => {
       const patch = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
@@ -271,10 +271,10 @@ test('a removed field never lands on its unbound look-alike', async ({ page }) =
   const a = V1.replace('</svg>', caption(0) + caption(600) + '</svg>');
   const b = V1.replace('</svg>', caption(600) + '</svg>');
   const r = await page.evaluate(async ([first, second]) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-    const D = await import('/src/components/wizard/import/draft.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+    const D = await __noacgImport('/src/components/wizard/import/draft.ts');
     const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
     const build = (markup: string, unbindLastCaption: boolean) => {
       const patch = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
@@ -296,12 +296,12 @@ test('a removed field never lands on its unbound look-alike', async ({ page }) =
 test('a behaviour keeps its fields and its actions; dropping it in the walk is the walk\'s choice', async ({ page }) => {
   await page.goto('/app');
   const r = await page.evaluate(async (markup) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-    const D = await import('/src/components/wizard/import/draft.ts');
-    const A = await import('/src/blocks/animData.ts');
-    const { allOperatorEvents } = await import('/src/blocks/animMachine.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+    const D = await __noacgImport('/src/components/wizard/import/draft.ts');
+    const A = await __noacgImport('/src/blocks/animData.ts');
+    const { allOperatorEvents } = await __noacgImport('/src/blocks/animMachine.ts');
     const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
     const build = (svg: string, plain = false) => {
       const patch = D.svgDraftFromImport(importSvgMarkup(svg), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
@@ -322,7 +322,7 @@ test('a behaviour keeps its fields and its actions; dropping it in the walk is t
       againSilenced: again.silenced,
       plainKinds: [...new Set(plain.unresolved.map((u) => u.kind))],
       plainSilenced: plain.silenced,
-      firstLabels: (await import('/src/control/controlModel.ts')).eventButtons(first.js).map((b) => b.label),
+      firstLabels: (await __noacgImport('/src/control/controlModel.ts')).eventButtons(first.js).map((b) => b.label),
     };
   }, readFileSync(SCORE_SVG, 'utf8'));
   expect(r.recipe).toBe(true);
@@ -344,7 +344,7 @@ test('a behaviour keeps its fields and its actions; dropping it in the walk is t
 test('an id is held whichever quote wrote it, and a pattern character is read as itself (#1987 points 5, 6)', async ({ page }) => {
   await page.goto('/app');
   const r = await page.evaluate(async () => {
-    const { idHeld } = await import('/src/templates/importedDesign/reimport.ts');
+    const { idHeld } = await __noacgImport('/src/templates/importedDesign/reimport.ts');
     const html = `<svg><text id="f1">a</text><rect id='f2'/><g data-id="f3"/><circle id="f(4"/></svg>`;
     return ['f1', 'f2', 'f3', 'f(4', 'f4', 'f.'].map((id) => { try { return idHeld(html, id); } catch { return 'threw'; } });
   });
@@ -358,13 +358,13 @@ test('a node of the new artwork still wearing the minted identity on the same la
   // Version two was exported from the saved graphic, so the backdrop still wears artwork-1.
   const v2 = V1.replace(backdrop, backdrop.replace('<rect ', '<rect id="artwork-1" ')).replace('Guest role', 'Producer');
   const r = await page.evaluate(async ([a, b]) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-    const D = await import('/src/components/wizard/import/draft.ts');
-    const A = await import('/src/blocks/animData.ts');
-    const { commitSvgIdentity } = await import('/src/blocks/svgIdentity.ts');
-    const { getTemplateParts } = await import('/src/model/structure.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+    const D = await __noacgImport('/src/components/wizard/import/draft.ts');
+    const A = await __noacgImport('/src/blocks/animData.ts');
+    const { commitSvgIdentity } = await __noacgImport('/src/blocks/svgIdentity.ts');
+    const { getTemplateParts } = await __noacgImport('/src/model/structure.ts');
     const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
     const build = (markup: string) => {
       const patch = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
@@ -401,11 +401,11 @@ test('a state-machine edit made after the import is not compared: the documented
   // reimport does with such an edit, so the surface that adds one finds it and compares it
   // (templates/importedDesign/reimport.ts `carryKeys`).
   const r = await page.evaluate(async (markup) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-    const D = await import('/src/components/wizard/import/draft.ts');
-    const A = await import('/src/blocks/animData.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+    const D = await __noacgImport('/src/components/wizard/import/draft.ts');
+    const A = await __noacgImport('/src/blocks/animData.ts');
     const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
     const patch = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
     const first = buildDraftTemplate(variant, mergeDraft(initialDraft(), { ...patch, name: 'Board' }));
@@ -436,10 +436,10 @@ function asFile(markup: string, tag: string): string {
  *  workspace write it. */
 async function makeWork(page: Page) {
   await page.evaluate(async () => {
-    const { loadGraphics, updateGraphic } = await import('/src/model/library.ts');
-    const { loadShows, setFieldBinding } = await import('/src/model/shows.ts');
-    const { replaceDefinitionInHtml } = await import('/src/model/spxDefinition.ts');
-    const A = await import('/src/blocks/animData.ts');
+    const { loadGraphics, updateGraphic } = await __noacgImport('/src/model/library.ts');
+    const { loadShows, setFieldBinding } = await __noacgImport('/src/model/shows.ts');
+    const { replaceDefinitionInHtml } = await __noacgImport('/src/model/spxDefinition.ts');
+    const A = await __noacgImport('/src/blocks/animData.ts');
     const g = loadGraphics().find((d) => d.name === 'Guest')!;
     const role = g.template.fields.find((f) => f.title === 'role')!.field;
     const data = A.parseAnimData(g.template.js)!;
@@ -456,9 +456,9 @@ async function makeWork(page: Page) {
 async function state(page: Page) {
   await awaitDurableReady(page);
   return page.evaluate(async () => {
-    const { loadGraphics, resolveSavedGraphicDoc } = await import('/src/model/library.ts');
-    const { loadShows } = await import('/src/model/shows.ts');
-    const A = await import('/src/blocks/animData.ts');
+    const { loadGraphics, resolveSavedGraphicDoc } = await __noacgImport('/src/model/library.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const A = await __noacgImport('/src/blocks/animData.ts');
     const show = loadShows()[0];
     const guest = show.graphics.find((g) => g.name === 'Guest');
     return {
@@ -577,7 +577,7 @@ test('a removed layer saves the new version beside the earlier one; Replace anyw
 test('reconciliation follows the record, not the press', async ({ page }) => {
   await page.goto('/app');
   const r = await page.evaluate(async () => {
-    const { reimportTarget } = await import('/src/components/wizard/import/draft.ts');
+    const { reimportTarget } = await __noacgImport('/src/components/wizard/import/draft.ts');
     const index = [{ id: 'g', name: 'Guest', updatedAt: 't1', fields: [] }];
     const over = { kind: 'over' as const, targetId: 'g', holder: index[0] };
     const update = { kind: 'update' as const, targetId: 'g', renamedFrom: null, sharesWith: null };
@@ -648,7 +648,7 @@ test('Edit this graphic keeps the reconciled original linked for Save and produc
   await intoProduction(page, 'Guest', 'Show');
   await makeWork(page);
   await page.evaluate(async () => {
-    const { addShowCue, loadShows } = await import('/src/model/shows.ts');
+    const { addShowCue, loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows()[0];
     addShowCue(show.id, show.graphics[0].id, { label: 'Guest interview' });
   });
@@ -736,11 +736,11 @@ test('a finished file of the same graphic, dropped under its name, is reviewed o
   const earlier = (await state(page)).library[0];
   // Version three, exported as a NoaCG package, then dropped as a finished file.
   const zip = await page.evaluate(async (markup) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-    const D = await import('/src/components/wizard/import/draft.ts');
-    const { buildGraphicPackage } = await import('/src/export/noacgPackage.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+    const D = await __noacgImport('/src/components/wizard/import/draft.ts');
+    const { buildGraphicPackage } = await __noacgImport('/src/export/noacgPackage.ts');
     const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
     const patch = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
     const template = buildDraftTemplate(variant, mergeDraft(initialDraft(), { ...patch, name: 'Guest' }));
@@ -775,9 +775,9 @@ test('a finished file of the same graphic, dropped under its name, is reviewed o
 async function controlState(page: Page, graphic: string) {
   await awaitDurableReady(page);
   return page.evaluate(async (name) => {
-    const { loadGraphics } = await import('/src/model/library.ts');
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { eventButtons } = await import('/src/control/controlModel.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { eventButtons } = await __noacgImport('/src/control/controlModel.ts');
     const g = loadGraphics().find((d) => d.name === name)!;
     const show = loadShows()[0];
     const pooled = show.graphics.find((d) => d.name === name)!;

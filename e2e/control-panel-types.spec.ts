@@ -141,8 +141,8 @@ async function openControlPage(page: Page, variantId: string, name: string): Pro
   await page.goto('/app');
   await expect(page.locator('.topbar')).toBeVisible();
   const id = await page.evaluate(async ([vid, gname]) => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
     const variant = variantById(vid);
     if (!variant) throw new Error(`no catalog variant ${vid}`);
     // `create({})` is the wizard's own call - and for a typed design it is the wrapper that runs
@@ -204,9 +204,9 @@ test('an event fired with no entry selected keeps the values already on air', as
   await page.goto('/app');
   await expect(page.locator('.topbar')).toBeVisible();
   const id = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { setFieldDefault } = await import('/src/blocks/edit.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const { setFieldDefault } = await __noacgImport('/src/blocks/edit.ts');
     // A board whose pick is already C - the state an operator reaches by exporting the graphic
     // with its data, or by ★ making an entry the default. Nothing on the page can re-type it,
     // which is exactly why an event must not silently replace it.

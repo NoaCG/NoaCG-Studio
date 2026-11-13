@@ -63,8 +63,8 @@ test('the exported control panel escapes the graphic name (it is the page title)
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
 
   const fired = await page.evaluate(async () => {
-    const { renderControlPanelHtml } = await import('/src/control/controlPanelHtml.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { renderControlPanelHtml } = await __noacgImport('/src/control/controlPanelHtml.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const base = useTemplateStore.getState().template;
     const evil = {
       ...base,
@@ -101,10 +101,10 @@ async function createHairline(page: Page) {
  *  data-sources C6 carries it, and save it as the working project. */
 async function withSheetBlock(page: Page, csvUrl: string, pollSeconds = 5) {
   await page.evaluate(async ({ csvUrl, pollSeconds }) => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { liveDataBlock } = await import('/src/control/liveData.ts');
-    const { saveProject } = await import('/src/model/project.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { liveDataBlock } = await __noacgImport('/src/control/liveData.ts');
+    const { saveProject } = await __noacgImport('/src/model/project.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     const store = useTemplateStore.getState();
     const t = store.template;
     store.applyTemplate({ ...t, js: `${t.js}\n${liveDataBlock({ csvUrl, pollSeconds, fields: t.fields })}` });
@@ -114,7 +114,7 @@ async function withSheetBlock(page: Page, csvUrl: string, pollSeconds = 5) {
   }, { csvUrl, pollSeconds });
 }
 
-const workingJs = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js);
+const workingJs = (page: Page) => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.js);
 
 test('live data: a new graphic is offered no Sheet panel; one that carries the block shows what it reads, and remove strips it', async ({ page }) => {
   await createHairline(page);
@@ -242,8 +242,8 @@ test('the exported panel says so when no graphic is answering (file:// and cross
   // the hello — silence must surface, not pretend.
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const panelHtml = await page.evaluate(async () => {
-    const { renderControlPanelHtml } = await import('/src/control/controlPanelHtml.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { renderControlPanelHtml } = await __noacgImport('/src/control/controlPanelHtml.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return renderControlPanelHtml(useTemplateStore.getState().template, null, {});
   });
 

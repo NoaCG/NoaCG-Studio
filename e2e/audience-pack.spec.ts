@@ -22,8 +22,8 @@ import { qrReader } from './_qr';
 /** Build a variant, load it in an iframe, play it, and hand back the window + document. */
 const HARNESS = `
   async function boot(id, opts) {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const variant = variantById(id);
     if (!variant) throw new Error('no variant ' + id);
     const tpl = variant.create(opts || {});
@@ -430,15 +430,15 @@ test('every state of every new type is reachable, and snapping to it lands its p
   await toApp(page);
   const report = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { canonicalPath } = await import('/src/blocks/animMachine.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { canonicalPath } = await __noacgImport('/src/blocks/animMachine.ts');
     const NEW_TYPES = ['viewer-question','qa-card','chat-highlight','question-queue','community-request','live-poll','answer-board-2','answer-board-3'];
-    const { TYPES } = await import('/src/templates/types/registry.ts');
+    const { TYPES } = await __noacgImport('/src/templates/types/registry.ts');
     const out = [];
     for (const type of TYPES.filter((t) => NEW_TYPES.includes(t.id))) {
       const design = type.designs[0];
       const { win, doc, frame } = await boot(design.id);
-      const data = parseAnimData((await import('/src/templates/catalog.ts')).variantById(design.id).create({}).js);
+      const data = parseAnimData((await __noacgImport('/src/templates/catalog.ts')).variantById(design.id).create({}).js);
       const problems = [];
       const machine = data.machine;
       if (machine) {
@@ -536,9 +536,9 @@ test('a pack graphic survives a save and load round trip with its machine intact
   await toApp(page);
   const report = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { parseAnimData, serializeAnimData } = await import('/src/blocks/animData.ts');
-    const { parseDefinition } = await import('/src/model/spxDefinition.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { parseAnimData, serializeAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { parseDefinition } = await __noacgImport('/src/model/spxDefinition.ts');
     const out = [];
     for (const id of ['aq01','qa01','ch01','qq01','rq01','pl01','qz05','qz09']) {
       const tpl = variantById(id).create({});
@@ -578,8 +578,8 @@ test('every pack graphic exports to every target with no dangling references', a
   test.setTimeout(240_000);
   await toApp(page);
   const report = await page.evaluate(`(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { EXPORT_TARGETS } = await import('/src/export/registry.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { EXPORT_TARGETS } = await __noacgImport('/src/export/registry.ts');
     const out = [];
     const ids = ['aq01','aq02','qa01','qa03','ch01','ch04','qq01','qq02','rq01','rq04','pl01','pl02','pl03','pl04','qz05','qz08','qz09','qz12'];
     for (const id of ids) {
@@ -640,7 +640,7 @@ test.describe('the Join card draws its QR from its Join link (AC-11)', () => {
   /** Build the Join card with this link, as Add Join card to rundown does. */
   const template = (page: Page, link: string) =>
     page.evaluate(async (l) => {
-      const { variantById } = await import('/src/templates/catalog.ts');
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
       const variant = variantById('jc01')!;
       const lines = variant.suggestedLines.map((line) => (line.title === 'Join link' ? { ...line, sample: l } : line));
       return variant.create({ lines });
@@ -667,7 +667,7 @@ test.describe('the Join card draws its QR from its Join link (AC-11)', () => {
       const tpl = await template(page, LINK);
       // As the studio's monitors load it: the preview document in an iframe on the app's origin.
       await page.evaluate(async (t) => {
-        const { composeDocument } = await import('/src/preview/composeDocument.ts');
+        const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
         const f = document.createElement('iframe');
         f.id = 'card';
         f.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0';
@@ -705,7 +705,7 @@ test.describe('the Join card draws its QR from its Join link (AC-11)', () => {
       await phonePage(page);
       const tpl = await template(page, LINK);
       const html = await page.evaluate(async (t) => {
-        const { composeSelfContainedHtml } = await import('/src/export/selfContained.ts');
+        const { composeSelfContainedHtml } = await __noacgImport('/src/export/selfContained.ts');
         return composeSelfContainedHtml(t as never);
       }, tpl);
       expect(html).not.toMatch(/<script[^>]+src=/i);
@@ -746,11 +746,11 @@ test('an imported SVG with a layer named QR draws its Join link as a code that d
   <g id="QR" transform="translate(40 40)"><rect width="320" height="320" fill="#888888"/></g>
 </svg>`;
     const built = await page.evaluate(async (m) => {
-      const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-      const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
+      const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+      const { IMPORTED_SVG } = await __noacgImport('/src/templates/importedDesign/svg.ts');
       const imported = importSvgMarkup(m);
       const fields = imported.candidates.map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: c.numeric }));
-      const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+      const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
       const template = IMPORTED_SVG.create({
         designSvg: { markup: imported.markup, width: imported.width, height: imported.height, fields, images: [], outlines: [], fonts: [] },
       });
@@ -762,7 +762,7 @@ test('an imported SVG with a layer named QR draws its Join link as a code that d
     expect(join, 'the QR layer adds a Join link field').toBeTruthy();
     expect(tpl.fields.at(-1)!.field, 'the Join link field comes last').toBe(join!.field);
     await page.evaluate(async (t) => {
-      const { composeDocument } = await import('/src/preview/composeDocument.ts');
+      const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
       const f = document.createElement('iframe');
       f.id = 'art';
       f.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0';
@@ -835,16 +835,16 @@ for (const maker of ['studio import', 'CLI scaffold --svg'] as const) {
   <rect id="QR" x="1020" y="400" width="240" height="240" fill="#888888"/>
 </svg>`;
       const built = await page.evaluate(async ({ m, how }) => {
-        const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+        const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
         let template;
         if (how === 'CLI scaffold --svg') {
-          const { scaffold } = await import('/src/bridge/bridgeApi.ts');
+          const { scaffold } = await __noacgImport('/src/bridge/bridgeApi.ts');
           template = (await scaffold({ svg: m, name: 'Home-made vote' })).template;
         } else {
-          const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-          const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
-          const { initialDraft, mergeDraft, draftToOptions } = await import('/src/components/wizard/draft/core.ts');
-          const D = await import('/src/components/wizard/import/draft.ts');
+          const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+          const { IMPORTED_SVG } = await __noacgImport('/src/templates/importedDesign/svg.ts');
+          const { initialDraft, mergeDraft, draftToOptions } = await __noacgImport('/src/components/wizard/draft/core.ts');
+          const D = await __noacgImport('/src/components/wizard/import/draft.ts');
           const patch = D.svgDraftFromImport(importSvgMarkup(m), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
           template = IMPORTED_SVG.create(draftToOptions(IMPORTED_SVG, mergeDraft(initialDraft(), patch)));
         }
@@ -857,7 +857,7 @@ for (const maker of ['studio import', 'CLI scaffold --svg'] as const) {
       for (const title of ['Question', 'Vote count']) expect(built.template.fields.filter((f) => f.title === title)).toHaveLength(1);
 
       await page.evaluate(async (t) => {
-        const { composeDocument } = await import('/src/preview/composeDocument.ts');
+        const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
         const f = document.createElement('iframe');
         f.id = 'board';
         f.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;z-index:2147483647';
@@ -917,8 +917,8 @@ test('result boards: three layouts by three placements take 2 and 8 options and 
   const ids = ['pl06', 'pl07', 'pl08', 'pl09', 'pl10', 'pl11', 'pl12', 'pl13', 'pl14'];
   // Interaction's result picker offers every vote board by the name the catalog gives it.
   const offered = await page.evaluate(async () => {
-    const { RESULT_BOARDS } = await import('/src/control/resultStaging.ts');
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { RESULT_BOARDS } = await __noacgImport('/src/control/resultStaging.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     return RESULT_BOARDS.map((b) => ({ ...b, catalog: variantById(b.id)?.name ?? null }));
   });
   for (const id of ids) expect(offered.map((b) => b.id), `${id} is offered for results`).toContain(id);
@@ -930,15 +930,15 @@ test('result boards: three layouts by three placements take 2 and 8 options and 
   for (const id of ids) {
     for (const palette of ['noacg', 'volt'] as const) {
       const tpl = await page.evaluate(async ({ id, palette }) => {
-        const { variantById } = await import('/src/templates/catalog.ts');
-        const { paletteById } = await import('/src/model/wizard.ts');
+        const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+        const { paletteById } = await __noacgImport('/src/model/wizard.ts');
         return variantById(id)!.create({ palette: paletteById(palette) });
       }, { id, palette });
       const fields = Object.fromEntries(tpl.fields.map((f) => [f.title, f.field]));
       expect(Object.keys(fields), `${id}: the result fields`).toEqual(['Question', 'Options', 'Vote count', 'Vote badge', 'Figures']);
       await page.evaluate(async (t) => {
         document.getElementById('board')?.remove();
-        const { composeDocument } = await import('/src/preview/composeDocument.ts');
+        const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
         const f = document.createElement('iframe');
         f.id = 'board';
         f.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;background:transparent';
@@ -1040,11 +1040,11 @@ test('CLI scaffold --svg builds the studio import\'s own default for every corpu
   cases.push(['oversized 3840x2160', `<svg xmlns="http://www.w3.org/2000/svg" width="3840" height="2160" viewBox="0 0 3840 2160"><rect width="3840" height="2160" fill="#123"/><text id="Title" x="200" y="400" font-family="Arial" font-size="160" fill="#fff">A title</text></svg>`]);
   cases.push(['text off the artboard', `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="200" viewBox="0 0 800 200"><rect width="800" height="200" fill="#123"/><text id="Name" x="40" y="120" font-family="Arial" font-size="48" fill="#fff">Ana</text><text id="Note" x="1200" y="120" font-family="Arial" font-size="24" fill="#fff">designer note</text></svg>`]);
   const report = await page.evaluate(async (all) => {
-    const { scaffold } = await import('/src/bridge/bridgeApi.ts');
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
-    const { initialDraft, mergeDraft, draftToOptions } = await import('/src/components/wizard/draft/core.ts');
-    const D = await import('/src/components/wizard/import/draft.ts');
+    const { scaffold } = await __noacgImport('/src/bridge/bridgeApi.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const { IMPORTED_SVG } = await __noacgImport('/src/templates/importedDesign/svg.ts');
+    const { initialDraft, mergeDraft, draftToOptions } = await __noacgImport('/src/components/wizard/draft/core.ts');
+    const D = await __noacgImport('/src/components/wizard/import/draft.ts');
     const out: string[] = [];
     let compared = 0;
     for (const [name, m] of all) {
@@ -1083,12 +1083,12 @@ test('the word cloud draws its Words by count, keeps every word inside its box, 
     document.body.style.cssText = 'margin:0;background:linear-gradient(180deg, #3a3f4a, #0d0f14 70%, #2a2016)';
   });
   const tpl = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     return variantById('wc01')!.create({});
   });
   expect(tpl.fields.map((f) => f.title), 'the word cloud fields Interaction writes').toEqual(['Label', 'Question', 'Words']);
   await page.evaluate(async (t) => {
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const f = document.createElement('iframe');
     f.id = 'cloud';
     f.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;background:transparent';

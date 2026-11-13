@@ -61,7 +61,7 @@ test('the landing CTA opens the wizard without discarding work in progress', asy
   await bootstrapGraphic(page, 'Hairline');
   await openWorkingGraphicInEditor(page);
   const source = () => page.evaluate(async () =>
-    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+    (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);
   const before = await source();
   await page.goto('/');
   await page.getByRole('link', { name: /Start creating/i }).first().click();

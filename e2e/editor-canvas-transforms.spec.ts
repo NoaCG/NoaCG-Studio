@@ -27,37 +27,37 @@ async function open(page: Page) {
 async function ready(page: Page) {
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
   await expect.poll(() => page.evaluate(async () => {
-    const view = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
+    const view = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
     const canvas = document.querySelector('[data-testid=foundation-canvas]')!;
     return Math.abs(Number(canvas.getAttribute('data-pose-time')) - view.time) < .00001 && canvas.getAttribute('data-pose-cue') === String(view.cue ?? 'arriving');
   })).toBe(true);
 }
-async function source(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template) as Promise<Template>; }
-async function history(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().history.length); }
-async function dataOf(page: Page, js: string): Promise<Data> { return page.evaluate(async js => (await import('/src/blocks/animData.ts')).parseAnimData(js), js) as Promise<Data>; }
+async function source(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template) as Promise<Template>; }
+async function history(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().history.length); }
+async function dataOf(page: Page, js: string): Promise<Data> { return page.evaluate(async js => (await __noacgImport('/src/blocks/animData.ts')).parseAnimData(js), js) as Promise<Data>; }
 async function data(page: Page) { return dataOf(page, (await source(page)).js); }
 async function base(page: Page, selector: string): Promise<Base> {
-  return page.evaluate(async selector => (await import('/src/blocks/baseEdits.ts')).baseValues((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template as never, selector), selector) as Promise<Base>;
+  return page.evaluate(async selector => (await __noacgImport('/src/blocks/baseEdits.ts')).baseValues((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template as never, selector), selector) as Promise<Base>;
 }
 async function editorWith(page: Page, t: Template) {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await open(page);
   await evaluateInPage(page, async (t: unknown) => {
-    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t as never, { resetSampleData: true });
+    (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t as never, { resetSampleData: true });
   }, t);
   await ready(page);
 }
 async function catalog(page: Page, id: string): Promise<Template> {
-  return page.evaluate(async id => (await import('/src/templates/catalog.ts')).variantById(id)!.create({}), id) as unknown as Promise<Template>;
+  return page.evaluate(async id => (await __noacgImport('/src/templates/catalog.ts')).variantById(id)!.create({}), id) as unknown as Promise<Template>;
 }
 /** Hairline (a lower third) with a 300 x 120 rectangle (and, optionally, created
  *  text) drawn on it. Drawing coordinates are its root's, which sits low in the frame: negative y is up. */
 async function withRectangle(page: Page, text = false): Promise<Template & { rect: string; text?: string }> {
   await open(page);
   return page.evaluate(async text => {
-    const { createArtwork } = await import('/src/blocks/baseEdits.ts');
+    const { createArtwork } = await __noacgImport('/src/blocks/baseEdits.ts');
     // Hairline, whatever the page last opened, so the drawing space is always the same.
-    let template = (await import('/src/templates/catalog.ts')).variantById('lt01')!.create({}) as never as Parameters<typeof createArtwork>[0];
+    let template = (await __noacgImport('/src/templates/catalog.ts')).variantById('lt01')!.create({}) as never as Parameters<typeof createArtwork>[0];
     const a = createArtwork(template, { shape: 'rectangle', x: 700, y: -560, width: 300, height: 120 }); template = a.template;
     if (!text) return { ...template, rect: a.selector };
     const b = createArtwork(template, { shape: 'text', x: 200, y: -620, width: 400, height: 80 });
@@ -159,7 +159,7 @@ async function turnsAbout(page: Page) {
   await undo(page);
 }
 const operate = (page: Page, t: Template, operations: unknown[]) => page.evaluate(async ({ t, operations }) => {
-  try { return { template: (await import('/src/components/editorFoundation/operations.ts')).applyOperations(t as never, operations as never).template as never as Template }; }
+  try { return { template: (await __noacgImport('/src/components/editorFoundation/operations.ts')).applyOperations(t as never, operations as never).template as never as Template }; }
   catch (error) { return { error: String((error as Error).message ?? error) }; }
 }, { t, operations }) as Promise<{ template?: Template; error?: string }>;
 
@@ -229,10 +229,10 @@ test('rotation handle: a created rectangle turns about its anchor, agrees with t
 test('rotation handle keys an animated Rotation at the playhead; a raw transform track refuses it', async ({ page }) => {
   await open(page);
   const t = await page.evaluate(async () => {
-    const { createArtwork } = await import('/src/blocks/baseEdits.ts');
-    const { replaceRegionWithAnimData } = await import('/src/templates/shared/animRuntime.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    let template = (await import('/src/templates/catalog.ts')).variantById('lt01')!.create({}) as never as Parameters<typeof createArtwork>[0];
+    const { createArtwork } = await __noacgImport('/src/blocks/baseEdits.ts');
+    const { replaceRegionWithAnimData } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    let template = (await __noacgImport('/src/templates/catalog.ts')).variantById('lt01')!.create({}) as never as Parameters<typeof createArtwork>[0];
     const root = parseAnimData(template.js)!.root, made: string[] = [];
     for (let i = 0; i < 2; i++) { const next = createArtwork(template, { shape: 'rectangle', x: 300 + i * 500, y: -560, width: 240, height: 100 }); template = next.template; made.push(next.selector); }
     const layers = {
@@ -451,7 +451,7 @@ test('anchor point: numeric X/Y, Center anchor and the Anchor tool on a rotated,
   // The simulator renders the same box as the editor.
   await page.getByRole('button', { name: 'Redo', exact: true }).click(); await ready(page);
   const editor = await bounds(page, t.rect), redone = await source(page);
-  const html = await page.evaluate(async t => (await import('/src/preview/composeDocument.ts')).composeDocument(t as never, { simulate: true }), redone);
+  const html = await page.evaluate(async t => (await __noacgImport('/src/preview/composeDocument.ts')).composeDocument(t as never, { simulate: true }), redone);
   const output = await page.context().newPage();
   await output.setViewportSize({ width: 1920, height: 1080 }); await output.setContent(html);
   // Play, then settle every timeline at its end: the rectangle has no motion of its own.
@@ -602,8 +602,8 @@ test('anchor on animated and placed layers: Frosted Panel moves only its pivot a
   expect((await operate(page, ownRule('transform-box: border-box;'), [{ kind: 'base.set', selector: t.rect, values: { anchorX: 5, anchorY: 5 } }])).error).toBeUndefined();
   // The data or a script setting this layer's transformOrigin refuses; another layer's does not.
   const withOrigin = (layer: string) => page.evaluate(async ({ t, layer }) => {
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { replaceRegionWithAnimData } = await import('/src/templates/shared/animRuntime.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { replaceRegionWithAnimData } = await __noacgImport('/src/templates/shared/animRuntime.ts');
     const d = parseAnimData(t.js)!;
     d.steps[0].layers[layer] = { ...d.steps[0].layers[layer], transformOrigin: [{ time: 0, value: '0px 0px' }] };
     return { ...t, js: replaceRegionWithAnimData(t.js, d)! };
@@ -613,8 +613,8 @@ test('anchor on animated and placed layers: Frosted Panel moves only its pivot a
   expect((await operate(page, { ...original, js: original.js + `\ngsap.set('.someone-else', { transformOrigin: '0 0' });\n` }, [{ kind: 'base.set', selector: t.rect, values: { anchorX: 5, anchorY: 5 } }])).error).toBeUndefined();
   // Placed text whose text animates a raw transform: its box's base rotation is the box's own and holds.
   const rawText = await page.evaluate(async ({ t, layer }) => {
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { replaceRegionWithAnimData } = await import('/src/templates/shared/animRuntime.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { replaceRegionWithAnimData } = await __noacgImport('/src/templates/shared/animRuntime.ts');
     const d = parseAnimData(t.js)!;
     d.steps[0].layers[layer] = { transform: [{ time: 0, value: 'translateX(0px)' }, { time: 1, value: 'translateX(40px)' }] };
     return { ...t, js: replaceRegionWithAnimData(t.js, d)! };
@@ -625,7 +625,7 @@ test('anchor on animated and placed layers: Frosted Panel moves only its pivot a
   await refuse(svg, '#f0', /SVG/);
   // An imported design's text-fit script sets transformOrigin on placed text only: a rectangle drawn on
   // it takes an anchor.
-  const drawn = await page.evaluate(async svg => (await import('/src/blocks/baseEdits.ts')).createArtwork(svg as never, { shape: 'rectangle', x: 40, y: -300, width: 120, height: 60 }), svg) as unknown as { template: Template; selector: string };
+  const drawn = await page.evaluate(async svg => (await __noacgImport('/src/blocks/baseEdits.ts')).createArtwork(svg as never, { shape: 'rectangle', x: 40, y: -300, width: 120, height: 60 }), svg) as unknown as { template: Template; selector: string };
   expect((await operate(page, drawn.template, [{ kind: 'base.set', selector: drawn.selector, values: { anchorX: 5, anchorY: 5 } }])).error).toBeUndefined();
 });
 
@@ -662,8 +662,8 @@ test('a layer’s own CSS transform: a side handle scales outside it about the o
   // Keyed, the scale is GSAP's, inside the turn its parse folds in: the side scales the layer's own
   // X along its turned side, and the opposite side's midpoint stays.
   const keyed = await page.evaluate(async t => {
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { replaceRegionWithAnimData } = await import('/src/templates/shared/animRuntime.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { replaceRegionWithAnimData } = await __noacgImport('/src/templates/shared/animRuntime.ts');
     const d = parseAnimData(t.js)!, one = [{ time: 0, value: 1 }, { time: 1, value: 1 }];
     d.speed = 1; d.steps = [{ name: 'In', duration: 2, ease: 'none', layers: { [t.rect]: { scaleX: one, scaleY: one } } }, { name: 'Out', duration: 1, ease: 'none', layers: {} }];
     return { ...t, fps: 25, css: t.css.replace(/(#rectangle-1 \{[^}]*background: #8bd5f6;)/, '$1\n  transform: rotate(30deg);'), js: replaceRegionWithAnimData(t.js, d)! };
@@ -809,12 +809,12 @@ test('catalog: on every layer with base placement an anchor and a 15 degree Rota
   test.setTimeout(240_000);
   await open(page);
   const report = await page.evaluate(async () => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { applyOperations } = await import('/src/components/editorFoundation/operations.ts');
-    const { baseValues } = await import('/src/blocks/baseEdits.ts');
-    const { sequenceAuthoringReason, isArmed, writeChannel, trackOwner } = await import('/src/blocks/editorAnimation.ts');
-    const { readTimeline } = await import('/src/components/editorFoundation/timelineView.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { applyOperations } = await __noacgImport('/src/components/editorFoundation/operations.ts');
+    const { baseValues } = await __noacgImport('/src/blocks/baseEdits.ts');
+    const { sequenceAuthoringReason, isArmed, writeChannel, trackOwner } = await __noacgImport('/src/blocks/editorAnimation.ts');
+    const { readTimeline } = await __noacgImport('/src/components/editorFoundation/timelineView.ts');
     const out = { layers: 0, anchor: 0, rotation: 0, refused: {} as Record<string, number>, wrong: [] as string[] };
     for (const variants of Object.values(CATALOG)) for (const variant of variants ?? []) {
       const t = variant.create({}) as never as { html: string; js: string; css: string; fps: number };

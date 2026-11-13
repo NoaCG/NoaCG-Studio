@@ -203,7 +203,7 @@ test('svg import: mapping — labels from layer names, all on by default, edits 
   // The created template: three fields (the clock stayed as drawn), the edited label and
   // sample carried, ids bound in place inside the verbatim SVG.
   const state = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     return {
       fields: t.fields.map((f) => `${f.field}:${f.title}`),
@@ -255,7 +255,7 @@ test('svg import: outlined text gets the honest answer, and still imports as a f
   // A fixed graphic is still a playable import.
   await finishIntoNewEditor(page);
   const fields = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.fields.length;
   });
   expect(fields).toBe(0);
@@ -275,7 +275,7 @@ test('svg import: a picture layer binds as a filelist field — swap by value, e
 
   // The picture field lands AFTER the text fields, as a real SPX filelist.
   const field = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     const f = t.fields[4];
     return { ...f, bound: /<image[^>]*id="f4"/.test(t.html) };
@@ -667,8 +667,8 @@ test('svg import: the export door ships the bound SVG unchanged through the gate
   // stay single-file.
   const spxFiles = await page.evaluate(async () => {
     const [{ EXPORT_TARGETS }, { loadAllGraphics }] = await Promise.all([
-      import('/src/export/registry.ts'),
-      import('/src/model/library.ts'),
+      __noacgImport('/src/export/registry.ts'),
+      __noacgImport('/src/model/library.ts'),
     ]);
     const spx = EXPORT_TARGETS.find((t) => t.id === 'spx')!;
     const graphic = loadAllGraphics()[0];
@@ -731,9 +731,9 @@ test('svg import: outlined text — a glyph-shaped group becomes a placed live f
 
   const state = await page.evaluate(async () => {
     const [{ useTemplateStore }, { getTemplateParts }, { validateTemplate }] = await Promise.all([
-      import('/src/store/templateStore.ts'),
-      import('/src/model/structure.ts'),
-      import('/src/validation/validateTemplate.ts'),
+      __noacgImport('/src/store/templateStore.ts'),
+      __noacgImport('/src/model/structure.ts'),
+      __noacgImport('/src/validation/validateTemplate.ts'),
     ]);
     const t = useTemplateStore.getState().template;
     return {
@@ -1204,9 +1204,9 @@ test('svg import: a field drawn on the artwork becomes a real field, where it wa
 
   const state = await page.evaluate(async () => {
     const [{ useTemplateStore }, { getTemplateParts }, { validateTemplate }] = await Promise.all([
-      import('/src/store/templateStore.ts'),
-      import('/src/model/structure.ts'),
-      import('/src/validation/validateTemplate.ts'),
+      __noacgImport('/src/store/templateStore.ts'),
+      __noacgImport('/src/model/structure.ts'),
+      __noacgImport('/src/validation/validateTemplate.ts'),
     ]);
     const t = useTemplateStore.getState().template;
     return {
@@ -1316,7 +1316,7 @@ test('svg import: a drawn field can be renamed and removed, and cancelling draws
 
   await finishIntoNewEditor(page);
   const fields = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.fields.map((f) => `${f.field}:${f.title}`);
   });
   // The clicked one survived, sized from the design rather than from the gesture — and it kept
@@ -1495,7 +1495,7 @@ test('svg import: the followers of a growing panel are proposed, then become the
   await finishIntoNewEditor(page);
 
   const js = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.js;
   });
   // WHAT THE READER SAW IS WHAT SHIPPED: one rule, growing down, with exactly the follower they
@@ -1540,7 +1540,7 @@ test('svg import: two boxes in one graphic grow differently', async ({ page }) =
 
   await finishIntoNewEditor(page);
   const table = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(useTemplateStore.getState().template.js)![0];
   });
   // Two rules, one per box, on different axes - which is what "per box" means in the format.
@@ -1635,7 +1635,7 @@ test('svg import: a growth limit stops at the frame and at the box, and cannot b
   // where it drew itself.
   await finishIntoNewEditor(page);
   const table = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(useTemplateStore.getState().template.js)![0];
   });
   const cell = /cap: ([0-9.]+)/.exec(table);
@@ -1706,7 +1706,7 @@ test('svg import: an untouched proposal is left to the runtime, not frozen into 
   await finishIntoNewEditor(page);
 
   const js = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.js;
   });
   const table = /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(js)![0];
@@ -1785,7 +1785,7 @@ test('svg import: only artwork travels — a text layer is never offered as one'
   await expect(page.getByTestId('map-svg-followers').locator('.map-svg-row')).toHaveCount(0);
   await finishIntoNewEditor(page);
   const table = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return /var NOACG_LAYOUT = \{[\s\S]*?\n\};/.exec(useTemplateStore.getState().template.js)![0];
   });
   expect(table).toContain("axis: 'y'");

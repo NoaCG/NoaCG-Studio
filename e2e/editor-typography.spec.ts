@@ -24,24 +24,24 @@ async function open(page: Page) {
 async function ready(page: Page) {
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
   await expect.poll(() => page.evaluate(async () => {
-    const view = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
+    const view = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
     const canvas = document.querySelector('[data-testid=foundation-canvas]')!;
     return Math.abs(Number(canvas.getAttribute('data-pose-time')) - view.time) < .00001 && canvas.getAttribute('data-pose-cue') === String(view.cue ?? 'arriving');
   })).toBe(true);
 }
-async function source(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template) as Promise<Template>; }
-async function history(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().history.length); }
+async function source(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template) as Promise<Template>; }
+async function history(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().history.length); }
 async function base(page: Page, selector: string): Promise<Base> {
-  return page.evaluate(async selector => (await import('/src/blocks/baseEdits.ts')).baseValues((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template as never, selector), selector) as Promise<Base>;
+  return page.evaluate(async selector => (await __noacgImport('/src/blocks/baseEdits.ts')).baseValues((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template as never, selector), selector) as Promise<Base>;
 }
 async function slot(page: Page, wrapper: string) {
-  return page.evaluate(async wrapper => (await import('/src/blocks/designLayout.ts')).slotSize((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.css, wrapper.slice(1)), wrapper);
+  return page.evaluate(async wrapper => (await __noacgImport('/src/blocks/designLayout.ts')).slotSize((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.css, wrapper.slice(1)), wrapper);
 }
 async function editorWith(page: Page, t: Template) {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await open(page);
   await evaluateInPage(page, async (t: unknown) => {
-    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t as never, { resetSampleData: true });
+    (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t as never, { resetSampleData: true });
   }, t);
   await ready(page);
 }
@@ -50,8 +50,8 @@ async function editorWith(page: Page, t: Template) {
 async function withText(page: Page): Promise<Template & { point: string; box: string }> {
   await open(page);
   return page.evaluate(async () => {
-    const { createArtwork } = await import('/src/blocks/baseEdits.ts');
-    let template = (await import('/src/templates/catalog.ts')).variantById('lt01')!.create({}) as never as Parameters<typeof createArtwork>[0];
+    const { createArtwork } = await __noacgImport('/src/blocks/baseEdits.ts');
+    let template = (await __noacgImport('/src/templates/catalog.ts')).variantById('lt01')!.create({}) as never as Parameters<typeof createArtwork>[0];
     const a = createArtwork(template, { shape: 'text', x: 200, y: -640, width: 400, height: 80 }); template = a.template;
     const b = createArtwork(template, { shape: 'text', x: 900, y: -560, width: 400, height: 120, box: true });
     return { ...b.template, point: a.selector, box: b.selector };
@@ -109,7 +109,7 @@ async function setText(page: Page, text: string) {
 const near = (a: number, b: number, tolerance: number) => Math.abs(a - b) <= tolerance + 1e-9;
 const ruleOf = (css: string, selector: string) => (css.match(new RegExp(selector.replace(/[.#]/g, '\\$&') + '\\s*\\{[^}]*\\}', 'g')) ?? []).join('\n');
 const operate = (page: Page, t: Template, operations: unknown[]) => page.evaluate(async ({ t, operations }) => {
-  try { return { template: (await import('/src/components/editorFoundation/operations.ts')).applyOperations(t as never, operations as never).template as never as Template }; }
+  try { return { template: (await __noacgImport('/src/components/editorFoundation/operations.ts')).applyOperations(t as never, operations as never).template as never as Template }; }
   catch (error) { return { error: String((error as Error).message ?? error) }; }
 }, { t, operations }) as Promise<{ template?: Template; error?: string }>;
 const LONG = 'Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III';
@@ -139,7 +139,7 @@ test('weight lists the font’s own weights and writes the line’s rule; one un
   await expect(weight.locator('option')).toHaveText(['Regular']);
   // A weight the font does not draw, written elsewhere, still shows as it is.
   const heavy = await operate(page, original, [{ kind: 'style.set', selector: t.point, values: { weight: 900 } }]);
-  await evaluateInPage(page, async (t: unknown) => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t as never), heavy.template);
+  await evaluateInPage(page, async (t: unknown) => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t as never), heavy.template);
   await ready(page);
   await expect(weight).toHaveValue('900');
   await expect(weight.locator('option')).toHaveText(['Regular', 'Medium', 'Semibold', 'Bold', 'Extra bold', '900']);
@@ -324,8 +324,8 @@ test('a text box resizes from its sides without stretching its letters; its corn
 
   // A box whose text animates a raw transform cannot take a scale, but resizing is not scaling.
   const moving = await page.evaluate(async ({ t, layer }) => {
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { replaceRegionWithAnimData } = await import('/src/templates/shared/animRuntime.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { replaceRegionWithAnimData } = await __noacgImport('/src/templates/shared/animRuntime.ts');
     const d = parseAnimData(t.js)!;
     d.steps[0].layers[layer] = { transform: [{ time: 0, value: 'translateX(0px)' }, { time: 1, value: 'translateX(40px)' }] };
     return { ...t, js: replaceRegionWithAnimData(t.js, d)! };
@@ -341,7 +341,7 @@ test('a text box resizes from its sides without stretching its letters; its corn
 
 test('catalog lines and SVG text take weight and spacing; alignment and fit stay with the design or the import', async ({ page }) => {
   await open(page);
-  const hairline = await page.evaluate(async () => (await import('/src/templates/catalog.ts')).variantById('lt01')!.create({})) as unknown as Template;
+  const hairline = await page.evaluate(async () => (await __noacgImport('/src/templates/catalog.ts')).variantById('lt01')!.create({})) as unknown as Template;
   await editorWith(page, hairline);
   await select(page, '#f0');
   await expect(inspector(page).getByRole('combobox', { name: 'Alignment', exact: true })).toHaveCount(0);
@@ -422,7 +422,7 @@ test('typed type survives save and reopen, and the simulator fits the long value
   await expect(inspector(page).getByRole('combobox', { name: 'Long text', exact: true })).toHaveValue('shrink');
   await expect(inspector(page).getByRole('spinbutton', { name: 'Width', exact: true })).toHaveValue(String(room));
 
-  const html = await page.evaluate(async t => (await import('/src/preview/composeDocument.ts')).composeDocument(t as never, { simulate: true }), edited);
+  const html = await page.evaluate(async t => (await __noacgImport('/src/preview/composeDocument.ts')).composeDocument(t as never, { simulate: true }), edited);
   const output = await page.context().newPage();
   await output.setViewportSize({ width: 1920, height: 1080 }); await output.setContent(html);
   await output.evaluate(async () => { await document.fonts.ready; window.dispatchEvent(new MessageEvent('message', { source: window, data: { type: 'spx-preview-cmd', cmd: 'sim-play', data: '{}' } })); await new Promise(r => setTimeout(r, 300)); });
@@ -441,7 +441,7 @@ test('typed type survives save and reopen, and the simulator fits the long value
 // independent of editor controls. The old emitted block is the immutable #775 control.
 test('bundled raster fonts fit the measured slot with bounded deterministic work and an unchanged floor', async ({ page }, info) => {
   await page.goto('/app');
-  const runtime = await page.evaluate(async () => (await import('/src/templates/shared/textFit.ts')).TEXT_FIT_RUNTIME_JS);
+  const runtime = await page.evaluate(async () => (await __noacgImport('/src/templates/shared/textFit.ts')).TEXT_FIT_RUNTIME_JS);
   const old = readFileSync(new URL('./fixtures/editor-projects/placed-text-fit-v1.txt', import.meta.url), 'utf8');
   const fonts = ['inter', 'oswald', 'saira'].map(name => ({ name,
     data: readFileSync(new URL(`../public/fonts/${name}.woff2`, import.meta.url)).toString('base64') }));

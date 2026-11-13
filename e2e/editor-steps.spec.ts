@@ -37,11 +37,11 @@ async function open(page: Page) {
 /** A complete template around one animation literal, with the SPX definition a saved graphic has. */
 async function template(page: Page, data: Data): Promise<Template> {
   return page.evaluate(async ({ data, html, css }) => {
-    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
-    const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
-    const { runtimeJs } = await import('/src/templates/shared/base.ts');
-    const { spxSteps } = await import('/src/blocks/animMachine.ts');
-    const { replaceDefinitionInHtml } = await import('/src/model/spxDefinition.ts');
+    const store = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const { emitAnimRegion } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { runtimeJs } = await __noacgImport('/src/templates/shared/base.ts');
+    const { spxSteps } = await __noacgImport('/src/blocks/animMachine.ts');
+    const { replaceDefinitionInHtml } = await __noacgImport('/src/model/spxDefinition.ts');
     const settings = { ...store.template.settings, steps: String(spxSteps(data as never)) };
     return { ...store.template, settings, fps: 25, fields: [], layers: [], html: replaceDefinitionInHtml(html, settings as never, []), css,
       js: runtimeJs('Steps fixture', emitAnimRegion(data as never)) };
@@ -51,22 +51,22 @@ async function template(page: Page, data: Data): Promise<Template> {
 /** The registry's result for a batch, or its refusal. */
 async function operate(page: Page, t: Template, operations: unknown[]): Promise<Template> {
   const result = await page.evaluate(async ({ t, operations }) => {
-    try { return { template: (await import('/src/components/editorFoundation/operations.ts')).applyOperations(t as never, operations as never).template }; }
+    try { return { template: (await __noacgImport('/src/components/editorFoundation/operations.ts')).applyOperations(t as never, operations as never).template }; }
     catch (error) { return { error: String((error as Error).message ?? error) }; }
   }, { t, operations });
   if ('error' in result) throw new Error(result.error);
   return result.template as unknown as Template;
 }
 async function dataOf(page: Page, t: Template): Promise<Data> {
-  return page.evaluate(async js => (await import('/src/blocks/animData.ts')).parseAnimData(js), t.js) as Promise<Data>;
+  return page.evaluate(async js => (await __noacgImport('/src/blocks/animData.ts')).parseAnimData(js), t.js) as Promise<Data>;
 }
 
 /** What `target` serves for a template: the simulator or single-file document, or a package's files. */
 async function build(page: Page, t: unknown, target: string) {
   return page.evaluate(async ({ t, target }) => {
-    if (target === 'simulator') return { html: (await import('/src/preview/composeDocument.ts')).composeDocument(t as never, { simulate: true }) };
-    if (target === 'single-file') return { html: await (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(t as never) };
-    const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(x => x.id === target)!.build(t as never);
+    if (target === 'simulator') return { html: (await __noacgImport('/src/preview/composeDocument.ts')).composeDocument(t as never, { simulate: true }) };
+    if (target === 'single-file') return { html: await (await __noacgImport('/src/export/selfContained.ts')).composeSelfContainedHtml(t as never) };
+    const zip = await (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(x => x.id === target)!.build(t as never);
     return { files: Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n => !zip.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('base64')]))) as Record<string, string> };
   }, { t, target });
 }
@@ -248,8 +248,8 @@ const DISPATCH = [1, 1, 1, .01];
  *  until the exit ends (owner decision 2026-09-30); from the last step the authored Out. */
 function model(page: Page, data: Data, held: Pose, visible: string[], times: number[], kind: 'early' | 'authored') {
   return page.evaluate(async ({ data, held, visible, times, kind, layers, props }) => {
-    const { easeCurve, parseEase } = await import('/src/templates/shared/easeRuntime.ts');
-    const { resolveValue } = await import('/src/blocks/animEval.ts');
+    const { easeCurve, parseEase } = await __noacgImport('/src/templates/shared/easeRuntime.ts');
+    const { resolveValue } = await __noacgImport('/src/blocks/animEval.ts');
     const exit = data.steps[data.steps.length - 1], index = data.steps.length - 1, all = [...props, 'opacity'];
     return times.map(t => layers.flatMap((s, l) => all.map((p, i) => {
       const u = t * data.speed, live = held[l * all.length + i], keys = exit.layers[s]?.[p];
@@ -313,18 +313,18 @@ test('a graphic saved with the R1.2a.3 interpreter upgrades once and then holds 
   await open(page);
   const before = readFileSync(new URL('./fixtures/interpreter-step-out-v1.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const data = fixture(), t = await template(page, data);
-  const saved = await page.evaluate(async ({ js, before }) => js.replace((await import('/src/templates/shared/animRuntime.ts')).ANIM_INTERPRETER_JS, () => before), { js: t.js, before });
+  const saved = await page.evaluate(async ({ js, before }) => js.replace((await __noacgImport('/src/templates/shared/animRuntime.ts')).ANIM_INTERPRETER_JS, () => before), { js: t.js, before });
   expect(saved).not.toBe(t.js);
   for (const target of ['simulator', 'spx', 'ograf']) {
     const run1 = await run(page, await build(page, { ...t, js: saved }, target), target, secondsOf(data), { nexts: 0, exit: EXIT });
     near(run1.leaving, await model(page, data, run1.held, run1.visible, EXIT, 'early'), `R1.2a.3 source in ${target}: the one-key track holds`);
   }
   const result = await page.evaluate(async ({ js, saved, before }) => {
-    const { ANIM_INTERPRETER_JS, writeOutData } = await import('/src/templates/shared/animRuntime.ts');
-    const legacy = await import('/src/templates/shared/animRuntimeLegacy.ts') as Record<string, string>;
-    const { prepareOutRuntime } = await import('/src/blocks/animMigration.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { contentHash } = await import('/src/model/contentHash.ts');
+    const { ANIM_INTERPRETER_JS, writeOutData } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const legacy = await __noacgImport('/src/templates/shared/animRuntimeLegacy.ts') as Record<string, string>;
+    const { prepareOutRuntime } = await __noacgImport('/src/blocks/animMigration.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { contentHash } = await __noacgImport('/src/model/contentHash.ts');
     const upgraded = prepareOutRuntime(saved);
     return { known: contentHash(before.trim()) === legacy.ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, upgraded: upgraded === js, once: prepareOutRuntime(upgraded) === upgraded,
       written: writeOutData(saved, parseAnimData(saved)!) === js, current: upgraded.includes(ANIM_INTERPRETER_JS) };
@@ -334,14 +334,14 @@ test('a graphic saved with the R1.2a.3 interpreter upgrades once and then holds 
 
 // ---- The editor ----
 
-async function source(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template) as Promise<Template>; }
-async function data(page: Page) { return page.evaluate(async () => (await import('/src/blocks/animData.ts')).parseAnimData((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)!) as Promise<Data>; }
-async function history(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().history.length); }
+async function source(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template) as Promise<Template>; }
+async function data(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/blocks/animData.ts')).parseAnimData((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)!) as Promise<Data>; }
+async function history(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().history.length); }
 async function state(page: Page) { const t = await source(page); return { js: t.js, html: t.html, steps: t.settings.steps, history: await history(page) }; }
 async function ready(page: Page) {
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false'); await expect(page.locator('.ef-stage-error')).toHaveCount(0);
   await expect.poll(() => page.evaluate(async () => {
-    const view = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
+    const view = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
     const canvas = document.querySelector('[data-testid=foundation-canvas]')!;
     return Math.abs(Number(canvas.getAttribute('data-pose-time')) - view.time) < .00001 && canvas.getAttribute('data-pose-cue') === String(view.cue ?? 'arriving');
   })).toBe(true);
@@ -351,7 +351,7 @@ async function editorWith(page: Page, t: Template | Data) {
   await page.clock.install(); await open(page);
   const applied = 'steps' in t ? await template(page, t) : t;
   await evaluateInPage(page, async (t: unknown) => {
-    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t as never, { resetSampleData: true });
+    (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t as never, { resetSampleData: true });
   }, applied);
   await ready(page);
   return applied;
@@ -437,7 +437,7 @@ test('SVG group pivot ownership is checked again before ungrouping or editing sa
   const grouped = await operate(page, original, [{ kind: 'group.create', selectors: ['#pivot-a', '#pivot-b'], box: { x: 0, y: 0, width: 250, height: 60 } }]);
   const ungroup = [{ kind: 'group.ungroup', selector }];
   const editCss = (t: Template, key: string, value: string) => page.evaluate(async ({ t, selector, key, value }) => ({
-    ...t, css: (await import('/src/blocks/edit.ts')).setCssDeclaration(t.css, selector, key, value),
+    ...t, css: (await __noacgImport('/src/blocks/edit.ts')).setCssDeclaration(t.css, selector, key, value),
   }), { t, selector, key, value });
   for (const [key, value] of [['transform', 'matrix(1,0,0,1,20,0)'], ['--noacg-group-x', '20'], ['--base-x', 'calc(20px)']]) {
     const conflict = await editCss(grouped, key, value);
@@ -455,7 +455,7 @@ test('SVG group pivot ownership is checked again before ungrouping or editing sa
   const set = { kind: 'animation.key', ...key, value: 80, action: 'set' };
   const keyed = await operate(page, grouped, [set, { ...set, time: .1, value: 125 }]);
   const capture = (t: Template) => page.evaluate(async ({ t, key }) =>
-    (await import('/src/blocks/editorAnimation.ts')).captureKeyClipboard(t as never, [key]), { t, key });
+    (await __noacgImport('/src/blocks/editorAnimation.ts')).captureKeyClipboard(t as never, [key]), { t, key });
   const keys = await capture(keyed);
   const operations = [
     { kind: 'key.paste', keys, step: 0, time: .8 },
@@ -648,7 +648,7 @@ test('canonical SVG groups keep their cue pivots in every saved package', async 
   await expect(operate(page, conflict, [{ kind: 'animation.key', selector: a, step: 0, time: .2, property: '--base-anchor-x', value: 135, action: 'set' }]))
     .rejects.toThrow('conflicting pivot owner');
   const withReveal = await page.evaluate(async ({ grouped, selector }) => {
-    const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
+    const { parseAnimData, spliceAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const source = parseAnimData(grouped.js)!;
     source.steps[1].reveals = [selector];
     return { ...grouped, js: spliceAnimData(grouped.js, source)! };
@@ -816,7 +816,7 @@ test('Add Step, rename, delete and drags are one undo each and survive save and 
   await expect(page.getByTestId('save-status')).toHaveText('Saved'); await settleDurableWrites(page);
   const saved = await source(page); await page.reload(); await ready(page);
   expect((await source(page)).js).toBe(saved.js); await expect(flag(page, 'Headline')).toBeVisible();
-  const again = await page.evaluate(async () => { const { saveCurrentGraphic } = await import('/src/store/saveActions.ts'); await saveCurrentGraphic(); return (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js; });
+  const again = await page.evaluate(async () => { const { saveCurrentGraphic } = await __noacgImport('/src/store/saveActions.ts'); await saveCurrentGraphic(); return (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.js; });
   expect(again).toBe(saved.js);
   expect(errors).toEqual([]);
 });
@@ -1016,7 +1016,7 @@ test('at 30 fps Add Step parks the playhead on its own flag, on the arriving sid
   // Flags are stored at 3 decimals, a hair off the 30 fps frame the playhead was on: a seek to that frame lands on the flag.
   const t = await editorWith(page, fixture());
   await evaluateInPage(page, async (t: unknown) => {
-    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate({ ...(t as object), fps: 30 } as never, { resetSampleData: true });
+    (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate({ ...(t as object), fps: 30 } as never, { resetSampleData: true });
   }, t);
   await ready(page);
   const ruler = page.getByRole('slider', { name: 'Playhead' });
@@ -1025,8 +1025,8 @@ test('at 30 fps Add Step parks the playhead on its own flag, on the arriving sid
   await ready(page);
   await page.getByRole('button', { name: 'Add Step at playhead', exact: true }).click(); await ready(page);
   const at = await page.evaluate(async () => {
-    const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
-    const { readTimeline } = await import('/src/components/editorFoundation/timelineView.ts');
+    const { activeEditorSession } = await __noacgImport('/src/components/editorFoundation/documentAdapter.ts');
+    const { readTimeline } = await __noacgImport('/src/components/editorFoundation/timelineView.ts');
     const session = activeEditorSession();
     return { time: session.port.view().time, flag: readTimeline(session.port.read()).segments[1].start };
   });
@@ -1072,8 +1072,8 @@ test('the editor Out button from an earlier flag holds a one-key Out track as th
     await page.getByRole('button', { name: 'Pause', exact: true }).click();
     await page.clock.runFor(100); await ready(page);
     times.push(await page.evaluate(async () => {
-      const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
-      const { readTimeline } = await import('/src/components/editorFoundation/timelineView.ts');
+      const { activeEditorSession } = await __noacgImport('/src/components/editorFoundation/documentAdapter.ts');
+      const { readTimeline } = await __noacgImport('/src/components/editorFoundation/timelineView.ts');
       const session = activeEditorSession();
       return session.port.view().time - readTimeline(session.port.read()).out;
     }));
@@ -1088,7 +1088,7 @@ test('the editor Out button from an earlier flag holds a one-key Out track as th
 
 test('card26 keeps its reveals appearing where they did when a step is added, deleted or moved', async ({ page }) => {
   await open(page);
-  const t = await page.evaluate(async () => (await import('/src/templates/catalog.ts')).variantById('card26')!.create({})) as unknown as Template;
+  const t = await page.evaluate(async () => (await __noacgImport('/src/templates/catalog.ts')).variantById('card26')!.create({})) as unknown as Template;
   const rows = ['#f0', '#f1', '#f2', '#f3', '#f4'], props = ['yPercent'];
   const d = await dataOf(page, t), built = await build(page, t, 'simulator');
   const compare = async (next: Template, what: string) => {

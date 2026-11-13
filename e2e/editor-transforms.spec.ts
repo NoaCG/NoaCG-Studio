@@ -22,12 +22,12 @@ async function open(page: Page) {
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
 }
 async function catalog(page: Page, id: string): Promise<Template> {
-  return page.evaluate(async id => (await import('/src/templates/catalog.ts')).variantById(id)!.create({}), id) as unknown as Promise<Template>;
+  return page.evaluate(async id => (await __noacgImport('/src/templates/catalog.ts')).variantById(id)!.create({}), id) as unknown as Promise<Template>;
 }
 /** The registry's result for a batch, or its refusal. */
 async function attempt(page: Page, t: Template, operations: unknown[]): Promise<{ template?: Template; error?: string }> {
   return page.evaluate(async ({ t, operations }) => {
-    try { return { template: (await import('/src/components/editorFoundation/operations.ts')).applyOperations(t as never, operations as never).template as never }; }
+    try { return { template: (await __noacgImport('/src/components/editorFoundation/operations.ts')).applyOperations(t as never, operations as never).template as never }; }
     catch (error) { return { error: String((error as Error).message ?? error) }; }
   }, { t, operations });
 }
@@ -37,15 +37,15 @@ async function operate(page: Page, t: Template, operations: unknown[]): Promise<
   return result.template!;
 }
 async function dataOf(page: Page, js: string): Promise<Data> {
-  return page.evaluate(async js => (await import('/src/blocks/animData.ts')).parseAnimData(js), js) as Promise<Data>;
+  return page.evaluate(async js => (await __noacgImport('/src/blocks/animData.ts')).parseAnimData(js), js) as Promise<Data>;
 }
-async function source(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template) as Promise<Template>; }
-async function history(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().history.length); }
+async function source(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template) as Promise<Template>; }
+async function history(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().history.length); }
 async function data(page: Page) { return dataOf(page, (await source(page)).js); }
 async function ready(page: Page) {
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false'); await expect(page.locator('.ef-stage-error')).toHaveCount(0);
   await expect.poll(() => page.evaluate(async () => {
-    const view = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
+    const view = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
     const canvas = document.querySelector('[data-testid=foundation-canvas]')!;
     return Math.abs(Number(canvas.getAttribute('data-pose-time')) - view.time) < .00001 && canvas.getAttribute('data-pose-cue') === String(view.cue ?? 'arriving');
   })).toBe(true);
@@ -54,7 +54,7 @@ async function editorWith(page: Page, t: Template) {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await open(page);
   await evaluateInPage(page, async (t: unknown) => {
-    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t as never, { resetSampleData: true });
+    (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t as never, { resetSampleData: true });
   }, t);
   await ready(page);
 }
@@ -123,12 +123,12 @@ test('no catalog layer refuses as another channel: its bar moves and trims and i
   test.setTimeout(240_000);
   await open(page);
   const report = await page.evaluate(async () => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { applyOperations } = await import('/src/components/editorFoundation/operations.ts');
-    const { sequenceAuthoringReason } = await import('/src/blocks/editorAnimation.ts');
-    const { readTimeline } = await import('/src/components/editorFoundation/timelineView.ts');
-    const { resolveValue } = await import('/src/blocks/animEval.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { applyOperations } = await __noacgImport('/src/components/editorFoundation/operations.ts');
+    const { sequenceAuthoringReason } = await __noacgImport('/src/blocks/editorAnimation.ts');
+    const { readTimeline } = await __noacgImport('/src/components/editorFoundation/timelineView.ts');
+    const { resolveValue } = await __noacgImport('/src/blocks/animEval.ts');
     const CHANNELS = ['transform', 'xPercent', 'yPercent', 'autoAlpha', 'scale'];
     const out = { blocked: 0, designs: new Set<string>(), channel: [] as string[], applied: { move: 0, trim: 0, key: 0 }, refused: {} as Record<string, number>, keyFailures: [] as string[] };
     for (const variants of Object.values(CATALOG)) for (const variant of variants ?? []) {
@@ -195,7 +195,7 @@ test('Clean Steps: Position Y reads a row\'s yPercent, and the field and a canva
   await select(page, '#f0');
   const at = await rendered(page, '#f0');
   expect(at.yPercent).toBeGreaterThan(1);
-  const base = await page.evaluate(async () => (await import('/src/blocks/baseEdits.ts')).baseValues((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template, '#f0').y);
+  const base = await page.evaluate(async () => (await __noacgImport('/src/blocks/baseEdits.ts')).baseValues((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template, '#f0').y);
   const shown = Number(await (await field(page, 'Layout offset Y')).inputValue());
   expect(near(shown, base + (at.y0 + at.yPercent * at.box / 100) / at.unit)).toBe(true);
 
@@ -315,10 +315,10 @@ test('House Question: #f1 shows and moves the motion stored under .audience-ques
 test('refusals: a raw transform, a selector naming several layers or two naming one, autoAlpha bars; autoAlpha keys', async ({ page }) => {
   await open(page);
   const t = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { createArtwork } = await import('/src/blocks/baseEdits.ts');
-    const { replaceRegionWithAnimData } = await import('/src/templates/shared/animRuntime.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { createArtwork } = await __noacgImport('/src/blocks/baseEdits.ts');
+    const { replaceRegionWithAnimData } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     let template = useTemplateStore.getState().template;
     const root = parseAnimData(template.js)!.root;
     const made: string[] = [];
@@ -409,7 +409,7 @@ test('Clean Steps: a row\'s bar across a Step flag, trim, key move, key ease, Ad
   // Trim, key move and key ease through the registry, Add Step (inside Step 4's reveal) and Set Out
   // (0.64 s later) through their buttons: each one transaction.
   const execute = (operation: unknown) => page.evaluate(async operation => {
-    const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const session = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
     session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [operation as never] });
   }, operation);
   const edits: [string, () => Promise<unknown>][] = [
@@ -451,8 +451,8 @@ test('the edited Clean Steps plays in the simulator and SPX as the editor sample
   // In around #f0's new key; the Steps around #f2's bar, which now starts 0.2 s into Step 3.
   const times = [[0, .3, .5, .6, .7, .8, .9, 1, 1.1, 1.2], [0, .1, .2, .3, .45], [0, .1, .19, .21, .3, .4, .45], [0, .1, .19, .21, .3, .45]];
   const expected = await page.evaluate(async ({ d, times }) => {
-    const { resolveValue } = await import('/src/blocks/animEval.ts');
-    const { shownWithoutBars } = await import('/src/blocks/animEdit.ts');
+    const { resolveValue } = await __noacgImport('/src/blocks/animEval.ts');
+    const { shownWithoutBars } = await __noacgImport('/src/blocks/animEdit.ts');
     return [0, 1, 2, 3].map(cue => times[cue].map(t => ['#f0', '#f2'].map(s => {
       const spans = d.steps[cue].spans?.[s];
       const shown = spans ? spans.some(b => t >= b.start - 1e-9 && t < b.end + (b.end === d.steps[cue].duration ? 1e-9 : 0)) : shownWithoutBars(d as never, s, cue);
@@ -461,8 +461,8 @@ test('the edited Clean Steps plays in the simulator and SPX as the editor sample
   }, { d, times });
   for (const target of ['simulator', 'spx']) {
     const built = await page.evaluate(async ({ t, target }) => {
-      if (target === 'simulator') return { html: (await import('/src/preview/composeDocument.ts')).composeDocument(t as never, { simulate: true }) };
-      const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(x => x.id === target)!.build(t as never);
+      if (target === 'simulator') return { html: (await __noacgImport('/src/preview/composeDocument.ts')).composeDocument(t as never, { simulate: true }) };
+      const zip = await (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(x => x.id === target)!.build(t as never);
       return { files: Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n => !zip.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('base64')]))) as Record<string, string> };
     }, { t: edited, target });
     const output = await page.context().newPage();
