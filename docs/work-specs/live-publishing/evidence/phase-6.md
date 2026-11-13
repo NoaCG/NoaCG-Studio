@@ -66,6 +66,7 @@ All three pass on the local stack (jobs j-0001 and j-0004):
 | Page signal dropped and page closed: a new output reaches the newest version within 90 s | Pass; time in the job's annotation `found-alone-ms` |
 | A publish made to fail keeps the save, amber then red "Saved, not on the outputs", the next page opened publishes it | Pass |
 | Two publishers finishing in reverse order leave the newer save published | Pass: the older publish was held on the wire until the newer landed |
+| A record whose revision is not known (not saved since 0117) keeps Publish changes and is not published; once its revision is known, automatic mode starts and publishes it (G3 section 8, review on #2488) | Pass (job j-0031); with the check removed it fails (j-0032) |
 
 The walk runs with both switches on (`production_copies` and `auto_publish`), as production has
 them; all three pass again on that setting (jobs j-0025, j-0026 after the review fixes, and j-0029 after the cleanups). The
@@ -75,6 +76,10 @@ mark to every REST request, so the 0115 guard accepts it.
 Found while building:
 - The page's Presence reader dropped the new `au` member, so every new output read as old (fixed in
   `readLiveEntry`, with a Node test).
+- Review on #2488: a team confirmation read the store's token after the revision read, so a record
+  adopted meanwhile could be confirmed as the newer revision; the token is now read before and
+  after, and a change means wait. A record with no revision yet entered automatic mode and hid
+  Publish changes; automatic mode now needs the revision known.
 - A revision-only update left the row's source columns as a Connect had written them (review on
   #2469): they leave the content digest and ride every revision-only update.
 

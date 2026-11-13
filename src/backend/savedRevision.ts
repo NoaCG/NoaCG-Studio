@@ -44,9 +44,13 @@ export async function storedRevision(show: Pick<Show, 'id' | 'teamId'>): Promise
 /** Whether `show`, as this tab holds it, is exactly a stored revision, and which. */
 export async function confirmedRevision(show: Show): Promise<ConfirmedRevision> {
   if (show.teamId && teamEditOwed(show.id)) return { wait: 'local' };
+  // The team token is the store's, not this object's: read it with `show` (same tick) and again
+  // after the read, so a record adopted meanwhile is never confirmed as the newer revision.
+  const before = show.teamId ? teamConfirmedToken(show.id) : show.updatedAt;
   const stored = await storedRevision(show);
   if (!stored) return null;
   const mine = show.teamId ? teamConfirmedToken(show.id) : show.updatedAt;
+  if (mine !== before) return { wait: 'server' };
   if (mine !== null && stored.identity !== null && sameIdentity(mine, stored.identity, !!show.teamId)) return { rev: stored.rev };
   if (show.teamId) return { wait: 'server' };
   // A personal record: the newer client time says which side is ahead (the sync engine's own rule).

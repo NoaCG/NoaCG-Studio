@@ -52,22 +52,34 @@ export function useAutoPublish(o: {
   const latest = useRef(o);
   latest.current = o;
 
+  // G3 section 8: automatic mode also needs the record's revision known. A record not saved since
+  // 0117 has none, and until its next save the page keeps Publish changes. Once known, it stays.
+  const [revKnown, setRevKnown] = useState(false);
   useEffect(() => {
-    if (!enabled) {
+    setRevKnown(false);
+    if (!enabled || !showId) {
       setSwitchOn(false);
       return;
     }
     let alive = true;
-    const ask = () => void readSwitch().then((on) => { if (alive) setSwitchOn(on); }, () => {});
+    let known = false;
+    const ask = () => {
+      void readSwitch().then((on) => { if (alive) setSwitchOn(on); }, () => {});
+      if (!known) {
+        void storedRevision({ id: showId, teamId: teamId ?? undefined }).then((r) => {
+          if (alive && r) { known = true; setRevKnown(true); }
+        }, () => {});
+      }
+    };
     ask();
     const timer = setInterval(ask, CHECK_EVERY_MS);
     return () => {
       alive = false;
       clearInterval(timer);
     };
-  }, [enabled]);
+  }, [enabled, showId, teamId]);
 
-  const active = enabled && switchOn;
+  const active = enabled && switchOn && revKnown;
   useEffect(() => {
     if (!active || !showId) {
       setView(null);

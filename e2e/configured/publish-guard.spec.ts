@@ -806,6 +806,24 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
     await next.close();
   });
 
+  test('a record whose revision is not known yet keeps Publish changes until it is (G3 section 8)', async ({ page }) => {
+    test.setTimeout(180_000);
+    const { showId } = await published(page, `Auto unknown ${Date.now()}`);
+    // A record not saved since 0117 has no revision: the server answers `rev: null` for it.
+    const revRead = /\/rest\/v1\/documents\?select=rev(%2C|,)/;
+    await page.route(revRead, (route) => route.fulfill({ status: 200, contentType: 'application/vnd.pgrst.object+json', body: '{"rev":null,"identity":null}' }));
+    await page.reload();
+    await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+    await edit(page, showId, 'add-graphic', 'Held strap');
+    await expect(page.getByTestId('production-publish-changes')).toBeVisible({ timeout: 30_000 });
+    expect((await server(showId)).graphics).not.toContain('Held strap');
+    // The revision becomes known (the next state read, every 30 s): automatic mode starts and
+    // publishes the held save with no press.
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await expect.poll(async () => (await server(showId)).graphics, { timeout: 60_000 }).toContain('Held strap');
+    await expect(page.getByTestId('production-publish-changes')).toHaveCount(0);
+  });
+
   test('two publishers finishing in reverse order leave the newer save published', async ({ page }) => {
     test.setTimeout(240_000);
     const { showId } = await published(page, `Auto race ${Date.now()}`);
