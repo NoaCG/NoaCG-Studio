@@ -93,8 +93,36 @@ test('the staging declaration admits the staging project, not merely "not produc
   const elsewhere = { ...CLOUD_WORKER, VITE_SUPABASE_URL: 'https://someotherproject00.supabase.co', [DECLARATION]: HOSTED_STAGING };
   assert.equal(configuredTarget(elsewhere).kind, 'refused');
   assert.match(configuredTarget(elsewhere).reason, /admits the staging project only/);
-  // And a fork that keeps its own staging project says so the way the rest of the repo does.
+  // And a fork that keeps its own staging project says so the way the rest of the repo does -
+  // including when its secret carries a newline or capitals, which a hostname does not care about.
   assert.equal(configuredTarget({ ...elsewhere, STAGING_SUPABASE_PROJECT_REF: 'someotherproject00' }).kind, HOSTED_STAGING);
+  assert.equal(configuredTarget({ ...elsewhere, STAGING_SUPABASE_PROJECT_REF: ' SomeOtherProject00\n' }).kind, HOSTED_STAGING);
+});
+
+test('the staging project is the WHOLE host, not a string the URL happens to contain', () => {
+  // The rule compares `<ref>.supabase.co` against the host. A substring test would admit each of
+  // these, and the declaration is the one door that lets a writing run reach a hosted project at
+  // all - so each shape gets its own case, and reverting the comparison turns this red.
+  const declared = (url) => configuredTarget({ VITE_SUPABASE_URL: url, [DECLARATION]: HOSTED_STAGING });
+  for (const url of [
+    `https://${DEFAULT_STAGING_REF}.supabase.co.evil.example`, // a longer host that starts with it
+    `https://${DEFAULT_STAGING_REF}.evil.example`, // the ref as somebody else's subdomain
+    `https://db.${DEFAULT_STAGING_REF}.supabase.co`, // a host that ends with it
+    `https://evil.example/${DEFAULT_STAGING_REF}.supabase.co`, // the ref in the path
+    `https://evil.example/?to=${DEFAULT_STAGING_REF}.supabase.co`, // and in a query
+    `https://${DEFAULT_STAGING_REF}.supabase.co@evil.example`, // and as a username
+  ]) {
+    assert.equal(declared(url).kind, 'refused', url);
+  }
+  // The real project, however it is written: bare, with a path, with a port, shouted.
+  for (const url of [
+    `https://${DEFAULT_STAGING_REF}.supabase.co`,
+    `https://${DEFAULT_STAGING_REF}.supabase.co/rest/v1`,
+    `https://${DEFAULT_STAGING_REF}.supabase.co:443`,
+    `HTTPS://${DEFAULT_STAGING_REF.toUpperCase()}.SUPABASE.CO`,
+  ]) {
+    assert.equal(declared(url).kind, HOSTED_STAGING, url);
+  }
 });
 
 test('hosted staging runs only when it says so, and never at the production ref', () => {

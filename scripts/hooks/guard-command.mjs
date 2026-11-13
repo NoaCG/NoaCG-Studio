@@ -314,7 +314,16 @@ if (namedBrowserWork || rememberedAsBrowser(jobsDir(), command)) {
 // 4b. The port check applies to e2e runs only - a sweep starts its own server on the same port
 //     but is not subject to reuseExistingServer's env-pinning trap.
 if (invokesE2e(command)) {
-  const live = /\btest:e2e:live\b/.test(command) || /playwright\.live\.config/.test(command);
+  // WHICH PORT this run will bind. The endurance configs are on the live port too
+  // (playwright.endurance.config.ts, e2e/endurance/editor-projects.config.ts, both via livePort()),
+  // and they were being checked against the offline one: a busy live port passed the guard and the
+  // run died at --strictPort with no message, while a busy offline port blocked a run that does
+  // not touch it. The refusal below names those walks, so the detection has to know them.
+  const live =
+    /\btest:e2e:live\b/.test(command) ||
+    /playwright\.live\.config/.test(command) ||
+    /playwright\.endurance\.config/.test(command) ||
+    /editor-projects\.config/.test(command);
   // The port belongs to the checkout the run will happen in, not to whoever is asking. An
   // explicit DEV_PORT in the command beats both, because it beats both at runtime too.
   const record = await portsFor(targetRoot());

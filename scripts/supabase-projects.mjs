@@ -35,5 +35,9 @@ export function productionRef(env = {}) {
 
 /** The staging project, overridable so a fork can name its own. */
 export function stagingRef(env = {}) {
-  return env.STAGING_SUPABASE_PROJECT_REF || DEFAULT_STAGING_REF;
+  // Trimmed and folded: a ref read from a secret can carry a trailing newline or capitals, and it
+  // is compared against a hostname, which is case-insensitive. Without this a fork's own correctly
+  // configured staging project is refused with a message pointing at the project rather than at
+  // the whitespace (scripts/configured-target.mjs, issue #2495).
+  return (env.STAGING_SUPABASE_PROJECT_REF || DEFAULT_STAGING_REF).trim().toLowerCase();
 }

@@ -233,10 +233,12 @@ export function requireLocalStack(env = process.env, what = 'this run') {
   // the rule above calls that local, because what is there is. The browser's half would then come
   // from the environment file the Vite server loads, which on a maintainer's machine is
   // production - the same gap in the opposite direction from the one that started this.
-  const unset = URL_VARS.filter((name) => !isLocalStackUrl(read(env, name)));
-  if (unset.length > 0) {
+  // At most one: the verdict above is `local`, which already means every variable that IS set
+  // names a local stack, so what can be missing here is the other spelling.
+  const [missing] = URL_VARS.filter((name) => !isLocalStackUrl(read(env, name)));
+  if (missing) {
     throw new Error(
-      `Refusing to start ${what}: ${unset.join(' and ')} must name the local stack too, and ${unset.length > 1 ? 'they do' : 'it does'} not. ` +
+      `Refusing to start ${what}: ${missing} must name the local stack too, and it does not. ` +
         `Each half of the run reads its own: the browser's page is built from VITE_SUPABASE_URL and the api/ handlers ` +
         `read SUPABASE_URL, so one left unset is filled from the environment file instead. Take every backend variable ` +
         `from \`supabase status\` (scripts/configured-target.mjs's localStackEnv does exactly that).`,
