@@ -1,6 +1,6 @@
 // THE SAVED REVISION OF A PRODUCTION (docs/work-specs/live-publishing/designs/G3.md section 1).
 //
-// The server numbers every stored version of a production record (`rev`, migration 0116): a
+// The server numbers every stored version of a production record (`rev`, migration 0117): a
 // `documents` row of kind `show` for a personal production, a `team_productions` row for a team
 // one. A publish names the revision it was built from, so it must know that the record it builds
 // from IS that revision. The server's own copy of the record's identity says so, read in two small
@@ -11,7 +11,7 @@
 // Answers `{ rev }`, or what to wait for: `local` (this tab holds an edit the server has not
 // confirmed: its save is on its way and owes a publish), `server` (the server holds a newer save:
 // bring the record up first). Null when the revision cannot be known: offline, signed out, a read
-// that failed, or an instance without 0116.
+// that failed, or an instance without 0117.
 
 import { getSupabase } from './supabase';
 import { teamConfirmedToken, teamEditOwed } from './teamProductions';

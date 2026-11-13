@@ -34,7 +34,7 @@ export interface PayloadVersion {
   /** Per graphic, when its design was last edited, ISO. */
   t?: Record<string, string>;
   /** The saved revision of the production record this publication was built from (migration
-   *  0116; live-publishing G3 section 2). Absent: an older build, or a revision it did not know. */
+   *  0117; live-publishing G3 section 2). Absent: an older build, or a revision it did not know. */
   r?: number;
   /** A digest of everything the publish wrote, graphic bodies counted by their `g` digests (G3
    *  section 3): equal means a new publish would change nothing on the outputs. */

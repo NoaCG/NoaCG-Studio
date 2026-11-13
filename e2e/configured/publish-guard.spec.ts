@@ -31,7 +31,7 @@
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
 // AUTOMATIC UPDATES (live-publishing designs/G3.md, AC-4): the describe at the end.
-// covers: supabase/migrations/0116_production_revision.sql, supabase/migrations/0117_publication_guard.sql
+// covers: supabase/migrations/0117_production_revision.sql, supabase/migrations/0118_publication_guard.sql
 // covers: src/control/autoPublish.ts, src/control/publishRevision.ts, src/control/sendsInFlight.ts, src/backend/savedRevision.ts, src/components/home/useAutoPublish.ts
 // covers: src/output/versionCheck.ts, src/output/payloadReader.ts, src/output/prepare.ts, src/output/main.ts, src/control/playoutStatus.ts
 

@@ -113,8 +113,8 @@ grant execute on function public.team_production_save(uuid, timestamptz, jsonb) 
 do $$
 declare
   v_owner uuid;
-  v_id    uuid := '00000000-0116-4000-8000-000000000001';
-  v_look  uuid := '00000000-0116-4000-8000-000000000002';
+  v_id    uuid := '00000000-0117-4000-8000-000000000001';
+  v_look  uuid := '00000000-0117-4000-8000-000000000002';
   v_a     bigint;
   v_b     bigint;
   v_c     bigint;
@@ -122,46 +122,46 @@ begin
   if has_sequence_privilege('anon', 'public.production_revision', 'USAGE')
      or has_sequence_privilege('authenticated', 'public.production_revision', 'USAGE')
      or has_sequence_privilege('authenticated', 'public.production_revision', 'UPDATE') then
-    raise exception '0116: a client role can move the revision sequence';
+    raise exception '0117: a client role can move the revision sequence';
   end if;
   if has_function_privilege('authenticated', 'public.production_revision_next()', 'EXECUTE')
      or has_function_privilege('anon', 'public.production_revision_next()', 'EXECUTE') then
-    raise exception '0116: a client role can call the revision trigger function';
+    raise exception '0117: a client role can call the revision trigger function';
   end if;
   if not has_function_privilege('authenticated', 'public.team_production_save(uuid, timestamptz, jsonb)', 'EXECUTE')
      or has_function_privilege('anon', 'public.team_production_save(uuid, timestamptz, jsonb)', 'EXECUTE') then
-    raise exception '0116: EXECUTE on team_production_save is wrong for a client role';
+    raise exception '0117: EXECUTE on team_production_save is wrong for a client role';
   end if;
 
   select id into v_owner from auth.users limit 1;
   if v_owner is null then
-    raise notice '0116 self-check skipped: no account on this instance';
+    raise notice '0117 self-check skipped: no account on this instance';
     return;
   end if;
   begin
     insert into public.documents (id, user_id, kind, body, rev) values (v_id, v_owner, 'show', '{"name":"a"}', -1);
     select d.rev into v_a from public.documents d where d.id = v_id;
     if v_a is null or v_a < 1 then
-      raise exception '0116: an insert kept a client revision or none: %', v_a;
+      raise exception '0117: an insert kept a client revision or none: %', v_a;
     end if;
     update public.documents set body = '{"name":"b"}' where id = v_id;
     select d.rev into v_b from public.documents d where d.id = v_id;
     if v_b is null or v_b <= v_a then
-      raise exception '0116: a save did not move the revision up (% then %)', v_a, v_b;
+      raise exception '0117: a save did not move the revision up (% then %)', v_a, v_b;
     end if;
     update public.documents set name = 'renamed' where id = v_id;
     select d.rev into v_c from public.documents d where d.id = v_id;
     if v_c is distinct from v_b then
-      raise exception '0116: an update of other columns moved the revision';
+      raise exception '0117: an update of other columns moved the revision';
     end if;
     update public.documents set rev = -1 where id = v_id;
     select d.rev into v_c from public.documents d where d.id = v_id;
     if v_c is null or v_c <= v_b then
-      raise exception '0116: a client wrote the revision: %', v_c;
+      raise exception '0117: a client wrote the revision: %', v_c;
     end if;
     insert into public.documents (id, user_id, kind, body) values (v_look, v_owner, 'look', '{}');
     if (select d.rev from public.documents d where d.id = v_look) is not null then
-      raise exception '0116: a document of another kind got a revision';
+      raise exception '0117: a document of another kind got a revision';
     end if;
     raise exception 'self-check-done';
   exception when raise_exception then

@@ -2,7 +2,7 @@
 // 2, 3 and 5).
 //
 // What `publishControlShow` writes, built from the record that IS saved revision `rev`, naming it in
-// the stamp (`ver.r`) so the server's guard (migration 0117) keeps publications in save order, and
+// the stamp (`ver.r`) so the server's guard (migration 0118) keeps publications in save order, and
 // carrying `ver.c`, a digest of everything written with graphic bodies counted by their digests.
 //
 //   Stored `c` equals the built one   a revision-only update: the row learns `rev`, nothing is sent

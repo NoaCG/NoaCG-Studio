@@ -2560,7 +2560,7 @@ export async function readPublishedStamp(showId: string): Promise<PayloadVersion
   return readPayloadVersion((data as { ver?: unknown }).ver);
 }
 
-/** The published stamp and saved revision for an output (migration 0117), never the payload: what a
+/** The published stamp and saved revision for an output (migration 0118), never the payload: what a
  *  new output's own check reads (live-publishing designs/G3.md section 6). `absent`: the instance has
  *  no such function yet, so the output does as before and asks no more this page load. */
 export async function controlOutputVersion(outputSlug: string): Promise<RpcAnswer<{ ver: PayloadVersion | null; rev: number | null } | null> | 'absent'> {

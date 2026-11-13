@@ -2,14 +2,14 @@
 
 Design: `../designs/G3.md`. Acceptance: AC-4. Everything here ran on the cloud worker (4 CPUs,
 13.4 GiB) against the local Supabase stack (CLI 2.111.0, `scripts/configured-stack.mjs`, accounts
-`e2e-s1@noacg.local` and its teammate), with migrations 0116 and 0117 applied on top of `main`.
+`e2e-s1@noacg.local` and its teammate), with migrations 0117 and 0118 applied on top of `main`.
 
 ## What was built
 
-- `supabase/migrations/0116_production_revision.sql`: the saved revision `rev` on `documents` (kind
+- `supabase/migrations/0117_production_revision.sql`: the saved revision `rev` on `documents` (kind
   `show`) and `team_productions`, from one sequence, set by a before-row trigger;
   `team_production_save` answers `rev`. Ordinary migration.
-- `supabase/migrations/0117_publication_guard.sql` (live-path): `published_rev` and `published_ver`
+- `supabase/migrations/0118_publication_guard.sql` (live-path): `published_rev` and `published_ver`
   on `control_shows`, two column-list guard triggers, `control_record_rev`,
   `control_output_version`, `auto_publish_on`, `auto_publish_state`. Applies in a quiet window.
 - Page: `src/backend/savedRevision.ts` (which stored revision a record is), `src/control/autoPublish.ts`
@@ -27,14 +27,14 @@ Design: `../designs/G3.md`. Acceptance: AC-4. Everything here ran on the cloud w
 
 ### Migrations (local stack)
 
-- 0116 and 0117 apply with `supabase migration up` on top of 0115.
+- 0117 and 0118 apply with `supabase migration up` on top of 0115.
 - Their self-checks, run again with an account present (a throwaway `auth.users` row, rolled back):
-  0116: a client revision is overwritten, a save moves the revision up, an update of another column
-  does not, another kind gets none. 0117: an insert records its revision; a newer publication is
+  0117: a client revision is overwritten, a save moves the revision up, an update of another column
+  does not, another kind gets none. 0118: an insert records its revision; a newer publication is
   recorded; an older one after it changes nothing; a future revision is refused; a revision-only
   update lower or future is skipped, equal lands; another column leaves the revision; an
   unversioned publish is refused with the switch on and clears the revision with it off. Both pass.
-- `scripts/db-push.mjs` classifies 0116 as ordinary and 0117 as live-path with its header, neither
+- `scripts/db-push.mjs` classifies 0117 as ordinary and 0118 as live-path with its header, neither
   blocked; `node --test scripts/db-push.test.mjs scripts/control-link-guard-migration.test.mjs
   scripts/extension-order.test.mjs`: 70 pass.
 

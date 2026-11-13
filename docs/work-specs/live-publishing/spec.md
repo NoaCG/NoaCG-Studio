@@ -464,7 +464,7 @@ Filled in by each phase's pull request.
 - Revert: `git revert -m 1 <this pull request's merge commit>` brings back Publish changes and
   outputs that prepare only on a page's request. Turn the `auto_publish` switch off first (delete the
   `system_settings` row or set `"on"` to false): with it off the page publishes only on a press and
-  the guard refuses nothing. Migrations 0116 and 0117 stay applied and are inert for older code: `rev`
+  the guard refuses nothing. Migrations 0117 and 0118 stay applied and are inert for older code: `rev`
   and `published_rev` are columns nothing older reads, and the guard only skips a publication naming
   an older revision, which only this build writes.
 - Rules: G3 section 11, R1 to R20 (reviewed Rules-first in the design gate).
@@ -475,7 +475,8 @@ Filled in by each phase's pull request.
 - Found while building, fixed: the Presence reader dropped `au`; the automatic publish's own
   `fetch` lacked the production-copies mark (the walk now runs with both switches on); a
   revision-only update now carries the source columns (review on #2469).
-- Migrations: `0116_production_revision.sql` (ordinary), `0117_publication_guard.sql` (live-path,
+- Migrations: `0117_production_revision.sql` (ordinary), `0118_publication_guard.sql` (live-path,
+  renumbered from 0116 and 0117 when `main` took 0116 for the JSON source tick;
   applies in a quiet window). Turning `auto_publish` on is a separate step, after the app is live
   and `auto_publish_state()` reports `installed: true` on production (G3 section 8).
 - Traps: in the evidence, "Traps met".

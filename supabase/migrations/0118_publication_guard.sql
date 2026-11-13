@@ -3,7 +3,7 @@
 -- A PUBLICATION NEVER REPLACES A NEWER ONE (docs/work-specs/live-publishing/designs/G3.md section 2).
 --
 -- From live-publishing phase 6 every publish from a new page names the saved revision it was built
--- from (`output.ver.r`, the `rev` of 0116). Two columns on control_shows:
+-- from (`output.ver.r`, the `rev` of 0117). Two columns on control_shows:
 --   published_rev  the saved revision the publication shows, kept by the guard below;
 --   published_ver  a copy of `output->'ver'`, so a page or an output reads the stamp without the
 --                  server decompressing the whole payload (reading one key of a jsonb value reads
@@ -64,7 +64,7 @@ $$;
 revoke all on function public.auto_publish_state() from public, anon, authenticated;
 grant execute on function public.auto_publish_state() to authenticated;
 
--- The production record's current saved revision, personal or team (0116).
+-- The production record's current saved revision, personal or team (0117).
 create or replace function public.control_record_rev(p_id uuid)
 returns bigint
 language sql security definer set search_path = '' stable as $$
@@ -141,7 +141,7 @@ grant execute on function public.control_output_version(text) to anon, authentic
 do $$
 declare
   v_owner uuid;
-  v_show  uuid := '00000000-0117-4000-8000-000000000001';
+  v_show  uuid := '00000000-0118-4000-8000-000000000001';
   v_slug  text;
   v_r1    bigint;
   v_r2    bigint;
@@ -152,23 +152,23 @@ declare
 begin
   if has_function_privilege('anon', 'public.auto_publish_state()', 'EXECUTE')
      or not has_function_privilege('authenticated', 'public.auto_publish_state()', 'EXECUTE') then
-    raise exception '0117: EXECUTE on auto_publish_state is wrong for a client role';
+    raise exception '0118: EXECUTE on auto_publish_state is wrong for a client role';
   end if;
   if not has_function_privilege('anon', 'public.control_output_version(text)', 'EXECUTE') then
-    raise exception '0117: an output cannot read its version';
+    raise exception '0118: an output cannot read its version';
   end if;
   if has_function_privilege('authenticated', 'public.control_record_rev(uuid)', 'EXECUTE')
      or has_function_privilege('anon', 'public.control_record_rev(uuid)', 'EXECUTE')
      or has_function_privilege('authenticated', 'public.auto_publish_on()', 'EXECUTE') then
-    raise exception '0117: a client role can call a guard helper';
+    raise exception '0118: a client role can call a guard helper';
   end if;
   if public.auto_publish_state()->'installed' is distinct from 'true'::jsonb then
-    raise exception '0117: auto_publish_state answered %', public.auto_publish_state();
+    raise exception '0118: auto_publish_state answered %', public.auto_publish_state();
   end if;
 
   select id into v_owner from auth.users limit 1;
   if v_owner is null then
-    raise notice '0117 self-check skipped: no account on this instance';
+    raise notice '0118 self-check skipped: no account on this instance';
     return;
   end if;
   begin
@@ -178,12 +178,12 @@ begin
     select d.rev into v_r1 from public.documents d where d.id = v_show;
     -- A first publish naming its revision.
     insert into public.control_shows (id, owner_id, title, output)
-    values (v_show, v_owner, '0117 self-check', jsonb_build_object('v', 1, 'ver', jsonb_build_object('n', 1, 'h', 'h1', 'r', v_r1)));
+    values (v_show, v_owner, '0118 self-check', jsonb_build_object('v', 1, 'ver', jsonb_build_object('n', 1, 'h', 'h1', 'r', v_r1)));
     select s.published_rev, s.output_slug into v_rev, v_slug from public.control_shows s where s.id = v_show;
-    if v_rev is distinct from v_r1 then raise exception '0117: an insert did not record its revision (%)', v_rev; end if;
+    if v_rev is distinct from v_r1 then raise exception '0118: an insert did not record its revision (%)', v_rev; end if;
     v_got := public.control_output_version(v_slug);
     if v_slug is not null and (v_got->'ver'->>'n' <> '1' or (v_got->>'rev')::bigint <> v_r1) then
-      raise exception '0117: control_output_version answered %', v_got;
+      raise exception '0118: control_output_version answered %', v_got;
     end if;
 
     -- A newer save, published.
@@ -191,13 +191,13 @@ begin
     select d.rev into v_r2 from public.documents d where d.id = v_show;
     update public.control_shows set output = jsonb_build_object('v', 1, 'ver', jsonb_build_object('n', 2, 'h', 'h2', 'r', v_r2)) where id = v_show;
     select s.published_rev into v_rev from public.control_shows s where s.id = v_show;
-    if v_rev is distinct from v_r2 then raise exception '0117: a newer publication was not recorded'; end if;
+    if v_rev is distinct from v_r2 then raise exception '0118: a newer publication was not recorded'; end if;
 
     -- An older one after it: skipped, nothing written.
     update public.control_shows set output = jsonb_build_object('v', 1, 'ver', jsonb_build_object('n', 3, 'h', 'h1', 'r', v_r1)) where id = v_show;
     get diagnostics v_n = row_count;
     select s.published_ver into v_got from public.control_shows s where s.id = v_show;
-    if v_n <> 0 or v_got->>'h' <> 'h2' then raise exception '0117: an older publication replaced a newer one'; end if;
+    if v_n <> 0 or v_got->>'h' <> 'h2' then raise exception '0118: an older publication replaced a newer one'; end if;
 
     -- A revision the record does not have: refused.
     v_failed := false;
@@ -207,23 +207,23 @@ begin
       if sqlerrm <> 'This publication names a save that does not exist' then raise; end if;
       v_failed := true;
     end;
-    if not v_failed then raise exception '0117: a publication named a future revision'; end if;
+    if not v_failed then raise exception '0118: a publication named a future revision'; end if;
 
     -- A revision-only update: lower skipped, future skipped, equal lands.
     update public.control_shows set published_rev = v_r1 where id = v_show;
     get diagnostics v_n = row_count;
-    if v_n <> 0 then raise exception '0117: a revision-only update moved the revision down'; end if;
+    if v_n <> 0 then raise exception '0118: a revision-only update moved the revision down'; end if;
     update public.control_shows set published_rev = v_r2 + 1000 where id = v_show;
     get diagnostics v_n = row_count;
-    if v_n <> 0 then raise exception '0117: a revision-only update named a future revision'; end if;
+    if v_n <> 0 then raise exception '0118: a revision-only update named a future revision'; end if;
     update public.control_shows set published_rev = v_r2 where id = v_show;
     get diagnostics v_n = row_count;
-    if v_n <> 1 then raise exception '0117: a revision-only update at the same revision was refused'; end if;
+    if v_n <> 1 then raise exception '0118: a revision-only update at the same revision was refused'; end if;
 
     -- Not a publication: the revision stays.
-    update public.control_shows set title = '0117 self-check (renamed)' where id = v_show;
+    update public.control_shows set title = '0118 self-check (renamed)' where id = v_show;
     select s.published_rev into v_rev from public.control_shows s where s.id = v_show;
-    if v_rev is distinct from v_r2 then raise exception '0117: an update of another column moved the revision'; end if;
+    if v_rev is distinct from v_r2 then raise exception '0118: an update of another column moved the revision'; end if;
 
     -- No revision, switch on: refused with the words.
     update public.system_settings set value = '{"on": true}' where key = 'auto_publish';
@@ -234,13 +234,13 @@ begin
       if sqlerrm <> 'Reload this page to edit' then raise; end if;
       v_failed := true;
     end;
-    if not v_failed then raise exception '0117: an unversioned publish passed with the switch on'; end if;
+    if not v_failed then raise exception '0118: an unversioned publish passed with the switch on'; end if;
 
     -- No revision, switch off: lands and clears the revision.
     update public.system_settings set value = '{"on": false}' where key = 'auto_publish';
     update public.control_shows set output = '{"v":1,"ver":{"n":4,"h":"h4"}}' where id = v_show;
     select s.published_rev, s.published_ver into v_rev, v_got from public.control_shows s where s.id = v_show;
-    if v_rev is not null or v_got->>'h' <> 'h4' then raise exception '0117: an unversioned publish left a revision claim'; end if;
+    if v_rev is not null or v_got->>'h' <> 'h4' then raise exception '0118: an unversioned publish left a revision claim'; end if;
 
     raise exception 'self-check-done';
   exception when raise_exception then
