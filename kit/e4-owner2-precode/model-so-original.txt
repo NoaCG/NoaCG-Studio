@@ -1,0 +1,65 @@
+AGREE WITH CORRECTIONS
+
+This is a focused **Risky, model-only reassessment** of the single combined correction. It is not a final implementation review, landing grade, repair allowance or permission to start another attempt.
+
+The problem is to install independent graphic copies into supported existing productions, and to refuse stale Discard operations without losing the latest complete draft. The proposed narrow direction fits the existing architecture. Two confirmed product defects need correcting together.
+
+1. **Production comparison uses inconsistent representations — product defect, PR-caused.**
+
+   `src/control/projectInstallation.ts:41` plans from `loadShows()`. Existing `src/model/shows.ts:641-642` supplies version 2 and the stable epoch timestamp when absent. `src/model/projectInstallation.ts:55-62` instead compares the raw transactional row against that normalized plan. An unchanged supported legacy row consequently appears newer.
+
+   I independently read the builder’s one-shot reproduction, j-0121. Its read-normalization assertions pass, raw IndexedDB remains unchanged after reading, installation falsely conflicts, and the unrelated raw row remains untouched. This supports the static finding; it is neither infrastructure failure nor a faulty expectation.
+
+   The smallest correction is to expose and reuse the **existing** `shows.ts` read normalization on the selected transactional row, inside the atomic callback. Keep the parsed raw list for serialization and replace only the selected row when required. Normalizing the entire stored list would unnecessarily rewrite unrelated legacy rows.
+
+   Keep both comparisons: normalized current equals wanted means idempotent reconciliation; otherwise normalized current must equal expected before replacement. Preserve complete comparison of source, data, output and metadata. Keep prepared operation/graphic/cue IDs, existing receipts, rollback timestamps and the rule that a prepared inverse makes subsequent retries continue backward. Preserve deleted/team/shadowed-target checks, rollback’s output protection, and `conditionalDurableWrite`’s account, authoring and newer-write guards. No new format or migration is needed.
+
+2. **Discard conflates newer same-owner work with lost ownership — product defect, PR-caused.**
+
+   `src/store/saveActions.ts:427` returns through `keepChangedDiscard()` after a same-owner edit during the drain. That writes a dirty correction where the maintained case requires a clean replacement.
+
+   The authoritative October contracts resolve the apparent contradiction:
+   
+   - `docs/EDITOR_REBUILD_PLAN.md:860-861` explicitly preserves the original checker assertions and clean replacement during the drain.
+   - `docs/work-specs/editor-leave-reliability/repair-2/README.md`, “Change,” explicitly rejects stopping early, then requires the newer draft’s restoring receipt before refusal.
+   - `e2e/new-graphic-guard.spec.ts:436`, especially line 455, pins this sequence.
+
+   E4 notes line 829 requires checking preliminary waits; it does not supersede that retained acceptance. Checks must distinguish **changed work** from **retired authority**. The prior clarification calling line 455 faulty does not reconcile the original contract and should not guide this patch.
+
+   I independently read j-0120: it fails at the original line 455, expected `dirty:false`, received `true`. Later preservation assertions are unexecuted. This proves the ordering regression, **not data loss**.
+
+The smallest coherent Discard correction is operation-local:
+
+- Capture click-time context, account and ownership before queuing. Retain the existing pre-first-await queued-work refusal.
+- Establish the expected generation synchronously after flushing. After each preliminary await, check exact private document/binding ownership, baseline, effective public identity, account and workspace eligibility.
+- If authority retired, the document was removed, or an independently adopted/unknown envelope refuses writing, do not submit the old replacement. Save’s conflict-copy exception is not a substitute for Discard’s actual ownership checks.
+- For newer work under the same still-owned binding after a **successful** drain, remember that Discard is stale and continue the required clean replacement write. Do not reset that remembered state when establishing the submitted generation: otherwise preliminary selection-only or away/back changes can disappear from the final decision.
+- Before staging that replacement, retain the latest **complete live owner** using nonallocating capture. The replacement deliberately clears `view` and `views` at `saveActions.ts:440`; therefore restoring through a later generic capture alone can lose the pre-submission clock/cue/history-view receipt.
+- After confirmation, refuse stale completion only after a correction containing the latest whole source/assets, baseline, undo/redo, link, metadata, selection, samples, clock and cue has a real durable receipt. Prefer a newer complete owned receipt. A captured fallback is permissible only for its exact unchanged live bundle and binding; never attach an old view to different source/history.
+- Preserve conditional `restoreRefusedDocument()` recovery and the prior durable correction for failed, aborted and zero-receipt submissions. Do not resurrect removed documents or overwrite adopted envelopes. Preserve original and correction errors together. If work changes during correction, retain it and report it as unconfirmed without a retry loop.
+- Keep semantic sample-map equality ahead of staging and scheduling. Passive capture must use the existing nonallocating path; no reservation/device-ID allocation is justified merely to inspect or preserve the owner.
+
+This needs no synchronization service, collaboration protocol, persistent eligibility system or automatic propagation. Installed production graphics remain independent copies; `graphicId` is provenance. Reinstall continues to preserve existing installed designs.
+
+The affected caller inventory was established with `rg`, then traced through the existing seams:
+
+- **Installation:** `ProjectPanel` install/retry/rollback → control `installProjectGraphics`/`retryProjectInstallation` → durable `retain`/`apply` → model planning/reconciliation → `conditionalDurableWrite`; normalization also serves `loadAllShows`, `loadShows`, production mutators and backend storage readers.
+- **Discard and navigation:** `SaveDialogs` is the production Discard caller and continues only on a null failure. `requestSwitch` serves New Graphic, ProjectStarter, Home project opening and the control-page editor door. EditorFoundation’s route guard chooses retained-draft persistence or the ordinary save guard; the router retains navigation ownership.
+- **Shared save paths:** SaveControls, SaveDialogs, ProjectPanel’s selected-save operation and wizard `walkLibrary` share the serialized Save/Save As transaction. Their link/reservation/error semantics must remain intact.
+- **Complete draft persistence:** `templateStore` capture/autosave/flush → `authoringProjects` snapshot/retention, switch, creation, rename/removal and Home retention → `project.ts` staging, active projection, generation, receipt acknowledgement, ownership/refusal and conditional recovery → whole-unit `workspaceStage` reconciliation.
+- **Views:** `documentAdapter` owns private-ID/baseline/effective-public-ID/closed-binding checks and genuine clock/cue values. `EditorSession` publishes completed command/history receipts and semantic view observations. Preserve these guards and the paused-account sample gate; do not import components into stores or invent clock values.
+
+No architectural rewrite is indicated. The main implementation hazard is fixing line 455 by merely deleting preliminary checks: that would leave queued protection, ownership retirement and complete-view restoration insufficiently specified.
+
+Verification still required:
+
+1. **Pre-patch reproduction is now evidenced:** retain j-0120 and j-0121 as failures on frozen `63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf`; do not rerun or relabel them. Their logs and the raw-legacy JSON were read independently.
+2. **New-source installation coverage:** seed raw missing-version/missing-timestamp and supported older-stamp rows before any normalizing writer; verify read-only normalization, successful installation, exact stable IDs, retry after lost/refused confirmation, directed rollback/reload, real newer-edit refusal, unchanged unrelated raw rows, and deleted/team/output safeguards. Extend the maintained project journey rather than relying only on an ignored diagnostic.
+3. **New-source Discard coverage:** run the unchanged maintained line-436 case through its final assertions; retain both wait cases and confirmed/refused restoring-write cases at `new-graphic-guard.spec.ts:421-555`. Add a deterministic same-owner drain challenge that checks the clean intermediate write, complete newer source/assets/history/view correction, held correction timing, immediate reload and refusal without navigation.
+4. **Existing E4 preservation cases:** include project Discard outcomes (`editor-projects.spec.ts:1162`), adopted envelopes (`:1275`), selection-only preliminary/queued/replacement/equal-view cases (`:1356`), and original/correction failure/newer-correction cases (`:1437`). Cover actual retirement during preliminary waits, including account, same-private baseline/public changes and removal.
+5. **Cheap shared oracles:** `node --test scripts/editor-project.test.mjs scripts/authoring-document.test.mjs scripts/workspace-stage.test.mjs scripts/project-reservations.test.mjs`, then applicable TypeScript, affected lint/dependency and `/check` verification. Derive transition expectations from the rules, not the production algorithm.
+6. Keep browser work source-pinned, queued and within the existing approved job/worker bounds, zero retries and unchanged per-test ceilings. New-head normal CI/configured selection, capacity, isolated qualification, one Codex route and a fresh **FULL** independent A/A+ review remain required before root considers queueing. This focused verdict replaces none of them.
+
+I performed no edits, file creation, tests, builds, commits, GitHub writes or delegation. No clarification was necessary. Before and after inspection, HEAD remained `63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf`, tree `2b7490bd5b69452d5a742057d95059e8ea8db671`; tracked product/test/script diff was empty. The sole tracked change remained the 58-line notes addition, diff SHA256 `a82caff93a7bb2177625cf3a30532f28a96fa8451b6aa15c2cbc18e2091044f7`.
+
+Ordinary 3/3 and prior owner 1/1 remain spent. Root alone charges this single grant and acknowledges PATCH_START. A confirmed remaining product failure after the combined patch invokes the recorded stop; new-productions-only fallback remains unauthorized.

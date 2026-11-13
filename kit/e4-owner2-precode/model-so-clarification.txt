@@ -1,0 +1,38 @@
+Clarification to the retained **AGREE WITH CORRECTIONS** verdict: normalization must be guarded at the selected raw target **before** calling `readShape()` or testing either expected/wanted equality.
+
+The evidence supports **absent `version` and numeric `version:2` only**:
+
+- `src/model/shows.ts:416-420` explicitly defines absent as the pre-stamp representation and declares `version?: 2`.
+- Commit `78fd0e39e97fca677a0cc884de85e642e9389cc9` introduced optional version 2 directly into the previously unversioned Show.
+- Commit `2f1c17c4341bc52c2c3587267317742146177a63` extracted the existing broad normalization; it did not establish support for additional versions.
+- `docs/SAVED_CONTENT_MODEL.md:187` identifies Show version 2. Its reference to v1 extraction concerns the retired Packet, not a Show v1 migration.
+
+My earlier reference to a “supported older-stamp” case was insufficiently qualified. **There is no inspected evidence authorizing numeric Show version 1.** Refuse version 1, 99, other numbers, strings, null and other explicit unsupported stamps. In particular, refuse an otherwise identical raw v99 target even when its normalized projection would equal `plan.before`, `plan.after` or the rollback snapshot.
+
+For metadata, the evidence-backed representation normalization is **a missing `updatedAt` becoming the stable epoch timestamp**. Keep a present nonempty string timestamp unchanged and compare it exactly. Do not allow the helper’s broad falsy fallback to make explicit malformed values—such as null, false, zero or an empty string—equivalent to absence. Refuse those selected-row representations before normalization. No additional timestamp coercion is needed.
+
+Preserve every other field, including unknown fields and nested metadata. An unchanged unknown additive field need not be rejected merely for being unknown: the existing spread/clone and whole-record comparison retain it. But any addition, removal or change relative to the prepared snapshot must remain distinguishable and refuse as a conflict. Do not compare a whitelist, strip unknown fields, or ignore output/data/metadata differences.
+
+The bounded implementation remains:
+
+1. Read and locate the raw selected target inside the existing transaction.
+2. Apply existing deleted/team/output safeguards and the selected-row stamp/metadata refusal described above.
+3. Normalize that selected row transiently with the existing read helper.
+4. Compare its complete value against wanted, then expected.
+5. Retain the raw list and replace only the selected row when the comparison permits it.
+
+This guard must precede the idempotent-success comparison too. Otherwise an unsupported target could be falsely acknowledged as already installed. Refusals must leave stored bytes untouched; successful installation must preserve unrelated rows’ raw field representations.
+
+Fixed assertions should establish:
+
+- Absent stamp/current 2, each with missing or present timestamp: supported normalization and successful installation.
+- Raw version 1, 99, `"2"` and null: refusal with exact target preservation.
+- Version changing from 2 to 99 after preparation: refusal for forward installation, idempotent retry and rollback.
+- Present malformed timestamp values: refusal rather than epoch equivalence; a changed legitimate timestamp also conflicts.
+- Unknown nested fields present during planning: retained through installation; subsequently added, changed or removed unknown metadata: conflict without overwrite.
+- Unrelated legacy/current/unsupported rows: unchanged through both successful installation and refusal.
+- Existing stable-ID, receipt, genuine-edit and directed-rollback assertions remain intact.
+
+**No broader model correction is needed.** This is a selected-row refusal/normalization boundary within the already recommended atomic comparison. It requires no global `shows.ts` behavior change, migration, eligibility framework or collaboration machinery.
+
+Read-only source checks before and after remained identical: HEAD `63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf`, tree `2b7490bd5b69452d5a742057d95059e8ea8db671`, empty tracked product/test/script diff, and unchanged notes diff SHA256 `a82caff93a7bb2177625cf3a30532f28a96fa8451b6aa15c2cbc18e2091044f7`. No edits or tests were performed.

@@ -68,9 +68,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "owner-approved narrow correction / pre-code review and reproduction",
+      "step": "owner-approved narrow correction / single combined patch",
       "pr": 2438,
-      "note": "One serial worker acknowledged clean63d7 and prior stop. Fresh model review must reconcile the retained Discard contract and canonical production comparison before the one patch. Ordinary3/3 and prior extra1/1 remain spent; new attempt reserved, not charged yet. Independent copies/single-user scope, no automatic fallback; local work last."
+      "note": "Both original failures reproduced once and complete fresh model+clarification read by coordinator. New correction now charged1/1; ordinary3/3 and prior extra1/1 remain spent. One product patch only, preserving original assertions and independent copies. A confirmed remaining product failure stops for simpler-requirements reassessment; no automatic fallback."
     }
   ],
   "owner": [
@@ -2150,9 +2150,9 @@
       "ordinaryLimit": 3,
       "previousOwnerAdditionalSpent": 1,
       "granted": 1,
-      "used": 0,
-      "remaining": 1,
-      "status": "RESERVED_AFTER_EXPLICIT_OWNER_APPROVAL",
+      "used": 1,
+      "remaining": 0,
+      "status": "ACTIVE_SINGLE_COMBINED_PATCH",
       "sourceHead": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
       "stopCondition": "If the narrow combined correction fails, stop and reassess the simpler product requirements with the owner. Any confirmed remaining product failure after the combined patch ends this attempt. No automatic follow-up implementation, fallback, repair or allowance.",
       "handoff": {
@@ -2185,9 +2185,16 @@
       },
       "modelReview": {
         "actor": "/root/editor_e4_narrow_correction/e4_owner2_model_so",
-        "status": "RUNNING_READ_ONLY_PRECODE",
-        "source": "Frozen63d7 with notes-only rules; product/tests unchanged"
-      }
+        "status": "COMPLETE_AGREE_WITH_CORRECTIONS_ONE_CLARIFICATION",
+        "source": "Frozen63d7 with notes-only rules; product/tests unchanged",
+        "receipt": "e4-owner2-precode/model-so-original.txt",
+        "sha256": "76e5d78bd7289a72e31284d65490b5802422f3336fba2c1f12941c12438bd1cc",
+        "rootReadback": "Whole original and clarification independently read/hash verified; both original logs+raw JSON read. Supported absent/currentnumeric2 and missing timestamp only; refuse unsupported/malformed selectedrow before wanted/expected comparisons, preserve full unknownfields/raw unrelatedrows. Exactretiredidentity distinct from sameowner stale edits; retained cleanwrite then real complete correction before refusal, original+correction errors and no retryloop. Product scope3files; no broader model correction needed.",
+        "clarification": "e4-owner2-precode/model-so-clarification.txt",
+        "clarificationSha256": "df844cf3f8587d14d54a3d52ae324c49eccf130d799ebcfc09538b715c6560cf"
+      },
+      "patchStartChargedAt": "2026-11-13T09:33:26.437197+00:00",
+      "patchScope": "One combined correction limited to existing supported selected-production normalization/refusal and exact-owner Discard clean-write+complete durable recovery, with maintained assertions intact. No global format change, collaboration mechanism or automatic fallback."
     }
   },
   "coordinatorTools": {
