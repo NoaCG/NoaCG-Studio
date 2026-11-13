@@ -1,0 +1,353 @@
+{
+  "version": 1,
+  "observedAt": "2026-11-13T11:22:22.137176+00:00",
+  "why": "8MiB recoverykit bound: link bulky completed-phase evidence already durablypublished, retain all original bytes and accepted/failing states. No E4failedWIP/STOPpacket touched.",
+  "checkpoint": "0455ecddfa4775e163d702ff2d1c112ac1c0476a",
+  "verifiedRemoteDescendant": "a3cb128a56ea3de123c19d6014d5e572a2f1baba",
+  "localArchive": "/workspace/noacg-editor-r1-5-state/17e47924/retained-evidence/0455ecddfa4775e163d702ff2d1c112ac1c0476a/receipts/e2-independent-check",
+  "files": [
+    {
+      "path": "receipts/e2-independent-check/dc01-byte-control.json",
+      "bytes": 738,
+      "sha256": "254c1dc06a205cab45cc0fc7c61ac78a4da9b319f2a540a6c110245510404b99",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/dc01-byte-control.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/dc01-byte-control.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/dc01-compose-control.json",
+      "bytes": 1354,
+      "sha256": "010dd953ebe6ada9645574b0ef83ab5a7e92eeff042cc68803063b05bedde393",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/dc01-compose-control.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/dc01-compose-control.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/dc01-composed-merge.html",
+      "bytes": 274903,
+      "sha256": "21d86e9951815992210486c4a739aa6364b88cbe52c6fbe637a162b76d8dcbbc",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/dc01-composed-merge.html",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/dc01-composed-merge.html"
+    },
+    {
+      "path": "receipts/e2-independent-check/dc01-composed-parent.html",
+      "bytes": 274825,
+      "sha256": "cbb1f2d1d1e64767fb6fe98eb73e92a11f8fbeec531da083470717530fc9d198",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/dc01-composed-parent.html",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/dc01-composed-parent.html"
+    },
+    {
+      "path": "receipts/e2-independent-check/dc01-direct-byte-control.json",
+      "bytes": 717,
+      "sha256": "041e1cb2e1525e922d87089cd5d630b5e7925572c02012b940ac18dcb62073b8",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/dc01-direct-byte-control.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/dc01-direct-byte-control.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/dc01-direct-compose-control.json",
+      "bytes": 1238,
+      "sha256": "ad430a2816afe1929c37ae168448e881599ba815210f65ed24e4594e56b8f441",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/dc01-direct-compose-control.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/dc01-direct-compose-control.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/dc01-merge.json",
+      "bytes": 161948,
+      "sha256": "d58ce28bf01a35f0a91cb98425f4196051f9eb8e55ec60ac3545159355337074",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/dc01-merge.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/dc01-merge.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/dc01-parent.json",
+      "bytes": 161948,
+      "sha256": "d58ce28bf01a35f0a91cb98425f4196051f9eb8e55ec60ac3545159355337074",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/dc01-parent.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/dc01-parent.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/debate-catalog-attempt1.log",
+      "bytes": 1056,
+      "sha256": "ba027a3e0344bf24840c971585d1a8a86d344eaf00631bc5a931f5731ff448c4",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/debate-catalog-attempt1.log",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/debate-catalog-attempt1.log"
+    },
+    {
+      "path": "receipts/e2-independent-check/debate-catalog-control-job.json",
+      "bytes": 507,
+      "sha256": "140e533379e318b225563143b1fa6aef0de45f021e3ee9bb88b73c7bff221a13",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/debate-catalog-control-job.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/debate-catalog-control-job.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/debate-catalog-control.log",
+      "bytes": 1691,
+      "sha256": "f7c464867d602a7f5fbf0628702b5f71bd6a031d47cc547501862c7a8b3eacea",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/debate-catalog-control.log",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/debate-catalog-control.log"
+    },
+    {
+      "path": "receipts/e2-independent-check/debate-catalog-control.mjs",
+      "bytes": 93,
+      "sha256": "f558c52ac344ca03b6cde09b3d6871e7f119856b88c9b55a966951dc336d699b",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/debate-catalog-control.mjs",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/debate-catalog-control.mjs"
+    },
+    {
+      "path": "receipts/e2-independent-check/debate-compose-control.mjs",
+      "bytes": 3548,
+      "sha256": "acda2702260b5a8051a63af1af019864752b8238e03f9334f87df5c63f323244",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/debate-compose-control.mjs",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/debate-compose-control.mjs"
+    },
+    {
+      "path": "receipts/e2-independent-check/debate-direct-emission-control.mjs",
+      "bytes": 2325,
+      "sha256": "bbd6a2ed54a45b76a0cddef64727fc7841d667ec81185847027a3bdc032bff2b",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/debate-direct-emission-control.mjs",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/debate-direct-emission-control.mjs"
+    },
+    {
+      "path": "receipts/e2-independent-check/debate-emission-control.mjs",
+      "bytes": 2382,
+      "sha256": "586b02067f6b561267040bb5b3f49aa91754ac8e0f750365783a2050b201cbeb",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/debate-emission-control.mjs",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/debate-emission-control.mjs"
+    },
+    {
+      "path": "receipts/e2-independent-check/exact-merge-runs.json",
+      "bytes": 3085,
+      "sha256": "386c00d26c5c026c0746599dff9d076d72a87d5761ab2405e7e4ce47b0097ea2",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/exact-merge-runs.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/exact-merge-runs.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/final-receipt.json",
+      "bytes": 3044,
+      "sha256": "a927c2b60813245d96ca9eca84c112499b0a64d71c1f3a4d1067404c3be5cc3e",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/final-receipt.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/final-receipt.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/findings.md",
+      "bytes": 14095,
+      "sha256": "620567b09fa099c2cdf0665346dfa5bdf9b18615cd9022fa8b03c35664412f5f",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/findings.md",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/findings.md"
+    },
+    {
+      "path": "receipts/e2-independent-check/jobs-43017886013.json",
+      "bytes": 72991,
+      "sha256": "13348c07cdc545893802fdd1879af5279146b0c131267e41d9315b2ee6066f46",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/jobs-43017886013.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/jobs-43017886013.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/jobs-43020316213.json",
+      "bytes": 7109,
+      "sha256": "2fcba2d0721d7ff3543fcb2cc6f2f40ce71b6629e2b67222ebe65d491fd85f4f",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/jobs-43020316213.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/jobs-43020316213.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/jobs-43020316849.json",
+      "bytes": 3796,
+      "sha256": "7a7be50d535a180bf15011f122613872394b128f456cc16d905164a2063ebf40",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/jobs-43020316849.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/jobs-43020316849.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/jobs-43020316943.json",
+      "bytes": 4632,
+      "sha256": "2ceb7dae6f07d70f7f368c91c534a094522f7186ab14b9c0b0309b19d9c15347",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/jobs-43020316943.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/jobs-43020316943.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/jobs-43020332177.json",
+      "bytes": 451,
+      "sha256": "1f84d8e0ff5d5c7eb7009d2ad67c23c548e7bf62e1da42fe1e21da1e8a8ac2cd",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/jobs-43020332177.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/jobs-43020332177.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/jobs-43020335493.json",
+      "bytes": 451,
+      "sha256": "36431dfa4b46b0f05d24fb90cf20dae13292bd704fd829dcbab89864d496af10",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/jobs-43020335493.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/jobs-43020335493.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/jobs-43020335990.json",
+      "bytes": 451,
+      "sha256": "ba3031253c681fb01dbaef585339102a036f3c8ce06bee48aca54d635454d42d",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/jobs-43020335990.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/jobs-43020335990.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/jobs-43020336221.json",
+      "bytes": 451,
+      "sha256": "0e5c395e6ee70701a0a151bfac0fade0b227539f9c06e0f82d4bcf52af1b27e0",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/jobs-43020336221.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/jobs-43020336221.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/jobs-43020398472.json",
+      "bytes": 451,
+      "sha256": "2ad7bb56994fe20cc995f2a5e2526ac3d470ecedc28509323216d1ba69efa0b9",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/jobs-43020398472.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/jobs-43020398472.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/jobs-43020697824.json",
+      "bytes": 5088,
+      "sha256": "363f8750d7d57804de2dd7e35399c2da752888ddd709731a2c112cecca1f66b9",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/jobs-43020697824.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/jobs-43020697824.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/maintained-browser-job.json",
+      "bytes": 476,
+      "sha256": "1f9bf5c3418f0bf4144e61615dfccb790ea1bc3a2630c10823103931b41d767b",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/maintained-browser-job.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/maintained-browser-job.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/maintained-browser.log",
+      "bytes": 3077,
+      "sha256": "d39097e00251e52b2170907a5cecb7b9d6477cdaef2745ddbdfc93da2d016f76",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/maintained-browser.log",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/maintained-browser.log"
+    },
+    {
+      "path": "receipts/e2-independent-check/odd-yoyo-1366.png",
+      "bytes": 88447,
+      "sha256": "6f7f7626d38010cc96976c3c18dd0c33ddee6aee29f4377710b3f6f4c4c99b02",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/odd-yoyo-1366.png",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/odd-yoyo-1366.png"
+    },
+    {
+      "path": "receipts/e2-independent-check/odd-yoyo-1920.png",
+      "bytes": 124410,
+      "sha256": "9493c5cb7e2b93a9641e251edf9dc788038e6ff156bd06656731a3d114395488",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/odd-yoyo-1920.png",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/odd-yoyo-1920.png"
+    },
+    {
+      "path": "receipts/e2-independent-check/probe-attempt1.log",
+      "bytes": 1089,
+      "sha256": "fd22b4a4adb2458528deb87ef44ef86b8a2f6c8dd4dd3191a42955a3e337e7b4",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/probe-attempt1.log",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/probe-attempt1.log"
+    },
+    {
+      "path": "receipts/e2-independent-check/probe-attempt1.mjs",
+      "bytes": 11815,
+      "sha256": "b369a271e0d89475e94f7a12921a57fac4f3c23934b32591a1b74686205e3dc3",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/probe-attempt1.mjs",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/probe-attempt1.mjs"
+    },
+    {
+      "path": "receipts/e2-independent-check/probe-attempt2.log",
+      "bytes": 2372,
+      "sha256": "528dafa70c6589e52cff8a51df9a930cf696380822e5dd2bde4bb4907c62ea58",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/probe-attempt2.log",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/probe-attempt2.log"
+    },
+    {
+      "path": "receipts/e2-independent-check/probe-attempt2.mjs",
+      "bytes": 11945,
+      "sha256": "82550e19c0247430189385f651e15166973c5e8f975b86f81606a40104494387",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/probe-attempt2.mjs",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/probe-attempt2.mjs"
+    },
+    {
+      "path": "receipts/e2-independent-check/probe-final-job.json",
+      "bytes": 490,
+      "sha256": "08eb314ac04631d49cde9457e2d9131a2a6a40e2396b74a4c3ebfeb830468db3",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/probe-final-job.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/probe-final-job.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/probe-final.log",
+      "bytes": 3014,
+      "sha256": "1e65ad9fa532fcdd651130ace2337ab190db41787e54f07e142b301c245b88a0",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/probe-final.log",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/probe-final.log"
+    },
+    {
+      "path": "receipts/e2-independent-check/probe.html",
+      "bytes": 180815,
+      "sha256": "ebd5b8f02b19b7e6898e8c9be65780d112301b5a58f9a9d70bbfa10d54e4eedf",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/probe.html",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/probe.html"
+    },
+    {
+      "path": "receipts/e2-independent-check/probe.mjs",
+      "bytes": 12040,
+      "sha256": "2c3ff9d19c283f40472ca410be3fed688223bad575b0b2ab5913afdcc3f1c458",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/probe.mjs",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/probe.mjs"
+    },
+    {
+      "path": "receipts/e2-independent-check/receipt-attempt1.json",
+      "bytes": 1584,
+      "sha256": "2c53d2c629ff62900bd257a8c233eb01096d7ec4411eaad58ed8d8606c7ac79d",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/receipt-attempt1.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/receipt-attempt1.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/receipt-attempt2.json",
+      "bytes": 6082,
+      "sha256": "a027308f82c1ee25ed48ba35dce1d7800bd0e7117578924b71b3f71d385c34e8",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/receipt-attempt2.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/receipt-attempt2.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/receipt.json",
+      "bytes": 9911,
+      "sha256": "5060f34627e98eb7ec5b953a500986f61b4a082921eea162746edaddfdc7a129",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/receipt.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/receipt.json"
+    },
+    {
+      "path": "receipts/e2-independent-check/server.log",
+      "bytes": 371,
+      "sha256": "5d7c7ed0711d9a711276f1bcd0aa369f8a99d677d87c788429acd343549a1573",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/server.log",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/server.log"
+    },
+    {
+      "path": "receipts/e2-independent-check/speed-diagnose-fixed-root.log",
+      "bytes": 1213,
+      "sha256": "6429095972f1cfd77a1ce48c1e3f171588c3f655673f3c700a940f6da3c09173",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/speed-diagnose-fixed-root.log",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/speed-diagnose-fixed-root.log"
+    },
+    {
+      "path": "receipts/e2-independent-check/speed-diagnose-fixed-root.mjs",
+      "bytes": 2419,
+      "sha256": "57e2cb6bdfbeab0a1014d5a73c90c6bee53ac3ad1d4f31bd060f85643f4ffeed",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/speed-diagnose-fixed-root.mjs",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/speed-diagnose-fixed-root.mjs"
+    },
+    {
+      "path": "receipts/e2-independent-check/speed-diagnose.log",
+      "bytes": 1214,
+      "sha256": "da192c40b7dd2b74d8dd1d20e48f0f129177d5a6e3700e6cde867c057cf83a6e",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/speed-diagnose.log",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/speed-diagnose.log"
+    },
+    {
+      "path": "receipts/e2-independent-check/speed-diagnose.mjs",
+      "bytes": 2399,
+      "sha256": "b9ff916d48ea53bc33a7a2e53e27993ebd46f358ed3128e288edd136af495227",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/speed-diagnose.mjs",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/speed-diagnose.mjs"
+    },
+    {
+      "path": "receipts/e2-independent-check/verification-receipt.json",
+      "bytes": 2099,
+      "sha256": "2e56cd263aea925be496b918f8d96f50927d970d88709ddcebb04f877b628891",
+      "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/verification-receipt.json",
+      "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/verification-receipt.json"
+    }
+  ]
+}
