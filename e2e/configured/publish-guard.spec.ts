@@ -54,6 +54,10 @@ import {
   unpublishForCleanup,
   wipeMyGraphics,
 } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset - configured-mode spec');
 
@@ -203,7 +207,9 @@ test.describe('two members', () => {
   test("a teammate's older copy never replaces the newer design, and their cue and layer still publish", async ({ browser }) => {
     test.setTimeout(360_000);
     const annaContext = await browser.newContext();
+    await installDoor(annaContext);
     const benContext = await browser.newContext();
+    await installDoor(benContext);
     const anna = await annaContext.newPage();
     const ben = await benContext.newPage();
     let teamId = '';
@@ -740,6 +746,7 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
     test.setTimeout(300_000);
     const { showId, outputSlug } = await published(page, `Auto ${Date.now()}`);
     const viewers = await browser.newContext();
+    await installDoor(viewers);
     const air = await viewers.newPage();
     await air.goto(outputUrl(outputSlug, 'Desk A'));
     const old = await viewers.newPage();
@@ -887,6 +894,7 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
     await expect.poll(async () => { const s = await server(showId); return s.published !== null && s.published === s.rev; }, { timeout: 60_000 }).toBe(true);
     // Gameplay's link is open in OBS before its folder is a scene.
     const viewers = await browser.newContext();
+    await installDoor(viewers);
     const air = await viewers.newPage();
     await air.goto(`${outputUrl(outputSlug, 'Gameplay link')}&scene=${encodeURIComponent(folderId)}`);
     await expect.poll(async () => (await readyOf(air)) !== null, { timeout: 60_000 }).toBe(true);

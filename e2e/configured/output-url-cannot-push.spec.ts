@@ -21,6 +21,10 @@ import {
   SUPABASE_URL,
   wipeMyGraphics,
 } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // A READ-ONLY LINK MUST NOT BE ABLE TO MOVE A PICTURE.
 //
@@ -95,6 +99,7 @@ test('an output URL can render the show and cannot push a command onto it', asyn
 
   // ── AIR, in an anonymous context, following live before anything is pressed. ───────────────
   const venue = await browser.newContext();
+  await installDoor(venue);
   const air = await venue.newPage();
   air.on('pageerror', (e) => console.log('[output pageerror]', e.message));
   await air.goto(`/output?production=${encodeURIComponent(slugs.output as string)}&debug=1`);
@@ -125,6 +130,7 @@ test('an output URL can render the show and cannot push a command onto it', asyn
   expect(SUPABASE_URL, 'no VITE_SUPABASE_URL - the REST half of this attack cannot be aimed').toBeTruthy();
   expect(anonKey, 'no VITE_SUPABASE_ANON_KEY - the REST half would be refused for the wrong reason').toBeTruthy();
   const stranger = await browser.newContext();
+  await installDoor(stranger);
   const attacker = await stranger.newPage();
   await attacker.goto('/output?production=none');
 

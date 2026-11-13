@@ -39,6 +39,10 @@ import { publishProduction } from '../_publish';
 import { SCORE_SVG, dropSvg, intoProduction } from '../_svg-import';
 import { clearPublishedShows, haveCreds, SERVICE_ROLE_KEY, signIn, SUPABASE_URL, wipeMyGraphics } from './_helpers';
 import { answerPanel, ANON_KEY, pairPanel, publishTwoCues, shutStatusPanel, type Json } from './_panel';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 test.skip(!haveCreds || !SUPABASE_URL || !ANON_KEY, 'E2E_EMAIL / E2E_PASSWORD and the Supabase pair unset - configured-mode spec');
 

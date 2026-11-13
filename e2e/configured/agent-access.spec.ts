@@ -33,6 +33,10 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { createClient } from '@supabase/supabase-js';
 import { deleteAccountByEmail, dismissWizard, E2E_EMAIL, E2E_PASSWORD, haveCreds, mintAccount, SERVICE_ROLE_KEY, settleSync, signIn, signInOnHome, SUPABASE_URL, wipeMyGraphics } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // AGENT ACCESS, live (docs/AGENT_SAVE.md): the whole handoff a coding agent's `noacg login` +
 // `noacg save` make, against the real backend, with the CLI's side played by this spec:
@@ -319,6 +323,7 @@ test.describe('agent access (configured)', () => {
 
       // A fresh browser, signed in: all three are in the library, once each, and every link opens.
       const fresh = await browser.newContext();
+      await installDoor(fresh);
       try {
         const reader = await fresh.newPage();
         await signInOnHome(reader, E2E_EMAIL, E2E_PASSWORD);
@@ -692,6 +697,7 @@ test.describe('agent access (configured)', () => {
 
       // The link opens the production, rundown in order, in a fresh signed-in browser.
       const fresh = await browser.newContext();
+      await installDoor(fresh);
       try {
         const reader = await fresh.newPage();
         await signInOnHome(reader, E2E_EMAIL, E2E_PASSWORD);
@@ -856,6 +862,7 @@ test.describe('agent access (configured)', () => {
 
       // BROWSER-OPENED: a fresh browser, signed in as the new account, opens every link it was given.
       const fresh = await browser.newContext();
+      await installDoor(fresh);
       try {
         const reader = await fresh.newPage();
         await signInOnHome(reader, email, password);
@@ -875,6 +882,7 @@ test.describe('agent access (configured)', () => {
 
       // WRONG ACCOUNT: another account opening the same links is told who it is, and sees nothing.
       const other = await browser.newContext();
+      await installDoor(other);
       try {
         const stranger = await other.newPage();
         await signInOnHome(stranger, E2E_EMAIL, E2E_PASSWORD);

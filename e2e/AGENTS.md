@@ -23,8 +23,9 @@ sweeps) are in its "Running the suite: traps".
 - **Inside `page.evaluate`, reach an app module with `__noacgImport('/src/…ts')`, never `import()`.**
   The door answers on the dev server and on the built app (src/app/e2eModules.ts); a plain
   `import('/src/…')` fails on a build, and `npm run check:e2e-registry` refuses it. A spec that
-  serves its own HTML (a probe page, `setContent`) has no app boot to install the door: call
-  `installDoor(context)` (`e2e/_door.ts`) for it. The path MUST
+  serves its own HTML (a probe page, `setContent`) or evaluates on a page that is not the app (the
+  landing page, docs, a probe) has no app boot to install the door: call `installDoor(context)`
+  (`e2e/_door.ts`), and for a context it makes by hand. The path MUST
   carry the `.ts` extension: an extensionless URL resolves a second instance (a "ghost store")
   that nobody drove, and the symptom is a plausible empty answer, not an error.
 - **Headless limits.** Monaco is not fully interactive headless, and GSAP does not visibly tick

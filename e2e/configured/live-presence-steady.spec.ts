@@ -13,6 +13,10 @@ import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, openSecondProductionPage, signIn, wipeMyGraphics } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -34,6 +38,8 @@ test('an output stays listed on the health line of a second production page thro
   expect(outputSlug).toBeTruthy();
 
   const anon = await browser.newContext();
+
+  await installDoor(anon);
   const output = await anon.newPage();
   await output.goto(`/output?production=${encodeURIComponent(outputSlug)}&debug=1`);
   await expect(output.locator('pre')).toContainText('realtime: following', { timeout: 60_000 });

@@ -19,6 +19,10 @@ import { isConnectorTestStack } from '../../scripts/connector-oauth-spike.mjs';
 import { publishProduction } from '../_publish';
 import { mintAccount, SERVICE_ROLE_KEY, shot, signInOnHome, SUPABASE_URL, unpublishForCleanup } from './_helpers';
 import { callTool, deleteOAuthClient, ScriptedClaude, signedInClient } from './_connector';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? '';
 /** A 1x1 PNG: the brand's mark. */

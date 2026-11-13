@@ -12,6 +12,10 @@ import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -93,6 +97,7 @@ test('an output says who it is and how commands reach it, and both operator page
 
   // Renderers are SIGNED OUT, as they are in a studio.
   const anon = await browser.newContext();
+  await installDoor(anon);
   const output = await anon.newPage();
   output.on('pageerror', (e) => console.log('[output pageerror]', e.message));
   const outputUrl = `/output?production=${encodeURIComponent(outputSlug)}&debug=1`;

@@ -21,6 +21,10 @@ import { bootstrapGraphic } from '../_create';
 import { awaitDurableReady, settleDurableWrites } from '../_durable';
 import { clearPublishedShows, haveCreds, SERVICE_ROLE_KEY, signIn, SUPABASE_URL, wipeMyGraphics } from './_helpers';
 import { ANON_KEY } from './_panel';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 test.skip(!haveCreds || !SERVICE_ROLE_KEY || !ANON_KEY, 'E2E_EMAIL / E2E_PASSWORD / SUPABASE_SERVICE_ROLE_KEY and the anon key unset - configured-mode spec');
 

@@ -31,6 +31,10 @@ import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic } from '../_create';
 import { clearPublishedShows, haveCreds, readyOf, signIn, wipeMyGraphics, unpublishForCleanup, type ReadyWindow } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -85,6 +89,8 @@ test('the readiness run publishes what changed, checks every output and ends in 
   }, showId)) as { outputSlug: string };
 
   const anon = await browser.newContext();
+
+  await installDoor(anon);
   const air = await anon.newPage();
   await air.goto(`/output?production=${encodeURIComponent(outputSlug)}&destination=browser&name=${encodeURIComponent('Desk A')}&debug=1`);
   await expect(air.locator('pre')).toContainText('realtime: following', { timeout: 60_000 });
@@ -260,6 +266,7 @@ test('OBS scenes (#2489): making a scene takes its graphics on air in its link, 
 
   // Gameplay's link is open in OBS before its folder is a scene: it builds nothing yet.
   const anon = await browser.newContext();
+  await installDoor(anon);
   const air = await anon.newPage();
   await air.goto(`/output?production=${encodeURIComponent(outputSlug)}&scene=${encodeURIComponent(gameplay)}`);
   await expect.poll(async () => (await readyOf(air)) !== null, { timeout: 60_000 }).toBe(true);

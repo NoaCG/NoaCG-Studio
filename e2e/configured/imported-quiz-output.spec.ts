@@ -26,6 +26,10 @@ import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { dropSvg, intoProduction, QUIZ_SVG } from '../_svg-import';
 import { haveCreds, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // THE IMPORTED QUIZ ON THE REAL HOSTED WIRE (docs/GRAPHIC_BEHAVIOUR_PLAN.md §10).
 //

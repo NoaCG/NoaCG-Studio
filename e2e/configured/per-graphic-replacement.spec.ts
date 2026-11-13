@@ -14,6 +14,10 @@ import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic } from '../_create';
 import { clearPublishedShows, haveCreds, readyOf, signIn, wipeMyGraphics, unpublishForCleanup, type ReadyWindow } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -105,6 +109,7 @@ test('two outputs each swap a changed graphic in place, and hold one on air unti
 
   // Two outputs, signed out as in a studio.
   const anon = await browser.newContext();
+  await installDoor(anon);
   const outputs: { page: Page; reloads: number }[] = [];
   for (const name of ['Desk A', 'Desk B']) {
     const air = await anon.newPage();
@@ -222,6 +227,7 @@ test('a Take of a graphic still loading plays once loaded, a cancelled one never
     return loadShows().find((x) => x.id === id)?.outputSlug ?? '';
   }, showId);
   const anon = await browser.newContext();
+  await installDoor(anon);
   const outputs: { page: Page; name: string; delay: number }[] = [];
   for (const [name, delay] of [['Desk A', 2_000], ['Desk B', 8_000]] as const) {
     const air = await anon.newPage();

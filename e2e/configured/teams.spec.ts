@@ -42,6 +42,10 @@ import {
 } from './_helpers';
 import { settleDurableWrites } from '../_durable';
 import { FAKE_JOIN_ROUTE, TEAM } from '../_teams';
+import { installDoor } from '../_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 async function expectTeamInSetup(page: Page, name: string, editedBy?: string) {
   await expect(page.getByTestId(TEAM.productionTeam)).toHaveCount(0);
@@ -457,7 +461,9 @@ test.describe('teams: the share door', () => {
 
     test('an invited teammate finds the team and its production on Home, and both edit it', async ({ browser }) => {
       const ownerContext = await browser.newContext();
+      await installDoor(ownerContext);
       const mateContext = await browser.newContext();
+      await installDoor(mateContext);
       const owner = await ownerContext.newPage();
       const mate = await mateContext.newPage();
       // `E2E team ` prefix, so the sweep in the walk above deletes it if this run dies mid-way.
@@ -605,6 +611,7 @@ test.describe('teams: the share door', () => {
         await expect.poll(() => heldAsset(mate), { timeout: 30_000 }).toBe(png);
         await mintAccount(E2E_THIRD_EMAIL, E2E_THIRD_PASSWORD);
         const strangerContext = await browser.newContext();
+        await installDoor(strangerContext);
         const stranger = await strangerContext.newPage();
         await signInAs(stranger, E2E_THIRD_EMAIL, E2E_THIRD_PASSWORD);
         const strangerRead = await stranger.evaluate(async (key) => {
@@ -680,6 +687,7 @@ test.describe('teams: the share door', () => {
       const contexts: BrowserContext[] = [];
       const open = async (): Promise<Page> => {
         const context = await browser.newContext();
+        await installDoor(context);
         contexts.push(context);
         return context.newPage();
       };
