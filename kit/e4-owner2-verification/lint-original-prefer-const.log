@@ -1,0 +1,6 @@
+
+/workspace/noacg-editor-r1-5-e4-build/src/store/saveActions.ts
+  434:7  error  'captureLive' is never reassigned. Use 'const' instead  prefer-const
+
+✖ 1 problem (1 error, 0 warnings)
+

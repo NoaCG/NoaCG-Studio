@@ -1,0 +1,2133 @@
+
+> noacg-studio@0.1.0 gates
+> node scripts/gates.mjs run --changed origin/main
+
+
+[gates] check:tree-shape: node scripts/check-tree-shape.mjs
+[measured] 8309 tracked paths
+Tree shape OK - no unexpected top-level entries, no flag-shaped path segments, no pictures under docs/ or benchmarks/.
+[gates] check:tree-shape ok (0.2s) - 8309 tracked paths
+
+[gates] check:package-merge: node scripts/package-merge-driver.mjs --check
+[measured] 13 recorded package.json resolutions replayed
+[package-merge-driver] OK - 13 recorded resolution(s) reproduced, package.json merged by noacg-package
+[gates] check:package-merge ok (0.3s) - 13 recorded package.json resolutions replayed
+
+[gates] check:contract-freshness: node scripts/check-contract-freshness.mjs
+[measured] 877 contract files
+Contract freshness OK: 877 contract file(s), every referenced script, doc and path exists.
+[gates] check:contract-freshness ok (0.7s) - 877 contract files
+
+[gates] check:contract-citations: node scripts/check-contract-citations.mjs
+[measured] 572 rule ids in contracts/rules
+[measured] 5232 text files scanned for citations
+Contract citations OK: 5232 file(s), every cited rule id and contract section exists.
+[gates] check:contract-citations ok (2.9s) - 572 rule ids in contracts/rules, 5232 text files scanned for citations
+
+[gates] check:docs-index: node scripts/check-docs-index.mjs
+[measured] 150 top-level docs
+[measured] 153 docs/README.md index rows
+check-docs-index: OK - all 150 top-level docs in docs/ have exactly one row in docs/README.md (subdirectories are exempt).
+[gates] check:docs-index ok (0.1s) - 150 top-level docs, 153 docs/README.md index rows
+
+[gates] check:client-secrets: node scripts/check-client-secrets.mjs
+[measured] 4737 source files scanned
+Client secret scan OK (src, e2e, scripts, docs).
+[gates] check:client-secrets ok (1.7s) - 4737 source files scanned
+
+[gates] check:gate-coverage: node scripts/check-gate-coverage.mjs
+[measured] 458 gates audited
+check-gate-coverage: OK - 48 check(s) and 410 test file(s) declare their tier and guards (build 406, after-build 2, workflow 11, none 6, factory 33).
+[gates] check:gate-coverage ok (2.2s) - 458 gates audited
+
+[gates] check:client-neutral: node scripts/check-client-neutral.mjs
+[measured] 258 user-readable source files scanned
+Client-neutral copy - SPX may be named as a TARGET, never as the product's own vocabulary
+
+PASS - no client name is doing a general concept's job.
+[gates] check:client-neutral ok (0.2s) - 258 user-readable source files scanned
+
+[gates] check:copy: node scripts/check-copy.mjs
+[measured] 938 source files scanned
+[measured] 481 copy baseline rows
+Copy tells - user-facing text must not read as machine-written
+
+PASS - no new tells, and the baseline still matches the tree.
+[gates] check:copy ok (0.5s) - 938 source files scanned, 481 copy baseline rows
+
+[gates] check:preview-serialization: node scripts/check-preview-serialization.mjs
+[measured] 1450 source files scanned
+[measured] 34 module-scope names in files that interpolate a toString()
+[check:preview-serialization] ok - every serialized helper goes through serializeHelper
+[gates] check:preview-serialization ok (0.5s) - 1450 source files scanned, 34 module-scope names in files that interpolate a toString()
+
+[gates] check:landed-ref: node scripts/check-landed-ref.mjs
+[measured] 524 scripts scanned for a bare local `main` revision
+check-landed-ref: OK - 524 script(s) scanned, 4 deliberate use(s) of the bare local ref, 0 stale reads.
+[gates] check:landed-ref ok (0.2s) - 524 scripts scanned for a bare local `main` revision
+
+[gates] node --test over 25 file(s)
+TAP version 13
+# Subtest: v1 resolves the explicitly active document; unfiled retained documents remain readable
+ok 1 - v1 resolves the explicitly active document; unfiled retained documents remain readable
+  ---
+  duration_ms: 0.981273
+  type: 'test'
+  ...
+# Subtest: unknown versions, duplicate ownership, orphan membership and malformed history are read-only without mutation
+ok 2 - unknown versions, duplicate ownership, orphan membership and malformed history are read-only without mutation
+  ---
+  duration_ms: 0.611905
+  type: 'test'
+  ...
+# Subtest: complete active projection clears absent metadata and preserves administrative identity
+ok 3 - complete active projection clears absent metadata and preserves administrative identity
+  ---
+  duration_ms: 1.438674
+  type: 'test'
+  ...
+# Subtest: configured entrances land once; repaints stay quiet and state re-entry can replay
+ok 4 - configured entrances land once; repaints stay quiet and state re-entry can replay
+  ---
+  duration_ms: 1.97859
+  type: 'test'
+  ...
+# Subtest: cut suppresses legacy pops; unconfigured saved looks keep theirs
+ok 5 - cut suppresses legacy pops; unconfigured saved looks keep theirs
+  ---
+  duration_ms: 1.209538
+  type: 'test'
+  ...
+# Subtest: snap is immediate; hide, Out, reset and replay restore interrupted entrances
+ok 6 - snap is immediate; hide, Out, reset and replay restore interrupted entrances
+  ---
+  duration_ms: 0.78696
+  type: 'test'
+  ...
+# Subtest: a retained heading recomputes its derived numeric face even when both old headings share a sibling
+ok 7 - a retained heading recomputes its derived numeric face even when both old headings share a sibling
+  ---
+  duration_ms: 7.002242
+  type: 'test'
+  ...
+# Subtest: a retained custom face keeps real bytes across path collisions and repeated application
+ok 8 - a retained custom face keeps real bytes across path collisions and repeated application
+  ---
+  duration_ms: 5.133958
+  type: 'test'
+  ...
+# Subtest: a retained custom face keeps real bytes across path and family collisions and repeated application
+ok 9 - a retained custom face keeps real bytes across path and family collisions and repeated application
+  ---
+  duration_ms: 1.991169
+  type: 'test'
+  ...
+# Subtest: a byte-only local font override survives, while an untouched face takes the explicitly reapplied brand
+ok 10 - a byte-only local font override survives, while an untouched face takes the explicitly reapplied brand
+  ---
+  duration_ms: 1.62757
+  type: 'test'
+  ...
+# Subtest: a local imported face named Inter survives an incoming bundled Inter
+ok 11 - a local imported face named Inter survives an incoming bundled Inter
+  ---
+  duration_ms: 4.48
+  type: 'test'
+  ...
+# Subtest: a local imported face named Inter survives an incoming bundled Inter at the same fixed path
+ok 12 - a local imported face named Inter survives an incoming bundled Inter at the same fixed path
+  ---
+  duration_ms: 2.727282
+  type: 'test'
+  ...
+# Subtest: a retained numeric sibling cannot be rebound by an incoming custom family
+ok 13 - a retained numeric sibling cannot be rebound by an incoming custom family
+  ---
+  duration_ms: 2.758829
+  type: 'test'
+  ...
+# Subtest: an unmodified label receives the incoming custom face while a colliding local heading keeps its own bytes
+ok 14 - an unmodified label receives the incoming custom face while a colliding local heading keeps its own bytes
+  ---
+  duration_ms: 3.578237
+  type: 'test'
+  ...
+# Subtest: an incoming custom file cannot shadow an unchanged bundled font URL
+ok 15 - an incoming custom file cannot shadow an unchanged bundled font URL
+  ---
+  duration_ms: 1.570594
+  type: 'test'
+  ...
+# Subtest: a serialization-only asset key order change does not become a local font override
+ok 16 - a serialization-only asset key order change does not become a local font override
+  ---
+  duration_ms: 1.061634
+  type: 'test'
+  ...
+# Subtest: distinct CSS family names do not become a collision through bundled-font lookup normalization
+ok 17 - distinct CSS family names do not become a collision through bundled-font lookup normalization
+  ---
+  duration_ms: 0.405493
+  type: 'test'
+  ...
+# Subtest: shared-instructions gate accepts the repository and refuses instruction drift
+    # Subtest: clean repository exits zero
+    ok 1 - clean repository exits zero
+      ---
+      duration_ms: 175.696763
+      type: 'test'
+      ...
+    # Subtest: Codex plan wrapper must name its declared execution procedure
+    ok 2 - Codex plan wrapper must name its declared execution procedure
+      ---
+      duration_ms: 141.171355
+      type: 'test'
+      ...
+    # Subtest: Codex mapped execution retains shared critical contracts
+    ok 3 - Codex mapped execution retains shared critical contracts
+      ---
+      duration_ms: 168.438593
+      type: 'test'
+      ...
+    # Subtest: a missing Codex procedure is not silently shared
+    ok 4 - a missing Codex procedure is not silently shared
+      ---
+      duration_ms: 155.932343
+      type: 'test'
+      ...
+    # Subtest: a removed Codex mapping cannot silently fall back
+    ok 5 - a removed Codex mapping cannot silently fall back
+      ---
+      duration_ms: 243.101759
+      type: 'test'
+      ...
+    # Subtest: paired plan-create mapping and wrapper cannot revert to shared execution
+    ok 6 - paired plan-create mapping and wrapper cannot revert to shared execution
+      ---
+      duration_ms: 232.537293
+      type: 'test'
+      ...
+    # Subtest: paired plan-run mapping and wrapper cannot revert to shared execution
+    ok 7 - paired plan-run mapping and wrapper cannot revert to shared execution
+      ---
+      duration_ms: 135.372883
+      type: 'test'
+      ...
+    # Subtest: Codex chain with one byte less than the required headroom
+    ok 8 - Codex chain with one byte less than the required headroom
+      ---
+      duration_ms: 202.714022
+      type: 'test'
+      ...
+    # Subtest: orchestrator exceeds its workflow line limit
+    ok 9 - orchestrator exceeds its workflow line limit
+      ---
+      duration_ms: 248.993708
+      type: 'test'
+      ...
+    # Subtest: orchestrator drops the browser boundary
+    ok 10 - orchestrator drops the browser boundary
+      ---
+      duration_ms: 181.575196
+      type: 'test'
+      ...
+    # Subtest: Claude command exceeds the thin wrapper line limit
+    ok 11 - Claude command exceeds the thin wrapper line limit
+      ---
+      duration_ms: 225.523193
+      type: 'test'
+      ...
+    # Subtest: Claude command loses its canonical workflow pointer
+    ok 12 - Claude command loses its canonical workflow pointer
+      ---
+      duration_ms: 198.693511
+      type: 'test'
+      ...
+    # Subtest: workflow names an npm script absent from package.json
+    ok 13 - workflow names an npm script absent from package.json
+      ---
+      duration_ms: 149.13435
+      type: 'test'
+      ...
+    # Subtest: renaming a workflow leaves name-keyed gate declarations stale
+    ok 14 - renaming a workflow leaves name-keyed gate declarations stale
+      ---
+      duration_ms: 151.83434
+      type: 'test'
+      ...
+    # Subtest: workflow has no Codex skill adapter
+    ok 15 - workflow has no Codex skill adapter
+      ---
+      duration_ms: 205.925345
+      type: 'test'
+      ...
+    # Subtest: a nested repository keeps its own instruction files
+    ok 16 - a nested repository keeps its own instruction files
+      ---
+      duration_ms: 144.957497
+      type: 'test'
+      ...
+    1..16
+ok 18 - shared-instructions gate accepts the repository and refuses instruction drift
+  ---
+  duration_ms: 3673.021798
+  type: 'test'
+  ...
+# Fixture suite completed in 3.66 s; all mutations restored.
+# Subtest: the record and its reader
+    # Subtest: absent, this version, and a later one kept read-only
+    ok 1 - absent, this version, and a later one kept read-only
+      ---
+      duration_ms: 5.885239
+      type: 'test'
+      ...
+    # Subtest: a patch writes over the record, keeps members it does not know, and a null removes one
+    ok 2 - a patch writes over the record, keeps members it does not know, and a null removes one
+      ---
+      duration_ms: 2.032181
+      type: 'test'
+      ...
+    1..2
+ok 19 - the record and its reader
+  ---
+  duration_ms: 8.967617
+  type: 'suite'
+  ...
+# Subtest: AC-4: the fold is member by member, narrowest wins, identity after
+    # Subtest: a cue that sets place alone still inherits x; the default's place leaves it
+    ok 1 - a cue that sets place alone still inherits x; the default's place leaves it
+      ---
+      duration_ms: 0.697885
+      type: 'test'
+      ...
+    # Subtest: a later version's record applies nothing and makes the fold read-only
+    ok 2 - a later version's record applies nothing and makes the fold read-only
+      ---
+      duration_ms: 0.318672
+      type: 'test'
+      ...
+    1..2
+ok 20 - AC-4: the fold is member by member, narrowest wins, identity after
+  ---
+  duration_ms: 2.12382
+  type: 'suite'
+  ...
+# Subtest: AC-1: a lower third moves to the other side and nudges precisely
+    # Subtest: bottom-right puts its right edge on the right safe inset; three 1 px and one 10 px nudge move it 13 px
+    ok 1 - bottom-right puts its right edge on the right safe inset; three 1 px and one 10 px nudge move it 13 px
+      ---
+      duration_ms: 10.150109
+      type: 'test'
+      ...
+    # Subtest: the presets are the safe area of base.ts zoneDecls: left and right 120, top 86, bottom 119 at 1080p
+    ok 2 - the presets are the safe area of base.ts zoneDecls: left and right 120, top 86, bottom 119 at 1080p
+      ---
+      duration_ms: 0.267455
+      type: 'test'
+      ...
+    # Subtest: a longer name re-measured keeps the right edge on the inset and the anchor unchanged
+    ok 3 - a longer name re-measured keeps the right edge on the inset and the anchor unchanged
+      ---
+      duration_ms: 0.249707
+      type: 'test'
+      ...
+    # Subtest: a nudge never takes a frame off the stage
+    ok 4 - a nudge never takes a frame off the stage
+      ---
+      duration_ms: 0.179882
+      type: 'test'
+      ...
+    1..4
+ok 21 - AC-1: a lower third moves to the other side and nudges precisely
+  ---
+  duration_ms: 11.272546
+  type: 'suite'
+  ...
+# Subtest: AC-2: about five percent smaller, with no pivot drift
+    # Subtest: lt01 at 95 % keeps its left and bottom edges and shrinks 5 %
+    ok 1 - lt01 at 95 % keeps its left and bottom edges and shrinks 5 %
+      ---
+      duration_ms: 0.250909
+      type: 'test'
+      ...
+    # Subtest: a centred board keeps its centre
+    ok 2 - a centred board keeps its centre
+      ---
+      duration_ms: 0.248195
+      type: 'test'
+      ...
+    # Subtest: every one of the nine anchors is the fixed point of the size
+    ok 3 - every one of the nine anchors is the fixed point of the size
+      ---
+      duration_ms: 0.239322
+      type: 'test'
+      ...
+    # Subtest: a 720p and a portrait graphic pivot on their own boxes at the stage origin
+    ok 4 - a 720p and a portrait graphic pivot on their own boxes at the stage origin
+      ---
+      duration_ms: 0.537553
+      type: 'test'
+      ...
+    # Subtest: lt63 spans the frame: no size, no horizontal preset, a vertical nudge moves it
+    ok 5 - lt63 spans the frame: no size, no horizontal preset, a vertical nudge moves it
+      ---
+      duration_ms: 0.197188
+      type: 'test'
+      ...
+    # Subtest: a ticker with no information box takes no preset; with no measurement the size acts about the frame
+    ok 6 - a ticker with no information box takes no preset; with no measurement the size acts about the frame
+      ---
+      duration_ms: 0.15876
+      type: 'test'
+      ...
+    1..6
+ok 22 - AC-2: about five percent smaller, with no pivot drift
+  ---
+  duration_ms: 1.833341
+  type: 'suite'
+  ...
+# Subtest: AC-3: the oversized quiz assessed per board
+    # Subtest: qz01 at 0.84 is amber, the agent votes board at 0.47 is red with the remedy, qz05 is fine
+    ok 1 - qz01 at 0.84 is amber, the agent votes board at 0.47 is red with the remedy, qz05 is fine
+      ---
+      duration_ms: 0.182746
+      type: 'test'
+      ...
+    1..1
+ok 23 - AC-3: the oversized quiz assessed per board
+  ---
+  duration_ms: 0.283668
+  type: 'suite'
+  ...
+# Subtest: the wire: the four rules
+    # Subtest: rule 1: an update without an appearance, an event and a stop keep the one applied
+    ok 1 - rule 1: an update without an appearance, an event and a stop keep the one applied
+      ---
+      duration_ms: 0.431482
+      type: 'test'
+      ...
+    # Subtest: rule 3: an appearance replaces the one applied (never multiplies), the identity clears it
+    ok 2 - rule 3: an appearance replaces the one applied (never multiplies), the identity clears it
+      ---
+      duration_ms: 0.13911
+      type: 'test'
+      ...
+    # Subtest: rule 2 and AC-10: no record, no field; an emptied record sends the identity; a resolved one itself
+    ok 3 - rule 2 and AC-10: no record, no field; an emptied record sends the identity; a resolved one itself
+      ---
+      duration_ms: 0.261164
+      type: 'test'
+      ...
+    # Subtest: the hosted page applies the published appearance, and an identity only when something holds one
+    ok 4 - the hosted page applies the published appearance, and an identity only when something holds one
+      ---
+      duration_ms: 0.13921
+      type: 'test'
+      ...
+    # Subtest: rule 4: what the page remembers and what rebuilds PROGRAM is what was applied, never preparation
+    ok 5 - rule 4: what the page remembers and what rebuilds PROGRAM is what was applied, never preparation
+      ---
+      duration_ms: 1.11151
+      type: 'test'
+      ...
+    1..5
+ok 24 - the wire: the four rules
+  ---
+  duration_ms: 2.226635
+  type: 'suite'
+  ...
+# Subtest: a re-resolve takes each report as the renderer's word: a report with no appearance clears an older one
+ok 25 - a re-resolve takes each report as the renderer's word: a report with no appearance clears an older one
+  ---
+  duration_ms: 0.242626
+  type: 'test'
+  ...
+# Subtest: a command applied while the read was out keeps what this page believes is applied
+ok 26 - a command applied while the read was out keeps what this page believes is applied
+  ---
+  duration_ms: 0.189236
+  type: 'test'
+  ...
+# Subtest: measurements: identified and qualified
+    # Subtest: one qualify rule for both measurers: agree, ask again, or give up after three
+    ok 1 - one qualify rule for both measurers: agree, ask again, or give up after three
+      ---
+      duration_ms: 0.298491
+      type: 'test'
+      ...
+    # Subtest: a longer name, a new copy or another stage is another identity
+    ok 2 - a longer name, a new copy or another stage is another identity
+      ---
+      duration_ms: 0.215155
+      type: 'test'
+      ...
+    # Subtest: two answers keep only what agrees within 1 px
+    ok 3 - two answers keep only what agrees within 1 px
+      ---
+      duration_ms: 0.189797
+      type: 'test'
+      ...
+    # Subtest: the session keeps the last measurement of a cue while its new identity is measured
+    ok 4 - the session keeps the last measurement of a cue while its new identity is measured
+      ---
+      duration_ms: 0.230738
+      type: 'test'
+      ...
+    # Subtest: a change waits while what a Take would send differs from what is applied; nothing waits unadjusted
+    ok 5 - a change waits while what a Take would send differs from what is applied; nothing waits unadjusted
+      ---
+      duration_ms: 0.110668
+      type: 'test'
+      ...
+    # Subtest: a Take of a placed cue nothing measured yet is measured first, and waits only so long
+    ok 6 - a Take of a placed cue nothing measured yet is measured first, and waits only so long
+      ---
+      duration_ms: 56.881242
+      type: 'test'
+      ...
+    # Subtest: a Take waits for its own identity, not an older attempt of the same cue
+    ok 7 - a Take waits for its own identity, not an older attempt of the same cue
+      ---
+      duration_ms: 1.364352
+      type: 'test'
+      ...
+    # Subtest: a longer name typed just before a Take is measured first, and the edge lands on the inset
+    ok 8 - a longer name typed just before a Take is measured first, and the edge lands on the inset
+      ---
+      duration_ms: 0.982124
+      type: 'test'
+      ...
+    # Subtest: a press job survives a render that re-wants the background list
+    ok 9 - a press job survives a render that re-wants the background list
+      ---
+      duration_ms: 1.094685
+      type: 'test'
+      ...
+    # Subtest: an Update: at once when nothing waits, after a queued Adjust write (capped), then after a measurement
+    ok 10 - an Update: at once when nothing waits, after a queued Adjust write (capped), then after a measurement
+      ---
+      duration_ms: 36.298496
+      type: 'test'
+      ...
+    # Subtest: W1: a Take reads its place from memory and never waits; a box for other values sends the preset as a hint
+    ok 11 - W1: a Take reads its place from memory and never waits; a box for other values sends the preset as a hint
+      ---
+      duration_ms: 3.018361
+      type: 'test'
+      ...
+    # Subtest: W1: an output resolving the hint against its own box lands where the page would after measuring (the page as oracle)
+    ok 12 - W1: an output resolving the hint against its own box lands where the page would after measuring (the page as oracle)
+      ---
+      duration_ms: 0.548178
+      type: 'test'
+      ...
+    # Subtest: W1: after a hinted Take the page holds what the outputs resolved, unless a later send replaced it
+    ok 13 - W1: after a hinted Take the page holds what the outputs resolved, unless a later send replaced it
+      ---
+      duration_ms: 0.327945
+      type: 'test'
+      ...
+    # Subtest: W1: a place hint off the wire is read whole or not at all
+    ok 14 - W1: a place hint off the wire is read whole or not at all
+      ---
+      duration_ms: 0.510071
+      type: 'test'
+      ...
+    # Subtest: Publish waits for the measurer only so long
+    ok 15 - Publish waits for the measurer only so long
+      ---
+      duration_ms: 30.390258
+      type: 'test'
+      ...
+    # Subtest: the background measurer drops an answer for an identity no longer wanted
+    ok 16 - the background measurer drops an answer for an identity no longer wanted
+      ---
+      duration_ms: 2.066734
+      type: 'test'
+      ...
+    1..16
+ok 27 - measurements: identified and qualified
+  ---
+  duration_ms: 135.674208
+  type: 'suite'
+  ...
+# Subtest: the merge never deletes a cue exception (both probes)
+    # Subtest: a promotion against a concurrent pool-layer edit keeps the exception
+    ok 1 - a promotion against a concurrent pool-layer edit keeps the exception
+      ---
+      duration_ms: 1.834653
+      type: 'test'
+      ...
+    # Subtest: a promotion against a concurrent cue-text edit keeps the new default and the old exception
+    ok 2 - a promotion against a concurrent cue-text edit keeps the new default and the old exception
+      ---
+      duration_ms: 0.15877
+      type: 'test'
+      ...
+    # Subtest: an operator's own reset is not undone by a merge
+    ok 3 - an operator's own reset is not undone by a merge
+      ---
+      duration_ms: 0.236538
+      type: 'test'
+      ...
+    1..3
+ok 28 - the merge never deletes a cue exception (both probes)
+  ---
+  duration_ms: 2.45459
+  type: 'suite'
+  ...
+# Subtest: lifecycle: copy and paste, undo of a graphic on air
+    # Subtest: copy and paste copies the cue record
+    ok 1 - copy and paste copies the cue record
+      ---
+      duration_ms: 0.9331
+      type: 'test'
+      ...
+    # Subtest: undoing an adjustment of a graphic on air is allowed; another change of it is not
+    ok 2 - undoing an adjustment of a graphic on air is allowed; another change of it is not
+      ---
+      duration_ms: 1.50854
+      type: 'test'
+      ...
+    1..2
+ok 29 - lifecycle: copy and paste, undo of a graphic on air
+  ---
+  duration_ms: 2.602934
+  type: 'suite'
+  ...
+# Subtest: the doors: graphic default, cue exception, promotion in one write, reset, and a later version refused at each
+ok 30 - the doors: graphic default, cue exception, promotion in one write, reset, and a later version refused at each
+  ---
+  duration_ms: 89.101314
+  type: 'test'
+  ...
+# Subtest: the export resolver (phase 1b)
+    # Subtest: a production nobody adjusted gets nothing, so every package stays what it was
+    ok 1 - a production nobody adjusted gets nothing, so every package stays what it was
+      ---
+      duration_ms: 0.637894
+      type: 'test'
+      ...
+    # Subtest: the graphic level is the default alone, the cue level the fold, each against its own box
+    ok 2 - the graphic level is the default alone, the cue level the fold, each against its own box
+      ---
+      duration_ms: 0.246813
+      type: 'test'
+      ...
+    # Subtest: a graphic in a package is its own page: a 720p graphic places against its own safe area
+    ok 3 - a graphic in a package is its own page: a 720p graphic places against its own safe area
+      ---
+      duration_ms: 0.11878
+      type: 'test'
+      ...
+    # Subtest: an identity travels when the fold moves nothing, and a later version applies nothing
+    ok 4 - an identity travels when the fold moves nothing, and a later version applies nothing
+      ---
+      duration_ms: 0.206412
+      type: 'test'
+      ...
+    # Subtest: a preset, a size or a sideways nudge needs a box; a nudge down does not
+    ok 5 - a preset, a size or a sideways nudge needs a box; a nudge down does not
+      ---
+      duration_ms: 0.236217
+      type: 'test'
+      ...
+    # Subtest: a band spanning the frame drops a sideways nudge in a package, as on the stage
+    ok 6 - a band spanning the frame drops a sideways nudge in a package, as on the stage
+      ---
+      duration_ms: 0.23147
+      type: 'test'
+      ...
+    1..6
+ok 31 - the export resolver (phase 1b)
+  ---
+  duration_ms: 1.96538
+  type: 'suite'
+  ...
+# Subtest: the bake and the root runtime (phase 1b)
+    # Subtest: a package nobody adjusted bakes nothing; an adjusted one bakes one tagged script
+    ok 1 - a package nobody adjusted bakes nothing; an adjusted one bakes one tagged script
+      ---
+      duration_ms: 0.690584
+      type: 'test'
+      ...
+    # Subtest: what the bake and the relay receiver emit is ES5, for CasparCG 2.3's Chromium 71
+    ok 2 - what the bake and the relay receiver emit is ES5, for CasparCG 2.3's Chromium 71
+      ---
+      duration_ms: 3.674052
+      type: 'test'
+      ...
+    # Subtest: the relay receiver of a production nobody adjusted keeps its bytes (AC-10)
+    ok 3 - the relay receiver of a production nobody adjusted keeps its bytes (AC-10)
+      ---
+      duration_ms: 1.163058
+      type: 'test'
+      ...
+    # Subtest: the transformed root maps every rect read back to its untransformed box
+    ok 4 - the transformed root maps every rect read back to its untransformed box
+      ---
+      duration_ms: 2.490734
+      type: 'test'
+      ...
+    1..4
+ok 32 - the bake and the root runtime (phase 1b)
+  ---
+  duration_ms: 8.209156
+  type: 'suite'
+  ...
+# Subtest: type and colour (phase 2): the record, the fold, the resolve
+    # Subtest: the reader keeps style members it can apply and drops the rest
+    ok 1 - the reader keeps style members it can apply and drops the rest
+      ---
+      duration_ms: 0.765677
+      type: 'test'
+      ...
+    # Subtest: a patch merges variables key by key; a null removes one key, then the member
+    ok 2 - a patch merges variables key by key; a null removes one key, then the member
+      ---
+      duration_ms: 0.379223
+      type: 'test'
+      ...
+    # Subtest: AC-6: a cue overrides the graphic per property, inherits the rest, and its reset reveals the graphic
+    ok 3 - AC-6: a cue overrides the graphic per property, inherits the rest, and its reset reveals the graphic
+      ---
+      duration_ms: 0.710284
+      type: 'test'
+      ...
+    # Subtest: a bundled face resolves to its stack, its numbers and both its files; never bytes
+    ok 4 - a bundled face resolves to its stack, its numbers and both its files; never bytes
+      ---
+      duration_ms: 0.47596
+      type: 'test'
+      ...
+    # Subtest: the heading weight goes as written; an imported face declares 100-900 and offers Regular
+    ok 5 - the heading weight goes as written; an imported face declares 100-900 and offers Regular
+      ---
+      duration_ms: 1.196609
+      type: 'test'
+      ...
+    # Subtest: a face pick drops a weight the new face cannot draw, masking the graphic's at cue scope
+    ok 6 - a face pick drops a weight the new face cannot draw, masking the graphic's at cue scope
+      ---
+      duration_ms: 0.793549
+      type: 'test'
+      ...
+    # Subtest: the asset road: bundled files by path, an imported face by its bytes, a face with none left out
+    ok 7 - the asset road: bundled files by path, an imported face by its bytes, a face with none left out
+      ---
+      duration_ms: 1.13171
+      type: 'test'
+      ...
+    # Subtest: the wire carries names and numbers only, and a reader keeps what it knows
+    ok 8 - the wire carries names and numbers only, and a reader keeps what it knows
+      ---
+      duration_ms: 0.808051
+      type: 'test'
+      ...
+    # Subtest: rule 2 with style: a styled cue sends its style; resetting every scope sends the identity
+    ok 9 - rule 2 with style: a styled cue sends its style; resetting every scope sends the identity
+      ---
+      duration_ms: 0.717935
+      type: 'test'
+      ...
+    1..9
+ok 33 - type and colour (phase 2): the record, the fold, the resolve
+  ---
+  duration_ms: 10.014104
+  type: 'suite'
+  ...
+# Subtest: what an author and an agent learn is adjustable (phase 2)
+    # Subtest: an agent-made board that paints with the contract is adjustable in what it paints, and validate is quiet
+    ok 1 - an agent-made board that paints with the contract is adjustable in what it paints, and validate is quiet
+      ---
+      duration_ms: 12.826724
+      type: 'test'
+      ...
+    # Subtest: a stylesheet that paints none of it says so in one line, and validate gives one non-blocking finding
+    ok 2 - a stylesheet that paints none of it says so in one line, and validate gives one non-blocking finding
+      ---
+      duration_ms: 1.798979
+      type: 'test'
+      ...
+    # Subtest: an imported SVG reaches none: its text carries the artwork's own face, whatever the canvas reset inherits
+    ok 3 - an imported SVG reaches none: its text carries the artwork's own face, whatever the canvas reset inherits
+      ---
+      duration_ms: 0.316718
+      type: 'test'
+      ...
+    1..3
+ok 34 - what an author and an agent learn is adjustable (phase 2)
+  ---
+  duration_ms: 15.255195
+  type: 'suite'
+  ...
+# Subtest: the Type row's weights (phase 2)
+    # Subtest: a face with one weight offers its numbers' sibling's weights where the design draws live numbers
+    ok 1 - a face with one weight offers its numbers' sibling's weights where the design draws live numbers
+      ---
+      duration_ms: 0.719016
+      type: 'test'
+      ...
+    1..1
+ok 35 - the Type row's weights (phase 2)
+  ---
+  duration_ms: 0.846339
+  type: 'suite'
+  ...
+# Subtest: type and colour in a package (phase 2)
+    # Subtest: the export resolves a style alone, with no box, for the graphic and each cue
+    ok 1 - the export resolves a style alone, with no box, for the graphic and each cue
+      ---
+      duration_ms: 0.631093
+      type: 'test'
+      ...
+    # Subtest: a style alone bakes one tagged script, ES5
+    ok 2 - a style alone bakes one tagged script, ES5
+      ---
+      duration_ms: 0.252392
+      type: 'test'
+      ...
+    # Subtest: the runtime sets the variables on the host and replaces them; a value it cannot set changes nothing
+    ok 3 - the runtime sets the variables on the host and replaces them; a value it cannot set changes nothing
+      ---
+      duration_ms: 9.51587
+      type: 'test'
+      ...
+    # Subtest: every face a package's appearances name ships in it: bundled by reference, imported with its bytes
+    ok 4 - every face a package's appearances name ships in it: bundled by reference, imported with its bytes
+      ---
+      duration_ms: 1.147374
+      type: 'test'
+      ...
+    1..4
+ok 36 - type and colour in a package (phase 2)
+  ---
+  duration_ms: 11.96404
+  type: 'suite'
+  ...
+# Subtest: cross-feature cases (E8.1a)
+    # Subtest: an active look reaches a native graphic and never an imported OGraf package, which keeps its place and size alone (L2.3 with E3, \#1784)
+    ok 1 - an active look reaches a native graphic and never an imported OGraf package, which keeps its place and size alone (L2.3 with E3, \#1784)
+      ---
+      duration_ms: 0.649031
+      type: 'test'
+      ...
+    # Subtest: the look a production turns on is never handed to an imported OGraf package, so Publish and the hosted page resolve none for it either (L2.3 with E3)
+    ok 2 - the look a production turns on is never handed to an imported OGraf package, so Publish and the hosted page resolve none for it either (L2.3 with E3)
+      ---
+      duration_ms: 5.875088
+      type: 'test'
+      ...
+    # Subtest: a bound cue with its own typeface under an active look: a source moving its value re-measures the box, never the face, the look or the style it sends (L2.2, L2.3 with C1)
+    ok 3 - a bound cue with its own typeface under an active look: a source moving its value re-measures the box, never the face, the look or the style it sends (L2.2, L2.3 with C1)
+      ---
+      duration_ms: 1.183538
+      type: 'test'
+      ...
+    1..3
+ok 37 - cross-feature cases (E8.1a)
+  ---
+  duration_ms: 8.038408
+  type: 'suite'
+  ...
+# Subtest: a length is seconds to one decimal, from half a second to a day
+ok 38 - a length is seconds to one decimal, from half a second to a day
+  ---
+  duration_ms: 0.833169
+  type: 'test'
+  ...
+# Subtest: a record is read as timed only when it is a graphic cue with a length and a known end
+ok 39 - a record is read as timed only when it is a graphic cue with a length and a known end
+  ---
+  duration_ms: 0.659807
+  type: 'test'
+  ...
+# Subtest: Next cue takes the first graphic cue after this one, past server cues; the last has none
+ok 40 - Next cue takes the first graphic cue after this one, past server cues; the last has none
+  ---
+  duration_ms: 0.458683
+  type: 'test'
+  ...
+# Subtest: a Take arms its lane waiting; an Out, a manual Take or All out replaces it; no marker no change
+ok 41 - a Take arms its lane waiting; an Out, a manual Take or All out replaces it; no marker no change
+  ---
+  duration_ms: 0.334015
+  type: 'test'
+  ...
+# Subtest: the countdown starts when the output holds the cue, or from the Take when no output says so
+ok 42 - the countdown starts when the output holds the cue, or from the Take when no output says so
+  ---
+  duration_ms: 0.209416
+  type: 'test'
+  ...
+# Subtest: hold freezes the remainder, resume counts it from now, and a held arm is never due
+ok 43 - hold freezes the remainder, resume counts it from now, and a held arm is never due
+  ---
+  duration_ms: 0.271451
+  type: 'test'
+  ...
+# Subtest: an end action more than 5 s late is missed, stays missed, and never fires
+ok 44 - an end action more than 5 s late is missed, stays missed, and never fires
+  ---
+  duration_ms: 0.275817
+  type: 'test'
+  ...
+# Subtest: the chip shows the running countdown that fires soonest, then one waiting, then the latest held
+ok 45 - the chip shows the running countdown that fires soonest, then one waiting, then the latest held
+  ---
+  duration_ms: 0.249727
+  type: 'test'
+  ...
+# Subtest: the armed next cue is marked by every lane that will take it
+ok 46 - the armed next cue is marked by every lane that will take it
+  ---
+  duration_ms: 0.219792
+  type: 'test'
+  ...
+# Subtest: counts round up to whole seconds, and lengths keep their tenth
+ok 47 - counts round up to whole seconds, and lengths keep their tenth
+  ---
+  duration_ms: 0.227824
+  type: 'test'
+  ...
+# Subtest: a Take marker carries what it arms, and a marker this build cannot read arms nothing
+ok 48 - a Take marker carries what it arms, and a marker this build cannot read arms nothing
+  ---
+  duration_ms: 0.285091
+  type: 'test'
+  ...
+# Subtest: published, the rows move a lane: marker, anchor, hold, fire, Out
+ok 49 - published, the rows move a lane: marker, anchor, hold, fire, Out
+  ---
+  duration_ms: 0.31753
+  type: 'test'
+  ...
+# Subtest: two pages race at zero and the end action runs exactly once
+ok 50 - two pages race at zero and the end action runs exactly once
+  ---
+  duration_ms: 6.397008
+  type: 'test'
+  ...
+# Subtest: no output reports, and the Take is the anchor after 3 s
+ok 51 - no output reports, and the Take is the anchor after 3 s
+  ---
+  duration_ms: 0.684435
+  type: 'test'
+  ...
+# Subtest: a hold on one page freezes the count on the other; resume counts on from the remainder
+ok 52 - a hold on one page freezes the count on the other; resume counts on from the remainder
+  ---
+  duration_ms: 1.030797
+  type: 'test'
+  ...
+# Subtest: a page that opens after the deadline plus 5 s reads Missed, and nothing runs
+ok 53 - a page that opens after the deadline plus 5 s reads Missed, and nothing runs
+  ---
+  duration_ms: 0.598214
+  type: 'test'
+  ...
+# Subtest: a page whose clock is ten seconds slow still fires on time
+ok 54 - a page whose clock is ten seconds slow still fires on time
+  ---
+  duration_ms: 0.60863
+  type: 'test'
+  ...
+# Subtest: the winner whose fire answer was lost asks again and sends the end action, once
+ok 55 - the winner whose fire answer was lost asks again and sends the end action, once
+  ---
+  duration_ms: 0.865568
+  type: 'test'
+  ...
+# Subtest: a page reloading straight after the Take counts it, before any operation touched it
+ok 56 - a page reloading straight after the Take counts it, before any operation touched it
+  ---
+  duration_ms: 0.603272
+  type: 'test'
+  ...
+# Subtest: a fire refused because the lane moved on never hides the Take that moved it
+ok 57 - a fire refused because the lane moved on never hides the Take that moved it
+  ---
+  duration_ms: 0.487216
+  type: 'test'
+  ...
+# Subtest: maturity ignores older side-branch merges while genuine stale production still fails
+ok 58 - maturity ignores older side-branch merges while genuine stale production still fails
+  ---
+  duration_ms: 181.722048
+  type: 'test'
+  ...
+# Subtest: everything the bundle is built from is deploy-affecting
+ok 59 - everything the bundle is built from is deploy-affecting
+  ---
+  duration_ms: 0.190027
+  type: 'test'
+  ...
+# Subtest: documentation, contracts, tooling and tests are not
+ok 60 - documentation, contracts, tooling and tests are not
+  ---
+  duration_ms: 0.156156
+  type: 'test'
+  ...
+# Subtest: markdown never triggers a build, including the contracts inside src/
+ok 61 - markdown never triggers a build, including the contracts inside src/
+  ---
+  duration_ms: 0.101313
+  type: 'test'
+  ...
+# Subtest: scripts/ is denied except the ones build:vercel runs
+ok 62 - scripts/ is denied except the ones build:vercel runs
+  ---
+  duration_ms: 0.131328
+  type: 'test'
+  ...
+# Subtest: every script the buildCommand runs is named in the allow list
+ok 63 - every script the buildCommand runs is named in the allow list
+  ---
+  duration_ms: 1.184691
+  type: 'test'
+  ...
+# Subtest: every script vite.config.ts loads is named in the allow list
+ok 64 - every script vite.config.ts loads is named in the allow list
+  ---
+  duration_ms: 1.763265
+  type: 'test'
+  ...
+# Subtest: anything unrecognised builds - the list is a deny list
+ok 65 - anything unrecognised builds - the list is a deny list
+  ---
+  duration_ms: 2.603384
+  type: 'test'
+  ...
+# Subtest: a directory that merely starts with a denied name still builds
+ok 66 - a directory that merely starts with a denied name still builds
+  ---
+  duration_ms: 0.13917
+  type: 'test'
+  ...
+# Subtest: paths are normalised before matching
+ok 67 - paths are normalised before matching
+  ---
+  duration_ms: 0.183057
+  type: 'test'
+  ...
+# Subtest: every denied directory entry ends in a slash
+ok 68 - every denied directory entry ends in a slash
+  ---
+  duration_ms: 0.114183
+  type: 'test'
+  ...
+# Subtest: a rename out of the bundle is seen, not hidden behind the destination
+ok 69 - a rename out of the bundle is seen, not hidden behind the destination
+  ---
+  duration_ms: 38.401744
+  type: 'test'
+  ...
+# Subtest: lastAffectingCommit walks back over a run of docs-only landings
+ok 70 - lastAffectingCommit walks back over a run of docs-only landings
+  ---
+  duration_ms: 75.803458
+  type: 'test'
+  ...
+# Subtest: lastAffectingCommit returns null when nothing in reach was ever deployable
+ok 71 - lastAffectingCommit returns null when nothing in reach was ever deployable
+  ---
+  duration_ms: 30.44534
+  type: 'test'
+  ...
+# Subtest: a mixed changeset builds, and an all-denied one does not
+ok 72 - a mixed changeset builds, and an all-denied one does not
+  ---
+  duration_ms: 0.224209
+  type: 'test'
+  ...
+# Subtest: the real repository: the map and every header agree, and the critical set sits inside the shared-change set
+ok 73 - the real repository: the map and every header agree, and the critical set sits inside the shared-change set
+  ---
+  duration_ms: 6.595818
+  type: 'test'
+  ...
+# Subtest: Rule K1: a spec is critical only by its own `critical:` line; a malformed line or an unknown contract fails
+ok 74 - Rule K1: a spec is critical only by its own `critical:` line; a malformed line or an unknown contract fails
+  ---
+  duration_ms: 1.471494
+  type: 'test'
+  ...
+# Subtest: Rule K2: a critical journey outside the shared-change set fails, so every escalation still plans it
+ok 75 - Rule K2: a critical journey outside the shared-change set fails, so every escalation still plans it
+  ---
+  duration_ms: 0.223839
+  type: 'test'
+  ...
+# Subtest: Rule K3: every faithful layer has a check, and a mapped check missing from disk fails
+ok 76 - Rule K3: every faithful layer has a check, and a mapped check missing from disk fails
+  ---
+  duration_ms: 0.203587
+  type: 'test'
+  ...
+# Subtest: Rule K4: a contract with no critical journey needs a complete backend exception whose configured specs exist
+ok 77 - Rule K4: a contract with no critical journey needs a complete backend exception whose configured specs exist
+  ---
+  duration_ms: 0.293894
+  type: 'test'
+  ...
+# Subtest: Rule K5: the critical set is measured against 5 minutes; unmeasured is never 0 and over the target removes nothing
+ok 78 - Rule K5: the critical set is measured against 5 minutes; unmeasured is never 0 and over the target removes nothing
+  ---
+  duration_ms: 0.2315
+  type: 'test'
+  ...
+# Subtest: the critical set today, reported from the committed durations table (never refused for being unmeasured)
+ok 79 - the critical set today, reported from the committed durations table (never refused for being unmeasured)
+  ---
+  duration_ms: 0.5557
+  type: 'test'
+  ...
+# Critical journeys: 12 spec(s), 8.02 measured test-minutes against the 5-minute target - over the target; reported, never met by removing a journey.
+# Subtest: Sheet replacement has one block, keeps handwritten code and removes only its own block
+ok 80 - Sheet replacement has one block, keeps handwritten code and removes only its own block
+  ---
+  duration_ms: 3.882889
+  type: 'test'
+  ...
+# Subtest: invalid Sheet input refuses an entire batch without changing its input
+ok 81 - invalid Sheet input refuses an entire batch without changing its input
+  ---
+  duration_ms: 3.646811
+  type: 'test'
+  ...
+# Subtest: an unknown animation extension refuses insertion before calling the donor builder
+ok 82 - an unknown animation extension refuses insertion before calling the donor builder
+  ---
+  duration_ms: 4.364045
+  type: 'test'
+  ...
+# Subtest: Sheet edits use the session history and a stale request preserves the newer document
+ok 83 - Sheet edits use the session history and a stale request preserves the newer document
+  ---
+  duration_ms: 3.844831
+  type: 'test'
+  ...
+# Subtest: insertion preserves an authored one-step machine rather than extending its graph implicitly
+ok 84 - insertion preserves an authored one-step machine rather than extending its graph implicitly
+  ---
+  duration_ms: 5.581295
+  type: 'test'
+  ...
+# Subtest: standalone view publication is synchronous, semantic and reentrant; selection order remains meaningful
+ok 85 - standalone view publication is synchronous, semantic and reentrant; selection order remains meaningful
+  ---
+  duration_ms: 1.533938
+  type: 'test'
+  ...
+# Subtest: execute and travel publish only completed history while external view/source replacement clears old history first
+ok 86 - execute and travel publish only completed history while external view/source replacement clears old history first
+  ---
+  duration_ms: 2.172613
+  type: 'test'
+  ...
+# Subtest: direct restore and gesture cancellation publish the accepted current view without source history work
+ok 87 - direct restore and gesture cancellation publish the accepted current view without source history work
+  ---
+  duration_ms: 2.085893
+  type: 'test'
+  ...
+# Subtest: a CSV file reads like a Sheet tab: quoted fields, a BOM, semicolons, blank rows where they are
+ok 88 - a CSV file reads like a Sheet tab: quoted fields, a BOM, semicolons, blank rows where they are
+  ---
+  duration_ms: 14.379902
+  type: 'test'
+  ...
+# Subtest: a file’s format comes from its name
+ok 89 - a file’s format comes from its name
+  ---
+  duration_ms: 4.776599
+  type: 'test'
+  ...
+# Subtest: an .xlsx workbook’s first sheet reads as the rows a Sheet’s CSV would give
+ok 90 - an .xlsx workbook’s first sheet reads as the rows a Sheet’s CSV would give
+  ---
+  duration_ms: 26.329451
+  type: 'test'
+  ...
+# Subtest: something that is not a workbook says so
+ok 91 - something that is not a workbook says so
+  ---
+  duration_ms: 0.76754
+  type: 'test'
+  ...
+# Subtest: a file’s rows match fields as a Sheet’s do, under its own `file.<id>.` paths
+ok 92 - a file’s rows match fields as a Sheet’s do, under its own `file.<id>.` paths
+  ---
+  duration_ms: 3.374339
+  type: 'test'
+  ...
+# Subtest: a changed lastModified yields one new revision; an unchanged file yields none and is not parsed again
+ok 93 - a changed lastModified yields one new revision; an unchanged file yields none and is not parsed again
+  ---
+  duration_ms: 6.563068
+  type: 'test'
+  ...
+# Subtest: an .xlsx file is read by the same reader
+ok 94 - an .xlsx file is read by the same reader
+  ---
+  duration_ms: 104.304291
+  type: 'test'
+  ...
+# Subtest: a file over 1 MB is refused and writes nothing; the list holds and goes stale
+ok 95 - a file over 1 MB is refused and writes nothing; the list holds and goes stale
+  ---
+  duration_ms: 2.128186
+  type: 'test'
+  ...
+# Subtest: after a reload Chrome wants permission again: the read says so and writes nothing until it is allowed
+ok 96 - after a reload Chrome wants permission again: the read says so and writes nothing until it is allowed
+  ---
+  duration_ms: 1.994995
+  type: 'test'
+  ...
+# Subtest: a computer without the file, or a file gone from its folder, says so and keeps the values
+ok 97 - a computer without the file, or a file gone from its folder, says so and keeps the values
+  ---
+  duration_ms: 1.49504
+  type: 'test'
+  ...
+# Subtest: a page that cannot read the file never holds the lease, so the page that can reads it
+ok 98 - a page that cannot read the file never holds the lease, so the page that can reads it
+  ---
+  duration_ms: 8.156376
+  type: 'test'
+  ...
+# Subtest: a workbook that unpacks past the limit is refused before it is inflated
+ok 99 - a workbook that unpacks past the limit is refused before it is inflated
+  ---
+  duration_ms: 691.369324
+  type: 'test'
+  ...
+# Subtest: a sparse workbook cannot grow into a grid past the cell limit
+ok 100 - a sparse workbook cannot grow into a grid past the cell limit
+  ---
+  duration_ms: 6.014269
+  type: 'test'
+  ...
+# Subtest: a file read that stalls past the timeout is a missed read, and reading carries on
+ok 101 - a file read that stalls past the timeout is a missed read, and reading carries on
+  ---
+  duration_ms: 4.338807
+  type: 'test'
+  ...
+# Subtest: a file whose opening hangs (a network share, a cloud placeholder) goes stale and reading carries on
+ok 102 - a file whose opening hangs (a network share, a cloud placeholder) goes stale and reading carries on
+  ---
+  duration_ms: 5.63714
+  type: 'test'
+  ...
+# Subtest: the review reads a file once, through the reader’s own read
+ok 103 - the review reads a file once, through the reader’s own read
+  ---
+  duration_ms: 0.395277
+  type: 'test'
+  ...
+# Subtest: a header is read for its tier, its workflow, its reason, its guards and its needs - from the leading comment block only
+ok 104 - a header is read for its tier, its workflow, its reason, its guards and its needs - from the leading comment block only
+  ---
+  duration_ms: 2.100414
+  type: 'test'
+  ...
+# Subtest: checks are judged once per entry file, a composite of other scripts adds nothing, and a file-less script is reported for the workflow rule
+ok 105 - checks are judged once per entry file, a composite of other scripts adds nothing, and a file-less script is reported for the workflow rule
+  ---
+  duration_ms: 0.600438
+  type: 'test'
+  ...
+# Subtest: a test file is a build gate by default, a browser need moves it to the factory, and its guards are what it imports plus its sibling
+ok 106 - a test file is a build gate by default, a browser need moves it to the factory, and its guards are what it imports plus its sibling
+  ---
+  duration_ms: 1.178131
+  type: 'test'
+  ...
+# Subtest: relative imports are read off import statements, resolve to repo paths, and only to files that exist
+ok 107 - relative imports are read off import statements, resolve to repo paths, and only to files that exist
+  ---
+  duration_ms: 0.240614
+  type: 'test'
+  ...
+# Subtest: the audit refuses a missing tier, an unknown tier, a browser need in the build tier, a workflow that does not name the gate, a reason-less none, and a guard that matches nothing
+ok 108 - the audit refuses a missing tier, an unknown tier, a browser need in the build tier, a workflow that does not name the gate, a reason-less none, and a guard that matches nothing
+  ---
+  duration_ms: 5.190825
+  type: 'test'
+  ...
+# Subtest: an honest declaration passes, in every tier, and a composite's second name counts for the workflow rule
+ok 109 - an honest declaration passes, in every tier, and a composite's second name counts for the workflow rule
+  ---
+  duration_ms: 0.564933
+  type: 'test'
+  ...
+# Subtest: a script with no file must be named by a workflow, and a header no script reaches is refused
+ok 110 - a script with no file must be named by a workflow, and a header no script reaches is refused
+  ---
+  duration_ms: 7.294173
+  type: 'test'
+  ...
+# Subtest: each runnable tier has one mechanism, checked once
+ok 111 - each runnable tier has one mechanism, checked once
+  ---
+  duration_ms: 0.262326
+  type: 'test'
+  ...
+# Subtest: one matcher answers every guard question: glob, exact path, and ** for everything
+ok 112 - one matcher answers every guard question: glob, exact path, and ** for everything
+  ---
+  duration_ms: 2.28909
+  type: 'test'
+  ...
+# Subtest: entryPointsOf finds dotted test filenames and cli scripts, which a naive pattern misses
+ok 113 - entryPointsOf finds dotted test filenames and cli scripts, which a naive pattern misses
+  ---
+  duration_ms: 0.270008
+  type: 'test'
+  ...
+# Subtest: the real repository passes the real audit, discovers every test file on disk, and the build line names the runner and no test
+ok 114 - the real repository passes the real audit, discovers every test file on disk, and the build line names the runner and no test
+  ---
+  duration_ms: 2338.738409
+  type: 'test'
+  ...
+# Subtest: each check gets its own receipt file, even when two names sanitize to the same string
+ok 115 - each check gets its own receipt file, even when two names sanitize to the same string
+  ---
+  duration_ms: 0.295277
+  type: 'test'
+  ...
+# Subtest: the presets are the seven the plan names, in its order
+ok 116 - the presets are the seven the plan names, in its order
+  ---
+  duration_ms: 1.709023
+  type: 'test'
+  ...
+# Subtest: each preset writes its sides on a mixed selection and leaves every other key side alone
+ok 117 - each preset writes its sides on a mixed selection and leaves every other key side alone
+  ---
+  duration_ms: 9.148345
+  type: 'test'
+  ...
+# Subtest: a kept side is kept exactly: bezier text, and the exact cubic arrival of power1, power2 and back
+ok 118 - a kept side is kept exactly: bezier text, and the exact cubic arrival of power1, power2 and back
+  ---
+  duration_ms: 19.567371
+  type: 'test'
+  ...
+# Subtest: both points written from both keys keep nothing, and a straight result is none
+ok 119 - both points written from both keys keep nothing, and a straight result is none
+  ---
+  duration_ms: 0.41668
+  type: 'test'
+  ...
+# Subtest: Bounce and Overshoot keep a departure set on its own; Hold replaces its whole segment
+ok 120 - Bounce and Overshoot keep a departure set on its own; Hold replaces its whole segment
+  ---
+  duration_ms: 1.823996
+  type: 'test'
+  ...
+# Subtest: every refusal is whole, names what it could not keep and leaves the input untouched
+ok 121 - every refusal is whole, names what it could not keep and leaves the input untouched
+  ---
+  duration_ms: 2.53395
+  type: 'test'
+  ...
+# Subtest: one registry operation writes the batch, upgrades a known older interpreter and refuses a custom one
+ok 122 - one registry operation writes the batch, upgrades a known older interpreter and refuses a custom one
+  ---
+  duration_ms: 23.197468
+  type: 'test'
+  ...
+# Subtest: the editor samples every preset as its curve, and a Hold holds until its key
+ok 123 - the editor samples every preset as its curve, and a Hold holds until its key
+  ---
+  duration_ms: 2.741864
+  type: 'test'
+  ...
+# Subtest: review cases: an instant jump, a departure inside a split curve, the 10 ms floor and names after speed
+ok 124 - review cases: an instant jump, a departure inside a split curve, the 10 ms floor and names after speed
+  ---
+  duration_ms: 1.474949
+  type: 'test'
+  ...
+# Subtest: an existing graphic's Sheet block is in its exported template script, byte for byte
+ok 125 - an existing graphic's Sheet block is in its exported template script, byte for byte
+  ---
+  duration_ms: 152.6354
+  type: 'test'
+  ...
+# Subtest: the exported block still reads its Sheet and emits the values to the graphic
+ok 126 - the exported block still reads its Sheet and emits the values to the graphic
+  ---
+  duration_ms: 5.871934
+  type: 'test'
+  ...
+# Subtest: stripping the block leaves the rest of the script exactly as it was
+ok 127 - stripping the block leaves the rest of the script exactly as it was
+  ---
+  duration_ms: 0.782413
+  type: 'test'
+  ...
+# Subtest: Connect data… waits while the graphic's own reader can still run where it plays
+ok 128 - Connect data… waits while the graphic's own reader can still run where it plays
+  ---
+  duration_ms: 0.674519
+  type: 'test'
+  ...
+# Subtest: "Stop its own reader" removes it from the copy always, and from the library record when held
+ok 129 - "Stop its own reader" removes it from the copy always, and from the library record when held
+  ---
+  duration_ms: 0.273524
+  type: 'test'
+  ...
+# Subtest: what the Playout page holds back reaches the other binding doors, per production, and clears (C6)
+ok 130 - what the Playout page holds back reaches the other binding doors, per production, and clears (C6)
+  ---
+  duration_ms: 6.736351
+  type: 'test'
+  ...
+# Subtest: the binding write refuses a held graphic and a recorded stop, whichever browser binds (C6)
+ok 131 - the binding write refuses a held graphic and a recorded stop, whichever browser binds (C6)
+  ---
+  duration_ms: 266.370799
+  type: 'test'
+  ...
+# Subtest: paths read and write the value they name, copied along the path only, any key name kept
+ok 132 - paths read and write the value they name, copied along the path only, any key name kept
+  ---
+  duration_ms: 2.208007
+  type: 'test'
+  ...
+# Subtest: each leaf is the control its declared type means, and an edit gives back the typed value
+ok 133 - each leaf is the control its declared type means, and an edit gives back the typed value
+  ---
+  duration_ms: 0.985279
+  type: 'test'
+  ...
+# Subtest: drafts that do not fit are marked at their paths, kept, and refused only by what sends them
+ok 134 - drafts that do not fit are marked at their paths, kept, and refused only by what sends them
+  ---
+  duration_ms: 0.568269
+  type: 'test'
+  ...
+# Subtest: an emptied box is absent where the value may be, and a number with no key keeps null, marked
+ok 135 - an emptied box is absent where the value may be, and a number with no key keeps null, marked
+  ---
+  duration_ms: 0.368988
+  type: 'test'
+  ...
+# Subtest: defaults apply when a value is made, never when a form reopens
+ok 136 - defaults apply when a value is made, never when a form reopens
+  ---
+  duration_ms: 0.882474
+  type: 'test'
+  ...
+# Subtest: a hostile minItems seeds a bounded list and a hostile value is refused, both in linear time
+ok 137 - a hostile minItems seeds a bounded list and a hostile value is refused, both in linear time
+  ---
+  duration_ms: 7.447856
+  type: 'test'
+  ...
+# Subtest: unsupported nodes are notes at their exact schema path; their values are kept, never edited
+ok 138 - unsupported nodes are notes at their exact schema path; their values are kept, never edited
+  ---
+  duration_ms: 0.261255
+  type: 'test'
+  ...
+# Subtest: `hidden` leaves a value out of the display name only; the form and the contract still offer it
+ok 139 - `hidden` leaves a value out of the display name only; the form and the contract still offer it
+  ---
+  duration_ms: 0.725707
+  type: 'test'
+  ...
+# Subtest: the flat contract reads a generic URI as text and only declared image semantics as a picture
+ok 140 - the flat contract reads a generic URI as text and only declared image semantics as a picture
+  ---
+  duration_ms: 0.31744
+  type: 'test'
+  ...
+# Subtest: action arguments are kept per action version and sent in E1’s envelope, validated whole
+ok 141 - action arguments are kept per action version and sent in E1’s envelope, validated whole
+  ---
+  duration_ms: 0.942684
+  type: 'test'
+  ...
+# Subtest: a scalar argument keeps its type and value to the Graphic, false and 0 included; kept arguments follow the declared schema
+ok 142 - a scalar argument keeps its type and value to the Graphic, false and 0 included; kept arguments follow the declared schema
+  ---
+  duration_ms: 0.816634
+  type: 'test'
+  ...
+# Subtest: a typed cue's values not on air yet are the keys that differ from the envelope its layer aired
+ok 143 - a typed cue's values not on air yet are the keys that differ from the envelope its layer aired
+  ---
+  duration_ms: 0.378812
+  type: 'test'
+  ...
+# Subtest: a press asks every output it sees to read typed actions (2); an E1.2a output reads values only
+ok 144 - a press asks every output it sees to read typed actions (2); an E1.2a output reads values only
+  ---
+  duration_ms: 0.246843
+  type: 'test'
+  ...
+# Subtest: the wire: an action envelope on its own event reaches the Graphic typed; any other is refused, and a held graphic takes none
+ok 145 - the wire: an action envelope on its own event reaches the Graphic typed; any other is refused, and a held graphic takes none
+  ---
+  duration_ms: 0.355547
+  type: 'test'
+  ...
+# Subtest: declared actions are ordinary arranged buttons; a panel sees them as their foreign actions
+ok 146 - declared actions are ordinary arranged buttons; a panel sees them as their foreign actions
+  ---
+  duration_ms: 14.736631
+  type: 'test'
+  ...
+# Subtest: a declared action is never greyed by a machine it is not part of; native events still are
+ok 147 - a declared action is never greyed by a machine it is not part of; native events still are
+  ---
+  duration_ms: 1.091018
+  type: 'test'
+  ...
+# Subtest: undo and redo put back a typed envelope the form changed; turning typed data on or off stays refused there
+ok 148 - undo and redo put back a typed envelope the form changed; turning typed data on or off stays refused there
+  ---
+  duration_ms: 9.050027
+  type: 'test'
+  ...
+# Subtest: a typed part whose edit did not save sends nothing typed until its own next write lands; other parts and cues are untouched
+ok 149 - a typed part whose edit did not save sends nothing typed until its own next write lands; other parts and cues are untouched
+  ---
+  duration_ms: 0.427075
+  type: 'test'
+  ...
+# Subtest: a graphic's declaration: absent, read, a later version, malformed; its data schema or none
+ok 150 - a graphic's declaration: absent, read, a later version, malformed; its data schema or none
+  ---
+  duration_ms: 1.729083
+  type: 'test'
+  ...
+# Subtest: the importer keeps a stranger's manifest on the graphic, byte for byte, and never ours
+ok 151 - the importer keeps a stranger's manifest on the graphic, byte for byte, and never ours
+  ---
+  duration_ms: 107.056024
+  type: 'test'
+  ...
+# Subtest: the published panel marks the fields the declaration names, and leaves every other graphic's as they are
+ok 152 - the published panel marks the fields the declaration names, and leaves every other graphic's as they are
+  ---
+  duration_ms: 0.428938
+  type: 'test'
+  ...
+# Subtest: AC-2, AC-4: the writer turns typed data on and off through the doors; save and reload keep it; invalid data writes nothing
+ok 153 - AC-2, AC-4: the writer turns typed data on and off through the doors; save and reload keep it; invalid data writes nothing
+  ---
+  duration_ms: 90.252131
+  type: 'test'
+  ...
+# Subtest: the door lets the writer change its own cue to its own bytes only
+ok 154 - the door lets the writer change its own cue to its own bytes only
+  ---
+  duration_ms: 0.869093
+  type: 'test'
+  ...
+# Subtest: the typed target adapter takes a value as the JSON it is, never from text
+ok 155 - the typed target adapter takes a value as the JSON it is, never from text
+  ---
+  duration_ms: 0.372853
+  type: 'test'
+  ...
+# Subtest: AC-2: a Take or an Update carries the cue's values with its bound fields over them, validated whole; refused, nothing goes
+ok 156 - AC-2: a Take or an Update carries the cue's values with its bound fields over them, validated whole; refused, nothing goes
+  ---
+  duration_ms: 0.677273
+  type: 'test'
+  ...
+# Subtest: one command takes at most TYPED_MAX_SEND_BYTES of typed data, measured as UTF-8
+ok 157 - one command takes at most TYPED_MAX_SEND_BYTES of typed data, measured as UTF-8
+  ---
+  duration_ms: 1.312273
+  type: 'test'
+  ...
+# Subtest: the page's decision: bound values from the tree, a tree not read yet, a live candidate, this production's outputs
+ok 158 - the page's decision: bound values from the tree, a tree not read yet, a live candidate, this production's outputs
+  ---
+  duration_ms: 2.942837
+  type: 'test'
+  ...
+# Subtest: AC-3: a native cue's Take is the same bytes as before; a typed one carries the envelope beside empty data
+ok 159 - AC-3: a native cue's Take is the same bytes as before; a typed one carries the envelope beside empty data
+  ---
+  duration_ms: 0.372502
+  type: 'test'
+  ...
+# Subtest: the output: typed values air as they are; a data road's text never replaces them; a native Take ends them
+ok 160 - the output: typed values air as they are; a data road's text never replaces them; a native Take ends them
+  ---
+  duration_ms: 1.367957
+  type: 'test'
+  ...
+# Subtest: PROGRAM is rebuilt with the typed envelope this page aired, by the output's own rule
+ok 161 - PROGRAM is rebuilt with the typed envelope this page aired, by the output's own rule
+  ---
+  duration_ms: 2.248077
+  type: 'test'
+  ...
+# Subtest: E2.1: the form keeps typed drafts as they are and action arguments per action, and refuses a record that would not read back
+ok 162 - E2.1: the form keeps typed drafts as they are and action arguments per action, and refuses a record that would not read back
+  ---
+  duration_ms: 99.320535
+  type: 'test'
+  ...
+# Subtest: an output that does not say it reads typed data is sent none, and the page says so in one line
+ok 163 - an output that does not say it reads typed data is sent none, and the page says so in one line
+  ---
+  duration_ms: 0.76713
+  type: 'test'
+  ...
+# Subtest: linear on hostile input: a deep or wide value is refused at its bound, in time proportional to its size
+ok 164 - linear on hostile input: a deep or wide value is refused at its bound, in time proportional to its size
+  ---
+  duration_ms: 63.927922
+  type: 'test'
+  ...
+# Subtest: the pinned standard is the revision the export gate was transcribed from
+ok 165 - the pinned standard is the revision the export gate was transcribed from
+  ---
+  duration_ms: 1.272874
+  type: 'test'
+  ...
+# Subtest: the fixtures are manifests of that standard: the EBU examples of the commit and a stranger
+ok 166 - the fixtures are manifests of that standard: the EBU examples of the commit and a stranger
+  ---
+  duration_ms: 2.436812
+  type: 'test'
+  ...
+# Subtest: exact field and action descriptor hashes of every fixture
+ok 167 - exact field and action descriptor hashes of every fixture
+  ---
+  duration_ms: 3.717097
+  type: 'test'
+  ...
+# Subtest: descriptors: nested objects and lists, typed enums, defaults, required, assets and colours
+ok 168 - descriptors: nested objects and lists, typed enums, defaults, required, assets and colours
+  ---
+  duration_ms: 1.21737
+  type: 'test'
+  ...
+# Subtest: descriptors: the standard's own annotations are carried; what is not carried is noted, and a default that does not fit too
+ok 169 - descriptors: the standard's own annotations are carried; what is not carried is noted, and a default that does not fit too
+  ---
+  duration_ms: 0.701139
+  type: 'test'
+  ...
+# Subtest: validation: every declared rule, at its value path
+ok 170 - validation: every declared rule, at its value path
+  ---
+  duration_ms: 1.180193
+  type: 'test'
+  ...
+# Subtest: typed action arguments validate, and an action without a schema takes none
+ok 171 - typed action arguments validate, and an action without a schema takes none
+  ---
+  duration_ms: 0.45
+  type: 'test'
+  ...
+# Subtest: bounded and linear on hostile input
+ok 172 - bounded and linear on hostile input
+  ---
+  duration_ms: 79.085907
+  type: 'test'
+  ...
+# Subtest: the envelope: read, later, another revision, malformed
+ok 173 - the envelope: read, later, another revision, malformed
+  ---
+  duration_ms: 0.763524
+  type: 'test'
+  ...
+# Subtest: a page never sends typed data it cannot read, nor a live press on typed data, with the reason; a native cue is untouched
+ok 174 - a page never sends typed data it cannot read, nor a live press on typed data, with the reason; a native cue is untouched
+  ---
+  duration_ms: 0.586446
+  type: 'test'
+  ...
+# Subtest: L1: a pinned block is native: the cue it presses with carries no envelope, or it sends nothing
+ok 175 - L1: a pinned block is native: the cue it presses with carries no envelope, or it sends nothing
+  ---
+  duration_ms: 0.236297
+  type: 'test'
+  ...
+# Subtest: the output reader: a native message is not read, a values update is read, any other envelope is refused, nothing is stringified
+ok 176 - the output reader: a native message is not read, a values update is read, any other envelope is refused, nothing is stringified
+  ---
+  duration_ms: 0.829444
+  type: 'test'
+  ...
+# Subtest: the output holds a refused graphic: a Take's play after its refused update never airs old values
+ok 177 - the output holds a refused graphic: a Take's play after its refused update never airs old values
+  ---
+  duration_ms: 0.263198
+  type: 'test'
+  ...
+# Subtest: AC-3: legacy /update and /patch bodies are read exactly as before; an envelope is never flattened into a field
+ok 178 - AC-3: legacy /update and /patch bodies are read exactly as before; an envelope is never flattened into a field
+  ---
+  duration_ms: 0.472744
+  type: 'test'
+  ...
+# Subtest: both write doors: an envelope is kept byte for byte, a read-only cue in every byte, and none is gained
+ok 179 - both write doors: an envelope is kept byte for byte, a read-only cue in every byte, and none is gained
+  ---
+  duration_ms: 7.792455
+  type: 'test'
+  ...
+# Subtest: the door is asked by both writes of patchShowChecked and by the undo
+ok 180 - the door is asked by both writes of patchShowChecked and by the undo
+  ---
+  duration_ms: 0.740859
+  type: 'test'
+  ...
+# Subtest: migration round trips the imported fixtures: native strings to typed and back, byte for byte
+ok 181 - migration round trips the imported fixtures: native strings to typed and back, byte for byte
+  ---
+  duration_ms: 2.529763
+  type: 'test'
+  ...
+# Subtest: migration reads by the declared type only, losslessly or not at all
+ok 182 - migration reads by the declared type only, losslessly or not at all
+  ---
+  duration_ms: 8.587697
+  type: 'test'
+  ...
+# Subtest: a property named __proto__ survives the migration both ways
+ok 183 - a property named __proto__ survives the migration both ways
+  ---
+  duration_ms: 0.552134
+  type: 'test'
+  ...
+# Subtest: the receipt is deterministic: the same input in any order gives the same envelope and receipt
+ok 184 - the receipt is deterministic: the same input in any order gives the same envelope and receipt
+  ---
+  duration_ms: 0.667018
+  type: 'test'
+  ...
+# Subtest: typed editing disabled keeps the package and every value
+ok 185 - typed editing disabled keeps the package and every value
+  ---
+  duration_ms: 0.996656
+  type: 'test'
+  ...
+# Subtest: the saved fixture (a production saved before any typed data) migrates to itself
+ok 186 - the saved fixture (a production saved before any typed data) migrates to itself
+  ---
+  duration_ms: 2.56798
+  type: 'test'
+  ...
+# Subtest: explicit choice wins and legacy records retain the old inference
+ok 187 - explicit choice wins and legacy records retain the old inference
+  ---
+  duration_ms: 1.478434
+  type: 'test'
+  ...
+# Subtest: only a playout cue referring to a vMix item infers vMix
+ok 188 - only a playout cue referring to a vMix item infers vMix
+  ---
+  duration_ms: 0.263298
+  type: 'test'
+  ...
+# Subtest: writing a single choice keeps the Browser profile and the old stored CasparCG shapes
+ok 189 - writing a single choice keeps the Browser profile and the old stored CasparCG shapes
+  ---
+  duration_ms: 0.845297
+  type: 'test'
+  ...
+# Subtest: first Publish preserves a saved vMix selection and never turns inferred vMix into an explicit choice
+ok 190 - first Publish preserves a saved vMix selection and never turns inferred vMix into an explicit choice
+  ---
+  duration_ms: 2.196299
+  type: 'test'
+  ...
+# Subtest: an obsolete CasparCG Load never sends after the Bridge health check
+ok 191 - an obsolete CasparCG Load never sends after the Bridge health check
+  ---
+  duration_ms: 8.877385
+  type: 'test'
+  ...
+# Subtest: a library edit, a broken record and a deleted one change nothing a publish builds (R1)
+ok 192 - a library edit, a broken record and a deleted one change nothing a publish builds (R1)
+  ---
+  duration_ms: 186.571215
+  type: 'test'
+  ...
+# Subtest: the newer library design shows, and Update takes it keeping everything else (R2, R3)
+ok 193 - the newer library design shows, and Update takes it keeping everything else (R2, R3)
+  ---
+  duration_ms: 122.842799
+  type: 'test'
+  ...
+# Subtest: a design that drops a field a cue uses is named first (R2)
+ok 194 - a design that drops a field a cue uses is named first (R2)
+  ---
+  duration_ms: 154.639919
+  type: 'test'
+  ...
+# Subtest: adoption keeps what is published now, matched by the digest a publish writes (R10)
+ok 195 - adoption keeps what is published now, matched by the digest a publish writes (R10)
+  ---
+  duration_ms: 194.341536
+  type: 'test'
+  ...
+# Subtest: a never-published production takes the library's current design once, and adoption stamps (R10)
+ok 196 - a never-published production takes the library's current design once, and adoption stamps (R10)
+  ---
+  duration_ms: 121.843559
+  type: 'test'
+  ...
+# Subtest: a tab retains its allocated reservation after device list becomes null
+ok 197 - a tab retains its allocated reservation after device list becomes null
+  ---
+  duration_ms: 2.24346
+  type: 'test'
+  ...
+# Subtest: a tab retains its allocated reservation after device list becomes {"version":1,"ids":[
+ok 198 - a tab retains its allocated reservation after device list becomes {"version":1,"ids":[
+  ---
+  duration_ms: 0.315277
+  type: 'test'
+  ...
+# Subtest: a tab retains its allocated reservation after device list becomes {"version":2,"ids":["newer"]}
+ok 199 - a tab retains its allocated reservation after device list becomes {"version":2,"ids":["newer"]}
+  ---
+  duration_ms: 0.514577
+  type: 'test'
+  ...
+# Subtest: neither a synced id nor an unknown-version tab list establishes ownership
+ok 200 - neither a synced id nor an unknown-version tab list establishes ownership
+  ---
+  duration_ms: 0.372744
+  type: 'test'
+  ...
+# Subtest: one refused list does not prevent the other recording ownership; both refused fail closed
+ok 201 - one refused list does not prevent the other recording ownership; both refused fail closed
+  ---
+  duration_ms: 0.679607
+  type: 'test'
+  ...
+# Subtest: a key re-tracked many times holds one meta, in the state supabase-js keeps
+ok 202 - a key re-tracked many times holds one meta, in the state supabase-js keeps
+  ---
+  duration_ms: 18.367426
+  type: 'test'
+  ...
+# Subtest: a different library graphic under a taken name is added under a free name, never a replacement
+ok 203 - a different library graphic under a taken name is added under a free name, never a replacement
+  ---
+  duration_ms: 9.553307
+  type: 'test'
+  ...
+# Subtest: two members who each add a "Lower third" from the same base both keep it, under two names
+ok 204 - two members who each add a "Lower third" from the same base both keep it, under two names
+  ---
+  duration_ms: 1.486416
+  type: 'test'
+  ...
+# Subtest: two members’ same-named graphics both stay in the production and both reach the output
+ok 205 - two members’ same-named graphics both stay in the production and both reach the output
+  ---
+  duration_ms: 142.304027
+  type: 'test'
+  ...
+# Subtest: Duplicate and a kit saved twice take free names, so the library never holds same-named twins
+ok 206 - Duplicate and a kit saved twice take free names, so the library never holds same-named twins
+  ---
+  duration_ms: 160.340442
+  type: 'test'
+  ...
+# Subtest: a teammate’s republish keeps the author’s saved entries; the author’s own publish writes them
+ok 207 - a teammate’s republish keeps the author’s saved entries; the author’s own publish writes them
+  ---
+  duration_ms: 106.157677
+  type: 'test'
+  ...
+# Subtest: the saved record still type-checks as a Show, with no field it does not know
+ok 208 - the saved record still type-checks as a Show, with no field it does not know
+  ---
+  duration_ms: 1968.186348
+  type: 'test'
+  ...
+# Subtest: with a message Sheet and both YouTube modes it still reads as a Show, and plays the same (C3)
+ok 209 - with a message Sheet and both YouTube modes it still reads as a Show, and plays the same (C3)
+  ---
+  duration_ms: 1424.613645
+  type: 'test'
+  ...
+# Subtest: a YouTube source with a key, or a mode it does not know, does not read as a Show (C3)
+ok 210 - a YouTube source with a key, or a mode it does not know, does not read as a Show (C3)
+  ---
+  duration_ms: 1715.600016
+  type: 'test'
+  ...
+# Subtest: with a news feed connected to its ticker it still reads as a Show, and every other field plays the same (C4)
+ok 211 - with a news feed connected to its ticker it still reads as a Show, and every other field plays the same (C4)
+  ---
+  duration_ms: 975.727782
+  type: 'test'
+  ...
+# Subtest: a feed source carrying anything but its address, or a kind it does not know, does not read as a Show (C4)
+ok 212 - a feed source carrying anything but its address, or a kind it does not know, does not read as a Show (C4)
+  ---
+  duration_ms: 1188.375502
+  type: 'test'
+  ...
+# Subtest: with a graphic connected to Another system it still reads as a Show, adds no source, and plays the same (C5)
+ok 213 - with a graphic connected to Another system it still reads as a Show, adds no source, and plays the same (C5)
+  ---
+  duration_ms: 591.052376
+  type: 'test'
+  ...
+# Subtest: it plays unchanged: each cue with the live tree over its bound fields is what PROGRAM showed
+ok 214 - it plays unchanged: each cue with the live tree over its bound fields is what PROGRAM showed
+  ---
+  duration_ms: 0.386264
+  type: 'test'
+  ...
+# Subtest: its embedded Sheet block, its table and its binding are all still there; it has no sources
+ok 215 - its embedded Sheet block, its table and its binding are all still there; it has no sources
+  ---
+  duration_ms: 0.29114
+  type: 'test'
+  ...
+# Subtest: the format adapters leave its saved list exactly as it is (C1a)
+ok 216 - the format adapters leave its saved list exactly as it is (C1a)
+  ---
+  duration_ms: 0.786018
+  type: 'test'
+  ...
+# Subtest: a production saved by the pre-E4 build, every C0-C7 kind at once, loads and plays unchanged (E4.2)
+ok 217 - a production saved by the pre-E4 build, every C0-C7 kind at once, loads and plays unchanged (E4.2)
+  ---
+  duration_ms: 663.749795
+  type: 'test'
+  ...
+# Subtest: a v 1 connector source reads as a Show and is usable; its fields follow `external.<id>.` paths (E4.2)
+ok 218 - a v 1 connector source reads as a Show and is usable; its fields follow `external.<id>.` paths (E4.2)
+  ---
+  duration_ms: 609.467555
+  type: 'test'
+  ...
+# Subtest: a connector source of a later version (v 2) loads, keeps its last values on air and is held read-only (E4.2)
+ok 219 - a connector source of a later version (v 2) loads, keeps its last values on air and is held read-only (E4.2)
+  ---
+  duration_ms: 649.860418
+  type: 'test'
+  ...
+# Subtest: a production saved before recipes projects as before; a v 1 recipe is read (E5.1)
+ok 220 - a production saved before recipes projects as before; a v 1 recipe is read (E5.1)
+  ---
+  duration_ms: 1299.787397
+  type: 'test'
+  ...
+# Subtest: a recipe of a later version (v 2) loads, keeps its last values on air, and evaluates nothing (E5.1)
+ok 221 - a recipe of a later version (v 2) loads, keeps its last values on air, and evaluates nothing (E5.1)
+  ---
+  duration_ms: 604.065721
+  type: 'test'
+  ...
+# Subtest: a production saved before live candidates has none, refuses nothing and plays the same (E7.1)
+ok 222 - a production saved before live candidates has none, refuses nothing and plays the same (E7.1)
+  ---
+  duration_ms: 464.080096
+  type: 'test'
+  ...
+# Subtest: a selection of a later version loads, its cue is read-only, and the write doors keep it byte for byte (E7.1)
+ok 223 - a selection of a later version loads, its cue is read-only, and the write doors keep it byte for byte (E7.1)
+  ---
+  duration_ms: 899.296373
+  type: 'test'
+  ...
+# Subtest: steps, pose-only states and accepted edges share one descriptor; an imported asset is one patch
+ok 224 - steps, pose-only states and accepted edges share one descriptor; an imported asset is one patch
+  ---
+  duration_ms: 40.554853
+  type: 'test'
+  ...
+# Subtest: invalid loop targets, bad levels, duplicate ids and future data are refused without losing source
+ok 225 - invalid loop targets, bad levels, duplicate ids and future data are refused without losing source
+  ---
+  duration_ms: 2.767001
+  type: 'test'
+  ...
+# Subtest: a call with no options is refused, a call that shows windowsHide passes
+ok 226 - a call with no options is refused, a call that shows windowsHide passes
+  ---
+  duration_ms: 33.712334
+  type: 'test'
+  ...
+# Subtest: options without windowsHide are refused, whatever else they say
+ok 227 - options without windowsHide are refused, whatever else they say
+  ---
+  duration_ms: 7.70971
+  type: 'test'
+  ...
+# Subtest: every child_process function is covered, under every way of reaching it
+ok 228 - every child_process function is covered, under every way of reaching it
+  ---
+  duration_ms: 43.925657
+  type: 'test'
+  ...
+# Subtest: a same-file const object counts; options the file cannot see do not
+ok 229 - a same-file const object counts; options the file cannot see do not
+  ---
+  duration_ms: 9.05941
+  type: 'test'
+  ...
+# Subtest: windowsHide: false is reported, a function passed as a value is untraceable, a test seam is a call
+ok 230 - windowsHide: false is reported, a function passed as a value is untraceable, a test seam is a call
+  ---
+  duration_ms: 36.682151
+  type: 'test'
+  ...
+# Subtest: names that only look like child_process are left alone
+ok 231 - names that only look like child_process are left alone
+  ---
+  duration_ms: 2.493739
+  type: 'test'
+  ...
+# Subtest: every child process started under scripts/ shows windowsHide
+ok 232 - every child process started under scripts/ shows windowsHide
+  ---
+  duration_ms: 4007.328693
+  type: 'test'
+  ...
+# Subtest: clean cached adoption preserves new membership, complete documents and journal on a slot save
+ok 233 - clean cached adoption preserves new membership, complete documents and journal on a slot save
+  ---
+  duration_ms: 152.233942
+  type: 'test'
+  ...
+# Subtest: nonconflicting pending source/history/view/link bundle survives adopted units without splicing
+ok 234 - nonconflicting pending source/history/view/link bundle survives adopted units without splicing
+  ---
+  duration_ms: 134.316134
+  type: 'test'
+  ...
+# Subtest: incompatible same-document adoption refuses all destructive writers and retains the pending bundle
+ok 235 - incompatible same-document adoption refuses all destructive writers and retains the pending bundle
+  ---
+  duration_ms: 96.328746
+  type: 'test'
+  ...
+# Subtest: adopted unknown envelope cannot be hidden by populated v1 staging
+ok 236 - adopted unknown envelope cannot be hidden by populated v1 staging
+  ---
+  duration_ms: 60.389212
+  type: 'test'
+  ...
+# Subtest: adopted malformed envelope cannot be hidden by populated v1 staging
+ok 237 - adopted malformed envelope cannot be hidden by populated v1 staging
+  ---
+  duration_ms: 62.976282
+  type: 'test'
+  ...
+# Subtest: a clean loaded document cannot silently adopt authority for a different revision with the same UUID
+ok 238 - a clean loaded document cannot silently adopt authority for a different revision with the same UUID
+  ---
+  duration_ms: 135.265498
+  type: 'test'
+  ...
+# Subtest: older completion acknowledges its baseline but never reinstalls over later staging
+ok 239 - older completion acknowledges its baseline but never reinstalls over later staging
+  ---
+  duration_ms: 78.431223
+  type: 'test'
+  ...
+# Subtest: intent is visible to an overlapping ordinary slot writer before confirmation
+ok 240 - intent is visible to an overlapping ordinary slot writer before confirmation
+  ---
+  duration_ms: 90.314306
+  type: 'test'
+  ...
+# Subtest: refused write retains pending source and immutable intent for the next attempt
+ok 241 - refused write retains pending source and immutable intent for the next attempt
+  ---
+  duration_ms: 40.546094
+  type: 'test'
+  ...
+# Subtest: sync adoption never clears pending work before either a refused or successful put
+ok 242 - sync adoption never clears pending work before either a refused or successful put
+  ---
+  duration_ms: 58.476622
+  type: 'test'
+  ...
+# Subtest: loaded-library ownership isolates staged work and old completions from another namespace
+ok 243 - loaded-library ownership isolates staged work and old completions from another namespace
+  ---
+  duration_ms: 56.866749
+  type: 'test'
+  ...
+# Subtest: whole-unit deletions are preserved and overlapping membership edits refuse rather than union
+ok 244 - whole-unit deletions are preserved and overlapping membership edits refuse rather than union
+  ---
+  duration_ms: 1.372645
+  type: 'test'
+  ...
+# Subtest: only explicitly loading the exact adopted document bundle refreshes its same-UUID authority
+ok 245 - only explicitly loading the exact adopted document bundle refreshes its same-UUID authority
+  ---
+  duration_ms: 26.135207
+  type: 'test'
+  ...
+# Subtest: an inverse receipt remains whole beside adopted receipts; incompatible receipt edits refuse
+ok 246 - an inverse receipt remains whole beside adopted receipts; incompatible receipt edits refuse
+  ---
+  duration_ms: 0.783434
+  type: 'test'
+  ...
+# Subtest: unconfirmed external retention never becomes retained ownership after its receipt is refused
+ok 247 - unconfirmed external retention never becomes retained ownership after its receipt is refused
+  ---
+  duration_ms: 77.598716
+  type: 'test'
+  ...
+# Subtest: a formerly external private owner remains revision-bound after retention is confirmed
+ok 248 - a formerly external private owner remains revision-bound after retention is confirmed
+  ---
+  duration_ms: 54.056472
+  type: 'test'
+  ...
+# Subtest: a submitted nonconflicting rebase is visible to the next slot writer before either acknowledgment
+ok 249 - a submitted nonconflicting rebase is visible to the next slot writer before either acknowledgment
+  ---
+  duration_ms: 73.910546
+  type: 'test'
+  ...
+# Subtest: an explicit caller updates its complete bundle while a different active candidate owns the outer projection
+ok 250 - an explicit caller updates its complete bundle while a different active candidate owns the outer projection
+  ---
+  duration_ms: 65.883886
+  type: 'test'
+  ...
+# Subtest: sync strips pulled nested mint authority before projection and projects an effective preserved local workspace
+ok 251 - sync strips pulled nested mint authority before projection and projects an effective preserved local workspace
+  ---
+  duration_ms: 86.689288
+  type: 'test'
+  ...
+# Subtest: a refused complete replacement restores only its unchanged owner and keeps later journals
+ok 252 - a refused complete replacement restores only its unchanged owner and keeps later journals
+  ---
+  duration_ms: 59.00427
+  type: 'test'
+  ...
+1..252
+# tests 323
+# suites 16
+# pass 323
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 18602.687778
+[gates] 25 test file(s) ran 323 test(s)

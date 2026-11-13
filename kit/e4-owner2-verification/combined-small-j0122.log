@@ -1,0 +1,56 @@
+=== j-0122 npm run test:e2e -- e2e/editor-projects.spec.ts e2e/new-graphic-guard.spec.ts --grep 'legacy installation|same-owner Discard drain|Discard drain refuses retired|selection-only|equivalent samples during held project|view correction after|project Discard|an adopted .* envelope|second checker newer edit|a newer edit during the|newer edit.*restoring write|a refused pending autosave'
+=== cwd /workspace/noacg-editor-r1-5-e4-build
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/editor-projects.spec.ts e2e/new-graphic-guard.spec.ts --grep legacy installation|same-owner Discard drain|Discard drain refuses retired|selection-only|equivalent samples during held project|view correction after|project Discard|an adopted .* envelope|second checker newer edit|a newer edit during the|newer edit.*restoring write|a refused pending autosave
+
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 15127 MB free (machine totals stand in for cgroup limits it could not read)
+[WebServer] (node:142753) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:142766) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 36 tests using 2 workers
+
+(node:142865) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:142866) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › e2e/editor-projects.spec.ts:171:1 › legacy installation normalizes only supported selected rows and refuses genuine format or metadata changes (4.7s)
+  ✓   2 [chromium] › e2e/editor-projects.spec.ts:1211:90 › project Discard confirmed keeps complete owner bundles through reload and Home reopen (6.7s)
+  ✓   3 [chromium] › e2e/editor-projects.spec.ts:1211:90 › project Discard refused keeps complete owner bundles through reload and Home reopen (6.0s)
+  ✓   4 [chromium] › e2e/editor-projects.spec.ts:1211:90 › project Discard changed keeps complete owner bundles through reload and Home reopen (6.1s)
+  ✓   5 [chromium] › e2e/editor-projects.spec.ts:1211:90 › project Discard view keeps complete owner bundles through reload and Home reopen (6.4s)
+  ✓   6 [chromium] › e2e/editor-projects.spec.ts:1211:90 › project Discard late-view keeps complete owner bundles through reload and Home reopen (6.1s)
+  ✓   7 [chromium] › e2e/editor-projects.spec.ts:1324:53 › an adopted future envelope while Discard waits keeps the live owner and exact adopted bytes (2.8s)
+  ✓   8 [chromium] › e2e/editor-projects.spec.ts:1324:53 › an adopted newer envelope while Discard waits keeps the live owner and exact adopted bytes (3.1s)
+  ✓   9 [chromium] › e2e/editor-projects.spec.ts:1355:81 › selection-only switch retains the exact owner source history and current view (5.3s)
+  ✓  10 [chromium] › e2e/editor-projects.spec.ts:1355:81 › selection-only autosave retains the exact owner source history and current view (4.9s)
+  ✓  11 [chromium] › e2e/editor-projects.spec.ts:1355:81 › selection-only home retains the exact owner source history and current view (4.2s)
+  ✓  12 [chromium] › e2e/editor-projects.spec.ts:1355:81 › selection-only save retains the exact owner source history and current view (3.8s)
+  ✓  13 [chromium] › e2e/editor-projects.spec.ts:1355:81 › selection-only save-as retains the exact owner source history and current view (4.2s)
+  ✓  14 [chromium] › e2e/editor-projects.spec.ts:1405:107 › selection-only Discard replacement preserves the complete live owner through reload (4.4s)
+  ✓  15 [chromium] › e2e/editor-projects.spec.ts:1405:107 › selection-only Discard failed-replacement preserves the complete live owner through reload (4.6s)
+  ✓  16 [chromium] › e2e/editor-projects.spec.ts:1405:107 › selection-only Discard preliminary preserves the complete live owner through reload (4.6s)
+  ✓  17 [chromium] › e2e/editor-projects.spec.ts:1405:107 › selection-only Discard queued preserves the complete live owner through reload (4.4s)
+  ✓  18 [chromium] › e2e/editor-projects.spec.ts:1405:107 › selection-only Discard equal-view preserves the complete live owner through reload (3.1s)
+  ✓  19 [chromium] › e2e/editor-projects.spec.ts:1460:50 › equivalent samples during held project switch preserve the submitted bundle and continuation (3.6s)
+  ✓  20 [chromium] › e2e/editor-projects.spec.ts:1460:50 › equivalent samples during held project home preserve the submitted bundle and continuation (3.4s)
+  ✓  22 [chromium] › e2e/editor-projects.spec.ts:1486:96 › view correction after correction-failure retains the original failure and current owner (3.3s)
+  ✓  21 [chromium] › e2e/editor-projects.spec.ts:1486:96 › view correction after preliminary-failure retains the original failure and current owner (4.6s)
+  ✓  23 [chromium] › e2e/editor-projects.spec.ts:1486:96 › view correction after correction-newer retains the original failure and current owner (3.9s)
+  ✓  24 [chromium] › e2e/editor-projects.spec.ts:1548:1 › same-owner Discard drain writes clean then confirms the complete newer draft before refusing (5.2s)
+  ✓  25 [chromium] › e2e/editor-projects.spec.ts:1596:122 › Discard drain refuses retired private-away-back authority without submitting a replacement (3.0s)
+  ✓  26 [chromium] › e2e/editor-projects.spec.ts:1596:122 › Discard drain refuses retired baseline-away-back authority without submitting a replacement (2.9s)
+  ✓  27 [chromium] › e2e/editor-projects.spec.ts:1596:122 › Discard drain refuses retired public-away-back authority without submitting a replacement (3.1s)
+  ✓  28 [chromium] › e2e/editor-projects.spec.ts:1596:122 › Discard drain refuses retired account authority without submitting a replacement (3.0s)
+  ✓  29 [chromium] › e2e/editor-projects.spec.ts:1596:122 › Discard drain refuses retired removed authority without submitting a replacement (3.2s)
+  ✓  30 [chromium] › e2e/new-graphic-guard.spec.ts:352:1 › a refused pending autosave cannot make Discard replace the live document (4.9s)
+  ✓  31 [chromium] › e2e/new-graphic-guard.spec.ts:421:1 › second checker newer edit rejects a delayed discard and preserves its session and durable draft (6.8s)
+  ✓  32 [chromium] › e2e/new-graphic-guard.spec.ts:436:1 › second checker newer edit during autosave confirmation refuses the already requested discard (4.7s)
+  ✓  33 [chromium] › e2e/new-graphic-guard.spec.ts:474:3 › a newer edit during the autosave wait refuses Discard and keeps its source, session and history (6.5s)
+  ✓  34 [chromium] › e2e/new-graphic-guard.spec.ts:474:3 › a newer edit during the replacement wait refuses Discard and keeps its source, session and history (7.1s)
+  ✓  35 [chromium] › e2e/new-graphic-guard.spec.ts:511:3 › a newer edit's restoring write is confirmed before Discard reports its refusal (5.6s)
+  ✓  36 [chromium] › e2e/new-graphic-guard.spec.ts:511:3 › a newer edit's restoring write is refused before Discard reports its refusal (4.5s)
+
+  36 passed (1.5m)

@@ -68,9 +68,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "owner-approved narrow correction / single combined patch",
+      "step": "owner-approved narrow correction / committed broader verification",
       "pr": 2438,
-      "note": "Both original failures reproduced once and complete fresh model+clarification read by coordinator. New correction now charged1/1; ordinary3/3 and prior extra1/1 remain spent. One product patch only, preserving original assertions and independent copies. A confirmed remaining product failure stops for simpler-requirements reassessment; no automatic fallback."
+      "note": "The single combined patch passes36/36 focused cases, including the original Discard final assertions, and323/323 affected gates. Verified localcommit721c; no push. One source-pinned broader selection running. New attempt used1/1, all older spends retained; any confirmed remaining product failure stops, no automatic fallback."
     }
   ],
   "owner": [
@@ -2194,7 +2194,41 @@
         "clarificationSha256": "df844cf3f8587d14d54a3d52ae324c49eccf130d799ebcfc09538b715c6560cf"
       },
       "patchStartChargedAt": "2026-11-13T09:33:26.437197+00:00",
-      "patchScope": "One combined correction limited to existing supported selected-production normalization/refusal and exact-owner Discard clean-write+complete durable recovery, with maintained assertions intact. No global format change, collaboration mechanism or automatic fallback."
+      "patchScope": "One combined correction limited to existing supported selected-production normalization/refusal and exact-owner Discard clean-write+complete durable recovery, with maintained assertions intact. No global format change, collaboration mechanism or automatic fallback.",
+      "verification": {
+        "frozenSourceHead": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
+        "productTestDiffSha256": "6a27908ccef462fa2a0b5fef302957307c687e31e9ac84ccfb6dd98a8dacc0e0",
+        "cheap": "AppTS/affectedESLintPASS; dependency0violations1471modules7033edges; changedgates323/323 across25files, zero skips. Root read actualgate/dependency/lint logs.",
+        "mechanicalLint": "Initial prefer-const style error preserved; behavior-preserving explicitcaptureparameter cleanup before first browser execution, passinglint. No confirmed product failure or extra attempt.",
+        "small": {
+          "job": "j0122",
+          "status": "TERMINAL_PASS",
+          "cases": 36,
+          "files": 2,
+          "bounds": "Prewritten5min/2derivedworkers/zero retries; original maintainedDiscard through final assertions, previousviewcases, project/adopted cases and seven newregressions. No partialPASSclaim.",
+          "passed": 36,
+          "failed": 0,
+          "skips": 0,
+          "retries": 0,
+          "duration": "1.5min",
+          "receipt": "e4-owner2-verification/combined-small-j0122.log",
+          "sha256": "ccbea34c350c01167c16105798f5bd7bb4dffc3dac578d057f07b30d7d89f17d",
+          "rootReadback": "Entire originalactual36case log read, including maintained436 through finalhistory and new sameowner heldcorrection/immediatereload, all prior15viewcases+five retiredauthority cases. Originalfixtureunchanged."
+        },
+        "broader": {
+          "job": "j0123",
+          "status": "RUNNING",
+          "source": "721c8d4746e0078671a4886e2abdc254df8a8d33",
+          "bounds": "One7specselection,12mincap/2derivedworkers/zero retries; includes full editor-projects/new-graphic-guard. No duplicateadmission."
+        },
+        "buildDecision": "No localwholeproductionbuild; no newdependency/entry/packagingrisk; requiredfinalheadActionsBuild remains.",
+        "commit": {
+          "sha": "721c8d4746e0078671a4886e2abdc254df8a8d33",
+          "tree": "b84cba5ddc3074033a319453fb09b97b2c72eaea",
+          "status": "Cleanlocalverifiedcommit,NOTPUSHED",
+          "scope": "3existingproductfiles, maintainededitor-projects additionsonly, phase notes. Rootreadentireproductdiff/diffcheck; no new-graphic-guard assertion changes."
+        }
+      }
     }
   },
   "coordinatorTools": {

@@ -1,0 +1,7 @@
+
+> noacg-studio@0.1.0 depcruise
+> depcruise --config .dependency-cruiser.cjs src
+
+
+✔ no dependency violations found (1471 modules, 7033 dependencies cruised)
+

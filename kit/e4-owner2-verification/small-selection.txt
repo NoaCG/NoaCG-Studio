@@ -1,0 +1,39 @@
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 14631 MB free (machine totals stand in for cgroup limits it could not read)
+Listing tests:
+  [chromium] › editor-projects.spec.ts:171:1 › legacy installation normalizes only supported selected rows and refuses genuine format or metadata changes
+  [chromium] › editor-projects.spec.ts:1211:90 › project Discard confirmed keeps complete owner bundles through reload and Home reopen
+  [chromium] › editor-projects.spec.ts:1211:90 › project Discard refused keeps complete owner bundles through reload and Home reopen
+  [chromium] › editor-projects.spec.ts:1211:90 › project Discard changed keeps complete owner bundles through reload and Home reopen
+  [chromium] › editor-projects.spec.ts:1211:90 › project Discard view keeps complete owner bundles through reload and Home reopen
+  [chromium] › editor-projects.spec.ts:1211:90 › project Discard late-view keeps complete owner bundles through reload and Home reopen
+  [chromium] › editor-projects.spec.ts:1324:53 › an adopted future envelope while Discard waits keeps the live owner and exact adopted bytes
+  [chromium] › editor-projects.spec.ts:1324:53 › an adopted newer envelope while Discard waits keeps the live owner and exact adopted bytes
+  [chromium] › editor-projects.spec.ts:1355:81 › selection-only switch retains the exact owner source history and current view
+  [chromium] › editor-projects.spec.ts:1355:81 › selection-only autosave retains the exact owner source history and current view
+  [chromium] › editor-projects.spec.ts:1355:81 › selection-only home retains the exact owner source history and current view
+  [chromium] › editor-projects.spec.ts:1355:81 › selection-only save retains the exact owner source history and current view
+  [chromium] › editor-projects.spec.ts:1355:81 › selection-only save-as retains the exact owner source history and current view
+  [chromium] › editor-projects.spec.ts:1405:107 › selection-only Discard replacement preserves the complete live owner through reload
+  [chromium] › editor-projects.spec.ts:1405:107 › selection-only Discard failed-replacement preserves the complete live owner through reload
+  [chromium] › editor-projects.spec.ts:1405:107 › selection-only Discard preliminary preserves the complete live owner through reload
+  [chromium] › editor-projects.spec.ts:1405:107 › selection-only Discard queued preserves the complete live owner through reload
+  [chromium] › editor-projects.spec.ts:1405:107 › selection-only Discard equal-view preserves the complete live owner through reload
+  [chromium] › editor-projects.spec.ts:1460:50 › equivalent samples during held project switch preserve the submitted bundle and continuation
+  [chromium] › editor-projects.spec.ts:1460:50 › equivalent samples during held project home preserve the submitted bundle and continuation
+  [chromium] › editor-projects.spec.ts:1486:96 › view correction after preliminary-failure retains the original failure and current owner
+  [chromium] › editor-projects.spec.ts:1486:96 › view correction after correction-failure retains the original failure and current owner
+  [chromium] › editor-projects.spec.ts:1486:96 › view correction after correction-newer retains the original failure and current owner
+  [chromium] › editor-projects.spec.ts:1548:1 › same-owner Discard drain writes clean then confirms the complete newer draft before refusing
+  [chromium] › editor-projects.spec.ts:1596:122 › Discard drain refuses retired private-away-back authority without submitting a replacement
+  [chromium] › editor-projects.spec.ts:1596:122 › Discard drain refuses retired baseline-away-back authority without submitting a replacement
+  [chromium] › editor-projects.spec.ts:1596:122 › Discard drain refuses retired public-away-back authority without submitting a replacement
+  [chromium] › editor-projects.spec.ts:1596:122 › Discard drain refuses retired account authority without submitting a replacement
+  [chromium] › editor-projects.spec.ts:1596:122 › Discard drain refuses retired removed authority without submitting a replacement
+  [chromium] › new-graphic-guard.spec.ts:352:1 › a refused pending autosave cannot make Discard replace the live document
+  [chromium] › new-graphic-guard.spec.ts:421:1 › second checker newer edit rejects a delayed discard and preserves its session and durable draft
+  [chromium] › new-graphic-guard.spec.ts:436:1 › second checker newer edit during autosave confirmation refuses the already requested discard
+  [chromium] › new-graphic-guard.spec.ts:474:3 › a newer edit during the autosave wait refuses Discard and keeps its source, session and history
+  [chromium] › new-graphic-guard.spec.ts:474:3 › a newer edit during the replacement wait refuses Discard and keeps its source, session and history
+  [chromium] › new-graphic-guard.spec.ts:511:3 › a newer edit's restoring write is confirmed before Discard reports its refusal
+  [chromium] › new-graphic-guard.spec.ts:511:3 › a newer edit's restoring write is refused before Discard reports its refusal
+Total: 36 tests in 2 files
