@@ -1,0 +1,2 @@
+participant_id,journey,task_id,task_description,candidate_sha,fixture_sha256,device_name,os,browser_version,resolution,css_viewport,dpr,display_scaling,native_browser_zoom,input_device,backend_scope,start_utc,end_utc,elapsed_seconds,target_seconds,expected_result,observed_result,success,errors,retries,assistance_requested,assistance_given_exact_words,help_route,source_or_backup_hash,capture_reference,notes
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,

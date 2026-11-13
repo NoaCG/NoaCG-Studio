@@ -87,6 +87,30 @@ export function sceneGraphicNames(show: SceneRecord): Set<string> {
   return new Set(obsScenesOf(show).flatMap((s) => s.graphics));
 }
 
+/** A graphic a publish brought into a scene: its scene's id and its pool graphic name. */
+export interface SceneJoin {
+  scene: string;
+  graphic: string;
+}
+
+/**
+ * #2489, the spec's "making a scene, or adding a graphic to one, takes it": each graphic a scene
+ * names in `after` (a publish's scenes) and did not name in `before` (the scenes of the row that
+ * publish replaced), in the order `after` lists them. Nothing when the switch is off (`after` empty).
+ */
+export function joinedScenes(before: readonly ObsScene[], after: readonly ObsScene[]): SceneJoin[] {
+  const had = new Set(before.flatMap((s) => s.graphics.map((g) => `${s.id}|${g}`)));
+  return after.flatMap((s) => s.graphics.filter((g) => !had.has(`${s.id}|${g}`)).map((graphic) => ({ scene: s.id, graphic })));
+}
+
+/** Each join's cue in `show`: the scene's first cue of the graphic, the cue its link joins with
+ *  (OS1a R11); null when the scene no longer holds it. */
+export function sceneCuesOf(show: Pick<Show, 'obsScenes' | 'folders' | 'cues' | 'graphics'>, joins: readonly SceneJoin[]): (NonNullable<Show['cues']>[number] | null)[] {
+  const names = new Map(show.graphics.map((g) => [g.id, g.name] as const));
+  const scenes = new Map(sceneMembers(show));
+  return joins.map((j) => (scenes.get(j.scene) ?? []).find((c) => names.get(c.sourceId) === j.graphic) ?? null);
+}
+
 /** What a write may not do to a cue (C10, C11): a sentence when the cue must not move to a copy. */
 export type SceneCopyGuard = (cue: NonNullable<Show['cues']>[number]) => string | null;
 

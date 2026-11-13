@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
-import { sceneFolderIds, sceneGraphicNames, sceneLink } from '../../model/obsScenes';
+import { joinedScenes, sceneFolderIds, sceneGraphicNames, sceneLink, type ObsScene } from '../../model/obsScenes';
+import { airMark, takeJoined } from '../../control/sceneJoin';
 import { useTemplateStore } from '../../store/templateStore';
 import {
   deleteShowProfile,
@@ -216,6 +217,7 @@ import {
   type ControlEventRow,
   type ControlFollowStatus,
   type ControlSendItem,
+  type CuePublished,
   type LiveCueMap,
 } from '../../control/hostedControl';
 import type { ReplayItem } from '../../control/outputRecovery';
@@ -259,7 +261,7 @@ import ServerCueEditor from './ServerCueEditor';
 import FolderEditor from './FolderEditor';
 import { isImageAsset } from '../../assets/assetUtils';
 import BrandLogo from '../BrandLogo';
-import { publishActions, publishFacts, useProductionPublish } from './useProductionPublish';
+import { publishActions, publishFacts, publishedFacts, useProductionPublish } from './useProductionPublish';
 import { rundownActions, useRundownAuthoring } from './useRundownAuthoring';
 import PlayoutSettingsDialog from '../PlayoutSettingsDialog';
 import { PanelDialog, usePanelAnswer } from '../control/PanelControl';
@@ -272,7 +274,9 @@ import { useCopyAdoption } from './useCopyAdoption';
 import { usePublishDrift } from './usePublishDrift';
 import { type PayloadVersion } from '../../control/payloadVersion';
 import { clockWords, type HeldVersion, type ReadyStamp } from '../../control/readiness';
-import { commandPathsOf, type PrepRequest } from '../../control/prepareLive';
+import { commandPathsOf, requestId, type PrepRequest } from '../../control/prepareLive';
+import { oldOutputNames } from '../../control/autoPublish';
+import { useAutoPublish } from './useAutoPublish';
 import { casparOutputTarget, describePlayoutStatus, programAir, relevantPlayout, takeTargets, type StatusFacts } from '../../control/playoutStatus';
 import { confirmLines, newerRun, pruneOwed, type ConfirmOutput, type Owed } from '../../control/runConfirm';
 import { epochTag, readRun, withoutRun, type RunReport } from '../../control/runReport';
@@ -1040,6 +1044,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** The production's live state is recovered from the wire (its resolve and the rows after it):
    *  until then an empty on-air map is not evidence that a graphic is off air. */
   const [liveRecovered, setLiveRecovered] = useState(false);
+  /** False once this page has gone (it is keyed by production): a Take it still owes is dropped. */
+  const pageLiveRef = useRef(true);
+  useEffect(() => {
+    pageLiveRef.current = true;
+    return () => {
+      pageLiveRef.current = false;
+    };
+  }, []);
   useEffect(() => {
     setLiveRecovered(false);
     setPublishedReaders(new Set());
@@ -1093,6 +1105,32 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Take out request `id`, and only that one: Prepare for Live and every publish each put one in,
    *  and the newer stays when the older one's time is up. */
   const dropPrep = useCallback((id: string) => setPrepRequest((cur) => (cur?.id === id ? null : cur)), []);
+  // AUTOMATIC UPDATES (live-publishing designs/G3.md): once the server's guard is installed and its
+  // switch is on, every save of this published production is published with no press, and each
+  // publish asks every output to prepare at once, old ones included.
+  const appearanceForRef = useRef<((s: Show) => Promise<CuePublished | undefined>) | undefined>(undefined);
+  /** The scene-join step after any publish, a press's or an automatic one (set below, once the
+   *  verbs it takes with exist). */
+  const sceneJoinRef = useRef<((published: { version: PayloadVersion; scenes: { before: ObsScene[]; after: ObsScene[] } }) => void) | null>(null);
+  const autoPublish = useAutoPublish({
+    show,
+    mayPublish: backendConfigured && authStatus === 'signed-in' && authoringAllowed,
+    account: user?.id ?? null,
+    appearanceFor: appearanceForRef,
+    // The same after-publish steps a press's publish runs (useProductionPublish): the stamp, which
+    // graphics' events need the server's time and which still read a Sheet, and a graphic that
+    // joined an OBS scene taken there. Then the outputs are asked to prepare the new version.
+    onPublished: ({ version: ver, scenes, record }) => {
+      setPublishedStamp(ver);
+      const facts = publishedFacts(record.graphics);
+      fastEventGraphicsRef.current = facts.fast;
+      setPublishedReaders(facts.readers);
+      if (scenes) sceneJoinRef.current?.({ version: ver, scenes });
+      // A development build lets a spec withhold the request, to prove outputs find it alone.
+      if (import.meta.env.DEV && (window as unknown as { __noacgWithholdPrep?: boolean }).__noacgWithholdPrep) return;
+      setPrepRequest({ id: requestId(), n: ver.n, h: ver.h });
+    },
+  });
   const relevanceSettings = loadPlayoutSettings();
   const casparTarget = casparOutputTarget(relevanceSettings);
   const onAirChanged = (what: 'air' | 'stop', result: PlayoutResult, target: string) => {
@@ -2868,7 +2906,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // Every graphic cue carries its records (none, for a graphic nobody adjusted) and the box this
       // page measured (one cue of an unadjusted graphic is measured here for it), so the hosted page's Adjust block can start from any of them; only an
       // adjusted cue carries an appearance.
-      appearanceFor: async (latest) => {
+      appearanceFor: appearanceForRef.current = async (latest) => {
         const lib = loadGraphics();
         await Promise.all(measureJobs(latest, lib, true).map((job) => measurer.now(job, PUBLISH_MEASURE_CAP_MS)));
         const templates = latest.graphics.map((g) => templateForSavedGraphic(g, lib));
@@ -2886,8 +2924,41 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         applyProgram(clearAllCueBatches(rehearsed).flat());
         setLiveCue({});
       },
+      onPublished: (published) => {
+        if (published.version && published.scenes) sceneJoinRef.current?.({ version: published.version, scenes: published.scenes });
+      },
     },
   );
+  // #2489: a graphic a publish put in an OBS scene goes on air there, as the operator's own Take,
+  // once the scene's open links have read the publish (control/sceneJoin.ts). A press's publish and
+  // an automatic one both run it.
+  sceneJoinRef.current = (published) => {
+    const showId = show.id;
+    void takeJoined(
+      {
+        published: () => !!verbSender.current?.published,
+        entries: () => livePresenceRef.current.peers,
+        record: () => loadShows().find((s) => s.id === showId),
+        // The Take a press sends, answering why it did not go, so one note names every join
+        // that failed; its folder step moves as a press's does.
+        take: async (cue) => {
+          const taken = await verbs.takeGraphic(cue, 'Take');
+          if (!taken) return 'its graphic is gone';
+          if (!taken.ok) return taken.note;
+          noteStep(cue);
+          return null;
+        },
+        airOf: (graphic) => airMark(session.air.get(), graphic),
+        failed: (failures) => {
+          const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
+          setNote(`Not on air in their OBS scenes: ${failures.map((f) => `${f.join.graphic} (${why(f.error)})`).join(', ')}`);
+        },
+        live: () => pageLiveRef.current,
+      },
+      joinedScenes(published.scenes.before, published.scenes.after),
+      published.version.n,
+    );
+  };
 
   preparePublishRef.current = () => publishNow();
   reloadRef.current = async () => (outputUrl ? reloadOnSlot(outputUrl) : null);
@@ -4012,12 +4083,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     ready: readySummary,
     noOutputTake,
     fileCheck: needsServerFiles && bridgeOk ? serverFiles?.key === serverFileKey ? serverFiles.check : { key: 'files', tone: 'warn', short: 'Checking server files…', label: 'Checking referenced CasparCG files…' } : null,
+    autoPublish: autoPublish.view && autoPublish.view.tone !== 'idle' ? { tone: autoPublish.view.tone, line: autoPublish.view.line } : null,
+    oldOutputs: autoPublish.active ? oldOutputNames(livePresence.peers, expectedOutputs) : null,
     playbackCheck: unsupportedCue ? { key: 'playback', tone: 'bad', short: 'Cue settings unavailable', label: `${unsupportedCue.cue.label}: cannot Take`, advice: unsupportedCue.reason! } : null,
   });
   const flowBusy = prepareFlow.phase === 'publishing' || prepareFlow.phase === 'preparing';
   const { headerAction, casparFacts } = publishFacts(publishState, {
     started, casparOn, playoutIsConfigured, bridgeOk, outputSlot, cues, backendConfigured, needsSignIn, slotWhere,
-    outputUrl, requiresPreparation, authoringAllowed, playoutStatus, playoutSettings, casparOutputMemory, casparTarget,
+    outputUrl, requiresPreparation: requiresPreparation && !autoPublish.active, authoringAllowed, playoutStatus, playoutSettings, casparOutputMemory, casparTarget,
     flowBusy, publish, loadOnSlot,
   });
   /** The panel's own lines for what went wrong where no row of its own says it. */

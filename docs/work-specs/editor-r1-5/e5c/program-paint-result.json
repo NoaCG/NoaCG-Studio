@@ -1,0 +1,11 @@
+{
+  "source": "b08128e05e4506fbb900f8ec37fa39bf5bea306d",
+  "at": "2026-11-13T13:16:32.395Z",
+  "payloadSource": "b08128e05e4506fbb900f8ec37fa39bf5bea306d",
+  "payloadSha256": "ba26441af0c619d6b12851d5ecd317605384a48c317e851534a4ce182818a15e",
+  "scope": "ONE narrow settled Program glyph/finite Out/replay observation; no performance target",
+  "modelCalls": 0,
+  "errors": [],
+  "result": "FAILED",
+  "error": "Error: settled operator glyph pixels match computed foreground\n\nexpect(received).toBeGreaterThan(expected)\n\nExpected: > 0\nReceived:   0"
+}

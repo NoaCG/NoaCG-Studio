@@ -68,6 +68,9 @@ export interface SwapperOptions {
   onRemoved(graphic: string): void;
   /** A change took over, or a graphic left: what `waiting` and `holds` answer may have moved. */
   changed(): void;
+  /** Resolves once no Take waits to run on this output except one for `graphic` itself: no new frame
+   *  starts while a Take waits (live-publishing G3 R20, owner decision Q1). Absent: no wait. */
+  quiet?(graphic: string): Promise<void>;
   now?: () => number;
 }
 
@@ -189,6 +192,7 @@ export function createSwapper(opts: SwapperOptions): Swapper {
       for (const graphic of plan.remove) gone.add(graphic);
       const specOf = (graphic: string) => payload.graphics.find((g) => g.key === graphic)!;
       for (const graphic of plan.add) {
+        if (opts.quiet) await opts.quiet(graphic);
         // The publication it comes from: an imported package's base is asked with it, before this
         // output has adopted that version.
         stage.add(specOf(graphic), payload.ver?.h);
@@ -199,6 +203,7 @@ export function createSwapper(opts: SwapperOptions): Swapper {
       for (let i = 0; i < plan.build.length; i += 1) {
         toBuild = plan.build.slice(i);
         progress(i, plan.build.length);
+        if (opts.quiet) await opts.quiet(plan.build[i]);
         const verdict = await build(specOf(plan.build[i]), payload);
         if (!('done' in verdict)) failures.set(plan.build[i], verdict);
         advance();

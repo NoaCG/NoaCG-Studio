@@ -189,3 +189,22 @@ test('a picture that may no longer be air says which hop is lost: this page, Noa
   assert.match(staleWords(false, 'server').badge, /^CasparCG is not answering/);
   assert.match(staleWords(false, 'bridge').badge, /^NoaCG Bridge is not answering/);
 });
+
+test('automatic updates: a save being published reads amber, one not reaching the outputs red, never green (G3 section 9)', () => {
+  const amber = status({ autoPublish: { tone: 'amber', line: 'Publishing your changes' } });
+  assert.equal(amber.tone, 'warn');
+  assert.equal(amber.text, 'Updating outputs');
+  const red = status({ autoPublish: { tone: 'red', line: 'The newest save is not on the outputs yet: the server did not answer.' } });
+  assert.equal(red.tone, 'bad');
+  assert.equal(red.text, 'Saved, not on the outputs');
+  assert.match(red.checks[0].label, /the server did not answer/);
+  assert.equal(status({ autoPublish: null }).tone, 'ok');
+});
+
+test('an output opened before automatic updates reads amber with its name until it switches over (G3 section 7)', () => {
+  const old = status({ oldOutputs: ['Studio A'] });
+  assert.equal(old.tone, 'warn');
+  assert.equal(old.text, 'Reload Studio A when nothing is on air');
+  assert.match(old.checks[0].label, /switches over by itself the next time nothing is on air there/);
+  assert.equal(status({ oldOutputs: [] }).tone, 'ok');
+});

@@ -1,0 +1,28 @@
+=== j-0128 npm run test:e2e -- e2e/editor-command-task.spec.ts --output=e5c.local/imported-command-results
+=== cwd <owned-worktree>
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/editor-command-task.spec.ts --output=e5c.local/imported-command-results
+
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 14738 MB free (machine totals stand in for cgroup limits it could not read)
+[WebServer] (node:165708) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:165722) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] failed to load config from <owned-worktree>/vite.config.ts
+[WebServer] error when starting dev server:
+[WebServer] Error: EROFS: read-only file system, open '<owned-worktree>/node_modules/.vite-temp/vite.config.ts.timestamp-1794569655483-9cf23e05ef4378.mjs'
+[WebServer]     at async open (node:internal/fs/promises:697:25)
+[WebServer]     at async Object.writeFile (node:internal/fs/promises:1317:14)
+[WebServer]     at async loadConfigFromBundledFile (file://<shared-dependencies>/vite/dist/node/chunks/node.js:38258:3)
+[WebServer]     at async bundleAndLoadConfigFile (file://<shared-dependencies>/vite/dist/node/chunks/node.js:38106:21)
+[WebServer]     at async loadConfigFromFile (file://<shared-dependencies>/vite/dist/node/chunks/node.js:38066:42)
+[WebServer]     at async resolveConfig (file://<shared-dependencies>/vite/dist/node/chunks/node.js:37668:22)
+[WebServer]     at async _createServer (file://<shared-dependencies>/vite/dist/node/chunks/node.js:24801:65)
+[WebServer]     at async CAC.<anonymous> (file://<shared-dependencies>/vite/dist/node/cli.js:722:18) {
+[WebServer]   errno: -30,
+[WebServer]   code: 'EROFS',
+[WebServer]   syscall: 'open',
+[WebServer]   path: '<owned-worktree>/node_modules/.vite-temp/vite.config.ts.timestamp-1794569655483-9cf23e05ef4378.mjs'
+[WebServer] }
+Error: Process from config.webServer was not able to start. Exit code: 1
