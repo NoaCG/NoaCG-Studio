@@ -11,10 +11,11 @@
 // (OS1a R9).
 //
 // The Take waits for the page's own sender to be the published one (a first publish lands
-// before the page renders its slug). A scene link reads a command for a graphic of another scene past (OS1a R6) until it has read the
-// publish that moved the graphic into its scene. So the Take waits until every open link of those
-// scenes reports that publish, or JOIN_WAIT_MS, after which it goes anyway: such a link has the
-// Take in the log, and its next boot recovers it (R7), as does a link that was not open at all.
+// before the page renders its slug). A scene link reads a command for a graphic of another scene
+// past (OS1a R6) until it has read the publish that moved the graphic into its scene. So the Take
+// also waits until every open link of those scenes reports that publish, or JOIN_WAIT_MS, after
+// which it goes anyway: such a link has the Take in the log, and its next boot recovers it (R7),
+// as does a link that was not open at all.
 // Plain, with the page through `io`: scripts/scene-join.test.mjs.
 
 import { sceneCuesOf, type SceneJoin } from '../model/obsScenes';
@@ -46,7 +47,8 @@ export interface SceneJoinIo {
   published: () => boolean;
   /** The production's Presence entries as they stand now. */
   entries: () => readonly Pick<LiveEntry, 'kind' | 'scene' | 'ready'>[];
-  /** The production record as it is now: each join takes its scene's cue there. */
+  /** The production record as it is now: each join takes its scene's cue there, read again
+   *  before each Take. */
   record: () => SceneRecord | undefined;
   /** The operator's Take of a cue. */
   take: (cue: SceneCue) => Promise<void>;
@@ -68,17 +70,18 @@ export async function takeJoined(io: SceneJoinIo, joins: readonly SceneJoin[], n
   const start = now();
   const due = () => io.published() && sceneLinksHold(io.entries(), scenes, n);
   while (io.live() && !due() && now() - start < JOIN_WAIT_MS) await wait(POLL_MS);
-  const record = io.live() ? io.record() : undefined;
-  if (!record) return;
   // Never sent as an unpublished Take: it would air on this page alone and never reach the log.
-  if (!io.published()) {
+  if (io.live() && !io.published()) {
     for (const j of joins) io.failed(j, new Error('the page did not take the publish in time'));
     return;
   }
-  const cues = sceneCuesOf(record, joins);
-  for (const [i, j] of joins.entries()) {
-    const cue = cues[i];
-    if (!cue || !io.live()) continue;
+  for (const j of joins) {
+    if (!io.live()) return;
+    // Read again before each Take: a scene left, or the switch turned off, while an earlier Take
+    // was being sent takes this one out of the scene, and then it is not taken.
+    const record = io.record();
+    const cue = record ? sceneCuesOf(record, [j])[0] : null;
+    if (!cue) continue;
     try {
       await io.take(cue);
     } catch (e) {

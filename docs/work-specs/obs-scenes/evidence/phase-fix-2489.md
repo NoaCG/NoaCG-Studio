@@ -11,8 +11,9 @@ configured checks only: nothing here is OBS hardware proof (that is OS7).
   scenes beside its version stamp (`hostedControl.ts`, one small field) and returns both lists, so
   a teammate's publish in between, or an edit made while the publish ran, cannot shift the answer.
 - J2. The Take is the operator's own Take (`verbs.take`) of the scene's first cue of the graphic in
-  the record as it is then (the cue the link joins with, OS1a R11); nothing when the scene no
-  longer holds it. It is the same command a press sends, so the ordinary link airs it too, as a
+  the record as it is then (the cue the link joins with, OS1a R11), read again before each Take;
+  nothing when the scene no longer holds it, also when that changed while an earlier Take was being
+  sent. It is the same command a press sends, so the ordinary link airs it too, as a
   pressed Take of a scene graphic always has. Decided here, not an owner question: a separate
   scene-only Take would be a second air state, which D3 rules out.
 - J3. A graphic already up on the page is taken again: it may be up in another link only (moved
@@ -41,7 +42,7 @@ configured checks only: nothing here is OBS hardware proof (that is OS7).
 | Rule | Proof |
 | --- | --- |
 | J1, J5 | `scripts/scene-join.test.mjs`: joined graphics; a published scene joins nothing more; a moved graphic joins its new scene; first publish joins all; switch off joins none |
-| J2 | `scripts/scene-join.test.mjs`: the scene's first cue of the graphic; none once moved out or with the switch off |
+| J2 | `scripts/scene-join.test.mjs`: the scene's first cue of the graphic; none once moved out or with the switch off; the switch turned off while the first Take is sent stops the second |
 | J3, J4, J6 | `scripts/scene-join.test.mjs`: a link on the old version holds the Take until it reports the new one; a preparing link counts; another scene's link, the ordinary link and an operator never hold it back; a link that never reads it delays it by the bound only; a graphic up is taken; a throwing Take is said and the next goes; a page gone takes nothing |
 | J1, J2, J4, J5 in the product | `e2e/configured/live-prepare.spec.ts` "OBS scenes (#2489)" (local stack, CI): the Gameplay link open before its folder is a scene; making it a scene and publishing airs Hairline there and on the page with no Take; taken out by hand, it stays out when the next publish makes Desk a scene, which airs Bug; a cue in no scene is never taken |
 
@@ -51,6 +52,8 @@ configured checks only: nothing here is OBS hardware proof (that is OS7).
 - `sceneLinksHold` always true (no wait): three Node tests fail. Restored.
 - The published-sender guard removed: the first-publish test (a slug that arrives late) fails.
   Restored.
+- The record read once for every join instead of before each Take: the switch-off-mid-loop test
+  fails. Restored.
 - The page's call (`ProductionPage.tsx` `onPublished`) is what the configured walk guards:
   without it nothing takes Hairline and the walk's first "on air in its scene link" poll fails.
   Not run as a mutation here: this machine has no local stack.

@@ -68,7 +68,8 @@ test('a scene link holds a publish once it reports that version, or is preparing
   assert.equal(sceneLinksHold([link('scB', ready(1)), { kind: 'output', ready: ready(1) }, { kind: 'operator' }], scenes, 5), true);
 });
 
-function clockIo(entries, record = production()) {
+function clockIo(entries, initial = production()) {
+  let record = initial;
   let t = 0;
   const taken = [];
   const failures = [];
@@ -76,6 +77,9 @@ function clockIo(entries, record = production()) {
     published: () => true,
     entries: () => entries(t),
     record: () => record,
+    setRecord: (next) => {
+      record = next;
+    },
     take: async (cue) => {
       if (cue.id === 'h') throw new Error('typed data refused');
       taken.push({ cue: cue.id, at: t });
@@ -128,4 +132,16 @@ test('a first publish: the Take waits for the page to send to the published log,
   await takeJoined(never.io, [{ scene: 'scA', graphic: 'A2' }], 1);
   assert.deepEqual(never.taken, []);
   assert.deepEqual(never.failures, ['A2: the page did not take the publish in time']);
+});
+
+test('each Take reads the scenes again: a graphic out of its scene, or the switch off, by then is not taken', async () => {
+  const run = clockIo(() => []);
+  const take = run.io.take;
+  run.io.take = async (cue) => {
+    await take(cue);
+    // While the first Take is sent, the operator turns the OBS scenes switch off.
+    run.io.setRecord(production({ obsScenes: undefined }));
+  };
+  await takeJoined(run.io, [{ scene: 'scA', graphic: 'A1' }, { scene: 'scA', graphic: 'A2' }], 1);
+  assert.deepEqual(run.taken, [{ cue: 'a1', at: 0 }]);
 });
