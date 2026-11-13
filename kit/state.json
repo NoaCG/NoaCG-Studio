@@ -68,9 +68,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "owner-approved narrow correction / committed broader verification",
+      "step": "owner-approved narrow correction / final-head preparation",
       "pr": 2438,
-      "note": "The single combined patch passes36/36 focused cases, including the original Discard final assertions, and323/323 affected gates. Verified localcommit721c; no push. One source-pinned broader selection running. New attempt used1/1, all older spends retained; any confirmed remaining product failure stops, no automatic fallback."
+      "note": "Combined patch passes36/36 focused and158/158 broader cases with no retries/skips, plus323/323 affected gates. Source721 verified; preparing one coherent push and exact-head CI/backend/Codex/full independent review. New attempt used1/1, all historical spends and failures retained; local work last."
     }
   ],
   "owner": [
@@ -2217,9 +2217,26 @@
         },
         "broader": {
           "job": "j0123",
-          "status": "RUNNING",
+          "status": "TERMINAL_PASS",
           "source": "721c8d4746e0078671a4886e2abdc254df8a8d33",
-          "bounds": "One7specselection,12mincap/2derivedworkers/zero retries; includes full editor-projects/new-graphic-guard. No duplicateadmission."
+          "bounds": "One7specselection,12mincap/2derivedworkers/zero retries; includes full editor-projects/new-graphic-guard. No duplicateadmission.",
+          "passed": 158,
+          "failed": 0,
+          "skips": 0,
+          "retries": 0,
+          "duration": "10.2min",
+          "receipt": "e4-owner2-verification/broader-j0123.log",
+          "sha256": "557ff8d26a449e7335abf391327f8c1b534a5eee30e047d3fbd772e2f0315062",
+          "rootReadback": "Wholelog parsed:158passlines/sevenadmittedspecs/terminal158PASS10.2min/no failurelines. Includes complete unchanged new-graphic-guard and editor-projects. Source721 retained; no duplicateadmission.",
+          "specCounts": {
+            "e2e/cross-tab.spec.ts": 3,
+            "e2e/editor-command-task.spec.ts": 3,
+            "e2e/editor-folders-bins.spec.ts": 20,
+            "e2e/editor-projects.spec.ts": 67,
+            "e2e/new-graphic-guard.spec.ts": 26,
+            "e2e/save-transaction-holds.spec.ts": 20,
+            "e2e/save-transaction-leave.spec.ts": 19
+          }
         },
         "buildDecision": "No localwholeproductionbuild; no newdependency/entry/packagingrisk; requiredfinalheadActionsBuild remains.",
         "commit": {
@@ -2227,7 +2244,16 @@
           "tree": "b84cba5ddc3074033a319453fb09b97b2c72eaea",
           "status": "Cleanlocalverifiedcommit,NOTPUSHED",
           "scope": "3existingproductfiles, maintainededitor-projects additionsonly, phase notes. Rootreadentireproductdiff/diffcheck; no new-graphic-guard assertion changes."
-        }
+        },
+        "canonicalSideEnds": {
+          "head": "721c8d4746e0078671a4886e2abdc254df8a8d33",
+          "paths": 52,
+          "ends": {},
+          "why": []
+        },
+        "packageAudit": "Full91a\u2192721c only pre-existing manualqualify:editor-projects scriptaddition; no version/deps/build/lock/CLIchanges.",
+        "receivingApplicability": "Currentbroader generatedfourZIPs; allfilenames and43uncompressedfilecontents equalstagedkit. Freshsource differs only brandApplication.lookId UUID; outputproducer+fixtureclosure63d\u2192721c unchanged. Rootread actual JSON receipt.",
+        "capacityPrecheck": "PROVISIONALWARN197.7/21392.8%+0.42min usingcurrenthelper/actualfeatureinputs with missinggrowth/frozenseed. NotCIclearance; no403retry, limits/exceptionchangesnone."
       }
     }
   },

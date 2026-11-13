@@ -1,0 +1,34 @@
+{
+  "head": "721c8d4746e0078671a4886e2abdc254df8a8d33",
+  "outputs": [
+    {
+      "name": "spx.zip",
+      "sameNames": true,
+      "changedContents": [],
+      "files": 15
+    },
+    {
+      "name": "casparcg.zip",
+      "sameNames": true,
+      "changedContents": [],
+      "files": 5
+    },
+    {
+      "name": "html-overlay.zip",
+      "sameNames": true,
+      "changedContents": [],
+      "files": 11
+    },
+    {
+      "name": "ograf.zip",
+      "sameNames": true,
+      "changedContents": [],
+      "files": 12
+    }
+  ],
+  "sourceDifferences": [
+    "brandApplication.lookId"
+  ],
+  "freshSourceSha256": "f581e6ea5937332a8cc760846eea1a71824296f5fe35f3518b9084b2ab8ee9f7",
+  "producerFixtureClosureDiff63d7To721c": "empty for src/export,src/preview,src/templates,src/assets,e2e/fixtures/editor-projects; changed shows readShape export preserves read behavior"
+}
