@@ -1,0 +1,508 @@
+﻿2026-11-13T10:41:44.0864888Z Current runner version: '2.338.2'
+2026-11-13T10:41:44.0884352Z ##[group]Runner Image Provisioner
+2026-11-13T10:41:44.0885057Z Hosted Compute Agent
+2026-11-13T10:41:44.0885486Z Version: 20261103.629
+2026-11-13T10:41:44.0885939Z Commit: 15dbd9ccb5dbf34fae002b6ed1a2670f52df37bc
+2026-11-13T10:41:44.0886431Z Build Date: 2026-11-03T17:26:59Z
+2026-11-13T10:41:44.0886881Z Worker ID: {5bb409ca-d084-4c02-90b2-ec5589b2cc80}
+2026-11-13T10:41:44.0887402Z Region: centralus
+2026-11-13T10:41:44.0887810Z Cloud: Azure
+2026-11-13T10:41:44.0888221Z ##[endgroup]
+2026-11-13T10:41:44.0889141Z ##[group]Operating System
+2026-11-13T10:41:44.0889543Z Ubuntu
+2026-11-13T10:41:44.0889945Z 26.04.1
+2026-11-13T10:41:44.0890327Z LTS
+2026-11-13T10:41:44.0890734Z ##[endgroup]
+2026-11-13T10:41:44.0891113Z ##[group]Runner Image
+2026-11-13T10:41:44.0891515Z Image: ubuntu-26.04
+2026-11-13T10:41:44.0891944Z Version: 20261111.196.1
+2026-11-13T10:41:44.0892804Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261111.196/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-13T10:41:44.0893812Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261111.196
+2026-11-13T10:41:44.0894642Z ##[endgroup]
+2026-11-13T10:41:44.0895457Z ##[group]GITHUB_TOKEN Permissions
+2026-11-13T10:41:44.0896989Z Contents: read
+2026-11-13T10:41:44.0897437Z Metadata: read
+2026-11-13T10:41:44.0897822Z ##[endgroup]
+2026-11-13T10:41:44.0899343Z Secret source: Actions
+2026-11-13T10:41:44.0900002Z Cache mode: write
+2026-11-13T10:41:44.0900751Z Prepare workflow directory
+2026-11-13T10:41:44.1127807Z Prepare all required actions
+2026-11-13T10:41:44.1162638Z Getting action download info
+2026-11-13T10:41:44.3612607Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+2026-11-13T10:41:44.5021596Z Download action repository 'actions/setup-node@v5' (SHA:a0853c24544627f65ddf259abe73b1d18a591444)
+2026-11-13T10:41:44.6028179Z Download action repository 'supabase/setup-cli@v1' (SHA:1dedf2c611547ede7232d26866dd3c56ab903bbb)
+2026-11-13T10:41:45.0447179Z Complete job name: Apply migrations
+2026-11-13T10:41:45.1038859Z ##[group]Run actions/checkout@v5
+2026-11-13T10:41:45.1039352Z with:
+2026-11-13T10:41:45.1039640Z   fetch-depth: 0
+2026-11-13T10:41:45.1039936Z   filter: blob:none
+2026-11-13T10:41:45.1040251Z   repository: NoaCG/NoaCG-Studio
+2026-11-13T10:41:45.1042616Z   token: ***
+2026-11-13T10:41:45.1042912Z   ssh-strict: true
+2026-11-13T10:41:45.1043204Z   ssh-user: git
+2026-11-13T10:41:45.1043504Z   persist-credentials: true
+2026-11-13T10:41:45.1043831Z   clean: true
+2026-11-13T10:41:45.1044407Z   sparse-checkout-cone-mode: true
+2026-11-13T10:41:45.1044764Z   fetch-tags: false
+2026-11-13T10:41:45.1045065Z   show-progress: true
+2026-11-13T10:41:45.1045378Z   lfs: false
+2026-11-13T10:41:45.1045668Z   submodules: false
+2026-11-13T10:41:45.1045972Z   set-safe-directory: true
+2026-11-13T10:41:45.1046318Z   allow-unsafe-pr-checkout: false
+2026-11-13T10:41:45.1046766Z ##[endgroup]
+2026-11-13T10:41:45.2927665Z Syncing repository: NoaCG/NoaCG-Studio
+2026-11-13T10:41:45.2929438Z ##[group]Getting Git version info
+2026-11-13T10:41:45.2929937Z Working directory is '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+2026-11-13T10:41:45.2930892Z [command]/usr/bin/git version
+2026-11-13T10:41:45.2931369Z git version 2.56.1
+2026-11-13T10:41:45.2936384Z ##[endgroup]
+2026-11-13T10:41:45.2946124Z Temporarily overriding HOME='/home/runner/work/_temp/7d8d0880-c9c7-415d-ba6a-0a437cf5c0b6' before making global git config changes
+2026-11-13T10:41:45.2947520Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-13T10:41:45.2950179Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-13T10:41:45.3015439Z Deleting the contents of '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+2026-11-13T10:41:45.3030513Z ##[group]Initializing the repository
+2026-11-13T10:41:45.3037492Z [command]/usr/bin/git init /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-13T10:41:45.3116934Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-13T10:41:45.3117667Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-13T10:41:45.3118281Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-13T10:41:45.3119094Z hint: call:
+2026-11-13T10:41:45.3119375Z hint:
+2026-11-13T10:41:45.3119741Z hint: 	git config --global init.defaultBranch <name>
+2026-11-13T10:41:45.3120156Z hint:
+2026-11-13T10:41:45.3120540Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-13T10:41:45.3121133Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-13T10:41:45.3121604Z hint:
+2026-11-13T10:41:45.3121895Z hint: 	git branch -m <name>
+2026-11-13T10:41:45.3122216Z hint:
+2026-11-13T10:41:45.3122636Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-13T10:41:45.3132160Z Initialized empty Git repository in /home/runner/work/NoaCG-Studio/NoaCG-Studio/.git/
+2026-11-13T10:41:45.3142358Z [command]/usr/bin/git remote add origin https://github.com/NoaCG/NoaCG-Studio
+2026-11-13T10:41:45.3189641Z ##[endgroup]
+2026-11-13T10:41:45.3190513Z ##[group]Disabling automatic garbage collection
+2026-11-13T10:41:45.3192846Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-13T10:41:45.3224349Z ##[endgroup]
+2026-11-13T10:41:45.3225171Z ##[group]Setting up auth
+2026-11-13T10:41:45.3229756Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-13T10:41:45.3260148Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-13T10:41:45.3622677Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-13T10:41:45.3652554Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-13T10:41:45.3877693Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-13T10:41:45.3907064Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-13T10:41:45.4134992Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-13T10:41:45.4170124Z ##[endgroup]
+2026-11-13T10:41:45.4170765Z ##[group]Fetching the repository
+2026-11-13T10:41:45.4177267Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules --filter=blob:none origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+2026-11-13T10:41:46.6254091Z From https://github.com/NoaCG/NoaCG-Studio
+2026-11-13T10:41:46.6255330Z  * [new branch]          agent-toolkit-dist      -> origin/agent-toolkit-dist
+2026-11-13T10:41:46.6256365Z  * [new branch]          ci-draft-batching-land-4 -> origin/ci-draft-batching-land-4
+2026-11-13T10:41:46.6257254Z  * [new branch]          claude/check-455ee10    -> origin/claude/check-455ee10
+2026-11-13T10:41:46.6258044Z  * [new branch]          claude/e-diag-1915      -> origin/claude/e-diag-1915
+2026-11-13T10:41:46.6258832Z  * [new branch]          claude/f-clock-replay   -> origin/claude/f-clock-replay
+2026-11-13T10:41:46.6259682Z  * [new branch]          claude/jev-ready-wfpush-probe -> origin/claude/jev-ready-wfpush-probe
+2026-11-13T10:41:46.6260694Z  * [new branch]          claude/noacg-recovery/plan-cicd-followup-2026-11-02 -> origin/claude/noacg-recovery/plan-cicd-followup-2026-11-02
+2026-11-13T10:41:46.6261967Z  * [new branch]          claude/noacg-recovery/plan-cicd-improvement-2026-10-31 -> origin/claude/noacg-recovery/plan-cicd-improvement-2026-10-31
+2026-11-13T10:41:46.6263266Z  * [new branch]          claude/noacg-recovery/plan-codebase-health-2026-11-08 -> origin/claude/noacg-recovery/plan-codebase-health-2026-11-08
+2026-11-13T10:41:46.6265211Z  * [new branch]          claude/noacg-recovery/plan-editor-r1-5-2026-11-08 -> origin/claude/noacg-recovery/plan-editor-r1-5-2026-11-08
+2026-11-13T10:41:46.6266808Z  * [new branch]          claude/noacg-recovery/plan-interaction-2026-11-09 -> origin/claude/noacg-recovery/plan-interaction-2026-11-09
+2026-11-13T10:41:46.6267924Z  * [new branch]          claude/noacg-recovery/plan-jev-svg-import-2026-10-31 -> origin/claude/noacg-recovery/plan-jev-svg-import-2026-10-31
+2026-11-13T10:41:46.6268973Z  * [new branch]          claude/noacg-recovery/plan-live-publishing-2026-11-10 -> origin/claude/noacg-recovery/plan-live-publishing-2026-11-10
+2026-11-13T10:41:46.6270044Z  * [new branch]          claude/noacg-recovery/plan-obs-scenes-2026-11-12 -> origin/claude/noacg-recovery/plan-obs-scenes-2026-11-12
+2026-11-13T10:41:46.6271106Z  * [new branch]          claude/noacg-recovery/plan-production-page-2026-10-21 -> origin/claude/noacg-recovery/plan-production-page-2026-10-21
+2026-11-13T10:41:46.6272170Z  * [new branch]          claude/noacg-recovery/plan-vmix-2026-11-08 -> origin/claude/noacg-recovery/plan-vmix-2026-11-08
+2026-11-13T10:41:46.6273366Z  * [new branch]          claude/plan-jev-svg-import-33-config -> origin/claude/plan-jev-svg-import-33-config
+2026-11-13T10:41:46.6274587Z  * [new branch]          claude/plan-live-publishing-6-build-wip -> origin/claude/plan-live-publishing-6-build-wip
+2026-11-13T10:41:46.6275795Z  * [new branch]          claude/plan-production-page-p32d-build-wip -> origin/claude/plan-production-page-p32d-build-wip
+2026-11-13T10:41:46.6276849Z  * [new branch]          claude/pp-fix-1798-after -> origin/claude/pp-fix-1798-after
+2026-11-13T10:41:46.6277802Z  * [new branch]          claude/pp-fix-1798-agentmem -> origin/claude/pp-fix-1798-agentmem
+2026-11-13T10:41:46.6278784Z  * [new branch]          claude/pp-fix-1798-diag -> origin/claude/pp-fix-1798-diag
+2026-11-13T10:41:46.6279755Z  * [new branch]          claude/probe-competition-flake -> origin/claude/probe-competition-flake
+2026-11-13T10:41:46.6280977Z  * [new branch]          claude/saved-graphic-engine-spec -> origin/claude/saved-graphic-engine-spec
+2026-11-13T10:41:46.6282085Z  * [new branch]          codex/editor-causality-20261111-clock-01 -> origin/codex/editor-causality-20261111-clock-01
+2026-11-13T10:41:46.6283236Z  * [new branch]          codex/editor-causality-20261111-clock-02 -> origin/codex/editor-causality-20261111-clock-02
+2026-11-13T10:41:46.6284512Z  * [new branch]          codex/editor-causality-20261111-clock-03 -> origin/codex/editor-causality-20261111-clock-03
+2026-11-13T10:41:46.6285645Z  * [new branch]          codex/editor-causality-20261111-clock-04 -> origin/codex/editor-causality-20261111-clock-04
+2026-11-13T10:41:46.6286885Z  * [new branch]          codex/editor-causality-20261111-clock-05 -> origin/codex/editor-causality-20261111-clock-05
+2026-11-13T10:41:46.6288096Z  * [new branch]          codex/editor-causality-20261111-clock-06 -> origin/codex/editor-causality-20261111-clock-06
+2026-11-13T10:41:46.6289303Z  * [new branch]          codex/editor-causality-20261111-clock-07 -> origin/codex/editor-causality-20261111-clock-07
+2026-11-13T10:41:46.6290452Z  * [new branch]          codex/editor-causality-20261111-clock-08 -> origin/codex/editor-causality-20261111-clock-08
+2026-11-13T10:41:46.6291620Z  * [new branch]          codex/editor-causality-20261111-clock-09 -> origin/codex/editor-causality-20261111-clock-09
+2026-11-13T10:41:46.6292765Z  * [new branch]          codex/editor-causality-20261111-clock-10 -> origin/codex/editor-causality-20261111-clock-10
+2026-11-13T10:41:46.6293893Z  * [new branch]          codex/editor-causality-20261111-clock-11 -> origin/codex/editor-causality-20261111-clock-11
+2026-11-13T10:41:46.6295180Z  * [new branch]          codex/editor-causality-20261111-clock-12 -> origin/codex/editor-causality-20261111-clock-12
+2026-11-13T10:41:46.6296295Z  * [new branch]          codex/editor-causality-20261111-operator-01 -> origin/codex/editor-causality-20261111-operator-01
+2026-11-13T10:41:46.6297525Z  * [new branch]          codex/editor-causality-20261111-operator-02 -> origin/codex/editor-causality-20261111-operator-02
+2026-11-13T10:41:46.6298893Z  * [new branch]          codex/editor-causality-20261111-operator-03 -> origin/codex/editor-causality-20261111-operator-03
+2026-11-13T10:41:46.6300155Z  * [new branch]          codex/editor-causality-20261111-operator-04 -> origin/codex/editor-causality-20261111-operator-04
+2026-11-13T10:41:46.6301359Z  * [new branch]          codex/editor-causality-20261111-operator-c2-01 -> origin/codex/editor-causality-20261111-operator-c2-01
+2026-11-13T10:41:46.6302493Z  * [new branch]          codex/editor-causality-20261111-operator-c2-02 -> origin/codex/editor-causality-20261111-operator-c2-02
+2026-11-13T10:41:46.6303692Z  * [new branch]          codex/editor-causality-20261111-operator-c2-03 -> origin/codex/editor-causality-20261111-operator-c2-03
+2026-11-13T10:41:46.6305079Z  * [new branch]          codex/editor-causality-20261111-operator-c2-04 -> origin/codex/editor-causality-20261111-operator-c2-04
+2026-11-13T10:41:46.6306503Z  * [new branch]          codex/editor-causality-20261111-operator-c3-01 -> origin/codex/editor-causality-20261111-operator-c3-01
+2026-11-13T10:41:46.6307665Z  * [new branch]          codex/editor-causality-20261111-operator-c3-02 -> origin/codex/editor-causality-20261111-operator-c3-02
+2026-11-13T10:41:46.6308782Z  * [new branch]          codex/editor-causality-20261111-operator-c3-03 -> origin/codex/editor-causality-20261111-operator-c3-03
+2026-11-13T10:41:46.6309900Z  * [new branch]          codex/editor-causality-20261111-operator-c3-04 -> origin/codex/editor-causality-20261111-operator-c3-04
+2026-11-13T10:41:46.6311022Z  * [new branch]          codex/editor-causality-20261111-operator-c4-01 -> origin/codex/editor-causality-20261111-operator-c4-01
+2026-11-13T10:41:46.6312241Z  * [new branch]          codex/editor-causality-20261111-operator-c4-02 -> origin/codex/editor-causality-20261111-operator-c4-02
+2026-11-13T10:41:46.6313450Z  * [new branch]          codex/editor-causality-20261111-operator-c4-03 -> origin/codex/editor-causality-20261111-operator-c4-03
+2026-11-13T10:41:46.6314776Z  * [new branch]          codex/editor-causality-20261111-operator-c4-03-completion-01 -> origin/codex/editor-causality-20261111-operator-c4-03-completion-01
+2026-11-13T10:41:46.6315960Z  * [new branch]          codex/editor-causality-20261111-operator-c4-04 -> origin/codex/editor-causality-20261111-operator-c4-04
+2026-11-13T10:41:46.6317041Z  * [new branch]          codex/editor-causality-20261111-operator-c5-01 -> origin/codex/editor-causality-20261111-operator-c5-01
+2026-11-13T10:41:46.6318121Z  * [new branch]          codex/editor-causality-20261111-operator-c5-02 -> origin/codex/editor-causality-20261111-operator-c5-02
+2026-11-13T10:41:46.6388797Z  * [new branch]          codex/editor-causality-20261111-operator-c5-03 -> origin/codex/editor-causality-20261111-operator-c5-03
+2026-11-13T10:41:46.6390770Z  * [new branch]          codex/editor-causality-20261111-operator-c5-04 -> origin/codex/editor-causality-20261111-operator-c5-04
+2026-11-13T10:41:46.6392599Z  * [new branch]          codex/editor-causality-evidence-reader-20261111 -> origin/codex/editor-causality-evidence-reader-20261111
+2026-11-13T10:41:46.6393732Z  * [new branch]          codex/editor-r1-5-quarantine-causality-20261111 -> origin/codex/editor-r1-5-quarantine-causality-20261111
+2026-11-13T10:41:46.6395018Z  * [new branch]          codex/plan-editor-r1-5-coordinator-2026-11-08 -> origin/codex/plan-editor-r1-5-coordinator-2026-11-08
+2026-11-13T10:41:46.6396057Z  * [new branch]          codex/plan-vmix-coordinator-2026-11-08 -> origin/codex/plan-vmix-coordinator-2026-11-08
+2026-11-13T10:41:46.6396978Z  * [new branch]          codex/plan-vmix-v4-build -> origin/codex/plan-vmix-v4-build
+2026-11-13T10:41:46.6397991Z  * [new branch]          dependabot/npm_and_yarn/cli/hono/node-server-2.1.8 -> origin/dependabot/npm_and_yarn/cli/hono/node-server-2.1.8
+2026-11-13T10:41:46.6399387Z  * [new branch]          dependabot/npm_and_yarn/cli/plugin-preview/hono/node-server-2.1.8 -> origin/dependabot/npm_and_yarn/cli/plugin-preview/hono/node-server-2.1.8
+2026-11-13T10:41:46.6400582Z  * [new branch]          dependabot/npm_and_yarn/hono/node-server-2.1.8 -> origin/dependabot/npm_and_yarn/hono/node-server-2.1.8
+2026-11-13T10:41:46.6401518Z  * [new branch]          main                    -> origin/main
+2026-11-13T10:41:46.6402354Z  * [new branch]          noacg/determined-einstein-2o0d0s -> origin/noacg/determined-einstein-2o0d0s
+2026-11-13T10:41:46.6403375Z  * [new branch]          noacg/peaceful-faraday-cp5pfe -> origin/noacg/peaceful-faraday-cp5pfe
+2026-11-13T10:41:46.6404439Z  * [new branch]          noacg/svg-fit-upgrade-editor -> origin/noacg/svg-fit-upgrade-editor
+2026-11-13T10:41:46.6405703Z  * [new branch]          quarantine/enter-2026-10-30-20ab0166 -> origin/quarantine/enter-2026-10-30-20ab0166
+2026-11-13T10:41:46.6406595Z  * [new branch]          revert/18e488f          -> origin/revert/18e488f
+2026-11-13T10:41:46.6407379Z  * [new branch]          revert/e76e101          -> origin/revert/e76e101
+2026-11-13T10:41:46.6408191Z  * [new branch]          security/backlog-2026-10-30 -> origin/security/backlog-2026-10-30
+2026-11-13T10:41:46.6409289Z  * [new branch]          vercel/install-and-configure-vercel-s-hcxirs -> origin/vercel/install-and-configure-vercel-s-hcxirs
+2026-11-13T10:41:46.6410322Z  * [new branch]          vercel/install-vercel-web-analytics-vy57wy -> origin/vercel/install-vercel-web-analytics-vy57wy
+2026-11-13T10:41:46.6411196Z  * [new tag]             bridge-v0.10.0          -> bridge-v0.10.0
+2026-11-13T10:41:46.6411913Z  * [new tag]             bridge-v0.10.1          -> bridge-v0.10.1
+2026-11-13T10:41:46.6412618Z  * [new tag]             bridge-v0.10.2          -> bridge-v0.10.2
+2026-11-13T10:41:46.6413301Z  * [new tag]             bridge-v0.11.0          -> bridge-v0.11.0
+2026-11-13T10:41:46.6414170Z  * [new tag]             bridge-v0.4.0           -> bridge-v0.4.0
+2026-11-13T10:41:46.6415142Z  * [new tag]             bridge-v0.4.0-preview   -> bridge-v0.4.0-preview
+2026-11-13T10:41:46.6415823Z  * [new tag]             bridge-v0.4.1           -> bridge-v0.4.1
+2026-11-13T10:41:46.6416480Z  * [new tag]             bridge-v0.4.2           -> bridge-v0.4.2
+2026-11-13T10:41:46.6417149Z  * [new tag]             bridge-v0.5.0           -> bridge-v0.5.0
+2026-11-13T10:41:46.6417804Z  * [new tag]             bridge-v0.6.0           -> bridge-v0.6.0
+2026-11-13T10:41:46.6418468Z  * [new tag]             bridge-v0.7.0           -> bridge-v0.7.0
+2026-11-13T10:41:46.6419131Z  * [new tag]             bridge-v0.8.0           -> bridge-v0.8.0
+2026-11-13T10:41:46.6419789Z  * [new tag]             bridge-v0.8.1           -> bridge-v0.8.1
+2026-11-13T10:41:46.6420446Z  * [new tag]             bridge-v0.9.0           -> bridge-v0.9.0
+2026-11-13T10:41:46.6421105Z  * [new tag]             cli-v0.10.1             -> cli-v0.10.1
+2026-11-13T10:41:46.6421741Z  * [new tag]             cli-v0.11.0             -> cli-v0.11.0
+2026-11-13T10:41:46.6422389Z  * [new tag]             cli-v0.12.0             -> cli-v0.12.0
+2026-11-13T10:41:46.6423016Z  * [new tag]             cli-v0.12.1             -> cli-v0.12.1
+2026-11-13T10:41:46.6423645Z  * [new tag]             cli-v0.12.2             -> cli-v0.12.2
+2026-11-13T10:41:46.6424425Z  * [new tag]             cli-v0.12.3             -> cli-v0.12.3
+2026-11-13T10:41:46.6425056Z  * [new tag]             cli-v0.12.4             -> cli-v0.12.4
+2026-11-13T10:41:46.6425695Z  * [new tag]             cli-v0.3.0              -> cli-v0.3.0
+2026-11-13T10:41:46.6426320Z  * [new tag]             cli-v0.3.1              -> cli-v0.3.1
+2026-11-13T10:41:46.6426947Z  * [new tag]             cli-v0.3.2              -> cli-v0.3.2
+2026-11-13T10:41:46.6427568Z  * [new tag]             cli-v0.3.3              -> cli-v0.3.3
+2026-11-13T10:41:46.6428188Z  * [new tag]             cli-v0.3.4              -> cli-v0.3.4
+2026-11-13T10:41:46.6428808Z  * [new tag]             cli-v0.7.0              -> cli-v0.7.0
+2026-11-13T10:41:46.6429534Z  * [new tag]             cli-v0.7.1              -> cli-v0.7.1
+2026-11-13T10:41:46.6430161Z  * [new tag]             cli-v0.7.2              -> cli-v0.7.2
+2026-11-13T10:41:46.6430794Z  * [new tag]             cli-v0.8.0              -> cli-v0.8.0
+2026-11-13T10:41:46.6431417Z  * [new tag]             cli-v0.8.1              -> cli-v0.8.1
+2026-11-13T10:41:46.6432047Z  * [new tag]             cli-v0.9.0              -> cli-v0.9.0
+2026-11-13T10:41:46.6432695Z  * [new tag]             companion-v0.2.0        -> companion-v0.2.0
+2026-11-13T10:41:46.6433359Z  * [new tag]             companion-v0.3.0        -> companion-v0.3.0
+2026-11-13T10:41:46.6435152Z [command]/usr/bin/git branch --list --remote origin/main
+2026-11-13T10:41:46.6435823Z   origin/main
+2026-11-13T10:41:46.6436954Z [command]/usr/bin/git rev-parse refs/remotes/origin/main
+2026-11-13T10:41:46.6437557Z 53b8f2ea2c677182c5892cf8a1d465888bc2df3f
+2026-11-13T10:41:46.6438934Z ##[endgroup]
+2026-11-13T10:41:46.6439734Z ##[group]Determining the checkout info
+2026-11-13T10:41:46.6440537Z ##[endgroup]
+2026-11-13T10:41:46.6441052Z [command]/usr/bin/git sparse-checkout disable
+2026-11-13T10:41:46.6442287Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-13T10:41:46.6443740Z ##[group]Checking out the ref
+2026-11-13T10:41:46.6444548Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-11-13T10:41:51.8620741Z Updating files:   0% (1/8394)
+2026-11-13T10:41:51.8643379Z Updating files:   1% (84/8394)
+2026-11-13T10:41:51.8671476Z Updating files:   2% (168/8394)
+2026-11-13T10:41:51.8710965Z Updating files:   3% (252/8394)
+2026-11-13T10:41:51.8811862Z Updating files:   4% (336/8394)
+2026-11-13T10:41:51.8861469Z Updating files:   5% (420/8394)
+2026-11-13T10:41:51.8939962Z Updating files:   6% (504/8394)
+2026-11-13T10:41:51.8998980Z Updating files:   7% (588/8394)
+2026-11-13T10:41:51.9067192Z Updating files:   8% (672/8394)
+2026-11-13T10:41:51.9127249Z Updating files:   9% (756/8394)
+2026-11-13T10:41:51.9194863Z Updating files:  10% (840/8394)
+2026-11-13T10:41:51.9243796Z Updating files:  11% (924/8394)
+2026-11-13T10:41:51.9299096Z Updating files:  12% (1008/8394)
+2026-11-13T10:41:51.9328751Z Updating files:  13% (1092/8394)
+2026-11-13T10:41:51.9379102Z Updating files:  14% (1176/8394)
+2026-11-13T10:41:51.9456438Z Updating files:  15% (1260/8394)
+2026-11-13T10:41:51.9528941Z Updating files:  16% (1344/8394)
+2026-11-13T10:41:51.9602708Z Updating files:  17% (1427/8394)
+2026-11-13T10:41:51.9671888Z Updating files:  18% (1511/8394)
+2026-11-13T10:41:51.9725451Z Updating files:  19% (1595/8394)
+2026-11-13T10:41:51.9753682Z Updating files:  20% (1679/8394)
+2026-11-13T10:41:51.9779616Z Updating files:  21% (1763/8394)
+2026-11-13T10:41:51.9805093Z Updating files:  22% (1847/8394)
+2026-11-13T10:41:51.9851271Z Updating files:  23% (1931/8394)
+2026-11-13T10:41:51.9920138Z Updating files:  24% (2015/8394)
+2026-11-13T10:41:51.9991692Z Updating files:  25% (2099/8394)
+2026-11-13T10:41:52.0066043Z Updating files:  26% (2183/8394)
+2026-11-13T10:41:52.0118283Z Updating files:  27% (2267/8394)
+2026-11-13T10:41:52.0154626Z Updating files:  28% (2351/8394)
+2026-11-13T10:41:52.0177551Z Updating files:  29% (2435/8394)
+2026-11-13T10:41:52.0200772Z Updating files:  30% (2519/8394)
+2026-11-13T10:41:52.0224280Z Updating files:  31% (2603/8394)
+2026-11-13T10:41:52.0248129Z Updating files:  32% (2687/8394)
+2026-11-13T10:41:52.0423278Z Updating files:  33% (2771/8394)
+2026-11-13T10:41:52.0677586Z Updating files:  34% (2854/8394)
+2026-11-13T10:41:52.0890094Z Updating files:  35% (2938/8394)
+2026-11-13T10:41:52.0976540Z Updating files:  36% (3022/8394)
+2026-11-13T10:41:52.1125915Z Updating files:  37% (3106/8394)
+2026-11-13T10:41:52.1225552Z Updating files:  38% (3190/8394)
+2026-11-13T10:41:52.1274974Z Updating files:  39% (3274/8394)
+2026-11-13T10:41:52.1302574Z Updating files:  40% (3358/8394)
+2026-11-13T10:41:52.1349297Z Updating files:  41% (3442/8394)
+2026-11-13T10:41:52.1449628Z Updating files:  42% (3526/8394)
+2026-11-13T10:41:52.1514234Z Updating files:  43% (3610/8394)
+2026-11-13T10:41:52.1577380Z Updating files:  44% (3694/8394)
+2026-11-13T10:41:52.1668550Z Updating files:  45% (3778/8394)
+2026-11-13T10:41:52.1799585Z Updating files:  46% (3862/8394)
+2026-11-13T10:41:52.1843504Z Updating files:  47% (3946/8394)
+2026-11-13T10:41:52.1886143Z Updating files:  48% (4030/8394)
+2026-11-13T10:41:52.1919745Z Updating files:  49% (4114/8394)
+2026-11-13T10:41:52.1957534Z Updating files:  50% (4197/8394)
+2026-11-13T10:41:52.2006903Z Updating files:  51% (4281/8394)
+2026-11-13T10:41:52.2075367Z Updating files:  52% (4365/8394)
+2026-11-13T10:41:52.2150541Z Updating files:  53% (4449/8394)
+2026-11-13T10:41:52.2219472Z Updating files:  54% (4533/8394)
+2026-11-13T10:41:52.2309400Z Updating files:  55% (4617/8394)
+2026-11-13T10:41:52.2374506Z Updating files:  56% (4701/8394)
+2026-11-13T10:41:52.2458459Z Updating files:  57% (4785/8394)
+2026-11-13T10:41:52.2582031Z Updating files:  58% (4869/8394)
+2026-11-13T10:41:52.2750970Z Updating files:  59% (4953/8394)
+2026-11-13T10:41:52.2822574Z Updating files:  60% (5037/8394)
+2026-11-13T10:41:52.2925945Z Updating files:  61% (5121/8394)
+2026-11-13T10:41:52.3048598Z Updating files:  62% (5205/8394)
+2026-11-13T10:41:52.3244645Z Updating files:  63% (5289/8394)
+2026-11-13T10:41:52.3301905Z Updating files:  64% (5373/8394)
+2026-11-13T10:41:52.3362411Z Updating files:  65% (5457/8394)
+2026-11-13T10:41:52.3407557Z Updating files:  66% (5541/8394)
+2026-11-13T10:41:52.3607350Z Updating files:  67% (5624/8394)
+2026-11-13T10:41:52.3660027Z Updating files:  68% (5708/8394)
+2026-11-13T10:41:52.3714692Z Updating files:  69% (5792/8394)
+2026-11-13T10:41:52.3777022Z Updating files:  70% (5876/8394)
+2026-11-13T10:41:52.3885121Z Updating files:  71% (5960/8394)
+2026-11-13T10:41:52.3959428Z Updating files:  72% (6044/8394)
+2026-11-13T10:41:52.4036535Z Updating files:  73% (6128/8394)
+2026-11-13T10:41:52.4106533Z Updating files:  74% (6212/8394)
+2026-11-13T10:41:52.4170549Z Updating files:  75% (6296/8394)
+2026-11-13T10:41:52.4233649Z Updating files:  76% (6380/8394)
+2026-11-13T10:41:52.4293170Z Updating files:  77% (6464/8394)
+2026-11-13T10:41:52.4351015Z Updating files:  78% (6548/8394)
+2026-11-13T10:41:52.4412040Z Updating files:  79% (6632/8394)
+2026-11-13T10:41:52.4470797Z Updating files:  80% (6716/8394)
+2026-11-13T10:41:52.4530631Z Updating files:  81% (6800/8394)
+2026-11-13T10:41:52.4572546Z Updating files:  82% (6884/8394)
+2026-11-13T10:41:52.4637864Z Updating files:  83% (6968/8394)
+2026-11-13T10:41:52.4688056Z Updating files:  84% (7051/8394)
+2026-11-13T10:41:52.4761439Z Updating files:  85% (7135/8394)
+2026-11-13T10:41:52.4829015Z Updating files:  86% (7219/8394)
+2026-11-13T10:41:52.4883486Z Updating files:  87% (7303/8394)
+2026-11-13T10:41:52.4943283Z Updating files:  88% (7387/8394)
+2026-11-13T10:41:52.4991560Z Updating files:  89% (7471/8394)
+2026-11-13T10:41:52.5029722Z Updating files:  90% (7555/8394)
+2026-11-13T10:41:52.5070373Z Updating files:  91% (7639/8394)
+2026-11-13T10:41:52.5119190Z Updating files:  92% (7723/8394)
+2026-11-13T10:41:52.5163299Z Updating files:  93% (7807/8394)
+2026-11-13T10:41:52.5204114Z Updating files:  94% (7891/8394)
+2026-11-13T10:41:52.5247990Z Updating files:  95% (7975/8394)
+2026-11-13T10:41:52.5300940Z Updating files:  96% (8059/8394)
+2026-11-13T10:41:52.5350224Z Updating files:  97% (8143/8394)
+2026-11-13T10:41:52.5400696Z Updating files:  98% (8227/8394)
+2026-11-13T10:41:52.5455922Z Updating files:  99% (8311/8394)
+2026-11-13T10:41:52.5456183Z Updating files: 100% (8394/8394)
+2026-11-13T10:41:52.5456346Z Updating files: 100% (8394/8394), done.
+2026-11-13T10:41:52.5528750Z Switched to a new branch 'main'
+2026-11-13T10:41:52.5533601Z branch 'main' set up to track 'origin/main'.
+2026-11-13T10:41:52.5565949Z ##[endgroup]
+2026-11-13T10:41:52.5608974Z [command]/usr/bin/git log -1 --format=%H
+2026-11-13T10:41:52.5634888Z 53b8f2ea2c677182c5892cf8a1d465888bc2df3f
+2026-11-13T10:41:52.5846014Z ##[group]Run actions/setup-node@v5
+2026-11-13T10:41:52.5846329Z with:
+2026-11-13T10:41:52.5846449Z   node-version: 24
+2026-11-13T10:41:52.5846577Z   cache: npm
+2026-11-13T10:41:52.5846694Z   always-auth: false
+2026-11-13T10:41:52.5846826Z   check-latest: false
+2026-11-13T10:41:52.5848390Z   token: ***
+2026-11-13T10:41:52.5848523Z   package-manager-cache: true
+2026-11-13T10:41:52.5848677Z ##[endgroup]
+2026-11-13T10:41:52.6831041Z (node:2197) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-13T10:41:52.6831963Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-13T10:41:52.6835137Z Found in cache @ /opt/hostedtoolcache/node/24.22.2/x64
+2026-11-13T10:41:52.6835573Z ##[group]Environment details
+2026-11-13T10:41:52.9565068Z node: v24.22.2
+2026-11-13T10:41:52.9565413Z npm: 11.19.1
+2026-11-13T10:41:52.9565739Z yarn: 1.22.22
+2026-11-13T10:41:52.9566328Z ##[endgroup]
+2026-11-13T10:41:52.9585708Z [command]/opt/hostedtoolcache/node/24.22.2/x64/bin/npm config get cache
+2026-11-13T10:41:53.0365783Z /home/runner/.npm
+2026-11-13T10:41:53.1866781Z Cache hit for: node-cache-Linux-x64-npm-f6534e8efbcb185272d21504ced33f1ba33b656490018118e5beb65abcf01961
+2026-11-13T10:41:53.1934890Z (node:2197) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-13T10:41:54.2719807Z Received 124649611 of 124649611 (100.0%), 127.5 MBs/sec
+2026-11-13T10:41:54.2722560Z Cache Size: ~119 MB (124649611 B)
+2026-11-13T10:41:54.2807306Z [command]/usr/bin/tar -xf /home/runner/work/_temp/35883339-76d2-435e-8e82-0a478b4bfd18/cache.tzst -P -C /home/runner/work/NoaCG-Studio/NoaCG-Studio --use-compress-program unzstd
+2026-11-13T10:41:54.4728949Z Cache restored successfully
+2026-11-13T10:41:54.4779481Z Cache restored from key: node-cache-Linux-x64-npm-f6534e8efbcb185272d21504ced33f1ba33b656490018118e5beb65abcf01961
+2026-11-13T10:41:54.5021331Z Prepare all required actions
+2026-11-13T10:41:54.5021714Z Getting action download info
+2026-11-13T10:41:54.6159910Z Download action repository 'actions/cache@v4' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-11-13T10:41:54.7159638Z ##[group]Run ./.github/actions/node-modules
+2026-11-13T10:41:54.7159822Z ##[endgroup]
+2026-11-13T10:41:54.7197859Z ##[start-action display=Resolve Node version;id=__self.node]
+2026-11-13T10:41:54.7809432Z ##[group]Run echo "major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"
+2026-11-13T10:41:54.7809826Z [36;1mecho "major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"[0m
+2026-11-13T10:41:54.7875739Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-13T10:41:54.7875950Z ##[endgroup]
+2026-11-13T10:41:54.8233038Z ##[end-action id=__self.node;outcome=success;conclusion=success;duration_ms=103]
+2026-11-13T10:41:54.8236695Z ##[start-action display=Cache node_modules;id=__self.cache]
+2026-11-13T10:41:54.8716093Z ##[group]Run actions/cache@v4
+2026-11-13T10:41:54.8716281Z with:
+2026-11-13T10:41:54.8716432Z   path: node_modules
+player-host/node_modules
+
+2026-11-13T10:41:54.8716764Z   key: node-modules-Linux-X64-node24-f1dfe0bfed7230bd92eb2b1be24317a071fb0858feb2f2be283bb7b0c6487acc
+2026-11-13T10:41:54.8717088Z   enableCrossOsArchive: false
+2026-11-13T10:41:54.8717245Z   fail-on-cache-miss: false
+2026-11-13T10:41:54.8717395Z   lookup-only: false
+2026-11-13T10:41:54.8717531Z   save-always: false
+2026-11-13T10:41:54.8717664Z ##[endgroup]
+2026-11-13T10:41:54.9394296Z (node:2267) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-13T10:41:54.9395114Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-13T10:41:55.0800226Z Cache not found for input keys: node-modules-Linux-X64-node24-f1dfe0bfed7230bd92eb2b1be24317a071fb0858feb2f2be283bb7b0c6487acc
+2026-11-13T10:41:55.0861107Z ##[end-action id=__self.cache;outcome=success;conclusion=success;duration_ms=262]
+2026-11-13T10:41:55.0863140Z ##[start-action display=npm ci;id=__self.__run]
+2026-11-13T10:41:55.0891171Z ##[group]Run npm ci --prefer-offline --no-audit --no-fund
+2026-11-13T10:41:55.0891452Z [36;1mnpm ci --prefer-offline --no-audit --no-fund[0m
+2026-11-13T10:41:55.0939079Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-13T10:41:55.0939284Z ##[endgroup]
+2026-11-13T10:41:57.0668317Z npm warn deprecated source-map@0.8.0-beta.0: The work that was done in this beta branch won't be included in future versions
+2026-11-13T10:41:58.7699278Z 
+2026-11-13T10:41:58.7700259Z > noacg-studio@0.1.0 postinstall
+2026-11-13T10:41:58.7700736Z > node scripts/dev-port.mjs && node scripts/gen-video-font-css.mjs && node scripts/build-player-host.mjs
+2026-11-13T10:41:58.7700972Z 
+2026-11-13T10:41:58.8219323Z 5174
+2026-11-13T10:41:58.8768482Z [video-fonts] wrote 521370 chars of @font-face CSS -> render-worker/remotion/videoFontFaces.generated.ts
+2026-11-13T10:41:58.9356294Z [player-host] npm ci
+2026-11-13T10:41:59.4962210Z 
+2026-11-13T10:41:59.4962971Z added 25 packages, and audited 26 packages in 516ms
+2026-11-13T10:41:59.4963233Z 
+2026-11-13T10:41:59.4963580Z 8 packages are looking for funding
+2026-11-13T10:41:59.4963889Z   run `npm fund` for details
+2026-11-13T10:41:59.4969551Z 
+2026-11-13T10:41:59.4969883Z found 0 vulnerabilities
+2026-11-13T10:41:59.5340645Z [player-host] npm run build
+2026-11-13T10:41:59.6103424Z 
+2026-11-13T10:41:59.6104215Z > noacg-player-host@0.1.0 build
+2026-11-13T10:41:59.6104564Z > vite build
+2026-11-13T10:41:59.6104691Z 
+2026-11-13T10:41:59.7599585Z [36mvite v8.3.4 [32mbuilding client environment for production...[36m[39m
+2026-11-13T10:41:59.7679083Z transforming...
+2026-11-13T10:41:59.8097665Z ✓ 21 modules transformed.
+2026-11-13T10:41:59.8251910Z rendering chunks...
+2026-11-13T10:41:59.8586361Z computing gzip size...
+2026-11-13T10:41:59.8637176Z ../public/player-host/index.html                  0.69 kB │ gzip:   0.43 kB
+2026-11-13T10:41:59.8637877Z ../public/player-host/assets/index-BRpXzI9k.js  460.89 kB │ gzip: 145.29 kB
+2026-11-13T10:41:59.8638082Z 
+2026-11-13T10:41:59.8648131Z [32m✓ built in 104ms[39m
+2026-11-13T10:41:59.8894394Z [player-host] built into public/player-host/ (single self-contained page)
+2026-11-13T10:41:59.9126297Z 
+2026-11-13T10:41:59.9126637Z added 411 packages in 5s
+2026-11-13T10:41:59.9996346Z ##[end-action id=__self.__run;outcome=success;conclusion=success;duration_ms=4913]
+2026-11-13T10:41:59.9999022Z ##[start-action display=Regenerate install-time artifacts;id=__self.__run_2]
+2026-11-13T10:42:00.0006321Z ##[end-action id=__self.__run_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-13T10:42:00.0038610Z ##[group]Run supabase/setup-cli@v1
+2026-11-13T10:42:00.0038776Z with:
+2026-11-13T10:42:00.0038894Z   version: 2.111.0
+2026-11-13T10:42:00.0039034Z ##[endgroup]
+2026-11-13T10:42:00.5407512Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/44194e09-79a7-4766-b755-7ec48a91c161 -f /home/runner/work/_temp/4e6578db-b7c1-4884-bf0c-d15348a40c60
+2026-11-13T10:42:01.5209363Z ##[group]Run if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
+2026-11-13T10:42:01.5209645Z [36;1mif [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then[0m
+2026-11-13T10:42:01.5210056Z [36;1m  echo "::notice title=Migrations::No SUPABASE_ACCESS_TOKEN in the production environment - migrations stay on the maintainer's machine (supabase/AGENTS.md)."[0m
+2026-11-13T10:42:01.5210441Z [36;1m  exit 0[0m
+2026-11-13T10:42:01.5210565Z [36;1mfi[0m
+2026-11-13T10:42:01.5210713Z [36;1mnode scripts/migration-drift.mjs || true[0m
+2026-11-13T10:42:01.5211000Z [36;1m# Production first, then staging by name - db-push defaults to production, so the[0m
+2026-11-13T10:42:01.5211364Z [36;1m# staging push must say which project (scripts/supabase-projects.mjs). Staging is pushed[0m
+2026-11-13T10:42:01.5211719Z [36;1m# even when production's push fails or a hold there is overdue, so it does not fall[0m
+2026-11-13T10:42:01.5212028Z [36;1m# behind on everything else; the step still fails if either did.[0m
+2026-11-13T10:42:01.5212416Z [36;1mstatus=0[0m
+2026-11-13T10:42:01.5212567Z [36;1mnode scripts/db-push.mjs || status=$?[0m
+2026-11-13T10:42:01.5212966Z [36;1mnode scripts/db-push.mjs --ref "$(node -e "import('./scripts/supabase-projects.mjs').then((m) => console.log(m.stagingRef(process.env)))")" || status=$?[0m
+2026-11-13T10:42:01.5213345Z [36;1mexit "$status"[0m
+2026-11-13T10:42:01.5256301Z shell: /usr/bin/bash -e {0}
+2026-11-13T10:42:01.5256461Z env:
+2026-11-13T10:42:01.5256943Z   SUPABASE_ACCESS_TOKEN: ***
+2026-11-13T10:42:01.5257162Z   VITE_SUPABASE_URL: https://kprolrchuldgfrzspthy.supabase.co
+2026-11-13T10:42:01.5257382Z ##[endgroup]
+2026-11-13T10:42:01.5561669Z [measured] 114 local migrations
+2026-11-13T10:42:03.0661043Z Production holds all 114 migration(s).
+2026-11-13T10:42:03.0661357Z Staging holds all 114 migration(s).
+2026-11-13T10:42:03.8378541Z kprolrchuldgfrzspthy holds all 114 migration(s). Nothing to push.
+2026-11-13T10:42:04.6558608Z garafohbzmsybtysxphb holds all 114 migration(s). Nothing to push.
+2026-11-13T10:42:04.6857419Z ##[group]Run if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
+2026-11-13T10:42:04.6857695Z [36;1mif [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then[0m
+2026-11-13T10:42:04.6858032Z [36;1m  echo "::notice title=Advisors::No SUPABASE_ACCESS_TOKEN in the production environment - the advisors were not asked."[0m
+2026-11-13T10:42:04.6858338Z [36;1m  exit 0[0m
+2026-11-13T10:42:04.6858457Z [36;1mfi[0m
+2026-11-13T10:42:04.6858574Z [36;1mstatus=0[0m
+2026-11-13T10:42:04.6858740Z [36;1mnode scripts/supabase-advisors.mjs || status=$?[0m
+2026-11-13T10:42:04.6858936Z [36;1mcase "$status" in[0m
+2026-11-13T10:42:04.6859075Z [36;1m  0) ;;[0m
+2026-11-13T10:42:04.6859193Z [36;1m  1)[0m
+2026-11-13T10:42:04.6859852Z [36;1m    echo "::error title=Advisors::A Supabase advisor finding that is new since supabase/advisor-baseline.json. Read it in the log above, then either fix it or re-record the baseline with the judgement written down (docs/STACK_FRESHNESS.md). If the migration that caused it landed before this one, say so when you re-record."[0m
+2026-11-13T10:42:04.6860511Z [36;1m    exit 1[0m
+2026-11-13T10:42:04.6860634Z [36;1m    ;;[0m
+2026-11-13T10:42:04.6860756Z [36;1m  3)[0m
+2026-11-13T10:42:04.6861150Z [36;1m    echo "::warning title=Advisors::The advisors could not be asked, so this landing was not checked. See the error above; nothing here needs fixing if the Management API was simply unavailable."[0m
+2026-11-13T10:42:04.6861631Z [36;1m    ;;[0m
+2026-11-13T10:42:04.6861753Z [36;1m  *)[0m
+2026-11-13T10:42:04.6862094Z [36;1m    echo "::error title=Advisors::The advisor check could not run (exit $status) - that is a defect in this repository, not an upstream outage. See the error above."[0m
+2026-11-13T10:42:04.6862464Z [36;1m    exit 1[0m
+2026-11-13T10:42:04.6862590Z [36;1m    ;;[0m
+2026-11-13T10:42:04.6862704Z [36;1mesac[0m
+2026-11-13T10:42:04.6904182Z shell: /usr/bin/bash -e {0}
+2026-11-13T10:42:04.6904335Z env:
+2026-11-13T10:42:04.6904627Z   SUPABASE_ACCESS_TOKEN: ***
+2026-11-13T10:42:04.6904845Z   VITE_SUPABASE_URL: https://kprolrchuldgfrzspthy.supabase.co
+2026-11-13T10:42:04.6905059Z ##[endgroup]
+2026-11-13T10:42:06.8041802Z [measured] 222 advisor findings
+2026-11-13T10:42:06.8057293Z [measured] 223 accepted baseline findings
+2026-11-13T10:42:06.8067800Z 222 advisor findings; 223 accepted in the baseline.
+2026-11-13T10:42:06.8068105Z 
+2026-11-13T10:42:06.8068351Z Gone since the baseline (1) - re-record when convenient:
+2026-11-13T10:42:06.8068805Z   - unused_index_public_user_feedback_user_feedback_created_idx
+2026-11-13T10:42:06.8274632Z Post job cleanup.
+2026-11-13T10:42:06.8277108Z ##[start-action display=Cache node_modules;id=__c680a8e7-eb53-4a45-bb99-0f9eb88521bb.cache]
+2026-11-13T10:42:06.8721791Z Post job cleanup.
+2026-11-13T10:42:06.9433242Z (node:2473) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-13T10:42:06.9433738Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-13T10:42:06.9587016Z [command]/usr/bin/tar --posix -cf cache.tzst --exclude cache.tzst -P -C /home/runner/work/NoaCG-Studio/NoaCG-Studio --files-from manifest.txt --use-compress-program zstdmt
+2026-11-13T10:42:08.0519192Z (node:2473) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-13T10:42:09.0470048Z Sent 42074112 of 125874143 (33.4%), 40.1 MBs/sec
+2026-11-13T10:42:10.0472165Z Sent 91684864 of 125874143 (72.8%), 43.7 MBs/sec
+2026-11-13T10:42:11.0468477Z Sent 125874143 of 125874143 (100.0%), 40.0 MBs/sec
+2026-11-13T10:42:11.3599548Z Cache saved with key: node-modules-Linux-X64-node24-f1dfe0bfed7230bd92eb2b1be24317a071fb0858feb2f2be283bb7b0c6487acc
+2026-11-13T10:42:11.3692128Z ##[end-action id=__c680a8e7-eb53-4a45-bb99-0f9eb88521bb.cache;outcome=success;conclusion=success;duration_ms=4541]
+2026-11-13T10:42:11.3815899Z Post job cleanup.
+2026-11-13T10:42:11.4717290Z (node:2499) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-13T10:42:11.4718270Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-13T10:42:11.4720214Z Cache hit occurred on the primary key node-cache-Linux-x64-npm-f6534e8efbcb185272d21504ced33f1ba33b656490018118e5beb65abcf01961, not saving cache.
+2026-11-13T10:42:11.4911997Z Post job cleanup.
+2026-11-13T10:42:11.5512450Z [command]/usr/bin/git version
+2026-11-13T10:42:11.5548487Z git version 2.56.1
+2026-11-13T10:42:11.5575881Z Temporarily overriding HOME='/home/runner/work/_temp/c5892322-625b-48ad-a4c8-0009cf4a1dae' before making global git config changes
+2026-11-13T10:42:11.5576485Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-13T10:42:11.5579382Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-11-13T10:42:11.5728442Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-13T10:42:11.5770037Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-13T10:42:11.6074194Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-13T10:42:11.6115199Z http.https://github.com/.extraheader
+2026-11-13T10:42:11.6123383Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-13T10:42:11.6211006Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-13T10:42:11.6468055Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-13T10:42:11.6504919Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-13T10:42:11.6905515Z Cleaning up orphan processes
+2026-11-13T10:42:11.7198164Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@v4, supabase/setup-cli@v1. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

@@ -1,0 +1,39 @@
+{
+  "observedAt": "2026-11-13T10:57:24.019565+00:00",
+  "mergeSha": "5f6c362f6ce22b820e867648ab11dca97c854480",
+  "followingMainSha": "53b8f2ea2c677182c5892cf8a1d465888bc2df3f",
+  "diffNameStatus": "M\te2e/import-svg-corpus.spec.ts",
+  "claim": "Following-main unchanged-input applicability only; not an exact5f6 execution or E4PASS.",
+  "postlanding": {
+    "run": 43411040568,
+    "job": 131837230838,
+    "status": "SUCCESS",
+    "executedSha": "53b8f2ea2c677182c5892cf8a1d465888bc2df3f",
+    "actualLog": "postland-131837230838-full.log",
+    "sha256": "38c0b90550500116bc79ec2bc78228d4b31640479f6f7e61d505abe421a216aa",
+    "observed": "Production and staging hold all114migrations; nothingtopush. Actualadvisors222 findings versus223acceptedbaseline; onlyonegoneunusedindex, no newfinding.",
+    "applicability": "Only interveningchange is unrelatede2e/import-svg-corpus.spec.ts; allmigration/advisor/runtime/workflowinputs identical."
+  },
+  "quarantine": {
+    "run": 43411040564,
+    "job": 131837384660,
+    "executedSha": "53b8f2ea2c677182c5892cf8a1d465888bc2df3f",
+    "status": "SUCCESS",
+    "passed": 18,
+    "failed": 0,
+    "spec": "e2e/publish-output-setup.spec.ts",
+    "duration": "1.7min",
+    "workers": 1,
+    "actualLog": "postland-131837384660-full.log",
+    "sha256": "902ee24d9d3db69116df757fbddfba849b94601f27dd3bce7c1f50a795d8c3b3",
+    "applicability": "Exactspec/product/runtime/selection/dependencies/quarantineworkflow unchanged; configuredquarantines awaitspecificmainrun results."
+  },
+  "deployment": {
+    "exactMergeDeployments": [],
+    "claim": "RESTreturnedempty exactSHAdeployments listing; no deployedexact5f6receipt claimed."
+  },
+  "codeql": {
+    "exactMergeChecks": "NoCodeQLin30actualexactmergecheckruns; all30terminal. Source333CodeQL43405595106 historicalSUCCESS; no exactmergeanalysesclaim.",
+    "analysesAPI": "403 Resource not accessible by integration, no retry or bypass."
+  }
+}

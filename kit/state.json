@@ -70,7 +70,7 @@
       "phase": "E4",
       "step": "Fresh independent exact-merge acceptance active",
       "pr": 2438,
-      "note": "Action8 delivered by supervisor; nativechecker /root/editor_e4_independent_check startupqualified and ACKed. Exactmerge5f6 remainspinned. Mergegroup43408993923 SUCCESS; mainpushcarriers are atnextmerge53b8. Checker owns evidence and reconciliation before any supported exactsource dispatch. E4notPASS; rootsole activeowner, all spentattempts retained."
+      "note": "Fresh independent checker active exact5f6. Own copy/brand journeyPASS, originalDiscard+projects broaderinprogress. ExactCI43412804437/configured43412916091 pending, isolated43412858383SUCCESS. Followingmain53b8 normalCI/configured/postland/quarantineSUCCESS withunchangedrelevantinputs; evidence separatelylabelled. No E4PASS/phaseadvance, no extra repair."
     }
   ],
   "owner": [
@@ -2446,7 +2446,31 @@
           "known": false,
           "limitation": "hidden cgroup ancestors unreadable; machine totals used"
         },
-        "startup": "Worker final startup receipt10:52:22.870Z; exactsource/worktree/branch/request/brief/env, clean, no tests before acceptedACK. Native threadUUIDunexposed."
+        "startup": "Worker final startup receipt10:52:22.870Z; exactsource/worktree/branch/request/brief/env, clean, no tests before acceptedACK. Native threadUUIDunexposed.",
+        "progressAt": "2026-11-13T11:01:38.876800+00:00",
+        "progress": {
+          "ownUi": "j0124 PASS1/1 17.3s zero skips/retries; independent brand/override/undo,3starters,2production subsets,disjointIDs,sourceSAVE+oneproductionedit preserveother,Home reopen. Worker-reported; rootfinalreadbackpending.",
+          "broader": "j0125 active, one12min admission editor-projects+originalnew-graphic-guard.",
+          "exactCi": 43412804437,
+          "exactConfigured": 43412916091,
+          "exactBackend": {
+            "run": 43412858383,
+            "job": 131843329059,
+            "status": "SUCCESS",
+            "scope": "Disposable isolated account/realpersistence; workerwholelog/cleanup readback required."
+          },
+          "followingMain": {
+            "sha": "53b8f2ea2c677182c5892cf8a1d465888bc2df3f",
+            "ci": 43411040689,
+            "configured": 43411040608,
+            "status": "SUCCESS",
+            "configuredPasses": 160,
+            "existingSkips": 3,
+            "configuredQuarantine": "all3PASS actualjob131844019849",
+            "offlineQuarantine": "18PASS actualjob131837384660",
+            "applicability": "Only interveningSVGtestchanged; explicit inputapplicability, neverclaim exactSHA."
+          }
+        }
       }
     }
   },
