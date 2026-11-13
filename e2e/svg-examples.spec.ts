@@ -251,8 +251,15 @@ test('the seven SVG examples import with their fields and moments and run from o
     artwork.evaluate(() => (window as unknown as { noacgCreditsTween: { progress(): number } }).noacgCreditsTween.progress());
   await shot(page, 'credits-rolling-early', 4_000);
   await shot(page, 'credits-rolling-mid', 10_000);
+  // The roll runs to its end at 20x: the same tween, every frame and callback, without watching
+  // half a minute of it in real time (nothing below changes its speed live). Tutorial screenshots
+  // keep the real pace.
+  type Tween = { progress(): number; timeScale(s: number): void };
+  const rollAt = (scale: number) => artwork.evaluate((_, s) => (window as unknown as { noacgCreditsTween: Tween }).noacgCreditsTween.timeScale(s), scale);
+  if (!SHOTS) await rollAt(20);
   // The entire original text has left the top, including the paragraphs below the artboard.
   await expect.poll(progress, { timeout: 65_000 }).toBe(1);
+  if (!SHOTS) await rollAt(1);
   expect(await artwork.evaluate((el) => {
     const frame = el.closest('svg')!.getBoundingClientRect();
     return el.getBoundingClientRect().bottom - frame.top;
