@@ -67,8 +67,23 @@ All three pass on the local stack (jobs j-0001 and j-0004):
 | A publish made to fail keeps the save, amber then red "Saved, not on the outputs", the next page opened publishes it | Pass |
 | Two publishers finishing in reverse order leave the newer save published | Pass: the older publish was held on the wire until the newer landed |
 
-Found while building: the page's Presence reader dropped the new `au` member, so every new output
-read as old (fixed in `readLiveEntry`, with a Node test).
+The walk runs with both switches on (`production_copies` and `auto_publish`), as production has
+them; all three pass again on that setting (job j-0025).
+
+Found while building:
+- The page's Presence reader dropped the new `au` member, so every new output read as old (fixed in
+  `readLiveEntry`, with a Node test).
+- The automatic publish's own `fetch` did not carry the production-copies build mark, so with that
+  switch on (production) the 0115 guard would have refused every automatic publish. The first walk
+  ran with that switch off and missed it. Fixed (the mark is sent) and the walk now turns both
+  switches on.
+- A revision-only update left the row's source columns as a Connect had written them (review on
+  #2469): they leave the content digest and ride every revision-only update.
+
+### R20 (owner decision Q1)
+
+`scripts/output-quiet-build.test.mjs`: a changed and an added graphic start no frame while a Take
+waits to run on the output, and start once it has; removing the wait fails the test.
 
 ### Press to ran (AC-4), production build
 
