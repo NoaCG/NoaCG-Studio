@@ -3167,13 +3167,22 @@
       "codeql": {
         "run": 43460774127,
         "status": "inprogress"
+      },
+      "reviewedOriginal": {
+        "job": 132006813331,
+        "result": "FAILONLYmissingrootreviewstatusafter148s28polls; softwareothersstillrunning",
+        "log": "e6c-publication/source-reviewed-132006813331-whole.log",
+        "bytes": 13330,
+        "sha256": "3cafa61539980000e9bc55628474ab571a4832954d09c9d446ccebc8f7e5f64d",
+        "disposition": "No workerrepair/status/rerun. Existingmainhelperonlyafterallgates/runterminal; reviveReviewedonly, no softwaretestretry/quarantineclaim."
       }
     },
     "mainReconciliation": {
       "main": "7451fbbacf03a1c763b4e9939b7ed800c8faf5de",
       "pr": 2488,
       "delta": "33paths3207+/106-, materialbackendmigrations/productionautopublish/hostedoutputversion. No43pathoverlap. merge-treeclean0d44c49914d7381948862d3cfdf53a3f59ceb4c8; reviewed569unchanged/no merge/rebase. NormalPR/mergegroupcombinedsourcechecks/freshexactmergeacceptanceowed.",
-      "applicability": "DirectZIP exporter/preview/render/templates/fonts/lockpaths unchanged; existing ProductionPage and outputstagecomposeDocumentcallsremain; newpublishRevisionstagebuildOutputPayload notreceivingZIPbuilder. Currentc456nativeapp is source-specific, NOT wholemergedappidentity/currenthostedpublishacceptance. No thirdmanualbundleadmission."
+      "applicability": "DirectZIP exporter/preview/render/templates/fonts/lockpaths unchanged; existing ProductionPage and outputstagecomposeDocumentcallsremain; newpublishRevisionstagebuildOutputPayload notreceivingZIPbuilder. Currentc456nativeapp is source-specific, NOT wholemergedappidentity/currenthostedpublishacceptance. No thirdmanualbundleadmission.",
+      "actualTestMerge": "d8a6427b9c87a61a3b0dcd01263425c2a14b8768 = reviewed569 into7451; notlanding"
     },
     "canonicalSideEnds": {
       "head": "569aaceb523ccdfbbbe4cf3cad2238667aeeea73",
@@ -3183,6 +3192,17 @@
         "why": []
       },
       "rootActual": "Executedcanonicalphase-cf03-baseline.sideEnds inactualfeaturecwd onfullbase1178\u219256943paths."
-    }
+    },
+    "sourceCheckStamp": {
+      "rootPhysicalRead": "/workspace/NoaCG-Studio/.git/noacg-jobs/checks/codex-plan-editor-r1-5-e6c-build.json",
+      "head": "569aaceb523ccdfbbbe4cf3cad2238667aeeea73",
+      "base": "1178ac8e8b1c3cabef036e57a1a50c74576ebf93",
+      "files": 43,
+      "at": "2026-11-13T16:13:37.560Z",
+      "verdict": "pass",
+      "legs": "review/simplify/verify inline0findings0fixed; requiredRiskyRulesandFULLAindependentlyread"
+    },
+    "finalCurrentCandidateDecision": "No newmanualadmission. Nativec456 remainsvalidsource-specific; main7451materialwholeappdelta prevents relabelasactualmergedE5candidate. After actualmerge+integration evidence rootwillassessconcreteneed/source/bounds for finalcurrentcandidate using normalriskverification; neverautomaticthird/oldbudgetreset. No docs/codechangesnow.",
+    "prRules": "WorkeractualPRBODYONLY addedconciseRules1\u20136; same569head/no push/review/testchange. RequiredobservableprecodeRules repeated."
   }
 }
