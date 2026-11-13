@@ -67,12 +67,29 @@ function sceneMembers(show: SceneRecord): [string, NonNullable<Show['cues']>][] 
   return out;
 }
 
-/** Which scene holds each pool graphic (pool id to scene id) on a record: the first scene in
- *  rundown order that uses it. Read before a write, it is C2's "the scene that used it before". */
-export function sceneOwners(show: SceneRecord): Map<string, string> {
+/** What a write's separation reads of the record as it was before the write: which scene held
+ *  each pool graphic (the first in rundown order that used it, C2's "the scene that used it
+ *  before"), and each scene cue's scene and graphic, so a cue the write did not touch is known. */
+export interface SceneSnapshot {
+  owners: ReadonlyMap<string, string>;
+  cues: ReadonlyMap<string, string>;
+}
+
+export function sceneSnapshot(show: SceneRecord): SceneSnapshot {
   const owners = new Map<string, string>();
-  for (const [scene, cues] of sceneMembers(show)) for (const c of cues) if (!owners.has(c.sourceId)) owners.set(c.sourceId, scene);
-  return owners;
+  const cues = new Map<string, string>();
+  for (const [scene, members] of sceneMembers(show)) {
+    for (const c of members) {
+      if (!owners.has(c.sourceId)) owners.set(c.sourceId, scene);
+      cues.set(c.id, `${scene}|${c.sourceId}`);
+    }
+  }
+  return { owners, cues };
+}
+
+/** The folders that are OBS scenes while the switch is on: All out leaves their runs and steps. */
+export function sceneFolderIds(show: SceneRecord): Set<string> {
+  return new Set(obsScenesOf(show).map((s) => s.id));
 }
 
 /** The pool graphic names that are some scene's graphics: what All out leaves as they are (C9). */
@@ -100,14 +117,14 @@ export function sceneCopyId(sourceId: string, sceneId: string, n: number): strin
 /**
  * C2 to C5 and C10, C11 on a record a write just changed, in place: each pool graphic ends used by
  * one scene at most, except the production's own picture graphic, which is never copied. `before`
- * is `sceneOwners` of the record before the write. Every other scene's cues of a graphic move to
+ * is `sceneSnapshot` of the record before the write. Every other scene's cues of a graphic move to
  * that scene's copy of it, made here when it has none. Answers whether anything changed, or the
  * guard's sentence for a cue that may not move, and then changes nothing. Never runs with the
  * switch off, and never touches a cue outside a scene.
  */
 export function separateSceneGraphics(
   show: SceneRecord,
-  before: ReadonlyMap<string, string>,
+  before: SceneSnapshot,
   deps: { freeLayer: (graphics: Show['graphics']) => number; guard?: SceneCopyGuard },
 ): boolean | string {
   const members = sceneMembers(show);
@@ -122,15 +139,20 @@ export function separateSceneGraphics(
   }
   const owner = new Map<string, string>();
   for (const [id, scenes] of users) {
-    const was = before.get(id);
+    const was = before.owners.get(id);
     owner.set(id, was !== undefined && scenes.includes(was) ? was : scenes[0]);
   }
-  const moving = members.flatMap(([scene, cues]) => cues.filter((c) => owner.get(c.sourceId) !== scene && !own.has(c.sourceId)).map((c) => [scene, c] as const));
-  if (moving.length === 0) return false;
-  for (const [, c] of moving) {
+  const candidates = members.flatMap(([scene, cues]) => cues.filter((c) => owner.get(c.sourceId) !== scene && !own.has(c.sourceId)).map((c) => [scene, c] as const));
+  // A cue the guard holds (C10, C11) refuses the write when the write put it where it is; one the
+  // write did not touch (a record that came shared, from a sync or an older build) stays as it is.
+  const moving: (typeof candidates)[number][] = [];
+  for (const [scene, c] of candidates) {
     const refused = deps.guard?.(c);
-    if (refused) return refused;
+    if (!refused) moving.push([scene, c]);
+    else if (before.cues.get(c.id) !== `${scene}|${c.sourceId}`) return refused;
   }
+  if (moving.length === 0) return false;
+  const used = new Set((show.cues ?? []).map((c) => c.sourceId));
 
   const names = new Map((show.folders ?? []).map((f) => [f.id, f.name] as const));
   const repoint = new Map<string, string>();
@@ -140,7 +162,8 @@ export function separateSceneGraphics(
     let copy = chosen.get(key);
     if (!copy) {
       // The scene's copy: the first of its stable ids that is free, or held by a copy of this
-      // graphic that no other scene uses (one left behind under C6 is taken up again).
+      // graphic that this scene uses or no cue at all does (one left behind under C6 is taken up
+      // again; one a cue outside the scenes uses stays that cue's, C5).
       for (let n = 0; ; n += 1) {
         const id = sceneCopyId(c.sourceId, scene, n);
         const held = show.graphics.find((g) => g.id === id);
@@ -149,8 +172,7 @@ export function separateSceneGraphics(
           copy = id;
           break;
         }
-        const heldBy = owner.get(id);
-        if (held.sceneCopyOf === c.sourceId && (heldBy === undefined || heldBy === scene)) {
+        if (held.sceneCopyOf === c.sourceId && (owner.get(id) === scene || !used.has(id))) {
           copy = id;
           break;
         }

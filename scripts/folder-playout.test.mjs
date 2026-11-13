@@ -970,3 +970,13 @@ test('the misses and the step bookkeeping: cleared, noted and settled only when 
   r.fp.noteStep(togetherCues[0]);
   assert.equal(r.folders(), noted, 'only a One-by-one folder has a step');
 });
+
+test('All out keeps an OBS scene\'s step and run, and starts every other folder again (obs-scenes OS1b C9)', async () => {
+  const SCENE = { id: 'S', name: 'Desk', mode: 'manual', obsScene: true };
+  const r = folderRig({ folders: [MANUAL, SCENE], cues: [...manualCues, graphic('s1', 'S'), graphic('s2', 'S')] });
+  r.session.apply((p) => ({ ...p, folders: { ...p.folders, folderSteps: { M: 'g1', S: 's1' } } }));
+  r.fp.stopAll('all-out', new Set(['S']));
+  assert.deepEqual(r.folders().folderSteps, { M: null, S: 's1' });
+  r.fp.stopAll('all-out');
+  assert.deepEqual(r.folders().folderSteps, { M: null, S: null }, 'with the switch off, as before');
+});

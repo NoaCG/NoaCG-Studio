@@ -32,7 +32,7 @@ import type { JsonValue } from './productionData';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
-import { sceneOwners, separateSceneGraphics, type SceneCopyGuard } from './obsScenes';
+import { sceneSnapshot, separateSceneGraphics, type SceneCopyGuard } from './obsScenes';
 import { JOIN_PAGE_LIMITS } from './joinPage';
 import { readQuestions, setWordHidden, type ShowQuestion } from './questions';
 import { scrubHiddenWords } from './wordCues';
@@ -1145,17 +1145,6 @@ export function setGraphicCopyScript(showId: string, graphicId: string, from: st
   });
 }
 
-/** `patchShow`, answering too whether the write was refused on the spot (a full store, or a
- *  refusal string from `mutate`): what a folder write that tells the operator anything reports,
- *  with `commitDurableWrites` after it.
- *
- *  REBASED, for a write whose RULE reads the rest of the record: a binding on a field prepared
- *  messages use, and a message prepared onto a bound field (`preparedMessageField`). The mutation
- *  runs on this tab's copy, as every write does, and again on the record the database holds when
- *  the write lands (`rebasedDurableSet`), so a tab that has not yet heard of another tab's prepare
- *  or binding neither passes the rule on its old copy nor writes that copy back. `mutate` must then
- *  give the same answer for the same record (no fresh ids inside it). A team production is not in
- *  this database and keeps the ordinary write; its merge keeps the rule (teamShowMerge.ts). */
 /** The cues a production page has on air (obs-scenes OS1b C10): a write never moves one of them to
  *  an OBS scene's copy. The page that holds air sets it; none is the empty answer. */
 let sceneAirCues: () => ReadonlySet<string> = () => new Set();
@@ -1165,8 +1154,10 @@ export function setSceneAirCues(read: (() => ReadonlySet<string>) | null): void 
 
 /** C10, C11: why a cue may not move to an OBS scene's copy, in the operator's words. */
 function sceneCopyGuard(show: Show): SceneCopyGuard {
-  const air = sceneAirCues();
+  // Read only when a cue would move: most writes move none.
+  let air: ReadonlySet<string> | null = null;
   return (cue) => {
+    air ??= sceneAirCues();
     if (air.has(cue.id)) return `Take "${cue.label}" off air before you put its graphic in a second OBS scene.`;
     if (selectionReadOnly(cue, show.collections) || (cue.typed !== undefined && typedReadOnly(cue))) {
       return `"${cue.label}" was saved by a newer version, so its graphic cannot be put in a second OBS scene here.`;
@@ -1184,10 +1175,12 @@ function withSceneCopies(mutate: (show: Show, at: string) => boolean | string): 
   let refused = false;
   return {
     run: (show, at) => {
-      const before = sceneOwners(show);
+      const before = sceneSnapshot(show);
       const result = mutate(show, at);
       if (result !== true) return result;
-      const separated = separateSceneGraphics(show, before, { freeLayer: nextFreeLayer, guard: sceneCopyGuard(show) });
+      // A copy's layer is free among the graphics and the server's templates, as a new template's is.
+      const freeLayer = (graphics: Show['graphics']) => nextFreeLayer([...graphics, ...(show.playoutItems ?? []).filter((i) => i.kind === 'template')]);
+      const separated = separateSceneGraphics(show, before, { freeLayer, guard: sceneCopyGuard(show) });
       if (typeof separated === 'string') {
         refused = true;
         return separated;
@@ -1198,6 +1191,17 @@ function withSceneCopies(mutate: (show: Show, at: string) => boolean | string): 
   };
 }
 
+/** `patchShow`, answering too whether the write was refused on the spot (a full store, or a
+ *  refusal string from `mutate`): what a folder write that tells the operator anything reports,
+ *  with `commitDurableWrites` after it.
+ *
+ *  REBASED, for a write whose RULE reads the rest of the record: a binding on a field prepared
+ *  messages use, and a message prepared onto a bound field (`preparedMessageField`). The mutation
+ *  runs on this tab's copy, as every write does, and again on the record the database holds when
+ *  the write lands (`rebasedDurableSet`), so a tab that has not yet heard of another tab's prepare
+ *  or binding neither passes the rule on its old copy nor writes that copy back. `mutate` must then
+ *  give the same answer for the same record (no fresh ids inside it). A team production is not in
+ *  this database and keeps the ordinary write; its merge keeps the rule (teamShowMerge.ts). */
 function patchShowChecked(
   showId: string,
   mutate: (show: Show, at: string) => boolean | string,

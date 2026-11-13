@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import './lib/tsResolve.mjs';
 
-const { obsScenesOf, sceneOwners, separateSceneGraphics, sceneGraphicNames, sceneCopyId } = await import('../src/model/obsScenes.ts');
+const { obsScenesOf, sceneSnapshot, separateSceneGraphics, sceneGraphicNames, sceneCopyId } = await import('../src/model/obsScenes.ts');
 const { poolPlacement } = await import('../src/model/poolIdentity.ts');
 
 const pool = (id, name, layer, extra = {}) => ({ id, name, type: 'lowerThird', savedAt: 't0', template: { name, fields: [] }, layer, ...extra });
@@ -24,7 +24,7 @@ const copyId = (source, scene, n = 0) => sceneCopyId(source, scene, n);
 
 /** One write as shows.ts patchShowChecked runs it: owners read before, separation after. */
 function write(show, mutate, d = deps()) {
-  const before = sceneOwners(show);
+  const before = sceneSnapshot(show);
   mutate(show);
   const result = separateSceneGraphics(show, before, d);
   if (typeof result === 'string') throw new Error(result);
@@ -173,7 +173,7 @@ test('the walk: after every random edit each graphic is in one scene at most, an
       mutate(edited);
       for (const key of Object.keys(show)) delete show[key];
       Object.assign(show, structuredClone(edited));
-      const result = separateSceneGraphics(show, sceneOwners(before), d);
+      const result = separateSceneGraphics(show, sceneSnapshot(before), d);
       assert.notEqual(typeof result, 'string');
       const where = `seed ${seed} step ${step} op ${op}`;
       const users = usersOf(show);
@@ -236,7 +236,7 @@ test('C3, C6: a copy left behind is taken up again by its scene; one another sce
 
 test('C10, C11: a cue the guard holds stops the whole separation, and nothing changes', () => {
   const show = production();
-  const before = sceneOwners(show);
+  const before = sceneSnapshot(show);
   show.cues.push(cue('g2', 'lt', 'game'));
   const snapshot = JSON.stringify(show);
   const refused = separateSceneGraphics(show, before, deps((c) => (c.id === 'g2' ? 'Take "g2" off air first.' : null)));
@@ -262,4 +262,45 @@ test('re-adding a library graphic replaces the original, never a scene copy that
     { name: 'Lower third', type: 'lowerThird', graphicId: 'lib-lt' },
   ];
   assert.equal(poolPlacement(pool2, { name: 'Lower third', type: 'lowerThird', graphicId: 'lib-lt' }).replace, 1);
+});
+
+test('C10: a held cue the write did not touch stays as it came, and the write lands; one it moved refuses it', () => {
+  // A record that came shared (an older build, a sync): Desk and Gameplay both use the lower third.
+  const shared = production();
+  shared.obsScenes = undefined;
+  shared.cues.push(cue('g2', 'lt', 'game'));
+  shared.obsScenes = true;
+  const onAir = deps((c) => (c.id === 'g2' ? 'held' : null));
+  const before = sceneSnapshot(shared);
+  shared.cues.find((c) => c.id === 'h1').label = 'renamed';
+  assert.equal(separateSceneGraphics(shared, before, onAir), false, 'an unrelated edit lands');
+  assert.equal(shared.cues.find((c) => c.id === 'g2').sourceId, 'lt');
+  // Moving a held cue into a scene is the write's own doing: refused.
+  const fresh = production();
+  fresh.cues.push(cue('g2', 'lt'));
+  const was = sceneSnapshot(fresh);
+  fresh.cues.find((c) => c.id === 'g2').folderId = 'game';
+  assert.equal(separateSceneGraphics(fresh, was, onAir), 'held');
+});
+
+test('C5: a copy left behind that a cue outside the scenes now uses is not taken up by a scene', () => {
+  const show = write(production(), (s) => s.cues.push(cue('g2', 'lt', 'game')));
+  // Its cue leaves the scenes, still on the copy.
+  write(show, (s) => { delete s.cues.find((c) => c.id === 'g2').folderId; });
+  write(show, (s) => s.cues.push(cue('g3', 'lt', 'game')));
+  assert.equal(show.cues.find((c) => c.id === 'g2').sourceId, copyId('lt', 'game'));
+  assert.equal(show.cues.find((c) => c.id === 'g3').sourceId, copyId('lt', 'game', 1));
+});
+
+test('C4: the copy takes the layer the record says is free', () => {
+  const show = write(production(), (s) => s.cues.push(cue('g2', 'lt', 'game')), { freeLayer: () => 57 });
+  assert.equal(show.graphics.find((g) => g.id === copyId('lt', 'game')).layer, 57);
+});
+
+test('re-adding a library graphic whose original is gone adds it again, and no scene copy is replaced', () => {
+  const copies = [
+    { name: 'Lower third · Desk', type: 'lowerThird', graphicId: 'lib-lt', sceneCopyOf: 'lt' },
+    { name: 'Lower third · Gameplay', type: 'lowerThird', graphicId: 'lib-lt', sceneCopyOf: 'lt' },
+  ];
+  assert.deepEqual(poolPlacement(copies, { name: 'Lower third', type: 'lowerThird', graphicId: 'lib-lt' }), { replace: -1, name: 'Lower third', rename: null });
 });

@@ -57,9 +57,9 @@ export function poolPlacement(
   incoming: PoolGraphicIdentity,
 ): { replace: number; name: string; rename: { index: number; name: string } | null } {
   if (incoming.graphicId) {
-    // The original before an OBS scene's copy of it, which shares its link (obs-scenes OS1b).
-    const originals = pool.findIndex((g) => g.graphicId === incoming.graphicId && !g.sceneCopyOf);
-    const linked = originals >= 0 ? originals : pool.findIndex((g) => g.graphicId === incoming.graphicId);
+    // The original, never an OBS scene's copy that shares its link (obs-scenes OS1b): with the
+    // original gone, the graphic is added again under its own name, and each copy stays its scene's.
+    const linked = pool.findIndex((g) => g.graphicId === incoming.graphicId && !g.sceneCopyOf);
     if (linked >= 0) return { replace: linked, name: pool[linked].name, rename: null };
   }
   const own = isOwnPictureGraphic(incoming);

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
-import { sceneGraphicNames, sceneLink } from '../../model/obsScenes';
+import { sceneFolderIds, sceneGraphicNames, sceneLink } from '../../model/obsScenes';
 import { useTemplateStore } from '../../store/templateStore';
 import {
   deleteShowProfile,
@@ -799,11 +799,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // A getter, so the publish flow and the modules hold one stable `{ current }` (the compiler lint
   // reads a plain ref handed to the render-time publish call as read during render).
   const liveCueRef = useMemo(() => ({ get current() { return drawnLiveCue.current; } }), []);
-  // OBS scenes OS1b C10: a write never moves a cue this page has on air to a scene's copy.
+  // OBS scenes OS1b C10: a write never moves a cue on air to a scene's copy. The session's air part,
+  // not the paced copy the page draws, so a Take that landed a moment ago counts.
   useEffect(() => {
-    setSceneAirCues(() => new Set(Object.values(liveCueRef.current).filter((cue): cue is string => !!cue)));
+    setSceneAirCues(() => new Set(Object.values(liveCueOf(session.air.get())).filter((cue): cue is string => !!cue)));
     return () => setSceneAirCues(null);
-  }, [liveCueRef]);
+  }, [session]);
   /** Each ⚡ button's last press and what it came to (control/pressFeedback.ts), dropped as soon as
    *  the session's `air` part puts another instance on its layer, an Out and a Take of the same cue
    *  included. */
@@ -3166,9 +3167,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // operator sees it, and the lines it writes. ──────────────────────────────────────────────────
   const logAuto = (graphic: string, text: string) => logHere([(id) => autoEntry(id, graphic, text)]);
   /** The graphics a Take of this one replaces on its layer (control/ografOutcome.ts). */
+  const layerPeersOf = (graphic: string) => packageLayerPeers(show.graphics.map((g) => ({ name: g.name, layer: graphicLayer(g), foreign: isForeignGraphic(g.template) })), graphic);
   // OBS scenes OS1b C9: All out leaves the scene graphics of the record this page holds as they are.
   const sceneGraphics = sceneGraphicNames(show);
-  const layerPeersOf = (graphic: string) => packageLayerPeers(show.graphics.map((g) => ({ name: g.name, layer: graphicLayer(g), foreign: isForeignGraphic(g.template) })), graphic);
   armPage.current = {
     published: !!hostedSlug,
     timedOff: !!hostedSlug && armsServer === 'missing',
@@ -3396,7 +3397,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     playoutVerb,
     clearMisses,
     noteStep,
-    stopFolders: () => folderPlayout.stopAll('all-out'),
+    stopFolders: () => folderPlayout.stopAll('all-out', sceneFolderIds(show)),
     outUnnamed,
     clearThroughBridge,
     clearing: setClearing,
