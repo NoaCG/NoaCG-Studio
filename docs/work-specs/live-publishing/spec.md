@@ -480,7 +480,8 @@ Filled in by each phase's pull request.
   (`production_copies` and `auto_publish`), as production has them.
 - AC-4: on the typical fixture at a 5 s edit pace, publishing adds +35.9 ms pooled p95 over 20
   interleaved pairs (90% range +26 to +47 ms), within 50 ms, a pass by the rule fixed before the
-  last ten pairs (see Repair 1); the large fixture under continuous editing does not pass (about +334 ms p95, the output
+  last ten pairs (see Repair 1). In that loop a full publish reaches the outputs about every 10 s
+  and every other edit is a revision-only update; the large fixture under continuous editing does not pass (about +334 ms p95, the output
   re-reading each whole copy). Owner decision (b), recorded on #2361, 2026-11-13: land
   with the typical fixture passing, judge the large fixture at the end of phase 7 with D1, and keep
   automatic updates off in production until then. Separately, editing faster than one sync pass on a
@@ -501,8 +502,9 @@ Filled in by each phase's pull request.
   updates publish once editing pauses, and AC-4 is judged at a 5 s edit pace (the harness's
   `MEASURE_EDIT_MS`, default 5000). The rule, fixed before the last ten pairs: pass when the pooled
   p95 difference over 20 pairs is 50 ms or less. Result: p95 141 ms on against 105 ms off over
-  1000 Takes each, +35.9 (90% range +26 to +47). Every save was published (204 publishes for 239
-  edits); every other edit changes nothing the outputs show (the fixture's last cue has no values),
-  so 6 of each run's publishes were new versions and the rest revision-only updates. Slow Takes 43
+  1000 Takes each, +35.9 (90% range +26 to +47). 239 edits, 225 confirmed saves, 204 publishes,
+  the newest save published at the end of 19 of 20 runs; every other edit changes nothing the
+  outputs show (the fixture's last cue is the server cue, whose values outputs never receive), so 6
+  of each run's publishes were new versions and the rest revision-only updates. Slow Takes 43
   against 21 and the longer tail are recorded and carried to phase 7 with D1. The only code change is that harness
   pace setting, which normal builds leave out. The evidence's +2 is replaced by both tables.
