@@ -56,8 +56,8 @@ test(`a staged graphic ships the font size its CSS declares${SCOPE_NOTE}`, async
   await toApp(page);
 
   const result = await page.evaluate(async ({ tolerance, only }: { tolerance: number; only: string[] | null }) => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
 
     const frame = document.createElement('iframe');
     frame.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;'

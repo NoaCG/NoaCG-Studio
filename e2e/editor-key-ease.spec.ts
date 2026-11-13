@@ -15,12 +15,12 @@ type Key = { time: number; value: number; ease?: string };
 const L = '0.333333333333', L2 = '0.666666666667';
 const bezier = (...points: (string | number)[]) => `cubic-bezier(${points.join(',')})`;
 
-async function source(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template); }
+async function source(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template); }
 async function layers(page: Page) {
-  return page.evaluate(async () => (await import('/src/blocks/animData.ts')).parseAnimData((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)!.steps.map(s => s.layers)) as Promise<Record<string, Record<string, Key[]>>[]>;
+  return page.evaluate(async () => (await __noacgImport('/src/blocks/animData.ts')).parseAnimData((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)!.steps.map(s => s.layers)) as Promise<Record<string, Record<string, Key[]>>[]>;
 }
 async function state(page: Page) {
-  return page.evaluate(async () => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); return { js: s.template.js, history: s.history.length, future: s.future.length }; });
+  return page.evaluate(async () => { const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); return { js: s.template.js, history: s.history.length, future: s.future.length }; });
 }
 async function ready(page: Page) { await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false'); await expect(page.locator('.ef-stage-error')).toHaveCount(0); }
 
@@ -31,9 +31,9 @@ async function fixture(page: Page) {
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
   // Ends on a store mutation, the evaluate that failed the nightly as a false navigation (#465).
   await evaluateInPage(page, async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
-    const { runtimeJs } = await import('/src/templates/shared/base.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { emitAnimRegion } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { runtimeJs } = await __noacgImport('/src/templates/shared/base.ts');
     const store = useTemplateStore.getState();
     store.applyTemplate({ ...store.template, fps: 25, fields: [], layers: [],
       html: '<!doctype html><html><head><link rel="stylesheet" href="css/template.css"><script src="js/gsap.min.js"></script><script src="js/template.js"></script></head><body><div class="fixture"><div id="box" data-gfx></div><div id="title" data-gfx>Text and box</div></div></body></html>',
@@ -59,7 +59,7 @@ const ease = (page: Page) => page.getByRole('combobox', { name: 'Key ease' });
 
 /** Drag a marquee on the lanes from (time, row) to (time, row), on empty lane space. */
 async function marquee(page: Page, from: [number, Locator], to: [number, Locator], modifiers: ('Control' | 'Shift')[] = [], finish = true) {
-  const extent = await page.evaluate(async () => Math.max(2, (await import('/src/components/editorFoundation/timelineView.ts')).readTimeline((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template).duration * 1.15));
+  const extent = await page.evaluate(async () => Math.max(2, (await __noacgImport('/src/components/editorFoundation/timelineView.ts')).readTimeline((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template).duration * 1.15));
   const point = async ([time, lane]: [number, Locator]) => { const box = (await lane.locator('.ef-track-lane').boundingBox())!; return { x: box.x + time / extent * box.width, y: box.y + box.height / 2 }; };
   // Expanded properties can exceed the timeline's scrollport. Start on a visible lane,
   // then scroll to the destination while capture keeps the marquee in content coordinates.
@@ -150,8 +150,8 @@ test('paste on inspected Out preserves its interpreter and refuses a required up
   expect(outside(pasted.js)).toBe(outside(original.js));
   expect([pasted.html, pasted.css, pasted.fields]).toEqual([original.html, original.css, original.fields]);
   await evaluateInPage(page, async ({ original, oldBody }) => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { ANIM_INTERPRETER_JS } = await import('/src/templates/shared/animRuntime.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { ANIM_INTERPRETER_JS } = await __noacgImport('/src/templates/shared/animRuntime.ts');
     useTemplateStore.getState().applyTemplate({ ...original, js: original.js.replace(ANIM_INTERPRETER_JS, () => oldBody) });
   }, { original, oldBody });
   await ready(page);
@@ -181,7 +181,7 @@ test('a marquee across rows and the toolbar dropdown write key-side eases as one
   await expect(ease(page)).toHaveValue('mixed');
   await ease(page).selectOption({ label: 'Easy Ease' }); await ready(page);
   await expect(page.locator('.ef-key-error')).toHaveCount(0);
-  const [cue, exit] = await layers(page), before = JSON.parse(JSON.stringify((await page.evaluate(async js => (await import('/src/blocks/animData.ts')).parseAnimData(js)!.steps.map(s => s.layers), original.js)))) as typeof cue[];
+  const [cue, exit] = await layers(page), before = JSON.parse(JSON.stringify((await page.evaluate(async js => (await __noacgImport('/src/blocks/animData.ts')).parseAnimData(js)!.steps.map(s => s.layers), original.js)))) as typeof cue[];
   expect(cue['#box'].x).toEqual([{ time: 0, value: -900 }, { time: 1, value: -200, ease: bezier(L, 0, L2, 1) }, { time: 2, value: 0, ease: bezier(L, 0, L2, L2) }]);
   expect(cue['#box'].opacity).toEqual([{ time: 0, value: 0 }, { time: 1, value: 1, ease: bezier(L, L, L2, 1) }]);
   expect(cue['#title'].x).toEqual([{ time: 0, value: -900 }, { time: 1.6, value: 0, ease: bezier(L, L, L2, 1) }]);
@@ -210,7 +210,7 @@ test('a marquee across rows and the toolbar dropdown write key-side eases as one
   await expect(page.getByTestId('save-status')).toHaveText('Saved'); await settleDurableWrites(page);
   const saved = await source(page); expect(await layers(page)).toEqual([cue, exit]);
   await page.reload(); await ready(page); expect((await source(page)).js).toBe(saved.js);
-  const again = await page.evaluate(async () => { const { saveCurrentGraphic } = await import('/src/store/saveActions.ts'); await saveCurrentGraphic(); return (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js; });
+  const again = await page.evaluate(async () => { const { saveCurrentGraphic } = await __noacgImport('/src/store/saveActions.ts'); await saveCurrentGraphic(); return (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.js; });
   expect(again).toBe(saved.js);
   expect(errors).toEqual([]);
 });
@@ -301,8 +301,8 @@ test('the last key of one cue and the first of the next are one boundary key', a
   await fixture(page);
   // End the In cue on a title X key, so In's landing key and Out's first key share 2.00 s.
   await evaluateInPage(page, async () => {
-    const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
-    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const { parseAnimData, spliceAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const store = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
     const d = parseAnimData(store.template.js)!; d.steps[0].layers['#title'].x.push({ time: 2, value: 0 });
     store.applyTemplate({ ...store.template, js: spliceAnimData(store.template.js, d)! });
   });

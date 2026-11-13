@@ -9,19 +9,23 @@ import { settleDurableWrites } from './_durable';
 import { evaluateInPage } from './_evaluate';
 import { dropSvg } from './_svg-import';
 import { fileURLToPath } from 'node:url';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 type Timeline = { pause(): void; kill(): void; time(t: number, silent?: boolean): void; progress(t: number, silent?: boolean): void; render(t: number, silent: boolean, force: boolean): void; duration(): number };
 type Runtime = { buildInTimeline(): Timeline; buildOutTimeline(): Timeline; gsap: { globalTimeline: { clear(): void }; killTweensOf(s: string): void } };
-async function source(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template); }
+async function source(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template); }
 async function ready(page: Page) { await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false'); await expect(page.locator('.ef-stage-error')).toHaveCount(0);
   await expect.poll(() => page.evaluate(async () => {
-    const view = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
+    const view = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
     const canvas = document.querySelector('[data-testid=foundation-canvas]')!;
     return Math.abs(Number(canvas.getAttribute('data-pose-time')) - view.time) < .00001 && canvas.getAttribute('data-pose-cue') === String(view.cue ?? 'arriving');
   })).toBe(true);
 }
 async function preview(page: Page) { return (await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!; }
-async function data(page: Page) { return page.evaluate(async () => (await import('/src/blocks/animData.ts')).parseAnimData((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)!); }
+async function data(page: Page) { return page.evaluate(async () => (await __noacgImport('/src/blocks/animData.ts')).parseAnimData((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)!); }
 async function seek(page: Page, frames: number) {
   const ruler = page.getByRole('slider', { name: 'Playhead' });
   await ruler.focus(); await ruler.press('Home');
@@ -35,9 +39,9 @@ async function fixture(page: Page, oneStep = false) {
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
   // Ends on a store mutation, the evaluate that failed the nightly as a false navigation (#465).
   await evaluateInPage(page, async (oneStep: boolean) => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
-    const { runtimeJs } = await import('/src/templates/shared/base.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { emitAnimRegion } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { runtimeJs } = await __noacgImport('/src/templates/shared/base.ts');
     const store = useTemplateStore.getState();
     store.applyTemplate({ ...store.template, fps: 25, fields: [], layers: [],
       html: '<!doctype html><html><head><link rel="stylesheet" href="css/template.css"><script src="js/gsap.min.js"></script><script src="js/template.js"></script></head><body><div class="fixture"><div id="box" data-gfx></div><div id="title" data-gfx>Text and box</div></div></body></html>',
@@ -158,11 +162,11 @@ test('manual Out zero frame and extended end use numeric keys with one undo each
 test('Out operations preserve clocks and refuse unsupported or stale batches atomically', async ({ page }) => {
   await fixture(page, true);
   const result = await page.evaluate(async () => {
-    const { applyOperations } = await import('/src/components/editorFoundation/operations.ts');
-    const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { applyOperations } = await __noacgImport('/src/components/editorFoundation/operations.ts');
+    const { activeEditorSession } = await __noacgImport('/src/components/editorFoundation/documentAdapter.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { emitAnimRegion } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const original = useTemplateStore.getState().template;
     const refuses: string[] = [];
     const attempt = (template: typeof original, operations: Parameters<typeof applyOperations>[1]) => {
@@ -189,8 +193,8 @@ test('Out operations preserve clocks and refuse unsupported or stale batches ato
       if (variant === 'curve') d.steps[0].ease = 'customEase';
       let js = emitAnimRegion(d);
       if (variant === 'tail') {
-        const { ANIM_INTERPRETER_JS } = await import('/src/templates/shared/animRuntime.ts');
-        const { ANIM_INTERPRETER_PRE_OUT_JS } = await import('/src/templates/shared/animRuntimeLegacy.ts');
+        const { ANIM_INTERPRETER_JS } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+        const { ANIM_INTERPRETER_PRE_OUT_JS } = await __noacgImport('/src/templates/shared/animRuntimeLegacy.ts');
         js = js.replace(ANIM_INTERPRETER_JS, ANIM_INTERPRETER_PRE_OUT_JS + '\nwindow.customTail = true;');
       }
       if (variant === 'foreign') js = js.replace('var noacgStepsPlayed = 0;', 'var noacgStepsPlayed = 7;');
@@ -214,9 +218,9 @@ test('Out operations preserve clocks and refuse unsupported or stale batches ato
 test('saved one-step interpreter upgrades once and preserves foreign source', async ({ page }) => {
   await fixture(page, true);
   await page.evaluate(async () => {
-    const { ANIM_INTERPRETER_JS } = await import('/src/templates/shared/animRuntime.ts');
-    const { ANIM_INTERPRETER_PRE_OUT_JS } = await import('/src/templates/shared/animRuntimeLegacy.ts');
-    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const { ANIM_INTERPRETER_JS } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { ANIM_INTERPRETER_PRE_OUT_JS } = await __noacgImport('/src/templates/shared/animRuntimeLegacy.ts');
+    const store = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
     store.applyTemplate({ ...store.template, js: store.template.js.replace(ANIM_INTERPRETER_JS, ANIM_INTERPRETER_PRE_OUT_JS) });
   });
   await ready(page); const original = await source(page);
@@ -229,10 +233,10 @@ test('saved one-step interpreter upgrades once and preserves foreign source', as
   const saved = await source(page); expect(saved.js).toContain('live-pose-out-v1'); expect(saved.js).toContain('// keep this user code'); expect(saved.html).toBe(original.html);
   expect((await data(page)).steps[1]).toEqual({ name: 'Out', duration: 0, ease: 'none', layers: {} });
   await page.reload(); await ready(page); expect((await source(page)).js).toBe(saved.js);
-  const same = await page.evaluate(async () => { const { saveCurrentGraphic } = await import('/src/store/saveActions.ts'); await saveCurrentGraphic(); return (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js; });
+  const same = await page.evaluate(async () => { const { saveCurrentGraphic } = await __noacgImport('/src/store/saveActions.ts'); await saveCurrentGraphic(); return (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.js; });
   expect(same).toBe(saved.js);
   const foreign = await page.evaluate(async js => {
-    const { prepareOutRuntime } = await import('/src/blocks/animMigration.ts');
+    const { prepareOutRuntime } = await __noacgImport('/src/blocks/animMigration.ts');
     const custom = js.replace('var noacgStepsPlayed = 0;', 'var noacgStepsPlayed = 7;');
     const unknown = js.replace('"version": 2', '"extra": true, "version": 2');
     return prepareOutRuntime(custom) === custom && prepareOutRuntime(unknown) === unknown;
@@ -245,14 +249,14 @@ async function executable(page: Page, target: string) {
   const output = await page.context().newPage();
   if (target === 'simulator') {
     const html = await page.evaluate(async () => {
-      const template = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-      return (await import('/src/preview/composeDocument.ts')).composeDocument(template, { simulate: true });
+      const template = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+      return (await __noacgImport('/src/preview/composeDocument.ts')).composeDocument(template, { simulate: true });
     });
     await output.setContent(html);
   } else {
     const files = await page.evaluate(async target => {
-      const template = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-      const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(template);
+      const template = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+      const zip = await (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(template);
       return Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n => !zip.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('base64')])));
     }, target);
     await output.route('http://out-package.local/**', route => {
@@ -313,8 +317,8 @@ for (const target of ['simulator', 'spx', 'casparcg', 'ograf']) test('Out interr
   // The keys end at 1 s. Out at 0.6 s moves the rest of the entrance into Out, which ends with it:
   // 0.4 s, the entrance's still second gone (owner decision 2026-09-30, docs/research/editor-r1-2a-5).
   await evaluateInPage(page, async () => {
-    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
-    store.applyTemplate((await import('/src/blocks/editorOut.ts')).applyOut(store.template, { kind: 'out.set', time: .6 }));
+    const store = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+    store.applyTemplate((await __noacgImport('/src/blocks/editorOut.ts')).applyOut(store.template, { kind: 'out.set', time: .6 }));
   });
   const output = await executable(page, target);
   const result = await output.evaluate(async target => {
@@ -347,10 +351,10 @@ for (const target of ['simulator', 'spx', 'casparcg', 'ograf']) test('Out interr
 test('reverse mirrors destination eases and independent entrance keys', async ({ page }) => {
   await fixture(page, true);
   const result = await page.evaluate(async () => {
-    const { applyOut } = await import('/src/blocks/editorOut.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
-    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const { applyOut } = await __noacgImport('/src/blocks/editorOut.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { emitAnimRegion } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
     const d = parseAnimData(t.js)!;
     d.steps[0].duration = 1;
     d.steps[0].layers['#box'].x = [{ time: .2, value: -900 }, { time: .5, value: -500, ease: 'power2.out' }, { time: 1, value: 0, ease: 'sine.in' }];
@@ -396,9 +400,9 @@ test('exit timing preserves leading delay, bypasses waypoints and never reveals 
 test('author the text and box entrance with controls and drag, then hold and reverse Out', async ({ page }) => {
   await fixture(page, true);
   await page.evaluate(async () => {
-    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { writeOutData } = await import('/src/templates/shared/animRuntime.ts');
+    const store = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { writeOutData } = await __noacgImport('/src/templates/shared/animRuntime.ts');
     const d = parseAnimData(store.template.js)!; d.steps[0].layers = {};
     store.applyTemplate({ ...store.template, js: writeOutData(store.template.js, d)! });
   }); await ready(page); await seek(page, 0);
@@ -435,7 +439,7 @@ for (const manual of [false, true]) test('wizard text-and-box through ' + (manua
   await page.locator('.wz-next').click(); await page.getByTestId('wz-finish-edit-artwork').click(); await ready(page);
   const original = await source(page), d = await data(page), fps = original.fps;
   const selectors = await page.evaluate(async () => {
-    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
     const doc = new DOMParser().parseFromString(t.html, 'text/html');
     return ['#box', '#' + Array.from(doc.querySelectorAll('svg text')).find(el => el.textContent?.trim() === 'Evening report')!.id];
   });
@@ -473,8 +477,8 @@ for (const manual of [false, true]) test('wizard text-and-box through ' + (manua
   await page.screenshot({ path: test.info().outputPath(`wizard-${manual ? 'manual' : 'reverse'}.png`) });
   const held = await (await preview(page)).evaluate(selectors => selectors.map(s => { const el = document.querySelector(s)!; return [el.getBoundingClientRect().x, Number(getComputedStyle(el).opacity)]; }), selectors);
   const html = await page.evaluate(async () => {
-    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-    return (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(t);
+    const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    return (await __noacgImport('/src/export/selfContained.ts')).composeSelfContainedHtml(t);
   });
   const output = await page.context().newPage(); await output.setViewportSize({width: 1920, height: 1080}); await output.setContent(html);
   const exported = await output.evaluate(({selectors, root}) => {
@@ -541,7 +545,7 @@ test('Set Out before the last In key moves the rest of the entrance into Out as 
   await expect(page.getByTestId('save-status')).toHaveText('Saved'); await settleDurableWrites(page);
   const saved = await source(page); expect((await data(page)).steps).toEqual(d.steps);
   await page.reload(); await ready(page); expect((await source(page)).js).toBe(saved.js);
-  const again = await page.evaluate(async () => { const { saveCurrentGraphic } = await import('/src/store/saveActions.ts'); await saveCurrentGraphic(); return (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js; });
+  const again = await page.evaluate(async () => { const { saveCurrentGraphic } = await __noacgImport('/src/store/saveActions.ts'); await saveCurrentGraphic(); return (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.js; });
   expect(again).toBe(saved.js);
   expect(errors).toEqual([]);
 });
@@ -561,13 +565,13 @@ test('a Set Out that fills the exit closes a reverse choice left open', async ({
 test('a Set Out that cannot split a crossed segment keeps source and history and says why', async ({ page }) => {
   await fixture(page, true);
   await evaluateInPage(page, async () => {
-    const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
-    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const { parseAnimData, spliceAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const store = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
     const d = parseAnimData(store.template.js)!; d.steps[0].layers['#title'].x[1].ease = 'steps(4)';
     store.applyTemplate({ ...store.template, js: spliceAnimData(store.template.js, d)! });
   });
   await ready(page); await seek(page, 10);
-  const state = () => page.evaluate(async () => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); return { js: s.template.js, history: s.history.length, future: s.future.length }; });
+  const state = () => page.evaluate(async () => { const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); return { js: s.template.js, history: s.history.length, future: s.future.length }; });
   const before = await state();
   await page.getByRole('button', { name: 'Set Out at playhead', exact: true }).click();
   await expect(page.locator('.ef-out-error')).toContainText('steps(4)');
@@ -580,15 +584,15 @@ test('Set Out inside a Next cue carries the rest of its motion into Out as one u
   // (R1.2a.3) and skips its time (R1.2a.5, docs/research/editor-r1-2a-5).
   await fixture(page, true);
   await evaluateInPage(page, async () => {
-    const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
-    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const { parseAnimData, spliceAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const store = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
     const d = parseAnimData(store.template.js)!; d.steps[0].duration = 1;
     d.steps.push({ name: 'Step 2', duration: 1, ease: 'none', layers: { '#box': { rotation: [{ time: 0, value: 0 }, { time: .8, value: 90 }] } } },
       { name: 'Out', duration: 0, ease: 'none', layers: {} });
     store.applyTemplate({ ...store.template, js: spliceAnimData(store.template.js, d)! });
   });
   await ready(page); await seek(page, 35);
-  const state = () => page.evaluate(async () => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); return { js: s.template.js, history: s.history.length, future: s.future.length }; });
+  const state = () => page.evaluate(async () => { const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState(); return { js: s.template.js, history: s.history.length, future: s.future.length }; });
   const before = await state();
   await page.getByRole('button', { name: 'Set Out at playhead', exact: true }).click(); await ready(page);
   await expect(page.locator('.ef-out-error')).toHaveCount(0);
@@ -620,9 +624,9 @@ test('pause and resume an interrupted Out retain its live exit trajectory', asyn
 test('known two-cue predecessor plays Out read-only without source mutation', async ({ page }) => {
   await fixture(page);
   await page.evaluate(async () => {
-    const { ANIM_INTERPRETER_JS } = await import('/src/templates/shared/animRuntime.ts');
-    const { ANIM_INTERPRETER_PRE_OUT_JS } = await import('/src/templates/shared/animRuntimeLegacy.ts');
-    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const { ANIM_INTERPRETER_JS } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { ANIM_INTERPRETER_PRE_OUT_JS } = await __noacgImport('/src/templates/shared/animRuntimeLegacy.ts');
+    const store = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
     store.applyTemplate({ ...store.template, js: store.template.js.replace(ANIM_INTERPRETER_JS, ANIM_INTERPRETER_PRE_OUT_JS) });
   }); await ready(page);
   const before = await source(page);

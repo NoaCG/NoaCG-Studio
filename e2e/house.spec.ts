@@ -18,7 +18,7 @@ async function createFrom(page: Page, categoryName: string, variantName: string)
   await bootstrapGraphic(page, { category: categoryName, name: variantName });
   const doc = await mountWorkingDocument(page);
   const sample = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().sampleData as Record<string, string>;
   });
   await updateWorkingDocument(doc, sample);

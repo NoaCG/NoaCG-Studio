@@ -62,7 +62,7 @@ test('offline / no-backend: the production page grows no auth UI and says why pu
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.getByTestId('creation-wizard').locator('.gallery-close').click();
   const id = await page.evaluate(async () => {
-    const { createShowNamed } = await import('/src/model/shows.ts');
+    const { createShowNamed } = await __noacgImport('/src/model/shows.ts');
     return createShowNamed('Offline Show').id;
   });
   await page.evaluate((showId) => { window.location.hash = `#/production/${showId}`; }, id);

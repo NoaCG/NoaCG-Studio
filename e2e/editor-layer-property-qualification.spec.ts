@@ -94,8 +94,8 @@ test('cumulative import text artwork animation cancel save reopen executable out
   await seek(page,0); const receipts=[];
   for(const target of ['spx','casparcg','ograf']){
     const files=await page.evaluate(async target=>{
-      const template=(await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-      const zip=await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(item=>item.id===target)!.build(template);
+      const template=(await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+      const zip=await (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(item=>item.id===target)!.build(template);
       return Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(name=>!zip.files[name].dir).map(async name=>[name.slice(name.indexOf('/')+1),await zip.file(name)!.async('base64')])));
     },target);
     const output=await page.context().newPage(); const errors:string[]=[]; output.on('pageerror',e=>errors.push(e.message));
@@ -156,7 +156,7 @@ test('modifier drag copies selected artwork atomically and cancellation retains 
   await expect((await frame(page)).locator('#f2')).toHaveCount(0);expect(await source(page)).toEqual(textBefore);expect((await inspection(page)).history).toEqual(textHistory);
   await page.keyboard.down('Alt');await page.mouse.move(textPoint.x,textPoint.y);await page.mouse.down();await page.mouse.move(textPoint.x+26,textPoint.y+11,{steps:6});
   await expect((await frame(page)).locator('#f2')).toHaveCount(1);
-  await page.evaluate(async()=>{const store=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();store.setCss(store.template.css+'\n/* source changed during drag */');});
+  await page.evaluate(async()=>{const store=(await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();store.setCss(store.template.css+'\n/* source changed during drag */');});
   await ready(page); const changedSource=await source(page),changedHistory=(await inspection(page)).history;
   await expect((await frame(page)).locator('#f2')).toHaveCount(0);
   await page.mouse.move(textPoint.x+30,textPoint.y+13);await page.mouse.up();await page.keyboard.up('Alt');
@@ -213,7 +213,7 @@ test('modifier drag preserves multi-root animated group and refusal boundaries',
     await page.mouse.move(p.x+35,p.y+13,{steps:6});
     if(cancel==='pointercancel') await canvas.dispatchEvent('pointercancel',{pointerId:1,pointerType:'mouse'});
     if(cancel==='stale') {
-      await page.evaluate(async()=>{const store=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();store.setSelectedParts(['#f0']); await new Promise(r=>setTimeout(r));});
+      await page.evaluate(async()=>{const store=(await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();store.setSelectedParts(['#f0']); await new Promise(r=>setTimeout(r));});
       await page.mouse.move(p.x+40,p.y+15);
     }
     await page.mouse.up();await page.keyboard.up('Alt');

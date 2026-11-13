@@ -44,8 +44,8 @@ type Page = import('@playwright/test').Page;
 /** Compile one ordinary Lite decision through the shared grounded path. */
 async function rulesFor(page: Page, mutate: 'none' | 'hide-second-field'): Promise<string[]> {
   return page.evaluate(async (how) => {
-    const pipeline = await import('/src/ai/lite/pipeline.ts');
-    const bench = await import('/src/validation/runtimeBench.ts');
+    const pipeline = await __noacgImport('/src/ai/lite/pipeline.ts');
+    const bench = await __noacgImport('/src/validation/runtimeBench.ts');
     type Decision = Parameters<typeof pipeline.compileLiteDecision>[0];
     type Context = Parameters<typeof pipeline.compileLiteDecision>[1];
     const decision = {
@@ -95,8 +95,8 @@ test.describe('a Lite graphic paints every field it declares', () => {
 
   test('the drive is off unless a caller asks, and leaves the default data behind it', async ({ page }) => {
     const out = await page.evaluate(async () => {
-      const pipeline = await import('/src/ai/lite/pipeline.ts');
-      const bench = await import('/src/validation/runtimeBench.ts');
+      const pipeline = await __noacgImport('/src/ai/lite/pipeline.ts');
+      const bench = await __noacgImport('/src/validation/runtimeBench.ts');
       type Decision = Parameters<typeof pipeline.compileLiteDecision>[0];
       type Context = Parameters<typeof pipeline.compileLiteDecision>[1];
       const decision = {
@@ -143,8 +143,8 @@ test.describe('a match clock\'s field is driven with a time', () => {
     // repaints in its own minutes:seconds, so a tag never showed and all eleven catalog match
     // boards were told their clock reaches no pixels. A time comes back verbatim.
     const out = await page.evaluate(async () => {
-      const { variantById } = await import('/src/templates/catalog.ts');
-      const bench = await import('/src/validation/runtimeBench.ts');
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+      const bench = await __noacgImport('/src/validation/runtimeBench.ts');
       const board = variantById('sb05')!.create({});
       const clock = board.fields.find((f) => f.title === 'Clock')!.field;
       const unpainted = async (css = '') => {
@@ -169,8 +169,8 @@ test.describe('the drive asks the whole machine, not one state', () => {
     // past the settled default path. Read at settled it paints nothing, and the check used to
     // call a perfectly correct catalog graphic broken.
     const out = await page.evaluate(async () => {
-      const { variantById } = await import('/src/templates/catalog.ts');
-      const bench = await import('/src/validation/runtimeBench.ts');
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+      const bench = await __noacgImport('/src/validation/runtimeBench.ts');
       const template = variantById('qz02')!.create({});
       // The field's own default is empty (nobody has picked yet), and an empty value paints
       // nothing anywhere - the drive replaces every value with a sentinel, which is the whole
@@ -187,8 +187,8 @@ test.describe('the drive asks the whole machine, not one state', () => {
     // The mutation half of the widening: unioning across states must not turn the check into one
     // that can never fire. Same quiz, one field hidden in every state.
     const out = await page.evaluate(async () => {
-      const { variantById } = await import('/src/templates/catalog.ts');
-      const bench = await import('/src/validation/runtimeBench.ts');
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+      const bench = await __noacgImport('/src/validation/runtimeBench.ts');
       const template = variantById('qz02')!.create({});
       const hidden = { ...template, css: `${template.css}\n#f7, .quiz-aud { display: none !important; }\n` };
       const result = await bench.benchTemplateRuntime(hidden, { fieldPaints: true });
@@ -202,9 +202,9 @@ test.describe('the drive asks the whole machine, not one state', () => {
     // would decide the answer instead of measuring it. This measures the real maximum across the
     // whole catalog, so the cap can never quietly start biting as types are added.
     const out = await page.evaluate(async () => {
-      const { CATALOG } = await import('/src/templates/catalog.ts');
-      const { parseAnimData } = await import('/src/blocks/animData.ts');
-      const { MAX_WALKED_STATES } = await import('/src/validation/fieldPaint.ts');
+      const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+      const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+      const { MAX_WALKED_STATES } = await __noacgImport('/src/validation/fieldPaint.ts');
       let worst = { id: '', states: 0 };
       for (const variants of Object.values(CATALOG)) {
         for (const variant of variants) {
@@ -240,8 +240,8 @@ test.describe('a declared input-only holder is not a field that failed to paint'
     // refused NoaCG's own work - the signature src/ai/pro/AGENTS.md names, an instrument whose
     // false positives are the good designs.
     const out = await page.evaluate(async () => {
-      const { CATALOG } = await import('/src/templates/catalog.ts');
-      const bench = await import('/src/validation/runtimeBench.ts');
+      const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+      const bench = await __noacgImport('/src/validation/runtimeBench.ts');
       const rows: Array<{ id: string; findings: string[] }> = [];
       for (const variant of CATALOG['game-timer']) {
         const result = await bench.benchTemplateRuntime(variant.create({}), { fieldPaints: true });
@@ -263,8 +263,8 @@ test.describe('a declared input-only holder is not a field that failed to paint'
     // value is hidden. Strip the class (keeping the element hidden by its own rule) and the field
     // is an ordinary hidden holder again - which is the defect the check exists for.
     const out = await page.evaluate(async () => {
-      const { CATALOG } = await import('/src/templates/catalog.ts');
-      const bench = await import('/src/validation/runtimeBench.ts');
+      const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+      const bench = await __noacgImport('/src/validation/runtimeBench.ts');
       const template = CATALOG['game-timer'][0].create({});
       const stripped = {
         ...template,
@@ -324,10 +324,10 @@ interface BenchMutation {
 async function benchProofGraphic(page: Page, name: string, mutate: BenchMutation = {}) {
   return page.evaluate(
     async ([json, graphicName, edit]) => {
-      const { parsePack } = await import('/src/packs/graphicsPack.ts');
-      const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
-      const { allOperatorArrows } = await import('/src/blocks/animMachine.ts');
-      const bench = await import('/src/validation/runtimeBench.ts');
+      const { parsePack } = await __noacgImport('/src/packs/graphicsPack.ts');
+      const { parseAnimData, spliceAnimData } = await __noacgImport('/src/blocks/animData.ts');
+      const { allOperatorArrows } = await __noacgImport('/src/blocks/animMachine.ts');
+      const bench = await __noacgImport('/src/validation/runtimeBench.ts');
 
       const { pack } = parsePack(json);
       const entry = pack!.graphics.find((g) => g.template.name === graphicName)!;
@@ -518,10 +518,10 @@ test.describe('the bench presses every operator ARROW, not every event NAME', ()
     // because arrows MULTIPLY with parallel groups: the proof case's eleven controls are
     // twenty-two arrows because each is legal from both of its `flash` states.
     const out = await page.evaluate(async () => {
-      const { CATALOG } = await import('/src/templates/catalog.ts');
-      const { parseAnimData } = await import('/src/blocks/animData.ts');
-      const { allOperatorArrows } = await import('/src/blocks/animMachine.ts');
-      const { MAX_BENCH_ARROWS } = await import('/src/validation/runtimeBench.ts');
+      const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+      const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+      const { allOperatorArrows } = await __noacgImport('/src/blocks/animMachine.ts');
+      const { MAX_BENCH_ARROWS } = await __noacgImport('/src/validation/runtimeBench.ts');
       let worst = { id: '', arrows: 0 };
       for (const variants of Object.values(CATALOG)) {
         for (const variant of variants) {
@@ -583,8 +583,8 @@ test.describe('a REPORTED field is read, never painted', () => {
     // what hides the holder - so stripping it also DRAWS the value, and the check then correctly
     // says nothing at all. That would have tested the browser, not the exemption.
     const out = await page.evaluate(async (json) => {
-      const { parsePack } = await import('/src/packs/graphicsPack.ts');
-      const bench = await import('/src/validation/runtimeBench.ts');
+      const { parsePack } = await __noacgImport('/src/packs/graphicsPack.ts');
+      const bench = await __noacgImport('/src/validation/runtimeBench.ts');
       const { pack } = parsePack(json);
       const entry = pack!.graphics.find((g) => g.template.name === 'Votes board')!;
       const stripped = {

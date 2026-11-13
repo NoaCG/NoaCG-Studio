@@ -103,7 +103,7 @@ test('a Google typeface is searched by name and embedded in the graphic', async 
   await finishIntoNewEditor(page);
 
   const built = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     const font = t.assets.find((a) => a.path.startsWith('fonts/'));
     return {

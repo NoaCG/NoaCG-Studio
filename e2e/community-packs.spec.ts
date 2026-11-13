@@ -72,8 +72,8 @@ test('the shelf lists the seeded pub quiz, and Install opens a production whose 
   // Install stamped where the graphic came from, so the submit picker never offers it as the
   // maker's own work (spec D7).
   const stamp = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
-    const { packSources } = await import('/src/community/packSources.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { packSources } = await __noacgImport('/src/community/packSources.ts');
     return {
       fromPack: loadGraphics().find((g) => g.name === 'Pub Quiz')?.fromPack ?? null,
       offered: packSources().flatMap((s) => s.graphics.map((g) => g.name)),
@@ -89,9 +89,9 @@ test('a pack of graphics: the checks refuse an outside font, placeholder text an
   await page.goto('/app#/home');
   await expect(page.getByTestId('home-page')).toBeVisible();
   const result = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { checkPack, buildCommunityPack } = await import('/src/community/packChecks.ts');
-    const { parsePack, installPack } = await import('/src/packs/graphicsPack.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { checkPack, buildCommunityPack } = await __noacgImport('/src/community/packChecks.ts');
+    const { parsePack, installPack } = await __noacgImport('/src/packs/graphicsPack.ts');
     const [first, second] = variantsFor('lower-third');
     const a = first.create({});
     const b = second.create({});
@@ -140,8 +140,8 @@ test('the request check plays each graphic with outside requests refused and nam
   await page.goto('/app#/home');
   await expect(page.getByTestId('home-page')).toBeVisible();
   const found = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { checkPackRequests } = await import('/src/community/packChecks.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { checkPackRequests } = await __noacgImport('/src/community/packChecks.ts');
     const clean = variantsFor('lower-third')[0].create({});
     // Two URLs built at runtime, which the static share screen cannot read: an image a CDN serves
     // when the graphic plays, and a call its code makes on Continue.

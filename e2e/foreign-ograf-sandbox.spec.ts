@@ -9,6 +9,10 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { OgrafReturn } from '../src/output/foreignOgraf';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 /**
  * A STRANGER'S OGRAF PACKAGE ON THE OUTPUT STAGE, BEHIND THE BOUNDARY (docs/OGRAF_ECOSYSTEM.md §3).
@@ -205,7 +209,7 @@ test.describe('a foreign OGraf package on the output stage', () => {
 
     // The operator surface comes from the manifest alone.
     const contract = await page.evaluate(async () => {
-      const { ografContract } = await import('/src/control/ografContract.ts');
+      const { ografContract } = await __noacgImport('/src/control/ografContract.ts');
       const manifest = await (await fetch('/__foreign-ograf/packages/benign/benign.ograf.json')).json();
       return ografContract(manifest);
     });
@@ -432,7 +436,7 @@ test.describe('a foreign OGraf package on the output stage', () => {
     // AN INSTANCE REPLACED WITH AN ACTION IN FLIGHT: the call is gone with its instance, and the
     // instance after it has seen nothing of it.
     const replaced = await page.evaluate(async () => {
-      const { mountForeignOgraf } = await import('/src/output/foreignOgraf.ts');
+      const { mountForeignOgraf } = await __noacgImport('/src/output/foreignOgraf.ts');
       const base = location.origin + '/__foreign-ograf/packages/steps/';
       const manifest = await (await fetch(base + 'steps.ograf.json')).json();
       const spec = { key: 'swap', layer: 40, packageBase: base, manifest };
@@ -456,7 +460,7 @@ test.describe('a foreign OGraf package on the output stage', () => {
     // and so does this page. A load and an action each inside the 3 s deadline answer done, though
     // together they pass the deadline plus the page's 2 s grace.
     const slow = await page.evaluate(async () => {
-      const { mountForeignOgraf } = await import('/src/output/foreignOgraf.ts');
+      const { mountForeignOgraf } = await __noacgImport('/src/output/foreignOgraf.ts');
       const base = location.origin + '/__foreign-ograf/packages/steps/';
       const manifest = await (await fetch(base + 'steps.ograf.json')).json();
       const layer = mountForeignOgraf(document.body, { key: 'slow', layer: 41, packageBase: base, manifest, data: { loadMs: 2600 } }, { width: 1920, height: 1080 }, { callTimeoutMs: 3000 });

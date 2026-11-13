@@ -112,10 +112,10 @@ test.describe('creative pilot (phase C)', () => {
   test('the scaffold compiles a valid template, and its animation targets really exist', async ({ page }) => {
     await open(page);
     const report = await page.evaluate(async ({ intent, spec }) => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
-      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
-      const { parseAnimData } = await import('/src/blocks/animData.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await __noacgImport('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await __noacgImport('/src/ai/creative/pipeline.ts');
+      const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
       const i = normalizeIntent(intent);
       const { scaffold, validation } = compileScaffoldOnly(normalizeCreativeSpec(spec, i), i);
       const anim = parseAnimData(scaffold.template.js);
@@ -153,11 +153,11 @@ test.describe('creative pilot (phase C)', () => {
     // declared state now clamps to a degraded-but-present emphasis step. The twin above
     // (revealRegions present) pins that real reveals still compile as reveals.
     const report = await page.evaluate(async ({ intent, spec }) => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
-      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
-      const { structuralIntentStaticFindings } = await import('/src/validation/structuralIntentCheck.ts');
-      const { parseAnimData } = await import('/src/blocks/animData.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await __noacgImport('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await __noacgImport('/src/ai/creative/pipeline.ts');
+      const { structuralIntentStaticFindings } = await __noacgImport('/src/validation/structuralIntentCheck.ts');
+      const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
       const i = normalizeIntent(intent);
       const bare = {
         ...(spec as Record<string, unknown>),
@@ -191,9 +191,9 @@ test.describe('creative pilot (phase C)', () => {
     // second stayed empty forever (SMOKE-2026-07-31.md item 6). Normalization now keeps
     // the FIRST repeating region and demotes the rest.
     const report = await page.evaluate(async ({ intent, spec }) => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
-      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await __noacgImport('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await __noacgImport('/src/ai/creative/pipeline.ts');
       const i = normalizeIntent(intent);
       const doubled = {
         ...(spec as Record<string, unknown>),
@@ -230,9 +230,9 @@ test.describe('creative pilot (phase C)', () => {
     // that nothing could ever draw (88 of them), while every gate reported the parts present.
     // vs-sports-classic arm C is the fixture: four fields, no binding, all invisible.
     const report = await page.evaluate(async () => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
-      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await __noacgImport('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await __noacgImport('/src/ai/creative/pipeline.ts');
       const intent = normalizeIntent({
         kind: 'category', typeId: 'versus', confidence: 'high',
         summary: 'A derby match-up card.',
@@ -307,9 +307,9 @@ test.describe('creative pilot (phase C)', () => {
     // to call "Home Team Crest" an image and "Team 1" text, and would be wrong often enough
     // to become its own defect.
     const report = await page.evaluate(async ({ spec }) => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
-      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await __noacgImport('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await __noacgImport('/src/ai/creative/pipeline.ts');
       // No repeating region, so the list field the scaffold would otherwise synthesize cannot
       // stand in for the text - this isolates the floor itself.
       const flat = {
@@ -367,11 +367,11 @@ test.describe('creative pilot (phase C)', () => {
     // declarations from scaffold selectors; stylesheet opacity stays (the entrance
     // overrides it inline), and a patch's own un-prefixed classes keep their hides.
     const report = await page.evaluate(async ({ intent, spec }) => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
-      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
-      const { applyCreativeStyle } = await import('/src/ai/creative/style.ts');
-      const { productionSpxValidator } = await import('/src/ai/lite/pipeline.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await __noacgImport('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await __noacgImport('/src/ai/creative/pipeline.ts');
+      const { applyCreativeStyle } = await __noacgImport('/src/ai/creative/style.ts');
+      const { productionSpxValidator } = await __noacgImport('/src/ai/lite/pipeline.ts');
       const i = normalizeIntent(intent);
       const { scaffold } = compileScaffoldOnly(normalizeCreativeSpec(spec, i), i);
       const poisoned = applyCreativeStyle(scaffold, {
@@ -424,11 +424,11 @@ test.describe('creative pilot (phase C)', () => {
     // writes re-animates on the browser's own clock, and the bench reports the same
     // bench-entrance + bench-replay pair the hiding declarations used to produce.
     const report = await page.evaluate(async ({ intent, spec }) => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
-      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
-      const { applyCreativeStyle } = await import('/src/ai/creative/style.ts');
-      const { productionSpxValidator } = await import('/src/ai/lite/pipeline.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await __noacgImport('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await __noacgImport('/src/ai/creative/pipeline.ts');
+      const { applyCreativeStyle } = await __noacgImport('/src/ai/creative/style.ts');
+      const { productionSpxValidator } = await __noacgImport('/src/ai/lite/pipeline.ts');
       const i = normalizeIntent(intent);
       const { scaffold } = compileScaffoldOnly(normalizeCreativeSpec(spec, i), i);
       const styled = applyCreativeStyle(scaffold, {
@@ -474,8 +474,8 @@ test.describe('creative pilot (phase C)', () => {
     // backdrop clamp only applies to the zoned ones - so it is now read off the coverage class
     // every graphic category already declares.
     const report = await page.evaluate(async () => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await __noacgImport('/src/ai/creative/contracts.ts');
       const claimsFrame = {
         conceptId: 'c1', name: 'Strap', summary: 's',
         layout: { family: 'strap', arrangement: 'stack', fullFrame: true, zone: 'bottom-left', sizeScale: 1 },
@@ -541,10 +541,10 @@ test.describe('creative pilot (phase C)', () => {
     };
 
     const report = await page.evaluate(async ({ intent, overlaySpec, boardSpec, css }) => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
-      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
-      const { applyCreativeStyle } = await import('/src/ai/creative/style.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await __noacgImport('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await __noacgImport('/src/ai/creative/pipeline.ts');
+      const { applyCreativeStyle } = await __noacgImport('/src/ai/creative/style.ts');
       const i = normalizeIntent(intent);
       const styled = (spec: unknown) => {
         const { scaffold } = compileScaffoldOnly(normalizeCreativeSpec(spec, i), i);
@@ -583,7 +583,7 @@ test.describe('creative pilot (phase C)', () => {
     // frame. 218 declarations across 59 of 76 staged stylesheets; the coder arms were clean at
     // 0 of 79, which puts the cause in the scaffold's pattern rather than in the models.
     const report = await page.evaluate(async () => {
-      const { repairUnitlessLengths } = await import('/src/ai/creative/style.ts');
+      const { repairUnitlessLengths } = await __noacgImport('/src/ai/creative/style.ts');
       const broken = `.creative-r-headline .creative-t {
   font-size: calc(56 * var(--scale) * var(--type-scale));
   letter-spacing: calc(2 * var(--scale));
@@ -642,7 +642,7 @@ test.describe('creative pilot (phase C)', () => {
     // most (round 2) of the bases actually were, and why criterion 8 was unmeasurable at
     // 1/20 landed. The property that must survive is "never break one", not "only perfect".
     const verdict = await page.evaluate(async () => {
-      const { noWorseThan } = await import('/src/ai/creative/pipeline.ts');
+      const { noWorseThan } = await __noacgImport('/src/ai/creative/pipeline.ts');
       const result = (rules: string[]) => ({
         ok: rules.length === 0,
         errors: rules.map((rule) => ({ rule, message: rule, severity: 'error' as const })),
@@ -681,7 +681,7 @@ test.describe('creative pilot (phase C)', () => {
     // follow a reference that did not exist. The designing stages are text models by choice,
     // so the picture is read once by a vision model and the WORDS ride the later stages.
     const report = await page.evaluate(async () => {
-      const { referenceBlock, analyzeReferences } = await import('/src/ai/creative/references.ts');
+      const { referenceBlock, analyzeReferences } = await __noacgImport('/src/ai/creative/references.ts');
       const block = referenceBlock({
         version: 1,
         readings: [
@@ -725,9 +725,9 @@ test.describe('creative pilot (phase C)', () => {
     // at one flat size, the emphasis ladder bypassed. 8 of 16 lower-third and 11 of 25 versus
     // staged runs rendered that way with NO region declaring `repeating` anywhere.
     const report = await page.evaluate(async () => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
-      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await __noacgImport('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await __noacgImport('/src/ai/creative/pipeline.ts');
       const fields = [
         { key: 'name', role: 'list', label: 'Name', sample: 'Alex Morgan' },
         { key: 'role', role: 'list', label: 'Role', sample: 'Senior Correspondent' },
@@ -778,7 +778,7 @@ test.describe('creative pilot (phase C)', () => {
     // typographic: the ladder in scaffold.ts sets broadcast sizes by emphasis, but the patch is
     // appended after the scaffold CSS, so any font-size the model wrote won at the cascade.
     const out = await page.evaluate(async () => {
-      const { clampTypeFloors } = await import('/src/ai/creative/style.ts');
+      const { clampTypeFloors } = await __noacgImport('/src/ai/creative/style.ts');
       const regions = [
         { id: 'name', selector: 'creative-r-name', repeating: false, emphasis: 'primary', fieldIds: [], rowsHostIds: [], typeFloorPx: 52 },
         { id: 'role', selector: 'creative-r-role', repeating: false, emphasis: 'secondary', fieldIds: [], rowsHostIds: [], typeFloorPx: 28 },
@@ -809,7 +809,7 @@ test.describe('creative pilot (phase C)', () => {
     // rendered the ink straight onto the dark plate, because `--panel-bg` is DECLARED and
     // nothing painted it. The only `background` in that stylesheet was `transparent` on body.
     const report = await page.evaluate(async () => {
-      const { legibilityFloor } = await import('/src/ai/creative/style.ts');
+      const { legibilityFloor } = await __noacgImport('/src/ai/creative/style.ts');
       const root = ':root { --panel-bg: #DDCAB8; }\n';
       return {
         // Nothing paints and nothing haloes: the declared surface gets drawn.
@@ -856,8 +856,8 @@ test.describe('creative pilot (phase C)', () => {
     // the panel's own luminance) - what could not be reused was its ENTRY POINT, which works on
     // hex while 48 of 61 archived creative panels are rgba. Handed one it silently no-ops.
     const report = await page.evaluate(async () => {
-      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await __noacgImport('/src/ai/creative/contracts.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
       const i = normalizeIntent({ kind: 'category', confidence: 'high', summary: 'x', parts: [], fields: [] });
       const spec = (palette: unknown) => normalizeCreativeSpec({
         conceptId: 'c1', name: 'n', summary: 's',
@@ -913,7 +913,7 @@ test.describe('creative pilot (phase C)', () => {
     // attachment the reading claims, so a duplicated claim would file the second reading under
     // the first's purpose.
     const out = await page.evaluate(async () => {
-      const { referenceBlock } = await import('/src/ai/creative/references.ts');
+      const { referenceBlock } = await __noacgImport('/src/ai/creative/references.ts');
       // A mood reading and a plate reading must never end up under one heading.
       const mixed = referenceBlock({
         version: 1,
@@ -934,10 +934,10 @@ test.describe('creative pilot (phase C)', () => {
   test('the safe-area clamp lands after the design and caps the box', async ({ page }) => {
     await open(page);
     const report = await page.evaluate(async ({ intent, spec }) => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
-      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
-      const { applyCreativeStyle } = await import('/src/ai/creative/style.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await __noacgImport('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await __noacgImport('/src/ai/creative/pipeline.ts');
+      const { applyCreativeStyle } = await __noacgImport('/src/ai/creative/style.ts');
       const i = normalizeIntent(intent);
       const { scaffold } = compileScaffoldOnly(normalizeCreativeSpec(spec, i), i);
       const out = applyCreativeStyle(scaffold, {
@@ -964,10 +964,10 @@ test.describe('creative pilot (phase C)', () => {
     await open(page);
     test.setTimeout(60_000);
     const bench = await page.evaluate(async ({ intent, spec }) => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
-      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
-      const { productionSpxValidator } = await import('/src/ai/lite/pipeline.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await __noacgImport('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await __noacgImport('/src/ai/creative/pipeline.ts');
+      const { productionSpxValidator } = await __noacgImport('/src/ai/lite/pipeline.ts');
       const i = normalizeIntent(intent);
       const { scaffold } = compileScaffoldOnly(normalizeCreativeSpec(spec, i), i);
       // The SAME validator the arms inject: static validation + the live runtime bench +
@@ -985,10 +985,10 @@ test.describe('creative pilot (phase C)', () => {
     // Stage 6 exists to make stage 8 pass by construction (plan §3.4). If a fresh scaffold
     // cannot satisfy its own intent, no amount of styling will.
     const findings = await page.evaluate(async ({ intent, spec }) => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
-      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
-      const { benchStructuralIntent } = await import('/src/validation/structuralIntentCheck.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await __noacgImport('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await __noacgImport('/src/ai/creative/pipeline.ts');
+      const { benchStructuralIntent } = await __noacgImport('/src/validation/structuralIntentCheck.ts');
       const i = normalizeIntent(intent);
       const { scaffold } = compileScaffoldOnly(normalizeCreativeSpec(spec, i), i);
       const own = await benchStructuralIntent(scaffold.template, i);
@@ -1015,10 +1015,10 @@ test.describe('creative pilot (phase C)', () => {
     // ticker item are BUILT by a runtime from one field, so its id is legitimately absent.
     // Driving the field and re-reading the painted frame is the question that survives that.
     const report = await page.evaluate(async ({ intent, spec }) => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
-      const { compileScaffoldOnly } = await import('/src/ai/creative/pipeline.ts');
-      const { benchStructuralIntent } = await import('/src/validation/structuralIntentCheck.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await __noacgImport('/src/ai/creative/contracts.ts');
+      const { compileScaffoldOnly } = await __noacgImport('/src/ai/creative/pipeline.ts');
+      const { benchStructuralIntent } = await __noacgImport('/src/validation/structuralIntentCheck.ts');
       const i = normalizeIntent(intent);
       const { scaffold } = compileScaffoldOnly(normalizeCreativeSpec(spec, i), i);
       const healthy = await benchStructuralIntent(scaffold.template, i);
@@ -1052,10 +1052,10 @@ test.describe('creative pilot (phase C)', () => {
   test('the style gate: a legal patch lands, and every wall refuses its own violation', async ({ page }) => {
     await open(page);
     const gate = await page.evaluate(async ({ intent, spec }) => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
-      const { compileScaffold } = await import('/src/ai/creative/scaffold.ts');
-      const { applyCreativeStyle } = await import('/src/ai/creative/style.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await __noacgImport('/src/ai/creative/contracts.ts');
+      const { compileScaffold } = await __noacgImport('/src/ai/creative/scaffold.ts');
+      const { applyCreativeStyle } = await __noacgImport('/src/ai/creative/style.ts');
       const i = normalizeIntent(intent);
       const scaffold = compileScaffold(normalizeCreativeSpec(spec, i), i);
       const legal = { summary: 'x', css: '.creative-box { display: grid; gap: calc(20px * var(--scale)); }' };
@@ -1119,10 +1119,10 @@ test.describe('creative pilot (phase C)', () => {
   test('the root keeps a size: the box may not leave the flow, everything else may', async ({ page }) => {
     await open(page);
     const flow = await page.evaluate(async ({ intent, spec }) => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
-      const { compileScaffold } = await import('/src/ai/creative/scaffold.ts');
-      const { applyCreativeStyle, keepStructureInFlow } = await import('/src/ai/creative/style.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await __noacgImport('/src/ai/creative/contracts.ts');
+      const { compileScaffold } = await __noacgImport('/src/ai/creative/scaffold.ts');
+      const { applyCreativeStyle, keepStructureInFlow } = await __noacgImport('/src/ai/creative/style.ts');
       const i = normalizeIntent(intent);
       const scaffold = compileScaffold(normalizeCreativeSpec(spec, i), i);
       const landed = (css: string) => applyCreativeStyle(scaffold, { summary: 'x', css })?.css ?? '';
@@ -1156,7 +1156,7 @@ test.describe('creative pilot (phase C)', () => {
   test('an out-of-flow slab is a backdrop layer, not the surface the words sit on', async ({ page }) => {
     await open(page);
     const floor = await page.evaluate(async () => {
-      const { legibilityFloor } = await import('/src/ai/creative/style.ts');
+      const { legibilityFloor } = await __noacgImport('/src/ai/creative/style.ts');
       const fired = (css: string) => legibilityFloor(css, 'creative').includes('Platform floor');
       return {
         // The observed frame: a region painted `--panel-bg`, positioned absolutely, guessing a
@@ -1187,8 +1187,8 @@ test.describe('creative pilot (phase C)', () => {
   test('a normalized spec never loses a required part, however off-shape the emit', async ({ page }) => {
     await open(page);
     const report = await page.evaluate(async ({ intent }) => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { normalizeCreativeSpec } = await import('/src/ai/creative/contracts.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { normalizeCreativeSpec } = await __noacgImport('/src/ai/creative/contracts.ts');
       const i = normalizeIntent(intent);
       // The emit said nothing usable at all - the platform still has to compile something
       // that carries the brief, because the verify stage measures the BRIEF, not the emit.
@@ -1222,7 +1222,7 @@ test.describe('creative pilot (phase C)', () => {
   test('concept diversity is measured on composition AND reading order, not on colour', async ({ page }) => {
     await open(page);
     const counts = await page.evaluate(async () => {
-      const { normalizeConcepts, distinctConceptCount } = await import('/src/ai/creative/contracts.ts');
+      const { normalizeConcepts, distinctConceptCount } = await __noacgImport('/src/ai/creative/contracts.ts');
       const base = { name: 'a', compositionFamily: 'split', hierarchyOrder: ['x', 'y'], paletteCharacter: 'p', motionCharacter: 'm', rationale: 'r' };
       const reskins = normalizeConcepts({ concepts: [
         base,
@@ -1252,8 +1252,8 @@ test.describe('creative pilot (phase C)', () => {
   test('knowledge cards are keyword-anchored, capped at two, and honestly absent', async ({ page }) => {
     await open(page);
     const picks = await page.evaluate(async () => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { cardsForIntent, cardsForFamily } = await import('/src/ai/creative/knowledgeCards.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { cardsForIntent, cardsForFamily } = await __noacgImport('/src/ai/creative/knowledgeCards.ts');
       const intent = (over: Record<string, unknown>) => normalizeIntent({
         kind: 'novel', novelDescription: '', confidence: 'high', summary: '',
         parts: [], fields: [], originalityRequested: false, ...over,
@@ -1314,10 +1314,10 @@ test.describe('creative pilot (phase C)', () => {
     });
 
     const runs = await page.evaluate(async ({ intent }) => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { runCreativeArm } = await import('/src/ai/creative/pipeline.ts');
-      const { productionSpxValidator } = await import('/src/ai/lite/pipeline.ts');
-      const { benchStructuralIntent } = await import('/src/validation/structuralIntentCheck.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { runCreativeArm } = await __noacgImport('/src/ai/creative/pipeline.ts');
+      const { productionSpxValidator } = await __noacgImport('/src/ai/lite/pipeline.ts');
+      const { benchStructuralIntent } = await __noacgImport('/src/validation/structuralIntentCheck.ts');
       const i = normalizeIntent(intent);
       const input = {
         brief: 'An eight-team knockout bracket for a summer cup.',
@@ -1416,10 +1416,10 @@ test.describe('creative pilot (phase C)', () => {
     });
 
     const runArm = async (arm: 'A' | 'B') => page.evaluate(async ({ intent, arm }) => {
-      const { normalizeIntent } = await import('/src/ai/structuralIntent.ts');
-      const { runCreativeArm } = await import('/src/ai/creative/pipeline.ts');
-      const { productionSpxValidator } = await import('/src/ai/lite/pipeline.ts');
-      const { benchStructuralIntent } = await import('/src/validation/structuralIntentCheck.ts');
+      const { normalizeIntent } = await __noacgImport('/src/ai/structuralIntent.ts');
+      const { runCreativeArm } = await __noacgImport('/src/ai/creative/pipeline.ts');
+      const { productionSpxValidator } = await __noacgImport('/src/ai/lite/pipeline.ts');
+      const { benchStructuralIntent } = await __noacgImport('/src/validation/structuralIntentCheck.ts');
       const r = await runCreativeArm(arm as 'A' | 'B', {
         brief: 'A four-team playoff bracket.',
         intent: normalizeIntent(intent),
@@ -1486,9 +1486,9 @@ test.describe('creative pilot (phase C)', () => {
   test('the anti-anchoring rule: the de-anchored arm studies a skeleton, the control a catalog design', async ({ page }) => {
     await open(page);
     const prompts = await page.evaluate(async () => {
-      const { coderSystemPrompt } = await import('/src/ai/claudeProvider.ts');
-      const { neutralSkeletonTemplate } = await import('/src/ai/creative/neutralSkeleton.ts');
-      const { lt01 } = await import('/src/templates/lowerThirds/lt01.ts');
+      const { coderSystemPrompt } = await __noacgImport('/src/ai/claudeProvider.ts');
+      const { neutralSkeletonTemplate } = await __noacgImport('/src/ai/creative/neutralSkeleton.ts');
+      const { lt01 } = await __noacgImport('/src/templates/lowerThirds/lt01.ts');
       const control = coderSystemPrompt(lt01.create());
       const deAnchored = coderSystemPrompt(neutralSkeletonTemplate());
       // A line of the catalog design's OWN stylesheet - the design decisions, not the word

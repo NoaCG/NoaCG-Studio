@@ -36,7 +36,7 @@ import { awaitDurableReady, settleDurableWrites } from './_durable';
 async function libraryNames(page: Page): Promise<string[]> {
   await awaitDurableReady(page);
   return page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     return loadGraphics().map((g) => g.name);
   });
 }
@@ -45,7 +45,7 @@ async function libraryNames(page: Page): Promise<string[]> {
 async function switchAndReload(page: Page, account: string | null): Promise<void> {
   const reloaded = page.waitForEvent('load');
   await page.evaluate(async (target) => {
-    const { bindLibraryToAccount, releaseLibrary } = await import('/src/backend/accountLibrary.ts');
+    const { bindLibraryToAccount, releaseLibrary } = await __noacgImport('/src/backend/accountLibrary.ts');
     // Not awaited: the page reloads out from under it.
     void (target ? bindLibraryToAccount(target) : releaseLibrary());
   }, account);
@@ -58,8 +58,8 @@ test('each account sees only its own library on a shared browser', async ({ page
 
   // Work made while signed out, in the signed-out workspace.
   await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
     const { error } = createGraphic(variantsFor('lower-third')[0].create({}), { name: 'Made by A', packageId: null });
     if (error) throw new Error(error);
   });
@@ -69,8 +69,8 @@ test('each account sees only its own library on a shared browser', async ({ page
   await switchAndReload(page, 'account-a');
   expect(await libraryNames(page)).toEqual([]);
   await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
     const { error } = createGraphic(variantsFor('lower-third')[0].create({}), { name: 'Made by A', packageId: null });
     if (error) throw new Error(error);
   });
@@ -84,7 +84,7 @@ test('each account sees only its own library on a shared browser', async ({ page
 
   // A's own words in the Create-with-AI setup draft are A's too, like the graphics.
   await page.evaluate(async () => {
-    const { emptyGenerationSpec, saveSpecDraft } = await import('/src/model/generationSpec.ts');
+    const { emptyGenerationSpec, saveSpecDraft } = await __noacgImport('/src/model/generationSpec.ts');
     saveSpecDraft({ ...emptyGenerationSpec(), styleNotes: 'A private style note' });
   });
 
@@ -93,7 +93,7 @@ test('each account sees only its own library on a shared browser', async ({ page
   expect(await libraryNames(page)).toEqual([]);
   expect(
     await page.evaluate(async () => {
-      const { loadSpecDraft } = await import('/src/model/generationSpec.ts');
+      const { loadSpecDraft } = await __noacgImport('/src/model/generationSpec.ts');
       return loadSpecDraft();
     }),
   ).toBeNull();
@@ -111,7 +111,7 @@ test('each account sees only its own library on a shared browser', async ({ page
   expect(await libraryNames(page)).toEqual(['Made by A']);
   expect(
     await page.evaluate(async () => {
-      const { loadSpecDraft } = await import('/src/model/generationSpec.ts');
+      const { loadSpecDraft } = await __noacgImport('/src/model/generationSpec.ts');
       return loadSpecDraft()?.styleNotes ?? null;
     }),
   ).toBe('A private style note');

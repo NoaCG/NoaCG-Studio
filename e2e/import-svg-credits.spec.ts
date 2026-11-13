@@ -16,6 +16,10 @@ import JSZip from 'jszip';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { openProductionWithCurrent } from './_create';
 import { dropSvg, intoProduction } from './_svg-import';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // THE CREDITS ROLL ON IMPORTED ARTWORK (docs/END_CREDITS.md, "The same field on an imported SVG").
 //
@@ -51,11 +55,11 @@ test('artwork credits measure after Drop, Rise and Pop and cancel a take waiting
   // after SVG assembly, so measuring at the original call time can leave the last line on air.
   await page.goto('/app');
   const documents = await page.evaluate(async (source) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
-    const { initialDraft, mergeDraft } = await import('/src/components/wizard/draft/core.ts');
-    const { withUniversalMotion } = await import('/src/components/wizard/draft/template.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const { IMPORTED_SVG } = await __noacgImport('/src/templates/importedDesign/svg.ts');
+    const { initialDraft, mergeDraft } = await __noacgImport('/src/components/wizard/draft/core.ts');
+    const { withUniversalMotion } = await __noacgImport('/src/components/wizard/draft/template.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const imported = importSvgMarkup(source);
     const fields = imported.candidates.map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: c.numeric }));
     const template = IMPORTED_SVG.create({
@@ -141,7 +145,7 @@ test('artwork credits measure after Drop, Rise and Pop and cancel a take waiting
 test('imported artwork credits preserve the complete design and roll off the whole frame', async ({ page }, testInfo) => {
   await page.goto('/app');
   const expectedRuns = await page.evaluate(async (source) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
     const parsed = new DOMParser().parseFromString(importSvgMarkup(source).markup, 'image/svg+xml');
     return Array.from(parsed.querySelectorAll('text tspan')).map((run) => ({
       text: run.textContent,
@@ -221,8 +225,8 @@ test('imported artwork credits preserve the complete design and roll off the who
 
   // The downloadable browser overlay must carry the same artwork and engine without the app.
   const b64 = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
     const production = loadShows().find((s) => s.name === 'Night sky')!;
     return (await buildShowZipFor(production, 'html-overlay')).generateAsync({ type: 'base64' });
   });
@@ -304,11 +308,11 @@ async function openLegacyProduction(page: Page, graphic: string, production: str
   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
   await awaitDurableReady(page);
   await page.evaluate(async ({ source, graphicName, useBox }) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
-    const { formatTemplate } = await import('/src/format/formatCode.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { useDocKindStore } = await import('/src/store/docKindStore.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const { IMPORTED_SVG } = await __noacgImport('/src/templates/importedDesign/svg.ts');
+    const { formatTemplate } = await __noacgImport('/src/format/formatCode.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { useDocKindStore } = await __noacgImport('/src/store/docKindStore.ts');
     const imported = importSvgMarkup(source);
     const fields = imported.candidates.map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: c.numeric }));
     const box = imported.shapes.find((s) => s.label === 'Credits box');
@@ -756,12 +760,12 @@ test('role-above credits chosen to play as cards change on Next card, and a card
 type RollBuild = { layout: string; motion: string; engine: string | null; js: string; html: string };
 function buildRolls(page: Page, source: string, roleWord: string, as: 'styled' | 'block' | 'editable', face: boolean, playback: 'roll' | 'static' | 'cards' = 'roll', advance?: number): Promise<RollBuild[]> {
   return page.evaluate(async ({ source, roleWord, as, face, playback, advance }) => {
-    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-    const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
-    const C = await import('/src/templates/importedDesign/creditsRoll.ts');
-    const { initialDraft, mergeDraft } = await import('/src/components/wizard/draft/core.ts');
-    const { withUniversalMotion } = await import('/src/components/wizard/draft/template.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+    const { IMPORTED_SVG } = await __noacgImport('/src/templates/importedDesign/svg.ts');
+    const C = await __noacgImport('/src/templates/importedDesign/creditsRoll.ts');
+    const { initialDraft, mergeDraft } = await __noacgImport('/src/components/wizard/draft/core.ts');
+    const { withUniversalMotion } = await __noacgImport('/src/components/wizard/draft/template.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const imp = importSvgMarkup(source);
     const motions = (template: ReturnType<typeof IMPORTED_SVG.create>, svg: Parameters<typeof C.creditsEngine>[0], layout: string) => (['drop', 'rise', 'pop'] as const).map((motion) => ({
       layout, motion, engine: C.creditsEngine(svg), js: template.js,
@@ -1583,8 +1587,8 @@ test('imported credits: one pasted list rolls through the Credits box in the sam
   // THE EXPORT ROLLS ON ITS OWN: the package carries the engine and the parser it shares with
   // the catalog rolls, and nothing that reaches for the network.
   const b64 = await page.evaluate(async (production) => {
-    const shows = await import('/src/model/shows.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
     const fresh = shows.loadShows().find((s) => s.name === production)!;
     return (await buildShowZipFor(fresh, 'html-overlay')).generateAsync({ type: 'base64' });
   }, 'Friday Show');

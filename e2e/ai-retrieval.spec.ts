@@ -33,8 +33,8 @@ test.describe('shortlist retrieval', () => {
   test('a brief retrieves the designs drawn for it, not the whole catalog', async ({ page }) => {
     await toApp(page);
     const res = await page.evaluate(`(async () => {
-      const { shortlistFor } = await import('/src/ai/retrieval.ts');
-      const { catalogDigest } = await import('/src/ai/designSpec.ts');
+      const { shortlistFor } = await __noacgImport('/src/ai/retrieval.ts');
+      const { catalogDigest } = await __noacgImport('/src/ai/designSpec.ts');
       const worship = shortlistFor(
         'worship service lower third with a scripture reference and the reader name',
         ${intent(['strap'], ['Reader', 'Scripture reference'], ['calm'])},
@@ -75,7 +75,7 @@ test.describe('shortlist retrieval', () => {
   test('the floor is topped up with designs the brief named, never with the residue', async ({ page }) => {
     await toApp(page);
     const res = await page.evaluate(`(async () => {
-      const { shortlistFor } = await import('/src/ai/retrieval.ts');
+      const { shortlistFor } = await __noacgImport('/src/ai/retrieval.ts');
       const squad = shortlistFor(
         'squad number strap for a stadium match with the club crest',
         ${intent(['strap'], ['Squad number'])},
@@ -114,8 +114,8 @@ test.describe('shortlist retrieval', () => {
   test('every shortlisted design carries the structure the brief asked for', async ({ page }) => {
     await toApp(page);
     const res = await page.evaluate(`(async () => {
-      const { shortlistFor } = await import('/src/ai/retrieval.ts');
-      const { variantSatisfiesAnchor } = await import('/src/templates/structuralAnchor.ts');
+      const { shortlistFor } = await __noacgImport('/src/ai/retrieval.ts');
+      const { variantSatisfiesAnchor } = await __noacgImport('/src/templates/structuralAnchor.ts');
       const list = shortlistFor(
         'a league standings table for the weekend fixtures',
         ${intent(['table'], ['Rows'])},
@@ -135,7 +135,7 @@ test.describe('shortlist retrieval', () => {
   test('nothing to retrieve within degrades to the full catalog, never to an empty list', async ({ page }) => {
     await toApp(page);
     const res = await page.evaluate(`(async () => {
-      const { shortlistFor, FULL_CATALOG } = await import('/src/ai/retrieval.ts');
+      const { shortlistFor, FULL_CATALOG } = await __noacgImport('/src/ai/retrieval.ts');
       const novel = shortlistFor('a graphic nobody has made before', {
         version: 1, kind: 'novel', novelDescription: 'x', confidence: 'low',
         summary: '', parts: [], fields: [], originalityRequested: false,
@@ -165,8 +165,8 @@ test.describe('shortlist retrieval', () => {
   test('a requested side is retrievable; the graphic’s own name is not a request', async ({ page }) => {
     await toApp(page);
     const res = await page.evaluate(`(async () => {
-      const { shortlistFor } = await import('/src/ai/retrieval.ts');
-      const { variantById } = await import('/src/templates/catalog.ts');
+      const { shortlistFor } = await __noacgImport('/src/ai/retrieval.ts');
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
       const zones = (list) => list.variants.map((v) => variantById(v.id).defaultZone);
       const right = shortlistFor(
         'a presenter strap anchored on the right of the frame',
@@ -201,7 +201,7 @@ test.describe('shortlist retrieval', () => {
   test('a refinement can always keep the design it is refining', async ({ page }) => {
     await toApp(page);
     const res = await page.evaluate(`(async () => {
-      const { shortlistFor } = await import('/src/ai/retrieval.ts');
+      const { shortlistFor } = await __noacgImport('/src/ai/retrieval.ts');
       // A worship graphic being refined with a request that names no design at all. Without
       // the keep rule the shortlist narrows the tool's variantId enum around the BRIEF, and
       // a sports strap the user never asked for is the only thing the model can name.
@@ -240,9 +240,9 @@ test.describe('shortlist retrieval', () => {
   test('the shortlist digest lists exactly the shortlisted designs', async ({ page }) => {
     await toApp(page);
     const res = await page.evaluate(`(async () => {
-      const { shortlistFor } = await import('/src/ai/retrieval.ts');
-      const { catalogDigest } = await import('/src/ai/designSpec.ts');
-      const { CATALOG } = await import('/src/templates/catalog.ts');
+      const { shortlistFor } = await __noacgImport('/src/ai/retrieval.ts');
+      const { catalogDigest } = await __noacgImport('/src/ai/designSpec.ts');
+      const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
       const list = shortlistFor(
         'esports player card lower third with squad number and team',
         ${intent(['strap'], ['Player', 'Team', 'Squad number'])},
@@ -269,8 +269,8 @@ test.describe('the chassis keeps the zone it was drawn for', () => {
   test('keepChassisZone ignores a spec zone; without it the spec still wins', async ({ page }) => {
     await toApp(page);
     const res = await page.evaluate(`(async () => {
-      const { specToTemplate } = await import('/src/ai/designSpec.ts');
-      const { variantById } = await import('/src/templates/catalog.ts');
+      const { specToTemplate } = await __noacgImport('/src/ai/designSpec.ts');
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
       const spec = {
         fit: 'catalog', reason: 'test', name: 'Zone Test', summary: 'test',
         category: 'lower-third', variantId: 'lt01', zone: 'top-right',

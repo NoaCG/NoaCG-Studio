@@ -17,24 +17,24 @@ import { install as installHeldWrite, arm as armHeldWrite, releasable as heldWri
 // The transition oracle is the stated E4 Rules, with fixed expected sources and record counts.
 test('project documents keep independent draft undo/redo through switching, reload and Home reopen', async ({ page }) => {
   const ids = await seedAuthoringProject(page);
-  const original = await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+  const original = await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);
   const sameDocumentStillOpen = await page.evaluate(async id => {
-    const D = await import('/src/components/editorFoundation/documentAdapter.ts');
+    const D = await __noacgImport('/src/components/editorFoundation/documentAdapter.ts');
     const old = D.activeEditorSession().port;
-    await (await import('/src/store/authoringProjects.ts')).openProjectDocument(id);
+    await (await __noacgImport('/src/store/authoringProjects.ts')).openProjectDocument(id);
     D.activeEditorSession();
     try { old.restore({ selectedParts: [], time: 99 }); return ''; } catch (e) { return String(e); }
   }, ids[0]);
   expect(sameDocumentStillOpen).toBe(''); // Reopening the same live binding is idempotent; switching below closes it.
   await editProjectText(page, 'North coast news');
   await page.getByRole('button', { name: /^Project/ }).first().click();
-  await page.evaluate(async () => { (window as unknown as { oldDocumentPort: unknown }).oldDocumentPort = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port; });
+  await page.evaluate(async () => { (window as unknown as { oldDocumentPort: unknown }).oldDocumentPort = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port; });
   await page.locator(`[data-document="${ids[1]}"]`).click();
   await expect(page.locator(`[data-document="${ids[1]}"]`)).toHaveAttribute('aria-current', 'page');
   const stalePort = await page.evaluate(async () => {
     let error = '';
     try { (window as unknown as { oldDocumentPort: { restore(view: unknown): void } }).oldDocumentPort.restore({ selectedParts: ['#f0'], time: 99, sampleData: { f0: 'Stale previous document' } }); } catch (e) { error = String(e); }
-    const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
     return { error, selected: s.selectedParts, sample: s.sampleData.f0 };
   });
   expect(stalePort.error).toContain('closed'); expect(stalePort.selected).toEqual([]); expect(stalePort.sample).not.toBe('Stale previous document');
@@ -42,28 +42,28 @@ test('project documents keep independent draft undo/redo through switching, relo
   await page.locator(`[data-document="${ids[0]}"]`).click();
   await expect(page.locator(`[data-document="${ids[0]}"]`)).toHaveAttribute('aria-current', 'page');
   const changed = await page.evaluate(async () => {
-    const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
+    const { activeEditorSession } = await __noacgImport('/src/components/editorFoundation/documentAdapter.ts');
     const s = activeEditorSession(), edited = s.port.read(); s.undo(); const undone = s.port.read(); s.redo();
     return { edited, undone, redone: s.port.read() };
   });
   expect(changed.undone).toEqual(original); expect(changed.redone).toEqual(changed.edited);
   await page.evaluate(async () => {
-    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const store = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
     store.setSelectedParts(['#f0']); store.setSampleValue('f0', 'Independent rehearsal sample');
-    (await import('/src/components/editorFoundation/documentAdapter.ts')).setSessionTime(.42);
+    (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).setSessionTime(.42);
   });
   await flushAuthoringProject(page);
   await page.reload(); await expect(page.getByTestId('editor-foundation')).toBeVisible();
   expect(await page.evaluate(async () => {
-    const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
-    return { selected: s.selectedParts, sample: s.sampleData.f0, time: (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view().time };
+    const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+    return { selected: s.selectedParts, sample: s.sampleData.f0, time: (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view().time };
   })).toEqual({ selected: ['#f0'], sample: 'Independent rehearsal sample', time: .42 });
   await page.getByTestId('open-home').click();
   await expect(page.getByTestId('home-projects')).toContainText('E4 show');
   await page.getByTestId('home-projects').getByRole('button', { name: /^E4 Intro/ }).click();
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
   const result = await page.evaluate(async () => {
-    const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
+    const { activeEditorSession } = await __noacgImport('/src/components/editorFoundation/documentAdapter.ts');
     const s = activeEditorSession(), edited = s.port.read(), undo = s.canUndo(); s.undo();
     return { edited: edited.html, undone: s.port.read().html, undo };
   });
@@ -73,11 +73,11 @@ test('project documents keep independent draft undo/redo through switching, relo
 test('brand source and visible-logo receipt undo together; reapply keeps role, logo bytes and untouched documents', async ({ page }) => {
   const ids = await seedAuthoringProject(page);
   const results = await page.evaluate(async ids => {
-    const P = await import('/src/store/authoringProjects.ts');
-    const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
-    const { setCssVariable, getCssVariable } = await import('/src/model/cssVars.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { brandSlotField } = await import('/src/model/packets.ts');
+    const P = await __noacgImport('/src/store/authoringProjects.ts');
+    const { activeEditorSession } = await __noacgImport('/src/components/editorFoundation/documentAdapter.ts');
+    const { setCssVariable, getCssVariable } = await __noacgImport('/src/model/cssVars.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { brandSlotField } = await __noacgImport('/src/model/packets.ts');
     const untouched = structuredClone(P.workspace().documents[2]);
     if (!await P.openProjectDocument(ids[1])) throw new Error(P.useAuthoringProjects.getState().error);
     const a = { id: 'brand-a', name: 'Channel A', updatedAt: '2026-11-12T00:00:00Z', brand: { styleTag: 'minimal' as const, fontId: 'oswald', customFont: null,
@@ -110,15 +110,15 @@ test('a refused document switch keeps the current draft; project rename/removal 
   await editProjectText(page, 'Keep the unsaved source'); await flushAuthoringProject(page);
   await fillStorage(page);
   const refused = await page.evaluate(async id => {
-    const P = await import('/src/store/authoringProjects.ts');
+    const P = await __noacgImport('/src/store/authoringProjects.ts');
     const result = await P.openProjectDocument(id);
-    return { result, current: (await import('/src/store/templateStore.ts')).useTemplateStore.getState().documentId, error: P.useAuthoringProjects.getState().error };
+    return { result, current: (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().documentId, error: P.useAuthoringProjects.getState().error };
   }, ids[1]);
   expect(refused.result).toBe(false); expect(refused.current).toBe(ids[0]); expect(refused.error).toContain('storage');
   await expect(page.locator('.ef-status [role="alert"]')).toContainText('storage');
   await freeStorage(page);
   const before = await page.evaluate(async () => {
-    const P = await import('/src/store/authoringProjects.ts');
+    const P = await __noacgImport('/src/store/authoringProjects.ts');
     const snapshot = structuredClone(P.workspace()); const id = snapshot.projects[0].id;
     if (!await P.renameAuthoringProject(id, 'Renamed E4')) throw new Error(P.useAuthoringProjects.getState().error);
     if (!await P.removeAuthoringProject(id)) throw new Error(P.useAuthoringProjects.getState().error);
@@ -126,7 +126,7 @@ test('a refused document switch keeps the current draft; project rename/removal 
   });
   await flushAuthoringProject(page); await page.goto('/app#/home'); await awaitDurableReady(page);
   await expect(page.getByTestId('home-projects')).toContainText('Unfiled drafts');
-  const after = await page.evaluate(async () => (await import('/src/store/authoringProjects.ts')).workspace());
+  const after = await page.evaluate(async () => (await __noacgImport('/src/store/authoringProjects.ts')).workspace());
   expect(after.projects).toEqual([]); expect(after.documents).toEqual(before);
   expect((await durableValue(page, 'spx-gfx-project'))).toContain('Keep the unsaved source');
 });
@@ -134,13 +134,13 @@ test('a refused document switch keeps the current draft; project rename/removal 
 test('selected graphics install independently into two rundowns, retry once and preserve newer edits on rollback', async ({ page }) => {
   const ids = await seedAuthoringProject(page);
   const result = await page.evaluate(async ids => {
-    const P = await import('/src/store/authoringProjects.ts');
-    const A = await import('/src/store/saveActions.ts');
-    const S = await import('/src/model/shows.ts');
-    const D = await import('/src/model/durableStore.ts');
-    const I = await import('/src/control/projectInstallation.ts');
+    const P = await __noacgImport('/src/store/authoringProjects.ts');
+    const A = await __noacgImport('/src/store/saveActions.ts');
+    const S = await __noacgImport('/src/model/shows.ts');
+    const D = await __noacgImport('/src/model/durableStore.ts');
+    const I = await __noacgImport('/src/control/projectInstallation.ts');
     const libraryIds = [];
-    for (const id of ids) { if (!await P.openProjectDocument(id)) throw new Error(P.useAuthoringProjects.getState().error); const save = await A.saveGraphicAs((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.name, { kind: 'standalone' }); if (!save.ok) throw new Error(save.error!); libraryIds.push(save.graphicId!); }
+    for (const id of ids) { if (!await P.openProjectDocument(id)) throw new Error(P.useAuthoringProjects.getState().error); const save = await A.saveGraphicAs((await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.name, { kind: 'standalone' }); if (!save.ok) throw new Error(save.error!); libraryIds.push(save.graphicId!); }
     const first = S.createShowNamedChecked('E4 rehearsal A').show, second = S.createShowNamedChecked('E4 rehearsal B').show;
     await D.commitDurableWrites();
     const a = await I.installProjectGraphics(first.id, libraryIds.slice(0, 2));
@@ -150,7 +150,7 @@ test('selected graphics install independently into two rundowns, retry once and 
     const b = await I.installProjectGraphics(second.id, [libraryIds[1], libraryIds[2]]);
     const bBefore = structuredClone(S.loadShows().find(s => s.id === second.id)!);
     // The library master edit is outside both installed source snapshots.
-    const L = await import('/src/model/library.ts'); const master = L.graphicById(libraryIds[1])!;
+    const L = await __noacgImport('/src/model/library.ts'); const master = L.graphicById(libraryIds[1])!;
     L.updateGraphic(master.id, { template: { ...master.template, css: master.template.css + '\n/* later master edit */' } });
     await D.commitDurableWrites();
     const independent = S.loadShows().find(s => s.id === second.id)!.graphics.every(g => !g.template.css.includes('later master edit'));
@@ -171,12 +171,12 @@ test('selected graphics install independently into two rundowns, retry once and 
 test('legacy installation normalizes only supported selected rows and refuses genuine format or metadata changes', async ({ page }) => {
   await seedAuthoringProject(page, ['lt01']);
   const result = await page.evaluate(async () => {
-    const A = await import('/src/store/saveActions.ts'), D = await import('/src/model/durableStore.ts');
-    const S = await import('/src/model/shows.ts'), I = await import('/src/control/projectInstallation.ts');
-    const M = await import('/src/model/projectInstallation.ts'), L = await import('/src/model/library.ts');
+    const A = await __noacgImport('/src/store/saveActions.ts'), D = await __noacgImport('/src/model/durableStore.ts');
+    const S = await __noacgImport('/src/model/shows.ts'), I = await __noacgImport('/src/control/projectInstallation.ts');
+    const M = await __noacgImport('/src/model/projectInstallation.ts'), L = await __noacgImport('/src/model/library.ts');
     const saved = await A.saveGraphicAs('Legacy installation source', { kind: 'standalone' });
     if (!saved.ok) throw new Error(saved.error!);
-    (await import('/src/store/templateStore.ts')).flushPendingProject(); await D.commitDurableWrites();
+    (await __noacgImport('/src/store/templateStore.ts')).flushPendingProject(); await D.commitDurableWrites();
     const unrelated = [{ id: 'unrelated-legacy', name: 'Keep raw legacy', graphics: [] },
       { id: 'unrelated-future', name: 'Keep future bytes', version: 99, graphics: [], metadata: { future: true } }];
     const disk = () => new Promise<string>((resolve, reject) => {
@@ -238,7 +238,7 @@ test('Home starts three chosen registry graphics and a created brand without cod
   await starter.getByRole('button', { name: 'Create project · 3', exact: true }).click();
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
   const created = await page.evaluate(async () => {
-    const P = await import('/src/store/authoringProjects.ts');
+    const P = await __noacgImport('/src/store/authoringProjects.ts');
     const w = P.workspace(), project = w.projects.find(p => p.name === 'Harbour bulletin')!;
     return project.documents.map(id => w.documents.find(d => d.id === id)!);
   });
@@ -253,14 +253,14 @@ test('Home starts three chosen registry graphics and a created brand without cod
 for (const crash of ['target-refused', 'confirmation-refused'] as const) test(`interrupted install ${crash} reconciles after reload with the same graphic/cue ids`, async ({ page }) => {
   const ids = await seedAuthoringProject(page);
   const setup = await page.evaluate(async id => {
-    const P = await import('/src/store/authoringProjects.ts');
+    const P = await __noacgImport('/src/store/authoringProjects.ts');
     await P.openProjectDocument(id);
-    const A = await import('/src/store/saveActions.ts');
+    const A = await __noacgImport('/src/store/saveActions.ts');
     const saved = await A.saveGraphicAs('Recovery lower third', { kind: 'standalone' });
     if (!saved.ok) throw new Error(saved.error!);
-    const show = (await import('/src/model/shows.ts')).createShowNamedChecked('Interrupted install').show;
-    (await import('/src/store/templateStore.ts')).flushPendingProject();
-    const error = await (await import('/src/model/durableStore.ts')).commitDurableWrites(); if (error) throw new Error(error);
+    const show = (await __noacgImport('/src/model/shows.ts')).createShowNamedChecked('Interrupted install').show;
+    (await __noacgImport('/src/store/templateStore.ts')).flushPendingProject();
+    const error = await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites(); if (error) throw new Error(error);
     return { graphicId: saved.graphicId!, showId: show.id };
   }, ids[0]);
   const interrupted = await page.evaluate(async ({ crash, setup }) => {
@@ -272,19 +272,19 @@ for (const crash of ['target-refused', 'confirmation-refused'] as const) test(`i
       return real.call(this, value, storeKey!);
     };
     let error = '';
-    try { await (await import('/src/control/projectInstallation.ts')).installProjectGraphics(setup.showId, [setup.graphicId]); } catch (e) { error = String(e); }
+    try { await (await __noacgImport('/src/control/projectInstallation.ts')).installProjectGraphics(setup.showId, [setup.graphicId]); } catch (e) { error = String(e); }
     finally { IDBObjectStore.prototype.put = real; }
-    const w = (await import('/src/store/authoringProjects.ts')).workspace();
+    const w = (await __noacgImport('/src/store/authoringProjects.ts')).workspace();
     const plan = w.installations![0];
-    return { error, plan, show: (await import('/src/model/shows.ts')).loadShows().find(s => s.id === setup.showId)! };
+    return { error, plan, show: (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === setup.showId)! };
   }, { crash, setup });
   expect(interrupted.error).not.toBe(''); expect(interrupted.plan.status).toBe('prepared');
   expect(interrupted.show.graphics).toHaveLength(crash === 'target-refused' ? 0 : 1);
   await page.reload(); await expect(page.getByTestId('editor-foundation')).toBeVisible();
   const recovered = await page.evaluate(async id => {
-    await (await import('/src/control/projectInstallation.ts')).retryProjectInstallation(id);
-    const P = (await import('/src/store/authoringProjects.ts')).workspace().installations![0];
-    return { plan: P, show: (await import('/src/model/shows.ts')).loadShows().find(s => s.id === P.target)! };
+    await (await __noacgImport('/src/control/projectInstallation.ts')).retryProjectInstallation(id);
+    const P = (await __noacgImport('/src/store/authoringProjects.ts')).workspace().installations![0];
+    return { plan: P, show: (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === P.target)! };
   }, interrupted.plan.id);
   expect(recovered.plan.status).toBe('confirmed'); expect(recovered.show).toEqual(interrupted.plan.after);
   expect(recovered.show.graphics).toHaveLength(1); expect(recovered.show.cues).toHaveLength(1);
@@ -293,13 +293,13 @@ for (const crash of ['target-refused', 'confirmation-refused'] as const) test(`i
 for (const crash of ['intent-refused', 'target-refused', 'confirmation-refused'] as const) test(`interrupted rollback ${crash} keeps its direction and exact revision after reload`, async ({ page }) => {
   const ids = await seedAuthoringProject(page);
   const installed = await page.evaluate(async id => {
-    const P = await import('/src/store/authoringProjects.ts'); await P.openProjectDocument(id);
-    const saved = await (await import('/src/store/saveActions.ts')).saveGraphicAs('Inverse recovery', { kind: 'standalone' });
+    const P = await __noacgImport('/src/store/authoringProjects.ts'); await P.openProjectDocument(id);
+    const saved = await (await __noacgImport('/src/store/saveActions.ts')).saveGraphicAs('Inverse recovery', { kind: 'standalone' });
     if (!saved.ok) throw new Error(saved.error!);
-    const show = (await import('/src/model/shows.ts')).createShowNamedChecked('Inverse recovery').show;
-    (await import('/src/store/templateStore.ts')).flushPendingProject();
-    await (await import('/src/model/durableStore.ts')).commitDurableWrites();
-    return (await import('/src/control/projectInstallation.ts')).installProjectGraphics(show.id, [saved.graphicId!]);
+    const show = (await __noacgImport('/src/model/shows.ts')).createShowNamedChecked('Inverse recovery').show;
+    (await __noacgImport('/src/store/templateStore.ts')).flushPendingProject();
+    await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();
+    return (await __noacgImport('/src/control/projectInstallation.ts')).installProjectGraphics(show.id, [saved.graphicId!]);
   }, ids[0]);
   const interrupted = await page.evaluate(async ({ crash, id }) => {
     const key = crash === 'target-refused' ? 'spx-gfx-shows' : 'spx-gfx-project';
@@ -309,15 +309,15 @@ for (const crash of ['intent-refused', 'target-refused', 'confirmation-refused']
       if (storeKey === key && ++matching === failAt) { IDBObjectStore.prototype.put = real; throw new DOMException('E4 inverse storage refusal', 'QuotaExceededError'); }
       return real.call(this, value, storeKey!);
     };
-    try { await (await import('/src/control/projectInstallation.ts')).retryProjectInstallation(id, true); } catch (e) { error = String(e); }
+    try { await (await __noacgImport('/src/control/projectInstallation.ts')).retryProjectInstallation(id, true); } catch (e) { error = String(e); }
     finally { IDBObjectStore.prototype.put = real; }
-    const target = (await import('/src/store/authoringProjects.ts')).workspace().installations!.find(p => p.id === id)!.target;
-    return { error, show: (await import('/src/model/shows.ts')).loadShows().find(s => s.id === target)! };
+    const target = (await __noacgImport('/src/store/authoringProjects.ts')).workspace().installations!.find(p => p.id === id)!.target;
+    return { error, show: (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === target)! };
   }, { crash, id: installed.id });
   expect(interrupted.error).not.toBe('');
   expect(interrupted.show.graphics).toHaveLength(crash === 'confirmation-refused' ? 0 : 1);
   await page.reload(); await expect(page.getByTestId('editor-foundation')).toBeVisible();
-  const pending = await page.evaluate(async id => (await import('/src/store/authoringProjects.ts')).workspace().installations!.find(p => p.id === id)!, installed.id);
+  const pending = await page.evaluate(async id => (await __noacgImport('/src/store/authoringProjects.ts')).workspace().installations!.find(p => p.id === id)!, installed.id);
   expect(pending.status).toBe('confirmed');
   if (crash === 'intent-refused') expect(pending.rollback).toBeUndefined();
   else {
@@ -330,22 +330,22 @@ for (const crash of ['intent-refused', 'target-refused', 'confirmation-refused']
     await expect(row).toContainText('rolled-back');
   }
   const recovered = await page.evaluate(async ({ id, needsIntent }) => {
-    const I = await import('/src/control/projectInstallation.ts');
+    const I = await __noacgImport('/src/control/projectInstallation.ts');
     if (needsIntent) await I.retryProjectInstallation(id, true);
     const first = await I.retryProjectInstallation(id), second = await I.retryProjectInstallation(id);
-    return { first, second, show: (await import('/src/model/shows.ts')).loadShows().find(s => s.id === first.target)! };
+    return { first, second, show: (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === first.target)! };
   }, { id: installed.id, needsIntent: crash === 'intent-refused' });
   expect(recovered.first.status).toBe('rolled-back'); expect(recovered.second).toEqual(recovered.first);
   expect(recovered.show).toEqual(recovered.first.rollback);
   if (pending.rollback) expect(recovered.show).toEqual(pending.rollback);
   expect(recovered.show.graphics).toEqual(installed.before.graphics); expect(recovered.show.cues).toEqual(installed.before.cues);
   const newer = await page.evaluate(async id => {
-    const S = await import('/src/model/shows.ts'), P = await import('/src/store/authoringProjects.ts');
+    const S = await __noacgImport('/src/model/shows.ts'), P = await __noacgImport('/src/store/authoringProjects.ts');
     const plan = P.workspace().installations!.find(p => p.id === id)!;
     S.upsertShow({ ...S.loadShows().find(s => s.id === plan.target)!, name: 'Later operator edit' });
-    await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+    await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();
     const before = S.loadShows().find(s => s.id === plan.target)!; let error = '';
-    try { await (await import('/src/control/projectInstallation.ts')).retryProjectInstallation(id); } catch (e) { error = String(e); }
+    try { await (await __noacgImport('/src/control/projectInstallation.ts')).retryProjectInstallation(id); } catch (e) { error = String(e); }
     return { before, after: S.loadShows().find(s => s.id === plan.target)!, error };
   }, installed.id);
   expect(newer.error).toContain('newer production edits'); expect(newer.after).toEqual(newer.before);
@@ -355,24 +355,24 @@ test('legacy adoption is additive and refusal preserves its source; unknown work
   await armStorageFailure(page);
   await page.goto('/app#/home'); await awaitDurableReady(page);
   const legacy = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const S = await import('/src/store/templateStore.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const S = await __noacgImport('/src/store/templateStore.ts');
     S.useTemplateStore.getState().applyTemplate({ ...variantsFor('lower-third')[0].create({}), name: 'Legacy source' }, { resetSampleData: true });
-    S.flushPendingProject(); await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+    S.flushPendingProject(); await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();
     return S.useTemplateStore.getState().template;
   });
   const originalDisk = await durableValue(page, 'spx-gfx-project');
   await fillStorage(page);
   const refused = await page.evaluate(async () => {
-    const P = await import('/src/store/authoringProjects.ts');
-    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const P = await __noacgImport('/src/store/authoringProjects.ts');
+    const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
     return P.createAuthoringProject('New show', [{ ...t, name: 'Intro' }]);
   });
   expect(refused).toBe(false); expect(await durableValue(page, 'spx-gfx-project')).toBe(originalDisk);
   await freeStorage(page);
   const adopted = await page.evaluate(async () => {
-    const P = await import('/src/store/authoringProjects.ts');
-    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const P = await __noacgImport('/src/store/authoringProjects.ts');
+    const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
     if (!await P.createAuthoringProject('New show', [{ ...t, name: 'Intro' }])) throw new Error(P.useAuthoringProjects.getState().error);
     return P.workspace();
   });
@@ -380,7 +380,7 @@ test('legacy adoption is additive and refusal preserves its source; unknown work
   expect(adopted.documents).toHaveLength(2);
   expect(adopted.documents.find(d => d.template.name === 'Legacy source')!.history.length).toBe(0);
   const unknown = await page.evaluate(async () => {
-    const M = await import('/src/model/project.ts'), D = await import('/src/model/durableStore.ts');
+    const M = await __noacgImport('/src/model/project.ts'), D = await __noacgImport('/src/model/durableStore.ts');
     const current = M.loadProject()!;
     M.stageAuthoringWorkspace(undefined);
     const future = { ...current, workspace: { v: 99, opaque: 'future source' } };
@@ -396,27 +396,27 @@ test('a refused explicit save keeps the library and draft; pending save cannot s
   await armStorageFailure(page);
   const ids = await seedAuthoringProject(page);
   const initial = await page.evaluate(async () => {
-    const A = await import('/src/store/saveActions.ts');
+    const A = await __noacgImport('/src/store/saveActions.ts');
     const result = await A.saveGraphicAs('Durable master', { kind: 'standalone' });
     if (!result.ok) throw new Error(result.error!);
-    return (await import('/src/model/library.ts')).graphicById(result.graphicId!)!;
+    return (await __noacgImport('/src/model/library.ts')).graphicById(result.graphicId!)!;
   });
   await editProjectText(page, 'Newer unsaved edition'); await flushAuthoringProject(page);
   await fillStorage(page);
   const failed = await page.evaluate(async id => {
-    const A = await import('/src/store/saveActions.ts'), P = await import('/src/store/authoringProjects.ts');
+    const A = await __noacgImport('/src/store/saveActions.ts'), P = await __noacgImport('/src/store/authoringProjects.ts');
     const saving = A.saveCurrentGraphic();
     const switched = await P.openProjectDocument(id);
     const result = await saving;
-    return { result, switched, state: (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template,
-      library: (await import('/src/model/library.ts')).loadGraphics() };
+    return { result, switched, state: (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template,
+      library: (await __noacgImport('/src/model/library.ts')).loadGraphics() };
   }, ids[1]);
   expect(failed.result).toBe('failed'); expect(failed.switched).toBe(false); expect(failed.state.html).toContain('Newer unsaved edition');
   expect(failed.library).toEqual([initial]);
   await freeStorage(page);
   const retried = await page.evaluate(async () => {
-    const result = await (await import('/src/store/saveActions.ts')).saveCurrentGraphic();
-    return { result, library: (await import('/src/model/library.ts')).loadGraphics() };
+    const result = await (await __noacgImport('/src/store/saveActions.ts')).saveCurrentGraphic();
+    return { result, library: (await __noacgImport('/src/model/library.ts')).loadGraphics() };
   });
   expect(retried.result).toBe('saved'); expect(retried.library).toHaveLength(1); expect(retried.library[0].id).toBe(initial.id);
   expect(retried.library[0].template.html).toContain('Newer unsaved edition');
@@ -449,27 +449,27 @@ test('saved project reaches operator data In/Next/Out and exports bundled receiv
   const logo = readFileSync('e2e/fixtures/editor-projects/harbour.svg').toString('base64');
   const ids = await seedAuthoringProject(page, fixture.variants);
   const prepared = await page.evaluate(async ({ ids, fixture, logo }) => {
-    const P = await import('/src/store/authoringProjects.ts'), A = await import('/src/store/saveActions.ts');
-    const S = await import('/src/model/shows.ts'), D = await import('/src/model/durableStore.ts');
-    const { createLook } = await import('/src/model/packets.ts');
+    const P = await __noacgImport('/src/store/authoringProjects.ts'), A = await __noacgImport('/src/store/saveActions.ts');
+    const S = await __noacgImport('/src/model/shows.ts'), D = await __noacgImport('/src/model/durableStore.ts');
+    const { createLook } = await __noacgImport('/src/model/packets.ts');
     if (!await P.openProjectDocument(ids[1])) throw new Error(P.useAuthoringProjects.getState().error);
     const look = createLook('Harbour receiving', { styleTag: 'minimal', fontId: fixture.fontId, customFont: null,
       palette: { id: 'custom', name: 'Harbour', styleTags: ['minimal'], accent: fixture.accent, text: '#ffffff', textDim: '#b8c4d6', panel: '#112233' },
       logo: { path: 'images/harbour.svg', data: 'data:image/svg+xml;base64,' + logo } });
-    const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const session = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
     session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [
       { kind: 'text.set', selector: '#f0', text: fixture.heading }, { kind: 'brand.apply', look },
     ] });
     const saved = await A.saveGraphicAs(fixture.name, { kind: 'standalone' }); if (!saved.ok) throw new Error(saved.error!);
-    const doc = (await import('/src/model/library.ts')).graphicById(saved.graphicId!)!;
+    const doc = (await __noacgImport('/src/model/library.ts')).graphicById(saved.graphicId!)!;
     const outputs = [];
-    for (const target of (await import('/src/export/registry.ts')).EXPORT_TARGETS.filter(t => fixture.expected.targets.includes(t.id))) {
+    for (const target of (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.filter(t => fixture.expected.targets.includes(t.id))) {
       const zip = await target.build(doc.template, { sampleData: { f0: fixture.heading } });
       outputs.push({ id: target.id, base64: await zip.generateAsync({ type: 'base64' }) });
     }
     const show = S.createShowNamedChecked('E4 operator rehearsal').show; await D.commitDurableWrites();
-    await (await import('/src/control/projectInstallation.ts')).installProjectGraphics(show.id, [doc.id]);
-    (await import('/src/app/router.ts')).useRouter.getState().navigate({ view: 'production', id: show.id });
+    await (await __noacgImport('/src/control/projectInstallation.ts')).installProjectGraphics(show.id, [doc.id]);
+    (await __noacgImport('/src/app/router.ts')).useRouter.getState().navigate({ view: 'production', id: show.id });
     await new Promise(resolve => setTimeout(resolve));
     return { outputs, source: doc.template, showId: show.id };
   }, { ids, fixture, logo });
@@ -492,10 +492,10 @@ test('saved project reaches operator data In/Next/Out and exports bundled receiv
   await expect(page.getByTestId('program-stage')).toHaveAttribute('data-plays', '2');
   await expect.poll(() => program.locator('body').evaluate(() => (window as unknown as { noacgStepsPlayed: number }).noacgStepsPlayed)).toBe(1);
   await page.evaluate(async () => {
-    const L = await import('/src/model/library.ts'), C = await import('/src/model/cssVars.ts');
+    const L = await __noacgImport('/src/model/library.ts'), C = await __noacgImport('/src/model/cssVars.ts');
     const master = L.loadGraphics().find(g => g.name === 'E4 Receiving Steps')!;
     L.updateGraphic(master.id, { template: { ...master.template, css: C.setCssVariable(master.template.css, 'accent', '#ff0000') } });
-    await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+    await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();
   });
   await expect(program.locator('#f0')).toHaveText(fixture.operatorHeading);
   expect(await program.locator('html').evaluate(el => getComputedStyle(el).getPropertyValue('--accent').trim())).toBe(fixture.accent);
@@ -588,20 +588,20 @@ test('saved project reaches operator data In/Next/Out and exports bundled receiv
 for (const door of ['api', 'document', 'brand', 'save', 'create'] as const) test(`external draft is durably retained through project ${door}`, async ({ page }) => {
   const ids = await seedAuthoringProject(page);
   const external = await page.evaluate(async () => {
-    const S = (await import('/src/store/templateStore.ts')).useTemplateStore;
+    const S = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore;
     const s = S.getState(); s.applyTemplate({ ...s.template, name: 'External harbour draft' }, { resetSampleData: true });
-    const look = (await import('/src/model/packets.ts')).createLook('Batch brand', { styleTag: 'minimal', fontId: 'inter', customFont: null,
+    const look = (await __noacgImport('/src/model/packets.ts')).createLook('Batch brand', { styleTag: 'minimal', fontId: 'inter', customFont: null,
       palette: { id: 'custom', name: 'Harbour', styleTags: ['minimal'], accent: '#16bb99', text: '#ffffff', textDim: '#aaaabb', panel: '#112233' } });
     return { id: S.getState().documentId, look: look.id };
   });
   await editProjectText(page, 'External source must survive');
   await flushAuthoringProject(page);
   const before = await page.evaluate(async () => {
-    const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
     return { template: s.template, history: s.history, saved: { graphicId: s.saved.graphicId, dirty: s.saved.dirty } };
   });
   if (door === 'api' || door === 'create') await page.evaluate(async ({ id, door }) => {
-    const P = await import('/src/store/authoringProjects.ts');
+    const P = await __noacgImport('/src/store/authoringProjects.ts');
     const ok = door === 'api' ? await P.openProjectDocument(id) : await P.createAuthoringProject('Second project', [P.workspace().documents[0].template]);
     if (!ok) throw new Error(P.useAuthoringProjects.getState().error);
   }, { id: ids[1], door });
@@ -613,17 +613,17 @@ for (const door of ['api', 'document', 'brand', 'save', 'create'] as const) test
       if (door === 'brand') { await page.getByLabel('Brand for selected graphics').selectOption(external.look); await page.getByRole('button', { name: 'Apply brand', exact: true }).click(); }
       else await page.getByRole('button', { name: 'Save selected', exact: true }).click();
       await expect(page.getByTestId('project-note')).toContainText(door === 'brand' ? 'Brand applied' : 'graphics saved');
-      expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().documentId)).toBe(external.id);
+      expect(await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().documentId)).toBe(external.id);
     }
   }
   await flushAuthoringProject(page);
-  const kept = await page.evaluate(async id => (await import('/src/store/authoringProjects.ts')).workspace().documents.find(d => d.id === id), external.id);
+  const kept = await page.evaluate(async id => (await __noacgImport('/src/store/authoringProjects.ts')).workspace().documents.find(d => d.id === id), external.id);
   expect(kept).toBeDefined(); expect(kept!.template).toEqual(before.template); expect(kept!.history).toEqual(before.history); expect(kept!.saved).toEqual(before.saved);
   await page.reload(); await expect(page.getByTestId('editor-foundation')).toBeVisible();
   const reopened = await page.evaluate(async id => {
-    const P = await import('/src/store/authoringProjects.ts');
+    const P = await __noacgImport('/src/store/authoringProjects.ts');
     if (!await P.openProjectDocument(id)) throw new Error(P.useAuthoringProjects.getState().error);
-    const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const s = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
     const draft = s.port.read(); s.undo(); const undo = s.port.read(); s.redo();
     return { draft, undo, redo: s.port.read() };
   }, external.id);
@@ -634,15 +634,15 @@ test('refused external retention and cancelled Home/starter switches keep the un
   await armStorageFailure(page);
   const ids = await seedAuthoringProject(page);
   const externalId = await page.evaluate(async () => {
-    const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
     s.applyTemplate({ ...s.template, name: 'External refusal' }, { resetSampleData: true });
-    return (await import('/src/store/templateStore.ts')).useTemplateStore.getState().documentId;
+    return (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().documentId;
   });
   await editProjectText(page, 'Refused external must stay open'); await flushAuthoringProject(page);
   await fillStorage(page);
   const result = await page.evaluate(async id => {
-    const P = await import('/src/store/authoringProjects.ts'); const ok = await P.openProjectDocument(id);
-    const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const P = await __noacgImport('/src/store/authoringProjects.ts'); const ok = await P.openProjectDocument(id);
+    const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
     return { ok, id: s.documentId, html: s.template.html };
   }, ids[0]);
   expect(result.ok).toBe(false); expect(result.id).toBe(externalId); expect(result.html).toContain('Refused external must stay open');
@@ -651,7 +651,7 @@ test('refused external retention and cancelled Home/starter switches keep the un
   await expect(page.getByTestId('confirm-switch')).toBeVisible();
   await page.getByTestId('switch-cancel').click();
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
-  expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().documentId)).toBe(externalId);
+  expect(await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().documentId)).toBe(externalId);
   await page.getByRole('button', { name: /^Project/ }).first().click();
   await page.getByRole('button', { name: 'New project', exact: true }).click();
   await expect(page.getByTestId('project-starter')).toBeVisible();
@@ -659,8 +659,8 @@ test('refused external retention and cancelled Home/starter switches keep the un
   await expect(page.getByTestId('confirm-switch')).toBeVisible();
   await page.getByTestId('switch-cancel').click();
   const cancelled = await page.evaluate(async () => {
-    const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
-    return { id: s.documentId, html: s.template.html, projects: (await import('/src/store/authoringProjects.ts')).workspace().projects.length };
+    const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+    return { id: s.documentId, html: s.template.html, projects: (await __noacgImport('/src/store/authoringProjects.ts')).workspace().projects.length };
   });
   expect(cancelled.id).toBe(externalId); expect(cancelled.html).toContain('Refused external must stay open'); expect(cancelled.projects).toBe(1);
   await page.getByRole('button', { name: 'Close new project', exact: true }).click();
@@ -669,9 +669,9 @@ test('refused external retention and cancelled Home/starter switches keep the un
 test('library Save As and same-private-id baseline changes retire old ports before binding refresh', async ({ page }) => {
   await seedAuthoringProject(page);
   const result = await page.evaluate(async () => {
-    const S = (await import('/src/store/templateStore.ts')).useTemplateStore;
-    const D = await import('/src/components/editorFoundation/documentAdapter.ts');
-    const A = await import('/src/store/saveActions.ts');
+    const S = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore;
+    const D = await __noacgImport('/src/components/editorFoundation/documentAdapter.ts');
+    const A = await __noacgImport('/src/store/saveActions.ts');
     const s = S.getState(); s.applyTemplate({ ...s.template, name: 'External ownership' }, { resetSampleData: true });
     const privateId = S.getState().documentId, initial = D.activeEditorSession();
     const closed = (port: typeof initial.port) => { try { port.restore({ selectedParts: [], time: 99 }); return ''; } catch (e) { return String(e); } };
@@ -701,11 +701,11 @@ test('library Save As and same-private-id baseline changes retire old ports befo
 test('two retained drafts sharing a saved library link keep distinct public workspace ownership', async ({ page }) => {
   const ids = await seedAuthoringProject(page);
   const result = await page.evaluate(async firstId => {
-    const P = await import('/src/store/authoringProjects.ts'), A = await import('/src/store/saveActions.ts');
-    const D = await import('/src/components/editorFoundation/documentAdapter.ts');
+    const P = await __noacgImport('/src/store/authoringProjects.ts'), A = await __noacgImport('/src/store/saveActions.ts');
+    const D = await __noacgImport('/src/components/editorFoundation/documentAdapter.ts');
     const saved = await A.saveGraphicAs('Shared master identity', { kind: 'standalone' }); if (!saved.ok) throw new Error(saved.error!);
     A.openGraphicById(saved.graphicId!);
-    const secondId = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().documentId;
+    const secondId = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().documentId;
     if (!await P.keepCurrentInProject(P.workspace().projects[0].id)) throw new Error(P.useAuthoringProjects.getState().error);
     const secondPublic = D.activeEditorSession().documentId;
     if (!await P.openProjectDocument(firstId)) throw new Error(P.useAuthoringProjects.getState().error);
@@ -722,8 +722,8 @@ test('brand reapplication renders retained numeric and custom font bytes through
   const saira = 'data:font/woff2;base64,' + readFileSync('public/fonts/saira.woff2').toString('base64');
   const inter = 'data:font/woff2;base64,' + readFileSync('public/fonts/inter.woff2').toString('base64');
   const numeric = await page.evaluate(async () => {
-    const D = await import('/src/components/editorFoundation/documentAdapter.ts'), F = await import('/src/model/fonts.ts'), C = await import('/src/model/cssVars.ts');
-    const S = (await import('/src/store/templateStore.ts')).useTemplateStore;
+    const D = await __noacgImport('/src/components/editorFoundation/documentAdapter.ts'), F = await __noacgImport('/src/model/fonts.ts'), C = await __noacgImport('/src/model/cssVars.ts');
+    const S = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore;
     const palette = { id: 'custom', name: 'Harbour', styleTags: ['minimal' as const], accent: '#16bb99', text: '#ffffff', textDim: '#aaaabb', panel: '#112233' };
     const a = { id: 'render-a', name: 'A', updatedAt: '2026-11-12T00:00:00Z', brand: { styleTag: 'minimal' as const, palette, fontId: 'oswald', customFont: null } };
     const apply = (look: typeof a) => { const s = D.activeEditorSession(); s.execute({ documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'brand.apply', look }] }); };
@@ -751,8 +751,8 @@ test('brand reapplication renders retained numeric and custom font bytes through
   expect(Math.max(...widths.got) - Math.min(...widths.got)).toBeLessThanOrEqual(.5);
   widths.got.forEach((value, i) => expect(Math.abs(value - widths.want[i])).toBeLessThanOrEqual(.5));
   const custom = await page.evaluate(async ({ saira, inter }) => {
-    const D = await import('/src/components/editorFoundation/documentAdapter.ts'), F = await import('/src/model/fonts.ts'), C = await import('/src/model/cssVars.ts');
-    const S = (await import('/src/store/templateStore.ts')).useTemplateStore, source = S.getState().template;
+    const D = await __noacgImport('/src/components/editorFoundation/documentAdapter.ts'), F = await __noacgImport('/src/model/fonts.ts'), C = await __noacgImport('/src/model/cssVars.ts');
+    const S = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore, source = S.getState().template;
     const localFont = { family: 'Harbour Face', format: 'woff2' as const, asset: { path: 'fonts/brand.woff2', data: saira } };
     const local = { ...source, css: C.setCssVariable(C.setCssVariable(F.customFontFaceCss(localFont) + '\n' + source.css, 'font-heading', F.customFontStack(localFont)), 'font-numeric', F.numericFontStack(localFont)), assets: [...source.assets, localFont.asset] };
     S.getState().applyTemplate(local);
@@ -785,7 +785,7 @@ test('old commands refuse Save As and baseline replacement before any caller ref
   };
   await seedAuthoringProject(page);
   await page.evaluate(async () => {
-    const [S, D, A, C] = await Promise.all([import('/src/store/templateStore.ts'), import('/src/components/editorFoundation/documentAdapter.ts'), import('/src/store/saveActions.ts'), import('/src/components/editorFoundation/commandAdapter.ts')]);
+    const [S, D, A, C] = await Promise.all([__noacgImport('/src/store/templateStore.ts'), __noacgImport('/src/components/editorFoundation/documentAdapter.ts'), __noacgImport('/src/store/saveActions.ts'), __noacgImport('/src/components/editorFoundation/commandAdapter.ts')]);
     (window as unknown as { ownershipFixture: Fixture }).ownershipFixture = { S, D, A, C };
   });
   const privateId = await page.evaluate(() => {
@@ -892,7 +892,7 @@ for (const draft of ['pen', 'inline', 'pointer', 'image'] as const) test(`same-p
   await seedAuthoringProject(page);
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
   await page.evaluate(async () => {
-    const [S, D] = await Promise.all([import('/src/store/templateStore.ts'), import('/src/components/editorFoundation/documentAdapter.ts')]);
+    const [S, D] = await Promise.all([__noacgImport('/src/store/templateStore.ts'), __noacgImport('/src/components/editorFoundation/documentAdapter.ts')]);
     (window as unknown as { transientOwner: { S: typeof S; D: typeof D } }).transientOwner = { S, D };
   });
   const canvas = page.getByTestId('foundation-canvas'), box = (await canvas.boundingBox())!;
@@ -951,9 +951,9 @@ type SerialWorkspace = {
 };
 async function prepareSerialWorkspace(page: Page) {
   await page.evaluate(async () => {
-    const [P, M, D, S, A, I, Sh, R, E] = await Promise.all([import('/src/store/authoringProjects.ts'), import('/src/model/project.ts'),
-      import('/src/model/durableStore.ts'), import('/src/store/templateStore.ts'), import('/src/store/saveActions.ts'),
-      import('/src/control/projectInstallation.ts'), import('/src/model/shows.ts'), import('/src/app/router.ts'), import('/src/components/editorFoundation/documentAdapter.ts')]);
+    const [P, M, D, S, A, I, Sh, R, E] = await Promise.all([__noacgImport('/src/store/authoringProjects.ts'), __noacgImport('/src/model/project.ts'),
+      __noacgImport('/src/model/durableStore.ts'), __noacgImport('/src/store/templateStore.ts'), __noacgImport('/src/store/saveActions.ts'),
+      __noacgImport('/src/control/projectInstallation.ts'), __noacgImport('/src/model/shows.ts'), __noacgImport('/src/app/router.ts'), __noacgImport('/src/components/editorFoundation/documentAdapter.ts')]);
     (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace = { P, M, D, S, A, I, Sh, R, E };
   });
 }
@@ -1118,7 +1118,7 @@ for (const operation of ['project', 'install', 'rollback'] as const) test(`held 
 test('same-private adopted revision refuses an old writer until explicit reload and rejects old packets', async ({ page, context }) => {
   const ids = await seedAuthoringProject(page); await editProjectText(page, 'A confirmed older revision'); await flushAuthoringProject(page); await prepareSerialWorkspace(page);
   const old = await page.evaluate(async () => {
-    const C = await import('/src/components/editorFoundation/commandAdapter.ts'), c = C.activeEditorCommands(), inspected = c.inspect();
+    const C = await __noacgImport('/src/components/editorFoundation/commandAdapter.ts'), c = C.activeEditorCommands(), inspected = c.inspect();
     if (!inspected.ok) throw new Error(inspected.refusal.message);
     return { expected: inspected.expected, privateId: (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.S.useTemplateStore.getState().documentId };
   });
@@ -1140,7 +1140,7 @@ test('same-private adopted revision refuses an old writer until explicit reload 
   await page.getByTestId('home-projects').getByRole('button', { name: /^E4 Lower third/ }).click();
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
   const loaded = await page.evaluate(async oldSession => {
-    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace, C = await import('/src/components/editorFoundation/commandAdapter.ts');
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace, C = await __noacgImport('/src/components/editorFoundation/commandAdapter.ts');
     const c = C.activeEditorCommands(), inspected = c.inspect(); if (!inspected.ok) throw new Error(inspected.refusal.message);
     const before = JSON.stringify(h.S.useTemplateStore.getState().template);
     const reply = c.apply({ expected: { ...inspected.expected, sessionId: oldSession }, transactionId: crypto.randomUUID(), commands: [{ id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 20, y: 20, width: 40, height: 40 } } }] });
@@ -1168,7 +1168,7 @@ for (const destination of ['pristine', 'reserved', 'new-project'] as const) test
   const departing = await page.evaluate(async () => {
     const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace;
     const saved = await h.A.saveGraphicAs(h.S.useTemplateStore.getState().template.name, { kind: 'standalone' });
-    const L = await import('/src/model/library.ts');
+    const L = await __noacgImport('/src/model/library.ts');
     return { saved, record: L.graphicById(saved.graphicId!)!.template };
   });
   expect(departing.saved.ok).toBe(false);
@@ -1200,7 +1200,7 @@ for (const destination of ['pristine', 'reserved', 'new-project'] as const) test
   expect(ownSave.ok, ownSave.error ?? '').toBe(true); expect(ownSave.graphicId).not.toBe(departing.saved.graphicId);
   if (destination === 'reserved') expect(ownSave.graphicId).toBe(before.b.reservedGraphicId);
   const returned = await page.evaluate(async ({ id, graphic }) => {
-    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace, L = await import('/src/model/library.ts');
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace, L = await __noacgImport('/src/model/library.ts');
     if (!await h.P.openProjectDocument(id)) throw new Error(h.P.useAuthoringProjects.getState().error);
     const link = h.S.useTemplateStore.getState().saved.graphicId, saved = await h.A.saveCurrentGraphic();
     return { link, saved, record: L.graphicById(graphic)!.template, count: L.loadGraphics().length };
@@ -1273,7 +1273,7 @@ test('a landed mint stays with its dormant private owner across a different sele
   });
   await heldWriteReady(page);
   const selected = await page.evaluate(async ids => {
-    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace, L = await import('/src/model/library.ts');
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace, L = await __noacgImport('/src/model/library.ts');
     const before = h.P.workspace(), a = before.documents.find(d => d.id === ids[0])!, b = before.documents.find(d => d.id === ids[1])!;
     const writes = h.D.captureDurableWrites('spx-gfx-project', () => {
       h.M.writeAuthoringWorkspace({ ...before, active: ids[1] });
@@ -1292,7 +1292,7 @@ test('a landed mint stays with its dormant private owner across a different sele
   await page.reload(); await awaitDurableReady(page); await prepareSerialWorkspace(page);
   expect(await page.evaluate(() => (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace.S.useTemplateStore.getState().saved.graphicId)).toBeNull();
   const recovered = await page.evaluate(async id => {
-    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace, L = await import('/src/model/library.ts');
+    const h = (window as unknown as { serialWorkspace: SerialWorkspace }).serialWorkspace, L = await __noacgImport('/src/model/library.ts');
     if (!await h.P.openProjectDocument(id)) throw new Error(h.P.useAuthoringProjects.getState().error);
     const s = h.S.useTemplateStore.getState(), link = s.saved.graphicId, source = s.template;
     const saved = await h.A.saveCurrentGraphic();

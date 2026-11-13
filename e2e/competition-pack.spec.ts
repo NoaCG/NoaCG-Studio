@@ -24,7 +24,7 @@ const CATEGORIES = ['esports-score', 'matchup', 'results-board', 'reveal'] as co
 const HARNESS = `
   let keepFrames = false;
   async function mount(tpl) {
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     if (!keepFrames) document.querySelectorAll('.pack-frame').forEach((f) => f.remove());
     const f = document.createElement('iframe');
     f.className = 'pack-frame';
@@ -35,7 +35,7 @@ const HARNESS = `
     return { tpl, win: f.contentWindow, doc: f.contentDocument, frame: f };
   }
   async function boot(id, options) {
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     return mount(variantById(id).create(options || {}));
   }
   // Let a dispatched event's timeline settle (they are all well under 700 ms).
@@ -57,10 +57,10 @@ test('the pack ships its four categories, and every design creates and validates
   test.setTimeout(180_000);
   await toApp(page);
   const report = await page.evaluate(`(async () => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { CATEGORIES } = await import('/src/model/wizard.ts');
-    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { CATEGORIES } = await __noacgImport('/src/model/wizard.ts');
+    const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const out = { counts: {}, missingCategory: [], problems: [] };
     for (const id of ${JSON.stringify(CATEGORIES)}) {
       const info = CATEGORIES.find((c) => c.id === id);
@@ -214,8 +214,8 @@ test('Pause dims a scorebug body under every entrance it offers, mid-entrance an
   test.setTimeout(120_000);
   await toApp(page);
   const run = await page.evaluate(`(async () => {
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     const cases = [];
     for (const id of ['es01', 'es02', 'es03', 'es04']) {
       for (const presetId of ['comp-impact', 'comp-rise', 'comp-bloom']) cases.push({ id, presetId });
@@ -553,8 +553,8 @@ test('Focus row lights a row on its first press, and Back levels the line-up (#2
   await toApp(page);
   const run = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const { win, doc, tpl } = await boot('rs01');
     const lit = () => {
       const el = doc.querySelector('.results-board-row-on');
@@ -581,7 +581,7 @@ test('Focus row lights a row on its first press, and Back levels the line-up (#2
     out.updated = { row: lit(), spotlit: spotlit() };
     // « Back from the spotlight snaps to the first step, which levels the line-up, as the
     // Show all rows press does where there is no Back.
-    const { backTarget } = await import('/src/control/controlModel.ts');
+    const { backTarget } = await __noacgImport('/src/control/controlModel.ts');
     out.backTarget = backTarget(tpl.js, { groups: { main: 'spotlight' } });
     win.noacgSnap(out.backTarget);
     await settle();
@@ -626,8 +626,8 @@ test('Focus competitor and Spotlight light a row on their first press on every t
   await toApp(page);
   const run = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { backTarget } = await import('/src/control/controlModel.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { backTarget } = await __noacgImport('/src/control/controlModel.ts');
     const controls = (tpl) => (parseAnimData(tpl.js).machine.controls || []).map((c) => c.event);
     const out = { towers: {}, podiums: {} };
 
@@ -862,8 +862,8 @@ test('the rows a board dims look dimmed once the entrance has landed, and after 
       })),
     ];
     // Every design in its own frame at once, so the waits below are paid once, not twenty times.
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     document.querySelectorAll('.pack-frame').forEach((f) => f.remove());
     const frames = await Promise.all(cases.map(async (c) => {
       const f = document.createElement('iframe');
@@ -1035,7 +1035,7 @@ test('Back to a later step lands on its own look, not the look of the step it le
       ['pc01', 'matchup', 'matchup-stats-shown', '.matchup-stat', 'mvp', 'matchup-mvp', 'mvp', 'clearMvp'],
     ];
     const out = {};
-    const { backTarget } = await import('/src/control/controlModel.ts');
+    const { backTarget } = await __noacgImport('/src/control/controlModel.ts');
     const walks = CASES.map(([id, root, step, payload, branchState, branch, mark, unmark]) => async () => {
       const { tpl, win, doc } = await boot(id);
       // The step's mark, and what the frame shows: a class alone would pass with the result held
@@ -1234,8 +1234,8 @@ test('every design exports to all six targets with its runtime intact', async ({
   test.setTimeout(240_000);
   await toApp(page);
   const report = await page.evaluate(`(async () => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { EXPORT_TARGETS } = await import('/src/export/registry.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { EXPORT_TARGETS } = await __noacgImport('/src/export/registry.ts');
     const problems = [];
     let packages = 0;
     // What "every design" means is READ from the catalog, so the assertion below stays "each of
@@ -1271,10 +1271,10 @@ test('every design exports to all six targets with its runtime intact', async ({
 test('a pack graphic saves to the library and reloads with its machine and marks working', async ({ page }) => {
   await bootstrapGraphic(page, { category: 'reveal', name: 'House Award' });
   const round = await page.evaluate(`(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { createGraphic, graphicById } = await import('/src/model/library.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { createGraphic, graphicById } = await __noacgImport('/src/model/library.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const before = useTemplateStore.getState().template;
     const doc = createGraphic(before, { name: 'Award reveal', baseline: before }).doc;
     const reloaded = graphicById(doc.id);
@@ -1327,7 +1327,7 @@ test('the pack is discoverable in the wizard and creates from a category card', 
   // category card promised.
   const played = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const { win, doc } = await mount(useTemplateStore.getState().template);
     win.play();
     await settle();
@@ -1336,9 +1336,9 @@ test('the pack is discoverable in the wizard and creates from a category card', 
   expect(played).toEqual({ opacity: '1', f0: 'TEAM LIQUID' });
   // The generated control page's buttons come from the machine — the phase events are there.
   const events = await page.evaluate(`(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { allOperatorEvents } = await import('/src/blocks/animMachine.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { allOperatorEvents } = await __noacgImport('/src/blocks/animMachine.ts');
     const data = parseAnimData(useTemplateStore.getState().template.js);
     return allOperatorEvents(data.machine).sort();
   })()`) as string[];

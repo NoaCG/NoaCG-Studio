@@ -16,15 +16,15 @@ async function seed(page: Page, stress = false) {
   // Keep the seed's evaluation promise reachable while its mutations queue canvas work.
   // CI hid the protocol error as a navigation; the controlled GC proof is in the audit note.
   await evaluateInPage(page, async stress => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const variant = variantsFor('lower-third').find(v => v.name === 'Hairline')!;
     const draft = mergeDraft(initialDraft(), { variantId: variant.id,
       lines: variant.suggestedLines.map(l => ({ ...l })), animation: { presetId: null, outPresetId: null } });
     let template = buildDraftTemplate(variant, draft);
     if (stress) {
-      const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
+      const { emitAnimRegion } = await __noacgImport('/src/templates/shared/animRuntime.ts');
       const layers = Object.fromEntries(Array.from({ length: 30 }, (_, i) => ['#f' + i, {
         x: Array.from({ length: 10 }, (_, k) => ({ time: k / 3, value: k % 2 ? 28 : 0 }))
       }]));
@@ -42,7 +42,7 @@ async function seed(page: Page, stress = false) {
   }, stress);
   await ready(page);
   if (evidence) {
-    const template = await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+    const template = await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);
     writeFileSync(evidence + '/fixture-' + (stress ? 'f4' : 'catalog') + '.json', JSON.stringify(template, null, 2));
   }
 }
@@ -58,7 +58,7 @@ async function frame(page: Page) {
 async function seek(page: Page, time: number) {
   const before = await page.getByTestId('foundation-canvas').getAttribute('data-request');
   await page.evaluate(async time => {
-    const { foundationDiagnostics } = await import('/src/components/editorFoundation/Canvas.tsx');
+    const { foundationDiagnostics } = await __noacgImport('/src/components/editorFoundation/Canvas.tsx');
     foundationDiagnostics()!.seek(time);
   }, time);
   await expect.poll(() => page.getByTestId('foundation-canvas').getAttribute('data-request')).not.toBe(before);
@@ -68,8 +68,8 @@ async function shot(page: Page, name: string) {
   mkdirSync(evidence, { recursive: true });
   // Capture through the visible ruler so the artwork and displayed clock agree.
   const position = await page.evaluate(async () => {
-    const { readTimeline } = await import('/src/components/editorFoundation/timelineView.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { readTimeline } = await __noacgImport('/src/components/editorFoundation/timelineView.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const view = readTimeline(useTemplateStore.getState().template);
     return { time: view.segments[0].duration, extent: Math.max(2, view.duration * 1.15) };
   });
@@ -101,7 +101,7 @@ test('catalog opens visibly; canvas, timeline and Outline share selection; rever
   const preview = await frame(page);
   // Blank-stage reproduction attempt: cold open must display the settled entrance.
   await expect.poll(() => preview.locator('.lower-third-box').evaluate(el => Number(getComputedStyle(el).opacity))).toBeGreaterThan(.9);
-  const source = await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+  const source = await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);
   await page.locator('.ef-track[data-selector="#f0"] .ef-layer').click();
   await expect(page.locator('.ef-selection rect')).toHaveCount(1);
   await expect(page.locator('.ef-inspector')).toContainText('#f0');
@@ -119,7 +119,7 @@ test('catalog opens visibly; canvas, timeline and Outline share selection; rever
   await seek(page, .35);
   await seek(page, .1);
   expect(await preview.locator('#f0').evaluate(el => getComputedStyle(el).transform)).toBe(a);
-  expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template)).toEqual(source);
+  expect(await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template)).toEqual(source);
   await page.setViewportSize({ width: 1920, height: 1080 });
   await seek(page, .6);
   await shot(page, 'catalog-desktop');
@@ -141,14 +141,14 @@ test('actual imported SVG wizard output loads with fields and artwork preserved'
   await page.getByTestId('wz-finish-edit-artwork').click();
   await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 30000 });
   await expect(page).toHaveURL(/\?editor=foundation#\/editor-foundation$/);
-  const source = await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+  const source = await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);
   if (evidence) writeFileSync(evidence + '/fixture-svg.json', JSON.stringify(source, null, 2));
   await ready(page);
   await page.locator('.ef-track[data-selector="#f0"] .ef-layer').click();
   await seek(page, .3);
   await seek(page, 0);
   await seek(page, .8);
-  expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template)).toEqual(source);
+  expect(await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template)).toEqual(source);
   await expect((await frame(page)).locator('svg.imported-design-art')).toBeVisible();
   await page.setViewportSize({ width: 1920, height: 1080 });
   await shot(page, 'svg-desktop');
@@ -162,9 +162,9 @@ test('actual imported SVG wizard output loads with fields and artwork preserved'
 test('registry batch is atomic, undo/redo exact, cancellation and stale input preserve source', async ({ page }) => {
   await seed(page, true);
   const result = await page.evaluate(async () => {
-    const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { activeEditorSession } = await __noacgImport('/src/components/editorFoundation/documentAdapter.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const session = activeEditorSession();
     const before = useTemplateStore.getState().template;
     const data = parseAnimData(before.js)!;
@@ -199,8 +199,8 @@ test('same-path asset bytes rebuild; key-only edits keep frame; old protocol ide
   await seed(page, true);
   const initialGeneration = await page.getByTestId('foundation-canvas').getAttribute('data-generation');
   await page.evaluate(async () => {
-    const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { activeEditorSession } = await __noacgImport('/src/components/editorFoundation/documentAdapter.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const s = activeEditorSession(); const data = parseAnimData(s.port.read().js)!;
     const selector = Object.keys(data.steps[0].layers).find(selector => data.steps[0].layers[selector].x)!;
     s.execute({ documentId: s.documentId, expected: s.version(), transactionId: 'live-key',
@@ -211,7 +211,7 @@ test('same-path asset bytes rebuild; key-only edits keep frame; old protocol ide
   for (const colour of ['red', 'blue']) {
     const before = await page.getByTestId('foundation-canvas').getAttribute('data-generation');
     await page.evaluate(async colour => {
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
+      const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
       const s = useTemplateStore.getState();
       const data = 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="' + colour + '"/></svg>');
       s.applyTemplate({ ...s.template, html: s.template.html.includes('id="byte-test"') ? s.template.html : s.template.html.replace('</body>', '<img id="byte-test" src="assets/same.svg" style="position:absolute;left:20px;top:20px;width:200px"></body>'),
@@ -227,7 +227,7 @@ test('same-path asset bytes rebuild; key-only edits keep frame; old protocol ide
     })).toEqual(colour === 'red' ? [255, 0, 0, 255] : [0, 0, 255, 255]);
   }
   const results = await page.evaluate(async () => {
-    const { acceptsReply, EDITOR_MESSAGE } = await import('/src/components/editorFoundation/protocol.ts');
+    const { acceptsReply, EDITOR_MESSAGE } = await __noacgImport('/src/components/editorFoundation/protocol.ts');
     const win = document.querySelector<HTMLIFrameElement>('iframe[title="Foundation graphic preview"]')!.contentWindow!;
     const expected = { type: EDITOR_MESSAGE, documentId: 'one', revision: { source: 4, assets: 3 }, generation: 5, requestId: 9 };
     const reply = { ...expected, kind: 'pose' as const };
@@ -265,12 +265,12 @@ test('F4 records input-to-presented-pose latency and responsive geometry', async
   const results: unknown[] = [];
   for (const viewport of [{ width: 1920, height: 1080 }, { width: 1366, height: 768 }]) {
     await page.setViewportSize(viewport);
-    await page.evaluate(async () => (await import('/src/components/editorFoundation/Canvas.tsx')).foundationDiagnostics()!.resetMetrics());
+    await page.evaluate(async () => (await __noacgImport('/src/components/editorFoundation/Canvas.tsx')).foundationDiagnostics()!.resetMetrics());
     for (let i = 0; i < 30; i++) {
       await page.locator('.ef-track[data-selector="#f' + (i % 5) + '"] .ef-layer').click();
       await seek(page, i % 2 ? .8 : 1.6);
     }
-    const metrics = await page.evaluate(async () => (await import('/src/components/editorFoundation/Canvas.tsx')).foundationDiagnostics()!.metrics);
+    const metrics = await page.evaluate(async () => (await __noacgImport('/src/components/editorFoundation/Canvas.tsx')).foundationDiagnostics()!.metrics);
     expect(metrics.samples.length).toBeGreaterThan(25);
     expect(metrics.samples.every(s => Number.isFinite(s.ms) && s.ms >= 0)).toBe(true);
     results.push({ viewport, metrics });
@@ -287,7 +287,7 @@ test('zero-time key apply and undo paint the canonical values without rebuilding
   await page.keyboard.press('Home');
   await seek(page, 0);
   await page.evaluate(async () => {
-    const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
+    const { activeEditorSession } = await __noacgImport('/src/components/editorFoundation/documentAdapter.ts');
     const session = activeEditorSession();
     session.execute({ documentId: session.documentId, expected: session.version(), transactionId: 'pixel-key',
       operations: [{ kind: 'key.set', selector: '#f0', step: 0, property: 'x', time: 0, value: -150 }] });
@@ -307,8 +307,8 @@ test('25/30 fps and half/normal/double speed use one effective clock and preserv
   await seed(page, true);
   for (const fps of [25, 30]) for (const speed of [.5, 1, 2]) {
     const source = await page.evaluate(async ({ fps, speed }) => {
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
+      const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+      const { parseAnimData, spliceAnimData } = await __noacgImport('/src/blocks/animData.ts');
       const s = useTemplateStore.getState(); const data = parseAnimData(s.template.js)!;
       data.speed = speed;
       s.applyTemplate({ ...s.template, fps, js: spliceAnimData(s.template.js, data) });
@@ -327,17 +327,17 @@ test('25/30 fps and half/normal/double speed use one effective clock and preserv
     expect(Number(await ruler.getAttribute('aria-valuenow'))).toBeCloseTo(1 + 1 / fps, 8);
     const out = await page.locator('.ef-out').evaluate(el => parseFloat((el as HTMLElement).style.left));
     expect(out).toBeCloseTo((3 / speed) / Math.max(2, 3.5 / speed * 1.15) * 100, 4);
-    expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)).toBe(source);
+    expect(await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)).toBe(source);
   }
 });
 
 test('confirmed save and reopen retain source, fields and assets after registry edits', async ({ page }) => {
   await seed(page, true);
   const saved = await page.evaluate(async () => {
-    const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { saveGraphicAs } = await import('/src/store/saveActions.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { activeEditorSession } = await __noacgImport('/src/components/editorFoundation/documentAdapter.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { saveGraphicAs } = await __noacgImport('/src/store/saveActions.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     const s = activeEditorSession();
     s.execute({ documentId: s.documentId, expected: s.version(), transactionId: 'save-edit',
       operations: [{ kind: 'key.set', selector: '#f0', step: 0, property: 'x', time: 0, value: -75 }] });
@@ -348,9 +348,9 @@ test('confirmed save and reopen retain source, fields and assets after registry 
   });
   await page.reload(); await ready(page);
   const reopened = await page.evaluate(async id => {
-    const { graphicById } = await import('/src/model/library.ts');
-    const { openGraphicDoc } = await import('/src/store/saveActions.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { graphicById } = await __noacgImport('/src/model/library.ts');
+    const { openGraphicDoc } = await __noacgImport('/src/store/saveActions.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     openGraphicDoc(graphicById(id!)!);
     return useTemplateStore.getState().template;
   }, saved.id);
@@ -365,8 +365,8 @@ test('scrub suppresses calls at zero and mid-step; broken source reports failure
   // replaced under the effect-count read below (CI, 2026-09-21). Wait for the rebuild first.
   const generation = await page.getByTestId('foundation-canvas').getAttribute('data-generation');
   const original = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { parseAnimData, spliceAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const s = useTemplateStore.getState(); const data = parseAnimData(s.template.js)!;
     data.steps[0].calls = [{ time: 0, call: 'countSideEffect' }, { time: .5, call: 'countSideEffect' }];
     const template = { ...s.template, js: 'window.effectCount=0;function countSideEffect(){window.effectCount++;}\n' + spliceAnimData(s.template.js, data) };
@@ -377,20 +377,20 @@ test('scrub suppresses calls at zero and mid-step; broken source reports failure
   for (const time of [0, 1, .2, 3.5, 0]) await seek(page, time);
   expect(await (await frame(page)).evaluate(() => (window as unknown as { effectCount: number }).effectCount)).toBe(0);
   await page.evaluate(async original => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     useTemplateStore.getState().applyTemplate({ ...original, js: 'throw new Error("R1 deliberate failure");' });
   }, original);
   await expect(page.locator('.ef-stage-error')).toContainText('R1 deliberate failure');
-  await page.evaluate(async original => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(original), original);
+  await page.evaluate(async original => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(original), original);
   await ready(page);
 });
 
 test('document ports isolate transactions and refuse unknown source data without loss', async ({ page }) => {
   await seed(page, true);
   const result = await page.evaluate(async () => {
-    const { EditorSession } = await import('/src/components/editorFoundation/session.ts');
-    const { applyOperations } = await import('/src/components/editorFoundation/operations.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { EditorSession } = await __noacgImport('/src/components/editorFoundation/session.ts');
+    const { applyOperations } = await __noacgImport('/src/components/editorFoundation/operations.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const source = useTemplateStore.getState().template;
     function port() {
       let current = source;

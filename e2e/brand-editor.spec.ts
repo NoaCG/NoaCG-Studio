@@ -79,7 +79,7 @@ test('create a brand without a graphic, preview it, edit it and reuse it in the 
 test('brand drafts cancel without changing the open graphic; oversized and invalid logos are refused', async ({ page }) => {
   await bootstrapGraphic(page, { name: 'Hairline' });
   const before = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().template;
   });
   await openCreator(page);
@@ -95,7 +95,7 @@ test('brand drafts cancel without changing the open graphic; oversized and inval
   await page.getByRole('button', { name: 'Save brand', exact: true }).click();
   await expect(page.getByTestId('brand-editor')).toHaveCount(0);
   const after = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().template;
   });
   expect(after).toEqual(before);
@@ -125,8 +125,8 @@ test('an uploaded font survives reopen and a stale brand editor refuses to overw
   await page.locator('.lib-row', { hasText: 'Channel A' }).getByRole('button', { name: 'Edit', exact: true }).click();
   await expect(page.getByLabel('Typeface', { exact: true })).toHaveValue('custom');
   await page.evaluate(async () => {
-    const { loadLooks, upsertLook } = await import('/src/model/packets.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { loadLooks, upsertLook } = await __noacgImport('/src/model/packets.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     const current = loadLooks()[0];
     upsertLook({ ...current, name: 'Updated elsewhere', updatedAt: new Date(Date.now() + 1000).toISOString() });
     await commitDurableWrites();

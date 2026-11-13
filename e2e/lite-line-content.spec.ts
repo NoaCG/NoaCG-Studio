@@ -36,7 +36,7 @@ const QUIZ_LINES = [
 /** Compile a spec through the grounded path and report its line fields' values. */
 async function compiledLineValues(page: Page, variantId: string, lines: { title: string; sample: string }[]) {
   return page.evaluate(async ({ variantId, lines }) => {
-    const { specToTemplate } = await import('/src/ai/designSpec.ts');
+    const { specToTemplate } = await __noacgImport('/src/ai/designSpec.ts');
     const spec = {
       fit: 'catalog',
       reason: 'pinned by e2e',
@@ -64,8 +64,8 @@ async function compiledLineValues(page: Page, variantId: string, lines: { title:
  */
 async function typesComingBackShort(page: Page, mutate: 'none' | 'leave-one-behind') {
   return page.evaluate(async (how) => {
-    const { TYPES } = await import('/src/templates/types/registry.ts');
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { TYPES } = await __noacgImport('/src/templates/types/registry.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     const short: { type: string; design: string; declared: number; carried: number }[] = [];
     for (const type of TYPES) {
       const declared = type.fields.filter((f) => f.role === 'line');
@@ -117,7 +117,7 @@ test.describe('a generated graphic carries every line it was given', () => {
 /** Compile a quiz spec carrying CONTENT and report every field's value, by title. */
 async function compiledContent(page: Page, content: { key: string; value: string }[]) {
   return page.evaluate(async (content) => {
-    const { specToTemplate } = await import('/src/ai/designSpec.ts');
+    const { specToTemplate } = await __noacgImport('/src/ai/designSpec.ts');
     const spec = {
       fit: 'catalog', reason: 'pinned by e2e', name: 'Content', summary: 'Content',
       category: 'quiz', variantId: 'qz02',
@@ -169,7 +169,7 @@ test.describe('a decision reaches the content a line cannot carry', () => {
     // vs01 is not type-compiled, so it declares no logical keys. Writing by position would be
     // a guess at what its fN ids mean; the honest answer is to leave it alone.
     const same = await page.evaluate(async () => {
-      const { variantById } = await import('/src/templates/catalog.ts');
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
       const variant = variantById('vs01')!;
       const plain = variant.create({});
       const withContent = variant.create({ content: { anything: 'at all' } });

@@ -20,13 +20,13 @@ async function setMode(page: Page, mode: 'normal' | 'dimmed' | 'hidden') {
   await page.getByTestId('comment-visibility').selectOption(mode);
 }
 const source = (page: Page) => page.evaluate(async () =>
-  (await import('/src/store/videoProjectStore.ts')).useVideoProjectStore.getState().project.tsx);
+  (await __noacgImport('/src/store/videoProjectStore.ts')).useVideoProjectStore.getState().project.tsx);
 
 test('comment ranges come from the tokenizer, across every language we support', async ({ page }) => {
   await page.goto('/app');
   const out = await page.evaluate(async () => {
-    const { monaco } = await import('/src/monacoSetup.ts');
-    const { findCommentRanges } = await import('/src/editor/commentVisibility.ts');
+    const { monaco } = await __noacgImport('/src/monacoSetup.ts');
+    const { findCommentRanges } = await __noacgImport('/src/editor/commentVisibility.ts');
     // Slice each range back out of its own line, so the assertion reads as "these characters".
     // Monaco loads a language's tokenizer lazily (creating the model is what asks for it), so
     // this waits for it the same bounded way the controller does.
@@ -61,7 +61,7 @@ test('comment ranges come from the tokenizer, across every language we support',
 test('Hidden paints comments transparent and leaves the source untouched', async ({ page }) => {
   await codeEditorReady(page);
   const before = await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     const s = useVideoProjectStore.getState();
     return { html: s.project.tsx, historyLength: s.history.length };
   });
@@ -88,7 +88,7 @@ test('Hidden paints comments transparent and leaves the source untouched', async
 
   // The whole round trip is a view change: not one character moved.
   const after = await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     const s = useVideoProjectStore.getState();
     return { html: s.project.tsx, historyLength: s.history.length };
   });
@@ -104,7 +104,7 @@ test('the mode survives a model swap, a manual edit, pane remount and reload', a
   // The video pane has one source tab. Exercise its controller's model-swap contract directly,
   // then restore the original model; this probe does not write application state.
   const swapped = await page.evaluate(async () => {
-    const { monaco } = await import('/src/monacoSetup.ts');
+    const { monaco } = await __noacgImport('/src/monacoSetup.ts');
     const editor = monaco.editor.getEditors()[0], original = editor.getModel()!;
     const replacement = monaco.editor.createModel('// replacement model note\nconst value = 1;\n', 'typescript');
     try {
@@ -152,8 +152,8 @@ test('a selection inside a hidden comment reveals it', async ({ page }) => {
   // the rendered span by its text would not survive word wrap, which splits a long comment into
   // several spans, nor the fact that Monaco only paints the lines in view.)
   const decorated = await page.evaluate(async () => {
-    const { monaco } = await import('/src/monacoSetup.ts');
-    const { findCommentRanges } = await import('/src/editor/commentVisibility.ts');
+    const { monaco } = await __noacgImport('/src/monacoSetup.ts');
+    const { findCommentRanges } = await __noacgImport('/src/editor/commentVisibility.ts');
     const editor = monaco.editor.getEditors()[0];
     const model = editor.getModel();
     if (!model) return null;
@@ -183,8 +183,8 @@ test('a find match inside a hidden comment reveals it', async ({ page }) => {
   // Search for a word that only exists inside a comment, through the find widget's own state
   // (the path the editor's Ctrl+F drives), and check the comment stops being hidden.
   const decorated = await page.evaluate(async () => {
-    const { monaco } = await import('/src/monacoSetup.ts');
-    const { findCommentRanges } = await import('/src/editor/commentVisibility.ts');
+    const { monaco } = await __noacgImport('/src/monacoSetup.ts');
+    const { findCommentRanges } = await __noacgImport('/src/editor/commentVisibility.ts');
     const editor = monaco.editor.getEditors()[0];
     const model = editor.getModel();
     if (!model) return null;
