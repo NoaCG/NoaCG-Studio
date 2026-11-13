@@ -13,6 +13,10 @@ import { installGraphicBody } from './_graphicBody';
 import { readFileSync } from 'node:fs';
 import { evaluateInPage } from './_evaluate';
 import { settleDurableWrites } from './_durable';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 type Key = { time: number; value: number | string; ease?: string };
 type Step = { name: string; duration: number; ease: string; carried?: number; layers: Record<string, Record<string, Key[]>>; spans?: Record<string, { start: number; end: number }[]> };

@@ -9,6 +9,10 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { OgrafReturn } from '../src/output/foreignOgraf';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 /**
  * A STRANGER'S OGRAF PACKAGE ON THE OUTPUT STAGE, BEHIND THE BOUNDARY (docs/OGRAF_ECOSYSTEM.md §3).

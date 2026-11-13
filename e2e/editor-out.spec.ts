@@ -9,6 +9,10 @@ import { settleDurableWrites } from './_durable';
 import { evaluateInPage } from './_evaluate';
 import { dropSvg } from './_svg-import';
 import { fileURLToPath } from 'node:url';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 type Timeline = { pause(): void; kill(): void; time(t: number, silent?: boolean): void; progress(t: number, silent?: boolean): void; render(t: number, silent: boolean, force: boolean): void; duration(): number };
 type Runtime = { buildInTimeline(): Timeline; buildOutTimeline(): Timeline; gsap: { globalTimeline: { clear(): void }; killTweensOf(s: string): void } };

@@ -14,6 +14,10 @@ import { bindEveryTextLayer, dropSvg, QUIZ_SVG } from './_svg-import';
 import { finishIntoNewEditor } from './_create';
 import { settleDurableWrites } from './_durable';
 import type { EditorOperation } from '../src/components/editorFoundation/operations';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // The recorded wizard baseline is committed evidence and is only read here. This run's pictures
 // and measurements go to the test's own output folder (ignored), never into docs/.

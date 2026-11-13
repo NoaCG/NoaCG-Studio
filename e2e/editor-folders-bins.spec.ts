@@ -7,6 +7,10 @@ import { evaluateInPage } from './_evaluate';
 import { settleDurableWrites } from './_durable';
 import { pickDesign } from './_browse';
 import { holdKeyRepeats } from './_keys';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 const ready = async (page: Page) => expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
 const source = (page: Page) => evaluateInPage(page, async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);

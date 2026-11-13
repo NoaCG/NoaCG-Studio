@@ -16,6 +16,10 @@ import JSZip from 'jszip';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { openProductionWithCurrent } from './_create';
 import { dropSvg, intoProduction } from './_svg-import';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // THE CREDITS ROLL ON IMPORTED ARTWORK (docs/END_CREDITS.md, "The same field on an imported SVG").
 //

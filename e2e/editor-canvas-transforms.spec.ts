@@ -12,6 +12,10 @@ import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { evaluateInPage } from './_evaluate';
 import { settleDurableWrites } from './_durable';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 type Key = { time: number; value: number | string; ease?: string };
 type Step = { name: string; duration: number; ease: string; layers: Record<string, Record<string, Key[]>> };

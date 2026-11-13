@@ -16,6 +16,10 @@ import { installGraphicBody } from './_graphicBody';
 import { readFileSync } from 'node:fs';
 import { evaluateInPage } from './_evaluate';
 import { authorLocalLoops, playLoopOutputs, playTimedLoopOverlay, scrubSvgLoop } from './_editorLoops';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 type Key = { time: number; value: number | string; ease?: string };
 type Step = { name: string; duration: number; ease: string; layers: Record<string, Record<string, Key[]>>; spans?: Record<string, { start: number; end: number }[]>; reveals?: string[] };

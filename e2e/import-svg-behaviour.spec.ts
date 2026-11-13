@@ -74,6 +74,10 @@ import {
 } from './_svg-import';
 import { openWorkspace } from './_workspace';
 import { addQuestion, addResults, goLive } from './_interaction';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // IMPORTED ARTWORK THAT BEHAVES (docs/GRAPHIC_BEHAVIOUR_PLAN.md).
 //
@@ -1002,6 +1006,7 @@ test('a second author reopens a saved quiz in a fresh browser, makes it a true n
 
   // THE SECOND AUTHOR, in a fresh context.
   const second = await browser.newContext({ storageState: storage });
+  await installDoor(second);
   const p2 = await second.newPage();
   await p2.goto(where);
   await expect(p2.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });

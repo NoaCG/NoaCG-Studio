@@ -9,6 +9,10 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { test, expect, type Frame, type Page } from '@playwright/test';
 import { toApp } from './_bench';
 import { qrReader } from './_qr';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // THE AUDIENCE PACK — viewer questions, Q&A cards, chat highlights, question queues, community
 // requests, live votes, and the two- and three-answer boards.
@@ -710,6 +714,7 @@ test.describe('the Join card draws its QR from its Join link (AC-11)', () => {
       }, tpl);
       expect(html).not.toMatch(/<script[^>]+src=/i);
       const offline = await browser.newContext({ offline: true, viewport: { width: 1920, height: 1080 } });
+      await installDoor(offline);
       const card = await offline.newPage();
       const requests: string[] = [];
       card.on('request', (r) => {

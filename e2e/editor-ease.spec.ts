@@ -14,6 +14,10 @@ import { test, expect, type Page } from '@playwright/test';
 import { installGraphicBody } from './_graphicBody';
 import { readFileSync } from 'node:fs';
 import { evaluateInPage } from './_evaluate';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 type Key = { time: number; value: number; ease?: string };
 type Data = { version: number; root: string; speed: number; steps: { name: string; duration: number; ease: string; layers: Record<string, Record<string, Key[]>> }[] };

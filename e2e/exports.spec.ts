@@ -15,6 +15,10 @@ import { bootstrapGraphic, openExportWindow } from './_create';
 import JSZip from 'jszip';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // The CasparCG and OGraf export targets — not just zip-structure checks: the CasparCG
 // file is loaded and driven with an XML payload, and the OGraf Graphic is imported and

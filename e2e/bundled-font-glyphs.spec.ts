@@ -10,6 +10,10 @@
 // reads the files' cmaps; this proves the browser picks them.
 
 import { test, expect } from '@playwright/test';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 const NAME = 'Åsa Öberg-Ærø Šimon Žáková';
 const DECOMPOSED = 'A\u030asa'; // "Åsa" with the ring as a combining mark

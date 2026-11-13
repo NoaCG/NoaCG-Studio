@@ -9,6 +9,10 @@ import { settleDurableWrites } from './_durable';
 import { importProofCase, PROOF_TOTALS, PROOF_VOTES } from './_proofCase';
 import { appliedIn, receiverHost } from './_receiverHost';
 import { frameCss, type AppliedAppearance } from '../src/control/cueAdjust';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // PUBLISHED CONTROL (docs/CONTROL_LAYER.md + docs/SAVED_CONTENT_MODEL.md §4): what a production
 // publishes for its operators and outputs, pinned offline. A show's published `panel` spec carries

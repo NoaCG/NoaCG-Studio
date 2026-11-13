@@ -15,6 +15,10 @@ import { bootstrapGraphic, openExportWindow, openWorkingGraphicInEditor } from '
 import JSZip from 'jszip';
 import { editorPreview } from './_frame';
 import { readFileSync } from 'node:fs';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // Era 4: control panels. The modular engine turns a graphic's SPX fields into an operator
 // panel — text → input, number → stepper, textarea → line list, image → picker — with no
