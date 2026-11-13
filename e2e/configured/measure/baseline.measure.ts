@@ -869,7 +869,7 @@ test('w3', async ({ page, browser }) => {
 // MEASURE_LOOP=1 the page publishes its saved revision again and again, whole (a session flag only
 // this harness sets), so every output reads the published copy each time; without it, nothing is
 // published. "Ran" is the output's graphic running the Take: its play() call, on the one time origin.
-// MEASURE_EDIT=cues|add makes the page edit the production once a second (the last cue's text and
+// MEASURE_EDIT=cues|add makes the page edit the production every 3 s (the last cue's text and
 // values, or a graphic added and removed); MEASURE_AUTO=0 runs that with automatic updates off.
 test('autopublish', async ({ page, browser }) => {
   // The switch is a service-role write: only ever against a local stack.
@@ -895,11 +895,23 @@ test('autopublish', async ({ page, browser }) => {
   try {
     await page.evaluate((on) => (on ? sessionStorage.setItem('noacg-measure-publish-loop', '1') : sessionStorage.removeItem('noacg-measure-publish-loop')), loop);
     await page.evaluate((mode) => (mode ? sessionStorage.setItem('noacg-measure-edit-loop', mode) : sessionStorage.removeItem('noacg-measure-edit-loop')), editMode);
-    const versionOf = async () => {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/control_shows?id=eq.${fx.showId}&select=output->ver->n`, { headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}` } });
-      return ((await r.json()) as { n?: number }[])[0]?.n ?? 0;
+    /** The output version, the record's saved revision and the published one, on the server. */
+    const stateOf = async () => {
+      const read = async (path: string) => ((await (await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}` } })).json()) as Record<string, number | null>[])[0] ?? {};
+      const [row, doc] = await Promise.all([read(`control_shows?id=eq.${fx.showId}&select=n:output->ver->n,published_rev`), read(`documents?id=eq.${fx.showId}&select=rev`)]);
+      return { n: row.n ?? 0, publishedRev: row.published_rev ?? null, rev: doc.rev ?? null };
     };
-    const versionBefore = await versionOf();
+    const stateBefore = await stateOf();
+    /** The page's REST and RPC requests during the samples, by method and path (edit loops only). */
+    const requests: Record<string, number> = {};
+    if (editMode) {
+      page.on('request', (r) => {
+        const u = r.url();
+        if (!u.includes('/rest/v1/')) return;
+        const k = `${r.method()} ${u.split('/rest/v1/')[1].split('?')[0]}${u.includes('select=rev') ? ' (rev)' : ''}`;
+        requests[k] = (requests[k] ?? 0) + 1;
+      });
+    }
     await toProd(page);
     await throttle(page, NET);
     const out = await openOutput(browser, slug);
@@ -924,7 +936,7 @@ test('autopublish', async ({ page, browser }) => {
       }
       if (ran === null) failures.push('no run');
       else toRan.push(ran - pressedAt);
-      if (loop) {
+      if (loop || editMode) {
         const w = await page.evaluate(() => ({ windows: (window as unknown as W).__noacgPublishWindows ?? [], running: (window as unknown as W).__noacgPublishRunning ?? null }));
         if (w.windows.some(([a, b]) => pressedAt >= a && pressedAt <= b) || (w.running !== null && pressedAt >= w.running)) during += 1;
       }
@@ -933,12 +945,17 @@ test('autopublish', async ({ page, browser }) => {
       await settle(page, 150, 20_000, SEND);
       await page.waitForTimeout(300);
     }
-    const windows = loop ? await page.evaluate(() => (window as unknown as W).__noacgPublishWindows ?? []) : [];
+    const windows = loop || editMode ? await page.evaluate(() => (window as unknown as W).__noacgPublishWindows ?? []) : [];
     const edits = editMode ? await page.evaluate(() => (window as unknown as { __noacgEdits?: number }).__noacgEdits ?? 0) : 0;
-    const versionsPublished = (await versionOf()) - versionBefore;
+    const stateAfter = await stateOf();
+    const versionsPublished = stateAfter.n - stateBefore.n;
     report(`autopublish-${editMode ? `edit-${editMode}-${autoOn ? 'on' : 'off'}` : loop ? 'loop' : 'none'}`, { take: sentRows }, {
       edits,
       versionsPublished,
+      server: { before: stateBefore, after: stateAfter },
+      requests: editMode ? requests : undefined,
+      publisherTally: editMode ? await page.evaluate(() => (window as unknown as { __noacgPublisherTally?: Record<string, number> }).__noacgPublisherTally ?? {}) : undefined,
+      publishSteps: editMode ? windows.map((x) => ({ ms: Math.round(x[1] - x[0]), kind: x[2], over16: ((x as unknown as [number, number, string, number, number[]])[4] ?? []).map((v, i) => [i, Math.round(v)]).filter(([, v]) => v > 16) })) : undefined,
       fixtureFacts: fx,
       pressToRan: summary(toRan, failures.length),
       pressToRanSamples: toRan,

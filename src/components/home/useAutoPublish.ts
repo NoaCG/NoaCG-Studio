@@ -40,6 +40,22 @@ async function readRevisions(show: Pick<Show, 'id' | 'teamId'>): Promise<{ rev: 
 }
 
 /** G3 section 9: what a page that may not publish says while a save waits for one that can. */
+/** The measure harness's edit loop is on (a session flag only that harness sets). */
+function editLoopMeasured(): boolean {
+  try {
+    return window.sessionStorage.getItem('noacg-measure-edit-loop') !== null;
+  } catch {
+    return false;
+  }
+}
+
+/** THE MEASURE HARNESS ONLY: counts of what the publisher did, by name. */
+function tally(name: string): void {
+  const w = window as unknown as { __noacgPublisherTally?: Record<string, number> };
+  const t = (w.__noacgPublisherTally ??= {});
+  t[name] = (t[name] ?? 0) + 1;
+}
+
 export const ELSEWHERE_LINE = 'Open it on a device that can publish';
 
 export interface AutoPublishState {
@@ -98,8 +114,9 @@ export function useAutoPublish(o: {
   const active = enabled && switchOn && revKnown;
 
   // MEASUREMENT ONLY (e2e/configured/measure, test `autopublish`, AC-4): a session flag only that
-  // harness sets makes this page edit the production once a second, with automatic updates on or
-  // off. `cues`: the last cue's text, then its field values. `add`: a graphic added, then removed.
+  // harness sets makes this page edit the production every 3 s, with automatic updates on or off:
+  // past the sync's 2.5 s debounce, so each edit is its own save (and, on, its own publish).
+  // `cues`: the last cue's text, then its field values. `add`: a graphic added, then removed.
   useEffect(() => {
     if (!enabled || !showId) return;
     let mode: string | null = null;
@@ -126,7 +143,7 @@ export function useAutoPublish(o: {
       const added = show.graphics.find((g) => g.name === 'Loop strap');
       if (added) removeShowGraphic(showId, added.id);
       else addGraphicToShow(showId, { ...show.graphics[0].template, name: 'Loop strap' });
-    }, 1000);
+    }, 3000);
     return () => clearInterval(timer);
   }, [enabled, showId]);
   useEffect(() => {
@@ -149,6 +166,7 @@ export function useAutoPublish(o: {
         const show = current();
         if (!show) return null;
         const answer = await confirmedRevision(show);
+        if (editLoopMeasured()) tally(answer === null ? 'confirmed:null' : 'rev' in answer ? 'confirmed:rev' : `confirmed:${answer.wait}`);
         if (answer && 'rev' in answer) confirmedRecord = { rev: answer.rev, show };
         return answer;
       },
@@ -157,6 +175,7 @@ export function useAutoPublish(o: {
         return show ? readRevisions(show) : null;
       },
       catchUp: async () => {
+        if (editLoopMeasured()) tally('catchUp');
         catchingUp = true;
         try {
           await catchUpRecord(teamId, false);
@@ -168,8 +187,16 @@ export function useAutoPublish(o: {
         const held = confirmedRecord && confirmedRecord.rev === rev ? confirmedRecord.show : null;
         if (!held) return { kind: 'transient', reason: 'the saved production changed while it was being published' };
         const measure = latest.current.appearanceFor.current;
+        const t0 = performance.timeOrigin + performance.now();
+        const from = publishStepMs.length;
         const outcome = await publishRevision(held, rev, measure ? () => measure(held) : undefined);
         if (outcome.kind === 'published' && outcome.ver) latest.current.onPublished(outcome.ver);
+        // THE MEASURE HARNESS ONLY: with its edit loop on, each automatic publish's window and steps.
+        if (editLoopMeasured()) {
+          const w = window as unknown as { __noacgPublishWindows?: [number, number, string, number, number[]][] };
+          const steps = publishStepMs.slice(from);
+          (w.__noacgPublishWindows ??= []).push([t0, performance.timeOrigin + performance.now(), outcome.kind, Math.max(0, ...steps), steps]);
+        }
         return outcome;
       },
       changed: (next) => setView(next),
@@ -219,6 +246,7 @@ export function useAutoPublish(o: {
           if (s.phase === 'syncing' || s.phase === 'pending') wasSaving = !catchingUp;
           else if (s.phase === 'synced' && wasSaving) {
             wasSaving = false;
+            if (editLoopMeasured()) tally('saved');
             publisher.saved();
           }
         });
