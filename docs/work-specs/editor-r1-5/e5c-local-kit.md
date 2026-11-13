@@ -1,8 +1,9 @@
 # Final local qualification kit (E5)
 
-**Prepared; production bundle/helper qualification is pending.** No participant/device acceptance is recorded here. Product
-candidate: `e1c6fc4f5faf933be930cdf30f7acfa4e2b9ab22`; this evidence-only phase
-changes no product bytes. Before E5, reconcile the final E6C candidate and renew
+**Setup path qualified; ready to run on the recorded production artifact.**
+No participant/device or production-latency acceptance is recorded here. Artifact
+candidate: `b08128e05e4506fbb900f8ec37fa39bf5bea306d`, reconciled with main
+`b2e91ba4a5df23c1cec4a95ea213c9d070b5c7f5`. This phase changes no product bytes. Before E5, reconcile the final E6C candidate and renew
 any affected receipt. [Evidence and hashes](e5c/artifact-manifest.json),
 [Cloud results and limits](e5c-notes.md), [receiving source/packages](e5c/receiving/)
 and [receiving procedure](e4-receiving.md) travel with the candidate.
@@ -13,13 +14,22 @@ The native timing path is a **production build**, never Vite DEV/React StrictMod
 The registered `qualify:editor-native-kit` command runs in the existing endurance
 Actions carrier (minutes=10, local-supabase=false): unchanged full build, exact
 source/real version-marker checks, functional helper smoke, package and cleanup.
-Its actual receipt/artifact must pass before this kit is called ready. It performs
-no F4 timing campaign. Reconcile the final E6C candidate before E5; renew the bundle
+Its third/final admission passed: [run 43431229460](https://github.com/NoaCG/NoaCG-Studio/actions/runs/43431229460),
+[artifact 14038858698](https://github.com/NoaCG/NoaCG-Studio/actions/runs/43431229460/artifacts/14038858698).
+[The printed receipt and all attempts](e5c/native-artifact-attempts.json) retain
+12 passing helper assertions, exact source/real marker, 849 file identities, all
+22 prior captures exported, and cleanup=true. Candidate ZIP SHA-256 is
+`547b4af65d5abbcc01e132b6d5a12005c30bef213cbf7f34a4e35fdaf3563748`
+(17,894,493 bytes); bundle receipt SHA-256 is
+`07efb74b0910d6820cbe712d51dce2c6ba08b7ff059accebd0ab18ddf42dc77d`.
+The worker read the complete job log/printed JSON; raw archive download remained
+unavailable. Verify downloaded bytes locally below; producer checks and upload
+metadata are not a claim of consumer archive readback. No F4 timing campaign ran. Reconcile the final E6C candidate before E5; renew the bundle
 when its applicable source changes rather than using stale output.
 
 1. Obtain the retained `endurance-<run-id>` artifact and read
    `editor-native-kit/qualification.json`. Require `status=passed`, cleanup=true,
-   zero skips/retries, its full source SHA and candidate.zip SHA256. Verify the
+   zero helper skips/retries (the unchanged full build retained 30 existing skips), its full source SHA and candidate.zip SHA256. Verify the
    archive before extraction, for example with this portable command:
 
    ```sh

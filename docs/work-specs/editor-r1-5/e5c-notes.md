@@ -28,7 +28,7 @@ inspection. Use the original approved F4 baseline fixture (30 selectable layers,
 300 keys across independent X/opacity tracks), not the foundation's different
 X-only 300-key variant. Preserve exact input/source hashes, raw events, rendered
 pose/feedback distributions, long tasks, request identities and settled PNGs.
-Measure with production preview debounce 350ms and actual recorded browser zoom,
+Measure with preview debounce 350ms and actual recorded browser zoom,
 DPR and resources; warmed interactions and cold startup are separate. Existing
 targets remain selection <=100ms, feedback >=30Hz, no freeze >100ms and final
 pointer-up <=150ms. Report misses without redefining a target. Cloud scheduling,
@@ -258,7 +258,8 @@ E4-attributable failure still stops for owner reassessment.
 [The final local kit](e5c-local-kit.md) supplies the pinned candidate/fixture and
 package hashes, short introduction, both participant journeys, individual timing/
 error/help forms, named device/viewport/native zoom instructions, reference/source
-instructions and all exact outstanding targets. It is ready to execute; no
+instructions and all exact outstanding targets. The setup path is now qualified by
+the actual source-pinned production artifact/helper receipt below; no
 participants, moderator, named hardware, native 125%, receiving operator/hosts
 or owner decision is invented. E6C consolidates technical receiving preparation
 before E5 begins; E6 real CasparCG/named OGraf/Linux #775 remains separate.
@@ -506,3 +507,80 @@ source/real marker. Only affected Starter-to-rundown functional evidence needs
 renewal on that source; no F4 timing campaign is implied. The final independent
 review must assess this source applicability explicitly. Current quarantine and
 historical exact-E4 quarantine remain distinct records.
+
+
+### Final artifact qualification: PASS, without a timing verdict
+
+[Actions 43431229460](https://github.com/NoaCG/NoaCG-Studio/actions/runs/43431229460)
+ran exact reconciled `b08128e05e4506fbb900f8ec37fa39bf5bea306d`, attempt 1.
+The unchanged full build passed: **5,826 tests, 5,796 pass, zero failures,
+30 existing skips**. The entire packaging/helper run took 306,865ms inside its
+unchanged ten-minute envelope, with zero helper retries/skips. All twelve helper
+assertions passed, including normal production ZIP import with 30 rendered layers
+and 300 unique UI keys, exact production observer URL, trusted calibration,
+download/disposal, zero page errors/external HTTP/production `/src` requests,
+and owned cleanup=true with no cleanup errors. All 22 original capture blobs were
+hash-verified and exported from the retained immutable source.
+
+[Artifact 14038858698](https://github.com/NoaCG/NoaCG-Studio/actions/runs/43431229460/artifacts/14038858698)
+is 19,439,962 bytes, upload SHA-256
+`0dc7723f3e06b99858f87eb641cb4f5ad151137aa87ce9bf3bfef53c828c2b1f`.
+The producer's actual printed receipt records candidate.zip 17,894,493 bytes,
+SHA-256 `547b4af65d5abbcc01e132b6d5a12005c30bef213cbf7f34a4e35fdaf3563748`,
+849 files, real version commit equal to b08128e05, and bundle.json SHA-256
+`07efb74b0910d6820cbe712d51dce2c6ba08b7ff059accebd0ab18ddf42dc77d`.
+The worker and coordinator read the complete job log and printed receipt, not the
+raw archive. Whole log SHA-256
+`8a493fd119675b5e0b1684086db78f772ad10d89ef7fb12e142d37c5a613a869`
+(2,548,153 bytes) is retained. [All three admissions and actual printed receipts](e5c/native-artifact-attempts.json)
+preserve both failures, cleanup distinctions, source and transport limits.
+Packaging allowance is now 3/3 spent. No further artifact build or performance
+campaign follows automatically. Production performance and actual native-device
+qualification remain OPEN for E5; final E5C diagnostic acceptance is independently
+reviewed, without a production target PASS or waiver from these DEV observations.
+
+### Current-source functional renewal and original failed paint oracle
+
+After main reconciliation, j-0139 failed before browser execution on an unqualified
+Vite-cache write. With only shared cache/owned-output permissions qualified on the
+actual runner, j-0140 completed the original Starter journey on b08128e05 in
+19.4 seconds: three branded items; independent wording/history; saved-brand
+reapplication/local override; untouched third document; save/reload/Home reopen;
+and selected independent production subsets of two and one. Exact operator DOM
+value and Take were checked. The original full-page Program capture was taken
+during the entrance and is black; **that capture is LIMITED, not settled-paint
+proof**. Source/counters alone did not establish pixels.
+
+One separately authorized narrow observation reused the exact already-realized
+production payload. J-0141 again failed before browser execution when a newly
+auto-started runner lacked cache permissions; neither pretest failure is a product
+result. J-0142 then executed once with the required cache permission. Exact operator
+text, fully open clip, box opacity 1, identity text transform, positive geometry
+and positive effective ancestor opacity passed before an actual 49×6 glyph PNG.
+That image directly paints **LIVE HARBOUR UPDATE**, also inspected independently
+by the coordinator. The new scratch oracle nevertheless FAILED because no
+antialiased pixel lay within 32 of the unblended CSS foreground colour. The actual
+image contains visible lighter glyphs over its dark background; the oracle's
+colour calibration was unqualified. **J-0142 remains FAILED**. No threshold change,
+rerun, additional observation or product fix followed. Finite Out/replay were NOT
+RUN in this slice because execution stopped at that assertion. [Raw source/result,
+all four job statuses and capture hashes](e5c/main-renewal-summary.json) retain these
+limits; the new PNGs remain owned retained evidence and were independently hash-checked
+in the durable recovery archive, without a new Actions artifact-readback claim. Every original image, failed oracle and method is preserved.
+
+**Read-only prior finite-Out/replay applicability, not whole-app equality.**
+The current payloads have no obsScenes switch/folders. New `sceneMembers` at
+`src/model/obsScenes.ts:48` returns [] with the switch absent; scene snapshot and
+separation therefore have no scene candidates. New ProductionPage:805 registers
+an air-cue reader; lines 3292/3399 supply scene sets only to All out/folder stop.
+The `graphicVerbs.ts:959` individual Out dispatcher still calls unchanged clearOne;
+its only main delta supplies `keep` to All out. FolderPlayout's change affects
+stopAll, not these ordinary individual cues. `poolIdentity` excludes scene copies
+from library replacement, but these ordinary installations contain no sceneCopyOf.
+Team merged-scene separation is not entered by the isolated offline production.
+The installation planner/conditional durable path, ProgramStage, PayloadStage,
+PlayoutMonitors, output/stage, editor preview/runtime and exporters are unchanged
+from j-0138. Thus its finite rendered Out/replay and package lifecycle remain
+applicable to these unscened source/runtime paths. This is source-specific reuse,
+not a new b081 finite-Out execution or evidence for OBS scene dispatch. Fresh final
+CI and the independent merged-source checker still judge their actual coverage.

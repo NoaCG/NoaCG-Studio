@@ -141,5 +141,61 @@
     "originalLogSha256": "1621a60779fdfb27e056db0f06d70c3ece9c447d862136eb844fc06192122b8b",
     "publicLog": "logs/j-0138.log",
     "originalLogRetained": true
+  },
+  {
+    "id": "j-0139",
+    "command": "node e5c.local/starter-merged.tmp.mjs",
+    "capMinutes": 5,
+    "state": "failed",
+    "startedAt": 1794575348300,
+    "finishedAt": 1794575349282,
+    "exitCode": 1,
+    "retryCount": 0,
+    "source": "b08128e05e4506fbb900f8ec37fa39bf5bea306d",
+    "originalLogSha256": "b62e694f53f6fe7f2b40978f44b74d7740589f39498a2289596df09959fb8523",
+    "publicLog": "logs/j-0139.log",
+    "originalLogRetained": true
+  },
+  {
+    "id": "j-0140",
+    "command": "node e5c.local/starter-merged.tmp.mjs",
+    "capMinutes": 5,
+    "state": "done",
+    "startedAt": 1794575446714,
+    "finishedAt": 1794575466118,
+    "exitCode": 0,
+    "retryCount": 0,
+    "source": "b08128e05e4506fbb900f8ec37fa39bf5bea306d",
+    "originalLogSha256": "4498d757e99e178ea7c5e4d073846763fc9e5540962e8208f17eeac84b3b7a24",
+    "publicLog": "logs/j-0140.log",
+    "originalLogRetained": true
+  },
+  {
+    "id": "j-0141",
+    "command": "node e5c.local/program-paint.tmp.mjs",
+    "capMinutes": 5,
+    "state": "failed",
+    "startedAt": 1794575723520,
+    "finishedAt": 1794575724627,
+    "exitCode": 1,
+    "retryCount": 0,
+    "source": "b08128e05e4506fbb900f8ec37fa39bf5bea306d",
+    "originalLogSha256": "48b038f86a60f7c8f76bd4b7d9658f99236d5990352f232e5834ec14e57f91a1",
+    "publicLog": "logs/j-0141.log",
+    "originalLogRetained": true
+  },
+  {
+    "id": "j-0142",
+    "command": "node e5c.local/program-paint.tmp.mjs",
+    "capMinutes": 5,
+    "state": "failed",
+    "startedAt": 1794575791802,
+    "finishedAt": 1794575798337,
+    "exitCode": 1,
+    "retryCount": 0,
+    "source": "b08128e05e4506fbb900f8ec37fa39bf5bea306d",
+    "originalLogSha256": "8faef94b7a22dd77d1abd1558bd4ba0eb074a395094c0bfa3171245b77fc1871",
+    "publicLog": "logs/j-0142.log",
+    "originalLogRetained": true
   }
 ]

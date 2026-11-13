@@ -78,8 +78,8 @@
     },
     {
       "path": "jobs.json",
-      "bytes": 4623,
-      "sha256": "42de692d5343a862e71be84e1dd26a0538ad035aa259726b7ae112af41caff20"
+      "bytes": 6431,
+      "sha256": "cf8a83f52f0845590dff3659ec69ccae281f46b15a9f4cb6b6aae367a272e8cf"
     },
     {
       "path": "laptop-125-parity.json",
@@ -142,6 +142,36 @@
       "sha256": "4d297e6959940b76068628866dedb2ac2f7347e8788fe7827689fef4a8cc0326"
     },
     {
+      "path": "logs/j-0139.log",
+      "bytes": 770,
+      "sha256": "b62e694f53f6fe7f2b40978f44b74d7740589f39498a2289596df09959fb8523"
+    },
+    {
+      "path": "logs/j-0140.log",
+      "bytes": 226,
+      "sha256": "4498d757e99e178ea7c5e4d073846763fc9e5540962e8208f17eeac84b3b7a24"
+    },
+    {
+      "path": "logs/j-0141.log",
+      "bytes": 765,
+      "sha256": "48b038f86a60f7c8f76bd4b7d9658f99236d5990352f232e5834ec14e57f91a1"
+    },
+    {
+      "path": "logs/j-0142.log",
+      "bytes": 1005,
+      "sha256": "8faef94b7a22dd77d1abd1558bd4ba0eb074a395094c0bfa3171245b77fc1871"
+    },
+    {
+      "path": "main-renewal-summary.json",
+      "bytes": 2162,
+      "sha256": "dbaa8324580f598e4581dd7be24fad447bb9c8d607b0e77b53421897c7fd6230"
+    },
+    {
+      "path": "native-artifact-attempts.json",
+      "bytes": 11704,
+      "sha256": "230a41e1949173bf2ce65cd4b67248061de9fd55b3c63cc7587ddde89ee76934"
+    },
+    {
       "path": "native-kit-smoke.mjs",
       "bytes": 14565,
       "sha256": "ab5559a7533bb3fc94a1023c0a9e71cc42cd1463da460cb465f7d3c5ca016bad"
@@ -182,6 +212,16 @@
       "sha256": "a9a41f6f0c147e23097d5eef69c3bdc995a65ea98f5d3fb517f8182b2661129d"
     },
     {
+      "path": "probes/common-merged.tmp.mjs.txt",
+      "bytes": 2063,
+      "sha256": "e709f97e09d3e51d6e344e357d4ba702838ad02cd16b208bdf46b2ab58ee6dd0"
+    },
+    {
+      "path": "probes/common-paint.tmp.mjs.txt",
+      "bytes": 2062,
+      "sha256": "ccd7202c6fbec3f10c1fd5fd05db0a5fcf8dc39be1999b815c1513dbade7a97f"
+    },
+    {
       "path": "probes/common.tmp.mjs.txt",
       "bytes": 2048,
       "sha256": "01b37b16daf0e07154f295dc2c9bf4c8891654c1aa07513f898d9403c6c6fb4e"
@@ -207,6 +247,11 @@
       "sha256": "0395ae77afc4842ca10279e20a5ec497e29a67e686aafa4760a9753707441052"
     },
     {
+      "path": "probes/program-paint.tmp.mjs.txt",
+      "bytes": 3928,
+      "sha256": "879f50bc1dd46428c66759bd85407d970feb9fad91c1f048c0676ea7c82e7200"
+    },
+    {
       "path": "probes/reference-extra.tmp.mjs.txt",
       "bytes": 4408,
       "sha256": "d2039ccad3f0de2c19a4ecd824a358c961ce4f7a93699d334d8e5782150223d4"
@@ -227,9 +272,19 @@
       "sha256": "f04db4e28f41353f423070b7cdd5128e0150830b298863b4840e488d6e92736b"
     },
     {
+      "path": "probes/starter-merged.tmp.mjs.txt",
+      "bytes": 9530,
+      "sha256": "c943e31e9b70a7c37aa620484e0aeab34810a2d3bc3c3878a5b6d3a88d141ffb"
+    },
+    {
       "path": "probes/starter.tmp.mjs.txt",
       "bytes": 9361,
       "sha256": "6998d9db0c4d4f76df713b7e74bc98d7ef16895b0a5168952c6014a70685bd4e"
+    },
+    {
+      "path": "program-paint-result.json",
+      "bytes": 557,
+      "sha256": "d74d7e6eb7cbb38aec2caf381f674126334d65eecdb560e15225bb81cd808504"
     },
     {
       "path": "receiving/casparcg-paint-state.json",
@@ -315,6 +370,11 @@
       "path": "starter-attempt1-result.json.gz",
       "bytes": 330818,
       "sha256": "6d09c95026421d6e879374f3fc8e757a9f33d84b9689b24334c655b8b3169692"
+    },
+    {
+      "path": "starter-main-renewal-result.json.gz",
+      "bytes": 659956,
+      "sha256": "92d65e004e9d50adaee2e41bace9400e871d4f790e9a2efb9e83f7caaf35c610"
     },
     {
       "path": "starter-result.json.gz",
