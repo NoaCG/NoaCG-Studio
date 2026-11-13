@@ -68,10 +68,10 @@
   "inFlight": [
     {
       "phase": "E6C",
-      "step": "Fresh exact-merge verification and merged-source offline candidate",
+      "step": "Final independent verification of existing manual deployment route",
       "pr": "2506",
       "session": "/root/editor_e6c_independent_check",
-      "note": "Actual705merge/queueCIgreen; action12observeddelivered+SAMEfreshnative6af73ffcstartupACKedafter2fullscopedpreflights/canonicalMATCH. Checkerownproofunderway. Oneexplicitfinal705nativecarrier43467700288inprogress, staticbranchsource705/count1; no4thautomatic/oldbudgetreset. ExactmainCI43466517653/configured43466517736pending; postland/qPASS. Rootstaysallterminal/freshacceptance. RealE5/E6/OW1remain."
+      "note": "Exact705mainCI/configured/CodeQL/Postland/quarantineallSUCCESS. Own8ZIP/font/lifecycle/sourcepreservationqualified; faultyaddedproductiontimestamporacle j1537/1FAILretained/noedit-rerun. Finalactual705offlineproducerPASS; detailedhandoffkeptPRIVATEafteroptionalissuepostautoreviewrejection. Existingeventdeploycasefiltergap5SKIPs; rootONEmanualnormaldeploy-verify on705 prospectivelyadmitted, no waiver/workflowchange. Finalreceipt/PASSpendingactualrun. PhysicalE5/E6/OW1remain."
     }
   ],
   "owner": [
@@ -3289,7 +3289,7 @@
     },
     "actualMergeCandidateAdmission": {
       "at": "2026-11-13T16:54:06.310017+00:00",
-      "status": "ORIGINAL_ONCE_DISPATCH_OBSERVED_RUN43467700288_IN_PROGRESS",
+      "status": "TERMINAL_SUCCESS exact705 producer independentlychecked; detailedidentity retained PRIVATELY outsidepublickit",
       "source": "705ba59425441fedbe171bee993e4b621c7bf68b",
       "branch": "codex/plan-editor-r1-5-e6c-merged-candidate",
       "worktree": "/workspace/noacg-editor-r1-5-e6c-merged-candidate",
@@ -3306,18 +3306,17 @@
         "createdAt": "2026-11-13T16:56:09Z",
         "rootRead": "Actualstaticbranchcount1; exact705, no repeat/retry. Rootpushownedstaticbranch705 thenfreshremoteSHA/count0guard beforedispatch.",
         "observer": "9bc6a1e78992b3f4438c24b2f5ebf84169503f509d893fb443ab3b3e55675d7d advisoryUNRESOLVED; originalcommandforwardedONCEexit0, RESTreconciledoriginalrun."
-      }
+      },
+      "result": "Normal5864tests5834PASS0FAIL30existingSKIP+gateway533PASS;12helperassertions/0helperretry-skip/cleanuptrue/errorlistsEmpty/371177ms; actualsource/version705. Rawconsumerarchive readback stillunverified. DetailednewartifactID/hash/downloadpayload deliberatelyexcludedfrompublickit."
     },
     "actualMergeChecks": {
       "CI": {
         "run": 43466517653,
-        "status": "inprogress",
-        "attempt": 1
+        "status": "SUCCESSattempt1/actualFULL252offline15shards+catalog"
       },
       "configured": {
         "run": 43466517736,
-        "status": "inprogress",
-        "attempt": 1
+        "status": "SUCCESSattempt1/168PASS0FAIL0FLAKY3SKIP;64normalfiles+1quarantinecommandsequencePASS"
       },
       "postLanding": {
         "run": 43466517715,
@@ -3329,7 +3328,7 @@
       },
       "codeql": {
         "run": 43466516269,
-        "status": "inprogress/dynamicPushonmain"
+        "status": "SUCCESSactualmainCodeQL"
       },
       "deployMetadataSkipped": [
         43466667673,
@@ -3341,7 +3340,29 @@
       "otherMainHelper": {
         "run": 43466640630,
         "status": "SUCCESSbutNOTours; inspector mustreadactualbranch/sha/PRbeforeapplicability, nevercountworkflowHEADasours"
-      }
+      },
+      "productionHold": "Rootactualfullmigrationjob132026989721read:0118_publication_guard.sqlHELDbyquiet-windowguardbecauseproductionslive; no ownmigration/productionwrite/retry. SUCCESSisbounded,nofullhostedpublishclaim."
+    },
+    "privateHandoffDisposition": {
+      "status": "OPTIONAL_DETAILED_PUBLIC_ISSUE_COMMENT_REJECTED; PRIVATE_HANDOFF_ALTERNATIVE",
+      "reason": "Automaticapprovalreviewrejectedfullartifactlinks/hashes/workflowmetadata/downloadinstructions posttoissue2295forinsufficientexplicitscope fordisclosurethere. No retry/CLIalternatedestination/publicblob bypass.",
+      "safeAlternative": "DetailedproducerJSONmovedOUTOFunpublishedwavekit to ownedretained-evidence/e6c-merged-candidate-43467700288.json; ownerwillreceiveconcretedownloadinstructionsinprivatechat/localhandoff. RequiredminimaltechnicalPRfindings accepted6859892544, withno blockednewartifactpayload. Technicalcheckscontinue; no unnecessarypermissionaskforoptionalpublicpost."
+    },
+    "checkerProgress": {
+      "j0153": "OriginalFAIL7PASS1FAIL50.1s0retry/skip. Addedwholeproductionarchiveequalityexpectedimpossibleacrossexporttimes. RootreadCOMPLETElog/BOTHarchives allentries: inventoriesidentical andONLY5JSONfields differ(updated/imported/itemID), allotherfilebytesidentical. Existing spxProject85-90,132-139 Date.now/uniqueSPXitemID andshowExport221documentthis. No code/oracleedit/rerun/verdictrelabelling. Retainedall5outputruntime/source/state truths+exactcombined+Bridgefileaudit+6lifecycle+strict18feasible2floor/old3overflow ownproof. Emptyinitialhistory/storage scopeexplicit, no newpersistedhistoryclaim.",
+      "static": "Own23blobs/8ZIPs95files/fonts/GSAP/notices/currentCLIclosure/publishedCLI/fivetoolkits+24capturehashesqualified; no confirmedproduct/E4defect.",
+      "comment": "https://github.com/NoaCG/NoaCG-Studio/pull/2506#issuecomment-6859892544 minimaltechnicalfindingsonly; finalreceiptawaitactualdeploymentverification."
+    },
+    "manualDeploymentVerifyIntent": {
+      "status": "PROSPECTIVE_ONE_EXISTING_MANUAL_READONLY_WORKFLOW_BEFORE_DISPATCH",
+      "at": "2026-11-13T17:19:32.282866+00:00",
+      "workflow": "deploy-verify.yml",
+      "ref": "codex/plan-editor-r1-5-e6c-merged-candidate",
+      "source": "705ba59425441fedbe171bee993e4b621c7bf68b",
+      "need": "All5originaleventdeployrunsSKIPPEDbecauseexistingliteralProductionfiltermissedactualvercel[bot]lowercaseproduction status; no waiver/claimtheyPASS. Existingworkflow_dispatch intentionallyrunsdrift+2anonymousproductiondeeplinks. Firstmeaningfulmanualread-onlyverificationonactual705, notretryredtestorworkflowedit.",
+      "rootPolicyEvidence": "docs/DEPLOYMENT.md80+ andworkflow145-164 explicitlyacceptliveexpectedORnewerMAINdescendant plus /,/app answer; manualworkflow_dispatch documentedexistingroute. Root17:18:20ZGETversionlive01a19090f6a757bec56ad1fc5f2e3f1398da6323, GHcompareconfirmedcontains705andonmain66fd9b12; bothpagesHTTP200. Freshcheckerqualifiedprotectedimmutable705HTTP200/version705viaexistingVercelconnector, no auth/protectionchange.",
+      "bounds": "Unchangedworkflowdrift10minute/deeplink15minute caps, existinganonymous @production2tests/config/assertions/retrypolicy unchanged; no workflow/sourcechange/newsecret/account/productiondatawrite/model/funding/releaseaction. Observeexistingstaticbranchmanualruns total0, dispatchONCE/reconcileunknown original. No automaticseconddispatch; anyfailure preserve/read beforefollow-up.",
+      "acceptance": "Freshcheckerawaitsactualgreenmanualrun/ownlogs+canonicalancestry/pages thenupdatesSAMEminimaltechnicalfindings; records5SKIPs/casefiltergap permanently, notinventedgreenautomatic705event. No blockedartifacthandoffpayload inexternalrecord."
     }
   }
 }
