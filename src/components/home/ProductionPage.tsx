@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
-import { sceneFolderIds, sceneGraphicNames, sceneLink } from '../../model/obsScenes';
+import { joinedSceneCues, obsScenesOf, sceneFolderIds, sceneGraphicNames, sceneLink, type ObsScene } from '../../model/obsScenes';
+import { takeJoined } from '../../control/sceneJoin';
 import { useTemplateStore } from '../../store/templateStore';
 import {
   deleteShowProfile,
@@ -1040,10 +1041,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** The production's live state is recovered from the wire (its resolve and the rows after it):
    *  until then an empty on-air map is not evidence that a graphic is off air. */
   const [liveRecovered, setLiveRecovered] = useState(false);
+  /** The OBS scenes as last published, so a publish knows which graphics joined a scene (#2489);
+   *  null while not known here (a published production whose resolve has not answered). */
+  const publishedScenesRef = useRef<readonly ObsScene[] | null>(null);
+  const showIdRef = useRef(show?.id);
+  showIdRef.current = show?.id;
   useEffect(() => {
     setLiveRecovered(false);
     setPublishedReaders(new Set());
     setFormerReadersState(show ? storedFormerReaders(show.id) : new Set());
+    // An unpublished production has published no scene; a published one's are read at its resolve.
+    publishedScenesRef.current = hostedSlug ? null : [];
     // eslint-disable-next-line react-hooks/exhaustive-deps -- per production, not per record write
   }, [hostedSlug, show?.id]);
   // Timed cues on a published production need a backend that keeps their arms (0075); with none
@@ -2190,6 +2198,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       if (!resolved.seq) setUnordered(true);
       setOutputSeenAt(resolved.outputSeenAt);
       setPublishedStamp(resolved.output?.ver ?? null);
+      publishedScenesRef.current = resolved.output ? (resolved.output.scenes ?? []) : null;
       fastEventGraphicsRef.current = fastEventGraphics(resolved.output?.graphics ?? []);
       setPublishedReaders(new Set((resolved.output?.graphics ?? []).filter((g) => hasLiveData(g.js)).map((g) => g.key)));
     },
@@ -2889,7 +2898,32 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     },
   );
 
-  preparePublishRef.current = () => publishNow();
+  preparePublishRef.current = async () => {
+    // #2489: a graphic this publish puts in a scene goes on air there, as the operator's own Take,
+    // once the scene's open links hold the publish (control/sceneJoin.ts).
+    const id = show.id;
+    const before = publishedScenesRef.current;
+    const held = await publishNow();
+    const published = loadShows().find((s) => s.id === id);
+    if (!held || !published || showIdRef.current !== id) return held;
+    publishedScenesRef.current = obsScenesOf(published);
+    void takeJoined(
+      {
+        entries: () => livePresenceRef.current.peers,
+        onAir: (graphic) => !!session.air.get().liveCue[graphic],
+        take: async (cueId) => {
+          const cue = cuesRef.current.find((c) => c.id === cueId);
+          if (cue) await takeCue(cue);
+        },
+        live: () => showIdRef.current === id,
+        now: () => Date.now(),
+        wait: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      },
+      joinedSceneCues(before, published),
+      held.n,
+    );
+    return held;
+  };
   reloadRef.current = async () => (outputUrl ? reloadOnSlot(outputUrl) : null);
 
   /** The layers that are up, each with the cue that put it there, front to back. */
