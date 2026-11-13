@@ -120,22 +120,24 @@ export default function LiveDock({
       )}
       {choice && (
         <section className="live-dock-section live-dock-scenes" data-testid="dock-scenes" data-mode={choice.mode}>
-          <label className="live-dock-row">
-            <span className="live-dock-label">{choice.mode === 'program' ? 'Program' : 'Picked'}</span>
-            <select
-              value={choice.picked}
-              onChange={(e) => setPick(e.target.value)}
-              disabled={choice.mode === 'program'}
-              title={choice.mode === 'program' ? 'Following the OBS program scene' : 'OBS has not said which scene is on program'}
-              data-testid="dock-scene-pick"
-            >
-              {scenes.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          {choice.mode === 'program' ? (
+            // On program, the scenes whose buttons are below, by name: never the fallback pick.
+            <div className="live-dock-row" title="Following the OBS program scene">
+              <span className="live-dock-label">Program</span>
+              <span className="live-dock-dim" data-testid="dock-scene-program">{choice.ids.map(nameOf).join(', ')}</span>
+            </div>
+          ) : (
+            <label className="live-dock-row">
+              <span className="live-dock-label">Picked</span>
+              <select value={choice.picked} onChange={(e) => setPick(e.target.value)} title="OBS has not said which scene is on program" data-testid="dock-scene-pick">
+                {scenes.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {choice.ids.map((id) => (
             <div key={id} className="live-dock-scene" data-testid="dock-scene" data-scene={id}>
               {choice.ids.length > 1 && <div className="live-dock-scene-name">{nameOf(id)}</div>}

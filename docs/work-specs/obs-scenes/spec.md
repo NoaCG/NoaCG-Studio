@@ -1299,6 +1299,9 @@ Filled in by each phase's pull request.
   nothing and says so; a held value reads back only as the clock reads it (an impossible date or
   hour is no deadline) (K7); the dock lists the graphics that read a Sheet in their own code, as
   the data panel does (K8); the analytics consent banner does not show over the dock.
+- Found by the PR review on 3128c191 (P2), fixed: in program mode the disabled picker still
+  showed the fallback pick, not the scene whose Take and Out are below. On program the row now
+  names the scenes shown, and the picker shows only while none is on program (K3 amended).
 - Previous verified `main`: `a71607a977fa4b57db908a5a63fa589b977f551d` (CI run 43475994487,
   configured suite 43475994875).
 - Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed and no
