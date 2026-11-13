@@ -501,6 +501,8 @@ Filled in by each phase's pull request.
   updates publish once editing pauses, and AC-4 is judged at a 5 s edit pace (the harness's
   `MEASURE_EDIT_MS`, default 5000). The rule, fixed before the last ten pairs: pass when the pooled
   p95 difference over 20 pairs is 50 ms or less. Result: p95 141 ms on against 105 ms off over
-  1000 Takes each, +35.9 (90% range +26 to +47), with every on-run publishing 6 versions. Slow
-  Takes 43 against 21, recorded beside it. The only code change is that harness
+  1000 Takes each, +35.9 (90% range +26 to +47). Every save was published (204 publishes for 239
+  edits); every other edit changes nothing the outputs show (the fixture's last cue has no values),
+  so 6 of each run's publishes were new versions and the rest revision-only updates. Slow Takes 43
+  against 21 and the longer tail are recorded and carried to phase 7 with D1. The only code change is that harness
   pace setting, which normal builds leave out. The evidence's +2 is replaced by both tables.

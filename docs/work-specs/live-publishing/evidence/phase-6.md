@@ -215,7 +215,12 @@ updates on, and the count of slow Takes is the same.
 
 **What makes a Take slow, on both sides.** Temporary probes, not committed, recorded when each Take
 reached the output, each page request, each sync pass and its origin, and the page's long tasks
-(the browser's Long Tasks API). The probes found:
+(the browser's Long Tasks API). To repeat them: in `src/output/main.ts`, push a timestamped entry to
+a window array where `applyCommand` receives a command and around the preparer's `resolve`,
+`swapper.apply` and `recheck`. In `src/backend/syncController.ts`, record each `syncNow` pass and
+whether the `finally` block's `queued` re-run started it. In the page, observe `longtask` entries. In
+the harness, record each Take's press and run times and each non-GET request, and read the arrays
+after the samples. The probes found:
 
 - Every slow Take reaches the output late and runs at once. The Take's own send leaves the page 130 to
   770 ms after the press, usually just after the page starts uploading a 2.2 MB save of the
@@ -250,8 +255,19 @@ reported beside it.
 Same method as above, on `main` with #2497 and #2498 merged: production build with the harness hooks,
 local stack (127.0.0.1), test `autopublish`, `MEASURE_EDIT=cues`, typical fixture, unthrottled, one
 output. There were 20 interleaved pairs, each pair on then off: 10 first, then 10 more on the same
-head and the same build. Every on-run published 6 versions in 11 to 13 edits. Every off-run published
-none. No Take failed.
+head and the same build. No Take failed. Every off-run published nothing.
+
+**Every save is published; half the edits change nothing the outputs show.** The on-runs made 204
+publishes for 239 edits (10 or 11 per run of 11 to 13 edits). 19 of 20 runs ended with the newest
+save published; in the other one, the last edit's publish was still under way when the run stopped.
+Each run's version number moved 6 times, because the loop alternates two edits: the last cue's label,
+then its field values. The typical fixture's last cue has no field values, so the second edit saves
+the record but changes nothing in the published copy. Its publish is therefore a revision-only update:
+`published_rev` moves and nothing is sent to the outputs (G3 section 3). A probe run, not committed,
+recorded each publish's content check and showed this: the label edits' publishes built new content,
+the values edits' matched the stored copy. So the on-side carries a full publish every other edit
+(about every 10 s) and a revision-only update between. The 3 s runs and the check's runs used the same
+loop.
 
 | | Takes | p50 (ms) | p90 (ms) | p95 (ms) | p99 (ms) | Takes of 150 ms or more |
 |---|---|---|---|---|---|---|
@@ -270,7 +286,9 @@ none. No Take failed.
 - The first ten pairs alone read +38 ms (90% range +24 to +56).
 
 With the sync fixed, publishing shows a real cost: twice the slow Takes (43 against 21 in 1000) and a
-longer tail (p99 500 against 212). The pooled p95 stays inside 50 ms; the tail is recorded, not judged.
+longer tail (p99 500 against 212). The pooled p95 stays inside 50 ms. The tail is recorded, not
+judged here, and is carried to phase 7 with D1 (only what changed is sent), which is where a full
+publish's cost on the outputs should fall.
 
 #### Republishing, nothing edited
 
