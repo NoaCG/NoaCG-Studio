@@ -425,3 +425,33 @@ ignore/gate exception, threshold or test-maintenance entry was added. The
 [capture export manifest](e5c/capture-export.json) binds every path/blob/byte/hash
 for export through the existing endurance artifact. Until verified export, local
 and immutable Git source remain retained. Original tree-shape failure is kept.
+
+
+### First artifact admission: helper transport failure retained
+
+[Actions 43427863494](https://github.com/NoaCG/NoaCG-Studio/actions/runs/43427863494)
+ran exactly `b0cc243c9af7e404cca437154163be446e1dce9b`, attempt 1, with the
+unchanged full build and ten-minute artifact envelope. The full build passed:
+5,805 Node tests, zero failures, 30 existing skips, plus its before/after-build
+gates. The helper started the DEV setup server at 12:51:19 UTC and the command
+failed at 12:51:49 UTC, before a browser was launched. This remains a failed
+artifact/helper qualification; no candidate ZIP or performance verdict is claimed.
+The whole original job log is retained (2,530,427 bytes, SHA-256
+`ba4fc3d8320baa110e1b101462bd8850ad86ab4eb8e816d1d761a8ead519f237`).
+
+Partial artifact 14037719763 (`endurance-43427863494`, 759 bytes, SHA-256
+`f91fda4c3903cb6f7b2e6eff8fd5c5c808b6c041453b99b074b8e6cade82f602`)
+contains two receipts according to the upload log. Both direct and returned-file
+transport refused access. Their contents, precise exception and owned cleanup
+status are UNKNOWN; upload metadata does not prove their contents.
+
+The helper incorrectly polled IPv4 `127.0.0.1`; the existing server's canonical
+URL is `localhost`. A bounded Node transport reproduction bound localhost to
+IPv6 `::1`: IPv4 fetch was ECONNREFUSED while localhost returned 200. This proves
+a helper transport defect consistent with the observed 30-second readiness
+failure, without claiming the unread Actions exception. The repair uses the
+existing canonical URL. Failed helper/packaging receipts now also appear in the
+job log, including completed assertions and cleanup, so a future artifact access
+failure cannot conceal the exception. No added wait/retry, host policy, product,
+performance measurement or check/limit change is involved. A new source-pinned
+artifact admission must preserve this failed attempt and reconcile dispatch first.

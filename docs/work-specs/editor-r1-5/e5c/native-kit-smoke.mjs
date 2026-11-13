@@ -10,7 +10,7 @@ const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 export async function smokeNativeKit({ root, out, source, env, remaining, children, stop }) {
   const launcher = 'docs/work-specs/editor-r1-5/e5c/native-local-launch.mjs';
   const relative = 'docs/work-specs/editor-r1-5/e5c/', fixturePath = 'docs/research/editor-design-review-2026-09-17/f4-noacg.json';
-  const port = devPort(), base = `http://127.0.0.1:${port}`, answer = { assertions: [], cleanup: false }, pageErrors = [], externalRequests = [];
+  const port = devPort(), base = `http://localhost:${port}`, answer = { assertions: [], cleanup: false }, pageErrors = [], externalRequests = [];
   let server, browserServer, browser, production = false;
   const productionSourceRequests = [];
   const assertion = name => answer.assertions.push(name);
@@ -93,6 +93,9 @@ export async function smokeNativeKit({ root, out, source, env, remaining, childr
     const download = page.waitForEvent('download'); await page.evaluate(() => e5Native.download()); await (await download).saveAs(join(out, 'native-events-smoke.json')); await page.evaluate(() => e5Native.dispose()); await expect(button).toHaveCount(0); assertion('documented production observer URL, trusted calibration marks, download and disposal work');
     assert.deepEqual(pageErrors, []); assert.deepEqual(externalRequests, []); assert.deepEqual(productionSourceRequests, []); answer.fixture = { originalSha256: fixture.sha256, packageSha256: sha(fixtureZip), renderedLayers: 30, uniqueUiKeys: keyCount }; answer.pageErrors = pageErrors; answer.externalRequests = externalRequests; answer.productionSourceRequests = productionSourceRequests;
     await context.close();
+  } catch (error) {
+    answer.error = String(error);
+    throw error;
   } finally {
     const cleanupErrors = [];
     const bounded = promise => Promise.race([promise, new Promise((_, reject) => { const timer = setTimeout(() => reject(new Error('Owned cleanup did not complete within three seconds.')), 3000); timer.unref(); })]);
@@ -102,6 +105,7 @@ export async function smokeNativeKit({ root, out, source, env, remaining, childr
     answer.cleanup = cleanupErrors.length === 0 && !(await isPortBusy(port, 100));
     answer.cleanupErrors = cleanupErrors;
     writeFileSync(join(out, 'helper-smoke.json'), JSON.stringify(answer, null, 2) + '\n');
+    if (answer.error || !answer.cleanup) console.error('Native helper failure receipt: ' + JSON.stringify(answer));
     if (!answer.cleanup) throw new Error('Owned helper cleanup failed: ' + cleanupErrors.join('; '));
   }
   assert(answer.cleanup); remaining(); return answer;

@@ -64,5 +64,6 @@ try {
   for (const child of children) stop(child);
   clearTimeout(timer); receipt.finishedAt = new Date().toISOString(); receipt.elapsedMs = Date.now() - started;
   if (receipt.elapsedMs > 600_000 || receipt.status !== 'passed' || !receipt.cleanup || !receipt.bundle) { receipt.status = 'failed'; process.exitCode = 1; }
-  keep(); console.log(`${receipt.status.toUpperCase()} native candidate packaging/helper smoke; source ${receipt.source}; no performance verdict.`);
+  keep(); if (receipt.status !== 'passed') console.error('Native qualification failure receipt: ' + JSON.stringify(receipt));
+  console.log(`${receipt.status.toUpperCase()} native candidate packaging/helper smoke; source ${receipt.source}; no performance verdict.`);
 }
