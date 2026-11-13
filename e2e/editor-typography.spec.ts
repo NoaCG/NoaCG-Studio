@@ -8,7 +8,7 @@
 // fit ladder. scripts/typography.test.mjs checks the pure parts in Node.
 
 import { test, expect, type Page } from '@playwright/test';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { evaluateInPage } from './_evaluate';
 import { settleDurableWrites } from './_durable';
 
@@ -213,12 +213,9 @@ test('long text: Shrink to fit, Wrap and Run on answer a 61-character value, eac
   await setText(page, LONG);
   const longLine = await rect(page, t.point);
   expect(longLine.width).toBeGreaterThan(900);
-  // Glyph widths differ by platform, so the slot is three quarters of this value's own width:
-  // above the fit's 55% floor everywhere, so Shrink to fit can always reach it. Linux Chromium's
-  // whole-pixel glyph sizes leave the design's three-pass fit up to about 5% past the slot (a
-  // recorded limit of templates/shared/textFit.ts), so the bound is the slot plus a tenth: a line
-  // that was not refitted stays at its full width, a third over.
-  const room = Math.round(longLine.width * .75), fitted = room * 1.1;
+  // The slot is above the 55% floor everywhere. The runtime must measure the actual
+  // rendered width after its proportional passes too (#775), with no overflow margin.
+  const room = Math.round(longLine.width * .75), fitted = room;
   const longText = inspector(page).getByRole('combobox', { name: 'Long text', exact: true });
   await expect(longText).toHaveValue('overflow');
   await expect(longText.locator('option')).toHaveText(['Shrink to fit', 'Wrap', 'Run on']);
@@ -438,4 +435,61 @@ test('typed type survives save and reopen, and the simulator fits the long value
   expect(parseFloat(simulated.size)).toBeLessThan(48);
   expect(parseFloat(simulated.size)).toBeGreaterThanOrEqual(48 * .55 - .01);
   expect(parseFloat(size)).toBeLessThan(48);
+});
+
+// Blank-page layout regression: the original Linux cases use real bundled glyphs,
+// independent of editor controls. The old emitted block is the immutable #775 control.
+test('bundled raster fonts fit the measured slot with bounded deterministic work and an unchanged floor', async ({ page }, info) => {
+  await page.goto('/app');
+  const runtime = await page.evaluate(async () => (await import('/src/templates/shared/textFit.ts')).TEXT_FIT_RUNTIME_JS);
+  const old = readFileSync(new URL('./fixtures/editor-projects/placed-text-fit-v1.txt', import.meta.url), 'utf8');
+  const fonts = ['inter', 'oswald', 'saira'].map(name => ({ name,
+    data: readFileSync(new URL(`../public/fonts/${name}.woff2`, import.meta.url)).toString('base64') }));
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.setContent(`<style>body{margin:20px;background:#111;color:white}.slot{white-space:nowrap;margin-bottom:8px}.line{display:inline-block;white-space:nowrap}${fonts.map(f => `@font-face{font-family:${f.name};src:url(data:font/woff2;base64,${f.data});font-weight:100 900}`).join('')}</style><main></main>`);
+  const result = await page.evaluate(async ({ runtime, old, text }) => {
+    const lines: { el: HTMLSpanElement; slot: HTMLDivElement; impossible: boolean; reads: number }[] = [];
+    for (const family of ['inter', 'oswald', 'saira']) for (const weight of [400, 700]) for (const room of [800, 1043, 1090]) {
+      const slot = document.createElement('div'), el = document.createElement('span');
+      slot.className = 'slot'; slot.style.width = room + 'px'; slot.style.fontSize = '48px';
+      el.className = 'line'; el.dataset.fit = 'shrink'; el.style.fontFamily = family; el.style.fontWeight = String(weight); el.textContent = text;
+      slot.append(el); document.querySelector('main')!.append(slot);
+      lines.push({ el, slot, impossible: false, reads: 0 });
+    }
+    for (const family of ['inter', 'oswald']) {
+      const slot = document.createElement('div'), el = document.createElement('span');
+      slot.className = 'slot'; slot.style.width = '100px'; slot.style.fontSize = '48px';
+      el.className = 'line'; el.dataset.fit = 'shrink'; el.style.fontFamily = family; el.textContent = text;
+      slot.append(el); document.querySelector('main')!.append(slot); lines.push({ el, slot, impossible: true, reads: 0 });
+    }
+    await document.fonts.ready;
+    const inject = (js: string) => { const script = document.createElement('script'); script.textContent = js; document.body.append(script); };
+    type FitWindow = Window & typeof globalThis & { fitOnePlacedLine(el: HTMLElement): void };
+    const fitWindow = window as FitWindow;
+    const measure = () => lines.map(line => {
+      line.reads = 0; fitWindow.fitOnePlacedLine(line.el); const reads = line.reads;
+      const range = document.createRange(); range.selectNodeContents(line.el);
+      return { family: getComputedStyle(line.el).fontFamily, weight: getComputedStyle(line.el).fontWeight,
+        room: line.slot.getBoundingClientRect().width, width: line.el.getBoundingClientRect().width,
+        glyphWidth: range.getBoundingClientRect().width, fontSize: parseFloat(getComputedStyle(line.el).fontSize),
+        fontReady: document.fonts.check(`${getComputedStyle(line.el).fontWeight} 48px ${getComputedStyle(line.el).fontFamily}`),
+        floor: 48 * .55, impossible: line.impossible, reads };
+    });
+    for (const line of lines) for (const element of [line.slot, line.el]) {
+      const rect = element.getBoundingClientRect.bind(element);
+      element.getBoundingClientRect = () => { line.reads++; return rect(); };
+    }
+    inject(old); const before = measure(); inject(runtime); const after = measure(), again = measure();
+    return { before, after, again, userAgent: navigator.userAgent };
+  }, { runtime, old, text: LONG });
+  writeFileSync(info.outputPath('placed-text-fit.json'), JSON.stringify(result, null, 2) + '\n');
+  await page.screenshot({ path: info.outputPath('placed-text-fit.png'), fullPage: true });
+  expect(result.after.filter(r => !r.impossible)).toHaveLength(18);
+  for (const row of result.after) {
+    expect(row.fontReady).toBe(true); expect(row.reads).toBeLessThanOrEqual(18);
+    expect(row.fontSize).toBeGreaterThanOrEqual(row.floor - .0001); expect(row.fontSize).toBeLessThanOrEqual(48);
+    if (row.impossible) { expect(row.width).toBeGreaterThan(row.room); expect(row.fontSize).toBeCloseTo(row.floor, 4); }
+    else { expect(row.width, JSON.stringify(row)).toBeLessThanOrEqual(row.room); expect(row.glyphWidth).toBeLessThanOrEqual(row.room); }
+  }
+  expect(result.again).toEqual(result.after);
 });

@@ -1,0 +1,2426 @@
+{
+  "source": "c456f647eb8a30839473fd93467f447a181f2dc1",
+  "at": "2026-11-13T15:53:54.595Z",
+  "published": {
+    "package": "@noacg/cli",
+    "version": "0.12.4",
+    "files": 50,
+    "compiledImports": [
+      {
+        "file": "package/dist/playout/amcp.js",
+        "spec": "node:net",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/playout/amcp.js",
+        "spec": "node:string_decoder",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/playout/amcp.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/auth.js",
+        "spec": "node:child_process",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/auth.js",
+        "spec": "node:crypto",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/auth.js",
+        "spec": "node:fs",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/auth.js",
+        "spec": "node:os",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/auth.js",
+        "spec": "node:path",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/auth.js",
+        "spec": "node:util",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/auth.js",
+        "spec": "./config.js",
+        "resolved": "package/dist/config.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/bridge.js",
+        "spec": "../config.js",
+        "resolved": "package/dist/config.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/bridge.js",
+        "spec": "../openUrl.js",
+        "resolved": "package/dist/openUrl.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/bridge.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/bridge.js",
+        "spec": "../playout/adapters/casparcg.js",
+        "resolved": "package/dist/playout/adapters/casparcg.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/bridge.js",
+        "spec": "../playout/adapters/ograf.js",
+        "resolved": "package/dist/playout/adapters/ograf.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/bridge.js",
+        "spec": "../playout/adapters/vmix.js",
+        "resolved": "package/dist/playout/adapters/vmix.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/bridge.js",
+        "spec": "../playout/server.js",
+        "resolved": "package/dist/playout/server.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/bridge.js",
+        "spec": "../playout/protocol.js",
+        "resolved": "package/dist/playout/protocol.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/bridge.js",
+        "spec": "../playout/token.js",
+        "resolved": "package/dist/playout/token.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/bridgeClient.js",
+        "spec": "./config.js",
+        "resolved": "package/dist/config.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/bridgeClient.js",
+        "spec": "./browser.js",
+        "resolved": "package/dist/browser.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/browser.js",
+        "spec": "./config.js",
+        "resolved": "package/dist/config.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/browser.js",
+        "spec": "playwright-core",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/caspar.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/caspar.js",
+        "spec": "../playout/amcp.js",
+        "resolved": "package/dist/playout/amcp.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/caspar.js",
+        "spec": "../playout/server.js",
+        "resolved": "package/dist/playout/server.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/caspar.js",
+        "spec": "./bridge.js",
+        "resolved": "package/dist/commands/bridge.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/adapters/casparcg.js",
+        "spec": "../amcp.js",
+        "resolved": "package/dist/playout/amcp.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/adapters/casparcg.js",
+        "spec": "../info.js",
+        "resolved": "package/dist/playout/info.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/adapters/casparcg.js",
+        "spec": "../picture.js",
+        "resolved": "package/dist/playout/picture.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/adapters/casparcg.js",
+        "spec": "../slots.js",
+        "resolved": "package/dist/playout/slots.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/adapters/casparcg.js",
+        "spec": "../../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/config.js",
+        "spec": "node:module",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/config.js",
+        "spec": "node:os",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/config.js",
+        "spec": "node:path",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/coverage.js",
+        "spec": "node:crypto",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/coverage.js",
+        "spec": "node:fs",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/coverage.js",
+        "spec": "node:path",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/coverage.js",
+        "spec": "../bridgeClient.js",
+        "resolved": "package/dist/bridgeClient.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/coverage.js",
+        "spec": "../config.js",
+        "resolved": "package/dist/config.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/coverage.js",
+        "spec": "../coverage.js",
+        "resolved": "package/dist/coverage.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/coverage.js",
+        "spec": "../digest.js",
+        "resolved": "package/dist/digest.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/coverage.js",
+        "spec": "../review.js",
+        "resolved": "package/dist/review.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/coverage.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/coverage.js",
+        "spec": "../screenshot.js",
+        "resolved": "package/dist/screenshot.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/coverage.js",
+        "spec": "../workspace.js",
+        "resolved": "package/dist/workspace.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/coverage.js",
+        "spec": "./screenshot.js",
+        "resolved": "package/dist/screenshot.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/digest.js",
+        "spec": "node:crypto",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/docs.js",
+        "spec": "node:fs",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/docs.js",
+        "spec": "node:path",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/docs.js",
+        "spec": "node:url",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/docs.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/doctor.js",
+        "spec": "../browser.js",
+        "resolved": "package/dist/browser.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/doctor.js",
+        "spec": "../bridgeClient.js",
+        "resolved": "package/dist/bridgeClient.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/doctor.js",
+        "spec": "../config.js",
+        "resolved": "package/dist/config.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/doctor.js",
+        "spec": "../auth.js",
+        "resolved": "package/dist/auth.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/doctor.js",
+        "spec": "../npmLatest.mjs",
+        "resolved": "package/dist/npmLatest.mjs",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/doctor.js",
+        "spec": "../skillVersion.js",
+        "resolved": "package/dist/skillVersion.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/doctor.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./browser.js",
+        "resolved": "package/dist/browser.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./config.js",
+        "resolved": "package/dist/config.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./commands/doctor.js",
+        "resolved": "package/dist/commands/doctor.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./commands/types.js",
+        "resolved": "package/dist/commands/types.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./commands/scaffold.js",
+        "resolved": "package/dist/commands/scaffold.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./commands/validate.js",
+        "resolved": "package/dist/commands/validate.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./commands/inspect.js",
+        "resolved": "package/dist/commands/inspect.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./commands/screenshot.js",
+        "resolved": "package/dist/commands/screenshot.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./commands/coverage.js",
+        "resolved": "package/dist/commands/coverage.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./commands/record.js",
+        "resolved": "package/dist/commands/record.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./commands/pack.js",
+        "resolved": "package/dist/commands/pack.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./commands/docs.js",
+        "resolved": "package/dist/commands/docs.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./commands/login.js",
+        "resolved": "package/dist/commands/login.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./commands/logout.js",
+        "resolved": "package/dist/commands/logout.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./commands/whoami.js",
+        "resolved": "package/dist/commands/whoami.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./commands/status.js",
+        "resolved": "package/dist/commands/status.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./commands/save.js",
+        "resolved": "package/dist/commands/save.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./commands/caspar.js",
+        "resolved": "package/dist/commands/caspar.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./commands/bridge.js",
+        "resolved": "package/dist/commands/bridge.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/index.js",
+        "spec": "./mcp.js",
+        "resolved": "package/dist/mcp.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/info.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/inspect.js",
+        "spec": "../bridgeClient.js",
+        "resolved": "package/dist/bridgeClient.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/inspect.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/inspect.js",
+        "spec": "../workspace.js",
+        "resolved": "package/dist/workspace.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/login.js",
+        "spec": "node:http",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/login.js",
+        "spec": "node:os",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/login.js",
+        "spec": "../config.js",
+        "resolved": "package/dist/config.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/login.js",
+        "spec": "../openUrl.js",
+        "resolved": "package/dist/openUrl.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/login.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/login.js",
+        "spec": "../auth.js",
+        "resolved": "package/dist/auth.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/logout.js",
+        "spec": "../config.js",
+        "resolved": "package/dist/config.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/logout.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/logout.js",
+        "spec": "../auth.js",
+        "resolved": "package/dist/auth.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/mcp.js",
+        "spec": "@modelcontextprotocol/sdk/server/mcp.js",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/mcp.js",
+        "spec": "@modelcontextprotocol/sdk/server/stdio.js",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/mcp.js",
+        "spec": "node:path",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/mcp.js",
+        "spec": "zod",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/mcp.js",
+        "spec": "./auth.js",
+        "resolved": "package/dist/auth.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/mcp.js",
+        "spec": "./bridgeClient.js",
+        "resolved": "package/dist/bridgeClient.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/mcp.js",
+        "spec": "./browser.js",
+        "resolved": "package/dist/browser.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/mcp.js",
+        "spec": "./config.js",
+        "resolved": "package/dist/config.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/mcp.js",
+        "spec": "./commands/inspect.js",
+        "resolved": "package/dist/commands/inspect.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/mcp.js",
+        "spec": "./commands/docs.js",
+        "resolved": "package/dist/commands/docs.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/mcp.js",
+        "spec": "./commands/scaffold.js",
+        "resolved": "package/dist/commands/scaffold.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/mcp.js",
+        "spec": "./commands/pack.js",
+        "resolved": "package/dist/commands/pack.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/mcp.js",
+        "spec": "./commands/save.js",
+        "resolved": "package/dist/commands/save.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/mcp.js",
+        "spec": "./commands/validate.js",
+        "resolved": "package/dist/commands/validate.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/mcp.js",
+        "spec": "./ografBench.js",
+        "resolved": "package/dist/ografBench.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/mcp.js",
+        "spec": "./output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/mcp.js",
+        "spec": "./screenshot.js",
+        "resolved": "package/dist/screenshot.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/mcp.js",
+        "spec": "./workspace.js",
+        "resolved": "package/dist/workspace.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/adapters/ograf.js",
+        "spec": "../../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/ografBench.js",
+        "spec": "node:crypto",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/ografBench.js",
+        "spec": "./screenshot.js",
+        "resolved": "package/dist/screenshot.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/openUrl.js",
+        "spec": "node:child_process",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/operations.js",
+        "spec": "node:crypto",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/operations.js",
+        "spec": "node:fs",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/operations.js",
+        "spec": "node:path",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/operations.js",
+        "spec": "./config.js",
+        "resolved": "package/dist/config.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/operations.js",
+        "spec": "./digest.js",
+        "resolved": "package/dist/digest.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/pack.js",
+        "spec": "node:fs",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/pack.js",
+        "spec": "node:path",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/pack.js",
+        "spec": "../auth.js",
+        "resolved": "package/dist/auth.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/pack.js",
+        "spec": "../receipt.js",
+        "resolved": "package/dist/receipt.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/pack.js",
+        "spec": "../bridgeClient.js",
+        "resolved": "package/dist/bridgeClient.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/pack.js",
+        "spec": "../config.js",
+        "resolved": "package/dist/config.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/pack.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/pack.js",
+        "spec": "../workspace.js",
+        "resolved": "package/dist/workspace.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/pack.js",
+        "spec": "./save.js",
+        "resolved": "package/dist/commands/save.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/pack.js",
+        "spec": "./validate.js",
+        "resolved": "package/dist/commands/validate.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/picture.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playoutEntry.js",
+        "spec": "./commands/bridge.js",
+        "resolved": "package/dist/commands/bridge.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playoutEntry.js",
+        "spec": "./output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/receipt.js",
+        "spec": "node:crypto",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/receipt.js",
+        "spec": "./auth.js",
+        "resolved": "package/dist/auth.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/record.js",
+        "spec": "node:fs",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/record.js",
+        "spec": "node:path",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/record.js",
+        "spec": "../bridgeClient.js",
+        "resolved": "package/dist/bridgeClient.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/record.js",
+        "spec": "../config.js",
+        "resolved": "package/dist/config.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/record.js",
+        "spec": "../digest.js",
+        "resolved": "package/dist/digest.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/record.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/record.js",
+        "spec": "../review.js",
+        "resolved": "package/dist/review.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/record.js",
+        "spec": "../workspace.js",
+        "resolved": "package/dist/workspace.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/record.js",
+        "spec": "./validate.js",
+        "resolved": "package/dist/commands/validate.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/runner.js",
+        "spec": "./slots.js",
+        "resolved": "package/dist/playout/slots.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/save.js",
+        "spec": "node:fs",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/save.js",
+        "spec": "node:path",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/save.js",
+        "spec": "../bridgeClient.js",
+        "resolved": "package/dist/bridgeClient.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/save.js",
+        "spec": "../config.js",
+        "resolved": "package/dist/config.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/save.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/save.js",
+        "spec": "../auth.js",
+        "resolved": "package/dist/auth.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/save.js",
+        "spec": "../digest.js",
+        "resolved": "package/dist/digest.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/save.js",
+        "spec": "./pack.js",
+        "resolved": "package/dist/commands/pack.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/save.js",
+        "spec": "../operations.js",
+        "resolved": "package/dist/operations.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/save.js",
+        "spec": "../receipt.js",
+        "resolved": "package/dist/receipt.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/save.js",
+        "spec": "../workspace.js",
+        "resolved": "package/dist/workspace.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/save.js",
+        "spec": "./validate.js",
+        "resolved": "package/dist/commands/validate.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/scaffold.js",
+        "spec": "node:path",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/scaffold.js",
+        "spec": "../bridgeClient.js",
+        "resolved": "package/dist/bridgeClient.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/scaffold.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/scaffold.js",
+        "spec": "../workspace.js",
+        "resolved": "package/dist/workspace.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/screenshot.js",
+        "spec": "node:path",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/screenshot.js",
+        "spec": "../bridgeClient.js",
+        "resolved": "package/dist/bridgeClient.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/screenshot.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/screenshot.js",
+        "spec": "../screenshot.js",
+        "resolved": "package/dist/screenshot.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/screenshot.js",
+        "spec": "node:fs",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/screenshot.js",
+        "spec": "../workspace.js",
+        "resolved": "package/dist/workspace.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/screenshot.js",
+        "spec": "node:fs",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/screenshot.js",
+        "spec": "node:path",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/screenshot.js",
+        "spec": "./browser.js",
+        "resolved": "package/dist/browser.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/screenshot.js",
+        "spec": "./output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/server.js",
+        "spec": "node:http",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/playout/server.js",
+        "spec": "node:net",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/playout/server.js",
+        "spec": "./amcp.js",
+        "resolved": "package/dist/playout/amcp.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/server.js",
+        "spec": "./adapters/ograf.js",
+        "resolved": "package/dist/playout/adapters/ograf.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/server.js",
+        "spec": "./protocol.js",
+        "resolved": "package/dist/playout/protocol.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/server.js",
+        "spec": "./runner.js",
+        "resolved": "package/dist/playout/runner.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/server.js",
+        "spec": "./servers.js",
+        "resolved": "package/dist/playout/servers.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/server.js",
+        "spec": "./slots.js",
+        "resolved": "package/dist/playout/slots.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/server.js",
+        "spec": "./token.js",
+        "resolved": "package/dist/playout/token.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/server.js",
+        "spec": "../config.js",
+        "resolved": "package/dist/config.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/server.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/servers.js",
+        "spec": "node:fs",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/playout/servers.js",
+        "spec": "node:path",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/playout/servers.js",
+        "spec": "../config.js",
+        "resolved": "package/dist/config.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/servers.js",
+        "spec": "./protocol.js",
+        "resolved": "package/dist/playout/protocol.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/skillVersion.js",
+        "spec": "node:fs",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/skillVersion.js",
+        "spec": "node:os",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/skillVersion.js",
+        "spec": "node:path",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/playout/slots.js",
+        "spec": "node:crypto",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/status.js",
+        "spec": "../config.js",
+        "resolved": "package/dist/config.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/status.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/status.js",
+        "spec": "../auth.js",
+        "resolved": "package/dist/auth.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/status.js",
+        "spec": "../receipt.js",
+        "resolved": "package/dist/receipt.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/status.js",
+        "spec": "./save.js",
+        "resolved": "package/dist/commands/save.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/token.js",
+        "spec": "node:fs",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/playout/token.js",
+        "spec": "node:crypto",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/playout/token.js",
+        "spec": "node:path",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/playout/token.js",
+        "spec": "../config.js",
+        "resolved": "package/dist/config.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/types.js",
+        "spec": "../bridgeClient.js",
+        "resolved": "package/dist/bridgeClient.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/types.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/validate.js",
+        "spec": "node:fs",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/validate.js",
+        "spec": "node:path",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/commands/validate.js",
+        "spec": "../bridgeClient.js",
+        "resolved": "package/dist/bridgeClient.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/validate.js",
+        "spec": "../digest.js",
+        "resolved": "package/dist/digest.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/validate.js",
+        "spec": "../ografBench.js",
+        "resolved": "package/dist/ografBench.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/validate.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/validate.js",
+        "spec": "../screenshot.js",
+        "resolved": "package/dist/screenshot.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/validate.js",
+        "spec": "../workspace.js",
+        "resolved": "package/dist/workspace.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/adapters/vmix.js",
+        "spec": "../vmixTcp.js",
+        "resolved": "package/dist/playout/vmixTcp.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/vmixTcp.js",
+        "spec": "node:net",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/playout/vmixTcp.js",
+        "spec": "./info.js",
+        "resolved": "package/dist/playout/info.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/playout/vmixTcp.js",
+        "spec": "./protocol.js",
+        "resolved": "package/dist/playout/protocol.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/whoami.js",
+        "spec": "../config.js",
+        "resolved": "package/dist/config.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/whoami.js",
+        "spec": "../output.js",
+        "resolved": "package/dist/output.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/commands/whoami.js",
+        "spec": "../auth.js",
+        "resolved": "package/dist/auth.js",
+        "included": true
+      },
+      {
+        "file": "package/dist/workspace.js",
+        "spec": "node:fs",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/workspace.js",
+        "spec": "node:path",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/workspace.js",
+        "spec": "jszip",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/npmLatest.mjs",
+        "spec": "node:fs",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/npmLatest.mjs",
+        "spec": "node:os",
+        "resolved": null,
+        "included": null
+      },
+      {
+        "file": "package/dist/npmLatest.mjs",
+        "spec": "node:path",
+        "resolved": null,
+        "included": null
+      }
+    ],
+    "missingRelativeImports": [],
+    "scope": "actual published JS modules; tarball total63 files; code JSON omits Markdown/LICENSE"
+  },
+  "currentSourceClosure": {
+    "roots": {
+      "cli/src/index.ts": {
+        "files": [
+          {
+            "path": "cli/src/index.ts",
+            "bytes": 8198,
+            "sha256": "1a48e62f01488f0d0549fb597583d077425932f8ad510a5e2d8c6ae26afe16f3"
+          },
+          {
+            "path": "cli/src/browser.ts",
+            "bytes": 6091,
+            "sha256": "844076ebd8ce272972339f088620a90612d9de270f21faad3844a3129d0875d8"
+          },
+          {
+            "path": "cli/src/config.ts",
+            "bytes": 3698,
+            "sha256": "b1cde8ad2605010edd5ae5bc52fc136b18890fcf018831e4da1d63ca7cc5687b"
+          },
+          {
+            "path": "cli/src/output.ts",
+            "bytes": 6889,
+            "sha256": "4323f29ca8f6722ff137a5e1ecc92cb5a8dc748cbaeacaad132e46ffcfb73da7"
+          },
+          {
+            "path": "cli/src/commands/doctor.ts",
+            "bytes": 7274,
+            "sha256": "d08d718c5a598811056cfc4a2dede260f41b420211d0e49bc27d1728332e7ce8"
+          },
+          {
+            "path": "cli/src/bridgeClient.ts",
+            "bytes": 13038,
+            "sha256": "f3af8d63e45d81d5ab0663f2816feb22cfbe05aed6ef90004675e2bbc33d763f"
+          },
+          {
+            "path": "cli/src/auth.ts",
+            "bytes": 14859,
+            "sha256": "e024f6d8ebfdaba3f6e6b4767cf9e41ba1fb5220e7407fd5cb3c89619b719cff"
+          },
+          {
+            "path": "cli/src/receipt.ts",
+            "bytes": 12166,
+            "sha256": "9c26c6cebc4e29983bf74d0b6acebf22b83ce1feed74e7f37dc06fcffb6302f7"
+          },
+          {
+            "path": "cli/src/npmLatest.mjs",
+            "bytes": 4284,
+            "sha256": "75aad5df66ed69332bf17b2880b62b0ac4772a13b66c532dd1e815dfc3e01e09"
+          },
+          {
+            "path": "cli/src/skillVersion.ts",
+            "bytes": 9873,
+            "sha256": "0bbcd33cc580a8d86faae45bdc5fd5d01a93928ebec320e1a306fea14b0f05c9"
+          },
+          {
+            "path": "cli/src/commands/types.ts",
+            "bytes": 5109,
+            "sha256": "53f6f5187bd9371eceae5536efefcaf0e6ab3e0850bcf41fda03c9626aebcf79"
+          },
+          {
+            "path": "cli/src/commands/scaffold.ts",
+            "bytes": 5984,
+            "sha256": "7552de4979b25f0dde92022ce28718cdf3735c36a1b4f2041cbcfec79850ac80"
+          },
+          {
+            "path": "cli/src/workspace.ts",
+            "bytes": 10465,
+            "sha256": "460792c40540ce3142f42fb3946e580ee36cb4c692013aa421227c2ea446e12d"
+          },
+          {
+            "path": "cli/src/commands/validate.ts",
+            "bytes": 12887,
+            "sha256": "bb93777f1a5e1806dc3533e56f11538ee31cf115adcf73a6df98e330083706de"
+          },
+          {
+            "path": "cli/src/digest.ts",
+            "bytes": 2692,
+            "sha256": "10dd44c4f7eb6e0e9f37e7894aaf83f7c30965056403cb9ac58522d8a5d640bc"
+          },
+          {
+            "path": "cli/src/ografBench.ts",
+            "bytes": 6975,
+            "sha256": "6c3db8b7cb6b2daddcf6d43abca3815e53c9ee4ff5e193820a58dc08b038b333"
+          },
+          {
+            "path": "cli/src/screenshot.ts",
+            "bytes": 45290,
+            "sha256": "1d913c64ddb404b384229db10029bcafe73f570781b29d36ccbc852e92686f73"
+          },
+          {
+            "path": "cli/src/commands/inspect.ts",
+            "bytes": 3558,
+            "sha256": "2e0619e5f56e5222661cfe3db79778f1372ddfc021706832c68650e567d4e9c8"
+          },
+          {
+            "path": "cli/src/commands/screenshot.ts",
+            "bytes": 5036,
+            "sha256": "a7d5688206d1505a0501ca7a79ef3c01efcda698da19b3da1ef4ba8202447c56"
+          },
+          {
+            "path": "cli/src/commands/coverage.ts",
+            "bytes": 16877,
+            "sha256": "7924a59f2a2b515e78b6380ae672bb872248e7f2182b4a988ab258cb052f593e"
+          },
+          {
+            "path": "cli/src/coverage.ts",
+            "bytes": 14260,
+            "sha256": "5920eb682d4564659f0f489e5d767c29cb0f2d3edab963ac7e74b689875883cd"
+          },
+          {
+            "path": "cli/src/review.ts",
+            "bytes": 7694,
+            "sha256": "b46c120a983ce9eb3c0b71cbfdeec9df5753ca8610e6093a0de794c9d11c2b9d"
+          },
+          {
+            "path": "cli/src/commands/record.ts",
+            "bytes": 7181,
+            "sha256": "622c6880e6e6fa3a9968446b979df6d4d8a00032aacf473360df2fdd18846d4f"
+          },
+          {
+            "path": "cli/src/commands/pack.ts",
+            "bytes": 20016,
+            "sha256": "a3c1e4271f93117cdda5d347f9de8aa5cf265cfbd423233807b0d5bf6acac411"
+          },
+          {
+            "path": "cli/src/commands/save.ts",
+            "bytes": 22722,
+            "sha256": "9027dec01b74f3c5167c6a5a47023101e2790c339205e2d8399ee5a08b8de53c"
+          },
+          {
+            "path": "cli/src/operations.ts",
+            "bytes": 5831,
+            "sha256": "87f7b6beaa20943a1e94f638c31a5455179a8b6c1ed42125982828b2d866b6a5"
+          },
+          {
+            "path": "cli/src/commands/docs.ts",
+            "bytes": 2558,
+            "sha256": "6a79cc024806d9d8b9337ab5df777a1e5f17d08378cb30b67153e750d26bf997"
+          },
+          {
+            "path": "cli/src/commands/login.ts",
+            "bytes": 11902,
+            "sha256": "c30ca318a13d378efa21b4ff7e730606669e906692af4ce13b878d9eb0a2bc93"
+          },
+          {
+            "path": "cli/src/openUrl.ts",
+            "bytes": 2776,
+            "sha256": "37837d02be5bdcd779f43e1ae4c95e66e6094fe7a2b6594d765244639d1b771d"
+          },
+          {
+            "path": "cli/src/commands/logout.ts",
+            "bytes": 1537,
+            "sha256": "b192fb43115d2ecc745d849e445b76d7f9d4962296a402788c27a5908011f692"
+          },
+          {
+            "path": "cli/src/commands/whoami.ts",
+            "bytes": 2300,
+            "sha256": "75c7647be0cc2ed0e7e436f132c4ab51d27dc7570c4acb94f306823b0e7b46f5"
+          },
+          {
+            "path": "cli/src/commands/status.ts",
+            "bytes": 2042,
+            "sha256": "d2a439c60d7279027e39f2965ad2f8d2ff1bfe8639147c801481766753b17947"
+          },
+          {
+            "path": "cli/src/commands/caspar.ts",
+            "bytes": 5168,
+            "sha256": "fdb3bdcd9cdc875c69a9b49092023cd2c26c707fe54c6bfd1b17f46b0dd7f5da"
+          },
+          {
+            "path": "cli/src/playout/amcp.ts",
+            "bytes": 11305,
+            "sha256": "af21bf58db894a45d0b7f9cb596ad5308430e4fc35ed2da7499beaec66c36194"
+          },
+          {
+            "path": "cli/src/playout/protocol.ts",
+            "bytes": 25590,
+            "sha256": "3600c6d2925edcdbca74a6d60de43fa109b965563350923748c43a77d25d3533"
+          },
+          {
+            "path": "cli/src/playout/server.ts",
+            "bytes": 48075,
+            "sha256": "28a5a8c86425c6512d75914fa1542919629d97d6675f4491a9a1963ab6fda663"
+          },
+          {
+            "path": "cli/src/playout/adapters/casparcg.ts",
+            "bytes": 38105,
+            "sha256": "fb27d5a2834034c5472fdb848728e9af08c396242c6a8d33e6dc654ef11004bd"
+          },
+          {
+            "path": "cli/src/playout/info.ts",
+            "bytes": 7793,
+            "sha256": "166ed0c9541337c7d5daebfaa9a8efd37cca5b588987695966ee2fa0e36d6dcd"
+          },
+          {
+            "path": "cli/src/playout/picture.ts",
+            "bytes": 2536,
+            "sha256": "4bf4672cefa1c5dbd9f24c341773a7ae45c490d31257ab9c251fbcfd285a7cc5"
+          },
+          {
+            "path": "cli/src/playout/slots.ts",
+            "bytes": 21847,
+            "sha256": "4bfad99f7ed50e6cd66ef4828724f4e5ae0e6b8b2b5d68254cfabcdcc459f154"
+          },
+          {
+            "path": "cli/src/playout/adapters/ograf.ts",
+            "bytes": 21140,
+            "sha256": "8cbd0bca40e34de13db2a166b7415a33a1d7af54778a80a1a51cbb63d35bd7a5"
+          },
+          {
+            "path": "cli/src/playout/adapters/vmix.ts",
+            "bytes": 30470,
+            "sha256": "d1b7a6de20d96545b211aa98fe376a5fc788d87c8c124cafa00c918c91cfe56f"
+          },
+          {
+            "path": "cli/src/playout/vmixTcp.ts",
+            "bytes": 20919,
+            "sha256": "6899eb496d7d48f7ee9f2f5204aa60be9ef504032f4bbf418e489e29c3f8d51a"
+          },
+          {
+            "path": "cli/src/playout/vmixOutputs.ts",
+            "bytes": 8114,
+            "sha256": "2762d03e769c69428ac8d13501d63811aff779335d4203f868b6aada3cfc8243"
+          },
+          {
+            "path": "cli/src/playout/vmixMedia.ts",
+            "bytes": 21667,
+            "sha256": "8eefac8d9efda78a4f6db7d7d15db78ce4499f0feb9fe343385b6b67fbb4f44c"
+          },
+          {
+            "path": "cli/src/playout/vmixPlayers.ts",
+            "bytes": 23840,
+            "sha256": "b92d8d0e8902ba6c9c4f0029f6babe8993294ad58354f299439e7619a26010ec"
+          },
+          {
+            "path": "cli/src/playout/runner.ts",
+            "bytes": 10105,
+            "sha256": "c8446aa8e2492aaa0b46f004325da4b95d3c635b00fa34badd4af76902f545f3"
+          },
+          {
+            "path": "cli/src/playout/links.ts",
+            "bytes": 6777,
+            "sha256": "3d7e03b2a8042245917438deea4432e21fc892f13ecbd9c928a7241a6ac9c6e1"
+          },
+          {
+            "path": "cli/src/playout/servers.ts",
+            "bytes": 4816,
+            "sha256": "3137fb015ce069adb11e5ac227ffac55e05156ff008f48904c067cba0c49e99a"
+          },
+          {
+            "path": "cli/src/playout/token.ts",
+            "bytes": 3810,
+            "sha256": "ef3526d14615a2beffbe5f003202b14e047b888865b2615675dff33ff7a0f1f5"
+          },
+          {
+            "path": "cli/src/commands/bridge.ts",
+            "bytes": 6280,
+            "sha256": "8986342c3195fb0774fc6fe00c09be8a4261589c6927696a25c54c3c1fe29b04"
+          },
+          {
+            "path": "cli/src/mcp.ts",
+            "bytes": 22374,
+            "sha256": "54339f416058a2b4e56f57648daabc44f1e507b83654baef88776fb97a4cc4de"
+          }
+        ],
+        "external": [
+          "@modelcontextprotocol/sdk/server/mcp.js",
+          "@modelcontextprotocol/sdk/server/stdio.js",
+          "jszip",
+          "node:buffer",
+          "node:child_process",
+          "node:crypto",
+          "node:fs",
+          "node:fs/promises",
+          "node:http",
+          "node:module",
+          "node:net",
+          "node:os",
+          "node:path",
+          "node:string_decoder",
+          "node:url",
+          "node:util",
+          "playwright-core",
+          "saxes",
+          "xmlchars/xmlns/1.0/ed3.js",
+          "zod"
+        ],
+        "browserImports": []
+      },
+      "cli/src/mcp.ts": {
+        "files": [
+          {
+            "path": "cli/src/mcp.ts",
+            "bytes": 22374,
+            "sha256": "54339f416058a2b4e56f57648daabc44f1e507b83654baef88776fb97a4cc4de"
+          },
+          {
+            "path": "cli/src/auth.ts",
+            "bytes": 14859,
+            "sha256": "e024f6d8ebfdaba3f6e6b4767cf9e41ba1fb5220e7407fd5cb3c89619b719cff"
+          },
+          {
+            "path": "cli/src/config.ts",
+            "bytes": 3698,
+            "sha256": "b1cde8ad2605010edd5ae5bc52fc136b18890fcf018831e4da1d63ca7cc5687b"
+          },
+          {
+            "path": "cli/src/receipt.ts",
+            "bytes": 12166,
+            "sha256": "9c26c6cebc4e29983bf74d0b6acebf22b83ce1feed74e7f37dc06fcffb6302f7"
+          },
+          {
+            "path": "cli/src/bridgeClient.ts",
+            "bytes": 13038,
+            "sha256": "f3af8d63e45d81d5ab0663f2816feb22cfbe05aed6ef90004675e2bbc33d763f"
+          },
+          {
+            "path": "cli/src/browser.ts",
+            "bytes": 6091,
+            "sha256": "844076ebd8ce272972339f088620a90612d9de270f21faad3844a3129d0875d8"
+          },
+          {
+            "path": "cli/src/commands/inspect.ts",
+            "bytes": 3558,
+            "sha256": "2e0619e5f56e5222661cfe3db79778f1372ddfc021706832c68650e567d4e9c8"
+          },
+          {
+            "path": "cli/src/output.ts",
+            "bytes": 6889,
+            "sha256": "4323f29ca8f6722ff137a5e1ecc92cb5a8dc748cbaeacaad132e46ffcfb73da7"
+          },
+          {
+            "path": "cli/src/workspace.ts",
+            "bytes": 10465,
+            "sha256": "460792c40540ce3142f42fb3946e580ee36cb4c692013aa421227c2ea446e12d"
+          },
+          {
+            "path": "cli/src/commands/docs.ts",
+            "bytes": 2558,
+            "sha256": "6a79cc024806d9d8b9337ab5df777a1e5f17d08378cb30b67153e750d26bf997"
+          },
+          {
+            "path": "cli/src/commands/scaffold.ts",
+            "bytes": 5984,
+            "sha256": "7552de4979b25f0dde92022ce28718cdf3735c36a1b4f2041cbcfec79850ac80"
+          },
+          {
+            "path": "cli/src/commands/pack.ts",
+            "bytes": 20016,
+            "sha256": "a3c1e4271f93117cdda5d347f9de8aa5cf265cfbd423233807b0d5bf6acac411"
+          },
+          {
+            "path": "cli/src/commands/save.ts",
+            "bytes": 22722,
+            "sha256": "9027dec01b74f3c5167c6a5a47023101e2790c339205e2d8399ee5a08b8de53c"
+          },
+          {
+            "path": "cli/src/digest.ts",
+            "bytes": 2692,
+            "sha256": "10dd44c4f7eb6e0e9f37e7894aaf83f7c30965056403cb9ac58522d8a5d640bc"
+          },
+          {
+            "path": "cli/src/operations.ts",
+            "bytes": 5831,
+            "sha256": "87f7b6beaa20943a1e94f638c31a5455179a8b6c1ed42125982828b2d866b6a5"
+          },
+          {
+            "path": "cli/src/commands/validate.ts",
+            "bytes": 12887,
+            "sha256": "bb93777f1a5e1806dc3533e56f11538ee31cf115adcf73a6df98e330083706de"
+          },
+          {
+            "path": "cli/src/ografBench.ts",
+            "bytes": 6975,
+            "sha256": "6c3db8b7cb6b2daddcf6d43abca3815e53c9ee4ff5e193820a58dc08b038b333"
+          },
+          {
+            "path": "cli/src/screenshot.ts",
+            "bytes": 45290,
+            "sha256": "1d913c64ddb404b384229db10029bcafe73f570781b29d36ccbc852e92686f73"
+          }
+        ],
+        "external": [
+          "@modelcontextprotocol/sdk/server/mcp.js",
+          "@modelcontextprotocol/sdk/server/stdio.js",
+          "jszip",
+          "node:child_process",
+          "node:crypto",
+          "node:fs",
+          "node:module",
+          "node:os",
+          "node:path",
+          "node:url",
+          "node:util",
+          "playwright-core",
+          "zod"
+        ],
+        "browserImports": []
+      },
+      "cli/src/playoutEntry.ts": {
+        "files": [
+          {
+            "path": "cli/src/playoutEntry.ts",
+            "bytes": 1585,
+            "sha256": "7bf49e1591f5246fb0a894cea8b9c553b5a32dad923a69bf93eb6d27f21989a3"
+          },
+          {
+            "path": "cli/src/commands/bridge.ts",
+            "bytes": 6280,
+            "sha256": "8986342c3195fb0774fc6fe00c09be8a4261589c6927696a25c54c3c1fe29b04"
+          },
+          {
+            "path": "cli/src/config.ts",
+            "bytes": 3698,
+            "sha256": "b1cde8ad2605010edd5ae5bc52fc136b18890fcf018831e4da1d63ca7cc5687b"
+          },
+          {
+            "path": "cli/src/openUrl.ts",
+            "bytes": 2776,
+            "sha256": "37837d02be5bdcd779f43e1ae4c95e66e6094fe7a2b6594d765244639d1b771d"
+          },
+          {
+            "path": "cli/src/output.ts",
+            "bytes": 6889,
+            "sha256": "4323f29ca8f6722ff137a5e1ecc92cb5a8dc748cbaeacaad132e46ffcfb73da7"
+          },
+          {
+            "path": "cli/src/playout/adapters/casparcg.ts",
+            "bytes": 38105,
+            "sha256": "fb27d5a2834034c5472fdb848728e9af08c396242c6a8d33e6dc654ef11004bd"
+          },
+          {
+            "path": "cli/src/playout/amcp.ts",
+            "bytes": 11305,
+            "sha256": "af21bf58db894a45d0b7f9cb596ad5308430e4fc35ed2da7499beaec66c36194"
+          },
+          {
+            "path": "cli/src/playout/protocol.ts",
+            "bytes": 25590,
+            "sha256": "3600c6d2925edcdbca74a6d60de43fa109b965563350923748c43a77d25d3533"
+          },
+          {
+            "path": "cli/src/playout/info.ts",
+            "bytes": 7793,
+            "sha256": "166ed0c9541337c7d5daebfaa9a8efd37cca5b588987695966ee2fa0e36d6dcd"
+          },
+          {
+            "path": "cli/src/playout/picture.ts",
+            "bytes": 2536,
+            "sha256": "4bf4672cefa1c5dbd9f24c341773a7ae45c490d31257ab9c251fbcfd285a7cc5"
+          },
+          {
+            "path": "cli/src/playout/slots.ts",
+            "bytes": 21847,
+            "sha256": "4bfad99f7ed50e6cd66ef4828724f4e5ae0e6b8b2b5d68254cfabcdcc459f154"
+          },
+          {
+            "path": "cli/src/playout/adapters/ograf.ts",
+            "bytes": 21140,
+            "sha256": "8cbd0bca40e34de13db2a166b7415a33a1d7af54778a80a1a51cbb63d35bd7a5"
+          },
+          {
+            "path": "cli/src/playout/vmixOutputs.ts",
+            "bytes": 8114,
+            "sha256": "2762d03e769c69428ac8d13501d63811aff779335d4203f868b6aada3cfc8243"
+          },
+          {
+            "path": "cli/src/playout/server.ts",
+            "bytes": 48075,
+            "sha256": "28a5a8c86425c6512d75914fa1542919629d97d6675f4491a9a1963ab6fda663"
+          },
+          {
+            "path": "cli/src/playout/adapters/vmix.ts",
+            "bytes": 30470,
+            "sha256": "d1b7a6de20d96545b211aa98fe376a5fc788d87c8c124cafa00c918c91cfe56f"
+          },
+          {
+            "path": "cli/src/playout/vmixTcp.ts",
+            "bytes": 20919,
+            "sha256": "6899eb496d7d48f7ee9f2f5204aa60be9ef504032f4bbf418e489e29c3f8d51a"
+          },
+          {
+            "path": "cli/src/playout/vmixMedia.ts",
+            "bytes": 21667,
+            "sha256": "8eefac8d9efda78a4f6db7d7d15db78ce4499f0feb9fe343385b6b67fbb4f44c"
+          },
+          {
+            "path": "cli/src/playout/vmixPlayers.ts",
+            "bytes": 23840,
+            "sha256": "b92d8d0e8902ba6c9c4f0029f6babe8993294ad58354f299439e7619a26010ec"
+          },
+          {
+            "path": "cli/src/playout/runner.ts",
+            "bytes": 10105,
+            "sha256": "c8446aa8e2492aaa0b46f004325da4b95d3c635b00fa34badd4af76902f545f3"
+          },
+          {
+            "path": "cli/src/playout/links.ts",
+            "bytes": 6777,
+            "sha256": "3d7e03b2a8042245917438deea4432e21fc892f13ecbd9c928a7241a6ac9c6e1"
+          },
+          {
+            "path": "cli/src/playout/servers.ts",
+            "bytes": 4816,
+            "sha256": "3137fb015ce069adb11e5ac227ffac55e05156ff008f48904c067cba0c49e99a"
+          },
+          {
+            "path": "cli/src/playout/token.ts",
+            "bytes": 3810,
+            "sha256": "ef3526d14615a2beffbe5f003202b14e047b888865b2615675dff33ff7a0f1f5"
+          }
+        ],
+        "external": [
+          "node:buffer",
+          "node:child_process",
+          "node:crypto",
+          "node:fs",
+          "node:fs/promises",
+          "node:http",
+          "node:module",
+          "node:net",
+          "node:os",
+          "node:path",
+          "node:string_decoder",
+          "node:util",
+          "saxes",
+          "xmlchars/xmlns/1.0/ed3.js"
+        ],
+        "browserImports": []
+      }
+    },
+    "scope": "conservative static closure including type-only imports; no current unpublished CLI/Bridge binary is claimed"
+  },
+  "productionLockedDependencies": [
+    {
+      "path": "node_modules/@hono/node-server",
+      "version": "2.1.5",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/@modelcontextprotocol/sdk",
+      "version": "1.32.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/accepts",
+      "version": "2.0.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/ajv",
+      "version": "8.20.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/ajv-formats",
+      "version": "3.0.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/body-parser",
+      "version": "2.4.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/body-parser/node_modules/content-type",
+      "version": "2.1.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/bytes",
+      "version": "3.1.2",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/call-bind-apply-helpers",
+      "version": "1.0.2",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/call-bound",
+      "version": "1.0.4",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/content-disposition",
+      "version": "1.1.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/content-type",
+      "version": "1.0.5",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/cookie",
+      "version": "0.7.2",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/cookie-signature",
+      "version": "1.2.2",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/core-util-is",
+      "version": "1.0.3",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/cors",
+      "version": "2.8.6",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/cross-spawn",
+      "version": "7.0.6",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/debug",
+      "version": "4.4.3",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/depd",
+      "version": "2.0.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/dunder-proto",
+      "version": "1.0.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/ee-first",
+      "version": "1.1.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/encodeurl",
+      "version": "2.0.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/es-define-property",
+      "version": "1.0.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/es-errors",
+      "version": "1.3.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/es-object-atoms",
+      "version": "1.1.2",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/escape-html",
+      "version": "1.0.3",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/etag",
+      "version": "1.8.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/eventsource",
+      "version": "3.0.7",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/eventsource-parser",
+      "version": "3.1.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/express",
+      "version": "5.2.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/express-rate-limit",
+      "version": "8.6.2",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/fast-deep-equal",
+      "version": "3.1.3",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/fast-uri",
+      "version": "3.1.9",
+      "license": "BSD-3-Clause"
+    },
+    {
+      "path": "node_modules/finalhandler",
+      "version": "2.1.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/forwarded",
+      "version": "0.2.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/fresh",
+      "version": "2.0.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/function-bind",
+      "version": "1.1.2",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/get-intrinsic",
+      "version": "1.3.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/get-proto",
+      "version": "1.0.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/gopd",
+      "version": "1.2.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/has-symbols",
+      "version": "1.1.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/hasown",
+      "version": "2.0.4",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/hono",
+      "version": "4.13.13",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/http-errors",
+      "version": "2.0.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/iconv-lite",
+      "version": "0.7.3",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/immediate",
+      "version": "3.0.6",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/inherits",
+      "version": "2.0.4",
+      "license": "ISC"
+    },
+    {
+      "path": "node_modules/ip-address",
+      "version": "10.7.4",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/ipaddr.js",
+      "version": "1.9.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/is-promise",
+      "version": "4.0.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/isarray",
+      "version": "1.0.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/isexe",
+      "version": "2.0.0",
+      "license": "ISC"
+    },
+    {
+      "path": "node_modules/jose",
+      "version": "6.2.10",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/json-schema-traverse",
+      "version": "1.0.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/json-schema-typed",
+      "version": "8.0.2",
+      "license": "BSD-2-Clause"
+    },
+    {
+      "path": "node_modules/jszip",
+      "version": "3.10.1",
+      "license": "(MIT OR GPL-3.0-or-later)"
+    },
+    {
+      "path": "node_modules/lie",
+      "version": "3.3.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/math-intrinsics",
+      "version": "1.1.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/media-typer",
+      "version": "1.1.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/merge-descriptors",
+      "version": "2.0.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/mime-db",
+      "version": "1.54.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/mime-types",
+      "version": "3.0.2",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/ms",
+      "version": "2.1.3",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/negotiator",
+      "version": "1.1.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/negotiator/node_modules/content-type",
+      "version": "2.1.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/object-assign",
+      "version": "4.1.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/object-inspect",
+      "version": "1.13.4",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/on-finished",
+      "version": "2.4.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/once",
+      "version": "1.4.0",
+      "license": "ISC"
+    },
+    {
+      "path": "node_modules/pako",
+      "version": "1.0.11",
+      "license": "(MIT AND Zlib)"
+    },
+    {
+      "path": "node_modules/parseurl",
+      "version": "1.3.3",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/path-key",
+      "version": "3.1.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/path-to-regexp",
+      "version": "8.4.2",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/pkce-challenge",
+      "version": "5.0.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/playwright-core",
+      "version": "1.61.1",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "node_modules/process-nextick-args",
+      "version": "2.0.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/proxy-addr",
+      "version": "2.0.8",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/qs",
+      "version": "6.16.1",
+      "license": "BSD-3-Clause"
+    },
+    {
+      "path": "node_modules/range-parser",
+      "version": "1.3.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/raw-body",
+      "version": "3.0.2",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/readable-stream",
+      "version": "2.3.8",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/require-from-string",
+      "version": "2.0.2",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/router",
+      "version": "2.2.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/safe-buffer",
+      "version": "5.1.2",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/safer-buffer",
+      "version": "2.1.2",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/saxes",
+      "version": "6.0.0",
+      "license": "ISC"
+    },
+    {
+      "path": "node_modules/send",
+      "version": "1.2.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/serve-static",
+      "version": "2.2.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/setimmediate",
+      "version": "1.0.5",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/setprototypeof",
+      "version": "1.2.0",
+      "license": "ISC"
+    },
+    {
+      "path": "node_modules/shebang-command",
+      "version": "2.0.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/shebang-regex",
+      "version": "3.0.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/side-channel",
+      "version": "1.1.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/side-channel-list",
+      "version": "1.0.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/side-channel-map",
+      "version": "1.0.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/side-channel-weakmap",
+      "version": "1.0.2",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/statuses",
+      "version": "2.0.2",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/string_decoder",
+      "version": "1.1.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/toidentifier",
+      "version": "1.0.1",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/type-is",
+      "version": "2.1.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/type-is/node_modules/content-type",
+      "version": "2.1.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/unpipe",
+      "version": "1.0.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/util-deprecate",
+      "version": "1.0.2",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/vary",
+      "version": "1.1.2",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/which",
+      "version": "2.0.2",
+      "license": "ISC"
+    },
+    {
+      "path": "node_modules/wrappy",
+      "version": "1.0.2",
+      "license": "ISC"
+    },
+    {
+      "path": "node_modules/xmlchars",
+      "version": "2.2.0",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/zod",
+      "version": "4.6.6",
+      "license": "MIT"
+    },
+    {
+      "path": "node_modules/zod-to-json-schema",
+      "version": "3.25.2",
+      "license": "ISC"
+    }
+  ],
+  "agplDependencyLicenses": []
+}

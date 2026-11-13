@@ -1,0 +1,47 @@
+// Fit every "shrink" line to the room its design gives it. Called after each update()
+// (see update() above) and once when the DOM is ready, so the sample text fits too.
+//
+// How it works: the line's WRAPPER carries the max-width — the slot. The line itself is an
+// inline-block that keeps its natural width, so comparing the two says whether the value
+// overflows. If it does, the font-size comes down by the same ratio (a couple of passes,
+// because type does not scale perfectly linearly) but never below FIT_MIN_RATIO of the
+// design size — past that the line would be unreadable on air, which is worse than tight.
+var FIT_MIN_RATIO = 0.55;        // never shrink below 55% of the size the design asks for
+
+function fitPlacedText() {
+  var lines = document.querySelectorAll('[data-fit="shrink"]');
+  for (var i = 0; i < lines.length; i++) fitOnePlacedLine(lines[i]);
+}
+
+function fitOnePlacedLine(el) {
+  var slot = el.parentNode;
+  if (!slot || !slot.getBoundingClientRect) return;
+  el.style.fontSize = '';                       // back to the design size before measuring
+  var room = slot.getBoundingClientRect().width;
+  var design = parseFloat(window.getComputedStyle(el).fontSize);
+  if (!room || !design) return;
+  var floor = design * FIT_MIN_RATIO;
+  for (var pass = 0; pass < 3; pass++) {
+    var natural = el.getBoundingClientRect().width;
+    if (natural <= room + 0.5) return;          // it fits — leave the design size alone
+    var current = parseFloat(window.getComputedStyle(el).fontSize);
+    var next = Math.max(floor, current * (room / natural));
+    el.style.fontSize = next + 'px';
+    if (next === floor) return;                 // at the floor: as small as it may go
+  }
+}
+
+// The static sample text needs fitting too, before any update() arrives. This file loads in
+// <head>, so the lines do not exist yet - wait for the DOM.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', fitPlacedText);
+} else {
+  fitPlacedText();                              // DOM already parsed (e.g. an inline preview build)
+}
+
+// …and again once the webfonts are in. The design's face loads with font-display: swap, so
+// the first pass would otherwise measure the FALLBACK font - usually narrower than the real
+// one, which leaves the fitted line overflowing its slot the moment the face swaps in.
+if (document.fonts && document.fonts.ready && document.fonts.ready.then) {
+  document.fonts.ready.then(fitPlacedText);
+}

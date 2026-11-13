@@ -2,6 +2,9 @@ import { losslessAnimData } from './animData';
 import { STOP_AGAIN_GUARD_JS, writeOutData } from '../templates/shared/animRuntime';
 import { upgradeSvgFitRuntime } from '../assets/svgFitUpgrade';
 
+// Output composers opt into the raster-fit correction; save/import/equivalence do not.
+export { preparePlacedTextOutput } from '../templates/shared/textFit';
+
 export { hasLoopRuntime } from '../templates/shared/animRuntime';
 
 /**

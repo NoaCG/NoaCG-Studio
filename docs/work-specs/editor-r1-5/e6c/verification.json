@@ -1,0 +1,87 @@
+{
+  "productSource": "de563b599f175a60500ef288d0d59b3d624126c3",
+  "nativeSource": "c456f647eb8a30839473fd93467f447a181f2dc1",
+  "smallJobs": [
+    {
+      "id": "j-0147",
+      "result": "PRETEST FAIL: /tmp transform cache EROFS; zero browser tests"
+    },
+    {
+      "id": "j-0148",
+      "result": "FAIL: original strict-fit probe; 3/18 feasible font cases overflow"
+    },
+    {
+      "id": "j-0149",
+      "result": "PASS: 2/2 in 12.6s; working implementation, strict 18+2 cases and editor journey"
+    },
+    {
+      "id": "j-0150",
+      "result": "FAIL: 3 passed/4 failed in 33.8s; raw OGraf indent oracle plus invalid single-file relative-logo probe; original evidence retained"
+    },
+    {
+      "id": "j-0151",
+      "result": "PASS: 7/7 in 45.2s; corrected labeled output/source/state probe and six target lifecycles"
+    }
+  ],
+  "broader": {
+    "id": "j-0152",
+    "source": "de563b599f175a60500ef288d0d59b3d624126c3",
+    "files": [
+      "e2e/editor-typography.spec.ts",
+      "e2e/exports.spec.ts",
+      "e2e/ograf-isolation.spec.ts",
+      "e2e/render.spec.ts"
+    ],
+    "result": "48/48 PASS in 2.4min; 2 workers; retries/skips 0; one broader allowance spent 1/1"
+  },
+  "node": "6/6 PASS: exact known fit upgrade/preservation/oracle/ES5 and target-aware field instructions",
+  "static": "ESLint, TypeScript and dependency-cruiser PASS; 1480 modules,7079 dependencies. Committed capacity normal warning/frozen growth seed retained; protection PASS 8→9 tests and324 specs counted. Header-only repair existing gate audit PASS472 gates/5 exact guards/hit=true.",
+  "nativeAttempts": [
+    {
+      "run": 43454322514,
+      "source": "de563b599f175a60500ef288d0d59b3d624126c3",
+      "result": "FAIL",
+      "cause": "New test guards brace expression split into 3 nonexistent comma-delimited paths; build tests NOT RUN, helper NOT RUN,cleanup null,candidate absent",
+      "elapsedMs": 101345,
+      "logSha256": "b2c13e4a1fa1c348deba9c9065d67fc185a51113b6e1212d7b04dd68a09b19fc",
+      "artifactId": 14051729577,
+      "artifactBytes": 400,
+      "artifactSha256": "40f92f3fc56c236b270d46b34b3ae3c214384e19afac7e2147ddb91e40fd5527"
+    },
+    {
+      "run": 43455609799,
+      "source": "c456f647eb8a30839473fd93467f447a181f2dc1",
+      "result": "PASS",
+      "tests": 5844,
+      "pass": 5814,
+      "failed": 0,
+      "existingSkipped": 30,
+      "gatewayMockTests": 533,
+      "helperAssertions": 12,
+      "helperRetries": 0,
+      "helperSkips": 0,
+      "cleanup": true,
+      "elapsedMs": 269775,
+      "artifactId": 14054076623,
+      "artifactBytes": 19441206,
+      "artifactSha256": "dbbe058aa62a0bd26bda41477b709cca9c19ee6e30c70c8746d7800f4f2132fd",
+      "candidateBytes": 17895722,
+      "candidateSha256": "fce4859bbae202c51a171d2923124d2a5ee93ca33b8211f4c347b052c9324cb9",
+      "bundleSha256": "f95fa287efd5597c49f4904669968f7c6465f5a07ec57ddf35da1bdcc4913703",
+      "files": 849
+    }
+  ],
+  "limits": "No repeat of broader; no third manual candidate admission; no new F4/model campaign. All E4 and E5C spent allowances/failures remain. Actual raw consumer native archive readback unverified; producer/helper identity is separate.",
+  "rawEvidenceIndex": "Owned e6c.local/evidence-index.json; raw screenshots/logs/failed probes remain owned ignored evidence. No PNGs hidden in this docs kit.",
+  "resourceProfile": {
+    "site": "Codex Cloud Linux",
+    "effectiveCpus": 4,
+    "memoryLimitBytes": 17179869184,
+    "derivedWorkers": 2,
+    "limitsObserved": false,
+    "gaps": [
+      "CPU/memory ancestors above /.. hidden; machine totals substitute"
+    ],
+    "scope": "Fresh executing-worker startup reading, not a named receiver/performance campaign"
+  }
+}

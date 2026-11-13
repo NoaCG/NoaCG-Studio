@@ -73,6 +73,7 @@ import {
 import type { AssetFile, SpxTemplate } from '../model/types';
 import type { SavedGraphic } from '../model/packets';
 import { graphicLayer, type Show } from '../model/shows';
+import { obsScenesOf, sceneGraphicNames, type ObsScene } from '../model/obsScenes';
 import { preparedCue } from '../model/productionData';
 import { readAuto } from '../control/cueAuto';
 
@@ -85,6 +86,10 @@ export interface ShowExportOptions {
    *  (control/exportAppearance.ts): each graphic's default baked into its files, each cue's on the
    *  exported controller's rows. Absent: every package is what it always was. */
   appearances?: ExportAppearances;
+  /** The HTML overlay package only: each OBS scene graphic's file is drawn settled, for an offline
+   *  fallback group per scene (docs/work-specs/obs-scenes/spec.md OS3 M11). Every other graphic's
+   *  file, and every other target, is today's. */
+  settledScenes?: boolean;
 }
 
 /**
@@ -360,6 +365,10 @@ export async function buildShowZipFor(show: Show, targetId: string, opts?: ShowE
   const panelGraphics: { template: SpxTemplate; entries: ReturnType<typeof entriesForSavedGraphic> }[] = [];
   let subPanel = '';
   const faces = appearanceFaces(show, library, opts?.appearances);
+  // The scene graphics a settled package draws at rest (M11): none unless asked, and none for a
+  // target other than the overlay or with the switch off (obsScenesOf answers none then).
+  const scenes = targetId === CONTROLLER_TARGET && opts?.settledScenes ? obsScenesOf(show) : [];
+  const sceneGraphics = scenes.length > 0 ? sceneGraphicNames(show) : new Set<string>();
   for (const graphic of show.graphics) {
     const template = await exportTemplateFor(graphic, library, usedSlugs, undefined, faces);
     const entries = entriesForSavedGraphic(graphic, library);
@@ -368,6 +377,7 @@ export async function buildShowZipFor(show: Show, targetId: string, opts?: ShowE
       sampleData: activeEntryValues(graphic, library),
       graphicUsage: 'live',
       appearance: opts?.appearances?.graphics[graphic.id],
+      settled: sceneGraphics.has(graphic.name),
     });
     for (const [path, file] of Object.entries(sub.files)) {
       if (file.dir) continue;
@@ -470,7 +480,7 @@ export async function buildShowZipFor(show: Show, targetId: string, opts?: ShowE
       })),
       // Only the CasparCG flavour gets the CLIENT walkthrough: on the others the fields appear
       // by name in the host's own UI and nobody types an id, so the steps would be noise.
-      { usage: FIELD_USAGE_NOTES[targetId], clientSteps: targetId === 'casparcg' },
+      { usage: FIELD_USAGE_NOTES[targetId], clientSteps: targetId === 'casparcg', inlineAssets: ['casparcg', 'html-overlay', 'h2r'].includes(targetId) },
     ),
   );
   // The CasparCG client's rule for a hidden field Next writes. Each graphic's own README carries
@@ -482,11 +492,25 @@ export async function buildShowZipFor(show: Show, targetId: string, opts?: ShowE
       `One sub-package per graphic, rundown order:\n\n` +
       panelGraphics.map(({ template }, i) => `- ${slug(template.name)}/  (layer ${showGraphicLayer(show.graphics[i])})`).join('\n') +
       `\n\n${FLAVOR_NOTES[targetId] ?? ''}\n\n` +
+      settledScenesMd(scenes, show, panelGraphics.map(({ template }) => template)) +
       `**FIELDS.md** lists every graphic's fields with the ID a playout client sends them under\n` +
       `(f0, f1, …) — the file to keep open beside a CasparCG client.\n` +
       (casparRules ? `\n${casparRules}` : ''),
   );
   return zip;
+}
+
+/** The README's list of each OBS scene's settled files (M11): what goes in that scene's hidden
+ *  fallback group. Empty when nothing was settled. */
+function settledScenesMd(scenes: readonly ObsScene[], show: Show, templates: readonly SpxTemplate[]): string {
+  if (scenes.length === 0) return '';
+  const fileOf = new Map(show.graphics.map((g, i) => [g.name, templates[i] ? `${slug(templates[i].name)}/${slug(templates[i].name)}.html` : '']));
+  const lines = scenes.map((scene) => `- ${scene.name}: ${scene.graphics.map((name) => fileOf.get(name)).filter(Boolean).join(', ') || '(no graphics)'}`);
+  return (
+    `**OBS scenes, settled.** These files are drawn at rest from load, with no entrance, no automatic\n` +
+    `Out, and OBS showing or hiding them changes nothing. Put each scene's files in a hidden group in\n` +
+    `that OBS scene, and show the group when the network is gone:\n\n${lines.join('\n')}\n\n`
+  );
 }
 
 export async function downloadShowZipFor(show: Show, targetId: string, opts?: ShowExportOptions): Promise<void> {

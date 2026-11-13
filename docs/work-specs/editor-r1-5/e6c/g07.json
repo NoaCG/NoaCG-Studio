@@ -1,0 +1,105 @@
+{
+  "at": "2026-11-13T16:01:18.092883+00:00",
+  "productSource": "c456f647eb8a30839473fd93467f447a181f2dc1",
+  "scope": "Technical artifact/notices/provenance/dependency-boundary audit. No licence interpretation or written GSAP disposition is supplied.",
+  "publishedCli": {
+    "name": "@noacg/cli",
+    "version": "0.12.4",
+    "bridgeVersionInPublishedPackage": "0.10.1",
+    "tarball": "https://registry.npmjs.org/@noacg/cli/-/cli-0.12.4.tgz",
+    "bytes": 203358,
+    "sha256": "c212397f29ec00a2c7e257260dd153baab18328ec3742f99622f381a4483b130",
+    "integrity": "sha512-ZfG/qb3QjxY0z7IaK3SNO3rsXukLlSySueaceO9WavBsS2yBcqmWyKXKTfUaSdInqEwmIIXgWRbo+5BQRw5+dA==",
+    "integrityMatchesRegistry": true,
+    "totalFiles": 63,
+    "licence": "Apache-2.0",
+    "notice": "The npm tarball contains Apache LICENSE but no separate NOTICE; source/toolkit NOTICE scope is recorded separately.",
+    "compiledImportEdges": 222,
+    "missingRelativeImports": 0,
+    "actualCodeGsapRuntimeMatches": 0,
+    "textOnlyGsapAgplMentions": "README and skill contract/package prose; no GSAP bytes or AGPL helper/runtime in inspected JS."
+  },
+  "currentCli": {
+    "packageVersion": "0.12.4",
+    "repositoryBridgeVersion": "0.11.0",
+    "closure": "cli-closure.json",
+    "entryFileCounts": {
+      "cli": 52,
+      "mcp": 18,
+      "standaloneBridge": 22
+    },
+    "productionLockedDependencies": 109,
+    "undeclaredLicenses": 0,
+    "agplLicenseEntries": 0,
+    "boundary": "Every traversed current relative source import stays under cli/src; no app source import. This conservative source closure includes type-only imports; it is not an inspected unpublished CLI/Bridge binary."
+  },
+  "toolkit": {
+    "sourceCommit": "de563b599f175a60500ef288d0d59b3d624126c3",
+    "version": "0.12.4",
+    "tooling": {
+      "node": "24.19.0",
+      "zlib": "1.3.2.1-motley-3246f1b"
+    },
+    "packages": {
+      "claude": {
+        "filename": "noacg-claude-0.12.4.zip",
+        "compressedBytes": 214163,
+        "unpackedBytes": 277250,
+        "files": 16,
+        "entries": 21,
+        "sha256": "85a2f1c8f57c982502e77fdfeeaa871574f853c7a6e2dd0f228da5f35a98ae0f"
+      },
+      "codex": {
+        "filename": "noacg-codex-0.12.4.zip",
+        "compressedBytes": 214483,
+        "unpackedBytes": 278292,
+        "files": 16,
+        "entries": 21,
+        "sha256": "7da260217c1e43fdae981c591647a305f92b21e4ff2e682d4d3331c5847c60aa"
+      },
+      "claude-mcp": {
+        "filename": "noacg-claude-mcp-0.12.4.zip",
+        "compressedBytes": 179113,
+        "unpackedBytes": 199628,
+        "files": 8,
+        "entries": 10,
+        "sha256": "0fadefcb0a4e33682a882b67e63f6a4d9f282391cdb891708278d5a5a14755b3"
+      },
+      "codex-mcp-local": {
+        "filename": "noacg-codex-mcp-local-0.12.4.zip",
+        "compressedBytes": 179874,
+        "unpackedBytes": 201038,
+        "files": 9,
+        "entries": 12,
+        "sha256": "5fec2adcd1749c73f2b00b1590b32a6fac1157fae9b0d0a398712880dea229b4"
+      },
+      "repository": {
+        "filename": "noacg-repository-0.12.4.zip",
+        "compressedBytes": 403890,
+        "unpackedBytes": 500632,
+        "files": 32,
+        "entries": 45,
+        "sha256": "77982f3224b06c868587e551e79d9a954cea8e89fc9a8828fb1388212eb79d8b"
+      }
+    }
+  },
+  "gsapTerms": {
+    "pinnedUpstreamCommit": "13e2b790546426a1a2e0e9b409f3f8dc6d6611f2",
+    "pinnedTreeLicenseOrNoticePaths": [],
+    "readme": "gsap-upstream-readme.md",
+    "readmeSha256": "66a79667b0538b19634b5a000a9a3debe588c98d390424e73e5d4de847270828",
+    "literalLicenseLink": "https://gsap.com/standard-license",
+    "literalCopyright": "Copyright (c) 2008-2026, GreenSock. All rights reserved.",
+    "currentVendorAttempt": "https://gsap.com/community/standard-license/",
+    "result": "ONE CONNECT 403/status000: no body obtained, no retry/allowlist or credential change",
+    "historicalE1Read": "gsap.md reports read2026-11-08/effective2025-04-30/modified2025-05-30; full text is not present here and those dates were not newly verified",
+    "ow1Gate": "Archive applicable full terms/date with written vendor disposition or separately approved resolution; no clearance inferred."
+  },
+  "producerBoundaries": {
+    "app": "Current full normal Actions build/source/version, manifest/ZIP identity and twelve compiled-app helper assertions; no raw native consumer archive readback/scan claim.",
+    "previewAndRender": "Actual composed preview/render output strings carried the corrected fit; immutable caller source and store/history/storage were preserved. GSAP raw source and emitted graphic bundles inspected separately.",
+    "exports": "Eight actual ZIPs in receiving-manifest.json: GSAP standard bytes/notice and four Oswald/Saira font binaries or decoded inline copies plus SIL notice; no third-party AGPL helper/runtime identified in inspected emitted files.",
+    "combinedAndProduction": "Real buildGraphicPackage and buildShowZip; source/asset/files audited. Actual Bridge exportPackage is byte-equal to normalized combined.zip.",
+    "cliMcp": "Installed CLI code excludes the app runtime. Browser /bridge invokes app buildGraphicPackage; CLI and MCP can therefore carry GSAP in graphic files. No live MCP/model session or real standalone Bridge host is claimed."
+  }
+}

@@ -478,6 +478,11 @@ export function newestVersion(...versions: (HeldVersion | null | undefined)[]): 
   return best;
 }
 
+/** The outputs a production page remembers at most (obs-scenes OS3 M9): what the stored list
+ *  (model/readyMemory.ts) and an announced list (livePath.ts `readLiveEntry`) keep. A new output
+ *  past it is not remembered, and the panel says so (`unwatchedOutputs`). */
+export const MAX_EXPECTED_OUTPUTS = 16;
+
 /**
  * THE EXPECTED OUTPUTS after a Presence update (R5): every output present is expected from now on.
  * One this page already remembers keeps its place and is seen now. A new one whose name matches a
@@ -510,9 +515,17 @@ export function rememberOutputs(
       replaced.seen = now;
       continue;
     }
-    next.push({ id: o.id, name, seen: now });
+    if (next.length < MAX_EXPECTED_OUTPUTS) next.push({ id: o.id, name, seen: now });
   }
   return next;
+}
+
+/** How many outputs are present now that the expected list has no room for (M9): each of them
+ *  vanishes without a red line if it goes away. */
+export function unwatchedOutputs(expected: readonly ExpectedOutput[], present: readonly LiveEntry[]): number {
+  if (expected.length < MAX_EXPECTED_OUTPUTS) return 0;
+  const known = new Set(expected.map((e) => e.id));
+  return oneEntryPerOutput(present).filter((o) => !known.has(o.id)).length;
 }
 
 /** The expected list without one output (the panel's Forget). */
@@ -525,8 +538,8 @@ export function sameOutputs(a: readonly ExpectedOutput[], b: readonly ExpectedOu
   return a.length === b.length && a.every((e, i) => e.id === b[i].id && e.name === b[i].name);
 }
 
-/** One present output's line. */
-function presentLine(entry: LiveEntry, name: string, published: HeldVersion | null): OutputLine {
+/** One present output's line: the panel's, and an OBS scene row's (control/obsSceneRows.ts). */
+export function presentLine(entry: LiveEntry, name: string, published: HeldVersion | null): OutputLine {
   const ready = entry.ready;
   const engine = `${entry.engine}${entry.build ? `, build ${entry.build}` : ''}`;
   const detail: string[] = [];

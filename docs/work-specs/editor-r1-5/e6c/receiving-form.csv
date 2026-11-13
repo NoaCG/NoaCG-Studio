@@ -1,0 +1,1 @@
+trial_id,utc,operator_id,host,host_version,renderer_version,os_build,cpu_ram_gpu,resolution_fps,package_sha256,source_commit,clean_setup,fonts_logo,data,in,next,out,interrupt_in,interrupt_out,replay,linux_fit_width,linux_slot_width,font_size,alpha_underlay,resources,missing_errors,evidence,rollback,result
