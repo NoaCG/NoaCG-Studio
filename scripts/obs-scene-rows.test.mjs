@@ -208,6 +208,18 @@ test('M5: the walk-through ticks the OBS scene a source goes on program in, a sh
   assert.equal(where.seen.at(-1), `S${OBS_SEEN_MAX - 1}`);
 });
 
+test('M3: scene ids off the wire that name built-in object members are only ids', () => {
+  for (const id of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+    let watch = watchScenes(EMPTY_WATCH, [link('o1', id, { scene: { id, known: false, seen: ['Desk'] } })], 1);
+    watch = watchScenes(watch, [], 2);
+    assert.deepEqual(watch.scenes.get(id), { at: 2, seen: ['Desk'] });
+    const { rows } = sceneRows({ scenes: [{ id, name: id, graphics: [] }, ...SCENES], peers: [], presence: 'joined', watch, expected: [], published: V, now: 3 });
+    assert.equal(rows[0].state, 'Not answering (0 s)');
+    assert.equal(rows[1].state, 'Not loaded');
+    assert.equal(forgetScene(watch, id).scenes.size, 0);
+  }
+});
+
 test('M5: the list rides the scene report, bounded and checked on the way in', () => {
   const many = Array.from({ length: 20 }, (_, i) => `Scene ${i}`);
   const entry = readLiveEntry({ kind: 'output', id: 'o1', scene: { id: 'scA', known: true, seen: [...many, 7, 'Scene 1', 'x'.repeat(200)] } });
@@ -270,7 +282,7 @@ test('M3 random walk: every row reads what the Rules say, in the scenes order, n
       const want = oracle({
         presence,
         links,
-        heard: !!watch.scenes[scene.id],
+        heard: watch.scenes.has(scene.id),
         remembered: expected.filter((e) => e.name === scene.name && !peers.some((p) => p.id === e.id)),
       });
       assert.ok(rows[i].state.startsWith(want), `round ${round}, ${scene.name}: ${rows[i].state} for ${want}`);

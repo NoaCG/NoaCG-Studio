@@ -16,15 +16,16 @@ export interface RowScene {
 /** What this page has heard of scene links since it opened (M3, M5, M6). Nothing persists it. */
 export interface SceneWatch {
   /** Per scene id: when a link of it was last present (this page's clock), and the OBS scenes its
-   *  links reported being on program in. */
-  scenes: Record<string, { at: number; seen: string[] }>;
+   *  links reported being on program in. Maps, not objects: the ids come off the wire, and an id
+   *  such as `constructor` or `__proto__` must never read or write an object's own machinery. */
+  scenes: ReadonlyMap<string, { at: number; seen: string[] }>;
   /** Every scene link instance heard, by instance id: its scene id. */
-  links: Record<string, string>;
+  links: ReadonlyMap<string, string>;
   /** The scene ids with a link present at the last update. */
   present: string[];
 }
 
-export const EMPTY_WATCH: SceneWatch = { scenes: {}, links: {}, present: [] };
+export const EMPTY_WATCH: SceneWatch = { scenes: new Map(), links: new Map(), present: [] };
 
 /** The first OBS scene names seen, as the link keeps them. */
 const union = (a: readonly string[], b: readonly string[]) => [...new Set([...a, ...b])].slice(0, SCENE_SEEN_MAX);
@@ -36,28 +37,29 @@ const union = (a: readonly string[], b: readonly string[]) => [...new Set([...a,
  * not render again for it.
  */
 export function watchScenes(watch: SceneWatch, peers: readonly LiveEntry[], now: number): SceneWatch {
-  const scenes = { ...watch.scenes };
-  const links = { ...watch.links };
+  const scenes = new Map(watch.scenes);
+  const links = new Map(watch.links);
   const here = new Set<string>();
   let changed = false;
   for (const p of oneEntryPerOutput(peers)) {
     if (!p.scene) continue;
     const id = p.scene.id;
     here.add(id);
-    if (links[p.id] !== id) {
-      links[p.id] = id;
+    if (links.get(p.id) !== id) {
+      links.set(p.id, id);
       changed = true;
     }
-    const held = scenes[id];
+    const held = scenes.get(id);
     const seen = union(held?.seen ?? [], p.scene.seen ?? []);
     if (!held || seen.length !== held.seen.length) {
-      scenes[id] = { at: held?.at ?? now, seen };
+      scenes.set(id, { at: held?.at ?? now, seen });
       changed = true;
     }
   }
   for (const id of watch.present) {
-    if (here.has(id) || !scenes[id]) continue;
-    scenes[id] = { ...scenes[id], at: now };
+    const held = scenes.get(id);
+    if (here.has(id) || !held) continue;
+    scenes.set(id, { ...held, at: now });
     changed = true;
   }
   if (!changed && here.size === watch.present.length) return watch;
@@ -67,8 +69,9 @@ export function watchScenes(watch: SceneWatch, peers: readonly LiveEntry[], now:
 /** The watch without a scene's links (the row's Dismiss): a link the operator took out of OBS on
  *  purpose stops reading "Not answering". */
 export function forgetScene(watch: SceneWatch, sceneId: string): SceneWatch {
-  const { [sceneId]: _gone, ...scenes } = watch.scenes;
-  const links = Object.fromEntries(Object.entries(watch.links).filter(([, scene]) => scene !== sceneId));
+  const scenes = new Map(watch.scenes);
+  scenes.delete(sceneId);
+  const links = new Map([...watch.links].filter(([, scene]) => scene !== sceneId));
   return { scenes, links, present: watch.present.filter((id) => id !== sceneId) };
 }
 
@@ -123,7 +126,7 @@ export function sceneRows(input: {
   const rows = scenes.map((scene): SceneRow => {
     const here = present.filter((p) => p.scene?.id === scene.id);
     for (const p of here) claimed.add(p.id);
-    const seen = union(watch.scenes[scene.id]?.seen ?? [], here.flatMap((p) => p.scene?.seen ?? []));
+    const seen = union(watch.scenes.get(scene.id)?.seen ?? [], here.flatMap((p) => p.scene?.seen ?? []));
     const base = { id: scene.id, name: scene.name, seen, loaded: here.length, gone: [] as string[] };
     // Unpublished (or no backend): no link can be loaded, so there is nothing to not know.
     if (input.presence === 'off') return { ...base, tone: 'idle', state: 'Not loaded', obs: null, detail: ['Publish the production to get the scene links.'] };
@@ -134,9 +137,9 @@ export function sceneRows(input: {
       // A link that went away (stale presence): the instance this page heard, or a remembered output
       // called by the scene's name, each with the moment it left.
       const named = sceneLinkName(scene.name);
-      const gone = input.expected.filter((e) => !presentIds.has(e.id) && (watch.links[e.id] === scene.id || e.name === named));
+      const gone = input.expected.filter((e) => !presentIds.has(e.id) && (watch.links.get(e.id) === scene.id || e.name === named));
       for (const e of gone) claimed.add(e.id);
-      const heard = watch.scenes[scene.id];
+      const heard = watch.scenes.get(scene.id);
       // Present at the watch's last update and not now: it is leaving on this very render, before
       // the watch has dated it.
       const leftAt = watch.present.includes(scene.id) ? now : Math.max(heard?.at ?? -1, ...gone.map((e) => (e.seen > 0 ? e.seen : 0)));
