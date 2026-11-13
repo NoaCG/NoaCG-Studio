@@ -213,27 +213,28 @@ import * as m209 from './templates/search.ts';
 import * as m210 from './templates/shared/animRuntime.ts';
 import * as m211 from './templates/shared/animRuntimeLegacy.ts';
 import * as m212 from './templates/shared/base.ts';
-import * as m213 from './templates/shared/easeRuntime.ts';
-import * as m214 from './templates/shared/textFit.ts';
-import * as m215 from './templates/startingSoon/index.ts';
-import * as m216 from './templates/structuralAnchor.ts';
-import * as m217 from './templates/templateMeta.ts';
-import * as m218 from './templates/tickers/index.ts';
-import * as m219 from './templates/types/graphicType.ts';
-import * as m220 from './templates/types/recipeTemplate.ts';
-import * as m221 from './templates/types/registry.ts';
-import * as m222 from './validation/designRulesWarnings.ts';
-import * as m223 from './validation/fieldPaint.ts';
-import * as m224 from './validation/productionGate.ts';
-import * as m225 from './validation/publishGate.ts';
-import * as m226 from './validation/runtimeBench.ts';
-import * as m227 from './validation/structuralIntentCheck.ts';
-import * as m228 from './validation/templateBench.ts';
-import * as m229 from './validation/validateTemplate.ts';
-import * as m230 from './video/bridgeRegistry.ts';
-import * as m231 from './video/compile.ts';
-import * as m232 from './video/hyperframes/bridge.ts';
-import * as m233 from './video/hyperframes/validate.ts';
+import * as m213 from './templates/shared/clock.ts';
+import * as m214 from './templates/shared/easeRuntime.ts';
+import * as m215 from './templates/shared/textFit.ts';
+import * as m216 from './templates/startingSoon/index.ts';
+import * as m217 from './templates/structuralAnchor.ts';
+import * as m218 from './templates/templateMeta.ts';
+import * as m219 from './templates/tickers/index.ts';
+import * as m220 from './templates/types/graphicType.ts';
+import * as m221 from './templates/types/recipeTemplate.ts';
+import * as m222 from './templates/types/registry.ts';
+import * as m223 from './validation/designRulesWarnings.ts';
+import * as m224 from './validation/fieldPaint.ts';
+import * as m225 from './validation/productionGate.ts';
+import * as m226 from './validation/publishGate.ts';
+import * as m227 from './validation/runtimeBench.ts';
+import * as m228 from './validation/structuralIntentCheck.ts';
+import * as m229 from './validation/templateBench.ts';
+import * as m230 from './validation/validateTemplate.ts';
+import * as m231 from './video/bridgeRegistry.ts';
+import * as m232 from './video/compile.ts';
+import * as m233 from './video/hyperframes/bridge.ts';
+import * as m234 from './video/hyperframes/validate.ts';
 
 export const MODULES: Record<string, unknown> = {
   '/src/ai/assetIntegrity.ts': m0,
@@ -449,27 +450,28 @@ export const MODULES: Record<string, unknown> = {
   '/src/templates/shared/animRuntime.ts': m210,
   '/src/templates/shared/animRuntimeLegacy.ts': m211,
   '/src/templates/shared/base.ts': m212,
-  '/src/templates/shared/easeRuntime.ts': m213,
-  '/src/templates/shared/textFit.ts': m214,
-  '/src/templates/startingSoon/index.ts': m215,
-  '/src/templates/structuralAnchor.ts': m216,
-  '/src/templates/templateMeta.ts': m217,
-  '/src/templates/tickers/index.ts': m218,
-  '/src/templates/types/graphicType.ts': m219,
-  '/src/templates/types/recipeTemplate.ts': m220,
-  '/src/templates/types/registry.ts': m221,
-  '/src/validation/designRulesWarnings.ts': m222,
-  '/src/validation/fieldPaint.ts': m223,
-  '/src/validation/productionGate.ts': m224,
-  '/src/validation/publishGate.ts': m225,
-  '/src/validation/runtimeBench.ts': m226,
-  '/src/validation/structuralIntentCheck.ts': m227,
-  '/src/validation/templateBench.ts': m228,
-  '/src/validation/validateTemplate.ts': m229,
-  '/src/video/bridgeRegistry.ts': m230,
-  '/src/video/compile.ts': m231,
-  '/src/video/hyperframes/bridge.ts': m232,
-  '/src/video/hyperframes/validate.ts': m233,
+  '/src/templates/shared/clock.ts': m213,
+  '/src/templates/shared/easeRuntime.ts': m214,
+  '/src/templates/shared/textFit.ts': m215,
+  '/src/templates/startingSoon/index.ts': m216,
+  '/src/templates/structuralAnchor.ts': m217,
+  '/src/templates/templateMeta.ts': m218,
+  '/src/templates/tickers/index.ts': m219,
+  '/src/templates/types/graphicType.ts': m220,
+  '/src/templates/types/recipeTemplate.ts': m221,
+  '/src/templates/types/registry.ts': m222,
+  '/src/validation/designRulesWarnings.ts': m223,
+  '/src/validation/fieldPaint.ts': m224,
+  '/src/validation/productionGate.ts': m225,
+  '/src/validation/publishGate.ts': m226,
+  '/src/validation/runtimeBench.ts': m227,
+  '/src/validation/structuralIntentCheck.ts': m228,
+  '/src/validation/templateBench.ts': m229,
+  '/src/validation/validateTemplate.ts': m230,
+  '/src/video/bridgeRegistry.ts': m231,
+  '/src/video/compile.ts': m232,
+  '/src/video/hyperframes/bridge.ts': m233,
+  '/src/video/hyperframes/validate.ts': m234,
 };
 
 export const LAZY: Record<string, () => Promise<unknown>> = {
