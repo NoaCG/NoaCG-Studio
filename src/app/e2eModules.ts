@@ -11,8 +11,8 @@
 //   literal imports (scripts/e2e-module-registry.mjs). It is one chunk loaded on the first call, importing each
 //   module statically, and the bundle holds each module once, so a spec gets the instance the
 //   app imported, never a second copy.
-// - the dev server answers with the browser's own `import()` of the same URL, which is what the
-//   specs did before, so nothing changes there.
+// - the dev server answers with the browser's own `import()` of the same URL (no `?import`), which
+//   is what the specs did before, so nothing changes there.
 // - a production build gets neither: the flag compiles the registry out, and DEV is false.
 
 declare global {
@@ -34,6 +34,11 @@ export function installE2eModules(registry: Registry | null): void {
       throw new Error(`${path} is not in the e2e build's module registry (scripts/e2e-module-registry.mjs)`);
     };
   } else if (import.meta.env.DEV) {
-    window.__noacgImport = (path) => import(/* @vite-ignore */ path);
+    // NOT `import(path)` written here: Vite rewrites a dynamic import whose argument is not a
+    // literal into `import(path + '?import')`, a different URL, so the page would evaluate every
+    // module a second time and a spec would drive a store nothing renders (e2e/AGENTS.md, the
+    // ghost store). A function built at run time is invisible to that rewrite and asks for the
+    // URL itself, the one the app's own imports use. Dev server only: production never gets here.
+    window.__noacgImport = new Function('path', 'return import(path)') as (path: string) => Promise<unknown>;
   }
 }
