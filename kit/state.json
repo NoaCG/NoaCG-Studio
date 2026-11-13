@@ -2984,7 +2984,7 @@
     "policy": "Actualcurrentenvconnected/running/current/enforced; originalownerbindingseparate.9ddnativebindinganddd7128rawnetworkcomponentunchanged/distinct; noCLIaliasinvented.",
     "ack": "Supervisorobserve-launchdelivered; rootfollowup_taskSTARTUPACKresumedSAMEoriginalnativeactorafterstartupfinalended, no secondspawn.",
     "latestProgress": {
-      "at": "2026-11-13T15:19:12.917562+00:00",
+      "at": "2026-11-13T15:26:27.577793+00:00",
       "j0147": "PRETESTFAILED <1s/no browser/productassertions: initialstaticlistfailedonread-onlyPlaywright/tmptransformcache; non-failfastmultilineshellaccidentallycontinuedtoaddsmalljob. Originalrecord/logretained; ownedtmp+failfaststaticvalidationresolvedbeforej0148. No broader/buildspent/reset.",
       "j0148": {
         "status": "FAILED_OLD_BASELINE_CONTAINMENT_3_OF_18; originalimmutable",
@@ -3027,7 +3027,15 @@
         "coverage": "SAME18loadedrealfontfeasiblecasesstrictwidth<=room,2separateimpossiblefloorcases,deterministicrefit/max18geometryreads; existinglongtextUIallowancetightenedroom*1.1toroom."
       },
       "firstPostPatchNode": "PASS4/4 exactLF/CRLF/custom/partial/duplicate/newer/unknown/SVG,preservation/idempotence/oracle+ES5; independenthintedwidtholdcontrolfailsasexpected.",
-      "implementationScope": "WorkingdiffonlytextFit/newnamedpureoutputhelper,5preview/render/exportsites,tightenedtypographytest,immutableoldruntimefixture+Nodetests; prepareOutRuntimebody/save/import/equivalence/storageunchanged. No postpatchfailure reported, broader/build/manualcarrier notadmitted. Targetpackages/G07evidenceandfinalcommit/review/gatesdue."
+      "implementationScope": "Workingdiff with first postpatch small2/2+Node4/4 PASS, subsequent distinct outputprobe j0150FAIL preserved/classified as above. No final productcommit, broader/build/manualcarrier admitted. Target/G07/finalreview/gates remain.",
+      "j0150": {
+        "result": "FAIL original3PASS/4FAIL33.8s0retry/skip",
+        "log": "/workspace/NoaCG-Studio/.git/noacg-jobs/logs/j-0150.log",
+        "class": "Faulty exact-output/image payload harness; separate preexisting generated FIELDS image instruction defect. All5 preservation UNKNOWN until corrected probe completes. No E4 effect established.",
+        "evidence": "Root independently read full log/source: OGraf emitter adds exactly2space lineindent; raw-block comparison lacks matching decode. Singlefile targets embed image dataURI/no images folder; probe wrongly sends folder path. SPX/OGraf/LiveOS lifecycle PASS. fieldReference.ts byteidentical745c and1178 SHA81e18d37e40992a572e65735cc4ce34e2a12f6c8094493b6df21df08dcb5dbf8.",
+        "followup": "ONE coherent correction approved: exact documented OGraf indent decode only+labeled/persist-beforeassert outputs/source-state; valid singlefile text and embedded-image update with unchanged32px logo/strictfit/lifecycle asserts; narrow target-aware FIELDS image instruction+pure regression after rules. New failure report-before-edit, E4 effectSTOP."
+      },
+      "catalogEmit": "PRELAUNCH EROFS /tmp/playwright-artifacts; no browser assertions. Actual helper launches browser despite cheap header. Any next invocation must own TMPDIR and use serialqueue; no unqueued retry."
     }
   }
 }
