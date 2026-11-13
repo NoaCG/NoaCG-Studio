@@ -43,14 +43,15 @@
   "inFlight": [
     {
       "phase": "OS1b",
-      "step": "build",
+      "step": "queued",
       "actor": "builder-os1b-os1b-b-d08c",
       "session": "session_017SdbwRB3UHDGXLPJdo1zxb",
       "branch": "claude/plan-obs-scenes-os1b-build",
       "launchedAt": "2026-11-13T10:40:15Z",
       "note": "sent brief = saved brief plus one NOTES line (amended D9: one link may be in several OBS scenes; #2474 and #2454 stay with OS3)",
-      "lastSeen": "2026-11-13T11:42Z builder active: PR #2490 new head c022d697 pushed 11:41, CI starting",
-      "pr": 2490
+      "lastSeen": "2026-11-13T12:10Z receipt; CI 43419045486 gate green (all 63 specs); stamped, auto-merge on, repair owner posted",
+      "pr": 2490,
+      "reviewedHead": "c022d697ed1a5ea5323fc72227c505d59916ff15"
     }
   ],
   "owner": [
