@@ -11,7 +11,8 @@
 // (src/app/e2eModules.ts) answers those from src/e2eRegistry.ts, one lazily loaded chunk
 // that imports each listed module statically, so the registry hands back the app's own instance.
 // A spec that imports a module the registry does not list fails on the e2e build only, so the
-// list is generated from the specs and this check keeps it current. An import built at run time
+// list is generated from the specs and this check keeps it current. It also refuses a literal
+// `import('/src/…')` left in a spec: the built app serves no /src URL, so only the door works there. An import built at run time
 // (`'/src/x.ts' + bust`, a relative `../src/` path) is not read here; the change that moves the
 // specs onto `__noacgImport` has to rewrite or refuse those.
 //
@@ -49,6 +50,19 @@ export function specImports(texts) {
   return [...found].sort();
 }
 
+/** Literal in-page `import('/src/….ts')` calls left in the specs, as `file:line`. The built app
+ *  serves no /src URLs, so a spec reaches a module through `__noacgImport` instead; a type
+ *  position (`typeof import(...)`) is not a call and is allowed. */
+export function plainImports(entries) {
+  const found = [];
+  for (const [file, text] of entries) {
+    for (const m of text.matchAll(/(?<!typeof\s+)\bimport\(\s*['"`]\/src\/[\w./-]+\.tsx?['"`]\s*\)/g)) {
+      found.push(`${file}:${text.slice(0, m.index).split('\n').length}`);
+    }
+  }
+  return found;
+}
+
 export function registrySource(paths) {
   const eager = paths.filter((p) => !LAZY.has(p));
   const lazy = paths.filter((p) => LAZY.has(p));
@@ -70,7 +84,13 @@ export function registrySource(paths) {
 
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
-  const texts = files(join(ROOT, 'e2e')).map((f) => readFileSync(f, 'utf8'));
+  const entries = files(join(ROOT, 'e2e')).map((f) => [relative(ROOT, f), readFileSync(f, 'utf8')]);
+  const texts = entries.map(([, text]) => text);
+  const plain = plainImports(entries);
+  if (plain.length) {
+    console.error(`e2e-module-registry: a spec imports a source module directly; use __noacgImport('/src/…') so it also runs on the e2e build:\n  ${plain.join('\n  ')}`);
+    process.exit(1);
+  }
   const paths = specImports(texts);
   measured(paths.length, 'source modules the specs import');
   const missing = paths.filter((p) => !existsSync(join(ROOT, p)));
