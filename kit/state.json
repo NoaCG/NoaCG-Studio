@@ -1516,7 +1516,7 @@
     "requestSha256": "bcfabef5e1347043b92cde2edc0f69da57df24eda1c49e7415c7ce4bd8281754",
     "brief": "briefs/e4-build-e4-b-cloud-1112.txt",
     "briefSha256": "2c7379c7dc2988405d565f2a2e1d72393a398e1f3cd671cf7bc4744cfd2e9888",
-    "status": "Owner-approved single additional repair active; ordinary three spent attempts preserved",
+    "status": "Independent exact-merge E4PASS accepted2026-11-13T11:21:26.775Z; all prior repair allowances spent and failures retained.",
     "rulesFirst": {
       "head": "0515e370d",
       "verdict": "AGREE WITH CORRECTIONS",
@@ -2378,7 +2378,7 @@
         }
       },
       "queue": {
-        "status": "ADDED_TO_MERGE_QUEUE",
+        "status": "MERGED_THROUGH_QUEUE_AND_ACCEPTED",
         "at": "2026-11-13T10:23:09.488228+00:00",
         "branch": "codex/plan-editor-r1-5-e4-build",
         "sha": "33380c2ffafc005b07cde8ca0e5cc17f7329de39",
@@ -2421,7 +2421,7 @@
         "mergedAt": "2026-11-13T10:41:37Z",
         "tree": "774c44fdd1ca53d9b1ab717feff4067e4c61b305",
         "supervisorLandedAt": "2026-11-13T10:42:55.450Z",
-        "acceptance": "PENDING_FRESH_CHECK",
+        "acceptance": "PASS_FRESH_INDEPENDENT_EXACT_MERGE",
         "sourceReconciliation": "RawAPIactualmergedtrue andparents/tree independentlyread; exactqueuecandidate/tree matchescurrent-mainmerge-tree. Latestmain advanced53b8 afterthismerge; checker stayspinned5f6."
       },
       "independentCheck": {
