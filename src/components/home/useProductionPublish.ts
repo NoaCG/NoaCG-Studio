@@ -45,7 +45,7 @@ import { DEFAULT_GRAPHICS_RESOLUTION } from '../../model/projectFormat';
 import { outputEmbedFileName, outputEmbedHtml } from '../../export/outputEmbed';
 import { loadGraphics, templateForSavedGraphic } from '../../model/library';
 import { hasLiveData } from '../../control/liveData';
-import { claimJoinName, outputPageUrl, publishControlShow, PublishBehind, type CuePublished, type LiveCueMap } from '../../control/hostedControl';
+import { claimJoinName, outputPageUrl, publishControlShow, PublishBehind, type CuePublished, type LiveCueMap, type PublishedCapabilities } from '../../control/hostedControl';
 import { fastEventGraphics } from '../../control/matchClockWire';
 import { type CasparFacts } from './PlayoutPanel';
 import { copyLink } from './copyLink';
@@ -152,6 +152,8 @@ interface PublishActionsIo {
   liveCueRef: { readonly current: LiveCueMap };
   /** The first publish found graphics taken in rehearsal: the page takes them out of PROGRAM. */
   onFirstPublish: (rehearsed: string[]) => void;
+  /** A publish landed: the page takes the graphics it put in an OBS scene (obs-scenes #2489). */
+  onPublished: (published: PublishedCapabilities) => void;
   prepareFlow: Pick<PrepareFlow, 'run'>;
   /** Each cue's appearance and adjust records for the published payload, measured for the
    *  production as it will be published (playout adjustments): what the hosted page's Take
@@ -165,7 +167,7 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
   const {
     show, setShows, setNote, backendConfigured, authStatus, needsSignIn, openSignIn, user, outputUrl, browserOutputUrl,
     hostedSlug, slotReadable, outputSlot, onAirChanged, flushDraft, history, legacyCasparActivity, accountCaspar, publishedReaders,
-    setPublishedReaders, setPublishedStamp, fastEventGraphicsRef, liveCueRef, onFirstPublish, prepareFlow,
+    setPublishedReaders, setPublishedStamp, fastEventGraphicsRef, liveCueRef, onFirstPublish, onPublished, prepareFlow,
   } = io;
   /**
    * THE ACCOUNT GATE for the three verbs here that write hosted rows: publish, unpublish and
@@ -501,6 +503,7 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
             await vmixVerb({ verb: 'take' }, outputPageUrl(published.outputSlug), true);
           }
         }
+        onPublished(published);
         return published.version ? { n: published.version.n, h: published.version.h } : null;
       }
       setNote('Publishing needs the cloud backend, and this build runs offline.');

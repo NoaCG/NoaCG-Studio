@@ -87,35 +87,28 @@ export function sceneGraphicNames(show: SceneRecord): Set<string> {
   return new Set(obsScenesOf(show).flatMap((s) => s.graphics));
 }
 
-/** A scene graphic that a publish brought into its scene, with the scene's first cue of it. */
+/** A graphic a publish brought into a scene: its scene's id and its pool graphic name. */
 export interface SceneJoin {
   scene: string;
   graphic: string;
-  cueId: string;
 }
 
 /**
- * #2489, the spec's "making a scene, or adding a graphic to one, takes it": each graphic of a scene
- * in `show` that the scene did not name in `before` (the scenes as last published), with the
- * scene's first cue of it, which is the cue the link joins with (OS1a R11). `before` null means the
- * last publish is not known here, and then nothing joins: a graphic the operator took out is never
- * put back on a guess. None while the switch is off.
+ * #2489, the spec's "making a scene, or adding a graphic to one, takes it": each graphic a scene
+ * names in `after` (a publish's scenes) and did not name in `before` (the scenes of the row that
+ * publish replaced), in the order `after` lists them. Nothing when the switch is off (`after` empty).
  */
-export function joinedSceneCues(before: readonly ObsScene[] | null, show: Pick<Show, 'obsScenes' | 'folders' | 'cues' | 'graphics'>): SceneJoin[] {
-  if (!before) return [];
+export function joinedScenes(before: readonly ObsScene[], after: readonly ObsScene[]): SceneJoin[] {
   const had = new Set(before.flatMap((s) => s.graphics.map((g) => `${s.id}|${g}`)));
+  return after.flatMap((s) => s.graphics.filter((g) => !had.has(`${s.id}|${g}`)).map((graphic) => ({ scene: s.id, graphic })));
+}
+
+/** The scene's first cue of the graphic in the record as it is now, the cue its link joins with
+ *  (OS1a R11); null when the scene no longer holds it. */
+export function sceneCueOf(show: Pick<Show, 'obsScenes' | 'folders' | 'cues' | 'graphics'>, join: SceneJoin): string | null {
   const names = new Map(show.graphics.map((g) => [g.id, g.name] as const));
-  const out: SceneJoin[] = [];
-  for (const [scene, cues] of sceneMembers(show)) {
-    const seen = new Set<string>();
-    for (const c of cues) {
-      const graphic = names.get(c.sourceId)!;
-      if (seen.has(graphic)) continue;
-      seen.add(graphic);
-      if (!had.has(`${scene}|${graphic}`)) out.push({ scene, graphic, cueId: c.id });
-    }
-  }
-  return out;
+  const members = sceneMembers(show).find(([id]) => id === join.scene)?.[1] ?? [];
+  return members.find((c) => names.get(c.sourceId) === join.graphic)?.id ?? null;
 }
 
 /** What a write may not do to a cue (C10, C11): a sentence when the cue must not move to a copy. */

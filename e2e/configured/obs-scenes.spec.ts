@@ -1,12 +1,17 @@
 // CONFIGURED TRIGGERS: a change to a path below prints "also run npm run test:e2e:live:queued"
 // (scripts/e2e-lists.mjs). The offline suite cannot publish, and this walk is a publish.
 //
-// MAKING AN OBS SCENE TAKES ITS GRAPHICS (#2489; docs/work-specs/obs-scenes/spec.md D2 and Behaviour
-// "Scenes"): a publish that puts a graphic in a scene airs it in that scene's link with no Take
-// pressed, once the link holds that publish (a link reads another scene's graphic past until then,
-// OS1a R6). A graphic the operator took out stays out at the next publish; one outside every scene
-// is never taken. The choice of graphics and the wait are scripts/scene-join.test.mjs.
+// OBS SCENES AGAINST A REAL BACKEND (docs/work-specs/obs-scenes/spec.md): the journeys that need a
+// publish. The offline halves are e2e/playout-folders.spec.ts (the rundown) and
+// e2e/output-scene-link.spec.ts (the link).
+//
+// Making a scene takes its graphics (#2489; D2 and Behaviour "Scenes"): a publish that puts a
+// graphic in a scene airs it in that scene's link with no Take pressed, once the link has read that
+// publish (a link reads another scene's graphic past until then, OS1a R6). A graphic the operator
+// took out stays out at the next publish; one outside every scene is never taken. Which graphics
+// join and the wait are scripts/scene-join.test.mjs.
 // covers: src/control/sceneJoin.ts, src/model/obsScenes.ts, src/components/home/ProductionPage.tsx
+// covers: src/components/home/useProductionPublish.ts, src/control/hostedControl.ts
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
