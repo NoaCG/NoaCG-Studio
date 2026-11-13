@@ -5,7 +5,7 @@
 // references and inline the CSS, the bundled GSAP, and the template JS instead. The exported
 // package keeps the external references (the files are written to disk by the exporter).
 
-import { prepareOutRuntime } from '../blocks/animMigration';
+import { prepareOutRuntime, preparePlacedTextOutput } from '../blocks/animMigration';
 import { upgradeFontCss } from '../model/fonts';
 import gsapSource from '../assets/gsap.min.js?raw';
 import lottieSource from '../assets/lottie.min.js?raw';
@@ -34,6 +34,9 @@ import {
 } from './canvasControlProtocol';
 import type { SpxTemplate } from '../model/types';
 import { expandInset, expandInsetInMarkup } from '../assets/cssCompat';
+
+// Shared output composition facade, also used by the deterministic render document.
+export { preparePlacedTextOutput };
 
 /** Remove <link>/<script> tags that point at local template files we will inline instead.
  *  (Exported: render/composeRenderDocument composes its own self-contained document.) */
@@ -151,7 +154,7 @@ function serializeHelper(fn: { name: string; toString(): string }, alias: string
 
 /** Inject inline <style>, GSAP, and the template JS into the document <head>/<body>. */
 export function composeDocument(template: SpxTemplate, options: ComposeOptions = {}): string {
-  template = { ...template, js: prepareOutRuntime(template.js), css: upgradeFontCss(template.css) };
+  template = { ...template, js: preparePlacedTextOutput(prepareOutRuntime(template.js)), css: upgradeFontCss(template.css) };
   // Inline uploaded assets (assets/foo.png -> data URL) so the preview renders media
   // without a server. The exported package keeps the relative paths + real files.
   // `inset` rewritten into longhands for CasparCG 2.3's Chromium 71, which drops it (assets/cssCompat.ts).

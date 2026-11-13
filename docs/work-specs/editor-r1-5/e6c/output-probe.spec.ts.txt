@@ -1,0 +1,72 @@
+import {test,expect,type Page} from '@playwright/test';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import JSZip from 'jszip';
+const source=JSON.parse(readFileSync('e6c.local/receiving-source.json','utf8'));
+const old=readFileSync('e2e/fixtures/editor-projects/placed-text-fit-v1.txt','utf8');
+const LONG='Dr. Maximiliane Alexandra Featherstonehaugh-Worthington III';
+const data={f0:LONG,f1:'Cloud receiving step one',f2:'Cloud receiving step two'};
+const sha=(b:any)=>createHash('sha256').update(b).digest('hex');
+async function archive(b64:string,path:string){const zip=await JSZip.loadAsync(b64,{base64:true});zip.forEach((_,f)=>{f.date=new Date('1980-01-01T00:00:00Z');});const bytes=await zip.generateAsync({type:'nodebuffer',compression:'DEFLATE'});writeFileSync(path,bytes);const files=new Map<string,Buffer>();for(const n of Object.keys(zip.files).filter(n=>!zip.files[n].dir))files.set(n.slice(n.indexOf('/')+1),await zip.file(n)!.async('nodebuffer'));return {files,bytes:bytes.length,sha256:sha(bytes)};}
+async function paint(page:Page,path:string){const tag=await page.addStyleTag({content:'*{will-change:auto!important}'});await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));await tag.evaluate(e=>e.remove());await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));await page.screenshot({path});}
+
+test('all five output preparation sites preserve source and state; combined and whole-production artifacts',async({page},info)=>{
+ await page.goto('/app');
+ const out=await page.evaluate(async({source,old})=>{
+  const S=(await import('/src/store/templateStore.ts')).useTemplateStore;
+  const D=await import('/src/model/durableStore.ts');await D.hydrateDurableStore();
+  const L=await import('/src/model/library.ts');L.loadGraphics();
+  const snapshot=()=>JSON.stringify({template:S.getState().template,history:S.getState().history,redo:S.getState().future,storage:{...localStorage}});
+  const before=snapshot(),input=JSON.stringify(source);
+  const current=(await import('/src/templates/shared/textFit.ts')).TEXT_FIT_RUNTIME_JS;
+  const preview=(await import('/src/preview/composeDocument.ts')).composeDocument(source as never);
+  const render=await(await import('/src/render/composeRenderDocument.ts')).composeRenderDocument(source as never);
+  const self=await(await import('/src/export/selfContained.ts')).composeSelfContainedHtml(source as never);
+  const spx=await(await import('/src/export/targets/spxStarter.ts')).spxTarget.build(source as never);
+  const ograf=await(await import('/src/export/targets/ograf.ts')).ografTarget.build(source as never);
+  const readJs=async(zip:any,suffix:string)=>zip.file(Object.keys(zip.files).find(n=>n.endsWith(suffix))!)!.async('string');
+  const outputs={preview,render,self,spx:await readJs(spx,'js/template.js'),ograf:await readJs(ograf,'graphic.mjs')};
+  const assertions=Object.fromEntries(Object.entries(outputs).map(([k,v])=>[k,{current:v.includes(k==='ograf'?current.replace(/^/gm,'  '):current),old:v.includes(k==='ograf'?old.replace(/^/gm,'  '):old)}]));
+  const combined=await(await import('/src/export/noacgPackage.ts')).buildGraphicPackage(source as never);
+  const bridge=await(await import('/src/bridge/bridgeApi.ts')).exportPackage(source as never);
+  const graphic={id:'e6c-pool',name:source.name,type:source.type,savedAt:'2026-11-13T00:00:00Z',template:source,layer:20};
+  const show={id:'e6c-show',name:'E6C receiving production',graphics:[graphic],updatedAt:'2026-11-13T00:00:00Z'};
+  const production=await(await import('/src/export/showExport.ts')).buildShowZip(show as never);
+  return {assertions,inputBefore:input,inputAfter:JSON.stringify(source),stateBefore:before,stateAfter:snapshot(),inputPreserved:JSON.stringify(source)===input,statePreserved:snapshot()===before,outputs,combined:await combined.generateAsync({type:'base64'}),bridge:Array.from(bridge),production:await production.generateAsync({type:'base64'})};
+ },{source,old});
+ writeFileSync(info.outputPath('raw-before-assert.json'),JSON.stringify(out));
+ for(const [name,row] of Object.entries(out.assertions))expect(row,name).toEqual({current:true,old:false});expect(out.inputPreserved).toBe(true);expect(out.statePreserved).toBe(true);
+ const combined=await archive(out.combined,info.outputPath('combined.zip')),production=await archive(out.production,info.outputPath('production-spx.zip'));
+ const bridge=await archive(Buffer.from(out.bridge).toString('base64'),info.outputPath('bridge-combined.zip'));expect(bridge.sha256).toBe(combined.sha256);
+ for(const [name,html] of Object.entries(out.outputs)){writeFileSync(info.outputPath(name+(name==='spx'?'.js':name==='ograf'?'.mjs':'.html')),html);}
+ writeFileSync(info.outputPath('outputs.json'),JSON.stringify({assertions:out.assertions,inputPreserved:out.inputPreserved,statePreserved:out.statePreserved,sourceSha256:sha(JSON.stringify(source)),combined:{sha256:combined.sha256,bytes:combined.bytes},bridge:{sha256:bridge.sha256,bytes:bridge.bytes},production:{sha256:production.sha256,bytes:production.bytes}},null,2));
+});
+
+for(const target of ['spx','html-overlay','h2r','casparcg','ograf','liveos'])test(target+' exact package browser lifecycle with long-font data and bundled logo',async({page,context,browser},info)=>{
+ await page.goto('/app');
+ const b64=await page.evaluate(async({source,target})=>{const t=(await import('/src/export/registry.ts')).EXPORT_TARGETS.find(t=>t.id===target)!;return(await t.build(source as never)).generateAsync({type:'base64'});},{source,target});
+ const pkg=await archive(b64,info.outputPath(target+'.zip'));const view=await context.newPage();await view.setViewportSize({width:1920,height:1080});
+ const errors:string[]=[],missing:string[]=[],responses:any[]=[];view.on('pageerror',e=>errors.push(e.message));
+ let host='';if(['ograf','liveos'].includes(target))host=await page.evaluate(async()=> (await import('/src/control/ografHost.ts')).ografHostDocument({packageBase:'http://e6c-output.local/pkg/',main:'graphic.mjs',tag:'e6c-qualified-graphic',width:1920,height:1080}));
+ await view.route('http://e6c-output.local/**',route=>{const path=new URL(route.request().url()).pathname.slice(1);if(path==='host.html')return route.fulfill({status:200,contentType:'text/html',body:host});const body=pkg.files.get(path.replace(/^pkg\//,''));if(!body&&!/relay\/ping|favicon/.test(path))missing.push(path);return route.fulfill({status:body?200:404,headers:{'access-control-allow-origin':'*'},contentType:/\.m?js$/.test(path)?'application/javascript':/\.css$/.test(path)?'text/css':/\.woff2$/.test(path)?'font/woff2':/\.svg$/.test(path)?'image/svg+xml':'text/html',body:body??''});});
+ const ograf=!!host;const entry=ograf?'host.html':Object.keys(Object.fromEntries(pkg.files)).find(n=>n.endsWith('.html')&&!/controlpanel/.test(n))!;await view.goto('http://e6c-output.local/'+(ograf?'':'pkg/')+entry);
+ if(ograf){await view.waitForFunction(()=>!!(window as any).__ografHost);responses.push(await view.evaluate(data=>(window as any).__ografHost.mount(data),data));}
+ const call=async(verb:string,arg:any={})=>{const r=await view.evaluate(async({verb,arg,ograf,target})=>{const w=window as any;if(ograf)return w.__ografHost[verb](arg);if(verb==='update')return w.update(JSON.stringify(arg));if(verb==='play')return w.play();if(verb==='stop')return target==='h2r'?w.play():w.stop();if(verb==='next')return w.next();},{verb,arg,ograf,target});if(ograf){expect(r.statusCode).toBe(200);responses.push({verb,payload:r});}return r;};
+ const state=async()=>view.locator('.info-card').evaluate(e=>getComputedStyle(e).opacity);
+ const held=async()=>{await expect(view.locator('.info-card')).toHaveCSS('opacity','1');await expect(view.locator('.info-card-box')).toHaveCSS('opacity','1');await expect(view.locator('.info-card-box')).toHaveCSS('clip-path','inset(0px 0% 0px 0px)');};
+ if(target==='html-overlay'){await held();await call('stop');await expect.poll(state).toBe('0');}
+ await call('update',data);await call('play');await held();await expect(view.locator('#f0')).toHaveText(LONG);
+ await view.evaluate(()=>document.fonts.ready);const fit=await view.locator('#f0').evaluate(e=>({width:e.getBoundingClientRect().width,room:e.parentElement!.getBoundingClientRect().width,font:getComputedStyle(e).fontFamily,size:getComputedStyle(e).fontSize,logo:(e.getRootNode() as Document|ShadowRoot).querySelector<HTMLImageElement>('#f5')?.naturalWidth}));expect(fit.width).toBeLessThanOrEqual(fit.room);expect(fit.font).toContain('Oswald');expect(fit.logo).toBe(32);
+ if(['html-overlay','h2r','casparcg'].includes(target)){const embedded=await view.locator('#f5').getAttribute('src');expect(embedded).toMatch(/^data:image\/svg\+xml/);await call('update',{f5:embedded});await expect.poll(()=>view.locator('#f5').evaluate(e=>(e as HTMLImageElement).naturalWidth)).toBe(32);await expect(view.locator('#f0')).toHaveText(LONG);}
+ await paint(view,info.outputPath(target+'-in.png'));
+ const next=await call(ograf?'play':'next',ograf?{delta:1}:{});if(ograf)expect(next.currentStep).toBe(1);await expect(view.locator('#f1')).toHaveText(data.f1);await paint(view,info.outputPath(target+'-next.png'));
+ await call('stop');await expect.poll(state).toBe('0');await paint(view,info.outputPath(target+'-out.png'));
+ await call('play');await held();
+ // Both actions are dispatched before awaiting the preceding action's promise.
+ const interrupted=await view.evaluate(async({ograf,target})=>{const w=window as any;if(ograf){const stop=w.__ografHost.stop({});const play=w.__ografHost.play({});return Promise.all([stop,play]);}if(target==='h2r'){w.play();w.play();}else{w.stop();w.play();}return [];},{ograf,target});for(const r of interrupted)expect(r.statusCode).toBe(200);await held();
+ // Stop immediately after an explicit reset/replay: interruption during entry.
+ if(ograf){await call('stop');await view.evaluate(async()=>{const h=(window as any).__ografHost;await Promise.all([h.play({}),h.stop({})]);});}else{await view.evaluate(target=>{const w=window as any;if(target==='h2r'){w.play();w.play();w.play();}else{w.stop();w.play();w.stop();}},target);}await expect.poll(state).toBe('0');
+ await call('play');await held();await expect(view.locator('#f0')).toHaveText(LONG);await paint(view,info.outputPath(target+'-replay.png'));
+ expect(errors).toEqual([]);expect(missing).toEqual([]);if(ograf)expect((await view.evaluate(()=>(window as any).__ografHost.dispose({}))).statusCode).toBe(200);
+ writeFileSync(info.outputPath('receipt.json'),JSON.stringify({target,at:new Date().toISOString(),browser:browser.version(),platform:process.platform,bytes:pkg.bytes,sha256:pkg.sha256,files:[...pkg.files].map(([path,b])=>({path,bytes:b.length,sha256:sha(b)})),data,fit,responses,interrupted,errors,missing,states:['In held','Next','Out hidden','replay','Out interrupted by play','entry interrupted by Out','replay'],scope:ograf?'NoaCG contained OGraf host; not official/named-host acceptance':'standalone browser package globals; not named-host acceptance'},null,2));await view.close();
+});

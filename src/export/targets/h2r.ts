@@ -121,6 +121,7 @@ export const h2rTarget: ExportTarget = {
         template,
         'H2R shows these as named inputs from the embedded GDD, so you never type an id there — ' +
           'the table is for anything that drives the graphic from outside.',
+        { inlineAssets: true },
       ),
     );
     return zip;

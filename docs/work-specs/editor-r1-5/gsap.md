@@ -78,3 +78,50 @@ browser bundles.
 Thank you,
 
 NoaCG Studio owner
+
+## E6C technical renewal — 2026-11-13
+
+The [technical audit](e6c/g07.json) and [exact receiving inventory](e6c/receiving-manifest.json)
+renew this inventory on product source `c456f647eb8a30839473fd93467f447a181f2dc1`.
+All eight actual graphics ZIPs carry the unchanged standard GSAP 3.15.0 bytes
+and notice, SHA256 `92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb`.
+Folder targets, combined graphics and production SPX contain the separate
+runtime; CasparCG/HTML/H2R inline the identical bytes. Four Oswald/Saira fonts
+and their full SIL notice are present as files or embedded equivalents.
+No standalone GSAP plugin or third-party AGPL helper/runtime was identified in
+these inspected artifacts and their declared source/dependency closure.
+
+The actual published `@noacg/cli@0.12.4` archive is 203,358 bytes / 63 files,
+with registry SHA512 independently verified. Its actual compiled module graph
+has 222 import edges, no missing relative imports and no GSAP runtime. It carries
+Apache LICENSE; it has no separate NOTICE file. Source/toolkit NOTICE describes
+its separate Apache distribution. The published package carries Bridge version
+**0.10.1**; the current repository's Bridge version is **0.11.0**, so those are
+not relabelled as identical binaries. The [current conservative source closure](e6c/cli-closure.json)
+walks 52 CLI, 18 MCP and 22 standalone-Bridge files, all within `cli/src`, and
+109 production-locked dependencies with declared licences and no AGPL entries.
+That is source evidence, not an inspected unpublished executable. Five actual
+source-generated toolkit distributions retain Apache LICENSE/NOTICE and source
+provenance. NoaCG's browser `/bridge` remains an app surface: its actual
+`exportPackage` emitted the same combined graphic bytes, which include GSAP.
+CLI/MCP transporting those files does not make the runtime part of their install.
+
+The [current native app producer](e6c/native-producer.json) built the unchanged
+normal full build and verified the exact source/version/manifest, normal
+production ZIP import and twelve helper assertions with cleanup. Raw native
+consumer archive readback remains unverified. This producer evidence and the
+actual graphics-byte audit are distinct; no unperformed full archive scan is
+claimed. The owner-facing [local kit](e6c-local-kit.md) identifies exact downloads.
+
+**Terms and written disposition remain OW1.** The pinned upstream distribution
+`13e2b790546426a1a2e0e9b409f3f8dc6d6611f2` has no licence/notice file. Its
+[actual README](e6c/gsap-upstream-readme.md) links the standard licence and retains
+GreenSock's 2008–2026 copyright. One ordinary current vendor-page request was
+refused by the Cloud proxy (CONNECT 403/status000); no full terms body was obtained,
+reconstructed or fetched through a bypass. E1's reported read/effective/modified
+dates above remain historical observations. Archiving the applicable full terms
+and date with the vendor's written disposition, or a separately approved
+resolution, is still an explicit OW1/G07 prerequisite. The technical inventory
+is not legal clearance. The finished owner request above remains ready and
+unchanged; the owner sends it. No vendor reply or real host/operator availability
+was used as a Cloud preparation exit condition.
