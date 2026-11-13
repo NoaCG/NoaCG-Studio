@@ -68,8 +68,8 @@
   "inFlight": [
     {
       "phase": "E5C",
-      "step": "Merge queue and post-landing ownership",
-      "note": "PR2496actualqueueentry13:51:38Z afterONEhelper43437212835SUCCESS/fdfastamp+Reviewed-onlyrecovery,sourceCI43434486680SUCCESSattempt2all32terminal/no softwaretestretry. Actualnativeauto-mergepre/postheadguardclean. Mergegroup43437403647candidate6215926inprogress, notactualmergeyet. Buildercompleted,rootsoleactiveowner; freshactualmergecheckerrequiredafterlanding."
+      "step": "Fresh independent E5C checker startup",
+      "note": "PR2496actualmerge6215926 at14:02:18Z,groupPASS; rootrecordedlanded14:03:50Z. Freshcheckaction10/request61f4/briefEA2165 native/root/editor_e5c_independent_check acceptedonce; startupfencepending, no substantivecheckACKyet. ExactmainCI/configured/CodeQLrunning,Postland+quarantinePASS; rootsoleowner6854426227. E6Cnotadmitted."
     }
   ],
   "owner": [
@@ -2519,7 +2519,7 @@
     },
     "acceptedAt": "2026-11-13T11:31:36.118029+00:00",
     "latestProgress": {
-      "observedAt": "2026-11-13T13:53:14.475845+00:00",
+      "observedAt": "2026-11-13T14:08:47.727479+00:00",
       "status": "Worker reported, root finalreadback pending",
       "j0128": "PRETEST_INFRAFAIL EROFS Vite shared node_modules/.vite-temp; retainedlog, no productexecution/attempt. Existingapprovedrequire_escalatedcommand reranoriginalsmallselection; no persistentpolicychange.",
       "j0129": "PASS1/1 importedSVG cumulative UI/semantic/reviewed deterministic source+historyparity and3browseroutputs,1.7min,zero modelcalls.",
@@ -2778,10 +2778,40 @@
           "evidence": "Actualadded_to_merge_queue timelineevent",
           "mergeGroupRun": 43437403647,
           "queueCandidate": "621592610bd120da9572b73fee9e39c321a4b059",
-          "mergeGroupStatus": "in_progress",
-          "notActualMergeYet": true
+          "mergeGroupStatus": "success",
+          "notActualMergeYet": false
         },
-        "workerNativeStatus": "COMPLETED; actualfinalreceiptverbatimreceivedandJSONhash2c74verified/durablycopied. No runningwriter."
+        "workerNativeStatus": "COMPLETED; actualfinalreceiptverbatimreceivedandJSONhash2c74verified/durablycopied. No runningwriter.",
+        "merge": {
+          "sha": "621592610bd120da9572b73fee9e39c321a4b059",
+          "parent": "b2e91ba4a5df23c1cec4a95ea213c9d070b5c7f5",
+          "tree": "8fd93d96965ebc835e3fa1df11960343f019f199",
+          "mergedAt": "2026-11-13T14:02:18Z",
+          "rootReadback": "ActualRESTmergedtrueandgitexactparents/treeverified; mergegroup43437403647SUCCESS actualsameSHA."
+        },
+        "exactMergeRuns": {
+          "ci": {
+            "id": 43438959617,
+            "status": "in_progress"
+          },
+          "configured": {
+            "id": 43438959677,
+            "status": "in_progress"
+          },
+          "postLand": {
+            "id": 43438959563,
+            "status": "success"
+          },
+          "quarantine": {
+            "id": 43438959487,
+            "status": "success"
+          },
+          "codeql": {
+            "id": 43438958316,
+            "status": "in_progress"
+          },
+          "deploymentStatus": "Five deploy-verifymetadataSKIPs; applicabilityunverified"
+        }
       },
       "freshMaintainedCoverage": {
         "run": 43434486680,
@@ -2792,6 +2822,20 @@
         "wholeLogSha256": "42ec01b69c988d15eaf0a8a4b55ea31139b313995a6fd6be2a07bbadfdffb511",
         "rootReadback": "Exactwholeloghashverified; actualindependenthistory/brand720/receiving447 linesand125PASSread. FreshmaintainedfiniteOut/replay/exportcoverage, withoutrewritingj0142FAILED/OutreplayNOTRUNinitsownslice."
       }
+    },
+    "check": {
+      "actor": "/root/editor_e5c_independent_check",
+      "actionId": "plan-editor-r1-5-2026-11-08:10",
+      "requestSha256": "61f4efd7e68f0b42b297cd6922411bf5b541a2d2753b91e74d474b50ff79d047",
+      "brief": "briefs/e5c-check-e5c-c-cloud-1113.txt",
+      "briefSha256": "ea2165ed30f4bb8c38887a670c4aed2c0a60c1039c9c6d69dd514a995194de14",
+      "briefBytes": 20422,
+      "requestFile": "briefs/e5c-check-native-request-20261113.json",
+      "source": "621592610bd120da9572b73fee9e39c321a4b059",
+      "branch": "codex/plan-editor-r1-5-e5c-check",
+      "worktree": "/workspace/noacg-editor-r1-5-e5c-check",
+      "status": "Nativecanonicaldispatchaccepted; STARTUP_PENDING_BEFORE_OBSERVE_ACK",
+      "transport": "Single immutablefile-reference dispatch; workerreadsexactrequest/briefbytesandverifieshashesatstartup. DeparturerationaleinPRownercomment6854426227. No duplicate request."
     }
   }
 }
