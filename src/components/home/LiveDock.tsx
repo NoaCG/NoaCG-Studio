@@ -173,8 +173,11 @@ export default function LiveDock({
 function DeadlineSection({ paths, value, write, now }: { paths: readonly DeadlinePath[]; value: (path: string) => unknown; write: (path: string, value: string) => void; now: number }) {
   const [chosen, setChosen] = useState<string | null>(null);
   const [typed, setTyped] = useState('');
-  const [skipped, setSkipped] = useState(false);
+  /** A refused Set: the time typed, and the value the path held then. The warning shows only while
+   *  the path still holds that value, so any later write (here, a key, another page) ends it. */
+  const [skipped, setSkipped] = useState<{ path: string; typed: string; was: string } | null>(null);
   const path = paths.find((p) => p.path === chosen)?.path ?? paths[0]?.path ?? null;
+  const raw = path ? JSON.stringify(value(path) ?? null) : '';
   const held = path ? deadlineOf(value(path)) : null;
   if (!path) {
     return (
@@ -184,26 +187,24 @@ function DeadlineSection({ paths, value, write, now }: { paths: readonly Deadlin
     );
   }
   const left = held === null ? null : Math.max(0, Math.ceil((held - now) / 1000));
+  const warning = skipped && skipped.path === path && skipped.was === raw ? skipped.typed : null;
   /** Every write shows what it wrote: a skipped-time warning from an earlier Set goes. */
   const put = (at: string) => {
     write(path, at);
-    setSkipped(false);
+    setSkipped(null);
   };
   const set = () => {
     const at = deadlineAtLocal(typed, Date.now());
     // A time the clocks skip that day (summer time) has no instant: nothing is written, and it says so.
     if (at) put(at);
-    else setSkipped(true);
+    else setSkipped({ path, typed, was: raw });
   };
   return (
     <section className="live-dock-section" data-testid="dock-deadline">
       <div className="live-dock-row">
         <span className="live-dock-label">Break</span>
         {paths.length > 1 ? (
-          <select value={path} onChange={(e) => {
-              setChosen(e.target.value);
-              setSkipped(false);
-            }} aria-label="Deadline path" data-testid="dock-deadline-path">
+          <select value={path} onChange={(e) => setChosen(e.target.value)} aria-label="Deadline path" data-testid="dock-deadline-path">
             {paths.map((p) => (
               <option key={p.path} value={p.path}>
                 {p.graphics.join(', ')}
@@ -216,8 +217,8 @@ function DeadlineSection({ paths, value, write, now }: { paths: readonly Deadlin
       </div>
       <div className="live-dock-row live-dock-held" data-testid="dock-deadline-value" data-value={held === null ? undefined : String(value(path))}>
         {/* A time the clocks skip says so here, in the value's own row, so nothing below moves (K5). */}
-        {skipped ? (
-          <span className="status-warn" data-testid="dock-deadline-skipped">The clocks skip {typed} that day.</span>
+        {warning ? (
+          <span className="status-warn" data-testid="dock-deadline-skipped">The clocks skip {warning} that day.</span>
         ) : held === null ? 'No deadline set' : `Until ${hms(held)} · ${left === 0 ? 'reached' : `${clockText(left!)} left`}`}
       </div>
       <div className="live-dock-row">
@@ -229,13 +230,12 @@ function DeadlineSection({ paths, value, write, now }: { paths: readonly Deadlin
         </button>
         <input type="time" value={typed} onChange={(e) => {
             setTyped(e.target.value);
-            setSkipped(false);
+            setSkipped(null);
           }} aria-label="Deadline time" data-testid="dock-deadline-time" />
         <button type="button" onClick={set} disabled={!/^\d{1,2}:\d{2}$/.test(typed)} data-testid="dock-deadline-set">
           Set
         </button>
       </div>
-
     </section>
   );
 }

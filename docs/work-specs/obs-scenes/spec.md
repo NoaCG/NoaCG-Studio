@@ -1243,8 +1243,8 @@ Filled in by each phase's pull request.
   - K3. Which scenes it shows: the scenes whose link has an instance on program (OS3 M4), in
     rundown order, labelled "Program". While none does (no OBS event yet, OBS hidden, or no link
     loaded), the scene the operator picked, labelled "Picked"; the pick is the first scene until
-    changed, is kept for the dock's session only, and the picker is enabled only while no scene is
-    on program. A pick of a scene no longer flagged falls back to the first scene. With the switch
+    changed, is kept for the dock's session only, and the picker shows only while no scene is on
+    program (on program the row names the scenes shown). A pick of a scene no longer flagged falls back to the first scene. With the switch
     off, or no scene, the section is absent.
   - K4. Each shown scene lists its graphic and picture cues (C1's reading, rundown order), each
     with its on-air state, Take and Out. Take runs the press a Companion cue key makes
@@ -1303,8 +1303,9 @@ Filled in by each phase's pull request.
   showed the fallback pick, not the scene whose Take and Out are below. On program the row now
   names the scenes shown, and the picker shows only while none is on program (K3 amended).
 - Found by the PR review on a25e7532 (P2), fixed: after Set refused a skipped time, In 2 min or
-  In 5 min wrote a deadline but the row still said the time was skipped. Every write, and a change
-  of path, now clears that line.
+  In 5 min wrote a deadline but the row still said the time was skipped. The delta review found the
+  wider class: a write from elsewhere (a key, another page) left it up too. The line now shows only
+  while the path still holds the value it held when Set was refused, so any write ends it.
 - Previous verified `main`: `a71607a977fa4b57db908a5a63fa589b977f551d` (CI run 43475994487,
   configured suite 43475994875).
 - Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed and no
