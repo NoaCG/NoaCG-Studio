@@ -1165,3 +1165,25 @@ Filled in by each phase's pull request.
     `https://github.com/NoaCG/NoaCG-Studio/blob/main/docs/OBS_SCENES.md`.
   - Not changed: after an OBS crash, an old Presence entry can sit beside the new one until Realtime
     drops it, so a row may read "Loaded twice" for a short while. The guide says so.
+- Rules found after coding: an unpublished production (Presence off) reads "Not loaded" on every
+  row and asks nothing on switching off, since no link can be loaded; this page's expected outputs
+  are kept for the session only (`useExpectedOutputs`, not persisted), so after a reload a link that
+  went away is not placed on a row until it is heard again. The walk-through's `last` keeps OS1a's
+  timing (at once on an activation); only `seen` waits for the window, so an existing reading of
+  `last` is unchanged. A settled file also records the latest data a panel sent, so the values it
+  restates after a snap are the panel's, not the exported ones.
+- Previous verified `main`: `b2e91ba4a5df23c1cec4a95ea213c9d070b5c7f5` (CI run 43427609778,
+  configured suite 43427609688).
+- Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed and no
+  migration. A scene link of the reverted build reports no `seen` and stops retrying an unpublished
+  production (it stays transparent, as before); a settled package already exported keeps working.
+- Decisions: the rows are a pure fold (`src/control/obsSceneRows.ts`) over Presence entries and a
+  per-session watch, so they need no new wire field beyond `seen`. A scene link is named by its
+  scene on the panel without a URL change, so links already pasted into OBS get the name too. The
+  settled option is on the production export only (the fallback is a set of scene graphics), and
+  the guide is linked at its GitHub address, the one address a user can open.
+- Traps: the capacity check prices a new configured spec file, not a test added to one, so the AC-6
+  walk extends `e2e/configured/live-ready.spec.ts` (output monitoring's spec) and its real cost is
+  stated in the pull request. A headless page shows an entrance in the running GSAP tweens, not in
+  the graphic's opacity: a frame probe on opacity alone passed for a file that entered.
+- Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS3.md`.
