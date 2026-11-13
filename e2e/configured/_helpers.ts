@@ -63,8 +63,10 @@ export async function unpublishForCleanup(page: Page): Promise<void> {
 // globalSetup - another config, or a one-off `npx playwright test <file>` - and a wrong answer
 // here is written to somebody's database rather than reported.
 //
-// Every configured spec imports this module, so the check costs one call per run and covers all
-// of them. The rules, and the eleven minutes of production that bought them, are in
+// Sixty-four of the suite's sixty-five spec files import this module, so the check costs one call
+// per run and covers all but one: analytics.spec.ts needs no account and no key, which is why it
+// is the exception. The config's globalSetup covers it, and the suite's own verdict refuses a run
+// that executed nothing. The rules, and the eleven minutes of production that bought them, are in
 // scripts/configured-target.mjs.
 assertConfiguredTarget(process.env, 'a configured spec');
 

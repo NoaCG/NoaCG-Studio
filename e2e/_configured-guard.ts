@@ -40,8 +40,13 @@ const PROBE_TIMEOUT_MS = 10_000;
 
 /** What `import.meta.env.VITE_SUPABASE_URL` resolves to inside the page the suite will drive. */
 async function servedBackend(base: string): Promise<string | null> {
+  // ANSWERED AT ALL, not answered 2xx. Playwright admits a `webServer` on any status from 200 to
+  // 403, so a run can be under way while `/` returns 401 or a 3xx nothing followed. Reading that
+  // as "nothing is there" would skip the served check on a server the specs are about to drive,
+  // and then say nothing answered - the one sentence guaranteed to send the next person to the
+  // wrong place. A status is a status; only a connection error means no server.
   const listening = await fetch(base, { method: 'GET', signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) })
-    .then((response) => response.ok)
+    .then(() => true)
     .catch((error: unknown) => {
       if (error instanceof Error && error.name === 'TimeoutError') {
         throw new Error(`Configured guard readiness probe timed out after ${PROBE_TIMEOUT_MS}ms at ${base}.`, { cause: error });

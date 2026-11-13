@@ -33,9 +33,16 @@ test('a server that SERVES a backend this run does not own is refused, whatever 
   // URL from the probe, or swallowing a probe failure, leaves every spelling in place. So the
   // probe gets a real page to read, from a server small enough to live here: readiness, a document
   // at /app, and the module the guard evaluates inside it.
-  const serving = (url) =>
+  const serving = (url, rootStatus = 200) =>
     new Promise((resolve) => {
       const server = createServer((request, response) => {
+        // `/` answers with whatever status the case asks for. Playwright admits a webServer on
+        // anything up to 403, so a 401 at the root is a server the specs will drive.
+        if (request.url === '/' && rootStatus !== 200) {
+          response.writeHead(rootStatus, { 'content-type': 'text/plain' });
+          response.end('nope');
+          return;
+        }
         if (request.url?.startsWith('/e2e/_env-probe.ts')) {
           // `url` of null: a server that answers, and whose probe module will not load. The guard
           // must not take that for an answer.
@@ -63,8 +70,8 @@ test('a server that SERVES a backend this run does not own is refused, whatever 
     Object.assign(process.env, before);
   });
   const guard = (await import(path.join(ROOT, 'e2e/_configured-guard.ts'))).default;
-  const run = async (served) => {
-    const server = await serving(served);
+  const run = async (served, rootStatus) => {
+    const server = await serving(served, rootStatus);
     const base = `http://127.0.0.1:${server.address().port}`;
     try {
       return await guard({ projects: [{ use: { baseURL: base } }] }).then(() => null, (error) => error);
@@ -89,4 +96,12 @@ test('a server that SERVES a backend this run does not own is refused, whatever 
   const unreadable = await run(null);
   assert.ok(unreadable instanceof Error, 'a server whose backend cannot be read must stop the run');
   assert.doesNotMatch(unreadable.message, /WAS NOT CHECKED/, 'that is the skip for an absent server, not an unreadable one');
+
+  // NOR IS A SERVER THAT ANSWERS WITH A STATUS NOBODY LIKES. Playwright admits a webServer on
+  // anything from 200 to 403, so a root that answers 401 is a server the specs are about to
+  // drive. Reading only a 2xx as "listening" would skip this leg there and then report that
+  // nothing answered, which is the one sentence that sends the next person to the wrong place.
+  const guarded = await run(PRODUCTION_URL, 401);
+  assert.ok(guarded instanceof Error, 'a 401 at the root is a server, not an absence');
+  assert.match(guarded.message, /SERVES a backend this run does not own/);
 });

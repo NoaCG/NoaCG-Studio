@@ -89,9 +89,10 @@ export default defineConfig({
     // this port may carry another backend". Adopting a server adopts its whole environment, and a
     // dev server has TWO halves that reach a database - the page, built against its
     // `VITE_SUPABASE_URL`, and the api/ handlers it mounts, which read `SUPABASE_URL` and an admin
-    // key (api/_lib/*; production-data-key.spec.ts drives them in process). Reading the page's
-    // half back out is possible and the guard does it; the server's own half is invisible from
-    // outside. Starting the server here is what makes both halves inherit the environment this
+    // key (api/_lib/*; feed-route.spec.ts and production-data-key-tick.spec.ts import a handler
+    // and run it in the worker, and other specs reach the server's own through HTTP). Reading the
+    // page's half back out is possible and the guard does it; the server's own half is invisible
+    // from outside. Starting the server here is what makes both halves inherit the environment this
     // run was admitted on. The cost is one Vite start per run, and a stray server on this port now
     // fails the run loudly (`--strictPort`) instead of quietly deciding where the writes go.
     reuseExistingServer: false,

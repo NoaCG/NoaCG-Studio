@@ -192,7 +192,8 @@ test("the deployed site's own suite ends up with no backend rather than a word t
 test('the dev server is the run\'s own, and what it serves is judged too', () => {
   // A dev server has two halves that reach a database: the page, built against its
   // VITE_SUPABASE_URL, and the api/ handlers it mounts, which read SUPABASE_URL and an admin key
-  // (production-data-key.spec.ts drives them in process). The page's half can be read back out;
+  // (feed-route.spec.ts and production-data-key-tick.spec.ts import one and run it in the
+  // worker; other specs reach the server's own over HTTP). The page's half can be read back out;
   // the server's own half cannot, from outside. So the suite starts its own server - both halves
   // then inherit the environment the run was admitted on - and the page is read back anyway,
   // because Vite fills anything missing from this process out of the environment file.
@@ -460,4 +461,25 @@ test('the suite with no backend still lists under an environment that names one'
   assert.doesNotMatch(output, /Refusing to start/, `the production suite refused: ${output.slice(0, 400)}`);
   assert.match(output, /@production/);
   assert.equal(listed.status, 0, output.slice(0, 400));
+});
+
+test('the configured suite itself refuses the incident environment, collecting a spec file', () => {
+  // THE SECOND LINE OF DEFENCE, RUN. Both of the live suite's own pins - the globalSetup line in
+  // the config and the assertion in the module that hands out the admin key - were source text,
+  // and text cannot see either swallowed. A spec file is reachable without the globalSetup (a
+  // one-off `npx playwright test <file>`, another config), which is why the helper checks too, so
+  // the one that matters is pinned by the invocation that reaches both: `--list` collects every
+  // spec in the directory, which imports the helper, and runs no test and starts no server.
+  const listed = spawnSync('npx', ['playwright', 'test', '--config', 'playwright.live.config.ts', '--list'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    env: { ...process.env, ...CLOUD_WORKER },
+    windowsHide: true,
+  });
+  const output = `${listed.stdout}${listed.stderr}`;
+  // `a configured spec` is the helper's own wording, used at one call site: a refusal from the
+  // config's globalSetup, or from anywhere else, says something different.
+  assert.match(output, /Refusing to start a configured spec/, output.slice(0, 400));
+  assert.match(output, /PRODUCTION project/, output.slice(0, 400));
+  assert.notEqual(listed.status, 0, `the suite listed under a production environment: ${output.slice(0, 400)}`);
 });

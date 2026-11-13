@@ -41,13 +41,15 @@
 // a shell that has exported a production `.env` wholesale is refused there too, through
 // `_helpers.ts`, and unsetting those two variables is the fix.
 //
-// ONE PLACE THE PROBE READS LESS THAN IT LOOKS. `e2e/configured/measure/measure.config.ts` with
-// MEASURE_BUILD=prod puts a switch in front of two servers, and the served-backend probe reads the
-// development one: the switch starts in `dev`, and only a spec flips it. A bundled build's backend
-// was fixed when `vite build` ran, out of whatever environment was there then, so nothing at run
-// time can read it back - and `measure.config.ts` checks only that MEASURE_DIST is set, not what
-// it was built against. By convention that is this process's environment, which IS judged, but a
-// dist built earlier against another one would be served by neither leg's rule.
+// ONE PLACE THIS DOES NOT REACH, AND IT IS AN OPEN HOLE: #2508. `e2e/configured/measure/
+// measure.config.ts` with MEASURE_BUILD=prod puts a switch in front of two servers, and the
+// served-backend probe reads the development one, because the switch starts in `dev` and only a
+// spec flips it. The bundled half's backend was fixed when `vite build` ran, out of whatever
+// environment was there then, and `measure.config.ts` checks only that MEASURE_DIST is set, not
+// what it was built against - so a dist built earlier against another project is judged by
+// neither leg, and the measurement specs publish. It is read OUT OF THE BUILD, not at run time
+// (vite inlines VITE_* as literals), which is why the fix belongs in that harness and is its own
+// issue rather than another entry point here.
 
 import { stagingRef } from './supabase-projects.mjs';
 
