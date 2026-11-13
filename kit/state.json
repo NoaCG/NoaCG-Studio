@@ -68,8 +68,8 @@
   "inFlight": [
     {
       "phase": "E5C",
-      "step": "Fresh independent E5C checker startup",
-      "note": "PR2496actualmerge6215926 at14:02:18Z,groupPASS; rootrecordedlanded14:03:50Z. Freshcheckaction10/request61f4/briefEA2165 native/root/editor_e5c_independent_check acceptedonce; startupfencepending, no substantivecheckACKyet. ExactmainCI/configured/CodeQLrunning,Postland+quarantinePASS; rootsoleowner6854426227. E6Cnotadmitted."
+      "step": "Fresh independent E5C acceptance active",
+      "note": "Independent/root/editor_e5c_independent_check action10/request61f4/briefEA2165 actual621 cleanownedchecker, nativeobserved+startupACK. TwofreshscopedworkerprobesPASS, originalread-onlywritefailurepreserved. Actualthread6af7197a... distinct. Independentlyassessesall3criteria andterminalexactmergechecks; no productedit/newpackaging/perfcampaign. E6Cnotadmitted; rootsolePRownerthroughpostland."
     }
   ],
   "owner": [
@@ -2519,7 +2519,7 @@
     },
     "acceptedAt": "2026-11-13T11:31:36.118029+00:00",
     "latestProgress": {
-      "observedAt": "2026-11-13T14:08:47.727479+00:00",
+      "observedAt": "2026-11-13T14:13:05.518256+00:00",
       "status": "Worker reported, root finalreadback pending",
       "j0128": "PRETEST_INFRAFAIL EROFS Vite shared node_modules/.vite-temp; retainedlog, no productexecution/attempt. Existingapprovedrequire_escalatedcommand reranoriginalsmallselection; no persistentpolicychange.",
       "j0129": "PASS1/1 importedSVG cumulative UI/semantic/reviewed deterministic source+historyparity and3browseroutputs,1.7min,zero modelcalls.",
@@ -2834,8 +2834,43 @@
       "source": "621592610bd120da9572b73fee9e39c321a4b059",
       "branch": "codex/plan-editor-r1-5-e5c-check",
       "worktree": "/workspace/noacg-editor-r1-5-e5c-check",
-      "status": "Nativecanonicaldispatchaccepted; STARTUP_PENDING_BEFORE_OBSERVE_ACK",
-      "transport": "Single immutablefile-reference dispatch; workerreadsexactrequest/briefbytesandverifieshashesatstartup. DeparturerationaleinPRownercomment6854426227. No duplicate request."
+      "status": "NATIVE_OBSERVED_DELIVERED_STARTUP_ACKED_CHECK_ACTIVE",
+      "transport": "Single immutablefile-reference dispatch; workerreadsexactrequest/briefbytesandverifieshashesatstartup. DeparturerationaleinPRownercomment6854426227. No duplicate request.",
+      "nativeThreadUuid": "6af7197a-ac48-8191-a12d-e2fcfdf4204e",
+      "nativeSessionBinding": "6af455f4-b1c8-8191-86b2-8bfdfc619075",
+      "transportVerified": {
+        "requestFileSha256": "dad4a4e3ae96bd5f8d0bedf3def014c9b8f736c32ab9e2bdfa0db72084cd2bf7",
+        "briefBytes": 20422,
+        "briefSha256": "ea2165ed30f4bb8c38887a670c4aed2c0a60c1039c9c6d69dd514a995194de14"
+      },
+      "workerPreflights": [
+        {
+          "at": "2026-11-13T14:10:50.436Z",
+          "result": "PASS scopednetwork+ownedwrite"
+        },
+        {
+          "at": "2026-11-13T14:11:00.264Z",
+          "result": "PASS separatesecondinvocation"
+        }
+      ],
+      "initialQualification": {
+        "at": "2026-11-13T14:10:32.829Z",
+        "result": "WorkspacewriteFAILEDunderread-only/network-onlypermission; networkreadsPASS; retained/no productattempt."
+      },
+      "policyReconciliation": "Rawnetworkpolicydd7128 matchesexistingsavedcloudContinuation.policy.networkPolicySha256androotcurrentbytehash;effectivebinding9ddcae separateretained,currentpolicy unchanged.",
+      "resources": {
+        "effectiveCpus": 4,
+        "memoryGiB": 16,
+        "workers": 2,
+        "limitsKnown": false,
+        "gap": "hiddencgroupancestorsunreadable",
+        "capsMinutes": [
+          5,
+          12,
+          5
+        ]
+      },
+      "observed": "Supervisorobserve-launch deliveredcanonicalaction10; explicitrootSTARTUPACKsentbeforechecks."
     }
   }
 }
