@@ -5,10 +5,10 @@ Design: `../designs/G3.md`. Acceptance: AC-4. Everything here ran on the cloud w
 `e2e-s1@noacg.local` and its teammate), with migrations 0117 and 0118 applied on top of `main`.
 
 **AC-4 status.** The correctness half (every save reaches the outputs, no "Publish changes", the
-failure and reverse-order cases) passes. On the typical fixture, publishing adds no delay that can be
-measured: 10 interleaved pairs show no on minus off difference that can be told from zero (see "Repair:
-repeated pairs"). The single pair first reported here (+2 ms) was one draw from a wide spread. On the
-large fixture under continuous editing, publishing a whole copy per save adds about 334 ms p95 (see
+failure and reverse-order cases) passes. On the typical fixture, with #2494 fixed and edits every
+5 s (owner decision, 2026-11-13), 10 interleaved pairs read p95 +38 ms with automatic updates on,
+with a 90% range of +24 to +56 ms (see "Repair: after the sync fix"). The single pair first reported
+here (+2 ms) and the first repair's 10 pairs at 3 s were drowned by #2494. On the large fixture under continuous editing, publishing a whole copy per save adds about 334 ms p95 (see
 "Editing while publishing"). **Owner decision (b), recorded on #2361, 2026-11-13:** phase 6
 lands with the typical fixture passing; the large fixture is a recorded gap judged at the end of phase
 7 with D1 (phase 7 sends only what changed); automatic updates stay off in production until then.
@@ -146,7 +146,7 @@ once with automatic updates on (each save publishes) and once off (each save onl
 difference is the publishing. Harness: test `autopublish` with `MEASURE_EDIT`, production build,
 local stack, unthrottled, press to ran at the output.
 
-**At a 3 s edit pace (judged).** Past the sync engine's 2.5 s debounce, so each edit is its own save
+**At a 3 s edit pace (judged when built; since #2497 the judged pace is 5 s, see "Repair: after the sync fix").** Past the sync engine's 2.5 s debounce, so each edit is its own save
 and, with updates on, its own publish.
 
 | Loop | Fixture | Samples | On p50 / p95 (ms) | Off p50 / p95 (ms) | p95 difference |
@@ -230,6 +230,35 @@ So the slow Takes come from the page's save, which runs whether automatic update
 and not from publishing. The sync engine is not changed here. #2494's fix, #2497 (open, not landed), runs
 one pass per pause in editing instead of two per edit. The save's main-thread time is the page's own work that
 AC-1 judges.
+
+#### Repair: after the sync fix (#2497), at a 5 s edit pace
+
+**Owner decision (a), recorded on #2361, 2026-11-13.** Automatic updates publish once editing pauses,
+about 3 s after the last edit, never mid-typing. Why: a publish follows a sync pass that ends synced
+(`useAutoPublish.ts`). Since #2497, an edit made during a pass waits for the 2.5 s pause instead of
+re-running the pass at once. So at a 3 s edit pace every pass ends pending and nothing is published
+until the editing stops. On merged `main` at 3 s, 4 on-runs made 20 saves each and published 0
+versions. AC-4's timing is therefore judged at 5 s, where each pass ends before the next edit. The
+harness reads the pace from `MEASURE_EDIT_MS` (default 5000).
+
+Same method as above, on `main` with #2497 and #2498 merged: production build with the harness hooks,
+local stack (127.0.0.1), test `autopublish`, `MEASURE_EDIT=cues`, typical fixture, unthrottled, one
+output, 10 interleaved pairs, each pair on then off. Every on-run published 6 versions in 12 or 13
+edits; every off-run published none.
+
+| | Takes | p50 (ms) | p90 (ms) | p95 (ms) | p99 (ms) | Takes of 150 ms or more |
+|---|---|---|---|---|---|---|
+| Automatic updates on | 500 | 77 | 117 | 143 | 500 | 24 |
+| Automatic updates off | 500 | 73 | 90 | 105 | 206 | 10 |
+
+Single-run p95: on 106, 118, 129, 129, 139, 150, 156, 161, 183, 199; off 90, 91, 96, 100, 107, 108,
+109, 112, 125, 130. Per pair, on minus off: +72, +21, +46, +4, +48, +68, +60, +6, +22, +54.
+
+The pooled p95 difference is +38 ms. A bootstrap over the 10 pairs puts it between +24 and +56 ms
+(5th and 95th percentile; +21 to +59 for the 2.5th and 97.5th), with about an 18% chance it is over
+50 ms. Four of the ten single pairs read over 50. With the sync fixed, publishing now shows a cost:
+14 more slow Takes in 500 and a longer tail (p99 500 against 206). The point estimate is within
+AC-4's 50 ms, but the spread reaches past it, so this is not a clear pass.
 
 #### Republishing, nothing edited
 

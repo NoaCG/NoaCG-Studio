@@ -478,8 +478,8 @@ Filled in by each phase's pull request.
   Publish changes, a 401 that outlives one session refresh is transient, and a page that may not
   publish reads red while a save waits. The configured walk runs with both switches on
   (`production_copies` and `auto_publish`), as production has them.
-- AC-4: on the typical fixture, publishing adds no measurable delay (10 interleaved pairs, see
-  Repair 1); the large fixture under continuous editing does not pass (about +334 ms p95, the output
+- AC-4: on the typical fixture at a 5 s edit pace, publishing adds +38 ms p95, 90% range +24 to
+  +56 ms (10 interleaved pairs, see Repair 1); the large fixture under continuous editing does not pass (about +334 ms p95, the output
   re-reading each whole copy). Owner decision (b), recorded on #2361, 2026-11-13: land
   with the typical fixture passing, judge the large fixture at the end of phase 7 with D1, and keep
   automatic updates off in production until then. Separately, editing faster than one sync pass on a
@@ -495,5 +495,9 @@ Filled in by each phase's pull request.
   slow Takes (47 and 48). A bootstrap over pairs puts the difference between -246 and +133 ms, so the
   first single pair's +2 and the check's +260 are both draws from one spread. Probes show the slow
   Takes, on both sides, wait for the page's save: every edit makes two sync passes (#2494's queued
-  re-run; its fix #2497 is not landed), with page long tasks of 95 to 190 ms. No phase 6 code changed. The
-  evidence's +2 is replaced by the 10-pair table ("Repair: repeated pairs").
+  re-run), with page long tasks of 95 to 190 ms. With #2497 landed, a publish waits for a pass
+  that ends synced, so at 3 s nothing was published. Owner decision (a), 2026-11-13: automatic
+  updates publish once editing pauses, and AC-4 is judged at a 5 s edit pace (the harness's
+  `MEASURE_EDIT_MS`, default 5000). There, 10 pairs read p95 143 ms on against 105 ms off (+38; 90%
+  range +24 to +56), with every on-run publishing 6 versions. The only code change is that harness
+  pace setting, which normal builds leave out. The evidence's +2 is replaced by both tables.
