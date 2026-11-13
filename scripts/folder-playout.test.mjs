@@ -971,12 +971,26 @@ test('the misses and the step bookkeeping: cleared, noted and settled only when 
   assert.equal(r.folders(), noted, 'only a One-by-one folder has a step');
 });
 
-test('All out keeps an OBS scene\'s step and run, and starts every other folder again (obs-scenes OS1b C9)', async () => {
+test('All out keeps an OBS scene\'s step, starts every other folder again, and still stops every run (obs-scenes OS1b C9)', async () => {
   const SCENE = { id: 'S', name: 'Desk', mode: 'manual', obsScene: true };
   const r = folderRig({ folders: [MANUAL, SCENE], cues: [...manualCues, graphic('s1', 'S'), graphic('s2', 'S')] });
   r.session.apply((p) => ({ ...p, folders: { ...p.folders, folderSteps: { M: 'g1', S: 's1' } } }));
   r.fp.stopAll('all-out', new Set(['S']));
   assert.deepEqual(r.folders().folderSteps, { M: null, S: 's1' });
+  // A scene folder's All-together Take still waiting on its server cue: All out stops it, so the
+  // late cue is taken back off and the rest is never sent.
+  const T = { id: 'T', name: 'Break', mode: 'together', obsScene: true };
+  const t = folderRig({ folders: [T], cues: [cue('vt', 'vt', 'T'), cue('bed', 'bed', 'T')] });
+  t.hold();
+  const done = t.fp.take(T);
+  await settle();
+  t.fp.stopAll('all-out', new Set(['T']));
+  t.answer('take vt');
+  await settle();
+  t.answer('out vt');
+  await done;
+  assert.ok(t.log.some((line) => line.startsWith('server out vt')), 'the late cue is cut');
+  assert.ok(!t.log.some((line) => line.startsWith('server take bed')), 'nothing more is sent');
   r.fp.stopAll('all-out');
   assert.deepEqual(r.folders().folderSteps, { M: null, S: null }, 'with the switch off, as before');
 });

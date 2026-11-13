@@ -1045,7 +1045,7 @@ Filled in by each phase's pull request.
   and only a held cue the write itself moved refuses it (C10 amended); a copy's layer is free among
   the graphics and the server's templates, as a new template's is (C4); the on-air guard reads the
   session's air part, not the paced copy the page draws, so a Take that just landed counts; All
-  out leaves a scene folder's run and One-by-one step as they are, not only its graphics (C9); a
+  out leaves a scene folder's One-by-one step where it is, not only its graphics (C9); a
   copy left behind is taken up again only when no cue at all uses it (C5); with the original gone,
   re-adding the library graphic adds it again rather than replacing one scene's copy.
 - Found by the PR review (on 7abb850b), both answered:
@@ -1056,6 +1056,10 @@ Filled in by each phase's pull request.
     no scene into a different scene, and the merge joins them. The save's retry separates the merged
     document against the teammate's saved one before it goes up; a held cue there stays as it is,
     since nobody pressed anything to refuse, and the next write moves it once it is free.
+- Found by the PR review on e89a10ae, answered: All out stops a scene folder's run still being
+  sent, as every folder's (C9 amended). A scene folder can hold server cues, and one landing after
+  All out must be cut and the rest never sent; a scene graphic still landing was not on air, so
+  cutting it keeps "out stays out". Only the One-by-one step is kept.
 - Not changed, with reasons:
   - All out reads the scenes of the record this page holds, not also the published payload's: the
     page holds no published payload, and an edit from another device reaches this page's record
