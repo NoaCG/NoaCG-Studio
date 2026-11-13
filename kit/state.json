@@ -49,24 +49,11 @@
   "waitingOn": [],
   "inFlight": [
     {
-      "phase": "landing-first-study",
-      "session": "session_017SdbwQgqbNGGTrh7UvZjVU",
-      "nonce": "land-study",
-      "launchedAt": "2026-11-12T10:11:15Z"
-    },
-    {
-      "phase": "landing-first-step3-4",
-      "session": "session_017SdbwMUVrHCek1xA5DUQ3Z",
-      "nonce": "land-3/land-4",
-      "launchedAt": "2026-11-12T10:30:01Z",
-      "note": "#2425 landed 7e54120d; #2424 held until step 2c; #2423 parked draft fallback; also traced-map bot re-push fix (owner go 2026-11-12)"
-    },
-    {
-      "phase": "landing-first-c-measure",
-      "session": "session_017SdbwQkNfishXFMcash3PX",
-      "nonce": "land-c-measure",
-      "launchedAt": "2026-11-12T19:06:24Z",
-      "note": "owner go 2026-11-12: would direct-set local tests catch PR failures"
+      "phase": "landing-first-trim-3",
+      "session": "session_017SdbwP19N1Z8CvsquE2yrr",
+      "nonce": "land-trim-3",
+      "launchedAt": "2026-11-13T14:28:46Z",
+      "note": "step 5: #2505 landed 66fd9b12; owner approved C then A 2026-11-13"
     }
   ],
   "owner": [],
@@ -403,6 +390,11 @@
       "at": "2026-11-12T10:10Z",
       "by": "owner miwco",
       "what": "PRIORITY CHANGE: landing work outranks every other goal; a cost ceiling must never block a landing. Steps 1-5 (land #2381/#2379; gate changes a/b/c; full-run vs nightly recommendation with bad-merge window; batching runs per PR; suite reduction target). Verbatim on #1967 comment 6820748031."
+    },
+    {
+      "at": "2026-11-13",
+      "by": "owner",
+      "what": "Suite trim: C (bundled dev mode trial, ~1h) then A (serve built app to e2e suite, 3-5 PRs); B rejected; a-d coverage-dropping waits held"
     }
   ],
   "ownerAlarmSession": "session_017SdbwQfGaKDTYKsFgzGxY6",
