@@ -186,9 +186,11 @@ test("the deployed site's own suite ends up with no backend rather than a word t
   // imports _helpers.ts. It is anonymous and writes nothing, and it says so by unsetting the
   // backend variables for its own process - which this rule then reads as `unconfigured`.
   const config = file('playwright.production.config.ts');
-  assert.match(config, /for \(const name of \[\.\.\.URL_VARS, \.\.\.KEY_VARS\]\) delete process\.env\[name\];/);
-  const after = { ...CLOUD_WORKER };
-  for (const name of [...URL_VARS, ...KEY_VARS]) delete after[name];
+  assert.match(config, /for \(const name of \[\.\.\.URL_VARS, \.\.\.KEY_VARS, DECLARATION\]\) delete process\.env\[name\];/);
+  // The declaration goes with them: "hosted-staging, and no backend URL" is a refusal, not an
+  // absence, and the suite that owns no backend would abort over a project it never touches.
+  const after = { ...CLOUD_WORKER, [DECLARATION]: HOSTED_STAGING };
+  for (const name of [...URL_VARS, ...KEY_VARS, DECLARATION]) delete after[name];
   assert.equal(configuredTarget(after).kind, 'unconfigured');
   // And no word admits a hosted backend except the staging declaration.
   assert.equal(configuredTarget({ ...CLOUD_WORKER, [DECLARATION]: 'deployed-site' }).kind, 'refused');
@@ -500,10 +502,13 @@ test('the suite with no backend still lists under an environment that names one'
   // e2e/configured/ as its directory, so Playwright parses those spec files to resolve its grep
   // and reaches the helper's refusal. Its answer is to hold no backend at all; this is that answer
   // exercised rather than simulated, under the environment that would otherwise stop it.
+  // The declaration is in the environment too: it is what `hosted-latency.yml` exports, and a
+  // shell reproducing that job carries it. Left standing it says "hosted-staging, and no backend
+  // URL", which the rule refuses rather than reading as no backend at all.
   const listed = spawnSync('npx', ['playwright', 'test', '--config', 'playwright.production.config.ts', '--list'], {
     cwd: ROOT,
     encoding: 'utf8',
-    env: { ...process.env, ...CLOUD_WORKER },
+    env: { ...process.env, ...CLOUD_WORKER, [DECLARATION]: HOSTED_STAGING },
     windowsHide: true,
   });
   const output = `${listed.stdout}${listed.stderr}`;

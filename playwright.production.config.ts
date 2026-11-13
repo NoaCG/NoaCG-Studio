@@ -1,6 +1,6 @@
 import { validateCloudWorkerRequest } from './scripts/e2e-workers.mjs';
 import { defineConfig, devices } from '@playwright/test';
-import { KEY_VARS, URL_VARS } from './scripts/configured-target.mjs';
+import { DECLARATION, KEY_VARS, URL_VARS } from './scripts/configured-target.mjs';
 
 // THE DEPLOYED SITE'S OWN SUITE - the tier nothing else in this repository covers.
 //
@@ -36,7 +36,12 @@ import { KEY_VARS, URL_VARS } from './scripts/configured-target.mjs';
 // instead of where its file is parsed, after which these two lines go away. That change touches
 // twenty-four specs - twenty-one build an admin client from the pair and three more write with
 // the key over raw REST - which is why it is its own issue and not this one's.
-for (const name of [...URL_VARS, ...KEY_VARS]) delete process.env[name];
+// THE DECLARATION GOES TOO. Without it, a shell that has declared the staging target - the one
+// `hosted-latency.yml` exports, and anyone reproducing that job - leaves this process saying
+// "hosted-staging, and no backend URL", which the rule refuses rather than reading as no backend.
+// The suite then aborts collecting its own anonymous tests over a declaration about a project it
+// never touches.
+for (const name of [...URL_VARS, ...KEY_VARS, DECLARATION]) delete process.env[name];
 
 const cloudLimits = validateCloudWorkerRequest();
 
