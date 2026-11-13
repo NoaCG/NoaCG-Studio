@@ -42,8 +42,8 @@
  ],
  "inFlight": {
   "phase": 6,
-  "step": "build PR 2488: /so B at cf658d15; fixes local; AC-4 matrix rerun at 3 s edit pace; sync chain issue to be filed by builder",
-  "asOf": "2026-11-13T10:40Z"
+  "step": "check: checker session_017SdbwNCHZ9zSRq66Lyn9V7 nonce 6-c-3476 on 7451fbba; fix-2494 measuring after merge",
+  "asOf": "2026-11-13T16:00Z"
  },
  "owner": [
   {
@@ -247,7 +247,14 @@
   "source": "814f105901f01bdfe1bdadc12afed0cfefa10319",
   "buildBackup": "claude/plan-live-publishing-6-build-wip at e1885e7a1cef033384c0f6498ddaf567116e85f2 (no PR)",
   "design": "f528683c8a950ac935679241be4860d643bf8487 (PR 2469, G3, /so A at c5d09460)",
-  "wip": "claude/plan-live-publishing-6-build-wip at da2a5dfb; PR 2488 at fd1a811d held"
+  "wip": "claude/plan-live-publishing-6-build-wip at da2a5dfb; PR 2488 at fd1a811d held",
+  "landed": "7451fbbacf03a1c763b4e9939b7ed800c8faf5de (PR 2488)",
+  "checker": "session_017SdbwNCHZ9zSRq66Lyn9V7",
+  "followups": [
+   "#2502",
+   "#2494 via PR 2497",
+   "#2499"
+  ]
  },
  "incidents": [
   {
