@@ -154,6 +154,12 @@ export default function LiveDock({
   );
 }
 
+/** M:SS, or H:MM:SS past an hour, as the countdown itself paints it. */
+const leftWords = (s: number) => {
+  const two = (n: number) => String(n).padStart(2, '0');
+  return s >= 3600 ? `${Math.floor(s / 3600)}:${two(Math.floor(s / 60) % 60)}:${two(s % 60)}` : `${Math.floor(s / 60)}:${two(s % 60)}`;
+};
+
 const timeWords = (at: number) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
 /** The break deadline (K7): In 2 min, In 5 min and Set, each a whole time written to the path. */
@@ -191,8 +197,8 @@ function DeadlineSection({ paths, value, write }: { paths: readonly DeadlinePath
           <span className="live-dock-dim" title={path}>{paths[0].graphics.join(', ')}</span>
         )}
       </div>
-      <div className="live-dock-row live-dock-held" data-testid="dock-deadline-value">
-        {held === null ? 'No deadline set' : `Until ${timeWords(held)} · ${left === 0 ? 'reached' : `${Math.floor(left! / 60)}:${String(left! % 60).padStart(2, '0')} left`}`}
+      <div className="live-dock-row live-dock-held" data-testid="dock-deadline-value" data-value={held === null ? undefined : String(value(path))}>
+        {held === null ? 'No deadline set' : `Until ${timeWords(held)} · ${left === 0 ? 'reached' : `${leftWords(left!)} left`}`}
       </div>
       <div className="live-dock-row">
         <button type="button" onClick={() => write(path, deadlineIn(Date.now(), 2))} data-testid="dock-deadline-2">

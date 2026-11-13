@@ -612,6 +612,7 @@ test('OBS scenes: the Live dock at 300 px shows a picked scene with Take and Out
   await expect(deadline.getByTestId('dock-deadline-value')).toHaveText('No deadline set');
   await deadline.getByTestId('dock-deadline-5').click();
   await expect(deadline.getByTestId('dock-deadline-value')).toHaveText(/^Until .* · (5:00|4:5\d) left$/);
+  await expect(deadline.getByTestId('dock-deadline-value')).toHaveAttribute('data-value', /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$/);
   const held = () => deadline.getByTestId('dock-deadline-value').textContent();
   const after5 = await held();
   await deadline.getByTestId('dock-deadline-2').click();
@@ -619,7 +620,7 @@ test('OBS scenes: the Live dock at 300 px shows a picked scene with Take and Out
   expect(await held()).not.toBe(after5);
   await deadline.getByTestId('dock-deadline-time').fill('23:59');
   await deadline.getByTestId('dock-deadline-set').click();
-  await expect(deadline.getByTestId('dock-deadline-value')).toContainText('23:59:00');
+  await expect(deadline.getByTestId('dock-deadline-value')).toHaveAttribute('data-value', /T23:59:00[+-]\d\d:\d\d$/);
 
   // The full page at its own address is the page it always was, and its settings offer the dock.
   await page.setViewportSize({ width: 1440, height: 900 });
