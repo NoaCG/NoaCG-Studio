@@ -86,8 +86,10 @@ if (secretRead) deny(envSecretsRefusal(secretRead));
 if (startsDevServer(command)) {
   deny(
     "Blocked: this starts a dev server on a checkout's port without anything owning it - " +
-      'the e2e suite runs with reuseExistingServer:true and would silently adopt it along with ' +
-      'whatever env it was started with (see e2e/AGENTS.md "Gotchas when writing a spec").\n' +
+      'the offline e2e suite runs with reuseExistingServer:true and would silently adopt it along ' +
+      'with whatever env it was started with, and the configured suite (which starts its own ' +
+      'server since issue #2495) would die on the busy port instead of running (see e2e/AGENTS.md ' +
+      '"Gotchas when writing a spec").\n' +
       'Start it the sanctioned way instead:\n' +
       '  npm run dev:worktree   works in ANY checkout, and is the ONLY thing that works in a ' +
       'linked worktree. It serves the checkout its own file sits in, on that checkout\'s reserved ' +
@@ -312,6 +314,11 @@ if (namedBrowserWork || rememberedAsBrowser(jobsDir(), command)) {
 // 4b. The port check applies to e2e runs only - a sweep starts its own server on the same port
 //     but is not subject to reuseExistingServer's env-pinning trap.
 if (invokesE2e(command)) {
+  // WHICH PORT this run will bind. This knows the configured suite's two spellings and no more:
+  // the endurance and instrument configs bind the live port as well, and are still judged against
+  // the offline one. That is a separate defect with its own issue (#2503) - it is about a busy
+  // PORT, not about which backend a run reaches, and the fix there is to resolve `--config`
+  // positionally and classify the named file by its text rather than to grow this list.
   const live = /\btest:e2e:live\b/.test(command) || /playwright\.live\.config/.test(command);
   // The port belongs to the checkout the run will happen in, not to whoever is asking. An
   // explicit DEV_PORT in the command beats both, because it beats both at runtime too.
@@ -321,9 +328,11 @@ if (invokesE2e(command)) {
     deny(
       `Blocked: something is already listening on port ${port} - the ${live ? 'live' : 'offline'} e2e port ` +
         `of the checkout this command runs in (${targetRoot()}).\n` +
-        'Playwright runs with reuseExistingServer:true, so it would reuse that server with ' +
-        `whatever env it was started with, and the ${live ? 'configured-mode' : 'offline-pinned'} specs ` +
-        'fail confusingly (see e2e/AGENTS.md "Gotchas when writing a spec").\n' +
+        'The offline suite runs with reuseExistingServer:true, so it would adopt that server with ' +
+        'whatever env it was started with and its offline-pinned specs fail confusingly (see ' +
+        'e2e/AGENTS.md "Gotchas when writing a spec"). The configured suite STARTS its own server ' +
+        'since issue #2495, because an adopted one decides where the run writes, so it cannot ' +
+        'start at all while this port is busy.\n' +
         'Stop that server first (preview_stop if it was started with the preview tools), then re-run. ' +
         'If a killed run left it behind, nothing owns it and there is nothing to stop it FROM - ' +
         '`node scripts/e2e-runs.mjs --orphans` says whether that is the case, and `--kill-orphans` ' +

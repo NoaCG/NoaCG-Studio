@@ -31,6 +31,7 @@
 // The verdict: every one of the `--repeat` runs passed, and exactly that many ran. Anything else,
 // including a run cut off by `--minutes`, fails. endurance-output/ keeps the JSON report, the
 // summary and each failure's trace.
+import { isLocalStackUrl, localStackEnv } from './configured-target.mjs';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -148,12 +149,12 @@ async function configuredEnv() {
     throw new Error(`supabase status -o json printed no readable JSON: ${status.stdout.slice(0, 200)}`);
   }
   for (const name of ['API_URL', 'ANON_KEY', 'SERVICE_ROLE_KEY']) if (!stack[name]) throw new Error(`supabase status gave no ${name}`);
-  if (!/^http:\/\/(127\.0\.0\.1|localhost):/.test(stack.API_URL)) throw new Error(`refusing a stack that is not on this machine: ${stack.API_URL}`);
+  if (!isLocalStackUrl(stack.API_URL)) throw new Error(`refusing a stack that is not on this machine: ${stack.API_URL}`);
   const env = {
     ...process.env,
-    VITE_SUPABASE_URL: stack.API_URL,
-    VITE_SUPABASE_ANON_KEY: stack.ANON_KEY,
-    SUPABASE_SERVICE_ROLE_KEY: stack.SERVICE_ROLE_KEY,
+    // Every backend variable, through the one helper: a cloud worker's ambient environment names
+    // production, and whatever a wrapper forgets to pin stays pointed there (issue #2495).
+    ...localStackEnv(stack),
     SUPABASE_DB_URL: stack.DB_URL ?? '',
     E2E_EMAIL: 'e2e-trial@noacg.local',
     E2E_PASSWORD: 'noacg-e2e-local-pw',

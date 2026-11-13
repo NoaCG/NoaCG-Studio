@@ -153,6 +153,16 @@ export default defineConfig({
       NOACG_E2E_SERVER: '1',
       VITE_SUPABASE_URL: '',
       VITE_SUPABASE_ANON_KEY: '',
+      // THE SERVER'S OWN HALF (issue #2495). The two above are the BROWSER's; the api/ handlers
+      // this server mounts prefer these, and Playwright merges webServer.env over the shell
+      // rather than replacing it, so without them a shell that names production hands the
+      // offline suite's own dev server a production backend and an admin key - and
+      // `e2e/admin.spec.ts` calls a handler that reads `system_settings` with it. CI never set
+      // them; a developer's shell does.
+      SUPABASE_URL: '',
+      SUPABASE_ANON_KEY: '',
+      SUPABASE_SECRET_KEY: '',
+      SUPABASE_SERVICE_ROLE_KEY: '',
       VITE_RENDER_API: '1',
       VITE_AI_PROVIDER: '',
       VITE_AI_MODEL: '',
