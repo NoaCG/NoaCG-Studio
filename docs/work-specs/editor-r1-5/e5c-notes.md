@@ -10,8 +10,9 @@ on a feature branch, then the normal merge queue. No adoption or release change.
 This phase qualifies the existing software and prepares E5's local kit. Initial
 classification is evidence-only: no product state rule, dependency, runtime,
 exporter, test-selection, budget or maintained test changes are planned. A newly
-observed defect is reproduced and classified before any proposed repair. The
-exhausted E4 ownership/save/install family stops for owner reassessment.
+observed defect is reproduced and classified before any proposed repair. Any
+confirmed E4-attributable defect stops for owner reassessment; its spent repair
+allowances do not reset.
 
 Use the authored nested SVG and the maintained shared-command cumulative task:
 normal import, manual edits, deterministic semantic/reviewed proposals, fields,
@@ -251,7 +252,7 @@ misses. It must not be reported simply as an unmeasured Cloud result.
 
 No new confirmed release-critical software defect was established by the
 functional journeys; this is not a blanket release-critical-clear declaration.
-The diagnostic misses and unknown causality above remain explicit. No repair was
+The diagnostic misses and unknown causality above remain explicit. No product repair was
 attempted, so no E4/E3 or other phase allowance was reset. A confirmed remaining
 E4-attributable failure still stops for owner reassessment.
 
@@ -571,10 +572,10 @@ in the durable recovery archive, without a new Actions artifact-readback claim. 
 **Read-only prior finite-Out/replay applicability, not whole-app equality.**
 The current payloads have no obsScenes switch/folders. New `sceneMembers` at
 `src/model/obsScenes.ts:48` returns [] with the switch absent; scene snapshot and
-separation therefore have no scene candidates. New ProductionPage:805 registers
-an air-cue reader; lines 3292/3399 supply scene sets only to All out/folder stop.
-The `graphicVerbs.ts:959` individual Out dispatcher still calls unchanged clearOne;
-its only main delta supplies `keep` to All out. FolderPlayout's change affects
+separation therefore have no scene candidates. New `src/components/home/ProductionPage.tsx:805` registers
+an air-cue reader; its lines 3292/3399 supply scene sets only to All out/folder stop.
+The `src/control/graphicVerbs.ts:959` individual Out dispatcher still calls unchanged clearOne;
+its only main delta supplies `keep` to All out. The `src/control/folderPlayout.ts` change affects
 stopAll, not these ordinary individual cues. `poolIdentity` excludes scene copies
 from library replacement, but these ordinary installations contain no sceneCopyOf.
 Team merged-scene separation is not entered by the isolated offline production.
@@ -584,3 +585,17 @@ from j-0138. Thus its finite rendered Out/replay and package lifecycle remain
 applicable to these unscened source/runtime paths. This is source-specific reuse,
 not a new b081 finite-Out execution or evidence for OBS scene dispatch. Fresh final
 CI and the independent merged-source checker still judge their actual coverage.
+
+
+### Final review classification
+
+The initial evidence-only classification describes the original admission. The
+final phase is **Risky qualification tooling**: the Actions-only packaging command
+establishes source/bundle identity and passing, failed, unknown and cleanup
+outcomes, although no editor state rule or product runtime was changed. The
+corrected pre-code Rules-first AGREE/A at
+`6eaae8d4a48a23a6f4b8f15a3c03aa998a851d93` and fresh FULL AGREE/A on all 74 paths
+at `ccbee6a775a189c732819128fd81ea5bdc55605f` cover those review checkpoints.
+The final notes-only clarification still requires its qualified Delta review;
+final-head check, CI/configured selection, Codex review and queue gates remain
+separate actual results, not inferred from that opinion.
