@@ -143,8 +143,8 @@
     },
     {
       "path": "native-kit-smoke.mjs",
-      "bytes": 14385,
-      "sha256": "991f800a52b61607c146df9ee603ad39531c098affdeea175fb3a0c0d70bd32e"
+      "bytes": 14565,
+      "sha256": "ab5559a7533bb3fc94a1023c0a9e71cc42cd1463da460cb465f7d3c5ca016bad"
     },
     {
       "path": "native-local-launch.mjs",
@@ -163,8 +163,8 @@
     },
     {
       "path": "package-native-candidate.mjs",
-      "bytes": 7222,
-      "sha256": "86b641feccea24467a2cad3a557df04a834497996847424527b4156f5ece5d9e"
+      "bytes": 7450,
+      "sha256": "912b6b316719596904078ebfedf823f6ebb1d956f7b9be6fc2aa7f7c733e067d"
     },
     {
       "path": "participant-form.csv",

@@ -1,6 +1,6 @@
 // Run only via the existing endurance Actions carrier; no performance campaign.
 import { spawn, spawnSync, execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync, readdirSync, lstatSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, readdirSync, lstatSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
@@ -9,7 +9,7 @@ import { smokeNativeKit } from './native-kit-smoke.mjs';
 const root = fileURLToPath(new URL('../../../../', import.meta.url));
 const started = Date.now(), deadline = started + 600_000, out = join(root, 'endurance-output/editor-native-kit');
 mkdirSync(out, { recursive: true });
-const receipt = { startedAt: new Date(started).toISOString(), status: 'failed', source: null, retries: 0, skips: 0, capMinutes: 10, cleanup: false };
+const receipt = { startedAt: new Date(started).toISOString(), status: 'failed', source: null, retries: 0, skips: 0, capMinutes: 10, cleanup: null };
 const keep = () => writeFileSync(join(out, 'qualification.json'), JSON.stringify(receipt, null, 2) + '\n');
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const children = new Set();
@@ -60,10 +60,15 @@ try {
   receipt.status = 'passed';
 } catch (error) {
   receipt.error = String(error); process.exitCode = 1;
+  const smokePath = join(out, 'helper-smoke.json');
+  if (existsSync(smokePath)) {
+    const smoke = JSON.parse(readFileSync(smokePath, 'utf8'));
+    if (smoke.source === receipt.source) { receipt.smoke = smoke; receipt.cleanup = smoke.cleanup === true; }
+  }
 } finally {
   for (const child of children) stop(child);
   clearTimeout(timer); receipt.finishedAt = new Date().toISOString(); receipt.elapsedMs = Date.now() - started;
   if (receipt.elapsedMs > 600_000 || receipt.status !== 'passed' || !receipt.cleanup || !receipt.bundle) { receipt.status = 'failed'; process.exitCode = 1; }
-  keep(); if (receipt.status !== 'passed') console.error('Native qualification failure receipt: ' + JSON.stringify(receipt));
+  keep(); console.log('Native qualification receipt: ' + JSON.stringify(receipt));
   console.log(`${receipt.status.toUpperCase()} native candidate packaging/helper smoke; source ${receipt.source}; no performance verdict.`);
 }

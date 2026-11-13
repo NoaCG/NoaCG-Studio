@@ -51,8 +51,8 @@ when its applicable source changes rather than using stale output.
    window so it does not shrink the measured viewport. Ctrl+C stops the owned
    server; identify any surviving owned process before another launch.
 4. Download `/e5-qualification/f4-editable.zip` from that same preview URL. In
-   normal New graphic > Import graphics choose the ZIP, inspect the F4 import
-   card, then Finish > Edit. This uses the existing exporter/importer; it does
+   normal New graphic > Import graphics choose the ZIP, require the import card name **f4 editable** and metadata
+   **1920 × 1080 · 25 fps**, then Finish > Edit. This uses the existing exporter/importer; it does
    not require /src modules in the built app. Wait for Preparing preview to
    disappear and inspect the six-by-five rendered rectangles, Fit artboard and
    timeline. This Console expression must report 300 unique key identities:

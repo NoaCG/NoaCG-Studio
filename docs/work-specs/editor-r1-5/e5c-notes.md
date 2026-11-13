@@ -455,3 +455,54 @@ job log, including completed assertions and cleanup, so a future artifact access
 failure cannot conceal the exception. No added wait/retry, host policy, product,
 performance measurement or check/limit change is involved. A new source-pinned
 artifact admission must preserve this failed attempt and reconcile dispatch first.
+
+
+### Second artifact admission and final bounded correction
+
+[Actions 43429789959](https://github.com/NoaCG/NoaCG-Studio/actions/runs/43429789959)
+at exact `8f8f1384dd5ef50cf87f0ad173dcb5549b67cdc0`, attempt 1, FAILED.
+The unchanged full build passed (5,805 tests, zero failures, 30 existing skips).
+The helper passed ten assertions including offline fake-environment refusal,
+approved 30/300 fixture, wrong-hash and matching-hash/wrong-count nonmutation,
+and missing/stale/altered/extra production bundle refusals. Production preview
+started and the normal importer correctly displayed **f4 editable**,
+**1920 × 1080 · 25 fps**. The helper's case-sensitive `F4` expectation failed.
+The actual helper receipt proves cleanup=true with no cleanup errors; the outer
+receipt's false was its unassigned default after the helper threw, not an
+observed cleanup failure. The original whole log (2,534,532 bytes, SHA-256
+`f4fb6406abaedda4cebf6d25705d0f7910acab41339148066cbfff10480fbb8c`)
+and partial artifact 14039066608 (152,947 bytes, SHA-256
+`f1466f1616b4ba9c5efa6fa4d04ff639166996d712f9bd28b2d34868b184382b`)
+remain retained. No raw artifact contents were read through unavailable transport.
+
+The naming rule predates this phase: `src/model/importTemplate.ts:198` reads an
+HTML title or falls back to `baseName`; line 331 passes the ZIP filename, and
+lines 39–40 replace hyphens/underscores with spaces. The F4 HTML has no title,
+so `f4-editable.zip` imports as exactly `f4 editable`. The corrected helper
+requires that exact strong title and exact authored resolution/frame rate; it
+does not accept an arbitrary card. The kit repeats the same expected result.
+All remaining helper expectations were checked against the UI/runtime source:
+collapsed timeline summary buttons retain all 300 unique key identities,
+original opacity starts at 0.6, and the packaged DOM observer owns the stated
+calibration/download/disposal controls. No product expectation or target changed.
+The final helper receipt binds its source; the outer failure receipt reads that
+same-source cleanup result, and safe full success/failure identities are printed
+to the job log as well as retained in the artifact.
+
+There have been two admitted packaging/helper failures. Only the third and final
+coherent source-pinned artifact admission remains; any further failure stops for
+coordinator reassessment, with no extra allowance or performance campaign.
+
+### Reconciliation with current main
+
+Current main `b2e91ba4a5df23c1cec4a95ea213c9d070b5c7f5` was merged, without conflict, after the second carrier
+terminated. OS1b changes production scene-copy bookkeeping and production
+Take/Out/All-out paths, plus its tests; the automatic release removes
+per-graphic-replacement from the current quarantine. Editor, Canvas, timeline,
+preview/runtime/export, dependency and original F4 fixture inputs did not change.
+Earlier F4/receiving evidence retains its exact tested sources; it is not relabelled
+as a new-source execution. The final artifact will record its actual reconciled
+source/real marker. Only affected Starter-to-rundown functional evidence needs
+renewal on that source; no F4 timing campaign is implied. The final independent
+review must assess this source applicability explicitly. Current quarantine and
+historical exact-E4 quarantine remain distinct records.

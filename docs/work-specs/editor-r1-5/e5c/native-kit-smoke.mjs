@@ -10,7 +10,7 @@ const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 export async function smokeNativeKit({ root, out, source, env, remaining, children, stop }) {
   const launcher = 'docs/work-specs/editor-r1-5/e5c/native-local-launch.mjs';
   const relative = 'docs/work-specs/editor-r1-5/e5c/', fixturePath = 'docs/research/editor-design-review-2026-09-17/f4-noacg.json';
-  const port = devPort(), base = `http://localhost:${port}`, answer = { assertions: [], cleanup: false }, pageErrors = [], externalRequests = [];
+  const port = devPort(), base = `http://localhost:${port}`, answer = { source, assertions: [], cleanup: false }, pageErrors = [], externalRequests = [];
   let server, browserServer, browser, production = false;
   const productionSourceRequests = [];
   const assertion = name => answer.assertions.push(name);
@@ -82,7 +82,8 @@ export async function smokeNativeKit({ root, out, source, env, remaining, childr
     context = await browser.newContext({ viewport: { width: 1366, height: 768 } }); page = await context.newPage(); watch(page);
     await page.route('**/*', route => { const u = new URL(route.request().url()); if (/^https?:/.test(u.protocol) && !/^(127\.0\.0\.1|localhost)$/.test(u.hostname)) return route.abort(); return route.continue(); });
     await page.goto(base + '/app?editor=foundation#/new'); await page.locator('[data-entry="import-graphic"]').click(); await page.locator('.wz-drop input[type="file"]').setInputFiles(join(out, 'f4-editable.zip'));
-    await expect(page.getByTestId('import-template-card')).toContainText('F4'); await page.locator('.wz-next').click(); await page.getByTestId('wz-finish-edit-artwork').click(); await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
+    const card = page.getByTestId('import-template-card');
+    await expect(card.locator('strong')).toHaveText('f4 editable'); await expect(card).toContainText('1920 × 1080 · 25 fps'); await page.locator('.wz-next').click(); await page.getByTestId('wz-finish-edit-artwork').click(); await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
     const builtFrame = await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle()).contentFrame(); await expect(builtFrame.locator('.stress-layer')).toHaveCount(30);
     const keyCount = await page.locator('.ef-timeline-key').evaluateAll(nodes => new Set(nodes.flatMap(n => n.getAttribute('data-keys').split('|'))).size); assert.equal(keyCount, 300);
     const poses = await builtFrame.locator('.stress-layer').evaluateAll(nodes => nodes.map(n => { const r = n.getBoundingClientRect(); return { width: r.width, height: r.height, opacity: Number(getComputedStyle(n).opacity) }; })); assert(poses.every(p => p.width > 0 && p.height > 0 && p.opacity > .05));
@@ -91,7 +92,7 @@ export async function smokeNativeKit({ root, out, source, env, remaining, childr
     const button = page.getByRole('button', { name: 'E5 calibration', exact: true }), color = await button.evaluate(e => e.style.background); await button.click(); assert.notEqual(await button.evaluate(e => e.style.background), color);
     const markers = await page.evaluate(() => ({ trusted: e5Native.rows.some(e => e.isTrusted && e.type === 'pointerup'), calibration: performance.getEntriesByType('mark').some(m => m.name.startsWith('E5_CALIBRATION_')) })); assert.equal(markers.trusted, true); assert.equal(markers.calibration, true);
     const download = page.waitForEvent('download'); await page.evaluate(() => e5Native.download()); await (await download).saveAs(join(out, 'native-events-smoke.json')); await page.evaluate(() => e5Native.dispose()); await expect(button).toHaveCount(0); assertion('documented production observer URL, trusted calibration marks, download and disposal work');
-    assert.deepEqual(pageErrors, []); assert.deepEqual(externalRequests, []); assert.deepEqual(productionSourceRequests, []); answer.fixture = { originalSha256: fixture.sha256, packageSha256: sha(fixtureZip), renderedLayers: 30, uniqueUiKeys: keyCount }; answer.pageErrors = pageErrors; answer.externalRequests = externalRequests; answer.productionSourceRequests = productionSourceRequests;
+    assert.deepEqual(pageErrors, []); assert.deepEqual(externalRequests, []); assert.deepEqual(productionSourceRequests, []); answer.fixture = { originalSha256: fixture.sha256, importedName: 'f4 editable', width: 1920, height: 1080, fps: 25, packageSha256: sha(fixtureZip), renderedLayers: 30, uniqueUiKeys: keyCount }; answer.pageErrors = pageErrors; answer.externalRequests = externalRequests; answer.productionSourceRequests = productionSourceRequests;
     await context.close();
   } catch (error) {
     answer.error = String(error);
