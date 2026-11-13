@@ -460,7 +460,8 @@ export default function App() {
           would unmount before it could be read (the "add to production dumps you in the canvas"
           defect). */}
       <StorageAlertDialog />
-      <AnalyticsConsentBanner />
+      {/* Not over the Live dock: a full-page banner would cover its 300 px column (OS6). */}
+      {route.view !== 'dock' && <AnalyticsConsentBanner />}
       {/* A boot that could not use IndexedDB (blocked, wedged, or absent) says so once,
           honestly - model/durableStore.ts durableStoreHealth. Renders null on the healthy
           path, which is every ordinary browser. */}

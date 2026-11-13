@@ -5,7 +5,8 @@ import type { SourceStatusStore } from '../../control/sheetSource';
 import { TONE_DOT, type ReadyTone } from '../../control/readiness';
 import { deadlineAtLocal, deadlineIn, deadlineOf, type DeadlinePath, type DockScenes } from '../../control/liveDock';
 import { panelTone, type PanelAnswerState } from '../control/PanelControl';
-import { SourceLine, type CurrentMatchControl } from './SourcesLine';
+import { clockText } from '../../control/serverState';
+import { OwnReaderLine, SourceLine, type CurrentMatchControl, type OwnSheetReader } from './SourcesLine';
 import { useNow } from './ClipClock';
 import './LiveDock.css';
 
@@ -29,6 +30,7 @@ export default function LiveDock({
   setShows,
   store,
   currentMatch,
+  ownReaders,
   panel,
   published,
   selected,
@@ -46,6 +48,8 @@ export default function LiveDock({
   setShows: (shows: Show[]) => void;
   store: SourceStatusStore;
   currentMatch: CurrentMatchControl;
+  /** Graphics reading a Sheet in their own code, listed as the data panel lists them. */
+  ownReaders: readonly OwnSheetReader[];
   panel: PanelAnswerState;
   /** Not published, the production has no panel lease (K1). */
   published: boolean;
@@ -96,21 +100,19 @@ export default function LiveDock({
       <div className="live-dock-dim live-dock-selected" title="What Companion's Select, Take and Next keys act on" data-testid="dock-selected">
         Selected: {selected ?? 'nothing'}
       </div>
-      {note && (
-        <p className={`live-dock-note ${note.startsWith('✓') ? 'status-ok' : 'status-bad'}`} data-testid="production-note">
-          {note}
-        </p>
-      )}
       {health && (
         <div className={`live-dock-health live-dock-tone--${health.tone}`} title={health.title} data-testid="dock-health" data-tone={health.tone}>
           <span aria-hidden="true">{TONE_DOT[health.tone]}</span> {health.words}
         </div>
       )}
       <DeadlineSection {...deadline} />
-      {sources.length > 0 && (
+      {sources.length + ownReaders.length > 0 && (
         <section className="live-dock-section" data-testid="dock-sources">
           {sources.map((source) => (
             <SourceLine key={source.id} show={show} setShows={setShows} source={source} store={store} currentMatch={currentMatch} />
+          ))}
+          {ownReaders.map((reader) => (
+            <OwnReaderLine key={reader.graphic} reader={reader} />
           ))}
         </section>
       )}
@@ -150,15 +152,15 @@ export default function LiveDock({
           ))}
         </section>
       )}
+      {/* Last, so a note coming and going moves no control (K5). */}
+      {note && (
+        <p className={`live-dock-note ${note.startsWith('✓') ? 'status-ok' : 'status-bad'}`} data-testid="production-note">
+          {note}
+        </p>
+      )}
     </div>
   );
 }
-
-/** M:SS, or H:MM:SS past an hour, as the countdown itself paints it. */
-const leftWords = (s: number) => {
-  const two = (n: number) => String(n).padStart(2, '0');
-  return s >= 3600 ? `${Math.floor(s / 3600)}:${two(Math.floor(s / 60) % 60)}:${two(s % 60)}` : `${Math.floor(s / 60)}:${two(s % 60)}`;
-};
 
 const timeWords = (at: number) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
@@ -198,7 +200,7 @@ function DeadlineSection({ paths, value, write }: { paths: readonly DeadlinePath
         )}
       </div>
       <div className="live-dock-row live-dock-held" data-testid="dock-deadline-value" data-value={held === null ? undefined : String(value(path))}>
-        {held === null ? 'No deadline set' : `Until ${timeWords(held)} · ${left === 0 ? 'reached' : `${leftWords(left!)} left`}`}
+        {held === null ? 'No deadline set' : `Until ${timeWords(held)} · ${left === 0 ? 'reached' : `${clockText(left!)} left`}`}
       </div>
       <div className="live-dock-row">
         <button type="button" onClick={() => write(path, deadlineIn(Date.now(), 2))} data-testid="dock-deadline-2">

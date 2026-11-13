@@ -585,7 +585,8 @@ test('OBS scenes: the Live dock at 300 px shows a picked scene with Take and Out
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(300);
   await expect(dock.getByTestId('dock-unpublished')).toHaveText('Not published');
   await expect(dock.getByTestId('dock-health')).toContainText('0 of 2 ready');
-  await expect(dock.getByTestId('dock-selected')).toHaveText('Selected: nothing');
+  // What Companion's selection keys act on: the first cue until one is picked (K2).
+  await expect(dock.getByTestId('dock-selected')).toHaveText('Selected: Hairline');
 
   // No OBS event: the picked scene, the first until changed (K3).
   const scenes = dock.getByTestId('dock-scenes');

@@ -4,6 +4,7 @@
 // scripts/live-dock.test.mjs runs it in Node.
 
 import { isSourcePath } from '../model/productionData';
+import { localTimeZone, resolveClockTarget } from './clockTarget';
 import type { ObsPosition } from './obsSceneRows';
 import type { ReadyTone } from './readiness';
 
@@ -107,26 +108,27 @@ export function deadlineIn(now: number, minutes: number): string {
   return deadlineText(at, localOffset(at));
 }
 
-/** "Set": the next time a local HH:MM comes round, today if still ahead, else tomorrow; null for a
- *  value that is not a time of day. */
-export function deadlineAtLocal(hhmm: string, now: number): string | null {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
-  if (!m) return null;
-  const hours = Number(m[1]);
-  const minutes = Number(m[2]);
-  if (hours > 23 || minutes > 59) return null;
-  const at = new Date(now);
-  at.setHours(hours, minutes, 0, 0);
-  if (at.getTime() <= now) at.setDate(at.getDate() + 1);
-  // A wall time the zone skips moves forward with the Date; it is still a time ahead.
-  return deadlineText(at.getTime(), localOffset(at.getTime()));
+/** "Set": the next time a local HH:MM comes round in `zone`, today if still ahead, else tomorrow
+ *  (clockTarget.ts T1); in a repeated hour its next occurrence. Null for a value that is not a time
+ *  of day, or a time the zone skips that day (T4). */
+export function deadlineAtLocal(hhmm: string, now: number, zone: string = localTimeZone()): string | null {
+  const text = hhmm.trim();
+  if (!/^\d{1,2}:\d{2}$/.test(text)) return null;
+  const r = resolveClockTarget({ time: text, zone, fold: 'earlier' }, now);
+  return r.kind === 'resolved' ? `${r.date}T${r.time}:00${r.offset}` : null;
 }
 
 /** A held deadline value read back: its instant, or null for anything that is not a whole ISO date
  *  and time with its offset (the clock reads an `HH:MM` value its own way). */
 export function deadlineOf(value: unknown): number | null {
   if (typeof value !== 'string') return null;
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/.test(value.trim())) return null;
-  const at = Date.parse(value.trim());
+  // The clock's own reading (templates/shared/clock.ts `clockDeadlineAt`): an impossible date or
+  // hour is no deadline there, so it is none here either.
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/.exec(value.trim());
+  if (!m) return null;
+  const [y, mo, d, h, mi, s] = [m[1], m[2], m[3], m[4], m[5], m[6] ?? '0'].map(Number);
+  const days = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+  if (mo < 1 || mo > 12 || d < 1 || d > days || h > 23 || mi > 59 || s > 59) return null;
+  const at = Date.parse(m[0]);
   return Number.isFinite(at) ? at : null;
 }

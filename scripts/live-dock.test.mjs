@@ -92,13 +92,21 @@ test('K7: Set takes the next time the local HH:MM comes round', () => {
   assert.equal(deadlineAtLocal('19:00', now), '2026-11-15T19:00:00+02:00');
   // Across the change to winter time (25 October 2026), the offset is the day's.
   assert.equal(deadlineAtLocal('12:00', Date.UTC(2026, 9, 24, 20, 0, 0)), '2026-10-25T12:00:00+02:00');
+  // The repeated hour that night: its next occurrence, the first while both are ahead.
+  assert.equal(deadlineAtLocal('03:30', Date.UTC(2026, 9, 24, 20, 0, 0)), '2026-10-25T03:30:00+03:00');
+  // The skipped hour of 29 March 2026 has no instant: nothing is written, never an hour later.
+  assert.equal(deadlineAtLocal('03:30', Date.UTC(2026, 2, 28, 20, 0, 0)), null);
+  // Another zone, given: the same HH:MM is that zone's.
+  assert.equal(deadlineAtLocal('19:30', now, 'America/New_York'), '2026-11-14T19:30:00-05:00');
   for (const bad of ['', '24:00', '7', '19:60', '7pm', 'x:10']) assert.equal(deadlineAtLocal(bad, now), null, bad);
 });
 
 test('K7: a held value reads back only as a whole deadline with its offset', () => {
   assert.equal(deadlineOf('2026-11-14T19:00:00+02:00'), Date.UTC(2026, 10, 14, 17));
   assert.equal(deadlineOf('2026-11-14T17:00Z'), Date.UTC(2026, 10, 14, 17));
-  for (const v of ['19:00', '2026-11-14T19:00:00', '', null, 5, '2026-11-14 19:00+02:00']) assert.equal(deadlineOf(v), null, String(v));
+  // As the clock reads it: an impossible date or hour is no deadline.
+  for (const v of ['19:00', '2026-11-14T19:00:00', '', null, 5, '2026-11-14 19:00+02:00', '2026-11-31T19:00:00+02:00', '2026-02-29T10:00Z', '2026-11-14T24:00:00Z', '2026-13-01T10:00Z']) assert.equal(deadlineOf(v), null, String(v));
+  assert.equal(deadlineOf('2028-02-29T10:00Z'), Date.UTC(2028, 1, 29, 10));
 });
 
 test('K7: a path a source writes is never offered', () => {
