@@ -97,7 +97,7 @@ type Msg = { t: string; data?: Record<string, string> };
 type LiveWindow = {
   __noacgLive?: {
     ready: () => { n: number; of: number; v: { n: number; h: string } | null; is: { k: string; g?: string; d?: string }[] };
-    entry: () => { scene?: { id: string; known: boolean; obs?: string; last?: string } };
+    entry: () => { scene?: { id: string; known: boolean; obs?: string; last?: string; seen?: string[] } };
     prepare: (prep: { id: string; n: number; h: string }) => void;
     command: (graphic: string, msg: Msg) => void;
   };
@@ -265,4 +265,55 @@ test('Take and Out of one scene graphic change only its scene link, and a reload
   await expect.poll(() => states(desk.page, ['B1', 'B2']), { timeout: 15_000 }).toEqual(['in', 'in']);
   await game.page.close();
   await desk.page.close();
+});
+
+test('a scene link opened before its production is published draws after Publish and Take, with no refresh (#2474, obs-scenes OS3 M10)', async ({ page }) => {
+  // Open, then publish, then Take: the link stays transparent while nothing resolves, and asks again.
+  let published: unknown = null;
+  await standInBackend(page, () => published);
+  await page.goto('/output?production=scene-probe&scene=scB&debug=1');
+  await expect(page.locator('body')).toHaveAttribute('data-unavailable', 'unpublished', { timeout: 20_000 });
+  await expect(page.getByTestId('output-unavailable')).toBeVisible();
+  expect(await built(page)).toEqual([]);
+  published = production(1, SCENES);
+  await expect.poll(async () => (await readyOf(page))?.n, { timeout: 30_000 }).toBe(2);
+  await expect(page.locator('body')).not.toHaveAttribute('data-unavailable');
+  await expect(page.getByTestId('output-unavailable')).toHaveCount(0);
+  expect(await built(page)).toEqual(['B1', 'B2']);
+  await command(page, 'B1', { t: 'play' });
+  await expect.poll(() => stateOf(page, 'B1')).toBe('in');
+  // The link is called by its scene's name on the operator's panel (OS3 M6).
+  expect(await page.evaluate(() => (window as unknown as { __noacgLive: { entry: () => { name?: string } } }).__noacgLive.entry().name)).toBe('Desk');
+
+  // Publish, then open, then Take: as before.
+  const later = await page.context().newPage();
+  await standInBackend(later, () => published);
+  await later.goto('/output?production=scene-probe&scene=scA');
+  await expect.poll(async () => (await readyOf(later))?.n, { timeout: 20_000 }).toBe(2);
+  await command(later, 'A2', { t: 'play' });
+  await expect.poll(() => stateOf(later, 'A2')).toBe('in');
+  await later.close();
+});
+
+test('a scene link reports every OBS scene it went on program in, a shared source in each (obs-scenes OS3 M5)', async ({ page }) => {
+  await standInBackend(page, () => production(1, SCENES));
+  await page.goto('/output?production=scene-probe&scene=scA');
+  await expect.poll(async () => (await readyOf(page))?.n, { timeout: 20_000 }).toBe(2);
+  const obs = (type: string, detail: Record<string, unknown>) =>
+    page.evaluate(([type, detail]) => window.dispatchEvent(new CustomEvent(type as string, { detail })), [type, detail] as const);
+  // Onto program in Gameplay, in OBS's order.
+  await obs('obsSourceVisibleChanged', { visible: true });
+  await obs('obsSourceActiveChanged', { active: true });
+  await obs('obsSceneChanged', { name: 'Gameplay' });
+  await expect.poll(async () => (await sceneOf(page))?.seen).toEqual(['Gameplay']);
+  // A cut to Replay, which holds the same source (Add Existing): it stays on program, and Replay is
+  // ticked once it has stayed.
+  await obs('obsSceneChanged', { name: 'Replay' });
+  await expect.poll(async () => (await sceneOf(page))?.seen, { timeout: 10_000 }).toEqual(['Gameplay', 'Replay']);
+  // A cut away to Desk: the name, then the source leaves program. Never ticked.
+  await obs('obsSceneChanged', { name: 'Desk' });
+  await obs('obsSourceVisibleChanged', { visible: false });
+  await obs('obsSourceActiveChanged', { active: false });
+  await page.waitForTimeout(6_000);
+  expect(await sceneOf(page)).toEqual({ id: 'scA', known: true, obs: 'hidden', last: 'Replay', seen: ['Gameplay', 'Replay'] });
 });
