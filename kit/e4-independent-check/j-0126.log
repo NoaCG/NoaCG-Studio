@@ -1,0 +1,18 @@
+=== j-0126 npx playwright test --config checker.local/playwright.config.ts --grep "independent lost|independent staged"
+=== cwd /workspace/noacg-editor-r1-5-e4-check
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 14962 MB free (machine totals stand in for cgroup limits it could not read)
+[WebServer] (node:159771) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:159784) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 2 workers
+
+(node:159882) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:159888) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › checker.local/independent.spec.ts:44:1 › independent lost acknowledgement and output-protected inverse keep exact production bytes (6.3s)
+  ✓  2 [chromium] › checker.local/independent.spec.ts:59:1 › independent staged packages paint after interrupted In and Out with new operator data (14.2s)
+
+  2 passed (20.6s)

@@ -1,0 +1,431 @@
+{
+  "source": "5f6c362f6ce22b820e867648ab11dca97c854480",
+  "createdAt": "2026-11-13T11:19:29.999101+00:00",
+  "files": [
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/acceptance-receipt.json",
+      "bytes": 4451,
+      "sha256": "0f5c0cd89149b4885b5b987ae235f1895eaa9e8e43ddb36bdc4930e07bf349e2"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/configured-verdict.log",
+      "bytes": 29411,
+      "sha256": "a5b84a0073bfcc002b4d1cc73c974937f82f55034b3252c864b6a822ac998f5a"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/isolated-whole.log",
+      "bytes": 70337,
+      "sha256": "315704bdb8d05beffc104e76693a90d4e649572e5e923ed5046ac2b04f8b33c0"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/job-131843158225.log",
+      "bytes": 65955,
+      "sha256": "412f0d3d120162947f342230dcebd0d7163ad713b54b5125478902ce68e4c9e4"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/job-131843318914.log",
+      "bytes": 73412,
+      "sha256": "b688adbc95b1fb5255ab0ef8d82da87f8eee718a9110f504b0e50d36b603f712"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/job-131843318979.log",
+      "bytes": 66100,
+      "sha256": "76f74b222a8d96b4139aed219e960663d135168c056ab4e991669e09f2fba2ed"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/job-131843318989.log",
+      "bytes": 57152,
+      "sha256": "a094b4fd5997f49e7059f408d4cc99a150d2ea01869cf98c46cac5a80f37b91b"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/job-131843318994.log",
+      "bytes": 69936,
+      "sha256": "50cd9b11113120372c553804b5cc822615fc64ed4b019a6504a9229324a1e51f"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/job-131843318998.log",
+      "bytes": 80131,
+      "sha256": "5c600b3bdbb5c53ab49cb28599d3e6860fd517a36ad62ad5cc8e776917b3641b"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/job-131843319001.log",
+      "bytes": 68901,
+      "sha256": "b511c272553c34e1e1d96dec08f1f68304ed8a8d7f4e60773923743be0235fe0"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/job-131843319011.log",
+      "bytes": 65059,
+      "sha256": "372fafb5971b0b839fe126cb38b95fd84890d3bf8d724507f9ee6fcd230e9d34"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/job-131843319012.log",
+      "bytes": 61136,
+      "sha256": "5278135fd5536d1f0e1f65a6238cd2165dac1433fdffd3d1c8c95847cc15a791"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/job-131843319038.log",
+      "bytes": 60929,
+      "sha256": "0e3d9f18058fac02cfff006ee504f792c50999fed83c8d7dc7b8b40cd01baee3"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/job-131843319048.log",
+      "bytes": 68905,
+      "sha256": "130b2ba11336853aac704d0350686a759c3bc3bb3881599f44f9f1a3473afeeb"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/job-131843319082.log",
+      "bytes": 76631,
+      "sha256": "c081253976db602d46b88bf40f15d0b1a0822ecb9e0bd8364dcc6674c95044aa"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/job-131843319086.log",
+      "bytes": 62532,
+      "sha256": "5750d8086944e2d0249e84a53b1f9eda4873881ed4d4a5d019604e62b7e4464c"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/job-131843319120.log",
+      "bytes": 58099,
+      "sha256": "77c52d40a245d7c27a802e051e0d59204e577978988172a934b0ecc96e3760e0"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/job-131843319164.log",
+      "bytes": 69175,
+      "sha256": "6a48cd7f1e7f42a9f62759d0b909377ee24b9fc9a1082f3be1e9ac4b9401fbdc"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/job-131843319432.log",
+      "bytes": 75309,
+      "sha256": "b1ebe42bb96e361445652a10b3fee8c5524cdf128dce84754a0ba1db2c096f1b"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/job-131843532009.log",
+      "bytes": 14781,
+      "sha256": "1fb8c8af160ae7acbd370a6d05762b4ec0b501a74901439d943b34d980563e0b"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/job-131849485053.log",
+      "bytes": 35408,
+      "sha256": "6a7050a43c05d0bcc635c6341e57be71c2b44a1c9b928d0c62774e60ff2f8dd6"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/job-131850886769.log",
+      "bytes": 43551,
+      "sha256": "d26edb807887135a8c114c9d87161c2cd11c709636092b43d08382f2faf4f6f6"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/job-131850887464.log",
+      "bytes": 29503,
+      "sha256": "eea5e439c88ccf2a180030aed9dfe450970abd8d05040efcea15f3ad64cfe3b8"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/jobs-43408993923.json",
+      "bytes": 117450,
+      "sha256": "65a9e989c18ce26a7e013c2d2fd253ea09ce1c9b486d51e1f4b107a19b231ee2"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/jobs-43412804437.json",
+      "bytes": 144548,
+      "sha256": "20b8ce47242cd136c6bb89963e0a569696eb40b625262d254337a3e229b69068"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/jobs-43412858383.json",
+      "bytes": 6210,
+      "sha256": "4c58cb5acfc0796e0794f36ca3e4d248c3fb4f923aa09baa307d0bcef08786a1"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/jobs-43412916091.json",
+      "bytes": 32137,
+      "sha256": "8fcf5122a53617bd5a8f15b3e0d19f0442890268ac95968c1c6b3f4266a9190f"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/run-43408993923.json",
+      "bytes": 13503,
+      "sha256": "f122268e130a31f20adb2cfd5cbd95eae2e201f57a1c35acb7c6d03c91ac78cb"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/run-43412804437.json",
+      "bytes": 13469,
+      "sha256": "4dc3d6281bbb21d882972befbb2ecba1eee7bf2e4562c49be8b99f7e2b7fa344"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/run-43412858383.json",
+      "bytes": 13489,
+      "sha256": "ca3c6a64be7c224206b06fbdedc567d9ce041cde8c7a5156ba310810af276671"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/run-43412916091.json",
+      "bytes": 13511,
+      "sha256": "e785716d2830006cc2bb0a0d5bcc87d5156ba6a76d4953320d03ae742b81d3ad"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/terminal-summary.json",
+      "bytes": 11475,
+      "sha256": "fa00bbcc93630cea4327bdd2d5cf0077f5c96a147bb33c80038c93eb6d7360dd"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/.last-run.json",
+      "bytes": 45,
+      "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/bundle-audit.json",
+      "bytes": 2217,
+      "sha256": "54c08dd78b189cba18651a1cc012da6443ce9f2a9c8a211d21d77b4d5752c331"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/casparcg-interruptions.png",
+      "bytes": 25966,
+      "sha256": "4516879ae5ef8921ad1424c314bbe315ef470535baedeb69301531f8f8fc8ac9"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/casparcg-next-row.png",
+      "bytes": 11095,
+      "sha256": "a8d6dd259655eeb23ce06118e95d354398e7ee8b73c79c510fa7169aa7d7b5cf"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/casparcg-paint-state.json",
+      "bytes": 2619,
+      "sha256": "015c560850907f9857b46be2f73baa2a17d035574d46b3b84a5452a4ea8868bf"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/casparcg-replay.png",
+      "bytes": 13776,
+      "sha256": "994ddb37c51f56eea9bf3a56c3c047fcc0724cdde0423346cc0c2c010bde2318"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/casparcg.zip",
+      "bytes": 428999,
+      "sha256": "9196592dbb06f68e34bf390b5685b50d87a610fe69f6262dd50b14f63d78908b"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/exact-merge-applicability.json",
+      "bytes": 5170,
+      "sha256": "93ab940b3f9fdf58f0024e69a2cedd57b7b2cb1a9a31a2ed0dbff4ff65e6d090"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/html-overlay-interruptions.png",
+      "bytes": 25966,
+      "sha256": "4516879ae5ef8921ad1424c314bbe315ef470535baedeb69301531f8f8fc8ac9"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/html-overlay-next-row.png",
+      "bytes": 11095,
+      "sha256": "a8d6dd259655eeb23ce06118e95d354398e7ee8b73c79c510fa7169aa7d7b5cf"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/html-overlay-paint-state.json",
+      "bytes": 2619,
+      "sha256": "015c560850907f9857b46be2f73baa2a17d035574d46b3b84a5452a4ea8868bf"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/html-overlay-replay.png",
+      "bytes": 13776,
+      "sha256": "994ddb37c51f56eea9bf3a56c3c047fcc0724cdde0423346cc0c2c010bde2318"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/html-overlay.zip",
+      "bytes": 461377,
+      "sha256": "9f0d0d886d31f60420eab4429294e0c95f2d03cd22a73d0973195e5faeab8c7b"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/independent-interruptions.json",
+      "bytes": 1404,
+      "sha256": "3d3b211e7564fcaea761a59a7272bfc72f30d93a662b0ff7b83d78c820151852"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/ograf.zip",
+      "bytes": 519509,
+      "sha256": "8241313e6c24012cca455f01d003797ddcaa0305d75672bf96d282dfb8ea9761"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/operator-next-row.png",
+      "bytes": 610,
+      "sha256": "5722bf3064d4084786e957f044836025e73cab003ca4ddbc278c448bd16d46e7"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/operator-rehearsal.png",
+      "bytes": 78628,
+      "sha256": "3762271e15bce4c87d89c77956c17fef090cd294250575f4ca0910e1c1e62f46"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/receiving-checklist.md",
+      "bytes": 4846,
+      "sha256": "2250d7acea25bff15ba37637cdd78e7f09f16d441e82d0f7237df98d627892f8"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/receiving-manifest.json",
+      "bytes": 6862,
+      "sha256": "b7642c3f489aa306870abeef9d23d58665fddc47341b6040d4b18ce27b964763"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/source.json",
+      "bytes": 130205,
+      "sha256": "e393deb93887cf347357e48e993cc46552e3a316b257d14f1b2591142c3cc34b"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/spx-interruptions.png",
+      "bytes": 25966,
+      "sha256": "4516879ae5ef8921ad1424c314bbe315ef470535baedeb69301531f8f8fc8ac9"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/spx-next-row.png",
+      "bytes": 11095,
+      "sha256": "a8d6dd259655eeb23ce06118e95d354398e7ee8b73c79c510fa7169aa7d7b5cf"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/spx-paint-state.json",
+      "bytes": 2619,
+      "sha256": "015c560850907f9857b46be2f73baa2a17d035574d46b3b84a5452a4ea8868bf"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/spx-replay.png",
+      "bytes": 13776,
+      "sha256": "994ddb37c51f56eea9bf3a56c3c047fcc0724cdde0423346cc0c2c010bde2318"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/spx.zip",
+      "bytes": 397324,
+      "sha256": "a13ad8501f12a2b9106719e7e7323558eb9d921c112e73aec09b382bcb711d5e"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/findings-comment.json",
+      "bytes": 197,
+      "sha256": "bb0a6608f1875907698965b22d5fe6cf085fa4c629d40729cb0db541c6ff771a"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/findings-draft.md",
+      "bytes": 12012,
+      "sha256": "391cfcf92c597aa526ea7f7ca36a0918a83f8504f9e770a4676b2e991fc86b47"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/findings-public.md",
+      "bytes": 10559,
+      "sha256": "6aea2f842f027d70be444b09056f8acfd854f8b94ba7a9e4a08ea6f888a38c1b"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/independent-staged-v1.spec.txt",
+      "bytes": 14650,
+      "sha256": "139b2377dcb195ce7bb3b48fea31186d8e0aeb425906f6fbcb87596fdc2dc060"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/independent.spec.ts",
+      "bytes": 14687,
+      "sha256": "bfd8e473ad9a35b5e68db2e0fb986bece242727e301e9a083fa93adf8c3457aa"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/j-0124.log",
+      "bytes": 1004,
+      "sha256": "43a44342e2c0b50f0afa6deb2e7b20c2f637149d7c272250cda440a8a2630ff2"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/j-0125.log",
+      "bytes": 15909,
+      "sha256": "0e1a3ea719e4729855797576006b400bf298e57321bcd6706882481c78f23629"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/j-0126.log",
+      "bytes": 1385,
+      "sha256": "4620b0606b977bc4c82b435309d0b44bbe3845077e2d8a6cad89e5c80a7dd494"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/j-0127.log",
+      "bytes": 1090,
+      "sha256": "f3cce512086e39c342263f42ab5cd1e46874ce84172c9da16a3218df12f642b1"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/j0124-report.json",
+      "bytes": 4063,
+      "sha256": "de51aadb5440ec6afb074f448429bc0ad47467dffbc3a7bf696ce30750b4c975"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/j0124-results/.last-run.json",
+      "bytes": 45,
+      "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/j0124-results/independent-independent-Ni-9ebf0--selected-production-copies-chromium/journey.json",
+      "bytes": 3466789,
+      "sha256": "8866ff6556035ba23286e6ce850ff6b6629017c94249ac2db26c2278575b8c35"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/j0124-results/independent-independent-Ni-9ebf0--selected-production-copies-chromium/night-desk-reopened.png",
+      "bytes": 93900,
+      "sha256": "bba19503f7523cbddd3983712b46118a9aa234085ea74ecc7647414206ec9393"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/j0126-report.json",
+      "bytes": 5231,
+      "sha256": "935312f93f49a61aac3e7ec5a32cdbdf1c9c4989abba31e285d45bc9f3afd029"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/j0126-results/.last-run.json",
+      "bytes": 45,
+      "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/j0126-results/independent-independent-lo-daf2b-keep-exact-production-bytes-chromium/lost-and-output-protected.json",
+      "bytes": 386758,
+      "sha256": "c1dc87a25c30c1553536e07b12419fcd268c42beb60f9504d1fd129b868e1f5d"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/j0126-results/independent-independent-st-1dd17--Out-with-new-operator-data-chromium/casparcg-interruptions.png",
+      "bytes": 25966,
+      "sha256": "4516879ae5ef8921ad1424c314bbe315ef470535baedeb69301531f8f8fc8ac9"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/j0126-results/independent-independent-st-1dd17--Out-with-new-operator-data-chromium/html-overlay-interruptions.png",
+      "bytes": 25966,
+      "sha256": "4516879ae5ef8921ad1424c314bbe315ef470535baedeb69301531f8f8fc8ac9"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/j0126-results/independent-independent-st-1dd17--Out-with-new-operator-data-chromium/independent-interruptions.json",
+      "bytes": 1404,
+      "sha256": "3d3b211e7564fcaea761a59a7272bfc72f30d93a662b0ff7b83d78c820151852"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/j0126-results/independent-independent-st-1dd17--Out-with-new-operator-data-chromium/spx-interruptions.png",
+      "bytes": 25966,
+      "sha256": "4516879ae5ef8921ad1424c314bbe315ef470535baedeb69301531f8f8fc8ac9"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/observed-limitations.json",
+      "bytes": 1573,
+      "sha256": "99e1baf61b2e9dcf3730a2d2ae600b007d4198882e399554b9713ec159fa56c8"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/playwright.config.ts",
+      "bytes": 530,
+      "sha256": "cc9baaa7590cc86c690e515979ef8adbb9c697f12a7cafbb484c3706e74e0617"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/report.json",
+      "bytes": 4111,
+      "sha256": "161452e267a044e11fe80fa7c61c10da8d6c29c3a08e39b0e6dd4d9d4bf62a62"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/results/.last-run.json",
+      "bytes": 45,
+      "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/results/independent-independent-st-1dd17--Out-with-new-operator-data-chromium/casparcg-interruptions.png",
+      "bytes": 25966,
+      "sha256": "4516879ae5ef8921ad1424c314bbe315ef470535baedeb69301531f8f8fc8ac9"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/results/independent-independent-st-1dd17--Out-with-new-operator-data-chromium/html-overlay-interruptions.png",
+      "bytes": 25966,
+      "sha256": "4516879ae5ef8921ad1424c314bbe315ef470535baedeb69301531f8f8fc8ac9"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/results/independent-independent-st-1dd17--Out-with-new-operator-data-chromium/independent-interruptions.json",
+      "bytes": 1404,
+      "sha256": "3d3b211e7564fcaea761a59a7272bfc72f30d93a662b0ff7b83d78c820151852"
+    },
+    {
+      "path": "/workspace/noacg-editor-r1-5-e4-check/checker.local/results/independent-independent-st-1dd17--Out-with-new-operator-data-chromium/spx-interruptions.png",
+      "bytes": 25966,
+      "sha256": "4516879ae5ef8921ad1424c314bbe315ef470535baedeb69301531f8f8fc8ac9"
+    }
+  ]
+}

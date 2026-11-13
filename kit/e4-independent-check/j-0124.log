@@ -1,0 +1,15 @@
+=== j-0124 npx playwright test --config checker.local/playwright.config.ts
+=== cwd /workspace/noacg-editor-r1-5-e4-check
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 14963 MB free (machine totals stand in for cgroup limits it could not read)
+[WebServer] (node:156017) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:156030) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:156135) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › checker.local/independent.spec.ts:4:1 › independent Night desk starter brand ownership and two selected production copies (11.2s)
+
+  1 passed (17.3s)

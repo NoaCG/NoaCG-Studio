@@ -1,0 +1,466 @@
+[
+  {
+    "run": 43408993923,
+    "sha": "5f6c362f6ce22b820e867648ab11dca97c854480",
+    "event": "merge_group",
+    "status": "completed",
+    "conclusion": "success",
+    "attempt": 1,
+    "jobCount": 29,
+    "jobs": [
+      {
+        "id": 131830369647,
+        "name": "Reviewed",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131830369927,
+        "name": "Build",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131830370024,
+        "name": "E2E plan",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131830370071,
+        "name": "Factory gates",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131830372273,
+        "name": "Vercel accepted the commit",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "id": 131830513379,
+        "name": "Catalog calibration gate",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131830513640,
+        "name": "E2E 12/15 (subset)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131830513648,
+        "name": "E2E 5/15 (subset)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131830513665,
+        "name": "E2E 10/15 (subset)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131830513681,
+        "name": "E2E 1/15 (subset)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131830513683,
+        "name": "E2E 4/15 (subset)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131830513698,
+        "name": "E2E 8/15 (subset)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131830513700,
+        "name": "E2E 7/15 (subset)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131830513712,
+        "name": "E2E 2/15 (subset)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131830513718,
+        "name": "E2E 6/15 (subset)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131830513741,
+        "name": "E2E 14/15 (subset)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131830513758,
+        "name": "E2E 11/15 (subset)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131830513764,
+        "name": "E2E 15/15 (subset)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131830513784,
+        "name": "E2E 3/15 (subset)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131830513796,
+        "name": "E2E 13/15 (subset)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131830514047,
+        "name": "E2E 9/15 (subset)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131830515116,
+        "name": "Configured E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (selected, local Supabase)",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "id": 131830515485,
+        "name": "Guided mod (Claude Code ${{ matrix.claude-code }})",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "id": 131830516370,
+        "name": "Configured E2E verdict (selected)",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "id": 131834351052,
+        "name": "Re-run (failed Build or Factory job, same commit)",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "id": 131837080129,
+        "name": "Combined E2E report",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131837081101,
+        "name": "CI gate",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131837082067,
+        "name": "E2E retry (failed specs, same commit)",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "id": 131837175863,
+        "name": "After the gate",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ]
+  },
+  {
+    "run": 43412804437,
+    "sha": "5f6c362f6ce22b820e867648ab11dca97c854480",
+    "event": "workflow_dispatch",
+    "status": "completed",
+    "conclusion": "success",
+    "attempt": 1,
+    "jobCount": 33,
+    "jobs": [
+      {
+        "id": 131843157935,
+        "name": "Factory gates",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843158163,
+        "name": "Build",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843158225,
+        "name": "E2E plan",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843159487,
+        "name": "Reviewed",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "id": 131843159824,
+        "name": "Vercel accepted the commit",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "id": 131843318707,
+        "name": "Catalog calibration gate",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843318749,
+        "name": "Guided mod (Claude Code 2.1.295)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843318774,
+        "name": "Guided mod (Claude Code 2.1.287)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843318843,
+        "name": "Configured E2E 4/4 (selected, local Supabase)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843318860,
+        "name": "Configured E2E 1/4 (selected, local Supabase)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843318914,
+        "name": "E2E 7/15 (full)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843318979,
+        "name": "E2E 1/15 (full)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843318989,
+        "name": "E2E 2/15 (full)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843318994,
+        "name": "E2E 15/15 (full)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843318998,
+        "name": "E2E 4/15 (full)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843319001,
+        "name": "E2E 12/15 (full)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843319011,
+        "name": "E2E 8/15 (full)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843319012,
+        "name": "E2E 3/15 (full)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843319038,
+        "name": "E2E 5/15 (full)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843319048,
+        "name": "E2E 13/15 (full)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843319066,
+        "name": "Configured E2E 2/4 (selected, local Supabase)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843319082,
+        "name": "E2E 10/15 (full)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843319086,
+        "name": "E2E 6/15 (full)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843319120,
+        "name": "E2E 11/15 (full)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843319164,
+        "name": "E2E 14/15 (full)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843319203,
+        "name": "Configured E2E 3/4 (selected, local Supabase)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843319432,
+        "name": "E2E 9/15 (full)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131847290503,
+        "name": "Re-run (failed Build or Factory job, same commit)",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "id": 131849485053,
+        "name": "Configured E2E verdict (selected)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131850886769,
+        "name": "Combined E2E report",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131850887464,
+        "name": "CI gate",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131850889442,
+        "name": "E2E retry (failed specs, same commit)",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "id": 131850975027,
+        "name": "After the gate",
+        "status": "completed",
+        "conclusion": "skipped"
+      }
+    ]
+  },
+  {
+    "run": 43412858383,
+    "sha": "5f6c362f6ce22b820e867648ab11dca97c854480",
+    "event": "workflow_dispatch",
+    "status": "completed",
+    "conclusion": "success",
+    "attempt": 1,
+    "jobCount": 1,
+    "jobs": [
+      {
+        "id": 131843329059,
+        "name": "qualify:editor-projects for 5 min",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ]
+  },
+  {
+    "run": 43412916091,
+    "sha": "5f6c362f6ce22b820e867648ab11dca97c854480",
+    "event": "workflow_dispatch",
+    "status": "completed",
+    "conclusion": "success",
+    "attempt": 1,
+    "jobCount": 7,
+    "jobs": [
+      {
+        "id": 131843532009,
+        "name": "Configured shard plan",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843625050,
+        "name": "Configured E2E shard 1/4",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843625083,
+        "name": "Configured E2E shard 2/4",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843625138,
+        "name": "Configured E2E shard 3/4",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131843625154,
+        "name": "Configured E2E shard 4/4",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131850202545,
+        "name": "Configured E2E (authenticated, local Supabase)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 131850440319,
+        "name": "Configured quarantine",
+        "status": "completed",
+        "conclusion": "skipped"
+      }
+    ]
+  }
+]

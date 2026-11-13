@@ -1,0 +1,72 @@
+{
+  "source": "5f6c362f6ce22b820e867648ab11dca97c854480",
+  "gsapVersion": "3.15.0",
+  "gsapSha256": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb",
+  "cliVersion": "0.12.4",
+  "cliNotice": "runtime excluded, no CLI/dependency diff introduced by E4",
+  "packages": [
+    {
+      "target": "spx",
+      "gsapSameRawBytes": true,
+      "gsapNoticeRetained": true,
+      "standaloneGsap": [
+        "e4_receiving_steps/js/gsap.min.js"
+      ],
+      "fontFiles": [
+        "e4_receiving_steps/fonts/saira.woff2",
+        "e4_receiving_steps/fonts/saira-latin-ext.woff2",
+        "e4_receiving_steps/fonts/oswald.woff2",
+        "e4_receiving_steps/fonts/oswald-latin-ext.woff2"
+      ],
+      "fontNoticeFiles": [
+        "e4_receiving_steps/fonts/FONT_LICENSES.md"
+      ],
+      "selfContainedFontCount": 0,
+      "logoBytesRetained": true,
+      "fontLicenceNoticeRetained": true
+    },
+    {
+      "target": "ograf",
+      "gsapSameRawBytes": true,
+      "gsapNoticeRetained": true,
+      "standaloneGsap": [
+        "e4_receiving_steps/lib/gsap.min.js"
+      ],
+      "fontFiles": [
+        "e4_receiving_steps/fonts/saira.woff2",
+        "e4_receiving_steps/fonts/saira-latin-ext.woff2",
+        "e4_receiving_steps/fonts/oswald.woff2",
+        "e4_receiving_steps/fonts/oswald-latin-ext.woff2"
+      ],
+      "fontNoticeFiles": [
+        "e4_receiving_steps/fonts/FONT_LICENSES.md"
+      ],
+      "selfContainedFontCount": 0,
+      "logoBytesRetained": true,
+      "fontLicenceNoticeRetained": true
+    },
+    {
+      "target": "casparcg",
+      "gsapSameRawBytes": true,
+      "gsapNoticeRetained": true,
+      "standaloneGsap": [],
+      "fontFiles": [],
+      "fontNoticeFiles": [],
+      "selfContainedFontCount": 4,
+      "logoBytesRetained": true,
+      "fontLicenceNoticeRetained": true
+    },
+    {
+      "target": "html-overlay",
+      "gsapSameRawBytes": true,
+      "gsapNoticeRetained": true,
+      "standaloneGsap": [],
+      "fontFiles": [],
+      "fontNoticeFiles": [],
+      "selfContainedFontCount": 4,
+      "logoBytesRetained": true,
+      "fontLicenceNoticeRetained": true
+    }
+  ],
+  "limits": "Technical artifact inventory only; written GSAP disposition remains OW1."
+}

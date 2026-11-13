@@ -1,0 +1,205 @@
+{
+  "mergeSha": "5f6c362f6ce22b820e867648ab11dca97c854480",
+  "jobs": [
+    "j-0125",
+    "j-0127"
+  ],
+  "sourceDifferences": [
+    "js",
+    "brandApplication.lookId"
+  ],
+  "sourceOtherwiseEqual": true,
+  "assetsAndFieldsEqual": true,
+  "runtimeDifference": {
+    "file": "src/templates/shared/stageFit.ts",
+    "commit": "91b3a4123",
+    "change": "stageIsFigure/stageRowCount/oneRowFigure numeric text-fit correction incorporated from main"
+  },
+  "packages": [
+    {
+      "target": "spx",
+      "currentZipSha256": "a13ad8501f12a2b9106719e7e7323558eb9d921c112e73aec09b382bcb711d5e",
+      "oldZipHashMatchesManifest": true,
+      "fileCount": 15,
+      "sameNames": true,
+      "changedEntries": [
+        "e4_receiving_steps/js/template.js"
+      ],
+      "runtime": {
+        "optionalRelay": "404; standalone static server",
+        "data": "Harbour bulletin",
+        "states": [
+          1,
+          2,
+          "off",
+          1
+        ],
+        "assets": {
+          "font": "Oswald, \"Arial Narrow\", Arial, sans-serif",
+          "logo": 32,
+          "rect": {
+            "x": 153,
+            "y": 483.5,
+            "width": 216.203125,
+            "height": 25
+          }
+        },
+        "missing": [],
+        "painted": {
+          "count": 4400,
+          "box": {
+            "minX": 120,
+            "minY": 372,
+            "maxX": 216,
+            "maxY": 707,
+            "width": 97,
+            "height": 336
+          }
+        },
+        "paintedNext": {
+          "count": 1786,
+          "box": {
+            "minX": 54,
+            "minY": 9,
+            "maxX": 366,
+            "maxY": 34,
+            "width": 313,
+            "height": 26
+          }
+        }
+      }
+    },
+    {
+      "target": "html-overlay",
+      "currentZipSha256": "9f0d0d886d31f60420eab4429294e0c95f2d03cd22a73d0973195e5faeab8c7b",
+      "oldZipHashMatchesManifest": true,
+      "fileCount": 11,
+      "sameNames": true,
+      "changedEntries": [
+        "e4_receiving_steps/e4_receiving_steps.html"
+      ],
+      "runtime": {
+        "optionalRelay": "404; standalone static server",
+        "data": "Harbour bulletin",
+        "states": [
+          1,
+          2,
+          "off",
+          1
+        ],
+        "assets": {
+          "font": "Oswald, \"Arial Narrow\", Arial, sans-serif",
+          "logo": 32,
+          "rect": {
+            "x": 153,
+            "y": 483.5,
+            "width": 216.203125,
+            "height": 25
+          }
+        },
+        "missing": [],
+        "painted": {
+          "count": 4400,
+          "box": {
+            "minX": 120,
+            "minY": 372,
+            "maxX": 216,
+            "maxY": 707,
+            "width": 97,
+            "height": 336
+          }
+        },
+        "paintedNext": {
+          "count": 1786,
+          "box": {
+            "minX": 54,
+            "minY": 9,
+            "maxX": 366,
+            "maxY": 34,
+            "width": 313,
+            "height": 26
+          }
+        }
+      }
+    },
+    {
+      "target": "casparcg",
+      "currentZipSha256": "9196592dbb06f68e34bf390b5685b50d87a610fe69f6262dd50b14f63d78908b",
+      "oldZipHashMatchesManifest": true,
+      "fileCount": 5,
+      "sameNames": true,
+      "changedEntries": [
+        "e4_receiving_steps/e4_receiving_steps.html"
+      ],
+      "runtime": {
+        "optionalRelay": "404; standalone static server",
+        "data": "Harbour bulletin",
+        "states": [
+          1,
+          2,
+          "off",
+          1
+        ],
+        "assets": {
+          "font": "Oswald, \"Arial Narrow\", Arial, sans-serif",
+          "logo": 32,
+          "rect": {
+            "x": 153,
+            "y": 483.5,
+            "width": 216.203125,
+            "height": 25
+          }
+        },
+        "missing": [],
+        "painted": {
+          "count": 4400,
+          "box": {
+            "minX": 120,
+            "minY": 372,
+            "maxX": 216,
+            "maxY": 707,
+            "width": 97,
+            "height": 336
+          }
+        },
+        "paintedNext": {
+          "count": 1786,
+          "box": {
+            "minX": 54,
+            "minY": 9,
+            "maxX": 366,
+            "maxY": 34,
+            "width": 313,
+            "height": 26
+          }
+        }
+      }
+    },
+    {
+      "target": "ograf",
+      "currentZipSha256": "8241313e6c24012cca455f01d003797ddcaa0305d75672bf96d282dfb8ea9761",
+      "oldZipHashMatchesManifest": true,
+      "fileCount": 12,
+      "sameNames": true,
+      "changedEntries": [
+        "e4_receiving_steps/graphic.mjs"
+      ],
+      "runtime": null
+    }
+  ],
+  "actualPaintOpened": [
+    "operator-rehearsal.png",
+    "operator-next-row.png",
+    "casparcg-replay.png",
+    "spx-replay.png",
+    "html-overlay-replay.png",
+    "casparcg-interruptions.png",
+    "spx-interruptions.png",
+    "html-overlay-interruptions.png"
+  ],
+  "limits": [
+    "Cloud browser rehearsal only; no named receiving host/operator or native 125% or participant acceptance",
+    "OGraf package/schema/assets only, no real OGraf renderer acceptance",
+    "White screenshot background is transparent standalone composition on default receiver page"
+  ]
+}

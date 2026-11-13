@@ -1,0 +1,15 @@
+=== j-0127 E4_RECEIVING_DIR=checker.local/exact-merge-receiving npx playwright test --config checker.local/playwright.config.ts --grep "independent staged"
+=== cwd /workspace/noacg-editor-r1-5-e4-check
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 14865 MB free (machine totals stand in for cgroup limits it could not read)
+[WebServer] (node:160348) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:160361) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:160456) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › checker.local/independent.spec.ts:59:1 › independent staged packages paint after interrupted In and Out with new operator data (14.2s)
+
+  1 passed (19.3s)

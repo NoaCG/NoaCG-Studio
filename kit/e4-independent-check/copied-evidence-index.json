@@ -1,0 +1,126 @@
+{
+  "mergeSha": "5f6c362f6ce22b820e867648ab11dca97c854480",
+  "files": [
+    {
+      "source": "/workspace/noacg-editor-r1-5-e4-check/checker.local/acceptance-receipt.json",
+      "saved": "e4-independent-check/acceptance-receipt.json",
+      "sha256": "0f5c0cd89149b4885b5b987ae235f1895eaa9e8e43ddb36bdc4930e07bf349e2",
+      "bytes": 4451
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e4-check/checker.local/evidence-files.json",
+      "saved": "e4-independent-check/evidence-files.json",
+      "sha256": "8ab14ded6c65384cabdbd1834bb9e8a16543f1e5c63b83477013ee44d67f4362",
+      "bytes": 19521
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e4-check/checker.local/findings-draft.md",
+      "saved": "e4-independent-check/findings-draft.md",
+      "sha256": "391cfcf92c597aa526ea7f7ca36a0918a83f8504f9e770a4676b2e991fc86b47",
+      "bytes": 12012
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e4-check/checker.local/findings-public.md",
+      "saved": "e4-independent-check/findings-public.md",
+      "sha256": "6aea2f842f027d70be444b09056f8acfd854f8b94ba7a9e4a08ea6f888a38c1b",
+      "bytes": 10559
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e4-check/checker.local/findings-comment.json",
+      "saved": "e4-independent-check/findings-comment.json",
+      "sha256": "bb0a6608f1875907698965b22d5fe6cf085fa4c629d40729cb0db541c6ff771a",
+      "bytes": 197
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e4-check/checker.local/independent.spec.ts",
+      "saved": "e4-independent-check/independent.spec.ts",
+      "sha256": "bfd8e473ad9a35b5e68db2e0fb986bece242727e301e9a083fa93adf8c3457aa",
+      "bytes": 14687
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e4-check/checker.local/playwright.config.ts",
+      "saved": "e4-independent-check/playwright.config.ts",
+      "sha256": "cc9baaa7590cc86c690e515979ef8adbb9c697f12a7cafbb484c3706e74e0617",
+      "bytes": 530
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e4-check/checker.local/j-0124.log",
+      "saved": "e4-independent-check/j-0124.log",
+      "sha256": "43a44342e2c0b50f0afa6deb2e7b20c2f637149d7c272250cda440a8a2630ff2",
+      "bytes": 1004
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e4-check/checker.local/j-0125.log",
+      "saved": "e4-independent-check/j-0125.log",
+      "sha256": "0e1a3ea719e4729855797576006b400bf298e57321bcd6706882481c78f23629",
+      "bytes": 15909
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e4-check/checker.local/j-0126.log",
+      "saved": "e4-independent-check/j-0126.log",
+      "sha256": "4620b0606b977bc4c82b435309d0b44bbe3845077e2d8a6cad89e5c80a7dd494",
+      "bytes": 1385
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e4-check/checker.local/j-0127.log",
+      "saved": "e4-independent-check/j-0127.log",
+      "sha256": "f3cce512086e39c342263f42ab5cd1e46874ce84172c9da16a3218df12f642b1",
+      "bytes": 1090
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/terminal-summary.json",
+      "saved": "e4-independent-check/actions--terminal-summary.json",
+      "sha256": "fa00bbcc93630cea4327bdd2d5cf0077f5c96a147bb33c80038c93eb6d7360dd",
+      "bytes": 11475
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e4-check/checker.local/actions/isolated-whole.log",
+      "saved": "e4-independent-check/actions--isolated-whole.log",
+      "sha256": "315704bdb8d05beffc104e76693a90d4e649572e5e923ed5046ac2b04f8b33c0",
+      "bytes": 70337
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/source.json",
+      "saved": "e4-independent-check/exact-merge-receiving--source.json",
+      "sha256": "e393deb93887cf347357e48e993cc46552e3a316b257d14f1b2591142c3cc34b",
+      "bytes": 130205
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/receiving-manifest.json",
+      "saved": "e4-independent-check/exact-merge-receiving--receiving-manifest.json",
+      "sha256": "b7642c3f489aa306870abeef9d23d58665fddc47341b6040d4b18ce27b964763",
+      "bytes": 6862
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/exact-merge-applicability.json",
+      "saved": "e4-independent-check/exact-merge-receiving--exact-merge-applicability.json",
+      "sha256": "93ab940b3f9fdf58f0024e69a2cedd57b7b2cb1a9a31a2ed0dbff4ff65e6d090",
+      "bytes": 5170
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/bundle-audit.json",
+      "saved": "e4-independent-check/exact-merge-receiving--bundle-audit.json",
+      "sha256": "54c08dd78b189cba18651a1cc012da6443ce9f2a9c8a211d21d77b4d5752c331",
+      "bytes": 2217
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/receiving-checklist.md",
+      "saved": "e4-independent-check/exact-merge-receiving--receiving-checklist.md",
+      "sha256": "2250d7acea25bff15ba37637cdd78e7f09f16d441e82d0f7237df98d627892f8",
+      "bytes": 4846
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/independent-interruptions.json",
+      "saved": "e4-independent-check/exact-merge-receiving--independent-interruptions.json",
+      "sha256": "3d3b211e7564fcaea761a59a7272bfc72f30d93a662b0ff7b83d78c820151852",
+      "bytes": 1404
+    },
+    {
+      "source": "/workspace/noacg-editor-r1-5-e4-check/checker.local/exact-merge-receiving/casparcg-paint-state.json",
+      "saved": "e4-independent-check/exact-merge-receiving--casparcg-paint-state.json",
+      "sha256": "015c560850907f9857b46be2f73baa2a17d035574d46b3b84a5452a4ea8868bf",
+      "bytes": 2619
+    }
+  ],
+  "limits": "Only bounded text copies in recoverykit. All85hashchecked wholelogs/rawJSON/binaries remainowned checkerworktree, immutableActionsrun+artifactrefs in findings. No failedsnapshot removed."
+}

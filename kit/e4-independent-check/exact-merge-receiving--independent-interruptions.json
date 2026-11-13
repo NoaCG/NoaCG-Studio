@@ -1,0 +1,56 @@
+[
+  {
+    "target": "casparcg",
+    "interrupted": {
+      "groups": {
+        "main": "enter"
+      }
+    },
+    "outInterruption": {
+      "groups": {
+        "main": "off"
+      }
+    },
+    "assets": {
+      "font": "Oswald, \"Arial Narrow\", Arial, sans-serif",
+      "logo": 32
+    },
+    "capture": "/workspace/noacg-editor-r1-5-e4-check/checker.local/results/independent-independent-st-1dd17--Out-with-new-operator-data-chromium/casparcg-interruptions.png"
+  },
+  {
+    "target": "spx",
+    "interrupted": {
+      "groups": {
+        "main": "enter"
+      }
+    },
+    "outInterruption": {
+      "groups": {
+        "main": "off"
+      }
+    },
+    "assets": {
+      "font": "Oswald, \"Arial Narrow\", Arial, sans-serif",
+      "logo": 32
+    },
+    "capture": "/workspace/noacg-editor-r1-5-e4-check/checker.local/results/independent-independent-st-1dd17--Out-with-new-operator-data-chromium/spx-interruptions.png"
+  },
+  {
+    "target": "html-overlay",
+    "interrupted": {
+      "groups": {
+        "main": "enter"
+      }
+    },
+    "outInterruption": {
+      "groups": {
+        "main": "off"
+      }
+    },
+    "assets": {
+      "font": "Oswald, \"Arial Narrow\", Arial, sans-serif",
+      "logo": 32
+    },
+    "capture": "/workspace/noacg-editor-r1-5-e4-check/checker.local/results/independent-independent-st-1dd17--Out-with-new-operator-data-chromium/html-overlay-interruptions.png"
+  }
+]
