@@ -49,8 +49,8 @@ test('All out clears a graphic the server says is on that this page holds no cue
   // could send it. This page's list never hears of it.
   const playBare = () =>
     page.evaluate(async (id) => {
-      const { loadShows } = await import('/src/model/shows.ts');
-      const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
+      const { sendControlVerb } = await __noacgImport('/src/control/hostedControl.ts');
       const show = loadShows().find((s) => s.id === id)!;
       const name = show.graphics[0].name;
       await sendControlVerb({ slug: show.hostedSlug!, showId: show.id, items: [{ graphic: name, msg: { t: 'play' } }] });

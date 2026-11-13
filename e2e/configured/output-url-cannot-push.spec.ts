@@ -87,7 +87,7 @@ test('an output URL can render the show and cannot push a command onto it', asyn
   await expect(links).toBeHidden();
 
   const slugs = await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.name === name);
     return { hosted: s?.hostedSlug ?? null, output: s?.outputSlug ?? null };
   }, showName);
@@ -130,7 +130,7 @@ test('an output URL can render the show and cannot push a command onto it', asyn
 
   const push = await attacker.evaluate(
     async ({ outputSlug, url, key }) => {
-      const { getSupabase } = await import('/src/backend/supabase.ts');
+      const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
       const sb = await getSupabase();
       if (!sb) return { error: 'no backend client in the attacking page' };
       // Everything the output capability answers - the show id and the payload, so the forged
@@ -240,7 +240,7 @@ test('an output URL can render the show and cannot push a command onto it', asyn
   // attack. Every forged command carries an `oid` beginning `forged-`, and the honest question is
   // whether any of them is in the log.
   const forged = await attacker.evaluate(async (outputSlug) => {
-    const { getSupabase } = await import('/src/backend/supabase.ts');
+    const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
     const sb = await getSupabase();
     const tail = await sb!.rpc('control_output_tail', { p_output_slug: outputSlug, p_after: 0 });
     const rows = (tail.data ?? []) as { id: number; msg: { t?: string; oid?: string } }[];

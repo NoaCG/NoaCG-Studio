@@ -48,13 +48,13 @@ test('an exported graphic loaded after the take airs it, from the real log', asy
   await signIn(page);
   await page.keyboard.press('Escape');
   await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
-    const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+    const { loadShows, deleteShow } = await __noacgImport('/src/model/shows.ts');
+    const { unpublishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
     for (const s of loadShows()) {
       if (s.hostedSlug || s.outputSlug) await unpublishControlShow(s.id).catch(() => {});
       deleteShow(s.id);
     }
-    const { syncNow } = await import('/src/backend/syncController.ts');
+    const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
     await syncNow();
   });
   await bootstrapGraphic(page, { name: 'House Scorebug' });
@@ -72,8 +72,8 @@ test('an exported graphic loaded after the take airs it, from the real log', asy
   // is really talking to - all read from the app rather than from env, so the spec cannot address
   // a different stack than the one the take lands in.
   const wire = await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { loadBackendConfig } = await import('/src/backend/config.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { loadBackendConfig } = await __noacgImport('/src/backend/config.ts');
     const show = loadShows().find((s) => s.name === name);
     const cfg = loadBackendConfig();
     return {
@@ -95,7 +95,7 @@ test('an exported graphic loaded after the take airs it, from the real log', asy
     .poll(
       async () =>
         page.evaluate(async (slug) => {
-          const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
+          const { controlShowBySlug } = await __noacgImport('/src/control/hostedControl.ts');
           const answer = await controlShowBySlug(slug!);
           const show = answer.ok ? answer.value : null;
           return Object.keys(show?.liveCue ?? {}).length;
@@ -125,7 +125,7 @@ test('an exported graphic loaded after the take airs it, from the real log', asy
   // ── Only NOW does the graphic load. Everything it must show is already history. ──
   const block = await page.evaluate(
     async ({ key, slug, graphic }) => {
-      const { hostedReceiverBlock } = await import('/src/control/hostedReceiver.ts');
+      const { hostedReceiverBlock } = await __noacgImport('/src/control/hostedReceiver.ts');
       return hostedReceiverBlock({ ref: 'localstack', key, slug: slug!, graphic: graphic! });
     },
     { key: wire.key, slug: wire.slug, graphic: wire.graphic },
@@ -198,7 +198,7 @@ test('an exported graphic loaded after the take airs it, from the real log', asy
   await unpublishForCleanup(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
+    const { loadShows, deleteShow } = await __noacgImport('/src/model/shows.ts');
     for (const s of loadShows()) deleteShow(s.id);
   });
   await wipeMyGraphics(page);

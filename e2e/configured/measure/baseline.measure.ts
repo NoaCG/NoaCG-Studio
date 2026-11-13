@@ -250,12 +250,12 @@ test('takes-a', async ({ page, browser }) => {
   log('built', fx.graphics, fx.storedOutputBytes);
   // Read through the development modules before any switch to the bundled build.
   const plainLabels = await page.evaluate(async ({ id, cues }) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === id)!;
     return cues.map((c) => s.cues!.find((x) => x.id === c)!.label);
   }, { id: fx.showId, cues: fx.cues.plain });
   const labels = await page.evaluate(async ({ id, cues }) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === id)!;
     return Object.fromEntries(cues.map((c) => [c, s.cues!.find((x) => x.id === c)!.label]));
   }, { id: fx.showId, cues: [fx.cues.picture, fx.cues.server] });
@@ -453,7 +453,7 @@ test('render', async ({ page, browser }) => {
   await healthyOutput(out, fx.graphics);
   const cast = await screencast(out);
   const labels = await page.evaluate(async ({ id, cues }) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === id)!;
     return cues.map((c) => s.cues!.find((x) => x.id === c)!.label);
   }, { id: fx.showId, cues: fx.cues.plain.slice(0, 5) });
@@ -528,15 +528,15 @@ test('publish', async ({ page, browser }) => {
   const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
   await healthyOutput(out, fx.graphics);
   const labels = await page.evaluate(async ({ id, cues }) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === id)!;
     return cues.map((c) => s.cues!.find((x) => x.id === c)!.label);
   }, { id: fx.showId, cues: fx.cues.plain.slice(0, 5) });
   // A publish loop in the page: the same publication call the header's Publish changes ends in,
   // back to back, each window stamped.
   await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { publishControlShow } = await import('/src/control/hostedControl.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { publishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
     const w = window as unknown as { __lpPub: { on: boolean; windows: [number, number][]; errors: string[]; running: number | null } };
     w.__lpPub = { on: true, windows: [], errors: [], running: null };
     void (async () => {
@@ -616,11 +616,11 @@ test('bytes', async ({ page, browser }) => {
       await field.blur();
     } else if (kind === 'graphic-add') {
       await page.evaluate(async ({ id, i, share }) => {
-        const { CATALOG } = await import('/src/templates/catalog.ts');
-        const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-        const { formatTemplate } = await import('/src/format/formatCode.ts');
-        const { addGraphicToShow } = await import('/src/model/shows.ts');
-        const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+        const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+        const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+        const { formatTemplate } = await __noacgImport('/src/format/formatCode.ts');
+        const { addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
+        const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
         const variant = Object.values(CATALOG).flat().find((v) => v.name === 'Hairline')!;
         const draft = mergeDraft(initialDraft(), { variantId: variant.id, lines: variant.suggestedLines.map((l) => ({ ...l })), zone: null, logoEnabled: null, animation: { presetId: null, outPresetId: null }, paletteId: null, customPalette: null, fontId: null });
         const t = await formatTemplate(buildDraftTemplate(variant, draft));
@@ -642,8 +642,8 @@ test('bytes', async ({ page, browser }) => {
       }, { id: fx.showId, i, share: Math.floor(fx.imageFileBytes / fx.graphics) });
     } else if (kind === 'graphic-remove') {
       await page.evaluate(async (id) => {
-        const { loadShows, removeShowGraphicChecked } = await import('/src/model/shows.ts');
-        const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+        const { loadShows, removeShowGraphicChecked } = await __noacgImport('/src/model/shows.ts');
+        const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
         const g = loadShows().find((s) => s.id === id)!.graphics.find((x) => x.name === 'LP2 Added')!;
         const { error } = removeShowGraphicChecked(id, g.id);
         const failure = error ?? (await commitDurableWrites());
@@ -651,8 +651,8 @@ test('bytes', async ({ page, browser }) => {
       }, fx.showId);
     } else {
       await page.evaluate(async ({ id, i }) => {
-        const { loadShows, addGraphicToShow } = await import('/src/model/shows.ts');
-        const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+        const { loadShows, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
+        const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
         const g = loadShows().find((s) => s.id === id)!.graphics.find((x) => x.name === 'LP2 G03')!;
         const { error } = addGraphicToShow(id, { ...g.template, css: `${g.template.css}\n/* lp2 design update ${i} */ .lp2-gen { outline: 0; }` }, {});
         const failure = error ?? (await commitDurableWrites());
@@ -790,12 +790,12 @@ test('w3', async ({ page, browser }) => {
   await opPage(page);
   const fx = await buildFixture(page, FIXTURE);
   const plainLabels = await page.evaluate(async ({ id, cues }) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === id)!;
     return cues.map((c) => s.cues!.find((x) => x.id === c)!.label);
   }, { id: fx.showId, cues: fx.cues.plain });
   const facts = await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === id)!;
     return { slug: s.hostedSlug ?? '', fed: s.graphics[s.graphics.length - 1].name };
   }, fx.showId);
@@ -888,7 +888,7 @@ test('autopublish', async ({ page, browser }) => {
   await opPage(page);
   const fx = await buildFixture(page, FIXTURE);
   const labels = await page.evaluate(async ({ id, cues }) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === id)!;
     return cues.map((c) => s.cues!.find((x) => x.id === c)!.label);
   }, { id: fx.showId, cues: fx.cues.plain.slice(0, 5) });

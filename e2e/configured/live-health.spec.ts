@@ -84,7 +84,7 @@ test('an output says who it is and how commands reach it, and both operator page
   await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
   const published = await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.name === name);
     return s ? { id: s.id, outputSlug: s.outputSlug ?? null, hostedSlug: s.hostedSlug ?? null } : null;
   }, showName);
@@ -139,7 +139,7 @@ test('an output says who it is and how commands reach it, and both operator page
     .poll(
       async () =>
         page.evaluate(async (id) => {
-          const { controlOutputSeenAt } = await import('/src/control/hostedControl.ts');
+          const { controlOutputSeenAt } = await __noacgImport('/src/control/hostedControl.ts');
           return controlOutputSeenAt(id);
         }, showId),
       { timeout: 30_000 },

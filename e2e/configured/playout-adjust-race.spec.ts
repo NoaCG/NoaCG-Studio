@@ -61,8 +61,8 @@ async function scoreOnAir(page: Page, name: string) {
   // The binding travels with the publish, so it goes on the record first, through the model's door.
   await page.evaluate(
     async ({ showId, GRAPHIC, PATH }) => {
-      const { setFieldBindings } = await import('/src/model/shows.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { setFieldBindings } = await __noacgImport('/src/model/shows.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       setFieldBindings(showId, [{ graphic: GRAPHIC, fieldId: 'f1', path: PATH }]);
       await commitDurableWrites();
     },
@@ -75,7 +75,7 @@ async function scoreOnAir(page: Page, name: string) {
 
   // The starting score goes in as a feed's would, with the production's own data key.
   const key = await page.evaluate(async (showId) => {
-    const { productionDataKey, patchProductionData } = await import('/src/control/productionDataApi.ts');
+    const { productionDataKey, patchProductionData } = await __noacgImport('/src/control/productionDataApi.ts');
     const key = await productionDataKey(showId);
     if (key) await patchProductionData(key, { match: { home: { score: 2 } } });
     return key;
@@ -83,7 +83,7 @@ async function scoreOnAir(page: Page, name: string) {
   expect(key, 'publishing must mint a data key').toBeTruthy();
   const serverScore = () =>
     page.evaluate(async (key) => {
-      const { fetchProductionData } = await import('/src/control/productionDataApi.ts');
+      const { fetchProductionData } = await __noacgImport('/src/control/productionDataApi.ts');
       const state = await fetchProductionData(key);
       return Number((state?.data as { match?: { home?: { score?: unknown } } } | undefined)?.match?.home?.score);
     }, key as string);

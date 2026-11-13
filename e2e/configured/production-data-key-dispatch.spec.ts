@@ -50,8 +50,8 @@ test('while the data key is unread, the page appends no update of its own; the f
   const showId = await openProductionWithCurrent(page, `Key dispatch ${Date.now()}`);
   await page.evaluate(
     async ({ showId, GRAPHIC, PATH }) => {
-      const { setFieldBindings } = await import('/src/model/shows.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { setFieldBindings } = await __noacgImport('/src/model/shows.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       setFieldBindings(showId, [{ graphic: GRAPHIC, fieldId: 'f1', path: PATH }]);
       await commitDurableWrites();
     },
@@ -61,8 +61,8 @@ test('while the data key is unread, the page appends no update of its own; the f
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
 
   const { key, slug } = await page.evaluate(async (showId) => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { productionDataKey, patchProductionData } = await import('/src/control/productionDataApi.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { productionDataKey, patchProductionData } = await __noacgImport('/src/control/productionDataApi.ts');
     const key = await productionDataKey(showId);
     if (key) await patchProductionData(key, { match: { home: { score: 1 } } });
     return { key, slug: loadShows().find((s) => s.id === showId)?.hostedSlug ?? null };
@@ -71,7 +71,7 @@ test('while the data key is unread, the page appends no update of its own; the f
   expect(slug, 'publishing mints a control slug').toBeTruthy();
   const updates = () =>
     page.evaluate(async (slug) => {
-      const { hostedControlTail } = await import('/src/control/hostedControl.ts');
+      const { hostedControlTail } = await __noacgImport('/src/control/hostedControl.ts');
       const rows = await hostedControlTail(slug, 0);
       return rows
         .filter((row) => (row.msg as { t?: string }).t === 'update')
@@ -83,7 +83,7 @@ test('while the data key is unread, the page appends no update of its own; the f
   // A STALE LOCAL TREE on this machine, which is what an unpublished page would dispatch.
   await page.evaluate(
     async ({ showId }) => {
-      const { saveLiveData } = await import('/src/model/productionState.ts');
+      const { saveLiveData } = await __noacgImport('/src/model/productionState.ts');
       saveLiveData(showId, { match: { home: { score: 77 } } });
     },
     { showId },
@@ -116,7 +116,7 @@ test('while the data key is unread, the page appends no update of its own; the f
 
   // The feed moves the tree while the key is still unread here.
   await page.evaluate(async (key) => {
-    const { patchProductionData } = await import('/src/control/productionDataApi.ts');
+    const { patchProductionData } = await __noacgImport('/src/control/productionDataApi.ts');
     await patchProductionData(key, { match: { home: { score: 2 } } });
   }, key as string);
   await page.waitForTimeout(2_000);
@@ -130,7 +130,7 @@ test('while the data key is unread, the page appends no update of its own; the f
   const bound = page.getByTestId('cue-bound-f1').locator('input');
   await expect(bound).toHaveValue('2', { timeout: 20_000 });
   await page.evaluate(async (key) => {
-    const { patchProductionData } = await import('/src/control/productionDataApi.ts');
+    const { patchProductionData } = await __noacgImport('/src/control/productionDataApi.ts');
     await patchProductionData(key, { match: { home: { score: 3 } } });
   }, key as string);
   await expect(bound).toHaveValue('3', { timeout: 20_000 });

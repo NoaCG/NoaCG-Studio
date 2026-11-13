@@ -278,8 +278,8 @@ test('the clip clock a panel counts follows the server clip the production page 
   await evaluateInPage(
     op,
     async (show) => {
-      const { loadShows, addPlayoutItem, setShowOutputSetup } = await import('/src/model/shows.ts');
-      const { withCasparSwitch } = await import('/src/model/outputSetup.ts');
+      const { loadShows, addPlayoutItem, setShowOutputSetup } = await __noacgImport('/src/model/shows.ts');
+      const { withCasparSwitch } = await __noacgImport('/src/model/outputSetup.ts');
       const current = loadShows().find((s) => s.name === show)!;
       // Published with CasparCG off (the account has no default), so it is switched on first, as
       // the operator does before CasparCG files… offers a clip (playout-workflow-simplification AC-4).

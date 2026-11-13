@@ -175,10 +175,10 @@ test('a foreign OGraf action is pressed from a panel on a real foreign rundown c
   const zip = new JSZip();
   for (const name of readdirSync(PACKAGE)) zip.file(`rundown/${name}`, readFileSync(join(PACKAGE, name)));
   const showId = await page.evaluate(async (b64) => {
-    const { importForeignOgraf } = await import('/src/export/targets/ografForeign.ts');
-    const m = await import('/src/model/shows.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-    const { useRouter } = await import('/src/app/router.ts');
+    const { importForeignOgraf } = await __noacgImport('/src/export/targets/ografForeign.ts');
+    const m = await __noacgImport('/src/model/shows.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+    const { useRouter } = await __noacgImport('/src/app/router.ts');
     const read = await importForeignOgraf('rundown.zip', Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
     if (!read || !read.ok) throw new Error(`the package did not import: ${read && !read.ok ? read.reason : 'not foreign'}`);
     const { show, error } = m.createShowNamedChecked(`Foreign deck ${Date.now()}`);
@@ -291,9 +291,9 @@ test('a panel press on a renamed control of a reimported score board reaches the
    *  what Team 1's point moves in each. */
   const saved = () =>
     page.evaluate(async (name) => {
-      const { loadGraphics } = await import('/src/model/library.ts');
-      const { loadShows } = await import('/src/model/shows.ts');
-      const { eventButtons } = await import('/src/control/controlModel.ts');
+      const { loadGraphics } = await __noacgImport('/src/model/library.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
+      const { eventButtons } = await __noacgImport('/src/control/controlModel.ts');
       const named = loadGraphics().filter((d) => d.name === 'Board');
       const g = named[0];
       const pooled = loadShows().find((x) => x.name === name)!.graphics.find((d) => d.name === 'Board')!;

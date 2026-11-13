@@ -28,7 +28,7 @@ test('an output stays listed on the health line of a second production page thro
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   await page.getByTestId('production-status').click();
   const outputSlug = (await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((x) => x.name === name)?.outputSlug ?? '';
   }, showName)) as string;
   expect(outputSlug).toBeTruthy();

@@ -36,7 +36,7 @@ const now = () => new Date().toISOString();
 /** A real catalog template, built by the studio's own recipe function in the page. */
 async function realTemplate(page: Page, name: string, design: string) {
   return page.evaluate(async ({ n, d }) => {
-    const { templateFromRecipe } = await import('/src/templates/types/recipeTemplate.ts');
+    const { templateFromRecipe } = await __noacgImport('/src/templates/types/recipeTemplate.ts');
     return templateFromRecipe({ type: 'lower-third', design: d, values: { name: 'Copy name', title: 'Copy title' } }, n);
   }, { n: name, d: design });
 }
@@ -204,10 +204,10 @@ test.describe('remote MCP connector: send a package', () => {
       await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(5);
 
       const installed = await page.evaluate(async ({ name, brandId }) => {
-        const { loadShows } = await import('/src/model/shows.ts');
-        const { productionGateFailures } = await import('/src/validation/productionGate.ts');
-        const { publishGate } = await import('/src/validation/publishGate.ts');
-        const { loadGraphics } = await import('/src/model/library.ts');
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
+        const { productionGateFailures } = await __noacgImport('/src/validation/productionGate.ts');
+        const { publishGate } = await __noacgImport('/src/validation/publishGate.ts');
+        const { loadGraphics } = await __noacgImport('/src/model/library.ts');
         const show = loadShows().find((s) => s.name === name)!;
         const byId = new Map(show.graphics.map((g) => [g.id, g]));
         return {
@@ -264,7 +264,7 @@ test.describe('remote MCP connector: send a package', () => {
       const panel = page.getByTestId('production-status-panel');
       if (await panel.isVisible()) await page.getByTestId('production-status').click();
       const slugs = await page.evaluate(async (name) => {
-        const { loadShows } = await import('/src/model/shows.ts');
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
         const show = loadShows().find((s) => s.name === name);
         return { output: show?.outputSlug ?? null, control: show?.hostedSlug ?? null };
       }, args.name);
@@ -273,7 +273,7 @@ test.describe('remote MCP connector: send a package', () => {
       // The server holds the take before the browser source opens (output-cold-boot.spec.ts).
       await expect
         .poll(() => page.evaluate(async (slug) => {
-          const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
+          const { controlShowBySlug } = await __noacgImport('/src/control/hostedControl.ts');
           const answer = await controlShowBySlug(slug!);
           return Object.keys((answer.ok ? answer.value : null)?.liveCue ?? {}).length;
         }, slugs.control), { timeout: 30_000 })
@@ -318,8 +318,8 @@ test.describe('remote MCP connector: send a package', () => {
       await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
       await expect(page.getByTestId('production-page')).toContainText(packFile.name);
       const imported = await page.evaluate(async (name) => {
-        const { loadShows } = await import('/src/model/shows.ts');
-        const { publishGate } = await import('/src/validation/publishGate.ts');
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
+        const { publishGate } = await __noacgImport('/src/validation/publishGate.ts');
         const show = loadShows().find((s) => s.name === name)!;
         const g = show.graphics[0];
         return { name: g.name, value: g.template.fields[0]?.value, gate: publishGate(g.template, true).ok, cue: show.cues?.[0]?.values };

@@ -71,12 +71,12 @@ test('a mixed rundown takes a foreign package on a real output: per-child outcom
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Strap' });
 
   const showId = await page.evaluate(async (zip) => {
-    const { importForeignOgraf } = await import('/src/export/targets/ografForeign.ts');
-    const m = await import('/src/model/shows.ts');
-    const { deleteGraphic, loadGraphics } = await import('/src/model/library.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { useRouter } = await import('/src/app/router.ts');
+    const { importForeignOgraf } = await __noacgImport('/src/export/targets/ografForeign.ts');
+    const m = await __noacgImport('/src/model/shows.ts');
+    const { deleteGraphic, loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { useRouter } = await __noacgImport('/src/app/router.ts');
     const read = await importForeignOgraf('rundown.zip', Uint8Array.from(atob(zip), (c) => c.charCodeAt(0)));
     if (!read || !read.ok) throw new Error(`the package did not import: ${read && !read.ok ? read.reason : 'not foreign'}`);
     const { template } = useTemplateStore.getState();
@@ -226,12 +226,12 @@ test('a foreign package comes back from an output reload as far as its answers p
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Strap' });
 
   const showId = await page.evaluate(async (zip) => {
-    const { importForeignOgraf } = await import('/src/export/targets/ografForeign.ts');
-    const m = await import('/src/model/shows.ts');
-    const { deleteGraphic, loadGraphics } = await import('/src/model/library.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { useRouter } = await import('/src/app/router.ts');
+    const { importForeignOgraf } = await __noacgImport('/src/export/targets/ografForeign.ts');
+    const m = await __noacgImport('/src/model/shows.ts');
+    const { deleteGraphic, loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { useRouter } = await __noacgImport('/src/app/router.ts');
     const read = await importForeignOgraf('rundown.zip', Uint8Array.from(atob(zip), (c) => c.charCodeAt(0)));
     if (!read || !read.ok) throw new Error(`the package did not import: ${read && !read.ok ? read.reason : 'not foreign'}`);
     const { template } = useTemplateStore.getState();
@@ -341,7 +341,7 @@ test('a foreign package comes back from an output reload as far as its answers p
   // A REPORT THE REPLACED INSTANCE STILL HAD ON ITS WAY lands now: the page refuses it.
   await output.evaluate(
     async ({ slug, i }) => {
-      const { controlOutputReportSeq } = await import('/src/control/hostedControl.ts');
+      const { controlOutputReportSeq } = await __noacgImport('/src/control/hostedControl.ts');
       await controlOutputReportSeq(slug, 'Board', {}, { ograf: { i, call: 'stop', status: 'done', step: null, on: false } } as never, { seq: 0, epoch: null, event: null });
     },
     { slug: row!.output_slug, i: first },

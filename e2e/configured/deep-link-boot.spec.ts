@@ -90,8 +90,8 @@ test.describe('deep-link boot', () => {
       await dismissWizard(other);
       await settleSync(other);
       const id = await other.evaluate(async (n) => {
-        const { createShowNamedChecked } = await import('/src/model/shows.ts');
-        const { syncNow } = await import('/src/backend/syncController.ts');
+        const { createShowNamedChecked } = await __noacgImport('/src/model/shows.ts');
+        const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
         const { show, error } = createShowNamedChecked(n);
         if (error) throw new Error(error);
         await syncNow();
@@ -118,8 +118,8 @@ test.describe('deep-link boot', () => {
     } finally {
       await other
         .evaluate(async (n) => {
-          const { deleteShow, loadShows } = await import('/src/model/shows.ts');
-          const { syncNow } = await import('/src/backend/syncController.ts');
+          const { deleteShow, loadShows } = await __noacgImport('/src/model/shows.ts');
+          const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
           await syncNow();
           for (const s of loadShows()) if (s.name === n) deleteShow(s.id);
           await syncNow();
@@ -149,9 +149,9 @@ test.describe('deep-link boot', () => {
       await dismissWizard(other);
       await settleSync(other);
       const id = await other.evaluate(async () => {
-        const { variantsFor } = await import('/src/templates/catalog.ts');
-        const { createGraphic } = await import('/src/model/library.ts');
-        const { syncNow } = await import('/src/backend/syncController.ts');
+        const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+        const { createGraphic } = await __noacgImport('/src/model/library.ts');
+        const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
         const template = variantsFor('lower-third')[0].create({});
         const { doc } = createGraphic({ ...template, name: 'Deep link E2E' }, { name: 'Deep link E2E' });
         await syncNow();
@@ -209,7 +209,7 @@ test.describe('deep-link boot', () => {
       await route.continue();
     });
     const waited = await page.evaluate(async () => {
-      const { syncNow } = await import('/src/backend/syncController.ts');
+      const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
       const first = syncNow(); // a pass is now in flight
       await new Promise((r) => setTimeout(r, 100));
       const started = performance.now();
@@ -238,8 +238,8 @@ test.describe('deep-link boot', () => {
           url.searchParams.get('kind') === 'eq.show' &&
           url.searchParams.get('select')?.includes('body_updated_at') && writes.length < 2) {
         const fact = await page.evaluate(async ({ name, index }) => {
-          const { createShowNamedChecked } = await import('/src/model/shows.ts');
-          const { getSyncState } = await import('/src/backend/syncController.ts');
+          const { createShowNamedChecked } = await __noacgImport('/src/model/shows.ts');
+          const { getSyncState } = await __noacgImport('/src/backend/syncController.ts');
           const { error } = createShowNamedChecked(`${name} ${index}`);
           if (error) throw new Error(error);
           await new Promise(resolve => setTimeout(resolve));
@@ -260,8 +260,8 @@ test.describe('deep-link boot', () => {
     } finally {
       await page.unrouteAll({ behavior: 'ignoreErrors' });
       await page.evaluate(async name => {
-        const { deleteShow, loadShows } = await import('/src/model/shows.ts');
-        const { syncNow } = await import('/src/backend/syncController.ts');
+        const { deleteShow, loadShows } = await __noacgImport('/src/model/shows.ts');
+        const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
         for (const show of loadShows()) if (show.name.startsWith(name)) deleteShow(show.id);
         await syncNow();
       }, name).catch(() => undefined);

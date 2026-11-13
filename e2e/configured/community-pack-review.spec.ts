@@ -35,8 +35,8 @@ const SHOTS = process.env.NOACG_SHOTS ?? '';
 async function makeFolder(page: Page, folder: string, names: string[], installed: string[] = []): Promise<void> {
   await page.evaluate(
     async ({ folder, names, installed }) => {
-      const { variantsFor } = await import('/src/templates/catalog.ts');
-      const { createGraphic, setGraphicsFolder } = await import('/src/model/library.ts');
+      const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+      const { createGraphic, setGraphicsFolder } = await __noacgImport('/src/model/library.ts');
       const variants = variantsFor('lower-third');
       const fromPack = { id: 'community:e2e', version: 1, author: 'Someone else', name: 'Elsewhere' };
       const made = [...names, ...installed].map((name, i) =>
@@ -74,7 +74,7 @@ async function declineConsent(page: Page): Promise<void> {
 /** How many graphics each of this browser's productions of that name holds, fewest first. */
 async function productionSizes(page: Page, name: string): Promise<number[]> {
   return page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows()
       .filter((s) => s.name === name)
       .map((s) => s.graphics.length)
@@ -410,8 +410,8 @@ test.describe('community pack review (configured)', () => {
     // with nothing sent.
     const FETCHES = `${PACK} fetches`;
     await page.evaluate(async (folder) => {
-      const { variantsFor } = await import('/src/templates/catalog.ts');
-      const { createGraphic, setGraphicsFolder } = await import('/src/model/library.ts');
+      const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+      const { createGraphic, setGraphicsFolder } = await __noacgImport('/src/model/library.ts');
       const t = variantsFor('lower-third')[0].create({});
       const js = `${t.js}\n;(function () { var own = window.play; window.play = function () { new Image().src = 'https:' + '//cdn.example.invalid/logo.png'; return own && own.apply(this, arguments); }; })();`;
       const made = createGraphic({ ...t, js }, { name: 'Fetching strap', packageId: null });

@@ -46,7 +46,7 @@ async function updates(showId: string): Promise<Row[]> {
 
 const storedTyped = (page: Page, showId: string) =>
   page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const cue = loadShows().find((s) => s.id === id)?.cues?.[0];
     return cue ? { typed: cue.typed ? JSON.stringify(cue.typed) : null, values: cue.values } : null;
   }, showId);
@@ -62,11 +62,11 @@ test('a typed cue saves, reloads, takes and updates with its envelope on the log
   // The graphic carries the manifest it was imported with (model/importTemplate.ts keeps a
   // stranger's), as a pool copy of its own: no library record lends it another template.
   const showId = await page.evaluate(async (manifest) => {
-    const { createShowNamedChecked, addGraphicToShow, updateShowCueChecked, loadShows } = await import('/src/model/shows.ts');
-    const { deleteGraphic, loadGraphics } = await import('/src/model/library.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { useRouter } = await import('/src/app/router.ts');
+    const { createShowNamedChecked, addGraphicToShow, updateShowCueChecked, loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { deleteGraphic, loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { useRouter } = await __noacgImport('/src/app/router.ts');
     const { template } = useTemplateStore.getState();
     for (const g of loadGraphics()) deleteGraphic(g.id);
     const { show, error } = createShowNamedChecked(`Typed ${Date.now()}`);
@@ -116,7 +116,7 @@ test('a typed cue saves, reloads, takes and updates with its envelope on the log
 
   // CONNECT E5: f1 follows a source; the agent's number reaches the tree as a number (0104).
   const connected = await page.evaluate(async (id) => {
-    const { connectShowSource } = await import('/src/model/shows.ts');
+    const { connectShowSource } = await __noacgImport('/src/model/shows.ts');
     const source = { id: 'e1', kind: 'external' as const, label: 'Results', config: { v: 1, configRevision: 1, endpoint: 'https://127.0.0.1/results' } };
     return connectShowSource(id, source, [{ graphic: 'Hairline', fieldId: 'f1', path: 'external.e1.home.score' }]).error;
   }, showId);

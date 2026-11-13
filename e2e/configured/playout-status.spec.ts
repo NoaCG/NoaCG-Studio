@@ -52,7 +52,7 @@ test('the playout status: quiet until something reports, green when it does, red
   await expect(status).toHaveAttribute('data-tone', 'idle');
   await expect(status).toContainText('Not connected');
   const { outputSlug } = (await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return { outputSlug: loadShows().find((x) => x.id === id)?.outputSlug ?? '' };
   }, showId)) as { outputSlug: string };
   expect(outputSlug).toBeTruthy();

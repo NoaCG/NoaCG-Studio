@@ -45,13 +45,13 @@ test('a renderer whose realtime channel never joins still airs a take, and says 
   await page.keyboard.press('Escape');
   // A prior FAILED run can leave its published production behind, and the account SYNCS shows.
   await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
-    const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+    const { loadShows, deleteShow } = await __noacgImport('/src/model/shows.ts');
+    const { unpublishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
     for (const s of loadShows()) {
       if (s.hostedSlug || s.outputSlug) await unpublishControlShow(s.id).catch(() => {});
       deleteShow(s.id);
     }
-    const { syncNow } = await import('/src/backend/syncController.ts');
+    const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
     await syncNow();
   });
   await bootstrapGraphic(page, { name: 'House Scorebug' });
@@ -68,7 +68,7 @@ test('a renderer whose realtime channel never joins still airs a take, and says 
   await expect(links).toBeHidden();
 
   const outputSlug = await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((s) => s.name === name)?.outputSlug ?? null;
   }, showName);
   expect(outputSlug, 'publishing must mint an output slug').toBeTruthy();
@@ -118,7 +118,7 @@ test('a renderer whose realtime channel never joins still airs a take, and says 
   await unpublishForCleanup(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
+    const { loadShows, deleteShow } = await __noacgImport('/src/model/shows.ts');
     for (const s of loadShows()) deleteShow(s.id);
   });
   await wipeMyGraphics(page);

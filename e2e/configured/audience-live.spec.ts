@@ -137,8 +137,8 @@ test.describe(() => {
       const setLogo = (colour: string | null) =>
         ws.evaluate(
           async ({ id, colour }) => {
-            const { editShowLook } = await import('/src/model/shows.ts');
-            const { paletteById } = await import('/src/model/wizard.ts');
+            const { editShowLook } = await __noacgImport('/src/model/shows.ts');
+            const { paletteById } = await __noacgImport('/src/model/wizard.ts');
             let logo;
             if (colour) {
               const canvas = document.createElement('canvas');
@@ -185,7 +185,7 @@ test.describe(() => {
       // ADD JOIN CARD TO RUNDOWN: one press, one Join card cue whose Join link is this link.
       const joinCues = () =>
         ws.evaluate(async (id) => {
-          const { loadShows } = await import('/src/model/shows.ts');
+          const { loadShows } = await __noacgImport('/src/model/shows.ts');
           const show = loadShows().find((x) => x.id === id)!;
           const linkField = new Map(show.graphics.map((g) => [g.id, (g.template.fields ?? []).find((f) => f.title === 'Join link')?.field]));
           return (show.cues ?? []).filter((c) => linkField.get(c.sourceId)).map((c) => c.values?.[linkField.get(c.sourceId)!] ?? null);
@@ -249,8 +249,8 @@ test.describe(() => {
 
     // The server's own bound, asked directly: 101 items is refused before anything is written.
     const refused = await messages.evaluate(async (id) => {
-      const { loadShows } = await import('/src/model/shows.ts');
-      const { getSupabase } = await import('/src/backend/supabase.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
+      const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
       const slug = loadShows().find((s) => s.id === id)?.hostedSlug;
       const sb = await getSupabase();
       const items = Array.from({ length: 101 }, (_, i) => ({ body: `bulk ${i}` }));
@@ -269,7 +269,7 @@ test.describe(() => {
 
     // The card's Question now holds a prepared message: a binding on it is refused.
     const bound = await messages.evaluate(async (id) => {
-      const shows = await import('/src/model/shows.ts');
+      const shows = await __noacgImport('/src/model/shows.ts');
       const show = shows.loadShows().find((s) => s.id === id)!;
       const card = show.graphics.find((g) => (g.template.fields ?? []).some((f) => f.title === 'Question'))!;
       const question = (card.template.fields ?? []).find((f) => f.title === 'Question')!.field;
@@ -318,7 +318,7 @@ test.describe(() => {
 
     const slugOf = async () =>
       messages.evaluate(async (id) => {
-        const { loadShows } = await import('/src/model/shows.ts');
+        const { loadShows } = await __noacgImport('/src/model/shows.ts');
         return loadShows().find((s) => s.id === id)?.hostedSlug ?? null;
       }, showId);
     const slug = await slugOf();
@@ -326,7 +326,7 @@ test.describe(() => {
 
     // Two adds of one id at the same moment: one row, and neither call fails.
     const raced = await messages.evaluate(async (s) => {
-      const { getSupabase } = await import('/src/backend/supabase.ts');
+      const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
       const sb = (await getSupabase())!;
       const items = [{ body: 'Raced import', external_id: 'yt:configured-race' }];
       const [a, b] = await Promise.all([
@@ -341,7 +341,7 @@ test.describe(() => {
 
     // Cy's message is used (prepared into a cue elsewhere); then Bo's and Cy's rows leave the Sheet.
     const used = await messages.evaluate(async (s) => {
-      const { getSupabase } = await import('/src/backend/supabase.ts');
+      const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
       const sb = (await getSupabase())!;
       const { data } = await sb.rpc('audience_list', { p_slug: s });
       const cy = (data as { id: string; body: string }[]).find((r) => r.body === 'Used then gone')!;
@@ -357,7 +357,7 @@ test.describe(() => {
 
     // A prefix that is not a Sheet source's is refused by the server.
     const refused = await messages.evaluate(async (s) => {
-      const { getSupabase } = await import('/src/backend/supabase.ts');
+      const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
       const { error } = await (await getSupabase())!.rpc('audience_operator_settle', { p_slug: s, p_prefix: 'yt:', p_present: [] });
       return error?.message ?? null;
     }, slug);
@@ -386,7 +386,7 @@ test.describe(() => {
     await expect(page.getByTestId('production-status-panel')).toBeVisible({ timeout: 30_000 });
     await page.keyboard.press('Escape');
     const slugs = await page.evaluate(async (id) => {
-      const { loadShows } = await import('/src/model/shows.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
       const show = loadShows().find((s) => s.id === id)!;
       return { control: show.hostedSlug!, join: show.joinSlug! };
     }, showId);
@@ -397,7 +397,7 @@ test.describe(() => {
     const rpc = (tab: typeof page, fn: string, args: Record<string, unknown>) =>
       tab.evaluate(
         async ([name, params]) => {
-          const { getSupabase } = await import('/src/backend/supabase.ts');
+          const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
           const { data, error } = await (await getSupabase())!.rpc(name as string, params as Record<string, unknown>);
           return { data, error: error?.message ?? null };
         },
@@ -621,7 +621,7 @@ test.describe(() => {
     // chat apart and summed; the line that is not a vote reaches the inbox.
     await moreWaysIn(messages);
     await messages.evaluate(async (title) => {
-      const { loadShows } = await import('/src/model/shows.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
       const show = loadShows().find((s) => s.name === title)!;
       const seam = (window as unknown as { __noacgChatIntake: { for(id: string): { addTest(): { push(a: string, t: string, id: string, x: { voter: string }): void } } } }).__noacgChatIntake;
       const chat = seam.for(show.id).addTest();

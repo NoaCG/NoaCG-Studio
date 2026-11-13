@@ -78,7 +78,7 @@ test('unfamiliar imported artwork airs on an isolated output, which is cut off a
   await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
   const slug = await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((s) => s.name === name)?.outputSlug ?? null;
   }, showName);
   expect(slug).toBeTruthy();

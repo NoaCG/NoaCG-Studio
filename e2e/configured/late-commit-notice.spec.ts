@@ -85,7 +85,7 @@ test('a Take that commits after its page gave up takes the "on this monitor only
   await expect(links).toBeHidden();
 
   const slugs = await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.name === name);
     return { output: s?.outputSlug ?? null };
   }, showName);

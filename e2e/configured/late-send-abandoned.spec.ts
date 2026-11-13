@@ -43,7 +43,7 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   await expect(links).toBeHidden();
 
   const slugs = await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const s = loadShows().find((x) => x.name === name);
     return { output: s?.outputSlug ?? null };
   }, showName);

@@ -145,7 +145,7 @@ test('a Take of another graphic while the reloaded page reads the rows keeps the
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   if (await page.getByTestId('production-status-panel').isVisible()) await page.getByTestId('production-status').click();
   const outputSlug = await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((s) => s.id === id)?.outputSlug ?? null;
   }, showId);
   expect(outputSlug).toBeTruthy();
@@ -232,7 +232,7 @@ test('an Update on another graphic while the reloaded page reads an off-air cloc
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   if (await page.getByTestId('production-status-panel').isVisible()) await page.getByTestId('production-status').click();
   const outputSlug = await page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((s) => s.id === id)?.outputSlug ?? null;
   }, showId);
   expect(outputSlug).toBeTruthy();

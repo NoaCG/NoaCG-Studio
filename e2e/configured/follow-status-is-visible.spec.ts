@@ -66,7 +66,7 @@ test('a production whose live connection never joins says so, and a healthy one 
   await unpublishForCleanup(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
+    const { loadShows, deleteShow } = await __noacgImport('/src/model/shows.ts');
     for (const s of loadShows()) deleteShow(s.id);
   });
   await wipeMyGraphics(page);

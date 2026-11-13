@@ -18,13 +18,13 @@ test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec')
 /** Publish nothing behind us: the account is shared by the whole suite (playout-both-roads.spec.ts). */
 async function clearPublishedShows(page: Page): Promise<void> {
   await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
-    const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+    const { loadShows, deleteShow } = await __noacgImport('/src/model/shows.ts');
+    const { unpublishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
     for (const s of loadShows()) {
       if (s.hostedSlug || s.outputSlug) await unpublishControlShow(s.id).catch(() => {});
       deleteShow(s.id);
     }
-    const { syncNow } = await import('/src/backend/syncController.ts');
+    const { syncNow } = await __noacgImport('/src/backend/syncController.ts');
     await syncNow();
   });
 }
@@ -32,10 +32,10 @@ async function clearPublishedShows(page: Page): Promise<void> {
 /** Two lower thirds, each with one cue: Anna (to be timed) and Ben, the next graphic cue. */
 async function seed(page: Page, name: string): Promise<{ id: string; a: string; b: string }> {
   const seeded = await page.evaluate(async (showName) => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const shows = await import('/src/model/shows.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const shows = await __noacgImport('/src/model/shows.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     const { show, error: notCreated } = shows.createShowNamedChecked(showName);
     if (notCreated) throw new Error(notCreated);
     for (const graphicName of ['Guest', 'Host']) {
@@ -52,7 +52,7 @@ async function seed(page: Page, name: string): Promise<{ id: string; a: string; 
     shows.updateShowCue(show.id, b, { label: 'Ben' });
     const failure = await commitDurableWrites();
     if (failure) throw new Error(failure);
-    const { useRouter } = await import('/src/app/router.ts');
+    const { useRouter } = await __noacgImport('/src/app/router.ts');
     useRouter.getState().navigate({ view: 'production', id: show.id });
     // The page mounts behind `navigate`: answer from a later task (_create.ts openProductionWithCurrent).
     await new Promise((resolve) => setTimeout(resolve));
@@ -71,7 +71,7 @@ function seconds(text: string | null): number {
 /** The log as the server holds it, read on the desk. */
 async function logRows(page: Page, slug: string) {
   return page.evaluate(async (s) => {
-    const { hostedControlTail } = await import('/src/control/hostedControl.ts');
+    const { hostedControlTail } = await __noacgImport('/src/control/hostedControl.ts');
     return (await hostedControlTail(s, 0)).map((r) => ({ graphic: r.graphic, msg: r.msg as { t: string; cue?: string | null; arm?: string } }));
   }, slug);
 }
@@ -91,7 +91,7 @@ test('a timed cue counts the same second on two pages and a reload, ends once, h
   await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
   const slugs = await page.evaluate(async (n) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows().find((x) => x.name === n);
     return { hosted: show?.hostedSlug ?? '', output: show?.outputSlug ?? '' };
   }, name);
