@@ -6,6 +6,11 @@
       "since": "2026-11-12",
       "count": 2,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43128537544/job/130892801524"
+    },
+    "e2e/configured/operator-outage-not-unpublished.spec.ts": {
+      "since": "2026-11-13",
+      "count": 3,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43475994875"
     }
   },
   "released": {
@@ -52,10 +57,6 @@
     "e2e/configured/late-send-abandoned.spec.ts": {
       "count": 16,
       "last": "2026-11-03"
-    },
-    "e2e/configured/operator-outage-not-unpublished.spec.ts": {
-      "count": 2,
-      "last": "2026-11-13"
     },
     "e2e/configured/per-graphic-replacement.spec.ts": {
       "count": 1,
