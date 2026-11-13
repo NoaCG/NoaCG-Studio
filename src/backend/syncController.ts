@@ -233,6 +233,7 @@ export async function syncNow(): Promise<SyncPassReceipt> {
   // who asks during THIS pass goes into the fresh list and waits for the next.
   const answered = waiting;
   waiting = [];
+  confirmedElsewhereAt = undefined;
   let receipt = unavailable;
   const firstPass = !checkedThisPage || !libraryHasArrived();
   // Nothing unconfirmed: the chip stays Synced while this pass looks (D14, reproduced on focus);
@@ -289,7 +290,12 @@ export async function syncNow(): Promise<SyncPassReceipt> {
       });
     } else {
       checkedThisPage = true;
-      if (startedRevision !== revision) {
+      if (startedRevision !== revision && !ownChangePending && confirmedElsewhereAt === revision) {
+        // Only adopted changes moved the revision, and the tab that made them confirmed them while
+        // this pass ran (followOtherTabsConfirmations held that until now): take it as our own.
+        confirmedRevision = revision;
+        setState({ phase: 'synced', last: result, verifiedAt: new Date().toISOString() });
+      } else if (startedRevision !== revision) {
         queued = true;
         setState({ phase: 'pending', last: result, detail: 'The current revision has not been confirmed in the cloud.' });
       } else {
@@ -394,11 +400,19 @@ function handOverOnClose(): void {
  *  in place of any retry a pass the cloud did not answer left it. */
 let ownChangePending = false;
 let confirmedChannel: BroadcastChannel | null = null;
+/** The revision at which another tab's confirmation arrived while this tab's own pass was running.
+ *  That pass settles on it when it ends with only adopted changes behind it: since #2494 such a pass
+ *  no longer runs another one at once, so a confirmation dropped here would leave the chip pending. */
+let confirmedElsewhereAt: number | undefined;
 function followOtherTabsConfirmations(): void {
   if (typeof BroadcastChannel === 'undefined') return;
   confirmedChannel = new BroadcastChannel('noacg-sync-confirmed');
   confirmedChannel.onmessage = (event: MessageEvent<{ account?: unknown }>) => {
-    if (event.data?.account !== libraryInUse() || ownChangePending || running || debounce) return;
+    if (event.data?.account !== libraryInUse() || ownChangePending || debounce) return;
+    if (running) {
+      confirmedElsewhereAt = revision;
+      return;
+    }
     const unansweredHere = state.phase === 'error' && unansweredPasses > 0;
     if (state.phase !== 'pending' && state.phase !== 'syncing' && !unansweredHere) return;
     stopRetrying();

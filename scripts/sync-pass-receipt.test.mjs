@@ -202,6 +202,28 @@ test('a tab that takes another tab\'s confirmed pass as its own stops its own re
   assert.deepEqual(armed(a), [], 'no retry left to run a pass the other tab already ran');
 });
 
+test('a confirmation from the writing tab that lands during this tab\'s pass settles it when the pass ends (#2494)', async () => {
+  const browser = browserTabs(), a = browser.tab(), b = browser.tab();
+  void a.api.syncNow(); void b.api.syncNow();
+  await tick();
+  a.adopt();                                  // b's edit reaches a from IndexedDB during a's pass
+  b.passes[0].resolve(result()); await settle(); // b confirms while a is still running
+  a.passes[0].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'synced', 'the held confirmation settles the chip');
+  assert.equal(a.passes.length, 1, 'with no pass of its own');
+});
+
+test('a held confirmation does not cover an adoption that came after it', async () => {
+  const browser = browserTabs(), a = browser.tab(), b = browser.tab();
+  void a.api.syncNow(); void b.api.syncNow();
+  await tick();
+  a.adopt();
+  b.passes[0].resolve(result()); await settle();
+  a.adopt();                                  // a newer change the confirmation predates
+  a.passes[0].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'pending');
+});
+
 test('only one tab of a browser retries against a silent cloud; the others follow its answer', async () => {
   const browser = browserTabs(), a = browser.tab(), b = browser.tab();
   void a.api.syncNow(); void b.api.syncNow();
