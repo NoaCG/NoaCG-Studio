@@ -90,9 +90,38 @@ test('coalesced callers receive the next pass receipt even when newer work start
   h.edit(); h.passes[1].resolve(result());
   const receipt = await second;
   assert.equal(receipt.completed, true); assert.equal(await third, receipt);
-  await tick(); assert.equal(h.passes.length, 3);
+  // The edit that landed during pass 1 does not chain a pass at once (#2494): it waits for the
+  // debounce it armed, so the follow-up is one pass per pause, not one pass per pass.
+  await tick(); assert.equal(h.passes.length, 2);
+  assert.equal(h.api.getSyncState().phase, 'pending');
+  const debounce = h.timers.filter((fn) => fn.ms === 2500 && !fn.cleared && !fn.fired);
+  assert.equal(debounce.length, 1);
+  debounce[0](); await tick();
+  assert.equal(h.passes.length, 3);
   assert.equal(h.api.getSyncState().phase, 'syncing');
   h.passes[2].resolve(result()); await tick();
+});
+
+test('continuous edits during a pass cost one pass per pause, not one pass per pass (#2494)', async () => {
+  const timers = [], h = controller(timers);
+  void h.api.syncNow();               // the pass at page load overlaps the edits
+  await tick();
+  assert.equal(h.passes.length, 1);
+  h.edit(); h.edit(); h.edit();       // edits land faster than the pass completes
+  h.passes[0].resolve(result());
+  await tick();
+  // The pass ended with a newer revision waiting. Pre-fix it re-ran at once and kept re-running
+  // for as long as the edits continued, slowing every Take; now it waits for the debounce.
+  assert.equal(h.passes.length, 1, 'no pass-to-pass chain while edits keep arriving');
+  assert.equal(h.api.getSyncState().phase, 'pending');
+  const debounce = () => timers.filter((fn) => fn.ms === 2500 && !fn.cleared && !fn.fired);
+  assert.equal(debounce().length, 1, 'the follow-up waits for the debounce, not an immediate re-run');
+  // When typing pauses the debounce fires: exactly one pass confirms the latest revision.
+  debounce()[0](); await tick();
+  assert.equal(h.passes.length, 2, 'a pass still runs once the edits stop');
+  h.passes[1].resolve(result()); await tick();
+  assert.equal(h.api.getSyncState().phase, 'synced', 'the revision is confirmed — no edit lost');
+  assert.equal(h.passes.length, 2, 'and the chain has ended');
 });
 
 test('coalesced callers released without a runnable next pass receive no completion', async () => {
