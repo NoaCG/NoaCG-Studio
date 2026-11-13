@@ -1,0 +1,19 @@
+{
+  "at": "2026-11-13T11:38:38.977Z",
+  "binarySha256": "9ba1de317cdc8380c38a694f1d201964d7b805833597419111dab9eea9a02681",
+  "requestedPin": "3142fc7d02934494931eb14e7dc255393e4110d0",
+  "manifestSource": "a1e9776120fa19d9f3f9d40ab4b10ae1be034347",
+  "version": "0.17.0",
+  "tasks": [
+    "Create authored text; apply News style pack; explicit Undo/Redo; name Harbour TV Brand Kit",
+    "Save two native documents; reopen first authored text and style pack"
+  ],
+  "errors": [],
+  "result": "PASS",
+  "settings": {
+    "innerWidth": 1366,
+    "innerHeight": 768,
+    "dpr": 1,
+    "scale": 1
+  }
+}

@@ -1,0 +1,1 @@
+{"conclusion":"success","job":131843158163,"run":43412804437,"steps":[{"completed_at":"2026-11-13T11:01:04Z","conclusion":"success","name":"Build (typecheck + lint + bundle)","started_at":"2026-11-13T10:55:17Z"}]}

@@ -566,6 +566,9 @@ export interface PublishedCapabilities {
   version?: PayloadVersion;
   /** The digest of the production record this publish was built from (model/publishedRecord.ts). */
   record?: string;
+  /** The OBS scenes the published row held before this publish, and the ones it holds now (none
+   *  when the switch is off): which graphics joined a scene (obs-scenes #2489). */
+  scenes?: { before: ObsScene[]; after: ObsScene[] };
 }
 
 /** Digests already computed, by library record, its save time and the graphic's layer: a record
@@ -640,10 +643,14 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished,
   // fails stops the publish.
   // The panel rides along (no template payload in it): the entries of a graphic whose record this
   // publisher does not hold stay as published (`buildPanelSpec`).
-  const previous = await sb.from('control_shows').select('ver:output->ver, panel').eq('id', show.id).maybeSingle();
+  // …and its OBS scenes, as small as the stamp: what this publish replaces, for the page that
+  // takes a graphic that joins a scene (#2489, `PublishedCapabilities.scenes`).
+  const previous = await sb.from('control_shows').select('ver:output->ver, scenes:output->scenes, panel').eq('id', show.id).maybeSingle();
   if (previous.error) throw new Error(previous.error.message);
-  const held = readPayloadVersion((previous.data as { ver?: unknown } | null)?.ver);
-  const heldPanel = readPanel((previous.data as { panel?: unknown } | null)?.panel);
+  const prev = previous.data as { ver?: unknown; scenes?: unknown; panel?: unknown } | null;
+  const held = readPayloadVersion(prev?.ver);
+  const heldPanel = readPanel(prev?.panel);
+  const scenes = { before: readScenes(prev?.scenes) ?? [], after: built.scenes ?? [] };
   const edited = Object.fromEntries(show.graphics.map((g) => [g.name, designEditedAt(g, library)]));
   const stamped = await stampPayload(built, held, undefined, edited);
   // THE SAVED REVISION (live-publishing designs/G3.md section 2): a publish built from a record this
@@ -748,7 +755,7 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished,
     const legacy = await sb.from('control_shows').select('slug, outputSlug:output_slug').eq('id', show.id).single();
     if (legacy.error) throw new Error(legacy.error.message);
     const row = legacy.data as { slug: string; outputSlug: string | null };
-    return { ...row, joinSlug: null, presenterSlug: null, version, record: publishedRecordDigest(show) };
+    return { ...row, joinSlug: null, presenterSlug: null, version, record: publishedRecordDigest(show), scenes };
   }
   const row = readBack.data as {
     slug: string;
@@ -783,6 +790,7 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished,
     presenterSlug: row.presenterSlug,
     version,
     record: publishedRecordDigest(show),
+    scenes,
   };
 }
 

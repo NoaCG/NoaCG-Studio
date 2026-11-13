@@ -1,0 +1,2 @@
+trial_id,candidate_sha,fixture_sha256,device_name,os,cpu,ram,gpu,browser_version,resolution,css_viewport,dpr,display_scaling,native_browser_zoom,power_mode,input_device,debounce_ms,action_kind,sample_index,input_timestamp,received_timestamp,is_trusted,first_visible_timestamp,final_pointerup_timestamp,final_visible_pose_timestamp,visible_changed_frames,interval_ms,long_task_ms,rebuild_generation,capture_reference,target_met_or_unknown,notes
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,

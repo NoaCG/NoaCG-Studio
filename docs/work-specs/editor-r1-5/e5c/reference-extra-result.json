@@ -1,0 +1,14 @@
+{
+  "at": "2026-11-13T11:43:23.306Z",
+  "tasks": [
+    "Reopened authored text, changed wording, X+40, exact explicit Undo/Redo",
+    "Play existing native keyframes; stop to frame zero",
+    "Imported same authored nested SVG as a reference image resource; native editable-SVG contract not implied"
+  ],
+  "errors": [],
+  "historyPauseMs": 550,
+  "historyPauseReason": "Reference combines edits within its documented 500ms history burst; deliberate action separation, never comparison timing or NoaCG wait/repair",
+  "beforeX": 100,
+  "result": "PASS",
+  "svgImportQualification": "Initial script captured progress and ended before import completion; this third task alone was NOT QUALIFIED there. Separate reference-import-result.json observes completion and saves the actual native graph."
+}

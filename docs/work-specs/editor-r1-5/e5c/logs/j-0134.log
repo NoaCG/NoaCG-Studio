@@ -1,0 +1,3 @@
+=== j-0134 node e5c.local/reference-extra.tmp.mjs
+=== cwd <owned-worktree>
+PASS reference wording/X/history, native timeline and authored SVG resource import

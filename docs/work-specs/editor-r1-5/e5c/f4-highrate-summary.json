@@ -1,0 +1,2101 @@
+{
+  "source": "e1c6fc4f5faf933be930cdf30f7acfa4e2b9ab22",
+  "fixture": {
+    "path": "docs/research/editor-design-review-2026-09-17/f4-noacg.json",
+    "sha256": "322ac5a1f9daf557d1d6b1a3f95b8c91150a7ce18cc0b15ee66841f805058650"
+  },
+  "method": "Input-to-protocol-ack is a proxy; rAF bounds/opacity samples are pose proxies. Actual CDP PNG hashes count changes in the canvas region INCLUDING the selection overlay, so they corroborate rendered output but do not independently prove artwork-only feedback Hz. All frame/rebuild gaps and raw inputs are retained; no target PASS or causal attribution.",
+  "viewports": [
+    {
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "settings": {
+        "innerWidth": 1366,
+        "innerHeight": 768,
+        "dpr": 1,
+        "visualScale": 1,
+        "screen": {
+          "width": 1366,
+          "height": 768
+        },
+        "browserZoom": "100% headless context default; not native 125%"
+      },
+      "coldLoadMs": 3757,
+      "actions": [
+        {
+          "name": "drags",
+          "inputs": {
+            "pointerdown": 10,
+            "pointerup": 10,
+            "pointermove": 398
+          },
+          "protocolLatencyMs": {
+            "n": 196,
+            "median": 59,
+            "p95": 137.5,
+            "max": 356.5
+          },
+          "protocolByKind": {
+            "reset-metrics": {
+              "n": 1,
+              "median": 65.900146484375,
+              "p95": 65.900146484375,
+              "max": 65.900146484375
+            },
+            "drag": {
+              "n": 175,
+              "median": 58.800048828125,
+              "p95": 108.300048828125,
+              "max": 167.800048828125
+            },
+            "commit": {
+              "n": 10,
+              "median": 191.199951171875,
+              "p95": 356.5,
+              "max": 356.5
+            },
+            "restore": {
+              "n": 10,
+              "median": 56.300048828125,
+              "p95": 96.89990234375,
+              "max": 96.89990234375
+            }
+          },
+          "parentLongTasks": [
+            84,
+            67,
+            57,
+            77,
+            224,
+            54,
+            56,
+            65,
+            55,
+            142,
+            55,
+            57,
+            57,
+            73,
+            55,
+            57,
+            57,
+            60,
+            167,
+            159,
+            62,
+            67,
+            55,
+            96,
+            54,
+            111,
+            57,
+            58,
+            58,
+            60,
+            56,
+            55,
+            81,
+            68,
+            64,
+            93,
+            53,
+            58,
+            119,
+            52,
+            62,
+            60,
+            52,
+            67,
+            56,
+            55,
+            59,
+            56,
+            63
+          ],
+          "iframeLongTasks": [
+            84,
+            67,
+            57,
+            54,
+            56,
+            65,
+            55,
+            55,
+            57,
+            57,
+            55,
+            57,
+            57,
+            62,
+            67,
+            55,
+            54,
+            111,
+            57,
+            58,
+            60,
+            56,
+            55,
+            68,
+            64,
+            93,
+            53,
+            52,
+            62,
+            60,
+            52,
+            56,
+            55,
+            59,
+            56
+          ],
+          "poseFrameIntervalMs": {
+            "n": 605,
+            "median": 16.699951171875,
+            "p95": 50,
+            "max": 299.900146484375
+          },
+          "screencastFrameIntervalMs": {
+            "n": 350,
+            "median": 27.286865234375,
+            "p95": 90.583251953125,
+            "max": 228.90087890625
+          },
+          "intervals": [
+            {
+              "start": 1794570472241.3,
+              "end": 1794570473267.5999,
+              "durationMs": 1026.2998046875,
+              "moveEvents": 38,
+              "actualMoveHz": 37.026217706014954,
+              "changedPoses": 12,
+              "changedPoseHz": 11.692489801899459,
+              "renderedCanvasRegionChanges": 22,
+              "renderedCanvasRegionHz": 21.43623130348234,
+              "maxPoseGapMs": 183.300048828125,
+              "maxRenderedGapMs": 122.81396484375,
+              "finalPointerUpProtocolProxyMs": [
+                356.5,
+                79.2001953125,
+                34.5,
+                89.199951171875,
+                68.10009765625,
+                60.10009765625,
+                68.800048828125,
+                58.800048828125,
+                74.099853515625,
+                60.89990234375,
+                99
+              ]
+            },
+            {
+              "start": 1794570473739.4,
+              "end": 1794570474754.7,
+              "durationMs": 1015.300048828125,
+              "moveEvents": 39,
+              "actualMoveHz": 38.412290086082834,
+              "changedPoses": 16,
+              "changedPoseHz": 15.758888240444238,
+              "renderedCanvasRegionChanges": 27,
+              "renderedCanvasRegionHz": 26.593123905749653,
+              "maxPoseGapMs": 166.699951171875,
+              "maxRenderedGapMs": 76.56689453125,
+              "finalPointerUpProtocolProxyMs": [
+                259.89990234375,
+                42.699951171875,
+                29,
+                62,
+                58.300048828125,
+                98.39990234375,
+                86.60009765625,
+                93.2998046875,
+                83.599853515625,
+                59.900146484375,
+                54.199951171875,
+                58.800048828125,
+                56.800048828125,
+                40
+              ]
+            },
+            {
+              "start": 1794570475105.9,
+              "end": 1794570476140.4,
+              "durationMs": 1034.5,
+              "moveEvents": 39,
+              "actualMoveHz": 37.699371677138714,
+              "changedPoses": 20,
+              "changedPoseHz": 19.33301111648139,
+              "renderedCanvasRegionChanges": 33,
+              "renderedCanvasRegionHz": 31.899468342194297,
+              "maxPoseGapMs": 150.10009765625,
+              "maxRenderedGapMs": 83.93994140625,
+              "finalPointerUpProtocolProxyMs": [
+                180.400146484375,
+                74.60009765625,
+                27.800048828125,
+                93,
+                86.599853515625,
+                82.10009765625,
+                46.2001953125,
+                60.800048828125,
+                57.300048828125,
+                52.10009765625,
+                49.39990234375,
+                48.300048828125,
+                51.10009765625,
+                70.800048828125,
+                40.60009765625,
+                48.900146484375,
+                60.7998046875
+              ]
+            },
+            {
+              "start": 1794570476422.4,
+              "end": 1794570477578.4,
+              "durationMs": 1156,
+              "moveEvents": 37,
+              "actualMoveHz": 32.00692041522491,
+              "changedPoses": 19,
+              "changedPoseHz": 16.43598615916955,
+              "renderedCanvasRegionChanges": 29,
+              "renderedCanvasRegionHz": 25.086505190311417,
+              "maxPoseGapMs": 274.60009765625,
+              "maxRenderedGapMs": 129.946044921875,
+              "finalPointerUpProtocolProxyMs": [
+                275.199951171875,
+                48.39990234375,
+                30.199951171875,
+                65,
+                77.800048828125,
+                81.60009765625,
+                54,
+                70.400146484375,
+                64.800048828125,
+                57.7001953125,
+                102.599853515625,
+                120.10009765625,
+                89.400146484375
+              ]
+            },
+            {
+              "start": 1794570477922.5999,
+              "end": 1794570478924,
+              "durationMs": 1001.400146484375,
+              "moveEvents": 39,
+              "actualMoveHz": 38.94547063620639,
+              "changedPoses": 17,
+              "changedPoseHz": 16.976230790141244,
+              "renderedCanvasRegionChanges": 29,
+              "renderedCanvasRegionHz": 28.959452524358596,
+              "maxPoseGapMs": 116.699951171875,
+              "maxRenderedGapMs": 81.673828125,
+              "finalPointerUpProtocolProxyMs": [
+                173,
+                57.900146484375,
+                27.89990234375,
+                51.699951171875,
+                50,
+                54.2998046875,
+                91,
+                160.800048828125,
+                98.2001953125,
+                88.199951171875,
+                55.2001953125,
+                73.300048828125,
+                61.10009765625,
+                52.60009765625
+              ]
+            },
+            {
+              "start": 1794570479205.8,
+              "end": 1794570480212.0999,
+              "durationMs": 1006.2998046875,
+              "moveEvents": 35,
+              "actualMoveHz": 34.780887203758354,
+              "changedPoses": 18,
+              "changedPoseHz": 17.887313419075724,
+              "renderedCanvasRegionChanges": 27,
+              "renderedCanvasRegionHz": 26.830970128613586,
+              "maxPoseGapMs": 216.699951171875,
+              "maxRenderedGapMs": 136.287841796875,
+              "finalPointerUpProtocolProxyMs": [
+                121.300048828125,
+                47,
+                31.2998046875,
+                105.39990234375,
+                102.39990234375,
+                103.800048828125,
+                93.89990234375,
+                47.39990234375,
+                43.89990234375,
+                52.5,
+                44,
+                46.5,
+                45.599853515625,
+                63.10009765625,
+                52.7001953125,
+                36.300048828125,
+                61.5,
+                45.60009765625
+              ]
+            },
+            {
+              "start": 1794570480414.0999,
+              "end": 1794570481409.3,
+              "durationMs": 995.2001953125,
+              "moveEvents": 44,
+              "actualMoveHz": 44.212209972671566,
+              "changedPoses": 20,
+              "changedPoseHz": 20.096459078487076,
+              "renderedCanvasRegionChanges": 34,
+              "renderedCanvasRegionHz": 34.16398043342802,
+              "maxPoseGapMs": 166.699951171875,
+              "maxRenderedGapMs": 71.8408203125,
+              "finalPointerUpProtocolProxyMs": [
+                191.199951171875,
+                96.89990234375,
+                28.800048828125,
+                110.800048828125,
+                93.7998046875,
+                59.300048828125,
+                52.099853515625,
+                52.199951171875,
+                40.800048828125,
+                45.89990234375,
+                48.400146484375,
+                46.300048828125,
+                43.89990234375,
+                53.5,
+                52.400146484375,
+                46.199951171875,
+                49.7001953125,
+                60.2001953125
+              ]
+            },
+            {
+              "start": 1794570481705.9,
+              "end": 1794570482765.7,
+              "durationMs": 1059.800048828125,
+              "moveEvents": 38,
+              "actualMoveHz": 35.85582020119601,
+              "changedPoses": 20,
+              "changedPoseHz": 18.87148431641895,
+              "renderedCanvasRegionChanges": 29,
+              "renderedCanvasRegionHz": 27.36365225880748,
+              "maxPoseGapMs": 183.300048828125,
+              "maxRenderedGapMs": 99.041015625,
+              "finalPointerUpProtocolProxyMs": [
+                218.699951171875,
+                30.699951171875,
+                28.800048828125,
+                48.699951171875,
+                38.400146484375,
+                40.39990234375,
+                54.2998046875,
+                48.199951171875,
+                42,
+                63,
+                50.10009765625,
+                59.400146484375,
+                53.2001953125,
+                83.199951171875,
+                110.199951171875,
+                108.300048828125
+              ]
+            },
+            {
+              "start": 1794570483071.9,
+              "end": 1794570484067.9,
+              "durationMs": 996,
+              "moveEvents": 39,
+              "actualMoveHz": 39.1566265060241,
+              "changedPoses": 20,
+              "changedPoseHz": 20.080321285140563,
+              "renderedCanvasRegionChanges": 32,
+              "renderedCanvasRegionHz": 32.1285140562249,
+              "maxPoseGapMs": 150,
+              "maxRenderedGapMs": 80.4970703125,
+              "finalPointerUpProtocolProxyMs": [
+                132.900146484375,
+                56.300048828125,
+                27.800048828125,
+                53.199951171875,
+                62.89990234375,
+                47.10009765625,
+                60.10009765625,
+                39.199951171875,
+                41.5,
+                92.89990234375,
+                92.2001953125,
+                92.60009765625,
+                93.699951171875,
+                58.900146484375,
+                56.5,
+                67,
+                50.699951171875
+              ]
+            },
+            {
+              "start": 1794570484245.7,
+              "end": 1794570485261.2,
+              "durationMs": 1015.5,
+              "moveEvents": 40,
+              "actualMoveHz": 39.389463318562285,
+              "changedPoses": 20,
+              "changedPoseHz": 19.694731659281143,
+              "renderedCanvasRegionChanges": 31,
+              "renderedCanvasRegionHz": 30.52683407188577,
+              "maxPoseGapMs": 150,
+              "maxRenderedGapMs": 77.9677734375,
+              "finalPointerUpProtocolProxyMs": [
+                137.5,
+                46.89990234375
+              ]
+            }
+          ],
+          "changedPoseIntervalMs": {
+            "n": 200,
+            "median": 33.400146484375,
+            "p95": 183.2998046875,
+            "max": 500.000244140625
+          },
+          "changedPoses": 201,
+          "renderedCanvasRegionChanges": 340,
+          "renderedCanvasRegionChangeIntervalMs": {
+            "n": 339,
+            "median": 27.286865234375,
+            "p95": 99.041015625,
+            "max": 295.238037109375
+          },
+          "finalPointerupPoseProxy": {
+            "method": "Expected source X from starting observed pose plus authored screen displacement/actual stage scale; first post-pointerup rAF bounds sample after last wrong sample, within 1 source px, through next drag. This is a bounds proxy with sampled gaps, not pixel latency. High-rate pointerup XY is stale Playwright driver state and cannot qualify final-pointerup target.",
+            "strokes": [
+              {
+                "index": 0,
+                "pointerdown": 1794570472241.3,
+                "pointerup": 1794570473267.5999,
+                "upXY": {
+                  "x": 367.3055725097656,
+                  "y": 226.96759033203125
+                },
+                "lastMove": {
+                  "kind": "pointermove",
+                  "at": 1794570473259.8,
+                  "x": 412.3055725097656,
+                  "y": 226.96759033203125,
+                  "isTrusted": true,
+                  "eventTimeStamp": 5058.5
+                },
+                "expectedSourceX": 312.0948515227551,
+                "lastSampleX": 312.0950012207031,
+                "expectedMatches": true,
+                "observedStablePoseAfterPointerupMs": 319.7001953125,
+                "samplingGapAfterPointerupMs": 286.30029296875
+              },
+              {
+                "index": 1,
+                "pointerdown": 1794570473739.4,
+                "pointerup": 1794570474754.7,
+                "upXY": {
+                  "x": 412.30560302734375,
+                  "y": 226.96759033203125
+                },
+                "lastMove": {
+                  "kind": "pointermove",
+                  "at": 1794570474725.5999,
+                  "x": 367.30560302734375,
+                  "y": 226.96759033203125,
+                  "isTrusted": true,
+                  "eventTimeStamp": 6553
+                },
+                "expectedSourceX": 120.00014969794805,
+                "lastSampleX": 120,
+                "expectedMatches": true,
+                "observedStablePoseAfterPointerupMs": 165.800048828125,
+                "samplingGapAfterPointerupMs": 165.800048828125
+              },
+              {
+                "index": 2,
+                "pointerdown": 1794570475105.9,
+                "pointerup": 1794570476140.4,
+                "upXY": {
+                  "x": 367.3055725097656,
+                  "y": 226.96759033203125
+                },
+                "lastMove": {
+                  "kind": "pointermove",
+                  "at": 1794570476111.2,
+                  "x": 412.3055725097656,
+                  "y": 226.96759033203125,
+                  "isTrusted": true,
+                  "eventTimeStamp": 7919.5999999940395
+                },
+                "expectedSourceX": 312.0948515227551,
+                "lastSampleX": 312.0950012207031,
+                "expectedMatches": true,
+                "observedStablePoseAfterPointerupMs": 146.699951171875,
+                "samplingGapAfterPointerupMs": 96.699951171875
+              },
+              {
+                "index": 3,
+                "pointerdown": 1794570476422.4,
+                "pointerup": 1794570477578.4,
+                "upXY": {
+                  "x": 412.30560302734375,
+                  "y": 226.96759033203125
+                },
+                "lastMove": {
+                  "kind": "pointermove",
+                  "at": 1794570477570.5999,
+                  "x": 367.30560302734375,
+                  "y": 226.96759033203125,
+                  "isTrusted": true,
+                  "eventTimeStamp": 9286
+                },
+                "expectedSourceX": 120.00014969794805,
+                "lastSampleX": 120,
+                "expectedMatches": true,
+                "observedStablePoseAfterPointerupMs": 225.400146484375,
+                "samplingGapAfterPointerupMs": 225.400146484375
+              },
+              {
+                "index": 4,
+                "pointerdown": 1794570477922.5999,
+                "pointerup": 1794570478924,
+                "upXY": {
+                  "x": 367.3055725097656,
+                  "y": 226.96759033203125
+                },
+                "lastMove": {
+                  "kind": "pointermove",
+                  "at": 1794570478911,
+                  "x": 412.3055725097656,
+                  "y": 226.96759033203125,
+                  "isTrusted": true,
+                  "eventTimeStamp": 10735.90000000596
+                },
+                "expectedSourceX": 312.0948515227551,
+                "lastSampleX": 312.0950012207031,
+                "expectedMatches": true,
+                "observedStablePoseAfterPointerupMs": 129.7998046875,
+                "samplingGapAfterPointerupMs": 113.099853515625
+              },
+              {
+                "index": 5,
+                "pointerdown": 1794570479205.8,
+                "pointerup": 1794570480212.0999,
+                "upXY": {
+                  "x": 412.30560302734375,
+                  "y": 226.96759033203125
+                },
+                "lastMove": {
+                  "kind": "pointermove",
+                  "at": 1794570480193,
+                  "x": 367.30560302734375,
+                  "y": 226.96759033203125,
+                  "isTrusted": true,
+                  "eventTimeStamp": 12019.40000000596
+                },
+                "expectedSourceX": 120.00014969794805,
+                "lastSampleX": 120,
+                "expectedMatches": true,
+                "observedStablePoseAfterPointerupMs": 58.300048828125,
+                "samplingGapAfterPointerupMs": 58.300048828125
+              },
+              {
+                "index": 6,
+                "pointerdown": 1794570480414.0999,
+                "pointerup": 1794570481409.3,
+                "upXY": {
+                  "x": 367.3055725097656,
+                  "y": 226.96759033203125
+                },
+                "lastMove": {
+                  "kind": "pointermove",
+                  "at": 1794570481404.5999,
+                  "x": 412.3055725097656,
+                  "y": 226.96759033203125,
+                  "isTrusted": true,
+                  "eventTimeStamp": 13230.70000000298
+                },
+                "expectedSourceX": 312.0948515227551,
+                "lastSampleX": 312.0950012207031,
+                "expectedMatches": true,
+                "observedStablePoseAfterPointerupMs": 161,
+                "samplingGapAfterPointerupMs": 77.699951171875
+              },
+              {
+                "index": 7,
+                "pointerdown": 1794570481705.9,
+                "pointerup": 1794570482765.7,
+                "upXY": {
+                  "x": 412.30560302734375,
+                  "y": 226.96759033203125
+                },
+                "lastMove": {
+                  "kind": "pointermove",
+                  "at": 1794570482755.3,
+                  "x": 367.30560302734375,
+                  "y": 226.96759033203125,
+                  "isTrusted": true,
+                  "eventTimeStamp": 14520.40000000596
+                },
+                "expectedSourceX": 120.00014969794805,
+                "lastSampleX": 120,
+                "expectedMatches": true,
+                "observedStablePoseAfterPointerupMs": 138,
+                "samplingGapAfterPointerupMs": 138
+              },
+              {
+                "index": 8,
+                "pointerdown": 1794570483071.9,
+                "pointerup": 1794570484067.9,
+                "upXY": {
+                  "x": 367.3055725097656,
+                  "y": 226.96759033203125
+                },
+                "lastMove": {
+                  "kind": "pointermove",
+                  "at": 1794570484057.5,
+                  "x": 412.3055725097656,
+                  "y": 226.96759033203125,
+                  "isTrusted": true,
+                  "eventTimeStamp": 15884.20000000298
+                },
+                "expectedSourceX": 312.0948515227551,
+                "lastSampleX": 312.0950012207031,
+                "expectedMatches": true,
+                "observedStablePoseAfterPointerupMs": 69,
+                "samplingGapAfterPointerupMs": 69
+              },
+              {
+                "index": 9,
+                "pointerdown": 1794570484245.7,
+                "pointerup": 1794570485261.2,
+                "upXY": {
+                  "x": 412.30560302734375,
+                  "y": 226.96759033203125
+                },
+                "lastMove": {
+                  "kind": "pointermove",
+                  "at": 1794570485251.4,
+                  "x": 367.30560302734375,
+                  "y": 226.96759033203125,
+                  "isTrusted": true,
+                  "eventTimeStamp": 17064.09999999404
+                },
+                "expectedSourceX": 120.00014969794805,
+                "lastSampleX": 120,
+                "expectedMatches": true,
+                "observedStablePoseAfterPointerupMs": 59,
+                "samplingGapAfterPointerupMs": 59
+              }
+            ],
+            "distributionMs": {
+              "n": 10,
+              "median": 146.699951171875,
+              "p95": 319.7001953125,
+              "max": 319.7001953125
+            },
+            "verdict": "WITHHELD: mixed driver pointerup coordinates"
+          }
+        },
+        {
+          "name": "scrubs",
+          "inputs": {
+            "pointerdown": 10,
+            "pointerup": 10,
+            "pointermove": 406
+          },
+          "protocolLatencyMs": {
+            "n": 97,
+            "median": 145.199951171875,
+            "p95": 251.39990234375,
+            "max": 280.800048828125
+          },
+          "protocolByKind": {
+            "reset-metrics": {
+              "n": 1,
+              "median": 162.400146484375,
+              "p95": 162.400146484375,
+              "max": 162.400146484375
+            },
+            "scrub": {
+              "n": 96,
+              "median": 145.199951171875,
+              "p95": 251.39990234375,
+              "max": 280.800048828125
+            }
+          },
+          "parentLongTasks": [
+            57,
+            54,
+            53,
+            56,
+            89,
+            63,
+            60,
+            52,
+            50,
+            54,
+            52,
+            56,
+            50,
+            51,
+            91,
+            54,
+            66,
+            50,
+            60,
+            51,
+            54,
+            50
+          ],
+          "iframeLongTasks": [
+            57,
+            54,
+            53,
+            56,
+            89,
+            63,
+            60,
+            52,
+            50,
+            54,
+            52,
+            56,
+            50,
+            51,
+            91,
+            54,
+            66,
+            50,
+            60,
+            51,
+            54
+          ],
+          "poseFrameIntervalMs": {
+            "n": 585,
+            "median": 16.699951171875,
+            "p95": 33.400146484375,
+            "max": 100
+          },
+          "screencastFrameIntervalMs": {
+            "n": 309,
+            "median": 30.47998046875,
+            "p95": 68.546875,
+            "max": 169.461181640625
+          },
+          "intervals": [
+            {
+              "start": 1794570485992.7,
+              "end": 1794570487082.5999,
+              "durationMs": 1089.89990234375,
+              "moveEvents": 45,
+              "actualMoveHz": 41.28819527667705,
+              "changedPoses": 9,
+              "changedPoseHz": 8.25763905533541,
+              "renderedCanvasRegionChanges": 16,
+              "renderedCanvasRegionHz": 14.680247209485174,
+              "maxPoseGapMs": 194.10009765625,
+              "maxRenderedGapMs": 256.12109375,
+              "finalPointerUpProtocolProxyMs": [
+                172.199951171875,
+                133.199951171875,
+                128.699951171875,
+                141,
+                153.5,
+                163.7001953125,
+                145.800048828125,
+                186.5,
+                270.7998046875
+              ]
+            },
+            {
+              "start": 1794570487277.3,
+              "end": 1794570488308.8,
+              "durationMs": 1031.5,
+              "moveEvents": 35,
+              "actualMoveHz": 33.931168201648084,
+              "changedPoses": 8,
+              "changedPoseHz": 7.755695588948134,
+              "renderedCanvasRegionChanges": 16,
+              "renderedCanvasRegionHz": 15.511391177896268,
+              "maxPoseGapMs": 166.699951171875,
+              "maxRenderedGapMs": 135.087890625,
+              "finalPointerUpProtocolProxyMs": [
+                157.60009765625,
+                145.800048828125,
+                153.300048828125,
+                155.400146484375,
+                163.300048828125,
+                210.300048828125,
+                224.800048828125,
+                137.7998046875
+              ]
+            },
+            {
+              "start": 1794570488347.5,
+              "end": 1794570489370.4,
+              "durationMs": 1022.89990234375,
+              "moveEvents": 35,
+              "actualMoveHz": 34.216446711750784,
+              "changedPoses": 9,
+              "changedPoseHz": 8.798514868735916,
+              "renderedCanvasRegionChanges": 17,
+              "renderedCanvasRegionHz": 16.619416974278952,
+              "maxPoseGapMs": 200,
+              "maxRenderedGapMs": 132.841064453125,
+              "finalPointerUpProtocolProxyMs": [
+                113.199951171875,
+                140.2998046875,
+                124.7998046875,
+                133.199951171875,
+                133.7998046875,
+                145.199951171875,
+                172.300048828125,
+                280.800048828125,
+                165.800048828125,
+                140.5
+              ]
+            },
+            {
+              "start": 1794570489450.5,
+              "end": 1794570490472.5999,
+              "durationMs": 1022.099853515625,
+              "moveEvents": 42,
+              "actualMoveHz": 41.09187556923756,
+              "changedPoses": 9,
+              "changedPoseHz": 8.805401907693764,
+              "renderedCanvasRegionChanges": 18,
+              "renderedCanvasRegionHz": 17.610803815387527,
+              "maxPoseGapMs": 166.699951171875,
+              "maxRenderedGapMs": 138.202880859375,
+              "finalPointerUpProtocolProxyMs": [
+                88.400146484375,
+                152,
+                119.7998046875,
+                115,
+                153.699951171875,
+                112.60009765625,
+                206.2998046875,
+                175.39990234375,
+                146.89990234375,
+                119
+              ]
+            },
+            {
+              "start": 1794570490549.5,
+              "end": 1794570491564.5,
+              "durationMs": 1015,
+              "moveEvents": 47,
+              "actualMoveHz": 46.30541871921182,
+              "changedPoses": 9,
+              "changedPoseHz": 8.866995073891626,
+              "renderedCanvasRegionChanges": 18,
+              "renderedCanvasRegionHz": 17.733990147783253,
+              "maxPoseGapMs": 166.7001953125,
+              "maxRenderedGapMs": 112.23779296875,
+              "finalPointerUpProtocolProxyMs": [
+                119.099853515625,
+                150.39990234375,
+                114.900146484375,
+                127.599853515625,
+                213.800048828125,
+                188.900146484375,
+                139.400146484375,
+                115.60009765625,
+                152.300048828125
+              ]
+            },
+            {
+              "start": 1794570491594.9,
+              "end": 1794570492616.7,
+              "durationMs": 1021.800048828125,
+              "moveEvents": 44,
+              "actualMoveHz": 43.06126237756831,
+              "changedPoses": 10,
+              "changedPoseHz": 9.786650540356433,
+              "renderedCanvasRegionChanges": 18,
+              "renderedCanvasRegionHz": 17.61597097264158,
+              "maxPoseGapMs": 166.60009765625,
+              "maxRenderedGapMs": 116.066162109375,
+              "finalPointerUpProtocolProxyMs": [
+                118.300048828125,
+                121.900146484375,
+                120.60009765625,
+                250.199951171875,
+                251.39990234375,
+                158.89990234375,
+                125.39990234375,
+                124.10009765625,
+                155.89990234375
+              ]
+            },
+            {
+              "start": 1794570492632.9,
+              "end": 1794570493678.0999,
+              "durationMs": 1045.199951171875,
+              "moveEvents": 32,
+              "actualMoveHz": 30.616151449415682,
+              "changedPoses": 9,
+              "changedPoseHz": 8.61079259514816,
+              "renderedCanvasRegionChanges": 15,
+              "renderedCanvasRegionHz": 14.351320991913601,
+              "maxPoseGapMs": 166.699951171875,
+              "maxRenderedGapMs": 169.461181640625,
+              "finalPointerUpProtocolProxyMs": [
+                111.10009765625,
+                188.2998046875,
+                135.39990234375,
+                207,
+                270.800048828125,
+                149.60009765625,
+                140.60009765625,
+                134.900146484375,
+                147.7001953125
+              ]
+            },
+            {
+              "start": 1794570493747.5999,
+              "end": 1794570494762.9,
+              "durationMs": 1015.300048828125,
+              "moveEvents": 40,
+              "actualMoveHz": 39.3972206011106,
+              "changedPoses": 8,
+              "changedPoseHz": 7.879444120222119,
+              "renderedCanvasRegionChanges": 16,
+              "renderedCanvasRegionHz": 15.758888240444238,
+              "maxPoseGapMs": 216.60009765625,
+              "maxRenderedGapMs": 166.25,
+              "finalPointerUpProtocolProxyMs": [
+                108.699951171875,
+                152.800048828125,
+                129.300048828125,
+                224.300048828125,
+                226,
+                143.900146484375,
+                148.89990234375,
+                117.699951171875,
+                137.60009765625
+              ]
+            },
+            {
+              "start": 1794570494843.7,
+              "end": 1794570495868.5999,
+              "durationMs": 1024.89990234375,
+              "moveEvents": 40,
+              "actualMoveHz": 39.02820159171413,
+              "changedPoses": 8,
+              "changedPoseHz": 7.805640318342826,
+              "renderedCanvasRegionChanges": 17,
+              "renderedCanvasRegionHz": 16.586985676478506,
+              "maxPoseGapMs": 200,
+              "maxRenderedGapMs": 135.430908203125,
+              "finalPointerUpProtocolProxyMs": [
+                144.7001953125,
+                122.89990234375,
+                167,
+                189.60009765625,
+                117.199951171875,
+                131.89990234375,
+                109.5,
+                110.300048828125,
+                157.699951171875,
+                109.699951171875
+              ]
+            },
+            {
+              "start": 1794570495896.9,
+              "end": 1794570496906.4,
+              "durationMs": 1009.5,
+              "moveEvents": 36,
+              "actualMoveHz": 35.661218424962854,
+              "changedPoses": 10,
+              "changedPoseHz": 9.905894006934126,
+              "renderedCanvasRegionChanges": 20,
+              "renderedCanvasRegionHz": 19.811788013868252,
+              "maxPoseGapMs": 166.60009765625,
+              "maxRenderedGapMs": 105.625244140625,
+              "finalPointerUpProtocolProxyMs": [
+                67.89990234375
+              ]
+            }
+          ],
+          "changedPoseIntervalMs": {
+            "n": 96,
+            "median": 100.099853515625,
+            "p95": 200,
+            "max": 216.60009765625
+          },
+          "changedPoses": 97,
+          "renderedCanvasRegionChanges": 187,
+          "renderedCanvasRegionChangeIntervalMs": {
+            "n": 186,
+            "median": 58.912109375,
+            "p95": 135.087890625,
+            "max": 260.7939453125
+          }
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "settings": {
+        "innerWidth": 1920,
+        "innerHeight": 1080,
+        "dpr": 1,
+        "visualScale": 1,
+        "screen": {
+          "width": 1920,
+          "height": 1080
+        },
+        "browserZoom": "100% headless context default; not native 125%"
+      },
+      "coldLoadMs": 2035,
+      "actions": [
+        {
+          "name": "drags",
+          "inputs": {
+            "pointerdown": 10,
+            "pointerup": 10,
+            "pointermove": 367
+          },
+          "protocolLatencyMs": {
+            "n": 208,
+            "median": 54.5,
+            "p95": 127.800048828125,
+            "max": 291.699951171875
+          },
+          "protocolByKind": {
+            "reset-metrics": {
+              "n": 1,
+              "median": 54,
+              "p95": 54,
+              "max": 54
+            },
+            "drag": {
+              "n": 187,
+              "median": 51.900146484375,
+              "p95": 99.800048828125,
+              "max": 183.300048828125
+            },
+            "commit": {
+              "n": 10,
+              "median": 213,
+              "p95": 291.699951171875,
+              "max": 291.699951171875
+            },
+            "restore": {
+              "n": 10,
+              "median": 57.199951171875,
+              "p95": 110,
+              "max": 110
+            }
+          },
+          "parentLongTasks": [
+            74,
+            59,
+            65,
+            55,
+            63,
+            172,
+            60,
+            66,
+            57,
+            120,
+            59,
+            53,
+            53,
+            52,
+            84,
+            67,
+            59,
+            57,
+            60,
+            72,
+            59,
+            100,
+            122,
+            66,
+            58,
+            55,
+            54,
+            98,
+            52,
+            63,
+            53,
+            144,
+            64,
+            54,
+            55,
+            52,
+            54,
+            110,
+            50,
+            53,
+            58,
+            52,
+            68,
+            54,
+            56,
+            61,
+            50,
+            67,
+            66,
+            64,
+            53,
+            54,
+            55,
+            70,
+            53
+          ],
+          "iframeLongTasks": [
+            74,
+            59,
+            65,
+            60,
+            66,
+            57,
+            59,
+            53,
+            53,
+            52,
+            67,
+            59,
+            57,
+            60,
+            66,
+            58,
+            55,
+            54,
+            52,
+            63,
+            53,
+            144,
+            54,
+            55,
+            52,
+            50,
+            53,
+            58,
+            52,
+            54,
+            56,
+            61,
+            50,
+            64,
+            53,
+            54,
+            55,
+            53
+          ],
+          "poseFrameIntervalMs": {
+            "n": 519,
+            "median": 16.699951171875,
+            "p95": 66.699951171875,
+            "max": 200
+          },
+          "screencastFrameIntervalMs": {
+            "n": 266,
+            "median": 39.73486328125,
+            "p95": 91.891845703125,
+            "max": 223.675048828125
+          },
+          "intervals": [
+            {
+              "start": 1794570500075.6,
+              "end": 1794570501149.6,
+              "durationMs": 1074,
+              "moveEvents": 36,
+              "actualMoveHz": 33.5195530726257,
+              "changedPoses": 18,
+              "changedPoseHz": 16.75977653631285,
+              "renderedCanvasRegionChanges": 19,
+              "renderedCanvasRegionHz": 17.690875232774673,
+              "maxPoseGapMs": 133.400146484375,
+              "maxRenderedGapMs": 92.841064453125,
+              "finalPointerUpProtocolProxyMs": [
+                260.300048828125,
+                37.2001953125,
+                28.7001953125,
+                57.10009765625,
+                58.300048828125,
+                47.400146484375,
+                55.7998046875,
+                63.199951171875,
+                65.5,
+                59.699951171875,
+                44.800048828125,
+                96.400146484375,
+                122.099853515625,
+                90.400146484375
+              ]
+            },
+            {
+              "start": 1794570501474.2,
+              "end": 1794570502477.3,
+              "durationMs": 1003.10009765625,
+              "moveEvents": 37,
+              "actualMoveHz": 36.88565088015717,
+              "changedPoses": 18,
+              "changedPoseHz": 17.94437069845484,
+              "renderedCanvasRegionChanges": 20,
+              "renderedCanvasRegionHz": 19.93818966494982,
+              "maxPoseGapMs": 166.60009765625,
+              "maxRenderedGapMs": 92.36083984375,
+              "finalPointerUpProtocolProxyMs": [
+                254.5,
+                55.10009765625,
+                30.699951171875,
+                78.39990234375,
+                108.10009765625,
+                78.800048828125,
+                91.60009765625,
+                79,
+                70.5,
+                50.699951171875,
+                57.10009765625,
+                59.5,
+                43.89990234375
+              ]
+            },
+            {
+              "start": 1794570502821.6,
+              "end": 1794570503848.6,
+              "durationMs": 1027,
+              "moveEvents": 36,
+              "actualMoveHz": 35.05355404089581,
+              "changedPoses": 19,
+              "changedPoseHz": 18.500486854917234,
+              "renderedCanvasRegionChanges": 22,
+              "renderedCanvasRegionHz": 21.42161635832522,
+              "maxPoseGapMs": 133.400146484375,
+              "maxRenderedGapMs": 78.2060546875,
+              "finalPointerUpProtocolProxyMs": [
+                213,
+                110,
+                32.89990234375,
+                98.39990234375,
+                92.900146484375,
+                56.300048828125,
+                72.699951171875,
+                58.599853515625,
+                102.300048828125,
+                54.7998046875,
+                63.300048828125,
+                56.300048828125,
+                57.60009765625,
+                57.400146484375
+              ]
+            },
+            {
+              "start": 1794570504162.3,
+              "end": 1794570505223.1,
+              "durationMs": 1060.800048828125,
+              "moveEvents": 34,
+              "actualMoveHz": 32.05128057597668,
+              "changedPoses": 16,
+              "changedPoseHz": 15.082955565165499,
+              "renderedCanvasRegionChanges": 18,
+              "renderedCanvasRegionHz": 16.968325010811185,
+              "maxPoseGapMs": 116.60009765625,
+              "maxRenderedGapMs": 110.226806640625,
+              "finalPointerUpProtocolProxyMs": [
+                291.699951171875,
+                57.199951171875,
+                28.10009765625,
+                34,
+                49.900146484375,
+                54.199951171875,
+                45.199951171875,
+                49.10009765625,
+                48.60009765625,
+                44.800048828125,
+                44.5,
+                98.39990234375,
+                98.5,
+                87.199951171875,
+                79.7998046875
+              ]
+            },
+            {
+              "start": 1794570505563.1,
+              "end": 1794570506564.6,
+              "durationMs": 1001.5,
+              "moveEvents": 35,
+              "actualMoveHz": 34.94757863205192,
+              "changedPoses": 20,
+              "changedPoseHz": 19.9700449326011,
+              "renderedCanvasRegionChanges": 20,
+              "renderedCanvasRegionHz": 19.9700449326011,
+              "maxPoseGapMs": 100,
+              "maxRenderedGapMs": 91.891845703125,
+              "finalPointerUpProtocolProxyMs": [
+                175.39990234375,
+                54.5,
+                27.60009765625,
+                47.60009765625,
+                49.099853515625,
+                79.699951171875,
+                99.800048828125,
+                81,
+                83.300048828125,
+                43.10009765625,
+                46.300048828125,
+                40.300048828125,
+                59.300048828125,
+                183.300048828125
+              ]
+            },
+            {
+              "start": 1794570506842.5,
+              "end": 1794570507861.3,
+              "durationMs": 1018.800048828125,
+              "moveEvents": 32,
+              "actualMoveHz": 31.409499868799582,
+              "changedPoses": 19,
+              "changedPoseHz": 18.649390547099753,
+              "renderedCanvasRegionChanges": 18,
+              "renderedCanvasRegionHz": 17.667843676199766,
+              "maxPoseGapMs": 166.699951171875,
+              "maxRenderedGapMs": 169.200927734375,
+              "finalPointerUpProtocolProxyMs": [
+                120.89990234375,
+                97.39990234375,
+                27,
+                89.300048828125,
+                83.599853515625,
+                77.900146484375,
+                48.10009765625,
+                39.2001953125,
+                40,
+                40.199951171875,
+                45.10009765625,
+                36.800048828125,
+                48.39990234375,
+                53,
+                40.10009765625,
+                45.5,
+                43.60009765625,
+                41.10009765625,
+                38.900146484375,
+                39.099853515625,
+                41
+              ]
+            },
+            {
+              "start": 1794570508072.2,
+              "end": 1794570509068.1,
+              "durationMs": 995.900146484375,
+              "moveEvents": 43,
+              "actualMoveHz": 43.17701945500682,
+              "changedPoses": 23,
+              "changedPoseHz": 23.09468482477109,
+              "renderedCanvasRegionChanges": 22,
+              "renderedCanvasRegionHz": 22.090568093259304,
+              "maxPoseGapMs": 83.300048828125,
+              "maxRenderedGapMs": 86.682861328125,
+              "finalPointerUpProtocolProxyMs": [
+                222.900146484375,
+                85.10009765625,
+                27.7001953125,
+                48.800048828125,
+                47.400146484375,
+                41.800048828125,
+                77.800048828125,
+                45.5,
+                37.800048828125,
+                58.39990234375,
+                76.10009765625,
+                47.800048828125,
+                57.599853515625,
+                51.400146484375,
+                50.300048828125,
+                63.89990234375,
+                48.89990234375,
+                82.400146484375,
+                98.199951171875
+              ]
+            },
+            {
+              "start": 1794570509370.6,
+              "end": 1794570510372.3,
+              "durationMs": 1001.699951171875,
+              "moveEvents": 36,
+              "actualMoveHz": 35.938905615283396,
+              "changedPoses": 20,
+              "changedPoseHz": 19.96605867515744,
+              "renderedCanvasRegionChanges": 23,
+              "renderedCanvasRegionHz": 22.96096747643106,
+              "maxPoseGapMs": 83.300048828125,
+              "maxRenderedGapMs": 80.5439453125,
+              "finalPointerUpProtocolProxyMs": [
+                180.800048828125,
+                53.5,
+                28.10009765625,
+                65.699951171875,
+                50,
+                59.099853515625,
+                42.199951171875,
+                41.39990234375,
+                47.5,
+                49.5,
+                45.5,
+                81,
+                91,
+                89.60009765625,
+                75.699951171875,
+                52.89990234375
+              ]
+            },
+            {
+              "start": 1794570510654.3,
+              "end": 1794570511680.8,
+              "durationMs": 1026.5,
+              "moveEvents": 34,
+              "actualMoveHz": 33.12226010716025,
+              "changedPoses": 20,
+              "changedPoseHz": 19.48368241597662,
+              "renderedCanvasRegionChanges": 21,
+              "renderedCanvasRegionHz": 20.45786653677545,
+              "maxPoseGapMs": 95,
+              "maxRenderedGapMs": 86.565185546875,
+              "finalPointerUpProtocolProxyMs": [
+                137.89990234375,
+                54.699951171875,
+                27.800048828125,
+                49.800048828125,
+                48.10009765625,
+                49.60009765625,
+                101.2998046875,
+                82.199951171875,
+                90.89990234375,
+                82.699951171875,
+                56.89990234375,
+                46.60009765625,
+                51.900146484375,
+                71.800048828125,
+                34.699951171875,
+                43.10009765625,
+                43.89990234375,
+                43.89990234375,
+                50.699951171875
+              ]
+            },
+            {
+              "start": 1794570511904.4,
+              "end": 1794570512905.3,
+              "durationMs": 1000.900146484375,
+              "moveEvents": 34,
+              "actualMoveHz": 33.96942254372102,
+              "changedPoses": 22,
+              "changedPoseHz": 21.9802145871136,
+              "renderedCanvasRegionChanges": 22,
+              "renderedCanvasRegionHz": 21.9802145871136,
+              "maxPoseGapMs": 83.39990234375,
+              "maxRenderedGapMs": 84.3779296875,
+              "finalPointerUpProtocolProxyMs": [
+                167.400146484375,
+                84.39990234375
+              ]
+            }
+          ],
+          "changedPoseIntervalMs": {
+            "n": 214,
+            "median": 49.900146484375,
+            "p95": 166.60009765625,
+            "max": 300.099853515625
+          },
+          "changedPoses": 215,
+          "renderedCanvasRegionChanges": 254,
+          "renderedCanvasRegionChangeIntervalMs": {
+            "n": 253,
+            "median": 39.876708984375,
+            "p95": 101.166015625,
+            "max": 258.83203125
+          },
+          "finalPointerupPoseProxy": {
+            "method": "Expected source X from starting observed pose plus authored screen displacement/actual stage scale; first post-pointerup rAF bounds sample after last wrong sample, within 1 source px, through next drag. This is a bounds proxy with sampled gaps, not pixel latency. High-rate pointerup XY is stale Playwright driver state and cannot qualify final-pointerup target.",
+            "strokes": [
+              {
+                "index": 0,
+                "pointerdown": 1794570500075.6,
+                "pointerup": 1794570501149.6,
+                "upXY": {
+                  "x": 493.47003173828125,
+                  "y": 256.1213073730469
+                },
+                "lastMove": {
+                  "kind": "pointermove",
+                  "at": 1794570501135.9,
+                  "x": 538.4700317382812,
+                  "y": 256.1213073730469,
+                  "isTrusted": true,
+                  "eventTimeStamp": 3354.2000000029802
+                },
+                "expectedSourceX": 223.35957899654267,
+                "lastSampleX": 223.36000061035156,
+                "expectedMatches": true,
+                "observedStablePoseAfterPointerupMs": 219.89990234375,
+                "samplingGapAfterPointerupMs": 186.599853515625
+              },
+              {
+                "index": 1,
+                "pointerdown": 1794570501474.2,
+                "pointerup": 1794570502477.3,
+                "upXY": {
+                  "x": 538.47021484375,
+                  "y": 256.1213073730469
+                },
+                "lastMove": {
+                  "kind": "pointermove",
+                  "at": 1794570502466.7,
+                  "x": 493.47021484375,
+                  "y": 256.1213073730469,
+                  "isTrusted": true,
+                  "eventTimeStamp": 4749.5
+                },
+                "expectedSourceX": 120.0004216138089,
+                "lastSampleX": 120,
+                "expectedMatches": true,
+                "observedStablePoseAfterPointerupMs": 108.800048828125,
+                "samplingGapAfterPointerupMs": 108.800048828125
+              },
+              {
+                "index": 2,
+                "pointerdown": 1794570502821.6,
+                "pointerup": 1794570503848.6,
+                "upXY": {
+                  "x": 493.47003173828125,
+                  "y": 256.1213073730469
+                },
+                "lastMove": {
+                  "kind": "pointermove",
+                  "at": 1794570503837.6,
+                  "x": 538.4700317382812,
+                  "y": 256.1213073730469,
+                  "isTrusted": true,
+                  "eventTimeStamp": 6098
+                },
+                "expectedSourceX": 223.35957899654267,
+                "lastSampleX": 223.36000061035156,
+                "expectedMatches": true,
+                "observedStablePoseAfterPointerupMs": 154.099853515625,
+                "samplingGapAfterPointerupMs": 70.7998046875
+              },
+              {
+                "index": 3,
+                "pointerdown": 1794570504162.3,
+                "pointerup": 1794570505223.1,
+                "upXY": {
+                  "x": 538.47021484375,
+                  "y": 256.1213073730469
+                },
+                "lastMove": {
+                  "kind": "pointermove",
+                  "at": 1794570505212.3,
+                  "x": 493.47021484375,
+                  "y": 256.1213073730469,
+                  "isTrusted": true,
+                  "eventTimeStamp": 7444.0999999940395
+                },
+                "expectedSourceX": 120.0004216138089,
+                "lastSampleX": 120,
+                "expectedMatches": true,
+                "observedStablePoseAfterPointerupMs": 96.199951171875,
+                "samplingGapAfterPointerupMs": 96.199951171875
+              },
+              {
+                "index": 4,
+                "pointerdown": 1794570505563.1,
+                "pointerup": 1794570506564.6,
+                "upXY": {
+                  "x": 493.47003173828125,
+                  "y": 256.1213073730469
+                },
+                "lastMove": {
+                  "kind": "pointermove",
+                  "at": 1794570506554.4,
+                  "x": 538.4700317382812,
+                  "y": 256.1213073730469,
+                  "isTrusted": true,
+                  "eventTimeStamp": 8843.89999999106
+                },
+                "expectedSourceX": 223.35957899654267,
+                "lastSampleX": 223.36000061035156,
+                "expectedMatches": true,
+                "observedStablePoseAfterPointerupMs": 138,
+                "samplingGapAfterPointerupMs": 121.39990234375
+              },
+              {
+                "index": 5,
+                "pointerdown": 1794570506842.5,
+                "pointerup": 1794570507861.3,
+                "upXY": {
+                  "x": 538.47021484375,
+                  "y": 256.1213073730469
+                },
+                "lastMove": {
+                  "kind": "pointermove",
+                  "at": 1794570507850,
+                  "x": 493.47021484375,
+                  "y": 256.1213073730469,
+                  "isTrusted": true,
+                  "eventTimeStamp": 10117.70000000298
+                },
+                "expectedSourceX": 120.0004216138089,
+                "lastSampleX": 120,
+                "expectedMatches": true,
+                "observedStablePoseAfterPointerupMs": 58,
+                "samplingGapAfterPointerupMs": 58
+              },
+              {
+                "index": 6,
+                "pointerdown": 1794570508072.2,
+                "pointerup": 1794570509068.1,
+                "upXY": {
+                  "x": 493.47003173828125,
+                  "y": 256.1213073730469
+                },
+                "lastMove": {
+                  "kind": "pointermove",
+                  "at": 1794570509064.2,
+                  "x": 538.4700317382812,
+                  "y": 256.1213073730469,
+                  "isTrusted": true,
+                  "eventTimeStamp": 11353.29999999702
+                },
+                "expectedSourceX": 223.35957899654267,
+                "lastSampleX": 223.36000061035156,
+                "expectedMatches": true,
+                "observedStablePoseAfterPointerupMs": 184.39990234375,
+                "samplingGapAfterPointerupMs": 17.800048828125
+              },
+              {
+                "index": 7,
+                "pointerdown": 1794570509370.6,
+                "pointerup": 1794570510372.3,
+                "upXY": {
+                  "x": 538.47021484375,
+                  "y": 256.1213073730469
+                },
+                "lastMove": {
+                  "kind": "pointermove",
+                  "at": 1794570510367.7,
+                  "x": 493.47021484375,
+                  "y": 256.1213073730469,
+                  "isTrusted": true,
+                  "eventTimeStamp": 12650.89999999106
+                },
+                "expectedSourceX": 120.0004216138089,
+                "lastSampleX": 120,
+                "expectedMatches": true,
+                "observedStablePoseAfterPointerupMs": 63.5,
+                "samplingGapAfterPointerupMs": 63.5
+              },
+              {
+                "index": 8,
+                "pointerdown": 1794570510654.3,
+                "pointerup": 1794570511680.8,
+                "upXY": {
+                  "x": 493.47003173828125,
+                  "y": 256.1213073730469
+                },
+                "lastMove": {
+                  "kind": "pointermove",
+                  "at": 1794570511656.6,
+                  "x": 538.4700317382812,
+                  "y": 256.1213073730469,
+                  "isTrusted": true,
+                  "eventTimeStamp": 13931.39999999106
+                },
+                "expectedSourceX": 223.35957899654267,
+                "lastSampleX": 223.36000061035156,
+                "expectedMatches": true,
+                "observedStablePoseAfterPointerupMs": 105,
+                "samplingGapAfterPointerupMs": 55
+              },
+              {
+                "index": 9,
+                "pointerdown": 1794570511904.4,
+                "pointerup": 1794570512905.3,
+                "upXY": {
+                  "x": 538.47021484375,
+                  "y": 256.1213073730469
+                },
+                "lastMove": {
+                  "kind": "pointermove",
+                  "at": 1794570512895.7,
+                  "x": 493.47021484375,
+                  "y": 256.1213073730469,
+                  "isTrusted": true,
+                  "eventTimeStamp": 15181.29999999702
+                },
+                "expectedSourceX": 120.0004216138089,
+                "lastSampleX": 120,
+                "expectedMatches": true,
+                "observedStablePoseAfterPointerupMs": 63.800048828125,
+                "samplingGapAfterPointerupMs": 63.800048828125
+              }
+            ],
+            "distributionMs": {
+              "n": 10,
+              "median": 108.800048828125,
+              "p95": 219.89990234375,
+              "max": 219.89990234375
+            },
+            "verdict": "WITHHELD: mixed driver pointerup coordinates"
+          }
+        },
+        {
+          "name": "scrubs",
+          "inputs": {
+            "pointerdown": 10,
+            "pointerup": 10,
+            "pointermove": 387
+          },
+          "protocolLatencyMs": {
+            "n": 96,
+            "median": 142,
+            "p95": 258.900146484375,
+            "max": 314.39990234375
+          },
+          "protocolByKind": {
+            "reset-metrics": {
+              "n": 1,
+              "median": 228.10009765625,
+              "p95": 228.10009765625,
+              "max": 228.10009765625
+            },
+            "scrub": {
+              "n": 95,
+              "median": 140.7998046875,
+              "p95": 258.900146484375,
+              "max": 314.39990234375
+            }
+          },
+          "parentLongTasks": [
+            63,
+            80,
+            57,
+            65,
+            72,
+            79,
+            50,
+            51,
+            86,
+            54,
+            54,
+            113,
+            67,
+            59,
+            51,
+            72,
+            84,
+            52,
+            52,
+            60,
+            50,
+            51,
+            53,
+            74,
+            56,
+            60
+          ],
+          "iframeLongTasks": [
+            63,
+            80,
+            57,
+            65,
+            72,
+            79,
+            50,
+            51,
+            86,
+            54,
+            54,
+            113,
+            67,
+            59,
+            51,
+            72,
+            84,
+            52,
+            52,
+            60,
+            50,
+            51,
+            53,
+            74,
+            56,
+            60
+          ],
+          "poseFrameIntervalMs": {
+            "n": 542,
+            "median": 16.699951171875,
+            "p95": 49.89990234375,
+            "max": 133.300048828125
+          },
+          "screencastFrameIntervalMs": {
+            "n": 309,
+            "median": 28.89013671875,
+            "p95": 71.43017578125,
+            "max": 154.170166015625
+          },
+          "intervals": [
+            {
+              "start": 1794570513744.2,
+              "end": 1794570514814.4,
+              "durationMs": 1070.199951171875,
+              "moveEvents": 34,
+              "actualMoveHz": 31.769764110687735,
+              "changedPoses": 7,
+              "changedPoseHz": 6.540833787494534,
+              "renderedCanvasRegionChanges": 12,
+              "renderedCanvasRegionHz": 11.2128579214192,
+              "maxPoseGapMs": 250,
+              "maxRenderedGapMs": 269.55517578125,
+              "finalPointerUpProtocolProxyMs": [
+                104.7001953125,
+                148.89990234375,
+                156.800048828125,
+                228.89990234375,
+                134.900146484375,
+                133.2001953125,
+                110.099853515625,
+                107,
+                244,
+                206.800048828125
+              ]
+            },
+            {
+              "start": 1794570514900.1,
+              "end": 1794570515932.7,
+              "durationMs": 1032.599853515625,
+              "moveEvents": 33,
+              "actualMoveHz": 31.958168391799653,
+              "changedPoses": 9,
+              "changedPoseHz": 8.71586410685445,
+              "renderedCanvasRegionChanges": 17,
+              "renderedCanvasRegionHz": 16.463298868502854,
+              "maxPoseGapMs": 216.60009765625,
+              "maxRenderedGapMs": 147.4169921875,
+              "finalPointerUpProtocolProxyMs": [
+                156.89990234375,
+                244.7001953125,
+                186.599853515625,
+                111.39990234375,
+                118.800048828125,
+                134.300048828125,
+                118.7998046875,
+                103.60009765625,
+                125.5
+              ]
+            },
+            {
+              "start": 1794570515988.4,
+              "end": 1794570517032.5,
+              "durationMs": 1044.10009765625,
+              "moveEvents": 39,
+              "actualMoveHz": 37.35274049638103,
+              "changedPoses": 9,
+              "changedPoseHz": 8.619863191472547,
+              "renderedCanvasRegionChanges": 18,
+              "renderedCanvasRegionHz": 17.239726382945094,
+              "maxPoseGapMs": 333.300048828125,
+              "maxRenderedGapMs": 206.404052734375,
+              "finalPointerUpProtocolProxyMs": [
+                64.89990234375,
+                192.10009765625,
+                161.10009765625,
+                118.89990234375,
+                123,
+                132.900146484375,
+                120.5,
+                240.2001953125,
+                153.10009765625
+              ]
+            },
+            {
+              "start": 1794570517114.1,
+              "end": 1794570518125.4,
+              "durationMs": 1011.2998046875,
+              "moveEvents": 41,
+              "actualMoveHz": 40.541884622107034,
+              "changedPoses": 8,
+              "changedPoseHz": 7.910611633581859,
+              "renderedCanvasRegionChanges": 16,
+              "renderedCanvasRegionHz": 15.821223267163719,
+              "maxPoseGapMs": 233.2998046875,
+              "maxRenderedGapMs": 119.567138671875,
+              "finalPointerUpProtocolProxyMs": [
+                168.5,
+                128.300048828125,
+                124.199951171875,
+                168.5,
+                145.199951171875,
+                142.099853515625,
+                136.10009765625,
+                92.60009765625,
+                306.800048828125
+              ]
+            },
+            {
+              "start": 1794570518212.2,
+              "end": 1794570519278.8,
+              "durationMs": 1066.60009765625,
+              "moveEvents": 42,
+              "actualMoveHz": 39.377457485978965,
+              "changedPoses": 9,
+              "changedPoseHz": 8.43802660413835,
+              "renderedCanvasRegionChanges": 17,
+              "renderedCanvasRegionHz": 15.938494696705773,
+              "maxPoseGapMs": 200,
+              "maxRenderedGapMs": 113.0029296875,
+              "finalPointerUpProtocolProxyMs": [
+                144,
+                100.300048828125,
+                153.2001953125,
+                120.800048828125,
+                140.39990234375,
+                221.599853515625,
+                206.10009765625,
+                258.900146484375
+              ]
+            },
+            {
+              "start": 1794570519384.9,
+              "end": 1794570520424.4,
+              "durationMs": 1039.5,
+              "moveEvents": 36,
+              "actualMoveHz": 34.63203463203463,
+              "changedPoses": 8,
+              "changedPoseHz": 7.696007696007696,
+              "renderedCanvasRegionChanges": 15,
+              "renderedCanvasRegionHz": 14.43001443001443,
+              "maxPoseGapMs": 200,
+              "maxRenderedGapMs": 163.072998046875,
+              "finalPointerUpProtocolProxyMs": [
+                161.10009765625,
+                117,
+                131.300048828125,
+                128.39990234375,
+                139.099853515625,
+                134.900146484375,
+                214.39990234375,
+                208.800048828125
+              ]
+            },
+            {
+              "start": 1794570520478.5,
+              "end": 1794570521522.5,
+              "durationMs": 1044,
+              "moveEvents": 41,
+              "actualMoveHz": 39.272030651341,
+              "changedPoses": 9,
+              "changedPoseHz": 8.620689655172415,
+              "renderedCanvasRegionChanges": 17,
+              "renderedCanvasRegionHz": 16.28352490421456,
+              "maxPoseGapMs": 200.099853515625,
+              "maxRenderedGapMs": 181.01513671875,
+              "finalPointerUpProtocolProxyMs": [
+                116.800048828125,
+                130,
+                134.5,
+                148.89990234375,
+                220.10009765625,
+                117.699951171875,
+                230.60009765625,
+                195.900146484375,
+                131.300048828125
+              ]
+            },
+            {
+              "start": 1794570521589,
+              "end": 1794570522641.5,
+              "durationMs": 1052.5,
+              "moveEvents": 34,
+              "actualMoveHz": 32.304038004750595,
+              "changedPoses": 9,
+              "changedPoseHz": 8.551068883610451,
+              "renderedCanvasRegionChanges": 17,
+              "renderedCanvasRegionHz": 16.152019002375297,
+              "maxPoseGapMs": 183.400146484375,
+              "maxRenderedGapMs": 164.39794921875,
+              "finalPointerUpProtocolProxyMs": [
+                146.89990234375,
+                137,
+                120.699951171875,
+                122,
+                143.800048828125,
+                192.300048828125,
+                153.39990234375,
+                133.800048828125,
+                140.7998046875
+              ]
+            },
+            {
+              "start": 1794570522677.3,
+              "end": 1794570523692.6,
+              "durationMs": 1015.300048828125,
+              "moveEvents": 39,
+              "actualMoveHz": 38.412290086082834,
+              "changedPoses": 9,
+              "changedPoseHz": 8.864374635249884,
+              "renderedCanvasRegionChanges": 15,
+              "renderedCanvasRegionHz": 14.773957725416473,
+              "maxPoseGapMs": 149.900146484375,
+              "maxRenderedGapMs": 150.283203125,
+              "finalPointerUpProtocolProxyMs": [
+                148.89990234375,
+                121.39990234375,
+                138,
+                133.5,
+                149.699951171875,
+                231.10009765625,
+                152.199951171875,
+                120.5,
+                88.400146484375,
+                142
+              ]
+            },
+            {
+              "start": 1794570523739.9,
+              "end": 1794570524756.2,
+              "durationMs": 1016.300048828125,
+              "moveEvents": 38,
+              "actualMoveHz": 37.39053249462797,
+              "changedPoses": 10,
+              "changedPoseHz": 9.839613814375781,
+              "renderedCanvasRegionChanges": 17,
+              "renderedCanvasRegionHz": 16.72734348443883,
+              "maxPoseGapMs": 150.099853515625,
+              "maxRenderedGapMs": 99.260009765625,
+              "finalPointerUpProtocolProxyMs": []
+            }
+          ],
+          "changedPoseIntervalMs": {
+            "n": 93,
+            "median": 100,
+            "p95": 233.300048828125,
+            "max": 333.300048828125
+          },
+          "changedPoses": 94,
+          "renderedCanvasRegionChanges": 174,
+          "renderedCanvasRegionChangeIntervalMs": {
+            "n": 173,
+            "median": 61.409912109375,
+            "p95": 154.283203125,
+            "max": 275.627197265625
+          }
+        }
+      ]
+    }
+  ]
+}
