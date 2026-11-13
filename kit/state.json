@@ -68,8 +68,8 @@
   "inFlight": [
     {
       "phase": "E6C",
-      "step": "Preparing next authorized Cloud builder after midpoint retro",
-      "note": "E5C actual621 PASSaccepted14:43:18.225Z afterfreshindependent89-filehash/capture/gate readback. No E6Cnativeadmissionyet; currentmain/sourceandownedworktreemustqualify. LocalE5/E6stilllast."
+      "step": "Fresh Cloud export/receiving builder active",
+      "note": "Action11/requesta06c/briefb8c31f native/root/editor_e6c_cloud_builder exact1178, startup+twofreshscopedpreflightsPASS/profile4CPU16GiB2workers hiddenancestorunknown. ObservedbindingACKandSAMEactorresumed. E5C/E4PASS, exhaustedallowancesunchanged; no localE5/E6yet. NoE6CPRreported; rootownsqueue/repairwhencreated."
     }
   ],
   "owner": [
@@ -2943,6 +2943,46 @@
     "at": "2026-11-13T14:46:28.991662+00:00",
     "file": "wave.md",
     "lines": 4,
-    "closedBy": "futurebriefreplacementanddroppingone-offrepeatedtransportprobes; no newlessonDoc/rule/exception."
+    "closedBy": "futurebriefreplacementanddroppingone-offrepeatedtransportprobes; no newlessonDoc/rule/exception.",
+    "placement": "BeforeexistingLogsection;exact4narrativelines, allrecordedeventtext/orderunchanged sofutureappendsstayLog."
+  },
+  "e6cCheckpoint": {
+    "source": "1178ac8e8b1c3cabef036e57a1a50c74576ebf93",
+    "branch": "codex/plan-editor-r1-5-e6c-build",
+    "worktree": "/workspace/noacg-editor-r1-5-e6c-build",
+    "status": "NATIVE_OBSERVED_DELIVERED_STARTUP_ACKED_BUILD_ACTIVE",
+    "predecessor": "E5Cactual621PASSaccepted14:43:18.225Z; midpointretrocomplete; source1178isOBSjoinPR2493, runtimepayload/publishapplicabilitymustbeassessed.",
+    "actor": "/root/editor_e6c_cloud_builder",
+    "nativeThreadUuid": "6af724c0-3200-8191-b283-b875eff06059",
+    "actionId": "plan-editor-r1-5-2026-11-08:11",
+    "requestSha256": "a06c22448eaf754312190434a6cfce7ccd9228aa4e5470b0fa8460a5884a489e",
+    "requestFile": "briefs/e6c-build-native-request-20261113.json",
+    "requestTransportFileSha256": "02bad3fd20968e346aee2fb368c4d63693c40741da7bf1d7d7d06812736f85ad",
+    "brief": "briefs/e6c-build-e6c-b-cloud-1113.txt",
+    "briefBytes": 22315,
+    "briefSha256": "b8c31f7c5b583aa0bdbecd126cacddb9e08f8d826056389cd04c3cabed01d57b",
+    "transport": "Singleimmutablefile-reference, actualcompleteJSONequalsdurablepacketandcanonicalrequesthashindependentlyrecomputedMATCHbeforeACK. No newbrief/allowance/replacement.",
+    "startupAt": "2026-11-13T14:56:48.343492Z",
+    "workerPreflights": [
+      "2026-11-13T14:56:09.882Z PASS scopednetwork+ownedIO",
+      "2026-11-13T14:56:35.042Z PASS separatesecondcall"
+    ],
+    "profile": {
+      "effectiveCpus": 4,
+      "memoryBytes": 17179869184,
+      "freeMiB": 13967,
+      "workers": 2,
+      "limitsObserved": false,
+      "limitation": "hiddencpu/memoryancestorsunreadable; machinetotalsubstitution",
+      "capsMinutes": [
+        5,
+        12,
+        5
+      ]
+    },
+    "modelEffort": "inherited/nooverrides; exactvaluesunexposed",
+    "policy": "Actualcurrentenvconnected/running/current/enforced; originalownerbindingseparate.9ddnativebindinganddd7128rawnetworkcomponentunchanged/distinct; noCLIaliasinvented.",
+    "ack": "Supervisorobserve-launchdelivered; rootfollowup_taskSTARTUPACKresumedSAMEoriginalnativeactorafterstartupfinalended, no secondspawn.",
+    "latestProgress": "SubstantiveE6Cnowauthorized; no PR/productfindingyetreported. ExistingE4stop/newpaidmodel/F4/packagingboundsretained."
   }
 }
