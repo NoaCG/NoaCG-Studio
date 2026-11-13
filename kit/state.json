@@ -40,22 +40,11 @@
       "eta": "2026-11-12T21:30:00Z"
     }
   ],
-  "inFlight": [
-    {
-      "phase": "OS6",
-      "step": "check",
-      "actor": "checker-os6-04c5",
-      "session": "session_017SdbwPDua8KaGseVCkRJQp",
-      "pr": 2519,
-      "mergeSha": "3f0ee29f4f6c7bd3d3b53f7fe19cb9bd0b9684aa",
-      "launchedAt": "2026-11-13T19:45:57Z",
-      "note": "sent brief = saved brief plus one NOTES line (OS7 checklist contents to verify)"
-    }
-  ],
+  "inFlight": [],
   "owner": [
     {
-      "what": "OS7: rehearsal with failure drills",
-      "where": "run issue hand-over after OS6"
+      "what": "OS7: rehearsal with the 17-row checklist in evidence/phase-OS6.md; row 15 (2 h memory run, #2475) can run first, agent-assisted; rows 3, 4, 14 need the stinger, event graphics and bracket source",
+      "where": "hand-over posted on #2445 (comment 6863626723); receipt to the coordinator chat, lands as evidence/phase-OS7.md"
     }
   ],
   "fixes": [
