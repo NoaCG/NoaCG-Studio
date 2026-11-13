@@ -975,3 +975,45 @@ Filled in by each phase's pull request.
   shows at the holder's next read, up to the interval. A pick is an owner write to the tree
   (`setLiveData`), the same road as editing a value on the Data tab.
 - Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS5b.md`.
+
+### OS1b: Take, Out and copies per scene
+
+- Rules (written before coding):
+  - C1. A scene graphic is a pool graphic that a graphic or picture cue of a scene uses, while the
+    production's switch is on (`obsScenesOf`). With the switch off there is none, and nothing in
+    this phase changes anything.
+  - C2. After every write this build makes to a production record whose switch is on, each pool
+    graphic is used by at most one scene. A graphic used by several stays with one: the scene that
+    used it before the write, if it still does, else the first of them in rundown order. Each
+    other scene's cues of it point at that scene's copy of it.
+  - C3. A scene's copy of a graphic is a pool graphic that scene already uses and that was copied
+    from it (`sceneCopyOf`, additive optional, the source's pool id). When the scene has none, the
+    same write makes one, so two cues of one graphic in one scene share one copy, whichever write
+    added them.
+  - C4. A new copy: a new pool id; the name "<name> · <scene>", or "<name> · <scene> 2", 3 and on
+    when that name is taken; the source's design, type, library link, sounds and placement
+    (`adjust`) at the moment of copying, and from then on its own; the next free layer, so it never
+    replaces another graphic on air; the source's bindings under its own name, and the source's
+    control arrangement when the profile is one this build reads. It starts off air.
+  - C5. Cues outside every scene never cause a copy and never move to one. A graphic used both by
+    a scene and outside every scene stays one graphic, and it is that scene's.
+  - C6. Nothing merges a copy back or deletes it: a cue that leaves its scene, a folder no longer a
+    scene, or the switch turned off keeps the copy and the cue's pointer. Undo restores the
+    rundown, graphics included, as it was before the write that made the copy.
+  - C7. Take and Out of a scene graphic's cue act on its own pool graphic, so they change only the
+    link of the scene that holds it (OS1a R6 reads every other graphic past). The ordinary
+    production link shows every graphic, as today.
+  - C8. Reloading a scene link restores each of its graphics as on or off, from its reports and
+    the log, as OS1a R7 does.
+  - C9. All out, from any door (the header, a key, Companion), clears what it clears today except
+    the scene graphics of the production as this page holds it: they are not in its targets from
+    the page's own list, from what the server's heads say, or in the fallback of every graphic. A
+    scene graphic on air stays on air, on its scene link and on the ordinary link; one off stays
+    off. With the switch off, All out is exactly today's.
+  - C10. A cue that a write repoints while its graphic is on air does not move air: the source
+    stays on air until its own Out (from its scene's cue), and the copy starts off air.
+- Not in this phase, with reasons: "making a scene, or adding a graphic to one, takes it" (the
+  behaviour section; OS1a R11 left joining on air to OS1b) is not in AC-2 or AC-3, and a Take made
+  by an edit would air the graphic on the ordinary link too and before the scene link has the
+  publish that names it. It is filed as its own issue for the coordinator to place. The offline
+  controller export and the Bridge's offline clear keep today's All out: neither knows scenes.
