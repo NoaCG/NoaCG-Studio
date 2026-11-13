@@ -1,0 +1,941 @@
+{
+  "observedAt": "2026-11-13T14:32:05.148653+00:00",
+  "mergeSha": "621592610bd120da9572b73fee9e39c321a4b059",
+  "runs": [
+    {
+      "id": 43441696682,
+      "name": "Queue a cloud session's branch",
+      "event": "workflow_dispatch",
+      "headSha": "621592610bd120da9572b73fee9e39c321a4b059",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 131940673191,
+          "name": "Stamp, label and queue",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "applicability": "INAPPLICABLE to E5C; unrelated PR2493 stamp, branch claude/plan-obs-scenes-fix-2489, head d5dcdbedd47b025a784df619b40c09c6f7aece71, job131940673191; workflow HEAD621 is not target PR head"
+    },
+    {
+      "id": 43439368279,
+      "name": "deploy-verify",
+      "event": "deployment_status",
+      "headSha": "621592610bd120da9572b73fee9e39c321a4b059",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 131932664108,
+          "name": "Deep link on the deployed bundle",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131932664454,
+          "name": "Verify production deployment",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131932666417,
+          "name": "Drift check (live vs main)",
+          "status": "completed",
+          "conclusion": "skipped"
+        }
+      ]
+    },
+    {
+      "id": 43439072098,
+      "name": "deploy-verify",
+      "event": "deployment_status",
+      "headSha": "621592610bd120da9572b73fee9e39c321a4b059",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "skipped",
+      "jobs": [
+        {
+          "id": 131931640235,
+          "name": "Verify production deployment",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131931641536,
+          "name": "Drift check (live vs main)",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131931689046,
+          "name": "Deep link on the deployed bundle",
+          "status": "completed",
+          "conclusion": "skipped"
+        }
+      ]
+    },
+    {
+      "id": 43438983429,
+      "name": "deploy-verify",
+      "event": "deployment_status",
+      "headSha": "621592610bd120da9572b73fee9e39c321a4b059",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "skipped",
+      "jobs": [
+        {
+          "id": 131931336231,
+          "name": "Verify production deployment",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131931408412,
+          "name": "Deep link on the deployed bundle",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131931412560,
+          "name": "Drift check (live vs main)",
+          "status": "completed",
+          "conclusion": "skipped"
+        }
+      ]
+    },
+    {
+      "id": 43438983790,
+      "name": "deploy-verify",
+      "event": "deployment_status",
+      "headSha": "621592610bd120da9572b73fee9e39c321a4b059",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "skipped",
+      "jobs": [
+        {
+          "id": 131931337234,
+          "name": "Deep link on the deployed bundle",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131931388137,
+          "name": "Drift check (live vs main)",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131931421106,
+          "name": "Verify production deployment",
+          "status": "completed",
+          "conclusion": "skipped"
+        }
+      ]
+    },
+    {
+      "id": 43438980774,
+      "name": "deploy-verify",
+      "event": "deployment_status",
+      "headSha": "621592610bd120da9572b73fee9e39c321a4b059",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "skipped",
+      "jobs": [
+        {
+          "id": 131931327044,
+          "name": "Deep link on the deployed bundle",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131931328314,
+          "name": "Drift check (live vs main)",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131931402234,
+          "name": "Verify production deployment",
+          "status": "completed",
+          "conclusion": "skipped"
+        }
+      ]
+    },
+    {
+      "id": 43438977513,
+      "name": "deploy-verify",
+      "event": "deployment_status",
+      "headSha": "621592610bd120da9572b73fee9e39c321a4b059",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "skipped",
+      "jobs": [
+        {
+          "id": 131931314812,
+          "name": "Verify production deployment",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131931315398,
+          "name": "Deep link on the deployed bundle",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131931315872,
+          "name": "Drift check (live vs main)",
+          "status": "completed",
+          "conclusion": "skipped"
+        }
+      ]
+    },
+    {
+      "id": 43438959563,
+      "name": "Post-landing",
+      "event": "push",
+      "headSha": "621592610bd120da9572b73fee9e39c321a4b059",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 131931250913,
+          "name": "Delivery age alarms",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931251411,
+          "name": "Apply migrations",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931251696,
+          "name": "Weekly growth report health",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 43438959487,
+      "name": "Quarantine",
+      "event": "push",
+      "headSha": "621592610bd120da9572b73fee9e39c321a4b059",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 131931250775,
+          "name": "Quarantined specs",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931380528,
+          "name": "Quarantine release",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931382281,
+          "name": "Quarantine (${{ matrix.spec }})",
+          "status": "completed",
+          "conclusion": "skipped"
+        }
+      ]
+    },
+    {
+      "id": 43438959677,
+      "name": "configured-suite",
+      "event": "push",
+      "headSha": "621592610bd120da9572b73fee9e39c321a4b059",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 131931250965,
+          "name": "Configured shard plan",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931413731,
+          "name": "Configured E2E shard 1/4",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931413772,
+          "name": "Configured E2E shard 4/4",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931413890,
+          "name": "Configured E2E shard 2/4",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931413961,
+          "name": "Configured E2E shard 3/4",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131939902780,
+          "name": "Configured E2E (authenticated, local Supabase)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131940304436,
+          "name": "Configured quarantine",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 43438959617,
+      "name": "CI",
+      "event": "push",
+      "headSha": "621592610bd120da9572b73fee9e39c321a4b059",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 131931251613,
+          "name": "E2E plan",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931252189,
+          "name": "Factory gates",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931252240,
+          "name": "Vercel accepted the commit",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931252272,
+          "name": "Build",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931254052,
+          "name": "Reviewed",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131931391206,
+          "name": "Catalog calibration gate",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931391329,
+          "name": "E2E 14/15 (full)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931391386,
+          "name": "E2E 6/15 (full)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931391416,
+          "name": "E2E 15/15 (full)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931391426,
+          "name": "E2E 13/15 (full)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931391431,
+          "name": "E2E 3/15 (full)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931391437,
+          "name": "E2E 10/15 (full)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931391462,
+          "name": "E2E 11/15 (full)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931391513,
+          "name": "E2E 4/15 (full)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931391515,
+          "name": "E2E 12/15 (full)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931391530,
+          "name": "E2E 1/15 (full)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931391562,
+          "name": "E2E 5/15 (full)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931391572,
+          "name": "E2E 9/15 (full)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931391610,
+          "name": "E2E 2/15 (full)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931391612,
+          "name": "E2E 8/15 (full)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931391696,
+          "name": "E2E 7/15 (full)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931393668,
+          "name": "Configured E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (selected, local Supabase)",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131931394152,
+          "name": "Guided mod (Claude Code ${{ matrix.claude-code }})",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131931394780,
+          "name": "Configured E2E verdict (selected)",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131936231858,
+          "name": "Re-run (failed Build or Factory job, same commit)",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131941695275,
+          "name": "Combined E2E report",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131941695886,
+          "name": "CI gate",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131941697554,
+          "name": "E2E retry (failed specs, same commit)",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131942475273,
+          "name": "After the gate",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 43438958316,
+      "name": "Push on main",
+      "event": "dynamic",
+      "headSha": "621592610bd120da9572b73fee9e39c321a4b059",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 131931256212,
+          "name": "Analyze (python)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931256593,
+          "name": "Analyze (actions)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931256763,
+          "name": "Analyze (javascript-typescript)",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 43437403647,
+      "name": "CI",
+      "event": "merge_group",
+      "headSha": "621592610bd120da9572b73fee9e39c321a4b059",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 131925958639,
+          "name": "E2E plan",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131925959001,
+          "name": "Factory gates",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131925959080,
+          "name": "Build",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131925959096,
+          "name": "Reviewed",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131925960388,
+          "name": "Vercel accepted the commit",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131926225150,
+          "name": "Catalog calibration gate",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131926225533,
+          "name": "E2E 6/15 (subset)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131926225554,
+          "name": "E2E 10/15 (subset)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131926225576,
+          "name": "E2E 5/15 (subset)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131926225590,
+          "name": "E2E 12/15 (subset)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131926225606,
+          "name": "E2E 14/15 (subset)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131926225621,
+          "name": "E2E 9/15 (subset)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131926225622,
+          "name": "E2E 8/15 (subset)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131926225623,
+          "name": "E2E 15/15 (subset)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131926225634,
+          "name": "E2E 4/15 (subset)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131926225636,
+          "name": "E2E 1/15 (subset)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131926225651,
+          "name": "E2E 7/15 (subset)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131926225684,
+          "name": "E2E 11/15 (subset)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131926225716,
+          "name": "E2E 3/15 (subset)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131926225717,
+          "name": "E2E 2/15 (subset)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131926225844,
+          "name": "E2E 13/15 (subset)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131926227530,
+          "name": "Configured E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (selected, local Supabase)",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131926228375,
+          "name": "Guided mod (Claude Code ${{ matrix.claude-code }})",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131926228609,
+          "name": "Configured E2E verdict (selected)",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131930596289,
+          "name": "Re-run (failed Build or Factory job, same commit)",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131931125422,
+          "name": "Combined E2E report",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931126416,
+          "name": "CI gate",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131931128799,
+          "name": "E2E retry (failed specs, same commit)",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131931210047,
+          "name": "After the gate",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    }
+  ],
+  "rawQuarantine": {
+    "$comment": "Specs that failed and then passed on the same commit (scripts/e2e-quarantine.mjs). They run on every push to main (quarantine.yml; configured-suite.yml for e2e/configured/) and leave after RELEASE_AFTER consecutive passes. Entries are written by ci.yml and configured-suite.yml through the merge queue; edit by hand only to release early.",
+    "version": 1,
+    "specs": {
+      "e2e/configured/command-sequence.spec.ts": {
+        "since": "2026-11-12",
+        "count": 2,
+        "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43128537544/job/130892801524"
+      }
+    },
+    "released": {
+      "e2e/community-pack-lock.spec.ts": {
+        "count": 1,
+        "last": "2026-11-06"
+      },
+      "e2e/configured/account.spec.ts": {
+        "count": 5,
+        "last": "2026-10-19"
+      },
+      "e2e/configured/agent-access.spec.ts": {
+        "count": 3,
+        "last": "2026-11-04"
+      },
+      "e2e/configured/audience-live.spec.ts": {
+        "count": 1,
+        "last": "2026-10-22"
+      },
+      "e2e/configured/community-pack-review.spec.ts": {
+        "count": 1,
+        "last": "2026-10-22"
+      },
+      "e2e/configured/connector-grants.spec.ts": {
+        "count": 1,
+        "last": "2026-10-13"
+      },
+      "e2e/configured/dashboard-hosted-walk.spec.ts": {
+        "count": 6,
+        "last": "2026-10-22"
+      },
+      "e2e/configured/deep-link-boot.spec.ts": {
+        "count": 1,
+        "last": "2026-10-19"
+      },
+      "e2e/configured/homebase.spec.ts": {
+        "count": 1,
+        "last": "2026-10-25"
+      },
+      "e2e/configured/hosted-reveal-after-reload.spec.ts": {
+        "count": 1,
+        "last": "2026-10-22"
+      },
+      "e2e/configured/late-send-abandoned.spec.ts": {
+        "count": 16,
+        "last": "2026-11-03"
+      },
+      "e2e/configured/operator-outage-not-unpublished.spec.ts": {
+        "count": 2,
+        "last": "2026-11-13"
+      },
+      "e2e/configured/per-graphic-replacement.spec.ts": {
+        "count": 1,
+        "last": "2026-11-13"
+      },
+      "e2e/configured/playout-both-roads.spec.ts": {
+        "count": 1,
+        "last": "2026-10-22"
+      },
+      "e2e/configured/playout-switch-mid-flight.spec.ts": {
+        "count": 1,
+        "last": "2026-10-22"
+      },
+      "e2e/configured/production-data-key-tick.spec.ts": {
+        "count": 3,
+        "last": "2026-11-12"
+      },
+      "e2e/configured/production-data-key.spec.ts": {
+        "count": 5,
+        "last": "2026-10-25"
+      },
+      "e2e/configured/publish-output-default.spec.ts": {
+        "count": 1,
+        "last": "2026-10-22"
+      },
+      "e2e/configured/shared-lab-computer.spec.ts": {
+        "count": 2,
+        "last": "2026-10-25"
+      },
+      "e2e/configured/sync-one-pass-per-edit.spec.ts": {
+        "count": 1,
+        "last": "2026-10-22"
+      },
+      "e2e/configured/take-behind-out.spec.ts": {
+        "count": 1,
+        "last": "2026-10-22"
+      },
+      "e2e/cross-tab.spec.ts": {
+        "count": 1,
+        "last": "2026-10-03"
+      },
+      "e2e/docs.spec.ts": {
+        "count": 1,
+        "last": "2026-10-08"
+      },
+      "e2e/editor-arrangement.spec.ts": {
+        "count": 2,
+        "last": "2026-10-17"
+      },
+      "e2e/editor-base-edits.spec.ts": {
+        "count": 2,
+        "last": "2026-10-11"
+      },
+      "e2e/editor-canvas-transforms.spec.ts": {
+        "count": 3,
+        "last": "2026-11-04"
+      },
+      "e2e/editor-foundation.spec.ts": {
+        "count": 3,
+        "last": "2026-10-14"
+      },
+      "e2e/editor-groups.spec.ts": {
+        "count": 2,
+        "last": "2026-10-17"
+      },
+      "e2e/editor-images.spec.ts": {
+        "count": 2,
+        "last": "2026-10-11"
+      },
+      "e2e/editor-keys.spec.ts": {
+        "count": 3,
+        "last": "2026-10-19"
+      },
+      "e2e/editor-pen.spec.ts": {
+        "count": 1,
+        "last": "2026-10-10"
+      },
+      "e2e/editor-transform-qualification.spec.ts": {
+        "count": 1,
+        "last": "2026-10-31"
+      },
+      "e2e/exports.spec.ts": {
+        "count": 1,
+        "last": "2026-10-08"
+      },
+      "e2e/format.spec.ts": {
+        "count": 1,
+        "last": "2026-11-06"
+      },
+      "e2e/import-svg-behaviour.spec.ts": {
+        "count": 1,
+        "last": "2026-10-21"
+      },
+      "e2e/import-svg-corpus.spec.ts": {
+        "count": 2,
+        "last": "2026-11-13"
+      },
+      "e2e/import-svg-credits.spec.ts": {
+        "count": 1,
+        "last": "2026-11-04"
+      },
+      "e2e/import-svg.spec.ts": {
+        "count": 5,
+        "last": "2026-11-02"
+      },
+      "e2e/imported-credits-live-data.spec.ts": {
+        "count": 1,
+        "last": "2026-11-05"
+      },
+      "e2e/layout.spec.ts": {
+        "count": 1,
+        "last": "2026-10-03"
+      },
+      "e2e/output-debate-clock.spec.ts": {
+        "count": 2,
+        "last": "2026-11-12"
+      },
+      "e2e/pack-import.spec.ts": {
+        "count": 1,
+        "last": "2026-11-13"
+      },
+      "e2e/playout-cues.spec.ts": {
+        "count": 1,
+        "last": "2026-10-08"
+      },
+      "e2e/playout-feedback-health.spec.ts": {
+        "count": 1,
+        "last": "2026-10-04"
+      },
+      "e2e/production-audience.spec.ts": {
+        "count": 1,
+        "last": "2026-11-13"
+      },
+      "e2e/production-chat-intake.spec.ts": {
+        "count": 3,
+        "last": "2026-11-02"
+      },
+      "e2e/production-data.spec.ts": {
+        "count": 2,
+        "last": "2026-11-04"
+      },
+      "e2e/publish-output-setup.spec.ts": {
+        "count": 3,
+        "last": "2026-11-13"
+      },
+      "e2e/rundown-history.spec.ts": {
+        "count": 3,
+        "last": "2026-10-30"
+      },
+      "e2e/ticker-linked-update.spec.ts": {
+        "count": 1,
+        "last": "2026-11-12"
+      },
+      "e2e/wizard-shell.spec.ts": {
+        "count": 5,
+        "last": "2026-10-25"
+      }
+    }
+  },
+  "configuredCountClarification": {
+    "normalSpecs": 64,
+    "quarantinedSpecs": [
+      "command-sequence.spec.ts"
+    ],
+    "totalSpecs": 65,
+    "shards": 4,
+    "passedTests": 160,
+    "failedTests": 0,
+    "flakyTests": 0,
+    "existingSkippedTests": 3,
+    "sourcePRSelection": {
+      "specs": 64,
+      "passedTests": 150
+    }
+  }
+}
