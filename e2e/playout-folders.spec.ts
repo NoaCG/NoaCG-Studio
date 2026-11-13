@@ -384,10 +384,13 @@ test('OBS scenes: a graphic added to a second scene becomes its copy, Take and O
   };
   await row('Hairline').getByTestId('cue-menu').click();
   await page.getByRole('menuitem', { name: 'Duplicate' }).click();
+  // The folder's only cue: its duplicate comes in a copy of the folder, which is not a scene.
+  const duplicated = ['[Gameplay]', '  Hairline', '[Gameplay copy]', '  Hairline copy', '[Desk]', '  Score', 'Hand'];
+  await expect.poll(() => drawn(page)).toEqual(duplicated);
   await take('Hairline copy');
   await drag(page, row('Hairline copy'), row('Score'), 'bottom');
   await expect(page.getByTestId('rundown-note')).toContainText('Take "Hairline copy" off air before you put its graphic in a second OBS scene.');
-  await expect.poll(() => drawn(page)).toEqual(['[Gameplay]', '  Hairline', '  Hairline copy', '[Desk]', '  Score', 'Hand']);
+  await expect.poll(() => drawn(page)).toEqual(duplicated);
   await page.getByTestId('verb-out').click();
   await expect(row('Hairline copy')).not.toHaveClass(/up-here/);
   await drag(page, row('Hairline copy'), row('Score'), 'bottom');
