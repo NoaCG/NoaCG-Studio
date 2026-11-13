@@ -25,6 +25,9 @@ export interface ExportContext {
    *  included, means the production holds place and size for this graphic, so a relay receiver
    *  also applies what the controller's rows carry. Absent: the package is what it always was. */
   appearance?: AppliedAppearance;
+  /** The HTML overlay only: drawn at rest from load, no entrance, no automatic Out, deaf to OBS's
+   *  show and hide (docs/work-specs/obs-scenes/spec.md OS3 M11). Absent: the file is today's. */
+  settled?: boolean;
 }
 
 export type GraphicUsage = 'live' | 'post-production' | 'both';

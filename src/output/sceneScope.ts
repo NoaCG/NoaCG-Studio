@@ -59,38 +59,80 @@ export interface ObsWhere {
   last?: string;
   /** When it last came onto program, while OBS has not named a scene since (ms). */
   arriving?: number;
+  /** The scene OBS had named when the source came onto program: where it went on program if no
+   *  name follows within OBS_ARRIVAL_MS (it was shown inside the scene already on program). */
+  arrivingIn?: string;
+  /** A scene named while the source stayed on program, and when: a cut to another OBS scene that
+   *  holds the same source (D9's shared source), unless the source leaves program soon after. */
+  pending?: { name: string; at: number };
+  /** Every OBS scene this source has been on program in (OS3 M5), in the order first seen. */
+  seen?: string[];
 }
 
 /** OBS names the scene a source arrives in right after activating it, in the same burst; a name
  *  heard later while it is on program is a cut away. */
 export const OBS_ARRIVAL_MS = 1000;
 
+/** A scene named while the source is on program counts as a cut between two OBS scenes that both
+ *  hold it once the source has stayed on program this long (OS3 M5). Long, because a fade or a
+ *  stinger may take its time to end and take the source off program. */
+export const OBS_SHARED_MS = 5000;
+
+/** The OBS scenes a source reports at most (OS3 M5). */
+export const OBS_SEEN_MAX = 12;
+
+function onProgramIn(next: ObsWhere, name: string): void {
+  next.last = name;
+  const seen = next.seen ?? [];
+  if (!seen.includes(name)) next.seen = [...seen, name].slice(-OBS_SEEN_MAX);
+}
+
 /**
  * One OBS event folded in. OBS's own order (docs/OBS_ON_A_REAL_HOST.md §5): coming onto program the
  * source hears visible, active, then the new scene's name; leaving it hears the new scene's name
  * first, then visible and active false. So the name that follows an activation is the scene the
- * source went on program in, and a name heard while it was already on program is the scene it is
- * leaving for, which says nothing about it. So a name counts only within OBS_ARRIVAL_MS of the
- * activation. Activated with no name following (shown inside the scene already on program), the
- * scene OBS last named is the one.
+ * source went on program in. Activated with no name following within OBS_ARRIVAL_MS (shown inside
+ * the scene already on program), the scene OBS last named is the one; `last` takes it at once, as
+ * before, and `seen` once the window has passed (a `tick`), so the scene a cut leaves is never ticked.
+ * A name heard while the source is already on program is either a cut away (the source leaves
+ * program right after) or a cut to another OBS scene holding the same source (it stays): it counts
+ * once the source has stayed on program for OBS_SHARED_MS. `tick` is the clock: the page sends one
+ * after each event's window.
  */
 export function obsEvent(
   where: ObsWhere,
-  event: { type: 'visible'; on: boolean } | { type: 'active'; on: boolean } | { type: 'scene'; name: string },
+  event: { type: 'visible'; on: boolean } | { type: 'active'; on: boolean } | { type: 'scene'; name: string } | { type: 'tick' },
   now: number,
 ): ObsWhere {
   const next: ObsWhere = { ...where };
   if (event.type === 'visible') next.visible = event.on;
   else if (event.type === 'active') {
     next.active = event.on;
+    delete next.pending;
+    delete next.arrivingIn;
     if (event.on) {
       next.arriving = now;
-      if (next.current !== undefined) next.last = next.current;
+      if (next.current !== undefined) {
+        next.last = next.current;
+        next.arrivingIn = next.current;
+      }
     } else delete next.arriving;
-  } else {
+  } else if (event.type === 'scene') {
     next.current = event.name.slice(0, 80);
-    if (next.active && next.arriving !== undefined && now - next.arriving <= OBS_ARRIVAL_MS) next.last = next.current;
+    if (next.active && next.arriving !== undefined && now - next.arriving <= OBS_ARRIVAL_MS) onProgramIn(next, next.current);
+    else if (next.active) next.pending = { name: next.current, at: now };
     delete next.arriving;
+    delete next.arrivingIn;
+  } else {
+    if (next.arriving !== undefined && now - next.arriving > OBS_ARRIVAL_MS) {
+      if (next.active && next.arrivingIn !== undefined) onProgramIn(next, next.arrivingIn);
+      delete next.arriving;
+      delete next.arrivingIn;
+    }
+    if (next.pending && now - next.pending.at >= OBS_SHARED_MS) {
+      if (next.active) onProgramIn(next, next.pending.name);
+      delete next.pending;
+    }
   }
   return next;
 }

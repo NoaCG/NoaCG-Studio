@@ -423,23 +423,32 @@ export interface LiveEntry {
 
 /** What a scene link says about itself: its scene id, whether the payload it holds knows that
  *  scene, and from OBS's browser source events where the source is (`obs`, absent until the first
- *  event: unknown) and the OBS scene it was last on program in. */
+ *  event: unknown), the OBS scene it was last on program in, and every OBS scene it has been on
+ *  program in since it loaded (`seen`, obs-scenes OS3 M5; absent while there is none). */
 export interface SceneReport {
   id: string;
   known: boolean;
   obs?: 'program' | 'preview' | 'hidden';
   last?: string;
+  seen?: string[];
 }
+
+/** OBS scene names a scene report carries at most (output/sceneScope.ts `OBS_SEEN_MAX`). */
+const SEEN_MAX = 12;
 
 /** A scene report off the wire, or undefined. */
 export function readSceneReport(value: unknown): SceneReport | undefined {
   const r = value as Partial<SceneReport> | null;
   if (!r || typeof r !== 'object' || typeof r.id !== 'string' || typeof r.known !== 'boolean') return undefined;
+  const seen = Array.isArray(r.seen)
+    ? [...new Set(r.seen.filter((n): n is string => typeof n === 'string').map((n) => n.slice(0, 80)))].slice(0, SEEN_MAX)
+    : [];
   return {
     id: r.id.slice(0, 80),
     known: r.known,
     ...(r.obs === 'program' || r.obs === 'preview' || r.obs === 'hidden' ? { obs: r.obs } : {}),
     ...(typeof r.last === 'string' ? { last: r.last.slice(0, 80) } : {}),
+    ...(seen.length > 0 ? { seen } : {}),
   };
 }
 

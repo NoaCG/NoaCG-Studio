@@ -4,6 +4,7 @@ import type { StatusCheck } from '../../control/playoutStatus';
 import { bridgePaired, type PlayoutSettings } from '../../control/playoutLink';
 import { observeVmixOutput, readVmixOutput, sameVmixOutputSetup, type VmixManualOutputCommand, type VmixOutputReading, type VmixReplace } from '../../control/vmixSetup';
 import { DOWNLOADS_BRIDGE_URL } from '../../downloads/links';
+import { obsWords, type SceneRow } from '../../control/obsSceneRows';
 
 /**
  * THE PLAYOUT PANEL'S SECTIONS (docs/work-specs/playout-workflow-simplification AC-3), opened from
@@ -64,6 +65,8 @@ export function RendererRows({
   checking,
   checked,
   paths = {},
+  unwatched = 0,
+  emptyText,
 }: {
   outputs: readonly OutputLine[];
   onDismiss: (id: string) => void;
@@ -73,6 +76,10 @@ export function RendererRows({
   checked?: string;
   /** Each output's command path from the last check ("110 ms", "Commands late"), by output id. */
   paths?: Record<string, { text: string; tone: ReadyTone }>;
+  /** Outputs present that the remembered list has no room for (obs-scenes OS3 M9). */
+  unwatched?: number;
+  /** What the empty list says instead of "None yet" (every output is an OBS scene row). */
+  emptyText?: string;
 }) {
   return (
     <Section
@@ -96,7 +103,7 @@ export function RendererRows({
       {outputs.length === 0 ? (
         <div className="pd-pp-row pd-pp-row--quiet" data-testid="playout-no-outputs">
           <Dot tone="idle" />
-          <span className="pd-pp-name">None yet</span>
+          <span className="pd-pp-name">{emptyText ?? 'None yet'}</span>
         </div>
       ) : (
         outputs.map((line) => (
@@ -125,7 +132,47 @@ export function RendererRows({
           </div>
         ))
       )}
+      {unwatched > 0 && (
+        <p className="pd-pp-advice" data-testid="playout-too-many-outputs">
+          More than 16 outputs: NoaCG watches 16, so {unwatched === 1 ? 'one more' : `${unwatched} more`} going away would not be reported. Forget an output you no longer use.
+        </p>
+      )}
     </Section>
+  );
+}
+
+/** One row per OBS scene under its switch (obs-scenes OS3 M2 to M5): the load state, where OBS has
+ *  the source, and the walk-through's tick. The longer account sits in the row's tooltip. */
+export function ObsSceneRows({ rows }: { rows: readonly SceneRow[] }) {
+  if (rows.length === 0) {
+    return (
+      <div className="pd-pp-row pd-pp-row--quiet" data-testid="obs-scene-none">
+        <Dot tone="idle" />
+        <span className="pd-pp-name">No OBS scenes yet. Mark a rundown folder as an OBS scene in its ⋯ menu.</span>
+      </div>
+    );
+  }
+  return (
+    <>
+      {rows.map((row) => (
+        <div
+          key={row.id}
+          className={`pd-pp-row pd-pp-row--${row.tone}`}
+          data-testid="obs-scene-row"
+          data-scene={row.id}
+          data-tone={row.tone}
+          title={row.detail.join('\n')}
+        >
+          <Dot tone={row.tone} />
+          <span className="pd-pp-name">{row.name}</span>
+          <span className="pd-pp-state" data-testid="obs-scene-state">{row.state}</span>
+          {row.obs && <span className="pd-pp-state" data-testid="obs-scene-obs">{obsWords(row.obs)}</span>}
+          <span className="pd-pp-advice pd-pp-advice--row" data-testid="obs-scene-seen">
+            {row.seen.length > 0 ? `Seen in OBS scene ${row.seen.map((n) => `“${n}”`).join(', ')}` : 'Not yet seen'}
+          </span>
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -185,11 +232,13 @@ function BridgeSwitch({ label, testId, on, locked, onToggle }: {
   );
 }
 
-export function BridgeSection({ vmixOn, casparOn, obsScenesOn, locked, onVmix, onCaspar, onObsScenes, onSettings, children }: {
+export function BridgeSection({ vmixOn, casparOn, obsScenesOn, obsScenesLoaded = 0, locked, onVmix, onCaspar, onObsScenes, onSettings, children }: {
   vmixOn: boolean;
   casparOn: boolean;
   /** The OBS scenes switch (docs/work-specs/obs-scenes/spec.md D1): folders may be OBS scenes. */
   obsScenesOn: boolean;
+  /** How many OBS scenes have a link loaded now; null when this page cannot know (OS3 M8). */
+  obsScenesLoaded?: number | null;
   locked?: boolean;
   onVmix: (on: boolean) => void;
   onCaspar: (on: boolean) => void;
@@ -197,13 +246,46 @@ export function BridgeSection({ vmixOn, casparOn, obsScenesOn, locked, onVmix, o
   onSettings: () => void;
   children: ReactNode;
 }) {
+  // Switching OBS scenes off empties every scene link at the next publish, so with links loaded (or
+  // when this page cannot see) it asks first (#2454).
+  const [askOff, setAskOff] = useState(false);
+  const toggleObsScenes = (on: boolean) => {
+    if (!on && obsScenesLoaded !== 0) setAskOff(true);
+    else {
+      setAskOff(false);
+      onObsScenes(on);
+    }
+  };
+  const loaded = obsScenesLoaded;
   return (
     <Section testId="playout-panel-bridge">
       <div className="pd-pp-switches">
         <BridgeSwitch label="vMix via Bridge" testId="vmix-switch" on={vmixOn} locked={locked} onToggle={onVmix} />
         <BridgeSwitch label="CasparCG via Bridge" testId="caspar-switch" on={casparOn} locked={locked} onToggle={onCaspar} />
-        <BridgeSwitch label="OBS scenes" testId="obs-scenes-switch" on={obsScenesOn} locked={locked} onToggle={onObsScenes} />
+        <BridgeSwitch label="OBS scenes" testId="obs-scenes-switch" on={obsScenesOn && !askOff} locked={locked} onToggle={toggleObsScenes} />
       </div>
+      {obsScenesOn && askOff && (
+        <div className="pd-pp-confirm" role="alertdialog" aria-label="Switch OBS scenes off" data-testid="obs-scenes-off-ask">
+          <span>
+            {loaded === null || loaded === undefined
+              ? 'Switch OBS scenes off? NoaCG cannot see right now whether scene links are loaded. Every scene link goes empty at the next publish.'
+              : `Switch OBS scenes off? ${loaded === 1 ? '1 OBS scene goes' : `${loaded} OBS scenes go`} empty at the next publish.`}
+          </span>
+          <button type="button" className="pd-pp-link" onClick={() => setAskOff(false)} data-testid="obs-scenes-off-cancel">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAskOff(false);
+              onObsScenes(false);
+            }}
+            data-testid="obs-scenes-off-confirm"
+          >
+            Switch off
+          </button>
+        </div>
+      )}
       {children}
       {/* Always available because Playout settings also holds the rundown colours (D9). */}
       <div className="pd-pp-actions">

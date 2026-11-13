@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
-import { sceneFolderIds, sceneGraphicNames, sceneLink } from '../../model/obsScenes';
+import { obsScenesOf, sceneFolderIds, sceneGraphicNames, sceneLink } from '../../model/obsScenes';
+import { EMPTY_WATCH, loadedScenes, sceneRows, watchScenes, type SceneWatch } from '../../control/obsSceneRows';
 import { useTemplateStore } from '../../store/templateStore';
 import {
   deleteShowProfile,
@@ -233,7 +234,7 @@ import { useAuthUi } from '../auth/authUi';
 import ActionLog from './ActionLog';
 import { cueOverflowKeys } from './CueOverflowNote';
 import ProductionExportDialog from './ProductionExportDialog';
-import { BridgeSection, BrowserSourceRow, CasparRows, DueActions, PanelProblems, RendererRows, VmixRows } from './PlayoutPanel';
+import { BridgeSection, BrowserSourceRow, CasparRows, DueActions, ObsSceneRows, PanelProblems, RendererRows, VmixRows } from './PlayoutPanel';
 import { ProductionLinksDialog } from './ProductionLinks';
 import { PlayoutStatusControl } from './PlayoutStatusControl';
 import CueRundown, { nameList } from './CueRundown';
@@ -271,7 +272,7 @@ import { announcedExpected, useExpectedOutputs, useLivePresence, useReadinessVie
 import { useCopyAdoption } from './useCopyAdoption';
 import { usePublishDrift } from './usePublishDrift';
 import { type PayloadVersion } from '../../control/payloadVersion';
-import { clockWords, type HeldVersion, type ReadyStamp } from '../../control/readiness';
+import { clockWords, unwatchedOutputs, type HeldVersion, type ReadyStamp } from '../../control/readiness';
 import { commandPathsOf, type PrepRequest } from '../../control/prepareLive';
 import { casparOutputTarget, describePlayoutStatus, programAir, relevantPlayout, takeTargets, type StatusFacts } from '../../control/playoutStatus';
 import { confirmLines, newerRun, pruneOwed, type ConfirmOutput, type Owed } from '../../control/runConfirm';
@@ -1082,6 +1083,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     livePresence,
     false,
   );
+  /** What this page has heard of the OBS scene links since it opened (obs-scenes OS3 M3, M5): when
+   *  each scene's link was last present and the OBS scenes it went on program in. */
+  const [sceneWatch, setSceneWatch] = useState<SceneWatch>(EMPTY_WATCH);
+  useEffect(() => setSceneWatch(EMPTY_WATCH), [show?.id]);
+  const sceneWatchJoined = livePresence.status === 'joined' && livePresence.showId === (show?.id ?? null);
+  useEffect(() => {
+    if (sceneWatchJoined) setSceneWatch((w) => watchScenes(w, livePresence.peers, Date.now()));
+  }, [sceneWatchJoined, livePresence.peers]);
   /** PREPARE FOR LIVE (components/control/PrepareForLive.tsx): the last stamp, kept per production
    *  in this browser, and the request to the outputs while a run is out. Both are announced. */
   const [readyStamp, setReadyStamp] = useState<ReadyStamp | null>(null);
@@ -4037,6 +4046,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (!on) setReplaceAsk(false);
     if (on) setVmixReplace(undefined);
   };
+  /** THE OBS SCENE ROWS (obs-scenes OS3 M2 to M6), while the switch is on: one per scene, and the
+   *  outputs they speak for, which leave the generic Outputs list. */
+  const scenePresence = sceneWatchJoined ? 'joined' : livePresence.status === 'joined' ? 'joining' : livePresence.status;
+  const scenePanel = show.obsScenes
+    ? sceneRows({ scenes: obsScenesOf(show), peers: livePresence.peers, presence: scenePresence, watch: sceneWatch, expected: expectedOutputs, published: readiness.knownVersion, now })
+    : null;
+  const panelOutputs = scenePanel ? readiness.outputs.filter((line) => !scenePanel.claimed.has(line.id)) : readiness.outputs;
   /** The OBS scenes switch (obs-scenes OS1a R2): folders may be OBS scenes, each with its own link. */
   const setObsScenes = async (on: boolean) => {
     const result = setShowObsScenes(show.id, on);
@@ -4092,7 +4108,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             {sub && productionNote}
             {started && (
               <RendererRows
-                outputs={readiness.outputs}
+                outputs={panelOutputs}
+                emptyText={panelOutputs.length < readiness.outputs.length ? 'Only OBS scene links, below' : undefined}
+                unwatched={unwatchedOutputs(expectedOutputs, livePresence.peers)}
                 onDismiss={forgetOutput}
                 onCheck={() => void prepareFlow.run({ publish: false })}
                 checking={flowBusy}
@@ -4113,12 +4131,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               onVmix={on => void setVmix(on)}
               onCaspar={on => void setCaspar(on)}
               obsScenesOn={!!show.obsScenes}
+              obsScenesLoaded={scenePanel ? loadedScenes(scenePanel.rows, scenePresence) : 0}
               onObsScenes={on => void setObsScenes(on)}
               onSettings={() => {
                 setStatusOpen(false);
                 setPlayoutSettingsOpen(true);
               }}
             >
+              {scenePanel && <ObsSceneRows rows={scenePanel.rows} />}
               <VmixRows
                 key={String(vmixOn && !slotBusy)}
                 on={vmixOn}
@@ -4895,6 +4915,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           canPutOutputOnAir={() => pageCanDispatch() && !!currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'casparcg')}
           outputUrl={managedOutputUrl}
           onOutputOnAir={(result, target) => onAirChanged('air', result, target)}
+          obsScenes={show.obsScenes ? { outputUrl, copied, onCopy: copy } : null}
           onClose={() => {
             setPlayoutSettingsOpen(false);
             setPlayoutSettingsRev((n) => n + 1);

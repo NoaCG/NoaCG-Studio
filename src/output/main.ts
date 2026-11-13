@@ -76,7 +76,7 @@ import { createSwapper } from './swap';
 import { ENTRANCE_MS, HELD_PER_GRAPHIC, HELD_PER_OUTPUT, afterOutcome, compact, demandFor, giveUp, heldLate, isCancelled, isTake, liveStep, quietEntrances, releaseMode, type Failure, type HeldRow, type HoldFailure } from './hold';
 import { epochTag, listed, type HeldEntry, type RunReport } from '../control/runReport';
 import { CATCH_UP_TIMING, readGraphic, stoodStill, wait } from './catchUp';
-import { obsEvent, obsState, sceneParam, scopePayload, type ObsWhere } from './sceneScope';
+import { OBS_ARRIVAL_MS, OBS_SHARED_MS, obsEvent, obsState, sceneParam, scopePayload, type ObsWhere } from './sceneScope';
 import type { OutputPayload } from '../control/hostedControl';
 import type { SceneReport } from '../control/livePath';
 import { TYPED_READER, typedOutputGate, type TypedValues } from '../model/ografTyped';
@@ -167,6 +167,18 @@ function unavailable(why: Unavailable): void {
   document.body.appendChild(card);
 }
 
+/** The production resolved after all (#2474): whatever `unavailable` wrote is taken back. */
+function available(): void {
+  document.body.removeAttribute('data-unavailable');
+  document.querySelector('[data-testid="output-unavailable"]')?.remove();
+}
+
+/** A link whose production does not resolve asks again after this, doubling up to the cap
+ *  (obs-scenes OS3 M10, #2474): a browser source set up before the production is published draws
+ *  once it is, with nobody refreshing it, and an unpublished one keeps its transparent frame. */
+const UNRESOLVED_FIRST_MS = 2000;
+const UNRESOLVED_MAX_MS = 30_000;
+
 /** Library-load failures in a row before the boot reloads (about 1.5 s after the first). */
 const RELOAD_AFTER_THROWS = 3;
 
@@ -202,7 +214,7 @@ async function boot(): Promise<void> {
   // a row it reloads, but only once its own URL answers: reloading during an outage would swap
   // a transparent page for the browser's error page, on air.
   let thrown = 0;
-  const answer = await untilAnswered(
+  const resolveOnce = () => untilAnswered(
     async () => {
       try {
         const result = await controlOutputResolve(outputSlug);
@@ -217,10 +229,17 @@ async function boot(): Promise<void> {
     },
     { onRetry: (attempts, error) => dbg('production', `resolving… (${attempts} failed: ${error})`) },
   );
-  const resolved = answer.ok ? answer.value : null;
+  const answer = await resolveOnce();
+  let resolved = answer.ok ? answer.value : null;
   if (!resolved) {
+    // Not published (yet, or any more): transparent, and asked again quietly until it is (M10).
     unavailable('unpublished');
-    return;
+    for (let tries = 0; !resolved; tries += 1) {
+      await new Promise((r) => setTimeout(r, Math.min(UNRESOLVED_MAX_MS, UNRESOLVED_FIRST_MS * 2 ** tries)));
+      const again = await resolveOnce();
+      resolved = again.ok ? again.value : null;
+    }
+    available();
   }
   dbg('production', resolved.title);
   // A scene link keeps running with nothing in scope (R5): it says so, and a later publish may name
@@ -240,6 +259,9 @@ async function boot(): Promise<void> {
    *  this set is one the link has not heard of yet, so it is held and read, never skipped. */
   let productionKeys = new Set<string>();
   let sceneKnown = false;
+  /** The scene's name as the payload gives it: what this link is called on the operator's panel
+   *  when its URL names it nothing else (OS3 M6). */
+  let sceneName: string | undefined;
   /** The font files of the graphics left out, by path (./sceneScope.ts `faces`). */
   let sceneFaces = new Map<string, string>();
   const scoped = (whole: OutputPayload): OutputPayload => {
@@ -249,6 +271,7 @@ async function boot(): Promise<void> {
     sceneKeys = scope.keys;
     sceneKnown = scope.known;
     sceneFaces = scope.faces;
+    sceneName = whole.scenes?.find((s) => s.id === scene)?.name.replace(/[^ -\uffff]/g, '').trim().slice(0, 40) || undefined;
     dbg('scene', sceneKnown ? `${scene}: ${[...sceneKeys].join(', ') || 'no graphics'}` : `${scene} is not a scene of this production`);
     return scope.payload;
   };
@@ -264,7 +287,13 @@ async function boot(): Promise<void> {
   /** What the Presence entry says of this scene link (R8). */
   const sceneReport = (id: string): SceneReport => {
     const obs = obsState(obsWhere);
-    return { id: id.slice(0, 80), known: sceneKnown, ...(obs ? { obs } : {}), ...(obsWhere.last !== undefined ? { last: obsWhere.last } : {}) };
+    return {
+      id: id.slice(0, 80),
+      known: sceneKnown,
+      ...(obs ? { obs } : {}),
+      ...(obsWhere.last !== undefined ? { last: obsWhere.last } : {}),
+      ...(obsWhere.seen?.length ? { seen: obsWhere.seen } : {}),
+    };
   };
   const soundBudget = createSoundBudget();
   let programAudioVersion = payload.ver?.h ?? '';
@@ -440,7 +469,7 @@ async function boot(): Promise<void> {
   });
   const entry = (): LiveEntry =>
     liveEntry('output', 'output', { log: logJoined, cmd: cmdJoined }, live.summary(), {
-      name: outputName,
+      name: outputName ?? sceneName,
       destinationId: readDestinationId(window.location.search),
       // What this output has run (live-publishing G2 section 1), on the numbered log only.
       ready: seqMode ? { ...readiness(), run: listed(runNow()), lt: lateList() } : readiness(),
@@ -477,6 +506,8 @@ async function boot(): Promise<void> {
       obsWhere = obsEvent(obsWhere, event, Date.now());
       dbg('obs', `${obsState(obsWhere) ?? 'unknown'}${obsWhere.last !== undefined ? ` · last on program in ${obsWhere.last}` : ''}`);
       presence.touch();
+      // The clock of the walk-through (OS3 M5): a scene counts once its window has passed.
+      if (event.type !== 'tick') for (const ms of [OBS_ARRIVAL_MS, OBS_SHARED_MS]) setTimeout(() => heard({ type: 'tick' }), ms + 50);
     };
     const detail = (e: Event) => ((e as CustomEvent).detail ?? {}) as { visible?: unknown; active?: unknown; name?: unknown };
     window.addEventListener('obsSourceVisibleChanged', (e) => heard({ type: 'visible', on: detail(e).visible === true }));
