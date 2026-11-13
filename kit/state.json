@@ -42,8 +42,8 @@
  ],
  "inFlight": {
   "phase": 6,
-  "step": "repair 6-r-4907 (one repair); fix-2494 measuring",
-  "asOf": "2026-11-13T16:36Z"
+  "step": "second check 6-c-327f on 63fb2d56",
+  "asOf": "2026-11-13T22:15Z"
  },
  "owner": [
   {
@@ -281,7 +281,9 @@
   ],
   "check1": "FAIL product 2026-11-13T16:34Z: typical AC-4 +260 ms p95 pooled (pairs +363,+358,+30,+15)",
   "repairer": "session_017SdbwPN5wnqdEVb4x7Sjvw nonce 6-r-4907",
-  "migration0118": "held by post-landing 43457862020 (productions live); must apply in a later quiet window"
+  "migration0118": "held by post-landing 43457862020 (productions live); must apply in a later quiet window",
+  "repairLanded": "63fb2d56e0128f48592eb30c5dcb5e3f853ffa4a (PR 2510): 20 pairs +35.9 ms pooled p95 (90% +26..+47)",
+  "checker2": "session_017SdbwNd7oBeA6Xzn7vfoQn nonce 6-c-327f"
  },
  "incidents": [
   {
@@ -300,5 +302,6 @@
  "notes": [
   "2026-11-13T13:52Z fix-2494 PR 2497 head 3428c9c3 (Risky); waits for #2488 to land, then merges main and measures large fixture before/after. Tell builder session_017SdbwM1Sfr4TFM9JYad473 when #2488 lands.",
   "2026-11-13T17:20Z repair 6-r-4907: typical AC-4 noise is #2494's queued re-run (10 pairs: on p95 256 vs off 431, bootstrap -246..+133). Repairer prepares docs PR, waits for #2497 landing, then reruns 10 pairs. Tell both #2494 builder and repairer session_017SdbwPN5wnqdEVb4x7Sjvw when #2497 lands."
- ]
+ ],
+ "ownerNote": "A relayed (unverified) note at 21:46Z said the owner is asleep and wants no new approval prompts tonight; park anything needing him as one morning item."
 }
