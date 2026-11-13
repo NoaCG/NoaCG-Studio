@@ -67,3 +67,4 @@ Project: {"version":1,"id":"plan-editor-r1-5-2026-11-08","ownership":"local-sing
 - Replaced stale future-brief history with current gates, immutable receipt references and exact workflow-head versus tested-target and main-versus-PR count distinctions.
 - Replaced cache/config guidance with both Vite cache paths and static scratch-path resolution before browser admission.
 - Dropped repeated denied artifact transports; producer proof and unverified consumer readback remain separate.
+- 2026-11-13T14:54:16.491Z phase 6 build {"actor":"/root/editor_e6c_cloud_builder","launch":{"sourceSha":"1178ac8e8b1c3cabef036e57a1a50c74576ebf93","branch":"codex/plan-editor-r1-5-e6c-build","brief":"briefs/e6c-build-e6c-b-cloud-1113.txt","native":{"provider":"codex","sessionId":"6af455f4-b1c8-8191-86b2-8bfdfc619075","environmentId":"ccarenv_b64_Y2NhcmVudl9mOGJiMmY0OWI4ZjA4MTkxYjE5YjAzNDFjZjcxMmRiYg","policySha256":"9ddcaeece3d8e54669564a11b0c48c16e6fbfc5b19e406691deb508df65b9a74"}}}
