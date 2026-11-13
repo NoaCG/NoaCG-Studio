@@ -600,6 +600,17 @@ async function boot(): Promise<void> {
       readyChanged();
     },
     changed: () => preparer.refresh(),
+    // R20 (G3, owner decision Q1): a new frame waits while a Take for another graphic waits to run
+    // here (a hold, G2 section 3); the Take's own graphic still loads first through the demand.
+    quiet: (graphic) =>
+      new Promise<void>((resolve) => {
+        const check = () => {
+          const waiting = Array.from(holds.keys()).some((held) => held !== graphic);
+          if (!waiting) resolve();
+          else setTimeout(check, 50);
+        };
+        check();
+      }),
   });
   /** A development build only: `&oldbuild=1` makes this output behave as one built before automatic
    *  updates (no `au`, no own version check), so a spec can walk E2's transition. */
