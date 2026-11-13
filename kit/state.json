@@ -69,7 +69,7 @@
     {
       "phase": "E6C",
       "step": "Fresh Cloud export/receiving builder active",
-      "note": "E6Cproductde563 committed; Node6/6,fit2/2,correctedoutput7/7 PASS. Nativecandidate43454322514/job131984346716FAIL atcheck:gate-coverage newtestguard bracepaths; tests/helper/bundleNOTRUN,cleanupnull,failedreceipt retained. WorkerSTOPbeforefollowup; narrowexplicitpath fix proposal pending; no2ndcarrieradmission. ONEbroaderj0152alreadyadmitted48tests/4filescap12/2workers mayfinish. E4attempts/STOP boundaryunchanged."
+      "note": "E6Cproductde563: Node6/6,fit2/2,output7/7,ONEbroaderj15248/48PASS0retry/skip2.4min. Currentappcandidateattempt1FAIL gatecoverageguardannotation beforebuildtests/helper/bundle; fullfailure retained. Rootapprovedonlyexplicitpathheadercorrection+targetedguardproof/separatecommit; no2ndcarrieradmission. Product/state/E4 unchanged; E5C/E4 attempts stay spent."
     }
   ],
   "owner": [
@@ -3050,6 +3050,23 @@
         "measurement": "Oswald name1041.09375/1043px font27.4455px,logo32px all6,errors/missingempty. In/Next/Out/interruption/replay.",
         "scope": "WORKINGDIFF; standalonebrowser/NoaCGcontainedhost, not namedrealreceiver/officialrenderer acceptance. Casparwhitecanvas/OGrafdarkhost composition backgrounds differ; no pixelparityclaim. Originalj150separateimmutablefailedoutputdir retained.",
         "remaining": "Final productcommit/review/gates, technicalG07consolidatedkit/currentbundle due; no broader/build/manualcarrier admitted."
+      },
+      "j0152": {
+        "result": "PASS48/48 2.4min0retry/skip",
+        "source": "de563b599f175a60500ef288d0d59b3d624126c3",
+        "selection": [
+          "editor-typography",
+          "exports",
+          "ograf-isolation",
+          "render"
+        ],
+        "admission": "ONEbroadercap12/2derivedworkers;1/1spent; no repeataftermetadata-onlyfix",
+        "scope": "Maintained localCloud; stubbedrenderAPIcases retaintheirscope, notrealhost/outputacceptance."
+      },
+      "coverageMetadataRepair": {
+        "status": "ROOT_APPROVED_ONE_NARROW_HEADER_CORRECTION",
+        "family": "declaredtestguardpaths mustmatchrealpaths; no brace-listcomma support",
+        "scope": "ONLY expand3fullpaths in field-reference.test.mjs guardsheader; retainother2guards; check-gate-coverage and actual gateplan prove5validguards+selection. No product/parser/testguard/limitweakening. Separateverifiedcommit; no2ndmanualcarrier until rootexactSHAadmission."
       }
     },
     "productCommit": "de563b599f175a60500ef288d0d59b3d624126c3",
