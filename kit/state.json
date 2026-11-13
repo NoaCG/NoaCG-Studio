@@ -68,8 +68,8 @@
   "inFlight": [
     {
       "phase": "E5C",
-      "step": "Supervisor admitted build; preparing fresh Cloud worker",
-      "note": "E4PASSaccepted11:21:26.775Z actualmerge5f6 afterfreshindependentcheck; alloldattempts retained. E4familybudgets remainspent; no escapeviaE5C. NoE5Cnativeworker yet."
+      "step": "Native fresh builder admitted, startup qualification pending",
+      "note": "Action9 recorded/readyreservedonce, /root/editor_e5c_cloud_builder launchedforknone atsourcee1c6. No substantiveworkuntilstartupreceiptobserved+ACK. E4independentPASS/source5f6allterminal retained; same exhaustedE4familymuststopifrediscovered."
     }
   ],
   "owner": [
@@ -2169,9 +2169,7 @@
       },
       "ageAlarm": {
         "issue": 2481,
-        "owner": "miwco (primary); weekly owner session backup, from policy",
-        "date": "2026-11-14",
-        "action": "Current owner-authorized bounded correction, otherwise explicit stop and simpler-requirements reassessment; no attempts reset."
+        "status": "Closed by documented growth-report ages after E4PASS; no phase/PRpastceiling; repair-wake nothingtoraise."
       },
       "reproductions": {
         "source": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
@@ -2495,9 +2493,16 @@
     "source": "e1c6fc4f5faf933be930cdf30f7acfa4e2b9ab22",
     "worktree": "/workspace/noacg-editor-r1-5-e5c-build",
     "branch": "codex/plan-editor-r1-5-e5c-build",
-    "status": "PREPARING_NATIVE_BRIEF",
+    "status": "NATIVE_STARTUP_PENDING",
     "predecessor": "E4 accepted2026-11-13T11:21:26.775Z exact5f6; independentcomment6851283088",
     "sourceApplicability": "5f6\u2192e1c6 only e2e/import-svg-corpus.spec.ts, e2e/publish-output-setup.spec.ts andquarantine.json changed, no app/runtime/deps/workflowinputs; freshE5C acceptance stillrequired.",
-    "resourceSetup": "Ownedcleanbranch/worktree createdbeforework, rootpackage-lockSHA62dd0fe872965d011d1b30433f28ee547475dd08bf1309bbd569b0733214df4c equals shared dependencylock; onlynode_moduleslinked, no compiledoutput reuse."
+    "resourceSetup": "Ownedcleanbranch/worktree createdbeforework, rootpackage-lockSHA62dd0fe872965d011d1b30433f28ee547475dd08bf1309bbd569b0733214df4c equals shared dependencylock; onlynode_moduleslinked, no compiledoutput reuse.",
+    "actor": "/root/editor_e5c_cloud_builder",
+    "actionId": "plan-editor-r1-5-2026-11-08:9",
+    "requestSha256": "89ec6375d42af6fc95ad18f413aba64af37b0760eac92fb6f64402a70a2d6fe8",
+    "brief": "briefs/e5c-build-e5c-b-cloud-1113.txt",
+    "briefSha256": "6d2dc990cde1ca96bc194e6d73ccc1d38c17b156ca8a8a018f2706417cc181d0",
+    "nativeThreadUuid": "unexposed",
+    "modelEffort": "inherited; no overrides"
   }
 }
