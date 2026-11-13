@@ -28,8 +28,8 @@
 //
 // WHY A SEPARATE MODULE rather than a line in the config. Three entry points need the same
 // answer - `e2e/_configured-guard.ts` (the `globalSetup` of every configured run),
-// `e2e/configured/_helpers.ts` (which is where the service key is read, so it is the last line
-// before a write) and the unit test that pins the rules - and a rule copied three times is a rule
+// `e2e/configured/_helpers.ts` (the module every admin write in the suite takes its key from)
+// and the unit test that pins the rules - and a rule copied three times is a rule
 // that drifts. It is `.mjs` so a Playwright config, a TypeScript spec and `node --test` can all
 // import it.
 //
@@ -40,6 +40,12 @@
 // anonymous, writes nothing, and runs with no Supabase variables set (`deploy-verify.yml`) - but
 // a shell that has exported a production `.env` wholesale is refused there too, through
 // `_helpers.ts`, and unsetting those two variables is the fix.
+//
+// ONE PLACE THE PROBE READS LESS THAN IT LOOKS. `e2e/configured/measure/measure.config.ts` with
+// MEASURE_BUILD=prod puts a switch in front of two servers, and the served-backend probe reads the
+// development one. A bundled build's backend was fixed when `vite build` ran, out of whatever
+// environment file was there then, so nothing at run time can read it back; what holds that half
+// is this process's own environment, which is judged first and by the same rule.
 
 import { stagingRef } from './supabase-projects.mjs';
 

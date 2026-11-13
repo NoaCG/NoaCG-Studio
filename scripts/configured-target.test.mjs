@@ -418,3 +418,46 @@ test('URL_VARS names every backend URL this repository reads from the environmen
     assert.ok(URL_VARS.includes(variable), `${where} reads ${variable}, a backend URL the rule in configured-target.mjs never looks at`);
   }
 });
+
+test('the configs that must refuse a backend they do not own actually refuse it, at load', async () => {
+  // The rule is pinned above; this is the WIRING that makes a walk meet it. Swallow the throw in
+  // either config and the rule's own cases stay green. Each config is IMPORTED on its own, in a
+  // child process with a fake hosted backend: on its own, because running the walk's specs would
+  // also meet the helper's refusal and a config that had stopped refusing would look fine. The
+  // import starts nothing - these configs build a server command, they do not run it.
+  for (const [config, what] of [
+    ['playwright.endurance.config.ts', 'the endurance walk'],
+    ['e2e/endurance/editor-projects.config.ts', 'the isolated persistence qualification'],
+  ]) {
+    const loaded = spawnSync(
+      process.execPath,
+      ['--no-warnings', '-e', `import(${JSON.stringify(`./${config}`)}).then(() => process.exit(0), (error) => { console.log(error.message); process.exit(3); })`],
+      {
+        cwd: ROOT,
+        encoding: 'utf8',
+        env: { ...process.env, VITE_SUPABASE_URL: 'https://zzzzzzzzzzzzzzzzzzzz.supabase.co', SUPABASE_URL: '', SUPABASE_SERVICE_ROLE_KEY: 'fake-service-role', SUPABASE_SECRET_KEY: '' },
+        windowsHide: true,
+      },
+    );
+    const output = `${loaded.stdout}${loaded.stderr}`;
+    assert.equal(loaded.status, 3, `${config} loaded a backend it does not own: ${output.slice(0, 400)}`);
+    assert.match(output, new RegExp(`Refusing to start ${what}`), output.slice(0, 400));
+  }
+});
+
+test('the suite with no backend still lists under an environment that names one', () => {
+  // playwright.production.config.ts measures the DEPLOYED site and writes nothing, but it shares
+  // e2e/configured/ as its directory, so Playwright parses those spec files to resolve its grep
+  // and reaches the helper's refusal. Its answer is to hold no backend at all; this is that answer
+  // exercised rather than simulated, under the environment that would otherwise stop it.
+  const listed = spawnSync('npx', ['playwright', 'test', '--config', 'playwright.production.config.ts', '--list'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    env: { ...process.env, ...CLOUD_WORKER },
+    windowsHide: true,
+  });
+  const output = `${listed.stdout}${listed.stderr}`;
+  assert.doesNotMatch(output, /Refusing to start/, `the production suite refused: ${output.slice(0, 400)}`);
+  assert.match(output, /@production/);
+  assert.equal(listed.status, 0, output.slice(0, 400));
+});

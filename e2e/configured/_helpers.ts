@@ -52,9 +52,11 @@ export async function unpublishForCleanup(page: Page): Promise<void> {
   await page.getByTestId('production-page').waitFor();
 }
 
-// THE LAST LINE BEFORE AN ADMIN WRITE (issue #2495). Fifteen specs build their admin client from
-// this pair, and the key below ignores every row-level rule, so handing them out is the moment to
-// be sure of the project. `e2e/_configured-guard.ts` has already refused a run whose backend is
+// THE MODULE THAT HANDS OUT THE ADMIN KEY CHECKS FIRST (issue #2495). Fifteen specs build their
+// admin client from this pair, and the key below ignores every row-level rule, so this module is
+// the one every admin write in the suite comes through. The check sits at module scope, which is
+// what makes it unavoidable: an importer runs the whole body before it can read an export, so
+// where in the body it sits does not matter - that it is in the body at all does. `e2e/_configured-guard.ts` has already refused a run whose backend is
 // not one it owns; this repeats the same check at import, because a spec file can also be reached
 // without that globalSetup - another config, or a one-off `npx playwright test <file>` - and a
 // wrong answer here is written to somebody's database rather than reported.
