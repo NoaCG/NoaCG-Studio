@@ -19,7 +19,9 @@ import {
   controlOutputSeen,
   controlOutputTail,
   controlOutputTailSeq,
+  controlOutputVersion,
   followControlLog,
+  readOutputPayload,
   followSeqLog,
   untilAnswered,
   type ControlEventRow,
@@ -69,6 +71,9 @@ import { SEQ_TAIL_PAGE, supersededAnimations } from '../control/seqFollow';
 import { airWhenSettled } from './catchUp';
 import { answersPing, pingDelay, type PingAck } from '../control/prepareLive';
 import { createPreparer } from './prepare';
+import { createVersionCheck, type VersionCheck } from './versionCheck';
+import { readPublishedOffThread } from './payloadReader';
+import { loadBackendConfig } from '../backend/config';
 import { PROBE_MS, reloadWhenClear, within } from './reload';
 import { FRAME_LOAD_MS, createOutputStage, heldLine } from './stage';
 import { reportedLook } from '../control/cueAdjust';
@@ -468,6 +473,9 @@ async function boot(): Promise<void> {
       presence.touch();
     },
   });
+  /** A development build only: `&oldbuild=1` makes this output behave as one built before automatic
+   *  updates (no `au`, no own version check), so a spec can walk E2's transition. */
+  const OLD_BUILD_FOR_SPECS = import.meta.env.DEV && new URLSearchParams(window.location.search).get('oldbuild') === '1';
   const entry = (): LiveEntry =>
     liveEntry('output', 'output', { log: logJoined, cmd: cmdJoined }, live.summary(), {
       name: outputName ?? sceneName,
@@ -478,6 +486,8 @@ async function boot(): Promise<void> {
       proto: identity.protocol,
       // E1.2a: this output reads typed envelopes, so a page may send it one.
       typed: TYPED_READER,
+      // Live-publishing G3 section 6: this output checks the published version itself.
+      ...(OLD_BUILD_FOR_SPECS ? {} : { au: 1 }),
       ...(scene !== null ? { scene: sceneReport(scene) } : {}),
     });
   const presence = joinLivePresence({
@@ -637,7 +647,33 @@ async function boot(): Promise<void> {
       readyChanged();
     },
     changed: () => preparer.refresh(),
+    // R20 (G3, owner decision Q1): a new frame waits while a Take for another graphic waits to run
+    // here (a hold, G2 section 3); the Take's own graphic still loads first through the demand.
+    quiet: (graphic) =>
+      new Promise<void>((resolve) => {
+        const check = () => {
+          const waiting = Array.from(holds.keys()).some((held) => held !== graphic);
+          if (!waiting) resolve();
+          // A Map scan every 200 ms while a Take waits (at most 20 s): a frame that starts a little
+          // later costs nothing; the scan costs less than one command.
+          else setTimeout(check, 200);
+        };
+        check();
+      }),
   });
+  /** Whether this page's own URL now serves another build of the renderer. */
+  const servedNewBuild = async (): Promise<boolean> =>
+    SERVED_SCRIPTS.length > 0 &&
+    within(
+      PROBE_MS,
+      async (signal) => {
+        const page = await fetch(window.location.href, { cache: 'no-store', signal });
+        if (!page.ok) return false;
+        const html = await page.text();
+        return SERVED_SCRIPTS.some((src) => html.indexOf(`src="${src}"`) < 0);
+      },
+      false,
+    );
   const preparer = createPreparer({
     audio,
     held: payload.ver ?? null,
@@ -660,28 +696,26 @@ async function boot(): Promise<void> {
         demanded = null;
         return fresh;
       }
-      const answer = await untilAnswered(() => controlOutputResolve(outputSlug), { limit: 3 });
-      if (!answer.ok || !answer.value?.output) return null;
+      // Parsed off the main thread where it can be (./payloadReader.ts, G3 section 5): the published
+      // copy is megabytes, and commands keep running meanwhile. Otherwise read here, as before.
+      const cfg = loadBackendConfig();
+      const off = cfg.url && cfg.anonKey ? await readPublishedOffThread(cfg.url, cfg.anonKey, outputSlug) : undefined;
+      let whole: OutputPayload | null;
+      if (off !== undefined) whole = readOutputPayload(off);
+      else {
+        const answer = await untilAnswered(() => controlOutputResolve(outputSlug), { limit: 3 });
+        whole = answer.ok && answer.value ? answer.value.output : null;
+      }
+      if (!whole) return null;
       // The scene's graphics only (R5): the swapper adds and removes by the keys it is handed.
       const knew = sceneKnown;
-      const next = scoped(answer.value.output);
+      const next = scoped(whole);
       if (sceneKnown !== knew) readyChanged();
       return next;
     },
     onAir: airCount,
     // Bounded like the reload's probe: Prepare for Live waits on it (./reload.ts).
-    newBuild: async () =>
-      SERVED_SCRIPTS.length > 0 &&
-      within(
-        PROBE_MS,
-        async (signal) => {
-          const page = await fetch(window.location.href, { cache: 'no-store', signal });
-          if (!page.ok) return false;
-          const html = await page.text();
-          return SERVED_SCRIPTS.some((src) => html.indexOf(`src="${src}"`) < 0);
-        },
-        false,
-      ),
+    newBuild: () => servedNewBuild(),
     recheck: async () => {
       for (const graphic of stage.graphics) {
         const held = checks.get(graphic);
@@ -698,6 +732,39 @@ async function boot(): Promise<void> {
     // A Take can land while the probe is out: air is read again after it (./reload.ts).
     reload: () => reloadWhenClear({ probe: pageServed, onAir: airCount, reload: reloadPage }),
   });
+  // ── THE OUTPUT'S OWN CHECK OF THE PUBLISHED VERSION (live-publishing G3 section 6): after the boot
+  // recovery, every 30 s, on a rejoin and when the browser is back online, with no page needed. ──
+  let versionCheck: VersionCheck | null = null;
+  void recovered.then(() => {
+    if (OLD_BUILD_FOR_SPECS) return;
+    versionCheck = createVersionCheck({
+      setTimer: (ms, run) => {
+        const t = setTimeout(run, ms);
+        return () => clearTimeout(t);
+      },
+      probe: async () => {
+        const answer = await controlOutputVersion(outputSlug);
+        if (answer === 'absent') return 'absent';
+        if (!answer.ok) return null;
+        const ver = answer.value ? answer.value.ver : null;
+        return { ver: ver ? { n: ver.n, h: ver.h } : null };
+      },
+      current: () => preparer.version(),
+      request: (ver) => preparer.request({ id: `v${ver.n}-${ver.h}-${Date.now()}`, n: ver.n, h: ver.h }),
+    });
+  });
+  window.addEventListener('online', () => {
+    if (versionCheck) versionCheck.poke();
+  });
+  // A new build of this renderer, asked every 5 minutes so a later change needs no page either: taken
+  // by a reload only when nothing is on air and no command has reached this output for 60 s, through
+  // the same door a requested reload uses (its URL must answer).
+  setInterval(() => {
+    if (airCount() > 0 || Date.now() - lastCommandAt < 60_000) return;
+    void servedNewBuild().then((fresh) => {
+      if (fresh && airCount() === 0 && Date.now() - lastCommandAt >= 60_000) void reloadWhenClear({ probe: pageServed, onAir: airCount, reload: reloadPage });
+    }, () => {});
+  }, 5 * 60_000);
   /** Rows a tail read returned, each with its read: the follow hands them to `onRow` like any other,
    *  and this is how that callback tells them from rows the log topic delivered. A read counts as a
    *  refill once, and only if a row of it was new here: the poll and every rejoin re-read a window
@@ -958,6 +1025,9 @@ async function boot(): Promise<void> {
   // `animate` false is an entrance a later `play` or `stop` of the same graphic in the same refill
   // replaces (seqFollow.ts `supersededAnimations`): everything about the row applies except the
   // stage animation nobody would see finish.
+  /** When the last command reached this output, on its own clock (a periodic build reload waits
+   *  60 s after it, G3 section 6). */
+  let lastCommandAt = 0;
   const applyCommand = (
     graphic: string,
     incoming: ControlEventRow['msg'],
@@ -973,6 +1043,7 @@ async function boot(): Promise<void> {
     // report. One the link has not heard of yet keeps its values until the demand read decides.
     if (!inScope(graphic) && elsewhere(graphic)) return;
     const receivedAt = Date.now();
+    lastCommandAt = receivedAt;
     if (road && !claimed) live.received(road, incoming);
     if (!claimed && !applied.claim(incoming)) {
       if (road) live.duplicate(incoming);
@@ -1826,7 +1897,10 @@ async function boot(): Promise<void> {
   dbg('realtime', 'subscribing…');
   const onStatus = ({ status, everJoined }: ControlFollowStatus) => {
     // What the Presence entry says about the log road: joined NOW, not ever.
+    const wasJoined = logJoined;
     logJoined = status === 'SUBSCRIBED';
+    // Joined again after a drop: the published version may have moved meanwhile (G3 section 6).
+    if (logJoined && !wasJoined && versionCheck) versionCheck.poke();
     presence.touch();
     const poll = `${Math.round(CONTROL_POLL_MS / 1000)} s`;
     dbg('realtime', everJoined ? `following (${status})` : `NOT JOINED (${status || 'no status'}) — polling every ${poll}`);

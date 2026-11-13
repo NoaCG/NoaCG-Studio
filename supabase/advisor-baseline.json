@@ -163,6 +163,11 @@
       "level": "WARN",
       "detail": "Function `public.control_output_tail_seq(p_output_slug text, p_after bigint, p_epoch uuid)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_tail_seq`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "anon_security_definer_function_executable_public_control_output_version_p_output_slug text": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_output_version(p_output_slug text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_version`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "anon_security_definer_function_executable_public_control_ping_seq_p_slug text, p_id text": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
@@ -383,6 +388,11 @@
       "level": "WARN",
       "detail": "Function `public.audience_word_counts(p_slug text, p_round uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_word_counts`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "authenticated_security_definer_function_executable_public_auto_publish_state_": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.auto_publish_state()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/auto_publish_state`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "authenticated_security_definer_function_executable_public_community_pack_decide_p_id uuid, p_state text, p_reason text": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
@@ -497,6 +507,11 @@
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.control_output_tail_seq(p_output_slug text, p_after bigint, p_epoch uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_tail_seq`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_control_output_version_p_output_slug text": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_output_version(p_output_slug text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_version`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_control_ping_seq_p_slug text, p_id text": {
       "name": "authenticated_security_definer_function_executable",

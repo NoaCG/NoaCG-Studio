@@ -38,7 +38,7 @@ export interface SlotReading {
 
 /** One line of the panel: what was checked, how it stands, and what to do when it is not fine. */
 export interface StatusCheck {
-  key: 'production' | 'bridge' | 'slot' | 'outputs' | 'take' | 'files' | 'playback' | 'confirm';
+  key: 'production' | 'bridge' | 'slot' | 'outputs' | 'take' | 'files' | 'playback' | 'confirm' | 'publish' | 'switch';
   tone: StatusTone;
   label: string;
   /** The words on the header control when this check decides the status. */
@@ -82,6 +82,11 @@ export interface StatusFacts {
   /** What the outputs have not confirmed running (runConfirm.ts `confirmLines`), worst first. Empty:
    *  every owed command is confirmed. */
   confirm?: readonly ConfirmLine[] | null;
+  /** Automatic updates (control/autoPublish.ts, live-publishing G3 section 9): a save the outputs
+   *  do not have yet. Amber while it is being published, red "Saved, not on the outputs". */
+  autoPublish?: { tone: 'amber' | 'red'; line: string | null } | null;
+  /** Expected outputs opened before automatic updates (no `au` in their entry, G3 section 7). */
+  oldOutputs?: readonly string[] | null;
 }
 
 const RANK: Record<StatusTone, number> = { bad: 3, warn: 2, ok: 1, idle: 0 };
@@ -172,6 +177,21 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
     checks.push({ key: 'take', tone: 'bad', label: 'The last Take reached no output', short: 'No output' });
   }
   if (f.started) for (const line of f.confirm ?? []) checks.push({ key: 'confirm', tone: line.tone, label: line.label, short: line.short });
+  if (f.started && f.autoPublish) {
+    checks.push(f.autoPublish.tone === 'red'
+      ? { key: 'publish', tone: 'bad', label: f.autoPublish.line ?? 'The newest save is not on the outputs yet.', short: 'Saved, not on the outputs' }
+      : { key: 'publish', tone: 'warn', label: f.autoPublish.line ?? 'Publishing your changes', short: 'Updating outputs' });
+  }
+  if (f.started) {
+    for (const name of f.oldOutputs ?? []) {
+      checks.push({
+        key: 'switch',
+        tone: 'warn',
+        label: `${name} was opened before automatic updates. It takes changes while this page is open, and switches over by itself the next time nothing is on air there.`,
+        short: `Reload ${name} when nothing is on air`,
+      });
+    }
+  }
   if (f.fileCheck) checks.push(f.fileCheck);
   if (f.playbackCheck) checks.push(f.playbackCheck);
 

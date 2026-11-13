@@ -1,6 +1,6 @@
 import { test, expect, type Browser, type Locator, type Page } from '@playwright/test';
 import { fakeBridge, seedSettings } from '../../_fakeBridge';
-import { openSecondProductionPage, readyOf } from '../_helpers';
+import { openSecondProductionPage, readyOf, SERVICE_ROLE_KEY, SUPABASE_URL } from '../_helpers';
 import { answerPanel, pairPanel } from '../_panel';
 import { buildFixture, cleanUp, outputSlugOf } from './_fixture';
 import {
@@ -863,4 +863,108 @@ test('w3', async ({ page, browser }) => {
   }
   if (feeder) await feeder.close();
   report('w3', { graphic: samples }, { outputs: outputsWanted, feedMs, pressToConfirmed: summary(confirmed, unconfirmed), fixtureFacts: fx });
+});
+
+// PRESS TO RAN DURING AUTOMATIC PUBLISHING (live-publishing designs/G3.md section 13, AC-4). With
+// MEASURE_LOOP=1 the page publishes its saved revision again and again, whole (a session flag only
+// this harness sets), so every output reads the published copy each time; without it, nothing is
+// published. "Ran" is the output's graphic running the Take: its play() call, on the one time origin.
+// MEASURE_EDIT=cues|add|design makes the page edit the production every 3 s (the last cue's text and
+// values, or a graphic added and removed); MEASURE_AUTO=0 runs that with automatic updates off.
+test('autopublish', async ({ page, browser }) => {
+  // The switch is a service-role write: only ever against a local stack.
+  if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(SUPABASE_URL)) throw new Error('autopublish writes a switch: run it only against a local stack');
+  const loop = process.env.MEASURE_LOOP === '1';
+  const editMode = ['cues', 'add', 'design'].includes(process.env.MEASURE_EDIT ?? '') ? process.env.MEASURE_EDIT! : null;
+  const autoOn = process.env.MEASURE_AUTO !== '0';
+  const setAuto = (on: boolean) =>
+    fetch(`${SUPABASE_URL}/rest/v1/system_settings?on_conflict=key`, {
+      method: 'POST',
+      headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}`, 'content-type': 'application/json', prefer: 'resolution=merge-duplicates' },
+      body: JSON.stringify({ key: 'auto_publish', value: { on } }),
+    });
+  await opPage(page);
+  const fx = await buildFixture(page, FIXTURE);
+  const labels = await page.evaluate(async ({ id, cues }) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const s = loadShows().find((x) => x.id === id)!;
+    return cues.map((c) => s.cues!.find((x) => x.id === c)!.label);
+  }, { id: fx.showId, cues: fx.cues.plain.slice(0, 5) });
+  const slug = await outputSlugOf(page, fx.showId);
+  await setAuto(autoOn);
+  try {
+    await page.evaluate((on) => (on ? sessionStorage.setItem('noacg-measure-publish-loop', '1') : sessionStorage.removeItem('noacg-measure-publish-loop')), loop);
+    await page.evaluate((mode) => (mode ? sessionStorage.setItem('noacg-measure-edit-loop', mode) : sessionStorage.removeItem('noacg-measure-edit-loop')), editMode);
+    /** The output version, the record's saved revision and the published one, on the server. */
+    const stateOf = async () => {
+      const read = async (path: string) => ((await (await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}` } })).json()) as Record<string, number | null>[])[0] ?? {};
+      const [row, doc] = await Promise.all([read(`control_shows?id=eq.${fx.showId}&select=n:output->ver->n,published_rev`), read(`documents?id=eq.${fx.showId}&select=rev`)]);
+      return { n: row.n ?? 0, publishedRev: row.published_rev ?? null, rev: doc.rev ?? null };
+    };
+    const stateBefore = await stateOf();
+    /** The page's REST and RPC requests during the samples, by method and path (edit loops only). */
+    const requests: Record<string, number> = {};
+    if (editMode) {
+      page.on('request', (r) => {
+        const u = r.url();
+        if (!u.includes('/rest/v1/')) return;
+        const k = `${r.method()} ${u.split('/rest/v1/')[1].split('?')[0]}${u.includes('select=rev') ? ' (rev)' : ''}`;
+        requests[k] = (requests[k] ?? 0) + 1;
+      });
+    }
+    await toProd(page);
+    await throttle(page, NET);
+    const out = await openOutput(browser, slug);
+    await healthyOutput(out, fx.graphics);
+    type W = { __noacgPublishWindows?: [number, number, string, number][]; __noacgPublishRunning?: number | null };
+    if (loop) await expect.poll(() => page.evaluate(() => ((window as unknown as W).__noacgPublishWindows ?? []).length), { timeout: 120_000 }).toBeGreaterThan(0);
+    const toRan: number[] = [];
+    const sentRows: Sample[] = [];
+    const failures: string[] = [];
+    let during = 0;
+    for (let i = 0; i < SAMPLES; i++) {
+      await select(page, labels[i % labels.length]);
+      await clearLpm(page);
+      const pressedAt = await nowOn(page);
+      sentRows.push(await pressAndMeasure(page, page.getByTestId('verb-take'), 'verb-take', SEND));
+      let ran: number | null = null;
+      const end = Date.now() + 15_000;
+      while (Date.now() < end && ran === null) {
+        const plays = (await framePlays(out)).flatMap((f) => f.plays).filter((p) => p.playAt > pressedAt).sort((a, b) => a.playAt - b.playAt);
+        if (plays.length) ran = plays[0].playAt;
+        else await page.waitForTimeout(25);
+      }
+      if (ran === null) failures.push('no run');
+      else toRan.push(ran - pressedAt);
+      if (loop || editMode) {
+        const w = await page.evaluate(() => ({ windows: (window as unknown as W).__noacgPublishWindows ?? [], running: (window as unknown as W).__noacgPublishRunning ?? null }));
+        if (w.windows.some(([a, b]) => pressedAt >= a && pressedAt <= b) || (w.running !== null && pressedAt >= w.running)) during += 1;
+      }
+      await settle(page, 150, 20_000, SEND);
+      await page.getByTestId('verb-out').click();
+      await settle(page, 150, 20_000, SEND);
+      await page.waitForTimeout(300);
+    }
+    const windows = loop || editMode ? await page.evaluate(() => (window as unknown as W).__noacgPublishWindows ?? []) : [];
+    const edits = editMode ? await page.evaluate(() => (window as unknown as { __noacgEdits?: number }).__noacgEdits ?? 0) : 0;
+    const stateAfter = await stateOf();
+    const versionsPublished = stateAfter.n - stateBefore.n;
+    report(`autopublish-${editMode ? `edit-${editMode}-${autoOn ? 'on' : 'off'}` : loop ? 'loop' : 'none'}`, { take: sentRows }, {
+      edits,
+      versionsPublished,
+      server: { before: stateBefore, after: stateAfter },
+      requests: editMode ? requests : undefined,
+      publisherTally: editMode ? await page.evaluate(() => (window as unknown as { __noacgPublisherTally?: Record<string, number> }).__noacgPublisherTally ?? {}) : undefined,
+      publishSteps: editMode ? windows.map((x) => ({ ms: Math.round(x[1] - x[0]), kind: x[2], over16: ((x as unknown as [number, number, string, number, number[]])[4] ?? []).map((v, i) => [i, Math.round(v)]).filter(([, v]) => v > 16) })) : undefined,
+      fixtureFacts: fx,
+      pressToRan: summary(toRan, failures.length),
+      pressToRanSamples: toRan,
+      failures: failures.slice(0, 5),
+      pressesDuringAPublish: during,
+      publishes: { n: windows.length, ms: summary(windows.map(([a, b]) => b - a)), longestStepMs: summary(windows.map((x) => x[3])), longestStepMaxMs: Math.max(0, ...windows.map((x) => x[3])), kinds: [...new Set(windows.map((x) => x[2]))] },
+    });
+  } finally {
+    await page.evaluate(() => { sessionStorage.removeItem('noacg-measure-publish-loop'); sessionStorage.removeItem('noacg-measure-edit-loop'); }).catch(() => undefined);
+    await setAuto(false).catch(() => undefined);
+  }
 });
