@@ -3156,7 +3156,7 @@
       "run": 43460781286,
       "head": "569aaceb523ccdfbbbe4cf3cad2238667aeeea73",
       "attempt": 1,
-      "status": "software/configuredpending",
+      "status": "TERMINAL_ATTEMPT1_32JOBS_26SUCCESS5EXPECTEDSKIP_ONLY_REVIEWEDFAIL",
       "planJob": 132006813178,
       "rootPlan": "Qualifiedconnectoractualwholelog96075chars610lines; materializedMANIFEST parsed:all64configuredspecs/4stacks, quarantinecommand-sequenceexcludedsource. Whole reasons frozenfixture,blocks/animMigration,preview/composeDocument. Offline181specs/15shards+catalogtrue. No stamp/autoqueueyet.",
       "codex": {
@@ -3166,7 +3166,7 @@
       },
       "codeql": {
         "run": 43460774127,
-        "status": "inprogress"
+        "status": "SUCCESS actualexact569"
       },
       "reviewedOriginal": {
         "job": 132006813331,
@@ -3175,7 +3175,18 @@
         "bytes": 13330,
         "sha256": "3cafa61539980000e9bc55628474ab571a4832954d09c9d446ccebc8f7e5f64d",
         "disposition": "No workerrepair/status/rerun. Existingmainhelperonlyafterallgates/runterminal; reviveReviewedonly, no softwaretestretry/quarantineclaim."
-      }
+      },
+      "gate": {
+        "job": 132016037819,
+        "result": "SUCCESS",
+        "rootActual": "Fetchedactual31598char387linegate; Build/Plan/E2E/Catalog/Factory/Configured/ConfiguredVerdictallSUCCESS"
+      },
+      "configuredVerdict": {
+        "job": 132015701245,
+        "result": "SUCCESS",
+        "rootActual": "Actual36655char363lineverdict:158PASS0FAIL0FLAKY3existingSKIP,64selectedfiles/4stacks; NOT oldE5C150 ormainquarantinecounts"
+      },
+      "combinedBuild": "ActualPRtestmerged8a6427 BuildSUCCESS5864tests5837PASS0FAIL27SKIP;gateway533PASS; separatefromnativec4565844/5814/30. Source32jobsallterminal, no software retries."
     },
     "mainReconciliation": {
       "main": "7451fbbacf03a1c763b4e9939b7ed800c8faf5de",
@@ -3203,6 +3214,18 @@
       "legs": "review/simplify/verify inline0findings0fixed; requiredRiskyRulesandFULLAindependentlyread"
     },
     "finalCurrentCandidateDecision": "No newmanualadmission. Nativec456 remainsvalidsource-specific; main7451materialwholeappdelta prevents relabelasactualmergedE5candidate. After actualmerge+integration evidence rootwillassessconcreteneed/source/bounds for finalcurrentcandidate using normalriskverification; neverautomaticthird/oldbudgetreset. No docs/codechangesnow.",
-    "prRules": "WorkeractualPRBODYONLY addedconciseRules1\u20136; same569head/no push/review/testchange. RequiredobservableprecodeRules repeated."
+    "prRules": "WorkeractualPRBODYONLY addedconciseRules1\u20136; same569head/no push/review/testchange. RequiredobservableprecodeRules repeated.",
+    "queueStampIntent": {
+      "status": "READY_ONE_ORIGINAL_DISPATCH_INTENT_NOT_YET_SUBMITTED",
+      "at": "2026-11-13T16:32:20.751243+00:00",
+      "workflow": "cloud-queue-merge.yml",
+      "ref": "main",
+      "observedMain": "7451fbbacf03a1c763b4e9939b7ed800c8faf5de",
+      "branch": "codex/plan-editor-r1-5-e6c-build",
+      "head": "569aaceb523ccdfbbbe4cf3cad2238667aeeea73",
+      "review": "PASS check569aaceb: inline review0/0 simplify unchanged verifyPASS; Risky Rules-firstA and finalFULLA; sourceCIgate/configured64files158PASS0FAIL0FLAKY,CodeQL/Codexclean",
+      "conditions": "Rootverifiedactualheadopen/mergeable,allsourcegatesgreenexceptmissingrootReviewed,actualRiskyRules/FULLA/localcheck andcanonicalsideEnds{},soleownerACK. Awaitfinalworkerreadback beforeONEdispatch. Knownstatuswriteintegrationcap403usesdocumentedMAINhelper, notselfapprovalrefusal.",
+      "reconcile": "Existinglatesthelper43455419389 at15:43onmain1178isotherwork; no currenthelperon745 observed. Once submittedrecordactualoriginalrun/job; unknownackreconcile notredispatch; helperrecoversONLYReviewed afteroriginalterminal, no softwaretestretry. RootSDKautoqueueimmediatelyafterpinnedstatuswithpre/postexactheadguards."
+    }
   }
 }
