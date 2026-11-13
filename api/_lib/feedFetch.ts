@@ -607,8 +607,8 @@ export function parseFeed(xml: string): FeedParse {
 export interface FeedRow {
   key: string;
   address: string;
-  /** The last good headlines. */
-  items: string[];
+  /** The last good headlines; for a JSON address (`JSON_KIND`), its one parsed payload. */
+  items: unknown[];
   etag: string | null;
   last_modified: string | null;
   /** The last good read (a 200 or a 304), or null before the first. */
@@ -650,8 +650,8 @@ export interface FeedIo {
 /** What a reader is answered: headlines and their age, or why there are none. A failure with
  *  headlines in hand is still answered as a failure, with them, so a reader holds what it has. */
 export type FeedAnswer =
-  | { ok: true; items: string[]; fetchedAt: string }
-  | { ok: false; status: number; error: string; fix: string; failingSince: string | null; items?: string[]; fetchedAt?: string | null };
+  | { ok: true; items: unknown[]; fetchedAt: string }
+  | { ok: false; status: number; error: string; fix: string; failingSince: string | null; items?: unknown[]; fetchedAt?: string | null };
 
 const iso = (ms: number) => new Date(ms).toISOString();
 const EPOCH = iso(0);
@@ -674,12 +674,93 @@ function answerOf(row: FeedRow): FeedAnswer {
 }
 
 /** The wait before the next fetch: the floor, or longer when the feed asks, never past the cap. */
-export function nextWait(asked: (number | null | undefined)[]): number {
-  return Math.min(FEED_MAX_WAIT_MS, Math.max(FEED_FLOOR_MS, ...asked.filter((n): n is number => typeof n === 'number' && n > 0)));
+export function nextWait(asked: (number | null | undefined)[], floorMs = FEED_FLOOR_MS): number {
+  return Math.min(FEED_MAX_WAIT_MS, Math.max(floorMs, ...asked.filter((n): n is number => typeof n === 'number' && n > 0)));
 }
 
+/**
+ * What a cached address is read as: a news feed's headlines, or a JSON address's one payload
+ * (obs-scenes OS5a, R3). Both share the guard, the row, the claim and the failure rules; they differ
+ * in the row's key (an address read both ways keeps two rows), the floor, what is asked for and
+ * how much is read, how the body is parsed, whether the publisher's `max-age` lengthens the wait,
+ * and the words.
+ */
+export interface CachedKind {
+  key: (url: string) => string;
+  floorMs: number;
+  read: GuardedRead;
+  parse: (text: string) => { ok: true; items: unknown[]; waitMs: number | null } | { ok: false; error: string; fix: string };
+  /** The publisher's `max-age` lengthens the wait (a feed's politeness); a JSON source keeps the
+   *  operator's interval instead. Retry-After after a failure is honoured either way. */
+  honourMaxAge: boolean;
+  /** A failure's words for this kind. */
+  words: (text: string) => string;
+  /** The wait is counted from when the reader's request arrived rather than from the end of the
+   *  fetch, less this much (ms): a page asking at exactly the floor then finds the row due, however
+   *  long the fetch and the database took, and network jitter cannot make it skip a read. Absent:
+   *  from the end of the fetch (a feed). */
+  arrivalSlackMs?: number;
+}
+
+export const FEED_KIND: CachedKind = {
+  key: feedKey,
+  floorMs: FEED_FLOOR_MS,
+  read: FEED_READ,
+  parse: (text) => {
+    const parsed = parseFeed(text);
+    return parsed.ok ? { ok: true, items: parsed.items.map((i) => i.title), waitMs: parsed.ttlMs } : parsed;
+  },
+  honourMaxAge: true,
+  words: (text) => text,
+};
+
+/** A JSON source's floor (obs-scenes D4): a good read is served this long from the read that asked,
+ *  less `arrivalSlackMs`; a failure waits this long from the fetch's end. */
+export const JSON_CACHE_FLOOR_MS = 10_000;
+/** The largest JSON body read, after decompression: the source route's own 256 KiB. */
+export const JSON_MAX_BYTES = 256 * 1024;
+
+/** A failure said of an address rather than a feed: every sentence the guard and the reader say
+ *  (scripts/json-fetch.test.mjs walks them), most specific first. */
+export const addressWords = (text: string): string =>
+  text
+    .replace(/Paste the feed’s address\./g, 'Paste the address that answers JSON.')
+    .replace(/Use the feed’s public address on the internet\./g, 'Use a public address on the internet.')
+    .replace(/Use the address the feed finally lands on\./g, 'Use the address it finally lands on.')
+    .replace(/Use a smaller feed, such as one for a single category\./g, 'Use an address that answers only what the graphics use.')
+    .replace(/\bfeed addresses\b/g, 'addresses')
+    .replace(/\b([Aa]) feed address\b/g, (_m, a: string) => `${a}n address`)
+    .replace(/\bfeed address\b/g, 'address')
+    .replace(/\b([Aa]) feed\b/g, (_m, a: string) => `${a}n address`)
+    .replace(/\b([Tt])he feed\b/g, '$1he address')
+    .replace(/\bfeed’s\b/g, 'address’s');
+
+export const JSON_KIND: CachedKind = {
+  key: (url) => sha256(`json ${url}`),
+  floorMs: JSON_CACHE_FLOOR_MS,
+  read: {
+    accept: 'application/json',
+    maxBytes: JSON_MAX_BYTES,
+    tooLarge: { error: 'the answer is over 256 KiB', fix: 'Use an address that answers only what the graphics use.' },
+  },
+  parse: (text) => {
+    try {
+      return { ok: true, items: [JSON.parse(text) as unknown], waitMs: null };
+    } catch {
+      // A body cut off on the way is not JSON either: the last good payload stays.
+      return { ok: false, error: 'the address did not answer JSON', fix: 'Check the address answers JSON.' };
+    }
+  },
+  honourMaxAge: false,
+  words: addressWords,
+  // The floor is the source's own (10 s); 1 s of it is room for the time between the page's read
+  // and the fetch, so a source read every 10 s gets a fresh read each time. The address itself is
+  // therefore fetched at most once every 9 s, whatever its readers.
+  arrivalSlackMs: 1_000,
+};
+
 /** Fetch under the claim, and keep what came of it on the row. */
-async function fetchHeld(row: FeedRow, io: FeedIo, outer?: AbortSignal): Promise<FeedAnswer> {
+async function fetchHeld(row: FeedRow, io: FeedIo, outer: AbortSignal | undefined, kind: CachedKind, arrivedAt: number): Promise<FeedAnswer> {
   const abort = new AbortController();
   let timedOut = false;
   const timer = setTimeout(() => {
@@ -693,7 +774,7 @@ async function fetchHeld(row: FeedRow, io: FeedIo, outer?: AbortSignal): Promise
   try {
     // Validators only for headlines in hand: a 304 to a row without any would leave none.
     const held = row.fetched_at !== null;
-    result = await guardedFetch(row.address, { etag: held ? row.etag : null, lastModified: held ? row.last_modified : null }, io.net, abort.signal, io.now);
+    result = await guardedFetch(row.address, { etag: held ? row.etag : null, lastModified: held ? row.last_modified : null }, io.net, abort.signal, io.now, kind.read);
   } finally {
     clearTimeout(timer);
     outer?.removeEventListener('abort', stop);
@@ -705,33 +786,37 @@ async function fetchHeld(row: FeedRow, io: FeedIo, outer?: AbortSignal): Promise
     return { ok: false, status: 503, error: 'the read was cut short', fix: RETRY_FIX, failingSince: row.failing_since };
   }
   const now = io.now();
-  const good = (etag: string | null, lastModified: string | null, waitMs: number, items?: string[], feedWaitMs?: number | null): Partial<FeedRow> => ({
+  // A good read's wait counts from here: the fetch's end, or the request's arrival less the slack.
+  const from = kind.arrivalSlackMs === undefined ? now : Math.min(now, arrivedAt - kind.arrivalSlackMs);
+  const good = (etag: string | null, lastModified: string | null, waitMs: number, items?: unknown[], feedWaitMs?: number | null): Partial<FeedRow> => ({
     ...(items ? { items, feed_wait_ms: feedWaitMs ?? null } : {}),
     etag,
     last_modified: lastModified,
     fetched_at: iso(now),
-    next_allowed_at: iso(now + waitMs),
+    next_allowed_at: iso(from + waitMs),
     error: null,
     fix: null,
     failing_since: null,
     refused: false,
   });
   const bad = (problem: FeedProblem): Partial<FeedRow> => ({
-    error: problem.error,
-    fix: problem.fix,
+    error: kind.words(problem.error),
+    fix: kind.words(problem.fix),
     failing_since: row.failing_since ?? iso(now),
-    next_allowed_at: iso(now + nextWait([problem.retryMs])),
+    // A failure waits from the fetch's end, so a Retry-After is honoured in full.
+    next_allowed_at: iso(now + nextWait([problem.retryMs], kind.floorMs)),
     refused: problem.refused === true,
   });
+  const cacheMs = (ms: number | null) => (kind.honourMaxAge ? ms : null);
   let patch: Partial<FeedRow>;
   if (result.kind === 'body') {
-    const parsed = parseFeed(result.text);
+    const parsed = kind.parse(result.text);
     patch = parsed.ok
-      ? good(result.etag, result.lastModified, nextWait([parsed.ttlMs, result.cacheMs]), parsed.items.map((i) => i.title), parsed.ttlMs)
+      ? good(result.etag, result.lastModified, nextWait([parsed.waitMs, cacheMs(result.cacheMs)], kind.floorMs), parsed.items, parsed.waitMs)
       : bad(parsed);
   } else if (result.kind === 'not-modified') {
     // A 304 has no body, so the feed's own `<ttl>` comes from the row.
-    patch = good(result.etag, result.lastModified, nextWait([row.feed_wait_ms, result.cacheMs]));
+    patch = good(result.etag, result.lastModified, nextWait([row.feed_wait_ms, cacheMs(result.cacheMs)], kind.floorMs));
   } else {
     patch = bad(result);
   }
@@ -752,10 +837,10 @@ async function fetchHeld(row: FeedRow, io: FeedIo, outer?: AbortSignal): Promise
  * fetch short (the tick passes its deadline). A client leaving never cuts a fetch, whose failure
  * every other reader would then be served.
  */
-export async function readFeed(text: string, io: FeedIo, { wait, cut }: { wait?: AbortSignal; cut?: AbortSignal } = {}): Promise<FeedAnswer> {
+export async function readFeed(text: string, io: FeedIo, { wait, cut }: { wait?: AbortSignal; cut?: AbortSignal } = {}, kind: CachedKind = FEED_KIND): Promise<FeedAnswer> {
   const normal = normalizeFeedAddress(text);
-  if ('error' in normal) return { ok: false, status: 400, error: normal.error.replace(/\.$/, '').toLowerCase(), fix: 'Paste the feed’s address.', failingSince: null };
-  const key = feedKey(normal.url);
+  if ('error' in normal) return { ok: false, status: 400, error: kind.words(normal.error.replace(/\.$/, '').toLowerCase()), fix: kind.words('Paste the feed’s address.'), failingSince: null };
+  const key = kind.key(normal.url);
   const now = io.now();
   let row = await io.store.get(key);
   if (row && Date.parse(row.next_allowed_at) > now && (row.fetched_at || row.error)) return answerOf(row);
@@ -776,9 +861,9 @@ export async function readFeed(text: string, io: FeedIo, { wait, cut }: { wait?:
       refused: false,
       feed_wait_ms: null,
     };
-    if (await io.store.create(fresh)) return fetchHeld(fresh, io, cut);
+    if (await io.store.create(fresh)) return fetchHeld(fresh, io, cut, kind, now);
   } else if (await io.store.claim(key, iso(now), until)) {
-    return fetchHeld({ ...row, claimed_until: until }, io, cut);
+    return fetchHeld({ ...row, claimed_until: until }, io, cut, kind, now);
   }
   // Another instance holds the claim. Headlines in hand are served with their age; before the
   // first read, wait for that read to settle rather than fetching a second time, looking at the
@@ -791,6 +876,23 @@ export async function readFeed(text: string, io: FeedIo, { wait, cut }: { wait?:
     if (row && (row.fetched_at || row.error) && Date.parse(row.claimed_until) <= io.now()) return answerOf(row);
   }
   return BEING_READ;
+}
+
+/** What a JSON source's reader is answered (obs-scenes OS5a, R4): the last good payload and when it
+ *  was read, or why not, with no payload (a failure is a failure, and the reader holds). */
+export type JsonAnswer =
+  | { ok: true; payload: unknown; fetchedAt: string }
+  | { ok: false; status: number; error: string; fix: string; failingSince: string | null };
+
+/** One reader's read of a JSON address, through the same cache, claim and guard as a feed. */
+export async function readCachedJson(text: string, io: FeedIo, signals: { wait?: AbortSignal; cut?: AbortSignal } = {}): Promise<JsonAnswer> {
+  const answer = await readFeed(text, io, signals, JSON_KIND);
+  if (answer.ok) {
+    if (answer.items.length !== 1) return { ok: false, status: 502, error: 'the address has not been read yet', fix: RETRY_FIX, failingSince: null };
+    return { ok: true, payload: answer.items[0], fetchedAt: answer.fetchedAt };
+  }
+  const { status, error, fix, failingSince } = answer;
+  return { ok: false, status, error: JSON_KIND.words(error), fix: JSON_KIND.words(fix), failingSince };
 }
 
 // ── The real doors ────────────────────────────────────────────────────────────

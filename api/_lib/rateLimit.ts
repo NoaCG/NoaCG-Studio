@@ -188,6 +188,21 @@ export function checkFeedIpRateLimit(req: Request): RateLimitDecision | null {
   return decision.allowed ? null : decision;
 }
 
+/** NoaCG's JSON reader (/api/data/json, obs-scenes OS5a R16): a page asks once per source per
+ *  interval, at most every 10 s, so 120 a minute is room for 20 sources read at the floor from one
+ *  computer, and refuses a client using the route as a fetcher of arbitrary addresses. */
+export function jsonReadIpRateLimitCaps(): RateLimitCaps {
+  return {
+    windowMs: Math.max(1, envInt('JSON_READ_RATE_WINDOW_SEC', 60)) * 1000,
+    max: envInt('JSON_READ_RATE_MAX', 120),
+  };
+}
+
+export function checkJsonReadIpRateLimit(req: Request): RateLimitDecision | null {
+  const decision = hitRateLimit(`json-read-ip:${ipHash(req)}`, jsonReadIpRateLimitCaps(), Date.now());
+  return decision.allowed ? null : decision;
+}
+
 export function dataIngestBudgetCaps(): RateLimitCaps {
   return {
     windowMs: Math.max(1, envInt('DATA_INGEST_RATE_WINDOW_SEC', 5)) * 1000,

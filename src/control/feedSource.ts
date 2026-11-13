@@ -72,7 +72,7 @@ export function addressRefusal(url: URL): string | null {
 /** What the route answers (api/_lib/feedFetch.ts `FeedAnswer`). */
 export interface FeedRouteAnswer {
   ok: boolean;
-  items?: string[];
+  items?: unknown[];
   fetchedAt?: string | null;
   error?: string;
   fix?: string;

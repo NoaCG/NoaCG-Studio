@@ -6,6 +6,7 @@ import {holdKeyRepeats} from './_keys';
 import {evaluateInPage} from './_evaluate';
 import {pickDesign} from './_browse';
 import {settleDurableWrites} from './_durable';
+import { upgradeSvgFitRuntime } from '../src/assets/svgFitUpgrade';
 
 const ready = async (page: Page) => { await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false'); };
 const source = (page: Page) => evaluateInPage(page, async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
@@ -607,7 +608,8 @@ test('SVG group anchor keys keep their stored frame while a member moves', async
   await settleDurableWrites(page);
   await page.reload(); await ready(page);
   const reopened = await source(page);
-  expect([reopened.html, reopened.css, reopened.js]).toEqual([bakedSource.html, bakedSource.css, bakedSource.js]);
+  // Saving gives this older import's SVG fit the #2355 runtime; nothing else changes.
+  expect([reopened.html, reopened.css, reopened.js]).toEqual([bakedSource.html, bakedSource.css, upgradeSvgFitRuntime(bakedSource.js)]);
   await select(page, [id]); await scrub(.52);
   samePose(await poses(), baked, 'reopened without anchor keys');
   await page.getByRole('button', { name: 'Ungroup selection', exact: true }).click();

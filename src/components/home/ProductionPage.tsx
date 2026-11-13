@@ -29,7 +29,8 @@ import {
   type SheetShowSource,
   type FeedShowSource,
   type FileShowSource,
-  fillsFields,
+  hasReaderLine,
+  type NoacgReadSource,
   type Show,
   type ShowCue,
   type ShowFolder,
@@ -78,6 +79,9 @@ import { createProductionDataSession } from '../../control/productionDataSession
 import type { FieldDescriptor } from '../../model/fieldModel';
 import { createSheetReader, connectedFields, createSourceStatusStore, latestWriter, pathValue, type SheetLease, type SheetReader, type SheetReaderOptions } from '../../control/sheetSource';
 import { FEED_LEASE_MS, createFeedReader } from '../../control/feedSource';
+import { collectionReads, createJsonReader, jsonLeaseMs, projectJson } from '../../control/jsonSource';
+import { currentMatchPath, pickOf } from '../../control/bracketAdapter';
+import { readExternalRegistration } from '../../control/externalSource';
 import { createFileReader } from '../../control/fileSource';
 import { loadFileHandle } from '../../control/fileHandles';
 import { useStorePart } from './useStorePart';
@@ -99,7 +103,7 @@ import { actionArgsOf, nativeOf, readOgrafDeclared, typedReadOnly, typedSendRefu
 import { typedErrorsByPath, typedSummary, typedUnsent } from '../../control/ografForm';
 import { graphicButtons, receivesTypedActions } from '../../control/ografContract';
 import { createTypedSaves, createTypedSendMemo, typedActionPart, typedActionSendFor, TYPED_VALUES_PART } from '../../control/typedSend';
-import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type JsonValue, type ResolvedValues } from '../../model/productionData';
+import { getPath, setPath, resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type JsonValue, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
 import { CANDIDATE_READ_MS, airedOf as airedSelectionOf, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { collectionEntities, readCollectionRecipe, selectionCheck, selectionGate } from '../../control/sourceMapping';
@@ -597,7 +601,11 @@ interface PoolMachine extends ControlsMachine {
 
 /** What a published production's sources write carries (control/hostedControl.ts `writePublishedSources`). */
 type PublishedSources = Pick<Show, 'bindings' | 'sources' | 'collections'>;
-type ReaderPlan = [string, Pick<SheetShowSource, 'kind' | 'config'> | Pick<FeedShowSource, 'kind' | 'config'> | Pick<FileShowSource, 'kind' | 'config'>, boolean];
+type ReaderPlan = [
+  string,
+  Pick<SheetShowSource, 'kind' | 'config'> | Pick<FeedShowSource, 'kind' | 'config'> | Pick<FileShowSource, 'kind' | 'config'> | Pick<NoacgReadSource, 'kind' | 'config'>,
+  boolean,
+];
 
 export default function ProductionPage({ id, sub }: { id: string; sub?: ProductionSub | null }) {
   const navigate = useRouter((s) => s.navigate);
@@ -1652,6 +1660,33 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   sourcesRef.current = show?.sources;
   const bindingsRef = useRef(bindings);
   bindingsRef.current = bindings;
+  /** The tree as this page holds it: a JSON reader reads the operator's current match from it. */
+  const liveDataRef = useRef(liveData);
+  liveDataRef.current = liveData;
+  /** Sources the operator picked a current match on since this page's last read of them: that
+   *  read takes the pick as new, so "None" then the held match recovers whatever the timing. */
+  const freshPicks = useRef(new Set<string>());
+  /** The operator's current match of a bracket source (OS5b, B11, B14): written to the tree, and
+   *  this page's reader reads at once (another tab's at its next read). */
+  const currentMatch = useMemo(
+    () => ({
+      get: (sourceId: string) => pickOf(getPath(liveDataRef.current, currentMatchPath(sourceId))),
+      pick: (sourceId: string, matchId: string | null) => {
+        const data = session.data.get();
+        // Published, the tree is written with the production's data key; without it a pick would
+        // stay in this browser, so it is refused and said.
+        if (hostedSlug && !data.dataKey) {
+          setNote('The current match was not picked: this page cannot write the production’s data yet.');
+          return;
+        }
+        freshPicks.current.add(sourceId);
+        // Onto the newest tree, so a write that landed since the last render keeps its value.
+        setLiveData(setPath(data.liveData, currentMatchPath(sourceId), matchId ?? ''));
+        sourceStatus.poke(sourceId);
+      },
+    }),
+    [session, hostedSlug, setLiveData, sourceStatus],
+  );
   const graphicsRef = useRef(show?.graphics);
   graphicsRef.current = show?.graphics;
   const libraryRef = useRef(library);
@@ -1933,8 +1968,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // reads go through the guarded feed route, every 5 minutes (control/feedSource.ts); a file is read
   // through this browser's handle for it, every 5 s like a tab (control/fileSource.ts).
   // Only what a reader is built from, so a rename or a Pause never restarts one.
+  // A connector NoaCG reads itself (obs-scenes OS5a) has a reader too: its payload through the route.
   const readerPlan = JSON.stringify(
-    (show?.sources ?? []).filter(fillsFields).map((s) => [s.id, { kind: s.kind, config: s.config }, Boolean(s.inbox)] as ReaderPlan),
+    (show?.sources ?? []).filter(hasReaderLine).map((s) => [s.id, { kind: s.kind, config: s.config }, s.kind !== 'external' && Boolean(s.inbox)] as ReaderPlan),
   );
   useEffect(() => {
     const plan = JSON.parse(readerPlan) as ReaderPlan[];
@@ -1977,7 +2013,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   owner: readerTab,
                   hold: dataSession.holdServerTree,
                   note: setNote,
-                  leaseMs: source.kind === 'feed' ? FEED_LEASE_MS : undefined,
+                  leaseMs: source.kind === 'feed' ? FEED_LEASE_MS : source.kind === 'external' ? jsonLeaseMs(source.config.read.everyMs) : undefined,
                 })
               : undefined,
           },
@@ -1987,6 +2023,29 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           write: dataSession.applySourcePatch,
           onStatus: (status) => sourceStatus.set(sourceId, status),
         };
+        if (source.kind === 'external') {
+          // The registration as the route reads it: its lists and recipe evaluate each payload.
+          const registration = readExternalRegistration({ id: sourceId, kind: 'external', config: source.config });
+          return [
+            sourceId,
+            createJsonReader({
+              ...common,
+              url: source.config.endpoint,
+              everyMs: source.config.read.everyMs,
+              // An open page knows the operator's current match (obs-scenes OS5b, B11, B12).
+              project: (payload, previous) =>
+                projectJson({
+                  sourceId,
+                  payload,
+                  bindings: bindingsRef.current,
+                  fieldsOf,
+                  registration,
+                  collections: collectionReads(collectionsRef.current, sourceId),
+                  current: { pick: getPath(liveDataRef.current, currentMatchPath(sourceId)), previous, fresh: freshPicks.current.delete(sourceId) },
+                }),
+            }),
+          ] as const;
+        }
         const reader =
           source.kind === 'feed'
             ? createFeedReader({ ...common, url: source.config.url })
@@ -1998,7 +2057,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 shape: source.config.shape,
                 inbox: inboxes.get(sourceId)?.take,
               });
-        return [sourceId, reader];
+        return [sourceId, reader] as const;
       }),
     );
     sourceStatus.onPoke((sourceId) => readers.get(sourceId)?.poke());
@@ -2016,7 +2075,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         sourceStatus.set(sourceId, undefined);
       }
     };
-  }, [readerPlan, hostedSlug, id, readerTab, dataSession, sourceStatus, sourceAccept]);
+  }, [readerPlan, hostedSlug, id, readerTab, dataSession, sourceStatus, sourceAccept, fieldsOf]);
   // PUBLISHED, a connection, a disconnection and a Pause reach the row at once (data-sources C2):
   // the operator door then takes the new path, the tick honours the Pause with every page closed,
   // and nothing waits for the next publish. One writer per published production, one write at a
@@ -4028,7 +4087,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   return (
     <ProductionShell
       show={show}
-      data={<DataIndicator show={show} setShows={setShows} store={sourceStatus} ownReaders={ownReaders} />}
+      data={<DataIndicator show={show} setShows={setShows} store={sourceStatus} ownReaders={ownReaders} currentMatch={currentMatch} />}
       status={
         <>
           <PlayoutStatusControl
