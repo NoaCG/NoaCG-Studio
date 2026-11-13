@@ -81,3 +81,66 @@ test('insertion preserves an authored one-step machine rather than extending its
   assert.throws(() => applyOperations(original, [{ kind: 'graphic.insert', variant: { create() { assert.fail('Donor build must not run on an unsupported graph'); } }, placement: 'start', steps: false }]), /separate Out step/);
   assert.deepEqual(original, snapshot);
 });
+
+
+function observedSession() {
+  let source = fixture(), view = { selectedParts: ['#f0'], time: .75, cue: 0, sampleData: { first: 'A', second: 'B' } };
+  let notify = () => {}, session, calls = [];
+  const stack = [source]; let cursor = 0;
+  const port = { read: () => source, view: () => view,
+    subscribe: listener => { notify = listener; return () => { notify = () => {}; }; },
+    restore: next => { view = structuredClone(next); notify(); },
+    apply: next => { stack.splice(++cursor); stack.push(next); source = next; notify(); },
+    undo: () => { source = stack[--cursor]; notify(); }, redo: () => { source = stack[++cursor]; notify(); } };
+  session = new EditorSession('view-owner', port, undefined, () => {
+    // Reentrant inspection must see a completed bundle, with its fingerprint already observed.
+    calls.push({ state: session.commandState(), history: session.historyViews(), view: structuredClone(view) });
+  });
+  return { session, calls, port, change: next => { view = next; notify(); },
+    replace: next => { source = next; notify(); } };
+}
+
+test('standalone view publication is synchronous, semantic and reentrant; selection order remains meaningful', () => {
+  const h = observedSession(), initial = h.session.commandState();
+  assert.equal(h.calls.length, 0); // Construction and inspection are observation, not user work.
+  h.change({ selectedParts: ['#f0'], time: .75, cue: 0, sampleData: { second: 'B', first: 'A' } });
+  h.session.observeView(); h.session.version();
+  assert.equal(h.calls.length, 0); assert.equal(h.session.commandState().contextToken, initial.contextToken);
+  h.change({ ...h.port.view(), selectedParts: ['#f0', '#f1'] });
+  assert.equal(h.calls.length, 1);
+  const selected = h.session.commandState();
+  h.change({ ...h.port.view(), selectedParts: ['#f1', '#f0'] });
+  assert.equal(h.calls.length, 2); assert.notEqual(h.session.commandState().contextToken, selected.contextToken);
+  h.change({ ...h.port.view(), selectedParts: ['#f0'] });
+  assert.equal(h.calls.length, 3); assert.notEqual(h.session.commandState().contextToken, initial.contextToken);
+  assert.deepEqual(h.calls[2].history, { past: [], future: [] });
+  assert.deepEqual(h.calls[2].view, { selectedParts: ['#f0'], time: .75, cue: 0, sampleData: { second: 'B', first: 'A' } });
+  h.session.dispose(); assert.throws(() => h.session.observeView(), /closed/);
+});
+
+test('execute and travel publish only completed history while external view/source replacement clears old history first', () => {
+  const h = observedSession();
+  h.session.execute({ documentId: h.session.documentId, expected: h.session.version(), transactionId: crypto.randomUUID(), operations: [add] });
+  assert.equal(h.calls.length, 1); assert.deepEqual(h.calls[0].state.history, { undo: 1, redo: 0 });
+  assert.equal(h.calls[0].history.past.length, 1);
+  h.session.undo(); assert.equal(h.calls.length, 2); assert.deepEqual(h.calls[1].state.history, { undo: 0, redo: 1 });
+  h.session.redo(); assert.equal(h.calls.length, 3); assert.deepEqual(h.calls[2].state.history, { undo: 1, redo: 0 });
+  // Change the view without notification, then the source in the same external store notification.
+  const next = { ...h.port.view(), selectedParts: ['#f1'], time: .9 };
+  h.port.view = () => next;
+  h.replace({ ...h.session.port.read(), css: h.session.port.read().css + '\n/* External */' });
+  assert.equal(h.calls.length, 4); assert.deepEqual(h.calls[3].state.history, { undo: 0, redo: 0 });
+  assert.deepEqual(h.calls[3].history, { past: [], future: [] });
+  h.session.dispose();
+});
+
+test('direct restore and gesture cancellation publish the accepted current view without source history work', () => {
+  const h = observedSession();
+  h.session.begin(); h.change({ ...h.port.view(), selectedParts: [], time: .9, cue: undefined });
+  assert.equal(h.calls.length, 1);
+  h.session.cancel(); assert.equal(h.calls.length, 2);
+  assert.equal(h.calls[1].view.time, .75); assert.equal(h.calls[1].view.cue, 0); assert.deepEqual(h.calls[1].view.selectedParts, ['#f0']);
+  assert.deepEqual(h.calls[1].state.history, { undo: 0, redo: 0 });
+  h.port.restore(structuredClone(h.port.view())); assert.equal(h.calls.length, 2);
+  h.session.dispose();
+});

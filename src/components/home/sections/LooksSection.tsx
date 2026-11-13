@@ -1,10 +1,8 @@
+import { useTemplateStore } from '../../../store/templateStore';
 import { useRef, useState } from 'react';
 import { saveAs } from 'file-saver';
-import { useTemplateStore } from '../../../store/templateStore';
 import {
   addLook,
-  applyLookToTemplate,
-  brandSlotField,
   captureLookFromTemplate,
   deleteLook,
   importLook,
@@ -18,9 +16,8 @@ import BrandEditor from '../../brand/BrandEditor';
 
 /** Shared brand library: create independently or capture the open graphic's look. */
 export default function LooksSection({ looks, onChanged, onDone }: { looks: SavedLook[]; onChanged: () => void; onDone: () => void }) {
-  const template = useTemplateStore((s) => s.template);
-  const applyTemplate = useTemplateStore((s) => s.applyTemplate);
-  const setSampleValue = useTemplateStore((s) => s.setSampleValue);
+
+  const template = useTemplateStore(s => s.template);
   const [newLookName, setNewLookName] = useState('');
   const [editing, setEditing] = useState<SavedLook | 'new' | null>(null);
   // WHICH look new graphics start from, as a POINTER rather than a copy (model/brand.ts): the
@@ -105,17 +102,13 @@ export default function LooksSection({ looks, onChanged, onDone }: { looks: Save
           <button onClick={() => setEditing(look)}>Edit</button>
           <button
             onClick={() => {
-              const next = applyLookToTemplate(template, look.brand);
-              applyTemplate(next);
-              // THE SAMPLE DATA IS WHAT THE CANVAS SHOWS. `applyTemplate` keeps the values the
-              // operator already has (syncSampleData), so a slot that was empty stays empty -
-              // and the runtime reads an empty file name as "hide this image". The brand's mark
-              // would be in the code, bundled, and invisible. Writing the slot's new default
-              // into the live sample data is what puts it on screen.
-              const slot = brandSlotField(next);
-              if (slot?.value) setSampleValue(slot.field, slot.value);
-              setNote(`✓ Applied "${look.name}" to the open graphic. Back in the editor now.`);
-              onDone();
+              void import('../../editorFoundation/documentAdapter').then(({ activeEditorSession }) => {
+                const session = activeEditorSession();
+                session.cancel();
+                session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'brand.apply', look }] });
+                setNote(`✓ Applied "${look.name}" to the open graphic. Back in the editor now.`);
+                onDone();
+              }).catch(error => setNote(error instanceof Error ? error.message : String(error)));
             }}
             title="Retint the graphic open in the editor"
           >

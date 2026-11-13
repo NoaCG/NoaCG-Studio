@@ -12,6 +12,7 @@ export function useImageImport(session: EditorSession, drawingSpace?: PreviewRep
   const token = useRef({ run: 0 });
   const run = token.current, space = useRef(drawingSpace); space.current = drawingSpace;
   useEffect(() => {
+    setBusy(false); setError('');
     const cancel = (event: KeyboardEvent) => { if (event.key === 'Escape') { run.run++; setBusy(false); } };
     window.addEventListener('keydown', cancel);
     return () => { run.run++; window.removeEventListener('keydown', cancel); };

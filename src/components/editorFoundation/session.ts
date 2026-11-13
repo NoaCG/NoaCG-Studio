@@ -1,11 +1,13 @@
 import { FLOAT_STEP, onFlag, readTimeline, segmentAt, type TimelineView } from './timelineView';
+import type { HistoryViews, DocumentView } from '../../model/authoringDocument';
 import type { SpxTemplate } from '../../model/types';
 import { round, type KeyRef } from '../../blocks/animEdit';
 import { captureKeyClipboard, type ClipboardKey } from '../../blocks/editorAnimation';
 import { applyOperations, type EditorOperation } from './operations';
+import { sameWorkspaceValue } from '../../model/workspaceStage';
 
 export interface Revision { source: number; assets: number }
-export interface ViewState { selectedParts: string[]; time: number; cue?: number; sampleData?: Record<string, string> }
+export type ViewState = DocumentView;
 export interface DocumentPort {
   read(): SpxTemplate;
   view(): ViewState;
@@ -44,18 +46,38 @@ export class EditorSession {
   private disconnect: () => void;
   private historyHead = 0;
   private contextSequence = 0;
-  private viewFingerprint = '';
-  constructor(readonly documentId: string, readonly port: DocumentPort) {
+  private observedView: ViewState;
+  constructor(readonly documentId: string, readonly port: DocumentPort,
+    restored?: { past: SpxTemplate[]; future: SpxTemplate[]; views?: HistoryViews },
+    private readonly changed?: () => void) {
     this.current = port.read();
+    this.observedView = structuredClone(port.view());
     this.disconnect = port.subscribe(() => this.sync());
+    if (restored) {
+      const fallback = () => structuredClone(port.view());
+      const views = restored.views;
+      if (!views || views.past.length === restored.past.length && views.future.length === restored.future.length) {
+        this.past = restored.past.map((before, i) => ({ before, after: restored.past[i + 1] ?? this.current,
+          beforeView: views?.past[i]?.before ?? fallback(), afterView: views?.past[i]?.after ?? fallback() }));
+        this.future = restored.future.map((after, i) => ({ before: restored.future[i + 1] ?? this.current, after,
+          beforeView: views?.future[i]?.before ?? fallback(), afterView: views?.future[i]?.after ?? fallback() }));
+      }
+    }
+  }
+  historyViews(): HistoryViews {
+    return structuredClone({ past: this.past.map(r => ({ before: r.beforeView, after: r.afterView })),
+      future: this.future.map(r => ({ before: r.beforeView, after: r.afterView })) });
   }
   dispose() { this.disposed = true; this.gesture = null; this.clipboard = null; this.disconnect(); }
   version(): Revision { this.sync(); return { ...this.revision }; }
   private sync() {
     if (this.disposed) throw new Error('This document session is closed.');
     const next = this.port.read();
-    this.observeView();
-    if (next === this.current) return;
+    const viewChanged = this.observeView(false);
+    if (next === this.current) {
+      if (viewChanged && !this.ownWrite) this.changed?.();
+      return;
+    }
     const assetChanged = !assetEqual(this.current, next);
     this.current = next;
     this.revision = { source: this.revision.source + 1, assets: this.revision.assets + Number(assetChanged) };
@@ -64,13 +86,19 @@ export class EditorSession {
       this.gesture = null;
       this.past = [];
       this.future = [];
+      if (viewChanged) this.changed?.();
     }
   }
   /** Observe even view-only notifications, including away-and-back selection changes. */
-  observeView() {
+  observeView(publish = true): boolean {
     if (this.disposed) throw new Error('This document session is closed.');
-    const fingerprint = JSON.stringify(this.port.view());
-    if (fingerprint !== this.viewFingerprint) { this.viewFingerprint = fingerprint; this.contextSequence++; }
+    const view = this.port.view();
+    if (sameWorkspaceValue(view, this.observedView)) return false;
+    // Record before notifying: publication can synchronously inspect this session again.
+    this.observedView = structuredClone(view);
+    this.contextSequence++;
+    if (publish && !this.ownWrite) this.changed?.();
+    return true;
   }
   commandState() {
     const revision = this.version();
@@ -123,7 +151,7 @@ export class EditorSession {
     if (!this.gesture) return;
     const view = this.gesture.view;
     this.gesture = null;
-    if (restoreView) this.port.restore(view);
+    if (restoreView) { this.port.restore(view); this.observeView(); }
   }
   execute(request: OperationRequest) {
     this.check(request.documentId, request.expected);
@@ -156,6 +184,8 @@ export class EditorSession {
     this.historyHead++;
     this.gesture = null;
     this.transactions.set(request.transactionId, identity);
+    this.observeView(false);
+    this.changed?.();
     return { ...patch, revision: this.version() };
   }
   canUndo() { this.sync(); return this.past.length > 0; }
@@ -177,5 +207,7 @@ export class EditorSession {
     this.historyHead++;
     from.pop();
     (forward ? this.past : this.future).push(receipt);
+    this.observeView(false);
+    this.changed?.();
   }
 }
