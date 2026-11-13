@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { assertConfiguredTarget } from '../../scripts/configured-target.mjs';
 import { finishIntoNewEditor, startNewProject } from '../_create';
 import { chooseType, pickDesign } from '../_browse';
 
@@ -50,6 +51,18 @@ export async function unpublishForCleanup(page: Page): Promise<void> {
   await page.reload();
   await page.getByTestId('production-page').waitFor();
 }
+
+// THE LAST LINE BEFORE AN ADMIN WRITE (issue #2495). Fifteen specs build their admin client from
+// this pair, and the key below ignores every row-level rule, so handing them out is the moment to
+// be sure of the project. `e2e/_configured-guard.ts` has already refused a run whose backend is
+// not one it owns; this repeats the same check at import, because a spec file can also be reached
+// without that globalSetup - another config, or a one-off `npx playwright test <file>` - and a
+// wrong answer here is written to somebody's database rather than reported.
+//
+// Every configured spec imports this module, so the check costs one call per run and covers all
+// of them. The rules, and the eleven minutes of production that bought them, are in
+// scripts/configured-target.mjs.
+assertConfiguredTarget(process.env, 'a configured spec');
 
 export const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 export const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? '';

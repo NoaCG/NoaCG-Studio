@@ -36,6 +36,12 @@ const cloudLimits = validateCloudWorkerRequest();
 export default defineConfig({
   ...cloudLimits,
   testDir: './e2e/configured',
+  // WHICH BACKEND THIS RUN MAY TOUCH, decided before the first test (issue #2495). The suite
+  // writes real rows, deletes them and holds an admin key, and until this existed the only thing
+  // choosing the project was whatever `VITE_SUPABASE_URL` the shell happened to carry - which on
+  // a cloud worker is PRODUCTION. e2e/_configured-guard.ts refuses anything but a stack the run
+  // owns; scripts/configured-target.mjs holds the rule and the incident that bought it.
+  globalSetup: './e2e/_configured-guard.ts',
   timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
