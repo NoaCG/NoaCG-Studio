@@ -24,7 +24,7 @@
 // Old CEF: CasparCG 2.3 runs this in Chromium 71.
 
 import type { OutputPayload } from '../control/hostedControl';
-import { changedGraphics, type PayloadVersion } from '../control/payloadVersion';
+import { changedGraphics, sameVersion, type PayloadVersion } from '../control/payloadVersion';
 import type { PrepRequest } from '../control/prepareLive';
 import { MAX_ISSUES, warmVerdict, type ChangePrep, type ReadyIssue } from '../control/readiness';
 import type { Resolution } from '../model/types';
@@ -241,7 +241,7 @@ export function createPreparer(opts: {
     if (running || !queued) return;
     // A version other than the one held starts at once (live-publishing G3 section 6, owner
     // 2026-11-12 for D1): only a re-check of the version held keeps the spacing.
-    const fresh = !held || queued.n !== held.n || queued.h !== held.h;
+    const fresh = !sameVersion(queued, held);
     if (fresh && timer) {
       clearTimeout(timer);
       timer = null;

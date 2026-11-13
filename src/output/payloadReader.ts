@@ -64,7 +64,10 @@ function start(): Worker | null {
  * The published `output` of the production behind `slug`, parsed off the main thread. Undefined:
  * the worker could not answer (read on the main thread instead); null: no such production.
  */
-export function readPublishedOffThread(url: string, key: string, slug: string, timeoutMs = 60000): Promise<unknown | null | undefined> {
+/** A worker that has not answered in this long is dropped and the page reads on the main thread. */
+const READ_TIMEOUT_MS = 60_000;
+
+export function readPublishedOffThread(url: string, key: string, slug: string): Promise<unknown | null | undefined> {
   const w = start();
   if (!w) return Promise.resolve(undefined);
   const id = next++;
@@ -72,7 +75,7 @@ export function readPublishedOffThread(url: string, key: string, slug: string, t
     const timer = setTimeout(() => {
       waiting.delete(id);
       resolve(undefined);
-    }, timeoutMs);
+    }, READ_TIMEOUT_MS);
     waiting.set(id, (output) => {
       clearTimeout(timer);
       resolve(output);

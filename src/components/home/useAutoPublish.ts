@@ -7,12 +7,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { getSupabase } from '../../backend/supabase';
-import { confirmedRevision, storedRevision } from '../../backend/savedRevision';
-import { onSyncState, syncNow } from '../../backend/syncController';
-import { refreshTeams, subscribeTeamState, getTeamState } from '../../backend/teamProductions';
+import { catchUpRecord, confirmedRevision, storedRevision } from '../../backend/savedRevision';
+import { onSyncState } from '../../backend/syncController';
+import { subscribeTeamState, getTeamState } from '../../backend/teamProductions';
 import { loadShows, type Show } from '../../model/shows';
 import { createAutoPublisher, CHECK_EVERY_MS, type AutoPublishView } from '../../control/autoPublish';
-export { oldOutputNames } from '../../control/autoPublish';
 import { publishRevision, publishStepMs } from '../../control/publishRevision';
 import type { CuePublished } from '../../control/hostedControl';
 import type { PayloadVersion } from '../../control/payloadVersion';
@@ -108,8 +107,7 @@ export function useAutoPublish(o: {
       catchUp: async () => {
         catchingUp = true;
         try {
-          if (teamId) await refreshTeams(false);
-          else await syncNow();
+          await catchUpRecord(teamId, false);
         } finally {
           catchingUp = false;
         }

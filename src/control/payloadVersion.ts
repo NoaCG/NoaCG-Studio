@@ -186,6 +186,11 @@ export function olderDesigns(next: { g: Record<string, string>; t?: Record<strin
  * every one that is new. Without a held stamp every graphic counts, because nothing says which of
  * them are the same. A graphic `next` no longer has is not listed: nothing needs preparing for it.
  */
+/** Whether two stamps name the same version (its number and its whole-payload digest). */
+export function sameVersion(a: Pick<PayloadVersion, 'n' | 'h'> | null | undefined, b: Pick<PayloadVersion, 'n' | 'h'> | null | undefined): boolean {
+  return !!a && !!b && a.n === b.n && a.h === b.h;
+}
+
 export function changedGraphics(held: PayloadVersion | null, next: PayloadVersion, keys: readonly string[]): string[] {
   return keys.filter((key) => !held || !held.g[key] || held.g[key] !== next.g[key]);
 }

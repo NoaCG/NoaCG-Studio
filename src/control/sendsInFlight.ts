@@ -27,3 +27,15 @@ export function noteSendStarted(): () => void {
 export function sendsIdle(): Promise<void> {
   return inFlight === 0 ? Promise.resolve() : new Promise((resolve) => waiters.push(resolve));
 }
+
+/** `send`, counted while it runs. */
+export function countedSend<A, R>(send: (a: A) => Promise<R>): (a: A) => Promise<R> {
+  return async (a) => {
+    const answered = noteSendStarted();
+    try {
+      return await send(a);
+    } finally {
+      answered();
+    }
+  };
+}

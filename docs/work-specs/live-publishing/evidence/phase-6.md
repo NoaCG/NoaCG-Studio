@@ -40,12 +40,12 @@ Design: `../designs/G3.md`. Acceptance: AC-4. Everything here ran on the cloud w
 
 ### Node tests
 
-- `scripts/auto-publish.test.mjs` (9): single flight and newest wins (mutation: dropping the owed
+- `scripts/auto-publish.test.mjs` (10): single flight and newest wins (mutation: dropping the owed
   re-run fails it), transient retries 2, 4, 8 s and red after the second, a refusal not retried
   until a newer save, the next page opened publishes a closed page's save, the 20 s grace for
   another page's save, red after 20 s, no light for a revision already published, 200 random
   rounds of saves, failures, closes and opens ending with the newest save published and never going
-  down, and the `au` mark read off the wire.
+  down, the `au` mark read off the wire, and a "not allowed" refusal not retried on later saves.
 - `scripts/output-version-check.test.mjs` (4): boot and every 30 s, a poke at once, retries
   2, 4, 8 s and within 90 s once answered, an instance without the function stops.
 - `scripts/output-reload.test.mjs` (9, one new): a version other than the one held is prepared at
@@ -68,15 +68,13 @@ All three pass on the local stack (jobs j-0001 and j-0004):
 | Two publishers finishing in reverse order leave the newer save published | Pass: the older publish was held on the wire until the newer landed |
 
 The walk runs with both switches on (`production_copies` and `auto_publish`), as production has
-them; all three pass again on that setting (job j-0025).
+them; all three pass again on that setting (jobs j-0025, and j-0026 after the review fixes). The
+automatic publish's `fetch` goes through `answeredFetch`, which adds the production-copies build
+mark to every REST request, so the 0115 guard accepts it.
 
 Found while building:
 - The page's Presence reader dropped the new `au` member, so every new output read as old (fixed in
   `readLiveEntry`, with a Node test).
-- The automatic publish's own `fetch` did not carry the production-copies build mark, so with that
-  switch on (production) the 0115 guard would have refused every automatic publish. The first walk
-  ran with that switch off and missed it. Fixed (the mark is sent) and the walk now turns both
-  switches on.
 - A revision-only update left the row's source columns as a Connect had written them (review on
   #2469): they leave the content digest and ride every revision-only update.
 

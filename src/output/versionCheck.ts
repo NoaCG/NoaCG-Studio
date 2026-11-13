@@ -9,6 +9,7 @@
 //
 // Pure: timers, the probe and the preparer come in through `io` (scripts/output-version-check.test.mjs).
 // Old CEF: CasparCG 2.3 runs this in Chromium 71 (ES2017).
+import { sameVersion } from '../control/payloadVersion';
 
 export interface VersionStamp {
   n: number;
@@ -85,7 +86,7 @@ export function createVersionCheck(io: VersionCheckIo): VersionCheck {
     } else {
       const ver = answer.ver;
       const held = io.current();
-      if (ver && (!held || held.n !== ver.n || held.h !== ver.h)) io.request(ver);
+      if (ver && !sameVersion(held, ver)) io.request(ver);
       arm();
     }
     if (again) {

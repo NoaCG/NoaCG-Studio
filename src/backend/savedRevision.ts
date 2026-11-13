@@ -14,10 +14,18 @@
 // that failed, or an instance without 0117.
 
 import { getSupabase } from './supabase';
-import { teamConfirmedToken, teamEditOwed } from './teamProductions';
+import { refreshTeams, teamConfirmedToken, teamEditOwed } from './teamProductions';
+import { syncNow } from './syncController';
 import type { Show } from '../model/shows';
+import type { Confirmed as ConfirmedRevision } from '../control/autoPublish';
 
-export type ConfirmedRevision = { rev: number } | { wait: 'local' | 'server' } | null;
+export type { ConfirmedRevision };
+
+/** Bring this tab's copy of the record up to the server's newest save: a team production by the
+ *  team read (`asked`: a press asked for it), a personal one by a sync. */
+export function catchUpRecord(teamId: string | null | undefined, asked = true): Promise<unknown> {
+  return teamId ? refreshTeams(asked) : syncNow();
+}
 
 /** The record's current saved revision on the server (no body), or null when it cannot be read. */
 export async function storedRevision(show: Pick<Show, 'id' | 'teamId'>): Promise<{ rev: number; identity: string | null } | null> {

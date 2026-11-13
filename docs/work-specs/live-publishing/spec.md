@@ -472,9 +472,9 @@ Filled in by each phase's pull request.
   personal record, the team token) rather than kept by the sync engine; the configured walk lives
   in `publish-guard.spec.ts` (it holds the service-role switch helpers, and backend growth is
   stopped); the press-to-ran harness republishes through a session flag only the harness sets.
-- Found while building, fixed: the Presence reader dropped `au`; the automatic publish's own
-  `fetch` lacked the production-copies mark (the walk now runs with both switches on); a
-  revision-only update now carries the source columns (review on #2469).
+- Found while building, fixed: the Presence reader dropped `au`; a revision-only update now
+  carries the source columns (review on #2469). The configured walk runs with both switches on
+  (`production_copies` and `auto_publish`), as production has them.
 - Migrations: `0117_production_revision.sql` (ordinary), `0118_publication_guard.sql` (live-path,
   renumbered from 0116 and 0117 when `main` took 0116 for the JSON source tick;
   applies in a quiet window). Turning `auto_publish` on is a separate step, after the app is live

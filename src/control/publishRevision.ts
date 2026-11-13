@@ -16,14 +16,14 @@
 //
 // It never writes the production record. Answers what the attempt came to (control/autoPublish.ts).
 
-import { answeredFetch, COPIES_MARK_HEADER, getSupabase } from '../backend/supabase';
+import { answeredFetch, getSupabase } from '../backend/supabase';
 import { loadBackendConfig } from '../backend/config';
 import { loadGraphics, resolveSavedGraphicDoc, type GraphicDoc } from '../model/library';
 import type { Show } from '../model/shows';
 import { assertProductionGate, ProductionGateError } from '../validation/productionGate';
 import { publishAudio } from '../backend/productionAudio';
 import { profileForPublish } from '../model/profile';
-import { buildOutputPayload, buildPanelSpec, copyDigest, readPanel, sendJoinBrand, type CuePublished, type OutputPayload, type PanelGraphicSpec } from './hostedControl';
+import { buildOutputPayload, buildPanelSpec, copyDigest, pruneControlEvents, readPanel, sendJoinBrand, type CuePublished, type OutputPayload, type PanelGraphicSpec } from './hostedControl';
 import { digestText, readPayloadVersion, stampFromDigests, type PayloadVersion } from './payloadVersion';
 import { designEditedAt } from '../model/library';
 import type { PublishOutcome } from './autoPublish';
@@ -60,6 +60,9 @@ const timed = async <T>(work: () => Promise<T> | T): Promise<T> => {
   }
 };
 
+/** The signed-in client. */
+type Sb = NonNullable<Awaited<ReturnType<typeof getSupabase>>>;
+
 /** The stored stamp and revision, from the two small columns. */
 interface StoredStamp {
   exists: boolean;
@@ -67,7 +70,7 @@ interface StoredStamp {
   rev: number | null;
 }
 
-async function readStamp(sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>, id: string): Promise<StoredStamp> {
+export async function readStamp(sb: Sb, id: string): Promise<StoredStamp> {
   const { data, error } = await sb.from('control_shows').select('published_ver, published_rev').eq('id', id).maybeSingle();
   if (error) throw Object.assign(new Error(error.message), { code: error.code });
   if (!data) return { exists: false, ver: null, rev: null };
@@ -77,12 +80,17 @@ async function readStamp(sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>
 
 /** The panel entries as published, read only when this publisher's library lacks a graphic's record
  *  (its saved entries live in its author's library, issue #779). */
-async function heldPanelIfNeeded(sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>, show: Show, library: GraphicDoc[]): Promise<PanelGraphicSpec[]> {
+async function heldPanelIfNeeded(sb: Sb, show: Show, library: GraphicDoc[]): Promise<PanelGraphicSpec[]> {
   if (show.graphics.every((g) => resolveSavedGraphicDoc(g, library))) return [];
   const { data, error } = await sb.from('control_shows').select('panel').eq('id', show.id).maybeSingle();
   if (error) throw Object.assign(new Error(error.message), { code: error.code });
   return readPanel((data as { panel?: unknown } | null)?.panel);
 }
+
+/** "Not allowed": the row policy refused this account, by an error or by a write that matched no
+ *  row although the stored stamp is the one it named (row-level security filters an update with
+ *  no error). */
+const DENIED: PublishOutcome = { kind: 'refused', refusal: 'denied', reason: 'This account cannot publish this production. Open it on a device that can.' };
 
 /** A failure, in the publisher's classes (G3 section 3). */
 function classify(e: unknown): PublishOutcome {
@@ -95,14 +103,10 @@ function classify(e: unknown): PublishOutcome {
   const message = String(err?.message ?? e);
   if (message === 'This publication names a save that does not exist') return { kind: 'refused', refusal: 'guard', reason: 'This save could not be published. The next save tries again.' };
   if (err?.code === '42501' || err?.status === 401 || err?.status === 403 || /row-level security|permission denied/i.test(message)) {
-    return { kind: 'refused', refusal: 'denied', reason: 'This account cannot publish this production. Open it on a device that can.' };
+    return DENIED;
   }
   return { kind: 'transient', reason: 'the server did not answer' };
 }
-
-/** The account's write matched nothing although the stored stamp is the one it named: the row
- *  policy refused it (row-level security filters an update to no rows, with no error). */
-const DENIED: PublishOutcome = { kind: 'refused', refusal: 'denied', reason: 'This account cannot publish this production. Open it on a device that can.' };
 
 /** A part of the body: one string turned into a Blob in its own step. */
 const part = (text: string) => new Blob([text]);
@@ -143,9 +147,8 @@ async function patchRow(id: string, filter: string, body: Blob | string): Promis
   const send = async (token: string) =>
     answeredFetch(`${cfg.url}/rest/v1/control_shows?id=eq.${encodeURIComponent(id)}&${filter}&select=id`, {
       method: 'PATCH',
-      // THE BUILD MARK (production copies, migration 0115): production has the switch on, so an
-      // unmarked production-authoring write is refused. The shared client adds it; this raw fetch must too.
-      headers: { apikey: cfg.anonKey, authorization: `Bearer ${token}`, 'content-type': 'application/json', prefer: 'return=representation', [COPIES_MARK_HEADER]: '1' },
+      // `answeredFetch` adds the production-copies build mark to every REST request (0115).
+      headers: { apikey: cfg.anonKey, authorization: `Bearer ${token}`, 'content-type': 'application/json', prefer: 'return=representation' },
       body,
     });
   const session = (await sb.auth.getSession()).data.session;
@@ -178,14 +181,14 @@ export async function publishRevision(
     const sb = await getSupabase();
     if (!sb) return { kind: 'gone' };
     const library = loadGraphics();
-    for (const g of show.graphics) await timed(() => assertProductionGate([g], library, 'publish'));
-    let stored = await readStamp(sb, show.id);
+    // The cheap exits first: a production unpublished meanwhile, or a revision already shown.
+    const [firstStamp, heldPanel] = await Promise.all([readStamp(sb, show.id), heldPanelIfNeeded(sb, show, library)]);
+    let stored = firstStamp;
     if (!stored.exists) return { kind: 'gone' };
     if (!force && stored.rev !== null && stored.rev >= rev) return { kind: 'superseded' };
-    const heldPanel = await heldPanelIfNeeded(sb, show, library);
+    for (const g of show.graphics) await timed(() => assertProductionGate([g], library, 'publish'));
     const publishedOf = measure ? await timed(measure) : undefined;
     const raw = await timed(() => buildOutputPayload(show, library, publishedOf));
-    const built = raw.soundAssets?.length ? await publishAudio(raw) : raw;
     const g: Record<string, string> = {};
     for (const [i, graphic] of show.graphics.entries()) g[graphic.name] = await timed(() => copyDigest(show, i, graphic.template));
     const panel = await timed(() => buildPanelSpec(show, library, heldPanel));
@@ -203,7 +206,7 @@ export async function publishRevision(
       ...dataSources,
       profile: profileForPublish(show.profile),
     };
-    const { graphics: _bodies, ...meta } = built;
+    const { graphics: _bodies, ...meta } = raw;
     const c = await timed(() =>
       digestText(JSON.stringify([g, meta, { title: show.name, profile: columns.profile }, panel.map(({ js: _js, ...entry }) => entry)])),
     );
@@ -216,6 +219,8 @@ export async function publishRevision(
       // The content is still the one named and the revision is behind, yet nothing matched.
       if (stored.ver?.c === c) return DENIED;
     }
+    // Sounds are uploaded only for a full publish (a revision-only update sends nothing).
+    const built = raw.soundAssets?.length ? await publishAudio(raw) : raw;
     const edited = Object.fromEntries(show.graphics.map((x) => [x.name, designEditedAt(x, library)]));
     const body = await bodyBuilder(built, columns, panel);
     for (let tries = 0; ; tries++) {
@@ -224,7 +229,7 @@ export async function publishRevision(
       const ver: PayloadVersion = { ...(await stampFromDigests(g, built.resolution, stored.ver, new Date(), edited)), r: rev, c };
       const landed = await patchRow(show.id, filter, await body(ver));
       if (landed > 0) {
-        await afterFullPublish(sb, show);
+        afterFullPublish(sb, show);
         return { kind: 'published', rev, ver };
       }
       stored = await readStamp(sb, show.id);
@@ -240,9 +245,9 @@ export async function publishRevision(
 }
 
 /** What a full publish does after it lands, as `publishControlShow` does: log rows older than
- *  7 days pruned, and the brand sent to the join page. Neither decides the outcome. */
-async function afterFullPublish(sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>, show: Show): Promise<void> {
-  const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
-  await sb.from('control_events').delete().eq('show_id', show.id).lt('created_at', cutoff).then(() => {}, () => {});
-  if (show.hostedSlug && show.joinSlug) await sendJoinBrand(show, show.hostedSlug).catch(() => {});
+ *  7 days pruned, and the brand sent to the join page. Neither decides the outcome, so neither is
+ *  waited for. */
+function afterFullPublish(sb: Sb, show: Show): void {
+  void pruneControlEvents(sb, show.id);
+  if (show.hostedSlug && show.joinSlug) void sendJoinBrand(show, show.hostedSlug).catch(() => {});
 }

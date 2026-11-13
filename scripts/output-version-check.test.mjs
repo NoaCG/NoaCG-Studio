@@ -6,6 +6,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import './lib/tsResolve.mjs';
 
 const { createVersionCheck, CHECK_EVERY_MS } = await import('../src/output/versionCheck.ts');
 

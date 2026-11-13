@@ -40,7 +40,7 @@ import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, SEQ_HEAD_EVENT, commandT
 import { allOutWaves, BURST_WINDOW_MS } from './allOut';
 import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, isRefusal, rpcFailure, seqRoadVerdict, sendWithResend, unansweredError, type SeqRoadAsker } from './failedSends';
 import { noteSend, withSender } from './livePath';
-import { noteSendStarted } from './sendsInFlight';
+import { countedSend } from './sendsInFlight';
 import { obsScenesOf, SCENE_ID, type ObsScene } from '../model/obsScenes';
 import { graphicDigest, olderDesigns, readPayloadVersion, stampPayload, type PayloadVersion } from './payloadVersion';
 import { createSeqFollower, seqJoinRetryDelay, type HeadSummary, type SeqFrame, type SeqHead, type SeqTail } from './seqFollow';
@@ -733,9 +733,8 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished,
   }
   // The prune result is deliberately unread (best-effort retention; the 0029 owner DELETE
   // policy may not exist on an older instance) — run it beside the slug read-back.
-  const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
   const [, readBack] = await Promise.all([
-    sb.from('control_events').delete().eq('show_id', show.id).lt('created_at', cutoff),
+    pruneControlEvents(sb, show.id),
     sb
       .from('control_shows')
       .select('slug, outputSlug:output_slug, joinSlug:join_slug, presenterSlug:presenter_slug, audience_state')
@@ -793,10 +792,9 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished,
 export async function sendJoinBrand(show: Show, slug: string): Promise<void> {
   const sb = await getSupabase();
   if (!sb) return;
-  const row = { slug };
   // A failed read throws, so it is never mistaken for "phones have no page yet" (P4).
   const read = async () => {
-    const { data, error } = await sb.rpc('audience_set_join', { p_slug: row.slug, p_patch: {} });
+    const { data, error } = await sb.rpc('audience_set_join', { p_slug: slug, p_patch: {} });
     if (error) throw new Error(error.message);
     return ((data ?? null) as { brand?: AudienceBrand } | null)?.brand ?? null;
   };
@@ -807,12 +805,19 @@ export async function sendJoinBrand(show: Show, slug: string): Promise<void> {
       readBrand: read,
       publishLogo: (current, known) => publishJoinLogo(current.id, current.look, known),
       send: async (brand) => {
-        const { error } = await sb.rpc('audience_set_join', { p_slug: row.slug, p_patch: { brand } });
+        const { error } = await sb.rpc('audience_set_join', { p_slug: slug, p_patch: { brand } });
         if (error) throw new Error(error.message);
       },
     },
     0,
   );
+}
+
+/** Log rows older than 7 days removed, best effort (the 0029 owner DELETE policy may be missing on
+ *  an older instance): every publish does it, so a 24/7 output URL never grows the log for ever. */
+export function pruneControlEvents(sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>, showId: string): Promise<unknown> {
+  const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+  return Promise.resolve(sb.from('control_events').delete().eq('show_id', showId).lt('created_at', cutoff)).catch(() => undefined);
 }
 
 /**
@@ -1795,24 +1800,10 @@ function pressSender(slug: string, session: SeqSession, items: readonly ControlS
  */
 /** One press's send, counted while it is on the wire, whichever road it takes and including the
  *  wait for the road: an automatic publish never runs a step beside it (sendsInFlight.ts, G3 R10). */
-export async function sendControlVerb(opts: Parameters<typeof sendControlVerbOnce>[0]): ReturnType<typeof sendControlVerbOnce> {
-  const answered = noteSendStarted();
-  try {
-    return await sendControlVerbOnce(opts);
-  } finally {
-    answered();
-  }
-}
+export const sendControlVerb = countedSend(sendControlVerbOnce);
 
 /** Several batches of one press, counted the same way. */
-export async function sendControlVerbs(opts: Parameters<typeof sendControlVerbsOnce>[0]): Promise<VerbSent> {
-  const answered = noteSendStarted();
-  try {
-    return await sendControlVerbsOnce(opts);
-  } finally {
-    answered();
-  }
-}
+export const sendControlVerbs = countedSend(sendControlVerbsOnce);
 
 async function sendControlVerbsOnce(
   opts: Omit<Parameters<typeof sendControlVerbOnce>[0], 'items' | 'sender' | 'pressedAt'> & { batches: ControlSendItem[][] },
