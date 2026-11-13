@@ -492,6 +492,9 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
             onFirstPublish(rehearsed);
           }
         }
+        // Before the slot load below, so a Take or Out pressed while it loads is seen as the
+        // operator's and keeps that graphic's scene join from being sent over it (obs-scenes #2489).
+        onPublished(published);
         // PUBLISH LOADS THE CASPARCG SLOT (AC-5): the first publish with CasparCG switched on puts
         // this production's renderer on its slot, the step that used to be its own Put on air. It
         // asks before replacing another production, and a failure names the step.
@@ -503,7 +506,6 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
             await vmixVerb({ verb: 'take' }, outputPageUrl(published.outputSlug), true);
           }
         }
-        onPublished(published);
         return published.version ? { n: published.version.n, h: published.version.h } : null;
       }
       setNote('Publishing needs the cloud backend, and this build runs offline.');

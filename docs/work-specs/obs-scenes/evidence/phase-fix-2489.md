@@ -56,7 +56,10 @@ ones the proof and the PR use.
   not made, and the operator Takes them by hand. Several failures are named on one line.
 - J6b (Rules review). A Take or Out of a graphic, by anyone, after the publish landed is the
   operator's word on it: its join is not sent over it. The page compares what it has up for the
-  graphic with what it had as the publish landed, just before each join Take.
+  graphic with what it had as the publish landed (taken before a first publish loads a CasparCG or
+  vMix slot), just before each join Take. A timed cue's own Out during the wait counts the same
+  way: its duration said Out, so the join is not sent. A hand re-Take of the same cue reads as
+  unchanged, and the join re-Takes it, which shows the same thing.
 - J6a. Turning the switch off and on again, then publishing, takes every scene graphic again: the
   scenes are made again.
 - Unchanged and out of scope: a Take clears another graphic on the same layer (the layer rule).
