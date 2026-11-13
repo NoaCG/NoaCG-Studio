@@ -1048,6 +1048,14 @@ Filled in by each phase's pull request.
   out leaves a scene folder's run and One-by-one step as they are, not only its graphics (C9); a
   copy left behind is taken up again only when no cue at all uses it (C5); with the original gone,
   re-adding the library graphic adds it again rather than replacing one scene's copy.
+- Found by the PR review (on 7abb850b), both answered:
+  - C11 amended: a cue with a live candidate (a selection) is never moved to a copy either, and the
+    write is refused in words: its selection names a recipe made for its graphic, which the copy's
+    gate would refuse, and a write may not change recipes (`selectionFrozen`).
+  - C2 covers a team save's merge too: two teammates can each put a cue of a graphic that was in
+    no scene into a different scene, and the merge joins them. The save's retry separates the merged
+    document against the teammate's saved one before it goes up; a held cue there stays as it is,
+    since nobody pressed anything to refuse, and the next write moves it once it is free.
 - Not changed, with reasons:
   - All out reads the scenes of the record this page holds, not also the published payload's: the
     page holds no published payload, and an edit from another device reaches this page's record

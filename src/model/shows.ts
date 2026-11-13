@@ -32,7 +32,7 @@ import type { JsonValue } from './productionData';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
-import { sceneSnapshot, separateSceneGraphics, type SceneCopyGuard, type SceneSnapshot } from './obsScenes';
+import { sceneCopyRefusal, sceneSnapshot, separateSceneGraphics, type SceneCopyGuard, type SceneSnapshot } from './obsScenes';
 import { JOIN_PAGE_LIMITS } from './joinPage';
 import { readQuestions, setWordHidden, type ShowQuestion } from './questions';
 import { scrubHiddenWords } from './wordCues';
@@ -1154,25 +1154,36 @@ export function setSceneAirCues(showId: string, read: (() => ReadonlySet<string>
   else sceneAirCues.delete(showId);
 }
 
+/** The separation's ties to this build (OS1b C4, C10, C11): a copy's layer free among the
+ *  graphics and the server's templates, as a new template's is, and the refusal rule over the cues
+ *  the record's open page has on air, read only when a cue would move. */
+function separationDeps(show: Show): { freeLayer: (graphics: Show['graphics']) => number; guard: SceneCopyGuard } {
+  let air: ReadonlySet<string> | null = null;
+  return {
+    freeLayer: (graphics) => nextFreeLayer([...graphics, ...(show.playoutItems ?? []).filter((i) => i.kind === 'template')]),
+    guard: (cue) => {
+      air ??= sceneAirCues.get(show.id)?.() ?? new Set();
+      return sceneCopyRefusal(cue, air.has(cue.id));
+    },
+  };
+}
+
 /** OS1b C2 to C12 (docs/work-specs/obs-scenes/spec.md), run by the write envelope after a write's
  *  own change on each record it changes, so the local and the rebased pass separate to the same
  *  ids: every pool graphic in one OBS scene at most. With the switch off it changes nothing.
  *  Answers the sentence of a refused write (C10, C11). */
 function separateAfterWrite(show: Show, before: SceneSnapshot): string | null {
-  // Read only when a cue would move: most writes move none.
-  let air: ReadonlySet<string> | null = null;
-  const guard: SceneCopyGuard = (cue) => {
-    air ??= sceneAirCues.get(show.id)?.() ?? new Set();
-    if (air.has(cue.id)) return `Take "${cue.label}" off air before you put its graphic in a second OBS scene.`;
-    if (selectionReadOnly(cue, show.collections) || (cue.typed !== undefined && typedReadOnly(cue))) {
-      return `"${cue.label}" was saved by a newer version, so its graphic cannot be put in a second OBS scene here.`;
-    }
-    return null;
-  };
-  // A copy's layer is free among the graphics and the server's templates, as a new template's is.
-  const freeLayer = (graphics: Show['graphics']) => nextFreeLayer([...graphics, ...(show.playoutItems ?? []).filter((i) => i.kind === 'template')]);
-  const separated = separateSceneGraphics(show, before, { freeLayer, guard });
+  const separated = separateSceneGraphics(show, before, separationDeps(show));
   return typeof separated === 'string' ? separated : null;
+}
+
+/** C2 on a team production's merged document (backend/teamProductions.ts): two teammates can each
+ *  put a cue of one graphic in a different scene, and the merge joins them. Separated against the
+ *  teammate's saved document, as a write against the record before it. A held cue stays as it
+ *  is (nobody pressed anything to refuse) and is moved by the next write once it is free. */
+export function separateMergedScenes(doc: Show, base: Show): Show {
+  const next = structuredClone(doc);
+  return separateSceneGraphics(next, sceneSnapshot(base), { ...separationDeps(next), leaveHeld: true }) === true ? next : doc;
 }
 
 /** `patchShow`, answering too whether the write was refused on the spot (a full store, or a

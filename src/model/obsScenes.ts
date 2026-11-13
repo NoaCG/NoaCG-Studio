@@ -8,6 +8,7 @@ import { membersByFolder } from './showFolders.ts';
 import { freeName, isOwnPictureGraphic } from './poolIdentity.ts';
 import { readShowProfile, withGraphicArrange } from './profile.ts';
 import { deterministicUuid } from './id.ts';
+import { typedReadOnly } from './ografTyped.ts';
 
 /** One scene as a publish carries it: the graphics are pool graphic names (the wire key). */
 export interface ObsScene {
@@ -89,6 +90,16 @@ export function sceneGraphicNames(show: SceneRecord): Set<string> {
 /** What a write may not do to a cue (C10, C11): a sentence when the cue must not move to a copy. */
 export type SceneCopyGuard = (cue: NonNullable<Show['cues']>[number]) => string | null;
 
+/** C10, C11: why a cue may not move to an OBS scene's copy, in the operator's words. `onAir` says
+ *  whether a page has it on air. A live candidate's selection names a recipe made for its graphic,
+ *  so the copy could not take it; typed data a newer version wrote cannot be rewritten here. */
+export function sceneCopyRefusal(cue: NonNullable<Show['cues']>[number], onAir: boolean): string | null {
+  if (onAir) return `Take "${cue.label}" off air before you put its graphic in a second OBS scene.`;
+  if (cue.selection !== undefined) return `"${cue.label}" shows a live candidate chosen for its graphic, so it cannot be put in a second OBS scene.`;
+  if (cue.typed !== undefined && typedReadOnly(cue)) return `"${cue.label}" was saved by a newer version, so its graphic cannot be put in a second OBS scene here.`;
+  return null;
+}
+
 /** C3: the pool id of a scene's `n`th copy of a graphic, the same on every pass and every device
  *  that makes it, so the rebased pass and a team merge meet one copy. */
 export function sceneCopyId(sourceId: string, sceneId: string, n: number): string {
@@ -106,7 +117,7 @@ export function sceneCopyId(sourceId: string, sceneId: string, n: number): strin
 export function separateSceneGraphics(
   show: SceneRecord,
   before: SceneSnapshot,
-  deps: { freeLayer: (graphics: Show['graphics']) => number; guard?: SceneCopyGuard },
+  deps: { freeLayer: (graphics: Show['graphics']) => number; guard?: SceneCopyGuard; leaveHeld?: boolean },
 ): boolean | string {
   const members = sceneMembers(show);
   const own = new Set(show.graphics.filter((g) => isOwnPictureGraphic(g)).map((g) => g.id));
@@ -125,12 +136,13 @@ export function separateSceneGraphics(
   }
   const candidates = members.flatMap(([scene, cues]) => cues.filter((c) => owner.get(c.sourceId) !== scene && !own.has(c.sourceId)).map((c) => [scene, c] as const));
   // A cue the guard holds (C10, C11) refuses the write when the write put it where it is; one the
-  // write did not touch (a record that came shared, from a sync or an older build) stays as it is.
+  // write did not touch (a record that came shared, from a sync or an older build) stays as it is,
+  // and so does every held cue of a merge (`leaveHeld`), which nobody is there to refuse.
   const moving: (typeof candidates)[number][] = [];
   for (const [scene, c] of candidates) {
     const refused = deps.guard?.(c);
     if (!refused) moving.push([scene, c]);
-    else if (before.cues.get(c.id) !== `${scene}|${c.sourceId}`) return refused;
+    else if (!deps.leaveHeld && before.cues.get(c.id) !== `${scene}|${c.sourceId}`) return refused;
   }
   if (moving.length === 0) return false;
   const used = new Set((show.cues ?? []).map((c) => c.sourceId));

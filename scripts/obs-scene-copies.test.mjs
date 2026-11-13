@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import './lib/tsResolve.mjs';
 
-const { obsScenesOf, sceneSnapshot, separateSceneGraphics, sceneGraphicNames, sceneCopyId } = await import('../src/model/obsScenes.ts');
+const { obsScenesOf, sceneSnapshot, separateSceneGraphics, sceneGraphicNames, sceneCopyId, sceneCopyRefusal } = await import('../src/model/obsScenes.ts');
 const { poolPlacement } = await import('../src/model/poolIdentity.ts');
 
 const pool = (id, name, layer, extra = {}) => ({ id, name, type: 'lowerThird', savedAt: 't0', template: { name, fields: [] }, layer, ...extra });
@@ -303,4 +303,35 @@ test('re-adding a library graphic whose original is gone adds it again, and no s
     { name: 'Lower third · Gameplay', type: 'lowerThird', graphicId: 'lib-lt', sceneCopyOf: 'lt' },
   ];
   assert.deepEqual(poolPlacement(copies, { name: 'Lower third', type: 'lowerThird', graphicId: 'lib-lt' }), { replace: -1, name: 'Lower third', rename: null });
+});
+
+const { mergeTeamShow } = await import('../src/model/teamShowMerge.ts');
+
+test('C10, C11: a cue on air, one with a live candidate and one a newer version typed never move to a copy, in words', () => {
+  const plain = cue('c', 'lt', 'game');
+  assert.equal(sceneCopyRefusal(plain, false), null);
+  assert.equal(sceneCopyRefusal(plain, true), 'Take "c" off air before you put its graphic in a second OBS scene.');
+  // A live candidate's recipe is made for its graphic: the copy could not take it.
+  assert.match(sceneCopyRefusal({ ...plain, selection: { v: 1, recipe: 'r', key: 'k' } }, false), /live candidate chosen for its graphic/);
+  assert.match(sceneCopyRefusal({ ...plain, typed: { v: 99, values: {} } }, false), /saved by a newer version/);
+});
+
+test('C2 after a team merge: two teammates each put a cue of one graphic in a different scene, and the merged record gets a copy', () => {
+  // Logo is in no scene. Mine moves u1 into Desk, theirs u2 into Gameplay: neither write alone puts
+  // Logo in two scenes, so neither made a copy, and the merge puts it in both.
+  const base = production();
+  base.graphics.push(pool('logo', 'Logo', 23));
+  base.cues.push(cue('u1', 'logo'), cue('u2', 'logo'));
+  const mine = write(structuredClone(base), (s) => { s.cues.find((c) => c.id === 'u1').folderId = 'desk'; });
+  const theirs = write(structuredClone(base), (s) => { s.cues.find((c) => c.id === 'u2').folderId = 'game'; });
+  assert.equal(mine.graphics.length + theirs.graphics.length, 2 * base.graphics.length, 'no copy on either side');
+  const merged = mergeTeamShow(base, mine, theirs, '2026-11-13T00:00:00.000Z').doc;
+  assert.deepEqual(merged.cues.filter((c) => c.sourceId === 'logo').map((c) => c.folderId), ['desk', 'game']);
+  // Separated against the teammate's saved record: Gameplay had Logo there, so Desk gets the copy.
+  const held = structuredClone(merged);
+  separateSceneGraphics(held, sceneSnapshot(theirs), { ...deps((c) => (c.id === 'u1' ? 'held' : null)), leaveHeld: true });
+  assert.equal(held.cues.find((c) => c.id === 'u1').sourceId, 'logo', 'a held cue is left as it is, and nothing is refused');
+  separateSceneGraphics(merged, sceneSnapshot(theirs), deps());
+  assert.equal(merged.cues.find((c) => c.id === 'u1').sourceId, copyId('logo', 'desk'));
+  assert.equal(merged.cues.find((c) => c.id === 'u2').sourceId, 'logo');
 });
