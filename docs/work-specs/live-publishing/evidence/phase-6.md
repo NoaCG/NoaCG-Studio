@@ -142,6 +142,12 @@ and, with updates on, its own publish.
 | Cue text and values | Typical | 50 + 50 | 67 / 150 | 61 / 148 | +2: within AC-4 |
 | Cue text and values | Large | 50 + 50 | 101 / 1502 | 69 / 1168 | +334: recorded gap (owner decision b) |
 | Graphic added and removed (reported, not judged) | Typical | 25 + 25 | 66 / 182 | 69 / 661 | publishing is not the cost |
+| Design update: the last graphic's stylesheet changed (reported, not judged) | Typical | 25 + 25 | 64 / 172 | 68 / 781 | publishing is not the cost |
+
+Both reported loops read higher with updates off than on: their off runs carry 2 or 3 Takes over 500
+ms that land on a save of a changed graphic, and at 25 samples the p95 is the second highest. Neither
+loop is judged (owner decision Q1). The design loop ran on the build with the harness hooks (j-0120,
+j-0121), with a cue-loop check on that same build reading 68 / 148 ms on, in line with the table (j-0122).
 
 With updates on, every save was a new version: 9 to 10 publishes per typical run, 5 to 6 per large
 half. Press to sent stays under 51 ms p95 either way, so the extra time on the large fixture is the
