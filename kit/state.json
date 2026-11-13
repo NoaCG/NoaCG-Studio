@@ -69,7 +69,7 @@
     {
       "phase": "E6C",
       "step": "Fresh Cloud export/receiving builder active",
-      "note": "Node4/4 and realfont j0149 2/2 PASS; corrected output j0151 7/7 PASS0retry/skip across5 output/source-state preservation and6 package lifecycles. Original j0148baselineFAIL3/18,j0150probe3PASS4FAIL preserved; latter corrected with exactindent/validimagepayload and narrowpre-E4FIELDSnote fix. Final productcommit/review/gates/G07+local kit pending; no broader/build/manualcarrier admitted. E4 attempts/STOP boundary unchanged."
+      "note": "Node4/4 and realfont j0149 2/2 PASS; corrected output j0151 7/7 PASS0retry/skip across5 output/source-state preservation and6 package lifecycles. Original j0148baselineFAIL3/18,j0150probe3PASS4FAIL preserved; latter corrected with exactindent/validimagepayload and narrowpre-E4FIELDSnote fix. Final productcommit/review/gates/G07+local kit pending; no broader/build/manualcarrier admitted. E4 attempts/STOP boundary unchanged. Productde563 committed; root prospectively authorized ONE unchanged10minute Actions currentcandidate packaging admission after exactsource push+existingrun observation, no E5C/E4 reset. Finalreview/CI/independentacceptance due."
     }
   ],
   "owner": [
@@ -3051,6 +3051,18 @@
         "scope": "WORKINGDIFF; standalonebrowser/NoaCGcontainedhost, not namedrealreceiver/officialrenderer acceptance. Casparwhitecanvas/OGrafdarkhost composition backgrounds differ; no pixelparityclaim. Originalj150separateimmutablefailedoutputdir retained.",
         "remaining": "Final productcommit/review/gates, technicalG07consolidatedkit/currentbundle due; no broader/build/manualcarrier admitted."
       }
+    },
+    "productCommit": "de563b599f175a60500ef288d0d59b3d624126c3",
+    "manualCandidateAdmission": {
+      "at": "2026-11-13T15:35:20.327255+00:00",
+      "status": "PROSPECTIVE_ONE_ADMISSION_AUTHORIZED_BEFORE_DISPATCH",
+      "source": "de563b599f175a60500ef288d0d59b3d624126c3",
+      "purpose": "Required current offline app/local E5 candidate and technical G07 inventory; b081 appartifact predates actual productruntime/output changes and cannot qualify currentcandidate. This is new product source, not unchanged-source retry or E5C3/3 reset.",
+      "route": "unchanged endurance.yml workflow_dispatch on exact source phase branch,script=qualify:editor-native-kit,minutes=10,local-supabase=false; observation first; one dispatch only; reconcile unknown acknowledgement before any redispatch",
+      "bounds": "Full NORMAL npmrunbuild plus unchanged12helperassertions,22historicalcaptureexports,currentdist version/fullfilemanifest/ZIPsha, mandatorycleanup allinside existing10minutehelper envelope. Workflow90/input1-75/normalCI15/offActions5 unchanged. No performancecampaign/provider/model/funding/credentials/workflowchange.",
+      "rootEvidence": "Root inspected product16files308+/43- and actual committed capacity editedtypographynowselected; normal WARN199.4/21394%/frozenseed. Independently bytecompared workflow/helper/smoke/captureexport/lock against1178: ALLUNCHANGED. HelperSHA912b6b316719596904078ebfedf823f6ebb1d956f7b9be6fc2aa7f7c733e067d; smokeSHAab5559a7533bb3fc94a1023c0a9e71cc42cd1463da460cb465f7d3c5ca016bad.",
+      "attempts": "E6Ccurrentproductcandidate1boundedmanualadmission only; E5C historicalpackaging3/3spent, E4allspent unchanged. AnyFAIL/incomplete kept and reported before further step; no automatic retry/secondadmission. FinalFULLSO/check/CI/queue/independentacceptance remainrequired.",
+      "preDispatch": "Worker must push exactcommittedde563, independently observe existingphasebranchruns/admissions then use documentedverificationobserver preserving one dispatch; verify actualrunhead/source binding."
     }
   }
 }
