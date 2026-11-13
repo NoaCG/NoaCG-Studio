@@ -1,0 +1,12 @@
+{
+  "provider": "codex",
+  "sessionId": "6af455f4-b1c8-8191-86b2-8bfdfc619075",
+  "environmentId": "ccarenv_b64_Y2NhcmVudl9mOGJiMmY0OWI4ZjA4MTkxYjE5YjAzNDFjZjcxMmRiYg",
+  "policySha256": "9ddcaeece3d8e54669564a11b0c48c16e6fbfc5b19e406691deb508df65b9a74",
+  "revision": "705ba59425441fedbe171bee993e4b621c7bf68b",
+  "actionId": "plan-editor-r1-5-2026-11-08:12",
+  "requestSha256": "c55db96faeda6f88b7270f387320818371b103e4492d5705eb45dd860a07d173",
+  "state": "accepted",
+  "nativeId": "/root/editor_e6c_independent_check",
+  "evidence": "RootactualnativeSTARTUPCOMPLETEread: thread6af73ffc-becc-8191-aed7-201765c1407f/sessionroot6af455; full19677bytebriefc06d/21161bytetransport83c6/rawembeddedbriefMATCH; readOnlyscopedauthoritativependingaction12 dispatch16:50:44.618Z canonicalrequestc55db96... recomputedfromactualpacket+authorizationMATCH/EVERYrequestfieldvalueorderJSONequalitytrue. Exactcleanowned705/parent7451/branch/checkwt/lock62dd dependencyonlylink. Runtimecurrentconnected/running/enforced selectedCloudf8 preservedoriginal16cebindingseparately,noCLImapping. Effective9ddpolicy/rawdd7128componentdistinctunchanged. Own4CPU16GiB14.4GiBavailable2workers/hiddenancestorunreadablelimitsObservedfalse/5-12-5caps. TWOSEPARATEfullscopednetwork+ownedIOPASS16:53:06.064Zand16:53:28.600Z,Git+ActionsPASSboth. Initialnetwork-only/narrowparentEROFSretainedstartupPRETEST/noassertion/noadmission. No substantivetest/edit/build/delegation beforeACK; startupendedawaitingSAMEactorresume."
+}
