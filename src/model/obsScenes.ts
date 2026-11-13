@@ -6,7 +6,8 @@
 import type { Show } from './shows';
 import { membersByFolder } from './showFolders.ts';
 import { freeName, isOwnPictureGraphic } from './poolIdentity.ts';
-import { readShowProfile, serializeShowProfile } from './profile.ts';
+import { readShowProfile, withGraphicArrange } from './profile.ts';
+import { deterministicUuid } from './id.ts';
 
 /** One scene as a publish carries it: the graphics are pool graphic names (the wire key). */
 export interface ObsScene {
@@ -24,22 +25,9 @@ export const SCENE_ID = /^[A-Za-z0-9_-]{1,80}$/;
  * order its cues name them. A folder no cue is in is not a scene (a folder is never empty).
  */
 export function obsScenesOf(show: Pick<Show, 'obsScenes' | 'folders' | 'cues' | 'graphics'>): ObsScene[] {
-  if (!show.obsScenes) return [];
   const names = new Map(show.graphics.map((g) => [g.id, g.name] as const));
-  const scenes: ObsScene[] = [];
-  const flagged = new Map((show.folders ?? []).filter((f) => f.obsScene && SCENE_ID.test(f.id)).map((f) => [f.id, f] as const));
-  // In rundown order: the first cue of a folder places it (./showFolders.ts).
-  for (const [id, cues] of membersByFolder(show.cues ?? [], show.folders)) {
-    const folder = flagged.get(id);
-    if (!folder) continue;
-    const graphics: string[] = [];
-    for (const cue of cues) {
-      const name = cue.source === 'playout' ? undefined : names.get(cue.sourceId);
-      if (name !== undefined && graphics.indexOf(name) < 0) graphics.push(name);
-    }
-    scenes.push({ id, name: folder.name, graphics });
-  }
-  return scenes;
+  const folders = new Map((show.folders ?? []).map((f) => [f.id, f.name] as const));
+  return sceneMembers(show).map(([id, cues]) => ({ id, name: folders.get(id) ?? '', graphics: [...new Set(cues.map((c) => names.get(c.sourceId)!))] }));
 }
 
 /** A scene's own output link: the production's output link with `&scene=<id>` (OS1a R5). */
@@ -53,9 +41,10 @@ export function sceneLink(outputUrl: string, sceneId: string): string {
 
 type SceneRecord = Pick<Show, 'obsScenes' | 'folders' | 'cues' | 'graphics' | 'bindings' | 'profile'>;
 
-/** A scene's graphic and picture cues, by folder id, in rundown order: what C1 calls its graphics.
- *  A server cue, or one over a graphic the pool does not hold, is not one. */
-function sceneMembers(show: SceneRecord): [string, NonNullable<Show['cues']>][] {
+/** C1, the one reading of it: each scene's graphic and picture cues, by folder id, in rundown
+ *  order (the first cue of a folder places it). A server cue, or one over a graphic the pool does
+ *  not hold, is not one. None while the switch is off. */
+function sceneMembers(show: Pick<Show, 'obsScenes' | 'folders' | 'cues' | 'graphics'>): [string, NonNullable<Show['cues']>][] {
   if (!show.obsScenes) return [];
   const pool = new Set(show.graphics.map((g) => g.id));
   const flagged = new Set((show.folders ?? []).filter((f) => f.obsScene && SCENE_ID.test(f.id)).map((f) => f.id));
@@ -101,17 +90,9 @@ export function sceneGraphicNames(show: SceneRecord): Set<string> {
 export type SceneCopyGuard = (cue: NonNullable<Show['cues']>[number]) => string | null;
 
 /** C3: the pool id of a scene's `n`th copy of a graphic, the same on every pass and every device
- *  that makes it, so the rebased pass and a team merge meet one copy. UUID-shaped (version 8). */
+ *  that makes it, so the rebased pass and a team merge meet one copy. */
 export function sceneCopyId(sourceId: string, sceneId: string, n: number): string {
-  const text = `${sourceId}|${sceneId}|${n}`;
-  let hex = '';
-  for (let seed = 0; seed < 4; seed += 1) {
-    let h = (0x811c9dc5 ^ (seed * 0x9e3779b9)) >>> 0;
-    for (let i = 0; i < text.length; i += 1) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
-    hex += h.toString(16).padStart(8, '0');
-  }
-  const v = ((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16);
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-8${hex.slice(13, 16)}-${v}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+  return deterministicUuid(`obs-scene-copy|${sourceId}|${sceneId}|${n}`);
 }
 
 /**
@@ -155,30 +136,26 @@ export function separateSceneGraphics(
   const used = new Set((show.cues ?? []).map((c) => c.sourceId));
 
   const names = new Map((show.folders ?? []).map((f) => [f.id, f.name] as const));
+  // The scene's copy: the first of its stable ids that is free, or held by a copy of this graphic
+  // that this scene uses or no cue at all does (one left behind under C6 is taken up again; one a
+  // cue outside the scenes uses stays that cue's, C5).
+  const copyFor = (sourceId: string, scene: string): string => {
+    for (let n = 0; ; n += 1) {
+      const id = sceneCopyId(sourceId, scene, n);
+      const held = show.graphics.find((g) => g.id === id);
+      if (!held) {
+        addSceneCopy(show, sourceId, id, names.get(scene) ?? scene, deps);
+        return id;
+      }
+      if (held.sceneCopyOf === sourceId && (owner.get(id) === scene || !used.has(id))) return id;
+    }
+  };
   const repoint = new Map<string, string>();
   const chosen = new Map<string, string>();
   for (const [scene, c] of moving) {
     const key = `${c.sourceId}|${scene}`;
-    let copy = chosen.get(key);
-    if (!copy) {
-      // The scene's copy: the first of its stable ids that is free, or held by a copy of this
-      // graphic that this scene uses or no cue at all does (one left behind under C6 is taken up
-      // again; one a cue outside the scenes uses stays that cue's, C5).
-      for (let n = 0; ; n += 1) {
-        const id = sceneCopyId(c.sourceId, scene, n);
-        const held = show.graphics.find((g) => g.id === id);
-        if (!held) {
-          addSceneCopy(show, c.sourceId, id, names.get(scene) ?? scene, deps);
-          copy = id;
-          break;
-        }
-        if (held.sceneCopyOf === c.sourceId && (owner.get(id) === scene || !used.has(id))) {
-          copy = id;
-          break;
-        }
-      }
-      chosen.set(key, copy);
-    }
+    const copy = chosen.get(key) ?? copyFor(c.sourceId, scene);
+    chosen.set(key, copy);
     repoint.set(c.id, copy);
   }
   show.cues = (show.cues ?? []).map((c) => (repoint.has(c.id) ? { ...c, sourceId: repoint.get(c.id)! } : c));
@@ -203,11 +180,10 @@ function addSceneCopy(
   copy.layer = deps.freeLayer(show.graphics);
   copy.sceneCopyOf = source.id;
   show.graphics = [...show.graphics.slice(0, at + 1), copy, ...show.graphics.slice(at + 1)];
-  const bound = show.bindings?.[source.name];
-  if (bound) show.bindings = { ...show.bindings, [name]: { ...bound } };
+  const bound = show.bindings && Object.prototype.hasOwnProperty.call(show.bindings, source.name) ? show.bindings[source.name] : undefined;
+  if (bound) show.bindings = Object.fromEntries([...Object.entries(show.bindings!), [name, { ...bound }]]);
+  // Only a profile this build reads: one a newer build wrote stays byte for byte.
   const profile = readShowProfile(show.profile);
-  const arranged = profile.status === 'ok' ? profile.profile.arrange[source.name] : undefined;
-  if (profile.status === 'ok' && arranged) {
-    show.profile = serializeShowProfile({ ...profile.profile, arrange: { ...profile.profile.arrange, [name]: structuredClone(arranged) } });
-  }
+  const arranged = profile.status === 'ok' && Object.prototype.hasOwnProperty.call(profile.profile.arrange, source.name) ? profile.profile.arrange[source.name] : undefined;
+  if (arranged) show.profile = withGraphicArrange(profile.status === 'ok' ? profile.profile : undefined, name, arranged);
 }

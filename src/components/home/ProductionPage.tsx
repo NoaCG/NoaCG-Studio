@@ -802,9 +802,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // OBS scenes OS1b C10: a write never moves a cue on air to a scene's copy. The session's air part,
   // not the paced copy the page draws, so a Take that landed a moment ago counts.
   useEffect(() => {
-    setSceneAirCues(() => new Set(Object.values(liveCueOf(session.air.get())).filter((cue): cue is string => !!cue)));
-    return () => setSceneAirCues(null);
-  }, [session]);
+    setSceneAirCues(id, () => new Set(Object.values(liveCueOf(session.air.get())).filter((cue): cue is string => !!cue)));
+    return () => setSceneAirCues(id, null);
+  }, [session, id]);
   /** Each ⚡ button's last press and what it came to (control/pressFeedback.ts), dropped as soon as
    *  the session's `air` part puts another instance on its layer, an Out and a Take of the same cue
    *  included. */
@@ -3168,8 +3168,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const logAuto = (graphic: string, text: string) => logHere([(id) => autoEntry(id, graphic, text)]);
   /** The graphics a Take of this one replaces on its layer (control/ografOutcome.ts). */
   const layerPeersOf = (graphic: string) => packageLayerPeers(show.graphics.map((g) => ({ name: g.name, layer: graphicLayer(g), foreign: isForeignGraphic(g.template) })), graphic);
-  // OBS scenes OS1b C9: All out leaves the scene graphics of the record this page holds as they are.
-  const sceneGraphics = sceneGraphicNames(show);
   armPage.current = {
     published: !!hostedSlug,
     timedOff: !!hostedSlug && armsServer === 'missing',
@@ -3290,7 +3288,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     graphics: show.graphics,
     liveCue,
     layerPeers: layerPeersOf,
-    sceneGraphics,
+    // OBS scenes OS1b C9: All out leaves the scene graphics of the record this page holds as they are.
+    sceneGraphics: () => sceneGraphicNames(show),
     answersOnOutput: (graphic) => isForeignGraphic(show.graphics.find((g) => g.name === graphic)?.template),
     liveLayers,
     livePlayoutLayers,

@@ -1040,3 +1040,41 @@ Filled in by each phase's pull request.
   by an edit would air the graphic on the ordinary link too and before the scene link has the
   publish that names it. It is filed as its own issue for the coordinator to place. The offline
   controller export and the Bridge's offline clear keep today's All out: neither knows scenes.
+- Rules found after coding, by the `/check` review: a record that came shared (a sync, an older
+  build) leaves a held cue the write did not touch where it is, so an unrelated edit still lands,
+  and only a held cue the write itself moved refuses it (C10 amended); a copy's layer is free among
+  the graphics and the server's templates, as a new template's is (C4); the on-air guard reads the
+  session's air part, not the paced copy the page draws, so a Take that just landed counts; All
+  out leaves a scene folder's run and One-by-one step as they are, not only its graphics (C9); a
+  copy left behind is taken up again only when no cue at all uses it (C5); with the original gone,
+  re-adding the library graphic adds it again rather than replacing one scene's copy.
+- Not changed, with reasons:
+  - All out reads the scenes of the record this page holds, not also the published payload's: the
+    page holds no published payload, and an edit from another device reaches this page's record
+    through its sync. A scene graphic another device published a moment ago, before its record
+    arrives here, is cleared by All out, as any hand-taken graphic is.
+  - A copy's name is free in the pool only, not among library names. A copy normally keeps its
+    library link, which a publish follows before any name; a link-less copy is matched by name as
+    every link-less pool graphic already is.
+  - The offline controller export and the Bridge's offline clear keep today's All out (no scenes
+    there), and the offline clear only unloads a renderer from a CasparCG slot.
+  - "Adding a graphic to a scene takes it" is not built (see above): sent to the coordinator as a
+    placement question with C12.
+- Previous verified `main`: `f528683c8a950ac935679241be4860d643bf8487` (CI run 43408100165,
+  configured suite 43408100325).
+- Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed and no
+  migration. A `sceneCopyOf` left on a pool graphic is ignored by the reverted build, and a scene
+  copy stays an ordinary pool graphic with its cues, so nothing is lost; All out then clears scene
+  graphics again.
+- Decisions: the separation runs inside the record's write envelope (`patchShowChecked`), after
+  the write's own change and beside the frozen checks, so every door that adds a cue to a scene (drag, menu, paste, duplicate,
+  flag, switch) gets it without a call of its own, the rebased pass included. A copy is a whole pool
+  graphic, not a new kind of reference, so publish, export, Update and the output treat it as any
+  other. The copy sits after its source in the pool, named "<name> · <scene>". Each open production
+  page tells the model which of its cues are on air, by production id, read only when a cue would
+  move. A copy's id is the shared `deterministicUuid` of (source, scene, n).
+- Traps: duplicating the only cue of a folder copies the folder ("<folder> copy"), and the copied
+  folder is not a scene. An unpublished production's Take shows `UP` (`up-here`), not ON AIR. The
+  export names a copy's folder by its slug (`hairline_desk`).
+- Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS1b.md`.
+

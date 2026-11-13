@@ -212,7 +212,7 @@ test('C3: the same write on the same record makes the same copy, so a rebased pa
   const a = write(production(), (s) => s.cues.push(cue('g2', 'lt', 'game')));
   const b = write(production(), (s) => s.cues.push(cue('g2', 'lt', 'game')));
   assert.deepEqual(a, b);
-  assert.match(copyId('lt', 'game'), /^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.match(copyId('lt', 'game'), /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   assert.notEqual(copyId('lt', 'game'), copyId('lt', 'desk'));
   assert.notEqual(copyId('lt', 'game'), copyId('lt', 'game', 1));
 });

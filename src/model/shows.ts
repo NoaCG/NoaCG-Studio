@@ -32,7 +32,7 @@ import type { JsonValue } from './productionData';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
-import { sceneSnapshot, separateSceneGraphics, type SceneCopyGuard } from './obsScenes';
+import { sceneSnapshot, separateSceneGraphics, type SceneCopyGuard, type SceneSnapshot } from './obsScenes';
 import { JOIN_PAGE_LIMITS } from './joinPage';
 import { readQuestions, setWordHidden, type ShowQuestion } from './questions';
 import { scrubHiddenWords } from './wordCues';
@@ -1145,50 +1145,34 @@ export function setGraphicCopyScript(showId: string, graphicId: string, from: st
   });
 }
 
-/** The cues a production page has on air (obs-scenes OS1b C10): a write never moves one of them to
- *  an OBS scene's copy. The page that holds air sets it; none is the empty answer. */
-let sceneAirCues: () => ReadonlySet<string> = () => new Set();
-export function setSceneAirCues(read: (() => ReadonlySet<string>) | null): void {
-  sceneAirCues = read ?? (() => new Set());
+/** The cues each open production page has on air, by production id (obs-scenes OS1b C10): a write
+ *  never moves one of them to an OBS scene's copy. The page that holds air sets its reader; none is
+ *  the empty answer. */
+const sceneAirCues = new Map<string, () => ReadonlySet<string>>();
+export function setSceneAirCues(showId: string, read: (() => ReadonlySet<string>) | null): void {
+  if (read) sceneAirCues.set(showId, read);
+  else sceneAirCues.delete(showId);
 }
 
-/** C10, C11: why a cue may not move to an OBS scene's copy, in the operator's words. */
-function sceneCopyGuard(show: Show): SceneCopyGuard {
+/** OS1b C2 to C12 (docs/work-specs/obs-scenes/spec.md), run by the write envelope after a write's
+ *  own change on each record it changes, so the local and the rebased pass separate to the same
+ *  ids: every pool graphic in one OBS scene at most. With the switch off it changes nothing.
+ *  Answers the sentence of a refused write (C10, C11). */
+function separateAfterWrite(show: Show, before: SceneSnapshot): string | null {
   // Read only when a cue would move: most writes move none.
   let air: ReadonlySet<string> | null = null;
-  return (cue) => {
-    air ??= sceneAirCues();
+  const guard: SceneCopyGuard = (cue) => {
+    air ??= sceneAirCues.get(show.id)?.() ?? new Set();
     if (air.has(cue.id)) return `Take "${cue.label}" off air before you put its graphic in a second OBS scene.`;
     if (selectionReadOnly(cue, show.collections) || (cue.typed !== undefined && typedReadOnly(cue))) {
       return `"${cue.label}" was saved by a newer version, so its graphic cannot be put in a second OBS scene here.`;
     }
     return null;
   };
-}
-
-/** OS1b C2 (docs/work-specs/obs-scenes/spec.md): a write that changed the record leaves every pool
- *  graphic in one OBS scene at most, inside the same write, so the local and the rebased pass each
- *  separate the record they changed, to the same ids. With the switch off it is the write as it
- *  was. A refusal (C10, C11) comes after the write's own change, so `refusedAfter` says to read
- *  the stored productions again. */
-function withSceneCopies(mutate: (show: Show, at: string) => boolean | string): { run: (show: Show, at: string) => boolean | string; refusedAfter: () => boolean } {
-  let refused = false;
-  return {
-    run: (show, at) => {
-      const before = sceneSnapshot(show);
-      const result = mutate(show, at);
-      if (result !== true) return result;
-      // A copy's layer is free among the graphics and the server's templates, as a new template's is.
-      const freeLayer = (graphics: Show['graphics']) => nextFreeLayer([...graphics, ...(show.playoutItems ?? []).filter((i) => i.kind === 'template')]);
-      const separated = separateSceneGraphics(show, before, { freeLayer, guard: sceneCopyGuard(show) });
-      if (typeof separated === 'string') {
-        refused = true;
-        return separated;
-      }
-      return true;
-    },
-    refusedAfter: () => refused,
-  };
+  // A copy's layer is free among the graphics and the server's templates, as a new template's is.
+  const freeLayer = (graphics: Show['graphics']) => nextFreeLayer([...graphics, ...(show.playoutItems ?? []).filter((i) => i.kind === 'template')]);
+  const separated = separateSceneGraphics(show, before, { freeLayer, guard });
+  return typeof separated === 'string' ? separated : null;
 }
 
 /** `patchShow`, answering too whether the write was refused on the spot (a full store, or a
@@ -1211,21 +1195,20 @@ function patchShowChecked(
   /** The typed writer's allowance (`setCueTyped`): cue id to the envelope bytes it writes. */
   typedWrite?: ReadonlyMap<string, string | null>,
 ): { shows: Show[]; error: string | null } {
-  const scenes = withSceneCopies(mutate);
-  mutate = scenes.run;
   const all = readEditable();
   const visible = () => all.filter((s) => !s.deleted);
   if (!canAuthorAccount()) return { shows: visible(), error: 'Account editing is paused. Sign in again; pending work is preserved.' };
   const show = all.find((s) => s.id === showId && !s.deleted);
   if (!show) return { shows: visible(), error: null };
   const at = nowIso();
+  const scenes = sceneSnapshot(show);
   const kept = selectionKeep(show);
   const typed = typedKeep(show);
   const result = mutate(show, at);
-  if (typeof result === 'string') return { shows: scenes.refusedAfter() ? loadShows() : visible(), error: result };
+  if (typeof result === 'string') return { shows: visible(), error: result };
   if (!result) return { shows: visible(), error: null };
   // The mutation ran on this read only: refused, the stored productions are read again.
-  const frozen = selectionFrozen(kept, show, undefined, write) ?? typedFrozen(typed, show, undefined, typedWrite);
+  const frozen = separateAfterWrite(show, scenes) ?? selectionFrozen(kept, show, undefined, write) ?? typedFrozen(typed, show, undefined, typedWrite);
   if (frozen) return { shows: loadShows(), error: frozen };
   show.updatedAt = at;
   scrubHiddenWords(show); // W11: this tab's copy too, before the rebased pass decides the stored one
@@ -1237,10 +1220,13 @@ function patchShowChecked(
     const list = readShape(raw);
     const fresh = list.find((s) => s.id === showId && !s.deleted);
     if (!fresh) return { refused: 'This production was removed in another tab.' };
+    const scenesFresh = sceneSnapshot(fresh);
     const keptFresh = selectionKeep(fresh);
     const typedFresh = typedKeep(fresh);
     const again = mutate(fresh, at);
     if (typeof again === 'string') return { refused: again };
+    const separatedFresh = again ? separateAfterWrite(fresh, scenesFresh) : null;
+    if (separatedFresh) return { refused: separatedFresh };
     if (again) scrubHiddenWords(fresh); // W11, on the stored record this pass lands on
     const frozenFresh = again ? (selectionFrozen(keptFresh, fresh, undefined, write) ?? typedFrozen(typedFresh, fresh, undefined, typedWrite)) : null;
     if (frozenFresh) return { refused: frozenFresh };
