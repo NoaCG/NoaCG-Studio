@@ -167,13 +167,41 @@ test('the dev server is the run\'s own, and what it serves is judged too', () =>
   const guard = file('e2e/_configured-guard.ts');
   assert.match(guard, /_env-probe\.ts/);
   assert.match(guard, /servedTarget\(served, process\.env\)/);
-  // And it probes the origin the LOADED config drives, not this suite's usual port: the
-  // measurement harness with MEASURE_BUILD=prod serves on a port of its own.
-  assert.match(guard, /project\.use\?\.baseURL/);
-  // A skip is loud. The one case the probe cannot judge - nothing answering at all - must say so
-  // rather than read as a pass.
-  assert.match(guard, /console\.warn/);
-  assert.match(guard, /WHAT THE SERVER SERVES WAS NOT CHECKED/);
+});
+
+test('with nothing listening, the guard says so loudly - and probes the origin it was handed', async (t) => {
+  // A local stack in this process, so the guard reaches the probe rather than refusing first.
+  const before = { ...process.env };
+  for (const name of [...URL_VARS, ...KEY_VARS]) delete process.env[name];
+  process.env.VITE_SUPABASE_URL = 'http://127.0.0.1:54321';
+  t.after(() => {
+    for (const name of [...URL_VARS, ...KEY_VARS]) delete process.env[name];
+    Object.assign(process.env, before);
+  });
+  // RUN, not read. The two things this proves are the ones a source-text match cannot: that the
+  // probe's origin comes from the config Playwright loaded (the measurement harness with
+  // MEASURE_BUILD=prod serves on a port of its own), and that the one case the probe cannot judge
+  // is a named, loud skip rather than a cheerful pass. Port 1 is closed, so `servedBackend`
+  // returns before it launches a browser: no server, no Chromium, milliseconds.
+  const guard = (await import(path.join(ROOT, 'e2e/_configured-guard.ts'))).default;
+  const warned = [];
+  const logged = [];
+  const { warn, log } = console;
+  console.warn = (message) => warned.push(String(message));
+  console.log = (message) => logged.push(String(message));
+  try {
+    await guard({ projects: [{ use: { baseURL: 'http://127.0.0.1:1' } }] });
+  } finally {
+    Object.assign(console, { warn, log });
+  }
+  // A warning, not a log line: in a shard's output an ordinary log reads as a pass.
+  assert.deepEqual(logged, []);
+  assert.equal(warned.length, 1);
+  assert.match(warned[0], /WHAT THE SERVER SERVES WAS NOT CHECKED/);
+  // The origin it was HANDED, not this suite's usual port.
+  assert.match(warned[0], /nothing answered at http:\/\/127\.0\.0\.1:1\b/);
+  // And it still reports the environment it did judge.
+  assert.match(warned[0], /local: VITE_SUPABASE_URL=127\.0\.0\.1:54321/);
 });
 
 test('a configured spec reads the backend through the guarded helper, not around it', () => {

@@ -323,12 +323,11 @@ if (invokesE2e(command)) {
     deny(
       `Blocked: something is already listening on port ${port} - the ${live ? 'live' : 'offline'} e2e port ` +
         `of the checkout this command runs in (${targetRoot()}).\n` +
-        (live
-          ? 'The configured suite starts its OWN server since issue #2495, because an adopted one ' +
-            'decides where the run writes, so it cannot start at all while this port is busy.\n'
-          : 'Playwright runs with reuseExistingServer:true for this suite, so it would reuse that ' +
-            'server with whatever env it was started with and the offline-pinned specs fail ' +
-            'confusingly (see e2e/AGENTS.md "Gotchas when writing a spec").\n') +
+        'The offline suite runs with reuseExistingServer:true, so it would adopt that server with ' +
+        'whatever env it was started with and its offline-pinned specs fail confusingly (see ' +
+        'e2e/AGENTS.md "Gotchas when writing a spec"). The runs that START their own server - the ' +
+        'configured suite and the endurance walks, since issue #2495, because an adopted one ' +
+        'decides where the run writes - cannot start at all while this port is busy.\n' +
         'Stop that server first (preview_stop if it was started with the preview tools), then re-run. ' +
         'If a killed run left it behind, nothing owns it and there is nothing to stop it FROM - ' +
         '`node scripts/e2e-runs.mjs --orphans` says whether that is the case, and `--kill-orphans` ' +

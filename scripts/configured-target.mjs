@@ -152,11 +152,15 @@ export function configuredTarget(env = process.env) {
     // rotated or mistyped `STAGING_SUPABASE_URL` would be admitted because it merely is not
     // production - which is somebody else's database, and the suite deletes rows.
     const ref = stagingRef(env);
-    const elsewhere = urls.filter(([, value]) => !value.includes(ref));
+    // The WHOLE host, not a substring of the URL and not a prefix of the host: a project's
+    // hostname is `<ref>.supabase.co` and nothing else. `.includes(ref)` would admit a path or
+    // query carrying the word, and `startsWith(ref + '.')` would admit
+    // `<ref>.somebody-elses-domain.example`, which is a different machine entirely.
+    const elsewhere = urls.filter(([, value]) => host(value) !== `${ref}.supabase.co`);
     return elsewhere.length === 0
       ? { kind: HOSTED_STAGING, urls }
       : refuse(
-          `${DECLARATION}=${HOSTED_STAGING} admits the staging project only, and ${elsewhere.map(([name]) => name).join(' and ')} names another: ${elsewhere.map(([, value]) => host(value)).join(', ')}. A run may only reach a backend it owns and can empty.`,
+          `${DECLARATION}=${HOSTED_STAGING} admits the staging project only, and ${elsewhere.map(([name]) => name).join(' and ')} names another: ${elsewhere.map(([, value]) => host(value)).join(', ')}.${held} A run may only reach a backend it owns and can empty.`,
         );
   }
 
