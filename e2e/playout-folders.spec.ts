@@ -38,7 +38,9 @@ import { armStorageFailure, fillStorage, freeStorage } from './_storage';
 interface Seed {
   graphics?: { name: string; layer?: number }[];
   playback?: Record<string, Record<string, unknown>>;
-  folders?: { labels: string[]; name?: string; mode?: 'manual' | 'through' | 'together'; end?: 'loop'; layer?: number; collapsed?: boolean }[];
+  folders?: { labels: string[]; name?: string; mode?: 'manual' | 'through' | 'together'; end?: 'loop'; layer?: number; collapsed?: boolean; scene?: true }[];
+  /** The production's OBS scenes switch on (obs-scenes OS1a R2). */
+  obsScenes?: true;
 }
 
 /** A production: the Hairline graphic's cue first, then the given server media, each on its own
@@ -76,7 +78,9 @@ async function production(page: Page, media: Record<string, unknown>[] = [], see
         if (f.mode) m.setFolderMode(id, folderId, f.mode);
         if (f.end || f.layer) m.setFolderPlayback(id, folderId, { ...(f.end ? { end: f.end } : {}), ...(f.layer ? { layer: f.layer } : {}) });
         if (f.collapsed) m.setFolderCollapsed(id, folderId, true);
+        if (f.scene) m.setFolderObsScene(id, folderId, true);
       }
+      if (seed.obsScenes) m.setShowObsScenes(id, true);
       // The new graphic's autosave is still on its debounce; it lands now, not during the test,
       // where it would count as a rundown write or meet a storage failure the test arms.
       flushPendingProject();
@@ -347,6 +351,79 @@ test('OBS scenes: the switch offers a folder as a scene, which publishes its gra
   await expect(folder(page, 'Gameplay').getByTestId('folder-obs-scene')).toHaveCount(0);
   await settleDurableWrites(page);
   expect(await published()).toMatchObject({ scenes: null, flagged: true });
+});
+
+test('OBS scenes: a graphic added to a second scene becomes its copy, Take and Out act on one scene, and All out leaves scene graphics (obs-scenes OS1b AC-2, AC-3)', async ({ page }) => {
+  const id = await production(page, [], {
+    graphics: [{ name: 'Score' }, { name: 'Hand' }],
+    folders: [{ labels: ['Hairline'], name: 'Gameplay', scene: true }, { labels: ['Score'], name: 'Desk', scene: true }],
+    obsScenes: true,
+  });
+  /** The pool by name, and which graphic each cue drives. */
+  const record = () =>
+    page.evaluate(async (showId) => {
+      const { loadShows } = await import('/src/model/shows.ts');
+      const show = loadShows().find((s) => s.id === showId)!;
+      const name = (gid: string) => show.graphics.find((g) => g.id === gid)?.name;
+      return {
+        pool: show.graphics.map((g) => `${g.name} @${g.layer}`),
+        cues: Object.fromEntries((show.cues ?? []).map((c) => [c.label, name(c.sourceId)])),
+      };
+    }, id);
+  await expect.poll(() => drawn(page)).toEqual(['[Gameplay]', '  Hairline', '[Desk]', '  Score', 'Hand']);
+
+  // Hairline into the second scene: a duplicate of its cue, dragged under Score, drives the Desk's
+  // own copy, on a layer of its own; the Gameplay cue keeps the graphic (C2 to C4).
+  await cue(page, 'Hairline').getByTestId('cue-menu').click();
+  await page.getByRole('menuitem', { name: 'Duplicate' }).click();
+  await drag(page, cue(page, 'Hairline copy'), cue(page, 'Score'), 'bottom');
+  await expect.poll(() => drawn(page)).toEqual(['[Gameplay]', '  Hairline', '[Desk]', '  Score', '  Hairline copy', 'Hand']);
+  await settleDurableWrites(page);
+  const copied = await record();
+  expect(copied.cues).toEqual({ Hairline: 'Hairline', Score: 'Score', Hand: 'Hand', 'Hairline copy': 'Hairline · Desk' });
+  expect(copied.pool.map((g) => g.split(' @')[0])).toEqual(['Hairline', 'Score', 'Hand', 'Hairline · Desk']);
+  expect(new Set(copied.pool.map((g) => g.split(' @')[1])).size, 'every graphic on its own layer').toBe(4);
+
+  // Take and Out in one scene leave the other scene's graphic as it is (C7).
+  const take = async (label: string) => {
+    await selectCue(page, label);
+    await page.getByTestId('verb-take').click();
+    await expect(cue(page, label)).toContainText('ON AIR');
+  };
+  await take('Hairline');
+  await take('Hairline copy');
+  await expect(cue(page, 'Hairline')).toContainText('ON AIR');
+  await page.getByTestId('verb-out').click();
+  await expect(cue(page, 'Hairline copy')).not.toContainText('ON AIR');
+  await expect(cue(page, 'Hairline')).toContainText('ON AIR');
+
+  // All out clears the hand-taken cue only: on stays on, out stays out (C9).
+  await take('Hand');
+  await page.getByTestId('verb-out-all').click();
+  await expect(cue(page, 'Hand')).not.toContainText('ON AIR');
+  await expect(cue(page, 'Hairline')).toContainText('ON AIR');
+  await expect(cue(page, 'Hairline copy')).not.toContainText('ON AIR');
+  await expect(cue(page, 'Score')).not.toContainText('ON AIR');
+
+  // The copy publishes as the Desk's graphic, exports, and reads back the same after a reload (AC-3).
+  const shipped = () =>
+    page.evaluate(async (showId) => {
+      const { loadShows } = await import('/src/model/shows.ts');
+      const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
+      const { buildShowZip } = await import('/src/export/showExport.ts');
+      const show = loadShows().find((s) => s.id === showId)!;
+      const payload = await buildOutputPayload(show);
+      const zip = await buildShowZip(show);
+      return {
+        scenes: (payload.scenes ?? []).map((s) => `${s.name}: ${s.graphics.join(', ')}`),
+        built: payload.graphics.map((g) => g.key).includes('Hairline · Desk'),
+        exported: Object.keys(zip.files).filter((f) => f.includes('Desk')).length > 0,
+      };
+    }, id);
+  expect(await shipped()).toEqual({ scenes: ['Gameplay: Hairline', 'Desk: Score, Hairline · Desk'], built: true, exported: true });
+  await page.reload();
+  await expect(cue(page, 'Hairline copy')).toBeVisible();
+  expect(await record()).toEqual(copied);
 });
 
 test('a drag lands by the third of a row: into a folder, out of it, a folder as a whole - one write each', async ({ page }) => {
