@@ -5,9 +5,11 @@ Design: `../designs/G3.md`. Acceptance: AC-4. Everything here ran on the cloud w
 `e2e-s1@noacg.local` and its teammate), with migrations 0117 and 0118 applied on top of `main`.
 
 **AC-4 status.** The correctness half (every save reaches the outputs, no "Publish changes", the
-failure and reverse-order cases) passes. The timing half passes on the typical fixture and not on the
-large one under continuous editing: publishing a whole copy per save adds about 334 ms p95 there
-(see "Editing while publishing"). **Owner decision (b), recorded on #2361, 2026-11-13:** phase 6
+failure and reverse-order cases) passes. On the typical fixture, publishing adds no delay that can be
+measured: 10 interleaved pairs show no on minus off difference that can be told from zero (see "Repair:
+repeated pairs"). The single pair first reported here (+2 ms) was one draw from a wide spread. On the
+large fixture under continuous editing, publishing a whole copy per save adds about 334 ms p95 (see
+"Editing while publishing"). **Owner decision (b), recorded on #2361, 2026-11-13:** phase 6
 lands with the typical fixture passing; the large fixture is a recorded gap judged at the end of phase
 7 with D1 (phase 7 sends only what changed); automatic updates stay off in production until then.
 Nothing in this phase turns the `auto_publish` switch on.
@@ -149,7 +151,7 @@ and, with updates on, its own publish.
 
 | Loop | Fixture | Samples | On p50 / p95 (ms) | Off p50 / p95 (ms) | p95 difference |
 |---|---|---|---|---|---|
-| Cue text and values | Typical | 50 + 50 | 67 / 150 | 61 / 148 | +2: within AC-4 |
+| Cue text and values | Typical | 50 + 50 | 67 / 150 | 61 / 148 | +2 in this one pair; 10 pairs show the spread (see "Repair: repeated pairs") |
 | Cue text and values | Large | 50 + 50 | 101 / 1502 | 69 / 1168 | +334: recorded gap (owner decision b) |
 | Graphic added and removed (reported, not judged) | Typical | 25 + 25 | 66 / 182 | 69 / 661 | publishing is not the cost |
 | Design update: the last graphic's stylesheet changed (reported, not judged) | Typical | 25 + 25 | 64 / 172 | 68 / 781 | publishing is not the cost |
@@ -188,6 +190,46 @@ published": p95 206 and 195; 1 s off, where the debounce never fires: 112 and 41
 have 2 and 3 Takes of 25 over 500 ms, each landing on a save of the large record, and with 25
 samples the p95 is the second highest. Same build family, same machine, load average under 2: the
 drift is the per-save cost of the large record, not a regression.
+
+#### Repair: repeated pairs (check 6-c-3476)
+
+The independent check on the merge (7451fbba) ran the same loop as 4 interleaved pairs of 50 and
+read p95 439 ms on against 179 ms off, +260. Its per-pair differences were +363, +358, +30 and +15.
+The repair ran the same method on the same commit: production build with the harness hooks, local
+stack (127.0.0.1), test `autopublish`, `MEASURE_EDIT=cues`, typical fixture, unthrottled, one
+output. It ran 10 interleaved pairs, each pair on then off.
+
+| | Takes | p50 (ms) | p95 (ms) | p99 (ms) | Takes of 150 ms or more |
+|---|---|---|---|---|---|
+| Automatic updates on | 500 | 80 | 256 | 588 | 47 |
+| Automatic updates off | 500 | 75 | 431 | 537 | 48 |
+
+Single-run p95 ranged from 100 to 514 ms on both sides: on 122, 151, 184, 193, 202, 256, 445, 483,
+498, 514; off 100, 116, 118, 123, 221, 432, 449, 454, 468, 468. A run's p95 is its third-slowest
+Take of 50, and a run has 1 to 9 slow ones, so the p95 jumps between about 120 and 470 ms with the
+count. A bootstrap over the 10 pairs puts the on minus off p95 between -246 and +133 ms (5th and
+95th percentile). Both the first +2 and the check's +260 lie inside that spread. At this noise, AC-4's
+50 ms margin cannot be judged with a p95 difference. What the runs do show: p50 is 5 ms higher with
+updates on, and the count of slow Takes is the same.
+
+**What makes a Take slow, on both sides.** Temporary probes, not committed, recorded when each Take
+reached the output, each page request, each sync pass and its origin, and the page's long tasks
+(the browser's Long Tasks API). The probes found:
+
+- Every slow Take reaches the output late and runs at once. The Take's own send leaves the page 130 to
+  770 ms after the press, each time just after the page starts uploading a 2.2 MB save of the
+  production. Press to sent, as the harness times it, stays near 10 ms.
+- Every 3 s edit makes two sync passes, the second a re-run that starts as soon as the first ends
+  (46 of 92 passes, the same with updates on and off). This is the sync engine's queued re-run,
+  #2494, here on the typical fixture. Each pass holds the page's main thread for 110 to 190 ms. 10 of
+  the 14 slow Takes in the four probed runs overlap such a task, against 3 of the 186 fast ones.
+- The output's preparation of each new version (reading the copy in its worker, about 200 ms, and
+  the graphics' re-check, about 30 ms) never overlapped a slow Take.
+
+So the slow Takes come from the page's save, which runs whether automatic updates are on or off,
+and not from publishing. The sync engine is not changed here. #2494's fix, #2497, runs one pass per
+pause in editing instead of two per edit. The save's main-thread time is the page's own work that
+AC-1 judges.
 
 #### Republishing, nothing edited
 

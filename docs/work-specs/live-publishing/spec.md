@@ -478,8 +478,9 @@ Filled in by each phase's pull request.
   Publish changes, a 401 that outlives one session refresh is transient, and a page that may not
   publish reads red while a save waits. The configured walk runs with both switches on
   (`production_copies` and `auto_publish`), as production has them.
-- AC-4: the typical fixture passes; the large fixture under continuous editing does not (about +334 ms
-  p95, the output re-reading each whole copy). Owner decision (b), recorded on #2361, 2026-11-13: land
+- AC-4: on the typical fixture, publishing adds no measurable delay (10 interleaved pairs, see
+  Repair 1); the large fixture under continuous editing does not pass (about +334 ms p95, the output
+  re-reading each whole copy). Owner decision (b), recorded on #2361, 2026-11-13: land
   with the typical fixture passing, judge the large fixture at the end of phase 7 with D1, and keep
   automatic updates off in production until then. Separately, editing faster than one sync pass on a
   large production makes the sync engine re-run without pause (#2494, fixed before phase 8, not here).
@@ -489,3 +490,10 @@ Filled in by each phase's pull request.
   and `auto_publish_state()` reports `installed: true` on production (G3 section 8).
 - Traps: in the evidence, "Traps met".
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-6.md`.
+- Repair 1 (check 6-c-3476 on 7451fbba failed it, typical AC-4 timing +260 ms over 4 pairs): 10
+  interleaved pairs on the same commit read p95 256 ms on against 431 ms off, with the same count of
+  slow Takes (47 and 48). A bootstrap over pairs puts the difference between -246 and +133 ms, so the
+  first single pair's +2 and the check's +260 are both draws from one spread. Probes show the slow
+  Takes, on both sides, wait for the page's save: every edit makes two sync passes (#2494's queued
+  re-run, fixed in #2497), each holding the main thread 110 to 190 ms. No phase 6 code changed. The
+  evidence's +2 is replaced by the 10-pair table ("Repair: repeated pairs").
