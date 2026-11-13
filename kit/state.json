@@ -69,7 +69,7 @@
     {
       "phase": "E6C",
       "step": "Fresh Cloud export/receiving builder active",
-      "note": "First fit correction: Node4/4 and j0149 browser2/2 PASS, same18 feasible fonts0overflow plus2 floor cases,0retry/skip. Original j0148 baselineFAIL3/18 retained. Subsequent j0150 output probe3PASS/4FAIL retained; root read full logs: exact OGraf indentation and singlefile image-payload harness mistakes, plus byte-identical pre-E4 FIELDS instructions defect. One narrow harness/docs correction approved; all5 source/state preservation not yet established. No broader/build/manual carrier admitted. E4 exhausted attempts and STOP boundary preserved."
+      "note": "Node4/4 and realfont j0149 2/2 PASS; corrected output j0151 7/7 PASS0retry/skip across5 output/source-state preservation and6 package lifecycles. Original j0148baselineFAIL3/18,j0150probe3PASS4FAIL preserved; latter corrected with exactindent/validimagepayload and narrowpre-E4FIELDSnote fix. Final productcommit/review/gates/G07+local kit pending; no broader/build/manualcarrier admitted. E4 attempts/STOP boundary unchanged."
     }
   ],
   "owner": [
@@ -2984,7 +2984,7 @@
     "policy": "Actualcurrentenvconnected/running/current/enforced; originalownerbindingseparate.9ddnativebindinganddd7128rawnetworkcomponentunchanged/distinct; noCLIaliasinvented.",
     "ack": "Supervisorobserve-launchdelivered; rootfollowup_taskSTARTUPACKresumedSAMEoriginalnativeactorafterstartupfinalended, no secondspawn.",
     "latestProgress": {
-      "at": "2026-11-13T15:26:27.577793+00:00",
+      "at": "2026-11-13T15:30:36.548133+00:00",
       "j0147": "PRETESTFAILED <1s/no browser/productassertions: initialstaticlistfailedonread-onlyPlaywright/tmptransformcache; non-failfastmultilineshellaccidentallycontinuedtoaddsmalljob. Originalrecord/logretained; ownedtmp+failfaststaticvalidationresolvedbeforej0148. No broader/buildspent/reset.",
       "j0148": {
         "status": "FAILED_OLD_BASELINE_CONTAINMENT_3_OF_18; originalimmutable",
@@ -3035,7 +3035,22 @@
         "evidence": "Root independently read full log/source: OGraf emitter adds exactly2space lineindent; raw-block comparison lacks matching decode. Singlefile targets embed image dataURI/no images folder; probe wrongly sends folder path. SPX/OGraf/LiveOS lifecycle PASS. fieldReference.ts byteidentical745c and1178 SHA81e18d37e40992a572e65735cc4ce34e2a12f6c8094493b6df21df08dcb5dbf8.",
         "followup": "ONE coherent correction approved: exact documented OGraf indent decode only+labeled/persist-beforeassert outputs/source-state; valid singlefile text and embedded-image update with unchanged32px logo/strictfit/lifecycle asserts; narrow target-aware FIELDS image instruction+pure regression after rules. New failure report-before-edit, E4 effectSTOP."
       },
-      "catalogEmit": "PRELAUNCH EROFS /tmp/playwright-artifacts; no browser assertions. Actual helper launches browser despite cheap header. Any next invocation must own TMPDIR and use serialqueue; no unqueued retry."
+      "catalogEmit": "PRELAUNCH EROFS /tmp/playwright-artifacts; no browser assertions. Actual helper launches browser despite cheap header. Any next invocation must own TMPDIR and use serialqueue; no unqueued retry.",
+      "j0151": {
+        "result": "PASS7/7 45.2s 0retry/skip",
+        "evidence": "Root read complete actual joblog, all6 output-corrected receipts and outputs.json; viewed Caspar/OGraf In PNGs. Exact5 output currenttrue/oldfalse, input/state preserved, combined andBridge ZIPsha296ce5a2f1c556633175a0dc9419aab996c897c168aae779633e8d92c6acfbc7 equal, wholeproductionSPXsha0c5b8c7e42549153cc5dd1c60d57d486869eb962145e96b8f4427f9b05687027.",
+        "targets": [
+          "SPX",
+          "HTMLoverlay",
+          "H2R",
+          "CasparCG",
+          "OGraf",
+          "LiveOS"
+        ],
+        "measurement": "Oswald name1041.09375/1043px font27.4455px,logo32px all6,errors/missingempty. In/Next/Out/interruption/replay.",
+        "scope": "WORKINGDIFF; standalonebrowser/NoaCGcontainedhost, not namedrealreceiver/officialrenderer acceptance. Casparwhitecanvas/OGrafdarkhost composition backgrounds differ; no pixelparityclaim. Originalj150separateimmutablefailedoutputdir retained.",
+        "remaining": "Final productcommit/review/gates, technicalG07consolidatedkit/currentbundle due; no broader/build/manualcarrier admitted."
+      }
     }
   }
 }
