@@ -43,15 +43,17 @@
   "inFlight": [
     {
       "phase": "OS5b",
-      "step": "queued",
-      "actor": "builder-os5b-os5b-b-4201",
-      "session": "session_017SdbwLfFjQ7J6hawcwSs7M",
+      "step": "check",
+      "actor": "checker-os5b-6031",
+      "session": "session_017SdbwLe14wgXHEJiYFda6j",
       "branch": "claude/plan-obs-scenes-os5b-build",
-      "launchedAt": "2026-11-12T21:46:34Z",
-      "note": "sent brief = saved brief plus one NOTES line (use OS5a's project hook; works with page reads while 0116 is held)",
-      "lastSeen": "2026-11-13T00:21Z in the merge queue, merge-group CI 43335291280 running",
+      "launchedAt": "2026-11-13T00:27:00Z",
+      "note": "sent brief = saved brief plus one NOTES line (B17 to B22 extension, private sample passed, two open test nits)",
+      "lastSeen": "2026-11-13T00:26Z merged as c92910f; checker launched",
       "pr": 2472,
-      "reviewedHead": "50b5ac478ac661a2a9a2e3a45590c2265a6625a8"
+      "reviewedHead": "50b5ac478ac661a2a9a2e3a45590c2265a6625a8",
+      "builderSession": "session_017SdbwLfFjQ7J6hawcwSs7M",
+      "mergeSha": "c92910f4df3b4e958d54dc2d6e690651fb4b4389"
     }
   ],
   "owner": [
