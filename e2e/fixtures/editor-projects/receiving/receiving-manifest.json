@@ -1,0 +1,218 @@
+{
+  "sourceCanonicalSha256": "5e9713510286e1e0d0b9d4b876dcc8a35297f1d90be4216728b7125b93f488fc",
+  "sourceFileSha256": "c40d6ba5a895b5044b86bf61b07b7f2a3e1c16b2a932a87dd3974c0cd99f096b",
+  "fixture": {
+    "v": 1,
+    "provenance": "NoaCG-authored test artwork and text; shipped catalog registry and bundled OFL font. No third-party reference-editor code or artwork.",
+    "variants": [
+      "lt01",
+      "card26",
+      "bug04"
+    ],
+    "fontId": "oswald",
+    "logo": "harbour.svg",
+    "name": "E4 Receiving Steps",
+    "heading": "Harbour bulletin",
+    "operatorHeading": "Live harbour update",
+    "accent": "#16bb99",
+    "expected": {
+      "resolution": [
+        1920,
+        1080
+      ],
+      "fps": 25,
+      "inPress": 1,
+      "nextPress": 2,
+      "outState": "off",
+      "replayPress": 1,
+      "logoNaturalWidth": 32,
+      "targets": [
+        "spx",
+        "casparcg",
+        "ograf",
+        "html-overlay"
+      ]
+    }
+  },
+  "operator": {
+    "data": "Live harbour update",
+    "states": [
+      1,
+      2,
+      "off",
+      1
+    ],
+    "entrances": 2
+  },
+  "packages": [
+    {
+      "target": "spx",
+      "bytes": 395953,
+      "sha256": "9580a8e2424b01be0f712ad54e5d4879dc8c78459a08de6a94300118865b7b19",
+      "files": [
+        "e4_receiving_steps/FIELDS.md",
+        "e4_receiving_steps/GETTING-ON-AIR.md",
+        "e4_receiving_steps/README.md",
+        "e4_receiving_steps/controlpanel.shtml",
+        "e4_receiving_steps/css/template.css",
+        "e4_receiving_steps/e4_receiving_steps.html",
+        "e4_receiving_steps/fonts/FONT_LICENSES.md",
+        "e4_receiving_steps/fonts/oswald-latin-ext.woff2",
+        "e4_receiving_steps/fonts/oswald.woff2",
+        "e4_receiving_steps/fonts/saira-latin-ext.woff2",
+        "e4_receiving_steps/fonts/saira.woff2",
+        "e4_receiving_steps/images/harbour.svg",
+        "e4_receiving_steps/js/flex-gap-shim.js",
+        "e4_receiving_steps/js/gsap.min.js",
+        "e4_receiving_steps/js/template.js"
+      ],
+      "runtime": {
+        "optionalRelay": "404; standalone static server",
+        "data": "Harbour bulletin",
+        "states": [
+          1,
+          2,
+          "off",
+          1
+        ],
+        "assets": {
+          "font": "Oswald, \"Arial Narrow\", Arial, sans-serif",
+          "logo": 32,
+          "rect": {
+            "x": 153,
+            "y": 483.5,
+            "width": 216.203125,
+            "height": 25
+          }
+        },
+        "missing": [],
+        "painted": {
+          "count": 4400,
+          "box": {
+            "minX": 120,
+            "minY": 372,
+            "maxX": 216,
+            "maxY": 707,
+            "width": 97,
+            "height": 336
+          }
+        }
+      }
+    },
+    {
+      "target": "html-overlay",
+      "bytes": 460006,
+      "sha256": "ac406670964633ab98e043743023009b336875e55f72dc8bc3858d1e0d8cf383",
+      "files": [
+        "e4_receiving_steps/FIELDS.md",
+        "e4_receiving_steps/GETTING-ON-AIR.md",
+        "e4_receiving_steps/README.md",
+        "e4_receiving_steps/Start controller.cmd",
+        "e4_receiving_steps/controlpanel.html",
+        "e4_receiving_steps/e4_receiving_steps.html",
+        "e4_receiving_steps/payload.json",
+        "e4_receiving_steps/relay.ps1",
+        "e4_receiving_steps/relay.py",
+        "e4_receiving_steps/start-controller.command",
+        "e4_receiving_steps/start-controller.sh"
+      ],
+      "runtime": {
+        "optionalRelay": "404; standalone static server",
+        "data": "Harbour bulletin",
+        "states": [
+          1,
+          2,
+          "off",
+          1
+        ],
+        "assets": {
+          "font": "Oswald, \"Arial Narrow\", Arial, sans-serif",
+          "logo": 32,
+          "rect": {
+            "x": 153,
+            "y": 483.5,
+            "width": 216.203125,
+            "height": 25
+          }
+        },
+        "missing": [],
+        "painted": {
+          "count": 4400,
+          "box": {
+            "minX": 120,
+            "minY": 372,
+            "maxX": 216,
+            "maxY": 707,
+            "width": 97,
+            "height": 336
+          }
+        }
+      }
+    },
+    {
+      "target": "casparcg",
+      "bytes": 427628,
+      "sha256": "d4d4e8f6f6e3e26b9e06b2c891f378e6175ab89b7f7af897fcc2a6fdacf2f461",
+      "files": [
+        "e4_receiving_steps/FIELDS.md",
+        "e4_receiving_steps/GETTING-ON-AIR.md",
+        "e4_receiving_steps/README.md",
+        "e4_receiving_steps/controlpanel.html",
+        "e4_receiving_steps/e4_receiving_steps.html"
+      ],
+      "runtime": {
+        "optionalRelay": "404; standalone static server",
+        "data": "Harbour bulletin",
+        "states": [
+          1,
+          2,
+          "off",
+          1
+        ],
+        "assets": {
+          "font": "Oswald, \"Arial Narrow\", Arial, sans-serif",
+          "logo": 32,
+          "rect": {
+            "x": 153,
+            "y": 483.5,
+            "width": 216.203125,
+            "height": 25
+          }
+        },
+        "missing": [],
+        "painted": {
+          "count": 4400,
+          "box": {
+            "minX": 120,
+            "minY": 372,
+            "maxX": 216,
+            "maxY": 707,
+            "width": 97,
+            "height": 336
+          }
+        }
+      }
+    },
+    {
+      "target": "ograf",
+      "bytes": 516677,
+      "sha256": "52b7610620979cc9981f634f3e4b0e22e259b7e6a93c005c94e5b1c0ec5173f7",
+      "files": [
+        "e4_receiving_steps/FIELDS.md",
+        "e4_receiving_steps/README.md",
+        "e4_receiving_steps/e4_receiving_steps.ograf.json",
+        "e4_receiving_steps/fonts/FONT_LICENSES.md",
+        "e4_receiving_steps/fonts/oswald-latin-ext.woff2",
+        "e4_receiving_steps/fonts/oswald.woff2",
+        "e4_receiving_steps/fonts/saira-latin-ext.woff2",
+        "e4_receiving_steps/fonts/saira.woff2",
+        "e4_receiving_steps/graphic.mjs",
+        "e4_receiving_steps/images/harbour.svg",
+        "e4_receiving_steps/lib/flex-gap-shim.js",
+        "e4_receiving_steps/lib/gsap.min.js"
+      ],
+      "runtime": null
+    }
+  ],
+  "browserOnly": true
+}

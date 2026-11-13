@@ -7,20 +7,10 @@
       "count": 2,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43128537544/job/130892801524"
     },
-    "e2e/configured/operator-outage-not-unpublished.spec.ts": {
-      "since": "2026-11-11",
-      "count": 2,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/42945843116"
-    },
     "e2e/configured/per-graphic-replacement.spec.ts": {
       "since": "2026-11-12",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43257726630"
-    },
-    "e2e/publish-output-setup.spec.ts": {
-      "since": "2026-11-11",
-      "count": 3,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43062390990"
     }
   },
   "released": {
@@ -67,6 +57,10 @@
     "e2e/configured/late-send-abandoned.spec.ts": {
       "count": 16,
       "last": "2026-11-03"
+    },
+    "e2e/configured/operator-outage-not-unpublished.spec.ts": {
+      "count": 2,
+      "last": "2026-11-13"
     },
     "e2e/configured/playout-both-roads.spec.ts": {
       "count": 1,
@@ -203,6 +197,10 @@
     "e2e/production-data.spec.ts": {
       "count": 2,
       "last": "2026-11-04"
+    },
+    "e2e/publish-output-setup.spec.ts": {
+      "count": 3,
+      "last": "2026-11-13"
     },
     "e2e/rundown-history.spec.ts": {
       "count": 3,
