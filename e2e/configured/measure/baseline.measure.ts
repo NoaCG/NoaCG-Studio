@@ -869,8 +869,10 @@ test('w3', async ({ page, browser }) => {
 // MEASURE_LOOP=1 the page publishes its saved revision again and again, whole (a session flag only
 // this harness sets), so every output reads the published copy each time; without it, nothing is
 // published. "Ran" is the output's graphic running the Take: its play() call, on the one time origin.
-// MEASURE_EDIT=cues|add|design makes the page edit the production every 3 s (the last cue's text and
-// values, or a graphic added and removed); MEASURE_AUTO=0 runs that with automatic updates off.
+// MEASURE_EDIT=cues|add|design makes the page edit the production every MEASURE_EDIT_MS (default
+// 5000: a publish follows a sync pass that ends synced, so AC-4 is judged at a pace where each pass
+// ends before the next edit, owner 2026-11-13) (the last cue's text and values, or a graphic added
+// and removed); MEASURE_AUTO=0 runs that with automatic updates off.
 test('autopublish', async ({ page, browser }) => {
   // The switch is a service-role write: only ever against a local stack.
   if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(SUPABASE_URL)) throw new Error('autopublish writes a switch: run it only against a local stack');
@@ -895,6 +897,7 @@ test('autopublish', async ({ page, browser }) => {
   try {
     await page.evaluate((on) => (on ? sessionStorage.setItem('noacg-measure-publish-loop', '1') : sessionStorage.removeItem('noacg-measure-publish-loop')), loop);
     await page.evaluate((mode) => (mode ? sessionStorage.setItem('noacg-measure-edit-loop', mode) : sessionStorage.removeItem('noacg-measure-edit-loop')), editMode);
+    await page.evaluate((ms) => sessionStorage.setItem('noacg-measure-edit-ms', String(ms)), Number(process.env.MEASURE_EDIT_MS ?? 5000));
     /** The output version, the record's saved revision and the published one, on the server. */
     const stateOf = async () => {
       const read = async (path: string) => ((await (await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}` } })).json()) as Record<string, number | null>[])[0] ?? {};
@@ -951,6 +954,7 @@ test('autopublish', async ({ page, browser }) => {
     const versionsPublished = stateAfter.n - stateBefore.n;
     report(`autopublish-${editMode ? `edit-${editMode}-${autoOn ? 'on' : 'off'}` : loop ? 'loop' : 'none'}`, { take: sentRows }, {
       edits,
+      editMs: Number(process.env.MEASURE_EDIT_MS ?? 5000),
       versionsPublished,
       server: { before: stateBefore, after: stateAfter },
       requests: editMode ? requests : undefined,
@@ -964,7 +968,7 @@ test('autopublish', async ({ page, browser }) => {
       publishes: { n: windows.length, ms: summary(windows.map(([a, b]) => b - a)), longestStepMs: summary(windows.map((x) => x[3])), longestStepMaxMs: Math.max(0, ...windows.map((x) => x[3])), kinds: [...new Set(windows.map((x) => x[2]))] },
     });
   } finally {
-    await page.evaluate(() => { sessionStorage.removeItem('noacg-measure-publish-loop'); sessionStorage.removeItem('noacg-measure-edit-loop'); }).catch(() => undefined);
+    await page.evaluate(() => { sessionStorage.removeItem('noacg-measure-publish-loop'); sessionStorage.removeItem('noacg-measure-edit-loop'); sessionStorage.removeItem('noacg-measure-edit-ms'); }).catch(() => undefined);
     await setAuto(false).catch(() => undefined);
   }
 });
