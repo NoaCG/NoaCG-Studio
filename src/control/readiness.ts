@@ -26,6 +26,7 @@
 // loads it in CasparCG 2.3's Chromium 71 (no `Array.prototype.at`, no `Object.fromEntries`).
 
 import type { LiveEntry, OutputHealth } from './livePath';
+import { readRun, type RunReport } from './runReport.ts';
 
 // ── THE OUTPUT'S OWN ANSWER ──────────────────────────────────────────────────────────────────
 
@@ -37,8 +38,10 @@ export interface ReadyIssue {
    * `font`: a typeface fell back (`d` is the typeface).
    * `image`: an image did not load (`d` is its file).
    * `sync`: the output is still reading commands it missed.
+   * `scene`: a scene link whose scene the payload does not know (`d` is the id; obs-scenes OS1a
+   *  R8). It builds nothing, so it is not ready, never green.
    */
-  k: 'script' | 'silent' | 'font' | 'image' | 'sync' | 'audio';
+  k: 'script' | 'silent' | 'font' | 'image' | 'sync' | 'audio' | 'scene';
   /** The graphic, when the issue is one graphic's. */
   g?: string;
   d?: string;
@@ -74,6 +77,9 @@ export interface ChangePrep {
   /** The Prepare for Live request this answers (prepareLive.ts `PrepRequest.id`), so a run never
    *  takes the last run's answer for its own. */
   id?: string;
+  /** For `preparing`: the graphics whose change is still being built, or waiting to be
+   *  (live-publishing G2 section 5), at most MAX_ISSUES. */
+  b?: string[];
 }
 
 /** What an output says about itself: its Presence entry's `ready`. */
@@ -87,6 +93,11 @@ export interface OutputReady {
   /** What fails, most important first, at most MAX_ISSUES. */
   is: ReadyIssue[];
   chg?: ChangePrep;
+  /** What it has run (live-publishing G2 section 1). Absent from an output built before it, or one
+   *  following the old log by row id (protocol 1). */
+  run?: RunReport;
+  /** Graphics it showed late without their entrance in the last minute, and how late (S4). */
+  lt?: { g: string; ms: number }[];
 }
 
 /** Issues an entry carries: every graphic that failed is worth naming, a screenful is not. */
@@ -141,6 +152,8 @@ export function outputReadiness(input: {
   /** The follower is still reading commands it missed (R8). */
   catchingUp?: boolean;
   chg?: ChangePrep;
+  /** A scene link's scene the payload does not know (obs-scenes OS1a R8), or undefined. */
+  unknownScene?: string;
 }): OutputReady {
   const scripts: ReadyIssue[] = [];
   const audio: ReadyIssue[] = [], sounds = { n: 0, of: 0, bytes: 0 };
@@ -175,7 +188,8 @@ export function outputReadiness(input: {
     });
   }
   const sync: ReadyIssue[] = input.catchingUp ? [{ k: 'sync' }] : [];
-  const is = scripts.concat(audio, quiet, fonts, images, sync).slice(0, MAX_ISSUES);
+  const scene: ReadyIssue[] = input.unknownScene !== undefined ? [{ k: 'scene', g: 'Scene link', d: input.unknownScene.slice(0, 80) }] : [];
+  const is = scene.concat(scripts,audio, quiet, fonts, images, sync).slice(0, MAX_ISSUES);
   return { n: done, of: input.graphics.length, v: input.version, is, ...(sounds.of ? { sounds } : {}), ...(input.chg ? { chg: input.chg } : {}) };
 }
 
@@ -193,6 +207,10 @@ export function readOutputReady(value: unknown): OutputReady | undefined {
     is: readIssues(r.is),
     ...(r.sounds && [r.sounds.n,r.sounds.of,r.sounds.bytes].every(n=>Number.isInteger(n) && n >= 0) && r.sounds.n <= r.sounds.of ? { sounds: r.sounds } : {}),
     ...(chg ? { chg } : {}),
+    ...(readRun((r as { run?: unknown }).run) ? { run: readRun((r as { run?: unknown }).run)! } : {}),
+    ...(Array.isArray((r as { lt?: unknown }).lt)
+      ? { lt: ((r as { lt: unknown[] }).lt).filter((x): x is { g: string; ms: number } => !!x && typeof (x as { g?: unknown }).g === 'string' && typeof (x as { ms?: unknown }).ms === 'number').slice(0, 6).map((x) => ({ g: x.g.slice(0, 80), ms: x.ms })) }
+      : {}),
   };
 }
 
@@ -204,7 +222,7 @@ export function readHeld(value: unknown): HeldVersion | null {
 
 function readIssues(value: unknown): ReadyIssue[] {
   if (!Array.isArray(value)) return [];
-  const kinds = ['script', 'silent', 'font', 'image', 'sync', 'audio'];
+  const kinds = ['script', 'silent', 'font', 'image', 'sync', 'audio', 'scene'];
   const out: ReadyIssue[] = [];
   for (const item of value.slice(0, MAX_ISSUES)) {
     const i = item as Partial<ReadyIssue> | null;
@@ -243,12 +261,16 @@ function readChange(value: unknown): ChangePrep | undefined {
     ...(c.why === 'unreachable' ? { why: c.why } : {}),
     ...(Array.isArray(c.w) ? { w: c.w.filter((g): g is string => typeof g === 'string').slice(0, MAX_ISSUES).map((g) => g.slice(0, 80)) } : {}),
     ...(typeof c.id === 'string' ? { id: c.id.slice(0, 40) } : {}),
+    ...(Array.isArray(c.b) ? { b: c.b.filter((g): g is string => typeof g === 'string').slice(0, MAX_ISSUES).map((g) => g.slice(0, 80)) } : {}),
   };
 }
 
 // ── THE WORDS FOR ONE ISSUE ──────────────────────────────────────────────────────────────────
 
 export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+/** An issue that keeps its output from playing: named, amber, never green. */
+const isBroken = (i: ReadyIssue): boolean => i.k === 'script' || i.k === 'silent' || i.k === 'audio' || i.k === 'scene';
 
 /** "(script error)", the reason a graphic did not prepare, as the plan words it. */
 function reasonOf(issue: ReadyIssue): string {
@@ -257,6 +279,7 @@ function reasonOf(issue: ReadyIssue): string {
   if (issue.k === 'silent') return 'did not answer';
   if (issue.k === 'image') return 'image not loaded';
   if (issue.k === 'font') return 'font not loaded';
+  if (issue.k === 'scene') return 'no such OBS scene';
   return 'not prepared';
 }
 
@@ -275,6 +298,9 @@ function adviceOf(issue: ReadyIssue): string {
   if (issue.k === 'audio') return `${issue.g ?? 'A graphic'}: ${issue.d ?? 'Sound is not prepared'}. Check Sounds and the receiving browser audio, then Prepare again. Visual commands remain available.`;
   if (issue.k === 'script') {
     return `${issue.g ?? 'A graphic'} threw an error while loading${issue.d ? `: ${issue.d}` : ''}. It will not play on this output. Fix it in the editor and publish again.`;
+  }
+  if (issue.k === 'scene') {
+    return `This link names no OBS scene of the production${issue.d ? ` (${issue.d})` : ''}, so it shows nothing. Copy the scene's link again from its folder's menu, with OBS scenes on.`;
   }
   return `${issue.g ?? 'A graphic'} did not answer its check. Reload this output.`;
 }
@@ -313,7 +339,7 @@ function degradedLines(issues: readonly ReadyIssue[]): { line: string; advice: s
 export function outputStateWords(ready: OutputReady): string {
   const version = ready.v ? ` (v${ready.v.n})` : '';
   if (ready.n < ready.of) return `Preparing ${ready.n} of ${ready.of}${version}`;
-  const broken = ready.is.filter((i) => i.k === 'script' || i.k === 'silent' || i.k === 'audio');
+  const broken = ready.is.filter((i) => isBroken(i));
   if (broken.length > 0) return `Not ready: ${broken.map((i) => `${i.g ?? 'a graphic'} (${reasonOf(i)})`).join(', ')}${version}`;
   const degraded = degradedLines(ready.is).map((d) => d.line);
   return `${degraded.length > 0 ? degraded.join('; ') : 'Ready for playout'}${version}`;
@@ -514,6 +540,8 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
     };
   }
   detail.push(`${ready.v ? `Holds v${ready.v.n} · ` : ''}${engine}.`);
+  // S4, after the fact: a Take that waited past 5 s appeared without its entrance (G2 section 6).
+  for (const late of ready.lt ?? []) detail.unshift(`${late.g} appeared without its entrance (loaded after ${Math.round(late.ms / 1000)} s).`);
   if (ready.sounds) detail.push(`Sounds prepared: ${ready.sounds.n} of ${ready.sounds.of} · ${(ready.sounds.bytes / 1048576).toFixed(1)} MiB decoded.${ready.sounds.bytes > 134217728 ? ' Large audio load. Reduce sound lengths or the number of assets before rehearsal.' : ''}`);
   const warn = (state: string, extra: string[] = []): OutputLine => ({ ...base, tone: 'warn', state, detail: extra.concat(detail) });
 
@@ -525,7 +553,7 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
   // the others follow it in the panel ("Also: ..."), each with what to do.
   const problems: { line: string; advice: string[]; short?: string }[] = [];
   // A graphic that cannot play: named, amber, never green.
-  const broken = ready.is.filter((i) => i.k === 'script' || i.k === 'silent' || i.k === 'audio');
+  const broken = ready.is.filter((i) => isBroken(i));
   let brokenShort: string | undefined;
   if (broken.length > 0) {
     const first = broken[0];
@@ -552,13 +580,20 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
   }
   // A change of the published version waits because its graphic is on air here (G1): named, and
   // only while it waits.
-  const waitingFor = pubChg && pubChg.w && pubChg.w.length > 0 && published ? pubChg.w : null;
-  if (waitingFor && published) {
-    const line = `Waiting for clear: ${graphicNames(waitingFor)}`;
+  // O3 (live-publishing G2 section 5): prepared and on air here, it takes its new design at its next
+  // Take, and that is green. Only the graphics listed in `w` of a `waiting` report: a whole-page
+  // reload waiting for air (no `w`) keeps its amber words below.
+  const waitingFor = pubChg && pubChg.s === 'waiting' && pubChg.w && pubChg.w.length > 0 && published ? pubChg.w : null;
+  const nextTake = waitingFor ? `${graphicNames(waitingFor)}: new design at next Take` : null;
+  // A change still being built reads amber "Updating outputs" (O2), naming what is still loading.
+  if (pubChg && pubChg.s === 'preparing' && published) {
+    const building = pubChg.b && pubChg.b.length > 0 ? pubChg.b : [];
     problems.push({
-      line,
-      short: line,
-      advice: [`${listWords(waitingFor)} ${waitingFor.length === 1 ? 'takes' : 'take'} v${published.n} after ${waitingFor.length === 1 ? 'its' : 'their'} Out or next Take.`],
+      line: building.length > 0 ? `Updating outputs: ${graphicNames(building)} loading` : 'Updating outputs',
+      short: 'Updating outputs',
+      advice: [
+        `Preparing v${published.n}: ${pubChg.n} of ${pubChg.of} done.${building.length > 0 ? ` ${listWords(building)} ${building.length === 1 ? 'plays its' : 'play their'} previous design if taken before ${building.length === 1 ? 'it loads' : 'they load'}.` : ''}`,
+      ],
     });
   }
   // Degraded: reachable, but a guarantee fails.
@@ -588,7 +623,7 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
     const unreachable = waits?.why === 'unreachable';
     degraded.push({
       line: ready.v ? `Behind: showing v${ready.v.n}` : 'Behind: showing an older version',
-      short: unreachable ? 'Page not reachable' : 'Waiting for clear',
+      short: unreachable ? 'Page not reachable' : waits ? 'Waiting for clear' : 'Updating outputs',
       advice: unreachable
         ? `v${published.n} is prepared, but this output could not reach its own page to reload onto it. It retries automatically. Check this playout computer's network.`
         : waits
@@ -597,14 +632,17 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
     });
   }
   for (const d of degraded) problems.push({ line: d.line, short: d.short, advice: [d.advice] });
+  // A prepared design waiting on air beside a problem is said after it, never as one.
+  const waitsToo = pubChg && pubChg.w && pubChg.w.length > 0 && published ? `${graphicNames(pubChg.w)}: new design at next Take` : null;
   if (problems.length > 0) {
     // What to do first, then what else is wrong, then who it is.
-    const also = problems.length > 1 ? [`Also: ${problems.slice(1).map((p) => p.line).join('; ')}.`] : [];
+    const others = problems.slice(1).map((p) => p.line).concat(waitsToo ? [waitsToo] : []);
+    const also = others.length > 0 ? [`Also: ${others.join('; ')}.`] : [];
     const line = warn(problems[0].line, problems[0].advice.concat(also, ...problems.slice(1).map((p) => p.advice)));
     return { ...line, ...(brokenShort ? { broken: brokenShort } : {}), ...(problems[0].short ? { short: problems[0].short } : {}) };
   }
-  if (preparingPublished && pubChg) {
-    return { ...base, tone: 'ok', state: `Ready · ${plural(pubChg.of, 'change')} preparing`, detail: [`Preparing v${pubChg.v.n}: ${pubChg.n} of ${pubChg.of} done.`].concat(detail) };
+  if (nextTake && published && waitingFor) {
+    return { ...base, tone: 'ok', state: nextTake, detail: [`${listWords(waitingFor)} ${waitingFor.length === 1 ? 'takes' : 'take'} v${published.n} at ${waitingFor.length === 1 ? 'its' : 'their'} next Take.`].concat(detail) };
   }
   return { ...base, tone: 'ok', state: 'Ready for playout', detail };
 }
@@ -726,7 +764,7 @@ export function describeReadiness(input: {
   }
   const idle = lines.filter((l) => l.tone === 'idle');
   if (idle.length > 0) return summary('idle', headline(idle[0]), `${readyCount}/${total} ready`);
-  const changing = lines.find((l) => l.state.indexOf('preparing') >= 0);
+  const changing = lines.find((l) => l.state.indexOf('new design at next Take') >= 0);
   if (changing) return summary('ok', changing.state, `Ready ${readyCount}/${total}`);
   const stamp = input.stamp;
   if (stamp && published && stamp.v.h === published.h && stamp.problems === 0 && stamp.warnings === 0) {

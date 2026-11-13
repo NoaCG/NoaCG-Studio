@@ -72,6 +72,39 @@ export async function dismissWizard(page: Page): Promise<void> {
   await expect(modal).toBeHidden();
 }
 
+export interface ProductionPageOptions {
+  /** Runs on the new page before it opens the production: routes, init scripts, request counters. */
+  prepare?: (page: Page) => Promise<void>;
+  /** Wait until the page shows the production published (`data-started`); default true. */
+  started?: boolean;
+}
+
+/** A production page in the given page's own browser: a new tab on `#/production/<id>`. */
+export async function openProductionTab(page: Page, showId: string, { prepare, started = true }: ProductionPageOptions = {}): Promise<Page> {
+  const tab = await page.context().newPage();
+  await prepare?.(tab);
+  await tab.goto(`/app#/production/${encodeURIComponent(showId)}`);
+  await expect(tab.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
+  if (started) await expect(tab.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 60_000 });
+  return tab;
+}
+
+/** A second operator on the same production, as a second device: a browser of its own with no
+ *  local copy of anything, signed in to the same account, opening `#/production/<id>`. The "other
+ *  screen" of a multi-operator walk (docs/work-specs/retire-hosted-control/spec.md C5). Closing
+ *  the page closes its browser. */
+export async function openSecondProductionPage(page: Page, showId: string, options: ProductionPageOptions = {}): Promise<Page> {
+  const browser = page.context().browser();
+  if (!browser) throw new Error('openSecondProductionPage needs a page from a launched browser');
+  const device = await browser.newContext();
+  const home = await device.newPage();
+  await signIn(home);
+  const second = await openProductionTab(home, showId, options);
+  await home.close();
+  second.on('close', () => void device.close().catch(() => undefined));
+  return second;
+}
+
 /** Sign in with email + password via Home's topbar dialog (Era 5.6, no wall; fresh Playwright
  *  contexts have no persisted session). Leaves the wizard OPEN afterwards, the same state a
  *  fresh load presents, so createGraphicInEditor can run directly. There is no Advanced mode to switch on
@@ -177,9 +210,8 @@ export async function wipeMyGraphics(page: Page): Promise<void> {
  * (migration 0040), so a walk that publishes has to unpublish before it exits and before it
  * starts.
  *
- * It lives here because three configured specs need it and each had grown its own copy. The two
- * older copies (`playout-both-roads`, `hosted-control-recovery`) are identical and should collapse
- * onto this one the next time either file is touched for a reason of its own.
+ * It lives here because several configured specs need it and each had grown its own copy. The
+ * older copy in `playout-both-roads` is identical and should collapse onto this one the next time either file is touched for a reason of its own.
  */
 export async function clearPublishedShows(page: Page): Promise<void> {
   await page.evaluate(async () => {

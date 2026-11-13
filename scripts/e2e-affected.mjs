@@ -321,7 +321,7 @@ const NESTED_GITATTRIBUTES = /\/\.gitattributes$/;
 // site build loads and whose spec headers say so. IGNORE runs before the header lookup, so a path
 // missing here leaves its `covers:` line dead and its edits plan `mode: none`; the test "every
 // docs or scripts file a spec header names plans that spec" fails when that happens. Each one:
-//   - svg-samples/ and tutorials/svg-examples/: the practice SVGs the import specs and the
+//   - svg-samples/, tutorials/svg-examples/ and tutorials/svg-templates/: the practice SVGs the import specs and the
 //     downloads pack load (the latter's README ships in the pack, so it counts too).
 //   - whats-new/ and GOALS.md: Vite builds the landing's What's new section, /whats-new and
 //     /roadmap from the notes, roadmap.md and GOALS.md (scripts/whats-new.mjs, scripts/roadmap.mjs).
@@ -329,8 +329,8 @@ const NESTED_GITATTRIBUTES = /\/\.gitattributes$/;
 //     a content edit turned main red in #1198 with no E2E on its PR. The whats-new README is the
 //     writers' guide; the build skips it.
 //   - research/editor-r1-1d/baseline/: the recorded wizard baseline editor-fidelity-trim reads.
-const DOCS_LOADED = String.raw`svg-samples\/|tutorials\/svg-examples\/|whats-new\/|GOALS\.md$|research\/editor-r1-1d\/baseline\/`;
-const MD_LOADED = String.raw`docs\/tutorials\/svg-examples\/.*\.md$|docs\/whats-new\/(?!README\.md$)|docs\/GOALS\.md$`;
+const DOCS_LOADED = String.raw`svg-samples\/|tutorials\/svg-(examples|templates)\/|whats-new\/|GOALS\.md$|research\/editor-r1-1d\/baseline\/`;
+const MD_LOADED = String.raw`docs\/tutorials\/svg-(examples|templates)\/.*\.md$|docs\/whats-new\/(?!README\.md$)|docs\/GOALS\.md$`;
 // `contracts/` is the rule store and its retired list: read by the build gates, never by the product.
 const IGNORE = [new RegExp(`^docs/(?!${DOCS_LOADED})`), new RegExp(`^(?!${MD_LOADED}).*\\.md$`), /^scripts\/[^/]*\.test\.mjs$/, /^e2e\/quarantine\.json$/, /^scripts\/e2e-traced\.json$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^contracts\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//, /^\.(claude|codex|agents|agent-workflows)\//, /^\.env\.example$/, NESTED_GITATTRIBUTES];
 

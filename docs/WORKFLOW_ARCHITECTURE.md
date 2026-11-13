@@ -38,7 +38,7 @@ has the format.
 **Compiled, never hand-edited.** `npm run contracts:compile` (`scripts/compile-contracts.mjs`)
 writes:
 
-- the root `AGENTS.md`: only the `**`-scoped rules, which every session loads, capped at 3 KB
+- the root `AGENTS.md`: only the `**`-scoped rules, which every session loads, capped at 3,480 bytes
   (`KERNEL_MAX_BYTES` in `scripts/contracts-lib.mjs`), so adding a rule there retires another;
 - a folder `AGENTS.md` in each directory the compiler owns, which is any directory whose
   `AGENTS.md` carries the generated marker (for example `src/`, `src/components/`,
@@ -174,6 +174,7 @@ Each tier answers a different question. All of them live in `.github/workflows/`
 | Every push to `main` | `post-land.yml`, `quarantine.yml`, `configured-suite.yml` | migrations for production and staging, then the Supabase advisors; each quarantined spec in its own job, reported as a commit status; the suite that needs a real backend, against a local Supabase stack |
 | Production deployments, and four times a day | `deploy-verify.yml` | that the deployed commit is the one live, and that the site answers |
 | Scheduled | `nightly.yml`, `catalog-gates.yml`, `nightly-drift.yml`, `weekly-audit.yml` and others | the full sweep and the catalog-wide gates; the catalog battery; a watch that those schedules actually ran; the weekly dependency and freshness audit |
+| On demand | `landing-hold.yml` | sets or lifts the landing hold, which fails every pull request's and merge group's `CI gate` while on (`docs/LANDING_HOLD.md`) |
 | On demand, for a branch | `rerecord-screenshots.yml` | one screenshot spec run with `--update-snapshots` on a runner, its `*-linux.png` baselines uploaded for the branch to take in (`gh workflow run rerecord-screenshots.yml --ref <branch>`) |
 
 The E2E plan fails toward running more: an unmapped file, a shared-core file or an unusable diff
@@ -265,7 +266,7 @@ an edit to existing text. `/orchestrator-week` is the weekly alignment read with
 | Bytes per compiled file and the root budget | `node scripts/compile-contracts.mjs --report` |
 | Instruction drift over time | `npm run audit:instructions` |
 
-The live budgets, each enforced by a gate in the build: the root `AGENTS.md` at 3 KB
+The live budgets, each enforced by a gate in the build: the root `AGENTS.md` at 3,480 bytes
 (`check:contracts`), every Codex chain at least 4 KiB under `project_doc_max_bytes` and the
 orchestrator workflow's line limits (`check:shared-instructions`), and `docs/GOALS.md` under 200
 lines (`check:goals-budget`). `docs/METRICS.md` is the

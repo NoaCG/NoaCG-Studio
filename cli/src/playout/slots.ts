@@ -119,7 +119,7 @@ function targetKey(target: Target): string {
 }
 
 function slotKey(slot: Slot): string {
-  if (slot.adapter === 'vmix') return `overlay ${slot.overlay}`;
+  if (slot.adapter === 'vmix') return 'player' in slot ? 'player ' + slot.player : 'overlay ' + slot.overlay;
   return slot.adapter === 'ograf' ? `${slot.rendererId} ${JSON.stringify(slot.renderTarget)}` : `${slot.channel}-${slot.layer}`;
 }
 

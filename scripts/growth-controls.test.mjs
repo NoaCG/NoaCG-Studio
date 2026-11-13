@@ -1,4 +1,4 @@
-// guards: scripts/growth-controls.mjs, scripts/growth-report.mjs, scripts/growth-ceilings.json, scripts/e2e-capacity.mjs, docs/work-specs/cicd-improvement/evidence/phase-ci01.md
+// guards: scripts/growth-controls.mjs, scripts/growth-report.mjs, scripts/growth-ceilings.json, scripts/e2e-capacity.mjs, docs/work-specs/cicd-improvement/evidence/phase-ci01.md, scripts/fixtures/growth-reports/**
 // D7 growth controls (docs/work-specs/cicd-improvement/spec.md D7, AC-9; phase ci18). Each test
 // names the acceptance line it proves: (a) tiers and envelope, (b) per-tier refusal, estimates,
 // evidence, freshness and exceptions, (c) indirect slowdown, (d) clocks and ages, (e) ownership,
@@ -12,12 +12,17 @@ import test from 'node:test';
 import { HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, knownCoversOnDisk, offlineExceptionChanges, parseExceptions } from './e2e-capacity.mjs';
 import {
   TIERS, admit, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, cronRunsPerDay, detectSlowdown,
-  ceilingsRevision, coverCosts, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, knownCovers, landingDispatched, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
+  ceilingsRevision, coverCosts, planBreaches, planStepMet, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, knownCovers, landingDispatched, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   quarantineLines, tableFreshness, tierOfCover, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
-import { AGE_ISSUE, ages, buildReport, carriedDues, carriedStarts, fetchLatest, findIssue, finishedPrs, listRuns, makeReader, phaseIssueTitle, priceRuns, readJobs, sampleJobs, seriesOf, spread } from './growth-report.mjs';
+import { AGE_ISSUE, GATE_CANDIDATES, MAX_ATTEMPTS, REPORT_ISSUE, RETRY, ages, buildReport, carriedDues, carriedStarts, classifyReport, fetchLatest, findIssue, finishedPrs, gateFile, gateReport, healthAction, lowerBounds, maxBounds, previousForTry, weekOf, listRuns, makeReader, phaseIssueTitle, priceRuns, readJobs, reportAlarm, rerunStillNeeded, sampleJobs, seriesOf, spread, transient } from './growth-report.mjs';
 
-const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
+const CEILINGS_FILE = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
+// The rule tests below judge fixed tier lines (ci01's version 1 values), so a reviewed change of
+// the real lines (version 3) neither loosens nor breaks a rule's proof. The file's own values are
+// asserted in (a), with the reduction plan that brings them back to these.
+const RULE_TIERS = { offline: { perLanding: 535, perDay: 215 }, backend: { perLanding: 117, perDay: 78 }, graphics: { perLanding: 10, perDay: 115 }, overhead: { perLanding: 105, perDay: 10 } };
+const CEILINGS = { ...CEILINGS_FILE, tiers: RULE_TIERS };
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const TODAY = '2026-10-31';
 
@@ -30,17 +35,19 @@ const noExceptions = { ...CEILINGS, exceptions: [] };
 
 // --- (a) ------------------------------------------------------------------------------------
 
-test('(a) the tiers are ci01 version 1, unchanged, and their allocation fits the envelope', () => {
-  // Version 2 (#1951) moved only the owner; the tiers below are still ci01's version 1 values.
-  assert.equal(CEILINGS.version, 2);
-  assert.deepEqual(CEILINGS.revisions.map((r) => r.version), [2]);
-  assert.deepEqual(CEILINGS.tiers, { offline: { perLanding: 535, perDay: 215 }, backend: { perLanding: 117, perDay: 78 }, graphics: { perLanding: 10, perDay: 115 }, overhead: { perLanding: 105, perDay: 10 } });
-  assert.equal(CEILINGS.envelopeRunnerMinutesPerDay, 28800);
-  const perLanding = TIERS.reduce((a, t) => a + CEILINGS.tiers[t].perLanding, 0);
-  const perDay = TIERS.reduce((a, t) => a + CEILINGS.tiers[t].perDay, 0);
-  assert.equal(perLanding, 767);
-  assert.equal(perDay, 418);
-  assert.ok(perLanding * 17.4 + perDay <= CEILINGS.envelopeRunnerMinutesPerDay, 'the reference workload fits');
+test('(a) the tiers are version 3, owner-approved, and their allocation fits the envelope', () => {
+  // Version 2 (#1951) moved only the owner. Version 3 (owner decision 2026-11-11) raised offline,
+  // backend and graphics to the measured cost of the complete report of 2026-11-11, with a dated
+  // reduction plan back to the version 2 lines; overhead and every per-day line not named stay.
+  assert.equal(CEILINGS_FILE.version, 3);
+  assert.deepEqual(CEILINGS_FILE.revisions.map((r) => r.version), [2, 3]);
+  assert.deepEqual(CEILINGS_FILE.tiers, { offline: { perLanding: 720, perDay: 215 }, backend: { perLanding: 235, perDay: 88 }, graphics: { perLanding: 20, perDay: 115 }, overhead: { perLanding: 105, perDay: 10 } });
+  assert.equal(CEILINGS_FILE.envelopeRunnerMinutesPerDay, 28800);
+  const perLanding = TIERS.reduce((a, t) => a + CEILINGS_FILE.tiers[t].perLanding, 0);
+  const perDay = TIERS.reduce((a, t) => a + CEILINGS_FILE.tiers[t].perDay, 0);
+  assert.equal(perLanding, 1080);
+  assert.equal(perDay, 428);
+  assert.ok(perLanding * 17.4 + perDay <= CEILINGS_FILE.envelopeRunnerMinutesPerDay, 'the reference workload fits');
   // The offline line keeps its own constants: the per-landing tier never replaces or raises it.
   assert.equal(MAIN_RUNNERS, 13);
   assert.equal(WARN_SHARE, 0.85);
@@ -135,13 +142,8 @@ test('(b) the durations table alarms past eight days, and an open refresh PR is 
   assert.equal(stale.stale, true);
   assert.match(stale.reason, /pending, not accepted: #1503/);
   assert.equal(tableFreshness({ recordedAt: undefined, today: TODAY, boundDays: 8 }).stale, true, 'no date is stale, not fresh');
-  // The offline line: a stale table refuses added minutes from 85% instead of 95%.
-  const minutes = Object.fromEntries([...Array(100).keys()].map((i) => [`s${i}.spec.ts`, 1.8]));
-  const table = { source: {}, minutes, overhead: { jobMinutes: 0.42, testFactor: 1.01, medianJobMinutes: 0.3, samples: 10 } };
-  const suite = [...Object.keys(minutes), 'new.spec.ts'].sort();
-  const args = { table, suite, changed: ['e2e/new.spec.ts'], today: TODAY };
-  assert.equal(assess(args).status, 'warn');
-  assert.equal(assess({ ...args, tableStale: true }).status, 'refuse');
+  // The offline line stays at 95% on a stale table (land-2 B1, superseding the 85% line): the
+  // table's age is a warning, and land-2b's own test proves the line.
 });
 
 test('(b) an exception is owned, reviewed, scoped and at most 30 days; expired or invalid ones cover nothing', () => {
@@ -582,11 +584,10 @@ test('(d) pooled samples carry forward report to report inside the 28-day window
   assert.equal(report.timing.find((t) => t.measure === 'prReady').pooled.n, 2);
 });
 
-test('(e) an offline growth stop, or an unreadable weekly report, refuses added offline minutes', () => {
+test('(e) a confirmed offline growth stop refuses added offline minutes; an unreadable weekly report does not (land-2 B3)', () => {
   const stop = applyOfflineStop({ status: 'ok', reasons: [], stops: { offline: 'cost:offline since 2026-11-02' } }, { added: 1.2 });
   assert.equal(stop.status, 'refuse');
   assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: { offline: 'x' } }, { added: 0 }).status, 'ok', 'maintenance lands');
-  assert.equal(applyOfflineStop({ status: 'warn', reasons: [], stops: {}, unreadable: true }, { added: 0.5 }).status, 'refuse');
   const measured = assessTiers({ ceilings: noExceptions, measurement: measurement({ offline: 300 }), items: [], today: TODAY });
   assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers: measured }, { added: 3 }).status, 'ok');
 });
@@ -768,12 +769,14 @@ test('(c) an attributed offline slowdown refuses the next offline addition at th
   assert.equal(grow(partial).status, 'refuse', '86% on partial evidence is past the 85% line');
 });
 
-test('(d) each plan\'s phase alarms live in their own issue, and (b) a missing offline measurement refuses offline additions', () => {
+test('(d) each plan\'s phase alarms live in their own issue, and (b) a missing offline measurement warns and judges offline additions on their own cost (land-2 B3)', () => {
   assert.notEqual(phaseIssueTitle('/k/2026-10-31-plan-cicd-improvement.md'), phaseIssueTitle('/k/2026-10-31-plan-jev-svg-import.md'));
   assert.equal(phaseIssueTitle('/k/2026-10-31-plan-jev-svg-import.md'), 'Plan phases past their age ceiling: 2026-10-31-plan-jev-svg-import');
   const missing = clone(measurement({})); delete missing.tiers.offline;
   const tiers = assessTiers({ ceilings: noExceptions, measurement: missing, items: [], today: TODAY });
-  assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers }, { added: 1 }).status, 'refuse');
+  const missingTier = applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers }, { added: 1 });
+  assert.equal(missingTier.status, 'warn');
+  assert.match(missingTier.reasons.join('; '), /no measurement/);
   assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers }, { added: 0 }).status, 'ok');
 });
 
@@ -1207,27 +1210,27 @@ test('Rule E17: on missing evidence any added cost is refused, and adding nothin
   assert.equal(assessTiers({ ceilings: { ...CEILINGS, exceptions: [ex] }, measurement: m, items: [backendItem(0.1)], today: TODAY }).tiers.backend.status, 'refuse');
 });
 
-test('Rule E18: a weekly report asked for and unreadable refuses any added cost, offline included', () => {
+test('Rule E18: the weekly report\'s own judgement refuses added cost on unread evidence; the gate\'s offline line never does (land-2 B3)', () => {
   assert.equal(assessTiers({ ceilings: noExceptions, measurement: null, items: [backendItem(0.1)], today: TODAY }).tiers.backend.status, 'refuse');
-  // Offline: even a tier with room is refused when the report itself could not be read.
+  // Offline at the gate: a tier with room lands, and an unreadable report adds no refusal (land-2 B3).
   const roomy = assessTiers({ ceilings: noExceptions, measurement: measurement({ offline: 100 }), items: [], today: TODAY });
   assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers: roomy, estimates: CEILINGS.estimates }, { added: 0.1 }).status, 'ok');
-  assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers: roomy, estimates: CEILINGS.estimates, unreadable: true }, { added: 0.1 }).status, 'refuse');
+  assert.notEqual(applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers: roomy, estimates: CEILINGS.estimates, unreadable: true }, { added: 0.1 }).status, 'refuse');
   // An exception present changes nothing: unread evidence gives no room, offline or not.
   const ex = { id: 's', tier: 'backend', covers: ['spec:e2e/configured/new.spec.ts'], perLanding: 30, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
   assert.equal(assessTiers({ ceilings: { ...CEILINGS, exceptions: [ex] }, measurement: null, items: [backendItem(0.1)], today: TODAY }).tiers.backend.status, 'refuse');
   const offlineEx = { ...ex, tier: 'offline', covers: ['spec:e2e/new.spec.ts'] };
   const ceilings = { ...CEILINGS, exceptions: [offlineEx] };
   const growth = { status: 'ok', reasons: [], stops: {}, unreadable: true, estimates: CEILINGS.estimates, tiers: assessTiers({ ceilings, measurement: null, items: [], today: TODAY }), assessWith: (items) => assessTiers({ ceilings, measurement: null, items, today: TODAY }) };
-  assert.equal(applyOfflineStop(growth, { added: 1, details: [{ spec: 'new.spec.ts', delta: 1 }] }, { paths: ['e2e/new.spec.ts'] }).status, 'refuse');
+  assert.notEqual(applyOfflineStop(growth, { added: 1, details: [{ spec: 'new.spec.ts', delta: 1, adds: 1 }] }, { paths: ['e2e/new.spec.ts'] }).status, 'refuse');
 });
 
-test('Rule E19: a stale durations table makes the offline table line refuse from 85%', () => {
+test('Rule E19, superseded by land-2 B1: a stale durations table warns and keeps the 95% table line', () => {
   const minutes = Object.fromEntries([...Array(100).keys()].map((i) => [`s${i}.spec.ts`, 1.8]));
   const table = { source: {}, minutes, overhead: { jobMinutes: 0.42, testFactor: 1.01, medianJobMinutes: 0.3, samples: 10 } };
   const args = { table, suite: [...Object.keys(minutes), 'new.spec.ts'].sort(), changed: ['e2e/new.spec.ts'], today: TODAY };
   assert.equal(assess(args).status, 'warn');
-  assert.equal(assess({ ...args, tableStale: true }).status, 'refuse');
+  assert.equal(assess({ ...args, tableStale: true }).status, 'warn');
 });
 
 test('Rule E20: a breach clears only on evidence that judges it, and is otherwise kept with its stop', () => {
@@ -1248,7 +1251,7 @@ test('Rule E21: a growth stop refuses any addition to its tier, waived by an exc
   assert.equal(run([backendItem(1)]), 'refuse', 'fully waived, still refused');
   assert.notEqual(run([]), 'refuse', 'adding nothing lands');
   const offline = { status: 'ok', reasons: [], stops: { offline: 'x' }, estimates: CEILINGS.estimates, assessWith: () => ({ tiers: { offline: { addedLanding: 0, addedDay: 0 } } }) };
-  assert.equal(applyOfflineStop(offline, { added: 1, details: [{ spec: 'new.spec.ts', delta: 1 }] }).status, 'refuse', 'offline: the stop is judged before the waiver');
+  assert.equal(applyOfflineStop(offline, { added: 1, details: [{ spec: 'new.spec.ts', delta: 1, adds: 1 }] }).status, 'refuse', 'offline: the stop is judged before the waiver');
 });
 
 test('Rule E22: the report search reads every artifact page; only a finished listing establishes a first week', () => {
@@ -1401,7 +1404,7 @@ test('Rule X9: a covered addition is waived up to the room left (allowance minus
     const m = measurement({ offline: 500 });
     return { status: 'ok', reasons: [], stops: {}, estimates: CEILINGS.estimates, tiers: assessTiers({ ceilings, measurement: m, items: [], today: TODAY }), assessWith: (items) => assessTiers({ ceilings, measurement: m, items, today: TODAY }) };
   };
-  const added = { added: 5, details: [{ spec: 'new.spec.ts', delta: 5 }] };
+  const added = { added: 5, details: [{ spec: 'new.spec.ts', delta: 5, adds: 5 }] };
   assert.equal(applyOfflineStop(offlineGrowth([]), added, { paths: ['e2e/new.spec.ts'] }).status, 'refuse', '500 + 24.2 crosses 95% of 535');
   assert.equal(applyOfflineStop(offlineGrowth([offlineEx]), added, { paths: ['e2e/new.spec.ts'] }).status, 'ok', 'waived by the approved allowance');
   // No measured figure for an existing job: its room is unknown, so nothing is waived; a new job keeps its allowance.
@@ -1433,7 +1436,7 @@ test('Rule X10: credit never crosses tiers, a job moved into another tier is new
     const m = measurement({ offline: 420 });
     const ceilings = noExceptions;
     const growth = { status: 'ok', reasons: [], stops: {}, estimates: CEILINGS.estimates, items: jobItems, tiers: assessTiers({ ceilings, measurement: m, items: jobItems, today: TODAY }), assessWith: (items) => assessTiers({ ceilings, measurement: m, items, today: TODAY }) };
-    return applyOfflineStop(growth, { added: 5, details: [{ spec: 'new.spec.ts', delta: 5 }] }, { paths: ['e2e/new.spec.ts'] }).status;
+    return applyOfflineStop(growth, { added: 5, details: [{ spec: 'new.spec.ts', delta: 5, adds: 5 }] }, { paths: ['e2e/new.spec.ts'] }).status;
   };
   const job75 = { tier: 'offline', id: 'job:ci.yml/E2E 2/2 (full)', perLanding: 75.02, perDay: 0, how: 'new job at 15.5 runner-min' };
   assert.equal(both([]), 'ok', '420 + 24.2 alone fits');
@@ -1443,7 +1446,7 @@ test('Rule X10: credit never crosses tiers, a job moved into another tier is new
   const m300 = measurement({ offline: 300 });
   const g2 = { status: 'ok', reasons: [], stops: {}, estimates: CEILINGS.estimates, items: [job75], tiers: assessTiers({ ceilings: noExceptions, measurement: m300, items: [job75], today: TODAY, exceptions: [shared] }), assessWith: (items) => assessTiers({ ceilings: noExceptions, measurement: m300, items, today: TODAY, exceptions: [shared] }) };
   assert.equal(Math.round(10 * g2.assessWith([job75, { tier: 'offline', id: 'spec:e2e/new.spec.ts', perLanding: 24.2, perDay: 5 }]).tiers.offline.addedLanding) / 10, 59.2);
-  assert.equal(applyOfflineStop({ ...g2, items: [] }, { added: 5, details: [{ spec: 'new.spec.ts', delta: 5 }] }, { paths: ['e2e/new.spec.ts'] }).status, 'ok', 'the spec alone is waived in full');
+  assert.equal(applyOfflineStop({ ...g2, items: [] }, { added: 5, details: [{ spec: 'new.spec.ts', delta: 5, adds: 5 }] }, { paths: ['e2e/new.spec.ts'] }).status, 'ok', 'the spec alone is waived in full');
   assert.equal(moved?.tier, 'overhead');
   assert.match(moved?.how ?? '', /moved into this tier/);
   // A copy under a new key that repeats an existing job's name is new, not the existing job.
@@ -1548,4 +1551,533 @@ test('(e) quarantine coverage gaps are counted in the weekly report (ci07, AC-4/
   const src = readFileSync(new URL('./growth-report.mjs', import.meta.url), 'utf8');
   assert.match(src, /readStore\(QUARANTINE_STORE, \{ strict: true \}\)/);
   assert.match(src, /collection, quarantine \}\);/);
+});
+
+// --- A bad report never tightens the line (owner request 2026-11-11, run issue #1967) ----------
+
+const GROWTH_FIXTURES = new URL('./fixtures/growth-reports/', import.meta.url);
+const realReport = (run) => JSON.parse(readFileSync(new URL(`run-${run}.json`, GROWTH_FIXTURES), 'utf8'));
+const artifactOf = (run, createdAt, extra = {}) => ({ id: run, expired: false, created_at: createdAt, workflow_run: { id: run, head_branch: 'main', repository_id: 1, head_repository_id: 1 }, ...extra });
+/** A `gh` that serves report artifacts from memory: `reports` maps a run id to its JSON (or to an Error). */
+function reportsGh(artifacts, reports, calls = []) {
+  return (args) => {
+    calls.push(args.join(' '));
+    if (args[0] === 'api' && /actions\/artifacts\?name=growth-report/.test(args[3])) return JSON.stringify({ total_count: artifacts.length, artifacts });
+    if (args[0] === 'run' && args[1] === 'download') {
+      const got = reports[args[2]];
+      if (got instanceof Error) throw got;
+      writeFileSync(path.join(args[args.indexOf('-D') + 1], 'growth-report.json'), JSON.stringify(got));
+      return '';
+    }
+    throw new Error(`unexpected gh ${args.join(' ')}`);
+  };
+}
+const GATE_CEILINGS = { reportMaxAgeDays: 8, freshnessDays: 8 };
+const BOUNDS = { maxAgeDays: 8, freshnessDays: 8 };
+
+test('reproduction: the partial report of 2026-11-09 refused one added offline minute that the complete report of 2026-11-03 had room for', async () => {
+  // Real reports: weekly-audit run 42647874522 (partial: "configured-suite.yml|push: 1 read(s)
+  // failed", offline 189.3/215 per day, 88%, over the 85% partial line) and run 41704224273
+  // (complete, offline 173.3/215 per day, 81%). The capacity line's own path: the CLI fetch with
+  // `gh` on PATH, then growthAssessment and applyOfflineStop as e2e-capacity.mjs runs them.
+  const { execFileSync } = await import('node:child_process');
+  const { growthAssessment } = await import('./e2e-capacity.mjs');
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'gate-repro-'));
+  writeFileSync(path.join(dir, 'artifacts.json'), JSON.stringify({ total_count: 2, artifacts: [artifactOf(42647874522, '2026-11-09T15:53:37Z'), artifactOf(41704224273, '2026-11-03T19:41:07Z')] }));
+  for (const run of [42647874522, 41704224273]) writeFileSync(path.join(dir, `${run}.json`), JSON.stringify(realReport(run)));
+  writeFileSync(path.join(dir, 'gh'), `#!/usr/bin/env node
+const fs = require('node:fs'); const path = require('node:path');
+const a = process.argv.slice(2); const dir = ${JSON.stringify(dir)};
+if (a[0] === 'api') process.stdout.write(fs.readFileSync(path.join(dir, 'artifacts.json'), 'utf8'));
+else if (a[0] === 'run' && a[1] === 'download') fs.copyFileSync(path.join(dir, a[2] + '.json'), path.join(a[a.indexOf('-D') + 1], 'growth-report.json'));
+else process.exit(1);
+`, { mode: 0o755 });
+  const out = path.join(dir, 'growth.json');
+  execFileSync(process.execPath, [new URL('./growth-report.mjs', import.meta.url).pathname, 'fetch', '--out', out, '--now', '2026-11-10T12:00:00Z'], { env: { ...process.env, PATH: `${dir}${path.delimiter}${process.env.PATH}`, GH_REPO: 'NoaCG/NoaCG-Studio' }, encoding: 'utf8', windowsHide: true });
+  const growth = growthAssessment({ base: null, reportPath: out, table: { source: { recordedAt: '2026-11-09' } }, today: '2026-11-10' });
+  const verdict = applyOfflineStop(growth, { added: 1 });
+  assert.notEqual(verdict.status, 'refuse', verdict.reasons.join('; '));
+  assert.match(verdict.reasons.join('; '), /run 42647874522\) is partial.*judged on the newest complete report, run 41704224273/);
+});
+
+test('a report is complete, partial, stale or missing from what it records', () => {
+  const now = '2026-11-10T12:00:00Z';
+  assert.equal(classifyReport(realReport(41704224273), { now, ...BOUNDS }).state, 'complete', 'complete, 6 days old');
+  const partial = classifyReport(realReport(42647874522), { now, ...BOUNDS });
+  assert.equal(partial.state, 'partial');
+  assert.match(partial.why, /1 read\(s\) failed/);
+  // Stale: generated more than 8 days (the Monday schedule plus a day) before now, or measured to a window end over 8 days old.
+  assert.equal(classifyReport(realReport(41704224273), { now: '2026-11-11T19:41:00Z', ...BOUNDS }).state, 'complete', '8 days: still in bounds');
+  assert.equal(classifyReport(realReport(41704224273), { now: '2026-11-12T19:42:00Z', ...BOUNDS }).state, 'stale', '9 days');
+  assert.equal(classifyReport({ ...realReport(41704224273), measurement: { ...realReport(41704224273).measurement, windowEnd: '2026-10-25' } }, { now, ...BOUNDS }).state, 'stale');
+  for (const r of [null, { none: true }, { generatedAt: now }]) assert.equal(classifyReport(r, { now, ...BOUNDS }).state, 'missing');
+  // Partial wins over stale: what is wrong with the report itself is named first.
+  assert.equal(classifyReport(realReport(42647874522), { now: '2026-12-01T00:00:00Z', ...BOUNDS }).state, 'partial');
+});
+
+test('the capacity line judges on the newest complete report, and names the bad newest one', () => {
+  const now = '2026-11-10T12:00:00Z';
+  const arts = [artifactOf(3, '2026-11-09T15:53:37Z'), artifactOf(2, '2026-11-03T19:41:07Z'), artifactOf(1, '2026-11-02T15:25:44Z')];
+  const reports = { 3: realReport(42647874522), 2: realReport(41704224273), 1: realReport(41704224273) };
+  const calls = [];
+  const picked = gateReport({ gh: reportsGh(arts, reports, calls), now, ceilings: GATE_CEILINGS });
+  assert.deepEqual([picked.newest.run, picked.newest.state, picked.judged.run], [3, 'partial', 2]);
+  assert.equal(calls.filter((c) => c.startsWith('run download')).length, 2, 'stops at the first complete report');
+  // A complete newest report is judged on itself.
+  assert.equal(gateReport({ gh: reportsGh(arts.slice(1), reports), now, ceilings: GATE_CEILINGS }).judged.run, 2);
+  // Stale but complete: still the newest complete report, judged on, and named stale.
+  const late = gateReport({ gh: reportsGh(arts.slice(1), reports), now: '2026-11-20T00:00:00Z', ceilings: GATE_CEILINGS });
+  assert.deepEqual([late.newest.state, late.judged.run], ['stale', 2]);
+  // An unreadable newest report is skipped, not trusted.
+  const broken = gateReport({ gh: reportsGh(arts, { ...reports, 3: new Error('HTTP 404') }), now, ceilings: GATE_CEILINGS });
+  assert.deepEqual([broken.newest.state, broken.newest.readFailed, broken.judged.run], ['missing', true, 2]);
+  // No complete report among the candidates: none to judge on; the seed stands in at the gate.
+  const none = gateReport({ gh: reportsGh([arts[0]], reports), now, ceilings: GATE_CEILINGS });
+  assert.deepEqual([none.newest.state, none.judged], ['partial', null]);
+  // A failed listing is missing, never a throw that leaves the gate without a file.
+  const failing = gateReport({ gh: () => { throw new Error('HTTP 403'); }, now, ceilings: GATE_CEILINGS });
+  assert.deepEqual([failing.newest.state, failing.judged], ['missing', null]);
+  // Bounded: at most GATE_CANDIDATES downloads.
+  // Five retained weeks of three partial tries each, then a complete report: in reach.
+  assert.equal(GATE_CANDIDATES, 5 * MAX_ATTEMPTS);
+  const weeks = Array.from({ length: 14 }, (_, i) => artifactOf(200 + i, new Date(Date.parse('2026-11-09T00:00:00Z') - i * 3_600_000).toISOString()));
+  const deep = gateReport({ gh: reportsGh([...weeks, artifactOf(300, '2026-10-01T00:00:00Z')], { ...Object.fromEntries(weeks.map((a) => [a.id, realReport(42647874522)])), 300: realReport(41704224273) }), now, ceilings: GATE_CEILINGS });
+  assert.equal(deep.judged?.run, 300, 'the complete report behind fourteen partial tries is found');
+  const many = Array.from({ length: 20 }, (_, i) => artifactOf(100 + i, new Date(Date.parse('2026-11-09T00:00:00Z') - i * 3_600_000).toISOString()));
+  const counted = [];
+  gateReport({ gh: reportsGh(many, Object.fromEntries(many.map((a) => [a.id, realReport(42647874522)])), counted), now, ceilings: GATE_CEILINGS });
+  assert.equal(counted.filter((c) => c.startsWith('run download')).length, GATE_CANDIDATES);
+});
+
+/** The gate as e2e-capacity.mjs runs it, on a picked report written to a file. */
+async function gateOn(picked, { today = '2026-11-10', added = 0 } = {}) {
+  const { growthAssessment } = await import('./e2e-capacity.mjs');
+  const out = path.join(mkdtempSync(path.join(os.tmpdir(), 'gate-')), 'growth.json');
+  gateFile(out, picked);
+  const growth = growthAssessment({ base: null, reportPath: out, table: { source: { recordedAt: today } }, today });
+  return added ? applyOfflineStop(growth, { added }) : growth;
+}
+const pick = (newestRun, newestState, judgedReport, judgedRun = 7) => ({ newest: { run: newestRun, state: newestState, why: 'x', attempt: 3 }, judged: judgedReport ? { run: judgedRun, generatedAt: judgedReport.generatedAt, report: judgedReport } : null });
+
+test('a complete report still refuses a change for its own cost exactly as before (strictness kept)', async () => {
+  const complete = realReport(41704224273);
+  // Offline per day 173.3 of the live ceiling's line (95%): the smallest whole number of added
+  // minutes a day that crosses it is refused, and two fewer is not, so the line is exactly 95%.
+  const line = 0.95 * CEILINGS_FILE.tiers.offline.perDay;
+  const crossing = Math.floor(line - complete.measurement.tiers.offline.perDay) + 1;
+  assert.equal((await gateOn(pick(7, 'complete', complete), { added: crossing })).status, 'refuse');
+  assert.notEqual((await gateOn(pick(7, 'complete', complete), { added: crossing - 2 })).status, 'refuse');
+  assert.notEqual((await gateOn(pick(7, 'complete', complete), { added: 1 })).status, 'refuse');
+  // The same report as a fallback behind a partial newest one refuses the same change: no looser.
+  assert.equal((await gateOn(pick(9, 'partial', complete), { added: crossing })).status, 'refuse');
+  assert.equal((await gateOn(pick(9, 'stale', complete), { added: crossing })).status, 'refuse');
+  // A stop on the judged complete report refuses any addition to its tier when that report is
+  // the newest; behind a partial newest one it is carried, not confirmed, and warns (land-2 B4).
+  const stopped = { ...complete, stops: { offline: 'cost:offline since 2026-11-02' } };
+  assert.equal((await gateOn(pick(7, 'complete', stopped), { added: 0.1 })).status, 'refuse');
+  assert.equal((await gateOn(pick(9, 'partial', stopped), { added: 0.1 })).status, 'warn');
+  // So does a stop in any other tier.
+  const backendStop = await gateOn(pick(7, 'complete', { ...complete, stops: { backend: 'cost:backend since 2026-11-02' } }));
+  assert.equal(backendStop.assessWith([backendItem(0.1)]).tiers.backend.status, 'refuse');
+  assert.match(backendStop.assessWith([backendItem(0.1)]).tiers.backend.why, /growth stopped/);
+  assert.notEqual((await gateOn(pick(9, 'partial', { ...complete, stops: { backend: 'cost:backend since 2026-11-02' } }))).assessWith([backendItem(0.1)]).tiers.backend.status, 'refuse');
+  // A tier over its line on the judged report refuses any addition, as on main.
+  const over = clone(complete);
+  over.measurement.tiers.offline.perDay = 214;
+  assert.equal((await gateOn(pick(7, 'complete', over), { added: 0.5 })).status, 'refuse');
+  assert.equal((await gateOn(pick(9, 'partial', over), { added: 0.5 })).status, 'refuse');
+});
+
+test('no complete report at all: the frozen seed at the normal line, refused only for own cost, never for the absence', async () => {
+  const seed = await gateOn(pick(null, 'missing', null));
+  assert.notEqual(seed.status, 'refuse');
+  assert.match(seed.reasons.join('; '), /is missing.*frozen seed/);
+  const tiny = await gateOn(pick(null, 'missing', null), { added: 1 });
+  assert.notEqual(tiny.status, 'refuse', tiny.reasons.join('; '));
+  // The seed's offline is 166/215 per day (77%): 45 added minutes a day cross 95%, refused for that cost.
+  assert.equal((await gateOn(pick(null, 'missing', null), { added: 45 })).status, 'refuse');
+  // A fetch that wrote nothing readable is the same: judged on the seed, not refused for it.
+  const { growthAssessment } = await import('./e2e-capacity.mjs');
+  const gone = growthAssessment({ base: null, reportPath: path.join(os.tmpdir(), 'no-such-growth-report.json'), table: { source: { recordedAt: '2026-11-10' } }, today: '2026-11-10' });
+  assert.notEqual(applyOfflineStop(gone, { added: 1 }).status, 'refuse');
+  assert.equal(applyOfflineStop(gone, { added: 45 }).status, 'refuse');
+});
+
+test('trusted evidence: a tier nothing measured is judged on the change alone; exceptions waive only on complete tiers', () => {
+  const m = measurement({});
+  delete m.tiers.graphics;
+  const item = { tier: 'graphics', id: 'spec:e2e/catalog/new.spec.ts', perLanding: 2, perDay: 0, how: 'test' };
+  assert.equal(assessTiers({ ceilings: noExceptions, measurement: m, items: [item], today: TODAY }).tiers.graphics.status, 'refuse', 'untrusted: missing refuses (the weekly report\'s own judgement)');
+  assert.equal(assessTiers({ ceilings: noExceptions, measurement: m, items: [item], today: TODAY, trustEvidence: true }).tiers.graphics.status, 'warn');
+  assert.equal(assessTiers({ ceilings: noExceptions, measurement: m, items: [{ ...item, perLanding: 9.5 }], today: TODAY, trustEvidence: true }).tiers.graphics.status, 'refuse', 'its own cost at 95% of the ceiling');
+  // A partial tier (the seed's backend) is a lower bound: an exception waives nothing on it, trusted or not.
+  const partial = measurement({ backend: 100 }, { evidence: 'partial' });
+  const ex = { id: 's', tier: 'backend', covers: ['spec:e2e/configured/new.spec.ts'], perLanding: 30, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
+  const t = assessTiers({ ceilings: { ...CEILINGS, exceptions: [ex] }, measurement: partial, items: [backendItem(12)], today: TODAY, trustEvidence: true }).tiers.backend;
+  assert.equal(t.addedLanding, 12, 'nothing waived');
+  assert.equal(t.status, 'refuse', '(100 + 12) / 117 = 96% at the 95% line');
+});
+
+test('the collector retries transient GitHub errors a bounded number of times, and nothing else', () => {
+  const slept = [];
+  const flaky = (failures, error) => { let n = 0; return () => { n += 1; if (n <= failures) throw error; return '{"ok":1}'; }; };
+  const e502 = Object.assign(new Error('Command failed: gh api'), { stderr: 'gh: Server Error (HTTP 502)' });
+  const r = makeReader(10, flaky(2, e502), { sleep: (ms) => slept.push(ms) });
+  assert.deepEqual(r.get('x'), { ok: 1 });
+  assert.deepEqual([r.calls, r.retries, r.failures, slept], [3, 2, 0, [2000, 8000]], 'two retries, 2 s and 8 s apart, each a call against the budget');
+  const r3 = makeReader(10, flaky(3, e502), { sleep: () => {} });
+  assert.equal(r3.get('x'), null, 'three failures: the read fails and the report says so');
+  assert.deepEqual([r3.calls, r3.failures], [3, 1]);
+  for (const msg of ['HTTP 503', 'read ECONNRESET', 'socket hang up', 'net/http: TLS handshake timeout']) assert.ok(transient(new Error(msg)), msg);
+  for (const msg of ['HTTP 403: API rate limit exceeded', 'HTTP 404: Not Found', 'HTTP 422', 'Unexpected token']) assert.ok(!transient(new Error(msg)), msg);
+  const r4 = makeReader(10, flaky(1, new Error('HTTP 403: rate limit')), { sleep: () => { throw new Error('no sleep for a 4xx'); } });
+  assert.equal(r4.get('x'), null);
+  assert.deepEqual([r4.calls, r4.retries], [1, 0], 'a 4xx is never retried');
+  // The budget bounds retries too, and one reader retries at most RETRY.perReader times in all.
+  const tight = makeReader(2, flaky(5, e502), { sleep: () => {} });
+  assert.equal(tight.get('x'), null);
+  assert.deepEqual([tight.calls, tight.exhausted], [2, true]);
+  const outage = makeReader(1000, () => { throw e502; }, { sleep: () => {} });
+  for (let i = 0; i < 30; i++) outage.get('x');
+  assert.equal(outage.retries, RETRY.perReader);
+});
+
+test('a partial report is re-run at most twice, 65 minutes apart, then the owner is alarmed once', () => {
+  const at = '2026-11-09T15:53:00Z';
+  const later = (min) => new Date(Date.parse(at) + min * 60_000).toISOString();
+  const partial = (attempt) => ({ run: 42647874522, generatedAt: at, attempt, state: 'partial', why: 'configured-suite.yml|push: 1 read(s) failed' });
+  assert.equal(healthAction({ newest: partial(1), now: later(30) }).kind, 'wait', 'inside the API limit window');
+  assert.deepEqual(healthAction({ newest: partial(1), now: later(66) }), { kind: 'rerun', attempt: 2 });
+  assert.equal(healthAction({ newest: partial(1), now: later(66), running: true }).kind, 'wait', 'never twice at once');
+  assert.deepEqual(healthAction({ newest: partial(2), now: later(66) }), { kind: 'rerun', attempt: 3 });
+  const alarm = healthAction({ newest: partial(3), judgedOn: { run: 41704224273, generatedAt: '2026-11-03T19:33:19Z' }, now: later(66) });
+  assert.equal(alarm.kind, 'alarm');
+  assert.match(alarm.body, /partial\*\* after 3 tries: configured-suite\.yml\|push: 1 read\(s\) failed/);
+  assert.match(alarm.body, /run 41704224273 \(2026-11-03\)/);
+  // Same day only: a partial report a day old with tries left is alarmed, not re-run.
+  assert.equal(healthAction({ newest: partial(1), now: later(24 * 60 + 1) }).kind, 'alarm');
+  assert.match(healthAction({ newest: partial(1), now: later(24 * 60 + 1) }).body, /after 1 try:/);
+  for (const state of ['stale', 'missing']) assert.equal(healthAction({ newest: { run: 5, state, why: 'x', generatedAt: at }, now: later(1) }).kind, 'alarm', state);
+  assert.equal(healthAction({ newest: { run: 5, state: 'missing', readFailed: true, why: 'listing failed' }, now: later(1) }).kind, 'wait', 'a failed read of this check is not a bad report');
+  assert.deepEqual(healthAction({ newest: { run: 5, state: 'complete' }, now: later(1) }), { kind: 'close' });
+  // A re-run goes ahead only while the newest report is still the try before it.
+  assert.equal(rerunStillNeeded(partial(1), 2), true);
+  assert.equal(rerunStillNeeded(partial(2), 2), false, 'that try already ran');
+  assert.equal(rerunStillNeeded({ ...partial(1), state: 'complete' }, 2), false);
+  assert.equal(rerunStillNeeded(partial(3), 4), false, 'never past MAX_ATTEMPTS');
+  assert.equal(MAX_ATTEMPTS, 3);
+});
+
+test('one alarm per bad report: raised once, routed to the owner, not repeated per landing, closed when complete', () => {
+  const issues = [];
+  const posted = [];
+  const gh = (args) => {
+    const route = args[3];
+    if (args[0] === 'api' && args[2] === 'GET' && /\/issues\?state=open/.test(route)) return JSON.stringify(issues);
+    posted.push(`${args[2]} ${route}`);
+    if (/\/assignees$/.test(route)) return JSON.stringify({ assignees: [{ login: 'miwco' }] });
+    if (args[2] === 'POST' && /\/issues$/.test(route)) { const title = args[5].slice(6); const body = args[7].slice(5); issues.push({ number: 90, title, body, author_association: 'OWNER', user: { type: 'User' } }); return JSON.stringify({ number: 90 }); }
+    if (args[2] === 'PATCH') { const f = args[5]; if (f.startsWith('body=')) issues[0].body = f.slice(5); else issues.length = 0; return '{}'; }
+    return '{}';
+  };
+  const bad = healthAction({ newest: { run: 1, state: 'stale', why: 'x', generatedAt: '2026-11-01T00:00:00Z' }, now: '2026-11-12T00:00:00Z' });
+  assert.equal(reportAlarm(bad, 'miwco', gh), 'opened #90; #90 routed to miwco');
+  assert.equal(issues[0].title, REPORT_ISSUE);
+  posted.length = 0;
+  assert.equal(reportAlarm(bad, 'miwco', gh), '#90 already names this report', 'the next landing says nothing new');
+  assert.deepEqual(posted, []);
+  const worse = healthAction({ newest: { run: 2, state: 'partial', attempt: 3, why: 'y', generatedAt: '2026-11-16T00:00:00Z' }, now: '2026-11-16T05:00:00Z' });
+  assert.match(reportAlarm(worse, 'miwco', gh), /^updated #90/);
+  assert.ok(posted.some((p) => p === 'POST repos/NoaCG/NoaCG-Studio/issues/90/comments'), 'a new bad report is one new comment');
+  assert.equal(reportAlarm({ kind: 'close' }, 'miwco', gh), 'closed #90');
+  assert.equal(reportAlarm({ kind: 'wait' }, 'miwco', gh), 'no alarm');
+});
+
+test('the newest report\'s stops reach the gate, a kept one included (Rules E20, E21); carried by partial evidence they warn (land-2 B4)', async () => {
+  // Run 42647874522 (partial) carries two stops: backend re-measured over its ceiling that week,
+  // overhead kept because the week could not re-measure it after the complete report of 2026-11-03
+  // put it at 126% with its correction due 2026-11-09. Both stand until evidence clears them.
+  const partial = realReport(42647874522);
+  assert.deepEqual(Object.keys(partial.stops).sort(), ['backend', 'overhead']);
+  const arts = [artifactOf(3, '2026-11-09T15:53:37Z'), artifactOf(2, '2026-11-03T19:41:07Z')];
+  const picked = gateReport({ gh: reportsGh(arts, { 3: partial, 2: realReport(41704224273) }), now: '2026-11-10T12:00:00Z', ceilings: GATE_CEILINGS });
+  assert.deepEqual(Object.keys(picked.newest.stops).sort(), ['backend', 'overhead']);
+  const growth = await gateOn(picked);
+  for (const tier of ['backend', 'overhead']) {
+    const t = growth.assessWith([{ tier, id: `job:x.yml/${tier}`, perLanding: 0, perDay: 0.1, how: 't' }]).tiers[tier];
+    // The stop is carried, not confirmed (overhead may still refuse for its cost on the complete report, run 41704224273).
+    assert.doesNotMatch(t.why, /growth stopped/, `${tier}: the newest report is partial, so its stop is carried, not confirmed`);
+    assert.match(growth.reasons.join('; '), new RegExp(`${tier} growth stop carried by partial evidence`), tier);
+  }
+  // The same stops on a complete newest report bind.
+  const confirmed = await gateOn({ newest: { ...picked.newest, state: 'complete' }, judged: picked.judged });
+  for (const tier of ['backend', 'overhead']) {
+    const t = confirmed.assessWith([{ tier, id: `job:x.yml/${tier}`, perLanding: 0, perDay: 0.1, how: 't' }]).tiers[tier];
+    assert.equal(t.status, 'refuse', tier);
+    assert.match(t.why, /growth stopped/, tier);
+  }
+  // A newer report that cleared the stop lifts it, even one the judged complete report still lists (Codex review).
+  const judgedStop = { ...realReport(41704224273), stops: { offline: 'latency:queue since 2026-10-27' } };
+  const lifted = await gateOn({ newest: { run: 9, state: 'partial', why: 'x', stops: {} }, judged: { run: 7, generatedAt: judgedStop.generatedAt, report: judgedStop } });
+  assert.notEqual(lifted.assessWith([{ tier: 'offline', id: 'job:x.yml/o', perLanding: 0.1, perDay: 0, how: 't' }]).tiers.offline.status, 'refuse');
+  // An unreadable newest report gives no stops (null): the judged report's are named, and warn,
+  // since the newest evidence could not confirm them (land-2 B3, B4).
+  const unread = await gateOn({ newest: { run: 9, state: 'missing', why: 'x', readFailed: true, stops: null }, judged: { run: 7, generatedAt: judgedStop.generatedAt, report: judgedStop } });
+  assert.notEqual(unread.assessWith([{ tier: 'offline', id: 'job:x.yml/o', perLanding: 0.1, perDay: 0, how: 't' }]).tiers.offline.status, 'refuse');
+  assert.match(unread.reasons.join('; '), /offline growth stop carried by missing evidence.*latency:queue since 2026-10-27/);
+  // A newer report that cleared the stop lifts it: only the newest report's stops count.
+  const cleared = gateReport({ gh: reportsGh([artifactOf(4, '2026-11-10T06:00:00Z'), ...arts], { 4: { ...partial, stops: {} }, 3: partial, 2: realReport(41704224273) }), now: '2026-11-10T12:00:00Z', ceilings: GATE_CEILINGS });
+  assert.deepEqual(cleared.newest.stops, {});
+});
+
+test('a re-run carries from the report before the first try, never from the try itself', () => {
+  // A re-run compared with its own week would find a "two weeks running" latency breach.
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'rerun-prev-'));
+  const lastWeek = { ...realReport(41704224273), generatedAt: '2026-11-02T06:10:00Z' };
+  const try1 = { ...realReport(42647874522), generatedAt: '2026-11-09T06:10:00Z', attempt: 1, firstTryAt: '2026-11-09T06:10:00Z' };
+  const try2 = { ...try1, generatedAt: '2026-11-09T08:00:00Z', attempt: 2 };
+  const arts = [artifactOf(12, '2026-11-09T08:07:00Z'), artifactOf(11, '2026-11-09T06:17:00Z'), artifactOf(10, '2026-11-02T06:17:00Z')];
+  const gh = reportsGh(arts, { 12: try2, 11: try1, 10: lastWeek });
+  const out = path.join(dir, 'prev.json');
+  assert.equal(fetchLatest(out, gh, null, '2026-11-09T06:10:00Z').run, 10, 'last week, for try 2 and try 3 alike');
+  assert.equal(fetchLatest(out, gh).run, 12, 'without --before: the newest, as the weekly run uses');
+  // Nothing at all published before the first try (the listing includes expired reports): a first
+  // week, exactly as the first try found it, so its re-run can run (Codex review).
+  assert.equal(fetchLatest(out, gh, null, '2026-11-01T00:00:00Z'), null);
+  assert.deepEqual(JSON.parse(readFileSync(out, 'utf8')), { none: true });
+  // Only expired reports before it: not a first week, refused as before.
+  const gone = reportsGh([artifactOf(9, '2026-09-01T00:00:00Z', { expired: true }), ...arts], {});
+  assert.throws(() => fetchLatest(out, gone, null, '2026-11-01T00:00:00Z'), /expired/);
+  // Each try records the first try's time, which gateReport hands the re-run.
+  const picked = gateReport({ gh, now: '2026-11-09T10:00:00Z', ceilings: GATE_CEILINGS });
+  assert.equal(picked.newest.firstTryAt, '2026-11-09T06:10:00Z');
+});
+
+test('stale evidence waives nothing under the trusted line either (Rule X9)', () => {
+  const ex = { id: 's', tier: 'backend', covers: ['spec:e2e/configured/new.spec.ts'], perLanding: 30, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
+  const old = measurement({ backend: 100 }, { windowEnd: '2026-10-20' });
+  const t = assessTiers({ ceilings: { ...CEILINGS, exceptions: [ex] }, measurement: old, items: [backendItem(12)], today: TODAY, trustEvidence: true }).tiers.backend;
+  assert.deepEqual([t.evidence, t.addedLanding, t.status], ['stale', 12, 'refuse']);
+});
+
+test('a run by hand while the newest report is partial is another try of that week, never compared with itself', () => {
+  const partial = { run: 11, state: 'partial', generatedAt: '2026-11-09T06:10:00Z', attempt: 1, firstTryAt: '2026-11-09T06:10:00Z' };
+  // The owner fixes the cause and runs weekly-audit by hand, as the alarm says.
+  assert.deepEqual(weekOf(partial, '2026-11-10T09:00:00Z'), { needed: true, attempt: 2, firstTryAt: '2026-11-09T06:10:00Z' });
+  // A re-run dispatched by health says its own try.
+  assert.deepEqual(weekOf(partial, '2026-11-09T08:00:00Z', 2), { needed: true, attempt: 2, firstTryAt: '2026-11-09T06:10:00Z' });
+  assert.equal(weekOf({ ...partial, attempt: 2 }, '2026-11-09T09:00:00Z', 2).needed, false, 'that try already ran');
+  // A new week: after a complete report, or a partial one six or more days old, or no report.
+  assert.deepEqual(weekOf({ ...partial, state: 'complete' }, '2026-11-10T09:00:00Z'), { needed: true, attempt: 1, firstTryAt: null });
+  assert.deepEqual(weekOf(partial, '2026-11-16T06:10:00Z'), { needed: true, attempt: 1, firstTryAt: null });
+  assert.deepEqual(weekOf({ state: 'missing', run: null, generatedAt: null }, '2026-11-16T06:10:00Z'), { needed: true, attempt: 1, firstTryAt: null });
+  // An unread newest report is unknown, never a new week (it would carry from this week's own try).
+  for (const rerun of [null, 2]) assert.deepEqual(weekOf({ state: 'missing', readFailed: true, why: 'HTTP 502' }, '2026-11-10T09:00:00Z', rerun).failed, true);
+  // The week counts from its first try: a late third try never makes next Monday's run a fourth.
+  const late = { ...partial, attempt: 3, generatedAt: '2026-11-11T05:00:00Z' };
+  assert.deepEqual(weekOf(late, '2026-11-16T06:10:00Z'), { needed: true, attempt: 1, firstTryAt: null });
+});
+
+test('re-runs stay within a day of the week\'s first try', () => {
+  const second = { run: 12, state: 'partial', attempt: 2, generatedAt: '2026-11-10T05:00:00Z', firstTryAt: '2026-11-09T06:10:00Z', why: 'x' };
+  assert.equal(healthAction({ newest: second, now: '2026-11-10T06:30:00Z' }).kind, 'alarm', '24 h after the first try, even if the second try was recent');
+  assert.deepEqual(healthAction({ newest: { ...second, generatedAt: '2026-11-09T08:00:00Z' }, now: '2026-11-09T09:10:00Z' }), { kind: 'rerun', attempt: 3 });
+});
+
+test('a stop stands across later tries that could only keep it (Codex review)', () => {
+  // Try 1 re-measured the backend breach and stopped it; try 2 could only keep it. The newest
+  // report's stops are the gate's, so the stop stands.
+  const p1 = realReport(42647874522);
+  const p2 = { ...p1, breaches: p1.breaches.map((b) => (b.key === 'cost:backend' ? { ...b, detail: `${b.detail} (not re-measured this week: kept until evidence clears it)` } : b)) };
+  const arts = [artifactOf(13, '2026-11-09T18:00:00Z'), artifactOf(12, '2026-11-09T16:00:00Z'), artifactOf(2, '2026-11-03T19:41:07Z')];
+  const picked = gateReport({ gh: reportsGh(arts, { 13: p2, 12: p1, 2: realReport(41704224273) }), now: '2026-11-10T12:00:00Z', ceilings: GATE_CEILINGS });
+  assert.equal(picked.judged.run, 2);
+  assert.ok(picked.newest.stops.backend);
+});
+
+test('another try of a week carries the breaches its earlier try found, and the timing from before the week', () => {
+  const before = { generatedAt: '2026-11-02T06:10:00Z', timing: [{ measure: 'prReady', adequate: true, above: false }], timingSamples: [{ id: '#1' }], breaches: [], stops: {}, openStarts: { '#5': 'a' } };
+  // Try 1 opened a new backend cost breach this week; a re-run must carry it, not drop it.
+  const try1 = { breaches: [{ key: 'cost:backend', state: 'correcting', since: '2026-11-09', due: '2026-11-16', corrections: 1, owner: 'o', detail: 'x' }], stops: {}, openStarts: { '#6': 'b' }, timing: [{ measure: 'prReady', adequate: true, above: true }] };
+  const prev = previousForTry(before, try1);
+  assert.deepEqual(prev.timing, before.timing, 'timing from before the week: never compared with itself');
+  assert.deepEqual(prev.timingSamples, before.timingSamples);
+  assert.deepEqual(prev.breaches, try1.breaches, 'breaches from the newest try');
+  assert.deepEqual(prev.openStarts, { '#5': 'a', '#6': 'b' });
+  // Carried, the breach keeps its first date and due date even when the re-run cannot re-measure it.
+  const { breaches } = carryBreaches({ previous: prev.breaches, current: [], today: '2026-11-09', owner: 'o', confirmed: () => false });
+  assert.deepEqual(breaches.map((b) => [b.key, b.since, b.due]), [['cost:backend', '2026-11-09', '2026-11-16']]);
+});
+
+test('a newer partial report is a floor the gate names, and never refuses on (land-2 B5, superseding the floor refusal)', async () => {
+  const complete = realReport(41704224273);
+  const partial = realReport(42647874522);
+  assert.equal(lowerBounds(partial).offline.perDay, partial.measurement.tiers.offline.perDay);
+  assert.equal(lowerBounds(complete).offline.perDay, complete.measurement.tiers.offline.perDay);
+  const withFloor = (added) => gateOn({ newest: { run: 9, state: 'partial', why: 'x', stops: {}, floor: lowerBounds(partial) }, judged: { run: 7, generatedAt: complete.generatedAt, report: complete } }, { added });
+  // Offline per day: complete 173.3, partial lower bound 189.3, line 95% of 215 = 204.25.
+  assert.equal((await gateOn(pick(9, 'partial', complete), { added: 17 })).status !== 'refuse', true, 'without the floor 190.3/215 passes');
+  const floored = await withFloor(17);
+  assert.equal(floored.status, 'warn', 'with it 206.3/215 would cross the line on partial evidence: a warning');
+  assert.match(floored.reasons.join('; '), /offline tier: a newer partial report proves at least .*189\.3\/day.*never refused on/);
+  // The owner's case still lands: one minute on the partial week's own figure is 190.3/215.
+  assert.notEqual((await withFloor(1)).status, 'refuse');
+});
+
+test('the floor is the highest lower bound of every partial try newer than the judged report', () => {
+  const now = '2026-11-10T12:00:00Z';
+  const tryWith = (offline) => { const r = clone(realReport(42647874522)); r.measurement.tiers.offline.perDay = offline; return r; };
+  const arts = [artifactOf(13, '2026-11-09T18:00:00Z'), artifactOf(12, '2026-11-09T16:00:00Z'), artifactOf(2, '2026-11-03T19:41:07Z')];
+  // Try 1 read 210, try 2 (cut shorter) read 150: the gate's floor is 210.
+  const picked = gateReport({ gh: reportsGh(arts, { 13: tryWith(150), 12: tryWith(210), 2: realReport(41704224273) }), now, ceilings: GATE_CEILINGS });
+  assert.equal(picked.newest.floor.offline.perDay, 210);
+  // An unreadable newest try leaves the older try's floor in place.
+  const broken = gateReport({ gh: reportsGh(arts, { 13: new Error('HTTP 502'), 12: tryWith(210), 2: realReport(41704224273) }), now, ceilings: GATE_CEILINGS });
+  assert.equal(broken.newest.floor.offline.perDay, 210);
+  // A complete newest report has no floor.
+  assert.equal(gateReport({ gh: reportsGh(arts.slice(2), { 2: realReport(41704224273) }), now, ceilings: GATE_CEILINGS }).newest.floor, null);
+  assert.deepEqual(maxBounds(null, {}), null);
+});
+
+test('a first week\'s re-run invents no missing week', () => {
+  const tried = { generatedAt: '2026-11-09T06:10:00Z', breaches: [], stops: {} };
+  const prev = previousForTry(null, tried);
+  assert.equal(prev.generatedAt, tried.generatedAt);
+  const { report } = buildReport({ ceilings: CEILINGS, runs: [], days: 7, windowEnd: '2026-11-09T08:00:00Z', now: '2026-11-09T08:00:00Z', previous: prev, tableRecordedAt: '2026-11-08', collection: 'fixture' });
+  assert.ok(!report.breaches.some((b) => b.key === 'report:missing'));
+});
+
+test('an unreadable newest try never drops the stops of the readable try before it (Rule E21)', () => {
+  const now = '2026-11-10T12:00:00Z';
+  const arts = [artifactOf(13, '2026-11-09T18:00:00Z'), artifactOf(12, '2026-11-09T16:00:00Z'), artifactOf(2, '2026-11-03T19:41:07Z')];
+  const picked = gateReport({ gh: reportsGh(arts, { 13: new Error('HTTP 502'), 12: realReport(42647874522), 2: realReport(41704224273) }), now, ceilings: GATE_CEILINGS });
+  assert.equal(picked.newest.run, 13);
+  assert.equal(picked.newest.readFailed, true);
+  assert.deepEqual(Object.keys(picked.newest.stops).sort(), ['backend', 'overhead'], 'try 1\'s stops, not the judged report\'s none');
+  // Nothing newer read: the judged complete report's own stops.
+  const only = gateReport({ gh: reportsGh([arts[0], arts[2]], { 13: new Error('HTTP 502'), 2: { ...realReport(41704224273), stops: { graphics: 'x' } } }), now, ceilings: GATE_CEILINGS });
+  assert.deepEqual(only.newest.stops, { graphics: 'x' });
+});
+
+test('a partial report with no landings still proves its daily floor (Codex review)', async () => {
+  const noLandings = clone(realReport(42647874522));
+  noLandings.measurement.tiers.offline = { perLanding: null, perDay: 214.3, evidence: 'partial' };
+  assert.deepEqual(lowerBounds(noLandings).offline, { perLanding: 0, perDay: 214.3 });
+  const complete = realReport(41704224273);
+  const growth = await gateOn({ newest: { run: 9, state: 'partial', why: 'x', stops: {}, floor: lowerBounds(noLandings) }, judged: { run: 7, generatedAt: complete.generatedAt, report: complete } }, { added: 1 });
+  assert.equal(growth.status, 'warn', '214.3 + 1 per day is over the 204.25 line on partial evidence: named, not refused (land-2 B5)');
+  assert.match(growth.reasons.join('; '), /214\.3\/day/);
+});
+
+test('version 3: every raised line has a dated reduction step back to its version 2 line, owned by miwco', () => {
+  const plan = CEILINGS_FILE.reductionPlan;
+  assert.equal(plan.owner, 'miwco');
+  assert.ok(readFileSync(new URL(`../${plan.decision}`, import.meta.url), 'utf8').includes('> Approve v3 and plan (Recommended)'), 'the decision is recorded verbatim');
+  for (const t of TIERS) for (const m of ['perLanding', 'perDay']) {
+    const steps = plan.steps.filter((s) => s.tier === t && s.measure === m).sort((a, b) => a.by.localeCompare(b.by));
+    if (CEILINGS_FILE.tiers[t][m] === RULE_TIERS[t][m]) { assert.equal(steps.length, 0, `${t} ${m} was not raised`); continue; }
+    assert.ok(steps.length, `${t} ${m} was raised, so it has a plan`);
+    assert.equal(steps.at(-1).target, RULE_TIERS[t][m], `${t} ${m} comes back to its version 2 line`);
+    for (let i = 1; i < steps.length; i++) assert.ok(steps[i].target < steps[i - 1].target, `${t} ${m} steps only go down`);
+    assert.ok(steps[0].target < CEILINGS_FILE.tiers[t][m]);
+  }
+  const v3 = CEILINGS_FILE.revisions.find((r) => r.version === 3);
+  assert.equal(v3.authority, 'repository owner (miwco)');
+  assert.match(v3.rationale, /43014542120/);
+});
+
+test('a due reduction step is an owned action, met or not, until its line is lowered; never a stop or a line change', () => {
+  const m = (offline, evidence = 'complete') => ({ windowEnd: '2026-12-14', tiers: { offline: { perLanding: offline, perDay: 190, evidence } } });
+  const offline = (list) => list.filter((b) => b.subject === 'offline');
+  assert.deepEqual(planBreaches(CEILINGS_FILE, m(650), '2026-12-13'), [], 'not due yet');
+  const due = offline(planBreaches(CEILINGS_FILE, m(650), '2026-12-14'));
+  assert.deepEqual(due.map((b) => b.key), ['plan:offline:perLanding:2026-12-14']);
+  assert.match(due[0].detail, /measured 650, target 600, not met: .*the line stays at 720/);
+  // Met on complete evidence: the action is to land the lower line, so the ratchet is never silent.
+  const met = offline(planBreaches(CEILINGS_FILE, m(590), '2026-12-14'));
+  assert.match(met[0].detail, /target 600, met: land the reviewed version that lowers the line from 720 to 600/);
+  assert.match(offline(planBreaches(CEILINGS_FILE, m(590, 'partial'), '2026-12-14'))[0].detail, /not met/, 'a partial lower bound under the target proves nothing');
+  // Done once the line is lowered to the step's target.
+  const lowered = { ...CEILINGS_FILE, tiers: { ...CEILINGS_FILE.tiers, offline: { perLanding: 600, perDay: 215 } } };
+  assert.deepEqual(offline(planBreaches(lowered, m(590), '2026-12-20')), []);
+  // Only the latest due step per line: on 2027-01-11 offline shows the 535 step alone.
+  assert.deepEqual(offline(planBreaches(CEILINGS_FILE, m(650), '2027-01-11')).map((b) => b.step.target), [535]);
+  assert.equal(planStepMet({ tier: 'offline', measure: 'perLanding', target: 600 }, m(600)), true);
+  // Carried a week past its correction it is "stopped" as an action, yet stops no tier's growth.
+  const { breaches, stops } = carryBreaches({ previous: [{ ...due[0], since: '2026-12-14', due: '2026-12-21', corrections: 1, state: 'correcting', owner: 'o' }], current: due, today: '2026-12-21', owner: 'o' });
+  assert.equal(breaches[0].state, 'stopped');
+  assert.deepEqual(stops, {});
+  // The weekly report raises it for the owner and moves no line.
+  const report = buildReport({ ceilings: CEILINGS_FILE, runs: [], days: 7, windowEnd: '2026-12-14T00:00:00Z', now: '2026-12-14T06:00:00Z', tableRecordedAt: '2026-12-10', collection: 'fixture' }).report;
+  assert.ok(report.breaches.some((b) => b.key === 'plan:offline:perLanding:2026-12-14'));
+  assert.deepEqual(report.ceilings.tiers, CEILINGS_FILE.tiers, 'no line moved');
+  // Cleared once the line is lowered; while it is not, it stays raised, even after a good week.
+  const carry = (ceilings, now) => buildReport({ ceilings, runs: [], days: 7, windowEnd: now, now, previous: report, tableRecordedAt: '2026-12-20', collection: 'fixture' }).report.breaches.filter((b) => b.kind === 'plan' && b.subject === 'offline').map((b) => b.key);
+  assert.deepEqual(carry(lowered, '2026-12-21T06:00:00Z'), [], 'the lowered line clears it');
+  assert.deepEqual(carry(CEILINGS_FILE, '2026-12-21T06:00:00Z'), ['plan:offline:perLanding:2026-12-14'], 'still raised while the line stays');
+  // The next step replaces it when due, never beside it.
+  assert.deepEqual(carry(CEILINGS_FILE, '2027-01-11T06:00:00Z'), ['plan:offline:perLanding:2027-01-11']);
+});
+
+// WEAKER EVIDENCE NEVER MAKES THE GATE STRICTER (owner, 2026-11-12; cicd-followup land-2b, Rules
+// B1-B5 in docs/work-specs/cicd-followup/evidence/land-2-rules.md). Partial, stale, missing or
+// unreadable evidence warns and names itself; only complete, in-bound evidence refuses.
+test('land-2b: a stale durations table keeps the 95% line and warns', () => {
+  const overhead = { jobMinutes: 0.42, testFactor: 1.01, medianJobMinutes: 0.3, samples: 10 };
+  const minutes = Object.fromEntries(Array.from({ length: 100 }, (_, i) => [`s${i}.spec.ts`, 1.92])); // 90% of 213.4
+  const t = { source: {}, minutes, overhead };
+  const suite = [...Object.keys(minutes), 'new.spec.ts'].sort();
+  const stale = assess({ table: t, suite, changed: ['e2e/new.spec.ts'], today: '2026-11-12', tableStale: true });
+  assert.equal(stale.line, HARD_SHARE, 'a stale table never moves the line to 85%');
+  assert.equal(stale.status, 'warn', stale.reason);
+  const over = { source: {}, minutes: Object.fromEntries(Object.keys(minutes).map((k) => [k, 2.04])), overhead }; // 96%
+  assert.equal(assess({ table: over, suite, changed: ['e2e/new.spec.ts'], today: '2026-11-12', tableStale: true }).status, 'refuse', 'its own cost over 95% is still judged (land-2c makes that a repayment)');
+});
+
+test('land-2b: a stop carried by a partial, stale or unreadable newest report warns; a complete newest report\'s stop still refuses', async () => {
+  const complete = realReport(41704224273);
+  const stopped = { ...complete, stops: { offline: 'cost:offline since 2026-11-02' } };
+  for (const state of ['partial', 'stale', 'missing']) {
+    const g = await gateOn(pick(9, state, stopped), { added: 0.1 });
+    assert.notEqual(g.status, 'refuse', `${state}: ${g.reasons.join('; ')}`);
+    assert.match(g.reasons.join('; '), /cost:offline since 2026-11-02/, 'the carried stop is still named');
+    const backend = await gateOn(pick(9, state, { ...complete, stops: { backend: 'cost:backend since 2026-11-02' } }));
+    assert.notEqual(backend.assessWith([backendItem(0.1)]).tiers.backend.status, 'refuse', state);
+  }
+  // The newest report's own record of the stop, when that report was partial, is carried evidence too.
+  const carried = await gateOn({ newest: { run: 9, state: 'partial', why: 'x', attempt: 3, stops: { offline: 'cost:offline since 2026-11-02' } }, judged: { run: 7, generatedAt: complete.generatedAt, report: complete } }, { added: 0.1 });
+  assert.notEqual(carried.status, 'refuse');
+  // Complete and in bounds: the stop binds.
+  assert.equal((await gateOn(pick(7, 'complete', stopped), { added: 0.1 })).status, 'refuse');
+  // A report file with no gate record (an older fetch): its stop binds only while it is in its age bound.
+  const { growthAssessment } = await import('./e2e-capacity.mjs');
+  const bare = (generatedAt, today) => {
+    const out = path.join(mkdtempSync(path.join(os.tmpdir(), 'gate-bare-')), 'growth.json');
+    writeFileSync(out, JSON.stringify({ ...stopped, generatedAt }));
+    return applyOfflineStop(growthAssessment({ base: null, reportPath: out, table: { source: { recordedAt: today } }, today }), { added: 0.1 });
+  };
+  assert.equal(bare('2026-11-09T06:00:00Z', '2026-11-10').status, 'refuse', 'one day old');
+  assert.notEqual(bare('2026-10-20T06:00:00Z', '2026-11-10').status, 'refuse', 'three weeks old: stale, so carried');
+  // With every tier far under its line (so nothing else warns), the overdue report is still named beside the carried stop.
+  const quiet = clone(stopped);
+  for (const t of Object.values(quiet.measurement.tiers)) Object.assign(t, { perLanding: 1, perDay: 1 });
+  const out = path.join(mkdtempSync(path.join(os.tmpdir(), 'gate-bare-')), 'growth.json');
+  writeFileSync(out, JSON.stringify({ ...quiet, generatedAt: '2026-10-20T06:00:00Z' }));
+  const old = growthAssessment({ base: null, reportPath: out, table: { source: { recordedAt: '2026-11-10' } }, today: '2026-11-10' });
+  assert.equal(old.status, 'warn');
+  assert.match(old.reasons.join('; '), /an owned failure/);
+  assert.match(old.reasons.join('; '), /offline growth stop carried by old evidence/);
+});
+
+test('land-2b: an unreadable report never refuses', () => {
+  assert.notEqual(applyOfflineStop({ status: 'warn', reasons: [], stops: {}, unreadable: true }, { added: 0.5 }).status, 'refuse');
+  assert.notEqual(applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers: { tiers: {} } }, { added: 0.5 }).status, 'refuse', 'no offline tier verdict at all');
+});
+
+test('land-2b: a floor from a newer partial report can only warn, never refuse', async () => {
+  const complete = realReport(41704224273); // offline 173.3/215 per day, 81%
+  const floor = { offline: { perLanding: 0, perDay: 210 } }; // the partial week proves at least 98%
+  const g = await gateOn({ newest: { run: 9, state: 'partial', why: 'x', attempt: 3, floor }, judged: { run: 7, generatedAt: complete.generatedAt, report: complete } }, { added: 1 });
+  assert.notEqual(g.status, 'refuse', g.reasons.join('; '));
+  assert.equal(g.status, 'warn');
 });

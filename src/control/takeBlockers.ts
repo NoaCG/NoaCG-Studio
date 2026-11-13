@@ -41,6 +41,7 @@ export interface TakeContext {
   ability: PlaybackAbility | null;
   /** The production's CasparCG switch. */
   casparOn: boolean;
+  vmixOn?: boolean;
   /** The Bridge has answered, and not with ok. */
   bridgeDown: boolean;
   itemOf: (cue: ShowCue) => PlayoutItem | null;
@@ -71,8 +72,10 @@ const addressOf = (ctx: TakeContext) => (i: PlayoutItem) => slotAddress(ctx.slot
 /** A native cue is not taken while the production's CasparCG switch is off (AC-4): the one place
  *  that says so, read by the TAKE button's title, the cue editor, a One-by-one step and the send.
  *  An All-together folder still takes its other cues and marks such a member NOT TAKEN. */
-export const casparOffRefusal = (cue: ShowCue, casparOn: boolean): string | null =>
-  cue.source === 'playout' && !casparOn ? 'CasparCG is off for this production.' : null;
+export const casparOffRefusal = (cue: ShowCue, casparOn: boolean, vmixOn = false): string | null =>
+  cue.source === 'playout' && !casparOn
+    ? vmixOn ? 'This cue plays on CasparCG. This production uses vMix.' : 'CasparCG is off for this production.'
+    : null;
 
 /**
  * WHERE A TAKE OF THIS CUE - OR THIS FOLDER - LANDS on the server: one plan per slot it plays on,
@@ -127,7 +130,7 @@ export const takePlans = (target: ShowCue | ShowFolder, ctx: TakeContext): { slo
  */
 export const takeBlockerFor = (target: ShowCue | ShowFolder | null, ctx: TakeContext): string | null => {
   if (!target) return null;
-  const off = 'source' in target ? casparOffRefusal(target, ctx.casparOn) : null;
+  const off = 'source' in target ? casparOffRefusal(target, ctx.casparOn, ctx.vmixOn) : null;
   if (off) return off;
   const candidate = selectionRefusal(target, ctx);
   if (candidate) return candidate;
@@ -151,7 +154,7 @@ export const takeBlockerFor = (target: ShowCue | ShowFolder | null, ctx: TakeCon
  *  The output slot is judged by `settings` as they stand at the press, which the page reads then. */
 export const directBlocker = (cue: ShowCue, ctx: TakeContext, settings: PlayoutSettings): string | null => {
   if (cue.source !== 'playout') return !ctx.graphicOf(cue)?.name ? `${cue.label} has no graphic.` : selectionRefusal(cue, ctx);
-  const off = casparOffRefusal(cue, ctx.casparOn);
+  const off = casparOffRefusal(cue, ctx.casparOn, ctx.vmixOn);
   if (off) return off;
   const item = ctx.itemOf(cue);
   if (!item) return `${cue.label} has no media file.`;

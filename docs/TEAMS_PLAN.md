@@ -18,10 +18,10 @@ personal account holds the show.
 - Roles beyond owner/member (no per-graphic permissions, no reviewer/approver tiers).
 - Real-time presence ("Anna is editing cue 3"). The design leaves room for it; v1 ships without.
 
-**What already works without teams, and stays:** operating together needs no accounts at all -
-the hosted control page, output renderer, join page and presenter view are capability URLs
-(`docs/CLOUD_PLAYOUT.md`), so three people can already operate one published production by
-sharing links. The gap teams close is upstream of operating: who can EDIT the rundown, who can
+**What already works without teams, and stays:** the output renderer, join page and presenter
+view are capability URLs (`docs/CLOUD_PLAYOUT.md`) that work for whoever holds them. Operating
+needs a signed-in production page since the hosted control page was retired (2026-11,
+docs/work-specs/retire-hosted-control/spec.md). The gap teams close is upstream of operating: who can EDIT the rundown, who can
 REPUBLISH a changed graphic, and whose account the production dies with. Today the answer to all
 three is "the one personal account that holds the Show record", which is exactly the
 credential-sharing the claim forbids.

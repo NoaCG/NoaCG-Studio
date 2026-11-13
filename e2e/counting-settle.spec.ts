@@ -228,14 +228,33 @@ const MARK_JS = `
   };
 `;
 
+/** THE ENTRANCE ON A CLOCK THE SWEEP OWNS. GSAP's ticker is detached from real time and its root
+ *  advanced by hand in frame quanta, as the render runtime does (src/render/runtimeScript.ts,
+ *  GSAP_DETACH_JS): every frame sampled below is the same frame a 60 Hz ticker would give, with
+ *  every callback fired, but none of them waits for the wall clock. `manual: false` keeps the
+ *  real-time drive (used to prove the two read the same). */
+const DRIVE_JS = (manual: boolean) => `
+      const MANUAL = ${manual};
+      const ownClock = (w) => {
+        if (!MANUAL) return null;
+        w.gsap.ticker.remove(w.gsap.updateRoot);
+        w.gsap.ticker.lagSmoothing(0);
+        let t = w.gsap.ticker.time;
+        return (seconds) => { t += seconds; w.gsap.updateRoot(t); };
+      };
+      // Advance by SECONDS of graphic time, one FRAME of seconds at a time.
+      const run = (step, seconds, frame) => { for (let done = 0; done < seconds - 1e-9; done += frame) step(frame); };
+`;
+
 /** Every catalog design carrying the counting mark, driven in the PLAYOUT order and reported as
  *  one row per readout the entrance actually counts. Runs inside the page: the graphic has to be
  *  a live document with a live GSAP clock, which is the whole point of this pass. */
-const PLAYED = (seed: 'update' | 'markup') => `(async () => {
+const PLAYED = (seed: 'update' | 'markup', manual = true) => `(async () => {
   const seed = ${JSON.stringify(seed)};
   const { CATALOG } = await import('/src/templates/catalog.ts');
   const { composeDocument } = await import('/src/preview/composeDocument.ts');
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+${DRIVE_JS(manual)}
   const designs = []; const readings = [];
   for (const cat of Object.keys(CATALOG)) {
     for (const variant of CATALOG[cat]) {
@@ -321,13 +340,14 @@ const PLAYED = (seed: 'update' | 'markup') => `(async () => {
         };
       }
       if (!Object.keys(before).length) { f.remove(); continue; }
+      const step = ownClock(w);
       try { w.play(); } catch (e) { /* a broken template fails elsewhere */ }
       // The nodes the take just produced. Only a play() or an update() replaces them and neither
       // runs again below, so the entrance can be read off these rather than re-querying the
       // document (and re-deriving every ordinal) on all 45 frames.
       const during = readMarks();
       for (let i = 0; i < 45; i++) {
-        await new Promise((r) => w.requestAnimationFrame(r));
+        if (step) step(1 / 60); else await new Promise((r) => w.requestAnimationFrame(r));
         for (const m of during) {
           const b = before[m.key];
           if (!b) continue;
@@ -340,8 +360,9 @@ const PLAYED = (seed: 'update' | 'markup') => `(async () => {
       }
       // Run the rest of the entrance out on a fast clock rather than in real time: this is real
       // playback with real callbacks, just 25x, which keeps the whole sweep inside one minute.
-      w.gsap.globalTimeline.timeScale(25);
-      await sleep(250);
+      // On the sweep's own clock that is the same 6.25 s of graphic time, frame by frame.
+      if (step) run(step, 6.25, 1 / 60);
+      else { w.gsap.globalTimeline.timeScale(25); await sleep(250); }
       const after = {};
       for (const m of readMarks()) after[m.key] = { target: m.target, text: (m.el.textContent || '').trim() };
       // EVERY SCOPED READOUT IS REPORTED, and whether the entrance counts it rides along rather
@@ -499,10 +520,11 @@ interface Retaken {
 /** Every catalog design carrying the counting mark, played out ONCE so it is on air, then taken
  *  again - which is the order every re-take in the product uses. Runs inside the page for the
  *  same reason the passes above do: it needs a live document and a live GSAP clock. */
-const RETAKEN = `(async () => {
+const RETAKEN = (manual = true) => `(async () => {
   const { CATALOG } = await import('/src/templates/catalog.ts');
   const { composeDocument } = await import('/src/preview/composeDocument.ts');
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+${DRIVE_JS(manual)}
   const designs = []; const readings = [];
   for (const cat of Object.keys(CATALOG)) {
     for (const variant of CATALOG[cat]) {
@@ -571,12 +593,17 @@ const RETAKEN = `(async () => {
       }
       if (!Object.keys(scope).length) { f.remove(); continue; }
       // ON AIR: run the whole entrance out fast, so the graphic ends settled and VISIBLE showing
-      // the operator's data. That is the state every re-take in the product starts from.
+      // the operator's data. That is the state every re-take in the product starts from. On the
+      // sweep's own clock, the same 12 s of graphic time (300 ms at 40x) and one more frame.
+      const step = ownClock(w);
       try { w.play(); } catch (e) { /* a broken template fails elsewhere */ }
-      w.gsap.globalTimeline.timeScale(40);
-      await sleep(300);
-      w.gsap.globalTimeline.timeScale(1);
-      await new Promise((r) => w.requestAnimationFrame(r));
+      if (step) run(step, 12 + 1 / 60, 1 / 60);
+      else {
+        w.gsap.globalTimeline.timeScale(40);
+        await sleep(300);
+        w.gsap.globalTimeline.timeScale(1);
+        await new Promise((r) => w.requestAnimationFrame(r));
+      }
       const settled = {};
       for (const m of readMarks()) settled[m.key] = { target: m.target, text: m.text };
       // THE RE-TAKE, and the reading taken in the same synchronous task: play() has returned and
@@ -591,13 +618,13 @@ const RETAKEN = `(async () => {
         painted[m.key] = { text: m.text, op: opacity(m.el), target: m.target };
         seen[m.key] = [];
       }
-      // Then the count itself, on a fast clock, for the notation half.
-      w.gsap.globalTimeline.timeScale(12);
+      // Then the count itself, on a fast clock, for the notation half: 120 frames at 12x.
+      if (!step) w.gsap.globalTimeline.timeScale(12);
       for (let i = 0; i < 120; i++) {
-        await new Promise((r) => w.requestAnimationFrame(r));
+        if (step) step(12 / 60); else await new Promise((r) => w.requestAnimationFrame(r));
         for (const m of counting) seen[m.key].push((m.el.textContent || '').trim());
       }
-      w.gsap.globalTimeline.timeScale(1);
+      if (!step) w.gsap.globalTimeline.timeScale(1);
       for (const key of Object.keys(painted)) {
         const p = painted[key], texts = seen[key] || [];
         // WHETHER THE ENTRANCE COUNTS THIS READOUT RIDES ALONG, and never decides who gets in.
@@ -645,7 +672,7 @@ test('a counting graphic taken again on air never paints its old figure', async 
   await page.goto('/app');
   await page.keyboard.press('Escape');
 
-  const { designs, readings } = (await page.evaluate(RETAKEN)) as {
+  const { designs, readings } = (await page.evaluate(RETAKEN())) as {
     designs: string[];
     readings: Retaken[];
   };

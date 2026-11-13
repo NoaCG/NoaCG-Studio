@@ -7,23 +7,28 @@
 // and write raw GSAP (the timeline UI then steps aside).
 
 import { ANIMATION_MARK_CLOSE, ANIMATION_MARK_OPEN } from '../lowerThirds/animPresets';
-import { ANIM_DECLARATION, animSounds, locateAnimData, serializeAnimData, spliceAnimData, type AnimData } from '../../blocks/animData';
+import { ANIM_DECLARATION, animSounds, isAnimData, locateAnimData, serializeAnimData, spliceAnimData, type AnimData } from '../../blocks/animData';
 import { SOUND_RUNTIME_V1_JS } from '../../assets/graphicSoundRuntimeV1';
 import { SOUND_RUNTIME_JS } from '../../assets/graphicSoundRuntime';
 import { ANIM_INTERPRETER_BEFORE_CARRIED_HASH, ANIM_INTERPRETER_BEFORE_EXIT_REST_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_PRE_OUT_JS } from './animRuntimeLegacy';
 import { NOACG_EASE_JS, needsEaseRuntime, needsHoldRuntime } from './easeRuntime';
 import { contentHash } from '../../model/contentHash';
+import { usesAuthoredLoops } from '../../model/animLoopClock';
+import { AUTHORED_LOOP_RUNTIME_JS } from './animLoopRuntime';
+import { SVG_GROUP_PIVOT_SELECTOR, SVG_GROUP_PIVOT_UNITS, SVG_GROUP_TRACK_CSS } from '../../model/svgGroupTransform';
 
-/** The interpreter body — identical in every template. Kept as one exported string so the
- *  emitter, the AI prompt, and (later) the convert-on-edit path all ship the same code. */
-export const ANIM_INTERPRETER_JS = `// ---- The interpreter (the same in every template — edit the DATA above instead) ----
+/** Stored ordinary pivot channels are distinct from historical raw CSS tracks. */
+export const ORDINARY_ANCHOR_CHANNELS = { x: 'noacgAnchorX', y: 'noacgAnchorY' } as const;
+
+/** The optional cue-owned loop behavior is generated alongside the frozen legacy body. */
+const interpreter = (loopCode: (text: string) => string) => `// ---- The interpreter (the same in every template — edit the DATA above instead) ----
 // Steps play on the operator's cues: steps[0] on play(), each middle step on one next()
 // press, the last step on stop(). Keyframe times sit on the step's local clock and are
 // divided by the speed knob. A keyframe's ease is the ease INTO it (default: the step's).
 // When the data carries a "machine", the same cues drive its default path, and the state
 // engine below adds operator events (noacgDispatch), timers, and instant snap (noacgSnap).
 ${NOACG_EASE_JS}
-${SOUND_RUNTIME_JS}
+${SOUND_RUNTIME_JS}${loopCode(AUTHORED_LOOP_RUNTIME_JS)}
 
 // A dynamics builder takes the step's ease as a string (its API). It gets the shared curve only
 // when GSAP cannot read a string the shared grammar recognizes, so nothing it builds defaults.
@@ -36,7 +41,7 @@ var noacgLiveTimeline = null;
 var noacgOutTimeline = null;
 
 // Capability: live-pose-out-v1. Capture before killing or applying any first key.
-function noacgOutActive() { return !!noacgOutTimeline; }
+function noacgOutActive() { return !!noacgOutTimeline${loopCode(' || !!noacgStyledOut')}; }
 function noacgRememberEntrance(tl) {
   if (noacgOutTimeline) noacgOutTimeline.kill();
   noacgOutTimeline = null;
@@ -104,7 +109,14 @@ function noacgBuildExit(step, interrupted, silent, early) {
       if (!noacgExitVisible(element, selector)) return;
       Object.keys(step.layers[selector]).forEach(function (prop) {
         var keys = step.layers[selector][prop];
-        if (keys.length) entries.push({ element: element, prop: prop, keys: keys, live: gsap.getProperty(element, prop) });
+        ${loopCode(`// Uniform scale can inherit just one axis from a preceding loop.
+        if (keys.length && prop === 'scale' && noacgStillHoldsLoop(element, prop)) {
+          ['scaleX', 'scaleY'].forEach(function (axis) {
+            entries.push({ element: element, prop: axis, keys: keys, live: gsap.getProperty(element, axis) });
+          });
+          return;
+        }
+        `)}if (keys.length) entries.push({ element: element, prop: prop, keys: keys, live: gsap.getProperty(element, prop) });
       });
     });
   });
@@ -155,7 +167,9 @@ function noacgBuildExit(step, interrupted, silent, early) {
       // So does a track whose motion is all carried.
       tl.set(proxy, { value: last.value }, at(step.duration) / speed);
     } else {
-      tl.set(proxy, { value: keys[0].value }, 0);
+      ${loopCode(`var held = noacgStillHoldsLoop(entry.element, entry.prop);
+      if (held && keys.length === 1) tl.set(proxy, { value: keys[0].value }, at(step.duration) / speed);
+      `)}tl.set(proxy, { value: ${loopCode('held ? entry.live : ')}keys[0].value }, 0);
       for (var k = 1; k < keys.length; k++) {
         tl.to(proxy, { value: keys[k].value, duration: (keys[k].time - keys[k - 1].time) / speed,
           ease: noacgEaseOf(keys[k].ease || step.ease) }, keys[k - 1].time / speed);
@@ -180,7 +194,7 @@ function noacgSpanVisible(spans, time, duration) {
 function buildStepTimeline(index) {
   var step = typeof index === 'number' ? NOACG_ANIM.steps[index] : index;
   var speed = NOACG_ANIM.speed || 1;
-  var tl = gsap.timeline();
+  var tl = gsap.timeline(${loopCode("step.loops ? { smoothChildTiming: true } : undefined")});
   Object.keys(step.spans || {}).forEach(function (selector) {
     var spans = step.spans[selector];
     var times = [0];
@@ -195,7 +209,11 @@ function buildStepTimeline(index) {
       var kfs = tracks[prop];
       if (!kfs.length) return;
       var loop = step.loops && step.loops[selector] && step.loops[selector][prop];
-      if (loop) {
+      if (loop) {${loopCode(`
+        if (loop.range) {
+          noacgAddAuthoredLoop(tl, selector, prop, kfs, loop, step, speed);
+          return;
+        }`)}
         // A looping track plays in its own repeating sub-timeline (a breathing pulse, a
         // marquee-style cycle): the sub-timeline's length is the loop period, and it is
         // added to the step at the track's first keyframe time. repeat -1 = forever.
@@ -204,24 +222,27 @@ function buildStepTimeline(index) {
           yoyo: !!loop.yoyo,
           repeatDelay: (loop.repeatDelay || 0) / speed
         });
-        var s0 = {};
+        ${loopCode(`var loopWrites = noacgTrackModifiers(tl, prop, true, sub);
+        `)}var s0 = {${loopCode(` modifiers: loopWrites `)}};
         s0[prop] = kfs[0].value;
         sub.set(selector, s0, 0);
         for (var j = 1; j < kfs.length; j++) {
-          var lv = {};
+          var lv = {${loopCode(` modifiers: loopWrites `)}};
           lv[prop] = kfs[j].value;
           lv.duration = (kfs[j].time - kfs[j - 1].time) / speed;
           lv.ease = noacgEaseOf(kfs[j].ease || step.ease);
           sub.to(selector, lv, (kfs[j - 1].time - kfs[0].time) / speed);
         }
-        tl.add(sub, kfs[0].time / speed);
+        tl.add(sub, kfs[0].time / speed);${loopCode(`
+        noacgOwnLoop(tl, sub, function () { sub.render(sub.totalTime(), true, true); });`)}
         return;
       }
-      var start = {};
+${loopCode(`      var trackWrites = noacgTrackModifiers(tl, prop, false);
+`)}      var start = {${loopCode(` modifiers: trackWrites `)}};
       start[prop] = kfs[0].value;
       tl.set(selector, start, 0);
       for (var i = 1; i < kfs.length; i++) {
-        var vars = {};
+        var vars = {${loopCode(` modifiers: trackWrites `)}};
         vars[prop] = kfs[i].value;
         vars.duration = (kfs[i].time - kfs[i - 1].time) / speed;
         vars.ease = noacgEaseOf(kfs[i].ease || step.ease);
@@ -235,7 +256,8 @@ function buildStepTimeline(index) {
   // inline props, then step 0 shows it again).
   (step.hides || []).forEach(function (selector) {
     if (step.spans && step.spans[selector] !== undefined) return;
-    tl.set(selector, { opacity: 0 }, step.duration / speed);
+    tl.set(selector, { opacity: 0${loopCode(`, modifiers: noacgTrackModifiers(tl, 'opacity', false)`)} }, step.duration / speed);${loopCode(`
+    noacgRecordHide(tl, selector);`)}
   });
   // Step calls: named template functions fire at their moment on the step's clock (the
   // clock engine's startClock/stopClock — the timeline never owns that logic). Resolved by
@@ -353,7 +375,11 @@ function noacgExitTimeline(interrupted, silent) {
   if (!silent && noacgOutTimeline) return noacgOutTimeline;
   var steps = NOACG_ANIM.steps;
   var step = steps.length > 1 ? steps[steps.length - 1] : { duration: 0, ease: 'none', layers: {} };
-  if (interrupted === undefined) interrupted = !!noacgLiveTimeline && noacgLiveTimeline.time() < noacgLiveTimeline.duration();
+  if (interrupted === undefined) interrupted = !!noacgLiveTimeline && noacgLiveTimeline.time() < noacgLiveTimeline.duration();${loopCode(`
+  interrupted = interrupted || noacgRunningLoop(noacgLiveTimeline) || noacgRunningGroupLoop();
+  noacgRetireLoops(noacgLiveTimeline);
+  noacgReleaseCueTracks(noacgLiveTimeline);
+  noacgRetireGroupLoops();`)}
   // Out from an earlier step, with a Next cue not yet played, leaves from what is on screen as an
   // interrupted Out does: never through the last step's pose or motion the viewer has not seen.
   // A machine's states are an authored graph, not a linear reveal, so it keeps its own exit.
@@ -390,10 +416,14 @@ function buildInTimeline() {
   noacgSoundStopAll();
   if (noacgOutTimeline) noacgOutTimeline.kill();
   noacgOutTimeline = null;
-  noacgLiveTimeline = null;
+  ${loopCode(`noacgRetireLoops(noacgLiveTimeline);
+  noacgClearLoopHolds();
+  noacgClearStyledOut();
+  `)}noacgLiveTimeline = null;
   if (NOACG_ANIM.machine) return noacgMachinePlay();
   noacgStepsPlayed = 1;
-  var tl = noacgEntranceTimeline();
+  var tl = noacgEntranceTimeline();${loopCode(`
+  noacgAdoptCueTracks(tl);`)}
   noacgTrackPath(); // pointer bookkeeping only — playback is untouched
   noacgSoundStart(NOACG_ANIM.steps[0].sound, noacgMachine.groups[0].id);
   return tl;
@@ -409,8 +439,10 @@ function revealNextStep() {
   // graphic the viewer is already watching, so a frame of the previous step's end pose is the
   // most visible case of all (noacgPaintFirstFrame above).
   noacgSoundLeave(noacgMachine.groups[0].id);
-  var step = NOACG_ANIM.steps[noacgStepsPlayed];
-  var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
+  var step = NOACG_ANIM.steps[noacgStepsPlayed];${loopCode(`
+  noacgRetireLoops(noacgLiveTimeline);`)}
+  var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));${loopCode(`
+  noacgAdoptCueTracks(tl);`)}
   noacgSoundStart(step.sound, noacgMachine.groups[0].id);
   noacgLiveTimeline = tl;
   noacgTrackPath();
@@ -420,7 +452,8 @@ function revealNextStep() {
 // buildOutTimeline(): the exit. Called by stop() — the built-in event that is legal from
 // EVERY state (an operator can always take the graphic off air).
 function buildOutTimeline() {
-  if (noacgOutTimeline) return noacgOutTimeline;
+  if (noacgOutTimeline) return noacgOutTimeline;${loopCode(`
+  if (noacgStyledOut) return noacgStyledOut;`)}
   if (NOACG_ANIM.machine) return noacgMachineStop();
   noacgSoundStopAll();
   var tl = noacgExitTimeline();
@@ -586,14 +619,16 @@ function noacgFireCalls(step) {
 function noacgArmTimer(group, stateId, tl) {
   var edge = noacgTimerEdge(group, stateId);
   if (!edge) return;
-  var arm = function () {
+  var arm = function () {${loopCode(`
+    if (noacgCurrent[group.id] !== stateId || (tl && noacgGroupTl[group.id] !== tl)) return false;`)}
     noacgCancelTimer(group.id);
     noacgTimers[group.id] = gsap.delayedCall(edge.after / (NOACG_ANIM.speed || 1), function () {
       noacgTimers[group.id] = null;
       noacgDispatch({ timerGroup: group.id, from: stateId });
-    });
+    });${loopCode(`
+    return true;`)}
   };
-  if (tl) tl.call(arm, null, tl.duration());
+  if (tl) ${loopCode('noacgCallAtFiniteEnd(tl, arm)') || 'tl.call(arm, null, tl.duration())'};
   else arm();
 }
 
@@ -615,7 +650,7 @@ function noacgApplyPayload(payload) {
 // instantly (the snap recipe, suppressed callbacks), the new pose arrives — landing exactly
 // where the entry timeline would have settled, so a styled entry and a snap agree on every
 // pose. An unknown style returns null and the entry timeline plays: honest degradation.
-function noacgStyleTimeline(group, edge) {
+function noacgStyleTimeline(group, edge${loopCode(', retainOut')}) {
   var style = edge.style;
   var root = document.querySelector(NOACG_ANIM.root);
   var known = { cut: 1, fade: 1, 'push-left': 1, 'push-right': 1, 'push-up': 1, 'push-down': 1, 'wipe-left': 1, 'wipe-right': 1 };
@@ -648,14 +683,15 @@ function noacgStyleTimeline(group, edge) {
       if (!route) continue;
       for (var s = 0; s < route.length; s++) {
         var enter = noacgEnterTimeline(gr, route[s]);
-        if (enter) { enter.pause(0); enter.progress(1, true); enter.kill(); }
+        if (enter) { enter.pause(0); ${loopCode('noacgSettleCue(enter)') || 'enter.progress(1, true)'};${loopCode(' noacgAdoptCueTracks(enter); noacgRetireLoops(enter);')} enter.kill(); }
         if (gr === noacgMachine.groups[0]) {
           var idx = noacgPathIndex(route[s]);
           if (idx >= 0) noacgStepsPlayed = idx + 1;
         }
       }
     }
-    noacgFireCalls(noacgStepFor(group, edge.to));
+    ${loopCode(`noacgRepaintOtherLoops(group.id);
+    `)}noacgFireCalls(noacgStepFor(group, edge.to));
   };
   var tl = gsap.timeline();
   // Settling a timeline (progress(1, true) — the editor's parked view, thumbnails, the
@@ -677,16 +713,19 @@ function noacgStyleTimeline(group, edge) {
   if (style === 'cut') {
     tl.call(swap);
     return finishAware(tl);
-  }
+  }${loopCode(`
+  var styleTween = retainOut ? function (target, vars) {
+    noacgStyledOutTween(tl, target, vars);
+  } : tl.to.bind(tl);`)}
   // Phase 1: the old pose leaves.
   if (style === 'fade') {
-    tl.to(root, { opacity: 0, duration: half, ease: ease });
+    ${loopCode('styleTween') || 'tl.to'}(root, { opacity: 0, duration: half, ease: ease });
   } else if (isPush) {
     var outVars = { duration: half, ease: ease };
     outVars[axis] = sign * 120;
-    tl.to(root, outVars);
+    ${loopCode('styleTween') || 'tl.to'}(root, outVars);
   } else {
-    tl.to(root, { clipPath: style === 'wipe-left' ? 'inset(0% 100% 0% 0%)' : 'inset(0% 0% 0% 100%)', duration: half, ease: ease });
+    ${loopCode('styleTween') || 'tl.to'}(root, { clipPath: style === 'wipe-left' ? 'inset(0% 100% 0% 0%)' : 'inset(0% 0% 0% 100%)', duration: half, ease: ease });
   }
   // The swap, plus parking the root at the IN phase's starting offset (entering from the
   // side the old pose left toward — a continuous push, a continuous wipe).
@@ -707,13 +746,13 @@ function noacgStyleTimeline(group, edge) {
   // Phase 2: the new pose arrives, ending on the CAPTURED pose values (function-based ends
   // read them after the swap ran).
   if (style === 'fade') {
-    tl.to(root, { opacity: function () { return pose.v; }, duration: half, ease: ease });
+    ${loopCode('styleTween') || 'tl.to'}(root, { opacity: function () { return pose.v; }, duration: half, ease: ease });
   } else if (isPush) {
     var inVars = { duration: half, ease: ease };
     inVars[axis] = function () { return pose.v; };
-    tl.to(root, inVars);
+    ${loopCode('styleTween') || 'tl.to'}(root, inVars);
   } else {
-    tl.to(root, {
+    ${loopCode('styleTween') || 'tl.to'}(root, {
       clipPath: 'inset(0% 0% 0% 0%)',
       duration: half,
       ease: ease,
@@ -729,14 +768,18 @@ function noacgStyleTimeline(group, edge) {
 // target's entry timer arms. Entering the exit state takes the graphic off air.
 function noacgFire(group, edge) {
   if (!noacgSoundCanExecute()) return null;
-  var isOut = group === noacgMachine.groups[0] && edge.to === (group.defaultPath || []).slice(-1)[0];
+  var isOut = ${loopCode('noacgIsMainOut(group, edge.to)') || 'group === noacgMachine.groups[0] && edge.to === (group.defaultPath || []).slice(-1)[0]'};
   if (isOut) noacgSoundStopAll();
   else noacgSoundLeave(group.id);
   noacgCancelTimer(group.id);
   var prev = noacgGroupTl[group.id];
-  if (prev) {
-    if (prev.progress() < 1) prev.progress(1, true);
-    if (prev.__noacgSwap) prev.__noacgSwap(); // a suppressed finish skipped the pose swap
+${loopCode(`  // Out captures the live pose before completing or retiring any departing motion.
+  if (isOut && noacgRunningGroupLoop()) prev = null;
+`)}  if (prev) {
+    ${loopCode(`noacgRetireLoops(prev);
+    `)}if (prev.progress() < 1) ${loopCode('noacgSettleCue(prev)') || 'prev.progress(1, true)'};
+    if (prev.__noacgSwap) prev.__noacgSwap(); // a suppressed finish skipped the pose swap${loopCode(`
+    noacgReleaseCueTracks(prev);`)}
     prev.kill();
     noacgGroupTl[group.id] = null;
   }
@@ -746,12 +789,20 @@ function noacgFire(group, edge) {
     var idx = noacgPathIndex(edge.to);
     if (idx >= 0) noacgStepsPlayed = idx + 1;
   }
-  var tl = noacgStyleTimeline(group, edge) || noacgEnterTimeline(group, edge.to);
-  var soundStep = noacgStepFor(group, edge.to);
+  ${loopCode(`var styled = noacgStyleTimeline(group, edge, isOut);
+  if (isOut && styled) {
+    noacgRetireGroupLoops();
+    noacgStyledOut = styled;
+  }
+  var tl = styled || noacgEnterTimeline(group, edge.to);
+  if (!isOut) noacgAdoptCueTracks(tl);`) || 'var tl = noacgStyleTimeline(group, edge) || noacgEnterTimeline(group, edge.to);'}
+  ${loopCode(`if (isOut && noacgGroupTl[group.id]) noacgGroupTl[group.id].kill();
+  `)}var soundStep = noacgStepFor(group, edge.to);
   noacgSoundExecute(edge.sound || (soundStep && soundStep.sound), group.id, tl, !!edge.sound);
   if (tl) noacgGroupTl[group.id] = tl;
-  var path = main.defaultPath || [];
-  if (group === main && edge.to === path[path.length - 1]) {
+  ${loopCode('if (isOut)') || `var path = main.defaultPath || [];
+  if (group === main && edge.to === path[path.length - 1])`} {${loopCode(`
+    noacgRetireGroupLoops();`)}
     // The exit was reached (an authored next-drives-out arrow): off air, like stop().
     noacgCancelAllTimers();
     noacgResetPointers();
@@ -822,7 +873,9 @@ function noacgProcessOne(e) {
   var last = null;
   for (var f = 0; f < firing.length; f++) {
     var tl = noacgFire(firing[f].group, firing[f].edge);
-    if (tl) last = tl;
+    if (tl) last = tl;${loopCode(`
+    // The main Out resets every group. The same event cannot re-enter one.
+    if (noacgIsMainOut(firing[f].group, firing[f].edge.to)) break;`)}
   }
   return last;
 }
@@ -850,7 +903,8 @@ function noacgDispatch(event, payload) {
 // materialised play edge (cut/fade/push/wipe) plays the styled change instead of the
 // entrance timeline, landing on the same settled pose (the swap composes the pointers'
 // pose, set below before the timeline runs).
-function noacgMachinePlay() {
+function noacgMachinePlay() {${loopCode(`
+  noacgRetireGroupLoops();`)}
   noacgCancelAllTimers();
   noacgQueue.length = 0;
   noacgGroupTl = {};
@@ -861,7 +915,8 @@ function noacgMachinePlay() {
   var edge = noacgLifecycleEdge('play');
   var tl = (edge && edge.style !== undefined ? noacgStyleTimeline(main, edge) : null) || noacgEntranceTimeline();
   noacgSoundStart((edge && edge.sound) || NOACG_ANIM.steps[0].sound, main.id);
-  noacgGroupTl[main.id] = tl;
+  noacgGroupTl[main.id] = tl;${loopCode(`
+  noacgAdoptCueTracks(tl);`)}
   noacgArmTimer(main, noacgCurrent[main.id], tl);
   return tl;
 }
@@ -881,8 +936,13 @@ function noacgMachineStop() {
   noacgCancelAllTimers();
   noacgQueue.length = 0;
   var edge = noacgLifecycleEdge('stop');
-  var styled = edge && edge.style !== undefined ? noacgStyleTimeline(noacgMachine.groups[0], edge) : null;
-  var tl = styled || noacgExitTimeline();
+  var styled = edge && edge.style !== undefined ? noacgStyleTimeline(noacgMachine.groups[0], edge${loopCode(', true')}) : null;
+  ${loopCode(`if (styled) {
+    noacgRetireLoops(noacgLiveTimeline);
+    noacgRetireGroupLoops();
+    noacgStyledOut = styled;
+  }
+  `)}var tl = styled || noacgExitTimeline();
   noacgSoundExecute((edge && edge.sound) || NOACG_ANIM.steps[NOACG_ANIM.steps.length - 1].sound, noacgMachine.groups[0].id, tl, !!(edge && edge.sound));
   noacgGroupTl = {};
   noacgResetPointers();
@@ -934,7 +994,8 @@ function noacgCanonicalPath(group, targetId) {
 
 // Return the graphic to its CSS rest: clear every inline style the animations wrote.
 // Self-contained (no editor needed), so snap works identically in exports.
-function noacgResetGraphic() {
+function noacgResetGraphic() {${loopCode(`
+  noacgClearLoopHolds();`)}
   if (noacgOutTimeline) noacgOutTimeline.kill();
   noacgOutTimeline = null;
   noacgLiveTimeline = null;
@@ -969,7 +1030,8 @@ function noacgResetGraphic() {
 // suppressed callbacks, so clocks, loops and timers stay silent during composition. Entry
 // timers then arm by default (recovery: a snapped-into ticker resumes cycling); pass
 // { timers: false } to park the graphic (the editor's preview does).
-function noacgSnap(assignments, opts) {
+function noacgSnap(assignments, opts) {${loopCode(`
+  noacgClearStyledOut();`)}
   opts = opts || {};
   var want = {};
   var g, group;
@@ -987,7 +1049,9 @@ function noacgSnap(assignments, opts) {
   });
   noacgCancelAllTimers();
   noacgQueue.length = 0;
-  gsap.killTweensOf('*');
+  ${loopCode(`noacgRetireLoops(noacgLiveTimeline);
+  noacgRetireGroupLoops();
+  `)}gsap.killTweensOf('*');
   noacgGroupTl = {};
   noacgResetGraphic();
   noacgStepsPlayed = 0;
@@ -999,7 +1063,7 @@ function noacgSnap(assignments, opts) {
     if (!route) continue; // unreachable — the group rests at its initial state
     for (var s = 0; s < route.length; s++) {
       var tl = noacgEnterTimeline(group, route[s]);
-      if (tl) { tl.pause(0); tl.progress(1, true); tl.kill(); }
+      if (tl) { tl.pause(0); ${loopCode('noacgSettleCue(tl)') || 'tl.progress(1, true)'};${loopCode(' noacgAdoptCueTracks(tl); noacgRetireLoops(tl);')} tl.kill(); }
       noacgCurrent[group.id] = route[s];
       if (group === noacgMachine.groups[0]) {
         var idx = noacgPathIndex(route[s]);
@@ -1028,6 +1092,9 @@ noacgSoundPrepare().catch(function (e) { console.error(String(e.message || e)); 
 
 /** The data block's header comment — emitted above the literal (JSON carries no comments,
  *  so the explanation lives here, where hand edits preserve it). */
+export const ANIM_INTERPRETER_JS = interpreter(() => '');
+const authoredLoopInterpreter = interpreter(text => text);
+
 const DATA_HEADER = `// The graphic's animation as DATA. Steps play in order — the first on ▶ play(), each
 // middle step on one » next() press (SPX Continue), the last on ■ stop(). Each layer's
 // properties are keyframe lists on the step's local clock: { "time", "value", "ease" }.
@@ -1055,13 +1122,192 @@ const DATA_HEADER = `// The graphic's animation as DATA. Steps play in order —
  */
 export const STOP_AGAIN_GUARD_JS = "if (typeof noacgOutActive === 'function' && noacgOutActive()) return (activeTl = buildOutTimeline());";
 
+// Keep the element as GSAP's target for cancellation and live Out capture. The local
+// accessor interpolates numeric units without changing the renderer's plugin registry.
+const LOCAL_PIVOT_TRACK_JS = `var noacgLocalPivotProperty = (function () {
+  var source, reserved, next = 0, accessors = new Map();
+  return function (element, css, units) {
+    if (source !== NOACG_ANIM) {
+      accessors.forEach(function (properties, target) {
+        Object.keys(properties).forEach(function (axis) { delete target[properties[axis]]; });
+      });
+      accessors.clear();
+      source = NOACG_ANIM;
+      reserved = Object.create(null);
+      source.steps.forEach(function (step) {
+        [step.layers, step.loops || {}].forEach(function (layers) {
+          Object.keys(layers).forEach(function (selector) {
+            Object.keys(layers[selector]).forEach(function (key) { reserved[key] = true; });
+          });
+        });
+      });
+    }
+    var properties = accessors.get(element);
+    if (!properties) { properties = Object.create(null); accessors.set(element, properties); }
+    if (properties[css]) return properties[css];
+    var name;
+    do { name = '__noacgPivot_' + next++; }
+    while (reserved[name] || name in element || name in element.style || name in gsap.plugins);
+    Object.defineProperty(element, name, {
+      configurable: true,
+      get: function () { return parseFloat(getComputedStyle(element).getPropertyValue(css)) * units; },
+      set: function (value) { element.style.setProperty(css, (value / units) + 'px'); }
+    });
+    return properties[css] = name;
+  };
+})();
+function noacgMapPivotStep(step, mapFor) {
+  var layers = step.layers, loops = step.loops;
+  function mapKeys(tracks, convert) {
+    var mapped = Object.create(null);
+    Object.keys(tracks).forEach(function (key) { mapped[convert(key)] = tracks[key]; });
+    return mapped;
+  }
+  Object.keys(step.layers).forEach(function (selector) {
+    var convert = mapFor(selector, step.layers[selector]);
+    if (!convert) return;
+    if (layers === step.layers) layers = Object.assign({}, layers);
+    layers[selector] = mapKeys(step.layers[selector], convert);
+    if (step.loops && step.loops[selector]) {
+      if (loops === step.loops) loops = Object.assign({}, loops);
+      loops[selector] = mapKeys(step.loops[selector], convert);
+    }
+  });
+  return layers === step.layers ? step : Object.assign({}, step, { layers: layers, loops: loops });
+}`;
+
+// Under this exact opt-in body the stored private channels belong to ordinary pivots.
+const ANCHOR_REPLAY_JS = `// Capability: owned-anchor-replay-v1.
+(function (stepTimeline, exitTimeline, applyReveals, enter) {
+  var axes = Object.assign(Object.create(null), ${JSON.stringify({ [ORDINARY_ANCHOR_CHANNELS.x]: '--base-anchor-x', [ORDINARY_ANCHOR_CHANNELS.y]: '--base-anchor-y' })});
+  function owner(selector) {
+    var targets = document.querySelectorAll(selector);
+    return targets.length === 1 && !targets[0].hasAttribute('data-noacg-group') ? targets[0] : null;
+  }
+  function adapt(step) {
+    return noacgMapPivotStep(step, function (selector, tracks) {
+      if (!Object.keys(axes).some(function (key) { return tracks[key] && tracks[key].length; })) return null;
+      var element = owner(selector);
+      return element && function (key) { return axes[key] ? noacgLocalPivotProperty(element, axes[key], 1) : key; };
+    });
+  }
+  buildStepTimeline = function (input) { return stepTimeline(adapt(typeof input === 'number' ? NOACG_ANIM.steps[input] : input)); };
+  noacgBuildExit = function (step, interrupted, silent, early) { return exitTimeline(adapt(step), interrupted, silent, early); };
+  noacgApplyReveals = function (timeline) {
+    applyReveals({ set: function (selector, vars, at) {
+      var property = Object.keys(vars)[0], element = axes[property] && owner(selector);
+      if (!element) { timeline.set(selector, vars, at); return; }
+      var mapped = {};
+      mapped[noacgLocalPivotProperty(element, axes[property], 1)] = vars[property];
+      timeline.set(selector, mapped, at);
+    } });
+  };
+  var source, tracks;
+  noacgEntranceTimeline = function () {
+    if (source !== NOACG_ANIM) {
+      source = NOACG_ANIM;
+      tracks = Object.create(null);
+      source.steps.forEach(function (step) {
+        Object.keys(step.layers).forEach(function (selector) {
+          var layer = step.layers[selector];
+          Object.keys(axes).forEach(function (name) {
+            if (layer[name] && layer[name].length) {
+              if (!tracks[selector]) tracks[selector] = {};
+              tracks[selector][axes[name]] = true;
+            }
+          });
+        });
+      });
+    }
+    Object.keys(tracks).forEach(function (selector) {
+      var element = owner(selector);
+      if (element) Object.keys(tracks[selector]).forEach(function (property) { element.style.removeProperty(property); });
+    });
+    return enter();
+  };
+})(buildStepTimeline, noacgBuildExit, noacgApplyReveals, noacgEntranceTimeline);`;
+
+// A marked group composes its transform in CSS. Translate its authored channels once, then
+// let the same step and exit builders provide holds, ease, visibility and interruption.
+const SVG_GROUP_RUNTIME_JS = `// Capability: svg-group-fixed-frame-v1.
+function noacgHasSvgGroupPivot(element) {
+  return element && element.localName === 'g' && element.namespaceURI === 'http://www.w3.org/2000/svg'
+    && (element.hasAttribute('data-noacg-group') || element.hasAttribute('data-noacg-carrier'))
+    && element.matches('${SVG_GROUP_PIVOT_SELECTOR}');
+}
+function noacgSvgGroup(selector) {
+  if (!/^#[a-zA-Z_][\\w-]*$/.test(selector)) return null;
+  var matches = document.querySelectorAll(selector);
+  var element = matches.length === 1 && matches[0];
+  return noacgHasSvgGroupPivot(element) && selector === '#' + element.id ? element : null;
+}
+function noacgSvgGroupDisplay(selector, hidden) {
+  var element = noacgSvgGroup(selector);
+  if (!element || (NOACG_ANIM.steps[0].spans || {})[selector] !== undefined) return null;
+  return { display: hidden ? 'none' : 'inline' };
+}
+(function (stepTimeline, exitTimeline, applyReveals, enter, reset) {
+  var channels = Object.assign(Object.create(null), ${JSON.stringify(SVG_GROUP_TRACK_CSS)});
+  var axes = Object.assign(Object.create(null), { '--base-anchor-x': true, '--base-anchor-y': true });
+  var runtimeProperties = Object.keys(channels).map(function (key) { return channels[key]; }).concat(Object.keys(axes), 'display');
+  function adapt(step) {
+    return noacgMapPivotStep(step, function (selector) {
+      var element = noacgSvgGroup(selector);
+      return element && function (key) {
+        return axes[key] ? noacgLocalPivotProperty(element, key, ${SVG_GROUP_PIVOT_UNITS}) : channels[key] || key;
+      };
+    });
+  }
+  buildStepTimeline = function (input) {
+    var step = typeof input === 'number' ? NOACG_ANIM.steps[input] : input;
+    var timeline = stepTimeline(adapt(step));
+    (step.reveals || []).forEach(function (selector) {
+      var display = noacgSvgGroupDisplay(selector, false);
+      if (display) timeline.set(selector, display, 0);
+    });
+    return timeline;
+  };
+  noacgBuildExit = function (step, interrupted, silent, early) {
+    return exitTimeline(adapt(step), interrupted, silent, early);
+  };
+  noacgApplyReveals = function (timeline) {
+    var hidden = Object.create(null);
+    applyReveals({ set: function (selector, vars, at) {
+      var display = noacgSvgGroupDisplay(selector, true);
+      if (!display) timeline.set(selector, vars, at);
+      else if (!hidden[selector]) {
+        hidden[selector] = true;
+        timeline.set(selector, display, at);
+      }
+    } });
+  };
+  function resetGroups() {
+    document.querySelectorAll('g${SVG_GROUP_PIVOT_SELECTOR}').forEach(function (element) {
+      if (!noacgSvgGroup('#' + element.id)) return;
+      runtimeProperties.forEach(function (property) { element.style.removeProperty(property); });
+      // GSAP's clearProps reparses SVG transforms and inserts a zero inline origin.
+      // A canonical group always gets its base origin from its own CSS instead.
+      element.style.removeProperty('transform-origin');
+      element.removeAttribute('data-svg-origin');
+    });
+  }
+  noacgEntranceTimeline = function () {
+    resetGroups();
+    return enter();
+  };
+  noacgResetGraphic = function () {
+    reset();
+    resetGroups();
+  };
+})(buildStepTimeline, noacgBuildExit, noacgApplyReveals, noacgEntranceTimeline, noacgResetGraphic);`;
+
 /** Emit the full marked ANIMATION region for a data-driven template. */
 export function emitAnimRegion(data: AnimData): string {
   return `${ANIMATION_MARK_OPEN}
 ${DATA_HEADER}
 ${ANIM_DECLARATION} = ${serializeAnimData(data)};
 
-${ANIM_INTERPRETER_JS}
+${usesAuthoredLoops(data) ? authoredLoopInterpreter : ANIM_INTERPRETER_JS}
 ${ANIMATION_MARK_CLOSE}`;
 }
 
@@ -1145,8 +1391,11 @@ export const dataUsesHoldEase = (data: AnimData) => dataUses(data, needsHoldRunt
  * identically when the data grows a transition STYLE the frozen interpreter cannot play.
  */
 export function writeAnimData(js: string, data: AnimData): string | null {
+  if (usesAuthoredLoops(data)) return writeOutData(js, data);
   if (animSounds(data).length && !/\/\/ Capability: graphic-sound-v[12]/.test(js)) return writeOutData(js, data);
-  if ((data.steps.some(step => step.spans || step.carried) || dataUsesExactEase(data)) &&!js.replace(/\r\n/g, '\n').includes(ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n'))) {
+  if ((data.steps.some(step => step.spans || step.carried) || dataUsesExactEase(data)) &&
+      !js.replace(/\r\n/g, '\n').includes(ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n')) &&
+      !hasLoopRuntime(js)) {
     return writeOutData(js, data);
   }
   if (data.machine && !hasMachineRuntime(js)) return replaceRegionWithAnimData(js, data);
@@ -1156,22 +1405,96 @@ export function writeAnimData(js: string, data: AnimData): string | null {
   return spliceAnimData(js, data);
 }
 
-/** Exact known bodies only: a capability comment alone cannot authorize replacement. */
-export function writeOutData(js: string, data: AnimData): string | null {
+function interpreterBody(js: string): string | null {
   const text = js.replace(/\r\n/g, '\n');
   const location = locateAnimData(text), start = text.indexOf(ANIMATION_MARK_OPEN), end = text.indexOf(ANIMATION_MARK_CLOSE);
   if (!location || start < 0 || end < location.end) return null;
   const prefix = text.slice(start, location.start).trim();
   if (prefix !== `${ANIMATION_MARK_OPEN}\n${DATA_HEADER}\n${ANIM_DECLARATION} =`.replace(/\r\n/g, '\n')) return null;
-  const body = text.slice(location.end, end).replace(/^;\s*/, '').trim();
-  if (body === ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n').trim()) return spliceAnimData(js, data);
+  return text.slice(location.end, end).replace(/^;\s*/, '').trim();
+}
+
+const normalizeBody = (body: string) => body.replace(/\r\n/g, '\n').trim();
+const currentInterpreter = normalizeBody(ANIM_INTERPRETER_JS);
+const loopInterpreter = normalizeBody(authoredLoopInterpreter);
+const anchorCapability = LOCAL_PIVOT_TRACK_JS + '\n\n' + ANCHOR_REPLAY_JS;
+const svgGroupCapability = LOCAL_PIVOT_TRACK_JS + '\n\n' + SVG_GROUP_RUNTIME_JS;
+const suffixes = [
+  { text: '', anchor: false, group: false },
+  { text: '\n\n' + anchorCapability, anchor: true, group: false },
+  { text: '\n\n' + svgGroupCapability, anchor: false, group: true },
+  { text: '\n\n' + anchorCapability + '\n\n' + SVG_GROUP_RUNTIME_JS, anchor: true, group: true },
+  { text: '\n\n' + svgGroupCapability + '\n\n' + ANCHOR_REPLAY_JS, anchor: true, group: true },
+];
+const interpreters = [currentInterpreter, loopInterpreter].flatMap(base =>
+  suffixes.map(suffix => ({ ...suffix, body: base + suffix.text, loops: base === loopInterpreter })));
+
+function ownedInterpreter(js: string) {
+  const body = interpreterBody(js);
+  return interpreters.find(variant => variant.body === body);
+}
+
+export function hasSvgGroupRuntime(js: string): boolean {
+  return js.includes('// Capability: svg-group-fixed-frame-v1.') && !!ownedInterpreter(js)?.group;
+}
+
+export function hasLoopRuntime(js: string): boolean {
+  return js.includes('// Capability: authored-cue-loops-v1.') && !!ownedInterpreter(js)?.loops;
+}
+
+function appendCapability(js: string, capability: string) {
+  const at = js.indexOf(ANIMATION_MARK_CLOSE), line = js.includes('\r\n') ? '\r\n' : '\n';
+  return js.slice(0, at).trimEnd() + ('\n\n' + capability + '\n').replace(/\n/g, line) + js.slice(at);
+}
+
+/** Group creation adds only its capability, leaving ordinary raw CSS tracks as authored. */
+export function withSvgGroupRuntime(js: string): string | null {
+  const known = ownedInterpreter(js);
+  return !known ? null : known.group ? js : appendCapability(js, known.anchor ? SVG_GROUP_RUNTIME_JS : svgGroupCapability);
+}
+
+export function hasAnchorRuntime(js: string): boolean {
+  return js.includes('// Capability: owned-anchor-replay-v1.') && !!ownedInterpreter(js)?.anchor;
+}
+
+/** Only an explicit ordinary anchor edit may install the replay capability. */
+export function withAnchorRuntime(js: string): string | null {
+  const known = ownedInterpreter(js);
+  return !known ? null : known.anchor ? js : appendCapability(js, known.group ? ANCHOR_REPLAY_JS : anchorCapability);
+}
+
+/** Only the exact shared interpreter and its generated anchor extension can take a new anchor track. */
+export function canWriteAnchorData(js: string): boolean {
+  return !!ownedInterpreter(js);
+}
+
+/** Exact known bodies only: a capability comment alone cannot authorize replacement. */
+export function writeOutData(js: string, data: AnimData): string | null {
+  const loops = usesAuthoredLoops(data);
+  if (loops && !isAnimData(data)) return null;
+  const body = interpreterBody(js);
+  if (body === null) return null;
+  const known = interpreters.find(variant => variant.body === body);
+  if (known) {
+    if (!loops || known.loops) return spliceAnimData(js, data);
+    const literal = locateAnimData(js)!;
+    const close = js.indexOf(ANIMATION_MARK_CLOSE, literal.end);
+    const region = js.slice(literal.end, close);
+    const start = region.search(/[^;\s]/);
+    const end = region.trimEnd().length;
+    const line = region.includes('\r\n') ? '\r\n' : '\n';
+    const body = (loopInterpreter + known.text).replace(/\n/g, line);
+    const upgraded = js.slice(0, literal.end + start) + body + js.slice(literal.end + end);
+    return spliceAnimData(upgraded, data);
+  }
+  const hash = contentHash(body);
   if (body === ANIM_INTERPRETER_JS.replace(SOUND_RUNTIME_JS, SOUND_RUNTIME_V1_JS).replace(/\r\n/g, '\n').trim()) return replaceRegionWithAnimData(js, data);
   const beforeSpans = ANIM_INTERPRETER_PRE_OUT_JS
     .replace(/\/\/ Visibility is independent of opacity\.[\s\S]*?\n}\n\n/, '')
     .replace(/ {2}Object\.keys\(step\.spans \|\| \{\}\)\.forEach[\s\S]*?\n {2}}\);\n/, '')
     .replace(/^ +if \(step(?:s\[0\])?\.spans[^\n]+\n/gm, '');
   if (![ANIM_INTERPRETER_PRE_OUT_JS, beforeSpans].some(known => body === known.replace(/\r\n/g, '\n').trim()) &&
-      !['f4463f758f4e2', ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_CARRIED_HASH, ANIM_INTERPRETER_BEFORE_EXIT_REST_HASH].includes(contentHash(body))) return null;
+      !['f4463f758f4e2', ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_CARRIED_HASH, ANIM_INTERPRETER_BEFORE_EXIT_REST_HASH].includes(hash)) return null;
   return replaceRegionWithAnimData(js, data);
 }
 

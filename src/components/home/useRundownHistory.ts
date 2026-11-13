@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { beginTeamRundownEdit, commitTeamRundownEdit, restoreTeamRundown, subscribeTeamState, getTeamState, type TeamRundownReceipt } from '../../backend/teamProductions';
 import { canAuthorAccount, commitDurableReceipt, captureDurableWrites, libraryInUse, isDurableStoreActive } from '../../model/durableStore';
 import { loadShows, restorePersonalRundown, type Show } from '../../model/shows';
-import { RundownHistory, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../../model/rundownHistory';
+import { RundownHistory, landedReplacement, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../../model/rundownHistory';
 
 type WriteResult = { shows: Show[]; error: string | null; refused?: string | null };
 type Group = { key: string; before: RundownSlice; after: RundownSlice; valid: boolean };
@@ -183,8 +183,11 @@ export function useRundownHistory(
         else callbacks.current.note(result.error);
         return false;
       }
-      if (!accepted || !sameRundown(rundownSlice(accepted), replacement)) { invalidate(); return false; }
-      history.current.accepted(direction, entry); callbacks.current.note(`✓ ${direction === 'undo' ? 'Undid' : 'Redid'}: ${entry.label}`); changed(); return true;
+      // What the restore lands as: the replacement less any hidden word (W11, `replaceRundown`). The
+      // history keeps that, so the next step compares against what is stored.
+      const landed = landedReplacement(current, replacement);
+      if (!accepted || !sameRundown(rundownSlice(accepted), landed)) { invalidate(); return false; }
+      history.current.accepted(direction, entry, landed); callbacks.current.note(`✓ ${direction === 'undo' ? 'Undid' : 'Redid'}: ${entry.label}`); changed(); return true;
     }, false);
   };
   /** Whether there is a step that way to take, read from the stacks as they stand. */

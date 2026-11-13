@@ -9,6 +9,7 @@
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
+// covers: src/control/adjustGeometry.ts
 //
 // THE PRODUCTION PAGE'S AIR CONTRACT, pinned before the page is split (production-page refactor,
 // phase 1; docs/work-specs/production-page-refactor/spec.md §5.3 and §1.3). Each test presses
@@ -17,15 +18,17 @@
 // the code underneath; these assertions do not change (D9).
 //
 // The save wait is what most of these walk through. A typed value is a DRAFT for up to 300 ms and
-// then a durable write that IndexedDB confirms a moment later (model/durableStore.ts); every verb
-// waits for both before it reads (spec §4.1 R2). To walk INSIDE that wait the durable writes are
-// held open on purpose (`holdWrites`): a slow disk, which is all the fault injection there is.
+// then a durable write that IndexedDB confirms a moment later (model/durableStore.ts); an Update
+// or a snap waits for both before it reads (spec §4.1 R2), and a Take path waits for neither: it
+// reads the draft from memory and saves after its send (live-publishing W1). To walk INSIDE that
+// save the durable writes are held open on purpose (`holdWrites`): a slow disk, which is all the
+// fault injection there is.
 
 import { test, expect, type Page } from '@playwright/test';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { settleDurableWrites } from './_durable';
 import { evaluateInPage } from './_evaluate';
-import { fakeBridge, seedSettings } from './_fakeBridge';
+import { BRIDGE, fakeBridge, seedSettings } from './_fakeBridge';
 import { parkFocusOffControls } from './_keys';
 
 /**
@@ -136,17 +139,23 @@ const doublePress = (page: Page, key: string) =>
     setTimeout(press, 0);
   }, key);
 
-test('S3: two SPACE presses on a held folder take it once, even with a save still landing', async ({ page }) => {
-  // spec §1.3 S3, refuted and recorded. A folder's Take checks "already running", waits for the
-  // draft and the edit group, and only then registers the run. A second press inside that wait
-  // would pass the check too. But holding a folder saves the draft and closes the edit group, and
-  // a held folder has no cue editor to start another, so both waits answer at once (microtasks)
-  // and the first press has registered before the second key event is handled. Here the disk is
-  // slow and an edit was still saving when the folder was held, which is the case the wait would
-  // have been real in.
+test('S3, W1: two SPACE presses on a held folder never take it twice, even with a save still landing: the second takes it off', async ({ page }) => {
+  // spec §1.3 S3. A folder's Take checks "already running" and registers its run in the same task
+  // (live-publishing W1: it waits on no save), and a folder being sent counts as up
+  // (ProductionPage `folderUp`), so the second press, drawn after the first, is SPACE on a folder
+  // that is up: it takes it off, as SPACE does. Before W1 the save wait delayed the run past the
+  // second press's render, so the second read the folder as down and was ignored. The rule that
+  // holds either way: the folder is never taken twice. Here the disk is slow and an edit was still
+  // saving when the folder was held, and the Bridge answers the Take slowly, so the second press
+  // lands while the first is still being sent.
   await installWriteHold(page);
   await seedSettings(page);
   const fake = await fakeBridge(page);
+  // Registered after the fake, so it answers first: each /act waits 400 ms, then goes on to the fake.
+  await page.route(`${BRIDGE}/act`, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    await route.fallback();
+  });
   await production(page, 'Folder twice', { media: [VT], folder: { labels: ['Strap', 'VT'], name: 'Opening', mode: 'together' } });
   // An edit on Strap, still a draft, then the disk slow and the folder held.
   await cue(page, 'Strap').getByTestId('select-cue').click();
@@ -159,18 +168,20 @@ test('S3: two SPACE presses on a held folder take it once, even with a save stil
   const before = await plays(page);
 
   await doublePress(page, ' ');
-  await expect.poll(() => sent(fake), { message: 'the folder is taken' }).toContain('take 2-10 VT');
-  await page.waitForTimeout(500);
+  // The Take's clip lands after the second press, which takes it back off.
+  await expect.poll(() => sent(fake), { message: 'taken once, then off' }).toEqual(['take 2-10 VT', 'out 2-10']);
   await holdWrites(page, false);
   await page.waitForTimeout(500);
-  expect(sent(fake).filter((line) => line === 'take 2-10 VT'), 'two presses take the folder once').toHaveLength(1);
-  expect(await plays(page), 'Strap played once').toBe(before + 1);
+  expect(sent(fake), 'two presses never take the folder twice').toEqual(['take 2-10 VT', 'out 2-10']);
+  expect(await plays(page), 'the Out came before the folder\'s graphics went: Strap never played').toBe(before);
+  await expect(page.getByTestId('production-note')).toContainText('Out: Opening');
 });
 
-test('S2: a graphic Take pressed while its edit is still a draft waits for the save, then airs the edit', async ({ page }) => {
-  // spec §1.3 S2, characterised and retained: a graphic Take awaits the draft's save and the edit
-  // group with no bound (a server cue's Take races them against 250 ms instead). The wait is real
-  // when the press does not blur the editor: SPACE from a checkbox in it, or a panel's key.
+test('S2, W1: a graphic Take pressed while its edit is still a draft airs the edit at once, the save still held', async ({ page }) => {
+  // live-publishing spec W1 (S1), replacing S2's characterised wait: a Take never waits on the
+  // page's own work. Its values come from memory (the draft over the record) and the draft's save
+  // starts once the send is answered. The wait was real when the press does not blur the editor:
+  // SPACE from a checkbox in it, or a panel's key. Here the disk holds every save open throughout.
   await installWriteHold(page);
   await production(page, 'Save wait');
   await cue(page, 'Strap').getByTestId('select-cue').click();
@@ -183,13 +194,15 @@ test('S2: a graphic Take pressed while its edit is still a draft waits for the s
   await page.keyboard.press(' ');
   // The checkbox kept its tick: SPACE was the verb's, not the box's.
   await expect(toggle).toBeChecked();
-  await page.waitForTimeout(800);
-  expect(await plays(page), 'the Take is still waiting for the save').toBe(before);
-  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  // On air with the save still held: well inside the time the save wait used to take.
+  await expect(page.getByTestId('live-cue-chip')).toContainText('Strap', { timeout: 2_000 });
+  await expect.poll(() => plays(page), { timeout: 2_000 }).toBe(before + 1);
 
   await holdWrites(page, false);
-  await expect(page.getByTestId('live-cue-chip')).toContainText('Strap');
-  await expect.poll(() => plays(page)).toBe(before + 1);
+  // The save lands after the send: nothing typed is lost, and nothing airs twice.
+  await expect(page.getByTestId('cue-unsent')).toBeEmpty();
+  await page.waitForTimeout(500);
+  expect(await plays(page), 'one entrance').toBe(before + 1);
 });
 
 /** The editor's text boxes, by field id. */
@@ -200,20 +213,125 @@ const textFields = (page: Page) =>
 
 test('typed then taken at once: the typed value airs while its save is still landing, as one entrance', async ({ page }) => {
   // spec §5.3, "type then Take at once": the Take comes inside the 300 ms draft flush. The click
-  // blurs the editor, which starts the save; with the disk held the save is still out when the
-  // Take reads the cue, so what airs must be the draft, once.
+  // blurs the editor, whose save then waits for the Take; with the disk held the save is still out
+  // after it, so what airs must be the draft, once.
   await installWriteHold(page);
   await production(page, 'Type then take');
   await cue(page, 'Hairline').getByTestId('select-cue').click();
   const before = await plays(page);
+  // #2388: the click's pointer-down blurs the editor, and that blur's save rewrites the stored
+  // productions synchronously. It waits until the Take's own handler has run: what is stored when
+  // the click reaches the page is read in the capture phase, before any handler.
+  await evaluateInPage(page, async () => {
+    const m = await import('/src/model/shows.ts');
+    const w = window as unknown as { __storedAtClick?: boolean[] };
+    w.__storedAtClick = [];
+    window.addEventListener('click', (e) => {
+      if ((e.target as Element).closest?.('[data-testid="verb-take"]')) w.__storedAtClick!.push(JSON.stringify(m.loadShows()).includes('Typed then taken'));
+    }, true);
+  });
   await holdWrites(page, true);
   await page.getByTestId('cue-field-f0').fill('Typed then taken');
   await page.getByTestId('verb-take').click();
   await onProgram(page, '#f0', 'Typed then taken');
+  expect(await page.evaluate(() => (window as unknown as { __storedAtClick: boolean[] }).__storedAtClick), 'the Take ran before the save').toEqual([false]);
   await holdWrites(page, false);
   await expect(page.getByTestId('cue-unsent')).toBeEmpty();
   await page.waitForTimeout(500);
   expect(await plays(page), 'one entrance').toBe(before + 1);
+});
+
+test.describe('on a touch screen', () => {
+  test.use({ hasTouch: true });
+  test('typed then tapped Take: the Take runs before the save there too', async ({ page }) => {
+    // #2388 on touch: a tap moves the focus after its pointer is up, with the click it makes, so
+    // the press must not count as over at the pointer's release.
+    await installWriteHold(page);
+    await production(page, 'Type then tap');
+    await cue(page, 'Hairline').getByTestId('select-cue').click();
+    await evaluateInPage(page, async () => {
+      const m = await import('/src/model/shows.ts');
+      const w = window as unknown as { __storedAtClick?: boolean[] };
+      w.__storedAtClick = [];
+      window.addEventListener('click', (e) => {
+        if ((e.target as Element).closest?.('[data-testid="verb-take"]')) w.__storedAtClick!.push(JSON.stringify(m.loadShows()).includes('Typed then tapped'));
+      }, true);
+    });
+    await holdWrites(page, true);
+    await page.getByTestId('cue-field-f0').fill('Typed then tapped');
+    await page.getByTestId('verb-take').tap();
+    await onProgram(page, '#f0', 'Typed then tapped');
+    expect(await page.evaluate(() => (window as unknown as { __storedAtClick: boolean[] }).__storedAtClick), 'the Take ran before the save').toEqual([false]);
+    await holdWrites(page, false);
+    await expect(page.getByTestId('cue-unsent')).toBeEmpty();
+  });
+  test('typed, Take tapped, then the page reloads at once: the edit is kept', async ({ page }) => {
+    // Phase 3 check on 92e581a7: the Take's own save is still committing when the page goes, and a
+    // reload aborts it, so only the record the page keeps as it goes carries the edit.
+    await production(page, 'Tap then reload');
+    await cue(page, 'Hairline').getByTestId('select-cue').click();
+    await page.getByTestId('cue-field-f0').fill('Kept over a tap and a reload');
+    const box = (await page.getByTestId('verb-take').boundingBox())!;
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: box.x + 5, y: box.y + 5 }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.reload();
+    await cue(page, 'Hairline').getByTestId('select-cue').click();
+    await expect(page.getByTestId('cue-field-f0')).toHaveValue('Kept over a tap and a reload');
+  });
+});
+
+test('typed then taken, then the page reloads at once: the edit is kept', async ({ page }) => {
+  // #2388: the blur's save waits for the Take, so the edit is still owed when the page goes; the
+  // page going saves it at once.
+  await production(page, 'Take then reload');
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await page.getByTestId('cue-field-f0').fill('Kept over a reload');
+  await page.getByTestId('verb-take').click();
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Kept over a reload');
+});
+
+test('an unsaved edit is kept when the page reloads inside its save window, pressed or not', async ({ page }) => {
+  // Phase 3 check on 92e581a7: with the pointer still down on Take the blur's save is held, and with
+  // no press the idle save has not run, so only the page-hide save carries the edit. That save's
+  // transaction must commit before the reload ends the document.
+  await installWriteHold(page);
+  await production(page, 'Reload in the window');
+  const field = page.getByTestId('cue-field-f0');
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await field.fill('Kept with the press held');
+  await page.getByTestId('verb-take').hover();
+  await page.mouse.down();
+  await page.reload();
+  await page.mouse.up();
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await expect(field).toHaveValue('Kept with the press held');
+  await field.fill('Kept with no press');
+  await page.reload();
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await expect(field).toHaveValue('Kept with no press');
+  // Away to another tab and back mid-edit (its hide saves the first part), typing on, reload: the
+  // record must be applied over the part that hide saved.
+  await field.fill('Before the tab');
+  await page.evaluate(() => {
+    const flip = (state: string) => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+      document.dispatchEvent(new Event('visibilitychange'));
+    };
+    flip('hidden');
+    flip('visible');
+    delete (document as unknown as { visibilityState?: string }).visibilityState;
+  });
+  // That save lands; every later one is held, so the reload aborts it, as on a slow disk.
+  await settleDurableWrites(page);
+  await holdWrites(page, true);
+  await field.fill('Before the tab and after it');
+  await page.reload();
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await expect(field).toHaveValue('Before the tab and after it');
 });
 
 test('Update sends every field, and u is the same press', async ({ page }) => {

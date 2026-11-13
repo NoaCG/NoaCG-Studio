@@ -2,8 +2,8 @@
 //
 // When a verb's send fails: which failures are sent again and for how long, and when the notice a
 // failure put up comes down. Run in Node with the clock and the send faked. The wiring - that the
-// send path and both operator pages use these - is read in src/control/hostedControl.ts,
-// src/components/home/ProductionPage.tsx and src/components/HostedControlPage.tsx.
+// send path and the production page use these - is read in src/control/hostedControl.ts and
+// src/components/home/ProductionPage.tsx.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';

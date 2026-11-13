@@ -38,9 +38,10 @@ export function AddStep({ session, view, time, pause, seek }: { session: EditorS
 
 interface Props {
   segment: Segment; view: TimelineView; extent: number; fps: number;
+  layout: { minWidth: number; maxWidth: number; marginBottom: number };
   /** Ruler seconds a dragged flag is drawn to within a few pixels: keys, bar edges and the playhead. */
   snaps: number[]; playhead: number; selected: boolean; session: EditorSession;
-  pause: () => void; inspect: () => void; setOut: (time: number) => void; display: (value: number) => string;
+  pause: () => void; inspect: () => void; setOut: (time: number) => void; display: (value: number) => string; focusRuler: () => void;
 }
 /**
  * One Step or Out flag on the ruler. A drag moves it to a frame (Alt skips the magnets, never the
@@ -48,7 +49,7 @@ interface Props {
  * release; Escape cancels. Arrow keys nudge it a frame (Shift ten). A click inspects the segment it
  * starts; a Step also renames inline (double-click, Enter or F2) and deletes (Delete, or the menu).
  */
-export default function StepFlag({ segment, view, extent, fps, snaps, playhead, selected, session, pause, inspect, setOut, display }: Props) {
+export default function StepFlag({ segment, view, extent, fps, layout, snaps, playhead, selected, session, pause, inspect, setOut, display, focusRuler }: Props) {
   const button = useRef<HTMLButtonElement>(null), menu = useRef<HTMLDivElement>(null), naming = useRef(false);
   const drag = useRef<{ x: number; width: number; expected: Revision; moved: boolean; at: number; refused: string; targets: number[]; checked: Map<number, string> } | null>(null);
   const [shown, setShown] = useState<{ at: number; refused: string } | null>(null);
@@ -105,8 +106,7 @@ export default function StepFlag({ segment, view, extent, fps, snaps, playhead, 
   const remove = () => {
     setMenuAt(null); pause();
     // The flag goes with its Step, so the keyboard stays on the ruler it sat on.
-    const ruler = button.current?.parentElement;
-    try { session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'step.delete', step: index }] }); ruler?.focus(); }
+    try { session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'step.delete', step: index }] }); focusRuler(); }
     catch (cause) { setReason(message(cause)); button.current?.focus(); }
   };
   const startNaming = () => { setMenuAt(null); naming.current = true; setName(segment.name); };
@@ -148,13 +148,14 @@ export default function StepFlag({ segment, view, extent, fps, snaps, playhead, 
   const at = shown?.at ?? segment.start, left = at / extent * 100;
   return <>
     <button ref={button} className={'ef-flag' + (out ? ' ef-out' : '') + (shown ? ' is-dragging' : '') + (shown?.refused ? ' is-refused' : '')}
-      style={{ left: left + '%' }} aria-label={segment.name + ' flag'} aria-pressed={selected}
-      title={out ? 'Drag to set Out · Click to edit Out' : 'Drag to move · Click to edit its start · Double-click to rename · Delete to remove'}
+      style={{ left: left + '%', ...layout, maxWidth: shown ? undefined : layout.maxWidth }} aria-label={segment.name + ' flag'} aria-pressed={selected}
+      title={out ? 'Drag to set Out · Click to edit Out' : segment.name + ' · Drag to move · Click to edit its start · Double-click to rename · Delete to remove'}
       onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={cancel} onLostPointerCapture={() => { if (drag.current) cancel(); }}
+      onClick={event => { if (event.detail === 0) { event.stopPropagation(); pause(); inspect(); } }}
       onDoubleClick={event => { event.stopPropagation(); if (!out) startNaming(); }}
       onContextMenu={event => { event.preventDefault(); event.stopPropagation(); if (!out) setMenuAt({ x: event.clientX, y: event.clientY }); }}
       onKeyDown={key}>{label}{shown && ' · ' + display(at)}</button>
-    {name !== null && <label className="ef-flag-name" style={{ left: left + '%' }} ref={node => { const input = node?.querySelector('input'); if (input && document.activeElement !== input) { input.focus(); input.select(); } }}
+    {name !== null && <label className="ef-flag-name" style={{ left: left + '%', marginBottom: layout.marginBottom }} ref={node => { const input = node?.querySelector('input'); if (input && document.activeElement !== input) { input.focus(); input.select(); } }}
       onPointerDown={event => event.stopPropagation()} onBlur={() => rename(name, false)} onKeyDown={event => {
         event.stopPropagation();
         if (event.key === 'Enter') { event.preventDefault(); rename(name, true); }

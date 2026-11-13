@@ -1,13 +1,14 @@
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import LibMenu from './LibMenu';
-import { fillsFields, setShowSourcePaused, sourceKindWord, type Show, type ShowSource } from '../../model/shows';
+import { hasReaderLine, noacgReads, setShowSourcePaused, sourceKindWord, type Show, type ShowSource } from '../../model/shows';
 import { SHEET_READ_MS, type SheetStatus, type SourceStatusStore } from '../../control/sheetSource';
 import { FEED_READ_MS } from '../../control/feedSource';
+import { jsonEveryMs } from '../../control/jsonSource';
 import { fileAsk } from '../../control/fileSource';
 import { allowFile, canPickFiles, pickFile, saveFileHandle } from '../../control/fileHandles';
 import { useNow } from './ClipClock';
 import { liveDataUrl, ownReaderGate, type OwnReaderGate } from '../../control/liveData';
-import { resolveSavedGraphicDoc, type GraphicDoc } from '../../model/library';
+import type { GraphicDoc } from '../../model/library';
 import type { SavedGraphic } from '../../model/packets';
 import { sourcePaths } from '../../model/productionData';
 import { heldListOnAir, heldListsWaiting } from '../../control/contentFormats';
@@ -33,8 +34,9 @@ export interface OutputObservations {
 
 /** One graphic's own Sheet reader where it plays (control/liveData.ts `ownReaderGate`): the design
  *  it plays, the copy, and what the published output was seen to run. */
-export function ownSheetReader(graphic: SavedGraphic, library: GraphicDoc[], published: boolean, output?: OutputObservations): OwnSheetReader {
-  const design = resolveSavedGraphicDoc(graphic, library)?.template.js ?? graphic.template.js;
+export function ownSheetReader(graphic: SavedGraphic, _library: GraphicDoc[], published: boolean, output?: OutputObservations): OwnSheetReader {
+  // The copy is what plays and publishes (live-publishing G1 section 1).
+  const design = graphic.template.js;
   return {
     graphic: graphic.name,
     url: liveDataUrl(design) ?? liveDataUrl(graphic.template.js),
@@ -108,17 +110,23 @@ export function statusWords(paused: boolean | undefined, status: SheetStatus | u
   return `${where}${status.state === 'empty' ? 'empty · ' : ''}${checked}${changed}${closed}`;
 }
 
-/** Who reads a source and how often (data-sources AC-9's source details). */
-export function readerWords(paused: boolean | undefined, status: SheetStatus | undefined, kind: ShowSource['kind']): string {
+/** "every 30 s", "every 5 min". */
+const everyWords = (ms: number): string => (ms % 60_000 === 0 ? `every ${ms / 60_000} min` : `every ${Math.round(ms / 1000)} s`);
+
+/** Who reads a source and how often (data-sources AC-9's source details). `everyMs` is a JSON
+ *  source's own interval (obs-scenes OS5a). */
+export function readerWords(paused: boolean | undefined, status: SheetStatus | undefined, kind: ShowSource['kind'], everyMs?: number): string {
   if (paused) return 'Paused: not read until Resume';
   if (!status) return 'Waiting for the first read';
-  const every = kind === 'feed' ? `about every ${FEED_READ_MS / 60_000} min` : `about every ${SHEET_READ_MS / 1000} s`;
-  if (status.reader === 'server') return 'Read by the server about once a minute, while every page is closed';
+  const every = everyMs !== undefined ? everyWords(jsonEveryMs(everyMs)) : kind === 'feed' ? `about every ${FEED_READ_MS / 60_000} min` : `about every ${SHEET_READ_MS / 1000} s`;
+  // The server ticks once a minute, and reads a JSON source only once its own interval has passed.
+  const server = everyMs !== undefined && jsonEveryMs(everyMs) > 60_000 ? everyWords(jsonEveryMs(everyMs)) : 'about once a minute';
+  if (status.reader === 'server') return `Read by the server ${server}, while every page is closed`;
   const page = status.reader === 'other' ? `Read by another tab of this production, ${every}` : `Read by this page, ${every}`;
   // The server cannot reach a file on this computer: it is read only while a page here is open.
   if (kind === 'file') return `${page}; only while a production page is open on this computer`;
   if (status.closedPage === undefined) return page;
-  return status.closedPage ? `${page}; about once a minute by the server once every page is closed` : `${page}; closed-page reading is off`;
+  return status.closedPage ? `${page}; ${server} by the server once every page is closed` : `${page}; closed-page reading is off`;
 }
 
 /**
@@ -193,13 +201,45 @@ function listsWaiting(show: Show, source: ShowSource, onAir: OnAir): string[] {
   return heldListsWaiting(sourcePaths(show.bindings, source.id), heldMain, onAir.live, onAir.waits);
 }
 
+/** The operator's current match of a bracket source (obs-scenes OS5b): read from the tree and
+ *  written there, never by a read. */
+export interface CurrentMatchControl {
+  get: (sourceId: string) => string | null;
+  pick: (sourceId: string, matchId: string | null) => void;
+}
+
+/** The current match picker on a bracket source's line: the matches its last good read offered. */
+function CurrentMatchPicker({ source, status, control }: { source: ShowSource; status: SheetStatus | undefined; control: CurrentMatchControl }) {
+  const choices = status?.choices ?? [];
+  const value = control.get(source.id) ?? '';
+  // A held pick stays shown, with None, even while the feed offers no matches.
+  if (choices.length === 0 && value === '') return null;
+  return (
+    <select
+      value={value}
+      onChange={(e) => control.pick(source.id, e.target.value === '' ? null : e.target.value)}
+      aria-label="Current match"
+      data-testid="source-current-match"
+    >
+      <option value="">Current match: none</option>
+      {/* A pick the feed no longer has stays shown, so the select never moves by itself. */}
+      {value !== '' && !choices.some((c) => c.id === value) && <option value={value}>{value}</option>}
+      {choices.map((c) => (
+        <option key={c.id} value={c.id}>
+          {c.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 /** One source's line in the data panel: name, status, stale, the fix when it fails, and Pause. */
-function SourceLine({ show, setShows, source, store }: { show: Show; setShows: (shows: Show[]) => void; source: ShowSource; store: SourceStatusStore }) {
+function SourceLine({ show, setShows, source, store, currentMatch }: { show: Show; setShows: (shows: Show[]) => void; source: ShowSource; store: SourceStatusStore; currentMatch?: CurrentMatchControl }) {
   const { status, now } = useSourceStatus(store, source.id);
   return (
     <div
       className="pd-source-line hint"
-      title={readerWords(source.paused, status, source.kind)}
+      title={readerWords(source.paused, status, source.kind, noacgReads(source) ? source.config.read.everyMs : undefined)}
       data-testid={`source-line-${source.id}`}
       data-state={source.paused ? 'paused' : (status?.state ?? 'waiting')}
       data-stale={status?.stale && !source.paused ? 'true' : undefined}
@@ -212,6 +252,7 @@ function SourceLine({ show, setShows, source, store }: { show: Show; setShows: (
         {source.paused ? 'Resume' : 'Pause'}
       </button>
       <FileAskButton source={source} status={status} store={store} />
+      {currentMatch && <CurrentMatchPicker source={source} status={status} control={currentMatch} />}
       {/* The file's one click says the fix itself. */}
       {status?.state === 'failing' && status.fix && !fileAsk(status.error) && <span className="status-warn" data-testid="source-fix"> {status.fix}</span>}
       {status?.problems.map((p) => (
@@ -248,7 +289,7 @@ export function sourceHasProblem(paused: boolean | undefined, status: SheetStatu
 export function useDataProblems(show: Pick<Show, 'sources' | 'bindings'>, store: SourceStatusStore): ReadonlyMap<string, string[]> {
   const key = useSyncExternalStore(store.subscribe, () => {
     const byGraphic = new Map<string, string[]>();
-    for (const source of (show.sources ?? []).filter(fillsFields)) {
+    for (const source of (show.sources ?? []).filter(hasReaderLine)) {
       if (!sourceHasProblem(source.paused, store.get(source.id))) continue;
       for (const graphic of new Set(sourcePaths(show.bindings, source.id).map((p) => p.graphic))) {
         byGraphic.set(graphic, [...(byGraphic.get(graphic) ?? []), source.label]);
@@ -283,16 +324,19 @@ export function DataIndicator({
   setShows,
   store,
   ownReaders = [],
+  currentMatch,
 }: {
   show: Show;
   setShows: (shows: Show[]) => void;
   store: SourceStatusStore;
   /** Graphics reading a Sheet in their own code: listed, without a Pause that would not work. */
   ownReaders?: readonly OwnSheetReader[];
+  /** The current match picker of a bracket source. */
+  currentMatch?: CurrentMatchControl;
 }) {
   const [open, setOpen] = useState(false);
   // A Sheet's or a feed's line; a YouTube source is read and shown in Messages only.
-  const sources = (show.sources ?? []).filter(fillsFields);
+  const sources = (show.sources ?? []).filter(hasReaderLine);
   // One string per reading, so a status that moves without changing a tone renders nothing here.
   const tones = useSyncExternalStore(store.subscribe, () => sources.map((s) => sourceTone(s.paused, store.get(s.id))).join(' '));
   // A graphic's own reader reads by itself and nothing here sees its reads: it counts as reading,
@@ -324,7 +368,7 @@ export function DataIndicator({
       </button>
       <LibMenu open={open} onClose={() => setOpen(false)} surface="pd-ready-panel" role="none" className="pd-data-panel" testid="sources-line">
         {sources.map((source) => (
-          <SourceLine key={source.id} show={show} setShows={setShows} source={source} store={store} />
+          <SourceLine key={source.id} show={show} setShows={setShows} source={source} store={store} currentMatch={currentMatch} />
         ))}
         {ownReaders.map((reader) => (
           <OwnReaderLine key={reader.graphic} reader={reader} />
@@ -339,7 +383,7 @@ export function DataIndicator({
  * asks the operator for a press, so it shows under the monitors, and only while it is true.
  */
 export function DataWaitingNote({ show, onAir }: { show: Show; onAir: OnAir }) {
-  const waiting = [...new Set((show.sources ?? []).filter(fillsFields).flatMap((s) => listsWaiting(show, s, onAir)))];
+  const waiting = [...new Set((show.sources ?? []).filter(hasReaderLine).flatMap((s) => listsWaiting(show, s, onAir)))];
   if (waiting.length === 0) return null;
   return (
     <div className="pd-data-waiting hint" data-testid="source-waiting" title={`On air: ${waiting.join(', ')}`}>

@@ -302,7 +302,7 @@ const TOPIC_PATHS = [
   ['Playout and Bridge', [
     /^cli\/src\/playout\//, /^cli\/src\/playoutEntry\.ts$/, /^cli\/src\/commands\/(bridge|caspar)\.ts$/, /^cli\/BRIDGE_/,
     /^src\/(bridge|control|output|export|ograf|audience|join)\//,
-    /^src\/components\/(control\/|teams\/|BridgePairPage|ControlPanel|HostedControlPage|Playout|RecentServers|Export)/,
+    /^src\/components\/(control\/|teams\/|BridgePairPage|ControlPanel|Playout|RecentServers|Export)/,
     /^output\.html$/,
   ]],
   ['AI workflows', [

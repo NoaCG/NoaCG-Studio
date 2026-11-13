@@ -53,6 +53,8 @@ export type SimWindow = Window & {
   buildInTimeline?: () => SimTimeline;
   buildOutTimeline?: () => SimTimeline;
   noacgOutActive?: () => boolean;
+  noacgSettleCue?: (tl: SimTimeline) => void;
+  noacgFiniteEnd?: (tl: SimTimeline) => number;
   /** Steps templates: reveal the next Continue line; returns the tween (null when done). */
   revealNextStep?: () => SimTimeline | null;
   /** State machine: dispatch one operator event through the serial queue. */
@@ -174,6 +176,10 @@ export function runSimCommand(w: SimWindow, cmd: SimCommand): void {
    * the numbers; this is the editor's own copy of the same recipe, and the two must agree.
    */
   function settleToFiniteEnd(tl: SimTimeline): SimTimeline {
+    if (typeof w.noacgSettleCue === 'function') {
+      w.noacgSettleCue(tl);
+      return tl;
+    }
     if (typeof tl.getChildren !== 'function') {
       tl.progress(1, true);
       return tl;
@@ -192,7 +198,7 @@ export function runSimCommand(w: SimWindow, cmd: SimCommand): void {
    *  arbitrary time. Mirrors render/runtimeScript.ts's CONTINUOUS_S threshold. */
   function holdBaselineMs(tl: SimTimeline): number {
     const CONTINUOUS_S = 1e7;
-    const seconds = tl.duration();
+    const seconds = w.noacgFiniteEnd?.(tl) ?? tl.duration();
     return seconds >= CONTINUOUS_S ? 0 : seconds * 1000;
   }
   function scheduleAutoOut(inDurationMs: number): void {

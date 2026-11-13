@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Lower third</title>
+  <desc>NoaCG Clean Studio template. Two live texts, Name and Role, on two plates.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Name_box" inkscape:label="Name box" x="120" y="830" width="640" height="92" rx="14" fill="#FFFFFF"/>
+    <rect id="Role_box" inkscape:label="Role box" x="120" y="930" width="420" height="50" rx="12" fill="#2E5BFF"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text" font-family="Manrope, sans-serif">
+    <text id="Name" x="152" y="892" font-size="44" font-weight="800" fill="#0F1729">Alex Mercer</text>
+    <text id="Role" x="144" y="964" font-size="24" font-weight="600" fill="#FFFFFF">Team captain</text>
+  </g>
+</svg>

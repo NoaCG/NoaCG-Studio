@@ -21,9 +21,13 @@
 
 import { uuid } from '../model/id.ts';
 import { QUESTION_LIMITS, isQuestionId } from '../model/questions.ts';
+import { cleanWord, type WordTally } from '../model/wordCloud.ts';
+import { CHAT_VOTES_MAX, CHAT_VOTE_ALLOWANCE_MS, latestPerVoter, type ChatVote, type ChatVoteOutcome } from './chatVotes.ts';
 import {
   AUDIENCE_LIMITS,
   QUESTION_CLOSED,
+  WORD_ALREADY_SENT,
+  WORD_REFUSED,
   OPERATOR_ADD_MAX,
   OPERATOR_SETTLE_MAX,
   clampProvenance,
@@ -58,6 +62,10 @@ const SAMPLE_COMMENTS = [
   'That was the best save of the season.',
   'Hello from the school hall, we are all watching together.',
 ];
+
+/** Rehearsal words for a Word question, repeated so the list has an order by frequency: one
+ *  simulated phone sends one word. */
+const SAMPLE_WORDS = ['Exciting', 'Tense', 'Exciting', 'Loud', 'Fun', 'Exciting', 'Tense', 'Proud'];
 
 /** The rate caps a server trigger would enforce, mirrored here so rehearsal behaves like air. */
 const PER_DEVICE_WINDOW_MS = 30_000;
@@ -221,6 +229,9 @@ export interface Room {
   rounds: AudienceRound[];
   /** roundId -> device -> option. The key IS the dedupe; an overwrite is "change your vote". */
   votes: Record<string, Record<string, number>>;
+  /** roundId -> chat voter (`yt:...`, `tw:...`) -> the option and the platform time it was said
+   *  (interaction spec, "Chat votes"). Additive optional in the store: an older build ignores it. */
+  chatVotes: Record<string, Record<string, ChatVote>>;
   answers: PhoneAnswer[];
 }
 
@@ -229,6 +240,7 @@ const emptyRoom = (name: string): Room => ({
   presenter: { current: null, next: null },
   rounds: [],
   votes: {},
+  chatVotes: {},
   answers: [],
 });
 
@@ -237,7 +249,7 @@ function readRound(raw: unknown): AudienceRound | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
   if (!text(r.id) || !text(r.kind) || !text(r.question) || !Array.isArray(r.options) || !text(r.openedAt)) return null;
-  if (r.kind !== 'poll' && r.kind !== 'quiz' && r.kind !== 'open') return null;
+  if (r.kind !== 'poll' && r.kind !== 'quiz' && r.kind !== 'open' && r.kind !== 'word') return null;
   return {
     id: r.id,
     kind: r.kind,
@@ -267,6 +279,17 @@ function readRoomOf(raw: unknown, name: string): Room {
         if (typeof option === 'number') kept[device] = option;
       }
       room.votes[roundId] = kept;
+    }
+  }
+  if (r.chatVotes && typeof r.chatVotes === 'object') {
+    for (const [roundId, byVoter] of Object.entries(r.chatVotes as Record<string, unknown>)) {
+      if (!byVoter || typeof byVoter !== 'object') continue;
+      const kept: Record<string, ChatVote> = {};
+      for (const [voter, raw] of Object.entries(byVoter as Record<string, unknown>)) {
+        const v = raw as Partial<ChatVote> | null;
+        if (v && typeof v.option === 'number' && text(v.at)) kept[voter] = { voter, option: v.option, at: v.at };
+      }
+      room.chatVotes[roundId] = kept;
     }
   }
   room.answers = Array.isArray(r.answers)
@@ -340,6 +363,7 @@ function snapshotOf(question: QuestionLive): { kind: AudienceRound['kind']; text
   const textNow = question.text.trim().slice(0, QUESTION_LIMITS.text);
   if (!textNow) return 'a question needs its text';
   if (question.type === 'open') return { kind: 'open', text: textNow, options: [] };
+  if (question.type === 'word') return { kind: 'word', text: textNow, options: [] };
   if (question.type !== 'choice') return 'not a question';
   // Like the server, blanks are not dropped here: the composer already cleaned them.
   const options = (question.options ?? []).map((o) => o.trim().slice(0, QUESTION_LIMITS.option)).slice(0, QUESTION_LIMITS.maxOptions);
@@ -348,7 +372,8 @@ function snapshotOf(question: QuestionLive): { kind: AudienceRound['kind']; text
 }
 
 export interface LocalAudience extends AudienceBackend {
-  /** Simulate viewers sending something in: answers to the live Open question, or unfiled. */
+  /** Simulate viewers sending something in: answers to the live Open question, one word per
+   *  simulated phone to a live Word question, or unfiled. */
   simulate(count?: number): AudienceSubmission[];
   /** Simulate votes landing on the open round. */
   simulateVotes(counts: number[]): void;
@@ -429,7 +454,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
     const round = liveOf(r);
     return {
       open: round !== null,
-      mode: round ? (round.kind === 'open' ? 'question' : 'poll') : 'waiting',
+      mode: round ? (round.kind === 'open' ? 'question' : round.kind === 'word' ? 'word' : 'poll') : 'waiting',
       prompt: round?.question ?? '',
       presenter: { ...r.presenter },
       round,
@@ -476,6 +501,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
     async joinView(deviceToken: string): Promise<JoinView> {
       const r = room();
       const open = liveOf(r);
+      const wordRounds = new Set(r.rounds.filter((x) => x.kind === 'word').map((x) => x.id));
       return {
         productionName: r.name,
         // The round is handed over WITHOUT its answer key, here as on the wire: the join page
@@ -485,7 +511,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
         // would turn a public URL into a moderation feed.
         mine: r.answers
           .filter((s) => s.device === deviceToken)
-          .map((s) => ({ id: s.id, body: s.body, createdAt: s.createdAt })),
+          .map((s) => ({ id: s.id, body: s.body, createdAt: s.createdAt, roundId: s.roundId ?? null, word: !!s.roundId && wordRounds.has(s.roundId) })),
         myVote: open ? r.votes[open.id]?.[deviceToken] ?? null : null,
       };
     },
@@ -493,9 +519,17 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
     async submit(deviceToken, author, body, target): Promise<SubmitResult> {
       return exclusive(() => {
         const r = room();
-        const round = liveRound(r, target.roundId, target.revision, ['open']);
+        const round = liveRound(r, target.roundId, target.revision, ['open', 'word']);
         if (!round) return { ok: false, error: QUESTION_CLOSED, closed: true };
         if (!body.trim()) return { ok: false, error: 'Nothing to send.' };
+        // A Word question: one word of at most 25 characters, one per phone (0114, W2, W3).
+        if (round.kind === 'word') {
+          const word = cleanWord(body);
+          if (!word) return { ok: false, error: WORD_REFUSED };
+          if (r.answers.some((s) => s.roundId === round.id && s.device === deviceToken)) return { ok: false, error: WORD_ALREADY_SENT };
+          body = word;
+          author = ''; // a word carries no name, as the server files it
+        }
         const now = Date.now();
         const recent = (sends.get(deviceToken) ?? []).filter((t) => now - t < PER_DEVICE_WINDOW_MS);
         if (recent.length >= PER_DEVICE_MAX) return { ok: false, error: 'Too many messages. Wait a moment.' };
@@ -522,7 +556,12 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
     },
 
     async list(): Promise<AudienceSubmission[]> {
-      return [...kept(), ...room().answers.map(strip), ...submissions].map((s) => ({ ...s }));
+      // Messages only: a Word question's words are counted by `wordCounts`, never listed (W9).
+      const r = room();
+      const words = new Set(r.rounds.filter((x) => x.kind === 'word').map((x) => x.id));
+      return [...kept(), ...r.answers.map(strip), ...submissions]
+        .filter((s) => !s.roundId || !words.has(s.roundId))
+        .map((s) => ({ ...s }));
     },
 
     async addCandidates(items): Promise<AudienceSubmission[]> {
@@ -634,6 +673,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
             if (!round.closedAt) throw new Error('a live question cannot change');
             const answered =
               Object.keys(r.votes[round.id] ?? {}).length > 0 ||
+              Object.keys(r.chatVotes[round.id] ?? {}).length > 0 ||
               [...kept(), ...r.answers, ...submissions].some((s) => s.roundId === round!.id);
             if (answered) throw new Error('this question has answers, so it cannot change');
             round.question = snap.text;
@@ -675,6 +715,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
         if (!round) return null;
         if (!round.closedAt) throw new Error('stop the question before clearing its results');
         delete r.votes[round.id];
+        delete r.chatVotes[round.id];
         r.answers = r.answers.filter((s) => s.roundId !== round.id);
         round.revision += 1;
         const rows = kept();
@@ -690,11 +731,53 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
     async tally(roundId: string): Promise<AudienceTally> {
       const r = room();
       const round = r.rounds.find((x) => x.id === roundId);
-      const counts = new Array(round?.options.length ?? 0).fill(0) as number[];
+      const zero = () => new Array(round?.options.length ?? 0).fill(0) as number[];
+      const phone = zero();
+      const chat = zero();
       for (const option of Object.values(r.votes[roundId] ?? {})) {
-        if (option >= 0 && option < counts.length) counts[option] += 1;
+        if (option >= 0 && option < phone.length) phone[option] += 1;
       }
-      return { roundId, counts, total: counts.reduce((a, b) => a + b, 0) };
+      for (const { option } of Object.values(r.chatVotes[roundId] ?? {})) {
+        if (option >= 0 && option < chat.length) chat[option] += 1;
+      }
+      const counts = phone.map((n, i) => n + chat[i]);
+      return { roundId, counts, total: counts.reduce((a, b) => a + b, 0), phone, chat };
+    },
+
+    // The same rules as 0113's `audience_operator_votes` (C3 to C7), over the local room. The server's
+    // chat ceiling (C8) has no counterpart: a rehearsal has no chat burst to bound.
+    async chatVotes(roundId, votes): Promise<ChatVoteOutcome> {
+      if (votes.length > CHAT_VOTES_MAX) throw new Error(`At most ${CHAT_VOTES_MAX} votes at a time.`);
+      return exclusive(() => {
+        const r = room();
+        const round = r.rounds.find((x) => x.id === roundId && !x.closedAt && x.kind === 'poll');
+        if (!round) return { counted: 0, closed: true };
+        const from = Date.parse(round.openedAt) - CHAT_VOTE_ALLOWANCE_MS;
+        const until = Date.now() + 60_000;
+        const byVoter = { ...(r.chatVotes[roundId] ?? {}) };
+        let counted = 0;
+        for (const vote of latestPerVoter(votes)) {
+          const at = Date.parse(vote.at);
+          if (!/^(yt|tw):[A-Za-z0-9_-]{1,120}$/.test(vote.voter) || !(at >= from && at <= until)) continue;
+          if (!Number.isInteger(vote.option) || vote.option < 0 || vote.option >= round.options.length) continue;
+          const held = byVoter[vote.voter];
+          if (held && Date.parse(held.at) > at) continue;
+          byVoter[vote.voter] = { voter: vote.voter, option: vote.option, at: vote.at };
+          counted += 1;
+        }
+        r.chatVotes[roundId] = byVoter;
+        mustSave(r);
+        changed();
+        return { counted };
+      });
+    },
+
+    async wordCounts(roundId): Promise<WordTally[]> {
+      const counts = new Map<string, number>();
+      for (const s of [...kept(), ...room().answers, ...submissions]) {
+        if (s.roundId === roundId) counts.set(s.body, (counts.get(s.body) ?? 0) + 1);
+      }
+      return [...counts].map(([word, count]) => ({ word, count }));
     },
 
     async rounds(): Promise<AudienceRound[]> {
@@ -704,9 +787,9 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
     simulate(count = 1): AudienceSubmission[] {
       const made: AudienceSubmission[] = [];
       const open = liveOf(room());
-      const roundId = open?.kind === 'open' ? open.id : null;
+      const roundId = open?.kind === 'open' || open?.kind === 'word' ? open.id : null;
       for (let i = 0; i < count; i += 1) {
-        const pool = roundId ? SAMPLE_COMMENTS : SAMPLE_QUESTIONS;
+        const pool = open?.kind === 'word' ? SAMPLE_WORDS : roundId ? SAMPLE_COMMENTS : SAMPLE_QUESTIONS;
         const row = make(SAMPLE_AUTHORS[seq % SAMPLE_AUTHORS.length], pool[seq % pool.length], roundId);
         seq += 1;
         submissions.push(row);
@@ -720,7 +803,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
       void exclusive(() => {
         const r = room();
         const round = liveOf(r);
-        if (!round || round.kind === 'open') return;
+        if (!round || round.kind === 'open' || round.kind === 'word') return;
         const byDevice = { ...(r.votes[round.id] ?? {}) };
         counts.forEach((n, option) => {
           for (let i = 0; i < n; i += 1) byDevice[`sim-${option}-${seq++}`] = option;

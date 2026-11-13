@@ -24,7 +24,7 @@
 
 import { parseCssColor } from '../../../model/cssVars';
 import { transformedBox } from '../../../assets/svgGeometry';
-import { PANEL_SAFE, SVG_ALIGN_TOL, SVG_ALIGN_WORD, SVG_LINE_HEIGHT } from '../../../templates/importedDesign/svg';
+import { PANEL_SAFE, SVG_ALIGN_TOL, SVG_ALIGN_WORD, SVG_LINE_HEIGHT, isSvgFigure } from '../../../templates/importedDesign/svg';
 import { SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import type { DesignSvgAlign } from '../../../templates/importedDesign/designTypes';
 import type { PreviewBoxOverlay } from '../WizardPreview';
@@ -635,7 +635,12 @@ export function boxFitOf(
     Math.max(0, cap === null ? Math.min(before, after) : Math.min(before, after, cap));
   return {
     box,
-    insetX: keep(own.x - box.x, box.x + box.width - (own.x + own.width), align.h === 'centred' ? type * 0.5 : null),
+    insetX: keep(
+      own.x - box.x,
+      box.x + box.width - (own.x + own.width),
+      // A centred line of words keeps half its type; a centred figure only its own bearings.
+      align.h === 'centred' ? (isSvgFigure(textEl.textContent ?? '') ? 0 : type * 0.5) : null,
+    ),
     insetY: keep(
       own.y - band.top,
       band.bottom - (own.y + own.height),
@@ -882,8 +887,19 @@ export function withoutBackplates(
   const limit = frame.width * frame.height * BACKPLATE_SHARE_OF_FRAME;
   const out: Record<string, string> = {};
   for (const [lineId, boxId] of Object.entries(boxOfLine)) {
-    const box = markerEl(stage, boxId)?.getBoundingClientRect();
-    if (box && box.width * box.height >= limit) continue;
+    const plate = markerEl(stage, boxId);
+    const box = plate?.getBoundingClientRect();
+    let area = box ? box.width * box.height : 0;
+    if (plate instanceof SVGRectElement) {
+      const matrix = plate.getScreenCTM();
+      if (matrix) {
+        // The screen bounding box also covers empty corners when a plate turns. The determinant
+        // converts the plate's own area to screen pixels without counting those corners.
+        const own = plate.getBBox();
+        area = own.width * own.height * Math.abs(matrix.a * matrix.d - matrix.b * matrix.c);
+      }
+    }
+    if (area >= limit) continue;
     out[lineId] = boxId;
   }
   return out;

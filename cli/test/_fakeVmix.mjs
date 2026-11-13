@@ -8,6 +8,8 @@
 // reached vMix. `hook(line, socket)` may answer a line itself (return true): a dropped connection,
 // a refusal or silence.
 
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:net';
 
@@ -17,7 +19,8 @@ export async function startFakeVmix(options = {}) {
   const version = options.version ?? '29.0.0.49';
   const edition = options.edition ?? 'Trial';
   /** Inputs in order (a number is a position); overlays hold KEYS, rendered as numbers. */
-  const inputs = (options.inputs ?? []).map((i) => ({ key: randomUUID(), ...i }));
+  const makeInput = (i) => ({ key: randomUUID(), ...(i.type === 'VideoList' ? { list: [], selectedIndex: 1, state: 'Completed', position: 0, duration: 0, loop: false, autoPlay: true, autoPause: true, autoRestart: true, autoPlayNext: true, audioAuto: true, muted: true, alpha: 255 } : {}), ...i });
+  const inputs = (options.inputs ?? []).map(makeInput);
   const overlays = new Map();
   const lines = [];
   const functions = [];
@@ -28,7 +31,12 @@ export async function startFakeVmix(options = {}) {
   const numberOf = (key) => inputs.findIndex((i) => i.key === key) + 1;
   const xml = () =>
     `<vmix><version>${version}</version><edition>${esc(edition)}</edition><inputs>${inputs
-      .map((i, n) => `<input key="${i.key}" number="${n + 1}" type="${i.type}" title="${esc(i.title)}" shortTitle="${esc(i.title)}" state="Paused" position="0" duration="0" loop="False">${esc(i.title)}</input>`)
+      .map((i, n) => {
+        const selected = i.list?.[i.selectedIndex - 1];
+        const title = i.type === 'VideoList' && selected ? i.title + ' - ' + path.basename(selected) : i.title;
+        const list = i.list ? '<list>' + i.list.map((file, index) => '<item' + (index === i.selectedIndex - 1 ? ' selected="true"' : '') + '>' + esc(file) + '</item>').join('') + '</list>' : '';
+        return '<input key="' + i.key + '" number="' + (n + 1) + '" type="' + i.type + '" title="' + esc(title) + '" shortTitle="' + esc(i.title) + '" state="' + (i.state ?? 'Paused') + '" position="' + (i.position ?? 0) + '" duration="' + (i.duration ?? 0) + '" muted="' + (i.muted ? 'True' : 'False') + '" loop="' + (i.loop ? 'True' : 'False') + '"' + (i.list ? ' selectedIndex="' + i.selectedIndex + '"' : '') + '>' + list + esc(i.title) + '</input>';
+      })
       .join('')}</inputs><overlays>${Array.from({ length: 16 }, (_, c) => {
       const key = overlays.get(c + 1);
       return key ? `<overlay number="${c + 1}">${numberOf(key)}</overlay>` : `<overlay number="${c + 1}" />`;
@@ -44,10 +52,60 @@ export async function startFakeVmix(options = {}) {
     let m;
     if (name === 'AddInput') {
       const [type, rest] = params.Value.split(/\|(.*)/s);
-      const input = { key: randomUUID(), type: type === 'Browser' ? 'Browser' : type, title: type === 'Browser' ? rest : rest.split(/[\\/]/).pop(), url: rest };
-      const add = () => inputs.push(input);
+      const input = makeInput({ type, title: type === 'Browser' ? 'Browser ' + new URL(rest).hostname : type === 'VideoList' ? 'List' : rest.split(/[\\/]/).pop(), url: rest });
+      const add = () => {
+        if (options.replaceStartupBlanks && type === 'VideoList' && inputs.length === 2 && inputs.every(old => old.type === 'Blank')) {
+          inputs.splice(0, 2, input, makeInput({ type: 'Blank', title: 'Blank' }));
+        } else inputs.push(input);
+      };
       if (options.addDelayMs) setTimeout(add, options.addDelayMs);
       else add();
+    } else if (inputs.find(i => i.key === key)?.list && name !== 'SetInputName' && name !== 'RemoveInput') {
+      const input = inputs.find(i => i.key === key);
+      if (options.ignore?.includes(name)) return;
+      const value = Number(params.Value);
+      if (name === 'ListAdd') {
+        if (!existsSync(params.Value) && !Object.hasOwn(options.files ?? {}, params.Value)) return 'File Not Found: ' + params.Value;
+        input.list.push(params.Value);
+        if (input.list.length === 1) {
+          input.selectedIndex = 1;
+          input.state = 'Paused';
+          input.position = 0;
+          input.duration = options.files?.[params.Value] ?? 4000;
+        }
+      } else if (name === 'SelectIndex') {
+        const choose = () => {
+          input.selectedIndex = value;
+          input.position = 0;
+          input.duration = options.files?.[input.list[value - 1]] ?? 4000;
+        };
+        if (options.selectDelayMs) setTimeout(choose, options.selectDelayMs);
+        else choose();
+      } else if (name === 'Play') {
+        input.state = 'Running';
+      } else if (name === 'Pause') input.state = 'Paused';
+      else if (name === 'LoopOn' || name === 'LoopOff') {
+        // The native mixer ACKs Loop on an empty list without changing it.
+        if (!input.list.length) return;
+        const setLoop = () => { input.loop = name === 'LoopOn'; };
+        if (options.loopDelayMs) setTimeout(setLoop, options.loopDelayMs);
+        else setLoop();
+      }
+      else if (name === 'ListRemove') {
+        input.list.splice(value - 1, 1);
+        if (value < input.selectedIndex) input.selectedIndex -= 1;
+      } else if (name === 'ListRemoveAll') {
+        input.list = [];
+        input.selectedIndex = 0;
+        input.state = 'Completed';
+        input.position = 0;
+        input.duration = 0;
+      } else if (name === 'SetAlpha') input.alpha = value;
+      else {
+        const flags = { AutoPlayOff: ['autoPlay', false], AutoPauseOff: ['autoPause', false], AutoRestartOff: ['autoRestart', false], AutoPlayNextOff: ['autoPlayNext', false], AudioAutoOff: ['audioAuto', false], AudioOn: ['muted', false] };
+        const setting = flags[name];
+        if (setting) input[setting[0]] = setting[1];
+      }
     } else if (name === 'SetInputName') {
       const input = inputs.find((i) => i.key === key);
       if (input) input.title = params.Value;
@@ -67,8 +125,13 @@ export async function startFakeVmix(options = {}) {
       const channel = Number(m[1]);
       const old = overlays.get(channel);
       if (!old) return;
-      overlays.delete(channel);
-      acts(`Overlay${channel} ${numberOf(old)} 0`);
+      const finish = () => {
+        if (overlays.get(channel) !== old) return;
+        overlays.delete(channel);
+        acts(`Overlay${channel} ${numberOf(old)} 0`);
+      };
+      if (m[2] === 'Out' && options.outDelayMs) setTimeout(finish, options.outDelayMs);
+      else finish();
     } else if (name === 'OverlayInputAllOff') {
       for (const [channel, old] of [...overlays]) {
         overlays.delete(channel);
@@ -96,8 +159,10 @@ export async function startFakeVmix(options = {}) {
         lines.push(line);
         if (options.hook?.(line, sock)) continue;
         if (line === 'XML') {
-          const body = xml();
-          sock.write(`XML ${Buffer.byteLength(body, 'utf8')}\r\n${body}`);
+          const body = options.transformXml ? options.transformXml(xml()) : xml();
+          const send = () => sock.write(`XML ${Buffer.byteLength(body, 'utf8')}\r\n${body}`);
+          if (options.xmlDelayMs) setTimeout(send, options.xmlDelayMs);
+          else send();
         } else if (line === 'SUBSCRIBE ACTS') {
           subscribers.add(sock);
           sock.write('SUBSCRIBE OK ACTS Subscribed\r\n');
@@ -105,8 +170,9 @@ export async function startFakeVmix(options = {}) {
           const [, name, query = ''] = /^FUNCTION (\S+)(?: (.*))?$/.exec(line);
           const params = Object.fromEntries(query ? query.split('&').map((p) => p.split(/=(.*)/s)).map(([k, v = '']) => [k, decodeURIComponent(v)]) : []);
           functions.push({ name, params });
-          apply(name, params);
-          sock.write('FUNCTION OK Completed\r\n');
+          const problem = apply(name, params);
+          if (options.afterFunction?.(name, params, sock)) continue;
+          sock.write(problem ? 'FUNCTION ER ' + problem + '\r\n' : 'FUNCTION OK Completed\r\n');
         } else sock.write(`${line.split(' ')[0]} ER Unknown Command\r\n`);
       }
     });
@@ -125,7 +191,7 @@ export async function startFakeVmix(options = {}) {
     },
     /** An input already in vMix, the way the operator made it. */
     add(type, title) {
-      const input = { key: randomUUID(), type, title };
+      const input = makeInput({ type, title });
       inputs.push(input);
       return input;
     },

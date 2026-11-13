@@ -10,7 +10,7 @@ Companion 4.3 or later (the steps below use Companion 5.1's words). If **NoaCG: 
 
 ### Set it up
 
-1. Publish the production in NoaCG once. On the production page open **Setup**, then **Stream Deck panel…** (on the hosted control page, **Panel** is in the header). Press **Pair a panel**. A code like `ABCD-EFGH` appears. It works once, for five minutes.
+1. Publish the production in NoaCG once. On the production page open **Setup**, then **Stream Deck panel…**. Press **Pair a panel**. A code like `ABCD-EFGH` appears. It works once, for five minutes.
 2. In Companion, open **Connections**, type `NoaCG` in the search box on the right, press **Add** beside **NoaCG: NoaCG Studio**, then **Add** again. Type the code into **Pairing code**, give the panel a name in **Panel name**, and press **Save**. The code field clears and the panel appears in the page's list.
 3. Keep the production page open. It answers the panel by itself; the header shows **Panel ✓**.
 4. Open **Buttons**, then the **Presets** tab, press **NoaCG**, open a section and drag keys onto your buttons: **Show control** (Take, Out, Next and the rest), **Server clip** (the clip clock), **Cues** (Select, Take and Play now keys for each cue of your rundown, and a Select key for each folder), and **Pinned graphics** (the live controls of each graphic you pinned on the production page; until you pin one, it holds only a line saying to).
@@ -22,7 +22,7 @@ To stop a panel, press **Revoke** beside it in the page's panel list. To pair ag
 ### Which page answers
 
 - One page answers the panel at a time. The production page takes it by itself when no other page has it, and keeps it when you reload.
-- Another page never takes it away. To move the panel to the page in front of you (another laptop, or the hosted control page on a phone), press **Use here** in its panel dialog, or **Use panel here** in the production page's header.
+- Another page never takes it away. To move the panel to the page in front of you (another laptop, or a phone signed in to the same account), press **Use here** in its panel dialog, or **Use panel here** in the production page's header.
 - If the answering page closes or loses its network, the panel is free again within 15 seconds. Another open production page takes it; until one does, the keys show "No operator page".
 - With no answering page, a press is refused, never queued: nothing runs later when a page comes back.
 
@@ -76,8 +76,6 @@ A graphic's key also shows what its last press came to:
 - **Play now, keep selection**: airs that cue at once, or restarts it if it is on air. The selection and PREVIEW stay where they were.
 
 - **Graphic action**: one live control of one graphic, as its block on the production page draws it. It acts on the cue on air on that graphic, never on the selected cue. Choose the **Graphic** and the **Action**; a pick also takes its **Option**, a number its **Step** (+1 or -1). An OGraf action sends the on-air cue's arguments, as the button on the page does, unless you type your own into **Arguments** as JSON, like `{"team": 2}`. Empty, or `{}`, means the cue's.
-
-The hosted control page has no server clips, so it refuses the clip keys with "not on this page". It runs no graphic actions either.
 
 ### Graphic keys
 

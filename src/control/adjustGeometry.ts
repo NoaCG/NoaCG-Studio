@@ -34,7 +34,9 @@ import {
   type GeometryLimit,
   type LookLayer,
   type Measurement,
+  type PlaceHint,
   type Size,
+  placeHintOf,
 } from './cueAdjust.ts';
 
 /** What a cue's style resolves against (control/cueStyle.ts `styleContextFor`): the production's
@@ -226,19 +228,20 @@ export function lookAppearance(state: Pick<CueAdjustState, 'style'> | null, appl
   return appearanceEquals(next, applied ?? IDENTITY) ? undefined : next;
 }
 
-/** A Take or Update of this cue must wait (capped) for a measurement of its values as they are now:
+/** The box a Take or Update of this cue would resolve against is not of its values as they are now:
  *  its preset or its size resolves against the box, and the box it holds is for other values or
- *  none (a longer name typed just before the press, a feed moving a bound value). */
+ *  none (a longer name typed just before the press, a feed moving a bound value). A Take then
+ *  carries a place hint (./cueAdjust.ts `PlaceHint`) rather than waiting for a measurement (W1). */
 export function pressWaitsForBox(state: Pick<CueAdjustState, 'eff' | 'fresh'> | null): boolean {
   return !!state && !state.fresh && (!!state.eff.place || (state.eff.scale ?? 1) !== 1);
 }
 
-/** How long a Take or Update waits for an Adjust press still being written. */
+/** What an Update waits for an Adjust press still being written, and for a measurement of the values
+ *  it airs (an Update is not a Take path: live-publishing spec W1). */
 export const PRESS_WRITE_CAP_MS = 1_000;
-/** How long a Take or Update waits for a measurement of the values it airs. */
 export const PRESS_MEASURE_CAP_MS = 2_000;
 
-/** Adjust writes still in the history's queue: a press waits for them (`pressAppearance`). */
+/** Adjust writes still in the history's queue: an Update waits for them (`updateAppearance`). */
 export function pendingWrites() {
   let pending = 0;
   return {
@@ -253,13 +256,39 @@ export function pendingWrites() {
 }
 
 /**
- * THE PLACE AND SIZE A TAKE OR UPDATE CARRIES, read after the press's flush. An Adjust press still
- * being written goes first (capped), and the record is then read from storage, not from a render:
- * ← then Take airs the ←. A cue whose preset or size has no measurement of the values it airs is
- * then measured first (capped, `pressWaitsForBox`). A production nobody adjusts answers at once,
- * without a promise.
+ * THE PLACE AND SIZE A TAKE CARRIES (live-publishing spec W1: a Take never waits on the page's own
+ * work). Read from memory at the press: the newest record this page rendered and the last box it
+ * measured for the cue. Never a wait for an Adjust write still in the history's queue, nor for a
+ * measurement. When that box is not of the values the Take airs and a preset or size resolves
+ * against it, the Take also carries `place` (`PlaceHint`): a new output resolves it against its own
+ * box, and an older one applies `appearance`, the place that last box gives.
  */
-export function pressAppearance<R>(
+export function takeAppearance<R>(
+  io: {
+    rendered: () => R | null;
+    stateOf: (record: R | null) => CueAdjustState | null;
+    /** The graphic's own resolution and the production's, for the hint. */
+    sizes: (record: R) => { frame: Size; stage: Size } | null;
+  },
+): { appearance?: AppliedAppearance; place?: PlaceHint } {
+  const record = io.rendered();
+  const state = io.stateOf(record);
+  if (!state) return {};
+  const sizes = record && pressWaitsForBox(state) ? io.sizes(record) : null;
+  return {
+    ...(state.send ? { appearance: state.send } : {}),
+    ...(sizes ? { place: placeHintOf(state.eff, sizes.frame, sizes.stage) } : {}),
+  };
+}
+
+/**
+ * THE PLACE AND SIZE AN UPDATE CARRIES, read after the press's flush. An Adjust press still being
+ * written goes first (capped), and the record is then read from storage, not from a render: ←
+ * then Update airs the ←. A cue whose preset or size has no measurement of the values it airs is
+ * then measured first (capped, `pressWaitsForBox`). A production nobody adjusts answers at once,
+ * without a promise. (A Take reads `takeAppearance`, which never waits.)
+ */
+export function updateAppearance<R>(
   io: {
     pendingWrites: () => number;
     /** Answers once the queued writes have landed. */

@@ -14,12 +14,13 @@
 // 0.0.0.0 would turn any web page the operator visits into a remote for the playout box, so
 // the command refuses to.
 
-import { bridgeVersion, noacgUrl } from '../config.js';
+import path from 'node:path';
+import { bridgeVersion, configDir, noacgUrl } from '../config.js';
 import { launchUrl } from '../openUrl.js';
 import { EXIT_OK, flagBool, flagList, flagNumber, flagString, refuseStray, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { casparcgAdapter } from '../playout/adapters/casparcg.js';
 import { ografAdapter } from '../playout/adapters/ograf.js';
-import { createVmixAdapter } from '../playout/adapters/vmix.js';
+import { fileVmixOutputStore } from '../playout/vmixOutputs.js';
 import { allowedOrigins, createBridgeServer, DEFAULT_BRIDGE_PORT, isLoopbackHost } from '../playout/server.js';
 import { PLAYOUT_V } from '../playout/protocol.js';
 import { PairingCodes, resolveToken } from '../playout/token.js';
@@ -42,7 +43,10 @@ export async function runBridge(args: ParsedArgs, out: Out): Promise<number> {
   // vMix on this computer, at its TCP API's own port unless the studio moved it.
   const vmixPort = flagNumber(args, 'vmix-port');
   if (vmixPort !== undefined && (!Number.isInteger(vmixPort) || vmixPort < 1 || vmixPort > 65535)) throw new UsageError('--vmix-port is a port number from 1 to 65535.');
-  const vmix = createVmixAdapter({ port: vmixPort });
+  // Only Bridge startup needs the vMix XML parser.
+  const { createVmixAdapter } = await import('../playout/adapters/vmix.js');
+  const vmixStorage = await fileVmixOutputStore();
+  const vmix = createVmixAdapter({ port: vmixPort, outputs: vmixStorage.outputs, ownershipProblem: vmixStorage.ownershipProblem, mediaFile: path.join(configDir(), 'vmix-setup.json') });
   const token = await resolveToken(flagString(args, 'token'), args.flags['new-token'] === true);
   const origins = allowedOrigins(flagList(args, 'origin'));
   const quiet = args.flags.quiet === true;
@@ -62,6 +66,7 @@ export async function runBridge(args: ParsedArgs, out: Out): Promise<number> {
     server.once('error', reject);
     server.listen(port, '127.0.0.1', resolve);
   });
+  await vmixStorage.claim?.();
 
   const address = `http://127.0.0.1:${port}`;
   const pairUrl = pairingUrl(port, first.code);

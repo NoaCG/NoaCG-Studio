@@ -1,0 +1,71 @@
+{
+  "result": "PASS",
+  "scope": "deterministic replay of five actual historical neutral outputs through current native adapter and their original full schemas; no real-model claim for final protocol",
+  "rows": [
+    {
+      "id": "help-data",
+      "originalQualitySource": "e2393159a6a73d903cd2189f5f2bf763748b25b0",
+      "originalProtocol": "auto tool use",
+      "finalProtocol": "native JSON output",
+      "sameOriginalPromptAndInspection": true,
+      "originalSchemaUnchanged": true,
+      "neutralOutputExact": true,
+      "originalSchemaSha256": "da312ea0f4be04611716a2c163d815d772e57b862e273c191d97b898e0d4e132",
+      "wireSchemaSha256": "8d75e162193c2e8db2e6f2d516e2bb17eb2c0ca7a8599b5a4c2d7a3adefc27eb",
+      "providerCalls": 0,
+      "injectedFixtureCalls": 1
+    },
+    {
+      "id": "default",
+      "originalQualitySource": "e2393159a6a73d903cd2189f5f2bf763748b25b0",
+      "originalProtocol": "auto tool use",
+      "finalProtocol": "native JSON output",
+      "sameOriginalPromptAndInspection": true,
+      "originalSchemaUnchanged": true,
+      "neutralOutputExact": true,
+      "originalSchemaSha256": "6647943baf0e55241e86916161f86eece939a302ce91e98b1c2ca8b1fa7feb8c",
+      "wireSchemaSha256": "53947042fbf59844a72b024ed21a6e8350242c37b3766cae330013406c4ac30e",
+      "providerCalls": 0,
+      "injectedFixtureCalls": 1
+    },
+    {
+      "id": "position",
+      "originalQualitySource": "e2393159a6a73d903cd2189f5f2bf763748b25b0",
+      "originalProtocol": "auto tool use",
+      "finalProtocol": "native JSON output",
+      "sameOriginalPromptAndInspection": true,
+      "originalSchemaUnchanged": true,
+      "neutralOutputExact": true,
+      "originalSchemaSha256": "6647943baf0e55241e86916161f86eece939a302ce91e98b1c2ca8b1fa7feb8c",
+      "wireSchemaSha256": "53947042fbf59844a72b024ed21a6e8350242c37b3766cae330013406c4ac30e",
+      "providerCalls": 0,
+      "injectedFixtureCalls": 1
+    },
+    {
+      "id": "create",
+      "originalQualitySource": "e2393159a6a73d903cd2189f5f2bf763748b25b0",
+      "originalProtocol": "auto tool use",
+      "finalProtocol": "native JSON output",
+      "sameOriginalPromptAndInspection": true,
+      "originalSchemaUnchanged": true,
+      "neutralOutputExact": true,
+      "originalSchemaSha256": "6647943baf0e55241e86916161f86eece939a302ce91e98b1c2ca8b1fa7feb8c",
+      "wireSchemaSha256": "53947042fbf59844a72b024ed21a6e8350242c37b3766cae330013406c4ac30e",
+      "providerCalls": 0,
+      "injectedFixtureCalls": 1
+    },
+    {
+      "id": "unsupported-atomic",
+      "originalQualitySource": "e2393159a6a73d903cd2189f5f2bf763748b25b0",
+      "originalProtocol": "auto tool use",
+      "finalProtocol": "native JSON output",
+      "sameOriginalPromptAndInspection": true,
+      "originalSchemaUnchanged": true,
+      "neutralOutputExact": true,
+      "originalSchemaSha256": "6647943baf0e55241e86916161f86eece939a302ce91e98b1c2ca8b1fa7feb8c",
+      "wireSchemaSha256": "53947042fbf59844a72b024ed21a6e8350242c37b3766cae330013406c4ac30e",
+      "providerCalls": 0,
+      "injectedFixtureCalls": 1
+    }
+  ]
+}

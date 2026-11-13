@@ -18,7 +18,8 @@
 import { bundledFaceRules, FONTS } from '../model/fonts';
 import { css, joinColours, type Rgb } from './joinColours';
 import { pageWords } from '../model/joinPage.ts';
-import { AUDIENCE_LIMITS, JOIN_PAGE_LIMITS, JOIN_WAITING_DEFAULT, type AudienceBrand, type JoinView, type RoundTarget, type SubmitResult } from './audienceTypes';
+import { cleanWord, WORD_MAX } from '../model/wordCloud.ts';
+import { AUDIENCE_LIMITS, JOIN_PAGE_LIMITS, JOIN_WAITING_DEFAULT, WORD_REFUSED, type AudienceBrand, type JoinView, type RoundTarget, type SubmitResult } from './audienceTypes';
 
 export interface JoinSurfaceClient {
   load(): Promise<JoinView>;
@@ -80,6 +81,8 @@ const CSS = `
 .nj textarea { min-height:112px; resize:none; }
 .nj input[type=text]:focus, .nj textarea:focus { outline:2px solid var(--nj-accent-line); outline-offset:1px; border-color:transparent; }
 .nj-field + .nj-field { margin-top:14px; }
+/* A Word question's word, once sent: big, because it is the whole answer. */
+.nj-word { margin:0; font-size:28px; line-height:1.2; font-weight:700; overflow-wrap:anywhere; }
 .nj-count { text-align:right; font-size:12px; color:var(--nj-card-muted); margin:6px 0 0; }
 .nj-count:empty { display:none; }
 .nj-count.over { color:var(--nj-card-text); font-weight:700; }
@@ -204,12 +207,15 @@ export function mountJoinSurface(
   root.classList.add('nj');
 
   let view: JoinView | null = null;
-  let note: { text: string; bad: boolean } | null = null;
+  // A note says what happened to the viewer's last send. A thanks belongs to the round it was for
+  // (`round`): once the room moves on it goes, so a phone never says "Counted" under the next
+  // question or the waiting text. A refusal stays: it explains why the question changed (R14).
+  let note: { text: string; bad: boolean; round?: string } | null = null;
   let busy = false;
   let destroyed = false;
   let timer = 0;
   // Kept across renders so a re-poll mid-typing never clears what someone is writing.
-  const draft = { author: '', body: '' };
+  const draft = { author: '', body: '', word: '' };
 
   const pollMs = options.pollMs ?? 5_000;
   const polling = options.poll !== false;
@@ -268,9 +274,10 @@ export function mountJoinSurface(
 
     root.appendChild(el('p', 'nj-prompt', state.prompt || defaultPrompt(state.mode)));
 
-    // What is live decides the input: an Open question takes a sentence, a Multiple choice one
-    // takes a tap. Nothing else can be sent, because every send names the live round.
+    // What is live decides the input: an Open question takes a sentence, a Word one a word, a
+    // Multiple choice one a tap. Nothing else can be sent, because every send names the live round.
     if (state.round?.kind === 'open') renderCompose();
+    else if (state.round?.kind === 'word') renderWord();
     else if (state.round) renderRound();
     else root.appendChild(el('p', 'nj-waiting', 'Standing by.'));
 
@@ -338,6 +345,59 @@ export function mountJoinSurface(
     sync();
   };
 
+  /** A Word question: one word of at most WORD_MAX characters, once (W2, W3). After it is in, the
+   *  phone shows the word instead of the box, also after a reload (the view says which round each
+   *  of this phone's messages went to). */
+  const renderWord = () => {
+    const round = view?.state.round;
+    if (!round) return;
+    const card = el('div', 'nj-card');
+    const sent = view?.mine.find((m) => m.roundId === round.id);
+    if (sent) {
+      card.append(el('p', 'nj-label', 'Your word'), el('p', 'nj-word', sent.body));
+      root.appendChild(card);
+      return;
+    }
+    const field = el('div', 'nj-field');
+    const label = el('label', 'nj-label', 'Your word');
+    label.htmlFor = 'nj-word';
+    const input = el('input');
+    input.id = 'nj-word';
+    input.type = 'text';
+    input.maxLength = WORD_MAX * 2; // UTF-16 units; the count below is in characters
+    input.value = draft.word;
+    input.autocomplete = 'off';
+    input.setAttribute('autocapitalize', 'off');
+    input.placeholder = 'One word';
+    const count = el('p', 'nj-count');
+    field.append(label, input, count);
+    const send = el('button', 'nj-send', 'Send');
+    send.type = 'button';
+    const sync = () => {
+      draft.word = input.value;
+      const typed = input.value.trim();
+      const length = Array.from(typed).length;
+      // Said only once it is news: a space inside, or past the limit.
+      const n = (k: number, word: string) => `${k} ${k === 1 ? 'character' : 'characters'} ${word}`;
+      count.textContent = /\s/u.test(typed) ? 'One word only' : length > WORD_MAX ? n(length - WORD_MAX, 'too many') : length >= WORD_MAX - 5 ? n(WORD_MAX - length, 'left') : '';
+      count.classList.toggle('over', typed.length > 0 && cleanWord(typed) === null);
+      send.disabled = busy || cleanWord(typed) === null;
+    };
+    input.addEventListener('input', sync);
+    send.addEventListener('click', () => {
+      const word = cleanWord(input.value);
+      if (!word) {
+        note = { text: WORD_REFUSED, bad: true };
+        render();
+        return;
+      }
+      void sendNow('', word, { roundId: round.id, revision: round.revision }, true);
+    });
+    card.append(field, send);
+    root.appendChild(card);
+    sync();
+  };
+
   const renderRound = () => {
     const round = view?.state.round;
     if (!round) return;
@@ -369,23 +429,26 @@ export function mountJoinSurface(
   };
 
   const renderMine = () => {
-    if (!view?.mine.length) return;
+    // A Word question's words are not messages: the live one has its own card, earlier ones go.
+    const items = (view?.mine ?? []).filter((m) => !m.word);
+    if (!items.length) return;
     const card = el('div', 'nj-card');
     card.appendChild(el('p', 'nj-label', 'What you sent'));
     const list = el('ul', 'nj-mine');
-    for (const item of view.mine) list.appendChild(el('li', undefined, item.body));
+    for (const item of items) list.appendChild(el('li', undefined, item.body));
     card.appendChild(list);
     root.appendChild(card);
   };
 
   const defaultPrompt = (mode: JoinView['state']['mode']): string =>
-    mode === 'comment' ? 'Send us a message' : mode === 'quiz' ? 'Pick your answer' : mode === 'poll' ? 'Cast your vote' : 'Standing by';
+    mode === 'comment' ? 'Send us a message' : mode === 'quiz' ? 'Pick your answer' : mode === 'poll' ? 'Cast your vote' : mode === 'word' ? 'Send one word' : 'Standing by';
 
   const load = async () => {
     try {
       const next = await client.load();
       if (destroyed) return;
       view = next;
+      if (note && !note.bad && note.round !== (view.state.round?.id ?? undefined)) note = null;
       render();
     } catch {
       // A failed poll is not an event a viewer needs told about: the next one is five seconds
@@ -393,16 +456,19 @@ export function mountJoinSurface(
     }
   };
 
-  const sendNow = async (author: string, body: string, target: { roundId: string; revision: number }) => {
+  const sendNow = async (author: string, body: string, target: { roundId: string; revision: number }, word = false) => {
     if (busy) return;
     busy = true;
     note = null;
     render();
     const result = await client.submit(author, body, target);
     busy = false;
-    if (result.ok) {
+    if (result.ok && word) {
+      draft.word = '';
+      note = { text: 'Thanks, your word is in.', bad: false, round: target.roundId };
+    } else if (result.ok) {
       draft.body = '';
-      note = { text: 'Sent — thanks. It goes to the team, who choose what to show.', bad: false };
+      note = { text: 'Sent — thanks. It goes to the team, who choose what to show.', bad: false, round: target.roundId };
     } else {
       // A refusal keeps what was typed. When the question moved on under this phone (R14) the
       // error says so and the re-read below shows the new question; nothing is resent unless the
@@ -421,7 +487,7 @@ export function mountJoinSurface(
     const result = await client.vote(roundId, option, revision);
     busy = false;
     note = result.ok
-      ? { text: 'Counted. You can change your mind while the vote is open.', bad: false }
+      ? { text: 'Counted. You can change your mind while the vote is open.', bad: false, round: roundId }
       : { text: result.error ?? 'That vote could not be counted.', bad: true };
     await load();
     render();

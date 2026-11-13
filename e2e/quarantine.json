@@ -2,10 +2,40 @@
   "$comment": "Specs that failed and then passed on the same commit (scripts/e2e-quarantine.mjs). They run on every push to main (quarantine.yml; configured-suite.yml for e2e/configured/) and leave after RELEASE_AFTER consecutive passes. Entries are written by ci.yml and configured-suite.yml through the merge queue; edit by hand only to release early.",
   "version": 1,
   "specs": {
-    "e2e/configured/production-data-key-tick.spec.ts": {
-      "since": "2026-11-09",
+    "e2e/configured/command-sequence.spec.ts": {
+      "since": "2026-11-12",
       "count": 2,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/42600303380"
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43128537544/job/130892801524"
+    },
+    "e2e/configured/operator-outage-not-unpublished.spec.ts": {
+      "since": "2026-11-11",
+      "count": 2,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/42945843116"
+    },
+    "e2e/configured/per-graphic-replacement.spec.ts": {
+      "since": "2026-11-12",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43257726630"
+    },
+    "e2e/import-svg-corpus.spec.ts": {
+      "since": "2026-11-12",
+      "count": 2,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43214485518"
+    },
+    "e2e/pack-import.spec.ts": {
+      "since": "2026-11-12",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43214485518"
+    },
+    "e2e/production-audience.spec.ts": {
+      "since": "2026-11-12",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43214485518"
+    },
+    "e2e/publish-output-setup.spec.ts": {
+      "since": "2026-11-11",
+      "count": 3,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/43062390990"
     }
   },
   "released": {
@@ -22,10 +52,6 @@
       "last": "2026-11-04"
     },
     "e2e/configured/audience-live.spec.ts": {
-      "count": 1,
-      "last": "2026-10-22"
-    },
-    "e2e/configured/command-sequence.spec.ts": {
       "count": 1,
       "last": "2026-10-22"
     },
@@ -57,10 +83,6 @@
       "count": 16,
       "last": "2026-11-03"
     },
-    "e2e/configured/operator-outage-not-unpublished.spec.ts": {
-      "count": 1,
-      "last": "2026-10-22"
-    },
     "e2e/configured/playout-both-roads.spec.ts": {
       "count": 1,
       "last": "2026-10-22"
@@ -68,6 +90,10 @@
     "e2e/configured/playout-switch-mid-flight.spec.ts": {
       "count": 1,
       "last": "2026-10-22"
+    },
+    "e2e/configured/production-data-key-tick.spec.ts": {
+      "count": 3,
+      "last": "2026-11-12"
     },
     "e2e/configured/production-data-key.spec.ts": {
       "count": 5,
@@ -145,10 +171,6 @@
       "count": 1,
       "last": "2026-10-21"
     },
-    "e2e/import-svg-corpus.spec.ts": {
-      "count": 1,
-      "last": "2026-10-18"
-    },
     "e2e/import-svg-credits.spec.ts": {
       "count": 1,
       "last": "2026-11-04"
@@ -166,8 +188,8 @@
       "last": "2026-10-03"
     },
     "e2e/output-debate-clock.spec.ts": {
-      "count": 1,
-      "last": "2026-11-09"
+      "count": 2,
+      "last": "2026-11-12"
     },
     "e2e/playout-cues.spec.ts": {
       "count": 1,
@@ -185,13 +207,13 @@
       "count": 2,
       "last": "2026-11-04"
     },
-    "e2e/publish-output-setup.spec.ts": {
-      "count": 2,
-      "last": "2026-10-30"
-    },
     "e2e/rundown-history.spec.ts": {
       "count": 3,
       "last": "2026-10-30"
+    },
+    "e2e/ticker-linked-update.spec.ts": {
+      "count": 1,
+      "last": "2026-11-12"
     },
     "e2e/wizard-shell.spec.ts": {
       "count": 5,

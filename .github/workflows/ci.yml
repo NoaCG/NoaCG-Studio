@@ -282,6 +282,11 @@ jobs:
       # or 'refuse' (scripts/e2e-capacity.mjs; docs/work-specs/e2e-suite-budget/spec.md).
       capacity: ${{ steps.capacity.outputs.capacity }}
       capacityReason: ${{ steps.capacity.outputs.capacity_reason }}
+      # The refusals only the owner can move (cf22 fix 2): comma-separated fixed kinds, or empty.
+      capacityOwner: ${{ steps.capacity.outputs.capacity_owner }}
+      # What a 'repay' verdict owes, per tier, as JSON (land-2c): the change lands and post-land
+      # records it as a dated repayment item (scripts/capacity-repay.mjs).
+      capacityRepay: ${{ steps.capacity.outputs.capacity_repay }}
       # THE CONFIGURED SELECTION (cicd-improvement ci06). `configured` is 'true' or 'false', never
       # empty: the gate reads it, and an empty flag fails there. The specs, their shards and the
       # exemption that explains a 'false' come with it.
@@ -601,8 +606,10 @@ jobs:
       #
       # THE GROWTH TIERS ride on the same verdict (scripts/growth-controls.mjs, D7): what this
       # change adds to the backend, graphics and fixed-overhead tiers, priced conservatively and
-      # judged per tier against the newest weekly growth report, which the step below fetches.
-      # No report, or an unreadable one, is missing evidence, never zero cost.
+      # judged per tier against the newest COMPLETE weekly growth report, which the step below
+      # fetches. A missing, stale or partial newest report never tightens the line: the tiers are
+      # judged on the newest complete report (or the frozen seed when there is none) at the normal
+      # line, so a change is refused only for its own cost, and post-land.yml alarms the owner.
       - name: Newest weekly growth report
         if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
         continue-on-error: true
@@ -719,6 +726,10 @@ jobs:
           # Without `--shard` Playwright would write `report.zip` on every runner, and the report
           # job flattens all shard artifacts into one directory - see playwright.config.ts.
           NOACG_BLOB_NAME: report-${{ matrix.shardIndex }}.zip
+          # MAIN'S FULL RUN RECORDS THE TRACED SPEC MAP (scripts/e2e-traced.mjs), so the nightly can
+          # take the map, the report and the triage from this run instead of running the same tree
+          # again (nightly.yml, `covered`). Empty elsewhere, which leaves tracing off.
+          NOACG_E2E_TRACE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && format('{0}/e2e-trace', runner.temp) || '' }}
         # This shard's own file list, as anchored Playwright filters. `specFilterArg` builds them
         # in tested code rather than here, because the anchoring is load-bearing: Playwright's
         # positional args are REGEXES over the file path, so a bare `control.spec.ts` also selects
@@ -776,6 +787,16 @@ jobs:
           path: blob-report/
           retention-days: 7
           if-no-files-found: error
+
+      # The nightly counts these against the shard total before it relies on this run.
+      - name: Upload shard trace
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        with:
+          name: e2e-trace-${{ matrix.shardIndex }}
+          path: ${{ runner.temp }}/e2e-trace/trace.json
+          retention-days: 7
+          if-no-files-found: warn
 
       - name: Upload failure evidence
         uses: actions/upload-artifact@v4
@@ -1450,6 +1471,7 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read
+      issues: read # the landing hold's state, below
     steps:
       # A verdict and nothing else: this job is the required check, so it holds no write scope and
       # no checkout beyond the one script it reads. Everything that ACTS on the verdict - the
@@ -1477,16 +1499,30 @@ jobs:
           CONFIGURED_RESULT: ${{ needs.configured.result }}
           CONFIGURED_VERDICT: ${{ needs.configured-verdict.result }}
           CAPACITY_REASON: ${{ needs.plan.outputs.capacityReason }}
+          CAPACITY_OWNER: ${{ needs.plan.outputs.capacityOwner }}
+          CAPACITY_REPAY: ${{ needs.plan.outputs.capacityRepay }}
         run: |
           status=0
           exhausted=0
           # THE CAPACITY LINE (scripts/e2e-capacity.mjs, docs/work-specs/e2e-suite-budget/spec.md).
-          # A pull request or merge group that adds spec-minutes above 95% of the full run's
-          # envelope without an expiring exception in its work spec is refused here, by the plan
-          # job's estimate. A change that adds nothing is never refused, so no landing is held for
-          # being mechanical; and an empty verdict (main, a dispatch) is no verdict.
+          # The plan job's estimate of this change against the line; an empty verdict (main, a
+          # dispatch) is no verdict. A refusal only the owner can move (cf22 fix 2; since land-2c
+          # only an unreviewed ceilings revision) says so, and asks the agent to raise the owner
+          # alarm now instead of re-pushing; every other refusal keeps its message.
+          # A COST CEILING NEVER BLOCKS A LANDING (owner, 2026-11-12; land-2c). Where the line is
+          # still right about cost, the verdict is 'repay': the change passes here, and one fixed
+          # annotation per tier, `Repay (<tier>): <cost>`, is what post-land reads to record a
+          # dated repayment item for the owner. Only refusals of the records or of the change's own
+          # evidence reach 'refuse' below.
+          if [ "${CAPACITY_RESULT:-}" = "repay" ]; then
+            jq -r '.[] | "::warning title=CI gate::Repay (\(.tier)): \(.cost | gsub("[\r\n]"; " "))"' <<<"${CAPACITY_REPAY:-[]}" || echo "::warning title=CI gate::Repay (offline): ${CAPACITY_REASON:-unreadable repayment record}"
+          fi
           if [ "${CAPACITY_RESULT:-}" = "refuse" ]; then
-            echo "::error title=CI gate::E2E capacity line - ${CAPACITY_REASON:-over the line}. Add a budget exception to the pull request's work spec (format: scripts/e2e-capacity.mjs header) or make the change cheaper."
+            if [ -n "${CAPACITY_OWNER:-}" ]; then
+              echo "::error title=CI gate::Needs the owner (${CAPACITY_OWNER}): E2E capacity line - ${CAPACITY_REASON:-over the line}. Re-pushing will not pass the owner part: a ceilings change lands only with a reviewed revision. This change can only drop its ceilings edit. Any other record named here is this change's to fix. Raise the owner alarm now, from an up-to-date main checkout: node scripts/repair-wake.mjs check --issue"
+            else
+              echo "::error title=CI gate::E2E capacity line - ${CAPACITY_REASON:-over the line}. Not a cost refusal (cost lands and owes a repayment): fix the ceilings or exception record named, or update the branch from its base if the diff could not be read."
+            fi
             status=1
           fi
           # FAIL-THEN-PASS IS A FLAKE, NOT A RED. The shards failed and the retry job ran exactly
@@ -1585,6 +1621,18 @@ jobs:
             exit 1
           fi
           exit "$status"
+
+      # THE LANDING HOLD (docs/LANDING_HOLD.md). While an open `landing-hold` issue exists, this
+      # fails every pull request and merge group, so a queued pull request leaves the queue and
+      # nothing reaches main. A state it cannot read fails too (fail closed). Read here, in the
+      # last job, so a hold set mid-run still stops a merge group whose gate has not finished. Not
+      # on a push to main: that commit has landed, and a red gate there would start the revert.
+      # `!cancelled()` so it reports beside a failed gate above, not instead of it.
+      - name: Landing hold
+        if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.event_name == 'merge_group' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')) }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/landing-hold.mjs check
 
 
   # AFTER THE GATE: what a verdict on main or in the merge group sets in motion. Fail-loud on main,

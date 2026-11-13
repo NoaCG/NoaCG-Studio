@@ -72,40 +72,61 @@ export function checkpointReceipt(doc, receipt, text) {
 
 const only = (value, keys) => value && typeof value === 'object' && Object.keys(value).every((key) => keys.includes(key));
 
-/** An admission only inserts new phases; anything else it names is refused before any read. */
+/** Owner receipts may insert phases and narrowly revise untouched future environments/prerequisites. */
 export function checkAdmission(admission) {
-  if (!only(admission, ['receipts', 'commit', 'insert']) || !Array.isArray(admission.insert) || !admission.insert.length
-      || admission.insert.some((at) => !only(at, ['after', 'phases']) || !Array.isArray(at.phases) || !at.phases.length)) {
-    throw Error('Admission only inserts new phases: {receipts, commit, insert: [{after, phases}]}');
+  const insert = admission?.insert, revise = admission?.revise;
+  if (!only(admission, ['receipts', 'commit', 'insert', 'revise'])
+      || (!insert?.length && !revise?.length)
+      || (insert !== undefined && (!Array.isArray(insert) || !insert.length
+        || insert.some((at) => !only(at, ['after', 'phases']) || !Array.isArray(at.phases) || !at.phases.length)))
+      || (revise !== undefined && (!Array.isArray(revise) || !revise.length
+        || revise.some((r) => !only(r, ['id', 'environment', 'dependsOn'])
+          || typeof r.id !== 'string' || !r.id.trim()
+          || (!Object.hasOwn(r, 'environment') && !Object.hasOwn(r, 'dependsOn')))))) {
+    throw Error('Admission only inserts new phases or revises unrecorded environments/prerequisites: {receipts, commit, insert?, revise?}');
   }
 }
 
-/** Insert owner-admitted phases, only after the last phase with any ledger event. Phases up to
- * it keep their numbers, so every recorded line stays valid; later phases have no events yet and
- * move by position. The admission line records the receipts and that mapping. The caller checked
- * the block authority, which also refuses a cancelled, finished or expired project. */
+/** Admit through the existing fenced transaction. Recorded rows and all old acceptance remain
+ * unchanged; revisions can only change a future environment or add prerequisites. */
 export function admitPhases(project, text, admission, receipts, now) {
   checkAdmission(admission);
-  const recorded = Math.max(1, ...readSteps(text).map((step) => step.phase));
-  const ids = project.phases.map((phase) => phase.id), added = new Map();
-  for (const { after, phases } of admission.insert) {
+  const recorded = Math.max(0, ...readSteps(text).map((step) => step.phase));
+  const ids = project.phases.map((phase) => phase.id), added = new Map(), revisions = new Map();
+  for (const { after, phases } of admission.insert ?? []) {
     if (!ids.includes(after)) throw Error(`Admission inserts after an admitted phase id; "${after}" is none`);
     if (ids.indexOf(after) + 1 < recorded) throw Error(`Admission inserts only after phase ${recorded}, the last with a ledger event; "${after}" is phase ${ids.indexOf(after) + 1}`);
     added.set(after, [...(added.get(after) ?? []), ...phases]);
   }
-  const admitted = { ...project, phases: project.phases.flatMap((phase) => [phase, ...(added.get(phase.id) ?? [])]) };
+  const revised = [];
+  for (const revision of admission.revise ?? []) {
+    const index = ids.indexOf(revision.id), before = project.phases[index];
+    if (index < 0) throw Error(`No existing phase "${revision.id}" to revise`);
+    if (index + 1 <= recorded) throw Error(`Revision requires an unrecorded phase after phase ${recorded}: ${revision.id}`);
+    if (revisions.has(revision.id)) throw Error(`Duplicate phase revision: ${revision.id}`);
+    const after = { ...before,
+      ...(Object.hasOwn(revision, 'environment') ? { environment: revision.environment } : {}),
+      ...(Object.hasOwn(revision, 'dependsOn') ? { dependsOn: revision.dependsOn } : {}) };
+    if (!Array.isArray(after.dependsOn) || new Set(after.dependsOn).size !== after.dependsOn.length
+        || before.dependsOn.some((id) => !after.dependsOn.includes(id))) throw Error('A revision may only add unique prerequisites; preserve every existing dependency');
+    if (after.environment === before.environment && after.dependsOn.length === before.dependsOn.length) throw Error(`Unchanged phase revision: ${revision.id}`);
+    revisions.set(revision.id, after);
+    const fields = (phase) => ({ environment: phase.environment, dependsOn: [...phase.dependsOn] });
+    revised.push({ id: revision.id, before: fields(before), after: fields(after) });
+  }
+  const admitted = { ...project, phases: project.phases.flatMap((phase) => [revisions.get(phase.id) ?? phase, ...(added.get(phase.id) ?? [])]) };
   validateProject(admitted, now);
   const position = (id) => admitted.phases.findIndex((phase) => phase.id === id) + 1;
   const inserted = [...added.values()].flat().map(({ id }) => ({ id, position: position(id) }));
   const moved = ids.map((id, i) => ({ id, from: i + 1, to: position(id) })).filter((m) => m.from !== m.to);
-  // Renumber the `## Phases` list (the section readPhases reads); its other text stays as written.
   let n = 0;
   const renumbered = text.replace(/^(## Phases[^\n]*\n)([\s\S]*?)(?=^## |(?![\s\S]))/m, (_, heading, body) => heading
     + body.replace(/^\d+\.\s+.+?(\r?)$/gm, (__, cr) => {
       const phase = project.phases[n++];
       return [phase, ...(added.get(phase.id) ?? [])].map(({ id, title }) => `${position(id)}. ${title}${cr}`).join('\n');
     }));
-  const line = `- ${new Date(now).toISOString()} admitted ${JSON.stringify({ commit: admission.commit, receipts, inserted, moved })}`;
+  const line = `- ${new Date(now).toISOString()} admitted ${JSON.stringify({ commit: admission.commit, receipts, inserted, moved,
+    ...(revised.length ? { revised: revised.map((r) => ({ ...r, position: position(r.id) })) } : {}) })}`;
   const written = writeProject(renumbered, admitted);
   return { project: admitted, text: `${written}${written.endsWith('\n') ? '' : '\n'}${line}\n` };
 }

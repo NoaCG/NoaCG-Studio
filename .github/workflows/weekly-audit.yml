@@ -29,7 +29,17 @@ name: weekly-audit
 on:
   schedule:
     - cron: '0 6 * * 1' # Mondays 06:00 UTC
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      # A re-run of a partial growth report, dispatched by post-land.yml (growth-report.mjs health).
+      growth_rerun:
+        description: Re-run only the weekly growth report
+        type: boolean
+        default: false
+      attempt:
+        description: Which try of this week's growth report this is
+        type: string
+        default: '1'
 
 permissions:
   contents: read
@@ -39,6 +49,7 @@ permissions:
 
 jobs:
   audit:
+    if: ${{ !inputs.growth_rerun }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -208,37 +219,72 @@ jobs:
     name: Weekly growth report
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # One report at a time: a re-run never overlaps the try before it.
+    concurrency:
+      group: weekly-growth-report
+      cancel-in-progress: false
     permissions:
       contents: read
       actions: read # run and job records, and last week's artifact
       pull-requests: read # open items' clocks
       statuses: read # the noacg/reviewed stamps those clocks start from
-      issues: write # the rolling actions issue
+      issues: write # the rolling actions issue and the report alarm
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 24
+      # Which week this run measures. A re-run of a partial report (post-land.yml dispatches it at
+      # most twice) goes ahead only while the newest report is still the partial try before it; a
+      # run by hand while the newest report is a partial one is another try of that week too.
+      - name: Which week
+        id: rerun
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RERUN: ${{ inputs.growth_rerun && inputs.attempt || '' }}
+        run: node scripts/growth-report.mjs health --week --rerun-attempt "$RERUN"
       # A failed fetch leaves no file, and the step below then refuses to publish rather than
       # reset last week's breaches and stops; no report at all (the first week) is written down.
+      # The newest report whatever its state. A re-run carries from the report published before
+      # this week's first try, as that try did, never from the try itself: comparing the week with
+      # itself would invent a "two weeks running" latency breach.
       - name: Last week's report
+        if: ${{ steps.rerun.outputs.needed != 'false' }}
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: node scripts/growth-report.mjs fetch --out "$RUNNER_TEMP/previous-growth.json"
+          BEFORE: ${{ steps.rerun.outputs.first_try }}
+        run: |
+          node scripts/growth-report.mjs fetch --newest --before "$BEFORE" --out "$RUNNER_TEMP/previous-growth.json"
+          # Another try of a week also reads that week's newest try, whose breaches it carries.
+          if [ -n "$BEFORE" ]; then node scripts/growth-report.mjs fetch --newest --out "$RUNNER_TEMP/tried-growth.json"; fi
       # The rolling issue is a statement about main (the audit's own rule above), so only a
       # schedule or a run on main raises or withdraws it.
       - name: Measure, attribute and assign
+        id: collect
+        if: ${{ steps.rerun.outputs.needed != 'false' }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           ISSUE: ${{ (github.event_name == 'schedule' || github.ref == 'refs/heads/main') && '--issue' || '' }}
-        run: node scripts/growth-report.mjs collect --budget 550 --previous "$RUNNER_TEMP/previous-growth.json" --out growth-report.json --summary "$GITHUB_STEP_SUMMARY" $ISSUE
+          ATTEMPT: ${{ steps.rerun.outputs.attempt || '1' }}
+          FIRST_TRY: ${{ steps.rerun.outputs.first_try }}
+        run: node scripts/growth-report.mjs collect --budget 550 --attempt "$ATTEMPT" --first-try "$FIRST_TRY" --previous "$RUNNER_TEMP/previous-growth.json" ${FIRST_TRY:+--breaches-from "$RUNNER_TEMP/tried-growth.json"} --out growth-report.json --summary "$GITHUB_STEP_SUMMARY" $ISSUE
       - uses: actions/upload-artifact@v4
-        if: ${{ always() }}
+        if: ${{ always() && steps.collect.outcome != 'skipped' }}
         with:
           name: growth-report
           path: growth-report.json
           retention-days: 35
           if-no-files-found: error
+      # The report just published: alarm the owner once if it is partial with no try left, or
+      # close the alarm if it is complete. post-land.yml re-runs a partial one after landings.
+      - name: Report alarm
+        if: ${{ always() && steps.collect.outcome == 'success' && github.ref == 'refs/heads/main' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/growth-report.mjs health --issue

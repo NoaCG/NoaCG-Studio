@@ -95,6 +95,135 @@ async function imported(page: Page) {
   await ruler.focus(); await ruler.press('Home'); await ruler.press('Shift+ArrowRight'); await ready(page);
 }
 
+type FidelitySample = { time: number; pose: { visibility: string; opacity: number; matrix: number[]; text: string | null } };
+async function fidelitySample(page: Page, time: number): Promise<FidelitySample> {
+  await seek(page, time);
+  const pose = await (await preview(page)).locator('#f0').evaluate(el => {
+    const s = getComputedStyle(el), m = (el as SVGGraphicsElement).getScreenCTM()!;
+    return { visibility: s.visibility, opacity: Number(s.opacity), matrix: [m.a, m.b, m.c, m.d, m.e, m.f], text: el.textContent };
+  });
+  return { time, pose };
+}
+
+async function expectFidelityExports(page: Page, samples: FidelitySample[], targets: ('html' | 'spx' | 'casparcg' | 'ograf')[]) {
+  const defaults = Object.fromEntries((await source(page)).fields.map(field => [field.field, String(field.value ?? '')]));
+  for (const target of targets) {
+    const files = target === 'html' ? null : await page.evaluate(async target => {
+      const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+      const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(t);
+      return Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n => !zip.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('base64')])));
+    }, target);
+    const output = await page.context().newPage(); await output.setViewportSize({ width: 1920, height: 1080 });
+    if (files) await output.route('http://fidelity-output.local/**', route => {
+      const path = new URL(route.request().url()).pathname.slice(1), body = files[path];
+      return route.fulfill({ status: body == null ? 404 : 200, body: body == null ? '' : Buffer.from(body, 'base64'), contentType: /\.(m?js)$/.test(path) ? 'application/javascript' : path.endsWith('.css') ? 'text/css' : path.endsWith('.woff2') ? 'font/woff2' : 'text/html', headers: { 'access-control-allow-origin': '*' } });
+    });
+    if (target === 'ograf') {
+      await installGraphicBody(output);
+      await output.goto('http://fidelity-output.local/');
+      await output.evaluate(async defaults => {
+        document.body.style.margin = '0';
+        const mod = await import('http://fidelity-output.local/graphic.mjs'); customElements.define('fidelity-graphic', mod.default);
+        const element = document.createElement('fidelity-graphic') as HTMLElement & { load(p: unknown): Promise<unknown>; playAction(p: unknown): Promise<unknown> };
+        document.body.appendChild(element); await element.load({ data: defaults, renderType: 'realtime', renderCharacteristics: {} }); await element.playAction({});
+      }, defaults);
+    } else if (files) {
+      await output.goto('http://fidelity-output.local/' + Object.keys(files).find(n => n.endsWith('.html') && !n.includes('controlpanel')));
+    } else {
+      const html = await page.evaluate(async () => (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(
+        (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template));
+      await output.setContent(html);
+    }
+    await output.evaluate(() => document.fonts.ready);
+    const actuals = await output.evaluate(({ times, target, defaults }) => {
+      type Timeline = { duration(): number; pause(): void; time(t: number, silent: boolean): void; render(t: number, silent: boolean, force: boolean): void };
+      const host = window as unknown as { update(data: string): void; play(): void; gsap: { globalTimeline: { getChildren(n: boolean, tw: boolean, tl: boolean): Timeline[] } } };
+      if (target !== 'ograf') { host.update(JSON.stringify(defaults)); host.play(); }
+      const timeline = host.gsap.globalTimeline.getChildren(false, false, true).findLast(t => Math.abs(t.duration() - .8) < .001)!;
+      timeline.pause();
+      const el = (target === 'ograf' ? graphicBody(document.querySelector('fidelity-graphic')!) : document).querySelector('#f0')!;
+      return times.map(time => {
+        timeline.time(time, true);
+        if (time === 0) timeline.render(0, true, true);
+        const s = getComputedStyle(el), m = (el as SVGGraphicsElement).getScreenCTM()!;
+        return { visibility: s.visibility, opacity: Number(s.opacity), matrix: [m.a, m.b, m.c, m.d, m.e, m.f], text: el.textContent };
+      });
+    }, { times: samples.map(sample => sample.time), target, defaults });
+    for (const [index, sample] of samples.entries()) {
+      const actual = actuals[index];
+      expect(actual.visibility, target + ':' + sample.time).toBe(sample.pose.visibility);
+      expect(actual.opacity).toBeCloseTo(sample.pose.opacity, 3);
+      expect(actual.text, target + ':' + sample.time).toBe(sample.pose.text);
+      actual.matrix.forEach((n, i) => expect(n, target + ':' + sample.time + ' matrix ' + i).toBeCloseTo(sample.pose.matrix[i], 1));
+    }
+    await output.close();
+  }
+}
+
+test('the rotated Illustrator card offers its text alignment without a below-threshold nudge', async ({ page }) => {
+  await page.goto('/app#/new');
+  await dropSvg(page, fileURLToPath(new URL('./fixtures/fidelity-nested.svg', import.meta.url)));
+  const card = page.getByTestId('map-svg-box-t0');
+  await expect(card).toBeVisible();
+  await expect(card.getByTestId('map-svg-align-t0')).toBeVisible();
+  await expect(card.getByTestId('map-svg-nudge-t0')).toHaveCount(0);
+});
+
+test('nested Illustrator text keys its CSS pivot without re-folding the SVG source', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await imported(page);
+  await select(page, '#f0');
+  await number(page, 'Rotation', 25);
+  const pose = async () => (await preview(page)).locator('#f0').evaluate(el => {
+    const m = (el as SVGGraphicsElement).getScreenCTM()!;
+    return [m.a, m.b, m.c, m.d, m.e, m.f];
+  });
+  const geometry = async () => (await preview(page)).locator('#f0').evaluate(el => {
+    const b = (el as SVGGraphicsElement).getBBox(), style = getComputedStyle(el);
+    return { box: [b.x, b.y, b.width, b.height], origin: style.transformOrigin, transformBox: style.transformBox, markup: el.outerHTML };
+  });
+  const pivotX = page.locator('.ef-anchor').getByRole('textbox', { name: 'Anchor X', exact: true });
+  const original = await source(page), first = await pose(), firstGeometry = await geometry();
+  const start = Number(await pivotX.inputValue());
+  const history = () => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().history.length);
+  const entries = await history();
+  await page.getByRole('button', { name: 'Enable Anchor X animation', exact: true }).click();
+  await ready(page);
+  const keyed = await source(page);
+  expect(keyed.html).toBe(original.html);
+  expect(keyed.fields).toEqual(original.fields);
+  expect(await history()).toBe(entries + 1);
+  writeFileSync(out('anchor-enable-geometry.json'), JSON.stringify({ before: firstGeometry, after: await geometry(), beforeMatrix: first, afterMatrix: await pose() }, null, 2));
+  for (const [i, value] of (await pose()).entries()) expect(value).toBeCloseTo(first[i], 3);
+  await seek(page, .6);
+  await pivotX.fill(String(start + 35));
+  await pivotX.press('Enter');
+  await ready(page);
+  const changed = await pose();
+  for (let i = 0; i < 4; i++) expect(changed[i]).toBeCloseTo(first[i], 4);
+  expect(Math.hypot(changed[4] - first[4], changed[5] - first[5])).toBeGreaterThan(10);
+  expect((await data(page)).steps[0].layers['#f0'].noacgAnchorX.map(key => key.value)).toEqual([start, start + 35]);
+  const authored = await source(page);
+  expect(await tryKey(page, { selector: '#f0', property: 'x', value: 20 })).toMatch(/CSS pivot.*source is preserved/);
+  expect(await source(page)).toEqual(authored);
+  expect(await history()).toBe(entries + 2);
+  await seek(page, .4);
+  for (const [i, value] of (await pose()).entries()) expect(value).toBeCloseTo(first[i], 3);
+  const samples: FidelitySample[] = [];
+  for (const time of [.4, .52, .6, .52, .4]) samples.push(await fidelitySample(page, time));
+  await page.getByTestId('save-graphic').click();
+  await page.getByTestId('save-name').fill('Illustrator anchor');
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  await settleDurableWrites(page);
+  await page.reload();
+  await ready(page);
+  const reopened = await source(page);
+  for (const pane of ['html', 'css', 'js'] as const) expect(reopened[pane]).toBe(authored[pane]);
+  for (const sample of samples) expect((await fidelitySample(page, sample.time)).pose).toEqual(sample.pose);
+  await expectFidelityExports(page, samples, ['html', 'spx', 'casparcg', 'ograf']);
+});
+
 test('actual wizard exposes nested artwork and independent trim handles', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await imported(page);
@@ -172,52 +301,14 @@ test('wizard group transforms compose with child keys and preserve source and ex
   }, { original, edited });
   expect(preservation.every(Boolean)).toBe(true);
   expect(edited.assets).toEqual(original.assets); expect(edited.fields[0].field).toBe(original.fields[0].field);
-  const samples = [];
-  for (const time of [0, .2, .4, .6, .76, .8, .4, .12]) {
-    await seek(page, time);
-    samples.push({ time, pose: await (await preview(page)).locator('#f0').evaluate(el => { const s = getComputedStyle(el), m = (el as SVGGraphicsElement).getScreenCTM()!; return { visibility: s.visibility, opacity: Number(s.opacity), matrix: [m.a,m.b,m.c,m.d,m.e,m.f], text: el.textContent }; }) });
-  }
+  const samples: FidelitySample[] = [];
+  for (const time of [0, .2, .4, .6, .76, .8, .4, .12]) samples.push(await fidelitySample(page, time));
   await seek(page, .6); await page.screenshot({ path: out('child-animation.png') });
-  for (const target of ['spx', 'casparcg', 'ograf']) {
-    const files = await page.evaluate(async target => {
-      const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-      const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(t => t.id === target)!.build(t);
-      return Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n => !zip.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('base64')])));
-    }, target);
-    const output = await page.context().newPage(); await output.setViewportSize({ width: 1920, height: 1080 });
-    await output.route('http://fidelity-output.local/**', route => {
-      const path = new URL(route.request().url()).pathname.slice(1), body = files[path];
-      return route.fulfill({ status: body == null ? 404 : 200, body: body == null ? '' : Buffer.from(body, 'base64'), contentType: /\.(m?js)$/.test(path) ? 'application/javascript' : path.endsWith('.css') ? 'text/css' : path.endsWith('.woff2') ? 'font/woff2' : 'text/html', headers: { 'access-control-allow-origin': '*' } });
-    });
-    if (target === 'ograf') {
-      await installGraphicBody(output);
-      await output.goto('http://fidelity-output.local/');
-      await output.evaluate(async () => {
-        document.body.style.margin = '0';
-        const mod = await import('http://fidelity-output.local/graphic.mjs'); customElements.define('fidelity-graphic', mod.default);
-        const element = document.createElement('fidelity-graphic') as HTMLElement & { load(p: unknown): Promise<unknown>; playAction(p: unknown): Promise<unknown> };
-        document.body.appendChild(element); await element.load({ data: {}, renderType: 'realtime', renderCharacteristics: {} }); await element.playAction({});
-      });
-    } else await output.goto('http://fidelity-output.local/' + Object.keys(files).find(n => n.endsWith('.html') && !n.includes('controlpanel')));
-    await output.evaluate(() => document.fonts.ready);
-    for (const sample of samples) {
-      const actual = await output.evaluate(({ time, target }) => {
-        type Timeline = { duration(): number; pause(): void; time(t: number, silent: boolean): void; render(t: number, silent: boolean, force: boolean): void };
-        const host = window as unknown as { buildStepTimeline(i: number): Timeline; gsap: { globalTimeline: { clear(): void; getChildren(n: boolean, tw: boolean, tl: boolean): Timeline[] } } };
-        if (target !== 'ograf') host.gsap.globalTimeline.clear();
-        const timeline = target === 'ograf' ? host.gsap.globalTimeline.getChildren(false, false, true).find(t => Math.abs(t.duration() - .8) < .001)! : host.buildStepTimeline(0);
-        timeline.pause(); timeline.time(time, true); if (time === 0) timeline.render(0, true, true);
-        const el = (target === 'ograf' ? graphicBody(document.querySelector('fidelity-graphic')!) : document).querySelector('#f0')!, s = getComputedStyle(el), m = (el as SVGGraphicsElement).getScreenCTM()!;
-        return { visibility: s.visibility, opacity: Number(s.opacity), matrix: [m.a,m.b,m.c,m.d,m.e,m.f], text: el.textContent };
-      }, { time: sample.time, target });
-      expect(actual.visibility, target + ':' + sample.time).toBe(sample.pose.visibility); expect(actual.opacity).toBeCloseTo(sample.pose.opacity, 3); expect(actual.text).toBe(sample.pose.text);
-      actual.matrix.forEach((n, i) => expect(n, target + ':' + sample.time + ' matrix ' + i).toBeCloseTo(sample.pose.matrix[i], 1));
-    }
-    await output.close();
-  }
+  await expectFidelityExports(page, samples, ['spx', 'casparcg', 'ograf']);
 });
 
-for (const width of [1920, 1366, 1093]) test('wizard nested identity, trim and history ' + width, async ({ page }) => {
+// One size: the smallest, where layouts break first (owner decision 2026-11-12, docs/work-specs/cicd-followup/evidence/land-study.md section 3.4).
+for (const width of [1093]) test('wizard nested identity, trim and history ' + width, async ({ page }) => {
   await page.setViewportSize({ width, height: width === 1920 ? 1080 : width === 1366 ? 768 : 614 });
   await imported(page); await seek(page, .8);
   const original = await source(page);

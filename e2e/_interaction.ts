@@ -10,9 +10,9 @@ export function questionRow(ws: Page, text: string): Locator {
 }
 
 /** Write a question through "+ Question": the type first, then the words. */
-export async function addQuestion(ws: Page, type: 'open' | 'choice', text: string, options: string[] = []): Promise<Locator> {
+export async function addQuestion(ws: Page, type: 'open' | 'choice' | 'word', text: string, options: string[] = []): Promise<Locator> {
   await ws.getByTestId('question-add').click();
-  await ws.getByTestId(type === 'open' ? 'question-type-open' : 'question-type-choice').click();
+  await ws.getByTestId(`question-type-${type}`).click();
   await ws.getByTestId('question-text').fill(text);
   if (type === 'choice') await ws.getByTestId('question-options').fill(options.join('\n'));
   await ws.getByTestId('question-save').click();
@@ -45,4 +45,17 @@ export async function moreWaysIn(ws: Page): Promise<void> {
 export async function simulateArrivals(ws: Page): Promise<void> {
   await moreWaysIn(ws);
   await ws.getByTestId('audience-simulate').click();
+}
+
+/** "Add results to rundown" (interaction AC-9): press it, and on the first press pick where results
+ *  go among the production's result graphics (`graphic`, by name). It waits for a note that names a
+ *  result cue, so an earlier ✓ (Go live's) never passes for one. */
+export async function addResults(ws: Page, graphic: string): Promise<void> {
+  const note = ws.getByTestId('audience-note');
+  const staged = note.filter({ hasText: /✓.*result cue/ });
+  await ws.getByTestId('audience-round-stage').click();
+  const choose = ws.getByTestId('result-choose-graphic').filter({ hasText: graphic });
+  await expect(choose.or(staged).first()).toBeVisible();
+  if (await choose.isVisible()) await choose.click();
+  await expect(staged).toBeVisible();
 }

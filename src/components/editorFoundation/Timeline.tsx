@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import type { groupHierarchy } from '../../blocks/editorGroups';
 import type { KeyRef } from '../../blocks/animEdit';
-import { ownerOf, readTimeline, type TimelineView } from './timelineView';
+import { ANCHOR_CHANNELS, SVG_GROUP_ANCHOR_CHANNELS } from '../../blocks/editorAnimation';
+import { flagLayouts, ownerOf, readTimeline, type TimelineView } from './timelineView';
 import type { EditorSession, Revision } from './session';
 import { applyOperations } from './operations';
 import LayerBar from './LayerBar';
@@ -12,9 +13,11 @@ import { addKeys, keyId, layerKeys, liveKeys, movedKeys, toggleKeys } from './ke
 import { baseValues } from '../../blocks/baseEdits';
 import LayerActions, { type LayerMenuRequest } from './LayerActions';
 import { useLayerOrganization } from './OrganizationControls';
+import { editorShortcutsLive } from '../spaceKey';
 
 const PROPERTY_LABELS: Record<string, string> = { x: 'X', y: 'Y', scaleX: 'Scale X', scaleY: 'Scale Y', rotation: 'Rotation', opacity: 'Opacity',
-  xPercent: 'X %', yPercent: 'Y %', scale: 'Scale', autoAlpha: 'Opacity (autoAlpha)' };
+  xPercent: 'X %', yPercent: 'Y %', scale: 'Scale', autoAlpha: 'Opacity (autoAlpha)', [ANCHOR_CHANNELS.x]: 'Anchor X', [ANCHOR_CHANNELS.y]: 'Anchor Y',
+  [SVG_GROUP_ANCHOR_CHANNELS.x]: 'Anchor X', [SVG_GROUP_ANCHOR_CHANNELS.y]: 'Anchor Y' };
 type Marquee = { x0: number; y0: number; x1: number; y1: number; base: KeyRef[] | null };
 /** A key drag: the keys it moves, the pressed key's row and ruler time, and the move so far in ruler
  *  seconds with the registry's verdict on it. */
@@ -29,9 +32,10 @@ interface Props {
   undo: () => void; redo: () => void; canUndo: boolean; canRedo: boolean;
   playing: boolean; togglePlayback: () => void;
   session: EditorSession; pause: () => void;
+  isExitPreview: () => boolean;
   inspectOut: () => void; playOut: () => void; parkOut: () => void; inspectStep: (index: number) => void;
 }
-export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, view, fps, time, selection, setSelection, layerMenu, seek, select, undo, redo, canUndo, canRedo, playing, togglePlayback, session, pause, inspectOut, playOut, parkOut, inspectStep }: Props) {
+export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, view, fps, time, selection, setSelection, layerMenu, seek, select, undo, redo, canUndo, canRedo, playing, togglePlayback, session, pause, isExitPreview, inspectOut, playOut, parkOut, inspectStep }: Props) {
   const visibleParts = view.parts.filter(part => part.selector === groupScope || (hierarchy.parent[part.selector] ?? null) === groupScope);
   const organization = useLayerOrganization(session, visibleParts, groupScope, selection, select, pause);
   const localStart = groupScope ? Math.min(...view.bars.filter(bar => bar.selector === groupScope).map(bar => bar.start), view.duration) : 0;
@@ -75,6 +79,7 @@ export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, vi
   const keyDrag = useRef<KeyDrag | null>(null), dragged = useRef(false);
   const [keyMove, setKeyMove] = useState<{ ids: Set<string>; time: number; delta: number; refused: string; row: string } | null>(null);
   const [keyReason, setKeyReason] = useReason(), reasonAt = useRef({ row: '', at: 0 });
+  const [clipboardReason, setClipboardReason] = useReason();
   const out = useRef<OutHandle>(null);
   // A dragged flag is drawn to the keys, bar edges and playhead near it.
   const snaps = useMemo(() => [...view.bars.flatMap(bar => [bar.start, bar.end]), ...(view.data?.steps ?? []).flatMap((step, i) =>
@@ -82,6 +87,17 @@ export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, vi
   const cue = session.port.view().cue;
   const dragging = useRef<Marquee | null>(null);
   const ruler = useRef<HTMLDivElement>(null);
+  const rulerSeek = useRef<HTMLDivElement>(null);
+  const [rulerWidth, setRulerWidth] = useState(0);
+  useLayoutEffect(() => {
+    const node = ruler.current;
+    if (!node) return;
+    const measure = () => setRulerWidth(node.getBoundingClientRect().width);
+    measure();
+    const resize = new ResizeObserver(measure);
+    resize.observe(node);
+    return () => resize.disconnect();
+  }, []);
   const tracks = useRef<HTMLDivElement>(null), revealedScroll = useRef<string | null>(null);
   useLayoutEffect(() => {
     if (reveal?.key !== 'u' || reveal.id === revealedScroll.current || !animatedOnly.some(selector => selection.includes(selector))) return;
@@ -90,6 +106,7 @@ export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, vi
   }, [reveal, animatedOnly, expanded, selection]);
   const startTime = useRef<number | null>(null);
   const extent = Math.max(2, view.duration * 1.15, session.port.view().cue === view.segments.length - 1 ? view.duration + 2 : 0);
+  const flags = useMemo(() => flagLayouts(view.segments, extent, rulerWidth), [view.segments, extent, rulerWidth]);
   const limit = session.port.view().cue === view.segments.length - 1 ? extent : view.duration;
   const interval = extent <= 5 ? 0.5 : extent <= 12 ? 1 : Math.ceil(extent / 10);
   const ticks = Array.from({ length: Math.floor(extent / interval) + 1 }, (_, i) => i * interval);
@@ -112,7 +129,7 @@ export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, vi
     // Keep canvas selections and newly created layers visible without scrolling the
     // page or moving the horizontal time range. Account for the sticky ruler above.
     const bounds = scroller.getBoundingClientRect(), item = row.getBoundingClientRect();
-    const top = bounds.top + (ruler.current?.parentElement?.getBoundingClientRect().height ?? 0);
+    const top = Math.max(bounds.top, ruler.current?.parentElement?.getBoundingClientRect().bottom ?? bounds.top);
     if (item.top < top) scroller.scrollTop += item.top - top;
     else if (item.bottom > bounds.bottom) scroller.scrollTop += item.bottom - bounds.bottom;
   }, [selection, view.parts]);
@@ -131,7 +148,8 @@ export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, vi
   const moveKeys = (moved: KeyRef[], delta: number, row: string, time: number, expected: Revision, focus: boolean) => {
     try {
       const result = session.execute({ documentId: session.documentId, expected, transactionId: crypto.randomUUID(), operations: [moveOperation(moved, delta)] });
-      moving.current = { keys: movedKeys(readTimeline(result.template).data, moved, delta * speed), focus: focus ? row : null };
+      const current = readTimeline(result.template);
+      moving.current = { keys: movedKeys(current.data, moved, delta * speed, current.loopRuntime), focus: focus ? row : null };
     } catch (cause) { explain(message(cause), row, time + delta); }
   };
   const endKeyDrag = useCallback(() => { keyDrag.current = null; setKeyMove(null); }, []);
@@ -228,9 +246,9 @@ export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, vi
   const startMarquee = (event: ReactPointerEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
     if (event.button !== 0 || view.reason || !(target === event.currentTarget || target.classList.contains('ef-track-lane'))) return;
-    // Cancelling the pointer skips the browser's own focus change, so let go of the last control
-    // here: keys pressed next belong to the editor, not to a key button clicked earlier.
-    event.preventDefault(); (document.activeElement as HTMLElement | null)?.blur();
+    // Cancelling the pointer skips its usual focus change. Give the timeline the keyboard so a
+    // copy after marquee uses the new selection, not the control that last had focus.
+    event.preventDefault(); event.currentTarget.focus({ preventScroll: true });
     const { x, y } = contentPoint(event);
     dragging.current = { x0: x, y0: y, x1: x, y1: y, base: event.ctrlKey || event.metaKey || event.shiftKey ? keys : null };
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -272,7 +290,24 @@ export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, vi
     return <span className={'ef-flag-error ' + (landing ? 'ef-key-move-time' : 'ef-key-move-error') + (left > 60 ? ' is-left' : '')} style={{ left: left + '%' }}
       role={landing ? undefined : 'alert'}>{landing ? display(at) : reasonText}</span>;
   };
-  return <section className="ef-timeline" aria-label="Timeline" data-testid="foundation-timeline">
+  const clipboardShortcut = (event: ReactKeyboardEvent<HTMLElement>) => {
+    const key = event.key.toLowerCase();
+    if (event.defaultPrevented || !(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey ||
+        (key !== 'c' && key !== 'v') || !editorShortcutsLive(event.target) || view.reason ||
+        keyDrag.current || dragging.current) return;
+    if (key === 'c' && (!keys.length || window.getSelection()?.toString())) return;
+    event.preventDefault();
+    if (event.repeat) return;
+    try {
+      if (key === 'c') session.copyTimelineKeys(keys, view);
+      else {
+        if (isExitPreview()) throw new Error('Click the timeline to return from the Out preview before pasting.');
+        pause();
+        session.pasteTimelineKeys();
+      }
+    } catch (cause) { setClipboardReason(message(cause)); }
+  };
+  return <section className="ef-timeline" aria-label="Timeline" data-testid="foundation-timeline" onKeyDown={clipboardShortcut}>
     <div className="ef-toolbar"><strong>Layers &amp; Timeline</strong>{organization.controls}
       <span className="ef-spacer" /><KeyEase session={session} data={view.data} keys={keys} menu={menu} close={closeMenu} pause={pause} /><button disabled={!canUndo} onClick={undo}>Undo</button><button disabled={!canRedo} onClick={redo}>Redo</button>
       <span className="ef-muted">{fps} fps</span></div>
@@ -291,21 +326,12 @@ export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, vi
         <option value="seconds">Seconds</option><option value="frames">Frames</option>
       </select></label>
     </div>
-    {view.reason ? <p className="ef-notice">{view.reason}</p> : null}
-    <div className="ef-track-scroll" ref={tracks} onPointerDown={startMarquee} onPointerMove={moveMarquee} onPointerUp={endMarquee}
+    {view.reason || clipboardReason ? <p className="ef-notice" role={clipboardReason ? 'alert' : undefined}>{view.reason || clipboardReason}</p> : null}
+    <div className="ef-track-scroll" tabIndex={-1} ref={tracks} onPointerDown={startMarquee} onPointerMove={moveMarquee} onPointerUp={endMarquee}
       onPointerCancel={cancelMarquee} onLostPointerCapture={cancelMarquee}>
-      <div className="ef-ruler-row" data-testid={groupScope ? "foundation-local-ruler" : undefined}><span className="ef-layer-heading">{groupScope ? "Group local time · " + display(time) : "Layers"}</span>
-        <div ref={ruler} className="ef-ruler" role="slider" aria-label={groupScope ? "Group local playhead" : "Playhead"} tabIndex={0} data-extent={extent}
-          aria-valuemin={-localStart} aria-valuemax={limit - localStart} aria-valuenow={time - localStart} aria-valuetext={display(time)}
-          aria-disabled={!!view.reason} data-testid="foundation-ruler"
-          onPointerDown={event => {
-            if (view.reason || event.button !== 0) return;
-            event.preventDefault(); event.currentTarget.focus(); startTime.current = time;
-            event.currentTarget.setPointerCapture(event.pointerId); fromPointer(event.clientX);
-          }}
-          onPointerMove={event => { if (startTime.current !== null) fromPointer(event.clientX); }}
-          onPointerUp={() => { startTime.current = null; }}
-          onPointerCancel={() => { if (startTime.current !== null) seek(startTime.current); startTime.current = null; }}
+      <div className={'ef-ruler-row' + (flags.extraHeight > 40 ? ' is-tall' : '')} style={flags.extraHeight ? { '--ef-flag-extra-height': `${flags.extraHeight}px` } as CSSProperties : undefined}
+        data-testid={groupScope ? "foundation-local-ruler" : undefined}><span className="ef-layer-heading">{groupScope ? "Group local time · " + display(time) : "Layers"}</span>
+        <div ref={ruler} className="ef-ruler"
           onKeyDown={event => {
             if (event.key === 'Escape' && startTime.current !== null) { seek(startTime.current); startTime.current = null; return; }
             if (view.reason) return;
@@ -314,13 +340,26 @@ export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, vi
               event.key === 'ArrowRight' ? (Math.round(time * fps) + (event.shiftKey ? 10 : 1)) / fps : null;
             if (next !== null) { event.preventDefault(); seek(Math.max(0, Math.min(limit, next))); }
           }}>
-          {ticks.map(tick => <span className="ef-tick" key={tick} style={{ left: tick / extent * 100 + '%' }}>{display(tick)}</span>)}
-          <span className="ef-flag" style={{ left: 0 }}>In</span>
-          {groupScope && view.segments.filter(segment => segment.index > 0).map(segment => <span className="ef-flag" key={segment.index} style={{left:segment.start / extent * 100 + '%'}}>{segment.name}</span>)}
+          <div ref={rulerSeek} className="ef-ruler-seek" role="slider" aria-label={groupScope ? "Group local playhead" : "Playhead"} tabIndex={0} data-extent={extent}
+            aria-valuemin={-localStart} aria-valuemax={limit - localStart} aria-valuenow={time - localStart} aria-valuetext={display(time)}
+            aria-disabled={!!view.reason} data-testid="foundation-ruler"
+            onPointerDown={event => {
+              if (view.reason || event.button !== 0) return;
+              event.preventDefault(); event.currentTarget.focus(); startTime.current = time;
+              event.currentTarget.setPointerCapture(event.pointerId); fromPointer(event.clientX);
+            }}
+            onPointerMove={event => { if (startTime.current !== null) fromPointer(event.clientX); }}
+            onPointerUp={() => { startTime.current = null; }}
+            onPointerCancel={() => { if (startTime.current !== null) seek(startTime.current); startTime.current = null; }}>
+            {ticks.map(tick => <span className="ef-tick" key={tick} style={{ left: tick / extent * 100 + '%' }}>{display(tick)}</span>)}
+            <span className="ef-flag" style={{ left: 0, ...flags.labels[0] }}>In</span>
+            {groupScope && view.segments.filter(segment => segment.index > 0).map(segment => <span className="ef-flag" key={segment.index} title={segment.name}
+              style={{ left: segment.start / extent * 100 + '%', ...flags.labels[segment.index] }}>{segment.name}</span>)}
+            <span className="ef-playhead-head" style={{ left: time / extent * 100 + '%' }} />
+          </div>
           {!groupScope && !view.reason && view.segments.filter(s => s.index > 0).map(s => <StepFlag key={s.index} segment={s} view={view} extent={extent} fps={fps}
-            snaps={snaps} playhead={time} selected={cue === s.index} session={session} pause={pause} display={display}
-            inspect={() => inspectStep(s.index)} setOut={to => out.current?.setOutAt(to)} />)}
-          <span className="ef-playhead-head" style={{ left: time / extent * 100 + '%' }} />
+            layout={flags.labels[s.index]} snaps={snaps} playhead={time} selected={cue === s.index} session={session} pause={pause} display={display}
+            inspect={() => inspectStep(s.index)} setOut={to => out.current?.setOutAt(to)} focusRuler={() => rulerSeek.current?.focus()} />)}
         </div>
       </div>
       {organization.rows.map((row, index) => {

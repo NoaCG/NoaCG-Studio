@@ -2,7 +2,7 @@
 // (scripts/e2e-lists.mjs). The offline suite cannot walk what these paths change.
 //
 // READY (Phase 6 Step 3: docs/work-specs/playout-ready/spec.md AC-1 to AC-7). An output decides for
-// itself whether it is ready and says so in its Presence entry; both operator surfaces read one line
+// itself whether it is ready and says so in its Presence entry; the production page reads one line
 // from those entries: the plan's words, a broken graphic named, a newer version taken a graphic at
 // a time, and an output that was there and is gone in red. None of it exists offline: there is no
 // production to resolve and no topic to join.
@@ -20,7 +20,7 @@ test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec')
  *  test's own output folder otherwise. */
 const shot = (name: string) => (process.env.READY_SHOTS ? `${process.env.READY_SHOTS}/ready-${name}.png` : test.info().outputPath(`${name}.png`));
 
-test('READY: every output says whether it is ready, both surfaces read one line, a broken graphic is named and a dead output is red', async ({ page, browser }) => {
+test('READY: every output says whether it is ready, the production page reads one line, a broken graphic is named and a dead output is red', async ({ page, browser }) => {
   test.setTimeout(360_000);
   await signIn(page);
   await page.keyboard.press('Escape');
@@ -64,11 +64,11 @@ test('READY: every output says whether it is ready, both surfaces read one line,
   expect(first.is.filter((i) => i.k === 'script' || i.k === 'silent'), 'nothing threw while loading').toEqual([]);
   await expect(air.locator('pre')).toContainText('ready: ');
   // Fonts the host could not fetch are this host's truth and are reported, never hidden: the words
-  // on both surfaces are then the fallback line, amber. Everything below reads either.
+  // on the production page are then the fallback line, amber. Everything below reads either.
   const fontsOk = first.is.every((i) => i.k !== 'font');
   test.info().annotations.push({ type: 'fonts', description: fontsOk ? 'every typeface loaded' : `fallback: ${first.is.map((i) => i.d).join(', ')}` });
 
-  // ── AC-5: the production page and the hosted page show ONE line, from the output's own entry.
+  // ── AC-5: the production page shows ONE line, from the output's own entry.
   //    An entry changes at most once per 10 s (the Presence budget, presenceGate.ts), so a state
   //    the output reached a moment ago can take that long to reach the pages. ──
   // The production page reads READY through its one playout status (studio-day-playout AC-7),
@@ -83,12 +83,6 @@ test('READY: every output says whether it is ready, both surfaces read one line,
     await expect(desk).toHaveAttribute('data-tone', 'warn', { timeout: 30_000 });
     await expect(desk).toHaveAttribute('data-ready-label', /Using a fallback font for/);
   }
-  const hosted = await anon.newPage();
-  await hosted.setViewportSize({ width: 1440, height: 900 });
-  await hosted.goto(`/app?control=${encodeURIComponent(hostedSlug)}`);
-  const phoneLine = hosted.getByTestId('hosted-output-health');
-  await expect(phoneLine).toHaveAttribute('data-source', 'ready', { timeout: 60_000 });
-  await expect(phoneLine.locator('.pd-health-full')).toHaveText((await desk.getAttribute('data-ready-label'))!, { timeout: 30_000 });
   // The panel names the output by the name its URL gave it.
   await desk.click();
   const panel = page.getByTestId('production-status-panel');
@@ -139,7 +133,6 @@ test('READY: every output says whether it is ready, both surfaces read one line,
   await expect.poll(async () => (await stampOf())?.n, { timeout: 30_000 }).toBe(2);
   await expect.poll(async () => (await readyOf(air))?.v?.n, { timeout: 60_000 }).toBe(2);
   await expect(desk).not.toHaveAttribute('data-ready-label', /Behind|Waiting for clear/, { timeout: 30_000 });
-  await expect(phoneLine.locator('.pd-health-full')).not.toContainText('Behind', { timeout: 30_000 });
   await expect(scorebug()).toContainText('READY TEST');
   expect(await air.evaluate(() => document.body.getAttribute('data-plays')), 'the graphic on air was not played again').toBe(playsBefore);
   await page.screenshot({ path: shot('desk-after-publish'), clip: { x: 0, y: 0, width: 1920, height: 120 } });
@@ -162,28 +155,19 @@ test('READY: every output says whether it is ready, both surfaces read one line,
   // a graphic that cannot play red, by name (docs/work-specs/studio-day-playout AC-7).
   await expect(desk).toHaveAttribute('data-tone', 'bad');
   await expect(desk).toContainText('Not ready: Hairline');
-  await expect(phoneLine.locator('.pd-health-full')).toHaveText('▲ Not ready: Hairline (script error)', { timeout: 30_000 });
   // Its other graphic still takes.
   await page.getByTestId('verb-take').click();
   await expect.poll(async () => air.evaluate(() => document.body.getAttribute('data-plays')), { timeout: 30_000 }).toBe('1');
   await page.getByTestId('verb-out').click();
-  await hosted.screenshot({ path: shot('hosted-1440-not-ready'), clip: { x: 0, y: 0, width: 1440, height: 120 } });
-  await hosted.setViewportSize({ width: 390, height: 844 });
-  await expect(hosted.locator('.pd-ready .pd-health-short')).toBeVisible();
-  await expect(hosted.getByTestId('hosted-out-all')).toBeInViewport();
-  await hosted.screenshot({ path: shot('hosted-390-not-ready'), clip: { x: 0, y: 0, width: 390, height: 200 } });
 
-  // ── AC-6: the output goes away: after 15 s both surfaces read it in red, by its name. ──
+  // ── AC-6: the output goes away: after 15 s the production page reads it in red, by its name. ──
   await air.close();
   await expect(desk).toHaveAttribute('data-tone', 'bad', { timeout: 40_000 });
   await expect(desk).toHaveAttribute('data-ready-label', /Desk A not answering \(/);
-  await expect(phoneLine).toHaveAttribute('data-tone', 'bad', { timeout: 40_000 });
-  await hosted.getByTestId('hosted-output-health').click();
-  // In the panel the line is headed by the output's name, and the state under it says the rest.
-  const gonePanel = hosted.getByTestId('hosted-output-health-panel');
-  await expect(gonePanel.getByTestId('ready-output')).toContainText('Desk A');
-  await expect(gonePanel.getByTestId('ready-state')).toContainText('not answering (');
-  await hosted.screenshot({ path: shot('hosted-390-not-answering-panel') });
+  await desk.click();
+  // The panel still lists it by the name its URL gave it.
+  await expect(page.getByTestId('production-status-panel').getByTestId('ready-output')).toContainText('Desk A');
+  await desk.click();
   await page.screenshot({ path: shot('desk-not-answering'), clip: { x: 0, y: 0, width: 1920, height: 120 } });
   // Forgotten, it is gone from the line, and the line falls back to what it knows without it.
   await desk.click();

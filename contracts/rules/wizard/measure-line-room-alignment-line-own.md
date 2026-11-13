@@ -3,7 +3,7 @@ v: 1
 scope: src/components/wizard/import/**, src/templates/importedDesign/**
 kind: trap
 fires: contract
-status: active
+status: retired
 since: 2026-09-08
 record: contracts/records/wizard/2026-09-08-measure-line-room-alignment-line-own.md
 ---

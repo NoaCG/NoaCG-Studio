@@ -43,6 +43,7 @@ Usage: noacg <command> [options]   (add --json to any command for machine-readab
   types                          The graphic types NoaCG knows: fields, events, designs, neutral scaffold.
   scaffold --type <id> [--design <id>|neutral] [--name N] [--set key=value]... --out <dir>
   scaffold --fields "Label:kind[=value],..." [--name N] --out <dir>
+  scaffold --svg <file.svg> [--name N] --out <dir>
   validate <dir|zip> [--no-bench] [--no-house-contract] [--screenshots <dir> [--background <bg>]]
   inspect <dir|zip>              The operator surface NoaCG derives from the graphic's own contract.
   screenshot <dir|zip> [--state off|onair|stress] [--data k=v]... [--event <op>]... [--at <time>]

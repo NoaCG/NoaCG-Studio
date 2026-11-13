@@ -78,6 +78,11 @@ async function seed(page: Page, server = false) {
   await expect(page.getByTestId('production-page')).toBeVisible(); return ids;
 }
 const row = (page: Page, name: string) => page.getByTestId('cue-list').locator('.pd-cue').filter({ has: page.locator('.pd-cue-label strong', { hasText: new RegExp(`^${name}$`) }) });
+// A server action reaching the fake Bridge is not the page knowing its answer. A press that depends
+// on what is on air (Out, Delete, undo, redo) waits for the row to show it, as an operator would.
+const ON_AIR = /on-air|up-here/;
+const shownOn = (page: Page, name: string) => expect(row(page, name)).toHaveClass(ON_AIR);
+const shownOff = (page: Page, name: string) => expect(row(page, name)).not.toHaveClass(ON_AIR);
 async function select(page: Page, name: string) { await row(page, name).getByTestId('select-cue').click(); }
 async function snapshot(page: Page, id: string) {
   await settleDurableWrites(page);
@@ -240,8 +245,10 @@ test('live Take and Out remain independent of a held team authoring acknowledgem
     await parkFocusOffControls(page); await expect.poll(() => state.calls).toBeGreaterThan(calls);
     await select(page, 'GAMMA'); await key(page, 'Space');
     await expect.poll(() => fake.actions.length, { message: 'Take must reach Bridge while the authoring save remains held' }).toBe(1);
+    await shownOn(page, 'GAMMA');
     await key(page, '0');
     await expect.poll(() => fake.actions.length, { message: 'Out must reach Bridge while the authoring save remains held' }).toBe(2);
+    await shownOff(page, 'GAMMA');
     await key(page, 'Delete');
   } finally { release(); }
   await expect(page.getByTestId('sync-status')).toHaveText('Synced');
@@ -277,9 +284,9 @@ test('restored server sources stay off, live redo refuses removal, and inverse s
   const fake = await fakeBridge(page); await seedSettings(page); const ids = await seed(page, true), before = await snapshot(page, ids.show);
   await select(page, 'GAMMA'); await key(page, 'Delete'); await expect(row(page, 'GAMMA')).toHaveCount(0);
   await key(page, 'Control+z'); await expectSlice(page, ids.show, before); expect(fake.actions).toHaveLength(0);
-  await select(page, 'GAMMA'); await key(page, 'Space'); await expect.poll(() => fake.actions.length).toBe(1);
+  await select(page, 'GAMMA'); await key(page, 'Space'); await expect.poll(() => fake.actions.length).toBe(1); await shownOn(page, 'GAMMA');
   await key(page, 'Control+y'); await expect(page.getByTestId('rundown-note')).toContainText('off air'); expect(fake.actions).toHaveLength(1); await expect(row(page, 'GAMMA')).toBeVisible();
-  await key(page, '0'); await expect.poll(() => fake.actions.length).toBe(2);
+  await key(page, '0'); await expect.poll(() => fake.actions.length).toBe(2); await shownOff(page, 'GAMMA');
   await key(page, 'Control+y'); await expect(row(page, 'GAMMA')).toHaveCount(0); expect(fake.actions).toHaveLength(2);
   await key(page, 'Control+z'); await expectSlice(page, ids.show, before); expect(fake.actions).toHaveLength(2);
 });
@@ -288,9 +295,9 @@ test('a running folder keeps its members until stopped, and folder undo never se
   const fake = await fakeBridge(page); await seedSettings(page); const ids = await seed(page, true), before = await snapshot(page, ids.show);
   await row(page, 'GAMMA').getByTestId('cue-menu').click(); await page.getByTestId('cue-new-folder').click();
   const folder = page.getByTestId('cue-list').locator('.pd-folder').last(); await expect(folder).toBeVisible(); await folder.getByTestId('select-folder').click();
-  await key(page, 'Space'); await expect.poll(() => fake.actions.length).toBe(1);
+  await key(page, 'Space'); await expect.poll(() => fake.actions.length).toBe(1); await shownOn(page, 'GAMMA');
   await key(page, 'Control+z'); await expect(page.getByTestId('rundown-note')).toContainText('Stop the affected folder'); expect(fake.actions).toHaveLength(1);
-  await key(page, '0'); await expect.poll(() => fake.actions.length).toBe(2);
+  await key(page, '0'); await expect.poll(() => fake.actions.length).toBe(2); await shownOff(page, 'GAMMA');
   await key(page, 'Control+z'); await expectSlice(page, ids.show, before); expect(fake.actions).toHaveLength(2);
 });
 

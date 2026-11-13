@@ -1,7 +1,7 @@
 {
   "note": "Advisor findings seen and accepted. Regenerate with `node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording accepts everything currently reported, so read the diff before committing one.",
-  "recordedAt": "2026-11-09",
-  "count": 218,
+  "recordedAt": "2026-11-10",
+  "count": 220,
   "entries": {
     "anon_security_definer_function_executable_public_audience_clear_results_p_slug text, p_question text": {
       "name": "anon_security_definer_function_executable",
@@ -43,6 +43,11 @@
       "level": "WARN",
       "detail": "Function `public.audience_operator_settle(p_slug text, p_prefix text, p_present text[])` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_operator_settle`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "anon_security_definer_function_executable_public_audience_operator_votes_p_slug text, p_round uuid, p_items jsonb": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_operator_votes(p_slug text, p_round uuid, p_items jsonb)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_operator_votes`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "anon_security_definer_function_executable_public_audience_presenter_by_slug_p_presenter_slug text": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
@@ -82,6 +87,11 @@
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.audience_vote(p_join_slug text, p_device text, p_round uuid, p_option integer, p_revision integer)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_vote`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_audience_word_counts_p_slug text, p_round uuid": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_word_counts(p_slug text, p_round uuid)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_word_counts`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_community_pack_file_p_id uuid": {
       "name": "anon_security_definer_function_executable",
@@ -323,6 +333,11 @@
       "level": "WARN",
       "detail": "Function `public.audience_operator_settle(p_slug text, p_prefix text, p_present text[])` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_operator_settle`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "authenticated_security_definer_function_executable_public_audience_operator_votes_p_slug text, p_round uuid, p_items jsonb": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_operator_votes(p_slug text, p_round uuid, p_items jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_operator_votes`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "authenticated_security_definer_function_executable_public_audience_presenter_by_slug_p_presenter_slug text": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
@@ -362,6 +377,11 @@
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.audience_vote(p_join_slug text, p_device text, p_round uuid, p_option integer, p_revision integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_vote`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_audience_word_counts_p_slug text, p_round uuid": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_word_counts(p_slug text, p_round uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_word_counts`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_community_pack_decide_p_id uuid, p_state text, p_reason text": {
       "name": "authenticated_security_definer_function_executable",
@@ -607,6 +627,11 @@
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.panel_revoke(p_slug text, p_key_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/panel_revoke`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_production_copies_state_": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.production_copies_state()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/production_copies_state`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_public_system_notice_": {
       "name": "authenticated_security_definer_function_executable",

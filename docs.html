@@ -78,6 +78,7 @@
         <div class="doc-nav-topic">
           <a href="#dashboard">Run the show</a>
           <div class="doc-nav-sub" id="nav-show">
+            <a href="#companion">Stream Deck with Companion</a>
             <a href="#teams">Working with other people</a>
             <a href="#audience">Audience join pages</a>
             <a href="#behaviour">Graphics with behaviour</a>
@@ -445,7 +446,7 @@
 <tr><td>Bar (one per row)</td><td><code>Bar 1</code></td><td><code>Palkki 1</code>, <code>Stapel 1</code></td><td>draw it at its FULL length - that length is 100%</td></tr>
 <tr><td>Percent (one per row)</td><td><code>Percent 1</code></td><td><code>Share 1</code>, <code>Osuus 1</code>, <code>Procent 1</code></td><td>appears with the result</td></tr>
 <tr><td>Winner (one per row)</td><td><code>Winner 1</code></td><td><code>Voittaja 1</code>, <code>Vinnare 1</code></td><td>only on the row that won, and never on a tie</td></tr>
-<tr><td>Total votes</td><td><code>Total votes</code></td><td><code>Ääntä</code>, <code>Röster</code></td><td>written from the round</td></tr>
+<tr><td>Total votes</td><td><code>Total votes</code></td><td><code>Vote count</code>, <code>Ääntä</code>, <code>Röster</code></td><td>written from the round</td></tr>
 <tr><td>Vote badge</td><td><code>Vote badge</code></td><td><code>Äänestä</code>, <code>Rösta</code></td><td>while voting is open</td></tr>
 <tr><td colspan="4" class="doc-words-rows">Two to eight options.</td></tr>
 <tr class="doc-words-type"><th colspan="4"><a href="#countdowns">Countdown</a></th></tr>
@@ -1506,8 +1507,8 @@ CG 1-20 STOP</code></pre>
             <li>Build the rundown on the production page. A cue is a graphic plus the values it
               airs with.</li>
             <li>Press <strong>&#9654; Start production</strong> in the page header. This publishes
-              the show and makes two links: the output URL that a browser source loads, and a
-              control page for operating from another device.</li>
+              the show and makes the output URL that a browser source loads. To operate from
+              another device, sign in there and open the same production.</li>
           </ol>
           <p>
             Publishing needs an account, because the published pages live in your cloud space.
@@ -1558,36 +1559,55 @@ CG 1-20 STOP</code></pre>
           </ul>
         </section>
 
+        <section id="companion">
+          <h2>Set up a Stream Deck with Companion</h2>
+          <p>Use Bitfocus Companion 4.3 or later to run cues and graphics from a Stream Deck.</p>
+          <ol>
+            <li>If <strong>NoaCG: NoaCG Studio</strong> is missing from your Companion connections,
+              <a href="/downloads#companion">download the Companion module</a>. In Companion, open
+              <strong>Modules</strong>, press <strong>Import module package</strong> and choose the
+              <code>.tgz</code> file.</li>
+            <li>Publish the production once. Open <strong>Setup</strong> and choose
+              <strong>Stream Deck panel&hellip;</strong> on the production page. Press
+              <strong>Pair a panel</strong>. The code works once, for five minutes.</li>
+            <li>In Companion, open <strong>Connections</strong> and search for <code>NoaCG</code>.
+              Press <strong>Add</strong> beside <strong>NoaCG: NoaCG Studio</strong>, then
+              <strong>Add</strong> again. Enter the <strong>Pairing code</strong> and
+              <strong>Panel name</strong>, then press <strong>Save</strong>.</li>
+            <li>Keep the production page open to answer the panel. In Companion's
+              <strong>Buttons</strong>, open <strong>Presets</strong>, choose <strong>NoaCG</strong>
+              and drag a preset onto a button. Start with <strong>Take</strong> in
+              <strong>Show control</strong>.</li>
+          </ol>
+        </section>
+
         <!-- ═══════════════════════ TEAMS ═══════════════════════ -->
         <section id="teams">
           <h2>Working with other people</h2>
-          <p>Two different things both get called sharing, and they have different answers:</p>
-          <ul>
-            <li><strong>Running one show from several devices</strong> needs no accounts at
-              all.</li>
-            <li><strong>Preparing one show together</strong>, each person signed in as
-              themselves, is what a team is for.</li>
-          </ul>
-
-          <h3 id="teams-links">Running a show together needs no accounts</h3>
           <p>
-            A published production has links that work for whoever holds them. They are in the
-            <strong>Playout panel</strong>, which opens from the playout status in the production
-            page header.
+            <strong>Running or preparing one show together</strong>, each person signed in as
+            themselves on their own device, is what a team is for.
+          </p>
+
+          <h3 id="teams-links">Links you can hand out</h3>
+          <p>
+            A published production has links that work for whoever holds them. The output URL is
+            in the <strong>Playout panel</strong>, which opens from the playout status in the
+            production page header; the presenter and audience links are in
+            <strong>Setup</strong> &rsaquo; <strong>Links</strong>.
           </p>
           <ul>
-            <li>The <strong>control page</strong> drives the show from a second laptop or a phone
-              at the desk.</li>
             <li>The <strong>presenter view</strong> shows the host what is coming, without the
               operator controls.</li>
             <li>The <strong>output URL</strong> is what a browser source loads.</li>
             <li>The <strong>audience join page</strong> collects votes and messages.</li>
           </ul>
           <p>
-            Several people can run one show this way with one account and nothing to set up.
+            None of these links runs the show. To run one together, move the production into a
+            team; each member then opens it on the production page, signed in as themselves.
             <a href="#dashboard">The playout dashboard</a> and
-            <a href="#audience">audience join pages</a> cover what each link does. Only the
-            account that made the production can edit its rundown or republish it.
+            <a href="#audience">audience join pages</a> cover what each link does. In a production that is not in a team, only the account that made it can edit its
+            rundown or republish it.
           </p>
 
           <h3 id="teams-make">Make a team</h3>
@@ -1677,11 +1697,6 @@ CG 1-20 STOP</code></pre>
             <p>
               Removing a member and leaving a team have not yet been run with a second person in
               the team, so treat them as expected rather than proven.
-            </p>
-            <p>
-              <strong>Moving a production into a team does not work yet.</strong> The
-              <strong>Move to team</strong> button in that dialog is switched off. To work on a
-              show together in the meantime, use the links above.
             </p>
           </div>
         </section>

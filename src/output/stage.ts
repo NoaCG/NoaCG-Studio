@@ -15,6 +15,8 @@
 // commands, whoever wrote them (an operator today, a data connector later).
 
 import { composeDocument } from '../preview/composeDocument';
+import { measureDocument } from '../preview/measureDocument';
+import { createPlacer, PLACE_CAP_MS } from './placeOnOutput';
 import {
   postPreviewCmd,
   FRAME_HOLD_CAP_MS,
@@ -32,7 +34,7 @@ import {
 } from '../preview/previewProtocol';
 import type { ControlEventRow, OutputGraphicSpec, OutputPayload } from '../control/hostedControl';
 import type { ControlMessage } from '../control/controlModel';
-import { frameCss, isIdentity, readAppearance, styleKey, type AppliedAppearance } from '../control/cueAdjust';
+import { frameCss, isIdentity, MEASURE_QUALIFY, readAppearance, styleKey, type AppliedAppearance } from '../control/cueAdjust';
 import { facesCss } from '../control/cueStyle';
 import { readTypedWire, typedValuesOf } from '../model/ografTyped';
 import { mountForeignOgraf, type ForeignOgrafLayer, type ForeignOgrafOptions, type ForeignOgrafSpec, type OgrafReturn } from './foreignOgraf';
@@ -72,8 +74,22 @@ export interface OutputStage {
   /** Mute catch-up execution without changing the picture; restore current loops once. */
   setSoundQuiet(quiet: boolean): void;
   /** Route one command to its graphic's document. Unknown graphics and the log's status rows
-   *  ('cue'/'staged'/'live') are ignored, so a caller can feed rows straight through. */
-  apply(graphic: string, msg: ControlEventRow['msg']): void;
+   *  ('cue'/'staged'/'live') are ignored, so a caller can feed rows straight through. `at`, the
+   *  row's position, asks for its outcome (`onOutcome`): exactly one per command (live-publishing
+   *  G2 section 1). */
+  apply(graphic: string, msg: ControlEventRow['msg'], at?: number, watch?: boolean): void;
+  /** Each command given an `at`: `posted` (it reached the document or the package's Graphic),
+   *  `skipped` (nothing to post), or failed with a reason. Once per command. */
+  onOutcome(cb: (at: number, graphic: string, outcome: StageOutcome) => void): void;
+  /** Positions handed over with `at` that have no outcome yet, per graphic, oldest first. */
+  waitingFor(graphic: string): number | null;
+  /** Hide one graphic's frame (picture and sound) or show it again as the stage itself is. A frame
+   *  that has not loaded takes the hide before anything it holds. */
+  hide(graphic: string, hidden: boolean): void;
+  /** The values each graphic's document was last handed by an `update` (for specs). */
+  handed: ReadonlyMap<string, unknown>;
+  /** The graphic's current frame has loaded (or was released on a fallback face). */
+  released(graphic: string): boolean;
   /** Ask a graphic's document for its machine state (answers arrive via onState). */
   requestState(graphic: string): void;
   /** The latest machine state each document reported (null = none / not machine-bearing). */
@@ -171,11 +187,17 @@ export interface OutputStage {
   /** Add a graphic the stage did not host, the way a boot builds one: commands queue until its
    *  document loads, and `onLoaded` fires for it. `version` is the publication it comes from, which
    *  an imported package's base is asked with (`ografBase`). */
-  add(spec: OutputGraphicSpec, version?: string): void;
+  add(spec: OutputGraphicSpec, version?: string, options?: { loadSound?: (asset: SoundAssetRef) => Promise<Blob> }): void;
   /** Take a graphic and its frame off the stage. */
   remove(graphic: string): void;
   destroy(): void;
 }
+
+/** What became of one command handed to the stage with its position. */
+export type StageOutcome = 'posted' | 'skipped' | { failed: 'load' | 'limit' | 'typed'; overdue?: true };
+
+/** A command with no outcome this long after it was handed over fails with `load`. */
+export const OUTCOME_WATCHDOG_MS = 20_000;
 
 /** A frame `prepare` built: hidden, and not its graphic's frame until `swapIn`. */
 export interface StagedFrame {
@@ -194,6 +216,9 @@ export interface StagedFrame {
 }
 
 export interface OutputStageOptions {
+  /** Every Take drawn settled (obs-scenes OS1a R9): a scene link's stage, where no entrance frame
+   *  may reach OBS preview or program. Absent: a Take plays its entrance, as always. */
+  settled?: boolean;
   sound?: 'program';
   soundQuiet?: boolean;
   soundBudget?: ReturnType<typeof createSoundBudget>;
@@ -296,8 +321,10 @@ export function createOutputStage(
     /** Built by the boot and not loaded yet: `whenLoaded` waits for it. */
     boot: boolean;
     loaded: boolean;
-    /** Commands waiting for the document to load. */
-    queue: PreviewCmd[];
+    /** Commands waiting for the document to load, each with the position it answers for. */
+    queue: { cmd: PreviewCmd; at?: number }[];
+    /** Hidden by its graphic's own flag (`hide`), whatever the stage is. */
+    hidden: boolean;
     /** Warm passes asked for before the document loaded: their answer clocks start at the load. */
     armOnLoad: (() => void)[];
     /** Warm passes waiting for the document's answer, oldest first. */
@@ -401,7 +428,8 @@ export function createOutputStage(
     if (frame.current) frame.iframe.style.visibility = 'visible';
     const queue = frame.queue;
     frame.queue = [];
-    for (const cmd of queue) postPreviewCmd(frame.iframe.contentWindow, cmd);
+    for (const item of queue) postPreviewCmd(frame.iframe.contentWindow, item.cmd);
+    for (const item of queue) if (item.at !== undefined) settleAt(item.at, 'posted');
     bootSettled(frame);
     for (const arm of frame.armOnLoad) arm();
     frame.armOnLoad = [];
@@ -409,9 +437,49 @@ export function createOutputStage(
     if (frame.current) for (const cb of loadedCbs) cb(frame.key);
   };
   const postTo = (frame: Frame, cmd: PreviewCmd) => {
-    if (!frame.loaded) frame.queue.push(cmd);
+    if (!frame.loaded) frame.queue.push(currentAt === undefined ? { cmd } : { cmd, at: currentAt });
     else postPreviewCmd(frame.iframe.contentWindow, cmd);
   };
+  // ── OUTCOMES (live-publishing G2 section 1): every command handed over with its position gets
+  // exactly one, by that position, never by counting. ──
+  const outcomeCbs: ((at: number, graphic: string, outcome: StageOutcome) => void)[] = [];
+  /** Commands with no outcome yet, each under a key of its own (a republished log numbers from 1
+   *  again, so a position alone could name two commands): its position, graphic and when it was
+   *  handed over. Every `at` inside the stage below is such a key; the position goes out only in
+   *  the outcome. */
+  const unsettled = new Map<number, { at: number; graphic: string; since: number; watch: boolean; overdue?: true }>();
+  let lastKey = 0;
+  /** The key of the command `applyNow` is handling, for what it queues. */
+  let currentAt: number | undefined;
+  const settleAt = (key: number, outcome: StageOutcome) => {
+    const entry = unsettled.get(key);
+    if (!entry) return;
+    unsettled.delete(key);
+    for (const cb of outcomeCbs) cb(entry.at, entry.graphic, outcome);
+  };
+  /** A frame that goes with commands still queued: each is answered `skipped`. */
+  const skipQueued = (frame: Frame) => {
+    for (const item of frame.queue) if (item.at !== undefined) settleAt(item.at, 'skipped');
+  };
+  const watchdog = setInterval(() => {
+    const now = Date.now();
+    unsettled.forEach((entry, at) => {
+      // OVERDUE (the owner's D1, 2026-11-12): a command with no outcome after 20 s is reported
+      // failed once, and nothing is dropped. A late frame or package still runs its whole queue,
+      // history first and hidden, and its final `posted` clears the red.
+      if (!entry.watch || entry.overdue || now - entry.since < OUTCOME_WATCHDOG_MS) return;
+      const frame = frames.get(entry.graphic);
+      console.warn(
+        `output stage: "${entry.graphic}" command ${entry.at} had no outcome after ${OUTCOME_WATCHDOG_MS} ms ` +
+          `(frame ${frame ? (frame.loaded ? 'loaded' : 'loading') : 'none'}, queued here ${frame ? frame.queue.some((item) => item.at === at) : false}, ` +
+          `placing ${placer.placing(entry.graphic)}, package ${waitingOgraf.has(entry.graphic)}).`,
+      );
+      entry.overdue = true;
+      for (const cb of outcomeCbs) cb(entry.at, entry.graphic, { failed: 'load', overdue: true });
+    });
+  }, 1_000);
+  /** Which command (its key) a message answers for, across the placer's and the packages' waits. */
+  const atOf = new WeakMap<object, number>();
   // Commands QUEUE until the iframe's document has loaded its command listener — a
   // postMessage into an unloaded srcdoc is silently lost, which is exactly what ate the boot
   // recovery burst on a renderer refresh (live commands worked; the restore did not).
@@ -481,6 +549,7 @@ export function createOutputStage(
       boot: false,
       loaded: false,
       queue: [],
+      hidden: false,
       armOnLoad: [],
       warming: [],
       error: null,
@@ -532,6 +601,8 @@ export function createOutputStage(
 
   /** Take a frame off the stage for good: its document, its waits and its sound budget. */
   const dispose = (frame: Frame) => {
+    skipQueued(frame);
+    frame.queue = [];
     staged.delete(frame);
     // A boot frame that goes before it ever loaded must not hold `whenLoaded` for good.
     bootSettled(frame);
@@ -628,6 +699,8 @@ export function createOutputStage(
   const ografData = new Map<string, Record<string, unknown>>();
   const lost = new Set<string>();
   const unknownWhy = new Map<string, string>();
+  /** Packages hidden by their own flag (`hide`): their Takes and steps land with `skipAnimation`. */
+  const hiddenPackages = new Set<string>();
   /** The operator's Take or Out sent to the current instance and not yet answered by it, or an Out
    *  it refused, until their next Take or Out. */
   const sentCall = new Map<string, 'play' | 'stop'>();
@@ -710,10 +783,18 @@ export function createOutputStage(
           replacedOnBoot.delete(key);
           if (base === null || !attach(key, layer, spec, new URL(base, location.href).href, was)) {
             told(key, { i: null, status: 'unmounted', msg: 'its package could not be reached', on: false });
+            for (const msg of held) {
+              const at = atOf.get(msg);
+              if (at !== undefined) settleAt(at, { failed: 'load' });
+            }
             return;
           }
           const layerNow = foreign.get(key)!;
-          for (const msg of held) send(key, layerNow, msg);
+          for (const msg of held) {
+            send(key, layerNow, msg);
+            const at = atOf.get(msg);
+            if (at !== undefined) settleAt(at, 'posted');
+          }
           await layerNow.loaded;
         }),
     );
@@ -753,7 +834,8 @@ export function createOutputStage(
   const send = (key: string, layer: ForeignOgrafLayer, msg: ControlMessage) => {
     const call = ografCallFor(msg)?.call;
     if (call === 'custom') acts.set(key, (acts.get(key) ?? 0) + 1);
-    layer.send(msg);
+    // A late Take replays out of sight and lands at once (G2 section 3, S4).
+    layer.send(msg, hiddenPackages.has(key));
     // Said at once, not with the answer: a report banked meanwhile counts the row as applied, so a
     // restart before the answer must read an action as `acted` and a Take, step or Out as no known
     // step, never the state before it.
@@ -885,9 +967,12 @@ export function createOutputStage(
   };
   window.addEventListener('message', onMessage);
 
+  /** The values each graphic's document was last handed by an `update`. */
+  const handed = new Map<string, unknown>();
   /** Graphics whose data on this stage is a typed envelope's (E1.2a). */
   const typedAiring = new Set<string>();
-  const apply = (graphic: string, msg: ControlEventRow['msg']) => {
+  const route = (graphic: string, incoming: ControlEventRow['msg']): StageOutcome | 'queued' => {
+    const msg: ControlEventRow['msg'] = options.settled && incoming.t === 'play' ? { ...incoming, settled: true } : incoming;
     // A status row has no OGraf meaning either; ografCallFor drops whatever it cannot map.
     // TYPED DATA (E1.2a): an update's envelope values are the graphic's data as they are, never
     // strings; one this build cannot read sends no data at all (the output's gate refused it first).
@@ -915,9 +1000,16 @@ export function createOutputStage(
       // an instance that is lost mounts the package again.
       if (msg.t === 'play' || msg.t === 'stop') unknownWhy.delete(graphic);
       if (foreignLayer && msg.t === 'play' && lost.has(graphic)) foreignLayer = remount(graphic);
-      const deliver = (m: ControlMessage) => {
-        if (foreignLayer) send(graphic, foreignLayer, m);
-        else if (waiting && waiting.length < WAITING_KEPT && ografCallFor(m)) waiting.push(m);
+      const deliver = (m: ControlMessage): StageOutcome | 'queued' => {
+        if (foreignLayer) {
+          send(graphic, foreignLayer, m);
+          return 'posted';
+        }
+        if (!waiting || !ografCallFor(m)) return 'skipped';
+        if (waiting.length >= WAITING_KEPT) return { failed: 'limit' };
+        if (currentAt !== undefined) atOf.set(m, currentAt);
+        waiting.push(m);
+        return 'queued';
       };
       // PLACE AND SIZE ONLY (playout adjustments AC-10, E3.2b): a package's frame takes the frame
       // transform of the appearance, as a NoaCG graphic's does; type and colour have no hook in the
@@ -935,14 +1027,18 @@ export function createOutputStage(
         if (values && Object.keys(values).length > 0) ografData.set(graphic, { ...ografData.get(graphic), ...values });
       }
       if (typedData) return deliver(msg as ControlMessage);
-      if (dataless) return;
+      if (dataless) return 'skipped';
       if (msg.t === 'update' && 'appearance' in msg && msg.appearance !== undefined) {
-        if (Object.keys(msg.data ?? {}).length === 0) return;
+        if (Object.keys(msg.data ?? {}).length === 0) return foreignLayer ? 'posted' : 'skipped';
         return deliver({ t: 'update', data: msg.data });
       }
       return deliver(msg as ControlMessage);
     }
-    if (!frames.has(graphic)) return;
+    // A status row ('cue', 'staged', 'live') is not a renderer command: nothing to run, whatever the stage holds.
+    const t = msg.t;
+    if (t !== 'update' && t !== 'play' && t !== 'stop' && t !== 'next' && t !== 'event' && t !== 'snap') return 'skipped';
+    const frame = frames.get(graphic);
+    if (!frame) return { failed: 'load' };
     switch (msg.t) {
       case 'update': {
         // Rule 1: an update without an appearance keeps the one applied; rule 3: one that carries
@@ -957,12 +1053,16 @@ export function createOutputStage(
           paintAppearance(frames.get(graphic)!.iframe, graphic);
           paintStyle(frames.get(graphic)!, alone);
         }
-        if (dataless) break;
+        if (dataless) {
+          if (!look) return 'skipped';
+          break;
+        }
         post(graphic, { cmd: 'update', data: JSON.stringify(typedData ?? msg.data ?? {}) });
+        handed.set(graphic, typedData ?? msg.data ?? {});
         break;
       }
       case 'play':
-        post(graphic, { cmd: 'play' });
+        post(graphic, msg.settled ? { cmd: 'play', settled: true } : { cmd: 'play' });
         break;
       case 'stop':
         post(graphic, { cmd: 'stop', sound: msg.sound });
@@ -974,7 +1074,7 @@ export function createOutputStage(
         // A TYPED ACTION (E2.1): its arguments reach the graphic as the JSON they are; one this
         // build cannot read reaches it not at all (the output's gate refused it first).
         const typed = msg.typed === undefined ? null : readTypedWire(msg);
-        if (msg.typed !== undefined && !(typed && 'action' in typed)) return;
+        if (msg.typed !== undefined && !(typed && 'action' in typed)) return { failed: 'typed' };
         const payload = typed && 'action' in typed ? (typed.args ?? {}) : msg.payload;
         // `at` rides along: a graphic that runs its own clock anchors it to the row's instant
         // rather than to this renderer's Date.now(), so every renderer agrees (controlModel.ts).
@@ -985,10 +1085,46 @@ export function createOutputStage(
         post(graphic, snapCommand(msg));
         break;
       default:
-        return; // 'hello' and status rows ('cue'/'staged'/'live') are not renderer commands
+        return 'skipped'; // 'hello' and status rows ('cue'/'staged'/'live') are not renderer commands
     }
     post(graphic, { cmd: 'state' });
+    return frame.loaded ? 'posted' : 'queued';
   };
+  const applyNow = (graphic: string, msg: ControlEventRow['msg'], from?: object) => {
+    const at = atOf.get(from ?? msg);
+    currentAt = at;
+    let outcome: StageOutcome | 'queued';
+    try {
+      outcome = route(graphic, msg);
+    } finally {
+      currentAt = undefined;
+    }
+    if (at !== undefined && outcome !== 'queued') settleAt(at, outcome);
+  };
+
+  /** A TAKE'S PRESET, RESOLVED HERE FROM THIS STAGE'S OWN MEASUREMENT (./placeOnOutput.ts, W1): a
+   *  NoaCG graphic's commands wait behind a Take carrying a place hint until its values are measured
+   *  in a frame of their own, capped; every other command goes straight to `applyNow`. Off air
+   *  (a restart's catch-up) the place is applied as sent. */
+  const placer = createPlacer<ControlEventRow['msg']>({
+    apply: (graphic, msg, from) => applyNow(graphic, msg, from),
+    canPlace: (graphic) => !offAir && !destroyed && frames.has(graphic) && !foreign.has(graphic) && !waitingOgraf.has(graphic),
+    measure: (graphic, values, look) => {
+      const frame = frames.get(graphic);
+      if (!frame) return Promise.resolve(null);
+      const template = templateFromSpec(frame.spec);
+      const styled = !!look && (!!look.vars || !!look.fonts);
+      return measureDocument({
+        srcdoc: composeDocument(template, { liveControl: true }),
+        size: template.resolution,
+        values,
+        style: styled ? { vars: look.vars ?? null, faces: facesCss(look.fonts, (src) => assetData(graphic, src)) } : null,
+        capMs: PLACE_CAP_MS,
+        invisible: true,
+      }, MEASURE_QUALIFY);
+    },
+    defer: (run) => void setTimeout(run, 0),
+  });
 
   /** THE WARM PASS AND READY CHECK, on any document, current or prepared. */
   const warmFrame = (frame: Frame, data: Record<string, string> | null) =>
@@ -1017,9 +1153,47 @@ export function createOutputStage(
     onSound: cb=>soundCbs.push(cb),
     setSoundQuiet: (on) => {
       quiet = on;
-      for (const key of frames.keys()) post(key, { cmd: 'sound-quiet', on });
+      for (const frame of frames.values()) postTo(frame, { cmd: 'sound-quiet', on: on || frame.hidden });
     },
-    apply,
+    apply: (graphic, msg, at, watch = true) => {
+      if (at !== undefined) {
+        const key = ++lastKey;
+        atOf.set(msg, key);
+        unsettled.set(key, { at, graphic, since: Date.now(), watch });
+      }
+      placer.apply(graphic, msg);
+    },
+    onOutcome: (cb) => void outcomeCbs.push(cb),
+    waitingFor: (graphic) => {
+      let oldest: number | null = null;
+      unsettled.forEach((entry) => {
+        if (entry.graphic === graphic && (oldest === null || entry.at < oldest)) oldest = entry.at;
+      });
+      return oldest;
+    },
+    hide: (graphic, hidden) => {
+      const layer = foreign.get(graphic);
+      if (layer) {
+        if (hidden) hiddenPackages.add(graphic);
+        else hiddenPackages.delete(graphic);
+        layer.setOffAir(hidden || offAir);
+        return;
+      }
+      const frame = frames.get(graphic);
+      if (!frame || frame.hidden === hidden) return;
+      frame.hidden = hidden;
+      const cmds: PreviewCmd[] = [
+        { cmd: 'offair', on: hidden || offAir },
+        // After `offair`, which sets the sound as it sets the picture: the stage's own quiet wins.
+        { cmd: 'sound-quiet', on: hidden || offAir || quiet },
+      ];
+      // A frame still loading takes the hide before anything it holds.
+      if (!frame.loaded && hidden) frame.queue.unshift(...cmds.map((cmd) => ({ cmd })));
+      else for (const cmd of cmds) postTo(frame, cmd);
+    },
+    // A published package runs what it is sent once its layer is mounted (its calls wait for load()).
+    handed,
+    released: (graphic) => !!frames.get(graphic)?.loaded || foreign.has(graphic),
     requestState: (graphic) => {
       // Polls are droppable pre-load — queueing them would just replay stale asks.
       if (frames.get(graphic)?.loaded) post(graphic, { cmd: 'state' });
@@ -1054,8 +1228,13 @@ export function createOutputStage(
     // visible to the compositor, keeps its frame rate, and finishes the replay unseen.
     setVisible: (visible) => {
       offAir = !visible;
-      for (const key of frames.keys()) post(key, { cmd: 'offair', on: !visible });
-      for (const layer of foreign.values()) layer.setOffAir(!visible);
+      for (const frame of frames.values()) {
+        // A frame hidden by its own flag stays hidden; `offair` sets the sound too, so the stage's
+        // own quiet is said again after it.
+        postTo(frame, { cmd: 'offair', on: !visible || frame.hidden });
+        if (visible && (quiet || frame.hidden)) postTo(frame, { cmd: 'sound-quiet', on: true });
+      }
+      foreign.forEach((layer, key) => layer.setOffAir(!visible || hiddenPackages.has(key)));
     },
     held,
     onHeld: (cb) => heldCbs.push(cb),
@@ -1118,11 +1297,16 @@ export function createOutputStage(
         },
       };
     },
-    add: (spec, version) => {
+    add: (spec, version, addOptions = {}) => {
       if (!isNative(spec)) mountPublished(spec, laterLayerOf(spec), version);
-      else if (!frames.has(spec.key)) adopt(makeFrame(spec, laterLayerOf(spec), true));
+      else if (!frames.has(spec.key)) adopt(makeFrame(spec, laterLayerOf(spec), true, addOptions.loadSound));
     },
     remove: (graphic) => {
+      // Every command of it still waiting anywhere here is answered: it will never run.
+      unsettled.forEach((entry, at) => {
+        if (entry.graphic === graphic) settleAt(at, 'skipped');
+      });
+      placer.drop(graphic);
       // A foreign package leaves with its instance: every call still out on it reads `gone`.
       foreign.get(graphic)?.destroy();
       foreign.delete(graphic);
@@ -1144,7 +1328,7 @@ export function createOutputStage(
       dispose(frame);
     },
     destroy: () => {
-      destroyed = true; encoded.clear(); soundDeadlines.forEach(clearTimeout); soundDeadlines.clear();
+      destroyed = true; placer.clear(); clearInterval(watchdog); encoded.clear(); soundDeadlines.forEach(clearTimeout); soundDeadlines.clear();
       for (const frame of [...frames.values(), ...staged]) frame.budgetKeys.forEach((key) => budget.release(key));
       window.removeEventListener('message', onMessage);
       window.removeEventListener('resize', rescale);

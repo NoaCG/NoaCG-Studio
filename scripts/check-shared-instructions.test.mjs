@@ -207,6 +207,23 @@ test('shared-instructions gate accepts the repository and refuses instruction dr
     (file) => { rmSync(file); },
     ['Codex skill adapter: missing .agents/skills/next/SKILL.md']);
 
+  // Private context is cloned into docs/private, a nested repository that this one gitignores.
+  // Its AGENTS.md and CLAUDE.md belong to that repository, so the walk must stop at its root
+  // instead of demanding them as files of this one.
+  await t.test('a nested repository keeps its own instruction files', () => {
+    const nested = path.join(fixture, 'docs/private');
+    try {
+      mkdirSync(nested, { recursive: true });
+      assert.equal(run('git', ['init', '--quiet'], nested).status, 0);
+      writeFileSync(path.join(nested, 'AGENTS.md'), '# Private context rules');
+      writeFileSync(path.join(nested, 'CLAUDE.md'), '@AGENTS.md');
+      const result = run(process.execPath, [path.join(fixture, GATE)]);
+      assert.equal(result.status, 0, 'a nested repository must not fail the gate: ' + result.output);
+      assert.ok(result.output.includes('Shared instructions OK:'), result.output);
+    } finally {
+      rmSync(nested, { recursive: true, force: true });
+    }
+  });
   checkClean();
   t.diagnostic(`Fixture suite completed in ${((performance.now() - started) / 1000).toFixed(2)} s; all mutations restored.`);
 });

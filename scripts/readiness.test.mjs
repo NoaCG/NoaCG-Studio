@@ -181,10 +181,16 @@ test('the stamp crowns an all-ready summary only while it is of the published ve
 
 test('a newer version being prepared reads as the plan words it', () => {
   const chg = (c) => [output({ ready: { n: 4, of: 4, v: V12, is: [], chg: { v: V13, of: 1, n: 0, ...c } } })];
-  // Behind, but on its way: the running version stays ready while the change prepares beside it.
+  // Behind, but on its way: amber "Updating outputs" while the change loads (live-publishing O2).
   const preparing = read({ published: V13, peers: chg({ s: 'preparing' }) });
-  assert.equal(preparing.summary.label, '● Ready · 1 change preparing');
-  assert.equal(preparing.summary.tone, 'ok');
+  assert.equal(preparing.summary.label, '▲ Updating outputs');
+  assert.equal(preparing.summary.tone, 'warn');
+  assert.equal(preparing.summary.leadShort, 'Updating outputs');
+  // …naming what is still being built, which plays its previous design if taken (D1, G2 section 5).
+  const building = read({ published: V13, peers: chg({ s: 'preparing', b: ['Scorebug'] }) });
+  assert.equal(building.summary.label, '▲ Updating outputs: Scorebug loading');
+  assert.match(building.outputs[0].detail[0], /Scorebug plays its previous design if taken before it loads/);
+  assert.deepEqual(readOutputReady({ n: 1, of: 1, v: V12, is: [], chg: { s: 'preparing', v: V13, of: 2, n: 0, b: ['A', 3, 'B'] } }).chg.b, ['A', 'B']);
   // Preparing a version that is no longer the published one is just behind.
   assert.equal(read({ published: { n: 14, h: 'cccc' }, peers: chg({ s: 'preparing' }) }).summary.label, '▲ Behind: showing v12');
   // A change that failed names its graphic, from any output: the graphic keeps the frame it has.
@@ -209,7 +215,8 @@ test('a newer version being prepared reads as the plan words it', () => {
   // A wait reported for an older publish says nothing about the published version.
   for (const c of [{ air: 0, why: 'unreachable' }, { air: 2 }]) {
     const older = read({ published: { n: 14, h: 'cccc' }, peers: chg({ s: 'waiting', n: 1, ...c }) });
-    assert.equal(older.summary.leadShort, 'Waiting for clear');
+    // Behind the published version and not waiting for it: it is updating (live-publishing O2).
+    assert.equal(older.summary.leadShort, 'Updating outputs');
     assert.match(older.outputs[0].detail[0], /^v14 is published\. A deferred preparation retries automatically/);
   }
   // The cause survives the wire; anything else in its place is dropped.
@@ -219,20 +226,21 @@ test('a newer version being prepared reads as the plan words it', () => {
 
 test('per-graphic replacement: a change waiting for clear names its graphic, and only while it waits', () => {
   const chg = (c) => [output({ ready: { n: 4, of: 4, v: V12, is: [], chg: { v: V13, of: 2, n: 2, ...c } } })];
+  // O3 (live-publishing G2 section 5): prepared and on air, it takes its new design at its next
+  // Take, and the light stays green saying so.
   const one = read({ published: V13, peers: chg({ s: 'waiting', air: 1, w: ['Scorebug'] }) });
-  assert.equal(one.summary.label, '▲ Waiting for clear: Scorebug');
-  assert.equal(one.summary.leadShort, 'Waiting for clear: Scorebug');
-  assert.equal(one.summary.tone, 'warn');
-  assert.equal(one.outputs[0].state, 'Waiting for clear: Scorebug');
-  assert.match(one.outputs[0].detail[0], /Scorebug takes v13 after its Out or next Take/);
+  assert.equal(one.summary.label, '● Scorebug: new design at next Take');
+  assert.equal(one.summary.tone, 'ok');
+  assert.equal(one.outputs[0].state, 'Scorebug: new design at next Take');
+  assert.match(one.outputs[0].detail[0], /Scorebug takes v13 at its next Take/);
   assert.equal(one.summary.broken, null);
   const three = read({ published: V13, peers: chg({ s: 'waiting', air: 3, w: ['Scorebug', 'Clock', 'Bug'] }) });
-  assert.equal(three.outputs[0].state, 'Waiting for clear: Scorebug +2');
-  assert.equal(read({ published: V13, peers: chg({ s: 'waiting', air: 2, w: ['Scorebug', 'Clock'] }) }).outputs[0].state, 'Waiting for clear: Scorebug and Clock');
+  assert.equal(three.outputs[0].state, 'Scorebug +2: new design at next Take');
+  assert.equal(read({ published: V13, peers: chg({ s: 'waiting', air: 2, w: ['Scorebug', 'Clock'] }) }).outputs[0].state, 'Scorebug and Clock: new design at next Take');
   // A failure and a wait at once: the failure leads, the wait follows it.
   const both = read({ published: V13, peers: chg({ s: 'failed', is: [{ k: 'silent', g: 'Quiz' }], w: ['Scorebug'] }) });
   assert.equal(both.outputs[0].state, 'Change failed: Quiz (did not answer)');
-  assert.match(both.outputs[0].detail.join(' '), /Also: Waiting for clear: Scorebug/);
+  assert.match(both.outputs[0].detail.join(' '), /Also: Scorebug: new design at next Take/);
   // The wait is for the published version only: a publish since makes it plain behind.
   assert.equal(read({ published: { n: 14, h: 'cccc' }, peers: chg({ s: 'waiting', air: 1, w: ['Scorebug'] }) }).summary.label, '▲ Behind: showing v12');
   // Every graphic holds the published version: nothing waits and the line says nothing of it.

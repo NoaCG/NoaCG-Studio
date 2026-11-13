@@ -377,7 +377,7 @@ in the reports. Improvement claims still need the AC-1, AC-2 and AC-6 matched co
 | Fact | Value |
 | --- | --- |
 | Table | `scripts/e2e-durations.json`, `source.recordedAt` **2026-10-19**, from full CI runs 39243785986, 39245690239 and 39246625438 (`codex/reduce-ci-trace-overhead`) |
-| Last landed | `a5360d4c` (#1757), 2026-10-26 |
+| Last landed | `b2c04fdf`, 2026-10-19 (reached `main` with #1505, merge `742a5a65`; unchanged through 2026-10-31). Corrected by cicd-followup cf15, #1849: this row first named `a5360d4c` (#1757), 2026-10-26, which did not change the table |
 | **Freshness bound** | **8 days** from the measurement date, including merge delay |
 | Age on 2026-10-31 | 12 days: **stale**, past the bound since 2026-10-27 |
 | Pending refresh PRs | **#1503** (`bot/e2e-durations`), open since 2026-10-19, last re-recorded 2026-10-26 from run 40312434120 and five more, merge state blocked. An open bot PR is not a fresh accepted table; landed now, it would go stale after 2026-11-03. |

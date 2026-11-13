@@ -36,6 +36,7 @@ export const LIBRARY_ACCOUNT_KEY = 'spx-gfx-account';
  *   spx-gfx-ai-preferences        which AI directions this person has picked
  *   spx-gfx-ai-telemetry          this person's AI runs and their cost
  *   spx-gfx-ai-reference-recency  the references this person's recent generations used
+ *   spx-gfx-owed-cue-edits        cue edits typed as a production page went (model/owedCueEdit.ts)
  *
  * The render job's resume record (`noacg-render-job`) is per account too, in sessionStorage.
  */
@@ -50,6 +51,7 @@ export const ACCOUNT_LOCAL_KEYS = [
   'spx-gfx-ai-preferences',
   'spx-gfx-ai-telemetry',
   'spx-gfx-ai-reference-recency',
+  'spx-gfx-owed-cue-edits',
 ] as const;
 
 /**

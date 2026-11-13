@@ -1,5 +1,8 @@
 import { losslessAnimData } from './animData';
 import { STOP_AGAIN_GUARD_JS, writeOutData } from '../templates/shared/animRuntime';
+import { upgradeSvgFitRuntime } from '../assets/svgFitUpgrade';
+
+export { hasLoopRuntime } from '../templates/shared/animRuntime';
 
 /**
  * The raster stretch runtime's edge walk as a design imported before #924 carries it, and as it is
@@ -25,6 +28,7 @@ const STOP_UPGRADES = [
 /** Use the same known runtime for preview, save and export; preserve foreign source. */
 export function prepareOutRuntime(js: string): string {
   js = js.split(OLD_STRETCH_EDGE_WALK).join(STRETCH_EDGE_WALK);
+  js = upgradeSvgFitRuntime(js);
   for (const [old, upgraded] of STOP_UPGRADES) js = js.split(old).join(upgraded);
   const data = losslessAnimData(js);
   if (!data) return js;

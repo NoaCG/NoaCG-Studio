@@ -5,7 +5,7 @@ import { sameRevision, type EditorSession, type Revision } from './session';
 import { applyOperations, type EditorOperation } from './operations';
 import type { PreviewController } from './PreviewController';
 import type { PreviewReply, RenderedPart } from './protocol';
-import { anchorOperations, authoredTransform, displayedBase, editingPose, keysControl, requireCurrentPose, shownAnchor } from './animationAuthoring';
+import { anchorAtPlayhead, authoredTransform, displayedBase, editAnchorAtPlayhead, editingPose, keysControl, requireCurrentPose } from './animationAuthoring';
 import { requireScaleWritable } from '../../blocks/editorAnimation';
 import { resizableTextBox } from '../../blocks/designLayout';
 import { ownerOf, readTimeline } from './timelineView';
@@ -148,9 +148,10 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
       } else if (handle?.kind === 'anchor') {
         // Only the pivot moves (owner, 2026-10-01). With Position unchanged it moves in the parent's
         // axes, so the pointer maps through the parent, as a Position drag does, and stays on it.
-        const moved = inverseDelta(part.parent ?? [1, 0, 0, 1], delta), from = shownAnchor(originalBase, pose);
+        const moved = inverseDelta(part.parent ?? [1, 0, 0, 1], delta);
+        const from = anchorAtPlayhead(template, originalBase, part.appearance, gesture.time, gesture.cue);
         if (!from) throw new Error('Wait for the rendered anchor before editing it.');
-        gesture.operations = anchorOperations(base.selector, { x: from.x + moved.x, y: from.y + moved.y });
+        gesture.operations = editAnchorAtPlayhead(template, originalBase, from, { x: from.x + moved.x, y: from.y + moved.y }, gesture.time, gesture.cue);
       } else if (handle?.kind === 'edge' && box) {
         // A text box's side resizes it (owner, 2026-10-02): its letters keep their size and the
         // opposite side stays, measured in the box's own axes and design pixels.

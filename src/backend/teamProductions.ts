@@ -31,6 +31,7 @@ import {
   setTeamShowsStatus,
 } from '../model/teamShows';
 import { mergeTeamShow } from '../model/teamShowMerge';
+import { settleGraphics } from '../model/copySettle';
 import { canAuthorAccount, commitDurableWrites, libraryInUse } from '../model/durableStore';
 import { acknowledgeTeamEdit, pendingTeamEdits, retainTeamEdit } from '../model/teamOutbox';
 import { replaceRundown, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../model/rundownHistory';
@@ -441,6 +442,16 @@ export function refreshTeams(asked = true): Promise<void> {
   return refreshing;
 }
 
+/** Whether this tab's team record still holds a copy the send-time settle would change against the
+ *  server's copy (live-publishing G1 section 3). A publish or export whose flush failed stops on it:
+ *  the save fails before settling when storage refuses, and the record must not leave unsettled. */
+export function teamSettleOwed(id: string): boolean {
+  const known = server.get(id);
+  const local = loadTeamShows().find((s) => s.id === id);
+  if (!known || !local) return false;
+  return settleGraphics(local.graphics, known.doc.graphics, new Date().toISOString()).changed;
+}
+
 /** Confirm this production's pending edits before an operator requests a fresh cloud read. */
 export async function flushTeamProduction(id: string): Promise<string | null> {
   const owner = running;
@@ -598,9 +609,21 @@ async function pushSave(id: string): Promise<void> {
   dirty.delete(id);
   let base = known.doc;
   let token = known.token;
+  // THE SEND-TIME SETTLE (live-publishing G1 section 3): a copy no copy-truth build stamped whose
+  // design differs from the server's copy this edit started from takes the server's design, so a
+  // design an older page pulled from the library is dropped before anything goes up. The settled
+  // record is what this tab shows from now on. Inside the save's error handling: a write that throws
+  // (browser storage full) must leave the edit dirty and the save no longer in flight.
   let doc = teamDoc(sent);
   let failure: string | null = null;
   try {
+    const settled = settleGraphics(sent.graphics, base.graphics, new Date().toISOString());
+    if (settled.changed) {
+      sent = { ...sent, graphics: settled.graphics };
+      applyServerTeamShow(sent);
+      retainTeamEdit(owner.userId, id, { token, base, local: sent, updatedBy: known.updatedBy, teamId: known.teamId });
+      doc = teamDoc(sent);
+    }
     for (let attempt = 0; attempt < MAX_SAVE_ATTEMPTS; attempt++) {
       const { answer, error } = await saveTeamProduction(id, token, doc, known.teamId);
       if (running !== owner || owner.userId !== libraryInUse()) return;

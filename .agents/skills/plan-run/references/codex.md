@@ -11,12 +11,12 @@ Claude's commands and default templates continue to use `.agent-workflows/plan-r
   `deadline` (ledger `Window ends: when-complete`); a date binds unless explicit untilComplete makes
   it a target. Blocks stay at most 24 hours; automatic renewal separately needs blockRenewal.
   Preserve the immutable scope, any date and attempts.
-- Only phases written in the plan. Missing acceptance refuses launch. Owner closure is not technical PASS.
+- Only phases written in the plan. Missing acceptance refuses launch. Owner closure is not technical PASS. Later explicit owner amendments use the existing `admit` transaction with reviewed owner-decision receipts on main: future insertions and unrecorded environment/additive-prerequisite revisions only. Preserve acceptance/history/authority/attempts and real human/device/release gates; resolve old waits with evidence. See `docs/work-specs/continuing-plan-preparation/runbook.md`; never edit digests or launch from draft amendments.
 - Only the merge queue writes `main`. Use `.agent-workflows/queue-merge.md` and
   `.agent-workflows/verify.md` with their current checks, budgets, retry rules and one PR repair owner.
 - The wave ledger is execution authority; work.json is acceptance evidence; kit/heartbeat are context/views.
   Never rewrite an old failure as green, weaken tests to pass a gate, or create another ledger.
-- Read `docs/plan-runs/known-traps.md` for shared worker/review/landing gates, including Narrow delta.
+- Read `docs/plan-runs/known-traps.md` for shared worker/review/landing gates, including Review checkpoints (Delta re-review, the round cap, Ordinary rows without `$so`).
   Its dated Claude worktree/browser workaround applies only to that image; Codex uses its qualified
   absolute paths and Cloud runtime browser/package guidance. Other shared traps remain binding.
 

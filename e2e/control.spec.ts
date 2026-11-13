@@ -1,7 +1,7 @@
 // covers: src/export/**, src/control/**
 // covers: src/components/editorFoundation/{LiveDataControls.tsx,EditorFoundation.tsx,operations.ts,session.ts}
 // covers: src/templates/{scoreboards/**,types/{sportsBugs.ts,scoreboard.ts}}
-// covers: src/components/{fields/**,HostedControlPage.tsx}
+// covers: src/components/fields/**
 // covers: src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
 // covers: src/components/NewGraphicButton.tsx, src/components/{ExportWindow,ExportSurface}.tsx
 // focus

@@ -41,7 +41,8 @@ function controller(timers = [], browser = { navigator: {} }) {
     './supabaseProvider': { SupabaseProvider: class { async purgeTombstones() {} } },
     './sync': { libraryHasArrived: () => true, runSync: () => { const pass = deferred(); passes.push(pass); return pass.promise; } },
     '../model/packets': { purgeOldTombstones: noop },
-    '../model/shows': { purgeOldShowTombstones: noop },
+    '../model/shows': { purgeOldShowTombstones: noop, loadShows: () => [], settleShowCopies: () => ({ shows: [], error: null, changed: false }) },
+    '../model/copySettle': { needsSettle: () => false },
     '../model/videoProject': { purgeOldVideoTombstones: noop },
     '../model/library': { purgeOldGraphicTombstones: noop },
   };

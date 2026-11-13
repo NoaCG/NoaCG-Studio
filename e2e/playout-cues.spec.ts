@@ -1,4 +1,4 @@
-// covers: src/components/HostedControlPage.tsx, src/{model/shows,control/hostedControl}.ts
+// covers: src/{model/shows,control/hostedControl}.ts
 // covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
 // covers: src/components/home/CueEditor.tsx
 // covers: src/components/{editorFoundation/EditorFoundation,save/{SaveControls,SaveDialogs}}.tsx

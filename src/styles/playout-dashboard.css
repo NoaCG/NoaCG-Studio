@@ -1,6 +1,6 @@
 /* ══ THE PLAYOUT DASHBOARD (#/production/<id>) ══════════════════════════════════════════════
-   Binding design: docs/PLAYOUT_DASHBOARD.md. The hosted control page and the exported
-   controller render the same surface; a change here that is not in that doc is a divergence.
+   Binding design: docs/PLAYOUT_DASHBOARD.md. The production page and the exported controller
+   render the same surface; a change here that is not in that doc is a divergence.
 
    A FIXED APP SHELL WITH ONE SCROLLER (§2, owner report 2026-09-22). The document never
    scrolls. The header, the STAGE HEAD (both monitors and the verbs) and the cue rail sit in
@@ -216,46 +216,15 @@
   border-radius: 99px;
   white-space: nowrap;
 }
-.pd-mode-show { color: #4ade80; background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.4); }
 .pd-mode-idle { color: var(--text-dim); border: 1px solid var(--border); }
-.pd-clock { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .pd-status { font-family: var(--mono, monospace); font-size: 12px; color: var(--text-dim); white-space: nowrap; }
 .pd-status.ok { color: #4ade80; }
-/* THE OUTPUT HEALTH LINE (components/control/OutputHealth.tsx), the hosted page's header; the
-   production page carries the same outputs in its Playout panel. The status face of .pd-status: green only for an output that is connected
-   and hearing commands live, amber when one says commands may arrive late, dim otherwise. The
-   short form is the phone's (see the 900px block): the header there has room for a few words
-   beside ● SHOW and All out, and this is the one status an operator on a phone must still see. */
-.pd-health {
-  font-family: var(--mono, monospace); font-size: 12px; color: var(--text-dim); white-space: nowrap; cursor: default;
-  /* A long warning must never push ■ All out off the header: it gives way, and the tooltip
-     carries the whole sentence. */
-  min-width: 0; overflow: hidden; text-overflow: ellipsis;
-}
-.pd-health--ok { color: #4ade80; }
-.pd-health--warn { color: #f59e0b; }
-/* Red is kept for an output that should be there and is not ("CasparCG 1-20 not answering"):
-   the one READY state that means a screen may not be hearing you at all. */
-.pd-health--bad { color: #ef4444; }
-.pd-health-short { display: none; }
-
-/* THE READY LINE IS A BUTTON (components/control/OutputHealth.tsx ReadyLine, docs/work-specs/
-   playout-ready R10): the header keeps the health line's face - mono, coloured by state, no
-   chrome - and a press opens the panel of outputs. It gives way before ■ All out does. */
+/* A header status host (the playout status, the data chip) anchors its panel and gives way
+   before ■ All out does. */
 .pd-ready-host { position: relative; display: inline-flex; min-width: 0; }
 .pd-header > .pd-ready-host { flex-shrink: 1; }
-button.pd-ready {
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  padding: 3px 7px;
-  cursor: pointer;
-  max-width: 100%;
-}
-button.pd-ready:hover,
-button.pd-ready[aria-expanded='true'] { border-color: var(--border); background: rgba(255, 255, 255, 0.03); }
 /* The panel hangs under the line, anchored at its RIGHT edge on the production page, where the
-   line sits right of the spacer, and at its left on the hosted page, where it sits by the clock. */
+   line sits right of the spacer. */
 .pd-ready-panel {
   position: absolute;
   right: 0;
@@ -272,20 +241,6 @@ button.pd-ready[aria-expanded='true'] { border-color: var(--border); background:
   white-space: normal;
 }
 .pd-ready-panel--up { top: auto; bottom: calc(100% + 6px); }
-.hosted-dashboard .pd-ready-panel { right: auto; left: 0; }
-.pd-ready-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
-  margin-bottom: 10px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-}
-.pd-ready-version { font-family: var(--mono, monospace); letter-spacing: 0; text-transform: none; font-weight: 500; }
 .pd-ready-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .pd-ready-row { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; }
 .pd-ready-row--bad { border-color: rgba(239, 68, 68, 0.5); }
@@ -302,13 +257,7 @@ button.pd-ready[aria-expanded='true'] { border-color: var(--border); background:
 .pd-ready-row--bad .pd-ready-state { color: #ef4444; }
 .pd-ready-forget { margin-left: auto; flex: none; padding: 2px 9px; font-size: 11.5px; }
 .pd-ready-empty { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-dim); white-space: pre-line; }
-/* The readiness stamp (components/control/OutputHealth.tsx), on the hosted page. */
-.pd-prepare-stamp { margin: 0 0 10px; font-size: 13px; font-weight: 600; }
-/* On the hosted page the stamp stands alone under the outputs, with the list's own gap above it. */
-.pd-ready-panel > .pd-prepare-stamp { margin: 12px 0 0; }
-.pd-prepare-stamp.is-ok { color: #4ade80; }
-.pd-prepare-stamp.is-warn { color: #f59e0b; }
-.pd-prepare-stamp.is-bad { color: #ef4444; }
+
 /* ALL OUT sits apart from the verbs on purpose: it is the panic control, and a hand reaching
    for Take must never land on it. */
 .pd-allout {
@@ -375,6 +324,9 @@ button.pd-ready[aria-expanded='true'] { border-color: var(--border); background:
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Both adapter switches fit in one row on a desktop. They wrap as whole labels on narrow panels. */
+.pd-pp-switches { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.pd-pp-switches > .pd-pp-switch-row { flex: 1 1 auto; }
 .pd-pp-switch-row { display: flex; align-items: center; gap: 10px; min-height: 28px; font-size: 13px; color: var(--text); cursor: pointer; }
 .pd-pp-switch-label { flex: 1; }
 /* `input.` for the specificity to beat base.css's one-size checkbox: a switch is the one checkbox
@@ -450,8 +402,8 @@ input.pd-pp-switch:disabled { opacity: 0.5; cursor: default; }
    exactly the body's height whatever they hold.
    THE RUNDOWN'S WIDTH IS THE OPERATOR'S (docs/CLIP_PLAYBACK_PLAN.md §6.1): the production page
    sets `--pd-rail-w` from home/RailResizer, already held between 320px and 60% of the window, and
-   the handle on the divider reads the same variable. A surface that sets nothing (the hosted
-   control page) keeps the fixed 380px column. Positioned only so the handle can sit on the line. */
+   the handle on the divider reads the same variable. A surface that sets nothing keeps the
+   fixed 380px column. Positioned only so the handle can sit on the line. */
 .pd-body {
   position: relative;
   flex: 1 1 auto;
@@ -567,7 +519,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
    columns are equal, so one width decides both heights, and the width that keeps BOTH under
    the cap is `--pd-monitor-h * min(preview ratio, 16/9)`. `--pd-ar` is the preview graphic's
    ratio as a bare number, set inline beside its `aspect-ratio` by the surface that owns it;
-   a surface whose preview is 16:9 (the hosted page) can leave the default.
+   a surface whose preview is 16:9 can leave the default.
 
    The pair stays FLUSH LEFT in the width the cap frees, so PREVIEW's frame, the TAKE button
    under it and the editor card below all share one left edge - centred, the monitors read as
@@ -1299,9 +1251,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-adjust-swatch { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-dim); margin-right: 4px; }
 .pd-adjust-swatch input { width: 32px; height: 24px; padding: 0 2px; border: 1px solid var(--border); border-radius: 4px; background: none; cursor: pointer; }
 .pd-adjust select { max-width: 180px; }
-/* A phone (and the hosted page in one scrolling column, phase 3): the arrows and the place grid
-   are touch targets, 40 px. */
-.hosted-dashboard .pd-adjust-arrows button { min-width: 40px; min-height: 40px; }
+/* A phone: the arrows and the place grid are touch targets, 40 px. */
 @media (max-width: 640px) {
   .pd-adjust-arrows button { min-width: 40px; min-height: 40px; }
   .pd-adjust-grid { grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 32px); gap: 4px; }
@@ -1342,8 +1292,6 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   color: var(--text-dim);
 }
 .pd-field input { width: 100%; }
-/* The hosted page's own box mark (the in-app editor gets it from FieldRow). Same red, same
-   words — docs/CONTROL_PANEL_PARITY.md §4. */
 /* The mark drops the label row's uppercase tracking on purpose: read in the same letterforms
    as the field NAME it sits beside, a warning looks like part of the name. */
 .pd-field .field-over { color: var(--danger); font-weight: 700; text-transform: none; letter-spacing: 0; }
@@ -1351,22 +1299,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
    and tracked, and a production-data path is neither: it is case-sensitive text an operator has
    to be able to read back to whoever writes the feed, so `match.home.score` must not arrive as
    MATCH.HOME.SCORE. It also takes the label's own 10px rather than the in-app chip's 11px,
-   because here it sits INSIDE the label line rather than in a meta row of its own.
-
-   AND THE LABEL LINE HAS TO BE ABLE TO WRAP. The chip is `nowrap` (a path broken across a line
-   is unreadable), so in a plain inline label a long one - `fixtures.0.home.scoreRunningTotal` is
-   not an unusual binding - ran straight out of the field box and painted over the field beside
-   it, while the field NAME broke in two behind it. That is the silent overlap the band's own
-   backstop comment above refuses. A flex line wraps the chip onto its own row instead, which is
-   what the in-app chip already gets from `.field-meta`'s wrap, and the ellipsis is the last
-   resort for a path longer than the whole field. */
-.pd-field-bound-label {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 1px 6px;
-  min-width: 0;
-}
+   because here it sits INSIDE the label line rather than in a meta row of its own. */
 .pd-field .pd-bound-mark { text-transform: none; letter-spacing: 0; font-size: 10px; max-width: 100%; }
 .pd-field-over input,
 .pd-field-over textarea,
@@ -1397,8 +1330,6 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   .pd-band { grid-template-columns: minmax(0, 1fr); }
   .pd-cue-meta { grid-template-columns: minmax(0, 1fr); }
 }
-.pd-editor-events { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.pd-editor-events button { font-size: 12.5px; padding: 6px 11px; }
 
 /* GRAPHIC ACTIONS (docs/PLAYOUT_DASHBOARD.md §8) — the machine's ⚡ buttons, straight under the
    monitors and above the cue editor (live actions first, 2026-10-02). Its own panel, NOT part of the editor's frame: the editor's fields air on Take,
@@ -1416,11 +1347,6 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--text-dim, #9aa1ad);
-}
-.pd-actions-air {
-  font-weight: 700;
-  color: #ef4444;
-  letter-spacing: 0.06em;
 }
 /* The machine's current state. A quiz has ONE group and reads "Locked in"; a scorebug has
    four and reads "main: Enter · clock: At period start · play: In play · result: Live" - about
@@ -1450,7 +1376,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-actions-section .pd-actions-row { margin-top: 0; }
 /* Narrow (a phone, a slim column) the caption goes over its buttons instead: beside a row that
    wraps, it floated in the middle of a ragged block and no longer read as the row's name. Judged
-   on the block's own width, since the hosted page and the in-app page give it different room. */
+   on the block's own width, since a phone and a desk give it different room. */
 .pd-actions { container-type: inline-size; }
 @container (max-width: 620px) {
   .pd-actions-section { flex-direction: column; align-items: flex-start; gap: 3px; }
@@ -1536,7 +1462,6 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-actions-tools { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 .pd-actions-tools .pd-arrange-toggle { margin-left: 0; }
 .pd-actions-reset { font-size: 11.5px; padding: 3px 10px; }
-
 
 /* ARRANGING (components/home/ActionArranger.tsx) - the ⚡ block's own authoring posture. The
    toggle is quiet at rest (it is not a press of the show) and amber while on, and the block's
@@ -1819,6 +1744,14 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-aud-tally-bar { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
 .pd-aud-tally-bar > span { display: block; height: 100%; background: var(--accent); transition: width 240ms ease; }
 .pd-aud-tally-count { font-variant-numeric: tabular-nums; font-size: 13px; text-align: right; }
+.pd-aud-tally-split { grid-column: 1 / -1; margin-top: -4px; font-size: 11px; font-variant-numeric: tabular-nums; }
+/* A Word question's words, most first: the word, how many sent it, and Hide. A hidden word stays in
+   the list, struck through, so it can be shown again. */
+.pd-aud-words { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow-y: auto; }
+.pd-aud-words li { display: grid; grid-template-columns: minmax(0, 1fr) 3.5em auto; align-items: center; gap: 10px; }
+.pd-aud-word { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.pd-aud-words li.hidden .pd-aud-word,
+.pd-aud-words li.hidden .pd-aud-tally-count { text-decoration: line-through; color: var(--text-dim, #8a8f98); }
 /* INTERACTION (docs/work-specs/interaction/spec.md, "Screens"): questions and the selected one on
    the left, Join, paste and the other ways in on the right; one column on a narrow window. */
 .pd-aud-areas { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 12px; align-items: start; }
@@ -2014,12 +1947,6 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   font-weight: 600;
 }
 
-/* The HOSTED page renders the same dashboard from the published payload (docs/
-   PLAYOUT_DASHBOARD.md). Two things differ, both because it is an OPERATOR surface over a
-   production it does not own: cues are authored in the app, so their titles are read here
-   rather than edited, and there is no builder shell to go home to. */
-.hosted-dashboard .pd-header { padding-left: 16px; }
-.pd-cue-title-static { font-size: 14px; font-weight: 600; }
 .pd-layer-clash { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 9px 0 0; }
 .pd-layer-clash button { font-size: 12px; padding: 4px 9px; }
 
@@ -2165,8 +2092,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-cue-layer.clash { color: var(--amber); font-weight: 600; }
 /* ── ONE LINE A ROW, on the production page (docs/CLIP_PLAYBACK_PLAN.md §6.2) ──
    34px, so about twenty rows show at 1080p against ten. Scoped to `.pd-rundown`, the production
-   page's rail: the hosted control page shares every `.pd-cue` rule above and keeps its two-line
-   row, since this page's design leads and that one follows only where it is cheap.
+   page's rail; a `.pd-cue` outside it keeps the two-line row.
    Left to right: grip, number, kind icon, then the name with its dim summary and marks taking the
    slack; then the fixed columns at the end, in the same place on every row so they read down the
    list - the ON AIR / PVW tag, the clip length (only when the rundown has a server clip), the
@@ -2294,7 +2220,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-rundown .pd-cue-more { width: 22px; height: 22px; }
 
 /* ── A RUNDOWN'S FOLDERS (docs/CLIP_PLAYBACK_PLAN.md §6.2, phase 4) ──
-   Every rule here starts at `.pd-rundown`: the hosted page shares `.pd-cue` and draws no folders,
+   Every rule here starts at `.pd-rundown`: a `.pd-cue` outside the rundown draws no folders,
    so nothing a folder needs may reach it (scripts/folder-css-scope.test.mjs holds that).
    A folder's cues sit in from the rail by one step, under their header. */
 .pd-rundown .pd-cue.in-folder { margin-left: 12px; }
@@ -2529,13 +2455,10 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   /* The name's icon stands down: squeezed by a due action, the name gave way and left the icon
      alone in the row. */
   .pd-header h1 > svg { display: none; }
-  .pd-clock,
   .pd-status,
   .pd-back,
   /* Setup (Share, the Panel door, Playout settings, Export) stands down with the other authoring
-     actions, and so does the panel's status; Home stays. The hosted page, a phone's own control
-     surface, keeps its Panel door. */
-  .playout-dashboard:not(.hosted-dashboard) .pd-header .pd-target,
+     actions, and so does the panel's status; Home stays. */
   .pd-header .pd-setup-host,
   .pd-header .pd-panel-status,
   /* A phone keeps the data chip only while it asks for attention. */
@@ -2569,16 +2492,10 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
      beside it already says, and the production's NAME was paying for it (0px wide at 390). The
      monitor still reads PROGRAM · NOT PUBLISHED. */
   .pd-status-host--offline { display: none; }
-  /* The READY line (the hosted page's header) keeps its SHORT form here ("● Ready 2/2"). */
-  .pd-health { flex: none; font-size: 11px; }
   .pd-header > .pd-ready-host { flex: none; }
-  button.pd-ready { padding: 4px 6px; }
-  .pd-health-full { display: none; }
-  .pd-health-short { display: inline; }
   /* Its panel, and the Playout panel, span the phone's width under the header. */
   .pd-ready-panel,
-  .pd-status-host .pd-ready-panel,
-  .hosted-dashboard .pd-ready-panel { position: fixed; left: 8px; right: 8px; top: 52px; width: auto; }
+  .pd-status-host .pd-ready-panel { position: fixed; left: 8px; right: 8px; top: 52px; width: auto; }
   /* Home STAYS at this width - it is the one way off the page on a phone, and a four-letter
      word is cheaper than the name it shares the row with. */
 
@@ -2673,7 +2590,6 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 @media (max-width: 900px) {
   /* The production page stacks into one scrolling column on a phone. */
   .production-page .control-page-body { display: flex; flex-direction: column; overflow: auto; }
-  .production-page .control-page-main { overflow: visible; }
   /* Rows, not columns — and the nav row is content-sized: without it, grid's default
      align-content stretch inflates both auto rows, blowing the nav up to half the screen. */
   .home-body { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
@@ -2923,10 +2839,6 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 /* On the PROGRAM header, what is up on the server - a badge beside the layer badge, dimmer:
    it names a fact the monitor cannot show. */
 .pd-server-badge { opacity: 0.8; }
-/* The hosted page's list of server cues: the same row anatomy, read-only, under its own rule. */
-.pd-server-cues { border-top: 1px solid var(--border); padding: 8px 12px; }
-.pd-server-cues h3 { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); margin: 0 0 6px; }
-.pd-cue-server { cursor: default; }
 
 /* ── TIMED CUES (docs/RUNDOWN_AUTOMATION_PLAN.md §2.0, §2.1) ───────────────────────────────────
    A timed row wears its length and end in the same mono figures as a clip's length; on air the
@@ -2992,9 +2904,8 @@ button.pd-auto.missed { flex: 0 100 auto; color: var(--amber); border-color: rgb
 
 /* Route accents stay quiet. Tally, selection and error borders remain stronger than custom color.
    Badges use a separate variable: a cue highlight never communicates a routing change. */
-.pd-rundown .pd-cue:not(.selected):not(.on-air):not(.on-pvw):not(.up-here),
-.pd-cue-presented:not(.selected):not(.on-air):not(.on-pvw) { border-left: 3px solid var(--pd-cue-accent, var(--border)); }
-.pd-rundown .pd-cue, .pd-cue-presented { background-image: linear-gradient(color-mix(in srgb, var(--pd-cue-accent, #8fbfff) 26%, transparent), color-mix(in srgb, var(--pd-cue-accent, #8fbfff) 26%, transparent)); }
+.pd-rundown .pd-cue:not(.selected):not(.on-air):not(.on-pvw):not(.up-here) { border-left: 3px solid var(--pd-cue-accent, var(--border)); }
+.pd-rundown .pd-cue { background-image: linear-gradient(color-mix(in srgb, var(--pd-cue-accent, #8fbfff) 26%, transparent), color-mix(in srgb, var(--pd-cue-accent, #8fbfff) 26%, transparent)); }
 .pd-rundown .pd-cue:is(.on-air, .on-pvw, .selected, .up-here) { outline: 1px solid currentColor; outline-offset: -1px; }
 .pd-cue-hotkey { flex: none; padding: 1px 4px; font: 10px/1.2 monospace; color: #fff; border: 1px solid #a9b4c4; border-radius: 3px; }
 .pd-cue-type { flex: 0 100 auto; max-width: 96px; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-dim); font-size: 10px; }

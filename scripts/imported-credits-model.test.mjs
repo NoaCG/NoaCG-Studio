@@ -641,13 +641,15 @@ const sha = (o) => hash(JSON.stringify(o));
  *  stops it (stopCreditsRoll, called by the Out step); the test "#2108, #2104, #2098" asserts both.
  *  The artwork and plain imports are unchanged. Re-taken for #1795: the shared animation
  *  interpreter in every build's js gained the exit-rest undo; with the previous interpreter swapped
- *  back in, each build hashes to its previous pin exactly. */
+ *  back in, each build hashes to its previous pin exactly. Re-taken for #2355: only the SVG fit runtime
+ *  every build carries moved (a centred figure keeps its drawn size). The editable pin re-taken for
+ *  the parser's comma rule (a role's names, several to a line), asserted in credits-parser.test.mjs. */
 const PINS = {
-  editable: '2dc75d9fb6b50125',
-  artwork: 'cbfeb869218af59a',
-  'fixed:credits-1': '6a18dc3f245cb90d',
-  'fixed:credits-2': 'ee14eb0ec6e427b2',
-  'fixed:credits-3': '8e2e56d12dc7deab',
+  editable: 'eb64ce3d32815aad',
+  artwork: '6ae5a3dd2ba05e94',
+  'fixed:credits-1': 'c4f5b8c9f6482163',
+  'fixed:credits-2': 'f61330c0b459ee0a',
+  'fixed:credits-3': 'a3d5e4aeb160f29c',
 };
 
 if (process.env.CREDITS_PRINT_STYLED) console.log(JSON.stringify({ styled: R.styled, fallbacks: R.fallbacks, issue1941: R.issue1941 }, (k, v) => (['doc', 'html', 'css', 'js', 'sourceMarkup', 'outer'].includes(k) ? undefined : v), 1));
@@ -1052,8 +1054,11 @@ test('#1955: the editable roll\'s list holder keeps its line breaks through the 
  *  asserts it. Re-taken for #2108, #2104 and #2098: their js keeps the list taken until the exit
  *  ends or is cut short (creditsLetGo), lets it go after a snap (noacgCreditsRested), and measures
  *  the take at rest (creditsAtRest); html and css unchanged; the test "#2108, #2104, #2098" below
- *  asserts it. Re-taken for #1795, as the pins above: only the shared interpreter moved. */
-const ROLE_ABOVE_PINS = { one: '8b52b52e15fec403', bold: 'c6c473bc1142cd64', grouped: '5de46c281e716a80', roleGroup: '59e3e5fb354a3320', idGroup: '173ecb85bc41a3bb' };
+ *  asserts it. Re-taken for #1795, as the pins above: only the shared interpreter moved. Re-taken
+ *  when the title began rolling with the list: the roll's js gains creditsRiders, creditsTitle
+ *  (the list's first line in the drawn title's look) and the parser its comma rule, html and css
+ *  unchanged; e2e/svg-templates.spec.ts walks the roll. */
+const ROLE_ABOVE_PINS = { one: '34b8cc68f3576744', bold: '0eed6ced3d449700', grouped: '0a5e9b6abede99a5', roleGroup: '6503f0db3795bdd5', idGroup: '99282645b4a1f50c' };
 const BESIDE = ['beside', 'besideEnd', 'hebrewBeside', 'namesLeft', 'pickBesideName'];
 
 test('row 20: role-above styled credits build exactly as row 19 built them', () => {
@@ -1065,8 +1070,9 @@ test('row 20: role-above styled credits build exactly as row 19 built them', () 
  *  second measure when the face lands (creditsSettle) on purpose; the test below says so. The
  *  styled one is as main built it before #1965; the editable one gained exactly creditsSettle.
  *  Both re-taken for #2098 and the styled one for #2108 and #2104, as the pins above, and both
- *  for #1795 (the shared interpreter only). */
-const FACED_PINS = { styled: 'a03ad161718a1708', editable: '98bc6ef6dddb5d46' };
+ *  for #1795 (the shared interpreter only), and both for the comma rule and the styled one for
+ *  creditsRiders and creditsTitle, as the pins above. */
+const FACED_PINS = { styled: '4849a59b746cb690', editable: '39484133277ea4bb' };
 
 test('#1969, #1965: a styled or editable roll whose design ships a face builds as pinned, with its second measure', () => {
   for (const k of ['styled', 'editable']) {

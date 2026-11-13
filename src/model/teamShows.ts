@@ -24,6 +24,7 @@
 
 import type { Show } from './shows';
 import { assertAccountAuthoring } from './durableStore';
+import { scrubHiddenWords } from './wordCues';
 
 /** What the store knows about its own contents: `off` (no team session - offline, signed out, or
  *  not started), `loading` (the first fetch is out) and `ready` (at least one answer arrived). The
@@ -85,6 +86,8 @@ export function applyServerTeamShows(list: Show[], keep: ReadonlySet<string> = n
   const next = new Map<string, string>();
   for (const show of list) {
     const held = records.get(show.id);
+    // W11 (interaction phase 6): a teammate's record never brings a hidden word onto a cue here.
+    if (!(keep.has(show.id) && held)) scrubHiddenWords(show);
     const json = keep.has(show.id) && held ? held : JSON.stringify(show);
     if (held !== json) changed = true;
     next.set(show.id, json);
@@ -99,6 +102,7 @@ export function applyServerTeamShows(list: Show[], keep: ReadonlySet<string> = n
 /** One record from the server - a merge result after a refused save, or a production just moved
  *  in. Same "not an edit" rule as `applyServerTeamShows`. */
 export function applyServerTeamShow(show: Show): void {
+  scrubHiddenWords(show); // W11, as above
   const json = JSON.stringify(show);
   if (records.get(show.id) === json) return;
   records.set(show.id, json);

@@ -380,6 +380,23 @@ test('catalog lines and SVG text take weight and spacing; alignment and fit stay
   ] as const) expect((await operate(page, template, [{ kind: 'style.set', selector: '#f0', values }])).error, JSON.stringify(values)).toMatch(reason);
 });
 
+test('BebasNeue-Regular offers only the drawable weight on imported SVG artwork', async ({ page }) => {
+  const svg = JSON.parse(readFileSync(new URL('../docs/research/editor-r1-foundation/fixture-svg.json', import.meta.url), 'utf8')) as Template;
+  svg.css += `
+    @font-face { font-family: "BebasNeue-Regular"; src: url("fonts/bebas-neue.woff2") format("woff2"); font-weight: 100 900; }
+    #f0 { font-family: "BebasNeue-Regular", Arial, sans-serif !important; font-weight: 700 !important; }
+  `;
+  await editorWith(page, svg);
+  const original = await source(page), steps = await history(page);
+  await select(page, '#f0');
+  const weight = inspector(page).getByRole('combobox', { name: 'Weight', exact: true });
+  await expect.poll(() => computed(page, '#f0', 'font-family')).toContain('BebasNeue-Regular');
+  await expect(weight.locator('option')).toHaveText(['Regular']);
+  await expect(weight).toHaveValue('400');
+  expect(await source(page)).toEqual(original);
+  expect(await history(page)).toBe(steps);
+});
+
 test('typed type survives save and reopen, and the simulator fits the long value as the editor does', async ({ page }) => {
   const t = await withText(page);
   await editorWith(page, t);

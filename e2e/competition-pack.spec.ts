@@ -22,16 +22,17 @@ const CATEGORIES = ['esports-score', 'matchup', 'results-board', 'reveal'] as co
 
 /** Mount a template in a hidden iframe (one catalog variant, or any document), and return a handle to drive it. */
 const HARNESS = `
+  let keepFrames = false;
   async function mount(tpl) {
     const { composeDocument } = await import('/src/preview/composeDocument.ts');
-    document.querySelectorAll('.pack-frame').forEach((f) => f.remove());
+    if (!keepFrames) document.querySelectorAll('.pack-frame').forEach((f) => f.remove());
     const f = document.createElement('iframe');
     f.className = 'pack-frame';
     f.style.cssText = 'position:fixed;left:-4000px;top:0;width:1280px;height:720px;';
     document.body.appendChild(f);
     await new Promise((res) => { f.onload = res; f.srcdoc = composeDocument(tpl); });
     await new Promise((r) => setTimeout(r, 80));
-    return { tpl, win: f.contentWindow, doc: f.contentDocument };
+    return { tpl, win: f.contentWindow, doc: f.contentDocument, frame: f };
   }
   async function boot(id, options) {
     const { variantById } = await import('/src/templates/catalog.ts');
@@ -39,6 +40,17 @@ const HARNESS = `
   }
   // Let a dispatched event's timeline settle (they are all well under 700 ms).
   const settle = () => new Promise((r) => setTimeout(r, 700));
+  // INDEPENDENT BOARDS SIDE BY SIDE. Each board is its own document in its own frame, and most of
+  // a walk is the fixed settle above, so boards walked at once cost about the time of one.
+  // At most LIMIT run together: every frame shares one main thread, and a tween stretched past
+  // its settle by a crowded runner would read as a wrong answer. Frames are kept while it runs.
+  async function pool(tasks, limit) {
+    keepFrames = true;
+    const queue = tasks.slice();
+    const lane = async () => { while (queue.length) await queue.shift()(); };
+    try { await Promise.all(Array.from({ length: Math.min(limit, queue.length) }, lane)); }
+    finally { keepFrames = false; document.querySelectorAll('.pack-frame').forEach((f) => f.remove()); }
+  }
 `;
 
 test('the pack ships its four categories, and every design creates and validates', async ({ page }) => {
@@ -619,7 +631,7 @@ test('Focus competitor and Spotlight light a row on their first press on every t
     const controls = (tpl) => (parseAnimData(tpl.js).machine.controls || []).map((c) => c.event);
     const out = { towers: {}, podiums: {} };
 
-    for (const id of ['tt01', 'tt02', 'tt03', 'tt04']) {
+    const tower = async (id) => {
       const { win, doc, tpl } = await boot(id);
       const lit = () => {
         const on = doc.querySelectorAll('.results-board-row-on');
@@ -675,9 +687,9 @@ test('Focus competitor and Spotlight light a row on their first press on every t
       await settle();
       const level = { state: win.noacgMachineState().groups.main, row: lit(), spotlit: spotlit() };
       out.towers[id] = { first, past, below, blank, updated, shrunk, back, arrived, level, controls: controls(tpl) };
-    }
+    };
 
-    for (const id of ['sb21', 'sb22']) {
+    const podium = async (id) => {
       const { win, doc, tpl } = await boot(id);
       const lit = () => {
         const spot = [1, 2, 3, 4].filter((i) => doc.querySelector('.scoreboard-podium-' + i).classList.contains('scoreboard-podium-spot'));
@@ -730,7 +742,11 @@ test('Focus competitor and Spotlight light a row on their first press on every t
       await settle();
       const level = { state: win.noacgMachineState().groups.main, podiums: lit() };
       out.podiums[id] = { first, past, below, blank, collapsed, firstCollapsed, empty, back, level, controls: controls(tpl) };
-    }
+    };
+    const TOWERS = ['tt01', 'tt02', 'tt03', 'tt04'], PODIUMS = ['sb21', 'sb22'];
+    for (const id of TOWERS) out.towers[id] = null;    // reported in this order, whatever ends first
+    for (const id of PODIUMS) out.podiums[id] = null;
+    await pool([...TOWERS.map((id) => () => tower(id)), ...PODIUMS.map((id) => () => podium(id))], 3);
     return out;
   })()`) as { towers: Record<string, Record<string, unknown>>; podiums: Record<string, Record<string, unknown>> };
 
@@ -768,7 +784,8 @@ test('Focus row and Highlight row pressed on an empty list light the named row w
       ...['st01', 'st02', 'st03', 'st04'].map((id) => ({ id, event: 'highlight', field: 'f4', rows: table })),
     ];
     const out = {};
-    for (const c of cases) {
+    for (const c of cases) out[c.id] = null;           // reported in this order, whatever ends first
+    await pool(cases.map((c) => async () => {
       let { win, doc } = await boot(c.id);
       const look = () => {
         const on = doc.querySelectorAll('.results-board-row-on');
@@ -802,7 +819,7 @@ test('Focus row and Highlight row pressed on an empty list light the named row w
       win.update(JSON.stringify({ f2: c.rows }));
       await settle();
       out[c.id] = { event: c.event, empty, arrived, dimmed: dim.length > 0 && dim.every((o) => o < 1), recovered: look() };
-    }
+    }), 3);
     return out;
   })()`) as Record<string, { event: string; empty: Record<string, unknown>; arrived: Record<string, unknown>; dimmed: boolean; recovered: Record<string, unknown> }>;
 
@@ -1019,7 +1036,7 @@ test('Back to a later step lands on its own look, not the look of the step it le
     ];
     const out = {};
     const { backTarget } = await import('/src/control/controlModel.ts');
-    for (const [id, root, step, payload, branchState, branch, mark, unmark] of CASES) {
+    const walks = CASES.map(([id, root, step, payload, branchState, branch, mark, unmark]) => async () => {
       const { tpl, win, doc } = await boot(id);
       // The step's mark, and what the frame shows: a class alone would pass with the result held
       // back by a tween still playing it in.
@@ -1053,8 +1070,8 @@ test('Back to a later step lands on its own look, not the look of the step it le
       win.noacgSnap({ main: branchState });
       await settle();
       out[id] = { stepState, backTo, branchState, back, recovered, unmarked, backToBranch: look() };
-    }
-    {
+    });
+    walks.push(async () => {
       // The nominee card: a snap (a recovery, a host's state write) from the revealed winner
       // into the suspense hold.
       const { win, doc } = await boot('nm01');
@@ -1076,8 +1093,8 @@ test('Back to a later step lands on its own look, not the look of the step it le
       win.noacgSnap({ main: 'suspense' });
       await settle();
       out.nm01 = look();
-    }
-    {
+    });
+    walks.push(async () => {
       // A board of three groups: a snap of the phase (a recovery, a host's state write) keeps
       // what the pause group shows.
       const { win, doc } = await boot('es01');
@@ -1107,8 +1124,8 @@ test('Back to a later step lands on its own look, not the look of the step it le
         paused: cls.contains('esports-score-paused'),
         chipIsLive: doc.querySelector('.esports-score-status').textContent === doc.getElementById('f9').textContent,
       };
-    }
-    {
+    });
+    walks.push(async () => {
       // A route with a call on the way: a recovery into a locked match-up shows the pick under the lock.
       const { win, doc } = await boot('mu01');
       win.play();
@@ -1130,8 +1147,8 @@ test('Back to a later step lands on its own look, not the look of the step it le
         locked: doc.querySelector('.matchup').classList.contains('matchup-locked'),
         winners: doc.querySelectorAll('.matchup-win').length,
       };
-    }
-    {
+    });
+    walks.push(async () => {
       // A snap that moves nothing (a host settling the state it is in) keeps what the route the
       // board really took painted: a bracket crowned after its final round keeps that cursor.
       const { win, doc } = await boot('br01');
@@ -1149,7 +1166,8 @@ test('Back to a later step lands on its own look, not the look of the step it le
         crowned: doc.querySelector('.results-board').classList.contains('results-board-crowned'),
         round: on ? on.getAttribute('data-round') : null,
       };
-    }
+    });
+    await pool(walks, 3);
     return out;
   })()`) as Record<string, Record<string, unknown>>;
 

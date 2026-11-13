@@ -12,6 +12,7 @@
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
+// covers: src/model/obsScenes.ts, src/components/home/PlayoutPanel.tsx
 // focus
 //
 // A RUNDOWN'S FOLDERS (docs/CLIP_PLAYBACK_PLAN.md §6.2, §6.5, §6.6 and §7, phase 4). The rundown half:
@@ -292,6 +293,60 @@ test('the menus: a folder from one cue, a cue moved into and out of one, a dupli
   await expect(page.getByTestId('remove-folder')).toHaveText('Remove folder (keeps its 3 cues)');
   await page.getByTestId('remove-folder').click();
   await expect.poll(() => drawn(page)).toEqual(['Hairline', 'ALPHA', 'CHARLIE', 'BRAVO']);
+});
+
+test('OBS scenes: the switch offers a folder as a scene, which publishes its graphics; off, nothing shows and the payload is as before (obs-scenes OS1a R1 to R3, R10)', async ({ page }) => {
+  const id = await production(page, CLIPS, { folders: [{ labels: ['Hairline', 'ALPHA'], name: 'Gameplay' }] });
+  /** What a publish of the production would carry about scenes, and the folder's own flag. */
+  const published = () =>
+    page.evaluate(async (showId) => {
+      const { loadShows } = await import('/src/model/shows.ts');
+      const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
+      const show = loadShows().find((s) => s.id === showId)!;
+      const payload = await buildOutputPayload(show);
+      return { scenes: payload.scenes ?? null, flagged: show.folders?.[0]?.obsScene === true, folder: show.folders?.[0]?.id };
+    }, id);
+  const menu = async () => {
+    await folder(page, 'Gameplay').getByTestId('folder-menu').click();
+    await expect(page.getByTestId('remove-folder')).toBeVisible();
+  };
+
+  // Off: no folder offers a scene, and nothing is published about one.
+  await menu();
+  await expect(page.getByTestId('folder-obs-scene-toggle')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  expect((await published()).scenes).toBeNull();
+
+  const status = page.getByTestId('production-status');
+  await status.click();
+  const panel = page.getByTestId('production-status-panel');
+  await expect(panel.getByTestId('obs-scenes-switch')).not.toBeChecked();
+  await panel.getByTestId('obs-scenes-switch').click();
+  await expect(panel.getByTestId('obs-scenes-switch')).toBeChecked();
+  await page.keyboard.press('Escape');
+
+  // On: the folder becomes a scene from its menu, and says so. Its link is copied only once the
+  // production has an output link (it is not published here).
+  await menu();
+  await page.getByTestId('folder-obs-scene-toggle').click();
+  await expect(folder(page, 'Gameplay').getByTestId('folder-obs-scene')).toBeVisible();
+  await menu();
+  await expect(page.getByTestId('folder-obs-scene-toggle')).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByTestId('folder-obs-scene-copy')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await settleDurableWrites(page);
+  const on = await published();
+  // Its graphic cue's graphic, never its server clip.
+  expect(on.scenes).toEqual([{ id: on.folder, name: 'Gameplay', graphics: ['Hairline'] }]);
+
+  // Off again: the flag is kept for later, and nothing about scenes shows or publishes.
+  await status.click();
+  await panel.getByTestId('obs-scenes-switch').click();
+  await expect(panel.getByTestId('obs-scenes-switch')).not.toBeChecked();
+  await page.keyboard.press('Escape');
+  await expect(folder(page, 'Gameplay').getByTestId('folder-obs-scene')).toHaveCount(0);
+  await settleDurableWrites(page);
+  expect(await published()).toMatchObject({ scenes: null, flagged: true });
 });
 
 test('a drag lands by the third of a row: into a folder, out of it, a folder as a whole - one write each', async ({ page }) => {

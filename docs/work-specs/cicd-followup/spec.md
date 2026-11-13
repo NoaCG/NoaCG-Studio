@@ -75,9 +75,10 @@ or did not reduce total turnaround.
 16. [cf15] Finish the cicd-improvement documentation follow-ups.
 17. [cf16] Assess the coverage model for catalog narrowing.
 18. [cf17] Run one bounded three-plan trial.
-19. [cf18] Re-qualify catalog narrowing after a clean audit.
-20. [cf19] Activate qualified narrowing or keep full protection.
-21. [cf20] Report measured outcomes.
+19. [cf22] Measure and rank the repair loop (owner decision 2026-11-11).
+20. [cf18] Re-qualify catalog narrowing after a clean audit.
+21. [cf19] Activate qualified narrowing or keep full protection.
+22. [cf20] Report measured outcomes.
 
 ## Acceptance per phase
 
@@ -245,6 +246,17 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   One bounded three-plan trial measures completed work per unit time, queue delay, contention,
   retries and CI cost, and stops if contention or failure rates cross the thresholds written in (a). (c) Permanent
   three-plan concurrency is enabled only if the trial meets the success criteria written in (a).
+- **cf22.** Owner decision 2026-11-11, recorded verbatim in
+  `evidence/owner-decision-2026-11-11-cf22.md`. (a) From GitHub history over the 14 days before the
+  phase starts, every PR whose CI or merge-queue run failed after it was ready is counted, with the
+  number of rounds per PR, the time lost per bounce (from the failure to the next green run on that
+  PR) and its cause classed as real defect, flake, gate refusal (for example budget or the review
+  stamp) or infrastructure, with sample sizes, using cf03's measurement rules. (b) Candidate fixes,
+  including re-running only the failed part, agents running the affected tests before pushing, and
+  gate refusals that an agent cannot fix going to the owner alarm at once instead of looping, are
+  ranked by the time each would save, estimated from the measurements in (a), each with its basis. (c) The phase changes no test, check or
+  limit; the numbers and the ranked list go to the owner before anything is built, and building any
+  fix needs the owner's decision. (d) cf20 reports the result.
 - **cf18.** (a) After the final selector change's clean audit window and every other
   prerequisite, a focused repeat of cicd-improvement ci15 is run, with the missing risky-change
   samples collected, and the other evidence cicd-improvement ci17 section 6 lists as missing
@@ -269,3 +281,17 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
 
 `CA: qualified Claude Code Cloud worker plus GitHub Actions` for every phase. Measurements use
 existing Actions history; drills and trials are bounded standard runs.
+
+## Test maintenance
+
+Deliberate, owner-approved removals; each line names what stays protected and where the decision is.
+
+- e2e/editor-command-task.spec.ts: the shared UI, semantic and proposal authoring journey kept at laptop-125, its smallest size; layout at every size kept by playout-fixed-panes, playout-rail-width and docs; receipt docs/work-specs/cicd-followup/evidence/land-study.md section 3.4 (owner decision 2026-11-12), owner miwco, expires 2026-12-12
+- e2e/editor-drawing-task.spec.ts: the cumulative wizard authoring journey kept at laptop-125; layout at every size kept by playout-fixed-panes, playout-rail-width and docs; receipt docs/work-specs/cicd-followup/evidence/land-study.md section 3.4 (owner decision 2026-11-12), owner miwco, expires 2026-12-12
+- e2e/editor-cli-round-trip.spec.ts: the agent package visual round-trip kept at laptop-125; layout at every size kept by playout-fixed-panes, playout-rail-width and docs; receipt docs/work-specs/cicd-followup/evidence/land-study.md section 3.4 (owner decision 2026-11-12), owner miwco, expires 2026-12-12
+- e2e/editor-usability.spec.ts: both usable-authoring journeys (Hairline, House Quiz) kept at 1093; layout at every size kept by playout-fixed-panes, playout-rail-width and docs; receipt docs/work-specs/cicd-followup/evidence/land-study.md section 3.4 (owner decision 2026-11-12), owner miwco, expires 2026-12-12
+- e2e/editor-keys.spec.ts: the second-keys, cancel, history and reopen journey kept at 1093; layout at every size kept by playout-fixed-panes, playout-rail-width and docs; receipt docs/work-specs/cicd-followup/evidence/land-study.md section 3.4 (owner decision 2026-11-12), owner miwco, expires 2026-12-12
+- e2e/editor-out.spec.ts: the Set Out reverse, cancel, history, hold and save/reopen journey kept at 1093; layout at every size kept by playout-fixed-panes, playout-rail-width and docs; receipt docs/work-specs/cicd-followup/evidence/land-study.md section 3.4 (owner decision 2026-11-12), owner miwco, expires 2026-12-12
+- e2e/editor-fidelity-trim.spec.ts: the wizard nested identity, trim and history journey kept at 1093; layout at every size kept by playout-fixed-panes, playout-rail-width and docs; receipt docs/work-specs/cicd-followup/evidence/land-study.md section 3.4 (owner decision 2026-11-12), owner miwco, expires 2026-12-12
+- e2e/editor-layer-property-qualification.spec.ts: the layer selection, rename, eye and history journey kept at 1366; layout at every size kept by playout-fixed-panes, playout-rail-width and docs; receipt docs/work-specs/cicd-followup/evidence/land-study.md section 3.4 (owner decision 2026-11-12), owner miwco, expires 2026-12-12
+- e2e/editor-transform-qualification.spec.ts: the text-box side versus corner and rotation reopen journey kept at 1366 and 1093; layout at every size kept by playout-fixed-panes, playout-rail-width and docs; receipt docs/work-specs/cicd-followup/evidence/land-study.md section 3.4 (owner decision 2026-11-12), owner miwco, expires 2026-12-12

@@ -33,10 +33,13 @@ import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, 
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
 import { JOIN_PAGE_LIMITS } from './joinPage';
-import { readQuestions, type ShowQuestion } from './questions';
+import { readQuestions, setWordHidden, type ShowQuestion } from './questions';
+import { scrubHiddenWords } from './wordCues';
+import { planResultCue, readResultCues, type ResultPlan, type ResultTargetKey } from './resultCues';
 import { hasLiveData } from './liveDataMark';
 import { ownReaderHolds } from './ownReaderHolds';
-import { loadGraphics, resolveSavedGraphicDoc, type GraphicDoc } from './library';
+import { loadGraphics, type GraphicDoc } from './library';
+import { settleGraphics } from './copySettle.ts';
 import { poolPlacement } from './poolIdentity.ts';
 import { accentColor, playoutSystem, readOutputSetup, type ProductionOutputSetup, type RundownColors } from './outputSetup';
 import { loadTeamShows, teamShowIds, writeTeamShow } from './teamShows';
@@ -173,6 +176,10 @@ export interface ShowFolder {
   slot?: { channel?: number; layer?: number };
   /** Its cues are hidden in the rundown. */
   collapsed?: boolean;
+  /** ADDITIVE OPTIONAL (docs/work-specs/obs-scenes/spec.md D1, OS1a R1): this folder is an OBS
+   *  scene, with its own output link `&scene=<folder id>`. Kept while the production's OBS scenes
+   *  switch (`Show.obsScenes`) is off, and read only while it is on. Absent = not a scene. */
+  obsScene?: true;
 }
 
 /** A fade's length as the operator picks it. Short is half a second and Long one second
@@ -368,6 +375,9 @@ export interface ExternalShowSource {
         lists?: Record<string, 'lines' | 'schedule' | 'credits'>;
         /** E5.1's recipe (productionData `SourceRecipe`); a later recipe `v` is kept, never evaluated. */
         mapping?: SourceRecipe | { v: number; [later: string]: unknown };
+        /** NoaCG reads the endpoint itself, every `everyMs` (obs-scenes OS5a, control/jsonSource.ts):
+         *  a public JSON address, read through the guarded fetch. Absent: only its agent reads it. */
+        read?: { everyMs: number };
       }
     | { v: number; [later: string]: unknown };
   /** Paused: the route applies nothing; the agent keeps its latest revision for Resume. */
@@ -384,9 +394,21 @@ export type ShowSource = SheetShowSource | YouTubeShowSource | FeedShowSource | 
 export type FieldShowSource = SheetShowSource | FeedShowSource | FileShowSource;
 export const fillsFields = (s: ShowSource): s is FieldShowSource => s.kind === 'sheet' || s.kind === 'feed' || s.kind === 'file';
 
+/** A connector source NoaCG reads itself (obs-scenes OS5a): a version 1 registration whose `read`
+ *  names an interval. Its agent never reads it (migration 0116). */
+export type NoacgReadSource = ExternalShowSource & { config: { v: 1; endpoint: string; configRevision: number; read: { everyMs: number } } };
+export const noacgReads = (s: ShowSource): s is NoacgReadSource => {
+  if (s.kind !== 'external' || s.config.v !== 1) return false;
+  const read = (s.config as { read?: unknown }).read;
+  return typeof read === 'object' && read !== null && typeof (read as { everyMs?: unknown }).everyMs === 'number' && Number.isFinite((read as { everyMs: number }).everyMs);
+};
+
+/** A source with a reader line in the data indicator: one a browser reader fills fields from. */
+export const hasReaderLine = (s: ShowSource): s is FieldShowSource | NoacgReadSource => fillsFields(s) || noacgReads(s);
+
 /** What a source is called on the surface. */
 export const sourceKindWord = (s: ShowSource): string =>
-  s.kind === 'feed' ? 'News feed' : s.kind === 'sheet' ? 'Sheet' : s.kind === 'file' ? 'File' : s.kind === 'external' ? 'Connector' : 'YouTube';
+  s.kind === 'feed' ? 'News feed' : s.kind === 'sheet' ? 'Sheet' : s.kind === 'file' ? 'File' : noacgReads(s) ? 'JSON' : s.kind === 'external' ? 'Connector' : 'YouTube';
 
 /**
  * A production-owned DATA TABLE (docs/INTERACTIVE_PLAYOUT_PLAN.md, D3): a quiz's question
@@ -450,6 +472,10 @@ export interface Show {
   /** The rundown's FOLDERS (ShowFolder). ADDITIVE OPTIONAL: an older build keeps the flat order and
    *  rewrites them untouched, and the published page, the export and a pack never carry them. */
   folders?: ShowFolder[];
+  /** THE OBS SCENES SWITCH (docs/work-specs/obs-scenes/spec.md D1, OS1a R2): folders may be OBS
+   *  scenes, and a publish carries them (control/hostedControl.ts `OutputPayload.scenes`).
+   *  ADDITIVE OPTIONAL: absent = off, and nothing about scenes shows or publishes. */
+  obsScenes?: true;
   /** The production's DATA TABLES (the Data workspace — docs/INTERACTIVE_PLAYOUT_PLAN.md D3).
    *  ADDITIVE OPTIONAL like cues; absent = none authored. */
   datasets?: ShowDataset[];
@@ -504,6 +530,18 @@ export interface Show {
    *  next "Prepare cue on <graphic>" names it. Never guessed (control/messageStaging.ts).
    *  ADDITIVE OPTIONAL; absent = not chosen yet. */
   messageTarget?: string;
+  /** Where results go: the pool graphic id the operator chose for "Add results to rundown",
+   *  remembered like `messageTarget` (model/resultCues.ts, interaction phase 3 S5). ADDITIVE
+   *  OPTIONAL; absent = not chosen yet. */
+  resultTarget?: string;
+  /** Where a Word question's word cloud goes: the pool graphic id chosen for "Add word cloud to
+   *  rundown", remembered like `resultTarget` (control/wordStaging.ts, interaction phase 6 W7).
+   *  ADDITIVE OPTIONAL; absent = not chosen yet. */
+  wordTarget?: string;
+  /** Each question's one RESULT CUE: question id to cue id (model/resultCues.ts, S1). Saved with
+   *  the production so a reload, another tab and another operator update the same cue. ADDITIVE
+   *  OPTIONAL; absent = no result staged. */
+  resultCues?: Record<string, string>;
   /** The production's QUESTION LIST (model/questions.ts; docs/work-specs/interaction/spec.md): the
    *  questions the operator prepares and puts live on phones, in the operator's order. ADDITIVE
    *  OPTIONAL; absent = none written. Read through `showQuestions`, which drops damaged entries and
@@ -599,6 +637,10 @@ function saveAll(list: Show[]): string | null {
   if (!canAuthorAccount()) return 'Account editing is paused. Sign in again; pending work is preserved.';
   const personal: Show[] = [];
   for (const show of list) {
+    // W11 (interaction phase 6): no write leaves a hidden word on a cue carrying its question's
+    // words, whichever writer put it there (a press, a paste of an earlier copy, a duplicate, an
+    // edit). A no-op for a production with no hidden words.
+    if (!show.deleted) scrubHiddenWords(show);
     if (show.teamId) writeTeamShow(show);
     else personal.push(show);
   }
@@ -807,13 +849,18 @@ export function addGraphicToShow(
   }
   const template = place.name === added.name ? added : { ...added, name: place.name };
   const existing = place.replace;
+  // Adding again replaces the copy's design as it always has (an explicit act; the wizard's re-import
+  // review names what a new version does not carry over). It is a copy-truth design write, so it
+  // stamps (live-publishing G1, Terms). Update is the production page's door, which asks first.
+  const at = nowIso();
   const graphic: SavedGraphic = {
     // Replacing by name KEEPS the pool entry's id — cues reference it (ShowCue.sourceId), so
     // updating a graphic must never orphan the cues prepared against it.
     id: existing >= 0 ? show.graphics[existing].id : uuid(),
     name: template.name,
     type: template.type,
-    savedAt: nowIso(),
+    savedAt: at,
+    designAt: at,
     template,
     ...(existing >= 0 && show.graphics[existing].soundConfig ? { soundConfig: show.graphics[existing].soundConfig } : {}),
     // Its place and size in this production stay with it, as its layer does (playout adjustments).
@@ -976,44 +1023,105 @@ function writeAdjust(target: { adjust?: unknown }, patch: AdjustPatch | null): b
 }
 
 /**
- * PUBLISH REFRESHES THE PRODUCTION'S COPIES (docs/work-specs/publish-guard/spec.md G1). A pool
- * graphic whose library record this browser holds a NEWER edit of than the copy embedded here
- * takes that design, so a teammate's page, which builds from the copy, publishes it too rather
- * than reverting it. Name, id, layer and sounds stay: they are the production's. The copy takes
- * the record's edit time, never now, so the two read as the same edit. Only Publish calls it: an
- * edit reaches the production only through Publish.
+ * A PUBLISH RECORDS ITS STOPPED SHEET READERS (data-sources C6), in the write before it. A
+ * published graphic that this publish takes its own Sheet reader from (the payload the caller saw
+ * published, `publishedReaders`, has it and the copy no longer does) joins `ownReaderStops`: the
+ * output keeps an on-air graphic's old frame, reader included, until it is cleared, so no browser
+ * may bind its fields before then.
  *
- * A published graphic that this publish takes its own Sheet reader from (its copy loses it here,
- * the design's reader having been stopped in this production or another sharing it; or the payload
- * the caller saw published, `publishedReaders`, has it and the copy no longer does) is recorded in
- * `ownReaderStops` in the same write (data-sources C6): the output keeps an on-air graphic's old
- * frame, reader included, until it is cleared, so no browser may bind its fields before then.
+ * This was the second half of the publish's copy refresh. The first half, copying newer library
+ * designs into the copies, is gone: the production's copy is the only truth (live-publishing W2,
+ * designs/G1.md section 1), and a library design arrives only through Update.
  */
-export function refreshGraphicCopies(
+export function recordOwnReaderStops(
   showId: string,
-  newer: (graphic: SavedGraphic) => { template: SpxTemplate; updatedAt: string } | undefined,
   publishedReaders: ReadonlySet<string> = new Set(),
 ): { shows: Show[]; error: string | null } {
   return patchShowChecked(showId, show => {
+    if (!show.hostedSlug) return false;
+    const dropped = show.graphics.filter((g) => publishedReaders.has(g.name) && !hasLiveData(g.template.js ?? '')).map((g) => g.name);
+    const stops = [...new Set([...(show.ownReaderStops ?? []), ...dropped])];
+    if (stops.length <= (show.ownReaderStops ?? []).length) return false;
+    show.ownReaderStops = stops;
+    return true;
+  });
+}
+
+/** The fields a copy has, that `next` lacks, and that a cue of this graphic holds a value for or a
+ *  binding names: what an Update would stop showing. Their labels, in the copy's order. */
+export function droppedFields(show: Pick<Show, 'cues' | 'bindings'>, graphic: SavedGraphic, next: SpxTemplate): string[] {
+  const kept = new Set((next.fields ?? []).map((f) => f.field));
+  const cues = (show.cues ?? []).filter((c) => c.source !== 'playout' && c.sourceId === graphic.id);
+  const bound = show.bindings?.[graphic.name] ?? {};
+  return (graphic.template.fields ?? [])
+    .filter((f) => !kept.has(f.field) && (f.field in bound || cues.some((c) => (c.values?.[f.field] ?? '') !== '')))
+    .map((f) => f.title || f.field);
+}
+
+/**
+ * THE SEND-TIME SETTLE on a stored production (live-publishing G1 section 3): its copies settled
+ * against `base`, the server's copies of the same production (model/copySettle.ts). A write outside
+ * the undo history, made only when a copy changes. Answers whether one did.
+ */
+export function settleShowCopies(showId: string, base: readonly SavedGraphic[]): { shows: Show[]; error: string | null; changed: boolean } {
+  let changed = false;
+  const result = patchShowChecked(showId, (show, at) => {
+    const settled = settleGraphics(show.graphics, base, at);
+    if (!settled.changed) return false;
+    show.graphics = settled.graphics;
+    changed = true;
+    return true;
+  });
+  return { ...result, changed };
+}
+
+/**
+ * ADOPTION's write (live-publishing O5, designs/G1.md section 5; the plan is control/copyAdoption.ts):
+ * each planned copy, still unstamped and still at the `savedAt` the plan read, takes its planned
+ * design members and is stamped. The pool name stays the template's name. Outside the undo
+ * history; a write only when a copy changes.
+ */
+export function adoptShowCopies(
+  showId: string,
+  plan: Readonly<Record<string, { template: SpxTemplate; savedAt: string; graphicId?: string }>>,
+  read: Readonly<Record<string, string>>,
+): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
     let changed = false;
-    const dropped: string[] = [];
-    for (const graphic of show.graphics) {
-      const doc = newer(graphic);
-      const fresh = !!doc && Date.parse(doc.updatedAt) > Date.parse(graphic.savedAt);
-      const read = publishedReaders.has(graphic.name) || hasLiveData(graphic.template.js ?? '');
-      if (fresh) {
-        graphic.template = doc.template;
-        graphic.savedAt = doc.updatedAt;
-        changed = true;
-      }
-      if (read && !hasLiveData(graphic.template.js ?? '')) dropped.push(graphic.name);
-    }
-    const stops = show.hostedSlug ? [...new Set([...(show.ownReaderStops ?? []), ...dropped])] : [];
-    if (stops.length > (show.ownReaderStops ?? []).length) {
-      show.ownReaderStops = stops;
+    show.graphics = show.graphics.map((g) => {
+      const design = plan[g.id];
+      if (!design || (g.designAt !== undefined && g.designAt === g.savedAt) || g.savedAt !== read[g.id]) return g;
       changed = true;
-    }
+      const next: SavedGraphic = { ...g, template: { ...design.template, name: g.name }, savedAt: design.savedAt, designAt: design.savedAt };
+      if (design.graphicId === undefined) delete next.graphicId;
+      else next.graphicId = design.graphicId;
+      return next;
+    });
     return changed;
+  });
+}
+
+/**
+ * UPDATE (live-publishing O4, designs/G1.md section 2): a copy takes its library record's newer
+ * design. Only the design members change (`template`, `savedAt` = the record's edit time,
+ * `designAt` the same); the id, pool name (the template's own name is set to it), layer, place in
+ * the pool, sounds, adjustments and link stay, and no cue is touched. Refused when the copy is no
+ * longer the one the caller saw (`expectedSavedAt`), so a teammate's change is never written over.
+ */
+export function updateCopyFromLibrary(
+  showId: string,
+  graphicId: string,
+  design: { template: SpxTemplate; updatedAt: string },
+  expectedSavedAt: string,
+): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const graphic = show.graphics.find((g) => g.id === graphicId);
+    if (!graphic) return 'This graphic is no longer in the production.';
+    if (graphic.savedAt !== expectedSavedAt) return 'The graphic changed elsewhere. Look again before you update.';
+    graphic.template = { ...design.template, name: graphic.name };
+    graphic.savedAt = design.updatedAt;
+    graphic.designAt = design.updatedAt;
+    return true;
   });
 }
 
@@ -1031,6 +1139,7 @@ export function setGraphicCopyScript(showId: string, graphicId: string, from: st
     graphic.template = { ...graphic.template, js: to };
     // A changed design: the monitors rebuild on it (ProgramStage's pool signature).
     graphic.savedAt = at;
+    graphic.designAt = at;
     return true;
   });
 }
@@ -1070,6 +1179,7 @@ function patchShowChecked(
   const frozen = selectionFrozen(kept, show, undefined, write) ?? typedFrozen(typed, show, undefined, typedWrite);
   if (frozen) return { shows: loadShows(), error: frozen };
   show.updatedAt = at;
+  scrubHiddenWords(show); // W11: this tab's copy too, before the rebased pass decides the stored one
   if (!rebased || show.teamId || teamShowIds().has(showId)) return { shows: visible(), error: saveAll(all) };
   const personal = loadAllShows().map((s) => (s.id === showId ? show : s));
   rebasedDurableSet(SHOWS_KEY, JSON.stringify(personal), (current) => {
@@ -1082,6 +1192,7 @@ function patchShowChecked(
     const typedFresh = typedKeep(fresh);
     const again = mutate(fresh, at);
     if (typeof again === 'string') return { refused: again };
+    if (again) scrubHiddenWords(fresh); // W11, on the stored record this pass lands on
     const frozenFresh = again ? (selectionFrozen(keptFresh, fresh, undefined, write) ?? typedFrozen(typedFresh, fresh, undefined, typedWrite)) : null;
     if (frozenFresh) return { refused: frozenFresh };
     if (again) fresh.updatedAt = at;
@@ -2251,10 +2362,11 @@ function applyBindings(show: Show, entries: BindingEntry[]): { changed: boolean;
  * holds back for the published output (model/ownReaderHolds.ts): a frame that may still run the
  * reader after Publish.
  */
-export function ownSheetGraphics(show: Pick<Show, 'graphics' | 'hostedSlug' | 'ownReaderStops'>, library: GraphicDoc[]): Set<string> {
+export function ownSheetGraphics(show: Pick<Show, 'graphics' | 'hostedSlug' | 'ownReaderStops'>, _library?: GraphicDoc[]): Set<string> {
   const out = new Set<string>(publishedReaderStops(show));
+  // The copy is what plays (live-publishing G1 section 1), so only its script counts.
   for (const g of show.graphics) {
-    if (hasLiveData(g.template.js ?? '') || hasLiveData(resolveSavedGraphicDoc(g, library)?.template.js ?? '')) out.add(g.name);
+    if (hasLiveData(g.template.js ?? '')) out.add(g.name);
   }
   return out;
 }
@@ -2502,6 +2614,24 @@ export function setShowQuestions(
   }, true);
 }
 
+/**
+ * Hide a Word question's word, or show it again (interaction phase 6, W6), in ONE rebased write.
+ * Hiding also takes the word out of the question's word cloud cue when it has one, so a word hidden
+ * after "Add word cloud to rundown" never airs with the next Take. Showing it again changes only the
+ * list: the next press puts it back with its count. A record write; nothing airs.
+ */
+export function setShowWordHidden(showId: string, questionId: string, key: string, hide: boolean): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const before = readQuestions(show.questions);
+    const next = setWordHidden(before, questionId, key, hide);
+    const listed = JSON.stringify(next) !== JSON.stringify(before);
+    if (listed) show.questions = next;
+    // W6, W11: off every cue that carries the question's words, on the record this write lands on.
+    const scrubbed = scrubHiddenWords(show);
+    return listed || scrubbed;
+  }, true);
+}
+
 /** Change the phone page's title or waiting text (Show.joinPage). An empty value means the default
  *  and is not stored. */
 export function setShowJoinPage(showId: string, patch: { title?: string; waiting?: string }): { shows: Show[]; error: string | null } {
@@ -2518,6 +2648,72 @@ export function setShowJoinPage(showId: string, patch: { title?: string; waiting
     else delete show.joinPage;
     return true;
   }, true);
+}
+
+/**
+ * "Add results to rundown" and Stop's final counts (interaction phase 3, S1 to S9): write a
+ * question's result into its one result cue, deciding update or add on the production as stored
+ * NOW (a rebased write, S4), so a second press, another tab or a synced second operator updates the
+ * cue the first press made. `valuesFor` gives the result values for a graphic's fields, or null when
+ * it cannot take them. `chosen` is a graphic the operator just picked, remembered in the same
+ * write; `adopt` is a cue already on that graphic (a catalog board's seeded cue) to use as the
+ * result cue instead of adding one. `closeOnly` (Stop, S7) writes only into an existing result cue
+ * and never adds. Only result values are written (S9). Nothing airs: this writes the record.
+ */
+export function stageShowResult(
+  showId: string,
+  questionId: string,
+  opts: {
+    valuesFor: (fields: readonly { field: string; title?: string }[]) => Record<string, string> | null;
+    label: string;
+    chosen?: string | null;
+    adopt?: string | null;
+    closeOnly?: boolean;
+    /** Which remembered graphic a pick is kept in: a vote's (default) or a word cloud's. */
+    target?: ResultTargetKey;
+  },
+): { shows: Show[]; error: string | null; outcome: () => { plan: ResultPlan | null; cueId: string | null } } {
+  // The write is REBASED: the mutator runs on this tab's copy, then again on the stored record when
+  // the write lands, so it must give the same answer for the same record. The new cue's id is made
+  // once, here, and `outcome` reads what the LAST run decided, which after commitDurableWrites is
+  // the stored write's (S15).
+  let plan: ResultPlan | null = null;
+  let cueId: string | null = null;
+  const newId = uuid();
+  const takes = (fields: readonly { field: string; title?: string }[]) => opts.valuesFor(fields) !== null;
+  // Stop's close-only write must reach the stored record even when this tab's copy has no link
+  // yet (S13): its first pass then changes nothing but still returns true, so the rebased pass
+  // runs and decides. A team production is not rebased (its merge carries the link), so it skips.
+  let firstPass = true;
+  const rebasedHere = (show: Show) => !show.teamId && !teamShowIds().has(showId);
+  const { shows, error } = patchShowChecked(showId, (show) => {
+    const local = firstPass;
+    firstPass = false;
+    const p = planResultCue(show, questionId, takes, opts.chosen, opts.target);
+    plan = p;
+    cueId = null;
+    if (opts.closeOnly && p.kind !== 'update') return local && rebasedHere(show);
+    if (p.kind === 'choose') return false;
+    const graphic = show.graphics.find((g) => g.id === p.graphicId)!;
+    const values = opts.valuesFor(graphic.template.fields ?? [])!;
+    let cue = p.kind === 'update' ? show.cues?.find((c) => c.id === p.cueId) : undefined;
+    if (!cue && opts.adopt) cue = show.cues?.find((c) => c.id === opts.adopt && c.sourceId === graphic.id);
+    // A catalog board's seeded cue that this write does not use goes with it: one press, one cue.
+    if (opts.adopt && cue?.id !== opts.adopt) show.cues = (show.cues ?? []).filter((c) => c.id !== opts.adopt);
+    if (cue) {
+      cue.values = { ...cue.values, ...values };
+      if (p.kind === 'add') cue.label = opts.label;
+    } else {
+      cue = { id: newId, sourceId: graphic.id, label: opts.label, values: { ...seedValues(graphic.template.fields), ...values } };
+      show.cues = appendCue(show.cues ?? [], cue);
+    }
+    cueId = cue.id;
+    show.resultCues = { ...readResultCues(show.resultCues), [questionId]: cue.id };
+    // An explicit pick is remembered, whether it added a cue or landed on the one already there (S5).
+    if (opts.chosen && takes(show.graphics.find((g) => g.id === opts.chosen)?.template.fields ?? [])) show[opts.target ?? 'resultTarget'] = opts.chosen;
+    return true;
+  }, true);
+  return { shows, error, outcome: () => (error ? { plan: null, cueId: null } : { plan, cueId }) };
 }
 
 /** Remember where messages go (Show.messageTarget), or forget it with `null`. Part of a prepare,
@@ -2837,6 +3033,27 @@ export function purgeOldShowTombstones(beforeIso: string): void {
   const all = loadAllShows();
   const kept = all.filter((s) => !s.deleted || s.updatedAt >= beforeIso);
   if (kept.length !== all.length) saveAll(kept);
+}
+
+/** The OBS scenes switch (OS1a R2). Turning it off keeps every folder's scene flag. */
+export function setShowObsScenes(showId: string, on: boolean): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    if (!!show.obsScenes === on) return false;
+    if (on) show.obsScenes = true;
+    else delete show.obsScenes;
+    return true;
+  });
+}
+
+/** Make a folder an OBS scene, or a plain folder again (OS1a R1). Its id is the scene id. */
+export function setFolderObsScene(showId: string, folderId: string, on: boolean): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const folder = folderOf(show, folderId);
+    if (!folder || !!folder.obsScene === on) return false;
+    if (on) folder.obsScene = true;
+    else delete folder.obsScene;
+    return true;
+  });
 }
 
 /** Display metadata only. Callers reporting success await commitDurableWrites. */

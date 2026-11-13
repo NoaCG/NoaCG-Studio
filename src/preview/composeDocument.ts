@@ -374,6 +374,50 @@ window.addEventListener('unhandledrejection', function (ev) {
   function drain() {
     while (!waiting && backlog.length > 0) run(backlog.shift());
   }
+  /* A SETTLED TAKE (obs-scenes OS1a R9), run in the same task as play(), so no frame of the entrance
+     is ever drawn. A machine is snapped to the pose the Take reached, timers armed, which is how a
+     restart puts a graphic back: its loops, clocks and rotations keep running. Without a machine,
+     every running animation that has an end is jumped to it; an endless one keeps running. */
+  function settleOnAir() {
+    try {
+      var state = typeof window.noacgSnap === 'function' && typeof window.noacgMachineState === 'function' ? window.noacgMachineState() : null;
+      if (state && state.groups) {
+        window.noacgSnap(state.groups, { timers: true });
+        /* The snap clears every inline style under the root, the data's own with them (a value's
+           fitted size): the values go back on, as a restart's recovery restates them after its snap. */
+        if (lastData != null && window.update) window.update(lastData);
+        return;
+      }
+      /* GSAP reports anything holding an endless child at its 1e10 s sentinel (settleGraphic.ts):
+         such a timeline goes to the end of its finite motion and keeps playing its loops there;
+         everything else, repeats included, goes to its very end. */
+      var gsap = window.gsap;
+      if (gsap && gsap.globalTimeline && gsap.globalTimeline.getChildren) {
+        var kids = gsap.globalTimeline.getChildren(false, true, true);
+        for (var i = 0; i < kids.length; i++) {
+          var kid = kids[i];
+          var total = kid.totalDuration();
+          if (isFinite(total) && total < 1e9) {
+            kid.totalProgress(1);
+          } else if (kid.getChildren) {
+            var end = 0;
+            var parts = kid.getChildren(false, true, true);
+            for (var j = 0; j < parts.length; j++) {
+              var part = parts[j].totalDuration();
+              if (isFinite(part) && part < 1e9) end = Math.max(end, parts[j].startTime() + part);
+            }
+            if (kid.time() < end) kid.time(end);
+          }
+        }
+      }
+      if (document.getAnimations) {
+        document.getAnimations().forEach(function (a) {
+          var end = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming().endTime : Infinity;
+          if (isFinite(end) && a.playState === 'running') a.finish();
+        });
+      }
+    } catch (e) {}
+  }
   function afterFonts(cb) {
     waiting = true;
     waitFonts(function () {
@@ -564,6 +608,7 @@ window.addEventListener('unhandledrejection', function (ev) {
           }
           if (builder) keepRest();
           window.play && window.play();
+          if (msg.settled) settleOnAir();
         } catch (e) {}
         report(window);
       });

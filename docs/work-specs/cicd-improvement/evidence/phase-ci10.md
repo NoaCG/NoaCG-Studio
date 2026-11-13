@@ -152,6 +152,13 @@ every pull request plan that selects them, which the inventory measured at 11 to
 It also takes one 3.5-table-minute spec out of the packer's input; the durations table keeps
 `editor-command-task` at 2.92 until its next refresh records the merged file.
 
+**Refresh checked (cicd-followup cf15, #1920 item 3):** the next refresh, `e54c0896` (re-recorded
+from run 41447757102, `recordedAt` 2026-11-02, landed with #1503 at `d97509d0` on 2026-11-04),
+reads `editor-command-task.spec.ts` at **4.918 minutes** and no longer lists
+`editor-proposal-task.spec.ts`. That is about 0.5 minutes above the "about 4.4" expected here; the
+table is a full-run measurement and is not hand-edited. The comparable full-shard Actions figure
+(#1920 item 2) is owned by cicd-followup cf18 and is not recorded here.
+
 Growth controls, `node scripts/e2e-capacity.mjs --changed origin/main`: execution reads 158.3 table-minutes on this branch against 161.7 on
 `main` (-3.4: the deleted file's 3.47, with the merged spec still read at its old 2.92 until the table
 refresh, when it should read about 1.5 more, for a net of about -1.6 table-minutes). Per tier: offline
@@ -192,6 +199,13 @@ commit of this PR is the latest actual reset, replacing `06d3836c` (ci07, 2026-1
 the 14-day clock restarts at this merge, a few hours after the last one. No commit carries a
 `Selection-audit-reset` trailer. Row completion alone does not reset or begin the clock; the merge
 commit's landing does, and the coordinator records its SHA and time from the reader.
+
+**Recorded after landing (cicd-followup cf15, #1920 item 1):** the merge commit is
+`c2ca020a7670ac6a7f2e99150aec9a5108d1e6c6`, 2026-11-01T14:12:39Z. `node
+scripts/e2e-selection-misses.mjs resets --ref c2ca020a7670ac6a7f2e99150aec9a5108d1e6c6` reads it as
+the latest reset ("protection removed or changed: 1 covers line(s)"), and `--ref c2ca020a^1` reads
+`06d3836c` (2026-11-01T07:53:03Z), so this merge replaced ci07's reset as predicted. It was itself
+superseded by `8e84002d` (ci11), as phase-ci15.md section 2 records.
 
 ## 8. Decisions and traps
 

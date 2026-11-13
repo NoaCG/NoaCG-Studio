@@ -188,7 +188,7 @@ channel or layer: a movie or a still plays in `NoaCG Clips`, an audio file in `N
 
 | NoaCG | vMix, on the player input by key |
 |---|---|
-| Take | `LoopOn` or `LoopOff` as the cue's ending says, and `AutoPlayNextOff` (both are settings of the input, not of an item, so every Take sets both, measured: research §7); `SetAlpha 255`, `SetVolume` and `SetGain` for the cue's level (gain 0 when the level is at or below 0 dB), all reset on every Take because they too stay on the input; `ListAdd` the file, `SelectIndex` to it, `Play`; read back until that item is `Running`. A trimmed Take differs, because `SelectIndex` on a running list starts the new item at once while the XML still shows the old one for about 0.3 s (research §8), so seeking after that read would air the file's first 0.3 s: it sends `Pause` first, then `ListAdd` and `SelectIndex`, waits until the XML shows the new item selected, `SetPosition` to the in point, and only then `Play`. No frame before the in point may air; if V6's Program snapshots show the paused new item's first frame during that wait, the Take also sets `SetAlpha 0` from before `SelectIndex` until the seek is done (a cut through black of about 0.3 s, recorded); then `ListRemove` the items before it. Replacing in that order keeps the old clip on screen until the new one plays, as CasparCG's `PLAY` does, where `ListRemoveAll` first would flash black (measured, research §8 and §10); V3 measures it, and falls back to `ListRemoveAll` first if removing earlier items disturbs the one playing |
+| Take | Send `AutoPlayNextOff` before `ListAdd` and verify the ordered append and current occurrence. On the populated input, send `LoopOn` or `LoopOff` as the cue's ending says and `SetAlpha 255`. vMix acknowledges Loop on an empty list without applying it. Observe the requested loop on the current occurrence before `SelectIndex`. Confirm the requested occurrence before `Play`, then read back until it is `Running`. Take also resets `SetVolume` and `SetGain` where cue levels are supported (gain 0 when the level is at or below 0 dB). A trimmed Take differs, because `SelectIndex` on a running list starts the new item at once while the XML still shows the old one for about 0.3 s (research §8), so seeking after that read would air the file's first 0.3 s: it sends `Pause` first, then `ListAdd` and `SelectIndex`, waits until the XML shows the new item selected, `SetPosition` to the in point, and only then `Play`. No frame before the in point may air; if V6's Program snapshots show the paused new item's first frame during that wait, the Take also sets `SetAlpha 0` from before `SelectIndex` until the seek is done (a cut through black of about 0.3 s, recorded); then `ListRemove` the items before it. Replacing in that order keeps the old clip on screen until the new one plays, as CasparCG's `PLAY` does, where `ListRemoveAll` first would flash black (measured, research §8 and §10); V3 measures it, and falls back to `ListRemoveAll` first if removing earlier items disturbs the one playing |
 | Fade in | the Take starts at `SetAlpha 0` and volume 0, then the Bridge steps `SetAlpha` up once per frame and sends `SetVolumeFade` to the cue's level over the fade. One input shows one file, so a fade in from a clip that was playing goes through black, where CasparCG's `MIX` crossfades |
 | Trim | in point: `SetPosition` before `Play`; out point: the Bridge's clip timer acts there (below), since marks do nothing on a list (measured) |
 | At the end: Hold (default) | untrimmed: vMix holds the last frame (`Completed`); trimmed: `Pause` at the out point |
@@ -243,24 +243,26 @@ named in its own configuration; vMix has none (documented absence). So:
 
 ### What Load and Unload need beyond studio UI
 
-The Bridge half is on `main` (slice 1, `@noacg/cli` 0.11.0) but in no Bridge download (the latest
-is `bridge-v0.9.0`). The studio needs: to read `/health` `adapters` (nothing reads it today), a
-target-aware request layer (`targetOf` and `slotOf` in `src/control/playoutLink.ts` return
-CasparCG only), the production's title as the item's `label` (the vMix adapter refuses a url
+The Bridge half from slice 1 shipped in `bridge-v0.10.0`, ahead of the studio controls. The studio
+needs `/health` `adapters`, a target-aware request layer, the production's title as the item's
+`label` (the vMix adapter refuses a URL
 without one), the setup sentences for `not-running` and `not-vmix` (`AgentError.setup` is read
 nowhere in `src/`), the `/state` overlays read for the row's state, and a release.
 
-One Bridge gap: Load (the adapter's Put on air) reuses an existing `NoaCG <title>` Browser
-input by its name alone (`cli/src/playout/adapters/vmix.ts`), so two productions with one title
-share an input, and an input made from a development server keeps that address. V2 fixes it by
-identity, not by title: the output address carries the production's slug, which is stable and
-unique, so the Bridge remembers the key of the input it made for each address (without the
-`&name=` part) in `vmix-outputs.json` beside its token. Load and Unload find the output by that
-key, so a renamed production still unloads and its input is renamed to the new title. An input
-of the same name that the Bridge did not make for this address is never reused: Load adds a new
-input named `NoaCG <title> (2)`. A key vMix no longer lists (a new session with another preset)
-is forgotten, and Load adds the input again. If vMix's XML turns out to name a Browser input's
-address (V2 measures it), that check is added; it is not relied on.
+V2 replaces title-based matching. The Bridge remembers the key of the Browser it made for
+each unique output address (without the `&name=` part) in `vmix-outputs.json` beside its token.
+The key identifies the Browser on a particular overlay for Unload, even after a production
+rename. Supported Browser navigation can change the live page while keeping its key, title
+and type. The owner approved refusing Load whenever a kept key is present and the Bridge
+cannot verify the current page. This version has no live page readback for a kept Browser.
+A fresh Load names a new input by the current production title, adding a suffix when needed.
+
+Owner-approved after the V2 preset prototype. Each AddInput uses a fresh, unpredictable local
+Bridge address that redirects to the exact NoaCG output URL. vMix exposes the unique hostname
+in XML and keeps the local address in saved presets. The Bridge keeps the redirect authorization
+as a digest and owns the input only after an acknowledged AddInput and exact marked Browser
+readback. Start Bridge on its original local port before opening a saved vMix preset. If Bridge
+starts late, reload that Browser input in vMix. Starting Bridge sends no mixer commands.
 
 ### One Bridge for every playout system
 
@@ -517,33 +519,43 @@ switch offers Update.
 
 ### AC-4: Load and Unload drive the output input
 
-Load (the adapter's Put on air) creates `NoaCG <title>` as a Browser input on the output URL (or
-reuses the one the Bridge made for this address, by the key it kept) and puts it on the chosen
-overlay by key; Unload (Take off) takes it off with the channel's transition, and sends nothing
-when the channel holds another input or none; Program and Preview are never addressed; every
-function that takes an input names it by key. Two productions with one title get two inputs
-(`(2)` on the second); a production renamed while loaded still unloads, and its input takes the
-new name; an input the Bridge did not make for this address is never reused; a kept key vMix no
-longer lists is forgotten and the input made again.
+Load (the adapter's Put on air) creates and verifies a fresh marked `NoaCG <title>` Browser
+for the output URL, then puts it on the chosen overlay by key. Load refuses any present kept
+key when Bridge cannot verify the current page, with no mixer function or key write. A key
+vMix no longer lists permits a new Browser, after the overlay check, with a new key and alias.
+The saved alias keeps rendering through the original Bridge port. Unload (Take off) uses the
+channel's transition when a fresh read confirms the selected overlay still holds the matched
+Browser, including after a production rename. A panel Unload carries the displayed overlay
+and input key so that a move or replacement after the click cannot redirect it. An empty overlay or one with another input
+receives no command. Unload leaves the Browser name as it is. Program and Preview are never
+addressed, and every function that takes an input names it by key. Two productions with one
+title get two inputs (`(2)` on the second). An input the Bridge did not make for this address
+is never reused.
 
 ### AC-5: Load and Unload on the production
 
 Choosing **vMix via Bridge** turns CasparCG off for the production and back; **Load** sends one
 `take` of the output URL named `vMix Overlay <n>` with the production's title as `label` on
-`{ adapter: 'vmix', overlay: n }`; the row then reads on air from `/state`; **Unload** sends `out`
-with the same item; a channel holding another input asks before replacing it and sends nothing on
-Cancel; a Bridge error with a `setup` shows its sentence; first publish loads only when the
-operator switched vMix on; with vMix chosen, a CasparCG cue is disabled with the reason.
+`{ adapter: 'vmix', overlay: n }`. From `/state`, the row shows the actual overlay holding the
+matched Browser as **Source unverified**. **Unload** sends `out` with the same item and the
+displayed overlay and input key, including after a change to the configured channel. A stale
+row cannot unload a different input or overlay. A present kept input blocks Load.
+When Load can create a new Browser, a channel holding another input asks before replacing it
+and sends nothing on Cancel. A Bridge error with a `setup` shows its sentence. First Publish
+loads only when the operator switched vMix on. With vMix chosen, a CasparCG cue is disabled
+with the reason.
 
 ### AC-6: A Bridge release carries each usable step
 
-Each of phases V2, V5, V6 and V7 lands a `cli/BRIDGE_CHANGELOG.md` section for a version the
-release workflow accepts, written for the operator (what was missing, what it does now, what to
-do), and the release workflow publishes that version's exe; `docs/BRIDGE.md` describes the vMix
-adapter as built so far. V2 releases 0.12.0 (its output identity changes the Bridge, and npm
-already shipped 0.11.0); its section covers every Bridge change since 0.9.0, which is the vMix
-adapter. Every version is bumped the way `Release @noacg/cli 0.11.0` (`2128d984d`) did, every
-file it touched, with a `cli/CHANGELOG.md` section (`cli/test/release-notes.test.mjs` requires one).
+Each of V2, V5, V6 and V7 publishes a Windows Bridge exe from its landed commit, under its own
+accepted Bridge version. Choose the next appropriate `bridgeVersion` in `cli/package.json` from
+main and the published releases. Add the operator release notes at the top of
+`cli/BRIDGE_CHANGELOG.md` and document the adapter as built so far in `docs/BRIDGE.md`. V2's
+notes account for vMix Bridge changes since 0.9.0 and link to earlier published notes where
+applicable. Follow the independent Bridge release procedure in `docs/BRIDGE.md` with
+`release-bridge.yml`. The CLI version, lockfile, npm publication and CLI changelog stay at their
+own release cadence. Before PASS, verify the workflow and download on the exact merge SHA.
+While the #1967 hold applies, wait for the CI/CD coordinator's posted release before queueing.
 
 ### AC-7: Failure never airs anything twice
 
@@ -660,19 +672,23 @@ evidence; it starts vMix itself only when that evidence is missing or contradict
    request's CI.
 2. **V2. vMix in Settings and on the production, and the first Bridge download** (AC-3, AC-4,
    AC-5, AC-6; the review also records AC-1 from `evidence/slice-1.md`; **real vMix**: whether
-   the XML names a Browser input's address, then the built exe with Load and Unload from the dev
-   server's production page and the snapshot of Program with the output on Overlay 8).
+   the XML can verify the Browser's current page after native navigation, then the built exe
+   with Load and Unload from the dev server's production page and the snapshot of Program with
+   the output on Overlay 8).
    Files: `src/control/playoutLink.ts` (requests with an explicit target and slot, `adapters` from
-   `/health`, `vmix` settings), a new pure `src/control/vmixPlayout.ts` (the default channel, the
-   setup sentences, the row's words) with `scripts/vmix-playout.test.mjs`,
-   `src/components/PlayoutSettingsPanel.tsx` with a new `VmixSettingsSection.tsx`,
+   `/health`, `vmix` settings), `src/control/vmixSetup.ts` (the default channel, scoped reading
+   and output actions) with `scripts/vmix-setup.test.mjs`,
+   `src/components/PlayoutSettingsPanel.tsx` and `PlayoutSettingsDialog.tsx`,
    `src/components/home/PlayoutPanel.tsx` (`VmixSection`), `src/components/home/ProductionPage.tsx`
    (wiring only, no new logic), `src/components/home/CueRundown.tsx` (the reason a CasparCG cue
    is disabled when vMix is chosen; today it says to switch CasparCG on),
-   `src/components/BridgePairPage.tsx`, `src/control/playoutStatus.ts`,
-   `e2e/_fakeBridge.ts` and the vMix journeys in `e2e/bridge-connect.spec.ts`,
-   `cli/src/playout/adapters/vmix.ts`, a new `cli/src/playout/vmixOutputs.ts` (the kept keys),
-   `cli/test/_fakeVmix.mjs` and `cli/test/vmix.test.mjs` (the output identity only),
+   `src/components/BridgePairPage.tsx`, `src/control/takeBlockers.ts`, and the first Publish
+   wiring in `src/components/home/useProductionPublish.ts`. The vMix journeys extend
+   `e2e/_fakeBridge.ts`, `e2e/bridge-connect.spec.ts` and `e2e/publish-output-setup.spec.ts`.
+   `cli/src/commands/bridge.ts`, `cli/src/playout/adapters/vmix.ts`, and a new
+   `cli/src/playout/vmixOutputs.ts` (the kept keys),
+   `cli/src/playout/vmixTcp.ts` (strict vMix XML), `cli/src/playout/servers.ts` and the mirrored
+   playout protocol (shared wire rules), `cli/test/_fakeVmix.mjs` and `cli/test/vmix.test.mjs` (the output identity only),
    `cli/BRIDGE_CHANGELOG.md` and the version bump of AC-6, `docs/BRIDGE.md` (the vMix adapter
    table and the "Nearly stateless" row), `docs/PLAYOUT_INTEGRATION.md` §5, `evidence/phase-v2.md`.
 3. **V3. The players and the media folder in the Bridge** (AC-7, AC-8, AC-9; **real vMix**: Take,
@@ -856,3 +872,10 @@ Verification and rollback are in [phase V1 evidence](evidence/phase-v1.md).
 - The page sends a level as a linear gain (`MediaPlayback.gain`), never dB.
 - `SetVolumeFade` moves the fader linearly, which is a fourth-power fade in gain: a different shape
   from CasparCG's. V6 records it and decides whether the Bridge steps the volume itself instead.
+
+
+### V3 build notes
+
+V3 adds the Bridge's two Video List players and local media-folder routes under AC-7 through AC-9. The players share the existing per-port TCP turn with overlays. Accepted commands require observable readback, and unknown function outcomes stop without resending. The media folder comes only from the local picker, with a durable per-port setup and bounded relative paths. Studio media controls, clip timing, sequences and release remain in their later phases.
+
+The starting verified main, Rules-first review, implementation choices, partial-action behavior, verification and revert instruction are recorded in `evidence/phase-v3.md`.

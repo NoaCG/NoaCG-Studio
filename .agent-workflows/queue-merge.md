@@ -74,6 +74,11 @@ presence, or a successful scheduling call do not prove this.
   post-landing results. Do not end at “queued” or claim that anything watches after the session
   ends. A restart or unavailable scheduler is an explicit qualification gap, never a silent handoff.
 
+The backstop, not a wake: a ready PR whose CI gate is red with no re-run or comment by a person
+for 60 minutes (at once when no owner is recorded and the failure is a merge group's or the PR is a bot's) is listed
+in the owner alarm `Red pull requests nobody is repairing` (`scripts/repair-wake.mjs`), checked after
+each landing and at each plan-run check-in.
+
 The wake prompt names the PR, branch, worktree (or reconstruction from origin), and this procedure.
 It reads current head/checks, failed job logs, mergeability, auto-merge and queue entry, plus the
 merge SHA's CI and post-land runs. Red checks or conflicts follow the repair paragraph and section
@@ -101,6 +106,10 @@ jobs re-run on the same commit (`gh run rerun <run> --failed`), is a flake: quar
 refuses GraphQL, drop `--queue`, enter it on its own branch from `origin/main`, never this one, and
 land that branch through the cloud path below). Ask the owner only when the
 fix needs a product decision or a change well outside the pull request's scope.
+
+**A gate red only with "Landing hold" is not a failure to repair.** Spend no attempt and push
+nothing for it; after the hold lifts, re-run the failed `CI gate` job and queue again
+(`docs/LANDING_HOLD.md`). Never close or unlabel the hold issue to get a gate green.
 
 ## 4. When a landing is refused, reconcile and queue again
 
@@ -150,6 +159,9 @@ operation by evidence, not the provider name. No laptop daemon is needed.
    `/check` and `npm run stamp` on the resulting tip. Push only task files and open/reuse its PR
    with `scripts/pr-description.mjs`. Retain the full reviewed SHA. Disposable failure probes
    stay draft with no `land` label, auto-merge or queue entry.
+   **One push per review round.** Fix every finding of a round, from every reviewer, in one push.
+   Do not push while your head's CI is running; once it has finished red, push one fix for every
+   failure it reported (verify.md section 3). Each push cancels the running run and starts anew.
 3. If status writes work, post `noacg/reviewed` on that SHA from the actual passing check and add
    `land`. Otherwise dispatch `.github/workflows/cloud-queue-merge.yml` **on main** with `branch`,
    `sha` and the actual review verdict. Observe existing verification first (verify.md);

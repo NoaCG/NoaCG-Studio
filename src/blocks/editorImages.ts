@@ -1,4 +1,6 @@
 import type { AssetFile, SpxTemplate } from '../model/types';
+import { hasLoopRuntime } from '../templates/shared/animRuntime';
+import { withPlacedLayer } from './animEdit';
 import { isDataUrl, isImageAsset, parseDataUrl, uniqueAssetPath } from '../assets/assetUtils';
 import { referenceCount } from '../assets/assetInfo';
 import { artworkNode, artworkRange } from './artworkEdits';
@@ -136,18 +138,7 @@ export function placeGraphicImage(template: SpxTemplate, path: string, geometry:
   next = replaceGraphicImage(next, selector, path);
   const data = losslessAnimData(next.js);
   if (!data) throw new Error('This source has no supported layer timeline that the writer can preserve exactly. Its code is preserved.');
-  const stored = Math.round(time * data.speed * 1000) / 1000;
-  let elapsed = 0;
-  const steps = data.steps.map(step => {
-    const duration = step.duration, local = Math.max(0, stored - elapsed);
-    // The format stores positive intervals at millisecond precision. At an arriving hold,
-    // include its last stored millisecond so the new layer is visible at the held endpoint.
-    const start = Math.abs(local - duration) < 1e-6 ? Math.max(0, duration - .001) : local;
-    elapsed += duration;
-    return { ...step, layers: { ...step.layers, [selector]: { opacity: [{ time: 0, value: 1, ease: 'none' }] } },
-      spans: { ...step.spans, [selector]: start >= duration ? [] : [{ start, end: duration }] } };
-  });
-  const js = spliceAnimData(next.js, { ...data, steps });
+  const js = spliceAnimData(next.js, withPlacedLayer(data, selector, time, hasLoopRuntime(next.js)));
   if (js === null) throw new Error('The layer timeline cannot be preserved.');
   return { template: { ...next, js }, selector };
 }
