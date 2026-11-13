@@ -2,10 +2,10 @@ import { expect, type Page, type Locator } from '@playwright/test';
 import type { SpxTemplate } from '../src/model/types';
 import { settleDurableWrites } from './_durable';
 
-export const source = (page: Page): Promise<SpxTemplate> => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
-export const selected = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts);
+export const source = (page: Page): Promise<SpxTemplate> => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+export const selected = (page: Page) => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts);
 export const inspection = (page: Page) => page.evaluate(async () => {
-  const result = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect();
+  const result = (await __noacgImport('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect();
   if (!result.ok) throw Error(result.refusal.message); return result;
 });
 export const row = (page: Page, selector: string) => page.locator(`.ef-track:not(.ef-property-track)[data-selector="${selector}"]`);
@@ -14,7 +14,7 @@ export async function frame(page: Page) { return (await (await page.locator('ifr
 export async function ready(page: Page) {
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
   await expect.poll(() => page.evaluate(async () => {
-    const view = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
+    const view = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
     const node = document.querySelector('[data-testid=foundation-canvas]')!;
     return Math.abs(Number(node.getAttribute('data-pose-time')) - view.time) < .00001 && node.getAttribute('data-pose-cue') === String(view.cue ?? 'arriving');
   })).toBe(true);

@@ -23,11 +23,11 @@ async function template(page: Page, data: AnimData, artwork = box, out = 'manual
   const html = '<!doctype html><html><head><link rel="stylesheet" href="css/template.css"><script src="js/gsap.min.js"></script><script src="js/template.js"></script></head><body><div class="loop-fixture imported-design-box">' +
     artwork + '<div id="score" data-gfx><span id="f0">0</span></div><div id="late" data-gfx>Reveal</div></div></body></html>';
   return page.evaluate(async ({ data, html, css, out }) => {
-    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
-    const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
-    const { runtimeJs } = await import('/src/templates/shared/base.ts');
-    const { replaceDefinitionInHtml } = await import('/src/model/spxDefinition.ts');
-    const { spxSteps } = await import('/src/blocks/animMachine.ts');
+    const store = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const { emitAnimRegion } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { runtimeJs } = await __noacgImport('/src/templates/shared/base.ts');
+    const { replaceDefinitionInHtml } = await __noacgImport('/src/model/spxDefinition.ts');
+    const { spxSteps } = await __noacgImport('/src/blocks/animMachine.ts');
     const settings = { ...store.template.settings, steps: String(spxSteps(data)), out };
     const fields = [{ field: 'f0', ftype: 'textfield' as const, title: 'Score', value: '0' }];
     return { ...store.template, name: 'Loop fixture', settings, fields, layers: [], fps: 25,
@@ -38,15 +38,15 @@ async function template(page: Page, data: AnimData, artwork = box, out = 'manual
 
 async function apply(page: Page, input: SpxTemplate) {
   await evaluateInPage(page, async template => {
-    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(template, { resetSampleData: true });
+    (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(template, { resetSampleData: true });
   }, input);
   await ready(page);
 }
 
 function anim(page: Page) {
   return page.evaluate(async () => {
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const t = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template;
     return parseAnimData(t.js)!;
   });
 }
@@ -141,8 +141,8 @@ export async function authorLocalLoops(page: Page, testInfo: TestInfo) {
   const repeated = { repeat: 1, repeatDelay: .25, range: [.1, 1.1], phase: .25 };
   await expect.poll(async () => (await anim(page)).steps[0].loops?.['#box']).toEqual({ x: repeated, opacity: repeated });
   await expect.poll(async () => page.evaluate(async () => {
-    const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
-    return (await import('/src/components/editorFoundation/timelineView.ts')).readTimeline(session.port.read()).segments[1].start;
+    const session = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    return (await __noacgImport('/src/components/editorFoundation/timelineView.ts')).readTimeline(session.port.read()).segments[1].start;
   })).toBeCloseTo(2.1, 6);
   await local.focus();
   await local.press('End');
@@ -190,9 +190,9 @@ export async function scrubSvgLoop(page: Page) {
 
 async function built(page: Page, t: SpxTemplate, target: string, usage?: GraphicUsage) {
   return page.evaluate(async ({ t, target, usage }) => {
-    if (target === 'simulator') return { html: (await import('/src/preview/composeDocument.ts')).composeDocument(t, { simulate: true }) };
-    if (target === 'single-file') return { html: await (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(t) };
-    const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(entry => entry.id === target)!.build(t, usage ? { graphicUsage: usage } : undefined);
+    if (target === 'simulator') return { html: (await __noacgImport('/src/preview/composeDocument.ts')).composeDocument(t, { simulate: true }) };
+    if (target === 'single-file') return { html: await (await __noacgImport('/src/export/selfContained.ts')).composeSelfContainedHtml(t) };
+    const zip = await (await __noacgImport('/src/export/registry.ts')).EXPORT_TARGETS.find(entry => entry.id === target)!.build(t, usage ? { graphicUsage: usage } : undefined);
     return { files: Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(name => !zip.files[name].dir).map(async name =>
       [name.slice(name.indexOf('/') + 1), await zip.file(name)!.async('base64')]))) as Record<string, string> };
   }, { t, target, usage });
@@ -338,7 +338,7 @@ export async function playLoopOutputs(page: Page) {
   await page.clock.runFor(100);
   await ready(page);
   const elapsed = await page.evaluate(async () => {
-    const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
+    const { activeEditorSession } = await __noacgImport('/src/components/editorFoundation/documentAdapter.ts');
     const session = activeEditorSession();
     return session.port.view().time - 1.72;
   });
@@ -367,10 +367,10 @@ export async function playLoopOutputs(page: Page) {
   await seek(page, 1.8);
   await pose(page, 20, 1, 130);
   const flag = await page.evaluate(async () => {
-    const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const session = (await __noacgImport('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
     const template = session.port.read();
-    const { readTimeline } = await import('/src/components/editorFoundation/timelineView.ts');
-    const { authoringPosition } = await import('/src/components/editorFoundation/animationAuthoring.ts');
+    const { readTimeline } = await __noacgImport('/src/components/editorFoundation/timelineView.ts');
+    const { authoringPosition } = await __noacgImport('/src/components/editorFoundation/animationAuthoring.ts');
     const bars = readTimeline(template).bars.filter(bar => bar.step === 0);
     return { barEnd: bars.find(bar => bar.selector === '#score')?.end,
       hideEnd: bars.find(bar => bar.selector === '#late')?.end, position: authoringPosition(template, '#score', 1.8) };
@@ -407,11 +407,11 @@ async function verifyLoopCompositionEdits(page: Page) {
   const data = fixture();
   const input = await template(page, data, box + '<div id="spare" data-gfx></div>');
   const result = await page.evaluate(async original => {
-    const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
-    const { anchorKeyReason, applyAnimation, applyKeyPaste, captureKeyClipboard } = await import('/src/blocks/editorAnimation.ts');
-    const { createPath } = await import('/src/blocks/editorPaths.ts');
-    const { placeGraphicImage } = await import('/src/blocks/editorImages.ts');
-    const { applyEditorLoop } = await import('/src/blocks/editorLoops.ts');
+    const { parseAnimData, spliceAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { anchorKeyReason, applyAnimation, applyKeyPaste, captureKeyClipboard } = await __noacgImport('/src/blocks/editorAnimation.ts');
+    const { createPath } = await __noacgImport('/src/blocks/editorPaths.ts');
+    const { placeGraphicImage } = await __noacgImport('/src/blocks/editorImages.ts');
+    const { applyEditorLoop } = await __noacgImport('/src/blocks/editorLoops.ts');
     const asset = { path: 'images/test.png', data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9p0AAAAASUVORK5CYII=' };
     const source = { ...original, assets: [asset],
       html: original.html.replace('loop-fixture imported-design-box', 'loop-fixture imported-design imported-design-box'),

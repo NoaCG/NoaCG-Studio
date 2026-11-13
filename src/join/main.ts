@@ -19,6 +19,10 @@ import type { AudienceBackend } from '../audience/audienceTypes';
 import { deviceToken } from '../audience/deviceToken';
 import { ensureJoinStyle, mountJoinSurface } from '../audience/joinSurface';
 import { isSlug, joinSlugFrom } from './joinPath';
+import { installE2eModules } from '../app/e2eModules';
+
+// Browser specs reach this page's modules through window.__noacgImport (src/app/e2eModules.ts).
+installE2eModules(null);
 
 const root = document.getElementById('join');
 

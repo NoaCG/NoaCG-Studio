@@ -233,7 +233,7 @@ async function build(app: Page, sources: ParitySource[], mounts: Set<ParityVaria
     if (mounts.has('studio')) {
       built.studio = await app.evaluate(async (template) => {
         try {
-          const { composeDocument } = await import('/src/preview/composeDocument.ts');
+          const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
           return { html: composeDocument(template as never) };
         } catch (err) {
           return `build: ${String((err as Error)?.message ?? err).slice(0, 300)}`;

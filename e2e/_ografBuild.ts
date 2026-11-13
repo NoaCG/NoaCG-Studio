@@ -23,7 +23,7 @@ declare global {
 
 /** Defines `ografZip` in a page: the OGraf target's own build. */
 const OGRAF_ZIP_SCRIPT = `globalThis.ografZip = async (template, { usage = 'live' } = {}) => {
-  const { ografTarget } = await import('/src/export/targets/ograf.ts');
+  const { ografTarget } = await __noacgImport('/src/export/targets/ograf.ts');
   try {
     const zip = await ografTarget.build(template, { graphicUsage: usage });
     return { b64: await zip.generateAsync({ type: 'base64' }) };
@@ -98,11 +98,11 @@ const LOTTIE_JSON = JSON.stringify({
 /** `source`'s template, made in the app page by the real generators and answered as plain data. */
 export async function graphicTemplate(page: Page, source: GraphicSource): Promise<unknown> {
   return page.evaluate(async ({ source, lottieJson }) => {
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     if (source.kind === 'design') return variantById(source.id)!.create({} as never);
     if (source.kind === 'svg') {
-      const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-      const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
+      const { importSvgMarkup } = await __noacgImport('/src/assets/svgImport.ts');
+      const { IMPORTED_SVG } = await __noacgImport('/src/templates/importedDesign/svg.ts');
       const svg = importSvgMarkup(source.source);
       const fields = svg.candidates.filter((c) => !c.outsideCanvas).map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: false }));
       const designSvg = { markup: svg.markup, width: svg.width, height: svg.height, fields, images: [], outlines: [], fonts: [] };
@@ -110,11 +110,11 @@ export async function graphicTemplate(page: Page, source: GraphicSource): Promis
     }
     const base = variantById('lt01')!.create({} as never);
     if (source.kind === 'lottie') {
-      const { insertLottieElement } = await import('/src/blocks/lottieInsert.ts');
+      const { insertLottieElement } = await __noacgImport('/src/blocks/lottieInsert.ts');
       const withAsset = { ...base, name: 'Lottie Probe', assets: [...base.assets, { path: 'lottie/burst.json', data: `data:application/json;base64,${btoa(lottieJson)}` }] };
       return insertLottieElement(withAsset as never, { assetPath: 'lottie/burst.json', x: 960, y: 540, naturalW: 512, naturalH: 512 }).template;
     }
-    const { stretchRuntimeJs } = await import('/src/templates/importedDesign/stretch.ts');
+    const { stretchRuntimeJs } = await __noacgImport('/src/templates/importedDesign/stretch.ts');
     const js = source.stretch ? stretchRuntimeJs('probe') : source.js ?? '';
     return {
       ...base,

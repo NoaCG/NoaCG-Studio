@@ -13,7 +13,7 @@ import { type Page } from '@playwright/test';
  *  for here. */
 async function spliceRegion(page: Page, region: string) {
   await page.evaluate(async (body) => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const store = useTemplateStore.getState();
     const tpl = store.template;
     const start = tpl.js.indexOf('/* == ANIMATION');
@@ -35,9 +35,9 @@ export async function applyLegacyRegion(
   opts: { prefix: string; presetId: string; steps?: boolean },
 ) {
   const region = await page.evaluate(async ({ prefix, presetId, steps }) => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { anyPresetById } = await import('/src/blocks/presetRegistry.ts');
-    const { countLines } = await import('/src/model/structure.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { anyPresetById } = await __noacgImport('/src/blocks/presetRegistry.ts');
+    const { countLines } = await __noacgImport('/src/model/structure.ts');
     const tpl = useTemplateStore.getState().template;
     const preset = anyPresetById(presetId as Parameters<typeof anyPresetById>[0]);
     return preset.emit({

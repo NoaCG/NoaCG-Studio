@@ -55,18 +55,18 @@ export async function bootstrapGraphic(page: Page, spec: string | CreateSpec = '
   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
   const key = JSON.stringify(wanted);
   const made = await page.evaluate(async ({ s, ready }: { s: CreateSpec; ready: Built | null }) => {
-    const { setDefaultBrand } = await import('/src/model/brand.ts');
-    const { createLook } = await import('/src/model/packets.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-    const { flushPendingProject, useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { useDocKindStore } = await import('/src/store/docKindStore.ts');
+    const { setDefaultBrand } = await __noacgImport('/src/model/brand.ts');
+    const { createLook } = await __noacgImport('/src/model/packets.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+    const { flushPendingProject, useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { useDocKindStore } = await __noacgImport('/src/store/docKindStore.ts');
 
     let built = ready;
     if (!built) {
-      const { CATALOG, variantsFor } = await import('/src/templates/catalog.ts');
-      const { CATEGORIES } = await import('/src/model/wizard.ts');
-      const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-      const { formatTemplate } = await import('/src/format/formatCode.ts');
+      const { CATALOG, variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+      const { CATEGORIES } = await __noacgImport('/src/model/wizard.ts');
+      const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+      const { formatTemplate } = await __noacgImport('/src/format/formatCode.ts');
       const cat = s.category
         ? CATEGORIES.find((c) => c.id === s.category || c.name === s.category)
         : undefined;
@@ -138,10 +138,10 @@ export async function bootstrapGraphic(page: Page, spec: string | CreateSpec = '
  */
 export async function openProductionWithCurrent(page: Page, name: string): Promise<string> {
   const id = await page.evaluate(async (showName: string) => {
-    const { createShowNamedChecked, addGraphicToShow } = await import('/src/model/shows.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { useRouter } = await import('/src/app/router.ts');
+    const { createShowNamedChecked, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { useRouter } = await __noacgImport('/src/app/router.ts');
     const { show, error: notCreated } = createShowNamedChecked(showName);
     if (notCreated) throw new Error(`openProductionWithCurrent: ${notCreated}`);
     const { template, saved } = useTemplateStore.getState();
@@ -164,11 +164,11 @@ export async function openProductionWithCurrent(page: Page, name: string): Promi
 export async function addCatalogGraphic(page: Page, showId: string, name: string): Promise<void> {
   await page.evaluate(
     async ([id, wanted]) => {
-      const { CATALOG } = await import('/src/templates/catalog.ts');
-      const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-      const { formatTemplate } = await import('/src/format/formatCode.ts');
-      const { addGraphicToShow } = await import('/src/model/shows.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+      const { initialDraft, mergeDraft, buildDraftTemplate } = await __noacgImport('/src/components/wizard/draft.ts');
+      const { formatTemplate } = await __noacgImport('/src/format/formatCode.ts');
+      const { addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
       const variant = Object.values(CATALOG).flat().find((v) => v.name === wanted);
       if (!variant) throw new Error(`no catalog variant ${wanted}`);
       const draft = mergeDraft(initialDraft(), {
@@ -227,8 +227,8 @@ export async function finishIntoNewEditor(page: Page): Promise<void> {
  */
 export async function openExportWindow(page: Page): Promise<void> {
   await page.evaluate(async () => {
-    const { useExportUi } = await import('/src/components/ExportWindow.tsx');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useExportUi } = await __noacgImport('/src/components/ExportWindow.tsx');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const { template, sampleData, saved } = useTemplateStore.getState();
     useExportUi.getState().openExport({ template, sampleData, graphicId: saved.graphicId });
   });
