@@ -291,3 +291,16 @@ sent by this worker. Written disposition gates OW1, not Cloud engineering.
 
 Full `/check`, fresh independent final `/so`, final-head CI/configured selection
 and Codex review are publication gates below, not claimed by the browser counters.
+
+
+## Local-kit readiness correction
+
+Coordinator review identified that the first kit lacked concrete local launch,
+F4 loading and capture/calibration steps. The evidence-only correction supplies
+an exact-HEAD offline launcher using the existing dev-worktree procedure, a
+hash/count-checked F4 loader and input/User Timing marker module, and concrete
+native Chrome trace / existing Windows recorder steps with calibration, temporal
+bounds and UNKNOWN rules. These helpers are syntax-checked preparation only;
+no additional Cloud benchmark, performance PASS, software repair or allowance
+was added. Native capture still needs the named-device calibration inherent in
+E5; no software implementation or purchase is delegated to participants.

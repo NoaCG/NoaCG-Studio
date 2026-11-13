@@ -7,6 +7,113 @@ any affected receipt. [Evidence and hashes](e5c/artifact-manifest.json),
 [Cloud results and limits](e5c-notes.md), [receiving source/packages](e5c/receiving/)
 and [receiving procedure](e4-receiving.md) travel with the candidate.
 
+## Exact local launch and F4 load
+
+Use an owned feature worktree at the final E6C-qualified candidate, with its
+committed lockfile dependencies installed using the repository's normal setup.
+Record `git rev-parse HEAD` and clean status. The product tested here is e1c6fc4;
+the final E5 candidate is the reviewed post-E6C SHA, not an inferred moving main.
+From that worktree run this portable command, replacing the argument with that
+full 40-character SHA:
+
+```sh
+node docs/work-specs/editor-r1-5/e5c/native-local-launch.mjs <final-candidate-sha>
+```
+
+The supplied helper checks HEAD and calls the existing `dev:worktree` launcher,
+pinning offline backend/model settings and production 350ms debounce. It prints
+the owned reserved URL. Do not reuse another server/checkout. Open that URL plus
+`/app?editor=foundation#/editor-foundation` in a fresh disposable normal Chrome
+profile. Use actual browser menu 100% or 125%; record the menu and measured CSS
+viewport/DPR. Detach DevTools into another window so it does not shrink the tested
+viewport. No model or hosted account call is needed for these local tasks.
+Stop the owned server with Ctrl+C when finished.
+
+For F4 setup only (not the participant import journey), open DevTools Console
+and run these complete browser commands:
+
+```js
+const e5 = await import('/docs/work-specs/editor-r1-5/e5c/native-observer.mjs');
+await e5.loadF4();
+```
+
+The loader verifies the approved fixture SHA256 from the manifest, loads its
+unchanged source through the existing store and asserts 30 layers/300 keys across
+X and opacity. Wait for Preparing preview to disappear and inspect the six-by-five
+rendered rectangles, Fit artboard and timeline. Record the returned hash/counts
+and initial PNG; do not treat source counts as proof of visible output. Keep a
+separate fresh profile for participant journeys. The helper deliberately does not
+supply the known-invalid Cloud mixed CDP/Playwright pointer driver.
+
+## Concrete native timing/capture procedure
+
+The supplied observer and instructions are **prepared, syntax-checked setup**,
+not native timing evidence. The executing moderator qualifies capture on each
+named device before using it to pass a target; no new software implementation or
+hardware purchase is implied. The saved Cloud probes remain diagnostic records
+with their disclosed limits, especially INVALID high-rate pointer-up.
+
+1. With F4 visibly loaded and DevTools detached, run:
+
+   ```js
+   e5.install({ device: 'record actual name', candidate: 'record exact SHA', zoom: 'record actual menu value' });
+   ```
+
+   This logs trusted input, `event.timeStamp`, `performance.now()` and
+   `performance.timeOrigin + performance.now()`, plus uniquely named User Timing
+   marks/trace timestamps. It adds a temporary calibration button outside the
+   artwork. It neither changes graphic source nor drives input.
+2. In Chrome DevTools **Performance**, enable **Screenshots**, use **No throttling**
+   for CPU/network, then **Record**. Capture three deliberate calibration-button
+   clicks; the magenta/green painted change is visible in the screenshot filmstrip.
+   Save the trace with its screenshots. Record the E5_CALIBRATION mark (the
+   click handler after pointer-up), its input markers, and last unchanged /
+   first changed screenshot times. These bracket capture/input alignment and the
+   observed temporal resolution; they do not prove that a synchronous style write
+   was painted immediately. Record trace/browser versions and any omitted frames.
+3. If the trace filmstrip is too sparse for 30Hz or the latency boundary, use the
+   machine's existing native screen recorder alongside the trace. On Windows,
+   Settings > Gaming > Captures > Video frame rate > **60fps**, then capture the
+   Chrome window with **Win+Alt+R** (Game Bar). Keep the input/trace markers and
+   repeat the three visible calibration clicks at both ends. Retain the original
+   video and its actual frame timestamps/rate, using existing media properties or
+   `ffprobe -show_frames -select_streams v:0 -show_entries frame=best_effort_timestamp_time,pkt_duration_time <video>`
+   when ffprobe is available. Never infer a constant 60fps from the requested setting.
+   An unavailable or insufficient recorder leaves the affected timing UNKNOWN;
+   it does not authorize new purchases or replace pixels with generic rAF counts.
+4. Run `e5Native.hideCalibration()` and use the separately recorded cold setup.
+   Do not reload within this recording; reinstall the observer after any reload.
+   Then perform the declared 30 selections, 10 continuous drags, 10 forward/back scrubs and
+   10 undo/redo cycles. Keep each trial ID in the form and make a trace mark with
+   `performance.mark('E5_TRIAL_<id>')` before it. Human pointer input uses one
+   ordinary trusted device throughout, including pointer-up at the actual final
+   pointer location. Record actual received cadence and coalescing; input below
+   30 moves/sec cannot settle the 30Hz feedback target. Retain all intervals and
+   rebuild gaps, including misses. Do not replay the Cloud mixed driver.
+5. At the end run `e5Native.showCalibration()`, capture three more calibration
+   clicks, stop and save the trace/video, then run `e5Native.download()` and
+   `e5Native.dispose()`. Save a settled final PNG, exact final source/backup and
+   all form rows. The event JSON, native trace and screenshot/video timestamps
+   must be reconciled through their recorded marks/calibration; wall-clock time
+   alone is not a cross-clock alignment claim.
+6. For each selection, bracket input-to-first-painted-selection by last unchanged
+   and first changed frame. For active motion, count distinct **artwork poses**
+   in rendered frames (exclude cursor/selection-only changes), divide by actual
+   active time and retain every change/gap. For pointer-up, verify the intended
+   endpoint, then bracket the first final painted pose that stays settled; include
+   preview rebuilds. Report per-sample intervals plus median/p95/max and individual
+   stalls, alongside raw inputs and sample/capture uncertainty. If the whole
+   uncertainty interval satisfies the stated target inequality, report PASS; if
+   the whole interval violates it, report MISS;
+   if it crosses the threshold, loses frames/clock alignment or cannot distinguish
+   artwork changes, report UNKNOWN. Do not raise a target or quietly exclude a stall.
+
+The exact targets remain <=100ms selection, >=30Hz visible feedback, no freeze
+>100ms and <=150ms final pointer-up. Captured frames must resolve the claimed
+boundary: sparse filmstrip/video cannot prove no intermediate stall or 30Hz.
+The supplied procedure is executable preparation; only actual native calibration,
+rendered samples and named-device receipts can qualify those numbers.
+
 ## Moderator setup
 
 Recruit 2–3 real first-time users and a moderator. Record each participant with

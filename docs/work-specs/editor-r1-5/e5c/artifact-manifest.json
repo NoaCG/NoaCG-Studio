@@ -202,6 +202,16 @@
       "sha256": "4d297e6959940b76068628866dedb2ac2f7347e8788fe7827689fef4a8cc0326"
     },
     {
+      "path": "native-local-launch.mjs",
+      "bytes": 1559,
+      "sha256": "ac044aa812d47b36e7cd8394a111ca25b30b332bbedeed548601d59d1c39aacc"
+    },
+    {
+      "path": "native-observer.mjs",
+      "bytes": 3324,
+      "sha256": "5ea8ec3deac87d0f9db519dbc975db4aea3b809608c64d1b4b0bd185ee6824bd"
+    },
+    {
       "path": "nested-static.svg",
       "bytes": 1809,
       "sha256": "c959285e1b714fc06b6c2d8b70a603f11b9fa820560f4219ab66458df42356ee"
