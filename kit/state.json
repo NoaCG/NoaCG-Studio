@@ -43,14 +43,14 @@
   "inFlight": [
     {
       "phase": "fix-2489",
-      "step": "build",
+      "step": "build (Risky record requested)",
       "actor": "builder-fix-2489-f-d048",
       "session": "session_017SdbwPFRMVW25Z5BWMcmWQ",
       "branch": "claude/plan-obs-scenes-fix-2489",
       "launchedAt": "2026-11-13T12:26:06Z",
       "note": "sent brief = saved fix brief plus one NOTES line (owner intent: adding takes it; defaults are the builder's)",
       "pr": 2493,
-      "lastSeen": "2026-11-13T12:56Z PR #2493 open at 0546904c, waiting on Codex and CI"
+      "lastSeen": "2026-11-13T13:32Z receipt at 3cc39360 (CI green, /so A); coordinator classed it Risky and asked for a Rules section plus a fresh /so challenging the Rules on the final diff; live-publishing note posted on #2361"
     }
   ],
   "owner": [
