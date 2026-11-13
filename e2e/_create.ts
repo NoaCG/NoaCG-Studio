@@ -121,9 +121,10 @@ export async function bootstrapGraphic(page: Page, spec: string | CreateSpec = '
     // second refused write the app rightly announces over the page (#1603).
     flushPendingProject();
     await commitDurableWrites();
-    return built;
+    // Only a template that crosses to Node whole is kept: a Blob asset would arrive empty.
+    return built.template.assets.every((a) => typeof a.data === 'string') ? built : null;
   }, { s: wanted, ready: BUILT.get(key) ?? null });
-  BUILT.set(key, made);
+  if (made) BUILT.set(key, made);
   await expect(page.locator('.wz-modal')).toBeHidden();
 }
 
