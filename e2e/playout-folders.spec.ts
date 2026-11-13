@@ -14,6 +14,7 @@
 // covers: src/control/cueDraft.ts
 // covers: src/model/obsScenes.ts, src/components/home/PlayoutPanel.tsx
 // covers: src/components/home/ObsScenesSettings.tsx, src/components/PlayoutSettingsDialog.tsx, src/control/obsSceneRows.ts
+// covers: src/components/home/LiveDock.tsx, src/control/liveDock.ts, src/app/router.ts
 // covers: src/components/home/ProductionExportDialog.tsx, src/export/showExport.ts
 // focus
 //
@@ -547,6 +548,87 @@ test('OBS scenes: more than 16 scenes is said in Playout settings (obs-scenes OS
   await expect(page.getByTestId('settings-obs-too-many')).toHaveText(
     'More than 16 OBS scenes: NoaCG watches 16 outputs, so a scene link beyond those that stops answering is not reported.',
   );
+});
+
+test('OBS scenes: the Live dock at 300 px shows a picked scene with Take and Out, its selection, and writes the break deadline as a whole time (obs-scenes OS6 AC-11)', async ({ page }) => {
+  const id = await production(page, [], {
+    graphics: [{ name: 'Score' }],
+    folders: [{ labels: ['Hairline'], name: 'Gameplay', scene: true }, { labels: ['Score'], name: 'Desk', scene: true }],
+    obsScenes: true,
+  });
+  // A countdown whose start-time field is bound to data (K7): the clock its design emits names it.
+  await evaluateInPage(
+    page,
+    async (showId) => {
+      const m = await import('/src/model/shows.ts');
+      const { clockRuntimeJs } = await import('/src/templates/shared/clock.ts');
+      const { useTemplateStore } = await import('/src/store/templateStore.ts');
+      const t = useTemplateStore.getState().template;
+      const { error } = m.addGraphicToShow(showId, {
+        ...t,
+        name: 'Break',
+        fields: [...(t.fields ?? []), { field: 'f9', ftype: 'textfield', title: 'Start time', value: '' }],
+        js: `${t.js}\n${clockRuntimeJs('starting-soon', 'f8', 'f9')}`,
+      });
+      if (error) throw new Error(error);
+      m.setFieldBinding(showId, 'Break', 'f9', 'break.deadline');
+      const failure = await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+      if (failure) throw new Error(failure);
+    },
+    id,
+  );
+  await page.setViewportSize({ width: 300, height: 800 });
+  await page.evaluate((showId) => (window.location.hash = `#/dock/${showId}`), id);
+  const dock = page.getByTestId('live-dock');
+  await expect(dock).toBeVisible();
+  // One column: nothing wider than the dock.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(300);
+  await expect(dock.getByTestId('dock-unpublished')).toHaveText('Not published');
+  await expect(dock.getByTestId('dock-health')).toContainText('0 of 2 ready');
+  await expect(dock.getByTestId('dock-selected')).toHaveText('Selected: nothing');
+
+  // No OBS event: the picked scene, the first until changed (K3).
+  const scenes = dock.getByTestId('dock-scenes');
+  await expect(scenes).toHaveAttribute('data-mode', 'picked');
+  await expect(scenes.getByTestId('dock-cue')).toHaveCount(1);
+  await expect(scenes.getByTestId('dock-cue')).toContainText('Hairline');
+  const deadline = dock.getByTestId('dock-deadline');
+  const above = (await deadline.boundingBox())!.y;
+  await dock.getByTestId('dock-scene-pick').selectOption({ label: 'Desk' });
+  const score = scenes.getByTestId('dock-cue');
+  await expect(score).toContainText('Score');
+  // The controls above the scenes did not move (K5).
+  expect((await deadline.boundingBox())!.y).toBe(above);
+
+  // Take and Out, each in the state its button says (K4).
+  await expect(score.getByTestId('dock-out')).toBeDisabled();
+  await score.getByTestId('dock-take').click();
+  await expect(score).toHaveAttribute('data-on', 'true');
+  await expect(score.getByTestId('dock-take')).toBeDisabled();
+  await score.getByTestId('dock-out').click();
+  await expect(score).toHaveAttribute('data-on', 'false');
+
+  // The break deadline: a whole time, read back as one (K7).
+  await expect(deadline.getByTestId('dock-deadline-value')).toHaveText('No deadline set');
+  await deadline.getByTestId('dock-deadline-5').click();
+  await expect(deadline.getByTestId('dock-deadline-value')).toHaveText(/^Until .* · (5:00|4:5\d) left$/);
+  const held = () => deadline.getByTestId('dock-deadline-value').textContent();
+  const after5 = await held();
+  await deadline.getByTestId('dock-deadline-2').click();
+  await expect(deadline.getByTestId('dock-deadline-value')).toHaveText(/ · (2:00|1:5\d) left$/);
+  expect(await held()).not.toBe(after5);
+  await deadline.getByTestId('dock-deadline-time').fill('23:59');
+  await deadline.getByTestId('dock-deadline-set').click();
+  await expect(deadline.getByTestId('dock-deadline-value')).toContainText('23:59:00');
+
+  // The full page at its own address is the page it always was, and its settings offer the dock.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.evaluate((showId) => (window.location.hash = `#/production/${showId}`), id);
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(page.getByTestId('live-dock')).toHaveCount(0);
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-playout-settings').click();
+  await expect(page.getByTestId('settings-obs-dock-link')).toHaveText(new RegExp(`#/dock/${id}$`));
 });
 
 test('a drag lands by the third of a row: into a folder, out of it, a folder as a whole - one write each', async ({ page }) => {

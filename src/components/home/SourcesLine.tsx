@@ -234,7 +234,7 @@ function CurrentMatchPicker({ source, status, control }: { source: ShowSource; s
 }
 
 /** One source's line in the data panel: name, status, stale, the fix when it fails, and Pause. */
-function SourceLine({ show, setShows, source, store, currentMatch }: { show: Show; setShows: (shows: Show[]) => void; source: ShowSource; store: SourceStatusStore; currentMatch?: CurrentMatchControl }) {
+export function SourceLine({ show, setShows, source, store, currentMatch }: { show: Show; setShows: (shows: Show[]) => void; source: ShowSource; store: SourceStatusStore; currentMatch?: CurrentMatchControl }) {
   const { status, now } = useSourceStatus(store, source.id);
   return (
     <div

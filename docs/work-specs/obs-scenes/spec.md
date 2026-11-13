@@ -1274,3 +1274,21 @@ Filled in by each phase's pull request.
     writes (a refused Take) shows on the dock.
   - K10. With the switch off nothing new shows on the production page. Playout settings' OBS
     scenes section (switch on) gains the dock's link with Copy.
+- Rules found by the Rules-first `/so`, before code (it agreed with corrections):
+  - K1 amended: a production that is not published has no panel lease, so the dock there answers
+    no panel and says "Not published" in its header. A production saved only in another browser is
+    not in OBS's own storage: the dock says what the production page says (sign in, or not found).
+  - K2 amended: after a drop longer than the lease, the dock answers again on reconnect if no other
+    page took the panel meanwhile (the lapsed lease is renewed, `panelRelay.ts`); otherwise it says
+    who answers and offers Use here. That is AC-11's "keeps it after a reconnect".
+  - K2 added: every Companion key runs on the dock as on the production page, those that act on the
+    selection included (Select, Take, Next, step), because AC-14 uses the Stream Deck with the dock
+    and the spec says the dock answers Companion. The dock has its own selection, as any second
+    production page does, and shows it in one line ("Selected: <cue or folder>") so a selection key
+    is never invisible. Decided here, not sent to the owner: the spec settles it.
+  - K7 amended: a path a source writes (`isSourcePath` of any source of the production) is not
+    offered, since the source's next read would overwrite the dock's value. "Set" takes the offset
+    at the deadline's own instant, not now's.
+  - K3 departure, stated in the pull request: the spec says "while OBS state is unknown"; K3 also
+    falls back to the pick while OBS state is known but no scene is on program (all hidden, or
+    OBS on a scene with no NoaCG link), since there is no program scene to show then either.

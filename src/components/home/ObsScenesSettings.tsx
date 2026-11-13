@@ -15,6 +15,12 @@ export function allSceneLinks(scenes: readonly { id: string; name: string }[], o
   return scenes.map((scene) => `${scene.name}: ${sceneLink(outputUrl, scene.id)}`).join('\n');
 }
 
+/** The Live dock's address (obs-scenes OS6 K1): this app's page with the dock route, for an OBS
+ *  Custom Browser Dock. */
+export function dockLink(showId: string, location: Pick<Location, 'origin' | 'pathname'> = window.location): string {
+  return `${location.origin}${location.pathname}#/dock/${encodeURIComponent(showId)}`;
+}
+
 /**
  * PLAYOUT SETTINGS' OBS SCENES SECTION (obs-scenes OS3 M7), shown while the switch is on: each scene
  * with its graphics and its own link, Copy per link, Copy all links, and the guide. A copy goes
@@ -24,7 +30,7 @@ export default function ObsScenesSettings({ show, outputUrl, copied, onCopy }: {
   show: Show;
   /** The production's output link; null before the first publish. */
   outputUrl: string | null;
-  /** What was copied last: `scene:<id>`, or `scene:*` for every link. */
+  /** What was copied last: `scene:<id>`, `scene:*` for every link, or `dock`. */
   copied: string | null;
   onCopy: (kind: CopyKind, text: string) => void;
 }) {
@@ -58,6 +64,16 @@ export default function ObsScenesSettings({ show, outputUrl, copied, onCopy }: {
           More than {MAX_EXPECTED_OUTPUTS} OBS scenes: NoaCG watches {MAX_EXPECTED_OUTPUTS} outputs, so a scene link beyond those that stops answering is not reported.
         </p>
       )}
+      <div data-testid="settings-obs-dock">
+        <strong>Live dock</strong>
+        <span className="hint"> OBS: Docks, Custom Browser Docks</span>
+        <div className="pd-pp-url-row">
+          <code className="pd-pp-url" data-testid="settings-obs-dock-link">{dockLink(show.id)}</code>
+          <button type="button" onClick={() => onCopy('dock', dockLink(show.id))} data-testid="settings-obs-dock-copy">
+            {copied === 'dock' ? '✓ Copied' : 'Copy'}
+          </button>
+        </div>
+      </div>
       <div className="pd-pp-actions">
         <button
           type="button"

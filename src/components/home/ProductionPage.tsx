@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
 import { joinedScenes, obsScenesOf, sceneFolderIds, sceneGraphicNames, sceneLink, type ObsScene } from '../../model/obsScenes';
+import { dockScenes, deadlinePaths, sceneHealth } from '../../control/liveDock';
 import { EMPTY_WATCH, forgetScene, loadedScenes, sceneRows, watchScenes, type SceneWatch } from '../../control/obsSceneRows';
 import { airMark, takeJoined } from '../../control/sceneJoin';
 import { useTemplateStore } from '../../store/templateStore';
@@ -37,7 +38,7 @@ import {
   type ShowCue,
   type ShowFolder,
 } from '../../model/shows';
-import { folderMode } from '../../model/showFolders';
+import { folderMode, membersByFolder } from '../../model/showFolders';
 import { cursorRowId, folderName, rangeCueIds, rowCueIds, rowTestId, rundownView, type RundownRow } from '../../model/rundownRows';
 import { canAuthorAccount, commitDurableWrites } from '../../model/durableStore';
 import { accountCasparDefault, destinationUrl, readOutputSetup, routeColor, wantsAccountOutputDefault, withCasparSwitch, withPlayoutSystem } from '../../model/outputSetup';
@@ -258,6 +259,7 @@ import { actionButtonFor } from './CueActions';
 import LiveControls, { type LiveBlockView } from './LiveControls';
 import { liveBlocks, liveNumberFields as liveNumbersOf, liveSelection, pickFields, pickOptions } from '../../control/liveControls';
 import ProductionShell from './ProductionShell';
+import LiveDock from './LiveDock';
 import ServerCueEditor from './ServerCueEditor';
 import FolderEditor from './FolderEditor';
 import { isImageAsset } from '../../assets/assetUtils';
@@ -610,7 +612,12 @@ type ReaderPlan = [
   boolean,
 ];
 
-export default function ProductionPage({ id, sub }: { id: string; sub?: ProductionSub | null }) {
+/**
+ * `dock`: the same page drawn as the LIVE DOCK, a 300 px column for an OBS Custom Browser Dock
+ * (docs/work-specs/obs-scenes/spec.md OS6 K1). Every hook, session and wire runs as on the full
+ * page; only the render at the end differs.
+ */
+export default function ProductionPage({ id, sub, dock = false }: { id: string; sub?: ProductionSub | null; dock?: boolean }) {
   const navigate = useRouter((s) => s.navigate);
   const goBack = useRouter((s) => s.goBack);
   // The mutators return the fresh list — holding it in state (the ControlPanel pattern) keeps
@@ -2808,7 +2815,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // A hardware panel (docs/work-specs/hardware-panel-control/): fed below, once the page knows what it
   // shows. A server clip's clock moves in its store without re-rendering this page, so the answer
   // hears that part directly; it publishes only when a key would show a difference.
-  const panel = usePanelAnswer({ slug: hostedSlug, where: 'production', label: 'Production page', runs: PRODUCTION_PANEL_VERBS, auto: true });
+  const panel = usePanelAnswer({ slug: hostedSlug, where: 'production', label: dock ? 'Live dock' : 'Production page', runs: PRODUCTION_PANEL_VERBS, auto: true });
+  /** The Live dock's picked scene, while no scene is on program (OS6 K3): this dock's session only. */
+  const [dockPick, setDockPick] = useState<string | null>(null);
+  /** The Live dock's break deadline paths (OS6 K7), read again only when the record changes. */
+  const dockDeadlines = useMemo(
+    () => (dock && show ? deadlinePaths(show.graphics, show.bindings, (show.sources ?? []).map((s) => s.id)) : []),
+    [dock, show],
+  );
   const [panelOpen, setPanelOpen] = useState(false);
   const audienceInbox = useAudienceInbox(show);
   // While answering, the panel also hears the timing part, after the whole fold: a reading moves
@@ -4165,6 +4179,55 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       ),
     waiting: audienceInbox.waiting,
   };
+
+  if (dock) {
+    /** A scene's graphic and picture cues, in rundown order (OS1b C1's reading). */
+    const sceneCues = membersByFolder(cues, folders);
+    const selectedCue = selectedFolder ? null : (cues.find((c) => c.id === selectedCueId) ?? null);
+    return (
+      <LiveDock
+        show={show}
+        setShows={setShows}
+        store={sourceStatus}
+        currentMatch={currentMatch}
+        panel={panel}
+        published={!!hostedSlug}
+        selected={selectedFolder ? folderName(selectedFolder) : (selectedCue?.label ?? null)}
+        note={note}
+        health={scenePanel ? sceneHealth(scenePanel.rows) : null}
+        scenes={obsSceneList}
+        choice={show.obsScenes ? dockScenes(obsSceneList, scenePanel?.rows ?? [], dockPick) : null}
+        onPick={setDockPick}
+        cuesOf={(sceneId) =>
+          (sceneCues.get(sceneId) ?? [])
+            .filter((c) => c.source !== 'playout' && graphicByPoolId.has(c.sourceId))
+            .map((c) => ({ id: c.id, label: c.label, onAir: cueOnAirNow(c), refused: stepBlocker(c) }))
+        }
+        // K4: the press a Companion cue key makes, run only in the state its button says.
+        onTake={(cueId) => {
+          const cue = cues.find((c) => c.id === cueId);
+          if (cue && !cueOnAirNow(cue)) return onVerb('take-cue', { repeat: false, cue: cueId });
+        }}
+        onOut={(cueId) => {
+          const cue = cues.find((c) => c.id === cueId);
+          if (cue && cueOnAirNow(cue)) return onVerb('take-cue', { repeat: false, cue: cueId });
+        }}
+        deadline={{
+          paths: dockDeadlines,
+          value: (path) => getPath(liveData, path),
+          // K7: the current match's road; published without the data key, refused in words.
+          write: (path, value) => {
+            const data = session.data.get();
+            if (hostedSlug && !data.dataKey) {
+              setNote('The break deadline was not set: this page cannot write the production’s data yet.');
+              return;
+            }
+            setLiveData(setPath(data.liveData, path, value));
+          },
+        }}
+      />
+    );
+  }
 
   return (
     <ProductionShell

@@ -405,6 +405,9 @@ export default function App() {
     // e2e/configured/playout-switch-mid-flight.spec.ts). A new production mounts a fresh page, as
     // opening it from Home does; its Data and Audience views keep the same one.
     : route.view === 'production' ? <ProductionPage key={route.id} id={route.id} sub={route.sub ?? null} />
+    // THE LIVE DOCK is the same page drawn as a 300 px column (obs-scenes OS6 K1): its own key, so
+    // moving between the dock and the full page mounts a fresh session, as a new production does.
+    : route.view === 'dock' ? <ProductionPage key={`dock:${route.id}`} id={route.id} dock />
     // A join link's SURFACE is Home - the dialog itself mounts below, with the app-level
     // dialogs, so an offline build (where it renders nothing) simply lands the visitor on Home
     // rather than on a blank surface.
