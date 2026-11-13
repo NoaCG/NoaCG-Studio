@@ -41,9 +41,12 @@
 // half of a server the suite ADOPTS: no probe inside a page can read `SUPABASE_URL` out of the
 // server process. That remainder is #2511. It also does not
 // cover `playwright.production.config.ts`, whose whole point is the deployed site: that suite is
-// anonymous, writes nothing, and runs with no Supabase variables set (`deploy-verify.yml`) - but
-// a shell that has exported a production `.env` wholesale is refused there too, through
-// `_helpers.ts`, and unsetting those two variables is the fix.
+// anonymous, writes nothing, and runs with no Supabase variables set (`deploy-verify.yml`). It
+// shares a directory with the configured specs, so collecting them reaches `_helpers.ts`; its
+// answer is to hold no backend and no admin key at all, by deleting URL_VARS and KEY_VARS from
+// its own process, which this rule then reads as `unconfigured`. That deletion is a compromise,
+// recorded as #2504: the seam that removes it hands the key out through an accessor, so the check
+// runs where a spec writes rather than where its file is parsed.
 //
 // ONE PLACE THIS DOES NOT REACH, AND IT IS AN OPEN HOLE: #2508. `e2e/configured/measure/
 // measure.config.ts` with MEASURE_BUILD=prod puts a switch in front of two servers, and the

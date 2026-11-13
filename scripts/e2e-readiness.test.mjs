@@ -8,11 +8,13 @@ import catalog from '../playwright.catalog.config.ts';
 import live from '../playwright.live.config.ts';
 import { devPort, livePort } from './dev-port.mjs';
 
-// `reuse` is per suite since issue #2495: the offline and catalog suites pin their server's
-// environment empty and `_offline-guard.ts` refuses a server that serves anything else, so
-// adopting one is safe and saves a start. The configured suite WRITES, and an adopted server
-// decides where - including through the api/ handlers it mounts, which no probe can read from
-// outside - so it starts its own, as the endurance configs do.
+// `reuse` is per suite since issue #2495. The offline and catalog suites still adopt a server
+// already on their port, which saves a start: they pin their server's environment empty, and
+// `_offline-guard.ts` refuses an adopted server that serves anything else - the half it can SEE,
+// which is the browser's. An adopted server's api half is invisible from inside a page, so it is
+// accepted unjudged; that is #2511, not a safety this test should imply. The configured suite
+// WRITES, and an adopted server decides where - through those same api/ handlers - so it starts
+// its own, as the endurance configs do.
 for (const [name, config, port, reuse] of [
   ['offline', offline, devPort(), true],
   ['catalog', catalog, devPort(), true],
@@ -34,11 +36,14 @@ test('offline pins remain identical and configured mode inherits its own environ
   assert.equal(offline.webServer.env.VITE_SUPABASE_URL, '');
   assert.equal(offline.webServer.env.VITE_SUPABASE_ANON_KEY, '');
   assert.equal(offline.webServer.env.VITE_RENDER_API, '1');
-  // The server's own half as well (issue #2495): the api/ handlers this dev server mounts read
+  // The server's own half as well (issue #2495): the api/ handlers these dev servers mount read
   // these, not the VITE_ pair, and Playwright MERGES webServer.env over the shell. Pinned empty,
-  // an offline run cannot hand its own server a backend whatever the shell holds.
-  for (const name of ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SECRET_KEY', 'SUPABASE_SERVICE_ROLE_KEY']) {
-    assert.equal(offline.webServer.env[name], '', name);
+  // neither suite can hand its own server a backend whatever the shell holds. BOTH configs are
+  // named: the loop above only walks catalog's keys, so a key deleted there shrinks it silently.
+  for (const [suite, config] of [['offline', offline], ['catalog', catalog]]) {
+    for (const name of ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SECRET_KEY', 'SUPABASE_SERVICE_ROLE_KEY']) {
+      assert.equal(config.webServer.env[name], '', `${suite}: ${name}`);
+    }
   }
   // Only the no-watch switch (#2094): no Supabase or AI pin, so configured mode keeps its own .env.
   assert.deepEqual(live.webServer.env, { NOACG_E2E_SERVER: '1' });

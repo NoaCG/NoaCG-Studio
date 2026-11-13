@@ -34,7 +34,8 @@ import { KEY_VARS, URL_VARS } from './scripts/configured-target.mjs';
 // process's environment so another module's import-time side effect will pass is the wrong seam.
 // The right one is to hand the key out through an accessor, so the check runs where a spec writes
 // instead of where its file is parsed, after which these two lines go away. That change touches
-// twenty-one specs, which is why it is its own issue and not this one's.
+// twenty-four specs - twenty-one build an admin client from the pair and three more write with
+// the key over raw REST - which is why it is its own issue and not this one's.
 for (const name of [...URL_VARS, ...KEY_VARS]) delete process.env[name];
 
 const cloudLimits = validateCloudWorkerRequest();
