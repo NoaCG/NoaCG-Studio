@@ -9,8 +9,9 @@ failure and reverse-order cases) passes. On the typical fixture, with #2494 fixe
 5 s (owner decision, 2026-11-13), 20 interleaved pairs read a pooled p95 difference of +35.9 ms,
 within 50 ms, so the timing passes by the rule fixed before the second ten pairs (see "Repair: after
 the sync fix"; 90% range +26 to +47 ms). In that loop a full publish reaches the outputs about every
-10 s: every other edit changes the fixture's server cue's values, which the outputs never receive,
-and is published as a revision-only update. The single pair first reported
+10 s: every other edit targets the fixture's last cue, the CasparCG server cue, which has no field
+values, so it saves the record without changing its content and is published as a revision-only
+update. The single pair first reported
 here (+2 ms) and the first repair's 10 pairs at 3 s were drowned by #2494. On the large fixture under continuous editing, publishing a whole copy per save adds about 334 ms p95 (see
 "Editing while publishing"). **Owner decision (b), recorded on #2361, 2026-11-13:** phase 6
 lands with the typical fixture passing; the large fixture is a recorded gap judged at the end of phase
@@ -264,8 +265,8 @@ head and the same build. No Take failed. Every off-run published nothing.
 run). 19 of 20 runs ended with the newest save published; in the other one, the last edit's publish
 was still under way when the run stopped. Each run's version number moved 6 times, because the loop
 alternates two edits: the last cue's label, then its field values. The typical fixture's last cue is
-the CasparCG server cue, a playout cue whose published form carries no field values, so the second
-edit saves the record but changes nothing in the published copy. Its publish is therefore a revision-only update:
+the CasparCG server cue, a clip with no template fields, so the cue has no field values and the second
+edit saves the record without changing its content. Its publish is therefore a revision-only update:
 `published_rev` moves and nothing is sent to the outputs (G3 section 3). A probe run, not committed,
 recorded each publish's content check and showed this: the label edits' publishes built new content,
 the values edits' matched the stored copy. So the judged on-side carries a full publish about every

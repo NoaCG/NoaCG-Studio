@@ -504,7 +504,7 @@ Filled in by each phase's pull request.
   p95 difference over 20 pairs is 50 ms or less. Result: p95 141 ms on against 105 ms off over
   1000 Takes each, +35.9 (90% range +26 to +47). 239 edits, 225 confirmed saves, 204 publishes,
   the newest save published at the end of 19 of 20 runs; every other edit changes nothing the
-  outputs show (the fixture's last cue is the server cue, whose values outputs never receive), so 6
+  outputs show (the fixture's last cue is the CasparCG server cue, which has no field values), so 6
   of each run's publishes were new versions and the rest revision-only updates. Slow Takes 43
   against 21 and the longer tail are recorded and carried to phase 7 with D1. The only code change is that harness
   pace setting, which normal builds leave out. The evidence's +2 is replaced by both tables.
