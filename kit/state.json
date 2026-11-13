@@ -68,9 +68,9 @@
   "inFlight": [
     {
       "phase": "E4",
-      "step": "stopped / owner disposition required",
+      "step": "owner-approved narrow correction / startup qualification",
       "pr": 2438,
-      "note": "The approved extra attempt is spent 1/1, ordinary 3/3 retained. Final review grade B confirms legacy production installation defect; terminal CI also fails the retained Discard write contract. All existing head runs are terminal. Frozen63d7 remains draft with no queue entry, stamp or auto-merge. No further launch or edit; local work stays last."
+      "note": "Owner approved one combined correction: canonical legacy-production comparison and unchanged documented Discard recovery. Ordinary3/3 and previous extra1/1 remain spent. Independent installed copies/no collaboration; new-production-only fallback requires reassessment if this attempt fails."
     }
   ],
   "owner": [
@@ -1485,9 +1485,7 @@
     },
     "currentPublicUpdate": 6831775749
   },
-  "waitingOn": {
-    "what": "Owner disposition: further bounded correction of legacy snapshot comparison and retained Discard contract, or leave E4 stopped. No automatic allowance/reset."
-  },
+  "waitingOn": null,
   "completedCausalityReviews": [
     {
       "id": "6af4b05b-8a1c-8191-b931-182efca3b062",
@@ -2144,6 +2142,19 @@
         },
         "manifestSha256": "c7673ab205499f58c8b2ef2a729856d39b07a8933c1eeda248256e00eb4a1138"
       }
+    },
+    "ownerNarrowCorrection": {
+      "receipt": "owner-e4-narrow-correction-2026-11-13.json",
+      "receiptSha256": "3a3098e38afa866700e52fd61478311e06311649428b2e1d9f69bfb31517ae8c",
+      "ordinarySpent": 3,
+      "ordinaryLimit": 3,
+      "previousOwnerAdditionalSpent": 1,
+      "granted": 1,
+      "used": 0,
+      "remaining": 1,
+      "status": "RESERVED_AFTER_EXPLICIT_OWNER_APPROVAL",
+      "sourceHead": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
+      "stopCondition": "If the narrow combined correction fails, stop and reassess the simpler product requirements with the owner. Any confirmed remaining product failure after the combined patch ends this attempt. No automatic follow-up implementation, fallback, repair or allowance."
     }
   },
   "coordinatorTools": {

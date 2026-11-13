@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "id": "e4-owner-narrow-correction-2026-11-13-1",
+  "run": "plan-editor-r1-5-2026-11-08",
+  "phase": "E4",
+  "ownerWords": "let's do as you propose",
+  "recordedAt": "2026-11-13T09:15:15.489136+00:00",
+  "source": "Existing chat approval after the concrete evaluation recommending one narrow correction first and new-productions-only as a fallback if it fails",
+  "ordinaryRepairLimit": 3,
+  "ordinaryRepairsSpent": 3,
+  "previousOwnerAdditionalGranted": 1,
+  "previousOwnerAdditionalSpent": 1,
+  "newBoundedCorrectionsGranted": 1,
+  "newBoundedCorrectionsUsed": 0,
+  "sourceHead": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
+  "sourceTree": "2b7490bd5b69452d5a742057d95059e8ea8db671",
+  "priorStop": "e4-owner1-stop-2026-11-12/STOP.md",
+  "priorFinalReceiptSha256": "85a57ea4a6a98d6398a60c88650b72e29a54fa17a76e184fc028700b564207cf",
+  "scope": [
+    "Reuse existing supported production read normalization inside the atomic installation comparison; preserve real newer-edit refusal and untouched productions",
+    "Fix and verify the documented Discard recovery/write sequence, preserving original maintained assertions and complete newer live source/history/view",
+    "Single-user graphics and independent installed copies; no automatic propagation, shared editing, merge/rebase machinery or new synchronization service"
+  ],
+  "notAuthorized": [
+    "Implement new-production-only fallback automatically",
+    "Weaken assertions/checks/limits; add waits/retries/skips as a fix",
+    "Reset or relabel prior attempts/families/run; invent another allowance",
+    "Change local-last phase order or release/human gates"
+  ],
+  "verification": [
+    "Fresh focused pre-code model reassessment explicitly reconciles retained October860-861 and current E4 owner/view safety",
+    "Reproduce original legacy and maintained Discard failures before product patch; source-pinned affected verification under existing bounds",
+    "New-head normal CI/configured selection and capacity, isolated backend, one Codex route and fresh FULL independent A/A+ before queue",
+    "Normal merge queue, terminal post-land exact-merge checks and independent acceptance"
+  ],
+  "stopCondition": "If the narrow combined correction fails, stop and reassess the simpler product requirements with the owner. Any confirmed remaining product failure after the combined patch ends this attempt. No automatic follow-up implementation, fallback, repair or allowance.",
+  "execution": "Same active managed Cloud run; serial E4 writer; inherited model/effort; local work last; existing bounded block authority retained/renewed only by supported route."
+}
