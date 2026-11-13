@@ -69,7 +69,7 @@
     {
       "phase": "E5C",
       "step": "Fresh Cloud builder active",
-      "note": "PR2496attached/solecoordinatorowner6854426227, exactfdfa/fullA+deltaA+RiskyRulesA+actualcheckstampPASS. ActualCodex6854419409COMPLETEDcleanexacthead. CI43434486680inprogress: all64configured/4stacks,offline80/15shards. OnlyobservedredReviewed149swaitforrootstamp; originalwholelogpreserved, documentedReviewed-onlyrecoveryafterothergates. No testretry/sourcechange/queueyet."
+      "note": "Allactualworker gatesverified exactfdfa: CIgate/configured150PASS0FAIL0FLAKY3existingSkip,all15offline+catalog/build/factory,CodeQL3/3,Codexclean,check/FULLA+DeltaA/RulesA. Currentmainb2unchanged,cleanmerge-tree8fd93/sideEnds{}. ONEpendingmainhelperstampintentbeforedispatch; originalReviewedwaitFAILretained, no testretry. Rootsolequeueowner."
     }
   ],
   "owner": [
@@ -2519,7 +2519,7 @@
     },
     "acceptedAt": "2026-11-13T11:31:36.118029+00:00",
     "latestProgress": {
-      "observedAt": "2026-11-13T13:38:46.944128+00:00",
+      "observedAt": "2026-11-13T13:49:55.839990+00:00",
       "status": "Worker reported, root finalreadback pending",
       "j0128": "PRETEST_INFRAFAIL EROFS Vite shared node_modules/.vite-temp; retainedlog, no productexecution/attempt. Existingapprovedrequire_escalatedcommand reranoriginalsmallselection; no persistentpolicychange.",
       "j0129": "PASS1/1 importedSVG cumulative UI/semantic/reviewed deterministic source+historyparity and3browseroutputs,1.7min,zero modelcalls.",
@@ -2709,7 +2709,7 @@
         },
         "ci": 43434486680,
         "ciHeadIndependentlyVerified": true,
-        "ciStatus": "in_progress",
+        "ciStatus": "completed; failure solely originalReviewedwait",
         "codeqlDynamic": 43434481288,
         "configured": {
           "mode": "all",
@@ -2735,7 +2735,38 @@
         "reviewedStatus": "OriginalReviewed131915960933FAILED149s/29pollsawaitingrootstamp, wholelogretained. No productfinding/attempt/retry; documentedReviewed-onlyrecovery afteractualallothergates+terminalCI.",
         "autoMerge": false,
         "mergeable": true,
-        "rootMonitor": "BoundedreadonlyCIstatusmonitor45451active, no dispatch/wake."
+        "rootMonitor": "BoundedreadonlyCIstatusmonitor45451active, no dispatch/wake.",
+        "ciGate": {
+          "id": 131923253318,
+          "status": "success"
+        },
+        "configuredVerdict": {
+          "id": 131923047869,
+          "status": "success",
+          "passed": 150,
+          "failed": 0,
+          "flaky": 0,
+          "existingSkipped": 3
+        },
+        "codeqlStatus": "success/all3analysesexactfdfa",
+        "reconciliation": {
+          "main": "b2e91ba4a5df23c1cec4a95ea213c9d070b5c7f5",
+          "mergeTree": "8fd93d96965ebc835e3fa1df11960343f019f199",
+          "sameAsFeatureTree": true,
+          "mergeOrder": "clear",
+          "canonicalSideEnds": {},
+          "clean": true
+        },
+        "pendingStamp": {
+          "state": "INTENT_BEFORE_SINGLE_DISPATCH",
+          "workflow": "cloud-queue-merge.yml",
+          "ref": "main",
+          "branch": "codex/plan-editor-r1-5-e5c-build",
+          "sha": "fdfa33e63e3c2cd3e9a5cc7c87454ca9692ae5b8",
+          "review": "PASS: actual final-head check review inline 1/1 fixed, simplify inline, verify inline; Risky Rules-first A, full A and delta A; CI gate and all64 configured selection passed, Codex clean, CodeQL passed.",
+          "reason": "SessionstatuswritepreviouslyqualifiedHTTP403integrationcap; documentedexistingmainhelperfallback. Notauto-reviewdenial. Actualstatuseslookupsuccessful: no noacg/reviewed; latesthelperdispatch12:09beforethisPR. No priorE5Cdispatch/nativeworkerqueue.",
+          "observedAt": "2026-11-13T13:49:55.839975+00:00"
+        }
       }
     }
   }

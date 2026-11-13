@@ -1,0 +1,201 @@
+{
+  "run": 43434486680,
+  "head": "fdfa33e63e3c2cd3e9a5cc7c87454ca9692ae5b8",
+  "attempt": 1,
+  "status": "completed",
+  "conclusion": "failure",
+  "jobs": [
+    {
+      "id": 131915960666,
+      "name": "Build",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131915960918,
+      "name": "Factory gates",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131915960933,
+      "name": "Reviewed",
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    {
+      "id": 131915960952,
+      "name": "E2E plan",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131915962901,
+      "name": "Vercel accepted the commit",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 131916204129,
+      "name": "Configured E2E 4/4 (selected, local Supabase)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131916204188,
+      "name": "Configured E2E 1/4 (selected, local Supabase)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131916204205,
+      "name": "Catalog calibration gate",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131916204239,
+      "name": "Configured E2E 3/4 (selected, local Supabase)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131916204252,
+      "name": "Configured E2E 2/4 (selected, local Supabase)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131916204423,
+      "name": "E2E 7/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131916204430,
+      "name": "E2E 2/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131916204442,
+      "name": "E2E 3/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131916204482,
+      "name": "E2E 14/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131916204487,
+      "name": "E2E 15/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131916204493,
+      "name": "E2E 12/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131916204504,
+      "name": "E2E 13/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131916204507,
+      "name": "E2E 4/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131916204522,
+      "name": "E2E 11/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131916204526,
+      "name": "E2E 10/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131916204534,
+      "name": "E2E 1/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131916204538,
+      "name": "E2E 5/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131916204554,
+      "name": "E2E 8/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131916204559,
+      "name": "E2E 6/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131916204575,
+      "name": "E2E 9/15 (subset)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131916206691,
+      "name": "Guided mod (Claude Code ${{ matrix.claude-code }})",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 131919915686,
+      "name": "Re-run (failed Build or Factory job, same commit)",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 131921087988,
+      "name": "Combined E2E report",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131921090744,
+      "name": "E2E retry (failed specs, same commit)",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 131923047869,
+      "name": "Configured E2E verdict (selected)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131923253318,
+      "name": "CI gate",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131923332866,
+      "name": "After the gate",
+      "status": "completed",
+      "conclusion": "skipped"
+    }
+  ]
+}
