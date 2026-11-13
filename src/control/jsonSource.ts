@@ -17,9 +17,10 @@
 //
 // Pure and Node-importable: scripts/json-source.test.mjs drives it with a fake fetch and clock.
 
-import { createSheetReader, leaseOf, type ProjectedRead, type SheetFetch, type SheetReader, type SheetReaderOptions, type SourceRead } from './sheetSource.js';
+import { createSheetReader, leaseOf, type ProjectedRead, type SourceProject, type SheetFetch, type SheetReader, type SheetReaderOptions, type SourceRead } from './sheetSource.js';
 import { canonicalJson, type ExternalRegistration, type JsonValue, type RegistrationRead } from './externalSource.js';
 import { projectSource } from './sourceMapping.js';
+import { adaptForReader } from './bracketAdapter.js';
 import { sourcePrefix } from '../model/productionData.js';
 import type { FieldDescriptor } from '../model/fieldModel';
 
@@ -96,7 +97,9 @@ export function jsonFingerprint(payload: unknown): string {
 /**
  * One payload for a source's bound paths, by the shared evaluator: text only (R14). A path only
  * typed fields read, a collection recipe's leaf and anything the evaluator holds write nothing,
- * and each is said plainly.
+ * and each is said plainly. A source with an adapter (OS5b) turns the payload through it first;
+ * `current` is the operator's pick and what this source last wrote (its memory with it), given by
+ * an open page only: without it nothing under `current` is said (B13).
  */
 export function projectJson(o: {
   sourceId: string;
@@ -108,13 +111,18 @@ export function projectJson(o: {
   registration: RegistrationRead;
   /** Whether a collection recipe of the production reads this source. */
   collections?: boolean;
+  current?: { pick: unknown; previous: Readonly<Record<string, string>>; fresh?: boolean };
 }): ProjectedRead {
   const fingerprint = jsonFingerprint(o.payload);
   if (!o.registration.ok) return { writes: {}, problems: [`the source cannot be used (${o.registration.error}), so every value holds`], fingerprint };
-  const registration: Pick<ExternalRegistration, 'lists' | 'mapping' | 'configRevision'> = o.registration.registration;
+  const registration: Pick<ExternalRegistration, 'lists' | 'mapping' | 'configRevision' | 'adapter'> = o.registration.registration;
+  // An adapter (OS5b) turns the payload into its own shape first; one it cannot use holds every value.
+  const adapted = adaptForReader(o.sourceId, o.payload, registration.adapter, o.current);
+  if ('hold' in adapted) return { writes: {}, problems: [adapted.hold], fingerprint };
+  const { payload, said, memory, choices, own } = adapted;
   const p = projectSource({
     sourceId: o.sourceId,
-    payload: o.payload,
+    payload,
     bindings: o.bindings,
     fieldsOf: o.fieldsOf,
     lists: registration.lists,
@@ -122,17 +130,17 @@ export function projectJson(o: {
     configRevision: registration.configRevision,
   });
   const prefix = `${sourcePrefix(o.sourceId, 'external')}.`;
-  const problems: string[] = [];
+  const problems: string[] = [...said];
   if (p.held) problems.push(`the mapping cannot be used (${p.held.error}), so every value holds`);
   else {
-    for (const leaf of p.missing) problems.push(`${leaf} is not in the JSON, so it keeps its value`);
+    for (const leaf of p.missing) if (!own(leaf)) problems.push(`${leaf} is not in the JSON, so it keeps its value`);
     for (const leaf of p.unfit) {
       problems.push(p.problems[leaf] ? `${leaf}: ${p.problems[leaf]}, so it keeps its value` : `${leaf} holds a value not every field connected to it can show, so it keeps its value`);
     }
     for (const path of Object.keys(p.typedWrites)) problems.push(`${path.slice(prefix.length)} feeds a field that takes typed values, which only an agent writes, so it keeps its value`);
   }
   if (o.collections) problems.push('its collection cards are filled by an agent only, so they keep their values');
-  return { writes: p.writes, problems, fingerprint };
+  return { writes: p.writes, problems, fingerprint, ...(memory ? { memory } : {}), choices };
 }
 
 /** The browser reader of one JSON source: the Sheet reader's machinery with this read and cadence. */
@@ -140,7 +148,7 @@ export function createJsonReader(
   o: Omit<SheetReaderOptions, 'link' | 'read' | 'everyMs' | 'renewMs' | 'timeoutMs' | 'shape' | 'project' | 'inbox'> & {
     url: string;
     everyMs: number;
-    project: (payload: unknown) => ProjectedRead;
+    project: SourceProject;
   },
 ): SheetReader {
   return createSheetReader({

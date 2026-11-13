@@ -201,8 +201,40 @@ function listsWaiting(show: Show, source: ShowSource, onAir: OnAir): string[] {
   return heldListsWaiting(sourcePaths(show.bindings, source.id), heldMain, onAir.live, onAir.waits);
 }
 
+/** The operator's current match of a bracket source (obs-scenes OS5b): read from the tree and
+ *  written there, never by a read. */
+export interface CurrentMatchControl {
+  get: (sourceId: string) => string | null;
+  pick: (sourceId: string, matchId: string | null) => void;
+}
+
+/** The current match picker on a bracket source's line: the matches its last good read offered. */
+function CurrentMatchPicker({ source, status, control }: { source: ShowSource; status: SheetStatus | undefined; control: CurrentMatchControl }) {
+  const choices = status?.choices ?? [];
+  const value = control.get(source.id) ?? '';
+  // A held pick stays shown, with None, even while the feed offers no matches.
+  if (choices.length === 0 && value === '') return null;
+  return (
+    <select
+      value={value}
+      onChange={(e) => control.pick(source.id, e.target.value === '' ? null : e.target.value)}
+      aria-label="Current match"
+      data-testid="source-current-match"
+    >
+      <option value="">Current match: none</option>
+      {/* A pick the feed no longer has stays shown, so the select never moves by itself. */}
+      {value !== '' && !choices.some((c) => c.id === value) && <option value={value}>{value}</option>}
+      {choices.map((c) => (
+        <option key={c.id} value={c.id}>
+          {c.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 /** One source's line in the data panel: name, status, stale, the fix when it fails, and Pause. */
-function SourceLine({ show, setShows, source, store }: { show: Show; setShows: (shows: Show[]) => void; source: ShowSource; store: SourceStatusStore }) {
+function SourceLine({ show, setShows, source, store, currentMatch }: { show: Show; setShows: (shows: Show[]) => void; source: ShowSource; store: SourceStatusStore; currentMatch?: CurrentMatchControl }) {
   const { status, now } = useSourceStatus(store, source.id);
   return (
     <div
@@ -220,6 +252,7 @@ function SourceLine({ show, setShows, source, store }: { show: Show; setShows: (
         {source.paused ? 'Resume' : 'Pause'}
       </button>
       <FileAskButton source={source} status={status} store={store} />
+      {currentMatch && <CurrentMatchPicker source={source} status={status} control={currentMatch} />}
       {/* The file's one click says the fix itself. */}
       {status?.state === 'failing' && status.fix && !fileAsk(status.error) && <span className="status-warn" data-testid="source-fix"> {status.fix}</span>}
       {status?.problems.map((p) => (
@@ -291,12 +324,15 @@ export function DataIndicator({
   setShows,
   store,
   ownReaders = [],
+  currentMatch,
 }: {
   show: Show;
   setShows: (shows: Show[]) => void;
   store: SourceStatusStore;
   /** Graphics reading a Sheet in their own code: listed, without a Pause that would not work. */
   ownReaders?: readonly OwnSheetReader[];
+  /** The current match picker of a bracket source. */
+  currentMatch?: CurrentMatchControl;
 }) {
   const [open, setOpen] = useState(false);
   // A Sheet's or a feed's line; a YouTube source is read and shown in Messages only.
@@ -332,7 +368,7 @@ export function DataIndicator({
       </button>
       <LibMenu open={open} onClose={() => setOpen(false)} surface="pd-ready-panel" role="none" className="pd-data-panel" testid="sources-line">
         {sources.map((source) => (
-          <SourceLine key={source.id} show={show} setShows={setShows} source={source} store={store} />
+          <SourceLine key={source.id} show={show} setShows={setShows} source={source} store={store} currentMatch={currentMatch} />
         ))}
         {ownReaders.map((reader) => (
           <OwnReaderLine key={reader.graphic} reader={reader} />

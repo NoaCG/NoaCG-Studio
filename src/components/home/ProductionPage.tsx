@@ -80,6 +80,7 @@ import type { FieldDescriptor } from '../../model/fieldModel';
 import { createSheetReader, connectedFields, createSourceStatusStore, latestWriter, pathValue, type SheetLease, type SheetReader, type SheetReaderOptions } from '../../control/sheetSource';
 import { FEED_LEASE_MS, createFeedReader } from '../../control/feedSource';
 import { collectionReads, createJsonReader, jsonLeaseMs, projectJson } from '../../control/jsonSource';
+import { currentMatchPath, pickOf } from '../../control/bracketAdapter';
 import { readExternalRegistration } from '../../control/externalSource';
 import { createFileReader } from '../../control/fileSource';
 import { loadFileHandle } from '../../control/fileHandles';
@@ -102,7 +103,7 @@ import { actionArgsOf, nativeOf, readOgrafDeclared, typedReadOnly, typedSendRefu
 import { typedErrorsByPath, typedSummary, typedUnsent } from '../../control/ografForm';
 import { graphicButtons, receivesTypedActions } from '../../control/ografContract';
 import { createTypedSaves, createTypedSendMemo, typedActionPart, typedActionSendFor, TYPED_VALUES_PART } from '../../control/typedSend';
-import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type JsonValue, type ResolvedValues } from '../../model/productionData';
+import { getPath, setPath, resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type JsonValue, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
 import { CANDIDATE_READ_MS, airedOf as airedSelectionOf, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { collectionEntities, readCollectionRecipe, selectionCheck, selectionGate } from '../../control/sourceMapping';
@@ -1642,6 +1643,33 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   sourcesRef.current = show?.sources;
   const bindingsRef = useRef(bindings);
   bindingsRef.current = bindings;
+  /** The tree as this page holds it: a JSON reader reads the operator's current match from it. */
+  const liveDataRef = useRef(liveData);
+  liveDataRef.current = liveData;
+  /** Sources the operator picked a current match on since this page's last read of them: that
+   *  read takes the pick as new, so "None" then the held match recovers whatever the timing. */
+  const freshPicks = useRef(new Set<string>());
+  /** The operator's current match of a bracket source (OS5b, B11, B14): written to the tree, and
+   *  this page's reader reads at once (another tab's at its next read). */
+  const currentMatch = useMemo(
+    () => ({
+      get: (sourceId: string) => pickOf(getPath(liveDataRef.current, currentMatchPath(sourceId))),
+      pick: (sourceId: string, matchId: string | null) => {
+        const data = session.data.get();
+        // Published, the tree is written with the production's data key; without it a pick would
+        // stay in this browser, so it is refused and said.
+        if (hostedSlug && !data.dataKey) {
+          setNote('The current match was not picked: this page cannot write the production’s data yet.');
+          return;
+        }
+        freshPicks.current.add(sourceId);
+        // Onto the newest tree, so a write that landed since the last render keeps its value.
+        setLiveData(setPath(data.liveData, currentMatchPath(sourceId), matchId ?? ''));
+        sourceStatus.poke(sourceId);
+      },
+    }),
+    [session, hostedSlug, setLiveData, sourceStatus],
+  );
   const graphicsRef = useRef(show?.graphics);
   graphicsRef.current = show?.graphics;
   const libraryRef = useRef(library);
@@ -1987,8 +2015,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               ...common,
               url: source.config.endpoint,
               everyMs: source.config.read.everyMs,
-              project: (payload) =>
-                projectJson({ sourceId, payload, bindings: bindingsRef.current, fieldsOf, registration, collections: collectionReads(collectionsRef.current, sourceId) }),
+              // An open page knows the operator's current match (obs-scenes OS5b, B11, B12).
+              project: (payload, previous) =>
+                projectJson({
+                  sourceId,
+                  payload,
+                  bindings: bindingsRef.current,
+                  fieldsOf,
+                  registration,
+                  collections: collectionReads(collectionsRef.current, sourceId),
+                  current: { pick: getPath(liveDataRef.current, currentMatchPath(sourceId)), previous, fresh: freshPicks.current.delete(sourceId) },
+                }),
             }),
           ] as const;
         }
@@ -4031,7 +4068,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   return (
     <ProductionShell
       show={show}
-      data={<DataIndicator show={show} setShows={setShows} store={sourceStatus} ownReaders={ownReaders} />}
+      data={<DataIndicator show={show} setShows={setShows} store={sourceStatus} ownReaders={ownReaders} currentMatch={currentMatch} />}
       status={
         <>
           <PlayoutStatusControl

@@ -168,6 +168,19 @@ break another live production.
 - The adapter's field mapping (which input field means name, score, race, round and so on) is a
   setting of the source, not code, so no site's field names are written into the product.
   Fixtures are synthetic.
+- The mapping also covers feeds shaped differently (added after the first run on a real feed):
+  - A row can be one side of a match: rows that share a match id form the match, side a then side
+    b in row order. A match with one side in the rows is kept, with an unknown other side, and
+    reported; no winner is invented.
+  - Rows can be nested: the rows path can gather every entry of a list or of a numbered object at
+    any level, in feed order, down to leaves that are lists or numbered objects of rows.
+  - The bracket can be taken from where a row sits (its entry's place at a gathered level) when no
+    row field names it; a field that repeats across brackets can then be the stage.
+  - Rounds can be ordered by their number, highest or lowest first, for a feed keyed by round
+    number, whose own order is lost when its JSON is read.
+  - A separate players section can be joined to the sides by name, ignoring case, to fill each
+    side's seed (and its race where the row has none); `<p>.players` then comes from that section.
+    A name the section does not hold is reported, not guessed.
 - The current match is chosen by the operator. A read never changes it. If its match disappears
   or its players change, `current` keeps the last values and `held` is true.
 
@@ -278,8 +291,12 @@ limit). No new Vercel function.
 Both row shapes produce the same ordered result with stable match ids. Unknown scores stay `null`
 and "—" in tie lines. Duplicated or missing rows are reported, not guessed. The field mapping is a
 source setting. The current match holds across reads, keeps its last values with `held` true when
-its match disappears or changes players, and moves only when the operator picks another. Covered
-by synthetic fixtures.
+its match disappears or changes players, and moves only when the operator picks another. Rows
+that are sides of a match pair by match id, and a one-side match is kept and reported; rows nested
+under lists and numbered levels are gathered in feed order; the bracket can come from a row's place;
+a players section fills seeds by name, ignoring case, and an unmatched name is reported; rounds can
+be ordered by their number, highest or lowest first. A setting
+made before these options reads exactly as before. Covered by synthetic fixtures.
 
 ### AC-11: The Live dock
 
@@ -741,3 +758,208 @@ Filled in by each phase's pull request.
   page of an older build that rewrites a connector's configuration drops `read` (R13). On a ticker,
   a pasted address is still read as a news feed; "Read by NoaCG" is offered on the other graphics.
 - Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS5a.md`.
+
+### OS5b: Bracket adapter and current match
+
+- Rules (written before coding):
+  - B1. The adapter is a setting of a JSON source NoaCG reads: `config.adapter` (additive optional)
+    is `{ v: 1, name: 'bracket', rows, fields }`. `rows` is the dotted path of the rows in the
+    payload (empty: the payload itself). `fields` names, per meaning, the dotted path inside a row
+    that holds it: `bracket`, `bracketTitle`, `stage`, `round`, `roundName`, `match`, `status`, and
+    per side `aName`, `aRace`, `aSeed`, `aScore`, `aLeague` and the same for `b`. `aName` and
+    `bName` are required; anything else may be left out. No site's field names are in the code.
+    An unknown key, a path that is not dotted, or another `name` makes the adapter unusable: the
+    read holds every value and the line says why. A later `v` is held read-only, never applied.
+  - B2. The adapter is kept and offered only with "Read by NoaCG" (OS5a R1): turning `read` off
+    in the review drops `adapter` too, so an agent's report is never read through a mapping it
+    does not know. Every writer of the configuration keeps `adapter` unless the operator changes
+    it, and changing it never moves `configRevision` (as OS5a R13). The review offers it only while
+    the OBS scenes switch is on or the source already has it.
+  - B3. Rows come as a list or as an object keyed by row number. Object keys are taken in numeric
+    order; a key that is not a whole number is reported and left out; a gap between the lowest and
+    the highest number is reported as a missing row, never filled in. In a list, an entry that is
+    not an object is reported as an empty row. Both shapes, in the same order, give the same
+    result.
+  - B4. Output, under the source's prefix `<p>`, in feed order (the order each bracket, stage,
+    round and match first appears): `<p>.brackets.<i>` `{ id, title, stages.<k> }`, a stage
+    `{ id, rounds.<r> }`, a round `{ id, name, matches.<m> }`, a match `{ id, status, a, b }`, a
+    side `{ name, race, seed, score }`; `<p>.players.<j>` `{ name, race, seed, league }`;
+    `<p>.ties.<bracket key>`; `<p>.current`. Indexes are path segments (`brackets.0`), since a
+    bound path is dotted keys. A grouping field left out of the mapping puts every row in one
+    group whose id is `1`; a round with no name field is named by its id; a bracket with no title
+    field is titled by its id.
+  - B5. A match's id is its `match` field as text. With no `match` field mapped it is
+    `<bracket>:<stage>:<round>:<n>`, n counting from 1 within its round, so it is stable while the
+    rows keep their order. A row with a mapped grouping or match field that is empty is reported
+    and left out.
+  - B6. `status` is `pending`, `live` or `done` when the feed's value is that word (any case,
+    trimmed), else `unknown`. `score` is a finite number, or a numeric string as its number, else
+    `null`; never a silent zero. No winner is inferred. Name, race, seed and league are the feed's
+    scalar, else `null`.
+  - B7. Duplicates are reported, not guessed: a second row with an existing match id and the same
+    mapped values is left out; one with other values makes that match keep its values (its slot
+    stays, with its id only, so later indexes do not move) and its bracket's tie lines keep theirs.
+  - B8. `players` lists each named side once, in first appearance, with race, seed and league
+    from the rows; a player given two different values for one of them gets `null` there, reported.
+  - B9. `<p>.ties.<bracket key>`: one line per match in feed order, "Round name | A name A score |
+    B name B score", with "—" for an unknown score, as the Bracket type takes them; a `|` or a line
+    break inside a value becomes a space. The key is the bracket id with every run of characters
+    other than letters, digits, `_` and `-` made one `-` (empty: the bracket's index); a second
+    bracket with the same key is reported and left out of `ties`.
+  - B10. An unknown value (`null`) writes empty text to a bound field, so a field never shows the
+    previous match's value as this one's; a tie line shows "—".
+  - B11. The current match is the operator's: `<p>.currentMatchId` in the production's tree,
+    written by the operator (the source line's picker, or a data write). No read writes it, and a
+    binding to it is never reported missing.
+  - B12. `<p>.current` is `{ matchId, round, a, b, held }` (round: the round's name). The reader
+    remembers, beside its snapshot under a key no path can take, the pick it last resolved and the
+    two side names it resolved with. At each read of an open page:
+    - no pick (absent or empty): nothing under `current` is written, and the memory forgets the
+      match (B12 after coding);
+    - a pick that differs from the memory, found: every `current` value is written, `held` false,
+      and the memory becomes the pick and its two names;
+    - the same pick, found, with the same names: every `current` value is written, `held` false; a
+      remembered name that was empty takes the match's name (a slot filled later is not a change);
+    - the pick not found (gone, or kept by B7), or found with a remembered non-empty name changed:
+      `held` is written true and nothing else under `current`, so every field keeps its last value;
+      the memory stays; the line says which.
+    So `current` moves only when the operator picks another match. Picking it again after a hold
+    needs another pick first.
+  - B13. The server tick does not know the pick: it writes nothing under `current` and keeps the
+    memory, so `current` holds until a page reads. Brackets, players and ties are written by page
+    and tick alike. (Until 0116 applies the tick reads no JSON source at all.)
+  - B14. A pick on the source's line writes `<p>.currentMatchId` and asks the reader to read at
+    once, so the pick shows within one read. With the OBS scenes switch off and no adapter set,
+    nothing new shows.
+  - B15. The adapter's report goes on the source's line, at most five lines and a count of the
+    rest. The read is still one snapshot (OS5a R6), checked and changed as before.
+- Rules found by the Rules-first `/so` (agreed with corrections), before code:
+  - B1 amended. The adapter is applied inside `projectJson`, reading `config.adapter` through
+    `readExternalRegistration`, so the page and the tick share it with no change under `api/`.
+  - B3/B5 amended. An empty, unnumbered, missing or left-out row takes no place in a round's count.
+  - B5 amended. With no `match` field mapped, ids are positional: the line says so, and there is no
+    current match (the picker is not offered and `current` is not written), since an inserted row
+    would move a pick onto another match.
+  - B7 amended. A conflicting match writes only its id; its other paths write nothing (a field keeps
+    what it showed, or its default on a first read); its bracket's tie lines write nothing.
+  - B9 amended. In a bracket with more than one stage, each tie line's round is prefixed with its
+    stage's id, since the Bracket type groups rounds by name.
+  - B12 amended. The memory is carried by the reader with the snapshot (`project(payload,
+    previous)`; `projectedState` keeps keys starting `#`), so a handover and the published row pass
+    it on. With a pick and no memory (a fresh tree, or an older build held the lease), the
+    snapshot's `current.matchId`, `current.a.name` and `current.b.name` stand in when they are
+    bound and name the pick; otherwise the match is adopted.
+  - B14 amended. A pick in any tab only writes `currentMatchId`; the tab holding the lease applies it
+    at once, any other reader on its next read. A read computed before a pick lands as if read just
+    before it; the next read applies the pick. A pick written as data waits for a page.
+  - Not taken: blanking a bound bracket, player or tie path the new shape no longer has. OS5a R6
+    and `docs/DATA_API.md` keep the last good value of a path a read does not carry, so a cut-off
+    feed never blanks air; the line names each such path.
+  - Not taken: the tick resolving `current` from the memory. Its projection hook is built in
+    `api/_lib/dataTick.ts`, outside this phase, and passes no snapshot; B13 stands (the tick holds
+    `current`, `held` included).
+  - Decided by default: after a hold, picking the same match again needs another pick, or the
+    picker's "None", first (the pick must change for `current` to move).
+- Rules found after coding (`/check` review):
+  - B12 after coding. With no pick, the memory keeps an empty match id instead of going, so the
+    bound `current` paths never stand in for it: picking "None" and then the held match again
+    takes the match as it is now.
+  - B14 after coding. A pick is written onto the newest tree, so a value written since the last
+    render keeps it. Published, a page that cannot write the production's data (no data key yet)
+    refuses the pick and says so, rather than keeping it in this browser.
+  - B16. The picker offers the matches of the last read that could say (at most 200, and the line
+    says when there are more); a read the adapter cannot use keeps the last offer, and a source
+    without a match id or an adapter offers none.
+  - B2 after coding. Turning "Read by NoaCG" off in the review clears the picks made against the
+    bracket's shape. A stored setting this build cannot edit is shown with its problem and kept;
+    a later version cannot be turned off here, and Connect is refused while the bracket cannot
+    be read.
+- Rules found after coding (PR review):
+  - B3 after coding. A gap in the row numbers is one line ("rows 4 to 9 are missing"), never one
+    line per number, and a row number beyond a safe whole number counts as no row number.
+  - B14 after review. A pick taken on a page marks its source, and that page's next read of it
+    takes the pick as new, whatever the memory says. So "None" then the held match recovers
+    even when both picks land before a read. A pick from a tab that does not hold the lease
+    still needs a read between the two.
+  - B16 after coding. While a pick is set, the picker stays on the line with it and "none", even
+    when the last read offers no matches.
+- Rules added after the first run on a real feed (coordinator, 2026-11-12; additive, so a setting
+  without the new keys reads exactly as before and no field changes meaning):
+  - B17. `rowsAre: 'sides'`: a row is one side of a match, with its own `name`, `race`, `seed`,
+    `score` and `league` fields beside the grouping ones; `match` and `name` are required. Rows
+    sharing a match id, in feed order, are side a then side b. One row: side b is unknown, and the
+    line says "match X has one side in the rows". Three or more rows, or two sides that disagree
+    about bracket, stage, round or status: the match keeps its values (as B7) and the line says so.
+  - B18. A `*` segment in `rows` gathers every entry of a list (by position, from 1) or of an
+    object keyed by number (in numeric order), at any level, in feed order. The leaves are read as
+    B3 says. A branch without the next key, or with no entries, is said, never filled in. Rows
+    found nowhere: the read holds every value (as a missing rows path does).
+  - B19. `bracketLevel: k` takes the bracket id from the entry's place at the k-th `*` of `rows`;
+    it and a `bracket` field are never set together.
+  - B20. `players: { at, fields: { name, race?, seed?, league? } }` reads a section (a list, or an
+    object of entries by any key) beside the rows and joins it to each side by name, ignoring case.
+    It fills `seed` where the side has none, and `race` where the side has none. A side name it
+    does not hold is said once. `<p>.players` is the section's entries in order, when it is
+    mapped. A section that is not there is said, and the sides keep what the rows give.
+  - The review offers each of these from the sample: rows found through `*`, "Each row is", the
+    bracket from "Its place in" a gathered level, and a players list with its fields.
+  - B21 (found while adding these). A match's own paths are 10 keys deep
+    (`brackets.i.stages.k.rounds.r.matches.m.a.name`), past the 8 a recipe path or the review's
+    offers reach. So the review offers a bracket source's shape 12 keys deep (up to 1000 values),
+    and connecting a field to an adapter's leaf writes no recipe output: the read reaches the leaf
+    by its own path, at any depth. The recipe's limit is unchanged.
+  - B4 amended (found while adding these). An index segment is `_0`, `_1`, ... and a tie key of
+    digits alone takes a `_` in front: the production tree reads a segment of digits alone as an
+    array index, which no source write can address, so `brackets.0...` could never be written.
+    So `<p>.brackets._i.stages._k.rounds._r.matches._m`, `<p>.players._j`, `<p>.ties.<key>`.
+    Every path the shape gives is checked to be writable.
+  - Found by the `/check` review of these: the same side row twice is one side, said and left out
+    (never a match against itself); a round name or title given on one side only is the match's,
+    and does not hold it (B17 compares bracket, stage, round and status); an empty level at a `*`
+    is said (B18); the review steps through a level as the reader does (numbered keys, others said)
+    and keeps a stored players list editable when the sample offers none; a bracket source is never
+    marked "needs repair" for paths its adapter makes. Side rows pair by match id across the whole
+    answer, since match ids are unique across it and the current match is picked by id.
+  - Found by the PR review on 80345806: a side row's place (B19) is part of what it says, so the
+    same side rows under two brackets are not repeats; the match has four rows and keeps its
+    values (B17).
+  - Found by the full `/so` on 80345806 (graded B, one blocking finding):
+    - B20 amended. A mapped players section that a read cannot give leaves `<p>.players` out of
+      the output, so its bound paths keep their values (OS5a R6). Before, it fell back to the
+      players found in the rows, and a bound `players._j` could show someone else.
+    - An entry of the section with no name keeps its place, said. A name given twice in another
+      case with other values fills nothing for that name, said (as B8).
+    - A side row left out takes its match's other rows with it, said.
+    - Tie lines are built as own keys. A bracket whose tie key is `__proto__` is said and has
+      no tie lines: the tree's merge drops that key without a word (found by the full `/so` on
+      9f0d29dc, graded A). Every path the shape gives is now checked through that merge.
+    - Not taken, recorded: side rows pair by match id across the whole answer, as decided
+      above.
+  - B22 (coordinator, after the second run on the real feed). `roundOrder: 'ascending' |
+    'descending'` puts each stage's rounds in order of their id as a number; a round whose id is
+    not a number keeps its feed place after the numbered ones. Absent, rounds keep the feed's order
+    as before. A feed keyed by round number ("round of 8, 4, 2") loses its own order when its JSON is
+    read (integer-like keys come first, ascending), so without it the final would draw first.
+    Tie lines, the shape and the picker follow the order. The review offers it as "Round order".
+- Previous verified `main`: `97ba82596a7fcfcf6a424140648a5f8ad13aab92` (CI 43307568831, configured
+  suite 43307568943).
+- Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed and no
+  migration: an `adapter` left on a source is ignored by the reverted build, which then reads the
+  raw payload, so its bracket paths say "not in the JSON" and keep their values; turn "Read as a
+  bracket" off or reconnect first. A `#bracket.current` key left in a source's snapshot is ignored.
+  `currentMatchId` stays in the tree as an unbound value.
+- Decisions: the adapter is a setting on the connector (`config.adapter`) beside `read`, not a new
+  source kind, so the review, recipe, lease and evaluator are OS5a's. Its output uses index
+  segments (`brackets.0`), since bound paths are dotted keys. The reader's memory of the current
+  match rides in the snapshot under a `#` key, so the published row carries it with no migration.
+  The picker is on the source's line in the data panel, from the matches of the last good read
+  (the reader's status, shared by every tab); the Live dock (OS6) can reuse it. Defaults decided
+  here, not by the spec: no current match without a mapped match id (B5 amended); after a hold,
+  the pick must change (another match, or "none") before `current` moves again; a status word other
+  than pending, live or done is `unknown`, with no mapping of the feed's own words.
+- Traps: the server tick holds `current` (B13) and passes no snapshot to the projection, because its
+  hook is built in `api/_lib/dataTick.ts`; `held` therefore updates only while a page reads. Until
+  0116 applies the tick reads no JSON source anyway. A pick from a tab that does not hold the lease
+  shows at the holder's next read, up to the interval. A pick is an owner write to the tree
+  (`setLiveData`), the same road as editing a value on the Data tab.
+- Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS5b.md`.

@@ -112,7 +112,20 @@ export interface ProjectedRead {
   writes: Record<string, string>;
   problems: string[];
   fingerprint: string;
+  /** A projection's own memory between reads (obs-scenes OS5b, B12): kept with the snapshot under
+   *  keys starting `#`, which no path can take, and written to no field. null forgets a key; a key
+   *  left out keeps what the snapshot held. */
+  memory?: Record<string, string | null>;
+  /** What the operator can pick from this read (SheetStatus `choices`): null offers nothing,
+   *  absent keeps what the last read offered. */
+  choices?: { id: string; label: string }[] | null;
 }
+
+/** A snapshot key that is a projection's memory, never a path. */
+export const isMemoryKey = (key: string): boolean => key.startsWith('#');
+
+/** What the projection is handed with each payload: what this source last wrote, and its memory. */
+export type SourceProject = (payload: unknown, previous: Readonly<Record<string, string>>) => ProjectedRead;
 
 const NOT_SHARED = 'In the Sheet, use Share and set General access to “Anyone with the link”, Viewer.';
 
@@ -331,6 +344,9 @@ export interface SheetStatus {
   stale: boolean;
   /** Rows the last good read could not use, or connected rows it no longer carries. */
   problems: string[];
+  /** What the operator can pick from the last good read (obs-scenes OS5b: a bracket's matches),
+   *  shared with every tab through the lease. Absent for every other source. */
+  choices?: { id: string; label: string }[];
   /** Published only: whether the server reads this source once every page is closed. Absent
    *  when unpublished, where nothing reads with the page closed. */
   closedPage?: boolean;
@@ -404,7 +420,7 @@ export interface SheetReaderOptions {
   read?: (signal: AbortSignal) => Promise<SourceRead>;
   /** How a payload read becomes values (a JSON source, ./jsonSource.ts): asked once per good read,
    *  with the bindings of that moment. */
-  project?: (payload: unknown) => ProjectedRead;
+  project?: SourceProject;
   /** How often it reads (SHEET_READ_MS), and how long one read may take (SHEET_TIMEOUT_MS). */
   everyMs?: number;
   timeoutMs?: number;
@@ -510,7 +526,7 @@ export function nextReadState(
     shape: SheetShape;
     connected: ReadonlySet<string>;
     accept?: (path: string, text: string) => string | null;
-    project?: (payload: unknown) => ProjectedRead;
+    project?: SourceProject;
   },
   now: number,
   reader: SheetStatus['reader'],
@@ -518,7 +534,7 @@ export function nextReadState(
   if (!result.ok) return { next: { ...held, status: missedStatus(held.status, result, now, reader) }, writes: {} };
   if ('payload' in result) {
     if (!source.project) return { next: { ...held, status: missedStatus(held.status, { error: 'this source is not read here', fix: 'Connect it again.' }, now, reader) }, writes: {} };
-    return projectedState(held, source.project(result.payload), source, now, reader);
+    return projectedState(held, source.project(result.payload, held.snapshot), source, now, reader);
   }
   const content = sheetContent(source.shape, result.rows);
   const written = sheetWrites(source.sourceId, content, source.connected, held.snapshot, source.accept);
@@ -553,12 +569,20 @@ function projectedState(
     snapshot[path] = value;
     if (held.snapshot[path] !== value) writes[path] = value;
   }
+  // The projection's memory travels with the snapshot, through a handover and the published row.
+  for (const [key, value] of Object.entries(held.snapshot)) if (isMemoryKey(key)) snapshot[key] = value;
+  for (const [key, value] of Object.entries(read.memory ?? {})) {
+    if (!isMemoryKey(key)) continue;
+    if (value === null) delete snapshot[key];
+    else snapshot[key] = value;
+  }
   const status: SheetStatus = {
     ...initialStatus(reader),
     state: 'ok',
     checkedAt: now,
     changedAt: held.content === read.fingerprint ? (held.status.changedAt ?? now) : now,
     problems: read.problems,
+    ...(read.choices ? { choices: read.choices } : read.choices === undefined && held.status.choices ? { choices: held.status.choices } : {}),
     ...(held.status.closedPage === undefined ? {} : { closedPage: held.status.closedPage }),
   };
   return { next: { snapshot, content: read.fingerprint, status }, writes };
