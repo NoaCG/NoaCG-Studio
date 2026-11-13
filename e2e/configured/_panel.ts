@@ -171,7 +171,7 @@ export async function publishTwoCues(page: Page, showName: string, graphic?: str
   await page.getByTestId('cue-label').blur();
   await publishProduction(page);
   const slug = await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows().find((x) => x.name === name)?.hostedSlug ?? null;
   }, showName);
   expect(slug, 'publishing must mint a hosted control slug').toBeTruthy();
