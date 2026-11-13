@@ -2154,7 +2154,16 @@
       "remaining": 1,
       "status": "RESERVED_AFTER_EXPLICIT_OWNER_APPROVAL",
       "sourceHead": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
-      "stopCondition": "If the narrow combined correction fails, stop and reassess the simpler product requirements with the owner. Any confirmed remaining product failure after the combined patch ends this attempt. No automatic follow-up implementation, fallback, repair or allowance."
+      "stopCondition": "If the narrow combined correction fails, stop and reassess the simpler product requirements with the owner. Any confirmed remaining product failure after the combined patch ends this attempt. No automatic follow-up implementation, fallback, repair or allowance.",
+      "handoff": {
+        "actor": "/root/editor_e4_narrow_correction",
+        "brief": "/workspace/noacg-editor-r1-5-state/17e47924/wave.kit/briefs/e4-owner2-narrow-20261113.txt",
+        "briefSha256": "3fccf25473149191f97e9adc072040a4000be4b0a8bee15454fffb397c57462b",
+        "request": "/workspace/noacg-editor-r1-5-state/17e47924/wave.kit/briefs/e4-owner2-native-request.txt",
+        "requestSha256": "3b8393b01ac7e11f09f5a6f540d2c103c925760ce81ec8d633f05a17970c9718",
+        "status": "PREPARED_NOT_DISPATCHED",
+        "method": "Existing-phase resume actor receipt; no new build/repair admission. Optional pending-native launcher supports only build/repair/check, not resume; exact original request saved before one spawn."
+      }
     }
   },
   "coordinatorTools": {
