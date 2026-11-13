@@ -31,6 +31,13 @@ Simulated events are not hardware proof. In OBS, confirm:
 5. The settled fallback group: network off, empty browser caches, each group shown, graphics placed
    and settled with their fonts and images (AC-12's owner half).
 
+## Found in CI
+
+- The configured walk failed at "Preview" (the row stayed "OBS: unknown"): the production page did
+  not render a Presence update that changed only a scene report (`outputsKey` in
+  `src/components/control/OutputHealth.tsx`). Fixed by adding the report to that key. The walk is
+  the guard: the offline suite has no Presence.
+
 ## Mutation checks run locally
 
 - "Loaded twice" only from three instances: two Node tests fail. Restored.

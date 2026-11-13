@@ -1182,6 +1182,10 @@ Filled in by each phase's pull request.
   `?stream=` instance has its plays settled too (it still waits for commands); a settled file's
   README no longer describes the entrance on program. Not changed: the rows are folded on every
   render (cheap, over the cues), and an OBS event's ticks re-send no Presence entry unless it changed.
+- Found by the configured walk in CI: the production page re-rendered on a Presence update only
+  when the outputs' key changed (`components/control/OutputHealth.tsx` `outputsKey`), and the key
+  left out the scene report, so a row never showed Preview, Program or a new tick. The key now
+  includes it; with the switch off no entry carries one, so nothing else re-renders.
 - Integration with fix #2489 (PR #2493, merged in before landing): its join waits for the scene
   links that report the publish, by `scene.id` (`control/sceneJoin.ts`), so this phase's additions
   to the scene report (`seen`) and the link's default name change nothing there. The only conflict
