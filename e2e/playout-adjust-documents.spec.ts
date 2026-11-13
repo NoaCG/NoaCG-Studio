@@ -34,6 +34,10 @@ import { differing } from './_ografParity';
 import { awaitDurableReady } from './_durable';
 import { frameCss, type AppliedAppearance } from '../src/control/cueAdjust';
 import { bakeAppearance } from '../src/control/appearanceRuntime';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 const ORIGIN = 'http://adjust-docs.local';
 const GROUND = [10, 20, 30];
@@ -77,6 +81,7 @@ interface Served {
 
 async function openRenderer(browser: Browser, served: Served): Promise<Page> {
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  await installDoor(context);
   const page = await context.newPage();
   await page.route(`${ORIGIN}/**`, (route) => {
     const path = decodeURIComponent(new URL(route.request().url()).pathname).replace(/^\//, '');

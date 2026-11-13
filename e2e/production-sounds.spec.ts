@@ -11,6 +11,10 @@
 import { test, expect } from '@playwright/test';
 import { awaitDurableReady } from './_durable';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 test.use({ launchOptions: { args: ['--autoplay-policy=no-user-gesture-required'] } });
 
 // Independent PCM fixture; this session does not edit the health session's fixtures.

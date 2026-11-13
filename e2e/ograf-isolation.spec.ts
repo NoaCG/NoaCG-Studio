@@ -20,6 +20,10 @@ import { fileURLToPath } from 'node:url';
 import { installGraphicBody } from './_graphicBody';
 import { graphicTemplate, ografFiles, type GraphicSource } from './_ografBuild';
 import { matches, paritySweep, PARITY_BOUND } from './_ografParity';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 const ORIGIN = 'http://ograf-isolation.local';
 const GROUND = [10, 20, 30];

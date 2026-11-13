@@ -21,6 +21,10 @@ import { fileURLToPath } from 'node:url';
 import { installGraphicBody } from './_graphicBody';
 import { graphicTemplate, ografFiles, type GraphicSource } from './_ografBuild';
 import { dropSvg, intoProduction } from './_svg-import';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 const ORIGIN = 'http://ograf-lifecycle.local';
 const START = new Date('2026-10-11T12:00:00Z');

@@ -10,6 +10,10 @@ import { readFileSync } from 'node:fs';
 import { relayServe, routeOrigin } from './_relay';
 import { awaitDurableReady } from './_durable';
 import { frameCss, type AppliedAppearance } from '../src/control/cueAdjust';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // The LOCAL-CONTROL door (offline local control, no command line): the overlay package
 // bundles a localhost relay (two stdlib implementations of protocol v1) + double-click
@@ -85,6 +89,7 @@ test('the overlay package ships the local-control bundle, and panel drives graph
   // The operator side: the panel in "another browser" — a page with NO BroadcastChannel
   // reach (different Playwright context) so only the relay can carry the commands.
   const other = await context.browser()!.newContext();
+  await installDoor(other);
   const panel = await other.newPage();
   await panel.route('http://relay-host.local/**', serve);
   await panel.goto('http://relay-host.local/controlpanel.html', { waitUntil: 'load' });

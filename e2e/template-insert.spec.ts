@@ -4,6 +4,10 @@
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openWorkingGraphicInEditor } from './_create';
 import { editorPreview, mountWorkingDocument } from './_frame';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // "Add template graphic" (Assets panel ✚): insert a catalog graphic INTO the current
 // project — namespaced classes, renumbered fields, the donor's :root scoped onto the

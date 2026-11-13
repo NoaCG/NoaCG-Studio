@@ -9,6 +9,10 @@ import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent, openWor
 import { importProofCase } from './_proofCase';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // Phase 5: SHOWS — the rundown level. A show collects graphics that run together; its
 // export packages every graphic plus ONE aggregated control page (a card per graphic,

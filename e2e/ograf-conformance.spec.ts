@@ -12,6 +12,10 @@ import { bootstrapGraphic, openExportWindow } from './_create';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 import type { SimWin } from './_frame';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // OGraf v1 conformance, gated rather than remembered.
 //

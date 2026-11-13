@@ -16,6 +16,10 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { addToProductionFromFinish } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 const FIXTURES = fileURLToPath(new URL('fixtures/ograf-library/', import.meta.url));
 const sha = (b: Buffer | Uint8Array) => createHash('sha256').update(b).digest('hex');

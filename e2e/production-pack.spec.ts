@@ -17,6 +17,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { bootstrapGraphic, openWorkingGraphicInEditor } from './_create';
 import { settleDurableWrites } from './_durable';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // The graphics-pack ROUND TRIP and the Fight Night pack (src/packs/graphicsPack.ts,
 // docs/GRAPHICS_PACKS.md, docs/FIGHT_NIGHT_PACK_PLAN.md): any production exports as one

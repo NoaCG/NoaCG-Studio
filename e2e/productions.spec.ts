@@ -26,6 +26,10 @@ import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor
 import { settleDurableWrites } from './_durable';
 import { armStorageFailure, fillStorage, freeStorage } from './_storage';
 import { outputEmbedFileName, outputEmbedHtml } from '../src/export/outputEmbed';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 /** Drag cue row `from` onto row `to` — the rundown reorders by DRAG now, not by ↑/↓ buttons
  *  (docs/PLAYOUT_DASHBOARD.md §4). Playwright's dragTo drives real HTML5 drag events, which is

@@ -30,6 +30,10 @@ import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { armStorageFailure, fillStorage, freeStorage } from './_storage';
 import { addQuestion, goLive, moreWaysIn, questionRow, simulateArrivals, stopLive } from './_interaction';
 import { qrReader } from './_qr';
+import { installDoor } from './_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // The production AUDIENCE workspace (docs/INTERACTIVE_PLAYOUT_PLAN.md, Phase 5).
 //
