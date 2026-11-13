@@ -32,6 +32,7 @@ import type { JsonValue } from './productionData';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
+import { sceneOwners, separateSceneGraphics } from './obsScenes';
 import { JOIN_PAGE_LIMITS } from './joinPage';
 import { readQuestions, setWordHidden, type ShowQuestion } from './questions';
 import { scrubHiddenWords } from './wordCues';
@@ -1155,6 +1156,18 @@ export function setGraphicCopyScript(showId: string, graphicId: string, from: st
  *  or binding neither passes the rule on its old copy nor writes that copy back. `mutate` must then
  *  give the same answer for the same record (no fresh ids inside it). A team production is not in
  *  this database and keeps the ordinary write; its merge keeps the rule (teamShowMerge.ts). */
+/** OS1b C2 (docs/work-specs/obs-scenes/spec.md): a write that changed the record leaves every pool
+ *  graphic in one OBS scene at most, inside the same write, so the local and the rebased pass each
+ *  separate the record they changed. With the switch off it is the write as it was. */
+function withSceneCopies(mutate: (show: Show, at: string) => boolean | string): (show: Show, at: string) => boolean | string {
+  return (show, at) => {
+    const before = sceneOwners(show);
+    const result = mutate(show, at);
+    if (result === true) separateSceneGraphics(show, before, { mint: uuid, freeLayer: nextFreeLayer });
+    return result;
+  };
+}
+
 function patchShowChecked(
   showId: string,
   mutate: (show: Show, at: string) => boolean | string,
@@ -1164,6 +1177,7 @@ function patchShowChecked(
   /** The typed writer's allowance (`setCueTyped`): cue id to the envelope bytes it writes. */
   typedWrite?: ReadonlyMap<string, string | null>,
 ): { shows: Show[]; error: string | null } {
+  mutate = withSceneCopies(mutate);
   const all = readEditable();
   const visible = () => all.filter((s) => !s.deleted);
   if (!canAuthorAccount()) return { shows: visible(), error: 'Account editing is paused. Sign in again; pending work is preserved.' };

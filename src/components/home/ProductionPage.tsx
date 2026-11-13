@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
-import { sceneLink } from '../../model/obsScenes';
+import { sceneGraphicNames, sceneLink } from '../../model/obsScenes';
 import { useTemplateStore } from '../../store/templateStore';
 import {
   deleteShowProfile,
@@ -3161,6 +3161,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // operator sees it, and the lines it writes. ──────────────────────────────────────────────────
   const logAuto = (graphic: string, text: string) => logHere([(id) => autoEntry(id, graphic, text)]);
   /** The graphics a Take of this one replaces on its layer (control/ografOutcome.ts). */
+  // OBS scenes OS1b C9: All out leaves the scene graphics of the record this page holds as they are.
+  const sceneGraphics = sceneGraphicNames(show);
   const layerPeersOf = (graphic: string) => packageLayerPeers(show.graphics.map((g) => ({ name: g.name, layer: graphicLayer(g), foreign: isForeignGraphic(g.template) })), graphic);
   armPage.current = {
     published: !!hostedSlug,
@@ -3282,6 +3284,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     graphics: show.graphics,
     liveCue,
     layerPeers: layerPeersOf,
+    sceneGraphics,
     answersOnOutput: (graphic) => isForeignGraphic(show.graphics.find((g) => g.name === graphic)?.template),
     liveLayers,
     livePlayoutLayers,
