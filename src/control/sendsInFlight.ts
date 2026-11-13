@@ -28,14 +28,13 @@ export function sendsIdle(): Promise<void> {
   return inFlight === 0 ? Promise.resolve() : new Promise((resolve) => waiters.push(resolve));
 }
 
-/** `send`, counted while it runs. */
-export function countedSend<A, R>(send: (a: A) => Promise<R>): (a: A) => Promise<R> {
-  return async (a) => {
-    const answered = noteSendStarted();
-    try {
-      return await send(a);
-    } finally {
-      answered();
-    }
-  };
+/** Run `send`, counted while it is on the wire. A plain function, so a module that exports a
+ *  counted sender has no top-level call and stays tree-shakable. */
+export async function counted<R>(send: () => Promise<R>): Promise<R> {
+  const answered = noteSendStarted();
+  try {
+    return await send();
+  } finally {
+    answered();
+  }
 }

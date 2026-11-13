@@ -40,7 +40,7 @@ import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, SEQ_HEAD_EVENT, commandT
 import { allOutWaves, BURST_WINDOW_MS } from './allOut';
 import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, isRefusal, rpcFailure, seqRoadVerdict, sendWithResend, unansweredError, type SeqRoadAsker } from './failedSends';
 import { noteSend, withSender } from './livePath';
-import { countedSend } from './sendsInFlight';
+import { counted } from './sendsInFlight';
 import { obsScenesOf, SCENE_ID, type ObsScene } from '../model/obsScenes';
 import { graphicDigest, olderDesigns, readPayloadVersion, stampPayload, type PayloadVersion } from './payloadVersion';
 import { createSeqFollower, seqJoinRetryDelay, type HeadSummary, type SeqFrame, type SeqHead, type SeqTail } from './seqFollow';
@@ -1800,10 +1800,14 @@ function pressSender(slug: string, session: SeqSession, items: readonly ControlS
  */
 /** One press's send, counted while it is on the wire, whichever road it takes and including the
  *  wait for the road: an automatic publish never runs a step beside it (sendsInFlight.ts, G3 R10). */
-export const sendControlVerb = countedSend(sendControlVerbOnce);
+export function sendControlVerb(opts: Parameters<typeof sendControlVerbOnce>[0]): ReturnType<typeof sendControlVerbOnce> {
+  return counted(() => sendControlVerbOnce(opts));
+}
 
 /** Several batches of one press, counted the same way. */
-export const sendControlVerbs = countedSend(sendControlVerbsOnce);
+export function sendControlVerbs(opts: Parameters<typeof sendControlVerbsOnce>[0]): Promise<VerbSent> {
+  return counted(() => sendControlVerbsOnce(opts));
+}
 
 async function sendControlVerbsOnce(
   opts: Omit<Parameters<typeof sendControlVerbOnce>[0], 'items' | 'sender' | 'pressedAt'> & { batches: ControlSendItem[][] },
