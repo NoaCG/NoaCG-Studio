@@ -14,7 +14,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertConfiguredTarget, configuredTarget, DECLARATION, DEPLOYED_SITE, describeTarget, HOSTED_STAGING } from './configured-target.mjs';
+import { assertConfiguredTarget, configuredTarget, DECLARATION, describeTarget, HOSTED_STAGING, isLocalStackUrl, KEY_VARS, URL_VARS } from './configured-target.mjs';
+import { DEFAULT_STAGING_REF } from './supabase-projects.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const file = (name) => readFileSync(path.join(ROOT, name), 'utf8');
@@ -86,7 +87,7 @@ test('api/ reads SUPABASE_URL as well, so a local VITE_SUPABASE_URL cannot smugg
 });
 
 test('hosted staging runs only when it says so, and never at the production ref', () => {
-  const staging = { ...CLOUD_WORKER, VITE_SUPABASE_URL: 'https://garafohbzmsybtysxphb.supabase.co' };
+  const staging = { ...CLOUD_WORKER, VITE_SUPABASE_URL: `https://${DEFAULT_STAGING_REF}.supabase.co` };
   assert.equal(configuredTarget(staging).kind, 'refused');
   assert.equal(configuredTarget({ ...staging, [DECLARATION]: HOSTED_STAGING }).kind, HOSTED_STAGING);
   // The declaration is not a master key: production stays refused with it set.
@@ -124,22 +125,40 @@ test('a capital letter is not a disguise: hostnames fold before they are judged'
   assert.equal(configuredTarget({ VITE_SUPABASE_URL: 'HTTP://LOCALHOST:54321' }).kind, 'local');
 });
 
-test("the deployed site's own suite declares itself, and may not carry an admin key", () => {
+test("the deployed site's own suite ends up with no backend rather than a word that means 'do not check'", () => {
   // playwright.production.config.ts shares e2e/configured/ as its directory, so collecting it
-  // imports _helpers.ts; its URL is the deployed site on purpose and it writes nothing.
-  assert.equal(configuredTarget({ [DECLARATION]: DEPLOYED_SITE, PRODUCTION_URL: 'https://noacg.studio' }).kind, DEPLOYED_SITE);
-  const withKey = configuredTarget({ [DECLARATION]: DEPLOYED_SITE, SUPABASE_SERVICE_ROLE_KEY: 'fake-service-role' });
-  assert.equal(withKey.kind, 'refused');
-  assert.match(withKey.reason, /Unset it/);
-  assert.doesNotMatch(withKey.reason, /fake-service-role/);
+  // imports _helpers.ts. It is anonymous and writes nothing, and it says so by unsetting the
+  // backend variables for its own process - which this rule then reads as `unconfigured`.
+  const config = file('playwright.production.config.ts');
+  assert.match(config, /for \(const name of \[\.\.\.URL_VARS, \.\.\.KEY_VARS\]\) delete process\.env\[name\];/);
+  const after = { ...CLOUD_WORKER };
+  for (const name of [...URL_VARS, ...KEY_VARS]) delete after[name];
+  assert.equal(configuredTarget(after).kind, 'unconfigured');
+  // And no word admits a hosted backend except the staging declaration.
+  assert.equal(configuredTarget({ ...CLOUD_WORKER, [DECLARATION]: 'deployed-site' }).kind, 'refused');
 });
 
-test('the writing suite does not accept the deployed-site declaration, whoever set it', () => {
-  // The guard module admits it; the configured suite's own globalSetup then refuses it, so a
-  // shell that exports that word cannot point a signing-in, row-writing run at a hosted project.
+test('the served backend is judged too, not only this process (a reused dev server)', () => {
+  // `reuseExistingServer: true` can adopt a server somebody started with their own environment
+  // file, and the specs sign in through THAT page. The guard reads what the page holds and judges
+  // it by the same rule; a localhost environment is no defence against a production page.
   const guard = file('e2e/_configured-guard.ts');
-  assert.match(guard, /target\.kind === DEPLOYED_SITE/);
-  assert.match(guard, /throw new Error\(/);
+  assert.match(guard, /_env-probe\.ts/);
+  assert.match(guard, /configuredTarget\(\{ VITE_SUPABASE_URL: served/);
+  assert.match(guard, /reuseExistingServer/);
+});
+
+test('the one local-stack test is the one every local-stack run uses', () => {
+  assert.equal(isLocalStackUrl('http://127.0.0.1:54321'), true);
+  assert.equal(isLocalStackUrl('HTTP://LOCALHOST:54321'), true);
+  assert.equal(isLocalStackUrl('http://localhost'), false);
+  assert.equal(isLocalStackUrl(undefined), false);
+  // The endurance runs asked the same question with weaker patterns of their own.
+  for (const config of ['playwright.endurance.config.ts', 'e2e/endurance/editor-projects.config.ts']) {
+    assert.match(file(config), /isLocalStackUrl\(process\.env\.VITE_SUPABASE_URL\)/, config);
+  }
+  // And the connector spike's production denylist is this module's, not a second copy.
+  assert.match(file('scripts/connector-oauth-spike.mjs'), /import \{ NEVER_REFS \} from '\.\/configured-target\.mjs';/);
 });
 
 test('the live config carries the file keys the guard reads, not only the ones a spec reads', () => {
@@ -169,6 +188,5 @@ test('the guard is wired to every configured run and to the specs themselves', (
   );
   // The one declared exception, in the one workflow that owns it.
   assert.match(file('.github/workflows/hosted-latency.yml'), /NOACG_CONFIGURED_TARGET: hosted-staging/);
-  // And the deployed site's suite, which declares itself in the config rather than in a shell.
-  assert.match(file('playwright.production.config.ts'), /process\.env\[DECLARATION\] \?\?= DEPLOYED_SITE;/);
+
 });

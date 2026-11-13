@@ -1,6 +1,6 @@
 import { validateCloudWorkerRequest } from './scripts/e2e-workers.mjs';
 import { defineConfig, devices } from '@playwright/test';
-import { DECLARATION, DEPLOYED_SITE } from './scripts/configured-target.mjs';
+import { KEY_VARS, URL_VARS } from './scripts/configured-target.mjs';
 
 // THE DEPLOYED SITE'S OWN SUITE - the tier nothing else in this repository covers.
 //
@@ -22,13 +22,14 @@ import { DECLARATION, DEPLOYED_SITE } from './scripts/configured-target.mjs';
 //
 // .github/workflows/deploy-verify.yml runs it on every production deployment and on the same
 // four-times-a-day schedule as the version check beside it.
-// WHAT THIS SUITE IS, in the words the shared backend guard reads (issue #2495). It shares
-// `e2e/configured/` with the suite that signs in and writes rows, so importing one of those spec
-// files reaches `_helpers.ts`, which refuses a backend a configured run does not own. Here the URL
-// is the deployed site ON PURPOSE and nothing is written, so the config declares itself rather
-// than being refused - a declaration the WRITING suite's own guard does not accept. An admin key
-// in the environment is still refused: nothing tagged `@production` needs one.
-process.env[DECLARATION] ??= DEPLOYED_SITE;
+// THIS SUITE HAS NO BACKEND (issue #2495). Its target is `baseURL` below; it signs in nowhere and
+// writes nothing. But it shares `e2e/configured/` as its directory, so Playwright loads those spec
+// files to resolve the `grep`, and that reaches `_helpers.ts`, which refuses a backend a
+// configured run does not own - a shell with a production environment file exported would abort a
+// suite that could not have touched it. Saying the true thing is enough: in THIS process there is
+// no backend and no admin key, so the shared rule sees none. It cannot affect the deployed site
+// being measured, and a key that is not in the environment cannot be used by a loaded spec module.
+for (const name of [...URL_VARS, ...KEY_VARS]) delete process.env[name];
 
 const cloudLimits = validateCloudWorkerRequest();
 

@@ -25,6 +25,10 @@
 // points at (never production): it creates and deletes an account and OAuth clients.
 // Exit 1 when a step of AC-1, decision 4 or the account lock fails.
 
+// The project this never runs against: production, which has real users. The denylist lives in
+// scripts/configured-target.mjs, which owns the same refusal for the configured suite (issue
+// #2495), so moving a project is one edit rather than a hunt.
+import { NEVER_REFS } from './configured-target.mjs';
 import { execFileSync } from 'node:child_process';
 import { createHash, randomBytes, webcrypto } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
@@ -69,9 +73,6 @@ export function isLocalUrl(url) {
     return false;
   }
 }
-
-/** The project the connector's acceptance never runs against: production, which has real users. */
-const NEVER_REFS = ['kprolrchuldgfrzspthy'];
 
 /** Where the connector's acceptance may create accounts and OAuth clients: a local stack, or the
  *  ONE hosted test project named on purpose in NOACG_CONNECTOR_TEST_REF (a preview branch, or

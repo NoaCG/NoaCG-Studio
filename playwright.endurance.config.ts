@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { isLocalStackUrl } from './scripts/configured-target.mjs';
 import { livePort } from './scripts/dev-port.mjs';
 
 // THE ENDURANCE RUN (docs/work-specs/playout-expanded-acceptance/spec.md, phase E8.1b): one walk of
@@ -8,8 +9,10 @@ import { livePort } from './scripts/dev-port.mjs';
 // that by hand only. It is in no other suite: its file is not a `.spec.ts`, so neither the offline
 // nor the configured config picks it up, and its one test lasts as long as the run.
 const minutes = Number(process.env.ENDURANCE_MINUTES ?? 5);
-// The local stack only: the walk publishes, writes and reads as a real production would.
-if (!/^http:\/\/(127\.0\.0\.1|localhost):/.test(process.env.VITE_SUPABASE_URL ?? '')) {
+// The local stack only: the walk publishes, writes and reads as a real production would. The test
+// is the configured suite's own (scripts/configured-target.mjs, issue #2495), so tightening it
+// once tightens it here: this file's own pattern accepted a bare `http://localhost:` with no port.
+if (!isLocalStackUrl(process.env.VITE_SUPABASE_URL)) {
   throw new Error('the endurance walk runs against a local Supabase stack only: start it through npm run endurance:election');
 }
 
