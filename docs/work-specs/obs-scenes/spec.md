@@ -1182,6 +1182,10 @@ Filled in by each phase's pull request.
   `?stream=` instance has its plays settled too (it still waits for commands); a settled file's
   README no longer describes the entrance on program. Not changed: the rows are folded on every
   render (cheap, over the cues), and an OBS event's ticks re-send no Presence entry unless it changed.
+- Integration with fix #2489 (PR #2493, merged in before landing): its join waits for the scene
+  links that report the publish, by `scene.id` (`control/sceneJoin.ts`), so this phase's additions
+  to the scene report (`seen`) and the link's default name change nothing there. The only conflict
+  was the page's imports.
 - Previous verified `main`: `b2e91ba4a5df23c1cec4a95ea213c9d070b5c7f5` (CI run 43427609778,
   configured suite 43427609688).
 - Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed and no
