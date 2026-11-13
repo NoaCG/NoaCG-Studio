@@ -6,8 +6,9 @@ Design: `../designs/G3.md`. Acceptance: AC-4. Everything here ran on the cloud w
 
 **AC-4 status.** The correctness half (every save reaches the outputs, no "Publish changes", the
 failure and reverse-order cases) passes. On the typical fixture, with #2494 fixed and edits every
-5 s (owner decision, 2026-11-13), 10 interleaved pairs read p95 +38 ms with automatic updates on,
-with a 90% range of +24 to +56 ms (see "Repair: after the sync fix"). The single pair first reported
+5 s (owner decision, 2026-11-13), 20 interleaved pairs read a pooled p95 difference of +35.9 ms,
+within 50 ms, so the timing passes by the rule fixed before the second ten pairs (see "Repair: after
+the sync fix"; 90% range +26 to +47 ms). The single pair first reported
 here (+2 ms) and the first repair's 10 pairs at 3 s were drowned by #2494. On the large fixture under continuous editing, publishing a whole copy per save adds about 334 ms p95 (see
 "Editing while publishing"). **Owner decision (b), recorded on #2361, 2026-11-13:** phase 6
 lands with the typical fixture passing; the large fixture is a recorded gap judged at the end of phase
@@ -241,24 +242,35 @@ until the editing stops. On merged `main` at 3 s, 4 on-runs made 20 saves each a
 versions. AC-4's timing is therefore judged at 5 s, where each pass ends before the next edit. The
 harness reads the pace from `MEASURE_EDIT_MS` (default 5000).
 
+**The judging rule, fixed by the coordinator before the second ten pairs were run, and used by the
+checker too:** AC-4's typical timing passes when the pooled p95 difference (on minus off) over all
+20 pairs is 50 ms or less. The bootstrap range, the per-pair values and the slow-Take counts are
+reported beside it.
+
 Same method as above, on `main` with #2497 and #2498 merged: production build with the harness hooks,
 local stack (127.0.0.1), test `autopublish`, `MEASURE_EDIT=cues`, typical fixture, unthrottled, one
-output, 10 interleaved pairs, each pair on then off. Every on-run published 6 versions in 12 or 13
-edits; every off-run published none.
+output. There were 20 interleaved pairs, each pair on then off: 10 first, then 10 more on the same
+head and the same build. Every on-run published 6 versions in 11 to 13 edits. Every off-run published
+none. No Take failed.
 
 | | Takes | p50 (ms) | p90 (ms) | p95 (ms) | p99 (ms) | Takes of 150 ms or more |
 |---|---|---|---|---|---|---|
-| Automatic updates on | 500 | 77 | 117 | 143 | 500 | 24 |
-| Automatic updates off | 500 | 73 | 90 | 105 | 206 | 10 |
+| Automatic updates on | 1000 | 76 | 113 | 141 | 500 | 43 |
+| Automatic updates off | 1000 | 72 | 90 | 105 | 212 | 21 |
 
-Single-run p95: on 106, 118, 129, 129, 139, 150, 156, 161, 183, 199; off 90, 91, 96, 100, 107, 108,
-109, 112, 125, 130. Per pair, on minus off: +72, +21, +46, +4, +48, +68, +60, +6, +22, +54.
+**Pooled p95 difference: +35.9 ms. AC-4's typical timing passes by the rule.**
 
-The pooled p95 difference is +38 ms. A bootstrap over the 10 pairs puts it between +24 and +56 ms
-(5th and 95th percentile; +21 to +59 for the 2.5th and 97.5th), with about an 18% chance it is over
-50 ms. Four of the ten single pairs read over 50. With the sync fixed, publishing now shows a cost:
-14 more slow Takes in 500 and a longer tail (p99 500 against 206). The point estimate is within
-AC-4's 50 ms, but the spread reaches past it, so this is not a clear pass.
+- Bootstrap over the 20 pairs: +26 to +47 ms (5th to 95th percentile), +24 to +51 ms (2.5th to
+  97.5th), about a 3% chance the difference is over 50 ms.
+- Per pair, on minus off, in order: +72, +21, +46, +4, +48, +68, +60, +6, +22, +54, +7, +23, -34,
+  +27, +55, +12, +79, +11, +16, +75. Seven of the twenty single pairs read over 50.
+- Single-run p95, on: 106, 110, 112, 115, 118, 118, 129, 129, 135, 136, 139, 144, 150, 155, 156,
+  161, 169, 180, 183, 199. Off: 90, 91, 91, 93, 96, 96, 100, 101, 102, 106, 107, 108, 109, 112, 117,
+  123, 125, 129, 130, 143.
+- The first ten pairs alone read +38 ms (90% range +24 to +56).
+
+With the sync fixed, publishing shows a real cost: twice the slow Takes (43 against 21 in 1000) and a
+longer tail (p99 500 against 212). The pooled p95 stays inside 50 ms; the tail is recorded, not judged.
 
 #### Republishing, nothing edited
 
