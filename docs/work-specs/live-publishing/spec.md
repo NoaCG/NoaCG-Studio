@@ -478,8 +478,11 @@ Filled in by each phase's pull request.
   Publish changes, a 401 that outlives one session refresh is transient, and a page that may not
   publish reads red while a save waits. The configured walk runs with both switches on
   (`production_copies` and `auto_publish`), as production has them.
-- AC-4: the typical fixture passes; the large fixture under continuous editing does not (about +334 ms
-  p95, the output re-reading each whole copy). Owner decision (b), recorded on #2361, 2026-11-13: land
+- AC-4: on the typical fixture at a 5 s edit pace, publishing adds +35.9 ms pooled p95 over 20
+  interleaved pairs (90% range +26 to +47 ms), within 50 ms, a pass by the rule fixed before the
+  last ten pairs (see Repair 1). In that loop a full publish reaches the outputs about every 10 s
+  and every other edit is a revision-only update; the large fixture under continuous editing does not pass (about +334 ms p95, the output
+  re-reading each whole copy). Owner decision (b), recorded on #2361, 2026-11-13: land
   with the typical fixture passing, judge the large fixture at the end of phase 7 with D1, and keep
   automatic updates off in production until then. Separately, editing faster than one sync pass on a
   large production makes the sync engine re-run without pause (#2494, fixed before phase 8, not here).
@@ -489,3 +492,19 @@ Filled in by each phase's pull request.
   and `auto_publish_state()` reports `installed: true` on production (G3 section 8).
 - Traps: in the evidence, "Traps met".
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-6.md`.
+- Repair 1 (check 6-c-3476 on 7451fbba failed it, typical AC-4 timing +260 ms over 4 pairs): 10
+  interleaved pairs on the same commit read p95 256 ms on against 431 ms off, with the same count of
+  slow Takes (47 and 48). A bootstrap over pairs puts the difference between -246 and +133 ms, so the
+  first single pair's +2 and the check's +260 are both draws from one spread. Probes show the slow
+  Takes, on both sides, wait for the page's save: every edit makes two sync passes (#2494's queued
+  re-run), with page long tasks of 95 to 190 ms. With #2497 landed, a publish waits for a pass
+  that ends synced, so at 3 s nothing was published. Owner decision (a), 2026-11-13: automatic
+  updates publish once editing pauses, and AC-4 is judged at a 5 s edit pace (the harness's
+  `MEASURE_EDIT_MS`, default 5000). The rule, fixed before the last ten pairs: pass when the pooled
+  p95 difference over 20 pairs is 50 ms or less. Result: p95 141 ms on against 105 ms off over
+  1000 Takes each, +35.9 (90% range +26 to +47). 239 edits, 225 confirmed saves, 204 publishes,
+  the newest save published at the end of 19 of 20 runs; every other edit changes nothing the
+  outputs show (the fixture's last cue is the CasparCG server cue, which has no field values), so 6
+  of each run's publishes were new versions and the rest revision-only updates. Slow Takes 43
+  against 21 and the longer tail are recorded and carried to phase 7 with D1. The only code change is that harness
+  pace setting, which normal builds leave out. The evidence's +2 is replaced by both tables.

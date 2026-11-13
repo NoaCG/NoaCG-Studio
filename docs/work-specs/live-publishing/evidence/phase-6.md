@@ -5,9 +5,15 @@ Design: `../designs/G3.md`. Acceptance: AC-4. Everything here ran on the cloud w
 `e2e-s1@noacg.local` and its teammate), with migrations 0117 and 0118 applied on top of `main`.
 
 **AC-4 status.** The correctness half (every save reaches the outputs, no "Publish changes", the
-failure and reverse-order cases) passes. The timing half passes on the typical fixture and not on the
-large one under continuous editing: publishing a whole copy per save adds about 334 ms p95 there
-(see "Editing while publishing"). **Owner decision (b), recorded on #2361, 2026-11-13:** phase 6
+failure and reverse-order cases) passes. On the typical fixture, with #2494 fixed and edits every
+5 s (owner decision, 2026-11-13), 20 interleaved pairs read a pooled p95 difference of +35.9 ms,
+within 50 ms, so the timing passes by the rule fixed before the second ten pairs (see "Repair: after
+the sync fix"; 90% range +26 to +47 ms). In that loop a full publish reaches the outputs about every
+10 s: every other edit targets the fixture's last cue, the CasparCG server cue, which has no field
+values, so it saves the record without changing its content and is published as a revision-only
+update. The single pair first reported
+here (+2 ms) and the first repair's 10 pairs at 3 s were drowned by #2494. On the large fixture under continuous editing, publishing a whole copy per save adds about 334 ms p95 (see
+"Editing while publishing"). **Owner decision (b), recorded on #2361, 2026-11-13:** phase 6
 lands with the typical fixture passing; the large fixture is a recorded gap judged at the end of phase
 7 with D1 (phase 7 sends only what changed); automatic updates stay off in production until then.
 Nothing in this phase turns the `auto_publish` switch on.
@@ -144,12 +150,12 @@ once with automatic updates on (each save publishes) and once off (each save onl
 difference is the publishing. Harness: test `autopublish` with `MEASURE_EDIT`, production build,
 local stack, unthrottled, press to ran at the output.
 
-**At a 3 s edit pace (judged).** Past the sync engine's 2.5 s debounce, so each edit is its own save
+**At a 3 s edit pace (judged when built; since #2497 the judged pace is 5 s, see "Repair: after the sync fix").** Past the sync engine's 2.5 s debounce, so each edit is its own save
 and, with updates on, its own publish.
 
 | Loop | Fixture | Samples | On p50 / p95 (ms) | Off p50 / p95 (ms) | p95 difference |
 |---|---|---|---|---|---|
-| Cue text and values | Typical | 50 + 50 | 67 / 150 | 61 / 148 | +2: within AC-4 |
+| Cue text and values | Typical | 50 + 50 | 67 / 150 | 61 / 148 | +2 in this one pair; 10 pairs show the spread (see "Repair: repeated pairs") |
 | Cue text and values | Large | 50 + 50 | 101 / 1502 | 69 / 1168 | +334: recorded gap (owner decision b) |
 | Graphic added and removed (reported, not judged) | Typical | 25 + 25 | 66 / 182 | 69 / 661 | publishing is not the cost |
 | Design update: the last graphic's stylesheet changed (reported, not judged) | Typical | 25 + 25 | 64 / 172 | 68 / 781 | publishing is not the cost |
@@ -188,6 +194,105 @@ published": p95 206 and 195; 1 s off, where the debounce never fires: 112 and 41
 have 2 and 3 Takes of 25 over 500 ms, each landing on a save of the large record, and with 25
 samples the p95 is the second highest. Same build family, same machine, load average under 2: the
 drift is the per-save cost of the large record, not a regression.
+
+#### Repair: repeated pairs (check 6-c-3476)
+
+The independent check on the merge (7451fbba) ran the same loop as 4 interleaved pairs of 50 and
+read p95 439 ms on against 179 ms off, +260. Its per-pair differences were +363, +358, +30 and +15.
+The repair ran the same method on the same commit: production build with the harness hooks, local
+stack (127.0.0.1), test `autopublish`, `MEASURE_EDIT=cues`, typical fixture, unthrottled, one
+output. It ran 10 interleaved pairs, each pair on then off.
+
+| | Takes | p50 (ms) | p95 (ms) | p99 (ms) | Takes of 150 ms or more |
+|---|---|---|---|---|---|
+| Automatic updates on | 500 | 80 | 256 | 588 | 47 |
+| Automatic updates off | 500 | 75 | 431 | 537 | 48 |
+
+Single-run p95 ranged from 100 to 514 ms on both sides: on 122, 151, 184, 193, 202, 256, 445, 483,
+498, 514; off 100, 116, 118, 123, 221, 432, 449, 454, 468, 468. A run's p95 is its third-slowest
+Take of 50, and a run has 1 to 9 slow ones, so the p95 jumps between about 120 and 470 ms with the
+count. A bootstrap over the 10 pairs puts the on minus off p95 between -246 and +133 ms (5th and
+95th percentile). Both the first +2 and the check's +260 lie inside that spread. At this noise, AC-4's
+50 ms margin cannot be judged with a p95 difference. What the runs do show: p50 is 5 ms higher with
+updates on, and the count of slow Takes is the same.
+
+**What makes a Take slow, on both sides.** Temporary probes, not committed, recorded when each Take
+reached the output, each page request, each sync pass and its origin, and the page's long tasks
+(the browser's Long Tasks API). To repeat them: in `src/output/main.ts`, push a timestamped entry to
+a window array where `applyCommand` receives a command and around the preparer's `resolve`,
+`swapper.apply` and `recheck`. In `src/backend/syncController.ts`, record each `syncNow` pass and
+whether the `finally` block's `queued` re-run started it. In the page, observe `longtask` entries. In
+the harness, record each Take's press and run times and each non-GET request, and read the arrays
+after the samples. The probes found:
+
+- Every slow Take reaches the output late and runs at once. The Take's own send leaves the page 130 to
+  770 ms after the press, usually just after the page starts uploading a 2.2 MB save of the
+  production. Press to sent, as the harness times it, stays near 10 ms.
+- Every 3 s edit makes two sync passes, the second a re-run that starts as soon as the first ends
+  (46 of 92 passes, the same with updates on and off). This is the sync engine's queued re-run,
+  #2494, here on the typical fixture. The passes bring page long tasks of 95 to 190 ms. 10 of the 14
+  slow Takes in the four probed runs overlap such a task, against 3 of the 186 fast ones.
+- The output's preparation of each new version (reading the copy in its worker, about 200 ms, and
+  the graphics' re-check, about 30 ms) never overlapped a slow Take.
+
+So the slow Takes come from the page's save, which runs whether automatic updates are on or off,
+and not from publishing. The sync engine is not changed here. #2494's fix, #2497 (open, not landed), runs
+one pass per pause in editing instead of two per edit. The save's main-thread time is the page's own work that
+AC-1 judges.
+
+#### Repair: after the sync fix (#2497), at a 5 s edit pace
+
+**Owner decision (a), recorded on #2361, 2026-11-13.** Automatic updates publish once editing pauses
+for at least the 2.5 s debounce plus one sync pass, never mid-typing. Why: a publish follows a sync pass that ends synced
+(`useAutoPublish.ts`). Since #2497, an edit made during a pass waits for the 2.5 s pause instead of
+re-running the pass at once. So at a 3 s edit pace every pass ends pending and nothing is published
+until the editing stops. On merged `main` at 3 s, 4 on-runs made 20 saves each and published 0
+versions. AC-4's timing is therefore judged at 5 s, where each pass ends before the next edit. The
+harness reads the pace from `MEASURE_EDIT_MS` (default 5000).
+
+**The judging rule, fixed by the coordinator before the second ten pairs were run, and used by the
+checker too:** AC-4's typical timing passes when the pooled p95 difference (on minus off) over all
+20 pairs is 50 ms or less. The bootstrap range, the per-pair values and the slow-Take counts are
+reported beside it.
+
+Same method as above, on `main` with #2497 and #2498 merged: production build with the harness hooks,
+local stack (127.0.0.1), test `autopublish`, `MEASURE_EDIT=cues`, typical fixture, unthrottled, one
+output. There were 20 interleaved pairs, each pair on then off: 10 first, then 10 more on the same
+head and the same build. No Take failed. Every off-run published nothing.
+
+**The newest save is published; half the edits change nothing the outputs show.** The on-runs made
+239 edits, the publisher was told of 225 confirmed saves, and it made 204 publishes (10 or 11 per
+run). 19 of 20 runs ended with the newest save published; in the other one, the last edit's publish
+was still under way when the run stopped. Each run's version number moved 6 times, because the loop
+alternates two edits: the last cue's label, then its field values. The typical fixture's last cue is
+the CasparCG server cue, a clip with no template fields, so the cue has no field values and the second
+edit saves the record without changing its content. Its publish is therefore a revision-only update:
+`published_rev` moves and nothing is sent to the outputs (G3 section 3). A probe run, not committed,
+recorded each publish's content check and showed this: the label edits' publishes built new content,
+the values edits' matched the stored copy. So the judged on-side carries a full publish about every
+10 s (every other edit) and a revision-only update between, not a full publish every 5 s. The 3 s runs and the check's runs used the same
+loop.
+
+| | Takes | p50 (ms) | p90 (ms) | p95 (ms) | p99 (ms) | Takes of 150 ms or more |
+|---|---|---|---|---|---|---|
+| Automatic updates on | 1000 | 76 | 113 | 141 | 500 | 43 |
+| Automatic updates off | 1000 | 72 | 90 | 105 | 212 | 21 |
+
+**Pooled p95 difference: +35.9 ms. AC-4's typical timing passes by the rule.**
+
+- Bootstrap over the 20 pairs: +26 to +47 ms (5th to 95th percentile), +24 to +51 ms (2.5th to
+  97.5th), about a 3% chance the difference is over 50 ms.
+- Per pair, on minus off, in order: +72, +21, +46, +4, +48, +68, +60, +6, +22, +54, +7, +23, -34,
+  +27, +55, +12, +79, +11, +16, +75. Seven of the twenty single pairs read over 50.
+- Single-run p95, on: 106, 110, 112, 115, 118, 118, 129, 129, 135, 136, 139, 144, 150, 155, 156,
+  161, 169, 180, 183, 199. Off: 90, 91, 91, 93, 96, 96, 100, 101, 102, 106, 107, 108, 109, 112, 117,
+  123, 125, 129, 130, 143.
+- The first ten pairs alone read +38 ms (90% range +24 to +56).
+
+With the sync fixed, publishing shows a real cost: twice the slow Takes (43 against 21 in 1000) and a
+longer tail (p99 500 against 212). The pooled p95 stays inside 50 ms. The tail is recorded, not
+judged here, and is carried to phase 7 with D1 (only what changed is sent), which is where a full
+publish's cost on the outputs should fall.
 
 #### Republishing, nothing edited
 

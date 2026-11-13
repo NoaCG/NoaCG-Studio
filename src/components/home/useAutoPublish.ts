@@ -128,15 +128,18 @@ export function useAutoPublish(o: {
   const active = enabled && switchOn && revKnown;
 
   // MEASUREMENT ONLY (e2e/configured/measure, test `autopublish`, AC-4): a session flag only that
-  // harness sets makes this page edit the production every 3 s, with automatic updates on or off:
-  // past the sync's 2.5 s debounce, so each edit is its own save (and, on, its own publish).
+  // harness sets makes this page edit the production at a set pace (`noacg-measure-edit-ms`, default
+  // 5 s), with automatic updates on or off. A publish follows a pass that ends synced, so AC-4 is
+  // judged at a pace where each pass ends before the next edit (5 s, owner 2026-11-13).
   // `cues`: the last cue's text, then its field values. `add`: a graphic added, then removed.
   // `design`: the last graphic's stylesheet changed (a design update).
   useEffect(() => {
     if (!MEASURE_HOOKS || !enabled || !showId) return;
     let mode: string | null = null;
+    let pace = 5000;
     try {
       mode = window.sessionStorage.getItem('noacg-measure-edit-loop');
+      pace = Number(window.sessionStorage.getItem('noacg-measure-edit-ms')) || pace;
     } catch {
       mode = null;
     }
@@ -165,7 +168,7 @@ export function useAutoPublish(o: {
       const added = show.graphics.find((g) => g.name === 'Loop strap');
       if (added) removeShowGraphic(showId, added.id);
       else addGraphicToShow(showId, { ...show.graphics[0].template, name: 'Loop strap' });
-    }, 3000);
+    }, pace);
     return () => clearInterval(timer);
   }, [enabled, showId]);
   useEffect(() => {
