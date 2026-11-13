@@ -380,7 +380,7 @@ test('OBS scenes: a graphic added to a second scene becomes its copy, Take and O
   const take = async (label: string) => {
     await row(label).getByTestId('select-cue').click();
     await page.getByTestId('verb-take').click();
-    await expect(row(label)).toContainText('ON AIR');
+    await expect(row(label)).toHaveClass(/up-here/);
   };
   await row('Hairline').getByTestId('cue-menu').click();
   await page.getByRole('menuitem', { name: 'Duplicate' }).click();
@@ -389,7 +389,7 @@ test('OBS scenes: a graphic added to a second scene becomes its copy, Take and O
   await expect(page.getByTestId('rundown-note')).toContainText('Take "Hairline copy" off air before you put its graphic in a second OBS scene.');
   await expect.poll(() => drawn(page)).toEqual(['[Gameplay]', '  Hairline', '  Hairline copy', '[Desk]', '  Score', 'Hand']);
   await page.getByTestId('verb-out').click();
-  await expect(row('Hairline copy')).not.toContainText('ON AIR');
+  await expect(row('Hairline copy')).not.toHaveClass(/up-here/);
   await drag(page, row('Hairline copy'), row('Score'), 'bottom');
   await expect.poll(() => drawn(page)).toEqual(['[Gameplay]', '  Hairline', '[Desk]', '  Score', '  Hairline copy', 'Hand']);
   await settleDurableWrites(page);
@@ -402,18 +402,18 @@ test('OBS scenes: a graphic added to a second scene becomes its copy, Take and O
   // Take and Out in one scene leave the other scene's graphic as it is (C7).
   await take('Hairline');
   await take('Hairline copy');
-  await expect(row('Hairline')).toContainText('ON AIR');
+  await expect(row('Hairline')).toHaveClass(/up-here/);
   await page.getByTestId('verb-out').click();
-  await expect(row('Hairline copy')).not.toContainText('ON AIR');
-  await expect(row('Hairline')).toContainText('ON AIR');
+  await expect(row('Hairline copy')).not.toHaveClass(/up-here/);
+  await expect(row('Hairline')).toHaveClass(/up-here/);
 
   // All out clears the hand-taken cue only: on stays on, out stays out (C9).
   await take('Hand');
   await page.getByTestId('verb-out-all').click();
-  await expect(row('Hand')).not.toContainText('ON AIR');
-  await expect(row('Hairline')).toContainText('ON AIR');
-  await expect(row('Hairline copy')).not.toContainText('ON AIR');
-  await expect(row('Score')).not.toContainText('ON AIR');
+  await expect(row('Hand')).not.toHaveClass(/up-here/);
+  await expect(row('Hairline')).toHaveClass(/up-here/);
+  await expect(row('Hairline copy')).not.toHaveClass(/up-here/);
+  await expect(row('Score')).not.toHaveClass(/up-here/);
 
   // The copy publishes as the Desk's graphic, exports, and reads back the same after a reload (AC-3).
   const shipped = () =>

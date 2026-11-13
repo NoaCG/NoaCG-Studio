@@ -1012,6 +1012,29 @@ Filled in by each phase's pull request.
     off. With the switch off, All out is exactly today's.
   - C10. A cue that a write repoints while its graphic is on air does not move air: the source
     stays on air until its own Out (from its scene's cue), and the copy starts off air.
+- Rules found by the Rules-first `/so`, before code (it agreed with corrections):
+  - C2 covers the writes of the record's write envelope (`patchShowChecked`): every write that
+    moves, adds, pastes, duplicates or repoints a cue, makes, renames or removes a folder, flags a
+    scene, or turns the switch on. Adding a pool graphic (its new cue is in no folder), a layer
+    change, a sync from another device or a team merge do not run it; the record they leave is
+    put in order by its next envelope write. Undo puts back a rundown that was already in order.
+  - C3 amended: a copy's pool id is derived from (source id, scene id, n), so the envelope's
+    rebased pass and two devices making the same copy meet one id, and a team merge keeps one
+    copy. The scene's copy is the first of those ids that is free, or that a copy of the same
+    source holds while no other scene uses it, so a copy left behind under C6 is taken up again.
+  - C10 replaced: a write that would move a cue this page has on air to a copy is refused whole,
+    with "Take "<cue>" off air before you put its graphic in a second OBS scene." Nothing of the
+    write lands. The production page tells the record which cues it has on air.
+  - C11. A cue saved by a newer version (a selection or typed data this build cannot read) is never
+    moved to a copy: the write is refused whole, in words that say why.
+  - C12. The production's own picture graphic (the pool's picture graphic with no library link) is
+    never copied: its pictures would be published twice, against the published row's limit, and a
+    new upload would reach one of the two only. Its cues in two scenes share one graphic and one
+    air state, as OS1a R12 said. Sent to the owner through the coordinator; this is the default
+    until answered.
+  - C4 amended: re-adding a library graphic replaces the original pool entry, never a scene copy
+    that shares its link. A copy keeps its link and is updated from the library by its own Update,
+    as every pool graphic is.
 - Not in this phase, with reasons: "making a scene, or adding a graphic to one, takes it" (the
   behaviour section; OS1a R11 left joining on air to OS1b) is not in AC-2 or AC-3, and a Take made
   by an edit would air the graphic on the ordinary link too and before the scene link has the
