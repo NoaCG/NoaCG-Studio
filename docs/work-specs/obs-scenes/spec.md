@@ -1038,7 +1038,7 @@ Filled in by each phase's pull request.
 - Not in this phase, with reasons: "making a scene, or adding a graphic to one, takes it" (the
   behaviour section; OS1a R11 left joining on air to OS1b) is not in AC-2 or AC-3, and a Take made
   by an edit would air the graphic on the ordinary link too and before the scene link has the
-  publish that names it. It is filed as its own issue for the coordinator to place. The offline
+  publish that names it. It is filed as #2489 for the coordinator to place. The offline
   controller export and the Bridge's offline clear keep today's All out: neither knows scenes.
 - Rules found after coding, by the `/check` review: a record that came shared (a sync, an older
   build) leaves a held cue the write did not touch where it is, so an unrelated edit still lands,
