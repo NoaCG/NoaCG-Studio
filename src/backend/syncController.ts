@@ -319,20 +319,16 @@ export async function syncNow(): Promise<SyncPassReceipt> {
       // outlasts the gap between edits, so a pass that ends with a newer revision waiting used to
       // start the next pass at once, and the sync ran back to back for as long as the typing went
       // on — each pass re-uploading the whole record and pushing every Take 1 to 2 s late. A caller
-      // still waiting for a pass (a boot or deep-link lookup, a focus or online pass) is answered at
-      // once as before. But when the only reason to run again is that local edits bumped the
-      // revision while this pass ran, let the debounce those edits already armed fire instead: then
-      // continuous typing costs one pass per pause, not one pass per pass. No edit is lost — the
-      // debounce covers the latest revision, and a pass still runs once the edits stop (if some
-      // path left no debounce armed, e.g. an adopted cross-tab change, arm one here).
-      if (waiting.length > 0) {
-        void syncNow();
-      } else if (!debounce) {
-        debounce = setTimeout(() => {
-          debounce = null;
-          void syncNow();
-        }, DEBOUNCE_MS);
-      }
+      // that awaited syncNow WHILE this pass ran (a deep-link or record lookup, the online handler)
+      // is a waiter and is answered at once, as before. Otherwise the only reason to run again is a
+      // revision a local edit bumped while this pass ran: a LOCAL edit already armed the 2.5 s
+      // debounce (scheduleSync), so leaving it to fire is what makes continuous typing cost one pass
+      // per pause, not one pass per pass — no edit is lost and a pass still runs once typing stops.
+      // An ADOPTED cross-tab change bumps the revision but arms no debounce and needs no pass here:
+      // the tab that made it owns pushing it and broadcasts its confirmation
+      // (followOtherTabsConfirmations), so running one would be the per-tab list load the
+      // ONE-PASS-PER-CHANGE note above ties to the 2026-09-29 outage.
+      if (waiting.length > 0) void syncNow();
     }
   }
   return receipt;

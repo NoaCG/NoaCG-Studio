@@ -124,6 +124,21 @@ test('continuous edits during a pass cost one pass per pause, not one pass per p
   assert.equal(h.passes.length, 2, 'and the chain has ended');
 });
 
+test('an adopted cross-tab change during a pass triggers no local pass or debounce (#2494)', async () => {
+  const timers = [], h = controller(timers);
+  void h.api.syncNow();              // a pass is running
+  await tick();
+  assert.equal(h.passes.length, 1);
+  h.adopt();                         // another tab's change arrives from IndexedDB during the pass
+  h.passes[0].resolve(result());
+  await tick();
+  // The tab that made the change owns pushing it and broadcasts its confirmation; this tab must
+  // not run a redundant per-tab pass, nor arm a debounce (which would stall that confirmation).
+  assert.equal(h.passes.length, 1, 'the tab that made the change pushes it; this tab runs no pass');
+  assert.equal(timers.filter((fn) => fn.ms === 2500 && !fn.cleared && !fn.fired).length, 0,
+    'and arms no debounce of its own');
+});
+
 test('coalesced callers released without a runnable next pass receive no completion', async () => {
   const h = controller(), first = h.api.syncNow();
   await tick(); const second = h.api.syncNow(); await tick();
