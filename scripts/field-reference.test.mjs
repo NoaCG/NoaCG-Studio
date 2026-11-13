@@ -1,4 +1,4 @@
-// guards: src/export/fieldReference.ts, src/export/showExport.ts, src/export/targets/{casparcg,h2r,htmlOverlay}.ts
+// guards: src/export/fieldReference.ts, src/export/showExport.ts, src/export/targets/casparcg.ts, src/export/targets/h2r.ts, src/export/targets/htmlOverlay.ts
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rolldown } from 'rolldown';
