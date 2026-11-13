@@ -39,6 +39,10 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
     () => loadPrefs().defaultExportTarget || EXPORT_TARGETS[0].id,
   );
   const [busy, setBusy] = useState(false);
+  /** OBS scenes' offline fallback (obs-scenes OS3 M11): offered on the overlay package while the
+   *  production's switch is on, ticked by default. */
+  const [settled, setSettled] = useState(true);
+  const offerSettled = targetId === CONTROLLER_TARGET && !!show.obsScenes;
   const [note, setNote] = useState<string | null>(null);
 
   // The export gate, per pool graphic, over the LIVE library template (what actually ships) -
@@ -53,7 +57,10 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
       savePrefs({ defaultExportTarget: targetId });
       // Place and size are measured as the package will load each graphic, then baked.
       const sent = await settledForExport();
-      await downloadShowZipFor(sent, targetId, { appearances: await measureExportAppearances(sent, targetId) });
+      await downloadShowZipFor(sent, targetId, {
+        appearances: await measureExportAppearances(sent, targetId),
+        settledScenes: offerSettled && settled,
+      });
       const label = EXPORT_TARGETS.find((t) => t.id === targetId)?.label ?? targetId;
       setNote(`✓ Exported the production as ${label}.`);
     } catch (e) {
@@ -126,6 +133,15 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
               </span>
             </label>
           ))}
+          {offerSettled && (
+            <label className="issue" data-testid="prod-export-settled">
+              <input type="checkbox" checked={settled} onChange={(e) => setSettled(e.target.checked)} data-testid="prod-export-settled-box" />
+              <span>
+                <strong>Settled</strong>
+                <span className="hint"> OBS scene graphics are drawn at rest from load, for a hidden fallback group per scene.</span>
+              </span>
+            </label>
+          )}
           {/* PLACE AND SIZE (playout adjustments, phase 1b): every package carries each graphic's
               own; a cue's exception needs a controller that sends it, which only the overlay
               package has, so the other targets say what they leave out before one is chosen. */}
