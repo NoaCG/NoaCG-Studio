@@ -31,7 +31,7 @@
 //
 // The rules themselves, and the incident that bought them, are in scripts/configured-target.mjs.
 import { chromium, type FullConfig } from '@playwright/test';
-import { assertConfiguredTarget, configuredTarget, DECLARATION, describeTarget } from '../scripts/configured-target.mjs';
+import { assertConfiguredTarget, describeTarget, servedTarget } from '../scripts/configured-target.mjs';
 import { livePort } from '../scripts/dev-port.mjs';
 
 // webServer's own deadline has passed by the time this runs. Bound these probes too: a server can
@@ -95,13 +95,21 @@ export default async function configuredGuard(config?: FullConfig): Promise<void
   const base = origin(config);
   const served = await servedBackend(base);
   if (served === null) {
-    console.log(`Configured backend - ${describeTarget(target)} (no server to probe at ${base})`);
+    console.warn(
+      `Configured backend - ${describeTarget(target)}. WHAT THE SERVER SERVES WAS NOT CHECKED: nothing answered at ` +
+        `${base}, so this run was admitted on its own environment alone. Expect the run to fail next on the server ` +
+        `that did not start.`,
+    );
     return;
   }
 
-  // The same rule, on the value the page actually holds. The declaration is carried over so a
-  // declared staging run is judged as one; everything else has to be a local stack.
-  const page = configuredTarget({ VITE_SUPABASE_URL: served, [DECLARATION]: process.env[DECLARATION] ?? '' });
+  // The same rule, on the value the page actually holds. `servedTarget` builds that environment by
+  // REPLACEMENT rather than from scratch, so every other variable the rule reads comes along
+  // without being listed here - the declaration, and `STAGING_SUPABASE_PROJECT_REF`, which a fork
+  // sets to name its own staging project. Naming them one by one was how a fork's override got
+  // dropped and its correctly configured server refused. It lives in the rule module so it can be
+  // tested without a server, and so this file cannot drift into judging the page by its own rule.
+  const page = servedTarget(served, process.env);
   if (page.kind === 'refused') {
     throw new Error(
       `Refusing to start the configured suite: the dev server at ${base} SERVES a backend this run does not own. ` +

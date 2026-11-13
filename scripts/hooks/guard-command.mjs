@@ -86,8 +86,10 @@ if (secretRead) deny(envSecretsRefusal(secretRead));
 if (startsDevServer(command)) {
   deny(
     "Blocked: this starts a dev server on a checkout's port without anything owning it - " +
-      'the e2e suite runs with reuseExistingServer:true and would silently adopt it along with ' +
-      'whatever env it was started with (see e2e/AGENTS.md "Gotchas when writing a spec").\n' +
+      'the offline e2e suite runs with reuseExistingServer:true and would silently adopt it along ' +
+      'with whatever env it was started with, and the configured suite (which starts its own ' +
+      'server since issue #2495) would die on the busy port instead of running (see e2e/AGENTS.md ' +
+      '"Gotchas when writing a spec").\n' +
       'Start it the sanctioned way instead:\n' +
       '  npm run dev:worktree   works in ANY checkout, and is the ONLY thing that works in a ' +
       'linked worktree. It serves the checkout its own file sits in, on that checkout\'s reserved ' +
@@ -321,9 +323,12 @@ if (invokesE2e(command)) {
     deny(
       `Blocked: something is already listening on port ${port} - the ${live ? 'live' : 'offline'} e2e port ` +
         `of the checkout this command runs in (${targetRoot()}).\n` +
-        'Playwright runs with reuseExistingServer:true, so it would reuse that server with ' +
-        `whatever env it was started with, and the ${live ? 'configured-mode' : 'offline-pinned'} specs ` +
-        'fail confusingly (see e2e/AGENTS.md "Gotchas when writing a spec").\n' +
+        (live
+          ? 'The configured suite starts its OWN server since issue #2495, because an adopted one ' +
+            'decides where the run writes, so it cannot start at all while this port is busy.\n'
+          : 'Playwright runs with reuseExistingServer:true for this suite, so it would reuse that ' +
+            'server with whatever env it was started with and the offline-pinned specs fail ' +
+            'confusingly (see e2e/AGENTS.md "Gotchas when writing a spec").\n') +
         'Stop that server first (preview_stop if it was started with the preview tools), then re-run. ' +
         'If a killed run left it behind, nothing owns it and there is nothing to stop it FROM - ' +
         '`node scripts/e2e-runs.mjs --orphans` says whether that is the case, and `--kill-orphans` ' +

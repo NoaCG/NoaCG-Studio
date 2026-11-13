@@ -165,6 +165,39 @@ export function configuredTarget(env = process.env) {
   );
 }
 
+/**
+ * Every backend variable a run should carry, set to one local stack.
+ *
+ * The wrappers that mint a stack (`scripts/configured-trial.mjs`, `scripts/endurance-election.mjs`,
+ * `scripts/editor-projects-qualification.mjs`) each spread `process.env` and then overrode the
+ * variables they happened to think of. On a cloud worker the ambient environment names PRODUCTION
+ * and carries its admin key, so whatever a wrapper forgot stayed production - and the api/
+ * handlers the dev server mounts read `SUPABASE_URL` and `SUPABASE_SECRET_KEY` in preference to
+ * the spellings the browser uses. Taking the whole set from one place is what keeps "pinned the
+ * browser's half" from being mistaken for "pinned the backend".
+ */
+export function localStackEnv(stack) {
+  return {
+    VITE_SUPABASE_URL: stack.API_URL,
+    VITE_SUPABASE_ANON_KEY: stack.ANON_KEY,
+    SUPABASE_URL: stack.API_URL,
+    SUPABASE_ANON_KEY: stack.ANON_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: stack.SERVICE_ROLE_KEY,
+    // The admin key `api/_lib/*` prefers. Left set from the shell it would outrank the one above
+    // and send the server's half somewhere else entirely.
+    SUPABASE_SECRET_KEY: stack.SERVICE_ROLE_KEY,
+  };
+}
+
+/**
+ * The rule applied to what a dev server SERVES: this environment, with the served URL in place of
+ * the ones this process named. Shared with `e2e/_configured-guard.ts` so it can be tested without
+ * a server, and so the guard cannot quietly judge it by a different rule.
+ */
+export function servedTarget(served, env = process.env) {
+  return configuredTarget({ ...env, SUPABASE_URL: '', VITE_SUPABASE_URL: served ?? '' });
+}
+
 /** A one-line description for a run's log. Names each variable and its HOST; see `host` above. */
 export function describeTarget(target) {
   if (target.kind === 'unconfigured') return 'no backend configured - the configured specs will skip themselves';

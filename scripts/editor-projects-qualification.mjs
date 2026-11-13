@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // E4's real isolated backend proof. Existing endurance.yml supplies the managed stack and
 // always retains this directory, even when setup, the test, cleanup or this verdict fails.
+import { localStackEnv } from './configured-target.mjs';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -34,8 +35,9 @@ try {
   const stack = JSON.parse(status.stdout.slice(status.stdout.indexOf('{')));
   if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(stack.API_URL ?? '') || !stack.ANON_KEY || !stack.SERVICE_ROLE_KEY) throw new Error('The isolated stack returned no valid loopback identity.');
   const receiptPath = path.join(out, 'persistence.json');
-  const env = { ...process.env, VITE_SUPABASE_URL: stack.API_URL, VITE_SUPABASE_ANON_KEY: stack.ANON_KEY,
-    SUPABASE_URL: stack.API_URL, SUPABASE_ANON_KEY: stack.ANON_KEY, SUPABASE_SERVICE_ROLE_KEY: stack.SERVICE_ROLE_KEY,
+  // Every backend variable through the one helper: this pinned five of the six and left
+  // SUPABASE_SECRET_KEY, which api/_lib prefers over the service-role key set here (issue #2495).
+  const env = { ...process.env, ...localStackEnv(stack),
     E4_PROJECTS_SOURCE: summary.source, E4_PROJECTS_RECEIPT: receiptPath };
   summary.stack = { project, origin: stack.API_URL };
   keep();

@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-import { isLocalStackUrl } from './scripts/configured-target.mjs';
+import { assertConfiguredTarget } from './scripts/configured-target.mjs';
 import { livePort } from './scripts/dev-port.mjs';
 
 // THE ENDURANCE RUN (docs/work-specs/playout-expanded-acceptance/spec.md, phase E8.1b): one walk of
@@ -9,11 +9,19 @@ import { livePort } from './scripts/dev-port.mjs';
 // that by hand only. It is in no other suite: its file is not a `.spec.ts`, so neither the offline
 // nor the configured config picks it up, and its one test lasts as long as the run.
 const minutes = Number(process.env.ENDURANCE_MINUTES ?? 5);
-// The local stack only: the walk publishes, writes and reads as a real production would. The test
-// is the configured suite's own (scripts/configured-target.mjs, issue #2495), so tightening it
-// once tightens it here: this file's own pattern accepted a bare `http://localhost:` with no port.
-if (!isLocalStackUrl(process.env.VITE_SUPABASE_URL)) {
-  throw new Error('the endurance walk runs against a local Supabase stack only: start it through npm run endurance:election');
+// The local stack only: the walk publishes, writes and reads as a real production would, and the
+// dev server it drives mounts the api/ handlers, which read SUPABASE_URL and an admin key rather
+// than the spellings the browser uses. So it asks the configured suite's whole rule
+// (scripts/configured-target.mjs, issue #2495), not one variable of it: this file's own pattern
+// checked VITE_SUPABASE_URL alone and accepted a bare `http://localhost:` with no port, so an
+// ambient production SUPABASE_URL walked straight past it into the server.
+try {
+  assertConfiguredTarget(process.env, 'the endurance walk');
+} catch (refusal) {
+  throw new Error(
+    `${(refusal as Error).message}\n\nStart the walk through npm run endurance:election, which takes every backend variable from the local stack.`,
+    { cause: refusal },
+  );
 }
 
 export default defineConfig({

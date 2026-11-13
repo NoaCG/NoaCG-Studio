@@ -1,13 +1,16 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
-import { isLocalStackUrl } from '../../scripts/configured-target.mjs';
+import { assertConfiguredTarget } from '../../scripts/configured-target.mjs';
 import { validateCloudWorkerRequest } from '../../scripts/e2e-workers.mjs';
 import { livePort } from '../../scripts/dev-port.mjs';
 
 // The mandatory E4 isolated persistence qualification, carried by unchanged endurance.yml.
 // No .env loading: the wrapper supplies only the managed local stack's identity.
-// The local-stack test is the configured suite's own (scripts/configured-target.mjs, issue #2495).
-if (!process.env.E4_PROJECTS_SOURCE || !process.env.E4_PROJECTS_RECEIPT || !isLocalStackUrl(process.env.VITE_SUPABASE_URL)) {
+// The whole backend rule, not one variable of it (scripts/configured-target.mjs, issue #2495):
+// this run's dev server mounts the api/ handlers, which prefer SUPABASE_URL and an admin key, so
+// checking only the browser's spelling let an ambient production one through.
+assertConfiguredTarget(process.env, 'the isolated persistence qualification');
+if (!process.env.E4_PROJECTS_SOURCE || !process.env.E4_PROJECTS_RECEIPT) {
   throw new Error('Start this isolated qualification through npm run qualify:editor-projects.');
 }
 const root = fileURLToPath(new URL('../../', import.meta.url));

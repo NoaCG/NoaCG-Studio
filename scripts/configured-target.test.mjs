@@ -15,7 +15,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, globSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertConfiguredTarget, configuredTarget, DECLARATION, describeTarget, HOSTED_STAGING, isLocalStackUrl, KEY_VARS, URL_VARS } from './configured-target.mjs';
+import { assertConfiguredTarget, configuredTarget, DECLARATION, describeTarget, HOSTED_STAGING, isLocalStackUrl, KEY_VARS, localStackEnv, servedTarget, URL_VARS } from './configured-target.mjs';
 import { DEFAULT_STAGING_REF } from './supabase-projects.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -166,10 +166,14 @@ test('the dev server is the run\'s own, and what it serves is judged too', () =>
   assert.match(file('playwright.live.config.ts'), /reuseExistingServer: false,/);
   const guard = file('e2e/_configured-guard.ts');
   assert.match(guard, /_env-probe\.ts/);
-  assert.match(guard, /configuredTarget\(\{ VITE_SUPABASE_URL: served/);
+  assert.match(guard, /servedTarget\(served, process\.env\)/);
   // And it probes the origin the LOADED config drives, not this suite's usual port: the
   // measurement harness with MEASURE_BUILD=prod serves on a port of its own.
   assert.match(guard, /project\.use\?\.baseURL/);
+  // A skip is loud. The one case the probe cannot judge - nothing answering at all - must say so
+  // rather than read as a pass.
+  assert.match(guard, /console\.warn/);
+  assert.match(guard, /WHAT THE SERVER SERVES WAS NOT CHECKED/);
 });
 
 test('a configured spec reads the backend through the guarded helper, not around it', () => {
@@ -187,14 +191,48 @@ test('a configured spec reads the backend through the guarded helper, not around
   assert.deepEqual(offenders, [], 'these specs read a backend URL without importing the guarded helper');
 });
 
+test('what the page serves is judged by the same rule, in THIS environment', () => {
+  // Leg 2 of the model, tested without a server: `servedTarget` is what the guard calls once it
+  // has read the page, so the judgement is exercised here rather than only described there.
+  const local = { ...LOCAL_STACK };
+  assert.equal(servedTarget('http://127.0.0.1:54321', local).kind, 'local');
+  // A run admitted on a local environment, whose page is built against production: refused.
+  const smuggled = servedTarget('https://kprolrchuldgfrzspthy.supabase.co', local);
+  assert.equal(smuggled.kind, 'refused');
+  assert.match(smuggled.reason, /PRODUCTION project/);
+  // Any other hosted project too, and the admin key is named, never shown.
+  const elsewhere = servedTarget('https://someotherproject00.supabase.co', local);
+  assert.equal(elsewhere.kind, 'refused');
+  assert.doesNotMatch(elsewhere.reason, /fake-service-role/);
+  // Built by replacement, so a fork's own staging project is carried through rather than dropped.
+  const fork = { ...LOCAL_STACK, [DECLARATION]: HOSTED_STAGING, STAGING_SUPABASE_PROJECT_REF: 'someotherproject00' };
+  assert.equal(servedTarget('https://someotherproject00.supabase.co', fork).kind, HOSTED_STAGING);
+  // And this process's own SUPABASE_URL cannot vouch for a page that serves something else.
+  assert.equal(servedTarget('https://someotherproject00.supabase.co', { ...local, SUPABASE_URL: 'http://127.0.0.1:54321' }).kind, 'refused');
+});
+
+test('a run that mints a local stack pins every variable the rule reads', () => {
+  // The wrappers each pinned the ones they thought of and spread the rest of the environment,
+  // which on a cloud worker is production - and api/_lib prefers SUPABASE_URL and
+  // SUPABASE_SECRET_KEY over the spellings the browser uses.
+  const pinned = localStackEnv({ API_URL: 'http://127.0.0.1:54321', ANON_KEY: 'fake-anon', SERVICE_ROLE_KEY: 'fake-service-role' });
+  for (const name of [...URL_VARS, ...KEY_VARS]) assert.ok(name in pinned, `${name} is read by the rule but not pinned`);
+  assert.equal(configuredTarget({ ...CLOUD_WORKER, ...pinned }).kind, 'local');
+  for (const name of ['scripts/configured-trial.mjs', 'scripts/endurance-election.mjs', 'scripts/editor-projects-qualification.mjs']) {
+    assert.match(file(name), /\.\.\.localStackEnv\(stack\)/, name);
+  }
+});
+
 test('the one local-stack test is the one every local-stack run uses', () => {
   assert.equal(isLocalStackUrl('http://127.0.0.1:54321'), true);
   assert.equal(isLocalStackUrl('HTTP://LOCALHOST:54321'), true);
   assert.equal(isLocalStackUrl('http://localhost'), false);
   assert.equal(isLocalStackUrl(undefined), false);
-  // The endurance runs asked the same question with weaker patterns of their own.
+  // The endurance runs asked the same question with weaker patterns of their own, over one
+  // variable. They ask the whole rule now: their dev servers mount the api/ handlers too.
   for (const config of ['playwright.endurance.config.ts', 'e2e/endurance/editor-projects.config.ts']) {
-    assert.match(file(config), /isLocalStackUrl\(process\.env\.VITE_SUPABASE_URL\)/, config);
+    assert.match(file(config), /assertConfiguredTarget\(process\.env/, config);
+    assert.doesNotMatch(file(config), /isLocalStackUrl/, config);
   }
   // And the connector spike's production denylist is this module's, not a second copy.
   assert.match(file('scripts/connector-oauth-spike.mjs'), /import \{ NEVER_REFS \} from '\.\/configured-target\.mjs';/);
