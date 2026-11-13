@@ -6,6 +6,11 @@
 // line in the live config, the import in the specs' shared helper and the declaration in
 // hosted-latency.yml are each read off disk here.
 //
+// A SOURCE-TEXT ASSERTION IS A WIRING CHECK AND IS NEVER THE TEST FOR A BEHAVIOUR. It cannot go
+// red when the behaviour is reverted unless the behaviour happens to be a spelling, and twice in
+// this change's review a behaviour shipped with nothing but one of these behind it. Every rule
+// below is pinned by CALLING it, and the call is checked by reverting the line it tests.
+//
 // The environments below are FAKE: a made-up project ref in a production-shaped URL, and keys
 // that are the word "fake". Nothing in this file reaches a network, which is also the only honest
 // way to test a guard whose failure mode is reaching one.
@@ -383,4 +388,33 @@ test('the guard is wired to every configured run and to the specs themselves', (
   // The one declared exception, in the one workflow that owns it.
   assert.match(file('.github/workflows/hosted-latency.yml'), /NOACG_CONFIGURED_TARGET: hosted-staging/);
 
+});
+
+test('URL_VARS names every backend URL this repository reads from the environment', () => {
+  // THE ONE HAND-WRITTEN SET LEFT IN THE RULE. Everything else the rule decides is derived, but
+  // URL_VARS is a list, and a list goes stale silently: a third spelling added later would be a
+  // backend the guard never looks at, which is exactly the hole issue #2495 is about. So the
+  // spellings are read back off the source instead of trusted - an env READ, not a mention, so a
+  // name in a comment or a refusal message does not count.
+  const sources = globSync(
+    ['api/**/*.{ts,tsx,mjs,js}', 'src/**/*.{ts,tsx}', 'scripts/**/*.mjs', 'e2e/**/*.ts', 'vite.config.ts', 'playwright*.config.ts'],
+    { cwd: ROOT, exclude: ['**/node_modules/**', '**/dist/**'] },
+  );
+  const read = /(?:process\.env|import\.meta\.env|\benv)\s*(?:\.\s*([A-Z][A-Z0-9_]*)|\[\s*['"]([A-Z][A-Z0-9_]*)['"]\s*\])/g;
+  const spellings = new Map();
+  for (const name of sources) {
+    for (const match of file(name).matchAll(read)) {
+      const variable = match[1] ?? match[2];
+      if (!/SUPABASE/.test(variable) || !/URL$/.test(variable)) continue;
+      if (!spellings.has(variable)) spellings.set(variable, name);
+    }
+  }
+  // A scanner that found nothing would pass the loop below without reading anything: these two
+  // are read in this repository today, so finding fewer means the scan broke, not that the
+  // spellings went away.
+  assert.ok(sources.length > 100, `expected the source tree, scanned ${sources.length} files`);
+  for (const known of URL_VARS) assert.ok(spellings.has(known), `${known} is in URL_VARS but nothing reads it: the scan is broken`);
+  for (const [variable, where] of spellings) {
+    assert.ok(URL_VARS.includes(variable), `${where} reads ${variable}, a backend URL the rule in configured-target.mjs never looks at`);
+  }
 });

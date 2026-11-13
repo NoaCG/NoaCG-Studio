@@ -29,6 +29,12 @@ import { KEY_VARS, URL_VARS } from './scripts/configured-target.mjs';
 // suite that could not have touched it. Saying the true thing is enough: in THIS process there is
 // no backend and no admin key, so the shared rule sees none. It cannot affect the deployed site
 // being measured, and a key that is not in the environment cannot be used by a loaded spec module.
+//
+// A KNOWN COMPROMISE, recorded rather than hidden (#2504): a config reaching into the whole
+// process's environment so another module's import-time side effect will pass is the wrong seam.
+// The right one is to hand the key out through an accessor, so the check runs where a spec writes
+// instead of where its file is parsed, after which these two lines go away. That change touches
+// about fifteen specs, which is why it is its own issue and not this one's.
 for (const name of [...URL_VARS, ...KEY_VARS]) delete process.env[name];
 
 const cloudLimits = validateCloudWorkerRequest();

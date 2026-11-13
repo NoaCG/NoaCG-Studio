@@ -30,7 +30,11 @@ export const DEFAULT_STAGING_REF = 'garafohbzmsybtysxphb';
  */
 export function productionRef(env = {}) {
   const match = /^https:\/\/([a-z0-9]+)\.supabase\.co/i.exec(env.VITE_SUPABASE_URL || '');
-  return match ? match[1] : '';
+  // Folded like `stagingRef` below, and for the same reason twice over: a ref is a hostname label
+  // wherever it is used, and `scripts/connector-switch.mjs` compares the two refs to refuse a run
+  // that would change production while calling it staging. One side folded and the other not makes
+  // a shouted host slip past that refusal (scripts/connector-switch.test.mjs, issue #2495).
+  return match ? match[1].toLowerCase() : '';
 }
 
 /** The staging project, overridable so a fork can name its own. */

@@ -314,16 +314,12 @@ if (namedBrowserWork || rememberedAsBrowser(jobsDir(), command)) {
 // 4b. The port check applies to e2e runs only - a sweep starts its own server on the same port
 //     but is not subject to reuseExistingServer's env-pinning trap.
 if (invokesE2e(command)) {
-  // WHICH PORT this run will bind. The endurance configs are on the live port too
-  // (playwright.endurance.config.ts, e2e/endurance/editor-projects.config.ts, both via livePort()),
-  // and they were being checked against the offline one: a busy live port passed the guard and the
-  // run died at --strictPort with no message, while a busy offline port blocked a run that does
-  // not touch it. The refusal below names those walks, so the detection has to know them.
-  const live =
-    /\btest:e2e:live\b/.test(command) ||
-    /playwright\.live\.config/.test(command) ||
-    /playwright\.endurance\.config/.test(command) ||
-    /editor-projects\.config/.test(command);
+  // WHICH PORT this run will bind. This knows the configured suite's two spellings and no more:
+  // the endurance and instrument configs bind the live port as well, and are still judged against
+  // the offline one. That is a separate defect with its own issue (#2503) - it is about a busy
+  // PORT, not about which backend a run reaches, and the fix there is to resolve `--config`
+  // positionally and classify the named file by its text rather than to grow this list.
+  const live = /\btest:e2e:live\b/.test(command) || /playwright\.live\.config/.test(command);
   // The port belongs to the checkout the run will happen in, not to whoever is asking. An
   // explicit DEV_PORT in the command beats both, because it beats both at runtime too.
   const record = await portsFor(targetRoot());
@@ -334,9 +330,9 @@ if (invokesE2e(command)) {
         `of the checkout this command runs in (${targetRoot()}).\n` +
         'The offline suite runs with reuseExistingServer:true, so it would adopt that server with ' +
         'whatever env it was started with and its offline-pinned specs fail confusingly (see ' +
-        'e2e/AGENTS.md "Gotchas when writing a spec"). The runs that START their own server - the ' +
-        'configured suite and the endurance walks, since issue #2495, because an adopted one ' +
-        'decides where the run writes - cannot start at all while this port is busy.\n' +
+        'e2e/AGENTS.md "Gotchas when writing a spec"). The configured suite STARTS its own server ' +
+        'since issue #2495, because an adopted one decides where the run writes, so it cannot ' +
+        'start at all while this port is busy.\n' +
         'Stop that server first (preview_stop if it was started with the preview tools), then re-run. ' +
         'If a killed run left it behind, nothing owns it and there is nothing to stop it FROM - ' +
         '`node scripts/e2e-runs.mjs --orphans` says whether that is the case, and `--kill-orphans` ' +
