@@ -402,7 +402,10 @@ test('a native cue Take goes to the Bridge while the save of its edit still hang
   await page.getByTestId('verb-take').click();
   await expect.poll(()=>bridge.actions.map(a=>a.verb),{timeout:3_000}).toEqual(['take']);
   expect(Date.now()-sent,'the Take went within the Bridge round trip, not after the save').toBeLessThan(3_000);
-  // The save is still held: the Take did not wait for it.
+  // The save is still held: the Take did not wait for it. Nothing promises the save has started
+  // when the Bridge sees the Take (it starts once the answer is handled, #2392), so wait until the
+  // edit's own write is handed to the store and still unsettled before checking that it is held.
+  await expect.poll(()=>page.evaluate(async label=>(await import('/src/model/durableStore.ts')).unsettledWrites('spx-gfx-shows').some(w=>w.value?.includes(label)),'Strap typed before the Take'),{message:'the edit is being saved'}).toBe(true);
   expect(await page.evaluate(()=>(window as unknown as {__hold:boolean}).__hold)).toBe(true);
   expect(await page.evaluate(async()=>{const {commitDurableWrites}=await import('/src/model/durableStore.ts');return Promise.race([commitDurableWrites().then(()=>'landed'),new Promise(r=>setTimeout(()=>r('pending'),300))]);}),'the edit has not reached the disk yet').toBe('pending');
   // Released, the edit lands behind the Take, and nothing reports a failure.
