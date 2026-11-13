@@ -1137,3 +1137,31 @@ Filled in by each phase's pull request.
     and hide events change nothing, and a `?stream=` instance waits for commands as today. The
     control panel and relay still play and stop it. Unticked, or with the switch off, the file is
     exactly today's. The package README lists each scene's files.
+- Rules found by the Rules-first `/so`, before code (it agreed with corrections):
+  - M1 has two departures, recorded in the pull request: M9's limit and M10's retry apply to every
+    output link, switch on or off.
+  - M6 amended: only a scene link whose scene has a row leaves the Outputs list. A link to a scene
+    no longer flagged, or with the switch off, stays there. A scene link is called by its scene's
+    name (the payload's), unless its URL gives `&name=`, so a remembered link that has gone away is
+    placed on its scene's row after this page reloads, and the row and the Outputs list agree.
+  - M3 amended: a remembered output named after a scene, not present now, gives that row "Not
+    answering (age)" from when it was last seen, as the Outputs list reads it.
+  - M5 amended: the link reports its own list `seen` (additive on its Presence entry, at most 12
+    names of at most 80 characters, read back by `readSceneReport`). A scene name heard while the
+    source is already on program, and not followed within a second by the source leaving program,
+    is a cut between two OBS scenes that both hold it (D9's shared source): it counts as on program
+    there. Whether OBS keeps such a source active across that cut is for the owner to confirm in OS7.
+  - M8 amended: the count is the distinct scene ids among the scene links present now. While this
+    page's Presence is not joined, the count is unknown and the question is asked anyway, saying so.
+  - M9 amended: the claim about Presence is dropped. The remembered list never grows past 16, so the
+    announced list and the stored list keep the same 16.
+  - M10 amended: clearing also removes the `&debug=1` card; the journey covers open, publish, Take
+    and publish, open, Take. The coordinator posted the live-publishing note.
+  - M11 amended: Settled applies to scene graphics only (the spec's "one file per scene graphic");
+    every other graphic's file is today's. A settled file waits for its fonts (and sounds), fills its
+    fields, plays and settles, then restates the values, as the output does. Every later play, from
+    the panel or the relay too, is settled the same way (OS1a R9 on a scene link).
+  - M7 amended: the guide link is
+    `https://github.com/NoaCG/NoaCG-Studio/blob/main/docs/OBS_SCENES.md`.
+  - Not changed: after an OBS crash, an old Presence entry can sit beside the new one until Realtime
+    drops it, so a row may read "Loaded twice" for a short while. The guide says so.
