@@ -43,14 +43,15 @@
   "inFlight": [
     {
       "phase": "OS5b",
-      "step": "build (changes requested)",
+      "step": "queued",
       "actor": "builder-os5b-os5b-b-4201",
       "session": "session_017SdbwLfFjQ7J6hawcwSs7M",
       "branch": "claude/plan-obs-scenes-os5b-build",
       "launchedAt": "2026-11-12T21:46:34Z",
       "note": "sent brief = saved brief plus one NOTES line (use OS5a's project hook; works with page reads while 0116 is held)",
-      "lastSeen": "2026-11-12T23:50Z extension pushed as 9f0d29dc; CI, Codex and a fresh full /so running; builder self check-in 23:59Z",
-      "pr": 2472
+      "lastSeen": "2026-11-13T00:12Z fresh receipt; private sample PASS on 50b5ac47 (roundOrder descending); CI 43332889075 gate green; stamped, auto-merge on, repair owner posted",
+      "pr": 2472,
+      "reviewedHead": "50b5ac478ac661a2a9a2e3a45590c2265a6625a8"
     }
   ],
   "owner": [
