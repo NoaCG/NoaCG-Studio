@@ -109,10 +109,5 @@
       "owner": "2026-11-13: \"keep the default\""
     }
   ],
-  "pending": [
-    {
-      "what": "migration 0116_json_source_tick.sql held on production (live-path, productions on air at landing); the next landing's post-land retries it in a quiet window",
-      "since": "2026-11-12T20:59Z"
-    }
-  ]
+  "pending": []
 }
