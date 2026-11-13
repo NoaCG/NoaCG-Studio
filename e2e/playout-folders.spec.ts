@@ -564,9 +564,9 @@ test('OBS scenes: the Live dock at 300 px shows a picked scene with Take and Out
   await evaluateInPage(
     page,
     async (showId) => {
-      const m = await import('/src/model/shows.ts');
-      const { clockRuntimeJs } = await import('/src/templates/shared/clock.ts');
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
+      const m = await __noacgImport('/src/model/shows.ts');
+      const { clockRuntimeJs } = await __noacgImport('/src/templates/shared/clock.ts');
+      const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
       const t = useTemplateStore.getState().template;
       const { error } = m.addGraphicToShow(showId, {
         ...t,
@@ -580,7 +580,7 @@ test('OBS scenes: the Live dock at 300 px shows a picked scene with Take and Out
       const field = t.fields![0].field;
       const linked = m.connectShowSource(showId, source, [{ graphic: 'Hairline', fieldId: field, path: 'sheet.s1.values.Name' }]);
       if (linked.error || linked.refused.length) throw new Error(linked.error ?? 'refused');
-      const failure = await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+      const failure = await (await __noacgImport('/src/model/durableStore.ts')).commitDurableWrites();
       if (failure) throw new Error(failure);
     },
     id,
