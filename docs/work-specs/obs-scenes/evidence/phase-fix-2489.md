@@ -39,7 +39,7 @@ configured checks only: nothing here is OBS hardware proof (that is OS7).
 | J1, J5 | `scripts/scene-join.test.mjs`: joined graphics; a published scene joins nothing more; a moved graphic joins its new scene; first publish joins all; switch off joins none |
 | J2 | `scripts/scene-join.test.mjs`: the scene's first cue of the graphic; none once moved out or with the switch off |
 | J3, J4, J6 | `scripts/scene-join.test.mjs`: a link on the old version holds the Take until it reports the new one; a preparing link counts; another scene's link, the ordinary link and an operator never hold it back; a link that never reads it delays it by the bound only; a graphic up is taken; a throwing Take is said and the next goes; a page gone takes nothing |
-| J1, J2, J4, J5 in the product | `e2e/configured/obs-scenes.spec.ts` (local stack, CI): the Gameplay link open before its folder is a scene; making it a scene and publishing airs Hairline there and on the page with no Take; taken out by hand, it stays out when the next publish makes Desk a scene, which airs Bug; a cue in no scene is never taken |
+| J1, J2, J4, J5 in the product | `e2e/configured/live-prepare.spec.ts` "OBS scenes (#2489)" (local stack, CI): the Gameplay link open before its folder is a scene; making it a scene and publishing airs Hairline there and on the page with no Take; taken out by hand, it stays out when the next publish makes Desk a scene, which airs Bug; a cue in no scene is never taken |
 
 ## Mutation checks run locally
 

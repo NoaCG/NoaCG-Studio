@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
-import { joinedScenes, sceneCueOf, sceneFolderIds, sceneGraphicNames, sceneLink } from '../../model/obsScenes';
+import { joinedScenes, sceneFolderIds, sceneGraphicNames, sceneLink } from '../../model/obsScenes';
 import { takeJoined } from '../../control/sceneJoin';
 import { useTemplateStore } from '../../store/templateStore';
 import {
@@ -2903,16 +2903,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         void takeJoined(
           {
             entries: () => livePresenceRef.current.peers,
-            take: async (join) => {
-              const record = loadShows().find((s) => s.id === showId);
-              const cueId = record ? sceneCueOf(record, join) : null;
-              const cue = cueId ? record?.cues?.find((c) => c.id === cueId) : undefined;
-              if (cue) await takeCue(cue);
-            },
+            record: () => loadShows().find((s) => s.id === showId),
+            take: (cue) => takeCue(cue),
             failed: (join, e) => setNote(`${join.graphic} did not go on air in its OBS scene: ${e instanceof Error ? e.message : String(e)}`),
             live: () => pageLiveRef.current,
-            now: () => Date.now(),
-            wait: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
           },
           joinedScenes(published.scenes.before, published.scenes.after),
           published.version.n,

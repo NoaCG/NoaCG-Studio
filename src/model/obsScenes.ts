@@ -103,12 +103,12 @@ export function joinedScenes(before: readonly ObsScene[], after: readonly ObsSce
   return after.flatMap((s) => s.graphics.filter((g) => !had.has(`${s.id}|${g}`)).map((graphic) => ({ scene: s.id, graphic })));
 }
 
-/** The scene's first cue of the graphic in the record as it is now, the cue its link joins with
+/** Each join's cue in `show`: the scene's first cue of the graphic, the cue its link joins with
  *  (OS1a R11); null when the scene no longer holds it. */
-export function sceneCueOf(show: Pick<Show, 'obsScenes' | 'folders' | 'cues' | 'graphics'>, join: SceneJoin): string | null {
+export function sceneCuesOf(show: Pick<Show, 'obsScenes' | 'folders' | 'cues' | 'graphics'>, joins: readonly SceneJoin[]): (NonNullable<Show['cues']>[number] | null)[] {
   const names = new Map(show.graphics.map((g) => [g.id, g.name] as const));
-  const members = sceneMembers(show).find(([id]) => id === join.scene)?.[1] ?? [];
-  return members.find((c) => names.get(c.sourceId) === join.graphic)?.id ?? null;
+  const scenes = new Map(sceneMembers(show));
+  return joins.map((j) => (scenes.get(j.scene) ?? []).find((c) => names.get(c.sourceId) === j.graphic) ?? null);
 }
 
 /** What a write may not do to a cue (C10, C11): a sentence when the cue must not move to a copy. */

@@ -646,9 +646,10 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
   // takes a graphic that joins a scene (#2489, `PublishedCapabilities.scenes`).
   const previous = await sb.from('control_shows').select('ver:output->ver, scenes:output->scenes, panel').eq('id', show.id).maybeSingle();
   if (previous.error) throw new Error(previous.error.message);
-  const held = readPayloadVersion((previous.data as { ver?: unknown } | null)?.ver);
-  const heldPanel = readPanel((previous.data as { panel?: unknown } | null)?.panel);
-  const scenes = { before: readScenes((previous.data as { scenes?: unknown } | null)?.scenes) ?? [], after: built.scenes ?? [] };
+  const prev = previous.data as { ver?: unknown; scenes?: unknown; panel?: unknown } | null;
+  const held = readPayloadVersion(prev?.ver);
+  const heldPanel = readPanel(prev?.panel);
+  const scenes = { before: readScenes(prev?.scenes) ?? [], after: built.scenes ?? [] };
   const edited = Object.fromEntries(show.graphics.map((g) => [g.name, designEditedAt(g, library)]));
   const version = await stampPayload(built, held, undefined, edited);
   // NEVER AN OLDER DESIGN (G3): this page's copy of a graphic is older than the one on air - a

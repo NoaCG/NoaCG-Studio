@@ -14,13 +14,17 @@
 // publish that moved the graphic into its scene. So the Take waits until every open link of those
 // scenes reports that publish, or JOIN_WAIT_MS, after which it goes anyway: such a link has the
 // Take in the log, and its next boot recovers it (R7), as does a link that was not open at all.
-// Pure: scripts/scene-join.test.mjs.
+// Plain, with the page through `io`: scripts/scene-join.test.mjs.
 
-import type { SceneJoin } from '../model/obsScenes';
+import { sceneCuesOf, type SceneJoin } from '../model/obsScenes';
+import type { Show } from '../model/shows';
 import type { LiveEntry } from './livePath';
 
 /** Longer than an output's spacing between two preparations (output/prepare.ts, 15 s). */
 export const JOIN_WAIT_MS = 20_000;
+
+type SceneRecord = Pick<Show, 'obsScenes' | 'folders' | 'cues' | 'graphics'>;
+type SceneCue = NonNullable<Show['cues']>[number];
 const POLL_MS = 250;
 
 /** Every open link of these scenes has read publish `n` or newer. Its READY holds it (`v`), or a
@@ -38,27 +42,35 @@ export function sceneLinksHold(entries: readonly Pick<LiveEntry, 'kind' | 'scene
 export interface SceneJoinIo {
   /** The production's Presence entries as they stand now. */
   entries: () => readonly Pick<LiveEntry, 'kind' | 'scene' | 'ready'>[];
-  /** The operator's Take of the scene's first cue of the graphic, as the record is now; nothing
-   *  when the scene no longer holds it. */
-  take: (join: SceneJoin) => Promise<void>;
+  /** The production record as it is now: each join takes its scene's cue there. */
+  record: () => SceneRecord | undefined;
+  /** The operator's Take of a cue. */
+  take: (cue: SceneCue) => Promise<void>;
   /** Said on the note line when a Take threw: the other joins still go. */
   failed: (join: SceneJoin, error: unknown) => void;
   /** False once the page has gone. */
   live: () => boolean;
-  now: () => number;
-  wait: (ms: number) => Promise<void>;
+  now?: () => number;
+  wait?: (ms: number) => Promise<void>;
 }
 
 /** Take each joined graphic once its scene's open links have read publish `n` (see above). */
-export async function takeJoined(io: SceneJoinIo, joins: readonly SceneJoin[], n: number, limitMs = JOIN_WAIT_MS): Promise<void> {
+export async function takeJoined(io: SceneJoinIo, joins: readonly SceneJoin[], n: number): Promise<void> {
+  // Nothing joined (most publishes): not even a read of the record.
   if (joins.length === 0) return;
+  const now = io.now ?? Date.now;
+  const wait = io.wait ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const scenes = new Set(joins.map((j) => j.scene));
-  const start = io.now();
-  while (io.live() && !sceneLinksHold(io.entries(), scenes, n) && io.now() - start < limitMs) await io.wait(POLL_MS);
-  for (const j of joins) {
-    if (!io.live()) return;
+  const start = now();
+  while (io.live() && !sceneLinksHold(io.entries(), scenes, n) && now() - start < JOIN_WAIT_MS) await wait(POLL_MS);
+  const record = io.live() ? io.record() : undefined;
+  if (!record) return;
+  const cues = sceneCuesOf(record, joins);
+  for (const [i, j] of joins.entries()) {
+    const cue = cues[i];
+    if (!cue || !io.live()) continue;
     try {
-      await io.take(j);
+      await io.take(cue);
     } catch (e) {
       io.failed(j, e);
     }

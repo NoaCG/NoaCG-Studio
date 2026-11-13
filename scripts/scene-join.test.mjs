@@ -8,7 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import './lib/tsResolve.mjs';
 
-const { joinedScenes, sceneCueOf, obsScenesOf } = await import('../src/model/obsScenes.ts');
+const { joinedScenes, sceneCuesOf, obsScenesOf } = await import('../src/model/obsScenes.ts');
 const { takeJoined, sceneLinksHold, JOIN_WAIT_MS } = await import('../src/control/sceneJoin.ts');
 
 const pool = (id, name) => ({ id, name, template: {} });
@@ -48,12 +48,11 @@ test('the first publish of a production with scenes joins every scene graphic; w
 });
 
 test('the cue a join takes is the scene\'s first cue of the graphic as the record is now', () => {
-  const show = production();
-  assert.equal(sceneCueOf(show, { scene: 'scA', graphic: 'A1' }), 'a1');
-  assert.equal(sceneCueOf(show, { scene: 'scB', graphic: 'B1' }), 'b1');
+  const ids = (show, joins) => sceneCuesOf(show, joins).map((c) => c?.id ?? null);
+  const joins = [{ scene: 'scA', graphic: 'A1' }, { scene: 'scB', graphic: 'B1' }, { scene: 'scB', graphic: 'A1' }];
   // Moved out of the scene since the publish, or the switch turned off: nothing to take.
-  assert.equal(sceneCueOf(show, { scene: 'scB', graphic: 'A1' }), null);
-  assert.equal(sceneCueOf(production({ obsScenes: undefined }), { scene: 'scA', graphic: 'A1' }), null);
+  assert.deepEqual(ids(production(), joins), ['a1', 'b1', null]);
+  assert.deepEqual(ids(production({ obsScenes: undefined }), joins), [null, null, null]);
 });
 
 const link = (scene, ready) => ({ kind: 'output', scene: { id: scene, known: true }, ...(ready ? { ready } : {}) });
@@ -69,15 +68,16 @@ test('a scene link holds a publish once it reports that version, or is preparing
   assert.equal(sceneLinksHold([link('scB', ready(1)), { kind: 'output', ready: ready(1) }, { kind: 'operator' }], scenes, 5), true);
 });
 
-function clockIo(entries) {
+function clockIo(entries, record = production()) {
   let t = 0;
   const taken = [];
   const failures = [];
   const io = {
     entries: () => entries(t),
-    take: async (j) => {
-      if (j.graphic === 'Throws') throw new Error('typed data refused');
-      taken.push({ graphic: j.graphic, at: t });
+    record: () => record,
+    take: async (cue) => {
+      if (cue.id === 'h') throw new Error('typed data refused');
+      taken.push({ cue: cue.id, at: t });
     },
     failed: (j, e) => failures.push(`${j.graphic}: ${e.message}`),
     live: () => true,
@@ -93,20 +93,22 @@ test('the Take waits for the scene link to read the publish, then takes each joi
   // The link reads publish 7 after 3 s: before that it would read the Take past (OS1a R6).
   const { io, taken } = clockIo((t) => [link('scA', ready(t >= 3000 ? 7 : 6))]);
   await takeJoined(io, [{ scene: 'scA', graphic: 'A1' }, { scene: 'scA', graphic: 'A2' }], 7);
-  assert.deepEqual(taken, [{ graphic: 'A1', at: 3000 }, { graphic: 'A2', at: 3000 }]);
+  assert.deepEqual(taken, [{ cue: 'a1', at: 3000 }, { cue: 'a2', at: 3000 }]);
 });
 
 test('a link that never reads the publish delays the Take by the bound only', async () => {
   const { io, taken } = clockIo(() => [link('scA', ready(6))]);
   await takeJoined(io, [{ scene: 'scA', graphic: 'A2' }], 7);
-  assert.deepEqual(taken, [{ graphic: 'A2', at: JOIN_WAIT_MS }]);
+  assert.deepEqual(taken, [{ cue: 'a2', at: JOIN_WAIT_MS }]);
 });
 
 test('no link open: the Take goes at once; one that throws is said and the others still go; a page gone takes nothing', async () => {
-  const open = clockIo(() => []);
-  await takeJoined(open.io, [{ scene: 'scA', graphic: 'Throws' }, { scene: 'scA', graphic: 'A2' }], 7);
-  assert.deepEqual(open.taken, [{ graphic: 'A2', at: 0 }]);
-  assert.deepEqual(open.failures, ['Throws: typed data refused']);
+  // Hand is in a scene here, and its Take throws.
+  const withHand = production({ cues: [cue('h', 'p-Hand', 'scA'), cue('a2', 'p-A2', 'scA')] });
+  const open = clockIo(() => [], withHand);
+  await takeJoined(open.io, [{ scene: 'scA', graphic: 'Hand' }, { scene: 'scA', graphic: 'A2' }, { scene: 'scB', graphic: 'Gone' }], 7);
+  assert.deepEqual(open.taken, [{ cue: 'a2', at: 0 }]);
+  assert.deepEqual(open.failures, ['Hand: typed data refused']);
   const gone = clockIo(() => [link('scA', ready(6))]);
   gone.io.live = () => false;
   await takeJoined(gone.io, [{ scene: 'scA', graphic: 'A2' }], 7);
