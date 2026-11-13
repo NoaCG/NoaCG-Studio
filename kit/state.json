@@ -2519,7 +2519,7 @@
     },
     "acceptedAt": "2026-11-13T11:31:36.118029+00:00",
     "latestProgress": {
-      "observedAt": "2026-11-13T11:54:08.336818+00:00",
+      "observedAt": "2026-11-13T11:56:27.316105+00:00",
       "status": "Worker reported, root finalreadback pending",
       "j0128": "PRETEST_INFRAFAIL EROFS Vite shared node_modules/.vite-temp; retainedlog, no productexecution/attempt. Existingapprovedrequire_escalatedcommand reranoriginalsmallselection; no persistentpolicychange.",
       "j0129": "PASS1/1 importedSVG cumulative UI/semantic/reviewed deterministic source+historyparity and3browseroutputs,1.7min,zero modelcalls.",
@@ -2533,7 +2533,10 @@
       "j0135": "StartercumulativePASS workerreported; rootreadbackpending.",
       "j0136": "Singleextra\u22645min highrateCDPdiagnosticMEASURED; offered600moves/group,max4outstanding, trustedreceived32\u201346Hz1366; changedcomputedpose12\u201320Hzdrag/8\u201310Hzscrub, protocolp95drag137.5ms/scrub251.4ms. InstrumentedconfigMISSEStargets; recordingoverheadconfoundsattribution. No performancePASS/pureinstrumentationcause claim. No furtherautomaticmeasurement/productcorrection.",
       "j0138": "PASS5/5 receiving+4loopcases41.4s,freshfourZIP/browserNext/assets; rootreadbackpending.",
-      "stopClarification": "ANYremainingconfirmedE4productdefectinclnewperformancedataeffect requiresstopbeforeedits, notonlypreviously-namedfamily. No relabelasnewE5Cwork."
+      "stopClarification": "ANYremainingconfirmedE4productdefectinclnewperformancedataeffect requiresstopbeforeedits, notonlypreviously-namedfamily. No relabelasnewE5Cwork.",
+      "readOnlyAttribution": "Workerreports PreviewController/runtime/TimelineunchangedsincepreE4admission91a57833; E4addeddocumentbinding/viewworkspacebookkeeping setSessionTime\u2192rememberDocumentView/guards/debouncedautosave. CannotruleE4costin/out withoutcontrolledcomparison; NOcausalproductdefectconfirmed. Do notlabelunrelatedorperformanceclear.",
+      "highRatePointerUp": "INVALIDtargetjudgment: mixedCDPmove+Playwrightmouse.up sendsupatPlaywrightstalestartcoords. Rawcontinuousinput/pose/protocolretained; withholdhighratefinalpointerupPASS/FAIL. Originalawaiteddrivermouseupcoordinatecoherent, preserveactualvalues.",
+      "reviewRequirement": "No furtherautomaticperformanceadmissions/productcorrection. Finishdiagnosticdocs/localkit. SeparateCloudMISS/INVALID/LIMITEDmetricsfromnameddevice/native125%NOTRUNOPENtargets. FreshfinalSOindependentlyjudges3E5Ccriteria, noledgradeA; anyconfirmedE4defectstopsbeforeedits. PhaseNOTaccepted/PRnotyetreported."
     }
   }
 }
