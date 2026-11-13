@@ -63,13 +63,13 @@
   },
   "brief": {
     "read": "Future phases use the reviewed Cloud-first spec/phases and owner-decision-2026-11-11-cloud-first.md at 3a56a966c4c03fa47f53b4d1ecb09ed882d12ef0 with git show. Product work starts on current main in its own worktree. Completed E1-E3 retain original plan source f0f2e3fe0c2cc14e23b171957b6f8d18905fd434 and their exact tested-source/environment receipts. Read docs/EDITOR_PLAN.md, the acceptance register, October single-device closure and latest relevant issues; historical evidence is reused only with current source/environment applicability. For completed E2 bulky receipts moved from the current kit, read archived-evidence.json: every byte is verified in its immutable published checkpoint plus retained local archive; do not treat a missing old local path as lost evidence.",
-    "rules": "CAUSAL HOLD RESOLVED2026-11-12: original E1/E2 quarantines independently NOT CAUSED by this run: clockreportcc3afa857(1/60parent,2/60E2), operatorreport121d355df(8/301parent,7/301E1), independentAGREE/A. Preserve all failures/unknowns. Clock was subsequently released through standardautomation PR2455; causefollowup2456/miwco/Nov25 retainsdefect, not a causal productfix. Actual E4merge5f6c quarantine still lists configuredcommand-sequence, operator-outage-not-unpublished, per-graphic-replacement and offlinepublish-output-setup; do not claim allmonitorsgreen or reuse anoldunrelated disposition for a differentfailure. Same run resumes E4 after historical E3; no acceptance/history or attempts reset. Run the current worker resource/network preflights and folder rules in an owned absolute feature worktree. E4/E5C/E6C execute in qualified Cloud. Qualify real isolated authentication/persistence on the worker or existing Actions stack; no production data/secrets. Full suites stay in GitHub Actions. Finish Cloud engineering before final E5 real participants/named devices/native 125% and E6 named receiving hosts/operator; Cloud diagnostics/fixtures cannot pass those gates. Respect the October single-device boundaries and the serial phase order. Before product edits reproduce and write the short observable rule or gap. Report every subcriterion and retain original failures and any missing evidence. Inventory the exact GSAP browser, CLI and export artifacts early and send the finished draft back to the coordinator for the owner. State that NoaCG is open source, entirely free, earns no revenue and serves broadcast graphics. The owner superseded the six-month deferral and sends the request. Preserve licence, provenance, notices and redistribution checks. A delayed reply is not an engineering wait before OW1. Stage actual receiving hosts/operator, first-time users/moderator and existing model-access leads in E1 without claiming availability. Do not launch other phases. Do not change provider, funding, licence, engine or release posture. Do not use or modify production data. Respect #1967 and check sideEnds on exact candidate paths, including package versions. The active coordinator acknowledges PR repair duty and owns queue stamping and terminal monitoring. Follow the latest check and queue guidance and obtain fresh independent review under the shared traps. No new paid model round or reset of E3 limits follows from E5C/E6C. OW1 written GSAP disposition and candidate-specific owner approval still gate E7 adoption. CURRENT E5C base e1c6fc4f5: after E4 acceptance, standard automated release PR2486 merged a4c012372 releases operator-outage; clock already auto-releasedPR2455. Neither is a causal product fix by this run. Current quarantine lists only configuredcommand-sequence/per-graphic-replacement. Preserve original No-cause evidence and issues/owners/dates, distinguish current versus exactE4store. CURRENT FINAL E5C SOURCE fdfa33e63/reconciledmainb2e91ba4a: per-graphic-replacement was automatically released via PR2491; only configuredcommand-sequence is quarantined. Earlier lists above are historical to their named commits. E4 already PASS actual5f6c362f6/PR2438; all E4 allowances exhausted and any confirmed E4-attributable defect still stops before edits. New checker must read actualmerge current quarantine and required exactmerge checks. FUTURE WORKER CACHE QUALIFICATION: on the actual queue runner, exact-lock dependency cache access must include existing node_modules/.vite-temp AND node_modules/.vite (Vite may rmdir deps through the symlink), plus owned outputs. Verify both before a broader admission; failed broader admissions have no supported verification requeue and must not be reset or duplicated. No source/Vite/policy workaround."
+    "rules": "Same run and supervisor, immutable acceptance/history/attempts. Read current Cloud-first spec/phases and owner receipts, actual tested-source evidence and current quarantine on your exact checkout. E1-E4 and E5C are independently PASS at their recorded merge/source/environment; never upgrade historical scope or relabel failures. E1/E2 causal hold is settled independently NOT CAUSED; retain its reports/issues/real owners/dates and standard automated-release history. Treat workflow code HEAD separately from target/tested SHA, and whole-main spec totals separately from PR selection. An unrelated helper at the same main SHA is not this run's verification.\nE4 product model: owned editor graphics and independently installed production copies; no automatic propagation between editor/productions or across productions, and no simultaneous collaborative graphic editing. Necessary stale/newer-write protection stays. Narrow correction succeeded; no new-production-only restriction was implemented. E4 ordinary3/3, old ownerextra1/1 and new narrow1/1 remain spent. ANY confirmed E4-attributable defect, including timing/data effects, stops for owner reassessment before edits; do not relabel it another phase to obtain an allowance.\nOrder: Cloud E4/E5C/E6C, then final local E5/E6, then OW1/E7. Current phase E6C may prepare/verify software without human/device/host/vendor availability. Real participants/moderator, named desktop/laptop/native125% and named receiving hosts/operator cannot be passed by emulation. Written GSAP disposition and explicit candidate-specific owner approval remain OW1/E7 gates. Owner sends the finished GSAP request: NoaCG is open source, entirely free, earns no revenue and serves broadcast graphics. No licence/engine/release-posture change.\nNo new paid model round or E3 allowance reset, provider/model/funding/service-account/credential change, or production data. Disposable isolated test users only within existing fixture/backend policy. Inherit Codex model/effort without overrides. Qualify executing worker resources/network/permissions in its own exact-source feature worktree; preserve original owner binding separately from observed current environment and qualify CLI mapping rather than invent it. Per-command scoped grants do not change persistent policy.\nBefore browser admission qualify both existing node_modules/.vite-temp and node_modules/.vite through the exact-lock dependency symlink on the ACTUAL executing runner, plus owned outputs; a later runner does not inherit an old grant. Resolve scratch config guard/reporter/server paths and list its intended selection before admission. Preserve source-pinned broader/build history, including failed/pretest attempts; no duplicate/reset/guard workaround. Existing small5min/onebroader12min/build5min limits and actual derived workers stay; full suites/builds remain Actions. No waits/retries/skips or test/check/limit weakening as a fix.\nE5C packaging3/3 remains spent with final43431229460 PASS; artifact/source/producer receipts and unverified raw consumer readback remain distinct. DEV F4 measurements are diagnostic, not production timing or causal E4 clearance. No automatic new E5C benchmark/packaging repair. E6C must reconcile final candidate inputs and prepare exact export/receiving/technical-audit evidence within its actual scope and existing bounds.\nBefore product edits reproduce and state the observable gap/rules. Apply current Rules-first/FULL/qualified-Delta review requirements; no repeated full review for a small eligible delta. Use current folder rules and check canonical sideEnds on exact candidate paths including package versions. No invented owner. Root alone admits phases, stamps, enables the merge queue and acknowledges exactly one repair owner per PR before worker ends. Worker returns actual final-head CI/configured selection/gate, real Codex result and required review, never self-approval. All created PRs attach through root if child tool unavailable.\nActive Cloud mode only: root retains ownership through actual merge, terminal exact-merge checks and fresh independent acceptance. No native wake/after-session recovery claim. Stop/checkpoint on pause or current block boundary; only supported root renewal changes it. Preserve all failed WIP, unknowns and valuable ignored evidence, existing8MiB/two-folder-level kit bound and immutable archive references. No later-phase launch before predecessor PASS. Written rights/owner release approval cannot be inferred from engineering passes."
   },
   "inFlight": [
     {
-      "phase": "E5C",
-      "step": "Fresh independent E5C acceptance active",
-      "note": "Allactual621mergechecksSUCCESSincludingCI/configured/CodeQL/Postland/quarantine/applicabledeploy. IndependentE5Caction10ownj0145PASS2/2zero skip/retry27.2s afterretainedj0143/144PRETESTfailures; allraw75/6754auditmatches. Ownboundedreferencej0146/finalreceiptpending; no E6CbeforeindependentPASS. Rootsoleowner."
+      "phase": "E6C",
+      "step": "Preparing next authorized Cloud builder after midpoint retro",
+      "note": "E5C actual621 PASSaccepted14:43:18.225Z afterfreshindependent89-filehash/capture/gate readback. No E6Cnativeadmissionyet; currentmain/sourceandownedworktreemustqualify. LocalE5/E6stilllast."
     }
   ],
   "owner": [
@@ -2493,7 +2493,7 @@
     "source": "e1c6fc4f5faf933be930cdf30f7acfa4e2b9ab22",
     "worktree": "/workspace/noacg-editor-r1-5-e5c-build",
     "branch": "codex/plan-editor-r1-5-e5c-build",
-    "status": "NATIVE_ACCEPTED_BUILD_ACTIVE",
+    "status": "PASS",
     "predecessor": "E4 accepted2026-11-13T11:21:26.775Z exact5f6; independentcomment6851283088",
     "sourceApplicability": "5f6\u2192e1c6 only e2e/import-svg-corpus.spec.ts, e2e/publish-output-setup.spec.ts andquarantine.json changed, no app/runtime/deps/workflowinputs; freshE5C acceptance stillrequired.",
     "resourceSetup": "Ownedcleanbranch/worktree createdbeforework, rootpackage-lockSHA62dd0fe872965d011d1b30433f28ee547475dd08bf1309bbd569b0733214df4c equals shared dependencylock; onlynode_moduleslinked, no compiledoutput reuse.",
@@ -2517,7 +2517,7 @@
       "known": false,
       "limitation": "Hidden cgroupCPU/memoryancestors unreadable; machinetotals substituted."
     },
-    "acceptedAt": "2026-11-13T11:31:36.118029+00:00",
+    "acceptedAt": "2026-11-13T14:43:18.225Z",
     "latestProgress": {
       "observedAt": "2026-11-13T14:28:48.088851+00:00",
       "status": "Worker reported, root finalreadback pending",
@@ -2818,7 +2818,8 @@
           }
         },
         "exactMergeRootReadback": "ActualRESTCI43438959617/configured43438959677/CodeQL43438958316 allSUCCESSattempt1 exact621; Postland/quarantine/applicabledeploy43439368279SUCCESS. Detailedtest/skip/quarantinestatus/deploymentapplicabilityandfullinventoryremaincheckerfinalreadback beforephasePASS.",
-        "postLandingBackstop": "ActualgrowthagesNOphase/PRpastceiling124calls; repair-wake0/0redunattended22calls,nothingtoraise."
+        "postLandingBackstop": "ActualgrowthagesNOphase/PRpastceiling124calls; repair-wake0/0redunattended22calls,nothingtoraise.",
+        "repairOwnerStatus": "COMPLETEthroughallactualterminalmergechecksandindependentPASS; originalfailurespreserved"
       },
       "freshMaintainedCoverage": {
         "run": 43434486680,
@@ -2841,7 +2842,7 @@
       "source": "621592610bd120da9572b73fee9e39c321a4b059",
       "branch": "codex/plan-editor-r1-5-e5c-check",
       "worktree": "/workspace/noacg-editor-r1-5-e5c-check",
-      "status": "NATIVE_OBSERVED_DELIVERED_STARTUP_ACKED_CHECK_ACTIVE",
+      "status": "COMPLETED_PASS_ACCEPTED",
       "transport": "Single immutablefile-reference dispatch; workerreadsexactrequest/briefbytesandverifieshashesatstartup. DeparturerationaleinPRownercomment6854426227. No duplicate request.",
       "nativeThreadUuid": "6af7197a-ac48-8191-a12d-e2fcfdf4204e",
       "nativeSessionBinding": "6af455f4-b1c8-8191-86b2-8bfdfc619075",
@@ -2899,6 +2900,41 @@
         },
         "j0146": "FreshownofficialbinaryreferenceUItasksolebrowserjob<=5mininprogress, no newbenchmark/productedit."
       }
+    },
+    "acceptedMerge": "621592610bd120da9572b73fee9e39c321a4b059",
+    "independentFindings": "https://github.com/NoaCG/NoaCG-Studio/pull/2496#issuecomment-6856017943",
+    "acceptanceReceiptSha256": "2f8b2a76cbb30517d67d9a11b04d7593c13263462b2b8f8de5cbb738779679a7",
+    "rootEvidenceVerification": {
+      "files": 89,
+      "bytes": 5222292,
+      "mismatches": [],
+      "indexSha256": "e6e4e4ff0bc2737bfeebd95d43bc0d76d3ebc95cf9c2ed4da0f6f264fef314fd",
+      "capturesViewed": [
+        "ownStarterTake",
+        "finiteOut",
+        "replay",
+        "referenceReopened"
+      ]
+    },
+    "retention": "Builder/checkerordinaryownedworktreesretainedasread-onlyvaluableevidenceforE6C; nativeworkerscompleted. No valuableignoredproofdeleted.",
+    "sessionArchival": {
+      "completedCanonical": [
+        "/root/editor_e5c_cloud_builder",
+        "/root/editor_e5c_cloud_builder/e5c_final_so",
+        "/root/editor_e5c_cloud_builder/e5c_final_full_corrected_so",
+        "/root/editor_e5c_cloud_builder/e5c_native_packaging_rules_so",
+        "/root/editor_e5c_cloud_builder/e5c_final_reconciled_full_so",
+        "/root/editor_e5c_cloud_builder/e5c_final_notes_delta_so",
+        "/root/editor_e5c_independent_check"
+      ],
+      "supportedAppReadback": "Actualcodex_apphistoryhostdurable returnedrootandunrelatedidlethreads; observedchildUUID6af7197a-ac48-8191-a12d-e2fcfdf4204enotlisted, noqualifiedapphost/threadmapping. Didnotarchivecoordinator/unrelatedthreads orclaimsuccessfularchive. Completednativecontextsremainfinished."
     }
+  },
+  "midpointRetro": {
+    "phase": "E5C",
+    "at": "2026-11-13T14:46:28.991662+00:00",
+    "file": "wave.md",
+    "lines": 4,
+    "closedBy": "futurebriefreplacementanddroppingone-offrepeatedtransportprobes; no newlessonDoc/rule/exception."
   }
 }
