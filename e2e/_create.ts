@@ -1,4 +1,6 @@
 import { expect, type Page } from '@playwright/test';
+import type { SpxTemplate } from '../src/model/types';
+import type { ProjectBrand } from '../src/model/brand';
 
 // Fast project bootstrap for specs whose subject is NOT the creation flow itself.
 //
@@ -9,6 +11,16 @@ import { expect, type Page } from '@playwright/test';
 // the project-brand capture) - without the click walk. The wizard's own specs
 // (wizard-*.spec.ts, flows.spec.ts, ux.spec.ts's direction test, ...) keep clicking through the
 // real steps; that is what covers the wizard.
+
+type Built = {
+  template: SpxTemplate;
+  look: { name: string; brand: ProjectBrand };
+};
+// The created template and its look, per spec, for this worker. Building one costs the page the
+// whole catalog's modules (about 0.7 s of a fresh context's boot) and gives the same bytes every
+// time (checked over all 539 variants), so the first call in a worker builds it through the
+// wizard's own code and later calls hand that result to the same apply, look and flush steps.
+const BUILT = new Map<string, Built>();
 
 export interface CreateSpec {
   /** Exact catalog variant name, e.g. 'Hairline', 'Match Strip', 'Glass Mark'. */
@@ -41,43 +53,53 @@ export async function bootstrapGraphic(page: Page, spec: string | CreateSpec = '
   // than a slow one. Measured 2026-09-05: the first two wave2 tests failed here on two
   // consecutive full plans and all six passed in 15 s when the file ran alone.
   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
-  await page.evaluate(async (s: CreateSpec) => {
-    const { CATALOG, variantsFor } = await import('/src/templates/catalog.ts');
-    const { CATEGORIES } = await import('/src/model/wizard.ts');
-    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-    const { formatTemplate } = await import('/src/format/formatCode.ts');
+  const key = JSON.stringify(wanted);
+  const made = await page.evaluate(async ({ s, ready }: { s: CreateSpec; ready: Built | null }) => {
     const { setDefaultBrand } = await import('/src/model/brand.ts');
     const { createLook } = await import('/src/model/packets.ts');
     const { commitDurableWrites } = await import('/src/model/durableStore.ts');
     const { flushPendingProject, useTemplateStore } = await import('/src/store/templateStore.ts');
     const { useDocKindStore } = await import('/src/store/docKindStore.ts');
 
-    const cat = s.category
-      ? CATEGORIES.find((c) => c.id === s.category || c.name === s.category)
-      : undefined;
-    const pool = cat ? variantsFor(cat.id) : Object.values(CATALOG).flat();
-    // Exact name first; substring second (the specs historically matched card text with
-    // hasText); no name = the category's first card, the wizard's default order.
-    const variant = s.name
-      ? pool.find((v) => v.name === s.name) ?? pool.find((v) => v.name.includes(s.name!))
-      : pool[s.index ?? 0];
-    if (!variant) throw new Error(`bootstrapGraphic: no catalog variant for ${JSON.stringify(s)}`);
+    let built = ready;
+    if (!built) {
+      const { CATALOG, variantsFor } = await import('/src/templates/catalog.ts');
+      const { CATEGORIES } = await import('/src/model/wizard.ts');
+      const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
+      const { formatTemplate } = await import('/src/format/formatCode.ts');
+      const cat = s.category
+        ? CATEGORIES.find((c) => c.id === s.category || c.name === s.category)
+        : undefined;
+      const pool = cat ? variantsFor(cat.id) : Object.values(CATALOG).flat();
+      // Exact name first; substring second (the specs historically matched card text with
+      // hasText); no name = the category's first card, the wizard's default order.
+      const variant = s.name
+        ? pool.find((v) => v.name === s.name) ?? pool.find((v) => v.name.includes(s.name!))
+        : pool[s.index ?? 0];
+      if (!variant) throw new Error(`bootstrapGraphic: no catalog variant for ${JSON.stringify(s)}`);
 
-    // The same draft the wizard holds after picking this variant card (CreationWizard's
-    // onPickVariant patch on a fresh draft), then the same create path as its Create button.
-    const draft = mergeDraft(initialDraft(), {
-      variantId: variant.id,
-      lines: variant.suggestedLines.map((l) => ({ ...l })),
-      zone: null,
-      logoEnabled: null,
-      animation: s.steps ? { presetId: null, outPresetId: null, steps: true } : { presetId: null, outPresetId: null },
-      paletteId: null,
-      customPalette: null,
-      fontId: null,
-    });
-    const template = await formatTemplate(buildDraftTemplate(variant, draft));
+      // The same draft the wizard holds after picking this variant card (CreationWizard's
+      // onPickVariant patch on a fresh draft), then the same create path as its Create button.
+      const draft = mergeDraft(initialDraft(), {
+        variantId: variant.id,
+        lines: variant.suggestedLines.map((l) => ({ ...l })),
+        zone: null,
+        logoEnabled: null,
+        animation: s.steps ? { presetId: null, outPresetId: null, steps: true } : { presetId: null, outPresetId: null },
+        paletteId: null,
+        customPalette: null,
+        fontId: null,
+      });
+      built = {
+        template: await formatTemplate(buildDraftTemplate(variant, draft)),
+        look: {
+          name: `${variant.name} look`,
+          brand: { styleTag: variant.styleTag, palette: variant.defaultPalette, fontId: variant.defaultFontId, customFont: null },
+        },
+      };
+    }
     const store = useTemplateStore.getState();
-    store.applyTemplate(template, { resetSampleData: true });
+    store.applyTemplate(structuredClone(built.template), { resetSampleData: true });
     useDocKindStore.getState().setKind('spx');
     // A NAMED brand, and the default pointer at it - the anonymous record Create used to
     // write is retired (model/brand.ts). This is what makes the wizard's footer chooser
@@ -87,12 +109,7 @@ export async function bootstrapGraphic(page: Page, spec: string | CreateSpec = '
     // it is committed below before this bootstrap returns: a spec that reloads soon after
     // would otherwise come back to an empty look list about one time in three, and read as
     // the chooser being broken (e2e/AGENTS.md, the durable-seed hazard).
-    const made = createLook(`${variant.name} look`, {
-      styleTag: variant.styleTag,
-      palette: variant.defaultPalette,
-      fontId: variant.defaultFontId,
-      customFont: null,
-    });
+    const made = createLook(built.look.name, structuredClone(built.look.brand));
     setDefaultBrand(made.id);
 
     // The production autosaver intentionally waits 800 ms, but this direct bootstrap can
@@ -104,7 +121,9 @@ export async function bootstrapGraphic(page: Page, spec: string | CreateSpec = '
     // second refused write the app rightly announces over the page (#1603).
     flushPendingProject();
     await commitDurableWrites();
-  }, wanted);
+    return built;
+  }, { s: wanted, ready: BUILT.get(key) ?? null });
+  BUILT.set(key, made);
   await expect(page.locator('.wz-modal')).toBeHidden();
 }
 
