@@ -49,13 +49,18 @@
       "branch": "claude/plan-obs-scenes-os1b-build",
       "launchedAt": "2026-11-13T10:40:15Z",
       "note": "sent brief = saved brief plus one NOTES line (amended D9: one link may be in several OBS scenes; #2474 and #2454 stay with OS3)",
-      "lastSeen": "2026-11-13T11:11Z builder running: both specs pass (59 tests), mutation-testing All out; no PR yet"
+      "lastSeen": "2026-11-13T11:27Z PR #2490 open, gates running; owner question on Pictures copies relayed (default no copy); #2489 to run as a fix after OS1b",
+      "pr": 2490
     }
   ],
   "owner": [
     {
       "what": "OS7: rehearsal with failure drills",
       "where": "run issue hand-over after OS6"
+    },
+    {
+      "what": "OS1b question: should the production's uploaded Pictures graphic get a copy per OBS scene? Built default: no (one shared graphic and on-air state; library picture graphics do get copies)",
+      "where": "coordinator chat"
     }
   ],
   "fixes": [
@@ -75,6 +80,11 @@
       "issue": 2475,
       "what": "browser source memory over a show-length run",
       "when": "measured before OS7"
+    },
+    {
+      "issue": 2489,
+      "what": "adding a graphic to a scene takes it (spec Scenes behaviour, deferred by OS1a to OS1b, not in AC-2/AC-3)",
+      "when": "fix right after OS1b, before OS3"
     }
   ],
   "triggers": [
