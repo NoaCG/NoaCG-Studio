@@ -1,0 +1,165 @@
+{
+  "startedAt": "2026-11-13T13:10:15.453Z",
+  "status": "passed",
+  "source": "b08128e05e4506fbb900f8ec37fa39bf5bea306d",
+  "retries": 0,
+  "skips": 0,
+  "capMinutes": 10,
+  "cleanup": true,
+  "buildStartedAt": "2026-11-13T13:10:15.459Z",
+  "buildCompletedAt": "2026-11-13T13:15:11.612Z",
+  "smoke": {
+    "source": "b08128e05e4506fbb900f8ec37fa39bf5bea306d",
+    "assertions": [
+      "wrong candidate refuses before server launch",
+      "inherited fake hosted/model configuration remains disabled",
+      "approved original F4 hash loads 30 rendered layers and 300 X/opacity keys",
+      "wrong fixture hash preserves nonempty source/history/sample/selection",
+      "wrong count with matching manifest hash refuses before any draft mutation",
+      "missing production marker refuses before preview",
+      "missing bundle receipt refuses before preview",
+      "stale production marker refuses before preview",
+      "altered bundle file refuses before preview",
+      "extra bundle file refuses before preview",
+      "normal editable ZIP import in verified production preview renders 30 layers with 300 unique UI key identities",
+      "documented production observer URL, trusted calibration marks, download and disposal work"
+    ],
+    "cleanup": true,
+    "fixture": {
+      "originalSha256": "322ac5a1f9daf557d1d6b1a3f95b8c91150a7ce18cc0b15ee66841f805058650",
+      "importedName": "f4 editable",
+      "width": 1920,
+      "height": 1080,
+      "fps": 25,
+      "packageSha256": "49c49b5d64e922e0506af98eac318adf6d6310cd1b98ea6a20c7f3578b091ff0",
+      "renderedLayers": 30,
+      "uniqueUiKeys": 300
+    },
+    "pageErrors": [],
+    "externalRequests": [],
+    "productionSourceRequests": [],
+    "cleanupErrors": []
+  },
+  "renderedCaptures": [
+    {
+      "path": "captures/f4-1366-drags.png",
+      "bytes": 104594,
+      "sha256": "8ee689052522dc39ae2576cb86e58263dc7a703b3b9cc58ba3cba4eeabbddae5"
+    },
+    {
+      "path": "captures/f4-1366-initial.png",
+      "bytes": 96793,
+      "sha256": "dda748ccedb959a09721b3094b75f0654b7fd0e54a2a128b7d5a4473343d4f38"
+    },
+    {
+      "path": "captures/f4-1920-drags.png",
+      "bytes": 149294,
+      "sha256": "eff7b1b54b52cbdc7f6f923d3ddea42c9deedbd2f431c1569919d2c64a99aa2a"
+    },
+    {
+      "path": "captures/f4-1920-initial.png",
+      "bytes": 131045,
+      "sha256": "f94aef29e868af1eef9ec65b1645f45a4a625c20bf9495a8d42c06a1bdf4e9a5"
+    },
+    {
+      "path": "captures/f4-highrate-1366-scrubs.png",
+      "bytes": 100417,
+      "sha256": "6f8bfeef969eead07562cb515d79f759c3ef3d298db99227a2f763bb5892deef"
+    },
+    {
+      "path": "captures/f4-highrate-1920-scrubs.png",
+      "bytes": 140643,
+      "sha256": "a16ae21ddd2ab88bc95ec4f38325901bde19c6588d1590867271a99f1772aaf7"
+    },
+    {
+      "path": "captures/reference-brand-redone.png",
+      "bytes": 63780,
+      "sha256": "7b731eccf340e320a1ac965c02d75ce56b8d8b56800b6e4e331c4dcbf3db3648"
+    },
+    {
+      "path": "captures/reference-extra-x-plus40.png",
+      "bytes": 69927,
+      "sha256": "7721305d7317a7261af9782e019ac7c1edd4a0710e305ee955a01396960f2334"
+    },
+    {
+      "path": "captures/reference-first-reopened.png",
+      "bytes": 71538,
+      "sha256": "4ff38a8ec189d43a6fa4bc2adfd4280a03b22b45991a32db9e466aeb83254f7c"
+    },
+    {
+      "path": "captures/reference-import-svg-resource.png",
+      "bytes": 78018,
+      "sha256": "abfd88737e0a3ce27b21a9d09043302527a759614f1be2d2a6f19e081e2759e8"
+    },
+    {
+      "path": "captures/starter-brand-override-redo.png",
+      "bytes": 113592,
+      "sha256": "0c1bd22cb441cad7b553ddcc97acb5e43d86ab2fe69ffdbe7376088ca2c2eb5a"
+    },
+    {
+      "path": "captures/starter-rundown-take.png",
+      "bytes": 89057,
+      "sha256": "02e4574b6a7d50e2efba38355c0c3cf2f292fb6700f8959a413fab90274f91c9"
+    },
+    {
+      "path": "laptop-125-proposal.png",
+      "bytes": 84742,
+      "sha256": "e8f07b7dcaa630b66443ba8c714bfc4d35d768906af37438761595c8741bda8a"
+    },
+    {
+      "path": "laptop-125-ui.png",
+      "bytes": 83347,
+      "sha256": "e50e92a3fce3386ee5501656e2b73ef14de73301002760733515eaeaac34bfe0"
+    },
+    {
+      "path": "receiving/casparcg-next-row.png",
+      "bytes": 11095,
+      "sha256": "a8d6dd259655eeb23ce06118e95d354398e7ee8b73c79c510fa7169aa7d7b5cf"
+    },
+    {
+      "path": "receiving/casparcg-replay.png",
+      "bytes": 13776,
+      "sha256": "994ddb37c51f56eea9bf3a56c3c047fcc0724cdde0423346cc0c2c010bde2318"
+    },
+    {
+      "path": "receiving/html-overlay-next-row.png",
+      "bytes": 11095,
+      "sha256": "a8d6dd259655eeb23ce06118e95d354398e7ee8b73c79c510fa7169aa7d7b5cf"
+    },
+    {
+      "path": "receiving/html-overlay-replay.png",
+      "bytes": 13776,
+      "sha256": "994ddb37c51f56eea9bf3a56c3c047fcc0724cdde0423346cc0c2c010bde2318"
+    },
+    {
+      "path": "receiving/operator-next-row.png",
+      "bytes": 610,
+      "sha256": "5722bf3064d4084786e957f044836025e73cab003ca4ddbc278c448bd16d46e7"
+    },
+    {
+      "path": "receiving/operator-rehearsal.png",
+      "bytes": 78559,
+      "sha256": "687951c65da4a598ce6230b109df3f267fde5362673512e63a8ca15182906dcd"
+    },
+    {
+      "path": "receiving/spx-next-row.png",
+      "bytes": 11095,
+      "sha256": "a8d6dd259655eeb23ce06118e95d354398e7ee8b73c79c510fa7169aa7d7b5cf"
+    },
+    {
+      "path": "receiving/spx-replay.png",
+      "bytes": 13776,
+      "sha256": "994ddb37c51f56eea9bf3a56c3c047fcc0724cdde0423346cc0c2c010bde2318"
+    }
+  ],
+  "bundle": {
+    "file": "candidate.zip",
+    "bytes": 17894493,
+    "sha256": "547b4af65d5abbcc01e132b6d5a12005c30bef213cbf7f34a4e35fdaf3563748",
+    "receiptSha256": "07efb74b0910d6820cbe712d51dce2c6ba08b7ff059accebd0ab18ddf42dc77d",
+    "versionCommit": "b08128e05e4506fbb900f8ec37fa39bf5bea306d",
+    "fileCount": 849
+  },
+  "finishedAt": "2026-11-13T13:15:22.318Z",
+  "elapsedMs": 306865
+}
