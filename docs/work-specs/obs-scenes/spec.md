@@ -1197,6 +1197,15 @@ Filled in by each phase's pull request.
   links that report the publish, by `scene.id` (`control/sceneJoin.ts`), so this phase's additions
   to the scene report (`seen`) and the link's default name change nothing there. The only conflict
   was the page's imports.
+- Integration with live publishing W4 (automatic publish, merged in at `7451fbba` before landing):
+  the only conflict was the page's imports. The link's Presence entry carries W4's `au` beside this
+  phase's `scene` and default name, each its own field; W4's version check starts after recovery,
+  so after this phase's retry for an unpublished link; `oldOutputNames` reads `au` by instance id,
+  so a link called by its scene's name changes nothing there. Re-run on the merged head: the Node
+  tests of both runs (`obs-scene-rows`, `obs-scenes`, `scene-join`, `readiness`,
+  `obs-scene-copies`, `output-version-check`), the offline output and playout journeys
+  (`output-scene-link`, `playout-folders`, `exports`, `playout-feedback-health`), and CI with its
+  configured selection (the whole set, which holds `live-ready` and `publish-guard`).
 - Previous verified `main`: `b2e91ba4a5df23c1cec4a95ea213c9d070b5c7f5` (CI run 43427609778,
   configured suite 43427609688).
 - Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed and no
