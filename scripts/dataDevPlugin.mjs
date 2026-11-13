@@ -6,9 +6,11 @@
 // (scripts/data-api-demo.mjs) be rehearsed against a local dev server carrying a real .env
 // before a deploy exists, and what the offline e2e spec drives to pin the refusal shapes.
 
+import { previewApiHost } from './previewApiHost.mjs';
+
 /** @returns {import('vite').Plugin} */
 export function dataApiPlugin() {
-  return {
+  const plugin = {
     name: 'noacg-data-api',
     configureServer(server) {
       server.middlewares.use('/api/data', (req, res) => {
@@ -23,7 +25,12 @@ export function dataApiPlugin() {
         void handle(server, req, res, true);
       });
     },
+    // The same routes on `vite preview`, for the e2e build (scripts/previewApiHost.mjs).
+    configurePreviewServer(preview) {
+      plugin.configureServer(previewApiHost(preview));
+    },
   };
+  return plugin;
 }
 
 /** A path segment as the browser escaped it, read back (left as it is when it does not read). */
