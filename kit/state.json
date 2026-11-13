@@ -43,16 +43,19 @@
   "inFlight": [
     {
       "phase": "OS2",
-      "step": "owner",
-      "actor": "owner",
-      "launchedAt": "2026-11-12T21:24:30Z",
-      "note": "receipt in; waiting on two owner answers (always-preview, dock sign-in test) before evidence lands and OS1b starts"
+      "step": "check",
+      "actor": "checker-os2-19ab",
+      "session": "session_017SdbwPgykCMDgjZrFrBkhd",
+      "pr": 2483,
+      "mergeSha": "455ee104bb04a33ed94378e2b1472d65e0226677",
+      "launchedAt": "2026-11-13T09:57:25Z",
+      "note": "owner phase; checker reads the receipt against AC-13 as amended (D9 shared source)"
     }
   ],
   "owner": [
     {
-      "what": "OS2: receipt in (private runs/obs-scenes-os2-receipt.md). Load pass; stale frame via Studio Mode preview pass, plain fade fail; dock sign-in, stinger and item 6 not run. Owner answers needed before OS1b: accept always-preview (D9 fallback), and run the 2-minute dock sign-in test before OS6",
-      "where": "coordinator chat; evidence/phase-OS2.md lands after the answers"
+      "what": "OS2: answered 2026-11-13 (direct cuts with a shared source; dock sign-in works); evidence landed in PR 2483",
+      "where": "done"
     },
     {
       "what": "OS7: rehearsal with failure drills",
