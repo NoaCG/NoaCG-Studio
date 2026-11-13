@@ -8,17 +8,22 @@ import catalog from '../playwright.catalog.config.ts';
 import live from '../playwright.live.config.ts';
 import { devPort, livePort } from './dev-port.mjs';
 
-for (const [name, config, port] of [
-  ['offline', offline, devPort()],
-  ['catalog', catalog, devPort()],
-  ['configured', live, livePort()],
+// `reuse` is per suite since issue #2495: the offline and catalog suites pin their server's
+// environment empty and `_offline-guard.ts` refuses a server that serves anything else, so
+// adopting one is safe and saves a start. The configured suite WRITES, and an adopted server
+// decides where - including through the api/ handlers it mounts, which no probe can read from
+// outside - so it starts its own, as the endurance configs do.
+for (const [name, config, port, reuse] of [
+  ['offline', offline, devPort(), true],
+  ['catalog', catalog, devPort(), true],
+  ['configured', live, livePort(), false],
 ]) {
   test(`${name} server and client agree on the allocated IPv4 endpoint`, () => {
     assert.equal(config.use.baseURL, `http://127.0.0.1:${port}`);
     assert.equal(config.webServer.url, config.use.baseURL);
     assert.match(config.webServer.command, /--host 127\.0\.0\.1(?:\s|$)/);
     assert.equal(config.webServer.timeout, 60_000);
-    assert.equal(config.webServer.reuseExistingServer, true);
+    assert.equal(config.webServer.reuseExistingServer, reuse);
   });
 }
 

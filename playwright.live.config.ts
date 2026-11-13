@@ -85,7 +85,16 @@ export default defineConfig({
   webServer: {
     command: `vite --host 127.0.0.1 --port ${livePort()} --strictPort`,
     url: `http://127.0.0.1:${livePort()}`,
-    reuseExistingServer: true,
+    // ITS OWN SERVER, ALWAYS (issue #2495), as the endurance configs have had it: "one already on
+    // this port may carry another backend". Adopting a server adopts its whole environment, and a
+    // dev server has TWO halves that reach a database - the page, built against its
+    // `VITE_SUPABASE_URL`, and the api/ handlers it mounts, which read `SUPABASE_URL` and an admin
+    // key (api/_lib/*; production-data-key.spec.ts drives them in process). Reading the page's
+    // half back out is possible and the guard does it; the server's own half is invisible from
+    // outside. Starting the server here is what makes both halves inherit the environment this
+    // run was admitted on. The cost is one Vite start per run, and a stray server on this port now
+    // fails the run loudly (`--strictPort`) instead of quietly deciding where the writes go.
+    reuseExistingServer: false,
     timeout: 60_000,
     // NO Supabase override here (unlike the offline config): Vite loads VITE_SUPABASE_URL / _ANON_KEY
     // from .env, so the app runs in configured mode. The editor itself is open (no login wall);

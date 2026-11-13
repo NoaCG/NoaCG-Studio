@@ -16,13 +16,18 @@
 // writes nothing, and the run dies before a single test.
 //
 // TWO QUESTIONS, NOT ONE. The environment this process holds decides where the specs' own admin
-// client and the api/ handlers write. The dev server decides where the BROWSER writes - and with
-// `reuseExistingServer: true` that can be a server somebody started earlier, carrying their own
-// `.env`, which no amount of checking this process's variables can see. A run admitted on a
-// localhost environment would then sign in through a page served against production and write
-// there (account.spec.ts changes the test account's password through the UI). So the served
-// backend is read from the page itself, exactly as `_offline-guard.ts` reads its pins, and judged
-// by the same rule.
+// client writes. The dev server decides where the BROWSER writes, and where the api/ handlers it
+// mounts write - which is not the same thing: Vite copies anything missing from this process into
+// the server's own environment from the environment file (vite.config.ts), so a page can be built
+// against a backend this process never named. A run admitted on a localhost environment would
+// then sign in through a page served against production and write there (account.spec.ts changes
+// the test account's password through the UI).
+//
+// So the served backend is read back from the page, exactly as `_offline-guard.ts` reads its
+// pins, and judged by the same rule. The config stopped adopting foreign servers as well
+// (`reuseExistingServer: false`), because the server's api half cannot be read from outside at
+// all; this probe is what notices when the server's own idea of the backend drifts from the one
+// this run was admitted on, whoever started it.
 //
 // The rules themselves, and the incident that bought them, are in scripts/configured-target.mjs.
 import { chromium } from '@playwright/test';
@@ -81,9 +86,10 @@ export default async function configuredGuard(): Promise<void> {
     throw new Error(
       `Refusing to start the configured suite: the dev server at ${base} SERVES a backend this run does not own. ` +
         `${page.reason}\n\n` +
-        `This process's own environment was fine (${describeTarget(target)}), so the server is one that was already ` +
-        `running when Playwright looked (reuseExistingServer), carrying whatever environment file started it. The ` +
-        `specs sign in through that page and write there. Stop that server and re-run, so Playwright starts its own.`,
+        `This process's own environment was fine (${describeTarget(target)}), so the server has an environment of its ` +
+        `own: either one left running on this port, or values the environment file gave it that this process never ` +
+        `named. The specs sign in through that page and write there. Stop that server, take the backend from ` +
+        '`supabase status`, and re-run.',
     );
   }
 

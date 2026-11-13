@@ -146,14 +146,17 @@ test("the deployed site's own suite ends up with no backend rather than a word t
   assert.equal(configuredTarget({ ...CLOUD_WORKER, [DECLARATION]: 'deployed-site' }).kind, 'refused');
 });
 
-test('the served backend is judged too, not only this process (a reused dev server)', () => {
-  // `reuseExistingServer: true` can adopt a server somebody started with their own environment
-  // file, and the specs sign in through THAT page. The guard reads what the page holds and judges
-  // it by the same rule; a localhost environment is no defence against a production page.
+test('the dev server is the run\'s own, and what it serves is judged too', () => {
+  // A dev server has two halves that reach a database: the page, built against its
+  // VITE_SUPABASE_URL, and the api/ handlers it mounts, which read SUPABASE_URL and an admin key
+  // (production-data-key.spec.ts drives them in process). The page's half can be read back out;
+  // the server's own half cannot, from outside. So the suite starts its own server - both halves
+  // then inherit the environment the run was admitted on - and the page is read back anyway,
+  // because Vite fills anything missing from this process out of the environment file.
+  assert.match(file('playwright.live.config.ts'), /reuseExistingServer: false,/);
   const guard = file('e2e/_configured-guard.ts');
   assert.match(guard, /_env-probe\.ts/);
   assert.match(guard, /configuredTarget\(\{ VITE_SUPABASE_URL: served/);
-  assert.match(guard, /reuseExistingServer/);
 });
 
 test('a configured spec reads the backend through the guarded helper, not around it', () => {
