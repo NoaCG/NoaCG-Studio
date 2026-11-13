@@ -248,6 +248,15 @@ test('own edit pushed, adopted change confirmed during the pass: the pass ends s
   assert.equal(a.passes.length, 1);
 });
 
+test('a pass that ends pending tells no other tab it confirmed anything', async () => {
+  const browser = browserTabs(), a = browser.tab(), b = browser.tab(), c = browser.tab();
+  a.edit(); debounceOf(a)[0](); await tick();     // a's own edit, its pass running
+  b.edit(); a.adopt(); c.adopt();                 // b's edit reaches a and c; b has not synced it
+  a.passes[0].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'pending');
+  assert.equal(c.api.getSyncState().phase, 'pending', 'b\'s edit is not in the cloud yet');
+});
+
 test('an own edit made during the pass is not covered by a held confirmation', async () => {
   const browser = browserTabs(), a = browser.tab(), b = browser.tab();
   void a.api.syncNow(); await tick();

@@ -303,13 +303,15 @@ export async function syncNow(): Promise<SyncPassReceipt> {
           // pass ran (followOtherTabsConfirmations held that until now): take it as our own.
           confirmedRevision = revision;
           setState({ phase: 'synced', last: result, verifiedAt: new Date().toISOString() });
+          if (ownPushed) confirmedChannel?.postMessage({ account: libraryInUse() });
         } else {
           // An own edit made during the pass has its debounce armed; adopted changes alone wait for
           // their writer's confirmation, which the handler now accepts (nothing of ours is unsent).
           queued = true;
+          // No broadcast: a confirmation names no write (#2499), and this pass did not cover the
+          // adopted changes, so another tab that adopted them would settle on it too early.
           setState({ phase: 'pending', last: result, detail: 'The current revision has not been confirmed in the cloud.' });
         }
-        if (ownPushed) confirmedChannel?.postMessage({ account: libraryInUse() });
       }
     }
   } catch (e) {
