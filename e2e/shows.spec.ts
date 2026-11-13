@@ -133,9 +133,9 @@ test('shows and videos ride the storage seam (the sync engine sees and writes bo
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const result = await page.evaluate(async () => {
-    const { LocalStorageProvider } = await import('/src/backend/storage.ts');
-    const { SYNC_KINDS } = await import('/src/backend/sync.ts');
-    const { createShow, loadShows } = await import('/src/model/shows.ts');
+    const { LocalStorageProvider } = await __noacgImport('/src/backend/storage.ts');
+    const { SYNC_KINDS } = await __noacgImport('/src/backend/sync.ts');
+    const { createShow, loadShows } = await __noacgImport('/src/model/shows.ts');
     const provider = new LocalStorageProvider();
 
     createShow('Sync Me');
@@ -173,8 +173,8 @@ test('production export packages for the other registry targets through the same
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const result = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
     const third = variantsFor('lower-third')[0].create({});
     const quiz = variantsFor('quiz')[0].create({});
     const graphics = [third, quiz].map((template, i) => ({
@@ -276,9 +276,9 @@ test('a production package never carries the hosted receiver, and each graphic g
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const result = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { buildShowZip } = await import('/src/export/showExport.ts');
-    const { slug } = await import('/src/model/slug.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { buildShowZip } = await __noacgImport('/src/export/showExport.ts');
+    const { slug } = await __noacgImport('/src/model/slug.ts');
     const third = variantsFor('lower-third')[0].create({});
     const ticker = variantsFor('ticker')[0].create({});
     // Layers are the numbers the OPERATOR chose (docs/PLAYOUT_DASHBOARD.md §5) — addGraphicToShow
@@ -334,9 +334,9 @@ test('the SPX package carries a ready SPX project: the templates as SPX imports 
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const result = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { buildShowZip } = await import('/src/export/showExport.ts');
-    const { parseDefinition } = await import('/src/model/spxDefinition.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { buildShowZip } = await __noacgImport('/src/export/showExport.ts');
+    const { parseDefinition } = await __noacgImport('/src/model/spxDefinition.ts');
     const hairline = variantById('lt01')!.create({});
     const quiz = variantById('qz04')!.create({});
     const graphics = [hairline, quiz].map((template, i) => ({
@@ -404,9 +404,9 @@ test('the SPX package says what it leaves behind, and the SPX rule for the votes
   // actions. The bindings are written through the model's own doors.
   await importProofCase(page);
   const texts = await page.evaluate(async () => {
-    const { loadShows, setFieldBindings, setShowSeedData } = await import('/src/model/shows.ts');
-    const { buildShowZip } = await import('/src/export/showExport.ts');
-    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { loadShows, setFieldBindings, setShowSeedData } = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZip } = await __noacgImport('/src/export/showExport.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
     const id = loadShows().find((s) => s.graphics.some((g) => g.name === 'Votes board'))!.id;
     setFieldBindings(id, [
       { graphic: 'Votes board', fieldId: 'f5', path: 'panel.katri.name' },
@@ -488,12 +488,12 @@ test('the single SPX and the CasparCG packages say the votes board rule too', as
   // CasparCG client also stores an item's data and sends all of it with every Update.
   await importProofCase(page);
   const out = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { buildShowZip, buildShowZipFor } = await import('/src/export/showExport.ts');
-    const { spxTarget } = await import('/src/export/targets/spxStarter.ts');
-    const { casparTarget } = await import('/src/export/targets/casparcg.ts');
-    const { buildGraphicPackage } = await import('/src/export/noacgPackage.ts');
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { buildShowZip, buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
+    const { spxTarget } = await __noacgImport('/src/export/targets/spxStarter.ts');
+    const { casparTarget } = await __noacgImport('/src/export/targets/casparcg.ts');
+    const { buildGraphicPackage } = await __noacgImport('/src/export/noacgPackage.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     const show = loadShows().find((s) => s.graphics.some((g) => g.name === 'Votes board'))!;
     const votes = show.graphics.find((g) => g.name === 'Votes board')!.template;
     const text = async (zip: { file(re: RegExp): { async(t: 'string'): Promise<string> }[] }, re: RegExp) =>
@@ -550,9 +550,9 @@ test("a show export bakes each graphic's saved library entries into both panels"
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const panels = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic, newEntry } = await import('/src/model/library.ts');
-    const { buildShowZip } = await import('/src/export/showExport.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic, newEntry } = await __noacgImport('/src/model/library.ts');
+    const { buildShowZip } = await __noacgImport('/src/export/showExport.ts');
 
     // A saved library graphic with two named entries.
     const template = variantsFor('lower-third')[0].create({});
@@ -626,7 +626,7 @@ test('the layer stack reorders and removes; deleting the show keeps nothing behi
   await expect(page.locator('[data-testid^="production-row-"]', { hasText: 'Reorder Show' })).toHaveCount(0);
   const stored = await page.evaluate(async () => {
     // Through the model, not the raw key: the productions live in the durable store now.
-    const { loadAllShows } = await import('/src/model/shows.ts');
+    const { loadAllShows } = await __noacgImport('/src/model/shows.ts');
     const list = loadAllShows();
     return { live: list.filter((s) => !s.deleted).length, payloads: list.map((s) => s.graphics.length) };
   });
@@ -647,11 +647,11 @@ test('a rundown export ships the production\'s copy, and a library edit only aft
 
   // Edit the LIBRARY graphic after it is in the production — a distinctive marker in the CSS.
   await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const s = useTemplateStore.getState();
     s.applyTemplate({ ...s.template, css: s.template.css + '\n/* EDITED-AFTER-ADD */\n' });
     // Re-save so the library record (not just the working doc) carries the edit.
-    const { saveCurrentGraphic } = await import('/src/store/saveActions.ts');
+    const { saveCurrentGraphic } = await __noacgImport('/src/store/saveActions.ts');
     saveCurrentGraphic();
   });
 

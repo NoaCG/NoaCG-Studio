@@ -259,9 +259,9 @@ type SeedResult = { showId: string; type: string; fields: string[]; events: stri
 async function seedShow(page: Page, req: unknown, name: string): Promise<SeedResult> {
   await page.goto('/app');
   const out = await page.evaluate(async ({ req, name }) => {
-    const { bridgeApi } = await import('/src/bridge/bridgeApi.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { createShowNamedChecked, addGraphicToShow } = await import('/src/model/shows.ts');
+    const { bridgeApi } = await __noacgImport('/src/bridge/bridgeApi.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const { createShowNamedChecked, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
     const { template } = await bridgeApi.scaffold(req as never);
     const typeId = (req as { type?: string }).type;
     const events = typeId ? ((await bridgeApi.types()).find((t) => t.id === typeId)?.events ?? []).map((e) => e.label) : [];

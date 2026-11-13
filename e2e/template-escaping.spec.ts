@@ -31,7 +31,7 @@ import * as rules from '../scripts/rules.mjs';
 const HARNESS = `
   /** Build one variant, load it in an iframe, write PAY into every text field, report back. */
   async function probe(variant, opts) {
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const tpl = variant.create(opts || {});
     const f = document.createElement('iframe');
     f.style.cssText = 'position:fixed;left:-4000px;top:0;width:1920px;height:1080px;border:0;';
@@ -64,7 +64,7 @@ test('no catalog variant lets field text execute as markup', async ({ page }) =>
 
   const fired = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { CATALOG } = await import('/src/templates/catalog.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
     const variants = [];
     for (const key of Object.keys(CATALOG)) for (const v of CATALOG[key]) variants.push(v);
 
@@ -105,7 +105,7 @@ test('the probe still fires when a runtime skips escaping', async ({ page }) => 
 
   const fired = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     const hits = new Set();
     window.addEventListener('message', (ev) => {
       if (ev.data && ev.data.type === 'escaped-probe') hits.add(ev.data.id);

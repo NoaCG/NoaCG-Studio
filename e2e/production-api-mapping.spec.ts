@@ -60,7 +60,7 @@ async function stubSample(page: Page, sample: unknown) {
 
 async function stored(page: Page, showId: string) {
   return page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows().find((s) => s.id === id);
     return { bindings: show?.bindings ?? {}, sources: (show?.sources ?? []) as { id: string; kind: string; label: string; config: Record<string, unknown> }[] };
   }, showId);
@@ -197,7 +197,7 @@ test('two graphics connect from one nested sample with no path syntax; repair, c
   await expect(page.getByTestId('cue-field-f1')).toHaveValue('Mayor of Espoo');
   await settleDurableWrites(page);
   expect(await page.evaluate(async (sid) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows().find((s) => s.id === sid)!;
     const underline = show.graphics.find((g) => g.name === 'Underline')!;
     return show.cues!.find((c) => c.sourceId === underline.id)!.values?.f1;
@@ -272,7 +272,7 @@ test('save, reload and reconnect keep the recipe; a changed schema asks for repa
   review = await reuseConnector(page);
   await review.getByTestId('cue-connect-pick-f1').selectOption({ label: 'Not connected' });
   const moved = await page.evaluate(async ({ sid, src }) => {
-    const { connectConnectorSource, loadShows } = await import('/src/model/shows.ts');
+    const { connectConnectorSource, loadShows } = await __noacgImport('/src/model/shows.ts');
     const source = loadShows().find((s) => s.id === sid)!.sources!.find((s) => s.id === src)!;
     const config = { ...(source.config as Record<string, unknown>), endpoint: `${(source.config as { endpoint: string }).endpoint}?moved=1` };
     return connectConnectorSource(sid, { ...source, config } as never, [], JSON.stringify(source.config)).error;
@@ -286,8 +286,8 @@ test('save, reload and reconnect keep the recipe; a changed schema asks for repa
   // ── The export: the registration and its non-secret recipe, which a new production rebinds. ──
   const exported = () =>
     page.evaluate(async ({ sid }) => {
-      const { loadShows } = await import('/src/model/shows.ts');
-      const { buildShowZip } = await import('/src/export/showExport.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
+      const { buildShowZip } = await __noacgImport('/src/export/showExport.ts');
       const zip = await buildShowZip(loadShows().find((s) => s.id === sid)!);
       const readme = await zip.file(/^[^/]+\/README\.md$/)[0].async('string');
       return readme.slice(readme.indexOf('- **The connector'), readme.indexOf('\n- **', readme.indexOf('- **The connector') + 1));
@@ -301,7 +301,7 @@ test('save, reload and reconnect keep the recipe; a changed schema asks for repa
 
   // ── A recipe of a later version: kept, read-only, never offered for editing or exported. ──
   const later = await page.evaluate(async ({ sid, src }) => {
-    const { connectConnectorSource, loadShows } = await import('/src/model/shows.ts');
+    const { connectConnectorSource, loadShows } = await __noacgImport('/src/model/shows.ts');
     const source = loadShows().find((s) => s.id === sid)!.sources!.find((s) => s.id === src)!;
     const config = { ...(source.config as Record<string, unknown>), mapping: { v: 2, steps: ['a later shape'] } };
     const set = connectConnectorSource(sid, { ...source, config } as never, [], JSON.stringify(source.config)).error;
@@ -382,7 +382,7 @@ test('with the OBS scenes switch on, NoaCG reads a public JSON address at its in
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const showId = await openProductionWithCurrent(page, 'Score Night');
   await page.evaluate(async (id) => {
-    const { setShowObsScenes } = await import('/src/model/shows.ts');
+    const { setShowObsScenes } = await __noacgImport('/src/model/shows.ts');
     setShowObsScenes(id, true);
     await new Promise((r) => setTimeout(r));
   }, showId);
@@ -455,7 +455,7 @@ test('a bracket read by NoaCG: the field mapping is the source’s setting, the 
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const showId = await openProductionWithCurrent(page, 'Bracket Night');
   await page.evaluate(async (id) => {
-    const { setShowObsScenes } = await import('/src/model/shows.ts');
+    const { setShowObsScenes } = await __noacgImport('/src/model/shows.ts');
     setShowObsScenes(id, true);
     await new Promise((r) => setTimeout(r));
   }, showId);
@@ -525,7 +525,7 @@ test('a bracket whose rows are sides, nested under a list: found through *, the 
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const showId = await openProductionWithCurrent(page, 'Nested Night');
   await page.evaluate(async (id) => {
-    const { setShowObsScenes } = await import('/src/model/shows.ts');
+    const { setShowObsScenes } = await __noacgImport('/src/model/shows.ts');
     setShowObsScenes(id, true);
     await new Promise((r) => setTimeout(r));
   }, showId);

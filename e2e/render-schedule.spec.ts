@@ -20,7 +20,7 @@ test('computeSchedule: equal hold split, frame-snapped cues, hard error when too
   await page.goto('/');
   const r = await page.evaluate(
     async ({ MEASURED, TIMING }) => {
-      const { computeSchedule, defaultStillTimeMs } = await import('/src/render/schedule.ts');
+      const { computeSchedule, defaultStillTimeMs } = await __noacgImport('/src/render/schedule.ts');
       return {
         ok: computeSchedule(MEASURED, TIMING, 50, '{"f0":"x"}'),
         tooShort: computeSchedule(MEASURED, { ...TIMING, totalDurationMs: 2000 }, 50, '{}'),
@@ -77,7 +77,7 @@ test('render limits: tier gates on format, resolution, fps, and duration', async
   await page.goto('/');
   const r = await page.evaluate(async () => {
     const { validateRenderRequest, formatNeedsSignIn, resolveTier, RENDER_LIMITS } =
-      await import('/src/render/limits.ts');
+      await __noacgImport('/src/render/limits.ts');
     const base = {
       kind: 'html',
       width: 1920, height: 1080, fps: 25, scale: 1,

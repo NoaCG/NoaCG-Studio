@@ -16,8 +16,8 @@ test('the publish gate passes a real template and blocks an unsafe one', async (
   await create(page, 'Lower thirds', 'Hairline');
 
   const result = await page.evaluate(async () => {
-    const { publishGate } = await import('/src/validation/publishGate.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { publishGate } = await __noacgImport('/src/validation/publishGate.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const tpl = useTemplateStore.getState().template;
 
     const good = publishGate(tpl);
@@ -55,9 +55,9 @@ test('the publish gate blocks JS that talks to the network, reads storage, or le
   await create(page, 'Tickers', 'News Strip');
 
   const result = await page.evaluate(async () => {
-    const { publishGate } = await import('/src/validation/publishGate.ts');
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { chatGraphicBlock } = await import('/src/showchat/chatGraphicBlock.ts');
+    const { publishGate } = await __noacgImport('/src/validation/publishGate.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { chatGraphicBlock } = await __noacgImport('/src/showchat/chatGraphicBlock.ts');
     const base = variantById('tk01')!.create({});
     const gate = (js: string) => {
       const g = publishGate({ ...base, js });
@@ -114,8 +114,8 @@ test('the publish gate passes every catalog variant', async ({ page }) => {
   await create(page, 'Lower thirds', 'Hairline');
 
   const refused = await page.evaluate(async () => {
-    const { publishGate } = await import('/src/validation/publishGate.ts');
-    const { CATALOG } = await import('/src/templates/catalog.ts');
+    const { publishGate } = await __noacgImport('/src/validation/publishGate.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
     const out: string[] = [];
     for (const key of Object.keys(CATALOG)) {
       for (const variant of CATALOG[key as keyof typeof CATALOG]!) {

@@ -12,7 +12,7 @@ test.beforeEach(async ({ page }) => {
 
 test('an output names its host from the marker the host puts on the page', async ({ page }) => {
   const names = await page.evaluate(async () => {
-    const { hostEngine } = await import('/src/control/livePath.ts');
+    const { hostEngine } = await __noacgImport('/src/control/livePath.ts');
     const chromium71 = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36';
     const chrome140 = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
     return {
@@ -38,7 +38,7 @@ test('an output names its host from the marker the host puts on the page', async
 
 test('an output counts every road, drops the second copy, and times a stamped command to the frame', async ({ page }) => {
   const result = await page.evaluate(async () => {
-    const { createLiveStats, withSender, LATE_MS } = await import('/src/control/livePath.ts');
+    const { createLiveStats, withSender, LATE_MS } = await __noacgImport('/src/control/livePath.ts');
     let clock = 10_000;
     const frames: (() => void)[] = [];
     const stats = createLiveStats({ now: () => clock, frame: (then) => frames.push(then) });
@@ -74,7 +74,7 @@ test('an output counts every road, drops the second copy, and times a stamped co
 
 test('one health line: Presence when joined, the heartbeat otherwise, and amber when an output is on the poll', async ({ page }) => {
   const lines = await page.evaluate(async () => {
-    const { describeOutputHealth } = await import('/src/control/livePath.ts');
+    const { describeOutputHealth } = await __noacgImport('/src/control/livePath.ts');
     const now = Date.parse('2026-09-30T20:00:00Z');
     const output = (over: Record<string, unknown>) => ({
       kind: 'output' as const,

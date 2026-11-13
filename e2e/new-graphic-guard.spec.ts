@@ -55,7 +55,7 @@ async function pressNewFromHome(page: Page) {
  */
 async function editWorkingGraphic(page: Page) {
   await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const s = useTemplateStore.getState();
     s.applyTemplate({ ...s.template, css: `${s.template.css}\n/* an edit */\n` });
   });
@@ -64,7 +64,7 @@ async function editWorkingGraphic(page: Page) {
 test('an untouched graphic from the Edit door: + New graphic on Home opens the wizard without asking, before and after a reload', async ({ page }) => {
   await editFromFinish(page);
   // The document really is never-saved and flagged dirty - the state that used to trip the guard.
-  const link = await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().saved);
+  const link = await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().saved);
   expect(link.graphicId).toBeNull();
   expect(link.dirty).toBe(true);
 
@@ -95,7 +95,7 @@ test('real changes still ask: an edited never-saved graphic, and a saved graphic
   await guard.getByTestId('switch-cancel').click();
   await expect(guard).toBeHidden();
   await expect(page.getByTestId('creation-wizard')).toBeHidden();
-  expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.css)).toContain('/* an edit */');
+  expect(await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.css)).toContain('/* an edit */');
   // Discard is the way through, and it lands in the wizard.
   await page.getByTestId('open-home').click();
   await guard.getByTestId('switch-discard').click();
@@ -109,12 +109,12 @@ test('real changes still ask: an edited never-saved graphic, and a saved graphic
   await page.getByTestId('wz-skip-to-finish').click();
   await addToProductionFromFinish(page);
   await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
-  const saved = await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().saved);
+  const saved = await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().saved);
   expect(saved.graphicId).not.toBeNull();
   expect(saved.dirty).toBe(false);
   await editWorkingGraphic(page);
   await page.evaluate(async () => {
-    const { useRouter } = await import('/src/app/router.ts');
+    const { useRouter } = await __noacgImport('/src/app/router.ts');
     useRouter.getState().navigate({ view: 'home', section: null });
   });
   await pressNewFromHome(page);
@@ -141,7 +141,7 @@ test('leave-editor naming cancellation keeps edits; Save first keeps one exact l
   await page.getByTestId('save-confirm').evaluate(button => { (button as HTMLButtonElement).click(); (button as HTMLButtonElement).click(); });
   await expect(page.getByTestId('home-page')).toBeVisible();
   const saved = await page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts'); return loadGraphics();
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts'); return loadGraphics();
   });
   expect(saved).toHaveLength(1); expect(saved[0].name).toBe('Kept experiment');
   await page.getByTestId('home-nav-graphics').click();
@@ -151,8 +151,8 @@ test('leave-editor naming cancellation keeps edits; Save first keeps one exact l
   await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
   // A production owns its copy. Saving later authoring work must not update that revision.
   const production = await page.evaluate(async () => {
-    const { createShowNamed, addGraphicToShow, loadShows } = await import('/src/model/shows.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { createShowNamed, addGraphicToShow, loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const s = useTemplateStore.getState(), show = createShowNamed('Pinned production');
     addGraphicToShow(show.id, s.template, { graphicId: s.saved.graphicId });
     return loadShows();
@@ -161,20 +161,20 @@ test('leave-editor naming cancellation keeps edits; Save first keeps one exact l
   await page.getByTestId('save-menu').click(); await page.getByRole('menuitem', { name: 'Open saved graphics…', exact: true }).click();
   await expect(page.getByTestId('editor-foundation')).toBeVisible(); await expect(page.getByTestId('home-page')).toHaveCount(0);
   await page.getByTestId('switch-save').click(); await expect(page.getByTestId('home-page')).toBeVisible();
-  const updated = await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics());
+  const updated = await page.evaluate(async () => (await __noacgImport('/src/model/library.ts')).loadGraphics());
   expect(updated).toHaveLength(1); expect(updated[0].id).toBe(saved[0].id);
   expect(updated[0].template).toEqual(await source(page)); expect(updated[0].template).not.toEqual(saved[0].template);
-  expect(await page.evaluate(async () => (await import('/src/model/shows.ts')).loadShows())).toEqual(production);
+  expect(await page.evaluate(async () => (await __noacgImport('/src/model/shows.ts')).loadShows())).toEqual(production);
 });
 
 test('discard restores the saved copy and never retains a discarded experiment across reload', async ({ page }) => {
   await open(page); await draw(page, .3);
   await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill('Original'); await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-status')).toHaveText('Saved');
-  const saved = await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics());
+  const saved = await page.evaluate(async () => (await __noacgImport('/src/model/library.ts')).loadGraphics());
   await draw(page, .55); await page.getByTestId('open-home').click();
   await page.getByTestId('switch-discard').click(); await expect(page.getByTestId('home-page')).toBeVisible();
-  expect(await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics())).toEqual(saved);
+  expect(await page.evaluate(async () => (await __noacgImport('/src/model/library.ts')).loadGraphics())).toEqual(saved);
   expect(await source(page)).toEqual(saved[0].template);
   await settleDurableWrites(page); await page.reload(); await expect(page.getByTestId('home-page')).toBeVisible();
   expect(await source(page)).toEqual(saved[0].template);
@@ -185,7 +185,7 @@ test('discard restores the saved copy and never retains a discarded experiment a
   await page.getByTestId('open-home').click(); await page.getByTestId('switch-discard').click(); await expect(page.getByTestId('home-page')).toBeVisible();
   await settleDurableWrites(page); await page.reload(); await expect(page.getByTestId('home-page')).toBeVisible();
   expect(await source(page)).not.toEqual(experiment);
-  expect(await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics())).toEqual(saved);
+  expect(await page.evaluate(async () => (await __noacgImport('/src/model/library.ts')).loadGraphics())).toEqual(saved);
   // Open a different, already saved graphic after discarding the catalog experiment.
   await page.getByTestId('home-nav-graphics').click();
   await page.locator('.lib-row', { hasText: 'Original' }).getByTestId('open-graphic').click();
@@ -264,9 +264,9 @@ test('a refused save stays in the editor with its draft and can be retried', asy
   await page.getByTestId('save-name').fill('Retry keeps work'); await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-dialog').locator('.status-bad')).toBeVisible();
   await expect(page.getByTestId('editor-foundation')).toBeVisible(); await expect(page.getByTestId('home-page')).toHaveCount(0);
-  expect(await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics())).toHaveLength(0);
+  expect(await page.evaluate(async () => (await __noacgImport('/src/model/library.ts')).loadGraphics())).toHaveLength(0);
   await page.getByTestId('save-confirm').click(); await expect(page.getByTestId('home-page')).toBeVisible();
-  expect(await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics())).toHaveLength(1);
+  expect(await page.evaluate(async () => (await __noacgImport('/src/model/library.ts')).loadGraphics())).toHaveLength(1);
 });
 
 for (const linked of [true, false]) {
@@ -278,7 +278,7 @@ for (const linked of [true, false]) {
       await page.getByTestId('save-confirm').click();
       await expect(page.getByTestId('save-status')).toHaveText('Saved');
     }
-    const saved = await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics());
+    const saved = await page.evaluate(async () => (await __noacgImport('/src/model/library.ts')).loadGraphics());
     await draw(page, .5); await draw(page, .7); await undo(page);
     await settleDurableWrites(page);
     const edited = await source(page), before = await inspection(page), selection = await selected(page);
@@ -305,11 +305,11 @@ for (const linked of [true, false]) {
     expect(await source(page)).toEqual(edited);
     await page.getByTestId('open-home').click(); await page.getByTestId('switch-discard').click();
     await expect(page.getByTestId('home-page')).toBeVisible();
-    expect(await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics())).toEqual(saved);
+    expect(await page.evaluate(async () => (await __noacgImport('/src/model/library.ts')).loadGraphics())).toEqual(saved);
     expect(await source(page)).not.toEqual(edited);
     if (linked) expect(await source(page)).toEqual(saved[0].template);
     expect(await page.evaluate(async () => {
-      const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+      const s = (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState();
       return { history: s.history, future: s.future, selection: s.selectedParts, dirty: s.saved.dirty };
     })).toEqual({ history: [], future: [], selection: [], dirty: false });
     const discarded = await source(page);
@@ -353,9 +353,9 @@ test('a refused pending autosave cannot make Discard replace the live document',
   await open(page); await draw(page, .3); await settleDurableWrites(page);
   await page.getByTestId('open-home').click();
   const result = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
-    const { discardCurrentGraphic } = await import('/src/store/saveActions.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { activeEditorSession } = await __noacgImport('/src/components/editorFoundation/documentAdapter.ts');
+    const { discardCurrentGraphic } = await __noacgImport('/src/store/saveActions.ts');
     const s = useTemplateStore.getState();
     s.applyTemplate({ ...s.template, css: s.template.css + '\n/* pending edit */' });
     const session = activeEditorSession(), before = session.commandState(), edited = useTemplateStore.getState().template;
@@ -407,7 +407,7 @@ const probe = (page: Page) => page.evaluate(() => ({ writes: (window as unknown 
 const release = (page: Page, index: number) => page.evaluate(index => { (window as unknown as HeldWrites).secondCheck.releases[index](); }, index);
 async function commandEdit(page: Page, clickDiscard = false) {
   return page.evaluate(async clickDiscard => {
-    const { activeEditorCommands } = await import('/src/components/editorFoundation/commandAdapter.ts');
+    const { activeEditorCommands } = await __noacgImport('/src/components/editorFoundation/commandAdapter.ts');
     const c = activeEditorCommands(), inspected = c.inspect();
     if (!inspected.ok) throw Error(inspected.refusal.message);
     const result = c.apply({ expected: inspected.expected, transactionId: crypto.randomUUID(), commands: [{ id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 800, y: 100, width: 100, height: 100 } } }] });
@@ -440,7 +440,7 @@ test('second checker newer edit during autosave confirmation refuses the already
   await expect.poll(async () => (await probe(page)).released).toEqual([true]);
   const requested = await source(page);
   const result = await page.evaluate(async () => {
-    const { activeEditorCommands } = await import('/src/components/editorFoundation/commandAdapter.ts');
+    const { activeEditorCommands } = await __noacgImport('/src/components/editorFoundation/commandAdapter.ts');
     const c = activeEditorCommands(), i = c.inspect(); if (!i.ok) throw Error(i.refusal.message);
     const result = c.apply({ expected:i.expected, transactionId:crypto.randomUUID(), commands:[{id:'layer.create',args:{geometry:{shape:'rectangle',x:1100,y:300,width:100,height:100}}}] });
     if (!result.ok) throw Error(result.refusal.message);
@@ -456,7 +456,7 @@ test('second checker newer edit during autosave confirmation refuses the already
   expect(await source(page)).toEqual(newer); await expect(page.getByTestId('home-page')).toHaveCount(0);
   await release(page,1);
   const snapshot = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     await new Promise(r => setTimeout(r));
     return {source:useTemplateStore.getState().template,home:!!document.querySelector('[data-testid=home-page]'),error:document.querySelector('[data-testid=confirm-switch] .status-bad')?.textContent};
   });
@@ -474,7 +474,7 @@ for (const wait of ['autosave', 'replacement'] as const) {
   test(`a newer edit during the ${wait} wait refuses Discard and keeps its source, session and history`, async ({ page }) => {
     await open(page); await draw(page, .2); await settleDurableWrites(page);
     if (wait === 'replacement') {
-      await page.evaluate(async () => (await import('/src/store/templateStore.ts')).flushPendingProject());
+      await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).flushPendingProject());
       await settleDurableWrites(page);
     }
     await page.getByTestId('open-home').click(); await holdWrites(page, 1);
@@ -510,7 +510,7 @@ for (const wait of ['autosave', 'replacement'] as const) {
 for (const restore of ['confirmed', 'refused'] as const) {
   test(`a newer edit's restoring write is ${restore} before Discard reports its refusal`, async ({ page }) => {
     await open(page); await draw(page, .2); await settleDurableWrites(page);
-    await page.evaluate(async () => (await import('/src/store/templateStore.ts')).flushPendingProject());
+    await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).flushPendingProject());
     await settleDurableWrites(page);
     await page.getByTestId('open-home').click(); await holdWrites(page, restore === 'confirmed' ? 2 : 1);
     await page.getByTestId('switch-discard').click();
@@ -528,7 +528,7 @@ for (const restore of ['confirmed', 'refused'] as const) {
       };
     });
     await page.evaluate(async () => {
-      const { activeEditorCommands } = await import('/src/components/editorFoundation/commandAdapter.ts');
+      const { activeEditorCommands } = await __noacgImport('/src/components/editorFoundation/commandAdapter.ts');
       const c = activeEditorCommands(), i = c.inspect(); if (!i.ok) throw Error(i.refusal.message);
       const result = c.apply({ expected: i.expected, transactionId: crypto.randomUUID(), commands: [{ id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 1100, y: 300, width: 100, height: 100 } } }] });
       if (!result.ok) throw Error(result.refusal.message);
@@ -565,9 +565,9 @@ test('a linked save refused while an autosave write is in flight keeps the edito
   await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill('Held autosave');
   await page.getByTestId('save-confirm').click(); await expect(page.getByTestId('save-status')).toHaveText('Saved');
   await settleDurableWrites(page);
-  const saved = await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics());
+  const saved = await page.evaluate(async () => (await __noacgImport('/src/model/library.ts')).loadGraphics());
   await holdWrites(page, 1); await commandEdit(page); await ready(page);
-  await page.evaluate(async () => (await import('/src/store/templateStore.ts')).flushPendingProject());
+  await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).flushPendingProject());
   await expect.poll(async () => (await probe(page)).released).toEqual([true]);
   const edited = await source(page), history = (await inspection(page)).history, selection = await selected(page);
   await page.evaluate(() => {
@@ -588,20 +588,20 @@ test('a linked save refused while an autosave write is in flight keeps the edito
   // The refused put has been answered (its rollback restores the mirror just before it reports),
   // while the autosave is still held; then give every timer a turn.
   await expect.poll(() => page.evaluate(() => (window as unknown as Seen).heldSave.refused)).toBe(true);
-  await expect.poll(() => page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics())).toEqual(saved);
+  await expect.poll(() => page.evaluate(async () => (await __noacgImport('/src/model/library.ts')).loadGraphics())).toEqual(saved);
   await page.evaluate(() => new Promise(r => setTimeout(r, 100)));
   await release(page, 0);
   await expect(page.getByTestId('confirm-switch').locator('.status-bad')).toBeVisible();
   await expect(page.getByTestId('home-page')).toHaveCount(0); await expect(page).toHaveURL(/#\/editor-foundation$/);
   expect(await page.evaluate(() => (window as unknown as Seen).heldSave.errors), 'Save claims its own refusal').toEqual([]);
-  expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().saved))
+  expect(await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().saved))
     .toMatchObject({ dirty: true, status: 'failed' });
-  expect(await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics())).toEqual(saved);
+  expect(await page.evaluate(async () => (await __noacgImport('/src/model/library.ts')).loadGraphics())).toEqual(saved);
   expect(await source(page)).toEqual(edited); expect((await inspection(page)).history).toEqual(history); expect(await selected(page)).toEqual(selection);
   await page.keyboard.press('Escape'); await undo(page); await redo(page); expect(await source(page)).toEqual(edited);
   await page.getByTestId('open-home').click(); await page.getByTestId('switch-save').click();
   await expect(page.getByTestId('home-page')).toBeVisible();
-  const kept = await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics());
+  const kept = await page.evaluate(async () => (await __noacgImport('/src/model/library.ts')).loadGraphics());
   expect(kept).toHaveLength(1); expect(kept[0].id).toBe(saved[0].id); expect(kept[0].template).toEqual(edited);
 });
 
@@ -619,10 +619,10 @@ test('a refused autosave nobody waits on still raises the app-level storage noti
     };
   });
   await commandEdit(page);
-  await page.evaluate(async () => (await import('/src/store/templateStore.ts')).flushPendingProject());
+  await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).flushPendingProject());
   await expect(page.getByTestId('storage-alert-action')).toContainText('Saving to this browser');
   await expect(page.getByTestId('storage-alert-error')).toContainText(/storage is full/i);
-  expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().saved.status)).toBe('failed');
+  expect(await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().saved.status)).toBe('failed');
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
 });
 
@@ -632,8 +632,8 @@ test('a refused autosave nobody waits on still raises the app-level storage noti
 // and the case checks that the held put is the one carrying the source Save was asked to write.
 const holdLibraryWrite = (page: Page) => holdWrites(page, 1, 'spx-gfx-graphics');
 const heldLibrary = async (page: Page) => (await probe(page)).writes[0] as unknown as { id: string; template: unknown }[];
-const library = (page: Page) => page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics());
-const saveLink = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().saved);
+const library = (page: Page) => page.evaluate(async () => (await __noacgImport('/src/model/library.ts')).loadGraphics());
+const saveLink = (page: Page) => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().saved);
 
 test('a newer edit during a held linked Save stays unsaved, and leaving asks again', async ({ page }) => {
   await open(page); await draw(page, .23);
@@ -749,7 +749,7 @@ for (const kind of ['first', 'linked'] as const) {
     await open(page); await draw(page, .26);
     let recordId: string | null = null;
     if (kind === 'linked') { await saveNamed(page, 'Fourth link linked'); recordId = (await library(page))[0].id; await draw(page, .52); }
-    await page.evaluate(async () => (await import('/src/store/templateStore.ts')).flushPendingProject());
+    await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).flushPendingProject());
     await settleDurableWrites(page);
     const requested = await source(page);
     await installFourth(page);
@@ -799,7 +799,7 @@ for (const kind of ['first', 'linked'] as const) {
     test.setTimeout(120_000);
     await open(page); await draw(page, .26);
     if (kind === 'linked') { await saveNamed(page, 'Link retry linked'); await draw(page, .52); }
-    await page.evaluate(async () => (await import('/src/store/templateStore.ts')).flushPendingProject());
+    await page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).flushPendingProject());
     await settleDurableWrites(page);
     const requested = await source(page), editorUrl = page.url();
     const expected = kind === 'first' ? { ...requested, name: 'Link retry first' } : requested;

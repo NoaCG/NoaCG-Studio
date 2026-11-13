@@ -100,9 +100,9 @@ async function production(
   await evaluateInPage(
     page,
     async ({ name, media, folder, TOGGLE }) => {
-      const m = await import('/src/model/shows.ts');
-      const { addFieldToDefinition } = await import('/src/blocks/edit.ts');
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
+      const m = await __noacgImport('/src/model/shows.ts');
+      const { addFieldToDefinition } = await __noacgImport('/src/blocks/edit.ts');
+      const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
       const id = m.loadShows().find((s) => s.name === name)!.id;
       m.addGraphicToShow(id, { ...addFieldToDefinition(useTemplateStore.getState().template, TOGGLE as never), name: 'Strap' });
       for (const x of media) m.addPlayoutItem(id, { adapter: 'casparcg', kind: 'media', channel: 2, ...x } as never);
@@ -223,7 +223,7 @@ test('typed then taken at once: the typed value airs while its save is still lan
   // productions synchronously. It waits until the Take's own handler has run: what is stored when
   // the click reaches the page is read in the capture phase, before any handler.
   await evaluateInPage(page, async () => {
-    const m = await import('/src/model/shows.ts');
+    const m = await __noacgImport('/src/model/shows.ts');
     const w = window as unknown as { __storedAtClick?: boolean[] };
     w.__storedAtClick = [];
     window.addEventListener('click', (e) => {
@@ -250,7 +250,7 @@ test.describe('on a touch screen', () => {
     await production(page, 'Type then tap');
     await cue(page, 'Hairline').getByTestId('select-cue').click();
     await evaluateInPage(page, async () => {
-      const m = await import('/src/model/shows.ts');
+      const m = await __noacgImport('/src/model/shows.ts');
       const w = window as unknown as { __storedAtClick?: boolean[] };
       w.__storedAtClick = [];
       window.addEventListener('click', (e) => {
@@ -472,7 +472,7 @@ test('typing in PREP does not render the LIVE stack of pinned graphics: it follo
   await page.clock.install();
   const showId = await production(page, 'Pinned render counts', { quiz: true });
   await evaluateInPage(page, async ({ showId }) => {
-    const { setShowProfile } = await import('/src/model/shows.ts');
+    const { setShowProfile } = await __noacgImport('/src/model/shows.ts');
     setShowProfile(showId, { v: 1, arrange: {}, pinnedGraphics: ['House Quiz'] });
   }, { showId });
   await settleDurableWrites(page);

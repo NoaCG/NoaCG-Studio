@@ -19,9 +19,9 @@ async function openInsertDialog(page: Page) {
 
 const state = (page: Page) =>
   page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { getTemplateParts, countLines } = await import('/src/model/structure.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { getTemplateParts, countLines } = await __noacgImport('/src/model/structure.ts');
     const t = useTemplateStore.getState().template;
     const data = parseAnimData(t.js);
     return {
@@ -90,8 +90,8 @@ test('insert an info card into a lower third — project preserved, everything n
 
   // The merged document still passes the export gate.
   const validation = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
     return validateTemplate(useTemplateStore.getState().template).errors;
   });
   expect(validation).toEqual([]);
@@ -211,8 +211,8 @@ test('a STEPPED donor keeps its middle steps — the run joins the host path aft
   // The authoring preview deliberately displays artwork at rest. Exercise the emitted
   // graphic's play/next API separately, keeping the authoring session available for Undo.
   const html = await page.evaluate(async () => {
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return composeDocument(useTemplateStore.getState().template);
   });
   const runtime = await context.newPage();
@@ -246,8 +246,8 @@ test('a STEPPED donor keeps its middle steps — the run joins the host path aft
   await runtime.close();
 
   const validation = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
     return validateTemplate(useTemplateStore.getState().template).errors;
   });
   expect(validation).toEqual([]);
@@ -321,12 +321,12 @@ test('a saved one-step graphic keeps its entrance when a template adds an Out an
     await bootstrapGraphic(page, 'Hairline');
     // Fixture setup: an older saved data block has its In only, with no authored machine.
     await page.evaluate(async () => {
-      const { useTemplateStore, flushPendingProject } = await import('/src/store/templateStore.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-      const { spxSteps } = await import('/src/blocks/animMachine.ts');
-      const { replaceDefinitionInHtml } = await import('/src/model/spxDefinition.ts');
-      const { parseAnimData } = await import('/src/blocks/animData.ts');
-      const { writeAnimData } = await import('/src/templates/shared/animRuntime.ts');
+      const { useTemplateStore, flushPendingProject } = await __noacgImport('/src/store/templateStore.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+      const { spxSteps } = await __noacgImport('/src/blocks/animMachine.ts');
+      const { replaceDefinitionInHtml } = await __noacgImport('/src/model/spxDefinition.ts');
+      const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+      const { writeAnimData } = await __noacgImport('/src/templates/shared/animRuntime.ts');
       const store = useTemplateStore.getState(), data = parseAnimData(store.template.js)!;
       data.steps = data.steps.slice(0, 1); delete data.machine;
       const settings = { ...store.template.settings, steps: String(spxSteps(data)) };

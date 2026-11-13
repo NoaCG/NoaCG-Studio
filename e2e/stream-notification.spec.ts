@@ -9,10 +9,10 @@ test.beforeEach(async ({ page }) => {
 
 test('event notifications queue complete payloads and support hold, replay, skip and snap recovery', async ({ page }) => {
   const result = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { validateMachine } = await import('/src/blocks/animMachine.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { validateMachine } = await __noacgImport('/src/blocks/animMachine.ts');
 
     const template = variantById('sn01')!.create({});
     const data = parseAnimData(template.js)!;
@@ -149,8 +149,8 @@ test('event notifications queue complete payloads and support hold, replay, skip
 
 test('all four stream-notification designs create with the shared direct field contract', async ({ page }) => {
   const rows = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     return variantsFor('stream-notification').map((variant) => {
       const template = variant.create({});
       const data = parseAnimData(template.js)!;
@@ -184,8 +184,8 @@ test('all four stream-notification designs create with the shared direct field c
 test('all four stream-notification designs pass the live runtime bench', async ({ page }) => {
   test.setTimeout(120_000);
   const rows = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { benchTemplateRuntime } = await import('/src/validation/runtimeBench.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { benchTemplateRuntime } = await __noacgImport('/src/validation/runtimeBench.ts');
     const results = [];
     for (const variant of variantsFor('stream-notification')) {
       const bench = await benchTemplateRuntime(variant.create({}));

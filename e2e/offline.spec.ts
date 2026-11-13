@@ -20,7 +20,7 @@ test('the editor loads and edits a graphic with all third-party hosts blocked', 
   const canvas = page.getByTestId('foundation-canvas');
   await expect(canvas).toHaveAttribute('data-pending', 'false');
   const source = () => page.evaluate(async () =>
-    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+    (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template);
   const before = await source();
   await page.getByRole('button', { name: 'rectangle tool', exact: true }).click();
   const stage = (await page.locator('.ef-artboard').boundingBox())!;

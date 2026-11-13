@@ -92,7 +92,7 @@ async function production(page: Page) {
   await page.goto('/app#/home');
   await expect(page.getByTestId('home-page')).toBeVisible();
   const id = await page.evaluate(async () => {
-    const m = await import('/src/model/shows.ts'), { variantsFor } = await import('/src/templates/catalog.ts');
+    const m = await __noacgImport('/src/model/shows.ts'), { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
     const show = m.createShowNamedChecked('Studio run').show;
     m.addGraphicToShow(show.id, { ...variantsFor('lower-third')[0].create({}), name: 'Guests' });
     return show.id;
@@ -106,20 +106,20 @@ async function production(page: Page) {
 
 async function teamProduction(page: Page, state: Awaited<ReturnType<typeof cloud>>) {
   const id = await production(page);
-  state.doc = await page.evaluate(async id => (await import('/src/model/shows.ts')).loadShows().find(s => s.id === id)!, id);
-  await page.evaluate(async owner => { const m = await import('/src/backend/teamProductions.ts'); m.startTeamSync(owner); await m.refreshTeams(); }, owner);
-  await expect.poll(() => page.evaluate(async id => (await import('/src/model/shows.ts')).loadShows().find(s => s.id === id)?.teamId, id)).toBe(team);
+  state.doc = await page.evaluate(async id => (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === id)!, id);
+  await page.evaluate(async owner => { const m = await __noacgImport('/src/backend/teamProductions.ts'); m.startTeamSync(owner); await m.refreshTeams(); }, owner);
+  await expect.poll(() => page.evaluate(async id => (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === id)?.teamId, id)).toBe(team);
   await expect(chip(page)).toHaveText('Synced');
   return id;
 }
 
 const chip = (page: Page) => page.getByTestId('sync-status');
 const edit = (page: Page, id: string, label: string) => page.evaluate(async ({ id, label }) => {
-  const m = await import('/src/model/shows.ts');
+  const m = await __noacgImport('/src/model/shows.ts');
   m.updateShowCue(id, m.loadShows().find(s => s.id === id)!.cues![0].id, { label });
 }, { id, label });
 const cueLabel = (body: unknown) => (body as { cues?: { label?: string }[] }).cues?.[0]?.label;
-const signOut = (page: Page) => page.evaluate(async () => { const { getSupabase } = await import('/src/backend/supabase.ts'); await (await getSupabase())!.auth.signOut({ scope: 'local' }); });
+const signOut = (page: Page) => page.evaluate(async () => { const { getSupabase } = await __noacgImport('/src/backend/supabase.ts'); await (await getSupabase())!.auth.signOut({ scope: 'local' }); });
 
 /** Amber, with this reason, and its action live. Leaves the panel open. */
 async function expectAmber(page: Page, reason: RegExp, action = 'Sync now') {
@@ -202,10 +202,10 @@ test('a stored file the cloud never answers for fails the pull, so it is neither
   state.rows.set(id, { id, kind: 'look', deleted: false, body: { id, name: 'With a font', updatedAt, deleted: false, font: { path: 'f.woff2', data: 'spx-storage:u/abc' } } });
   state.silentStorage = true;
   const fontOfLook = () => page.evaluate(async id => {
-    const look = (await import('/src/model/packets.ts')).loadAllLooks().find(l => l.id === id) as unknown as { font?: { data?: string } } | undefined;
+    const look = (await __noacgImport('/src/model/packets.ts')).loadAllLooks().find(l => l.id === id) as unknown as { font?: { data?: string } } | undefined;
     return look?.font?.data ?? null;
   }, id);
-  await page.evaluate(async () => { void (await import('/src/backend/syncController.ts')).syncNow(); });
+  await page.evaluate(async () => { void (await __noacgImport('/src/backend/syncController.ts')).syncNow(); });
   await expect.poll(() => state.held).toBeGreaterThan(0);
   await page.clock.fastForward(A_MINUTE + TO_THE_LIMIT);
   await expectAmber(page, /^The cloud did not answer/);
@@ -223,9 +223,9 @@ test('a stored file that is really gone stays blank and does not hold the chip o
   const updatedAt = new Date().toISOString();
   state.rows.set(id, { id, kind: 'look', deleted: false, body: { id, name: 'Lost font', updatedAt, deleted: false, font: { path: 'f.woff2', data: 'spx-storage:u/gone' } } });
   state.goneStorage = true;
-  await page.evaluate(async () => { await (await import('/src/backend/syncController.ts')).syncNow(); });
+  await page.evaluate(async () => { await (await __noacgImport('/src/backend/syncController.ts')).syncNow(); });
   await expect(chip(page)).toHaveText('Synced');
-  expect(await page.evaluate(async id => ((await import('/src/model/packets.ts')).loadAllLooks().find(l => l.id === id) as unknown as { font: { data: string } }).font.data, id)).toBe('');
+  expect(await page.evaluate(async id => ((await __noacgImport('/src/model/packets.ts')).loadAllLooks().find(l => l.id === id) as unknown as { font: { data: string } }).font.data, id)).toBe('');
 });
 
 test('a retry pressed while a team read waits runs as soon as that read gives up', async ({ page }) => {
@@ -233,11 +233,11 @@ test('a retry pressed while a team read waits runs as soon as that read gives up
   await page.clock.install();
   await teamProduction(page, state);
   state.down = true;
-  await page.evaluate(async () => { await (await import('/src/backend/teamProductions.ts')).refreshTeams(); });
+  await page.evaluate(async () => { await (await __noacgImport('/src/backend/teamProductions.ts')).refreshTeams(); });
   await expectAmber(page, /did not answer/);
   state.down = false;
   state.silentReads = true;
-  await page.evaluate(async () => { void (await import('/src/backend/teamProductions.ts')).refreshTeams(); });
+  await page.evaluate(async () => { void (await __noacgImport('/src/backend/teamProductions.ts')).refreshTeams(); });
   await expect.poll(() => state.held).toBeGreaterThan(0);
   await page.getByTestId('sync-action').click();
   state.silentReads = false;
@@ -353,7 +353,7 @@ test('a team read that fails is not Synced, and the retry reads again', async ({
   await page.clock.install();
   await teamProduction(page, state);
   state.down = true;
-  await page.evaluate(async () => { await (await import('/src/backend/teamProductions.ts')).refreshTeams(); });
+  await page.evaluate(async () => { await (await __noacgImport('/src/backend/teamProductions.ts')).refreshTeams(); });
   await expectAmber(page, /did not answer/);
   state.down = false;
   await page.getByTestId('sync-action').click();
@@ -472,7 +472,7 @@ test('the graphic editor separates a local save from a delayed cloud confirmatio
   await expect(chip(page)).toHaveText('Synced', { timeout: 15_000 });
   expect(cloudGraphic()?.body).toMatchObject({ template: { html: linked.html, js: linked.js } });
   const productionTemplate = await page.evaluate(async url => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const id = new URL(url).hash.split('/')[2];
     return loadShows().find(show => show.id === id)?.graphics[0].template;
   }, productionUrl);
@@ -537,12 +537,12 @@ test('personal recovery stays with the session that encountered the failure', as
   await page.clock.install();
   const id = await production(page);
   const session = await page.evaluate(async () => {
-    const { getSupabase } = await import('/src/backend/supabase.ts');
+    const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
     const { data } = await (await getSupabase())!.auth.getSession();
     return { access_token: data.session!.access_token, refresh_token: data.session!.refresh_token };
   });
   const setSession = (next: typeof session) => page.evaluate(async session => {
-    const { getSupabase } = await import('/src/backend/supabase.ts');
+    const { getSupabase } = await __noacgImport('/src/backend/supabase.ts');
     const { error } = await (await getSupabase())!.auth.setSession(session);
     return error?.message ?? null;
   }, next);
@@ -587,7 +587,7 @@ test('personal recovery stays with the session that encountered the failure', as
   state.silentWrites = false;
   expect(await setSession(session)).toBeNull();
   await expect(notice).toHaveCount(0);
-  await expect.poll(() => page.evaluate(async () => (await import('/src/model/durableStore.ts')).canAuthorAccount())).toBe(true);
+  await expect.poll(() => page.evaluate(async () => (await __noacgImport('/src/model/durableStore.ts')).canAuthorAccount())).toBe(true);
   await expect(chip(page)).not.toHaveText('Synced');
   expect(cueLabel(state.rows.get(id)?.body)).not.toBe('Saved after resuming the session');
   await chip(page).click();
@@ -628,7 +628,7 @@ test('personal recovery stays with the session that encountered the failure', as
   const oldLibraryPauses: PausedLibrary[] = [];
   await page.exposeFunction('recordPriorLibraryPause', (pause: PausedLibrary) => { oldLibraryPauses.push(pause); });
   await page.evaluate(async () => {
-    const { libraryInUse } = await import('/src/model/durableStore.ts');
+    const { libraryInUse } = await __noacgImport('/src/model/durableStore.ts');
     const report = (window as Window & {
       recordPriorLibraryPause?: (pause: PausedLibrary) => Promise<void>;
     }).recordPriorLibraryPause;
@@ -652,7 +652,7 @@ test('personal recovery stays with the session that encountered the failure', as
     // Capture the old document's final notice in-page. A Playwright query after the reload
     // request is too late because Chromium can already have discarded the old context.
     window.setTimeout(() => {
-      void import('/src/backend/supabase.ts').then(async ({ getSupabase }) => {
+      void __noacgImport('/src/backend/supabase.ts').then(async ({ getSupabase }) => {
         await (await getSupabase())!.auth.setSession(next);
       });
     }, 0);

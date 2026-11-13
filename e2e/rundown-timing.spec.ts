@@ -35,9 +35,9 @@ async function seed(page: Page, then: 'out' | 'next' | 'out-next', published = f
   await awaitDurableReady(page);
   const seeded = await page.evaluate(
     async ({ then, published }) => {
-      const { variantById } = await import('/src/templates/catalog.ts');
-      const { createGraphic } = await import('/src/model/library.ts');
-      const shows = await import('/src/model/shows.ts');
+      const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+      const { createGraphic } = await __noacgImport('/src/model/library.ts');
+      const shows = await __noacgImport('/src/model/shows.ts');
       const show = shows.createShowNamed('Timed show');
       for (const name of ['Guest', 'Host']) {
         const tpl = variantById('lt01')!.create({});

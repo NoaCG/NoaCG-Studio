@@ -30,7 +30,7 @@ async function rulesFor(
 ): Promise<string[]> {
   return page.evaluate(
     async ([lineRole, lineSample]) => {
-      const mod = await import('/src/ai/lite/pipeline.ts');
+      const mod = await __noacgImport('/src/ai/lite/pipeline.ts');
       type Decision = Parameters<typeof mod.compileLiteDecision>[0];
       type Context = Parameters<typeof mod.compileLiteDecision>[1];
       // `role` is required on a LITE decision's lines and absent from the shared DesignSpec
@@ -127,7 +127,7 @@ test.describe('a Lite identity line stays on one line', () => {
       // `claudeProvider` directly, not `getAiProvider()`: the suite pins OFFLINE mode, where
       // the resolver hands back the stub provider, which has no Lite path at all - so the
       // assertion would pass or fail for a reason that has nothing to do with this contract.
-      const { claudeProvider } = await import('/src/ai/claudeProvider.ts');
+      const { claudeProvider } = await __noacgImport('/src/ai/claudeProvider.ts');
       const context = {
         images: [],
         palette: null,

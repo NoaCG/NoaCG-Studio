@@ -50,7 +50,7 @@ test('the two new categories are browsable, and every design in them creates', a
   // card: what is being asserted is that the category RESOLVES to real variants, which is the
   // half a UI click cannot see.
   const built = await page.evaluate(async (ids: string[]) => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
     return ids.map((id) => {
       const variants = variantsFor(id as never);
       return {
@@ -84,7 +84,7 @@ test('discover → select → edit → timeline → save → reload keeps a comm
   await openWorkingGraphicInEditor(page);
 
   const fields = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().template.fields.map((f) => `${f.field}:${f.ftype}`);
   });
   expect(fields).toEqual(['f0:textfield', 'f1:textfield', 'f2:textfield', 'f3:textfield', 'f4:textfield', 'f5:filelist']);
@@ -95,8 +95,8 @@ test('discover → select → edit → timeline → save → reload keeps a comm
   // value is what the preview's update() actually writes. Setting only the default leaves the
   // preview showing the old price — correctly, since sample data outranks it on air.
   await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { setFieldDefault } = await import('/src/blocks/edit.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { setFieldDefault } = await __noacgImport('/src/blocks/edit.ts');
     const store = useTemplateStore.getState();
     store.applyTemplate(setFieldDefault(store.template, 'f1', '€99'));
     useTemplateStore.getState().setSampleValue('f1', '€99');
@@ -105,7 +105,7 @@ test('discover → select → edit → timeline → save → reload keeps a comm
   // writes the retyped price.
   const doc = await mountWorkingDocument(page);
   const sample = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     return useTemplateStore.getState().sampleData as Record<string, string>;
   });
   await updateWorkingDocument(doc, sample);
@@ -113,8 +113,8 @@ test('discover → select → edit → timeline → save → reload keeps a comm
 
   // TIMELINE: the card is a data-block template with a real entrance and Out step.
   const steps = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const data = parseAnimData(useTemplateStore.getState().template.js);
     return data?.steps.map((s) => s.name) ?? null;
   });
@@ -135,7 +135,7 @@ test('discover → select → edit → timeline → save → reload keeps a comm
   await expect(page.locator('.ef-document-tab')).toHaveText('Winter headphones');
 
   const after = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     return {
       price: t.fields.find((f) => f.field === 'f1')?.value,
@@ -153,9 +153,9 @@ test('a transition carries the timer machine that clears it, and actually clears
   await bootstrapGraphic(page, { category: 'Transitions', name: 'Volt Stinger' });
 
   const machine = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { validateMachine } = await import('/src/blocks/animMachine.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { validateMachine } = await __noacgImport('/src/blocks/animMachine.ts');
     const data = parseAnimData(useTemplateStore.getState().template.js)!;
     const main = data.machine!.groups[0];
     const path = main.defaultPath!;
@@ -180,8 +180,8 @@ test('a transition carries the timer machine that clears it, and actually clears
   // ITSELF off air without anyone calling stop(). Time is accelerated the way the bench does
   // it, so the hold costs milliseconds rather than seconds.
   const run = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const template = useTemplateStore.getState().template;
 
     const iframe = document.createElement('iframe');

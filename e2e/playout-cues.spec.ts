@@ -219,7 +219,7 @@ async function productionPage(page: Page, options: { saved?: boolean } = {}): Pr
   await openProductionWithCurrent(page, 'Evening News');
   // This suite operates CasparCG files. A paired studio alone does not opt a production in.
   await page.evaluate(async () => {
-    const m = await import('/src/model/shows.ts');
+    const m = await __noacgImport('/src/model/shows.ts');
     const show = m.loadShows().find(s => s.name === 'Evening News')!;
     m.setShowOutputSetup(show.id, { v: 1, destinations: [{ id: 'casparcg', profile: 'casparcg' }] });
     // The page re-renders behind this write: answer from a later task (openProductionWithCurrent).
@@ -433,7 +433,7 @@ test('a clip set to Loop is taken with LOOP, the row says so, and the choice sur
     slot: { adapter: 'casparcg', channel: 1, layer: 10 },
   });
   const stored = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows()[0];
     return { itemLoop: (show.playoutItems ?? []).map((i) => 'loop' in i), end: (show.cues ?? []).map((c) => c.playback?.end ?? null).filter(Boolean) };
   });
@@ -512,7 +512,7 @@ test('each setting goes out with its Take: Clear with a fade, a fade in, a level
   await page.getByTestId('verb-take').click();
   await expect.poll(() => lastAction(bridge)).toEqual({ verb: 'take', item: { kind: 'media', name: 'GIORNO' }, slot: { adapter: 'casparcg', channel: 1, layer: 10 } });
   const playback = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return (loadShows()[0].cues ?? []).filter((c) => c.source === 'playout').map((c) => c.playback ?? null);
   });
   expect(playback).toEqual([{ end: 'hold' }]);
@@ -543,7 +543,7 @@ test('a trim outside the file or ending before it starts is refused in the panel
   await expect(page.getByTestId('clip-advanced-summary')).toHaveText('0:40–end');
   await settleDurableWrites(page);
   const stored = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return (loadShows()[0].cues ?? []).filter((c) => c.source === 'playout').map((c) => c.playback ?? null);
   });
   expect(stored).toEqual([{ trimIn: 40 }]);
@@ -583,7 +583,7 @@ test('a cue with a setting an old Bridge cannot play is not taken, and says why;
   await expect(page.getByTestId('clip-fade-in-short')).toBeDisabled();
   await expect(page.getByTestId('clip-fade-in-short')).toHaveAttribute('title', 'Update NoaCG Bridge to set this.');
   await evaluateInPage(page, async () => {
-    const { loadShows, setCuePlayback } = await import('/src/model/shows.ts');
+    const { loadShows, setCuePlayback } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows()[0];
     const cue = (show.cues ?? []).find((c) => c.source === 'playout')!;
     setCuePlayback(show.id, cue.id, { end: 'clear', fadeOut: 'short' });
@@ -658,7 +658,7 @@ test('THE LOOP RULE: an older build\'s Loop box still reaches cues nobody chose 
     evaluateInPage(
       page,
       async (loop) => {
-        const { loadShows, setPlayoutItemLoop } = await import('/src/model/shows.ts');
+        const { loadShows, setPlayoutItemLoop } = await __noacgImport('/src/model/shows.ts');
         const show = loadShows()[0];
         setPlayoutItemLoop(show.id, show.playoutItems![0].id, loop);
       },
@@ -708,7 +708,7 @@ test('THE LOOP RULE: an older build\'s Loop box still reaches cues nobody chose 
   await page.getByTestId('clip-end-loop').click();
   await settleDurableWrites(page);
   const item = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return 'loop' in loadShows()[0].playoutItems![0];
   });
   expect(item).toBe(false);
@@ -837,7 +837,7 @@ test('a server cue and its item are removed together, and survive a reload as pa
   await page.getByTestId('delete-cue').click();
   await expect(page.locator('.pd-cue', { hasText: 'GIORNO' })).toHaveCount(0);
   const items = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return loadShows()[0].playoutItems ?? [];
   });
   expect(items).toEqual([]);
@@ -876,7 +876,7 @@ test('one rundown cues a template on the graphics channel and a clip on the inse
   await expect(editor.getByTestId('clip-advanced-summary')).toHaveText('whole clip');
   await expect(editor.getByTestId('playout-cue-where')).toContainText('2-10');
   const stored = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     return (loadShows()[0].playoutItems ?? []).map((i) => ({ name: i.name, channel: i.channel ?? null }));
   });
   expect(stored).toEqual([
@@ -939,8 +939,8 @@ test('one rundown cues a template on the graphics channel and a clip on the inse
   // The hosted control page is told the same address: the published payload carries each server
   // cue's channel and its name, and survives the reader the hosted page uses.
   const published = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { buildOutputPayload, readOutputPayload } = await import('/src/control/hostedControl.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { buildOutputPayload, readOutputPayload } = await __noacgImport('/src/control/hostedControl.ts');
     const payload = readOutputPayload(JSON.parse(JSON.stringify(await buildOutputPayload(loadShows()[0]))));
     return (payload?.playoutCues ?? []).map((c) => ({ name: c.name, channel: c.channel, channelName: c.channelName, layer: c.layer }));
   });
@@ -1016,11 +1016,11 @@ test('a take on a slot another cue holds replaces it, and a channel the studio d
 
   // A production made in a studio with a channel 5 opens here with that cue still on 5.
   await page.evaluate(async () => {
-    const { loadShows, setPlayoutItemChannel } = await import('/src/model/shows.ts');
+    const { loadShows, setPlayoutItemChannel } = await __noacgImport('/src/model/shows.ts');
     const show = loadShows()[0];
     setPlayoutItemChannel(show.id, show.playoutItems![0].id, 5);
     // Landed, not just accepted, before the reload below reads it back.
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     await commitDurableWrites();
   });
   await page.reload();

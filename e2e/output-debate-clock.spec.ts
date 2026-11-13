@@ -40,8 +40,8 @@ interface Debate {
 async function openDebate(page: Page): Promise<Debate> {
   await page.goto('/app#/home');
   const { spec, cue } = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { seedValues } = await import('/src/model/shows.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { seedValues } = await __noacgImport('/src/model/shows.ts');
     const template = variantById('dc01')!.create({});
     const { html, css, js, resolution, fps } = template;
     return { spec: { html, css, js, resolution, fps }, cue: seedValues(template.fields) as Record<string, string> };
@@ -338,9 +338,9 @@ test('a debate board whose animation region is hand-written, with no machine run
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/app#/home');
   const after = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
-    const { ANIMATION_MARK_CLOSE, ANIMATION_MARK_OPEN } = await import('/src/templates/lowerThirds/animPresets.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
+    const { ANIMATION_MARK_CLOSE, ANIMATION_MARK_OPEN } = await __noacgImport('/src/templates/lowerThirds/animPresets.ts');
     const template = variantById('dc01')!.create({});
     const start = template.js.indexOf(ANIMATION_MARK_OPEN);
     const end = template.js.indexOf(ANIMATION_MARK_CLOSE) + ANIMATION_MARK_CLOSE.length;
@@ -371,8 +371,8 @@ test('a debate board whose animation region is hand-written, with no machine run
 test('the runtime bench presses every arrow of the floor, each from the state it starts in', async ({ page }) => {
   await page.goto('/app');
   const skipped = await page.evaluate(async () => {
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const bench = await import('/src/validation/runtimeBench.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const bench = await __noacgImport('/src/validation/runtimeBench.ts');
     const result = await bench.benchTemplateRuntime(variantById('dc01')!.create({}), { fieldPaints: true });
     return [...result.errors, ...result.warnings].filter((f) => f.rule === 'bench-events-skipped').map((f) => f.message);
   });
@@ -549,8 +549,8 @@ test('a Take on air is a resend: neither clock moves, and the report says what i
 test('a page opened on air reads a debate clock\'s report as the cue holds it', async ({ page }) => {
   const debate = await openDebate(page);
   const asCue = await page.evaluate(async () => {
-    const { reportAsCueHolds } = await import('/src/control/matchClockWire.ts');
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { reportAsCueHolds } = await __noacgImport('/src/control/matchClockWire.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     return reportAsCueHolds(variantById('dc01')!.create({}).html, { f0: 'ROUND', f5: '05:00@/05:00/05:00', f6: '05:00@1755600000000/05:00/05:00' });
   });
   expect(asCue).toEqual({ f0: 'ROUND', f5: '05:00', f6: '05:00' });

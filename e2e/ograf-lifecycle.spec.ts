@@ -302,7 +302,7 @@ async function imported(page: Page, svg: string, name: string, choose: () => Pro
   await choose();
   await intoProduction(page, name, `${name} Show`);
   return page.evaluate(async (name) => {
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadGraphics } = await __noacgImport('/src/model/library.ts');
     return loadGraphics().find((g) => g.name === name)!.template;
   }, name);
 }

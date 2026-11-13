@@ -88,12 +88,12 @@ async function measureLanguages(
 ): Promise<Measured[]> {
   const { stress = false, logo = true } = options;
   return page.evaluate(async ([svg, useStress, useLogo]) => {
-    const { STUB_LANGUAGES } = await import('/src/ai/pro/language/stub.ts');
-    const { composeFromLanguage } = await import('/src/ai/pro/language/compose.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
-    const { measureSpacing } = await import('/src/ai/spike/spacingCheck.ts');
-    const { measureProportion } = await import('/src/ai/spike/proportionCheck.ts');
-    const { measureAxes } = await import('/src/ai/spike/axisCheck.ts');
+    const { STUB_LANGUAGES } = await __noacgImport('/src/ai/pro/language/stub.ts');
+    const { composeFromLanguage } = await __noacgImport('/src/ai/pro/language/compose.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
+    const { measureSpacing } = await __noacgImport('/src/ai/spike/spacingCheck.ts');
+    const { measureProportion } = await __noacgImport('/src/ai/spike/proportionCheck.ts');
+    const { measureAxes } = await __noacgImport('/src/ai/spike/axisCheck.ts');
 
     const dataUrl = `data:image/svg+xml;base64,${btoa(svg as string)}`;
     // LONG ENOUGH TO PASS THE AUTO-FIT CAP on its own, which is the whole point of a stress
@@ -256,8 +256,8 @@ test.describe('the platform owns the Phase A panel', () => {
    */
   test('no informational line is set under the weight floor, whatever size it is', async ({ page }) => {
     const floors = await page.evaluate(async () => {
-      const { resolveSpacing } = await import('/src/ai/pro/language/structure.ts');
-      const { HOUSE_LANGUAGE } = await import('/src/ai/pro/language/contract.ts');
+      const { resolveSpacing } = await __noacgImport('/src/ai/pro/language/structure.ts');
+      const { HOUSE_LANGUAGE } = await __noacgImport('/src/ai/pro/language/contract.ts');
       const t = HOUSE_LANGUAGE.typography;
       const at = (step: 'subtle' | 'clear' | 'strong') => resolveSpacing({
         ...HOUSE_LANGUAGE,
@@ -311,8 +311,8 @@ test.describe('the platform owns the Phase A panel', () => {
    */
   test('the mark ink is knocked on the ink that vanishes, and a coloured mark is left alone', async ({ page }) => {
     const cases = await page.evaluate(async () => {
-      const { composeFromLanguage } = await import('/src/ai/pro/language/compose.ts');
-      const { HOUSE_LANGUAGE } = await import('/src/ai/pro/language/contract.ts');
+      const { composeFromLanguage } = await __noacgImport('/src/ai/pro/language/compose.ts');
+      const { HOUSE_LANGUAGE } = await __noacgImport('/src/ai/pro/language/contract.ts');
       // A dark panel, which is what every one of the flagged cells had.
       const language = {
         ...HOUSE_LANGUAGE,
@@ -346,7 +346,7 @@ test.describe('the platform owns the Phase A panel', () => {
         // The as-is screen's verdict on the knocked graphic, measured through the REAL screen on
         // the REAL emit rather than against a copy of the pattern kept here.
         integrity: await (async () => {
-          const { assetIntegrityFindings } = await import('/src/ai/assetIntegrity.ts');
+          const { assetIntegrityFindings } = await __noacgImport('/src/ai/assetIntegrity.ts');
           const knocked = compose({ inkLuminance: 0.02, inkSpread: 0.0004 }).template;
           return assetIntegrityFindings(knocked, ['images/mark.svg']).map((f) => f.rule);
         })(),
@@ -384,8 +384,8 @@ test.describe('the platform owns the Phase A panel', () => {
    */
   test('a graphic that only reads over kind footage says so, and a panelled one stays quiet', async ({ page }) => {
     const out = await page.evaluate(async () => {
-      const { composeFromLanguage } = await import('/src/ai/pro/language/compose.ts');
-      const { HOUSE_LANGUAGE } = await import('/src/ai/pro/language/contract.ts');
+      const { composeFromLanguage } = await __noacgImport('/src/ai/pro/language/compose.ts');
+      const { HOUSE_LANGUAGE } = await __noacgImport('/src/ai/pro/language/contract.ts');
       const lines = [{ title: 'Name', sample: 'Alexandra Riva' }, { title: 'Role', sample: 'Host' }];
       const notes = (language: Parameters<typeof composeFromLanguage>[0]) =>
         composeFromLanguage(language, { lines }).notes.filter((n) => n.startsWith('over the picture: '));
@@ -428,7 +428,7 @@ test.describe('the platform owns the Phase A panel', () => {
    */
   test('the outcome carries every error and only the platform\'s own warnings', async ({ page }) => {
     const result = await page.evaluate(async () => {
-      const { proRuleCodes, proLanguageFindings } = await import('/src/ai/pro/language/gate.ts');
+      const { proRuleCodes, proLanguageFindings } = await __noacgImport('/src/ai/pro/language/gate.ts');
       const codes = proRuleCodes({
         ok: false,
         errors: [{ rule: 'spx-missing-field', message: 'x' }, { rule: 'bench-overlap', message: 'y' }],
@@ -478,11 +478,11 @@ test.describe('one design language, the whole package', () => {
 
   test('every graphic type composes clean under its own calibrated thresholds', async ({ page }) => {
     const rows = await page.evaluate(async () => {
-      const { STUB_LANGUAGES } = await import('/src/ai/pro/language/stub.ts');
-      const { composeGraphic, packageLines, PRO_GRAPHIC_LIST } = await import('/src/ai/pro/language/graphics.ts');
-      const { composeDocument } = await import('/src/preview/composeDocument.ts');
-      const { measureSpacing } = await import('/src/ai/spike/spacingCheck.ts');
-      const { measureProportion } = await import('/src/ai/spike/proportionCheck.ts');
+      const { STUB_LANGUAGES } = await __noacgImport('/src/ai/pro/language/stub.ts');
+      const { composeGraphic, packageLines, PRO_GRAPHIC_LIST } = await __noacgImport('/src/ai/pro/language/graphics.ts');
+      const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
+      const { measureSpacing } = await __noacgImport('/src/ai/spike/spacingCheck.ts');
+      const { measureProportion } = await __noacgImport('/src/ai/spike/proportionCheck.ts');
 
       const show = { name: 'Priya Raghunathan', title: 'Senior Research Fellow', channel: 'Northgate Sport' };
       const out: { graphic: string; language: string; codes: string[] }[] = [];
@@ -536,9 +536,9 @@ test.describe('one design language, the whole package', () => {
 
   test('the package shares the decisions that make its members siblings', async ({ page }) => {
     const sets = await page.evaluate(async () => {
-      const { STUB_LANGUAGES } = await import('/src/ai/pro/language/stub.ts');
-      const { composeGraphic, packageLines, PRO_GRAPHIC_LIST } = await import('/src/ai/pro/language/graphics.ts');
-      const { resolveSpacing } = await import('/src/ai/pro/language/structure.ts');
+      const { STUB_LANGUAGES } = await __noacgImport('/src/ai/pro/language/stub.ts');
+      const { composeGraphic, packageLines, PRO_GRAPHIC_LIST } = await __noacgImport('/src/ai/pro/language/graphics.ts');
+      const { resolveSpacing } = await __noacgImport('/src/ai/pro/language/structure.ts');
 
       const show = { name: 'Priya Raghunathan', title: 'Senior Research Fellow', channel: 'Northgate Sport' };
       return STUB_LANGUAGES.map((language) => ({
@@ -598,9 +598,9 @@ test.describe('one design language, the whole package', () => {
 
   test('a new type is composed THROUGH its registry declaration, machine and all', async ({ page }) => {
     const built = await page.evaluate(async () => {
-      const { STUB_LANGUAGES } = await import('/src/ai/pro/language/stub.ts');
-      const { composeGraphic, packageLines } = await import('/src/ai/pro/language/graphics.ts');
-      const { parseAnimData } = await import('/src/blocks/animData.ts');
+      const { STUB_LANGUAGES } = await __noacgImport('/src/ai/pro/language/stub.ts');
+      const { composeGraphic, packageLines } = await __noacgImport('/src/ai/pro/language/graphics.ts');
+      const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
 
       const show = { name: 'Priya Raghunathan', title: 'Senior Research Fellow', channel: 'Northgate Sport' };
       const timer = composeGraphic('countdown', STUB_LANGUAGES[0], {
@@ -657,8 +657,8 @@ test.describe('one design language, the whole package', () => {
    */
   test('every member of a package is named for what it is, and a package of one is untouched', async ({ page }) => {
     const named = await page.evaluate(async () => {
-      const { STUB_LANGUAGES } = await import('/src/ai/pro/language/stub.ts');
-      const { composeGraphic, namedPackage, packageLines, PRO_GRAPHIC_LIST } = await import('/src/ai/pro/language/graphics.ts');
+      const { STUB_LANGUAGES } = await __noacgImport('/src/ai/pro/language/stub.ts');
+      const { composeGraphic, namedPackage, packageLines, PRO_GRAPHIC_LIST } = await __noacgImport('/src/ai/pro/language/graphics.ts');
       const show = { name: 'Priya Raghunathan', title: 'Senior Research Fellow', channel: 'Northgate Sport' };
       const language = STUB_LANGUAGES[0];
       const members = PRO_GRAPHIC_LIST.map((spec) => ({
@@ -696,10 +696,10 @@ test.describe('one design language, the whole package', () => {
 
   test('the stored package is normalized: known ids, package order, and empty means all', async ({ page }) => {
     const cases = await page.evaluate(async () => {
-      const { loadAiSettings, saveAiSettings } = await import('/src/ai/settings.ts');
+      const { loadAiSettings, saveAiSettings } = await __noacgImport('/src/ai/settings.ts');
       // The PACKAGE ids, not everything the composer knows: a type between its two steps
       // (composable, read pending - the topic card today) must never enter a stored package.
-      const { PRO_PACKAGE_IDS } = await import('/src/ai/pro/language/structure.ts');
+      const { PRO_PACKAGE_IDS } = await __noacgImport('/src/ai/pro/language/structure.ts');
       const read = (stored: unknown) => {
         localStorage.setItem('spx-gfx-ai', JSON.stringify({ proPackage: stored }));
         return loadAiSettings().proPackage;
@@ -744,8 +744,8 @@ test.describe('one design language, the whole package', () => {
    */
   test('a stated brand palette is copied verbatim and its divergences are recorded', async ({ page }) => {
     const cases = await page.evaluate(async () => {
-      const { composeGraphic, packageLines } = await import('/src/ai/pro/language/graphics.ts');
-      const { HOUSE_LANGUAGE } = await import('/src/ai/pro/language/contract.ts');
+      const { composeGraphic, packageLines } = await __noacgImport('/src/ai/pro/language/graphics.ts');
+      const { HOUSE_LANGUAGE } = await __noacgImport('/src/ai/pro/language/contract.ts');
       // A language whose own palette is nothing like the brand's, so an echo is unmistakable.
       const language = {
         ...HOUSE_LANGUAGE,
@@ -810,9 +810,9 @@ test.describe('one design language, the whole package', () => {
    */
   test('Pro repairs the supporting tone to its own floor, and Lite keeps hers', async ({ page }) => {
     const out = await page.evaluate(async () => {
-      const { clampLitePalette, LITE_CONTRAST_FLOOR } = await import('/src/ai/lite/contract.ts');
-      const { resolvePalette } = await import('/src/ai/pro/language/paint.ts');
-      const { HOUSE_LANGUAGE } = await import('/src/ai/pro/language/contract.ts');
+      const { clampLitePalette, LITE_CONTRAST_FLOOR } = await __noacgImport('/src/ai/lite/contract.ts');
+      const { resolvePalette } = await __noacgImport('/src/ai/pro/language/paint.ts');
+      const { HOUSE_LANGUAGE } = await __noacgImport('/src/ai/pro/language/contract.ts');
       // WCAG contrast from first principles: the ladder's own helper is module-private, and
       // `cssVars.contrastRatio` takes parsed colours rather than hex. Six lines is cheaper than
       // widening an export purely so a test can see it.

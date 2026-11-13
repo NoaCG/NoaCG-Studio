@@ -54,7 +54,7 @@ async function actionEvents(page: Page): Promise<string[]> {
 /** A catalog quiz's name, its two letter fields, and the key it ships with. */
 async function quizMeta(page: Page, id: string) {
   return page.evaluate(async (vid) => {
-    const { variantById } = await import('/src/templates/catalog.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
     const variant = variantById(vid)!;
     const fields = variant.create({}).fields;
     const byTitle = (title: string) => fields.find((f) => f.title === title)!;
@@ -130,9 +130,9 @@ for (const id of CATALOG) {
  *  before 2026-09-22 - and report the field the key lives in and the buttons read back. */
 async function saveAsBeforeTheFix(page: Page) {
   return page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
-    const { eventButtons } = await import('/src/control/controlModel.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { parseAnimData, spliceAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { eventButtons } = await __noacgImport('/src/control/controlModel.ts');
     const template = useTemplateStore.getState().template;
     const data = parseAnimData(template.js)!;
     const controls = data.machine!.controls!;
@@ -258,9 +258,9 @@ test('a classic board picks in one press, moves the pick, and keeps the hidden-c
 test('a clock-free graphic sends its events on the fast road, and a clock keeps the slow one', async ({ page }) => {
   await page.goto('/');
   const result = await page.evaluate(async () => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { clockSpecFromHtml, eventsNeedServerTime, speakingClocksFromHtml } = await import('/src/control/matchClockWire.ts');
-    const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { clockSpecFromHtml, eventsNeedServerTime, speakingClocksFromHtml } = await __noacgImport('/src/control/matchClockWire.ts');
+    const { sendControlVerb } = await __noacgImport('/src/control/hostedControl.ts');
 
     // The loose test must cover every graphic the renderer treats as a clock, and no quiz.
     const missed: string[] = [];

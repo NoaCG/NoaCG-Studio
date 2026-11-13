@@ -29,8 +29,8 @@ test('every starter card resolves against the catalog and mounts its live previe
   const named = await cards.evaluateAll((els) => els.map((el) => el.getAttribute('data-starter') ?? ''));
   const drift = await page.evaluate(async (names: string[]) => {
     type Variant = { id: string; name: string; create(): unknown };
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { STARTERS } = (await import('/src/ograf/starters.ts')) as { STARTERS: Map<string, Variant | undefined> };
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { STARTERS } = (await __noacgImport('/src/ograf/starters.ts')) as { STARTERS: Map<string, Variant | undefined> };
     const all = (Object.values(CATALOG) as Variant[][]).flat();
     const out: string[] = [];
     for (const name of names) {

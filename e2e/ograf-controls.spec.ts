@@ -30,11 +30,11 @@ async function seed(page: Page): Promise<string> {
   await awaitDurableReady(page);
   const id = await page.evaluate(
     async ({ manifest, js }) => {
-      const { createShowNamedChecked, addGraphicToShow, addShowCue, loadShows } = await import('/src/model/shows.ts');
-      const { deleteGraphic, loadGraphics } = await import('/src/model/library.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      const { useRouter } = await import('/src/app/router.ts');
+      const { createShowNamedChecked, addGraphicToShow, addShowCue, loadShows } = await __noacgImport('/src/model/shows.ts');
+      const { deleteGraphic, loadGraphics } = await __noacgImport('/src/model/library.ts');
+      const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
+      const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+      const { useRouter } = await __noacgImport('/src/app/router.ts');
       const { template } = useTemplateStore.getState();
       for (const g of loadGraphics()) deleteGraphic(g.id);
       const { show, error } = createShowNamedChecked(`Typed form ${Date.now()}`);
@@ -56,7 +56,7 @@ async function seed(page: Page): Promise<string> {
 
 const stored = (page: Page, showId: string) =>
   page.evaluate(async (id) => {
-    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
     const cue = loadShows().find((s) => s.id === id)?.cues?.[0];
     return { values: (cue?.typed as { values?: Record<string, unknown> } | undefined)?.values ?? null, args: (cue?.typedArgs as { actions?: Record<string, { args: unknown }> } | undefined)?.actions ?? null };
   }, showId);
@@ -192,12 +192,12 @@ test('a typed cue is edited through its generated form, kept as typed, reloaded,
   // edit in the cue it was typed into and leaves the other alone.
   const secondTitle = (id: string) =>
     page.evaluate(async (showId) => {
-      const { loadShows } = await import('/src/model/shows.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
       return (loadShows().find((s) => s.id === showId)?.cues?.[1]?.typed as { values?: { title?: string } } | undefined)?.values?.title ?? null;
     }, id);
   expect(
     await page.evaluate(async (id) => {
-      const { loadShows, setCueTyped } = await import('/src/model/shows.ts');
+      const { loadShows, setCueTyped } = await __noacgImport('/src/model/shows.ts');
       return setCueTyped(id, loadShows().find((s) => s.id === id)!.cues![1].id, true).error;
     }, showId),
   ).toBeNull();

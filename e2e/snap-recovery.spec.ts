@@ -27,8 +27,8 @@ import { test, expect } from '@playwright/test';
 
 const CHECK = `async () => {
   // The whole catalog: CATALOG is keyed by category, and variantsFor(null) answers [] by design.
-  const { CATALOG } = await import('/src/templates/catalog.ts');
-  const { composeDocument } = await import('/src/preview/composeDocument.ts');
+  const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+  const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
   const everyVariant = Object.values(CATALOG).flatMap((list) => list || []);
   // A 1x1 transparent GIF: a picture that is unquestionably present and costs nothing.
   const PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';

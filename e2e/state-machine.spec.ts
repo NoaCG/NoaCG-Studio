@@ -15,12 +15,12 @@ import { LOWER_THIRD_EXPLICIT, LOWER_THIRD_IMPLICIT, MILLIONAIRE, SCOREBUG, TICK
  *  then boot it into a hidden iframe (the anim-engine harness idiom). */
 const HARNESS = `
   async function buildMachineTemplate(def) {
-    const { runtimeJs } = await import('/src/templates/shared/base.ts');
-    const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
-    const { replaceDefinitionInHtml } = await import('/src/model/spxDefinition.ts');
-    const { DEFAULT_SETTINGS } = await import('/src/model/types.ts');
-    const { createBlankTemplate } = await import('/src/templates/blank.ts');
-    const { spxSteps } = await import('/src/blocks/animMachine.ts');
+    const { runtimeJs } = await __noacgImport('/src/templates/shared/base.ts');
+    const { emitAnimRegion } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { replaceDefinitionInHtml } = await __noacgImport('/src/model/spxDefinition.ts');
+    const { DEFAULT_SETTINGS } = await __noacgImport('/src/model/types.ts');
+    const { createBlankTemplate } = await __noacgImport('/src/templates/blank.ts');
+    const { spxSteps } = await __noacgImport('/src/blocks/animMachine.ts');
     const settings = { ...DEFAULT_SETTINGS, description: def.name, steps: String(spxSteps(def.data)) };
     const base = createBlankTemplate();
     const shell = '<!DOCTYPE html>\\n<html>\\n<head>\\n</head>\\n<body>\\n' + def.html + '\\n</body>\\n</html>';
@@ -35,7 +35,7 @@ const HARNESS = `
     };
   }
   async function boot(tpl) {
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const f = document.createElement('iframe');
     f.style.cssText = 'position:fixed;left:-3000px;top:0;width:1280px;height:720px;';
     document.body.appendChild(f);
@@ -74,7 +74,7 @@ test('schema: migration on read, canonical fixed point over machines, shape reje
   const result = await page.evaluate(`(async () => {
     ${HARNESS}
     const { parseAnimData, serializeAnimData, spliceAnimData, isAnimData, migrateAnimData } =
-      await import('/src/blocks/animData.ts');
+      await __noacgImport('/src/blocks/animData.ts');
     const quiz = ${JSON.stringify(MILLIONAIRE.data)};
 
     // A version-1 literal MIGRATES on read — everything downstream sees version 2.
@@ -136,9 +136,9 @@ test('derived machine: a catalog template answers as one linear group, editor an
   await toApp(page);
   const result = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { variantById } = await import('/src/templates/catalog.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { deriveMachine, spxSteps } = await import('/src/blocks/animMachine.ts');
+    const { variantById } = await __noacgImport('/src/templates/catalog.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { deriveMachine, spxSteps } = await __noacgImport('/src/blocks/animMachine.ts');
     const tpl = variantById('lt01').create({});
     const data = parseAnimData(tpl.js);
     const derived = deriveMachine(data); // the editor-side derivation
@@ -389,9 +389,9 @@ test('drift guards: the export gate accepts every machine, editor and runtime ag
   await toApp(page);
   const result = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { canonicalPath } = await import('/src/blocks/animMachine.ts');
+    const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { canonicalPath } = await __noacgImport('/src/blocks/animMachine.ts');
 
     // Every acceptance machine must clear the EXPORT GATE — a machine no target could ship
     // would make the whole model theoretical.

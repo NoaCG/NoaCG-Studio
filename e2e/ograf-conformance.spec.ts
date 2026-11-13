@@ -73,9 +73,9 @@ test('every catalog graphic emits a manifest that satisfies the OGraf v1 schema,
   // catalog rather than exporting 150 zips: what is being proven is that no design's field
   // mix, step count or state machine can produce a manifest a renderer would reject.
   const report = await page.evaluate(async () => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { buildOgrafManifest, graphicSources } = await import('/src/export/targets/ograf.ts');
-    const { validateOgrafManifest } = await import('/src/export/targets/ografSchema.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { buildOgrafManifest, graphicSources } = await __noacgImport('/src/export/targets/ograf.ts');
+    const { validateOgrafManifest } = await __noacgImport('/src/export/targets/ografSchema.ts');
     const failures: string[] = [];
     let checked = 0;
     let withActions = 0;
@@ -156,7 +156,7 @@ test('the validator refuses the manifest mistakes the spec is strict about', asy
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const verdicts = await page.evaluate(async (schemaUrl) => {
-    const { validateOgrafManifest, validateOgrafPackage } = await import('/src/export/targets/ografSchema.ts');
+    const { validateOgrafManifest, validateOgrafPackage } = await __noacgImport('/src/export/targets/ografSchema.ts');
     const base = {
       $schema: schemaUrl,
       id: 'noacg-demo',
@@ -241,7 +241,7 @@ test('the exported package declares its steps, durations and canvas — and ship
   // than hard-coded, so the assertion is "the manifest agrees with the format" and not "the
   // default format is still 1080p25".
   const format = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const { resolution, fps } = useTemplateStore.getState().template;
     return { width: resolution.width, height: resolution.height, fps };
   });
@@ -262,7 +262,7 @@ test('the exported package declares its steps, durations and canvas — and ship
 
   const verdict = await page.evaluate(
     async ({ manifest, packaged }) => {
-      const { validateOgrafManifest, validateOgrafPackage } = await import('/src/export/targets/ografSchema.ts');
+      const { validateOgrafManifest, validateOgrafPackage } = await __noacgImport('/src/export/targets/ografSchema.ts');
       return [...validateOgrafManifest(manifest), ...validateOgrafPackage(manifest, packaged)];
     },
     { manifest, packaged },
@@ -569,7 +569,7 @@ const SPX_RENDERER_RULES = `
 async function serveCatalogPackages(page: Page, names: string[]): Promise<Array<{ name: string; origin: string; files: string[] }>> {
   await installOgrafZip(page);
   const built = await page.evaluate(async ({ names }) => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
     const all = Object.values(CATALOG).flat().filter(Boolean);
     const out: Array<{ name: string; b64: string }> = [];
     for (const name of names) {
@@ -749,8 +749,8 @@ test("SPX 1.4.1's custom-action buttons reach the graphic through the package's 
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const pkg = await page.evaluate(async () => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { ografTarget, SPX_CUSTOM_ACTIONS_FILE } = await import('/src/export/targets/ograf.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { ografTarget, SPX_CUSTOM_ACTIONS_FILE } = await __noacgImport('/src/export/targets/ograf.ts');
     const all = Object.values(CATALOG).flat().filter(Boolean);
     const read = async (name: string) => {
       const zip = await ografTarget.build(all.find((v) => v.name === name)!.create({}), { graphicUsage: 'live' });
@@ -813,8 +813,8 @@ test('a production holding two designs with the same name ships two distinct man
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const result = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { buildShowZipFor } = await __noacgImport('/src/export/showExport.ts');
     const find = (category: string, name: string) => variantsFor(category).find((v) => v.name === name)!;
     const ident = find('corner-bug', 'House Ident');
     const pair = [ident, ident];
@@ -907,8 +907,8 @@ test("mounting a Graphic leaves the renderer's page as it was, and paints the st
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   // The created project's canvas, its field defaults, and the studio's own document for it.
   const { format, data, studioDoc } = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     const { template } = useTemplateStore.getState();
     return {
       format: { width: template.resolution.width, height: template.resolution.height },
@@ -1081,7 +1081,7 @@ test('the stylesheet rewrite is exact on every shape it has to survive, and the 
   ].join('\n');
 
   const report = await page.evaluate(async ({ sample, S }) => {
-    const { scopeCssToGraphic, assertScopedCss } = await import('/src/export/targets/ograf.ts');
+    const { scopeCssToGraphic, assertScopedCss } = await __noacgImport('/src/export/targets/ograf.ts');
     const refusal = (original: string, scoped: string) => {
       try {
         assertScopedCss(original, scoped, S);

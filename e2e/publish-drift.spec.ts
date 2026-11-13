@@ -17,11 +17,11 @@ import { bootstrapGraphic } from './_create';
 test('every copy is compared; a library edit moves nothing, and Update moves exactly that copy', async ({ page }) => {
   await bootstrapGraphic(page, { name: 'Hairline' });
   const result = await page.evaluate(async () => {
-    const { createGraphic, updateGraphic, graphicById, loadGraphics, newerLibraryDesign } = await import('/src/model/library.ts');
-    const { createShowNamedChecked, addGraphicToShow, loadShows, updateCopyFromLibrary } = await import('/src/model/shows.ts');
-    const { libraryGraphicDigests } = await import('/src/control/hostedControl.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { createGraphic, updateGraphic, graphicById, loadGraphics, newerLibraryDesign } = await __noacgImport('/src/model/library.ts');
+    const { createShowNamedChecked, addGraphicToShow, loadShows, updateCopyFromLibrary } = await __noacgImport('/src/model/shows.ts');
+    const { libraryGraphicDigests } = await __noacgImport('/src/control/hostedControl.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     const { template } = useTemplateStore.getState();
     const { doc } = createGraphic({ ...template, name: 'Mine' }, { name: 'Mine' });
     const { show } = createShowNamedChecked(`Drift ${Date.now()}`);
@@ -61,12 +61,12 @@ test('every copy is compared; a library edit moves nothing, and Update moves exa
 test('a look with an imported face reads clean once published, and a new face is a publish due', async ({ page }) => {
   await bootstrapGraphic(page, { name: 'Hairline' });
   const result = await page.evaluate(async () => {
-    const { createGraphic, loadGraphics } = await import('/src/model/library.ts');
-    const { createShowNamedChecked, addGraphicToShow, loadShows, setShowLook } = await import('/src/model/shows.ts');
-    const { buildOutputPayload, libraryGraphicDigests } = await import('/src/control/hostedControl.ts');
-    const { stampPayload } = await import('/src/control/payloadVersion.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { createGraphic, loadGraphics } = await __noacgImport('/src/model/library.ts');
+    const { createShowNamedChecked, addGraphicToShow, loadShows, setShowLook } = await __noacgImport('/src/model/shows.ts');
+    const { buildOutputPayload, libraryGraphicDigests } = await __noacgImport('/src/control/hostedControl.ts');
+    const { stampPayload } = await __noacgImport('/src/control/payloadVersion.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     const { template } = useTemplateStore.getState();
     const { doc } = createGraphic({ ...template, name: 'Mine' }, { name: 'Mine' });
     const { show } = createShowNamedChecked(`Look drift ${Date.now()}`);

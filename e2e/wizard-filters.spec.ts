@@ -30,7 +30,7 @@ async function toBrowseStep(page: Page) {
 
 async function catalogCounts(page: Page) {
   return page.evaluate(async () => {
-    const { allTemplateMeta } = await import('/src/templates/templateMeta.ts');
+    const { allTemplateMeta } = await __noacgImport('/src/templates/templateMeta.ts');
     const all = allTemplateMeta().map(({ meta }) => meta);
     const lt = all.filter((m) => m.category === 'lower-third');
     return {
@@ -76,7 +76,7 @@ test('the last page has no "Show more" button at all', async ({ page }) => {
   // A category small enough to fit one page. Derived, not named: any category the catalog
   // grows past a page would rot a hardcoded one.
   const small = await page.evaluate(async () => {
-    const { browsableCategories } = await import('/src/templates/templateMeta.ts');
+    const { browsableCategories } = await __noacgImport('/src/templates/templateMeta.ts');
     return browsableCategories().sort((a, b) => a.count - b.count)[0];
   });
   test.skip(small.count > 12, 'no category small enough to fit one page');
@@ -129,8 +129,8 @@ test('the type dropdown carries both levels: shelves as selectable headings, cat
   // as "written there double" - so every shelf is now ONE selectable heading row, its member
   // categories indented under it, and "All graphics" is the only row that says All.
   const taxonomy = await page.evaluate(async () => {
-    const { browsableGroups, browsableCategories } = await import('/src/templates/templateMeta.ts');
-    const { CATEGORY_GROUP_OF } = await import('/src/model/taxonomy.ts');
+    const { browsableGroups, browsableCategories } = await __noacgImport('/src/templates/templateMeta.ts');
+    const { CATEGORY_GROUP_OF } = await __noacgImport('/src/model/taxonomy.ts');
     const cats = browsableCategories();
     return {
       groups: browsableGroups(),
@@ -254,7 +254,7 @@ test("a design's code finds it, and a near-miss spelling still lands", async ({ 
   // (1) The owner typed "sb08" - the code every AGENTS.md, doc and teacher's slide calls a
   // design by - and got nothing (walk, 2026-08-28). The id is indexed at name weight now.
   const sb08 = await page.evaluate(async () => {
-    const { allTemplateMeta } = await import('/src/templates/templateMeta.ts');
+    const { allTemplateMeta } = await __noacgImport('/src/templates/templateMeta.ts');
     return allTemplateMeta().find(({ meta }) => meta.id === 'sb08')?.meta.name ?? null;
   });
   expect(sb08, 'sb08 is not in the catalog any more - re-point this at another id').toBeTruthy();
@@ -307,8 +307,8 @@ test('programme selection ranks into Best for / Also works without hiding anythi
   // second section renders on the first - and derive which type that is, because which
   // categories a pack claims is exactly the thing that changes as the catalog grows.
   const narrow = await page.evaluate(async () => {
-    const { browseTemplates, NO_BROWSE_FILTERS } = await import('/src/templates/search.ts');
-    const { browsableCategories } = await import('/src/templates/templateMeta.ts');
+    const { browseTemplates, NO_BROWSE_FILTERS } = await __noacgImport('/src/templates/search.ts');
+    const { browsableCategories } = await __noacgImport('/src/templates/templateMeta.ts');
     for (const tile of browsableCategories()) {
       const outcome = browseTemplates({
         ...NO_BROWSE_FILTERS,
@@ -355,8 +355,8 @@ test('search reaches templates through aliases and field semantics', async ({ pa
 test('a search for "credit" answers with credits, and every card says so', async ({ page }) => {
   await toBrowseStep(page);
   const credits = await page.evaluate(async () => {
-    const { allTemplateMeta } = await import('/src/templates/templateMeta.ts');
-    const { graphicCategoryById } = await import('/src/model/taxonomy.ts');
+    const { allTemplateMeta } = await __noacgImport('/src/templates/templateMeta.ts');
+    const { graphicCategoryById } = await __noacgImport('/src/model/taxonomy.ts');
     return {
       name: graphicCategoryById('credits').name,
       count: allTemplateMeta().filter(({ meta }) => meta.category === 'credits').length,
@@ -463,8 +463,8 @@ async function seedGlassBrandAndReturnToBrowse(page: Page) {
   await expect(page.locator('.wz-modal')).toBeVisible();
   await awaitDurableReady(page);
   await page.evaluate(async (name) => {
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { createLook, captureLookFromTemplate } = await import('/src/model/packets.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { createLook, captureLookFromTemplate } = await __noacgImport('/src/model/packets.ts');
     const variant = Object.values(CATALOG).flat().find((v) => v.name === 'Frosted Card');
     if (!variant) throw new Error('no catalog variant Frosted Card');
     // The STYLE FAMILY is stated, not captured. Nothing in a template's own code records which
@@ -527,8 +527,8 @@ test('a brand chosen after paging re-ranks in place and keeps the depth the read
   // computed from the search module with the same brand in it, so this asserts the ORDER rather
   // than merely the count - which is the half that would catch a genuinely stale page.
   const expected = await page.evaluate(async () => {
-    const { browseTemplates, NO_BROWSE_FILTERS } = await import('/src/templates/search.ts');
-    const { CATEGORY_GROUP_OF } = await import('/src/model/taxonomy.ts');
+    const { browseTemplates, NO_BROWSE_FILTERS } = await __noacgImport('/src/templates/search.ts');
+    const { CATEGORY_GROUP_OF } = await __noacgImport('/src/model/taxonomy.ts');
     // MIRROR THE CONTROL rather than guessing at it. `chooseType(page, 'Lower thirds')` resolves
     // to the SHELF, not the category, because that shelf has a single member - so the filter
     // actually in force is `group`. Naming the category here instead would agree with the UI only
@@ -624,7 +624,7 @@ test('the first page shows the CATEGORY, not its first twelve entries', async ({
   // hue predicted the measured hue 72/72, so it is what the spread is keyed on.
   await toBrowseStep(page);
   const spread = await page.evaluate(async () => {
-    const { browseTemplates, NO_BROWSE_FILTERS, accentHueBucket } = await import('/src/templates/search.ts');
+    const { browseTemplates, NO_BROWSE_FILTERS, accentHueBucket } = await __noacgImport('/src/templates/search.ts');
     const read = (category: string) => {
       const out = browseTemplates({ ...NO_BROWSE_FILTERS, category: category as never });
       const page12 = [...(out.best ?? []), ...(out.also ?? [])].slice(0, 12);
@@ -668,7 +668,7 @@ test('a known design is found by name, and the sort control says what each order
   // ALPHABETICAL, both ways, over the WHOLE result and not just the page on screen: the first
   // card is the alphabetically first quiz design in the catalog.
   const names = await page.evaluate(async () => {
-    const { allTemplateMeta } = await import('/src/templates/templateMeta.ts');
+    const { allTemplateMeta } = await __noacgImport('/src/templates/templateMeta.ts');
     return allTemplateMeta()
       .map(({ meta }) => meta)
       .filter((m) => m.category === 'poll-quiz' && m.subtype === 'quiz-question')

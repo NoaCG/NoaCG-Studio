@@ -21,9 +21,9 @@ import { settleDurableWrites } from './_durable';
  *  SPX graphic must carry, so validateTemplate (and therefore publishGate) refuses it. */
 async function seedBrokenAndValid(page: import('@playwright/test').Page) {
   return page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { createShowNamed, addGraphicToShow, loadShows } = await import('/src/model/shows.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const { createShowNamed, addGraphicToShow, loadShows } = await __noacgImport('/src/model/shows.ts');
     const good = variantsFor('lower-third')[0].create({});
     const broken = { ...good, name: 'Broken L3', html: good.html.replace(/SPXGCTemplateDefinition/g, 'NotADefinition') };
     const okDoc = createGraphic({ ...good, name: 'Fine L3' }, { name: 'Fine L3' }).doc;
@@ -43,9 +43,9 @@ test('publishControlShow and the production builders refuse an invalid graphic, 
   await settleDurableWrites(page);
 
   const verdicts = await page.evaluate(async ({ badId, fineId }) => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    const { publishControlShow } = await import('/src/control/hostedControl.ts');
-    const { buildShowZipFor, buildShowZip } = await import('/src/export/showExport.ts');
+    const { loadShows } = await __noacgImport('/src/model/shows.ts');
+    const { publishControlShow } = await __noacgImport('/src/control/hostedControl.ts');
+    const { buildShowZipFor, buildShowZip } = await __noacgImport('/src/export/showExport.ts');
     const bad = loadShows().find((s) => s.id === badId)!;
     const fine = loadShows().find((s) => s.id === fineId)!;
     const attempt = async (fn: () => Promise<unknown>) => {

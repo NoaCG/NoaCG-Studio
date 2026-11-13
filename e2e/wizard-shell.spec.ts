@@ -330,8 +330,8 @@ test('a cold entry from the landing page paints nothing under the wizard', async
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const { saveProject } = await import('/src/model/project.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
+    const { saveProject } = await __noacgImport('/src/model/project.ts');
     const s = useTemplateStore.getState();
     saveProject(s.template, s.baseline, { graphicId: null, dirty: false });
   });
@@ -468,9 +468,9 @@ test('opened for a production that names a brand, the chooser has that brand cho
   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
   await awaitDurableReady(page);
   const ids = await page.evaluate(async () => {
-    const { createLook } = await import('/src/model/packets.ts');
-    const { createShowNamedChecked, setShowBrand } = await import('/src/model/shows.ts');
-    const { PALETTES } = await import('/src/model/wizard.ts');
+    const { createLook } = await __noacgImport('/src/model/packets.ts');
+    const { createShowNamedChecked, setShowBrand } = await __noacgImport('/src/model/shows.ts');
+    const { PALETTES } = await __noacgImport('/src/model/wizard.ts');
     const brand = (name: string, palette: (typeof PALETTES)[number]) =>
       createLook(name, { styleTag: 'minimal', palette, fontId: null, customFont: null });
     brand('Other Brand', PALETTES[1]);
@@ -516,9 +516,9 @@ test('a deep link builds in the brand in force, and a fresh open takes none from
   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
   await awaitDurableReady(page);
   const ids = await page.evaluate(async () => {
-    const { createLook } = await import('/src/model/packets.ts');
-    const { createShowNamedChecked, setShowBrand } = await import('/src/model/shows.ts');
-    const { PALETTES } = await import('/src/model/wizard.ts');
+    const { createLook } = await __noacgImport('/src/model/packets.ts');
+    const { createShowNamedChecked, setShowBrand } = await __noacgImport('/src/model/shows.ts');
+    const { PALETTES } = await __noacgImport('/src/model/wizard.ts');
     const palette = PALETTES.find((p) => p.id === 'signal')!;
     const look = createLook('Signal Brand', { styleTag: 'minimal', palette, fontId: null, customFont: null });
     const { show } = createShowNamedChecked('Brand Show');

@@ -180,7 +180,7 @@ test('the rundown is the only list: the last cue takes its graphic with it', asy
   await expect(rows).toHaveCount(1);
   const poolCount = () =>
     page.evaluate(async () => {
-      const { loadShows } = await import('/src/model/shows.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
       return loadShows()[0].graphics.length;
     });
   expect(await poolCount()).toBe(1);
@@ -257,9 +257,7 @@ test('the playout panel stays whole on a short screen — it caps and scrolls it
   // Publishing is offline here, so seed every slug a real publish mints, so the panel shows its
   // published sections (outputs, the browser source with its URL).
   await page.evaluate(async () => {
-    const { loadShows, setShowHostedSlug, setShowOutputSlug, setShowAudienceSlugs } = await import(
-      '/src/model/shows.ts'
-    );
+    const { loadShows, setShowHostedSlug, setShowOutputSlug, setShowAudienceSlugs } = await __noacgImport('/src/model/shows.ts');
     const id = loadShows()[0].id;
     setShowHostedSlug(id, 'demo-slug');
     setShowOutputSlug(id, 'demo-output');
@@ -411,7 +409,7 @@ test('the header shows a two-word production name in full on a school laptop, an
     route.fulfill({ status: 200, contentType: 'text/csv', headers: { 'access-control-allow-origin': '*' }, body: 'Name,Value\nName,Ann Lee\n' }),
   );
   const refused = await page.evaluate(async (showId: string) => {
-    const { setShowHostedSlug, noteShowOutputOpened, connectShowSource } = await import('/src/model/shows.ts');
+    const { setShowHostedSlug, noteShowOutputOpened, connectShowSource } = await __noacgImport('/src/model/shows.ts');
     setShowHostedSlug(showId, 'demo-slug');
     noteShowOutputOpened(showId);
     const source = { id: 's1', kind: 'sheet' as const, label: 'Studio guests', config: { sheetId: 'sheet-1', gid: null, shape: 'values' as const } };
@@ -490,7 +488,7 @@ test('the /output page answers honestly offline and builds a stage from a payloa
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const result = await page.evaluate(async () => {
-    const { createOutputStage } = await import('/src/output/stage.ts');
+    const { createOutputStage } = await __noacgImport('/src/output/stage.ts');
     const root = document.createElement('div');
     document.body.appendChild(root);
     const graphic = (key: string) => ({
@@ -548,7 +546,7 @@ test('a dropped recovery RPC is retried, and only an answer is ever concluded fr
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const result = await page.evaluate(async () => {
-    const { untilAnswered } = await import('/src/control/hostedControl.ts');
+    const { untilAnswered } = await __noacgImport('/src/control/hostedControl.ts');
 
     // A failure is retried until it answers, backing off by doubling.
     const waits: number[] = [];
@@ -656,7 +654,7 @@ test('every graphic gets its own playout layer, typed, and it is what the output
   // Distinct on arrival: 20, then the next free number. Nothing to repair, nothing to warn about.
   const layerOf = (name: string) =>
     page.evaluate(async (n) => {
-      const { loadShows, graphicLayer } = await import('/src/model/shows.ts');
+      const { loadShows, graphicLayer } = await __noacgImport('/src/model/shows.ts');
       const g = loadShows()[0].graphics.find((x: { name: string }) => x.name === n)!;
       return graphicLayer(g);
     }, name);
@@ -701,8 +699,8 @@ test('every graphic gets its own playout layer, typed, and it is what the output
   // stage turns into a z-index — the two halves of "the higher number wins".
   const payload = await page.evaluate(async () => {
     const [{ buildOutputPayload }, { loadShows }] = await Promise.all([
-      import('/src/control/hostedControl.ts'),
-      import('/src/model/shows.ts'),
+      __noacgImport('/src/control/hostedControl.ts'),
+      __noacgImport('/src/model/shows.ts'),
     ]);
     const p = await buildOutputPayload(loadShows()[0]);
     return p.graphics.map((g: { key: string; layer?: number }) => [g.key, g.layer]);
@@ -857,7 +855,7 @@ test('a published production reads SHOW; an unpublished one says so and offers n
 
   // Fake a published record (the wire itself is backend-gated and lives on the live checklist).
   await page.evaluate(async () => {
-    const { loadShows, setShowHostedSlug } = await import('/src/model/shows.ts');
+    const { loadShows, setShowHostedSlug } = await __noacgImport('/src/model/shows.ts');
     setShowHostedSlug(loadShows()[0].id, 'demo-slug');
   });
   // Wait for the database, not just the mirror - a reload fired now aborts the write that
@@ -876,7 +874,7 @@ test('a published production reads SHOW; an unpublished one says so and offers n
   // Taking the output URL is what makes the heartbeat a real question. Recorded on the show
   // record, so it survives the reload the way the slug does.
   await page.evaluate(async () => {
-    const { loadShows, noteShowOutputOpened } = await import('/src/model/shows.ts');
+    const { loadShows, noteShowOutputOpened } = await __noacgImport('/src/model/shows.ts');
     noteShowOutputOpened(loadShows()[0].id);
   });
   await settleDurableWrites(page);
@@ -891,7 +889,7 @@ test('the action log reads commands as operator language, and drops the bookkeep
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const result = await page.evaluate(async () => {
-    const { describeLogRow, appendLogEntries, logTime } = await import('/src/control/eventLog.ts');
+    const { describeLogRow, appendLogEntries, logTime } = await __noacgImport('/src/control/eventLog.ts');
     const label = (id: string) => (id === 'cue-a' ? 'Anna Andersson' : null);
     const row = (id: number, graphic: string, msg: unknown) => ({ id, graphic, msg, created_at: '2026-08-04T09:15:30.000Z' });
     const say = (id: number, graphic: string, msg: unknown) => describeLogRow(row(id, graphic, msg) as never, label);
@@ -938,7 +936,7 @@ test('a cue is live per LAYER, not per production', async ({ page }) => {
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const result = await page.evaluate(async () => {
-    const { readLiveCue, withLiveCue } = await import('/src/control/hostedControl.ts');
+    const { readLiveCue, withLiveCue } = await __noacgImport('/src/control/hostedControl.ts');
     // Format 1 (migration 0031): one cue, on the layer its own `graphic` names.
     const migrated = readLiveCue({ cue: 'cue-a', graphic: 'Bug', at: '2026-01-01T00:00:00.000Z' });
     // Format 2 (migration 0034): the per-layer map.
@@ -1108,7 +1106,7 @@ test('a published production offers the SPX template file beside its output URL'
   // Fake the published record - publishing itself is backend-gated and lives on the live
   // checklist; what this spec is about is the door the two capabilities open in the UI.
   await page.evaluate(async () => {
-    const { loadShows, setShowHostedSlug, setShowOutputSlug } = await import('/src/model/shows.ts');
+    const { loadShows, setShowHostedSlug, setShowOutputSlug } = await __noacgImport('/src/model/shows.ts');
     const id = loadShows()[0].id;
     setShowHostedSlug(id, 'demo-slug');
     setShowOutputSlug(id, 'demo-output');
@@ -1174,7 +1172,7 @@ test('pictures upload straight into the rundown: one cue each, one layer, and th
   // rows therefore carry the SAME number — and it is not a clash, because it is one graphic.
   const poolCount = () =>
     page.evaluate(async () => {
-      const { loadShows } = await import('/src/model/shows.ts');
+      const { loadShows } = await __noacgImport('/src/model/shows.ts');
       return loadShows()[0].graphics.length;
     });
   expect(await poolCount()).toBe(1);
@@ -1306,7 +1304,7 @@ test('a match clock survives a renderer reboot: the wire carries the instant the
     '<div class="scoreboard"><span id="f0">HOME</span>'
     + '<span class="scoreboard-clock" id="f5" data-count="down" data-start="12:00">12:00</span></div>';
   const wire = await page.evaluate(async (html) => {
-    const w = await import('/src/control/matchClockWire.ts');
+    const w = await __noacgImport('/src/control/matchClockWire.ts');
     const spec = w.clockSpecFromHtml(html);
     const T = 1_755_600_000_000;
     return {
@@ -1358,7 +1356,7 @@ test('a resend of the cue’s own clock value keeps the origin, so half time ban
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const walk = await page.evaluate(async () => {
-    const w = await import('/src/control/matchClockWire.ts');
+    const w = await __noacgImport('/src/control/matchClockWire.ts');
     // sb09's clock: counts DOWN from 10:00.
     const clock = { field: 'f5', countsDown: true, seed: '10:00', resetTo: '10:00' };
     const T = 1_755_600_000_000;
@@ -1425,7 +1423,7 @@ test('the clock walks a whole match through the log: start, bump, stop, restart,
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const walk = await page.evaluate(async () => {
-    const w = await import('/src/control/matchClockWire.ts');
+    const w = await __noacgImport('/src/control/matchClockWire.ts');
     const clock = { field: 'f5', countsDown: false, seed: '0:00', resetTo: '0:00' };
     const T = 1_755_600_000_000;
     const at = (mins: number) => new Date(T + mins * 60_000).toISOString();
@@ -1515,8 +1513,8 @@ test('a debate’s two clocks survive a renderer reboot: the stamp says which on
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const walk = await page.evaluate(async () => {
-    const w = await import('/src/control/matchClockWire.ts');
-    const { CATALOG } = await import('/src/templates/catalog.ts');
+    const w = await __noacgImport('/src/control/matchClockWire.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
     // The REAL design's markup, not a fixture: what is asserted here is that the reader finds
     // what the emitter writes, and a hand-written fixture could only ever agree with itself.
     let dc01 = null as null | { create: (o: Record<string, never>) => { html: string } };
@@ -1656,8 +1654,8 @@ test('the debate board itself reads a stamped clock: it opens mid-speech and kee
   await page.keyboard.press('Escape');
   const result = await page.evaluate(`(async () => {
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-    const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { CATALOG } = await __noacgImport('/src/templates/catalog.ts');
+    const { composeDocument } = await __noacgImport('/src/preview/composeDocument.ts');
     let variant = null;
     for (const list of Object.values(CATALOG)) {
       const hit = (list || []).find((v) => v.id === 'dc01');
@@ -1727,7 +1725,7 @@ test('a renderer that has never reported boots from the START of the log, not it
   await page.goto('/app');
   await page.keyboard.press('Escape');
   const plan = await page.evaluate(async () => {
-    const r = await import('/src/control/outputRecovery.ts');
+    const r = await __noacgImport('/src/control/outputRecovery.ts');
     const graphics = ['Scorebug', 'Lower third'];
     const snap = (p: { followFrom: number; snapshotAt: Map<string, number> }) => ({
       followFrom: p.followFrom,

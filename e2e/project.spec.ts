@@ -50,7 +50,7 @@ test('project autosave: the working graphic survives a reload', async ({ page })
   await expect(page.locator('.wz-modal')).toBeHidden();
   await expect(page.getByTestId('home-page')).toBeVisible();
   const restored = await page.evaluate(async () =>
-    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.html);
+    (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().template.html);
   expect(restored).toContain('autosave-marker-42');
 });
 
@@ -64,9 +64,9 @@ test('the wizard door is on every /app surface, beside Home', async ({ page }) =
   // a fifth surface until 2026-09-24; no route renders it any more (no-old-editor.spec.ts).
   await page.goto('/app');
   const ids = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { createShowNamed, addGraphicToShow } = await import('/src/model/shows.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createGraphic } = await __noacgImport('/src/model/library.ts');
+    const { createShowNamed, addGraphicToShow } = await __noacgImport('/src/model/shows.ts');
     const template = variantsFor('lower-third')[0].create({});
     const { doc, error } = createGraphic(template, { name: 'Door test', packageId: null });
     if (error || !doc) throw new Error(error ?? 'seed failed');
@@ -175,7 +175,7 @@ test('the wizard mounts the same door: a guarded start-over mid-walk, the inert 
   // (store/saveActions.ts hasUnsavedWork, e2e/new-graphic-guard.spec.ts). `keepGalleryOpen`, as
   // the wizard's own applies do: a plain apply closes the wizard this test is standing in.
   await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useTemplateStore } = await __noacgImport('/src/store/templateStore.ts');
     const s = useTemplateStore.getState();
     s.applyTemplate({ ...s.template, css: `${s.template.css}\n/* an edit */\n` }, { keepGalleryOpen: true });
   });

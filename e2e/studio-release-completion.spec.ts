@@ -28,8 +28,8 @@ async function rehearsal(page: Page) {
   await page.goto('/app#/home');
   await expect(page.getByTestId('home-page')).toBeVisible();
   const seeded = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createShowNamedChecked, addGraphicToShow, loadShows, setShowOutputSetup } = await import('/src/model/shows.ts');
+    const { variantsFor } = await __noacgImport('/src/templates/catalog.ts');
+    const { createShowNamedChecked, addGraphicToShow, loadShows, setShowOutputSetup } = await __noacgImport('/src/model/shows.ts');
     const made = createShowNamedChecked('Release rehearsal');
     if (made.error) throw new Error(made.error);
     setShowOutputSetup(made.show.id, { v: 1, destinations: [{ id: 'casparcg', profile: 'casparcg' }] });
@@ -66,7 +66,7 @@ test('multiple media and a whole folder add without closing the picker or moving
   await expect(page.getByTestId('playout-picker')).toBeVisible();
   await expect(page.locator(`[data-row="${question}"]`)).toHaveClass(/selected/);
   const result = await page.evaluate(async id => {
-    const s = (await import('/src/model/shows.ts')).loadShows().find(s => s.id === id)!;
+    const s = (await __noacgImport('/src/model/shows.ts')).loadShows().find(s => s.id === id)!;
     return { names: s.playoutItems!.map(i => i.name), cues: s.cues!.slice(3).map(c => s.playoutItems!.find(i => i.id === c.sourceId)!.name), audio: s.playoutItems!.find(i => i.mediaKind === 'audio') };
   }, id);
   expect(result.names).toHaveLength(5);
@@ -81,7 +81,7 @@ test('multiple media and a whole folder add without closing the picker or moving
 test('picture Fit is the default, Stretch persists, and a live edit applies only at the next Take', async ({ page }) => {
   const { id, bridge } = await rehearsal(page);
   await page.evaluate(async id => {
-    (await import('/src/model/shows.ts')).addPlayoutItem(id, { adapter: 'casparcg', kind: 'media', mediaKind: 'still', name: 'G1/PHOTO', channel: 2 });
+    (await __noacgImport('/src/model/shows.ts')).addPlayoutItem(id, { adapter: 'casparcg', kind: 'media', mediaKind: 'still', name: 'G1/PHOTO', channel: 2 });
   }, id);
   await settleDurableWrites(page);
   await page.locator('.pd-cue', { hasText: 'G1/PHOTO' }).getByTestId('select-cue').click();
@@ -113,7 +113,7 @@ test('a refused bulk save keeps the selected media available for retry and never
   await page.locator('.pd-picker-select').filter({ hasText: 'INSERT 1' }).click();
   await page.locator('.pd-picker-select').filter({ hasText: 'INSERT 2' }).click({ modifiers: ['Shift'] });
   await page.evaluate(async () => {
-    const { durable } = await import('/src/model/durableStore.ts');
+    const { durable } = await __noacgImport('/src/model/durableStore.ts');
     const original = durable.setItem;
     durable.setItem = (key, value) => { if (key === 'spx-gfx-shows') throw new Error('Injected full store'); original(key, value); };
     (window as unknown as { restoreBatchStore: () => void }).restoreBatchStore = () => { durable.setItem = original; };
@@ -134,7 +134,7 @@ test('older Bridge cannot silently stretch a default Fit picture', async ({ page
   bridge.features = ['state', 'playback', 'sequence'];
   bridge.capabilities = ['state', 'end', 'fade', 'trim', 'level', 'sequence'];
   await page.evaluate(async id => {
-    (await import('/src/model/shows.ts')).addPlayoutItem(id, { adapter: 'casparcg', kind: 'media', mediaKind: 'still', name: 'G1/PHOTO', channel: 2 });
+    (await __noacgImport('/src/model/shows.ts')).addPlayoutItem(id, { adapter: 'casparcg', kind: 'media', mediaKind: 'still', name: 'G1/PHOTO', channel: 2 });
   }, id);
   await settleDurableWrites(page);
   await page.reload();
@@ -155,7 +155,7 @@ test('older Bridge cannot silently stretch a default Fit picture', async ({ page
 test('Refresh lives inside Add and reports local workspace without affecting selection or output', async ({ page }) => {
   const { id, question, bridge } = await rehearsal(page);
   await page.evaluate(async ({ id, question }) => {
-    const { addShowCue, loadShows } = await import('/src/model/shows.ts');
+    const { addShowCue, loadShows } = await __noacgImport('/src/model/shows.ts');
     const source = loadShows().find(show => show.id === id)!.cues!.find(cue => cue.id === question)!.sourceId;
     for (let i = 0; i < 35; i++) addShowCue(id, source);
   }, { id, question });
@@ -211,7 +211,7 @@ test('Refresh retrieves a newer personal rundown, flushes a draft, and exposes a
   });
   const { id, question, bridge } = await rehearsal(page);
   await expect.poll(() => rows.get(id)?.body.cues?.length, { timeout: 20000 }).toBe(1);
-  await expect.poll(async () => page.evaluate(async () => JSON.stringify((await import('/src/backend/syncController.ts')).getSyncState())), { timeout: 20000 }).toContain('"phase":"synced"');
+  await expect.poll(async () => page.evaluate(async () => JSON.stringify((await __noacgImport('/src/backend/syncController.ts')).getSyncState())), { timeout: 20000 }).toContain('"phase":"synced"');
   const remote = structuredClone(rows.get(id)!);
   remote.body.updatedAt = new Date(Math.max(Date.now(), Date.parse(remote.body.updatedAt) + 1)).toISOString();
   remote.body.cues!.push({ ...remote.body.cues![0], id: '00000000-0000-4000-8000-000000000002', label: 'QUESTION FROM OTHER LAPTOP' });

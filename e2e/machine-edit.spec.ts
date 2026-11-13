@@ -17,12 +17,12 @@ import { MILLIONAIRE } from './_machines';
  *  the binding afterwards. `edit` runs against the parsed data with the module's mutators. */
 const HARNESS = `
   async function machineTemplate() {
-    const { runtimeJs } = await import('/src/templates/shared/base.ts');
-    const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
-    const { replaceDefinitionInHtml } = await import('/src/model/spxDefinition.ts');
-    const { DEFAULT_SETTINGS } = await import('/src/model/types.ts');
-    const { createBlankTemplate } = await import('/src/templates/blank.ts');
-    const { spxSteps } = await import('/src/blocks/animMachine.ts');
+    const { runtimeJs } = await __noacgImport('/src/templates/shared/base.ts');
+    const { emitAnimRegion } = await __noacgImport('/src/templates/shared/animRuntime.ts');
+    const { replaceDefinitionInHtml } = await __noacgImport('/src/model/spxDefinition.ts');
+    const { DEFAULT_SETTINGS } = await __noacgImport('/src/model/types.ts');
+    const { createBlankTemplate } = await __noacgImport('/src/templates/blank.ts');
+    const { spxSteps } = await __noacgImport('/src/blocks/animMachine.ts');
     const def = ${JSON.stringify(MILLIONAIRE)};
     const settings = { ...DEFAULT_SETTINGS, description: def.name, steps: String(spxSteps(def.data)) };
     const shell = '<!DOCTYPE html>\\n<html>\\n<head>\\n</head>\\n<body>\\n' + def.html + '\\n</body>\\n</html>';
@@ -33,8 +33,8 @@ const HARNESS = `
   }
   /** The binding's health, as a plain object a test can assert on. */
   async function bindingOf(data) {
-    const { validateMachine, spxSteps } = await import('/src/blocks/animMachine.ts');
-    const { isAnimData } = await import('/src/blocks/animData.ts');
+    const { validateMachine, spxSteps } = await __noacgImport('/src/blocks/animMachine.ts');
+    const { isAnimData } = await __noacgImport('/src/blocks/animData.ts');
     const main = data.machine.groups[0];
     return {
       shapeOk: isAnimData(data),
@@ -55,8 +55,8 @@ test('adding a step under a machine keeps the path bound and the graphic walkabl
   await toApp(page);
   const result = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { addStep } = await import('/src/blocks/animEdit.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { addStep } = await __noacgImport('/src/blocks/animEdit.ts');
     const tpl = await machineTemplate();
     const before = parseAnimData(tpl.js);
     const after = addStep(before);
@@ -76,8 +76,8 @@ test('duplicating and renaming keep names in step without ever moving a state id
   await toApp(page);
   const result = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const { duplicateStep, renameStep } = await import('/src/blocks/animEdit.ts');
+    const { parseAnimData } = await __noacgImport('/src/blocks/animData.ts');
+    const { duplicateStep, renameStep } = await __noacgImport('/src/blocks/animEdit.ts');
     const tpl = await machineTemplate();
     const data = parseAnimData(tpl.js);
 
@@ -110,8 +110,8 @@ test('an off-shape machine blocks export instead of shipping to air unchecked', 
   await toApp(page);
   const result = await page.evaluate(`(async () => {
     ${HARNESS}
-    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
-    const { animDataFault } = await import('/src/blocks/animData.ts');
+    const { validateTemplate } = await __noacgImport('/src/validation/validateTemplate.ts');
+    const { animDataFault } = await __noacgImport('/src/blocks/animData.ts');
     const tpl = await machineTemplate();
 
     // Corrupt the machine the way a hand edit would: a transition to a state that isn't there.

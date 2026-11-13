@@ -52,7 +52,7 @@ test('create with the HyperFrames engine -> stub generation -> live preview rend
 
   // The project records the engine and holds the composition in `html`.
   const stored = await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     const p = useVideoProjectStore.getState().project;
     return { engine: p.engine, hasHtml: p.html.includes('data-composition-id'), tsx: p.tsx };
   });
@@ -69,7 +69,7 @@ test('clip windows are framework-owned: a late clip is hidden at frame 0 and sho
 
   // Replace the document with one where a second clip starts at 2s (frame 60 at 30fps).
   await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     const s = useVideoProjectStore.getState();
     const secs = s.project.durationInFrames / s.project.fps;
     s.setSource(`<!doctype html>
@@ -139,7 +139,7 @@ test('composition variables edit live in the Content panel (set-vars, no reload)
 
   // The value lives on the project (it rides into the composed render document too).
   const stored = await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     return useVideoProjectStore.getState().project.inputs.find((i) => i.key === 'title')?.value;
   });
   expect(stored).toBe('PLAYOFFS');
@@ -153,7 +153,7 @@ test('manual code edits update the preview; a broken document keeps the last goo
 
   // A hand-written valid document replaces the sample.
   await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     const s = useVideoProjectStore.getState();
     const secs = s.project.durationInFrames / s.project.fps;
     s.setSource(`<!doctype html>
@@ -177,7 +177,7 @@ test('manual code edits update the preview; a broken document keeps the last goo
   // Break the contract (no timeline registration): the error banner appears with the
   // teaching message, and the last good document keeps rendering.
   await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     useVideoProjectStore.getState().setSource('<html><body><div>broken</div></body></html>');
   });
   await expect(page.getByTestId('video-code-error')).toBeVisible({ timeout: 5_000 });
@@ -190,7 +190,7 @@ test('chat refinement applies an undoable change to the document', async ({ page
   await waitForGeneration(page);
 
   const before = await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     return useVideoProjectStore.getState().project.html;
   });
 
@@ -200,7 +200,7 @@ test('chat refinement applies an undoable change to the document', async ({ page
   await expect(page.getByTestId('video-chat')).toContainText('snappier', { timeout: 10_000 });
 
   const after = await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     return useVideoProjectStore.getState().project.html;
   });
   expect(after).not.toBe(before);
@@ -208,7 +208,7 @@ test('chat refinement applies an undoable change to the document', async ({ page
   // Undo reverts BOTH the code and the chat turn (one snapshot).
   await page.keyboard.press('Control+z');
   const reverted = await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     return useVideoProjectStore.getState().project.html;
   });
   expect(reverted).toBe(before);
@@ -227,7 +227,7 @@ test('reload restores the HyperFrames project; export offers composition.html', 
   await awaitVideoPreview(page);
   await expect(player(page).getByText('GAME ON')).toBeVisible({ timeout: 10_000 });
   const engine = await page.evaluate(async () => {
-    const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
+    const { useVideoProjectStore } = await __noacgImport('/src/store/videoProjectStore.ts');
     return useVideoProjectStore.getState().project.engine;
   });
   expect(engine).toBe('hyperframes');
@@ -255,7 +255,7 @@ test('the offline rule blocks real network loads without blocking XML namespaces
   // URLs inside comments pass, every genuine remote load still fails.
   await page.goto('/app');
   const results = await page.evaluate(async () => {
-    const { staticValidateHyperframes } = await import('/src/video/hyperframes/validate.ts');
+    const { staticValidateHyperframes } = await __noacgImport('/src/video/hyperframes/validate.ts');
     const settings = { width: 1920, height: 1080, fps: 30, durationInFrames: 150, transparent: false };
     const doc = (body: string, head = '') =>
       `<!doctype html><html lang="en"><head><style>body{margin:0}${head}</style></head><body>
@@ -285,7 +285,7 @@ test('a comment saying the composition avoids a banned API is not a use of it', 
   // as the xmlns bug above. Both halves are pinned: the comment passes, the real call fails.
   await page.goto('/app');
   const results = await page.evaluate(async () => {
-    const { staticValidateHyperframes } = await import('/src/video/hyperframes/validate.ts');
+    const { staticValidateHyperframes } = await __noacgImport('/src/video/hyperframes/validate.ts');
     const settings = { width: 1920, height: 1080, fps: 30, durationInFrames: 150, transparent: false };
     const doc = (script: string, body = '<div>x</div>') =>
       `<!doctype html><html lang="en"><head><style>body{margin:0}</style></head><body>
@@ -314,7 +314,7 @@ test('a declared variable nothing reads is rejected as a control that would do n
   // Binding is deterministic and checkable, so the platform checks it.
   await page.goto('/app');
   const results = await page.evaluate(async () => {
-    const { staticValidateHyperframes } = await import('/src/video/hyperframes/validate.ts');
+    const { staticValidateHyperframes } = await __noacgImport('/src/video/hyperframes/validate.ts');
     const settings = { width: 1920, height: 1080, fps: 30, durationInFrames: 90, transparent: false };
     const doc = (vars: string, body: string, css = '') =>
       `<!doctype html><html lang="en" data-composition-variables='${vars}'>
