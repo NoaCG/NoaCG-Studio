@@ -5,6 +5,10 @@
 // imported in-page (Vite serves source), no UI is driven.
 
 import { test, expect } from '@playwright/test';
+import { installDoor } from './_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 const MEASURED = {
   inMs: 1000,

@@ -20,6 +20,10 @@ import { test, expect, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { dropSvg, intoProduction } from './_svg-import';
+import { installDoor } from './_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // THE QUIZ ON AIR, THE SAME WAY ON EVERY BOARD (owner production test, 2026-09-22).
 //

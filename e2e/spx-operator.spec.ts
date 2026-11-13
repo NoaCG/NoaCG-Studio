@@ -5,6 +5,10 @@ import { test, expect, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { lowerThirdPng } from './_png';
 import { dropSvg, intoProduction } from './_svg-import';
+import { installDoor } from './_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // What an SPX operator meets with a NoaCG package, pinned from the real-server walk
 // (docs/SPX_ON_A_REAL_SERVER.md §2): the layer each graphic lands on, which files SPX's template

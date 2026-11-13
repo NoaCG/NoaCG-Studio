@@ -8,6 +8,10 @@
 import { test, expect } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFile } from 'node:fs/promises';
+import { installDoor } from './_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // The FREE OGRAF STARTERS page (/ograf, docs/OGRAF.md) - a broadcaster's ask: editable base packages,
 // not from-scratch authoring. Three properties are load-bearing:

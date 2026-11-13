@@ -23,6 +23,10 @@
 import { test, expect, type Page } from '@playwright/test';
 import { finishIntoNewEditor } from './_create';
 import { chooseType, pickDesign } from './_browse';
+import { installDoor } from './_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // THE QUIZ SHOW SET: a quiz board whose answer count is a FIELD, a two-player score, and the
 // three game-show looks they ship in (sticker, showtime, arcade).

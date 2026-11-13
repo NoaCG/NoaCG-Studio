@@ -8,6 +8,10 @@
 // covers: src/preview/settleGraphic.ts, src/components/home/measureCue.ts, src/preview/measureDocument.ts, src/output/placeOnOutput.ts, src/output/stage.ts, src/output/main.ts, src/control/cueAdjust.ts, src/control/cueStyle.ts, src/preview/composeDocument.ts
 
 import { test, expect, type Page, type Route } from '@playwright/test';
+import { installDoor } from './_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 type Rect = { x: number; y: number; w: number; h: number };
 type Measured = { info: Rect | null; paint: Rect | null; minText: number | null } | null;

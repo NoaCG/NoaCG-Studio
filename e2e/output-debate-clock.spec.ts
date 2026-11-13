@@ -7,6 +7,10 @@
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
+import { installDoor } from './_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 const BACKEND = 'https://debate.supabase.test';
 const CONFIG_MODULE = `

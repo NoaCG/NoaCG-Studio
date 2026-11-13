@@ -4,6 +4,10 @@
 import { test, expect, type Page } from '@playwright/test';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { pickDesign } from './_browse';
+import { installDoor } from './_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 /** One sample per animation frame: what `#root` held, and whether the wizard was in it. */
 interface WizardFrame {

@@ -12,6 +12,10 @@ import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { bootstrapGraphic } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
+import { installDoor } from './_door';
+
+// This file also runs in pages that are not the app (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 const MANIFEST = JSON.parse(readFileSync(new URL('../scripts/fixtures/ograf-typed/stranger.ograf.json', import.meta.url), 'utf8')) as Record<string, unknown>;
 
