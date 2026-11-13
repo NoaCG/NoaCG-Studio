@@ -50,7 +50,7 @@
       "launchedAt": "2026-11-13T13:33:11Z",
       "note": "sent brief = saved brief plus one NOTES line (#2474 and #2454 folded in; amended D9; #2493 landing alongside)",
       "pr": 2500,
-      "lastSeen": "2026-11-13T14:52Z PR #2500 at 27c15ffa, Codex clean, waiting on CI; main moved (fix #2489) so a merge and review round remain"
+      "lastSeen": "2026-11-13T15:23Z builder active, new head c96cb3e0 (merged main with fix #2489); account seven-day usage shows allowed_warning"
     }
   ],
   "owner": [
