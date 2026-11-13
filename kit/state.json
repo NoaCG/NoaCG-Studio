@@ -42,18 +42,11 @@
   ],
   "inFlight": [
     {
-      "phase": "OS5b",
-      "step": "check",
-      "actor": "checker-os5b-6031",
-      "session": "session_017SdbwLe14wgXHEJiYFda6j",
-      "branch": "claude/plan-obs-scenes-os5b-build",
-      "launchedAt": "2026-11-13T00:27:00Z",
-      "note": "sent brief = saved brief plus one NOTES line (B17 to B22 extension, private sample passed, two open test nits)",
-      "lastSeen": "2026-11-13T00:26Z merged as c92910f; checker launched",
-      "pr": 2472,
-      "reviewedHead": "50b5ac478ac661a2a9a2e3a45590c2265a6625a8",
-      "builderSession": "session_017SdbwLfFjQ7J6hawcwSs7M",
-      "mergeSha": "c92910f4df3b4e958d54dc2d6e690651fb4b4389"
+      "phase": "OS2",
+      "step": "owner",
+      "actor": "owner",
+      "launchedAt": "2026-11-12T21:24:30Z",
+      "note": "receipt in; waiting on two owner answers (always-preview, dock sign-in test) before evidence lands and OS1b starts"
     }
   ],
   "owner": [
