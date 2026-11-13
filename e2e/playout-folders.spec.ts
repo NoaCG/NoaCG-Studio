@@ -430,7 +430,7 @@ test('OBS scenes: a graphic added to a second scene becomes its copy, Take and O
       return {
         scenes: (payload.scenes ?? []).map((s) => `${s.name}: ${s.graphics.join(', ')}`),
         built: payload.graphics.map((g) => g.key).includes('Hairline · Desk'),
-        exported: Object.keys(zip.files).filter((f) => f.includes('Desk')).length > 0,
+        exported: Object.keys(zip.files).some((f) => f.endsWith('/hairline_desk/hairline_desk.html')),
       };
     }, id);
   expect(await shipped()).toEqual({ scenes: ['Gameplay: Hairline', 'Desk: Score, Hairline · Desk'], built: true, exported: true });
