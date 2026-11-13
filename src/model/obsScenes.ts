@@ -31,6 +31,12 @@ export function obsScenesOf(show: Pick<Show, 'obsScenes' | 'folders' | 'cues' | 
   return sceneMembers(show).map(([id, cues]) => ({ id, name: folders.get(id) ?? '', graphics: [...new Set(cues.map((c) => names.get(c.sourceId)!))] }));
 }
 
+/** Each scene's graphic and picture cues, by scene id, in rundown order: C1's reading, for the Live
+ *  dock's Take and Out (OS6 K4). Empty while the switch is off. */
+export function sceneCueMap(show: Pick<Show, 'obsScenes' | 'folders' | 'cues' | 'graphics'>): Map<string, NonNullable<Show['cues']>> {
+  return new Map(sceneMembers(show));
+}
+
 /** A scene's own output link: the production's output link with `&scene=<id>` (OS1a R5). */
 export function sceneLink(outputUrl: string, sceneId: string): string {
   const url = new URL(outputUrl);

@@ -15,6 +15,10 @@
 // own (a phone).
 // covers: src/components/control/PanelControl.tsx, src/control/panelRelay.ts, src/control/workerTicker.ts
 // covers: src/components/home/ProductionShell.tsx
+// covers: src/components/home/LiveDock.tsx
+//
+// The third test is the Live dock (docs/work-specs/obs-scenes/spec.md OS6 K2): beside a production
+// page that answers, Use here, a key run on the dock, and a reconnect shorter than the lease.
 
 import { test, expect, type WebSocketRoute } from '@playwright/test';
 import { haveCreds, openProductionTab, signIn, SUPABASE_URL } from './_helpers';
@@ -193,5 +197,92 @@ test('a hidden page keeps the panel; a page cut off lets go and, back online, ne
   expect(moved.page).toBe(onPhone.page);
   await expect(op.locator('.pd-cue.selected')).toContainText('Anna');
   await phoneContext.close();
+  await deck.close();
+});
+
+test('the Live dock beside a production page takes nothing, takes the panel with Use here, runs its keys, and keeps it through a reconnect (obs-scenes OS6 AC-11)', async ({ page, browser }) => {
+  test.setTimeout(300_000);
+  await publishTwoCues(page, `Panel Dock ${Date.now()}`);
+  const op = page;
+  await shutStatusPanel(op);
+  const deck = await pairPanel(op);
+  await answerPanel(op);
+  await op.getByTestId('panel-close').click();
+  await deck.hello();
+  const before = await deck.state((s) => s.where === 'production');
+
+  // The dock in OBS: a browser of its own, signed in, 300 px wide. Its Realtime sockets are routed
+  // so a cut closes them, as in the test above.
+  const showId = await productionIdOf(op);
+  const obs = await browser.newContext({ viewport: { width: 300, height: 800 } });
+  const sockets: WebSocketRoute[] = [];
+  let cut = false;
+  await obs.routeWebSocket(/\/realtime\/v1\/websocket/, (ws) => {
+    if (cut) {
+      void ws.close();
+      return;
+    }
+    sockets.push(ws);
+    ws.connectToServer();
+  });
+  const home = await obs.newPage();
+  await signIn(home);
+  const dock = await obs.newPage();
+  await dock.goto(`/app#/dock/${encodeURIComponent(showId)}`);
+  await home.close();
+  await expect(dock.getByTestId('live-dock')).toBeVisible({ timeout: 60_000 });
+
+  // K2: beside the production page that answers, the dock takes nothing and says who has it.
+  await expect(dock.getByTestId('panel-header-use-here')).toHaveAttribute('title', /^Production page answers the Stream Deck panel/, { timeout: 15_000 });
+  await dock.waitForTimeout(6_000);
+  expect((await deck.state()).page, 'the production page still answers').toBe(before.page);
+
+  // Use here moves it to the dock, and the production page says the Live dock has it.
+  await dock.getByTestId('panel-header-use-here').click();
+  await expect(dock.getByTestId('panel-header-status')).toHaveText('Panel ✓', { timeout: 15_000 });
+  await deck.hello();
+  const onDock = await deck.state((s) => s.page !== before.page, 'the dock answering');
+  expect(onDock.where).toBe('production');
+  expect(Number(onDock.claim)).toBeGreaterThan(Number(before.claim));
+  await expect(op.getByTestId('panel-header-use-here')).toHaveAttribute('title', /^Live dock answers the Stream Deck panel/, { timeout: 15_000 });
+
+  // A key runs on the dock's own page, and the dock shows the selection it moved.
+  const [anna, ben] = (await deck.rows()).map((r) => r.id);
+  expect((await deck.press('select-cue', ben, onDock.ver as number)).outcome).toBe('ran');
+  await expect(dock.getByTestId('dock-selected')).toHaveText('Selected: Ben');
+  await deck.state((s) => s.selected === ben, 'Ben selected on the dock');
+
+  // A reconnect: its network and sockets cut for less than the lease, then back. It still answers,
+  // under the same page and claim, and the production page took nothing meanwhile.
+  cut = true;
+  await obs.setOffline(true);
+  for (const ws of sockets.splice(0)) await ws.close();
+  await dock.waitForTimeout(8_000);
+  // The lease held through the cut: still answering at the server, and no page took the panel.
+  expect((await deck.hello()).answering, 'the lease outlives a cut shorter than it').toBe(true);
+  cut = false;
+  await obs.setOffline(false);
+  await expect(dock.getByTestId('panel-header-status')).toHaveText('Panel ✓', { timeout: 30_000 });
+  // Its sockets come back on the Realtime client's own backoff (up to about 10 s after the network),
+  // and a press broadcast before the dock has rejoined reaches no page, as for any production page.
+  // So the deck presses, as an operator would, until the rejoined dock runs one.
+  await expect
+    .poll(
+      async () => {
+        try {
+          return (await deck.press('select-cue', anna, (await deck.state()).ver as number)).outcome;
+        } catch {
+          return 'no answer yet';
+        }
+      },
+      { timeout: 60_000, intervals: [1_000] },
+    )
+    .toBe('ran');
+  await expect(dock.getByTestId('dock-selected')).toHaveText('Selected: Anna', { timeout: 15_000 });
+  const back = await deck.state((s) => s.selected === anna, 'Anna selected on the dock after the reconnect');
+  expect(back.page).toBe(onDock.page);
+  expect(back.claim).toBe(onDock.claim);
+  await expect(op.getByTestId('panel-header-use-here')).toHaveAttribute('title', /^Live dock answers the Stream Deck panel/);
+  await obs.close();
   await deck.close();
 });
