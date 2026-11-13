@@ -69,7 +69,7 @@
     {
       "phase": "E6C",
       "step": "Fresh Cloud export/receiving builder active",
-      "note": "E6Cworkeractive:18-caseLinuxprobe3knownpreE4raster-fitoverflows1\u20132pxabove55%floor; source/runtimehashidenticalat745c/1178. Precode63edfRiskyRules-firstAverified; broadsave/importseamrejected, narrowpureoutputhelper5sites+boundedmeasuredsolverapprovedONEcoherentimplementation. j0147PRETESTtmpcachefailurepreserved/resolved. No E4budgetreset,newmanualbundleorF4campaign;#775realhost5%stillunproven."
+      "note": "E6Cfirstcoherentfitcorrectionworkingdiff: Node4/4 andsmallj0149PASS2/2zero retry/skip12.6s, SAME18feasiblefontsstrictfit+2floorcases/max18reads; typographyallowance10%\u2192strictroom. Originalj148baselineFAIL3/18 andj147PRETEST retained. No postpatchfailure/broader/build/carrier; all5output/source-preservation+6target/G07kit evidence inprogress. E4budgets/stopboundaryunchanged."
     }
   ],
   "owner": [
@@ -2984,10 +2984,10 @@
     "policy": "Actualcurrentenvconnected/running/current/enforced; originalownerbindingseparate.9ddnativebindinganddd7128rawnetworkcomponentunchanged/distinct; noCLIaliasinvented.",
     "ack": "Supervisorobserve-launchdelivered; rootfollowup_taskSTARTUPACKresumedSAMEoriginalnativeactorafterstartupfinalended, no secondspawn.",
     "latestProgress": {
-      "at": "2026-11-13T15:14:21.075131+00:00",
+      "at": "2026-11-13T15:19:12.917562+00:00",
       "j0147": "PRETESTFAILED <1s/no browser/productassertions: initialstaticlistfailedonread-onlyPlaywright/tmptransformcache; non-failfastmultilineshellaccidentallycontinuedtoaddsmalljob. Originalrecord/logretained; ownedtmp+failfaststaticvalidationresolvedbeforej0148. No broader/buildspent/reset.",
       "j0148": {
-        "status": "REPRODUCED_REACHABLE_VARIANT",
+        "status": "FAILED_OLD_BASELINE_CONTAINMENT_3_OF_18; originalimmutable",
         "cases": 18,
         "overflowAboveFloor": 3,
         "observed": "Oswald4001044/1043px;Oswald7001045/1043;Saira7001091/1090",
@@ -3017,7 +3017,17 @@
         "rules": "Existing3proportionalpasses+max12measuredbisections,<=18geometryreads; observedfitlower/overflowupper/finalbracket<=original/4096,55%floor/maxauthoredtype; no wait/actionretry/test-threshold/capchange. ExactknownoldfullblockonceLF/CRLFonly; custom/newer/unknown/duplicate/partial/SVG/source/history/production/onairuntouched; idempotentpurehelperonlyderivedoutput5sites.",
         "architecture": "ExistingpermittedanimMigrationnamedpureexport/previewfacade; prepareOutRuntime/save/import/equivalenceunchanged; no architectureguardrelaxation."
       },
-      "rootImplementationAck": "ONEcoherentimplementationcheckpointauthorizedafteractualfreshmodelA+source/callsiteevidence. Same18strictfeasiblecases+separatefloorimpossiblecases/oldruntimecontrol/deterministicrefit/workbound/preservation/all5consumers; tightenexistingtypographyallowance; preserve/reportpostpatchfailurebeforefollowup. AnyconfirmedE4defectSTOP. No newmanualappbundleadmissionyet."
+      "rootImplementationAck": "ONEcoherentimplementationcheckpointauthorizedafteractualfreshmodelA+source/callsiteevidence. Same18strictfeasiblecases+separatefloorimpossiblecases/oldruntimecontrol/deterministicrefit/workbound/preservation/all5consumers; tightenexistingtypographyallowance; preserve/reportpostpatchfailurebeforefollowup. AnyconfirmedE4defectSTOP. No newmanualappbundleadmissionyet.",
+      "j0149": {
+        "result": "PASS2/2",
+        "seconds": 12.6,
+        "retries": 0,
+        "skips": 0,
+        "sourceState": "Firstcoherentproductworkingdiff,notfinalcommittedreviewhead",
+        "coverage": "SAME18loadedrealfontfeasiblecasesstrictwidth<=room,2separateimpossiblefloorcases,deterministicrefit/max18geometryreads; existinglongtextUIallowancetightenedroom*1.1toroom."
+      },
+      "firstPostPatchNode": "PASS4/4 exactLF/CRLF/custom/partial/duplicate/newer/unknown/SVG,preservation/idempotence/oracle+ES5; independenthintedwidtholdcontrolfailsasexpected.",
+      "implementationScope": "WorkingdiffonlytextFit/newnamedpureoutputhelper,5preview/render/exportsites,tightenedtypographytest,immutableoldruntimefixture+Nodetests; prepareOutRuntimebody/save/import/equivalence/storageunchanged. No postpatchfailure reported, broader/build/manualcarrier notadmitted. Targetpackages/G07evidenceandfinalcommit/review/gatesdue."
     }
   }
 }
