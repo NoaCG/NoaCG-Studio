@@ -56,10 +56,6 @@
     {
       "what": "OS7: rehearsal with failure drills",
       "where": "run issue hand-over after OS6"
-    },
-    {
-      "what": "OS1b question: should the production's uploaded Pictures graphic get a copy per OBS scene? Built default: no (one shared graphic and on-air state; library picture graphics do get copies)",
-      "where": "coordinator chat"
     }
   ],
   "fixes": [
@@ -118,7 +114,11 @@
   "decisions": [
     "2026-11-12 owner: switch off asks for confirmation when scene links are loaded (#2454).",
     "2026-11-12 owner: the landing hold is not a hard wall; the coordinator may lift it for one needed hotfix and set it again at once; nothing unnecessary lands in a window.",
-    "2026-11-12 owner: \"Fine.\" to the OS5a defaults (a NoaCG-read JSON source is NoaCG's alone; it follows its own Pause)."
+    "2026-11-12 owner: \"Fine.\" to the OS5a defaults (a NoaCG-read JSON source is NoaCG's alone; it follows its own Pause).",
+    {
+      "what": "Production's uploaded Pictures graphic stays shared across OBS scenes (no copy per scene); library graphics get copies",
+      "owner": "2026-11-13: \"keep the default\""
+    }
   ],
   "pending": [
     {
