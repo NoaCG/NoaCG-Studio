@@ -205,7 +205,7 @@ test('OBS scene rows: loaded, connected, unknown, preview, program, seen, loaded
   await signIn(page);
   await page.keyboard.press('Escape');
   await clearPublishedShows(page);
-  await bootstrapGraphic(page, { name: 'Scene Strap' });
+  await bootstrapGraphic(page, { name: 'House Scorebug' });
   const showId = await openProductionWithCurrent(page, `Scenes ${Date.now()}`);
   await addCatalogGraphic(page, showId, 'Hairline');
   // Two scenes, one graphic each, the switch on: the record's own writers, then a fresh page.
@@ -240,8 +240,12 @@ test('OBS scene rows: loaded, connected, unknown, preview, program, seen, loaded
   // Gameplay's link loads: ready and connected, OBS unknown until its first event. An entry changes at
   // most once per 10 s (the Presence budget), so each reading may take that long.
   const gameplay = await openLink(browser, link(scenes.a));
-  await expect(state(scenes.a)).toHaveText('Ready, connected', { timeout: 45_000 });
-  await expect(row(scenes.a)).toHaveAttribute('data-tone', 'ok');
+  // The row reads the link's own READY words: green, or amber where this host could not fetch a
+  // typeface (the first test's rule), never Not loaded.
+  const fontsOk = ((await readyOf(gameplay))?.is ?? []).every((i) => i.k !== 'font');
+  const ready = fontsOk ? 'Ready, connected' : /^Using a fallback font/;
+  await expect(state(scenes.a)).toHaveText(ready, { timeout: 45_000 });
+  await expect(row(scenes.a)).toHaveAttribute('data-tone', fontsOk ? 'ok' : 'warn');
   await expect(row(scenes.a).getByTestId('obs-scene-obs')).toHaveText('OBS: unknown');
   // It is the scene's row that speaks for it, not a line in the Outputs list.
   await expect(panel.getByTestId('ready-output')).toHaveCount(0);
@@ -258,7 +262,7 @@ test('OBS scene rows: loaded, connected, unknown, preview, program, seen, loaded
   await expect(state(scenes.a)).toHaveText('Loaded twice', { timeout: 45_000 });
   await expect(row(scenes.a)).toHaveAttribute('data-tone', 'warn');
   await twice.context().close();
-  await expect(state(scenes.a)).toHaveText('Ready, connected', { timeout: 60_000 });
+  await expect(state(scenes.a)).toHaveText(ready, { timeout: 60_000 });
 
   // Switching OBS scenes off while a link is loaded asks first, naming how many go empty; Cancel
   // keeps it on (#2454).
