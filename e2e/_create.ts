@@ -99,7 +99,7 @@ export async function bootstrapGraphic(page: Page, spec: string | CreateSpec = '
       };
     }
     const store = useTemplateStore.getState();
-    store.applyTemplate(structuredClone(built.template), { resetSampleData: true });
+    store.applyTemplate(built.template, { resetSampleData: true });
     useDocKindStore.getState().setKind('spx');
     // A NAMED brand, and the default pointer at it - the anonymous record Create used to
     // write is retired (model/brand.ts). This is what makes the wizard's footer chooser
@@ -109,7 +109,7 @@ export async function bootstrapGraphic(page: Page, spec: string | CreateSpec = '
     // it is committed below before this bootstrap returns: a spec that reloads soon after
     // would otherwise come back to an empty look list about one time in three, and read as
     // the chooser being broken (e2e/AGENTS.md, the durable-seed hazard).
-    const made = createLook(built.look.name, structuredClone(built.look.brand));
+    const made = createLook(built.look.name, built.look.brand);
     setDefaultBrand(made.id);
 
     // The production autosaver intentionally waits 800 ms, but this direct bootstrap can
