@@ -5,13 +5,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { LAZY, registrySource, specImports } from './e2e-module-registry.mjs';
 
-test('reads each literal source import once, in any quote, and leaves a ?t= second copy out', () => {
+test('reads each literal source import once, through import() or the door, in any quote, and leaves a ?t= second copy out', () => {
   const found = specImports([
     "await import('/src/store/templateStore.ts'); await import(\"/src/model/library.ts\")",
     'await import(`/src/store/templateStore.ts`); await import(\'/src/model/id.ts?t=\' + Date.now())',
     'await import("/src/components/ExportWindow.tsx")',
+    "await __noacgImport('/src/model/brand.ts')",
   ]);
-  assert.deepEqual(found, ['/src/components/ExportWindow.tsx', '/src/model/library.ts', '/src/store/templateStore.ts']);
+  assert.deepEqual(found, ['/src/components/ExportWindow.tsx', '/src/model/brand.ts', '/src/model/library.ts', '/src/store/templateStore.ts']);
 });
 
 test('imports the rest statically and only the side-effecting modules behind a function', () => {

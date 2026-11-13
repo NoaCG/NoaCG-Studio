@@ -27,7 +27,7 @@ import { type Page } from '@playwright/test';
  */
 export async function settleDurableWrites(page: Page): Promise<void> {
   const failure = (await page.evaluate(`(async () => {
-    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { commitDurableWrites } = await __noacgImport('/src/model/durableStore.ts');
     return await commitDurableWrites();
   })()`)) as string | null;
   if (failure) throw new Error(`a durable write was refused: ${failure}`);
@@ -44,7 +44,7 @@ export async function settleDurableWrites(page: Page): Promise<void> {
  */
 export async function awaitDurableReady(page: Page): Promise<void> {
   await page.evaluate(`(async () => {
-    const { hydrateDurableStore } = await import('/src/model/durableStore.ts');
+    const { hydrateDurableStore } = await __noacgImport('/src/model/durableStore.ts');
     await hydrateDurableStore();
   })()`);
 }

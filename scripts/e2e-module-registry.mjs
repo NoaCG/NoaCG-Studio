@@ -39,12 +39,12 @@ function files(dir) {
   });
 }
 
-/** Every literal `import('/src/….ts')` in the specs, without a query string (a `?t=` import asks
+/** Every literal `import('/src/….ts')` or `__noacgImport('/src/….ts')` in the specs, without a query string (a `?t=` import asks
  *  for a deliberate second copy, which only the dev server can serve). */
 export function specImports(texts) {
   const found = new Set();
   for (const text of texts) {
-    for (const m of text.matchAll(/import\(\s*['"`](\/src\/[\w./-]+\.tsx?)['"`]\s*\)/g)) found.add(m[1]);
+    for (const m of text.matchAll(/(?:\bimport|__noacgImport)\(\s*['"`](\/src\/[\w./-]+\.tsx?)['"`]\s*\)/g)) found.add(m[1]);
   }
   return [...found].sort();
 }

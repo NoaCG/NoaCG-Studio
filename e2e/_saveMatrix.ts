@@ -94,15 +94,15 @@ export const errors = (page: Page) => page.evaluate(() => window.matrix?.errors 
 export const releasable = (page: Page) => expect.poll(() => page.evaluate(() => window.matrix.releases.filter(Boolean).length)).toBe(1);
 export const release = (page: Page) => page.evaluate(() => window.matrix.releases[0]());
 
-export const library = (page: Page) => page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics());
-export const link = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().saved);
-export const flush = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).flushPendingProject());
+export const library = (page: Page) => page.evaluate(async () => (await __noacgImport('/src/model/library.ts')).loadGraphics());
+export const link = (page: Page) => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).useTemplateStore.getState().saved);
+export const flush = (page: Page) => page.evaluate(async () => (await __noacgImport('/src/store/templateStore.ts')).flushPendingProject());
 /** The source a record should hold, compared without its name (a save names it). */
 export const body = (t: { name?: string }) => ({ ...t, name: '' });
 
 export async function commandEdit(page: Page, thenClick?: string) {
   await page.evaluate(async thenClick => {
-    const { activeEditorCommands } = await import('/src/components/editorFoundation/commandAdapter.ts');
+    const { activeEditorCommands } = await __noacgImport('/src/components/editorFoundation/commandAdapter.ts');
     const c = activeEditorCommands(), i = c.inspect();
     if (!i.ok) throw Error(i.refusal.message);
     const result = c.apply({ expected: i.expected, transactionId: crypto.randomUUID(), commands: [{ id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 640 + Math.round(Math.random() * 200), y: 120, width: 80, height: 80 } } }] });

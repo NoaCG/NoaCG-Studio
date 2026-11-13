@@ -588,7 +588,7 @@ const helpersFor = (changed) => (changed.some((f) => /^e2e\/_/.test(f)) ? helper
 /**
  * WHAT THE CATALOG GATE MEASURES THROUGH, read off its specs rather than listed (cicd-improvement
  * ci04). The calibration gate (`playwright.catalog.config.ts`, e2e/catalog/) renders every design
- * by importing source INTO THE PAGE - `await import('/src/templates/catalog.ts')`,
+ * by importing source INTO THE PAGE - `await __noacgImport('/src/templates/catalog.ts')` (or `import(`),
  * `/src/preview/composeDocument.ts`, the bench - and its Node side imports more: helpers that build
  * packages through src/export (e2e/_ografParity.ts) and scripts whose text feeds assertions
  * (scripts/rules.mjs). A file in either closure can move a catalog measurement, so its change
@@ -650,7 +650,7 @@ export function catalogReachOf(specs, readFile) {
     }
     // Page imports are named from the app root, and only from the Node side.
     if (file.startsWith('src/')) continue;
-    for (const m of code.matchAll(/\bimport\(\s*['"`]\/(src\/[^'"`?]+)/g)) {
+    for (const m of code.matchAll(/\b(?:import|__noacgImport)\(\s*['"`]\/(src\/[^'"`?]+)/g)) {
       if (read(m[1]) === null) return null;
       pageImports = true;
       add(m[1]);

@@ -154,7 +154,7 @@ export async function mockClaude(
  */
 export async function expectOfflineAi(page: Page): Promise<void> {
   const configured = await page.evaluate(async () => {
-    const { aiConfigured } = await import('/src/ai/settings.ts');
+    const { aiConfigured } = await __noacgImport('/src/ai/settings.ts');
     return aiConfigured();
   });
   expect(
