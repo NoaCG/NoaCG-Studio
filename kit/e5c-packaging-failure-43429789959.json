@@ -1,0 +1,38 @@
+{
+  "run": 43429789959,
+  "source": "8f8f1384dd5ef50cf87f0ad173dcb5549b67cdc0",
+  "wholeLogSha256": "f4fb6406abaedda4cebf6d25705d0f7910acab41339148066cbfff10480fbb8c",
+  "receipts": {
+    "Native helper failure receipt": {
+      "assertions": [
+        "wrong candidate refuses before server launch",
+        "inherited fake hosted/model configuration remains disabled",
+        "approved original F4 hash loads 30 rendered layers and 300 X/opacity keys",
+        "wrong fixture hash preserves nonempty source/history/sample/selection",
+        "wrong count with matching manifest hash refuses before any draft mutation",
+        "missing production marker refuses before preview",
+        "missing bundle receipt refuses before preview",
+        "stale production marker refuses before preview",
+        "altered bundle file refuses before preview",
+        "extra bundle file refuses before preview"
+      ],
+      "cleanup": true,
+      "error": "Error: expect(locator).toContainText(expected) failed\n\nLocator: getByTestId('import-template-card')\nExpected substring: \"F4\"\nReceived string:    \"Your templatef4 editable 1920 \u00d7 1080 \u00b7 25 fpsNo operator fields were found in this file, so there is nothing to type into on air. It can still be exported and played out as a fixed graphic.Read exact authored width, height, and frame rate from NoaCG project metadata.\u2715 Use a different file\"\nTimeout: 5000ms\n\nCall log:\n  - Expect \"to.have.text\" with timeout 5000ms\n  - waiting for getByTestId('import-template-card')\n    13 \u00d7 locator resolved to <div class=\"panel-section\" data-testid=\"import-template-card\">\u2026</div>\n       - unexpected value \"Your templatef4 editable 1920 \u00d7 1080 \u00b7 25 fpsNo operator fields were found in this file, so there is nothing to type into on air. It can still be exported and played out as a fixed graphic.Read exact authored width, height, and frame rate from NoaCG project metadata.\u2715 Use a different file\"\n",
+      "cleanupErrors": []
+    },
+    "Native qualification failure receipt": {
+      "startedAt": "2026-11-13T13:00:00.190Z",
+      "status": "failed",
+      "source": "8f8f1384dd5ef50cf87f0ad173dcb5549b67cdc0",
+      "retries": 0,
+      "skips": 0,
+      "capMinutes": 10,
+      "cleanup": false,
+      "buildStartedAt": "2026-11-13T13:00:00.195Z",
+      "buildCompletedAt": "2026-11-13T13:04:08.812Z",
+      "error": "Error: expect(locator).toContainText(expected) failed\n\nLocator: getByTestId('import-template-card')\nExpected substring: \"F4\"\nReceived string:    \"Your templatef4 editable 1920 \u00d7 1080 \u00b7 25 fpsNo operator fields were found in this file, so there is nothing to type into on air. It can still be exported and played out as a fixed graphic.Read exact authored width, height, and frame rate from NoaCG project metadata.\u2715 Use a different file\"\nTimeout: 5000ms\n\nCall log:\n  - Expect \"to.have.text\" with timeout 5000ms\n  - waiting for getByTestId('import-template-card')\n    13 \u00d7 locator resolved to <div class=\"panel-section\" data-testid=\"import-template-card\">\u2026</div>\n       - unexpected value \"Your templatef4 editable 1920 \u00d7 1080 \u00b7 25 fpsNo operator fields were found in this file, so there is nothing to type into on air. It can still be exported and played out as a fixed graphic.Read exact authored width, height, and frame rate from NoaCG project metadata.\u2715 Use a different file\"\n",
+      "finishedAt": "2026-11-13T13:04:20.826Z",
+      "elapsedMs": 260636
+    }
+  }
+}
