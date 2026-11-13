@@ -75,6 +75,10 @@ test('a host with no port is not a stack, however local it reads', () => {
   // `supabase start` always publishes a port. A bare `http://localhost` is something else
   // entirely - a proxy, a tunnel, a forwarder - and what sits behind it is unknown.
   assert.equal(configuredTarget({ VITE_SUPABASE_URL: 'http://localhost' }).kind, 'refused');
+  // Where the authority ENDS, as well as where it begins. A loopback host and port in the
+  // userinfo of somewhere else reads as local to a prefix match, and as evil.example to the URL
+  // parser the client uses - the same disagreement the staging comparison is pinned against.
+  assert.equal(configuredTarget({ VITE_SUPABASE_URL: 'http://localhost:54321@evil.example/rest/v1' }).kind, 'refused');
   assert.equal(configuredTarget({ VITE_SUPABASE_URL: 'https://localhost.example.com:443' }).kind, 'refused');
   assert.equal(configuredTarget({ VITE_SUPABASE_URL: 'http://127.0.0.1.example.com:54321' }).kind, 'refused');
   // The stack has to be where the URL BEGINS. The two above fail an unanchored pattern as well,
@@ -311,17 +315,23 @@ test('what the page serves is judged by the same rule, in THIS environment', () 
 });
 
 test('the walks\' own dev server pins every backend variable the rule reads', async () => {
-  // THE THIRD SERVER. The two offline Playwright configs pin their server's backend empty; the
-  // ograf walks start one themselves and pinned only the browser's pair, so the api/ handlers it
-  // mounts kept whatever the shell held - the same defect, one directory over, and nothing would
-  // have failed if it had stayed. The pins are an exported object so this reads the values the
-  // spawn is given, not the file's text: delete one and this goes red.
-  const { OFFLINE_BACKEND_PINS } = await import('./ograf-walk-common.mjs');
+  // THE THIRD SUITE SERVER. The two offline Playwright configs pin their server's backend empty;
+  // the ograf walks start one themselves and pinned only the browser's pair, so the api/ handlers
+  // it mounts kept whatever the shell held - the same defect, one directory over, and nothing
+  // would have failed if it had stayed. (Not the last server in the repository to spread this
+  // process's environment: scripts/ai-bench-server.mjs and scripts/ai-lite-compare.mjs do too,
+  // and neither is a configured or e2e run - the second signs the account in on purpose.)
+  //
+  // The whole env the spawn is given is built here, under a production-shaped environment, rather
+  // than read off the constant or matched in the source: the ORDER is the behaviour, and a
+  // reversed spread leaves every name in place and every pin dead.
+  const { walkServerEnv } = await import('./ograf-walk-common.mjs');
+  const served = walkServerEnv(CLOUD_WORKER);
   for (const name of [...URL_VARS, ...KEY_VARS]) {
-    assert.equal(OFFLINE_BACKEND_PINS[name], '', `${name} is read by the rule and not pinned for the walks' server`);
+    assert.equal(served[name], '', `${name} is read by the rule and reaches the walks' server`);
   }
-  // And the walk's server is given exactly those pins, not a list of its own beside them.
-  assert.match(file('scripts/ograf-walk-common.mjs'), /\.\.\.OFFLINE_BACKEND_PINS/);
+  // And it is the walk's server that gets it.
+  assert.match(file('scripts/ograf-walk-common.mjs'), /env: walkServerEnv\(\),/);
 });
 
 test('a run that mints a local stack pins every variable the rule reads', () => {

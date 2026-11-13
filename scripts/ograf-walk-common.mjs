@@ -111,7 +111,7 @@ export async function waitFor(url, what, timeoutMs = 90_000) {
  *
  * This is the BACKEND half of what playwright.config.ts pins, not the whole of it: that config
  * also pins the managed AI keys and the suite's own switches, which the walks do not need. Its
- * own exported object, so a test can read the values the spawn is given rather than the text.
+ * own exported object, applied by `walkServerEnv` below, which is what a test judges.
  */
 export const OFFLINE_BACKEND_PINS = {
   VITE_SUPABASE_URL: '',
@@ -121,6 +121,14 @@ export const OFFLINE_BACKEND_PINS = {
   SUPABASE_SECRET_KEY: '',
   SUPABASE_SERVICE_ROLE_KEY: '',
 };
+
+/**
+ * The environment the walk's dev server is actually given. A function rather than a spread at the
+ * call site because the ORDER is the whole behaviour: pins after the inherited environment, never
+ * before. A test that reads the constant, or matches the spread's spelling, cannot see that order
+ * reversed - and reversed, every pin is dead while the file still reads as if it pins.
+ */
+export const walkServerEnv = (env = process.env) => ({ ...env, ...OFFLINE_BACKEND_PINS, VITE_PREVIEW_DEBOUNCE_MS: '50' });
 
 /**
  * The app's dev server, with the pins above, so the walk never touches a developer's real backend
@@ -145,7 +153,7 @@ export async function startDevServer() {
   const child = startChild('npm', ['run', 'dev'], {
     cwd: root,
     shell: true,
-    env: { ...process.env, ...OFFLINE_BACKEND_PINS, VITE_PREVIEW_DEBOUNCE_MS: '50' },
+    env: walkServerEnv(),
   });
   await waitFor(`${appOrigin}/app`, 'the app dev server');
   return child;
