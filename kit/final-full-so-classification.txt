@@ -1,0 +1,3 @@
+**Classification addendum: Risky.** The Actions-only packaging command establishes source/bundle identity and passing, failed, unknown and cleanup outcomes. These are state rules under `known-traps.md`, regardless of the files’ documentation path.
+
+The recorded corrected Rules-first **AGREE/A** at `6eaae8d4a48a23a6f4b8f15a3c03aa998a851d93`, plus my final **FULL AGREE/A** at `ccbee6a775a189c732819128fd81ea5bdc55605f` covering all **74 paths**, satisfy the Risky row’s second-opinion checkpoints. The final PR/receipt should state **Risky**; other landing gates remain owed.
