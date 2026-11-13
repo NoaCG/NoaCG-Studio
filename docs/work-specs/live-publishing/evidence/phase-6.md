@@ -68,7 +68,7 @@ All three pass on the local stack (jobs j-0001 and j-0004):
 | Two publishers finishing in reverse order leave the newer save published | Pass: the older publish was held on the wire until the newer landed |
 
 The walk runs with both switches on (`production_copies` and `auto_publish`), as production has
-them; all three pass again on that setting (jobs j-0025, and j-0026 after the review fixes). The
+them; all three pass again on that setting (jobs j-0025, j-0026 after the review fixes, and j-0029 after the cleanups). The
 automatic publish's `fetch` goes through `answeredFetch`, which adds the production-copies build
 mark to every REST request, so the 0115 guard accepts it.
 
@@ -109,6 +109,9 @@ Not measured yet: a loop of design updates (owner question Q1).
 
 ## Traps met
 
+- This cloud shell's own variables name the hosted project. A configured job queued without the
+  local stack's file loaded runs against it, so the spec's service-role switch writes now run only
+  when the backend address is local (`LOCAL_STACK` in `publish-guard.spec.ts`).
 - The queue refuses a 12-minute cap without a reviewed admission; measurement jobs run at 5 minutes
   with 25 samples each and `--after` so two never share the dev server's port.
 - `MEASURE_BUILD=prod` needs `MEASURE_DIST`, a `vite build` made with the stack's variables.

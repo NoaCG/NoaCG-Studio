@@ -57,6 +57,10 @@ import {
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset - configured-mode spec');
 
+/** The switch writes below use the service key: they run only against a local stack, so a shell
+ *  whose variables name a hosted project can never turn a production setting. */
+const LOCAL_STACK = !!SERVICE_ROLE_KEY && /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(SUPABASE_URL);
+
 /** A catalog lower third, by its variant name (`bootstrapGraphic`), saved under that name. */
 const STRAP = 'Hairline';
 
@@ -379,7 +383,7 @@ test('a newer design on air stops the publish, and a publish landing in between 
 });
 
 test.describe('production copies (live-publishing W2)', () => {
-  test.skip(!SERVICE_ROLE_KEY || !SUPABASE_URL, 'the switch is a service-role write: needs the local stack keys');
+  test.skip(!LOCAL_STACK, 'the switch is a service-role write: only on a local stack, never a hosted project');
   test.afterEach(async () => {
     await setSwitch(false).catch(() => undefined);
   });
@@ -637,7 +641,7 @@ test.describe('production copies (live-publishing W2)', () => {
 });
 
 test.describe('automatic updates (live-publishing W4, AC-4)', () => {
-  test.skip(!SERVICE_ROLE_KEY || !SUPABASE_URL, 'the switch is a service-role write: needs the local stack keys');
+  test.skip(!LOCAL_STACK, 'the switch is a service-role write: only on a local stack, never a hosted project');
   const service = (path: string, init: { method?: string; body?: unknown; prefer?: string } = {}) =>
     fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
       method: init.method ?? 'GET',
