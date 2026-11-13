@@ -1,5 +1,6 @@
 import { validateCloudWorkerRequest } from './scripts/e2e-workers.mjs';
 import { defineConfig, devices } from '@playwright/test';
+import { DECLARATION, DEPLOYED_SITE } from './scripts/configured-target.mjs';
 
 // THE DEPLOYED SITE'S OWN SUITE - the tier nothing else in this repository covers.
 //
@@ -21,6 +22,14 @@ import { defineConfig, devices } from '@playwright/test';
 //
 // .github/workflows/deploy-verify.yml runs it on every production deployment and on the same
 // four-times-a-day schedule as the version check beside it.
+// WHAT THIS SUITE IS, in the words the shared backend guard reads (issue #2495). It shares
+// `e2e/configured/` with the suite that signs in and writes rows, so importing one of those spec
+// files reaches `_helpers.ts`, which refuses a backend a configured run does not own. Here the URL
+// is the deployed site ON PURPOSE and nothing is written, so the config declares itself rather
+// than being refused - a declaration the WRITING suite's own guard does not accept. An admin key
+// in the environment is still refused: nothing tagged `@production` needs one.
+process.env[DECLARATION] ??= DEPLOYED_SITE;
+
 const cloudLimits = validateCloudWorkerRequest();
 
 export default defineConfig({

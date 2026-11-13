@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertConfiguredTarget, configuredTarget, DECLARATION, describeTarget, HOSTED_STAGING } from './configured-target.mjs';
+import { assertConfiguredTarget, configuredTarget, DECLARATION, DEPLOYED_SITE, describeTarget, HOSTED_STAGING } from './configured-target.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const file = (name) => readFileSync(path.join(ROOT, name), 'utf8');
@@ -112,6 +112,47 @@ test('the description names the target and prints no key', () => {
   assert.doesNotMatch(describeTarget(configuredTarget(LOCAL_STACK)), /fake-service-role/);
 });
 
+test('a capital letter is not a disguise: hostnames fold before they are judged', () => {
+  // Hostnames are case-insensitive, so HTTPS://KPROL….supabase.co IS production. Folding matters
+  // most exactly where a declaration is present, because that is the one path that admits a
+  // hosted URL at all.
+  const shouted = 'HTTPS://KPROLRCHULDGFRZSPTHY.SUPABASE.CO';
+  assert.equal(configuredTarget({ VITE_SUPABASE_URL: shouted }).kind, 'refused');
+  assert.equal(configuredTarget({ VITE_SUPABASE_URL: shouted, [DECLARATION]: HOSTED_STAGING }).kind, 'refused');
+  assert.match(configuredTarget({ VITE_SUPABASE_URL: shouted, [DECLARATION]: HOSTED_STAGING }).reason, /PRODUCTION project/);
+  // And the other direction: a local stack shouted at is still a local stack.
+  assert.equal(configuredTarget({ VITE_SUPABASE_URL: 'HTTP://LOCALHOST:54321' }).kind, 'local');
+});
+
+test("the deployed site's own suite declares itself, and may not carry an admin key", () => {
+  // playwright.production.config.ts shares e2e/configured/ as its directory, so collecting it
+  // imports _helpers.ts; its URL is the deployed site on purpose and it writes nothing.
+  assert.equal(configuredTarget({ [DECLARATION]: DEPLOYED_SITE, PRODUCTION_URL: 'https://noacg.studio' }).kind, DEPLOYED_SITE);
+  const withKey = configuredTarget({ [DECLARATION]: DEPLOYED_SITE, SUPABASE_SERVICE_ROLE_KEY: 'fake-service-role' });
+  assert.equal(withKey.kind, 'refused');
+  assert.match(withKey.reason, /Unset it/);
+  assert.doesNotMatch(withKey.reason, /fake-service-role/);
+});
+
+test('the writing suite does not accept the deployed-site declaration, whoever set it', () => {
+  // The guard module admits it; the configured suite's own globalSetup then refuses it, so a
+  // shell that exports that word cannot point a signing-in, row-writing run at a hosted project.
+  const guard = file('e2e/_configured-guard.ts');
+  assert.match(guard, /target\.kind === DEPLOYED_SITE/);
+  assert.match(guard, /throw new Error\(/);
+});
+
+test('the live config carries the file keys the guard reads, not only the ones a spec reads', () => {
+  // A backend left only in the environment file is live for the api/ half (the Vite server copies
+  // it in) and invisible to a guard that reads process.env - so the config must backfill both
+  // spellings of the URL before the guard runs.
+  const config = file('playwright.live.config.ts');
+  const backfilled = config.slice(config.indexOf('for (const key of ['), config.indexOf('if (!process.env[key]'));
+  for (const name of ['VITE_SUPABASE_URL', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SECRET_KEY']) {
+    assert.ok(backfilled.includes(`'${name}'`), `${name} is checked by the guard but not loaded from the environment file`);
+  }
+});
+
 test('the guard is wired to every configured run and to the specs themselves', () => {
   // A guard nothing calls is the failure this test exists for.
   const config = file('playwright.live.config.ts');
@@ -128,4 +169,6 @@ test('the guard is wired to every configured run and to the specs themselves', (
   );
   // The one declared exception, in the one workflow that owns it.
   assert.match(file('.github/workflows/hosted-latency.yml'), /NOACG_CONFIGURED_TARGET: hosted-staging/);
+  // And the deployed site's suite, which declares itself in the config rather than in a shell.
+  assert.match(file('playwright.production.config.ts'), /process\.env\[DECLARATION\] \?\?= DEPLOYED_SITE;/);
 });

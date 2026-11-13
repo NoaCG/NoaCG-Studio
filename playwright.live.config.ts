@@ -18,6 +18,14 @@ for (const key of [
   'SUPABASE_SERVICE_ROLE_KEY',
   'VITE_SUPABASE_URL',
   'VITE_SUPABASE_ANON_KEY',
+  // The last two are here for the GUARD rather than for a spec. The Vite server this config
+  // starts copies every missing file key into its own environment (vite.config.ts) and mounts the
+  // real api/ handlers, which read SUPABASE_URL in preference to VITE_SUPABASE_URL (api/_lib/*),
+  // and two specs drive that server-side half in process. A value left only in the file would
+  // therefore be live for the api half and invisible to e2e/_configured-guard.ts, which reads
+  // process.env.
+  'SUPABASE_URL',
+  'SUPABASE_SECRET_KEY',
 ]) {
   if (!process.env[key] && fileEnv[key]) process.env[key] = fileEnv[key];
 }
@@ -29,8 +37,11 @@ for (const key of [
 //
 // Opt-in and secret-free: run with `npm run test:e2e:live`. The specs skip themselves when E2E_EMAIL /
 // E2E_PASSWORD are unset, so a public clone or a creds-less CI never runs them (and never needs the
-// secrets). They write real rows to the configured project and clean up after — point .env at a
-// test/staging Supabase project or a throwaway account, never a production tenant with real users.
+// secrets). They write real rows and clean up after, so since issue #2495 the BACKEND IS CHECKED
+// rather than advised: the run is refused unless it is pointed at a LOCAL stack of its own
+// (`supabase start`, which is what both CI jobs mint), whatever the environment file says. A
+// hosted project is no longer a legitimate target for a developer run - the rule, its one
+// declared exception and the incident behind it are in scripts/configured-target.mjs.
 const cloudLimits = validateCloudWorkerRequest();
 
 export default defineConfig({

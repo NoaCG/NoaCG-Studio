@@ -47,9 +47,23 @@ export const URL_VARS = ['SUPABASE_URL', 'VITE_SUPABASE_URL'];
 /** The admin credentials. Their presence is not what decides; they are named in the refusal. */
 export const KEY_VARS = ['SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SECRET_KEY'];
 
-/** The declaration that admits the one non-local target, and its only accepted value. */
+/**
+ * The declaration a non-local target must carry, and the two things it may say.
+ *
+ * `hosted-staging` is the staging project `hosted-latency.yml` measures real network latency
+ * against: a writing run, on a project the org owns and can empty.
+ *
+ * `deployed-site` is `playwright.production.config.ts`, which the config SETS ITSELF: that suite
+ * shares `e2e/configured/` as its directory but admits only `@production`-tagged tests, which sign
+ * in nowhere and write nothing. Its restriction is that `grep`, not this rule, so the URL is not
+ * checked - but an admin key has no business in the environment of a run against the deployed
+ * site, and one found there is refused. The strict gate every WRITING run passes
+ * (`e2e/_configured-guard.ts`) does not accept this declaration at all, so a shell that sets it
+ * cannot let the configured suite loose on a hosted project.
+ */
 export const DECLARATION = 'NOACG_CONFIGURED_TARGET';
 export const HOSTED_STAGING = 'hosted-staging';
+export const DEPLOYED_SITE = 'deployed-site';
 
 /**
  * The production project's ref, refused whatever else is set. `hosted-latency.yml` has carried the
@@ -62,7 +76,10 @@ export const NEVER_REFS = ['kprolrchuldgfrzspthy'];
 /** `supabase start` on this machine or this runner. A port is required: a bare host is not a stack. */
 const LOCAL = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\]):\d+(\/|$)/;
 
-const read = (env, name) => (env[name] ?? '').trim();
+// Hostnames are case-insensitive, and so is the scheme: `HTTPS://KPROLRCHULDGFRZSPTHY.supabase.co`
+// is the production project however it is typed. Every URL comparison below is made on the folded
+// value, so a capital letter cannot walk past either the local test or the refused ref.
+const read = (env, name) => (env[name] ?? '').trim().toLowerCase();
 
 /**
  * What this environment points a configured run at.
@@ -90,8 +107,14 @@ export function configuredTarget(env = process.env) {
     );
   }
 
-  if (declared !== '' && declared !== HOSTED_STAGING) {
-    return refuse(`${DECLARATION} is "${declared}"; the only value that admits a non-local backend is "${HOSTED_STAGING}".`);
+  if (declared !== '' && declared !== HOSTED_STAGING && declared !== DEPLOYED_SITE) {
+    return refuse(`${DECLARATION} is "${declared}"; the only values that admit a non-local backend are "${HOSTED_STAGING}" and "${DEPLOYED_SITE}".`);
+  }
+
+  if (declared === DEPLOYED_SITE) {
+    return keys.length > 0
+      ? refuse(`${DECLARATION}=${DEPLOYED_SITE} is the deployed site's own anonymous suite, and an admin key is in this environment (${keys.join(', ')}). Unset it: nothing that suite runs needs one.`)
+      : { kind: DEPLOYED_SITE, urls, declared, reason: '' };
   }
 
   if (urls.length === 0) {
@@ -113,6 +136,7 @@ export function configuredTarget(env = process.env) {
 /** A one-line description for a run's log; never prints a key, and a URL is a host, not a secret. */
 export function describeTarget(target) {
   if (target.kind === 'unconfigured') return 'no backend configured - the configured specs will skip themselves';
+  if (target.kind === DEPLOYED_SITE) return `${DEPLOYED_SITE}: the deployed site's anonymous suite, no admin key present`;
   return `${target.kind}: ${target.urls.map(([name, value]) => `${name}=${value}`).join(' ')}`;
 }
 

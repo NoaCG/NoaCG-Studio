@@ -16,9 +16,17 @@
 // writes nothing, and the run dies before a single test.
 //
 // The rules themselves, and the incident that bought them, are in scripts/configured-target.mjs.
-import { assertConfiguredTarget, describeTarget } from '../scripts/configured-target.mjs';
+import { assertConfiguredTarget, DECLARATION, DEPLOYED_SITE, describeTarget } from '../scripts/configured-target.mjs';
 
 export default async function configuredGuard(): Promise<void> {
   const target = assertConfiguredTarget(process.env, 'the configured suite');
+  // The deployed-site declaration belongs to playwright.production.config.ts, whose suite writes
+  // nothing. This one signs in and writes, so it is the local stack or a declared staging project
+  // and nothing else - otherwise a shell could set that word and point this suite anywhere.
+  if (target.kind === DEPLOYED_SITE) {
+    throw new Error(
+      `Refusing to start the configured suite: ${DECLARATION}=${DEPLOYED_SITE} is the deployed site's anonymous suite (playwright.production.config.ts). This suite signs in and writes rows, so it needs a local stack.`,
+    );
+  }
   console.log(`Configured backend - ${describeTarget(target)}`);
 }
