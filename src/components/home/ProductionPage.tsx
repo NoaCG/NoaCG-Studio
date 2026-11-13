@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
-import { sceneLink } from '../../model/obsScenes';
+import { sceneFolderIds, sceneGraphicNames, sceneLink } from '../../model/obsScenes';
 import { useTemplateStore } from '../../store/templateStore';
 import {
   deleteShowProfile,
@@ -159,7 +159,7 @@ import { publishedAdjustOf } from '../../control/hostedAdjust';
 import { formerReaders as storedFormerReaders, setFormerReaders as setStoredFormerReaders, setOwnReaderHolds } from '../../model/ownReaderHolds';
 import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/liveData';
 import { canonical } from '../../model/publishedRecord';
-import { droppedFields, updateCopyFromLibrary } from '../../model/shows';
+import { droppedFields, setSceneAirCues, updateCopyFromLibrary } from '../../model/shows';
 import { setCueSelection, setCueTyped, setCueTypedArgs, setCueTypedValues, setGraphicSounds } from '../../model/shows';
 import { forgetOwedCueEdit, keepOwedCueEdit, readOwedCueEdit } from '../../model/owedCueEdit';
 import ProductionSounds from './ProductionSounds';
@@ -799,6 +799,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // A getter, so the publish flow and the modules hold one stable `{ current }` (the compiler lint
   // reads a plain ref handed to the render-time publish call as read during render).
   const liveCueRef = useMemo(() => ({ get current() { return drawnLiveCue.current; } }), []);
+  // OBS scenes OS1b C10: a write never moves a cue on air to a scene's copy. The session's air part,
+  // not the paced copy the page draws, so a Take that landed a moment ago counts.
+  useEffect(() => {
+    setSceneAirCues(id, () => new Set(Object.values(liveCueOf(session.air.get())).filter((cue): cue is string => !!cue)));
+    return () => setSceneAirCues(id, null);
+  }, [session, id]);
   /** Each ⚡ button's last press and what it came to (control/pressFeedback.ts), dropped as soon as
    *  the session's `air` part puts another instance on its layer, an Out and a Take of the same cue
    *  included. */
@@ -3282,6 +3288,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     graphics: show.graphics,
     liveCue,
     layerPeers: layerPeersOf,
+    // OBS scenes OS1b C9: All out leaves the scene graphics of the record this page holds as they are.
+    sceneGraphics: () => sceneGraphicNames(show),
     answersOnOutput: (graphic) => isForeignGraphic(show.graphics.find((g) => g.name === graphic)?.template),
     liveLayers,
     livePlayoutLayers,
@@ -3388,7 +3396,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     playoutVerb,
     clearMisses,
     noteStep,
-    stopFolders: () => folderPlayout.stopAll('all-out'),
+    stopFolders: () => folderPlayout.stopAll('all-out', sceneFolderIds(show)),
     outUnnamed,
     clearThroughBridge,
     clearing: setClearing,

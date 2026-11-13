@@ -76,6 +76,10 @@ export interface SavedGraphic {
    *  place and size in this production, the default every cue of it inherits member by member.
    *  Meaningful only in a `Show.graphics` pool; read only through ./adjust.ts `readAdjust`. */
   adjust?: import('./adjust').AdjustRecord | { v: number; [later: string]: unknown };
+  /** ADDITIVE OPTIONAL (docs/work-specs/obs-scenes/spec.md OS1b C3): the pool id of the graphic this
+   *  one was copied from when a second OBS scene took it, so the next cue of that graphic added to
+   *  the same scene finds this copy. Meaningful only in a `Show.graphics` pool. */
+  sceneCopyOf?: string;
 }
 
 export interface Packet {
