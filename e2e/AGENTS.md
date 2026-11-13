@@ -6,9 +6,12 @@ sweeps) are in its "Running the suite: traps".
 
 ## Gotchas when writing a spec
 
-- **Offline mode and a reused server.** The suite pins offline mode via `webServer.env`, but
-  `reuseExistingServer: true` adopts a dev server already running on THIS checkout's port, with
-  the real `.env`. Kill that server first. Other worktrees' servers are harmless.
+- **Offline mode and a reused server.** The offline and catalog suites pin offline mode via
+  `webServer.env`, but `reuseExistingServer: true` adopts a dev server already running on THIS
+  checkout's port, with the real `.env`. Kill that server first. Other worktrees' servers are
+  harmless. The CONFIGURED suite does not adopt one (issue #2495): an adopted server decides where
+  the run writes, through the api/ handlers it mounts as well as the page, so a busy live port
+  stops that suite dead instead of misleading it.
 - **Stale modules.** After many edits the dev server can serve a stale module (HMR lag). If state
   reads disagree with the visible UI, restart it and reload before trusting them. A server that a
   Playwright config starts itself does not watch files (`NOACG_E2E_SERVER`, vite.config.ts), so

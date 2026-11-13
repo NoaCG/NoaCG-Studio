@@ -96,6 +96,22 @@ test('staging and production map to refs through supabase-projects, and the shel
   assert.equal(projectRefs({}, {}).production, '');
 });
 
+test('a SHOUTED production host still reads as the same project as a staging ref spelling it', async () => {
+  // Both refs are hostname labels, and the switch refuses a run that would change production while
+  // calling it staging by comparing them as strings. Folding one side and not the other let the
+  // pair disagree, so the refusal never fired and `staging on` would have flipped production's
+  // OAuth server and access-token hook (issue #2495). Fold either side back and this goes red.
+  const shouted = { ...FILE_ENV, VITE_SUPABASE_URL: `https://${PROD.toUpperCase()}.supabase.co`, STAGING_SUPABASE_PROJECT_REF: PROD };
+  const refs = projectRefs(shouted, {});
+  assert.equal(refs.production, PROD, 'the ref is the hostname label, in the case a hostname is read in');
+  assert.equal(refs.production, refs.staging, 'the two spellings name one project, so the switch must see one project');
+
+  const world = fakeWorld();
+  assert.equal(await main(['staging', 'on'], world.io({}, shouted)), 1);
+  assert.match(world.err.join('\n'), /REFUSED: staging and production name the same project/);
+  assert.deepEqual(world.calls, [], 'refused before it asked the API for anything');
+});
+
 test('on production: the project first, signing key, then emails, hook and OAuth server in that order, then 401 at the site', async () => {
   const world = fakeWorld();
   assert.equal(await main(['production', 'on'], world.io()), 0, world.err.join('\n'));

@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { requireLocalStack } from './scripts/configured-target.mjs';
 import { livePort } from './scripts/dev-port.mjs';
 
 // THE ENDURANCE RUN (docs/work-specs/playout-expanded-acceptance/spec.md, phase E8.1b): one walk of
@@ -8,9 +9,23 @@ import { livePort } from './scripts/dev-port.mjs';
 // that by hand only. It is in no other suite: its file is not a `.spec.ts`, so neither the offline
 // nor the configured config picks it up, and its one test lasts as long as the run.
 const minutes = Number(process.env.ENDURANCE_MINUTES ?? 5);
-// The local stack only: the walk publishes, writes and reads as a real production would.
-if (!/^http:\/\/(127\.0\.0\.1|localhost):/.test(process.env.VITE_SUPABASE_URL ?? '')) {
-  throw new Error('the endurance walk runs against a local Supabase stack only: start it through npm run endurance:election');
+// The local stack only: the walk publishes, writes and reads as a real production would, and the
+// dev server it drives mounts the api/ handlers, which read SUPABASE_URL and an admin key rather
+// than the spellings the browser uses. So it asks the configured suite's whole rule
+// (scripts/configured-target.mjs, issue #2495), not one variable of it: this file's own pattern
+// checked VITE_SUPABASE_URL alone and accepted a bare `http://localhost:` with no port, so an
+// ambient production SUPABASE_URL walked straight past it into the server.
+try {
+  // `requireLocalStack`, not the plain assertion: this walk signs in and deletes the account's
+  // productions before it builds an admin client, so it cannot take "no backend named here" for
+  // an answer the way the configured suite can - this config loads no environment file, and the
+  // Vite server it starts fills what this process left unset out of one.
+  requireLocalStack(process.env, 'the endurance walk');
+} catch (refusal) {
+  throw new Error(
+    `${(refusal as Error).message}\n\nStart the walk through npm run endurance:election, which takes every backend variable from the local stack.`,
+    { cause: refusal },
+  );
 }
 
 export default defineConfig({

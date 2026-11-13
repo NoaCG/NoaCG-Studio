@@ -215,11 +215,13 @@ node scripts/dev-port.mjs --release
 The next server start reserves a different port, skipping the occupied one automatically.
 
 **The e2e suite refuses to start ("something is already listening on port ...").**
-That guard is doing its job: Playwright runs with `reuseExistingServer: true`, so it would
-adopt whatever server is there along with whatever env it was started with. Stop your own dev
-server and re-run - `preview_stop` if the preview tools started it, otherwise stop the shell task
-running `npm run dev:worktree`. Servers in *other* worktrees are harmless - they are on their own
-ports.
+That guard is doing its job. For the offline suite, Playwright runs with
+`reuseExistingServer: true`, so it would adopt whatever server is there along with whatever env it
+was started with. The configured suite starts its own server instead (issue #2495, because an
+adopted one decides where the run writes), so a busy port stops it dead rather than misleading it.
+Either way: stop your own dev server and re-run - `preview_stop` if the preview tools started it,
+otherwise stop the shell task running `npm run dev:worktree`. Servers in *other* worktrees are
+harmless - they are on their own ports.
 
 **A worktree's port changed.**
 Expected in three cases: its preference was taken when it first reserved (session start says so -

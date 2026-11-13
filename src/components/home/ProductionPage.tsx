@@ -258,6 +258,7 @@ import { actionButtonFor } from './CueActions';
 import LiveControls, { type LiveBlockView } from './LiveControls';
 import { liveBlocks, liveNumberFields as liveNumbersOf, liveSelection, pickFields, pickOptions } from '../../control/liveControls';
 import ProductionShell from './ProductionShell';
+import LiveDock from './LiveDock';
 import ServerCueEditor from './ServerCueEditor';
 import FolderEditor from './FolderEditor';
 import { isImageAsset } from '../../assets/assetUtils';
@@ -610,7 +611,12 @@ type ReaderPlan = [
   boolean,
 ];
 
-export default function ProductionPage({ id, sub }: { id: string; sub?: ProductionSub | null }) {
+/**
+ * `dock`: the same page drawn as the LIVE DOCK, a 300 px column for an OBS Custom Browser Dock
+ * (docs/work-specs/obs-scenes/spec.md OS6 K1). Every hook, session and wire runs as on the full
+ * page; only the render at the end differs.
+ */
+export default function ProductionPage({ id, sub, dock = false }: { id: string; sub?: ProductionSub | null; dock?: boolean }) {
   const navigate = useRouter((s) => s.navigate);
   const goBack = useRouter((s) => s.goBack);
   // The mutators return the fresh list — holding it in state (the ControlPanel pattern) keeps
@@ -1706,26 +1712,37 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Sources the operator picked a current match on since this page's last read of them: that
    *  read takes the pick as new, so "None" then the held match recovers whatever the timing. */
   const freshPicks = useRef(new Set<string>());
+  /** An operator's write of one value to the tree: the current match's pick, and the Live dock's
+   *  break deadline (OS6 K7). Published, the tree is written with the production's data key; without
+   *  it the value would stay in this browser, so it is refused and said. Onto the newest tree, so a
+   *  write that landed since the last render keeps its value. */
+  const writeTree = useCallback(
+    (path: string, value: JsonValue, refused: string): boolean => {
+      const data = session.data.get();
+      if (hostedSlug && !data.dataKey) {
+        setNote(`${refused}: this page cannot write the production’s data yet.`);
+        return false;
+      }
+      setLiveData(setPath(data.liveData, path, value));
+      return true;
+    },
+    [session, hostedSlug, setLiveData],
+  );
   /** The operator's current match of a bracket source (OS5b, B11, B14): written to the tree, and
    *  this page's reader reads at once (another tab's at its next read). */
   const currentMatch = useMemo(
     () => ({
       get: (sourceId: string) => pickOf(getPath(liveDataRef.current, currentMatchPath(sourceId))),
       pick: (sourceId: string, matchId: string | null) => {
-        const data = session.data.get();
-        // Published, the tree is written with the production's data key; without it a pick would
-        // stay in this browser, so it is refused and said.
-        if (hostedSlug && !data.dataKey) {
-          setNote('The current match was not picked: this page cannot write the production’s data yet.');
+        freshPicks.current.add(sourceId);
+        if (!writeTree(currentMatchPath(sourceId), matchId ?? '', 'The current match was not picked')) {
+          freshPicks.current.delete(sourceId);
           return;
         }
-        freshPicks.current.add(sourceId);
-        // Onto the newest tree, so a write that landed since the last render keeps its value.
-        setLiveData(setPath(data.liveData, currentMatchPath(sourceId), matchId ?? ''));
         sourceStatus.poke(sourceId);
       },
     }),
-    [session, hostedSlug, setLiveData, sourceStatus],
+    [writeTree, sourceStatus],
   );
   const graphicsRef = useRef(show?.graphics);
   graphicsRef.current = show?.graphics;
@@ -2808,7 +2825,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // A hardware panel (docs/work-specs/hardware-panel-control/): fed below, once the page knows what it
   // shows. A server clip's clock moves in its store without re-rendering this page, so the answer
   // hears that part directly; it publishes only when a key would show a difference.
-  const panel = usePanelAnswer({ slug: hostedSlug, where: 'production', label: 'Production page', runs: PRODUCTION_PANEL_VERBS, auto: true });
+  const panel = usePanelAnswer({ slug: hostedSlug, where: 'production', label: dock ? 'Live dock' : 'Production page', runs: PRODUCTION_PANEL_VERBS, auto: true });
   const [panelOpen, setPanelOpen] = useState(false);
   const audienceInbox = useAudienceInbox(show);
   // While answering, the panel also hears the timing part, after the whole fold: a reading moves
@@ -4165,6 +4182,36 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       ),
     waiting: audienceInbox.waiting,
   };
+
+  if (dock) {
+    return (
+      <LiveDock
+        show={show}
+        setShows={setShows}
+        store={sourceStatus}
+        currentMatch={currentMatch}
+        ownReaders={ownReaders}
+        panel={panel}
+        published={!!hostedSlug}
+        // What the selection keys act on: the page's own selection, its first cue until one is picked.
+        selected={selectedFolder ? folderName(selectedFolder) : (selectedCue?.label ?? null)}
+        note={note}
+        now={now}
+        rows={scenePanel?.rows ?? null}
+        scenes={obsSceneList}
+        cueState={(cue) => ({ onAir: cueOnAirNow(cue), refused: stepBlocker(cue) })}
+        // K4: the press a Companion cue key makes, run only in the state its button says (Take off
+        // air, Out on air).
+        onPress={(cueId, onAir) => {
+          const cue = cues.find((c) => c.id === cueId);
+          if (cue && cueOnAirNow(cue) === onAir) return onVerb('take-cue', { repeat: false, cue: cueId });
+        }}
+        // K7: read from the tree, written through the current match's road.
+        deadlineValue={(path) => getPath(liveData, path)}
+        writeDeadline={(path, value) => writeTree(path, value, 'The break deadline was not set')}
+      />
+    );
+  }
 
   return (
     <ProductionShell
