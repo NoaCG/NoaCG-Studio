@@ -42,8 +42,8 @@
  ],
  "inFlight": {
   "phase": 6,
-  "step": "check: checker session_017SdbwNCHZ9zSRq66Lyn9V7 nonce 6-c-3476 on 7451fbba; fix-2494 measuring after merge",
-  "asOf": "2026-11-13T16:00Z"
+  "step": "repair 6-r-4907 (one repair); fix-2494 measuring",
+  "asOf": "2026-11-13T16:36Z"
  },
  "owner": [
   {
@@ -95,7 +95,13 @@
   {
    "2494": {
     "builder": "session_017SdbwM1Sfr4TFM9JYad473",
-    "nonce": "fix-2494-f-b962"
+    "nonce": "fix-2494-f-b962",
+    "landed": "a71607a977fa4b57db908a5a63fa589b977f551d (PR 2497)",
+    "archived": true,
+    "followups": [
+     "#2499",
+     "#2509"
+    ]
    },
    "2495": {
     "builder": "session_017SdbwPgzV8gKLZty4DAZn4",
@@ -140,6 +146,10 @@
   {
    "what": "Phase 6 AC-4 large fixture at 3 s cue edits: on 1502 p95 vs off 1168 (+334 ms) fails; typical +1.9 passes. Options: a fix output version switch in phase 6 (risky), b known gap judged at end of phase 7 with auto updates left off in production until then, c keep auto updates off for large productions until phase 7. Recommended b.",
    "state": "answered 2026-11-13: B A A B"
+  },
+  {
+   "what": "Phase 6 after #2497: auto updates publish only after editing pauses (~3 s). A accept, measure AC-4 at 5 s pace; B publish during continuous edits (Risky change); C record as gap to phase 7. Recommended A.",
+   "state": "pending, asked 2026-11-13T18:05Z"
   }
  ],
  "ownerDecisions": [
@@ -187,7 +197,8 @@
  "retro": [
   "Phase 1 used 9 /so sessions (1 full A, then 7 deltas B to B+ chasing stale docs one at a time, about 11 USD) before the final A. Builders should sweep the whole class of stale docs once before the first full /so (the traps file says fix every instance of a class in one checkpoint).",
   "Phase 3: the owner-approved fix (#2389) passed a full /so A yet lost an edit on reload; the independent checker caught it with a slowed send plus reload probe. Reload-in-the-window probes belong in every save-path brief.",
-  "Phase 5: Codex on each new head found four real playout defects after /so grade A (stale demand read dropping a Take, seed pruning, hold not released after swap, lost entrance across republish). Wait for Codex on the final head before the receipt, and ask for behaviour tests, not source checks. Builders read the block deadline as their own deadline; say it is renewed."
+  "Phase 5: Codex on each new head found four real playout defects after /so grade A (stale demand read dropping a Take, seed pruning, hold not released after swap, lost entrance across republish). Wait for Codex on the final head before the receipt, and ask for behaviour tests, not source checks. Builders read the block deadline as their own deadline; say it is renewed.",
+  "Phase 6: builder's single-pair AC-4 measurement (+1.9 ms) did not reproduce for the checker (+260 pooled, bimodal). Briefs for timing criteria must require several interleaved on/off pairs and report the spread."
  ],
  "archiveOnPass": "At each PASS, archive the builder child sessions too: list them by parent_session_id = the builder session (the /runs helper found 8 phase 1 /so sessions left open).",
  "phase3": {
@@ -201,7 +212,8 @@
  },
  "phase9Checklist": [
   "From fix #2388: on a real show, with a mouse and on a touch screen, type into a cue field and press Take (also Next, a quick button, a live number) at once: it airs with the typed text with no pause, and the text is still there after a reload straight after the press. In air-edit mode, a Take from elsewhere while typing keeps the typed text.",
-  "From the phase 3 repair: type, Take, then reload at once, with an output on a slow link: the typed text is kept and airs."
+  "From the phase 3 repair: type, Take, then reload at once, with an output on a slow link: the typed text is kept and airs.",
+  "#2494: on a large production two operators type continuously in cues while Takes go to hardware outputs: Takes stay prompt; cloud chip settles Synced within seconds of a pause (about 30 s with two tabs adopting each other's edits), never 'Not synced' for saved work; reload after a pause shows every edit."
  ],
  "mainChecks": "92e581a7: configured-suite 43092663800 green on re-run (attempt 2); CI 43092663612 re-run cancelled (attempt 2, superseded by main); the next phase 3 checker dispatches ci.yml on claude/check-92e581a per procedure",
  "ownerInfo": [
@@ -235,9 +247,9 @@
  },
  "block": {
   "epoch": 3,
-  "deadline": "2026-11-13T18:50:40Z"
+  "deadline": "2026-11-13T18:50:40.751Z"
  },
- "nextCheckin": "2026-11-13T18:40:00Z (block renewal before 18:50)",
+ "nextCheckin": "2026-11-14T06:20:00Z",
  "traps5": [
   "the job queue runs two browser jobs on one port and one account",
   "graphic frames are sandboxed (checker 5-c-b19d)"
@@ -254,7 +266,10 @@
    "#2502",
    "#2494 via PR 2497",
    "#2499"
-  ]
+  ],
+  "check1": "FAIL product 2026-11-13T16:34Z: typical AC-4 +260 ms p95 pooled (pairs +363,+358,+30,+15)",
+  "repairer": "session_017SdbwPN5wnqdEVb4x7Sjvw nonce 6-r-4907",
+  "migration0118": "held by post-landing 43457862020 (productions live); must apply in a later quiet window"
  },
  "incidents": [
   {
@@ -265,6 +280,7 @@
   }
  ],
  "notes": [
-  "2026-11-13T13:52Z fix-2494 PR 2497 head 3428c9c3 (Risky); waits for #2488 to land, then merges main and measures large fixture before/after. Tell builder session_017SdbwM1Sfr4TFM9JYad473 when #2488 lands."
+  "2026-11-13T13:52Z fix-2494 PR 2497 head 3428c9c3 (Risky); waits for #2488 to land, then merges main and measures large fixture before/after. Tell builder session_017SdbwM1Sfr4TFM9JYad473 when #2488 lands.",
+  "2026-11-13T17:20Z repair 6-r-4907: typical AC-4 noise is #2494's queued re-run (10 pairs: on p95 256 vs off 431, bootstrap -246..+133). Repairer prepares docs PR, waits for #2497 landing, then reruns 10 pairs. Tell both #2494 builder and repairer session_017SdbwPN5wnqdEVb4x7Sjvw when #2497 lands."
  ]
 }
