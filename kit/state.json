@@ -69,7 +69,7 @@
     {
       "phase": "E6C",
       "step": "Fresh Cloud export/receiving builder active",
-      "note": "E6Cproductde563: Node6/6,fit2/2,output7/7,ONEbroaderj15248/48PASS0retry/skip2.4min. Currentappcandidateattempt1FAIL gatecoverageguardannotation beforebuildtests/helper/bundle; fullfailure retained. Rootapprovedonlyexplicitpathheadercorrection+targetedguardproof/separatecommit; no2ndcarrieradmission. Product/state/E4 unchanged; E5C/E4 attempts stay spent."
+      "note": "E6C productde563 PASSNode6/6,fit2/2,output7/7,ONEbroader48/48. Packagingattempt1FAILcoverageheader retained; verifiedonly1line repairc456 passesactual472gatecoverage+5pathselection. RootprospectivelyauthorizedONEcorrectedsource currentcandidate attempt2 viaunchanged10minuteActions route beforedispatch; no thirdautomaticadmission/E4orE5Creset. Evidencekit/finalreview/CI/acceptance remain."
     }
   ],
   "owner": [
@@ -3098,6 +3098,18 @@
         "disposition": "WorkerSTOPACK/clean de563/no edits. Rootfetchedwholelogviaqualifiedconnector and supplied exact localfile. Explicitpaths correction proposed for review beforeedit; no gateweakening or automaticsecondcarrier. Alreadyadmittedbroaderj0152mayfinish."
       }
     },
-    "backstops": "2026-11-13 ~15:33 bothterminal: repair-wake0/0unattended20APIcalls; growthagesnoPRpastceiling128APIcalls. Actualremote main1178 unchanged15:35."
+    "backstops": "2026-11-13 ~15:33 bothterminal: repair-wake0/0unattended20APIcalls; growthagesnoPRpastceiling128APIcalls. Actualremote main1178 unchanged15:35.",
+    "coverageMetadataRepairCommit": "c456f647eb8a30839473fd93467f447a181f2dc1",
+    "manualCandidateRepairAdmission": {
+      "at": "2026-11-13T15:43:23.251334+00:00",
+      "status": "PROSPECTIVE_ONE_CORRECTED_SOURCE_ADMISSION_BEFORE_DISPATCH",
+      "source": "c456f647eb8a30839473fd93467f447a181f2dc1",
+      "sequence": "E6Ccurrentcandidate secondadmission, AFTERoneconcreteverifiedmetadatarepair; previousde563attempt1FAILretained unchanged, no samecommitrerun/no E5C3/3orE4reset",
+      "rootEvidence": "Root actualgitdiff EXACToneheaderline1+/1- expands3fullpaths/keepsother2; cleanworktree. ExistinggatecoveragePASS472gates/48checks424tests, actualgateplanfield-reference rowhittrueand5validpaths. NO app/runtime/helper/workflow/lock/assertion/parser/limitdelta de563\u2192c456.",
+      "need": "Firstattemptstoppedbeforebuildtests/nativehelper/bundle, so no usablecurrentcandidateexists. Correctedmetadata permitsunchangedrequirednormalbuild toreachremaininggates andqualifynewversion/sourcec456.",
+      "route": "UNCHANGED endurance.yml scriptqualify:editor-native-kit minutes10 local-supabasefalse; exactsourcepush+observeexisting first;ONEdispatch only; reconcileoriginalonunknownack; fullnormalbuild/helper/captures/ZIP/mandatorycleanupinsideexisting10 envelope.",
+      "limits": "No thirdadmission or automaticrepair authorized; any failure/incomplete reportBEFOREfurtheredits. Previouslyfullreadfailedsource/log/receipt retained. Broader1/1spent48/48PASS appliesunchangedproduct/no repeat. E4allspent/confirmedE4effectSTOP.",
+      "holdDisposition": "Narrowmetadatarepairverified; generalholdliftedforpreviouslyauthorized E6C evidenceZIP/manifest/docs staging on existingordinaryevidenceroute afterrules/normalguards, no app/buildinput changesor extraadmission. FinalFULLSO/check/CI/queue/exactmergefreshacceptance required."
+    }
   }
 }
