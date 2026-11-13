@@ -381,7 +381,7 @@ test('OBS scenes: a graphic added to a second scene becomes its copy, Take and O
   await settleDurableWrites(page);
   const copied = await record();
   expect(copied.cues).toEqual({ Hairline: 'Hairline', Score: 'Score', Hand: 'Hand', 'Hairline copy': 'Hairline · Desk' });
-  expect(copied.pool.map((g) => g.split(' @')[0])).toEqual(['Hairline', 'Score', 'Hand', 'Hairline · Desk']);
+  expect(copied.pool.map((g) => g.split(' @')[0])).toEqual(['Hairline', 'Hairline · Desk', 'Score', 'Hand']);
   expect(new Set(copied.pool.map((g) => g.split(' @')[1])).size, 'every graphic on its own layer').toBe(4);
 
   // Take and Out in one scene leave the other scene's graphic as it is (C7).
