@@ -1,0 +1,51 @@
+=== j-0121 npm run test:e2e -- e2e/e4-owner2.local/legacy.spec.ts
+=== cwd /workspace/noacg-editor-r1-5-e4-build
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/e4-owner2.local/legacy.spec.ts
+
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 15176 MB free (machine totals stand in for cgroup limits it could not read)
+[WebServer] (node:139856) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:139869) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:139966) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [chromium] › e2e/e4-owner2.local/legacy.spec.ts:7:1 › raw legacy production installation uses the supported read identity (3.1s)
+
+
+  1) [chromium] › e2e/e4-owner2.local/legacy.spec.ts:7:1 › raw legacy production installation uses the supported read identity 
+
+    Error: an unchanged supported legacy target must install without a concurrent-edit conflict
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 2
+    + Received  + 2
+
+      Object {
+    -   "error": "",
+    -   "status": "confirmed",
+    +   "error": "Error: Installation conflict: newer production edits were preserved. Inspect the production before continuing.",
+    +   "status": "failed",
+      }
+
+      35 |   writeFileSync(test.info().outputPath('raw-legacy.json'), JSON.stringify({ source: '63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf', seeded, before, result, after }, null, 2));
+      36 |   expect(after.find((s: { id: string }) => s.id === 'owner2-unrelated')).toEqual(seeded.raw[1]);
+    > 37 |   expect(result, 'an unchanged supported legacy target must install without a concurrent-edit conflict').toEqual({ status: 'confirmed', error: '' });
+         |                                                                                                          ^
+      38 | });
+      39 |
+        at /workspace/noacg-editor-r1-5-e4-build/e2e/e4-owner2.local/legacy.spec.ts:37:106
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/e4-owner2.local-legacy-raw-ea1a8-the-supported-read-identity-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/e4-owner2.local-legacy-raw-ea1a8-the-supported-read-identity-chromium/error-context.md
+
+  1 failed
+    [chromium] › e2e/e4-owner2.local/legacy.spec.ts:7:1 › raw legacy production installation uses the supported read identity 

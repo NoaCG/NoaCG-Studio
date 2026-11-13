@@ -1,0 +1,43 @@
+=== j-0120 npm run test:e2e -- e2e/new-graphic-guard.spec.ts:436
+=== cwd /workspace/noacg-editor-r1-5-e4-build
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/new-graphic-guard.spec.ts:436
+
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 15197 MB free (machine totals stand in for cgroup limits it could not read)
+[WebServer] (node:139559) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:139572) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:139681) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [chromium] › e2e/new-graphic-guard.spec.ts:436:1 › second checker newer edit during autosave confirmation refuses the already requested discard (4.1s)
+
+
+  1) [chromium] › e2e/new-graphic-guard.spec.ts:436:1 › second checker newer edit during autosave confirmation refuses the already requested discard 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      453 |   await expect.poll(async () => (await probe(page)).released).toEqual([true,true]);
+      454 |   const writes = (await probe(page)).writes;
+    > 455 |   expect(writes[0].template).toEqual(requested); expect(writes[1].dirty).toBe(false);
+          |                                                                          ^
+      456 |   expect(await source(page)).toEqual(newer); await expect(page.getByTestId('home-page')).toHaveCount(0);
+      457 |   await release(page,1);
+      458 |   const snapshot = await page.evaluate(async () => {
+        at /workspace/noacg-editor-r1-5-e4-build/e2e/new-graphic-guard.spec.ts:455:74
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/new-graphic-guard-second-c-87e70-e-already-requested-discard-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/new-graphic-guard-second-c-87e70-e-already-requested-discard-chromium/error-context.md
+
+  1 failed
+    [chromium] › e2e/new-graphic-guard.spec.ts:436:1 › second checker newer edit during autosave confirmation refuses the already requested discard 

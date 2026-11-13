@@ -1,0 +1,56 @@
+{
+  "source": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
+  "seeded": {
+    "raw": [
+      {
+        "id": "owner2-legacy",
+        "name": "Untouched legacy target",
+        "graphics": []
+      },
+      {
+        "id": "owner2-unrelated",
+        "name": "Untouched other legacy production",
+        "graphics": [],
+        "marker": "preserve raw representation"
+      }
+    ],
+    "normalized": {
+      "id": "owner2-legacy",
+      "name": "Untouched legacy target",
+      "graphics": [],
+      "version": 2,
+      "updatedAt": "1970-01-01T00:00:00.000Z"
+    },
+    "graphicId": "860004f9-903b-4655-bbe9-146d041f0293"
+  },
+  "before": [
+    {
+      "id": "owner2-legacy",
+      "name": "Untouched legacy target",
+      "graphics": []
+    },
+    {
+      "id": "owner2-unrelated",
+      "name": "Untouched other legacy production",
+      "graphics": [],
+      "marker": "preserve raw representation"
+    }
+  ],
+  "result": {
+    "status": "failed",
+    "error": "Error: Installation conflict: newer production edits were preserved. Inspect the production before continuing."
+  },
+  "after": [
+    {
+      "id": "owner2-legacy",
+      "name": "Untouched legacy target",
+      "graphics": []
+    },
+    {
+      "id": "owner2-unrelated",
+      "name": "Untouched other legacy production",
+      "graphics": [],
+      "marker": "preserve raw representation"
+    }
+  ]
+}

@@ -2173,6 +2173,20 @@
         "owner": "miwco (primary); weekly owner session backup, from policy",
         "date": "2026-11-14",
         "action": "Current owner-authorized bounded correction, otherwise explicit stop and simpler-requirements reassessment; no attempts reset."
+      },
+      "reproductions": {
+        "source": "63d7d7b57253f49cdcfcaa20a5805dbdcc8c2baf",
+        "bounds": "Prewritten deterministic once per boundary; each small5min/max2derivedworkers,zero retries, no broader/build.",
+        "discard": "j0120 FAIL1/1 4.1s exact original455 expectedclean/dirtyfalse gottrue; later final-source/history assertions unreached. Root read complete actual log.",
+        "legacy": "j0121 FAIL1/1 3.1s expectedconfirmed gotnewerproductionconflict; raw missing fields unchanged by normalizedread; unrelatedstoredrowpreserved. Root read complete log+actual JSON.",
+        "packet": "e4-owner2-precode",
+        "notesOnlyDiffSha256": "a82caff93a7bb2177625cf3a30532f28a96fa8451b6aa15c2cbc18e2091044f7",
+        "artifactGap": "New local j0120 screenshot/context overwritten by next Playwright startup before archival; wholelog/exactfixture preserved. No rerun or final-outcome inference. Legacy originalcontext/screenshot retained in ownedignoredworktree."
+      },
+      "modelReview": {
+        "actor": "/root/editor_e4_narrow_correction/e4_owner2_model_so",
+        "status": "RUNNING_READ_ONLY_PRECODE",
+        "source": "Frozen63d7 with notes-only rules; product/tests unchanged"
       }
     }
   },
