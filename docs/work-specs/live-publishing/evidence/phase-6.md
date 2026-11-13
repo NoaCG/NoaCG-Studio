@@ -217,18 +217,18 @@ reached the output, each page request, each sync pass and its origin, and the pa
 (the browser's Long Tasks API). The probes found:
 
 - Every slow Take reaches the output late and runs at once. The Take's own send leaves the page 130 to
-  770 ms after the press, each time just after the page starts uploading a 2.2 MB save of the
+  770 ms after the press, usually just after the page starts uploading a 2.2 MB save of the
   production. Press to sent, as the harness times it, stays near 10 ms.
 - Every 3 s edit makes two sync passes, the second a re-run that starts as soon as the first ends
   (46 of 92 passes, the same with updates on and off). This is the sync engine's queued re-run,
-  #2494, here on the typical fixture. Each pass holds the page's main thread for 110 to 190 ms. 10 of
-  the 14 slow Takes in the four probed runs overlap such a task, against 3 of the 186 fast ones.
+  #2494, here on the typical fixture. The passes bring page long tasks of 95 to 190 ms. 10 of the 14
+  slow Takes in the four probed runs overlap such a task, against 3 of the 186 fast ones.
 - The output's preparation of each new version (reading the copy in its worker, about 200 ms, and
   the graphics' re-check, about 30 ms) never overlapped a slow Take.
 
 So the slow Takes come from the page's save, which runs whether automatic updates are on or off,
-and not from publishing. The sync engine is not changed here. #2494's fix, #2497, runs one pass per
-pause in editing instead of two per edit. The save's main-thread time is the page's own work that
+and not from publishing. The sync engine is not changed here. #2494's fix, #2497 (open, not landed), runs
+one pass per pause in editing instead of two per edit. The save's main-thread time is the page's own work that
 AC-1 judges.
 
 #### Republishing, nothing edited

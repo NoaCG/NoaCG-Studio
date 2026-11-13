@@ -495,5 +495,5 @@ Filled in by each phase's pull request.
   slow Takes (47 and 48). A bootstrap over pairs puts the difference between -246 and +133 ms, so the
   first single pair's +2 and the check's +260 are both draws from one spread. Probes show the slow
   Takes, on both sides, wait for the page's save: every edit makes two sync passes (#2494's queued
-  re-run, fixed in #2497), each holding the main thread 110 to 190 ms. No phase 6 code changed. The
+  re-run; its fix #2497 is not landed), with page long tasks of 95 to 190 ms. No phase 6 code changed. The
   evidence's +2 is replaced by the 10-pair table ("Repair: repeated pairs").
