@@ -329,8 +329,9 @@ must challenge these observable Rules:
    checked-out HEAD equal to GITHUB_SHA and records that full source. No moving
    branch or unknown source can produce a passing receipt.
 2. The entire build, fixture preparation, helper smoke, packaging and cleanup is
-   self-bounded to five minutes, zero retries/skips. It uses normal full
-   `npm run build` in Actions, without disabling any gate or changing its judge.
+   self-bounded to ten minutes in GitHub Actions, zero retries/skips. It uses
+   normal full `npm run build` there, without disabling any gate or changing
+   its judge. This new artifact command is not an off-Actions worker build.
    No local product build, benchmark campaign, inference or live write is implied.
 3. Build and served local setup use explicitly empty hosted/model configuration.
    Inherited fake hosted/provider settings cannot activate backend or inference.
@@ -339,6 +340,9 @@ must challenge these observable Rules:
    `dist/version.json.commit` equal to exact source. A missing/mismatched marker
    refuses. Retain the complete bundle, its SHA256 and file-hash receipt under
    endurance-output; use that existing marker instead of another provenance system.
+   The local preview consumer also verifies requested source, extracted
+   dist/version.json.commit and every supplied file hash before launching. Missing,
+   stale, altered or extra bundle entries refuse before app/fixture mutation.
 5. The smoke proves correct-source setup and 30 rendered layers/300 X+opacity
    keys, plus wrong ref and wrong fixture/hash/count refusal with source/history/
    sample/selection unchanged. Validation precedes every fixture store mutation.
@@ -346,7 +350,11 @@ must challenge these observable Rules:
 6. DEV is only functional fixture preparation. Stage F4 through the existing
    editable package exporter and normal built-app import; production timing uses
    existing `dev-worktree --preview` with the exact bundle. The observer's DOM/
-   input marker path must work without /src imports. No new serving framework.
+   input marker path must work without /src imports. Ship the observer module and
+   editable fixture as static qualification files inside the candidate artifact;
+   the documented /e5-qualification/native-observer.mjs path must load through
+   the existing preview server. Smoke that exact moderator path and normal ZIP
+   import, never test-only source injection. No new serving framework.
 7. Stop only owned local browser/server resources and verify cleanup. A failed
    build, helper assertion, packaging, missing artifact or cleanup produces a
    failed receipt. There is no green summary for an absent/partial bundle.
@@ -359,3 +367,32 @@ must challenge these observable Rules:
 Final independent review must judge whether E5C's Cloud measurement criterion
 needs qualified production measurements beyond the retained DEV diagnostics;
 the later hardware gate is not a substitute for qualified Cloud evidence.
+
+
+### Precode feasibility/model correction, before any admission
+
+Fresh Rules-first review on the committed 4baae4018 model returned
+AGREE WITH CORRECTIONS / B. It identified unsupported five-minute feasibility,
+missing consumer-side bundle verification, and an observer loading path absent
+from production dist. No packaging code or manual dispatch had begun.
+[Actual unchanged full-build receipt](e5c/full-build-duration-control.json) shows
+347 seconds for `npm run build` alone, before helper/packaging/cleanup.
+
+The coordinator corrected its prospective five-minute packaging proposal before
+code/admission: off-Actions worker production builds retain their existing
+five-minute bound; GitHub Actions full checks retain their existing job/check
+limits. The existing endurance carrier has an unchanged 90-minute job and
+1–75-minute input. A new **ten-minute** manual artifact/build/helper command is
+within that existing Actions policy and is justified by the 347-second control;
+no existing test, check, CI timeout or prior admission was extended. The script
+must remain self-bounded to that new ten-minute artifact envelope, with no
+retry/exception and strict failed output if it does not fit.
+
+Rules 4–6 now require both emitter and consumer identity checks and delivery of
+the pure DOM observer plus F4 editable ZIP as static candidate files served by
+existing preview. The actual documented moderator path must pass smoke. A
+bounded Rules-first clarification must confirm the corrected model before any
+carrier/package implementation. Successful setup smoke alone will not close
+production Cloud performance: the DEV-instrumented observations remain retained,
+and any qualified production diagnostic campaign needs a separate coordinator
+admission within existing limits. No performance work is authorized by packaging.
