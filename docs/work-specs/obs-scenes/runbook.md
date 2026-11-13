@@ -30,7 +30,9 @@ arm triggers. This overrides plan-create's automatic handover.
 - Not granted: `untilComplete`. The end is binding.
 - "all as recommended" (2026-11-12), to the planning session's six questions: the bare end date
   may appear in public run state (`authorization.deadline`, heartbeat, recovery branch) with no
-  event named; scenes are taken through Studio Mode preview with a short fade as the default (D9);
+  event named; scenes are taken through Studio Mode preview with a short fade as the default (D9, amended
+  after OS2 on 2026-11-13: direct cuts and fades are supported, with graphics that change off air in
+  a shared source);
   the Sheet is the score baseline and the JSON source a bonus (D8); the live-publishing run's
   `production_copies` switch is fixed before the feature freeze and not changed after; the AC-13
   numbers; the landing hold from 24 hours before each live window to its end and through the
