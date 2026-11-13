@@ -264,3 +264,15 @@ test('R7: "not allowed" is not retried on later saves either; another account st
   assert.equal(p.calls, 1, 'no publish is tried again for this account');
   p.pub.stop();
 });
+
+test('R7 classes: a lasting 401 is transient; a policy refusal is "not allowed"', async () => {
+  const { classifyFailure: classify } = await import('../src/control/autoPublish.ts');
+  assert.equal(classify({ status: 401, message: 'JWT expired' }).kind, 'transient');
+  assert.equal(classify({ status: 500, message: 'boom' }).kind, 'transient');
+  for (const e of [{ status: 403, message: 'x' }, { code: '42501', message: 'x' }, { message: 'new row violates row-level security policy' }]) {
+    const out = classify(e);
+    assert.equal(out.kind, 'refused');
+    assert.equal(out.refusal, 'denied');
+  }
+  assert.equal(classify({ message: 'This publication names a save that does not exist' }).refusal, 'guard');
+});

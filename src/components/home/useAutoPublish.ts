@@ -10,7 +10,7 @@ import { getSupabase } from '../../backend/supabase';
 import { catchUpRecord, confirmedRevision, storedRevision } from '../../backend/savedRevision';
 import { onSyncState } from '../../backend/syncController';
 import { subscribeTeamState, getTeamState } from '../../backend/teamProductions';
-import { loadShows, type Show } from '../../model/shows';
+import { addGraphicToShow, loadShows, removeShowGraphic, updateShowCue, type Show } from '../../model/shows';
 import { createAutoPublisher, CHECK_EVERY_MS, type AutoPublishView } from '../../control/autoPublish';
 import { publishRevision, publishStepMs } from '../../control/publishRevision';
 import type { CuePublished } from '../../control/hostedControl';
@@ -25,6 +25,22 @@ async function readSwitch(): Promise<boolean> {
   const state = data as { installed?: unknown; on?: unknown };
   return state.installed === true && state.on === true;
 }
+
+/** The record's revision and the published one, or null when either cannot be read. */
+async function readRevisions(show: Pick<Show, 'id' | 'teamId'>): Promise<{ rev: number; published: number | null } | null> {
+  const sb = await getSupabase();
+  if (!sb) return null;
+  const [record, row] = await Promise.all([
+    storedRevision(show),
+    sb.from('control_shows').select('published_rev').eq('id', show.id).maybeSingle(),
+  ]);
+  if (!record || row.error) return null;
+  const rev = (row.data as { published_rev?: unknown } | null)?.published_rev;
+  return { rev: record.rev, published: typeof rev === 'number' ? rev : null };
+}
+
+/** G3 section 9: what a page that may not publish says while a save waits for one that can. */
+export const ELSEWHERE_LINE = 'Open it on a device that can publish';
 
 export interface AutoPublishState {
   /** The publisher runs for this production: no Publish changes. */
@@ -80,6 +96,39 @@ export function useAutoPublish(o: {
   }, [enabled, showId, teamId]);
 
   const active = enabled && switchOn && revKnown;
+
+  // MEASUREMENT ONLY (e2e/configured/measure, test `autopublish`, AC-4): a session flag only that
+  // harness sets makes this page edit the production once a second, with automatic updates on or
+  // off. `cues`: the last cue's text, then its field values. `add`: a graphic added, then removed.
+  useEffect(() => {
+    if (!enabled || !showId) return;
+    let mode: string | null = null;
+    try {
+      mode = window.sessionStorage.getItem('noacg-measure-edit-loop');
+    } catch {
+      mode = null;
+    }
+    if (mode !== 'cues' && mode !== 'add') return;
+    let tick = 0;
+    const timer = setInterval(() => {
+      const show = loadShows().find((s) => s.id === showId);
+      if (!show) return;
+      tick += 1;
+      const w = window as unknown as { __noacgEdits?: number };
+      w.__noacgEdits = (w.__noacgEdits ?? 0) + 1;
+      if (mode === 'cues') {
+        const cue = (show.cues ?? [])[(show.cues ?? []).length - 1];
+        if (!cue) return;
+        if (tick % 2) updateShowCue(showId, cue.id, { label: `Edited ${tick}` });
+        else updateShowCue(showId, cue.id, { values: Object.fromEntries(Object.keys(cue.values ?? {}).map((k) => [k, `Value ${tick}`])) });
+        return;
+      }
+      const added = show.graphics.find((g) => g.name === 'Loop strap');
+      if (added) removeShowGraphic(showId, added.id);
+      else addGraphicToShow(showId, { ...show.graphics[0].template, name: 'Loop strap' });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [enabled, showId]);
   useEffect(() => {
     if (!active || !showId) {
       setView(null);
@@ -105,16 +154,7 @@ export function useAutoPublish(o: {
       },
       stored: async () => {
         const show = current();
-        if (!show) return null;
-        const sb = await getSupabase();
-        if (!sb) return null;
-        const [record, row] = await Promise.all([
-          storedRevision(show),
-          sb.from('control_shows').select('published_rev').eq('id', show.id).maybeSingle(),
-        ]);
-        if (!record || row.error) return null;
-        const rev = (row.data as { published_rev?: unknown } | null)?.published_rev;
-        return { rev: record.rev, published: typeof rev === 'number' ? rev : null };
+        return show ? readRevisions(show) : null;
       },
       catchUp: async () => {
         catchingUp = true;
@@ -189,6 +229,27 @@ export function useAutoPublish(o: {
     };
   }, [active, showId, teamId, o.account]);
 
+  // G3 section 9: a page that may not publish, while automatic updates are on, reads red whenever a
+  // saved revision is not published, so a pending save is never green there. It reads only.
+  const [elsewhere, setElsewhere] = useState(false);
+  const watchesOnly = !!showId && published && !o.mayPublish;
+  useEffect(() => {
+    setElsewhere(false);
+    if (!watchesOnly || !showId) return;
+    let alive = true;
+    const ask = () =>
+      void Promise.all([readSwitch(), readRevisions({ id: showId, teamId: teamId ?? undefined })]).then(([on, r]) => {
+        if (alive) setElsewhere(on && !!r && r.published !== null && r.published < r.rev);
+      }, () => {});
+    ask();
+    const timer = setInterval(ask, CHECK_EVERY_MS);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [watchesOnly, showId, teamId]);
+
+  if (watchesOnly && elsewhere) return { active: false, view: { tone: 'red', line: ELSEWHERE_LINE, running: false, published: null } };
   return { active, view: active ? view : null };
 }
 

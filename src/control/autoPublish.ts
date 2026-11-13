@@ -82,6 +82,22 @@ export const RETRY_MS = [2_000, 4_000, 8_000, 15_000] as const;
 export const PUBLISHING_LINE = 'Publishing your changes';
 export const RED_HEADER = 'Saved, not on the outputs';
 
+/** "Not allowed": the row policy refused this account, by an error or by a write that matched no
+ *  row although the stored stamp is the one it named (row-level security filters an update with
+ *  no error). */
+export const DENIED: PublishOutcome = { kind: 'refused', refusal: 'denied', reason: 'This account cannot publish this production. Open it on a device that can.' };
+
+/** A server answer, in the publisher's classes (G3 section 3). A 401 that outlived one session
+ *  refresh is the session, not the account: transient, so the next attempt runs with whatever
+ *  session the page holds by then. */
+export function classifyFailure(e: unknown): PublishOutcome {
+  const err = e as { message?: string; code?: string; status?: number };
+  const message = String(err?.message ?? e);
+  if (message === 'This publication names a save that does not exist') return { kind: 'refused', refusal: 'guard', reason: 'This save could not be published. The next save tries again.' };
+  if (err?.code === '42501' || err?.status === 403 || /row-level security|permission denied/i.test(message)) return DENIED;
+  return { kind: 'transient', reason: 'the server did not answer' };
+}
+
 export interface AutoPublisher {
   /** This page's save of the production was confirmed. */
   saved(): void;

@@ -443,6 +443,9 @@ async function boot(): Promise<void> {
       presence.touch();
     },
   });
+  /** A development build only: `&oldbuild=1` makes this output behave as one built before automatic
+   *  updates (no `au`, no own version check), so a spec can walk E2's transition. */
+  const OLD_BUILD_FOR_SPECS = import.meta.env.DEV && new URLSearchParams(window.location.search).get('oldbuild') === '1';
   const entry = (): LiveEntry =>
     liveEntry('output', 'output', { log: logJoined, cmd: cmdJoined }, live.summary(), {
       name: outputName,
@@ -614,9 +617,6 @@ async function boot(): Promise<void> {
         check();
       }),
   });
-  /** A development build only: `&oldbuild=1` makes this output behave as one built before automatic
-   *  updates (no `au`, no own version check), so a spec can walk E2's transition. */
-  const OLD_BUILD_FOR_SPECS = import.meta.env.DEV && new URLSearchParams(window.location.search).get('oldbuild') === '1';
   /** Whether this page's own URL now serves another build of the renderer. */
   const servedNewBuild = async (): Promise<boolean> =>
     SERVED_SCRIPTS.length > 0 &&

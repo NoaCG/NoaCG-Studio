@@ -26,7 +26,7 @@ import { profileForPublish } from '../model/profile';
 import { buildOutputPayload, buildPanelSpec, copyDigest, pruneControlEvents, readPanel, sendJoinBrand, type CuePublished, type OutputPayload, type PanelGraphicSpec } from './hostedControl';
 import { digestText, readPayloadVersion, stampFromDigests, type PayloadVersion } from './payloadVersion';
 import { designEditedAt } from '../model/library';
-import type { PublishOutcome } from './autoPublish';
+import { classifyFailure, DENIED, type PublishOutcome } from './autoPublish';
 import { sendsIdle } from './sendsInFlight';
 
 /** Resolves on a later task: a click queued meanwhile runs first. */
@@ -87,25 +87,15 @@ async function heldPanelIfNeeded(sb: Sb, show: Show, library: GraphicDoc[]): Pro
   return readPanel((data as { panel?: unknown } | null)?.panel);
 }
 
-/** "Not allowed": the row policy refused this account, by an error or by a write that matched no
- *  row although the stored stamp is the one it named (row-level security filters an update with
- *  no error). */
-const DENIED: PublishOutcome = { kind: 'refused', refusal: 'denied', reason: 'This account cannot publish this production. Open it on a device that can.' };
-
-/** A failure, in the publisher's classes (G3 section 3). */
+/** A failure, in the publisher's classes (G3 section 3): a check a graphic fails here, the rest
+ *  as the server answered (`classifyFailure`). */
 function classify(e: unknown): PublishOutcome {
   if (e instanceof ProductionGateError) {
     const first = e.failures[0];
     const why = first?.errors[0]?.message.replace(/\.$/, '') ?? 'it does not pass the checks';
     return { kind: 'refused', refusal: 'gate', reason: `${first?.name ?? 'A graphic'} cannot go on air: ${why}. Fix it and the next save publishes.` };
   }
-  const err = e as { message?: string; code?: string; status?: number };
-  const message = String(err?.message ?? e);
-  if (message === 'This publication names a save that does not exist') return { kind: 'refused', refusal: 'guard', reason: 'This save could not be published. The next save tries again.' };
-  if (err?.code === '42501' || err?.status === 401 || err?.status === 403 || /row-level security|permission denied/i.test(message)) {
-    return DENIED;
-  }
-  return { kind: 'transient', reason: 'the server did not answer' };
+  return classifyFailure(e);
 }
 
 /** A part of the body: one string turned into a Blob in its own step. */

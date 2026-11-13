@@ -60,13 +60,15 @@ function start(): Worker | null {
   return worker;
 }
 
-/**
- * The published `output` of the production behind `slug`, parsed off the main thread. Undefined:
- * the worker could not answer (read on the main thread instead); null: no such production.
- */
 /** A worker that has not answered in this long is dropped and the page reads on the main thread. */
 const READ_TIMEOUT_MS = 60_000;
 
+/**
+ * The published `output` of the production behind `slug`, parsed off the main thread. Undefined:
+ * the worker could not answer (read on the main thread instead); null: no such production. Each
+ * answer the worker gave is counted on `window.__noacgWorkerReads`, so a check can tell an answer
+ * from the main-thread fallback (G3 R12).
+ */
 export function readPublishedOffThread(url: string, key: string, slug: string): Promise<unknown | null | undefined> {
   const w = start();
   if (!w) return Promise.resolve(undefined);
@@ -78,6 +80,10 @@ export function readPublishedOffThread(url: string, key: string, slug: string): 
     }, READ_TIMEOUT_MS);
     waiting.set(id, (output) => {
       clearTimeout(timer);
+      if (output !== undefined) {
+        const counted = window as unknown as { __noacgWorkerReads?: number };
+        counted.__noacgWorkerReads = (counted.__noacgWorkerReads || 0) + 1;
+      }
       resolve(output);
     });
     w.postMessage({ id, url, key, slug });

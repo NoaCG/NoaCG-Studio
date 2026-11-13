@@ -769,6 +769,8 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
       await expect.poll(() => holds(old), { timeout: 60_000, message: `${change} on the older output` }).toBe(now.n);
       await expect(page.getByTestId('production-publish-changes')).toHaveCount(0);
     }
+    // R12: the new output read the published copies in its worker, not on the main thread.
+    expect(await air.evaluate(() => (window as unknown as { __noacgWorkerReads?: number }).__noacgWorkerReads ?? 0)).toBeGreaterThan(0);
 
     // With the page's request withheld and the page closed, the new output finds the version alone.
     await page.evaluate(() => { (window as unknown as { __noacgWithholdPrep?: boolean }).__noacgWithholdPrep = true; });
@@ -822,6 +824,49 @@ test.describe('automatic updates (live-publishing W4, AC-4)', () => {
     await page.unrouteAll({ behavior: 'ignoreErrors' });
     await expect.poll(async () => (await server(showId)).graphics, { timeout: 60_000 }).toContain('Held strap');
     await expect(page.getByTestId('production-publish-changes')).toHaveCount(0);
+  });
+
+  test('a save that changes only a binding moves the published revision and the row sources, not the version (R5)', async ({ page }) => {
+    test.setTimeout(180_000);
+    const { showId } = await published(page, `Auto binding ${Date.now()}`);
+    await expect.poll(async () => { const s = await server(showId); return s.published !== null && s.published === s.rev; }, { timeout: 60_000 }).toBe(true);
+    const before = await server(showId);
+    const bound = await page.evaluate(async (id) => {
+      const shows = await import('/src/model/shows.ts');
+      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const g = shows.loadShows().find((x) => x.id === id)!.graphics[0];
+      const fieldId = g.template.fields[0].field;
+      shows.setFieldBinding(id, g.name, fieldId, 'loop.title');
+      const failure = await commitDurableWrites();
+      if (failure) throw new Error(failure);
+      return { graphic: g.name, fieldId };
+    }, showId);
+    // The revision-only update: the newest save is published, the version an output holds is not.
+    await expect.poll(async () => (await server(showId)).published ?? 0, { timeout: 60_000 }).toBeGreaterThan(before.published ?? 0);
+    const after = await server(showId);
+    expect(after.published).toBe(after.rev);
+    expect(after.n).toBe(before.n);
+    const rows = await (await service(`control_shows?id=eq.${showId}&select=bindings`)).json();
+    expect(rows[0].bindings?.[bound.graphic]?.[bound.fieldId]).toBe('loop.title');
+  });
+
+  test('a page that may not publish reads red while another save waits (G3 section 9)', async ({ page }) => {
+    test.setTimeout(180_000);
+    const { showId } = await published(page, `Auto elsewhere ${Date.now()}`);
+    await expect.poll(async () => { const s = await server(showId); return s.published !== null && s.published === s.rev; }, { timeout: 60_000 }).toBe(true);
+    // This page may no longer publish (account editing paused), and a save arrives from elsewhere.
+    await page.evaluate(async () => {
+      const { setAccountAuthoringEnabled } = await import('/src/model/durableStore.ts');
+      setAccountAuthoringEnabled(false);
+    });
+    const [doc] = await (await service(`documents?id=eq.${showId}&select=body`)).json();
+    const patched = await service(`documents?id=eq.${showId}`, { method: 'PATCH', body: { body: { ...doc.body, name: `${doc.body.name} elsewhere` } } });
+    expect(patched.ok).toBe(true);
+    await expect(page.getByTestId('production-status')).toContainText('Saved, not on the outputs', { timeout: 60_000 });
+    await page.evaluate(async () => {
+      const { setAccountAuthoringEnabled } = await import('/src/model/durableStore.ts');
+      setAccountAuthoringEnabled(true);
+    });
   });
 
   test('two publishers finishing in reverse order leave the newer save published', async ({ page }) => {

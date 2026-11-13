@@ -869,8 +869,14 @@ test('w3', async ({ page, browser }) => {
 // MEASURE_LOOP=1 the page publishes its saved revision again and again, whole (a session flag only
 // this harness sets), so every output reads the published copy each time; without it, nothing is
 // published. "Ran" is the output's graphic running the Take: its play() call, on the one time origin.
+// MEASURE_EDIT=cues|add makes the page edit the production once a second (the last cue's text and
+// values, or a graphic added and removed); MEASURE_AUTO=0 runs that with automatic updates off.
 test('autopublish', async ({ page, browser }) => {
+  // The switch is a service-role write: only ever against a local stack.
+  if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(SUPABASE_URL)) throw new Error('autopublish writes a switch: run it only against a local stack');
   const loop = process.env.MEASURE_LOOP === '1';
+  const editMode = process.env.MEASURE_EDIT === 'cues' || process.env.MEASURE_EDIT === 'add' ? process.env.MEASURE_EDIT : null;
+  const autoOn = process.env.MEASURE_AUTO !== '0';
   const setAuto = (on: boolean) =>
     fetch(`${SUPABASE_URL}/rest/v1/system_settings?on_conflict=key`, {
       method: 'POST',
@@ -885,9 +891,15 @@ test('autopublish', async ({ page, browser }) => {
     return cues.map((c) => s.cues!.find((x) => x.id === c)!.label);
   }, { id: fx.showId, cues: fx.cues.plain.slice(0, 5) });
   const slug = await outputSlugOf(page, fx.showId);
-  await setAuto(true);
+  await setAuto(autoOn);
   try {
     await page.evaluate((on) => (on ? sessionStorage.setItem('noacg-measure-publish-loop', '1') : sessionStorage.removeItem('noacg-measure-publish-loop')), loop);
+    await page.evaluate((mode) => (mode ? sessionStorage.setItem('noacg-measure-edit-loop', mode) : sessionStorage.removeItem('noacg-measure-edit-loop')), editMode);
+    const versionOf = async () => {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/control_shows?id=eq.${fx.showId}&select=output->ver->n`, { headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}` } });
+      return ((await r.json()) as { n?: number }[])[0]?.n ?? 0;
+    };
+    const versionBefore = await versionOf();
     await toProd(page);
     await throttle(page, NET);
     const out = await openOutput(browser, slug);
@@ -922,16 +934,20 @@ test('autopublish', async ({ page, browser }) => {
       await page.waitForTimeout(300);
     }
     const windows = loop ? await page.evaluate(() => (window as unknown as W).__noacgPublishWindows ?? []) : [];
-    report(`autopublish-${loop ? 'loop' : 'none'}`, { take: sentRows }, {
+    const edits = editMode ? await page.evaluate(() => (window as unknown as { __noacgEdits?: number }).__noacgEdits ?? 0) : 0;
+    const versionsPublished = (await versionOf()) - versionBefore;
+    report(`autopublish-${editMode ? `edit-${editMode}-${autoOn ? 'on' : 'off'}` : loop ? 'loop' : 'none'}`, { take: sentRows }, {
+      edits,
+      versionsPublished,
       fixtureFacts: fx,
       pressToRan: summary(toRan, failures.length),
       pressToRanSamples: toRan,
       failures: failures.slice(0, 5),
       pressesDuringAPublish: during,
-      publishes: { n: windows.length, ms: summary(windows.map(([a, b]) => b - a)), longestStepMs: summary(windows.map((x) => x[3])), kinds: [...new Set(windows.map((x) => x[2]))] },
+      publishes: { n: windows.length, ms: summary(windows.map(([a, b]) => b - a)), longestStepMs: summary(windows.map((x) => x[3])), longestStepMaxMs: Math.max(0, ...windows.map((x) => x[3])), kinds: [...new Set(windows.map((x) => x[2]))] },
     });
   } finally {
-    await page.evaluate(() => sessionStorage.removeItem('noacg-measure-publish-loop')).catch(() => undefined);
+    await page.evaluate(() => { sessionStorage.removeItem('noacg-measure-publish-loop'); sessionStorage.removeItem('noacg-measure-edit-loop'); }).catch(() => undefined);
     await setAuto(false).catch(() => undefined);
   }
 });
