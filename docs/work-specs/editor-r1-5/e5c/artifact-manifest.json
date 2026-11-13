@@ -2,7 +2,7 @@
   "testedProduct": "e1c6fc4f5faf933be930cdf30f7acfa4e2b9ab22",
   "originalPlan": "f0f2e3fe0c2cc14e23b171957b6f8d18905fd434",
   "previousIndependentE4": "5f6c362f6ce22b820e867648ab11dca97c854480",
-  "sourceScope": "Evidence-only; final publication head differs from tested product only in documentation/evidence. Current candidate changes require requalification.",
+  "sourceScope": "Qualification tooling/evidence plus one manual npm command; no editor/runtime/dependency/lock/workflow changes. Exact production artifact source and publication head are recorded separately.",
   "fixtures": [
     {
       "path": "e2e/fixtures/fidelity-nested.svg",
@@ -32,64 +32,9 @@
   ],
   "files": [
     {
-      "path": "captures/f4-1366-drags.png",
-      "bytes": 104594,
-      "sha256": "8ee689052522dc39ae2576cb86e58263dc7a703b3b9cc58ba3cba4eeabbddae5"
-    },
-    {
-      "path": "captures/f4-1366-initial.png",
-      "bytes": 96793,
-      "sha256": "dda748ccedb959a09721b3094b75f0654b7fd0e54a2a128b7d5a4473343d4f38"
-    },
-    {
-      "path": "captures/f4-1920-drags.png",
-      "bytes": 149294,
-      "sha256": "eff7b1b54b52cbdc7f6f923d3ddea42c9deedbd2f431c1569919d2c64a99aa2a"
-    },
-    {
-      "path": "captures/f4-1920-initial.png",
-      "bytes": 131045,
-      "sha256": "f94aef29e868af1eef9ec65b1645f45a4a625c20bf9495a8d42c06a1bdf4e9a5"
-    },
-    {
-      "path": "captures/f4-highrate-1366-scrubs.png",
-      "bytes": 100417,
-      "sha256": "6f8bfeef969eead07562cb515d79f759c3ef3d298db99227a2f763bb5892deef"
-    },
-    {
-      "path": "captures/f4-highrate-1920-scrubs.png",
-      "bytes": 140643,
-      "sha256": "a16ae21ddd2ab88bc95ec4f38325901bde19c6588d1590867271a99f1772aaf7"
-    },
-    {
-      "path": "captures/reference-brand-redone.png",
-      "bytes": 63780,
-      "sha256": "7b731eccf340e320a1ac965c02d75ce56b8d8b56800b6e4e331c4dcbf3db3648"
-    },
-    {
-      "path": "captures/reference-extra-x-plus40.png",
-      "bytes": 69927,
-      "sha256": "7721305d7317a7261af9782e019ac7c1edd4a0710e305ee955a01396960f2334"
-    },
-    {
-      "path": "captures/reference-first-reopened.png",
-      "bytes": 71538,
-      "sha256": "4ff38a8ec189d43a6fa4bc2adfd4280a03b22b45991a32db9e466aeb83254f7c"
-    },
-    {
-      "path": "captures/reference-import-svg-resource.png",
-      "bytes": 78018,
-      "sha256": "abfd88737e0a3ce27b21a9d09043302527a759614f1be2d2a6f19e081e2759e8"
-    },
-    {
-      "path": "captures/starter-brand-override-redo.png",
-      "bytes": 113592,
-      "sha256": "0c1bd22cb441cad7b553ddcc97acb5e43d86ab2fe69ffdbe7376088ca2c2eb5a"
-    },
-    {
-      "path": "captures/starter-rundown-take.png",
-      "bytes": 89057,
-      "sha256": "02e4574b6a7d50e2efba38355c0c3cf2f292fb6700f8959a413fab90274f91c9"
+      "path": "capture-export.json",
+      "bytes": 5145,
+      "sha256": "0468bf1cb93ffcf84a71cce7f6a078cff914fa398a6e208e0eb835edb0a727ed"
     },
     {
       "path": "device-performance-form.csv",
@@ -122,6 +67,11 @@
       "sha256": "a1a1c82cf6ca0ba03dc44d7e20fba4c3dc698ed01b4c921ebef5a20965c71ae0"
     },
     {
+      "path": "full-build-duration-control.json",
+      "bytes": 214,
+      "sha256": "d1577367f36ab4217a4f61d9a89da3391d772e855d2a7ed4532a47e28eac22e4"
+    },
+    {
       "path": "gsap-current.json",
       "bytes": 20168,
       "sha256": "a36483d0456d3c8df723dd62bca22323d2a6aa210c638941839b74e37c08a1f3"
@@ -135,16 +85,6 @@
       "path": "laptop-125-parity.json",
       "bytes": 7251,
       "sha256": "4cf898d3143f8c04bc865e4105455fbcba2cca851d58c40bbd7d436eaa61ac7a"
-    },
-    {
-      "path": "laptop-125-proposal.png",
-      "bytes": 84742,
-      "sha256": "e8f07b7dcaa630b66443ba8c714bfc4d35d768906af37438761595c8741bda8a"
-    },
-    {
-      "path": "laptop-125-ui.png",
-      "bytes": 83347,
-      "sha256": "e50e92a3fce3386ee5501656e2b73ef14de73301002760733515eaeaac34bfe0"
     },
     {
       "path": "logs/j-0128.log",
@@ -202,19 +142,29 @@
       "sha256": "4d297e6959940b76068628866dedb2ac2f7347e8788fe7827689fef4a8cc0326"
     },
     {
+      "path": "native-kit-smoke.mjs",
+      "bytes": 14198,
+      "sha256": "8cac8e1b02a4097f1e7e48d4034638115fa64ce550b6e388ba2412be47fd2c13"
+    },
+    {
       "path": "native-local-launch.mjs",
-      "bytes": 1559,
-      "sha256": "ac044aa812d47b36e7cd8394a111ca25b30b332bbedeed548601d59d1c39aacc"
+      "bytes": 3246,
+      "sha256": "e3eb207e962c35c42cdd9dc9a2845b489d9d179738a1196b2ad068958bca22c3"
     },
     {
       "path": "native-observer.mjs",
-      "bytes": 3324,
-      "sha256": "5ea8ec3deac87d0f9db519dbc975db4aea3b809608c64d1b4b0bd185ee6824bd"
+      "bytes": 3501,
+      "sha256": "ac5059901a5695d1874936ab9182459464ad53c29962712fd4791abbd813dec6"
     },
     {
       "path": "nested-static.svg",
       "bytes": 1809,
       "sha256": "c959285e1b714fc06b6c2d8b70a603f11b9fa820560f4219ab66458df42356ee"
+    },
+    {
+      "path": "package-native-candidate.mjs",
+      "bytes": 7104,
+      "sha256": "705326d00e43e1755765c4844c2f460655ed4e7e6e82be62071dbea15244788b"
     },
     {
       "path": "participant-form.csv",
@@ -282,19 +232,9 @@
       "sha256": "6998d9db0c4d4f76df713b7e74bc98d7ef16895b0a5168952c6014a70685bd4e"
     },
     {
-      "path": "receiving/casparcg-next-row.png",
-      "bytes": 11095,
-      "sha256": "a8d6dd259655eeb23ce06118e95d354398e7ee8b73c79c510fa7169aa7d7b5cf"
-    },
-    {
       "path": "receiving/casparcg-paint-state.json",
       "bytes": 2619,
       "sha256": "015c560850907f9857b46be2f73baa2a17d035574d46b3b84a5452a4ea8868bf"
-    },
-    {
-      "path": "receiving/casparcg-replay.png",
-      "bytes": 13776,
-      "sha256": "994ddb37c51f56eea9bf3a56c3c047fcc0724cdde0423346cc0c2c010bde2318"
     },
     {
       "path": "receiving/casparcg.zip",
@@ -302,19 +242,9 @@
       "sha256": "1f68d1143ebaf568fc99bb7b56922662c8dfd9ef0bd200fccbaaf51e577ac458"
     },
     {
-      "path": "receiving/html-overlay-next-row.png",
-      "bytes": 11095,
-      "sha256": "a8d6dd259655eeb23ce06118e95d354398e7ee8b73c79c510fa7169aa7d7b5cf"
-    },
-    {
       "path": "receiving/html-overlay-paint-state.json",
       "bytes": 2619,
       "sha256": "015c560850907f9857b46be2f73baa2a17d035574d46b3b84a5452a4ea8868bf"
-    },
-    {
-      "path": "receiving/html-overlay-replay.png",
-      "bytes": 13776,
-      "sha256": "994ddb37c51f56eea9bf3a56c3c047fcc0724cdde0423346cc0c2c010bde2318"
     },
     {
       "path": "receiving/html-overlay.zip",
@@ -327,16 +257,6 @@
       "sha256": "b84fb89ae5fac8e33003f12f1986f933d9a7c474805efe9f2ea7b2d9766f44aa"
     },
     {
-      "path": "receiving/operator-next-row.png",
-      "bytes": 610,
-      "sha256": "5722bf3064d4084786e957f044836025e73cab003ca4ddbc278c448bd16d46e7"
-    },
-    {
-      "path": "receiving/operator-rehearsal.png",
-      "bytes": 78559,
-      "sha256": "687951c65da4a598ce6230b109df3f267fde5362673512e63a8ca15182906dcd"
-    },
-    {
       "path": "receiving/receiving-manifest.json",
       "bytes": 6862,
       "sha256": "b9f7fb8073ea675a7cb2cdf39e0f1273c78e12a8544940700cd67ff230536e0d"
@@ -347,19 +267,9 @@
       "sha256": "7354d042f6af7bec6bbb48fef08e5560db2b31e8d4d83f9e3ae2317371d746ff"
     },
     {
-      "path": "receiving/spx-next-row.png",
-      "bytes": 11095,
-      "sha256": "a8d6dd259655eeb23ce06118e95d354398e7ee8b73c79c510fa7169aa7d7b5cf"
-    },
-    {
       "path": "receiving/spx-paint-state.json",
       "bytes": 2619,
       "sha256": "015c560850907f9857b46be2f73baa2a17d035574d46b3b84a5452a4ea8868bf"
-    },
-    {
-      "path": "receiving/spx-replay.png",
-      "bytes": 13776,
-      "sha256": "994ddb37c51f56eea9bf3a56c3c047fcc0724cdde0423346cc0c2c010bde2318"
     },
     {
       "path": "receiving/spx.zip",
@@ -413,5 +323,12 @@
     }
   ],
   "rawEncoding": "*.json.gz is deterministic gzip of exact original UTF-8 JSON bytes. Decode with gzip -dc; original raw sources/results remain retained.",
-  "bulkyCaptureRetention": "Full per-paint PNG sequences remain in owned qualification storage; frame SHA256/timestamps in compressed raw records. Public settled PNGs are exact retained captures, not re-rendered images."
+  "bulkyCaptureRetention": "Full per-paint PNGs remain owned local proof; curated PNGs are bound by capture-export.json for the retained Actions artifact. No pictures are tracked on main.",
+  "renderedCaptures": {
+    "exportManifest": "capture-export.json",
+    "artifactDirectory": "editor-native-kit/retained-e5c-captures/",
+    "count": 22,
+    "sourceCommit": "28f15f5891a41d302256d976032438867604b72f",
+    "retention": "Exact local files and immutable pushed source retained until verified artifact export; no picture-policy exception."
+  }
 }

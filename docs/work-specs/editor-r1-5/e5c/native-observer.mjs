@@ -7,14 +7,16 @@ export async function loadF4() {
   const sha256 = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(n => n.toString(16).padStart(2, '0')).join('');
   if (sha256 !== manifest.fixtures.find(f => f.path === path)?.sha256) throw new Error('F4 fixture hash mismatch.');
   const fixture = JSON.parse(new TextDecoder().decode(bytes));
+  // Validate the complete fixed-fixture contract before importing/writing the store.
+  const data = (await import('/src/blocks/editorAnimation.ts')).animationSource(fixture);
+  const layers = Object.values(data.steps[0].layers);
+  const keys = layers.reduce((n, l) => n + Object.values(l).reduce((a, track) => a + track.length, 0), 0);
+  const properties = [...new Set(layers.flatMap(l => Object.keys(l)))].sort();
+  if (layers.length !== 30 || keys !== 300 || JSON.stringify(properties) !== JSON.stringify(['opacity', 'x'])) throw new Error('Expected exactly 30 layers and 300 X/opacity keys.');
   const S = (await import('/src/store/templateStore.ts')).useTemplateStore;
   S.getState().applyTemplate(fixture, { resetSampleData: true });
   S.getState().setSelectedParts([]);
-  const data = (await import('/src/blocks/editorAnimation.ts')).animationSource(S.getState().template);
-  const layers = Object.values(data.steps[0].layers);
-  const keys = layers.reduce((n, l) => n + Object.values(l).reduce((a, track) => a + track.length, 0), 0);
-  if (layers.length !== 30 || keys !== 300) throw new Error('Expected exactly 30 layers and 300 keys.');
-  return { sha256, layers: layers.length, keys, properties: [...new Set(layers.flatMap(l => Object.keys(l)))] };
+  return { sha256, layers: layers.length, keys, properties };
 }
 export function install(device = {}) {
   window.e5Native?.dispose();

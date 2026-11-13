@@ -1,54 +1,86 @@
 # Final local qualification kit (E5)
 
-**Ready to run; no participant/device acceptance is recorded here.** Product
+**Prepared; production bundle/helper qualification is pending.** No participant/device acceptance is recorded here. Product
 candidate: `e1c6fc4f5faf933be930cdf30f7acfa4e2b9ab22`; this evidence-only phase
 changes no product bytes. Before E5, reconcile the final E6C candidate and renew
 any affected receipt. [Evidence and hashes](e5c/artifact-manifest.json),
 [Cloud results and limits](e5c-notes.md), [receiving source/packages](e5c/receiving/)
 and [receiving procedure](e4-receiving.md) travel with the candidate.
 
-## Exact local launch and F4 load
+## Exact production launch and F4 load
 
-Use an owned feature worktree at the final E6C-qualified candidate, with its
-committed lockfile dependencies installed using the repository's normal setup.
-Record `git rev-parse HEAD` and clean status. The product tested here is e1c6fc4;
-the final E5 candidate is the reviewed post-E6C SHA, not an inferred moving main.
-From that worktree run this portable command, replacing the argument with that
-full 40-character SHA:
+The native timing path is a **production build**, never Vite DEV/React StrictMode.
+The registered `qualify:editor-native-kit` command runs in the existing endurance
+Actions carrier (minutes=10, local-supabase=false): unchanged full build, exact
+source/real version-marker checks, functional helper smoke, package and cleanup.
+Its actual receipt/artifact must pass before this kit is called ready. It performs
+no F4 timing campaign. Reconcile the final E6C candidate before E5; renew the bundle
+when its applicable source changes rather than using stale output.
 
-```sh
-node docs/work-specs/editor-r1-5/e5c/native-local-launch.mjs <final-candidate-sha>
-```
+1. Obtain the retained `endurance-<run-id>` artifact and read
+   `editor-native-kit/qualification.json`. Require `status=passed`, cleanup=true,
+   zero skips/retries, its full source SHA and candidate.zip SHA256. Verify the
+   archive before extraction, for example with this portable command:
 
-The supplied helper checks HEAD and calls the existing `dev:worktree` launcher,
-pinning offline backend/model settings and production 350ms debounce. It prints
-the owned reserved URL. Do not reuse another server/checkout. Open that URL plus
-`/app?editor=foundation#/editor-foundation` in a fresh disposable normal Chrome
-profile. Use actual browser menu 100% or 125%; record the menu and measured CSS
-viewport/DPR. Detach DevTools into another window so it does not shrink the tested
-viewport. No model or hosted account call is needed for these local tasks.
-Stop the owned server with Ctrl+C when finished.
+   ```sh
+   node --input-type=module -e "import fs from 'node:fs';import crypto from 'node:crypto';console.log(crypto.createHash('sha256').update(fs.readFileSync(process.argv[1])).digest('hex'))" <candidate.zip>
+   ```
 
-For F4 setup only (not the participant import journey), open DevTools Console
-and run these complete browser commands:
+2. Use an owned feature worktree at **the artifact's exact source**, with its
+   committed-lockfile dependencies installed through normal setup. The tested
+   product inputs here began at e1c6fc4; the bundle records its later exact build
+   head. Receipt-only publication commits are not silently substituted for that
+   build head. Record `git rev-parse HEAD` and clean status. Extract candidate.zip
+   into this fresh owned checkout, producing dist/. Preserve any existing unique
+   output elsewhere first; never overwrite another worker or a main checkout.
+   PowerShell's `Expand-Archive -LiteralPath <candidate.zip> -DestinationPath .`
+   or an existing ZIP tool suffices; no local rebuild is needed.
+3. From that worktree run:
 
-```js
-const e5 = await import('/docs/work-specs/editor-r1-5/e5c/native-observer.mjs');
-await e5.loadF4();
-```
+   ```sh
+   node docs/work-specs/editor-r1-5/e5c/native-local-launch.mjs <artifact-source-sha> --preview
+   ```
 
-The loader verifies the approved fixture SHA256 from the manifest, loads its
-unchanged source through the existing store and asserts 30 layers/300 keys across
-X and opacity. Wait for Preparing preview to disappear and inspect the six-by-five
-rendered rectangles, Fit artboard and timeline. Record the returned hash/counts
-and initial PNG; do not treat source counts as proof of visible output. Keep a
-separate fresh profile for participant journeys. The helper deliberately does not
-supply the known-invalid Cloud mixed CDP/Playwright pointer driver.
+   The helper verifies HEAD, real dist/version.json.commit and the complete
+   bundle file-hash inventory before calling existing dev-worktree --preview.
+   Missing/stale/altered/extra files refuse before starting. Build configuration
+   is offline; runtime env changes cannot rewrite compiled settings. The helper
+   makes no hosted/model call. Use its reserved URL plus
+   `/app?editor=foundation#/new` in a fresh disposable normal Chrome profile.
+   Native browser zoom must come from its real menu. Detach DevTools into another
+   window so it does not shrink the measured viewport. Ctrl+C stops the owned
+   server; identify any surviving owned process before another launch.
+4. Download `/e5-qualification/f4-editable.zip` from that same preview URL. In
+   normal New graphic > Import graphics choose the ZIP, inspect the F4 import
+   card, then Finish > Edit. This uses the existing exporter/importer; it does
+   not require /src modules in the built app. Wait for Preparing preview to
+   disappear and inspect the six-by-five rendered rectangles, Fit artboard and
+   timeline. This Console expression must report 300 unique key identities:
+
+   ```js
+   new Set([...document.querySelectorAll('.ef-timeline-key')].flatMap(n => n.getAttribute('data-keys').split('|'))).size
+   ```
+
+   Retain the package hash, initial PNG and actual 30-layer result. Source/key
+   counters alone do not prove pixels. Keep separate fresh profiles for the
+   participant journeys, so their working graphics are not replaced by F4.
+5. Load the packaged pure DOM observer from the documented production URL:
+
+   ```js
+   const e5 = await import('/e5-qualification/native-observer.mjs');
+   ```
+
+   Only `e5.install(...)` below is used for native timing. Its `loadF4()` export
+   is a DEV-only engineering fixture-preparation guard, exercised by helper
+   smoke with bad hash/count cases before mutation. Do not call that /src-based
+   preparation path in production. Likewise the launcher with --prepare is
+   DEV functional setup only and is unqualified for production latency.
 
 ## Concrete native timing/capture procedure
 
-The supplied observer and instructions are **prepared, syntax-checked setup**,
-not native timing evidence. The executing moderator qualifies capture on each
+The supplied observer and instructions are **qualification preparation**,
+not native timing evidence. Require the production bundle/helper receipt above
+before execution; native timing calibration remains a separate measured result. The executing moderator qualifies capture on each
 named device before using it to pass a target; no new software implementation or
 hardware purchase is implied. The saved Cloud probes remain diagnostic records
 with their disclosed limits, especially INVALID high-rate pointer-up.
@@ -129,7 +161,10 @@ CSS viewport, DPR/display scaling, actual browser zoom, input device, power mode
 backend identity/latency and exact candidate commit. Take a screenshot showing the
 browser zoom menu at actual 125%; shrinking a viewport, device emulation or CSS
 zoom does not qualify. Check Home, Save, canvas, Properties, timeline and adjacent
-Set Out choices remain reachable. Preserve initial/held/Out and reopened captures.
+Set Out choices remain reachable. Preserve initial/held/Out and reopened captures. Cloud reference images are in
+the retained artifact under editor-native-kit/retained-e5c-captures/, mapped by
+[e5c/capture-export.json](e5c/capture-export.json); repository policy keeps PNGs
+out of the tracked docs tree.
 
 Give this short introduction once (about one minute), then stop coaching:
 

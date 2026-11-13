@@ -231,7 +231,7 @@ acknowledgement alone are never presented as visible-pixel proof.
 
 [Raw original](e5c/f4-raw.json.gz), [raw high-rate](e5c/f4-highrate-raw.json.gz),
 [original distributions](e5c/f4-summary.json), [high-rate distributions](e5c/f4-highrate-summary.json),
-[settled captures](e5c/captures/) and exact harness/analysis sources in
+[settled capture export manifest](e5c/capture-export.json) and exact harness/analysis sources in
 [e5c/probes](e5c/probes/) retain sample definitions and every result. Full original
 PNG sequences remain in the owned qualification archive; per-frame hashes and
 CDP timestamps in the raw files retain their identity. They are not discarded.
@@ -396,3 +396,32 @@ carrier/package implementation. Successful setup smoke alone will not close
 production Cloud performance: the DEV-instrumented observations remain retained,
 and any qualified production diagnostic campaign needs a separate coordinator
 admission within existing limits. No performance work is authorized by packaging.
+
+
+### Implemented qualification path, awaiting its one Actions execution
+
+The corrected Rules-first clarification on `6eaae8d4a48a23a6f4b8f15a3c03aa998a851d93`
+returned AGREE/A for the model only. Implementation adds one registered manual
+artifact command to the unchanged endurance carrier. It uses the existing real
+version.json marker plus a file-hash inventory checked by the preview consumer;
+qualification observer/ZIP assets are static local-candidate files, not new app
+routes or a production deployment. The helper smoke will use the exact packaged
+observer URL and normal ZIP import in built preview, with no performance campaign.
+
+The DEV-only loader now validates approved hash, pure parse, 30-layer/300-key
+count and X/opacity properties before importing/writing the store. Nonempty draft
+history/sample/selection and matching-hash wrong-count refusal are smoke criteria.
+The local kit no longer claims readiness before the actual artifact/helper receipt.
+Package.json changes only the manual command; dependencies, lockfile, product,
+workflow/check/test/timeouts and all performance observations remain unchanged.
+
+
+### Evidence transport correction
+
+The package-path targeted gates exposed 22 newly tracked proof PNGs forbidden by
+check:tree-shape. They leave the tracked tree with `git rm --cached`; actual
+owned files and exact pushed ancestor blobs remain intact. No KEPT_PICTURES,
+ignore/gate exception, threshold or test-maintenance entry was added. The
+[capture export manifest](e5c/capture-export.json) binds every path/blob/byte/hash
+for export through the existing endurance artifact. Until verified export, local
+and immutable Git source remain retained. Original tree-shape failure is kept.
