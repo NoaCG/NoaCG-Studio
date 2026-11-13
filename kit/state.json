@@ -2928,6 +2928,14 @@
         "/root/editor_e5c_independent_check"
       ],
       "supportedAppReadback": "Actualcodex_apphistoryhostdurable returnedrootandunrelatedidlethreads; observedchildUUID6af7197a-ac48-8191-a12d-e2fcfdf4204enotlisted, noqualifiedapphost/threadmapping. Didnotarchivecoordinator/unrelatedthreads orclaimsuccessfularchive. Completednativecontextsremainfinished."
+    },
+    "publicationLogsArchive": {
+      "index": "archived-evidence.json additionalArchives[E5C]",
+      "pointer": "e5c-publication/archived-passing-logs.json",
+      "checkpoint": "2939c048fc1fcc9f4bb000345dca2e136adc41eb",
+      "files": 5,
+      "bytes": 199860,
+      "allVerified": true
     }
   },
   "midpointRetro": {

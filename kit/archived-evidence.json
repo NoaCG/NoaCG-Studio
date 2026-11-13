@@ -349,5 +349,52 @@
       "gitObject": "0455ecddfa4775e163d702ff2d1c112ac1c0476a:kit/receipts/e2-independent-check/verification-receipt.json",
       "url": "https://github.com/NoaCG/NoaCG-Studio/blob/0455ecddfa4775e163d702ff2d1c112ac1c0476a/kit/receipts/e2-independent-check/verification-receipt.json"
     }
+  ],
+  "additionalArchives": [
+    {
+      "phase": "E5C",
+      "why": "Bounded8MiBrecoverykit; moveonlycompletedpassingwholelogs alreadybyteverifiedinimmutablepublishedcheckpoint. Failedlogs/STOP/WIP remaininplace. Allbytesretainedlocallyandremotely.",
+      "observedAt": "2026-11-13T14:56:33.362104+00:00",
+      "checkpoint": "2939c048fc1fcc9f4bb000345dca2e136adc41eb",
+      "verifiedRemoteDescendant": "a0bbbd2bd843729cfa67af985eda0f2a1ef2aaf0",
+      "localArchive": "/workspace/noacg-editor-r1-5-state/17e47924/retained-evidence/2939c048fc1fcc9f4bb000345dca2e136adc41eb/e5c-publication",
+      "files": [
+        {
+          "path": "e5c-publication/pr2496-e2e-plan-whole.log",
+          "bytes": 67791,
+          "sha256": "5d6bf5f7f175d6e3a0f8490714955dc78a769042736d5714574da9e1db3298ba",
+          "gitObject": "2939c048fc1fcc9f4bb000345dca2e136adc41eb:kit/e5c-publication/pr2496-e2e-plan-whole.log",
+          "url": "https://github.com/NoaCG/NoaCG-Studio/blob/2939c048fc1fcc9f4bb000345dca2e136adc41eb/kit/e5c-publication/pr2496-e2e-plan-whole.log"
+        },
+        {
+          "path": "e5c-publication/ci-gate-131923253318-whole.log",
+          "bytes": 31602,
+          "sha256": "f2907d55df24b9a75d5aec4925842fdaf4e10b7d3516570fbd972c06893c2ad9",
+          "gitObject": "2939c048fc1fcc9f4bb000345dca2e136adc41eb:kit/e5c-publication/ci-gate-131923253318-whole.log",
+          "url": "https://github.com/NoaCG/NoaCG-Studio/blob/2939c048fc1fcc9f4bb000345dca2e136adc41eb/kit/e5c-publication/ci-gate-131923253318-whole.log"
+        },
+        {
+          "path": "e5c-publication/configured-verdict-131923047869-whole.log",
+          "bytes": 36504,
+          "sha256": "d1a85d02e63c127eb27033c70a0582280aeedd2bc11d752f1c2ec8cdd1d9b1a3",
+          "gitObject": "2939c048fc1fcc9f4bb000345dca2e136adc41eb:kit/e5c-publication/configured-verdict-131923047869-whole.log",
+          "url": "https://github.com/NoaCG/NoaCG-Studio/blob/2939c048fc1fcc9f4bb000345dca2e136adc41eb/kit/e5c-publication/configured-verdict-131923047869-whole.log"
+        },
+        {
+          "path": "e5c-publication/pr2496-editor-projects-shard-whole.log",
+          "bytes": 53170,
+          "sha256": "42ec01b69c988d15eaf0a8a4b55ea31139b313995a6fd6be2a07bbadfdffb511",
+          "gitObject": "2939c048fc1fcc9f4bb000345dca2e136adc41eb:kit/e5c-publication/pr2496-editor-projects-shard-whole.log",
+          "url": "https://github.com/NoaCG/NoaCG-Studio/blob/2939c048fc1fcc9f4bb000345dca2e136adc41eb/kit/e5c-publication/pr2496-editor-projects-shard-whole.log"
+        },
+        {
+          "path": "e5c-publication/stamp-helper-131925315066-whole.log",
+          "bytes": 10793,
+          "sha256": "708d94b2f9a0ecb3d34c20bccbfaef405151145cbd35162a7b8b02e074e03dc3",
+          "gitObject": "2939c048fc1fcc9f4bb000345dca2e136adc41eb:kit/e5c-publication/stamp-helper-131925315066-whole.log",
+          "url": "https://github.com/NoaCG/NoaCG-Studio/blob/2939c048fc1fcc9f4bb000345dca2e136adc41eb/kit/e5c-publication/stamp-helper-131925315066-whole.log"
+        }
+      ]
+    }
   ]
 }
