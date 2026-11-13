@@ -8,7 +8,7 @@
     "return": "Return native final receipt to /root in active Cloud chat 6af455f4-b1c8-8191-86b2-8bfdfc619075",
     "environment": "ccarenv_b64_Y2NhcmVudl9mOGJiMmY0OWI4ZjA4MTkxYjE5YjAzNDFjZjcxMmRiYg",
     "session": "6af455f4-b1c8-8191-86b2-8bfdfc619075",
-    "status": "Active same coordinator under supported renewed block10; solePR2438owner through actualqueue/merge/exactpostland/independentacceptance; no unattendedwake."
+    "status": "Same active coordinator; no in-flight workers or queued PR. Six original phases accepted. Hosted feedback amendment prepared; no product correction admitted. No durable wake claim."
   },
   "authorization": {
     "line": "Execution mode: I explicitly authorize ACTIVE LOCAL Codex execution. This supersedes the draft's requested unattended mode. Record this later decision in the launch receipt and use execution harness codex, mode active.",
@@ -67,9 +67,8 @@
   },
   "inFlight": [],
   "owner": [
-    "Provide E5 moderator/participant IDs (pseudonyms are fine) and desktop/laptop OS/browser details; run the prepared local sessions and return actual timing/error/assistance forms.",
-    "Arrange E6 named real receiving hosts/operator and off-air access after E5; Linux775 and every claimed target remain actual-host gates.",
-    "Full applicable GSAP terms/date and written disposition gate OW1; explicit candidate-specific release approval gates E7."
+    "No recruitment or downloaded build is requested. Owner will review fixes through hosted Studio after engineering verification.",
+    "Actual receiving-system, rights and candidate-specific release decisions retain their existing gates; do not infer completion from usability feedback."
   ],
   "fixes": [
     {
@@ -1479,8 +1478,8 @@
     "currentPublicUpdate": 6831775749
   },
   "waitingOn": {
-    "kind": "owner",
-    "what": "E5: actual moderator, 2–3 first-time participant IDs and named desktop/laptop OS/browser/native125 setup; owner offered help but actual resource receipt is not yet provided.",
+    "kind": "dependency",
+    "what": "Verified owner-decision receipt must land on main before supported E5F admission. Owner has declined recruitment and uses hosted Studio; no participant/local-build prerequisite is requested.",
     "eta": null
   },
   "completedCausalityReviews": [
@@ -3399,10 +3398,26 @@
   "finalLocalHandoff": {
     "phase": "E5",
     "source": "705ba59425441fedbe171bee993e4b621c7bf68b",
-    "status": "PRIVATE_CONCRETE_KIT_READY_RESOURCE_INTAKE_PENDING; noE5attempt/admission",
+    "status": "SUPERSEDED_USER_WORKFLOW_HOSTED_STUDIO; retain historical artifact/evidence only",
     "privateFile": "/workspace/noacg-editor-r1-5-state/17e47924/retained-evidence/E5-local-handoff-705ba594.json",
     "publication": "OptionalfulldetailedGitHubhandoffpostautoreviewrejected; payloadkeptprivate/outsidepublickit/noalternatedestinationbypass. Requiredminimaltechnicalfindingsaccepted. Ownerwillreceiveprivatechatdownload/procedures.",
-    "ownerAnswer": "Latest owner: lets do it, how can I help. Rootansweredrecruit2–3newusers,choosemoderator,identifydesktop/laptopandOS/browser; actualIDs/setupqualificationstillpending.",
-    "resume": "Continue SAMEledger/runissue2295. Read saved E5 stop packet and current supervisor; clear ownerwait with actual resource/qualification evidence, renewboundedblockifneededunderstandingpermission, then admit onlyE5 with realpeople/devices. KeepinheritedCodexmodel/effort, allspentattempts, no E4editswithoutreassessment."
+    "ownerAnswer": "Owner declined recruited study, tested hosted editor, reported four usability issues, and requires Studio-managed assistant independent of personal AI settings.",
+    "resume": "Same run #2295: finish/land the docs-only feedback owner-decision branch through queue-merge, then clear obsolete participant wait with explicit current owner decision and admit E5F using that main receipt/current block. Start hosted assistant correction first. Do not launch E5 against the stale recruitment/local-build handoff; preserve all historical criteria/attempts and inherited model/effort. No product correction has started or landed."
+  },
+  "hostedFeedbackAmendment": {
+    "status": "DOCS_REVIEWED_COMMITTED_NOT_ON_MAIN_NOT_ADMITTED_NO_PRODUCT_EDITS",
+    "branch": "codex/editor-r1-5-feedback-plan-20261113",
+    "worktree": "/workspace/noacg-editor-r1-5-feedback-plan",
+    "commit": "a6b98af5a",
+    "receipt": "docs/work-specs/editor-r1-5/owner-decision-2026-11-13-hosted-feedback.md",
+    "kitReceipt": "feedback-amendment/owner-decision-2026-11-13-hosted-feedback.md",
+    "target": "https://noacg.studio/app?editor=foundation#/editor-foundation",
+    "correctionOrder": [
+      "Studio-managed assistant",
+      "blank creation and starter previews",
+      "resizable panels",
+      "whole-graphic transforms"
+    ],
+    "verification": "Docs-only targeted gates PASS; review inline0/0; simplify inline; verify inline; exact commit stamp PASS. No product fix, no PR, no queue or E5F actor."
   }
 }
