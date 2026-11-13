@@ -50,10 +50,12 @@ export interface SceneJoinIo {
   /** The production record as it is now: each join takes its scene's cue there, read again
    *  before each Take. */
   record: () => SceneRecord | undefined;
+  /** The cue this page has up for a graphic now, or null: what air the operator sees. */
+  airOf: (graphic: string) => string | null;
   /** The operator's Take of a cue. */
   take: (cue: SceneCue) => Promise<void>;
-  /** Said on the note line when a Take threw: the other joins still go. */
-  failed: (join: SceneJoin, error: unknown) => void;
+  /** The joins that did not go, each with why, said once on the note line. */
+  failed: (failures: { join: SceneJoin; error: unknown }[]) => void;
   /** False once the page has gone. */
   live: () => boolean;
   now?: () => number;
@@ -67,16 +69,22 @@ export async function takeJoined(io: SceneJoinIo, joins: readonly SceneJoin[], n
   const now = io.now ?? Date.now;
   const wait = io.wait ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const scenes = new Set(joins.map((j) => j.scene));
+  // What each graphic's air was as the publish landed: a Take or Out of it by anyone after that is
+  // the operator's word on it, and its join is not sent over it.
+  const atPublish = new Map(joins.map((j) => [j.graphic, io.airOf(j.graphic)] as const));
   const start = now();
   const due = () => io.published() && sceneLinksHold(io.entries(), scenes, n);
   while (io.live() && !due() && now() - start < JOIN_WAIT_MS) await wait(POLL_MS);
+  if (!io.live()) return;
   // Never sent as an unpublished Take: it would air on this page alone and never reach the log.
-  if (io.live() && !io.published()) {
-    for (const j of joins) io.failed(j, new Error('the page did not take the publish in time'));
+  if (!io.published()) {
+    io.failed(joins.map((join) => ({ join, error: new Error('the page did not take the publish in time') })));
     return;
   }
+  const failures: { join: SceneJoin; error: unknown }[] = [];
   for (const j of joins) {
     if (!io.live()) return;
+    if (io.airOf(j.graphic) !== atPublish.get(j.graphic)) continue;
     // Read again before each Take: a scene left, or the switch turned off, while an earlier Take
     // was being sent takes this one out of the scene, and then it is not taken.
     const record = io.record();
@@ -85,7 +93,8 @@ export async function takeJoined(io: SceneJoinIo, joins: readonly SceneJoin[], n
     try {
       await io.take(cue);
     } catch (e) {
-      io.failed(j, e);
+      failures.push({ join: j, error: e });
     }
   }
+  if (failures.length > 0) io.failed(failures);
 }

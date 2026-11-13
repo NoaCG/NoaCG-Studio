@@ -53,11 +53,24 @@ ones the proof and the PR use.
   the note line says so.
 - J6 (code review). A Take that fails is said on the note line, and the other joins still go. A
   page that has gone (another production opened) sends nothing more; the joins it still owed are
-  not made, and the operator Takes them by hand.
+  not made, and the operator Takes them by hand. Several failures are named on one line.
+- J6b (Rules review). A Take or Out of a graphic, by anyone, after the publish landed is the
+  operator's word on it: its join is not sent over it. The page compares what it has up for the
+  graphic with what it had as the publish landed, just before each join Take.
 - J6a. Turning the switch off and on again, then publishing, takes every scene graphic again: the
   scenes are made again.
 - Unchanged and out of scope: a Take clears another graphic on the same layer (the layer rule).
   Graphics get free layers, and a scene copy gets one of its own (C4).
+
+### Product decisions this row made (for the coordinator to confirm)
+
+- J2: the join airs on the ordinary link too, as a pressed Take of a scene graphic does (D3 and
+  C9: one air state per graphic). The spec does not say it in words.
+- J3: a graphic already up on the ordinary link gets a real re-Take at the publish that moves it
+  into a scene, so on vMix, CasparCG or a browser program it plays its entrance again with no
+  press. The reason: a graphic moved between scenes is up only in its old link, which drops it
+  (R6), and the new scene link joins it off air (R11). The spec's own "Not in this phase" note
+  raised the ordinary-link concern without deciding it.
 
 ## Proof
 
@@ -65,8 +78,13 @@ ones the proof and the PR use.
 | --- | --- |
 | J1, J1a, J5 | `scripts/scene-join.test.mjs`: joined graphics; a published scene joins nothing more; a moved graphic joins its new scene; first publish joins all; switch off joins none |
 | J2, J2a | `scripts/scene-join.test.mjs`: the scene's first cue of the graphic; none once moved out or with the switch off; the switch turned off while the first Take is sent stops the second |
-| J3, J3b, J4, J4a, J4b, J6 | `scripts/scene-join.test.mjs`: a link on the old version holds the Take until it reports the new one; a preparing link counts; another scene's link, the ordinary link and an operator never hold it back; a link that never reads it delays it by the bound only; a graphic up is taken; a throwing Take is said and the next goes; a page gone takes nothing |
+| J3, J3b, J4, J4a, J4b, J6, J6b | `scripts/scene-join.test.mjs`: a link on the old version holds the Take until it reports the new one; a preparing link counts; another scene's link, the ordinary link and an operator never hold it back; a link that never reads it delays it by the bound only; a graphic up is taken; a throwing Take is said and the next goes, several on one line; a page gone takes nothing; a Take or Out pressed during the wait keeps its graphic's join from being sent |
 | J1, J2, J4, J5 in the product | `e2e/configured/live-prepare.spec.ts` "OBS scenes (#2489)" (local stack, CI): the Gameplay link open before its folder is a scene; making it a scene and publishing airs Hairline there and on the page with no Take; taken out by hand, it stays out when the next publish makes Desk a scene, which airs Bug; a cue in no scene is never taken |
+
+J1b (two pages publishing at once) and J6a are not tested. J1b rests on the publish guard (a raced
+write throws `PublishBehind` and the publish retries once against the newer row, whose scenes
+become `before`), read and confirmed by the Rules review. The configured walk proves that `before`
+comes from the replaced row: its second publish keeps Hairline out. J6a follows from J5's tests.
 
 ## Mutation checks run locally
 
@@ -76,6 +94,7 @@ ones the proof and the PR use.
   Restored.
 - The record read once for every join instead of before each Take: the switch-off-mid-loop test
   fails. Restored.
+- The air comparison (J6b) removed: the hand-press test fails. Restored.
 - The page's call (`ProductionPage.tsx` `onPublished`) is what the configured walk guards:
   without it nothing takes Hairline and the walk's first "on air in its scene link" poll fails.
   Not run as a mutation here: this machine has no local stack.

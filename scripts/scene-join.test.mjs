@@ -70,6 +70,7 @@ test('a scene link holds a publish once it reports that version, or is preparing
 
 function clockIo(entries, initial = production()) {
   let record = initial;
+  const air = {};
   let t = 0;
   const taken = [];
   const failures = [];
@@ -84,7 +85,11 @@ function clockIo(entries, initial = production()) {
       if (cue.id === 'h') throw new Error('typed data refused');
       taken.push({ cue: cue.id, at: t });
     },
-    failed: (j, e) => failures.push(`${j.graphic}: ${e.message}`),
+    airOf: (g) => air[g] ?? null,
+    setAir: (g, cue) => {
+      air[g] = cue;
+    },
+    failed: (list) => failures.push(list.map((f) => `${f.join.graphic}: ${f.error.message}`).join('; ')),
     live: () => true,
     now: () => t,
     wait: async (ms) => {
@@ -132,6 +137,11 @@ test('a first publish: the Take waits for the page to send to the published log,
   await takeJoined(never.io, [{ scene: 'scA', graphic: 'A2' }], 1);
   assert.deepEqual(never.taken, []);
   assert.deepEqual(never.failures, ['A2: the page did not take the publish in time']);
+  // Several joins: one note names them all.
+  const both = clockIo(() => []);
+  both.io.published = () => false;
+  await takeJoined(both.io, [{ scene: 'scA', graphic: 'A1' }, { scene: 'scA', graphic: 'A2' }], 1);
+  assert.deepEqual(both.failures, ['A1: the page did not take the publish in time; A2: the page did not take the publish in time']);
 });
 
 test('each Take reads the scenes again: a graphic out of its scene, or the switch off, by then is not taken', async () => {
@@ -144,4 +154,22 @@ test('each Take reads the scenes again: a graphic out of its scene, or the switc
   };
   await takeJoined(run.io, [{ scene: 'scA', graphic: 'A1' }, { scene: 'scA', graphic: 'A2' }], 1);
   assert.deepEqual(run.taken, [{ cue: 'a1', at: 0 }]);
+});
+
+test('a Take or Out of a graphic after the publish is the operator\'s word: its join is not sent over it', async () => {
+  // A link reads the publish at 3 s; meanwhile the operator takes A1 out (it was up elsewhere) and
+  // takes A2 by hand. Only B1, which nobody touched, is taken by the join.
+  const show = production();
+  const run = clockIo((t) => [link('scA', ready(t >= 3000 ? 7 : 6))], show);
+  run.io.setAir('A1', 'a1');
+  const wait = run.io.wait;
+  run.io.wait = async (ms) => {
+    await wait(ms);
+    if (run.io.now() === 1000) {
+      run.io.setAir('A1', null);
+      run.io.setAir('A2', 'a2');
+    }
+  };
+  await takeJoined(run.io, [{ scene: 'scA', graphic: 'A1' }, { scene: 'scA', graphic: 'A2' }, { scene: 'scB', graphic: 'B1' }], 7);
+  assert.deepEqual(run.taken, [{ cue: 'b1', at: 3000 }]);
 });

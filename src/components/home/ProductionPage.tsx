@@ -2906,7 +2906,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             entries: () => livePresenceRef.current.peers,
             record: () => loadShows().find((s) => s.id === showId),
             take: (cue) => takeCue(cue),
-            failed: (join, e) => setNote(`${join.graphic} did not go on air in its OBS scene: ${e instanceof Error ? e.message : String(e)}`),
+            airOf: (graphic) => session.air.get().liveCue[graphic] ?? null,
+            failed: (failures) => {
+              const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
+              setNote(`Not on air in their OBS scenes: ${failures.map((f) => `${f.join.graphic} (${why(f.error)})`).join(', ')}`);
+            },
             live: () => pageLiveRef.current,
           },
           joinedScenes(published.scenes.before, published.scenes.after),
