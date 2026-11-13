@@ -17,6 +17,10 @@ import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { appliedIn, receiverHost } from '../_receiverHost';
 import { haveCreds, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
+import { installDoor } from '../_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // THE COLD BOOT ON THE RELAY PLANE, against a real control log (docs/CLOUD_PLAYOUT.md §3).
 //

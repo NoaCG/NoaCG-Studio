@@ -18,6 +18,10 @@ import { createGraphicInEditor, haveCreds, settleSync, signIn, wipeMyGraphics, u
 import { openWorkspace } from '../_workspace';
 import { settleDurableWrites } from '../_durable';
 import { addQuestion, addResults, goLive, moreWaysIn, stopLive } from '../_interaction';
+import { installDoor } from '../_door';
+
+// This file serves documents the app does not boot; they need the door too (e2e/_door.ts).
+test.beforeEach(({ context }) => installDoor(context));
 
 // THE AUDIENCE LINK, against the real backend — the half of Phase 5 the offline suite cannot own.
 //
@@ -39,6 +43,7 @@ const BUDGET_MS = 3_000;
 /** One cold load: a new context, the profile on, and the moment the question's text is on screen. */
 async function coldLoad(browser: Browser, url: string, question: string): Promise<number> {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await installDoor(context);
   try {
     await context.addInitScript((text) => {
       const w = window as unknown as { __visibleAt?: number };
@@ -570,6 +575,7 @@ test.describe(() => {
 
     // The phone: a small touch screen, nothing wider than it, an answer sent.
     const phoneContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    await installDoor(phoneContext);
     const phone = await phoneContext.newPage();
     const shot = async (name: string) => testInfo.attach(`phone-${name}`, { body: await phone.screenshot(), contentType: 'image/png' });
     await phone.goto(joinUrl);
@@ -665,6 +671,7 @@ test.describe(() => {
     await shot('6-word-sent');
     // A second phone (its own browser, so its own device) sends a word the operator will hide.
     const secondContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    await installDoor(secondContext);
     const second = await secondContext.newPage();
     await second.goto(joinUrl);
     await second.locator('#nj-word').fill('Boring');
