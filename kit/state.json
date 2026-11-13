@@ -42,16 +42,6 @@
   ],
   "inFlight": [
     {
-      "phase": "OS1b",
-      "step": "check",
-      "actor": "checker-os1b-7641",
-      "session": "session_017SdbwMGDARNyqxsBPyZFMq",
-      "pr": 2490,
-      "mergeSha": "b0c8060d5027b1cb56374a878acf1c0f73c51b72",
-      "launchedAt": "2026-11-13T12:26:05Z",
-      "note": "sent brief = saved brief plus one NOTES line (amended D9, Pictures default, #2489 separate)"
-    },
-    {
       "phase": "fix-2489",
       "step": "build",
       "actor": "builder-fix-2489-f-d048",
