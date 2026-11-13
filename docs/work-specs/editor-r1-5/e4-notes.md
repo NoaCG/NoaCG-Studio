@@ -1144,3 +1144,42 @@ entrypoint, packaging or build input changes follow63d7, whose actual CI Build
 passed; new-head Actions still owes its full Build. Current-head capacity,
 configured/backend/Codex, fresh final FULL SO A/A+ and root's normal queue remain
 required. No stamp, landing, E4 PASS or later phase is claimed here.
+
+
+The ONE committed-source broader admission j-0123 at
+`721c8d4746e0078671a4886e2abdc254df8a8d33` is terminal PASS158/158 in10.2minutes,
+within12minutes, two workers, zero skips/retries. It executes the complete maintained
+editor-projects, new-graphic-guard, save-transaction-holds, save-transaction-leave,
+cross-tab, editor-folders-bins and editor-command-task specs. No further product
+edit, broader admission or production build follows this passing frozen source.
+All original Discard assertions remain byte-identical. A qualified protection
+check counts67 maintained project cases and320 specs, with no removed protection.
+Its earlier scoped-sandbox base-worktree refusal is retained as infrastructure,
+not a product failure; the supported metadata escalation completed the check.
+
+Fresh current-main fetch is `18faebede8e339de22f1c1756f7047ad89d44163`;
+merge-tree is CLEAN (`666a3eab29a083561beda1a54b4d1b9617df527d`) and merge-order
+is clear. No merge/rebase changes this feature source. Canonical current-helper
+sideEnds assesses all52 phase paths as `{ends:{},why:[]}`. Independent full
+91a-to-HEAD package/build/version/dependency/lock/CLI audit still finds only the
+manual qualification-script addition. The supported capacity API, explicitly
+using this feature's table/suite/root and the retained frozen growth receipt,
+reports PROVISIONAL WARN197.7/213table-minutes92.8%, adds0.42min. Newest growth
+is missing and the frozen seed is stale; no known403 fetch is repeated, no cost
+or maintenance exception is added. Actual final-head CI capacity remains required.
+
+The current receiving journey passes20.7s. Fresh SPX/CasparCG/HTML Overlay/OGraf
+ZIPs have identical file names and all43 uncompressed file bytes match the staged
+kit. Fresh source differs only at brandApplication.lookId, the intentionally fresh
+brand UUID; strict raw source equality is not claimed. Export/preview/template/
+asset/fixture sources are unchanged63d7-to-721c; current painted output assertions
+and that artifact equality establish reuse of prior receiving evidence at this
+scope. This remains browser rehearsal, not physical receiver/device acceptance.
+
+This notes-only receipt follows the verified product. Local correction review is
+inline, simplification uses the existing transaction/read helpers, and targeted
+verification is the passing323gate/36small/158broader results above. Earlier FULL
+reviews remain B; final landing still requires a fresh FULL52path A/A+ opinion,
+actual final-head normal CI/configured/capacity, isolated backend, CodeQL and one
+Codex route. Root alone stamps/queues and retains terminal post-land ownership.
+No migration, licence/engine/provider/release decision or later phase is changed.
