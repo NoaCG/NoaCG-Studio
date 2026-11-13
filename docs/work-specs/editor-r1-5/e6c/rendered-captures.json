@@ -1,0 +1,125 @@
+{
+  "scope": "Actual j0151 Cloud rendered PNGs retained in owned ignored output; hash receipts only in the repository, no encoded picture wrapper. Each is1920x1080. Background differences are host compositing, not pixel equality.",
+  "captures": [
+    {
+      "path": "e6c.local/output-corrected/output-preparation-casparc-d9b75--font-data-and-bundled-logo-chromium/casparcg-in.png",
+      "bytes": 35877,
+      "sha256": "455872f3957f530008a7aac99a245311d390ee27ae71d003c89c5281bcd50cfa"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-casparc-d9b75--font-data-and-bundled-logo-chromium/casparcg-next.png",
+      "bytes": 44020,
+      "sha256": "5d929e2597e33b4798148cb401ba70fa07f2db448e6c1e9812b9d7de8cb2b604"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-casparc-d9b75--font-data-and-bundled-logo-chromium/casparcg-out.png",
+      "bytes": 8512,
+      "sha256": "e474a175f992442a69e502e42d7748076f7b37bd4715cf7c03ed2b7ff55231c3"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-casparc-d9b75--font-data-and-bundled-logo-chromium/casparcg-replay.png",
+      "bytes": 35877,
+      "sha256": "455872f3957f530008a7aac99a245311d390ee27ae71d003c89c5281bcd50cfa"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-h2r-exa-5ccba--font-data-and-bundled-logo-chromium/h2r-in.png",
+      "bytes": 35877,
+      "sha256": "455872f3957f530008a7aac99a245311d390ee27ae71d003c89c5281bcd50cfa"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-h2r-exa-5ccba--font-data-and-bundled-logo-chromium/h2r-next.png",
+      "bytes": 44020,
+      "sha256": "5d929e2597e33b4798148cb401ba70fa07f2db448e6c1e9812b9d7de8cb2b604"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-h2r-exa-5ccba--font-data-and-bundled-logo-chromium/h2r-out.png",
+      "bytes": 8512,
+      "sha256": "e474a175f992442a69e502e42d7748076f7b37bd4715cf7c03ed2b7ff55231c3"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-h2r-exa-5ccba--font-data-and-bundled-logo-chromium/h2r-replay.png",
+      "bytes": 35877,
+      "sha256": "455872f3957f530008a7aac99a245311d390ee27ae71d003c89c5281bcd50cfa"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-html-ov-9b8ee--font-data-and-bundled-logo-chromium/html-overlay-in.png",
+      "bytes": 35877,
+      "sha256": "455872f3957f530008a7aac99a245311d390ee27ae71d003c89c5281bcd50cfa"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-html-ov-9b8ee--font-data-and-bundled-logo-chromium/html-overlay-next.png",
+      "bytes": 44020,
+      "sha256": "5d929e2597e33b4798148cb401ba70fa07f2db448e6c1e9812b9d7de8cb2b604"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-html-ov-9b8ee--font-data-and-bundled-logo-chromium/html-overlay-out.png",
+      "bytes": 8512,
+      "sha256": "e474a175f992442a69e502e42d7748076f7b37bd4715cf7c03ed2b7ff55231c3"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-html-ov-9b8ee--font-data-and-bundled-logo-chromium/html-overlay-replay.png",
+      "bytes": 35877,
+      "sha256": "455872f3957f530008a7aac99a245311d390ee27ae71d003c89c5281bcd50cfa"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-liveos--9abcc--font-data-and-bundled-logo-chromium/liveos-in.png",
+      "bytes": 20319,
+      "sha256": "5ee7eb21e30993d59ff468eabd76ae3ff4364abd36418d814c5587d73141c33c"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-liveos--9abcc--font-data-and-bundled-logo-chromium/liveos-next.png",
+      "bytes": 23775,
+      "sha256": "89031a7e4b135efc9317e4bb460d29ddd199ae2ff17bd3d277ba219a4cad501b"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-liveos--9abcc--font-data-and-bundled-logo-chromium/liveos-out.png",
+      "bytes": 8513,
+      "sha256": "2bf6e8c9f833830c070716942384d1a2e5d850e50ed83ef790ed74911cc20c88"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-liveos--9abcc--font-data-and-bundled-logo-chromium/liveos-replay.png",
+      "bytes": 20319,
+      "sha256": "5ee7eb21e30993d59ff468eabd76ae3ff4364abd36418d814c5587d73141c33c"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-ograf-e-4b3ed--font-data-and-bundled-logo-chromium/ograf-in.png",
+      "bytes": 20319,
+      "sha256": "5ee7eb21e30993d59ff468eabd76ae3ff4364abd36418d814c5587d73141c33c"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-ograf-e-4b3ed--font-data-and-bundled-logo-chromium/ograf-next.png",
+      "bytes": 24192,
+      "sha256": "bde10b2d46bffed1d09ce9291c1b28734bf68cc6cca49e4330f6cda1409f5cd8"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-ograf-e-4b3ed--font-data-and-bundled-logo-chromium/ograf-out.png",
+      "bytes": 8513,
+      "sha256": "2bf6e8c9f833830c070716942384d1a2e5d850e50ed83ef790ed74911cc20c88"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-ograf-e-4b3ed--font-data-and-bundled-logo-chromium/ograf-replay.png",
+      "bytes": 20319,
+      "sha256": "5ee7eb21e30993d59ff468eabd76ae3ff4364abd36418d814c5587d73141c33c"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-spx-exa-2081d--font-data-and-bundled-logo-chromium/spx-in.png",
+      "bytes": 35877,
+      "sha256": "455872f3957f530008a7aac99a245311d390ee27ae71d003c89c5281bcd50cfa"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-spx-exa-2081d--font-data-and-bundled-logo-chromium/spx-next.png",
+      "bytes": 44020,
+      "sha256": "5d929e2597e33b4798148cb401ba70fa07f2db448e6c1e9812b9d7de8cb2b604"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-spx-exa-2081d--font-data-and-bundled-logo-chromium/spx-out.png",
+      "bytes": 8512,
+      "sha256": "e474a175f992442a69e502e42d7748076f7b37bd4715cf7c03ed2b7ff55231c3"
+    },
+    {
+      "path": "e6c.local/output-corrected/output-preparation-spx-exa-2081d--font-data-and-bundled-logo-chromium/spx-replay.png",
+      "bytes": 35877,
+      "sha256": "455872f3957f530008a7aac99a245311d390ee27ae71d003c89c5281bcd50cfa"
+    }
+  ]
+}
