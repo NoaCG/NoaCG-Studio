@@ -69,7 +69,7 @@
     {
       "phase": "E6C",
       "step": "Fresh Cloud export/receiving builder active",
-      "note": "E6C product+targeted/broaderverificationPASS. Correctedcandidate c456 run43455609799SUCCESS: normal5844tests5814PASS0FAIL30existingSKIP,gateway533PASS;12helperasserts/cleanuptrue, currentcandidateZIP/version/hash849files produced. Originalde563failedcoverageheader retained. 8receivingZIPs/notices stagedexactbytes; finalG07/currentCLIclosure/local kit/fullreview/CI/queue/freshacceptance remain. Fullvendorlicensearchive+writtenreply unresolvedOW1, no legalclearance."
+      "note": "E6CfinalFULLSO runningONEfreshactor on569aac/base1178. Currentnativec456buildPASS5844tests/12helpers/cleanuptrue; all8ZIPs/source/notices/kit and23committedartifacthashes verified. Originalj148/j150/nativeFAIL retained; broader1/1/E5C3/3/E4spent unchanged. Finalreviewgrade thenPR/currentCI/Codex/queue/freshexactmergeacceptance required; realE5/E6/OW1 gates remain."
     }
   ],
   "owner": [
@@ -3127,6 +3127,15 @@
         "scope": "PRODUCERactualverified; rawconsumerartifactreadback notclaimed. Fullreview/CI/queue/exactmergeacceptance remain."
       }
     },
-    "technicalNoticesRootReadback": "Roothashedall8stagedZIPs total1831904byteactualj151matches; exact72927byteGSAPraw SHA92bb... present8/8; folderwoff2+fullSILlicense and inlineSILlicenseinsingleHTML verified; Caspar/OGraf Incapturesviewed. No legalclearance. Actualfullvendorterms inaccessibleONECONNECT403/status000; pinnedupstreamtreeNOlicensetext; no retainedfullsnapshotfound, preservefulltermsarchive+writtenvendor disposition as unmetOW1/G07prerequisite; no reconstruction/allowlistbypass."
+    "technicalNoticesRootReadback": "Roothashedall8stagedZIPs total1831904byteactualj151matches; exact72927byteGSAPraw SHA92bb... present8/8; folderwoff2+fullSILlicense and inlineSILlicenseinsingleHTML verified; Caspar/OGraf Incapturesviewed. No legalclearance. Actualfullvendorterms inaccessibleONECONNECT403/status000; pinnedupstreamtreeNOlicensetext; no retainedfullsnapshotfound, preservefulltermsarchive+writtenvendor disposition as unmetOW1/G07prerequisite; no reconstruction/allowlistbypass.",
+    "finalReview": {
+      "status": "ONE_FULL_SO_OUTSTANDING",
+      "actor": "/root/editor_e6c_cloud_builder/final_full_review",
+      "head": "569aaceb523ccdfbbbe4cf3cad2238667aeeea73",
+      "base": "1178ac8e8b1c3cabef036e57a1a50c74576ebf93",
+      "mode": "freshforknone/read-only/inheritedmodel-effort/nooverrides; noheavytests/build/browser/delegation",
+      "brief": "Exact3criteria+precodeRules/A+percriterioncode/artifact/sourcepins+alloriginalfailures/currentcaps/gaps; no acceptance selfaward."
+    },
+    "finalKitRootReadback": "Rootreadfinalhandoff+verification/G07notes; independentlyreadactualcommitted23artifactblobs at569aac,2145856bytes,0size/hashmismatches. 8ZIPrawbytes/exactGSAPfontnotices verified; docsresourceobservations beforeload/held/Out/disposal andsourcepinseparationpresent. c456\u2192569docs/evidenceonly; no app/runtime/helper/lock change. Finaldocs5cheapgates/treeguardactualPASS; no furtherbuild/broadneeded."
   }
 }
