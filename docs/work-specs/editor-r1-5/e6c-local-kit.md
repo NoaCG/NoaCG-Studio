@@ -63,6 +63,12 @@ Check all assets load and retain original source, fields and authored 1920×1080
 Read each package's own install instructions; the HTML-overlay relay/controller,
 SPX folders, CasparCG template and OGraf import are different installation paths.
 
+Record host/renderer CPU and RAM before load, at held In, after Out and after
+removal/disposal, plus dropped-frame counters where the host exposes them.
+At each point record surviving graphics, audio/actions and console/asset errors;
+keep actual values with UTC and capture references. Mark unavailable counters
+unsupported. These observations introduce no resource budget or performance PASS.
+
 ## Operator sequence and expected output
 
 Send [operator-data.json](e6c/operator-data.json). It updates f0–f2 and preserves
