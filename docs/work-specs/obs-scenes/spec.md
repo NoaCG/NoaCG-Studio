@@ -78,9 +78,16 @@ break another live production.
   `main` (and with it production deploys and migrations). Its schedule is private.
 - **D8. Scores typed in the Sheet are the baseline;** the JSON source and bracket adapter are a
   bonus and the first scope cut if the run slips.
-- **D9. The operator takes scenes through OBS Studio Mode preview, with a short fade (100 ms or
-  more) as the default transition,** so a changed graphic is drawn in preview before it reaches
-  program.
+- **D9. Direct cuts and fades are supported; graphics that change while off air sit in a shared
+  source.** OBS keeps the last picture of a browser source whose scene is off air and shows it for
+  one or two frames when the scene comes back (`docs/OBS_ON_A_REAL_HOST.md` §11, measured again in
+  OS2). A graphic that did not change looks the same, so only a changed one flashes its old value.
+  Graphics that change all the time (a countdown, a sponsor loop, live scores) therefore go in one
+  scene folder whose link is added to every OBS scene that shows them as the same source ("Add
+  Existing"), so it stays on air while the operator cuts between those scenes. Taking a scene
+  through Studio Mode preview shows no old frame at all and stays the safest path. Owner,
+  2026-11-13: "we need to support swapping scenes without preview also"; agreed to the shared
+  source rule. (Before OS2 this decision read: take every scene through Studio Mode preview.)
 
 ## Behaviour
 
@@ -325,7 +332,9 @@ minutes of cutting:
   lag at most 0.1%; average render time at most 8 ms.
 - Stale frame: change a value while its scene is hidden, then take it ten times through Studio
   Mode preview, ten times with the default transition, and ten times with a direct Cut. Pass: no
-  old frame on the first two. The direct Cut is recorded for information.
+  old frame through Studio Mode preview. The default transition and the direct Cut are recorded
+  for information, and D9's shared source covers graphics that change off air (amended after
+  OS2, owner 2026-11-13).
 - The stinger's start, cut point and the source's "on program" event are logged ten times, for
   information.
 - Sign-in to NoaCG inside a Custom Browser Dock works.
@@ -335,8 +344,11 @@ minutes of cutting:
 ### AC-14: Owner rehearsal
 
 Owner phase, on the owner's laptop, with the receipt template in the OS7 hand-over, one pass or
-fail line each: every scene walked through and its row ticked; the dock and the Companion keys
-used; network off and a source refreshed, then the fallback group shown; a source killed and
+fail line each: every scene walked through and its row ticked; a shared source (D9) holding a
+running countdown shows no old frame on ten direct Cuts between two scenes that both hold it;
+the stinger's start, cut point and "on program" event logged ten times, and any hand-made or
+imported event graphic rests on air when taken (both moved here from OS2); the dock and the
+Companion keys used; network off and a source refreshed, then the fallback group shown; a source killed and
 refreshed back within 10 s; OBS restarted and every scene back within 2 minutes; the Stream Deck
 unplugged and the dock used instead; the bracket feed paused and its last values held. Each drill
 is recovered by the owner alone.
