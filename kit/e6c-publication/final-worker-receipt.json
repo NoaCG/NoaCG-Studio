@@ -1,0 +1,93 @@
+{
+  "nonce": "e6c-b-cloud-1113",
+  "phase": "E6C",
+  "actor": "/root/editor_e6c_cloud_builder",
+  "thread": "6af724c0-3200-8191-b283-b875eff06059",
+  "requestSha256": "a06c22448eaf754312190434a6cfce7ccd9228aa4e5470b0fa8460a5884a489e",
+  "briefSha256": "b8c31f7c5b583aa0bdbecd126cacddb9e08f8d826056389cd04c3cabed01d57b",
+  "briefBytes": 22315,
+  "pr": "https://github.com/NoaCG/NoaCG-Studio/pull/2506",
+  "reviewedHead": "569aaceb523ccdfbbbe4cf3cad2238667aeeea73",
+  "base": "1178ac8e8b1c3cabef036e57a1a50c74576ebf93",
+  "currentMain": "7451fbbacf03a1c763b4e9939b7ed800c8faf5de",
+  "prTestMerge": "d8a6427b9c87a61a3b0dcd01263425c2a14b8768",
+  "ci": {
+    "run": 43460781286,
+    "attempt": 1,
+    "ciGate": {
+      "job": 132016037819,
+      "result": "SUCCESS"
+    },
+    "aggregate": "FAILURE solely missing root-only noacg/reviewed; original Reviewed failure retained",
+    "jobs": "32 terminal:26SUCCESS/5expectedSKIP/1ReviewedFAIL",
+    "offline": {
+      "mode": "subset",
+      "specs": 181,
+      "shards": 15,
+      "result": "15/15SUCCESS; combinedreportSUCCESS; retryjobSKIPPED"
+    },
+    "configured": {
+      "mode": "all",
+      "specs": 64,
+      "stacks": 4,
+      "verdictJob": 132015701245,
+      "result": "SUCCESS",
+      "passed": 158,
+      "failed": 0,
+      "flaky": 0,
+      "existingSkipped": 3
+    },
+    "build": "SUCCESS;5864normaltests:5837PASS0FAIL27existingSKIP;533gatewaymockPASS",
+    "factory": "SUCCESS",
+    "catalog": "SUCCESS",
+    "codeql": {
+      "run": 43460774127,
+      "result": "SUCCESS"
+    }
+  },
+  "reviews": {
+    "check": "PASS exacthead: inline review0/0;inline simplify unchanged;inline verify actual evidence reused",
+    "codex": "COMPLETED exact569;findingsfalse/unresolvedfalse;summary6858490895",
+    "rulesFirst": {
+      "head": "63edf29ed2119ed6256d396d6303c02b296b75bf",
+      "verdict": "AGREE",
+      "grade": "A"
+    },
+    "finalSo": {
+      "head": "569aaceb523ccdfbbbe4cf3cad2238667aeeea73",
+      "base": "1178ac8e8b1c3cabef036e57a1a50c74576ebf93",
+      "verdict": "AGREE",
+      "grade": "A",
+      "comment": "https://github.com/NoaCG/NoaCG-Studio/pull/2506#issuecomment-6858501092",
+      "receiptSha256": "fc33cedb5c7a7afd4a6a5d28af67a0c4e5d73962964763768888142b3600e54b"
+    }
+  },
+  "verification": {
+    "node": "6/6PASS",
+    "small": "j0149:2/2PASS;corrected j0151:7/7PASS",
+    "broader": "j0152:48/48PASS2.4min;0retry/skip;1/1spent",
+    "fit": "18/18feasible strictfit;2impossiblefloor cases;deterministic <=18geometryreads;old failingcontrol",
+    "artifacts": "8actualreceivingZIPs;23manifest entries independently verified0mismatch",
+    "native": {
+      "source": "c456f647eb8a30839473fd93467f447a181f2dc1",
+      "run": 43455609799,
+      "result": "PASS normalbuild5844tests/5814PASS0FAIL30existingSKIP;12helpers0retry/skip;cleanuptrue;22captures",
+      "artifact": 14054076623,
+      "candidateSha256": "fce4859bbae202c51a171d2923124d2a5ee93ca33b8211f4c347b052c9324cb9",
+      "scope": "SOURCE-SPECIFIC producer/helper; consumer raw archive readback and finalmergedwholeapp identity unverified"
+    }
+  },
+  "retainedFailures": [
+    "j0147PRETESTEROFSzero browser tests",
+    "j0148legacy3/18feasible overflow",
+    "j0150original3PASS4FAIL faultyprobe, corrected distinctj0151",
+    "catalogPRELAUNCHEROFS notrerun",
+    "native43454322514FAIL guard-header metadata; tests/helperNOTRUN,candidateabsent;separatec456fix",
+    "original Reviewed132006813331FAIL missingstatusafter148s/28polls"
+  ],
+  "migrations": [],
+  "gitStatusPorcelain": "",
+  "repairOwner": "root ACTIVE ACK soleowner actualcomment6858505858;rootalone stamps/queues/retains postland",
+  "limits": "No E4 defect established;allE4/E5C3of3spent retained;broader1of1spent;2manualnativeattempts spent,no thirdadmission;no newF4/paidmodel. Actualmerge integration/finalcandidate applicability root-owned;realhosts/Linux775/E5devices/native125/performance/OW1fullterms+writtenvendorreply/ownerreleaseapproval remain later gates.",
+  "utc": "2026-11-13T16:32:21.026Z"
+}

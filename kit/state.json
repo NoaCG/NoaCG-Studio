@@ -68,10 +68,9 @@
   "inFlight": [
     {
       "phase": "E6C",
-      "step": "PR source CI/currenthead gates pending",
+      "step": "Actual merge queue verification",
       "pr": "2506",
-      "session": "/root/editor_e6c_cloud_builder",
-      "note": "Reviewed569FULLAandlocalcheckPASS; Codexactualcompletedclean, rootsoleownerACK6858505858/attached. CI43460781286 on569 owedall64configured/4stacks+181offline/15shards/catalog, CodeQL43460774127pending. main7451cleanintegrationmaterialwholeappdelta; nativec456source-specific. Rootnormalqueueafteractualgates; freshactualmergeacceptance remains. Allfailures/attempts preserved."
+      "note": "Actualqueueentry16:33:50, reviewed569. Originalhelper43463837468SUCCESSstamped569/recoveredONLYReviewed; sourceCI43460781286attempt2SUCCESS,CodeQL/Codexclean/FULLA/checkPASS. Mergegroup43464013576/candidate705ba594INPROGRESS, NOTlanding. Builderterminal; rootsoleownerthroughactualmerge/freshcheck/postland. Nativec456source-specific; actualmergedcandidateprepdecisionpending. Allattempts preserved."
     }
   ],
   "owner": [
@@ -3216,7 +3215,7 @@
     "finalCurrentCandidateDecision": "No newmanualadmission. Nativec456 remainsvalidsource-specific; main7451materialwholeappdelta prevents relabelasactualmergedE5candidate. After actualmerge+integration evidence rootwillassessconcreteneed/source/bounds for finalcurrentcandidate using normalriskverification; neverautomaticthird/oldbudgetreset. No docs/codechangesnow.",
     "prRules": "WorkeractualPRBODYONLY addedconciseRules1\u20136; same569head/no push/review/testchange. RequiredobservableprecodeRules repeated.",
     "queueStampIntent": {
-      "status": "READY_ONE_ORIGINAL_DISPATCH_INTENT_NOT_YET_SUBMITTED",
+      "status": "OBSERVED_ORIGINAL_HELPER_SUCCESS_REVIEWED_ONLY_RECOVERED",
       "at": "2026-11-13T16:32:20.751243+00:00",
       "workflow": "cloud-queue-merge.yml",
       "ref": "main",
@@ -3225,7 +3224,32 @@
       "head": "569aaceb523ccdfbbbe4cf3cad2238667aeeea73",
       "review": "PASS check569aaceb: inline review0/0 simplify unchanged verifyPASS; Risky Rules-firstA and finalFULLA; sourceCIgate/configured64files158PASS0FAIL0FLAKY,CodeQL/Codexclean",
       "conditions": "Rootverifiedactualheadopen/mergeable,allsourcegatesgreenexceptmissingrootReviewed,actualRiskyRules/FULLA/localcheck andcanonicalsideEnds{},soleownerACK. Awaitfinalworkerreadback beforeONEdispatch. Knownstatuswriteintegrationcap403usesdocumentedMAINhelper, notselfapprovalrefusal.",
-      "reconcile": "Existinglatesthelper43455419389 at15:43onmain1178isotherwork; no currenthelperon745 observed. Once submittedrecordactualoriginalrun/job; unknownackreconcile notredispatch; helperrecoversONLYReviewed afteroriginalterminal, no softwaretestretry. RootSDKautoqueueimmediatelyafterpinnedstatuswithpre/postexactheadguards."
+      "reconcile": "Existinglatesthelper43455419389 at15:43onmain1178isotherwork; no currenthelperon745 observed. Once submittedrecordactualoriginalrun/job; unknownackreconcile notredispatch; helperrecoversONLYReviewed afteroriginalterminal, no softwaretestretry. RootSDKautoqueueimmediatelyafterpinnedstatuswithpre/postexactheadguards.",
+      "observer": "f40f1ea5c38edeb5ca4c3a987f6590de93273c9587ae2ed6a75c3dff0c70514f UNRESOLVED advisory; originalcommandforwardedONCE exit0; no redispatch",
+      "run": 43463837468,
+      "job": 132017552748,
+      "workflowHead": "7451fbbacf03a1c763b4e9939b7ed800c8faf5de",
+      "wholeLog": "e6c-publication/stamp-helper-132017552748-whole.log",
+      "rootRead": "ActualfullhelperlogBRANCHcodex/plan-editor-r1-5-e6c-build/SHA569/PR2506 stamped+landlabel; reranONLYReviewedoriginalrun43460781286. noacg/reviewedSUCCESS16:33:18; recoveredReviewed132017739696SUCCESS; sourceCIattempt2SUCCESS/32terminaljobs,no softwaretestretry."
+    },
+    "workerCompletion": {
+      "actor": "/root/editor_e6c_cloud_builder",
+      "nativeThread": "6af724c0-3200-8191-b283-b875eff06059",
+      "status": "ACTUAL_NATIVE_FINAL_COMPLETED2026-11-13T16:32:21.026Z",
+      "receipt": "e6c-publication/final-worker-receipt.json",
+      "sha256": "0a21499189d809ae9525e8d283cb24fd3ea355c0b83a348b999a2a085da654b7",
+      "rootRead": "Actualnativefinalreceipt43paths/569/currentcheck/FULLA/CIgate/configured/CodeQL/Codexclean,emptygitstatus; actor endedbeforequeue; rootsoleownercontinues."
+    },
+    "queue": {
+      "status": "ACTUAL_TIMELINE_ADDED_TO_MERGE_QUEUE",
+      "at": "2026-11-13T16:33:50Z",
+      "head": "569aaceb523ccdfbbbe4cf3cad2238667aeeea73",
+      "actor": "miwco viaactualrootSDK",
+      "rootEnable": "SDKenable_auto_mergeSUCCESS with immediatepre/post569headguards; auto_merge nullafter becausequeued, notfailure. Actualtimelineeventconfirmed.",
+      "mergeGroupRun": 43464013576,
+      "candidate": "705ba59425441fedbe171bee993e4b621c7bf68b",
+      "candidateStatus": "IN_PROGRESS_NOT_LANDING",
+      "branch": "gh-readonly-queue/main/pr-2506-7451fbbacf03a1c763b4e9939b7ed800c8faf5de"
     }
   }
 }
