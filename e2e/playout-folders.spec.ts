@@ -13,6 +13,8 @@
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
 // covers: src/model/obsScenes.ts, src/components/home/PlayoutPanel.tsx
+// covers: src/components/home/ObsScenesSettings.tsx, src/components/PlayoutSettingsDialog.tsx, src/control/obsSceneRows.ts
+// covers: src/components/home/ProductionExportDialog.tsx, src/export/showExport.ts
 // focus
 //
 // A RUNDOWN'S FOLDERS (docs/CLIP_PLAYBACK_PLAN.md §6.2, §6.5, §6.6 and §7, phase 4). The rundown half:
@@ -25,6 +27,8 @@
 // layer (e2e/_fakeBridge.ts); its runner is tested against a stateful fake CasparCG in cli/test.
 
 import { test, expect, type Locator, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import JSZip from 'jszip';
 import { bootstrapGraphic } from './_create';
 import { settleDurableWrites } from './_durable';
 import { evaluateInPage } from './_evaluate';
@@ -437,6 +441,112 @@ test('OBS scenes: a graphic added to a second scene becomes its copy, Take and O
   await page.reload();
   await expect(row('Hairline copy')).toBeVisible();
   expect(await record()).toEqual(copied);
+});
+
+test('OBS scenes: one row per scene in the panel, Playout settings copies each link and all of them, and the overlay export offers Settled for scene graphics only (obs-scenes OS3 AC-6, AC-12)', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const id = await production(page, [], {
+    graphics: [{ name: 'Score' }, { name: 'Hand' }],
+    folders: [{ labels: ['Hairline'], name: 'Gameplay', scene: true }, { labels: ['Score'], name: 'Desk', scene: true }],
+    obsScenes: true,
+  });
+  const status = page.getByTestId('production-status');
+  const panel = page.getByTestId('production-status-panel');
+  // Not published, so nothing can be loaded: each scene reads Not loaded, and nothing is ticked yet.
+  await status.click();
+  const rows = panel.getByTestId('obs-scene-row');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toContainText('Gameplay');
+  await expect(rows.nth(1)).toContainText('Desk');
+  await expect(panel.getByTestId('obs-scene-state')).toHaveText(['Not loaded', 'Not loaded']);
+  await expect(panel.getByTestId('obs-scene-seen')).toHaveText(['Not yet seen', 'Not yet seen']);
+
+  // Playout settings: each scene with its graphics; the links come with the first publish.
+  await panel.getByTestId('panel-playout-settings').click();
+  const settings = page.getByTestId('settings-obs-scenes');
+  await expect(settings.getByTestId('settings-obs-scene')).toHaveCount(2);
+  await expect(settings.getByTestId('settings-obs-scene').nth(0)).toContainText('Hairline');
+  await expect(settings.getByTestId('settings-obs-scene').nth(1)).toContainText('Score');
+  await expect(settings.getByTestId('settings-obs-scene-link')).toHaveText(['Available after publishing', 'Available after publishing']);
+  await expect(settings.getByTestId('settings-obs-copy-all')).toBeDisabled();
+  await expect(settings.getByTestId('settings-obs-guide')).toHaveAttribute('href', 'https://github.com/NoaCG/NoaCG-Studio/blob/main/docs/OBS_SCENES.md');
+  await expect(settings.getByTestId('settings-obs-too-many')).toHaveCount(0);
+  await page.getByTestId('playout-settings-close').click();
+
+  // With an output link (as after a publish): Copy copies one scene's link, Copy all every link with
+  // its scene's name, one per line.
+  const scenes = await page.evaluate(async (showId) => {
+    const m = await import('/src/model/shows.ts');
+    m.setShowOutputSlug(showId, 'probe-output');
+    const failure = await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+    if (failure) throw new Error(failure);
+    return (m.loadShows().find((s) => s.id === showId)!.folders ?? []).map((f) => f.id);
+  }, id);
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-playout-settings').click();
+  const links = await settings.getByTestId('settings-obs-scene-link').allTextContents();
+  expect(links.map((l) => new URL(l).searchParams.get('scene'))).toEqual(scenes);
+  expect(links.every((l) => new URL(l).searchParams.get('production') === 'probe-output')).toBe(true);
+  const clipboard = () => page.evaluate(async () => (await navigator.clipboard.readText()).replace(/\r\n/g, '\n'));
+  await settings.getByTestId('settings-obs-scene-copy').nth(1).click();
+  await expect(settings.getByTestId('settings-obs-scene-copy').nth(1)).toHaveText('✓ Copied');
+  expect(await clipboard()).toBe(links[1]);
+  await settings.getByTestId('settings-obs-copy-all').click();
+  await expect(settings.getByTestId('settings-obs-copy-all')).toHaveText('✓ Copied');
+  expect(await clipboard()).toBe(`Gameplay: ${links[0]}\nDesk: ${links[1]}`);
+  await page.getByTestId('playout-settings-close').click();
+
+  // The export: Settled is offered on the overlay package only, ticked; it settles the scene
+  // graphics and leaves Hand, in no scene, as today, and the README lists each scene's files.
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('export-production').click();
+  const dialog = page.getByTestId('production-export-dialog');
+  await dialog.getByTestId('prod-target-casparcg').check();
+  await expect(dialog.getByTestId('prod-export-settled')).toHaveCount(0);
+  await dialog.getByTestId('prod-target-html-overlay').check();
+  await expect(dialog.getByTestId('prod-export-settled-box')).toBeChecked();
+  const [download] = await Promise.all([page.waitForEvent('download'), dialog.getByTestId('prod-export-download').click()]);
+  const zip = await JSZip.loadAsync(readFileSync(await download.path()));
+  const text = (suffix: string) => zip.file(new RegExp(`${suffix}$`))[0]!.async('string');
+  expect(await text('/hairline/hairline.html')).toContain('Settled autoplay for an OBS scene fallback');
+  expect(await text('/score/score.html')).toContain('Settled autoplay for an OBS scene fallback');
+  const hand = await text('/hand/hand.html');
+  expect(hand).not.toContain('Settled autoplay');
+  expect(hand).toContain('Autoplay for browser sources');
+  const readme = await text('evening_news/README.md');
+  expect(readme).toContain('- Gameplay: hairline/hairline.html');
+  expect(readme).toContain('- Desk: score/score.html');
+
+  // Unticked, nothing is settled.
+  await dialog.getByTestId('prod-export-settled-box').uncheck();
+  const [plain] = await Promise.all([page.waitForEvent('download'), dialog.getByTestId('prod-export-download').click()]);
+  const plainZip = await JSZip.loadAsync(readFileSync(await plain.path()));
+  expect(await plainZip.file(/\/hairline\/hairline\.html$/)[0]!.async('string')).not.toContain('Settled autoplay');
+  await dialog.locator('.gallery-close').click();
+
+  // Switched off with no scene link loaded, there is nothing to ask (#2454).
+  await status.click();
+  await panel.getByTestId('obs-scenes-switch').click();
+  await expect(panel.getByTestId('obs-scenes-off-ask')).toHaveCount(0);
+  await expect(panel.getByTestId('obs-scenes-switch')).not.toBeChecked();
+  await expect(panel.getByTestId('obs-scene-row')).toHaveCount(0);
+});
+
+test('OBS scenes: more than 16 scenes is said in Playout settings (obs-scenes OS3 M9)', async ({ page }) => {
+  const names = Array.from({ length: 17 }, (_, i) => `G${i + 1}`);
+  await production(page, [], {
+    graphics: names.map((name) => ({ name })),
+    folders: names.map((name) => ({ labels: [name], name: `Scene ${name}`, scene: true as const })),
+    obsScenes: true,
+  });
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-playout-settings').click();
+  await expect(page.getByTestId('settings-obs-scene')).toHaveCount(17);
+  await expect(page.getByTestId('settings-obs-too-many')).toHaveText(
+    'More than 16 OBS scenes: NoaCG watches 16 outputs, so a scene link beyond those that stops answering is not reported.',
+  );
 });
 
 test('a drag lands by the third of a row: into a folder, out of it, a folder as a whole - one write each', async ({ page }) => {
