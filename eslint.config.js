@@ -161,6 +161,7 @@ export default tseslint.config(
       'src/store/**',
       'src/App.tsx',
       'src/main.tsx',
+      'src/e2eRegistry.ts',
       'src/ai/video/**',
     ],
     rules: {
@@ -172,7 +173,9 @@ export default tseslint.config(
   },
   {
     // The UI region may import store/ and components/ freely; Supabase stays behind backend/.
-    files: ['src/components/**/*.{ts,tsx}', 'src/App.tsx', 'src/main.tsx'],
+    // src/e2eRegistry.ts sits here too: generated, loaded only by the e2e build, it lists the
+    // modules the specs reach (scripts/e2e-module-registry.mjs), so it is the top of the graph.
+    files: ['src/components/**/*.{ts,tsx}', 'src/App.tsx', 'src/main.tsx', 'src/e2eRegistry.ts'],
     rules: {
       '@typescript-eslint/no-restricted-imports': ['error', {
         paths: [supabaseRestriction],
