@@ -68,10 +68,10 @@
   "inFlight": [
     {
       "phase": "E6C",
-      "step": "Fresh exact-merge checker startup and final merged candidate preparation",
+      "step": "Fresh exact-merge verification and merged-source offline candidate",
       "pr": "2506",
       "session": "/root/editor_e6c_independent_check",
-      "note": "ACTUALmerge705landed16:49:02/queueCIgreen. Action12reservedonce, freshnative6af73ffcstartupfence: partialqualifications/no substantivework yet, await2fullpreflights+canonicalcomparison/rootACK. ExactmainCI43466517653/configured43466517736running; postland43466517715/q43466517597PASS. RootexplicitONE705nativecandidate sourceadmission aftermaterial7451drift; notoldc456relabel/budgetreset. No fourthautomaticattempt. LocalrealE5/E6/OW1gatesremain."
+      "note": "Actual705merge/queueCIgreen; action12observeddelivered+SAMEfreshnative6af73ffcstartupACKedafter2fullscopedpreflights/canonicalMATCH. Checkerownproofunderway. Oneexplicitfinal705nativecarrier43467700288inprogress, staticbranchsource705/count1; no4thautomatic/oldbudgetreset. ExactmainCI43466517653/configured43466517736pending; postland/qPASS. Rootstaysallterminal/freshacceptance. RealE5/E6/OW1remain."
     }
   ],
   "owner": [
@@ -3265,7 +3265,7 @@
       "conclusion": "SUCCESS actualmerge observed; landedrecordaccepted16:49:47.274Z"
     },
     "checkerLaunch": {
-      "status": "RESERVED_ONCE_NATIVE_SPAWNED_STARTUP_FENCE_NOT_YET_OBSERVED",
+      "status": "NATIVE_OBSERVED_DELIVERED_STARTUP_ACKED_CHECK_ACTIVE",
       "actor": "/root/editor_e6c_independent_check",
       "nativeThreadUuid": "6af73ffc-becc-8191-aed7-201765c1407f",
       "inheritedSession": "6af455f4-b1c8-8191-86b2-8bfdfc619075",
@@ -3279,11 +3279,17 @@
       "worktree": "/workspace/noacg-editor-r1-5-e6c-check",
       "branch": "codex/plan-editor-r1-5-e6c-check",
       "source": "705ba59425441fedbe171bee993e4b621c7bf68b",
-      "startupPartial": "Actualmessagesverifyrequesttransport/fullbriefbytes, nativeIDs/clean705parent7451/lock62dd/currentenforcedCloud. Read-onlySQLiteWALopenfailed; firstIOgrantabsentoutputparentEROFS preservedPRETEST/noassertions/noadmission. Workerqualifyingtwoownfullscopedpreflights+canonicalpendingcomparison beforeACK; do notreplace/reserveagain."
+      "startupPartial": "Actualmessagesverifyrequesttransport/fullbriefbytes, nativeIDs/clean705parent7451/lock62dd/currentenforcedCloud. Read-onlySQLiteWALopenfailed; firstIOgrantabsentoutputparentEROFS preservedPRETEST/noassertions/noadmission. Workerqualifyingtwoownfullscopedpreflights+canonicalpendingcomparison beforeACK; do notreplace/reserveagain.",
+      "startupCompleteAt": "2026-11-13T16:53:52Z",
+      "preflights": [
+        "16:53:06.064Z PASSscopednetwork+ownedIO",
+        "16:53:28.600Z PASSseparatefullinvocation"
+      ],
+      "rootObservation": "Actualfullstartupcanonicalrequestc55db96 recomputedagainstpending+authorization/everyrequestvalueorderMATCH,19677brief/21161requesttransportbytesMATCH. CurrentCloud/policy9dd/rawdd7128distinctunchanged; exact705/parent7451/cleanownbranch+lock62dd; actualthread6af73ffc/sessionroot6af455. Own4CPU16GiB14.4GiBavailable2workers/hiddenancestorunknownfalse/5-12-5caps. Initialread-onlySQLiteWAL/narrowparentEROFSstartupretained,noassertions/noadmission. observe-launchDELIVERED; rootfollowup_taskACKresumedSAMEoriginalactor afterstartupfinalended, no newspawn."
     },
     "actualMergeCandidateAdmission": {
       "at": "2026-11-13T16:54:06.310017+00:00",
-      "status": "PROSPECTIVE_ONE_ACTUAL_MERGED_SOURCE_ADMISSION_BEFORE_PUSH_DISPATCH",
+      "status": "ORIGINAL_ONCE_DISPATCH_OBSERVED_RUN43467700288_IN_PROGRESS",
       "source": "705ba59425441fedbe171bee993e4b621c7bf68b",
       "branch": "codex/plan-editor-r1-5-e6c-merged-candidate",
       "worktree": "/workspace/noacg-editor-r1-5-e6c-merged-candidate",
@@ -3292,7 +3298,50 @@
       "rootChecks": "Ownrootclean705worktreecreated, branchunused; actualbranchworkflow_dispatchtotal0. Rootbytecomparedunchangedendurance/helper/smoke/captureexport/lock to c456; exacthelperSHA912b6b316719596904078ebfedf823f6ebb1d956f7b9be6fc2aa7f7c733e067d; lock62dd. Actualmergeparents7451+569/tree0d44/sourceallreviewed; no unreviewedappedit.",
       "route": "Pushownedstaticbranchat705; observationfirst; ONE endurance.yml workflow_dispatch scriptqualify:editor-native-kit minutes10 local-supabasefalse. FullNORMALbuild+unchanged12helperassertions+22historicalcaptures+currentversion/fullmanifest/ZIP+mandatorycleanup insideexisting10minuteenvelope. Sourceversionmust705.",
       "limits": "No fourthautomaticadmission, no performance/model campaign/provider/funding/credentials/productiondata/licence/release/workflow/helper/CIcapchange. Workflow90/input1-75/normalCI15/offActions5remain. AnyFAIL/incompleteSTOP/readwholelogandassessbeforeanyfurtheredit/admission; confirmedE4effectSTOPownerreassessment. Unknownackreconcileoriginal,neverredispatch.",
-      "handoff": "Provideexactnewrun/producer/hashes to freshindependentcheckerbeforecriterion3verdict; publicrunissuehandoffpinsactualmergedcandidate while oldc456docs remain historical. Rawconsumerreadback mustbe truthful."
+      "handoff": "Provideexactnewrun/producer/hashes to freshindependentcheckerbeforecriterion3verdict; publicrunissuehandoffpinsactualmergedcandidate while oldc456docs remain historical. Rawconsumerreadback mustbe truthful.",
+      "run": {
+        "id": 43467700288,
+        "head": "705ba59425441fedbe171bee993e4b621c7bf68b",
+        "attempt": 1,
+        "createdAt": "2026-11-13T16:56:09Z",
+        "rootRead": "Actualstaticbranchcount1; exact705, no repeat/retry. Rootpushownedstaticbranch705 thenfreshremoteSHA/count0guard beforedispatch.",
+        "observer": "9bc6a1e78992b3f4438c24b2f5ebf84169503f509d893fb443ab3b3e55675d7d advisoryUNRESOLVED; originalcommandforwardedONCEexit0, RESTreconciledoriginalrun."
+      }
+    },
+    "actualMergeChecks": {
+      "CI": {
+        "run": 43466517653,
+        "status": "inprogress",
+        "attempt": 1
+      },
+      "configured": {
+        "run": 43466517736,
+        "status": "inprogress",
+        "attempt": 1
+      },
+      "postLanding": {
+        "run": 43466517715,
+        "status": "SUCCESS"
+      },
+      "quarantine": {
+        "run": 43466517597,
+        "status": "SUCCESS"
+      },
+      "codeql": {
+        "run": 43466516269,
+        "status": "inprogress/dynamicPushonmain"
+      },
+      "deployMetadataSkipped": [
+        43466667673,
+        43466543859,
+        43466539798,
+        43466537802,
+        43466534913
+      ],
+      "otherMainHelper": {
+        "run": 43466640630,
+        "status": "SUCCESSbutNOTours; inspector mustreadactualbranch/sha/PRbeforeapplicability, nevercountworkflowHEADasours"
+      }
     }
   }
 }
