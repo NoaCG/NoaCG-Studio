@@ -191,6 +191,8 @@ test('the readiness run publishes what changed, checks every output and ends in 
 
 const list = (page: Page) => page.getByTestId('cue-list');
 const folder = (page: Page, name: string) => list(page).locator('.pd-folder', { hasText: name });
+/** A rundown row that is up: `on-air` once the production is published, `up-here` before. */
+const LIVE = /(^| )(on-air|up-here)( |$)/;
 const row = (page: Page, label: string) => list(page).locator('.pd-cue').filter({ has: page.locator('.pd-cue-label strong', { hasText: new RegExp(`^${label}$`) }) });
 
 /** A graphic's machine state on an output page: 'off' when it is not on air, null while unbuilt. */
@@ -267,19 +269,19 @@ test('OBS scenes (#2489): making a scene takes its graphics on air in its link, 
   await makeSceneAndPublish(page, 'Gameplay');
   await expect.poll(() => stateOn(air, 'Hairline'), { timeout: 60_000, message: 'the joined graphic is on air in its scene link' }).not.toBeNull();
   await expect.poll(() => stateOn(air, 'Hairline'), { timeout: 30_000 }).not.toBe('off');
-  await expect(row(page, 'Hairline')).toHaveClass(/up-here/);
-  await expect(row(page, 'Bug')).not.toHaveClass(/up-here/);
-  await expect(row(page, 'Hand')).not.toHaveClass(/up-here/);
+  await expect(row(page, 'Hairline')).toHaveClass(LIVE);
+  await expect(row(page, 'Bug')).not.toHaveClass(LIVE);
+  await expect(row(page, 'Hand')).not.toHaveClass(LIVE);
 
   // Taken out by hand, it stays out when the next publish makes Desk a scene, which airs Bug.
   await row(page, 'Hairline').getByTestId('select-cue').click();
   await page.getByTestId('verb-out').click();
-  await expect(row(page, 'Hairline')).not.toHaveClass(/up-here/);
+  await expect(row(page, 'Hairline')).not.toHaveClass(LIVE);
   await expect.poll(() => stateOn(air, 'Hairline'), { timeout: 30_000 }).toBe('off');
   await makeSceneAndPublish(page, 'Desk');
-  await expect(row(page, 'Bug')).toHaveClass(/up-here/, { timeout: 60_000 });
-  await expect(row(page, 'Hairline')).not.toHaveClass(/up-here/);
-  await expect(row(page, 'Hand')).not.toHaveClass(/up-here/);
+  await expect(row(page, 'Bug')).toHaveClass(LIVE, { timeout: 60_000 });
+  await expect(row(page, 'Hairline')).not.toHaveClass(LIVE);
+  await expect(row(page, 'Hand')).not.toHaveClass(LIVE);
   expect(await stateOn(air, 'Hairline')).toBe('off');
 
   await anon.close();
