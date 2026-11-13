@@ -17,9 +17,9 @@ import { getSupabase } from './supabase';
 import { refreshTeams, teamConfirmedToken, teamEditOwed } from './teamProductions';
 import { syncNow } from './syncController';
 import type { Show } from '../model/shows';
-import type { Confirmed as ConfirmedRevision } from '../control/autoPublish';
 
-export type { ConfirmedRevision };
+/** Whether this tab's record is a stored revision, and which; null when it cannot be known. */
+export type ConfirmedRevision = { rev: number } | { wait: 'local' | 'server' } | null;
 
 /** Bring this tab's copy of the record up to the server's newest save: a team production by the
  *  team read (`asked`: a press asked for it), a personal one by a sync. */

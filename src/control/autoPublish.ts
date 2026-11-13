@@ -20,6 +20,7 @@
 //
 // A publish never writes the production record, so publishing never causes a save.
 
+import type { ConfirmedRevision } from '../backend/savedRevision';
 import type { PayloadVersion } from './payloadVersion';
 import type { LiveEntry } from './livePath';
 import type { ExpectedOutput } from './readiness';
@@ -37,7 +38,7 @@ export type PublishOutcome =
   | { kind: 'gone' };
 
 /** Whether this tab's record is a stored revision (backend/savedRevision.ts). */
-export type Confirmed = { rev: number } | { wait: 'local' | 'server' } | null;
+export type Confirmed = ConfirmedRevision;
 
 export interface StoredRevisions {
   /** The record's current saved revision. */
