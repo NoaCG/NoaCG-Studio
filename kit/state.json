@@ -49,7 +49,7 @@
       "branch": "claude/plan-obs-scenes-os1b-build",
       "launchedAt": "2026-11-13T10:40:15Z",
       "note": "sent brief = saved brief plus one NOTES line (amended D9: one link may be in several OBS scenes; #2474 and #2454 stay with OS3)",
-      "lastSeen": "2026-11-13T11:27Z PR #2490 open, gates running; owner question on Pictures copies relayed (default no copy); #2489 to run as a fix after OS1b",
+      "lastSeen": "2026-11-13T11:42Z builder active: PR #2490 new head c022d697 pushed 11:41, CI starting",
       "pr": 2490
     }
   ],
