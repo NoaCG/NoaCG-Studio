@@ -1,0 +1,49 @@
+/* THE LIVE DOCK (docs/work-specs/obs-scenes/spec.md OS6): one column, 300 px wide in an OBS Custom
+   Browser Dock, that scrolls as a whole. The scenes are the last section, so a program change moves
+   nothing above them (K5). */
+.live-dock {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  overflow-x: hidden;
+}
+.live-dock-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.live-dock-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-dock-note { margin: 0; font-size: 12px; }
+/* One line whatever the worst row says, so nothing under it moves (K5); every row is in its tooltip. */
+.live-dock-health { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.live-dock-tone--ok { color: #4ade80; }
+.live-dock-tone--warn { color: #f59e0b; }
+.live-dock-tone--bad { color: #ef4444; }
+.live-dock-tone--idle { color: var(--text-dim); }
+.live-dock-section { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border); }
+.live-dock-section .pd-source-line { overflow-wrap: anywhere; }
+.live-dock-section .pd-source-line select { max-width: 100%; margin-top: 4px; }
+.live-dock-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.live-dock-row select { flex: 1; min-width: 0; }
+.live-dock-row input[type='time'] { width: 8.5em; }
+.live-dock-label { font-weight: 700; }
+.live-dock-dim { color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+.live-dock-held { font-variant-numeric: tabular-nums; color: var(--text-dim); }
+.live-dock-scene { display: flex; flex-direction: column; gap: 4px; }
+.live-dock-scene-name { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); }
+.live-dock-cue {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-left: 3px solid transparent;
+  background: var(--bg-2);
+}
+/* On air is red (docs/DESIGN_LANGUAGE.md: published green, preview amber, air red). */
+.live-dock-cue--on { border-left-color: var(--rec); }
+.live-dock-cue-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-dock-flag { flex: none; }
+.live-dock-selected { flex: none; }

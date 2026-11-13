@@ -23,6 +23,9 @@
 //                          rosters; docs/INTERACTIVE_PLAYOUT_PLAN.md D6). An unknown third
 //                          segment lands on the playout surface, so an old build (or a stale
 //                          link) degrades to the page that always exists.
+//   #/dock/<id>            the same production page drawn as the LIVE DOCK, a 300 px column for
+//                          an OBS Custom Browser Dock (docs/work-specs/obs-scenes/spec.md OS6 K1).
+//                          No id lands on the productions list, as #/production does
 //   #/join-team/<code>     join a team by its code (docs/TEAMS_PLAN.md §6) — the link a teacher
 //                          pastes in the class chat. The surface under it is Home, and the code
 //                          rides the FRAGMENT, so it is never sent to a server in a request line.
@@ -60,6 +63,7 @@ export type Route =
   | { view: 'graphic'; id: string }
   | { view: 'control'; id: string }
   | { view: 'production'; id: string; sub?: ProductionSub }
+  | { view: 'dock'; id: string }
   | { view: 'join-team'; code: string }
   | { view: 'video' }
   | { view: 'new'; design?: string | null; step?: string | null };
@@ -86,6 +90,8 @@ export function parseRoute(hash: string): Route {
       return parts[2] === 'data' || parts[2] === 'audience'
         ? { view: 'production', id: parts[1], sub: parts[2] }
         : { view: 'production', id: parts[1] };
+    case 'dock':
+      return parts[1] ? { view: 'dock', id: parts[1] } : { view: 'home', section: 'productions' };
     case 'join-team':
       // No code, no join: land on the productions list, which is where a team production would
       // appear anyway. Degrading rather than 404ing is the same rule the routes above follow.
@@ -122,6 +128,8 @@ export function routeHash(route: Route): string {
       return route.sub
         ? `#/production/${encodeURIComponent(route.id)}/${route.sub}`
         : `#/production/${encodeURIComponent(route.id)}`;
+    case 'dock':
+      return `#/dock/${encodeURIComponent(route.id)}`;
     case 'join-team':
       return `#/join-team/${encodeURIComponent(route.code)}`;
     case 'video':

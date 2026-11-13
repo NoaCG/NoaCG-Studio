@@ -369,6 +369,10 @@ module.exports = {
   options: {
     doNotFollow: { path: 'node_modules' },
     includeOnly: '^src/',
+    // The e2e build's module registry (scripts/e2e-module-registry.mjs) imports whatever the
+    // browser specs reach, bench-only pilots included, and only the e2e build ever loads it. It is
+    // test wiring outside the app's layering, the way e2e/ is.
+    exclude: { path: '^src/e2eRegistry\\.ts$' },
     tsPreCompilationDeps: true,
     tsConfig: { fileName: 'tsconfig.json' },
   },

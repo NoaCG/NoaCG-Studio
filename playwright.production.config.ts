@@ -1,5 +1,6 @@
 import { validateCloudWorkerRequest } from './scripts/e2e-workers.mjs';
 import { defineConfig, devices } from '@playwright/test';
+import { DECLARATION, KEY_VARS, URL_VARS } from './scripts/configured-target.mjs';
 
 // THE DEPLOYED SITE'S OWN SUITE - the tier nothing else in this repository covers.
 //
@@ -21,6 +22,27 @@ import { defineConfig, devices } from '@playwright/test';
 //
 // .github/workflows/deploy-verify.yml runs it on every production deployment and on the same
 // four-times-a-day schedule as the version check beside it.
+// THIS SUITE HAS NO BACKEND (issue #2495). Its target is `baseURL` below; it signs in nowhere and
+// writes nothing. But it shares `e2e/configured/` as its directory, so Playwright loads those spec
+// files to resolve the `grep`, and that reaches `_helpers.ts`, which refuses a backend a
+// configured run does not own - a shell with a production environment file exported would abort a
+// suite that could not have touched it. Saying the true thing is enough: in THIS process there is
+// no backend and no admin key, so the shared rule sees none. It cannot affect the deployed site
+// being measured, and a key that is not in the environment cannot be used by a loaded spec module.
+//
+// A KNOWN COMPROMISE, recorded rather than hidden (#2504): a config reaching into the whole
+// process's environment so another module's import-time side effect will pass is the wrong seam.
+// The right one is to hand the key out through an accessor, so the check runs where a spec writes
+// instead of where its file is parsed, after which these two lines go away. That change touches
+// twenty-four specs - twenty-one build an admin client from the pair and three more write with
+// the key over raw REST - which is why it is its own issue and not this one's.
+// THE DECLARATION GOES TOO. Without it, a shell that has declared the staging target - the one
+// `hosted-latency.yml` exports, and anyone reproducing that job - leaves this process saying
+// "hosted-staging, and no backend URL", which the rule refuses rather than reading as no backend.
+// The suite then aborts collecting its own anonymous tests over a declaration about a project it
+// never touches.
+for (const name of [...URL_VARS, ...KEY_VARS, DECLARATION]) delete process.env[name];
+
 const cloudLimits = validateCloudWorkerRequest();
 
 export default defineConfig({

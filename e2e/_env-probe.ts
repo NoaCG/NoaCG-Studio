@@ -1,4 +1,5 @@
-// Read by e2e/_offline-guard.ts. Never imported by a spec or by the app.
+// Read by e2e/_offline-guard.ts and e2e/_configured-guard.ts, each evaluating it inside a page
+// to learn the backend that page was built against. Never imported by a spec or by the app.
 //
 // WHY A MODULE AND NOT SOURCE-PARSING. Vite does NOT inline `import.meta.env.VITE_*` in DEV -
 // verified against the running dev server, which serves these expressions verbatim; the

@@ -246,7 +246,8 @@ export interface AirFacts {
   ran?: boolean;
 }
 
-const hms = (at: number) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+/** A time of day to the second, in this computer's locale. */
+export const hms = (at: number) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
 /** PROGRAM's status tag: its state, its words and its tooltip. Empty words show nothing. */
 export function programAir(f: AirFacts): { state: AirState; text: string; title: string } {

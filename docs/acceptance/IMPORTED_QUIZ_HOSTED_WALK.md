@@ -39,9 +39,12 @@ Everything else in the walk is there to get you to those two moments honestly.
 ## Before you start
 
 - Run it **from the main checkout**, not a worktree — `.env` is gitignored and does not travel.
-- `.env` needs `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `E2E_EMAIL` / `E2E_PASSWORD`
-  for a **throwaway account**. The spec publishes, unpublishes and deletes; point it at a test
-  account, never a tenant with real users.
+- A **local Supabase stack**, and the environment taken from it: `supabase start`, then
+  `supabase status` for `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`, plus `E2E_EMAIL` /
+  `E2E_PASSWORD` for an account minted on it. The spec publishes, unpublishes and deletes, so
+  since issue #2495 the suite refuses to start against anything but a stack of its own - a hosted
+  URL in `.env` is refused rather than used, and `scripts/configured-trial.mjs` shows the same
+  settings being read off `supabase status`.
 - Nothing else is on the machine's browser-driving queue (the suite takes the `:queued` form).
 - The branch is `claude/noacg-unfinished-jobs-18ea6e`.
 

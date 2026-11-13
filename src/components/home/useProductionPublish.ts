@@ -74,7 +74,7 @@ const CLAIM_NEEDS_ACCOUNT =
 
 /** The publish, slot and links state, and the sign-in follow-through of a Publish. */
 /** What a copy button copied: a production link, or one OBS scene's link by its scene id. */
-export type CopyKind = 'output' | 'join' | 'presenter' | `scene:${string}`;
+export type CopyKind = 'output' | 'join' | 'presenter' | 'dock' | `scene:${string}`;
 
 /** What a publish of these graphics pins, from the library as it is now: the graphics whose events
  *  need the server's timestamp (a clock, so they leave the fast road) and those whose payload still

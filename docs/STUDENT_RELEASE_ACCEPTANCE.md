@@ -24,8 +24,9 @@ export or publish it, and reliably operate Take / Update / Next / Out in CasparC
   `e2e/exports.spec.ts`.
 - Account essentials: password reset request, recovery dialog, password change round-trip,
   session-expiry prompt with local work intact: `e2e/auth.spec.ts` (offline posture) +
-  `e2e/configured/account.spec.ts` (live suite — run it once against the real backend
-  before acceptance: `npm run test:e2e:live`).
+  `e2e/configured/account.spec.ts` (live suite — run it once before acceptance against a local
+  stack of its own: `supabase start`, then `npm run test:e2e:live`, which since issue #2495
+  refuses any other backend).
 
 ## 1. Cloud playout on real hardware (CasparCG 2.3.x + OBS)
 

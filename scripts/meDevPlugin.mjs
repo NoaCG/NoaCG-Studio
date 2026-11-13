@@ -15,6 +15,7 @@
 // the handler under its public path, and the catch-all names the route from either form.
 
 import { readFileSync } from 'node:fs';
+import { previewApiHost } from './previewApiHost.mjs';
 
 /** Literal rewrite sources whose destination is this function. */
 export function meRewriteSources(vercelJson) {
@@ -25,7 +26,7 @@ export function meRewriteSources(vercelJson) {
 
 /** @returns {import('vite').Plugin} */
 export function meApiPlugin() {
-  return {
+  const plugin = {
     name: 'noacg-me-api',
     configureServer(server) {
       const rewritten = new Set(meRewriteSources(JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'))));
@@ -37,7 +38,12 @@ export function meApiPlugin() {
         void handle(server, req, res);
       });
     },
+    // The same routes on `vite preview`, for the e2e build (scripts/previewApiHost.mjs).
+    configurePreviewServer(preview) {
+      plugin.configureServer(previewApiHost(preview));
+    },
   };
+  return plugin;
 }
 
 async function handle(server, req, res) {

@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { assertConfiguredTarget } from '../../scripts/configured-target.mjs';
 import { finishIntoNewEditor, startNewProject } from '../_create';
 import { chooseType, pickDesign } from '../_browse';
 
@@ -50,6 +51,24 @@ export async function unpublishForCleanup(page: Page): Promise<void> {
   await page.reload();
   await page.getByTestId('production-page').waitFor();
 }
+
+// THE MODULE THAT HANDS OUT THE ADMIN KEY CHECKS FIRST (issue #2495). Twenty-one specs build
+// their admin client from this pair, and the key below ignores every row-level rule, so this
+// module is the one every admin write in the suite comes through. The check sits at module scope,
+// which is what makes it unavoidable: an importer runs the whole body before it can read an
+// export, so where in the body it sits does not matter - that it is in the body at all does.
+//
+// `e2e/_configured-guard.ts` has already refused a run whose backend is not one it owns; this
+// repeats the same check at import, because a spec file can also be reached without that
+// globalSetup - another config, or a one-off `npx playwright test <file>` - and a wrong answer
+// here is written to somebody's database rather than reported.
+//
+// Sixty-four of the suite's sixty-five spec files import this module, so the check costs one call
+// per run and covers all but one: analytics.spec.ts needs no account and no key, which is why it
+// is the exception. The config's globalSetup covers it, and the suite's own verdict refuses a run
+// that executed nothing. The rules, and the eleven minutes of production that bought them, are in
+// scripts/configured-target.mjs.
+assertConfiguredTarget(process.env, 'a configured spec');
 
 export const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 export const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? '';

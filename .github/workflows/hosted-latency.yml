@@ -83,6 +83,12 @@ jobs:
     env:
       # Staging only. These names are prefixed so nobody can confuse them with the production pair
       # that still lives in .env on the owner's machine and nowhere else.
+      # The one non-local backend a configured run may reach, and it has to SAY so: since issue
+      # #2495 e2e/_configured-guard.ts refuses any URL that is not a local stack unless this
+      # declaration is set. A declaration cannot happen by accident, which is the difference
+      # between this workflow and a cloud worker whose ambient environment points at production.
+      # The step below still refuses the production ref, and so does the guard.
+      NOACG_CONFIGURED_TARGET: hosted-staging
       VITE_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}

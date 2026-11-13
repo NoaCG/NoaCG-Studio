@@ -395,9 +395,11 @@ workflows are orthogonal to deploy (they never push).
 agentic triage that needs an LLM and the Supabase MCP (`get_advisors`), and that produces the human
 digest. It runs after B and is **read-only on the queue**.
 
-- Optional job D: `nightly-live-e2e.yml` running `npm run test:e2e:live` against prod with the
-  `synctest` creds (self-cleaning per `era5-infra`), gated to skip when secrets are absent. Lower
-  priority - it exercises the authed community flows nightly.
+- Optional job D: `nightly-live-e2e.yml` running `npm run test:e2e:live` nightly for the authed
+  community flows. Written when that could mean "against prod with the `synctest` creds"; it
+  cannot now - since issue #2495 the suite refuses any backend but a stack it owns, so this is
+  what `configured-suite.yml` already does on a local stack, and a hosted tier is
+  `hosted-latency.yml` against staging.
 
 *(Cadence, exact UTC times, and per-night volume are the open decisions in §10 - I've defaulted to
 midnight-ish UTC and a small N.)*

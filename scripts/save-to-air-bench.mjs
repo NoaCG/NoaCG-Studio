@@ -29,6 +29,11 @@
 // Needs E2E_EMAIL / E2E_PASSWORD (read from .env, as playwright.live.config.ts does) and a CLI
 // built from this checkout (`npm --prefix cli run build`). Nothing is published past `main`: it
 // writes a graphic and a production to the throwaway test account and removes both.
+//
+// IT MEASURES THE DEPLOYED SITE ON PURPOSE, so the backend rule the configured suite now lives
+// under (scripts/configured-target.mjs, issue #2495) deliberately does not cover it: this is a
+// timing reading of production as a user meets it, through the account's own session and with no
+// admin key anywhere. A reader coming from that issue should not assume this path was closed.
 
 import { chromium } from '@playwright/test';
 import { spawn } from 'node:child_process';
