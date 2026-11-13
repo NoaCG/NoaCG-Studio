@@ -77,6 +77,11 @@ test('a host with no port is not a stack, however local it reads', () => {
   assert.equal(configuredTarget({ VITE_SUPABASE_URL: 'http://localhost' }).kind, 'refused');
   assert.equal(configuredTarget({ VITE_SUPABASE_URL: 'https://localhost.example.com:443' }).kind, 'refused');
   assert.equal(configuredTarget({ VITE_SUPABASE_URL: 'http://127.0.0.1.example.com:54321' }).kind, 'refused');
+  // The stack has to be where the URL BEGINS. The two above fail an unanchored pattern as well,
+  // for the wrong reason, so these are the cases that pin the anchor: a loopback address carried
+  // in a query or a fragment of somewhere else reads as local without it.
+  assert.equal(configuredTarget({ VITE_SUPABASE_URL: 'https://evil.example/?u=http://127.0.0.1:54321/' }).kind, 'refused');
+  assert.equal(configuredTarget({ VITE_SUPABASE_URL: 'https://someotherproject00.supabase.co/#http://localhost:54321/' }).kind, 'refused');
 });
 
 test('api/ reads SUPABASE_URL as well, so a local VITE_SUPABASE_URL cannot smuggle a hosted one past', () => {
@@ -203,6 +208,27 @@ test('the dev server is the run\'s own, and what it serves is judged too', () =>
   assert.match(guard, /servedTarget\(served, process\.env\)/);
 });
 
+test('the guard refuses the incident environment before it probes anything', async (t) => {
+  // LEG 1, RUN. The guard's own call was pinned by matching its source text, so swallowing it and
+  // carrying on left every test green - the third time in this change's review that a behaviour
+  // shipped with nothing but a spelling behind it, and this one is the primary line of defence.
+  // No server is needed: leg 1 throws before the probe, which is also what this asserts.
+  const before = { ...process.env };
+  for (const name of [...URL_VARS, ...KEY_VARS]) delete process.env[name];
+  Object.assign(process.env, CLOUD_WORKER);
+  t.after(() => {
+    for (const name of [...URL_VARS, ...KEY_VARS]) delete process.env[name];
+    Object.assign(process.env, before);
+  });
+  const guard = (await import(path.join(ROOT, 'e2e/_configured-guard.ts'))).default;
+  // Port 1 is closed, so reaching the probe at all would return the skip rather than throw: a
+  // rejection here can only have come from the environment.
+  await assert.rejects(
+    () => guard({ projects: [{ use: { baseURL: 'http://127.0.0.1:1' } }] }),
+    /Refusing to start the configured suite\..*PRODUCTION project/s,
+  );
+});
+
 test('with nothing listening, the guard says so loudly - and probes the origin it was handed', async (t) => {
   // A local stack in this process, so the guard reaches the probe rather than refusing first.
   const before = { ...process.env };
@@ -271,6 +297,12 @@ test('what the page serves is judged by the same rule, in THIS environment', () 
   assert.equal(servedTarget('https://someotherproject00.supabase.co', fork).kind, HOSTED_STAGING);
   // And this process's own SUPABASE_URL cannot vouch for a page that serves something else.
   assert.equal(servedTarget('https://someotherproject00.supabase.co', { ...local, SUPABASE_URL: 'http://127.0.0.1:54321' }).kind, 'refused');
+  // Nor the other way round: the page is judged ALONE, so both URL spellings are replaced rather
+  // than merged. Under the staging declaration a local page beside a staging SUPABASE_URL would
+  // otherwise be judged as a pair and refused for naming two projects - the page is local, and
+  // that is the whole question here. Stop blanking the other spelling and this goes red.
+  const declared = { ...LOCAL_STACK, [DECLARATION]: HOSTED_STAGING, SUPABASE_URL: `https://${DEFAULT_STAGING_REF}.supabase.co` };
+  assert.equal(servedTarget('http://127.0.0.1:54321', declared).kind, 'local');
 });
 
 test('a run that mints a local stack pins every variable the rule reads', () => {

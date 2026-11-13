@@ -104,10 +104,18 @@ export async function waitFor(url, what, timeoutMs = 90_000) {
 
 /**
  * The app's dev server, pinned OFFLINE exactly as playwright.config.ts pins it, so the walk never
- * touches a developer's real backend and the import road behaves as the suite's does. Answers the
- * child it started, or null when it reused one, so a walk can stop it (`stopChild`) as soon as
- * its packages are built: the renderer beats never touch the app, and 640 MB of Vite is better
- * spent on the renderer's pages.
+ * touches a developer's real backend and the import road behaves as the suite's does. Both halves
+ * are pinned (issue #2495): the browser's pair, and the server-side spellings the api/ handlers
+ * this server mounts prefer - a child inherits this process's environment, so pinning only the
+ * `VITE_` pair left those handlers on whatever backend the shell named.
+ *
+ * A server already up is REUSED and not judged, as the offline suite reuses one. Its api half
+ * cannot be read from outside, so it is accepted unjudged; that is #2511, and today's walks drive
+ * the ograf server's own routes rather than the app's.
+ *
+ * Answers the child it started, or null when it reused one, so a walk can stop it (`stopChild`)
+ * as soon as its packages are built: the renderer beats never touch the app, and 640 MB of Vite
+ * is better spent on the renderer's pages.
  */
 export async function startDevServer() {
   if (await isUp(`${appOrigin}/app`)) {
@@ -118,7 +126,16 @@ export async function startDevServer() {
   const child = startChild('npm', ['run', 'dev'], {
     cwd: root,
     shell: true,
-    env: { ...process.env, VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', VITE_PREVIEW_DEBOUNCE_MS: '50' },
+    env: {
+      ...process.env,
+      VITE_SUPABASE_URL: '',
+      VITE_SUPABASE_ANON_KEY: '',
+      SUPABASE_URL: '',
+      SUPABASE_ANON_KEY: '',
+      SUPABASE_SECRET_KEY: '',
+      SUPABASE_SERVICE_ROLE_KEY: '',
+      VITE_PREVIEW_DEBOUNCE_MS: '50',
+    },
   });
   await waitFor(`${appOrigin}/app`, 'the app dev server');
   return child;
