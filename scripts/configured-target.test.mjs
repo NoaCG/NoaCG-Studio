@@ -167,6 +167,9 @@ test('the dev server is the run\'s own, and what it serves is judged too', () =>
   const guard = file('e2e/_configured-guard.ts');
   assert.match(guard, /_env-probe\.ts/);
   assert.match(guard, /configuredTarget\(\{ VITE_SUPABASE_URL: served/);
+  // And it probes the origin the LOADED config drives, not this suite's usual port: the
+  // measurement harness with MEASURE_BUILD=prod serves on a port of its own.
+  assert.match(guard, /project\.use\?\.baseURL/);
 });
 
 test('a configured spec reads the backend through the guarded helper, not around it', () => {

@@ -30,7 +30,7 @@
 // this run was admitted on, whoever started it.
 //
 // The rules themselves, and the incident that bought them, are in scripts/configured-target.mjs.
-import { chromium } from '@playwright/test';
+import { chromium, type FullConfig } from '@playwright/test';
 import { assertConfiguredTarget, configuredTarget, DECLARATION, describeTarget } from '../scripts/configured-target.mjs';
 import { livePort } from '../scripts/dev-port.mjs';
 
@@ -76,10 +76,23 @@ async function servedBackend(base: string): Promise<string | null> {
   }
 }
 
-export default async function configuredGuard(): Promise<void> {
+/**
+ * The origin the tests will actually drive, taken from the config Playwright loaded rather than
+ * assumed. A config that spreads the live one can serve somewhere else entirely:
+ * `e2e/configured/measure/measure.config.ts` with `MEASURE_BUILD=prod` puts a build switch on its
+ * own port in front of two servers of its own. Probing this suite's usual port there would check
+ * a server nobody is driving - skipping the real one, and refusing the run outright if something
+ * unrelated happened to be listening.
+ */
+function origin(config?: FullConfig): string {
+  const fromConfig = config?.projects?.map((project) => project.use?.baseURL).find((url) => typeof url === 'string' && url !== '');
+  return fromConfig ?? `http://127.0.0.1:${livePort()}`;
+}
+
+export default async function configuredGuard(config?: FullConfig): Promise<void> {
   const target = assertConfiguredTarget(process.env, 'the configured suite');
 
-  const base = `http://127.0.0.1:${livePort()}`;
+  const base = origin(config);
   const served = await servedBackend(base);
   if (served === null) {
     console.log(`Configured backend - ${describeTarget(target)} (no server to probe at ${base})`);
