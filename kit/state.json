@@ -48,7 +48,9 @@
       "session": "session_017SdbwPFRMVW25Z5BWMcmWQ",
       "branch": "claude/plan-obs-scenes-fix-2489",
       "launchedAt": "2026-11-13T12:26:06Z",
-      "note": "sent brief = saved fix brief plus one NOTES line (owner intent: adding takes it; defaults are the builder's)"
+      "note": "sent brief = saved fix brief plus one NOTES line (owner intent: adding takes it; defaults are the builder's)",
+      "pr": 2493,
+      "lastSeen": "2026-11-13T12:56Z PR #2493 open at 0546904c, waiting on Codex and CI"
     }
   ],
   "owner": [
