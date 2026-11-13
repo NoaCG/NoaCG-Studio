@@ -1,0 +1,19 @@
+import { chromium, expect } from '../node_modules/@playwright/test/index.mjs';
+import { spawn } from 'node:child_process';
+import { open, mkdir, writeFile } from 'node:fs/promises';
+import { devPort } from '../scripts/dev-port.mjs';
+export { chromium, expect };
+export const out = new URL('./', import.meta.url).pathname;
+export const base = 'http://127.0.0.1:' + devPort();
+export async function start() {
+ const env={...process.env,VITE_PREVIEW_DEBOUNCE_MS:'350',NOACG_E2E_SERVER:'1',VITE_SUPABASE_URL:'',VITE_SUPABASE_ANON_KEY:'',VITE_RENDER_API:'1',VITE_AI_PROVIDER:'',VITE_AI_MODEL:'',VITE_AI_PROXY_URL:'',AI_PRO_ENABLED:''};
+ for(const key of ['ANTHROPIC_API_KEY','OPENAI_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY','AI_GATEWAY_API_KEY','VERCEL_OIDC_TOKEN','HF_TOKEN','HUGGINGFACE_TOKEN','HUGGINGFACE_API_KEY','AI_KEY_ENCRYPTION_SECRET'])env[key]='';
+ const log=await open(out+'dev-server.log','a');
+ const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port',String(devPort()),'--strictPort'],{cwd:process.cwd(),env,stdio:['ignore',log.fd,log.fd],detached:true});
+ for(let i=0;i<100;i++){if(server.exitCode!==null)throw Error('Owned offline server exited '+server.exitCode);try{if((await fetch(base+'/app')).ok)return async()=>{try{process.kill(-server.pid,'SIGTERM');}catch{}await log.close();};}catch{}await new Promise(r=>setTimeout(r,100));}
+ throw Error('Owned offline server did not start');
+}
+export async function ready(page){await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending','false');await expect(page.locator('.ef-stage-error')).toHaveCount(0);}
+export async function frame(page){return (await(await page.locator('iframe[title="Foundation graphic preview"]').elementHandle()).contentFrame());}
+export async function paint(page,path){await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));await page.screenshot({path});}
+export async function json(name,value){await writeFile(out+name,JSON.stringify(value,null,2)+'\n');}

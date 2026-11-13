@@ -1,0 +1,580 @@
+{
+  "source": "e1c6fc4f5faf933be930cdf30f7acfa4e2b9ab22",
+  "gsap": {
+    "version": "3.15.0",
+    "bytes": 72927,
+    "sha256": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb",
+    "plugins": "Standard UMD built-ins, including bundled CSSPlugin; no added standalone plugins",
+    "noticeRetained": true
+  },
+  "cli": {
+    "version": "0.12.4",
+    "license": "Apache-2.0",
+    "scope": "Source/package declaration unchanged from E1; no fresh CLI build or release-wide clean-bundle claim"
+  },
+  "packages": [
+    {
+      "target": "spx",
+      "bytes": 397324,
+      "sha256": "f18bf9645837f18ceec8dd0089caf28f3b5314e6abaaa6730b242797127431e5",
+      "gsap": [
+        {
+          "path": "e4_receiving_steps/js/gsap.min.js",
+          "bytes": 72927,
+          "sha256": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb",
+          "isExactGsap": true,
+          "containsExactGsap": true,
+          "notice": true
+        }
+      ],
+      "fonts": [
+        {
+          "path": "e4_receiving_steps/fonts/saira.woff2",
+          "bytes": 32888,
+          "sha256": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/fonts/saira-latin-ext.woff2",
+          "bytes": 25476,
+          "sha256": "cbdb7074cd38a4bf09bf34012dd3072bf34ccc6ad95a2ebf2ebf3eac9484edf1",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/fonts/oswald.woff2",
+          "bytes": 21472,
+          "sha256": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/fonts/oswald-latin-ext.woff2",
+          "bytes": 19104,
+          "sha256": "99016932b273efa7d55b3a0ae9fe4babc6dbdcd7539f58a742697054f89b1142",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        }
+      ],
+      "notices": [
+        {
+          "path": "e4_receiving_steps/README.md",
+          "bytes": 2144,
+          "sha256": "2fa5f2475eefaadb0097488f3594cbe71a0078861e05c72d1c8feb2a3d90f9ed",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": true
+        },
+        {
+          "path": "e4_receiving_steps/fonts/FONT_LICENSES.md",
+          "bytes": 6826,
+          "sha256": "c887a5b001c5a3ca438c342ab56ce8d6a25ffe66fdf705be6ec519b073c937de",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/GETTING-ON-AIR.md",
+          "bytes": 4866,
+          "sha256": "91c9d596f5eaef33841635c6f50747a40daa04ebdc6e706af0e4872a6ee6a64b",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": true
+        }
+      ],
+      "allFiles": [
+        {
+          "path": "e4_receiving_steps/e4_receiving_steps.html",
+          "bytes": 10910,
+          "sha256": "263fb31276fde7306e0c4b63002354574a1ac42e54f7dae545dcab16f03f6ad9",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": true
+        },
+        {
+          "path": "e4_receiving_steps/css/template.css",
+          "bytes": 11955,
+          "sha256": "ae71c2821ca54782069486663ecd377e513f3bf6ad0e4624fdd5c8f1b7e4fd05",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/js/template.js",
+          "bytes": 106374,
+          "sha256": "d40e626add9da62b773a17374523e0ea324dfb409785d7a0478ac3ab9254f5d7",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": true
+        },
+        {
+          "path": "e4_receiving_steps/README.md",
+          "bytes": 2144,
+          "sha256": "2fa5f2475eefaadb0097488f3594cbe71a0078861e05c72d1c8feb2a3d90f9ed",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": true
+        },
+        {
+          "path": "e4_receiving_steps/FIELDS.md",
+          "bytes": 2014,
+          "sha256": "b8287b1e891b69adfc13ffc50b97ad6ca356e590c2717a5f764840c1e61e4d58",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/controlpanel.shtml",
+          "bytes": 57339,
+          "sha256": "953c566b8c85fd6ebd2d30c8eb236d60fc18d7579162a2c27197e1da4aa26ab5",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/js/gsap.min.js",
+          "bytes": 72927,
+          "sha256": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb",
+          "isExactGsap": true,
+          "containsExactGsap": true,
+          "notice": true
+        },
+        {
+          "path": "e4_receiving_steps/js/flex-gap-shim.js",
+          "bytes": 19946,
+          "sha256": "689773b2bd0cb98e09698d44e5dee96cf2c07ebd160531540b3c82e8b3ca1a49",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": true
+        },
+        {
+          "path": "e4_receiving_steps/fonts/saira.woff2",
+          "bytes": 32888,
+          "sha256": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/fonts/saira-latin-ext.woff2",
+          "bytes": 25476,
+          "sha256": "cbdb7074cd38a4bf09bf34012dd3072bf34ccc6ad95a2ebf2ebf3eac9484edf1",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/fonts/oswald.woff2",
+          "bytes": 21472,
+          "sha256": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/fonts/oswald-latin-ext.woff2",
+          "bytes": 19104,
+          "sha256": "99016932b273efa7d55b3a0ae9fe4babc6dbdcd7539f58a742697054f89b1142",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/fonts/FONT_LICENSES.md",
+          "bytes": 6826,
+          "sha256": "c887a5b001c5a3ca438c342ab56ce8d6a25ffe66fdf705be6ec519b073c937de",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/images/harbour.svg",
+          "bytes": 203,
+          "sha256": "a0f5c6de3b469218f92a9d3278fa2821d4b5c2f664b28e6bca838d5860587da9",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/GETTING-ON-AIR.md",
+          "bytes": 4866,
+          "sha256": "91c9d596f5eaef33841635c6f50747a40daa04ebdc6e706af0e4872a6ee6a64b",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": true
+        }
+      ]
+    },
+    {
+      "target": "casparcg",
+      "bytes": 428999,
+      "sha256": "1f68d1143ebaf568fc99bb7b56922662c8dfd9ef0bd200fccbaaf51e577ac458",
+      "gsap": [
+        {
+          "path": "e4_receiving_steps/e4_receiving_steps.html",
+          "bytes": 361316,
+          "sha256": "a51bd3af51930ae4ce9ba34adb7241e22e80d3542e0fbe4bb68cc91974a741a6",
+          "isExactGsap": false,
+          "containsExactGsap": true,
+          "notice": true
+        }
+      ],
+      "fonts": [],
+      "notices": [
+        {
+          "path": "e4_receiving_steps/README.md",
+          "bytes": 989,
+          "sha256": "2d0a109e4fce3f35e43083e4622b08dca6ceccd3427cd6282774f2c45bb9e25d",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/GETTING-ON-AIR.md",
+          "bytes": 4862,
+          "sha256": "455a555a54ce48043be53470b8b7c1673433e111848242425a2e9ea2e439449f",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": true
+        }
+      ],
+      "allFiles": [
+        {
+          "path": "e4_receiving_steps/e4_receiving_steps.html",
+          "bytes": 361316,
+          "sha256": "a51bd3af51930ae4ce9ba34adb7241e22e80d3542e0fbe4bb68cc91974a741a6",
+          "isExactGsap": false,
+          "containsExactGsap": true,
+          "notice": true
+        },
+        {
+          "path": "e4_receiving_steps/README.md",
+          "bytes": 989,
+          "sha256": "2d0a109e4fce3f35e43083e4622b08dca6ceccd3427cd6282774f2c45bb9e25d",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/FIELDS.md",
+          "bytes": 3357,
+          "sha256": "7b2ab4de05cd32032919ba677b31ef625fa9ea70d7ff754d23e3423f2e065e4d",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/controlpanel.html",
+          "bytes": 57619,
+          "sha256": "df2604530e1ec4b702ebd4d7b06a2775194139e1abdac569eca04452d41005c4",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/GETTING-ON-AIR.md",
+          "bytes": 4862,
+          "sha256": "455a555a54ce48043be53470b8b7c1673433e111848242425a2e9ea2e439449f",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": true
+        }
+      ]
+    },
+    {
+      "target": "html-overlay",
+      "bytes": 461377,
+      "sha256": "989053c3aa49da22c62356586ae2de8be46e72b6f4d1b3a9537af3de07f9a323",
+      "gsap": [
+        {
+          "path": "e4_receiving_steps/e4_receiving_steps.html",
+          "bytes": 378701,
+          "sha256": "dee120057ed43f5870c500e665541e984164cd5dbda16f1d5e157df7c2bd8e5b",
+          "isExactGsap": false,
+          "containsExactGsap": true,
+          "notice": true
+        }
+      ],
+      "fonts": [],
+      "notices": [
+        {
+          "path": "e4_receiving_steps/README.md",
+          "bytes": 2685,
+          "sha256": "51ae1d7955a64ffb32cf1546be5dc623d790c22868bc2241d0ba579503e2d133",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": true
+        },
+        {
+          "path": "e4_receiving_steps/GETTING-ON-AIR.md",
+          "bytes": 5239,
+          "sha256": "4e36bfcf0416d91d6c1b2f895804978818207a306a21a2ab88fe8ed01ed90ba9",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": true
+        }
+      ],
+      "allFiles": [
+        {
+          "path": "e4_receiving_steps/e4_receiving_steps.html",
+          "bytes": 378701,
+          "sha256": "dee120057ed43f5870c500e665541e984164cd5dbda16f1d5e157df7c2bd8e5b",
+          "isExactGsap": false,
+          "containsExactGsap": true,
+          "notice": true
+        },
+        {
+          "path": "e4_receiving_steps/controlpanel.html",
+          "bytes": 57619,
+          "sha256": "df2604530e1ec4b702ebd4d7b06a2775194139e1abdac569eca04452d41005c4",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/README.md",
+          "bytes": 2685,
+          "sha256": "51ae1d7955a64ffb32cf1546be5dc623d790c22868bc2241d0ba579503e2d133",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": true
+        },
+        {
+          "path": "e4_receiving_steps/FIELDS.md",
+          "bytes": 2042,
+          "sha256": "7df6f5c6be8191c28f92f6aba79ce1c9ead70707e0b4f378076734d8fcdfcbed",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/GETTING-ON-AIR.md",
+          "bytes": 5239,
+          "sha256": "4e36bfcf0416d91d6c1b2f895804978818207a306a21a2ab88fe8ed01ed90ba9",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": true
+        },
+        {
+          "path": "e4_receiving_steps/relay.ps1",
+          "bytes": 5959,
+          "sha256": "6993d3ab405e842d47c1b60481e7364f313c10d2bc372880e5e591e7f4288d92",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/relay.py",
+          "bytes": 6469,
+          "sha256": "62ecb4dc85fbf1d6d9c4b6eb98ae2fe2805e082c3a30b64e9ca5029481ab0003",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/Start controller.cmd",
+          "bytes": 324,
+          "sha256": "126c68bb41f6849de04a0f2001940e15cbf76e529999630d13ff23306ec14f54",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/start-controller.command",
+          "bytes": 213,
+          "sha256": "51cbedbac791149b93824bf4eefba9ae79311277c6f5a6e9bc930df1bfa9c997",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/start-controller.sh",
+          "bytes": 213,
+          "sha256": "51cbedbac791149b93824bf4eefba9ae79311277c6f5a6e9bc930df1bfa9c997",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/payload.json",
+          "bytes": 189,
+          "sha256": "8c162c80ec1eb1f3e5f4d84b9478915e4b848415b1fe972742e4cdbda8e56eb0",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        }
+      ]
+    },
+    {
+      "target": "ograf",
+      "bytes": 519509,
+      "sha256": "b84fb89ae5fac8e33003f12f1986f933d9a7c474805efe9f2ea7b2d9766f44aa",
+      "gsap": [
+        {
+          "path": "e4_receiving_steps/lib/gsap.min.js",
+          "bytes": 72927,
+          "sha256": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb",
+          "isExactGsap": true,
+          "containsExactGsap": true,
+          "notice": true
+        }
+      ],
+      "fonts": [
+        {
+          "path": "e4_receiving_steps/fonts/saira.woff2",
+          "bytes": 32888,
+          "sha256": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/fonts/saira-latin-ext.woff2",
+          "bytes": 25476,
+          "sha256": "cbdb7074cd38a4bf09bf34012dd3072bf34ccc6ad95a2ebf2ebf3eac9484edf1",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/fonts/oswald.woff2",
+          "bytes": 21472,
+          "sha256": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/fonts/oswald-latin-ext.woff2",
+          "bytes": 19104,
+          "sha256": "99016932b273efa7d55b3a0ae9fe4babc6dbdcd7539f58a742697054f89b1142",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        }
+      ],
+      "notices": [
+        {
+          "path": "e4_receiving_steps/fonts/FONT_LICENSES.md",
+          "bytes": 6826,
+          "sha256": "c887a5b001c5a3ca438c342ab56ce8d6a25ffe66fdf705be6ec519b073c937de",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/README.md",
+          "bytes": 875,
+          "sha256": "729a5b67f99e9ec65506a4400d56c2d4ed658f9b6d45d359c94c82e095e651b4",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        }
+      ],
+      "allFiles": [
+        {
+          "path": "e4_receiving_steps/e4_receiving_steps.ograf.json",
+          "bytes": 2800,
+          "sha256": "2641e70f585e78dd21dbce3bbca9080ddf3be2731f91b4268d2c99a04a26afd7",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/graphic.mjs",
+          "bytes": 312665,
+          "sha256": "f0dc575f5d27a376626cb15e82e2995d709c4c344d48e45aba2dcbeaab6e18dc",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": true
+        },
+        {
+          "path": "e4_receiving_steps/FIELDS.md",
+          "bytes": 2001,
+          "sha256": "9d9af819fa574a9bc1eb907c755bf41299557d73c9ea4c773114454f9df4bb40",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/lib/gsap.min.js",
+          "bytes": 72927,
+          "sha256": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb",
+          "isExactGsap": true,
+          "containsExactGsap": true,
+          "notice": true
+        },
+        {
+          "path": "e4_receiving_steps/lib/flex-gap-shim.js",
+          "bytes": 19946,
+          "sha256": "689773b2bd0cb98e09698d44e5dee96cf2c07ebd160531540b3c82e8b3ca1a49",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": true
+        },
+        {
+          "path": "e4_receiving_steps/fonts/saira.woff2",
+          "bytes": 32888,
+          "sha256": "7eb811eb14b2ee22e3fba942b25c6cd062ff050bde10d29af1a4e16f99712e17",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/fonts/saira-latin-ext.woff2",
+          "bytes": 25476,
+          "sha256": "cbdb7074cd38a4bf09bf34012dd3072bf34ccc6ad95a2ebf2ebf3eac9484edf1",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/fonts/oswald.woff2",
+          "bytes": 21472,
+          "sha256": "571f3457dab507b6f2ce5394d593ca015251b69fea81ab7a546bd2368e9fc3ed",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/fonts/oswald-latin-ext.woff2",
+          "bytes": 19104,
+          "sha256": "99016932b273efa7d55b3a0ae9fe4babc6dbdcd7539f58a742697054f89b1142",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/fonts/FONT_LICENSES.md",
+          "bytes": 6826,
+          "sha256": "c887a5b001c5a3ca438c342ab56ce8d6a25ffe66fdf705be6ec519b073c937de",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/images/harbour.svg",
+          "bytes": 203,
+          "sha256": "a0f5c6de3b469218f92a9d3278fa2821d4b5c2f664b28e6bca838d5860587da9",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        },
+        {
+          "path": "e4_receiving_steps/README.md",
+          "bytes": 875,
+          "sha256": "729a5b67f99e9ec65506a4400d56c2d4ed658f9b6d45d359c94c82e095e651b4",
+          "isExactGsap": false,
+          "containsExactGsap": false,
+          "notice": false
+        }
+      ]
+    }
+  ],
+  "ownerRequest": "Existing gsap.md draft remains ready: NoaCG is open source, entirely free, earns no revenue and serves broadcast graphics. Owner sends; written disposition gates OW1."
+}

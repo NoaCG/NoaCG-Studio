@@ -1,0 +1,21 @@
+=== j-0129 npm run test:e2e -- e2e/editor-command-task.spec.ts --output=e5c.local/imported-command-results-2
+=== cwd <owned-worktree>
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/editor-command-task.spec.ts --output=e5c.local/imported-command-results-2
+
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 14811 MB free (machine totals stand in for cgroup limits it could not read)
+[WebServer] (node:165999) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:166012) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:166115) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › e2e/editor-command-task.spec.ts:77:76 › shared UI, semantic and reviewed-proposal authoring, reopen and output task laptop-125 (1.6m)
+
+  Slow test file: [chromium] › e2e/editor-command-task.spec.ts (1.6m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  1 passed (1.7m)
