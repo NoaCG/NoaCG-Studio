@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
 import { obsScenesOf, sceneFolderIds, sceneGraphicNames, sceneLink } from '../../model/obsScenes';
-import { EMPTY_WATCH, loadedScenes, sceneRows, watchScenes, type SceneWatch } from '../../control/obsSceneRows';
+import { EMPTY_WATCH, forgetScene, loadedScenes, sceneRows, watchScenes, type SceneWatch } from '../../control/obsSceneRows';
 import { useTemplateStore } from '../../store/templateStore';
 import {
   deleteShowProfile,
@@ -4138,7 +4138,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 setPlayoutSettingsOpen(true);
               }}
             >
-              {scenePanel && <ObsSceneRows rows={scenePanel.rows} />}
+              {scenePanel && (
+                <ObsSceneRows
+                  rows={scenePanel.rows}
+                  onDismiss={(row) => {
+                    for (const id of row.gone) forgetOutput(id);
+                    setSceneWatch((w) => forgetScene(w, row.id));
+                  }}
+                />
+              )}
               <VmixRows
                 key={String(vmixOn && !slotBusy)}
                 on={vmixOn}

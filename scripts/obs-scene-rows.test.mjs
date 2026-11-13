@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import './lib/tsResolve.mjs';
 
-const { sceneRows, watchScenes, loadedScenes, EMPTY_WATCH, obsWords } = await import('../src/control/obsSceneRows.ts');
+const { sceneRows, watchScenes, forgetScene, loadedScenes, EMPTY_WATCH, obsWords } = await import('../src/control/obsSceneRows.ts');
 const { obsEvent, OBS_ARRIVAL_MS, OBS_SHARED_MS, OBS_SEEN_MAX } = await import('../src/output/sceneScope.ts');
 const { rememberOutputs, unwatchedOutputs, MAX_EXPECTED_OUTPUTS, NOT_ANSWERING_MS } = await import('../src/control/readiness.ts');
 const { readLiveEntry } = await import('../src/control/livePath.ts');
@@ -103,6 +103,26 @@ test('M3, M6: a link that goes away reads not answering, grey and then red; it l
   // A link to a scene with no row stays in the Outputs list.
   out = rowsOf({ peers: [link('o9', 'gone')] });
   assert.equal(out.claimed.has('o9'), false);
+  // The render on which a link leaves, before the watch has dated it: just left, grey, never a red
+  // age from when its entry last changed.
+  watch = watchScenes(EMPTY_WATCH, [link('o1', 'scA')], 1000);
+  out = rowsOf({ watch, now: 300_000 });
+  assert.deepEqual([out.rows[0].state, out.rows[0].tone, out.rows[0].lost], ['Not answering (0 s)', 'idle', true]);
+  // Dismiss: the scene's links forgotten, the row back to Not loaded.
+  out = rowsOf({ watch: forgetScene(watchScenes(watch, [], 2000), 'scA'), now: 300_000 });
+  assert.equal(out.rows[0].state, 'Not loaded');
+  // A long scene name: the link is called by it cleaned and cut to 40 characters, and still placed.
+  const long = { id: 'scL', name: '  Post-match interview with the head coach and captain', graphics: [] };
+  out = sceneRows({
+    scenes: [long],
+    peers: [],
+    presence: 'joined',
+    watch: EMPTY_WATCH,
+    expected: [{ id: 'y', name: 'Post-match interview with the head coach', seen: 1 }],
+    published: V,
+    now: 100_000,
+  });
+  assert.deepEqual([out.rows[0].state.startsWith('Not answering'), out.rows[0].gone], [true, ['y']]);
 });
 
 test('M8: how many scenes have a link loaded, unknown when the page cannot see', () => {
@@ -164,7 +184,20 @@ test('M5: the walk-through ticks the OBS scene a source goes on program in, a sh
   hear({ type: 'active', on: false }, 3000);
   tick(OBS_SHARED_MS);
   assert.deepEqual(where.seen, ['Break', 'Desk']);
-  // Bounded: at most OBS_SEEN_MAX names, the newest kept.
+  // Two cuts in a row between OBS scenes that all hold it, quicker than the shared window: each counts.
+  where = {};
+  hear({ type: 'active', on: true });
+  hear({ type: 'scene', name: 'Gameplay' });
+  hear({ type: 'scene', name: 'Desk' }, 5000);
+  hear({ type: 'scene', name: 'Wide' }, 2000);
+  tick(OBS_SHARED_MS + 50);
+  assert.deepEqual(where.seen, ['Gameplay', 'Desk', 'Wide']);
+  // An arrival whose window passed before its tick ran: the next event settles it.
+  where = { current: 'Desk' };
+  hear({ type: 'active', on: true });
+  hear({ type: 'active', on: false }, OBS_ARRIVAL_MS + 20);
+  assert.deepEqual(where.seen, ['Desk']);
+  // Bounded: at most OBS_SEEN_MAX names, the first ones kept, as the report and the row keep them.
   where = {};
   for (let i = 0; i < OBS_SEEN_MAX + 3; i += 1) {
     hear({ type: 'active', on: true }, 5000);
@@ -172,7 +205,7 @@ test('M5: the walk-through ticks the OBS scene a source goes on program in, a sh
     hear({ type: 'active', on: false }, 5000);
   }
   assert.equal(where.seen.length, OBS_SEEN_MAX);
-  assert.equal(where.seen.at(-1), `S${OBS_SEEN_MAX + 2}`);
+  assert.equal(where.seen.at(-1), `S${OBS_SEEN_MAX - 1}`);
 });
 
 test('M5: the list rides the scene report, bounded and checked on the way in', () => {

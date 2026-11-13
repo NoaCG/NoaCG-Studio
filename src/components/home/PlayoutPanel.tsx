@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent, useState, type ReactNode } from 'react';
-import { TONE_DOT, type OutputLine, type ReadyTone } from '../../control/readiness';
+import { MAX_EXPECTED_OUTPUTS, TONE_DOT, type OutputLine, type ReadyTone } from '../../control/readiness';
 import type { StatusCheck } from '../../control/playoutStatus';
 import { bridgePaired, type PlayoutSettings } from '../../control/playoutLink';
 import { observeVmixOutput, readVmixOutput, sameVmixOutputSetup, type VmixManualOutputCommand, type VmixOutputReading, type VmixReplace } from '../../control/vmixSetup';
@@ -134,7 +134,7 @@ export function RendererRows({
       )}
       {unwatched > 0 && (
         <p className="pd-pp-advice" data-testid="playout-too-many-outputs">
-          More than 16 outputs: NoaCG watches 16, so {unwatched === 1 ? 'one more' : `${unwatched} more`} going away would not be reported. Forget an output you no longer use.
+          More than {MAX_EXPECTED_OUTPUTS} outputs: NoaCG watches {MAX_EXPECTED_OUTPUTS}, so {unwatched === 1 ? 'one more' : `${unwatched} more`} going away would not be reported. Forget an output you no longer use.
         </p>
       )}
     </Section>
@@ -143,7 +143,7 @@ export function RendererRows({
 
 /** One row per OBS scene under its switch (obs-scenes OS3 M2 to M5): the load state, where OBS has
  *  the source, and the walk-through's tick. The longer account sits in the row's tooltip. */
-export function ObsSceneRows({ rows }: { rows: readonly SceneRow[] }) {
+export function ObsSceneRows({ rows, onDismiss }: { rows: readonly SceneRow[]; onDismiss: (row: SceneRow) => void }) {
   if (rows.length === 0) {
     return (
       <div className="pd-pp-row pd-pp-row--quiet" data-testid="obs-scene-none">
@@ -167,6 +167,11 @@ export function ObsSceneRows({ rows }: { rows: readonly SceneRow[] }) {
           <span className="pd-pp-name">{row.name}</span>
           <span className="pd-pp-state" data-testid="obs-scene-state">{row.state}</span>
           {row.obs && <span className="pd-pp-state" data-testid="obs-scene-obs">{obsWords(row.obs)}</span>}
+          {row.lost && (
+            <button type="button" className="pd-pp-icon" aria-label={`Dismiss ${row.name}`} title="Dismiss" onClick={() => onDismiss(row)} data-testid="obs-scene-forget">
+              ✕
+            </button>
+          )}
           <span className="pd-pp-advice pd-pp-advice--row" data-testid="obs-scene-seen">
             {row.seen.length > 0 ? `Seen in OBS scene ${row.seen.map((n) => `“${n}”`).join(', ')}` : 'Not yet seen'}
           </span>

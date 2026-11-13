@@ -433,15 +433,23 @@ export interface SceneReport {
   seen?: string[];
 }
 
-/** OBS scene names a scene report carries at most (output/sceneScope.ts `OBS_SEEN_MAX`). */
-const SEEN_MAX = 12;
+/** OBS scene names a scene report carries at most, the first ones seen (OS3 M5): the link, its
+ *  report and the operator's row all keep the same ones. */
+export const SCENE_SEEN_MAX = 12;
+
+/** What a scene link is called on the operator's panel when its URL names it nothing else (OS3 M6):
+ *  the scene's name cleaned and cut as `&name=` is (`outputNameParam`), so the panel can match a
+ *  remembered output to its scene by it. */
+export function sceneLinkName(sceneName: string): string | undefined {
+  return sceneName.replace(/[^ -\uffff]/g, '').trim().slice(0, 40) || undefined;
+}
 
 /** A scene report off the wire, or undefined. */
 export function readSceneReport(value: unknown): SceneReport | undefined {
   const r = value as Partial<SceneReport> | null;
   if (!r || typeof r !== 'object' || typeof r.id !== 'string' || typeof r.known !== 'boolean') return undefined;
   const seen = Array.isArray(r.seen)
-    ? [...new Set(r.seen.filter((n): n is string => typeof n === 'string').map((n) => n.slice(0, 80)))].slice(0, SEEN_MAX)
+    ? [...new Set(r.seen.filter((n): n is string => typeof n === 'string').map((n) => n.slice(0, 80)))].slice(0, SCENE_SEEN_MAX)
     : [];
   return {
     id: r.id.slice(0, 80),

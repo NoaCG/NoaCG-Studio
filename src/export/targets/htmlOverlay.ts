@@ -157,7 +157,9 @@ function settledAutoplayScript(baked: Record<string, string>): string {
 // hiding the source changes nothing: OBS's own cut, fade or stinger carries it.
 // A play from controlpanel.html or the relay is settled the same way.
 (function () {
-  if (/[?&]stream=/.test(location.search)) return; // a managed instance waits for commands
+  // A stream-addressed instance (…?stream=program) is managed: it waits for commands, and its plays
+  // are settled like any other.
+  var managed = /[?&]stream=/.test(location.search);
   var baked = ${JSON.stringify(baked, null, 2).replace(/\n/g, '\n  ')};
   var lastData = null;
   var update0 = null;
@@ -226,6 +228,7 @@ function settledAutoplayScript(baked: Record<string, string>): string {
         return out;
       };
     }
+    if (managed) return;
     function ready() {
       if (typeof window.update === 'function') window.update(JSON.stringify(startData()));
       if (typeof window.play === 'function') window.play();
@@ -258,8 +261,10 @@ scene and show the group when the network is gone (docs/OBS_SCENES.md in NoaCG S
 2. Tick **Local file** and pick ${name}.html.
 3. Width ${template.resolution.width}, Height ${template.resolution.height}.
 
-In OBS the entrance plays each time the source goes on program, and the graphic resets when it
-leaves, so cutting back to the scene plays it again. Everywhere else it plays on load.
+${settled
+    ? `It shows at rest as soon as it loads, in OBS and everywhere else; cuts never move it.`
+    : `In OBS the entrance plays each time the source goes on program, and the graphic resets when it
+leaves, so cutting back to the scene plays it again. Everywhere else it plays on load.`}
 To operate it from inside OBS with the panel as a Custom Browser Dock, start the launcher and
 point the source at the graphic's http address instead of ticking Local file (see Live control
 below): a Local file source cannot pair with a dock. Once the panel plays or stops it, cuts no
@@ -272,7 +277,7 @@ longer move it.
 
 ## Changing the text/data
 - Quick edit: open ${name}.html in a text editor — the values live in the marked
-  "Autoplay for browser sources" block at the bottom.
+  "${settled ? 'Settled autoplay for an OBS scene fallback' : 'Autoplay for browser sources'}" block at the bottom.
 - Live control, the easy way: double-click **"Start controller.cmd"** (Windows) or
   **"start-controller.command"** (macOS) — the bundled LOCAL RELAY serves this folder at
   http://localhost:<port>/, opens the panel, and relays commands into a graphic loaded by

@@ -78,7 +78,7 @@ import { epochTag, listed, type HeldEntry, type RunReport } from '../control/run
 import { CATCH_UP_TIMING, readGraphic, stoodStill, wait } from './catchUp';
 import { OBS_ARRIVAL_MS, OBS_SHARED_MS, obsEvent, obsState, sceneParam, scopePayload, type ObsWhere } from './sceneScope';
 import type { OutputPayload } from '../control/hostedControl';
-import type { SceneReport } from '../control/livePath';
+import { sceneLinkName, type SceneReport } from '../control/livePath';
 import { TYPED_READER, typedOutputGate, type TypedValues } from '../model/ografTyped';
 import type { ControlMessage } from '../control/controlModel';
 import { createSoundBudget } from '../assets/soundBudget';
@@ -271,7 +271,8 @@ async function boot(): Promise<void> {
     sceneKeys = scope.keys;
     sceneKnown = scope.known;
     sceneFaces = scope.faces;
-    sceneName = whole.scenes?.find((s) => s.id === scene)?.name.replace(/[^ -\uffff]/g, '').trim().slice(0, 40) || undefined;
+    const named = whole.scenes?.find((s) => s.id === scene)?.name;
+    sceneName = named === undefined ? undefined : sceneLinkName(named);
     dbg('scene', sceneKnown ? `${scene}: ${[...sceneKeys].join(', ') || 'no graphics'}` : `${scene} is not a scene of this production`);
     return scope.payload;
   };

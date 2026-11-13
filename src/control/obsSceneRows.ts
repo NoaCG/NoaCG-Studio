@@ -3,7 +3,7 @@
 // from what this page has heard of them since it opened. Pure: scripts/obs-scene-rows.test.mjs runs
 // it in Node against an oracle written from the Rules.
 
-import type { LiveEntry, LivePresenceStatus } from './livePath';
+import { SCENE_SEEN_MAX, sceneLinkName, type LiveEntry, type LivePresenceStatus } from './livePath';
 import { NOT_ANSWERING_MS, ageWords, oneEntryPerOutput, presentLine, type ExpectedOutput, type HeldVersion, type ReadyTone } from './readiness';
 
 /** A scene as the rows need it (model/obsScenes.ts `ObsScene`). */
@@ -26,10 +26,8 @@ export interface SceneWatch {
 
 export const EMPTY_WATCH: SceneWatch = { scenes: {}, links: {}, present: [] };
 
-/** The OBS scene names one row lists at most. */
-const SEEN_MAX = 12;
-
-const union = (a: readonly string[], b: readonly string[]) => [...new Set([...a, ...b])].slice(0, SEEN_MAX);
+/** The first OBS scene names seen, as the link keeps them. */
+const union = (a: readonly string[], b: readonly string[]) => [...new Set([...a, ...b])].slice(0, SCENE_SEEN_MAX);
 
 /**
  * The watch after a Presence update. A scene whose link is present is seen now; one that was present
@@ -51,6 +49,14 @@ export function watchScenes(watch: SceneWatch, peers: readonly LiveEntry[], now:
   return { scenes, links, present: [...here] };
 }
 
+/** The watch without a scene's links (the row's Dismiss): a link the operator took out of OBS on
+ *  purpose stops reading "Not answering". */
+export function forgetScene(watch: SceneWatch, sceneId: string): SceneWatch {
+  const { [sceneId]: _gone, ...scenes } = watch.scenes;
+  const links = Object.fromEntries(Object.entries(watch.links).filter(([, scene]) => scene !== sceneId));
+  return { scenes, links, present: watch.present.filter((id) => id !== sceneId) };
+}
+
 export type ObsPosition = 'program' | 'preview' | 'hidden' | 'unknown';
 
 /** One scene, as the panel draws it. */
@@ -66,6 +72,10 @@ export interface SceneRow {
   seen: string[];
   /** Instances of its link present now. */
   loaded: number;
+  /** Remembered outputs that are this scene's links and have gone away: Dismiss forgets them. */
+  gone: string[];
+  /** Its link was loaded and is gone: the row offers Dismiss. */
+  lost?: true;
   /** The longer account, for the tooltip. */
   detail: string[];
 }
@@ -99,7 +109,7 @@ export function sceneRows(input: {
     const here = present.filter((p) => p.scene?.id === scene.id);
     for (const p of here) claimed.add(p.id);
     const seen = union(watch.scenes[scene.id]?.seen ?? [], here.flatMap((p) => p.scene?.seen ?? []));
-    const base = { id: scene.id, name: scene.name, seen, loaded: here.length };
+    const base = { id: scene.id, name: scene.name, seen, loaded: here.length, gone: [] as string[] };
     // Unpublished (or no backend): no link can be loaded, so there is nothing to not know.
     if (input.presence === 'off') return { ...base, tone: 'idle', state: 'Not loaded', obs: null, detail: ['Publish the production to get the scene links.'] };
     if (!joined) {
@@ -108,15 +118,20 @@ export function sceneRows(input: {
     if (here.length === 0) {
       // A link that went away (stale presence): the instance this page heard, or a remembered output
       // called by the scene's name, each with the moment it left.
-      const gone = input.expected.filter((e) => !presentIds.has(e.id) && (watch.links[e.id] === scene.id || e.name === scene.name));
+      const named = sceneLinkName(scene.name);
+      const gone = input.expected.filter((e) => !presentIds.has(e.id) && (watch.links[e.id] === scene.id || e.name === named));
       for (const e of gone) claimed.add(e.id);
       const heard = watch.scenes[scene.id];
-      const leftAt = Math.max(heard?.at ?? -1, ...gone.map((e) => (e.seen > 0 ? e.seen : 0)));
+      // Present at the watch's last update and not now: it is leaving on this very render, before
+      // the watch has dated it.
+      const leftAt = watch.present.includes(scene.id) ? now : Math.max(heard?.at ?? -1, ...gone.map((e) => (e.seen > 0 ? e.seen : 0)));
       if (heard || gone.length > 0) {
         const age = leftAt > 0 ? now - leftAt : NOT_ANSWERING_MS;
         const late = age >= NOT_ANSWERING_MS;
         return {
           ...base,
+          gone: gone.map((e) => e.id),
+          lost: true,
           tone: late ? 'bad' : 'idle',
           state: `Not answering${leftAt > 0 ? ` (${ageWords(age)})` : ''}`,
           obs: null,

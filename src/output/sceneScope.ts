@@ -10,6 +10,7 @@
 import type { OutputPayload } from '../control/hostedControl';
 import { SCENE_ID } from '../model/obsScenes.ts';
 import { isFontAsset } from '../assets/assetUtils.ts';
+import { SCENE_SEEN_MAX } from '../control/livePath.ts';
 
 /** The scene a link names: absent (null, the ordinary link), or the id as written. A malformed id
  *  is still a scene link (`known` is then false): it must never read as the whole production. */
@@ -78,13 +79,22 @@ export const OBS_ARRIVAL_MS = 1000;
  *  stinger may take its time to end and take the source off program. */
 export const OBS_SHARED_MS = 5000;
 
-/** The OBS scenes a source reports at most (OS3 M5). */
-export const OBS_SEEN_MAX = 12;
+/** The OBS scenes a source reports at most, the first ones seen (OS3 M5). */
+export const OBS_SEEN_MAX = SCENE_SEEN_MAX;
 
 function onProgramIn(next: ObsWhere, name: string): void {
   next.last = name;
   const seen = next.seen ?? [];
-  if (!seen.includes(name)) next.seen = [...seen, name].slice(-OBS_SEEN_MAX);
+  if (!seen.includes(name) && seen.length < OBS_SEEN_MAX) next.seen = [...seen, name];
+}
+
+/** An arrival whose window has passed is settled whatever comes next: the source was on program in
+ *  the scene OBS had named, even if the tick that would have said so has not run yet. */
+function settleArrival(next: ObsWhere, now: number): void {
+  if (next.arriving === undefined || now - next.arriving <= OBS_ARRIVAL_MS) return;
+  if (next.active && next.arrivingIn !== undefined) onProgramIn(next, next.arrivingIn);
+  delete next.arriving;
+  delete next.arrivingIn;
 }
 
 /**
@@ -96,8 +106,9 @@ function onProgramIn(next: ObsWhere, name: string): void {
  * before, and `seen` once the window has passed (a `tick`), so the scene a cut leaves is never ticked.
  * A name heard while the source is already on program is either a cut away (the source leaves
  * program right after) or a cut to another OBS scene holding the same source (it stays): it counts
- * once the source has stayed on program for OBS_SHARED_MS. `tick` is the clock: the page sends one
- * after each event's window.
+ * once the source has stayed on program for OBS_SHARED_MS, or when OBS names yet another scene while
+ * it still is. `tick` is the clock: the page sends one after each event's window, and any later
+ * event settles an arrival whose window has passed.
  */
 export function obsEvent(
   where: ObsWhere,
@@ -105,6 +116,7 @@ export function obsEvent(
   now: number,
 ): ObsWhere {
   const next: ObsWhere = { ...where };
+  settleArrival(next, now);
   if (event.type === 'visible') next.visible = event.on;
   else if (event.type === 'active') {
     next.active = event.on;
@@ -120,15 +132,15 @@ export function obsEvent(
   } else if (event.type === 'scene') {
     next.current = event.name.slice(0, 80);
     if (next.active && next.arriving !== undefined && now - next.arriving <= OBS_ARRIVAL_MS) onProgramIn(next, next.current);
-    else if (next.active) next.pending = { name: next.current, at: now };
+    else if (next.active) {
+      // A scene named while one is still pending: the source stayed on program through a cut to
+      // another OBS scene, so the pending one held it too.
+      if (next.pending) onProgramIn(next, next.pending.name);
+      next.pending = { name: next.current, at: now };
+    }
     delete next.arriving;
     delete next.arrivingIn;
   } else {
-    if (next.arriving !== undefined && now - next.arriving > OBS_ARRIVAL_MS) {
-      if (next.active && next.arrivingIn !== undefined) onProgramIn(next, next.arrivingIn);
-      delete next.arriving;
-      delete next.arrivingIn;
-    }
     if (next.pending && now - next.pending.at >= OBS_SHARED_MS) {
       if (next.active) onProgramIn(next, next.pending.name);
       delete next.pending;

@@ -1172,6 +1172,16 @@ Filled in by each phase's pull request.
   timing (at once on an activation); only `seen` waits for the window, so an existing reading of
   `last` is unchanged. A settled file also records the latest data a panel sent, so the values it
   restates after a snap are the panel's, not the exported ones.
+- Found by the `/check` review, all fixed: a scene row whose link is gone offers Dismiss (its
+  remembered output left the Outputs list, the only place with Forget); a remembered link is
+  matched by its scene's name as the link cleans and cuts it (`sceneLinkName`); the link, its report
+  and the row keep the same first 12 OBS scene names; a second scene named while one is pending
+  counts the pending one (the source stayed on program through two cuts); an arrival whose window
+  passed is settled by the next event, not only by its tick; the render on which a link leaves
+  reads "Not answering (0 s)", never a red age from its entry's last change; a settled file's
+  `?stream=` instance has its plays settled too (it still waits for commands); a settled file's
+  README no longer describes the entrance on program. Not changed: the rows are folded on every
+  render (cheap, over the cues), and an OBS event's ticks re-send no Presence entry unless it changed.
 - Previous verified `main`: `b2e91ba4a5df23c1cec4a95ea213c9d070b5c7f5` (CI run 43427609778,
   configured suite 43427609688).
 - Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed and no
