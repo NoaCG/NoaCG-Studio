@@ -27,7 +27,7 @@
 .live-dock-section .pd-source-line select { max-width: 100%; margin-top: 4px; }
 .live-dock-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
 .live-dock-row select { flex: 1; min-width: 0; }
-.live-dock-row input[type='time'] { width: 7em; }
+.live-dock-row input[type='time'] { width: 8.5em; }
 .live-dock-label { font-weight: 700; }
 .live-dock-dim { color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
 .live-dock-held { font-variant-numeric: tabular-nums; color: var(--text-dim); }
