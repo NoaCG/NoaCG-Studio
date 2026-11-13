@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
 import { joinedScenes, sceneFolderIds, sceneGraphicNames, sceneLink } from '../../model/obsScenes';
-import { takeJoined } from '../../control/sceneJoin';
+import { airMark, takeJoined } from '../../control/sceneJoin';
 import { useTemplateStore } from '../../store/templateStore';
 import {
   deleteShowProfile,
@@ -2905,8 +2905,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             published: () => !!verbSender.current?.published,
             entries: () => livePresenceRef.current.peers,
             record: () => loadShows().find((s) => s.id === showId),
-            take: (cue) => takeCue(cue),
-            airOf: (graphic) => session.air.get().liveCue[graphic] ?? null,
+            // The Take a press sends, answering why it did not go, so one note names every join
+            // that failed; its folder step moves as a press's does.
+            take: async (cue) => {
+              const taken = await verbs.takeGraphic(cue, 'Take');
+              if (!taken) return 'its graphic is gone';
+              if (!taken.ok) return taken.note;
+              noteStep(cue);
+              return null;
+            },
+            airOf: (graphic) => airMark(session.air.get(), graphic),
             failed: (failures) => {
               const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
               setNote(`Not on air in their OBS scenes: ${failures.map((f) => `${f.join.graphic} (${why(f.error)})`).join(', ')}`);

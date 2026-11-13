@@ -21,6 +21,7 @@
 import { sceneCuesOf, type SceneJoin } from '../model/obsScenes';
 import type { Show } from '../model/shows';
 import type { LiveEntry } from './livePath';
+import type { AirPart } from './playoutSession';
 
 /** Longer than an output's spacing between two preparations (output/prepare.ts, 15 s). */
 export const JOIN_WAIT_MS = 20_000;
@@ -41,6 +42,13 @@ export function sceneLinksHold(entries: readonly Pick<LiveEntry, 'kind' | 'scene
   });
 }
 
+/** A mark of a graphic's air that moves with every Take or Out of it, by anyone: the cue on air,
+ *  and the marker write of its last Take (./airState.ts `moveLiveCue`), so a re-Take of the same
+ *  cue, or an Out and a Take back to it, moves it too. An update of its values does not. */
+export function airMark(air: Pick<AirPart, 'liveCue' | 'tookAt'>, graphic: string): string {
+  return `${air.liveCue[graphic] ?? ''}@${air.tookAt?.[graphic] ?? 0}`;
+}
+
 export interface SceneJoinIo {
   /** The page's sender writes to the published log now. A first publish lands before the page
    *  renders its slug, and a Take sent before that would reach this page's PROGRAM only. */
@@ -50,10 +58,10 @@ export interface SceneJoinIo {
   /** The production record as it is now: each join takes its scene's cue there, read again
    *  before each Take. */
   record: () => SceneRecord | undefined;
-  /** The cue this page has up for a graphic now, or null: what air the operator sees. */
-  airOf: (graphic: string) => string | null;
-  /** The operator's Take of a cue. */
-  take: (cue: SceneCue) => Promise<void>;
+  /** The graphic's `airMark` now. */
+  airOf: (graphic: string) => string;
+  /** The operator's Take of a cue: why it did not go, or null when it went. */
+  take: (cue: SceneCue) => Promise<string | null>;
   /** The joins that did not go, each with why, said once on the note line. */
   failed: (failures: { join: SceneJoin; error: unknown }[]) => void;
   /** False once the page has gone. */
@@ -91,7 +99,8 @@ export async function takeJoined(io: SceneJoinIo, joins: readonly SceneJoin[], n
     const cue = record ? sceneCuesOf(record, [j])[0] : null;
     if (!cue) continue;
     try {
-      await io.take(cue);
+      const refused = await io.take(cue);
+      if (refused !== null) failures.push({ join: j, error: new Error(refused) });
     } catch (e) {
       failures.push({ join: j, error: e });
     }

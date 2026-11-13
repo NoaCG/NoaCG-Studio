@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import './lib/tsResolve.mjs';
 
 const { joinedScenes, sceneCuesOf, obsScenesOf } = await import('../src/model/obsScenes.ts');
-const { takeJoined, sceneLinksHold, JOIN_WAIT_MS } = await import('../src/control/sceneJoin.ts');
+const { takeJoined, sceneLinksHold, airMark, JOIN_WAIT_MS } = await import('../src/control/sceneJoin.ts');
 
 const pool = (id, name) => ({ id, name, template: {} });
 const cue = (id, sourceId, folderId) => ({ id, sourceId, label: id, values: {}, ...(folderId ? { folderId } : {}) });
@@ -70,6 +70,7 @@ test('a scene link holds a publish once it reports that version, or is preparing
 
 function clockIo(entries, initial = production()) {
   let record = initial;
+  let refuseB1 = false;
   const air = {};
   let t = 0;
   const taken = [];
@@ -83,9 +84,14 @@ function clockIo(entries, initial = production()) {
     },
     take: async (cue) => {
       if (cue.id === 'h') throw new Error('typed data refused');
+      if (cue.id === 'b1' && refuseB1) return 'B1: refused by its gate';
       taken.push({ cue: cue.id, at: t });
+      return null;
     },
-    airOf: (g) => air[g] ?? null,
+    refuseB1: () => {
+      refuseB1 = true;
+    },
+    airOf: (g) => air[g] ?? '',
     setAir: (g, cue) => {
       air[g] = cue;
     },
@@ -148,9 +154,10 @@ test('each Take reads the scenes again: a graphic out of its scene, or the switc
   const run = clockIo(() => []);
   const take = run.io.take;
   run.io.take = async (cue) => {
-    await take(cue);
+    const answer = await take(cue);
     // While the first Take is sent, the operator turns the OBS scenes switch off.
     run.io.setRecord(production({ obsScenes: undefined }));
+    return answer;
   };
   await takeJoined(run.io, [{ scene: 'scA', graphic: 'A1' }, { scene: 'scA', graphic: 'A2' }], 1);
   assert.deepEqual(run.taken, [{ cue: 'a1', at: 0 }]);
@@ -172,4 +179,22 @@ test('a Take or Out of a graphic after the publish is the operator\'s word: its 
   };
   await takeJoined(run.io, [{ scene: 'scA', graphic: 'A1' }, { scene: 'scA', graphic: 'A2' }, { scene: 'scB', graphic: 'B1' }], 7);
   assert.deepEqual(run.taken, [{ cue: 'b1', at: 3000 }]);
+});
+
+test('a refused Take is a failure like a thrown one, and one note names them all', async () => {
+  const run = clockIo(() => [], production({ cues: [cue('h', 'p-Hand', 'scA'), cue('a2', 'p-A2', 'scA'), cue('b1', 'p-B1', 'scB')] }));
+  run.io.refuseB1();
+  await takeJoined(run.io, [{ scene: 'scA', graphic: 'Hand' }, { scene: 'scA', graphic: 'A2' }, { scene: 'scB', graphic: 'B1' }], 1);
+  assert.deepEqual(run.taken, [{ cue: 'a2', at: 0 }]);
+  assert.deepEqual(run.failures, ['Hand: typed data refused; B1: B1: refused by its gate']);
+});
+
+test('the air mark moves with every Take or Out of the graphic, a re-Take of the same cue included, and not with others', () => {
+  const at = (liveCue, tookAt) => ({ liveCue, tookAt });
+  const up = at({ A1: 'a1' }, { A1: 4 });
+  assert.notEqual(airMark(up, 'A1'), airMark(at({ A1: 'a1' }, { A1: 9 }), 'A1'), 'a re-Take of the same cue');
+  assert.notEqual(airMark(up, 'A1'), airMark(at({}, { A1: 4 }), 'A1'), 'an Out');
+  assert.notEqual(airMark(up, 'A1'), airMark(at({ A1: 'a1' }, { A1: 6 }), 'A1'), 'an Out and a Take back to it');
+  assert.equal(airMark(up, 'A1'), airMark(at({ A1: 'a1', B1: 'b1' }, { A1: 4, B1: 7 }), 'A1'), 'another graphic taken');
+  assert.equal(airMark(at({}, undefined), 'A1'), airMark(at({}, {}), 'A1'), 'never taken');
 });

@@ -53,13 +53,15 @@ ones the proof and the PR use.
   the note line says so.
 - J6 (code review). A Take that fails is said on the note line, and the other joins still go. A
   page that has gone (another production opened) sends nothing more; the joins it still owed are
-  not made, and the operator Takes them by hand. Several failures are named on one line.
+  not made, and the operator Takes them by hand. A Take its gate refuses, or whose send fails,
+  counts as a failure too, and every failure is named on one line.
 - J6b (Rules review). A Take or Out of a graphic, by anyone, after the publish landed is the
-  operator's word on it: its join is not sent over it. The page compares what it has up for the
-  graphic with what it had as the publish landed (taken before a first publish loads a CasparCG or
-  vMix slot), just before each join Take. A timed cue's own Out during the wait counts the same
-  way: its duration said Out, so the join is not sent. A hand re-Take of the same cue reads as
-  unchanged, and the join re-Takes it, which shows the same thing.
+  operator's word on it: its join is not sent over it. Just before each join Take the page
+  compares the graphic's air mark (`airMark`: the cue on air and the marker write of its last Take)
+  with the mark as the publish landed (taken before a first publish loads a CasparCG or vMix slot).
+  Any Take moves it, a re-Take of the same cue and an Out and a Take back included; an update of
+  its values does not. A timed cue's own Out during the wait counts the same way: its duration said
+  Out, so the join is not sent.
 - J6a. Turning the switch off and on again, then publishing, takes every scene graphic again: the
   scenes are made again.
 - Unchanged and out of scope: a Take clears another graphic on the same layer (the layer rule).
@@ -81,7 +83,7 @@ ones the proof and the PR use.
 | --- | --- |
 | J1, J1a, J5 | `scripts/scene-join.test.mjs`: joined graphics; a published scene joins nothing more; a moved graphic joins its new scene; first publish joins all; switch off joins none |
 | J2, J2a | `scripts/scene-join.test.mjs`: the scene's first cue of the graphic; none once moved out or with the switch off; the switch turned off while the first Take is sent stops the second |
-| J3, J3b, J4, J4a, J4b, J6, J6b | `scripts/scene-join.test.mjs`: a link on the old version holds the Take until it reports the new one; a preparing link counts; another scene's link, the ordinary link and an operator never hold it back; a link that never reads it delays it by the bound only; a graphic up is taken; a throwing Take is said and the next goes, several on one line; a page gone takes nothing; a Take or Out pressed during the wait keeps its graphic's join from being sent |
+| J3, J3b, J4, J4a, J4b, J6, J6b | `scripts/scene-join.test.mjs`: a link on the old version holds the Take until it reports the new one; a preparing link counts; another scene's link, the ordinary link and an operator never hold it back; a link that never reads it delays it by the bound only; a graphic up is taken; a throwing Take is said and the next goes, several on one line, a refused Take among them; a page gone takes nothing; a Take or Out pressed during the wait keeps its graphic's join from being sent, and the air mark moves with a re-Take of the same cue |
 | J1, J2, J4, J5 in the product | `e2e/configured/live-prepare.spec.ts` "OBS scenes (#2489)" (local stack, CI): the Gameplay link open before its folder is a scene; making it a scene and publishing airs Hairline there and on the page with no Take; taken out by hand, it stays out when the next publish makes Desk a scene, which airs Bug; a cue in no scene is never taken |
 
 J1b (two pages publishing at once) and J6a are not tested. J1b rests on the publish guard (a raced
@@ -98,6 +100,9 @@ comes from the replaced row: its second publish keeps Hairline out. J6a follows 
 - The record read once for every join instead of before each Take: the switch-off-mid-loop test
   fails. Restored.
 - The air comparison (J6b) removed: the hand-press test fails. Restored.
+- `airMark` reading the cue on air only (no last Take): the mark test fails (a re-Take of the same
+  cue). Restored.
+- A refused Take not counted as a failure: the refused-Take test fails. Restored.
 - The page's call (`ProductionPage.tsx` `onPublished`) is what the configured walk guards:
   without it nothing takes Hairline and the walk's first "on air in its scene link" poll fails.
   Not run as a mutation here: this machine has no local stack.
