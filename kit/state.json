@@ -43,15 +43,13 @@
   "inFlight": [
     {
       "phase": "OS6",
-      "step": "queued",
-      "actor": "builder-os6-os6-b-6cc7",
-      "session": "session_017SdbwNLJWX5HS9u9nYeUvG",
-      "branch": "claude/plan-obs-scenes-os6-build",
-      "launchedAt": "2026-11-13T17:56:59Z",
-      "note": "sent brief = saved brief plus one NOTES line (dock sign-in known; OS7 checklist must carry OS3 rows, #2489, bracket round order, #2475 soak; AC-13 stinger wording)",
-      "lastSeen": "2026-11-13T19:31Z receipt; CI 43489852853 green (65 specs); full /so A; stamped, auto-merge on; follow-up #2521",
+      "step": "check",
+      "actor": "checker-os6-04c5",
+      "session": "session_017SdbwPDua8KaGseVCkRJQp",
       "pr": 2519,
-      "reviewedHead": "7bd1a9264c6182f23640e6010e417f97d8e54ad6"
+      "mergeSha": "3f0ee29f4f6c7bd3d3b53f7fe19cb9bd0b9684aa",
+      "launchedAt": "2026-11-13T19:45:57Z",
+      "note": "sent brief = saved brief plus one NOTES line (OS7 checklist contents to verify)"
     }
   ],
   "owner": [
