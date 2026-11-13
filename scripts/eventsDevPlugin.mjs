@@ -3,16 +3,23 @@
 // validation, same 204. Without it the browser's reports 404 locally, and a client change
 // could only ever be checked against production.
 
+import { previewApiHost } from './previewApiHost.mjs';
+
 /** @returns {import('vite').Plugin} */
 export function eventsApiPlugin() {
-  return {
+  const plugin = {
     name: 'noacg-events-api',
     configureServer(server) {
       server.middlewares.use('/api/events', (req, res) => {
         void handle(server, req, res);
       });
     },
+    // The same routes on `vite preview`, for the e2e build (scripts/previewApiHost.mjs).
+    configurePreviewServer(preview) {
+      plugin.configureServer(previewApiHost(preview));
+    },
   };
+  return plugin;
 }
 
 async function handle(server, req, res) {
