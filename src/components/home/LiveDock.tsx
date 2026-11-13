@@ -207,7 +207,10 @@ function DeadlineSection({ paths, value, write, now }: { paths: readonly Deadlin
         )}
       </div>
       <div className="live-dock-row live-dock-held" data-testid="dock-deadline-value" data-value={held === null ? undefined : String(value(path))}>
-        {held === null ? 'No deadline set' : `Until ${hms(held)} · ${left === 0 ? 'reached' : `${clockText(left!)} left`}`}
+        {/* A time the clocks skip says so here, in the value's own row, so nothing below moves (K5). */}
+        {skipped ? (
+          <span className="status-warn" data-testid="dock-deadline-skipped">The clocks skip {typed} that day.</span>
+        ) : held === null ? 'No deadline set' : `Until ${hms(held)} · ${left === 0 ? 'reached' : `${clockText(left!)} left`}`}
       </div>
       <div className="live-dock-row">
         <button type="button" onClick={() => write(path, deadlineIn(Date.now(), 2))} data-testid="dock-deadline-2">
@@ -224,7 +227,7 @@ function DeadlineSection({ paths, value, write, now }: { paths: readonly Deadlin
           Set
         </button>
       </div>
-      {skipped && <div className="status-warn" data-testid="dock-deadline-skipped">The clocks skip {typed} that day.</div>}
+
     </section>
   );
 }

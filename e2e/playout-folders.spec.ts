@@ -557,6 +557,10 @@ test('OBS scenes: the Live dock at 300 px shows a picked scene with Take and Out
     obsScenes: true,
   });
   // A countdown whose start-time field is bound to data (K7): the clock its design emits names it.
+  // And a Sheet source feeding Hairline, answered here, for the dock's source line (K8).
+  await page.route('https://docs.google.com/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'text/csv', headers: { 'access-control-allow-origin': '*' }, body: 'Name,Value\nName,Ann Lee\n' }),
+  );
   await evaluateInPage(
     page,
     async (showId) => {
@@ -572,6 +576,10 @@ test('OBS scenes: the Live dock at 300 px shows a picked scene with Take and Out
       });
       if (error) throw new Error(error);
       m.setFieldBinding(showId, 'Break', 'f9', 'break.deadline');
+      const source = { id: 's1', kind: 'sheet' as const, label: 'Studio guests', config: { sheetId: 'sheet-1', gid: null, shape: 'values' as const } };
+      const field = t.fields![0].field;
+      const linked = m.connectShowSource(showId, source, [{ graphic: 'Hairline', fieldId: field, path: 'sheet.s1.values.Name' }]);
+      if (linked.error || linked.refused.length) throw new Error(linked.error ?? 'refused');
       const failure = await (await import('/src/model/durableStore.ts')).commitDurableWrites();
       if (failure) throw new Error(failure);
     },
@@ -587,6 +595,15 @@ test('OBS scenes: the Live dock at 300 px shows a picked scene with Take and Out
   await expect(dock.getByTestId('dock-health')).toContainText('0 of 2 ready');
   // What Companion's selection keys act on: the first cue until one is picked (K2).
   await expect(dock.getByTestId('dock-selected')).toHaveText('Selected: Hairline');
+
+  // The source's line as the data panel draws it, with Pause and Resume (K8).
+  const line = dock.getByTestId('dock-sources').getByTestId('source-line-s1');
+  await expect(line).toContainText('Studio guests');
+  await expect(line).toHaveAttribute('data-state', 'ok', { timeout: 15_000 });
+  await line.getByTestId('source-pause').click();
+  await expect(line).toHaveAttribute('data-state', 'paused');
+  await line.getByTestId('source-pause').click();
+  await expect(line).toHaveAttribute('data-state', 'ok', { timeout: 15_000 });
 
   // No OBS event: the picked scene, the first until changed (K3).
   const scenes = dock.getByTestId('dock-scenes');
