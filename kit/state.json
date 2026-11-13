@@ -42,18 +42,6 @@
   ],
   "inFlight": [
     {
-      "phase": "fix-2489",
-      "step": "queued",
-      "actor": "builder-fix-2489-f-d048",
-      "session": "session_017SdbwPFRMVW25Z5BWMcmWQ",
-      "branch": "claude/plan-obs-scenes-fix-2489",
-      "launchedAt": "2026-11-13T12:26:06Z",
-      "note": "sent brief = saved fix brief plus one NOTES line (owner intent: adding takes it; defaults are the builder's)",
-      "pr": 2493,
-      "lastSeen": "2026-11-13T14:20Z Risky record done (Rules + combined /so A, deltas A); CI 43439109053 green; stamped, auto-merge on; flake filed #2501",
-      "reviewedHead": "d5dcdbedd47b025a784df619b40c09c6f7aece71"
-    },
-    {
       "phase": "OS3",
       "step": "build",
       "actor": "builder-os3-os3-b-93dc",
@@ -94,7 +82,7 @@
     {
       "issue": 2489,
       "what": "adding a graphic to a scene takes it (spec Scenes behaviour, deferred by OS1a to OS1b, not in AC-2/AC-3)",
-      "when": "building since 2026-11-13T12:26Z, before OS3"
+      "when": "landed 2026-11-13T14:35Z as 1178ac8e8b1c3cabef036e57a1a50c74576ebf93 (PR 2493)"
     }
   ],
   "triggers": [
