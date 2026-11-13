@@ -503,12 +503,24 @@ async function boot(): Promise<void> {
   // OBS'S OWN EVENTS (R8; docs/OBS_ON_A_REAL_HOST.md §3): where the browser source is, reported
   // only. Nothing here changes what airs: a scene graphic is drawn settled whether or not it shows.
   if (scene !== null) {
+    // The clock of the walk-through (OS3 M5): one tick per window still open, so a scene counts once
+    // its window has passed; the entry is sent again only when what it says changed.
+    let arrivalTick: ReturnType<typeof setTimeout> | undefined;
+    let sharedTick: ReturnType<typeof setTimeout> | undefined;
     const heard = (event: Parameters<typeof obsEvent>[1]) => {
+      const said = JSON.stringify(sceneReport(scene));
       obsWhere = obsEvent(obsWhere, event, Date.now());
       dbg('obs', `${obsState(obsWhere) ?? 'unknown'}${obsWhere.last !== undefined ? ` · last on program in ${obsWhere.last}` : ''}`);
-      presence.touch();
-      // The clock of the walk-through (OS3 M5): a scene counts once its window has passed.
-      if (event.type !== 'tick') for (const ms of [OBS_ARRIVAL_MS, OBS_SHARED_MS]) setTimeout(() => heard({ type: 'tick' }), ms + 50);
+      if (JSON.stringify(sceneReport(scene)) !== said) presence.touch();
+      if (event.type === 'tick') return;
+      if (obsWhere.arriving !== undefined) {
+        clearTimeout(arrivalTick);
+        arrivalTick = setTimeout(() => heard({ type: 'tick' }), OBS_ARRIVAL_MS + 50);
+      }
+      if (obsWhere.pending) {
+        clearTimeout(sharedTick);
+        sharedTick = setTimeout(() => heard({ type: 'tick' }), OBS_SHARED_MS + 50);
+      }
     };
     const detail = (e: Event) => ((e as CustomEvent).detail ?? {}) as { visible?: unknown; active?: unknown; name?: unknown };
     window.addEventListener('obsSourceVisibleChanged', (e) => heard({ type: 'visible', on: detail(e).visible === true }));

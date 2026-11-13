@@ -73,7 +73,7 @@ import {
 import type { AssetFile, SpxTemplate } from '../model/types';
 import type { SavedGraphic } from '../model/packets';
 import { graphicLayer, type Show } from '../model/shows';
-import { obsScenesOf, type ObsScene } from '../model/obsScenes';
+import { obsScenesOf, sceneGraphicNames, type ObsScene } from '../model/obsScenes';
 import { preparedCue } from '../model/productionData';
 import { readAuto } from '../control/cueAuto';
 
@@ -368,7 +368,7 @@ export async function buildShowZipFor(show: Show, targetId: string, opts?: ShowE
   // The scene graphics a settled package draws at rest (M11): none unless asked, and none for a
   // target other than the overlay or with the switch off (obsScenesOf answers none then).
   const scenes = targetId === CONTROLLER_TARGET && opts?.settledScenes ? obsScenesOf(show) : [];
-  const sceneGraphics = new Set(scenes.flatMap((scene) => scene.graphics));
+  const sceneGraphics = scenes.length > 0 ? sceneGraphicNames(show) : new Set<string>();
   for (const graphic of show.graphics) {
     const template = await exportTemplateFor(graphic, library, usedSlugs, undefined, faces);
     const entries = entriesForSavedGraphic(graphic, library);
@@ -377,7 +377,7 @@ export async function buildShowZipFor(show: Show, targetId: string, opts?: ShowE
       sampleData: activeEntryValues(graphic, library),
       graphicUsage: 'live',
       appearance: opts?.appearances?.graphics[graphic.id],
-      ...(sceneGraphics.has(graphic.name) ? { settled: true } : {}),
+      settled: sceneGraphics.has(graphic.name),
     });
     for (const [path, file] of Object.entries(sub.files)) {
       if (file.dir) continue;

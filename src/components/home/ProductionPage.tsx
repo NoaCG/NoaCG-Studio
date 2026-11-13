@@ -1086,6 +1086,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** What this page has heard of the OBS scene links since it opened (obs-scenes OS3 M3, M5): when
    *  each scene's link was last present and the OBS scenes it went on program in. */
   const [sceneWatch, setSceneWatch] = useState<SceneWatch>(EMPTY_WATCH);
+  /** The production's scenes, read again only when the record changes, not with every second's clock. */
+  const obsSceneList = useMemo(() => (show?.obsScenes ? obsScenesOf(show) : []), [show]);
   useEffect(() => setSceneWatch(EMPTY_WATCH), [show?.id]);
   const sceneWatchJoined = livePresence.status === 'joined' && livePresence.showId === (show?.id ?? null);
   useEffect(() => {
@@ -4050,7 +4052,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  outputs they speak for, which leave the generic Outputs list. */
   const scenePresence = sceneWatchJoined ? 'joined' : livePresence.status === 'joined' ? 'joining' : livePresence.status;
   const scenePanel = show.obsScenes
-    ? sceneRows({ scenes: obsScenesOf(show), peers: livePresence.peers, presence: scenePresence, watch: sceneWatch, expected: expectedOutputs, published: readiness.knownVersion, now })
+    ? sceneRows({ scenes: obsSceneList, peers: livePresence.peers, presence: scenePresence, watch: sceneWatch, expected: expectedOutputs, published: readiness.knownVersion, now })
     : null;
   const panelOutputs = scenePanel ? readiness.outputs.filter((line) => !scenePanel.claimed.has(line.id)) : readiness.outputs;
   /** The OBS scenes switch (obs-scenes OS1a R2): folders may be OBS scenes, each with its own link. */

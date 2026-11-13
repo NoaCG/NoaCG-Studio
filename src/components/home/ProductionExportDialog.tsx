@@ -59,7 +59,7 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
       const sent = await settledForExport();
       await downloadShowZipFor(sent, targetId, {
         appearances: await measureExportAppearances(sent, targetId),
-        ...(offerSettled && settled ? { settledScenes: true } : {}),
+        settledScenes: offerSettled && settled,
       });
       const label = EXPORT_TARGETS.find((t) => t.id === targetId)?.label ?? targetId;
       setNote(`✓ Exported the production as ${label}.`);

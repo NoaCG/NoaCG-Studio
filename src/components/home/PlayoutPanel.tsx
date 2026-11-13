@@ -5,6 +5,7 @@ import { bridgePaired, type PlayoutSettings } from '../../control/playoutLink';
 import { observeVmixOutput, readVmixOutput, sameVmixOutputSetup, type VmixManualOutputCommand, type VmixOutputReading, type VmixReplace } from '../../control/vmixSetup';
 import { DOWNLOADS_BRIDGE_URL } from '../../downloads/links';
 import { obsWords, type SceneRow } from '../../control/obsSceneRows';
+import { NO_SCENES_YET } from './ObsScenesSettings';
 
 /**
  * THE PLAYOUT PANEL'S SECTIONS (docs/work-specs/playout-workflow-simplification AC-3), opened from
@@ -148,7 +149,7 @@ export function ObsSceneRows({ rows, onDismiss }: { rows: readonly SceneRow[]; o
     return (
       <div className="pd-pp-row pd-pp-row--quiet" data-testid="obs-scene-none">
         <Dot tone="idle" />
-        <span className="pd-pp-name">No OBS scenes yet. Mark a rundown folder as an OBS scene in its ⋯ menu.</span>
+        <span className="pd-pp-name">{NO_SCENES_YET}</span>
       </div>
     );
   }
@@ -261,7 +262,6 @@ export function BridgeSection({ vmixOn, casparOn, obsScenesOn, obsScenesLoaded =
       onObsScenes(on);
     }
   };
-  const loaded = obsScenesLoaded;
   return (
     <Section testId="playout-panel-bridge">
       <div className="pd-pp-switches">
@@ -272,9 +272,9 @@ export function BridgeSection({ vmixOn, casparOn, obsScenesOn, obsScenesLoaded =
       {obsScenesOn && askOff && (
         <div className="pd-pp-confirm" role="alertdialog" aria-label="Switch OBS scenes off" data-testid="obs-scenes-off-ask">
           <span>
-            {loaded === null || loaded === undefined
+            {obsScenesLoaded == null
               ? 'Switch OBS scenes off? NoaCG cannot see right now whether scene links are loaded. Every scene link goes empty at the next publish.'
-              : `Switch OBS scenes off? ${loaded === 1 ? '1 OBS scene goes' : `${loaded} OBS scenes go`} empty at the next publish.`}
+              : `Switch OBS scenes off? ${obsScenesLoaded === 1 ? '1 OBS scene goes' : `${obsScenesLoaded} OBS scenes go`} empty at the next publish.`}
           </span>
           <button type="button" className="pd-pp-link" onClick={() => setAskOff(false)} data-testid="obs-scenes-off-cancel">
             Cancel

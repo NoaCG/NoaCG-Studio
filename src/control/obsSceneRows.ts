@@ -30,22 +30,37 @@ export const EMPTY_WATCH: SceneWatch = { scenes: {}, links: {}, present: [] };
 const union = (a: readonly string[], b: readonly string[]) => [...new Set([...a, ...b])].slice(0, SCENE_SEEN_MAX);
 
 /**
- * The watch after a Presence update. A scene whose link is present is seen now; one that was present
- * at the last update and is not now was last seen now, when it left (as readiness.ts
- * `rememberOutputs` dates a gone output).
+ * The watch after a Presence update. A scene that was present at the last update and is not now was
+ * last seen now, when it left (as readiness.ts `rememberOutputs` dates a gone output); while present
+ * its time is not read (`sceneRows`). Nothing changed, the same watch comes back, so the page does
+ * not render again for it.
  */
 export function watchScenes(watch: SceneWatch, peers: readonly LiveEntry[], now: number): SceneWatch {
   const scenes = { ...watch.scenes };
   const links = { ...watch.links };
   const here = new Set<string>();
+  let changed = false;
   for (const p of oneEntryPerOutput(peers)) {
     if (!p.scene) continue;
     const id = p.scene.id;
     here.add(id);
-    links[p.id] = id;
-    scenes[id] = { at: now, seen: union(scenes[id]?.seen ?? [], p.scene.seen ?? []) };
+    if (links[p.id] !== id) {
+      links[p.id] = id;
+      changed = true;
+    }
+    const held = scenes[id];
+    const seen = union(held?.seen ?? [], p.scene.seen ?? []);
+    if (!held || seen.length !== held.seen.length) {
+      scenes[id] = { at: held?.at ?? now, seen };
+      changed = true;
+    }
   }
-  for (const id of watch.present) if (!here.has(id) && scenes[id]) scenes[id] = { ...scenes[id], at: now };
+  for (const id of watch.present) {
+    if (here.has(id) || !scenes[id]) continue;
+    scenes[id] = { ...scenes[id], at: now };
+    changed = true;
+  }
+  if (!changed && here.size === watch.present.length) return watch;
   return { scenes, links, present: [...here] };
 }
 

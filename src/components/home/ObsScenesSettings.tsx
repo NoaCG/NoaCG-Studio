@@ -6,6 +6,9 @@ import type { Show } from '../../model/shows';
  *  and what each failure needs. */
 export const OBS_SCENES_GUIDE_URL = 'https://github.com/NoaCG/NoaCG-Studio/blob/main/docs/OBS_SCENES.md';
 
+/** What the panel and the settings say while the switch is on and no folder is a scene. */
+export const NO_SCENES_YET = 'No OBS scenes yet. Mark a rundown folder as an OBS scene in its ⋯ menu.';
+
 /** "<scene>: <link>", one line per scene: what "Copy all links" copies (obs-scenes OS3 M7). */
 export function allSceneLinks(scenes: readonly { id: string; name: string }[], outputUrl: string): string {
   return scenes.map((scene) => `${scene.name}: ${sceneLink(outputUrl, scene.id)}`).join('\n');
@@ -29,7 +32,7 @@ export default function ObsScenesSettings({ show, outputUrl, copied, onCopy }: {
     <section aria-label="OBS scenes" data-testid="settings-obs-scenes">
       <p className="dlg-caption">OBS scenes</p>
       {scenes.length === 0 ? (
-        <p className="hint">No OBS scenes yet. Mark a rundown folder as an OBS scene in its ⋯ menu.</p>
+        <p className="hint">{NO_SCENES_YET}</p>
       ) : (
         <ul className="obs-scene-list">
           {scenes.map((scene) => {

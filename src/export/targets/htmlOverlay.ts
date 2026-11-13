@@ -328,9 +328,7 @@ export const htmlOverlayTarget: ExportTarget = {
       await composeSelfContainedHtml(withReceiver, [
         ...bakeAppearance(ctx?.appearance),
         { id: 'noacg-local-receiver', js: localReceiverJs(template.name, { appearance: !!ctx?.appearance }) },
-        ctx?.settled
-          ? { id: 'noacg-overlay-autoplay', js: settledAutoplayScript(baked) }
-          : { id: 'noacg-overlay-autoplay', js: autoplayScript(baked, outMs) },
+        { id: 'noacg-overlay-autoplay', js: ctx?.settled ? settledAutoplayScript(baked) : autoplayScript(baked, outMs) },
       ]),
     );
     // This package is ONE graphic file: there is no images/ folder beside the panel, so its

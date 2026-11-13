@@ -39,6 +39,7 @@ import {
   type HeldVersion,
   type OutputReady,
   type ReadyStamp,
+  MAX_EXPECTED_OUTPUTS,
 } from './readiness';
 
 // ── WHO IT IS ────────────────────────────────────────────────────────────────────────────────
@@ -441,6 +442,7 @@ export const SCENE_SEEN_MAX = 12;
  *  the scene's name cleaned and cut as `&name=` is (`outputNameParam`), so the panel can match a
  *  remembered output to its scene by it. */
 export function sceneLinkName(sceneName: string): string | undefined {
+  // Everything below a space (control characters) goes: a name is one line of plain text.
   return sceneName.replace(/[^ -\uffff]/g, '').trim().slice(0, 40) || undefined;
 }
 
@@ -488,9 +490,7 @@ export function liveEntry(
 /** An output's name from its URL: `&name=CasparCG 1-20`, trimmed to what a line can show. */
 export function outputNameParam(search: string): string | undefined {
   const name = new URLSearchParams(search).get('name');
-  // Everything below a space (control characters) goes: a name is one line of plain text.
-  const clean = name ? name.replace(/[^ -￿]/g, '').trim().slice(0, 40) : '';
-  return clean || undefined;
+  return name ? sceneLinkName(name) : undefined;
 }
 
 /** A Presence entry read off the wire, or null when it is not one. Anyone holding the show id can
@@ -504,7 +504,7 @@ export function readLiveEntry(meta: unknown): LiveEntry | null {
   const pub = readHeld(m.pub);
   const exp = Array.isArray(m.exp)
     ? m.exp
-        .slice(0, 16)
+        .slice(0, MAX_EXPECTED_OUTPUTS)
         .filter((e): e is ExpectedOutput => !!e && typeof e.id === 'string' && typeof e.name === 'string')
         .map((e) => ({ id: e.id.slice(0, 40), name: e.name.slice(0, 80), seen: typeof e.seen === 'number' ? e.seen : 0 }))
     : undefined;
