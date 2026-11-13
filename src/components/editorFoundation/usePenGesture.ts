@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SpxTemplate } from '../../model/types';
 import { inspectPath } from '../../blocks/editorPaths';
 import { mapPoint, movePathPoint, validatePath, type PathGeometry, type PathPosition } from '../../blocks/pathGeometry';
@@ -7,7 +7,7 @@ import type { PreviewReply, RenderedPart } from './protocol';
 import { requireCurrentPose } from './animationAuthoring';
 
 interface Draft {
-  geometry: PathGeometry; matrix: number[]; expected: Revision; time: number; cue?: number;
+  instance: string; geometry: PathGeometry; matrix: number[]; expected: Revision; time: number; cue?: number;
   selector?: string; original?: PathGeometry;
   pressed?: { index: number; kind: 'point' | 'in' | 'out'; start: PathPosition };
 }
@@ -15,15 +15,16 @@ export function usePenGesture(template: SpxTemplate, session: EditorSession, dra
   target: RenderedPart | null, scale: number, finishEditing: () => void) {
   const current = useRef<Draft | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null), [error, setError] = useState('');
+  useEffect(() => { current.current = null; setDraft(null); setError(''); }, [session]);
   const selector = target?.selector;
   const info = useMemo(() => selector ? inspectPath(template, selector) : null, [template, selector]);
   const fresh = (value: Draft) => {
-    if (!sameRevision(value.expected, session.version())) throw new Error('The document changed. Draw or inspect this path again.');
+    if (value.instance !== session.instanceId || !sameRevision(value.expected, session.version())) throw new Error('The document changed. Draw or inspect this path again.');
     const view = session.port.view();
     if (view.time !== value.time || view.cue !== value.cue) throw new Error('The playhead moved. Draw or inspect this path again.');
   };
   const publish = (value: Draft) => { current.current = value; setDraft({ ...value }); };
-  const cancel = () => { if (current.current) session.cancel(); current.current = null; setDraft(null); setError(''); };
+  const cancel = () => { if (current.current?.instance === session.instanceId) session.cancel(); current.current = null; setDraft(null); setError(''); };
   const fail = (cause: unknown) => { cancel(); setError(cause instanceof Error ? cause.message : String(cause)); };
   const finish = (closed: boolean) => {
     const value = current.current; if (!value || value.selector) return;
@@ -52,14 +53,14 @@ export function usePenGesture(template: SpxTemplate, session: EditorSession, dra
         const hit = hits.find(hit => { const p = mapPoint(target.pathMatrix!, hit.at); return Math.hypot(screen.x - p.x, screen.y - p.y) * scale <= 8; });
         if (!hit) return;
         session.begin();
-        publish({ geometry, original: geometry, selector: target.selector, matrix: [...target.pathMatrix], expected: session.version(), ...session.port.view(), pressed: { index: hit.index, kind: hit.kind, start: screen } });
+        publish({ instance: session.instanceId, geometry, original: geometry, selector: target.selector, matrix: [...target.pathMatrix], expected: session.version(), ...session.port.view(), pressed: { index: hit.index, kind: hit.kind, start: screen } });
         return;
       }
       if (!value) {
         if (!drawingSpace) throw new Error('The drawing surface is not ready.');
         mapPoint(drawingSpace, screen, true);
         session.begin();
-        value = { geometry: { points: [], closed: false }, matrix: [...drawingSpace], expected: session.version(), ...session.port.view() };
+        value = { instance: session.instanceId, geometry: { points: [], closed: false }, matrix: [...drawingSpace], expected: session.version(), ...session.port.view() };
       }
       if (value.geometry.points.length >= 3) {
         const first = mapPoint(value.matrix, value.geometry.points[0]);
@@ -110,7 +111,7 @@ export function usePenGesture(template: SpxTemplate, session: EditorSession, dra
     }
     return false;
   };
-  const valid = draft && sameRevision(draft.expected, session.version()) && draft.time === session.port.view().time && draft.cue === session.port.view().cue;
+  const valid = draft && draft.instance === session.instanceId && sameRevision(draft.expected, session.version()) && draft.time === session.port.view().time && draft.cue === session.port.view().cue;
   const overlay = valid ? { geometry: draft.geometry, matrix: draft.matrix } : info?.geometry && target?.pathMatrix ? { geometry: info.geometry, matrix: target.pathMatrix } : null;
   return { begin, move, end, key, cancel, overlay, error, active: () => !!current.current, pressed: () => !!current.current?.pressed };
 }

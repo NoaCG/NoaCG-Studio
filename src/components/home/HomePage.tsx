@@ -23,6 +23,7 @@ import { nameList } from './CueRundown';
 import { activeValues } from './GraphicRow';
 import GraphicThumb from './GraphicThumb';
 import GraphicsSection from './sections/GraphicsSection';
+import ProjectsSection from './sections/ProjectsSection';
 import ProductionsSection from './sections/ProductionsSection';
 import VideosSection, { VideoList } from './sections/VideosSection';
 import LooksSection from './sections/LooksSection';
@@ -325,6 +326,7 @@ export default function HomePage({ route }: { route: Route }) {
         </nav>
 
         <main className="home-content">
+          {(view === 'dashboard' || view === 'graphics') && <ProjectsSection />}
           {view === 'arrival' && <LibraryArrival failed={sync.phase === 'error'} incoming={sync.incoming} />}
 
           {view === 'dashboard' && (

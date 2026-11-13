@@ -1,0 +1,34 @@
+{
+  "at": "2026-11-12T11:30:38.651Z",
+  "result": "PASS",
+  "requestedPin": "3142fc7d02934494931eb14e7dc255393e4110d0",
+  "executedSource": "a1e9776120fa19d9f3f9d40ab4b10ae1be034347",
+  "version": "0.17.0",
+  "binarySha256": "9ba1de317cdc8380c38a694f1d201964d7b805833597419111dab9eea9a02681",
+  "sourceApplicability": "Fresh GitHub compare reports only .github/workflows/release.yml differs; application/runtime/build inputs are identical.",
+  "viewport": {
+    "width": 1366,
+    "height": 768
+  },
+  "executed": [
+    "Create text Harbour bulletin",
+    "Apply News broadcast style pack",
+    "Explicit Edit Undo removes style pack",
+    "Redo restores style pack",
+    "Name Brand Kit Harbour TV",
+    "Save first native project",
+    "New second text Harbour intro and save second native project",
+    "Open first native file and recover Harbour bulletin"
+  ],
+  "firstName": "Untitled Template.ogs",
+  "secondName": "Untitled Template.ogs",
+  "applied": "Palette colors update linked playback defaults.\n\nBackground\nSurface\nAccent\nPrimary text\nSecondary text\nText outline\nNews\nSports\nEntertainment\nDocumentary\nApply Pack\nApplied: News\nRemove applied pack\n+ Token\nAdvanced tokens (24)",
+  "undone": "Palette colors update linked playback defaults.\n\nNews\nSports\nEntertainment\nDocumentary\nApply Pack\nNo pack applied\nRemove applied pack\n+ Token\n\nNo design tokens.",
+  "errors": [],
+  "limits": [
+    "Reference style pack is not NoaCG named-brand/logo/override equivalence.",
+    "Two native files are not the NoaCG durable multi-document workspace/history or Home reopen.",
+    "No selective two-rundown installation, interruption receipt or rollback equivalence established; no invented comparison times.",
+    "No paid/model calls or reference code copied into product."
+  ]
+}

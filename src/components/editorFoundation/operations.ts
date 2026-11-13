@@ -1,3 +1,5 @@
+import { applyDocumentBrand } from '../../model/brandApplication';
+import type { SavedLook } from '../../model/packets';
 import type { SpxTemplate } from '../../model/types';
 import { getTemplateParts } from '../../model/structure';
 import { readOrganization, writeOrganization } from '../../model/editorOrganization';
@@ -29,6 +31,7 @@ import { setLookEntrance, type LookEntrance } from '../../blocks/behaviourLook';
 
 /** Bounded source operations. New tools extend this registry, never mutate their own scene. */
 export type EditorOperation =
+  | { kind: 'brand.apply'; look: SavedLook }
   | { kind: 'look.entrance'; selector: string; entrance: LookEntrance | '' }
   | { kind: 'graphic.insert'; variant: TemplateVariant; placement: InsertPlacement; steps: boolean }
   | { kind: 'graphic.activation'; selector: string; press: number }
@@ -65,7 +68,7 @@ export interface OperationPatch {
   template: SpxTemplate;
   changedTargets: string[];
   identities?: Record<string, string>;
-  diff: { file: 'html' | 'css' | 'js' | 'assets'; before: string; after: string }[];
+  diff: { file: 'html' | 'css' | 'js' | 'assets' | 'brand'; before: string; after: string }[];
 }
 
 // Compare JSON content irrespective of property order. Refuse fields the current writer
@@ -106,7 +109,9 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
       if (identity.selector !== original) identities[original] = identity.selector;
       operation = { ...operation, selector: identity.selector };
     }
-    if (operation.kind === 'look.entrance') {
+    if (operation.kind === 'brand.apply') {
+      next = applyDocumentBrand(next, operation.look);
+    } else if (operation.kind === 'look.entrance') {
       next = setLookEntrance(next, operation.selector, operation.entrance); targets.add(operation.selector);
     } else if (operation.kind === 'loop.set') {
       next = applyEditorLoop(next, operation); targets.add(operation.selector);
@@ -230,6 +235,7 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
   if (template.assets.length !== next.assets.length || template.assets.some((asset, i) => asset.path !== next.assets[i]?.path || asset.data !== next.assets[i]?.data)) {
     diff.push({ file: 'assets', before: template.assets.map(a => a.path).join('\n'), after: next.assets.map(a => a.path).join('\n') });
   }
+  if (JSON.stringify(template.brandApplication) !== JSON.stringify(next.brandApplication)) diff.push({ file: 'brand', before: JSON.stringify(template.brandApplication) ?? '', after: JSON.stringify(next.brandApplication) ?? '' });
   return { template: next, changedTargets: [...targets], identities, diff };
 }
 

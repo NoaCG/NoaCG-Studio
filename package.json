@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "vite",
     "dev:worktree": "node scripts/dev-worktree.mjs",
+    "qualify:editor-projects": "node scripts/editor-projects-qualification.mjs",
     "endurance:election": "node scripts/endurance-election.mjs",
     "endurance:replay-smoke": "node scripts/replay-smoke.mjs",
     "trial:late-send-abandoned": "node scripts/configured-trial.mjs --spec e2e/configured/late-send-abandoned.spec.ts --repeat 40",
