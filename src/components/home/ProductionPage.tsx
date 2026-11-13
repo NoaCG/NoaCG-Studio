@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
-import { sceneFolderIds, sceneGraphicNames, sceneLink } from '../../model/obsScenes';
+import { joinedScenes, sceneFolderIds, sceneGraphicNames, sceneLink } from '../../model/obsScenes';
+import { airMark, takeJoined } from '../../control/sceneJoin';
 import { useTemplateStore } from '../../store/templateStore';
 import {
   deleteShowProfile,
@@ -1040,6 +1041,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** The production's live state is recovered from the wire (its resolve and the rows after it):
    *  until then an empty on-air map is not evidence that a graphic is off air. */
   const [liveRecovered, setLiveRecovered] = useState(false);
+  /** False once this page has gone (it is keyed by production): a Take it still owes is dropped. */
+  const pageLiveRef = useRef(true);
+  useEffect(() => {
+    pageLiveRef.current = true;
+    return () => {
+      pageLiveRef.current = false;
+    };
+  }, []);
   useEffect(() => {
     setLiveRecovered(false);
     setPublishedReaders(new Set());
@@ -2885,6 +2894,36 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       onFirstPublish: (rehearsed) => {
         applyProgram(clearAllCueBatches(rehearsed).flat());
         setLiveCue({});
+      },
+      // #2489: a graphic this publish put in an OBS scene goes on air there, as the operator's own
+      // Take, once the scene's open links have read the publish (control/sceneJoin.ts).
+      onPublished: (published) => {
+        if (!published.version || !published.scenes) return;
+        const showId = show.id;
+        void takeJoined(
+          {
+            published: () => !!verbSender.current?.published,
+            entries: () => livePresenceRef.current.peers,
+            record: () => loadShows().find((s) => s.id === showId),
+            // The Take a press sends, answering why it did not go, so one note names every join
+            // that failed; its folder step moves as a press's does.
+            take: async (cue) => {
+              const taken = await verbs.takeGraphic(cue, 'Take');
+              if (!taken) return 'its graphic is gone';
+              if (!taken.ok) return taken.note;
+              noteStep(cue);
+              return null;
+            },
+            airOf: (graphic) => airMark(session.air.get(), graphic),
+            failed: (failures) => {
+              const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
+              setNote(`Not on air in their OBS scenes: ${failures.map((f) => `${f.join.graphic} (${why(f.error)})`).join(', ')}`);
+            },
+            live: () => pageLiveRef.current,
+          },
+          joinedScenes(published.scenes.before, published.scenes.after),
+          published.version.n,
+        );
       },
     },
   );
