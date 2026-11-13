@@ -36,14 +36,14 @@
  },
  "waitingOn": [
   {
-   "what": "phase 5 checker verdict",
-   "eta": "2026-11-12T22:00:00Z"
+   "what": "phase 6 G3 design PR note from builder",
+   "eta": "2026-11-13T02:00:00Z"
   }
  ],
  "inFlight": {
-  "phase": 5,
-  "step": "check: checker session_017SdbwMJRci189DWkHMeVwL nonce 5-c-b19d on merge 1938f262",
-  "asOf": "2026-11-12T19:14Z"
+  "phase": 6,
+  "step": "build PR 2488: /so B at cf658d15; fixes local; AC-4 matrix rerun at 3 s edit pace; sync chain issue to be filed by builder",
+  "asOf": "2026-11-13T10:40Z"
  },
  "owner": [
   {
@@ -83,6 +83,24 @@
    "what": "Land #2316 durations refresh (owner Q1 A)",
    "pr": 2316,
    "state": "merged 2c8d3831d8edf048dc5650d3188c75decbe8d318"
+  },
+  {
+   "issue": 2392,
+   "builder": "session_017SdbwPKer6MKHFR8TiBNLd",
+   "nonce": "fix-2392-f-f0ea",
+   "notify": "send PR to session_017SdbwPphatUYXtpZ9CHkPu when queued",
+   "landed": "e1c6fc4f5faf933be930cdf30f7acfa4e2b9ab22 (PR 2487)",
+   "archived": true
+  },
+  {
+   "2494": {
+    "builder": "session_017SdbwM1Sfr4TFM9JYad473",
+    "nonce": "fix-2494-f-b962"
+   },
+   "2495": {
+    "builder": "session_017SdbwPgzV8gKLZty4DAZn4",
+    "nonce": "fix-2495-f-c5a9"
+   }
   }
  ],
  "triggers": {
@@ -110,6 +128,18 @@
   {
    "what": "D1: 5 s ceiling vs 30-33 s large-fixture update over 20 Mbit/s (phase 2 receipt). Ask before phase 6/7.",
    "state": "answered 2026-11-12: A"
+  },
+  {
+   "what": "Phase 6 G3 (PR 2469, /so B at e9a0d4c): Q1 does AC-4 50 ms cover design update/add loops (A: no, reported only; B: yes, outputs postpone new frames). Q2 newest save with an older design publishes once auto updates are on (A: yes; B: keep refusing). Asked 2026-11-12T20:19Z, recommended A A.",
+   "state": "answered 2026-11-13: A A"
+  },
+  {
+   "what": "Sync re-run chain on main (src/backend/syncController.ts finally/queued): continuous edits faster than one sync pass on a large production chain passes, Takes 1-2 s. Found by phase 6 builder; not phase 6. Ask owner: fix inside the run before phase 8 (AC-6 two editors) as a scoped fix, or leave for later.",
+   "state": "answered 2026-11-13: B A A B"
+  },
+  {
+   "what": "Phase 6 AC-4 large fixture at 3 s cue edits: on 1502 p95 vs off 1168 (+334 ms) fails; typical +1.9 passes. Options: a fix output version switch in phase 6 (risky), b known gap judged at end of phase 7 with auto updates left off in production until then, c keep auto updates off for large productions until phase 7. Recommended b.",
+   "state": "answered 2026-11-13: B A A B"
   }
  ],
  "ownerDecisions": [
@@ -144,7 +174,10 @@
    "meaning": "D1: failed load reported red at 20 s, queued commands kept and run hidden on load, held Take still gives up at 20 s. D2: a stage failure stays red until the next Take or Out of that graphic, All out or deletion; later commands still run."
   },
   "AC-4 A (2026-11-12): keep 50 ms p95 during a publish; G3 must take the publish work off the Take path; judged on a production build.",
-  "D1 A (2026-11-12): keep 5 s ceiling; phase 6 starts the output preparing at once; ceiling judged at end of phase 7 once only changed graphics are sent."
+  "D1 A (2026-11-12): keep 5 s ceiling; phase 6 starts the output preparing at once; ceiling judged at end of phase 7 once only changed graphics are sent.",
+  "G3 Q1 A, Q2 A (2026-11-13): AC-4 judged on publishing itself, design update/add loops reported only; newest save publishes even with an older design.",
+  "#2392 fix taken into the run: owner yes 2026-11-13.",
+  "2026-11-13 B A A B: phase 6 AC-4 large gap judged at end of phase 7, auto updates off in production until then; #2494 fixed in run before phase 8; #2495 guard fixed in run; leftovers stay."
  ],
  "phase2": {
   "builderCostUSD": "about 50",
@@ -204,9 +237,27 @@
   "epoch": 3,
   "deadline": "2026-11-13T18:50:40Z"
  },
- "nextCheckin": "2026-11-12T20:20:00Z",
+ "nextCheckin": "2026-11-13T18:40:00Z (block renewal before 18:50)",
  "traps5": [
   "the job queue runs two browser jobs on one port and one account",
   "graphic frames are sandboxed (checker 5-c-b19d)"
+ ],
+ "phase6": {
+  "builder": "session_017SdbwNVRSiWwA1WD4d5vwu",
+  "source": "814f105901f01bdfe1bdadc12afed0cfefa10319",
+  "buildBackup": "claude/plan-live-publishing-6-build-wip at e1885e7a1cef033384c0f6498ddaf567116e85f2 (no PR)",
+  "design": "f528683c8a950ac935679241be4860d643bf8487 (PR 2469, G3, /so A at c5d09460)",
+  "wip": "claude/plan-live-publishing-6-build-wip at da2a5dfb; PR 2488 at fd1a811d held"
+ },
+ "incidents": [
+  {
+   "at": "2026-11-13T10:42-10:53Z",
+   "what": "phase 6 builder ran configured walk (jobs j-0027, j-0028) without local-stack env; cloud shell env points at production with service key; publish-guard.spec afterEach set production_copies off and created system_settings auto_publish {on:false}; E2E account test productions written on production",
+   "fix": "coordinator restored production_copies ON at ~10:53Z (verified with production_copies_state); auto_publish row and test productions left, reported to owner",
+   "trap": "Cloud worker env VITE_SUPABASE_URL is production and SUPABASE_SERVICE_ROLE_KEY is an admin key: configured/e2e jobs must load local-stack settings and check 127.0.0.1 first. Add to known-traps at end of run; consider a guard in the configured suite refusing a non-local URL."
+  }
+ ],
+ "notes": [
+  "2026-11-13T13:52Z fix-2494 PR 2497 head 3428c9c3 (Risky); waits for #2488 to land, then merges main and measures large fixture before/after. Tell builder session_017SdbwM1Sfr4TFM9JYad473 when #2488 lands."
  ]
 }
