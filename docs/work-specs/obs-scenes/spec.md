@@ -975,3 +975,118 @@ Filled in by each phase's pull request.
   shows at the holder's next read, up to the interval. A pick is an owner write to the tree
   (`setLiveData`), the same road as editing a value on the Data tab.
 - Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS5b.md`.
+
+### OS1b: Take, Out and copies per scene
+
+- Rules (written before coding):
+  - C1. A scene graphic is a pool graphic that a graphic or picture cue of a scene uses, while the
+    production's switch is on (`obsScenesOf`). With the switch off there is none, and nothing in
+    this phase changes anything.
+  - C2. After every write this build makes to a production record whose switch is on, each pool
+    graphic is used by at most one scene. A graphic used by several stays with one: the scene that
+    used it before the write, if it still does, else the first of them in rundown order. Each
+    other scene's cues of it point at that scene's copy of it.
+  - C3. A scene's copy of a graphic is a pool graphic that scene already uses and that was copied
+    from it (`sceneCopyOf`, additive optional, the source's pool id). When the scene has none, the
+    same write makes one, so two cues of one graphic in one scene share one copy, whichever write
+    added them.
+  - C4. A new copy: a new pool id; the name "<name> · <scene>", or "<name> · <scene> 2", 3 and on
+    when that name is taken; the source's design, type, library link, sounds and placement
+    (`adjust`) at the moment of copying, and from then on its own; the next free layer, so it never
+    replaces another graphic on air; the source's bindings under its own name, and the source's
+    control arrangement when the profile is one this build reads. It starts off air.
+  - C5. Cues outside every scene never cause a copy and never move to one. A graphic used both by
+    a scene and outside every scene stays one graphic, and it is that scene's.
+  - C6. Nothing merges a copy back or deletes it: a cue that leaves its scene, a folder no longer a
+    scene, or the switch turned off keeps the copy and the cue's pointer. Undo restores the
+    rundown, graphics included, as it was before the write that made the copy.
+  - C7. Take and Out of a scene graphic's cue act on its own pool graphic, so they change only the
+    link of the scene that holds it (OS1a R6 reads every other graphic past). The ordinary
+    production link shows every graphic, as today.
+  - C8. Reloading a scene link restores each of its graphics as on or off, from its reports and
+    the log, as OS1a R7 does.
+  - C9. All out, from any door (the header, a key, Companion), clears what it clears today except
+    the scene graphics of the production as this page holds it: they are not in its targets from
+    the page's own list, from what the server's heads say, or in the fallback of every graphic. A
+    scene graphic on air stays on air, on its scene link and on the ordinary link; one off stays
+    off. With the switch off, All out is exactly today's.
+  - C10. A cue that a write repoints while its graphic is on air does not move air: the source
+    stays on air until its own Out (from its scene's cue), and the copy starts off air.
+- Rules found by the Rules-first `/so`, before code (it agreed with corrections):
+  - C2 covers the writes of the record's write envelope (`patchShowChecked`): every write that
+    moves, adds, pastes, duplicates or repoints a cue, makes, renames or removes a folder, flags a
+    scene, or turns the switch on. Adding a pool graphic (its new cue is in no folder), a layer
+    change, a sync from another device or a team merge do not run it; the record they leave is
+    put in order by its next envelope write. Undo puts back a rundown that was already in order.
+  - C3 amended: a copy's pool id is derived from (source id, scene id, n), so the envelope's
+    rebased pass and two devices making the same copy meet one id, and a team merge keeps one
+    copy. The scene's copy is the first of those ids that is free, or that a copy of the same
+    source holds while no other scene uses it, so a copy left behind under C6 is taken up again.
+  - C10 replaced: a write that would move a cue this page has on air to a copy is refused whole,
+    with "Take "<cue>" off air before you put its graphic in a second OBS scene." Nothing of the
+    write lands. The production page tells the record which cues it has on air.
+  - C11. A cue saved by a newer version (a selection or typed data this build cannot read) is never
+    moved to a copy: the write is refused whole, in words that say why.
+  - C12. The production's own picture graphic (the pool's picture graphic with no library link) is
+    never copied: its pictures would be published twice, against the published row's limit, and a
+    new upload would reach one of the two only. Its cues in two scenes share one graphic and one
+    air state, as OS1a R12 said. Sent to the owner through the coordinator; this is the default
+    until answered.
+  - C4 amended: re-adding a library graphic replaces the original pool entry, never a scene copy
+    that shares its link. A copy keeps its link and is updated from the library by its own Update,
+    as every pool graphic is.
+- Not in this phase, with reasons: "making a scene, or adding a graphic to one, takes it" (the
+  behaviour section; OS1a R11 left joining on air to OS1b) is not in AC-2 or AC-3, and a Take made
+  by an edit would air the graphic on the ordinary link too and before the scene link has the
+  publish that names it. It is filed as #2489 for the coordinator to place. The offline
+  controller export and the Bridge's offline clear keep today's All out: neither knows scenes.
+- Rules found after coding, by the `/check` review: a record that came shared (a sync, an older
+  build) leaves a held cue the write did not touch where it is, so an unrelated edit still lands,
+  and only a held cue the write itself moved refuses it (C10 amended); a copy's layer is free among
+  the graphics and the server's templates, as a new template's is (C4); the on-air guard reads the
+  session's air part, not the paced copy the page draws, so a Take that just landed counts; All
+  out leaves a scene folder's One-by-one step where it is, not only its graphics (C9); a
+  copy left behind is taken up again only when no cue at all uses it (C5); with the original gone,
+  re-adding the library graphic adds it again rather than replacing one scene's copy.
+- Found by the PR review (on 7abb850b), both answered:
+  - C11 amended: a cue with a live candidate (a selection) is never moved to a copy either, and the
+    write is refused in words: its selection names a recipe made for its graphic, which the copy's
+    gate would refuse, and a write may not change recipes (`selectionFrozen`).
+  - C2 covers a team save's merge too: two teammates can each put a cue of a graphic that was in
+    no scene into a different scene, and the merge joins them. The save's retry separates the merged
+    document against the teammate's saved one before it goes up; a held cue there stays as it is,
+    since nobody pressed anything to refuse, and the next write moves it once it is free.
+- Found by the PR review on e89a10ae, answered: All out stops a scene folder's run still being
+  sent, as every folder's (C9 amended). A scene folder can hold server cues, and one landing after
+  All out must be cut and the rest never sent; a scene graphic still landing was not on air, so
+  cutting it keeps "out stays out". Only the One-by-one step is kept.
+- Not changed, with reasons:
+  - All out reads the scenes of the record this page holds, not also the published payload's: the
+    page holds no published payload, and an edit from another device reaches this page's record
+    through its sync. A scene graphic another device published a moment ago, before its record
+    arrives here, is cleared by All out, as any hand-taken graphic is.
+  - A copy's name is free in the pool only, not among library names. A copy normally keeps its
+    library link, which a publish follows before any name; a link-less copy is matched by name as
+    every link-less pool graphic already is.
+  - The offline controller export and the Bridge's offline clear keep today's All out (no scenes
+    there), and the offline clear only unloads a renderer from a CasparCG slot.
+  - "Adding a graphic to a scene takes it" is not built (see above): sent to the coordinator as a
+    placement question with C12.
+- Previous verified `main`: `f528683c8a950ac935679241be4860d643bf8487` (CI run 43408100165,
+  configured suite 43408100325).
+- Revert: `git revert -m 1 <this pull request's merge commit>`. Nothing persisted is renamed and no
+  migration. A `sceneCopyOf` left on a pool graphic is ignored by the reverted build, and a scene
+  copy stays an ordinary pool graphic with its cues, so nothing is lost; All out then clears scene
+  graphics again.
+- Decisions: the separation runs inside the record's write envelope (`patchShowChecked`), after
+  the write's own change and beside the frozen checks, so every door that adds a cue to a scene (drag, menu, paste, duplicate,
+  flag, switch) gets it without a call of its own, the rebased pass included. A copy is a whole pool
+  graphic, not a new kind of reference, so publish, export, Update and the output treat it as any
+  other. The copy sits after its source in the pool, named "<name> · <scene>". Each open production
+  page tells the model which of its cues are on air, by production id, read only when a cue would
+  move. A copy's id is the shared `deterministicUuid` of (source, scene, n).
+- Traps: duplicating the only cue of a folder copies the folder ("<folder> copy"), and the copied
+  folder is not a scene. An unpublished production's Take shows `UP` (`up-here`), not ON AIR. The
+  export names a copy's folder by its slug (`hairline_desk`).
+- Evidence: `docs/work-specs/obs-scenes/evidence/phase-OS1b.md`.
+

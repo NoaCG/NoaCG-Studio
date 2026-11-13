@@ -14,11 +14,14 @@ export function allOutTargets(input: {
   heads: ReadonlyMap<string, boolean> | null;
   all: readonly string[];
   published: boolean;
+  /** Graphics All out leaves as they are, on or off, whoever names them: the scene graphics of a
+   *  production with OBS scenes on (docs/work-specs/obs-scenes/spec.md OS1b C9). */
+  keep?: ReadonlySet<string>;
 }): string[] {
   const onServer = [...(input.heads ?? [])].filter(([, on]) => on).map(([graphic]) => graphic);
   const named = [...new Set([...input.local, ...onServer])];
-  if (named.length || !input.published) return named;
-  return [...new Set(input.all)].filter((graphic) => !input.heads?.has(graphic));
+  const targets = named.length || !input.published ? named : [...new Set(input.all)].filter((graphic) => !input.heads?.has(graphic));
+  return targets.filter((graphic) => !input.keep?.has(graphic));
 }
 
 /** How long All out reads Clearing… waiting for the heads to say each graphic is off, before it

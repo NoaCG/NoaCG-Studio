@@ -20,7 +20,7 @@
 
 import { getSupabase } from './supabase';
 import { listMyTeamMembers, listMyTeams, type Team, type TeamMember } from './teams';
-import { deleteShow, type Show } from '../model/shows';
+import { deleteShow, separateMergedScenes, type Show } from '../model/shows';
 import {
   applyServerTeamShow,
   applyServerTeamShows,
@@ -678,6 +678,8 @@ async function pushSave(id: string): Promise<void> {
         ];
         setState({ notes: { ...state.notes, [id]: said.join(' ') } });
       }
+      // OS1b C2: two teammates' cues of one graphic merged into two OBS scenes get a copy each.
+      next = separateMergedScenes(next, theirs);
       applyServerTeamShow({ ...next, teamId: known.teamId });
       sent = { ...next, teamId: known.teamId };
       base = theirs;
