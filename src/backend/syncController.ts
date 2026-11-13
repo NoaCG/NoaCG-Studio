@@ -234,6 +234,8 @@ export async function syncNow(): Promise<SyncPassReceipt> {
   const answered = waiting;
   waiting = [];
   confirmedElsewhereAt = undefined;
+  clearTimeout(settleLater);
+  settleLater = undefined;
   let receipt = unavailable;
   const firstPass = !checkedThisPage || !libraryHasArrived();
   // Nothing unconfirmed: the chip stays Synced while this pass looks (D14, reproduced on focus);
@@ -311,6 +313,7 @@ export async function syncNow(): Promise<SyncPassReceipt> {
           // No broadcast: a confirmation names no write (#2499), and this pass did not cover the
           // adopted changes, so another tab that adopted them would settle on it too early.
           setState({ phase: 'pending', last: result, detail: 'The current revision has not been confirmed in the cloud.' });
+          if (!ownChangePending) settleAdoptedLater();
         }
       }
     }
@@ -333,12 +336,12 @@ export async function syncNow(): Promise<SyncPassReceipt> {
       // DO NOT CHAIN PASS-TO-PASS WHILE EDITS KEEP ARRIVING (#2494). On a large production one pass
       // outlasts the gap between edits, so a pass that ends with a newer revision waiting used to
       // start the next pass at once, and the sync ran back to back for as long as the typing went
-      // on — each pass re-uploading the whole record and pushing every Take 1 to 2 s late. A caller
+      // on, each pass re-uploading the whole record and pushing every Take 1 to 2 s late. A caller
       // that awaited syncNow WHILE this pass ran (a deep-link or record lookup, the online handler)
       // is a waiter and is answered at once, as before. Otherwise the only reason to run again is a
       // revision a local edit bumped while this pass ran: a LOCAL edit already armed the 2.5 s
       // debounce (scheduleSync), so leaving it to fire is what makes continuous typing cost one pass
-      // per pause, not one pass per pass — no edit is lost and a pass still runs once typing stops.
+      // per pause, not one pass per pass: no edit is lost and a pass still runs once typing stops.
       // An ADOPTED cross-tab change bumps the revision but arms no debounce and needs no pass here:
       // the tab that made it owns pushing it and broadcasts its confirmation
       // (followOtherTabsConfirmations), so running one would be the per-tab list load the
@@ -418,6 +421,21 @@ let confirmedChannel: BroadcastChannel | null = null;
  *  That pass settles on it when it ends with only adopted changes behind it: since #2494 such a pass
  *  no longer runs another one at once, so a confirmation dropped here would leave the chip pending. */
 let confirmedElsewhereAt: number | undefined;
+/** THE BACKSTOP FOR ADOPTED CHANGES NOBODY CONFIRMS. A confirmation names no write (#2499), so a
+ *  pass that ends with only other tabs' changes unconfirmed waits for their writers to announce
+ *  them - and two tabs that each adopted the other's edit during their own passes wait for each
+ *  other for ever. One pass of this tab's own, 30 s later unless a confirmation settles it first,
+ *  confirms the whole library and announces it. At most one per 30 s, like the focus pass, so a tab
+ *  beside another that keeps typing never chains (#2494); and well inside the 60 s before the chip
+ *  warns. */
+let settleLater: ReturnType<typeof setTimeout> | undefined;
+function settleAdoptedLater(): void {
+  if (settleLater !== undefined) return;
+  settleLater = setTimeout(() => {
+    settleLater = undefined;
+    if (state.phase === 'pending' && !running) void syncNow();
+  }, FOCUS_PASS_GAP_MS);
+}
 function followOtherTabsConfirmations(): void {
   if (typeof BroadcastChannel === 'undefined') return;
   confirmedChannel = new BroadcastChannel('noacg-sync-confirmed');
@@ -432,6 +450,8 @@ function followOtherTabsConfirmations(): void {
     const unansweredHere = state.phase === 'error' && unansweredPasses > 0;
     if (state.phase !== 'pending' && state.phase !== 'syncing' && !unansweredHere) return;
     stopRetrying();
+    clearTimeout(settleLater);
+    settleLater = undefined;
     confirmedRevision = revision;
     setState({ phase: 'synced', last: state.last, verifiedAt: new Date().toISOString() });
   };

@@ -120,7 +120,7 @@ test('continuous edits during a pass cost one pass per pause, not one pass per p
   debounce()[0](); await tick();
   assert.equal(h.passes.length, 2, 'a pass still runs once the edits stop');
   h.passes[1].resolve(result()); await tick();
-  assert.equal(h.api.getSyncState().phase, 'synced', 'the revision is confirmed — no edit lost');
+  assert.equal(h.api.getSyncState().phase, 'synced', 'the revision is confirmed: no edit lost');
   assert.equal(h.passes.length, 2, 'and the chain has ended');
 });
 
@@ -255,6 +255,36 @@ test('a pass that ends pending tells no other tab it confirmed anything', async 
   a.passes[0].resolve(result()); await settle();
   assert.equal(a.api.getSyncState().phase, 'pending');
   assert.equal(c.api.getSyncState().phase, 'pending', 'b\'s edit is not in the cloud yet');
+});
+
+const settleOf = (h) => h.timers.filter((fn) => fn.ms === 30_000 && !fn.cleared && !fn.fired);
+
+test('two tabs that each adopted the other\'s edit during their passes do not wait on each other for ever', async () => {
+  const browser = browserTabs(), a = browser.tab(), b = browser.tab();
+  a.edit(); b.edit(); debounceOf(a)[0](); debounceOf(b)[0](); await tick();
+  a.adopt(); b.adopt();                           // each tab's edit reaches the other mid-pass
+  a.passes[0].resolve(result()); b.passes[0].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'pending');
+  assert.equal(b.api.getSyncState().phase, 'pending');
+  assert.equal(settleOf(a).length, 1, 'one settle pass armed, not an immediate re-run');
+  assert.equal(a.passes.length, 1);
+  settleOf(a)[0](); await tick(); a.passes[1].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'synced');
+  assert.equal(b.api.getSyncState().phase, 'synced', 'a\'s whole-library confirmation settles b');
+  assert.equal(settleOf(b).length, 0, 'and cancels b\'s own settle pass');
+  assert.equal(b.passes.length, 1);
+});
+
+test('a confirmation that arrives first cancels the settle pass', async () => {
+  const browser = browserTabs(), a = browser.tab(), b = browser.tab();
+  a.edit(); debounceOf(a)[0](); await tick();
+  a.adopt();
+  a.passes[0].resolve(result()); await settle();
+  assert.equal(settleOf(a).length, 1);
+  void b.api.syncNow(); await tick(); b.passes[0].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'synced');
+  assert.equal(settleOf(a).length, 0);
+  assert.equal(a.passes.length, 1);
 });
 
 test('an own edit made during the pass is not covered by a held confirmation', async () => {
