@@ -205,6 +205,29 @@ export function describeTarget(target) {
 }
 
 /**
+ * Refuse the run unless this environment names a LOCAL stack - `unconfigured` included.
+ *
+ * `assertConfiguredTarget` admits an environment with no backend at all, because the configured
+ * suite's specs gate themselves off without credentials and its verdict refuses a run that
+ * executed nothing. A run that does NOT skip itself cannot take that answer: the endurance walks
+ * sign in, delete the account's productions and wipe its graphics the moment they start, and
+ * their Vite server fills what this process left unset out of the environment file - which on a
+ * maintainer's machine is production. "Nothing here names a backend" is not the same as "the
+ * backend is local", and only the second is safe for a run that writes from its first step.
+ */
+export function requireLocalStack(env = process.env, what = 'this run') {
+  const target = assertConfiguredTarget(env, what);
+  if (target.kind !== 'local') {
+    throw new Error(
+      `Refusing to start ${what}: it writes from its first step, so it needs a local Supabase stack of its own, ` +
+        `and this environment names ${target.kind === 'unconfigured' ? 'no backend at all' : `a ${target.kind} one`}. ` +
+        `Start one (supabase start) and take every backend variable from \`supabase status\`.`,
+    );
+  }
+  return target;
+}
+
+/**
  * Refuse the run unless this environment's backend is one a configured run may destroy.
  * `what` names the caller, so the message says which door the run was trying.
  */

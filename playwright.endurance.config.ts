@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-import { assertConfiguredTarget } from './scripts/configured-target.mjs';
+import { requireLocalStack } from './scripts/configured-target.mjs';
 import { livePort } from './scripts/dev-port.mjs';
 
 // THE ENDURANCE RUN (docs/work-specs/playout-expanded-acceptance/spec.md, phase E8.1b): one walk of
@@ -16,7 +16,11 @@ const minutes = Number(process.env.ENDURANCE_MINUTES ?? 5);
 // checked VITE_SUPABASE_URL alone and accepted a bare `http://localhost:` with no port, so an
 // ambient production SUPABASE_URL walked straight past it into the server.
 try {
-  assertConfiguredTarget(process.env, 'the endurance walk');
+  // `requireLocalStack`, not the plain assertion: this walk signs in and deletes the account's
+  // productions before it builds an admin client, so it cannot take "no backend named here" for
+  // an answer the way the configured suite can - this config loads no environment file, and the
+  // Vite server it starts fills what this process left unset out of one.
+  requireLocalStack(process.env, 'the endurance walk');
 } catch (refusal) {
   throw new Error(
     `${(refusal as Error).message}\n\nStart the walk through npm run endurance:election, which takes every backend variable from the local stack.`,

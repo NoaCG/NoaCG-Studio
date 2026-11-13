@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
-import { assertConfiguredTarget } from '../../scripts/configured-target.mjs';
+import { requireLocalStack } from '../../scripts/configured-target.mjs';
 import { validateCloudWorkerRequest } from '../../scripts/e2e-workers.mjs';
 import { livePort } from '../../scripts/dev-port.mjs';
 
@@ -9,7 +9,10 @@ import { livePort } from '../../scripts/dev-port.mjs';
 // The whole backend rule, not one variable of it (scripts/configured-target.mjs, issue #2495):
 // this run's dev server mounts the api/ handlers, which prefer SUPABASE_URL and an admin key, so
 // checking only the browser's spelling let an ambient production one through.
-assertConfiguredTarget(process.env, 'the isolated persistence qualification');
+// `requireLocalStack`, not the plain assertion: this qualification writes from its first step, so
+// an environment that names no backend at all is not an answer it can take (the server it starts
+// would fill the gap out of the environment file).
+requireLocalStack(process.env, 'the isolated persistence qualification');
 if (!process.env.E4_PROJECTS_SOURCE || !process.env.E4_PROJECTS_RECEIPT) {
   throw new Error('Start this isolated qualification through npm run qualify:editor-projects.');
 }

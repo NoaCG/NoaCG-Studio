@@ -15,7 +15,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, globSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertConfiguredTarget, configuredTarget, DECLARATION, describeTarget, HOSTED_STAGING, isLocalStackUrl, KEY_VARS, localStackEnv, servedTarget, URL_VARS } from './configured-target.mjs';
+import { assertConfiguredTarget, configuredTarget, DECLARATION, describeTarget, HOSTED_STAGING, isLocalStackUrl, KEY_VARS, localStackEnv, requireLocalStack, servedTarget, URL_VARS } from './configured-target.mjs';
 import { DEFAULT_STAGING_REF } from './supabase-projects.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -223,6 +223,24 @@ test('a run that mints a local stack pins every variable the rule reads', () => 
   }
 });
 
+test('a run that writes from its first step needs a local stack, not merely no refusal', () => {
+  // "No backend named here" is an answer the configured suite can take - its specs skip without
+  // credentials and its verdict refuses a run that executed nothing. The endurance walks cannot:
+  // they sign in and delete the account's productions before they build an admin client, and the
+  // server they start fills what this process left unset out of the environment file.
+  assert.throws(() => requireLocalStack({}, 'the endurance walk'), /needs a local Supabase stack of its own/);
+  assert.throws(() => requireLocalStack({}, 'the endurance walk'), /no backend at all/);
+  assert.throws(
+    () => requireLocalStack({ VITE_SUPABASE_URL: `https://${DEFAULT_STAGING_REF}.supabase.co`, [DECLARATION]: HOSTED_STAGING }, 'the endurance walk'),
+    /needs a local Supabase stack/,
+  );
+  assert.equal(requireLocalStack(LOCAL_STACK, 'the endurance walk').kind, 'local');
+  // And it is what both endurance configs ask for.
+  for (const config of ['playwright.endurance.config.ts', 'e2e/endurance/editor-projects.config.ts']) {
+    assert.match(file(config), /requireLocalStack\(process\.env/, config);
+  }
+});
+
 test('the one local-stack test is the one every local-stack run uses', () => {
   assert.equal(isLocalStackUrl('http://127.0.0.1:54321'), true);
   assert.equal(isLocalStackUrl('HTTP://LOCALHOST:54321'), true);
@@ -231,7 +249,7 @@ test('the one local-stack test is the one every local-stack run uses', () => {
   // The endurance runs asked the same question with weaker patterns of their own, over one
   // variable. They ask the whole rule now: their dev servers mount the api/ handlers too.
   for (const config of ['playwright.endurance.config.ts', 'e2e/endurance/editor-projects.config.ts']) {
-    assert.match(file(config), /assertConfiguredTarget\(process\.env/, config);
+    assert.match(file(config), /requireLocalStack\(process\.env/, config);
     assert.doesNotMatch(file(config), /isLocalStackUrl/, config);
   }
   // And the connector spike's production denylist is this module's, not a second copy.
