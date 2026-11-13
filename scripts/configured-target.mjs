@@ -41,6 +41,8 @@
 // a shell that has exported a production `.env` wholesale is refused there too, through
 // `_helpers.ts`, and unsetting those two variables is the fix.
 
+import { stagingRef } from './supabase-projects.mjs';
+
 /** Every variable a configured run or `api/` can take a backend from (api/_lib/*: SUPABASE_URL wins). */
 export const URL_VARS = ['SUPABASE_URL', 'VITE_SUPABASE_URL'];
 
@@ -142,7 +144,21 @@ export function configuredTarget(env = process.env) {
   const nonLocal = urls.filter(([, value]) => !LOCAL.test(value));
   if (nonLocal.length === 0) return { kind: 'local', urls };
 
-  if (declared === HOSTED_STAGING) return { kind: HOSTED_STAGING, urls };
+  if (declared === HOSTED_STAGING) {
+    // THE DECLARATION NAMES ONE PROJECT, not "hosted and not production". A run may only reach a
+    // backend it owns and can empty, and the org owns exactly one hosted project like that: the
+    // staging project `scripts/supabase-projects.mjs` already names for the drift check and the
+    // advisor gate (`STAGING_SUPABASE_PROJECT_REF` overrides it for a fork). Without this, a
+    // rotated or mistyped `STAGING_SUPABASE_URL` would be admitted because it merely is not
+    // production - which is somebody else's database, and the suite deletes rows.
+    const ref = stagingRef(env);
+    const elsewhere = urls.filter(([, value]) => !value.includes(ref));
+    return elsewhere.length === 0
+      ? { kind: HOSTED_STAGING, urls }
+      : refuse(
+          `${DECLARATION}=${HOSTED_STAGING} admits the staging project only, and ${elsewhere.map(([name]) => name).join(' and ')} names another: ${elsewhere.map(([, value]) => host(value)).join(', ')}. A run may only reach a backend it owns and can empty.`,
+        );
+  }
 
   return refuse(
     `${nonLocal.map(([name]) => name).join(' and ')} is not a local Supabase stack: ${nonLocal.map(([, value]) => host(value)).join(', ')}.${held} A configured run may only reach a stack it owns - start one (supabase start) and take its settings from \`supabase status\`, as .github/actions/configured-stack and scripts/configured-trial.mjs do. The hosted staging project is the one exception and must say so: ${DECLARATION}=${HOSTED_STAGING} (.github/workflows/hosted-latency.yml).`,

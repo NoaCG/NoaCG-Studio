@@ -49,13 +49,20 @@ async function servedBackend(base: string): Promise<string | null> {
       return false;
     });
   // Nothing listening at all: webServer failed, or a future Playwright reorders the phases. The
-  // run is about to fail on its own, and there is no served backend to judge.
+  // run is about to fail on its own, and there is no served backend to judge. Deliberately
+  // fail-open, as `_offline-guard.ts` is for the same case: the alternative is a guard that turns
+  // "the server did not start" into a refusal about backends, which sends the next person looking
+  // in the wrong place. The suite starts its own server, so a reachable wrong one is the case
+  // that matters and that case answers.
   if (!listening) return null;
 
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage();
-    await page.goto(`${base}/app`, { waitUntil: 'domcontentloaded' });
+    // Bounded like the probe above: a server that answers `/` and then stalls on `/app` should
+    // fail here in ten seconds with this file in the stack, not after Playwright's 30-second
+    // navigation default.
+    await page.goto(`${base}/app`, { waitUntil: 'domcontentloaded', timeout: PROBE_TIMEOUT_MS });
     // Vite does not inline `import.meta.env.VITE_*` in dev, so the value cannot be read by
     // fetching text; e2e/_env-probe.ts exists to be evaluated inside a real page, where it
     // resolves to exactly what the app sees.

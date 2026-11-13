@@ -27,7 +27,8 @@
 
 // The project this never runs against: production, which has real users. The denylist lives in
 // scripts/configured-target.mjs, which owns the same refusal for the configured suite (issue
-// #2495), so moving a project is one edit rather than a hunt.
+// #2495), so these two agree by construction. The ref is also spelled out in
+// .github/workflows/hosted-latency.yml's own shell guard and in scripts/connector-switch.test.mjs.
 import { NEVER_REFS } from './configured-target.mjs';
 import { execFileSync } from 'node:child_process';
 import { createHash, randomBytes, webcrypto } from 'node:crypto';

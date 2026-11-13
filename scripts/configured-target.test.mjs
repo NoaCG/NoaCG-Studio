@@ -87,6 +87,16 @@ test('api/ reads SUPABASE_URL as well, so a local VITE_SUPABASE_URL cannot smugg
   assert.match(other.reason, /^.*\bSUPABASE_URL\b/);
 });
 
+test('the staging declaration admits the staging project, not merely "not production"', () => {
+  // A rotated or mistyped STAGING_SUPABASE_URL is somebody else's database, and the suite deletes
+  // rows. The declaration names one project - the one scripts/supabase-projects.mjs already names.
+  const elsewhere = { ...CLOUD_WORKER, VITE_SUPABASE_URL: 'https://someotherproject00.supabase.co', [DECLARATION]: HOSTED_STAGING };
+  assert.equal(configuredTarget(elsewhere).kind, 'refused');
+  assert.match(configuredTarget(elsewhere).reason, /admits the staging project only/);
+  // And a fork that keeps its own staging project says so the way the rest of the repo does.
+  assert.equal(configuredTarget({ ...elsewhere, STAGING_SUPABASE_PROJECT_REF: 'someotherproject00' }).kind, HOSTED_STAGING);
+});
+
 test('hosted staging runs only when it says so, and never at the production ref', () => {
   const staging = { ...CLOUD_WORKER, VITE_SUPABASE_URL: `https://${DEFAULT_STAGING_REF}.supabase.co` };
   assert.equal(configuredTarget(staging).kind, 'refused');
