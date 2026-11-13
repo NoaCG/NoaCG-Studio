@@ -10,7 +10,8 @@
 // from another scene, or taken by hand outside any scene), and a scene link draws a re-Take settled
 // (OS1a R9).
 //
-// A scene link reads a command for a graphic of another scene past (OS1a R6) until it has read the
+// The Take waits for the page's own sender to be the published one (a first publish lands
+// before the page renders its slug). A scene link reads a command for a graphic of another scene past (OS1a R6) until it has read the
 // publish that moved the graphic into its scene. So the Take waits until every open link of those
 // scenes reports that publish, or JOIN_WAIT_MS, after which it goes anyway: such a link has the
 // Take in the log, and its next boot recovers it (R7), as does a link that was not open at all.
@@ -40,6 +41,9 @@ export function sceneLinksHold(entries: readonly Pick<LiveEntry, 'kind' | 'scene
 }
 
 export interface SceneJoinIo {
+  /** The page's sender writes to the published log now. A first publish lands before the page
+   *  renders its slug, and a Take sent before that would reach this page's PROGRAM only. */
+  published: () => boolean;
   /** The production's Presence entries as they stand now. */
   entries: () => readonly Pick<LiveEntry, 'kind' | 'scene' | 'ready'>[];
   /** The production record as it is now: each join takes its scene's cue there. */
@@ -62,9 +66,15 @@ export async function takeJoined(io: SceneJoinIo, joins: readonly SceneJoin[], n
   const wait = io.wait ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const scenes = new Set(joins.map((j) => j.scene));
   const start = now();
-  while (io.live() && !sceneLinksHold(io.entries(), scenes, n) && now() - start < JOIN_WAIT_MS) await wait(POLL_MS);
+  const due = () => io.published() && sceneLinksHold(io.entries(), scenes, n);
+  while (io.live() && !due() && now() - start < JOIN_WAIT_MS) await wait(POLL_MS);
   const record = io.live() ? io.record() : undefined;
   if (!record) return;
+  // Never sent as an unpublished Take: it would air on this page alone and never reach the log.
+  if (!io.published()) {
+    for (const j of joins) io.failed(j, new Error('the page did not take the publish in time'));
+    return;
+  }
   const cues = sceneCuesOf(record, joins);
   for (const [i, j] of joins.entries()) {
     const cue = cues[i];

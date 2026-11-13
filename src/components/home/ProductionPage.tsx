@@ -2902,6 +2902,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         const showId = show.id;
         void takeJoined(
           {
+            published: () => !!verbSender.current?.published,
             entries: () => livePresenceRef.current.peers,
             record: () => loadShows().find((s) => s.id === showId),
             take: (cue) => takeCue(cue),

@@ -18,6 +18,10 @@ configured checks only: nothing here is OBS hardware proof (that is OS7).
 - J3. A graphic already up on the page is taken again: it may be up in another link only (moved
   from another scene, or taken by hand outside every scene). A scene link draws the re-Take
   settled (R9); on the ordinary link it is a re-Take, as a press would be.
+- J3b. The Take waits for the page's own sender to be the published one before it sends. A first
+  publish lands before the page renders its new slug, and a Take sent in that gap would reach this
+  page's PROGRAM only, never the hosted log, and no later scene link could recover it (Codex P1 on
+  b26d180c). If the sender never becomes published, nothing is sent and the page says so.
 - J4. The Take waits until every open link of those scenes reports having read that publish
   (READY's `v.n`, or a change towards it, `chg.v.n`), because a link reads a command for another
   scene's graphic past until then (OS1a R6). After 20 s it goes anyway: such a link has the Take
@@ -45,6 +49,8 @@ configured checks only: nothing here is OBS hardware proof (that is OS7).
 
 - `joinedScenes` ignoring the replaced row's scenes: one Node test fails. Restored.
 - `sceneLinksHold` always true (no wait): three Node tests fail. Restored.
+- The published-sender guard removed: the first-publish test (a slug that arrives late) fails.
+  Restored.
 - The page's call (`ProductionPage.tsx` `onPublished`) is what the configured walk guards:
   without it nothing takes Hairline and the walk's first "on air in its scene link" poll fails.
   Not run as a mutation here: this machine has no local stack.

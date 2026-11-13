@@ -73,6 +73,7 @@ function clockIo(entries, record = production()) {
   const taken = [];
   const failures = [];
   const io = {
+    published: () => true,
     entries: () => entries(t),
     record: () => record,
     take: async (cue) => {
@@ -113,4 +114,18 @@ test('no link open: the Take goes at once; one that throws is said and the other
   gone.io.live = () => false;
   await takeJoined(gone.io, [{ scene: 'scA', graphic: 'A2' }], 7);
   assert.deepEqual(gone.taken, []);
+});
+
+test('a first publish: the Take waits for the page to send to the published log, and never goes unpublished', async () => {
+  // The page renders its new slug 40 ms after the publish lands.
+  const late = clockIo(() => []);
+  late.io.published = () => late.io.now() >= 40;
+  await takeJoined(late.io, [{ scene: 'scA', graphic: 'A2' }], 1);
+  assert.deepEqual(late.taken, [{ cue: 'a2', at: 250 }]);
+  // It never does: nothing is sent, and the page says so.
+  const never = clockIo(() => []);
+  never.io.published = () => false;
+  await takeJoined(never.io, [{ scene: 'scA', graphic: 'A2' }], 1);
+  assert.deepEqual(never.taken, []);
+  assert.deepEqual(never.failures, ['A2: the page did not take the publish in time']);
 });
